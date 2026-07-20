@@ -1,4 +1,4 @@
-=== Gogh Canvas ===
+=== Gogh Editor ===
 Contributors: jamiemarsland
 Tags: page builder, canvas, drag and drop, design, blocks
 Requires at least: 6.5
@@ -12,7 +12,7 @@ A freeform canvas for WordPress. Drag anything anywhere on your live page — Go
 
 == Description ==
 
-Gogh Canvas turns the front end of your site into the design surface. There is no separate builder screen and no copy‑paste step: the live page **is** the canvas.
+Gogh Editor turns the front end of your site into the design surface. There is no separate builder screen and no copy‑paste step: the live page **is** the canvas.
 
 Drag headings, text, buttons, images and badges anywhere you like. Behind the scenes Gogh solves your freeform layout into a clean, responsive CSS grid and saves it back as **real WordPress core blocks** — headings, paragraphs, buttons and images your theme already knows how to style.
 

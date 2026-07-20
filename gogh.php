@@ -1,6 +1,6 @@
 <?php
 /**
- * Plugin Name: Gogh Canvas
+ * Plugin Name: Gogh Editor
  * Description: A freeform canvas for WordPress — drag anything anywhere on your live page; Gogh publishes it back as clean, responsive core blocks that keep working even if the plugin is deactivated.
  * Version: 0.25.2
  * Author: Jamie Marsland
@@ -9,7 +9,7 @@
  * License URI: https://www.gnu.org/licenses/gpl-2.0.html
  * Requires at least: 6.5
  * Requires PHP: 7.4
- * Text Domain: gogh-canvas
+ * Text Domain: gogh-editor
  */
 
 defined( 'ABSPATH' ) || exit;
