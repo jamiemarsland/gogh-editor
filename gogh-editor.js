@@ -93,8 +93,7 @@
       found++;
       var cls = node.className || '';
       if (e.type === 'heading' || e.type === 'para') {
-        var t = (node.textContent || '').trim();
-        if (t) e.text = t;
+        if ((node.textContent || '').trim()) e.text = cleanInline(node.innerHTML);
         var fm = cls.match(/has-([a-z0-9-]+)-font-size/);
         e.fs = fm ? fm[1] : null;
         var am = cls.match(/has-text-align-(center|right)/);
@@ -449,7 +448,7 @@
           if (e.color) hAttrs.textColor = e.color;
           return '<!-- wp:heading ' + JSON.stringify(hAttrs) + ' -->\n' +
             '<h2 class="wp-block-heading ' + (e.align === 'center' || e.align === 'right' ? 'has-text-align-' + e.align + ' ' : '') + cls + (e.fs ? ' has-' + e.fs + '-font-size' : '') + (e.color ? ' has-text-color has-' + e.color + '-color' : '') + '">' +
-            esc(e.text) + '</h2>\n<!-- /wp:heading -->';
+            cleanInline(e.text) + '</h2>\n<!-- /wp:heading -->';
         }
         case 'para': {
           var pAttrs = { className: cls };
@@ -458,7 +457,7 @@
           if (e.color) pAttrs.textColor = e.color;
           return '<!-- wp:paragraph ' + JSON.stringify(pAttrs) + ' -->\n' +
             '<p class="' + (e.align === 'center' || e.align === 'right' ? 'has-text-align-' + e.align + ' ' : '') + cls + (e.fs ? ' has-' + e.fs + '-font-size' : '') + (e.color ? ' has-text-color has-' + e.color + '-color' : '') + '">' +
-            esc(e.text) + '</p>\n<!-- /wp:paragraph -->';
+            cleanInline(e.text) + '</p>\n<!-- /wp:paragraph -->';
         }
         case 'button': {
           var href = e.href ? escAttr(e.href) : '#';
@@ -519,6 +518,42 @@
   }
 
   // ---------- element factory & rendering ----------
+  // sanitize inline rich text to a safe subset: links, bold, italic, br.
+  // Uses <template> so nothing in untrusted markup loads or executes.
+  var INLINE_OK = { A: 1, STRONG: 1, EM: 1, B: 1, I: 1, BR: 1 };
+  function cleanInline(html) {
+    var tpl = document.createElement('template');
+    tpl.innerHTML = html == null ? '' : String(html);
+    (function walk(node) {
+      [].slice.call(node.childNodes).forEach(function (c) {
+        if (c.nodeType === 3) return;
+        if (c.nodeType !== 1) { node.removeChild(c); return; }
+        var tag = c.tagName;
+        if (tag === 'SCRIPT' || tag === 'STYLE' || tag === 'TEMPLATE' || tag === 'IFRAME') {
+          node.removeChild(c);
+          return;
+        }
+        if (INLINE_OK[tag]) {
+          [].slice.call(c.attributes).forEach(function (at) {
+            if (!(tag === 'A' && at.name === 'href')) c.removeAttribute(at.name);
+          });
+          if (tag === 'A') {
+            var href = c.getAttribute('href') || '';
+            if (!/^(https?:|mailto:|tel:|\/|#)/i.test(href.trim())) c.removeAttribute('href');
+          }
+          walk(c);
+          return;
+        }
+        // unknown element: unwrap, keep its content
+        while (c.firstChild) node.insertBefore(c.firstChild, c);
+        node.removeChild(c);
+      });
+    })(tpl.content);
+    var out = document.createElement('div');
+    out.appendChild(tpl.content.cloneNode(true));
+    return out.innerHTML;
+  }
+
   function makeNode(e, i) {
     var cls = 'gogh-el-' + (i + 1);
     var n;
@@ -526,12 +561,12 @@
       case 'heading':
         n = document.createElement('h2');
         n.className = 'wp-block-heading ' + cls + (e.fs ? ' has-' + e.fs + '-font-size' : '') + (e.color ? ' has-text-color has-' + e.color + '-color' : '');
-        n.textContent = e.text;
+        n.innerHTML = cleanInline(e.text);
         break;
       case 'para':
         n = document.createElement('p');
         n.className = cls + (e.fs ? ' has-' + e.fs + '-font-size' : '') + (e.color ? ' has-text-color has-' + e.color + '-color' : '');
-        n.textContent = e.text;
+        n.innerHTML = cleanInline(e.text);
         break;
       case 'button':
         n = document.createElement('div');
@@ -1047,7 +1082,7 @@
     S.forEach(function (sec) {
       sec.els.forEach(function (e, i) {
         if (editableTarget(sec, i) !== t) return;
-        e.text = t.textContent;
+        e.text = (e.type === 'heading' || e.type === 'para') ? cleanInline(t.innerHTML) : t.textContent;
         var oldH = e.h;
         measureTextHeights(sec);
         if (isText(e) && reflowPush(sec, e, oldH)) resolveAndApply(sec);
@@ -1060,7 +1095,8 @@
   function bindEditable(sec, i, on) {
     var t = editableTarget(sec, i);
     if (!t) return;
-    t.contentEditable = on ? 'plaintext-only' : 'false';
+    var rich = sec.els[i].type === 'heading' || sec.els[i].type === 'para';
+    t.contentEditable = on ? (rich ? 'true' : 'plaintext-only') : 'false';
     if (on) {
       t.addEventListener('input', onTextInput);
       t.addEventListener('click', preventNav);
@@ -1139,6 +1175,63 @@
     placePanelNear(sec.nodes[i]);
     panelOpen = true;
   }
+  var savedTextRange = null;
+  function applyTextLink(url) {
+    var selObj = window.getSelection();
+    if (savedTextRange) {
+      selObj.removeAllRanges();
+      selObj.addRange(savedTextRange);
+    }
+    if (!selObj.rangeCount) return;
+    var t = selObj.anchorNode && (selObj.anchorNode.nodeType === 1 ? selObj.anchorNode : selObj.anchorNode.parentElement);
+    var host = t && t.closest('[contenteditable="true"]');
+    if (host) host.focus();
+    if (savedTextRange) {
+      selObj.removeAllRanges();
+      selObj.addRange(savedTextRange);
+    }
+    document.execCommand(url ? 'createLink' : 'unlink', false, url || undefined);
+    savedTextRange = null;
+    if (host) host.dispatchEvent(new Event('input', { bubbles: true }));
+  }
+  function openTextLinkPanel() {
+    var selObj = window.getSelection();
+    if (!selObj.rangeCount) return;
+    var range = selObj.getRangeAt(0);
+    savedTextRange = range.cloneRange();
+    var node = selObj.anchorNode;
+    var el = node && (node.nodeType === 1 ? node : node.parentElement);
+    var existing = el && el.closest('a');
+    panel.innerHTML =
+      '<div class="gogh-panel-title">Link text</div>' +
+      '<div class="gogh-panel-row">' +
+      '<input type="url" class="gogh-input" placeholder="https://\u2026" />' +
+      '<button type="button" class="gogh-btn gogh-btn-small gogh-apply">Apply</button>' +
+      (existing ? '<button type="button" class="gogh-btn gogh-btn-small gogh-unlink">Remove</button>' : '') +
+      '</div>';
+    var input = panel.querySelector('input');
+    input.value = (existing && existing.getAttribute('href')) || '';
+    var apply = function () {
+      var url = input.value.trim();
+      closePanel();
+      if (url) applyTextLink(url);
+    };
+    panel.querySelector('.gogh-apply').addEventListener('click', apply);
+    var un = panel.querySelector('.gogh-unlink');
+    if (un) un.addEventListener('click', function () {
+      closePanel();
+      applyTextLink(null);
+    });
+    input.addEventListener('keydown', function (ev) {
+      if (ev.key === 'Enter') { ev.preventDefault(); apply(); }
+      if (ev.key === 'Escape') { savedTextRange = null; closePanel(); }
+    });
+    var rect = range.getBoundingClientRect();
+    placePanelNear({ getBoundingClientRect: function () { return rect; } });
+    panelOpen = true;
+    input.focus();
+  }
+
   function buildLinkPanel(sec, i) {
     var e = sec.els[i];
     function swRow(label, key) {
@@ -2371,6 +2464,8 @@
     resolve: resolveAndApply,
     serialize: serialize,
     syncModelFromMarkup: syncModelFromMarkup,
+    cleanInline: cleanInline,
+    applyTextLink: applyTextLink,
     readingOrder: function (els) {
       var rank = readingRank(els);
       var order = [];
@@ -2404,6 +2499,15 @@
     if (!editing || panelOpen || !picker.hidden) return;
     var a = document.activeElement;
     var typing = a && (a.isContentEditable || /INPUT|TEXTAREA/.test(a.tagName));
+    if ((ev.metaKey || ev.ctrlKey) && ev.key.toLowerCase() === 'k') {
+      var ksel = window.getSelection();
+      var ka = document.activeElement;
+      if (ka && ka.isContentEditable && ksel && (!ksel.isCollapsed || (ksel.anchorNode && (ksel.anchorNode.nodeType === 1 ? ksel.anchorNode : ksel.anchorNode.parentElement).closest('a')))) {
+        ev.preventDefault();
+        openTextLinkPanel();
+        return;
+      }
+    }
     if ((ev.metaKey || ev.ctrlKey) && ev.key.toLowerCase() === 's') {
       ev.preventDefault();
       publish();
@@ -2723,8 +2827,8 @@
     function walk(el) {
       [].slice.call(el.children).forEach(function (c) {
         var cl = c.classList, tag = c.tagName;
-        if (/^H[1-6]$/.test(tag)) return leaf(c, { type: 'heading', text: (c.textContent || '').trim() });
-        if (tag === 'P') return leaf(c, { type: 'para', text: (c.textContent || '').trim() });
+        if (/^H[1-6]$/.test(tag)) return leaf(c, { type: 'heading', text: cleanInline(c.innerHTML).trim() });
+        if (tag === 'P') return leaf(c, { type: 'para', text: cleanInline(c.innerHTML).trim() });
         if (cl.contains('wp-block-buttons')) {
           [].slice.call(c.querySelectorAll('.wp-block-button')).forEach(function (b) {
             var a = b.querySelector('a');
@@ -2767,8 +2871,8 @@
     // the clicked block may itself be a single leaf (a bare paragraph,
     // heading, image or buttons row) rather than a container
     var rtag = root.tagName, rcl = root.classList;
-    if (/^H[1-6]$/.test(rtag)) leaf(root, { type: 'heading', text: (root.textContent || '').trim() });
-    else if (rtag === 'P') leaf(root, { type: 'para', text: (root.textContent || '').trim() });
+    if (/^H[1-6]$/.test(rtag)) leaf(root, { type: 'heading', text: cleanInline(root.innerHTML).trim() });
+    else if (rtag === 'P') leaf(root, { type: 'para', text: cleanInline(root.innerHTML).trim() });
     else if (rcl.contains('wp-block-buttons')) {
       [].slice.call(root.querySelectorAll('.wp-block-button')).forEach(function (b) {
         var a = b.querySelector('a');

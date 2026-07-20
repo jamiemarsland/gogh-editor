@@ -470,6 +470,34 @@
       return 'cards stay together: ' + out.join(',');
     });
 
+    test('inline sanitizer keeps links, strips danger', function () {
+      var c = G.cleanInline;
+      expect(c('<a href="https://ok.test">x</a>') === '<a href="https://ok.test">x</a>', 'safe link mangled: ' + c('<a href="https://ok.test">x</a>'));
+      expect(c('<a href="javascript:alert(1)">x</a>') === '<a>x</a>', 'js: href not stripped: ' + c('<a href="javascript:alert(1)">x</a>'));
+      expect(c('<script>bad()</script>hello') === 'hello', 'script not removed: ' + c('<script>bad()</script>hello'));
+      expect(c('<b onclick="x()">b</b>') === '<b>b</b>', 'event attr survived: ' + c('<b onclick="x()">b</b>'));
+      expect(c('<span style="color:red">s</span>') === 's', 'span not unwrapped');
+      expect(c('<img src=x onerror=bad()>t') === 't', 'img survived');
+      expect(c('plain & <text>') === 'plain &amp; ', 'plain text handling: ' + JSON.stringify(c('plain & <text>')));
+    });
+
+    test('links round-trip: model, canvas, markup', function () {
+      var i = findIdx('para');
+      var e = sec().els[i];
+      var t0 = e.text;
+      e.text = 'Visit <a href="https://gogh.test/docs">the docs</a> today';
+      G.resolve(sec());
+      var node = sec().nodes ? null : null;
+      // re-render so the canvas picks up the rich text
+      window.__gogh.restore(G.serialize());
+      var n2 = sec().nodes[findIdx('para')];
+      var a = n2.querySelector('a');
+      expect(a && a.getAttribute('href') === 'https://gogh.test/docs', 'link not rendered on canvas');
+      var blocks = G.buildBlocks();
+      expect(blocks.indexOf('<a href="https://gogh.test/docs">the docs</a>') !== -1, 'link missing from markup');
+      sec().els[findIdx('para')].text = t0;
+    });
+
     // ---- 14. image via URL becomes a real figure (v0.9) ----
     test('image URL apply → figure with img', function () {
       var i = findIdx('image');

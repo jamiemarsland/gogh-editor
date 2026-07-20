@@ -4,7 +4,7 @@ Tags: page builder, canvas, drag and drop, design, blocks
 Requires at least: 6.5
 Tested up to: 7.0
 Requires PHP: 7.4
-Stable tag: 0.25.2
+Stable tag: 0.26.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -46,7 +46,7 @@ Edits made in the block editor (copy tweaks, colour changes) are adopted by Gogh
 = Current limitations (beta) =
 
 * Gogh sections support headings, paragraphs, buttons, images and badges. Other block types added inside a Gogh section from the block editor are not yet preserved on the next Gogh publish.
-* Inline rich‑text formatting (bold, links inside paragraphs) is flattened to plain text when edited on the canvas.
+* Headings and paragraphs support inline links, bold and italic (select text and press Cmd/Ctrl+K to link). Other inline formats are flattened when edited on the canvas.
 * Modern browsers are required: Gogh's output uses container queries, `:has()` and `color-mix()`.
 
 == Frequently Asked Questions ==
@@ -64,6 +64,9 @@ Gogh inherits typography, colours and button styles from your theme's Global Sty
 On the front end. Visit any page while logged in (with edit rights) and click "Edit with Gogh" — in the admin bar or the corner button.
 
 == Changelog ==
+
+= 0.26 =
+* Inline links, bold and italic in headings and paragraphs — select text and press Cmd/Ctrl+K to add a link.
 
 = 0.25 =
 * Automatic mobile reading order keeps cards intact (XY‑cut linearisation).
