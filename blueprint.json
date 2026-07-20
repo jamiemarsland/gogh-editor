@@ -1,0 +1,34 @@
+{
+    "$schema": "https://playground.wordpress.net/blueprint-schema.json",
+    "meta": {
+        "title": "Gogh Canvas",
+        "description": "A freeform canvas for WordPress — drag anything anywhere on the live page.",
+        "author": "jamiemarsland",
+        "categories": ["editor", "design"]
+    },
+    "landingPage": "/?page_id=99&gogh-edit=1",
+    "preferredVersions": {
+        "php": "8.2",
+        "wp": "latest"
+    },
+    "features": {
+        "networking": true
+    },
+    "login": true,
+    "steps": [
+        {
+            "step": "installPlugin",
+            "pluginData": {
+                "resource": "url",
+                "url": "https://github-proxy.com/proxy/?repo=jamiemarsland/gogh-canvas"
+            },
+            "options": {
+                "activate": true
+            }
+        },
+        {
+            "step": "runPHP",
+            "code": "<?php require '/wordpress/wp-load.php'; wp_insert_post( array( 'import_id' => 99, 'post_type' => 'page', 'post_status' => 'publish', 'post_title' => 'Try Gogh Canvas', 'post_content' => '<!-- wp:paragraph --><p>Welcome! This page is your canvas. The template picker should be open — choose a Hero and start dragging things around. Or click \"Make freeform\" on the section below to convert ordinary blocks.</p><!-- /wp:paragraph -->\n\n<!-- wp:group {\"layout\":{\"type\":\"constrained\"}} --><div class=\"wp-block-group\"><!-- wp:heading --><h2 class=\"wp-block-heading\">This section was built in Gutenberg</h2><!-- /wp:heading --><!-- wp:paragraph --><p>Click the ✨ Make freeform button on it and it becomes a draggable canvas, pixel for pixel.</p><!-- /wp:paragraph --><!-- wp:buttons --><div class=\"wp-block-buttons\"><!-- wp:button --><div class=\"wp-block-button\"><a class=\"wp-block-button__link wp-element-button\" href=\"https://github.com/jamiemarsland/gogh-canvas\">Star it on GitHub</a></div><!-- /wp:button --></div><!-- /wp:buttons --></div><!-- /wp:group -->' ) );"
+        }
+    ]
+}
