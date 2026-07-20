@@ -498,6 +498,22 @@
       sec().els[findIdx('para')].text = t0;
     });
 
+    test('toolbar link button links the whole element', function () {
+      var i = findIdx('heading');
+      select(i);
+      var lnk = q('.gogh-eb-lnk');
+      expect(lnk && lnk.style.display !== 'none', 'link button not shown for heading');
+      lnk.click();
+      var input = document.querySelector('.gogh-panel input[type="url"]');
+      expect(input, 'link panel did not open');
+      input.value = 'https://whole.test';
+      document.querySelector('.gogh-panel .gogh-apply').click();
+      var e = sec().els[i];
+      expect(e.text.indexOf('href="https://whole.test"') !== -1, 'link not applied: ' + e.text.slice(0, 80));
+      // clean up: strip the link from the model text
+      e.text = e.text.replace(/<a[^>]*>/g, '').replace(/<\/a>/g, '');
+    });
+
     // ---- 14. image via URL becomes a real figure (v0.9) ----
     test('image URL apply → figure with img', function () {
       var i = findIdx('image');

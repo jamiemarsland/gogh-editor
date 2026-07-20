@@ -857,6 +857,7 @@
     '<button type="button" class="gogh-eb gogh-eb-ctx"></button>' +
     '<button type="button" class="gogh-eb gogh-eb-fs" title="Cycle theme font sizes"></button>' +
     '<button type="button" class="gogh-eb gogh-eb-al" title="Text alignment"></button>' +
+    '<button type="button" class="gogh-eb gogh-eb-lnk" title="Link text (\u2318K)"></button>' +
     '<button type="button" class="gogh-eb gogh-eb-col" title="Text colour"><span class="gogh-eb-colchip"></span></button>' +
     '<button type="button" class="gogh-eb gogh-eb-bck" title="Send backward">▼</button>' +
     '<button type="button" class="gogh-eb gogh-eb-fwd" title="Bring forward">▲</button>' +
@@ -866,6 +867,7 @@
   var fsBtn = elbar.querySelector('.gogh-eb-fs');
   var alBtn = elbar.querySelector('.gogh-eb-al');
   var colBtn = elbar.querySelector('.gogh-eb-col');
+  var lnkBtn = elbar.querySelector('.gogh-eb-lnk');
   var colChip = colBtn.querySelector('.gogh-eb-colchip');
   var CTX_ICONS = {
     link: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M10 14a5 5 0 0 0 7.5.5l3-3a5 5 0 0 0-7-7l-1.7 1.7"/><path d="M14 10a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7 7l1.7-1.7"/></svg>',
@@ -1036,11 +1038,14 @@
       alBtn.innerHTML = ALIGN_ICONS[e.align || 'left'];
       alBtn.title = 'Text align: ' + (e.align || 'left') + ' (click to cycle)';
       alBtn.style.display = '';
+      lnkBtn.innerHTML = CTX_ICONS.link;
+      lnkBtn.style.display = '';
       colChip.style.background = e.color ? 'var(--wp--preset--color--' + e.color + ')' : 'transparent';
       colChip.classList.toggle('is-default', !e.color);
       colBtn.style.display = '';
     } else {
       alBtn.style.display = 'none';
+      lnkBtn.style.display = 'none';
       colBtn.style.display = 'none';
     }
     elbar.hidden = false;
@@ -1427,6 +1432,24 @@
     });
     placePanelNear(sec.nodes[i]);
     panelOpen = true;
+  });
+  // preserve the text selection: a normal click would move focus/collapse it
+  lnkBtn.addEventListener('pointerdown', function (ev) { ev.preventDefault(); });
+  lnkBtn.addEventListener('click', function () {
+    if (!sel) return;
+    var t = editableTarget(sel.sec, sel.i);
+    if (!t) return;
+    var selObj = window.getSelection();
+    var inTarget = selObj.rangeCount &&
+      t.contains(selObj.anchorNode) && !selObj.isCollapsed;
+    if (!inTarget) {
+      // no selection: link the whole element
+      var r = document.createRange();
+      r.selectNodeContents(t);
+      selObj.removeAllRanges();
+      selObj.addRange(r);
+    }
+    openTextLinkPanel();
   });
   alBtn.addEventListener('click', function () {
     if (!sel) return;
