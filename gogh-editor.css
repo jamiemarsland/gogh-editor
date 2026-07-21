@@ -1,3 +1,17 @@
+/* gogh editor chrome theme: dark by default, light via .gogh-ui-light */
+:root {
+  --gogh-ui-bg: rgba(28, 30, 36, 0.97);
+  --gogh-ui-fg: #e8eaf0;
+  --gogh-ui-border: rgba(255, 255, 255, 0.13);
+  --gogh-ui-hover: rgba(255, 255, 255, 0.07);
+}
+:root.gogh-ui-light {
+  --gogh-ui-bg: rgba(252, 252, 253, 0.98);
+  --gogh-ui-fg: #1d2327;
+  --gogh-ui-border: rgba(0, 0, 0, 0.14);
+  --gogh-ui-hover: rgba(0, 0, 0, 0.05);
+}
+
 /* gogh front-end editor chrome */
 
 .gogh-bar {
@@ -14,9 +28,9 @@
   font-size: 13px;
   font-weight: 600;
   text-align: center;
-  color: #e8eaf0;
-  background: rgba(28, 30, 36, 0.95);
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: var(--gogh-ui-fg);
+  background: var(--gogh-ui-bg);
+  border: 1px solid var(--gogh-ui-border);
   border-radius: 999px;
   padding: 10px 18px;
   box-shadow: 0 12px 32px -10px rgba(0, 0, 0, 0.5);
@@ -39,8 +53,8 @@
   display: flex;
   flex-direction: column;
   gap: 4px;
-  background: rgba(28, 30, 36, 0.97);
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: var(--gogh-ui-bg);
+  border: 1px solid var(--gogh-ui-border);
   border-radius: 16px;
   padding: 14px 12px;
   box-shadow: 0 24px 60px -18px rgba(0, 0, 0, 0.7);
@@ -78,9 +92,9 @@
   font-size: 11px;
   font-weight: 800;
   letter-spacing: 0.14em;
-  color: #e8eaf0;
-  background: rgba(28, 30, 36, 0.96);
-  border: 1px solid rgba(255, 255, 255, 0.14);
+  color: var(--gogh-ui-fg);
+  background: var(--gogh-ui-bg);
+  border: 1px solid var(--gogh-ui-border);
   border-right: none;
   border-radius: 12px 0 0 12px;
   box-shadow: -10px 0 28px -14px rgba(0, 0, 0, 0.6);
@@ -114,7 +128,7 @@
 .gogh-side-title {
   font-size: 14px;
   font-weight: 800;
-  color: #e8eaf0;
+  color: var(--gogh-ui-fg);
   letter-spacing: -0.01em;
   padding: 0 4px;
 }
@@ -139,19 +153,19 @@
   flex: 1;
   text-align: center;
   font-size: 15px;
-  color: #e8eaf0;
-  background: rgba(255, 255, 255, 0.07);
+  color: var(--gogh-ui-fg);
+  background: var(--gogh-ui-hover);
   border-radius: 8px;
   padding: 6px 0;
 }
-.gogh-sbtn:hover { background: rgba(255, 255, 255, 0.13); }
+.gogh-sbtn:hover { background: var(--gogh-ui-border); }
 .gogh-sbtn:disabled { opacity: 0.3; cursor: default; }
 .gogh-sitem {
   all: unset;
   cursor: pointer;
   font-size: 12.5px;
   font-weight: 600;
-  color: #e8eaf0;
+  color: var(--gogh-ui-fg);
   padding: 7px 10px;
   border-radius: 8px;
 }
@@ -360,13 +374,13 @@
   position: absolute;
   z-index: 100000;
   width: 340px;
-  background: rgba(28, 30, 36, 0.98);
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: var(--gogh-ui-bg);
+  border: 1px solid var(--gogh-ui-border);
   border-radius: 14px;
   padding: 14px;
   box-shadow: 0 24px 60px -18px rgba(0, 0, 0, 0.7);
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, sans-serif;
-  color: #e8eaf0;
+  color: var(--gogh-ui-fg);
 }
 .gogh-panel[hidden] { display: none; }
 .gogh-panel-title {
@@ -383,9 +397,9 @@
   flex: 1;
   min-width: 0;
   font-size: 13px;
-  color: #e8eaf0;
-  background: rgba(255, 255, 255, 0.07);
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: var(--gogh-ui-fg);
+  background: var(--gogh-ui-hover);
+  border: 1px solid var(--gogh-ui-border);
   border-radius: 8px;
   padding: 8px 10px;
   outline: none;
@@ -443,8 +457,8 @@
   width: min(880px, calc(100vw - 48px));
   max-height: calc(100vh - 80px);
   overflow: auto;
-  background: rgba(28, 30, 36, 0.98);
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: var(--gogh-ui-bg);
+  border: 1px solid var(--gogh-ui-border);
   border-radius: 18px;
   padding: 20px;
   box-shadow: 0 40px 100px -30px rgba(0, 0, 0, 0.8);
@@ -455,7 +469,7 @@
   justify-content: space-between;
   font-size: 15px;
   font-weight: 700;
-  color: #e8eaf0;
+  color: var(--gogh-ui-fg);
   margin-bottom: 16px;
 }
 .gogh-cards {
@@ -496,7 +510,7 @@
   display: block;
   font-size: 12.5px;
   font-weight: 600;
-  color: #e8eaf0;
+  color: var(--gogh-ui-fg);
   padding: 10px 12px;
 }
 
@@ -566,7 +580,7 @@
 .gogh-color {
   width: 40px;
   height: 26px;
-  border: 1px solid rgba(255, 255, 255, 0.15);
+  border: 1px solid var(--gogh-ui-border);
   border-radius: 6px;
   background: transparent;
   padding: 0;
@@ -651,7 +665,7 @@
   z-index: 100003;
   pointer-events: none;
   background: #141519;
-  color: #e8eaf0;
+  color: var(--gogh-ui-fg);
   font: 700 11px/1 -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, sans-serif;
   padding: 6px 10px;
   border-radius: 999px;
@@ -714,13 +728,13 @@
   gap: 10px;
   padding: 8px 14px;
   border-radius: 999px;
-  background: rgba(28, 30, 36, 0.96);
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: var(--gogh-ui-bg);
+  border: 1px solid var(--gogh-ui-border);
   box-shadow: 0 14px 40px -12px rgba(0, 0, 0, 0.6);
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, sans-serif;
   font-size: 12.5px;
   font-weight: 600;
-  color: #e8eaf0;
+  color: var(--gogh-ui-fg);
   transition: border-color 0.25s;
 }
 .gogh-chip[hidden] { display: none; }
@@ -763,12 +777,12 @@
   max-width: 480px;
   padding: 10px 16px;
   border-radius: 12px;
-  background: rgba(28, 30, 36, 0.97);
-  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: var(--gogh-ui-bg);
+  border: 1px solid var(--gogh-ui-border);
   box-shadow: 0 14px 40px -12px rgba(0, 0, 0, 0.6);
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, sans-serif;
   font-size: 13px;
-  color: #e8eaf0;
+  color: var(--gogh-ui-fg);
 }
 .gogh-toast.is-error { border-color: rgba(255, 107, 107, 0.5); }
 .gogh-toast button {
@@ -794,13 +808,13 @@
 .gogh-exit[hidden] { display: none; }
 .gogh-exit-card {
   width: min(440px, calc(100vw - 40px));
-  background: rgba(28, 30, 36, 0.98);
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: var(--gogh-ui-bg);
+  border: 1px solid var(--gogh-ui-border);
   border-radius: 16px;
   padding: 22px;
   box-shadow: 0 30px 80px -20px rgba(0, 0, 0, 0.75);
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, sans-serif;
-  color: #e8eaf0;
+  color: var(--gogh-ui-fg);
 }
 .gogh-exit-title { font-size: 16px; font-weight: 700; margin-bottom: 6px; }
 .gogh-exit-sub { font-size: 13px; opacity: 0.75; margin: 0 0 16px; }
@@ -846,9 +860,9 @@
 .gogh-tip {
   position: fixed;
   z-index: 100006;
-  background: rgba(20, 21, 25, 0.97);
-  color: #e8eaf0;
-  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: var(--gogh-ui-bg);
+  color: var(--gogh-ui-fg);
+  border: 1px solid var(--gogh-ui-border);
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, sans-serif;
   font-size: 12px;
   font-weight: 600;
@@ -873,8 +887,8 @@
 .gogh-cmd[hidden] { display: none; }
 .gogh-cmd-panel {
   width: min(380px, calc(100vw - 40px));
-  background: rgba(28, 30, 36, 0.98);
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: var(--gogh-ui-bg);
+  border: 1px solid var(--gogh-ui-border);
   border-radius: 14px;
   padding: 10px;
   box-shadow: 0 30px 80px -20px rgba(0, 0, 0, 0.7);
@@ -893,12 +907,12 @@
   box-sizing: border-box;
   padding: 8px 12px;
   border-radius: 8px;
-  color: #e8eaf0;
+  color: var(--gogh-ui-fg);
   font-size: 13px;
   font-weight: 600;
   cursor: pointer;
 }
-.gogh-cmd-item:hover { background: rgba(255, 255, 255, 0.07); }
+.gogh-cmd-item:hover { background: var(--gogh-ui-hover); }
 .gogh-cmd-item.is-active { background: rgba(126, 168, 255, 0.2); }
 
 /* visible grid while grid snap is on (8-unit minor, 40-unit major, in cqw

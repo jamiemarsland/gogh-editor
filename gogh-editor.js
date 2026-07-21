@@ -790,6 +790,7 @@
     '<div class="gogh-side-label">Page</div>' +
     '<button type="button" class="gogh-sitem" data-act="addsec">+ Section</button>' +
     '<button type="button" class="gogh-sitem" data-act="gridsnap" title="Show an 8-unit grid and snap to it">Grid: off</button>' +
+    '<button type="button" class="gogh-sitem" data-act="uitheme" title="Switch the gogh editor chrome between dark and light">Editor: dark</button>' +
     '<div class="gogh-side-gap"></div>';
   document.body.appendChild(side);
 
@@ -1631,6 +1632,12 @@
     document.documentElement.classList.toggle('gogh-grid-on', gridSnapOn);
     ev.target.textContent = 'Grid: ' + (gridSnapOn ? 'on' : 'off');
   });
+  side.querySelector('[data-act="uitheme"]').addEventListener('click', function (ev) {
+    var light = !document.documentElement.classList.contains('gogh-ui-light');
+    try { localStorage.setItem('gogh-ui-theme', light ? 'light' : 'dark'); } catch (e) {}
+    document.documentElement.classList.toggle('gogh-ui-light', light);
+    ev.target.textContent = 'Editor: ' + (light ? 'light' : 'dark');
+  });
   side.querySelector('.gogh-undo').addEventListener('click', undo);
   side.querySelector('.gogh-redo').addEventListener('click', redo);
 
@@ -2334,6 +2341,21 @@
   document.addEventListener('pointercancel', function () { if (drag) endDrag(); });
 
   var gridSnapOn = false; // opt-in: invisible magnets feel broken to beginners
+
+  // editor chrome theme: follows the system unless the user chose one
+  function applyUiTheme() {
+    var saved = null;
+    try { saved = localStorage.getItem('gogh-ui-theme'); } catch (e) {}
+    var light = saved ? saved === 'light'
+      : (window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches);
+    document.documentElement.classList.toggle('gogh-ui-light', light);
+    return light;
+  }
+  applyUiTheme();
+  (function () {
+    var b = side.querySelector('[data-act="uitheme"]');
+    if (b) b.textContent = 'Editor: ' + (document.documentElement.classList.contains('gogh-ui-light') ? 'light' : 'dark');
+  })();
   function snapPos(sec, exclude, x, y, w, h, free) {
     if (free) return { x: Math.round(x), y: Math.round(y), gx: null, gy: null };
     var H = designH(sec.els, sec.minH);

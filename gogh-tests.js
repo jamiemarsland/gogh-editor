@@ -45,6 +45,15 @@
     function expect(cond, msg) { if (!cond) throw new Error(msg); }
 
     G.setEditing(true);
+    // the fixture is a living page — ensure every element type the tests
+    // rely on exists in section 0 before the baseline snapshot is taken
+    window.scrollTo(0, 0);
+    ['heading', 'para', 'button', 'image', 'badge'].forEach(function (t) {
+      if (sec().els.findIndex(function (e) { return e.type === t; }) === -1) {
+        var b = document.querySelector('.gogh-side [data-add="' + t + '"]');
+        if (b) b.click();
+      }
+    });
     SNAP = G.serialize();
 
     // ---- 1. boot ----
@@ -603,18 +612,48 @@
       q('.gogh-side [data-add="badge"]').click();
       var n = sec().els.length - 1;
       var e = sec().els[n];
-      e.x = 200; e.y = 1600; e.w = 200; e.h = 60; // empty area: no alignment candidates
+      e.w = 200; e.h = 60;
+      // pick grid targets that no alignment candidate can capture (>7 away)
+      function freeTarget(axis, lo, hi) {
+        var cands = axis === 'x' ? [0, 1200, 600] : [0];
+        sec().els.forEach(function (o) {
+          if (o === e) return;
+          if (axis === 'x') cands.push(o.x, o.x + o.w, o.x + o.w / 2);
+          else cands.push(o.y, o.y + o.h, o.y + o.h / 2);
+        });
+        for (var t = lo; t <= hi; t += 8) {
+          var ok = cands.every(function (c) { return Math.abs(c - t) > 7; });
+          if (ok) return t;
+        }
+        return lo;
+      }
+      var tx = freeTarget('x', 160, 640);
+      var ty = freeTarget('y', 1560, 2000);
+      e.x = tx - 40; e.y = ty - 32;
       G.resolve(sec());
       select(n);
       var s = sec().sectionEl.getBoundingClientRect().width / 1200;
       var grip = q('.gogh-grip');
       var r = grip.getBoundingClientRect();
+      // raw release point 3 units off-grid: only the grid can produce tx/ty
       grip.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, clientX: r.x + 12, clientY: r.y + 12, pointerId: 91 }));
-      grip.dispatchEvent(new PointerEvent('pointermove', { bubbles: true, clientX: r.x + 12 + 37 * s, clientY: r.y + 12 + 29 * s, pointerId: 91 }));
-      grip.dispatchEvent(new PointerEvent('pointerup', { bubbles: true, clientX: r.x + 12 + 37 * s, clientY: r.y + 12 + 29 * s, pointerId: 91 }));
-      expect(e.x % 8 === 0 && e.y % 8 === 0, 'drop off-grid: ' + e.x + ',' + e.y + ' (x%8=' + e.x % 8 + ', y%8=' + e.y % 8 + ')');
+      grip.dispatchEvent(new PointerEvent('pointermove', { bubbles: true, clientX: r.x + 12 + 43 * s, clientY: r.y + 12 + 35 * s, pointerId: 91 }));
+      grip.dispatchEvent(new PointerEvent('pointerup', { bubbles: true, clientX: r.x + 12 + 43 * s, clientY: r.y + 12 + 35 * s, pointerId: 91 }));
+      expect(e.x === tx && e.y % 8 === 0, 'drop off-grid: ' + e.x + ',' + e.y + ' (wanted x=' + tx + ', y%8=0)');
       if (document.documentElement.classList.contains('gogh-grid-on')) btn.click(); // restore default
       return 'landed on grid at ' + e.x + ',' + e.y;
+    });
+
+    test('editor chrome theme toggles and persists', function () {
+      var btn = q('.gogh-side [data-act="uitheme"]');
+      expect(btn, 'theme toggle missing');
+      var wasLight = document.documentElement.classList.contains('gogh-ui-light');
+      btn.click();
+      expect(document.documentElement.classList.contains('gogh-ui-light') !== wasLight, 'root class did not flip');
+      expect(localStorage.getItem('gogh-ui-theme') === (wasLight ? 'dark' : 'light'), 'preference not persisted');
+      btn.click();
+      expect(document.documentElement.classList.contains('gogh-ui-light') === wasLight, 'did not flip back');
+      localStorage.removeItem('gogh-ui-theme');
     });
 
     // ---- 14. image via URL becomes a real figure (v0.9) ----
