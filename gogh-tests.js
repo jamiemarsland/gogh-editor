@@ -514,6 +514,38 @@
       e.text = e.text.replace(/<a[^>]*>/g, '').replace(/<\/a>/g, '');
     });
 
+    test('body drag moves an element without the grip', function () {
+      var i = findIdx('badge');
+      var e = sec().els[i];
+      var x0 = e.x;
+      var node = sec().nodes[i];
+      var s = sec().sectionEl.getBoundingClientRect().width / 1200;
+      var r = node.getBoundingClientRect();
+      var sx = r.left + 10, sy = r.top + 10;
+      node.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, clientX: sx, clientY: sy, pointerId: 80 }));
+      node.dispatchEvent(new PointerEvent('pointermove', { bubbles: true, clientX: sx + 6, clientY: sy, pointerId: 80 }));
+      node.dispatchEvent(new PointerEvent('pointermove', { bubbles: true, clientX: sx + 41 * s, clientY: sy, pointerId: 80 }));
+      node.dispatchEvent(new PointerEvent('pointerup', { bubbles: true, clientX: sx + 41 * s, clientY: sy, pointerId: 80 }));
+      expect(Math.abs(e.x - x0) > 10, 'element did not move from body drag (x ' + x0 + '\u2192' + e.x + ')');
+    });
+
+    test('second click enters text editing, Escape leaves', function () {
+      var i = findIdx('heading');
+      var node = sec().nodes[i];
+      var r = node.getBoundingClientRect();
+      var cx = r.left + 20, cy = r.top + 10;
+      // first click: select only
+      node.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, clientX: cx, clientY: cy, pointerId: 81 }));
+      node.dispatchEvent(new PointerEvent('pointerup', { bubbles: true, clientX: cx, clientY: cy, pointerId: 81 }));
+      expect(!node.isContentEditable, 'first click should not enter editing');
+      // second click: edit
+      node.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, clientX: cx, clientY: cy, pointerId: 82 }));
+      node.dispatchEvent(new PointerEvent('pointerup', { bubbles: true, clientX: cx, clientY: cy, pointerId: 82 }));
+      expect(node.isContentEditable, 'second click should enter editing');
+      window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+      expect(!node.isContentEditable, 'Escape should leave editing');
+    });
+
     // ---- 14. image via URL becomes a real figure (v0.9) ----
     test('image URL apply → figure with img', function () {
       var i = findIdx('image');

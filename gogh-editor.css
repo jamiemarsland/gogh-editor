@@ -828,3 +828,8 @@
 
 /* panels never outgrow the viewport; long content scrolls inside */
 .gogh-panel { max-height: calc(100vh - 120px); overflow-y: auto; }
+
+/* Canva pointer model: elements read as draggable, text mode gets a caret */
+.gogh-editing .gogh-section > * { cursor: move; }
+.gogh-editing .gogh-section > .gogh-textedit,
+.gogh-editing .gogh-section > .gogh-textedit * { cursor: text; }

@@ -664,6 +664,7 @@
 
   // (re)build one section's DOM from its model
   function renderSection(sec) {
+    if (textEditing && textEditing.sec === sec) exitTextEdit();
     sec.sectionEl.innerHTML = '';
     sec.nodes = sec.els.map(function (e, i) {
       var n = makeNode(e, i);
@@ -1068,11 +1069,70 @@
     } else guideH.hidden = true;
   }
 
+  // Canva-style pointer model: click selects, drag-from-anywhere moves,
+  // a second click (or a click while selected) enters text editing.
+  var pendingDrag = null;
+  var textEditing = null; // {sec, i, node, target}
+  function enterTextEdit(sec, i, ev) {
+    var t = editableTarget(sec, i);
+    if (!t) return;
+    exitTextEdit();
+    var e = sec.els[i];
+    t.contentEditable = (e.type === 'heading' || e.type === 'para') ? 'true' : 'plaintext-only';
+    sec.nodes[i].classList.add('gogh-textedit');
+    textEditing = { sec: sec, i: i, node: sec.nodes[i], target: t };
+    t.focus();
+    if (ev && document.caretRangeFromPoint) {
+      var cr = document.caretRangeFromPoint(ev.clientX, ev.clientY);
+      if (cr && t.contains(cr.startContainer)) {
+        var selObj = window.getSelection();
+        selObj.removeAllRanges();
+        selObj.addRange(cr);
+      }
+    }
+  }
+  function exitTextEdit() {
+    if (!textEditing) return;
+    var t = textEditing.target;
+    t.contentEditable = 'false';
+    if (textEditing.node.classList) textEditing.node.classList.remove('gogh-textedit');
+    if (document.activeElement === t) t.blur();
+    textEditing = null;
+  }
   function bindSelect(sec, i) {
-    sec.nodes[i].addEventListener('pointerdown', function () {
-      if (editing && !drag && !resize) placeHandles(sec, i);
+    var node = sec.nodes[i];
+    node.addEventListener('dragstart', function (ev) { if (editing) ev.preventDefault(); });
+    node.addEventListener('pointerdown', function (ev) {
+      if (!editing || drag || resize) return;
+      if (textEditing && textEditing.node === node) return; // native caret/selection
+      if (textEditing) exitTextEdit();
+      var wasSelected = !!(sel && sel.sec === sec && sel.i === i);
+      placeHandles(sec, i);
+      ev.preventDefault(); // no caret, no native image drag
+      pendingDrag = {
+        sec: sec, i: i, node: node,
+        x: ev.clientX, y: ev.clientY,
+        wasSelected: wasSelected,
+        ev: { altKey: ev.altKey, clientX: ev.clientX, clientY: ev.clientY, pointerId: ev.pointerId },
+      };
     });
   }
+  document.addEventListener('pointermove', function (ev) {
+    if (!pendingDrag || drag) return;
+    if (resize) { pendingDrag = null; return; } // a handle took over
+    if (ev.pointerId !== pendingDrag.ev.pointerId) return;
+    if (Math.abs(ev.clientX - pendingDrag.x) + Math.abs(ev.clientY - pendingDrag.y) < 4) return;
+    var pd = pendingDrag;
+    pendingDrag = null;
+    beginDrag(pd.ev);
+  });
+  document.addEventListener('pointerup', function (ev) {
+    if (!pendingDrag) return;
+    var pd = pendingDrag;
+    pendingDrag = null;
+    if (resize || ev.pointerId !== pd.ev.pointerId) return;
+    if (pd.wasSelected) enterTextEdit(pd.sec, pd.i, ev);
+  });
 
   function editableTarget(sec, i) {
     var e = sec.els[i], n = sec.nodes[i];
@@ -1100,8 +1160,7 @@
   function bindEditable(sec, i, on) {
     var t = editableTarget(sec, i);
     if (!t) return;
-    var rich = sec.els[i].type === 'heading' || sec.els[i].type === 'para';
-    t.contentEditable = on ? (rich ? 'true' : 'plaintext-only') : 'false';
+    t.contentEditable = 'false'; // editing is entered per-element (second click)
     if (on) {
       t.addEventListener('input', onTextInput);
       t.addEventListener('click', preventNav);
@@ -1133,6 +1192,7 @@
     shapeBtn.hidden = true;
     closeShapePanel();
     hideSecBar();
+    exitTextEdit();
     var selNode = document.querySelector('.gogh-selected');
     if (selNode) selNode.classList.remove('gogh-selected');
     S.forEach(function (sec) {
@@ -1439,6 +1499,7 @@
     if (!sel) return;
     var t = editableTarget(sel.sec, sel.i);
     if (!t) return;
+    if (!textEditing || textEditing.target !== t) enterTextEdit(sel.sec, sel.i);
     var selObj = window.getSelection();
     var inTarget = selObj.rangeCount &&
       t.contains(selObj.anchorNode) && !selObj.isCollapsed;
@@ -1483,6 +1544,7 @@
     var inElement = t.closest('.gogh-section') && t.closest('.gogh-section > *');
     if (!inUI && !inElement) {
       sel = null;
+      exitTextEdit();
       hideHandles();
       var selNode = document.querySelector('.gogh-selected');
       if (selNode) selNode.classList.remove('gogh-selected');
@@ -2042,10 +2104,10 @@
   // ---------- dragging with ghost (no cursor drift) ----------
   var drag = null, dragRaf = false;
   var ghost = null;
-  grip.addEventListener('pointerdown', function (ev) {
+  function beginDrag(ev) {
     if (!editing || !sel) return;
-    ev.preventDefault();
     closePanel();
+    exitTextEdit();
     if (ev.altKey) {
       // alt-drag: duplicate in place, then drag the copy
       var dsec = sel.sec;
@@ -2054,7 +2116,7 @@
       renderSection(dsec);
       placeHandles(dsec, dsec.els.length - 1);
     }
-    try { grip.setPointerCapture(ev.pointerId); } catch (err) {}
+    try { if (ev.target && ev.target.setPointerCapture) ev.target.setPointerCapture(ev.pointerId); } catch (err) {}
     var sec = sel.sec, i = sel.i;
     var e = sec.els[i];
     var node = sec.nodes[i];
@@ -2077,8 +2139,12 @@
     drag = { sec: sec, i: i, px: ev.clientX, py: ev.clientY, x: e.x, y: e.y, gx: r.left, gy: r.top };
     document.documentElement.classList.add('gogh-dragging');
     hideHandles();
+  }
+  grip.addEventListener('pointerdown', function (ev) {
+    ev.preventDefault();
+    beginDrag(ev);
   });
-  grip.addEventListener('pointermove', function (ev) {
+  document.addEventListener('pointermove', function (ev) {
     if (!drag) return;
     var dx = ev.clientX - drag.px, dy = ev.clientY - drag.py;
     var lockX = false, lockY = false;
@@ -2168,8 +2234,8 @@
     placeHandles(sec, i);
     pushState();
   }
-  grip.addEventListener('pointerup', endDrag);
-  grip.addEventListener('pointercancel', endDrag);
+  document.addEventListener('pointerup', function () { if (drag) endDrag(); });
+  document.addEventListener('pointercancel', function () { if (drag) endDrag(); });
 
   var gridSnapOn = false; // opt-in: invisible magnets feel broken to beginners
   function snapPos(sec, exclude, x, y, w, h, free) {
@@ -2522,6 +2588,10 @@
     if (!editing || panelOpen || !picker.hidden) return;
     var a = document.activeElement;
     var typing = a && (a.isContentEditable || /INPUT|TEXTAREA/.test(a.tagName));
+    if (ev.key === 'Escape' && textEditing) {
+      exitTextEdit();
+      return;
+    }
     if ((ev.metaKey || ev.ctrlKey) && ev.key.toLowerCase() === 'k') {
       var ksel = window.getSelection();
       var ka = document.activeElement;
