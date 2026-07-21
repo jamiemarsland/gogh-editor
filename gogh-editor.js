@@ -1597,23 +1597,24 @@
     var r = sec.wrapEl.getBoundingClientRect();
     return r.bottom > 60 && r.top < window.innerHeight - 60;
   }
+  function addElementAtViewport(kind) {
+    var e = DEFAULTS[kind]();
+    // land in what the user is looking at: the selected section if it's on
+    // screen, else the most visible one — centred in the viewport
+    var sec = (sel && sectionVisible(sel.sec)) ? sel.sec : viewportSection();
+    var r = sec.sectionEl.getBoundingClientRect();
+    var s = r.width / W;
+    var cy = (window.innerHeight / 2 - r.top) / s - e.h / 2;
+    var H = designH(sec.els, sec.minH);
+    e.x = Math.round((W - e.w) / 2 + (stagger % 5) * 24 - 48);
+    e.y = Math.round(Math.max(8, Math.min(H - e.h - 8, cy)) + (stagger % 5) * 24 - 48);
+    e.x = Math.max(0, Math.min(W - e.w, e.x));
+    e.y = Math.max(8, e.y);
+    stagger++;
+    addElement(sec, e);
+  }
   side.querySelectorAll('[data-add]').forEach(function (btn) {
-    btn.addEventListener('click', function () {
-      var e = DEFAULTS[btn.dataset.add]();
-      // land in what the user is looking at: the selected section if it's on
-      // screen, else the most visible one — centred in the viewport
-      var sec = (sel && sectionVisible(sel.sec)) ? sel.sec : viewportSection();
-      var r = sec.sectionEl.getBoundingClientRect();
-      var s = r.width / W;
-      var cy = (window.innerHeight / 2 - r.top) / s - e.h / 2;
-      var H = designH(sec.els, sec.minH);
-      e.x = Math.round((W - e.w) / 2 + (stagger % 5) * 24 - 48);
-      e.y = Math.round(Math.max(8, Math.min(H - e.h - 8, cy)) + (stagger % 5) * 24 - 48);
-      e.x = Math.max(0, Math.min(W - e.w, e.x));
-      e.y = Math.max(8, e.y);
-      stagger++;
-      addElement(sec, e);
-    });
+    btn.addEventListener('click', function () { addElementAtViewport(btn.dataset.add); });
   });
   elbar.querySelector('.gogh-eb-del').addEventListener('click', deleteSelected);
   side.querySelector('[data-act="addsec"]').addEventListener('click', function () { openPicker(S.length); });
@@ -1751,6 +1752,72 @@
     sec.wrapEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
     pushState();
   }
+
+  // ---------- "/" quick add: type to filter, Enter to insert ----------
+  var cmd = document.createElement('div');
+  cmd.className = 'gogh-cmd';
+  cmd.hidden = true;
+  cmd.innerHTML = '<div class="gogh-cmd-panel">' +
+    '<input type="text" class="gogh-input gogh-cmd-in" placeholder="Add something\u2026" />' +
+    '<div class="gogh-cmd-list"></div></div>';
+  document.body.appendChild(cmd);
+  var cmdIn = cmd.querySelector('.gogh-cmd-in');
+  var cmdList = cmd.querySelector('.gogh-cmd-list');
+  var cmdIdx = 0;
+  function cmdItems() {
+    var items = [
+      { label: 'Heading', kind: 'heading' },
+      { label: 'Text', kind: 'para' },
+      { label: 'Button', kind: 'button' },
+      { label: 'Image', kind: 'image' },
+      { label: 'Badge', kind: 'badge' },
+    ];
+    TEMPLATES.forEach(function (t, ti) {
+      if (t.els.length) items.push({ label: t.name + ' \u00b7 section', tpl: ti });
+    });
+    return items;
+  }
+  function renderCmd() {
+    var q = cmdIn.value.trim().toLowerCase();
+    var items = cmdItems().filter(function (it) { return it.label.toLowerCase().indexOf(q) !== -1; });
+    cmdIdx = Math.max(0, Math.min(cmdIdx, items.length - 1));
+    cmdList.innerHTML = '';
+    items.forEach(function (it, k) {
+      var b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'gogh-cmd-item' + (k === cmdIdx ? ' is-active' : '');
+      b.textContent = it.label;
+      b.addEventListener('click', function () { runCmd(it); });
+      cmdList.appendChild(b);
+    });
+    cmdList.__items = items;
+  }
+  function openCmd() {
+    cmd.hidden = false;
+    cmdIn.value = '';
+    cmdIdx = 0;
+    renderCmd();
+    cmdIn.focus();
+  }
+  function closeCmd() {
+    cmd.hidden = true;
+    cmdIn.blur();
+  }
+  function runCmd(it) {
+    closeCmd();
+    if (it.kind) addElementAtViewport(it.kind);
+    else addSection(TEMPLATES[it.tpl], S.indexOf(viewportSection()) + 1);
+  }
+  cmdIn.addEventListener('input', function () { cmdIdx = 0; renderCmd(); });
+  cmdIn.addEventListener('keydown', function (ev) {
+    var items = cmdList.__items || [];
+    if (ev.key === 'ArrowDown') { ev.preventDefault(); cmdIdx++; renderCmd(); }
+    else if (ev.key === 'ArrowUp') { ev.preventDefault(); cmdIdx--; renderCmd(); }
+    else if (ev.key === 'Enter') { ev.preventDefault(); if (items[cmdIdx]) runCmd(items[cmdIdx]); }
+    else if (ev.key === 'Escape') { ev.preventDefault(); closeCmd(); }
+    ev.stopPropagation(); // the menu owns the keyboard while open
+  });
+  cmd.addEventListener('pointerdown', function (ev) { if (ev.target === cmd) closeCmd(); });
 
   // ---------- section-height handle (Canva-style bottom-edge bar) ----------
   var hbar = document.createElement('div');
@@ -2593,6 +2660,11 @@
     if (!editing || panelOpen || !picker.hidden) return;
     var a = document.activeElement;
     var typing = a && (a.isContentEditable || /INPUT|TEXTAREA/.test(a.tagName));
+    if (ev.key === '/' && !typing && cmd.hidden) {
+      ev.preventDefault();
+      openCmd();
+      return;
+    }
     if (ev.key === 'Escape' && textEditing) {
       exitTextEdit();
       return;

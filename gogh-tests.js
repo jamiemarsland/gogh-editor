@@ -569,6 +569,24 @@
       expect(/\d/.test(shown[0].textContent), 'label has no number: ' + shown[0].textContent);
     });
 
+    test('slash opens quick add, filters, inserts', function () {
+      if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
+      var n0 = sec().els.length;
+      window.dispatchEvent(new KeyboardEvent('keydown', { key: '/', bubbles: true }));
+      var menu = document.querySelector('.gogh-cmd');
+      expect(menu && !menu.hidden, 'slash did not open the menu');
+      var input = document.querySelector('.gogh-cmd-in');
+      input.value = 'badge';
+      input.dispatchEvent(new Event('input', { bubbles: true }));
+      var items = [].slice.call(document.querySelectorAll('.gogh-cmd-item'));
+      expect(items.length === 1 && items[0].textContent === 'Badge',
+        'filter wrong: ' + items.map(function (b) { return b.textContent; }).join(','));
+      input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+      expect(menu.hidden, 'menu did not close after Enter');
+      var els = sec().els;
+      expect(els.length === n0 + 1 && els[els.length - 1].type === 'badge', 'badge not inserted');
+    });
+
     // ---- 14. image via URL becomes a real figure (v0.9) ----
     test('image URL apply → figure with img', function () {
       var i = findIdx('image');
