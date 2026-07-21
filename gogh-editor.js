@@ -2633,10 +2633,19 @@
     ev.preventDefault();
     resolveAndApply(sec);
     placeHandles(sel.sec, sel.i);
+    // same spacing feedback as dragging, fading after the last press —
+    // badges go blue when a nudge lands on equal gaps
+    var nbK = neighbors(sec, e);
+    var eqHK = !!(nbK.L && nbK.R && Math.abs((e.x - (nbK.L.x + nbK.L.w)) - (nbK.R.x - (e.x + e.w))) < 1);
+    var eqVK = !!(nbK.T && nbK.B && Math.abs((e.y - (nbK.T.y + nbK.T.h)) - (nbK.B.y - (e.y + e.h))) < 1);
+    drawDists(sec, sel.i, eqHK, eqVK);
+    clearTimeout(nudgeDistTimer);
+    nudgeDistTimer = setTimeout(hideDists, 900);
     clearTimeout(textTimer);
     textTimer = setTimeout(pushState, 500);
     refreshChip(); // history push is debounced, the chip shouldn't be
   });
+  var nudgeDistTimer = null;
 
   // ---------- toolbar actions ----------
   editBtn.addEventListener('click', function () { setEditing(true); });

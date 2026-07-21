@@ -559,6 +559,16 @@
       expect(tip.hidden, 'tooltip did not hide on pointerdown');
     });
 
+    test('keyboard nudge shows spacing labels', function () {
+      var i = findIdx('badge');
+      select(i);
+      if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
+      window.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }));
+      var shown = [...document.querySelectorAll('.gogh-dist')].filter(function (d) { return !d.hidden; });
+      expect(shown.length > 0, 'no spacing labels during nudge');
+      expect(/\d/.test(shown[0].textContent), 'label has no number: ' + shown[0].textContent);
+    });
+
     // ---- 14. image via URL becomes a real figure (v0.9) ----
     test('image URL apply → figure with img', function () {
       var i = findIdx('image');
