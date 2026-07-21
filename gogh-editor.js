@@ -2357,8 +2357,7 @@
   function applyUiTheme() {
     var saved = null;
     try { saved = localStorage.getItem('gogh-ui-theme'); } catch (e) {}
-    var light = saved ? saved === 'light'
-      : (window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches);
+    var light = saved === 'light'; // dark is gogh's default
     document.documentElement.classList.toggle('gogh-ui-light', light);
     return light;
   }

@@ -4,12 +4,14 @@
   --gogh-ui-fg: #e8eaf0;
   --gogh-ui-border: rgba(255, 255, 255, 0.13);
   --gogh-ui-hover: rgba(255, 255, 255, 0.07);
+  --gogh-ui-muted: rgba(232, 234, 240, 0.5);
 }
 :root.gogh-ui-light {
   --gogh-ui-bg: rgba(252, 252, 253, 0.98);
   --gogh-ui-fg: #1d2327;
   --gogh-ui-border: rgba(0, 0, 0, 0.14);
   --gogh-ui-hover: rgba(0, 0, 0, 0.05);
+  --gogh-ui-muted: rgba(29, 35, 39, 0.6);
 }
 
 /* gogh front-end editor chrome */
@@ -143,7 +145,7 @@
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.07em;
-  color: rgba(232, 234, 240, 0.45);
+  color: var(--gogh-ui-muted);
   padding: 10px 4px 3px;
 }
 .gogh-side-row { display: flex; gap: 6px; padding: 0 2px; }
@@ -388,7 +390,7 @@
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.06em;
-  color: rgba(232, 234, 240, 0.55);
+  color: var(--gogh-ui-muted);
   margin-bottom: 10px;
 }
 .gogh-panel-row { display: flex; gap: 8px; align-items: center; }
@@ -416,7 +418,7 @@
 .gogh-media-loading {
   grid-column: 1 / -1;
   font-size: 12px;
-  color: rgba(232, 234, 240, 0.5);
+  color: var(--gogh-ui-muted);
 }
 .gogh-thumb {
   all: unset;
@@ -639,7 +641,7 @@
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.05em;
-  color: rgba(232, 234, 240, 0.5);
+  color: var(--gogh-ui-muted);
   width: 40px;
 }
 .gogh-sw {
