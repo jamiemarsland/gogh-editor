@@ -645,8 +645,9 @@
     });
 
     test('editor chrome theme toggles and persists', function () {
-      var btn = q('.gogh-side [data-act="uitheme"]');
+      var btn = q('.gogh-side .gogh-theme');
       expect(btn, 'theme toggle missing');
+      expect(btn.querySelector('svg'), 'theme button has no icon');
       var wasLight = document.documentElement.classList.contains('gogh-ui-light');
       btn.click();
       expect(document.documentElement.classList.contains('gogh-ui-light') !== wasLight, 'root class did not flip');

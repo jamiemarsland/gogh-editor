@@ -775,6 +775,7 @@
   side.innerHTML =
     '<div class="gogh-side-head">' +
     '<span class="gogh-side-title">gogh</span>' +
+    '<button type="button" class="gogh-sbtn gogh-theme" data-act="uitheme" title="Editor theme"></button>' +
     '<button type="button" class="gogh-sbtn gogh-close" title="Finish editing">✕</button>' +
     '</div>' +
     '<div class="gogh-side-row">' +
@@ -790,7 +791,6 @@
     '<div class="gogh-side-label">Page</div>' +
     '<button type="button" class="gogh-sitem" data-act="addsec">+ Section</button>' +
     '<button type="button" class="gogh-sitem" data-act="gridsnap" title="Show an 8-unit grid and snap to it">Grid: off</button>' +
-    '<button type="button" class="gogh-sitem" data-act="uitheme" title="Switch the gogh editor chrome between dark and light">Editor: dark</button>' +
     '<div class="gogh-side-gap"></div>';
   document.body.appendChild(side);
 
@@ -1632,11 +1632,22 @@
     document.documentElement.classList.toggle('gogh-grid-on', gridSnapOn);
     ev.target.textContent = 'Grid: ' + (gridSnapOn ? 'on' : 'off');
   });
-  side.querySelector('[data-act="uitheme"]').addEventListener('click', function (ev) {
+  var THEME_ICONS = {
+    sun: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="12" cy="12" r="4.4"/><path d="M12 2.5v2.6M12 18.9v2.6M2.5 12h2.6M18.9 12h2.6M5 5l1.8 1.8M17.2 17.2 19 19M19 5l-1.8 1.8M6.8 17.2 5 19"/></svg>',
+    moon: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round"><path d="M20 14.5A8.5 8.5 0 0 1 9.5 4a8.5 8.5 0 1 0 10.5 10.5Z"/></svg>',
+  };
+  function syncThemeBtn() {
+    var light = document.documentElement.classList.contains('gogh-ui-light');
+    var b = side.querySelector('.gogh-theme');
+    b.innerHTML = light ? THEME_ICONS.moon : THEME_ICONS.sun;
+    b.dataset.tip = light ? 'Dark editor' : 'Light editor';
+    b.removeAttribute('title');
+  }
+  side.querySelector('.gogh-theme').addEventListener('click', function () {
     var light = !document.documentElement.classList.contains('gogh-ui-light');
     try { localStorage.setItem('gogh-ui-theme', light ? 'light' : 'dark'); } catch (e) {}
     document.documentElement.classList.toggle('gogh-ui-light', light);
-    ev.target.textContent = 'Editor: ' + (light ? 'light' : 'dark');
+    syncThemeBtn();
   });
   side.querySelector('.gogh-undo').addEventListener('click', undo);
   side.querySelector('.gogh-redo').addEventListener('click', redo);
@@ -2352,10 +2363,7 @@
     return light;
   }
   applyUiTheme();
-  (function () {
-    var b = side.querySelector('[data-act="uitheme"]');
-    if (b) b.textContent = 'Editor: ' + (document.documentElement.classList.contains('gogh-ui-light') ? 'light' : 'dark');
-  })();
+  syncThemeBtn();
   function snapPos(sec, exclude, x, y, w, h, free) {
     if (free) return { x: Math.round(x), y: Math.round(y), gx: null, gy: null };
     var H = designH(sec.els, sec.minH);

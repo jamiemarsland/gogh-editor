@@ -935,3 +935,15 @@
     0.6667cqw 0.6667cqw;
   opacity: 0.5;
 }
+
+.gogh-theme svg { display: block; }
+.gogh-side-head .gogh-theme {
+  flex: 0 0 auto;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  display: grid;
+  place-items: center;
+  margin-left: auto;
+  margin-right: 6px;
+}
