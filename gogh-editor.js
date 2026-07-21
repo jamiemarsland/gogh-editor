@@ -788,7 +788,7 @@
     '<button type="button" class="gogh-sitem" data-add="badge">Badge</button>' +
     '<div class="gogh-side-label">Page</div>' +
     '<button type="button" class="gogh-sitem" data-act="addsec">+ Section</button>' +
-    '<button type="button" class="gogh-sitem" data-act="gridsnap">Grid snap: on</button>' +
+    '<button type="button" class="gogh-sitem" data-act="gridsnap">Grid snap: off</button>' +
     '<div class="gogh-side-gap"></div>';
   document.body.appendChild(side);
 
@@ -2171,7 +2171,7 @@
   grip.addEventListener('pointerup', endDrag);
   grip.addEventListener('pointercancel', endDrag);
 
-  var gridSnapOn = true;
+  var gridSnapOn = false; // opt-in: invisible magnets feel broken to beginners
   function snapPos(sec, exclude, x, y, w, h, free) {
     if (free) return { x: Math.round(x), y: Math.round(y), gx: null, gy: null };
     var H = designH(sec.els, sec.minH);
@@ -2260,19 +2260,19 @@
     var di = 0, g, c;
     if (nb.L && (g = e.x - (nb.L.x + nb.L.w)) > 4) {
       c = (Math.max(e.y, nb.L.y) + Math.min(e.y + e.h, nb.L.y + nb.L.h)) / 2;
-      showDist(di++, true, px(nb.L.x + nb.L.w), py(c), g * s, g, eqH);
+      showDist(di++, true, px(nb.L.x + nb.L.w), py(c), g * s, g * s, eqH);
     }
     if (nb.R && (g = nb.R.x - (e.x + e.w)) > 4) {
       c = (Math.max(e.y, nb.R.y) + Math.min(e.y + e.h, nb.R.y + nb.R.h)) / 2;
-      showDist(di++, true, px(e.x + e.w), py(c), g * s, g, eqH);
+      showDist(di++, true, px(e.x + e.w), py(c), g * s, g * s, eqH);
     }
     if (nb.T && (g = e.y - (nb.T.y + nb.T.h)) > 4) {
       c = (Math.max(e.x, nb.T.x) + Math.min(e.x + e.w, nb.T.x + nb.T.w)) / 2;
-      showDist(di++, false, px(c), py(nb.T.y + nb.T.h), g * s, g, eqV);
+      showDist(di++, false, px(c), py(nb.T.y + nb.T.h), g * s, g * s, eqV);
     }
     if (nb.B && (g = nb.B.y - (e.y + e.h)) > 4) {
       c = (Math.max(e.x, nb.B.x) + Math.min(e.x + e.w, nb.B.x + nb.B.w)) / 2;
-      showDist(di++, false, px(c), py(e.y + e.h), g * s, g, eqV);
+      showDist(di++, false, px(c), py(e.y + e.h), g * s, g * s, eqV);
     }
   }
 
