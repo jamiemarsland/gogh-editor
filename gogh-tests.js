@@ -597,6 +597,26 @@
       expect(document.documentElement.classList.contains('gogh-grid-on') === was, 'grid class did not toggle back');
     });
 
+    test('grid on: drops land on the grid', function () {
+      var btn = q('.gogh-side [data-act="gridsnap"]');
+      if (!document.documentElement.classList.contains('gogh-grid-on')) btn.click();
+      q('.gogh-side [data-add="badge"]').click();
+      var n = sec().els.length - 1;
+      var e = sec().els[n];
+      e.x = 200; e.y = 1600; e.w = 200; e.h = 60; // empty area: no alignment candidates
+      G.resolve(sec());
+      select(n);
+      var s = sec().sectionEl.getBoundingClientRect().width / 1200;
+      var grip = q('.gogh-grip');
+      var r = grip.getBoundingClientRect();
+      grip.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, clientX: r.x + 12, clientY: r.y + 12, pointerId: 91 }));
+      grip.dispatchEvent(new PointerEvent('pointermove', { bubbles: true, clientX: r.x + 12 + 37 * s, clientY: r.y + 12 + 29 * s, pointerId: 91 }));
+      grip.dispatchEvent(new PointerEvent('pointerup', { bubbles: true, clientX: r.x + 12 + 37 * s, clientY: r.y + 12 + 29 * s, pointerId: 91 }));
+      expect(e.x % 8 === 0 && e.y % 8 === 0, 'drop off-grid: ' + e.x + ',' + e.y + ' (x%8=' + e.x % 8 + ', y%8=' + e.y % 8 + ')');
+      if (document.documentElement.classList.contains('gogh-grid-on')) btn.click(); // restore default
+      return 'landed on grid at ' + e.x + ',' + e.y;
+    });
+
     // ---- 14. image via URL becomes a real figure (v0.9) ----
     test('image URL apply → figure with img', function () {
       var i = findIdx('image');

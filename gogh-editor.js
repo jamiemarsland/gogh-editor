@@ -2238,6 +2238,10 @@
     e.y = Math.max(0, sn.y);
     if (lockX) { e.x = drag.x; sn.gx = null; }
     if (lockY) { e.y = drag.y; sn.gy = null; }
+    drag.gxCap = sn.gx !== null;
+    drag.gyCap = sn.gy !== null;
+    drag.lockedX = lockX;
+    drag.lockedY = lockY;
     // equal-spacing: when between two neighbours, the midpoint captures the
     // RAW pointer position and takes priority over edge snap — otherwise a
     // nearby alignment candidate (or 8-grid parity) can make equal gaps
@@ -2278,6 +2282,9 @@
   function endDrag() {
     if (!drag) return;
     var sec = drag.sec, i = drag.i;
+    var gxCapD = !!drag.gxCap, gyCapD = !!drag.gyCap;
+    var eqHD = !!drag.eqH, eqVD = !!drag.eqV;
+    var lockedXD = !!drag.lockedX, lockedYD = !!drag.lockedY;
     var ghostTop = null;
     if (ghost) {
       ghostTop = ghost.getBoundingClientRect().top + window.scrollY;
@@ -2303,6 +2310,15 @@
         sec.els[i].y = Math.max(0, sec.els[i].y + dDesign);
         resolveAndApply(sec);
       }
+    }
+    // the visible grid is a promise: axes the grid governed at release must
+    // land ON it (alignment/equal-spacing/shift-locked axes keep their own
+    // promises and are left alone)
+    if (gridSnapOn) {
+      var eDrop = sec.els[i];
+      if (!gxCapD && !eqHD && !lockedXD) eDrop.x = Math.max(0, Math.min(W - eDrop.w, Math.round(eDrop.x / BASE) * BASE));
+      if (!gyCapD && !eqVD && !lockedYD) eDrop.y = Math.max(0, Math.round(eDrop.y / BASE) * BASE);
+      resolveAndApply(sec);
     }
     placeHandles(sec, i);
     pushState();
