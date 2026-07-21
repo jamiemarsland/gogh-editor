@@ -834,3 +834,10 @@
 .gogh-editing .gogh-section > * * { cursor: move; }
 .gogh-editing .gogh-section > .gogh-textedit,
 .gogh-editing .gogh-section > .gogh-textedit * { cursor: text; }
+
+/* body-drag without preventDefault: stop drags from selecting text */
+.gogh-editing .gogh-section > *:not(.gogh-textedit),
+.gogh-editing .gogh-section > *:not(.gogh-textedit) * {
+  -webkit-user-select: none;
+  user-select: none;
+}

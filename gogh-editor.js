@@ -1108,7 +1108,11 @@
       if (textEditing) exitTextEdit();
       var wasSelected = !!(sel && sel.sec === sec && sel.i === i);
       placeHandles(sec, i);
-      ev.preventDefault(); // no caret, no native image drag
+      // NO preventDefault here: it would stop the click from focusing this
+      // frame (breaks keyboard nudge/undo inside iframes, e.g. Playground).
+      // Carets can't appear anyway (contenteditable is off until second
+      // click); text-selection is suppressed via CSS user-select.
+      try { window.focus(); } catch (err) {}
       pendingDrag = {
         sec: sec, i: i, node: node,
         x: ev.clientX, y: ev.clientY,
