@@ -587,6 +587,16 @@
       expect(els.length === n0 + 1 && els[els.length - 1].type === 'badge', 'badge not inserted');
     });
 
+    test('grid toggle shows the grid it snaps to', function () {
+      var btn = q('.gogh-side [data-act="gridsnap"]');
+      var was = document.documentElement.classList.contains('gogh-grid-on');
+      btn.click();
+      expect(document.documentElement.classList.contains('gogh-grid-on') !== was, 'grid class did not toggle');
+      expect(/Grid: (on|off)/.test(btn.textContent), 'label wrong: ' + btn.textContent);
+      btn.click();
+      expect(document.documentElement.classList.contains('gogh-grid-on') === was, 'grid class did not toggle back');
+    });
+
     // ---- 14. image via URL becomes a real figure (v0.9) ----
     test('image URL apply → figure with img', function () {
       var i = findIdx('image');

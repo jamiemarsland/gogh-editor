@@ -789,7 +789,7 @@
     '<button type="button" class="gogh-sitem" data-add="badge">Badge</button>' +
     '<div class="gogh-side-label">Page</div>' +
     '<button type="button" class="gogh-sitem" data-act="addsec">+ Section</button>' +
-    '<button type="button" class="gogh-sitem" data-act="gridsnap">Grid snap: off</button>' +
+    '<button type="button" class="gogh-sitem" data-act="gridsnap" title="Show an 8-unit grid and snap to it">Grid: off</button>' +
     '<div class="gogh-side-gap"></div>';
   document.body.appendChild(side);
 
@@ -1620,7 +1620,9 @@
   side.querySelector('[data-act="addsec"]').addEventListener('click', function () { openPicker(S.length); });
   side.querySelector('[data-act="gridsnap"]').addEventListener('click', function (ev) {
     gridSnapOn = !gridSnapOn;
-    ev.target.textContent = 'Grid snap: ' + (gridSnapOn ? 'on' : 'off');
+    // the grid you snap to is the grid you see — never invisible magnets
+    document.documentElement.classList.toggle('gogh-grid-on', gridSnapOn);
+    ev.target.textContent = 'Grid: ' + (gridSnapOn ? 'on' : 'off');
   });
   side.querySelector('.gogh-undo').addEventListener('click', undo);
   side.querySelector('.gogh-redo').addEventListener('click', redo);
