@@ -2176,13 +2176,13 @@
       if (!lockX && nb.L && nb.R) {
         var xEq = (nb.L.x + nb.L.w + nb.R.x - e.w) / 2;
         if (xEq >= nb.L.x + nb.L.w && Math.abs(rx - xEq) < 8) {
-          e.x = Math.round(xEq); sn.gx = null; drag.eqH = true;
+          e.x = xEq; sn.gx = null; drag.eqH = true; // exact midpoint: gaps truly equal
         }
       }
       if (!lockY && nb.T && nb.B) {
         var yEq = (nb.T.y + nb.T.h + nb.B.y - e.h) / 2;
         if (yEq >= nb.T.y + nb.T.h && Math.abs(ry - yEq) < 8) {
-          e.y = Math.round(yEq); sn.gy = null; drag.eqV = true;
+          e.y = yEq; sn.gy = null; drag.eqV = true;
         }
       }
     }

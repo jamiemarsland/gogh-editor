@@ -826,8 +826,8 @@
       grip.dispatchEvent(new PointerEvent('pointerup', { bubbles: true, clientX: r.x + 12 + dx, clientY: r.y + 12, pointerId: 66 }));
       var gapL = b.x - (a.x + a.w);
       var gapR = c.x - (b.x + b.w);
-      expect(Math.abs(gapL - gapR) <= 1, 'gaps unequal: ' + gapL + ' vs ' + gapR + ' (x=' + b.x + ')');
-      return 'x=' + b.x + ', gaps ' + gapL + '/' + gapR;
+      expect(gapL === gapR, 'gaps not EXACTLY equal despite odd parity: ' + gapL + ' vs ' + gapR + ' (x=' + b.x + ')');
+      return 'x=' + b.x + ', gaps exactly ' + gapL + '/' + gapR;
     });
 
     // ---- 28c. reflow push moves aligned rows as a unit ----
