@@ -841,3 +841,21 @@
   -webkit-user-select: none;
   user-select: none;
 }
+
+/* instant tooltip */
+.gogh-tip {
+  position: fixed;
+  z-index: 100006;
+  background: rgba(20, 21, 25, 0.97);
+  color: #e8eaf0;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, sans-serif;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 5px 10px;
+  border-radius: 8px;
+  pointer-events: none;
+  max-width: 260px;
+  box-shadow: 0 10px 28px -8px rgba(0, 0, 0, 0.55);
+}
+.gogh-tip[hidden] { display: none; }

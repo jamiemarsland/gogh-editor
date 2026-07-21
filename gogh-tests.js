@@ -546,6 +546,19 @@
       expect(!node.isContentEditable, 'Escape should leave editing');
     });
 
+    test('instant tooltips replace native titles', function () {
+      var i = findIdx('heading');
+      select(i);
+      var btn = q('.gogh-eb-dup');
+      G.showTip(btn);
+      var tip = document.querySelector('.gogh-tip');
+      expect(tip && !tip.hidden, 'tooltip did not show');
+      expect(tip.textContent.indexOf('Duplicate') !== -1, 'tooltip text wrong: ' + tip.textContent);
+      expect(!btn.getAttribute('title'), 'native title not suppressed');
+      document.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }));
+      expect(tip.hidden, 'tooltip did not hide on pointerdown');
+    });
+
     // ---- 14. image via URL becomes a real figure (v0.9) ----
     test('image URL apply → figure with img', function () {
       var i = findIdx('image');

@@ -862,7 +862,7 @@
     '<button type="button" class="gogh-eb gogh-eb-col" title="Text colour"><span class="gogh-eb-colchip"></span></button>' +
     '<button type="button" class="gogh-eb gogh-eb-bck" title="Send backward">▼</button>' +
     '<button type="button" class="gogh-eb gogh-eb-fwd" title="Bring forward">▲</button>' +
-    '<button type="button" class="gogh-eb gogh-eb-dup" title="Duplicate">⧉</button>' +
+    '<button type="button" class="gogh-eb gogh-eb-dup" title="Duplicate (or Alt-drag)">⧉</button>' +
     '<button type="button" class="gogh-eb gogh-eb-del" title="Delete (Del)">🗑</button>';
   var ctxBtn = elbar.querySelector('.gogh-eb-ctx');
   var fsBtn = elbar.querySelector('.gogh-eb-fs');
@@ -1758,7 +1758,7 @@
   var hgrip = document.createElement('button');
   hgrip.type = 'button';
   hgrip.className = 'gogh-hgrip';
-  hgrip.title = 'Drag to set section height';
+  hgrip.title = 'Drag to move — or drag the element itself. Arrow keys nudge (Shift = 8\u00d7)';
   hbar.hidden = true;
   document.body.appendChild(hbar);
   document.body.appendChild(hgrip);
@@ -2558,6 +2558,7 @@
     serialize: serialize,
     syncModelFromMarkup: syncModelFromMarkup,
     cleanInline: cleanInline,
+    showTip: showTipNow,
     applyTextLink: applyTextLink,
     readingOrder: function (els) {
       var rank = readingRank(els);
@@ -2639,6 +2640,48 @@
 
   // ---------- toolbar actions ----------
   editBtn.addEventListener('click', function () { setEditing(true); });
+  // ---------- instant tooltips (native title has a multi-second delay) ----------
+  var tipEl = document.createElement('div');
+  tipEl.className = 'gogh-tip';
+  tipEl.hidden = true;
+  document.body.appendChild(tipEl);
+  var tipTimer = null;
+  var tipVisibleUntil = 0;
+  function showTipNow(el) {
+    var text = el.getAttribute('title') || el.dataset.tip || '';
+    if (el.getAttribute('title')) {
+      el.dataset.tip = el.getAttribute('title');
+      el.removeAttribute('title'); // suppress the native tooltip
+      text = el.dataset.tip;
+    }
+    if (!text) return;
+    tipEl.textContent = text;
+    tipEl.hidden = false;
+    var r = el.getBoundingClientRect();
+    var tw = tipEl.offsetWidth;
+    var left = Math.max(6, Math.min(r.left + r.width / 2 - tw / 2, window.innerWidth - tw - 6));
+    var top = r.bottom + 8;
+    if (top + tipEl.offsetHeight > window.innerHeight - 6) top = r.top - tipEl.offsetHeight - 8;
+    tipEl.style.left = left + 'px';
+    tipEl.style.top = top + 'px';
+  }
+  function hideTip() {
+    clearTimeout(tipTimer);
+    if (!tipEl.hidden) tipVisibleUntil = Date.now() + 400;
+    tipEl.hidden = true;
+  }
+  document.addEventListener('pointerover', function (ev) {
+    if (!(ev.target instanceof Element)) return;
+    var el = ev.target.closest('[title], [data-tip]');
+    if (!el || !/gogh-/.test(el.className)) { hideTip(); return; }
+    clearTimeout(tipTimer);
+    // first hover waits a beat; moving along a toolbar is instant
+    if (Date.now() < tipVisibleUntil || !tipEl.hidden) showTipNow(el);
+    else tipTimer = setTimeout(function () { showTipNow(el); }, 140);
+  });
+  document.addEventListener('pointerdown', hideTip, true);
+  document.addEventListener('scroll', hideTip, true);
+
   // ---------- publish state: status chip, toasts, exit panel ----------
   var savedSnap = null;
   var rawCache = null;     // last-known stored content (context=edit)
