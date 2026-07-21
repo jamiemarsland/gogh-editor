@@ -996,6 +996,13 @@
   function hideHandles() { grip.hidden = selBox.hidden = elbar.hidden = true; }
   function hideGuides() { guideV.hidden = guideH.hidden = true; }
 
+  // the box the USER perceives: for buttons that's the pill, not its
+  // layout cell (themes pad the wrapper, leaving an unsettling moat)
+  function visualNode(sec, i) {
+    var e = sec.els[i], n = sec.nodes[i];
+    if (e && e.type === 'button' && n) return n.querySelector('.wp-block-button__link') || n;
+    return n;
+  }
   function placeHandles(sec, i) {
     if (!sec.nodes[i]) { hideHandles(); return; }
     sel = { sec: sec, i: i };
@@ -1006,7 +1013,7 @@
     node.classList.add('gogh-selected');
     // anchor to the RENDERED layout box — the grid can drift a few px from the
     // model when intrinsic minimums stretch rows, and that drift accumulates
-    var b = nodeBox(node);
+    var b = nodeBox(visualNode(sec, i));
     var bx = b.x, byy = b.y, bw = b.w, bh = b.h;
     selBox.style.left = bx + 'px';
     selBox.style.top = byy + 'px';
@@ -2271,7 +2278,7 @@
         resolveAndApply(sec);
         showGuides(sec, sn.gx, sn.gy);
         drawDists(sec, drag.i, drag.eqH, drag.eqV);
-        var b2 = nodeBox(sec.nodes[drag.i]);
+        var b2 = nodeBox(visualNode(sec, drag.i));
         dropBox.style.left = b2.x + 'px';
         dropBox.style.top = b2.y + 'px';
         dropBox.style.width = b2.w + 'px';
