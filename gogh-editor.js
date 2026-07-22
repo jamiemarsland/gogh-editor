@@ -373,7 +373,10 @@
       '  grid-template-columns: ' + g.cols.join(' ') + ';',
       '  grid-template-rows:\n    ' + g.rows.join('\n    ') + ';',
       '}',
-      sec + ' > * { margin: 0 !important; min-width: 0; }',
+      sec + ' > * { margin: 0 !important; min-width: 0; box-sizing: border-box; }',
+      // themes often give Group blocks default padding — fatal for empty
+      // image placeholders, which must be exactly their grid cell
+      sec + ' > .wp-block-group { padding: 0 !important; }',
     ];
     if (opts.divider && opts.divider.shape && opts.divColor && DIVIDER_PATHS[opts.divider.shape]) {
       // mask (not background-image) so the colour can be a CSS variable —
