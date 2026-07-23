@@ -189,6 +189,7 @@
       bootstrap: !!wrap.__goghBootstrap,
       minH: model.minH || (bootEls.length ? null : 480),
       bg: model.bg || null, divider: model.divider || null,
+      fx: model.fx || null,
       bgImage: model.bgImage || null, bgId: model.bgId || null,
       wrapEl: wrap, sectionEl: sectionEl, styleEl: styleEl, nodes: [] });
   });
@@ -341,6 +342,8 @@
 
   var DIVIDER_PATHS = {
     wave: 'M0,64 C300,124 900,4 1200,64 L1200,120 L0,120 Z',
+    brush: 'M0,88 C28,72 54,98 88,84 C118,72 142,94 178,80 C216,64 244,98 286,88 C322,80 352,60 392,76 C428,90 462,70 502,82 C538,92 574,66 612,78 C652,90 688,72 724,84 C762,96 800,62 842,74 C878,84 912,102 952,86 C990,70 1022,92 1060,80 C1096,68 1130,94 1162,84 C1178,79 1192,74 1200,72 L1200,120 L0,120 Z',
+    torn: 'M0,86 L46,76 L94,90 L148,70 L206,88 L262,68 L328,86 L388,74 L452,92 L516,74 L582,88 L638,68 L698,86 L758,74 L822,92 L878,70 L938,84 L998,72 L1058,90 L1122,76 L1200,86 L1200,120 L0,120 Z',
     curve: 'M0,120 C400,10 800,10 1200,120 Z',
     slant: 'M0,120 L1200,30 L1200,120 Z',
     peaks: 'M0,120 L300,50 L600,110 L900,40 L1200,120 Z',
@@ -383,7 +386,10 @@
       // image placeholders, which must be exactly their grid cell
       sec + ' > .wp-block-group { padding: 0 !important; }',
     ];
-    if (opts.divider && opts.divider.shape && opts.divColor && DIVIDER_PATHS[opts.divider.shape]) {
+    if (opts.divider && opts.divider.shape === 'melt' && opts.divColor) {
+      // no edge at all: the section dissolves into the next one's colour
+      out.push(sec + '::after { content: ""; position: absolute; left: 0; right: 0; bottom: -1px; height: 16cqw; z-index: 0; pointer-events: none; background: linear-gradient(to bottom, transparent, ' + opts.divColor + '); }');
+    } else if (opts.divider && opts.divider.shape && opts.divColor && DIVIDER_PATHS[opts.divider.shape]) {
       // mask (not background-image) so the colour can be a CSS variable —
       // theme palette changes recolour dividers live
       var mask = dividerBg(opts.divider.shape, '#000');
@@ -426,6 +432,28 @@
       '  ' + sec + ' .wp-block-button, ' + sec + ' .wp-block-button__link { width: max-content; height: 44px; padding: 0 24px; }',
       '}'
     );
+    var fx = opts.fx || {};
+    var wrapSel = '.gogh-wrap:has(> ' + sec + ')';
+    if (fx.pull) {
+      // the section rides up over the previous one (design units -> vw)
+      out.push(wrapSel + ' { margin-top: calc(-1 * ' + (Math.round(fx.pull / 12 * 100) / 100) + 'vw) !important; position: relative; z-index: 3; }');
+      out.push('@media (max-width: 700px) { ' + wrapSel + ' { margin-top: 0 !important; } }');
+    }
+    if (fx.curtain) {
+      // this section slides over the previous (which sectionOpts pins sticky)
+      out.push(wrapSel + ' { position: relative; z-index: 2; }');
+    }
+    if (opts.stickUnder) {
+      out.push(wrapSel + ' { position: sticky; top: 0; z-index: 0; }');
+      out.push('@media (max-width: 700px) { ' + wrapSel + ' { position: static; } }');
+    }
+    if (fx.reveal) {
+      // scroll-driven rise: published page only (never while editing);
+      // `translate` not `transform` so element rotation survives the fill
+      out.push('@keyframes gogh-rise { from { opacity: 0; translate: 0 46px; } to { opacity: 1; translate: 0 0; } }');
+      out.push('@supports (animation-timeline: view()) { html:not(.gogh-editing) ' + sec + ' > * { animation: gogh-rise linear both; animation-timeline: view(); animation-range: entry 8% entry 48%; } }');
+      out.push('@media (prefers-reduced-motion: reduce) { ' + sec + ' > * { animation: none; } }');
+    }
     return out.join('\n');
   }
 
@@ -512,6 +540,7 @@
     var json = JSON.stringify({
       version: 2, designW: W, minH: sec.minH || null,
       bg: sec.bg || null, divider: sec.divider || null,
+      fx: sec.fx || null,
       bgImage: sec.bgImage || null, bgId: sec.bgId || null,
       elements: els.map(projEl),
     }).replace(/</g, '\\u003c');
@@ -642,6 +671,8 @@
     var idx = S.indexOf(sec);
     var next = idx >= 0 ? S[idx + 1] : null;
     return { bg: sec.bg, divider: sec.divider, bgImage: sec.bgImage,
+      fx: sec.fx || null,
+      stickUnder: !!(next && next.fx && next.fx.curtain),
       divColor: next ? (next.bg || '#0f0e0c') : null };
   }
   function resolveAndApply(sec) {
@@ -715,13 +746,13 @@
     sectionEl.className = 'gogh-section ' + scope;
     sectionEl.setAttribute('data-gogh-scope', scope);
     wrap.appendChild(sectionEl);
-    return { scope: scope, els: [], minH: null, bg: null, divider: null, bgImage: null, bgId: null, wrapEl: wrap, sectionEl: sectionEl, styleEl: styleEl, nodes: [] };
+    return { scope: scope, els: [], minH: null, bg: null, divider: null, fx: null, bgImage: null, bgId: null, wrapEl: wrap, sectionEl: sectionEl, styleEl: styleEl, nodes: [] };
   }
 
   // ---------- history (undo/redo) ----------
   var history = [], hIdx = -1, textTimer = null;
   function serialize() {
-    return JSON.stringify(S.map(function (sec) { return { scope: sec.scope, els: sec.els, minH: sec.minH || null, bg: sec.bg || null, divider: sec.divider || null, bgImage: sec.bgImage || null, bgId: sec.bgId || null, src: sec.srcSig || null, boot: sec.bootstrap || false, chrome: sec.chrome || null }; }));
+    return JSON.stringify(S.map(function (sec) { return { scope: sec.scope, els: sec.els, minH: sec.minH || null, bg: sec.bg || null, divider: sec.divider || null, fx: sec.fx || null, bgImage: sec.bgImage || null, bgId: sec.bgId || null, src: sec.srcSig || null, boot: sec.bootstrap || false, chrome: sec.chrome || null }; }));
   }
   function pushState() {
     var snap = serialize();
@@ -757,6 +788,7 @@
       sec.minH = d.minH || null;
       sec.bg = d.bg || null;
       sec.divider = d.divider || null;
+      sec.fx = d.fx || null;
       sec.bgImage = d.bgImage || null;
       sec.bgId = d.bgId || null;
       sec.srcSig = d.src || null;
@@ -1798,6 +1830,35 @@
       var st = p.querySelector('.gogh-card-stage');
       if (st) st.style.transform = 'scale(' + (p.clientWidth / 1200) + ')';
     });
+    var cardsBox = picker.querySelector('.gogh-cards');
+    fetchSectionPatterns().then(function (pats) {
+      if (picker.hidden || !pats.length || !cardsBox.parentNode) return;
+      var head = document.createElement('div');
+      head.className = 'gogh-picker-sub';
+      head.textContent = 'From your theme \u2014 added as freeform';
+      cardsBox.appendChild(head);
+      pats.forEach(function (p) {
+        var b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'gogh-card gogh-card-pattern';
+        b.innerHTML = '<span class="gogh-card-prev"><span class="gogh-card-stage"></span></span>' +
+          '<span class="gogh-card-name"></span>';
+        var nameEl = b.querySelector('.gogh-card-name');
+        nameEl.textContent = '\u2728 ' + (p.title || p.name);
+        cardsBox.appendChild(b);
+        renderPattern(p).then(function (html) {
+          var st = b.querySelector('.gogh-card-stage');
+          var pv = b.querySelector('.gogh-card-prev');
+          if (!st || !html) return;
+          st.innerHTML = html;
+          st.style.transform = 'scale(' + (pv.clientWidth / 1200) + ')';
+        });
+        b.addEventListener('click', function () {
+          addPatternSection(p, pickerIdx);
+          closePicker();
+        });
+      });
+    });
   }
 
   function addSection(tpl, idx) {
@@ -1992,6 +2053,7 @@
     sec.minH = srcSec.minH;
     sec.bg = srcSec.bg;
     sec.divider = srcSec.divider ? JSON.parse(JSON.stringify(srcSec.divider)) : null;
+    sec.fx = srcSec.fx ? JSON.parse(JSON.stringify(srcSec.fx)) : null;
     srcSec.wrapEl.after(sec.wrapEl);
     S.splice(idx + 1, 0, sec);
     renderSection(sec);
@@ -2114,14 +2176,19 @@
       { key: 'curve', label: 'Curve', path: DIVIDER_PATHS.curve },
       { key: 'slant', label: 'Slant', path: DIVIDER_PATHS.slant },
       { key: 'peaks', label: 'Peaks', path: DIVIDER_PATHS.peaks },
+      { key: 'brush', label: 'Brush', path: DIVIDER_PATHS.brush },
+      { key: 'torn', label: 'Torn', path: DIVIDER_PATHS.torn },
+      { key: 'melt', label: 'Melt', melt: true },
     ];
     shapePanel.innerHTML =
       '<div class="gogh-panel-title">Section divider</div>' +
       '<div class="gogh-shapes">' +
       shapes.map(function (sh) {
+        var icon = sh.melt
+          ? '<span class="gogh-shape-melt"></span>'
+          : '<svg viewBox="0 0 1200 120" preserveAspectRatio="none"><path d="' + sh.path + '"/></svg>';
         return '<button type="button" class="gogh-shape' + (sh.key === current ? ' is-active' : '') + '" data-shape="' + sh.key + '" title="' + sh.label + '">' +
-          '<svg viewBox="0 0 1200 120" preserveAspectRatio="none"><path d="' + sh.path + '"/></svg>' +
-          '<span>' + sh.label + '</span></button>';
+          icon + '<span>' + sh.label + '</span></button>';
       }).join('') +
       '</div>' +
       '<div class="gogh-panel-row gogh-panel-actions">' +
@@ -2141,7 +2208,14 @@
             }).join('') + '</div>';
         };
         return '<div class="gogh-panel-title" style="margin-top:12px">Theme palette</div>' + sw('above') + sw('below');
-      })();
+      })() +
+      '<div class="gogh-panel-title" style="margin-top:12px">How the next section arrives</div>' +
+      '<div class="gogh-panel-row gogh-fxrow">' +
+      '<button type="button" class="gogh-btn gogh-btn-small gogh-fxbtn" data-fx="reveal" data-tip="Content rises in as you scroll \u2014 plays on the published page">\u2191 Rise on scroll</button>' +
+      '<button type="button" class="gogh-btn gogh-btn-small gogh-fxbtn" data-fx="curtain" data-tip="The section slides up over the one above">\u2195 Slide over</button>' +
+      '</div>' +
+      '<label class="gogh-fxpull">Overlap the section above' +
+      '<input type="range" class="gogh-pull" min="0" max="180" step="12" /></label>';
     var r = { top: (S[idx - 1].wrapEl.getBoundingClientRect().bottom + window.scrollY) };
     shapePanel.style.left = 'calc(50% - 170px)';
     shapePanel.style.top = (r.top + 16) + 'px';
@@ -2177,6 +2251,33 @@
         pushState();
       });
     });
+    var syncFxUI = function () {
+      var fx = below.fx || {};
+      shapePanel.querySelectorAll('.gogh-fxbtn').forEach(function (b) {
+        b.classList.toggle('is-active', !!fx[b.dataset.fx]);
+      });
+      shapePanel.querySelector('.gogh-pull').value = fx.pull || 0;
+    };
+    syncFxUI();
+    shapePanel.querySelectorAll('.gogh-fxbtn').forEach(function (b) {
+      b.addEventListener('click', function () {
+        below.fx = below.fx || {};
+        below.fx[b.dataset.fx] = !below.fx[b.dataset.fx];
+        if (b.dataset.fx === 'reveal' && below.fx.reveal) {
+          toast('Rise on scroll plays on the published page \u2014 not while editing.', { ttl: 5000 });
+        }
+        resolveAll();
+        pushState();
+        syncFxUI();
+      });
+    });
+    var pullInp = shapePanel.querySelector('.gogh-pull');
+    pullInp.addEventListener('input', function () {
+      below.fx = below.fx || {};
+      below.fx.pull = +this.value || 0;
+      resolveAll();
+    });
+    pullInp.addEventListener('change', pushState);
   }
   shapeBtn.addEventListener('click', function () {
     if (shapeIdx !== null) openShapePanel(shapeIdx);
@@ -3456,6 +3557,96 @@
       return pick(list);
     }).catch(function () { return []; });
   }
+  // content patterns from the active theme (not chrome, not page shells):
+  // offered in the section picker and inserted as freeform sections
+  function fetchSectionPatterns() {
+    var all = patternCache
+      ? Promise.resolve(patternCache)
+      : fetch(GSROOT + 'block-patterns/patterns', {
+          headers: { 'X-WP-Nonce': cfg.nonce },
+          credentials: 'same-origin',
+        }).then(function (r) { return r.ok ? r.json() : []; })
+          .then(function (list) { patternCache = list; return list; })
+          .catch(function () { return []; });
+    return all.then(function (list) {
+      return list.filter(function (p) {
+        var cats = p.categories || [];
+        var c = p.content || '';
+        return p.name && p.name.indexOf(cfg.theme + '/') === 0 &&
+          cats.indexOf('header') === -1 && cats.indexOf('footer') === -1 &&
+          c.indexOf('wp:template-part') === -1 &&
+          c.indexOf('wp:post-') === -1 &&
+          c.indexOf('wp:comments') === -1 &&
+          c.indexOf('wp:query') === -1;
+      }).slice(0, 8);
+    });
+  }
+  function renderPattern(p) {
+    if (p.__rendered != null) return Promise.resolve(p.__rendered);
+    return fetch(GSROOT + 'block-renderer/core/pattern?context=edit&attributes%5Bslug%5D=' + encodeURIComponent(p.name), {
+      headers: { 'X-WP-Nonce': cfg.nonce },
+      credentials: 'same-origin',
+    }).then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (d) { p.__rendered = (d && d.rendered) || ''; return p.__rendered; })
+      .catch(function () { return ''; });
+  }
+  function addPatternSection(p, idx) {
+    if (idx == null) idx = S.length;
+    renderPattern(p).then(function (html) {
+      if (!html) throw new Error('empty');
+      // stage the rendered pattern in the real page flow, let images and
+      // fonts settle, then measure it into a freeform section
+      var stage = document.createElement('div');
+      stage.className = 'alignfull';
+      stage.innerHTML = html;
+      var anchor = idx < S.length ? S[idx].wrapEl : endMarker;
+      pageParent.insertBefore(stage, anchor);
+      var waits = [].slice.call(stage.querySelectorAll('img')).map(function (im) {
+        return im.complete ? Promise.resolve() : new Promise(function (res) {
+          im.addEventListener('load', res, { once: true });
+          im.addEventListener('error', res, { once: true });
+          setTimeout(res, 1800);
+        });
+      });
+      if (document.fonts && document.fonts.ready) waits.push(document.fonts.ready);
+      return Promise.all(waits).then(function () {
+        var scan = scanDomWithRaw(stage, p.content || '');
+        if (!scan.els.length) throw new Error('empty');
+        var sec = newSectionShell('gogh-sec-' + (scopeSeq++));
+        sec.els = scan.els;
+        sec.minH = scan.minH;
+        var first = stage.firstElementChild;
+        if (first) {
+          var bgc = getComputedStyle(first).backgroundColor;
+          if (bgc && bgc !== 'rgba(0, 0, 0, 0)' && bgc !== 'transparent') sec.bg = bgc;
+        }
+        stage.replaceWith(sec.wrapEl);
+        S.splice(idx, 0, sec);
+        for (var bi = S.length - 1; bi >= 0; bi--) {
+          if (S[bi].bootstrap && !S[bi].els.length && S[bi] !== sec) {
+            S[bi].wrapEl.remove();
+            if (S[bi].styleEl && S[bi].styleEl.parentNode) S[bi].styleEl.parentNode.removeChild(S[bi].styleEl);
+            S.splice(bi, 1);
+          }
+        }
+        renderSection(sec);
+        sel = null;
+        hideHandles();
+        sec.wrapEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        pushState();
+        toast('\u2728 \u201c' + (p.title || 'Pattern') + '\u201d is freeform now \u2014 drag anything.', { ttl: 4500 });
+      });
+    }).catch(function () {
+      toast('Could not add that pattern.', { error: true });
+    });
+  }
+  window.__goghAddPattern = function (name, idx) {
+    return fetchSectionPatterns().then(function (pats) {
+      var p = pats.filter(function (x) { return x.name === name; })[0];
+      if (p) return addPatternSection(p, idx);
+    });
+  };
+
   function convertChrome(partEl) {
     var area = partEl.tagName === 'FOOTER' ? 'footer' : 'header';
     return Promise.all([
@@ -3627,50 +3818,71 @@
       toast('Could not switch the ' + area + ' layout.', { error: true });
     });
   }
+  // measure a rendered container against its raw block markup: known leaves
+  // become typed elements, anything else becomes an atomic widget. Shared by
+  // chrome conversion and pattern insertion.
+  function scanDomWithRaw(rootEl, raw) {
+    var rr = rootEl.getBoundingClientRect();
+    var sx = W / rr.width;
+    var out = [];
+    function leafFrom(dom, markup) {
+      var r = dom.getBoundingClientRect();
+      var e = null;
+      var cl = dom.classList, tag = dom.tagName;
+      if (/^H[1-6]$/.test(tag)) e = { type: 'heading', text: cleanInline(dom.innerHTML).trim() };
+      else if (tag === 'P' && !cl.contains('gogh-badge')) e = { type: 'para', text: cleanInline(dom.innerHTML).trim() };
+      else if (tag === 'FIGURE' && cl.contains('wp-block-image')) {
+        var img = dom.querySelector('img');
+        e = { type: 'image' };
+        if (img) { e.src = img.currentSrc || img.src || null; e.alt = img.alt || null; }
+      } else if (cl.contains('wp-block-buttons') && dom.querySelectorAll('.wp-block-button').length === 1) {
+        var btn = dom.querySelector('.wp-block-button');
+        var a = btn.querySelector('a');
+        e = { type: 'button',
+          text: ((a || btn).textContent || '').trim(),
+          href: (a && a.getAttribute('href') && a.getAttribute('href') !== '#') ? a.getAttribute('href') : null,
+          ghost: btn.className.indexOf('is-style-outline') !== -1 };
+        dom = btn;
+        r = btn.getBoundingClientRect();
+      } else {
+        e = { type: 'widget', whtml: dom.outerHTML, wsrc: markup };
+      }
+      e.x = Math.max(0, Math.round((r.left - rr.left) * sx));
+      e.y = Math.max(0, Math.round((r.top - rr.top) * sx));
+      e.w = Math.max(24, Math.round(r.width * sx));
+      e.h = Math.max(16, Math.round(r.height * sx));
+      out.push(e);
+    }
+    function walk(containerDom, rawText) {
+      var spans = parseTopBlocks(rawText);
+      var kids = [].slice.call(containerDom.children);
+      if (!spans.length || spans.length !== kids.length) {
+        // structure mismatch: capture the container whole
+        leafFrom(containerDom, rawText);
+        return;
+      }
+      spans.forEach(function (sp, k) {
+        var dom = kids[k];
+        var markup = rawText.slice(sp.start, sp.end);
+        if (sp.name === 'core/group' || sp.name === 'group' ||
+            sp.name === 'core/columns' || sp.name === 'core/column' ||
+            sp.name === 'core/cover') {
+          var inner = innerRawOf(rawText, sp);
+          if (inner && dom.children.length) { walk(dom, inner.text); return; }
+        }
+        leafFrom(dom, markup);
+      });
+    }
+    walk(rootEl, raw);
+    return { els: out, minH: Math.round(rr.height * sx) };
+  }
+
   function doConvertChrome(partEl, area, part) {
     return Promise.resolve().then(function () {
       var raw = (part.content && part.content.raw) || '';
       var rr = partEl.getBoundingClientRect();
       var sx = W / rr.width;
-      var out = [];
-      function leafFrom(dom, markup) {
-        var r = dom.getBoundingClientRect();
-        var e = null;
-        var cl = dom.classList, tag = dom.tagName;
-        if (/^H[1-6]$/.test(tag)) e = { type: 'heading', text: cleanInline(dom.innerHTML).trim() };
-        else if (tag === 'P') e = { type: 'para', text: cleanInline(dom.innerHTML).trim() };
-        else if (tag === 'FIGURE' && cl.contains('wp-block-image')) {
-          var img = dom.querySelector('img');
-          e = { type: 'image' };
-          if (img) { e.src = img.currentSrc || img.src || null; e.alt = img.alt || null; }
-        } else {
-          e = { type: 'widget', whtml: dom.outerHTML, wsrc: markup };
-        }
-        e.x = Math.max(0, Math.round((r.left - rr.left) * sx));
-        e.y = Math.max(0, Math.round((r.top - rr.top) * sx));
-        e.w = Math.max(24, Math.round(r.width * sx));
-        e.h = Math.max(16, Math.round(r.height * sx));
-        out.push(e);
-      }
-      function walk(containerDom, rawText) {
-        var spans = parseTopBlocks(rawText);
-        var kids = [].slice.call(containerDom.children);
-        if (!spans.length || spans.length !== kids.length) {
-          // structure mismatch: capture the container whole
-          leafFrom(containerDom, rawText);
-          return;
-        }
-        spans.forEach(function (sp, k) {
-          var dom = kids[k];
-          var markup = rawText.slice(sp.start, sp.end);
-          if (sp.name === 'core/group' || sp.name === 'group') {
-            var inner = innerRawOf(rawText, sp);
-            if (inner) { walk(dom, inner.text); return; }
-          }
-          leafFrom(dom, markup);
-        });
-      }
-      walk(partEl, raw);
+      var out = scanDomWithRaw(partEl, raw).els;
       if (!out.length) throw new Error('Nothing to edit in this ' + area + '.');
       var sec = newSectionShell('gogh-sec-' + (scopeSeq++));
       sec.els = out;
@@ -3692,6 +3904,179 @@
       return sec;
     });
   }
+  // ---------- drag the site menu into a new order ----------
+  // top-level nav links in a (non-freeform) header or footer are draggable
+  // while editing; the new order is written back to the WordPress menu, so
+  // every page gets it.
+  var navDrag = null;
+  function navItemsOf(list) {
+    return [].slice.call(list.children).filter(function (c) {
+      return c.classList && c.classList.contains('wp-block-navigation-item');
+    });
+  }
+  function reorderNavRaw(nraw, items) {
+    var spans = parseTopBlocks(nraw);
+    if (spans.length && spans.every(function (sp) { return (sp.name || '').indexOf('page-list') !== -1; })) {
+      // an automatic page list has no order of its own: pin it down as
+      // explicit links in the order the user just made (Gutenberg does the
+      // same the moment you customise the list)
+      return items.map(function (it) {
+        return '<!-- wp:navigation-link {"label":' + JSON.stringify(it.label) + ',"url":' + JSON.stringify(it.href || '#') + ',"kind":"post-type"} /-->';
+      }).join('\n');
+    }
+    var pool = spans.map(function (sp) {
+      return { text: nraw.slice(sp.start, sp.end), used: false };
+    });
+    var ordered = [];
+    var pathOf = function (t) {
+      var um = t.match(/"url":"((?:[^"\\]|\\.)*)"/);
+      if (!um) return null;
+      var u = JSON.parse('"' + um[1] + '"');
+      return u.replace(/^https?:\/\/[^\/]+/, '').replace(/\/$/, '') || '/';
+    };
+    var labelOf = function (t) {
+      var lm = t.match(/"label":"((?:[^"\\]|\\.)*)"/);
+      return lm ? JSON.parse('"' + lm[1] + '"').trim() : null;
+    };
+    items.forEach(function (it) {
+      if (!ordered) return;
+      var hit = null;
+      for (var j = 0; j < pool.length && !hit; j++) {
+        if (!pool[j].used && it.path != null && pathOf(pool[j].text) === it.path) hit = pool[j];
+      }
+      for (j = 0; j < pool.length && !hit; j++) {
+        if (!pool[j].used && it.label && labelOf(pool[j].text) === it.label) hit = pool[j];
+      }
+      if (!hit) { ordered = null; return; }
+      hit.used = true;
+      ordered.push(hit.text);
+    });
+    if (!ordered) return null;
+    pool.forEach(function (p) { if (!p.used) ordered.push(p.text); });
+    return ordered.join('\n');
+  }
+  function saveNavOrder(partEl, listEl) {
+    var area = partEl.tagName === 'FOOTER' ? 'footer' : 'header';
+    var items = navItemsOf(listEl).map(function (li) {
+      var a = li.querySelector('a');
+      var path = null;
+      if (a && a.href) {
+        try { path = new URL(a.href, location.href).pathname.replace(/\/$/, '') || '/'; } catch (err) {}
+      }
+      return { label: (li.textContent || '').trim(), path: path, href: a ? a.getAttribute('href') : null };
+    });
+    var hdrs = { 'X-WP-Nonce': cfg.nonce, 'Content-Type': 'application/json' };
+    return fetch(tpUrl() + '?area=' + area + '&context=edit', {
+      headers: { 'X-WP-Nonce': cfg.nonce },
+      credentials: 'same-origin',
+    }).then(function (r) { return r.ok ? r.json() : []; }).then(function (parts) {
+      var active = null;
+      (parts || []).forEach(function (p) {
+        if (!active && p.slug === area && (!p.theme || p.theme === cfg.theme)) active = p;
+      });
+      if (!active) throw new Error('no part');
+      var praw = (active.content && (active.content.raw || active.content)) || '';
+      var refM = String(praw).match(/wp:navigation[^>]*"ref":(\d+)/);
+      if (refM) {
+        var navId = +refM[1];
+        return fetch(GSROOT + 'navigation/' + navId + '?context=edit', {
+          headers: { 'X-WP-Nonce': cfg.nonce },
+          credentials: 'same-origin',
+        }).then(function (r) { if (!r.ok) throw new Error('nav'); return r.json(); }).then(function (nav) {
+          var nraw = (nav.content && nav.content.raw) || '';
+          var next = reorderNavRaw(nraw, items);
+          if (next == null) throw new Error('map');
+          return fetch(GSROOT + 'navigation/' + navId, {
+            method: 'POST', headers: hdrs, credentials: 'same-origin',
+            body: JSON.stringify({ content: next }),
+          }).then(function (r) { if (!r.ok) throw new Error('save'); });
+        });
+      }
+      // no ref: a bare wp:navigation renders the newest menu post, or the
+      // page list when none exists. Reorder that post \u2014 or mint one.
+      return fetch(GSROOT + 'navigation?context=edit&per_page=1', {
+        headers: { 'X-WP-Nonce': cfg.nonce },
+        credentials: 'same-origin',
+      }).then(function (r) { return r.ok ? r.json() : []; }).then(function (navs) {
+        var nav = (navs || [])[0];
+        if (nav) {
+          var nraw = (nav.content && nav.content.raw) || '';
+          var next2 = reorderNavRaw(nraw, items);
+          if (next2 == null) throw new Error('map');
+          return fetch(GSROOT + 'navigation/' + nav.id, {
+            method: 'POST', headers: hdrs, credentials: 'same-origin',
+            body: JSON.stringify({ content: next2 }),
+          }).then(function (r) { if (!r.ok) throw new Error('save'); });
+        }
+        // page-list fallback: pin it down as an explicit menu in this order
+        var links = items.map(function (it) {
+          return '<!-- wp:navigation-link {"label":' + JSON.stringify(it.label) + ',"url":' + JSON.stringify(it.href || '#') + ',"kind":"post-type"} /-->';
+        }).join('\n');
+        return fetch(GSROOT + 'navigation', {
+          method: 'POST', headers: hdrs, credentials: 'same-origin',
+          body: JSON.stringify({ title: 'Navigation', status: 'publish', content: links }),
+        }).then(function (r) { if (!r.ok) throw new Error('save'); });
+      });
+    });
+  }
+  document.addEventListener('pointerdown', function (ev) {
+    if (!editing || navDrag) return;
+    if (ev.button !== 0) return;
+    var item = ev.target.closest ? ev.target.closest('.wp-block-navigation-item') : null;
+    if (!item) return;
+    if (item.parentElement.closest('.wp-block-navigation-item')) return; // submenu: leave alone
+    if (ev.target.closest('.gogh-wrap')) return; // freeform canvas has its own physics
+    var parts = chromePartEls();
+    var partEl = null;
+    for (var i = 0; i < parts.length; i++) if (parts[i].contains(item)) partEl = parts[i];
+    if (!partEl) return;
+    ev.preventDefault();
+    navDrag = { item: item, list: item.parentElement, partEl: partEl,
+      startX: ev.clientX, startY: ev.clientY, started: false,
+      order0: navItemsOf(item.parentElement) };
+  }, true);
+  document.addEventListener('pointermove', function (ev) {
+    if (!navDrag) return;
+    if (!navDrag.started) {
+      if (Math.hypot(ev.clientX - navDrag.startX, ev.clientY - navDrag.startY) < 5) return;
+      navDrag.started = true;
+      navDrag.item.classList.add('gogh-navdragging');
+    }
+    var sibs = navItemsOf(navDrag.list).filter(function (s) { return s !== navDrag.item; });
+    if (!sibs.length) return;
+    var r0 = sibs[0].getBoundingClientRect();
+    var r1 = sibs[sibs.length - 1].getBoundingClientRect();
+    var horiz = Math.abs(r1.left - r0.left) >= Math.abs(r1.top - r0.top);
+    var before = null;
+    for (var i = 0; i < sibs.length; i++) {
+      var r = sibs[i].getBoundingClientRect();
+      var c = horiz ? r.left + r.width / 2 : r.top + r.height / 2;
+      if ((horiz ? ev.clientX : ev.clientY) < c) { before = sibs[i]; break; }
+    }
+    if (before === null) {
+      if (navDrag.item.nextElementSibling) navDrag.list.appendChild(navDrag.item);
+    } else if (before !== navDrag.item && before !== navDrag.item.nextElementSibling) {
+      navDrag.list.insertBefore(navDrag.item, before);
+    }
+  });
+  document.addEventListener('pointerup', function () {
+    if (!navDrag) return;
+    var d = navDrag;
+    navDrag = null;
+    if (!d.started) return;
+    d.item.classList.remove('gogh-navdragging');
+    var now = navItemsOf(d.list);
+    var same = now.length === d.order0.length && now.every(function (n, i) { return n === d.order0[i]; });
+    if (same) return;
+    saveNavOrder(d.partEl, d.list).then(function () {
+      toast('Menu order updated \u2014 every page gets it.', { ttl: 4500 });
+    }).catch(function () {
+      // put the menu back the way it was
+      d.order0.forEach(function (li) { d.list.appendChild(li); });
+      toast('gogh couldn\u2019t save that menu order.', { error: true });
+    });
+  });
+
   var chromeBtns = [];
   function clearChromeBtns() {
     chromeBtns.forEach(function (b) { b.remove(); });
