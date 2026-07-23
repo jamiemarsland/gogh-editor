@@ -597,10 +597,22 @@
           n.className = 'wp-block-group ' + cls;
         }
         break;
+      case 'widget':
+        // produced by newer gogh versions (site-chrome branch): render the
+        // captured snapshot; treat as an opaque box
+        n = document.createElement('div');
+        n.className = 'wp-block-group ' + cls + ' gogh-widget';
+        n.innerHTML = e.whtml || '';
+        break;
       case 'badge':
         n = document.createElement('p');
         n.className = cls + ' gogh-badge';
         n.textContent = e.text;
+        break;
+      default:
+        // element type from a newer gogh: keep the page alive
+        n = document.createElement('div');
+        n.className = cls;
         break;
     }
     return n;
@@ -608,6 +620,7 @@
 
   function scaleOf(sec) { return sec.sectionEl.getBoundingClientRect().width / W; }
   function measureTextHeights(sec) {
+    if (!sec.nodes || sec.nodes.some(function (n) { return !n; })) return;
     var s = scaleOf(sec);
     sec.els.forEach(function (e, i) {
       if (isText(e)) {
