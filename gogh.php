@@ -79,6 +79,8 @@ add_action( 'wp_enqueue_scripts', function () {
 		'mediaUrl' => rest_url( 'wp/v2/media' ),
 		'canUpload' => current_user_can( 'upload_files' ),
 		'modified' => get_post_modified_time( 'Y-m-d\TH:i:s', true, $post ),
+		'theme'    => get_stylesheet(),
+		'gsId'     => class_exists( 'WP_Theme_JSON_Resolver' ) ? WP_Theme_JSON_Resolver::get_user_global_styles_post_id() : 0,
 		'nonce'    => wp_create_nonce( 'wp_rest' ),
 	) );
 } );

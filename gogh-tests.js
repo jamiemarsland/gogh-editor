@@ -26,7 +26,10 @@
   function run() {
     var G = window.__gogh;
     var SNAP;
-    var sec = function () { return G.sections()[0]; };
+    var sec = function () {
+      var all = G.sections();
+      return all.filter(function (s) { return !s.chrome; })[0] || all[0];
+    };
     var select = function (i) { pev('pointerdown', sec().nodes[i]); };
     var findIdx = function (type) { return sec().els.findIndex(function (e) { return e.type === type; }); };
     var rectsOverlap = function (a, b) {
@@ -107,7 +110,8 @@
       var before = sec().els.map(function (o) { return o.y; });
       var h0 = e.h;
       select(i);
-      dragBy(q('.gogh-h-e'), -260, 0, 13);
+      var rnScale = sec().sectionEl.getBoundingClientRect().width / 1200;
+      dragBy(q('.gogh-h-e'), -(e.w - 180) * rnScale, 0, 13);
       var grew = e.h - h0;
       expect(grew > 20, 'heading did not grow (' + grew + ')');
       var oldBottom = e.y + h0;
@@ -156,16 +160,19 @@
       var eh = q('.gogh-h-e');
       var r = eh.getBoundingClientRect();
       var x = r.x + r.width / 2, y = r.y + r.height / 2;
+      // narrow to 180 design units — guarantees extra wrapping in any font
+      var sScale = sec().sectionEl.getBoundingClientRect().width / 1200;
+      var deltaPx = (e.w - 180) * sScale;
       pev('pointerdown', eh, x, y, 41);
       // interleave moves with the frame body, as a real 60fps drag does
       for (var f = 1; f <= 4; f++) {
-        pev('pointermove', eh, x - 50 * f, y, 41);
+        pev('pointermove', eh, x - deltaPx * f / 4, y, 41);
         var oldH = e.h;
         G.resolve(sec()); G.measure(sec());
         G.reflowPush(sec(), e, oldH);
         G.resolve(sec());
       }
-      pev('pointerup', eh, x - 200, y, 41);
+      pev('pointerup', eh, x - deltaPx, y, 41);
       var grew = e.h - h0;
       expect(grew > 10, 'heading did not grow');
       var pushed = sec().els[1].y - before[1];
@@ -825,14 +832,15 @@
     // ---- 24. section background image + tint (v0.17) ----
     test('section background image composes with palette tint', function () {
       var s0 = sec();
-      G.setSecBg(0, 'https://example.com/bg.jpg', null);
+      var si = G.sections().indexOf(s0);
+      G.setSecBg(si, 'https://example.com/bg.jpg', null);
       var css = s0.styleEl.textContent;
       expect(css.indexOf('url("https://example.com/bg.jpg") center / cover') !== -1, 'bg image missing');
       s0.bg = 'var(--wp--preset--color--contrast)';
       G.resolveAll();
       css = s0.styleEl.textContent;
       expect(css.indexOf('color-mix') !== -1 && css.indexOf('linear-gradient') !== -1, 'tint layer missing');
-      G.setSecBg(0, null);
+      G.setSecBg(si, null);
       expect(sec().styleEl.textContent.indexOf('bg.jpg') === -1, 'remove failed');
     });
 
@@ -1059,6 +1067,15 @@
     console.log('[gogh-tests] ' + summary, window.__goghTestResults);
   }
 
-  if (window.__gogh) run();
-  else document.addEventListener('gogh:ready', run, { once: true });
+  function runWhenReady() {
+    // layout-dependent tests must measure with the REAL fonts — fallback
+    // metrics wrap differently and produce phantom failures
+    if (document.fonts && document.fonts.status !== 'loaded') {
+      document.fonts.ready.then(run);
+    } else {
+      run();
+    }
+  }
+  if (window.__gogh) runWhenReady();
+  else document.addEventListener('gogh:ready', runWhenReady, { once: true });
 })();
