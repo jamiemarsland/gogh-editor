@@ -2417,9 +2417,14 @@
     fetchVariations().then(function (vars) {
       if (!vars.length) return;
       panel.innerHTML =
-        '<div class="gogh-panel-title">Site style</div>' +
+        '<div class="gogh-panel-head"><span class="gogh-panel-title">Site style</span>' +
+        '<button type="button" class="gogh-sbtn gogh-panel-close" title="Back to the palette">\u2715</button></div>' +
         '<div class="gogh-swlab">Click to try \u2014 the whole site re-skins live</div>' +
         '<div class="gogh-varlist"></div>';
+      panel.querySelector('.gogh-panel-close').addEventListener('click', function () {
+        closePanel();
+        openSide();
+      });
       var box = panel.querySelector('.gogh-varlist');
       vars.forEach(function (v) {
         var b = document.createElement('button');
@@ -2833,6 +2838,10 @@
 
   // ---------- keyboard ----------
   window.addEventListener('keydown', function (ev) {
+    if (ev.key === 'Escape' && panelOpen) {
+      closePanel();
+      return;
+    }
     if (!editing || panelOpen || !picker.hidden) return;
     var a = document.activeElement;
     var typing = a && (a.isContentEditable || /INPUT|TEXTAREA/.test(a.tagName));
