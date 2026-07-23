@@ -180,9 +180,12 @@
       document.head.appendChild(styleEl);
     }
     sectionEl.classList.add(scope);
+    var chromeHost = wrap.closest('.wp-block-template-part');
+    var chromeInfo = chromeHost ? { area: chromeHost.tagName === 'FOOTER' ? 'footer' : 'header' } : null;
     var bootEls = model.elements || [];
     if (hadModel) bootEls = syncModelFromMarkup(sectionEl, bootEls);
     S.push({ scope: scope, els: bootEls,
+      chrome: chromeInfo,
       bootstrap: !!wrap.__goghBootstrap,
       minH: model.minH || (bootEls.length ? null : 480),
       bg: model.bg || null, divider: model.divider || null,
@@ -190,9 +193,10 @@
       wrapEl: wrap, sectionEl: sectionEl, styleEl: styleEl, nodes: [] });
   });
   if (!S.length) return;
-  // marker after the last wrap so full rebuilds keep document position
+  // marker after the last CONTENT wrap (never inside a template part)
   var endMarker = document.createComment('gogh-end');
-  S[S.length - 1].wrapEl.after(endMarker);
+  var contentSecs = S.filter(function (s) { return !s.chrome; });
+  (contentSecs.length ? contentSecs[contentSecs.length - 1] : S[S.length - 1]).wrapEl.after(endMarker);
   var pageParent = endMarker.parentNode;
 
   // ---------- solver ----------
@@ -321,9 +325,10 @@
     button: '',
     image: 'border-radius: clamp(8px, 1.5cqw, 20px);',
     badge: 'display: flex; align-items: center; gap: 0.6em; height: 100%; background: #fff; color: #141519; border-radius: clamp(6px, 1.2cqw, 14px); padding: 0 1.1em; font-size: clamp(11px, 1.15cqw, 14px); font-weight: 600; box-shadow: 0 14px 34px -12px rgba(0,0,0,0.55); white-space: nowrap;',
+    widget: 'display: flex; align-items: center;',
   };
   var isText = function (e) { return e.type === 'heading' || e.type === 'para'; };
-  var fixedHeight = function (e) { return e.type === 'button' || e.type === 'image' || e.type === 'badge'; };
+  var fixedHeight = function (e) { return e.type === 'button' || e.type === 'image' || e.type === 'badge' || e.type === 'widget'; };
 
   function imageBackground(e) {
     if (e.src) {
@@ -437,7 +442,8 @@
       src: e.src || null, href: e.href || null, rot: e.rot || 0,
       alt: e.alt || null, mediaId: e.mediaId || null, fs: e.fs || null,
       align: e.align || null, color: e.color || null,
-      btnBg: e.btnBg || null, btnText: e.btnText || null, btnHover: e.btnHover || null };
+      btnBg: e.btnBg || null, btnText: e.btnText || null, btnHover: e.btnHover || null,
+      wsrc: e.wsrc || null, whtml: e.whtml || null };
   }
   function buildSectionBlocks(sec) {
     var els = sec.els;
@@ -495,6 +501,11 @@
         case 'badge':
           return '<!-- wp:paragraph {"className":"' + cls + ' gogh-badge"} -->\n' +
             '<p class="' + cls + ' gogh-badge">' + esc(e.text) + '</p>\n<!-- /wp:paragraph -->';
+        case 'widget':
+          // atomic block (navigation, site title…): source markup verbatim,
+          // wrapped so the solver can place it
+          return '<!-- wp:group {"className":"' + cls + ' gogh-widget","layout":{"type":"default"}} -->\n' +
+            '<div class="wp-block-group ' + cls + ' gogh-widget">\n' + (e.wsrc || '') + '\n</div>\n<!-- /wp:group -->';
       }
     }).join('\n\n');
 
@@ -514,7 +525,7 @@
       '<!-- /wp:gogh/section -->';
   }
   function realSections() {
-    return S.filter(function (s) { return !(s.bootstrap && !s.els.length); });
+    return S.filter(function (s) { return !(s.bootstrap && !s.els.length) && !s.chrome; });
   }
   function buildAllBlocks() {
     return realSections().map(buildSectionBlocks).join('\n\n');
@@ -594,6 +605,11 @@
           n = document.createElement('div');
           n.className = 'wp-block-group ' + cls;
         }
+        break;
+      case 'widget':
+        n = document.createElement('div');
+        n.className = 'wp-block-group ' + cls + ' gogh-widget';
+        n.innerHTML = e.whtml || '';
         break;
       case 'badge':
         n = document.createElement('p');
@@ -697,7 +713,7 @@
   // ---------- history (undo/redo) ----------
   var history = [], hIdx = -1, textTimer = null;
   function serialize() {
-    return JSON.stringify(S.map(function (sec) { return { scope: sec.scope, els: sec.els, minH: sec.minH || null, bg: sec.bg || null, divider: sec.divider || null, bgImage: sec.bgImage || null, bgId: sec.bgId || null, src: sec.srcSig || null, boot: sec.bootstrap || false }; }));
+    return JSON.stringify(S.map(function (sec) { return { scope: sec.scope, els: sec.els, minH: sec.minH || null, bg: sec.bg || null, divider: sec.divider || null, bgImage: sec.bgImage || null, bgId: sec.bgId || null, src: sec.srcSig || null, boot: sec.bootstrap || false, chrome: sec.chrome || null }; }));
   }
   function pushState() {
     var snap = serialize();
@@ -708,6 +724,7 @@
     hIdx = history.length - 1;
     syncHistoryButtons();
     placeConvertBtns(); // layout below may have shifted
+    placeChromeBtns();
     refreshChip();
   }
   function restoreState(snap) {
@@ -715,10 +732,12 @@
     // full rebuild, but each section goes back to its own DOM position so
     // non-gogh blocks interleaved with sections stay where they are
     var anchorOf = {};
+    var parentOf = {};
     S.forEach(function (sec) {
       var n = sec.wrapEl.nextSibling;
       while (n && n.nodeType === 1 && n.classList && n.classList.contains('gogh-wrap')) n = n.nextSibling;
       anchorOf[sec.scope] = n;
+      parentOf[sec.scope] = sec.wrapEl.parentNode;
     });
     S.forEach(function (sec) { sec.wrapEl.remove(); sec.styleEl.remove(); });
     var newS = [];
@@ -734,10 +753,12 @@
       sec.bgId = d.bgId || null;
       sec.srcSig = d.src || null;
       sec.bootstrap = !!d.boot;
+      sec.chrome = d.chrome || null;
       var anchor = anchorOf[d.scope] ||
         (d.src && convertStash[d.src] && convertStash[d.src].marker.nextSibling) ||
         nextAnchor;
-      pageParent.insertBefore(sec.wrapEl, anchor);
+      var host = parentOf[d.scope] || pageParent;
+      host.insertBefore(sec.wrapEl, anchor && anchor.parentNode === host ? anchor : null);
       nextAnchor = sec.wrapEl;
       newS.unshift(sec);
     }
@@ -1216,7 +1237,7 @@
     });
     if (on && history.length === 0) pushState();
     if (on && savedSnap === null) savedSnap = serialize();
-    if (on) placeConvertBtns(); else clearConvertBtns();
+    if (on) { placeConvertBtns(); placeChromeBtns(); } else { clearConvertBtns(); clearChromeBtns(); }
     chip.hidden = !on;
     if (on) { refreshChip(); checkRecovery(); }
     else exitPanel.hidden = true;
@@ -2696,6 +2717,7 @@
     parseTopBlocks: parseTopBlocks,
     convertScan: convertScan,
     convertBlock: convertBlock,
+    convertChrome: convertChrome,
     restore: restoreState,
     setEditing: setEditing,
     deleteSection: deleteSection,
@@ -2904,6 +2926,18 @@
       return res.json();
     }).then(function (post) {
       if (post.content && post.content.raw) rawCache = post.content.raw;
+      // site chrome saves to its template part — one write, every page
+      var chromeSaves = S.filter(function (s) { return s.chrome && s.chrome.id; }).map(function (s) {
+        return fetch(tpUrl(s.chrome.id), {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'X-WP-Nonce': cfg.nonce },
+          credentials: 'same-origin',
+          body: JSON.stringify({ content: buildSectionBlocks(s) }),
+        }).then(function (r) {
+          if (r.ok) toast('Site ' + s.chrome.area + ' updated across every page.');
+          else toast('Could not save the ' + s.chrome.area + '.', { error: true });
+        });
+      });
       // conversions are now committed: sections are ordinary gogh spans
       S.forEach(function (s) { s.srcSig = null; });
       savedSnap = serialize();
@@ -3252,6 +3286,125 @@
     }).catch(function (err) {
       toast(err.message || 'Convert failed', { error: true });
       return null;
+    });
+  }
+
+  // ---------- site chrome (header/footer template parts) as canvases ----------
+  function chromePartEls() {
+    return [].slice.call(document.querySelectorAll('.wp-block-template-part')).filter(function (el) {
+      return (el.tagName === 'HEADER' || el.tagName === 'FOOTER') && !el.querySelector('.gogh-wrap');
+    });
+  }
+  function tpUrl(id) {
+    var base = cfg.restUrl.replace(/wp\/v2\/(pages|posts)\/\d+.*$/, 'wp/v2/template-parts');
+    return id ? base + '/' + encodeURIComponent(id) : base;
+  }
+  function innerRawOf(raw, span) {
+    var s = raw.slice(span.start, span.end);
+    var open = s.indexOf('-->');
+    var close = s.lastIndexOf('<!--');
+    if (open === -1 || close <= open) return null;
+    return { text: s.slice(open + 3, close), base: span.start + open + 3 };
+  }
+  function convertChrome(partEl) {
+    var area = partEl.tagName === 'FOOTER' ? 'footer' : 'header';
+    return fetch(tpUrl() + '?area=' + area + '&context=edit', {
+      headers: { 'X-WP-Nonce': cfg.nonce },
+      credentials: 'same-origin',
+    }).then(function (res) {
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      return res.json();
+    }).then(function (parts) {
+      if (!parts.length) throw new Error('No ' + area + ' template part found.');
+      var part = parts.filter(function (p) { return p.slug === area; })[0] || parts[0];
+      var raw = (part.content && part.content.raw) || '';
+      var rr = partEl.getBoundingClientRect();
+      var sx = W / rr.width;
+      var out = [];
+      function leafFrom(dom, markup) {
+        var r = dom.getBoundingClientRect();
+        var e = null;
+        var cl = dom.classList, tag = dom.tagName;
+        if (/^H[1-6]$/.test(tag)) e = { type: 'heading', text: cleanInline(dom.innerHTML).trim() };
+        else if (tag === 'P') e = { type: 'para', text: cleanInline(dom.innerHTML).trim() };
+        else if (tag === 'FIGURE' && cl.contains('wp-block-image')) {
+          var img = dom.querySelector('img');
+          e = { type: 'image' };
+          if (img) { e.src = img.currentSrc || img.src || null; e.alt = img.alt || null; }
+        } else {
+          e = { type: 'widget', whtml: dom.outerHTML, wsrc: markup };
+        }
+        e.x = Math.max(0, Math.round((r.left - rr.left) * sx));
+        e.y = Math.max(0, Math.round((r.top - rr.top) * sx));
+        e.w = Math.max(24, Math.round(r.width * sx));
+        e.h = Math.max(16, Math.round(r.height * sx));
+        out.push(e);
+      }
+      function walk(containerDom, rawText) {
+        var spans = parseTopBlocks(rawText);
+        var kids = [].slice.call(containerDom.children);
+        if (!spans.length || spans.length !== kids.length) {
+          // structure mismatch: capture the container whole
+          leafFrom(containerDom, rawText);
+          return;
+        }
+        spans.forEach(function (sp, k) {
+          var dom = kids[k];
+          var markup = rawText.slice(sp.start, sp.end);
+          if (sp.name === 'core/group' || sp.name === 'group') {
+            var inner = innerRawOf(rawText, sp);
+            if (inner) { walk(dom, inner.text); return; }
+          }
+          leafFrom(dom, markup);
+        });
+      }
+      walk(partEl, raw);
+      if (!out.length) throw new Error('Nothing to edit in this ' + area + '.');
+      var sec = newSectionShell('gogh-sec-' + (scopeSeq++));
+      sec.els = out;
+      sec.minH = Math.round(rr.height * sx);
+      sec.chrome = { area: area, id: part.id };
+      var bgc = getComputedStyle(partEl).backgroundColor;
+      if (bgc && bgc !== 'rgba(0, 0, 0, 0)' && bgc !== 'transparent') sec.bg = bgc;
+      // hide the live chrome, mount the canvas in its place
+      sec.__hidden = [].slice.call(partEl.children);
+      sec.__hidden.forEach(function (c) { c.style.display = 'none'; });
+      partEl.appendChild(sec.wrapEl);
+      if (area === 'header') { S.unshift(sec); } else { S.push(sec); }
+      renderSection(sec);
+      sel = null;
+      hideHandles();
+      pushState();
+      placeChromeBtns();
+      toast('Editing the site ' + area + ' \u2014 publishing will update every page.', { ttl: 6000 });
+      return sec;
+    }).catch(function (err) {
+      toast(err.message || 'Could not edit ' + (partEl.tagName === 'FOOTER' ? 'footer' : 'header'), { error: true });
+      return null;
+    });
+  }
+  var chromeBtns = [];
+  function clearChromeBtns() {
+    chromeBtns.forEach(function (b) { b.remove(); });
+    chromeBtns = [];
+  }
+  function placeChromeBtns() {
+    clearChromeBtns();
+    if (!editing) return;
+    chromePartEls().forEach(function (partEl) {
+      var r = partEl.getBoundingClientRect();
+      var b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'gogh-convertbtn gogh-chromebtn';
+      b.textContent = '\u2728 Edit ' + (partEl.tagName === 'FOOTER' ? 'footer' : 'header');
+      b.style.left = (r.right + window.scrollX - 10) + 'px';
+      b.style.top = (r.top + window.scrollY + 10) + 'px';
+      b.addEventListener('click', function () {
+        b.disabled = true;
+        convertChrome(partEl).then(function (sec) { if (!sec) b.disabled = false; });
+      });
+      document.body.appendChild(b);
+      chromeBtns.push(b);
     });
   }
 
