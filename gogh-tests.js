@@ -154,6 +154,12 @@
     test('per-frame resize push is incremental, not compounding', function () {
       var i = findIdx('heading');
       var e = sec().els[i];
+      // the page is a living fixture — put a probe element in the push path
+      var pj = sec().els.findIndex(function (o, k) { return k !== i && o.type !== 'image'; });
+      var probe = sec().els[pj];
+      probe.x = e.x;
+      probe.y = e.y + e.h + 24;
+      G.resolve(sec()); G.measure(sec());
       var h0 = e.h;
       var before = sec().els.map(function (o) { return o.y; });
       select(i);
@@ -175,7 +181,7 @@
       pev('pointerup', eh, x - deltaPx, y, 41);
       var grew = e.h - h0;
       expect(grew > 10, 'heading did not grow');
-      var pushed = sec().els[1].y - before[1];
+      var pushed = sec().els[pj].y - before[pj];
       expect(approx(pushed, grew, 2), 'pushed ' + pushed + ' for growth ' + grew + ' (compounding!)');
       return 'grew ' + grew + ', pushed ' + pushed;
     });
@@ -273,6 +279,8 @@
     // ---- 12. add element from palette ----
     test('palette adds a badge', function () {
       var last = function () { return G.sections()[G.sections().length - 1]; };
+      // elements land in the section you're looking at — so look at the last one
+      last().sectionEl.scrollIntoView({ block: 'center' });
       var n0 = last().els.length;
       q('.gogh-side [data-add="badge"]').click();
       expect(last().els.length === n0 + 1, 'not added');
@@ -605,10 +613,11 @@
 
     test('grid toggle shows the grid it snaps to', function () {
       var btn = q('.gogh-side [data-act="gridsnap"]');
+      expect(btn.querySelector('svg'), 'grid toggle has no icon');
       var was = document.documentElement.classList.contains('gogh-grid-on');
       btn.click();
       expect(document.documentElement.classList.contains('gogh-grid-on') !== was, 'grid class did not toggle');
-      expect(/Grid: (on|off)/.test(btn.textContent), 'label wrong: ' + btn.textContent);
+      expect(btn.classList.contains('is-active') === !was, 'icon active state wrong');
       btn.click();
       expect(document.documentElement.classList.contains('gogh-grid-on') === was, 'grid class did not toggle back');
     });
@@ -787,7 +796,10 @@
       var i = findIdx('heading');
       var node = function () { return sec().nodes[i]; };
       var px0 = parseFloat(getComputedStyle(node()).fontSize);
-      var big = sizes[sizes.length - 1].slug;
+      // the living fixture may already be at the largest preset — pick one that differs
+      var target = sizes[sizes.length - 1];
+      if (approx(target.px, px0, 0.5)) target = sizes[0];
+      var big = target.slug;
       var belowIdx = sec().els.findIndex(function (o, j) {
         var e = sec().els[i];
         return j !== i && o.y >= e.y + e.h - 8 && o.x < e.x + e.w && o.x + o.w > e.x;
@@ -798,7 +810,7 @@
       expect(node().classList.contains('has-' + big + '-font-size'), 'preset class missing');
       var px1 = parseFloat(getComputedStyle(node()).fontSize);
       expect(px1 !== px0, 'computed size unchanged (' + px1 + ')');
-      expect(px1 === sizes[sizes.length - 1].px, 'size is not the preset value');
+      expect(px1 === target.px, 'size is not the preset value');
       if (belowIdx >= 0 && px1 > px0) {
         expect(sec().els[belowIdx].y >= yBelow0, 'grown text did not push below element');
       }

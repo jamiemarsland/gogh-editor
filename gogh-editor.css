@@ -790,6 +790,7 @@
 .gogh-toast button {
   all: unset;
   cursor: pointer;
+  white-space: nowrap;
   font-weight: 700;
   font-size: 12px;
   color: #7ea8ff;
@@ -1002,6 +1003,7 @@
 }
 .gogh-panel-head .gogh-panel-title { margin-bottom: 0; }
 .gogh-panel-close {
+  flex: 0 0 auto;
   width: 24px;
   height: 24px;
   display: grid;
@@ -1014,4 +1016,33 @@
   font-size: 12px;
   color: var(--gogh-ui-muted);
   margin: 8px 0 6px;
+}
+
+.gogh-gridbtn svg { display: block; }
+.gogh-side-head .gogh-gridbtn {
+  flex: 0 0 auto;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  display: grid;
+  place-items: center;
+}
+.gogh-side-head .gogh-gridbtn.is-active { background: #7ea8ff; color: #141519; }
+
+.gogh-panel-group {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--gogh-ui-muted);
+  margin: 10px 2px 4px;
+}
+.gogh-varlist .gogh-panel-group:first-child { margin-top: 2px; }
+.gogh-var-aa {
+  display: inline-block;
+  width: 30px;
+  text-align: left;
+  font-size: 15px;
+  line-height: 1;
+  color: var(--gogh-ui-muted);
 }

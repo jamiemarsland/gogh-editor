@@ -810,6 +810,9 @@
     '<button type="button" class="gogh-sbtn gogh-stylebtn" title="Site style">' +
     '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M12 3a9 9 0 1 0 0 18h1.5a2.5 2.5 0 0 0 1.8-4.2 2.5 2.5 0 0 1 1.8-4.3H20a9 9 0 0 0-8-9.5Z"/><circle cx="7.5" cy="11" r="1.2" fill="currentColor" stroke="none"/><circle cx="10.5" cy="7.5" r="1.2" fill="currentColor" stroke="none"/><circle cx="15" cy="7.5" r="1.2" fill="currentColor" stroke="none"/></svg>' +
     '</button>' +
+    '<button type="button" class="gogh-sbtn gogh-gridbtn" data-act="gridsnap" title="Grid: show and snap">' +
+    '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 9h18M3 15h18M9 3v18M15 3v18"/></svg>' +
+    '</button>' +
     '<button type="button" class="gogh-sbtn gogh-theme" data-act="uitheme" title="Editor theme"></button>' +
     '<button type="button" class="gogh-sbtn gogh-close" title="Finish editing">✕</button>' +
     '</div>' +
@@ -825,7 +828,6 @@
     '<button type="button" class="gogh-sitem" data-add="badge">Badge</button>' +
     '<div class="gogh-side-label">Page</div>' +
     '<button type="button" class="gogh-sitem" data-act="addsec">+ Section</button>' +
-    '<button type="button" class="gogh-sitem" data-act="gridsnap" title="Show an 8-unit grid and snap to it">Grid: off</button>' +
     '<div class="gogh-side-gap"></div>';
   document.body.appendChild(side);
 
@@ -1665,11 +1667,14 @@
   });
   elbar.querySelector('.gogh-eb-del').addEventListener('click', deleteSelected);
   side.querySelector('[data-act="addsec"]').addEventListener('click', function () { openPicker(S.length); });
-  side.querySelector('[data-act="gridsnap"]').addEventListener('click', function (ev) {
+  side.querySelector('[data-act="gridsnap"]').addEventListener('click', function () {
     gridSnapOn = !gridSnapOn;
     // the grid you snap to is the grid you see — never invisible magnets
     document.documentElement.classList.toggle('gogh-grid-on', gridSnapOn);
-    ev.target.textContent = 'Grid: ' + (gridSnapOn ? 'on' : 'off');
+    var gb = side.querySelector('.gogh-gridbtn');
+    gb.classList.toggle('is-active', gridSnapOn);
+    gb.dataset.tip = 'Grid: ' + (gridSnapOn ? 'on' : 'off');
+    gb.removeAttribute('title');
   });
   var THEME_ICONS = {
     sun: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="12" cy="12" r="4.4"/><path d="M12 2.5v2.6M12 18.9v2.6M2.5 12h2.6M18.9 12h2.6M5 5l1.8 1.8M17.2 17.2 19 19M19 5l-1.8 1.8M6.8 17.2 5 19"/></svg>',
@@ -2419,25 +2424,47 @@
       panel.innerHTML =
         '<div class="gogh-panel-head"><span class="gogh-panel-title">Site style</span>' +
         '<button type="button" class="gogh-sbtn gogh-panel-close" title="Back to the palette">\u2715</button></div>' +
-        '<div class="gogh-swlab">Click to try \u2014 the whole site re-skins live</div>' +
+        '<div class="gogh-panel-hint">Click to try \u2014 the whole site re-skins live</div>' +
         '<div class="gogh-varlist"></div>';
       panel.querySelector('.gogh-panel-close').addEventListener('click', function () {
         closePanel();
         openSide();
       });
       var box = panel.querySelector('.gogh-varlist');
+      // colours and font pairs are different decisions — group them
+      var groups = { color: [], font: [] };
       vars.forEach(function (v) {
-        var b = document.createElement('button');
-        b.type = 'button';
-        b.className = 'gogh-varbtn';
         var pal = ((v.settings || {}).color || {}).palette || {};
         var colors = (pal.theme || pal.default || []).slice(0, 4);
-        b.innerHTML = colors.map(function (c) {
-          return '<span class="gogh-vardot" style="background:' + c.color + '"></span>';
-        }).join('') + '<span class="gogh-varname"></span>';
-        b.querySelector('.gogh-varname').textContent = v.title || 'Style';
-        b.addEventListener('click', function () { applyVariation(v, b); });
-        box.appendChild(b);
+        groups[colors.length ? 'color' : 'font'].push({ v: v, colors: colors });
+      });
+      [['color', 'Colours'], ['font', 'Fonts']].forEach(function (g) {
+        if (!groups[g[0]].length) return;
+        if (groups.color.length && groups.font.length) {
+          var lab = document.createElement('div');
+          lab.className = 'gogh-panel-group';
+          lab.textContent = g[1];
+          box.appendChild(lab);
+        }
+        groups[g[0]].forEach(function (item) {
+          var v = item.v;
+          var b = document.createElement('button');
+          b.type = 'button';
+          b.className = 'gogh-varbtn';
+          if (item.colors.length) {
+            b.innerHTML = item.colors.map(function (c) {
+              return '<span class="gogh-vardot" style="background:' + c.color + '"></span>';
+            }).join('') + '<span class="gogh-varname"></span>';
+          } else {
+            // show the pair in its own face where the browser has it
+            var fams = (((v.settings || {}).typography || {}).fontFamilies || {}).theme || [];
+            var aa = fams.length && fams[0].fontFamily ? ' style="font-family:' + fams[0].fontFamily.replace(/"/g, '&quot;') + '"' : '';
+            b.innerHTML = '<span class="gogh-var-aa"' + aa + '>Aa</span><span class="gogh-varname"></span>';
+          }
+          b.querySelector('.gogh-varname').textContent = v.title || 'Style';
+          b.addEventListener('click', function () { applyVariation(v, b); });
+          box.appendChild(b);
+        });
       });
       placePanelNear(anchorEl);
       panelOpen = true;
