@@ -2518,6 +2518,29 @@
       return variationsCache;
     });
   }
+  var previewFaces = {};
+  function ensureVariationFonts(v) {
+    if (!window.FontFace || !document.fonts) return;
+    var fams = (((v.settings || {}).typography || {}).fontFamilies || {}).theme || [];
+    fams.forEach(function (f) {
+      if (!f.fontFamily) return;
+      var fam = f.fontFamily.split(',')[0].replace(/["']/g, '').trim();
+      if (previewFaces[fam] || document.fonts.check('16px "' + fam + '"')) { previewFaces[fam] = 1; return; }
+      var faces = f.fontFace || [];
+      var face = faces.filter(function (ff) { return String(ff.fontStyle || 'normal') === 'normal'; })[0] || faces[0];
+      var src = face && face.src ? [].concat(face.src)[0] : null;
+      if (!src) return;
+      if (src.indexOf('file:./') === 0) src = location.origin + '/wp-content/themes/' + cfg.theme + '/' + src.slice(7);
+      previewFaces[fam] = 1;
+      try {
+        var ff2 = new FontFace(fam, 'url("' + src + '")', {
+          weight: String(face.fontWeight || '400'),
+          style: face.fontStyle || 'normal',
+        });
+        ff2.load().then(function (loaded) { document.fonts.add(loaded); }).catch(function () {});
+      } catch (err) {}
+    });
+  }
   function openStylePanel(anchorEl) {
     if (!cfg.gsId || !cfg.theme) return;
     fetchVariations().then(function (vars) {
@@ -2556,13 +2579,28 @@
             b.innerHTML = item.colors.map(function (c) {
               return '<span class="gogh-vardot" style="background:' + c.color + '"></span>';
             }).join('') + '<span class="gogh-varname"></span>';
+            b.querySelector('.gogh-varname').textContent = v.title || 'Style';
           } else {
-            // show the pair in its own face where the browser has it
+            // the name is the specimen: each half of the pair in its own face
+            ensureVariationFonts(v);
             var fams = (((v.settings || {}).typography || {}).fontFamilies || {}).theme || [];
-            var aa = fams.length && fams[0].fontFamily ? ' style="font-family:' + fams[0].fontFamily.replace(/"/g, '&quot;') + '"' : '';
-            b.innerHTML = '<span class="gogh-var-aa"' + aa + '>Aa</span><span class="gogh-varname"></span>';
+            var name = document.createElement('span');
+            name.className = 'gogh-varname gogh-varname-fonts';
+            (v.title || 'Style').split(' & ').forEach(function (pt, k) {
+              var piece = document.createElement('span');
+              piece.textContent = (k ? ' & ' : '') + pt;
+              var match = null;
+              fams.forEach(function (f) {
+                if (match) return;
+                var label = (f.name || f.slug || f.fontFamily || '').toLowerCase();
+                if (label.indexOf(pt.trim().toLowerCase()) !== -1) match = f;
+              });
+              if (!match) match = fams[k] || fams[0];
+              if (match && match.fontFamily) piece.style.fontFamily = match.fontFamily;
+              name.appendChild(piece);
+            });
+            b.appendChild(name);
           }
-          b.querySelector('.gogh-varname').textContent = v.title || 'Style';
           b.addEventListener('click', function () { applyVariation(v, b); });
           box.appendChild(b);
         });
