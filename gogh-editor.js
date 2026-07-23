@@ -730,10 +730,12 @@
     // full rebuild, but each section goes back to its own DOM position so
     // non-gogh blocks interleaved with sections stay where they are
     var anchorOf = {};
+    var parentOf = {};
     S.forEach(function (sec) {
       var n = sec.wrapEl.nextSibling;
       while (n && n.nodeType === 1 && n.classList && n.classList.contains('gogh-wrap')) n = n.nextSibling;
       anchorOf[sec.scope] = n;
+      parentOf[sec.scope] = sec.wrapEl.parentNode;
     });
     S.forEach(function (sec) { sec.wrapEl.remove(); sec.styleEl.remove(); });
     var newS = [];
@@ -752,7 +754,8 @@
       var anchor = anchorOf[d.scope] ||
         (d.src && convertStash[d.src] && convertStash[d.src].marker.nextSibling) ||
         nextAnchor;
-      pageParent.insertBefore(sec.wrapEl, anchor);
+      var host = parentOf[d.scope] || pageParent;
+      host.insertBefore(sec.wrapEl, anchor && anchor.parentNode === host ? anchor : null);
       nextAnchor = sec.wrapEl;
       newS.unshift(sec);
     }
