@@ -618,12 +618,18 @@
         n.className = cls + ' gogh-badge';
         n.textContent = e.text;
         break;
+      default:
+        // element type from a newer gogh: keep the page alive
+        n = document.createElement('div');
+        n.className = cls;
+        break;
     }
     return n;
   }
 
   function scaleOf(sec) { return sec.sectionEl.getBoundingClientRect().width / W; }
   function measureTextHeights(sec) {
+    if (!sec.nodes || sec.nodes.some(function (n) { return !n; })) return;
     var s = scaleOf(sec);
     sec.els.forEach(function (e, i) {
       if (isText(e)) {
