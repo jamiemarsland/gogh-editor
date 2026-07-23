@@ -3398,7 +3398,7 @@
   // ---------- site chrome (header/footer template parts) as canvases ----------
   function chromePartEls() {
     return [].slice.call(document.querySelectorAll('.wp-block-template-part')).filter(function (el) {
-      return (el.tagName === 'HEADER' || el.tagName === 'FOOTER') && !el.querySelector('.gogh-wrap');
+      return el.tagName === 'HEADER' || el.tagName === 'FOOTER';
     });
   }
   function tpUrl(id) {
@@ -3412,19 +3412,62 @@
     if (open === -1 || close <= open) return null;
     return { text: s.slice(open + 3, close), base: span.start + open + 3 };
   }
-  function convertChrome(partEl) {
-    var area = partEl.tagName === 'FOOTER' ? 'footer' : 'header';
-    return fetch(tpUrl() + '?area=' + area + '&context=edit', {
+  var patternCache = null;
+  function fetchAreaPatterns(area) {
+    var pick = function (list) {
+      return list.filter(function (p) {
+        return (p.categories || []).indexOf(area) !== -1 &&
+          p.name && p.name.indexOf(cfg.theme + '/') === 0;
+      });
+    };
+    if (patternCache) return Promise.resolve(pick(patternCache));
+    return fetch(GSROOT + 'block-patterns/patterns', {
       headers: { 'X-WP-Nonce': cfg.nonce },
       credentials: 'same-origin',
-    }).then(function (res) {
-      if (!res.ok) throw new Error('HTTP ' + res.status);
-      return res.json();
-    }).then(function (parts) {
+    }).then(function (r) { return r.ok ? r.json() : []; }).then(function (list) {
+      patternCache = list;
+      return pick(list);
+    }).catch(function () { return []; });
+  }
+  function convertChrome(partEl) {
+    var area = partEl.tagName === 'FOOTER' ? 'footer' : 'header';
+    return Promise.all([
+      fetch(tpUrl() + '?area=' + area + '&context=edit', {
+        headers: { 'X-WP-Nonce': cfg.nonce },
+        credentials: 'same-origin',
+      }).then(function (res) {
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        return res.json();
+      }),
+      fetchAreaPatterns(area),
+    ]).then(function (both) {
+      var parts = both[0], patterns = both[1];
       if (!parts.length) throw new Error('No ' + area + ' template part found.');
       var active = parts.filter(function (p) { return p.slug === area; })[0] || parts[0];
-      if (parts.length > 1) {
-        openChromeLayoutPanel(partEl, area, parts, active);
+      // one flat list of layouts: template parts + the theme's patterns
+      var options = parts.map(function (p) {
+        return { kind: 'part', id: p.id, slug: p.slug, theme: p.theme,
+          title: (p.title && p.title.rendered) || p.slug,
+          content: (p.content && p.content.raw) || '' };
+      });
+      patterns.forEach(function (p) {
+        options.push({ kind: 'pattern', id: 'pattern:' + p.name, slug: p.name,
+          title: p.title || p.name, content: p.content || '' });
+      });
+      // parts are often instances of the theme's patterns — same design twice
+      var seenTitles = {};
+      options = options.filter(function (o) {
+        var t = o.title.toLowerCase().replace(/\s+/g, ' ').trim();
+        if (seenTitles[t]) return false;
+        seenTitles[t] = 1;
+        return true;
+      });
+      var activeOpt = options.filter(function (o) { return o.id === active.id; })[0];
+      if (activeOpt && activeOpt.content.indexOf('wp:gogh/section') !== -1) {
+        activeOpt.title += ' \u00b7 freeform';
+      }
+      if (options.length > 1) {
+        openChromeLayoutPanel(partEl, area, options, activeOpt, active);
         return null;
       }
       return doConvertChrome(partEl, area, active);
@@ -3434,43 +3477,56 @@
     });
   }
   // the theme ships several layouts for this area: offer them, elegantly
-  function openChromeLayoutPanel(partEl, area, parts, active) {
-    var selId = active.id;
+  function openChromeLayoutPanel(partEl, area, options, activeOpt, active) {
+    var selId = activeOpt ? activeOpt.id : null;
+    var isFreeform = !!(activeOpt && activeOpt.content.indexOf('wp:gogh/section') !== -1);
+    var mounted = partEl.querySelector('.gogh-wrap');
     function render() {
       panel.innerHTML =
-        '<div class="gogh-panel-title">Site ' + area + '</div>' +
-        '<div class="gogh-swlab">Click a layout to preview it live</div>' +
+        '<div class="gogh-panel-head"><span class="gogh-panel-title">Site ' + area + '</span>' +
+        '<button type="button" class="gogh-sbtn gogh-panel-close" title="Close">\u2715</button></div>' +
+        '<div class="gogh-panel-hint">Click a layout to preview it live' + (isFreeform ? ' \u2014 picking one replaces your freeform design' : '') + '</div>' +
         '<div class="gogh-panel-row gogh-chrome-rows">' +
-        parts.map(function (p, k) {
-          return '<button type="button" class="gogh-btn gogh-btn-small gogh-chrome-opt' + (p.id === selId ? ' is-active' : '') + '" data-k="' + k + '"></button>';
+        options.map(function (o, k) {
+          return '<button type="button" class="gogh-btn gogh-btn-small gogh-chrome-opt' + (o.id === selId ? ' is-active' : '') + '" data-k="' + k + '"></button>';
         }).join('') +
         '</div>' +
-        '<div class="gogh-swlab">Or make it yours</div>' +
+        '<div class="gogh-panel-hint">Or make it yours</div>' +
         '<div class="gogh-panel-row gogh-chrome-rows">' +
-        '<button type="button" class="gogh-btn gogh-btn-small gogh-chrome-edit">\u2728 Make freeform</button>' +
+        '<button type="button" class="gogh-btn gogh-btn-small gogh-chrome-edit">\u2728 ' + (isFreeform || mounted ? 'Edit freeform' : 'Make freeform') + '</button>' +
         '</div>' +
         '<div class="gogh-panel-row gogh-chrome-foot">' +
         '<button type="button" class="gogh-btn gogh-btn-small gogh-chrome-cancel">Cancel</button>' +
-        '<button type="button" class="gogh-btn gogh-btn-small gogh-chrome-use" title="Updates every page"' + (selId === active.id ? ' disabled' : '') + '>Use this layout</button>' +
+        '<button type="button" class="gogh-btn gogh-btn-small gogh-chrome-use" title="Updates every page"' + ((activeOpt && selId === activeOpt.id) ? ' disabled' : '') + '>Use this layout</button>' +
         '</div>';
-      parts.forEach(function (p, k) {
+      panel.querySelector('.gogh-panel-close').addEventListener('click', function () {
+        endChromePreview();
+        closePanel();
+      });
+      options.forEach(function (o, k) {
         var b = panel.querySelector('.gogh-chrome-opt[data-k="' + k + '"]');
-        b.textContent = ((p.title && p.title.rendered) || p.slug) + (p.id === active.id ? ' (current)' : '');
+        b.textContent = o.title + ((activeOpt && o.id === activeOpt.id) ? ' (current)' : '');
         b.addEventListener('click', function () {
-          if (p.id === active.id) {
+          if (activeOpt && o.id === activeOpt.id) {
             endChromePreview();
-            selId = p.id;
+            selId = o.id;
             render();
             return;
           }
-          previewChromeLayout(partEl, p, function (ok) {
-            if (ok) { selId = p.id; render(); }
+          previewChromeLayout(partEl, o, function (ok) {
+            if (ok) { selId = o.id; render(); }
           });
         });
       });
       panel.querySelector('.gogh-chrome-edit').addEventListener('click', function () {
         endChromePreview();
         closePanel();
+        var existing = null;
+        S.forEach(function (s) { if (s.chrome && partEl.contains(s.wrapEl)) existing = s; });
+        if (existing) {
+          placeHandles(existing, 0);
+          return;
+        }
         doConvertChrome(partEl, area, active).catch(function (err) {
           toast(err.message || 'Could not edit the ' + area, { error: true });
         });
@@ -3480,8 +3536,8 @@
         closePanel();
       });
       panel.querySelector('.gogh-chrome-use').addEventListener('click', function () {
-        var chosen = parts.filter(function (p) { return p.id === selId; })[0];
-        if (!chosen || chosen.id === active.id) return;
+        var chosen = options.filter(function (o) { return o.id === selId; })[0];
+        if (!chosen || (activeOpt && chosen.id === activeOpt.id)) return;
         this.disabled = true;
         this.textContent = 'Applying\u2026';
         swapChromeLayout(area, active, chosen);
@@ -3498,10 +3554,13 @@
     chromePreview.hidden.forEach(function (c) { c.style.display = ''; });
     chromePreview = null;
   }
-  function previewChromeLayout(partEl, part, done) {
-    fetch(GSROOT + 'block-renderer/core/template-part?context=edit' +
-      '&attributes%5Bslug%5D=' + encodeURIComponent(part.slug) +
-      '&attributes%5Btheme%5D=' + encodeURIComponent(part.theme), {
+  function previewChromeLayout(partEl, opt, done) {
+    var url = opt.kind === 'pattern'
+      ? GSROOT + 'block-renderer/core/pattern?context=edit&attributes%5Bslug%5D=' + encodeURIComponent(opt.slug)
+      : GSROOT + 'block-renderer/core/template-part?context=edit' +
+        '&attributes%5Bslug%5D=' + encodeURIComponent(opt.slug) +
+        '&attributes%5Btheme%5D=' + encodeURIComponent(opt.theme);
+    fetch(url, {
       headers: { 'X-WP-Nonce': cfg.nonce },
       credentials: 'same-origin',
     }).then(function (r) {
@@ -3532,7 +3591,7 @@
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'X-WP-Nonce': cfg.nonce },
       credentials: 'same-origin',
-      body: JSON.stringify({ content: (chosen.content && chosen.content.raw) || '' }),
+      body: JSON.stringify({ content: chosen.content || '' }),
     }).then(function (r) {
       if (!r.ok) throw new Error('HTTP ' + r.status);
       discarding = true;
