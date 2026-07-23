@@ -523,8 +523,10 @@
   // ---------- element factory & rendering ----------
   // sanitize inline rich text to a safe subset: links, bold, italic, br.
   // Uses <template> so nothing in untrusted markup loads or executes.
-  var INLINE_OK = { A: 1, STRONG: 1, EM: 1, B: 1, I: 1, BR: 1 };
   function cleanInline(html) {
+    // self-contained: the boot-time collector calls this before mid-file
+    // var assignments have run, so the allow-list must live inside
+    var INLINE_OK = { A: 1, STRONG: 1, EM: 1, B: 1, I: 1, BR: 1 };
     var tpl = document.createElement('template');
     tpl.innerHTML = html == null ? '' : String(html);
     (function walk(node) {
