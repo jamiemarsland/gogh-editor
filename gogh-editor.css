@@ -642,8 +642,8 @@
   text-transform: uppercase;
   letter-spacing: 0.05em;
   color: var(--gogh-ui-muted);
-  width: 40px;
 }
+.gogh-swrow-labeled .gogh-swlab { width: 40px; }
 .gogh-sw {
   all: unset;
   cursor: pointer;
@@ -977,3 +977,19 @@
 
 /* chrome layout picker rows */
 .gogh-chrome-rows { flex-direction: column; align-items: stretch; gap: 6px; }
+
+.gogh-chrome-foot { justify-content: flex-end; gap: 8px; margin-top: 4px; }
+.gogh-chrome-rows .gogh-btn.is-active { background: #7ea8ff; color: #141519; }
+
+.gogh-stylebtn svg { display: block; }
+.gogh-side-head .gogh-stylebtn {
+  flex: 0 0 auto;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  display: grid;
+  place-items: center;
+  margin-left: auto;
+}
+.gogh-side-head .gogh-theme { margin-left: 0; }
+.gogh-panel .gogh-varlist { max-height: 320px; overflow-y: auto; }

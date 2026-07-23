@@ -807,6 +807,9 @@
   side.innerHTML =
     '<div class="gogh-side-head">' +
     '<span class="gogh-side-title">gogh</span>' +
+    '<button type="button" class="gogh-sbtn gogh-stylebtn" title="Site style">' +
+    '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M12 3a9 9 0 1 0 0 18h1.5a2.5 2.5 0 0 0 1.8-4.2 2.5 2.5 0 0 1 1.8-4.3H20a9 9 0 0 0-8-9.5Z"/><circle cx="7.5" cy="11" r="1.2" fill="currentColor" stroke="none"/><circle cx="10.5" cy="7.5" r="1.2" fill="currentColor" stroke="none"/><circle cx="15" cy="7.5" r="1.2" fill="currentColor" stroke="none"/></svg>' +
+    '</button>' +
     '<button type="button" class="gogh-sbtn gogh-theme" data-act="uitheme" title="Editor theme"></button>' +
     '<button type="button" class="gogh-sbtn gogh-close" title="Finish editing">✕</button>' +
     '</div>' +
@@ -823,8 +826,6 @@
     '<div class="gogh-side-label">Page</div>' +
     '<button type="button" class="gogh-sitem" data-act="addsec">+ Section</button>' +
     '<button type="button" class="gogh-sitem" data-act="gridsnap" title="Show an 8-unit grid and snap to it">Grid: off</button>' +
-    '<div class="gogh-side-label">Theme style</div>' +
-    '<div class="gogh-varlist"></div>' +
     '<div class="gogh-side-gap"></div>';
   document.body.appendChild(side);
 
@@ -1259,7 +1260,11 @@
   panel.hidden = true;
   document.body.appendChild(panel);
   var panelOpen = false;
-  function closePanel() { panel.hidden = true; panelOpen = false; }
+  function closePanel() {
+    panel.hidden = true;
+    panelOpen = false;
+    endChromePreview();
+  }
   // place the panel near the element but always fully inside the viewport —
   // a viewport-filling image would otherwise push it below the fold
   function placePanelNear(node) {
@@ -2389,23 +2394,33 @@
 
   // ---------- theme style variations (drawer) ----------
   var GSROOT = cfg.restUrl.split('wp/v2/')[0] + 'wp/v2/';
-  function loadVariations() {
-    if (!cfg.gsId || !cfg.theme) return;
-    fetch(GSROOT + 'global-styles/themes/' + cfg.theme + '/variations', {
+  var variationsCache = null;
+  function fetchVariations() {
+    if (variationsCache) return Promise.resolve(variationsCache);
+    return fetch(GSROOT + 'global-styles/themes/' + cfg.theme + '/variations', {
       headers: { 'X-WP-Nonce': cfg.nonce },
       credentials: 'same-origin',
     }).then(function (r) { return r.ok ? r.json() : []; }).then(function (vars) {
-      var box = side.querySelector('.gogh-varlist');
-      if (!box || !vars.length) return;
       // the API lists full variations and colour-only ones under one name
       var seen = {};
-      vars = vars.filter(function (v) {
+      variationsCache = vars.filter(function (v) {
         var t = v.title || '';
         if (seen[t]) return false;
         seen[t] = 1;
         return true;
       });
-      box.innerHTML = '';
+      return variationsCache;
+    });
+  }
+  function openStylePanel(anchorEl) {
+    if (!cfg.gsId || !cfg.theme) return;
+    fetchVariations().then(function (vars) {
+      if (!vars.length) return;
+      panel.innerHTML =
+        '<div class="gogh-panel-title">Site style</div>' +
+        '<div class="gogh-swlab">Click to try \u2014 the whole site re-skins live</div>' +
+        '<div class="gogh-varlist"></div>';
+      var box = panel.querySelector('.gogh-varlist');
       vars.forEach(function (v) {
         var b = document.createElement('button');
         b.type = 'button';
@@ -2419,6 +2434,8 @@
         b.addEventListener('click', function () { applyVariation(v, b); });
         box.appendChild(b);
       });
+      placePanelNear(anchorEl);
+      panelOpen = true;
     }).catch(function () {});
   }
   function applyVariation(v, btn) {
@@ -2453,7 +2470,9 @@
       return false;
     });
   }
-  loadVariations();
+  side.querySelector('.gogh-stylebtn').addEventListener('click', function (ev) {
+    openStylePanel(ev.currentTarget);
+  });
 
   // editor chrome theme: follows the system unless the user chose one
   function applyUiTheme() {
@@ -3407,47 +3426,97 @@
   }
   // the theme ships several layouts for this area: offer them, elegantly
   function openChromeLayoutPanel(partEl, area, parts, active) {
-    var others = parts.filter(function (p) { return p.id !== active.id; });
-    // layouts first (the safe, familiar move), freeform as the escalation
-    panel.innerHTML =
-      '<div class="gogh-panel-title">Site ' + area + '</div>' +
-      '<div class="gogh-swlab">Choose a layout</div>' +
-      '<div class="gogh-panel-row gogh-chrome-rows">' +
-      '<button type="button" class="gogh-btn gogh-btn-small" disabled></button>' +
-      others.map(function (p, k) {
-        return '<button type="button" class="gogh-btn gogh-btn-small gogh-chrome-swap" data-k="' + k + '"></button>';
-      }).join('') +
-      '</div>' +
-      '<div class="gogh-swlab">Or make it yours</div>' +
-      '<div class="gogh-panel-row gogh-chrome-rows">' +
-      '<button type="button" class="gogh-btn gogh-btn-small gogh-chrome-edit">\u2728 Make freeform</button>' +
-      '</div>';
-    panel.querySelector('button[disabled]').textContent = ((active.title && active.title.rendered) || active.slug) + ' (current)';
-    others.forEach(function (p, k) {
-      var b = panel.querySelector('.gogh-chrome-swap[data-k="' + k + '"]');
-      b.textContent = (p.title && p.title.rendered) || p.slug;
-    });
-    panel.querySelector('.gogh-chrome-edit').addEventListener('click', function () {
-      closePanel();
-      doConvertChrome(partEl, area, active).catch(function (err) {
-        toast(err.message || 'Could not edit the ' + area, { error: true });
-      });
-    });
-    panel.querySelectorAll('.gogh-chrome-swap').forEach(function (b) {
-      b.addEventListener('click', function () {
-        var chosen = others[+b.dataset.k];
-        closePanel();
-        toast('Replace your site ' + area + ' with \u201c' + ((chosen.title && chosen.title.rendered) || chosen.slug) + '\u201d? This updates every page.', {
-          sticky: true,
-          actions: [
-            { label: 'Do it', onClick: function () { swapChromeLayout(area, active, chosen); } },
-            { label: 'Cancel', onClick: null },
-          ],
+    var selId = active.id;
+    function render() {
+      panel.innerHTML =
+        '<div class="gogh-panel-title">Site ' + area + '</div>' +
+        '<div class="gogh-swlab">Click a layout to preview it live</div>' +
+        '<div class="gogh-panel-row gogh-chrome-rows">' +
+        parts.map(function (p, k) {
+          return '<button type="button" class="gogh-btn gogh-btn-small gogh-chrome-opt' + (p.id === selId ? ' is-active' : '') + '" data-k="' + k + '"></button>';
+        }).join('') +
+        '</div>' +
+        '<div class="gogh-swlab">Or make it yours</div>' +
+        '<div class="gogh-panel-row gogh-chrome-rows">' +
+        '<button type="button" class="gogh-btn gogh-btn-small gogh-chrome-edit">\u2728 Make freeform</button>' +
+        '</div>' +
+        '<div class="gogh-panel-row gogh-chrome-foot">' +
+        '<button type="button" class="gogh-btn gogh-btn-small gogh-chrome-cancel">Cancel</button>' +
+        '<button type="button" class="gogh-btn gogh-btn-small gogh-chrome-use" title="Updates every page"' + (selId === active.id ? ' disabled' : '') + '>Use this layout</button>' +
+        '</div>';
+      parts.forEach(function (p, k) {
+        var b = panel.querySelector('.gogh-chrome-opt[data-k="' + k + '"]');
+        b.textContent = ((p.title && p.title.rendered) || p.slug) + (p.id === active.id ? ' (current)' : '');
+        b.addEventListener('click', function () {
+          if (p.id === active.id) {
+            endChromePreview();
+            selId = p.id;
+            render();
+            return;
+          }
+          previewChromeLayout(partEl, p, function (ok) {
+            if (ok) { selId = p.id; render(); }
+          });
         });
       });
-    });
+      panel.querySelector('.gogh-chrome-edit').addEventListener('click', function () {
+        endChromePreview();
+        closePanel();
+        doConvertChrome(partEl, area, active).catch(function (err) {
+          toast(err.message || 'Could not edit the ' + area, { error: true });
+        });
+      });
+      panel.querySelector('.gogh-chrome-cancel').addEventListener('click', function () {
+        endChromePreview();
+        closePanel();
+      });
+      panel.querySelector('.gogh-chrome-use').addEventListener('click', function () {
+        var chosen = parts.filter(function (p) { return p.id === selId; })[0];
+        if (!chosen || chosen.id === active.id) return;
+        this.disabled = true;
+        this.textContent = 'Applying\u2026';
+        swapChromeLayout(area, active, chosen);
+      });
+    }
+    render();
     placePanelNear(partEl);
     panelOpen = true;
+  }
+  var chromePreview = null; // {partEl, box, hidden}
+  function endChromePreview() {
+    if (!chromePreview) return;
+    chromePreview.box.remove();
+    chromePreview.hidden.forEach(function (c) { c.style.display = ''; });
+    chromePreview = null;
+  }
+  function previewChromeLayout(partEl, part, done) {
+    fetch(GSROOT + 'block-renderer/core/template-part?context=edit' +
+      '&attributes%5Bslug%5D=' + encodeURIComponent(part.slug) +
+      '&attributes%5Btheme%5D=' + encodeURIComponent(part.theme), {
+      headers: { 'X-WP-Nonce': cfg.nonce },
+      credentials: 'same-origin',
+    }).then(function (r) {
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      return r.json();
+    }).then(function (d) {
+      var tpl = document.createElement('template');
+      tpl.innerHTML = (d && d.rendered) || '';
+      var root = tpl.content.firstElementChild;
+      var inner = (root && root.classList && root.classList.contains('wp-block-template-part')) ? root.innerHTML : tpl.innerHTML;
+      if (!chromePreview) {
+        var hidden = [].slice.call(partEl.children);
+        hidden.forEach(function (c) { c.style.display = 'none'; });
+        var box = document.createElement('div');
+        box.className = 'gogh-chrome-preview';
+        partEl.appendChild(box);
+        chromePreview = { partEl: partEl, box: box, hidden: hidden };
+      }
+      chromePreview.box.innerHTML = inner;
+      if (done) done(true);
+    }).catch(function () {
+      toast('Could not preview that layout.', { error: true });
+      if (done) done(false);
+    });
   }
   function swapChromeLayout(area, active, chosen) {
     fetch(tpUrl(active.id), {
