@@ -1547,11 +1547,24 @@
   });
   function layerMove(dir) {
     if (!sel) return;
-    var sec = sel.sec, i = sel.i, j = i + dir;
-    if (j < 0 || j >= sec.els.length) return;
-    var t = sec.els[i];
-    sec.els[i] = sec.els[j];
-    sec.els[j] = t;
+    var sec = sel.sec, i = sel.i, e = sec.els[i];
+    // stacking only shows between things that overlap, so jump straight
+    // past the nearest overlapping element — one click, visible result
+    var hits = function (o) {
+      return o.x < e.x + e.w && o.x + o.w > e.x && o.y < e.y + e.h && o.y + o.h > e.y;
+    };
+    var j = -1;
+    if (dir > 0) {
+      for (var k = i + 1; k < sec.els.length; k++) { if (hits(sec.els[k])) { j = k; break; } }
+    } else {
+      for (var k2 = i - 1; k2 >= 0; k2--) { if (hits(sec.els[k2])) { j = k2; break; } }
+    }
+    if (j === -1) {
+      toast(dir > 0 ? 'Nothing overlaps this \u2014 it\u2019s already in front.' : 'Nothing overlaps this \u2014 it\u2019s already at the back.', { ttl: 2600 });
+      return;
+    }
+    var t = sec.els.splice(i, 1)[0];
+    sec.els.splice(j, 0, t);
     renderSection(sec);
     placeHandles(sec, j);
     pushState();
@@ -2086,6 +2099,17 @@
     secBar.querySelector('[data-sec="down"]').disabled = idx === S.length - 1;
     secBar.querySelector('[data-sec="del"]').disabled = S.length <= 1;
     secBar.hidden = false;
+    // don't sit on the Edit header/footer pill — duck below it
+    var sr = secBar.getBoundingClientRect();
+    chromeBtns.forEach(function (cb) {
+      var cr = cb.getBoundingClientRect();
+      var clear = sr.right < cr.left - 8 || sr.left > cr.right + 8 ||
+        sr.bottom < cr.top - 8 || sr.top > cr.bottom + 8;
+      if (!clear) {
+        secBar.style.top = (cr.bottom + window.scrollY + 10) + 'px';
+        sr = secBar.getBoundingClientRect();
+      }
+    });
   }
   secBar.addEventListener('click', function (ev) {
     var b = ev.target.closest('.gogh-sb');

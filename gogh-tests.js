@@ -1032,7 +1032,12 @@
 
     // ---- 29. layer ordering via toolbar ----
     test('bring forward / send backward reorder stacking', function () {
-      var t0 = sec().els[0].type, t1 = sec().els[1].type;
+      // stacking is only actionable between overlapping elements — overlap them
+      var e0 = sec().els[0], e1 = sec().els[1];
+      e1.x = e0.x + 8;
+      e1.y = e0.y + 8;
+      G.resolve(sec());
+      var t0 = e0.type, t1 = e1.type;
       select(0);
       q('.gogh-eb-fwd').click();
       expect(sec().els[1].type === t0 && sec().els[0].type === t1, 'forward did not swap');
