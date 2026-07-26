@@ -1317,3 +1317,15 @@ html.gogh-editing .gogh-mirror { display: flex; }
   gap: 6px;
 }
 .gogh-pendbar .gogh-btn { box-shadow: 0 10px 28px -8px rgba(0, 0, 0, 0.45); }
+
+.gogh-editing .gogh-pending :is(h1, h2, h3, h4, h5, h6, p, figcaption, .wp-block-button__link):hover {
+  outline: 1.5px dashed rgba(126, 168, 255, 0.7);
+  outline-offset: 3px;
+  cursor: text;
+}
+.gogh-editing .gogh-pending img:hover {
+  outline: 1.5px dashed rgba(126, 168, 255, 0.7);
+  outline-offset: 3px;
+  cursor: pointer;
+}
+.gogh-pending [contenteditable="true"] { outline: 1.5px solid #7ea8ff; outline-offset: 3px; }

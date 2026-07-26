@@ -3840,6 +3840,14 @@
       return res.json();
     }).then(function (post) {
       if (post.content && post.content.raw) rawCache = post.content.raw;
+      // native pattern sections are stored now: they graduate to ordinary
+      // page content (the per-block Make freeform machinery owns them next)
+      pendingBlocks.forEach(function (pe) {
+        var bar = pe.el.querySelector(':scope > .gogh-pendbar');
+        if (bar) bar.remove();
+        pe.el.classList.remove('gogh-pending');
+      });
+      pendingBlocks = [];
       // site chrome saves to its template part — one write, every page
       var chromeSaves = S.filter(function (s) { return s.chrome && s.chrome.id; }).map(function (s) {
         return fetch(tpUrl(s.chrome.id), {
@@ -4288,7 +4296,7 @@
       // the pattern arrives as REAL blocks — pixel-perfect, no conversion.
       // Freeform is one click away on its overlay, like any page content.
       var holder = document.createElement('div');
-      holder.className = 'gogh-pending';
+      holder.className = 'gogh-pending alignfull has-global-padding is-layout-constrained';
       holder.innerHTML = html;
       var nextContent = null;
       for (var ni = idx; ni < S.length; ni++) { if (!S[ni].chrome) { nextContent = S[ni]; break; } }
@@ -4309,11 +4317,183 @@
         pendingBlocks = pendingBlocks.filter(function (q) { return q !== entry; });
         refreshChip();
       });
+      bindPending(entry);
       holder.scrollIntoView({ behavior: 'smooth', block: 'start' });
       refreshChip();
-      toast('\u201c' + entry.title + '\u201d added as regular blocks \u2014 \u2728 makes it freeform.', { ttl: 5000 });
+      toast('\u201c' + entry.title + '\u201d added \u2014 click text to edit it, \u2728 to go freeform.', { ttl: 5000 });
     }).catch(function () {
       toast('Could not add that section.', { error: true });
+    });
+  }
+  // ---------- light editing on native (pre-freeform) sections ----------
+  // Rendered leaves pair with their markup spans; edits replace the span's
+  // HTML with the live DOM, so publish and Make freeform both see them.
+  function bindPending(entry) {
+    entry.map = [];
+    (function pair(container, base, rawText) {
+      var spans = parseTopBlocks(rawText);
+      var kids = [].slice.call(container.children).filter(function (c) {
+        return !(c.classList && c.classList.contains('gogh-pendbar'));
+      });
+      if (!spans.length || spans.length !== kids.length) return;
+      spans.forEach(function (sp, k) {
+        var dom = kids[k];
+        var nm = String(sp.name || '').replace(/^core\//, '');
+        if (nm === 'group' || nm === 'columns' || nm === 'column') {
+          var inner = innerRawOf(rawText, sp);
+          if (inner && dom.children.length) { pair(dom, base + inner.base, inner.text); return; }
+        }
+        entry.map.push({ node: dom, s: base + sp.start, e: base + sp.end });
+      });
+    })(entry.el, 0, entry.raw);
+    var holder = entry.el;
+    var syncT = null;
+    function leafOf(node) {
+      for (var i = 0; i < entry.map.length; i++) {
+        if (entry.map[i].node === node || entry.map[i].node.contains(node)) return entry.map[i];
+      }
+      return null;
+    }
+    function cleanCopy(node) {
+      var c = node.cloneNode(true);
+      [].slice.call(c.querySelectorAll('[contenteditable]')).forEach(function (n) { n.removeAttribute('contenteditable'); });
+      c.removeAttribute('contenteditable');
+      return c.outerHTML;
+    }
+    function syncLeaf(leaf) {
+      var markup = entry.raw.slice(leaf.s, leaf.e);
+      var m = markup.match(/^([\s\S]*?-->)([\s\S]*?)(<!--\s*\/wp:[\s\S]*)$/);
+      if (!m) return;
+      var next = m[1] + '\n' + cleanCopy(leaf.node) + '\n' + m[3];
+      var delta = next.length - markup.length;
+      entry.raw = entry.raw.slice(0, leaf.s) + next + entry.raw.slice(leaf.e);
+      leaf.e += delta;
+      entry.map.forEach(function (l) {
+        if (l !== leaf && l.s >= leaf.e - delta) { l.s += delta; l.e += delta; }
+      });
+      refreshChip();
+    }
+    var activeEd = null;
+    function stopEdit() {
+      if (!activeEd) return;
+      activeEd.el.removeAttribute('contenteditable');
+      var leaf = leafOf(activeEd.el);
+      if (leaf) syncLeaf(leaf);
+      activeEd = null;
+    }
+    holder.addEventListener('click', function (ev) {
+      if (!editing) return;
+      var a = ev.target.closest && ev.target.closest('a');
+      if (a && !a.closest('.gogh-pendbar')) ev.preventDefault();
+      var img = ev.target.closest && ev.target.closest('img');
+      if (img) {
+        ev.preventDefault();
+        pickPendingImage(entry, img);
+        return;
+      }
+      var t = ev.target.closest &&
+        ev.target.closest('h1,h2,h3,h4,h5,h6,p,figcaption,.wp-block-button__link');
+      if (!t || t.closest('.gogh-pendbar') || !leafOf(t)) return;
+      if (activeEd && activeEd.el !== t) stopEdit();
+      if (t.getAttribute('contenteditable') !== 'true') {
+        t.setAttribute('contenteditable', 'true');
+        activeEd = { el: t };
+        t.focus();
+      }
+    });
+    holder.addEventListener('input', function (ev) {
+      var leaf = leafOf(ev.target);
+      if (!leaf) return;
+      clearTimeout(syncT);
+      syncT = setTimeout(function () { syncLeaf(leaf); }, 500);
+    });
+    holder.addEventListener('focusout', function () { setTimeout(stopEdit, 80); });
+    holder.addEventListener('keydown', function (ev) {
+      // Cmd/Ctrl+K links the selected text, same shortcut as the canvas
+      if ((ev.metaKey || ev.ctrlKey) && ev.key.toLowerCase() === 'k' && activeEd) {
+        ev.preventDefault();
+        var selObj = window.getSelection();
+        if (!selObj.rangeCount || selObj.isCollapsed) return;
+        var range = selObj.getRangeAt(0).cloneRange();
+        var url = window.prompt('Link this text to\u2026', 'https://');
+        if (url && url !== 'https://') {
+          selObj.removeAllRanges();
+          selObj.addRange(range);
+          try { document.execCommand('createLink', false, url); } catch (err) {}
+          var leaf = leafOf(activeEd.el);
+          if (leaf) syncLeaf(leaf);
+        }
+      }
+    });
+  }
+  function pickPendingImage(entry, img) {
+    var leaf = null;
+    for (var i = 0; i < entry.map.length; i++) {
+      if (entry.map[i].node.contains(img)) { leaf = entry.map[i]; break; }
+    }
+    if (!leaf) { toast('gogh can\u2019t safely swap this image.', { error: true }); return; }
+    var r = img.getBoundingClientRect();
+    panel.style.left = Math.max(8, r.left + window.scrollX) + 'px';
+    panel.style.top = (r.bottom + window.scrollY + 10) + 'px';
+    panel.innerHTML =
+      '<div class="gogh-panel-title">Replace image</div>' +
+      '<div class="gogh-panel-row">' +
+      '<input type="url" class="gogh-input" placeholder="Paste image URL\u2026" />' +
+      '<button type="button" class="gogh-btn gogh-btn-small gogh-apply">Apply</button>' +
+      '</div>' +
+      '<div class="gogh-media"><span class="gogh-media-loading">Loading media\u2026</span></div>';
+    panel.hidden = false;
+    panelOpen = true;
+    function useSrc(src2) {
+      img.src = src2;
+      img.removeAttribute('srcset');
+      img.removeAttribute('sizes');
+      var entryLeaf = leaf;
+      var markup = entry.raw.slice(entryLeaf.s, entryLeaf.e);
+      var m2 = markup.match(/^([\s\S]*?-->)([\s\S]*?)(<!--\s*\/wp:[\s\S]*)$/);
+      if (m2) {
+        var frag = document.createElement('div');
+        frag.innerHTML = m2[2];
+        var im2 = frag.querySelector('img');
+        if (im2) { im2.src = src2; im2.removeAttribute('srcset'); im2.removeAttribute('sizes'); }
+        var next = m2[1] + frag.innerHTML + m2[3];
+        var delta = next.length - markup.length;
+        entry.raw = entry.raw.slice(0, entryLeaf.s) + next + entry.raw.slice(entryLeaf.e);
+        entryLeaf.e += delta;
+        entry.map.forEach(function (l) {
+          if (l !== entryLeaf && l.s >= entryLeaf.e - delta) { l.s += delta; l.e += delta; }
+        });
+      }
+      closePanel();
+      refreshChip();
+      toast('Image swapped.');
+    }
+    var inp = panel.querySelector('input');
+    panel.querySelector('.gogh-apply').addEventListener('click', function () {
+      if (inp.value.trim()) useSrc(inp.value.trim());
+    });
+    inp.addEventListener('keydown', function (ev) {
+      if (ev.key === 'Enter' && inp.value.trim()) useSrc(inp.value.trim());
+      if (ev.key === 'Escape') closePanel();
+    });
+    fetch(cfg.mediaUrl + '?per_page=12&media_type=image&orderby=date&order=desc', {
+      headers: { 'X-WP-Nonce': cfg.nonce },
+      credentials: 'same-origin',
+    }).then(function (res) { return res.ok ? res.json() : []; }).then(function (items) {
+      var box = panel.querySelector('.gogh-media');
+      if (!box || panel.hidden) return;
+      box.innerHTML = '';
+      items.forEach(function (item) {
+        var thumb = (item.media_details && item.media_details.sizes &&
+          (item.media_details.sizes.thumbnail || item.media_details.sizes.medium));
+        var b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'gogh-thumb';
+        b.style.backgroundImage = 'url("' + (thumb ? thumb.source_url : item.source_url) + '")';
+        b.addEventListener('click', function () { useSrc(item.source_url); });
+        box.appendChild(b);
+      });
+      reclampPanel();
     });
   }
   function convertPending(entry) {
