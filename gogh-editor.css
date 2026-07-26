@@ -457,8 +457,23 @@
   display: grid;
   place-items: center;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, sans-serif;
+  opacity: 0;
+  transition: opacity 0.22s ease;
 }
+.gogh-picker.is-open { opacity: 1; }
 .gogh-picker[hidden] { display: none; }
+.gogh-picker-inner {
+  transform: scale(0.92) translateY(10px);
+  opacity: 0;
+  transition: transform 0.24s cubic-bezier(0.2, 0.9, 0.25, 1.05), opacity 0.2s ease;
+}
+.gogh-picker.is-open .gogh-picker-inner {
+  transform: none;
+  opacity: 1;
+}
+@media (prefers-reduced-motion: reduce) {
+  .gogh-picker, .gogh-picker-inner { transition: none; }
+}
 .gogh-picker-inner {
   width: min(880px, calc(100vw - 48px));
   max-height: calc(100vh - 80px);

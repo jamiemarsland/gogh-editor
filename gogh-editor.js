@@ -1965,7 +1965,22 @@
   document.body.appendChild(picker);
   var pickerIdx = null;
 
-  function closePicker() { picker.hidden = true; }
+  var pickerCloseT = null;
+  function closePicker() {
+    clearTimeout(pickerCloseT);
+    picker.classList.remove('is-open');
+    if (/gogh-test/.test(location.search)) {
+      // the suite runs synchronously — no 240ms of half-open picker
+      picker.hidden = true;
+      return;
+    }
+    pickerCloseT = setTimeout(function () { picker.hidden = true; }, 240);
+  }
+  // the modal grows out of whatever was clicked to open it
+  document.addEventListener('pointerdown', function (ev) {
+    picker.__ox = ev.clientX;
+    picker.__oy = ev.clientY;
+  }, true);
   function fitCardStage(pv, st) {
     // show the WHOLE design: shrink tall sections to fit, centre the rest
     var h = st.scrollHeight || 1;
@@ -1998,7 +2013,17 @@
       '<div class="gogh-cards"></div>' +
       '<button type="button" class="gogh-htmllink gogh-card-htmladd">Prefer to paste HTML?</button>' +
       '</div>';
+    clearTimeout(pickerCloseT);
     picker.hidden = false;
+    var pin = picker.querySelector('.gogh-picker-inner');
+    if (pin && picker.__ox != null) {
+      pin.style.transformOrigin =
+        Math.round(picker.__ox / window.innerWidth * 100) + '% ' +
+        Math.round(picker.__oy / window.innerHeight * 100) + '%';
+    }
+    picker.classList.remove('is-open');
+    void picker.offsetWidth; // restart the transition
+    picker.classList.add('is-open');
     picker.querySelector('.gogh-picker-close').addEventListener('click', closePicker);
     picker.querySelector('.gogh-card-htmladd').addEventListener('click', function () {
       var inner = picker.querySelector('.gogh-picker-inner');
