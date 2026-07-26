@@ -2499,16 +2499,16 @@
         found.y = Math.min(found.y, window.innerHeight - 36);
         inserter.style.left = '50%';
         // the height pill (44px) occupies the centre of every boundary except
-        // the very top one — flank it symmetrically: Shape's right edge and
-        // + Section's left edge each 18px from the pill (22 + 18 = 40)
-        inserter.style.transform = found.idx >= 1 ? 'translate(0, -50%)' : 'translate(-50%, -50%)';
-        inserter.style.marginLeft = found.idx >= 1 ? '40px' : '0';
+        // the very top one — + Section reads first (left), Transition after
+        // (right), each 18px from the pill (22 + 18 = 40)
+        inserter.style.transform = found.idx >= 1 ? 'translate(-100%, -50%)' : 'translate(-50%, -50%)';
+        inserter.style.marginLeft = found.idx >= 1 ? '-40px' : '0';
         inserter.style.top = (found.y + window.scrollY) + 'px';
         inserter.hidden = false;
         if (found.idx >= 1) placeHbar(S[found.idx - 1]); else hideHbar();
         if (found.idx >= 1 && found.idx < S.length) {
           shapeIdx = found.idx;
-          shapeBtn.style.left = 'calc(50% - 40px)';
+          shapeBtn.style.left = 'calc(50% + 40px)';
           shapeBtn.style.top = (found.y + window.scrollY) + 'px';
           shapeBtn.hidden = false;
         } else {
