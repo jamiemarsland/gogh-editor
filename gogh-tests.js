@@ -302,19 +302,18 @@
     test('+ Section adds a template section', function () {
       var s0 = G.sections().length;
       q('.gogh-side [data-act="addsec"]').click();
-      var card = q('.gogh-card[data-tpl="3"]');
+      var card = q('.gogh-card[data-tpl="5"]');
       expect(card, 'picker did not open');
       card.click();
       expect(G.sections().length === s0 + 1, 'section not added');
       var added = G.sections()[G.sections().length - 1];
-      expect(added.els.length > 0, 'template empty');
+      expect(added.minH === 480, 'scratch minH not applied: ' + added.minH);
       expect(added.styleEl.textContent.indexOf(added.scope) !== -1, 'scoped CSS missing');
     });
 
     test('Hero template resolves largest font preset + minH', function () {
       var s0 = G.sections().length;
-      q('.gogh-side [data-act="addsec"]').click();
-      q('.gogh-card[data-tpl="0"]').click();
+      G.addSection(G.templates()[0], G.sections().length);
       var added = G.sections()[G.sections().length - 1];
       var head = added.els.filter(function (e) { return e.type === 'heading'; })[0];
       var sizes = G.fontSizes();
@@ -707,8 +706,7 @@
 
     // ---- 15. divider + section backgrounds (v0.10) ----
     test('divider CSS generated with next-section colour', function () {
-      q('.gogh-side [data-act="addsec"]').click();
-      q('.gogh-card[data-tpl="3"]').click();
+      G.addSection(G.templates()[3], G.sections().length);
       G.openShapePanel(1);
       q('.gogh-shape[data-shape="curve"]').click();
       var belowInput = q('.gogh-color-below');
@@ -740,8 +738,7 @@
 
     // ---- 17. section ops: delete + undo ----
     test('delete section + undo restores it', function () {
-      q('.gogh-side [data-act="addsec"]').click();
-      q('.gogh-card[data-tpl="3"]').click();
+      G.addSection(G.templates()[3], G.sections().length);
       var s0 = G.sections().length;
       G.deleteSection(s0 - 1);
       expect(G.sections().length === s0 - 1, 'not deleted');
@@ -765,8 +762,7 @@
 
     // ---- 19. section ops: move ----
     test('move section reorders model and DOM', function () {
-      q('.gogh-side [data-act="addsec"]').click();
-      q('.gogh-card[data-tpl="3"]').click();
+      G.addSection(G.templates()[3], G.sections().length);
       var added = G.sections()[G.sections().length - 1];
       G.moveSection(G.sections().length - 1, -1);
       expect(G.sections()[G.sections().length - 2] === added, 'model order wrong');
