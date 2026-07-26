@@ -108,7 +108,13 @@
       var i = findIdx('heading');
       var e = sec().els[i];
       var before = sec().els.map(function (o) { return o.y; });
-      var h0 = e.h;
+      var h0 = e.h, x0 = e.x, w0 = e.w, y0 = e.y;
+      // elements the user deliberately overlapped with the heading stay
+      // overlapped — reflow only guards the push path
+      var preOverlap = sec().els.map(function (o, j) {
+        if (j === sec().els.indexOf(e)) return false;
+        return o.x < x0 + w0 && o.x + o.w > x0 && o.y < y0 + h0 && o.y + o.h > y0;
+      });
       select(i);
       var rnScale = sec().sectionEl.getBoundingClientRect().width / 1200;
       dragBy(q('.gogh-h-e'), -(e.w - 180) * rnScale, 0, 13);
@@ -143,7 +149,7 @@
       // rendered truth: nothing overlaps the grown heading
       var hr = sec().nodes[i].getBoundingClientRect();
       sec().nodes.forEach(function (n, j) {
-        if (j === i) return;
+        if (j === i || preOverlap[j]) return;
         expect(!rectsOverlap(hr, n.getBoundingClientRect()),
           sec().els[j].type + ' overlaps grown heading');
       });
@@ -278,13 +284,18 @@
 
     // ---- 12. add element from palette ----
     test('palette adds a badge', function () {
-      var last = function () { return G.sections()[G.sections().length - 1]; };
-      // elements land in the section you're looking at — so look at the last one
-      last().sectionEl.scrollIntoView({ block: 'center' });
-      var n0 = last().els.length;
+      // the badge lands in the section you're looking at — wherever that is
+      var totals = function () {
+        return G.sections().reduce(function (n, s) { return n + s.els.length; }, 0);
+      };
+      var counts0 = G.sections().map(function (s) { return s.els.length; });
+      var t0 = totals();
       q('.gogh-side [data-add="badge"]').click();
-      expect(last().els.length === n0 + 1, 'not added');
-      expect(last().els[last().els.length - 1].type === 'badge', 'wrong type');
+      expect(totals() === t0 + 1, 'not added');
+      var grew = G.sections().filter(function (s, k) { return s.els.length === counts0[k] + 1; })[0];
+      expect(grew, 'no section grew');
+      expect(grew.els[grew.els.length - 1].type === 'badge', 'wrong type');
+      expect(!grew.chrome, 'landed in the site chrome');
     });
 
     // ---- 13. add section from template ----
@@ -323,6 +334,7 @@
       expect(al && al.style.display !== 'none', 'align button not shown for heading');
       var e = sec().els[i];
       var a0 = e.align || null;
+      e.align = null; // the living fixture may already be centred — start clean
       al.click();
       expect(e.align === 'center', 'first click should centre, got ' + e.align);
       expect(sec().styleEl.textContent.indexOf('text-align: center') !== -1, 'centre not in CSS');
@@ -585,6 +597,12 @@
 
     test('keyboard nudge shows spacing labels', function () {
       var i = findIdx('badge');
+      // labels measure to a neighbour — make sure the badge has one
+      var e = sec().els[i];
+      var other = sec().els.filter(function (o, k) { return k !== i; })[0];
+      e.y = other.y;
+      e.x = Math.max(8, Math.min(1200 - e.w - 8, other.x + other.w + 120));
+      G.resolve(sec());
       select(i);
       if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
       window.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }));

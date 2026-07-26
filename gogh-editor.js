@@ -1036,6 +1036,14 @@
     while ((m = re.exec(cssText))) {
       if (!seen[m[1]]) { seen[m[1]] = 1; out.push({ slug: m[1], value: m[2].trim() }); }
     }
+    // the page CSS also carries WordPress's default presets — only offer the
+    // colours the THEME actually declares (the server told us their slugs)
+    if (cfg.palette && cfg.palette.length) {
+      var ok = {};
+      cfg.palette.forEach(function (p) { ok[p.slug] = 1; });
+      var themed = out.filter(function (p) { return ok[p.slug]; });
+      if (themed.length) return themed;
+    }
     return out;
   }
 
@@ -2033,12 +2041,13 @@
   function placeHbar(sec) {
     hbarSec = sec;
     var r = sec.wrapEl.getBoundingClientRect();
+    var by = Math.min(r.bottom, window.innerHeight - 36);
     hbar.style.left = (r.left + window.scrollX) + 'px';
     hbar.style.width = r.width + 'px';
-    hbar.style.top = (r.bottom + window.scrollY) + 'px';
+    hbar.style.top = (by + window.scrollY) + 'px';
     hbar.hidden = false;
     hgrip.style.left = (r.left + r.width / 2 + window.scrollX) + 'px';
-    hgrip.style.top = (r.bottom + window.scrollY) + 'px';
+    hgrip.style.top = (by + window.scrollY) + 'px';
     hgrip.hidden = false;
   }
   function hideHbar() { hbar.hidden = hgrip.hidden = true; hbarSec = null; }
@@ -2264,7 +2273,7 @@
   var shapeBtn = document.createElement('button');
   shapeBtn.type = 'button';
   shapeBtn.className = 'gogh-shapebtn';
-  shapeBtn.textContent = '◠ Shape';
+  shapeBtn.textContent = '◠ Transition';
   shapeBtn.hidden = true;
   document.body.appendChild(shapeBtn);
   var shapePanel = document.createElement('div');
@@ -2289,7 +2298,7 @@
       { key: 'melt', label: 'Melt', melt: true },
     ];
     shapePanel.innerHTML =
-      '<div class="gogh-panel-title">Section divider</div>' +
+      '<div class="gogh-panel-title">Section transition</div>' +
       '<div class="gogh-shapes">' +
       shapes.map(function (sh) {
         var icon = sh.melt
@@ -2422,6 +2431,9 @@
       }
       if (found) {
         insertIdx = found.idx;
+        // at the very bottom of the screen the pills would clip — keep them
+        // reachable just inside the viewport
+        found.y = Math.min(found.y, window.innerHeight - 36);
         inserter.style.left = '50%';
         // the height pill (44px) occupies the centre of every boundary except
         // the very top one — flank it symmetrically: Shape's right edge and
@@ -3217,42 +3229,30 @@
   mirrorTab.dataset.tip = 'Live mobile preview';
   mirrorTab.innerHTML = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="7" y="2.5" width="10" height="19" rx="2.5"/><path d="M10.5 18.5h3"/></svg>';
   document.body.appendChild(mirrorTab);
-  var mirrorSec = null, mirrorT = null;
+  var mirrorT = null;
   var mirrorObs = new MutationObserver(function () { scheduleMirror(); });
-  function mirrorTarget() {
-    if (sel && !sel.sec.chrome) return sel.sec;
-    var best = null, bestA = 0;
-    S.forEach(function (s) {
-      if (s.chrome) return;
-      var r = s.wrapEl.getBoundingClientRect();
-      var vis = Math.max(0, Math.min(r.bottom, window.innerHeight) - Math.max(r.top, 0));
-      if (vis > bestA) { bestA = vis; best = s; }
-    });
-    return best || S.filter(function (s) { return !s.chrome; })[0] || null;
-  }
   function refreshMirror() {
     if (mirror.hidden) return;
-    var sec = mirrorTarget();
-    if (!sec || !sec.sectionEl) return;
-    if (mirrorSec !== sec) {
-      mirrorSec = sec;
-      mirrorObs.disconnect();
-      mirrorObs.observe(sec.sectionEl, { subtree: true, childList: true, characterData: true });
-    }
     var stage = mirror.querySelector('.gogh-mirror-stage');
-    var clone = sec.sectionEl.cloneNode(true);
-    clone.removeAttribute('style');
-    [].slice.call(clone.querySelectorAll('[contenteditable]')).forEach(function (n) { n.removeAttribute('contenteditable'); });
-    [].slice.call(clone.querySelectorAll('.gogh-selected, .gogh-dragsrc, .gogh-textedit, .gogh-fan')).forEach(function (n) {
-      n.classList.remove('gogh-selected', 'gogh-dragsrc', 'gogh-textedit', 'gogh-fan');
-      n.style.transform = '';
-      n.style.zIndex = '';
-    });
-    clone.classList.remove('gogh-exploded');
-    var xo = clone.querySelector('.gogh-xray-ov');
-    if (xo) xo.remove();
     stage.innerHTML = '';
-    stage.appendChild(clone);
+    mirrorObs.disconnect();
+    // the whole page, in order — freeform header, sections, freeform footer
+    S.forEach(function (sec) {
+      if (!sec.sectionEl) return;
+      mirrorObs.observe(sec.sectionEl, { subtree: true, childList: true, characterData: true });
+      var clone = sec.sectionEl.cloneNode(true);
+      clone.removeAttribute('style');
+      [].slice.call(clone.querySelectorAll('[contenteditable]')).forEach(function (n) { n.removeAttribute('contenteditable'); });
+      [].slice.call(clone.querySelectorAll('.gogh-selected, .gogh-dragsrc, .gogh-textedit, .gogh-fan')).forEach(function (n) {
+        n.classList.remove('gogh-selected', 'gogh-dragsrc', 'gogh-textedit', 'gogh-fan');
+        n.style.transform = '';
+        n.style.zIndex = '';
+      });
+      clone.classList.remove('gogh-exploded');
+      var xo = clone.querySelector('.gogh-xray-ov');
+      if (xo) xo.remove();
+      stage.appendChild(clone);
+    });
     // zoom (not transform) so the scroll extent shrinks with the content
     // while container queries still see a 360px viewport
     stage.style.zoom = MIRROR_W / MIRROR_DESIGN;
@@ -3272,7 +3272,6 @@
     mirror.hidden = true;
     mirrorTab.hidden = false;
     mirrorObs.disconnect();
-    mirrorSec = null;
     try { localStorage.setItem('gogh-mirror', '0'); } catch (err) {}
   }
   // the mirror rides along: as you scroll the page it follows the section
@@ -3280,18 +3279,9 @@
   var mirrorScrollT = null;
   function syncMirrorScroll() {
     if (mirror.hidden) return;
-    var sec = mirrorTarget();
-    if (!sec) return;
-    if (sec !== mirrorSec) refreshMirror();
     var vp = mirror.querySelector('.gogh-mirror-vp');
-    var r = sec.wrapEl.getBoundingClientRect();
-    var p;
-    if (r.height > window.innerHeight) {
-      p = -r.top / (r.height - window.innerHeight);
-    } else {
-      p = (window.innerHeight / 2 - r.top) / Math.max(1, r.height);
-    }
-    p = Math.max(0, Math.min(1, p));
+    var denom = Math.max(1, document.documentElement.scrollHeight - window.innerHeight);
+    var p = Math.max(0, Math.min(1, window.scrollY / denom));
     var range = vp.scrollHeight - vp.clientHeight;
     if (range > 0) vp.scrollTo({ top: p * range, behavior: 'smooth' });
   }
@@ -3303,7 +3293,14 @@
   mirrorTab.addEventListener('click', openMirror);
   mirror.querySelector('.gogh-mirror-close').addEventListener('click', closeMirror);
   document.addEventListener('pointerup', function () { scheduleMirror(); });
-  try { if (localStorage.getItem('gogh-mirror') === '1') { mirror.hidden = false; mirrorTab.hidden = true; } } catch (err) {}
+  try {
+    // never auto-open during a test run — whole-page re-clones mid-suite
+    // add noise the tests don't deserve
+    if (localStorage.getItem('gogh-mirror') === '1' && location.search.indexOf('gogh-test') === -1) {
+      mirror.hidden = false;
+      mirrorTab.hidden = true;
+    }
+  } catch (err) {}
 
   window.__gogh = {
     xray: setXray,
