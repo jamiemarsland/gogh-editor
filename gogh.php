@@ -23,7 +23,7 @@ add_action( 'init', function () {
 		'gogh-block',
 		plugins_url( 'gogh-block.js', __FILE__ ),
 		array( 'wp-blocks', 'wp-element', 'wp-block-editor' ),
-		'0.35.3-chrome',
+		'0.35.4-chrome',
 		true
 	);
 	register_block_type( 'gogh/section', array(
@@ -48,10 +48,10 @@ add_action( 'wp_enqueue_scripts', function () {
 
 	// for every visitor: neutralise theme spacing around gogh sections, even
 	// on pages whose stored stylesheets predate this rule
-	wp_register_style( 'gogh-base', false, array(), '0.35.3-chrome' );
+	wp_register_style( 'gogh-base', false, array(), '0.35.4-chrome' );
 	wp_enqueue_style( 'gogh-base' );
 	wp_add_inline_style( 'gogh-base',
-		'.gogh-wrap { margin-block: 0 !important; }' .
+		'.gogh-wrap { margin-block: 0 !important; width: 100%; }' .
 		'.entry-content:has(> .gogh-wrap) { margin-block: 0 !important; }' .
 		// pages saved before this rule shipped: image placeholders must not
 		// inherit theme Group padding
@@ -63,13 +63,13 @@ add_action( 'wp_enqueue_scripts', function () {
 		return;
 	}
 
-	wp_enqueue_script( 'gogh-editor', plugins_url( 'gogh-editor.js', __FILE__ ), array(), '0.35.3-chrome', true );
-	wp_enqueue_style( 'gogh-editor', plugins_url( 'gogh-editor.css', __FILE__ ), array(), '0.35.3-chrome' );
+	wp_enqueue_script( 'gogh-editor', plugins_url( 'gogh-editor.js', __FILE__ ), array(), '0.35.4-chrome', true );
+	wp_enqueue_style( 'gogh-editor', plugins_url( 'gogh-editor.css', __FILE__ ), array(), '0.35.4-chrome' );
 
 	// regression suite: /page/?gogh-test (editors only, never saves)
 	// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only toggle enqueuing a test script for capability-checked editors.
 	if ( isset( $_GET['gogh-test'] ) ) {
-		wp_enqueue_script( 'gogh-tests', plugins_url( 'gogh-tests.js', __FILE__ ), array( 'gogh-editor' ), '0.35.3-chrome', true );
+		wp_enqueue_script( 'gogh-tests', plugins_url( 'gogh-tests.js', __FILE__ ), array( 'gogh-editor' ), '0.35.4-chrome', true );
 	}
 
 	$rest_base = ( 'page' === $post->post_type ) ? 'pages' : 'posts';
@@ -87,6 +87,25 @@ add_action( 'wp_enqueue_scripts', function () {
 		) ),
 		'nonce'    => wp_create_nonce( 'wp_rest' ),
 	) );
+} );
+
+/**
+ * Editor contexts (post editor, site editor, pattern previews): a gogh
+ * section's grid uses cqw units against the .gogh-wrap container. In
+ * shrink-to-fit preview wrappers, inline-size containment collapses the wrap
+ * to width 0 — every saved section needs the same width floor there.
+ */
+add_action( 'enqueue_block_assets', function () {
+	if ( ! is_admin() ) {
+		return;
+	}
+	wp_register_style( 'gogh-editor-base', false, array(), '0.35.4-chrome' );
+	wp_enqueue_style( 'gogh-editor-base' );
+	wp_add_inline_style( 'gogh-editor-base',
+		'.gogh-wrap { width: 100%; margin-block: 0 !important; }' .
+		'.gogh-section > .wp-block-group { padding: 0 !important; box-sizing: border-box; }' .
+		'.gogh-section > * { box-sizing: border-box; }'
+	);
 } );
 
 /**
