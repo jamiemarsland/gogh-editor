@@ -2023,7 +2023,7 @@
       if (picker.hidden || !pats.length || !cardsBox.parentNode) return;
       var head = document.createElement('div');
       head.className = 'gogh-picker-sub';
-      head.textContent = 'From your theme \u2014 ready-made sections, added as freeform';
+      head.textContent = 'From your theme';
       cardsBox.appendChild(head);
       // category chips: one modal, instant filtering
       var cats = [];
@@ -2048,6 +2048,31 @@
         }).join('');
       cardsBox.appendChild(chipRow);
       var cards = [];
+      var makeCard = function (p, quick) {
+        var b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'gogh-card gogh-card-pattern' + (quick ? ' gogh-card-quickfav' : '');
+        b.__pat = p;
+        b.dataset.cats = (p.categories || []).join(' ');
+        b.innerHTML = '<span class="gogh-card-prev"><span class="gogh-card-stage"></span></span>' +
+          '<span class="gogh-card-name"></span>' +
+          '<span class="gogh-card-fav" title="Favourite">\u2665</span>';
+        b.querySelector('.gogh-card-name').textContent = (quick ? '\u2764 ' : '\u2728 ') + (p.title || p.name);
+        var favEl = b.querySelector('.gogh-card-fav');
+        favEl.classList.toggle('is-fav', !!favs[p.name]);
+        favEl.addEventListener('click', function (ev) {
+          ev.stopPropagation();
+          if (favs[p.name]) delete favs[p.name]; else favs[p.name] = 1;
+          favEl.classList.toggle('is-fav', !!favs[p.name]);
+          try { localStorage.setItem('gogh-fav-patterns', JSON.stringify(Object.keys(favs))); } catch (err) {}
+          if (!favs[p.name] && quick) b.remove();
+        });
+        b.addEventListener('click', function () {
+          addPatternSection(p, pickerIdx);
+          closePicker();
+        });
+        return b;
+      };
       var hydrate = function (b, p) {
         if (b.__hydrated) return;
         b.__hydrated = true;
@@ -2086,31 +2111,17 @@
           hydrate(en.target, en.target.__pat);
         });
       }, { rootMargin: '200px' }) : null;
+      // quick start: favourites sit right beside Start from scratch
+      pats.filter(function (p) { return favs[p.name]; }).forEach(function (p) {
+        var qb = makeCard(p, true);
+        cardsBox.insertBefore(qb, cardsBox.querySelector('.gogh-picker-sub'));
+        if (io) io.observe(qb); else hydrate(qb, p);
+      });
       pats.forEach(function (p) {
-        var b = document.createElement('button');
-        b.type = 'button';
-        b.className = 'gogh-card gogh-card-pattern';
-        b.__pat = p;
-        b.dataset.cats = (p.categories || []).join(' ');
-        b.innerHTML = '<span class="gogh-card-prev"><span class="gogh-card-stage"></span></span>' +
-          '<span class="gogh-card-name"></span>' +
-          '<span class="gogh-card-fav" title="Favourite">\u2665</span>';
-        b.querySelector('.gogh-card-name').textContent = '\u2728 ' + (p.title || p.name);
-        var favEl = b.querySelector('.gogh-card-fav');
-        favEl.classList.toggle('is-fav', !!favs[p.name]);
-        favEl.addEventListener('click', function (ev) {
-          ev.stopPropagation();
-          if (favs[p.name]) delete favs[p.name]; else favs[p.name] = 1;
-          favEl.classList.toggle('is-fav', !!favs[p.name]);
-          try { localStorage.setItem('gogh-fav-patterns', JSON.stringify(Object.keys(favs))); } catch (err) {}
-        });
+        var b = makeCard(p, false);
         cardsBox.appendChild(b);
         cards.push(b);
         if (io) io.observe(b); else hydrate(b, p);
-        b.addEventListener('click', function () {
-          addPatternSection(p, pickerIdx);
-          closePicker();
-        });
       });
       chipRow.addEventListener('click', function (ev) {
         var chip = ev.target.closest('.gogh-patcat');
@@ -2258,6 +2269,7 @@
     hDrag = { sec: hbarSec, py: ev.clientY, h: designH(hbarSec.els, hbarSec.minH) };
     document.documentElement.classList.add('gogh-dragging');
     inserter.hidden = true;
+    shapeBtn.hidden = true;
   });
   hgrip.addEventListener('pointermove', function (ev) {
     if (!hDrag) return;
@@ -2306,7 +2318,13 @@
     resolveAll();
     pushState();
   }
+  function hideBoundaryUI() {
+    inserter.hidden = true;
+    shapeBtn.hidden = true;
+    hideHbar();
+  }
   function moveSection(idx, dir) {
+    hideBoundaryUI();
     var j = idx + dir;
     if (j < 0 || j >= S.length || !S[idx]) return;
     var a = S[idx];
@@ -2794,6 +2812,7 @@
     dropBox.hidden = false;
     drag = { sec: sec, i: i, px: ev.clientX, py: ev.clientY, x: e.x, y: e.y, gx: r.left, gy: r.top };
     document.documentElement.classList.add('gogh-dragging');
+    hideBoundaryUI();
     hideHandles();
   }
   grip.addEventListener('pointerdown', function (ev) {
@@ -4786,7 +4805,9 @@
             var lc = (a && a.className) || '';
             var bgm = lc.match(/has-([a-z0-9-]+)-background-color/);
             var txm = lc.replace(/has-[a-z0-9-]+-background-color/g, '').match(/has-((?!text-color)[a-z0-9-]+)-color/);
-            place(btn, { type: 'button',
+            // geometry from the LINK, not the wrapper: stretched button rows
+            // make the wrapper span the row while the link hugs its label
+            place(a || btn, { type: 'button',
               text: ((a || btn).textContent || '').trim(),
               href: (a && a.getAttribute('href') && a.getAttribute('href') !== '#') ? a.getAttribute('href') : null,
               btnBg: bgm ? bgm[1] : null,
