@@ -1994,7 +1994,8 @@
       '<div class="gogh-picker-inner">' +
       '<div class="gogh-picker-head">Add a section' +
       '<button type="button" class="gogh-btn gogh-btn-small gogh-picker-close">Close</button></div>' +
-      '<div class="gogh-cards">' + cards + '</div>' +
+      '<div class="gogh-topstrip">' + cards + '</div>' +
+      '<div class="gogh-cards"></div>' +
       '<button type="button" class="gogh-htmllink gogh-card-htmladd">Prefer to paste HTML?</button>' +
       '</div>';
     picker.hidden = false;
@@ -2182,21 +2183,19 @@
       pats.forEach(function (p) {
         if (favs[p.name]) pushYours('p' + p.name, function () { return patCard(p, true); });
       });
-      if (yours.length) {
-        var ySub = document.createElement('div');
-        ySub.className = 'gogh-picker-sub';
-        ySub.textContent = 'Yours';
-        cardsBox.appendChild(ySub);
+      var strip = picker.querySelector('.gogh-topstrip');
+      if (strip && yours.length) {
+        var CAPY = 3; // scratch + three yours fills the strip
         yours.forEach(function (card, k) {
-          if (k >= 3) card.style.display = 'none';
-          cardsBox.appendChild(card);
+          if (k >= CAPY) card.style.display = 'none';
+          strip.appendChild(card);
         });
-        if (yours.length > 3) {
+        if (yours.length > CAPY) {
           var yMore = document.createElement('button');
           yMore.type = 'button';
-          yMore.className = 'gogh-showall';
-          yMore.textContent = 'Show all ' + yours.length + ' \u2192';
-          cardsBox.appendChild(yMore);
+          yMore.className = 'gogh-card gogh-more-tile';
+          yMore.textContent = '+ ' + (yours.length - CAPY) + ' more';
+          strip.appendChild(yMore);
           yMore.addEventListener('click', function () {
             yours.forEach(function (card) { card.style.display = ''; });
             yMore.remove();
@@ -4934,6 +4933,10 @@
         '<div class="gogh-panel-row gogh-chrome-rows">' +
         '<button type="button" class="gogh-btn gogh-btn-small gogh-chrome-edit">\u2728 ' + (isFreeform || mounted ? 'Edit freeform' : 'Make freeform') + '</button>' +
         '</div>' +
+        (activeOpt ? '<div class="gogh-panel-row gogh-chrome-rows">' +
+          '<button type="button" class="gogh-btn gogh-btn-small gogh-chrome-sticky' + (chromeIsSticky(active) ? ' is-active' : '') + '">\ud83d\udccc ' +
+          (chromeIsSticky(active) ? 'Sticky \u2014 on' : 'Stick to the top') + '</button>' +
+          '</div>' : '') +
         '<div class="gogh-panel-row gogh-chrome-foot">' +
         '<button type="button" class="gogh-btn gogh-btn-small gogh-chrome-cancel">Cancel</button>' +
         '<button type="button" class="gogh-btn gogh-btn-small gogh-chrome-use" title="Updates every page"' + ((activeOpt && selId === activeOpt.id) ? ' disabled' : '') + '>Use this layout</button>' +
@@ -4941,6 +4944,11 @@
       panel.querySelector('.gogh-panel-close').addEventListener('click', function () {
         endChromePreview();
         closePanel();
+      });
+      var stickyBtn = panel.querySelector('.gogh-chrome-sticky');
+      if (stickyBtn) stickyBtn.addEventListener('click', function () {
+        stickyBtn.disabled = true;
+        toggleChromeSticky(area, active);
       });
       options.forEach(function (o, k) {
         var b = panel.querySelector('.gogh-chrome-opt[data-k="' + k + '"]');
@@ -5023,6 +5031,54 @@
     }).catch(function () {
       toast('Could not preview that layout.', { error: true });
       if (done) done(false);
+    });
+  }
+  function chromeIsSticky(active) {
+    var raw = (active && active.content && active.content.raw) || '';
+    return /"position":\s*{[^}]*"type":"sticky"/.test(raw);
+  }
+  function toggleChromeSticky(area, active) {
+    var raw = (active && active.content && active.content.raw) || '';
+    var spans = parseTopBlocks(raw);
+    var sp = spans[0];
+    var nm = sp ? String(sp.name || '').replace(/^core\//, '') : '';
+    if (nm !== 'group') {
+      toast('This ' + area + ' layout can\u2019t be pinned automatically.', { error: true });
+      return;
+    }
+    var seg = raw.slice(sp.start, sp.end);
+    var m = seg.match(/^<!--\s*wp:group(\s+({[\s\S]*?}))?\s*-->/);
+    if (!m) {
+      toast('This ' + area + ' layout can\u2019t be pinned automatically.', { error: true });
+      return;
+    }
+    var attrs = {};
+    try { attrs = m[2] ? JSON.parse(m[2]) : {}; } catch (err) {
+      toast('This ' + area + ' layout can\u2019t be pinned automatically.', { error: true });
+      return;
+    }
+    var on = !chromeIsSticky(active);
+    attrs.style = attrs.style || {};
+    if (on) {
+      // WordPress's own position support: core CSS, deactivation-safe
+      attrs.style.position = { type: 'sticky', top: '0px' };
+    } else {
+      delete attrs.style.position;
+      if (!Object.keys(attrs.style).length) delete attrs.style;
+    }
+    var head = Object.keys(attrs).length ? '<!-- wp:group ' + JSON.stringify(attrs) + ' -->' : '<!-- wp:group -->';
+    var newRaw = raw.slice(0, sp.start) + head + seg.slice(m[0].length) + raw.slice(sp.end);
+    fetch(tpUrl(active.id), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-WP-Nonce': cfg.nonce },
+      credentials: 'same-origin',
+      body: JSON.stringify({ content: newRaw }),
+    }).then(function (r) {
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      discarding = true;
+      location.reload();
+    }).catch(function () {
+      toast('Could not update the ' + area + '.', { error: true });
     });
   }
   function swapChromeLayout(area, active, chosen) {
