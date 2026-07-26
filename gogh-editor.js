@@ -18,22 +18,28 @@
   // become normal gogh sections on the next save.
   var wrapTags = [].slice.call(document.querySelectorAll('.gogh-wrap'));
   var wantEdit = /[?&]gogh-edit=1/.test(location.search);
-  if (!wrapTags.length) {
-    if (!wantEdit) return;
+  // wraps inside the header/footer are site chrome, not page content — a
+  // freeform header must not stop an empty PAGE from getting its canvas
+  var contentWraps = wrapTags.filter(function (w) { return !w.closest('.wp-block-template-part'); });
+  if (!wrapTags.length && !wantEdit) return;
+  if (!contentWraps.length && wantEdit) {
     // ?gogh-edit on a page with no gogh content yet: bootstrap an empty
     // placeholder section at the end of the content so the editor has a
     // canvas. It is never saved unless the user actually puts things in it.
     var host = document.querySelector('.entry-content') || document.querySelector('main');
-    if (!host) return;
-    var bWrap = document.createElement('div');
-    bWrap.className = 'wp-block-gogh-section alignfull gogh-wrap';
-    var bSec = document.createElement('div');
-    bSec.className = 'gogh-section';
-    bWrap.appendChild(bSec);
-    host.appendChild(bWrap);
-    bWrap.__goghBootstrap = true;
-    wrapTags = [bWrap];
+    if (!host && !wrapTags.length) return;
+    if (host) {
+      var bWrap = document.createElement('div');
+      bWrap.className = 'wp-block-gogh-section alignfull gogh-wrap';
+      var bSec = document.createElement('div');
+      bSec.className = 'gogh-section';
+      bWrap.appendChild(bSec);
+      host.appendChild(bWrap);
+      bWrap.__goghBootstrap = true;
+      wrapTags.push(bWrap);
+    }
   }
+  if (!wrapTags.length) return;
 
   function inferModelFromDom(sectionEl) {
     var els = [];
@@ -197,7 +203,14 @@
   // marker after the last CONTENT wrap (never inside a template part)
   var endMarker = document.createComment('gogh-end');
   var contentSecs = S.filter(function (s) { return !s.chrome; });
-  (contentSecs.length ? contentSecs[contentSecs.length - 1] : S[S.length - 1]).wrapEl.after(endMarker);
+  if (contentSecs.length) {
+    contentSecs[contentSecs.length - 1].wrapEl.after(endMarker);
+  } else {
+    // only chrome sections exist: anchor page insertions in the page, not
+    // inside the header/footer template part
+    var mainHost = document.querySelector('.entry-content') || document.querySelector('main') || document.body;
+    mainHost.appendChild(endMarker);
+  }
   var pageParent = endMarker.parentNode;
 
   // ---------- solver ----------
@@ -1906,27 +1919,77 @@
       if (picker.hidden || !pats.length || !cardsBox.parentNode) return;
       var head = document.createElement('div');
       head.className = 'gogh-picker-sub';
-      head.textContent = 'From your theme \u2014 added as freeform';
+      head.textContent = 'From your theme \u2014 every pattern, added as freeform';
       cardsBox.appendChild(head);
+      // category chips: one modal, instant filtering
+      var cats = [];
+      pats.forEach(function (p) {
+        (p.categories || []).forEach(function (c) {
+          if (cats.indexOf(c) === -1) cats.push(c);
+        });
+      });
+      cats.sort();
+      var pretty = function (c) {
+        return c.replace(/[_-]+/g, ' ').replace(/\b\w/g, function (ch) { return ch.toUpperCase(); });
+      };
+      var chipRow = document.createElement('div');
+      chipRow.className = 'gogh-patcats';
+      chipRow.innerHTML = '<button type="button" class="gogh-patcat is-active" data-cat="">All</button>' +
+        cats.map(function (c) {
+          return '<button type="button" class="gogh-patcat" data-cat="' + c + '">' + pretty(c) + '</button>';
+        }).join('');
+      cardsBox.appendChild(chipRow);
+      var cards = [];
+      var hydrate = function (b, p) {
+        if (b.__hydrated) return;
+        b.__hydrated = true;
+        renderPattern(p).then(function (html) {
+          var st = b.querySelector('.gogh-card-stage');
+          var pv = b.querySelector('.gogh-card-prev');
+          if (!st || !html) { b.remove(); return; }
+          st.innerHTML = html;
+          // a pattern that renders next to nothing (post meta, bare social
+          // icons) has no business as a section starting point
+          var textLen = (st.textContent || '').trim().length;
+          if (textLen < 30 && !st.querySelector('img')) { b.remove(); return; }
+          st.style.transform = 'scale(' + (pv.clientWidth / 1200) + ')';
+        });
+      };
+      var io = window.IntersectionObserver ? new IntersectionObserver(function (entries) {
+        entries.forEach(function (en) {
+          if (!en.isIntersecting) return;
+          io.unobserve(en.target);
+          hydrate(en.target, en.target.__pat);
+        });
+      }, { rootMargin: '200px' }) : null;
       pats.forEach(function (p) {
         var b = document.createElement('button');
         b.type = 'button';
         b.className = 'gogh-card gogh-card-pattern';
+        b.__pat = p;
+        b.dataset.cats = (p.categories || []).join(' ');
         b.innerHTML = '<span class="gogh-card-prev"><span class="gogh-card-stage"></span></span>' +
           '<span class="gogh-card-name"></span>';
-        var nameEl = b.querySelector('.gogh-card-name');
-        nameEl.textContent = '\u2728 ' + (p.title || p.name);
+        b.querySelector('.gogh-card-name').textContent = '\u2728 ' + (p.title || p.name);
         cardsBox.appendChild(b);
-        renderPattern(p).then(function (html) {
-          var st = b.querySelector('.gogh-card-stage');
-          var pv = b.querySelector('.gogh-card-prev');
-          if (!st || !html) return;
-          st.innerHTML = html;
-          st.style.transform = 'scale(' + (pv.clientWidth / 1200) + ')';
-        });
+        cards.push(b);
+        if (io) io.observe(b); else hydrate(b, p);
         b.addEventListener('click', function () {
           addPatternSection(p, pickerIdx);
           closePicker();
+        });
+      });
+      chipRow.addEventListener('click', function (ev) {
+        var chip = ev.target.closest('.gogh-patcat');
+        if (!chip) return;
+        chipRow.querySelectorAll('.gogh-patcat').forEach(function (c2) {
+          c2.classList.toggle('is-active', c2 === chip);
+        });
+        var cat = chip.dataset.cat;
+        cards.forEach(function (b) {
+          var show = !cat || (' ' + b.dataset.cats + ' ').indexOf(' ' + cat + ' ') !== -1;
+          b.style.display = show ? '' : 'none';
+          if (show && io && !b.__hydrated) { io.unobserve(b); hydrate(b, b.__pat); }
         });
       });
     });
@@ -3314,6 +3377,10 @@
     showHbar: function (i) { placeHbar(S[i]); },
     openShapePanel: openShapePanel,
     openSecBgPanel: openSecBgPanel,
+    addSection: addSection,
+    renderSection: renderSection,
+    pushState: pushState,
+    templates: function () { return TEMPLATES; },
     resolveAll: resolveAll,
     reflowPush: reflowPush,
     measure: measureTextHeights,
@@ -3930,10 +3997,17 @@
   }
   var patternCache = null;
   function fetchAreaPatterns(area) {
+    // the theme's own patterns AND WordPress's pattern-directory ones — the
+    // area signal is a category ('header') or a declared block type
+    // ('core/template-part/header'), same as the site editor uses
     var pick = function (list) {
       return list.filter(function (p) {
-        return (p.categories || []).indexOf(area) !== -1 &&
-          p.name && p.name.indexOf(cfg.theme + '/') === 0;
+        if (!p.name) return false;
+        var inCat = (p.categories || []).indexOf(area) !== -1;
+        var inBT = (p.block_types || []).some(function (b) {
+          return String(b).indexOf('template-part/' + area) !== -1;
+        });
+        return inCat || inBT;
       });
     };
     if (patternCache) return Promise.resolve(pick(patternCache));
@@ -3965,8 +4039,11 @@
           c.indexOf('wp:template-part') === -1 &&
           c.indexOf('wp:post-') === -1 &&
           c.indexOf('wp:comments') === -1 &&
-          c.indexOf('wp:query') === -1;
-      }).slice(0, 8);
+          c.indexOf('wp:query') === -1 &&
+          cats.indexOf('header') === -1 && cats.indexOf('footer') === -1 &&
+          // internal buckets: whole-page layouts and post-format scraps
+          !cats.some(function (cc) { return /_page$|post-format/.test(cc); });
+      });
     });
   }
   function renderPattern(p) {

@@ -1220,3 +1220,29 @@ html.gogh-editing .gogh-mirror { display: flex; }
 @container (max-width: 700px) {
   .gogh-postsprev { grid-template-columns: 1fr; }
 }
+
+/* pattern previews sit on the page's real background, not the card chrome —
+   dark-on-dark themes stay readable */
+.gogh-card-pattern .gogh-card-prev { background: var(--wp--preset--color--base, #fff); }
+
+.gogh-panel .gogh-chrome-rows { max-height: 300px; overflow-y: auto; }
+
+.gogh-patcats {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 2px 0 6px;
+}
+.gogh-patcat {
+  all: unset;
+  cursor: pointer;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--gogh-ui-muted);
+  background: var(--gogh-ui-hover);
+  border-radius: 999px;
+  padding: 5px 12px;
+}
+.gogh-patcat:hover { color: var(--gogh-ui-fg); }
+.gogh-patcat.is-active { background: #7ea8ff; color: #141519; }
