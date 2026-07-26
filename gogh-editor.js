@@ -2091,6 +2091,9 @@
 
   function hideSecBar() { secBar.hidden = true; secBarIdx = null; }
   function showSecBar(idx) {
+    // the site header/footer isn't a page section: it can't move, duplicate
+    // or be deleted, so the section toolbar has nothing to offer it
+    if (S[idx] && S[idx].chrome) { hideSecBar(); return; }
     secBarIdx = idx;
     var r = S[idx].wrapEl.getBoundingClientRect();
     secBar.style.left = (r.right + window.scrollX - 16) + 'px';
