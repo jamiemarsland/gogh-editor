@@ -1157,6 +1157,32 @@
       G.multi.clear();
     });
 
+    // ---- 34. bird's-eye reorder ----
+    test('birds-eye view reorders sections by drag', function () {
+      var order0 = G.sections().filter(function (s) { return !s.chrome; }).map(function (s) { return s.scope; });
+      if (order0.length < 2) return 'needs 2 sections';
+      G.zoom.open();
+      var col = document.querySelector('.gogh-zoom-col');
+      var content = [].slice.call(document.querySelectorAll('.gogh-zoom-card')).filter(function (c) { return !c.classList.contains('is-chrome'); });
+      expect(content.length === order0.length, 'card count ' + content.length + ' != ' + order0.length);
+      var a = content[0], b = content[1];
+      var ra = a.getBoundingClientRect(), rb = b.getBoundingClientRect();
+      var pv2 = function (type, target, x, y) {
+        target.dispatchEvent(new PointerEvent(type, { bubbles: true, cancelable: true, clientX: x, clientY: y, pointerId: 82, button: 0, buttons: type === 'pointerup' ? 0 : 1 }));
+      };
+      pv2('pointerdown', a, ra.x + 30, ra.y + 16);
+      pv2('pointermove', col, ra.x + 30, rb.y + rb.height * 0.85);
+      pv2('pointermove', col, ra.x + 30, rb.y + rb.height * 0.9);
+      pv2('pointerup', col, ra.x + 30, rb.y + rb.height * 0.9);
+      G.zoom.close();
+      var order1 = G.sections().filter(function (s) { return !s.chrome; }).map(function (s) { return s.scope; });
+      expect(order1[0] === order0[1] && order1[1] === order0[0], 'did not swap: ' + order1.join(','));
+      // put it back
+      var i0 = G.sections().findIndex(function (s) { return s.scope === order0[0]; });
+      var i1 = G.sections().findIndex(function (s) { return s.scope === order0[1]; });
+      G.reorderSection(i0, i1);
+    });
+
     // ---- report ----
     var passed = results.filter(function (r) { return r.pass; }).length;
     var summary = passed + '/' + results.length + ' passed' +

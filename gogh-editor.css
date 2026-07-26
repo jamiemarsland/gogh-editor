@@ -1452,3 +1452,91 @@ html.gogh-editing .gogh-mirror { display: flex; }
   min-height: 90px;
 }
 .gogh-more-tile:hover { background: var(--gogh-ui-hover); }
+
+/* birds-eye page overview */
+.gogh-zoom {
+  position: fixed;
+  inset: 0;
+  z-index: 100002;
+  background: rgba(10, 11, 14, 0.82);
+  backdrop-filter: blur(8px);
+  overflow-y: auto;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, sans-serif;
+}
+.gogh-zoom[hidden] { display: none; }
+.gogh-zoom-head {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 16px 22px;
+  font-size: 14px;
+  font-weight: 700;
+  color: #e8eaf0;
+  background: linear-gradient(rgba(10, 11, 14, 0.92), rgba(10, 11, 14, 0));
+}
+.gogh-zoom-col {
+  width: 440px;
+  margin: 6px auto 60px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.gogh-zoom-card {
+  cursor: grab;
+  touch-action: none;
+}
+.gogh-zoom-card .gogh-zoom-stage {
+  border-radius: 12px;
+  box-shadow: 0 18px 50px -18px rgba(0, 0, 0, 0.7);
+  transition: box-shadow 0.15s ease;
+}
+.gogh-zoom-card:hover .gogh-zoom-stage { box-shadow: 0 0 0 2px #7ea8ff, 0 18px 50px -18px rgba(0, 0, 0, 0.7); }
+.gogh-zoom-card.is-chrome { opacity: 0.55; cursor: default; }
+.gogh-zoom-card.is-lifting {
+  cursor: grabbing;
+  position: relative;
+  z-index: 3;
+}
+.gogh-zoom-card.is-lifting .gogh-zoom-stage {
+  box-shadow: 0 0 0 2px #7ea8ff, 0 30px 70px -20px rgba(0, 0, 0, 0.85);
+}
+.gogh-zoom-label {
+  font-size: 10.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: rgba(232, 234, 240, 0.75);
+  padding: 6px 4px 6px 2px;
+  background: transparent;
+}
+.gogh-zoom-stage {
+  width: 1200px;
+  transform-origin: 0 0;
+  max-height: 900px;
+  overflow: hidden;
+  pointer-events: none;
+  background: #fff;
+}
+.gogh-zoom-card .gogh-zoom-label { color: rgba(232,234,240,0.8); }
+.gogh-zoom-tab {
+  all: unset;
+  position: fixed;
+  left: 20px;
+  bottom: 74px;
+  z-index: 99999;
+  width: 44px;
+  height: 44px;
+  display: none;
+  place-items: center;
+  cursor: pointer;
+  color: var(--gogh-ui-fg);
+  background: var(--gogh-ui-bg);
+  border: 1px solid var(--gogh-ui-border);
+  border-radius: 50%;
+  box-shadow: 0 12px 32px -10px rgba(0, 0, 0, 0.5);
+}
+html.gogh-editing .gogh-zoom-tab { display: grid; }

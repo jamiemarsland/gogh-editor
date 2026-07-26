@@ -1984,6 +1984,22 @@
       { type: 'para', x: 110, y: 180, w: 520, h: 48, text: 'One honest nudge. Keep it short, keep it warm.' },
       { type: 'button', x: 880, y: 118, w: 210, h: 56, text: 'Let\u2019s go' },
     ] },
+    { starter: true, name: 'Photo cards', minH: 720, els: [
+      { type: 'image', x: 100, y: 40, w: 470, h: 620, cool: true },
+      { type: 'box', x: 100, y: 340, w: 470, h: 320, boxBg: 'linear-gradient(180deg, rgba(0,0,0,0) 0%, rgba(0,0,0,0.05) 30%, rgba(0,0,0,0.66) 100%)', radius: 20 },
+      { type: 'heading', x: 136, y: 384, w: 340, h: 46, text: 'Quiet mountain cabin', fs: 'large', color: 'base' },
+      { type: 'para', x: 136, y: 442, w: 398, h: 84, text: 'Wake up above the clouds. Two rooms, one stove, zero notifications \u2014 the good kind of nowhere.', color: 'base' },
+      { type: 'badge', x: 136, y: 538, w: 130, h: 44, text: '\u2605 4.9' },
+      { type: 'badge', x: 282, y: 538, w: 168, h: 44, text: '3 night stay' },
+      { type: 'button', x: 136, y: 598, w: 398, h: 52, text: 'Reserve now', btnBg: 'base', btnText: 'contrast' },
+      { type: 'image', x: 630, y: 40, w: 470, h: 620, cool: true },
+      { type: 'box', x: 630, y: 340, w: 470, h: 320, boxBg: 'linear-gradient(180deg, rgba(0,0,0,0) 0%, rgba(0,0,0,0.05) 30%, rgba(0,0,0,0.66) 100%)', radius: 20 },
+      { type: 'heading', x: 666, y: 384, w: 340, h: 46, text: 'Coastal hideaway', fs: 'large', color: 'base' },
+      { type: 'para', x: 666, y: 442, w: 398, h: 84, text: 'Salt air, slow mornings and a five-minute walk to the water. Bring a book you\u2019ve been meaning to finish.', color: 'base' },
+      { type: 'badge', x: 666, y: 538, w: 130, h: 44, text: '\u2605 4.8' },
+      { type: 'badge', x: 812, y: 538, w: 168, h: 44, text: 'Guest favourite' },
+      { type: 'button', x: 666, y: 598, w: 398, h: 52, text: 'Reserve now', btnBg: 'base', btnText: 'contrast' },
+    ] },
     { starter: true, name: 'Gallery', minH: 640, els: [
       { type: 'heading', x: 72, y: 66, w: 520, h: 62, text: 'A few favourites' },
       { type: 'image', x: 72, y: 168, w: 330, h: 424, cool: true },
@@ -2549,6 +2565,19 @@
     else S[j].wrapEl.after(a.wrapEl);
     S.splice(idx, 1);
     S.splice(j, 0, a);
+    resolveAll();
+    hideSecBar();
+    pushState();
+  }
+  function reorderSection(from, to) {
+    if (from === to || !S[from]) return;
+    var a = S[from];
+    var target = S[to];
+    if (!target) return;
+    if (to < from) target.wrapEl.before(a.wrapEl);
+    else target.wrapEl.after(a.wrapEl);
+    S.splice(from, 1);
+    S.splice(to, 0, a);
     resolveAll();
     hideSecBar();
     pushState();
@@ -3628,6 +3657,114 @@
   }, { passive: true });
 
   // debug/state hook
+  // ---------- bird's-eye: the whole page, sections drag to reorder ----------
+  var zoomOv = document.createElement('div');
+  zoomOv.className = 'gogh-zoom';
+  zoomOv.hidden = true;
+  zoomOv.innerHTML = '<div class="gogh-zoom-head">Whole page \u2014 drag sections to reorder' +
+    '<button type="button" class="gogh-btn gogh-btn-small gogh-zoom-close">Close</button></div>' +
+    '<div class="gogh-zoom-col"></div>';
+  document.body.appendChild(zoomOv);
+  var zoomTab = document.createElement('button');
+  zoomTab.type = 'button';
+  zoomTab.className = 'gogh-zoom-tab';
+  zoomTab.dataset.tip = 'Whole page \u2014 reorder sections';
+  zoomTab.innerHTML = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="3" width="16" height="7" rx="1.6"/><rect x="4" y="14" width="16" height="7" rx="1.6"/><path d="M12 10.5v3"/></svg>';
+  document.body.appendChild(zoomTab);
+  function closeZoom() { zoomOv.hidden = true; }
+  zoomOv.querySelector('.gogh-zoom-close').addEventListener('click', closeZoom);
+  document.addEventListener('keydown', function (ev) {
+    if (ev.key === 'Escape' && !zoomOv.hidden) { closeZoom(); ev.stopPropagation(); }
+  }, true);
+  function openZoom() {
+    var col = zoomOv.querySelector('.gogh-zoom-col');
+    col.innerHTML = '';
+    var CARD_W = 440;
+    S.forEach(function (sec, si) {
+      var card = document.createElement('div');
+      card.className = 'gogh-zoom-card' + (sec.chrome ? ' is-chrome' : '');
+      card.__si = si;
+      var label = sec.chrome ? (sec.chrome.area === 'footer' ? 'Footer' : 'Header')
+        : 'Section ' + (S.slice(0, si).filter(function (s2) { return !s2.chrome; }).length + 1);
+      var stage = document.createElement('div');
+      stage.className = 'gogh-zoom-stage';
+      var clone = sec.sectionEl.cloneNode(true);
+      clone.removeAttribute('style');
+      [].slice.call(clone.querySelectorAll('[contenteditable]')).forEach(function (n) { n.removeAttribute('contenteditable'); });
+      [].slice.call(clone.querySelectorAll('.gogh-selected, .gogh-dragsrc, .gogh-textedit, .gogh-fan, .gogh-multisel')).forEach(function (n) {
+        n.classList.remove('gogh-selected', 'gogh-dragsrc', 'gogh-textedit', 'gogh-fan', 'gogh-multisel');
+      });
+      var xo = clone.querySelector('.gogh-xray-ov');
+      if (xo) xo.remove();
+      stage.appendChild(clone);
+      stage.style.zoom = CARD_W / 1200;
+      card.innerHTML = '<div class="gogh-zoom-label">' + label + (sec.chrome ? '' : ' \u00b7 drag me') + '</div>';
+      card.appendChild(stage);
+      col.appendChild(card);
+    });
+    zoomOv.hidden = false;
+    // drag to reorder (content sections only)
+    var zdrag = null;
+    var cardsOf = function () { return [].slice.call(col.querySelectorAll('.gogh-zoom-card')); };
+    col.onpointerdown = function (ev) {
+      var card = ev.target.closest ? ev.target.closest('.gogh-zoom-card') : null;
+      if (!card || card.classList.contains('is-chrome')) return;
+      ev.preventDefault();
+      zdrag = { card: card, y0: ev.clientY, moved: false };
+      try { col.setPointerCapture(ev.pointerId); } catch (err) {}
+    };
+    col.onpointermove = function (ev) {
+      if (!zdrag) return;
+      var dy = ev.clientY - zdrag.y0;
+      if (!zdrag.moved && Math.abs(dy) < 5) return;
+      zdrag.moved = true;
+      zdrag.card.classList.add('is-lifting');
+      zdrag.card.style.transform = 'translateY(' + dy + 'px)';
+      // live slot: swap in the DOM when we pass a neighbour's midpoint
+      var r = zdrag.card.getBoundingClientRect();
+      var mid = r.top + r.height / 2;
+      cardsOf().forEach(function (other) {
+        if (other === zdrag.card || other.classList.contains('is-chrome')) return;
+        var or2 = other.getBoundingClientRect();
+        var omid = or2.top + or2.height / 2;
+        if (mid < omid && zdrag.card.compareDocumentPosition(other) & 2) {
+          other.before(zdrag.card);
+          zdrag.y0 = ev.clientY;
+          zdrag.card.style.transform = '';
+        } else if (mid > omid && zdrag.card.compareDocumentPosition(other) & 4) {
+          other.after(zdrag.card);
+          zdrag.y0 = ev.clientY;
+          zdrag.card.style.transform = '';
+        }
+      });
+    };
+    col.onpointerup = function () {
+      if (!zdrag) return;
+      var card = zdrag.card;
+      var wasDrag = zdrag.moved;
+      zdrag = null;
+      card.classList.remove('is-lifting');
+      card.style.transform = '';
+      if (!wasDrag) {
+        // a click jumps to the section on the page
+        closeZoom();
+        S[card.__si].wrapEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        return;
+      }
+      // map the card's new column position back into the model
+      var order = cardsOf().map(function (c) { return c.__si; });
+      var from = card.__si;
+      var to = order.indexOf(from);
+      if (to !== from) {
+        reorderSection(from, to);
+        // reindex cards to the fresh model
+        cardsOf().forEach(function (c, k) { c.__si = k; });
+        toast('Section moved.');
+      }
+    };
+  }
+  zoomTab.addEventListener('click', openZoom);
+
   // ---------- marquee: drag on empty canvas to lasso a group ----------
   var marq = null;
   var marqBox = document.createElement('div');
@@ -3907,6 +4044,8 @@
     mirror: { open: openMirror, close: closeMirror, refresh: refreshMirror, el: mirror },
     explode: { enter: enterExplode, exit: exitExplode, state: function () { return explodeSt; } },
     multi: { set: setMulti, clear: clearMulti, state: function () { return multiSel; } },
+    zoom: { open: openZoom, close: closeZoom, el: zoomOv },
+    reorderSection: reorderSection,
     get state() {
       return { editing: editing, sections: S.length, sel: sel ? { i: sel.i } : null,
         drag: !!drag, resize: !!resize, history: history.length, hIdx: hIdx };
@@ -4496,11 +4635,11 @@
       }
       var idx = statics.indexOf(node);
       if (idx === -1) throw new Error('block not found');
-      var scan = convertScan(node);
-      if (scan.bad.length) {
-        var uniq = scan.bad.filter(function (v, i, a) { return a.indexOf(v) === i; });
-        throw new Error('This block contains content gogh can\u2019t edit yet: ' + uniq.join(', '));
-      }
+      // the modern scanner: typed leaves with typography, styled groups as
+      // boxes, and anything exotic (quotes, embeds…) becomes a draggable
+      // widget instead of an error — we have this block's exact markup
+      var blockRaw = raw.slice(freeSpans[idx].start, freeSpans[idx].end);
+      var scan = scanDomWithRaw(node, blockRaw, { loose: true, rootIsBlock: true });
       if (!scan.els.length) throw new Error('gogh found nothing it can edit in this block.');
 
       var rr = node.getBoundingClientRect();
@@ -5316,6 +5455,10 @@
           var cInner = innerRawOf(rawText, sp);
           return coverInto(dom, cInner ? cInner.text : null);
         }
+        if (nm === 'html' && dom.children.length) {
+          // raw HTML block: no inner block structure to pair — walk the DOM
+          return walkDomOnly(dom);
+        }
         if (nm === 'group' || nm === 'columns' || nm === 'column') {
           var inner = innerRawOf(rawText, sp);
           if (inner && dom.children.length) { boxFrom(dom); walk(dom, inner.text); return; }
@@ -5323,7 +5466,27 @@
         leafFrom(dom, markup);
       });
     }
-    walk(rootEl, raw);
+    if (opts.rootIsBlock) {
+      // the root element IS the block (converting one page block): pair it
+      // with the whole markup instead of pairing its children
+      var spans0 = parseTopBlocks(raw);
+      var sp0 = spans0[0];
+      var nm0 = sp0 ? String(sp0.name || '').replace(/^core\//, '') : '';
+      if (nm0 === 'cover') {
+        var cInner0 = innerRawOf(raw, sp0);
+        coverInto(rootEl, cInner0 ? cInner0.text : null);
+      } else if (nm0 === 'html' && rootEl.children.length) {
+        walkDomOnly(rootEl);
+      } else if ((nm0 === 'group' || nm0 === 'columns' || nm0 === 'column') && rootEl.children.length) {
+        // root background lifts to the section, not a box — callers handle it
+        var inner0 = innerRawOf(raw, sp0);
+        if (inner0) walk(rootEl, inner0.text); else walkDomOnly(rootEl);
+      } else {
+        leafFrom(rootEl, raw);
+      }
+    } else {
+      walk(rootEl, raw);
+    }
     return { els: out, minH: Math.round(rr.height * sx) };
   }
 
