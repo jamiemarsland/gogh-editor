@@ -858,6 +858,7 @@
     '<button type="button" class="gogh-sitem" data-add="button">Button</button>' +
     '<button type="button" class="gogh-sitem" data-add="image">Image</button>' +
     '<button type="button" class="gogh-sitem" data-add="badge">Badge</button>' +
+    '<button type="button" class="gogh-sitem" data-add="posts" title="Your latest posts, live">Posts</button>' +
     '<div class="gogh-side-label">Page</div>' +
     '<button type="button" class="gogh-sitem" data-act="addsec">+ Section</button>' +
     '<div class="gogh-side-gap"></div>';
@@ -1183,6 +1184,12 @@
       if (!editing || drag || resize) return;
       if (textEditing && textEditing.node === node) return; // native caret/selection
       if (textEditing) exitTextEdit();
+      if (explodeSt) {
+        // exploded stack: a click plucks that element, anything else closes
+        var wasFan = explodeSt.sec === sec && explodeSt.cluster.indexOf(i) !== -1;
+        exitExplode();
+        if (wasFan) { placeHandles(sec, i); return; }
+      }
       var wasSelected = !!(sel && sel.sec === sec && sel.i === i);
       placeHandles(sec, i);
       // NO preventDefault here: it would stop the click from focusing this
@@ -1196,6 +1203,7 @@
         wasSelected: wasSelected,
         ev: { altKey: ev.altKey, clientX: ev.clientX, clientY: ev.clientY, pointerId: ev.pointerId },
       };
+      armExplode(sec, i, ev);
     });
   }
   document.addEventListener('pointermove', function (ev) {
@@ -1205,9 +1213,11 @@
     if (Math.abs(ev.clientX - pendingDrag.x) + Math.abs(ev.clientY - pendingDrag.y) < 4) return;
     var pd = pendingDrag;
     pendingDrag = null;
+    cancelExplodeHold();
     beginDrag(pd.ev);
   });
   document.addEventListener('pointerup', function (ev) {
+    cancelExplodeHold();
     if (!pendingDrag) return;
     var pd = pendingDrag;
     pendingDrag = null;
@@ -1660,7 +1670,46 @@
     button: function () { return { type: 'button', x: 80, y: 320, w: 170, h: 52, text: 'Click me', ghost: false, cool: false }; },
     image: function () { return { type: 'image', x: 520, y: 120, w: 360, h: 260, text: null, ghost: false, cool: true }; },
     badge: function () { return { type: 'badge', x: 520, y: 420, w: 220, h: 52, text: 'New badge', ghost: false, cool: false }; },
+    posts: function () {
+      // a real core query loop: WordPress renders it fresh on the published
+      // page (and it keeps working with the plugin deactivated)
+      var wsrc = '<!-- wp:query {"queryId":0,"query":{"perPage":3,"pages":0,"offset":0,"postType":"post","order":"desc","orderBy":"date","author":"","search":"","exclude":[],"sticky":"","inherit":false}} -->\n' +
+        '<div class="wp-block-query">' +
+        '<!-- wp:post-template {"layout":{"type":"grid","columnCount":3}} -->\n' +
+        '<!-- wp:post-featured-image {"isLink":true,"aspectRatio":"4/3"} /-->\n' +
+        '<!-- wp:post-title {"level":3,"isLink":true} /-->\n' +
+        '<!-- wp:post-date /-->\n' +
+        '<!-- /wp:post-template -->' +
+        '</div>\n<!-- /wp:query -->';
+      return { type: 'widget', x: 47, y: 60, w: 1106, h: 430, wsrc: wsrc,
+        whtml: '<div class="gogh-postsprev gogh-postsprev-loading">Loading your latest posts\u2026</div>' };
+    },
   };
+  function postsPreviewHTML(posts) {
+    return '<div class="gogh-postsprev">' + posts.map(function (p) {
+      var media = p._embedded && p._embedded['wp:featuredmedia'] && p._embedded['wp:featuredmedia'][0];
+      var sizes = media && media.media_details && media.media_details.sizes;
+      var src = sizes && ((sizes.medium_large || sizes.large || sizes.full || {}).source_url) || (media && media.source_url) || null;
+      var when = '';
+      try { when = new Date(p.date).toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' }); } catch (err) {}
+      return '<div class="gogh-postsprev-card">' +
+        (src ? '<img src="' + escAttr(src) + '" alt="" />' : '<div class="gogh-postsprev-ph"></div>') +
+        '<h3>' + ((p.title && p.title.rendered) || 'Untitled') + '</h3>' +
+        '<div class="gogh-postsprev-date">' + when + '</div>' +
+        '</div>';
+    }).join('') + '</div>';
+  }
+  function hydratePostsPreview(sec, e) {
+    fetch(cfg.restUrl.split('wp/v2/')[0] + 'wp/v2/posts?per_page=3&_embed=wp:featuredmedia&status=publish', {
+      headers: { 'X-WP-Nonce': cfg.nonce },
+      credentials: 'same-origin',
+    }).then(function (r) { return r.ok ? r.json() : []; }).then(function (posts) {
+      if (!posts.length || sec.els.indexOf(e) === -1) return;
+      e.whtml = postsPreviewHTML(posts);
+      renderSection(sec);
+      if (sel && sel.sec === sec) placeHandles(sec, sec.els.indexOf(e));
+    }).catch(function () {});
+  }
   function addElement(sec, e) {
     sec.els.push(e);
     renderSection(sec);
@@ -1706,6 +1755,7 @@
     e.y = Math.max(8, e.y);
     stagger++;
     addElement(sec, e);
+    if (kind === 'posts') hydratePostsPreview(sec, e);
   }
   side.querySelectorAll('[data-add]').forEach(function (btn) {
     btn.addEventListener('click', function () { addElementAtViewport(btn.dataset.add); });
@@ -1918,6 +1968,7 @@
       { label: 'Button', kind: 'button' },
       { label: 'Image', kind: 'image' },
       { label: 'Badge', kind: 'badge' },
+      { label: 'Posts grid', kind: 'posts' },
     ];
     TEMPLATES.forEach(function (t, ti) {
       if (t.els.length) items.push({ label: t.name + ' \u00b7 section', tpl: ti });
@@ -2994,7 +3045,242 @@
   }, { passive: true });
 
   // debug/state hook
+  // ---------- exploded layers: press-and-hold a stack to fan it out ----------
+  var explodeSt = null, explodeHold = null;
+  function cancelExplodeHold() {
+    if (explodeHold) { clearTimeout(explodeHold); explodeHold = null; }
+  }
+  function armExplode(sec, i, ev) {
+    cancelExplodeHold();
+    var r = sec.sectionEl.getBoundingClientRect();
+    if (r.width < 10) return;
+    var s = r.width / W;
+    var px = (ev.clientX - r.left) / s, py = (ev.clientY - r.top) / s;
+    var cluster = [];
+    sec.els.forEach(function (e, k) {
+      if (px >= e.x && px <= e.x + e.w && py >= e.y && py <= e.y + e.h) cluster.push(k);
+    });
+    if (cluster.length < 2) return;
+    explodeHold = setTimeout(function () {
+      explodeHold = null;
+      pendingDrag = null; // the press became a peek, not a drag
+      enterExplode(sec, cluster);
+    }, 430);
+  }
+  function enterExplode(sec, cluster) {
+    exitExplode();
+    explodeSt = { sec: sec, cluster: cluster };
+    sec.sectionEl.classList.add('gogh-exploded');
+    sec.sectionEl.style.perspective = '1400px';
+    hideHandles();
+    var n = cluster.length;
+    cluster.forEach(function (idx, ci) {
+      var node = sec.nodes[idx];
+      if (!node) return;
+      var e = sec.els[idx];
+      var spread = ci - (n - 1) / 2;
+      node.classList.add('gogh-fan');
+      node.style.zIndex = 9990 + ci;
+      node.style.transform =
+        (e.rot ? 'rotate(' + e.rot + 'deg) ' : '') +
+        'translate(' + Math.round(spread * 56) + 'px,' + Math.round(spread * -44) + 'px) ' +
+        'translateZ(' + (ci * 48) + 'px) rotate(' + (spread * 2.5) + 'deg)';
+    });
+  }
+  function exitExplode() {
+    if (!explodeSt) return;
+    var st = explodeSt;
+    explodeSt = null;
+    st.sec.sectionEl.classList.remove('gogh-exploded');
+    st.sec.sectionEl.style.perspective = '';
+    st.cluster.forEach(function (idx) {
+      var node = st.sec.nodes[idx];
+      if (!node) return;
+      node.classList.remove('gogh-fan');
+      node.style.zIndex = '';
+      node.style.transform = '';
+    });
+  }
+  document.addEventListener('keydown', function (ev) {
+    if (ev.key === 'Escape' && explodeSt) { exitExplode(); ev.stopPropagation(); }
+  }, true);
+
+  // ---------- x-ray: hold ` to see the grid the solver built ----------
+  var xrayOn = false, xrayRaf = false;
+  function buildXrayOv(sec) {
+    var el = sec.sectionEl;
+    var old = el.querySelector(':scope > .gogh-xray-ov');
+    if (old) old.remove();
+    var w = el.clientWidth, h = el.clientHeight;
+    if (!w || !h) return;
+    var cs = getComputedStyle(el);
+    var cols = cs.gridTemplateColumns.split(' ').map(parseFloat).filter(function (n) { return !isNaN(n); });
+    var rows = cs.gridTemplateRows.split(' ').map(parseFloat).filter(function (n) { return !isNaN(n); });
+    if (!cols.length) return;
+    var xs = [0], ys = [0], acc = 0;
+    cols.forEach(function (c) { acc += c; xs.push(acc); });
+    acc = 0;
+    rows.forEach(function (rr) { acc += rr; ys.push(acc); });
+    var svg = ['<svg width="' + w + '" height="' + h + '" viewBox="0 0 ' + w + ' ' + h + '">'];
+    xs.forEach(function (x) { svg.push('<line x1="' + x + '" y1="0" x2="' + x + '" y2="' + h + '"/>'); });
+    ys.forEach(function (y) { svg.push('<line x1="0" y1="' + y + '" x2="' + w + '" y2="' + y + '"/>'); });
+    sec.nodes.forEach(function (node, i) {
+      if (!node) return;
+      var ns = getComputedStyle(node);
+      var c1 = parseInt(ns.gridColumnStart, 10), c2 = parseInt(ns.gridColumnEnd, 10);
+      var r1 = parseInt(ns.gridRowStart, 10), r2 = parseInt(ns.gridRowEnd, 10);
+      if (!c1 || !c2 || !r1 || !r2 || !xs[c2 - 1] && xs[c2 - 1] !== 0) return;
+      var x = xs[c1 - 1], y = ys[r1 - 1];
+      svg.push('<rect class="gogh-xr-area" x="' + x + '" y="' + y + '" width="' + (xs[c2 - 1] - x) + '" height="' + (ys[r2 - 1] - y) + '"/>');
+      svg.push('<text x="' + (x + 7) + '" y="' + (y + 18) + '">' + (i + 1) + '</text>');
+    });
+    svg.push('</svg>');
+    var ov = document.createElement('div');
+    ov.className = 'gogh-xray-ov';
+    ov.innerHTML = svg.join('');
+    el.appendChild(ov);
+  }
+  function setXray(on) {
+    on = !!on;
+    if (on === xrayOn) return;
+    xrayOn = on;
+    document.documentElement.classList.toggle('gogh-xray', on);
+    S.forEach(function (sec) {
+      var old = sec.sectionEl.querySelector(':scope > .gogh-xray-ov');
+      if (old) old.remove();
+      if (on) buildXrayOv(sec);
+    });
+  }
+  document.addEventListener('keydown', function (ev) {
+    if (ev.code !== 'Backquote' || !editing || textEditing || ev.repeat) return;
+    ev.preventDefault();
+    setXray(true);
+  });
+  document.addEventListener('keyup', function (ev) {
+    if (ev.code === 'Backquote') setXray(false);
+  });
+  window.addEventListener('blur', function () { setXray(false); });
+  // the grid recomputes live while you drag with x-ray held
+  var resolveAndApply0 = resolveAndApply;
+  resolveAndApply = function (sec) {
+    resolveAndApply0(sec);
+    if (xrayOn && !xrayRaf) {
+      xrayRaf = true;
+      requestAnimationFrame(function () {
+        xrayRaf = false;
+        if (xrayOn) S.forEach(buildXrayOv);
+      });
+    }
+  };
+
+  // ---------- live mobile mirror ----------
+  var MIRROR_W = 250, MIRROR_DESIGN = 360;
+  var mirror = document.createElement('div');
+  mirror.className = 'gogh-mirror';
+  mirror.hidden = true;
+  mirror.innerHTML =
+    '<div class="gogh-mirror-head"><span>Mobile \u00b7 live</span>' +
+    '<button type="button" class="gogh-sbtn gogh-mirror-close" title="Hide">\u2715</button></div>' +
+    '<div class="gogh-mirror-frame"><div class="gogh-mirror-vp"><div class="gogh-mirror-stage"></div></div></div>';
+  document.body.appendChild(mirror);
+  var mirrorTab = document.createElement('button');
+  mirrorTab.type = 'button';
+  mirrorTab.className = 'gogh-mirror-tab';
+  mirrorTab.dataset.tip = 'Live mobile preview';
+  mirrorTab.innerHTML = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="7" y="2.5" width="10" height="19" rx="2.5"/><path d="M10.5 18.5h3"/></svg>';
+  document.body.appendChild(mirrorTab);
+  var mirrorSec = null, mirrorT = null;
+  var mirrorObs = new MutationObserver(function () { scheduleMirror(); });
+  function mirrorTarget() {
+    if (sel && !sel.sec.chrome) return sel.sec;
+    var best = null, bestA = 0;
+    S.forEach(function (s) {
+      if (s.chrome) return;
+      var r = s.wrapEl.getBoundingClientRect();
+      var vis = Math.max(0, Math.min(r.bottom, window.innerHeight) - Math.max(r.top, 0));
+      if (vis > bestA) { bestA = vis; best = s; }
+    });
+    return best || S.filter(function (s) { return !s.chrome; })[0] || null;
+  }
+  function refreshMirror() {
+    if (mirror.hidden) return;
+    var sec = mirrorTarget();
+    if (!sec || !sec.sectionEl) return;
+    if (mirrorSec !== sec) {
+      mirrorSec = sec;
+      mirrorObs.disconnect();
+      mirrorObs.observe(sec.sectionEl, { subtree: true, childList: true, characterData: true });
+    }
+    var stage = mirror.querySelector('.gogh-mirror-stage');
+    var clone = sec.sectionEl.cloneNode(true);
+    clone.removeAttribute('style');
+    [].slice.call(clone.querySelectorAll('[contenteditable]')).forEach(function (n) { n.removeAttribute('contenteditable'); });
+    [].slice.call(clone.querySelectorAll('.gogh-selected, .gogh-dragsrc, .gogh-textedit, .gogh-fan')).forEach(function (n) {
+      n.classList.remove('gogh-selected', 'gogh-dragsrc', 'gogh-textedit', 'gogh-fan');
+      n.style.transform = '';
+      n.style.zIndex = '';
+    });
+    clone.classList.remove('gogh-exploded');
+    var xo = clone.querySelector('.gogh-xray-ov');
+    if (xo) xo.remove();
+    stage.innerHTML = '';
+    stage.appendChild(clone);
+    // zoom (not transform) so the scroll extent shrinks with the content
+    // while container queries still see a 360px viewport
+    stage.style.zoom = MIRROR_W / MIRROR_DESIGN;
+  }
+  function scheduleMirror() {
+    if (mirror.hidden) return;
+    clearTimeout(mirrorT);
+    mirrorT = setTimeout(refreshMirror, 120);
+  }
+  function openMirror() {
+    mirror.hidden = false;
+    mirrorTab.hidden = true;
+    try { localStorage.setItem('gogh-mirror', '1'); } catch (err) {}
+    refreshMirror();
+  }
+  function closeMirror() {
+    mirror.hidden = true;
+    mirrorTab.hidden = false;
+    mirrorObs.disconnect();
+    mirrorSec = null;
+    try { localStorage.setItem('gogh-mirror', '0'); } catch (err) {}
+  }
+  // the mirror rides along: as you scroll the page it follows the section
+  // in view and scrolls its own little viewport in step
+  var mirrorScrollT = null;
+  function syncMirrorScroll() {
+    if (mirror.hidden) return;
+    var sec = mirrorTarget();
+    if (!sec) return;
+    if (sec !== mirrorSec) refreshMirror();
+    var vp = mirror.querySelector('.gogh-mirror-vp');
+    var r = sec.wrapEl.getBoundingClientRect();
+    var p;
+    if (r.height > window.innerHeight) {
+      p = -r.top / (r.height - window.innerHeight);
+    } else {
+      p = (window.innerHeight / 2 - r.top) / Math.max(1, r.height);
+    }
+    p = Math.max(0, Math.min(1, p));
+    var range = vp.scrollHeight - vp.clientHeight;
+    if (range > 0) vp.scrollTo({ top: p * range, behavior: 'smooth' });
+  }
+  window.addEventListener('scroll', function () {
+    if (mirror.hidden) return;
+    clearTimeout(mirrorScrollT);
+    mirrorScrollT = setTimeout(syncMirrorScroll, 110);
+  }, { passive: true });
+  mirrorTab.addEventListener('click', openMirror);
+  mirror.querySelector('.gogh-mirror-close').addEventListener('click', closeMirror);
+  document.addEventListener('pointerup', function () { scheduleMirror(); });
+  try { if (localStorage.getItem('gogh-mirror') === '1') { mirror.hidden = false; mirrorTab.hidden = true; } } catch (err) {}
+
   window.__gogh = {
+    xray: setXray,
+    mirror: { open: openMirror, close: closeMirror, refresh: refreshMirror, el: mirror },
+    explode: { enter: enterExplode, exit: exitExplode, state: function () { return explodeSt; } },
     get state() {
       return { editing: editing, sections: S.length, sel: sel ? { i: sel.i } : null,
         drag: !!drag, resize: !!resize, history: history.length, hIdx: hIdx };

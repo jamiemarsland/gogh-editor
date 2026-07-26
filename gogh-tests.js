@@ -1061,6 +1061,35 @@
       expect(Math.abs(e.x - (x0 + 37)) <= 1, 'expected free landing at ' + (x0 + 37) + ', got ' + e.x);
     });
 
+    // ---- 31. the dazzle features ----
+    test('x-ray overlays draw the real grid', function () {
+      G.xray(true);
+      var ov = sec().sectionEl.querySelector('.gogh-xray-ov');
+      expect(ov, 'no overlay');
+      expect(ov.querySelectorAll('line').length >= 4, 'no grid lines');
+      expect(ov.querySelectorAll('.gogh-xr-area').length >= 1, 'no element areas');
+      G.xray(false);
+      expect(!sec().sectionEl.querySelector('.gogh-xray-ov'), 'overlay not removed');
+    });
+    test('mobile mirror renders the container-query layout', function () {
+      G.mirror.open();
+      G.mirror.refresh();
+      var clone = document.querySelector('.gogh-mirror-stage .gogh-section');
+      expect(clone, 'no clone in mirror');
+      var cols = getComputedStyle(clone).gridTemplateColumns.split(' ').length;
+      expect(cols === 3, 'clone not stacked: ' + cols + ' columns');
+      G.mirror.close();
+    });
+    test('exploded layers fan out and restore', function () {
+      var s0 = sec();
+      G.explode.enter(s0, [0, 1]);
+      expect(s0.sectionEl.classList.contains('gogh-exploded'), 'no explode class');
+      expect(s0.nodes[0].style.transform.indexOf('translate') !== -1, 'no fan transform');
+      G.explode.exit();
+      expect(!s0.sectionEl.classList.contains('gogh-exploded'), 'explode class not removed');
+      expect(s0.nodes[0].style.transform === '', 'fan transform not cleared');
+    });
+
     // ---- report ----
     var passed = results.filter(function (r) { return r.pass; }).length;
     var summary = passed + '/' + results.length + ' passed' +

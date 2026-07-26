@@ -1087,3 +1087,136 @@
 }
 
 .gogh-varname-fonts { font-size: 15px; line-height: 1.3; }
+
+/* ---------- exploded layers ---------- */
+.gogh-exploded > * {
+  transition: transform 0.32s cubic-bezier(0.2, 0.9, 0.25, 1.15), opacity 0.22s ease, box-shadow 0.32s ease;
+}
+.gogh-exploded > *:not(.gogh-fan):not(.gogh-xray-ov) { opacity: 0.22; }
+.gogh-exploded > .gogh-fan {
+  box-shadow: 0 30px 70px -18px rgba(0, 0, 0, 0.6);
+  cursor: pointer;
+  border-radius: 6px;
+}
+.gogh-exploded > .gogh-fan:hover {
+  outline: 2px solid #7ea8ff;
+  outline-offset: 3px;
+}
+
+/* ---------- x-ray ---------- */
+.gogh-xray-ov {
+  position: absolute;
+  inset: 0;
+  z-index: 99980;
+  pointer-events: none;
+}
+.gogh-xray-ov svg { display: block; width: 100%; height: 100%; }
+.gogh-xray-ov line { stroke: rgba(126, 168, 255, 0.5); stroke-width: 1; }
+.gogh-xray-ov .gogh-xr-area {
+  fill: rgba(126, 168, 255, 0.07);
+  stroke: #7ea8ff;
+  stroke-width: 1.5;
+  stroke-dasharray: 6 4;
+}
+.gogh-xray-ov text {
+  fill: #7ea8ff;
+  font: 700 11px -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, sans-serif;
+}
+
+/* ---------- live mobile mirror ---------- */
+.gogh-mirror-tab {
+  all: unset;
+  position: fixed;
+  left: 20px;
+  bottom: 20px;
+  z-index: 99999;
+  width: 44px;
+  height: 44px;
+  display: none;
+  place-items: center;
+  cursor: pointer;
+  color: var(--gogh-ui-fg);
+  background: var(--gogh-ui-bg);
+  border: 1px solid var(--gogh-ui-border);
+  border-radius: 50%;
+  box-shadow: 0 12px 32px -10px rgba(0, 0, 0, 0.5);
+}
+html.gogh-editing .gogh-mirror-tab { display: grid; }
+.gogh-mirror-tab[hidden] { display: none !important; }
+.gogh-mirror {
+  position: fixed;
+  left: 20px;
+  bottom: 20px;
+  z-index: 99999;
+  display: none;
+  flex-direction: column;
+  background: var(--gogh-ui-bg);
+  border: 1px solid var(--gogh-ui-border);
+  border-radius: 18px;
+  box-shadow: 0 24px 60px -18px rgba(0, 0, 0, 0.7);
+  overflow: hidden;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, sans-serif;
+}
+html.gogh-editing .gogh-mirror { display: flex; }
+.gogh-mirror[hidden] { display: none !important; }
+.gogh-mirror-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 8px 8px 14px;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--gogh-ui-muted);
+}
+.gogh-mirror-head .gogh-sbtn { flex: 0 0 auto; width: 24px; height: 24px; padding: 0; display: grid; place-items: center; font-size: 11px; }
+.gogh-mirror-frame {
+  width: 250px;
+  height: 420px;
+  overflow: hidden;
+  border-top: 1px solid var(--gogh-ui-border);
+  background: #fff;
+}
+.gogh-mirror-vp {
+  width: 250px;
+  height: 420px;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+.gogh-mirror-stage {
+  width: 360px;
+  transform-origin: 0 0;
+  container-type: inline-size;
+}
+.gogh-mirror-stage .gogh-section { pointer-events: none; }
+
+/* editor-side preview of the posts query widget */
+.gogh-postsprev {
+  width: 100%;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1.6cqw;
+  align-self: start;
+}
+.gogh-postsprev-loading {
+  display: grid;
+  place-items: center;
+  min-height: 120px;
+  opacity: 0.6;
+  font-size: 14px;
+}
+.gogh-postsprev-card img,
+.gogh-postsprev-ph {
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  object-fit: cover;
+  border-radius: 8px;
+  display: block;
+  background: linear-gradient(135deg, #e8b04b33, #7ea8ff33);
+}
+.gogh-postsprev-card h3 { margin: 0.5em 0 0.15em; font-size: 1.05em; line-height: 1.25; }
+.gogh-postsprev-date { font-size: 0.8em; opacity: 0.65; }
+@container (max-width: 700px) {
+  .gogh-postsprev { grid-template-columns: 1fr; }
+}
