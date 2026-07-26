@@ -1286,3 +1286,21 @@ html.gogh-editing .gogh-mirror { display: flex; }
 }
 .gogh-card:hover .gogh-card-delpat { opacity: 1; }
 .gogh-card-delpat:hover { color: #ff6b6b; }
+
+/* chrome (header/footer) pill: quiet, in the family of the section toolbar */
+.gogh-chromebtn {
+  background: #fff;
+  color: #50575e;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 13px;
+  opacity: 0.72;
+  transition: opacity 0.15s ease;
+}
+.gogh-chromebtn:hover { opacity: 1; }
+.gogh-chromebtn svg { display: block; }

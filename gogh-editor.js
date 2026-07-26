@@ -2011,6 +2011,19 @@
           var textLen = (st.textContent || '').trim().length;
           if (textLen < 30 && !st.querySelector('img')) { b.remove(); return; }
           st.style.transform = 'scale(' + (pv.clientWidth / 1200) + ')';
+          // trial-convert the very render we're showing: if the scan loses
+          // the content, don't offer the section at all
+          try {
+            var trial = scanDomWithRaw(st, p.content || '', { loose: true });
+            if (!trial.els.length) { b.remove(); return; }
+            var kept = trial.els.map(function (e) {
+              return e.type === 'widget' ? '' : (e.text || '');
+            }).join(' ').replace(/\s+/g, ' ').length;
+            var widgetText = trial.els.filter(function (e) { return e.type === 'widget'; })
+              .map(function (e) { return e.whtml || ''; }).join(' ').replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').length;
+            var total = (st.textContent || '').replace(/\s+/g, ' ').length;
+            if (total > 40 && (kept + widgetText) < total * 0.6) { b.remove(); return; }
+          } catch (err) { b.remove(); return; }
         });
       };
       var io = window.IntersectionObserver ? new IntersectionObserver(function (entries) {
@@ -4453,10 +4466,37 @@
       e.h = Math.max(16, Math.round(r.height * sx));
       out.push(e);
     }
+    function textStyle(dom, e) {
+      var cls = dom.className + '';
+      var fm = cls.match(/has-([a-z0-9-]+)-font-size/);
+      if (fm) e.fs = fm[1];
+      var am = cls.match(/has-text-align-(center|right)/);
+      if (am) e.align = am[1];
+      var cm = cls.match(/has-([a-z0-9-]+)-color/g);
+      if (cm) {
+        for (var ci = 0; ci < cm.length; ci++) {
+          var cslug = cm[ci].replace(/^has-/, '').replace(/-color$/, '');
+          if (cslug !== 'text' && cslug.indexOf('background') === -1 && cslug !== 'link') { e.color = cslug; break; }
+        }
+      }
+      if (!e.fs) {
+        // custom-sized text (clamp() and friends): keep the visual scale by
+        // stepping to the nearest theme preset instead of falling to default
+        var px = parseFloat(getComputedStyle(dom).fontSize);
+        var sizes = fontSizes();
+        var best = null, bestD = Infinity;
+        sizes.forEach(function (s) {
+          var d = Math.abs(s.px - px);
+          if (d < bestD) { bestD = d; best = s; }
+        });
+        if (best && px) e.fs = best.slug;
+      }
+      return e;
+    }
     function leafFrom(dom, markup) {
       var cl = dom.classList, tag = dom.tagName;
-      if (/^H[1-6]$/.test(tag)) return place(dom, { type: 'heading', text: cleanInline(dom.innerHTML).trim() });
-      if (tag === 'P' && !cl.contains('gogh-badge')) return place(dom, { type: 'para', text: cleanInline(dom.innerHTML).trim() });
+      if (/^H[1-6]$/.test(tag)) return place(dom, textStyle(dom, { type: 'heading', text: cleanInline(dom.innerHTML).trim() }));
+      if (tag === 'P' && !cl.contains('gogh-badge')) return place(dom, textStyle(dom, { type: 'para', text: cleanInline(dom.innerHTML).trim() }));
       if (tag === 'FIGURE' && cl.contains('wp-block-image')) {
         var img = dom.querySelector('img');
         var e = { type: 'image' };
@@ -4748,7 +4788,9 @@
       var b = document.createElement('button');
       b.type = 'button';
       b.className = 'gogh-convertbtn gogh-chromebtn';
-      b.textContent = '\u2728 Edit ' + (partEl.tagName === 'FOOTER' ? 'footer' : 'header');
+      b.innerHTML = '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.8 2.8 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>' +
+        (partEl.tagName === 'FOOTER' ? 'Footer' : 'Header');
+      b.dataset.tip = 'Switch layouts \u2014 or make it freeform';
       b.style.left = (r.right + window.scrollX - 10) + 'px';
       b.style.top = (r.top + window.scrollY + 10) + 'px';
       b.addEventListener('click', function () {
