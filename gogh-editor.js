@@ -1932,9 +1932,13 @@
       var pretty = function (c) {
         return c.replace(/[_-]+/g, ' ').replace(/\b\w/g, function (ch) { return ch.toUpperCase(); });
       };
+      var favs = {};
+      try { (JSON.parse(localStorage.getItem('gogh-fav-patterns') || '[]')).forEach(function (n) { favs[n] = 1; }); } catch (err) {}
+      var favCount = function () { return Object.keys(favs).length; };
       var chipRow = document.createElement('div');
       chipRow.className = 'gogh-patcats';
       chipRow.innerHTML = '<button type="button" class="gogh-patcat is-active" data-cat="">All</button>' +
+        '<button type="button" class="gogh-patcat gogh-patcat-fav" data-cat="__fav">\u2665 Favourites</button>' +
         cats.map(function (c) {
           return '<button type="button" class="gogh-patcat" data-cat="' + c + '">' + pretty(c) + '</button>';
         }).join('');
@@ -1969,8 +1973,17 @@
         b.__pat = p;
         b.dataset.cats = (p.categories || []).join(' ');
         b.innerHTML = '<span class="gogh-card-prev"><span class="gogh-card-stage"></span></span>' +
-          '<span class="gogh-card-name"></span>';
+          '<span class="gogh-card-name"></span>' +
+          '<span class="gogh-card-fav" title="Favourite">\u2665</span>';
         b.querySelector('.gogh-card-name').textContent = '\u2728 ' + (p.title || p.name);
+        var favEl = b.querySelector('.gogh-card-fav');
+        favEl.classList.toggle('is-fav', !!favs[p.name]);
+        favEl.addEventListener('click', function (ev) {
+          ev.stopPropagation();
+          if (favs[p.name]) delete favs[p.name]; else favs[p.name] = 1;
+          favEl.classList.toggle('is-fav', !!favs[p.name]);
+          try { localStorage.setItem('gogh-fav-patterns', JSON.stringify(Object.keys(favs))); } catch (err) {}
+        });
         cardsBox.appendChild(b);
         cards.push(b);
         if (io) io.observe(b); else hydrate(b, p);
@@ -1987,7 +2000,9 @@
         });
         var cat = chip.dataset.cat;
         cards.forEach(function (b) {
-          var show = !cat || (' ' + b.dataset.cats + ' ').indexOf(' ' + cat + ' ') !== -1;
+          var show = !cat ||
+            (cat === '__fav' ? !!favs[b.__pat.name]
+              : (' ' + b.dataset.cats + ' ').indexOf(' ' + cat + ' ') !== -1);
           b.style.display = show ? '' : 'none';
           if (show && io && !b.__hydrated) { io.unobserve(b); hydrate(b, b.__pat); }
         });
@@ -3377,6 +3392,7 @@
     showHbar: function (i) { placeHbar(S[i]); },
     openShapePanel: openShapePanel,
     openSecBgPanel: openSecBgPanel,
+    scan: scanDomWithRaw,
     addSection: addSection,
     renderSection: renderSection,
     pushState: pushState,
@@ -4077,7 +4093,7 @@
       });
       if (document.fonts && document.fonts.ready) waits.push(document.fonts.ready);
       return Promise.all(waits).then(function () {
-        var scan = scanDomWithRaw(stage, p.content || '');
+        var scan = scanDomWithRaw(stage, p.content || '', { loose: true });
         if (!scan.els.length) throw new Error('empty');
         var sec = newSectionShell('gogh-sec-' + (scopeSeq++));
         sec.els = scan.els;
@@ -4288,52 +4304,92 @@
   // measure a rendered container against its raw block markup: known leaves
   // become typed elements, anything else becomes an atomic widget. Shared by
   // chrome conversion and pattern insertion.
-  function scanDomWithRaw(rootEl, raw) {
+  function scanDomWithRaw(rootEl, raw, opts) {
+    opts = opts || {};
     var rr = rootEl.getBoundingClientRect();
     var sx = W / rr.width;
     var out = [];
-    function leafFrom(dom, markup) {
+    function place(dom, e) {
       var r = dom.getBoundingClientRect();
-      var e = null;
-      var cl = dom.classList, tag = dom.tagName;
-      if (/^H[1-6]$/.test(tag)) e = { type: 'heading', text: cleanInline(dom.innerHTML).trim() };
-      else if (tag === 'P' && !cl.contains('gogh-badge')) e = { type: 'para', text: cleanInline(dom.innerHTML).trim() };
-      else if (tag === 'FIGURE' && cl.contains('wp-block-image')) {
-        var img = dom.querySelector('img');
-        e = { type: 'image' };
-        if (img) { e.src = img.currentSrc || img.src || null; e.alt = img.alt || null; }
-      } else if (cl.contains('wp-block-buttons') && dom.querySelectorAll('.wp-block-button').length === 1) {
-        var btn = dom.querySelector('.wp-block-button');
-        var a = btn.querySelector('a');
-        e = { type: 'button',
-          text: ((a || btn).textContent || '').trim(),
-          href: (a && a.getAttribute('href') && a.getAttribute('href') !== '#') ? a.getAttribute('href') : null,
-          ghost: btn.className.indexOf('is-style-outline') !== -1 };
-        dom = btn;
-        r = btn.getBoundingClientRect();
-      } else {
-        e = { type: 'widget', whtml: dom.outerHTML, wsrc: markup };
-      }
+      if (r.width < 2 || r.height < 2) return;
       e.x = Math.max(0, Math.round((r.left - rr.left) * sx));
       e.y = Math.max(0, Math.round((r.top - rr.top) * sx));
       e.w = Math.max(24, Math.round(r.width * sx));
       e.h = Math.max(16, Math.round(r.height * sx));
       out.push(e);
     }
+    function leafFrom(dom, markup) {
+      var cl = dom.classList, tag = dom.tagName;
+      if (/^H[1-6]$/.test(tag)) return place(dom, { type: 'heading', text: cleanInline(dom.innerHTML).trim() });
+      if (tag === 'P' && !cl.contains('gogh-badge')) return place(dom, { type: 'para', text: cleanInline(dom.innerHTML).trim() });
+      if (tag === 'FIGURE' && cl.contains('wp-block-image')) {
+        var img = dom.querySelector('img');
+        var e = { type: 'image' };
+        if (img) { e.src = img.currentSrc || img.src || null; e.alt = img.alt || null; }
+        return place(dom, e);
+      }
+      if (cl.contains('wp-block-buttons')) {
+        // every button becomes a real, individually draggable button
+        var btns = [].slice.call(dom.querySelectorAll('.wp-block-button'));
+        if (btns.length) {
+          btns.forEach(function (btn) {
+            var a = btn.querySelector('a');
+            place(btn, { type: 'button',
+              text: ((a || btn).textContent || '').trim(),
+              href: (a && a.getAttribute('href') && a.getAttribute('href') !== '#') ? a.getAttribute('href') : null,
+              ghost: btn.className.indexOf('is-style-outline') !== -1 });
+          });
+          return;
+        }
+      }
+      if (cl.contains('wp-block-spacer') || cl.contains('wp-block-separator') || tag === 'HR') return;
+      place(dom, { type: 'widget', whtml: dom.outerHTML,
+        wsrc: markup != null ? markup : dom.outerHTML });
+    }
+    function coverInto(dom, innerRawText) {
+      // the cover's backdrop becomes a full-bleed image element; its inner
+      // content becomes normal elements on top
+      var img = dom.querySelector(':scope > .wp-block-cover__image-background');
+      if (img) {
+        place(dom, { type: 'image',
+          src: img.currentSrc || img.src || null, alt: img.alt || null });
+      }
+      var inner = dom.querySelector(':scope > .wp-block-cover__inner-container');
+      if (inner) {
+        if (innerRawText) walk(inner, innerRawText);
+        else walkDomOnly(inner);
+      }
+    }
+    function walkDomOnly(containerDom) {
+      [].slice.call(containerDom.children).forEach(function (c) {
+        var cl = c.classList;
+        if (cl.contains('wp-block-cover')) return coverInto(c, null);
+        if (cl.contains('wp-block-group') || cl.contains('wp-block-columns') ||
+            cl.contains('wp-block-column') || !c.className) {
+          if (c.children.length) return walkDomOnly(c);
+        }
+        leafFrom(c, null);
+      });
+    }
     function walk(containerDom, rawText) {
       var spans = parseTopBlocks(rawText);
       var kids = [].slice.call(containerDom.children);
       if (!spans.length || spans.length !== kids.length) {
-        // structure mismatch: capture the container whole
+        if (opts.loose) { walkDomOnly(containerDom); return; }
+        // strict (chrome): capture the container whole so its blocks stay
+        // dynamic (menus, site titles) rather than becoming snapshots
         leafFrom(containerDom, rawText);
         return;
       }
       spans.forEach(function (sp, k) {
         var dom = kids[k];
         var markup = rawText.slice(sp.start, sp.end);
-        if (sp.name === 'core/group' || sp.name === 'group' ||
-            sp.name === 'core/columns' || sp.name === 'core/column' ||
-            sp.name === 'core/cover') {
+        var nm = String(sp.name || '').replace(/^core\//, '');
+        if (nm === 'cover') {
+          var cInner = innerRawOf(rawText, sp);
+          return coverInto(dom, cInner ? cInner.text : null);
+        }
+        if (nm === 'group' || nm === 'columns' || nm === 'column') {
           var inner = innerRawOf(rawText, sp);
           if (inner && dom.children.length) { walk(dom, inner.text); return; }
         }

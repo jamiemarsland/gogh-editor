@@ -1108,6 +1108,31 @@
       expect(s0.nodes[0].style.transform === '', 'fan transform not cleared');
     });
 
+    // ---- 32. pattern scanner ----
+    test('cover patterns scan to editable elements, not one widget', function () {
+      var stage = document.createElement('div');
+      stage.style.width = '1200px';
+      stage.innerHTML =
+        '<div class="wp-block-cover" style="position:relative;min-height:400px">' +
+        '<img class="wp-block-cover__image-background" style="position:absolute;inset:0;width:100%;height:100%" src="data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==" />' +
+        '<div class="wp-block-cover__inner-container" style="position:relative;padding:40px">' +
+        '<h2 style="height:60px">Big cover heading</h2>' +
+        '<p style="height:30px">Cover copy</p>' +
+        '</div></div>';
+      document.body.appendChild(stage);
+      var raw = '<!-- wp:cover -->\n<div class="wp-block-cover">' +
+        '<!-- wp:heading --><h2>Big cover heading</h2><!-- /wp:heading -->' +
+        '<!-- wp:paragraph --><p>Cover copy</p><!-- /wp:paragraph -->' +
+        '</div>\n<!-- /wp:cover -->';
+      var out = G.scan(stage, raw, { loose: true });
+      stage.remove();
+      var types = out.els.map(function (e) { return e.type; });
+      expect(types.indexOf('image') !== -1, 'no background image element: ' + types.join(','));
+      expect(types.indexOf('heading') !== -1, 'no heading element: ' + types.join(','));
+      expect(types.indexOf('para') !== -1, 'no para element: ' + types.join(','));
+      expect(types.indexOf('widget') === -1, 'cover collapsed to a widget');
+    });
+
     // ---- report ----
     var passed = results.filter(function (r) { return r.pass; }).length;
     var summary = passed + '/' + results.length + ' passed' +

@@ -1246,3 +1246,25 @@ html.gogh-editing .gogh-mirror { display: flex; }
 }
 .gogh-patcat:hover { color: var(--gogh-ui-fg); }
 .gogh-patcat.is-active { background: #7ea8ff; color: #141519; }
+
+.gogh-card { position: relative; }
+.gogh-card-fav {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 26px;
+  height: 26px;
+  display: grid;
+  place-items: center;
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.55);
+  background: rgba(20, 21, 25, 0.55);
+  border-radius: 50%;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.15s ease, color 0.15s ease, transform 0.15s ease;
+}
+.gogh-card:hover .gogh-card-fav { opacity: 1; }
+.gogh-card-fav.is-fav { opacity: 1; color: #ff6b8a; }
+.gogh-card-fav:hover { transform: scale(1.15); }
+.gogh-patcat-fav.is-active { background: #ff6b8a; }
