@@ -1925,7 +1925,7 @@
       if (!mine.length || picker.hidden || !cardsBox.parentNode) return;
       var head = document.createElement('div');
       head.className = 'gogh-picker-sub';
-      head.textContent = 'Your patterns';
+      head.textContent = 'Your sections';
       var themeSub = cardsBox.querySelector('.gogh-picker-sub');
       cardsBox.insertBefore(head, themeSub || null);
       mine.forEach(function (bk) {
@@ -1946,7 +1946,7 @@
           '<span class="gogh-card-stage gogh-wrap"><span class="gogh-card-sec gogh-section ' + scope + '">' + inner + '</span></span>' +
           '</span>' +
           '<span class="gogh-card-name"></span>' +
-          '<span class="gogh-card-delpat" title="Delete pattern">\u2715</span>';
+          '<span class="gogh-card-delpat" title="Delete saved section">\u2715</span>';
         b.querySelector('.gogh-card-name').textContent = '\u2764 ' + ((bk.title && bk.title.raw) || 'My pattern');
         cardsBox.insertBefore(b, themeSub || null);
         var pv = b.querySelector('.gogh-card-prev');
@@ -1963,8 +1963,8 @@
             headers: { 'X-WP-Nonce': cfg.nonce },
             credentials: 'same-origin',
           }).then(function (res) {
-            if (res.ok) { b.remove(); toast('Pattern deleted.'); }
-            else toast('Could not delete that pattern.', { error: true });
+            if (res.ok) { b.remove(); toast('Section deleted.'); }
+            else toast('Could not delete that section.', { error: true });
           });
         });
       });
@@ -1973,7 +1973,7 @@
       if (picker.hidden || !pats.length || !cardsBox.parentNode) return;
       var head = document.createElement('div');
       head.className = 'gogh-picker-sub';
-      head.textContent = 'From your theme \u2014 every pattern, added as freeform';
+      head.textContent = 'From your theme \u2014 ready-made sections, added as freeform';
       cardsBox.appendChild(head);
       // category chips: one modal, instant filtering
       var cats = [];
@@ -2277,7 +2277,7 @@
     '<button type="button" class="gogh-sb" data-sec="up" title="Move up">↑</button>' +
     '<button type="button" class="gogh-sb" data-sec="down" title="Move down">↓</button>' +
     '<button type="button" class="gogh-sb" data-sec="bgimg" title="Background image">' + CTX_ICONS.image + '</button>' +
-    '<button type="button" class="gogh-sb" data-sec="savepat" title="Save as a pattern">' +
+    '<button type="button" class="gogh-sb" data-sec="savepat" title="Save this section to reuse">' +
     '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round"><path d="M6 3h12v18l-6-4.5L6 21Z"/></svg>' +
     '</button>' +
     '<button type="button" class="gogh-sb" data-sec="dup" title="Duplicate section">⧉</button>' +
@@ -2332,8 +2332,8 @@
     panel.style.left = (r.left + window.scrollX + 16) + 'px';
     panel.style.top = (r.top + window.scrollY + 60) + 'px';
     panel.innerHTML =
-      '<div class="gogh-panel-title">Save as a pattern</div>' +
-      '<div class="gogh-panel-hint">It joins \u201cYour patterns\u201d in + Section \u2014 and Gutenberg\u2019s inserter too.</div>' +
+      '<div class="gogh-panel-title">Save this section</div>' +
+      '<div class="gogh-panel-hint">It joins \u201cYour sections\u201d in + Section \u2014 and Gutenberg\u2019s pattern library too.</div>' +
       '<div class="gogh-panel-row">' +
       '<input type="text" class="gogh-input gogh-patname" placeholder="Name it\u2026" />' +
       '<button type="button" class="gogh-btn gogh-btn-small gogh-patsave">Save</button>' +
@@ -2357,10 +2357,10 @@
       }).then(function (res) {
         if (!res.ok) throw new Error('HTTP ' + res.status);
         closePanel();
-        toast('\u201c' + name + '\u201d saved \u2014 it\u2019s in + Section under Your patterns.', { ttl: 5000 });
+        toast('\u201c' + name + '\u201d saved \u2014 it\u2019s in + Section under Your sections.', { ttl: 5000 });
       }).catch(function () {
         btn.disabled = false;
-        toast('Could not save that pattern.', { error: true });
+        toast('Could not save that section.', { error: true });
       });
     };
     panel.querySelector('.gogh-patsave').addEventListener('click', doSave);
@@ -2377,7 +2377,7 @@
     var model = null;
     try { model = modelEl ? JSON.parse(modelEl.textContent) : null; } catch (err) {}
     if (!model || !model.elements) {
-      toast('That pattern isn\u2019t a gogh section.', { error: true });
+      toast('That saved section can\u2019t be read.', { error: true });
       return;
     }
     if (idx == null) idx = S.length;
@@ -4255,7 +4255,7 @@
         toast('\u2728 \u201c' + (p.title || 'Pattern') + '\u201d is freeform now \u2014 drag anything.', { ttl: 4500 });
       });
     }).catch(function () {
-      toast('Could not add that pattern.', { error: true });
+      toast('Could not add that section.', { error: true });
     });
   }
   window.__goghAddPattern = function (name, idx) {
