@@ -1945,6 +1945,52 @@
       { type: 'button', x: 511, y: 330, w: 178, h: 52, text: 'Start now' },
     ]},
     { name: 'Start from scratch', minH: 480, els: [] },
+    // ---- starters: born freeform, theme-adaptive, gently teaching ----
+    { starter: true, name: 'Hero', minH: 640, els: [
+      { type: 'box', x: 600, y: 140, w: 540, h: 420, boxBg: 'color-mix(in srgb, var(--wp--preset--color--contrast, #000) 7%, var(--wp--preset--color--base, transparent))', radius: 24 },
+      { type: 'image', x: 560, y: 100, w: 540, h: 420, cool: true },
+      { type: 'badge', x: 520, y: 70, w: 214, h: 52, text: 'Born freeform' },
+      { type: 'heading', x: 72, y: 150, w: 440, h: 160, text: 'Put it where you want it', fs: '__max' },
+      { type: 'para', x: 72, y: 340, w: 400, h: 96, text: 'Every piece of this section is draggable \u2014 the photo, the badge, even this text. gogh keeps it all responsive.' },
+      { type: 'button', x: 72, y: 470, w: 172, h: 52, text: 'Get started' },
+      { type: 'button', x: 264, y: 470, w: 160, h: 52, text: 'See how', ghost: true },
+    ] },
+    { starter: true, name: 'Feature cards', minH: 600, els: [
+      { type: 'heading', x: 72, y: 60, w: 560, h: 64, text: 'Three reasons to care' },
+      { type: 'box', x: 72, y: 168, w: 330, h: 340, boxBg: 'color-mix(in srgb, var(--wp--preset--color--contrast, #000) 5%, var(--wp--preset--color--base, transparent))', radius: 20 },
+      { type: 'box', x: 435, y: 168, w: 330, h: 340, boxBg: 'color-mix(in srgb, var(--wp--preset--color--contrast, #000) 5%, var(--wp--preset--color--base, transparent))', radius: 20 },
+      { type: 'box', x: 798, y: 168, w: 330, h: 340, boxBg: 'color-mix(in srgb, var(--wp--preset--color--contrast, #000) 5%, var(--wp--preset--color--base, transparent))', radius: 20 },
+      { type: 'heading', x: 104, y: 208, w: 266, h: 46, text: 'Simple', fs: 'large' },
+      { type: 'para', x: 104, y: 266, w: 266, h: 110, text: 'Drag, drop, done. No columns, no rows, no settings maze.' },
+      { type: 'heading', x: 467, y: 208, w: 266, h: 46, text: 'Responsive', fs: 'large' },
+      { type: 'para', x: 467, y: 266, w: 266, h: 110, text: 'The layout solves itself for every screen, phones included.' },
+      { type: 'heading', x: 830, y: 208, w: 266, h: 46, text: 'Yours', fs: 'large' },
+      { type: 'para', x: 830, y: 266, w: 266, h: 110, text: 'Colours and type come from your theme, so everything matches.' },
+    ] },
+    { starter: true, name: 'Big statement', minH: 480, els: [
+      { type: 'badge', x: 486, y: 78, w: 228, h: 52, text: '\u2726 Say it once' },
+      { type: 'heading', x: 100, y: 168, w: 1000, h: 180, text: 'Make something people remember', fs: '__max', align: 'center' },
+      { type: 'button', x: 520, y: 392, w: 160, h: 52, text: 'Start now', ghost: true },
+    ] },
+    { starter: true, name: 'Quote', minH: 520, els: [
+      { type: 'box', x: 72, y: 90, w: 620, h: 340, boxBg: 'color-mix(in srgb, var(--wp--preset--color--contrast, #000) 7%, var(--wp--preset--color--base, transparent))', radius: 24 },
+      { type: 'para', x: 120, y: 138, w: 520, h: 170, text: '\u201cThe first tool that made our site feel like drawing. We stopped fighting layouts and started designing.\u201d', fs: 'large' },
+      { type: 'para', x: 120, y: 336, w: 420, h: 44, text: '\u2014 Someone you\u2019ll quote here' },
+      { type: 'image', x: 760, y: 90, w: 368, h: 340, cool: true },
+    ] },
+    { starter: true, name: 'Call to action', minH: 320, els: [
+      { type: 'box', x: 48, y: 56, w: 1104, h: 220, boxBg: 'color-mix(in srgb, var(--wp--preset--color--contrast, #000) 7%, var(--wp--preset--color--base, transparent))', radius: 26 },
+      { type: 'heading', x: 110, y: 104, w: 560, h: 66, text: 'Ready when you are' },
+      { type: 'para', x: 110, y: 180, w: 520, h: 48, text: 'One honest nudge. Keep it short, keep it warm.' },
+      { type: 'button', x: 880, y: 118, w: 210, h: 56, text: 'Let\u2019s go' },
+    ] },
+    { starter: true, name: 'Gallery', minH: 640, els: [
+      { type: 'heading', x: 72, y: 66, w: 520, h: 62, text: 'A few favourites' },
+      { type: 'image', x: 72, y: 168, w: 330, h: 424, cool: true },
+      { type: 'image', x: 435, y: 220, w: 330, h: 372, cool: true },
+      { type: 'image', x: 798, y: 150, w: 330, h: 310, cool: true },
+      { type: 'badge', x: 830, y: 430, w: 196, h: 52, text: '\ud83d\udcf7 Add yours' },
+    ] },
   ];
 
   function tplEls(tpl) {
@@ -1992,8 +2038,7 @@
   }
   function openPicker(idx) {
     pickerIdx = idx;
-    var cards = TEMPLATES.map(function (tpl, t) {
-      if (tpl.retired) return '';
+    var tplCardHTML = function (tpl, t) {
       var els = tplEls(tpl);
       var scope = 'gogh-tpl-' + t;
       var css = els.length ? buildCSS(els, scope, tpl.minH || null, { bg: tpl.bg || null }) : '';
@@ -2004,13 +2049,24 @@
         '</span>' +
         '<span class="gogh-card-name">' + tpl.name + '</span>' +
         '</button>';
+    };
+    var cards = TEMPLATES.map(function (tpl, t) {
+      if (tpl.retired || tpl.starter) return '';
+      return tplCardHTML(tpl, t);
+    }).join('');
+    var starterCards = TEMPLATES.map(function (tpl, t) {
+      if (!tpl.starter) return '';
+      return tplCardHTML(tpl, t);
     }).join('');
     picker.innerHTML =
       '<div class="gogh-picker-inner">' +
       '<div class="gogh-picker-head">Add a section' +
       '<button type="button" class="gogh-btn gogh-btn-small gogh-picker-close">Close</button></div>' +
       '<div class="gogh-topstrip">' + cards + '</div>' +
-      '<div class="gogh-cards"></div>' +
+      '<div class="gogh-cards">' +
+      '<div class="gogh-picker-sub">Starters \u2014 born freeform</div>' +
+      starterCards +
+      '</div>' +
       '<button type="button" class="gogh-htmllink gogh-card-htmladd">Prefer to paste HTML?</button>' +
       '</div>';
     clearTimeout(pickerCloseT);
