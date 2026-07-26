@@ -1129,6 +1129,34 @@
       expect(types.indexOf('widget') === -1, 'cover collapsed to a widget');
     });
 
+    // ---- 33. multi-select ----
+    test('shift-click gathers a group and drags it together', function () {
+      var s0 = sec();
+      var ax0 = s0.els[0].x, ay0 = s0.els[0].y, bx0 = s0.els[1].x, by0 = s0.els[1].y;
+      var ra = s0.nodes[0].getBoundingClientRect();
+      s0.nodes[0].dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, cancelable: true, clientX: ra.x + 8, clientY: ra.y + 8, pointerId: 71, button: 0, buttons: 1 }));
+      document.dispatchEvent(new PointerEvent('pointerup', { bubbles: true, pointerId: 71 }));
+      var rb = s0.nodes[1].getBoundingClientRect();
+      s0.nodes[1].dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, cancelable: true, shiftKey: true, clientX: rb.x + 8, clientY: rb.y + 8, pointerId: 72, button: 0, buttons: 1 }));
+      document.dispatchEvent(new PointerEvent('pointerup', { bubbles: true, pointerId: 72 }));
+      expect(G.multi.state() && G.multi.state().idxs.length === 2, 'group not formed');
+      expect(document.querySelectorAll('.gogh-multisel').length === 2, 'outlines missing');
+      var s = s0.sectionEl.getBoundingClientRect().width / 1200;
+      var ra2 = s0.nodes[0].getBoundingClientRect();
+      var mk = function (type, target, x, y) {
+        target.dispatchEvent(new PointerEvent(type, { bubbles: true, cancelable: true, clientX: x, clientY: y, pointerId: 73, button: 0, buttons: type === 'pointerup' ? 0 : 1, metaKey: type !== 'pointerup' }));
+      };
+      mk('pointerdown', s0.nodes[0], ra2.x + 9, ra2.y + 9);
+      mk('pointermove', document, ra2.x + 9 + 50 * s, ra2.y + 9 + 30 * s);
+      mk('pointermove', document, ra2.x + 9 + 50 * s, ra2.y + 9 + 30 * s);
+      document.dispatchEvent(new PointerEvent('pointerup', { bubbles: true, pointerId: 73 }));
+      var dax = s0.els[0].x - ax0, dbx = s0.els[1].x - bx0;
+      var day = s0.els[0].y - ay0, dby = s0.els[1].y - by0;
+      expect(dax !== 0 || day !== 0, 'anchor did not move');
+      expect(Math.abs(dax - dbx) <= 1 && Math.abs(day - dby) <= 1, 'group did not move together: ' + [dax, day, dbx, dby].join(','));
+      G.multi.clear();
+    });
+
     // ---- report ----
     var passed = results.filter(function (r) { return r.pass; }).length;
     var summary = passed + '/' + results.length + ' passed' +

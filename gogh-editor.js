@@ -820,6 +820,7 @@
     refreshChip();
   }
   function restoreState(snap) {
+    clearMulti();
     var data = JSON.parse(snap);
     // full rebuild, but each section goes back to its own DOM position so
     // non-gogh blocks interleaved with sections stay where they are
@@ -1118,6 +1119,24 @@
 
   var editing = false;
   var sel = null; // {sec, i}
+  var multiSel = null; // {sec, idxs} — a group selection within one section
+  function clearMulti() {
+    if (!multiSel) return;
+    var m = multiSel;
+    multiSel = null;
+    m.idxs.forEach(function (j) { if (m.sec.nodes[j]) m.sec.nodes[j].classList.remove('gogh-multisel'); });
+  }
+  function setMulti(secM, idxs) {
+    clearMulti();
+    if (!idxs || !idxs.length) return;
+    if (idxs.length === 1) { placeHandles(secM, idxs[0]); return; }
+    exitTextEdit();
+    closePanel();
+    sel = null;
+    hideHandles();
+    multiSel = { sec: secM, idxs: idxs.slice().sort(function (a, b) { return a - b; }) };
+    multiSel.idxs.forEach(function (j) { if (secM.nodes[j]) secM.nodes[j].classList.add('gogh-multisel'); });
+  }
 
   function nodeBox(node) {
     var w = node.offsetWidth, h = node.offsetHeight;
@@ -1245,6 +1264,25 @@
       if (!editing || drag || resize) return;
       if (textEditing && textEditing.node === node) return; // native caret/selection
       if (textEditing) exitTextEdit();
+      if (ev.shiftKey && !ev.metaKey && !ev.ctrlKey) {
+        // shift-click gathers a group (and shift-clicking again drops one)
+        ev.preventDefault();
+        var base = (multiSel && multiSel.sec === sec) ? multiSel.idxs.slice()
+          : (sel && sel.sec === sec ? [sel.i] : []);
+        var at = base.indexOf(i);
+        if (at === -1) base.push(i); else base.splice(at, 1);
+        setMulti(sec, base);
+        return;
+      }
+      if (multiSel && multiSel.sec === sec && multiSel.idxs.indexOf(i) !== -1) {
+        // grabbing any member drags the whole group
+        sel = { sec: sec, i: i };
+        pendingDrag = { sec: sec, i: i, node: node,
+          x: ev.clientX, y: ev.clientY, wasSelected: false,
+          ev: { altKey: false, clientX: ev.clientX, clientY: ev.clientY, pointerId: ev.pointerId } };
+        return;
+      }
+      if (multiSel) clearMulti();
       if (explodeSt) {
         // exploded stack: a click plucks that element, anything else closes
         var wasFan = explodeSt.sec === sec && explodeSt.cluster.indexOf(i) !== -1;
@@ -1778,6 +1816,18 @@
     pushState();
   }
   function deleteSelected() {
+    if (multiSel) {
+      var msec = multiSel.sec;
+      var idxs = multiSel.idxs.slice().sort(function (a, b) { return b - a; });
+      clearMulti();
+      idxs.forEach(function (j) { msec.els.splice(j, 1); });
+      sel = null;
+      hideHandles();
+      closePanel();
+      renderSection(msec);
+      pushState();
+      return;
+    }
     if (!sel) return;
     var sec = sel.sec;
     sec.els.splice(sel.i, 1);
@@ -2811,6 +2861,11 @@
     node.classList.add('gogh-dragsrc');
     dropBox.hidden = false;
     drag = { sec: sec, i: i, px: ev.clientX, py: ev.clientY, x: e.x, y: e.y, gx: r.left, gy: r.top };
+    if (multiSel && multiSel.sec === sec && multiSel.idxs.indexOf(i) !== -1) {
+      drag.multi = multiSel.idxs.filter(function (j) { return j !== i; }).map(function (j) {
+        return { j: j, x: sec.els[j].x, y: sec.els[j].y };
+      });
+    }
     document.documentElement.classList.add('gogh-dragging');
     hideBoundaryUI();
     hideHandles();
@@ -2865,6 +2920,14 @@
         }
       }
     }
+    if (drag.multi) {
+      var mdx = e.x - drag.x, mdy = e.y - drag.y;
+      drag.multi.forEach(function (mm) {
+        var o = sec.els[mm.j];
+        o.x = Math.max(0, Math.min(W - o.w, mm.x + mdx));
+        o.y = Math.max(0, mm.y + mdy);
+      });
+    }
     if (!dragRaf) {
       dragRaf = true;
       requestAnimationFrame(function () {
@@ -2884,6 +2947,7 @@
   function endDrag() {
     if (!drag) return;
     var sec = drag.sec, i = drag.i;
+    var multiD = drag.multi || null;
     var gxCapD = !!drag.gxCap, gyCapD = !!drag.gyCap;
     var eqHD = !!drag.eqH, eqVD = !!drag.eqV;
     var lockedXD = !!drag.lockedX, lockedYD = !!drag.lockedY;
@@ -2905,11 +2969,20 @@
     // button padding stretch max-content rows), so the linear pointer→model
     // mapping lands low — correct until the element sits where the ghost was
     if (ghostTop !== null) {
+      var totalCorr = 0;
       for (var pass = 0; pass < 2; pass++) {
         var b = nodeBox(sec.nodes[i]);
         var dDesign = Math.round((ghostTop - b.y) / scaleOf(sec));
         if (Math.abs(dDesign) < 3) break;
         sec.els[i].y = Math.max(0, sec.els[i].y + dDesign);
+        totalCorr += dDesign;
+        resolveAndApply(sec);
+      }
+      if (multiD && totalCorr) {
+        multiD.forEach(function (mm) {
+          var o = sec.els[mm.j];
+          o.y = Math.max(0, o.y + totalCorr);
+        });
         resolveAndApply(sec);
       }
     }
@@ -2922,7 +2995,7 @@
       if (!gyCapD && !eqVD && !lockedYD) eDrop.y = Math.max(0, Math.round(eDrop.y / BASE) * BASE);
       resolveAndApply(sec);
     }
-    placeHandles(sec, i);
+    if (multiD) { sel = null; } else { placeHandles(sec, i); }
     pushState();
   }
   document.addEventListener('pointerup', function () { if (drag) endDrag(); });
@@ -3388,6 +3461,52 @@
   }, { passive: true });
 
   // debug/state hook
+  // ---------- marquee: drag on empty canvas to lasso a group ----------
+  var marq = null;
+  var marqBox = document.createElement('div');
+  marqBox.className = 'gogh-marquee';
+  marqBox.hidden = true;
+  document.body.appendChild(marqBox);
+  document.addEventListener('pointerdown', function (ev) {
+    if (!editing || drag || resize || hDrag || rotD || panelOpen || !picker.hidden) return;
+    if (ev.button !== 0 || ev.shiftKey) return;
+    var t = ev.target;
+    if (!t.classList || !t.classList.contains('gogh-section')) return;
+    var secM = S.filter(function (s) { return s.sectionEl === t; })[0];
+    if (!secM) return;
+    marq = { sec: secM, x0: ev.clientX, y0: ev.clientY, x1: ev.clientX, y1: ev.clientY, on: false };
+  });
+  document.addEventListener('pointermove', function (ev) {
+    if (!marq) return;
+    marq.x1 = ev.clientX;
+    marq.y1 = ev.clientY;
+    if (!marq.on && Math.hypot(marq.x1 - marq.x0, marq.y1 - marq.y0) < 6) return;
+    marq.on = true;
+    marqBox.style.left = Math.min(marq.x0, marq.x1) + 'px';
+    marqBox.style.top = Math.min(marq.y0, marq.y1) + 'px';
+    marqBox.style.width = Math.abs(marq.x1 - marq.x0) + 'px';
+    marqBox.style.height = Math.abs(marq.y1 - marq.y0) + 'px';
+    marqBox.hidden = false;
+  });
+  document.addEventListener('pointerup', function () {
+    if (!marq) return;
+    var m = marq;
+    marq = null;
+    marqBox.hidden = true;
+    if (!m.on) return;
+    var r = m.sec.sectionEl.getBoundingClientRect();
+    if (r.width < 10) return;
+    var s = r.width / W;
+    var rx0 = (Math.min(m.x0, m.x1) - r.left) / s, rx1 = (Math.max(m.x0, m.x1) - r.left) / s;
+    var ry0 = (Math.min(m.y0, m.y1) - r.top) / s, ry1 = (Math.max(m.y0, m.y1) - r.top) / s;
+    var hits = [];
+    m.sec.els.forEach(function (o, j) {
+      if (o.x < rx1 && o.x + o.w > rx0 && o.y < ry1 && o.y + o.h > ry0) hits.push(j);
+    });
+    if (hits.length >= 2) setMulti(m.sec, hits);
+    else if (hits.length === 1) placeHandles(m.sec, hits[0]);
+  });
+
   // ---------- exploded layers: press-and-hold a stack to fan it out ----------
   var explodeSt = null, explodeHold = null;
   function cancelExplodeHold() {
@@ -3446,6 +3565,17 @@
   }
   document.addEventListener('keydown', function (ev) {
     if (ev.key === 'Escape' && explodeSt) { exitExplode(); ev.stopPropagation(); }
+    else if (ev.key === 'Escape' && multiSel) { clearMulti(); ev.stopPropagation(); }
+  }, true);
+  document.addEventListener('pointerdown', function (ev) {
+    if (!multiSel || ev.shiftKey) return;
+    if (ev.target.closest && ev.target.closest('.gogh-side, .gogh-panel, .gogh-secbar, .gogh-elbar, .gogh-marquee')) return;
+    var member = false;
+    multiSel.idxs.forEach(function (j) {
+      var n = multiSel.sec.nodes[j];
+      if (n && (n === ev.target || n.contains(ev.target))) member = true;
+    });
+    if (!member) clearMulti();
   }, true);
 
   // ---------- x-ray: hold ` to see the grid the solver built ----------
@@ -3609,6 +3739,7 @@
     xray: setXray,
     mirror: { open: openMirror, close: closeMirror, refresh: refreshMirror, el: mirror },
     explode: { enter: enterExplode, exit: exitExplode, state: function () { return explodeSt; } },
+    multi: { set: setMulti, clear: clearMulti, state: function () { return multiSel; } },
     get state() {
       return { editing: editing, sections: S.length, sel: sel ? { i: sel.i } : null,
         drag: !!drag, resize: !!resize, history: history.length, hIdx: hIdx };
@@ -3698,12 +3829,29 @@
       return;
     }
     if (typing) return;
-    if ((ev.key === 'Delete' || ev.key === 'Backspace') && sel) {
+    if ((ev.key === 'Delete' || ev.key === 'Backspace') && (sel || multiSel)) {
       ev.preventDefault();
       deleteSelected();
       return;
     }
-    if (!sel || !/^Arrow/.test(ev.key)) return;
+    if ((!sel && !multiSel) || !/^Arrow/.test(ev.key)) return;
+    if (multiSel) {
+      var mstep = ev.shiftKey ? BASE : 1;
+      var msec2 = multiSel.sec;
+      multiSel.idxs.forEach(function (j) {
+        var o = msec2.els[j];
+        if (ev.key === 'ArrowLeft') o.x = Math.max(0, o.x - mstep);
+        else if (ev.key === 'ArrowRight') o.x = Math.min(W - o.w, o.x + mstep);
+        else if (ev.key === 'ArrowUp') o.y = Math.max(0, o.y - mstep);
+        else if (ev.key === 'ArrowDown') o.y = o.y + mstep;
+      });
+      ev.preventDefault();
+      resolveAndApply(msec2);
+      clearTimeout(textTimer);
+      textTimer = setTimeout(pushState, 500);
+      refreshChip();
+      return;
+    }
     var step = ev.shiftKey ? BASE : 1;
     var sec = sel.sec;
     var e = sec.els[sel.i];

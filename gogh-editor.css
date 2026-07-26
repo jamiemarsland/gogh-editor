@@ -1333,3 +1333,21 @@ html.gogh-editing .gogh-mirror { display: flex; }
   cursor: pointer;
 }
 .gogh-pending [contenteditable="true"] { outline: 1.5px solid #7ea8ff; outline-offset: 3px; }
+
+.gogh-multisel {
+  outline: 1.5px solid #7ea8ff;
+  outline-offset: 3px;
+  border-radius: 3px;
+}
+.gogh-marquee {
+  position: fixed;
+  z-index: 99996;
+  border: 1.5px solid #7ea8ff;
+  background: rgba(126, 168, 255, 0.12);
+  border-radius: 3px;
+  pointer-events: none;
+}
+
+/* the drag ghost is sized inline in px — the gogh-wrap min-width floor
+   (site-editor fix) must not inflate it to the viewport */
+.gogh-ghostel { min-width: 0 !important; }
