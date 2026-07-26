@@ -593,6 +593,21 @@
   function buildAllBlocks() {
     return realSections().map(buildSectionBlocks).join('\n\n');
   }
+  // gogh sections and freshly added native patterns, in page order
+  function pageStream() {
+    var parts = [];
+    [].slice.call(pageParent.children).forEach(function (n) {
+      if (!n.classList) return;
+      if (n.classList.contains('gogh-wrap')) {
+        var sec = realSections().filter(function (s) { return s.wrapEl === n; })[0];
+        if (sec) parts.push(buildSectionBlocks(sec));
+      } else if (n.classList.contains('gogh-pending')) {
+        var pe = pendingBlocks.filter(function (q) { return q.el === n; })[0];
+        if (pe) parts.push(pe.raw);
+      }
+    });
+    return parts.join('\n\n');
+  }
 
   // ---------- element factory & rendering ----------
   // sanitize inline rich text to a safe subset: links, bold, italic, br.
@@ -3745,7 +3760,10 @@
   var backedUp = false;
   var discarding = false;
 
-  function isDirty() { return savedSnap !== null && serialize() !== savedSnap; }
+  function isDirty() {
+    if (pendingBlocks.length) return true;
+    return savedSnap !== null && serialize() !== savedSnap;
+  }
 
   var chip = document.createElement('div');
   chip.className = 'gogh-chip';
@@ -4262,57 +4280,75 @@
       .then(function (d) { p.__rendered = (d && d.rendered) || ''; return p.__rendered; })
       .catch(function () { return ''; });
   }
+  var pendingBlocks = []; // native pattern sections awaiting publish
   function addPatternSection(p, idx) {
     if (idx == null) idx = S.length;
-    renderPattern(p).then(function (html) {
+    return renderPattern(p).then(function (html) {
       if (!html) throw new Error('empty');
-      // stage the rendered pattern in the real page flow, let images and
-      // fonts settle, then measure it into a freeform section
-      var stage = document.createElement('div');
-      stage.className = 'alignfull';
-      stage.innerHTML = html;
+      // the pattern arrives as REAL blocks — pixel-perfect, no conversion.
+      // Freeform is one click away on its overlay, like any page content.
+      var holder = document.createElement('div');
+      holder.className = 'gogh-pending';
+      holder.innerHTML = html;
       var nextContent = null;
       for (var ni = idx; ni < S.length; ni++) { if (!S[ni].chrome) { nextContent = S[ni]; break; } }
-      var anchor = nextContent ? nextContent.wrapEl : endMarker;
-      pageParent.insertBefore(stage, anchor);
-      var waits = [].slice.call(stage.querySelectorAll('img')).map(function (im) {
-        return im.complete ? Promise.resolve() : new Promise(function (res) {
-          im.addEventListener('load', res, { once: true });
-          im.addEventListener('error', res, { once: true });
-          setTimeout(res, 1800);
-        });
+      pageParent.insertBefore(holder, nextContent ? nextContent.wrapEl : endMarker);
+      var entry = { el: holder, raw: p.content || '', title: p.title || 'Section' };
+      pendingBlocks.push(entry);
+      var bar = document.createElement('div');
+      bar.className = 'gogh-pendbar';
+      bar.innerHTML =
+        '<button type="button" class="gogh-btn gogh-btn-small gogh-pend-ff">\u2728 Make freeform</button>' +
+        '<button type="button" class="gogh-btn gogh-btn-small gogh-pend-rm" title="Remove">\u2715</button>';
+      holder.appendChild(bar);
+      bar.querySelector('.gogh-pend-ff').addEventListener('click', function () {
+        convertPending(entry);
       });
-      if (document.fonts && document.fonts.ready) waits.push(document.fonts.ready);
-      return Promise.all(waits).then(function () {
-        var scan = scanDomWithRaw(stage, p.content || '', { loose: true });
-        if (!scan.els.length) throw new Error('empty');
-        var sec = newSectionShell('gogh-sec-' + (scopeSeq++));
-        sec.els = scan.els;
-        sec.minH = scan.minH;
-        var first = stage.firstElementChild;
-        if (first) {
-          var bgc = getComputedStyle(first).backgroundColor;
-          if (bgc && bgc !== 'rgba(0, 0, 0, 0)' && bgc !== 'transparent') sec.bg = bgc;
-        }
-        stage.replaceWith(sec.wrapEl);
-        S.splice(idx, 0, sec);
-        for (var bi = S.length - 1; bi >= 0; bi--) {
-          if (S[bi].bootstrap && !S[bi].els.length && S[bi] !== sec) {
-            S[bi].wrapEl.remove();
-            if (S[bi].styleEl && S[bi].styleEl.parentNode) S[bi].styleEl.parentNode.removeChild(S[bi].styleEl);
-            S.splice(bi, 1);
-          }
-        }
-        renderSection(sec);
-        sel = null;
-        hideHandles();
-        sec.wrapEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
-        pushState();
-        toast('\u2728 \u201c' + (p.title || 'Pattern') + '\u201d is freeform now \u2014 drag anything.', { ttl: 4500 });
+      bar.querySelector('.gogh-pend-rm').addEventListener('click', function () {
+        holder.remove();
+        pendingBlocks = pendingBlocks.filter(function (q) { return q !== entry; });
+        refreshChip();
       });
+      holder.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      refreshChip();
+      toast('\u201c' + entry.title + '\u201d added as regular blocks \u2014 \u2728 makes it freeform.', { ttl: 5000 });
     }).catch(function () {
       toast('Could not add that section.', { error: true });
     });
+  }
+  function convertPending(entry) {
+    var holder = entry.el;
+    var scan = scanDomWithRaw(holder, entry.raw, { loose: true });
+    if (!scan.els.length) {
+      toast('gogh found nothing it can edit in this section.', { error: true });
+      return;
+    }
+    var sec = newSectionShell('gogh-sec-' + (scopeSeq++));
+    sec.els = scan.els;
+    sec.minH = scan.minH;
+    var first = holder.firstElementChild;
+    if (first && !(first.classList && first.classList.contains('gogh-pendbar'))) {
+      var bgc = getComputedStyle(first).backgroundColor;
+      if (bgc && bgc !== 'rgba(0, 0, 0, 0)' && bgc !== 'transparent') sec.bg = bgc;
+    }
+    // model position: right after the last gogh section above the holder
+    var sIdx = S.filter(function (s) { return s.chrome; }).length ? 1 : 0;
+    var prev = holder.previousElementSibling;
+    while (prev) {
+      if (prev.classList && prev.classList.contains('gogh-wrap')) {
+        var owner = S.filter(function (s) { return s.wrapEl === prev; })[0];
+        if (owner) { sIdx = S.indexOf(owner) + 1; break; }
+      }
+      prev = prev.previousElementSibling;
+    }
+    holder.replaceWith(sec.wrapEl);
+    pendingBlocks = pendingBlocks.filter(function (q) { return q !== entry; });
+    S.splice(sIdx, 0, sec);
+    renderSection(sec);
+    sel = null;
+    hideHandles();
+    pushState();
+    toast('\u2728 \u201c' + entry.title + '\u201d is freeform now \u2014 drag anything.', { ttl: 4500 });
   }
   window.__goghAddPattern = function (name, idx) {
     return fetchSectionPatterns().then(function (pats) {
@@ -4601,6 +4637,7 @@
     function walkDomOnly(containerDom) {
       [].slice.call(containerDom.children).forEach(function (c) {
         var cl = c.classList;
+        if (cl && cl.contains('gogh-pendbar')) return;
         if (cl.contains('wp-block-cover')) return coverInto(c, null);
         if (cl.contains('wp-block-group') || cl.contains('wp-block-columns') ||
             cl.contains('wp-block-column') || !c.className) {
@@ -4611,7 +4648,9 @@
     }
     function walk(containerDom, rawText) {
       var spans = parseTopBlocks(rawText);
-      var kids = [].slice.call(containerDom.children);
+      var kids = [].slice.call(containerDom.children).filter(function (c) {
+        return !(c.classList && c.classList.contains('gogh-pendbar'));
+      });
       if (!spans.length || spans.length !== kids.length) {
         if (opts.loose) { walkDomOnly(containerDom); return; }
         // strict (chrome): capture the container whole so its blocks stay
@@ -4921,7 +4960,7 @@
         raw = raw.slice(0, r.sp.start) + buildSectionBlocks(r.sec) + raw.slice(r.sp.end);
       });
     }
-    var blocks = buildAllBlocks();
+    var blocks = pendingBlocks.length ? pageStream() : buildAllBlocks();
     var spans = [], i = 0;
     for (;;) {
       var a = raw.indexOf(OPEN, i);
@@ -4940,7 +4979,7 @@
       return trimmed + (trimmed ? '\n\n' : '') + blocks;
     }
     var secs = realSections();
-    if (spans.length === secs.length) {
+    if (spans.length === secs.length && !pendingBlocks.length) {
       // 1:1 — rewrite each span in place, preserving interleaved blocks
       var out = '', pos = 0;
       spans.forEach(function (sp, k) {
