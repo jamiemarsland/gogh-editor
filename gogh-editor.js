@@ -340,6 +340,7 @@
     image: 'border-radius: clamp(8px, 1.5cqw, 20px);',
     badge: 'display: flex; align-items: center; gap: 0.6em; height: 100%; background: #fff; color: #141519; border-radius: clamp(6px, 1.2cqw, 14px); padding: 0 1.1em; font-size: clamp(11px, 1.15cqw, 14px); font-weight: 600; box-shadow: 0 14px 34px -12px rgba(0,0,0,0.55); white-space: nowrap;',
     widget: 'display: flex; align-items: center;',
+    box: '',
   };
   var isText = function (e) { return e.type === 'heading' || e.type === 'para'; };
   var fixedHeight = function (e) { return e.type === 'button' || e.type === 'image' || e.type === 'badge' || e.type === 'widget'; };
@@ -416,6 +417,12 @@
       if (e.type === 'image') {
         extra += e.src ? ' overflow: hidden;' : ' ' + imageBackground(e);
       }
+      if (e.type === 'box') {
+        var bv = e.boxBg || '';
+        if (bv && /^[a-z0-9-]+$/.test(bv)) bv = 'var(--wp--preset--color--' + bv + ')';
+        if (bv) extra += ' background: ' + bv + ';';
+        if (e.radius) extra += ' border-radius: ' + (Math.round(e.radius / 12 * 100) / 100) + 'cqw;';
+      }
       if (e.rot) extra += ' transform: rotate(' + e.rot + 'deg);';
       if ((e.align === 'center' || e.align === 'right') && (e.type === 'heading' || e.type === 'para')) extra += ' text-align: ' + e.align + ';';
       if (e.type === 'button' && e.btnHover) {
@@ -484,7 +491,8 @@
       alt: e.alt || null, mediaId: e.mediaId || null, fs: e.fs || null,
       align: e.align || null, color: e.color || null,
       btnBg: e.btnBg || null, btnText: e.btnText || null, btnHover: e.btnHover || null,
-      wsrc: e.wsrc || null, whtml: e.whtml || null };
+      wsrc: e.wsrc || null, whtml: e.whtml || null,
+      boxBg: e.boxBg || null, radius: e.radius || 0 };
   }
   function buildSectionBlocks(sec) {
     var els = sec.els;
@@ -542,6 +550,19 @@
         case 'badge':
           return '<!-- wp:paragraph {"className":"' + cls + ' gogh-badge"} -->\n' +
             '<p class="' + cls + ' gogh-badge">' + esc(e.text) + '</p>\n<!-- /wp:paragraph -->';
+        case 'box': {
+          // a coloured backdrop rectangle: an empty group. Preset colours go
+          // in block attrs; raw colours ride in the section stylesheet, which
+          // ships inside the page either way.
+          var boxAttrs = { className: cls + ' gogh-box', layout: { type: 'default' } };
+          var boxCls = 'wp-block-group ' + cls + ' gogh-box';
+          if (e.boxBg && /^[a-z0-9-]+$/.test(e.boxBg)) {
+            boxAttrs.backgroundColor = e.boxBg;
+            boxCls += ' has-' + e.boxBg + '-background-color has-background';
+          }
+          return '<!-- wp:group ' + JSON.stringify(boxAttrs) + ' -->\n' +
+            '<div class="' + boxCls + '"></div>\n<!-- /wp:group -->';
+        }
         case 'widget':
           // atomic block (navigation, site title…): source markup verbatim,
           // wrapped so the solver can place it
@@ -616,6 +637,10 @@
     var cls = 'gogh-el-' + (i + 1);
     var n;
     switch (e.type) {
+      case 'box':
+        n = document.createElement('div');
+        n.className = 'wp-block-group gogh-box ' + cls;
+        break;
       case 'heading':
         n = document.createElement('h2');
         n.className = 'wp-block-heading ' + cls + (e.fs ? ' has-' + e.fs + '-font-size' : '') + (e.color ? ' has-text-color has-' + e.color + '-color' : '');
@@ -1879,6 +1904,15 @@
   var pickerIdx = null;
 
   function closePicker() { picker.hidden = true; }
+  function fitCardStage(pv, st) {
+    // show the WHOLE design: shrink tall sections to fit, centre the rest
+    var h = st.scrollHeight || 1;
+    var scale = Math.min(pv.clientWidth / 1200, (pv.clientHeight || 1) / h);
+    if (!isFinite(scale) || scale <= 0) scale = pv.clientWidth / 1200;
+    st.style.transform = 'scale(' + scale + ')';
+    st.style.left = Math.max(0, Math.round((pv.clientWidth - 1200 * scale) / 2)) + 'px';
+    st.style.top = Math.max(0, Math.round(((pv.clientHeight || 0) - h * scale) / 2)) + 'px';
+  }
   function openPicker(idx) {
     pickerIdx = idx;
     var cards = TEMPLATES.map(function (tpl, t) {
@@ -1912,7 +1946,7 @@
     });
     picker.querySelectorAll('.gogh-card-prev').forEach(function (p) {
       var st = p.querySelector('.gogh-card-stage');
-      if (st) st.style.transform = 'scale(' + (p.clientWidth / 1200) + ')';
+      if (st) fitCardStage(p, st);
     });
     var cardsBox = picker.querySelector('.gogh-cards');
     fetch(blocksUrl() + '?per_page=100&context=edit', {
@@ -1951,7 +1985,7 @@
         cardsBox.insertBefore(b, themeSub || null);
         var pv = b.querySelector('.gogh-card-prev');
         var st = b.querySelector('.gogh-card-stage');
-        st.style.transform = 'scale(' + (pv.clientWidth / 1200 || 0.2) + ')';
+        fitCardStage(pv, st);
         b.addEventListener('click', function () {
           insertGoghPattern(raw, pickerIdx);
           closePicker();
@@ -2010,7 +2044,10 @@
           // icons) has no business as a section starting point
           var textLen = (st.textContent || '').trim().length;
           if (textLen < 30 && !st.querySelector('img')) { b.remove(); return; }
-          st.style.transform = 'scale(' + (pv.clientWidth / 1200) + ')';
+          fitCardStage(pv, st);
+          [].slice.call(st.querySelectorAll('img')).forEach(function (im) {
+            if (!im.complete) im.addEventListener('load', function () { fitCardStage(pv, st); }, { once: true });
+          });
           // trial-convert the very render we're showing: if the scan loses
           // the content, don't offer the section at all
           try {
@@ -4466,6 +4503,21 @@
       e.h = Math.max(16, Math.round(r.height * sx));
       out.push(e);
     }
+    function boxFrom(dom) {
+      // a group that paints its own background must not vanish when we
+      // flatten it — it becomes a box element behind its children
+      var cs = getComputedStyle(dom);
+      var bgc = cs.backgroundColor;
+      var hasBg = bgc && bgc !== 'rgba(0, 0, 0, 0)' && bgc !== 'transparent';
+      var grad = cs.backgroundImage && cs.backgroundImage.indexOf('gradient') !== -1;
+      if (!hasBg && !grad) return;
+      var e = { type: 'box' };
+      var m = (dom.className + '').match(/has-([a-z0-9-]+)-background-color/);
+      e.boxBg = m ? m[1] : (grad ? cs.backgroundImage : bgc);
+      var rad = parseFloat(cs.borderTopLeftRadius) || 0;
+      if (rad) e.radius = Math.round(rad * sx);
+      place(dom, e);
+    }
     function textStyle(dom, e) {
       var cls = dom.className + '';
       var fm = cls.match(/has-([a-z0-9-]+)-font-size/);
@@ -4509,9 +4561,14 @@
         if (btns.length) {
           btns.forEach(function (btn) {
             var a = btn.querySelector('a');
+            var lc = (a && a.className) || '';
+            var bgm = lc.match(/has-([a-z0-9-]+)-background-color/);
+            var txm = lc.replace(/has-[a-z0-9-]+-background-color/g, '').match(/has-((?!text-color)[a-z0-9-]+)-color/);
             place(btn, { type: 'button',
               text: ((a || btn).textContent || '').trim(),
               href: (a && a.getAttribute('href') && a.getAttribute('href') !== '#') ? a.getAttribute('href') : null,
+              btnBg: bgm ? bgm[1] : null,
+              btnText: txm ? txm[1] : null,
               ghost: btn.className.indexOf('is-style-outline') !== -1 });
           });
           return;
@@ -4541,7 +4598,7 @@
         if (cl.contains('wp-block-cover')) return coverInto(c, null);
         if (cl.contains('wp-block-group') || cl.contains('wp-block-columns') ||
             cl.contains('wp-block-column') || !c.className) {
-          if (c.children.length) return walkDomOnly(c);
+          if (c.children.length) { boxFrom(c); return walkDomOnly(c); }
         }
         leafFrom(c, null);
       });
@@ -4566,7 +4623,7 @@
         }
         if (nm === 'group' || nm === 'columns' || nm === 'column') {
           var inner = innerRawOf(rawText, sp);
-          if (inner && dom.children.length) { walk(dom, inner.text); return; }
+          if (inner && dom.children.length) { boxFrom(dom); walk(dom, inner.text); return; }
         }
         leafFrom(dom, markup);
       });
