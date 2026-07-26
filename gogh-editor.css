@@ -502,7 +502,9 @@
   position: absolute;
   top: 0;
   left: 0;
-  width: 1200px;
+  /* the stage is also .gogh-wrap, whose generated CSS now floors width at
+     100%% — the design surface must stay 1200px regardless */
+  width: 1200px !important;
   transform-origin: 0 0;
   container-type: inline-size;
   display: block;
