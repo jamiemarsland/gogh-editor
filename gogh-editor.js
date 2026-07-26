@@ -1915,6 +1915,60 @@
       if (st) st.style.transform = 'scale(' + (p.clientWidth / 1200) + ')';
     });
     var cardsBox = picker.querySelector('.gogh-cards');
+    fetch(blocksUrl() + '?per_page=100&context=edit', {
+      headers: { 'X-WP-Nonce': cfg.nonce },
+      credentials: 'same-origin',
+    }).then(function (r) { return r.ok ? r.json() : []; }).then(function (blocks) {
+      var mine = (blocks || []).filter(function (bk) {
+        return ((bk.content && bk.content.raw) || '').indexOf('wp:gogh/section') !== -1;
+      });
+      if (!mine.length || picker.hidden || !cardsBox.parentNode) return;
+      var head = document.createElement('div');
+      head.className = 'gogh-picker-sub';
+      head.textContent = 'Your patterns';
+      var themeSub = cardsBox.querySelector('.gogh-picker-sub');
+      cardsBox.insertBefore(head, themeSub || null);
+      mine.forEach(function (bk) {
+        var raw = (bk.content && bk.content.raw) || '';
+        var tpl = document.createElement('template');
+        tpl.innerHTML = raw;
+        var modelEl = tpl.content.querySelector('script.gogh-model');
+        var model = null;
+        try { model = modelEl ? JSON.parse(modelEl.textContent) : null; } catch (err) {}
+        if (!model || !model.elements) return;
+        var b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'gogh-card gogh-card-mine';
+        var scope = 'gogh-mine-' + bk.id;
+        var css = buildCSS(model.elements, scope, model.minH || null, { bg: model.bg || null, bgImage: model.bgImage || null });
+        var inner = model.elements.map(function (e, i) { return makeNode(e, i).outerHTML; }).join('');
+        b.innerHTML = '<span class="gogh-card-prev"><style>' + css + '</style>' +
+          '<span class="gogh-card-stage gogh-wrap"><span class="gogh-card-sec gogh-section ' + scope + '">' + inner + '</span></span>' +
+          '</span>' +
+          '<span class="gogh-card-name"></span>' +
+          '<span class="gogh-card-delpat" title="Delete pattern">\u2715</span>';
+        b.querySelector('.gogh-card-name').textContent = '\u2764 ' + ((bk.title && bk.title.raw) || 'My pattern');
+        cardsBox.insertBefore(b, themeSub || null);
+        var pv = b.querySelector('.gogh-card-prev');
+        var st = b.querySelector('.gogh-card-stage');
+        st.style.transform = 'scale(' + (pv.clientWidth / 1200 || 0.2) + ')';
+        b.addEventListener('click', function () {
+          insertGoghPattern(raw, pickerIdx);
+          closePicker();
+        });
+        b.querySelector('.gogh-card-delpat').addEventListener('click', function (ev) {
+          ev.stopPropagation();
+          fetch(blocksUrl(bk.id) + '?force=true', {
+            method: 'DELETE',
+            headers: { 'X-WP-Nonce': cfg.nonce },
+            credentials: 'same-origin',
+          }).then(function (res) {
+            if (res.ok) { b.remove(); toast('Pattern deleted.'); }
+            else toast('Could not delete that pattern.', { error: true });
+          });
+        });
+      });
+    });
     fetchSectionPatterns().then(function (pats) {
       if (picker.hidden || !pats.length || !cardsBox.parentNode) return;
       var head = document.createElement('div');
@@ -2223,6 +2277,9 @@
     '<button type="button" class="gogh-sb" data-sec="up" title="Move up">↑</button>' +
     '<button type="button" class="gogh-sb" data-sec="down" title="Move down">↓</button>' +
     '<button type="button" class="gogh-sb" data-sec="bgimg" title="Background image">' + CTX_ICONS.image + '</button>' +
+    '<button type="button" class="gogh-sb" data-sec="savepat" title="Save as a pattern">' +
+    '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round"><path d="M6 3h12v18l-6-4.5L6 21Z"/></svg>' +
+    '</button>' +
     '<button type="button" class="gogh-sb" data-sec="dup" title="Duplicate section">⧉</button>' +
     '<button type="button" class="gogh-sb gogh-sb-del" data-sec="del" title="Delete section">🗑</button>';
   secBar.hidden = true;
@@ -2236,7 +2293,7 @@
     if (S[idx] && S[idx].chrome) { hideSecBar(); return; }
     secBarIdx = idx;
     var r = S[idx].wrapEl.getBoundingClientRect();
-    secBar.style.left = (r.right + window.scrollX - 16) + 'px';
+    secBar.style.left = (r.left + window.scrollX + 16) + 'px';
     secBar.style.top = (r.top + window.scrollY + 14) + 'px';
     secBar.querySelector('[data-sec="up"]').disabled = idx === 0;
     secBar.querySelector('[data-sec="down"]').disabled = idx === S.length - 1;
@@ -2258,12 +2315,90 @@
     var b = ev.target.closest('.gogh-sb');
     if (!b || secBarIdx === null) return;
     if (b.dataset.sec === 'bgimg') { openSecBgPanel(secBarIdx); return; }
+    if (b.dataset.sec === 'savepat') { openSavePatternPanel(secBarIdx); return; }
     if (b.dataset.sec === 'del') deleteSection(secBarIdx);
     else if (b.dataset.sec === 'up') moveSection(secBarIdx, -1);
     else if (b.dataset.sec === 'down') moveSection(secBarIdx, 1);
     else if (b.dataset.sec === 'dup') duplicateSection(secBarIdx);
   });
 
+  function blocksUrl(id) {
+    var base = cfg.restUrl.split('wp/v2/')[0] + 'wp/v2/blocks';
+    return id ? base + '/' + id : base;
+  }
+  function openSavePatternPanel(idx) {
+    var secx = S[idx];
+    var r = secx.wrapEl.getBoundingClientRect();
+    panel.style.left = (r.left + window.scrollX + 16) + 'px';
+    panel.style.top = (r.top + window.scrollY + 60) + 'px';
+    panel.innerHTML =
+      '<div class="gogh-panel-title">Save as a pattern</div>' +
+      '<div class="gogh-panel-hint">It joins \u201cYour patterns\u201d in + Section \u2014 and Gutenberg\u2019s inserter too.</div>' +
+      '<div class="gogh-panel-row">' +
+      '<input type="text" class="gogh-input gogh-patname" placeholder="Name it\u2026" />' +
+      '<button type="button" class="gogh-btn gogh-btn-small gogh-patsave">Save</button>' +
+      '</div>';
+    panel.hidden = false;
+    panelOpen = true;
+    var input = panel.querySelector('.gogh-patname');
+    input.focus();
+    var doSave = function () {
+      var name = input.value.trim();
+      if (!name) { input.focus(); return; }
+      var btn = panel.querySelector('.gogh-patsave');
+      btn.disabled = true;
+      fetch(blocksUrl(), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-WP-Nonce': cfg.nonce },
+        credentials: 'same-origin',
+        body: JSON.stringify({ title: name, status: 'publish',
+          content: buildSectionBlocks(secx),
+          meta: { wp_pattern_sync_status: 'unsynced' } }),
+      }).then(function (res) {
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        closePanel();
+        toast('\u201c' + name + '\u201d saved \u2014 it\u2019s in + Section under Your patterns.', { ttl: 5000 });
+      }).catch(function () {
+        btn.disabled = false;
+        toast('Could not save that pattern.', { error: true });
+      });
+    };
+    panel.querySelector('.gogh-patsave').addEventListener('click', doSave);
+    input.addEventListener('keydown', function (ev) {
+      if (ev.key === 'Enter') doSave();
+      if (ev.key === 'Escape') closePanel();
+    });
+  }
+  function insertGoghPattern(content, idx) {
+    var tpl = document.createElement('template');
+    tpl.innerHTML = content;
+    var wrap = tpl.content.querySelector('.gogh-wrap');
+    var modelEl = wrap && wrap.querySelector('script.gogh-model');
+    var model = null;
+    try { model = modelEl ? JSON.parse(modelEl.textContent) : null; } catch (err) {}
+    if (!model || !model.elements) {
+      toast('That pattern isn\u2019t a gogh section.', { error: true });
+      return;
+    }
+    if (idx == null) idx = S.length;
+    var sec = newSectionShell('gogh-sec-' + (scopeSeq++));
+    sec.els = model.elements;
+    sec.minH = model.minH || null;
+    sec.bg = model.bg || null;
+    sec.divider = model.divider || null;
+    sec.fx = model.fx || null;
+    sec.bgImage = model.bgImage || null;
+    sec.bgId = model.bgId || null;
+    var nextContent = null;
+    for (var ni = idx; ni < S.length; ni++) { if (!S[ni].chrome) { nextContent = S[ni]; break; } }
+    pageParent.insertBefore(sec.wrapEl, nextContent ? nextContent.wrapEl : endMarker);
+    S.splice(idx, 0, sec);
+    renderSection(sec);
+    sel = null;
+    hideHandles();
+    sec.wrapEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    pushState();
+  }
   function setSecBg(idx, src, id) {
     S[idx].bgImage = src || null;
     S[idx].bgId = src ? (id || null) : null;
