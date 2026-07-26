@@ -2189,8 +2189,19 @@
     var r = secx.wrapEl.getBoundingClientRect();
     panel.style.left = Math.max(8, r.right + window.scrollX - 360) + 'px';
     panel.style.top = (r.top + window.scrollY + 52) + 'px';
+    var pal = themePalette();
     panel.innerHTML =
-      '<div class="gogh-panel-title">Section background image</div>' +
+      '<div class="gogh-panel-title">Section background</div>' +
+      '<div class="gogh-panel-hint">Colour \u2014 with an image, it becomes the tint</div>' +
+      '<div class="gogh-swrow gogh-secbg-sw">' +
+      '<button type="button" class="gogh-sw gogh-sw-none" data-val="" title="None"></button>' +
+      pal.map(function (p) {
+        var val = 'var(--wp--preset--color--' + p.slug + ')';
+        return '<button type="button" class="gogh-sw' + (secx.bg === val ? ' is-active' : '') + '" data-val="' + val + '"' +
+          ' style="background: ' + val + '" title="' + p.slug + '"></button>';
+      }).join('') + '</div>' +
+      '<div class="gogh-panel-row gogh-panel-actions"><label class="gogh-colorlab">Custom <input type="color" class="gogh-color gogh-secbg-custom" /></label></div>' +
+      '<div class="gogh-panel-hint">Image</div>' +
       '<div class="gogh-panel-row">' +
       '<input type="url" class="gogh-input" placeholder="Paste image URL…" />' +
       '<button type="button" class="gogh-btn gogh-btn-small gogh-apply">Apply</button>' +
@@ -2199,6 +2210,23 @@
       '<div class="gogh-media"><span class="gogh-media-loading">Loading media…</span></div>';
     panel.hidden = false;
     panelOpen = true;
+    panel.querySelectorAll('.gogh-secbg-sw .gogh-sw').forEach(function (swb) {
+      swb.addEventListener('click', function () {
+        secx.bg = swb.dataset.val || null;
+        resolveAll();
+        pushState();
+        panel.querySelectorAll('.gogh-secbg-sw .gogh-sw').forEach(function (b2) {
+          b2.classList.toggle('is-active', b2 === swb && !!swb.dataset.val);
+        });
+      });
+    });
+    var custom = panel.querySelector('.gogh-secbg-custom');
+    if (secx.bg && secx.bg.charAt(0) === '#') custom.value = secx.bg;
+    custom.addEventListener('input', function () {
+      secx.bg = this.value;
+      resolveAll();
+    });
+    custom.addEventListener('change', pushState);
     var input = panel.querySelector('input[type="url"]');
     input.value = secx.bgImage || '';
     panel.querySelector('.gogh-apply').addEventListener('click', function () {
@@ -3288,6 +3316,7 @@
     sections: function () { return S; },
     showHbar: function (i) { placeHbar(S[i]); },
     openShapePanel: openShapePanel,
+    openSecBgPanel: openSecBgPanel,
     resolveAll: resolveAll,
     reflowPush: reflowPush,
     measure: measureTextHeights,
