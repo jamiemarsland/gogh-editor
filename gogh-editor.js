@@ -1880,7 +1880,9 @@
     sec.els = tplEls(tpl);
     sec.minH = tpl.minH || null;
     sec.bg = tpl.bg || null;
-    var anchor = idx < S.length ? S[idx].wrapEl : endMarker;
+    var nextContent = null;
+    for (var ni = idx; ni < S.length; ni++) { if (!S[ni].chrome) { nextContent = S[ni]; break; } }
+    var anchor = nextContent ? nextContent.wrapEl : endMarker;
     pageParent.insertBefore(sec.wrapEl, anchor);
     S.splice(idx, 0, sec);
     // a real section replaces the ?gogh-edit bootstrap placeholder
@@ -2324,10 +2326,19 @@
       insertRaf = false;
       if (hDrag) return;
       var found = null;
-      for (var idx = 0; idx <= S.length; idx++) {
-        var by = idx < S.length
-          ? S[idx].wrapEl.getBoundingClientRect().top
-          : S[S.length - 1].wrapEl.getBoundingClientRect().bottom;
+      // boundaries belong to page content: none above the site header,
+      // none below the site footer
+      var cIdxs = [];
+      for (var ci = 0; ci < S.length; ci++) { if (!S[ci].chrome) cIdxs.push(ci); }
+      for (var bi = 0; bi <= cIdxs.length && cIdxs.length; bi++) {
+        var idx, by;
+        if (bi < cIdxs.length) {
+          idx = cIdxs[bi];
+          by = S[idx].wrapEl.getBoundingClientRect().top;
+        } else {
+          idx = cIdxs[cIdxs.length - 1] + 1;
+          by = S[cIdxs[cIdxs.length - 1]].wrapEl.getBoundingClientRect().bottom;
+        }
         if (Math.abs(cy - by) < 28) { found = { idx: idx, y: by }; break; }
       }
       if (found) {
@@ -3664,7 +3675,9 @@
       var stage = document.createElement('div');
       stage.className = 'alignfull';
       stage.innerHTML = html;
-      var anchor = idx < S.length ? S[idx].wrapEl : endMarker;
+      var nextContent = null;
+      for (var ni = idx; ni < S.length; ni++) { if (!S[ni].chrome) { nextContent = S[ni]; break; } }
+      var anchor = nextContent ? nextContent.wrapEl : endMarker;
       pageParent.insertBefore(stage, anchor);
       var waits = [].slice.call(stage.querySelectorAll('img')).map(function (im) {
         return im.complete ? Promise.resolve() : new Promise(function (res) {
