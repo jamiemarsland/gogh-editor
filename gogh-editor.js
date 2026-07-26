@@ -1365,13 +1365,10 @@
     document.documentElement.classList.toggle('gogh-editing', on);
     side.hidden = !on;
     sideTab.hidden = !on;
-    if (on) {
-      // greet with the palette open, then tuck it away
-      openSide();
-      sideTimer = setTimeout(function () { closeSide(true); }, 1800);
-    } else {
+    if (!on) {
       closeSide(true);
     }
+    // the palette waits to be invited — its pulsing tab is the greeting
     editBtnWrap.hidden = on;
     hideHandles();
     hideGuides();
@@ -1997,10 +1994,35 @@
       '<div class="gogh-picker-inner">' +
       '<div class="gogh-picker-head">Add a section' +
       '<button type="button" class="gogh-btn gogh-btn-small gogh-picker-close">Close</button></div>' +
-      '<div class="gogh-cards">' + cards + '</div>' +
-      '</div>';
+      '<div class="gogh-cards">' + cards +
+      '<button type="button" class="gogh-card gogh-card-htmladd">' +
+      '<span class="gogh-card-prev gogh-htmladd-prev">&lt;/&gt;</span>' +
+      '<span class="gogh-card-name">Paste HTML</span>' +
+      '</button>' +
+      '</div></div>';
     picker.hidden = false;
     picker.querySelector('.gogh-picker-close').addEventListener('click', closePicker);
+    picker.querySelector('.gogh-card-htmladd').addEventListener('click', function () {
+      var inner = picker.querySelector('.gogh-picker-inner');
+      inner.innerHTML =
+        '<div class="gogh-picker-head">Paste HTML' +
+        '<button type="button" class="gogh-btn gogh-btn-small gogh-picker-close">Close</button></div>' +
+        '<div class="gogh-panel-hint">It lands as a real HTML block \u2014 click text to edit it, \u2728 makes it freeform. Great with AI-written HTML.</div>' +
+        '<textarea class="gogh-htmlpaste" placeholder="&lt;section&gt;\u2026&lt;/section&gt;" spellcheck="false"></textarea>' +
+        '<div class="gogh-panel-row gogh-chrome-foot">' +
+        '<button type="button" class="gogh-btn gogh-btn-small gogh-html-back">Back</button>' +
+        '<button type="button" class="gogh-btn-save gogh-btn-small gogh-html-add">Add to page</button>' +
+        '</div>';
+      inner.querySelector('.gogh-picker-close').addEventListener('click', closePicker);
+      inner.querySelector('.gogh-html-back').addEventListener('click', function () { openPicker(pickerIdx); });
+      var ta = inner.querySelector('.gogh-htmlpaste');
+      ta.focus();
+      inner.querySelector('.gogh-html-add').addEventListener('click', function () {
+        if (!ta.value.trim()) { ta.focus(); return; }
+        addHtmlSection(ta.value, pickerIdx);
+        closePicker();
+      });
+    });
     picker.addEventListener('pointerdown', function (ev) {
       if (ev.target === picker) closePicker();
     });
@@ -4456,41 +4478,52 @@
       .catch(function () { return ''; });
   }
   var pendingBlocks = []; // native pattern sections awaiting publish
-  function addPatternSection(p, idx) {
+  function insertNative(raw, html, title, idx) {
     if (idx == null) idx = S.length;
+    // arrives as REAL blocks — pixel-perfect, no conversion. Freeform is one
+    // click away on its overlay, like any page content.
+    var holder = document.createElement('div');
+    holder.className = 'gogh-pending alignfull has-global-padding is-layout-constrained';
+    holder.innerHTML = html;
+    var nextContent = null;
+    for (var ni = idx; ni < S.length; ni++) { if (!S[ni].chrome) { nextContent = S[ni]; break; } }
+    pageParent.insertBefore(holder, nextContent ? nextContent.wrapEl : endMarker);
+    var entry = { el: holder, raw: raw || '', title: title || 'Section' };
+    pendingBlocks.push(entry);
+    var bar = document.createElement('div');
+    bar.className = 'gogh-pendbar';
+    bar.innerHTML =
+      '<button type="button" class="gogh-btn gogh-btn-small gogh-pend-ff">\u2728 Make freeform</button>' +
+      '<button type="button" class="gogh-btn gogh-btn-small gogh-pend-rm" title="Remove">\u2715</button>';
+    holder.appendChild(bar);
+    bar.querySelector('.gogh-pend-ff').addEventListener('click', function () {
+      convertPending(entry);
+    });
+    bar.querySelector('.gogh-pend-rm').addEventListener('click', function () {
+      holder.remove();
+      pendingBlocks = pendingBlocks.filter(function (q) { return q !== entry; });
+      refreshChip();
+    });
+    bindPending(entry);
+    holder.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    refreshChip();
+    toast('\u201c' + entry.title + '\u201d added \u2014 click text to edit it, \u2728 to go freeform.', { ttl: 5000 });
+    return entry;
+  }
+  function addPatternSection(p, idx) {
     return renderPattern(p).then(function (html) {
       if (!html) throw new Error('empty');
-      // the pattern arrives as REAL blocks — pixel-perfect, no conversion.
-      // Freeform is one click away on its overlay, like any page content.
-      var holder = document.createElement('div');
-      holder.className = 'gogh-pending alignfull has-global-padding is-layout-constrained';
-      holder.innerHTML = html;
-      var nextContent = null;
-      for (var ni = idx; ni < S.length; ni++) { if (!S[ni].chrome) { nextContent = S[ni]; break; } }
-      pageParent.insertBefore(holder, nextContent ? nextContent.wrapEl : endMarker);
-      var entry = { el: holder, raw: p.content || '', title: p.title || 'Section' };
-      pendingBlocks.push(entry);
-      var bar = document.createElement('div');
-      bar.className = 'gogh-pendbar';
-      bar.innerHTML =
-        '<button type="button" class="gogh-btn gogh-btn-small gogh-pend-ff">\u2728 Make freeform</button>' +
-        '<button type="button" class="gogh-btn gogh-btn-small gogh-pend-rm" title="Remove">\u2715</button>';
-      holder.appendChild(bar);
-      bar.querySelector('.gogh-pend-ff').addEventListener('click', function () {
-        convertPending(entry);
-      });
-      bar.querySelector('.gogh-pend-rm').addEventListener('click', function () {
-        holder.remove();
-        pendingBlocks = pendingBlocks.filter(function (q) { return q !== entry; });
-        refreshChip();
-      });
-      bindPending(entry);
-      holder.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      refreshChip();
-      toast('\u201c' + entry.title + '\u201d added \u2014 click text to edit it, \u2728 to go freeform.', { ttl: 5000 });
+      insertNative(p.content || '', html, p.title, idx);
     }).catch(function () {
       toast('Could not add that section.', { error: true });
     });
+  }
+  function addHtmlSection(html, idx) {
+    html = String(html || '').replace(/<script[\s\S]*?<\/script\s*>/gi, '').trim();
+    if (!html) return;
+    // a real core HTML block: WordPress serves it verbatim, forever
+    var raw = '<!-- wp:html -->\n' + html + '\n<!-- /wp:html -->';
+    insertNative(raw, html, 'HTML', idx);
   }
   // ---------- light editing on native (pre-freeform) sections ----------
   // Rendered leaves pair with their markup spans; edits replace the span's
@@ -4513,6 +4546,14 @@
         entry.map.push({ node: dom, s: base + sp.start, e: base + sp.end });
       });
     })(entry.el, 0, entry.raw);
+    if (!entry.map.length) {
+      // one block, unmatched structure (an HTML block, say): the whole
+      // holder edits as a single span
+      var spans0 = parseTopBlocks(entry.raw);
+      if (spans0.length === 1) {
+        entry.map.push({ node: entry.el, s: spans0[0].start, e: spans0[0].end, whole: true });
+      }
+    }
     var holder = entry.el;
     var syncT = null;
     function leafOf(node) {
@@ -4527,11 +4568,16 @@
       c.removeAttribute('contenteditable');
       return c.outerHTML;
     }
+    function wholeCopy(node) {
+      return [].slice.call(node.children).filter(function (c) {
+        return !(c.classList && c.classList.contains('gogh-pendbar'));
+      }).map(function (c) { return cleanCopy(c); }).join('\n');
+    }
     function syncLeaf(leaf) {
       var markup = entry.raw.slice(leaf.s, leaf.e);
       var m = markup.match(/^([\s\S]*?-->)([\s\S]*?)(<!--\s*\/wp:[\s\S]*)$/);
       if (!m) return;
-      var next = m[1] + '\n' + cleanCopy(leaf.node) + '\n' + m[3];
+      var next = m[1] + '\n' + (leaf.whole ? wholeCopy(leaf.node) : cleanCopy(leaf.node)) + '\n' + m[3];
       var delta = next.length - markup.length;
       entry.raw = entry.raw.slice(0, leaf.s) + next + entry.raw.slice(leaf.e);
       leaf.e += delta;
@@ -4558,8 +4604,14 @@
         pickPendingImage(entry, img);
         return;
       }
+      var btnLink = ev.target.closest && ev.target.closest('.wp-block-button__link, .wp-element-button');
+      if (btnLink && !btnLink.closest('.gogh-pendbar') && leafOf(btnLink)) {
+        ev.preventDefault();
+        editPendingLink(entry, btnLink, leafOf(btnLink), syncLeaf);
+        return;
+      }
       var t = ev.target.closest &&
-        ev.target.closest('h1,h2,h3,h4,h5,h6,p,figcaption,.wp-block-button__link');
+        ev.target.closest('h1,h2,h3,h4,h5,h6,p,figcaption');
       if (!t || t.closest('.gogh-pendbar') || !leafOf(t)) return;
       if (activeEd && activeEd.el !== t) stopEdit();
       if (t.getAttribute('contenteditable') !== 'true') {
@@ -4593,6 +4645,41 @@
       }
     });
   }
+  function editPendingLink(entry, aEl, leaf, syncLeaf) {
+    var r = aEl.getBoundingClientRect();
+    panel.style.left = Math.max(8, r.left + window.scrollX) + 'px';
+    panel.style.top = (r.bottom + window.scrollY + 10) + 'px';
+    panel.innerHTML =
+      '<div class="gogh-panel-title">Button</div>' +
+      '<div class="gogh-panel-row">' +
+      '<input type="text" class="gogh-input gogh-btnlabel" placeholder="Label" />' +
+      '</div>' +
+      '<div class="gogh-panel-row">' +
+      '<input type="url" class="gogh-input gogh-btnhref" placeholder="Link to\u2026 (https://)" />' +
+      '<button type="button" class="gogh-btn gogh-btn-small gogh-apply">Apply</button>' +
+      '</div>';
+    panel.hidden = false;
+    panelOpen = true;
+    var lab = panel.querySelector('.gogh-btnlabel');
+    var href = panel.querySelector('.gogh-btnhref');
+    lab.value = (aEl.textContent || '').trim();
+    href.value = aEl.getAttribute('href') || '';
+    var apply = function () {
+      if (lab.value.trim()) aEl.textContent = lab.value.trim();
+      if (href.value.trim()) aEl.setAttribute('href', href.value.trim());
+      syncLeaf(leaf);
+      closePanel();
+      toast('Button updated.');
+    };
+    panel.querySelector('.gogh-apply').addEventListener('click', apply);
+    [lab, href].forEach(function (inp) {
+      inp.addEventListener('keydown', function (ev) {
+        if (ev.key === 'Enter') apply();
+        if (ev.key === 'Escape') closePanel();
+      });
+    });
+    lab.focus();
+  }
   function pickPendingImage(entry, img) {
     var leaf = null;
     for (var i = 0; i < entry.map.length; i++) {
@@ -4621,7 +4708,10 @@
       if (m2) {
         var frag = document.createElement('div');
         frag.innerHTML = m2[2];
-        var im2 = frag.querySelector('img');
+        var leafImgs = [].slice.call(entryLeaf.node.querySelectorAll('img')).filter(function (i2) {
+          return !i2.closest('.gogh-pendbar');
+        });
+        var im2 = frag.querySelectorAll('img')[Math.max(0, leafImgs.indexOf(img))];
         if (im2) { im2.src = src2; im2.removeAttribute('srcset'); im2.removeAttribute('sizes'); }
         var next = m2[1] + frag.innerHTML + m2[3];
         var delta = next.length - markup.length;

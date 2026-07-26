@@ -1311,7 +1311,20 @@ html.gogh-editing .gogh-mirror { display: flex; }
 .gogh-chromebtn:hover { opacity: 1; }
 .gogh-chromebtn svg { display: block; }
 
-.gogh-pending { position: relative; }
+.gogh-pending {
+  position: relative;
+  /* bulletproof full bleed: exactly the viewport, centred by transform so
+     asymmetric theme containers can't skew or overflow it */
+  box-sizing: border-box !important;
+  width: 100vw !important;
+  max-width: 100vw !important;
+  min-width: 0 !important;
+  left: 50% !important;
+  right: auto !important;
+  transform: translateX(-50%);
+  margin-left: 0 !important;
+  margin-right: 0 !important;
+}
 .gogh-pendbar {
   position: absolute;
   top: 12px;
@@ -1351,3 +1364,28 @@ html.gogh-editing .gogh-mirror { display: flex; }
 /* the drag ghost is sized inline in px — the gogh-wrap min-width floor
    (site-editor fix) must not inflate it to the viewport */
 .gogh-ghostel { min-width: 0 !important; }
+
+.gogh-htmladd-prev {
+  display: grid !important;
+  place-items: center;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 34px;
+  font-weight: 700;
+  color: #7ea8ff;
+}
+.gogh-htmlpaste {
+  width: 100%;
+  min-height: 300px;
+  box-sizing: border-box;
+  resize: vertical;
+  background: rgba(0, 0, 0, 0.25);
+  color: var(--gogh-ui-fg);
+  border: 1px solid var(--gogh-ui-border);
+  border-radius: 10px;
+  padding: 14px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 12.5px;
+  line-height: 1.5;
+  margin: 10px 0;
+}
+.gogh-htmlpaste:focus { outline: 2px solid #7ea8ff; }
