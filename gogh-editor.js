@@ -1994,12 +1994,9 @@
       '<div class="gogh-picker-inner">' +
       '<div class="gogh-picker-head">Add a section' +
       '<button type="button" class="gogh-btn gogh-btn-small gogh-picker-close">Close</button></div>' +
-      '<div class="gogh-cards">' + cards +
-      '<button type="button" class="gogh-card gogh-card-htmladd">' +
-      '<span class="gogh-card-prev gogh-htmladd-prev">&lt;/&gt;</span>' +
-      '<span class="gogh-card-name">Paste HTML</span>' +
-      '</button>' +
-      '</div></div>';
+      '<div class="gogh-cards">' + cards + '</div>' +
+      '<button type="button" class="gogh-htmllink gogh-card-htmladd">Prefer to paste HTML?</button>' +
+      '</div>';
     picker.hidden = false;
     picker.querySelector('.gogh-picker-close').addEventListener('click', closePicker);
     picker.querySelector('.gogh-card-htmladd').addEventListener('click', function () {
@@ -2037,114 +2034,35 @@
       if (st) fitCardStage(p, st);
     });
     var cardsBox = picker.querySelector('.gogh-cards');
-    fetch(blocksUrl() + '?per_page=100&context=edit', {
-      headers: { 'X-WP-Nonce': cfg.nonce },
-      credentials: 'same-origin',
-    }).then(function (r) { return r.ok ? r.json() : []; }).then(function (blocks) {
-      var mine = (blocks || []).filter(function (bk) {
-        return ((bk.content && bk.content.raw) || '').indexOf('wp:gogh/section') !== -1;
-      });
-      if (!mine.length || picker.hidden || !cardsBox.parentNode) return;
-      var head = document.createElement('div');
-      head.className = 'gogh-picker-sub';
-      head.textContent = 'Your sections';
-      var themeSub = cardsBox.querySelector('.gogh-picker-sub');
-      cardsBox.insertBefore(head, themeSub || null);
-      mine.forEach(function (bk) {
-        var raw = (bk.content && bk.content.raw) || '';
-        var tpl = document.createElement('template');
-        tpl.innerHTML = raw;
-        var modelEl = tpl.content.querySelector('script.gogh-model');
-        var model = null;
-        try { model = modelEl ? JSON.parse(modelEl.textContent) : null; } catch (err) {}
-        if (!model || !model.elements) return;
-        var b = document.createElement('button');
-        b.type = 'button';
-        b.className = 'gogh-card gogh-card-mine';
-        var scope = 'gogh-mine-' + bk.id;
-        var css = buildCSS(model.elements, scope, model.minH || null, { bg: model.bg || null, bgImage: model.bgImage || null });
-        var inner = model.elements.map(function (e, i) { return makeNode(e, i).outerHTML; }).join('');
-        b.innerHTML = '<span class="gogh-card-prev"><style>' + css + '</style>' +
-          '<span class="gogh-card-stage gogh-wrap"><span class="gogh-card-sec gogh-section ' + scope + '">' + inner + '</span></span>' +
-          '</span>' +
-          '<span class="gogh-card-name"></span>' +
-          '<span class="gogh-card-delpat" title="Delete saved section">\u2715</span>';
-        b.querySelector('.gogh-card-name').textContent = '\u2764 ' + ((bk.title && bk.title.raw) || 'My pattern');
-        cardsBox.insertBefore(b, themeSub || null);
-        var pv = b.querySelector('.gogh-card-prev');
-        var st = b.querySelector('.gogh-card-stage');
-        fitCardStage(pv, st);
-        b.addEventListener('click', function () {
-          insertGoghPattern(raw, pickerIdx);
-          closePicker();
-        });
-        b.querySelector('.gogh-card-delpat').addEventListener('click', function (ev) {
-          ev.stopPropagation();
-          fetch(blocksUrl(bk.id) + '?force=true', {
-            method: 'DELETE',
-            headers: { 'X-WP-Nonce': cfg.nonce },
-            credentials: 'same-origin',
-          }).then(function (res) {
-            if (res.ok) { b.remove(); toast('Section deleted.'); }
-            else toast('Could not delete that section.', { error: true });
-          });
-        });
-      });
-    });
-    fetchSectionPatterns().then(function (pats) {
-      if (picker.hidden || !pats.length || !cardsBox.parentNode) return;
-      var head = document.createElement('div');
-      head.className = 'gogh-picker-sub';
-      head.textContent = 'From your theme';
-      cardsBox.appendChild(head);
-      // category chips: one modal, instant filtering
-      var cats = [];
-      pats.forEach(function (p) {
-        (p.categories || []).forEach(function (c) {
-          if (cats.indexOf(c) === -1) cats.push(c);
-        });
-      });
-      cats.sort();
-      var pretty = function (c) {
-        return c.replace(/[_-]+/g, ' ').replace(/\b\w/g, function (ch) { return ch.toUpperCase(); });
-      };
+    var BUCKETS = [
+      { key: 'hero', label: 'Heroes & banners', cats: ['banner', 'hero', 'featured', 'call-to-action', 'cover', 'header'] },
+      { key: 'text', label: 'Text', cats: ['text', 'about', 'quotes', 'quote', 'testimonials', 'testimonial'] },
+      { key: 'cards', label: 'Cards & pricing', cats: ['card', 'cards', 'pricing', 'services', 'features', 'columns'] },
+      { key: 'photos', label: 'Photos', cats: ['gallery', 'media', 'portfolio', 'images'] },
+      { key: 'contact', label: 'Contact & social', cats: ['contact', 'team', 'social', 'subscribe', 'newsletter'] },
+    ];
+    Promise.all([
+      fetch(blocksUrl() + '?per_page=100&context=edit', {
+        headers: { 'X-WP-Nonce': cfg.nonce },
+        credentials: 'same-origin',
+      }).then(function (r) { return r.ok ? r.json() : []; }).catch(function () { return []; }),
+      fetchSectionPatterns(),
+    ]).then(function (res) {
+      if (picker.hidden || !cardsBox.parentNode) return;
+      var blocks = res[0] || [], pats = res[1] || [];
       var favs = {};
       try { (JSON.parse(localStorage.getItem('gogh-fav-patterns') || '[]')).forEach(function (n) { favs[n] = 1; }); } catch (err) {}
-      var favCount = function () { return Object.keys(favs).length; };
-      var chipRow = document.createElement('div');
-      chipRow.className = 'gogh-patcats';
-      chipRow.innerHTML = '<button type="button" class="gogh-patcat is-active" data-cat="">All</button>' +
-        '<button type="button" class="gogh-patcat gogh-patcat-fav" data-cat="__fav">\u2665 Favourites</button>' +
-        cats.map(function (c) {
-          return '<button type="button" class="gogh-patcat" data-cat="' + c + '">' + pretty(c) + '</button>';
-        }).join('');
-      cardsBox.appendChild(chipRow);
-      var cards = [];
-      var makeCard = function (p, quick) {
-        var b = document.createElement('button');
-        b.type = 'button';
-        b.className = 'gogh-card gogh-card-pattern' + (quick ? ' gogh-card-quickfav' : '');
-        b.__pat = p;
-        b.dataset.cats = (p.categories || []).join(' ');
-        b.innerHTML = '<span class="gogh-card-prev"><span class="gogh-card-stage"></span></span>' +
-          '<span class="gogh-card-name"></span>' +
-          '<span class="gogh-card-fav" title="Favourite">\u2665</span>';
-        b.querySelector('.gogh-card-name').textContent = (quick ? '\u2764 ' : '\u2728 ') + (p.title || p.name);
-        var favEl = b.querySelector('.gogh-card-fav');
-        favEl.classList.toggle('is-fav', !!favs[p.name]);
-        favEl.addEventListener('click', function (ev) {
-          ev.stopPropagation();
-          if (favs[p.name]) delete favs[p.name]; else favs[p.name] = 1;
-          favEl.classList.toggle('is-fav', !!favs[p.name]);
-          try { localStorage.setItem('gogh-fav-patterns', JSON.stringify(Object.keys(favs))); } catch (err) {}
-          if (!favs[p.name] && quick) b.remove();
-        });
-        b.addEventListener('click', function () {
-          addPatternSection(p, pickerIdx);
-          closePicker();
-        });
-        return b;
-      };
+      var recents = [];
+      try { recents = JSON.parse(localStorage.getItem('gogh-recent-sections') || '[]'); } catch (err) {}
+      var mine = blocks.filter(function (bk) {
+        return ((bk.content && bk.content.raw) || '').indexOf('wp:gogh/section') !== -1;
+      });
+      var patByName = {};
+      pats.forEach(function (p) { patByName[p.name] = p; });
+      var mineById = {};
+      mine.forEach(function (bk) { mineById[bk.id] = bk; });
+
+      // ---- pattern card machinery ----
       var hydrate = function (b, p) {
         if (b.__hydrated) return;
         b.__hydrated = true;
@@ -2183,17 +2101,166 @@
           hydrate(en.target, en.target.__pat);
         });
       }, { rootMargin: '200px' }) : null;
-      // quick start: favourites sit right beside Start from scratch
-      pats.filter(function (p) { return favs[p.name]; }).forEach(function (p) {
-        var qb = makeCard(p, true);
-        cardsBox.insertBefore(qb, cardsBox.querySelector('.gogh-picker-sub'));
-        if (io) io.observe(qb); else hydrate(qb, p);
-      });
-      pats.forEach(function (p) {
-        var b = makeCard(p, false);
-        cardsBox.appendChild(b);
-        cards.push(b);
+      var patCard = function (p, inYours) {
+        var b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'gogh-card gogh-card-pattern';
+        b.__pat = p;
+        b.innerHTML = '<span class="gogh-card-prev"><span class="gogh-card-stage"></span></span>' +
+          '<span class="gogh-card-name"></span>' +
+          '<span class="gogh-card-fav" title="Favourite">\u2665</span>';
+        b.querySelector('.gogh-card-name').textContent = (inYours ? '\u2764 ' : '') + (p.title || p.name);
+        var favEl = b.querySelector('.gogh-card-fav');
+        favEl.classList.toggle('is-fav', !!favs[p.name]);
+        favEl.addEventListener('click', function (ev) {
+          ev.stopPropagation();
+          if (favs[p.name]) delete favs[p.name]; else favs[p.name] = 1;
+          favEl.classList.toggle('is-fav', !!favs[p.name]);
+          try { localStorage.setItem('gogh-fav-patterns', JSON.stringify(Object.keys(favs))); } catch (err) {}
+          if (!favs[p.name] && inYours) b.remove();
+        });
+        b.addEventListener('click', function () {
+          addPatternSection(p, pickerIdx);
+          closePicker();
+        });
         if (io) io.observe(b); else hydrate(b, p);
+        return b;
+      };
+      var mineCard = function (bk) {
+        var raw = (bk.content && bk.content.raw) || '';
+        var tpl2 = document.createElement('template');
+        tpl2.innerHTML = raw;
+        var modelEl = tpl2.content.querySelector('script.gogh-model');
+        var model = null;
+        try { model = modelEl ? JSON.parse(modelEl.textContent) : null; } catch (err) {}
+        if (!model || !model.elements) return null;
+        var b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'gogh-card gogh-card-mine';
+        var scope = 'gogh-mine-' + bk.id;
+        var css = buildCSS(model.elements, scope, model.minH || null, { bg: model.bg || null, bgImage: model.bgImage || null });
+        var inner2 = model.elements.map(function (e, i) { return makeNode(e, i).outerHTML; }).join('');
+        b.innerHTML = '<span class="gogh-card-prev"><style>' + css + '</style>' +
+          '<span class="gogh-card-stage gogh-wrap"><span class="gogh-card-sec gogh-section ' + scope + '">' + inner2 + '</span></span>' +
+          '</span>' +
+          '<span class="gogh-card-name"></span>' +
+          '<span class="gogh-card-delpat" title="Delete saved section">\u2715</span>';
+        b.querySelector('.gogh-card-name').textContent = '\u2764 ' + ((bk.title && bk.title.raw) || 'My section');
+        b.addEventListener('click', function () {
+          recordRecent('b', bk.id);
+          insertGoghPattern(raw, pickerIdx);
+          closePicker();
+        });
+        b.querySelector('.gogh-card-delpat').addEventListener('click', function (ev) {
+          ev.stopPropagation();
+          fetch(blocksUrl(bk.id) + '?force=true', {
+            method: 'DELETE',
+            headers: { 'X-WP-Nonce': cfg.nonce },
+            credentials: 'same-origin',
+          }).then(function (res2) {
+            if (res2.ok) { b.remove(); toast('Section deleted.'); }
+            else toast('Could not delete that section.', { error: true });
+          });
+        });
+        return b;
+      };
+
+      // ---- Yours: recents + saved + hearted, one shelf, no taxonomy ----
+      var yours = [];
+      var seenY = {};
+      var pushYours = function (key, make) {
+        if (seenY[key]) return;
+        seenY[key] = 1;
+        var card = make();
+        if (card) yours.push(card);
+      };
+      recents.forEach(function (rc) {
+        if (rc.t === 'p' && patByName[rc.k]) pushYours('p' + rc.k, function () { return patCard(patByName[rc.k], true); });
+        if (rc.t === 'b' && mineById[rc.k]) pushYours('b' + rc.k, function () { return mineCard(mineById[rc.k]); });
+      });
+      mine.forEach(function (bk) { pushYours('b' + bk.id, function () { return mineCard(bk); }); });
+      pats.forEach(function (p) {
+        if (favs[p.name]) pushYours('p' + p.name, function () { return patCard(p, true); });
+      });
+      if (yours.length) {
+        var ySub = document.createElement('div');
+        ySub.className = 'gogh-picker-sub';
+        ySub.textContent = 'Yours';
+        cardsBox.appendChild(ySub);
+        yours.forEach(function (card, k) {
+          if (k >= 3) card.style.display = 'none';
+          cardsBox.appendChild(card);
+        });
+        if (yours.length > 3) {
+          var yMore = document.createElement('button');
+          yMore.type = 'button';
+          yMore.className = 'gogh-showall';
+          yMore.textContent = 'Show all ' + yours.length + ' \u2192';
+          cardsBox.appendChild(yMore);
+          yMore.addEventListener('click', function () {
+            yours.forEach(function (card) { card.style.display = ''; });
+            yMore.remove();
+          });
+        }
+      }
+
+      // ---- from your theme: search + five friendly buckets + capped grid ----
+      if (!pats.length) return;
+      var themeName = String(cfg.theme || '').replace(/[-_]+/g, ' ').replace(/\b\w/g, function (ch) { return ch.toUpperCase(); });
+      var tSub = document.createElement('div');
+      tSub.className = 'gogh-picker-sub';
+      tSub.textContent = 'From your theme' + (themeName ? ' (' + themeName + ')' : '');
+      cardsBox.appendChild(tSub);
+      var searchRow = document.createElement('div');
+      searchRow.className = 'gogh-patsearchrow';
+      searchRow.innerHTML = '<input type="text" class="gogh-input gogh-patsearch" placeholder="Find a section\u2026" />';
+      cardsBox.appendChild(searchRow);
+      var chipRow = document.createElement('div');
+      chipRow.className = 'gogh-patcats';
+      chipRow.innerHTML = '<button type="button" class="gogh-patcat is-active" data-cat="">All</button>' +
+        BUCKETS.map(function (bu) {
+          return '<button type="button" class="gogh-patcat" data-cat="' + bu.key + '">' + bu.label + '</button>';
+        }).join('');
+      cardsBox.appendChild(chipRow);
+      var gridCards = pats.map(function (p) {
+        var b = patCard(p, false);
+        cardsBox.appendChild(b);
+        return b;
+      });
+      var showAllBtn = document.createElement('button');
+      showAllBtn.type = 'button';
+      showAllBtn.className = 'gogh-showall';
+      showAllBtn.textContent = 'Show all ' + gridCards.length + ' \u2192';
+      cardsBox.appendChild(showAllBtn);
+      var activeCat = '', query = '', expanded = false;
+      var CAP = 6;
+      function bucketMatch(p, key) {
+        var bu = BUCKETS.filter(function (x) { return x.key === key; })[0];
+        if (!bu) return true;
+        return (p.categories || []).some(function (c) { return bu.cats.indexOf(c) !== -1; });
+      }
+      function applyFilter() {
+        var filtered = !!activeCat || !!query;
+        var shown = 0;
+        gridCards.forEach(function (b) {
+          if (!b.isConnected) return;
+          var p = b.__pat;
+          var ok = (!activeCat || bucketMatch(p, activeCat)) &&
+            (!query || ((p.title || p.name) + '').toLowerCase().indexOf(query) !== -1);
+          var visible = ok && (filtered || expanded || shown < CAP);
+          b.style.display = visible ? '' : 'none';
+          if (visible) {
+            shown++;
+            if (io && !b.__hydrated) { io.unobserve(b); hydrate(b, p); }
+          }
+        });
+        showAllBtn.hidden = filtered || expanded ||
+          gridCards.filter(function (b) { return b.isConnected; }).length <= CAP;
+      }
+      applyFilter();
+      showAllBtn.addEventListener('click', function () {
+        expanded = true;
+        applyFilter();
       });
       chipRow.addEventListener('click', function (ev) {
         var chip = ev.target.closest('.gogh-patcat');
@@ -2201,14 +2268,12 @@
         chipRow.querySelectorAll('.gogh-patcat').forEach(function (c2) {
           c2.classList.toggle('is-active', c2 === chip);
         });
-        var cat = chip.dataset.cat;
-        cards.forEach(function (b) {
-          var show = !cat ||
-            (cat === '__fav' ? !!favs[b.__pat.name]
-              : (' ' + b.dataset.cats + ' ').indexOf(' ' + cat + ' ') !== -1);
-          b.style.display = show ? '' : 'none';
-          if (show && io && !b.__hydrated) { io.unobserve(b); hydrate(b, b.__pat); }
-        });
+        activeCat = chip.dataset.cat;
+        applyFilter();
+      });
+      searchRow.querySelector('.gogh-patsearch').addEventListener('input', function () {
+        query = this.value.trim().toLowerCase();
+        applyFilter();
       });
     });
   }
@@ -4510,9 +4575,18 @@
     toast('\u201c' + entry.title + '\u201d added \u2014 click text to edit it, \u2728 to go freeform.', { ttl: 5000 });
     return entry;
   }
+  function recordRecent(t, k) {
+    try {
+      var list = JSON.parse(localStorage.getItem('gogh-recent-sections') || '[]');
+      list = list.filter(function (rc) { return !(rc.t === t && rc.k === k); });
+      list.unshift({ t: t, k: k });
+      localStorage.setItem('gogh-recent-sections', JSON.stringify(list.slice(0, 6)));
+    } catch (err) {}
+  }
   function addPatternSection(p, idx) {
     return renderPattern(p).then(function (html) {
       if (!html) throw new Error('empty');
+      recordRecent('p', p.name);
       insertNative(p.content || '', html, p.title, idx);
     }).catch(function () {
       toast('Could not add that section.', { error: true });

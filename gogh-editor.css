@@ -1074,12 +1074,10 @@
 
 .gogh-picker-sub {
   grid-column: 1 / -1;
-  font-size: 11px;
+  font-size: 14px;
   font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  color: var(--gogh-ui-muted);
-  padding: 14px 2px 2px;
+  color: var(--gogh-ui-fg);
+  padding: 18px 2px 2px;
 }
 .gogh-card-pattern .gogh-card-stage { pointer-events: none; }
 
@@ -1389,3 +1387,34 @@ html.gogh-editing .gogh-mirror { display: flex; }
   margin: 10px 0;
 }
 .gogh-htmlpaste:focus { outline: 2px solid #7ea8ff; }
+
+.gogh-patsearchrow { grid-column: 1 / -1; }
+.gogh-patsearch {
+  width: 100%;
+  max-width: 340px;
+  box-sizing: border-box;
+}
+.gogh-showall {
+  all: unset;
+  grid-column: 1 / -1;
+  cursor: pointer;
+  text-align: center;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: #7ea8ff;
+  padding: 10px;
+  border-radius: 10px;
+}
+.gogh-showall:hover { background: var(--gogh-ui-hover); }
+.gogh-showall[hidden] { display: none; }
+.gogh-htmllink {
+  all: unset;
+  cursor: pointer;
+  display: block;
+  margin: 16px auto 4px;
+  font-size: 12px;
+  color: var(--gogh-ui-muted);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.gogh-htmllink:hover { color: var(--gogh-ui-fg); }
