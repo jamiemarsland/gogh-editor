@@ -1369,6 +1369,11 @@
       closeSide(true);
     }
     // the palette waits to be invited — its pulsing tab is the greeting
+    if (on) {
+      // warm the picker's shelves so the modal opens complete, not in jolts
+      fetchSectionPatterns();
+      fetchBlocks();
+    }
     editBtnWrap.hidden = on;
     hideHandles();
     hideGuides();
@@ -2140,10 +2145,7 @@
       { key: 'contact', label: 'Contact & social', cats: ['contact', 'team', 'social', 'subscribe', 'newsletter'] },
     ];
     Promise.all([
-      fetch(blocksUrl() + '?per_page=100&context=edit', {
-        headers: { 'X-WP-Nonce': cfg.nonce },
-        credentials: 'same-origin',
-      }).then(function (r) { return r.ok ? r.json() : []; }).catch(function () { return []; }),
+      fetchBlocks(),
       fetchSectionPatterns(),
     ]).then(function (res) {
       if (picker.hidden || !cardsBox.parentNode) return;
@@ -2256,7 +2258,7 @@
             headers: { 'X-WP-Nonce': cfg.nonce },
             credentials: 'same-origin',
           }).then(function (res2) {
-            if (res2.ok) { b.remove(); toast('Section deleted.'); }
+            if (res2.ok) { blocksCache = null; b.remove(); toast('Section deleted.'); }
             else toast('Could not delete that section.', { error: true });
           });
         });
@@ -2652,6 +2654,16 @@
     else if (b.dataset.sec === 'dup') duplicateSection(secBarIdx);
   });
 
+  var blocksCache = null;
+  function fetchBlocks() {
+    if (blocksCache) return Promise.resolve(blocksCache);
+    return fetch(blocksUrl() + '?per_page=100&context=edit', {
+      headers: { 'X-WP-Nonce': cfg.nonce },
+      credentials: 'same-origin',
+    }).then(function (r) { return r.ok ? r.json() : []; })
+      .then(function (list) { blocksCache = list; return list; })
+      .catch(function () { return []; });
+  }
   function blocksUrl(id) {
     var base = cfg.restUrl.split('wp/v2/')[0] + 'wp/v2/blocks';
     return id ? base + '/' + id : base;
@@ -2686,6 +2698,7 @@
           meta: { wp_pattern_sync_status: 'unsynced' } }),
       }).then(function (res) {
         if (!res.ok) throw new Error('HTTP ' + res.status);
+        blocksCache = null;
         closePanel();
         toast('\u201c' + name + '\u201d saved \u2014 it\u2019s in + Section under Your sections.', { ttl: 5000 });
       }).catch(function () {
@@ -4814,9 +4827,14 @@
   function addHtmlSection(html, idx) {
     html = String(html || '').replace(/<script[\s\S]*?<\/script\s*>/gi, '').trim();
     if (!html) return;
-    // a real core HTML block: WordPress serves it verbatim, forever
-    var raw = '<!-- wp:html -->\n' + html + '\n<!-- /wp:html -->';
-    insertNative(raw, html, 'HTML', idx);
+    // a real core HTML block inside a FULL-WIDTH group: pasted HTML owns the
+    // whole canvas (its own CSS decides any constraints), in the editor and
+    // on the published page alike
+    var raw = '<!-- wp:group {"align":"full","layout":{"type":"default"}} -->\n' +
+      '<div class="wp-block-group alignfull">\n' +
+      '<!-- wp:html -->\n' + html + '\n<!-- /wp:html -->\n' +
+      '</div>\n<!-- /wp:group -->';
+    insertNative(raw, '<div class="wp-block-group alignfull">' + html + '</div>', 'HTML', idx);
   }
   // ---------- light editing on native (pre-freeform) sections ----------
   // Rendered leaves pair with their markup spans; edits replace the span's

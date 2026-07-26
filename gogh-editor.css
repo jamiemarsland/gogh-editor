@@ -463,9 +463,9 @@
 .gogh-picker.is-open { opacity: 1; }
 .gogh-picker[hidden] { display: none; }
 .gogh-picker-inner {
-  transform: scale(0.92) translateY(10px);
+  transform: scale(0.94) translateY(14px);
   opacity: 0;
-  transition: transform 0.24s cubic-bezier(0.2, 0.9, 0.25, 1.05), opacity 0.2s ease;
+  transition: transform 0.32s cubic-bezier(0.22, 0.9, 0.3, 1), opacity 0.26s ease;
 }
 .gogh-picker.is-open .gogh-picker-inner {
   transform: none;
@@ -1515,6 +1515,9 @@ html.gogh-editing .gogh-mirror { display: flex; }
 }
 .gogh-zoom-stage {
   width: 1200px;
+  /* the miniatures' cqw units must resolve against THIS 1200px stage, not
+     the viewport — without a container they overflow and crop */
+  container-type: inline-size;
   transform-origin: 0 0;
   max-height: 900px;
   overflow: hidden;
@@ -1540,3 +1543,19 @@ html.gogh-editing .gogh-mirror { display: flex; }
   box-shadow: 0 12px 32px -10px rgba(0, 0, 0, 0.5);
 }
 html.gogh-editing .gogh-zoom-tab { display: grid; }
+
+/* anything that arrives in the picker fades up into place — late fetches
+   feel intentional instead of jolting */
+@keyframes gogh-cardin {
+  from { opacity: 0; translate: 0 8px; }
+  to { opacity: 1; translate: 0 0; }
+}
+.gogh-cards > *, .gogh-topstrip > * {
+  animation: gogh-cardin 0.26s ease-out backwards;
+}
+.gogh-topstrip > *:nth-child(2) { animation-delay: 0.03s; }
+.gogh-topstrip > *:nth-child(3) { animation-delay: 0.06s; }
+.gogh-topstrip > *:nth-child(4) { animation-delay: 0.09s; }
+@media (prefers-reduced-motion: reduce) {
+  .gogh-cards > *, .gogh-topstrip > * { animation: none; }
+}
