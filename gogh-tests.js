@@ -1428,6 +1428,19 @@
       G.deleteSection(G.sections().indexOf(added));
     });
 
+    test('footer pill is fixed at the viewport bottom and unobstructed', function () {
+      var fp = q('.gogh-chromebtn.is-footpill');
+      expect(fp, 'no fixed footer pill');
+      var cs = getComputedStyle(fp);
+      expect(cs.position === 'fixed', 'footer pill not fixed: ' + cs.position);
+      var r = fp.getBoundingClientRect();
+      expect(window.innerHeight - r.bottom < 40 && r.bottom <= window.innerHeight, 'not at viewport bottom: ' + Math.round(r.bottom));
+      expect(Math.abs((r.left + r.width / 2) - window.innerWidth / 2) < 40, 'not centred');
+      // nothing may cover it — that is how it got lost under the publish chip
+      var hit = document.elementFromPoint(Math.round(r.left + r.width / 2), Math.round(r.top + r.height / 2));
+      expect(hit === fp || fp.contains(hit), 'footer pill is covered by ' + (hit ? hit.className : 'nothing'));
+    });
+
     test('header pill cycles layouts in place, click-off reverts', function () {
       var pill = q('.gogh-chromebtn');
       expect(pill, 'no chrome pill on the page');

@@ -1365,6 +1365,17 @@ html.gogh-editing .gogh-mirror { display: flex; }
 }
 .gogh-chromebtn:hover { opacity: 1; }
 .gogh-chromebtn svg { display: block; }
+/* the footer pill lives at the bottom of the viewport, centred — always
+   where you expect it, never buried under the page or the publish chip */
+.gogh-chromebtn.is-footpill {
+  position: fixed;
+  left: 50%;
+  top: auto;
+  bottom: 18px;
+  transform: translateX(-50%);
+  z-index: 99998;
+  opacity: 0.95;
+}
 
 /* gogh-pended = a pending that published: IDENTICAL presentation, so the
    publish moment causes zero reflow (no gap band, no sideways shift) */

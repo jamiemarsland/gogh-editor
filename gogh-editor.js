@@ -5341,6 +5341,12 @@
         cycBar.classList.remove('is-busy');
         // a preview that lands after the cycle ended must not stick around
         if (!st.alive) { if (ok) endChromePreview(); return; }
+        // the swap reflows the page and can cancel the opening scroll —
+        // re-assert once the first preview is actually on screen
+        if (!st.scrolled) {
+          st.scrolled = true;
+          partEl.scrollIntoView({ block: st.area === 'footer' ? 'end' : 'start' });
+        }
         if (st.queued) { st.queued = false; st.advance(); }
       });
     };
@@ -5379,6 +5385,10 @@
     hideSecBar();
     closePanel();
     cycBar.hidden = false;
+    // bring the part on screen — flicking through looks you can't see
+    // isn't choosing. Instant, not smooth: preview reflows cancel smooth
+    // scrolls midway.
+    partEl.scrollIntoView({ block: area === 'footer' ? 'end' : 'start' });
     render();
     // the first click should already show something new — advance immediately
     st.advance();
@@ -6164,12 +6174,15 @@
         (partEl.tagName === 'FOOTER' ? 'Footer' : 'Header');
       b.dataset.tip = 'Click to flick through layouts';
       b.__goghPart = partEl;
-      b.style.left = (r.right + window.scrollX - 10) + 'px';
-      // the footer pill belongs at the footer's BOTTOM edge — its top is
-      // just "more page" when the footer is tall
-      b.style.top = (partEl.tagName === 'FOOTER'
-        ? r.bottom + window.scrollY - 42
-        : r.top + window.scrollY + 10) + 'px';
+      if (partEl.tagName === 'FOOTER') {
+        // fixed at the bottom of the VIEWPORT — where folks expect the
+        // footer control, and clear of the publish chip (which was
+        // covering it when anchored to the footer's own edge)
+        b.classList.add('is-footpill');
+      } else {
+        b.style.left = (r.right + window.scrollX - 10) + 'px';
+        b.style.top = (r.top + window.scrollY + 10) + 'px';
+      }
       b.addEventListener('click', function () {
         b.disabled = true;
         convertChrome(partEl).then(function (sec) { if (!sec) b.disabled = false; }).catch(function () {
