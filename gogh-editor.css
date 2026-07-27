@@ -172,7 +172,6 @@
   border-radius: 8px;
 }
 .gogh-sitem:hover { background: rgba(126, 168, 255, 0.18); color: #aac6ff; }
-.gogh-sitem-danger:hover { background: rgba(224, 106, 69, 0.22); color: #ffb49e; }
 .gogh-side-gap { flex: none; height: 10px; }
 .gogh-side .gogh-btn { margin-top: 4px; }
 
@@ -663,7 +662,6 @@
   letter-spacing: 0.05em;
   color: var(--gogh-ui-muted);
 }
-.gogh-swrow-labeled .gogh-swlab { width: 40px; }
 .gogh-sw {
   all: unset;
   cursor: pointer;
@@ -1058,15 +1056,6 @@
   margin: 10px 2px 4px;
 }
 .gogh-varlist .gogh-panel-group:first-child { margin-top: 2px; }
-.gogh-var-aa {
-  display: inline-block;
-  width: 30px;
-  text-align: left;
-  font-size: 15px;
-  line-height: 1;
-  color: var(--gogh-ui-muted);
-}
-
 .gogh-shape-melt {
   display: block;
   width: 100%;
@@ -1110,7 +1099,7 @@
 .gogh-exploded > * {
   transition: transform 0.32s cubic-bezier(0.2, 0.9, 0.25, 1.15), opacity 0.22s ease, box-shadow 0.32s ease;
 }
-.gogh-exploded > *:not(.gogh-fan):not(.gogh-xray-ov) { opacity: 0.22; }
+.gogh-exploded > *:not(.gogh-fan) { opacity: 0.22; }
 .gogh-exploded > .gogh-fan {
   box-shadow: 0 30px 70px -18px rgba(0, 0, 0, 0.6);
   cursor: pointer;
@@ -1265,8 +1254,6 @@ html.gogh-editing .gogh-mirror { display: flex; }
 .gogh-card:hover .gogh-card-fav { opacity: 1; }
 .gogh-card-fav.is-fav { opacity: 1; color: #ff6b8a; }
 .gogh-card-fav:hover { transform: scale(1.15); }
-.gogh-patcat-fav.is-active { background: #ff6b8a; }
-
 .gogh-card-delpat {
   position: absolute;
   top: 8px;
@@ -1358,14 +1345,6 @@ html.gogh-editing .gogh-mirror { display: flex; }
    (site-editor fix) must not inflate it to the viewport */
 .gogh-ghostel { min-width: 0 !important; }
 
-.gogh-htmladd-prev {
-  display: grid !important;
-  place-items: center;
-  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-  font-size: 34px;
-  font-weight: 700;
-  color: #7ea8ff;
-}
 .gogh-htmlpaste {
   width: 100%;
   min-height: 300px;

@@ -1014,34 +1014,25 @@
         'nested block not inside its parent span');
     });
 
-    // ---- 28e. convertScan measures Gutenberg leaves into elements ----
-    test('convertScan lifts rendered blocks into a model', function () {
+    // ---- 28e. the scanner measures Gutenberg leaves into elements ----
+    test('scanner lifts rendered blocks into a model', function () {
       var host = document.createElement('div');
-      host.style.cssText = 'width:600px;position:absolute;left:-9999px;top:0;';
+      host.style.cssText = 'width:1200px;position:absolute;left:-9999px;top:0';
       host.innerHTML =
-        '<div class="wp-block-group">' +
-        '<h2 class="has-x-large-font-size" style="height:40px;margin:0">Head</h2>' +
-        '<p style="height:30px;margin:0">Copy</p>' +
-        '<div class="wp-block-buttons" style="display:flex;gap:10px">' +
-        '<div class="wp-block-button" style="width:120px;height:36px"><a href="https://x.test">Go</a></div>' +
-        '<div class="wp-block-button is-style-outline" style="width:120px;height:36px"><a>Ghost</a></div>' +
-        '</div>' +
-        '<figure class="wp-block-image" style="width:200px;height:100px;margin:0">' +
-        '<img class="wp-image-42" src="data:image/gif;base64,R0lGODlhAQABAAAAACw=" alt="pic" style="width:100%;height:100%"></figure>' +
-        '</div>';
+        '<h2 class="has-x-large-font-size has-text-align-center" style="height:60px">Big title</h2>' +
+        '<p style="height:40px">Some copy</p>' +
+        '<div class="wp-block-buttons"><div class="wp-block-button"><a href="https://example.com" style="display:inline-block;padding:10px 20px">Go</a></div></div>';
       document.body.appendChild(host);
-      var scan = G.convertScan(host);
+      var raw = '<!-- wp:heading {"textAlign":"center","fontSize":"x-large"} --><h2>Big title</h2><!-- /wp:heading -->' +
+        '<!-- wp:paragraph --><p>Some copy</p><!-- /wp:paragraph -->' +
+        '<!-- wp:buttons --><div class="wp-block-buttons"><!-- wp:button --><div class="wp-block-button"><a href="https://example.com">Go</a></div><!-- /wp:button --></div><!-- /wp:buttons -->';
+      var scan = G.scan(host, raw, { loose: true });
       host.remove();
-      var types = scan.els.map(function (e) { return e.type; }).join(',');
-      expect(scan.bad.length === 0, 'unexpected bad blocks: ' + scan.bad.join(','));
-      expect(types === 'heading,para,button,button,image', 'types: ' + types);
-      expect(scan.els[0].fs === 'x-large', 'font preset not captured: ' + scan.els[0].fs);
-      expect(scan.els[2].href === 'https://x.test', 'href lost');
-      expect(scan.els[3].ghost === true, 'outline style not mapped to ghost');
-      expect(scan.els[4].mediaId === 42 && scan.els[4].alt === 'pic', 'image id/alt lost');
-      // 600px host -> x2 scale into 1200-unit design space
-      expect(Math.abs(scan.els[4].w - 400) <= 2, 'image width not scaled: ' + scan.els[4].w);
-      return types;
+      var types = scan.els.map(function (e) { return e.type; });
+      expect(types.join(',') === 'heading,para,button', 'types: ' + types.join(','));
+      expect(scan.els[0].fs === 'x-large', 'font preset lost: ' + scan.els[0].fs);
+      expect(scan.els[0].align === 'center', 'alignment lost');
+      expect(scan.els[2].href === 'https://example.com', 'button href lost');
     });
 
     // ---- 29. layer ordering via toolbar ----

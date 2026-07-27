@@ -1623,7 +1623,7 @@
     fetch(cfg.mediaUrl + '?per_page=12&media_type=image&orderby=date&order=desc', {
       headers: { 'X-WP-Nonce': cfg.nonce },
       credentials: 'same-origin',
-    }).then(function (res) { return res.ok ? res.json() : []; })
+    }).catch(function () { return []; }).then(function (res) { return res && res.json ? res.json() : (res || []); })
       .then(function (items) {
         var box = panel.querySelector('.gogh-media');
         if (!box || panel.hidden) return;
@@ -2035,6 +2035,7 @@
   var pickerCloseT = null;
   function closePicker() {
     clearTimeout(pickerCloseT);
+    if (picker.__io) { picker.__io.disconnect(); picker.__io = null; }
     picker.classList.remove('is-open');
     if (/gogh-test/.test(location.search)) {
       // the suite runs synchronously — no 240ms of half-open picker
@@ -2194,6 +2195,7 @@
           } catch (err) { b.remove(); return; }
         });
       };
+      if (picker.__io) picker.__io.disconnect();
       var io = window.IntersectionObserver ? new IntersectionObserver(function (entries) {
         entries.forEach(function (en) {
           if (!en.isIntersecting) return;
@@ -2201,6 +2203,7 @@
           hydrate(en.target, en.target.__pat);
         });
       }, { rootMargin: '200px' }) : null;
+      picker.__io = io;
       var patCard = function (p, inYours) {
         var b = document.createElement('button');
         b.type = 'button';
@@ -2260,6 +2263,8 @@
           }).then(function (res2) {
             if (res2.ok) { blocksCache = null; b.remove(); toast('Section deleted.'); }
             else toast('Could not delete that section.', { error: true });
+          }).catch(function () {
+            toast('Could not delete that section.', { error: true });
           });
         });
         return b;
@@ -2806,7 +2811,7 @@
     fetch(cfg.mediaUrl + '?per_page=12&media_type=image&orderby=date&order=desc', {
       headers: { 'X-WP-Nonce': cfg.nonce },
       credentials: 'same-origin',
-    }).then(function (res) { return res.ok ? res.json() : []; })
+    }).catch(function () { return []; }).then(function (res) { return res && res.json ? res.json() : (res || []); })
       .then(function (items) {
         var box = panel.querySelector('.gogh-media');
         if (!box || panel.hidden) return;
@@ -3220,7 +3225,7 @@
     return fetch(GSROOT + 'global-styles/themes/' + cfg.theme + '/variations', {
       headers: { 'X-WP-Nonce': cfg.nonce },
       credentials: 'same-origin',
-    }).then(function (r) { return r.ok ? r.json() : []; }).then(function (vars) {
+    }).catch(function () { return { ok: false }; }).then(function (r) { return r.ok ? r.json() : []; }).then(function (vars) {
       // the API lists full variations and colour-only ones under one name
       var seen = {};
       variationsCache = vars.filter(function (v) {
@@ -4080,7 +4085,6 @@
     publish: publish,
     isDirty: isDirty,
     parseTopBlocks: parseTopBlocks,
-    convertScan: convertScan,
     convertBlock: convertBlock,
     convertChrome: convertChrome,
     restore: restoreState,
@@ -4508,102 +4512,6 @@
   // measure a Gutenberg block's rendered leaves into gogh elements.
   // containers (group/columns/cover) are flattened; unsupported content is
   // reported, never silently dropped.
-  function convertScan(root) {
-    var out = { els: [], bad: [] };
-    var rr = root.getBoundingClientRect();
-    if (rr.width < 10) return out;
-    var sx = W / rr.width;
-    function leaf(el, e) {
-      var r = el.getBoundingClientRect();
-      if (r.width < 2 || r.height < 2) return;
-      e.x = Math.max(0, Math.round((r.left - rr.left) * sx));
-      e.y = Math.max(0, Math.round((r.top - rr.top) * sx));
-      e.w = Math.max(16, Math.round(r.width * sx));
-      e.h = Math.max(16, Math.round(r.height * sx));
-      var fm = (el.className + '').match(/has-([a-z0-9-]+)-font-size/);
-      if (fm) e.fs = fm[1];
-      var am = (el.className + '').match(/has-text-align-(center|right)/);
-      if (am) e.align = am[1];
-      var cm = (el.className + '').match(/has-([a-z0-9-]+)-color/g);
-      if (cm) {
-        for (var ci = 0; ci < cm.length; ci++) {
-          var cslug = cm[ci].replace(/^has-/, '').replace(/-color$/, '');
-          if (cslug !== 'text' && cslug.indexOf('background') === -1 && cslug !== 'link') { e.color = cslug; break; }
-        }
-      }
-      out.els.push(e);
-    }
-    function walk(el) {
-      [].slice.call(el.children).forEach(function (c) {
-        var cl = c.classList, tag = c.tagName;
-        if (/^H[1-6]$/.test(tag)) return leaf(c, { type: 'heading', text: cleanInline(c.innerHTML).trim() });
-        if (tag === 'P') return leaf(c, { type: 'para', text: cleanInline(c.innerHTML).trim() });
-        if (cl.contains('wp-block-buttons')) {
-          [].slice.call(c.querySelectorAll('.wp-block-button')).forEach(function (b) {
-            var a = b.querySelector('a');
-            var lc = (a && a.className) || '';
-            var bgm = lc.match(/has-([a-z0-9-]+)-background-color/);
-            var txm = lc.replace(/has-[a-z0-9-]+-background-color/g, '').match(/has-((?!text-color)[a-z0-9-]+)-color/);
-            leaf(b, { type: 'button',
-              text: ((a || b).textContent || '').trim(),
-              href: (a && a.getAttribute('href') && a.getAttribute('href') !== '#') ? a.getAttribute('href') : null,
-              btnBg: bgm ? bgm[1] : null,
-              btnText: txm ? txm[1] : null,
-              ghost: b.className.indexOf('is-style-outline') !== -1 });
-          });
-          return;
-        }
-        if (tag === 'FIGURE' && cl.contains('wp-block-image')) {
-          var img = c.querySelector('img');
-          var e = { type: 'image' };
-          if (img) {
-            e.src = img.currentSrc || img.src || null;
-            e.alt = img.alt || null;
-            var mm = (img.className || '').match(/wp-image-(\d+)/);
-            e.mediaId = mm ? +mm[1] : null;
-          }
-          return leaf(c, e);
-        }
-        // pure layout / decoration: nothing to carry over
-        if (cl.contains('wp-block-spacer') || tag === 'HR' ||
-            cl.contains('wp-block-cover__background') ||
-            cl.contains('wp-block-cover__image-background') || tag === 'VIDEO') return;
-        // containers: flatten
-        if (cl.contains('wp-block-group') || cl.contains('wp-block-columns') ||
-            cl.contains('wp-block-column') || cl.contains('wp-block-cover') ||
-            cl.contains('wp-block-cover__inner-container') || !c.className) return walk(c);
-        if ((c.textContent || '').trim() || c.querySelector('img')) {
-          out.bad.push((c.className + '').split(' ')[0] || tag.toLowerCase());
-        }
-      });
-    }
-    // the clicked block may itself be a single leaf (a bare paragraph,
-    // heading, image or buttons row) rather than a container
-    var rtag = root.tagName, rcl = root.classList;
-    if (/^H[1-6]$/.test(rtag)) leaf(root, { type: 'heading', text: cleanInline(root.innerHTML).trim() });
-    else if (rtag === 'P') leaf(root, { type: 'para', text: cleanInline(root.innerHTML).trim() });
-    else if (rcl.contains('wp-block-buttons')) {
-      [].slice.call(root.querySelectorAll('.wp-block-button')).forEach(function (b) {
-        var a = b.querySelector('a');
-        leaf(b, { type: 'button',
-          text: ((a || b).textContent || '').trim(),
-          href: (a && a.getAttribute('href') && a.getAttribute('href') !== '#') ? a.getAttribute('href') : null,
-          ghost: b.className.indexOf('is-style-outline') !== -1 });
-      });
-    } else if (rtag === 'FIGURE' && rcl.contains('wp-block-image')) {
-      var rimg = root.querySelector('img');
-      var re2 = { type: 'image' };
-      if (rimg) {
-        re2.src = rimg.currentSrc || rimg.src || null;
-        re2.alt = rimg.alt || null;
-        var rmm = (rimg.className || '').match(/wp-image-(\d+)/);
-        re2.mediaId = rmm ? +rmm[1] : null;
-      }
-      leaf(root, re2);
-    } else walk(root);
-    return out;
-  }
-
   // non-gogh top-level blocks eligible for conversion
   function topBlockNodes() {
     return [].slice.call(pageParent.children).filter(function (n) {
@@ -5717,7 +5625,10 @@
       b.style.top = (r.top + window.scrollY + 10) + 'px';
       b.addEventListener('click', function () {
         b.disabled = true;
-        convertChrome(partEl).then(function (sec) { if (!sec) b.disabled = false; });
+        convertChrome(partEl).then(function (sec) { if (!sec) b.disabled = false; }).catch(function () {
+          b.disabled = false;
+          toast('Could not open the layout panel.', { error: true });
+        });
       });
       document.body.appendChild(b);
       chromeBtns.push(b);
@@ -5747,6 +5658,10 @@
         b.textContent = 'Converting\u2026';
         convertBlock(node).then(function (sec) {
           if (!sec) { b.disabled = false; b.textContent = '\u2728 Make freeform'; }
+        }).catch(function (err) {
+          b.disabled = false;
+          b.textContent = '\u2728 Make freeform';
+          toast((err && err.message) || 'gogh could not convert this block.', { error: true });
         });
       });
       document.body.appendChild(b);
