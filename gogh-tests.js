@@ -1229,6 +1229,30 @@
       G.deleteSection(G.sections().indexOf(added));
     });
 
+    test('header stepper: ‹ › strip renders, More… opens full panel', function () {
+      var partEl = document.querySelector('header.wp-block-template-part') ||
+        document.querySelector('header') || document.body;
+      var options = [
+        { kind: 'part', id: 101, slug: 'header', theme: 'x', title: 'Simple header', content: '' },
+        { kind: 'part', id: 102, slug: 'header-b', theme: 'x', title: 'Centered header', content: '' },
+      ];
+      var active = { id: 101, content: { raw: '<!-- wp:group --><div></div><!-- /wp:group -->' } };
+      G.openChromeStepper(partEl, 'header', options, options[0], active);
+      var strip = q('.gogh-chrome-step');
+      expect(strip, 'stepper strip not rendered');
+      expect(q('.gogh-step-label strong').textContent === 'Simple header', 'wrong layout label');
+      expect(q('.gogh-step-label span').textContent.indexOf('current') !== -1, 'active layout not marked current');
+      expect(q('.gogh-step-prev') && q('.gogh-step-next') && q('.gogh-step-ok'), 'missing step controls');
+      var more = q('.gogh-step-more');
+      expect(more, 'More… link missing');
+      more.click();
+      expect(!q('.gogh-chrome-step'), 'stepper still open after More…');
+      expect(document.querySelectorAll('.gogh-chrome-opt').length === 2, 'full panel options missing');
+      expect(q('.gogh-chrome-edit'), 'full panel lost Make freeform');
+      q('.gogh-panel-close').click();
+      expect(document.querySelector('.gogh-panel').hidden, 'panel did not close');
+    });
+
     // ---- report ----
     var passed = results.filter(function (r) { return r.pass; }).length;
     var summary = passed + '/' + results.length + ' passed' +

@@ -4115,6 +4115,7 @@
     stickyRawToggle: stickyRawToggle,
     insertGoghPattern: insertGoghPattern,
     addHtmlSection: addHtmlSection,
+    openChromeStepper: openChromeStepper,
     pending: function () { return pendingBlocks; },
     get state() {
       return { editing: editing, sections: S.length, sel: sel ? { i: sel.i } : null,
@@ -5154,7 +5155,7 @@
         activeOpt.title += ' \u00b7 freeform';
       }
       if (options.length > 1) {
-        openChromeLayoutPanel(partEl, area, options, activeOpt, active);
+        openChromeStepper(partEl, area, options, activeOpt, active);
         return null;
       }
       return doConvertChrome(partEl, area, active);
@@ -5163,7 +5164,79 @@
       return null;
     });
   }
-  // the theme ships several layouts for this area: offer them, elegantly
+  // enter freeform editing for a chrome part: reuse the mounted section if
+  // there is one, otherwise convert now
+  function editChromeFreeform(partEl, area, active) {
+    endChromePreview();
+    closePanel();
+    var existing = null;
+    S.forEach(function (s) { if (s.chrome && partEl.contains(s.wrapEl)) existing = s; });
+    if (existing) {
+      if (!existing.chrome.id && active) existing.chrome.id = active.id;
+      placeHandles(existing, 0);
+      return;
+    }
+    doConvertChrome(partEl, area, active).catch(function (err) {
+      toast(err.message || 'Could not edit the ' + area, { error: true });
+    });
+  }
+  // the simple default: step through the theme's layouts with ‹ › as
+  // live previews, tick to keep what you're looking at. Everything else
+  // (freeform, sticky, the full list) lives behind "More…"
+  function openChromeStepper(partEl, area, options, activeOpt, active) {
+    var idx = 0;
+    options.forEach(function (o, k) { if (activeOpt && o.id === activeOpt.id) idx = k; });
+    var busy = false;
+    var hasFreeform = !!((activeOpt && activeOpt.content.indexOf('wp:gogh/section') !== -1) ||
+      partEl.querySelector('.gogh-wrap'));
+    function isCurrent(o) { return !!(activeOpt && o.id === activeOpt.id); }
+    function render() {
+      var o = options[idx];
+      var onCurrent = isCurrent(o);
+      panel.innerHTML =
+        '<div class="gogh-chrome-step">' +
+        '<button type="button" class="gogh-sbtn gogh-step-prev" title="Previous layout">‹</button>' +
+        '<div class="gogh-step-label"><strong></strong>' +
+        '<span>' + (idx + 1) + ' of ' + options.length + (onCurrent ? ' · current' : '') + '</span></div>' +
+        '<button type="button" class="gogh-sbtn gogh-step-next" title="Next layout">›</button>' +
+        '<button type="button" class="gogh-sbtn gogh-step-ok" title="' +
+        (onCurrent ? 'Done' : 'Keep this layout (updates every page)') + '">✓</button>' +
+        '</div>' +
+        '<div class="gogh-step-links">' +
+        (hasFreeform ? '<button type="button" class="gogh-linkbtn gogh-step-edit">✨ Edit design</button>' : '') +
+        '<button type="button" class="gogh-linkbtn gogh-step-more">More…</button>' +
+        '</div>';
+      panel.querySelector('.gogh-step-label strong').textContent = o.title;
+      panel.querySelector('.gogh-step-prev').addEventListener('click', function () { step(-1); });
+      panel.querySelector('.gogh-step-next').addEventListener('click', function () { step(1); });
+      panel.querySelector('.gogh-step-ok').addEventListener('click', function () {
+        var chosen = options[idx];
+        if (isCurrent(chosen)) { endChromePreview(); closePanel(); return; }
+        this.disabled = true;
+        swapChromeLayout(area, active, chosen);
+      });
+      var editBtn = panel.querySelector('.gogh-step-edit');
+      if (editBtn) editBtn.addEventListener('click', function () {
+        editChromeFreeform(partEl, area, active);
+      });
+      panel.querySelector('.gogh-step-more').addEventListener('click', function () {
+        endChromePreview();
+        openChromeLayoutPanel(partEl, area, options, activeOpt, active);
+      });
+    }
+    function step(dir) {
+      if (busy) return;
+      idx = (idx + dir + options.length) % options.length;
+      var o = options[idx];
+      if (isCurrent(o)) { endChromePreview(); render(); return; }
+      busy = true;
+      previewChromeLayout(partEl, o, function () { busy = false; render(); });
+    }
+    render();
+    placePanelNear(partEl);
+    panelOpen = true;
+  }
+  // the full panel: every layout by name, freeform, sticky
   function openChromeLayoutPanel(partEl, area, options, activeOpt, active) {
     var selId = activeOpt ? activeOpt.id : null;
     var isFreeform = !!(activeOpt && activeOpt.content.indexOf('wp:gogh/section') !== -1);
@@ -5215,18 +5288,7 @@
         });
       });
       panel.querySelector('.gogh-chrome-edit').addEventListener('click', function () {
-        endChromePreview();
-        closePanel();
-        var existing = null;
-        S.forEach(function (s) { if (s.chrome && partEl.contains(s.wrapEl)) existing = s; });
-        if (existing) {
-          if (!existing.chrome.id && active) existing.chrome.id = active.id;
-          placeHandles(existing, 0);
-          return;
-        }
-        doConvertChrome(partEl, area, active).catch(function (err) {
-          toast(err.message || 'Could not edit the ' + area, { error: true });
-        });
+        editChromeFreeform(partEl, area, active);
       });
       panel.querySelector('.gogh-chrome-cancel').addEventListener('click', function () {
         endChromePreview();
