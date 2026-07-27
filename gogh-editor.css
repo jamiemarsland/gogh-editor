@@ -868,21 +868,33 @@
    everywhere (the loud gradient pill is retired) */
 .gogh-convertbtn {
   all: unset;
+  box-sizing: border-box;
   position: absolute;
   z-index: 99997;
   transform: translateX(-100%);
   cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, sans-serif;
   font-size: 11.5px;
   font-weight: 600;
+  line-height: 1;
   color: #e8eaf0;
   background: rgba(20, 21, 25, 0.88);
   border: 1px solid rgba(255, 255, 255, 0.14);
   border-radius: 999px;
-  padding: 6px 12px;
+  padding: 8px 15px;
   box-shadow: 0 10px 28px -8px rgba(0, 0, 0, 0.45);
   white-space: nowrap;
   opacity: 0.92;
+}
+/* wp-emoji swaps the ✨ text for an <img> — keep it chip-sized and spaced */
+.gogh-convertbtn img.emoji {
+  width: 13px;
+  height: 13px;
+  margin: 0 !important;
+  vertical-align: middle;
 }
 .gogh-convertbtn:hover { opacity: 1; transform: translateX(-100%) scale(1.04); }
 .gogh-convertbtn:disabled { opacity: 0.6; cursor: default; }
