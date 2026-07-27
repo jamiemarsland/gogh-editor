@@ -1382,6 +1382,28 @@
       G.deleteSection(G.sections().indexOf(a));
     });
 
+    test('publishing a paste causes zero reflow (gogh-pended)', function () {
+      G.addHtmlSection('<div style="background:#0a0a0a;padding:70px"><h2 style="margin:0">Pub</h2></div>', null);
+      var entry = G.pending()[G.pending().length - 1];
+      expect(entry.raw.indexOf('gogh-section-html') !== -1, 'wrapper missing its identity class in raw');
+      var el = entry.el;
+      var r0 = el.getBoundingClientRect();
+      // exactly what publish does to graduate a pending
+      var bar = el.querySelector(':scope > .gogh-pendbar');
+      if (bar) bar.remove();
+      el.classList.remove('gogh-pending');
+      el.classList.add('gogh-pended');
+      var r1 = el.getBoundingClientRect();
+      expect(Math.abs(r1.left - r0.left) < 1 && Math.abs(r1.width - r0.width) < 1 &&
+        Math.abs(r1.top - r0.top) < 1,
+        'graduation reflowed the section: d(left)=' + Math.round(r1.left - r0.left) +
+        ' d(width)=' + Math.round(r1.width - r0.width) + ' d(top)=' + Math.round(r1.top - r0.top));
+      var cs = getComputedStyle(el);
+      expect(cs.marginTop === '0px' && cs.marginBottom === '0px', 'graduated margins not zero: ' + cs.marginTop + '/' + cs.marginBottom);
+      el.remove();
+      G.pending().splice(G.pending().indexOf(entry), 1);
+    });
+
     test('classless h1 with inner span stays ONE heading (James hero)', function () {
       G.addHtmlSection('<div class="hx"><style>.hx h1{font-size:96px;font-weight:800}.hx h1 span{display:block;color:#7a7a7a}</style>' +
         '<div class="hx" style="background:#0a0a0a;padding:60px">' +

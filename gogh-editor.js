@@ -4420,11 +4420,15 @@
     }).then(function (post) {
       if (post.content && post.content.raw) rawCache = post.content.raw;
       // native pattern sections are stored now: they graduate to ordinary
-      // page content (the per-block Make freeform machinery owns them next)
+      // page content (the per-block Make freeform machinery owns them next).
+      // gogh-pended keeps the EXACT presentation (full bleed, zero margins)
+      // — stripping it caused a publish-moment reflow: the block-gap band
+      // returned and the canvas shifted sideways.
       pendingBlocks.forEach(function (pe) {
         var bar = pe.el.querySelector(':scope > .gogh-pendbar');
         if (bar) bar.remove();
         pe.el.classList.remove('gogh-pending');
+        pe.el.classList.add('gogh-pended');
       });
       pendingBlocks = [];
       // site chrome saves to its template part — one write, every page.
@@ -4867,14 +4871,15 @@
     // a real core HTML block inside a FULL-WIDTH group: pasted HTML owns the
     // whole canvas (its own CSS decides any constraints), in the editor and
     // on the published page alike
-    // zero vertical margins on the wrapper: pasted sections butt against
-    // their neighbours on the PUBLISHED page too, not just in the editor —
-    // the theme's block-gap would otherwise show as a band between them
-    var raw = '<!-- wp:group {"align":"full","style":{"spacing":{"margin":{"top":"0","bottom":"0"}}},"layout":{"type":"default"}} -->\n' +
-      '<div class="wp-block-group alignfull" style="margin-top:0;margin-bottom:0">\n' +
+    // the wrapper carries a persistent identity class and zero vertical
+    // margins: pasted sections stay full-bleed and butt against their
+    // neighbours everywhere — in the editor, after publish, after reload,
+    // and for visitors (gogh.php ships the matching front-end CSS)
+    var raw = '<!-- wp:group {"align":"full","className":"gogh-section-html","style":{"spacing":{"margin":{"top":"0","bottom":"0"}}},"layout":{"type":"default"}} -->\n' +
+      '<div class="wp-block-group alignfull gogh-section-html" style="margin-top:0;margin-bottom:0">\n' +
       '<!-- wp:html -->\n' + html + '\n<!-- /wp:html -->\n' +
       '</div>\n<!-- /wp:group -->';
-    var entry = insertNative(raw, '<div class="wp-block-group alignfull" style="margin-top:0;margin-bottom:0">' + html + '</div>', 'HTML', idx);
+    var entry = insertNative(raw, '<div class="wp-block-group alignfull gogh-section-html" style="margin-top:0;margin-bottom:0">' + html + '</div>', 'HTML', idx);
     if (entry) entry.freeHtml = true;
   }
   // frictionless paste: Cmd+V anywhere in edit mode drops HTML straight onto
@@ -6117,6 +6122,13 @@
       var b = document.createElement('button');
       b.type = 'button';
       b.className = 'gogh-convertbtn';
+      // pasted-HTML sections keep the quiet treatment they had while
+      // pending \u2014 the loud gradient pill is for foreign Gutenberg blocks
+      if (node.classList.contains('gogh-pended') ||
+          node.classList.contains('gogh-section-html') ||
+          node.querySelector(':scope > .gogh-section-html')) {
+        b.classList.add('is-htmlsec');
+      }
       b.textContent = '\u2728 Make freeform';
       b.style.left = (r.right + window.scrollX - 10) + 'px';
       b.style.top = (r.top + window.scrollY + 10) + 'px';

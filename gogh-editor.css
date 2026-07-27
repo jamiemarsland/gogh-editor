@@ -734,6 +734,16 @@
   white-space: nowrap;
   opacity: 0.92;
 }
+/* pasted-HTML sections: same quiet chip as the pending bar's buttons */
+.gogh-convertbtn.is-htmlsec {
+  background: rgba(20, 21, 25, 0.88);
+  color: #e8eaf0;
+  font-size: 11.5px;
+  font-weight: 600;
+  padding: 6px 12px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  box-shadow: 0 10px 28px -8px rgba(0, 0, 0, 0.45);
+}
 .gogh-convertbtn:hover { opacity: 1; transform: translateX(-100%) scale(1.04); }
 .gogh-convertbtn:disabled { opacity: 0.6; cursor: default; }
 
@@ -1322,7 +1332,9 @@ html.gogh-editing .gogh-mirror { display: flex; }
 .gogh-chromebtn:hover { opacity: 1; }
 .gogh-chromebtn svg { display: block; }
 
-.gogh-pending {
+/* gogh-pended = a pending that published: IDENTICAL presentation, so the
+   publish moment causes zero reflow (no gap band, no sideways shift) */
+.gogh-pending, .gogh-pended {
   position: relative;
   /* bulletproof full bleed: exactly the viewport, centred by transform so
      asymmetric theme containers can't skew or overflow it */
@@ -1338,6 +1350,15 @@ html.gogh-editing .gogh-mirror { display: flex; }
   /* sections butt like gogh sections do — the theme's block-gap margin
      otherwise shows as a page-background band between dark pastes */
   margin-block: 0 !important;
+}
+/* a paste's own wrapper, seen top-level after a reload (no holder around
+   it): same full-bleed, same zero margins — matches the front-end CSS */
+.gogh-section-html { margin-block: 0 !important; }
+:not(.gogh-pending):not(.gogh-pended) > .gogh-section-html {
+  box-sizing: border-box !important;
+  width: 100vw !important;
+  max-width: 100vw !important;
+  margin-inline: calc(50% - 50vw) !important;
 }
 .gogh-pendbar {
   position: absolute;
