@@ -431,11 +431,20 @@
         // clears the matching field)
         var tfd = [];
         if (e.tf.ff) tfd.push('font-family: ' + e.tf.ff);
-        if (e.tf.fs) tfd.push('font-size: ' + e.tf.fs + 'px !important');
+        if (e.tf.fs2) {
+          // container units scale the paste's text down on phones with the
+          // section; the floor keeps small text readable (big text scales,
+          // tiny text holds its size)
+          var dpx = Math.round(e.tf.fs2 * 12);
+          tfd.push('font-size: max(' + e.tf.fs2 + 'cqw, ' + Math.min(dpx, 15) + 'px) !important');
+        } else if (e.tf.fs) {
+          tfd.push('font-size: ' + e.tf.fs + 'px !important');
+        }
         if (e.tf.fw) tfd.push('font-weight: ' + e.tf.fw);
         if (e.tf.fst) tfd.push('font-style: ' + e.tf.fst);
         if (e.tf.lh) tfd.push('line-height: ' + e.tf.lh);
-        if (e.tf.ls) tfd.push('letter-spacing: ' + e.tf.ls + 'px');
+        if (e.tf.ls2 != null) tfd.push('letter-spacing: ' + e.tf.ls2 + 'em');
+        else if (e.tf.ls) tfd.push('letter-spacing: ' + e.tf.ls + 'px');
         if (e.tf.tt) tfd.push('text-transform: ' + e.tf.tt);
         if (e.tf.col) tfd.push('color: ' + e.tf.col + ' !important');
         if (e.tf.bg) tfd.push('background: ' + e.tf.bg + ' !important');
@@ -1080,7 +1089,7 @@
     var e = sec.els[i];
     if (!isText(e)) return;
     e.fs = slug || null;
-    if (e.tf) { delete e.tf.fs; delete e.tf.lh; }
+    if (e.tf) { delete e.tf.fs; delete e.tf.fs2; delete e.tf.lh; }
     var oldH = e.h;
     renderSection(sec);
     measureTextHeights(sec);
@@ -1111,7 +1120,7 @@
     var next = Math.max(0, Math.min(order.length - 1, idx + delta));
     if (order[next] === (e.fs || null)) return;
     e.fs = order[next];
-    if (e.tf) { delete e.tf.fs; delete e.tf.lh; }
+    if (e.tf) { delete e.tf.fs; delete e.tf.fs2; delete e.tf.lh; }
     var oldH = e.h;
     renderSection(sec);
     measureTextHeights(sec);
@@ -5600,13 +5609,23 @@
         var tf = {};
         if (tcs.fontFamily) tf.ff = tcs.fontFamily;
         var fpx = parseFloat(tcs.fontSize);
-        if (fpx) tf.fs = Math.round(fpx * 100) / 100;
+        if (fpx) {
+          tf.fs = Math.round(fpx * 100) / 100;
+          // container units so captured text scales down on phones like the
+          // rest of the section (fs2 cqw ≡ the same size at design width)
+          tf.fs2 = Math.round(fpx * sx / 12 * 1000) / 1000;
+        }
         if (tcs.fontWeight && tcs.fontWeight !== '400') tf.fw = tcs.fontWeight;
         if (tcs.fontStyle && tcs.fontStyle !== 'normal') tf.fst = tcs.fontStyle;
         var lhp = parseFloat(tcs.lineHeight);
         if (lhp && fpx) tf.lh = Math.round(lhp / fpx * 100) / 100;
         var lsp = parseFloat(tcs.letterSpacing);
-        if (lsp) tf.ls = Math.round(lsp * 100) / 100;
+        if (lsp) {
+          tf.ls = Math.round(lsp * 100) / 100;
+          // em tracks the font size at every breakpoint; raw px would keep
+          // desktop tracking on phone-sized text
+          tf.ls2 = Math.round(lsp / fpx * 1000) / 1000;
+        }
         if (tcs.textTransform && tcs.textTransform !== 'none') tf.tt = tcs.textTransform;
         if (tcs.color) tf.col = tcs.color;
         e.tf = tf;
@@ -5647,7 +5666,10 @@
           var brad = parseFloat(bcs.borderTopLeftRadius);
           if (brad) btf.rad = Math.round(brad);
           var bfpx = parseFloat(bcs.fontSize);
-          if (bfpx) btf.fs = Math.round(bfpx * 100) / 100;
+          if (bfpx) {
+            btf.fs = Math.round(bfpx * 100) / 100;
+            btf.fs2 = Math.round(bfpx * sx / 12 * 1000) / 1000;
+          }
           if (bcs.fontWeight && bcs.fontWeight !== '400') btf.fw = bcs.fontWeight;
           if (bcs.fontFamily) btf.ff = bcs.fontFamily;
           be.tf = btf;

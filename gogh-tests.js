@@ -1318,14 +1318,16 @@
       // the paste keeps its own look: captured typography, not theme presets
       var h = byType('heading')[0];
       expect(h.tf && h.tf.col && h.tf.col.indexOf('255, 255, 255') !== -1, 'heading colour not captured: ' + JSON.stringify(h.tf));
-      expect(h.tf.fs > 0, 'heading font size not captured');
-      expect(added.styleEl.textContent.indexOf('font-size: ' + h.tf.fs + 'px !important') !== -1, 'captured size not in section CSS');
+      expect(h.tf.fs > 0 && h.tf.fs2 > 0, 'heading font size not captured (px+cqw)');
+      // responsive emission: container units with a readability floor, so
+      // pasted text scales down on phones instead of staying desktop-sized
+      expect(added.styleEl.textContent.indexOf('font-size: max(' + h.tf.fs2 + 'cqw') !== -1, 'captured size not emitted in container units');
       expect(btn.tf && btn.tf.bg && btn.tf.bg.indexOf('255, 255, 255') !== -1, 'button background not captured');
       // theme controls win once used: picking a preset size clears the override
+      var oldFs2 = h.tf.fs2;
       G.setFontSize(added, added.els.indexOf(h), 'large');
-      expect(!h.tf.fs, 'preset size did not clear the captured size');
-      expect(added.styleEl.textContent.indexOf('px !important') === -1 ||
-        added.styleEl.textContent.indexOf('font-size: ' + h.tf.fs + 'px') === -1, 'stale size override in CSS');
+      expect(!h.tf.fs && !h.tf.fs2, 'preset size did not clear the captured size');
+      expect(added.styleEl.textContent.indexOf(oldFs2 + 'cqw') === -1, 'stale size override in CSS');
       G.deleteSection(G.sections().indexOf(added));
     });
 
@@ -1420,6 +1422,7 @@
       expect(heads[0].text.indexOf('Beautiful') !== -1 && heads[0].text.indexOf('Simplicity') !== -1,
         'heading lost its bare text node: "' + heads[0].text + '"');
       expect(heads[0].tf && heads[0].tf.fs === 96, 'stylesheet size not captured: ' + JSON.stringify(heads[0].tf));
+      expect(heads[0].tf.fs2 > 0, 'container-unit size missing');
       expect(added.els.filter(function (e) { return e.type === 'button'; }).length === 1, 'link not a button');
       expect(added.els.filter(function (e) { return e.type === 'widget'; }).length === 0, 'stray widgets: h1 span leaked');
       G.deleteSection(G.sections().indexOf(added));
