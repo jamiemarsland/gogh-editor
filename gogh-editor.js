@@ -5415,12 +5415,51 @@
       ev.stopPropagation();
       var chosen = st.options[st.idx];
       if (isCurrent(chosen)) { collapse(); return; }
-      swapChromeLayout(area, active, chosen);
+      if (!isDirty()) { swapChromeLayoutNow(area, active, chosen); return; }
+      // the confirmation lives IN the strip — a corner toast goes unseen
+      // and reads as "the tick does nothing"
+      var old = cycBar.querySelector('.gogh-cyc-confirm');
+      if (old) old.remove();
+      var conf = document.createElement('span');
+      conf.className = 'gogh-cyc-confirm';
+      conf.innerHTML = '<span>Unpublished page changes will be lost.</span>' +
+        '<b role="button" class="gogh-cyc-yes">Switch anyway</b>' +
+        '<b role="button" class="gogh-cyc-no">Back</b>';
+      conf.querySelector('.gogh-cyc-yes').onclick = function (e2) {
+        e2.stopPropagation();
+        swapChromeLayoutNow(area, active, chosen);
+      };
+      conf.querySelector('.gogh-cyc-no').onclick = function (e2) {
+        e2.stopPropagation();
+        conf.remove();
+      };
+      conf.onclick = function (e2) { e2.stopPropagation(); };
+      cycBar.appendChild(conf);
     };
     cycBar.querySelector('.gogh-cyc-edit').onclick = function (ev) {
       ev.stopPropagation();
-      collapse();
-      editChromeFreeform(partEl, area, active);
+      var chosen = st.options[st.idx];
+      var existing = null;
+      S.forEach(function (s) { if (s.chrome && partEl.contains(s.wrapEl)) existing = s; });
+      if (existing) {
+        collapse();
+        if (!existing.chrome.id && active) existing.chrome.id = active.id;
+        placeHandles(existing, 0);
+        return;
+      }
+      // ✨ converts what's ON SCREEN — the previewed look, not the saved one
+      var partArg = isCurrent(chosen) ? active : { id: active.id, content: { raw: chosen.content || '' } };
+      var scanRoot = null;
+      if (!isCurrent(chosen) && chromePreview && chromePreview.partEl === partEl) {
+        // scan the preview box; it then joins the hidden originals under
+        // the mounted canvas
+        scanRoot = chromePreview.box;
+        chromePreview = null;
+      }
+      collapse(true);
+      doConvertChrome(partEl, area, partArg, scanRoot).catch(function (err) {
+        toast(err.message || 'Could not edit the ' + area, { error: true });
+      });
     };
     cycBar.querySelector('.gogh-cyc-more').onclick = function (ev) {
       ev.stopPropagation();
@@ -5737,20 +5776,23 @@
       });
     });
   }
+  function swapChromeLayoutNow(area, active, chosen) {
+    fetch(tpUrl(active.id), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-WP-Nonce': cfg.nonce },
+      credentials: 'same-origin',
+      body: JSON.stringify({ content: chosen.content || '' }),
+    }).then(function (r) {
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      discarding = true;
+      location.reload();
+    }).catch(function () {
+      toast('Could not switch the ' + area + ' layout.', { error: true });
+    });
+  }
   function swapChromeLayout(area, active, chosen) {
     confirmChromeReload(area, function () {
-      fetch(tpUrl(active.id), {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'X-WP-Nonce': cfg.nonce },
-        credentials: 'same-origin',
-        body: JSON.stringify({ content: chosen.content || '' }),
-      }).then(function (r) {
-        if (!r.ok) throw new Error('HTTP ' + r.status);
-        discarding = true;
-        location.reload();
-      }).catch(function () {
-        toast('Could not switch the ' + area + ' layout.', { error: true });
-      });
+      swapChromeLayoutNow(area, active, chosen);
     });
   }
   // measure a rendered container against its raw block markup: known leaves
@@ -5988,7 +6030,11 @@
     function walk(containerDom, rawText) {
       var spans = parseTopBlocks(rawText);
       var kids = [].slice.call(containerDom.children).filter(function (c) {
-        return !(c.classList && c.classList.contains('gogh-pendbar'));
+        if (c.classList && c.classList.contains('gogh-pendbar')) return false;
+        // metadata children are never block output — counting them against
+        // the markup spans breaks pairing (a preview box carries a <style>)
+        var tg = c.tagName;
+        return tg !== 'STYLE' && tg !== 'SCRIPT' && tg !== 'LINK' && tg !== 'TEMPLATE';
       });
       // a lone html block renders ALL these children (a paste's <style> +
       // content roots) — span↔child pairing is meaningless, free-walk them
@@ -6100,12 +6146,15 @@
     return { els: out, minH: minH, rootBg: rootBg };
   }
 
-  function doConvertChrome(partEl, area, part) {
+  function doConvertChrome(partEl, area, part, scanRoot) {
     return Promise.resolve().then(function () {
       var raw = (part.content && part.content.raw) || '';
-      var rr = partEl.getBoundingClientRect();
+      // converting a PREVIEWED look scans the preview box: partEl's other
+      // children are the hidden originals and would wreck span pairing
+      var scanEl = scanRoot || partEl;
+      var rr = scanEl.getBoundingClientRect();
       var sx = W / rr.width;
-      var chromeScan = scanDomWithRaw(partEl, raw);
+      var chromeScan = scanDomWithRaw(scanEl, raw);
       var out = chromeScan.els;
       if (!out.length) throw new Error('Nothing to edit in this ' + area + '.');
       var sec = newSectionShell('gogh-sec-' + (scopeSeq++));

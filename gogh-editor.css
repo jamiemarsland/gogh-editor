@@ -1050,6 +1050,27 @@
   font-size: 9px;
   opacity: 0.35;
 }
+/* the ✓ confirmation covers the strip itself — never a corner toast */
+.gogh-cyc-confirm {
+  position: absolute;
+  inset: 0;
+  border-radius: 999px;
+  background: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  font-size: 12px;
+  color: #50575e;
+}
+.gogh-cyc-confirm b {
+  cursor: pointer;
+  font-weight: 700;
+  padding: 4px 12px;
+  border-radius: 999px;
+}
+.gogh-cyc-yes { background: #1a8f4d; color: #fff; }
+.gogh-cyc-no { background: rgba(0, 0, 0, 0.08); }
 .gogh-cyc-ok, .gogh-cyc-edit, .gogh-cyc-more, .gogh-cyc-x {
   display: grid;
   place-items: center;
