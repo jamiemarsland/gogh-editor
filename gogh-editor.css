@@ -143,6 +143,13 @@
   padding: 14px 10px 4px;
 }
 .gogh-side-row { display: flex; gap: 6px; padding: 0 2px; }
+/* icon buttons centre their glyphs regardless of which row hosts them */
+.gogh-side-row .gogh-sbtn {
+  display: grid;
+  place-items: center;
+  padding: 8px 0;
+}
+.gogh-side-row .gogh-sbtn svg { display: block; }
 .gogh-sbtn {
   all: unset;
   cursor: pointer;
@@ -172,13 +179,6 @@
 .gogh-sitem svg { flex: none; opacity: 0.5; transition: opacity 0.12s ease; }
 .gogh-sitem:hover { background: rgba(126, 168, 255, 0.18); color: #aac6ff; }
 .gogh-sitem:hover svg { opacity: 1; }
-/* the palette's one primary action */
-.gogh-addsec {
-  background: rgba(126, 168, 255, 0.14);
-  color: #aac6ff;
-}
-.gogh-addsec svg { opacity: 0.9; }
-.gogh-addsec:hover { background: rgba(126, 168, 255, 0.28); }
 .gogh-side-gap { flex: none; height: 10px; }
 .gogh-side .gogh-btn { margin-top: 4px; }
 

@@ -310,7 +310,7 @@
     // ---- 13. add section from template ----
     test('+ Section adds a template section', function () {
       var s0 = G.sections().length;
-      q('.gogh-side [data-act="addsec"]').click();
+      G.openPicker(G.sections().length);
       var card = q('.gogh-card[data-tpl="5"]');
       expect(card, 'picker did not open');
       card.click();
@@ -1245,7 +1245,7 @@
     });
 
     test('picker: one grid, chips filter starters in place', function () {
-      q('.gogh-side [data-act="addsec"]').click();
+      G.openPicker(G.sections().length);
       expect(!q('.gogh-topstrip') && !q('.gogh-picker-sub'), 'old picker zones still present');
       var blank = q('.gogh-card-blank');
       expect(blank && blank.dataset.tpl, 'blank card missing from grid');

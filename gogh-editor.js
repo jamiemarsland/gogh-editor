@@ -971,8 +971,6 @@
     '<button type="button" class="gogh-sitem" data-add="image"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="8.5" cy="10" r="1.6"/><path d="M21 16l-5-5-9 8"/></svg>Image</button>' +
     '<button type="button" class="gogh-sitem" data-add="badge"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><circle cx="12" cy="9.5" r="5.5"/><path d="M9 14l-1.5 6 4.5-2.4 4.5 2.4L15 14"/></svg>Badge</button>' +
     '<button type="button" class="gogh-sitem" data-add="posts" title="Your latest posts, live"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="4" width="16" height="6" rx="1.5"/><rect x="4" y="14" width="16" height="6" rx="1.5"/></svg>Posts</button>' +
-    '<div class="gogh-side-label">Page</div>' +
-    '<button type="button" class="gogh-sitem gogh-addsec" data-act="addsec"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>Section</button>' +
     '<div class="gogh-side-gap"></div>' +
     '<div class="gogh-side-foot">' +
     '<button type="button" class="gogh-sbtn gogh-undo" title="Undo (⌘Z)">↺</button>' +
@@ -1946,7 +1944,6 @@
     btn.addEventListener('click', function () { addElementAtViewport(btn.dataset.add); });
   });
   elbar.querySelector('.gogh-eb-del').addEventListener('click', deleteSelected);
-  side.querySelector('[data-act="addsec"]').addEventListener('click', function () { openPicker(S.length); });
   side.querySelector('[data-act="gridsnap"]').addEventListener('click', function () {
     gridSnapOn = !gridSnapOn;
     // the grid you snap to is the grid you see — never invisible magnets
@@ -4149,6 +4146,7 @@
     insertGoghPattern: insertGoghPattern,
     addHtmlSection: addHtmlSection,
     startChromeCycle: startChromeCycle,
+    openPicker: openPicker,
     pending: function () { return pendingBlocks; },
     get state() {
       return { editing: editing, sections: S.length, sel: sel ? { i: sel.i } : null,
