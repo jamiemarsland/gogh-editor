@@ -1638,6 +1638,30 @@
       return 'upload + media grid present';
     });
 
+    // ---- published blocks stay lightly editable ----
+    test('stored light edits: published html block syncs text to raw', function () {
+      var host = document.createElement('div');
+      host.innerHTML = '<section class="gogh-section-html"><h2>Edit me after publish</h2><p>Body text</p></section>';
+      var el = host.firstChild;
+      document.body.appendChild(el);
+      var raw = '<!-- wp:html -->\n' + el.outerHTML + '\n<!-- /wp:html -->';
+      var entry = G.bindStoredTest(el, raw);
+      try {
+        expect(entry.map.length === 1 && entry.map[0].node === el, 'self map not built for stored block');
+        el.querySelector('h2').textContent = 'Changed after publish';
+        entry.__sync(entry.map[0]);
+        expect(entry.raw.indexOf('Changed after publish') !== -1, 'edit did not sync into raw');
+        expect(entry.raw.indexOf('wp:html') !== -1, 'block comments lost in sync');
+        expect(G.isDirty(), 'stored edit did not mark the page dirty');
+        var merged = G.mergeContent(entry.savedRaw);
+        expect(merged.indexOf('Changed after publish') !== -1, 'mergeContent did not carry the stored edit');
+      } finally {
+        G.storedEdits().pop();
+        el.remove();
+      }
+      return 'stored block edits → raw → mergeContent';
+    });
+
     // ---- shape element: palette flyout, back-of-stack insert, shipped CSS ----
     test('shapes: flyout inserts circle at the back with published CSS', function () {
       window.scrollTo(0, 0);

@@ -1436,6 +1436,8 @@
       fetchBlocks();
       // header/footer become lightly editable: text, links, menus in place
       initChromeLightEdits();
+      // so do published native/HTML sections — publish is not a one-way door
+      initStoredEdits();
     }
     editBtnWrap.hidden = on;
     hideHandles();
@@ -4369,6 +4371,14 @@
       return e;
     },
     pending: function () { return pendingBlocks; },
+    storedEdits: function () { return storedEdits; },
+    initStoredEdits: initStoredEdits,
+    bindStoredTest: function (el, raw) {
+      var e = { el: el, raw: raw, savedRaw: raw, stored: true, selfBlock: true, title: 'test stored' };
+      storedEdits.push(e);
+      bindPending(e);
+      return e;
+    },
     get state() {
       return { editing: editing, sections: S.length, sel: sel ? { i: sel.i } : null,
         drag: !!drag, resize: !!resize, history: history.length, hIdx: hIdx };
@@ -4565,6 +4575,7 @@
   function isDirty() {
     if (pendingBlocks.length) return true;
     if (chromeLightEdits.some(function (e) { return e.savedRaw != null && e.raw !== e.savedRaw; })) return true;
+    if (storedEdits.some(function (e) { return e.raw !== e.savedRaw; })) return true;
     return savedSnap !== null && serialize() !== savedSnap;
   }
 
@@ -4655,6 +4666,9 @@
         pe.el.classList.add('gogh-pended');
       });
       pendingBlocks = [];
+      // everything just stored — rebuild the stored-edit bindings against the
+      // fresh content so the graduated blocks (and prior edits) stay editable
+      initStoredEdits();
       // site chrome saves to its template part — one write, every page.
       // Resolve ids first (booted freeform chrome has none), and AWAIT the
       // saves: publish isn't done until the header/footer actually saved.
@@ -5023,6 +5037,52 @@
       .catch(function () { return ''; });
   }
   var pendingBlocks = []; // native pattern sections awaiting publish
+  // published native/HTML blocks, re-bound for light editing every time
+  // editing turns on — publish must not be the end of click-to-edit
+  var storedEdits = [];
+  function initStoredEdits() {
+    fetchRaw().then(function (raw) {
+      storedEdits = [];
+      var spans = parseTopBlocks(raw);
+      var claimed = {};
+      S.forEach(function (s) { if (s.srcSig) claimed[s.srcSig] = true; });
+      // stored NON-gogh spans pair positionally with rendered non-gogh top
+      // nodes — the same mapping convertBlock trusts. Counts differ → bind
+      // nothing rather than bind wrongly.
+      var free = spans.filter(function (sp) {
+        if (sp.name === 'gogh/section') return false;
+        return !claimed[sigOf(raw.slice(sp.start, sp.end))];
+      });
+      var kids = topBlockNodes();
+      if (!free.length || !kids.length) return;
+      // a graduated holder (same-session publish) wraps SEVERAL top blocks —
+      // it consumes one span per rendered block child; bare blocks take one
+      var blockKids = function (el) {
+        return [].slice.call(el.children).filter(function (c) {
+          var tg = c.tagName;
+          return tg !== 'STYLE' && tg !== 'SCRIPT' && tg !== 'LINK' && tg !== 'TEMPLATE' &&
+            !(c.classList && c.classList.contains('gogh-pendbar'));
+        });
+      };
+      var out = [];
+      var si = 0;
+      for (var ki = 0; ki < kids.length; ki++) {
+        var kid = kids[ki];
+        var pended = kid.classList && kid.classList.contains('gogh-pended');
+        var m = pended ? Math.max(1, blockKids(kid).length) : 1;
+        if (si + m > free.length) return;
+        var seg = raw.slice(free[si].start, free[si + m - 1].end);
+        out.push({
+          el: kid, raw: seg, savedRaw: seg, stored: true,
+          selfBlock: !pended, title: 'Section',
+        });
+        si += m;
+      }
+      if (si !== free.length) return; // leftover spans: mapping untrusted
+      storedEdits = out;
+      out.forEach(bindPending);
+    }).catch(function () {});
+  }
   function clampInsertIdx(idx) {
     var footAt = -1;
     S.forEach(function (s, k) { if (footAt === -1 && s.chrome && s.chrome.area === 'footer') footAt = k; });
@@ -5151,7 +5211,7 @@
     if (el.closest('.wp-block-navigation')) return null;
     var t = el.closest('h1,h2,h3,h4,h5,h6,p,figcaption');
     if (!t) return null;
-    var all = chromeLightEdits.concat(pendingBlocks);
+    var all = chromeLightEdits.concat(pendingBlocks, storedEdits);
     for (var i = 0; i < all.length; i++) {
       var en = all[i];
       if (!en.el || !en.__leafOf || !en.el.contains(t)) continue;
@@ -5213,12 +5273,14 @@
         return editing && chromeLightEdits.indexOf(entry) !== -1 &&
           !entry.el.querySelector('.gogh-wrap');
       }
+      // published blocks stay lightly editable for as long as editing is on
+      if (entry.stored) return editing && storedEdits.indexOf(entry) !== -1;
       return pendingBlocks.indexOf(entry) !== -1;
     };
     var fresh = !entry.__bound;
     entry.__bound = true;
     entry.map = [];
-    (function pair(container, base, rawText) {
+    var pair = function pair(container, base, rawText) {
       var spans = parseTopBlocks(rawText);
       var kids = [].slice.call(container.children).filter(function (c) {
         if (c.classList && c.classList.contains('gogh-pendbar')) return false;
@@ -5245,13 +5307,36 @@
         if (seg.slice(bodyStart + 3, bodyEnd).indexOf('<!-- wp:') !== -1) return;
         entry.map.push({ node: dom, s: base + sp.start, e: base + sp.end });
       });
-    })(entry.el, 0, entry.raw);
-    if (!entry.map.length) {
-      // one block, unmatched structure (an HTML block, say): the whole
-      // holder edits as a single span
-      var spans0 = parseTopBlocks(entry.raw);
-      if (spans0.length === 1) {
-        entry.map.push({ node: entry.el, s: spans0[0].start, e: spans0[0].end, whole: true });
+    };
+    if (entry.selfBlock) {
+      // a stored entry whose el IS the block's own root (not a holder of
+      // blocks): descend into container blocks, or edit the node as the
+      // block body when it holds no nested blocks
+      var sp0s = parseTopBlocks(entry.raw);
+      if (sp0s.length === 1) {
+        var sp0 = sp0s[0];
+        var nm0 = String(sp0.name || '').replace(/^core\//, '');
+        if (nm0 === 'group' || nm0 === 'columns' || nm0 === 'buttons') {
+          var inner0 = innerRawOf(entry.raw, sp0);
+          if (inner0 && entry.el.children.length) pair(entry.el, inner0.base, inner0.text);
+        } else {
+          var seg0 = entry.raw.slice(sp0.start, sp0.end);
+          var bs0 = seg0.indexOf('-->');
+          var be0 = seg0.lastIndexOf('<!--');
+          if (bs0 !== -1 && be0 > bs0 && seg0.slice(bs0 + 3, be0).indexOf('<!-- wp:') === -1) {
+            entry.map.push({ node: entry.el, s: sp0.start, e: sp0.end });
+          }
+        }
+      }
+    } else {
+      pair(entry.el, 0, entry.raw);
+      if (!entry.map.length) {
+        // one block, unmatched structure (an HTML block, say): the whole
+        // holder edits as a single span
+        var spans0 = parseTopBlocks(entry.raw);
+        if (spans0.length === 1) {
+          entry.map.push({ node: entry.el, s: spans0[0].start, e: spans0[0].end, whole: true });
+        }
       }
     }
     var holder = entry.el;
@@ -7228,6 +7313,18 @@
   // the page had none, whole-replace only for legacy full-gogh pages
   function mergeContent(raw) {
     var OPEN = '<!-- wp:gogh/section -->', CLOSE = '<!-- /wp:gogh/section -->';
+    // light edits to PUBLISHED native/HTML blocks: swap each edited block's
+    // stored span (matched by the signature of its unedited form) for the
+    // edited markup before anything else rewrites the content
+    storedEdits.forEach(function (en) {
+      if (en.raw === en.savedRaw || !en.el.isConnected) return;
+      // savedRaw is a verbatim slice of the stored content — exact-string
+      // replacement handles single blocks and multi-block holders alike; a
+      // miss (content changed elsewhere) skips rather than corrupts
+      var at = raw.indexOf(en.savedRaw);
+      if (at === -1) return;
+      raw = raw.slice(0, at) + en.raw + raw.slice(at + en.savedRaw.length);
+    });
     // converted Gutenberg blocks: swap each source span for its section, then
     // the generic paths below see them as ordinary gogh sections
     var converted = realSections().filter(function (s) { return s.srcSig; });
