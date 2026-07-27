@@ -1440,24 +1440,31 @@
       ];
       var active = { id: 101, content: { raw: '<!-- wp:group --><div></div><!-- /wp:group -->' } };
       G.startChromeCycle(partEl, 'header', options, options[0], active);
-      expect(pill.classList.contains('is-cycling'), 'pill did not enter cycle mode');
+      var bar = q('.gogh-cycbar');
+      expect(bar && !bar.hidden, 'cycle strip did not open');
+      expect(pill.style.display === 'none', 'pill not hidden while cycling');
       // first activation advances straight to the next layout
-      expect(pill.querySelector('.gogh-cyc-name').textContent === 'Centered header', 'did not advance on start');
-      expect(pill.querySelector('.gogh-cyc-n').textContent.indexOf('2/2') === 0, 'wrong position label');
-      expect(pill.querySelector('.gogh-cyc-ok') && pill.querySelector('.gogh-cyc-edit') && pill.querySelector('.gogh-cyc-more'), 'missing cycle actions');
+      expect(bar.querySelector('.gogh-cyc-name').textContent.indexOf('Centered header') !== -1, 'did not advance on start');
+      expect(bar.querySelector('.gogh-cyc-n').textContent.indexOf('2/2') === 0, 'wrong position label');
+      expect(bar.querySelector('.gogh-cyc-ok') && bar.querySelector('.gogh-cyc-edit') &&
+        bar.querySelector('.gogh-cyc-more') && bar.querySelector('.gogh-cyc-x'), 'missing strip actions');
+      // clicking the HEADER is claimed by the cycle (advance), never a close
+      pev('pointerdown', partEl.firstElementChild || partEl);
+      expect(!bar.hidden, 'header click closed the strip instead of advancing');
       // ⋯ hands off to the full panel
-      pill.querySelector('.gogh-cyc-more').click();
-      expect(!pill.classList.contains('is-cycling'), 'pill still cycling after ⋯');
+      bar.querySelector('.gogh-cyc-more').click();
+      expect(bar.hidden, 'strip still open after ⋯');
       expect(document.querySelectorAll('.gogh-chrome-opt').length === 2, 'full panel options missing');
       expect(q('.gogh-chrome-edit'), 'full panel lost Make freeform');
       q('.gogh-panel-close').click();
       expect(document.querySelector('.gogh-panel').hidden, 'panel did not close');
-      // cycle again, then click-off collapses back to the plain pill
+      // cycle again, then click-off (outside header + strip) collapses
       G.startChromeCycle(partEl, 'header', options, options[0], active);
-      expect(pill.classList.contains('is-cycling'), 'pill did not re-enter cycle mode');
-      document.body.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }));
-      expect(!pill.classList.contains('is-cycling'), 'click-off did not collapse the pill');
-      expect(pill.innerHTML === baseHTML, 'pill label not restored');
+      expect(!q('.gogh-cycbar').hidden, 'strip did not re-open');
+      pev('pointerdown', document.body);
+      expect(q('.gogh-cycbar').hidden, 'click-off did not close the strip');
+      expect(pill.style.display !== 'none', 'pill not restored after collapse');
+      expect(pill.innerHTML === baseHTML, 'pill label changed');
       expect(!document.querySelector('.gogh-chrome-preview'), 'preview left behind after collapse');
     });
 

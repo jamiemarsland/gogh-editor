@@ -5256,43 +5256,63 @@
   // you're looking at, click-off or Esc reverts. ✨ edits, ⋯ opens the full
   // panel (every layout by name, sticky).
   var chromeCycle = null;
+  var cycBar = document.createElement('div');
+  cycBar.className = 'gogh-cycbar';
+  cycBar.hidden = true;
+  cycBar.innerHTML =
+    '<span class="gogh-cyc-name"></span><span class="gogh-cyc-n"></span>' +
+    '<em class="gogh-cyc-hint"></em>' +
+    '<span class="gogh-cyc-ok" role="button" title="Keep this layout (updates every page)">✓</span>' +
+    '<span class="gogh-cyc-edit" role="button" title="Make it freeform">✨</span>' +
+    '<span class="gogh-cyc-more" role="button" title="All options">⋯</span>' +
+    '<span class="gogh-cyc-x" role="button" title="Put it back">✕</span>';
+  document.body.appendChild(cycBar);
+  // the header ITSELF is the button while cycling: the control strip docks
+  // at the very top of the screen (over the admin bar) so nothing ever
+  // covers the header being previewed
   function startChromeCycle(partEl, area, options, activeOpt, active) {
     if (chromeCycle) chromeCycle.collapse();
     var pill = null;
     chromeBtns.forEach(function (b) { if (b.__goghPart === partEl) pill = b; });
-    if (!pill) { openChromeLayoutPanel(partEl, area, options, activeOpt, active); return; }
     var st = {
-      pill: pill, partEl: partEl, area: area, options: options,
+      partEl: partEl, area: area, options: options,
       activeOpt: activeOpt, active: active, idx: 0, busy: false, alive: true,
-      origHTML: pill.innerHTML, origLeft: pill.style.left,
     };
     options.forEach(function (o, k) { if (activeOpt && o.id === activeOpt.id) st.idx = k; });
     function isCurrent(o) { return !!(activeOpt && o.id === activeOpt.id); }
-    function fitPill() {
-      var r2 = pill.getBoundingClientRect();
-      var over = r2.right - (window.innerWidth - 8);
-      if (over > 0) pill.style.left = Math.max(8 + window.scrollX, r2.left + window.scrollX - over) + 'px';
-    }
     function render() {
       var o = st.options[st.idx];
-      pill.querySelector('.gogh-cyc-name').textContent = o.title;
-      pill.querySelector('.gogh-cyc-n').textContent =
+      cycBar.querySelector('.gogh-cyc-name').textContent = 'Site ' + area + ' — ' + o.title;
+      cycBar.querySelector('.gogh-cyc-n').textContent =
         (st.idx + 1) + '/' + st.options.length + (isCurrent(o) ? ' · current' : '');
-      fitPill();
     }
     function collapse(keepPreview) {
       if (!st.alive) return;
       st.alive = false;
       chromeCycle = null;
       document.removeEventListener('pointerdown', onDocDown, true);
+      document.removeEventListener('click', onDocClick, true);
       document.removeEventListener('keydown', onKey, true);
       if (!keepPreview) endChromePreview();
-      pill.classList.remove('is-cycling');
-      pill.innerHTML = st.origHTML;
-      pill.style.left = st.origLeft;
-      pill.disabled = false;
+      cycBar.hidden = true;
+      if (pill) { pill.style.display = ''; pill.disabled = false; }
     }
-    function onDocDown(ev) { if (!pill.contains(ev.target)) collapse(); }
+    function onDocDown(ev) {
+      if (cycBar.contains(ev.target)) return;
+      if (partEl.contains(ev.target)) {
+        // clicking the header = next look; swallow it before nav links act
+        ev.preventDefault();
+        ev.stopPropagation();
+        st.advance();
+        return;
+      }
+      collapse();
+    }
+    function onDocClick(ev) {
+      // the pointerdown consumed the gesture — stop the follow-up click from
+      // navigating a header link mid-cycle
+      if (st.alive && partEl.contains(ev.target)) { ev.preventDefault(); ev.stopPropagation(); }
+    }
     function onKey(ev) { if (ev.key === 'Escape') { collapse(); ev.stopPropagation(); } }
     st.advance = function () {
       if (st.busy) return;
@@ -5309,36 +5329,36 @@
     };
     st.collapse = collapse;
     chromeCycle = st;
-    pill.classList.add('is-cycling');
-    pill.disabled = false;
-    pill.innerHTML =
-      '<span class="gogh-cyc-name"></span><span class="gogh-cyc-n"></span>' +
-      '<span class="gogh-cyc-ok" role="button" title="Keep this layout (updates every page)">✓</span>' +
-      '<span class="gogh-cyc-edit" role="button" title="Make it freeform">✨</span>' +
-      '<span class="gogh-cyc-more" role="button" title="All options">⋯</span>';
-    pill.querySelector('.gogh-cyc-ok').addEventListener('click', function (ev) {
+    if (pill) pill.style.display = 'none';
+    cycBar.querySelector('.gogh-cyc-hint').textContent = 'click the ' + area + ' for the next look';
+    cycBar.querySelector('.gogh-cyc-ok').onclick = function (ev) {
       ev.stopPropagation();
       var chosen = st.options[st.idx];
       if (isCurrent(chosen)) { collapse(); return; }
       swapChromeLayout(area, active, chosen);
-    });
-    pill.querySelector('.gogh-cyc-edit').addEventListener('click', function (ev) {
+    };
+    cycBar.querySelector('.gogh-cyc-edit').onclick = function (ev) {
       ev.stopPropagation();
       collapse();
       editChromeFreeform(partEl, area, active);
-    });
-    pill.querySelector('.gogh-cyc-more').addEventListener('click', function (ev) {
+    };
+    cycBar.querySelector('.gogh-cyc-more').onclick = function (ev) {
       ev.stopPropagation();
       collapse();
       openChromeLayoutPanel(partEl, area, options, activeOpt, active);
-    });
+    };
+    cycBar.querySelector('.gogh-cyc-x').onclick = function (ev) {
+      ev.stopPropagation();
+      collapse();
+    };
     document.addEventListener('pointerdown', onDocDown, true);
+    document.addEventListener('click', onDocClick, true);
     document.addEventListener('keydown', onKey, true);
+    cycBar.hidden = false;
     render();
-    // first click should already show something new — advance immediately
+    // the first click should already show something new — advance immediately
     st.advance();
   }
-  function advanceChromeCycle() { if (chromeCycle) chromeCycle.advance(); }
   // the full panel: every layout by name, freeform, sticky
   function openChromeLayoutPanel(partEl, area, options, activeOpt, active) {
     var selId = activeOpt ? activeOpt.id : null;
@@ -6117,7 +6137,6 @@
       b.style.left = (r.right + window.scrollX - 10) + 'px';
       b.style.top = (r.top + window.scrollY + 10) + 'px';
       b.addEventListener('click', function () {
-        if (b.classList.contains('is-cycling')) { advanceChromeCycle(); return; }
         b.disabled = true;
         convertChrome(partEl).then(function (sec) { if (!sec) b.disabled = false; }).catch(function () {
           b.disabled = false;
