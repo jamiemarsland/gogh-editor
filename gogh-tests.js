@@ -1638,6 +1638,28 @@
       return 'upload + media grid present';
     });
 
+    // ---- webmcp bridge: page-editing tools ----
+    test('webmcp bridge: tools exist and drive the editor', function () {
+      expect(window.__goghMcp, 'bridge missing');
+      var names = Object.keys(window.__goghMcp.tools);
+      expect(names.length >= 9, 'expected 9+ tools, got ' + names.length);
+      var overview = window.__goghMcp.call('gogh_page_overview');
+      expect(/section/.test(overview), 'overview says nothing about sections');
+      var layouts = window.__goghMcp.call('gogh_list_layouts');
+      expect(/Hero/.test(layouts), 'layouts list missing Hero');
+      var s0 = G.sections().length;
+      var msg = window.__goghMcp.call('gogh_add_section', { layout: 'hero' });
+      expect(/Added/.test(msg), 'add_section refused: ' + msg);
+      expect(G.sections().length === s0 + 1, 'section not added via tool');
+      var msg2 = window.__goghMcp.call('gogh_edit_text', { find: 'Put it where', replace: 'Agents put it where' });
+      expect(/Replaced/.test(msg2), 'edit_text found nothing: ' + msg2);
+      var shapeMsg = window.__goghMcp.call('gogh_add_shape', { shape: 'circle' });
+      expect(/circle/.test(shapeMsg), 'add_shape failed: ' + shapeMsg);
+      var bgMsg = window.__goghMcp.call('gogh_set_section_background', { section: 0, color: '#fdf6e3' });
+      expect(/background set/.test(bgMsg), 'set_background failed: ' + bgMsg);
+      return names.length + ' tools live';
+    });
+
     // ---- published blocks stay lightly editable ----
     test('stored light edits: published html block syncs text to raw', function () {
       var host = document.createElement('div');

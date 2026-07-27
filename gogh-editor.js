@@ -2016,6 +2016,7 @@
   function addElementAtViewport(kind) {
     var e = placeElAtViewport(DEFAULTS[kind]());
     if (kind === 'posts') hydratePostsPreview(sel.sec, e);
+    return e;
   }
   function addShapeAtViewport(def) {
     return placeElAtViewport({
@@ -4427,6 +4428,9 @@
     buildBlocks: buildAllBlocks,
     mergeContent: mergeContent,
     closePanel: closePanel,
+    addElementAt: addElementAtViewport,
+    addShape: addShapeAtViewport,
+    shapeDefs: function () { return SHAPE_DEFS; },
   };
   // the running build, visible at a glance: hover the gogh side tab, or read
   // it in the console — kills "is this tab stale?" debugging forever
