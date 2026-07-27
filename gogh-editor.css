@@ -1093,13 +1093,6 @@
 }
 .gogh-fxpull input { flex: 1; accent-color: #7ea8ff; }
 
-.gogh-picker-sub {
-  grid-column: 1 / -1;
-  font-size: 14px;
-  font-weight: 700;
-  color: var(--gogh-ui-fg);
-  padding: 18px 2px 2px;
-}
 .gogh-card-pattern .gogh-card-stage { pointer-events: none; }
 
 .gogh-editing .wp-block-template-part .wp-block-navigation-item > a { cursor: grab; }
@@ -1385,24 +1378,9 @@ html.gogh-editing .gogh-mirror { display: flex; }
   max-width: 340px;
   box-sizing: border-box;
 }
-.gogh-showall {
-  all: unset;
-  grid-column: 1 / -1;
-  cursor: pointer;
-  text-align: center;
-  font-size: 12.5px;
-  font-weight: 600;
-  color: #7ea8ff;
-  padding: 10px;
-  border-radius: 10px;
-}
-.gogh-showall:hover { background: var(--gogh-ui-hover); }
-.gogh-showall[hidden] { display: none; }
 .gogh-htmllink {
   all: unset;
   cursor: pointer;
-  display: block;
-  margin: 16px auto 4px;
   font-size: 12px;
   color: var(--gogh-ui-muted);
   text-decoration: underline;
@@ -1410,24 +1388,36 @@ html.gogh-editing .gogh-mirror { display: flex; }
 }
 .gogh-htmllink:hover { color: var(--gogh-ui-fg); }
 
-/* compact top strip: scratch + yours in one short row */
-.gogh-topstrip {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 14px;
-  margin-bottom: 4px;
-}
-.gogh-topstrip .gogh-card-prev { aspect-ratio: 1200 / 400; }
-.gogh-topstrip .gogh-card-name { font-size: 11.5px; padding: 8px 10px; }
-.gogh-more-tile {
+/* calm picker: title + tools, chip row, one grid */
+.gogh-picker-tools { display: flex; align-items: center; gap: 12px; }
+.gogh-picker-tools .gogh-sbtn {
+  flex: 0 0 auto;
+  width: 30px;
+  height: 30px;
   display: grid;
   place-items: center;
-  font-size: 13px;
-  font-weight: 700;
-  color: #7ea8ff;
-  min-height: 90px;
 }
-.gogh-more-tile:hover { background: var(--gogh-ui-hover); }
+.gogh-patsearchrow { margin: -6px 0 10px; }
+.gogh-card-blank .gogh-card-prev {
+  background: transparent;
+  border-bottom: none;
+  outline: 1.5px dashed var(--gogh-ui-border);
+  outline-offset: -6px;
+  display: grid;
+  place-items: center;
+}
+.gogh-card-blank .gogh-card-prev::after {
+  content: "+";
+  font-size: 34px;
+  font-weight: 300;
+  color: var(--gogh-ui-muted);
+}
+.gogh-pickempty {
+  text-align: center;
+  font-size: 12.5px;
+  color: var(--gogh-ui-muted);
+  padding: 26px 0 10px;
+}
 
 /* birds-eye page overview */
 .gogh-zoom {
@@ -1526,12 +1516,12 @@ html.gogh-editing .gogh-zoom-tab { display: grid; }
   from { opacity: 0; translate: 0 8px; }
   to { opacity: 1; translate: 0 0; }
 }
-.gogh-cards > *, .gogh-topstrip > * {
+.gogh-cards > * {
   animation: gogh-cardin 0.26s ease-out backwards;
 }
-.gogh-topstrip > *:nth-child(2) { animation-delay: 0.03s; }
-.gogh-topstrip > *:nth-child(3) { animation-delay: 0.06s; }
-.gogh-topstrip > *:nth-child(4) { animation-delay: 0.09s; }
+.gogh-cards > *:nth-child(2) { animation-delay: 0.03s; }
+.gogh-cards > *:nth-child(3) { animation-delay: 0.06s; }
+.gogh-cards > *:nth-child(4) { animation-delay: 0.09s; }
 @media (prefers-reduced-motion: reduce) {
-  .gogh-cards > *, .gogh-topstrip > * { animation: none; }
+  .gogh-cards > * { animation: none; }
 }

@@ -1229,6 +1229,51 @@
       G.deleteSection(G.sections().indexOf(added));
     });
 
+    test('picker: one grid, chips filter starters in place', function () {
+      q('.gogh-side [data-act="addsec"]').click();
+      expect(!q('.gogh-topstrip') && !q('.gogh-picker-sub'), 'old picker zones still present');
+      var blank = q('.gogh-card-blank');
+      expect(blank && blank.dataset.tpl, 'blank card missing from grid');
+      expect(blank.closest('.gogh-cards'), 'blank card not in the one grid');
+      var chips = document.querySelectorAll('.gogh-patcats .gogh-patcat');
+      expect(chips.length >= 6, 'chip row missing, got ' + chips.length);
+      var yoursChip = q('.gogh-patcat[data-cat="yours"]');
+      expect(yoursChip, 'yours chip missing');
+      var cardByName = function (nm) {
+        return [].filter.call(document.querySelectorAll('.gogh-cards .gogh-card'), function (c) {
+          var n = c.querySelector('.gogh-card-name');
+          return n && n.textContent === nm;
+        })[0];
+      };
+      var textChip = q('.gogh-patcat[data-cat="text"]');
+      textChip.click();
+      expect(cardByName('Quote').style.display !== 'none', 'Quote hidden under Text chip');
+      expect(cardByName('Hero').style.display === 'none', 'Hero visible under Text chip');
+      expect(blank.style.display === 'none', 'blank card visible while filtered');
+      q('.gogh-patcat[data-cat=""]').click();
+      expect(cardByName('Hero').style.display !== 'none', 'Hero not restored by All');
+      expect(blank.style.display !== 'none', 'blank card not restored by All');
+      q('.gogh-picker-close').click();
+      expect(q('.gogh-picker').hidden, 'picker did not close');
+    });
+
+    test('Cmd+V pastes HTML straight in as a section', function () {
+      var dt = new DataTransfer();
+      dt.setData('text/plain', '<section style="padding:40px"><h2>Pasted by keyboard</h2></section>');
+      var n0 = G.pending().length;
+      document.body.dispatchEvent(new ClipboardEvent('paste', { clipboardData: dt, bubbles: true, cancelable: true }));
+      expect(G.pending().length === n0 + 1, 'paste did not add a section');
+      var entry = G.pending()[G.pending().length - 1];
+      expect(entry.raw.indexOf('Pasted by keyboard') !== -1, 'pasted content missing from raw');
+      // plain prose paste must NOT be claimed
+      var dt2 = new DataTransfer();
+      dt2.setData('text/plain', 'just some words < not html >');
+      document.body.dispatchEvent(new ClipboardEvent('paste', { clipboardData: dt2, bubbles: true, cancelable: true }));
+      expect(G.pending().length === n0 + 1, 'plain text paste was claimed');
+      entry.el.querySelector('.gogh-pend-rm').click();
+      expect(G.pending().indexOf(entry) === -1, 'entry not removed');
+    });
+
     test('header stepper: ‹ › strip renders, More… opens full panel', function () {
       var partEl = document.querySelector('header.wp-block-template-part') ||
         document.querySelector('header') || document.body;

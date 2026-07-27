@@ -2074,6 +2074,19 @@
     st.style.left = Math.max(0, Math.round((pv.clientWidth - 1200 * scale) / 2)) + 'px';
     st.style.top = Math.max(0, Math.round(((pv.clientHeight || 0) - h * scale) / 2)) + 'px';
   }
+  // one taxonomy for everything in the picker \u2014 starters and theme patterns
+  // share these buckets, so the chips are the only navigation concept
+  var BUCKETS = [
+    { key: 'hero', label: 'Heroes & banners', cats: ['banner', 'hero', 'featured', 'call-to-action', 'cover', 'header'] },
+    { key: 'text', label: 'Text', cats: ['text', 'about', 'quotes', 'quote', 'testimonials', 'testimonial'] },
+    { key: 'cards', label: 'Cards & pricing', cats: ['card', 'cards', 'pricing', 'services', 'features', 'columns'] },
+    { key: 'photos', label: 'Photos', cats: ['gallery', 'media', 'portfolio', 'images'] },
+    { key: 'contact', label: 'Contact & social', cats: ['contact', 'team', 'social', 'subscribe', 'newsletter'] },
+  ];
+  var STARTER_CATS = {
+    'Hero': 'hero', 'Feature cards': 'cards', 'Big statement': 'hero', 'Quote': 'text',
+    'Call to action': 'hero', 'Photo cards': 'photos cards', 'Gallery': 'photos',
+  };
   function openPicker(idx) {
     pickerIdx = idx;
     var tplCardHTML = function (tpl, t) {
@@ -2081,31 +2094,41 @@
       var scope = 'gogh-tpl-' + t;
       var css = els.length ? buildCSS(els, scope, tpl.minH || null, { bg: tpl.bg || null }) : '';
       var inner = els.map(function (e, i) { return makeNode(e, i).outerHTML; }).join('');
-      return '<button type="button" class="gogh-card" data-tpl="' + t + '">' +
+      var blank = !tpl.starter;
+      return '<button type="button" class="gogh-card' + (blank ? ' gogh-card-blank' : '') + '" data-tpl="' + t + '"' +
+        ' data-cats="' + (STARTER_CATS[tpl.name] || '') + '">' +
         '<span class="gogh-card-prev"><style>' + css + '</style>' +
         '<span class="gogh-card-stage gogh-wrap"><span class="gogh-card-sec gogh-section ' + scope + '">' + inner + '</span></span>' +
         '</span>' +
         '<span class="gogh-card-name">' + tpl.name + '</span>' +
         '</button>';
     };
+    // Blank first (TEMPLATES lists it before the starters), then starters;
+    // theme patterns append into the same grid when they arrive
     var cards = TEMPLATES.map(function (tpl, t) {
-      if (tpl.retired || tpl.starter) return '';
-      return tplCardHTML(tpl, t);
-    }).join('');
-    var starterCards = TEMPLATES.map(function (tpl, t) {
-      if (!tpl.starter) return '';
+      if (tpl.retired) return '';
       return tplCardHTML(tpl, t);
     }).join('');
     picker.innerHTML =
       '<div class="gogh-picker-inner">' +
       '<div class="gogh-picker-head">Add a section' +
-      '<button type="button" class="gogh-btn gogh-btn-small gogh-picker-close">Close</button></div>' +
-      '<div class="gogh-topstrip">' + cards + '</div>' +
-      '<div class="gogh-cards">' +
-      '<div class="gogh-picker-sub">Starters \u2014 born freeform</div>' +
-      starterCards +
+      '<span class="gogh-picker-tools">' +
+      '<button type="button" class="gogh-sbtn gogh-picker-searchbtn" title="Find a section">' +
+      '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><circle cx="10.5" cy="10.5" r="6.5"/><path d="M20 20l-4.6-4.6"/></svg>' +
+      '</button>' +
+      '<button type="button" class="gogh-htmllink gogh-card-htmladd">Paste HTML</button>' +
+      '<button type="button" class="gogh-btn gogh-btn-small gogh-picker-close">Close</button>' +
+      '</span></div>' +
+      '<div class="gogh-patsearchrow" hidden><input type="text" class="gogh-input gogh-patsearch" placeholder="Find a section\u2026" /></div>' +
+      '<div class="gogh-patcats">' +
+      '<button type="button" class="gogh-patcat is-active" data-cat="">All</button>' +
+      '<button type="button" class="gogh-patcat" data-cat="yours" hidden>\u2764 Yours</button>' +
+      BUCKETS.map(function (bu) {
+        return '<button type="button" class="gogh-patcat" data-cat="' + bu.key + '">' + bu.label + '</button>';
+      }).join('') +
       '</div>' +
-      '<button type="button" class="gogh-htmllink gogh-card-htmladd">Prefer to paste HTML?</button>' +
+      '<div class="gogh-cards">' + cards + '</div>' +
+      '<div class="gogh-pickempty" hidden>Nothing here matches \u2014 try another filter.</div>' +
       '</div>';
     clearTimeout(pickerCloseT);
     picker.hidden = false;
@@ -2124,7 +2147,7 @@
       inner.innerHTML =
         '<div class="gogh-picker-head">Paste HTML' +
         '<button type="button" class="gogh-btn gogh-btn-small gogh-picker-close">Close</button></div>' +
-        '<div class="gogh-panel-hint">It lands as a real HTML block \u2014 click text to edit it, \u2728 makes it freeform. Great with AI-written HTML.</div>' +
+        '<div class="gogh-panel-hint">It lands as a real HTML block \u2014 click text to edit it, \u2728 makes it freeform. Great with AI-written HTML. Tip: you can also just press \u2318V anywhere on the page.</div>' +
         '<textarea class="gogh-htmlpaste" placeholder="&lt;section&gt;\u2026&lt;/section&gt;" spellcheck="false"></textarea>' +
         '<div class="gogh-panel-row gogh-chrome-foot">' +
         '<button type="button" class="gogh-btn gogh-btn-small gogh-html-back">Back</button>' +
@@ -2154,13 +2177,91 @@
       if (st) fitCardStage(p, st);
     });
     var cardsBox = picker.querySelector('.gogh-cards');
-    var BUCKETS = [
-      { key: 'hero', label: 'Heroes & banners', cats: ['banner', 'hero', 'featured', 'call-to-action', 'cover', 'header'] },
-      { key: 'text', label: 'Text', cats: ['text', 'about', 'quotes', 'quote', 'testimonials', 'testimonial'] },
-      { key: 'cards', label: 'Cards & pricing', cats: ['card', 'cards', 'pricing', 'services', 'features', 'columns'] },
-      { key: 'photos', label: 'Photos', cats: ['gallery', 'media', 'portfolio', 'images'] },
-      { key: 'contact', label: 'Contact & social', cats: ['contact', 'team', 'social', 'subscribe', 'newsletter'] },
-    ];
+    var chipRow = picker.querySelector('.gogh-patcats');
+    var emptyHint = picker.querySelector('.gogh-pickempty');
+    var searchRow = picker.querySelector('.gogh-patsearchrow');
+    var searchIn = searchRow.querySelector('.gogh-patsearch');
+    var activeCat = '', query = '';
+    // one grid, one filter: chips and search treat every card the same
+    function applyFilter() {
+      var shown = 0;
+      [].slice.call(cardsBox.querySelectorAll('.gogh-card')).forEach(function (b) {
+        var ok;
+        if (b.classList.contains('gogh-card-blank')) {
+          ok = !activeCat && !query;
+        } else {
+          var cats = (b.dataset.cats || '').split(' ');
+          var name = ((b.querySelector('.gogh-card-name') || {}).textContent || '').toLowerCase();
+          ok = (!activeCat || (activeCat === 'yours' ? b.dataset.kind === 'yours' : cats.indexOf(activeCat) !== -1)) &&
+            (!query || name.indexOf(query) !== -1);
+        }
+        b.style.display = ok ? '' : 'none';
+        if (ok) {
+          shown++;
+          if (io && b.__pat && !b.__hydrated) { io.unobserve(b); hydrate(b, b.__pat); }
+        }
+      });
+      emptyHint.hidden = shown > 0;
+    }
+    chipRow.addEventListener('click', function (ev) {
+      var chip = ev.target.closest('.gogh-patcat');
+      if (!chip) return;
+      chipRow.querySelectorAll('.gogh-patcat').forEach(function (c2) {
+        c2.classList.toggle('is-active', c2 === chip);
+      });
+      activeCat = chip.dataset.cat;
+      applyFilter();
+    });
+    picker.querySelector('.gogh-picker-searchbtn').addEventListener('click', function () {
+      searchRow.hidden = !searchRow.hidden;
+      if (!searchRow.hidden) searchIn.focus();
+      else if (query) { query = ''; searchIn.value = ''; applyFilter(); }
+    });
+    searchIn.addEventListener('input', function () {
+      query = this.value.trim().toLowerCase();
+      applyFilter();
+    });
+    // ---- pattern card machinery (lazy hydration) ----
+    var hydrate = function (b, p) {
+      if (b.__hydrated) return;
+      b.__hydrated = true;
+      renderPattern(p).then(function (html) {
+        var st = b.querySelector('.gogh-card-stage');
+        var pv = b.querySelector('.gogh-card-prev');
+        if (!st || !html) { b.remove(); return; }
+        st.innerHTML = html;
+        // a pattern that renders next to nothing (post meta, bare social
+        // icons) has no business as a section starting point
+        var textLen = (st.textContent || '').trim().length;
+        if (textLen < 30 && !st.querySelector('img')) { b.remove(); return; }
+        fitCardStage(pv, st);
+        [].slice.call(st.querySelectorAll('img')).forEach(function (im) {
+          if (!im.complete) im.addEventListener('load', function () { fitCardStage(pv, st); }, { once: true });
+        });
+        // trial-convert the very render we're showing: if the scan loses
+        // the content, don't offer the section at all
+        try {
+          var trial = scanDomWithRaw(st, p.content || '', { loose: true });
+          if (!trial.els.length) { b.remove(); return; }
+          var kept = trial.els.map(function (e) {
+            return e.type === 'widget' ? '' : (e.text || '');
+          }).join(' ').replace(/\s+/g, ' ').length;
+          var widgetText = trial.els.filter(function (e) { return e.type === 'widget'; })
+            .map(function (e) { return e.whtml || ''; }).join(' ').replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').length;
+          var total = (st.textContent || '').replace(/\s+/g, ' ').length;
+          if (total > 40 && (kept + widgetText) < total * 0.6) { b.remove(); return; }
+        } catch (err) { b.remove(); return; }
+      });
+    };
+    if (picker.__io) picker.__io.disconnect();
+    var io = window.IntersectionObserver ? new IntersectionObserver(function (entries) {
+      entries.forEach(function (en) {
+        if (!en.isIntersecting) return;
+        io.unobserve(en.target);
+        hydrate(en.target, en.target.__pat);
+      });
+    }, { rootMargin: '200px' }) : null;
+    picker.__io = io;
     Promise.all([
       fetchBlocks(),
       fetchSectionPatterns(),
@@ -2175,61 +2276,38 @@
       var mine = blocks.filter(function (bk) {
         return ((bk.content && bk.content.raw) || '').indexOf('wp:gogh/section') !== -1;
       });
-      var patByName = {};
-      pats.forEach(function (p) { patByName[p.name] = p; });
       var mineById = {};
       mine.forEach(function (bk) { mineById[bk.id] = bk; });
 
-      // ---- pattern card machinery ----
-      var hydrate = function (b, p) {
-        if (b.__hydrated) return;
-        b.__hydrated = true;
-        renderPattern(p).then(function (html) {
-          var st = b.querySelector('.gogh-card-stage');
-          var pv = b.querySelector('.gogh-card-prev');
-          if (!st || !html) { b.remove(); return; }
-          st.innerHTML = html;
-          // a pattern that renders next to nothing (post meta, bare social
-          // icons) has no business as a section starting point
-          var textLen = (st.textContent || '').trim().length;
-          if (textLen < 30 && !st.querySelector('img')) { b.remove(); return; }
-          fitCardStage(pv, st);
-          [].slice.call(st.querySelectorAll('img')).forEach(function (im) {
-            if (!im.complete) im.addEventListener('load', function () { fitCardStage(pv, st); }, { once: true });
-          });
-          // trial-convert the very render we're showing: if the scan loses
-          // the content, don't offer the section at all
-          try {
-            var trial = scanDomWithRaw(st, p.content || '', { loose: true });
-            if (!trial.els.length) { b.remove(); return; }
-            var kept = trial.els.map(function (e) {
-              return e.type === 'widget' ? '' : (e.text || '');
-            }).join(' ').replace(/\s+/g, ' ').length;
-            var widgetText = trial.els.filter(function (e) { return e.type === 'widget'; })
-              .map(function (e) { return e.whtml || ''; }).join(' ').replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').length;
-            var total = (st.textContent || '').replace(/\s+/g, ' ').length;
-            if (total > 40 && (kept + widgetText) < total * 0.6) { b.remove(); return; }
-          } catch (err) { b.remove(); return; }
-        });
+      var patCats = function (p) {
+        return BUCKETS.filter(function (bu) {
+          return (p.categories || []).some(function (c) { return bu.cats.indexOf(c) !== -1; });
+        }).map(function (bu) { return bu.key; }).join(' ');
       };
-      if (picker.__io) picker.__io.disconnect();
-      var io = window.IntersectionObserver ? new IntersectionObserver(function (entries) {
-        entries.forEach(function (en) {
-          if (!en.isIntersecting) return;
-          io.unobserve(en.target);
-          hydrate(en.target, en.target.__pat);
-        });
-      }, { rootMargin: '200px' }) : null;
-      picker.__io = io;
-      var patCard = function (p, inYours) {
+      var updateYoursChip = function () {
+        var chip = chipRow.querySelector('[data-cat="yours"]');
+        if (!chip) return;
+        chip.hidden = !cardsBox.querySelector('.gogh-card[data-kind="yours"]');
+        // never strand the user on a chip that just vanished
+        if (chip.hidden && activeCat === 'yours') {
+          activeCat = '';
+          chipRow.querySelectorAll('.gogh-patcat').forEach(function (c2) {
+            c2.classList.toggle('is-active', !c2.dataset.cat);
+          });
+          applyFilter();
+        }
+      };
+      var patCard = function (p) {
         var b = document.createElement('button');
         b.type = 'button';
         b.className = 'gogh-card gogh-card-pattern';
         b.__pat = p;
+        b.dataset.cats = patCats(p);
+        if (favs[p.name]) b.dataset.kind = 'yours';
         b.innerHTML = '<span class="gogh-card-prev"><span class="gogh-card-stage"></span></span>' +
           '<span class="gogh-card-name"></span>' +
           '<span class="gogh-card-fav" title="Favourite">\u2665</span>';
-        b.querySelector('.gogh-card-name').textContent = (inYours ? '\u2764 ' : '') + (p.title || p.name);
+        b.querySelector('.gogh-card-name').textContent = p.title || p.name;
         var favEl = b.querySelector('.gogh-card-fav');
         favEl.classList.toggle('is-fav', !!favs[p.name]);
         favEl.addEventListener('click', function (ev) {
@@ -2237,7 +2315,9 @@
           if (favs[p.name]) delete favs[p.name]; else favs[p.name] = 1;
           favEl.classList.toggle('is-fav', !!favs[p.name]);
           try { localStorage.setItem('gogh-fav-patterns', JSON.stringify(Object.keys(favs))); } catch (err) {}
-          if (!favs[p.name] && inYours) b.remove();
+          if (favs[p.name]) b.dataset.kind = 'yours'; else delete b.dataset.kind;
+          updateYoursChip();
+          if (activeCat === 'yours') applyFilter();
         });
         b.addEventListener('click', function () {
           addPatternSection(p, pickerIdx);
@@ -2257,6 +2337,7 @@
         var b = document.createElement('button');
         b.type = 'button';
         b.className = 'gogh-card gogh-card-mine';
+        b.dataset.kind = 'yours';
         var scope = 'gogh-mine-' + bk.id;
         var css = buildCSS(model.elements, scope, model.minH || null, { bg: model.bg || null, bgImage: model.bgImage || null });
         var inner2 = model.elements.map(function (e, i) { return makeNode(e, i).outerHTML; }).join('');
@@ -2278,7 +2359,7 @@
             headers: { 'X-WP-Nonce': cfg.nonce },
             credentials: 'same-origin',
           }).then(function (res2) {
-            if (res2.ok) { blocksCache = null; b.remove(); toast('Section deleted.'); }
+            if (res2.ok) { blocksCache = null; b.remove(); updateYoursChip(); toast('Section deleted.'); }
             else toast('Could not delete that section.', { error: true });
           }).catch(function () {
             toast('Could not delete that section.', { error: true });
@@ -2287,120 +2368,45 @@
         return b;
       };
 
-      // ---- Yours: recents + saved + hearted, one shelf, no taxonomy ----
-      var yours = [];
-      var seenY = {};
-      var pushYours = function (key, make) {
-        if (seenY[key]) return;
-        seenY[key] = 1;
-        var card = make();
-        if (card) yours.push(card);
-      };
-      recents.forEach(function (rc) {
-        if (rc.t === 'p' && patByName[rc.k]) pushYours('p' + rc.k, function () { return patCard(patByName[rc.k], true); });
-        if (rc.t === 'b' && mineById[rc.k]) pushYours('b' + rc.k, function () { return mineCard(mineById[rc.k]); });
-      });
-      mine.forEach(function (bk) { pushYours('b' + bk.id, function () { return mineCard(bk); }); });
+      // ---- build the one grid: every pattern once, yours floated first ----
+      var patCardByName = {};
       pats.forEach(function (p) {
-        if (favs[p.name]) pushYours('p' + p.name, function () { return patCard(p, true); });
-      });
-      var strip = picker.querySelector('.gogh-topstrip');
-      if (strip && yours.length) {
-        var CAPY = 3; // scratch + three yours fills the strip
-        yours.forEach(function (card, k) {
-          if (k >= CAPY) card.style.display = 'none';
-          strip.appendChild(card);
-          // saved-section cards render at design scale until fitted
-          if (!card.__pat) {
-            var mpv = card.querySelector('.gogh-card-prev');
-            var mst = card.querySelector('.gogh-card-stage');
-            if (mpv && mst) fitCardStage(mpv, mst);
-          }
-        });
-        if (yours.length > CAPY) {
-          var yMore = document.createElement('button');
-          yMore.type = 'button';
-          yMore.className = 'gogh-card gogh-more-tile';
-          yMore.textContent = '+ ' + (yours.length - CAPY) + ' more';
-          strip.appendChild(yMore);
-          yMore.addEventListener('click', function () {
-            yours.forEach(function (card) { card.style.display = ''; });
-            yMore.remove();
-          });
-        }
-      }
-
-      // ---- from your theme: search + five friendly buckets + capped grid ----
-      if (!pats.length) return;
-      var themeName = String(cfg.theme || '').replace(/[-_]+/g, ' ').replace(/\b\w/g, function (ch) { return ch.toUpperCase(); });
-      var tSub = document.createElement('div');
-      tSub.className = 'gogh-picker-sub';
-      tSub.textContent = 'From your theme' + (themeName ? ' (' + themeName + ')' : '');
-      cardsBox.appendChild(tSub);
-      var searchRow = document.createElement('div');
-      searchRow.className = 'gogh-patsearchrow';
-      searchRow.innerHTML = '<input type="text" class="gogh-input gogh-patsearch" placeholder="Find a section\u2026" />';
-      cardsBox.appendChild(searchRow);
-      var chipRow = document.createElement('div');
-      chipRow.className = 'gogh-patcats';
-      chipRow.innerHTML = '<button type="button" class="gogh-patcat is-active" data-cat="">All</button>' +
-        BUCKETS.map(function (bu) {
-          return '<button type="button" class="gogh-patcat" data-cat="' + bu.key + '">' + bu.label + '</button>';
-        }).join('');
-      cardsBox.appendChild(chipRow);
-      var gridCards = pats.map(function (p) {
-        var b = patCard(p, false);
+        var b = patCard(p);
+        patCardByName[p.name] = b;
         cardsBox.appendChild(b);
-        return b;
       });
-      var showAllBtn = document.createElement('button');
-      showAllBtn.type = 'button';
-      showAllBtn.className = 'gogh-showall';
-      showAllBtn.textContent = 'Show all ' + gridCards.length + ' \u2192';
-      cardsBox.appendChild(showAllBtn);
-      var activeCat = '', query = '', expanded = false;
-      var CAP = 6;
-      function bucketMatch(p, key) {
-        var bu = BUCKETS.filter(function (x) { return x.key === key; })[0];
-        if (!bu) return true;
-        return (p.categories || []).some(function (c) { return bu.cats.indexOf(c) !== -1; });
-      }
-      function applyFilter() {
-        var filtered = !!activeCat || !!query;
-        var shown = 0;
-        gridCards.forEach(function (b) {
-          if (!b.isConnected) return;
-          var p = b.__pat;
-          var ok = (!activeCat || bucketMatch(p, activeCat)) &&
-            (!query || ((p.title || p.name) + '').toLowerCase().indexOf(query) !== -1);
-          var visible = ok && (filtered || expanded || shown < CAP);
-          b.style.display = visible ? '' : 'none';
-          if (visible) {
-            shown++;
-            if (io && !b.__hydrated) { io.unobserve(b); hydrate(b, p); }
-          }
-        });
-        showAllBtn.hidden = filtered || expanded ||
-          gridCards.filter(function (b) { return b.isConnected; }).length <= CAP;
-      }
+      var mineCardById = {};
+      mine.forEach(function (bk) {
+        var b = mineCard(bk);
+        if (b) mineCardById[bk.id] = b;
+      });
+      // front of All: recents (newest first), then remaining saved sections
+      var front = [];
+      var seenF = {};
+      recents.forEach(function (rc) {
+        var c = rc.t === 'p' ? patCardByName[rc.k] : mineCardById[rc.k];
+        if (!c || seenF[rc.t + rc.k]) return;
+        seenF[rc.t + rc.k] = 1;
+        c.dataset.kind = 'yours';
+        front.push(c);
+      });
+      mine.forEach(function (bk) {
+        if (mineCardById[bk.id] && !seenF['b' + bk.id]) { seenF['b' + bk.id] = 1; front.push(mineCardById[bk.id]); }
+      });
+      var anchor = cardsBox.querySelector('.gogh-card-blank');
+      front.forEach(function (c) {
+        cardsBox.insertBefore(c, anchor ? anchor.nextSibling : cardsBox.firstChild);
+        anchor = c;
+      });
+      // saved-section cards render at design scale until fitted
+      front.forEach(function (c) {
+        if (c.__pat) return;
+        var pv = c.querySelector('.gogh-card-prev');
+        var st = c.querySelector('.gogh-card-stage');
+        if (pv && st) fitCardStage(pv, st);
+      });
+      updateYoursChip();
       applyFilter();
-      showAllBtn.addEventListener('click', function () {
-        expanded = true;
-        applyFilter();
-      });
-      chipRow.addEventListener('click', function (ev) {
-        var chip = ev.target.closest('.gogh-patcat');
-        if (!chip) return;
-        chipRow.querySelectorAll('.gogh-patcat').forEach(function (c2) {
-          c2.classList.toggle('is-active', c2 === chip);
-        });
-        activeCat = chip.dataset.cat;
-        applyFilter();
-      });
-      searchRow.querySelector('.gogh-patsearch').addEventListener('input', function () {
-        query = this.value.trim().toLowerCase();
-        applyFilter();
-      });
     });
   }
 
@@ -4836,6 +4842,21 @@
       '</div>\n<!-- /wp:group -->';
     insertNative(raw, '<div class="wp-block-group alignfull">' + html + '</div>', 'HTML', idx);
   }
+  // frictionless paste: Cmd+V anywhere in edit mode drops HTML straight onto
+  // the page as a section — no modal, no textarea. Only pastes that are
+  // clearly HTML source are claimed; typing into any field keeps its meaning.
+  document.addEventListener('paste', function (ev) {
+    if (!editing) return;
+    var t = ev.target;
+    if (t && (t.isContentEditable || t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' ||
+      (t.closest && t.closest('[contenteditable="true"]')))) return;
+    var txt = ((ev.clipboardData && ev.clipboardData.getData('text/plain')) || '').trim();
+    if (txt[0] !== '<' || !(/<\/[a-z]/i.test(txt) || /\/>/.test(txt))) return;
+    ev.preventDefault();
+    var idx = picker.hidden ? null : pickerIdx;
+    if (!picker.hidden) closePicker();
+    addHtmlSection(txt, idx == null ? undefined : idx);
+  });
   // ---------- light editing on native (pre-freeform) sections ----------
   // Rendered leaves pair with their markup spans; edits replace the span's
   // HTML with the live DOM, so publish and Make freeform both see them.
