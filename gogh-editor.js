@@ -4121,7 +4121,7 @@
     stickyRawToggle: stickyRawToggle,
     insertGoghPattern: insertGoghPattern,
     addHtmlSection: addHtmlSection,
-    openChromeStepper: openChromeStepper,
+    startChromeCycle: startChromeCycle,
     pending: function () { return pendingBlocks; },
     get state() {
       return { editing: editing, sections: S.length, sel: sel ? { i: sel.i } : null,
@@ -5176,7 +5176,7 @@
         activeOpt.title += ' \u00b7 freeform';
       }
       if (options.length > 1) {
-        openChromeStepper(partEl, area, options, activeOpt, active);
+        startChromeCycle(partEl, area, options, activeOpt, active);
         return null;
       }
       return doConvertChrome(partEl, area, active);
@@ -5201,62 +5201,94 @@
       toast(err.message || 'Could not edit the ' + area, { error: true });
     });
   }
-  // the simple default: step through the theme's layouts with ‹ › as
-  // live previews, tick to keep what you're looking at. Everything else
-  // (freeform, sticky, the full list) lives behind "More…"
-  function openChromeStepper(partEl, area, options, activeOpt, active) {
-    var idx = 0;
-    options.forEach(function (o, k) { if (activeOpt && o.id === activeOpt.id) idx = k; });
-    var busy = false;
-    var hasFreeform = !!((activeOpt && activeOpt.content.indexOf('wp:gogh/section') !== -1) ||
-      partEl.querySelector('.gogh-wrap'));
+  // no panel at all: the Header/Footer pill IS the control. Each click on it
+  // flicks the part to the next layout as a live preview; a tick keeps what
+  // you're looking at, click-off or Esc reverts. ✨ edits, ⋯ opens the full
+  // panel (every layout by name, sticky).
+  var chromeCycle = null;
+  function startChromeCycle(partEl, area, options, activeOpt, active) {
+    if (chromeCycle) chromeCycle.collapse();
+    var pill = null;
+    chromeBtns.forEach(function (b) { if (b.__goghPart === partEl) pill = b; });
+    if (!pill) { openChromeLayoutPanel(partEl, area, options, activeOpt, active); return; }
+    var st = {
+      pill: pill, partEl: partEl, area: area, options: options,
+      activeOpt: activeOpt, active: active, idx: 0, busy: false, alive: true,
+      origHTML: pill.innerHTML, origLeft: pill.style.left,
+    };
+    options.forEach(function (o, k) { if (activeOpt && o.id === activeOpt.id) st.idx = k; });
     function isCurrent(o) { return !!(activeOpt && o.id === activeOpt.id); }
+    function fitPill() {
+      var r2 = pill.getBoundingClientRect();
+      var over = r2.right - (window.innerWidth - 8);
+      if (over > 0) pill.style.left = Math.max(8 + window.scrollX, r2.left + window.scrollX - over) + 'px';
+    }
     function render() {
-      var o = options[idx];
-      var onCurrent = isCurrent(o);
-      panel.innerHTML =
-        '<div class="gogh-chrome-step">' +
-        '<button type="button" class="gogh-sbtn gogh-step-prev" title="Previous layout">‹</button>' +
-        '<div class="gogh-step-label"><strong></strong>' +
-        '<span>' + (idx + 1) + ' of ' + options.length + (onCurrent ? ' · current' : '') + '</span></div>' +
-        '<button type="button" class="gogh-sbtn gogh-step-next" title="Next layout">›</button>' +
-        '<button type="button" class="gogh-sbtn gogh-step-ok" title="' +
-        (onCurrent ? 'Done' : 'Keep this layout (updates every page)') + '">✓</button>' +
-        '</div>' +
-        '<div class="gogh-step-links">' +
-        (hasFreeform ? '<button type="button" class="gogh-linkbtn gogh-step-edit">✨ Edit design</button>' : '') +
-        '<button type="button" class="gogh-linkbtn gogh-step-more">More…</button>' +
-        '</div>';
-      panel.querySelector('.gogh-step-label strong').textContent = o.title;
-      panel.querySelector('.gogh-step-prev').addEventListener('click', function () { step(-1); });
-      panel.querySelector('.gogh-step-next').addEventListener('click', function () { step(1); });
-      panel.querySelector('.gogh-step-ok').addEventListener('click', function () {
-        var chosen = options[idx];
-        if (isCurrent(chosen)) { endChromePreview(); closePanel(); return; }
-        this.disabled = true;
-        swapChromeLayout(area, active, chosen);
-      });
-      var editBtn = panel.querySelector('.gogh-step-edit');
-      if (editBtn) editBtn.addEventListener('click', function () {
-        editChromeFreeform(partEl, area, active);
-      });
-      panel.querySelector('.gogh-step-more').addEventListener('click', function () {
-        endChromePreview();
-        openChromeLayoutPanel(partEl, area, options, activeOpt, active);
-      });
+      var o = st.options[st.idx];
+      pill.querySelector('.gogh-cyc-name').textContent = o.title;
+      pill.querySelector('.gogh-cyc-n').textContent =
+        (st.idx + 1) + '/' + st.options.length + (isCurrent(o) ? ' · current' : '');
+      fitPill();
     }
-    function step(dir) {
-      if (busy) return;
-      idx = (idx + dir + options.length) % options.length;
-      var o = options[idx];
-      if (isCurrent(o)) { endChromePreview(); render(); return; }
-      busy = true;
-      previewChromeLayout(partEl, o, function () { busy = false; render(); });
+    function collapse(keepPreview) {
+      if (!st.alive) return;
+      st.alive = false;
+      chromeCycle = null;
+      document.removeEventListener('pointerdown', onDocDown, true);
+      document.removeEventListener('keydown', onKey, true);
+      if (!keepPreview) endChromePreview();
+      pill.classList.remove('is-cycling');
+      pill.innerHTML = st.origHTML;
+      pill.style.left = st.origLeft;
+      pill.disabled = false;
     }
+    function onDocDown(ev) { if (!pill.contains(ev.target)) collapse(); }
+    function onKey(ev) { if (ev.key === 'Escape') { collapse(); ev.stopPropagation(); } }
+    st.advance = function () {
+      if (st.busy) return;
+      st.idx = (st.idx + 1) % st.options.length;
+      var o = st.options[st.idx];
+      render();
+      if (isCurrent(o)) { endChromePreview(); return; }
+      st.busy = true;
+      previewChromeLayout(partEl, o, function (ok) {
+        st.busy = false;
+        // a preview that lands after the cycle ended must not stick around
+        if (!st.alive && ok) endChromePreview();
+      });
+    };
+    st.collapse = collapse;
+    chromeCycle = st;
+    pill.classList.add('is-cycling');
+    pill.disabled = false;
+    pill.innerHTML =
+      '<span class="gogh-cyc-name"></span><span class="gogh-cyc-n"></span>' +
+      '<span class="gogh-cyc-ok" role="button" title="Keep this layout (updates every page)">✓</span>' +
+      '<span class="gogh-cyc-edit" role="button" title="Make it freeform">✨</span>' +
+      '<span class="gogh-cyc-more" role="button" title="All options">⋯</span>';
+    pill.querySelector('.gogh-cyc-ok').addEventListener('click', function (ev) {
+      ev.stopPropagation();
+      var chosen = st.options[st.idx];
+      if (isCurrent(chosen)) { collapse(); return; }
+      swapChromeLayout(area, active, chosen);
+    });
+    pill.querySelector('.gogh-cyc-edit').addEventListener('click', function (ev) {
+      ev.stopPropagation();
+      collapse();
+      editChromeFreeform(partEl, area, active);
+    });
+    pill.querySelector('.gogh-cyc-more').addEventListener('click', function (ev) {
+      ev.stopPropagation();
+      collapse();
+      openChromeLayoutPanel(partEl, area, options, activeOpt, active);
+    });
+    document.addEventListener('pointerdown', onDocDown, true);
+    document.addEventListener('keydown', onKey, true);
     render();
-    placePanelNear(partEl);
-    panelOpen = true;
+    // first click should already show something new — advance immediately
+    st.advance();
   }
+  function advanceChromeCycle() { if (chromeCycle) chromeCycle.advance(); }
   // the full panel: every layout by name, freeform, sticky
   function openChromeLayoutPanel(partEl, area, options, activeOpt, active) {
     var selId = activeOpt ? activeOpt.id : null;
@@ -5864,6 +5896,7 @@
 
   var chromeBtns = [];
   function clearChromeBtns() {
+    if (chromeCycle) chromeCycle.collapse();
     chromeBtns.forEach(function (b) { b.remove(); });
     chromeBtns = [];
   }
@@ -5877,10 +5910,12 @@
       b.className = 'gogh-convertbtn gogh-chromebtn';
       b.innerHTML = '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.8 2.8 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>' +
         (partEl.tagName === 'FOOTER' ? 'Footer' : 'Header');
-      b.dataset.tip = 'Switch layouts \u2014 or make it freeform';
+      b.dataset.tip = 'Click to flick through layouts';
+      b.__goghPart = partEl;
       b.style.left = (r.right + window.scrollX - 10) + 'px';
       b.style.top = (r.top + window.scrollY + 10) + 'px';
       b.addEventListener('click', function () {
+        if (b.classList.contains('is-cycling')) { advanceChromeCycle(); return; }
         b.disabled = true;
         convertChrome(partEl).then(function (sec) { if (!sec) b.disabled = false; }).catch(function () {
           b.disabled = false;

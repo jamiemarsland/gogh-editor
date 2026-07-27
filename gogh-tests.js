@@ -1274,28 +1274,37 @@
       expect(G.pending().indexOf(entry) === -1, 'entry not removed');
     });
 
-    test('header stepper: ‹ › strip renders, More… opens full panel', function () {
-      var partEl = document.querySelector('header.wp-block-template-part') ||
-        document.querySelector('header') || document.body;
+    test('header pill cycles layouts in place, click-off reverts', function () {
+      var pill = q('.gogh-chromebtn');
+      expect(pill, 'no chrome pill on the page');
+      var partEl = pill.__goghPart;
+      expect(partEl, 'pill lost its part reference');
+      var baseHTML = pill.innerHTML;
       var options = [
         { kind: 'part', id: 101, slug: 'header', theme: 'x', title: 'Simple header', content: '' },
         { kind: 'part', id: 102, slug: 'header-b', theme: 'x', title: 'Centered header', content: '' },
       ];
       var active = { id: 101, content: { raw: '<!-- wp:group --><div></div><!-- /wp:group -->' } };
-      G.openChromeStepper(partEl, 'header', options, options[0], active);
-      var strip = q('.gogh-chrome-step');
-      expect(strip, 'stepper strip not rendered');
-      expect(q('.gogh-step-label strong').textContent === 'Simple header', 'wrong layout label');
-      expect(q('.gogh-step-label span').textContent.indexOf('current') !== -1, 'active layout not marked current');
-      expect(q('.gogh-step-prev') && q('.gogh-step-next') && q('.gogh-step-ok'), 'missing step controls');
-      var more = q('.gogh-step-more');
-      expect(more, 'More… link missing');
-      more.click();
-      expect(!q('.gogh-chrome-step'), 'stepper still open after More…');
+      G.startChromeCycle(partEl, 'header', options, options[0], active);
+      expect(pill.classList.contains('is-cycling'), 'pill did not enter cycle mode');
+      // first activation advances straight to the next layout
+      expect(pill.querySelector('.gogh-cyc-name').textContent === 'Centered header', 'did not advance on start');
+      expect(pill.querySelector('.gogh-cyc-n').textContent.indexOf('2/2') === 0, 'wrong position label');
+      expect(pill.querySelector('.gogh-cyc-ok') && pill.querySelector('.gogh-cyc-edit') && pill.querySelector('.gogh-cyc-more'), 'missing cycle actions');
+      // ⋯ hands off to the full panel
+      pill.querySelector('.gogh-cyc-more').click();
+      expect(!pill.classList.contains('is-cycling'), 'pill still cycling after ⋯');
       expect(document.querySelectorAll('.gogh-chrome-opt').length === 2, 'full panel options missing');
       expect(q('.gogh-chrome-edit'), 'full panel lost Make freeform');
       q('.gogh-panel-close').click();
       expect(document.querySelector('.gogh-panel').hidden, 'panel did not close');
+      // cycle again, then click-off collapses back to the plain pill
+      G.startChromeCycle(partEl, 'header', options, options[0], active);
+      expect(pill.classList.contains('is-cycling'), 'pill did not re-enter cycle mode');
+      document.body.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }));
+      expect(!pill.classList.contains('is-cycling'), 'click-off did not collapse the pill');
+      expect(pill.innerHTML === baseHTML, 'pill label not restored');
+      expect(!document.querySelector('.gogh-chrome-preview'), 'preview left behind after collapse');
     });
 
     // ---- report ----
