@@ -347,7 +347,7 @@
   position: absolute;
   z-index: 99996;
   height: 3px;
-  background: #7ea8ff;
+  background: #3858e9;
   transform: translateY(-50%);
   pointer-events: none;
   border-radius: 2px;
@@ -359,17 +359,17 @@
   z-index: 99998;
   width: 44px;
   height: 12px;
-  background: #7ea8ff;
+  background: #3858e9;
   border-radius: 999px;
   transform: translate(-50%, -50%);
   cursor: ns-resize;
   box-shadow: 0 6px 16px -4px rgba(0, 0, 0, 0.5);
   touch-action: none;
 }
-.gogh-hgrip:hover { background: #9dbcff; }
+.gogh-hgrip:hover { background: #536be8; }
 .gogh-hgrip[hidden] { display: none; }
 
-/* between-section inserter */
+/* between-section inserter — WordPress blue, like Save Draft */
 .gogh-inserter {
   all: unset;
   position: absolute;
@@ -379,14 +379,14 @@
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, sans-serif;
   font-size: 12px;
   font-weight: 700;
-  color: #141519;
-  background: #7ea8ff;
+  color: #fff;
+  background: #3858e9;
   border-radius: 999px;
   padding: 7px 16px;
   box-shadow: 0 10px 28px -8px rgba(0, 0, 0, 0.6);
   white-space: nowrap;
 }
-.gogh-inserter:hover { background: #9dbcff; }
+.gogh-inserter:hover { background: #536be8; }
 .gogh-inserter[hidden] { display: none; }
 
 /* ---------- context panel (link / image) ---------- */
