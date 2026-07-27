@@ -1310,11 +1310,11 @@
       expect(byType('para').length === 1, 'paragraph not atomized');
       var btn = byType('button')[0];
       expect(btn && btn.text === 'Go now' && btn.href === 'https://example.com/go', 'link not atomized to a button');
-      expect(byType('box').length >= 1, 'container background not captured as a box');
+      expect(added.bg && added.bg.indexOf('17, 34, 68') !== -1, 'full-bleed backdrop not lifted to section bg: ' + added.bg);
       var w = byType('widget')[0];
       expect(w && w.whtml.indexOf('<svg') !== -1, 'svg not kept as a widget');
       expect(w.whtml.indexOf('<style>') === 0 && w.whtml.indexOf('.pastedwrap') !== -1, 'pasted <style> not bundled with the widget');
-      expect(added.els.length >= 5, 'expected 5+ elements, got ' + added.els.length);
+      expect(added.els.length >= 4, 'expected 4+ elements, got ' + added.els.length);
       // the paste keeps its own look: captured typography, not theme presets
       var h = byType('heading')[0];
       expect(h.tf && h.tf.col && h.tf.col.indexOf('255, 255, 255') !== -1, 'heading colour not captured: ' + JSON.stringify(h.tf));
@@ -1350,8 +1350,32 @@
       expect(h.tf && h.tf.fs === 61, 'stylesheet font size not captured: ' + JSON.stringify(h.tf));
       expect(h.tf.ff && h.tf.ff.indexOf('Georgia') !== -1, 'stylesheet font family not captured');
       expect(h.tf.col && h.tf.col.indexOf('255, 136, 102') !== -1, 'stylesheet colour not captured');
-      expect(scan.els.filter(function (e) { return e.type === 'box'; }).length, 'backdrop not captured as box');
+      expect(scan.rootBg && scan.rootBg.indexOf('11, 31, 42') !== -1, 'backdrop not lifted to rootBg: ' + scan.rootBg);
       expect(scan.els.filter(function (e) { return e.type === 'widget'; }).length === 0, 'content collapsed into a widget');
+    });
+
+    test('two converted pastes: backdrop fills each section, no gap band', function () {
+      var mk = function (label) {
+        return '<div style="background:#0a0a0a;color:#fff;padding:70px 60px">' +
+          '<h2 style="font-size:48px;margin:0">' + label + '</h2>' +
+          '<p style="color:#ccc">Some content for ' + label + '.</p></div>';
+      };
+      G.addHtmlSection(mk('One'), null);
+      G.addHtmlSection(mk('Two'), null);
+      var P = G.pending();
+      P[P.length - 2].el.querySelector('.gogh-pend-ff').click();
+      G.pending()[G.pending().length - 1].el.querySelector('.gogh-pend-ff').click();
+      var S2 = G.sections();
+      var a = S2[S2.length - 2], b = S2[S2.length - 1];
+      expect(a.bg && a.bg.indexOf('10, 10, 10') !== -1, 'backdrop not lifted to section bg: ' + a.bg);
+      var ra = a.wrapEl.getBoundingClientRect(), rb = b.wrapEl.getBoundingClientRect();
+      expect(Math.abs(rb.top - ra.bottom) <= 2, 'sections do not butt: gap ' + Math.round(rb.top - ra.bottom));
+      // the WHOLE section paints the paste's background — no theme strip
+      var secBg = getComputedStyle(a.sectionEl).backgroundColor;
+      expect(secBg.indexOf('10, 10, 10') !== -1, 'section element not painting the backdrop: ' + secBg);
+      expect(!a.wrapEl.querySelector('.gogh-box'), 'redundant full-bleed box still present');
+      G.deleteSection(G.sections().indexOf(b));
+      G.deleteSection(G.sections().indexOf(a));
     });
 
     test('classless h1 with inner span stays ONE heading (James hero)', function () {

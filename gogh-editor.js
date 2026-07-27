@@ -4679,6 +4679,7 @@
           if (oc && oc !== 'rgba(0, 0, 0, 0)') sec.bg = oc;
         }
       }
+      if (!sec.bg && scan.rootBg) sec.bg = scan.rootBg;
       if (!sec.bg) {
         var rc = getComputedStyle(node).backgroundColor;
         if (rc && rc !== 'rgba(0, 0, 0, 0)' && rc !== 'transparent') sec.bg = rc;
@@ -5147,8 +5148,9 @@
     var sec = newSectionShell('gogh-sec-' + (scopeSeq++));
     sec.els = scan.els;
     sec.minH = scan.minH;
+    if (scan.rootBg) sec.bg = scan.rootBg;
     var first = holder.firstElementChild;
-    if (first && !(first.classList && first.classList.contains('gogh-pendbar'))) {
+    if (!sec.bg && first && !(first.classList && first.classList.contains('gogh-pendbar'))) {
       var bgc = getComputedStyle(first).backgroundColor;
       if (bgc && bgc !== 'rgba(0, 0, 0, 0)' && bgc !== 'transparent') sec.bg = bgc;
     }
@@ -5833,7 +5835,22 @@
         }
       }
     }
-    return { els: out, minH: Math.round(rr.height * sx) };
+    var minH = Math.round(rr.height * sx);
+    // a backdrop box that covers the whole section becomes the SECTION's
+    // background instead: a box has the measured height, but the rendered
+    // section can end up taller (text metrics, viewport units) — and the
+    // page background bleeding through the difference reads as a gap
+    // between dark sections. The section's own bg stretches with it.
+    var rootBg = null;
+    if (out.length && out[0].type === 'box' &&
+        out[0].x <= 6 && out[0].y <= 6 && out[0].w >= W - 12 &&
+        out[0].h >= minH - Math.max(12, minH * 0.04)) {
+      rootBg = out[0].boxBg || null;
+      // boxBg may be a palette slug — as a section bg it must be real CSS
+      if (rootBg && /^[a-z0-9-]+$/.test(rootBg)) rootBg = 'var(--wp--preset--color--' + rootBg + ')';
+      out.shift();
+    }
+    return { els: out, minH: minH, rootBg: rootBg };
   }
 
   function doConvertChrome(partEl, area, part) {
@@ -5841,14 +5858,16 @@
       var raw = (part.content && part.content.raw) || '';
       var rr = partEl.getBoundingClientRect();
       var sx = W / rr.width;
-      var out = scanDomWithRaw(partEl, raw).els;
+      var chromeScan = scanDomWithRaw(partEl, raw);
+      var out = chromeScan.els;
       if (!out.length) throw new Error('Nothing to edit in this ' + area + '.');
       var sec = newSectionShell('gogh-sec-' + (scopeSeq++));
       sec.els = out;
       sec.minH = Math.round(rr.height * sx);
       sec.chrome = { area: area, id: part.id };
+      if (chromeScan.rootBg) sec.bg = chromeScan.rootBg;
       var bgc = getComputedStyle(partEl).backgroundColor;
-      if (bgc && bgc !== 'rgba(0, 0, 0, 0)' && bgc !== 'transparent') sec.bg = bgc;
+      if (!sec.bg && bgc && bgc !== 'rgba(0, 0, 0, 0)' && bgc !== 'transparent') sec.bg = bgc;
       // hide the live chrome, mount the canvas in its place (tracked on the
       // part element so undo/redo can restore visibility)
       partEl.__goghHidden = [].slice.call(partEl.children);
