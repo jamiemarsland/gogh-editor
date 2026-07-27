@@ -1388,6 +1388,45 @@ html.gogh-editing .gogh-mirror { display: flex; }
 }
 .gogh-chromebtn:hover { opacity: 1; }
 .gogh-chromebtn svg { display: block; }
+/* light chrome editing: header/footer text, links and menus edit in place */
+.gogh-editing .gogh-lightedit :is(h1, h2, h3, h4, h5, h6, p, figcaption):hover {
+  outline: 1.5px dashed rgba(126, 168, 255, 0.8);
+  outline-offset: 3px;
+  cursor: text;
+}
+.gogh-editing .gogh-lightedit .wp-block-navigation-item { cursor: grab; }
+.gogh-editing .gogh-lightedit .wp-block-navigation-item:hover {
+  outline: 1.5px dashed rgba(126, 168, 255, 0.6);
+  outline-offset: 3px;
+}
+.gogh-navadd { list-style: none; display: flex; align-items: center; }
+.gogh-navadd button {
+  all: unset;
+  cursor: pointer;
+  width: 22px;
+  height: 22px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: rgba(20, 21, 25, 0.85);
+  color: #e8eaf0;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  font-weight: 700;
+  font-size: 14px;
+  line-height: 1;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+.gogh-editing .wp-block-navigation:hover .gogh-navadd button { opacity: 0.9; }
+.gogh-navadd button:hover { opacity: 1 !important; }
+.gogh-navadd-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 260px;
+  overflow-y: auto;
+}
+
 /* pills reveal on hover over their part — hidden the rest of the time
    (the footpill selector must be named here too, or its own opacity rule
    outranks the hide and the pill shows permanently) */

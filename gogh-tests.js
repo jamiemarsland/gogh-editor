@@ -741,7 +741,7 @@
     test('delete section + undo restores it', function () {
       G.addSection(G.templates()[3], G.sections().length);
       var s0 = G.sections().length;
-      G.deleteSection(s0 - 1);
+      G.deleteSection(G.sections().indexOf(lastSec()));
       expect(G.sections().length === s0 - 1, 'not deleted');
       expect(!document.contains(document.querySelector('.gogh-card-sec')) || true, '');
       q('.gogh-undo').click();
@@ -817,7 +817,10 @@
       sec().wrapEl.appendChild(probe);
       var themeColor = getComputedStyle(probe).color;
       probe.remove();
-      var i = findIdx('heading');
+      // measure a heading WITHOUT captured paste typography (tf) or an
+      // explicit colour — those deliberately override the theme
+      var i = sec().els.findIndex(function (e) { return e.type === 'heading' && !e.tf && !e.color; });
+      if (i === -1) return 'no theme-styled heading in fixture — skipped';
       var goghColor = getComputedStyle(sec().nodes[i]).color;
       expect(goghColor === themeColor, 'heading ' + goghColor + ' vs theme ' + themeColor);
       return 'headings inherit ' + themeColor;
@@ -1426,6 +1429,34 @@
       expect(added.els.filter(function (e) { return e.type === 'button'; }).length === 1, 'link not a button');
       expect(added.els.filter(function (e) { return e.type === 'widget'; }).length === 0, 'stray widgets: h1 span leaked');
       G.deleteSection(G.sections().indexOf(added));
+    });
+
+    test('chrome light edit: click text in a part, edit, syncs to raw', function () {
+      var host = document.createElement('div');
+      host.innerHTML = '<div class="wp-block-group"><h2>Chrome title</h2><p>Chrome body</p></div>';
+      document.body.appendChild(host);
+      var raw = '<!-- wp:group -->\n<div class="wp-block-group">' +
+        '<!-- wp:heading --><h2>Chrome title</h2><!-- /wp:heading -->' +
+        '<!-- wp:paragraph --><p>Chrome body</p><!-- /wp:paragraph -->' +
+        '</div>\n<!-- /wp:group -->';
+      var e = G.bindChromeTest(host, raw);
+      var h = host.querySelector('h2');
+      h.click();
+      expect(h.getAttribute('contenteditable') === 'true', 'chrome text not editable on click');
+      h.textContent = 'EDITED CHROME';
+      e.__sync(e.__leafOf(h));
+      expect(e.raw.indexOf('EDITED CHROME') !== -1 && e.raw.indexOf('Chrome title') === -1, 'edit not synced to part raw');
+      expect(e.raw.indexOf('Chrome body') !== -1, 'sibling leaf disturbed');
+      host.remove();
+      G.chromeEdits().splice(G.chromeEdits().indexOf(e), 1);
+    });
+
+    test('menu add: navigation-link markup is well-formed', function () {
+      var m = G.navLinkMarkup({ id: 42, link: 'https://x.test/pricing/', title: { rendered: 'Pricing &amp; Plans' } });
+      expect(m.indexOf('wp:navigation-link') !== -1, 'not a navigation link');
+      expect(m.indexOf('"label":"Pricing &amp; Plans"') !== -1, 'label missing: ' + m);
+      expect(m.indexOf('"id":42') !== -1 && m.indexOf('"url":"https://x.test/pricing/"') !== -1, 'page ref missing');
+      expect(/\/-->$/.test(m.trim()), 'not self-closing');
     });
 
     test('footer pill is fixed at the viewport bottom and unobstructed', function () {

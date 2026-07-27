@@ -1434,6 +1434,8 @@
       // warm the picker's shelves so the modal opens complete, not in jolts
       fetchSectionPatterns();
       fetchBlocks();
+      // header/footer become lightly editable: text, links, menus in place
+      initChromeLightEdits();
     }
     editBtnWrap.hidden = on;
     hideHandles();
@@ -4147,6 +4149,14 @@
     addHtmlSection: addHtmlSection,
     startChromeCycle: startChromeCycle,
     openPicker: openPicker,
+    navLinkMarkup: navLinkMarkup,
+    chromeEdits: function () { return chromeLightEdits; },
+    bindChromeTest: function (el, raw) {
+      var e = { el: el, raw: raw, savedRaw: raw, chromePart: true, partId: 0, title: 'test chrome' };
+      chromeLightEdits.push(e);
+      bindPending(e);
+      return e;
+    },
     pending: function () { return pendingBlocks; },
     get state() {
       return { editing: editing, sections: S.length, sel: sel ? { i: sel.i } : null,
@@ -4342,6 +4352,7 @@
 
   function isDirty() {
     if (pendingBlocks.length) return true;
+    if (chromeLightEdits.some(function (e) { return e.savedRaw != null && e.raw !== e.savedRaw; })) return true;
     return savedSnap !== null && serialize() !== savedSnap;
   }
 
@@ -4450,7 +4461,13 @@
             if (!r.ok) throw new Error('the ' + s.chrome.area + ' did not save');
             toast('Site ' + s.chrome.area + ' updated across every page.');
           });
-        }));
+        }).concat(chromeLightEdits
+          .filter(function (e) { return e.savedRaw != null && e.raw !== e.savedRaw; })
+          .map(function (e) {
+            return saveChromeEntry(e).then(function () {
+              toast(e.title + ' updated across every page.');
+            });
+          })));
       });
     }).then(function () {
       // conversions are now committed: sections are ordinary gogh spans
@@ -4902,11 +4919,27 @@
   // Rendered leaves pair with their markup spans; edits replace the span's
   // HTML with the live DOM, so publish and Make freeform both see them.
   function bindPending(entry) {
+    // shared light editor: pending sections AND non-freeform chrome parts.
+    // A chrome entry lives while editing is on and the part has no mounted
+    // freeform canvas; a pending entry lives while it is still pending.
+    var live = function () {
+      if (entry.chromePart) {
+        return editing && chromeLightEdits.indexOf(entry) !== -1 &&
+          !entry.el.querySelector('.gogh-wrap');
+      }
+      return pendingBlocks.indexOf(entry) !== -1;
+    };
+    var fresh = !entry.__bound;
+    entry.__bound = true;
     entry.map = [];
     (function pair(container, base, rawText) {
       var spans = parseTopBlocks(rawText);
       var kids = [].slice.call(container.children).filter(function (c) {
-        return !(c.classList && c.classList.contains('gogh-pendbar'));
+        if (c.classList && c.classList.contains('gogh-pendbar')) return false;
+        // metadata children are never block output (a refreshed chrome part
+        // carries a <style> from the renderer)
+        var tg = c.tagName;
+        return tg !== 'STYLE' && tg !== 'SCRIPT' && tg !== 'LINK' && tg !== 'TEMPLATE';
       });
       if (!spans.length || spans.length !== kids.length) return;
       spans.forEach(function (sp, k) {
@@ -4982,8 +5015,11 @@
       if (leaf) syncLeaf(leaf);
       activeEd = null;
     }
+    if (!fresh) return; // re-bind refreshes the map; listeners attach once
     holder.addEventListener('click', function (ev) {
-      if (!editing || pendingBlocks.indexOf(entry) === -1) return;
+      if (!editing || !live()) return;
+      // the menu has its own physics (drag to reorder, + to add)
+      if (entry.chromePart && ev.target.closest && ev.target.closest('.wp-block-navigation')) return;
       var a = ev.target.closest && ev.target.closest('a');
       if (a && !a.closest('.gogh-pendbar')) ev.preventDefault();
       var img = ev.target.closest && ev.target.closest('img');
@@ -5009,7 +5045,7 @@
       }
     });
     holder.addEventListener('input', function (ev) {
-      if (pendingBlocks.indexOf(entry) === -1) return;
+      if (!live()) return;
       var leaf = leafOf(ev.target);
       if (!leaf) return;
       clearTimeout(syncT);
@@ -6356,6 +6392,196 @@
       toast('gogh couldn\u2019t save that menu order.', { error: true });
     });
   });
+
+  // ---------- light chrome editing: text, links and menus in the
+  // header/footer, no freeform required ----------
+  var chromeLightEdits = [];
+  function activePartFor(area) {
+    return fetch(restQ(tpUrl(), 'area=' + encodeURIComponent(area) + '&context=edit'), {
+      headers: { 'X-WP-Nonce': cfg.nonce },
+      credentials: 'same-origin',
+    }).then(function (r) { return r.ok ? r.json() : []; }).then(function (parts) {
+      var active = null;
+      (parts || []).forEach(function (p) {
+        if (!active && p.slug === area && (!p.theme || p.theme === cfg.theme)) active = p;
+      });
+      return active;
+    });
+  }
+  function initChromeLightEdits() {
+    ['header', 'footer'].forEach(function (area) {
+      var partEl = partElForArea(area);
+      if (!partEl || partEl.querySelector('.gogh-wrap')) return;
+      activePartFor(area).then(function (active) {
+        if (!active) return;
+        var raw = (active.content && active.content.raw) || '';
+        var entry = partEl.__goghChromeEntry;
+        if (!entry) {
+          entry = { el: partEl, chromePart: true, title: 'Site ' + area };
+          partEl.__goghChromeEntry = entry;
+          chromeLightEdits.push(entry);
+        }
+        entry.partId = active.id;
+        entry.raw = raw;
+        entry.savedRaw = raw;
+        bindPending(entry);
+        partEl.classList.add('gogh-lightedit');
+        placeNavAdders(partEl);
+      }).catch(function () {});
+    });
+  }
+  function saveChromeEntry(entry) {
+    if (!entry || entry.savedRaw == null || entry.raw === entry.savedRaw) return Promise.resolve();
+    return fetch(tpUrl(entry.partId), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-WP-Nonce': cfg.nonce },
+      credentials: 'same-origin',
+      body: JSON.stringify({ content: entry.raw }),
+    }).then(function (r) {
+      if (!r.ok) throw new Error('could not save the ' + entry.title);
+      entry.savedRaw = entry.raw;
+    });
+  }
+  function placeNavAdders(partEl) {
+    [].slice.call(partEl.querySelectorAll('.wp-block-navigation__container')).forEach(function (list) {
+      if (list.closest('.wp-block-navigation-item')) return; // submenus: no
+      if (list.querySelector(':scope > .gogh-navadd')) return;
+      var li = document.createElement('li');
+      li.className = 'gogh-navadd';
+      li.innerHTML = '<button type="button" title="Add a page to this menu">+</button>';
+      li.querySelector('button').addEventListener('click', function (ev) {
+        ev.preventDefault();
+        ev.stopPropagation();
+        openNavAddPanel(partEl, list, li);
+      });
+      list.appendChild(li);
+    });
+  }
+  function navLinkMarkup(page) {
+    var title = (page.title && page.title.rendered ? page.title.rendered.replace(/<[^>]+>/g, '') : 'Page');
+    return '<!-- wp:navigation-link {"label":' + JSON.stringify(title) +
+      ',"type":"page","id":' + (+page.id || 0) +
+      ',"url":' + JSON.stringify(page.link || '#') + ',"kind":"post-type"} /-->';
+  }
+  function domNavLinks(listEl) {
+    return navItemsOf(listEl).map(function (li) {
+      var a = li.querySelector('a');
+      return '<!-- wp:navigation-link {"label":' + JSON.stringify((li.textContent || '').trim()) +
+        ',"url":' + JSON.stringify(a ? a.getAttribute('href') : '#') + ',"kind":"post-type"} /-->';
+    });
+  }
+  function saveNavAppend(partEl, listEl, page) {
+    var area = partEl.tagName === 'FOOTER' ? 'footer' : 'header';
+    var hdrs = { 'X-WP-Nonce': cfg.nonce, 'Content-Type': 'application/json' };
+    var link = navLinkMarkup(page);
+    return activePartFor(area).then(function (active) {
+      if (!active) throw new Error('no ' + area + ' part');
+      var praw = (active.content && (active.content.raw || active.content)) || '';
+      var refM = String(praw).match(/wp:navigation[^>]*"ref":(\d+)/);
+      var target = refM ? Promise.resolve(+refM[1])
+        : fetch(restQ(GSROOT + 'navigation', 'context=edit&per_page=1'), {
+            headers: { 'X-WP-Nonce': cfg.nonce }, credentials: 'same-origin',
+          }).then(function (r) { return r.ok ? r.json() : []; })
+            .then(function (navs) { return navs && navs[0] ? navs[0].id : null; });
+      return target.then(function (navId) {
+        if (navId == null) {
+          // no menu post anywhere: mint one from what's rendered + the page
+          return fetch(GSROOT + 'navigation', {
+            method: 'POST', headers: hdrs, credentials: 'same-origin',
+            body: JSON.stringify({ title: 'Navigation', status: 'publish',
+              content: domNavLinks(listEl).concat([link]).join('\n') }),
+          }).then(function (r) { if (!r.ok) throw new Error('save'); });
+        }
+        return fetch(restQ(GSROOT + 'navigation/' + navId, 'context=edit'), {
+          headers: { 'X-WP-Nonce': cfg.nonce }, credentials: 'same-origin',
+        }).then(function (r) { if (!r.ok) throw new Error('nav'); return r.json(); })
+          .then(function (nav) {
+            var nraw = ((nav.content && nav.content.raw) || '').trim();
+            // an automatic page list shows everything already — pin it as
+            // explicit links so the menu becomes deliberate
+            if (parseTopBlocks(nraw).every(function (sp) { return (sp.name || '').indexOf('page-list') !== -1; })) {
+              nraw = domNavLinks(listEl).join('\n');
+            }
+            return fetch(GSROOT + 'navigation/' + navId, {
+              method: 'POST', headers: hdrs, credentials: 'same-origin',
+              body: JSON.stringify({ content: (nraw ? nraw + '\n' : '') + link }),
+            }).then(function (r) { if (!r.ok) throw new Error('save'); });
+          });
+      });
+    });
+  }
+  function refreshChromePart(partEl) {
+    var area = partEl.tagName === 'FOOTER' ? 'footer' : 'header';
+    return activePartFor(area).then(function (active) {
+      if (!active) return;
+      var raw = (active.content && active.content.raw) || '';
+      return renderChromeOption({ content: raw }).then(function (d) {
+        if (!d) return;
+        partEl.innerHTML = (d.css ? '<style>' + d.css + '</style>' : '') + (d.html || '');
+        var entry = partEl.__goghChromeEntry;
+        if (entry) { entry.raw = raw; entry.savedRaw = raw; bindPending(entry); }
+        placeNavAdders(partEl);
+        placeChromeBtns();
+      });
+    });
+  }
+  function openNavAddPanel(partEl, listEl, anchorEl) {
+    placePanelNear(anchorEl);
+    panel.innerHTML =
+      '<div class="gogh-panel-head"><span class="gogh-panel-title">Add to menu</span>' +
+      '<button type="button" class="gogh-sbtn gogh-panel-close" title="Close">✕</button></div>' +
+      '<div class="gogh-panel-hint">Pick a page — the menu updates on every page of your site.</div>' +
+      '<div class="gogh-navadd-list"><em class="gogh-panel-hint">Loading pages…</em></div>';
+    panel.hidden = false;
+    panelOpen = true;
+    panel.querySelector('.gogh-panel-close').addEventListener('click', closePanel);
+    var inMenu = {};
+    navItemsOf(listEl).forEach(function (li) {
+      var a = li.querySelector('a');
+      if (!a) return;
+      try { inMenu[new URL(a.href, location.href).pathname.replace(/\/$/, '') || '/'] = 1; } catch (e2) {}
+    });
+    fetch(restQ(GSROOT + 'pages', 'status=publish&per_page=100&_fields=id,title,link'), {
+      headers: { 'X-WP-Nonce': cfg.nonce }, credentials: 'same-origin',
+    }).then(function (r) { return r.ok ? r.json() : []; }).then(function (pages) {
+      var box = panel.querySelector('.gogh-navadd-list');
+      if (!box) return;
+      var avail = (pages || []).filter(function (p) {
+        var path = '/';
+        try { path = new URL(p.link).pathname.replace(/\/$/, '') || '/'; } catch (e3) {}
+        return !inMenu[path];
+      });
+      if (!avail.length) {
+        box.innerHTML = '<em class="gogh-panel-hint">Every page is already in this menu.</em>';
+        return;
+      }
+      box.innerHTML = '';
+      avail.forEach(function (p) {
+        var title = (p.title && p.title.rendered ? p.title.rendered.replace(/<[^>]+>/g, '') : 'Page ' + p.id);
+        var b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'gogh-btn gogh-btn-small gogh-navadd-item';
+        b.textContent = title;
+        b.addEventListener('click', function () {
+          b.disabled = true;
+          b.textContent = 'Adding…';
+          var entry = partEl.__goghChromeEntry;
+          saveChromeEntry(entry).then(function () {
+            return saveNavAppend(partEl, listEl, p);
+          }).then(function () {
+            closePanel();
+            toast('“' + title + '” added to the menu — every page gets it.', { ttl: 4500 });
+            return refreshChromePart(partEl);
+          }).catch(function (err) {
+            b.disabled = false;
+            b.textContent = title;
+            toast((err && err.message) || 'gogh couldn’t add that page.', { error: true });
+          });
+        });
+        box.appendChild(b);
+      });
+    });
+  }
 
   var chromeBtns = [];
   function clearChromeBtns() {
