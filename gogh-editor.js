@@ -5330,6 +5330,7 @@
       // a click during a slow preview fetch queues instead of vanishing —
       // dropped clicks read as "the footer toggle doesn't work"
       if (st.busy) { st.queued = true; return; }
+      var prevIdx = st.idx;
       st.idx = (st.idx + 1) % st.options.length;
       var o = st.options[st.idx];
       render();
@@ -5341,6 +5342,12 @@
         cycBar.classList.remove('is-busy');
         // a preview that lands after the cycle ended must not stick around
         if (!st.alive) { if (ok) endChromePreview(); return; }
+        if (!ok) {
+          // the label must never claim a look that isn't on screen
+          st.idx = prevIdx;
+          render();
+          return;
+        }
         // the swap reflows the page and can cancel the opening scroll —
         // re-assert once the first preview is actually on screen
         if (!st.scrolled) {
@@ -5353,6 +5360,8 @@
     st.collapse = collapse;
     chromeCycle = st;
     if (pill) pill.style.display = 'none';
+    // footer controls live at the bottom of the screen, header's at the top
+    cycBar.classList.toggle('is-bottom', area === 'footer');
     cycBar.querySelector('.gogh-cyc-hint').textContent = 'click the ' + area + ' for the next look';
     cycBar.querySelector('.gogh-cyc-ok').onclick = function (ev) {
       ev.stopPropagation();
