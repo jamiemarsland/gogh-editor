@@ -311,7 +311,7 @@
     test('+ Section adds a template section', function () {
       var s0 = G.sections().length;
       G.openPicker(G.sections().length);
-      var card = q('.gogh-card[data-tpl="5"]');
+      var card = q('.gogh-quick-scratch');
       expect(card, 'picker did not open');
       card.click();
       expect(G.sections().length === s0 + 1, 'section not added');
@@ -1272,29 +1272,26 @@
 
     test('picker: one grid, chips filter starters in place', function () {
       G.openPicker(G.sections().length);
-      expect(!q('.gogh-topstrip') && !q('.gogh-picker-sub'), 'old picker zones still present');
-      var blank = q('.gogh-card-blank');
-      expect(blank && blank.dataset.tpl, 'blank card missing from grid');
-      expect(blank.closest('.gogh-cards'), 'blank card not in the one grid');
+      expect(!q('.gogh-topstrip'), 'old picker zones still present');
       var chips = document.querySelectorAll('.gogh-patcats .gogh-patcat');
       expect(chips.length >= 6, 'chip row missing, got ' + chips.length);
       expect(q('.gogh-patcat[data-cat=""]').textContent === 'Layouts', 'default chip not Layouts');
-      var yoursChip = q('.gogh-patcat[data-cat="yours"]');
-      expect(yoursChip, 'yours chip missing');
+      expect(q('.gogh-patcat[data-cat="yours"]'), 'yours chip missing');
       var cardByName = function (nm) {
         return [].filter.call(document.querySelectorAll('.gogh-cards .gogh-card'), function (c) {
           var n = c.querySelector('.gogh-card-name');
-          return n && n.textContent === nm;
+          return n && n.textContent.indexOf(nm) === 0;
         })[0];
       };
+      var quick = q('.gogh-quickrow');
       var textChip = q('.gogh-patcat[data-cat="text"]');
       textChip.click();
       expect(cardByName('Quote').style.display !== 'none', 'Quote hidden under Text chip');
       expect(cardByName('Hero').style.display === 'none', 'Hero visible under Text chip');
-      expect(blank.style.display === 'none', 'blank card visible while filtered');
+      expect(quick.hidden, 'Quick start row visible while filtered');
       q('.gogh-patcat[data-cat=""]').click();
       expect(cardByName('Hero').style.display !== 'none', 'Hero not restored by All');
-      expect(blank.style.display !== 'none', 'blank card not restored by All');
+      expect(!quick.hidden, 'Quick start row not restored by All');
       q('.gogh-picker-close').click();
       expect(q('.gogh-picker').hidden, 'picker did not close');
     });
@@ -1612,14 +1609,17 @@
       expect(q('.gogh-picker').hidden, 'picker did not close');
     });
 
-    // ---- picker: bring-your-own row of three quiet tiles ----
-    test('picker: scratch / paste / yours tiles share the first row', function () {
+    // ---- picker: Quick start row of three banners ----
+    test('picker: quick start offers scratch / paste / my sections', function () {
       G.openPicker(G.sections().length);
-      var tiles = document.querySelectorAll('.gogh-cards .gogh-card-blank');
-      expect(tiles.length === 3, 'expected 3 quiet tiles, got ' + tiles.length);
-      expect(tiles[0].dataset.tpl != null, 'scratch tile lost its template');
+      var tiles = document.querySelectorAll('.gogh-quickrow .gogh-quick');
+      expect(tiles.length === 3, 'expected 3 quick tiles, got ' + tiles.length);
+      expect(/Start from scratch/.test(tiles[0].textContent), 'scratch tile missing');
       expect(/Paste HTML/.test(tiles[1].textContent), 'paste tile missing');
-      expect(/Your sections/.test(tiles[2].textContent), 'yours tile missing');
+      expect(/My sections/.test(tiles[2].textContent), 'my-sections tile missing');
+      expect(q('.gogh-picker-sub'), 'header subtitle missing');
+      var labs = document.querySelectorAll('.gogh-seclab');
+      expect(labs.length >= 3, 'section labels missing (Quick start / Recommended / Browse)');
       q('.gogh-card-htmladd').click();
       expect(q('.gogh-htmlpaste'), 'paste tile did not open the paste view');
       q('.gogh-picker-close').click();

@@ -2240,45 +2240,54 @@
   function openPicker(idx) {
     pickerIdx = idx;
     try { picker.style.setProperty('--gogh-body-ff', getComputedStyle(document.body).fontFamily); } catch (err) {}
-    var tplCardHTML = function (tpl, t) {
+    var tplCardHTML = function (tpl, t, popular) {
       var els = tplEls(tpl);
       var scope = 'gogh-tpl-' + t;
       var css = els.length ? buildCSS(els, scope, tpl.minH || null, { bg: tpl.bg || null }) : '';
       var inner = els.map(function (e, i) { return makeNode(e, i).outerHTML; }).join('');
-      var blank = !tpl.starter;
-      return '<button type="button" class="gogh-card' + (blank ? ' gogh-card-blank' : '') + '" data-tpl="' + t + '"' +
+      return '<button type="button" class="gogh-card" data-tpl="' + t + '"' +
         ' data-cats="' + (STARTER_CATS[tpl.name] || '') + '">' +
         '<span class="gogh-card-prev"><style>' + css + '</style>' +
         '<span class="gogh-card-stage gogh-wrap"><span class="gogh-card-sec gogh-section ' + scope + '">' + inner + '</span></span>' +
         '</span>' +
-        '<span class="gogh-card-name">' + tpl.name + '</span>' +
+        '<span class="gogh-card-name">' + tpl.name +
+        (popular ? '<span class="gogh-pop">🔥 Popular</span>' : '') + '</span>' +
         '</button>';
     };
-    // Blank first (TEMPLATES lists it before the starters), then starters;
-    // theme patterns append into the same grid when they arrive
-    var cardsArr = TEMPLATES.map(function (tpl, t) {
-      if (tpl.retired) return '';
-      return tplCardHTML(tpl, t);
-    });
-    // the bring-your-own row: scratch, paste, yours — three quiet tiles,
-    // three ways in that aren't somebody else's design. (Retired templates
-    // render as empty strings, so "after the blank" is by index, not 1.)
+    // starters only in the grid, grouped like a library: the first four are
+    // the recommendations, the rest browse below. Blank lives in Quick start.
     var blankAt = TEMPLATES.findIndex(function (t) { return !t.retired && !t.starter; });
-    cardsArr.splice(blankAt + 1, 0,
-      '<button type="button" class="gogh-card gogh-card-blank gogh-card-paste gogh-card-htmladd">' +
-      '<span class="gogh-card-prev"></span><span class="gogh-card-name">Paste HTML</span></button>',
-      '<button type="button" class="gogh-card gogh-card-blank gogh-card-yourstile">' +
-      '<span class="gogh-card-prev"></span><span class="gogh-card-name">Your sections</span></button>');
+    var cardsArr = [];
+    var starterSeen = 0;
+    TEMPLATES.forEach(function (tpl, t) {
+      if (tpl.retired || !tpl.starter) return;
+      starterSeen++;
+      if (starterSeen === 1) cardsArr.push('<div class="gogh-seclab">Recommended</div>');
+      if (starterSeen === 5) cardsArr.push('<div class="gogh-seclab">Browse all layouts</div>');
+      cardsArr.push(tplCardHTML(tpl, t, starterSeen <= 3));
+    });
     var cards = cardsArr.join('');
+    var quickTile = function (cls, icon, title, sub) {
+      return '<button type="button" class="gogh-quick ' + cls + '">' +
+        '<span class="gogh-quick-ic">' + icon + '</span>' +
+        '<span class="gogh-quick-tx"><b>' + title + '</b><i>' + sub + '</i></span>' +
+        '<span class="gogh-quick-chev">' +
+        '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5l7 7-7 7"/></svg>' +
+        '</span></button>';
+    };
     picker.innerHTML =
       '<div class="gogh-picker-inner">' +
-      '<div class="gogh-picker-head"><span class="gogh-picker-title">Add a section</span>' +
+      '<div class="gogh-picker-head">' +
+      '<span class="gogh-picker-headings"><span class="gogh-picker-title">Add a section</span>' +
+      '<span class="gogh-picker-sub">Choose a layout to get started. You can customise everything.</span></span>' +
       '<span class="gogh-picker-tools">' +
       '<label class="gogh-picker-search">' +
       '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><circle cx="10.5" cy="10.5" r="6.5"/><path d="M20 20l-4.6-4.6"/></svg>' +
-      '<input type="text" class="gogh-patsearch" placeholder="Search\u2026" />' +
+      '<input type="text" class="gogh-patsearch" placeholder="Search layouts\u2026" />' +
       '</label>' +
-      '<button type="button" class="gogh-btn gogh-btn-small gogh-picker-close">Close</button>' +
+      '<button type="button" class="gogh-picker-close gogh-picker-x" title="Close">' +
+      '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>' +
+      '</button>' +
       '</span></div>' +
       '<div class="gogh-patcats">' +
       '<button type="button" class="gogh-patcat is-active" data-cat="">Layouts</button>' +
@@ -2289,6 +2298,17 @@
       BUCKETS.map(function (bu) {
         return '<button type="button" class="gogh-patcat" data-cat="' + bu.key + '">' + bu.label + '</button>';
       }).join('') +
+      '</div>' +
+      '<div class="gogh-seclab gogh-quicklab">Quick start</div>' +
+      '<div class="gogh-quickrow">' +
+      quickTile('gogh-quick-scratch',
+        '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>',
+        'Start from scratch', 'Build your section on a blank canvas') +
+      quickTile('gogh-quick-paste gogh-card-htmladd', '⌘V',
+        'Paste HTML', 'Paste your HTML and we’ll convert it') +
+      quickTile('gogh-quick-yours',
+        '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M12 21S3.8 15.9 1.7 10.9C.3 7.6 2.4 4 5.9 4c2.2 0 3.8 1.2 4.7 2.6L12 8.5l1.4-1.9C14.3 5.2 15.9 4 18.1 4c3.5 0 5.6 3.6 4.2 6.9C20.2 15.9 12 21 12 21z"/></svg>',
+        'My sections', 'Reuse your saved sections') +
       '</div>' +
       '<div class="gogh-cards">' + cards + '</div>' +
       '<div class="gogh-pickempty" hidden>Nothing here matches \u2014 try another filter.</div>' +
@@ -2330,13 +2350,17 @@
       if (ev.target === picker) closePicker();
     });
     picker.querySelectorAll('.gogh-card').forEach(function (card) {
-      if (card.dataset.tpl == null) return; // paste/yours tiles have their own jobs
+      if (card.dataset.tpl == null) return;
       card.addEventListener('click', function () {
         addSection(TEMPLATES[+card.dataset.tpl], pickerIdx);
         closePicker();
       });
     });
-    picker.querySelector('.gogh-card-yourstile').addEventListener('click', function () {
+    picker.querySelector('.gogh-quick-scratch').addEventListener('click', function () {
+      addSection(TEMPLATES[blankAt], pickerIdx);
+      closePicker();
+    });
+    picker.querySelector('.gogh-quick-yours').addEventListener('click', function () {
       var chip = picker.querySelector('.gogh-patcat[data-cat="yours"]');
       if (chip) chip.click(); // empty state falls through to the grid's hint
     });
@@ -2352,12 +2376,19 @@
     // one grid, one filter: chips and search treat every card the same
     function applyFilter() {
       var shown = 0, teaser = 0;
+      var filtered = !!(activeCat || query);
+      // the labelled library shape (Quick start / Recommended / Browse) only
+      // makes sense on the first screen — filters flatten to one plain grid
+      [].forEach.call(picker.querySelectorAll('.gogh-quicklab, .gogh-quickrow'), function (n) {
+        n.hidden = filtered;
+      });
+      [].forEach.call(cardsBox.querySelectorAll('.gogh-seclab'), function (n) {
+        n.hidden = filtered;
+      });
       [].slice.call(cardsBox.querySelectorAll('.gogh-card')).forEach(function (b) {
         var ok;
         var isPat = b.classList.contains('gogh-card-pattern');
-        if (b.classList.contains('gogh-card-blank')) {
-          ok = !activeCat && !query;
-        } else if (!activeCat && !query) {
+        if (!activeCat && !query) {
           // first screen: gogh's own layouts as one calm curated shelf, plus
           // a three-card taste of the theme's patterns under a labelled row
           // (recents/faves carry kind="yours" and sit above the label row —
