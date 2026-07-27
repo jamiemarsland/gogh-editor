@@ -7,6 +7,18 @@
   'use strict';
 
   var cfg = window.GOGH;
+  // poster type: three stops ABOVE the theme's largest preset. Container
+  // units scale with the section (phones included); the px floor keeps the
+  // smallest screens readable. Emitted into the section stylesheet, so
+  // published pages stay deactivation-safe and Global Styles stay untouched.
+  // (Defined here, top of file: the boot DOM-parse below reads it.)
+  var DISPLAY_FS = {
+    '__disp-s': 'max(6cqw, 30px)',
+    '__disp-m': 'max(9cqw, 36px)',
+    '__disp-l': 'max(13cqw, 42px)',
+  };
+  var DISPLAY_ORDER = ['__disp-s', '__disp-m', '__disp-l'];
+  var DISPLAY_LABEL = { '__disp-s': 'Display S', '__disp-m': 'Display M', '__disp-l': 'Display L' };
   if (!cfg) return;
 
   var TOL = 8, MIN_H = 560, PAD = 72, SNAP = 6, BASE = 8, W = 1200;
@@ -101,7 +113,9 @@
       if (e.type === 'heading' || e.type === 'para') {
         if ((node.textContent || '').trim()) e.text = cleanInline(node.innerHTML);
         var fm = cls.match(/has-([a-z0-9-]+)-font-size/);
-        e.fs = fm ? fm[1] : null;
+        // display sizes carry no preset class by design — the DOM can't
+        // testify about them, so the model's word stands
+        e.fs = fm ? fm[1] : (DISPLAY_FS[e.fs] ? e.fs : null);
         var am = cls.match(/has-text-align-(center|right)/);
         e.align = am ? am[1] : null;
         e.color = pickColorSlug(cls);
@@ -343,17 +357,6 @@
     box: '',
   };
   var isText = function (e) { return e.type === 'heading' || e.type === 'para'; };
-  // poster type: three stops ABOVE the theme's largest preset. Container
-  // units scale with the section (phones included); the px floor keeps the
-  // smallest screens readable. Emitted into the section stylesheet, so
-  // published pages stay deactivation-safe and Global Styles stay untouched.
-  var DISPLAY_FS = {
-    '__disp-s': 'max(6cqw, 30px)',
-    '__disp-m': 'max(9cqw, 36px)',
-    '__disp-l': 'max(13cqw, 42px)',
-  };
-  var DISPLAY_ORDER = ['__disp-s', '__disp-m', '__disp-l'];
-  var DISPLAY_LABEL = { '__disp-s': 'Display S', '__disp-m': 'Display M', '__disp-l': 'Display L' };
   var fixedHeight = function (e) { return e.type === 'button' || e.type === 'image' || e.type === 'badge' || e.type === 'widget' || e.type === 'box'; };
 
   function imageBackground(e) {
@@ -2258,12 +2261,12 @@
   function openPicker(idx) {
     pickerIdx = idx;
     try { picker.style.setProperty('--gogh-body-ff', getComputedStyle(document.body).fontFamily); } catch (err) {}
-    var tplCardHTML = function (tpl, t, popular) {
+    var tplCardHTML = function (tpl, t, popular, si) {
       var els = tplEls(tpl);
       var scope = 'gogh-tpl-' + t;
       var css = els.length ? buildCSS(els, scope, tpl.minH || null, { bg: tpl.bg || null }) : '';
       var inner = els.map(function (e, i) { return makeNode(e, i).outerHTML; }).join('');
-      return '<button type="button" class="gogh-card" data-tpl="' + t + '"' +
+      return '<button type="button" class="gogh-card" data-tpl="' + t + '" data-si="' + (si || 0) + '"' +
         ' data-cats="' + (STARTER_CATS[tpl.name] || '') + '">' +
         '<span class="gogh-card-prev"><style>' + css + '</style>' +
         '<span class="gogh-card-stage gogh-wrap"><span class="gogh-card-sec gogh-section ' + scope + '">' + inner + '</span></span>' +
@@ -2275,14 +2278,20 @@
     // starters only in the grid, grouped like a library: the first four are
     // the recommendations, the rest browse below. Blank lives in Quick start.
     var blankAt = TEMPLATES.findIndex(function (t) { return !t.retired && !t.starter; });
+    var totalStarters = TEMPLATES.filter(function (t) { return !t.retired && t.starter; }).length;
     var cardsArr = [];
     var starterSeen = 0;
     TEMPLATES.forEach(function (tpl, t) {
       if (tpl.retired || !tpl.starter) return;
       starterSeen++;
       if (starterSeen === 1) cardsArr.push('<div class="gogh-seclab">Recommended</div>');
-      if (starterSeen === 5) cardsArr.push('<div class="gogh-seclab">Browse all layouts</div>');
-      cardsArr.push(tplCardHTML(tpl, t, starterSeen <= 3));
+      if (starterSeen === 5) {
+        // See all only earns its place when there IS more than the two rows
+        cardsArr.push('<div class="gogh-seclab">Browse all layouts' +
+          (totalStarters > 8 ? '<button type="button" class="gogh-gridlab-all gogh-browse-all">See all →</button>' : '') +
+          '</div>');
+      }
+      cardsArr.push(tplCardHTML(tpl, t, starterSeen <= 3, starterSeen));
     });
     var cards = cardsArr.join('');
     var quickTile = function (cls, icon, title, sub) {
@@ -2307,16 +2316,11 @@
       '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>' +
       '</button>' +
       '</span></div>' +
-      '<div class="gogh-patcats">' +
-      '<button type="button" class="gogh-patcat is-active" data-cat="">Layouts</button>' +
-      '<button type="button" class="gogh-patcat" data-cat="yours" hidden>' +
-      '<svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor"><path d="M12 21S3.8 15.9 1.7 10.9C.3 7.6 2.4 4 5.9 4c2.2 0 3.8 1.2 4.7 2.6L12 8.5l1.4-1.9C14.3 5.2 15.9 4 18.1 4c3.5 0 5.6 3.6 4.2 6.9C20.2 15.9 12 21 12 21z"/></svg>' +
-      ' Yours</button>' +
-      '<button type="button" class="gogh-patcat" data-cat="theme" hidden></button>' +
-      BUCKETS.map(function (bu) {
-        return '<button type="button" class="gogh-patcat" data-cat="' + bu.key + '">' + bu.label + '</button>';
-      }).join('') +
-      '</div>' +
+      // no chip row: search + the labelled shelves carry the whole modal —
+      // "My sections" and the theme shelf open lightweight VIEWS instead,
+      // with this bar as the way back
+      '<div class="gogh-seclab gogh-viewbar" hidden><span></span>' +
+      '<button type="button" class="gogh-gridlab-all gogh-view-back">← All layouts</button></div>' +
       '<div class="gogh-seclab gogh-quicklab">Quick start</div>' +
       '<div class="gogh-quickrow">' +
       quickTile('gogh-quick-scratch',
@@ -2379,18 +2383,17 @@
       closePicker();
     });
     picker.querySelector('.gogh-quick-yours').addEventListener('click', function () {
-      var chip = picker.querySelector('.gogh-patcat[data-cat="yours"]');
-      if (chip) chip.click(); // empty state falls through to the grid's hint
+      setView('yours', 'Your sections'); // empty state falls through to the grid's hint
     });
     picker.querySelectorAll('.gogh-card-prev').forEach(function (p) {
       var st = p.querySelector('.gogh-card-stage');
       if (st) fitCardStage(p, st);
     });
     var cardsBox = picker.querySelector('.gogh-cards');
-    var chipRow = picker.querySelector('.gogh-patcats');
     var emptyHint = picker.querySelector('.gogh-pickempty');
     var searchIn = picker.querySelector('.gogh-patsearch');
     var activeCat = '', query = '';
+    var browseAll = false; // first screen caps Browse at one row until See all
     // one grid, one filter: chips and search treat every card the same
     function applyFilter() {
       var shown = 0, teaser = 0;
@@ -2407,11 +2410,13 @@
         var ok;
         var isPat = b.classList.contains('gogh-card-pattern');
         if (!activeCat && !query) {
-          // first screen: gogh's own layouts as one calm curated shelf, plus
-          // a three-card taste of the theme's patterns under a labelled row
-          // (recents/faves carry kind="yours" and sit above the label row —
-          // they stay off the first screen so the teaser lives under its label)
-          ok = b.dataset.tpl != null || (isPat && !b.dataset.kind && teaser < 3 && !!(++teaser));
+          // first screen: two calm rows of layouts (Recommended + one Browse
+          // row; See all reveals the rest), plus a three-card taste of the
+          // theme's patterns under a labelled row (recents/faves carry
+          // kind="yours" and stay off the first screen)
+          // the theme teaser fills one full row of the 4-wide grid
+          ok = (b.dataset.tpl != null && (browseAll || +(b.dataset.si || 9) <= 8)) ||
+            (isPat && !b.dataset.kind && teaser < 4 && !!(++teaser));
         } else {
           var cats = (b.dataset.cats || '').split(' ');
           var name = ((b.querySelector('.gogh-card-name') || {}).textContent || '').toLowerCase();
@@ -2430,15 +2435,24 @@
       if (lab) lab.hidden = !(!activeCat && !query && teaser > 0);
       emptyHint.hidden = shown > 0;
     }
-    chipRow.addEventListener('click', function (ev) {
-      var chip = ev.target.closest('.gogh-patcat');
-      if (!chip) return;
-      chipRow.querySelectorAll('.gogh-patcat').forEach(function (c2) {
-        c2.classList.toggle('is-active', c2 === chip);
-      });
-      activeCat = chip.dataset.cat;
+    // lightweight views (yours / theme) replace the old chip row
+    var viewBar = picker.querySelector('.gogh-viewbar');
+    function setView(cat, label) {
+      activeCat = cat;
+      viewBar.querySelector('span').textContent = label || '';
+      viewBar.hidden = !cat;
       applyFilter();
-    });
+    }
+    picker.querySelector('.gogh-view-back').addEventListener('click', function () { setView('', ''); });
+    var browseBtn = cardsBox.querySelector('.gogh-browse-all');
+    if (browseBtn) {
+      browseBtn.addEventListener('click', function (ev) {
+        ev.stopPropagation();
+        browseAll = true;
+        browseBtn.remove();
+        applyFilter();
+      });
+    }
     searchIn.addEventListener('input', function () {
       query = this.value.trim().toLowerCase();
       applyFilter();
@@ -2509,17 +2523,11 @@
           return cats.some(function (c) { return bu.cats.indexOf(c) !== -1; });
         }).map(function (bu) { return bu.key; }).join(' ');
       };
+      // no chip row anymore — but never strand the user inside an emptied
+      // "Your sections" view
       var updateYoursChip = function () {
-        var chip = chipRow.querySelector('[data-cat="yours"]');
-        if (!chip) return;
-        chip.hidden = !cardsBox.querySelector('.gogh-card[data-kind="yours"]');
-        // never strand the user on a chip that just vanished
-        if (chip.hidden && activeCat === 'yours') {
-          activeCat = '';
-          chipRow.querySelectorAll('.gogh-patcat').forEach(function (c2) {
-            c2.classList.toggle('is-active', !c2.dataset.cat);
-          });
-          applyFilter();
+        if (activeCat === 'yours' && !cardsBox.querySelector('.gogh-card[data-kind="yours"]')) {
+          setView('', '');
         }
       };
       var patCard = function (p) {
@@ -2607,20 +2615,15 @@
       var themeLabel = 'From ' + (cfg.themeName || 'your theme');
       if (pats.length) {
         // the theme's patterns get a labelled shelf on the first screen (a
-        // three-card taste) and their own chip for the full set
+        // three-card taste); See all opens the full set as a view
         var lab = document.createElement('div');
         lab.className = 'gogh-gridlab';
         lab.hidden = true;
         lab.innerHTML = '<span></span><button type="button" class="gogh-gridlab-all">See all →</button>';
         lab.querySelector('span').textContent = themeLabel;
         cardsBox.appendChild(lab);
-        var themeChip = chipRow.querySelector('[data-cat="theme"]');
-        if (themeChip) {
-          themeChip.textContent = themeLabel;
-          themeChip.hidden = false;
-        }
         lab.querySelector('.gogh-gridlab-all').addEventListener('click', function () {
-          if (themeChip) themeChip.click();
+          setView('theme', themeLabel);
         });
       }
       pats.forEach(function (p) {

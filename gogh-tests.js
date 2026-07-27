@@ -1270,28 +1270,46 @@
       G.deleteSection(G.sections().indexOf(added));
     });
 
-    test('picker: one grid, chips filter starters in place', function () {
+    test('picker: no chip row — search filters, two-row browse cap', function () {
       G.openPicker(G.sections().length);
-      expect(!q('.gogh-topstrip'), 'old picker zones still present');
-      var chips = document.querySelectorAll('.gogh-patcats .gogh-patcat');
-      expect(chips.length >= 6, 'chip row missing, got ' + chips.length);
-      expect(q('.gogh-patcat[data-cat=""]').textContent === 'Layouts', 'default chip not Layouts');
-      expect(q('.gogh-patcat[data-cat="yours"]'), 'yours chip missing');
+      expect(!q('.gogh-topstrip') && !q('.gogh-patcats'), 'chip row should be gone');
       var cardByName = function (nm) {
         return [].filter.call(document.querySelectorAll('.gogh-cards .gogh-card'), function (c) {
           var n = c.querySelector('.gogh-card-name');
           return n && n.textContent.indexOf(nm) === 0;
         })[0];
       };
+      // first screen: at most two rows (8 layouts); extras wait behind See all
+      var totalTpl = document.querySelectorAll('.gogh-cards .gogh-card[data-tpl]').length;
+      var visTpl = function () {
+        return [].filter.call(document.querySelectorAll('.gogh-cards .gogh-card[data-tpl]'), function (c) {
+          return c.style.display !== 'none';
+        }).length;
+      };
+      expect(visTpl() === Math.min(totalTpl, 8), 'expected ' + Math.min(totalTpl, 8) + ' layouts on the first screen, got ' + visTpl());
+      var seeAll = q('.gogh-browse-all');
+      expect(!!seeAll === (totalTpl > 8), 'See all presence wrong for ' + totalTpl + ' layouts');
+      if (seeAll) {
+        seeAll.click();
+        expect(visTpl() === totalTpl, 'See all did not reveal the rest, got ' + visTpl());
+      }
+      // search flattens to matches only
       var quick = q('.gogh-quickrow');
-      var textChip = q('.gogh-patcat[data-cat="text"]');
-      textChip.click();
-      expect(cardByName('Quote').style.display !== 'none', 'Quote hidden under Text chip');
-      expect(cardByName('Hero').style.display === 'none', 'Hero visible under Text chip');
-      expect(quick.hidden, 'Quick start row visible while filtered');
-      q('.gogh-patcat[data-cat=""]').click();
-      expect(cardByName('Hero').style.display !== 'none', 'Hero not restored by All');
-      expect(!quick.hidden, 'Quick start row not restored by All');
+      var sIn = q('.gogh-picker-search .gogh-patsearch');
+      sIn.value = 'quote';
+      sIn.dispatchEvent(new Event('input', { bubbles: true }));
+      expect(cardByName('Quote').style.display !== 'none', 'Quote hidden under search');
+      expect(cardByName('Hero').style.display === 'none', 'Hero visible under search');
+      expect(quick.hidden, 'Quick start row visible while searching');
+      sIn.value = '';
+      sIn.dispatchEvent(new Event('input', { bubbles: true }));
+      expect(cardByName('Hero').style.display !== 'none', 'Hero not restored');
+      expect(!quick.hidden, 'Quick start row not restored');
+      // My sections opens a view with a way back
+      q('.gogh-quick-yours').click();
+      expect(!q('.gogh-viewbar').hidden, 'view bar did not open for My sections');
+      q('.gogh-view-back').click();
+      expect(q('.gogh-viewbar').hidden, 'view bar did not close');
       q('.gogh-picker-close').click();
       expect(q('.gogh-picker').hidden, 'picker did not close');
     });
@@ -1604,7 +1622,7 @@
       expect(vis.every(function (c) {
         return /quote/i.test((c.querySelector('.gogh-card-name') || {}).textContent || '');
       }), 'non-matching cards visible under search');
-      expect(q('.gogh-patcat[data-cat="theme"]'), 'theme chip missing from chip row');
+      expect(q('.gogh-viewbar'), 'view bar missing');
       q('.gogh-picker-close').click();
       expect(q('.gogh-picker').hidden, 'picker did not close');
     });
