@@ -4918,6 +4918,53 @@
   // ---------- light editing on native (pre-freeform) sections ----------
   // Rendered leaves pair with their markup spans; edits replace the span's
   // HTML with the live DOM, so publish and Make freeform both see them.
+  // ---------- selection link bubble: select text in any light editor and a
+  // 'Link' chip floats above it — ⌘K without having to know ⌘K ----------
+  var activeLightEd = null;
+  var linkBubble = document.createElement('button');
+  linkBubble.type = 'button';
+  linkBubble.className = 'gogh-linkbubble';
+  linkBubble.innerHTML = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M10 13a5 5 0 0 0 7.1.4l3-3a5 5 0 0 0-7-7.1l-1.7 1.7"/><path d="M14 11a5 5 0 0 0-7.1-.4l-3 3a5 5 0 0 0 7 7.1l1.7-1.7"/></svg>Link';
+  linkBubble.hidden = true;
+  document.body.appendChild(linkBubble);
+  function setActiveLightEd(ctx) {
+    activeLightEd = ctx;
+    if (!ctx) linkBubble.hidden = true;
+  }
+  document.addEventListener('selectionchange', function () {
+    if (!activeLightEd) { linkBubble.hidden = true; return; }
+    var s = window.getSelection();
+    if (!s.rangeCount || s.isCollapsed || !activeLightEd.el.contains(s.anchorNode)) {
+      linkBubble.hidden = true;
+      return;
+    }
+    var r = s.getRangeAt(0).getBoundingClientRect();
+    if (!r.width) { linkBubble.hidden = true; return; }
+    linkBubble.style.left = (r.left + r.width / 2 + window.scrollX) + 'px';
+    linkBubble.style.top = (r.top + window.scrollY - 36) + 'px';
+    linkBubble.hidden = false;
+  });
+  // taking the bubble must not steal the selection it exists for
+  linkBubble.addEventListener('pointerdown', function (ev) {
+    ev.preventDefault();
+    ev.stopPropagation();
+  });
+  linkBubble.addEventListener('click', function (ev) {
+    ev.stopPropagation();
+    if (!activeLightEd) return;
+    var s = window.getSelection();
+    if (!s.rangeCount || s.isCollapsed) return;
+    var range = s.getRangeAt(0).cloneRange();
+    var ctx = activeLightEd;
+    linkBubble.hidden = true;
+    openLinkCreatePanel(ctx.el, function (url) {
+      s.removeAllRanges();
+      s.addRange(range);
+      try { document.execCommand('createLink', false, url); } catch (e2) {}
+      var leaf = ctx.leafOf(ctx.el);
+      if (leaf) ctx.sync(leaf);
+    });
+  });
   function bindPending(entry) {
     // shared light editor: pending sections AND non-freeform chrome parts.
     // A chrome entry lives while editing is on and the part has no mounted
@@ -5013,6 +5060,7 @@
       activeEd.el.removeAttribute('contenteditable');
       var leaf = leafOf(activeEd.el);
       if (leaf) syncLeaf(leaf);
+      if (activeLightEd && activeLightEd.el === activeEd.el) setActiveLightEd(null);
       activeEd = null;
     }
     if (!fresh) return; // re-bind refreshes the map; listeners attach once
@@ -5052,6 +5100,8 @@
       if (t.getAttribute('contenteditable') !== 'true') {
         t.setAttribute('contenteditable', 'true');
         activeEd = { el: t };
+        // the selection bubble knows which editor owns the selection
+        setActiveLightEd({ el: t, leafOf: leafOf, sync: syncLeaf });
         t.focus();
       }
     });

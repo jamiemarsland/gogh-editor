@@ -1451,6 +1451,41 @@
       G.chromeEdits().splice(G.chromeEdits().indexOf(e), 1);
     });
 
+    test('link bubble: select text, chip appears, links via panel', function () {
+      var host = document.createElement('div');
+      host.innerHTML = '<div class="wp-block-group"><p>Visit our lovely shop today</p></div>';
+      document.body.appendChild(host);
+      var raw = '<!-- wp:group -->\n<div class="wp-block-group">' +
+        '<!-- wp:paragraph --><p>Visit our lovely shop today</p><!-- /wp:paragraph -->' +
+        '</div>\n<!-- /wp:group -->';
+      var e = G.bindChromeTest(host, raw);
+      var para = host.querySelector('p');
+      para.click();
+      expect(para.getAttribute('contenteditable') === 'true', 'not editable');
+      // select the word "shop"
+      var textNode = para.firstChild;
+      var idx = para.textContent.indexOf('shop');
+      var range = document.createRange();
+      range.setStart(textNode, idx);
+      range.setEnd(textNode, idx + 4);
+      var s = window.getSelection();
+      s.removeAllRanges();
+      s.addRange(range);
+      document.dispatchEvent(new Event('selectionchange'));
+      var bubble = q('.gogh-linkbubble');
+      expect(bubble && !bubble.hidden, 'bubble did not appear on selection');
+      bubble.click();
+      var inp = q('.gogh-linkurl');
+      expect(inp, 'link panel did not open');
+      inp.value = 'https://x.test/shop';
+      q('.gogh-apply').click();
+      expect(e.raw.indexOf('href="https://x.test/shop"') !== -1, 'link not written to raw: ' + e.raw.slice(0, 200));
+      expect(e.raw.indexOf('>shop</a>') !== -1, 'selection not wrapped');
+      s.removeAllRanges();
+      host.remove();
+      G.chromeEdits().splice(G.chromeEdits().indexOf(e), 1);
+    });
+
     test('menu add: navigation-link markup is well-formed', function () {
       var m = G.navLinkMarkup({ id: 42, link: 'https://x.test/pricing/', title: { rendered: 'Pricing &amp; Plans' } });
       expect(m.indexOf('wp:navigation-link') !== -1, 'not a navigation link');
