@@ -5340,8 +5340,12 @@
       previewChromeLayout(partEl, o, function (ok) {
         st.busy = false;
         cycBar.classList.remove('is-busy');
-        // a preview that lands after the cycle ended must not stick around
-        if (!st.alive) { if (ok) endChromePreview(); return; }
+        // a preview that lands after the cycle ended must not stick around —
+        // but only end a preview that is OURS, never a newer cycle's stage
+        if (!st.alive) {
+          if (ok && chromePreview && chromePreview.partEl === partEl) endChromePreview();
+          return;
+        }
         if (!ok) {
           // the label must never claim a look that isn't on screen
           st.idx = prevIdx;
@@ -5502,6 +5506,14 @@
         lnk.href = href;
         document.head.appendChild(lnk);
       });
+      // a response landing after the preview stage moved to ANOTHER part
+      // (header fetch resolving mid-footer-cycle) must not write into it —
+      // that both showed the wrong content and let the dead cycle's cleanup
+      // destroy the live preview
+      if (chromePreview && chromePreview.partEl !== partEl) {
+        if (done) done(false);
+        return;
+      }
       if (!chromePreview) {
         var hidden = [].slice.call(partEl.children);
         hidden.forEach(function (c) { c.style.display = 'none'; });
@@ -5578,45 +5590,54 @@
     var head = Object.keys(attrs).length ? '<!-- wp:group ' + JSON.stringify(attrs) + ' -->' : '<!-- wp:group -->';
     return raw.slice(0, sp.start) + head + seg.slice(m[0].length) + raw.slice(sp.end);
   }
-  function confirmChromeReload(area) {
-    if (!isDirty()) return true;
-    return window.confirm('You have unpublished changes on this page. Changing the ' +
-      area + ' reloads the page and discards them. Continue?');
+  // gogh's OWN confirm, not window.confirm: Chrome can silently suppress
+  // native dialogs in long-lived tabs, which made the \u2713 do nothing at all
+  function confirmChromeReload(area, proceed) {
+    if (!isDirty()) { proceed(); return; }
+    toast('You have unpublished changes \u2014 switching the ' + area + ' reloads the page and discards them.', {
+      sticky: true,
+      actions: [
+        { label: 'Switch anyway', onClick: proceed },
+        { label: 'Cancel' },
+      ],
+    });
   }
   function toggleChromeSticky(area, active) {
-    if (!confirmChromeReload(area)) return;
-    var raw = (active && active.content && active.content.raw) || '';
-    var newRaw = stickyRawToggle(raw, !chromeIsSticky(active));
-    if (newRaw == null) {
-      toast('This ' + area + ' layout can\u2019t be pinned automatically.', { error: true });
-      return;
-    }
-    fetch(tpUrl(active.id), {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'X-WP-Nonce': cfg.nonce },
-      credentials: 'same-origin',
-      body: JSON.stringify({ content: newRaw }),
-    }).then(function (r) {
-      if (!r.ok) throw new Error('HTTP ' + r.status);
-      discarding = true;
-      location.reload();
-    }).catch(function () {
-      toast('Could not update the ' + area + '.', { error: true });
+    confirmChromeReload(area, function () {
+      var raw = (active && active.content && active.content.raw) || '';
+      var newRaw = stickyRawToggle(raw, !chromeIsSticky(active));
+      if (newRaw == null) {
+        toast('This ' + area + ' layout can\u2019t be pinned automatically.', { error: true });
+        return;
+      }
+      fetch(tpUrl(active.id), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-WP-Nonce': cfg.nonce },
+        credentials: 'same-origin',
+        body: JSON.stringify({ content: newRaw }),
+      }).then(function (r) {
+        if (!r.ok) throw new Error('HTTP ' + r.status);
+        discarding = true;
+        location.reload();
+      }).catch(function () {
+        toast('Could not update the ' + area + '.', { error: true });
+      });
     });
   }
   function swapChromeLayout(area, active, chosen) {
-    if (!confirmChromeReload(area)) return;
-    fetch(tpUrl(active.id), {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'X-WP-Nonce': cfg.nonce },
-      credentials: 'same-origin',
-      body: JSON.stringify({ content: chosen.content || '' }),
-    }).then(function (r) {
-      if (!r.ok) throw new Error('HTTP ' + r.status);
-      discarding = true;
-      location.reload();
-    }).catch(function () {
-      toast('Could not switch the ' + area + ' layout.', { error: true });
+    confirmChromeReload(area, function () {
+      fetch(tpUrl(active.id), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-WP-Nonce': cfg.nonce },
+        credentials: 'same-origin',
+        body: JSON.stringify({ content: chosen.content || '' }),
+      }).then(function (r) {
+        if (!r.ok) throw new Error('HTTP ' + r.status);
+        discarding = true;
+        location.reload();
+      }).catch(function () {
+        toast('Could not switch the ' + area + ' layout.', { error: true });
+      });
     });
   }
   // measure a rendered container against its raw block markup: known leaves
