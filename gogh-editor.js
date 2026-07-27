@@ -3693,34 +3693,74 @@
   document.addEventListener('keydown', function (ev) {
     if (ev.key === 'Escape' && !zoomOv.hidden) { closeZoom(); ev.stopPropagation(); }
   }, true);
+  function resyncContentOrder() {
+    var order = [].slice.call(pageParent.children);
+    var pos = function (sec) { return order.indexOf(sec.wrapEl); };
+    var head = S.filter(function (s) { return s.chrome && s.chrome.area !== 'footer'; });
+    var foot = S.filter(function (s) { return s.chrome && s.chrome.area === 'footer'; });
+    var content = S.filter(function (s) { return !s.chrome; }).sort(function (a, b) { return pos(a) - pos(b); });
+    S.length = 0;
+    head.concat(content, foot).forEach(function (s) { S.push(s); });
+    resolveAll();
+    pushState();
+  }
   function openZoom() {
     var col = zoomOv.querySelector('.gogh-zoom-col');
     col.innerHTML = '';
     var CARD_W = 440;
-    S.forEach(function (sec, si) {
+    // the page in true order: freeform sections AND native pattern sections
+    // drag to reorder; other stored blocks show pinned for context
+    var items = [];
+    S.filter(function (s) { return s.chrome && s.chrome.area !== 'footer'; }).forEach(function (s) {
+      items.push({ kind: 'chrome', sec: s, label: 'Header' });
+    });
+    [].slice.call(pageParent.children).forEach(function (n) {
+      if (!n.classList) return;
+      if (n.classList.contains('gogh-wrap')) {
+        var sec = S.filter(function (s) { return s.wrapEl === n; })[0];
+        if (sec) items.push({ kind: 'sec', sec: sec, node: n });
+      } else if (n.classList.contains('gogh-pending')) {
+        items.push({ kind: 'pending', node: n });
+      } else if (n.tagName !== 'STYLE' && n.tagName !== 'SCRIPT' &&
+        ((n.textContent || '').trim().length > 0 || n.querySelector('img'))) {
+        items.push({ kind: 'static', node: n });
+      }
+    });
+    S.filter(function (s) { return s.chrome && s.chrome.area === 'footer'; }).forEach(function (s) {
+      items.push({ kind: 'chrome', sec: s, label: 'Footer' });
+    });
+    var secN = 0;
+    items.forEach(function (it) {
       var card = document.createElement('div');
-      card.className = 'gogh-zoom-card' + (sec.chrome ? ' is-chrome' : '');
-      card.__si = si;
-      var label = sec.chrome ? (sec.chrome.area === 'footer' ? 'Footer' : 'Header')
-        : 'Section ' + (S.slice(0, si).filter(function (s2) { return !s2.chrome; }).length + 1);
+      var pinned = it.kind === 'chrome' || it.kind === 'static';
+      card.className = 'gogh-zoom-card' + (pinned ? ' is-chrome' : '');
+      card.__it = it;
+      var label;
+      if (it.kind === 'chrome') label = it.label;
+      else if (it.kind === 'static') label = 'Other content';
+      else {
+        secN++;
+        label = 'Section ' + secN +
+          (it.kind === 'pending' ? ' \u00b7 pattern \u2014 drag me' : ' \u00b7 drag me');
+      }
+      var srcEl = it.sec ? it.sec.sectionEl : it.node;
       var stage = document.createElement('div');
       stage.className = 'gogh-zoom-stage';
-      var clone = sec.sectionEl.cloneNode(true);
+      var clone = srcEl.cloneNode(true);
       clone.removeAttribute('style');
-      [].slice.call(clone.querySelectorAll('[contenteditable]')).forEach(function (n) { n.removeAttribute('contenteditable'); });
-      [].slice.call(clone.querySelectorAll('.gogh-selected, .gogh-dragsrc, .gogh-textedit, .gogh-fan, .gogh-multisel')).forEach(function (n) {
-        n.classList.remove('gogh-selected', 'gogh-dragsrc', 'gogh-textedit', 'gogh-fan', 'gogh-multisel');
+      [].slice.call(clone.querySelectorAll('[contenteditable]')).forEach(function (n2) { n2.removeAttribute('contenteditable'); });
+      [].slice.call(clone.querySelectorAll('.gogh-selected, .gogh-dragsrc, .gogh-textedit, .gogh-fan, .gogh-multisel')).forEach(function (n2) {
+        n2.classList.remove('gogh-selected', 'gogh-dragsrc', 'gogh-textedit', 'gogh-fan', 'gogh-multisel');
       });
-      var xo = clone.querySelector('.gogh-xray-ov');
-      if (xo) xo.remove();
+      [].slice.call(clone.querySelectorAll('.gogh-xray-ov, .gogh-pendbar')).forEach(function (n2) { n2.remove(); });
+      clone.classList.remove('gogh-pending');
       stage.appendChild(clone);
       stage.style.zoom = CARD_W / 1200;
-      card.innerHTML = '<div class="gogh-zoom-label">' + label + (sec.chrome ? '' : ' \u00b7 drag me') + '</div>';
+      card.innerHTML = '<div class="gogh-zoom-label">' + label + '</div>';
       card.appendChild(stage);
       col.appendChild(card);
     });
     zoomOv.hidden = false;
-    // drag to reorder (content sections only)
     var zdrag = null;
     var cardsOf = function () { return [].slice.call(col.querySelectorAll('.gogh-zoom-card')); };
     col.onpointerdown = function (ev) {
@@ -3737,7 +3777,6 @@
       zdrag.moved = true;
       zdrag.card.classList.add('is-lifting');
       zdrag.card.style.transform = 'translateY(' + dy + 'px)';
-      // live slot: swap in the DOM when we pass a neighbour's midpoint
       var r = zdrag.card.getBoundingClientRect();
       var mid = r.top + r.height / 2;
       cardsOf().forEach(function (other) {
@@ -3762,22 +3801,28 @@
       zdrag = null;
       card.classList.remove('is-lifting');
       card.style.transform = '';
+      var it = card.__it;
       if (!wasDrag) {
-        // a click jumps to the section on the page
         closeZoom();
-        S[card.__si].wrapEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        (it.sec ? it.sec.wrapEl : it.node).scrollIntoView({ behavior: 'smooth', block: 'start' });
         return;
       }
-      // map the card's new column position back into the model
-      var order = cardsOf().map(function (c) { return c.__si; });
-      var from = card.__si;
-      var to = order.indexOf(from);
-      if (to !== from) {
-        reorderSection(from, to);
-        // reindex cards to the fresh model
-        cardsOf().forEach(function (c, k) { c.__si = k; });
-        toast('Section moved.');
+      // move the page node to mirror the card's new column position
+      var node = it.node || (it.sec && it.sec.wrapEl);
+      if (!node) return;
+      var arr = cardsOf();
+      var i2 = arr.indexOf(card);
+      var before = null;
+      for (var k = i2 + 1; k < arr.length; k++) {
+        var itk = arr[k].__it;
+        if (!itk || itk.kind === 'chrome') continue;
+        before = itk.node || (itk.sec && itk.sec.wrapEl);
+        if (before) break;
       }
+      pageParent.insertBefore(node, before || endMarker);
+      if (it.kind === 'sec') resyncContentOrder();
+      else { resolveAll(); refreshChip(); }
+      toast('Section moved.');
     };
   }
   zoomTab.addEventListener('click', openZoom);
