@@ -1366,7 +1366,6 @@
         wasSelected: wasSelected,
         ev: { altKey: ev.altKey, clientX: ev.clientX, clientY: ev.clientY, pointerId: ev.pointerId },
       };
-      armExplode(sec, i, ev);
     });
   }
   document.addEventListener('pointermove', function (ev) {
@@ -1376,11 +1375,9 @@
     if (Math.abs(ev.clientX - pendingDrag.x) + Math.abs(ev.clientY - pendingDrag.y) < 4) return;
     var pd = pendingDrag;
     pendingDrag = null;
-    cancelExplodeHold();
     beginDrag(pd.ev);
   });
   document.addEventListener('pointerup', function (ev) {
-    cancelExplodeHold();
     if (!pendingDrag) return;
     var pd = pendingDrag;
     pendingDrag = null;
@@ -2264,18 +2261,21 @@
     }).join('');
     picker.innerHTML =
       '<div class="gogh-picker-inner">' +
-      '<div class="gogh-picker-head">Add a section' +
+      '<div class="gogh-picker-head"><span class="gogh-picker-title">Add a section</span>' +
       '<span class="gogh-picker-tools">' +
-      '<button type="button" class="gogh-sbtn gogh-picker-searchbtn" title="Find a section">' +
-      '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><circle cx="10.5" cy="10.5" r="6.5"/><path d="M20 20l-4.6-4.6"/></svg>' +
-      '</button>' +
+      '<label class="gogh-picker-search">' +
+      '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><circle cx="10.5" cy="10.5" r="6.5"/><path d="M20 20l-4.6-4.6"/></svg>' +
+      '<input type="text" class="gogh-patsearch" placeholder="Search\u2026" />' +
+      '</label>' +
       '<button type="button" class="gogh-htmllink gogh-card-htmladd">Paste HTML</button>' +
       '<button type="button" class="gogh-btn gogh-btn-small gogh-picker-close">Close</button>' +
       '</span></div>' +
-      '<div class="gogh-patsearchrow" hidden><input type="text" class="gogh-input gogh-patsearch" placeholder="Find a section\u2026" /></div>' +
       '<div class="gogh-patcats">' +
       '<button type="button" class="gogh-patcat is-active" data-cat="">Layouts</button>' +
-      '<button type="button" class="gogh-patcat" data-cat="yours" hidden>\u2764 Yours</button>' +
+      '<button type="button" class="gogh-patcat" data-cat="yours" hidden>' +
+      '<svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor"><path d="M12 21S3.8 15.9 1.7 10.9C.3 7.6 2.4 4 5.9 4c2.2 0 3.8 1.2 4.7 2.6L12 8.5l1.4-1.9C14.3 5.2 15.9 4 18.1 4c3.5 0 5.6 3.6 4.2 6.9C20.2 15.9 12 21 12 21z"/></svg>' +
+      ' Yours</button>' +
+      '<button type="button" class="gogh-patcat" data-cat="theme" hidden></button>' +
       BUCKETS.map(function (bu) {
         return '<button type="button" class="gogh-patcat" data-cat="' + bu.key + '">' + bu.label + '</button>';
       }).join('') +
@@ -2298,7 +2298,7 @@
     picker.querySelector('.gogh-card-htmladd').addEventListener('click', function () {
       var inner = picker.querySelector('.gogh-picker-inner');
       inner.innerHTML =
-        '<div class="gogh-picker-head">Paste HTML' +
+        '<div class="gogh-picker-head"><span class="gogh-picker-title">Paste HTML</span>' +
         '<button type="button" class="gogh-btn gogh-btn-small gogh-picker-close">Close</button></div>' +
         '<div class="gogh-panel-hint">It lands as a real HTML block \u2014 click text to edit it, \u2728 makes it freeform. Great with AI-written HTML. Tip: you can also just press \u2318V anywhere on the page.</div>' +
         '<textarea class="gogh-htmlpaste" placeholder="&lt;section&gt;\u2026&lt;/section&gt;" spellcheck="false"></textarea>' +
@@ -2332,24 +2332,28 @@
     var cardsBox = picker.querySelector('.gogh-cards');
     var chipRow = picker.querySelector('.gogh-patcats');
     var emptyHint = picker.querySelector('.gogh-pickempty');
-    var searchRow = picker.querySelector('.gogh-patsearchrow');
-    var searchIn = searchRow.querySelector('.gogh-patsearch');
+    var searchIn = picker.querySelector('.gogh-patsearch');
     var activeCat = '', query = '';
     // one grid, one filter: chips and search treat every card the same
     function applyFilter() {
-      var shown = 0;
+      var shown = 0, teaser = 0;
       [].slice.call(cardsBox.querySelectorAll('.gogh-card')).forEach(function (b) {
         var ok;
+        var isPat = b.classList.contains('gogh-card-pattern');
         if (b.classList.contains('gogh-card-blank')) {
           ok = !activeCat && !query;
         } else if (!activeCat && !query) {
-          // first screen: just gogh's own layouts, one calm curated shelf —
-          // theme patterns and saved sections live behind chips and search
-          ok = b.dataset.tpl != null;
+          // first screen: gogh's own layouts as one calm curated shelf, plus
+          // a three-card taste of the theme's patterns under a labelled row
+          // (recents/faves carry kind="yours" and sit above the label row —
+          // they stay off the first screen so the teaser lives under its label)
+          ok = b.dataset.tpl != null || (isPat && !b.dataset.kind && teaser < 3 && !!(++teaser));
         } else {
           var cats = (b.dataset.cats || '').split(' ');
           var name = ((b.querySelector('.gogh-card-name') || {}).textContent || '').toLowerCase();
-          ok = (!activeCat || (activeCat === 'yours' ? b.dataset.kind === 'yours' : cats.indexOf(activeCat) !== -1)) &&
+          ok = (!activeCat ||
+            (activeCat === 'yours' ? b.dataset.kind === 'yours' :
+              activeCat === 'theme' ? isPat : cats.indexOf(activeCat) !== -1)) &&
             (!query || name.indexOf(query) !== -1);
         }
         b.style.display = ok ? '' : 'none';
@@ -2358,6 +2362,8 @@
           if (io && b.__pat && !b.__hydrated) { io.unobserve(b); hydrate(b, b.__pat); }
         }
       });
+      var lab = cardsBox.querySelector('.gogh-gridlab');
+      if (lab) lab.hidden = !(!activeCat && !query && teaser > 0);
       emptyHint.hidden = shown > 0;
     }
     chipRow.addEventListener('click', function (ev) {
@@ -2368,11 +2374,6 @@
       });
       activeCat = chip.dataset.cat;
       applyFilter();
-    });
-    picker.querySelector('.gogh-picker-searchbtn').addEventListener('click', function () {
-      searchRow.hidden = !searchRow.hidden;
-      if (!searchRow.hidden) searchIn.focus();
-      else if (query) { query = ''; searchIn.value = ''; applyFilter(); }
     });
     searchIn.addEventListener('input', function () {
       query = this.value.trim().toLowerCase();
@@ -2527,6 +2528,25 @@
 
       // ---- build the one grid: every pattern once, yours floated first ----
       var patCardByName = {};
+      var themeLabel = 'From ' + (cfg.themeName || 'your theme');
+      if (pats.length) {
+        // the theme's patterns get a labelled shelf on the first screen (a
+        // three-card taste) and their own chip for the full set
+        var lab = document.createElement('div');
+        lab.className = 'gogh-gridlab';
+        lab.hidden = true;
+        lab.innerHTML = '<span></span><button type="button" class="gogh-gridlab-all">See all →</button>';
+        lab.querySelector('span').textContent = themeLabel;
+        cardsBox.appendChild(lab);
+        var themeChip = chipRow.querySelector('[data-cat="theme"]');
+        if (themeChip) {
+          themeChip.textContent = themeLabel;
+          themeChip.hidden = false;
+        }
+        lab.querySelector('.gogh-gridlab-all').addEventListener('click', function () {
+          if (themeChip) themeChip.click();
+        });
+      }
       pats.forEach(function (p) {
         var b = patCard(p);
         patCardByName[p.name] = b;
@@ -3847,7 +3867,6 @@
     if (resize) endResize();
     if (hDrag) endHDrag();
     if (rotD) endRot();
-    cancelExplodeHold();
     pendingDrag = null;
     if (marq) { marq = null; marqBox.hidden = true; }
   }, true);
@@ -4098,28 +4117,9 @@
     else if (hits.length === 1) placeHandles(m.sec, hits[0]);
   });
 
-  // ---------- exploded layers: press-and-hold a stack to fan it out ----------
-  var explodeSt = null, explodeHold = null;
-  function cancelExplodeHold() {
-    if (explodeHold) { clearTimeout(explodeHold); explodeHold = null; }
-  }
-  function armExplode(sec, i, ev) {
-    cancelExplodeHold();
-    var r = sec.sectionEl.getBoundingClientRect();
-    if (r.width < 10) return;
-    var s = r.width / W;
-    var px = (ev.clientX - r.left) / s, py = (ev.clientY - r.top) / s;
-    var cluster = [];
-    sec.els.forEach(function (e, k) {
-      if (px >= e.x && px <= e.x + e.w && py >= e.y && py <= e.y + e.h) cluster.push(k);
-    });
-    if (cluster.length < 2) return;
-    explodeHold = setTimeout(function () {
-      explodeHold = null;
-      pendingDrag = null; // the press became a peek, not a drag
-      enterExplode(sec, cluster);
-    }, 430);
-  }
+  // ---------- exploded layers: fan a stack out (programmatic only — the
+  // press-and-hold trigger was removed; it kept firing on slow clicks) ----------
+  var explodeSt = null;
   function enterExplode(sec, cluster) {
     exitExplode();
     explodeSt = { sec: sec, cluster: cluster };

@@ -1592,6 +1592,26 @@
       expect(!document.querySelector('.gogh-chrome-preview'), 'preview left behind after collapse');
     });
 
+    // ---- picker redesign: inline header search, theme chip ----
+    test('picker: inline search filters, old toggle gone, theme chip present', function () {
+      G.openPicker(G.sections().length);
+      expect(!q('.gogh-picker-searchbtn') && !q('.gogh-patsearchrow'), 'old search toggle still present');
+      var sIn = q('.gogh-picker-search .gogh-patsearch');
+      expect(sIn, 'inline search missing from header');
+      sIn.value = 'quote';
+      sIn.dispatchEvent(new Event('input', { bubbles: true }));
+      var vis = [].filter.call(document.querySelectorAll('.gogh-cards .gogh-card'), function (c) {
+        return c.style.display !== 'none';
+      });
+      expect(vis.length >= 1, 'search found nothing for "quote"');
+      expect(vis.every(function (c) {
+        return /quote/i.test((c.querySelector('.gogh-card-name') || {}).textContent || '');
+      }), 'non-matching cards visible under search');
+      expect(q('.gogh-patcat[data-cat="theme"]'), 'theme chip missing from chip row');
+      q('.gogh-picker-close').click();
+      expect(q('.gogh-picker').hidden, 'picker did not close');
+    });
+
     // ---- shape element: palette flyout, back-of-stack insert, shipped CSS ----
     test('shapes: flyout inserts circle at the back with published CSS', function () {
       window.scrollTo(0, 0);

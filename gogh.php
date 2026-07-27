@@ -23,7 +23,7 @@ add_action( 'init', function () {
 		'gogh-block',
 		plugins_url( 'gogh-block.js', __FILE__ ),
 		array( 'wp-blocks', 'wp-element', 'wp-block-editor' ),
-		'0.67.0-chrome',
+		'0.68.0-chrome',
 		true
 	);
 	register_block_type( 'gogh/section', array(
@@ -48,7 +48,7 @@ add_action( 'wp_enqueue_scripts', function () {
 
 	// for every visitor: neutralise theme spacing around gogh sections, even
 	// on pages whose stored stylesheets predate this rule
-	wp_register_style( 'gogh-base', false, array(), '0.67.0-chrome' );
+	wp_register_style( 'gogh-base', false, array(), '0.68.0-chrome' );
 	wp_enqueue_style( 'gogh-base' );
 	wp_add_inline_style( 'gogh-base',
 		'.gogh-wrap { margin-block: 0 !important; min-width: 100%; }' .
@@ -66,13 +66,13 @@ add_action( 'wp_enqueue_scripts', function () {
 		return;
 	}
 
-	wp_enqueue_script( 'gogh-editor', plugins_url( 'gogh-editor.js', __FILE__ ), array(), '0.67.0-chrome', true );
-	wp_enqueue_style( 'gogh-editor', plugins_url( 'gogh-editor.css', __FILE__ ), array(), '0.67.0-chrome' );
+	wp_enqueue_script( 'gogh-editor', plugins_url( 'gogh-editor.js', __FILE__ ), array(), '0.68.0-chrome', true );
+	wp_enqueue_style( 'gogh-editor', plugins_url( 'gogh-editor.css', __FILE__ ), array(), '0.68.0-chrome' );
 
 	// regression suite: /page/?gogh-test (editors only, never saves)
 	// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only toggle enqueuing a test script for capability-checked editors.
 	if ( isset( $_GET['gogh-test'] ) ) {
-		wp_enqueue_script( 'gogh-tests', plugins_url( 'gogh-tests.js', __FILE__ ), array( 'gogh-editor' ), '0.67.0-chrome', true );
+		wp_enqueue_script( 'gogh-tests', plugins_url( 'gogh-tests.js', __FILE__ ), array( 'gogh-editor' ), '0.68.0-chrome', true );
 	}
 
 	$rest_base = ( 'page' === $post->post_type ) ? 'pages' : 'posts';
@@ -83,6 +83,7 @@ add_action( 'wp_enqueue_scripts', function () {
 		'canUpload' => current_user_can( 'upload_files' ),
 		'modified' => get_post_modified_time( 'Y-m-d\TH:i:s', true, $post ),
 		'theme'    => get_stylesheet(),
+		'themeName' => wp_get_theme()->get( 'Name' ),
 		'gsId'     => ( class_exists( 'WP_Theme_JSON_Resolver' ) && current_user_can( 'edit_theme_options' ) )
 			? WP_Theme_JSON_Resolver::get_user_global_styles_post_id() : 0,
 		'palette'  => array_values( array_map(
@@ -154,7 +155,7 @@ add_action( 'enqueue_block_assets', function () {
 	if ( ! is_admin() ) {
 		return;
 	}
-	wp_register_style( 'gogh-editor-base', false, array(), '0.67.0-chrome' );
+	wp_register_style( 'gogh-editor-base', false, array(), '0.68.0-chrome' );
 	wp_enqueue_style( 'gogh-editor-base' );
 	wp_add_inline_style( 'gogh-editor-base',
 		'.gogh-wrap { min-width: 100%; margin-block: 0 !important; }' .
