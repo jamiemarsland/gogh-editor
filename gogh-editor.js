@@ -955,6 +955,12 @@
     '<div class="gogh-side-row">' +
     '<button type="button" class="gogh-sbtn gogh-undo" title="Undo (⌘Z)">↺</button>' +
     '<button type="button" class="gogh-sbtn gogh-redo" title="Redo (⇧⌘Z)">↻</button>' +
+    '<button type="button" class="gogh-sbtn gogh-zoomopen" title="Whole page — reorder sections">' +
+    '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="3" width="16" height="7" rx="1.6"/><rect x="4" y="14" width="16" height="7" rx="1.6"/><path d="M12 10.5v3"/></svg>' +
+    '</button>' +
+    '<button type="button" class="gogh-sbtn gogh-mirroropen" title="Live mobile preview">' +
+    '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="7" y="2.5" width="10" height="19" rx="2.5"/><path d="M10.5 18.5h3"/></svg>' +
+    '</button>' +
     '</div>' +
     '<div class="gogh-side-label">Add element</div>' +
     '<button type="button" class="gogh-sitem" data-add="heading">Heading</button>' +
@@ -3771,12 +3777,8 @@
     '<button type="button" class="gogh-btn gogh-btn-small gogh-zoom-close">Close</button></div>' +
     '<div class="gogh-zoom-col"></div>';
   document.body.appendChild(zoomOv);
-  var zoomTab = document.createElement('button');
-  zoomTab.type = 'button';
-  zoomTab.className = 'gogh-zoom-tab';
-  zoomTab.dataset.tip = 'Whole page \u2014 reorder sections';
-  zoomTab.innerHTML = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="3" width="16" height="7" rx="1.6"/><rect x="4" y="14" width="16" height="7" rx="1.6"/><path d="M12 10.5v3"/></svg>';
-  document.body.appendChild(zoomTab);
+  // opened from the gogh palette (the floating corner tabs are gone \u2014
+  // the canvas stays clean)
   function closeZoom() { zoomOv.hidden = true; }
   zoomOv.querySelector('.gogh-zoom-close').addEventListener('click', closeZoom);
   // clicking the backdrop (anywhere off the cards) also closes
@@ -3942,7 +3944,7 @@
       toast('Section moved.');
     };
   }
-  zoomTab.addEventListener('click', openZoom);
+  side.querySelector('.gogh-zoomopen').addEventListener('click', openZoom);
 
   // ---------- marquee: drag on empty canvas to lasso a group ----------
   var marq = null;
@@ -4071,12 +4073,7 @@
     '<button type="button" class="gogh-sbtn gogh-mirror-close" title="Hide">\u2715</button></div>' +
     '<div class="gogh-mirror-frame"><div class="gogh-mirror-vp"><div class="gogh-mirror-stage"></div></div></div>';
   document.body.appendChild(mirror);
-  var mirrorTab = document.createElement('button');
-  mirrorTab.type = 'button';
-  mirrorTab.className = 'gogh-mirror-tab';
-  mirrorTab.dataset.tip = 'Live mobile preview';
-  mirrorTab.innerHTML = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="7" y="2.5" width="10" height="19" rx="2.5"/><path d="M10.5 18.5h3"/></svg>';
-  document.body.appendChild(mirrorTab);
+  var mirrorBtnSide = side.querySelector('.gogh-mirroropen');
   var mirrorT = null;
   var mirrorObs = new MutationObserver(function () { scheduleMirror(); });
   function pageBg() {
@@ -4120,13 +4117,13 @@
   }
   function openMirror() {
     mirror.hidden = false;
-    mirrorTab.hidden = true;
+    mirrorBtnSide.classList.add('is-active');
     try { localStorage.setItem('gogh-mirror', '1'); } catch (err) {}
     refreshMirror();
   }
   function closeMirror() {
     mirror.hidden = true;
-    mirrorTab.hidden = false;
+    mirrorBtnSide.classList.remove('is-active');
     mirrorObs.disconnect();
     try { localStorage.setItem('gogh-mirror', '0'); } catch (err) {}
   }
@@ -4146,7 +4143,9 @@
     clearTimeout(mirrorScrollT);
     mirrorScrollT = setTimeout(syncMirrorScroll, 110);
   }, { passive: true });
-  mirrorTab.addEventListener('click', openMirror);
+  mirrorBtnSide.addEventListener('click', function () {
+    if (mirror.hidden) openMirror(); else closeMirror();
+  });
   mirror.querySelector('.gogh-mirror-close').addEventListener('click', closeMirror);
   document.addEventListener('pointerup', function () { scheduleMirror(); });
   try {
@@ -4154,7 +4153,7 @@
     // add noise the tests don't deserve
     if (localStorage.getItem('gogh-mirror') === '1' && location.search.indexOf('gogh-test') === -1) {
       mirror.hidden = false;
-      mirrorTab.hidden = true;
+      mirrorBtnSide.classList.add('is-active');
     }
   } catch (err) {}
 
@@ -5362,9 +5361,14 @@
       collapse();
     }
     function onDocClick(ev) {
+      if (!st.alive) return;
+      // the strip floats INSIDE the footer's rect — its clicks are its own
+      // (this ate every real click on 'Next look' while synthetic test
+      // clicks at 0,0 sailed past the geometry check)
+      if (cycBar.contains(ev.target)) return;
       // the pointerdown consumed the gesture — stop the follow-up click from
       // navigating a header link mid-cycle
-      if (st.alive && inPart(ev)) { ev.preventDefault(); ev.stopPropagation(); }
+      if (inPart(ev)) { ev.preventDefault(); ev.stopPropagation(); }
     }
     function onKey(ev) { if (ev.key === 'Escape') { collapse(); ev.stopPropagation(); } }
     st.advance = function () {
@@ -5416,7 +5420,9 @@
     hintInit.textContent = '';
     hintInit.classList.remove('is-warn');
     cycBar.querySelector('.gogh-cyc-build').textContent = (window.__gogh.build || '').replace('-chrome', '');
-    cycBar.querySelector('.gogh-cyc-next').onclick = function (ev) {
+    var nextBtn = cycBar.querySelector('.gogh-cyc-next');
+    nextBtn.textContent = 'Next ' + area + ' design ›';
+    nextBtn.onclick = function (ev) {
       ev.stopPropagation();
       st.advance();
     };

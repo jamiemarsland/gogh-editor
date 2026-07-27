@@ -1114,8 +1114,7 @@
 .gogh-cycling .gogh-shapebtn, .gogh-cycling .gogh-secbar,
 .gogh-cycling .gogh-elbar, .gogh-cycling .gogh-hbar,
 .gogh-cycling .gogh-chip, .gogh-cycling .gogh-convertbtn,
-.gogh-cycling .gogh-chromebtn, .gogh-cycling .gogh-zoom-tab,
-.gogh-cycling .gogh-mirror-tab { display: none !important; }
+.gogh-cycling .gogh-chromebtn { display: none !important; }
 .gogh-linkbtn {
   all: unset;
   cursor: pointer;
@@ -1233,25 +1232,6 @@
 }
 
 /* ---------- live mobile mirror ---------- */
-.gogh-mirror-tab {
-  all: unset;
-  position: fixed;
-  left: 20px;
-  bottom: 20px;
-  z-index: 99999;
-  width: 44px;
-  height: 44px;
-  display: none;
-  place-items: center;
-  cursor: pointer;
-  color: var(--gogh-ui-fg);
-  background: var(--gogh-ui-bg);
-  border: 1px solid var(--gogh-ui-border);
-  border-radius: 50%;
-  box-shadow: 0 12px 32px -10px rgba(0, 0, 0, 0.5);
-}
-html.gogh-editing .gogh-mirror-tab { display: grid; }
-.gogh-mirror-tab[hidden] { display: none !important; }
 .gogh-mirror {
   position: fixed;
   left: 20px;
@@ -1638,24 +1618,8 @@ html.gogh-editing .gogh-mirror { display: flex; }
   background: #fff;
 }
 .gogh-zoom-card .gogh-zoom-label { color: rgba(232,234,240,0.8); }
-.gogh-zoom-tab {
-  all: unset;
-  position: fixed;
-  left: 20px;
-  bottom: 74px;
-  z-index: 99999;
-  width: 44px;
-  height: 44px;
-  display: none;
-  place-items: center;
-  cursor: pointer;
-  color: var(--gogh-ui-fg);
-  background: var(--gogh-ui-bg);
-  border: 1px solid var(--gogh-ui-border);
-  border-radius: 50%;
-  box-shadow: 0 12px 32px -10px rgba(0, 0, 0, 0.5);
-}
-html.gogh-editing .gogh-zoom-tab { display: grid; }
+/* zoom + mirror open from the palette; is-active marks the mirror on */
+.gogh-mirroropen.is-active { background: #7ea8ff; color: #141519; }
 
 /* anything that arrives in the picker fades up into place — late fetches
    feel intentional instead of jolting */
