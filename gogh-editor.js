@@ -5494,9 +5494,8 @@
     // isn't choosing. Instant, not smooth: preview reflows cancel smooth
     // scrolls midway.
     partEl.scrollIntoView({ block: area === 'footer' ? 'end' : 'start' });
+    // open on the CURRENT design — 'Next look' starts the flicking
     render();
-    // the first click should already show something new — advance immediately
-    st.advance();
   }
   // the full panel: every layout by name, freeform, sticky
   function openChromeLayoutPanel(partEl, area, options, activeOpt, active) {

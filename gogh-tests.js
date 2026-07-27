@@ -1463,9 +1463,11 @@
       expect(bar && !bar.hidden, 'cycle strip did not open');
       expect(pill.style.display === 'none', 'pill not hidden while cycling');
       expect(document.body.classList.contains('gogh-cycling'), 'cycling mode class missing (other UI would stay visible)');
-      // first activation advances straight to the next layout; the layout
-      // name lives in the strip's tooltip
-      expect(bar.title.indexOf('Centered header') !== -1, 'did not advance on start (title: ' + bar.title + ')');
+      // opening stays on the CURRENT design; Next look starts the flicking
+      expect(bar.title.indexOf('Simple header') !== -1, 'did not open on current (title: ' + bar.title + ')');
+      expect(bar.querySelector('.gogh-cyc-n').textContent.indexOf('current') !== -1, 'current not marked on open');
+      bar.querySelector('.gogh-cyc-next').dispatchEvent(new MouseEvent('click', { bubbles: true }));
+      expect(bar.title.indexOf('Centered header') !== -1, 'Next look did not advance (title: ' + bar.title + ')');
       expect(bar.querySelector('.gogh-cyc-n').textContent.indexOf('2/2') === 0, 'wrong position label');
       expect(bar.querySelector('.gogh-cyc-next') && bar.querySelector('.gogh-cyc-ok') &&
         bar.querySelector('.gogh-cyc-edit') &&
