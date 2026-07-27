@@ -6919,7 +6919,9 @@
       var b = document.createElement('button');
       b.type = 'button';
       b.className = 'gogh-convertbtn gogh-chromebtn';
-      b.innerHTML = '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.8 2.8 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>' +
+      // layers, not a pencil: the pill picks a DESIGN — editing happens
+      // directly on the part now
+      b.innerHTML = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round"><path d="M12 3l9 5-9 5-9-5 9-5Z"/><path d="M3 13.5l9 5 9-5"/></svg>' +
         (partEl.tagName === 'FOOTER' ? 'Footer' : 'Header');
       b.dataset.tip = 'Click to flick through layouts';
       b.__goghPart = partEl;
