@@ -4210,6 +4210,12 @@
     buildBlocks: buildAllBlocks,
     mergeContent: mergeContent,
   };
+  // the running build, visible at a glance: hover the gogh side tab, or read
+  // it in the console — kills "is this tab stale?" debugging forever
+  var GOGH_BUILD = (document.querySelector('script[src*="gogh-editor.js"]') || { src: '' }).src.split('ver=')[1] || 'dev';
+  window.__gogh.build = GOGH_BUILD;
+  sideTab.title = 'gogh ' + GOGH_BUILD;
+  try { console.info('[gogh] ' + GOGH_BUILD); } catch (e0) {}
   document.dispatchEvent(new CustomEvent('gogh:ready'));
 
   // ---------- keyboard ----------
