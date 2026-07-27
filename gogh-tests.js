@@ -375,11 +375,16 @@
     test('toast shows message and actions work', function () {
       var acted = false;
       window.__gogh.toast('test toast', { sticky: true, actions: [{ label: 'Do it', onClick: function () { acted = true; } }] });
-      var t = q('.gogh-toast');
-      expect(t && t.textContent.indexOf('test toast') !== -1, 'toast not shown');
+      var mine = function () {
+        return [].slice.call(document.querySelectorAll('.gogh-toast')).filter(function (x) {
+          return x.textContent.indexOf('test toast') !== -1;
+        })[0];
+      };
+      var t = mine();
+      expect(t, 'toast not shown');
       t.querySelector('button').click();
       expect(acted, 'toast action did not fire');
-      expect(!q('.gogh-toast'), 'toast not removed after action');
+      expect(!mine(), 'toast not removed after action');
     });
 
     test('text colour uses theme palette and emits native markup', function () {

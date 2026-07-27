@@ -819,6 +819,14 @@
     placeChromeBtns();
     refreshChip();
   }
+  function partElForArea(area) {
+    var els = chromePartEls();
+    for (var i = 0; i < els.length; i++) {
+      var a = els[i].tagName === 'FOOTER' ? 'footer' : 'header';
+      if (a === area) return els[i];
+    }
+    return null;
+  }
   function restoreState(snap) {
     clearMulti();
     var data = JSON.parse(snap);
@@ -865,6 +873,13 @@
       if (!active && !st.node.parentNode) pageParent.insertBefore(st.node, st.marker.nextSibling);
     });
     S.forEach(renderSection);
+    // a part whose chrome canvas no longer exists gets its original
+    // header/footer back; one that does keeps the originals hidden
+    chromePartEls().forEach(function (pe) {
+      if (!pe.__goghHidden) return;
+      var owned = S.some(function (s) { return s.chrome && pe.contains(s.wrapEl); });
+      pe.__goghHidden.forEach(function (c) { c.style.display = owned ? 'none' : ''; });
+    });
     placeConvertBtns();
     sel = null;
     hideHandles();
@@ -1620,10 +1635,10 @@
         });
       });
     }
-    fetch(cfg.mediaUrl + '?per_page=12&media_type=image&orderby=date&order=desc', {
+    fetch(restQ(cfg.mediaUrl, 'per_page=12&media_type=image&orderby=date&order=desc'), {
       headers: { 'X-WP-Nonce': cfg.nonce },
       credentials: 'same-origin',
-    }).catch(function () { return []; }).then(function (res) { return res && res.json ? res.json() : (res || []); })
+    }).then(function (res) { return res.ok ? res.json() : []; }).catch(function () { return []; })
       .then(function (items) {
         var box = panel.querySelector('.gogh-media');
         if (!box || panel.hidden) return;
@@ -1795,7 +1810,7 @@
       try { when = new Date(p.date).toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' }); } catch (err) {}
       return '<div class="gogh-postsprev-card">' +
         (src ? '<img src="' + escAttr(src) + '" alt="" />' : '<div class="gogh-postsprev-ph"></div>') +
-        '<h3>' + ((p.title && p.title.rendered) || 'Untitled') + '</h3>' +
+        '<h3>' + esc((p.title && p.title.rendered) || 'Untitled') + '</h3>' +
         '<div class="gogh-postsprev-date">' + when + '</div>' +
         '</div>';
     }).join('') + '</div>';
@@ -1843,6 +1858,7 @@
   function viewportSection() {
     var best = null, bestPx = 0;
     S.forEach(function (sec) {
+      if (sec.chrome) return; // never auto-target the site header/footer
       var r = sec.wrapEl.getBoundingClientRect();
       var vis = Math.min(r.bottom, window.innerHeight) - Math.max(r.top, 0);
       if (vis > bestPx) { bestPx = vis; best = sec; }
@@ -2155,6 +2171,7 @@
       try { (JSON.parse(localStorage.getItem('gogh-fav-patterns') || '[]')).forEach(function (n) { favs[n] = 1; }); } catch (err) {}
       var recents = [];
       try { recents = JSON.parse(localStorage.getItem('gogh-recent-sections') || '[]'); } catch (err) {}
+      if (!Array.isArray(recents)) recents = [];
       var mine = blocks.filter(function (bk) {
         return ((bk.content && bk.content.raw) || '').indexOf('wp:gogh/section') !== -1;
       });
@@ -2256,7 +2273,7 @@
         });
         b.querySelector('.gogh-card-delpat').addEventListener('click', function (ev) {
           ev.stopPropagation();
-          fetch(blocksUrl(bk.id) + '?force=true', {
+          fetch(restQ(blocksUrl(bk.id), 'force=true'), {
             method: 'DELETE',
             headers: { 'X-WP-Nonce': cfg.nonce },
             credentials: 'same-origin',
@@ -2293,6 +2310,12 @@
         yours.forEach(function (card, k) {
           if (k >= CAPY) card.style.display = 'none';
           strip.appendChild(card);
+          // saved-section cards render at design scale until fitted
+          if (!card.__pat) {
+            var mpv = card.querySelector('.gogh-card-prev');
+            var mst = card.querySelector('.gogh-card-stage');
+            if (mpv && mst) fitCardStage(mpv, mst);
+          }
         });
         if (yours.length > CAPY) {
           var yMore = document.createElement('button');
@@ -2383,6 +2406,7 @@
 
   function addSection(tpl, idx) {
     if (idx == null) idx = S.length;
+    idx = clampInsertIdx(idx);
     var sec = newSectionShell('gogh-sec-' + (scopeSeq++));
     sec.els = tplEls(tpl);
     sec.minH = tpl.minH || null;
@@ -2543,7 +2567,8 @@
 
   // ---------- section operations ----------
   function deleteSection(idx) {
-    if (S.length <= 1 || !S[idx]) return;
+    if (!S[idx] || S[idx].chrome) return;
+    if (S.filter(function (s) { return !s.chrome; }).length <= 1) return;
     var st = S[idx].srcSig && convertStash[S[idx].srcSig];
     S[idx].wrapEl.remove();
     S[idx].styleEl.remove();
@@ -2598,6 +2623,8 @@
     sec.bg = srcSec.bg;
     sec.divider = srcSec.divider ? JSON.parse(JSON.stringify(srcSec.divider)) : null;
     sec.fx = srcSec.fx ? JSON.parse(JSON.stringify(srcSec.fx)) : null;
+    sec.bgImage = srcSec.bgImage || null;
+    sec.bgId = srcSec.bgId || null;
     srcSec.wrapEl.after(sec.wrapEl);
     S.splice(idx + 1, 0, sec);
     renderSection(sec);
@@ -2632,9 +2659,11 @@
     var r = S[idx].wrapEl.getBoundingClientRect();
     secBar.style.left = (r.left + window.scrollX + 16) + 'px';
     secBar.style.top = (r.top + window.scrollY + 14) + 'px';
-    secBar.querySelector('[data-sec="up"]').disabled = idx === 0;
-    secBar.querySelector('[data-sec="down"]').disabled = idx === S.length - 1;
-    secBar.querySelector('[data-sec="del"]').disabled = S.length <= 1;
+    var contentIdxs = [];
+    S.forEach(function (s, k) { if (!s.chrome) contentIdxs.push(k); });
+    secBar.querySelector('[data-sec="up"]').disabled = idx === contentIdxs[0];
+    secBar.querySelector('[data-sec="down"]').disabled = idx === contentIdxs[contentIdxs.length - 1];
+    secBar.querySelector('[data-sec="del"]').disabled = contentIdxs.length <= 1;
     secBar.hidden = false;
     // don't sit on the Edit header/footer pill — duck below it
     var sr = secBar.getBoundingClientRect();
@@ -2659,15 +2688,19 @@
     else if (b.dataset.sec === 'dup') duplicateSection(secBarIdx);
   });
 
+  // plain-permalink safe: cfg URLs may already carry ?rest_route=…
+  function restQ(url, qs) {
+    return url + (url.indexOf('?') === -1 ? '?' : '&') + qs;
+  }
   var blocksCache = null;
   function fetchBlocks() {
     if (blocksCache) return Promise.resolve(blocksCache);
-    return fetch(blocksUrl() + '?per_page=100&context=edit', {
+    return fetch(restQ(blocksUrl(), 'per_page=100&context=edit'), {
       headers: { 'X-WP-Nonce': cfg.nonce },
       credentials: 'same-origin',
-    }).then(function (r) { return r.ok ? r.json() : []; })
+    }).then(function (r) { return r.ok ? r.json() : Promise.reject(new Error('HTTP ' + r.status)); })
       .then(function (list) { blocksCache = list; return list; })
-      .catch(function () { return []; });
+      .catch(function () { return []; }); // failures are NOT cached — retry next call
   }
   function blocksUrl(id) {
     var base = cfg.restUrl.split('wp/v2/')[0] + 'wp/v2/blocks';
@@ -2675,9 +2708,7 @@
   }
   function openSavePatternPanel(idx) {
     var secx = S[idx];
-    var r = secx.wrapEl.getBoundingClientRect();
-    panel.style.left = (r.left + window.scrollX + 16) + 'px';
-    panel.style.top = (r.top + window.scrollY + 60) + 'px';
+    placePanelNear(secx.wrapEl);
     panel.innerHTML =
       '<div class="gogh-panel-title">Save this section</div>' +
       '<div class="gogh-panel-hint">It joins \u201cYour sections\u201d in + Section \u2014 and Gutenberg\u2019s pattern library too.</div>' +
@@ -2729,6 +2760,7 @@
       return;
     }
     if (idx == null) idx = S.length;
+    idx = clampInsertIdx(idx);
     var sec = newSectionShell('gogh-sec-' + (scopeSeq++));
     sec.els = model.elements;
     sec.minH = model.minH || null;
@@ -2808,10 +2840,10 @@
     });
     var clear = panel.querySelector('.gogh-clear');
     if (clear) clear.addEventListener('click', function () { setSecBg(idx, null); });
-    fetch(cfg.mediaUrl + '?per_page=12&media_type=image&orderby=date&order=desc', {
+    fetch(restQ(cfg.mediaUrl, 'per_page=12&media_type=image&orderby=date&order=desc'), {
       headers: { 'X-WP-Nonce': cfg.nonce },
       credentials: 'same-origin',
-    }).catch(function () { return []; }).then(function (res) { return res && res.json ? res.json() : (res || []); })
+    }).then(function (res) { return res.ok ? res.json() : []; }).catch(function () { return []; })
       .then(function (items) {
         var box = panel.querySelector('.gogh-media');
         if (!box || panel.hidden) return;
@@ -3222,10 +3254,10 @@
   var variationsCache = null;
   function fetchVariations() {
     if (variationsCache) return Promise.resolve(variationsCache);
-    return fetch(GSROOT + 'global-styles/themes/' + cfg.theme + '/variations', {
+    return fetch(GSROOT + 'global-styles/themes/' + encodeURIComponent(cfg.theme) + '/variations', {
       headers: { 'X-WP-Nonce': cfg.nonce },
       credentials: 'same-origin',
-    }).catch(function () { return { ok: false }; }).then(function (r) { return r.ok ? r.json() : []; }).then(function (vars) {
+    }).then(function (r) { return r.ok ? r.json() : Promise.reject(new Error('HTTP ' + r.status)); }).then(function (vars) {
       // the API lists full variations and colour-only ones under one name
       var seen = {};
       variationsCache = vars.filter(function (v) {
@@ -3652,6 +3684,9 @@
     if (resize) endResize();
     if (hDrag) endHDrag();
     if (rotD) endRot();
+    cancelExplodeHold();
+    pendingDrag = null;
+    if (marq) { marq = null; marqBox.hidden = true; }
   }, true);
 
   // on scroll, keep the selection and move its handles with it
@@ -3769,11 +3804,24 @@
     zoomOv.hidden = false;
     var zdrag = null;
     var cardsOf = function () { return [].slice.call(col.querySelectorAll('.gogh-zoom-card')); };
+    var lastDragMeta = null;
+    function zdragSigCheck(card) {
+      if (!lastDragMeta) return false;
+      if (pinnedSig(card) === lastDragMeta.origSig) return false;
+      col.insertBefore(card, lastDragMeta.origNext);
+      toast('That section can\u2019t move past other stored content yet.', { error: true });
+      return true;
+    }
+    var pinnedSig = function (card) {
+      return cardsOf().filter(function (c) { return c.classList.contains('is-chrome') && c.__it && c.__it.kind === 'static'; })
+        .map(function (p) { return (p.compareDocumentPosition(card) & 2) ? 'a' : 'b'; }).join('');
+    };
     col.onpointerdown = function (ev) {
       var card = ev.target.closest ? ev.target.closest('.gogh-zoom-card') : null;
       if (!card || card.classList.contains('is-chrome')) return;
       ev.preventDefault();
-      zdrag = { card: card, y0: ev.clientY, moved: false };
+      zdrag = { card: card, y0: ev.clientY, moved: false,
+        origNext: card.nextSibling, origSig: pinnedSig(card) };
       try { col.setPointerCapture(ev.pointerId); } catch (err) {}
     };
     col.onpointermove = function (ev) {
@@ -3800,10 +3848,17 @@
         }
       });
     };
+    col.onpointercancel = function () {
+      if (!zdrag) return;
+      zdrag.card.classList.remove('is-lifting');
+      zdrag.card.style.transform = '';
+      zdrag = null;
+    };
     col.onpointerup = function () {
       if (!zdrag) return;
       var card = zdrag.card;
       var wasDrag = zdrag.moved;
+      lastDragMeta = { origSig: zdrag.origSig, origNext: zdrag.origNext };
       zdrag = null;
       card.classList.remove('is-lifting');
       card.style.transform = '';
@@ -3813,6 +3868,9 @@
         (it.sec ? it.sec.wrapEl : it.node).scrollIntoView({ behavior: 'smooth', block: 'start' });
         return;
       }
+      // reordering across a stored non-gogh block would silently revert on
+      // publish (its position lives in the page's raw) — refuse honestly
+      if (zdragSigCheck(card)) return;
       // move the page node to mirror the card's new column position
       var node = it.node || (it.sec && it.sec.wrapEl);
       if (!node) return;
@@ -4332,18 +4390,27 @@
         pe.el.classList.remove('gogh-pending');
       });
       pendingBlocks = [];
-      // site chrome saves to its template part — one write, every page
-      var chromeSaves = S.filter(function (s) { return s.chrome && s.chrome.id; }).map(function (s) {
-        return fetch(tpUrl(s.chrome.id), {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'X-WP-Nonce': cfg.nonce },
-          credentials: 'same-origin',
-          body: JSON.stringify({ content: buildSectionBlocks(s) }),
-        }).then(function (r) {
-          if (r.ok) toast('Site ' + s.chrome.area + ' updated across every page.');
-          else toast('Could not save the ' + s.chrome.area + '.', { error: true });
-        });
+      // site chrome saves to its template part — one write, every page.
+      // Resolve ids first (booted freeform chrome has none), and AWAIT the
+      // saves: publish isn't done until the header/footer actually saved.
+      return resolveChromeIds().then(function () {
+        var unsaved = S.filter(function (s) { return s.chrome && !s.chrome.id; });
+        if (unsaved.length) {
+          throw new Error('could not find the ' + unsaved[0].chrome.area + ' template part');
+        }
+        return Promise.all(S.filter(function (s) { return s.chrome && s.chrome.id; }).map(function (s) {
+          return fetch(tpUrl(s.chrome.id), {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-WP-Nonce': cfg.nonce },
+            credentials: 'same-origin',
+            body: JSON.stringify({ content: buildSectionBlocks(s) }),
+          }).then(function (r) {
+            if (!r.ok) throw new Error('the ' + s.chrome.area + ' did not save');
+            toast('Site ' + s.chrome.area + ' updated across every page.');
+          });
+        }));
       });
+    }).then(function () {
       // conversions are now committed: sections are ordinary gogh spans
       S.forEach(function (s) { s.srcSig = null; });
       savedSnap = serialize();
@@ -4412,7 +4479,9 @@
   }
   setInterval(function () {
     if (!editing || chipBusy || !isDirty()) return;
-    var snap = serialize();
+    // pending native sections live outside serialize() — fingerprint them
+    // too, or pending-only changes would skip the backup
+    var snap = serialize() + '\u0000' + pendingBlocks.map(function (pe) { return pe.raw; }).join('\u0000');
     if (snap === lastAutoSnap) return;
     (rawCache !== null ? Promise.resolve(rawCache) : fetchRaw()).then(function (raw) {
       return fetch(autosaveUrl(), {
@@ -4520,7 +4589,8 @@
   // non-gogh top-level blocks eligible for conversion
   function topBlockNodes() {
     return [].slice.call(pageParent.children).filter(function (n) {
-      return n.nodeType === 1 && !n.classList.contains('gogh-wrap');
+      return n.nodeType === 1 && !n.classList.contains('gogh-wrap') &&
+        !n.classList.contains('gogh-pending');
     });
   }
 
@@ -4635,7 +4705,7 @@
     return fetch(GSROOT + 'block-patterns/patterns', {
       headers: { 'X-WP-Nonce': cfg.nonce },
       credentials: 'same-origin',
-    }).then(function (r) { return r.ok ? r.json() : []; }).then(function (list) {
+    }).then(function (r) { return r.ok ? r.json() : Promise.reject(new Error('HTTP ' + r.status)); }).then(function (list) {
       patternCache = list;
       return pick(list);
     }).catch(function () { return []; });
@@ -4648,7 +4718,7 @@
       : fetch(GSROOT + 'block-patterns/patterns', {
           headers: { 'X-WP-Nonce': cfg.nonce },
           credentials: 'same-origin',
-        }).then(function (r) { return r.ok ? r.json() : []; })
+        }).then(function (r) { return r.ok ? r.json() : Promise.reject(new Error('HTTP ' + r.status)); })
           .then(function (list) { patternCache = list; return list; })
           .catch(function () { return []; });
     return all.then(function (list) {
@@ -4669,16 +4739,26 @@
   }
   function renderPattern(p) {
     if (p.__rendered != null) return Promise.resolve(p.__rendered);
-    return fetch(GSROOT + 'block-renderer/core/pattern?context=edit&attributes%5Bslug%5D=' + encodeURIComponent(p.name), {
+    return fetch(restQ(GSROOT + 'block-renderer/core/pattern', 'context=edit&attributes%5Bslug%5D=' + encodeURIComponent(p.name)), {
       headers: { 'X-WP-Nonce': cfg.nonce },
       credentials: 'same-origin',
-    }).then(function (r) { return r.ok ? r.json() : null; })
-      .then(function (d) { p.__rendered = (d && d.rendered) || ''; return p.__rendered; })
+    }).then(function (r) { return r.ok ? r.json() : Promise.reject(new Error('HTTP ' + r.status)); })
+      .then(function (d) {
+        var html = (d && d.rendered) || '';
+        if (html) p.__rendered = html; // only SUCCESS is cached
+        return html;
+      })
       .catch(function () { return ''; });
   }
   var pendingBlocks = []; // native pattern sections awaiting publish
+  function clampInsertIdx(idx) {
+    var footAt = -1;
+    S.forEach(function (s, k) { if (footAt === -1 && s.chrome && s.chrome.area === 'footer') footAt = k; });
+    return footAt === -1 ? idx : Math.min(idx, footAt);
+  }
   function insertNative(raw, html, title, idx) {
     if (idx == null) idx = S.length;
+    idx = clampInsertIdx(idx);
     // arrives as REAL blocks — pixel-perfect, no conversion. Freeform is one
     // click away on its overlay, like any page content.
     var holder = document.createElement('div');
@@ -4726,8 +4806,25 @@
       toast('Could not add that section.', { error: true });
     });
   }
+  function sanitizePastedHtml(html) {
+    // parse inert, then strip what would EXECUTE: script elements, on*
+    // handler attributes, javascript: URLs (script tags via innerHTML never
+    // run, but handler attributes do)
+    var t = document.createElement('template');
+    t.innerHTML = String(html || '');
+    [].slice.call(t.content.querySelectorAll('script')).forEach(function (n) { n.remove(); });
+    [].slice.call(t.content.querySelectorAll('*')).forEach(function (el) {
+      [].slice.call(el.attributes).forEach(function (a) {
+        var n = a.name.toLowerCase();
+        if (n.indexOf('on') === 0) el.removeAttribute(a.name);
+        else if ((n === 'href' || n === 'src' || n === 'xlink:href') &&
+          /^\s*javascript:/i.test(a.value)) el.removeAttribute(a.name);
+      });
+    });
+    return t.innerHTML;
+  }
   function addHtmlSection(html, idx) {
-    html = String(html || '').replace(/<script[\s\S]*?<\/script\s*>/gi, '').trim();
+    html = sanitizePastedHtml(html).trim();
     if (!html) return;
     // a real core HTML block inside a FULL-WIDTH group: pasted HTML owns the
     // whole canvas (its own CSS decides any constraints), in the editor and
@@ -4752,10 +4849,18 @@
       spans.forEach(function (sp, k) {
         var dom = kids[k];
         var nm = String(sp.name || '').replace(/^core\//, '');
-        if (nm === 'group' || nm === 'columns' || nm === 'column') {
+        if (nm === 'group' || nm === 'columns' || nm === 'column' || nm === 'buttons') {
           var inner = innerRawOf(rawText, sp);
           if (inner && dom.children.length) { pair(dom, base + inner.base, inner.text); return; }
         }
+        var seg = rawText.slice(sp.start, sp.end);
+        var bodyStart = seg.indexOf('-->');
+        var bodyEnd = seg.lastIndexOf('<!--');
+        if (bodyStart === -1 || bodyEnd <= bodyStart) return; // self-closing: nothing editable
+        // a leaf whose body still contains block comments (cover, quote,
+        // gallery…) cannot be rewritten safely from the DOM — leave it
+        // uneditable rather than risk corrupting the markup
+        if (seg.slice(bodyStart + 3, bodyEnd).indexOf('<!-- wp:') !== -1) return;
         entry.map.push({ node: dom, s: base + sp.start, e: base + sp.end });
       });
     })(entry.el, 0, entry.raw);
@@ -4788,9 +4893,14 @@
     }
     function syncLeaf(leaf) {
       var markup = entry.raw.slice(leaf.s, leaf.e);
-      var m = markup.match(/^([\s\S]*?-->)([\s\S]*?)(<!--\s*\/wp:[\s\S]*)$/);
-      if (!m) return;
-      var next = m[1] + '\n' + (leaf.whole ? wholeCopy(leaf.node) : cleanCopy(leaf.node)) + '\n' + m[3];
+      // the body sits between the opening comment and the LAST comment (the
+      // leaf's own closer) — never an inner block's closer
+      var bodyStart = markup.indexOf('-->');
+      var bodyEnd = markup.lastIndexOf('<!--');
+      if (bodyStart === -1 || bodyEnd <= bodyStart) return;
+      var next = markup.slice(0, bodyStart + 3) + '\n' +
+        (leaf.whole ? wholeCopy(leaf.node) : cleanCopy(leaf.node)) + '\n' +
+        markup.slice(bodyEnd);
       var delta = next.length - markup.length;
       entry.raw = entry.raw.slice(0, leaf.s) + next + entry.raw.slice(leaf.e);
       leaf.e += delta;
@@ -4810,7 +4920,7 @@
       activeEd = null;
     }
     holder.addEventListener('click', function (ev) {
-      if (!editing) return;
+      if (!editing || pendingBlocks.indexOf(entry) === -1) return;
       var a = ev.target.closest && ev.target.closest('a');
       if (a && !a.closest('.gogh-pendbar')) ev.preventDefault();
       var img = ev.target.closest && ev.target.closest('img');
@@ -4836,6 +4946,7 @@
       }
     });
     holder.addEventListener('input', function (ev) {
+      if (pendingBlocks.indexOf(entry) === -1) return;
       var leaf = leafOf(ev.target);
       if (!leaf) return;
       clearTimeout(syncT);
@@ -4861,9 +4972,7 @@
     });
   }
   function editPendingLink(entry, aEl, leaf, syncLeaf) {
-    var r = aEl.getBoundingClientRect();
-    panel.style.left = Math.max(8, r.left + window.scrollX) + 'px';
-    panel.style.top = (r.bottom + window.scrollY + 10) + 'px';
+    placePanelNear(aEl);
     panel.innerHTML =
       '<div class="gogh-panel-title">Button</div>' +
       '<div class="gogh-panel-row">' +
@@ -4901,9 +5010,7 @@
       if (entry.map[i].node.contains(img)) { leaf = entry.map[i]; break; }
     }
     if (!leaf) { toast('gogh can\u2019t safely swap this image.', { error: true }); return; }
-    var r = img.getBoundingClientRect();
-    panel.style.left = Math.max(8, r.left + window.scrollX) + 'px';
-    panel.style.top = (r.bottom + window.scrollY + 10) + 'px';
+    placePanelNear(img);
     panel.innerHTML =
       '<div class="gogh-panel-title">Replace image</div>' +
       '<div class="gogh-panel-row">' +
@@ -4919,26 +5026,35 @@
       img.removeAttribute('sizes');
       var entryLeaf = leaf;
       var markup = entry.raw.slice(entryLeaf.s, entryLeaf.e);
-      var m2 = markup.match(/^([\s\S]*?-->)([\s\S]*?)(<!--\s*\/wp:[\s\S]*)$/);
-      if (m2) {
+      var bodyStart = markup.indexOf('-->');
+      var bodyEnd = markup.lastIndexOf('<!--');
+      var synced = false;
+      if (bodyStart !== -1 && bodyEnd > bodyStart) {
         var frag = document.createElement('div');
-        frag.innerHTML = m2[2];
+        frag.innerHTML = markup.slice(bodyStart + 3, bodyEnd);
         var leafImgs = [].slice.call(entryLeaf.node.querySelectorAll('img')).filter(function (i2) {
           return !i2.closest('.gogh-pendbar');
         });
-        var im2 = frag.querySelectorAll('img')[Math.max(0, leafImgs.indexOf(img))];
-        if (im2) { im2.src = src2; im2.removeAttribute('srcset'); im2.removeAttribute('sizes'); }
-        var next = m2[1] + frag.innerHTML + m2[3];
-        var delta = next.length - markup.length;
-        entry.raw = entry.raw.slice(0, entryLeaf.s) + next + entry.raw.slice(entryLeaf.e);
-        entryLeaf.e += delta;
-        entry.map.forEach(function (l) {
-          if (l !== entryLeaf && l.s >= entryLeaf.e - delta) { l.s += delta; l.e += delta; }
-        });
+        var idx2 = leafImgs.indexOf(img);
+        var im2 = idx2 === -1 ? null : frag.querySelectorAll('img')[idx2];
+        if (im2) {
+          im2.src = src2;
+          im2.removeAttribute('srcset');
+          im2.removeAttribute('sizes');
+          var next = markup.slice(0, bodyStart + 3) + frag.innerHTML + markup.slice(bodyEnd);
+          var delta = next.length - markup.length;
+          entry.raw = entry.raw.slice(0, entryLeaf.s) + next + entry.raw.slice(entryLeaf.e);
+          entryLeaf.e += delta;
+          entry.map.forEach(function (l) {
+            if (l !== entryLeaf && l.s >= entryLeaf.e - delta) { l.s += delta; l.e += delta; }
+          });
+          synced = true;
+        }
       }
       closePanel();
       refreshChip();
-      toast('Image swapped.');
+      if (synced) toast('Image swapped.');
+      else toast('gogh couldn\u2019t safely update this image in the saved markup.', { error: true });
     }
     var inp = panel.querySelector('input');
     panel.querySelector('.gogh-apply').addEventListener('click', function () {
@@ -4948,10 +5064,10 @@
       if (ev.key === 'Enter' && inp.value.trim()) useSrc(inp.value.trim());
       if (ev.key === 'Escape') closePanel();
     });
-    fetch(cfg.mediaUrl + '?per_page=12&media_type=image&orderby=date&order=desc', {
+    fetch(restQ(cfg.mediaUrl, 'per_page=12&media_type=image&orderby=date&order=desc'), {
       headers: { 'X-WP-Nonce': cfg.nonce },
       credentials: 'same-origin',
-    }).then(function (res) { return res.ok ? res.json() : []; }).then(function (items) {
+    }).then(function (res) { return res.ok ? res.json() : []; }).catch(function () { return []; }).then(function (items) {
       var box = panel.querySelector('.gogh-media');
       if (!box || panel.hidden) return;
       box.innerHTML = '';
@@ -4983,23 +5099,14 @@
       var bgc = getComputedStyle(first).backgroundColor;
       if (bgc && bgc !== 'rgba(0, 0, 0, 0)' && bgc !== 'transparent') sec.bg = bgc;
     }
-    // model position: right after the last gogh section above the holder
-    var sIdx = S.filter(function (s) { return s.chrome; }).length ? 1 : 0;
-    var prev = holder.previousElementSibling;
-    while (prev) {
-      if (prev.classList && prev.classList.contains('gogh-wrap')) {
-        var owner = S.filter(function (s) { return s.wrapEl === prev; })[0];
-        if (owner) { sIdx = S.indexOf(owner) + 1; break; }
-      }
-      prev = prev.previousElementSibling;
-    }
     holder.replaceWith(sec.wrapEl);
     pendingBlocks = pendingBlocks.filter(function (q) { return q !== entry; });
-    S.splice(sIdx, 0, sec);
+    S.push(sec);
     renderSection(sec);
+    // canonical model order comes from the DOM, not a guess
+    resyncContentOrder();
     sel = null;
     hideHandles();
-    pushState();
     toast('\u2728 \u201c' + entry.title + '\u201d is freeform now \u2014 drag anything.', { ttl: 4500 });
   }
   window.__goghAddPattern = function (name, idx) {
@@ -5012,7 +5119,7 @@
   function convertChrome(partEl) {
     var area = partEl.tagName === 'FOOTER' ? 'footer' : 'header';
     return Promise.all([
-      fetch(tpUrl() + '?area=' + area + '&context=edit', {
+      fetch(restQ(tpUrl(), 'area=' + area + '&context=edit'), {
         headers: { 'X-WP-Nonce': cfg.nonce },
         credentials: 'same-origin',
       }).then(function (res) {
@@ -5113,6 +5220,7 @@
         var existing = null;
         S.forEach(function (s) { if (s.chrome && partEl.contains(s.wrapEl)) existing = s; });
         if (existing) {
+          if (!existing.chrome.id && active) existing.chrome.id = active.id;
           placeHandles(existing, 0);
           return;
         }
@@ -5145,10 +5253,10 @@
   }
   function previewChromeLayout(partEl, opt, done) {
     var url = opt.kind === 'pattern'
-      ? GSROOT + 'block-renderer/core/pattern?context=edit&attributes%5Bslug%5D=' + encodeURIComponent(opt.slug)
-      : GSROOT + 'block-renderer/core/template-part?context=edit' +
+      ? restQ(GSROOT + 'block-renderer/core/pattern', 'context=edit&attributes%5Bslug%5D=' + encodeURIComponent(opt.slug))
+      : restQ(GSROOT + 'block-renderer/core/template-part', 'context=edit' +
         '&attributes%5Bslug%5D=' + encodeURIComponent(opt.slug) +
-        '&attributes%5Btheme%5D=' + encodeURIComponent(opt.theme);
+        '&attributes%5Btheme%5D=' + encodeURIComponent(opt.theme));
     fetch(url, {
       headers: { 'X-WP-Nonce': cfg.nonce },
       credentials: 'same-origin',
@@ -5175,6 +5283,28 @@
       if (done) done(false);
     });
   }
+  // booted freeform chrome has no template-part id — resolve it so edits
+  // actually save somewhere
+  function resolveChromeIds() {
+    var missing = S.filter(function (s) { return s.chrome && !s.chrome.id; });
+    if (!missing.length) return Promise.resolve();
+    var areas = [];
+    missing.forEach(function (s) { if (areas.indexOf(s.chrome.area) === -1) areas.push(s.chrome.area); });
+    return Promise.all(areas.map(function (area) {
+      return fetch(restQ(tpUrl(), 'area=' + encodeURIComponent(area) + '&context=edit'), {
+        headers: { 'X-WP-Nonce': cfg.nonce },
+        credentials: 'same-origin',
+      }).then(function (r) { return r.ok ? r.json() : []; }).then(function (parts) {
+        var active = null;
+        (parts || []).forEach(function (p) {
+          if (!active && p.slug === area && (!p.theme || p.theme === cfg.theme)) active = p;
+        });
+        if (active) {
+          missing.forEach(function (s) { if (s.chrome.area === area) s.chrome.id = active.id; });
+        }
+      }).catch(function () {});
+    }));
+  }
   function chromeIsSticky(active) {
     var raw = (active && active.content && active.content.raw) || '';
     return /"position":\s*{[^}]*"type":"sticky"/.test(raw);
@@ -5200,7 +5330,13 @@
     var head = Object.keys(attrs).length ? '<!-- wp:group ' + JSON.stringify(attrs) + ' -->' : '<!-- wp:group -->';
     return raw.slice(0, sp.start) + head + seg.slice(m[0].length) + raw.slice(sp.end);
   }
+  function confirmChromeReload(area) {
+    if (!isDirty()) return true;
+    return window.confirm('You have unpublished changes on this page. Changing the ' +
+      area + ' reloads the page and discards them. Continue?');
+  }
   function toggleChromeSticky(area, active) {
+    if (!confirmChromeReload(area)) return;
     var raw = (active && active.content && active.content.raw) || '';
     var newRaw = stickyRawToggle(raw, !chromeIsSticky(active));
     if (newRaw == null) {
@@ -5221,6 +5357,7 @@
     });
   }
   function swapChromeLayout(area, active, chosen) {
+    if (!confirmChromeReload(area)) return;
     fetch(tpUrl(active.id), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'X-WP-Nonce': cfg.nonce },
@@ -5240,6 +5377,7 @@
   function scanDomWithRaw(rootEl, raw, opts) {
     opts = opts || {};
     var rr = rootEl.getBoundingClientRect();
+    if (rr.width < 10) return { els: [], minH: 0 };
     var sx = W / rr.width;
     var out = [];
     function place(dom, e) {
@@ -5300,7 +5438,12 @@
       if (tag === 'FIGURE' && cl.contains('wp-block-image')) {
         var img = dom.querySelector('img');
         var e = { type: 'image' };
-        if (img) { e.src = img.currentSrc || img.src || null; e.alt = img.alt || null; }
+        if (img) {
+          e.src = img.currentSrc || img.src || null;
+          e.alt = img.alt || null;
+          var mm = (img.className || '').match(/wp-image-(\d+)/);
+          e.mediaId = mm ? +mm[1] : null;
+        }
         return place(dom, e);
       }
       if (cl.contains('wp-block-buttons')) {
@@ -5333,8 +5476,10 @@
       // content becomes normal elements on top
       var img = dom.querySelector(':scope > .wp-block-cover__image-background');
       if (img) {
+        var cm = (img.className || '').match(/wp-image-(\d+)/);
         place(dom, { type: 'image',
-          src: img.currentSrc || img.src || null, alt: img.alt || null });
+          src: img.currentSrc || img.src || null, alt: img.alt || null,
+          mediaId: cm ? +cm[1] : null });
       }
       var inner = dom.querySelector(':scope > .wp-block-cover__inner-container');
       if (inner) {
@@ -5380,7 +5525,21 @@
         }
         if (nm === 'group' || nm === 'columns' || nm === 'column') {
           var inner = innerRawOf(rawText, sp);
-          if (inner && dom.children.length) { boxFrom(dom); walk(dom, inner.text); return; }
+          if (inner && dom.children.length) {
+            var innerSpans = parseTopBlocks(inner.text);
+            var innerKids = [].slice.call(dom.children).filter(function (c2) {
+              return !(c2.classList && c2.classList.contains('gogh-pendbar'));
+            });
+            if (opts.loose || (innerSpans.length && innerSpans.length === innerKids.length)) {
+              boxFrom(dom);
+              walk(dom, inner.text);
+              return;
+            }
+            // strict + unpaired children: atomize the whole group with its
+            // FULL markup so attrs/layout survive — and no orphan box
+            leafFrom(dom, markup);
+            return;
+          }
         }
         leafFrom(dom, markup);
       });
@@ -5422,9 +5581,10 @@
       sec.chrome = { area: area, id: part.id };
       var bgc = getComputedStyle(partEl).backgroundColor;
       if (bgc && bgc !== 'rgba(0, 0, 0, 0)' && bgc !== 'transparent') sec.bg = bgc;
-      // hide the live chrome, mount the canvas in its place
-      sec.__hidden = [].slice.call(partEl.children);
-      sec.__hidden.forEach(function (c) { c.style.display = 'none'; });
+      // hide the live chrome, mount the canvas in its place (tracked on the
+      // part element so undo/redo can restore visibility)
+      partEl.__goghHidden = [].slice.call(partEl.children);
+      partEl.__goghHidden.forEach(function (c) { c.style.display = 'none'; });
       partEl.appendChild(sec.wrapEl);
       if (area === 'header') { S.unshift(sec); } else { S.push(sec); }
       renderSection(sec);
@@ -5498,7 +5658,7 @@
       return { label: (li.textContent || '').trim(), path: path, href: a ? a.getAttribute('href') : null };
     });
     var hdrs = { 'X-WP-Nonce': cfg.nonce, 'Content-Type': 'application/json' };
-    return fetch(tpUrl() + '?area=' + area + '&context=edit', {
+    return fetch(restQ(tpUrl(), 'area=' + area + '&context=edit'), {
       headers: { 'X-WP-Nonce': cfg.nonce },
       credentials: 'same-origin',
     }).then(function (r) { return r.ok ? r.json() : []; }).then(function (parts) {
@@ -5511,7 +5671,7 @@
       var refM = String(praw).match(/wp:navigation[^>]*"ref":(\d+)/);
       if (refM) {
         var navId = +refM[1];
-        return fetch(GSROOT + 'navigation/' + navId + '?context=edit', {
+        return fetch(restQ(GSROOT + 'navigation/' + navId, 'context=edit'), {
           headers: { 'X-WP-Nonce': cfg.nonce },
           credentials: 'same-origin',
         }).then(function (r) { if (!r.ok) throw new Error('nav'); return r.json(); }).then(function (nav) {
@@ -5526,7 +5686,7 @@
       }
       // no ref: a bare wp:navigation renders the newest menu post, or the
       // page list when none exists. Reorder that post \u2014 or mint one.
-      return fetch(GSROOT + 'navigation?context=edit&per_page=1', {
+      return fetch(restQ(GSROOT + 'navigation', 'context=edit&per_page=1'), {
         headers: { 'X-WP-Nonce': cfg.nonce },
         credentials: 'same-origin',
       }).then(function (r) { return r.ok ? r.json() : []; }).then(function (navs) {
@@ -5589,6 +5749,16 @@
       if (navDrag.item.nextElementSibling) navDrag.list.appendChild(navDrag.item);
     } else if (before !== navDrag.item && before !== navDrag.item.nextElementSibling) {
       navDrag.list.insertBefore(navDrag.item, before);
+    }
+  });
+  document.addEventListener('pointercancel', function () {
+    // abandon, don't commit: half-done gestures must not save
+    if (navDrag) {
+      if (navDrag.started) {
+        navDrag.item.classList.remove('gogh-navdragging');
+        navDrag.order0.forEach(function (li) { navDrag.list.appendChild(li); });
+      }
+      navDrag = null;
     }
   });
   document.addEventListener('pointerup', function () {
@@ -5718,14 +5888,30 @@
       return trimmed + (trimmed ? '\n\n' : '') + blocks;
     }
     var secs = realSections();
-    if (spans.length === secs.length && !pendingBlocks.length) {
-      // 1:1 — rewrite each span in place, preserving interleaved blocks
+    if (spans.length === secs.length) {
+      // 1:1 — rewrite each span in place, preserving interleaved blocks.
+      // Pending native sections splice in at their DOM position relative to
+      // the section that follows them (or at the end).
+      var pendBefore = {}, pendTail = '';
+      pendingBlocks.forEach(function (pe) {
+        if (!pe.el.isConnected) return;
+        var n = pe.el.nextElementSibling, target = -1;
+        while (n) {
+          if (n.classList && n.classList.contains('gogh-wrap')) {
+            var owner = secs.filter(function (s2) { return s2.wrapEl === n; })[0];
+            if (owner) { target = secs.indexOf(owner); break; }
+          }
+          n = n.nextElementSibling;
+        }
+        if (target >= 0) pendBefore[target] = (pendBefore[target] || '') + pe.raw + '\n\n';
+        else pendTail += '\n\n' + pe.raw;
+      });
       var out = '', pos = 0;
       spans.forEach(function (sp, k) {
-        out += raw.slice(pos, sp[0]) + buildSectionBlocks(secs[k]);
+        out += raw.slice(pos, sp[0]) + (pendBefore[k] || '') + buildSectionBlocks(secs[k]);
         pos = sp[1];
       });
-      return out + raw.slice(pos);
+      return out + pendTail + raw.slice(pos);
     }
     // sections were added/removed: replace the whole gogh region, keep
     // prefix/suffix, and carry along non-gogh chunks from between sections
@@ -5744,7 +5930,10 @@
   S.forEach(renderSection);
   if (wantEdit) {
     setEditing(true);
-    if (S.length === 1 && S[0].bootstrap && !S[0].els.length) openPicker(0);
+    var bootContent = S.filter(function (s) { return !s.chrome; });
+    if (bootContent.length === 1 && bootContent[0].bootstrap && !bootContent[0].els.length) {
+      openPicker(S.indexOf(bootContent[0]));
+    }
     try {
       var u = new URL(location.href);
       u.searchParams.delete('gogh-edit');
