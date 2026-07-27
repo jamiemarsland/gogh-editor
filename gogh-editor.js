@@ -4053,6 +4053,11 @@
     multi: { set: setMulti, clear: clearMulti, state: function () { return multiSel; } },
     zoom: { open: openZoom, close: closeZoom, el: zoomOv },
     reorderSection: reorderSection,
+    reorderNavRaw: reorderNavRaw,
+    stickyRawToggle: stickyRawToggle,
+    insertGoghPattern: insertGoghPattern,
+    addHtmlSection: addHtmlSection,
+    pending: function () { return pendingBlocks; },
     get state() {
       return { editing: editing, sections: S.length, sel: sel ? { i: sel.i } : null,
         drag: !!drag, resize: !!resize, history: history.length, hIdx: hIdx };
@@ -4794,6 +4799,8 @@
       });
       refreshChip();
     }
+    entry.__sync = syncLeaf;
+    entry.__leafOf = leafOf;
     var activeEd = null;
     function stopEdit() {
       if (!activeEd) return;
@@ -5172,27 +5179,16 @@
     var raw = (active && active.content && active.content.raw) || '';
     return /"position":\s*{[^}]*"type":"sticky"/.test(raw);
   }
-  function toggleChromeSticky(area, active) {
-    var raw = (active && active.content && active.content.raw) || '';
+  function stickyRawToggle(raw, on) {
     var spans = parseTopBlocks(raw);
     var sp = spans[0];
     var nm = sp ? String(sp.name || '').replace(/^core\//, '') : '';
-    if (nm !== 'group') {
-      toast('This ' + area + ' layout can\u2019t be pinned automatically.', { error: true });
-      return;
-    }
+    if (nm !== 'group') return null;
     var seg = raw.slice(sp.start, sp.end);
     var m = seg.match(/^<!--\s*wp:group(\s+({[\s\S]*?}))?\s*-->/);
-    if (!m) {
-      toast('This ' + area + ' layout can\u2019t be pinned automatically.', { error: true });
-      return;
-    }
+    if (!m) return null;
     var attrs = {};
-    try { attrs = m[2] ? JSON.parse(m[2]) : {}; } catch (err) {
-      toast('This ' + area + ' layout can\u2019t be pinned automatically.', { error: true });
-      return;
-    }
-    var on = !chromeIsSticky(active);
+    try { attrs = m[2] ? JSON.parse(m[2]) : {}; } catch (err) { return null; }
     attrs.style = attrs.style || {};
     if (on) {
       // WordPress's own position support: core CSS, deactivation-safe
@@ -5202,7 +5198,15 @@
       if (!Object.keys(attrs.style).length) delete attrs.style;
     }
     var head = Object.keys(attrs).length ? '<!-- wp:group ' + JSON.stringify(attrs) + ' -->' : '<!-- wp:group -->';
-    var newRaw = raw.slice(0, sp.start) + head + seg.slice(m[0].length) + raw.slice(sp.end);
+    return raw.slice(0, sp.start) + head + seg.slice(m[0].length) + raw.slice(sp.end);
+  }
+  function toggleChromeSticky(area, active) {
+    var raw = (active && active.content && active.content.raw) || '';
+    var newRaw = stickyRawToggle(raw, !chromeIsSticky(active));
+    if (newRaw == null) {
+      toast('This ' + area + ' layout can\u2019t be pinned automatically.', { error: true });
+      return;
+    }
     fetch(tpUrl(active.id), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'X-WP-Nonce': cfg.nonce },

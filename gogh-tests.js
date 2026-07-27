@@ -1165,6 +1165,65 @@
       G.reorderSection(i0, i1);
     });
 
+    // ---- 35. audit coverage: the untested features ----
+    test('menu reorder rewrites navigation markup by url then label', function () {
+      var nraw = '<!-- wp:navigation-link {"label":"Home","url":"https://x.test/"} /-->\n' +
+        '<!-- wp:navigation-link {"label":"About","url":"https://x.test/about/"} /-->\n' +
+        '<!-- wp:navigation-link {"label":"Blog","url":"https://x.test/blog/"} /-->';
+      var items = [
+        { label: 'Blog', path: '/blog', href: '/blog/' },
+        { label: 'Home', path: '/', href: '/' },
+        { label: 'About', path: '/about', href: '/about/' },
+      ];
+      var out = G.reorderNavRaw(nraw, items);
+      expect(out, 'no output');
+      var order = (out.match(/"label":"([^"]+)"/g) || []).join(',');
+      expect(order.indexOf('Blog') < order.indexOf('Home') && order.indexOf('Home') < order.indexOf('About'),
+        'order wrong: ' + order);
+      // page-list pins down as explicit links
+      var pl = G.reorderNavRaw('<!-- wp:page-list /-->', items);
+      expect(pl.indexOf('wp:navigation-link') !== -1 && pl.indexOf('Blog') < pl.indexOf('Home'), 'page-list not pinned');
+    });
+    test('sticky header toggle rewrites the group attrs both ways', function () {
+      var raw = '<!-- wp:group {"layout":{"type":"constrained"}} -->\n<div class="wp-block-group">x</div>\n<!-- /wp:group -->';
+      var on = G.stickyRawToggle(raw, true);
+      expect(on && /"position":\s*{[^}]*"type":"sticky"/.test(on), 'sticky not applied');
+      var off = G.stickyRawToggle(on, false);
+      expect(off && !/"type":"sticky"/.test(off), 'sticky not removed');
+      expect(off.indexOf('"layout":{"type":"constrained"}') !== -1, 'other attrs lost');
+      expect(G.stickyRawToggle('<!-- wp:paragraph --><p>x</p><!-- /wp:paragraph -->', true) === null,
+        'non-group should refuse');
+    });
+    test('editing text on a native section syncs into its stored markup', function () {
+      G.addHtmlSection('<div style="padding:30px"><h2>Original title</h2><p>Body</p></div>', null);
+      var entry = G.pending()[G.pending().length - 1];
+      expect(entry, 'no pending entry');
+      var h = entry.el.querySelector('h2');
+      h.textContent = 'EDITED TITLE';
+      entry.__sync(entry.__leafOf(h));
+      expect(entry.raw.indexOf('EDITED TITLE') !== -1, 'edit not in raw');
+      expect(entry.raw.indexOf('Original title') === -1, 'old text still in raw');
+      entry.el.querySelector('.gogh-pend-rm').click();
+      expect(G.pending().length === 0 || G.pending().indexOf(entry) === -1, 'entry not removed');
+    });
+    test('saved sections reinsert losslessly from their markup', function () {
+      var src2 = sec();
+      var markup = G.buildBlocks(src2);
+      var proj = function (els) {
+        return JSON.stringify(els.map(function (e) {
+          return { t: e.type, x: e.x, y: e.y, w: e.w, h: e.h,
+            text: e.text || null, fs: e.fs || null, color: e.color || null };
+        }));
+      };
+      var before = proj(src2.els);
+      var n0 = G.sections().length;
+      G.insertGoghPattern(markup, G.sections().length);
+      expect(G.sections().length === n0 + 1, 'not inserted');
+      var added = G.sections()[G.sections().length - 1];
+      expect(proj(added.els) === before, 'round-trip not lossless');
+      G.deleteSection(G.sections().indexOf(added));
+    });
+
     // ---- report ----
     var passed = results.filter(function (r) { return r.pass; }).length;
     var summary = passed + '/' + results.length + ' passed' +
