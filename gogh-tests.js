@@ -1657,7 +1657,21 @@
       expect(/circle/.test(shapeMsg), 'add_shape failed: ' + shapeMsg);
       var bgMsg = window.__goghMcp.call('gogh_set_section_background', { section: 0, color: '#fdf6e3' });
       expect(/background set/.test(bgMsg), 'set_background failed: ' + bgMsg);
-      return names.length + ' tools live';
+      // long copy must grow the element and push neighbours down, not pile on them
+      var hs = lastSec();
+      var head = hs.els.filter(function (e) { return e.type === 'heading'; })[0];
+      expect(head, 'tool-added hero has no heading');
+      var below = hs.els.filter(function (e2) { return e2 !== head && e2.y >= head.y + head.h - 4; })
+        .sort(function (a, b) { return a.y - b.y; })[0];
+      var belowY0 = below && below.y;
+      var h0 = head.h;
+      window.__goghMcp.call('gogh_edit_text', {
+        find: head.text,
+        replace: 'A very much longer heading that will certainly wrap onto several lines in this layout',
+      });
+      expect(head.h > h0, 'long text did not grow the heading (h ' + h0 + '→' + head.h + ')');
+      if (below) expect(below.y > belowY0, 'element below was not pushed down by the longer heading');
+      return names.length + ' tools live, reflow ok';
     });
 
     // ---- published blocks stay lightly editable ----

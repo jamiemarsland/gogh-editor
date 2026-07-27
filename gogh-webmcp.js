@@ -100,7 +100,7 @@
     },
     {
       name: 'gogh_add_section',
-      description: 'Add a ready-made section layout to the end of the page. Use gogh_list_layouts to see the options.',
+      description: 'Add a ready-made section layout to the end of the page. Use gogh_list_layouts to see the options. The layouts are tuned for SHORT, punchy copy — headings of 2–6 words.',
       schema: {
         type: 'object',
         properties: { layout: { type: 'string', description: 'Layout name, e.g. "Hero" or "Get in touch"' } },
@@ -149,7 +149,13 @@
         if (args.text && args.type !== 'image') e.text = String(args.text);
         settleInSection(e, args.section, false);
         var sec = secOf(e);
-        if (sec) G.renderSection(sec);
+        if (sec) {
+          var oldH = e.h;
+          G.renderSection(sec);
+          G.measure(sec);
+          G.reflowPush(sec, e, oldH);
+          G.resolve(sec);
+        }
         G.pushState();
         return 'Added a ' + args.type + (args.text ? ' saying "' + args.text + '"' : '') +
           ' in section ' + contentSecs().indexOf(sec) + '.';
@@ -211,7 +217,7 @@
     },
     {
       name: 'gogh_edit_text',
-      description: 'Find text on the page and replace it (headings, paragraphs, buttons, badges in gogh sections).',
+      description: 'Find text on the page and replace it (headings, paragraphs, buttons, badges in gogh sections). Keep replacements about the same length as the original — headings want 2–6 words; long copy crowds these layouts.',
       schema: {
         type: 'object',
         properties: {
@@ -226,18 +232,26 @@
         if (!find) return 'Nothing to find.';
         var hits = 0;
         contentSecs().forEach(function (sec) {
-          var touched = false;
           sec.els.forEach(function (e) {
             if (typeof e.text === 'string' && e.text.indexOf(find) !== -1) {
+              // the human editing path re-measures and pushes neighbours
+              // down when text grows — the tool must do the same or long
+              // copy piles onto whatever sat below it
+              var oldH = e.h;
               e.text = e.text.split(find).join(String(args.replace));
-              touched = true;
               hits++;
+              G.renderSection(sec);
+              G.measure(sec);
+              G.reflowPush(sec, e, oldH);
+              G.resolve(sec);
             }
           });
-          if (touched) G.renderSection(sec);
         });
         if (hits) G.pushState();
-        return hits ? 'Replaced ' + hits + ' occurrence(s) of "' + find + '".'
+        var note = String(args.replace || '').length > find.length * 2 + 16
+          ? ' Note: the new text is much longer than the old — these layouts are tuned for concise copy, so consider something shorter if it looks crowded.'
+          : '';
+        return hits ? 'Replaced ' + hits + ' occurrence(s) of "' + find + '".' + note
           : 'No editable element contains "' + find + '". Try gogh_page_overview to see the text on the page.';
       },
     },
