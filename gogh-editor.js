@@ -5511,9 +5511,23 @@
         chromePreview = { partEl: partEl, box: box, hidden: hidden };
       }
       chromePreview.box.innerHTML = (d.css ? '<style>' + d.css + '</style>' : '') + (d.html || '');
+      // self-check: an "applied" preview the user can't SEE is the worst
+      // failure mode — detect it and say precisely what happened
+      setTimeout(function () {
+        if (!chromePreview || chromePreview.partEl !== partEl) return;
+        var bh = chromePreview.box.getBoundingClientRect().height;
+        var origVisible = chromePreview.hidden.some(function (c) {
+          return getComputedStyle(c).display !== 'none';
+        });
+        if (bh < 20 || origVisible) {
+          toast('gogh: preview of “' + (opt.title || opt.slug) + '” applied but not visible' +
+            ' (box ' + Math.round(bh) + 'px' + (origVisible ? ', original still showing' : '') +
+            ', html ' + ((d.html || '').length) + ' chars)', { error: true, ttl: 9000 });
+        }
+      }, 120);
       if (done) done(true);
-    }).catch(function () {
-      toast('Could not preview that layout.', { error: true });
+    }).catch(function (err) {
+      toast('Could not preview that layout — ' + ((err && err.message) || 'network error'), { error: true, ttl: 7000 });
       if (done) done(false);
     });
   }
