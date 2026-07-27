@@ -129,12 +129,6 @@
   letter-spacing: -0.01em;
   padding: 0 4px;
 }
-.gogh-close {
-  flex: none !important;
-  width: 28px;
-  padding: 5px 0 !important;
-  font-size: 13px !important;
-}
 .gogh-side-label {
   font-size: 9px;
   font-weight: 700;
@@ -165,6 +159,18 @@
 }
 .gogh-sbtn:hover { background: var(--gogh-ui-border); }
 .gogh-sbtn:disabled { opacity: 0.3; cursor: default; }
+/* AFTER .gogh-sbtn on purpose: its all:unset would reset these otherwise */
+.gogh-close {
+  flex: none;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  font-size: 13px;
+  line-height: 1;
+}
 .gogh-sitem {
   all: unset;
   cursor: pointer;
