@@ -2055,6 +2055,13 @@
       { type: 'image', x: 798, y: 150, w: 330, h: 310, cool: true },
       { type: 'badge', x: 830, y: 430, w: 196, h: 52, text: '\ud83d\udcf7 Add yours' },
     ] },
+    { starter: true, name: 'Get in touch', minH: 460, els: [
+      { type: 'badge', x: 493, y: 58, w: 214, h: 52, text: 'Say hello' },
+      { type: 'heading', x: 300, y: 140, w: 600, h: 90, text: 'Let\u2019s talk', fs: '__max', align: 'center' },
+      { type: 'para', x: 340, y: 252, w: 520, h: 52, align: 'center', text: 'A question, an idea, or just to say hi \u2014 we read everything.' },
+      { type: 'button', x: 424, y: 342, w: 170, h: 56, text: 'Email us' },
+      { type: 'button', x: 614, y: 342, w: 170, h: 56, text: 'Follow us', ghost: true },
+    ] },
   ];
 
   function tplEls(tpl) {
@@ -2113,6 +2120,7 @@
   var STARTER_CATS = {
     'Hero': 'hero', 'Feature cards': 'cards', 'Big statement': 'hero', 'Quote': 'text',
     'Call to action': 'hero', 'Photo cards': 'photos cards', 'Gallery': 'photos',
+    'Get in touch': 'contact',
   };
   function openPicker(idx) {
     pickerIdx = idx;
