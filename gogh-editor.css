@@ -1688,12 +1688,16 @@ html.gogh-editing .gogh-mirror { display: flex; }
 .gogh-htmllink {
   all: unset;
   cursor: pointer;
+  white-space: nowrap;
   font-size: 12px;
+  font-weight: 600;
   color: var(--gogh-ui-muted);
-  text-decoration: underline;
-  text-underline-offset: 3px;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  padding: 7px 13px;
+  transition: color 0.14s ease, border-color 0.14s ease;
 }
-.gogh-htmllink:hover { color: var(--gogh-ui-fg); }
+.gogh-htmllink:hover { color: var(--gogh-ui-fg); border-color: var(--gogh-ui-border); }
 
 /* calm picker: title + tools, chip row, one grid */
 .gogh-picker-tools { display: flex; align-items: center; gap: 12px; }
