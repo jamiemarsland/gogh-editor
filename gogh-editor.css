@@ -1056,6 +1056,16 @@
 .gogh-cyc-ok:hover, .gogh-cyc-edit:hover, .gogh-cyc-more:hover, .gogh-cyc-x:hover { background: rgba(0, 0, 0, 0.14); }
 /* wp-emoji swaps the ✨ text for an <img> — keep it chip-sized */
 .gogh-cycbar img.emoji { width: 13px; height: 13px; margin: 0; }
+.gogh-cycbar.is-busy .gogh-cyc-hint { opacity: 0.3; }
+/* cycling is a MODE: while choosing a header/footer, every other editing
+   affordance gets out of the way */
+.gogh-cycling .gogh-side, .gogh-cycling .gogh-side-tab,
+.gogh-cycling .gogh-bar, .gogh-cycling .gogh-inserter,
+.gogh-cycling .gogh-shapebtn, .gogh-cycling .gogh-secbar,
+.gogh-cycling .gogh-elbar, .gogh-cycling .gogh-hbar,
+.gogh-cycling .gogh-chip, .gogh-cycling .gogh-convertbtn,
+.gogh-cycling .gogh-chromebtn, .gogh-cycling .gogh-zoom-tab,
+.gogh-cycling .gogh-mirror-tab { display: none !important; }
 .gogh-linkbtn {
   all: unset;
   cursor: pointer;

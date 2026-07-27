@@ -1443,6 +1443,7 @@
       var bar = q('.gogh-cycbar');
       expect(bar && !bar.hidden, 'cycle strip did not open');
       expect(pill.style.display === 'none', 'pill not hidden while cycling');
+      expect(document.body.classList.contains('gogh-cycling'), 'cycling mode class missing (other UI would stay visible)');
       // first activation advances straight to the next layout
       expect(bar.querySelector('.gogh-cyc-name').textContent.indexOf('Centered header') !== -1, 'did not advance on start');
       expect(bar.querySelector('.gogh-cyc-n').textContent.indexOf('2/2') === 0, 'wrong position label');
@@ -1461,8 +1462,11 @@
       // cycle again, then click-off (outside header + strip) collapses
       G.startChromeCycle(partEl, 'header', options, options[0], active);
       expect(!q('.gogh-cycbar').hidden, 'strip did not re-open');
-      pev('pointerdown', document.body);
+      // click-off far from the header (geometry check treats the part's
+      // whole rect as "next look" territory)
+      pev('pointerdown', document.body, 8, window.innerHeight - 8);
       expect(q('.gogh-cycbar').hidden, 'click-off did not close the strip');
+      expect(!document.body.classList.contains('gogh-cycling'), 'cycling mode class not removed');
       expect(pill.style.display !== 'none', 'pill not restored after collapse');
       expect(pill.innerHTML === baseHTML, 'pill label changed');
       expect(!document.querySelector('.gogh-chrome-preview'), 'preview left behind after collapse');

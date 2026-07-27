@@ -23,7 +23,7 @@ add_action( 'init', function () {
 		'gogh-block',
 		plugins_url( 'gogh-block.js', __FILE__ ),
 		array( 'wp-blocks', 'wp-element', 'wp-block-editor' ),
-		'0.53.0-chrome',
+		'0.54.0-chrome',
 		true
 	);
 	register_block_type( 'gogh/section', array(
@@ -48,7 +48,7 @@ add_action( 'wp_enqueue_scripts', function () {
 
 	// for every visitor: neutralise theme spacing around gogh sections, even
 	// on pages whose stored stylesheets predate this rule
-	wp_register_style( 'gogh-base', false, array(), '0.53.0-chrome' );
+	wp_register_style( 'gogh-base', false, array(), '0.54.0-chrome' );
 	wp_enqueue_style( 'gogh-base' );
 	wp_add_inline_style( 'gogh-base',
 		'.gogh-wrap { margin-block: 0 !important; min-width: 100%; }' .
@@ -66,13 +66,13 @@ add_action( 'wp_enqueue_scripts', function () {
 		return;
 	}
 
-	wp_enqueue_script( 'gogh-editor', plugins_url( 'gogh-editor.js', __FILE__ ), array(), '0.53.0-chrome', true );
-	wp_enqueue_style( 'gogh-editor', plugins_url( 'gogh-editor.css', __FILE__ ), array(), '0.53.0-chrome' );
+	wp_enqueue_script( 'gogh-editor', plugins_url( 'gogh-editor.js', __FILE__ ), array(), '0.54.0-chrome', true );
+	wp_enqueue_style( 'gogh-editor', plugins_url( 'gogh-editor.css', __FILE__ ), array(), '0.54.0-chrome' );
 
 	// regression suite: /page/?gogh-test (editors only, never saves)
 	// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only toggle enqueuing a test script for capability-checked editors.
 	if ( isset( $_GET['gogh-test'] ) ) {
-		wp_enqueue_script( 'gogh-tests', plugins_url( 'gogh-tests.js', __FILE__ ), array( 'gogh-editor' ), '0.53.0-chrome', true );
+		wp_enqueue_script( 'gogh-tests', plugins_url( 'gogh-tests.js', __FILE__ ), array( 'gogh-editor' ), '0.54.0-chrome', true );
 	}
 
 	$rest_base = ( 'page' === $post->post_type ) ? 'pages' : 'posts';
@@ -94,6 +94,57 @@ add_action( 'wp_enqueue_scripts', function () {
 } );
 
 /**
+ * Live-preview renderer: the core block-renderer returns bare markup with
+ * none of the per-instance layout CSS (nav flex rules, container gaps), so
+ * header/footer previews looked broken. This renders markup the way a real
+ * page does and returns the generated styles + the block stylesheets the
+ * markup needs.
+ */
+add_action( 'rest_api_init', function () {
+	register_rest_route( 'gogh/v1', '/render', array(
+		'methods'             => 'POST',
+		'permission_callback' => function () {
+			return current_user_can( 'edit_posts' );
+		},
+		'callback'            => function ( $req ) {
+			$content = (string) $req->get_param( 'content' );
+			$html    = do_blocks( $content );
+			$css     = function_exists( 'wp_style_engine_get_stylesheet_from_context' )
+				? (string) wp_style_engine_get_stylesheet_from_context( 'block-supports' )
+				: '';
+			$hrefs = array();
+			$walk  = function ( $blocks ) use ( &$walk, &$hrefs ) {
+				foreach ( $blocks as $b ) {
+					if ( ! empty( $b['blockName'] ) ) {
+						$bt = WP_Block_Type_Registry::get_instance()->get_registered( $b['blockName'] );
+						if ( $bt ) {
+							foreach ( (array) $bt->style_handles as $h ) {
+								if ( $h && wp_style_is( $h, 'registered' ) ) {
+									$obj = wp_styles()->registered[ $h ];
+									if ( ! empty( $obj->src ) ) {
+										$src = ( 0 === strpos( $obj->src, 'http' ) ) ? $obj->src : site_url( $obj->src );
+										$hrefs[ $h ] = add_query_arg( 'ver', $obj->ver ? $obj->ver : get_bloginfo( 'version' ), $src );
+									}
+								}
+							}
+						}
+					}
+					if ( ! empty( $b['innerBlocks'] ) ) {
+						$walk( $b['innerBlocks'] );
+					}
+				}
+			};
+			$walk( parse_blocks( $content ) );
+			return array(
+				'html'   => $html,
+				'css'    => $css,
+				'styles' => array_values( $hrefs ),
+			);
+		},
+	) );
+} );
+
+/**
  * Editor contexts (post editor, site editor, pattern previews): a gogh
  * section's grid uses cqw units against the .gogh-wrap container. In
  * shrink-to-fit preview wrappers, inline-size containment collapses the wrap
@@ -103,7 +154,7 @@ add_action( 'enqueue_block_assets', function () {
 	if ( ! is_admin() ) {
 		return;
 	}
-	wp_register_style( 'gogh-editor-base', false, array(), '0.53.0-chrome' );
+	wp_register_style( 'gogh-editor-base', false, array(), '0.54.0-chrome' );
 	wp_enqueue_style( 'gogh-editor-base' );
 	wp_add_inline_style( 'gogh-editor-base',
 		'.gogh-wrap { min-width: 100%; margin-block: 0 !important; }' .

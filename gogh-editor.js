@@ -5295,11 +5295,23 @@
       document.removeEventListener('keydown', onKey, true);
       if (!keepPreview) endChromePreview();
       cycBar.hidden = true;
+      cycBar.classList.remove('is-busy');
+      document.body.classList.remove('gogh-cycling');
       if (pill) { pill.style.display = ''; pill.disabled = false; }
+      placeConvertBtns();
+      placeChromeBtns();
+    }
+    function inPart(ev) {
+      // geometry as well as containment: a full-bleed overlay hovering over
+      // the part must not steal the "next look" click
+      if (partEl.contains(ev.target)) return true;
+      var r = partEl.getBoundingClientRect();
+      return ev.clientY >= r.top && ev.clientY <= r.bottom &&
+        ev.clientX >= r.left && ev.clientX <= r.right;
     }
     function onDocDown(ev) {
       if (cycBar.contains(ev.target)) return;
-      if (partEl.contains(ev.target)) {
+      if (inPart(ev)) {
         // clicking the header = next look; swallow it before nav links act
         ev.preventDefault();
         ev.stopPropagation();
@@ -5311,20 +5323,25 @@
     function onDocClick(ev) {
       // the pointerdown consumed the gesture — stop the follow-up click from
       // navigating a header link mid-cycle
-      if (st.alive && partEl.contains(ev.target)) { ev.preventDefault(); ev.stopPropagation(); }
+      if (st.alive && inPart(ev)) { ev.preventDefault(); ev.stopPropagation(); }
     }
     function onKey(ev) { if (ev.key === 'Escape') { collapse(); ev.stopPropagation(); } }
     st.advance = function () {
-      if (st.busy) return;
+      // a click during a slow preview fetch queues instead of vanishing —
+      // dropped clicks read as "the footer toggle doesn't work"
+      if (st.busy) { st.queued = true; return; }
       st.idx = (st.idx + 1) % st.options.length;
       var o = st.options[st.idx];
       render();
       if (isCurrent(o)) { endChromePreview(); return; }
       st.busy = true;
+      cycBar.classList.add('is-busy');
       previewChromeLayout(partEl, o, function (ok) {
         st.busy = false;
+        cycBar.classList.remove('is-busy');
         // a preview that lands after the cycle ended must not stick around
-        if (!st.alive && ok) endChromePreview();
+        if (!st.alive) { if (ok) endChromePreview(); return; }
+        if (st.queued) { st.queued = false; st.advance(); }
       });
     };
     st.collapse = collapse;
@@ -5354,6 +5371,13 @@
     document.addEventListener('pointerdown', onDocDown, true);
     document.addEventListener('click', onDocClick, true);
     document.addEventListener('keydown', onKey, true);
+    // choosing a header is a MODE: every other editing affordance hides so
+    // the page is just the thing being chosen
+    document.body.classList.add('gogh-cycling');
+    sel = null;
+    hideHandles();
+    hideSecBar();
+    closePanel();
     cycBar.hidden = false;
     render();
     // the first click should already show something new — advance immediately
@@ -5436,23 +5460,29 @@
     chromePreview.hidden.forEach(function (c) { c.style.display = ''; });
     chromePreview = null;
   }
+  var prevStyleHandles = {}; // block stylesheets pulled in for previews
   function previewChromeLayout(partEl, opt, done) {
-    var url = opt.kind === 'pattern'
-      ? restQ(GSROOT + 'block-renderer/core/pattern', 'context=edit&attributes%5Bslug%5D=' + encodeURIComponent(opt.slug))
-      : restQ(GSROOT + 'block-renderer/core/template-part', 'context=edit' +
-        '&attributes%5Bslug%5D=' + encodeURIComponent(opt.slug) +
-        '&attributes%5Btheme%5D=' + encodeURIComponent(opt.theme));
-    fetch(url, {
-      headers: { 'X-WP-Nonce': cfg.nonce },
+    // gogh's own renderer: do_blocks output PLUS the generated layout CSS
+    // and block stylesheets — the core block-renderer returns bare markup
+    // that leaves navigations as bulleted lists
+    fetch(GSROOT.replace(/wp\/v2\/$/, '') + 'gogh/v1/render', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-WP-Nonce': cfg.nonce },
       credentials: 'same-origin',
+      body: JSON.stringify({ content: opt.content || '' }),
     }).then(function (r) {
       if (!r.ok) throw new Error('HTTP ' + r.status);
       return r.json();
     }).then(function (d) {
-      var tpl = document.createElement('template');
-      tpl.innerHTML = (d && d.rendered) || '';
-      var root = tpl.content.firstElementChild;
-      var inner = (root && root.classList && root.classList.contains('wp-block-template-part')) ? root.innerHTML : tpl.innerHTML;
+      (d.styles || []).forEach(function (href) {
+        if (prevStyleHandles[href]) return;
+        prevStyleHandles[href] = 1;
+        if (document.querySelector('link[href="' + href.replace(/"/g, '%22') + '"]')) return;
+        var lnk = document.createElement('link');
+        lnk.rel = 'stylesheet';
+        lnk.href = href;
+        document.head.appendChild(lnk);
+      });
       if (!chromePreview) {
         var hidden = [].slice.call(partEl.children);
         hidden.forEach(function (c) { c.style.display = 'none'; });
@@ -5461,7 +5491,7 @@
         partEl.appendChild(box);
         chromePreview = { partEl: partEl, box: box, hidden: hidden };
       }
-      chromePreview.box.innerHTML = inner;
+      chromePreview.box.innerHTML = (d.css ? '<style>' + d.css + '</style>' : '') + (d.html || '');
       if (done) done(true);
     }).catch(function () {
       toast('Could not preview that layout.', { error: true });
@@ -6135,7 +6165,11 @@
       b.dataset.tip = 'Click to flick through layouts';
       b.__goghPart = partEl;
       b.style.left = (r.right + window.scrollX - 10) + 'px';
-      b.style.top = (r.top + window.scrollY + 10) + 'px';
+      // the footer pill belongs at the footer's BOTTOM edge — its top is
+      // just "more page" when the footer is tall
+      b.style.top = (partEl.tagName === 'FOOTER'
+        ? r.bottom + window.scrollY - 42
+        : r.top + window.scrollY + 10) + 'px';
       b.addEventListener('click', function () {
         b.disabled = true;
         convertChrome(partEl).then(function (sec) { if (!sec) b.disabled = false; }).catch(function () {
