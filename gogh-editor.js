@@ -2256,10 +2256,20 @@
     };
     // Blank first (TEMPLATES lists it before the starters), then starters;
     // theme patterns append into the same grid when they arrive
-    var cards = TEMPLATES.map(function (tpl, t) {
+    var cardsArr = TEMPLATES.map(function (tpl, t) {
       if (tpl.retired) return '';
       return tplCardHTML(tpl, t);
-    }).join('');
+    });
+    // the bring-your-own row: scratch, paste, yours — three quiet tiles,
+    // three ways in that aren't somebody else's design. (Retired templates
+    // render as empty strings, so "after the blank" is by index, not 1.)
+    var blankAt = TEMPLATES.findIndex(function (t) { return !t.retired && !t.starter; });
+    cardsArr.splice(blankAt + 1, 0,
+      '<button type="button" class="gogh-card gogh-card-blank gogh-card-paste gogh-card-htmladd">' +
+      '<span class="gogh-card-prev"></span><span class="gogh-card-name">Paste HTML</span></button>',
+      '<button type="button" class="gogh-card gogh-card-blank gogh-card-yourstile">' +
+      '<span class="gogh-card-prev"></span><span class="gogh-card-name">Your sections</span></button>');
+    var cards = cardsArr.join('');
     picker.innerHTML =
       '<div class="gogh-picker-inner">' +
       '<div class="gogh-picker-head"><span class="gogh-picker-title">Add a section</span>' +
@@ -2268,7 +2278,6 @@
       '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><circle cx="10.5" cy="10.5" r="6.5"/><path d="M20 20l-4.6-4.6"/></svg>' +
       '<input type="text" class="gogh-patsearch" placeholder="Search\u2026" />' +
       '</label>' +
-      '<button type="button" class="gogh-htmllink gogh-card-htmladd">Paste HTML</button>' +
       '<button type="button" class="gogh-btn gogh-btn-small gogh-picker-close">Close</button>' +
       '</span></div>' +
       '<div class="gogh-patcats">' +
@@ -2321,10 +2330,15 @@
       if (ev.target === picker) closePicker();
     });
     picker.querySelectorAll('.gogh-card').forEach(function (card) {
+      if (card.dataset.tpl == null) return; // paste/yours tiles have their own jobs
       card.addEventListener('click', function () {
         addSection(TEMPLATES[+card.dataset.tpl], pickerIdx);
         closePicker();
       });
+    });
+    picker.querySelector('.gogh-card-yourstile').addEventListener('click', function () {
+      var chip = picker.querySelector('.gogh-patcat[data-cat="yours"]');
+      if (chip) chip.click(); // empty state falls through to the grid's hint
     });
     picker.querySelectorAll('.gogh-card-prev').forEach(function (p) {
       var st = p.querySelector('.gogh-card-stage');

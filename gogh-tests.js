@@ -1612,6 +1612,20 @@
       expect(q('.gogh-picker').hidden, 'picker did not close');
     });
 
+    // ---- picker: bring-your-own row of three quiet tiles ----
+    test('picker: scratch / paste / yours tiles share the first row', function () {
+      G.openPicker(G.sections().length);
+      var tiles = document.querySelectorAll('.gogh-cards .gogh-card-blank');
+      expect(tiles.length === 3, 'expected 3 quiet tiles, got ' + tiles.length);
+      expect(tiles[0].dataset.tpl != null, 'scratch tile lost its template');
+      expect(/Paste HTML/.test(tiles[1].textContent), 'paste tile missing');
+      expect(/Your sections/.test(tiles[2].textContent), 'yours tile missing');
+      q('.gogh-card-htmladd').click();
+      expect(q('.gogh-htmlpaste'), 'paste tile did not open the paste view');
+      q('.gogh-picker-close').click();
+      expect(q('.gogh-picker').hidden, 'picker did not close');
+    });
+
     // ---- shape element: palette flyout, back-of-stack insert, shipped CSS ----
     test('shapes: flyout inserts circle at the back with published CSS', function () {
       window.scrollTo(0, 0);
