@@ -1313,6 +1313,31 @@
       G.deleteSection(G.sections().indexOf(added));
     });
 
+    test('published paste converts with its own look (no flag needed)', function () {
+      // the convertBlock route: a paste that was published, reloaded, then
+      // converted — no freeHtml flag anywhere; free mode must be intrinsic
+      var inner = '<style>.pubhero h2{font-size:61px;color:#ff8866;font-family:Georgia,serif}</style>' +
+        '<div class="pubhero" style="background:#0b1f2a;padding:70px">' +
+        '<h2>Published paste</h2><p style="color:#bbddcc">Body text here.</p></div>';
+      var raw = '<!-- wp:group {"align":"full","layout":{"type":"default"}} -->\n' +
+        '<div class="wp-block-group alignfull">\n<!-- wp:html -->\n' + inner +
+        '\n<!-- /wp:html -->\n</div>\n<!-- /wp:group -->';
+      var host = document.createElement('div');
+      host.className = 'wp-block-group alignfull';
+      host.style.width = '1280px';
+      host.innerHTML = inner;
+      document.body.appendChild(host);
+      var scan = G.scan(host, raw, { loose: true, rootIsBlock: true });
+      host.remove();
+      var h = scan.els.filter(function (e) { return e.type === 'heading'; })[0];
+      expect(h, 'heading not atomized from published paste');
+      expect(h.tf && h.tf.fs === 61, 'stylesheet font size not captured: ' + JSON.stringify(h.tf));
+      expect(h.tf.ff && h.tf.ff.indexOf('Georgia') !== -1, 'stylesheet font family not captured');
+      expect(h.tf.col && h.tf.col.indexOf('255, 136, 102') !== -1, 'stylesheet colour not captured');
+      expect(scan.els.filter(function (e) { return e.type === 'box'; }).length, 'backdrop not captured as box');
+      expect(scan.els.filter(function (e) { return e.type === 'widget'; }).length === 0, 'content collapsed into a widget');
+    });
+
     test('header pill cycles layouts in place, click-off reverts', function () {
       var pill = q('.gogh-chromebtn');
       expect(pill, 'no chrome pill on the page');

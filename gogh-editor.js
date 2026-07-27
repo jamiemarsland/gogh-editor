@@ -5506,6 +5506,11 @@
     var sx = W / rr.width;
     var out = [];
     var styleTexts = []; // <style> tags in pasted HTML — rebundled into widgets
+    // free mode = we're inside raw pasted HTML (not wp blocks). It flips on
+    // INTRINSICALLY whenever the walk enters an html block or an arbitrary
+    // non-wp container, so published pastes and recovered pastes convert
+    // with their own look too — not only fresh ones carrying the flag.
+    var freeMode = !!opts.freeHtml;
     function place(dom, e) {
       var r = dom.getBoundingClientRect();
       if (r.width < 2 || r.height < 2) return;
@@ -5555,7 +5560,7 @@
         });
         if (best && px) e.fs = best.slug;
       }
-      if (opts.freeHtml) {
+      if (freeMode) {
         // pasted HTML keeps its own look: capture the real typography so the
         // converted element renders like the paste, not the theme. Theme
         // controls win the moment the user reaches for them (setters clear
@@ -5604,7 +5609,7 @@
           text: (dom.textContent || '').trim(),
           href: (bhref && bhref !== '#') ? bhref : null,
           ghost: bGhost };
-        if (opts.freeHtml) {
+        if (freeMode) {
           var btf = {};
           if (!bGhost) btf.bg = bbg;
           if (bcs.color) btf.col = bcs.color;
@@ -5696,7 +5701,11 @@
             !FREE_ATOMIC.test(tag) && !/^(H[1-6]|P|IMG|A|BUTTON|FIGURE|SVG)$/i.test(tag) &&
             c.children.length && !hasDirectText(c)) {
           boxFrom(c);
-          return walkDomOnly(c);
+          var fmC = freeMode;
+          freeMode = true;
+          walkDomOnly(c);
+          freeMode = fmC;
+          return;
         }
         leafFrom(c, null);
       });
@@ -5706,6 +5715,16 @@
       var kids = [].slice.call(containerDom.children).filter(function (c) {
         return !(c.classList && c.classList.contains('gogh-pendbar'));
       });
+      // a lone html block renders ALL these children (a paste's <style> +
+      // content roots) — span↔child pairing is meaningless, free-walk them
+      if (spans.length === 1 && kids.length &&
+          String(spans[0].name || '').replace(/^core\//, '') === 'html') {
+        var fmW = freeMode;
+        freeMode = true;
+        walkDomOnly(containerDom);
+        freeMode = fmW;
+        return;
+      }
       if (!spans.length || spans.length !== kids.length) {
         if (opts.loose) { walkDomOnly(containerDom); return; }
         // strict (chrome): capture the container whole so its blocks stay
@@ -5725,7 +5744,11 @@
           // raw HTML block: no inner block structure to pair — walk the DOM.
           // The root often paints the section's backdrop; keep it as a box.
           boxFrom(dom);
-          return walkDomOnly(dom);
+          var fmH = freeMode;
+          freeMode = true;
+          walkDomOnly(dom);
+          freeMode = fmH;
+          return;
         }
         if (nm === 'group' || nm === 'columns' || nm === 'column') {
           var inner = innerRawOf(rawText, sp);
@@ -5759,7 +5782,9 @@
         coverInto(rootEl, cInner0 ? cInner0.text : null);
       } else if (nm0 === 'html' && rootEl.children.length) {
         boxFrom(rootEl);
+        freeMode = true;
         walkDomOnly(rootEl);
+        freeMode = !!opts.freeHtml;
       } else if ((nm0 === 'group' || nm0 === 'columns' || nm0 === 'column') && rootEl.children.length) {
         // root background lifts to the section, not a box — callers handle it
         var inner0 = innerRawOf(raw, sp0);
