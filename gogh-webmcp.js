@@ -255,12 +255,41 @@
 
   var reg = {};
   TOOLS.forEach(function (t) { reg[t.name] = t; });
+  // every invocation is logged loudly: "is the agent REALLY using WebMCP,
+  // or just clicking around?" should be answerable from the console alone
+  var CALLS = [];
+  function logDone(t, args, via, ms, msg) {
+    CALLS.push({ tool: t.name, args: args || {}, via: via, ms: Math.round(ms), at: new Date().toISOString() });
+    console.info('%c[gogh] WebMCP call%c ' + t.name + ' (' + via + ', ' + Math.round(ms) + 'ms) → ' + String(msg).split('\n')[0],
+      'background:#e8b04b;color:#141519;padding:1px 6px;border-radius:4px;font-weight:700', '');
+  }
+  function logged(t, args, via) {
+    var t0 = performance.now();
+    return Promise.resolve()
+      .then(function () { return t.run(args || {}); })
+      .then(function (msg) {
+        logDone(t, args, via, performance.now() - t0, msg);
+        return msg;
+      });
+  }
   window.__goghMcp = {
     tools: reg,
+    calls: CALLS,
     call: function (name, args) {
       var t = reg[name];
       if (!t) throw new Error('unknown tool: ' + name);
-      return t.run(args || {});
+      // synchronous tools answer synchronously (the suite depends on it);
+      // only publish returns a promise
+      var t0 = performance.now();
+      var out = t.run(args || {});
+      if (out && typeof out.then === 'function') {
+        return out.then(function (msg) {
+          logDone(t, args, 'console', performance.now() - t0, msg);
+          return msg;
+        });
+      }
+      logDone(t, args, 'console', performance.now() - t0, out);
+      return out;
     },
   };
 
@@ -275,8 +304,7 @@
       description: t.description,
       inputSchema: t.schema,
       execute: function (args) {
-        return Promise.resolve()
-          .then(function () { return t.run(args || {}); })
+        return logged(t, args, 'webmcp')
           .then(function (msg) { return { content: [{ type: 'text', text: String(msg) }] }; })
           .catch(function (err) {
             return { content: [{ type: 'text', text: 'gogh error: ' + ((err && err.message) || err) }], isError: true };
