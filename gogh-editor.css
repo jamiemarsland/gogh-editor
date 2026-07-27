@@ -1415,10 +1415,12 @@ html.gogh-editing .gogh-mirror { display: flex; }
 }
 .gogh-chromebtn:hover { opacity: 1; }
 .gogh-chromebtn svg { display: block; }
-/* pills reveal on hover over their part — hidden the rest of the time */
+/* pills reveal on hover over their part — hidden the rest of the time
+   (the footpill selector must be named here too, or its own opacity rule
+   outranks the hide and the pill shows permanently) */
 @media (hover: hover) {
-  .gogh-chromebtn { opacity: 0; pointer-events: none; }
-  .gogh-chromebtn.is-vis { opacity: 0.9; pointer-events: auto; }
+  .gogh-chromebtn, .gogh-chromebtn.is-footpill { opacity: 0; pointer-events: none; }
+  .gogh-chromebtn.is-vis, .gogh-chromebtn.is-footpill.is-vis { opacity: 0.9; pointer-events: auto; }
   .gogh-chromebtn.is-vis:hover { opacity: 1; }
 }
 /* the footer pill lives at the bottom of the viewport, centred — always
@@ -1430,7 +1432,6 @@ html.gogh-editing .gogh-mirror { display: flex; }
   bottom: 18px;
   transform: translateX(-50%);
   z-index: 99998;
-  opacity: 0.95;
 }
 
 /* gogh-pended = a pending that published: IDENTICAL presentation, so the

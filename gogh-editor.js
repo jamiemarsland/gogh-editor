@@ -6387,6 +6387,14 @@
     chromeBtns.forEach(function (b) {
       var over = b.contains(ev.target) ||
         (b.__goghPart && b.__goghPart.contains(ev.target));
+      // the footer pill is viewport-fixed: while the footer is on screen,
+      // the bottom edge of the screen counts as hovering it — otherwise
+      // the pointer can never reach the pill across the gap
+      if (!over && b.classList.contains('is-footpill') && b.__goghPart) {
+        var fr = b.__goghPart.getBoundingClientRect();
+        var onScreen = fr.top < window.innerHeight && fr.bottom > 0;
+        over = onScreen && ev.clientY > window.innerHeight - 120;
+      }
       b.classList.toggle('is-vis', over);
     });
   });
