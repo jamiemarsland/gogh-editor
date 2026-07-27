@@ -3686,6 +3686,10 @@
   document.body.appendChild(zoomTab);
   function closeZoom() { zoomOv.hidden = true; }
   zoomOv.querySelector('.gogh-zoom-close').addEventListener('click', closeZoom);
+  // clicking the backdrop (anywhere off the cards) also closes
+  zoomOv.addEventListener('pointerdown', function (ev) {
+    if (ev.target === zoomOv || ev.target.classList.contains('gogh-zoom-col')) closeZoom();
+  });
   document.addEventListener('keydown', function (ev) {
     if (ev.key === 'Escape' && !zoomOv.hidden) { closeZoom(); ev.stopPropagation(); }
   }, true);
