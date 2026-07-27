@@ -2613,7 +2613,6 @@
   // ---------- section operations ----------
   function deleteSection(idx) {
     if (!S[idx] || S[idx].chrome) return;
-    if (S.filter(function (s) { return !s.chrome; }).length <= 1) return;
     var st = S[idx].srcSig && convertStash[S[idx].srcSig];
     S[idx].wrapEl.remove();
     S[idx].styleEl.remove();
@@ -2625,6 +2624,20 @@
     hideHbar();
     closePanel();
     hideSecBar();
+    // deleting the LAST section is allowed: the page goes blank, an unsaved
+    // placeholder becomes the canvas (same as booting an empty page), and
+    // the picker opens so there's an obvious next step. Undo still works.
+    if (!S.filter(function (s) { return !s.chrome; }).length && !pendingBlocks.length) {
+      var ph = newSectionShell('gogh-sec-' + (scopeSeq++));
+      ph.bootstrap = true;
+      pageParent.insertBefore(ph.wrapEl, endMarker);
+      S.splice(clampInsertIdx(S.length), 0, ph);
+      renderSection(ph);
+      resolveAll();
+      pushState();
+      openPicker(S.indexOf(ph));
+      return;
+    }
     resolveAll();
     pushState();
   }
@@ -2708,7 +2721,7 @@
     S.forEach(function (s, k) { if (!s.chrome) contentIdxs.push(k); });
     secBar.querySelector('[data-sec="up"]').disabled = idx === contentIdxs[0];
     secBar.querySelector('[data-sec="down"]').disabled = idx === contentIdxs[contentIdxs.length - 1];
-    secBar.querySelector('[data-sec="del"]').disabled = contentIdxs.length <= 1;
+    secBar.querySelector('[data-sec="del"]').disabled = false;
     secBar.hidden = false;
     // don't sit on the Edit header/footer pill — duck below it
     var sr = secBar.getBoundingClientRect();

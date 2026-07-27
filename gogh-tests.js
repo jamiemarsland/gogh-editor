@@ -752,6 +752,22 @@
       expect(G.sections().length === s0, 'undo did not restore section');
     });
 
+    test('deleting the last section blanks the page, opens picker, undoes', function () {
+      var content = function () { return G.sections().filter(function (s) { return !s.chrome; }); };
+      while (content().length > 1) {
+        G.deleteSection(G.sections().indexOf(content()[content().length - 1]));
+      }
+      var els0 = content()[0].els.length;
+      G.deleteSection(G.sections().indexOf(content()[0]));
+      var left = content();
+      expect(left.length === 1 && left[0].bootstrap && !left[0].els.length,
+        'expected one empty placeholder canvas, got ' + left.length);
+      expect(!q('.gogh-picker').hidden, 'picker did not open on blank page');
+      q('.gogh-picker-close').click();
+      q('.gogh-undo').click();
+      expect(content().length >= 1 && content()[0].els.length === els0, 'undo did not restore the section');
+    });
+
     // ---- 18. section ops: duplicate ----
     test('duplicate section copies model with fresh scope', function () {
       var s0 = G.sections().length;
