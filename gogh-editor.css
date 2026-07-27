@@ -1060,6 +1060,15 @@
 /* wp-emoji swaps the ✨ text for an <img> — keep it chip-sized */
 .gogh-cycbar img.emoji { width: 13px; height: 13px; margin: 0; }
 .gogh-cycbar.is-busy .gogh-cyc-hint { opacity: 0.3; }
+/* running build, readable at a glance in the palette header */
+.gogh-buildtag {
+  font-style: normal;
+  font-size: 9.5px;
+  font-weight: 500;
+  opacity: 0.4;
+  margin-left: 7px;
+  letter-spacing: 0.02em;
+}
 /* cycling is a MODE: while choosing a header/footer, every other editing
    affordance gets out of the way */
 .gogh-cycling .gogh-side, .gogh-cycling .gogh-side-tab,

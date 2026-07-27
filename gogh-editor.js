@@ -937,7 +937,7 @@
   side.hidden = true;
   side.innerHTML =
     '<div class="gogh-side-head">' +
-    '<span class="gogh-side-title">gogh</span>' +
+    '<span class="gogh-side-title">gogh<em class="gogh-buildtag"></em></span>' +
     '<button type="button" class="gogh-sbtn gogh-stylebtn" title="Site style">' +
     '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M12 3a9 9 0 1 0 0 18h1.5a2.5 2.5 0 0 0 1.8-4.2 2.5 2.5 0 0 1 1.8-4.3H20a9 9 0 0 0-8-9.5Z"/><circle cx="7.5" cy="11" r="1.2" fill="currentColor" stroke="none"/><circle cx="10.5" cy="7.5" r="1.2" fill="currentColor" stroke="none"/><circle cx="15" cy="7.5" r="1.2" fill="currentColor" stroke="none"/></svg>' +
     '</button>' +
@@ -4215,6 +4215,8 @@
   var GOGH_BUILD = (document.querySelector('script[src*="gogh-editor.js"]') || { src: '' }).src.split('ver=')[1] || 'dev';
   window.__gogh.build = GOGH_BUILD;
   sideTab.title = 'gogh ' + GOGH_BUILD;
+  var buildTag = side.querySelector('.gogh-buildtag');
+  if (buildTag) buildTag.textContent = GOGH_BUILD.replace('-chrome', '');
   try { console.info('[gogh] ' + GOGH_BUILD); } catch (e0) {}
   document.dispatchEvent(new CustomEvent('gogh:ready'));
 
