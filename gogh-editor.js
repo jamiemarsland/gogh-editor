@@ -3138,6 +3138,18 @@
     var e = sec.els[i];
     var node = sec.nodes[i];
     var r = node.getBoundingClientRect();
+    // a rotated element's client rect is its INFLATED bounding box — sizing
+    // the ghost to it stretches the clone, and the scoped rotate then spins
+    // that inflated copy into the 'two badges' weirdness. Use the true
+    // unrotated size, centred where the element's centre is (rotation-safe).
+    var gL = r.left, gT = r.top, gW = r.width, gH = r.height;
+    if (e.rot) {
+      var gs = scaleOf(sec);
+      gW = e.w * gs;
+      gH = e.h * gs;
+      gL = r.left + (r.width - gW) / 2;
+      gT = r.top + (r.height - gH) / 2;
+    }
     // ghost rides inside a wrapper carrying the section's scope classes so
     // the scoped element styles (colours, fonts) apply outside the section
     var inner = node.cloneNode(true);
@@ -3148,12 +3160,12 @@
     inner.style.height = '100%';
     ghost = document.createElement('div');
     ghost.className = 'gogh-wrap gogh-section ' + sec.scope + ' gogh-ghostel';
-    ghost.style.cssText = 'position:fixed;display:block;background:transparent;container-type:normal;left:' + r.left + 'px;top:' + r.top + 'px;width:' + r.width + 'px;height:' + r.height + 'px;';
+    ghost.style.cssText = 'position:fixed;display:block;background:transparent;container-type:normal;left:' + gL + 'px;top:' + gT + 'px;width:' + gW + 'px;height:' + gH + 'px;';
     ghost.appendChild(inner);
     document.body.appendChild(ghost);
     node.classList.add('gogh-dragsrc');
     dropBox.hidden = false;
-    drag = { sec: sec, i: i, px: ev.clientX, py: ev.clientY, x: e.x, y: e.y, gx: r.left, gy: r.top };
+    drag = { sec: sec, i: i, px: ev.clientX, py: ev.clientY, x: e.x, y: e.y, gx: gL, gy: gT };
     if (multiSel && multiSel.sec === sec && multiSel.idxs.indexOf(i) !== -1) {
       drag.multi = multiSel.idxs.filter(function (j) { return j !== i; }).map(function (j) {
         return { j: j, x: sec.els[j].x, y: sec.els[j].y };

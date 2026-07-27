@@ -737,6 +737,29 @@
       expect(sec().styleEl.textContent.indexOf('rotate(' + e.rot + 'deg)') !== -1, 'transform missing from CSS');
     });
 
+    test('rotated element: drag ghost keeps true size, drop is faithful', function () {
+      var i = findIdx('badge');
+      if (i === -1) return 'no badge in fixture';
+      var e = sec().els[i];
+      e.rot = 30;
+      G.renderSection(sec());
+      select(i);
+      var grip = q('.gogh-grip');
+      var gr = grip.getBoundingClientRect();
+      pev('pointerdown', grip, gr.x + 2, gr.y + 2, 23);
+      var ghost = q('.gogh-ghostel');
+      expect(ghost, 'no drag ghost');
+      var sw = sec().sectionEl.getBoundingClientRect().width / 1200;
+      var gw = ghost.getBoundingClientRect().width;
+      // bbox of a 30° badge is ~15-25% wider than the element — the ghost
+      // must carry the TRUE size, not the inflated box
+      expect(Math.abs(gw - e.w * sw) < 4, 'ghost width ' + Math.round(gw) + ' vs element ' + Math.round(e.w * sw));
+      var x0 = e.x;
+      pev('pointermove', grip, gr.x + 82, gr.y + 2, 23);
+      pev('pointerup', grip, gr.x + 82, gr.y + 2, 23);
+      expect(Math.abs((e.x - x0) - 80 / sw) < 24, 'rotated drag drifted: moved ' + Math.round(e.x - x0) + ' for 80px');
+    });
+
     // ---- 17. section ops: delete + undo ----
     test('delete section + undo restores it', function () {
       G.addSection(G.templates()[3], G.sections().length);
