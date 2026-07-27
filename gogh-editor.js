@@ -2148,7 +2148,7 @@
       '</span></div>' +
       '<div class="gogh-patsearchrow" hidden><input type="text" class="gogh-input gogh-patsearch" placeholder="Find a section\u2026" /></div>' +
       '<div class="gogh-patcats">' +
-      '<button type="button" class="gogh-patcat is-active" data-cat="">All</button>' +
+      '<button type="button" class="gogh-patcat is-active" data-cat="">Layouts</button>' +
       '<button type="button" class="gogh-patcat" data-cat="yours" hidden>\u2764 Yours</button>' +
       BUCKETS.map(function (bu) {
         return '<button type="button" class="gogh-patcat" data-cat="' + bu.key + '">' + bu.label + '</button>';
@@ -2216,6 +2216,10 @@
         var ok;
         if (b.classList.contains('gogh-card-blank')) {
           ok = !activeCat && !query;
+        } else if (!activeCat && !query) {
+          // first screen: just gogh's own layouts, one calm curated shelf —
+          // theme patterns and saved sections live behind chips and search
+          ok = b.dataset.tpl != null;
         } else {
           var cats = (b.dataset.cats || '').split(' ');
           var name = ((b.querySelector('.gogh-card-name') || {}).textContent || '').toLowerCase();

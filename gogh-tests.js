@@ -1237,6 +1237,7 @@
       expect(blank.closest('.gogh-cards'), 'blank card not in the one grid');
       var chips = document.querySelectorAll('.gogh-patcats .gogh-patcat');
       expect(chips.length >= 6, 'chip row missing, got ' + chips.length);
+      expect(q('.gogh-patcat[data-cat=""]').textContent === 'Layouts', 'default chip not Layouts');
       var yoursChip = q('.gogh-patcat[data-cat="yours"]');
       expect(yoursChip, 'yours chip missing');
       var cardByName = function (nm) {
