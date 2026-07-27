@@ -1298,6 +1298,17 @@
       expect(w && w.whtml.indexOf('<svg') !== -1, 'svg not kept as a widget');
       expect(w.whtml.indexOf('<style>') === 0 && w.whtml.indexOf('.pastedwrap') !== -1, 'pasted <style> not bundled with the widget');
       expect(added.els.length >= 5, 'expected 5+ elements, got ' + added.els.length);
+      // the paste keeps its own look: captured typography, not theme presets
+      var h = byType('heading')[0];
+      expect(h.tf && h.tf.col && h.tf.col.indexOf('255, 255, 255') !== -1, 'heading colour not captured: ' + JSON.stringify(h.tf));
+      expect(h.tf.fs > 0, 'heading font size not captured');
+      expect(added.styleEl.textContent.indexOf('font-size: ' + h.tf.fs + 'px !important') !== -1, 'captured size not in section CSS');
+      expect(btn.tf && btn.tf.bg && btn.tf.bg.indexOf('255, 255, 255') !== -1, 'button background not captured');
+      // theme controls win once used: picking a preset size clears the override
+      G.setFontSize(added, added.els.indexOf(h), 'large');
+      expect(!h.tf.fs, 'preset size did not clear the captured size');
+      expect(added.styleEl.textContent.indexOf('px !important') === -1 ||
+        added.styleEl.textContent.indexOf('font-size: ' + h.tf.fs + 'px') === -1, 'stale size override in CSS');
       G.deleteSection(G.sections().indexOf(added));
     });
 

@@ -425,6 +425,27 @@
       }
       if (e.rot) extra += ' transform: rotate(' + e.rot + 'deg);';
       if ((e.align === 'center' || e.align === 'right') && (e.type === 'heading' || e.type === 'para')) extra += ' text-align: ' + e.align + ';';
+      if (e.tf) {
+        // captured look of pasted HTML: emitted after the theme's presets so
+        // the paste wins until the user picks a theme size/colour (which
+        // clears the matching field)
+        var tfd = [];
+        if (e.tf.ff) tfd.push('font-family: ' + e.tf.ff);
+        if (e.tf.fs) tfd.push('font-size: ' + e.tf.fs + 'px !important');
+        if (e.tf.fw) tfd.push('font-weight: ' + e.tf.fw);
+        if (e.tf.fst) tfd.push('font-style: ' + e.tf.fst);
+        if (e.tf.lh) tfd.push('line-height: ' + e.tf.lh);
+        if (e.tf.ls) tfd.push('letter-spacing: ' + e.tf.ls + 'px');
+        if (e.tf.tt) tfd.push('text-transform: ' + e.tf.tt);
+        if (e.tf.col) tfd.push('color: ' + e.tf.col + ' !important');
+        if (e.tf.bg) tfd.push('background: ' + e.tf.bg + ' !important');
+        if (e.tf.rad != null) tfd.push('border-radius: ' + e.tf.rad + 'px');
+        if (tfd.length) {
+          out.push(sec + ' .gogh-el-' + (i + 1) +
+            (e.type === 'button' ? ' .wp-block-button__link' : '') +
+            ' { ' + tfd.join('; ') + '; }');
+        }
+      }
       if (e.type === 'button' && e.btnHover) {
         out.push(sec + ' .gogh-el-' + (i + 1) + ' .wp-block-button__link:hover { background-color: var(--wp--preset--color--' + e.btnHover + ') !important; }');
       }
@@ -489,7 +510,7 @@
       text: e.text || null, ghost: !!e.ghost, cool: !!e.cool,
       src: e.src || null, href: e.href || null, rot: e.rot || 0,
       alt: e.alt || null, mediaId: e.mediaId || null, fs: e.fs || null,
-      align: e.align || null, color: e.color || null,
+      align: e.align || null, color: e.color || null, tf: e.tf || null,
       btnBg: e.btnBg || null, btnText: e.btnText || null, btnHover: e.btnHover || null,
       wsrc: e.wsrc || null, whtml: e.whtml || null,
       boxBg: e.boxBg || null, radius: e.radius || 0 };
@@ -1059,6 +1080,7 @@
     var e = sec.els[i];
     if (!isText(e)) return;
     e.fs = slug || null;
+    if (e.tf) { delete e.tf.fs; delete e.tf.lh; }
     var oldH = e.h;
     renderSection(sec);
     measureTextHeights(sec);
@@ -1089,6 +1111,7 @@
     var next = Math.max(0, Math.min(order.length - 1, idx + delta));
     if (order[next] === (e.fs || null)) return;
     e.fs = order[next];
+    if (e.tf) { delete e.tf.fs; delete e.tf.lh; }
     var oldH = e.h;
     renderSection(sec);
     measureTextHeights(sec);
@@ -1115,33 +1138,6 @@
     }
     return out;
   }
-  function cssToRgb(v) {
-    v = (v || '').trim();
-    var m = v.match(/^#([0-9a-f]{3}|[0-9a-f]{6})$/i);
-    if (m) {
-      var h = m[1];
-      if (h.length === 3) h = h[0] + h[0] + h[1] + h[1] + h[2] + h[2];
-      return [parseInt(h.slice(0, 2), 16), parseInt(h.slice(2, 4), 16), parseInt(h.slice(4, 6), 16)];
-    }
-    m = v.match(/^rgba?\(\s*([\d.]+)[,\s]+([\d.]+)[,\s]+([\d.]+)/);
-    return m ? [+m[1], +m[2], +m[3]] : null;
-  }
-  // pasted HTML carries literal colours; gogh elements speak theme slugs —
-  // snap to the nearest palette colour so converted text stays visible
-  // (white-on-dark maps to the theme's lightest, not the default ink)
-  function nearestPaletteSlug(cssColor) {
-    var rgb = cssToRgb(cssColor);
-    if (!rgb) return null;
-    var best = null, bestD = Infinity;
-    themePalette().forEach(function (p) {
-      var prgb = cssToRgb(p.value);
-      if (!prgb) return;
-      var d = Math.pow(prgb[0] - rgb[0], 2) + Math.pow(prgb[1] - rgb[1], 2) + Math.pow(prgb[2] - rgb[2], 2);
-      if (d < bestD) { bestD = d; best = p.slug; }
-    });
-    return best;
-  }
-
   var guideV = document.createElement('div');
   var guideH = document.createElement('div');
   guideV.className = 'gogh-guide gogh-guide-v';
@@ -1575,6 +1571,10 @@
       row.querySelectorAll('.gogh-sw').forEach(function (swBtn) {
         swBtn.addEventListener('click', function () {
           e[key] = swBtn.dataset.col || null;
+          if (e.tf) {
+            if (key === 'btnBg') delete e.tf.bg;
+            if (key === 'btnText') delete e.tf.col;
+          }
           reapply();
         });
       });
@@ -1734,6 +1734,7 @@
     panel.querySelectorAll('.gogh-sw').forEach(function (swBtn) {
       swBtn.addEventListener('click', function () {
         e.color = swBtn.dataset.col || null;
+        if (e.tf) delete e.tf.col;
         renderSection(sec);
         placeHandles(sec, i);
         closePanel();
@@ -2951,12 +2952,7 @@
         };
         return '<div class="gogh-panel-title" style="margin-top:12px">Theme palette</div>' + sw('above') + sw('below');
       })() +
-      '<div class="gogh-panel-title" style="margin-top:12px">How the next section arrives</div>' +
-      '<div class="gogh-panel-row gogh-fxrow">' +
-      '<button type="button" class="gogh-btn gogh-btn-small gogh-fxbtn" data-fx="reveal" data-tip="Content rises in as you scroll \u2014 plays on the published page">\u2191 Rise on scroll</button>' +
-      '<button type="button" class="gogh-btn gogh-btn-small gogh-fxbtn" data-fx="curtain" data-tip="The section slides up over the one above">\u2195 Slide over</button>' +
-      '</div>' +
-      '<label class="gogh-fxpull">Overlap the section above' +
+      '<label class="gogh-fxpull" style="margin-top:12px">Overlap the section above' +
       '<input type="range" class="gogh-pull" min="0" max="180" step="12" /></label>';
     var r = { top: (S[idx - 1].wrapEl.getBoundingClientRect().bottom + window.scrollY) };
     shapePanel.style.left = 'calc(50% - 170px)';
@@ -2993,26 +2989,9 @@
         pushState();
       });
     });
-    var syncFxUI = function () {
-      var fx = below.fx || {};
-      shapePanel.querySelectorAll('.gogh-fxbtn').forEach(function (b) {
-        b.classList.toggle('is-active', !!fx[b.dataset.fx]);
-      });
-      shapePanel.querySelector('.gogh-pull').value = fx.pull || 0;
-    };
-    syncFxUI();
-    shapePanel.querySelectorAll('.gogh-fxbtn').forEach(function (b) {
-      b.addEventListener('click', function () {
-        below.fx = below.fx || {};
-        below.fx[b.dataset.fx] = !below.fx[b.dataset.fx];
-        if (b.dataset.fx === 'reveal' && below.fx.reveal) {
-          toast('Rise on scroll plays on the published page \u2014 not while editing.', { ttl: 5000 });
-        }
-        resolveAll();
-        pushState();
-        syncFxUI();
-      });
-    });
+    // reveal/curtain UI removed for simplicity \u2014 existing sections that
+    // carry those flags still render them (published pages stay intact)
+    shapePanel.querySelector('.gogh-pull').value = (below.fx && below.fx.pull) || 0;
     var pullInp = shapePanel.querySelector('.gogh-pull');
     pullInp.addEventListener('input', function () {
       below.fx = below.fx || {};
@@ -5572,10 +5551,29 @@
         });
         if (best && px) e.fs = best.slug;
       }
-      if (!e.color && opts.freeHtml) {
-        // no theme class to read — snap the computed colour to the palette
-        var slug = nearestPaletteSlug(getComputedStyle(dom).color);
-        if (slug) e.color = slug;
+      if (opts.freeHtml) {
+        // pasted HTML keeps its own look: capture the real typography so the
+        // converted element renders like the paste, not the theme. Theme
+        // controls win the moment the user reaches for them (setters clear
+        // the matching override).
+        var tcs = getComputedStyle(dom);
+        var tf = {};
+        if (tcs.fontFamily) tf.ff = tcs.fontFamily;
+        var fpx = parseFloat(tcs.fontSize);
+        if (fpx) tf.fs = Math.round(fpx * 100) / 100;
+        if (tcs.fontWeight && tcs.fontWeight !== '400') tf.fw = tcs.fontWeight;
+        if (tcs.fontStyle && tcs.fontStyle !== 'normal') tf.fst = tcs.fontStyle;
+        var lhp = parseFloat(tcs.lineHeight);
+        if (lhp && fpx) tf.lh = Math.round(lhp / fpx * 100) / 100;
+        var lsp = parseFloat(tcs.letterSpacing);
+        if (lsp) tf.ls = Math.round(lsp * 100) / 100;
+        if (tcs.textTransform && tcs.textTransform !== 'none') tf.tt = tcs.textTransform;
+        if (tcs.color) tf.col = tcs.color;
+        e.tf = tf;
+        if (!e.align) {
+          var ta = tcs.textAlign;
+          if (ta === 'center' || ta === 'right') e.align = ta;
+        }
       }
       return e;
     }
@@ -5595,13 +5593,26 @@
       }
       if ((tag === 'A' || tag === 'BUTTON') && looksLikeButton(dom)) {
         var bhref = tag === 'A' ? dom.getAttribute('href') : null;
-        return place(dom, { type: 'button',
+        var bcs = getComputedStyle(dom);
+        var bbg = bcs.backgroundColor;
+        var bGhost = (!bbg || bbg === 'rgba(0, 0, 0, 0)' || bbg === 'transparent');
+        var be = { type: 'button',
           text: (dom.textContent || '').trim(),
           href: (bhref && bhref !== '#') ? bhref : null,
-          ghost: (function (cs2) {
-            var bgc2 = cs2.backgroundColor;
-            return (!bgc2 || bgc2 === 'rgba(0, 0, 0, 0)' || bgc2 === 'transparent');
-          })(getComputedStyle(dom)) });
+          ghost: bGhost };
+        if (opts.freeHtml) {
+          var btf = {};
+          if (!bGhost) btf.bg = bbg;
+          if (bcs.color) btf.col = bcs.color;
+          var brad = parseFloat(bcs.borderTopLeftRadius);
+          if (brad) btf.rad = Math.round(brad);
+          var bfpx = parseFloat(bcs.fontSize);
+          if (bfpx) btf.fs = Math.round(bfpx * 100) / 100;
+          if (bcs.fontWeight && bcs.fontWeight !== '400') btf.fw = bcs.fontWeight;
+          if (bcs.fontFamily) btf.ff = bcs.fontFamily;
+          be.tf = btf;
+        }
+        return place(dom, be);
       }
       if (tag === 'FIGURE' && cl.contains('wp-block-image')) {
         var img = dom.querySelector('img');

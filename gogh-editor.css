@@ -1104,8 +1104,6 @@
   background: linear-gradient(to bottom, transparent, #aac6ff);
   opacity: 0.8;
 }
-.gogh-fxrow { gap: 8px; }
-.gogh-fxbtn.is-active { background: #7ea8ff; color: #141519; border-color: transparent; }
 .gogh-fxpull {
   display: flex;
   align-items: center;
