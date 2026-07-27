@@ -4867,11 +4867,14 @@
     // a real core HTML block inside a FULL-WIDTH group: pasted HTML owns the
     // whole canvas (its own CSS decides any constraints), in the editor and
     // on the published page alike
-    var raw = '<!-- wp:group {"align":"full","layout":{"type":"default"}} -->\n' +
-      '<div class="wp-block-group alignfull">\n' +
+    // zero vertical margins on the wrapper: pasted sections butt against
+    // their neighbours on the PUBLISHED page too, not just in the editor —
+    // the theme's block-gap would otherwise show as a band between them
+    var raw = '<!-- wp:group {"align":"full","style":{"spacing":{"margin":{"top":"0","bottom":"0"}}},"layout":{"type":"default"}} -->\n' +
+      '<div class="wp-block-group alignfull" style="margin-top:0;margin-bottom:0">\n' +
       '<!-- wp:html -->\n' + html + '\n<!-- /wp:html -->\n' +
       '</div>\n<!-- /wp:group -->';
-    var entry = insertNative(raw, '<div class="wp-block-group alignfull">' + html + '</div>', 'HTML', idx);
+    var entry = insertNative(raw, '<div class="wp-block-group alignfull" style="margin-top:0;margin-bottom:0">' + html + '</div>', 'HTML', idx);
     if (entry) entry.freeHtml = true;
   }
   // frictionless paste: Cmd+V anywhere in edit mode drops HTML straight onto

@@ -1363,6 +1363,10 @@
       G.addHtmlSection(mk('One'), null);
       G.addHtmlSection(mk('Two'), null);
       var P = G.pending();
+      // even BEFORE converting, pasted sections butt: no block-gap band
+      var pa = P[P.length - 2].el.getBoundingClientRect();
+      var pb = P[P.length - 1].el.getBoundingClientRect();
+      expect(Math.abs(pb.top - pa.bottom) <= 2, 'pending pastes do not butt: gap ' + Math.round(pb.top - pa.bottom));
       P[P.length - 2].el.querySelector('.gogh-pend-ff').click();
       G.pending()[G.pending().length - 1].el.querySelector('.gogh-pend-ff').click();
       var S2 = G.sections();

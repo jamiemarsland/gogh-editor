@@ -1335,6 +1335,9 @@ html.gogh-editing .gogh-mirror { display: flex; }
   transform: translateX(-50%);
   margin-left: 0 !important;
   margin-right: 0 !important;
+  /* sections butt like gogh sections do — the theme's block-gap margin
+     otherwise shows as a page-background band between dark pastes */
+  margin-block: 0 !important;
 }
 .gogh-pendbar {
   position: absolute;
