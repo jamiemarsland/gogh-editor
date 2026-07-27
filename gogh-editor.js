@@ -5028,10 +5028,21 @@
         pickPendingImage(entry, img);
         return;
       }
+      var soc = ev.target.closest && ev.target.closest('.wp-block-social-link');
+      if (soc) {
+        ev.preventDefault();
+        editSocialLink(entry, soc);
+        return;
+      }
       var btnLink = ev.target.closest && ev.target.closest('.wp-block-button__link, .wp-element-button');
       if (btnLink && !btnLink.closest('.gogh-pendbar') && leafOf(btnLink)) {
         ev.preventDefault();
         editPendingLink(entry, btnLink, leafOf(btnLink), syncLeaf);
+        return;
+      }
+      // a plain text link inside editable text: edit or remove it
+      if (a && !a.closest('.gogh-pendbar') && leafOf(a)) {
+        editTextLink(entry, a, leafOf(a), syncLeaf);
         return;
       }
       var t = ev.target.closest &&
@@ -5059,16 +5070,119 @@
         var selObj = window.getSelection();
         if (!selObj.rangeCount || selObj.isCollapsed) return;
         var range = selObj.getRangeAt(0).cloneRange();
-        var url = window.prompt('Link this text to\u2026', 'https://');
-        if (url && url !== 'https://') {
+        var edEl = activeEd.el;
+        // gogh's own panel, never window.prompt \u2014 Chrome can mute native
+        // dialogs in long-lived tabs
+        openLinkCreatePanel(edEl, function (url) {
           selObj.removeAllRanges();
           selObj.addRange(range);
           try { document.execCommand('createLink', false, url); } catch (err) {}
-          var leaf = leafOf(activeEd.el);
+          var leaf = leafOf(edEl);
           if (leaf) syncLeaf(leaf);
-        }
+        });
       }
     });
+  }
+  function openLinkCreatePanel(nearEl, apply) {
+    placePanelNear(nearEl);
+    panel.innerHTML =
+      '<div class="gogh-panel-title">Link the selected text</div>' +
+      '<div class="gogh-panel-row">' +
+      '<input type="url" class="gogh-input gogh-linkurl" placeholder="https://" />' +
+      '<button type="button" class="gogh-btn gogh-btn-small gogh-apply">Link</button>' +
+      '</div>';
+    panel.hidden = false;
+    panelOpen = true;
+    var inp = panel.querySelector('.gogh-linkurl');
+    inp.focus();
+    var go = function () {
+      var v = inp.value.trim();
+      if (!v || v === 'https://') return;
+      closePanel();
+      apply(v);
+    };
+    panel.querySelector('.gogh-apply').addEventListener('click', go);
+    inp.addEventListener('keydown', function (e2) { if (e2.key === 'Enter') go(); });
+  }
+  function editTextLink(entry, aEl, leaf, sync) {
+    placePanelNear(aEl);
+    panel.innerHTML =
+      '<div class="gogh-panel-title">Link</div>' +
+      '<div class="gogh-panel-row">' +
+      '<input type="url" class="gogh-input gogh-linkurl" placeholder="https://" />' +
+      '<button type="button" class="gogh-btn gogh-btn-small gogh-apply">Apply</button>' +
+      '</div>' +
+      '<div class="gogh-panel-row">' +
+      '<button type="button" class="gogh-btn gogh-btn-small gogh-unlink">Remove link (keep the text)</button>' +
+      '</div>';
+    panel.hidden = false;
+    panelOpen = true;
+    var inp = panel.querySelector('.gogh-linkurl');
+    inp.value = aEl.getAttribute('href') || '';
+    var apply = function () {
+      var v = inp.value.trim();
+      if (v) aEl.setAttribute('href', v);
+      sync(leaf);
+      closePanel();
+      toast('Link updated.');
+    };
+    panel.querySelector('.gogh-apply').addEventListener('click', apply);
+    inp.addEventListener('keydown', function (e2) { if (e2.key === 'Enter') apply(); });
+    panel.querySelector('.gogh-unlink').addEventListener('click', function () {
+      aEl.replaceWith(document.createTextNode(aEl.textContent || ''));
+      sync(leaf);
+      closePanel();
+      toast('Link removed — the text stays.');
+    });
+  }
+  function editSocialLink(entry, li) {
+    var m = (li.className + '').match(/wp-social-link-([a-z0-9_-]+)/);
+    var service = m ? m[1] : null;
+    if (!service) { toast('gogh couldn’t identify that icon.', { error: true }); return; }
+    var re = /<!--\s*wp:social-link\s*({[\s\S]*?})\s*\/-->/g;
+    var hits = [];
+    var mm;
+    while ((mm = re.exec(entry.raw))) {
+      try {
+        var at = JSON.parse(mm[1]);
+        if (at.service === service) hits.push({ start: mm.index, end: re.lastIndex, attrs: at });
+      } catch (e2) {}
+    }
+    var same = [].slice.call(entry.el.querySelectorAll('.wp-social-link-' + service));
+    var hit = hits[Math.max(0, same.indexOf(li))] || hits[0];
+    if (!hit) { toast('gogh couldn’t find that icon in the stored markup.', { error: true }); return; }
+    placePanelNear(li);
+    panel.innerHTML =
+      '<div class="gogh-panel-title">' + service.charAt(0).toUpperCase() + service.slice(1) + ' link</div>' +
+      '<div class="gogh-panel-row">' +
+      '<input type="url" class="gogh-input gogh-linkurl" placeholder="https://" />' +
+      '<button type="button" class="gogh-btn gogh-btn-small gogh-apply">Apply</button>' +
+      '</div>';
+    panel.hidden = false;
+    panelOpen = true;
+    var inp = panel.querySelector('.gogh-linkurl');
+    inp.value = hit.attrs.url || '';
+    inp.focus();
+    var apply = function () {
+      var v = inp.value.trim();
+      if (!v) return;
+      hit.attrs.url = v;
+      var next = '<!-- wp:social-link ' + JSON.stringify(hit.attrs) + ' /-->';
+      var delta = next.length - (hit.end - hit.start);
+      entry.raw = entry.raw.slice(0, hit.start) + next + entry.raw.slice(hit.end);
+      // keep every leaf's offsets honest around the splice
+      entry.map.forEach(function (l) {
+        if (l.s >= hit.end) { l.s += delta; l.e += delta; }
+        else if (l.e > hit.start) { l.e += delta; }
+      });
+      var aa = li.querySelector('a');
+      if (aa) aa.setAttribute('href', v);
+      refreshChip();
+      closePanel();
+      toast('Icon link updated.');
+    };
+    panel.querySelector('.gogh-apply').addEventListener('click', apply);
+    inp.addEventListener('keydown', function (e2) { if (e2.key === 'Enter') apply(); });
   }
   function editPendingLink(entry, aEl, leaf, syncLeaf) {
     placePanelNear(aEl);
@@ -6269,7 +6383,7 @@
       if (a && a.href) {
         try { path = new URL(a.href, location.href).pathname.replace(/\/$/, '') || '/'; } catch (err) {}
       }
-      return { label: (li.textContent || '').trim(), path: path, href: a ? a.getAttribute('href') : null };
+      return { label: navItemLabel(li), path: path, href: a ? a.getAttribute('href') : null };
     });
     var hdrs = { 'X-WP-Nonce': cfg.nonce, 'Content-Type': 'application/json' };
     return fetch(restQ(tpUrl(), 'area=' + area + '&context=edit'), {
@@ -6328,6 +6442,7 @@
   document.addEventListener('pointerdown', function (ev) {
     if (!editing || navDrag) return;
     if (ev.button !== 0) return;
+    if (ev.target.closest && ev.target.closest('.gogh-navrm, .gogh-navadd')) return;
     var item = ev.target.closest ? ev.target.closest('.wp-block-navigation-item') : null;
     if (!item) return;
     if (item.parentElement.closest('.wp-block-navigation-item')) return; // submenu: leave alone
@@ -6442,6 +6557,10 @@
       entry.savedRaw = entry.raw;
     });
   }
+  function navItemLabel(li) {
+    var a = li.querySelector('a');
+    return ((a ? a.textContent : li.textContent) || '').trim();
+  }
   function placeNavAdders(partEl) {
     [].slice.call(partEl.querySelectorAll('.wp-block-navigation__container')).forEach(function (list) {
       if (list.closest('.wp-block-navigation-item')) return; // submenus: no
@@ -6456,6 +6575,142 @@
       });
       list.appendChild(li);
     });
+    // every top-level item gets a hover ✕ to leave the menu
+    [].slice.call(partEl.querySelectorAll('.wp-block-navigation-item')).forEach(function (li) {
+      if (li.parentElement.closest('.wp-block-navigation-item')) return;
+      if (li.querySelector(':scope > .gogh-navrm')) return;
+      var x = document.createElement('button');
+      x.type = 'button';
+      x.className = 'gogh-navrm';
+      x.title = 'Remove from menu';
+      x.textContent = '✕';
+      x.addEventListener('click', function (ev) {
+        ev.preventDefault();
+        ev.stopPropagation();
+        removeNavItem(partEl, li);
+      });
+      li.appendChild(x);
+    });
+  }
+  function resolveNavTarget(partEl) {
+    var area = partEl.tagName === 'FOOTER' ? 'footer' : 'header';
+    return activePartFor(area).then(function (active) {
+      if (!active) throw new Error('no ' + area + ' part');
+      var praw = String((active.content && (active.content.raw || active.content)) || '');
+      var refM = praw.match(/wp:navigation[^>]*"ref":(\d+)/);
+      if (refM) return +refM[1];
+      return fetch(restQ(GSROOT + 'navigation', 'context=edit&per_page=1'), {
+        headers: { 'X-WP-Nonce': cfg.nonce }, credentials: 'same-origin',
+      }).then(function (r) { return r.ok ? r.json() : []; })
+        .then(function (navs) { return navs && navs[0] ? navs[0].id : null; });
+    });
+  }
+  function saveNavRemove(partEl, listEl, li) {
+    var hdrs = { 'X-WP-Nonce': cfg.nonce, 'Content-Type': 'application/json' };
+    var a = li.querySelector('a');
+    var path = null;
+    if (a && a.href) {
+      try { path = new URL(a.href, location.href).pathname.replace(/\/$/, '') || '/'; } catch (e2) {}
+    }
+    var label = navItemLabel(li);
+    var restLinks = function () {
+      return navItemsOf(listEl).filter(function (x) { return x !== li; }).map(function (it) {
+        var ia = it.querySelector('a');
+        return '<!-- wp:navigation-link {"label":' + JSON.stringify(navItemLabel(it)) +
+          ',"url":' + JSON.stringify(ia ? ia.getAttribute('href') : '#') + ',"kind":"post-type"} /-->';
+      }).join('\n');
+    };
+    return resolveNavTarget(partEl).then(function (navId) {
+      if (navId == null) {
+        return fetch(GSROOT + 'navigation', {
+          method: 'POST', headers: hdrs, credentials: 'same-origin',
+          body: JSON.stringify({ title: 'Navigation', status: 'publish', content: restLinks() }),
+        }).then(function (r) { if (!r.ok) throw new Error('save'); return { navId: null }; });
+      }
+      return fetch(restQ(GSROOT + 'navigation/' + navId, 'context=edit'), {
+        headers: { 'X-WP-Nonce': cfg.nonce }, credentials: 'same-origin',
+      }).then(function (r) { if (!r.ok) throw new Error('nav'); return r.json(); })
+        .then(function (nav) {
+          var nraw = ((nav.content && nav.content.raw) || '').trim();
+          var spans = parseTopBlocks(nraw);
+          if (!spans.length || spans.every(function (sp) { return (sp.name || '').indexOf('page-list') !== -1; })) {
+            // automatic list: pin everything EXCEPT the removed item
+            return fetch(GSROOT + 'navigation/' + navId, {
+              method: 'POST', headers: hdrs, credentials: 'same-origin',
+              body: JSON.stringify({ content: restLinks() }),
+            }).then(function (r) { if (!r.ok) throw new Error('save'); return { navId: navId }; });
+          }
+          var pathOf = function (t) {
+            var um = t.match(/"url":"((?:[^"\\]|\\.)*)"/);
+            if (!um) return null;
+            var u = JSON.parse('"' + um[1] + '"');
+            return u.replace(/^https?:\/\/[^\/]+/, '').replace(/\/$/, '') || '/';
+          };
+          var labelOf = function (t) {
+            var lm = t.match(/"label":"((?:[^"\\]|\\.)*)"/);
+            return lm ? JSON.parse('"' + lm[1] + '"').trim() : null;
+          };
+          var hit = null;
+          for (var j = 0; j < spans.length && !hit; j++) {
+            var t = nraw.slice(spans[j].start, spans[j].end);
+            if (path != null && pathOf(t) === path) hit = spans[j];
+          }
+          for (j = 0; j < spans.length && !hit; j++) {
+            var t2 = nraw.slice(spans[j].start, spans[j].end);
+            if (label && labelOf(t2) === label) hit = spans[j];
+          }
+          if (!hit) throw new Error('gogh couldn’t match that item in the menu');
+          var removed = nraw.slice(hit.start, hit.end);
+          var next = (nraw.slice(0, hit.start) + nraw.slice(hit.end)).replace(/\n{3,}/g, '\n\n').trim();
+          return fetch(GSROOT + 'navigation/' + navId, {
+            method: 'POST', headers: hdrs, credentials: 'same-origin',
+            body: JSON.stringify({ content: next }),
+          }).then(function (r) {
+            if (!r.ok) throw new Error('save');
+            return { navId: navId, removed: removed };
+          });
+        });
+    });
+  }
+  function removeNavItem(partEl, li) {
+    var label = navItemLabel(li);
+    li.style.opacity = '0.35';
+    var entry = partEl.__goghChromeEntry;
+    saveChromeEntry(entry).then(function () {
+      return saveNavRemove(partEl, li.parentElement, li);
+    }).then(function (info) {
+      var actions = [];
+      if (info && info.navId != null && info.removed) {
+        actions.push({
+          label: 'Put it back',
+          onClick: function () {
+            fetch(restQ(GSROOT + 'navigation/' + info.navId, 'context=edit'), {
+              headers: { 'X-WP-Nonce': cfg.nonce }, credentials: 'same-origin',
+            }).then(function (r) { return r.json(); }).then(function (nav) {
+              var nraw = ((nav.content && nav.content.raw) || '').trim();
+              return fetch(GSROOT + 'navigation/' + info.navId, {
+                method: 'POST',
+                headers: { 'X-WP-Nonce': cfg.nonce, 'Content-Type': 'application/json' },
+                credentials: 'same-origin',
+                body: JSON.stringify({ content: (nraw ? nraw + '\n' : '') + info.removed }),
+              });
+            }).then(function (r) {
+              if (r && !r.ok) throw new Error('restore');
+              return refreshChromePart(partEl);
+            }).then(function () {
+              toast('“' + label + '” is back in the menu.');
+            }).catch(function () {
+              toast('gogh couldn’t restore it.', { error: true });
+            });
+          },
+        });
+      }
+      toast('“' + label + '” removed from the menu — every page gets it.', { ttl: 7000, actions: actions });
+      return refreshChromePart(partEl);
+    }).catch(function (err) {
+      li.style.opacity = '';
+      toast((err && err.message) || 'gogh couldn’t remove that item.', { error: true });
+    });
   }
   function navLinkMarkup(page) {
     var title = (page.title && page.title.rendered ? page.title.rendered.replace(/<[^>]+>/g, '') : 'Page');
@@ -6466,7 +6721,7 @@
   function domNavLinks(listEl) {
     return navItemsOf(listEl).map(function (li) {
       var a = li.querySelector('a');
-      return '<!-- wp:navigation-link {"label":' + JSON.stringify((li.textContent || '').trim()) +
+      return '<!-- wp:navigation-link {"label":' + JSON.stringify(navItemLabel(li)) +
         ',"url":' + JSON.stringify(a ? a.getAttribute('href') : '#') + ',"kind":"post-type"} /-->';
     });
   }
