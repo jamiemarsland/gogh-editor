@@ -4931,15 +4931,36 @@
     activeLightEd = ctx;
     if (!ctx) linkBubble.hidden = true;
   }
-  document.addEventListener('selectionchange', function () {
-    if (!activeLightEd) { linkBubble.hidden = true; return; }
-    var s = window.getSelection();
-    if (!s.rangeCount || s.isCollapsed || !activeLightEd.el.contains(s.anchorNode)) {
-      linkBubble.hidden = true;
-      return;
+  // any selection inside editable light-edit text earns the bubble — even
+  // before the paragraph was clicked into edit mode
+  function lightEdContextFor(node) {
+    var el = node && (node.nodeType === 1 ? node : node.parentElement);
+    if (!el || !el.closest) return null;
+    if (el.closest('.wp-block-navigation')) return null;
+    var t = el.closest('h1,h2,h3,h4,h5,h6,p,figcaption');
+    if (!t) return null;
+    var all = chromeLightEdits.concat(pendingBlocks);
+    for (var i = 0; i < all.length; i++) {
+      var en = all[i];
+      if (!en.el || !en.__leafOf || !en.el.contains(t)) continue;
+      if (en.chromePart && en.el.querySelector('.gogh-wrap')) continue;
+      var leaf = en.__leafOf(t);
+      if (!leaf) return null;
+      return { el: t, leafOf: en.__leafOf, sync: en.__sync };
     }
+    return null;
+  }
+  document.addEventListener('selectionchange', function () {
+    if (!editing) { linkBubble.hidden = true; return; }
+    var s = window.getSelection();
+    if (!s.rangeCount || s.isCollapsed) { linkBubble.hidden = true; return; }
+    var ctx = (activeLightEd && activeLightEd.el.contains(s.anchorNode))
+      ? activeLightEd
+      : lightEdContextFor(s.anchorNode);
+    if (!ctx) { linkBubble.hidden = true; return; }
     var r = s.getRangeAt(0).getBoundingClientRect();
     if (!r.width) { linkBubble.hidden = true; return; }
+    linkBubble.__ctx = ctx;
     linkBubble.style.left = (r.left + r.width / 2 + window.scrollX) + 'px';
     linkBubble.style.top = (r.top + window.scrollY - 36) + 'px';
     linkBubble.hidden = false;
@@ -4951,18 +4972,24 @@
   });
   linkBubble.addEventListener('click', function (ev) {
     ev.stopPropagation();
-    if (!activeLightEd) return;
+    var ctx = linkBubble.__ctx || activeLightEd;
+    if (!ctx) return;
     var s = window.getSelection();
     if (!s.rangeCount || s.isCollapsed) return;
     var range = s.getRangeAt(0).cloneRange();
-    var ctx = activeLightEd;
     linkBubble.hidden = true;
     openLinkCreatePanel(ctx.el, function (url) {
+      // createLink needs an editable host — borrow editability if the
+      // paragraph was never clicked into edit mode
+      var wasEditable = ctx.el.getAttribute('contenteditable') === 'true';
+      if (!wasEditable) ctx.el.setAttribute('contenteditable', 'true');
       s.removeAllRanges();
       s.addRange(range);
       try { document.execCommand('createLink', false, url); } catch (e2) {}
+      if (!wasEditable) ctx.el.removeAttribute('contenteditable');
       var leaf = ctx.leafOf(ctx.el);
       if (leaf) ctx.sync(leaf);
+      toast('Linked.');
     });
   });
   function bindPending(entry) {
@@ -5102,7 +5129,11 @@
         activeEd = { el: t };
         // the selection bubble knows which editor owns the selection
         setActiveLightEd({ el: t, leafOf: leafOf, sync: syncLeaf });
-        t.focus();
+        // select-then-click is how people link text: the click that makes
+        // this editable must not focus() away the selection they just made
+        var selNow = window.getSelection();
+        var keepSel = selNow && selNow.rangeCount && !selNow.isCollapsed && t.contains(selNow.anchorNode);
+        if (!keepSel) t.focus();
       }
     });
     holder.addEventListener('input', function (ev) {
