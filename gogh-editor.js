@@ -343,6 +343,17 @@
     box: '',
   };
   var isText = function (e) { return e.type === 'heading' || e.type === 'para'; };
+  // poster type: three stops ABOVE the theme's largest preset. Container
+  // units scale with the section (phones included); the px floor keeps the
+  // smallest screens readable. Emitted into the section stylesheet, so
+  // published pages stay deactivation-safe and Global Styles stay untouched.
+  var DISPLAY_FS = {
+    '__disp-s': 'max(6cqw, 30px)',
+    '__disp-m': 'max(9cqw, 36px)',
+    '__disp-l': 'max(13cqw, 42px)',
+  };
+  var DISPLAY_ORDER = ['__disp-s', '__disp-m', '__disp-l'];
+  var DISPLAY_LABEL = { '__disp-s': 'Display S', '__disp-m': 'Display M', '__disp-l': 'Display L' };
   var fixedHeight = function (e) { return e.type === 'button' || e.type === 'image' || e.type === 'badge' || e.type === 'widget' || e.type === 'box'; };
 
   function imageBackground(e) {
@@ -426,6 +437,10 @@
       }
       if (e.rot) extra += ' transform: rotate(' + e.rot + 'deg);';
       if ((e.align === 'center' || e.align === 'right') && (e.type === 'heading' || e.type === 'para')) extra += ' text-align: ' + e.align + ';';
+      // display sizes live in the scoped stylesheet, not theme presets
+      if (DISPLAY_FS[e.fs] && (e.type === 'heading' || e.type === 'para')) {
+        extra += ' font-size: ' + DISPLAY_FS[e.fs] + '; line-height: 1.05;';
+      }
       if (e.tf) {
         // captured look of pasted HTML: emitted after the theme's presets so
         // the paste wins until the user picks a theme size/colour (which
@@ -533,19 +548,19 @@
         case 'heading': {
           var hAttrs = { level: 2, className: cls };
           if (e.align === 'center' || e.align === 'right') hAttrs.textAlign = e.align;
-          if (e.fs) hAttrs.fontSize = e.fs;
+          if (e.fs && !DISPLAY_FS[e.fs]) hAttrs.fontSize = e.fs;
           if (e.color) hAttrs.textColor = e.color;
           return '<!-- wp:heading ' + JSON.stringify(hAttrs) + ' -->\n' +
-            '<h2 class="wp-block-heading ' + (e.align === 'center' || e.align === 'right' ? 'has-text-align-' + e.align + ' ' : '') + cls + (e.fs ? ' has-' + e.fs + '-font-size' : '') + (e.color ? ' has-text-color has-' + e.color + '-color' : '') + '">' +
+            '<h2 class="wp-block-heading ' + (e.align === 'center' || e.align === 'right' ? 'has-text-align-' + e.align + ' ' : '') + cls + (e.fs && !DISPLAY_FS[e.fs] ? ' has-' + e.fs + '-font-size' : '') + (e.color ? ' has-text-color has-' + e.color + '-color' : '') + '">' +
             cleanInline(e.text) + '</h2>\n<!-- /wp:heading -->';
         }
         case 'para': {
           var pAttrs = { className: cls };
           if (e.align === 'center' || e.align === 'right') pAttrs.align = e.align;
-          if (e.fs) pAttrs.fontSize = e.fs;
+          if (e.fs && !DISPLAY_FS[e.fs]) pAttrs.fontSize = e.fs;
           if (e.color) pAttrs.textColor = e.color;
           return '<!-- wp:paragraph ' + JSON.stringify(pAttrs) + ' -->\n' +
-            '<p class="' + (e.align === 'center' || e.align === 'right' ? 'has-text-align-' + e.align + ' ' : '') + cls + (e.fs ? ' has-' + e.fs + '-font-size' : '') + (e.color ? ' has-text-color has-' + e.color + '-color' : '') + '">' +
+            '<p class="' + (e.align === 'center' || e.align === 'right' ? 'has-text-align-' + e.align + ' ' : '') + cls + (e.fs && !DISPLAY_FS[e.fs] ? ' has-' + e.fs + '-font-size' : '') + (e.color ? ' has-text-color has-' + e.color + '-color' : '') + '">' +
             cleanInline(e.text) + '</p>\n<!-- /wp:paragraph -->';
         }
         case 'button': {
@@ -689,12 +704,12 @@
         break;
       case 'heading':
         n = document.createElement('h2');
-        n.className = 'wp-block-heading ' + cls + (e.fs ? ' has-' + e.fs + '-font-size' : '') + (e.color ? ' has-text-color has-' + e.color + '-color' : '');
+        n.className = 'wp-block-heading ' + cls + (e.fs && !DISPLAY_FS[e.fs] ? ' has-' + e.fs + '-font-size' : '') + (e.color ? ' has-text-color has-' + e.color + '-color' : '');
         n.innerHTML = cleanInline(e.text);
         break;
       case 'para':
         n = document.createElement('p');
-        n.className = cls + (e.fs ? ' has-' + e.fs + '-font-size' : '') + (e.color ? ' has-text-color has-' + e.color + '-color' : '');
+        n.className = cls + (e.fs && !DISPLAY_FS[e.fs] ? ' has-' + e.fs + '-font-size' : '') + (e.color ? ' has-text-color has-' + e.color + '-color' : '');
         n.innerHTML = cleanInline(e.text);
         break;
       case 'button':
@@ -1119,7 +1134,7 @@
     var sizes = fontSizes();
     if (!sizes.length) return;
     var e = sec.els[i];
-    var order = [null].concat(sizes.map(function (f) { return f.slug; }));
+    var order = [null].concat(sizes.map(function (f) { return f.slug; }), DISPLAY_ORDER);
     var idx = order.indexOf(e.fs || null);
     var next = (idx + dir + order.length) % order.length;
     setFontSize(sec, i, order[next]);
@@ -1133,7 +1148,7 @@
     var sizes = fontSizes();
     if (!sizes.length) return;
     var e = sec.els[i];
-    var order = [null].concat(sizes.map(function (f) { return f.slug; }));
+    var order = [null].concat(sizes.map(function (f) { return f.slug; }), DISPLAY_ORDER);
     var idx = order.indexOf(e.fs || null);
     var next = Math.max(0, Math.min(order.length - 1, idx + delta));
     if (order[next] === (e.fs || null)) return;
@@ -1252,7 +1267,7 @@
       ctxBtn.style.display = 'none';
     }
     if (isText(e)) {
-      fsBtn.textContent = 'Aa' + (e.fs ? ' · ' + e.fs : '');
+      fsBtn.textContent = 'Aa' + (e.fs ? ' · ' + (DISPLAY_LABEL[e.fs] || e.fs) : '');
       fsBtn.style.display = '';
     } else {
       fsBtn.style.display = 'none';
@@ -3820,7 +3835,7 @@
           applyFontStep(sec, resize.i, want - (resize.fsSteps || 0));
           resize.fsSteps = want;
         }
-        sizeChip.textContent = e.fs ? e.fs : 'theme default';
+        sizeChip.textContent = e.fs ? (DISPLAY_LABEL[e.fs] || e.fs) : 'theme default';
         sizeChip.style.left = (ev.clientX + 18 + window.scrollX) + 'px';
         sizeChip.style.top = (ev.clientY + 18 + window.scrollY) + 'px';
         sizeChip.hidden = false;

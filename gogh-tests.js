@@ -1638,6 +1638,26 @@
       return 'upload + media grid present';
     });
 
+    // ---- display sizes: poster type beyond the theme presets ----
+    test('display sizes: Aa steps past presets into cqw poster type', function () {
+      var i = findIdx('heading');
+      var e = sec().els[i];
+      G.setFontSize(sec(), i, '__disp-m');
+      expect(e.fs === '__disp-m', 'display fs not set');
+      var css = sec().styleEl.textContent;
+      expect(css.indexOf('max(9cqw, 36px)') !== -1, 'display size missing from scoped CSS');
+      var out = G.buildBlocks();
+      expect(out.indexOf('has-__disp') === -1, 'display slug leaked as a preset class');
+      expect(out.indexOf('max(9cqw, 36px)') !== -1, 'published CSS missing the display size');
+      // stepping up from the largest theme preset flows into Display S
+      var sizes = G.fontSizes();
+      G.setFontSize(sec(), i, sizes.length ? sizes[sizes.length - 1].slug : null);
+      G.stepFontSize(sec(), i, 1);
+      expect(e.fs === '__disp-s', 'step after largest preset should be Display S, got ' + e.fs);
+      expect(G.serialize().indexOf('"fs":"__disp-s"') !== -1, 'display fs not serialized');
+      return 'preset → Display S/M/L, scoped CSS + clean publish';
+    });
+
     // ---- webmcp bridge: page-editing tools ----
     test('webmcp bridge: tools exist and drive the editor', function () {
       expect(window.__goghMcp, 'bridge missing');
