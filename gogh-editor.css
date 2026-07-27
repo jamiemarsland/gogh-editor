@@ -1045,6 +1045,11 @@
   overflow: hidden;
   text-overflow: ellipsis;
 }
+.gogh-cyc-build {
+  font-style: normal;
+  font-size: 9px;
+  opacity: 0.35;
+}
 .gogh-cyc-ok, .gogh-cyc-edit, .gogh-cyc-more, .gogh-cyc-x {
   display: grid;
   place-items: center;

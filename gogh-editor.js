@@ -5285,6 +5285,7 @@
   cycBar.innerHTML =
     '<span class="gogh-cyc-name"></span><span class="gogh-cyc-n"></span>' +
     '<em class="gogh-cyc-hint"></em>' +
+    '<em class="gogh-cyc-build"></em>' +
     '<span class="gogh-cyc-ok" role="button" title="Keep this layout (updates every page)">✓</span>' +
     '<span class="gogh-cyc-edit" role="button" title="Make it freeform">✨</span>' +
     '<span class="gogh-cyc-more" role="button" title="All options">⋯</span>' +
@@ -5363,7 +5364,11 @@
       st.idx = (st.idx + 1) % st.options.length;
       var o = st.options[st.idx];
       render();
-      if (isCurrent(o)) { endChromePreview(); return; }
+      if (isCurrent(o)) {
+        endChromePreview();
+        cycBar.querySelector('.gogh-cyc-hint').textContent = 'this is your current ' + st.area + ' — click for the next look';
+        return;
+      }
       st.busy = true;
       cycBar.classList.add('is-busy');
       previewChromeLayout(partEl, o, function (ok) {
@@ -5396,6 +5401,7 @@
     // footer controls live at the bottom of the screen, header's at the top
     cycBar.classList.toggle('is-bottom', area === 'footer');
     cycBar.querySelector('.gogh-cyc-hint').textContent = 'click the ' + area + ' for the next look';
+    cycBar.querySelector('.gogh-cyc-build').textContent = (window.__gogh.build || '').replace('-chrome', '');
     cycBar.querySelector('.gogh-cyc-ok').onclick = function (ev) {
       ev.stopPropagation();
       var chosen = st.options[st.idx];
@@ -5541,17 +5547,25 @@
     }
     chromePreview.box.innerHTML = (d.css ? '<style>' + d.css + '</style>' : '') + (d.html || '');
     // self-check: an "applied" preview the user can't SEE is the worst
-    // failure mode — detect it and say precisely what happened
+    // failure mode — detect it, and REPORT the outcome on the strip itself
+    // so a single screenshot carries the full diagnosis
     setTimeout(function () {
       if (!chromePreview || chromePreview.partEl !== partEl) return;
       var bh = chromePreview.box.getBoundingClientRect().height;
       var origVisible = chromePreview.hidden.some(function (c) {
         return getComputedStyle(c).display !== 'none';
       });
+      var hintEl = cycBar.querySelector('.gogh-cyc-hint');
       if (bh < 20 || origVisible) {
+        if (hintEl && chromeCycle && chromeCycle.partEl === partEl) {
+          hintEl.textContent = '⚠ applied but hidden: ' + Math.round(bh) + 'px' +
+            (origVisible ? ', original visible' : '');
+        }
         toast('gogh: preview of “' + (opt.title || opt.slug) + '” applied but not visible' +
           ' (box ' + Math.round(bh) + 'px' + (origVisible ? ', original still showing' : '') +
           ', html ' + ((d.html || '').length) + ' chars)', { error: true, ttl: 9000 });
+      } else if (hintEl && chromeCycle && chromeCycle.partEl === partEl) {
+        hintEl.textContent = '✓ showing (' + Math.round(bh) + 'px) — click for the next look';
       }
     }, 120);
     if (done) done(true);
@@ -5566,6 +5580,10 @@
       if (!d) throw new Error('render failed');
       applyChromePreview(partEl, opt, d, done);
     }).catch(function (err) {
+      var hintEl = cycBar.querySelector('.gogh-cyc-hint');
+      if (hintEl && chromeCycle && chromeCycle.partEl === partEl) {
+        hintEl.textContent = '⚠ ' + ((err && err.message) || 'network error');
+      }
       toast('Could not preview that layout — ' + ((err && err.message) || 'network error'), { error: true, ttl: 7000 });
       if (done) done(false);
     });
