@@ -872,7 +872,7 @@
     });
     S.forEach(function (sec) { sec.wrapEl.remove(); sec.styleEl.remove(); });
     var newS = [];
-    var nextAnchor = endMarker;
+    var prevIns = null; // the section restored just before = the NEXT one in page order
     for (var di = data.length - 1; di >= 0; di--) {
       var d = data[di];
       var sec = newSectionShell(d.scope);
@@ -886,12 +886,17 @@
       sec.srcSig = d.src || null;
       sec.bootstrap = !!d.boot;
       sec.chrome = d.chrome || null;
-      var anchor = anchorOf[d.scope] ||
+      var stable = anchorOf[d.scope] ||
         (d.src && convertStash[d.src] && convertStash[d.src].marker.nextSibling) ||
-        nextAnchor;
+        endMarker;
       var host = parentOf[d.scope] || pageParent;
+      // adjacent sections all share one stable (non-gogh) anchor — inserting
+      // each AT it reverses the run. Chain through the section restored just
+      // before (our true next sibling) whenever it shares anchor and parent.
+      var anchor = (prevIns && prevIns.host === host && prevIns.stable === stable)
+        ? prevIns.wrap : stable;
       host.insertBefore(sec.wrapEl, anchor && anchor.parentNode === host ? anchor : null);
-      nextAnchor = sec.wrapEl;
+      prevIns = { wrap: sec.wrapEl, host: host, stable: stable };
       newS.unshift(sec);
     }
     S = newS;
@@ -5285,6 +5290,12 @@
     '<span class="gogh-cyc-more" role="button" title="All options">⋯</span>' +
     '<span class="gogh-cyc-x" role="button" title="Put it back">✕</span>';
   document.body.appendChild(cycBar);
+  // "click the footer for the next look" reads like a button — so clicking
+  // the strip itself (anywhere that isn't ✓ ✨ ⋯ ✕) advances too
+  cycBar.addEventListener('click', function (ev) {
+    if (ev.target.closest('.gogh-cyc-ok,.gogh-cyc-edit,.gogh-cyc-more,.gogh-cyc-x')) return;
+    if (chromeCycle) chromeCycle.advance();
+  });
   // the header ITSELF is the button while cycling: the control strip docks
   // at the very top of the screen (over the admin bar) so nothing ever
   // covers the header being previewed
@@ -5587,6 +5598,13 @@
     t.innerHTML = html || '';
     return (t.content.textContent || '').replace(/\s+/g, ' ').trim().toLowerCase();
   }
+  // what a look IS to the eye: its words plus its colour scheme — a dark
+  // twin of the current layout is a REAL alternative, a same-coloured
+  // lookalike is not
+  function chromeLookSig(html) {
+    var bgs = ((html || '').match(/has-[a-z0-9-]+-background-color/g) || []).sort().join(',');
+    return chromeTextSig(html) + '::' + bgs;
+  }
   // render every candidate once, up front: options that render empty, or
   // identical to another option, or indistinguishable from the CURRENT
   // part get dropped — flicking through lookalikes feels broken. The kept
@@ -5594,10 +5612,10 @@
   function screenChromeOptions(options, activeOpt) {
     return Promise.all(options.map(renderChromeOption)).then(function () {
       var seen = {};
-      var activeText = null;
+      var activeLook = null;
       if (activeOpt && activeOpt.__prev) {
         seen[chromeRenderSig(activeOpt.__prev.html)] = 1;
-        activeText = chromeTextSig(activeOpt.__prev.html);
+        activeLook = chromeLookSig(activeOpt.__prev.html);
       }
       return options.filter(function (o) {
         if (o === activeOpt) return true;
@@ -5606,7 +5624,7 @@
         var sig = chromeRenderSig(d.html);
         if (seen[sig]) return false;
         seen[sig] = 1;
-        if (activeText && chromeTextSig(d.html) === activeText) return false;
+        if (activeLook && chromeLookSig(d.html) === activeLook) return false;
         return true;
       });
     });

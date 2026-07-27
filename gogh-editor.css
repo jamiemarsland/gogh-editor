@@ -1026,6 +1026,7 @@
   white-space: nowrap;
 }
 .gogh-cycbar[hidden] { display: none; }
+.gogh-cycbar { cursor: pointer; }
 /* footer cycling: controls at the BOTTOM of the viewport, mirroring where
    the footer pill lives and where the eye already is */
 .gogh-cycbar.is-bottom { top: auto; bottom: 14px; }
