@@ -5286,7 +5286,8 @@
   cycBar.className = 'gogh-cycbar';
   cycBar.hidden = true;
   cycBar.innerHTML =
-    '<span class="gogh-cyc-name"></span><span class="gogh-cyc-n"></span>' +
+    '<b class="gogh-cyc-next" role="button" title="Show the next layout">Next look ›</b>' +
+    '<span class="gogh-cyc-n"></span>' +
     '<em class="gogh-cyc-hint"></em>' +
     '<em class="gogh-cyc-build"></em>' +
     '<span class="gogh-cyc-ok" role="button" title="Keep this layout (updates every page)">✓</span>' +
@@ -5315,7 +5316,8 @@
     function isCurrent(o) { return !!(activeOpt && o.id === activeOpt.id); }
     function render() {
       var o = st.options[st.idx];
-      cycBar.querySelector('.gogh-cyc-name').textContent = 'Site ' + area + ' — ' + o.title;
+      // the layout name lives in the tooltip — the strip stays small
+      cycBar.title = 'Site ' + area + ' — ' + o.title;
       cycBar.querySelector('.gogh-cyc-n').textContent =
         (st.idx + 1) + '/' + st.options.length + (isCurrent(o) ? ' · current' : '');
     }
@@ -5375,7 +5377,8 @@
       render();
       if (isCurrent(o)) {
         endChromePreview();
-        cycBar.querySelector('.gogh-cyc-hint').textContent = 'this is your current ' + st.area + ' — click for the next look';
+        var h0 = cycBar.querySelector('.gogh-cyc-hint');
+        if (h0) { h0.textContent = ''; h0.classList.remove('is-warn'); }
         return;
       }
       st.busy = true;
@@ -5409,8 +5412,14 @@
     if (pill) pill.style.display = 'none';
     // footer controls live at the bottom of the screen, header's at the top
     cycBar.classList.toggle('is-bottom', area === 'footer');
-    cycBar.querySelector('.gogh-cyc-hint').textContent = 'click the ' + area + ' for the next look';
+    var hintInit = cycBar.querySelector('.gogh-cyc-hint');
+    hintInit.textContent = '';
+    hintInit.classList.remove('is-warn');
     cycBar.querySelector('.gogh-cyc-build').textContent = (window.__gogh.build || '').replace('-chrome', '');
+    cycBar.querySelector('.gogh-cyc-next').onclick = function (ev) {
+      ev.stopPropagation();
+      st.advance();
+    };
     cycBar.querySelector('.gogh-cyc-ok').onclick = function (ev) {
       ev.stopPropagation();
       var chosen = st.options[st.idx];
@@ -5608,12 +5617,15 @@
         if (hintEl && chromeCycle && chromeCycle.partEl === partEl) {
           hintEl.textContent = '⚠ applied but hidden: ' + Math.round(bh) + 'px' +
             (origVisible ? ', original visible' : '');
+          hintEl.classList.add('is-warn');
         }
         toast('gogh: preview of “' + (opt.title || opt.slug) + '” applied but not visible' +
           ' (box ' + Math.round(bh) + 'px' + (origVisible ? ', original still showing' : '') +
           ', html ' + ((d.html || '').length) + ' chars)', { error: true, ttl: 9000 });
       } else if (hintEl && chromeCycle && chromeCycle.partEl === partEl) {
-        hintEl.textContent = '✓ showing (' + Math.round(bh) + 'px) — click for the next look';
+        // healthy previews stay quiet — the strip only speaks on failure
+        hintEl.textContent = '';
+        hintEl.classList.remove('is-warn');
       }
     }, 120);
     if (done) done(true);
@@ -5631,6 +5643,7 @@
       var hintEl = cycBar.querySelector('.gogh-cyc-hint');
       if (hintEl && chromeCycle && chromeCycle.partEl === partEl) {
         hintEl.textContent = '⚠ ' + ((err && err.message) || 'network error');
+        hintEl.classList.add('is-warn');
       }
       toast('Could not preview that layout — ' + ((err && err.message) || 'network error'), { error: true, ttl: 7000 });
       if (done) done(false);

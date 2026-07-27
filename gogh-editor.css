@@ -1037,9 +1037,20 @@
   max-width: 260px;
 }
 .gogh-cyc-n { opacity: 0.55; font-weight: 500; }
-.gogh-cyc-hint {
-  font-style: normal;
-  opacity: 0.55;
+.gogh-cyc-next {
+  cursor: pointer;
+  font-weight: 700;
+  padding: 5px 14px;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.08);
+  white-space: nowrap;
+}
+.gogh-cyc-next:hover { background: rgba(0, 0, 0, 0.14); }
+/* the hint is a failure channel only — silent when things work */
+.gogh-cyc-hint { display: none; font-style: normal; }
+.gogh-cyc-hint.is-warn {
+  display: block;
+  color: #b3261e;
   border-left: 1px solid rgba(0, 0, 0, 0.15);
   padding-left: 10px;
   overflow: hidden;
