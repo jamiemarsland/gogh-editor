@@ -343,7 +343,7 @@
     box: '',
   };
   var isText = function (e) { return e.type === 'heading' || e.type === 'para'; };
-  var fixedHeight = function (e) { return e.type === 'button' || e.type === 'image' || e.type === 'badge' || e.type === 'widget'; };
+  var fixedHeight = function (e) { return e.type === 'button' || e.type === 'image' || e.type === 'badge' || e.type === 'widget' || e.type === 'box'; };
 
   function imageBackground(e) {
     if (e.src) {
@@ -422,6 +422,7 @@
         if (bv && /^[a-z0-9-]+$/.test(bv)) bv = 'var(--wp--preset--color--' + bv + ')';
         if (bv) extra += ' background: ' + bv + ';';
         if (e.radius) extra += ' border-radius: ' + (Math.round(e.radius / 12 * 100) / 100) + 'cqw;';
+        if (e.shape && SHAPE_CSS[e.shape]) extra += SHAPE_CSS[e.shape];
       }
       if (e.rot) extra += ' transform: rotate(' + e.rot + 'deg);';
       if ((e.align === 'center' || e.align === 'right') && (e.type === 'heading' || e.type === 'para')) extra += ' text-align: ' + e.align + ';';
@@ -522,7 +523,7 @@
       align: e.align || null, color: e.color || null, tf: e.tf || null,
       btnBg: e.btnBg || null, btnText: e.btnText || null, btnHover: e.btnHover || null,
       wsrc: e.wsrc || null, whtml: e.whtml || null,
-      boxBg: e.boxBg || null, radius: e.radius || 0 };
+      boxBg: e.boxBg || null, radius: e.radius || 0, shape: e.shape || null };
   }
   function buildSectionBlocks(sec) {
     var els = sec.els;
@@ -970,6 +971,7 @@
     '<button type="button" class="gogh-sitem" data-add="button"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="8" width="18" height="8" rx="4"/></svg>Button</button>' +
     '<button type="button" class="gogh-sitem" data-add="image"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="8.5" cy="10" r="1.6"/><path d="M21 16l-5-5-9 8"/></svg>Image</button>' +
     '<button type="button" class="gogh-sitem" data-add="badge"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><circle cx="12" cy="9.5" r="5.5"/><path d="M9 14l-1.5 6 4.5-2.4 4.5 2.4L15 14"/></svg>Badge</button>' +
+    '<button type="button" class="gogh-sitem" data-act="shapes"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><circle cx="8.5" cy="8.5" r="5.5"/><rect x="11" y="11" width="10" height="10" rx="2"/></svg>Shape</button>' +
     '<button type="button" class="gogh-sitem" data-add="posts" title="Your latest posts, live"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="4" width="16" height="6" rx="1.5"/><rect x="4" y="14" width="16" height="6" rx="1.5"/></svg>Posts</button>' +
     '<div class="gogh-side-gap"></div>' +
     '<div class="gogh-side-foot">' +
@@ -1058,6 +1060,7 @@
   var CTX_ICONS = {
     link: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M10 14a5 5 0 0 0 7.5.5l3-3a5 5 0 0 0-7-7l-1.7 1.7"/><path d="M14 10a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7 7l1.7-1.7"/></svg>',
     image: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="3"/><circle cx="9" cy="10" r="1.6" fill="currentColor" stroke="none"/><path d="M3 17l5-4.5 4 3.5 4-4 5 4.5"/></svg>',
+    shape: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round"><circle cx="8.5" cy="8.5" r="5.5"/><rect x="11" y="11" width="10" height="10" rx="2"/></svg>',
   };
   var ALIGN_ICONS = {
     left: '<svg width="13" height="12" viewBox="0 0 13 12"><g fill="currentColor"><rect width="13" height="2" rx="1"/><rect y="5" width="8" height="2" rx="1"/><rect y="10" width="11" height="2" rx="1"/></g></svg>',
@@ -1241,9 +1244,9 @@
     var ar = node.getBoundingClientRect();
     elbar.style.left = (ar.left + window.scrollX + ar.width / 2) + 'px';
     elbar.style.top = (ar.top + window.scrollY - 14) + 'px';
-    if (e.type === 'button' || e.type === 'image') {
-      ctxBtn.innerHTML = CTX_ICONS[e.type === 'button' ? 'link' : 'image'];
-      ctxBtn.title = e.type === 'button' ? 'Button link' : 'Choose image';
+    if (e.type === 'button' || e.type === 'image' || e.type === 'box') {
+      ctxBtn.innerHTML = CTX_ICONS[e.type === 'button' ? 'link' : e.type === 'box' ? 'shape' : 'image'];
+      ctxBtn.title = e.type === 'button' ? 'Button link' : e.type === 'box' ? 'Shape & colour' : 'Choose image';
       ctxBtn.style.display = '';
     } else {
       ctxBtn.style.display = 'none';
@@ -1499,6 +1502,7 @@
     panel.innerHTML = '';
     if (e.type === 'button') buildLinkPanel(sec, i);
     else if (e.type === 'image') buildImagePanel(sec, i);
+    else if (e.type === 'box') buildBoxPanel(sec, i);
     placePanelNear(sec.nodes[i]);
     panelOpen = true;
   }
@@ -1621,6 +1625,44 @@
       if (ev.key === 'Escape') closePanel();
     });
     input.focus();
+  }
+  function buildBoxPanel(sec, i) {
+    var e = sec.els[i];
+    panel.innerHTML =
+      '<div class="gogh-panel-title">Shape</div>' +
+      '<div class="gogh-shapegrid">' +
+      SHAPE_DEFS.map(function (d, k) {
+        var on = d.key === (e.shape || null);
+        return '<button type="button" class="gogh-shapecell' + (on ? ' is-active' : '') + '" data-k="' + k + '" title="' + d.label + '">' +
+          '<span style="' + shapePreviewCss(d) + '"></span></button>';
+      }).join('') +
+      '</div>' +
+      '<div class="gogh-swlab">Colour</div><div class="gogh-swrow gogh-boxsw">' +
+      '<button type="button" class="gogh-sw gogh-sw-none' + (!e.boxBg ? ' is-active' : '') + '" data-col="" title="None"></button>' +
+      themePalette().map(function (p) {
+        return '<button type="button" class="gogh-sw' + (e.boxBg === p.slug ? ' is-active' : '') + '" data-col="' + p.slug + '"' +
+          ' style="background: var(--wp--preset--color--' + p.slug + ')" title="' + p.slug + '"></button>';
+      }).join('') + '</div>';
+    function reapply() {
+      renderSection(sec);
+      placeHandles(sec, i);
+      pushState();
+      buildBoxPanel(sec, i); // rebuild so active states stay honest
+    }
+    panel.querySelectorAll('.gogh-shapecell').forEach(function (b) {
+      b.addEventListener('click', function () {
+        var d = SHAPE_DEFS[+b.dataset.k];
+        e.shape = d.key || null;
+        e.radius = d.radius || 0;
+        reapply();
+      });
+    });
+    panel.querySelectorAll('.gogh-boxsw .gogh-sw').forEach(function (swBtn) {
+      swBtn.addEventListener('click', function () {
+        e.boxBg = swBtn.dataset.col || null;
+        reapply();
+      });
+    });
   }
   function setImage(sec, i, src, mediaId, alt) {
     var e = sec.els[i];
@@ -1836,6 +1878,36 @@
 
   // ---------- add / delete elements ----------
   var stagger = 0;
+  // shapes are boxes wearing geometry — pure CSS in the section stylesheet,
+  // so they publish deactivation-safe like everything else
+  var SHAPE_CSS = {
+    circle: ' border-radius: 50%;',
+    pill: ' border-radius: 999px;',
+    arch: ' border-radius: 50% 50% 0 0 / 100% 100% 0 0;',
+    tri: ' clip-path: polygon(50% 0%, 100% 100%, 0% 100%);',
+    diamond: ' clip-path: polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%);',
+    blob: ' border-radius: 42% 58% 63% 37% / 55% 42% 58% 45%;',
+  };
+  var SHAPE_DEFS = [
+    // square/rounded have no SHAPE_CSS entry (radius covers them) but keep a
+    // key so corner-resize knows to hold their proportions
+    { key: 'square', label: 'Square', w: 320, h: 320, radius: 0 },
+    { key: 'rounded', label: 'Rounded', w: 320, h: 320, radius: 28 },
+    { key: 'circle', label: 'Circle', w: 320, h: 320 },
+    { key: 'pill', label: 'Pill', w: 380, h: 130 },
+    { key: 'arch', label: 'Arch', w: 320, h: 320 },
+    { key: 'tri', label: 'Triangle', w: 340, h: 300 },
+    { key: 'diamond', label: 'Diamond', w: 320, h: 320 },
+    { key: 'blob', label: 'Blob', w: 340, h: 320 },
+  ];
+  var SHAPE_DEFAULT_BG = 'color-mix(in srgb, var(--wp--preset--color--contrast, #000) 12%, var(--wp--preset--color--base, transparent))';
+  function shapePreviewCss(def) {
+    var css = 'background: currentColor;';
+    if (def.radius) css += 'border-radius: 18%;';
+    if (def.key && SHAPE_CSS[def.key]) css += SHAPE_CSS[def.key];
+    if (def.key === 'pill') css += 'height: 46%; align-self: center;';
+    return css;
+  }
   var DEFAULTS = {
     heading: function () { return { type: 'heading', x: 80, y: 80, w: 420, h: 60, text: 'A new heading', ghost: false, cool: false }; },
     para: function () { return { type: 'para', x: 80, y: 200, w: 380, h: 50, text: 'Some supporting copy. Drag me anywhere.', ghost: false, cool: false }; },
@@ -1882,10 +1954,11 @@
       if (sel && sel.sec === sec) placeHandles(sec, sec.els.indexOf(e));
     }).catch(function () {});
   }
-  function addElement(sec, e) {
-    sec.els.push(e);
+  function addElement(sec, e, atBack) {
+    // shapes are backdrops: they join the stack BEHIND everything else
+    if (atBack) sec.els.unshift(e); else sec.els.push(e);
     renderSection(sec);
-    placeHandles(sec, sec.els.length - 1);
+    placeHandles(sec, atBack ? 0 : sec.els.length - 1);
     pushState();
   }
   function deleteSelected() {
@@ -1925,8 +1998,7 @@
     var r = sec.wrapEl.getBoundingClientRect();
     return r.bottom > 60 && r.top < window.innerHeight - 60;
   }
-  function addElementAtViewport(kind) {
-    var e = DEFAULTS[kind]();
+  function placeElAtViewport(e, atBack) {
     // land in what the user is looking at: the selected section if it's on
     // screen, else the most visible one — centred in the viewport
     var sec = (sel && sectionVisible(sel.sec)) ? sel.sec : viewportSection();
@@ -1939,12 +2011,47 @@
     e.x = Math.max(0, Math.min(W - e.w, e.x));
     e.y = Math.max(8, e.y);
     stagger++;
-    addElement(sec, e);
-    if (kind === 'posts') hydratePostsPreview(sec, e);
+    addElement(sec, e, atBack);
+    return e;
+  }
+  function addElementAtViewport(kind) {
+    var e = placeElAtViewport(DEFAULTS[kind]());
+    if (kind === 'posts') hydratePostsPreview(sel.sec, e);
+  }
+  function addShapeAtViewport(def) {
+    return placeElAtViewport({
+      type: 'box',
+      x: 0, y: 0, w: def.w, h: def.h,
+      shape: def.key || null,
+      radius: def.radius || 0,
+      boxBg: SHAPE_DEFAULT_BG,
+    }, true);
+  }
+  function openShapeInsertPanel() {
+    panel.innerHTML =
+      '<div class="gogh-panel-head"><span class="gogh-panel-title">Add a shape</span>' +
+      '<button type="button" class="gogh-sbtn gogh-panel-close" title="Close">✕</button></div>' +
+      '<div class="gogh-panel-hint">A backdrop for other elements — send it backward once it\'s placed.</div>' +
+      '<div class="gogh-shapegrid">' +
+      SHAPE_DEFS.map(function (d, k) {
+        return '<button type="button" class="gogh-shapecell" data-k="' + k + '" title="' + d.label + '">' +
+          '<span style="' + shapePreviewCss(d) + '"></span></button>';
+      }).join('') +
+      '</div>';
+    placePanelNear(side.querySelector('[data-act="shapes"]'));
+    panelOpen = true;
+    panel.querySelector('.gogh-panel-close').addEventListener('click', closePanel);
+    [].forEach.call(panel.querySelectorAll('.gogh-shapecell'), function (b) {
+      b.addEventListener('click', function () {
+        closePanel();
+        addShapeAtViewport(SHAPE_DEFS[+b.dataset.k]);
+      });
+    });
   }
   side.querySelectorAll('[data-add]').forEach(function (btn) {
     btn.addEventListener('click', function () { addElementAtViewport(btn.dataset.add); });
   });
+  side.querySelector('[data-act="shapes"]').addEventListener('click', openShapeInsertPanel);
   elbar.querySelector('.gogh-eb-del').addEventListener('click', deleteSelected);
   side.querySelector('[data-act="gridsnap"]').addEventListener('click', function () {
     gridSnapOn = !gridSnapOn;
@@ -3631,6 +3738,13 @@
           ny = st.v; nh = resize.y + resize.h - st.v; gy = st.g;
         }
       }
+      // Canva-style: corner-drag on a SHAPE scales it, keeping its
+      // proportions (edge handles still stretch it freely on purpose)
+      if (e.type === 'box' && e.shape && dir.dx !== 0 && dir.dy !== 0) {
+        nh = nw * (resize.h / resize.w);
+        if (dir.dy === -1) ny = resize.y + resize.h - nh;
+        gy = null;
+      }
       if (nw < 60) { if (dir.dx === -1) nx = resize.x + resize.w - 60; nw = 60; }
       if (nh < 32) { if (dir.dy === -1) ny = resize.y + resize.h - 32; nh = 32; }
       nx = Math.max(0, Math.min(W - nw, nx));
@@ -4217,6 +4331,7 @@
     setSecBg: setSecBg,
     buildBlocks: buildAllBlocks,
     mergeContent: mergeContent,
+    closePanel: closePanel,
   };
   // the running build, visible at a glance: hover the gogh side tab, or read
   // it in the console — kills "is this tab stale?" debugging forever

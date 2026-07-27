@@ -1592,6 +1592,51 @@
       expect(!document.querySelector('.gogh-chrome-preview'), 'preview left behind after collapse');
     });
 
+    // ---- shape element: palette flyout, back-of-stack insert, shipped CSS ----
+    test('shapes: flyout inserts circle at the back with published CSS', function () {
+      window.scrollTo(0, 0);
+      var btn = q('.gogh-side [data-act="shapes"]');
+      expect(btn, 'no Shape row in the palette');
+      btn.click();
+      var cells = document.querySelectorAll('.gogh-panel .gogh-shapecell');
+      expect(cells.length >= 8, 'shape flyout incomplete, got ' + cells.length + ' cells');
+      cells[2].click(); // circle
+      var hit = null, hitSec = null;
+      G.sections().forEach(function (s) {
+        s.els.forEach(function (e) {
+          if (e.type === 'box' && e.shape === 'circle') { hit = e; hitSec = s; }
+        });
+      });
+      expect(hit, 'circle box not inserted');
+      expect(hitSec.els.indexOf(hit) === 0, 'shape not at the back of the stack (index ' + hitSec.els.indexOf(hit) + ')');
+      var css = hitSec.styleEl.textContent || '';
+      expect(css.indexOf('border-radius: 50%') !== -1, 'circle CSS not in the section stylesheet');
+      // switching shape on the canvas: clip-path geometry must ship too
+      hit.shape = 'tri';
+      G.renderSection(hitSec);
+      expect((hitSec.styleEl.textContent || '').indexOf('clip-path: polygon(50% 0%') !== -1, 'triangle clip-path missing');
+      var snap = G.serialize();
+      expect(snap.indexOf('"shape":"tri"') !== -1, 'shape not serialized');
+      return 'insert → back of stack → CSS → round-trip';
+    });
+
+    // ---- shape element: corner resize keeps proportions ----
+    test('shapes: corner-drag scales proportionally', function () {
+      window.scrollTo(0, 0);
+      q('.gogh-side [data-act="shapes"]').click();
+      document.querySelectorAll('.gogh-panel .gogh-shapecell')[2].click(); // circle 320×320
+      var s0 = sec();
+      var i = s0.els.findIndex(function (e) { return e.type === 'box' && e.shape === 'circle'; });
+      expect(i !== -1, 'circle not in first content section');
+      var e = s0.els[i];
+      var w0 = e.w;
+      select(i);
+      dragBy(q('.gogh-h-se'), 90, 10, 21);
+      expect(e.w > w0, 'shape did not grow (w ' + w0 + '→' + e.w + ')');
+      expect(Math.abs(e.w - e.h) <= 2, 'proportions broke: ' + e.w + '×' + e.h);
+      return w0 + '→' + e.w + ' square held';
+    });
+
     // ---- report ----
     var passed = results.filter(function (r) { return r.pass; }).length;
     var summary = passed + '/' + results.length + ' passed' +
