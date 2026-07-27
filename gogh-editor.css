@@ -565,7 +565,13 @@
   width: 100%;
   aspect-ratio: 1200 / 560;
   overflow: hidden;
-  background: #0f0e0c;
+  /* previews sit on the THEME's canvas, exactly like the section will on
+     the page — a dark well hid the theme's (dark) text entirely */
+  background: var(--wp--preset--color--base, #fff);
+  color: var(--wp--preset--color--contrast, #16181c);
+  /* the picker resets font-family for its own UI; the stage restores the
+     page's body font so previews are honest minis (set in openPicker) */
+  font-family: var(--gogh-body-ff, inherit);
 }
 .gogh-card-stage {
   position: absolute;
@@ -768,7 +774,8 @@
 .gogh-dist.is-equal .gogh-dist-h, .gogh-dist.is-equal { border-color: #7ea8ff; }
 .gogh-dist.is-equal span { background: #7ea8ff; color: #141519; }
 
-/* convert-to-freeform overlay on non-gogh blocks */
+/* convert-to-freeform overlay on non-gogh blocks — ONE quiet chip style
+   everywhere (the loud gradient pill is retired) */
 .gogh-convertbtn {
   all: unset;
   position: absolute;
@@ -776,25 +783,16 @@
   transform: translateX(-100%);
   cursor: pointer;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, sans-serif;
-  font-size: 12px;
-  font-weight: 700;
-  color: #fff;
-  background: linear-gradient(135deg, #7b5bd6, #5b8bd6);
-  border-radius: 999px;
-  padding: 7px 14px;
-  box-shadow: 0 10px 28px -8px rgba(0, 0, 0, 0.55);
-  white-space: nowrap;
-  opacity: 0.92;
-}
-/* pasted-HTML sections: same quiet chip as the pending bar's buttons */
-.gogh-convertbtn.is-htmlsec {
-  background: rgba(20, 21, 25, 0.88);
-  color: #e8eaf0;
   font-size: 11.5px;
   font-weight: 600;
-  padding: 6px 12px;
+  color: #e8eaf0;
+  background: rgba(20, 21, 25, 0.88);
   border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 999px;
+  padding: 6px 12px;
   box-shadow: 0 10px 28px -8px rgba(0, 0, 0, 0.45);
+  white-space: nowrap;
+  opacity: 0.92;
 }
 .gogh-convertbtn:hover { opacity: 1; transform: translateX(-100%) scale(1.04); }
 .gogh-convertbtn:disabled { opacity: 0.6; cursor: default; }
@@ -1409,6 +1407,7 @@ html.gogh-editing .gogh-mirror { display: flex; }
   padding: 4px 11px;
   transition: color 0.14s ease, border-color 0.14s ease, background 0.14s ease;
 }
+.gogh-patcat[hidden] { display: none; }
 .gogh-patcat:hover { color: var(--gogh-ui-fg); border-color: rgba(255, 255, 255, 0.28); }
 .gogh-patcat.is-active { background: #7ea8ff; border-color: #7ea8ff; color: #141519; }
 .gogh-patcat svg { display: block; }

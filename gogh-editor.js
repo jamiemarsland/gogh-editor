@@ -2239,6 +2239,7 @@
   };
   function openPicker(idx) {
     pickerIdx = idx;
+    try { picker.style.setProperty('--gogh-body-ff', getComputedStyle(document.body).fontFamily); } catch (err) {}
     var tplCardHTML = function (tpl, t) {
       var els = tplEls(tpl);
       var scope = 'gogh-tpl-' + t;
@@ -2438,8 +2439,11 @@
       mine.forEach(function (bk) { mineById[bk.id] = bk; });
 
       var patCats = function (p) {
+        // themes namespace their categories (ollie/hero, ollie/card) — match
+        // on the bare name so the buckets see them
+        var cats = (p.categories || []).map(function (c) { return String(c).split('/').pop(); });
         return BUCKETS.filter(function (bu) {
-          return (p.categories || []).some(function (c) { return bu.cats.indexOf(c) !== -1; });
+          return cats.some(function (c) { return bu.cats.indexOf(c) !== -1; });
         }).map(function (bu) { return bu.key; }).join(' ');
       };
       var updateYoursChip = function () {
@@ -2526,7 +2530,16 @@
         return b;
       };
 
-      // ---- build the one grid: every pattern once, yours floated first ----
+      // ---- build the one grid: yours floated first ----
+      // curation: only the theme's hero and card/feature patterns make the
+      // cut — the long tail (post meta, footers, filler) read as noise
+      pats = pats.filter(function (p) {
+        // whole-header/footer patterns aren't page sections
+        var cats = (p.categories || []).map(function (c) { return String(c).split('/').pop(); });
+        if (cats.indexOf('header') !== -1 || cats.indexOf('footer') !== -1) return false;
+        var c = patCats(p);
+        return c.indexOf('hero') !== -1 || c.indexOf('cards') !== -1;
+      });
       var patCardByName = {};
       var themeLabel = 'From ' + (cfg.themeName || 'your theme');
       if (pats.length) {
@@ -7119,13 +7132,6 @@
       var b = document.createElement('button');
       b.type = 'button';
       b.className = 'gogh-convertbtn';
-      // pasted-HTML sections keep the quiet treatment they had while
-      // pending \u2014 the loud gradient pill is for foreign Gutenberg blocks
-      if (node.classList.contains('gogh-pended') ||
-          node.classList.contains('gogh-section-html') ||
-          node.querySelector(':scope > .gogh-section-html')) {
-        b.classList.add('is-htmlsec');
-      }
       b.textContent = '\u2728 Make freeform';
       b.style.left = (r.right + window.scrollX - 10) + 'px';
       b.style.top = (r.top + window.scrollY + 10) + 'px';
