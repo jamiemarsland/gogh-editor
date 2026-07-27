@@ -1459,7 +1459,10 @@
   function closePanel() {
     panel.hidden = true;
     panelOpen = false;
-    endChromePreview();
+    // an ACTIVE cycle owns its preview — defensive closePanel calls from
+    // unrelated paths must not snuff it (the counter kept advancing while
+    // the preview died: James's exact symptom)
+    if (!chromeCycle) endChromePreview();
   }
   // place the panel near the element but always fully inside the viewport —
   // a viewport-filling image would otherwise push it below the fold
@@ -5340,7 +5343,13 @@
         ev.clientX >= r.left && ev.clientX <= r.right;
     }
     function onDocDown(ev) {
-      if (cycBar.contains(ev.target)) return;
+      if (cycBar.contains(ev.target)) {
+        // strip clicks are the cycle's business alone: without stopping
+        // propagation they leak into gogh's global handlers, one of which
+        // closes panels — destroying the just-applied preview
+        ev.stopPropagation();
+        return;
+      }
       if (inPart(ev)) {
         // clicking the header = next look; swallow it before nav links act
         ev.preventDefault();
@@ -6310,6 +6319,15 @@
     chromeBtns.forEach(function (b) { b.remove(); });
     chromeBtns = [];
   }
+  // pills only appear while the pointer is over their part (or the pill
+  // itself) — less cognitive noise everywhere else on the page
+  document.addEventListener('mouseover', function (ev) {
+    chromeBtns.forEach(function (b) {
+      var over = b.contains(ev.target) ||
+        (b.__goghPart && b.__goghPart.contains(ev.target));
+      b.classList.toggle('is-vis', over);
+    });
+  });
   function placeChromeBtns() {
     clearChromeBtns();
     if (!editing) return;

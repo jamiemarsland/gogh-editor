@@ -1431,6 +1431,10 @@
     test('footer pill is fixed at the viewport bottom and unobstructed', function () {
       var fp = q('.gogh-chromebtn.is-footpill');
       expect(fp, 'no fixed footer pill');
+      // pills reveal on hover over their part
+      var fpart = document.querySelector('footer.wp-block-template-part') || document.body;
+      fpart.dispatchEvent(new MouseEvent('mouseover', { bubbles: true }));
+      expect(fp.classList.contains('is-vis'), 'pill not revealed by footer hover');
       var cs = getComputedStyle(fp);
       expect(cs.position === 'fixed', 'footer pill not fixed: ' + cs.position);
       var r = fp.getBoundingClientRect();
@@ -1439,6 +1443,8 @@
       // nothing may cover it — that is how it got lost under the publish chip
       var hit = document.elementFromPoint(Math.round(r.left + r.width / 2), Math.round(r.top + r.height / 2));
       expect(hit === fp || fp.contains(hit), 'footer pill is covered by ' + (hit ? hit.className : 'nothing'));
+      document.body.dispatchEvent(new MouseEvent('mouseover', { bubbles: true }));
+      expect(!fp.classList.contains('is-vis'), 'pill did not hide after hover-away');
     });
 
     test('header pill cycles layouts in place, click-off reverts', function () {

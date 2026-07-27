@@ -1383,6 +1383,12 @@ html.gogh-editing .gogh-mirror { display: flex; }
 }
 .gogh-chromebtn:hover { opacity: 1; }
 .gogh-chromebtn svg { display: block; }
+/* pills reveal on hover over their part — hidden the rest of the time */
+@media (hover: hover) {
+  .gogh-chromebtn { opacity: 0; pointer-events: none; }
+  .gogh-chromebtn.is-vis { opacity: 0.9; pointer-events: auto; }
+  .gogh-chromebtn.is-vis:hover { opacity: 1; }
+}
 /* the footer pill lives at the bottom of the viewport, centred — always
    where you expect it, never buried under the page or the publish chip */
 .gogh-chromebtn.is-footpill {
