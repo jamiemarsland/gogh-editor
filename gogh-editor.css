@@ -1347,8 +1347,11 @@ html.gogh-editing .gogh-mirror { display: flex; }
 
 /* chrome (header/footer) pill: quiet, in the family of the section toolbar */
 .gogh-chromebtn {
-  background: #fff;
-  color: #50575e;
+  /* dark chip with a light keyline: readable on light AND dark themes —
+     white-on-white made the pill invisible on Ollie */
+  background: rgba(20, 21, 25, 0.92);
+  color: #e8eaf0;
+  border: 1px solid rgba(255, 255, 255, 0.25);
   font-size: 10px;
   font-weight: 700;
   text-transform: uppercase;
@@ -1357,7 +1360,7 @@ html.gogh-editing .gogh-mirror { display: flex; }
   align-items: center;
   gap: 6px;
   padding: 7px 13px;
-  opacity: 0.72;
+  opacity: 0.9;
   transition: opacity 0.15s ease;
 }
 .gogh-chromebtn:hover { opacity: 1; }
