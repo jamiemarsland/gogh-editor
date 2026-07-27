@@ -5699,21 +5699,26 @@
           return;
         }
         if (cl.contains('wp-block-cover')) return coverInto(c, null);
-        if (cl.contains('wp-block-group') || cl.contains('wp-block-columns') ||
-            cl.contains('wp-block-column') || !c.className) {
-          if (c.children.length) { boxFrom(c); return walkDomOnly(c); }
-        }
-        // arbitrary pasted HTML: containers descend by SHAPE, not class —
-        // an element wrapping only other elements is layout, not content
-        if ((c.className + '').indexOf('wp-block-') === -1 &&
-            !FREE_ATOMIC.test(tag) && !/^(H[1-6]|P|IMG|A|BUTTON|FIGURE|SVG)$/i.test(tag) &&
-            c.children.length && !hasDirectText(c)) {
-          boxFrom(c);
-          var fmC = freeMode;
-          freeMode = true;
-          walkDomOnly(c);
-          freeMode = fmC;
-          return;
+        // a leaf TAG is never a container — a classless <h1> holding a
+        // styling <span> must stay one heading, not be descended into
+        // (which drops its bare text nodes)
+        var leafTag = FREE_ATOMIC.test(tag) || /^(H[1-6]|P|IMG|A|BUTTON|FIGURE|SVG)$/i.test(tag);
+        if (!leafTag) {
+          if (cl.contains('wp-block-group') || cl.contains('wp-block-columns') ||
+              cl.contains('wp-block-column') || !c.className) {
+            if (c.children.length && !hasDirectText(c)) { boxFrom(c); return walkDomOnly(c); }
+          }
+          // arbitrary pasted HTML: containers descend by SHAPE, not class —
+          // an element wrapping only other elements is layout, not content
+          if ((c.className + '').indexOf('wp-block-') === -1 &&
+              c.children.length && !hasDirectText(c)) {
+            boxFrom(c);
+            var fmC = freeMode;
+            freeMode = true;
+            walkDomOnly(c);
+            freeMode = fmC;
+            return;
+          }
         }
         leafFrom(c, null);
       });

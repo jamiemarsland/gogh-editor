@@ -1338,6 +1338,27 @@
       expect(scan.els.filter(function (e) { return e.type === 'widget'; }).length === 0, 'content collapsed into a widget');
     });
 
+    test('classless h1 with inner span stays ONE heading (James hero)', function () {
+      G.addHtmlSection('<div class="hx"><style>.hx h1{font-size:96px;font-weight:800}.hx h1 span{display:block;color:#7a7a7a}</style>' +
+        '<div class="hx" style="background:#0a0a0a;padding:60px">' +
+        '<h1>Beautiful <span>Simplicity.</span></h1>' +
+        '<div><a href="#" style="background:#fff;color:#000;padding:14px 30px;border-radius:999px">Get Started</a></div>' +
+        '</div></div>', null);
+      var entry = G.pending()[G.pending().length - 1];
+      var s0 = G.sections().length;
+      entry.el.querySelector('.gogh-pend-ff').click();
+      expect(G.sections().length === s0 + 1, 'conversion failed');
+      var added = G.sections()[G.sections().length - 1];
+      var heads = added.els.filter(function (e) { return e.type === 'heading'; });
+      expect(heads.length === 1, 'h1 was split or lost, headings: ' + heads.length);
+      expect(heads[0].text.indexOf('Beautiful') !== -1 && heads[0].text.indexOf('Simplicity') !== -1,
+        'heading lost its bare text node: "' + heads[0].text + '"');
+      expect(heads[0].tf && heads[0].tf.fs === 96, 'stylesheet size not captured: ' + JSON.stringify(heads[0].tf));
+      expect(added.els.filter(function (e) { return e.type === 'button'; }).length === 1, 'link not a button');
+      expect(added.els.filter(function (e) { return e.type === 'widget'; }).length === 0, 'stray widgets: h1 span leaked');
+      G.deleteSection(G.sections().indexOf(added));
+    });
+
     test('header pill cycles layouts in place, click-off reverts', function () {
       var pill = q('.gogh-chromebtn');
       expect(pill, 'no chrome pill on the page');
