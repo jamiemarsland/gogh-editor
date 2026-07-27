@@ -73,17 +73,21 @@
       description: 'Describe the current page: every section, its elements and their text. Call this first to orient yourself.',
       schema: { type: 'object', properties: {} },
       run: function () {
+        // indexes here are CONTENT-section indexes — exactly what the other
+        // tools accept. Site chrome is listed without a number on purpose.
         var lines = [];
-        G.sections().forEach(function (s, i) {
+        var ci = 0;
+        G.sections().forEach(function (s) {
           if (s.chrome) {
-            lines.push('[' + i + '] site ' + s.chrome.area + ' (edit via the page, not these tools)');
+            lines.push('(site ' + s.chrome.area + ' — not editable via these tools)');
             return;
           }
           var els = s.els.map(function (e) {
             var t = textOf(e);
             return e.type + (e.shape ? ':' + e.shape : '') + (t ? ' "' + t.slice(0, 48) + '"' : '');
           });
-          lines.push('[' + i + '] section — ' + (els.length ? els.join('; ') : 'empty'));
+          lines.push('[' + ci + '] section — ' + (els.length ? els.join('; ') : 'empty (delete it with gogh_delete_section if unwanted)'));
+          ci++;
         });
         lines.push('');
         lines.push('Unpublished changes: ' + (G.isDirty() ? 'yes — call gogh_publish when done' : 'no'));
@@ -253,6 +257,24 @@
           : '';
         return hits ? 'Replaced ' + hits + ' occurrence(s) of "' + find + '".' + note
           : 'No editable element contains "' + find + '". Try gogh_page_overview to see the text on the page.';
+      },
+    },
+    {
+      name: 'gogh_delete_section',
+      description: 'Delete a content section by its index from gogh_page_overview. Remaining sections renumber — re-run the overview after deleting.',
+      schema: {
+        type: 'object',
+        properties: { section: { type: 'number', description: 'Content-section index from gogh_page_overview' } },
+        required: ['section'],
+      },
+      run: function (args) {
+        ensureEditing();
+        var secs = contentSecs();
+        var sec = secs[args.section | 0];
+        if (!sec) return 'No content section ' + args.section + ' — the page has ' + secs.length + '.';
+        var desc = sec.els.length ? sec.els.length + ' element(s)' : 'empty';
+        G.deleteSection(G.sections().indexOf(sec));
+        return 'Deleted section ' + (args.section | 0) + ' (' + desc + '). Sections renumbered — check gogh_page_overview.';
       },
     },
     {

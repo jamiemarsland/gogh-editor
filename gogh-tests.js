@@ -1671,7 +1671,11 @@
       });
       expect(head.h > h0, 'long text did not grow the heading (h ' + h0 + '→' + head.h + ')');
       if (below) expect(below.y > belowY0, 'element below was not pushed down by the longer heading');
-      return names.length + ' tools live, reflow ok';
+      // the agent asked for this one: sections must be deletable by tool
+      var delMsg = window.__goghMcp.call('gogh_delete_section', { section: contentSecs().length - 1 });
+      expect(/Deleted section/.test(delMsg), 'delete_section failed: ' + delMsg);
+      expect(G.sections().length === s0, 'section count not restored by delete (' + G.sections().length + ' vs ' + s0 + ')');
+      return names.length + ' tools live, reflow + delete ok';
     });
 
     // ---- published blocks stay lightly editable ----
