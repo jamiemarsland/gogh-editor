@@ -4,7 +4,7 @@ Tags: page builder, canvas, drag and drop, design, blocks
 Requires at least: 6.5
 Tested up to: 7.0
 Requires PHP: 7.4
-Stable tag: 0.26.0
+Stable tag: 0.30.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -64,6 +64,12 @@ Gogh inherits typography, colours and button styles from your theme's Global Sty
 On the front end. Visit any page while logged in (with edit rights) and click "Edit with Gogh" — in the admin bar or the corner button.
 
 == Changelog ==
+
+= 0.30 =
+* Security: button links are now validated against the same URL allow-list already used for inline text links, closing a gap that let unsafe schemes (e.g. `javascript:`) be saved into a button's link.
+* Coding standards: full WordPress Coding Standards (WPCS) compliance pass on the plugin's PHP.
+* i18n: wrapped the remaining hardcoded admin-bar string for translation.
+* Housekeeping: synced Stable Tag with the plugin version and trimmed the plugin header description to meet length guidelines.
 
 = 0.26 =
 * Inline links, bold and italic in headings and paragraphs — select text and press Cmd/Ctrl+K to add a link.

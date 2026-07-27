@@ -411,6 +411,19 @@
       closePanelForTest();
     });
 
+    test('button link panel rejects javascript: URLs', function () {
+      var i = findIdx('button');
+      select(i);
+      q('.gogh-eb-ctx').click();
+      var input = document.querySelector('.gogh-panel input');
+      input.value = 'javascript:alert(1)';
+      document.querySelector('.gogh-panel .gogh-apply').click();
+      expect(sec().els[i].href === null, 'javascript: href was not rejected: ' + sec().els[i].href);
+      var blocks = G.buildBlocks();
+      expect(blocks.indexOf('javascript:') === -1, 'javascript: leaked into saved button markup');
+      closePanelForTest();
+    });
+
     test('boot sync adopts Gutenberg edits into the model', function () {
       var host = document.createElement('div');
       host.innerHTML =

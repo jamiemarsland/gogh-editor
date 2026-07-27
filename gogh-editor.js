@@ -431,6 +431,10 @@
   function escAttr(s) {
     return esc(s).replace(/"/g, '&quot;');
   }
+  // Same allow-list as the inline-link sanitizer below: blocks javascript:/data: etc.
+  function isSafeHref(href) {
+    return /^(https?:|mailto:|tel:|\/|#)/i.test(String(href).trim());
+  }
   function projEl(e) {
     return { type: e.type, x: e.x, y: e.y, w: e.w, h: e.h,
       text: e.text || null, ghost: !!e.ghost, cool: !!e.cool,
@@ -463,10 +467,11 @@
             cleanInline(e.text) + '</p>\n<!-- /wp:paragraph -->';
         }
         case 'button': {
-          var href = e.href ? escAttr(e.href) : '#';
+          var safeHref = e.href && isSafeHref(e.href) ? e.href : null;
+          var href = safeHref ? escAttr(safeHref) : '#';
           var attrs = {};
           if (e.ghost) attrs.className = 'gogh-ghost';
-          if (e.href) attrs.url = e.href;
+          if (safeHref) attrs.url = safeHref;
           if (e.btnBg) attrs.backgroundColor = e.btnBg;
           if (e.btnText) attrs.textColor = e.btnText;
           var linkCls = 'wp-block-button__link' +
@@ -544,7 +549,7 @@
           });
           if (tag === 'A') {
             var href = c.getAttribute('href') || '';
-            if (!/^(https?:|mailto:|tel:|\/|#)/i.test(href.trim())) c.removeAttribute('href');
+            if (!isSafeHref(href)) c.removeAttribute('href');
           }
           walk(c);
           return;
@@ -1378,7 +1383,8 @@
     var input = panel.querySelector('input');
     input.value = e.href || '';
     var apply = function () {
-      e.href = input.value.trim() || null;
+      var v = input.value.trim();
+      e.href = (v && isSafeHref(v)) ? v : null;
       closePanel();
       pushState();
     };
