@@ -3031,7 +3031,10 @@
       '<input type="url" class="gogh-input" placeholder="Paste image URL…" />' +
       '<button type="button" class="gogh-btn gogh-btn-small gogh-apply">Apply</button>' +
       '</div>' +
-      (secx.bgImage ? '<div class="gogh-panel-row gogh-panel-actions"><button type="button" class="gogh-btn gogh-btn-small gogh-clear">Remove image</button></div>' : '') +
+      '<div class="gogh-panel-row gogh-panel-actions">' +
+      (cfg.canUpload ? '<label class="gogh-btn gogh-btn-small gogh-upload">Upload<input type="file" accept="image/*" hidden /></label>' : '') +
+      (secx.bgImage ? '<button type="button" class="gogh-btn gogh-btn-small gogh-clear">Remove image</button>' : '') +
+      '</div>' +
       '<div class="gogh-media"><span class="gogh-media-loading">Loading media…</span></div>';
     panel.hidden = false;
     panelOpen = true;
@@ -3063,6 +3066,30 @@
     });
     var clear = panel.querySelector('.gogh-clear');
     if (clear) clear.addEventListener('click', function () { setSecBg(idx, null); });
+    var file = panel.querySelector('input[type="file"]');
+    if (file) {
+      file.addEventListener('change', function () {
+        if (!file.files.length) return;
+        var fd = new FormData();
+        fd.append('file', file.files[0]);
+        var label = panel.querySelector('.gogh-upload');
+        label.firstChild.textContent = 'Uploading…';
+        fetch(cfg.mediaUrl, {
+          method: 'POST',
+          headers: { 'X-WP-Nonce': cfg.nonce },
+          credentials: 'same-origin',
+          body: fd,
+        }).then(function (res) {
+          if (!res.ok) throw new Error('HTTP ' + res.status);
+          return res.json();
+        }).then(function (item) {
+          setSecBg(idx, item.source_url, item.id);
+        }).catch(function (err) {
+          label.firstChild.textContent = 'Upload failed';
+          console.error('gogh upload failed:', err);
+        });
+      });
+    }
     fetch(restQ(cfg.mediaUrl, 'per_page=12&media_type=image&orderby=date&order=desc'), {
       headers: { 'X-WP-Nonce': cfg.nonce },
       credentials: 'same-origin',

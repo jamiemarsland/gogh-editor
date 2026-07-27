@@ -1626,6 +1626,18 @@
       expect(q('.gogh-picker').hidden, 'picker did not close');
     });
 
+    // ---- section background: upload lives in the panel ----
+    test('section background panel offers Upload', function () {
+      G.openSecBgPanel(G.sections().indexOf(sec()));
+      if (window.GOGH && window.GOGH.canUpload) {
+        var up = q('.gogh-panel .gogh-upload input[type="file"]');
+        expect(up, 'no Upload control in the section background panel');
+      }
+      expect(q('.gogh-panel .gogh-media'), 'media library grid missing');
+      G.closePanel();
+      return 'upload + media grid present';
+    });
+
     // ---- shape element: palette flyout, back-of-stack insert, shipped CSS ----
     test('shapes: flyout inserts circle at the back with published CSS', function () {
       window.scrollTo(0, 0);
