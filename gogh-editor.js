@@ -1115,6 +1115,32 @@
     }
     return out;
   }
+  function cssToRgb(v) {
+    v = (v || '').trim();
+    var m = v.match(/^#([0-9a-f]{3}|[0-9a-f]{6})$/i);
+    if (m) {
+      var h = m[1];
+      if (h.length === 3) h = h[0] + h[0] + h[1] + h[1] + h[2] + h[2];
+      return [parseInt(h.slice(0, 2), 16), parseInt(h.slice(2, 4), 16), parseInt(h.slice(4, 6), 16)];
+    }
+    m = v.match(/^rgba?\(\s*([\d.]+)[,\s]+([\d.]+)[,\s]+([\d.]+)/);
+    return m ? [+m[1], +m[2], +m[3]] : null;
+  }
+  // pasted HTML carries literal colours; gogh elements speak theme slugs —
+  // snap to the nearest palette colour so converted text stays visible
+  // (white-on-dark maps to the theme's lightest, not the default ink)
+  function nearestPaletteSlug(cssColor) {
+    var rgb = cssToRgb(cssColor);
+    if (!rgb) return null;
+    var best = null, bestD = Infinity;
+    themePalette().forEach(function (p) {
+      var prgb = cssToRgb(p.value);
+      if (!prgb) return;
+      var d = Math.pow(prgb[0] - rgb[0], 2) + Math.pow(prgb[1] - rgb[1], 2) + Math.pow(prgb[2] - rgb[2], 2);
+      if (d < bestD) { bestD = d; best = p.slug; }
+    });
+    return best;
+  }
 
   var guideV = document.createElement('div');
   var guideH = document.createElement('div');
@@ -4840,7 +4866,8 @@
       '<div class="wp-block-group alignfull">\n' +
       '<!-- wp:html -->\n' + html + '\n<!-- /wp:html -->\n' +
       '</div>\n<!-- /wp:group -->';
-    insertNative(raw, '<div class="wp-block-group alignfull">' + html + '</div>', 'HTML', idx);
+    var entry = insertNative(raw, '<div class="wp-block-group alignfull">' + html + '</div>', 'HTML', idx);
+    if (entry) entry.freeHtml = true;
   }
   // frictionless paste: Cmd+V anywhere in edit mode drops HTML straight onto
   // the page as a section — no modal, no textarea. Only pastes that are
@@ -5108,7 +5135,7 @@
   }
   function convertPending(entry) {
     var holder = entry.el;
-    var scan = scanDomWithRaw(holder, entry.raw, { loose: true });
+    var scan = scanDomWithRaw(holder, entry.raw, { loose: true, freeHtml: !!entry.freeHtml });
     if (!scan.els.length) {
       toast('gogh found nothing it can edit in this section.', { error: true });
       return;
@@ -5495,6 +5522,7 @@
     if (rr.width < 10) return { els: [], minH: 0 };
     var sx = W / rr.width;
     var out = [];
+    var styleTexts = []; // <style> tags in pasted HTML — rebundled into widgets
     function place(dom, e) {
       var r = dom.getBoundingClientRect();
       if (r.width < 2 || r.height < 2) return;
@@ -5544,12 +5572,37 @@
         });
         if (best && px) e.fs = best.slug;
       }
+      if (!e.color && opts.freeHtml) {
+        // no theme class to read — snap the computed colour to the palette
+        var slug = nearestPaletteSlug(getComputedStyle(dom).color);
+        if (slug) e.color = slug;
+      }
       return e;
+    }
+    function looksLikeButton(dom) {
+      var cs = getComputedStyle(dom);
+      var bgc = cs.backgroundColor;
+      var hasBg = bgc && bgc !== 'rgba(0, 0, 0, 0)' && bgc !== 'transparent';
+      var hasBorder = parseFloat(cs.borderTopWidth) > 0 && cs.borderTopStyle !== 'none';
+      return (hasBg || hasBorder) && (dom.textContent || '').trim().length < 60 && !dom.querySelector('img');
     }
     function leafFrom(dom, markup) {
       var cl = dom.classList, tag = dom.tagName;
       if (/^H[1-6]$/.test(tag)) return place(dom, textStyle(dom, { type: 'heading', text: cleanInline(dom.innerHTML).trim() }));
       if (tag === 'P' && !cl.contains('gogh-badge')) return place(dom, textStyle(dom, { type: 'para', text: cleanInline(dom.innerHTML).trim() }));
+      if (tag === 'IMG') {
+        return place(dom, { type: 'image', src: dom.currentSrc || dom.src || null, alt: dom.alt || null });
+      }
+      if ((tag === 'A' || tag === 'BUTTON') && looksLikeButton(dom)) {
+        var bhref = tag === 'A' ? dom.getAttribute('href') : null;
+        return place(dom, { type: 'button',
+          text: (dom.textContent || '').trim(),
+          href: (bhref && bhref !== '#') ? bhref : null,
+          ghost: (function (cs2) {
+            var bgc2 = cs2.backgroundColor;
+            return (!bgc2 || bgc2 === 'rgba(0, 0, 0, 0)' || bgc2 === 'transparent');
+          })(getComputedStyle(dom)) });
+      }
       if (tag === 'FIGURE' && cl.contains('wp-block-image')) {
         var img = dom.querySelector('img');
         var e = { type: 'image' };
@@ -5602,14 +5655,33 @@
         else walkDomOnly(inner);
       }
     }
+    var FREE_ATOMIC = /^(UL|OL|DL|TABLE|FORM|VIDEO|AUDIO|IFRAME|CANVAS|PRE|BLOCKQUOTE|PICTURE|SELECT|INPUT|TEXTAREA|NAV|DETAILS)$/;
+    function hasDirectText(dom) {
+      return [].some.call(dom.childNodes, function (n) {
+        return n.nodeType === 3 && n.textContent.trim();
+      });
+    }
     function walkDomOnly(containerDom) {
       [].slice.call(containerDom.children).forEach(function (c) {
         var cl = c.classList;
         if (cl && cl.contains('gogh-pendbar')) return;
+        var tag = c.tagName;
+        if (tag === 'STYLE' || tag === 'SCRIPT' || tag === 'LINK' || tag === 'TEMPLATE') {
+          if (tag === 'STYLE' && c.textContent.trim()) styleTexts.push(c.textContent);
+          return;
+        }
         if (cl.contains('wp-block-cover')) return coverInto(c, null);
         if (cl.contains('wp-block-group') || cl.contains('wp-block-columns') ||
             cl.contains('wp-block-column') || !c.className) {
           if (c.children.length) { boxFrom(c); return walkDomOnly(c); }
+        }
+        // arbitrary pasted HTML: containers descend by SHAPE, not class —
+        // an element wrapping only other elements is layout, not content
+        if ((c.className + '').indexOf('wp-block-') === -1 &&
+            !FREE_ATOMIC.test(tag) && !/^(H[1-6]|P|IMG|A|BUTTON|FIGURE|SVG)$/i.test(tag) &&
+            c.children.length && !hasDirectText(c)) {
+          boxFrom(c);
+          return walkDomOnly(c);
         }
         leafFrom(c, null);
       });
@@ -5635,7 +5707,9 @@
           return coverInto(dom, cInner ? cInner.text : null);
         }
         if (nm === 'html' && dom.children.length) {
-          // raw HTML block: no inner block structure to pair — walk the DOM
+          // raw HTML block: no inner block structure to pair — walk the DOM.
+          // The root often paints the section's backdrop; keep it as a box.
+          boxFrom(dom);
           return walkDomOnly(dom);
         }
         if (nm === 'group' || nm === 'columns' || nm === 'column') {
@@ -5669,6 +5743,7 @@
         var cInner0 = innerRawOf(raw, sp0);
         coverInto(rootEl, cInner0 ? cInner0.text : null);
       } else if (nm0 === 'html' && rootEl.children.length) {
+        boxFrom(rootEl);
         walkDomOnly(rootEl);
       } else if ((nm0 === 'group' || nm0 === 'columns' || nm0 === 'column') && rootEl.children.length) {
         // root background lifts to the section, not a box — callers handle it
@@ -5679,6 +5754,18 @@
       }
     } else {
       walk(rootEl, raw);
+    }
+    if (styleTexts.length) {
+      // the paste's <style> rides with its first widget chunk so raw pieces
+      // keep their look; converted text/images are the theme's business now
+      var styleTag = '<style>' + styleTexts.join('\n') + '</style>';
+      for (var wi = 0; wi < out.length; wi++) {
+        if (out[wi].type === 'widget') {
+          out[wi].whtml = styleTag + (out[wi].whtml || '');
+          out[wi].wsrc = styleTag + (out[wi].wsrc || '');
+          break;
+        }
+      }
     }
     return { els: out, minH: Math.round(rr.height * sx) };
   }

@@ -1274,6 +1274,33 @@
       expect(G.pending().indexOf(entry) === -1, 'entry not removed');
     });
 
+    test('✨ Make freeform atomizes pasted HTML into real elements', function () {
+      G.addHtmlSection('<style>.pastedwrap{border-radius:12px}</style>' +
+        '<div class="pastedwrap" style="background:#112244;padding:60px">' +
+        '<h2 style="color:#ffffff;margin:0 0 16px">Pasted hero</h2>' +
+        '<p style="color:#ffffff;margin:0 0 24px">Some words about the thing.</p>' +
+        '<a href="https://example.com/go" style="display:inline-block;background:#ffffff;color:#000;padding:12px 26px">Go now</a>' +
+        '<svg width="140" height="40" style="display:block;margin-top:24px"><rect width="140" height="40" fill="#cc3344"/></svg>' +
+        '</div>', null);
+      var entry = G.pending()[G.pending().length - 1];
+      expect(entry && entry.freeHtml, 'paste not marked as free HTML');
+      var s0 = G.sections().length;
+      entry.el.querySelector('.gogh-pend-ff').click();
+      expect(G.sections().length === s0 + 1, 'conversion did not add a section');
+      var added = G.sections()[G.sections().length - 1];
+      var byType = function (t) { return added.els.filter(function (e) { return e.type === t; }); };
+      expect(byType('heading').length === 1 && byType('heading')[0].text === 'Pasted hero', 'heading not atomized');
+      expect(byType('para').length === 1, 'paragraph not atomized');
+      var btn = byType('button')[0];
+      expect(btn && btn.text === 'Go now' && btn.href === 'https://example.com/go', 'link not atomized to a button');
+      expect(byType('box').length >= 1, 'container background not captured as a box');
+      var w = byType('widget')[0];
+      expect(w && w.whtml.indexOf('<svg') !== -1, 'svg not kept as a widget');
+      expect(w.whtml.indexOf('<style>') === 0 && w.whtml.indexOf('.pastedwrap') !== -1, 'pasted <style> not bundled with the widget');
+      expect(added.els.length >= 5, 'expected 5+ elements, got ' + added.els.length);
+      G.deleteSection(G.sections().indexOf(added));
+    });
+
     test('header pill cycles layouts in place, click-off reverts', function () {
       var pill = q('.gogh-chromebtn');
       expect(pill, 'no chrome pill on the page');
