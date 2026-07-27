@@ -3752,10 +3752,11 @@
       [].slice.call(clone.querySelectorAll('.gogh-selected, .gogh-dragsrc, .gogh-textedit, .gogh-fan, .gogh-multisel')).forEach(function (n2) {
         n2.classList.remove('gogh-selected', 'gogh-dragsrc', 'gogh-textedit', 'gogh-fan', 'gogh-multisel');
       });
-      [].slice.call(clone.querySelectorAll('.gogh-xray-ov, .gogh-pendbar')).forEach(function (n2) { n2.remove(); });
+      [].slice.call(clone.querySelectorAll('.gogh-pendbar')).forEach(function (n2) { n2.remove(); });
       clone.classList.remove('gogh-pending');
       stage.appendChild(clone);
       stage.style.zoom = CARD_W / 1200;
+      stage.style.background = pageBg();
       card.innerHTML = '<div class="gogh-zoom-label">' + label + '</div>';
       card.appendChild(stage);
       col.appendChild(card);
@@ -3944,74 +3945,6 @@
     if (!member) clearMulti();
   }, true);
 
-  // ---------- x-ray: hold ` to see the grid the solver built ----------
-  var xrayOn = false, xrayRaf = false;
-  function buildXrayOv(sec) {
-    var el = sec.sectionEl;
-    var old = el.querySelector(':scope > .gogh-xray-ov');
-    if (old) old.remove();
-    var w = el.clientWidth, h = el.clientHeight;
-    if (!w || !h) return;
-    var cs = getComputedStyle(el);
-    var cols = cs.gridTemplateColumns.split(' ').map(parseFloat).filter(function (n) { return !isNaN(n); });
-    var rows = cs.gridTemplateRows.split(' ').map(parseFloat).filter(function (n) { return !isNaN(n); });
-    if (!cols.length) return;
-    var xs = [0], ys = [0], acc = 0;
-    cols.forEach(function (c) { acc += c; xs.push(acc); });
-    acc = 0;
-    rows.forEach(function (rr) { acc += rr; ys.push(acc); });
-    var svg = ['<svg width="' + w + '" height="' + h + '" viewBox="0 0 ' + w + ' ' + h + '">'];
-    xs.forEach(function (x) { svg.push('<line x1="' + x + '" y1="0" x2="' + x + '" y2="' + h + '"/>'); });
-    ys.forEach(function (y) { svg.push('<line x1="0" y1="' + y + '" x2="' + w + '" y2="' + y + '"/>'); });
-    sec.nodes.forEach(function (node, i) {
-      if (!node) return;
-      var ns = getComputedStyle(node);
-      var c1 = parseInt(ns.gridColumnStart, 10), c2 = parseInt(ns.gridColumnEnd, 10);
-      var r1 = parseInt(ns.gridRowStart, 10), r2 = parseInt(ns.gridRowEnd, 10);
-      if (!c1 || !c2 || !r1 || !r2 || !xs[c2 - 1] && xs[c2 - 1] !== 0) return;
-      var x = xs[c1 - 1], y = ys[r1 - 1];
-      svg.push('<rect class="gogh-xr-area" x="' + x + '" y="' + y + '" width="' + (xs[c2 - 1] - x) + '" height="' + (ys[r2 - 1] - y) + '"/>');
-      svg.push('<text x="' + (x + 7) + '" y="' + (y + 18) + '">' + (i + 1) + '</text>');
-    });
-    svg.push('</svg>');
-    var ov = document.createElement('div');
-    ov.className = 'gogh-xray-ov';
-    ov.innerHTML = svg.join('');
-    el.appendChild(ov);
-  }
-  function setXray(on) {
-    on = !!on;
-    if (on === xrayOn) return;
-    xrayOn = on;
-    document.documentElement.classList.toggle('gogh-xray', on);
-    S.forEach(function (sec) {
-      var old = sec.sectionEl.querySelector(':scope > .gogh-xray-ov');
-      if (old) old.remove();
-      if (on) buildXrayOv(sec);
-    });
-  }
-  document.addEventListener('keydown', function (ev) {
-    if (ev.code !== 'Backquote' || !editing || textEditing || ev.repeat) return;
-    ev.preventDefault();
-    setXray(true);
-  });
-  document.addEventListener('keyup', function (ev) {
-    if (ev.code === 'Backquote') setXray(false);
-  });
-  window.addEventListener('blur', function () { setXray(false); });
-  // the grid recomputes live while you drag with x-ray held
-  var resolveAndApply0 = resolveAndApply;
-  resolveAndApply = function (sec) {
-    resolveAndApply0(sec);
-    if (xrayOn && !xrayRaf) {
-      xrayRaf = true;
-      requestAnimationFrame(function () {
-        xrayRaf = false;
-        if (xrayOn) S.forEach(buildXrayOv);
-      });
-    }
-  };
-
   // ---------- live mobile mirror ----------
   var MIRROR_W = 250, MIRROR_DESIGN = 360;
   var mirror = document.createElement('div');
@@ -4030,6 +3963,14 @@
   document.body.appendChild(mirrorTab);
   var mirrorT = null;
   var mirrorObs = new MutationObserver(function () { scheduleMirror(); });
+  function pageBg() {
+    // sections with no background inherit the page's — miniatures must too
+    var b = getComputedStyle(document.body).backgroundColor;
+    if (!b || b === 'rgba(0, 0, 0, 0)' || b === 'transparent') {
+      b = getComputedStyle(document.documentElement).backgroundColor;
+    }
+    return (!b || b === 'rgba(0, 0, 0, 0)' || b === 'transparent') ? '#fff' : b;
+  }
   function refreshMirror() {
     if (mirror.hidden) return;
     var stage = mirror.querySelector('.gogh-mirror-stage');
@@ -4048,13 +3989,13 @@
         n.style.zIndex = '';
       });
       clone.classList.remove('gogh-exploded');
-      var xo = clone.querySelector('.gogh-xray-ov');
-      if (xo) xo.remove();
       stage.appendChild(clone);
     });
     // zoom (not transform) so the scroll extent shrinks with the content
     // while container queries still see a 360px viewport
     stage.style.zoom = MIRROR_W / MIRROR_DESIGN;
+    var frame = mirror.querySelector('.gogh-mirror-frame');
+    frame.style.background = pageBg();
   }
   function scheduleMirror() {
     if (mirror.hidden) return;
@@ -4102,7 +4043,6 @@
   } catch (err) {}
 
   window.__gogh = {
-    xray: setXray,
     mirror: { open: openMirror, close: closeMirror, refresh: refreshMirror, el: mirror },
     explode: { enter: enterExplode, exit: exitExplode, state: function () { return explodeSt; } },
     multi: { set: setMulti, clear: clearMulti, state: function () { return multiSel; } },

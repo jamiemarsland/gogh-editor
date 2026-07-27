@@ -1076,15 +1076,6 @@
     });
 
     // ---- 31. the dazzle features ----
-    test('x-ray overlays draw the real grid', function () {
-      G.xray(true);
-      var ov = sec().sectionEl.querySelector('.gogh-xray-ov');
-      expect(ov, 'no overlay');
-      expect(ov.querySelectorAll('line').length >= 4, 'no grid lines');
-      expect(ov.querySelectorAll('.gogh-xr-area').length >= 1, 'no element areas');
-      G.xray(false);
-      expect(!sec().sectionEl.querySelector('.gogh-xray-ov'), 'overlay not removed');
-    });
     test('mobile mirror renders the container-query layout', function () {
       G.mirror.open();
       G.mirror.refresh();

@@ -1121,26 +1121,6 @@
   outline-offset: 3px;
 }
 
-/* ---------- x-ray ---------- */
-.gogh-xray-ov {
-  position: absolute;
-  inset: 0;
-  z-index: 99980;
-  pointer-events: none;
-}
-.gogh-xray-ov svg { display: block; width: 100%; height: 100%; }
-.gogh-xray-ov line { stroke: rgba(126, 168, 255, 0.5); stroke-width: 1; }
-.gogh-xray-ov .gogh-xr-area {
-  fill: rgba(126, 168, 255, 0.07);
-  stroke: #7ea8ff;
-  stroke-width: 1.5;
-  stroke-dasharray: 6 4;
-}
-.gogh-xray-ov text {
-  fill: #7ea8ff;
-  font: 700 11px -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, sans-serif;
-}
-
 /* ---------- live mobile mirror ---------- */
 .gogh-mirror-tab {
   all: unset;
