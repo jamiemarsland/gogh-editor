@@ -1057,18 +1057,26 @@
   font-size: 9px;
   opacity: 0.35;
 }
-/* the ✓ confirmation covers the strip itself — never a corner toast */
+/* the ✓ confirmation sits where the strip is — but sizes to its OWN
+   content, growing past the compact strip instead of clipping */
 .gogh-cyc-confirm {
   position: absolute;
-  inset: 0;
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  min-width: max-content;
+  padding: 0 10px 0 18px;
   border-radius: 999px;
   background: #fff;
+  box-shadow: 0 10px 32px -6px rgba(0, 0, 0, 0.55);
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 12px;
   font-size: 12px;
   color: #50575e;
+  white-space: nowrap;
 }
 .gogh-cyc-confirm b {
   cursor: pointer;
@@ -1118,14 +1126,13 @@
 .gogh-chrome-rows .gogh-btn.is-active { background: #7ea8ff; color: #141519; }
 
 .gogh-stylebtn svg { display: block; }
-.gogh-side-head .gogh-stylebtn {
-  flex: 0 0 auto;
-  width: 28px;
-  height: 28px;
-  padding: 0;
-  display: grid;
-  place-items: center;
-  margin-left: auto;
+/* history lives at the palette's foot, under a hairline */
+.gogh-side-foot {
+  display: flex;
+  gap: 6px;
+  margin-top: 6px;
+  padding-top: 10px;
+  border-top: 1px solid var(--gogh-ui-border);
 }
 .gogh-panel .gogh-varlist { max-height: 320px; overflow-y: auto; }
 

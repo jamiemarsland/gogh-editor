@@ -948,17 +948,15 @@
   side.innerHTML =
     '<div class="gogh-side-head">' +
     '<span class="gogh-side-title">gogh</span>' +
+    '<button type="button" class="gogh-sbtn gogh-close" title="Finish editing">✕</button>' +
+    '</div>' +
+    '<div class="gogh-side-row">' +
     '<button type="button" class="gogh-sbtn gogh-stylebtn" title="Site style">' +
     '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M12 3a9 9 0 1 0 0 18h1.5a2.5 2.5 0 0 0 1.8-4.2 2.5 2.5 0 0 1 1.8-4.3H20a9 9 0 0 0-8-9.5Z"/><circle cx="7.5" cy="11" r="1.2" fill="currentColor" stroke="none"/><circle cx="10.5" cy="7.5" r="1.2" fill="currentColor" stroke="none"/><circle cx="15" cy="7.5" r="1.2" fill="currentColor" stroke="none"/></svg>' +
     '</button>' +
     '<button type="button" class="gogh-sbtn gogh-gridbtn" data-act="gridsnap" title="Grid: show and snap">' +
     '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 9h18M3 15h18M9 3v18M15 3v18"/></svg>' +
     '</button>' +
-    '<button type="button" class="gogh-sbtn gogh-close" title="Finish editing">✕</button>' +
-    '</div>' +
-    '<div class="gogh-side-row">' +
-    '<button type="button" class="gogh-sbtn gogh-undo" title="Undo (⌘Z)">↺</button>' +
-    '<button type="button" class="gogh-sbtn gogh-redo" title="Redo (⇧⌘Z)">↻</button>' +
     '<button type="button" class="gogh-sbtn gogh-zoomopen" title="Whole page — reorder sections">' +
     '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="3" width="16" height="7" rx="1.6"/><rect x="4" y="14" width="16" height="7" rx="1.6"/><path d="M12 10.5v3"/></svg>' +
     '</button>' +
@@ -975,7 +973,11 @@
     '<button type="button" class="gogh-sitem" data-add="posts" title="Your latest posts, live"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="4" width="16" height="6" rx="1.5"/><rect x="4" y="14" width="16" height="6" rx="1.5"/></svg>Posts</button>' +
     '<div class="gogh-side-label">Page</div>' +
     '<button type="button" class="gogh-sitem gogh-addsec" data-act="addsec"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>Section</button>' +
-    '<div class="gogh-side-gap"></div>';
+    '<div class="gogh-side-gap"></div>' +
+    '<div class="gogh-side-foot">' +
+    '<button type="button" class="gogh-sbtn gogh-undo" title="Undo (⌘Z)">↺</button>' +
+    '<button type="button" class="gogh-sbtn gogh-redo" title="Redo (⇧⌘Z)">↻</button>' +
+    '</div>';
   document.body.appendChild(side);
 
   // tuck-away drawer: slim edge tab when collapsed, slide-in on hover
