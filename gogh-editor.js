@@ -889,7 +889,12 @@
       var stable = anchorOf[d.scope] ||
         (d.src && convertStash[d.src] && convertStash[d.src].marker.nextSibling) ||
         endMarker;
-      var host = parentOf[d.scope] || pageParent;
+      // chrome canvases remount into their template part — falling back to
+      // pageParent stranded a converted footer in the page body (and the
+      // zoom then listed it twice)
+      var host = parentOf[d.scope] ||
+        (d.chrome && partElForArea(d.chrome.area)) ||
+        pageParent;
       // adjacent sections all share one stable (non-gogh) anchor — inserting
       // each AT it reverses the run. Chain through the section restored just
       // before (our true next sibling) whenever it shares anchor and parent.
@@ -942,14 +947,13 @@
   side.hidden = true;
   side.innerHTML =
     '<div class="gogh-side-head">' +
-    '<span class="gogh-side-title">gogh<em class="gogh-buildtag"></em></span>' +
+    '<span class="gogh-side-title">gogh</span>' +
     '<button type="button" class="gogh-sbtn gogh-stylebtn" title="Site style">' +
     '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M12 3a9 9 0 1 0 0 18h1.5a2.5 2.5 0 0 0 1.8-4.2 2.5 2.5 0 0 1 1.8-4.3H20a9 9 0 0 0-8-9.5Z"/><circle cx="7.5" cy="11" r="1.2" fill="currentColor" stroke="none"/><circle cx="10.5" cy="7.5" r="1.2" fill="currentColor" stroke="none"/><circle cx="15" cy="7.5" r="1.2" fill="currentColor" stroke="none"/></svg>' +
     '</button>' +
     '<button type="button" class="gogh-sbtn gogh-gridbtn" data-act="gridsnap" title="Grid: show and snap">' +
     '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 9h18M3 15h18M9 3v18M15 3v18"/></svg>' +
     '</button>' +
-    '<button type="button" class="gogh-sbtn gogh-theme" data-act="uitheme" title="Editor theme"></button>' +
     '<button type="button" class="gogh-sbtn gogh-close" title="Finish editing">✕</button>' +
     '</div>' +
     '<div class="gogh-side-row">' +
@@ -963,14 +967,14 @@
     '</button>' +
     '</div>' +
     '<div class="gogh-side-label">Add element</div>' +
-    '<button type="button" class="gogh-sitem" data-add="heading">Heading</button>' +
-    '<button type="button" class="gogh-sitem" data-add="para">Text</button>' +
-    '<button type="button" class="gogh-sitem" data-add="button">Button</button>' +
-    '<button type="button" class="gogh-sitem" data-add="image">Image</button>' +
-    '<button type="button" class="gogh-sitem" data-add="badge">Badge</button>' +
-    '<button type="button" class="gogh-sitem" data-add="posts" title="Your latest posts, live">Posts</button>' +
+    '<button type="button" class="gogh-sitem" data-add="heading"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M6 4v16M18 4v16M6 12h12"/></svg>Heading</button>' +
+    '<button type="button" class="gogh-sitem" data-add="para"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M4 6h16M4 12h16M4 18h10"/></svg>Text</button>' +
+    '<button type="button" class="gogh-sitem" data-add="button"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="8" width="18" height="8" rx="4"/></svg>Button</button>' +
+    '<button type="button" class="gogh-sitem" data-add="image"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="8.5" cy="10" r="1.6"/><path d="M21 16l-5-5-9 8"/></svg>Image</button>' +
+    '<button type="button" class="gogh-sitem" data-add="badge"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><circle cx="12" cy="9.5" r="5.5"/><path d="M9 14l-1.5 6 4.5-2.4 4.5 2.4L15 14"/></svg>Badge</button>' +
+    '<button type="button" class="gogh-sitem" data-add="posts" title="Your latest posts, live"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="4" width="16" height="6" rx="1.5"/><rect x="4" y="14" width="16" height="6" rx="1.5"/></svg>Posts</button>' +
     '<div class="gogh-side-label">Page</div>' +
-    '<button type="button" class="gogh-sitem" data-act="addsec">+ Section</button>' +
+    '<button type="button" class="gogh-sitem gogh-addsec" data-act="addsec"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>Section</button>' +
     '<div class="gogh-side-gap"></div>';
   document.body.appendChild(side);
 
@@ -1949,23 +1953,6 @@
     gb.classList.toggle('is-active', gridSnapOn);
     gb.dataset.tip = 'Grid: ' + (gridSnapOn ? 'on' : 'off');
     gb.removeAttribute('title');
-  });
-  var THEME_ICONS = {
-    sun: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="12" cy="12" r="4.4"/><path d="M12 2.5v2.6M12 18.9v2.6M2.5 12h2.6M18.9 12h2.6M5 5l1.8 1.8M17.2 17.2 19 19M19 5l-1.8 1.8M6.8 17.2 5 19"/></svg>',
-    moon: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round"><path d="M20 14.5A8.5 8.5 0 0 1 9.5 4a8.5 8.5 0 1 0 10.5 10.5Z"/></svg>',
-  };
-  function syncThemeBtn() {
-    var light = document.documentElement.classList.contains('gogh-ui-light');
-    var b = side.querySelector('.gogh-theme');
-    b.innerHTML = light ? THEME_ICONS.moon : THEME_ICONS.sun;
-    b.dataset.tip = light ? 'Dark editor' : 'Light editor';
-    b.removeAttribute('title');
-  }
-  side.querySelector('.gogh-theme').addEventListener('click', function () {
-    var light = !document.documentElement.classList.contains('gogh-ui-light');
-    try { localStorage.setItem('gogh-ui-theme', light ? 'light' : 'dark'); } catch (e) {}
-    document.documentElement.classList.toggle('gogh-ui-light', light);
-    syncThemeBtn();
   });
   side.querySelector('.gogh-undo').addEventListener('click', undo);
   side.querySelector('.gogh-redo').addEventListener('click', redo);
@@ -3455,16 +3442,6 @@
     openStylePanel(ev.currentTarget);
   });
 
-  // editor chrome theme: follows the system unless the user chose one
-  function applyUiTheme() {
-    var saved = null;
-    try { saved = localStorage.getItem('gogh-ui-theme'); } catch (e) {}
-    var light = saved === 'light'; // dark is gogh's default
-    document.documentElement.classList.toggle('gogh-ui-light', light);
-    return light;
-  }
-  applyUiTheme();
-  syncThemeBtn();
   function snapPos(sec, exclude, x, y, w, h, free) {
     if (free) return { x: Math.round(x), y: Math.round(y), gx: null, gy: null };
     var H = designH(sec.els, sec.minH);
@@ -3813,7 +3790,9 @@
       if (!n.classList) return;
       if (n.classList.contains('gogh-wrap')) {
         var sec = S.filter(function (s) { return s.wrapEl === n; })[0];
-        if (sec) items.push({ kind: 'sec', sec: sec, node: n });
+        // chrome sections render as the pinned Header/Footer cards — never
+        // twice, even if a stray remount left their wrap in the page body
+        if (sec && !sec.chrome) items.push({ kind: 'sec', sec: sec, node: n });
       } else if (n.classList.contains('gogh-pending')) {
         items.push({ kind: 'pending', node: n });
       } else if (n.tagName !== 'STYLE' && n.tagName !== 'SCRIPT' &&
@@ -4222,8 +4201,6 @@
   var GOGH_BUILD = (document.querySelector('script[src*="gogh-editor.js"]') || { src: '' }).src.split('ver=')[1] || 'dev';
   window.__gogh.build = GOGH_BUILD;
   sideTab.title = 'gogh ' + GOGH_BUILD;
-  var buildTag = side.querySelector('.gogh-buildtag');
-  if (buildTag) buildTag.textContent = GOGH_BUILD.replace('-chrome', '');
   try { console.info('[gogh] ' + GOGH_BUILD); } catch (e0) {}
   document.dispatchEvent(new CustomEvent('gogh:ready'));
 

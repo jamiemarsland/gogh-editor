@@ -1,17 +1,10 @@
-/* gogh editor chrome theme: dark by default, light via .gogh-ui-light */
+/* gogh editor chrome: one dark voice */
 :root {
   --gogh-ui-bg: rgba(28, 30, 36, 0.97);
   --gogh-ui-fg: #e8eaf0;
   --gogh-ui-border: rgba(255, 255, 255, 0.13);
   --gogh-ui-hover: rgba(255, 255, 255, 0.07);
   --gogh-ui-muted: rgba(232, 234, 240, 0.5);
-}
-:root.gogh-ui-light {
-  --gogh-ui-bg: rgba(252, 252, 253, 0.98);
-  --gogh-ui-fg: #1d2327;
-  --gogh-ui-border: rgba(0, 0, 0, 0.14);
-  --gogh-ui-hover: rgba(0, 0, 0, 0.05);
-  --gogh-ui-muted: rgba(29, 35, 39, 0.6);
 }
 
 /* gogh front-end editor chrome */
@@ -141,12 +134,13 @@
   font-size: 13px !important;
 }
 .gogh-side-label {
-  font-size: 10px;
+  font-size: 9px;
   font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 0.07em;
+  letter-spacing: 0.14em;
   color: var(--gogh-ui-muted);
-  padding: 10px 4px 3px;
+  opacity: 0.8;
+  padding: 14px 10px 4px;
 }
 .gogh-side-row { display: flex; gap: 6px; padding: 0 2px; }
 .gogh-sbtn {
@@ -165,13 +159,26 @@
 .gogh-sitem {
   all: unset;
   cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 10px;
   font-size: 12.5px;
   font-weight: 600;
   color: var(--gogh-ui-fg);
   padding: 7px 10px;
   border-radius: 8px;
+  transition: background 0.12s ease, color 0.12s ease;
 }
+.gogh-sitem svg { flex: none; opacity: 0.5; transition: opacity 0.12s ease; }
 .gogh-sitem:hover { background: rgba(126, 168, 255, 0.18); color: #aac6ff; }
+.gogh-sitem:hover svg { opacity: 1; }
+/* the palette's one primary action */
+.gogh-addsec {
+  background: rgba(126, 168, 255, 0.14);
+  color: #aac6ff;
+}
+.gogh-addsec svg { opacity: 0.9; }
+.gogh-addsec:hover { background: rgba(126, 168, 255, 0.28); }
 .gogh-side-gap { flex: none; height: 10px; }
 .gogh-side .gogh-btn { margin-top: 4px; }
 
@@ -967,17 +974,6 @@
   opacity: 0.5;
 }
 
-.gogh-theme svg { display: block; }
-.gogh-side-head .gogh-theme {
-  flex: 0 0 auto;
-  width: 28px;
-  height: 28px;
-  padding: 0;
-  display: grid;
-  place-items: center;
-  margin-left: auto;
-  margin-right: 6px;
-}
 
 /* theme style variations in the drawer */
 .gogh-varlist { display: flex; flex-direction: column; gap: 4px; }
@@ -1098,15 +1094,6 @@
 /* wp-emoji swaps the ✨ text for an <img> — keep it chip-sized */
 .gogh-cycbar img.emoji { width: 13px; height: 13px; margin: 0; }
 .gogh-cycbar.is-busy .gogh-cyc-hint { opacity: 0.3; }
-/* running build, readable at a glance in the palette header */
-.gogh-buildtag {
-  font-style: normal;
-  font-size: 9.5px;
-  font-weight: 500;
-  opacity: 0.4;
-  margin-left: 7px;
-  letter-spacing: 0.02em;
-}
 /* cycling is a MODE: while choosing a header/footer, every other editing
    affordance gets out of the way */
 .gogh-cycling .gogh-side, .gogh-cycling .gogh-side-tab,
@@ -1140,7 +1127,6 @@
   place-items: center;
   margin-left: auto;
 }
-.gogh-side-head .gogh-theme { margin-left: 0; }
 .gogh-panel .gogh-varlist { max-height: 320px; overflow-y: auto; }
 
 .gogh-panel-head {

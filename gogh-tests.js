@@ -30,6 +30,15 @@
       var all = G.sections();
       return all.filter(function (s) { return !s.chrome; })[0] || all[0];
     };
+    // the page may carry converted chrome (a published freeform footer sits
+    // at the END of S) — "the section I just added" must skip chrome
+    var contentSecs = function () {
+      return G.sections().filter(function (s) { return !s.chrome; });
+    };
+    var lastSec = function () {
+      var c = contentSecs();
+      return c[c.length - 1];
+    };
     var select = function (i) { pev('pointerdown', sec().nodes[i]); };
     var findIdx = function (type) { return sec().els.findIndex(function (e) { return e.type === type; }); };
     var rectsOverlap = function (a, b) {
@@ -306,7 +315,7 @@
       expect(card, 'picker did not open');
       card.click();
       expect(G.sections().length === s0 + 1, 'section not added');
-      var added = G.sections()[G.sections().length - 1];
+      var added = lastSec();
       expect(added.minH === 480, 'scratch minH not applied: ' + added.minH);
       expect(added.styleEl.textContent.indexOf(added.scope) !== -1, 'scoped CSS missing');
     });
@@ -314,7 +323,7 @@
     test('Hero template resolves largest font preset + minH', function () {
       var s0 = G.sections().length;
       G.addSection(G.templates()[0], G.sections().length);
-      var added = G.sections()[G.sections().length - 1];
+      var added = lastSec();
       var head = added.els.filter(function (e) { return e.type === 'heading'; })[0];
       var sizes = G.fontSizes();
       var biggest = sizes.length ? sizes[sizes.length - 1].slug : null;
@@ -322,7 +331,7 @@
       expect(head.fs === biggest, 'heading fs ' + head.fs + ' != largest preset ' + biggest);
       expect(head.fs !== '__max', 'sentinel leaked into model');
       expect(added.minH === 640, 'hero minH not applied: ' + added.minH);
-      G.deleteSection(G.sections().length - 1);
+      G.deleteSection(G.sections().indexOf(added));
       expect(G.sections().length === s0, 'cleanup failed');
     });
 
@@ -682,19 +691,6 @@
       return 'landed on grid at ' + e.x + ',' + e.y;
     });
 
-    test('editor chrome theme toggles and persists', function () {
-      var btn = q('.gogh-side .gogh-theme');
-      expect(btn, 'theme toggle missing');
-      expect(btn.querySelector('svg'), 'theme button has no icon');
-      var wasLight = document.documentElement.classList.contains('gogh-ui-light');
-      btn.click();
-      expect(document.documentElement.classList.contains('gogh-ui-light') !== wasLight, 'root class did not flip');
-      expect(localStorage.getItem('gogh-ui-theme') === (wasLight ? 'dark' : 'light'), 'preference not persisted');
-      btn.click();
-      expect(document.documentElement.classList.contains('gogh-ui-light') === wasLight, 'did not flip back');
-      localStorage.removeItem('gogh-ui-theme');
-    });
-
     // ---- 14. image via URL becomes a real figure (v0.9) ----
     test('image URL apply → figure with img', function () {
       var i = findIdx('image');
@@ -784,11 +780,14 @@
     // ---- 19. section ops: move ----
     test('move section reorders model and DOM', function () {
       G.addSection(G.templates()[3], G.sections().length);
-      var added = G.sections()[G.sections().length - 1];
-      G.moveSection(G.sections().length - 1, -1);
-      expect(G.sections()[G.sections().length - 2] === added, 'model order wrong');
+      var added = lastSec();
+      G.moveSection(G.sections().indexOf(added), -1);
+      var c = contentSecs();
+      expect(c[c.length - 2] === added, 'model order wrong');
       var wraps = [].slice.call(document.querySelectorAll('.entry-content > .gogh-wrap, .gogh-wrap'))
-        .filter(function (w) { return !w.closest('.gogh-picker'); });
+        .filter(function (w) {
+          return !w.closest('.gogh-picker') && !w.closest('.wp-block-template-part');
+        });
       expect(wraps.indexOf(added.wrapEl) === wraps.length - 2, 'DOM order wrong');
     });
 
@@ -1240,7 +1239,7 @@
       var n0 = G.sections().length;
       G.insertGoghPattern(markup, G.sections().length);
       expect(G.sections().length === n0 + 1, 'not inserted');
-      var added = G.sections()[G.sections().length - 1];
+      var added = lastSec();
       expect(proj(added.els) === before, 'round-trip not lossless');
       G.deleteSection(G.sections().indexOf(added));
     });
@@ -1304,7 +1303,7 @@
       var s0 = G.sections().length;
       entry.el.querySelector('.gogh-pend-ff').click();
       expect(G.sections().length === s0 + 1, 'conversion did not add a section');
-      var added = G.sections()[G.sections().length - 1];
+      var added = lastSec();
       var byType = function (t) { return added.els.filter(function (e) { return e.type === t; }); };
       expect(byType('heading').length === 1 && byType('heading')[0].text === 'Pasted hero', 'heading not atomized');
       expect(byType('para').length === 1, 'paragraph not atomized');
@@ -1372,7 +1371,8 @@
       P[P.length - 2].el.querySelector('.gogh-pend-ff').click();
       G.pending()[G.pending().length - 1].el.querySelector('.gogh-pend-ff').click();
       var S2 = G.sections();
-      var a = S2[S2.length - 2], b = S2[S2.length - 1];
+      var c2 = contentSecs();
+      var a = c2[c2.length - 2], b = c2[c2.length - 1];
       expect(a.bg && a.bg.indexOf('10, 10, 10') !== -1, 'backdrop not lifted to section bg: ' + a.bg);
       var ra = a.wrapEl.getBoundingClientRect(), rb = b.wrapEl.getBoundingClientRect();
       expect(Math.abs(rb.top - ra.bottom) <= 2, 'sections do not butt: gap ' + Math.round(rb.top - ra.bottom));
@@ -1416,7 +1416,7 @@
       var s0 = G.sections().length;
       entry.el.querySelector('.gogh-pend-ff').click();
       expect(G.sections().length === s0 + 1, 'conversion failed');
-      var added = G.sections()[G.sections().length - 1];
+      var added = lastSec();
       var heads = added.els.filter(function (e) { return e.type === 'heading'; });
       expect(heads.length === 1, 'h1 was split or lost, headings: ' + heads.length);
       expect(heads[0].text.indexOf('Beautiful') !== -1 && heads[0].text.indexOf('Simplicity') !== -1,
