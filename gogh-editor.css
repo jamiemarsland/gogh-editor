@@ -1802,6 +1802,25 @@ html.gogh-editing .gogh-mirror { display: flex; }
   border-color: #e3e5ea;
   box-shadow: none;
 }
+/* the paste view's one real action deserves real presence */
+.gogh-picker .gogh-html-add {
+  all: unset;
+  cursor: pointer;
+  font-size: 13.5px;
+  font-weight: 700;
+  color: #141519;
+  background: #e8b04b;
+  border-radius: 999px;
+  padding: 12px 26px;
+  box-shadow: 0 12px 28px -12px rgba(232, 176, 75, 0.9);
+  transition: transform 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
+}
+.gogh-picker .gogh-html-add:hover {
+  background: #f0be62;
+  transform: translateY(-1px);
+  box-shadow: 0 16px 34px -12px rgba(232, 176, 75, 1);
+}
+.gogh-picker .gogh-html-add:active { transform: translateY(0); }
 
 /* birds-eye page overview */
 .gogh-zoom {
