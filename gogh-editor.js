@@ -5234,8 +5234,18 @@
         activeOpt.title += ' \u00b7 freeform';
       }
       if (options.length > 1) {
-        startChromeCycle(partEl, area, options, activeOpt, active);
-        return null;
+        // render-screen the list first: themes ship duplicates and
+        // lookalikes (core + theme copies of the same footer, patterns
+        // whose broken pieces render just like the current part) — cycling
+        // through those FEELS dead. Only visibly-distinct looks survive,
+        // and their renders are kept so every flick is instant.
+        return screenChromeOptions(options, activeOpt).then(function (kept) {
+          if (kept.length > 1) {
+            startChromeCycle(partEl, area, kept, activeOpt, active);
+            return null;
+          }
+          return doConvertChrome(partEl, area, active);
+        });
       }
       return doConvertChrome(partEl, area, active);
     }).catch(function (err) {
@@ -5492,63 +5502,113 @@
     chromePreview = null;
   }
   var prevStyleHandles = {}; // block stylesheets pulled in for previews
+  function applyChromePreview(partEl, opt, d, done) {
+    (d.styles || []).forEach(function (href) {
+      if (prevStyleHandles[href]) return;
+      prevStyleHandles[href] = 1;
+      if (document.querySelector('link[href="' + href.replace(/"/g, '%22') + '"]')) return;
+      var lnk = document.createElement('link');
+      lnk.rel = 'stylesheet';
+      lnk.href = href;
+      document.head.appendChild(lnk);
+    });
+    // a response landing after the preview stage moved to ANOTHER part
+    // (header fetch resolving mid-footer-cycle) must not write into it —
+    // that both showed the wrong content and let the dead cycle's cleanup
+    // destroy the live preview
+    if (chromePreview && chromePreview.partEl !== partEl) {
+      if (done) done(false);
+      return;
+    }
+    if (!chromePreview) {
+      var hidden = [].slice.call(partEl.children);
+      hidden.forEach(function (c) { c.style.display = 'none'; });
+      var box = document.createElement('div');
+      box.className = 'gogh-chrome-preview';
+      partEl.appendChild(box);
+      chromePreview = { partEl: partEl, box: box, hidden: hidden };
+    }
+    chromePreview.box.innerHTML = (d.css ? '<style>' + d.css + '</style>' : '') + (d.html || '');
+    // self-check: an "applied" preview the user can't SEE is the worst
+    // failure mode — detect it and say precisely what happened
+    setTimeout(function () {
+      if (!chromePreview || chromePreview.partEl !== partEl) return;
+      var bh = chromePreview.box.getBoundingClientRect().height;
+      var origVisible = chromePreview.hidden.some(function (c) {
+        return getComputedStyle(c).display !== 'none';
+      });
+      if (bh < 20 || origVisible) {
+        toast('gogh: preview of “' + (opt.title || opt.slug) + '” applied but not visible' +
+          ' (box ' + Math.round(bh) + 'px' + (origVisible ? ', original still showing' : '') +
+          ', html ' + ((d.html || '').length) + ' chars)', { error: true, ttl: 9000 });
+      }
+    }, 120);
+    if (done) done(true);
+  }
   function previewChromeLayout(partEl, opt, done) {
+    // screened options carry their render — applying is instant
+    if (opt.__prev) { applyChromePreview(partEl, opt, opt.__prev, done); return; }
     // gogh's own renderer: do_blocks output PLUS the generated layout CSS
     // and block stylesheets — the core block-renderer returns bare markup
     // that leaves navigations as bulleted lists
-    fetch(GSROOT.replace(/wp\/v2\/$/, '') + 'gogh/v1/render', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'X-WP-Nonce': cfg.nonce },
-      credentials: 'same-origin',
-      body: JSON.stringify({ content: opt.content || '' }),
-    }).then(function (r) {
-      if (!r.ok) throw new Error('HTTP ' + r.status);
-      return r.json();
-    }).then(function (d) {
-      (d.styles || []).forEach(function (href) {
-        if (prevStyleHandles[href]) return;
-        prevStyleHandles[href] = 1;
-        if (document.querySelector('link[href="' + href.replace(/"/g, '%22') + '"]')) return;
-        var lnk = document.createElement('link');
-        lnk.rel = 'stylesheet';
-        lnk.href = href;
-        document.head.appendChild(lnk);
-      });
-      // a response landing after the preview stage moved to ANOTHER part
-      // (header fetch resolving mid-footer-cycle) must not write into it —
-      // that both showed the wrong content and let the dead cycle's cleanup
-      // destroy the live preview
-      if (chromePreview && chromePreview.partEl !== partEl) {
-        if (done) done(false);
-        return;
-      }
-      if (!chromePreview) {
-        var hidden = [].slice.call(partEl.children);
-        hidden.forEach(function (c) { c.style.display = 'none'; });
-        var box = document.createElement('div');
-        box.className = 'gogh-chrome-preview';
-        partEl.appendChild(box);
-        chromePreview = { partEl: partEl, box: box, hidden: hidden };
-      }
-      chromePreview.box.innerHTML = (d.css ? '<style>' + d.css + '</style>' : '') + (d.html || '');
-      // self-check: an "applied" preview the user can't SEE is the worst
-      // failure mode — detect it and say precisely what happened
-      setTimeout(function () {
-        if (!chromePreview || chromePreview.partEl !== partEl) return;
-        var bh = chromePreview.box.getBoundingClientRect().height;
-        var origVisible = chromePreview.hidden.some(function (c) {
-          return getComputedStyle(c).display !== 'none';
-        });
-        if (bh < 20 || origVisible) {
-          toast('gogh: preview of “' + (opt.title || opt.slug) + '” applied but not visible' +
-            ' (box ' + Math.round(bh) + 'px' + (origVisible ? ', original still showing' : '') +
-            ', html ' + ((d.html || '').length) + ' chars)', { error: true, ttl: 9000 });
-        }
-      }, 120);
-      if (done) done(true);
+    renderChromeOption(opt).then(function (d) {
+      if (!d) throw new Error('render failed');
+      applyChromePreview(partEl, opt, d, done);
     }).catch(function (err) {
       toast('Could not preview that layout — ' + ((err && err.message) || 'network error'), { error: true, ttl: 7000 });
       if (done) done(false);
+    });
+  }
+  function renderChromeOption(o) {
+    if (o.__prev) return Promise.resolve(o.__prev);
+    return fetch(GSROOT.replace(/wp\/v2\/$/, '') + 'gogh/v1/render', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-WP-Nonce': cfg.nonce },
+      credentials: 'same-origin',
+      body: JSON.stringify({ content: o.content || '' }),
+    }).then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (d) {
+        if (d && d.html != null) { o.__prev = d; return d; }
+        return null;
+      }).catch(function () { return null; });
+  }
+  // structural signature: identical looks collapse regardless of the
+  // generated hashes WordPress sprinkles through the markup
+  function chromeRenderSig(html) {
+    return (html || '')
+      .replace(/wp-elements-[a-f0-9]+/g, '')
+      .replace(/wp-container-[\w-]+/g, '')
+      .replace(/\bid="[^"]*"/g, '')
+      .replace(/\s+/g, ' ')
+      .trim();
+  }
+  function chromeTextSig(html) {
+    var t = document.createElement('template');
+    t.innerHTML = html || '';
+    return (t.content.textContent || '').replace(/\s+/g, ' ').trim().toLowerCase();
+  }
+  // render every candidate once, up front: options that render empty, or
+  // identical to another option, or indistinguishable from the CURRENT
+  // part get dropped — flicking through lookalikes feels broken. The kept
+  // renders make every subsequent flick instant.
+  function screenChromeOptions(options, activeOpt) {
+    return Promise.all(options.map(renderChromeOption)).then(function () {
+      var seen = {};
+      var activeText = null;
+      if (activeOpt && activeOpt.__prev) {
+        seen[chromeRenderSig(activeOpt.__prev.html)] = 1;
+        activeText = chromeTextSig(activeOpt.__prev.html);
+      }
+      return options.filter(function (o) {
+        if (o === activeOpt) return true;
+        var d = o.__prev;
+        if (!d || !d.html || chromeTextSig(d.html).length < 8) return false;
+        var sig = chromeRenderSig(d.html);
+        if (seen[sig]) return false;
+        seen[sig] = 1;
+        if (activeText && chromeTextSig(d.html) === activeText) return false;
+        return true;
+      });
     });
   }
   // booted freeform chrome has no template-part id — resolve it so edits
