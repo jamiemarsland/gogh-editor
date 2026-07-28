@@ -3745,13 +3745,24 @@
     });
     css += '}';
     var resolve = function (s) {
-      return String(s || '').replace(/^var:preset\|color\|(.+)$/, 'var(--wp--preset--color--$1)');
+      return String(s || '')
+        .replace(/^var:preset\|color\|(.+)$/, 'var(--wp--preset--color--$1)')
+        .replace(/^var:preset\|font-family\|(.+)$/, 'var(--wp--preset--font-family--$1)');
     };
     var sc = (v.styles || {}).color || {};
     var body = '';
     if (sc.background) body += 'background-color:' + resolve(sc.background) + ';';
     if (sc.text) body += 'color:' + resolve(sc.text) + ';';
+    // font variations register their families under NEW preset slugs — the
+    // page only picks them up through the variation's body/heading mappings,
+    // so the preview must apply those too (colours reuse slugs; fonts don't)
+    var ty = (v.styles || {}).typography || {};
+    if (ty.fontFamily) body += 'font-family:' + resolve(ty.fontFamily) + ';';
     if (body) css += 'body{' + body + '}';
+    var hty = ((((v.styles || {}).elements) || {}).heading || {}).typography || {};
+    if (hty.fontFamily) {
+      css += 'h1,h2,h3,h4,h5,h6,.wp-block-heading{font-family:' + resolve(hty.fontFamily) + ';}';
+    }
     if (!previewStyleEl) {
       previewStyleEl = document.createElement('style');
       previewStyleEl.id = 'gogh-style-preview';

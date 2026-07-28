@@ -1695,7 +1695,17 @@
       expect(read() === 'rgb(18, 52, 86)', 'preview var not applied: ' + read());
       G.clearVariationPreview();
       expect(read() === before, 'preview did not clear: ' + read());
-      return 'vars swap and restore';
+      // fonts arrive under NEW slugs — the body mapping is what shows them
+      var ffBefore = getComputedStyle(document.body).fontFamily;
+      G.previewVariation({
+        settings: { typography: { fontFamilies: { theme: [{ slug: 'gogh-test-face', fontFamily: '"GoghTestFace", serif' }] } } },
+        styles: { typography: { fontFamily: 'var:preset|font-family|gogh-test-face' } },
+      });
+      expect(getComputedStyle(document.body).fontFamily.indexOf('GoghTestFace') !== -1,
+        'font mapping not applied: ' + getComputedStyle(document.body).fontFamily);
+      G.clearVariationPreview();
+      expect(getComputedStyle(document.body).fontFamily === ffBefore, 'font preview did not clear');
+      return 'colour vars + font mappings swap and restore';
     });
 
     // ---- display sizes: poster type beyond the theme presets ----
