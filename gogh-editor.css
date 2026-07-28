@@ -1669,17 +1669,26 @@ html.gogh-editing .gogh-mirror { display: flex; }
    (the footpill selector must be named here too, or its own opacity rule
    outranks the hide and the pill shows permanently) */
 @media (hover: hover) {
-  .gogh-chromebtn, .gogh-chromebtn.is-footpill { opacity: 0; pointer-events: none; }
-  .gogh-chromebtn.is-vis, .gogh-chromebtn.is-footpill.is-vis { opacity: 0.9; pointer-events: auto; }
+  .gogh-chromebtn, .gogh-chromebtn.is-footpill, .gogh-chromebtn.is-headpill { opacity: 0; pointer-events: none; }
+  .gogh-chromebtn.is-vis, .gogh-chromebtn.is-footpill.is-vis, .gogh-chromebtn.is-headpill.is-vis { opacity: 0.9; pointer-events: auto; }
   .gogh-chromebtn.is-vis:hover { opacity: 1; }
 }
-/* the footer pill lives at the bottom of the viewport, centred — always
-   where you expect it, never buried under the page or the publish chip */
+/* the pills live centred on their viewport edge — always where you expect
+   them, never buried under the part's own content or the publish chip */
 .gogh-chromebtn.is-footpill {
   position: fixed;
   left: 50%;
   top: auto;
   bottom: 18px;
+  transform: translateX(-50%);
+  z-index: 99998;
+}
+.gogh-chromebtn.is-headpill {
+  position: fixed;
+  left: 50%;
+  /* below the admin bar (32px), mirroring the footer pill's 18px inset */
+  top: 44px;
+  bottom: auto;
   transform: translateX(-50%);
   z-index: 99998;
 }

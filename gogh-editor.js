@@ -7311,13 +7311,16 @@
     chromeBtns.forEach(function (b) {
       var over = b.contains(ev.target) ||
         (b.__goghPart && b.__goghPart.contains(ev.target));
-      // the footer pill is viewport-fixed: while the footer is on screen,
-      // the bottom edge of the screen counts as hovering it — otherwise
-      // the pointer can never reach the pill across the gap
-      if (!over && b.classList.contains('is-footpill') && b.__goghPart) {
+      // the pills are viewport-fixed: while their part is on screen, the
+      // matching edge of the screen counts as hovering — otherwise the
+      // pointer can never reach the pill across the gap
+      if (!over && b.__goghPart &&
+          (b.classList.contains('is-footpill') || b.classList.contains('is-headpill'))) {
         var fr = b.__goghPart.getBoundingClientRect();
         var onScreen = fr.top < window.innerHeight && fr.bottom > 0;
-        over = onScreen && ev.clientY > window.innerHeight - 120;
+        over = onScreen && (b.classList.contains('is-footpill')
+          ? ev.clientY > window.innerHeight - 120
+          : ev.clientY < 120);
       }
       b.classList.toggle('is-vis', over);
     });
@@ -7336,15 +7339,10 @@
         (partEl.tagName === 'FOOTER' ? 'Footer' : 'Header');
       b.dataset.tip = 'Click to flick through layouts';
       b.__goghPart = partEl;
-      if (partEl.tagName === 'FOOTER') {
-        // fixed at the bottom of the VIEWPORT — where folks expect the
-        // footer control, and clear of the publish chip (which was
-        // covering it when anchored to the footer's own edge)
-        b.classList.add('is-footpill');
-      } else {
-        b.style.left = (r.right + window.scrollX - 10) + 'px';
-        b.style.top = (r.top + window.scrollY + 10) + 'px';
-      }
+      // both pills are viewport-fixed and centred on their edge — where
+      // folks expect the control, and clear of the part's own content
+      // (the header pill used to overlap the nav)
+      b.classList.add(partEl.tagName === 'FOOTER' ? 'is-footpill' : 'is-headpill');
       b.addEventListener('click', function () {
         b.disabled = true;
         convertChrome(partEl).then(function (sec) { if (!sec) b.disabled = false; }).catch(function () {

@@ -1563,6 +1563,23 @@
       expect(!fp.classList.contains('is-vis'), 'pill did not hide after hover-away');
     });
 
+    test('header pill is fixed at the viewport top, centred', function () {
+      var hp = q('.gogh-chromebtn.is-headpill');
+      expect(hp, 'no fixed header pill');
+      var hpart = document.querySelector('header.wp-block-template-part') || document.body;
+      hpart.dispatchEvent(new MouseEvent('mouseover', { bubbles: true }));
+      expect(hp.classList.contains('is-vis'), 'pill not revealed by header hover');
+      var cs = getComputedStyle(hp);
+      expect(cs.position === 'fixed', 'header pill not fixed: ' + cs.position);
+      var r = hp.getBoundingClientRect();
+      expect(r.top >= 30 && r.top < 120, 'not at viewport top: ' + Math.round(r.top));
+      expect(Math.abs((r.left + r.width / 2) - window.innerWidth / 2) < 40, 'not centred');
+      var hit = document.elementFromPoint(Math.round(r.left + r.width / 2), Math.round(r.top + r.height / 2));
+      expect(hit === hp || hp.contains(hit), 'header pill is covered by ' + (hit ? hit.className : 'nothing'));
+      document.body.dispatchEvent(new MouseEvent('mouseover', { bubbles: true, clientY: 400 }));
+      expect(!hp.classList.contains('is-vis'), 'pill did not hide after hover-away');
+    });
+
     test('header pill cycles layouts in place, click-off reverts', function () {
       var pill = q('.gogh-chromebtn');
       expect(pill, 'no chrome pill on the page');
