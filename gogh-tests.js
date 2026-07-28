@@ -916,20 +916,32 @@
       expect(sec().styleEl.textContent.indexOf('bg.jpg') === -1, 'remove failed');
     });
 
-    // ---- 25. gogh/section block format (v0.18) ----
-    test('serializes to gogh/section blocks (deactivation-safe)', function () {
+    // ---- 25. gogh/section v3 block format (attrs = truth) ----
+    test('serializes to v3 gogh/section blocks (attrs truth + baked style)', function () {
       var markup = G.buildBlocks();
-      expect(markup.indexOf('<!-- wp:gogh/section -->') !== -1, 'no gogh/section block');
+      expect(/<!-- wp:gogh\/section \{/.test(markup), 'no attribute-carrying gogh/section block');
+      expect(markup.indexOf('"cssT"') !== -1 && markup.indexOf('"model"') !== -1, 'attrs missing model/cssT');
+      expect(markup.indexOf('"GOGHSCOPE') !== -1 || markup.indexOf('GOGHSCOPE') !== -1, 'cssT not scope-templated');
       expect(markup.indexOf('<!-- wp:html -->') === -1, 'legacy carrier still emitted');
-      expect(markup.indexOf('<style class="gogh-style">') !== -1, 'style not in saved markup');
-      expect(markup.indexOf('class="gogh-model"') !== -1, 'model not in saved markup');
+      expect(markup.indexOf('<style class="gogh-style">') !== -1, 'baked style projection missing');
+      expect(markup.indexOf('class="gogh-model"') === -1, 'model script must not ship in markup');
       expect(markup.indexOf('data-gogh-scope=') !== -1, 'scope attribute missing');
-      // the style tag INSIDE the block markup is what makes deactivation safe
-      var block = markup.split('<!-- wp:gogh/section -->')[1];
-      expect(block.indexOf('<style class="gogh-style">') !== -1 &&
-        block.indexOf('</style>') < block.indexOf('<!-- /wp:gogh/section -->'),
-        'style not inside the block');
-      return (markup.match(/<!-- wp:gogh\/section -->/g) || []).length + ' section block(s)';
+      // the attrs ride in an HTML comment: any literal -- inside would
+      // terminate the comment early, so the serializer must escape them
+      var am = markup.match(/<!-- wp:gogh\/section (\{[\s\S]*?\}) -->/);
+      expect(am, 'attrs comment not parseable');
+      expect(am[1].indexOf('--') === -1, 'literal -- inside comment attrs (comment would truncate)');
+      // and the escaping proves itself round-trip on a hostile model text
+      var savedText = sec().els[0].text;
+      sec().els[0].text = 'A -- dashed <heading> & more';
+      var m2 = G.buildBlocks().match(/<!-- wp:gogh\/section (\{[\s\S]*?\}) -->/);
+      expect(m2 && m2[1].indexOf('--') === -1, 'hostile -- not escaped in attrs');
+      expect(JSON.parse(m2[1]).model.elements[0].text === 'A -- dashed <heading> & more',
+        'escaped attrs did not JSON.parse back to the original text');
+      sec().els[0].text = savedText;
+      var block = markup.split(/<!-- wp:gogh\/section /)[1];
+      expect(block.indexOf('<style class="gogh-style">') !== -1, 'baked style not inside the block');
+      return (markup.match(/wp:gogh\/section \{/g) || []).length + ' v3 section block(s)';
     });
 
     // ---- 26. alt-drag duplicates then drags the copy (v0.19) ----

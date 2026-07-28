@@ -162,13 +162,20 @@
   wrapTags.forEach(function (wrap) {
     var sectionEl = wrap.querySelector('.gogh-section');
     if (!sectionEl) return;
-    var model = null, styleEl = null;
+    var model = null, styleEl = null, v3wrap = false;
     // v0.18 gogh/section format: style + model live inside the wrapper
     var innerStyle = wrap.querySelector(':scope > style.gogh-style');
     var innerModel = wrap.querySelector(':scope > script.gogh-model');
     if (innerStyle && innerModel) {
       styleEl = innerStyle;
       try { model = JSON.parse(innerModel.textContent); } catch (e1) { model = null; }
+    } else if (innerStyle && !innerModel && sectionEl.getAttribute('data-gogh-scope')) {
+      // v3: the attributes are the stored truth — the model rides in the
+      // block comment, which the rendered DOM does not carry. Boot the shell
+      // now; hydrateV3Sections() fills the model from the raw content.
+      styleEl = innerStyle;
+      v3wrap = true;
+      model = { elements: [] };
     } else {
       // legacy carrier-pair format: style + model precede the wrapper
       var prev = wrap.previousElementSibling;
@@ -203,8 +210,10 @@
     var chromeHost = wrap.closest('.wp-block-template-part');
     var chromeInfo = chromeHost ? { area: chromeHost.tagName === 'FOOTER' ? 'footer' : 'header' } : null;
     var bootEls = model.elements || [];
-    if (hadModel) bootEls = syncModelFromMarkup(sectionEl, bootEls);
+    if (hadModel && !v3wrap) bootEls = syncModelFromMarkup(sectionEl, bootEls);
     S.push({ scope: scope, els: bootEls,
+      v3: v3wrap,
+      srcScope: v3wrap ? sectionEl.getAttribute('data-gogh-scope') : null,
       chrome: chromeInfo,
       bootstrap: !!wrap.__goghBootstrap,
       minH: model.minH || (bootEls.length ? null : 480),
@@ -684,7 +693,7 @@
     return S.filter(function (s) { return !(s.bootstrap && !s.els.length) && !s.chrome; });
   }
   function buildAllBlocks() {
-    return realSections().map(buildSectionBlocks).join('\n\n');
+    return realSections().map(buildSectionBlocksV3).join('\n\n');
   }
   // gogh sections and freshly added native patterns, in page order
   function pageStream() {
@@ -693,7 +702,7 @@
       if (!n.classList) return;
       if (n.classList.contains('gogh-wrap')) {
         var sec = realSections().filter(function (s) { return s.wrapEl === n; })[0];
-        if (sec) parts.push(buildSectionBlocks(sec));
+        if (sec) parts.push(buildSectionBlocksV3(sec));
       } else if (n.classList.contains('gogh-pending')) {
         var pe = pendingBlocks.filter(function (q) { return q.el === n; })[0];
         if (pe) parts.push(pe.raw);
@@ -3074,6 +3083,13 @@
     var modelEl = wrap && wrap.querySelector('script.gogh-model');
     var model = null;
     try { model = modelEl ? JSON.parse(modelEl.textContent) : null; } catch (err) {}
+    if (!model) {
+      // v3 markup: the model rides in the block-comment attributes
+      var am = String(content).match(/<!--\s+wp:gogh\/section\s+(\{[\s\S]*?\})\s*-->/);
+      if (am) {
+        try { var a3 = JSON.parse(am[1]); model = a3 && a3.model; } catch (e9) {}
+      }
+    }
     if (!model || !model.elements) {
       toast('That saved section can\u2019t be read.', { error: true });
       return;
@@ -7410,20 +7426,15 @@
       });
       repl.sort(function (a, b) { return b.sp.start - a.sp.start; });
       repl.forEach(function (r) {
-        raw = raw.slice(0, r.sp.start) + buildSectionBlocks(r.sec) + raw.slice(r.sp.end);
+        raw = raw.slice(0, r.sp.start) + buildSectionBlocksV3(r.sec) + raw.slice(r.sp.end);
       });
     }
     var blocks = pendingBlocks.length ? pageStream() : buildAllBlocks();
-    var spans = [], i = 0;
-    for (;;) {
-      var a = raw.indexOf(OPEN, i);
-      if (a === -1) break;
-      var b = raw.indexOf(CLOSE, a);
-      if (b === -1) break;
-      b += CLOSE.length;
-      spans.push([a, b]);
-      i = b;
-    }
+    // v3 comments carry attributes, so exact-string matching would miss
+    // them — span the sections with the real block parser
+    var spans = parseTopBlocks(raw).filter(function (sp) {
+      return sp.name === 'gogh/section';
+    }).map(function (sp) { return [sp.start, sp.end]; });
     if (!spans.length) {
       // legacy carrier pages were 100% gogh: migrate the whole content
       if (raw.indexOf('gogh-model') !== -1) return blocks;
@@ -7452,7 +7463,7 @@
       });
       var out = '', pos = 0;
       spans.forEach(function (sp, k) {
-        out += raw.slice(pos, sp[0]) + (pendBefore[k] || '') + buildSectionBlocks(secs[k]);
+        out += raw.slice(pos, sp[0]) + (pendBefore[k] || '') + buildSectionBlocksV3(secs[k]);
         pos = sp[1];
       });
       return out + pendTail + raw.slice(pos);
@@ -7471,17 +7482,64 @@
 
 
   // ---------- boot ----------
-  S.forEach(renderSection);
-  if (wantEdit) {
-    setEditing(true);
-    var bootContent = S.filter(function (s) { return !s.chrome; });
-    if (bootContent.length === 1 && bootContent[0].bootstrap && !bootContent[0].els.length) {
-      openPicker(S.indexOf(bootContent[0]));
-    }
-    try {
-      var u = new URL(location.href);
-      u.searchParams.delete('gogh-edit');
-      history.replaceState(null, '', u);
-    } catch (e3) {}
+  // v3 sections carry their model in the block-comment attributes, which
+  // the rendered DOM does not include — hydrate them from the raw content
+  // over authenticated REST before the editor takes over. v2 pages resolve
+  // immediately (no fetch).
+  function hydrateV3Sections() {
+    var pending = S.filter(function (s) { return s.v3; });
+    if (!pending.length) return Promise.resolve();
+    return fetchRaw().then(function (raw) {
+      var freeAttrs = [];
+      var byScope = {};
+      parseTopBlocks(raw).forEach(function (sp) {
+        if (sp.name !== 'gogh/section') return;
+        var am = raw.slice(sp.start, sp.end).match(/^<!--\s+wp:gogh\/section\s+(\{[\s\S]*?\})\s*-->/);
+        if (!am) return;
+        try {
+          var a = JSON.parse(am[1]);
+          if (a && a.model) {
+            freeAttrs.push(a);
+            if (a.scope) byScope[a.scope] = a;
+          }
+        } catch (err) {}
+      });
+      pending.forEach(function (sec) {
+        // primary match by the stored scope; duplicated pages can carry
+        // colliding scopes, so fall back to document order
+        var a = (sec.srcScope && byScope[sec.srcScope]) || freeAttrs.shift() || null;
+        if (a && byScope[a.scope] === a) delete byScope[a.scope];
+        var idx = freeAttrs.indexOf(a);
+        if (idx !== -1) freeAttrs.splice(idx, 1);
+        sec.v3 = false;
+        if (!a) return; // orphan: renders as-is, uneditable model-wise
+        var model = a.model;
+        sec.els = syncModelFromMarkup(sec.sectionEl, model.elements || []);
+        sec.minH = model.minH || null;
+        sec.bg = model.bg || null;
+        sec.divider = model.divider || null;
+        sec.fx = model.fx || null;
+        sec.bgImage = model.bgImage || null;
+        sec.bgId = model.bgId || null;
+      });
+    }).catch(function (err) {
+      console.warn('[gogh] v3 hydration failed:', err);
+      S.forEach(function (s) { s.v3 = false; });
+    });
   }
+  hydrateV3Sections().then(function () {
+    S.forEach(renderSection);
+    if (wantEdit) {
+      setEditing(true);
+      var bootContent = S.filter(function (s) { return !s.chrome; });
+      if (bootContent.length === 1 && bootContent[0].bootstrap && !bootContent[0].els.length) {
+        openPicker(S.indexOf(bootContent[0]));
+      }
+      try {
+        var u = new URL(location.href);
+        u.searchParams.delete('gogh-edit');
+        history.replaceState(null, '', u);
+      } catch (e3) {}
+    }
+  });
 })();
