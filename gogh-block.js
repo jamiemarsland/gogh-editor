@@ -1,14 +1,52 @@
 /* gogh/section — the section as a first-class Gutenberg block.
  *
- * STATIC block by design: save() writes the stylesheet and the layout model
- * into the block's own markup, so pages render pixel-identically even with
- * the plugin deactivated (unregistered blocks render their saved HTML).
+ * v3 (attrs as truth): the block's ATTRIBUTES carry the layout — the editing
+ * model and the stylesheet compiled to a scope-templated string (cssT). The
+ * saved markup bakes the scoped stylesheet for deactivation safety, but it is
+ * a PROJECTION: regenerated from the attributes by every save (and by the
+ * server-side rebake when KSES strips it). No model <script> in markup — the
+ * model lives in the attributes only.
+ *
+ * v2 blocks (style + model script in markup, no attributes) validate against
+ * the deprecation below and migrate to v3 on their next save.
  */
 (function (blocks, element, blockEditor) {
   'use strict';
 
   var el = element.createElement;
   var InnerBlocks = blockEditor.InnerBlocks;
+
+  function scopedCss(a) {
+    return String(a.cssT || '').replace(/GOGHSCOPE/g, a.scope || '');
+  }
+
+  var v2attributes = {
+    css: { type: 'string', source: 'text', selector: 'style.gogh-style', default: '' },
+    model: { type: 'string', source: 'text', selector: 'script.gogh-model', default: '' },
+    scope: {
+      type: 'string',
+      source: 'attribute',
+      selector: '.gogh-section',
+      attribute: 'data-gogh-scope',
+      default: '',
+    },
+  };
+
+  function v2save(props) {
+    var a = props.attributes;
+    return el('div', { className: 'wp-block-gogh-section alignfull gogh-wrap' },
+      el('style', { className: 'gogh-style', dangerouslySetInnerHTML: { __html: a.css || '' } }),
+      el('script', {
+        type: 'application/json',
+        className: 'gogh-model',
+        dangerouslySetInnerHTML: { __html: a.model || '' },
+      }),
+      el('div', {
+        className: 'gogh-section ' + (a.scope || ''),
+        'data-gogh-scope': a.scope || '',
+      }, el(InnerBlocks.Content))
+    );
+  }
 
   blocks.registerBlockType('gogh/section', {
     title: 'gogh Section',
@@ -19,16 +57,14 @@
       html: false,
       customClassName: false,
     },
+    // plain (unsourced) attributes serialize into the block comment — the
+    // KSES-safe home. Anything NOT declared here is DROPPED by Gutenberg on
+    // save, so every stored field must be declared.
     attributes: {
-      css: { type: 'string', source: 'text', selector: 'style.gogh-style', default: '' },
-      model: { type: 'string', source: 'text', selector: 'script.gogh-model', default: '' },
-      scope: {
-        type: 'string',
-        source: 'attribute',
-        selector: '.gogh-section',
-        attribute: 'data-gogh-scope',
-        default: '',
-      },
+      v: { type: 'number', default: 3 },
+      scope: { type: 'string', default: '' },
+      model: { type: 'object' },
+      cssT: { type: 'string', default: '' },
     },
 
     edit: function (props) {
@@ -54,7 +90,7 @@
         );
       }
       return el('div', { className: 'wp-block-gogh-section alignfull gogh-wrap' },
-        el('style', { className: 'gogh-style', dangerouslySetInnerHTML: { __html: a.css || '' } }),
+        el('style', { className: 'gogh-style', dangerouslySetInnerHTML: { __html: scopedCss(a) } }),
         el('div', {
           className: 'gogh-section ' + (a.scope || ''),
           'data-gogh-scope': a.scope || '',
@@ -65,17 +101,27 @@
     save: function (props) {
       var a = props.attributes;
       return el('div', { className: 'wp-block-gogh-section alignfull gogh-wrap' },
-        el('style', { className: 'gogh-style', dangerouslySetInnerHTML: { __html: a.css || '' } }),
-        el('script', {
-          type: 'application/json',
-          className: 'gogh-model',
-          dangerouslySetInnerHTML: { __html: a.model || '' },
-        }),
+        el('style', { className: 'gogh-style', dangerouslySetInnerHTML: { __html: scopedCss(a) } }),
         el('div', {
           className: 'gogh-section ' + (a.scope || ''),
           'data-gogh-scope': a.scope || '',
         }, el(InnerBlocks.Content))
       );
     },
+
+    deprecated: [
+      {
+        attributes: v2attributes,
+        save: v2save,
+        migrate: function (a, innerBlocks) {
+          var scope = a.scope || '';
+          var model = null;
+          try { model = JSON.parse(a.model || 'null'); } catch (e) {}
+          if (model && model.version) model.version = 3;
+          var cssT = scope ? String(a.css || '').split(scope).join('GOGHSCOPE') : String(a.css || '');
+          return [ { v: 3, scope: scope, model: model, cssT: cssT }, innerBlocks ];
+        },
+      },
+    ],
   });
 })(window.wp.blocks, window.wp.element, window.wp.blockEditor);

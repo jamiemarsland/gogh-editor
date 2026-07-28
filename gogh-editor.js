@@ -668,8 +668,14 @@
     };
   }
   function buildSectionBlocksV3(sec) {
-    return '<!-- wp:gogh/section ' + serializeBlockAttrs(buildSectionAttrsV3(sec)) + ' -->\n' +
+    var attrs = buildSectionAttrsV3(sec);
+    // the baked stylesheet is a PROJECTION of the attrs (matches the block's
+    // save() output byte-for-byte, and the server rebake regenerates it when
+    // KSES strips it) — deactivation keeps the look, attrs stay the truth
+    var css = attrs.cssT.split('GOGHSCOPE').join(sec.scope);
+    return '<!-- wp:gogh/section ' + serializeBlockAttrs(attrs) + ' -->\n' +
       '<div class="wp-block-gogh-section alignfull gogh-wrap">' +
+      '<style class="gogh-style">' + css + '</style>' +
       '<div class="gogh-section ' + sec.scope + '" data-gogh-scope="' + sec.scope + '">\n' +
       buildElBlocks(sec.els) + '\n</div></div>\n' +
       '<!-- /wp:gogh/section -->';
