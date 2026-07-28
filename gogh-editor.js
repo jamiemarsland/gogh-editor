@@ -543,9 +543,8 @@
       wsrc: e.wsrc || null, whtml: e.whtml || null,
       boxBg: e.boxBg || null, radius: e.radius || 0, shape: e.shape || null };
   }
-  function buildSectionBlocks(sec) {
-    var els = sec.els;
-    var inner = els.map(function (e, i) {
+  function buildElBlocks(els) {
+    return els.map(function (e, i) {
       var cls = 'gogh-el-' + (i + 1);
       switch (e.type) {
         case 'heading': {
@@ -619,14 +618,20 @@
             '<div class="wp-block-group ' + cls + ' gogh-widget">\n' + (e.wsrc || '') + '\n</div>\n<!-- /wp:group -->';
       }
     }).join('\n\n');
-
-    var json = JSON.stringify({
-      version: 2, designW: W, minH: sec.minH || null,
+  }
+  function sectionModelJSON(sec, version) {
+    return {
+      version: version, designW: W, minH: sec.minH || null,
       bg: sec.bg || null, divider: sec.divider || null,
       fx: sec.fx || null,
       bgImage: sec.bgImage || null, bgId: sec.bgId || null,
-      elements: els.map(projEl),
-    }).replace(/</g, '\\u003c');
+      elements: sec.els.map(projEl),
+    };
+  }
+  function buildSectionBlocks(sec) {
+    var els = sec.els;
+    var inner = buildElBlocks(els);
+    var json = JSON.stringify(sectionModelJSON(sec, 2)).replace(/</g, '\\u003c');
 
     return '<!-- wp:gogh/section -->\n' +
       '<div class="wp-block-gogh-section alignfull gogh-wrap">' +
@@ -634,6 +639,39 @@
       '<script type="application/json" class="gogh-model">' + json + '</scr' + 'ipt>' +
       '<div class="gogh-section ' + sec.scope + '" data-gogh-scope="' + sec.scope + '">\n' +
       inner + '\n</div></div>\n' +
+      '<!-- /wp:gogh/section -->';
+  }
+
+  // ---------- SPIKE: attributes as the stored source of truth (v3) ----------
+  // The block comment carries { model, cssT }: the editing model plus the
+  // presentation compiled to a scope-templated stylesheet. PHP's job at
+  // render is scoping + emission ONLY — no visual logic lives server-side.
+  // Saved inner markup stays semantic core blocks: the plugin-off fallback.
+  function serializeBlockAttrs(obj) {
+    // mirror WP's serialize_block_attributes(): the JSON rides inside an
+    // HTML comment, so comment/HTML-sensitive sequences must be escaped
+    return JSON.stringify(obj)
+      .replace(/--/g, '\\u002d\\u002d')
+      .replace(/</g, '\\u003c')
+      .replace(/>/g, '\\u003e')
+      .replace(/&/g, '\\u0026')
+      .replace(/\\"/g, '\\u0022');
+  }
+  function buildSectionAttrsV3(sec) {
+    return {
+      v: 3,
+      scope: sec.scope,
+      model: sectionModelJSON(sec, 3),
+      // GOGHSCOPE placeholder: PHP substitutes the sanitized scope class.
+      // (Production refinement: split into per-rule declaration maps.)
+      cssT: buildCSS(sec.els, 'GOGHSCOPE', sec.minH, sectionOpts(sec)),
+    };
+  }
+  function buildSectionBlocksV3(sec) {
+    return '<!-- wp:gogh/section ' + serializeBlockAttrs(buildSectionAttrsV3(sec)) + ' -->\n' +
+      '<div class="wp-block-gogh-section alignfull gogh-wrap">' +
+      '<div class="gogh-section ' + sec.scope + '" data-gogh-scope="' + sec.scope + '">\n' +
+      buildElBlocks(sec.els) + '\n</div></div>\n' +
       '<!-- /wp:gogh/section -->';
   }
   function realSections() {
@@ -4444,6 +4482,7 @@
     stepFontSize: stepFontSize,
     setSecBg: setSecBg,
     buildBlocks: buildAllBlocks,
+    buildV3: function () { return realSections().map(buildSectionBlocksV3).join('\n\n'); },
     mergeContent: mergeContent,
     closePanel: closePanel,
     addElementAt: addElementAtViewport,
