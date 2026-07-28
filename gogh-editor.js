@@ -1544,6 +1544,8 @@
   function closePanel() {
     panel.hidden = true;
     panelOpen = false;
+    // a style audition must never outlive its panel
+    if (typeof clearVariationPreview === 'function') clearVariationPreview();
     // an ACTIVE cycle owns its preview — defensive closePanel calls from
     // unrelated paths must not snuff it (the counter kept advancing while
     // the preview died: James's exact symptom)
@@ -3651,7 +3653,7 @@
       panel.innerHTML =
         '<div class="gogh-panel-head"><span class="gogh-panel-title">Site style</span>' +
         '<button type="button" class="gogh-sbtn gogh-panel-close" title="Back to the palette">\u2715</button></div>' +
-        '<div class="gogh-panel-hint">Click to try \u2014 the whole site re-skins live</div>' +
+        '<div class="gogh-panel-hint">Hover to preview \u2014 click to keep it</div>' +
         '<div class="gogh-varlist"></div>';
       panel.querySelector('.gogh-panel-close').addEventListener('click', function () {
         closePanel();
@@ -3704,13 +3706,62 @@
             });
             b.appendChild(name);
           }
-          b.addEventListener('click', function () { applyVariation(v, b); });
+          b.addEventListener('click', function () {
+            clearVariationPreview();
+            applyVariation(v, b);
+          });
+          // hover auditions the style — small debounce so sweeping the
+          // cursor down the list doesn't strobe the page
+          b.addEventListener('mouseenter', function () {
+            clearTimeout(previewHoverT);
+            previewHoverT = setTimeout(function () {
+              ensureVariationFonts(v);
+              previewVariation(v);
+            }, 120);
+          });
           box.appendChild(b);
         });
       });
+      box.addEventListener('mouseleave', function () { clearVariationPreview(); });
       placePanelNear(anchorEl);
       panelOpen = true;
     }).catch(function () {});
+  }
+  // hover = instant local preview: the theme references its colours and
+  // fonts through preset CSS variables, so overriding those vars in one
+  // appended stylesheet re-skins the whole page with zero network. Click
+  // still persists via applyVariation (full fidelity from the server).
+  var previewStyleEl = null;
+  var previewHoverT = null;
+  function previewVariation(v) {
+    var css = ':root{';
+    var pal = ((v.settings || {}).color || {}).palette || {};
+    (pal.theme || pal.default || []).forEach(function (p) {
+      if (p.slug && p.color) css += '--wp--preset--color--' + p.slug + ':' + p.color + ';';
+    });
+    var fams = (((v.settings || {}).typography || {}).fontFamilies || {}).theme || [];
+    fams.forEach(function (f) {
+      if (f.slug && f.fontFamily) css += '--wp--preset--font-family--' + f.slug + ':' + f.fontFamily + ';';
+    });
+    css += '}';
+    var resolve = function (s) {
+      return String(s || '').replace(/^var:preset\|color\|(.+)$/, 'var(--wp--preset--color--$1)');
+    };
+    var sc = (v.styles || {}).color || {};
+    var body = '';
+    if (sc.background) body += 'background-color:' + resolve(sc.background) + ';';
+    if (sc.text) body += 'color:' + resolve(sc.text) + ';';
+    if (body) css += 'body{' + body + '}';
+    if (!previewStyleEl) {
+      previewStyleEl = document.createElement('style');
+      previewStyleEl.id = 'gogh-style-preview';
+      document.head.appendChild(previewStyleEl);
+    }
+    previewStyleEl.textContent = css;
+  }
+  function clearVariationPreview() {
+    clearTimeout(previewHoverT);
+    if (previewStyleEl) previewStyleEl.textContent = '';
   }
   function applyVariation(v, btn) {
     if (btn) btn.disabled = true;
@@ -4451,6 +4502,8 @@
     },
     pending: function () { return pendingBlocks; },
     storedEdits: function () { return storedEdits; },
+    previewVariation: previewVariation,
+    clearVariationPreview: clearVariationPreview,
     initStoredEdits: initStoredEdits,
     bindStoredTest: function (el, raw) {
       var e = { el: el, raw: raw, savedRaw: raw, stored: true, selfBlock: true, title: 'test stored' };

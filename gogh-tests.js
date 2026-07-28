@@ -1685,6 +1685,19 @@
       return 'upload + media grid present';
     });
 
+    // ---- site style: hover audition is local and reversible ----
+    test('style hover preview swaps palette vars locally, clears clean', function () {
+      var read = function () {
+        return getComputedStyle(document.body).getPropertyValue('--wp--preset--color--base').trim();
+      };
+      var before = read();
+      G.previewVariation({ settings: { color: { palette: { theme: [{ slug: 'base', color: 'rgb(18, 52, 86)' }] } } } });
+      expect(read() === 'rgb(18, 52, 86)', 'preview var not applied: ' + read());
+      G.clearVariationPreview();
+      expect(read() === before, 'preview did not clear: ' + read());
+      return 'vars swap and restore';
+    });
+
     // ---- display sizes: poster type beyond the theme presets ----
     test('display sizes: Aa steps past presets into cqw poster type', function () {
       var i = findIdx('heading');
