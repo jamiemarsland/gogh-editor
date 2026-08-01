@@ -13,16 +13,20 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Package plugin zip (honours .distignore)
+      - name: Package plugin zips (honours .distignore)
         run: |
           mkdir -p /tmp/pkg/gogh
           rsync -a --exclude-from=.distignore ./ /tmp/pkg/gogh/
           cd /tmp/pkg && zip -rq gogh.zip gogh
-      - name: Create release with asset
+          # identical bytes, separate counter: the Playground blueprint
+          # installs THIS asset, so demo boots and real installs get their
+          # own GitHub download counts
+          cp gogh.zip gogh-playground.zip
+      - name: Create release with assets
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release create "${GITHUB_REF_NAME}" /tmp/pkg/gogh.zip \
+          gh release create "${GITHUB_REF_NAME}" /tmp/pkg/gogh.zip /tmp/pkg/gogh-playground.zip \
             --repo "${GITHUB_REPOSITORY}" \
             --title "Gogh ${GITHUB_REF_NAME}" \
             --generate-notes
