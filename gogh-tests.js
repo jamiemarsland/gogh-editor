@@ -1685,6 +1685,40 @@
       return 'upload + media grid present';
     });
 
+    // ---- a11y: DOM order is READING order, not insertion order ----
+    test('published + canvas DOM follow reading order (WCAG 1.3.2)', function () {
+      var s0 = sec();
+      var saved = JSON.parse(JSON.stringify(s0.els));
+      // scrambled insertion: button first, heading LAST — visually the
+      // heading sits on top, the button at the bottom
+      s0.els = [
+        { type: 'button', x: 480, y: 700, w: 180, h: 52, text: 'Go' },
+        { type: 'para', x: 300, y: 420, w: 500, h: 60, text: 'Middle copy' },
+        { type: 'heading', x: 300, y: 60, w: 600, h: 90, text: 'Top headline' },
+      ];
+      G.renderSection(s0);
+      // editor canvas: children in reading order, classes keep stacking index
+      var kids = [].slice.call(s0.sectionEl.children).map(function (n) { return n.className; });
+      expect(/gogh-el-3/.test(kids[0]) && /gogh-el-2/.test(kids[1]) && /gogh-el-1/.test(kids[2]),
+        'canvas DOM not in reading order: ' + kids.join(' | '));
+      // published markup: heading block before para before button — match
+      // the RENDERED tags (the attrs JSON also carries the texts, earlier)
+      var out = G.buildBlocks();
+      var hAt = out.indexOf('Top headline</h2>');
+      var pAt = out.indexOf('Middle copy</p>');
+      var bAt = out.indexOf('>Go<');
+      expect(hAt !== -1 && pAt !== -1 && bAt !== -1, 'elements missing from build');
+      expect(hAt < pAt && pAt < bAt, 'published blocks not in reading order: h@' + hAt + ' p@' + pAt + ' b@' + bAt);
+      // stacking survives: z-index still follows the els array, not the DOM
+      var css = s0.styleEl.textContent;
+      expect(css.indexOf('z-index: 1') !== -1 && css.indexOf('z-index: 3') !== -1, 'stacking z-index ladder missing');
+      // mobile block no longer reorders — the DOM already reads correctly
+      expect(css.indexOf('order:') === -1, 'mobile order: rules should be gone');
+      s0.els = saved;
+      G.renderSection(s0);
+      return 'reading order in canvas + markup, stacking preserved';
+    });
+
     // ---- site style: hover audition is local and reversible ----
     test('style hover preview swaps palette vars locally, clears clean', function () {
       var read = function () {
