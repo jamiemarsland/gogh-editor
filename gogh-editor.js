@@ -4443,19 +4443,34 @@
     var stage = mirror.querySelector('.gogh-mirror-stage');
     stage.innerHTML = '';
     mirrorObs.disconnect();
-    // the whole page, in order — freeform header, sections, freeform footer
+    // the whole page, in true DOM order — freeform sections (header, content,
+    // footer) AND native content: pasted holders awaiting publish plus
+    // published native blocks (e.g. HTML sections never made freeform)
+    var items = [];
     S.forEach(function (sec) {
-      if (!sec.sectionEl) return;
-      mirrorObs.observe(sec.sectionEl, { subtree: true, childList: true, characterData: true });
-      var clone = sec.sectionEl.cloneNode(true);
-      clone.removeAttribute('style');
+      if (sec.sectionEl) items.push({ live: sec.wrapEl || sec.sectionEl, src: sec.sectionEl, sec: sec });
+    });
+    pendingBlocks.forEach(function (p) {
+      if (p.el && p.el.isConnected) items.push({ live: p.el, src: p.el });
+    });
+    topBlockNodes().forEach(function (n) {
+      if (n.tagName !== 'STYLE') items.push({ live: n, src: n });
+    });
+    items.sort(function (a, b) {
+      return (a.live.compareDocumentPosition(b.live) & Node.DOCUMENT_POSITION_FOLLOWING) ? -1 : 1;
+    });
+    items.forEach(function (it) {
+      mirrorObs.observe(it.src, { subtree: true, childList: true, characterData: true });
+      var clone = it.src.cloneNode(true);
+      if (it.sec) clone.removeAttribute('style');
       [].slice.call(clone.querySelectorAll('[contenteditable]')).forEach(function (n) { n.removeAttribute('contenteditable'); });
+      [].slice.call(clone.querySelectorAll('.gogh-pendbar')).forEach(function (n) { n.remove(); });
       [].slice.call(clone.querySelectorAll('.gogh-selected, .gogh-dragsrc, .gogh-textedit, .gogh-fan')).forEach(function (n) {
         n.classList.remove('gogh-selected', 'gogh-dragsrc', 'gogh-textedit', 'gogh-fan');
         n.style.transform = '';
         n.style.zIndex = '';
       });
-      clone.classList.remove('gogh-exploded');
+      clone.classList.remove('gogh-exploded', 'gogh-pending');
       stage.appendChild(clone);
     });
     // zoom (not transform) so the scroll extent shrinks with the content
