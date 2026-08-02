@@ -1062,6 +1062,12 @@
   box-shadow: 0 10px 28px -8px rgba(0, 0, 0, 0.55);
 }
 .gogh-tip[hidden] { display: none; }
+/* gliding tooltip states: rise in with a settle, slide + width-morph
+   between targets, quick fade on leave */
+.gogh-tip { opacity: 0; transform: translateY(5px) scale(0.96); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 520px; }
+.gogh-tip.is-in { opacity: 1; transform: none; transition: opacity 0.16s ease, transform 0.24s cubic-bezier(0.3, 1.45, 0.55, 1); }
+.gogh-tip.is-glide { transition: opacity 0.16s ease, transform 0.24s cubic-bezier(0.3, 1.45, 0.55, 1), left 0.19s cubic-bezier(0.22, 1, 0.36, 1), top 0.19s cubic-bezier(0.22, 1, 0.36, 1), width 0.19s cubic-bezier(0.22, 1, 0.36, 1); }
+.gogh-tip.is-out { opacity: 0; transform: translateY(2px) scale(0.98); transition: opacity 0.12s ease, transform 0.12s ease; }
 
 /* "/" quick-add menu */
 .gogh-cmd {

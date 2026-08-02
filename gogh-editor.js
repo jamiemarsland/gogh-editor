@@ -4947,11 +4947,15 @@
   // ---------- toolbar actions ----------
   editBtn.addEventListener('click', function () { setEditing(true); });
   // ---------- instant tooltips (native title has a multi-second delay) ----------
+  // One persistent tooltip that GLIDES: first hover rises in with a settle;
+  // moving along a toolbar it slides to the next control and morphs its
+  // width around the new text instead of blinking out and in.
   var tipEl = document.createElement('div');
   tipEl.className = 'gogh-tip';
   tipEl.hidden = true;
   document.body.appendChild(tipEl);
   var tipTimer = null;
+  var tipHideT = null;
   var tipVisibleUntil = 0;
   function showTipNow(el) {
     var text = el.getAttribute('title') || el.dataset.tip || '';
@@ -4961,20 +4965,55 @@
       text = el.dataset.tip;
     }
     if (!text) return;
-    tipEl.textContent = text;
+    clearTimeout(tipHideT);
+    var gliding = !tipEl.hidden && tipEl.classList.contains('is-in');
+    var oldW = gliding ? tipEl.offsetWidth : 0;
+    tipEl.classList.remove('is-out');
     tipEl.hidden = false;
-    var r = el.getBoundingClientRect();
+    // measure at natural size before deciding geometry
+    tipEl.classList.remove('is-glide');
+    tipEl.style.width = 'auto';
+    tipEl.textContent = text;
     var tw = tipEl.offsetWidth;
+    var th = tipEl.offsetHeight;
+    var r = el.getBoundingClientRect();
     var left = Math.max(6, Math.min(r.left + r.width / 2 - tw / 2, window.innerWidth - tw - 6));
     var top = r.bottom + 8;
-    if (top + tipEl.offsetHeight > window.innerHeight - 6) top = r.top - tipEl.offsetHeight - 8;
-    tipEl.style.left = left + 'px';
-    tipEl.style.top = top + 'px';
+    if (top + th > window.innerHeight - 6) top = r.top - th - 8;
+    if (gliding) {
+      // FLIP: start from the old width, glide position and width together
+      tipEl.style.width = oldW + 'px';
+      void tipEl.offsetWidth;
+      tipEl.classList.add('is-glide');
+      tipEl.style.width = tw + 'px';
+      tipEl.style.left = left + 'px';
+      tipEl.style.top = top + 'px';
+    } else {
+      tipEl.style.width = tw + 'px';
+      tipEl.style.left = left + 'px';
+      tipEl.style.top = top + 'px';
+      tipEl.classList.remove('is-in');
+      void tipEl.offsetWidth; // restart the entrance
+      tipEl.classList.add('is-in');
+    }
+    if (gliding) tipEl.classList.add('is-in');
   }
-  function hideTip() {
+  function hideTip(instant) {
     clearTimeout(tipTimer);
-    if (!tipEl.hidden) tipVisibleUntil = Date.now() + 400;
-    tipEl.hidden = true;
+    if (tipEl.hidden) return;
+    tipVisibleUntil = Date.now() + 400;
+    if (instant === true) {
+      tipEl.hidden = true;
+      tipEl.classList.remove('is-in', 'is-glide', 'is-out');
+      return;
+    }
+    tipEl.classList.remove('is-in', 'is-glide');
+    tipEl.classList.add('is-out');
+    clearTimeout(tipHideT);
+    tipHideT = setTimeout(function () {
+      tipEl.hidden = true;
+      tipEl.classList.remove('is-out');
+    }, 130);
   }
   document.addEventListener('pointerover', function (ev) {
     if (!(ev.target instanceof Element)) return;
@@ -4985,8 +5024,8 @@
     if (Date.now() < tipVisibleUntil || !tipEl.hidden) showTipNow(el);
     else tipTimer = setTimeout(function () { showTipNow(el); }, 140);
   });
-  document.addEventListener('pointerdown', hideTip, true);
-  document.addEventListener('scroll', hideTip, true);
+  document.addEventListener('pointerdown', function () { hideTip(true); }, true);
+  document.addEventListener('scroll', function () { hideTip(true); }, true);
 
   // ---------- publish state: status chip, toasts, exit panel ----------
   var savedSnap = null;
