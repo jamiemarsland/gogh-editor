@@ -1685,6 +1685,33 @@
       return 'upload + media grid present';
     });
 
+    // ---- starter contrast is theme-proof; mobile keeps panels, hides shapes ----
+    test('photo cards contrast + mobile box policy + badge clip guard', function () {
+      var tpl = G.templates().filter(function (t) { return t.name === 'Photo cards'; })[0];
+      expect(tpl, 'Photo cards template missing');
+      var whiteTexts = tpl.els.filter(function (e) {
+        return (e.type === 'heading' || e.type === 'para') && e.tf && e.tf.col === '#ffffff';
+      });
+      expect(whiteTexts.length === 4, 'overlay text not literal white (' + whiteTexts.length + '/4)');
+      expect(tpl.els.filter(function (e) { return e.type === 'button'; })
+        .every(function (e) { return e.tf && e.tf.bg === '#ffffff'; }), 'buttons not theme-proof');
+      expect(tpl.els.some(function (e) { return e.type === 'box' && /0\.78\)/.test(e.boxBg || ''); }),
+        'scrim not deepened');
+      // live CSS policies
+      var s0 = sec();
+      s0.els.push({ type: 'box', x: 10, y: 10, w: 400, h: 300 });
+      s0.els.push({ type: 'box', x: 20, y: 20, w: 300, h: 300, shape: 'blob' });
+      G.renderSection(s0);
+      var css = s0.styleEl.textContent;
+      var L = s0.els.length;
+      expect(new RegExp('gogh-el-' + (L - 1) + ' \\{ grid-area: auto; grid-column: 2; aspect-ratio: 400 / 300;').test(css),
+        'plain box does not keep proportions on mobile');
+      expect(new RegExp('gogh-el-' + L + ' \\{ grid-area: auto; grid-column: 2; display: none;').test(css),
+        'decorative shape not hidden on mobile');
+      expect(css.indexOf('min-width: max-content') !== -1, 'badge clip guard missing');
+      return 'white overlays, deep scrim, panel/shape mobile split';
+    });
+
     // ---- a11y: DOM order is READING order, not insertion order ----
     test('published + canvas DOM follow reading order (WCAG 1.3.2)', function () {
       var s0 = sec();

@@ -372,7 +372,7 @@
     para: 'align-self: start;',
     button: '',
     image: 'border-radius: clamp(8px, 1.5cqw, 20px);',
-    badge: 'display: flex; align-items: center; gap: 0.6em; height: 100%; background: #fff; color: #141519; border-radius: clamp(6px, 1.2cqw, 14px); padding: 0 1.1em; font-size: clamp(11px, 1.15cqw, 14px); font-weight: 600; box-shadow: 0 14px 34px -12px rgba(0,0,0,0.55); white-space: nowrap;',
+    badge: 'display: flex; align-items: center; min-width: max-content; gap: 0.6em; height: 100%; background: #fff; color: #141519; border-radius: clamp(6px, 1.2cqw, 14px); padding: 0 1.1em; font-size: clamp(11px, 1.15cqw, 14px); font-weight: 600; box-shadow: 0 14px 34px -12px rgba(0,0,0,0.55); white-space: nowrap;',
     widget: 'display: flex; align-items: center;',
     box: '',
   };
@@ -516,6 +516,10 @@
       // stacked mobile flow, tab order and screen-reader order all agree
       out.push('  ' + sec + ' .gogh-el-' + (i + 1) + ' { grid-area: auto; grid-column: 2;' +
         (e.type === 'image' ? ' aspect-ratio: ' + e.w + ' / ' + e.h + ';' : '') +
+        // stacked mobile: decorative SHAPES step aside; plain boxes are
+        // structural panels (photo-card scrims, feature mats) and keep
+        // their proportions instead of collapsing to zero height
+        (e.type === 'box' ? (e.shape ? ' display: none;' : ' aspect-ratio: ' + e.w + ' / ' + e.h + ';') : '') +
         (e.type === 'badge' ? ' width: max-content; height: 44px;' : '') + ' }');
     });
     out.push(
@@ -2241,19 +2245,19 @@
     ] },
     { starter: true, name: 'Photo cards', minH: 720, els: [
       { type: 'image', x: 100, y: 40, w: 470, h: 620, cool: true },
-      { type: 'box', x: 100, y: 340, w: 470, h: 320, boxBg: 'linear-gradient(180deg, rgba(0,0,0,0) 0%, rgba(0,0,0,0.05) 30%, rgba(0,0,0,0.66) 100%)', radius: 20 },
-      { type: 'heading', x: 136, y: 384, w: 340, h: 46, text: 'Quiet mountain cabin', fs: 'large', color: 'base' },
-      { type: 'para', x: 136, y: 442, w: 398, h: 84, text: 'Wake up above the clouds. Two rooms, one stove, zero notifications \u2014 the good kind of nowhere.', color: 'base' },
+      { type: 'box', x: 100, y: 340, w: 470, h: 320, boxBg: 'linear-gradient(180deg, rgba(0,0,0,0) 0%, rgba(0,0,0,0.18) 30%, rgba(0,0,0,0.78) 100%)', radius: 20 },
+      { type: 'heading', x: 136, y: 384, w: 340, h: 46, text: 'Quiet mountain cabin', fs: 'large', tf: { col: '#ffffff' } },
+      { type: 'para', x: 136, y: 442, w: 398, h: 84, text: 'Wake up above the clouds. Two rooms, one stove, zero notifications \u2014 the good kind of nowhere.', tf: { col: '#ffffff' } },
       { type: 'badge', x: 136, y: 538, w: 130, h: 44, text: '\u2605 4.9' },
       { type: 'badge', x: 282, y: 538, w: 168, h: 44, text: '3 night stay' },
-      { type: 'button', x: 136, y: 598, w: 398, h: 52, text: 'Reserve now', btnBg: 'base', btnText: 'contrast' },
+      { type: 'button', x: 136, y: 598, w: 398, h: 52, text: 'Reserve now', tf: { bg: '#ffffff', col: '#141519' } },
       { type: 'image', x: 630, y: 40, w: 470, h: 620, cool: true },
-      { type: 'box', x: 630, y: 340, w: 470, h: 320, boxBg: 'linear-gradient(180deg, rgba(0,0,0,0) 0%, rgba(0,0,0,0.05) 30%, rgba(0,0,0,0.66) 100%)', radius: 20 },
-      { type: 'heading', x: 666, y: 384, w: 340, h: 46, text: 'Coastal hideaway', fs: 'large', color: 'base' },
-      { type: 'para', x: 666, y: 442, w: 398, h: 84, text: 'Salt air, slow mornings and a five-minute walk to the water. Bring a book you\u2019ve been meaning to finish.', color: 'base' },
+      { type: 'box', x: 630, y: 340, w: 470, h: 320, boxBg: 'linear-gradient(180deg, rgba(0,0,0,0) 0%, rgba(0,0,0,0.18) 30%, rgba(0,0,0,0.78) 100%)', radius: 20 },
+      { type: 'heading', x: 666, y: 384, w: 340, h: 46, text: 'Coastal hideaway', fs: 'large', tf: { col: '#ffffff' } },
+      { type: 'para', x: 666, y: 442, w: 398, h: 84, text: 'Salt air, slow mornings and a five-minute walk to the water. Bring a book you\u2019ve been meaning to finish.', tf: { col: '#ffffff' } },
       { type: 'badge', x: 666, y: 538, w: 130, h: 44, text: '\u2605 4.8' },
       { type: 'badge', x: 812, y: 538, w: 168, h: 44, text: 'Guest favourite' },
-      { type: 'button', x: 666, y: 598, w: 398, h: 52, text: 'Reserve now', btnBg: 'base', btnText: 'contrast' },
+      { type: 'button', x: 666, y: 598, w: 398, h: 52, text: 'Reserve now', tf: { bg: '#ffffff', col: '#141519' } },
     ] },
     { starter: true, name: 'Gallery', minH: 640, els: [
       { type: 'heading', x: 72, y: 66, w: 520, h: 62, text: 'A few favourites' },
