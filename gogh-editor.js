@@ -1299,6 +1299,7 @@
   inserter.hidden = true;
   document.body.appendChild(inserter);
   var insertIdx = null;
+  var insertBefore = null; // DOM anchor: native blocks sit between sections, so an S-index alone cannot say “above the pattern”
 
   var editing = false;
   var sel = null; // {sec, i}
@@ -2348,6 +2349,7 @@
   picker.hidden = true;
   document.body.appendChild(picker);
   var pickerIdx = null;
+  var pickerBefore = null;
 
   var pickerCloseT = null;
   function closePicker() {
@@ -2389,8 +2391,9 @@
     'Call to action': 'hero', 'Photo cards': 'photos cards', 'Gallery': 'photos',
     'Get in touch': 'contact',
   };
-  function openPicker(idx) {
+  function openPicker(idx, before) {
     pickerIdx = idx;
+    pickerBefore = (before && before.isConnected) ? before : null;
     try { picker.style.setProperty('--gogh-body-ff', getComputedStyle(document.body).fontFamily); } catch (err) {}
     var tplCardHTML = function (tpl, t, popular, si) {
       var els = tplEls(tpl);
@@ -2490,12 +2493,12 @@
         '<button type="button" class="gogh-btn-save gogh-btn-small gogh-html-add">Add to page</button>' +
         '</div>';
       inner.querySelector('.gogh-picker-close').addEventListener('click', closePicker);
-      inner.querySelector('.gogh-html-back').addEventListener('click', function () { openPicker(pickerIdx); });
+      inner.querySelector('.gogh-html-back').addEventListener('click', function () { openPicker(pickerIdx, pickerBefore); });
       var ta = inner.querySelector('.gogh-htmlpaste');
       ta.focus();
       inner.querySelector('.gogh-html-add').addEventListener('click', function () {
         if (!ta.value.trim()) { ta.focus(); return; }
-        addHtmlSection(ta.value, pickerIdx);
+        addHtmlSection(ta.value, pickerIdx, pickerBefore);
         closePicker();
       });
     });
@@ -2505,12 +2508,12 @@
     picker.querySelectorAll('.gogh-card').forEach(function (card) {
       if (card.dataset.tpl == null) return;
       card.addEventListener('click', function () {
-        addSection(TEMPLATES[+card.dataset.tpl], pickerIdx);
+        addSection(TEMPLATES[+card.dataset.tpl], pickerIdx, pickerBefore);
         closePicker();
       });
     });
     picker.querySelector('.gogh-quick-scratch').addEventListener('click', function () {
-      addSection(TEMPLATES[blankAt], pickerIdx);
+      addSection(TEMPLATES[blankAt], pickerIdx, pickerBefore);
       closePicker();
     });
     picker.querySelector('.gogh-quick-yours').addEventListener('click', function () {
@@ -2684,7 +2687,7 @@
           if (activeCat === 'yours') applyFilter();
         });
         b.addEventListener('click', function () {
-          addPatternSection(p, pickerIdx);
+          addPatternSection(p, pickerIdx, pickerBefore);
           closePicker();
         });
         if (io) io.observe(b); else hydrate(b, p);
@@ -2713,7 +2716,7 @@
         b.querySelector('.gogh-card-name').textContent = '\u2764 ' + ((bk.title && bk.title.raw) || 'My section');
         b.addEventListener('click', function () {
           recordRecent('b', bk.id);
-          insertGoghPattern(raw, pickerIdx);
+          insertGoghPattern(raw, pickerIdx, pickerBefore);
           closePicker();
         });
         b.querySelector('.gogh-card-delpat').addEventListener('click', function (ev) {
@@ -2797,7 +2800,7 @@
     });
   }
 
-  function addSection(tpl, idx) {
+  function addSection(tpl, idx, before) {
     if (idx == null) idx = S.length;
     idx = clampInsertIdx(idx);
     var sec = newSectionShell('gogh-sec-' + (scopeSeq++));
@@ -2806,7 +2809,9 @@
     sec.bg = tpl.bg || null;
     var nextContent = null;
     for (var ni = idx; ni < S.length; ni++) { if (!S[ni].chrome) { nextContent = S[ni]; break; } }
-    var anchor = nextContent ? nextContent.wrapEl : endMarker;
+    // the DOM anchor wins when given: it can place the section above a
+    // native block, which the S-index cannot express
+    var anchor = (before && before.isConnected) ? before : (nextContent ? nextContent.wrapEl : endMarker);
     pageParent.insertBefore(sec.wrapEl, anchor);
     S.splice(idx, 0, sec);
     // a real section replaces the ?gogh-edit bootstrap placeholder
@@ -3154,7 +3159,7 @@
       if (ev.key === 'Escape') closePanel();
     });
   }
-  function insertGoghPattern(content, idx) {
+  function insertGoghPattern(content, idx, before) {
     var tpl = document.createElement('template');
     tpl.innerHTML = content;
     var wrap = tpl.content.querySelector('.gogh-wrap');
@@ -3184,7 +3189,7 @@
     sec.bgId = model.bgId || null;
     var nextContent = null;
     for (var ni = idx; ni < S.length; ni++) { if (!S[ni].chrome) { nextContent = S[ni]; break; } }
-    pageParent.insertBefore(sec.wrapEl, nextContent ? nextContent.wrapEl : endMarker);
+    pageParent.insertBefore(sec.wrapEl, (before && before.isConnected) ? before : (nextContent ? nextContent.wrapEl : endMarker));
     S.splice(idx, 0, sec);
     renderSection(sec);
     sel = null;
@@ -3425,42 +3430,74 @@
       insertRaf = false;
       if (hDrag) return;
       var found = null;
-      // boundaries belong to page content: none above the site header,
-      // none below the site footer
-      var cIdxs = [];
-      for (var ci = 0; ci < S.length; ci++) { if (!S[ci].chrome) cIdxs.push(ci); }
-      for (var bi = 0; bi <= cIdxs.length && cIdxs.length; bi++) {
-        var idx, by;
-        if (bi < cIdxs.length) {
-          idx = cIdxs[bi];
-          by = S[idx].wrapEl.getBoundingClientRect().top;
-        } else {
-          idx = cIdxs[cIdxs.length - 1] + 1;
-          by = S[cIdxs[cIdxs.length - 1]].wrapEl.getBoundingClientRect().bottom;
+      // boundaries belong to page content — ALL of it: freeform sections,
+      // pending pattern holders, and stored native blocks alike. (none
+      // above the site header, none below the site footer)
+      var secOf = function (n2) {
+        for (var s2 = 0; s2 < S.length; s2++) {
+          if (!S[s2].chrome && S[s2].wrapEl === n2) return S[s2];
         }
-        if (Math.abs(cy - by) < 28) { found = { idx: idx, y: by }; break; }
+        return null;
+      };
+      var bNodes = [];
+      [].slice.call(pageParent.children).forEach(function (bn) {
+        if (!bn.classList || bn.tagName === 'STYLE' || bn.tagName === 'SCRIPT') return;
+        if (bn.classList.contains('gogh-wrap')) {
+          if (secOf(bn)) bNodes.push(bn);
+        } else if (bn.classList.contains('gogh-pending') ||
+          (bn.textContent || '').trim().length > 0 || bn.querySelector('img,iframe,video,svg,canvas')) {
+          bNodes.push(bn);
+        }
+      });
+      for (var bi = 0; bi <= bNodes.length && bNodes.length; bi++) {
+        var node, by;
+        if (bi < bNodes.length) {
+          node = bNodes[bi];
+          by = node.getBoundingClientRect().top;
+        } else {
+          node = null;
+          by = bNodes[bNodes.length - 1].getBoundingClientRect().bottom;
+        }
+        if (Math.abs(cy - by) < 28) {
+          found = { node: node, y: by, prevNode: bi > 0 ? bNodes[bi - 1] : null, first: bi === 0 };
+          break;
+        }
       }
       if (found) {
-        insertIdx = found.idx;
+        // model index: the first content section at or after the anchor
+        var sIdx = null;
+        if (found.node) {
+          for (var n3 = found.node; n3 && sIdx === null; n3 = n3.nextElementSibling) {
+            var so = secOf(n3);
+            if (so) sIdx = S.indexOf(so);
+          }
+        }
+        insertIdx = sIdx === null ? clampInsertIdx(S.length) : sIdx;
+        insertBefore = found.node;
+        // the section above this boundary, if it IS a section — the height
+        // pill and the divider button are freeform-only affordances
+        var prevSec = found.prevNode ? secOf(found.prevNode)
+          : (found.first && S[insertIdx - 1] && S[insertIdx - 1].chrome ? S[insertIdx - 1] : null);
+        var nextSec = found.node ? secOf(found.node) : null;
         // at the very bottom of the screen the pills would clip — keep them
         // reachable just inside the viewport
         found.y = Math.min(found.y, window.innerHeight - 36);
-        // anchor to the section's own centre — themes with padded layouts
+        // anchor to the block's own centre — themes with padded layouts
         // (Ollie) don't run sections to the viewport edge, so 50% drifts
-        var refSec = found.idx < S.length ? S[found.idx] : S[S.length - 1];
-        var refR = refSec.wrapEl.getBoundingClientRect();
+        var refNode = found.node || bNodes[bNodes.length - 1];
+        var refR = refNode.getBoundingClientRect();
         var cx = refR.left + refR.width / 2 + window.scrollX;
-        inserter.style.left = (found.idx >= 1 ? (cx - 40) : cx) + 'px';
-        // the height pill (44px) occupies the centre of every boundary except
-        // the very top one — + Section reads first (left), Transition after
-        // (right), each 18px from the pill (22 + 18 = 40)
-        inserter.style.transform = found.idx >= 1 ? 'translate(-100%, -50%)' : 'translate(-50%, -50%)';
+        inserter.style.left = (prevSec ? (cx - 40) : cx) + 'px';
+        // the height pill (44px) occupies the centre of every boundary whose
+        // upper neighbour is freeform — + Section reads first (left),
+        // Transition after (right), each 18px from the pill (22 + 18 = 40)
+        inserter.style.transform = prevSec ? 'translate(-100%, -50%)' : 'translate(-50%, -50%)';
         inserter.style.marginLeft = '0';
         inserter.style.top = (found.y + window.scrollY) + 'px';
         inserter.hidden = false;
-        if (found.idx >= 1) placeHbar(S[found.idx - 1]); else hideHbar();
-        if (found.idx >= 1 && found.idx < S.length) {
-          shapeIdx = found.idx;
+        if (prevSec) placeHbar(prevSec); else hideHbar();
+        if (prevSec && nextSec && S.indexOf(nextSec) === S.indexOf(prevSec) + 1) {
+          shapeIdx = S.indexOf(nextSec);
           shapeBtn.style.left = (cx + 40) + 'px';
           shapeBtn.style.top = (found.y + window.scrollY) + 'px';
           shapeBtn.hidden = false;
@@ -3486,7 +3523,7 @@
   }, { passive: true });
   inserter.addEventListener('click', function () {
     inserter.hidden = true;
-    openPicker(insertIdx == null ? S.length : insertIdx);
+    openPicker(insertIdx == null ? S.length : insertIdx, insertBefore);
   });
 
   // ---------- dragging with ghost (no cursor drift) ----------
@@ -5330,7 +5367,7 @@
     S.forEach(function (s, k) { if (footAt === -1 && s.chrome && s.chrome.area === 'footer') footAt = k; });
     return footAt === -1 ? idx : Math.min(idx, footAt);
   }
-  function insertNative(raw, html, title, idx) {
+  function insertNative(raw, html, title, idx, before) {
     if (idx == null) idx = S.length;
     idx = clampInsertIdx(idx);
     // arrives as REAL blocks — pixel-perfect, no conversion. Freeform is one
@@ -5340,7 +5377,7 @@
     holder.innerHTML = html;
     var nextContent = null;
     for (var ni = idx; ni < S.length; ni++) { if (!S[ni].chrome) { nextContent = S[ni]; break; } }
-    pageParent.insertBefore(holder, nextContent ? nextContent.wrapEl : endMarker);
+    pageParent.insertBefore(holder, (before && before.isConnected) ? before : (nextContent ? nextContent.wrapEl : endMarker));
     var entry = { el: holder, raw: raw || '', title: title || 'Section' };
     pendingBlocks.push(entry);
     var bar = document.createElement('div');
@@ -5371,11 +5408,11 @@
       localStorage.setItem('gogh-recent-sections', JSON.stringify(list.slice(0, 6)));
     } catch (err) {}
   }
-  function addPatternSection(p, idx) {
+  function addPatternSection(p, idx, before) {
     return renderPattern(p).then(function (html) {
       if (!html) throw new Error('empty');
       recordRecent('p', p.name);
-      insertNative(p.content || '', html, p.title, idx);
+      insertNative(p.content || '', html, p.title, idx, before);
     }).catch(function () {
       toast('Could not add that section.', { error: true });
     });
@@ -5397,7 +5434,7 @@
     });
     return t.innerHTML;
   }
-  function addHtmlSection(html, idx) {
+  function addHtmlSection(html, idx, before) {
     html = sanitizePastedHtml(html).trim();
     if (!html) return;
     // a real core HTML block inside a FULL-WIDTH group: pasted HTML owns the
@@ -5411,7 +5448,7 @@
       '<div class="wp-block-group alignfull gogh-section-html" style="margin-top:0;margin-bottom:0">\n' +
       '<!-- wp:html -->\n' + html + '\n<!-- /wp:html -->\n' +
       '</div>\n<!-- /wp:group -->';
-    var entry = insertNative(raw, '<div class="wp-block-group alignfull gogh-section-html" style="margin-top:0;margin-bottom:0">' + html + '</div>', 'HTML', idx);
+    var entry = insertNative(raw, '<div class="wp-block-group alignfull gogh-section-html" style="margin-top:0;margin-bottom:0">' + html + '</div>', 'HTML', idx, before);
     if (entry) entry.freeHtml = true;
   }
   // frictionless paste: Cmd+V anywhere in edit mode drops HTML straight onto
@@ -5426,8 +5463,9 @@
     if (txt[0] !== '<' || !(/<\/[a-z]/i.test(txt) || /\/>/.test(txt))) return;
     ev.preventDefault();
     var idx = picker.hidden ? null : pickerIdx;
+    var before = picker.hidden ? null : pickerBefore;
     if (!picker.hidden) closePicker();
-    addHtmlSection(txt, idx == null ? undefined : idx);
+    addHtmlSection(txt, idx == null ? undefined : idx, before);
   });
   // ---------- light editing on native (pre-freeform) sections ----------
   // Rendered leaves pair with their markup spans; edits replace the span's

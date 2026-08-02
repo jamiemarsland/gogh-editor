@@ -1174,6 +1174,23 @@
       entry.el.querySelector('.gogh-pend-rm').click();
       expect(hasFrameCard, 'iframe-only block missing from zoom modal');
     });
+    test('section can be inserted ABOVE a native block at the top of the page', function () {
+      var first = G.sections().filter(function (s) { return !s.chrome; })[0];
+      var iFirst = G.sections().indexOf(first);
+      G.addHtmlSection('<div style="padding:40px"><h2>Top pattern</h2></div>', iFirst);
+      var entry = G.pending()[G.pending().length - 1];
+      expect(entry.el.compareDocumentPosition(first.wrapEl) & 4, 'holder did not land above the first section');
+      var scopes0 = G.sections().map(function (s) { return s.scope; });
+      // the DOM anchor places the new section above the holder — an S-index
+      // alone could never express this position
+      G.addSection(G.templates()[0], iFirst, entry.el);
+      var added = G.sections().filter(function (s) { return scopes0.indexOf(s.scope) === -1; })[0];
+      expect(added, 'section not added');
+      expect(added.wrapEl.compareDocumentPosition(entry.el) & 4, 'new section not above the pattern');
+      G.deleteSection(G.sections().indexOf(added));
+      entry.el.querySelector('.gogh-pend-rm').click();
+      return 'anchored insertion beats index-only insertion';
+    });
     test('mobile mirror shows native sections too, in page order', function () {
       G.addHtmlSection('<div style="padding:40px"><h2>Mirror me native</h2><p>Still not freeform</p></div>', null);
       var entry = G.pending()[G.pending().length - 1];
