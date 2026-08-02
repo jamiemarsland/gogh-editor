@@ -2673,18 +2673,30 @@
         if (favs[p.name]) b.dataset.kind = 'yours';
         b.innerHTML = '<span class="gogh-card-prev"><span class="gogh-card-stage"></span></span>' +
           '<span class="gogh-card-name"></span>' +
-          '<span class="gogh-card-fav" title="Favourite">\u2665</span>';
+          '<span class="gogh-card-fav">\u2665</span>';
         b.querySelector('.gogh-card-name').textContent = p.title || p.name;
         var favEl = b.querySelector('.gogh-card-fav');
-        favEl.classList.toggle('is-fav', !!favs[p.name]);
-        favEl.addEventListener('click', function (ev) {
-          ev.stopPropagation();
-          if (favs[p.name]) delete favs[p.name]; else favs[p.name] = 1;
+        var syncFav = function () {
           favEl.classList.toggle('is-fav', !!favs[p.name]);
-          try { localStorage.setItem('gogh-fav-patterns', JSON.stringify(Object.keys(favs))); } catch (err) {}
+          favEl.title = favs[p.name] ? 'Remove from Your sections' : 'Favourite \u2014 adds to Your sections';
           if (favs[p.name]) b.dataset.kind = 'yours'; else delete b.dataset.kind;
+        };
+        syncFav();
+        var setFav = function (on) {
+          if (on) favs[p.name] = 1; else delete favs[p.name];
+          try { localStorage.setItem('gogh-fav-patterns', JSON.stringify(Object.keys(favs))); } catch (err) {}
+          syncFav();
           updateYoursChip();
           if (activeCat === 'yours') applyFilter();
+        };
+        favEl.addEventListener('click', function (ev) {
+          ev.stopPropagation();
+          var removing = !!favs[p.name];
+          setFav(!removing);
+          if (removing) {
+            toast('\u201c' + (p.title || p.name) + '\u201d removed from Your sections.',
+              { actions: [{ label: 'Undo', onClick: function () { setFav(true); } }] });
+          }
         });
         b.addEventListener('click', function () {
           addPatternSection(p, pickerIdx, pickerBefore);

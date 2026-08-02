@@ -1955,3 +1955,6 @@ html.gogh-editing .gogh-mirror { display: flex; }
    swallow scrolling, clicks, or drags — a 100vh embed would otherwise make
    everything beneath it unreachable */
 html.gogh-editing iframe { pointer-events: none; }
+
+/* a favourited heart is a remove control — read as one on hover */
+.gogh-card-fav.is-fav:hover { color: #e0455e; }
