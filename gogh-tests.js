@@ -1134,6 +1134,46 @@
       expect(cols === 3, 'clone not stacked: ' + cols + ' columns');
       G.mirror.close();
     });
+    // ---- publish re-emits top-level spans in live DOM order ----
+    test('resequenceToDom reorders exact units, bails on any ambiguity', function () {
+      var A = '<!-- wp:paragraph -->\n<p>Alpha</p>\n<!-- /wp:paragraph -->';
+      var B = '<!-- wp:paragraph -->\n<p>Beta</p>\n<!-- /wp:paragraph -->';
+      var C = '<!-- wp:paragraph -->\n<p>Gamma</p>\n<!-- /wp:paragraph -->';
+      var merged = A + '\n\n' + B + '\n\n' + C;
+      // DOM order says B, A, C → output must follow it
+      var out = G.resequenceToDom(merged, [B, A, C]);
+      expect(out === B + '\n\n' + A + '\n\n' + C, 'did not reorder: ' + out.slice(0, 80));
+      // already in order → byte-identical passthrough
+      expect(G.resequenceToDom(merged, [A, B, C]) === merged, 'no-op case rewrote content');
+      // a unit missing from the merged raw → untouched
+      expect(G.resequenceToDom(merged, [B, A, '<!-- wp:paragraph -->\n<p>Ghost</p>\n<!-- /wp:paragraph -->']) === merged,
+        'missing unit should bail');
+      // real content between claimed units (an unbound block) → untouched
+      expect(G.resequenceToDom(merged, [C, A]) === merged, 'unclaimed middle block should bail');
+      // duplicates map one-to-one without overlap
+      var dup = A + '\n\n' + A + '\n\n' + B;
+      expect(G.resequenceToDom(dup, [B, A, A]) === B + '\n\n' + A + '\n\n' + A, 'duplicate units mishandled');
+      return 'reorders, no-ops, and bails exactly when it should';
+    });
+    test('editing mode makes embedded iframes inert (100vh embeds cannot trap the page)', function () {
+      expect(document.documentElement.classList.contains('gogh-editing'), 'no gogh-editing root class');
+      G.addHtmlSection('<div style="min-height:50vh"><iframe src="about:blank" style="width:100%;height:50vh;border:0" title="embed"></iframe></div>', null);
+      var entry = G.pending()[G.pending().length - 1];
+      var fr = entry.el.querySelector('iframe');
+      expect(fr, 'no pasted iframe');
+      expect(getComputedStyle(fr).pointerEvents === 'none', 'pasted iframe still captures the pointer');
+      entry.el.querySelector('.gogh-pend-rm').click();
+    });
+    test('zoom modal: iframe-only stored blocks get a card', function () {
+      G.addHtmlSection('<div><iframe src="about:blank" style="width:100%;height:40vh;border:0" title="only-frame"></iframe></div>', null);
+      var entry = G.pending()[G.pending().length - 1];
+      G.zoom.open();
+      var cards = [].slice.call(document.querySelectorAll('.gogh-zoom-card'));
+      var hasFrameCard = cards.some(function (c) { return c.querySelector('iframe'); });
+      G.zoom.close();
+      entry.el.querySelector('.gogh-pend-rm').click();
+      expect(hasFrameCard, 'iframe-only block missing from zoom modal');
+    });
     test('mobile mirror shows native sections too, in page order', function () {
       G.addHtmlSection('<div style="padding:40px"><h2>Mirror me native</h2><p>Still not freeform</p></div>', null);
       var entry = G.pending()[G.pending().length - 1];

@@ -1950,3 +1950,8 @@ html.gogh-editing .gogh-mirror { display: flex; }
   letter-spacing: 0.04em;
   pointer-events: none;
 }
+
+/* while editing, every embedded frame is inert: remote experiences must not
+   swallow scrolling, clicks, or drags — a 100vh embed would otherwise make
+   everything beneath it unreachable */
+html.gogh-editing iframe { pointer-events: none; }

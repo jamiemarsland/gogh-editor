@@ -158,6 +158,7 @@
   });
   scopeSeq = Math.max(scopeSeq, wrapTags.length);
 
+  document.documentElement.classList.add('gogh-editing');
   var S = []; // {scope, els, minH, bg, divider, wrapEl, sectionEl, styleEl, nodes}
   wrapTags.forEach(function (wrap) {
     var sectionEl = wrap.querySelector('.gogh-section');
@@ -4245,8 +4246,8 @@
       } else if (n.classList.contains('gogh-pending')) {
         items.push({ kind: 'pending', node: n });
       } else if (n.tagName !== 'STYLE' && n.tagName !== 'SCRIPT' &&
-        ((n.textContent || '').trim().length > 0 || n.querySelector('img'))) {
-        items.push({ kind: 'static', node: n });
+        ((n.textContent || '').trim().length > 0 || n.querySelector('img,iframe,video,svg,canvas'))) {
+        items.push({ kind: 'static', node: n, bound: storedEdits.some(function (en) { return en.el === n; }) });
       }
     });
     S.filter(function (s) { return s.chrome && s.chrome.area === 'footer'; }).forEach(function (s) {
@@ -4255,12 +4256,14 @@
     var secN = 0;
     items.forEach(function (it) {
       var card = document.createElement('div');
-      var pinned = it.kind === 'chrome' || it.kind === 'static';
+      // stored native blocks drag too once their raw span is bound (publish
+      // re-emits top-level spans in DOM order); unbound ones stay pinned
+      var pinned = it.kind === 'chrome' || (it.kind === 'static' && !it.bound);
       card.className = 'gogh-zoom-card' + (pinned ? ' is-chrome' : '');
       card.__it = it;
       var label;
       if (it.kind === 'chrome') label = it.label;
-      else if (it.kind === 'static') label = 'Other content';
+      else if (it.kind === 'static' && !it.bound) label = 'Other content';
       else {
         secN++;
         label = 'Section ' + secN +
@@ -4664,6 +4667,8 @@
     addElementAt: addElementAtViewport,
     addShape: addShapeAtViewport,
     shapeDefs: function () { return SHAPE_DEFS; },
+    resequenceToDom: resequenceToDom,
+    gatherRawUnits: gatherRawUnits,
   };
   // the running build, visible at a glance: hover the gogh side tab, or read
   // it in the console — kills "is this tab stale?" debugging forever
@@ -4884,7 +4889,7 @@
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'X-WP-Nonce': cfg.nonce },
         credentials: 'same-origin',
-        body: JSON.stringify({ content: mergeContent(raw) }),
+        body: JSON.stringify({ content: resequenceToDom(mergeContent(raw), gatherRawUnits()) }),
       });
     }).then(function (res) {
       if (!res.ok) throw new Error('HTTP ' + res.status);
@@ -7630,6 +7635,63 @@
       if (chunk) between += '\n\n' + chunk;
     }
     return head + blocks + between + tail;
+  }
+
+  // The zoom modal can move native blocks, but mergeContent's in-place span
+  // rewriting keeps every PUBLISHED native block in its old raw slot. These
+  // two re-emit the merged content's top-level spans in live DOM order.
+  // Every unit is an exact-text slice we authored or bound, so the mapping
+  // is byte-precise; ANY ambiguity returns the merged raw untouched — the
+  // failure mode is a stale order, never corrupted content.
+  function gatherRawUnits() {
+    var units = [];
+    var kids = [].slice.call(pageParent.children);
+    for (var i = 0; i < kids.length; i++) {
+      var n = kids[i];
+      if (!n.classList || n.tagName === 'STYLE' || n.tagName === 'SCRIPT') continue;
+      if (n.classList.contains('gogh-wrap')) {
+        var sec = realSections().filter(function (s) { return s.wrapEl === n; })[0];
+        if (sec) units.push(buildSectionBlocksV3(sec));
+      } else if (n.classList.contains('gogh-pending')) {
+        var pe = pendingBlocks.filter(function (p) { return p.el === n; })[0];
+        if (!pe) return null;
+        units.push(pe.raw);
+      } else {
+        var en = storedEdits.filter(function (s2) { return s2.el === n; })[0];
+        if (!en) return null; // unbound stored block: order must not be touched
+        units.push(en.raw);
+      }
+    }
+    return units;
+  }
+  function resequenceToDom(merged, units) {
+    if (!units || units.length < 2) return merged;
+    var ranges = [];
+    for (var i = 0; i < units.length; i++) {
+      var t = units[i];
+      if (!t) return merged;
+      var from = 0, at;
+      for (;;) {
+        at = merged.indexOf(t, from);
+        if (at === -1) return merged; // unit not present verbatim: bail
+        var lo = at;
+        var clash = ranges.some(function (r) { return lo < r.end && lo + t.length > r.start; });
+        if (!clash) break;
+        from = at + 1;
+      }
+      ranges.push({ start: at, end: at + t.length, i: i });
+    }
+    var sorted = ranges.slice().sort(function (a, b) { return a.start - b.start; });
+    var inOrder = sorted.every(function (r, k) { return r.i === k; });
+    if (inOrder) return merged; // nothing moved: keep the merge byte-for-byte
+    for (var k = 1; k < sorted.length; k++) {
+      if (/\S/.test(merged.slice(sorted[k - 1].end, sorted[k].start))) return merged;
+    }
+    var head = merged.slice(0, sorted[0].start);
+    var tail = merged.slice(sorted[sorted.length - 1].end);
+    // content outside the claimed region must not contain blocks we'd strand
+    if (parseTopBlocks(head).length || parseTopBlocks(tail).length) return merged;
+    return head + units.join('\n\n') + tail;
   }
 
 
