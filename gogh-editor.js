@@ -4755,6 +4755,7 @@
     gatherRawUnits: gatherRawUnits,
     parseNavModel: parseNavModel,
     serializeNavModel: serializeNavModel,
+    sanitizePastedHtml: sanitizePastedHtml,
     openMenuManager: openMenuManager,
   };
   // the running build, visible at a glance: hover the gogh side tab, or read
@@ -5467,6 +5468,7 @@
       toast('Could not add that section.', { error: true });
     });
   }
+  var lastPasteRelUrls = 0; // root-relative refs we could not repair
   function sanitizePastedHtml(html) {
     // parse inert, then strip what would EXECUTE: script elements, on*
     // handler attributes, javascript: URLs (script tags via innerHTML never
@@ -5482,11 +5484,79 @@
           /^\s*javascript:/i.test(a.value)) el.removeAttribute(a.name);
       });
     });
+    // lazy-loading markup shows only its placeholder once pasted — promote
+    // the real image and pin the largest srcset candidate
+    [].slice.call(t.content.querySelectorAll('img')).forEach(function (img) {
+      var lazy = img.getAttribute('data-src') || img.getAttribute('data-lazy-src') || img.getAttribute('data-original');
+      if (lazy && !/^data:/.test(lazy)) img.setAttribute('src', lazy);
+      var ss = img.getAttribute('srcset') || img.getAttribute('data-srcset');
+      if (ss) {
+        var best = null, bw = -1;
+        ss.split(',').forEach(function (cand) {
+          var parts = cand.trim().split(/\s+/);
+          if (!parts[0]) return;
+          var w = parseFloat((parts[1] || '').replace(/[^0-9.]/g, '')) || 0;
+          if (w >= bw) { bw = w; best = parts[0]; }
+        });
+        if (best) img.setAttribute('src', best);
+        img.removeAttribute('srcset');
+        img.removeAttribute('sizes');
+        img.removeAttribute('data-srcset');
+      }
+    });
+    // URL repair: protocol-relative always; root-relative only when every
+    // absolute URL in the paste names ONE foreign origin (else we'd guess)
+    var origins = {};
+    var noteAbs = function (u) {
+      var mm = String(u).match(/^https?:\/\/[^\/"')\s]+/i);
+      if (mm && mm[0].toLowerCase().indexOf(location.host.toLowerCase()) === -1) origins[mm[0]] = 1;
+    };
+    [].slice.call(t.content.querySelectorAll('[src],[poster]')).forEach(function (el) {
+      noteAbs(el.getAttribute('src') || el.getAttribute('poster') || '');
+    });
+    (t.innerHTML.match(/url\(\s*['"]?(https?:[^'")\s]+)/gi) || []).forEach(function (mch) {
+      noteAbs(mch.replace(/^url\(\s*['"]?/i, ''));
+    });
+    var keys = Object.keys(origins);
+    var origin = keys.length === 1 ? keys[0] : null;
+    lastPasteRelUrls = 0;
+    var fixUrl = function (u) {
+      u = String(u);
+      if (/^\/\//.test(u)) return 'https:' + u;
+      if (u[0] === '/' && u[1] !== '/') {
+        if (origin) return origin + u;
+        lastPasteRelUrls++;
+        return u;
+      }
+      return u;
+    };
+    [].slice.call(t.content.querySelectorAll('[src],[poster]')).forEach(function (el) {
+      ['src', 'poster'].forEach(function (at) {
+        var v = el.getAttribute(at);
+        if (v) el.setAttribute(at, fixUrl(v));
+      });
+    });
+    var fixCssUrls = function (css) {
+      return css.replace(/url\(\s*(['"]?)([^'")]+)\1\s*\)/gi, function (_, q, u) {
+        return 'url(' + q + fixUrl(u.trim()) + q + ')';
+      });
+    };
+    [].slice.call(t.content.querySelectorAll('[style]')).forEach(function (el) {
+      var st = el.getAttribute('style');
+      if (st && st.indexOf('url(') !== -1) el.setAttribute('style', fixCssUrls(st));
+    });
+    [].slice.call(t.content.querySelectorAll('style')).forEach(function (st) {
+      if (st.textContent.indexOf('url(') !== -1) st.textContent = fixCssUrls(st.textContent);
+    });
     return t.innerHTML;
   }
   function addHtmlSection(html, idx, before) {
     html = sanitizePastedHtml(html).trim();
     if (!html) return;
+    if (lastPasteRelUrls) {
+      toast(lastPasteRelUrls + ' image path' + (lastPasteRelUrls === 1 ? '' : 's') +
+        ' in this paste point at the original site \u2014 they may not load here.', { ttl: 6500 });
+    }
     // a real core HTML block inside a FULL-WIDTH group: pasted HTML owns the
     // whole canvas (its own CSS decides any constraints), in the editor and
     // on the published page alike
@@ -6679,10 +6749,22 @@
       var bgc = cs.backgroundColor;
       var hasBg = bgc && bgc !== 'rgba(0, 0, 0, 0)' && bgc !== 'transparent';
       var grad = cs.backgroundImage && cs.backgroundImage.indexOf('gradient') !== -1;
-      if (!hasBg && !grad) return;
+      // a PHOTO background (url) must survive too — container divs get
+      // flattened, and their backdrop image used to vanish with them
+      var photo = cs.backgroundImage && cs.backgroundImage.indexOf('url(') !== -1;
+      if (!hasBg && !grad && !photo) return;
       var e = { type: 'box' };
       var m = (dom.className + '').match(/has-([a-z0-9-]+)-background-color/);
-      e.boxBg = m ? m[1] : (grad ? cs.backgroundImage : bgc);
+      if (m) e.boxBg = m[1];
+      else if (photo) {
+        // single layer keeps position/size as a shorthand; layered
+        // backgrounds (commas between layers) keep the image list only
+        var solo = !/\),\s*(?:url|linear|radial|conic)/.test(cs.backgroundImage);
+        e.boxBg = solo
+          ? cs.backgroundImage + ' ' + cs.backgroundPosition + ' / ' + cs.backgroundSize + ' ' + cs.backgroundRepeat
+          : cs.backgroundImage;
+      }
+      else e.boxBg = grad ? cs.backgroundImage : bgc;
       var rad = parseFloat(cs.borderTopLeftRadius) || 0;
       if (rad) e.radius = Math.round(rad * sx);
       place(dom, e);
@@ -6973,12 +7055,23 @@
       // the paste's <style> rides with its first widget chunk so raw pieces
       // keep their look; converted text/images are the theme's business now
       var styleTag = '<style>' + styleTexts.join('\n') + '</style>';
+      var carried = false;
       for (var wi = 0; wi < out.length; wi++) {
         if (out[wi].type === 'widget') {
           out[wi].whtml = styleTag + (out[wi].whtml || '');
           out[wi].wsrc = styleTag + (out[wi].wsrc || '');
+          carried = true;
           break;
         }
+      }
+      if (!carried &&
+        /:{1,2}(hover|focus|active|before|after)|@media|@keyframes|@font-face|@supports/.test(styleTexts.join(''))) {
+        // fully-atomized pastes dropped their stylesheet on the floor. The
+        // STATIC rules are already captured per-element from computed style;
+        // only dynamic/conditional rules (hover, pseudo, media, font-face)
+        // genuinely need the sheet — those get a tiny carrier widget.
+        out.push({ type: 'widget', x: 0, y: 0, w: 24, h: 16,
+          whtml: styleTag, wsrc: styleTag });
       }
     }
     var minH = Math.round(rr.height * sx);

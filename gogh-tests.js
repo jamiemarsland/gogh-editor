@@ -1760,6 +1760,59 @@
       return 'upload + media grid present';
     });
 
+    // ---- html import: what used to get lost now survives ----
+    test('paste sanitizer: lazy images promoted, largest srcset pinned', function () {
+      var out = G.sanitizePastedHtml(
+        '<img src="data:image/gif;base64,tiny" data-src="https://cdn.x.com/real.jpg" />' +
+        '<img src="https://cdn.x.com/s.jpg" srcset="https://cdn.x.com/a.jpg 400w, https://cdn.x.com/b.jpg 1600w, https://cdn.x.com/c.jpg 800w" sizes="100vw" />');
+      expect(out.indexOf('src="https://cdn.x.com/real.jpg"') !== -1, 'data-src not promoted');
+      expect(out.indexOf('src="https://cdn.x.com/b.jpg"') !== -1, 'largest srcset not pinned');
+      expect(out.indexOf('srcset=') === -1 && out.indexOf('sizes=') === -1, 'srcset residue left');
+      return 'lazy + srcset both resolved';
+    });
+    test('paste sanitizer: relative URLs repaired when the origin is knowable', function () {
+      var out = G.sanitizePastedHtml(
+        '<img src="//cdn.pix.io/p.jpg" /><img src="/img/hero.jpg" />' +
+        '<div style="background-image:url(/img/back.jpg)"></div>' +
+        '<img src="https://coolsite.example/logo.png" />');
+      expect(out.indexOf('src="https://cdn.pix.io/p.jpg"') !== -1, 'protocol-relative not fixed');
+      expect(out.indexOf('src="https://coolsite.example/img/hero.jpg"') !== -1, 'root-relative img not repaired: ' + out.slice(0, 160));
+      expect(out.indexOf('url(https://coolsite.example/img/back.jpg)') !== -1, 'css url not repaired');
+      // two different foreign origins → ambiguous → left alone
+      var amb = G.sanitizePastedHtml('<img src="/x.jpg" /><img src="https://a.example/1.png" /><img src="https://b.example/2.png" />');
+      expect(amb.indexOf('src="/x.jpg"') !== -1, 'ambiguous origin should not be guessed');
+      return 'unambiguous repaired, ambiguous left honest';
+    });
+    test('freeform scan: photo backdrops and orphan styles survive', function () {
+      var inner = '<style>.zk h2:hover{color:red}</style>' +
+        '<div class="zk" style="padding:40px">' +
+        '<div style="width:500px;background-image:url(data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==);background-size:cover;padding:60px">' +
+        '<h3>Text on a photo</h3></div>' +
+        '<h2>Plain heading</h2><p>Plain para</p></div>';
+      var stage = document.createElement('div');
+      stage.style.cssText = 'position:absolute;left:-9999px;top:0;width:1200px';
+      stage.innerHTML = inner;
+      document.body.appendChild(stage);
+      var raw = '<!-- wp:html -->\n' + inner + '\n<!-- /wp:html -->';
+      var scan = G.scan(stage, raw, { loose: true, freeHtml: true });
+      stage.remove();
+      expect(scan.els.length, 'nothing scanned at all');
+      var box = scan.els.filter(function (e) { return e.type === 'box' && e.boxBg && String(e.boxBg).indexOf('url(') !== -1; })[0];
+      expect(box, 'photo-backdrop container vanished: ' + scan.els.map(function (e) { return e.type; }).join(','));
+      expect(String(box.boxBg).indexOf('/') !== -1, 'background size lost: ' + box.boxBg);
+      var carrier = scan.els.filter(function (e) { return e.type === 'widget' && /zk h2:hover/.test(e.wsrc || ''); })[0];
+      expect(carrier, 'orphan stylesheet dropped (no carrier)');
+      var stage2 = document.createElement('div');
+      stage2.style.cssText = 'position:absolute;left:-9999px;top:0;width:1200px';
+      var inner2 = '<style>.qq{color:blue}</style><div class="qq" style="padding:30px"><h2>Hi</h2></div>';
+      stage2.innerHTML = inner2;
+      document.body.appendChild(stage2);
+      var scan2 = G.scan(stage2, '<!-- wp:html -->\n' + inner2 + '\n<!-- /wp:html -->', { loose: true, freeHtml: true });
+      stage2.remove();
+      expect(!scan2.els.some(function (e) { return e.type === 'widget'; }), 'static-only sheet spawned a stray widget');
+      return 'photo box + gated style carrier';
+    });
+
     // ---- menu manager: structured nav model, byte-preserving ----
     test('nav model: parse/serialize round-trips, nests, un-nests, promotes', function () {
       var raw = '<!-- wp:navigation-link {"label":"Home","url":"/","kind":"post-type","id":12} /-->\n' +
