@@ -8022,11 +8022,11 @@
       var b = document.createElement('button');
       b.type = 'button';
       b.className = 'gogh-convertbtn gogh-chromebtn';
-      // layers, not a pencil: the pill picks a DESIGN — editing happens
-      // directly on the part now
-      b.innerHTML = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round"><path d="M12 3l9 5-9 5-9-5 9-5Z"/><path d="M3 13.5l9 5 9-5"/></svg>' +
-        (partEl.tagName === 'FOOTER' ? 'Footer' : 'Header');
-      b.dataset.tip = 'Click to flick through layouts';
+      // a verb + swap arrows: the pill CHANGES the design — a bare noun and
+      // layers icon read as a label, not an invitation
+      b.innerHTML = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 3l4 4-4 4"/><path d="M20 7H7a4 4 0 0 0-4 4"/><path d="M8 21l-4-4 4-4"/><path d="M4 17h13a4 4 0 0 0 4-4"/></svg>' +
+        (partEl.tagName === 'FOOTER' ? 'Change footer' : 'Change header');
+      b.dataset.tip = 'Flick through ' + (partEl.tagName === 'FOOTER' ? 'footer' : 'header') + ' designs — click text on the ' + (partEl.tagName === 'FOOTER' ? 'footer' : 'header') + ' itself to edit it';
       b.__goghPart = partEl;
       // both pills are viewport-fixed and centred on their edge — where
       // folks expect the control, and clear of the part's own content
