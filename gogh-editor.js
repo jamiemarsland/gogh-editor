@@ -159,6 +159,24 @@
   scopeSeq = Math.max(scopeSeq, wrapTags.length);
 
   document.documentElement.classList.add('gogh-editing');
+  // arriving from a page-style switch: fade in instead of popping
+  if (/[?&]gogh-ps=1/.test(location.search)) {
+    (function () {
+      var ov0 = document.createElement('div');
+      ov0.className = 'gogh-pagefade is-on';
+      try { ov0.style.background = getComputedStyle(document.body).backgroundColor; } catch (err) {}
+      document.body.appendChild(ov0);
+      requestAnimationFrame(function () { ov0.classList.remove('is-on'); });
+      setTimeout(function () { ov0.remove(); }, 700);
+      try {
+        var uu = new URL(location.href);
+        uu.searchParams.delete('gogh-ps');
+        // "history" is gogh's UNDO STACK in this scope — the browser's
+        // lives on window
+        window.history.replaceState(null, '', uu.toString());
+      } catch (err2) {}
+    })();
+  }
   var S = []; // {scope, els, minH, bg, divider, wrapEl, sectionEl, styleEl, nodes}
   wrapTags.forEach(function (wrap) {
     var sectionEl = wrap.querySelector('.gogh-section');
@@ -3859,12 +3877,16 @@
           body: JSON.stringify({ template: t.slug }),
         }).then(function (r) {
           if (!r.ok) throw new Error('HTTP ' + r.status);
-          toast('\u201c' + lab.name + '\u201d applied \u2014 reloading\u2026');
-          setTimeout(function () {
-            var u = new URL(location.href);
-            u.searchParams.set('gogh-edit', '1');
-            location.href = u.toString();
-          }, 400);
+          var u = new URL(location.href);
+          u.searchParams.set('gogh-edit', '1');
+          u.searchParams.set('gogh-ps', '1');
+          var ov = document.createElement('div');
+          ov.className = 'gogh-pagefade';
+          ov.style.background = pageBg();
+          ov.innerHTML = '<span class="gogh-pagefade-pill">Switching page style\u2026</span>';
+          document.body.appendChild(ov);
+          requestAnimationFrame(function () { ov.classList.add('is-on'); });
+          setTimeout(function () { location.href = u.toString(); }, 340);
         }).catch(function (err) {
           b.disabled = false;
           toast('gogh could not change the page style \u2014 ' + ((err && err.message) || 'try again.'), { error: true });
