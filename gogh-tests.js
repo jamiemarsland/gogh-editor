@@ -1760,6 +1760,44 @@
       return 'upload + media grid present';
     });
 
+    // ---- menu manager: structured nav model, byte-preserving ----
+    test('nav model: parse/serialize round-trips, nests, un-nests, promotes', function () {
+      var raw = '<!-- wp:navigation-link {"label":"Home","url":"/","kind":"post-type","id":12} /-->\n' +
+        '<!-- wp:navigation-submenu {"label":"Services","url":"/services","kind":"post-type"} -->\n' +
+        '<!-- wp:navigation-link {"label":"Web design","url":"/web","kind":"post-type"} /-->\n' +
+        '<!-- wp:navigation-link {"label":"Branding","url":"/brand","kind":"post-type"} /-->\n' +
+        '<!-- /wp:navigation-submenu -->\n' +
+        '<!-- wp:navigation-link {"label":"Pricing","url":"https://ext.example/p","kind":"custom"} /-->';
+      var items = G.parseNavModel(raw);
+      expect(items.length === 3, 'top count ' + items.length);
+      expect(items[1].children && items[1].children.length === 2, 'submenu children missing');
+      expect(items[1].label === 'Services' && items[1].children[0].label === 'Web design', 'labels wrong');
+      // untouched round trip keeps every byte of the plain links
+      var out = G.serializeNavModel(items);
+      expect(out.indexOf('"id":12') !== -1, 'link attrs lost');
+      expect(G.parseNavModel(out).length === 3, 'round-trip changed structure');
+      // nest Pricing under Services: submenu keeps its attrs, link keeps its bytes
+      var pricing = items.splice(2, 1)[0];
+      items[1].children.push(pricing);
+      var out2 = G.serializeNavModel(items);
+      var reparsed = G.parseNavModel(out2);
+      expect(reparsed[1].children.length === 3, 'nest failed');
+      expect(out2.indexOf('{"label":"Pricing","url":"https://ext.example/p","kind":"custom"}') !== -1, 'nested link attrs rewritten');
+      // un-nest Web design back to top level
+      var web = reparsed[1].children.splice(0, 1)[0];
+      web.dirty = true;
+      reparsed.splice(1, 0, web);
+      var out3 = G.serializeNavModel(reparsed);
+      var again = G.parseNavModel(out3);
+      expect(again.length === 3 && again[1].label === 'Web design' && !again[1].children, 'un-nest failed');
+      // childless submenu collapses to a plain link, attrs intact
+      var solo = G.parseNavModel('<!-- wp:navigation-submenu {"label":"Only","url":"/o"} -->\n<!-- wp:navigation-link {"label":"K","url":"/k"} /-->\n<!-- /wp:navigation-submenu -->');
+      solo[0].children = null; solo[0].dirty = true;
+      var out4 = G.serializeNavModel(solo);
+      expect(out4.indexOf('wp:navigation-link {"label":"Only","url":"/o"} /-->') !== -1, 'submenu did not collapse to link: ' + out4);
+      return 'parse, nest, un-nest, collapse — attrs preserved throughout';
+    });
+
     // ---- experiences: sandboxed on canvas, only a link in stored markup ----
     test('experience element: sandboxed iframe, kses-safe stored fallback', function () {
       var s0 = sec();

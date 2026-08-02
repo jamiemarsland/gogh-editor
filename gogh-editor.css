@@ -1964,3 +1964,29 @@ html.gogh-editing iframe { pointer-events: none; }
 .gogh-card-unfav { display: none; }
 .gogh-view-yours .gogh-card-unfav { display: block; }
 .gogh-view-yours .gogh-card-fav { display: none; }
+
+/* ---------- menu manager panel ---------- */
+.gogh-navmanage button { font-weight: 700; letter-spacing: 1px; }
+.gogh-mm-showing { display: flex; align-items: center; gap: 10px; margin: 2px 0 10px; }
+.gogh-mm-showing label { font-size: 11px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; color: var(--gogh-ui-dim, #777); }
+.gogh-mm-showing select { flex: 1; }
+.gogh-mm-list { border: 1px solid var(--gogh-ui-line, #e3e3e6); border-radius: 10px; overflow: hidden; margin-bottom: 10px; }
+.gogh-mm-row { display: flex; align-items: center; gap: 8px; padding: 8px 10px; font-size: 13px; background: var(--gogh-ui-bg, #fff); border-bottom: 1px solid var(--gogh-ui-line, #e3e3e6); cursor: grab; user-select: none; touch-action: none; }
+.gogh-mm-row:last-child { border-bottom: 0; }
+.gogh-mm-row.is-lifting { position: relative; z-index: 3; box-shadow: 0 8px 24px rgba(0,0,0,0.14); cursor: grabbing; }
+.gogh-mm-row.is-nesting { background: #eef3ff; }
+.gogh-mm-row.is-unnesting { background: #fff4ee; }
+.gogh-mm-sub { padding-left: 30px; background: var(--gogh-ui-well, #f6f6f7); }
+.gogh-mm-grip, .gogh-mm-ind { color: #b9b9c0; font-size: 12px; }
+.gogh-mm-label { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.gogh-mm-count { font-size: 11px; color: #9a9aa2; }
+.gogh-mm-link { font-size: 10px; font-weight: 600; padding: 2px 8px; border-radius: 999px; background: #eef3ff; color: #3858e9; }
+.gogh-mm-x { all: unset; cursor: pointer; color: #b9b9c0; font-size: 12px; padding: 2px 4px; }
+.gogh-mm-row:hover .gogh-mm-x { color: #d23b3b; }
+.gogh-mm-foot { display: flex; gap: 8px; margin-bottom: 8px; }
+.gogh-mm-foot .gogh-btn { flex: 1; }
+.gogh-mm-back { margin-bottom: 10px; }
+.gogh-mm-pages { display: flex; flex-direction: column; gap: 6px; max-height: 260px; overflow: auto; margin-bottom: 10px; }
+.gogh-mm-newpage, .gogh-mm-newlink { display: flex; flex-direction: column; gap: 8px; }
+.gogh-mm-newpage { flex-direction: row; }
+.gogh-mm-newpage input { flex: 1; }

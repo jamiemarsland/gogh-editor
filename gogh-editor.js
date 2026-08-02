@@ -4753,6 +4753,9 @@
     shapeDefs: function () { return SHAPE_DEFS; },
     resequenceToDom: resequenceToDom,
     gatherRawUnits: gatherRawUnits,
+    parseNavModel: parseNavModel,
+    serializeNavModel: serializeNavModel,
+    openMenuManager: openMenuManager,
   };
   // the running build, visible at a glance: hover the gogh side tab, or read
   // it in the console — kills "is this tab stale?" debugging forever
@@ -7034,6 +7037,65 @@
   // while editing; the new order is written back to the WordPress menu, so
   // every page gets it.
   var navDrag = null;
+  // ---------- menu manager: structured model of a navigation post ----------
+  // One level of nesting only. Unchanged items keep their original bytes;
+  // structural conversions (link <-> submenu) reuse the item's attrs JSON
+  // verbatim so ids/kinds/opensInNewTab survive untouched.
+  function parseNavModel(nraw) {
+    return parseTopBlocks(nraw).map(function (sp) {
+      var text = nraw.slice(sp.start, sp.end);
+      var name = sp.name || '';
+      var openEnd = text.indexOf('-->');
+      var head = openEnd === -1 ? text : text.slice(0, openEnd);
+      var jm = head.match(/\{[\s\S]*\}/);
+      var attrs = {};
+      var attrsText = jm ? jm[0] : null;
+      try { attrs = attrsText ? JSON.parse(attrsText) : {}; } catch (err) { attrs = {}; attrsText = null; }
+      var it = {
+        name: name, text: text,
+        attrsText: attrsText, attrs: attrs,
+        label: attrs.label || '', url: attrs.url || '',
+        kind: attrs.kind || null, children: null,
+      };
+      if (name.indexOf('navigation-submenu') !== -1 && openEnd !== -1) {
+        var closeAt = text.lastIndexOf('<!--');
+        var inner = closeAt > openEnd ? text.slice(openEnd + 3, closeAt) : '';
+        it.children = parseTopBlocks(inner).map(function (cs) {
+          var ct = inner.slice(cs.start, cs.end);
+          var chead = ct.slice(0, ct.indexOf('-->'));
+          var cjm = chead.match(/\{[\s\S]*\}/);
+          var cat = {};
+          try { cat = cjm ? JSON.parse(cjm[0]) : {}; } catch (e2) {}
+          return { name: cs.name || '', text: ct, attrsText: cjm ? cjm[0] : null,
+            attrs: cat, label: cat.label || '', url: cat.url || '',
+            kind: cat.kind || null, children: null };
+        });
+      }
+      return it;
+    });
+  }
+  function navAttrsText(it) {
+    if (it.attrsText) return it.attrsText;
+    var a = { label: it.label || '', url: it.url || '#' };
+    if (it.kind) a.kind = it.kind;
+    return JSON.stringify(a).replace(/</g, '\\u003c');
+  }
+  function serializeNavModel(items) {
+    return items.map(function (it) {
+      if (it.children && it.children.length) {
+        return '<!-- wp:navigation-submenu ' + navAttrsText(it) + ' -->\n' +
+          it.children.map(function (c) { return serializeNavLeaf(c); }).join('\n') +
+          '\n<!-- /wp:navigation-submenu -->';
+      }
+      return serializeNavLeaf(it);
+    }).join('\n');
+  }
+  function serializeNavLeaf(it) {
+    // an untouched plain link keeps its exact stored bytes
+    if (it.text && it.name.indexOf('navigation-link') !== -1 && !it.dirty) return it.text;
+    return '<!-- wp:navigation-link ' + navAttrsText(it) + ' /-->';
+  }
+
   function navItemsOf(list) {
     return [].slice.call(list.children).filter(function (c) {
       return c.classList && c.classList.contains('wp-block-navigation-item');
@@ -7279,6 +7341,15 @@
         openNavAddPanel(partEl, list, li);
       });
       list.appendChild(li);
+      var mg = document.createElement('li');
+      mg.className = 'gogh-navadd gogh-navmanage';
+      mg.innerHTML = '<button type="button" title="Manage this menu \u2014 reorder, nest, swap menus">\u22ef</button>';
+      mg.querySelector('button').addEventListener('click', function (ev) {
+        ev.preventDefault();
+        ev.stopPropagation();
+        openMenuManager(partEl, mg);
+      });
+      list.appendChild(mg);
     });
     // every top-level item gets a hover ✕ to leave the menu
     [].slice.call(partEl.querySelectorAll('.wp-block-navigation-item')).forEach(function (li) {
@@ -7540,6 +7611,337 @@
         });
         box.appendChild(b);
       });
+    });
+  }
+
+
+  // ---------- menu manager panel ----------
+  // Canvas edits words; this panel edits STRUCTURE: which menu shows, the
+  // order, one level of submenus, and adding pages or custom links.
+  function openMenuManager(partEl, anchorEl) {
+    placePanelNear(anchorEl);
+    var mmNavId = null;
+    var mmItems = [];
+    var mmMenus = [];
+    var area = partEl.tagName === 'FOOTER' ? 'footer' : 'header';
+    var hdrs = { 'X-WP-Nonce': cfg.nonce, 'Content-Type': 'application/json' };
+    panel.innerHTML =
+      '<div class="gogh-panel-head"><span class="gogh-panel-title">Menu</span>' +
+      '<button type="button" class="gogh-sbtn gogh-panel-close" title="Close">\u2715</button></div>' +
+      '<div class="gogh-mm-body"><em class="gogh-panel-hint">Loading menu\u2026</em></div>';
+    panel.hidden = false;
+    panelOpen = true;
+    panel.querySelector('.gogh-panel-close').addEventListener('click', closePanel);
+    var body = panel.querySelector('.gogh-mm-body');
+
+    function commit() {
+      var content = serializeNavModel(mmItems);
+      var entry = partEl.__goghChromeEntry;
+      var pre = entry ? saveChromeEntry(entry) : Promise.resolve();
+      return pre.then(function () {
+        if (mmNavId != null) {
+          return fetch(GSROOT + 'navigation/' + mmNavId, {
+            method: 'POST', headers: hdrs, credentials: 'same-origin',
+            body: JSON.stringify({ content: content }),
+          });
+        }
+        return fetch(GSROOT + 'navigation', {
+          method: 'POST', headers: hdrs, credentials: 'same-origin',
+          body: JSON.stringify({ title: 'Navigation', status: 'publish', content: content }),
+        }).then(function (r) {
+          return r.json().then(function (j) { if (j && j.id) mmNavId = j.id; return r; });
+        });
+      }).then(function (r) {
+        if (r && !r.ok) throw new Error('HTTP ' + r.status);
+        return refreshChromePart(partEl);
+      }).catch(function (err) {
+        toast('gogh could not save the menu \u2014 ' + ((err && err.message) || 'try again.'), { error: true });
+      });
+    }
+    function snapshot() { return JSON.parse(JSON.stringify(mmItems)); }
+    function undoToast(msg, snap) {
+      toast(msg, { actions: [{ label: 'Undo', onClick: function () {
+        mmItems = snap;
+        renderList();
+        commit();
+      } }] });
+    }
+    function isExternal(it) {
+      if (it.kind === 'custom') return true;
+      try { return it.url && new URL(it.url, location.href).origin !== location.origin; } catch (err) { return false; }
+    }
+
+    function rowEl(it, parent) {
+      var r = document.createElement('div');
+      r.className = 'gogh-mm-row' + (parent ? ' gogh-mm-sub' : '');
+      r.__it = it; r.__parent = parent || null;
+      r.innerHTML =
+        (parent ? '<span class="gogh-mm-ind">\u21b3</span>' : '<span class="gogh-mm-grip">\u22ee\u22ee</span>') +
+        '<span class="gogh-mm-label"></span>' +
+        (it.children && it.children.length ? '<span class="gogh-mm-count">' + it.children.length + ' inside</span>' : '') +
+        (isExternal(it) ? '<span class="gogh-mm-link">link</span>' : '') +
+        '<button type="button" class="gogh-mm-x" title="Remove from menu">\u2715</button>';
+      r.querySelector('.gogh-mm-label').textContent = it.label || it.url || 'Untitled';
+      r.querySelector('.gogh-mm-x').addEventListener('click', function (ev) {
+        ev.stopPropagation();
+        var snap = snapshot();
+        if (parent) {
+          parent.children.splice(parent.children.indexOf(it), 1);
+          if (!parent.children.length) { parent.children = null; parent.dirty = true; }
+        } else {
+          var at = mmItems.indexOf(it);
+          var kids = (it.children || []).map(function (c) { c.dirty = true; return c; });
+          mmItems.splice.apply(mmItems, [at, 1].concat(kids));
+        }
+        renderList();
+        commit();
+        undoToast('\u201c' + (it.label || 'Item') + '\u201d removed from the menu.', snap);
+      });
+      r.addEventListener('pointerdown', function (ev) {
+        if (ev.button !== 0 || ev.target.closest('.gogh-mm-x')) return;
+        ev.preventDefault();
+        startRowDrag(ev, r);
+      });
+      return r;
+    }
+    var listBox = null;
+    function renderList() {
+      body.innerHTML = '';
+      var sel = document.createElement('div');
+      sel.className = 'gogh-mm-showing';
+      sel.innerHTML = '<label>Showing</label><select class="gogh-input"></select>';
+      var dd = sel.querySelector('select');
+      if (mmMenus.length) {
+        mmMenus.forEach(function (m) {
+          var o = document.createElement('option');
+          o.value = m.id;
+          o.textContent = (m.title && (m.title.rendered || m.title.raw)) || ('Menu ' + m.id);
+          if (m.id === mmNavId) o.selected = true;
+          dd.appendChild(o);
+        });
+        dd.addEventListener('change', function () { switchMenu(+dd.value); });
+      } else {
+        var o2 = document.createElement('option');
+        o2.textContent = 'New menu';
+        dd.appendChild(o2);
+        dd.disabled = true;
+      }
+      body.appendChild(sel);
+      listBox = document.createElement('div');
+      listBox.className = 'gogh-mm-list';
+      if (!mmItems.length) {
+        listBox.innerHTML = '<em class="gogh-panel-hint">Nothing in this menu yet \u2014 add a page below.</em>';
+      }
+      mmItems.forEach(function (it) {
+        listBox.appendChild(rowEl(it, null));
+        (it.children || []).forEach(function (c) { listBox.appendChild(rowEl(c, it)); });
+      });
+      body.appendChild(listBox);
+      var foot = document.createElement('div');
+      foot.className = 'gogh-mm-foot';
+      foot.innerHTML =
+        '<button type="button" class="gogh-btn gogh-btn-small gogh-mm-addpage">+ Page</button>' +
+        '<button type="button" class="gogh-btn gogh-btn-small gogh-mm-addlink">+ Link</button>';
+      foot.querySelector('.gogh-mm-addpage').addEventListener('click', renderAddPage);
+      foot.querySelector('.gogh-mm-addlink').addEventListener('click', renderAddLink);
+      body.appendChild(foot);
+      var hint = document.createElement('div');
+      hint.className = 'gogh-panel-hint';
+      hint.textContent = 'Drag to reorder \u00b7 drag right to nest under the item above';
+      body.appendChild(hint);
+    }
+
+    function startRowDrag(ev, row) {
+      var it = row.__it, parent = row.__parent;
+      var y0 = ev.clientY, x0 = ev.clientX, moved = false;
+      row.classList.add('is-lifting');
+      var onMove = function (e2) {
+        var dy = e2.clientY - y0, dx = e2.clientX - x0;
+        if (!moved && Math.abs(dy) < 4 && Math.abs(dx) < 4) return;
+        moved = true;
+        row.style.transform = 'translate(' + Math.max(-20, Math.min(40, dx)) + 'px,' + dy + 'px)';
+        row.classList.toggle('is-nesting', !parent && dx > 32 && !(it.children && it.children.length));
+        row.classList.toggle('is-unnesting', !!parent && dx < -32);
+      };
+      var onUp = function (e3) {
+        document.removeEventListener('pointermove', onMove);
+        document.removeEventListener('pointerup', onUp);
+        row.classList.remove('is-lifting', 'is-nesting', 'is-unnesting');
+        row.style.transform = '';
+        if (!moved) return;
+        var dy = e3.clientY - y0, dx = e3.clientX - x0;
+        var snap = snapshot();
+        var changed = false;
+        if (parent) {
+          var sibs = parent.children;
+          var j0 = sibs.indexOf(it);
+          if (dx < -32) {
+            sibs.splice(j0, 1);
+            if (!sibs.length) { parent.children = null; parent.dirty = true; }
+            it.dirty = true;
+            mmItems.splice(mmItems.indexOf(parent) + 1, 0, it);
+            changed = true;
+          } else {
+            var j1 = Math.max(0, Math.min(sibs.length - 1, j0 + Math.round(dy / 34)));
+            if (j1 !== j0) { sibs.splice(j0, 1); sibs.splice(j1, 0, it); changed = true; }
+          }
+        } else {
+          var i0 = mmItems.indexOf(it);
+          var i1 = Math.max(0, Math.min(mmItems.length - 1, i0 + Math.round(dy / 34)));
+          if (i1 !== i0) { mmItems.splice(i0, 1); mmItems.splice(i1, 0, it); changed = true; }
+          if (dx > 32 && !(it.children && it.children.length)) {
+            var at = mmItems.indexOf(it);
+            var host = at > 0 ? mmItems[at - 1] : null;
+            if (host && host !== it) {
+              mmItems.splice(at, 1);
+              host.children = host.children || [];
+              host.dirty = true;
+              it.dirty = true;
+              host.children.push(it);
+              changed = true;
+            }
+          }
+        }
+        if (changed) {
+          renderList();
+          commit();
+          undoToast('Menu updated.', snap);
+        }
+      };
+      document.addEventListener('pointermove', onMove);
+      document.addEventListener('pointerup', onUp);
+    }
+
+    function backBar(label) {
+      var bb = document.createElement('button');
+      bb.type = 'button';
+      bb.className = 'gogh-btn gogh-btn-small gogh-mm-back';
+      bb.textContent = '\u2190 ' + label;
+      bb.addEventListener('click', renderList);
+      return bb;
+    }
+    function addItem(label, url, kind) {
+      mmItems.push({ name: '', text: null, attrsText: null, attrs: {},
+        label: label, url: url, kind: kind, children: null, dirty: true });
+      renderList();
+      commit();
+      toast('\u201c' + label + '\u201d added \u2014 the menu updates on every page.');
+    }
+    function renderAddPage() {
+      body.innerHTML = '';
+      body.appendChild(backBar('Menu'));
+      var box = document.createElement('div');
+      box.className = 'gogh-mm-pages';
+      box.innerHTML = '<em class="gogh-panel-hint">Loading pages\u2026</em>';
+      body.appendChild(box);
+      var mk = document.createElement('div');
+      mk.className = 'gogh-mm-newpage';
+      mk.innerHTML = '<input type="text" class="gogh-input" placeholder="New page title" />' +
+        '<button type="button" class="gogh-btn gogh-btn-small">Create</button>';
+      body.appendChild(mk);
+      mk.querySelector('button').addEventListener('click', function () {
+        var t = mk.querySelector('input').value.trim();
+        if (!t) return;
+        mk.querySelector('button').textContent = 'Creating\u2026';
+        fetch(GSROOT + 'pages', {
+          method: 'POST', headers: hdrs, credentials: 'same-origin',
+          body: JSON.stringify({ title: t, status: 'publish', content: '' }),
+        }).then(function (r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
+          .then(function (pg) { addItem(t, pg.link, 'post-type'); })
+          .catch(function () {
+            mk.querySelector('button').textContent = 'Create';
+            toast('gogh could not create that page.', { error: true });
+          });
+      });
+      var inMenu = {};
+      var noteUrl = function (u) {
+        try { inMenu[new URL(u, location.href).pathname.replace(/\/$/, '') || '/'] = 1; } catch (err) {}
+      };
+      mmItems.forEach(function (it) { noteUrl(it.url); (it.children || []).forEach(function (c) { noteUrl(c.url); }); });
+      fetch(restQ(GSROOT + 'pages', 'status=publish&per_page=100&_fields=id,title,link'), {
+        headers: { 'X-WP-Nonce': cfg.nonce }, credentials: 'same-origin',
+      }).then(function (r) { return r.ok ? r.json() : []; }).then(function (pages) {
+        var avail = (pages || []).filter(function (pg) {
+          var path = '/';
+          try { path = new URL(pg.link).pathname.replace(/\/$/, '') || '/'; } catch (err) {}
+          return !inMenu[path];
+        });
+        box.innerHTML = avail.length ? '' : '<em class="gogh-panel-hint">Every page is already in this menu.</em>';
+        avail.forEach(function (pg) {
+          var title = (pg.title && pg.title.rendered ? pg.title.rendered.replace(/<[^>]+>/g, '') : 'Page ' + pg.id);
+          var b = document.createElement('button');
+          b.type = 'button';
+          b.className = 'gogh-btn gogh-btn-small gogh-navadd-item';
+          b.textContent = title;
+          b.addEventListener('click', function () { addItem(title, pg.link, 'post-type'); });
+          box.appendChild(b);
+        });
+      });
+    }
+    function renderAddLink() {
+      body.innerHTML = '';
+      body.appendChild(backBar('Menu'));
+      var f = document.createElement('div');
+      f.className = 'gogh-mm-newlink';
+      f.innerHTML = '<input type="text" class="gogh-input gogh-mm-lab" placeholder="Label" />' +
+        '<input type="url" class="gogh-input gogh-mm-url" placeholder="https://\u2026" />' +
+        '<button type="button" class="gogh-btn gogh-btn-small">Add link</button>';
+      body.appendChild(f);
+      f.querySelector('button').addEventListener('click', function () {
+        var lab = f.querySelector('.gogh-mm-lab').value.trim();
+        var url = f.querySelector('.gogh-mm-url').value.trim();
+        if (!lab || !url) return;
+        if (!/^https?:\/\//i.test(url) && url[0] !== '/' && url[0] !== '#') url = 'https://' + url;
+        addItem(lab, url, 'custom');
+      });
+    }
+    function switchMenu(newId) {
+      activePartFor(area).then(function (active) {
+        if (!active) throw new Error('no ' + area + ' part');
+        var praw = String((active.content && (active.content.raw || active.content)) || '');
+        var next;
+        if (/wp:navigation[^>]*"ref":\d+/.test(praw)) {
+          next = praw.replace(/("ref":)\d+/, '$1' + newId);
+        } else if (/<!--\s+wp:navigation\s+\{/.test(praw)) {
+          next = praw.replace(/(<!--\s+wp:navigation\s+\{)/, '$1"ref":' + newId + ',');
+        } else {
+          next = praw.replace(/(<!--\s+wp:navigation)(\s+-->)/, '$1 {"ref":' + newId + '} -->');
+        }
+        if (next === praw && praw.indexOf('wp:navigation') === -1) throw new Error('this ' + area + ' has no menu block');
+        return fetch(tpUrl(active.id), {
+          method: 'POST', headers: hdrs, credentials: 'same-origin',
+          body: JSON.stringify({ content: next }),
+        }).then(function (r) {
+          if (!r.ok) throw new Error('HTTP ' + r.status);
+          mmNavId = newId;
+          return refreshChromePart(partEl);
+        }).then(loadItems).then(function () {
+          toast('Menu switched \u2014 every page shows it.');
+        });
+      }).catch(function (err) {
+        toast('gogh could not switch the menu \u2014 ' + ((err && err.message) || 'try again.'), { error: true });
+        renderList();
+      });
+    }
+    function loadItems() {
+      if (mmNavId == null) { mmItems = []; renderList(); return Promise.resolve(); }
+      return fetch(restQ(GSROOT + 'navigation/' + mmNavId, 'context=edit'), {
+        headers: { 'X-WP-Nonce': cfg.nonce }, credentials: 'same-origin',
+      }).then(function (r) { return r.ok ? r.json() : null; }).then(function (nav) {
+        mmItems = nav ? parseNavModel(((nav.content && nav.content.raw) || '').trim()) : [];
+        renderList();
+      });
+    }
+    resolveNavTarget(partEl).then(function (navId) {
+      mmNavId = navId;
+      return fetch(restQ(GSROOT + 'navigation', 'per_page=100&_fields=id,title'), {
+        headers: { 'X-WP-Nonce': cfg.nonce }, credentials: 'same-origin',
+      }).then(function (r) { return r.ok ? r.json() : []; });
+    }).then(function (menus) {
+      mmMenus = menus || [];
+      return loadItems();
+    }).catch(function () {
+      body.innerHTML = '<em class="gogh-panel-hint">gogh could not load this menu.</em>';
     });
   }
 
