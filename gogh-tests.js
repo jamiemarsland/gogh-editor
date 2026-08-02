@@ -1760,6 +1760,21 @@
       return 'upload + media grid present';
     });
 
+    // ---- page style: curated template switcher ----
+    test('page style panel lists curated options with the current one marked', function () {
+      expect(q('.gogh-pagestylebtn'), 'no palette button');
+      G.openPageStylePanel();
+      var opts = [].slice.call(document.querySelectorAll('.gogh-pagestyle'));
+      expect(opts.length >= 2, 'too few options: ' + opts.length);
+      var names = opts.map(function (o) { return o.querySelector('.gogh-pagestyle-name').textContent; });
+      expect(names.indexOf('Standard') !== -1, 'no Standard option');
+      expect(names.indexOf('Blank canvas') !== -1, 'no Blank canvas option (WP 6.7+): ' + names.join(','));
+      var current = opts.filter(function (o) { return o.classList.contains('is-current'); });
+      expect(current.length === 1, 'exactly one current expected, got ' + current.length);
+      G.closePanel();
+      return names.join(' · ');
+    });
+
     // ---- html import: what used to get lost now survives ----
     test('paste sanitizer: lazy images promoted, largest srcset pinned', function () {
       var out = G.sanitizePastedHtml(

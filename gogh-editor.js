@@ -1073,6 +1073,9 @@
     '<button type="button" class="gogh-sbtn gogh-stylebtn" title="Site style">' +
     '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M12 3a9 9 0 1 0 0 18h1.5a2.5 2.5 0 0 0 1.8-4.2 2.5 2.5 0 0 1 1.8-4.3H20a9 9 0 0 0-8-9.5Z"/><circle cx="7.5" cy="11" r="1.2" fill="currentColor" stroke="none"/><circle cx="10.5" cy="7.5" r="1.2" fill="currentColor" stroke="none"/><circle cx="15" cy="7.5" r="1.2" fill="currentColor" stroke="none"/></svg>' +
     '</button>' +
+    '<button type="button" class="gogh-sbtn gogh-pagestylebtn" title="Page style">' +
+    '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M14 3v6h6"/></svg>' +
+    '</button>' +
     '<button type="button" class="gogh-sbtn gogh-gridbtn" data-act="gridsnap" title="Grid: show and snap">' +
     '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 9h18M3 15h18M9 3v18M15 3v18"/></svg>' +
     '</button>' +
@@ -3806,6 +3809,68 @@
       } catch (err) {}
     });
   }
+  // ---------- page style: which template this page renders with ----------
+  // Curated friendly names over raw template slugs; applying is a one-field
+  // save, then a reload (the page chrome itself changes).
+  function pageStyleLabel(t) {
+    if (!t.slug) return { name: 'Standard', hint: 'The theme\u2019s normal page' };
+    if (/no-title/.test(t.slug)) return { name: 'No page title', hint: 'Your content starts at the top' };
+    if (/blank-canvas$/.test(t.slug)) return { name: 'Blank canvas', hint: 'No header or footer \u2014 pure gogh' };
+    if (/full|wide/.test(t.slug)) return { name: t.title || 'Full width', hint: 'Content runs edge to edge' };
+    return { name: t.title || t.slug, hint: '' };
+  }
+  function openPageStylePanel() {
+    var options = [{ slug: '', title: 'Standard' }].concat(cfg.pageTemplates || []);
+    panel.innerHTML =
+      '<div class="gogh-panel-head"><span class="gogh-panel-title">Page style</span>' +
+      '<button type="button" class="gogh-sbtn gogh-panel-close" title="Back to the palette">\u2715</button></div>' +
+      '<div class="gogh-panel-hint">How this page is framed by your theme.</div>' +
+      '<div class="gogh-pagestyles"></div>';
+    panel.hidden = false;
+    panelOpen = true;
+    panel.querySelector('.gogh-panel-close').addEventListener('click', function () {
+      closePanel();
+      openSide();
+    });
+    var box = panel.querySelector('.gogh-pagestyles');
+    options.forEach(function (t) {
+      var lab = pageStyleLabel(t);
+      var b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'gogh-btn gogh-pagestyle' + ((cfg.pageTemplate || '') === t.slug ? ' is-current' : '');
+      b.innerHTML = '<span class="gogh-pagestyle-name"></span>' +
+        (lab.hint ? '<span class="gogh-pagestyle-hint"></span>' : '') +
+        '<span class="gogh-pagestyle-tick">\u2713</span>';
+      b.querySelector('.gogh-pagestyle-name').textContent = lab.name;
+      if (lab.hint) b.querySelector('.gogh-pagestyle-hint').textContent = lab.hint;
+      b.addEventListener('click', function () {
+        if ((cfg.pageTemplate || '') === t.slug) return;
+        if (isDirty()) {
+          toast('Publish your changes first \u2014 changing the page style reloads the page.', { error: true });
+          return;
+        }
+        b.disabled = true;
+        fetch(cfg.restUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'X-WP-Nonce': cfg.nonce },
+          credentials: 'same-origin',
+          body: JSON.stringify({ template: t.slug }),
+        }).then(function (r) {
+          if (!r.ok) throw new Error('HTTP ' + r.status);
+          toast('\u201c' + lab.name + '\u201d applied \u2014 reloading\u2026');
+          setTimeout(function () {
+            var u = new URL(location.href);
+            u.searchParams.set('gogh-edit', '1');
+            location.href = u.toString();
+          }, 400);
+        }).catch(function (err) {
+          b.disabled = false;
+          toast('gogh could not change the page style \u2014 ' + ((err && err.message) || 'try again.'), { error: true });
+        });
+      });
+      box.appendChild(b);
+    });
+  }
   function openStylePanel(anchorEl) {
     if (!cfg.gsId || !cfg.theme) return;
     fetchVariations().then(function (vars) {
@@ -3968,6 +4033,9 @@
   }
   side.querySelector('.gogh-stylebtn').addEventListener('click', function (ev) {
     openStylePanel(ev.currentTarget);
+  });
+  side.querySelector('.gogh-pagestylebtn').addEventListener('click', function () {
+    openPageStylePanel();
   });
 
   function snapPos(sec, exclude, x, y, w, h, free) {
@@ -4756,6 +4824,7 @@
     parseNavModel: parseNavModel,
     serializeNavModel: serializeNavModel,
     sanitizePastedHtml: sanitizePastedHtml,
+    openPageStylePanel: openPageStylePanel,
     openMenuManager: openMenuManager,
   };
   // the running build, visible at a glance: hover the gogh side tab, or read

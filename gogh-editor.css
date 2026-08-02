@@ -2007,3 +2007,12 @@ html.gogh-editing iframe { pointer-events: none; }
 .gogh-mm-group.is-lifting { position: relative; z-index: 3; box-shadow: 0 8px 24px rgba(0,0,0,0.14); }
 .gogh-mm-group { background: var(--gogh-ui-bg, #fff); }
 .gogh-mm-nest-target { outline: 2px solid #3858e9; outline-offset: -2px; border-radius: 8px; }
+
+/* ---------- page style panel ---------- */
+.gogh-pagestyles { display: flex; flex-direction: column; gap: 8px; }
+.gogh-pagestyle { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; text-align: left; padding: 10px 12px; position: relative; }
+.gogh-pagestyle-name { font-size: 13px; font-weight: 600; }
+.gogh-pagestyle-hint { font-size: 11.5px; color: #8b8b93; }
+.gogh-pagestyle-tick { position: absolute; right: 12px; top: 50%; transform: translateY(-50%); color: #3858e9; font-weight: 700; opacity: 0; }
+.gogh-pagestyle.is-current { outline: 2px solid #3858e9; outline-offset: -2px; }
+.gogh-pagestyle.is-current .gogh-pagestyle-tick { opacity: 1; }
