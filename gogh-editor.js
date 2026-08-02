@@ -4953,6 +4953,9 @@
   var tipEl = document.createElement('div');
   tipEl.className = 'gogh-tip';
   tipEl.hidden = true;
+  var tipTextEl = document.createElement('span');
+  tipTextEl.className = 'gogh-tip-text';
+  tipEl.appendChild(tipTextEl);
   document.body.appendChild(tipEl);
   var tipTimer = null;
   var tipHideT = null;
@@ -4973,7 +4976,7 @@
     // measure at natural size before deciding geometry
     tipEl.classList.remove('is-glide');
     tipEl.style.width = 'auto';
-    tipEl.textContent = text;
+    tipTextEl.textContent = text;
     var tw = tipEl.offsetWidth;
     var th = tipEl.offsetHeight;
     var r = el.getBoundingClientRect();
@@ -4981,14 +4984,22 @@
     var top = r.bottom + 8;
     if (top + th > window.innerHeight - 6) top = r.top - th - 8;
     if (gliding) {
-      // FLIP: start from the old width, glide position and width together
+      // FLIP: start from the old width, glide position and width together.
+      // The label fades IN as the pill travels — swapping it instantly left
+      // the new text rattling around the old width (visible spare space).
+      tipTextEl.style.transition = 'none';
+      tipTextEl.style.opacity = '0';
       tipEl.style.width = oldW + 'px';
       void tipEl.offsetWidth;
       tipEl.classList.add('is-glide');
       tipEl.style.width = tw + 'px';
       tipEl.style.left = left + 'px';
       tipEl.style.top = top + 'px';
+      tipTextEl.style.transition = 'opacity 0.1s ease 0.06s';
+      tipTextEl.style.opacity = '1';
     } else {
+      tipTextEl.style.transition = 'none';
+      tipTextEl.style.opacity = '1';
       tipEl.style.width = tw + 'px';
       tipEl.style.left = left + 'px';
       tipEl.style.top = top + 'px';
