@@ -7733,8 +7733,12 @@
         listBox.innerHTML = '<em class="gogh-panel-hint">Nothing in this menu yet \u2014 add a page below.</em>';
       }
       mmItems.forEach(function (it) {
-        listBox.appendChild(rowEl(it, null));
-        (it.children || []).forEach(function (c) { listBox.appendChild(rowEl(c, it)); });
+        var g = document.createElement('div');
+        g.className = 'gogh-mm-group';
+        g.__it = it;
+        g.appendChild(rowEl(it, null));
+        (it.children || []).forEach(function (c) { g.appendChild(rowEl(c, it)); });
+        listBox.appendChild(g);
       });
       body.appendChild(listBox);
       var foot = document.createElement('div');
@@ -7753,64 +7757,103 @@
 
     function startRowDrag(ev, row) {
       var it = row.__it, parent = row.__parent;
-      var y0 = ev.clientY, x0 = ev.clientX, moved = false;
-      row.classList.add('is-lifting');
+      var unit = parent ? row : row.parentNode; // a family moves as one block
+      var canNest = !parent && !(it.children && it.children.length);
+      var y0 = ev.clientY, x0 = ev.clientX, moved = false, nestG = null;
+      var sibsOf = function () {
+        return [].slice.call(unit.parentNode.children).filter(function (n) {
+          return n !== unit && (parent ? n.classList.contains('gogh-mm-sub') : n.classList.contains('gogh-mm-group'));
+        });
+      };
+      var clearNest = function () {
+        if (nestG) { nestG.classList.remove('gogh-mm-nest-target'); nestG = null; }
+      };
       var onMove = function (e2) {
         var dy = e2.clientY - y0, dx = e2.clientX - x0;
         if (!moved && Math.abs(dy) < 4 && Math.abs(dx) < 4) return;
         moved = true;
-        row.style.transform = 'translate(' + Math.max(-20, Math.min(40, dx)) + 'px,' + dy + 'px)';
-        row.classList.toggle('is-nesting', !parent && dx > 32 && !(it.children && it.children.length));
+        unit.classList.add('is-lifting');
+        unit.style.transform = 'translate(' + Math.max(-20, Math.min(40, dx)) + 'px,' + dy + 'px)';
+        // siblings step aside the moment the dragged block crosses their middle
+        var r = unit.getBoundingClientRect();
+        var mid = r.top + r.height / 2;
+        sibsOf().forEach(function (other) {
+          var om = other.getBoundingClientRect();
+          var omid = om.top + om.height / 2;
+          if (mid < omid && (unit.compareDocumentPosition(other) & 2)) {
+            other.before(unit);
+            y0 = e2.clientY;
+            unit.style.transform = 'translate(' + Math.max(-20, Math.min(40, dx)) + 'px,0)';
+          } else if (mid > omid && (unit.compareDocumentPosition(other) & 4)) {
+            other.after(unit);
+            y0 = e2.clientY;
+            unit.style.transform = 'translate(' + Math.max(-20, Math.min(40, dx)) + 'px,0)';
+          }
+        });
+        var nesting = canNest && dx > 32 && unit.previousElementSibling &&
+          unit.previousElementSibling.classList.contains('gogh-mm-group');
+        row.classList.toggle('is-nesting', !!nesting);
         row.classList.toggle('is-unnesting', !!parent && dx < -32);
+        clearNest();
+        if (nesting) {
+          nestG = unit.previousElementSibling;
+          nestG.classList.add('gogh-mm-nest-target');
+        }
       };
       var onUp = function (e3) {
         document.removeEventListener('pointermove', onMove);
         document.removeEventListener('pointerup', onUp);
-        row.classList.remove('is-lifting', 'is-nesting', 'is-unnesting');
-        row.style.transform = '';
+        unit.classList.remove('is-lifting');
+        row.classList.remove('is-nesting', 'is-unnesting');
+        unit.style.transform = '';
+        var hostG = nestG;
+        clearNest();
         if (!moved) return;
-        var dy = e3.clientY - y0, dx = e3.clientX - x0;
+        var dx = e3.clientX - x0;
         var snap = snapshot();
         var changed = false;
         if (parent) {
-          var sibs = parent.children;
-          var j0 = sibs.indexOf(it);
           if (dx < -32) {
-            sibs.splice(j0, 1);
-            if (!sibs.length) { parent.children = null; parent.dirty = true; }
+            parent.children.splice(parent.children.indexOf(it), 1);
+            if (!parent.children.length) { parent.children = null; parent.dirty = true; }
             it.dirty = true;
             mmItems.splice(mmItems.indexOf(parent) + 1, 0, it);
             changed = true;
           } else {
-            var j1 = Math.max(0, Math.min(sibs.length - 1, j0 + Math.round(dy / 34)));
-            if (j1 !== j0) { sibs.splice(j0, 1); sibs.splice(j1, 0, it); changed = true; }
+            // the DOM already shows the order the user made — adopt it
+            var order = [].slice.call(unit.parentNode.children)
+              .filter(function (n) { return n.classList.contains('gogh-mm-sub'); })
+              .map(function (n) { return n.__it; });
+            changed = order.some(function (o, k) { return o !== parent.children[k]; });
+            parent.children = order;
           }
+        } else if (hostG && canNest) {
+          mmItems.splice(mmItems.indexOf(it), 1);
+          var host = hostG.__it;
+          host.children = host.children || [];
+          host.dirty = true;
+          it.dirty = true;
+          host.children.push(it);
+          changed = true;
         } else {
-          var i0 = mmItems.indexOf(it);
-          var i1 = Math.max(0, Math.min(mmItems.length - 1, i0 + Math.round(dy / 34)));
-          if (i1 !== i0) { mmItems.splice(i0, 1); mmItems.splice(i1, 0, it); changed = true; }
-          if (dx > 32 && !(it.children && it.children.length)) {
-            var at = mmItems.indexOf(it);
-            var host = at > 0 ? mmItems[at - 1] : null;
-            if (host && host !== it) {
-              mmItems.splice(at, 1);
-              host.children = host.children || [];
-              host.dirty = true;
-              it.dirty = true;
-              host.children.push(it);
-              changed = true;
-            }
-          }
+          var order2 = [].slice.call(listBox.children)
+            .filter(function (n) { return n.classList.contains('gogh-mm-group'); })
+            .map(function (n) { return n.__it; });
+          changed = order2.some(function (o, k) { return o !== mmItems[k]; });
+          mmItems = order2;
         }
         if (changed) {
           renderList();
           commit();
           undoToast('Menu updated.', snap);
+        } else {
+          renderList();
         }
       };
       document.addEventListener('pointermove', onMove);
       document.addEventListener('pointerup', onUp);
     }
+
 
     function backBar(label) {
       var bb = document.createElement('button');

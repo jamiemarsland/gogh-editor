@@ -2002,3 +2002,8 @@ html.gogh-editing iframe { pointer-events: none; }
   background-position: right 14px center;
   background-size: 12px;
 }
+
+/* live drag feedback in the menu list */
+.gogh-mm-group.is-lifting { position: relative; z-index: 3; box-shadow: 0 8px 24px rgba(0,0,0,0.14); }
+.gogh-mm-group { background: var(--gogh-ui-bg, #fff); }
+.gogh-mm-nest-target { outline: 2px solid #3858e9; outline-offset: -2px; border-radius: 8px; }
