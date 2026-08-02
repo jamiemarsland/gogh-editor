@@ -2573,6 +2573,7 @@
     var viewBar = picker.querySelector('.gogh-viewbar');
     function setView(cat, label) {
       activeCat = cat;
+      picker.classList.toggle('gogh-view-yours', cat === 'yours');
       viewBar.querySelector('span').textContent = label || '';
       viewBar.hidden = !cat;
       applyFilter();
@@ -2673,7 +2674,8 @@
         if (favs[p.name]) b.dataset.kind = 'yours';
         b.innerHTML = '<span class="gogh-card-prev"><span class="gogh-card-stage"></span></span>' +
           '<span class="gogh-card-name"></span>' +
-          '<span class="gogh-card-fav">\u2665</span>';
+          '<span class="gogh-card-fav">\u2665</span>' +
+          '<span class="gogh-card-delpat gogh-card-unfav" title="Remove from Your sections">\u2715</span>';
         b.querySelector('.gogh-card-name').textContent = p.title || p.name;
         var favEl = b.querySelector('.gogh-card-fav');
         var syncFav = function () {
@@ -2689,14 +2691,18 @@
           updateYoursChip();
           if (activeCat === 'yours') applyFilter();
         };
+        var removeFav = function () {
+          setFav(false);
+          toast('\u201c' + (p.title || p.name) + '\u201d removed from Your sections.',
+            { actions: [{ label: 'Undo', onClick: function () { setFav(true); } }] });
+        };
         favEl.addEventListener('click', function (ev) {
           ev.stopPropagation();
-          var removing = !!favs[p.name];
-          setFav(!removing);
-          if (removing) {
-            toast('\u201c' + (p.title || p.name) + '\u201d removed from Your sections.',
-              { actions: [{ label: 'Undo', onClick: function () { setFav(true); } }] });
-          }
+          if (favs[p.name]) removeFav(); else setFav(true);
+        });
+        b.querySelector('.gogh-card-unfav').addEventListener('click', function (ev) {
+          ev.stopPropagation();
+          removeFav();
         });
         b.addEventListener('click', function () {
           addPatternSection(p, pickerIdx, pickerBefore);
@@ -2733,13 +2739,42 @@
         });
         b.querySelector('.gogh-card-delpat').addEventListener('click', function (ev) {
           ev.stopPropagation();
-          fetch(restQ(blocksUrl(bk.id), 'force=true'), {
+          var slot = { parent: b.parentNode, next: b.nextSibling };
+          var gone = function (undoable) {
+            blocksCache = null;
+            b.remove();
+            updateYoursChip();
+            toast('\u201c' + ((bk.title && bk.title.raw) || 'My section') + '\u201d deleted.',
+              undoable ? { actions: [{ label: 'Undo', onClick: function () {
+                fetch(blocksUrl(bk.id), {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json', 'X-WP-Nonce': cfg.nonce },
+                  credentials: 'same-origin',
+                  body: JSON.stringify({ status: 'publish' }),
+                }).then(function (r3) {
+                  if (!r3.ok) throw new Error('HTTP ' + r3.status);
+                  blocksCache = null;
+                  slot.parent.insertBefore(b, slot.next && slot.next.parentNode === slot.parent ? slot.next : null);
+                  updateYoursChip();
+                }).catch(function () { toast('Could not restore it.', { error: true }); });
+              } }] } : undefined);
+          };
+          // trash first — restorable; some setups refuse trashing wp_block,
+          // then (and only then) delete outright
+          fetch(blocksUrl(bk.id), {
             method: 'DELETE',
             headers: { 'X-WP-Nonce': cfg.nonce },
             credentials: 'same-origin',
           }).then(function (res2) {
-            if (res2.ok) { blocksCache = null; b.remove(); updateYoursChip(); toast('Section deleted.'); }
-            else toast('Could not delete that section.', { error: true });
+            if (res2.ok) { gone(true); return null; }
+            return fetch(restQ(blocksUrl(bk.id), 'force=true'), {
+              method: 'DELETE',
+              headers: { 'X-WP-Nonce': cfg.nonce },
+              credentials: 'same-origin',
+            }).then(function (res3) {
+              if (res3.ok) gone(false);
+              else toast('Could not delete that section.', { error: true });
+            });
           }).catch(function () {
             toast('Could not delete that section.', { error: true });
           });

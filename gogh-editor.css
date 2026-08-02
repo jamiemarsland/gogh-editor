@@ -1958,3 +1958,9 @@ html.gogh-editing iframe { pointer-events: none; }
 
 /* a favourited heart is a remove control — read as one on hover */
 .gogh-card-fav.is-fav:hover { color: #e0455e; }
+
+/* "Your sections" view: one uniform remove control — the ✕ — on every card;
+   the heart is a browse-shelf affordance and steps aside here */
+.gogh-card-unfav { display: none; }
+.gogh-view-yours .gogh-card-unfav { display: block; }
+.gogh-view-yours .gogh-card-fav { display: none; }
