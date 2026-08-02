@@ -2421,7 +2421,7 @@
       if (starterSeen === 1) cardsArr.push('<div class="gogh-seclab">Recommended</div>');
       if (starterSeen === 5) {
         // See all only earns its place when there IS more than the two rows
-        cardsArr.push('<div class="gogh-seclab">Browse all layouts' +
+        cardsArr.push('<div class="gogh-seclab">More layouts' +
           (totalStarters > 8 ? '<button type="button" class="gogh-gridlab-all gogh-browse-all">See all →</button>' : '') +
           '</div>');
       }
