@@ -3819,14 +3819,16 @@
     if (/full|wide/.test(t.slug)) return { name: t.title || 'Full width', hint: 'Content runs edge to edge' };
     return { name: t.title || t.slug, hint: '' };
   }
-  function openPageStylePanel() {
+  function openPageStylePanel(anchorEl) {
     var options = [{ slug: '', title: 'Standard' }].concat(cfg.pageTemplates || []);
     panel.innerHTML =
       '<div class="gogh-panel-head"><span class="gogh-panel-title">Page style</span>' +
       '<button type="button" class="gogh-sbtn gogh-panel-close" title="Back to the palette">\u2715</button></div>' +
       '<div class="gogh-panel-hint">How this page is framed by your theme.</div>' +
       '<div class="gogh-pagestyles"></div>';
-    panel.hidden = false;
+    // the panel keeps its LAST position unless placed — without this it can
+    // open wherever it was previously used, often outside the viewport
+    placePanelNear(anchorEl || side.querySelector('.gogh-pagestylebtn'));
     panelOpen = true;
     panel.querySelector('.gogh-panel-close').addEventListener('click', function () {
       closePanel();
@@ -4034,8 +4036,8 @@
   side.querySelector('.gogh-stylebtn').addEventListener('click', function (ev) {
     openStylePanel(ev.currentTarget);
   });
-  side.querySelector('.gogh-pagestylebtn').addEventListener('click', function () {
-    openPageStylePanel();
+  side.querySelector('.gogh-pagestylebtn').addEventListener('click', function (ev) {
+    openPageStylePanel(ev.currentTarget);
   });
 
   function snapPos(sec, exclude, x, y, w, h, free) {
