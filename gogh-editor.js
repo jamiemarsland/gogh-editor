@@ -375,9 +375,10 @@
     badge: 'display: flex; align-items: center; min-width: max-content; gap: 0.6em; height: 100%; background: #fff; color: #141519; border-radius: clamp(6px, 1.2cqw, 14px); padding: 0 1.1em; font-size: clamp(11px, 1.15cqw, 14px); font-weight: 600; box-shadow: 0 14px 34px -12px rgba(0,0,0,0.55); white-space: nowrap;',
     widget: 'display: flex; align-items: center;',
     box: '',
+    exp: 'position: relative; overflow: hidden; border-radius: clamp(8px, 1.5cqw, 20px); background: #101114;',
   };
   var isText = function (e) { return e.type === 'heading' || e.type === 'para'; };
-  var fixedHeight = function (e) { return e.type === 'button' || e.type === 'image' || e.type === 'badge' || e.type === 'widget' || e.type === 'box'; };
+  var fixedHeight = function (e) { return e.type === 'button' || e.type === 'image' || e.type === 'badge' || e.type === 'widget' || e.type === 'box' || e.type === 'exp'; };
 
   function imageBackground(e) {
     if (e.src) {
@@ -520,6 +521,7 @@
         // structural panels (photo-card scrims, feature mats) and keep
         // their proportions instead of collapsing to zero height
         (e.type === 'box' ? (e.shape ? ' display: none;' : ' aspect-ratio: ' + e.w + ' / ' + e.h + ';') : '') +
+        (e.type === 'exp' ? ' aspect-ratio: ' + e.w + ' / ' + e.h + ';' : '') +
         (e.type === 'badge' ? ' width: max-content; height: 44px;' : '') + ' }');
     });
     out.push(
@@ -566,7 +568,8 @@
       align: e.align || null, color: e.color || null, tf: e.tf || null,
       btnBg: e.btnBg || null, btnText: e.btnText || null, btnHover: e.btnHover || null,
       wsrc: e.wsrc || null, whtml: e.whtml || null,
-      boxBg: e.boxBg || null, radius: e.radius || 0, shape: e.shape || null };
+      boxBg: e.boxBg || null, radius: e.radius || 0, shape: e.shape || null,
+      expId: e.expId || null, expUrl: e.expUrl || null };
   }
   function buildElBlocks(els) {
     // blocks are emitted in READING order; each keeps its stacking-indexed
@@ -644,6 +647,13 @@
           // wrapped so the solver can place it
           return '<!-- wp:group {"className":"' + cls + ' gogh-widget","layout":{"type":"default"}} -->\n' +
             '<div class="wp-block-group ' + cls + ' gogh-widget">\n' + (e.wsrc || '') + '\n</div>\n<!-- /wp:group -->';
+        case 'exp':
+          // stored markup carries ONLY a plain link (kses-safe, works with the
+          // plugin off); gogh_render_section swaps it for the sandboxed iframe
+          return '<!-- wp:group ' + JSON.stringify({ className: cls + ' gogh-exp' }) + ' -->\n' +
+            '<div class="wp-block-group ' + cls + ' gogh-exp">' +
+            (e.expUrl ? '<a class="gogh-exp-link" href="' + escAttr(e.expUrl) + '">Open interactive experience</a>' : '') +
+            '</div>\n<!-- /wp:group -->';
       }
     }).join('\n\n');
   }
@@ -821,6 +831,22 @@
         n.className = cls + ' gogh-badge';
         n.textContent = e.text;
         break;
+      case 'exp': {
+        // uploaded HTML experience: sandboxed iframe with an OPAQUE origin —
+        // allow-scripts only, never allow-same-origin, so the bundle's code
+        // cannot read cookies or touch the embedding page
+        n = document.createElement('div');
+        n.className = 'wp-block-group ' + cls + ' gogh-exp';
+        if (e.expUrl) {
+          var fr = document.createElement('iframe');
+          fr.setAttribute('sandbox', 'allow-scripts');
+          fr.src = e.expUrl;
+          fr.title = 'Interactive experience';
+          fr.setAttribute('style', 'width:100%;height:100%;border:0;display:block;');
+          n.appendChild(fr);
+        }
+        break;
+      }
       default:
         // element type from a newer gogh: keep the page alive
         n = document.createElement('div');
@@ -1063,6 +1089,7 @@
     '<button type="button" class="gogh-sitem" data-add="image"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="8.5" cy="10" r="1.6"/><path d="M21 16l-5-5-9 8"/></svg>Image</button>' +
     '<button type="button" class="gogh-sitem" data-add="badge"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><circle cx="12" cy="9.5" r="5.5"/><path d="M9 14l-1.5 6 4.5-2.4 4.5 2.4L15 14"/></svg>Badge</button>' +
     '<button type="button" class="gogh-sitem" data-act="shapes"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><circle cx="8.5" cy="8.5" r="5.5"/><rect x="11" y="11" width="10" height="10" rx="2"/></svg>Shape</button>' +
+    (cfg.canExp ? '<button type="button" class="gogh-sitem" data-add="exp" title="Upload a self-contained HTML experience \u2014 it runs sandboxed"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M10 9.5l4.5 2.5-4.5 2.5z"/></svg>Experience</button>' : '') +
     '<button type="button" class="gogh-sitem" data-add="posts" title="Your latest posts, live"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="4" width="16" height="6" rx="1.5"/><rect x="4" y="14" width="16" height="6" rx="1.5"/></svg>Posts</button>' +
     '<div class="gogh-side-gap"></div>' +
     '<div class="gogh-side-foot">' +
@@ -2107,9 +2134,37 @@
     return e;
   }
   function addElementAtViewport(kind) {
+    if (kind === 'exp') return addExperience();
     var e = placeElAtViewport(DEFAULTS[kind]());
     if (kind === 'posts') hydratePostsPreview(sel.sec, e);
     return e;
+  }
+  function addExperience() {
+    var input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.html,text/html';
+    input.addEventListener('change', function () {
+      if (!input.files.length) return;
+      var fd = new FormData();
+      fd.append('file', input.files[0]);
+      toast('Uploading experience\u2026');
+      fetch(cfg.mediaUrl, {
+        method: 'POST',
+        headers: { 'X-WP-Nonce': cfg.nonce },
+        credentials: 'same-origin',
+        body: fd,
+      }).then(function (res) {
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        return res.json();
+      }).then(function (item) {
+        placeElAtViewport({ type: 'exp', x: 0, y: 0, w: 760, h: 480, expId: item.id, expUrl: item.source_url });
+        toast('Experience added \u2014 it runs sandboxed; visitors can interact once published.', { ttl: 6000 });
+      }).catch(function (err) {
+        toast('Upload failed \u2014 .html uploads need admin rights.', { ttl: 6000 });
+        console.error('gogh experience upload failed:', err);
+      });
+    });
+    input.click();
   }
   function addShapeAtViewport(def) {
     return placeElAtViewport({

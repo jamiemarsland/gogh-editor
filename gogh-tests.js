@@ -1703,6 +1703,30 @@
       return 'upload + media grid present';
     });
 
+    // ---- experiences: sandboxed on canvas, only a link in stored markup ----
+    test('experience element: sandboxed iframe, kses-safe stored fallback', function () {
+      var s0 = sec();
+      s0.els.push({ type: 'exp', x: 100, y: 60, w: 600, h: 400, expId: 123, expUrl: 'about:blank' });
+      G.renderSection(s0);
+      var node = s0.sectionEl.querySelector('.gogh-exp');
+      expect(node, 'no exp node on canvas');
+      var fr = node.querySelector('iframe');
+      expect(fr, 'no iframe on canvas');
+      expect(fr.getAttribute('sandbox') === 'allow-scripts',
+        'sandbox must be exactly allow-scripts, got: ' + fr.getAttribute('sandbox'));
+      var v3 = G.buildV3();
+      expect(v3.indexOf('<iframe') === -1, 'iframe must never be stored');
+      expect(v3.indexOf('gogh-exp-link') !== -1, 'no fallback link in stored markup');
+      expect(v3.indexOf('"expId":123') !== -1, 'expId missing from model attrs');
+      var css = s0.styleEl.textContent;
+      var L = s0.els.length;
+      expect(new RegExp('gogh-el-' + L + ' \\{ grid-area: auto; grid-column: 2; aspect-ratio: 600 / 400;').test(css),
+        'exp does not keep aspect on mobile');
+      s0.els.pop();
+      G.renderSection(s0);
+      return 'sandboxed canvas frame, link-only markup, mobile aspect';
+    });
+
     // ---- starter contrast is theme-proof; mobile keeps panels, hides shapes ----
     test('photo cards contrast + mobile box policy + badge clip guard', function () {
       var tpl = G.templates().filter(function (t) { return t.name === 'Photo cards'; })[0];

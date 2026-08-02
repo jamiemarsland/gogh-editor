@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Gogh Editor
  * Description: A freeform canvas for WordPress — drag anything anywhere on your live page; Gogh publishes it back as clean, responsive core blocks that keep working even if the plugin is deactivated.
- * Version: 0.83.1
+ * Version: 0.84.0
  * Author: Jamie Marsland
  * Author URI: https://pootlepress.com
  * License: GPLv2 or later
@@ -23,7 +23,7 @@ add_action( 'init', function () {
 		'gogh-block',
 		plugins_url( 'gogh-block.js', __FILE__ ),
 		array( 'wp-blocks', 'wp-element', 'wp-block-editor' ),
-		'0.83.1-chrome',
+		'0.84.0-chrome',
 		true
 	);
 	register_block_type( 'gogh/section', array(
@@ -69,7 +69,8 @@ function gogh_sweep_css_residue( $html ) {
 }
 
 function gogh_render_section( $attrs, $content ) {
-	$css = gogh_css_from_attrs( is_array( $attrs ) ? $attrs : array() );
+	$attrs = is_array( $attrs ) ? $attrs : array();
+	$css   = gogh_css_from_attrs( $attrs );
 	if ( '' === $css ) {
 		return $content; // legacy v2: static markup is already complete
 	}
@@ -79,8 +80,59 @@ function gogh_render_section( $attrs, $content ) {
 		$out     = preg_replace( '/(<div class="wp-block-gogh-section[^"]*">)/', '$1' . $style, $content, 1, $n );
 		$content = $n ? $out : $style . $content;
 	}
+	return gogh_inject_experiences( $attrs, $content );
+}
+
+/**
+ * Experiences: stored markup carries only a plain link (kses-safe, and the
+ * plugin-off fallback). At render time it becomes a sandboxed iframe. The
+ * src is NEVER taken from attributes — only the attachment ID is, and the
+ * URL is resolved server-side after checking the attachment really is an
+ * uploaded text/html file (uploads of which are capability-gated below).
+ * allow-scripts WITHOUT allow-same-origin = opaque origin: the uploaded
+ * code cannot read cookies or reach the embedding page.
+ */
+function gogh_inject_experiences( $attrs, $content ) {
+	$els = isset( $attrs['model']['elements'] ) && is_array( $attrs['model']['elements'] )
+		? $attrs['model']['elements'] : array();
+	foreach ( $els as $i => $e ) {
+		if ( empty( $e['type'] ) || 'exp' !== $e['type'] || empty( $e['expId'] ) ) {
+			continue;
+		}
+		$id = intval( $e['expId'] );
+		if ( $id <= 0 || 'text/html' !== get_post_mime_type( $id ) ) {
+			continue;
+		}
+		$src = wp_get_attachment_url( $id );
+		if ( ! $src ) {
+			continue;
+		}
+		$iframe  = '<iframe src="' . esc_url( $src ) . '" sandbox="allow-scripts" title="Interactive experience" loading="lazy" style="width:100%;height:100%;border:0;display:block"></iframe>';
+		// the class list gains render-time extras (layout support), so match
+		// by our two authored classes rather than the exact attribute value
+		$content = preg_replace_callback(
+			'/(<div class="[^"]*\bgogh-el-' . ( $i + 1 ) . '\b[^"]*\bgogh-exp\b[^"]*">).*?<\/div>/s',
+			function ( $m ) use ( $iframe ) {
+				return $m[1] . $iframe . '</div>';
+			},
+			$content,
+			1
+		);
+	}
 	return $content;
 }
+
+/**
+ * Experience bundles are plain .html uploads — allowed only for users who
+ * may already publish arbitrary markup (unfiltered_html), so this grants
+ * no capability they don't have.
+ */
+add_filter( 'upload_mimes', function ( $mimes ) {
+	if ( current_user_can( 'unfiltered_html' ) ) {
+		$mimes['html'] = 'text/html';
+	}
+	return $mimes;
+} );
 
 /**
  * SPIKE variant B: rebake. On every save — by anyone, including users whose
@@ -150,7 +202,7 @@ add_action( 'wp_enqueue_scripts', function () {
 
 	// for every visitor: neutralise theme spacing around gogh sections, even
 	// on pages whose stored stylesheets predate this rule
-	wp_register_style( 'gogh-base', false, array(), '0.83.1-chrome' );
+	wp_register_style( 'gogh-base', false, array(), '0.84.0-chrome' );
 	wp_enqueue_style( 'gogh-base' );
 	wp_add_inline_style( 'gogh-base',
 		// full-bleed sections use 100vw, which includes the scrollbar — once
@@ -173,8 +225,8 @@ add_action( 'wp_enqueue_scripts', function () {
 		return;
 	}
 
-	wp_enqueue_script( 'gogh-editor', plugins_url( 'gogh-editor.js', __FILE__ ), array(), '0.83.1-chrome', true );
-	wp_enqueue_style( 'gogh-editor', plugins_url( 'gogh-editor.css', __FILE__ ), array(), '0.83.1-chrome' );
+	wp_enqueue_script( 'gogh-editor', plugins_url( 'gogh-editor.js', __FILE__ ), array(), '0.84.0-chrome', true );
+	wp_enqueue_style( 'gogh-editor', plugins_url( 'gogh-editor.css', __FILE__ ), array(), '0.84.0-chrome' );
 
 	// WebMCP bridge: the page registers its editing verbs as agent tools.
 	// OPT-IN only — add ?gogh-mcp=1 for a demo session (or enable sitewide
@@ -182,13 +234,13 @@ add_action( 'wp_enqueue_scripts', function () {
 	// agents from discovering publish-capable tools uninvited.
 	// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only opt-in toggle; script is capability-gated above.
 	if ( isset( $_GET['gogh-mcp'] ) || isset( $_GET['gogh-test'] ) || apply_filters( 'gogh_webmcp_enabled', false ) ) {
-		wp_enqueue_script( 'gogh-webmcp', plugins_url( 'gogh-webmcp.js', __FILE__ ), array( 'gogh-editor' ), '0.83.1-chrome', true );
+		wp_enqueue_script( 'gogh-webmcp', plugins_url( 'gogh-webmcp.js', __FILE__ ), array( 'gogh-editor' ), '0.84.0-chrome', true );
 	}
 
 	// regression suite: /page/?gogh-test (editors only, never saves)
 	// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only toggle enqueuing a test script for capability-checked editors.
 	if ( isset( $_GET['gogh-test'] ) ) {
-		wp_enqueue_script( 'gogh-tests', plugins_url( 'gogh-tests.js', __FILE__ ), array( 'gogh-editor' ), '0.83.1-chrome', true );
+		wp_enqueue_script( 'gogh-tests', plugins_url( 'gogh-tests.js', __FILE__ ), array( 'gogh-editor' ), '0.84.0-chrome', true );
 	}
 
 	$rest_base = ( 'page' === $post->post_type ) ? 'pages' : 'posts';
@@ -197,6 +249,7 @@ add_action( 'wp_enqueue_scripts', function () {
 		'restUrl'  => rest_url( 'wp/v2/' . $rest_base . '/' . $post->ID ),
 		'mediaUrl' => rest_url( 'wp/v2/media' ),
 		'canUpload' => current_user_can( 'upload_files' ),
+		'canExp'   => current_user_can( 'upload_files' ) && current_user_can( 'unfiltered_html' ),
 		'modified' => get_post_modified_time( 'Y-m-d\TH:i:s', true, $post ),
 		'theme'    => get_stylesheet(),
 		'themeName' => wp_get_theme()->get( 'Name' ),
@@ -271,7 +324,7 @@ add_action( 'enqueue_block_assets', function () {
 	if ( ! is_admin() ) {
 		return;
 	}
-	wp_register_style( 'gogh-editor-base', false, array(), '0.83.1-chrome' );
+	wp_register_style( 'gogh-editor-base', false, array(), '0.84.0-chrome' );
 	wp_enqueue_style( 'gogh-editor-base' );
 	wp_add_inline_style( 'gogh-editor-base',
 		'.gogh-wrap { min-width: 100%; margin-block: 0 !important; }' .
