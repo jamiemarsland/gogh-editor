@@ -4659,6 +4659,23 @@
       c = (Math.max(e.x, nb.B.x) + Math.min(e.x + e.w, nb.B.x + nb.B.w)) / 2;
       showDist(di++, false, px(c), py(e.y + e.h), g * s, g * s, eqV);
     }
+    // no neighbour on a side → measure to the SECTION edge instead: page
+    // margins are the distances people eyeball most
+    if (!nb.L && (g = e.x) > 4) {
+      showDist(di++, true, px(0), py(e.y + e.h / 2), g * s, g * s, false);
+    }
+    if (!nb.R && (g = W - (e.x + e.w)) > 4) {
+      showDist(di++, true, px(e.x + e.w), py(e.y + e.h / 2), g * s, g * s, false);
+    }
+    if (!nb.T && (g = e.y) > 4) {
+      showDist(di++, false, px(e.x + e.w / 2), py(0), g * s, g * s, false);
+    }
+    if (!nb.B) {
+      var H2 = designH(sec.els, sec.minH);
+      if ((g = H2 - (e.y + e.h)) > 4) {
+        showDist(di++, false, px(e.x + e.w / 2), py(e.y + e.h), g * s, g * s, false);
+      }
+    }
   }
 
   // ---------- resizing: 8-direction handles ----------
@@ -6453,6 +6470,15 @@
       }
       var t = ev.target.closest &&
         ev.target.closest('h1,h2,h3,h4,h5,h6,p,figcaption');
+      if (!t && ev.target.closest) {
+        // standalone text spans (eyebrows, link labels) edit too — but a
+        // span INSIDE an editable block defers to the block
+        var sp2 = ev.target.closest('span,em,strong,small');
+        if (sp2 && !sp2.closest('h1,h2,h3,h4,h5,h6,p,figcaption') &&
+          [].some.call(sp2.childNodes, function (n2) { return n2.nodeType === 3 && n2.textContent.trim(); })) {
+          t = sp2;
+        }
+      }
       // a plain text link inside editable text: edit or remove it. But a
       // CARD — an anchor wrapping whole headings/paragraphs — edits its
       // WORDS on text clicks; its link is edited from the padding.
