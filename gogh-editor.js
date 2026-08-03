@@ -3712,6 +3712,28 @@
   // ---------- dragging with ghost (no cursor drift) ----------
   var drag = null, dragRaf = false;
   var ghost = null;
+  // ---------- cards: joining, leaving, and editing kids ----------
+  // dropping an element FULLY inside a plain box makes it a kid of that
+  // card (one level only; boxes never join boxes)
+  function cardJoinTarget(sec, i) {
+    var e = sec.els[i];
+    if (!e || e.type === 'box') return -1;
+    for (var b = sec.els.length - 1; b >= 0; b--) {
+      if (b === i) continue;
+      var o = sec.els[b];
+      if (o.type !== 'box' || o.shape) continue;
+      if (e.x >= o.x - 2 && e.y >= o.y - 2 &&
+          e.x + e.w <= o.x + o.w + 2 && e.y + e.h <= o.y + o.h + 2) return b;
+    }
+    return -1;
+  }
+  var joinGlowNode = null;
+  function setJoinGlow(node) {
+    if (joinGlowNode === node) return;
+    if (joinGlowNode) joinGlowNode.classList.remove('gogh-card-glow');
+    joinGlowNode = node;
+    if (node) node.classList.add('gogh-card-glow');
+  }
   function beginDrag(ev) {
     if (!editing || !sel) return;
     closePanel();
@@ -3837,6 +3859,10 @@
         dropBox.style.top = b2.y + 'px';
         dropBox.style.width = b2.w + 'px';
         dropBox.style.height = b2.h + 'px';
+        if (!drag.multi) {
+          var jt = cardJoinTarget(sec, drag.i);
+          setJoinGlow(jt !== -1 ? sec.nodes[jt] : null);
+        }
       });
     }
   });
@@ -3891,9 +3917,181 @@
       if (!gyCapD && !eqVD && !lockedYD) eDrop.y = Math.max(0, Math.round(eDrop.y / BASE) * BASE);
       resolveAndApply(sec);
     }
+    setJoinGlow(null);
+    if (!multiD) {
+      var jb = cardJoinTarget(sec, i);
+      if (jb !== -1) {
+        var kid = sec.els[i];
+        sec.els.splice(i, 1);
+        var host = sec.els[jb > i ? jb - 1 : jb];
+        kid.x = Math.max(0, Math.round(kid.x - host.x));
+        kid.y = Math.max(0, Math.round(kid.y - host.y));
+        host.kids = host.kids || [];
+        host.kids.push(kid);
+        sel = null;
+        hideHandles();
+        closePanel();
+        renderSection(sec);
+        pushState();
+        toast('Added to the card \u2014 it moves and stacks with it now.',
+          { actions: [{ label: 'Undo', onClick: function () { undo(); } }] });
+        return;
+      }
+    }
     if (multiD) { sel = null; } else { placeHandles(sec, i); }
     pushState();
   }
+  // ---------- kid selection, movement, escape, and text ----------
+  var kidSel = null; // {sec, ci, j, node}
+  var kidDrag = null;
+  var kidEd = null; // text editing inside a kid
+  function clearKidSel() {
+    if (!kidSel) return;
+    if (kidSel.node && kidSel.node.classList) kidSel.node.classList.remove('gogh-kid-selected');
+    kidSel = null;
+  }
+  function exitKidEd() {
+    if (!kidEd) return;
+    kidEd.node.removeAttribute('contenteditable');
+    if (document.activeElement === kidEd.node) kidEd.node.blur();
+    kidEd = null;
+    pushState();
+  }
+  function kidHostOf(card) {
+    var found = null;
+    S.some(function (s2) {
+      var at = s2.nodes ? s2.nodes.indexOf(card) : -1;
+      if (at !== -1) { found = { sec: s2, ci: at }; return true; }
+      return false;
+    });
+    return found;
+  }
+  document.addEventListener('pointerdown', function (ev) {
+    if (!editing || drag || resize) return;
+    if (!(ev.target instanceof Element)) return;
+    if (kidEd && kidEd.node.contains(ev.target)) return; // caret work
+    var kn = ev.target.closest('[class*="gogh-k-"]');
+    var card = kn && kn.closest('.gogh-card');
+    if (!kn || !card) {
+      if (kidSel && !(ev.target.closest && ev.target.closest('.gogh-toast'))) clearKidSel();
+      if (kidEd) exitKidEd();
+      return;
+    }
+    var host = kidHostOf(card);
+    if (!host) return;
+    var m = (kn.className + '').match(/gogh-k-(\d+)/);
+    if (!m) return;
+    var j = +m[1] - 1;
+    var sec = host.sec, ci = host.ci;
+    var hostEl = sec.els[ci];
+    if (!hostEl || !hostEl.kids || !hostEl.kids[j]) return;
+    ev.preventDefault();
+    ev.stopPropagation(); // the card's own select must not fire
+    exitKidEd();
+    var already = kidSel && kidSel.node === kn;
+    clearKidSel();
+    sel = null;
+    hideHandles();
+    closePanel();
+    kidSel = { sec: sec, ci: ci, j: j, node: kn };
+    kn.classList.add('gogh-kid-selected');
+    var kid = hostEl.kids[j];
+    kidDrag = { sec: sec, ci: ci, j: j, node: kn,
+      px: ev.clientX, py: ev.clientY, x0: kid.x, y0: kid.y,
+      moved: false, already: !!already, id: ev.pointerId };
+  }, true);
+  document.addEventListener('pointermove', function (ev) {
+    if (!kidDrag || ev.pointerId !== kidDrag.id) return;
+    var sec = kidDrag.sec;
+    var hostEl = sec.els[kidDrag.ci];
+    if (!hostEl || !hostEl.kids) { kidDrag = null; return; }
+    var kid = hostEl.kids[kidDrag.j];
+    var sc = scaleOf(sec);
+    var dx = (ev.clientX - kidDrag.px) / sc;
+    var dy = (ev.clientY - kidDrag.py) / sc;
+    if (!kidDrag.moved && Math.abs(dx) + Math.abs(dy) < 3) return;
+    kidDrag.moved = true;
+    kid.x = Math.round(Math.max(0, Math.min(hostEl.w - kid.w, kidDrag.x0 + dx)));
+    kid.y = Math.round(Math.max(0, Math.min(Math.max(0, hostEl.h - kid.h), kidDrag.y0 + dy)));
+    // leaving intent: pointer beyond the card's box
+    var cardR = sec.nodes[kidDrag.ci].getBoundingClientRect();
+    var outside = ev.clientX < cardR.left - 12 || ev.clientX > cardR.right + 12 ||
+      ev.clientY < cardR.top - 12 || ev.clientY > cardR.bottom + 12;
+    sec.nodes[kidDrag.ci].classList.toggle('gogh-card-leaving', outside);
+    resolveAndApply(sec);
+  });
+  document.addEventListener('pointerup', function (ev) {
+    if (!kidDrag || ev.pointerId !== kidDrag.id) return;
+    var kd = kidDrag;
+    kidDrag = null;
+    var sec = kd.sec;
+    var cardNode = sec.nodes[kd.ci];
+    if (cardNode) cardNode.classList.remove('gogh-card-leaving');
+    var hostEl = sec.els[kd.ci];
+    if (!hostEl || !hostEl.kids) return;
+    if (kd.moved) {
+      var cardR = cardNode.getBoundingClientRect();
+      var outside = ev.clientX < cardR.left - 12 || ev.clientX > cardR.right + 12 ||
+        ev.clientY < cardR.top - 12 || ev.clientY > cardR.bottom + 12;
+      if (outside) {
+        // the kid leaves the card, landing under the pointer in page space
+        var kid = hostEl.kids.splice(kd.j, 1)[0];
+        if (!hostEl.kids.length) hostEl.kids = null;
+        var secR = sec.sectionEl.getBoundingClientRect();
+        var sc2 = scaleOf(sec);
+        kid.x = Math.round(Math.max(0, Math.min(W - kid.w, (ev.clientX - secR.left) / sc2 - kid.w / 2)));
+        kid.y = Math.round(Math.max(0, (ev.clientY - secR.top) / sc2 - kid.h / 2));
+        clearKidSel();
+        sec.els.push(kid);
+        renderSection(sec);
+        placeHandles(sec, sec.els.length - 1);
+        pushState();
+        toast('Out of the card \u2014 it\u2019s a free element again.',
+          { actions: [{ label: 'Undo', onClick: function () { undo(); } }] });
+        return;
+      }
+      pushState();
+    } else if (kd.already) {
+      // second click on a selected kid: edit its text in place
+      var kid2 = hostEl.kids[kd.j];
+      if (kid2 && (kid2.type === 'heading' || kid2.type === 'para' || kid2.type === 'badge' || kid2.type === 'button')) {
+        var target = kid2.type === 'button' ? (kd.node.querySelector('.wp-block-button__link') || kd.node) : kd.node;
+        target.setAttribute('contenteditable', kid2.type === 'heading' || kid2.type === 'para' ? 'true' : 'plaintext-only');
+        kidEd = { sec: sec, ci: kd.ci, j: kd.j, node: target, kid: kid2 };
+        target.focus();
+        if (document.caretRangeFromPoint) {
+          var cr = document.caretRangeFromPoint(ev.clientX, ev.clientY);
+          if (cr && target.contains(cr.startContainer)) {
+            var so = window.getSelection();
+            so.removeAllRanges();
+            so.addRange(cr);
+          }
+        }
+      }
+    }
+  });
+  document.addEventListener('input', function (ev) {
+    if (!kidEd || ev.target !== kidEd.node) return;
+    var k = kidEd.kid;
+    k.text = (k.type === 'heading' || k.type === 'para') ? cleanInline(kidEd.node.innerHTML) : kidEd.node.textContent;
+  });
+  document.addEventListener('keydown', function (ev) {
+    if (kidEd && ev.key === 'Escape') { ev.stopPropagation(); exitKidEd(); return; }
+    if (!kidSel || kidEd) return;
+    if (ev.key === 'Escape') { clearKidSel(); return; }
+    if (ev.key === 'Backspace' || ev.key === 'Delete') {
+      var sec = kidSel.sec;
+      var hostEl = sec.els[kidSel.ci];
+      if (!hostEl || !hostEl.kids) return;
+      ev.preventDefault();
+      hostEl.kids.splice(kidSel.j, 1);
+      if (!hostEl.kids.length) hostEl.kids = null;
+      clearKidSel();
+      renderSection(sec);
+      pushState();
+      toast('Removed from the card.', { actions: [{ label: 'Undo', onClick: function () { undo(); } }] });
+    }
+  }, true);
   document.addEventListener('pointerup', function () { if (drag) endDrag(); });
   document.addEventListener('pointercancel', function () { if (drag) endDrag(); });
 

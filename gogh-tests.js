@@ -1804,6 +1804,55 @@
       return 'nested render + nested publish + mobile integrity';
     });
 
+    test('card interactions: drop joins, kid drags inside, drag-out frees', function () {
+      var s0 = sec();
+      s0.els.push({ type: 'box', x: 600, y: 80, w: 480, h: 380, boxBg: '#101418', radius: 16 });
+      s0.els.push({ type: 'heading', x: 60, y: 120, w: 300, h: 48, text: 'Joiner' });
+      G.renderSection(s0);
+      var hi = s0.els.length - 1;
+      var node = s0.nodes[hi];
+      var sc = s0.sectionEl.getBoundingClientRect().width / 1200;
+      var r = node.getBoundingClientRect();
+      var pv3 = function (type, el, x, y, id) {
+        el.dispatchEvent(new PointerEvent(type, { bubbles: true, cancelable: true, clientX: x, clientY: y, pointerId: id, button: 0, buttons: type === 'pointerup' ? 0 : 1 }));
+      };
+      // drag the heading fully inside the box → it joins as a kid
+      var dx = (660 - s0.els[hi].x) * sc, dy = (170 - s0.els[hi].y) * sc;
+      pv3('pointerdown', node, r.left + 10, r.top + 8, 61);
+      pv3('pointermove', document, r.left + 10 + dx / 2, r.top + 8 + dy / 2, 61);
+      pv3('pointermove', document, r.left + 10 + dx, r.top + 8 + dy, 61);
+      pv3('pointerup', document, r.left + 10 + dx, r.top + 8 + dy, 61);
+      var box = s0.els.filter(function (e) { return e.type === 'box' && e.kids; })[0];
+      expect(box && box.kids.length === 1 && box.kids[0].text === 'Joiner', 'drop did not join the card');
+      var ci = s0.els.indexOf(box);
+      var kn = s0.nodes[ci].querySelector('.gogh-k-1');
+      expect(kn, 'kid node missing after join');
+      // kid drags WITHIN the card
+      var kid = box.kids[0];
+      var kx = kid.x, r2 = kn.getBoundingClientRect();
+      pv3('pointerdown', kn, r2.left + 8, r2.top + 6, 62);
+      pv3('pointermove', document, r2.left + 8 + 30 * sc, r2.top + 6, 62);
+      pv3('pointerup', document, r2.left + 8 + 30 * sc, r2.top + 6, 62);
+      expect(kid.x === kx + 30, 'kid did not move within the card: ' + kid.x + ' vs ' + (kx + 30));
+      // drag OUT far past the edge → free element again
+      var r3 = kn.getBoundingClientRect();
+      var cardR = s0.nodes[ci].getBoundingClientRect();
+      pv3('pointerdown', kn, r3.left + 8, r3.top + 6, 63);
+      pv3('pointermove', document, cardR.left - 150, r3.top + 6, 63);
+      pv3('pointerup', document, cardR.left - 150, r3.top + 6, 63);
+      expect(!box.kids, 'kids not cleared after leaving');
+      var freed = s0.els.filter(function (e) { return e.text === 'Joiner'; })[0];
+      expect(freed && freed !== box, 'kid did not return to the page');
+      // cleanup
+      [box, freed].forEach(function (e) {
+        var at = s0.els.indexOf(e);
+        if (at !== -1) s0.els.splice(at, 1);
+      });
+      G.renderSection(s0);
+      [].slice.call(document.querySelectorAll('.gogh-toast')).forEach(function (t) { t.remove(); });
+      return 'join on drop · move inside · drag out to free';
+    });
+
     // ---- pasted cards: never squashed into buttons, text editable in place ----
     test('card-shaped anchors scan as widgets and their text edits in place', function () {
       G.addHtmlSection('<div style="padding:40px;background:#eee">' +

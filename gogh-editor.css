@@ -2029,3 +2029,10 @@ html.gogh-editing iframe { pointer-events: none; }
 /* a DIM, not a blackout — a covered screen reads as lost content */
 .gogh-pagefade.is-on { opacity: 0.55; }
 .gogh-pagefade-pill { background: #16181c; color: #fff; font: 600 13px/1 ui-sans-serif, system-ui, sans-serif; padding: 12px 20px; border-radius: 999px; box-shadow: 0 18px 44px -12px rgba(0,0,0,0.5); }
+
+/* ---------- cards: joining glow, kid selection, leaving intent ---------- */
+.gogh-card-glow { outline: 3px solid #3858e9; outline-offset: 3px; transition: outline-offset 0.12s ease; }
+.gogh-card-leaving { outline: 3px dashed #d98a2b; outline-offset: 3px; }
+html.gogh-editing .gogh-card [class*="gogh-k-"] { cursor: grab; }
+.gogh-kid-selected { outline: 2px solid #3858e9; outline-offset: 2px; border-radius: 4px; }
+.gogh-kid-selected[contenteditable], .gogh-card [contenteditable="true"] { cursor: text; }
