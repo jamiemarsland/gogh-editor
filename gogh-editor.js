@@ -1147,6 +1147,9 @@
     '<button type="button" class="gogh-sbtn gogh-close" title="Finish editing">✕</button>' +
     '</div>' +
     '<div class="gogh-side-row">' +
+    '<button type="button" class="gogh-sbtn gogh-writebtn" title="Start writing \u2014 a reading column, cursor ready">' +
+    '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>' +
+    '</button>' +
     '<button type="button" class="gogh-sbtn gogh-stylebtn" title="Site style">' +
     '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M12 3a9 9 0 1 0 0 18h1.5a2.5 2.5 0 0 0 1.8-4.2 2.5 2.5 0 0 1 1.8-4.3H20a9 9 0 0 0-8-9.5Z"/><circle cx="7.5" cy="11" r="1.2" fill="currentColor" stroke="none"/><circle cx="10.5" cy="7.5" r="1.2" fill="currentColor" stroke="none"/><circle cx="15" cy="7.5" r="1.2" fill="currentColor" stroke="none"/></svg>' +
     '</button>' +
@@ -4588,6 +4591,31 @@
       return false;
     });
   }
+  side.querySelector('.gogh-writebtn').addEventListener('click', function () {
+    var tpl = TEMPLATES.filter(function (t) { return t.starter && !t.retired && t.name === 'Article'; })[0];
+    if (!tpl) return;
+    var at = S.indexOf(viewportSection()) + 1;
+    addSection(tpl, at);
+    // straight into the words: select the heading and open its editor with
+    // the caret ready — calm mode fades the chrome automatically
+    var secW = null;
+    for (var wi = S.length - 1; wi >= 0; wi--) {
+      if (!S[wi].chrome && S[wi].els.length && S[wi].els[0].text === tpl.els[0].text) { secW = S[wi]; break; }
+    }
+    if (!secW) return;
+    setTimeout(function () {
+      placeHandles(secW, 0);
+      enterTextEdit(secW, 0);
+      var t2 = editableTarget(secW, 0);
+      if (t2) {
+        var sel2 = window.getSelection();
+        var rg = document.createRange();
+        rg.selectNodeContents(t2);
+        sel2.removeAllRanges();
+        sel2.addRange(rg); // heading pre-selected: typing replaces the placeholder
+      }
+    }, 350);
+  });
   side.querySelector('.gogh-stylebtn').addEventListener('click', function (ev) {
     openStylePanel(ev.currentTarget);
   });
