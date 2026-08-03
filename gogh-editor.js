@@ -6062,7 +6062,19 @@
         // this editable must not focus() away the selection they just made
         var selNow = window.getSelection();
         var keepSel = selNow && selNow.rangeCount && !selNow.isCollapsed && t.contains(selNow.anchorNode);
-        if (!keepSel) t.focus();
+        if (!keepSel) {
+          t.focus();
+          // land the caret exactly under the click — focus() alone parks it
+          // at the start, costing an extra click or three to re-aim
+          if (document.caretRangeFromPoint) {
+            var cr = document.caretRangeFromPoint(ev.clientX, ev.clientY);
+            if (cr && t.contains(cr.startContainer)) {
+              var so = window.getSelection();
+              so.removeAllRanges();
+              so.addRange(cr);
+            }
+          }
+        }
       }
     });
     holder.addEventListener('input', function (ev) {
