@@ -628,6 +628,7 @@
       wsrc: e.wsrc || null, whtml: e.whtml || null,
       boxBg: e.boxBg || null, radius: e.radius || 0, shape: e.shape || null,
       boxImg: e.boxImg || null, boxImgId: e.boxImgId || null,
+      ph: e.ph || null,
       expId: e.expId || null, expUrl: e.expUrl || null,
       kids: e.kids && e.kids.length ? e.kids.map(projEl) : null };
   }
@@ -869,11 +870,13 @@
         n = document.createElement('h2');
         n.className = 'wp-block-heading ' + cls + (e.fs && !DISPLAY_FS[e.fs] ? ' has-' + e.fs + '-font-size' : '') + (e.color ? ' has-text-color has-' + e.color + '-color' : '');
         n.innerHTML = cleanInline(e.text);
+        if (e.ph && !(e.text && String(e.text).trim())) n.setAttribute('data-gogh-ph', e.ph);
         break;
       case 'para':
         n = document.createElement('p');
         n.className = cls + (e.fs && !DISPLAY_FS[e.fs] ? ' has-' + e.fs + '-font-size' : '') + (e.color ? ' has-text-color has-' + e.color + '-color' : '');
         n.innerHTML = cleanInline(e.text);
+        if (e.ph && !(e.text && String(e.text).trim())) n.setAttribute('data-gogh-ph', e.ph);
         break;
       case 'button':
         n = document.createElement('div');
@@ -4330,14 +4333,6 @@
           exitTextEdit();
           placeHandles(secK, jk);
           enterTextEdit(secK, jk);
-          var tk = editableTarget(secK, jk);
-          if (tk) {
-            var rgk = document.createRange();
-            rgk.selectNodeContents(tk);
-            var ssk = window.getSelection();
-            ssk.removeAllRanges();
-            ssk.addRange(rgk);
-          }
           return;
         }
       }
@@ -4629,8 +4624,8 @@
   side.querySelector('.gogh-writebtn').addEventListener('click', function () {
     // leaner than the Article starter: nothing to delete, only to replace
     var tpl = { name: '__write', minH: 420, els: [
-      { type: 'heading', x: 280, y: 70, w: 640, h: 70, text: 'Your title', fs: 'x-large' },
-      { type: 'para', x: 280, y: 170, w: 640, h: 60, text: 'Start writing.' },
+      { type: 'heading', x: 280, y: 70, w: 640, h: 70, text: '', ph: 'Your title', fs: 'x-large' },
+      { type: 'para', x: 280, y: 170, w: 640, h: 60, text: '', ph: 'Start writing.' },
     ] };
     var at = S.indexOf(viewportSection()) + 1;
     addSection(tpl, at);
@@ -4638,20 +4633,12 @@
     // the caret ready — calm mode fades the chrome automatically
     var secW = null;
     for (var wi = S.length - 1; wi >= 0; wi--) {
-      if (!S[wi].chrome && S[wi].els.length && S[wi].els[0].text === tpl.els[0].text) { secW = S[wi]; break; }
+      if (!S[wi].chrome && S[wi].els.length && S[wi].els[0].ph === tpl.els[0].ph) { secW = S[wi]; break; }
     }
     if (!secW) return;
     setTimeout(function () {
       placeHandles(secW, 0);
-      enterTextEdit(secW, 0);
-      var t2 = editableTarget(secW, 0);
-      if (t2) {
-        var sel2 = window.getSelection();
-        var rg = document.createRange();
-        rg.selectNodeContents(t2);
-        sel2.removeAllRanges();
-        sel2.addRange(rg); // heading pre-selected: typing replaces the placeholder
-      }
+      enterTextEdit(secW, 0); // ghost placeholder: just start typing
     }, 350);
   });
   side.querySelector('.gogh-stylebtn').addEventListener('click', function (ev) {

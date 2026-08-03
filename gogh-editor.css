@@ -2061,3 +2061,27 @@ html.gogh-editing .gogh-cardbox [class*="gogh-k-"] { cursor: grab; }
 html.gogh-textediting .gogh-selbox,
 html.gogh-textediting .gogh-grip { opacity: 0; pointer-events: none; }
 html.gogh-textediting .gogh-kid-selected { outline-color: transparent; }
+
+/* ghost placeholders: the hint exists only while the element is empty —
+   typing simply happens, nothing to delete */
+html.gogh-editing [data-gogh-ph]:empty::before {
+  content: attr(data-gogh-ph);
+  opacity: 0.38;
+  pointer-events: none;
+}
+
+/* while typing, the whole editing chrome steps back — toolbar, section
+   pills, inserter, height handles, chrome buttons. Words only. */
+.gogh-elbar, .gogh-secbar, .gogh-inserter, .gogh-hbar, .gogh-hgrip, .gogh-chromebtn, .gogh-convertbtn {
+  transition: opacity 0.15s ease;
+}
+html.gogh-textediting .gogh-elbar,
+html.gogh-textediting .gogh-secbar,
+html.gogh-textediting .gogh-inserter,
+html.gogh-textediting .gogh-hbar,
+html.gogh-textediting .gogh-hgrip,
+html.gogh-textediting .gogh-chromebtn,
+html.gogh-textediting .gogh-convertbtn {
+  opacity: 0;
+  pointer-events: none;
+}
