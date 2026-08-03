@@ -4623,9 +4623,9 @@
   }
   side.querySelector('.gogh-writebtn').addEventListener('click', function () {
     // leaner than the Article starter: nothing to delete, only to replace
-    var tpl = { name: '__write', minH: 420, els: [
-      { type: 'heading', x: 280, y: 70, w: 640, h: 70, text: '', ph: 'Your title', fs: 'x-large' },
-      { type: 'para', x: 280, y: 170, w: 640, h: 60, text: '', ph: 'Start writing.' },
+    // no heading: the PAGE title is the title — straight into prose
+    var tpl = { name: '__write', minH: 320, els: [
+      { type: 'para', x: 280, y: 60, w: 640, h: 60, text: '', ph: 'Start writing.' },
     ] };
     var at = S.indexOf(viewportSection()) + 1;
     addSection(tpl, at);
@@ -6617,6 +6617,22 @@
       if (!leaf) return;
       clearTimeout(syncT);
       syncT = setTimeout(function () { syncLeaf(leaf); }, 500);
+    });
+    holder.addEventListener('keydown', function (ev) {
+      // WordPress-feel Enter in the light editor too: a real paragraph gap
+      // (Shift+Enter keeps the single break); headings finish on Enter
+      if (!activeEd || ev.key !== 'Enter') return;
+      var tEl = activeEd.el;
+      if (/^H[1-6]$/.test(tEl.tagName)) {
+        ev.preventDefault();
+        stopEdit();
+        return;
+      }
+      if (!ev.shiftKey) {
+        ev.preventDefault();
+        document.execCommand('insertHTML', false, '<br><br>');
+        tEl.dispatchEvent(new Event('input', { bubbles: true }));
+      }
     });
     holder.addEventListener('focusout', function (ev) {
       // focus hopping WITHIN the holder must not stop editing: on anchor
