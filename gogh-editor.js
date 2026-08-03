@@ -5663,10 +5663,11 @@
     var bar = document.createElement('div');
     bar.className = 'gogh-pendbar';
     bar.innerHTML =
-      '<button type="button" class="gogh-btn gogh-btn-small gogh-pend-ff">\u2728 Make freeform</button>' +
+      (cfg.canConvert ? '<button type="button" class="gogh-btn gogh-btn-small gogh-pend-ff">\u2728 Make freeform</button>' : '') +
       '<button type="button" class="gogh-btn gogh-btn-small gogh-pend-rm" title="Remove">\u2715</button>';
     holder.appendChild(bar);
-    bar.querySelector('.gogh-pend-ff').addEventListener('click', function () {
+    var ffBtn = bar.querySelector('.gogh-pend-ff');
+    if (ffBtn) ffBtn.addEventListener('click', function () {
       convertPending(entry);
     });
     bar.querySelector('.gogh-pend-rm').addEventListener('click', function () {
@@ -5677,7 +5678,7 @@
     bindPending(entry);
     holder.scrollIntoView({ behavior: 'smooth', block: 'start' });
     refreshChip();
-    toast('\u201c' + entry.title + '\u201d added \u2014 click text to edit it, \u2728 to go freeform.', { ttl: 5000 });
+    toast('\u201c' + entry.title + '\u201d added \u2014 click text to edit it.' + (cfg.canConvert ? ' \u2728 to go freeform.' : ''), { ttl: 5000 });
     return entry;
   }
   function recordRecent(t, k) {
@@ -8380,7 +8381,10 @@
   }
   function placeConvertBtns() {
     clearConvertBtns();
-    if (!editing) return;
+    // v1 posture: converting arbitrary imported markup to freeform is a
+    // LABS feature (gogh_convert_enabled filter / ?gogh-convert=1) — its
+    // input space is the whole web. Native light editing stays on.
+    if (!editing || !cfg.canConvert) return;
     topBlockNodes().forEach(function (node) {
       var r = node.getBoundingClientRect();
       if (r.height < 24) return;
