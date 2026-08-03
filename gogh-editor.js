@@ -432,7 +432,15 @@
       if (e.type === 'box') {
         var bv = e.boxBg || '';
         if (bv && /^[a-z0-9-]+$/.test(bv)) bv = 'var(--wp--preset--color--' + bv + ')';
-        if (bv) extra += ' background: ' + bv + ';';
+        if (e.boxImg) {
+          var bimg = 'url("' + String(e.boxImg).replace(/"/g, '%22') + '") center / cover no-repeat';
+          if (bv) {
+            var btint = 'color-mix(in srgb, ' + bv + ' 45%, transparent)';
+            extra += ' background: linear-gradient(' + btint + ', ' + btint + '), ' + bimg + ';';
+          } else {
+            extra += ' background: ' + bimg + ';';
+          }
+        } else if (bv) extra += ' background: ' + bv + ';';
         if (e.radius) extra += ' border-radius: ' + (Math.round(e.radius / 12 * 100) / 100) + 'cqw;';
         if (e.shape && SHAPE_CSS[e.shape]) extra += SHAPE_CSS[e.shape];
       }
@@ -608,6 +616,7 @@
       btnBg: e.btnBg || null, btnText: e.btnText || null, btnHover: e.btnHover || null,
       wsrc: e.wsrc || null, whtml: e.whtml || null,
       boxBg: e.boxBg || null, radius: e.radius || 0, shape: e.shape || null,
+      boxImg: e.boxImg || null, boxImgId: e.boxImgId || null,
       expId: e.expId || null, expUrl: e.expUrl || null,
       kids: e.kids && e.kids.length ? e.kids.map(projEl) : null };
   }
@@ -1822,7 +1831,16 @@
     }
   }
   function buildLinkPanel(sec, i) {
-    var e = sec.els[i];
+    buildLinkPanelFor(sec, sec.els[i], function () {
+      renderSection(sec);
+      placeHandles(sec, i);
+      pushState();
+      buildLinkPanel(sec, i); // rebuild so active states stay honest
+    });
+  }
+  // the same panel serves top-level buttons AND buttons inside cards —
+  // the caller owns re-rendering and reselection
+  function buildLinkPanelFor(sec, e, reapply) {
     function swRow(label, key) {
       return '<div class="gogh-swlab">' + label + '</div><div class="gogh-swrow" data-key="' + key + '">' +
         '<button type="button" class="gogh-sw gogh-sw-none' + (!e[key] ? ' is-active' : '') + '" data-col="" title="Theme default"></button>' +
@@ -1845,12 +1863,6 @@
       swRow('Background', 'btnBg') +
       swRow('Text', 'btnText') +
       swRow('Hover background', 'btnHover');
-    function reapply() {
-      renderSection(sec);
-      placeHandles(sec, i);
-      pushState();
-      buildLinkPanel(sec, i); // rebuild so active states stay honest
-    }
     panel.querySelector('.gogh-style-solid').addEventListener('click', function () {
       if (e.ghost) { e.ghost = false; reapply(); }
     });
@@ -1900,7 +1912,16 @@
       themePalette().map(function (p) {
         return '<button type="button" class="gogh-sw' + (e.boxBg === p.slug ? ' is-active' : '') + '" data-col="' + p.slug + '"' +
           ' style="background: var(--wp--preset--color--' + p.slug + ')" title="' + p.slug + '"></button>';
-      }).join('') + '</div>';
+      }).join('') + '</div>' +
+      '<div class="gogh-swlab">Image \u2014 the colour above becomes its tint</div>' +
+      '<div class="gogh-panel-row">' +
+      '<input type="url" class="gogh-input gogh-boximg-url" placeholder="https://\u2026" value="' + escAttr(e.boxImg || '') + '" />' +
+      '<button type="button" class="gogh-btn gogh-btn-small gogh-boximg-apply">Apply</button>' +
+      '</div>' +
+      '<div class="gogh-panel-row">' +
+      (cfg.canUpload ? '<label class="gogh-btn gogh-btn-small gogh-upload">Upload<input type="file" accept="image/*" hidden /></label>' : '') +
+      (e.boxImg ? '<button type="button" class="gogh-btn gogh-btn-small gogh-boximg-clear">Remove image</button>' : '') +
+      '</div>';
     function reapply() {
       renderSection(sec);
       placeHandles(sec, i);
@@ -1919,6 +1940,42 @@
       swBtn.addEventListener('click', function () {
         e.boxBg = swBtn.dataset.col || null;
         reapply();
+      });
+    });
+    panel.querySelector('.gogh-boximg-apply').addEventListener('click', function () {
+      var u = panel.querySelector('.gogh-boximg-url').value.trim();
+      e.boxImg = u || null;
+      if (!u) e.boxImgId = null;
+      reapply();
+    });
+    var bclear = panel.querySelector('.gogh-boximg-clear');
+    if (bclear) bclear.addEventListener('click', function () {
+      e.boxImg = null;
+      e.boxImgId = null;
+      reapply();
+    });
+    var bfile = panel.querySelector('.gogh-upload input[type="file"]');
+    if (bfile) bfile.addEventListener('change', function () {
+      if (!bfile.files.length) return;
+      var fd = new FormData();
+      fd.append('file', bfile.files[0]);
+      var blabel = panel.querySelector('.gogh-upload');
+      blabel.firstChild.textContent = 'Uploading\u2026';
+      fetch(cfg.mediaUrl, {
+        method: 'POST',
+        headers: { 'X-WP-Nonce': cfg.nonce },
+        credentials: 'same-origin',
+        body: fd,
+      }).then(function (res) {
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        return res.json();
+      }).then(function (item) {
+        e.boxImg = item.source_url;
+        e.boxImgId = item.id;
+        reapply();
+      }).catch(function (err) {
+        blabel.firstChild.textContent = 'Upload failed';
+        console.error('gogh upload failed:', err);
       });
     });
   }
@@ -2412,7 +2469,7 @@
       { type: 'button', x: 72, y: 470, w: 172, h: 52, text: 'Get started' },
       { type: 'button', x: 264, y: 470, w: 160, h: 52, text: 'See how', ghost: true },
     ] },
-    { starter: true, name: 'Feature cards', minH: 600, els: [
+    { starter: true, retired: true, name: 'Feature cards (classic)', minH: 600, els: [
       { type: 'heading', x: 72, y: 60, w: 560, h: 64, text: 'Three reasons to care' },
       { type: 'box', x: 72, y: 168, w: 330, h: 340, boxBg: 'color-mix(in srgb, var(--wp--preset--color--contrast, #000) 5%, var(--wp--preset--color--base, transparent))', radius: 20 },
       { type: 'box', x: 435, y: 168, w: 330, h: 340, boxBg: 'color-mix(in srgb, var(--wp--preset--color--contrast, #000) 5%, var(--wp--preset--color--base, transparent))', radius: 20 },
@@ -2440,6 +2497,37 @@
       { type: 'heading', x: 110, y: 104, w: 560, h: 66, text: 'Ready when you are' },
       { type: 'para', x: 110, y: 180, w: 520, h: 48, text: 'One honest nudge. Keep it short, keep it warm.' },
       { type: 'button', x: 880, y: 118, w: 210, h: 56, text: 'Let\u2019s go' },
+    ] },
+    { starter: true, name: 'Article', minH: 620, els: [
+      { type: 'heading', x: 280, y: 70, w: 640, h: 70, text: 'Write something worth reading', fs: 'x-large' },
+      { type: 'para', x: 280, y: 170, w: 640, h: 66, text: 'A comfortable reading column, the width your theme uses for posts. Gogh is not only for splashy pages \u2014 it is a pleasant place to just write.' },
+      { type: 'para', x: 280, y: 260, w: 640, h: 66, text: 'Add paragraphs, pull a quote out to the side when you need one, and drop an image between thoughts. Everything still publishes as clean WordPress blocks.' },
+      { type: 'para', x: 280, y: 350, w: 640, h: 66, text: 'And because it is a canvas, the moment an article needs something bolder \u2014 a full-width image, a card, a big number \u2014 you can simply place it.' },
+      { type: 'button', x: 280, y: 460, w: 200, h: 54, text: 'Keep reading', ghost: true },
+    ] },
+    { starter: true, name: 'Feature cards', minH: 560, els: [
+      { type: 'heading', x: 100, y: 56, w: 1000, h: 60, text: 'Three reasons it works', fs: 'x-large', align: 'center' },
+      { type: 'box', x: 100, y: 170, w: 320, h: 330, radius: 18,
+        boxBg: 'color-mix(in srgb, var(--wp--preset--color--contrast, #000) 7%, var(--wp--preset--color--base, transparent))',
+        kids: [
+          { type: 'badge', x: 28, y: 28, w: 120, h: 44, text: '\u2605 One' },
+          { type: 'heading', x: 28, y: 96, w: 264, h: 44, text: 'Real cards', fs: 'large' },
+          { type: 'para', x: 28, y: 152, w: 264, h: 100, text: 'Everything in this card belongs to it \u2014 drag the card and it all comes along.' },
+        ] },
+      { type: 'box', x: 440, y: 170, w: 320, h: 330, radius: 18,
+        boxBg: 'color-mix(in srgb, var(--wp--preset--color--contrast, #000) 7%, var(--wp--preset--color--base, transparent))',
+        kids: [
+          { type: 'badge', x: 28, y: 28, w: 120, h: 44, text: '\u2605 Two' },
+          { type: 'heading', x: 28, y: 96, w: 264, h: 44, text: 'Drop to add', fs: 'large' },
+          { type: 'para', x: 28, y: 152, w: 264, h: 100, text: 'Drag any element inside \u2014 the card glows and takes it in. Drag it out to set it free.' },
+        ] },
+      { type: 'box', x: 780, y: 170, w: 320, h: 330, radius: 18,
+        boxBg: 'color-mix(in srgb, var(--wp--preset--color--contrast, #000) 7%, var(--wp--preset--color--base, transparent))',
+        kids: [
+          { type: 'badge', x: 28, y: 28, w: 120, h: 44, text: '\u2605 Three' },
+          { type: 'heading', x: 28, y: 96, w: 264, h: 44, text: 'Mobile-proof', fs: 'large' },
+          { type: 'para', x: 28, y: 152, w: 264, h: 100, text: 'On phones each card stacks as one piece \u2014 nothing inside ever escapes.' },
+        ] },
     ] },
     { starter: true, name: 'Photo cards', minH: 720, els: [
       { type: 'image', x: 100, y: 40, w: 470, h: 620, cool: true },
@@ -2733,6 +2821,9 @@
       query = this.value.trim().toLowerCase();
       applyFilter();
     });
+    // cap the first screen NOW — pattern loading used to be the only
+    // early applyFilter trigger, so a 9th starter leaked past the cap
+    applyFilter();
     // ---- pattern card machinery (lazy hydration) ----
     var hydrate = function (b, p) {
       if (b.__hydrated) return;
@@ -3962,6 +4053,27 @@
     kidEd = null;
     pushState();
   }
+  function openKidLinkPanel(sec, ci, j) {
+    var hostEl = sec.els[ci];
+    var kid = hostEl && hostEl.kids && hostEl.kids[j];
+    if (!kid) return;
+    buildLinkPanelFor(sec, kid, function () {
+      renderSection(sec);
+      pushState();
+      var card = sec.nodes[ci];
+      var kn2 = card && card.querySelector('.gogh-k-' + (j + 1));
+      if (kn2) {
+        clearKidSel();
+        kidSel = { sec: sec, ci: ci, j: j, node: kn2 };
+        kn2.classList.add('gogh-kid-selected');
+      }
+      openKidLinkPanel(sec, ci, j);
+    });
+    var card0 = sec.nodes[ci];
+    var kn0 = card0 && card0.querySelector('.gogh-k-' + (j + 1));
+    placePanelNear(kn0 || card0 || sec.sectionEl);
+    panelOpen = true;
+  }
   function kidHostOf(card) {
     var found = null;
     S.some(function (s2) {
@@ -4018,11 +4130,32 @@
     kidDrag.moved = true;
     kid.x = Math.round(Math.max(0, Math.min(hostEl.w - kid.w, kidDrag.x0 + dx)));
     kid.y = Math.round(Math.max(0, Math.min(Math.max(0, hostEl.h - kid.h), kidDrag.y0 + dy)));
-    // leaving intent: pointer beyond the card's box
+    // leaving intent: pointer beyond the card's box. The kid itself is
+    // clamped inside the card's grid, so a GHOST follows the pointer out —
+    // without it, the kid pinning at the wall reads as "can't leave"
     var cardR = sec.nodes[kidDrag.ci].getBoundingClientRect();
-    var outside = ev.clientX < cardR.left - 12 || ev.clientX > cardR.right + 12 ||
-      ev.clientY < cardR.top - 12 || ev.clientY > cardR.bottom + 12;
+    var outside = ev.clientX < cardR.left - 4 || ev.clientX > cardR.right + 4 ||
+      ev.clientY < cardR.top - 4 || ev.clientY > cardR.bottom + 4;
     sec.nodes[kidDrag.ci].classList.toggle('gogh-card-leaving', outside);
+    if (outside && !kidDrag.ghost) {
+      var kg = kidDrag.node.cloneNode(true);
+      kg.classList.remove('gogh-kid-selected');
+      kg.className += ' gogh-kid-ghost';
+      var kr = kidDrag.node.getBoundingClientRect();
+      kg.style.width = kr.width + 'px';
+      kg.style.height = kr.height + 'px';
+      document.body.appendChild(kg);
+      kidDrag.ghost = kg;
+      kidDrag.node.style.visibility = 'hidden';
+    } else if (!outside && kidDrag.ghost) {
+      kidDrag.ghost.remove();
+      kidDrag.ghost = null;
+      kidDrag.node.style.visibility = '';
+    }
+    if (kidDrag.ghost) {
+      kidDrag.ghost.style.left = ev.clientX + 'px';
+      kidDrag.ghost.style.top = ev.clientY + 'px';
+    }
     resolveAndApply(sec);
   });
   document.addEventListener('pointerup', function (ev) {
@@ -4032,12 +4165,13 @@
     var sec = kd.sec;
     var cardNode = sec.nodes[kd.ci];
     if (cardNode) cardNode.classList.remove('gogh-card-leaving');
+    if (kd.ghost) { kd.ghost.remove(); kd.node.style.visibility = ''; }
     var hostEl = sec.els[kd.ci];
     if (!hostEl || !hostEl.kids) return;
     if (kd.moved) {
       var cardR = cardNode.getBoundingClientRect();
-      var outside = ev.clientX < cardR.left - 12 || ev.clientX > cardR.right + 12 ||
-        ev.clientY < cardR.top - 12 || ev.clientY > cardR.bottom + 12;
+      var outside = ev.clientX < cardR.left - 4 || ev.clientX > cardR.right + 4 ||
+        ev.clientY < cardR.top - 4 || ev.clientY > cardR.bottom + 4;
       if (outside) {
         // the kid leaves the card, landing under the pointer in page space
         var kid = hostEl.kids.splice(kd.j, 1)[0];
@@ -4056,6 +4190,9 @@
         return;
       }
       pushState();
+    } else if (!kd.already) {
+      var kb = hostEl.kids[kd.j];
+      if (kb && kb.type === 'button') openKidLinkPanel(sec, kd.ci, kd.j);
     } else if (kd.already) {
       // second click on a selected kid: edit its text in place
       var kid2 = hostEl.kids[kd.j];
