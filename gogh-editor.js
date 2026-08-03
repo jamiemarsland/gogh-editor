@@ -4623,8 +4623,9 @@
   function startWriting() {
     // leaner than the Article starter: nothing to delete, only to replace
     // no heading: the PAGE title is the title — straight into prose
-    var tpl = { name: '__write', minH: 320, els: [
-      { type: 'para', x: 280, y: 60, w: 640, h: 60, text: '', ph: 'Start writing.' },
+    // prose starts where a post's first line would: tight under the title
+    var tpl = { name: '__write', minH: 120, els: [
+      { type: 'para', x: 280, y: 12, w: 640, h: 60, text: '', ph: 'Start writing.' },
     ] };
     var at = S.indexOf(viewportSection()) + 1;
     addSection(tpl, at);
