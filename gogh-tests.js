@@ -1760,6 +1760,39 @@
       return 'upload + media grid present';
     });
 
+    // ---- pasted cards: never squashed into buttons, text editable in place ----
+    test('card-shaped anchors scan as widgets and their text edits in place', function () {
+      G.addHtmlSection('<div style="padding:40px;background:#eee">' +
+        '<a href="#" style="display:flex;align-items:flex-end;min-height:420px;padding:30px;background:#333;color:#fff;border-radius:20px;text-decoration:none">' +
+        '<div><h2 style="margin:0">Card headline</h2><p>Card copy.</p></div></a></div>', null);
+      var entry = G.pending()[G.pending().length - 1];
+      entry.el.querySelector('.gogh-pend-ff').click();
+      var s0 = contentSecs()[contentSecs().length - 1];
+      var types = s0.els.map(function (e) { return e.type; });
+      expect(types.indexOf('button') === -1, 'card anchor squashed into a button: ' + types.join(','));
+      var wi = s0.els.findIndex(function (e) { return e.type === 'widget'; });
+      expect(wi !== -1, 'no widget produced: ' + types.join(','));
+      var node = s0.nodes[wi];
+      var h2 = node.querySelector('h2');
+      expect(h2, 'no heading inside widget');
+      var r = h2.getBoundingClientRect();
+      var pv2 = function (type) {
+        h2.dispatchEvent(new PointerEvent(type, { bubbles: true, cancelable: true, clientX: r.left + 10, clientY: r.top + 8, pointerId: 91, button: 0, buttons: type === 'pointerup' ? 0 : 1 }));
+      };
+      pv2('pointerdown'); pv2('pointerup');
+      pv2('pointerdown'); pv2('pointerup');
+      expect(h2.isContentEditable, 'second click did not enter widget text edit');
+      h2.textContent = 'Edited headline';
+      h2.dispatchEvent(new Event('input', { bubbles: true }));
+      document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+      var e = s0.els[wi];
+      expect(e.wsrc.indexOf('Edited headline') !== -1, 'edit not synced to widget source');
+      expect(e.wsrc.indexOf('contenteditable') === -1, 'contenteditable residue in source');
+      expect(!h2.isContentEditable, 'Escape did not exit');
+      G.deleteSection(G.sections().indexOf(s0));
+      return 'widget cards: intact, draggable whole, text editable';
+    });
+
     // ---- page style: curated template switcher ----
     test('page style panel lists curated options with the current one marked', function () {
       expect(q('.gogh-pagestylebtn'), 'no palette button');

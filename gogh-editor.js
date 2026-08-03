@@ -1436,14 +1436,54 @@
   // a second click (or a click while selected) enters text editing.
   var pendingDrag = null;
   var textEditing = null; // {sec, i, node, target}
+  // pasted-HTML widgets carry identical live/source markup — those we can
+  // edit in place and write straight back. Block-backed widgets (posts)
+  // must never be overwritten from their DOM, so they stay read-only.
+  function widgetEditableLeaf(sec, i, ev) {
+    var e = sec.els[i];
+    if (e.type !== 'widget' || !e.wsrc || e.wsrc !== e.whtml || !ev) return null;
+    var node = sec.nodes[i];
+    var at = (ev.target instanceof Element && node.contains(ev.target))
+      ? ev.target
+      : document.elementFromPoint(ev.clientX, ev.clientY);
+    if (!at || !node.contains(at)) return null;
+    var SEL = 'h1,h2,h3,h4,h5,h6,p,li,figcaption,blockquote,dt,dd,span,a,button,em,strong,small';
+    var leaf = at.closest ? at.closest(SEL) : null;
+    while (leaf && node.contains(leaf) && leaf !== node) {
+      var direct = [].some.call(leaf.childNodes, function (n2) {
+        return n2.nodeType === 3 && n2.textContent.trim();
+      });
+      if (direct) return leaf;
+      leaf = leaf.parentElement && leaf.parentElement !== node ? leaf.parentElement.closest(SEL) : null;
+    }
+    return null;
+  }
+  function syncWidgetEdit() {
+    if (!textEditing || !textEditing.widget) return;
+    var e = textEditing.sec.els[textEditing.i];
+    var clone = textEditing.node.cloneNode(true);
+    [].slice.call(clone.querySelectorAll('[contenteditable]')).forEach(function (n2) { n2.removeAttribute('contenteditable'); });
+    var html = clone.innerHTML;
+    e.whtml = html;
+    e.wsrc = html;
+    clearTimeout(textTimer);
+    textTimer = setTimeout(pushState, 800);
+  }
   function enterTextEdit(sec, i, ev) {
-    var t = editableTarget(sec, i);
+    var widgetLeaf = widgetEditableLeaf(sec, i, ev);
+    var t = widgetLeaf || editableTarget(sec, i);
     if (!t) return;
     exitTextEdit();
     var e = sec.els[i];
-    t.contentEditable = (e.type === 'heading' || e.type === 'para') ? 'true' : 'plaintext-only';
+    t.contentEditable = (widgetLeaf || e.type === 'heading' || e.type === 'para') ? 'true' : 'plaintext-only';
     sec.nodes[i].classList.add('gogh-textedit');
-    textEditing = { sec: sec, i: i, node: sec.nodes[i], target: t };
+    textEditing = { sec: sec, i: i, node: sec.nodes[i], target: t, widget: !!widgetLeaf };
+    if (widgetLeaf) {
+      t.addEventListener('input', syncWidgetEdit);
+      var lk = t.closest('a');
+      textEditing.link = lk;
+      if (lk) lk.addEventListener('click', preventNav);
+    }
     t.focus();
     if (ev && document.caretRangeFromPoint) {
       var cr = document.caretRangeFromPoint(ev.clientX, ev.clientY);
@@ -1457,6 +1497,11 @@
   function exitTextEdit() {
     if (!textEditing) return;
     var t = textEditing.target;
+    if (textEditing.widget) {
+      syncWidgetEdit();
+      t.removeEventListener('input', syncWidgetEdit);
+      if (textEditing.link) textEditing.link.removeEventListener('click', preventNav);
+    }
     t.contentEditable = 'false';
     if (textEditing.node.classList) textEditing.node.classList.remove('gogh-textedit');
     if (document.activeElement === t) t.blur();
@@ -6978,6 +7023,10 @@
       var bgc = cs.backgroundColor;
       var hasBg = bgc && bgc !== 'rgba(0, 0, 0, 0)' && bgc !== 'transparent';
       var hasBorder = parseFloat(cs.borderTopWidth) > 0 && cs.borderTopStyle !== 'none';
+      // an anchor holding headings/paragraphs, or standing card-tall, is a
+      // CARD — squashing it into a button label mangles its content
+      if (dom.querySelector('h1,h2,h3,h4,h5,h6,p')) return false;
+      if (dom.getBoundingClientRect().height > 120) return false;
       return (hasBg || hasBorder) && (dom.textContent || '').trim().length < 60 && !dom.querySelector('img');
     }
     function leafFrom(dom, markup) {
