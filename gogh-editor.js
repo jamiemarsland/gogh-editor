@@ -1434,7 +1434,7 @@
     elbar.style.top = (ar.top + window.scrollY - 14) + 'px';
     if (e.type === 'button' || e.type === 'image' || e.type === 'box') {
       ctxBtn.innerHTML = CTX_ICONS[e.type === 'button' ? 'link' : e.type === 'box' ? 'shape' : 'image'];
-      ctxBtn.title = e.type === 'button' ? 'Button link' : e.type === 'box' ? 'Shape & colour' : 'Choose image';
+      ctxBtn.title = e.type === 'button' ? 'Button link' : e.type === 'box' ? 'Shape, colour & image' : e.type === 'widget' ? 'Block settings & link' : 'Choose image';
       ctxBtn.style.display = '';
     } else {
       ctxBtn.style.display = 'none';
