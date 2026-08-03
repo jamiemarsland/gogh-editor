@@ -1510,6 +1510,13 @@
   function bindSelect(sec, i) {
     var node = sec.nodes[i];
     node.addEventListener('dragstart', function (ev) { if (editing) ev.preventDefault(); });
+    // while editing, clicks select and edit — they never follow links
+    // (a pasted card's href="#" was scrolling the page to the top)
+    node.addEventListener('click', function (ev) {
+      if (!editing) return;
+      var a2 = ev.target.closest && ev.target.closest('a');
+      if (a2 && node.contains(a2)) ev.preventDefault();
+    });
     node.addEventListener('pointerdown', function (ev) {
       if (!editing || drag || resize) return;
       if (textEditing && textEditing.node === node) return; // native caret/selection
@@ -1690,6 +1697,7 @@
     if (e.type === 'button') buildLinkPanel(sec, i);
     else if (e.type === 'image') buildImagePanel(sec, i);
     else if (e.type === 'box') buildBoxPanel(sec, i);
+    else if (e.type === 'widget') buildWidgetPanel(sec, i);
     placePanelNear(sec.nodes[i]);
     panelOpen = true;
   }
@@ -1750,6 +1758,39 @@
     input.focus();
   }
 
+  function buildWidgetPanel(sec, i) {
+    var e = sec.els[i];
+    var node = sec.nodes[i];
+    var editableSrc = e.wsrc != null && e.wsrc === e.whtml;
+    var a = editableSrc ? node.querySelector('a') : null;
+    panel.innerHTML =
+      '<div class="gogh-panel-title">Imported block</div>' +
+      (a
+        ? '<div class="gogh-swlab">Link</div><div class="gogh-panel-row">' +
+          '<input type="url" class="gogh-input" placeholder="https://\u2026" />' +
+          '<button type="button" class="gogh-btn gogh-btn-small gogh-apply">Apply</button></div>' +
+          '<div class="gogh-panel-hint">Click its text to edit the words in place.</div>'
+        : '<div class="gogh-panel-hint">' + (editableSrc
+            ? 'Click text to edit it in place.'
+            : 'This block renders live WordPress content.') + '</div>');
+    if (a) {
+      var inp = panel.querySelector('input');
+      var href = a.getAttribute('href');
+      inp.value = href && href !== '#' ? href : '';
+      panel.querySelector('.gogh-apply').addEventListener('click', function () {
+        var url = inp.value.trim();
+        if (url && !/^https?:\/\//i.test(url) && url[0] !== '/' && url[0] !== '#') url = 'https://' + url;
+        a.setAttribute('href', url || '#');
+        var clone = node.cloneNode(true);
+        [].slice.call(clone.querySelectorAll('[contenteditable]')).forEach(function (n2) { n2.removeAttribute('contenteditable'); });
+        e.whtml = clone.innerHTML;
+        e.wsrc = clone.innerHTML;
+        pushState();
+        closePanel();
+        toast(url ? 'Card now links to ' + url : 'Link cleared.');
+      });
+    }
+  }
   function buildLinkPanel(sec, i) {
     var e = sec.els[i];
     function swRow(label, key) {
@@ -6000,13 +6041,15 @@
         editPendingLink(entry, btnLink, leafOf(btnLink), syncLeaf);
         return;
       }
-      // a plain text link inside editable text: edit or remove it
-      if (a && !a.closest('.gogh-pendbar') && leafOf(a)) {
+      var t = ev.target.closest &&
+        ev.target.closest('h1,h2,h3,h4,h5,h6,p,figcaption');
+      // a plain text link inside editable text: edit or remove it. But a
+      // CARD — an anchor wrapping whole headings/paragraphs — edits its
+      // WORDS on text clicks; its link is edited from the padding.
+      if (a && !a.closest('.gogh-pendbar') && leafOf(a) && !(t && a.contains(t))) {
         editTextLink(entry, a, leafOf(a), syncLeaf);
         return;
       }
-      var t = ev.target.closest &&
-        ev.target.closest('h1,h2,h3,h4,h5,h6,p,figcaption');
       if (!t || t.closest('.gogh-pendbar') || !leafOf(t)) return;
       if (activeEd && activeEd.el !== t) stopEdit();
       if (t.getAttribute('contenteditable') !== 'true') {
