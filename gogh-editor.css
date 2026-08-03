@@ -2041,8 +2041,8 @@ html.gogh-editing .gogh-cardbox [class*="gogh-k-"] { cursor: grab; }
 .gogh-cardbox.gogh-selected::after, .gogh-cardbox.gogh-card-glow::after {
   content: 'Card';
   position: absolute;
-  top: -12px;
-  left: 12px;
+  top: 10px;
+  left: 10px;
   z-index: 5;
   padding: 2px 10px;
   border-radius: 999px;
