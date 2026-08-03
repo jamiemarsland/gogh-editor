@@ -1760,6 +1760,50 @@
       return 'upload + media grid present';
     });
 
+    // ---- cards: a box with kids is a mini-section ----
+    test('card: kids render inside, publish nested, hold together on mobile', function () {
+      var s0 = sec();
+      s0.els.push({ type: 'box', x: 100, y: 60, w: 500, h: 360, boxBg: '#202531', radius: 18,
+        kids: [
+          { type: 'heading', x: 40, y: 40, w: 420, h: 50, text: 'Card headline' },
+          { type: 'para', x: 40, y: 110, w: 420, h: 60, text: 'Card copy inside.' },
+          { type: 'button', x: 40, y: 250, w: 180, h: 50, text: 'Card CTA' },
+        ] });
+      G.renderSection(s0);
+      var i = s0.els.length - 1;
+      var card = s0.nodes[i];
+      expect(card.classList.contains('gogh-card'), 'card class missing');
+      expect(card.querySelector('.gogh-k-1') && card.querySelector('.gogh-k-3'), 'kids not rendered inside the card');
+      var ccs = getComputedStyle(card);
+      expect(ccs.display === 'grid', 'card is not its own grid');
+      expect(ccs.gridTemplateColumns.indexOf('px') !== -1 || /fr/.test(s0.styleEl.textContent), 'card grid not emitted');
+      var kh = card.querySelector('.gogh-k-1');
+      expect(getComputedStyle(kh).gridArea !== 'auto', 'kid has no grid placement');
+      // publish: nested blocks + kids in attrs model
+      var v3 = G.buildV3();
+      expect(v3.indexOf('gogh-card') !== -1, 'card class not published');
+      expect(/gogh-k-1/.test(v3), 'kid classes not published');
+      expect(v3.indexOf('"kids":[{') !== -1, 'kids missing from model attrs');
+      // published nesting: the kid heading sits INSIDE the card group div
+      var cardAt = v3.indexOf('gogh-card"');
+      var kidAt = v3.indexOf('Card headline</h2>');
+      expect(cardAt !== -1 && kidAt > cardAt, 'kid emitted outside the card (markup anchors)');
+      // mobile: kids stay inside the card while the section stacks
+      var wrap = s0.sectionEl.closest('.gogh-wrap');
+      wrap.style.width = '375px'; wrap.style.minWidth = '0';
+      void wrap.offsetWidth;
+      var cr = card.getBoundingClientRect();
+      var hr = kh.getBoundingClientRect();
+      expect(hr.top >= cr.top - 1 && hr.bottom <= cr.bottom + 1 && hr.left >= cr.left - 1,
+        'kid escaped the card on mobile');
+      expect(cr.width < 380, 'card did not stack to the mobile column');
+      wrap.style.width = ''; wrap.style.minWidth = '';
+      void wrap.offsetWidth;
+      s0.els.pop();
+      G.renderSection(s0);
+      return 'nested render + nested publish + mobile integrity';
+    });
+
     // ---- pasted cards: never squashed into buttons, text editable in place ----
     test('card-shaped anchors scan as widgets and their text edits in place', function () {
       G.addHtmlSection('<div style="padding:40px;background:#eee">' +

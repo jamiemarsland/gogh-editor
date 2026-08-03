@@ -279,9 +279,9 @@
       : (minH || MIN_H) - PAD;
     return Math.max(minH || MIN_H, bottom + PAD);
   }
-  function solve(els, minH) {
+  function solve(els, minH, dw) {
     var H = designH(els, minH);
-    var xs = cluster([0, W].concat(els.reduce(function (a, e) { return a.concat([e.x, e.x + e.w]); }, [])));
+    var xs = cluster([0, dw || W].concat(els.reduce(function (a, e) { return a.concat([e.x, e.x + e.w]); }, [])));
     var ys = cluster([0, H].concat(els.reduce(function (a, e) { return a.concat([e.y, e.y + e.h]); }, [])));
     var pct = function (v) { return +(v / W * 100).toFixed(2); };
     return {
@@ -422,6 +422,65 @@
     return 'url("data:image/svg+xml,' + encodeURIComponent(svg) + '")';
   }
 
+  // one element's scoped rules — shared by sections (.gogh-el-N) and the
+  // kids inside a card (.gogh-k-N)
+  function emitElCSS(out, sec, clsSel, e, i, a) {
+      var extra = TYPE_RULES[e.type];
+      if (e.type === 'image') {
+        extra += e.src ? ' overflow: hidden;' : ' ' + imageBackground(e);
+      }
+      if (e.type === 'box') {
+        var bv = e.boxBg || '';
+        if (bv && /^[a-z0-9-]+$/.test(bv)) bv = 'var(--wp--preset--color--' + bv + ')';
+        if (bv) extra += ' background: ' + bv + ';';
+        if (e.radius) extra += ' border-radius: ' + (Math.round(e.radius / 12 * 100) / 100) + 'cqw;';
+        if (e.shape && SHAPE_CSS[e.shape]) extra += SHAPE_CSS[e.shape];
+      }
+      if (e.rot) extra += ' transform: rotate(' + e.rot + 'deg);';
+      if ((e.align === 'center' || e.align === 'right') && (e.type === 'heading' || e.type === 'para')) extra += ' text-align: ' + e.align + ';';
+      // display sizes live in the scoped stylesheet, not theme presets
+      if (DISPLAY_FS[e.fs] && (e.type === 'heading' || e.type === 'para')) {
+        extra += ' font-size: ' + DISPLAY_FS[e.fs] + '; line-height: 1.05;';
+      }
+      if (e.tf) {
+        // captured look of pasted HTML: emitted after the theme's presets so
+        // the paste wins until the user picks a theme size/colour (which
+        // clears the matching field)
+        var tfd = [];
+        if (e.tf.ff) tfd.push('font-family: ' + e.tf.ff);
+        if (e.tf.fs2) {
+          // container units scale the paste's text down on phones with the
+          // section; the floor keeps small text readable (big text scales,
+          // tiny text holds its size)
+          var dpx = Math.round(e.tf.fs2 * 12);
+          tfd.push('font-size: max(' + e.tf.fs2 + 'cqw, ' + Math.min(dpx, 15) + 'px) !important');
+        } else if (e.tf.fs) {
+          tfd.push('font-size: ' + e.tf.fs + 'px !important');
+        }
+        if (e.tf.fw) tfd.push('font-weight: ' + e.tf.fw);
+        if (e.tf.fst) tfd.push('font-style: ' + e.tf.fst);
+        if (e.tf.lh) tfd.push('line-height: ' + e.tf.lh);
+        if (e.tf.ls2 != null) tfd.push('letter-spacing: ' + e.tf.ls2 + 'em');
+        else if (e.tf.ls) tfd.push('letter-spacing: ' + e.tf.ls + 'px');
+        if (e.tf.tt) tfd.push('text-transform: ' + e.tf.tt);
+        if (e.tf.col) tfd.push('color: ' + e.tf.col + ' !important');
+        if (e.tf.bg) tfd.push('background: ' + e.tf.bg + ' !important');
+        if (e.tf.rad != null) tfd.push('border-radius: ' + e.tf.rad + 'px');
+        if (tfd.length) {
+          out.push(sec + clsSel +
+            (e.type === 'button' ? ' .wp-block-button__link' : '') +
+            ' { ' + tfd.join('; ') + '; }');
+        }
+      }
+      if (e.type === 'button' && e.btnHover) {
+        out.push(sec + clsSel + ' .wp-block-button__link:hover { background-color: var(--wp--preset--color--' + e.btnHover + ') !important; }');
+      }
+      out.push(sec + clsSel + ' { grid-area: ' + a.r1 + ' / ' + a.c1 + ' / ' + a.r2 + ' / ' + a.c2 +
+        '; z-index: ' + (i + 1) + '; ' + extra + ' }');
+      if (e.type === 'image' && e.src) {
+        out.push(sec + clsSel + ' img { width: 100%; height: 100%; object-fit: cover; display: block; border-radius: inherit; }');
+      }
+  }
   function buildCSS(els, scope, minH, opts) {
     opts = opts || {};
     var g = solve(els, minH);
@@ -465,62 +524,23 @@
         '-webkit-mask-size: 100% 100%; mask-size: 100% 100%; -webkit-mask-repeat: no-repeat; mask-repeat: no-repeat; }');
     }
     els.forEach(function (e, i) {
-      var a = g.areas[i];
-      var extra = TYPE_RULES[e.type];
-      if (e.type === 'image') {
-        extra += e.src ? ' overflow: hidden;' : ' ' + imageBackground(e);
-      }
-      if (e.type === 'box') {
-        var bv = e.boxBg || '';
-        if (bv && /^[a-z0-9-]+$/.test(bv)) bv = 'var(--wp--preset--color--' + bv + ')';
-        if (bv) extra += ' background: ' + bv + ';';
-        if (e.radius) extra += ' border-radius: ' + (Math.round(e.radius / 12 * 100) / 100) + 'cqw;';
-        if (e.shape && SHAPE_CSS[e.shape]) extra += SHAPE_CSS[e.shape];
-      }
-      if (e.rot) extra += ' transform: rotate(' + e.rot + 'deg);';
-      if ((e.align === 'center' || e.align === 'right') && (e.type === 'heading' || e.type === 'para')) extra += ' text-align: ' + e.align + ';';
-      // display sizes live in the scoped stylesheet, not theme presets
-      if (DISPLAY_FS[e.fs] && (e.type === 'heading' || e.type === 'para')) {
-        extra += ' font-size: ' + DISPLAY_FS[e.fs] + '; line-height: 1.05;';
-      }
-      if (e.tf) {
-        // captured look of pasted HTML: emitted after the theme's presets so
-        // the paste wins until the user picks a theme size/colour (which
-        // clears the matching field)
-        var tfd = [];
-        if (e.tf.ff) tfd.push('font-family: ' + e.tf.ff);
-        if (e.tf.fs2) {
-          // container units scale the paste's text down on phones with the
-          // section; the floor keeps small text readable (big text scales,
-          // tiny text holds its size)
-          var dpx = Math.round(e.tf.fs2 * 12);
-          tfd.push('font-size: max(' + e.tf.fs2 + 'cqw, ' + Math.min(dpx, 15) + 'px) !important');
-        } else if (e.tf.fs) {
-          tfd.push('font-size: ' + e.tf.fs + 'px !important');
-        }
-        if (e.tf.fw) tfd.push('font-weight: ' + e.tf.fw);
-        if (e.tf.fst) tfd.push('font-style: ' + e.tf.fst);
-        if (e.tf.lh) tfd.push('line-height: ' + e.tf.lh);
-        if (e.tf.ls2 != null) tfd.push('letter-spacing: ' + e.tf.ls2 + 'em');
-        else if (e.tf.ls) tfd.push('letter-spacing: ' + e.tf.ls + 'px');
-        if (e.tf.tt) tfd.push('text-transform: ' + e.tf.tt);
-        if (e.tf.col) tfd.push('color: ' + e.tf.col + ' !important');
-        if (e.tf.bg) tfd.push('background: ' + e.tf.bg + ' !important');
-        if (e.tf.rad != null) tfd.push('border-radius: ' + e.tf.rad + 'px');
-        if (tfd.length) {
-          out.push(sec + ' .gogh-el-' + (i + 1) +
-            (e.type === 'button' ? ' .wp-block-button__link' : '') +
-            ' { ' + tfd.join('; ') + '; }');
-        }
-      }
-      if (e.type === 'button' && e.btnHover) {
-        out.push(sec + ' .gogh-el-' + (i + 1) + ' .wp-block-button__link:hover { background-color: var(--wp--preset--color--' + e.btnHover + ') !important; }');
-      }
-      out.push(sec + ' .gogh-el-' + (i + 1) + ' { grid-area: ' + a.r1 + ' / ' + a.c1 + ' / ' + a.r2 + ' / ' + a.c2 +
-        '; z-index: ' + (i + 1) + '; ' + extra + ' }');
-      if (e.type === 'image' && e.src) {
-        out.push(sec + ' .gogh-el-' + (i + 1) + ' img { width: 100%; height: 100%; object-fit: cover; display: block; border-radius: inherit; }');
-      }
+      emitElCSS(out, sec, ' .gogh-el-' + (i + 1), e, i, g.areas[i]);
+    });
+    // a box with kids is a CARD — a mini-section: its own grid over the same
+    // solver. Columns in fr so the card fills its slot at ANY width (mobile
+    // stacking included); rows in section-cqw like everything else, so the
+    // card's proportions ride the page scale.
+    els.forEach(function (e, i) {
+      if (e.type !== 'box' || !e.kids || !e.kids.length) return;
+      var cardSel = sec + ' .gogh-el-' + (i + 1);
+      var kg = solve(e.kids, e.h, e.w);
+      out.push(cardSel + ' { display: grid; position: relative; overflow: hidden;' +
+        ' grid-template-columns: ' + kg.cols.map(function (c) { return parseFloat(c) + 'fr'; }).join(' ') + ';' +
+        ' grid-template-rows: ' + kg.rows.join(' ') + '; }');
+      out.push(cardSel + ' > * { margin: 0 !important; min-width: 0; box-sizing: border-box; }');
+      e.kids.forEach(function (k, j) {
+        emitElCSS(out, cardSel, ' > .gogh-k-' + (j + 1), k, j, kg.areas[j]);
+      });
     });
     out.push(
       sec + ' .gogh-badge::before { content: "★"; width: 1.9em; height: 1.9em; flex: none; border-radius: 50%; background: #e8b04b; display: grid; place-items: center; color: #141519; }',
@@ -588,14 +608,15 @@
       btnBg: e.btnBg || null, btnText: e.btnText || null, btnHover: e.btnHover || null,
       wsrc: e.wsrc || null, whtml: e.whtml || null,
       boxBg: e.boxBg || null, radius: e.radius || 0, shape: e.shape || null,
-      expId: e.expId || null, expUrl: e.expUrl || null };
+      expId: e.expId || null, expUrl: e.expUrl || null,
+      kids: e.kids && e.kids.length ? e.kids.map(projEl) : null };
   }
-  function buildElBlocks(els) {
+  function buildElBlocks(els, clsBase) {
     // blocks are emitted in READING order; each keeps its stacking-indexed
     // class, so grid placement and z-order are untouched by the resequence
     return readingIndexOrder(els).map(function (i) {
       var e = els[i];
-      var cls = 'gogh-el-' + (i + 1);
+      var cls = (clsBase || 'gogh-el-') + (i + 1);
       switch (e.type) {
         case 'heading': {
           var hAttrs = { level: 2, className: cls };
@@ -652,14 +673,17 @@
           // a coloured backdrop rectangle: an empty group. Preset colours go
           // in block attrs; raw colours ride in the section stylesheet, which
           // ships inside the page either way.
-          var boxAttrs = { className: cls + ' gogh-box', layout: { type: 'default' } };
-          var boxCls = 'wp-block-group ' + cls + ' gogh-box';
+          var boxAttrs = { className: cls + ' gogh-box' + (e.kids && e.kids.length ? ' gogh-card' : ''), layout: { type: 'default' } };
+          var boxCls = 'wp-block-group ' + cls + ' gogh-box' + (e.kids && e.kids.length ? ' gogh-card' : '');
           if (e.boxBg && /^[a-z0-9-]+$/.test(e.boxBg)) {
             boxAttrs.backgroundColor = e.boxBg;
             boxCls += ' has-' + e.boxBg + '-background-color has-background';
           }
+          // a card publishes its kids INSIDE itself — plugin off, they
+          // degrade to normal stacked blocks in a group
+          var boxInner = e.kids && e.kids.length ? '\n' + buildElBlocks(e.kids, 'gogh-k-') + '\n' : '';
           return '<!-- wp:group ' + JSON.stringify(boxAttrs) + ' -->\n' +
-            '<div class="' + boxCls + '"></div>\n<!-- /wp:group -->';
+            '<div class="' + boxCls + '">' + boxInner + '</div>\n<!-- /wp:group -->';
         }
         case 'widget':
           // atomic block (navigation, site title…): source markup verbatim,
@@ -804,7 +828,12 @@
     switch (e.type) {
       case 'box':
         n = document.createElement('div');
-        n.className = 'wp-block-group gogh-box ' + cls;
+        n.className = 'wp-block-group gogh-box ' + cls + (e.kids && e.kids.length ? ' gogh-card' : '');
+        if (e.kids) e.kids.forEach(function (k, j) {
+          var kn = makeNode(k, j);
+          kn.className = kn.className.replace('gogh-el-' + (j + 1), 'gogh-k-' + (j + 1));
+          n.appendChild(kn);
+        });
         break;
       case 'heading':
         n = document.createElement('h2');
