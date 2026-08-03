@@ -2033,12 +2033,12 @@ html.gogh-editing iframe { pointer-events: none; }
 /* ---------- cards: joining glow, kid selection, leaving intent ---------- */
 .gogh-card-glow { outline: 3px solid #3858e9; outline-offset: 3px; transition: outline-offset 0.12s ease; }
 .gogh-card-leaving { outline: 3px dashed #d98a2b; outline-offset: 3px; }
-html.gogh-editing .gogh-card [class*="gogh-k-"] { cursor: grab; }
+html.gogh-editing .gogh-cardbox [class*="gogh-k-"] { cursor: grab; }
 .gogh-kid-selected { outline: 2px solid #3858e9; outline-offset: 2px; border-radius: 4px; }
-.gogh-kid-selected[contenteditable], .gogh-card [contenteditable="true"] { cursor: text; }
+.gogh-kid-selected[contenteditable], .gogh-cardbox [contenteditable="true"] { cursor: text; }
 
 /* a selected card announces itself */
-.gogh-card.gogh-selected::after, .gogh-card.gogh-card-glow::after {
+.gogh-cardbox.gogh-selected::after, .gogh-cardbox.gogh-card-glow::after {
   content: 'Card';
   position: absolute;
   top: -12px;
@@ -2054,3 +2054,10 @@ html.gogh-editing .gogh-card [class*="gogh-k-"] { cursor: grab; }
 
 /* the kid's ghost while it is being carried out of a card */
 .gogh-kid-ghost { position: fixed; z-index: 100010; pointer-events: none; opacity: 0.85; transform: translate(-30%, -30%); box-shadow: 0 18px 44px -12px rgba(0,0,0,0.4); }
+
+/* while the caret is live, the page belongs to the words — selection box,
+   grip and kid outlines fade; the floating toolbar stays */
+.gogh-selbox, .gogh-grip { transition: opacity 0.15s ease; }
+html.gogh-textediting .gogh-selbox,
+html.gogh-textediting .gogh-grip { opacity: 0; pointer-events: none; }
+html.gogh-textediting .gogh-kid-selected { outline-color: transparent; }

@@ -1772,7 +1772,7 @@
       G.renderSection(s0);
       var i = s0.els.length - 1;
       var card = s0.nodes[i];
-      expect(card.classList.contains('gogh-card'), 'card class missing');
+      expect(card.classList.contains('gogh-cardbox'), 'card class missing');
       expect(card.querySelector('.gogh-k-1') && card.querySelector('.gogh-k-3'), 'kids not rendered inside the card');
       var ccs = getComputedStyle(card);
       expect(ccs.display === 'grid', 'card is not its own grid');
@@ -1781,11 +1781,11 @@
       expect(getComputedStyle(kh).gridArea !== 'auto', 'kid has no grid placement');
       // publish: nested blocks + kids in attrs model
       var v3 = G.buildV3();
-      expect(v3.indexOf('gogh-card') !== -1, 'card class not published');
+      expect(v3.indexOf('gogh-cardbox') !== -1, 'card class not published');
       expect(/gogh-k-1/.test(v3), 'kid classes not published');
       expect(v3.indexOf('"kids":[{') !== -1, 'kids missing from model attrs');
       // published nesting: the kid heading sits INSIDE the card group div
-      var cardAt = v3.indexOf('gogh-card"');
+      var cardAt = v3.indexOf('gogh-cardbox"');
       var kidAt = v3.indexOf('Card headline</h2>');
       expect(cardAt !== -1 && kidAt > cardAt, 'kid emitted outside the card (markup anchors)');
       // mobile: kids stay inside the card while the section stacks

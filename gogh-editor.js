@@ -542,9 +542,17 @@
       if (e.type !== 'box' || !e.kids || !e.kids.length) return;
       var cardSel = sec + ' .gogh-el-' + (i + 1);
       var kg = solve(e.kids, e.h, e.w);
+      var kidH = designH(e.kids, e.h);
+      var cardRows = kg.rows.map(function (r) {
+        // solve emits section-cqw (1cqw = W/100 design units); the card's
+        // rows must be % of the CARD's height so they scale with it
+        var x = parseFloat(String(r).replace('minmax(', ''));
+        var pctH = Math.max(0, +((x * W / 100) / kidH * 100).toFixed(2));
+        return 'minmax(' + pctH + '%, max-content)';
+      });
       out.push(cardSel + ' { display: grid; position: relative; overflow: hidden;' +
         ' grid-template-columns: ' + kg.cols.map(function (c) { return parseFloat(c) + 'fr'; }).join(' ') + ';' +
-        ' grid-template-rows: ' + kg.rows.join(' ') + '; }');
+        ' grid-template-rows: ' + cardRows.join(' ') + '; }');
       out.push(cardSel + ' > * { margin: 0 !important; min-width: 0; box-sizing: border-box; }');
       e.kids.forEach(function (k, j) {
         emitElCSS(out, cardSel, ' > .gogh-k-' + (j + 1), k, j, kg.areas[j]);
@@ -682,8 +690,8 @@
           // a coloured backdrop rectangle: an empty group. Preset colours go
           // in block attrs; raw colours ride in the section stylesheet, which
           // ships inside the page either way.
-          var boxAttrs = { className: cls + ' gogh-box' + (e.kids && e.kids.length ? ' gogh-card' : ''), layout: { type: 'default' } };
-          var boxCls = 'wp-block-group ' + cls + ' gogh-box' + (e.kids && e.kids.length ? ' gogh-card' : '');
+          var boxAttrs = { className: cls + ' gogh-box' + (e.kids && e.kids.length ? ' gogh-cardbox' : ''), layout: { type: 'default' } };
+          var boxCls = 'wp-block-group ' + cls + ' gogh-box' + (e.kids && e.kids.length ? ' gogh-cardbox' : '');
           if (e.boxBg && /^[a-z0-9-]+$/.test(e.boxBg)) {
             boxAttrs.backgroundColor = e.boxBg;
             boxCls += ' has-' + e.boxBg + '-background-color has-background';
@@ -837,7 +845,7 @@
     switch (e.type) {
       case 'box':
         n = document.createElement('div');
-        n.className = 'wp-block-group gogh-box ' + cls + (e.kids && e.kids.length ? ' gogh-card' : '');
+        n.className = 'wp-block-group gogh-box ' + cls + (e.kids && e.kids.length ? ' gogh-cardbox' : '');
         if (e.kids) e.kids.forEach(function (k, j) {
           var kn = makeNode(k, j);
           kn.className = kn.className.replace('gogh-el-' + (j + 1), 'gogh-k-' + (j + 1));
@@ -1516,6 +1524,9 @@
     var e = sec.els[i];
     t.contentEditable = (widgetLeaf || e.type === 'heading' || e.type === 'para') ? 'true' : 'plaintext-only';
     sec.nodes[i].classList.add('gogh-textedit');
+    // writing wants a CLEAN page: the selection box and handles fade out
+    // while the caret is live (the floating toolbar stays)
+    document.documentElement.classList.add('gogh-textediting');
     textEditing = { sec: sec, i: i, node: sec.nodes[i], target: t, widget: !!widgetLeaf };
     if (widgetLeaf) {
       t.addEventListener('input', syncWidgetEdit);
@@ -1535,6 +1546,7 @@
   }
   function exitTextEdit() {
     if (!textEditing) return;
+    document.documentElement.classList.remove('gogh-textediting');
     var t = textEditing.target;
     if (textEditing.widget) {
       syncWidgetEdit();
@@ -1921,7 +1933,8 @@
       '<div class="gogh-panel-row">' +
       (cfg.canUpload ? '<label class="gogh-btn gogh-btn-small gogh-upload">Upload<input type="file" accept="image/*" hidden /></label>' : '') +
       (e.boxImg ? '<button type="button" class="gogh-btn gogh-btn-small gogh-boximg-clear">Remove image</button>' : '') +
-      '</div>';
+      '</div>' +
+      '<div class="gogh-media gogh-boximg-media"></div>';
     function reapply() {
       renderSection(sec);
       placeHandles(sec, i);
@@ -1954,6 +1967,31 @@
       e.boxImgId = null;
       reapply();
     });
+    fetch(restQ(cfg.mediaUrl, 'per_page=12&media_type=image&orderby=date&order=desc'), {
+      headers: { 'X-WP-Nonce': cfg.nonce }, credentials: 'same-origin',
+    }).then(function (r2) { return r2.ok ? r2.json() : []; }).catch(function () { return []; })
+      .then(function (items) {
+        var mbox = panel.querySelector('.gogh-boximg-media');
+        if (!mbox || panel.hidden) return;
+        mbox.innerHTML = '';
+        items.forEach(function (item) {
+          var url = ((item.media_details || {}).sizes || {}).thumbnail;
+          url = (url && url.source_url) || item.source_url;
+          if (!url) return;
+          var tb = document.createElement('button');
+          tb.type = 'button';
+          tb.className = 'gogh-thumb';
+          tb.style.backgroundImage = 'url("' + url + '")';
+          tb.title = (item.title && item.title.rendered) || '';
+          tb.addEventListener('click', function () {
+            e.boxImg = item.source_url;
+            e.boxImgId = item.id;
+            reapply();
+          });
+          mbox.appendChild(tb);
+        });
+        reclampPanel();
+      });
     var bfile = panel.querySelector('.gogh-upload input[type="file"]');
     if (bfile) bfile.addEventListener('change', function () {
       if (!bfile.files.length) return;
@@ -2481,30 +2519,6 @@
       { type: 'heading', x: 830, y: 208, w: 266, h: 46, text: 'Yours', fs: 'large' },
       { type: 'para', x: 830, y: 266, w: 266, h: 110, text: 'Colours and type come from your theme, so everything matches.' },
     ] },
-    { starter: true, name: 'Big statement', minH: 480, els: [
-      { type: 'badge', x: 486, y: 78, w: 228, h: 52, text: '\u2726 Say it once' },
-      { type: 'heading', x: 100, y: 168, w: 1000, h: 180, text: 'Make something people remember', fs: '__max', align: 'center' },
-      { type: 'button', x: 520, y: 392, w: 160, h: 52, text: 'Start now', ghost: true },
-    ] },
-    { starter: true, name: 'Quote', minH: 520, els: [
-      { type: 'box', x: 72, y: 90, w: 620, h: 340, boxBg: 'color-mix(in srgb, var(--wp--preset--color--contrast, #000) 7%, var(--wp--preset--color--base, transparent))', radius: 24 },
-      { type: 'para', x: 120, y: 138, w: 520, h: 170, text: '\u201cThe first tool that made our site feel like drawing. We stopped fighting layouts and started designing.\u201d', fs: 'large' },
-      { type: 'para', x: 120, y: 336, w: 420, h: 44, text: '\u2014 Someone you\u2019ll quote here' },
-      { type: 'image', x: 760, y: 90, w: 368, h: 340, cool: true },
-    ] },
-    { starter: true, name: 'Call to action', minH: 320, els: [
-      { type: 'box', x: 48, y: 56, w: 1104, h: 220, boxBg: 'color-mix(in srgb, var(--wp--preset--color--contrast, #000) 7%, var(--wp--preset--color--base, transparent))', radius: 26 },
-      { type: 'heading', x: 110, y: 104, w: 560, h: 66, text: 'Ready when you are' },
-      { type: 'para', x: 110, y: 180, w: 520, h: 48, text: 'One honest nudge. Keep it short, keep it warm.' },
-      { type: 'button', x: 880, y: 118, w: 210, h: 56, text: 'Let\u2019s go' },
-    ] },
-    { starter: true, name: 'Article', minH: 620, els: [
-      { type: 'heading', x: 280, y: 70, w: 640, h: 70, text: 'Write something worth reading', fs: 'x-large' },
-      { type: 'para', x: 280, y: 170, w: 640, h: 66, text: 'A comfortable reading column, the width your theme uses for posts. Gogh is not only for splashy pages \u2014 it is a pleasant place to just write.' },
-      { type: 'para', x: 280, y: 260, w: 640, h: 66, text: 'Add paragraphs, pull a quote out to the side when you need one, and drop an image between thoughts. Everything still publishes as clean WordPress blocks.' },
-      { type: 'para', x: 280, y: 350, w: 640, h: 66, text: 'And because it is a canvas, the moment an article needs something bolder \u2014 a full-width image, a card, a big number \u2014 you can simply place it.' },
-      { type: 'button', x: 280, y: 460, w: 200, h: 54, text: 'Keep reading', ghost: true },
-    ] },
     { starter: true, name: 'Feature cards', minH: 560, els: [
       { type: 'heading', x: 100, y: 56, w: 1000, h: 60, text: 'Three reasons it works', fs: 'x-large', align: 'center' },
       { type: 'box', x: 100, y: 170, w: 320, h: 330, radius: 18,
@@ -2528,6 +2542,30 @@
           { type: 'heading', x: 28, y: 96, w: 264, h: 44, text: 'Mobile-proof', fs: 'large' },
           { type: 'para', x: 28, y: 152, w: 264, h: 100, text: 'On phones each card stacks as one piece \u2014 nothing inside ever escapes.' },
         ] },
+    ] },
+    { starter: true, name: 'Big statement', minH: 480, els: [
+      { type: 'badge', x: 486, y: 78, w: 228, h: 52, text: '\u2726 Say it once' },
+      { type: 'heading', x: 100, y: 168, w: 1000, h: 180, text: 'Make something people remember', fs: '__max', align: 'center' },
+      { type: 'button', x: 520, y: 392, w: 160, h: 52, text: 'Start now', ghost: true },
+    ] },
+    { starter: true, name: 'Quote', minH: 520, els: [
+      { type: 'box', x: 72, y: 90, w: 620, h: 340, boxBg: 'color-mix(in srgb, var(--wp--preset--color--contrast, #000) 7%, var(--wp--preset--color--base, transparent))', radius: 24 },
+      { type: 'para', x: 120, y: 138, w: 520, h: 170, text: '\u201cThe first tool that made our site feel like drawing. We stopped fighting layouts and started designing.\u201d', fs: 'large' },
+      { type: 'para', x: 120, y: 336, w: 420, h: 44, text: '\u2014 Someone you\u2019ll quote here' },
+      { type: 'image', x: 760, y: 90, w: 368, h: 340, cool: true },
+    ] },
+    { starter: true, name: 'Call to action', minH: 320, els: [
+      { type: 'box', x: 48, y: 56, w: 1104, h: 220, boxBg: 'color-mix(in srgb, var(--wp--preset--color--contrast, #000) 7%, var(--wp--preset--color--base, transparent))', radius: 26 },
+      { type: 'heading', x: 110, y: 104, w: 560, h: 66, text: 'Ready when you are' },
+      { type: 'para', x: 110, y: 180, w: 520, h: 48, text: 'One honest nudge. Keep it short, keep it warm.' },
+      { type: 'button', x: 880, y: 118, w: 210, h: 56, text: 'Let\u2019s go' },
+    ] },
+    { starter: true, name: 'Article', minH: 620, els: [
+      { type: 'heading', x: 280, y: 70, w: 640, h: 70, text: 'Write something worth reading', fs: 'x-large' },
+      { type: 'para', x: 280, y: 170, w: 640, h: 66, text: 'A comfortable reading column, the width your theme uses for posts. Gogh is not only for splashy pages \u2014 it is a pleasant place to just write.' },
+      { type: 'para', x: 280, y: 260, w: 640, h: 66, text: 'Add paragraphs, pull a quote out to the side when you need one, and drop an image between thoughts. Everything still publishes as clean WordPress blocks.' },
+      { type: 'para', x: 280, y: 350, w: 640, h: 66, text: 'And because it is a canvas, the moment an article needs something bolder \u2014 a full-width image, a card, a big number \u2014 you can simply place it.' },
+      { type: 'button', x: 280, y: 460, w: 200, h: 54, text: 'Keep reading', ghost: true },
     ] },
     { starter: true, name: 'Photo cards', minH: 720, els: [
       { type: 'image', x: 100, y: 40, w: 470, h: 620, cool: true },
@@ -4048,6 +4086,7 @@
   }
   function exitKidEd() {
     if (!kidEd) return;
+    document.documentElement.classList.remove('gogh-textediting');
     kidEd.node.removeAttribute('contenteditable');
     if (document.activeElement === kidEd.node) kidEd.node.blur();
     kidEd = null;
@@ -4088,7 +4127,7 @@
     if (!(ev.target instanceof Element)) return;
     if (kidEd && kidEd.node.contains(ev.target)) return; // caret work
     var kn = ev.target.closest('[class*="gogh-k-"]');
-    var card = kn && kn.closest('.gogh-card');
+    var card = kn && kn.closest('.gogh-cardbox');
     if (!kn || !card) {
       if (kidSel && !(ev.target.closest && ev.target.closest('.gogh-toast'))) clearKidSel();
       if (kidEd) exitKidEd();
@@ -4199,6 +4238,7 @@
       if (kid2 && (kid2.type === 'heading' || kid2.type === 'para' || kid2.type === 'badge' || kid2.type === 'button')) {
         var target = kid2.type === 'button' ? (kd.node.querySelector('.wp-block-button__link') || kd.node) : kd.node;
         target.setAttribute('contenteditable', kid2.type === 'heading' || kid2.type === 'para' ? 'true' : 'plaintext-only');
+        document.documentElement.classList.add('gogh-textediting');
         kidEd = { sec: sec, ci: kd.ci, j: kd.j, node: target, kid: kid2 };
         target.focus();
         if (document.caretRangeFromPoint) {
