@@ -6437,6 +6437,8 @@
     var activeEd = null;
     function stopEdit() {
       if (!activeEd) return;
+      // focus returned (or never left): the editor is in use — keep it
+      if (document.activeElement === activeEd.el) return;
       activeEd.el.removeAttribute('contenteditable');
       var leaf = leafOf(activeEd.el);
       if (leaf) syncLeaf(leaf);
@@ -6444,6 +6446,12 @@
       activeEd = null;
     }
     if (!fresh) return; // re-bind refreshes the map; listeners attach once
+    // anchors and images are natively DRAGGABLE: a one-pixel hand tremor
+    // during a click starts a browser link-drag and kills the caret the
+    // click just placed — the classic "caret appears then vanishes"
+    holder.addEventListener('dragstart', function (ev) {
+      if (editing && live()) ev.preventDefault();
+    });
     holder.addEventListener('click', function (ev) {
       if (!editing || !live()) return;
       // the menu has its own physics (drag to reorder, + to add)
@@ -6519,7 +6527,14 @@
       clearTimeout(syncT);
       syncT = setTimeout(function () { syncLeaf(leaf); }, 500);
     });
-    holder.addEventListener('focusout', function () { setTimeout(stopEdit, 80); });
+    holder.addEventListener('focusout', function (ev) {
+      // focus hopping WITHIN the holder must not stop editing: on anchor
+      // cards, mousedown natively focuses the <a>, then edit entry focuses
+      // the heading — that a→heading hop fired this and killed the fresh
+      // caret 80ms in ("appears for an instant, then vanishes")
+      if (ev.relatedTarget && holder.contains(ev.relatedTarget)) return;
+      setTimeout(stopEdit, 80);
+    });
     holder.addEventListener('keydown', function (ev) {
       // Cmd/Ctrl+K links the selected text, same shortcut as the canvas
       if ((ev.metaKey || ev.ctrlKey) && ev.key.toLowerCase() === 'k' && activeEd) {
