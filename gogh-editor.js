@@ -4315,6 +4315,41 @@
       toast('Removed from the card.', { actions: [{ label: 'Undo', onClick: function () { undo(); } }] });
     }
   }, true);
+  // writer's Enter: in a heading it finishes and hops to the paragraph
+  // below (contents selected — typing replaces); in a paragraph it makes a
+  // REAL paragraph gap like WordPress (Shift+Enter keeps the single break)
+  document.addEventListener('keydown', function (ev) {
+    if (!textEditing || ev.key !== 'Enter') return;
+    var secK = textEditing.sec;
+    var eK = secK.els[textEditing.i];
+    if (!eK) return;
+    if (eK.type === 'heading') {
+      ev.preventDefault();
+      for (var jk = textEditing.i + 1; jk < secK.els.length; jk++) {
+        if (secK.els[jk].type === 'para') {
+          exitTextEdit();
+          placeHandles(secK, jk);
+          enterTextEdit(secK, jk);
+          var tk = editableTarget(secK, jk);
+          if (tk) {
+            var rgk = document.createRange();
+            rgk.selectNodeContents(tk);
+            var ssk = window.getSelection();
+            ssk.removeAllRanges();
+            ssk.addRange(rgk);
+          }
+          return;
+        }
+      }
+      exitTextEdit();
+      return;
+    }
+    if (eK.type === 'para' && !ev.shiftKey) {
+      ev.preventDefault();
+      document.execCommand('insertHTML', false, '<br><br>');
+      textEditing.target.dispatchEvent(new Event('input', { bubbles: true }));
+    }
+  }, true);
   document.addEventListener('pointerup', function () { if (drag) endDrag(); });
   document.addEventListener('pointercancel', function () { if (drag) endDrag(); });
 
@@ -4592,8 +4627,11 @@
     });
   }
   side.querySelector('.gogh-writebtn').addEventListener('click', function () {
-    var tpl = TEMPLATES.filter(function (t) { return t.starter && !t.retired && t.name === 'Article'; })[0];
-    if (!tpl) return;
+    // leaner than the Article starter: nothing to delete, only to replace
+    var tpl = { name: '__write', minH: 420, els: [
+      { type: 'heading', x: 280, y: 70, w: 640, h: 70, text: 'Your title', fs: 'x-large' },
+      { type: 'para', x: 280, y: 170, w: 640, h: 60, text: 'Start writing.' },
+    ] };
     var at = S.indexOf(viewportSection()) + 1;
     addSection(tpl, at);
     // straight into the words: select the heading and open its editor with
