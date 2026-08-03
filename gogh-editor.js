@@ -554,6 +554,9 @@
         ' grid-template-columns: ' + kg.cols.map(function (c) { return parseFloat(c) + 'fr'; }).join(' ') + ';' +
         ' grid-template-rows: ' + cardRows.join(' ') + '; }');
       out.push(cardSel + ' > * { margin: 0 !important; min-width: 0; box-sizing: border-box; }');
+      if (e.href) {
+        out.push(cardSel + ' > .gogh-card-link { position: absolute; inset: 0; z-index: 0; grid-area: 1 / 1 / -1 / -1; }');
+      }
       e.kids.forEach(function (k, j) {
         emitElCSS(out, cardSel, ' > .gogh-k-' + (j + 1), k, j, kg.areas[j]);
       });
@@ -698,7 +701,10 @@
           }
           // a card publishes its kids INSIDE itself — plugin off, they
           // degrade to normal stacked blocks in a group
-          var boxInner = e.kids && e.kids.length ? '\n' + buildElBlocks(e.kids, 'gogh-k-') + '\n' : '';
+          var boxLink = e.href
+            ? '<a class="gogh-card-link" href="' + escAttr(e.href) + '" aria-label="' + escAttr((e.kids && e.kids.length && e.kids[0].text) || 'Card link') + '"></a>'
+            : '';
+          var boxInner = (boxLink || (e.kids && e.kids.length)) ? '\n' + boxLink + (e.kids && e.kids.length ? buildElBlocks(e.kids, 'gogh-k-') : '') + '\n' : '';
           return '<!-- wp:group ' + JSON.stringify(boxAttrs) + ' -->\n' +
             '<div class="' + boxCls + '">' + boxInner + '</div>\n<!-- /wp:group -->';
         }
@@ -846,6 +852,13 @@
       case 'box':
         n = document.createElement('div');
         n.className = 'wp-block-group gogh-box ' + cls + (e.kids && e.kids.length ? ' gogh-cardbox' : '');
+        if (e.href) {
+          var cardA = document.createElement('a');
+          cardA.className = 'gogh-card-link';
+          cardA.href = e.href;
+          cardA.setAttribute('aria-label', (e.kids && e.kids.length && e.kids[0].text) || 'Card link');
+          n.appendChild(cardA);
+        }
         if (e.kids) e.kids.forEach(function (k, j) {
           var kn = makeNode(k, j);
           kn.className = kn.className.replace('gogh-el-' + (j + 1), 'gogh-k-' + (j + 1));
@@ -1925,6 +1938,13 @@
         return '<button type="button" class="gogh-sw' + (e.boxBg === p.slug ? ' is-active' : '') + '" data-col="' + p.slug + '"' +
           ' style="background: var(--wp--preset--color--' + p.slug + ')" title="' + p.slug + '"></button>';
       }).join('') + '</div>' +
+      (e.kids && e.kids.length
+        ? '<div class="gogh-swlab">Link \u2014 the whole card is clickable</div>' +
+          '<div class="gogh-panel-row">' +
+          '<input type="url" class="gogh-input gogh-cardhref" placeholder="https://\u2026" value="' + escAttr(e.href || '') + '" />' +
+          '<button type="button" class="gogh-btn gogh-btn-small gogh-cardhref-apply">Apply</button>' +
+          '</div>'
+        : '') +
       '<div class="gogh-swlab">Image \u2014 the colour above becomes its tint</div>' +
       '<div class="gogh-panel-row">' +
       '<input type="url" class="gogh-input gogh-boximg-url" placeholder="https://\u2026" value="' + escAttr(e.boxImg || '') + '" />' +
@@ -1955,11 +1975,29 @@
         reapply();
       });
     });
+    // choosing an image completes the task — close instead of rebuilding
+    function applyAndClose() {
+      renderSection(sec);
+      placeHandles(sec, i);
+      pushState();
+      closePanel();
+    }
+    var chBtn = panel.querySelector('.gogh-cardhref-apply');
+    if (chBtn) chBtn.addEventListener('click', function () {
+      var u = panel.querySelector('.gogh-cardhref').value.trim();
+      if (u && !/^https?:\/\//i.test(u) && u[0] !== '/' && u[0] !== '#') u = 'https://' + u;
+      e.href = u || null;
+      renderSection(sec);
+      placeHandles(sec, i);
+      pushState();
+      closePanel();
+      toast(u ? 'The whole card links to ' + u : 'Card link removed.');
+    });
     panel.querySelector('.gogh-boximg-apply').addEventListener('click', function () {
       var u = panel.querySelector('.gogh-boximg-url').value.trim();
       e.boxImg = u || null;
       if (!u) e.boxImgId = null;
-      reapply();
+      applyAndClose();
     });
     var bclear = panel.querySelector('.gogh-boximg-clear');
     if (bclear) bclear.addEventListener('click', function () {
@@ -1986,7 +2024,7 @@
           tb.addEventListener('click', function () {
             e.boxImg = item.source_url;
             e.boxImgId = item.id;
-            reapply();
+            applyAndClose();
           });
           mbox.appendChild(tb);
         });
@@ -2010,7 +2048,7 @@
       }).then(function (item) {
         e.boxImg = item.source_url;
         e.boxImgId = item.id;
-        reapply();
+        applyAndClose();
       }).catch(function (err) {
         blabel.firstChild.textContent = 'Upload failed';
         console.error('gogh upload failed:', err);
