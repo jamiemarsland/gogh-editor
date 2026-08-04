@@ -42,9 +42,10 @@
   // wraps inside the header/footer are site chrome, not page content — a
   // freeform header must not stop an empty PAGE from getting its canvas
   var contentWraps = wrapTags.filter(function (w) { return !w.closest('.wp-block-template-part'); });
-  // native-only pages (starter sites, classic pages) still get the floating
-  // edit pill in view mode — bailing here was why it "sometimes" vanished
-  if (!wrapTags.length && !wantEdit && !goghHasNativeContent()) return;
+  // no early exit in view mode: this script only loads for users who can
+  // edit this page, so the floating pill belongs on EVERY page — gogh
+  // sections or not, content or not. (It "sometimes" vanished for years on
+  // native-only and empty pages.)
   if (!contentWraps.length && wantEdit && !goghHasNativeContent()) {
     // ?gogh-edit on a GENUINELY empty page: bootstrap an empty placeholder
     // section at the end of the content so the editor has a canvas. It is
@@ -66,8 +67,6 @@
   }
   // native-only pages (a starter site) boot the editor with ZERO gogh
   // sections: light editing, the palette and the picker all still apply
-  if (!wrapTags.length && !wantEdit && !goghHasNativeContent()) return;
-
   function inferModelFromDom(sectionEl) {
     var els = [];
     var y = 72;
@@ -256,7 +255,7 @@
       bgImage: model.bgImage || null, bgId: model.bgId || null,
       wrapEl: wrap, sectionEl: sectionEl, styleEl: styleEl, nodes: [] });
   });
-  if (!S.length && !wantEdit && !goghHasNativeContent()) return;
+
   // marker after the last CONTENT wrap (never inside a template part)
   var endMarker = document.createComment('gogh-end');
   var contentSecs = S.filter(function (s) { return !s.chrome; });
