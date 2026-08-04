@@ -1384,6 +1384,19 @@
     }
     return out;
   }
+  function pickerPalette() {
+    var seen = {};
+    return themePalette().filter(function (p) {
+      var probe = document.createElement('div');
+      probe.style.cssText = 'position:absolute;visibility:hidden;color:' + p.value;
+      document.body.appendChild(probe);
+      var key = getComputedStyle(probe).color || p.value;
+      probe.remove();
+      if (seen[key]) return false;
+      seen[key] = 1;
+      return true;
+    });
+  }
   var guideV = document.createElement('div');
   var guideH = document.createElement('div');
   guideV.className = 'gogh-guide gogh-guide-v';
@@ -1888,7 +1901,7 @@
     function swRow(label, key) {
       return '<div class="gogh-swlab">' + label + '</div><div class="gogh-swrow" data-key="' + key + '">' +
         '<button type="button" class="gogh-sw gogh-sw-none' + (!e[key] ? ' is-active' : '') + '" data-col="" title="Theme default"></button>' +
-        themePalette().map(function (p) {
+        pickerPalette().map(function (p) {
           return '<button type="button" class="gogh-sw' + (e[key] === p.slug ? ' is-active' : '') + '" data-col="' + p.slug + '"' +
             ' style="background: var(--wp--preset--color--' + p.slug + ')" title="' + p.slug + '"></button>';
         }).join('') + '</div>';
@@ -1961,7 +1974,7 @@
       '</div>' +
       '<div class="gogh-swlab">Colour</div><div class="gogh-swrow gogh-boxsw">' +
       '<button type="button" class="gogh-sw gogh-sw-none' + (!e.boxBg ? ' is-active' : '') + '" data-col="" title="None"></button>' +
-      themePalette().map(function (p) {
+      pickerPalette().map(function (p) {
         return '<button type="button" class="gogh-sw' + (e.boxBg === p.slug ? ' is-active' : '') + '" data-col="' + p.slug + '"' +
           ' style="background: var(--wp--preset--color--' + p.slug + ')" title="' + p.slug + '"></button>';
       }).join('') + '</div>' +
@@ -2216,7 +2229,7 @@
     panel.innerHTML = '<div class="gogh-panel-title">Text colour</div>' +
       '<div class="gogh-swrow">' +
       '<button type="button" class="gogh-sw gogh-sw-none" data-col="" title="Theme default"></button>' +
-      themePalette().map(function (p) {
+      pickerPalette().map(function (p) {
         return '<button type="button" class="gogh-sw' + (e.color === p.slug ? ' is-active' : '') + '" data-col="' + p.slug + '"' +
           ' style="background: var(--wp--preset--color--' + p.slug + ')" title="' + p.slug + '"></button>';
       }).join('') + '</div>';
@@ -3593,7 +3606,7 @@
     var r = secx.wrapEl.getBoundingClientRect();
     panel.style.left = Math.max(8, r.right + window.scrollX - 360) + 'px';
     panel.style.top = (r.top + window.scrollY + 52) + 'px';
-    var pal = themePalette();
+    var pal = pickerPalette();
     panel.innerHTML =
       '<div class="gogh-panel-title">Section background</div>' +
       '<div class="gogh-panel-hint">Colour \u2014 with an image, it becomes the tint</div>' +
@@ -3735,7 +3748,7 @@
       '<label class="gogh-colorlab">Below <input type="color" class="gogh-color gogh-color-below" /></label>' +
       '</div>' +
       (function () {
-        var pal = themePalette();
+        var pal = pickerPalette();
         if (!pal.length) return '';
         var sw = function (which) {
           return '<div class="gogh-swrow"><span class="gogh-swlab">' + which + '</span>' +
