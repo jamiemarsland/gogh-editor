@@ -4712,6 +4712,121 @@
     }
     return out;
   }
+  var starterPick = null;
+  function openStarterPicker() {
+    if (starterPick) starterPick.remove();
+    var ov = document.createElement('div');
+    ov.className = 'gogh-starterpick';
+    ov.innerHTML =
+      '<div class="gogh-sp-sheet">' +
+      '<div class="gogh-sp-head"><div>' +
+      '<div class="gogh-sp-title">Site designs</div>' +
+      '<div class="gogh-sp-sub">A whole site, ready to tweak. Your posts, name, logo and brand colours stay.</div>' +
+      '</div><button type="button" class="gogh-sbtn gogh-sp-close" title="Close">\u2715</button></div>' +
+      '<div class="gogh-sp-grid"></div></div>';
+    document.body.appendChild(ov);
+    starterPick = ov;
+    var close = function () { ov.remove(); starterPick = null; };
+    ov.querySelector('.gogh-sp-close').addEventListener('click', close);
+    ov.addEventListener('pointerdown', function (ev) {
+      ev.stopPropagation();
+      if (ev.target === ov) close();
+    });
+    var grid = ov.querySelector('.gogh-sp-grid');
+    (cfg.starters || []).forEach(function (st) {
+      var card = document.createElement('div');
+      card.className = 'gogh-sp-card';
+      card.innerHTML =
+        '<div class="gogh-sp-prev"><div class="gogh-card-stage gogh-sp-stage"></div>' +
+        '<span class="gogh-sp-pagename"></span></div>' +
+        '<div class="gogh-sp-body"><div class="gogh-sp-name"></div>' +
+        '<div class="gogh-sp-desc"></div><div class="gogh-sp-chips"></div>' +
+        '<div class="gogh-sp-actions">' +
+        '<button type="button" class="gogh-btn gogh-sp-use">Use this design</button>' +
+        (st.pages.length > 1 ? '<button type="button" class="gogh-btn gogh-sp-peek">Peek at pages</button>' : '') +
+        '</div></div>';
+      card.querySelector('.gogh-sp-name').textContent = st.name;
+      card.querySelector('.gogh-sp-desc').textContent = st.description || '';
+      card.querySelector('.gogh-sp-chips').textContent = st.pages.map(function (p) { return p.title; }).join(' \u00b7 ');
+      var prev = card.querySelector('.gogh-sp-prev');
+      var stage = card.querySelector('.gogh-sp-stage');
+      var pageName = card.querySelector('.gogh-sp-pagename');
+      var pi = 0;
+      var showPage = function (i) {
+        pi = ((i % st.pages.length) + st.pages.length) % st.pages.length;
+        var pg = st.pages[pi];
+        pageName.textContent = pg.title;
+        fetch(restQ(GSROOT.split('wp/v2/')[0] + 'gogh/v1/pattern',
+          'slug=' + encodeURIComponent('gogh-starter/' + st.slug + '-' + pg.slug)), {
+          headers: { 'X-WP-Nonce': cfg.nonce },
+          credentials: 'same-origin',
+        }).then(function (r) { return r.ok ? r.json() : Promise.reject(new Error('HTTP ' + r.status)); })
+          .then(function (d) {
+            var html = d.rendered || '';
+            if (html && d.css) html = '<style>' + d.css + '</style>' + html;
+            stage.innerHTML = html;
+            fitCardStage(prev, stage);
+            [].slice.call(stage.querySelectorAll('img')).forEach(function (im) {
+              if (!im.complete) im.addEventListener('load', function () { fitCardStage(prev, stage); }, { once: true });
+            });
+          }).catch(function () { stage.innerHTML = ''; });
+      };
+      showPage(0);
+      var peek = card.querySelector('.gogh-sp-peek');
+      if (peek) peek.addEventListener('click', function () { showPage(pi + 1); });
+      card.querySelector('.gogh-sp-use').addEventListener('click', function () { confirmStarter(st, ov); });
+      grid.appendChild(card);
+    });
+  }
+  function confirmStarter(st, ov) {
+    var old = ov.querySelector('.gogh-sp-confirm');
+    if (old) old.remove();
+    var dlg = document.createElement('div');
+    dlg.className = 'gogh-sp-confirm';
+    dlg.innerHTML =
+      '<div class="gogh-sp-dialog">' +
+      '<div class="gogh-sp-name"></div>' +
+      '<div class="gogh-sp-line gogh-sp-keep">\u2713 Keeps your posts, images, name and colours</div>' +
+      '<div class="gogh-sp-line gogh-sp-keep">\u2713 Your blog posts flow into the new design</div>' +
+      '<div class="gogh-sp-line gogh-sp-warn">\u26a0 Replaces your pages and menu \u2014 current pages move to Trash, restorable for 30 days</div>' +
+      '<div class="gogh-sp-actions">' +
+      '<button type="button" class="gogh-btn gogh-sp-cancel">Cancel</button>' +
+      '<button type="button" class="gogh-btn gogh-sp-go">Switch design</button>' +
+      '</div></div>';
+    dlg.querySelector('.gogh-sp-name').textContent = 'Switch to ' + st.name + '?';
+    ov.appendChild(dlg);
+    dlg.addEventListener('pointerdown', function (ev) {
+      ev.stopPropagation();
+      if (ev.target === dlg) dlg.remove();
+    });
+    dlg.querySelector('.gogh-sp-cancel').addEventListener('click', function () { dlg.remove(); });
+    var go = dlg.querySelector('.gogh-sp-go');
+    go.addEventListener('click', function () {
+      go.disabled = true;
+      go.textContent = 'Building\u2026';
+      fetch(GSROOT.split('wp/v2/')[0] + 'gogh/v1/starter', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-WP-Nonce': cfg.nonce },
+        credentials: 'same-origin',
+        body: JSON.stringify({ slug: st.slug }),
+      }).then(function (r) { return r.ok ? r.json() : Promise.reject(new Error('HTTP ' + r.status)); })
+        .then(function (d) {
+          discarding = true;
+          var fade = document.createElement('div');
+          fade.className = 'gogh-pagefade';
+          fade.innerHTML = '<span class="gogh-pagefade-pill">Building your site\u2026</span>';
+          document.body.appendChild(fade);
+          requestAnimationFrame(function () { fade.classList.add('is-on'); });
+          setTimeout(function () {
+            location.href = d.home + (d.home.indexOf('?') === -1 ? '?' : '&') + 'gogh-edit=1';
+          }, 420);
+        }).catch(function (err) {
+          go.disabled = false;
+          go.textContent = 'Switch design';
+          toast('gogh could not switch the design \u2014 ' + ((err && err.message) || 'try again.'), { error: true });
+        });
+    });
+  }
   function openBrandForm(anchorEl) {
     var local = JSON.parse(JSON.stringify(cfg.brand || { colors: {
       background: '#f6f2ea', text: '#1c2733', accent: '#c96f4a', accent2: '#7a9e7e',
@@ -4861,6 +4976,21 @@
         openSide();
       });
       var box = panel.querySelector('.gogh-varlist');
+      // whole-site starters lead — the biggest decision goes first
+      if (cfg.starters && cfg.starters.length) {
+        var srow = document.createElement('button');
+        srow.type = 'button';
+        srow.className = 'gogh-varbtn gogh-starterrow';
+        srow.title = 'Pick a whole site design';
+        srow.innerHTML = '<span class="gogh-startermini"><span></span><span></span></span>' +
+          '<span class="gogh-varname">Site designs</span>' +
+          '<span class="gogh-starterarrow">\u2192</span>';
+        srow.addEventListener('click', function () {
+          closePanel();
+          openStarterPicker();
+        });
+        box.appendChild(srow);
+      }
       // your brand sits ABOVE the theme's styles — the most important option
       (function () {
         var row = document.createElement('div');
@@ -10125,7 +10255,10 @@
     if (wantEdit) {
       setEditing(true);
       var bootContent = S.filter(function (s) { return !s.chrome; });
-      if (bootContent.length === 1 && bootContent[0].bootstrap && !bootContent[0].els.length) {
+      // the blank-canvas greeting is for genuinely EMPTY pages — a page
+      // full of native blocks (a starter site's home) is not one
+      if (bootContent.length === 1 && bootContent[0].bootstrap && !bootContent[0].els.length &&
+          !topBlockNodes().length) {
         openPicker(S.indexOf(bootContent[0]));
       }
       try {

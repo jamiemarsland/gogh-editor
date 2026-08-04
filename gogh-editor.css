@@ -2195,3 +2195,55 @@ html.gogh-textediting .gogh-convertbtn {
 /* stored-block pills wait for their block to be hovered (JS-driven via
    inline opacity; this only smooths the change) */
 .gogh-storedrm { transition: opacity 0.15s ease; }
+
+/* ---------- starter sites ---------- */
+.gogh-starterrow { position: relative; }
+.gogh-startermini { display: inline-flex; gap: 3px; }
+.gogh-startermini span { width: 22px; height: 15px; border-radius: 3px; background: #e7e3da; border: 1px solid #d5d0c4; }
+.gogh-startermini span:last-child { background: #4f5aee; border-color: #4f5aee; }
+.gogh-starterarrow { margin-left: auto; color: #9a9ba2; }
+.gogh-starterpick {
+  position: fixed; inset: 0; z-index: 100010;
+  background: rgba(20, 21, 25, 0.45);
+  display: flex; align-items: center; justify-content: center;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, sans-serif;
+}
+.gogh-sp-sheet {
+  background: #f4f4f6; border-radius: 18px; padding: 22px 24px;
+  width: min(860px, calc(100vw - 48px)); max-height: calc(100vh - 64px); overflow-y: auto;
+  box-shadow: 0 30px 80px -20px rgba(0, 0, 0, 0.5);
+}
+.gogh-sp-head { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 16px; }
+.gogh-sp-title { font-size: 19px; font-weight: 700; color: #17181c; }
+.gogh-sp-sub { font-size: 13px; color: #6c6d74; margin-top: 2px; }
+.gogh-sp-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px; }
+.gogh-sp-card { background: #fff; border: 1px solid #e3e3e8; border-radius: 14px; overflow: hidden; }
+.gogh-sp-prev { position: relative; height: 210px; overflow: hidden; background: #ececef; border-bottom: 1px solid #e3e3e8; }
+.gogh-sp-stage { pointer-events: none; }
+.gogh-sp-pagename {
+  position: absolute; top: 8px; right: 8px; font-size: 11px; font-weight: 600;
+  background: rgba(255, 255, 255, 0.92); border: 1px solid #e3e3e8; border-radius: 999px;
+  padding: 2px 9px; color: #55565c;
+}
+.gogh-sp-body { padding: 12px 14px 14px; }
+.gogh-sp-name { font-size: 15px; font-weight: 700; color: #17181c; }
+.gogh-sp-desc { font-size: 12.5px; color: #6c6d74; margin-top: 1px; }
+.gogh-sp-chips { font-size: 12px; color: #8a8b92; margin: 6px 0 12px; }
+.gogh-sp-actions { display: flex; gap: 8px; }
+.gogh-sp-use { background: #17181c; color: #fff; border-color: #17181c; }
+.gogh-sp-confirm {
+  position: fixed; inset: 0; z-index: 100011;
+  background: rgba(20, 21, 25, 0.35);
+  display: flex; align-items: center; justify-content: center;
+}
+.gogh-sp-dialog {
+  background: #fff; border-radius: 14px; padding: 18px 20px; width: min(400px, calc(100vw - 48px));
+  box-shadow: 0 24px 60px -18px rgba(0, 0, 0, 0.5);
+}
+.gogh-sp-dialog .gogh-sp-name { margin-bottom: 10px; }
+.gogh-sp-line { font-size: 13px; line-height: 1.55; margin-bottom: 6px; }
+.gogh-sp-keep { color: #3f6b46; }
+.gogh-sp-warn { color: #8a6215; margin-bottom: 12px; }
+.gogh-sp-dialog .gogh-sp-actions { justify-content: flex-end; }
+.gogh-sp-go { background: #17181c; color: #fff; border-color: #17181c; }
+.gogh-sp-head .gogh-sbtn { flex: none; width: 32px; height: 32px; }

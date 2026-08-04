@@ -1,0 +1,28 @@
+{
+  "name": "Studio",
+  "description": "A portfolio that leads with the work",
+  "pages": [
+    {
+      "slug": "home",
+      "title": "Home",
+      "file": "home.html",
+      "front": true,
+      "template": "page-no-title"
+    },
+    {
+      "slug": "work",
+      "title": "Work",
+      "file": "work.html"
+    },
+    {
+      "slug": "about",
+      "title": "About",
+      "file": "about.html"
+    },
+    {
+      "slug": "contact",
+      "title": "Contact",
+      "file": "contact.html"
+    }
+  ]
+}

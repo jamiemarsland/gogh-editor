@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Gogh Editor
  * Description: A freeform canvas for WordPress — drag anything anywhere on your live page; Gogh publishes it back as clean, responsive core blocks that keep working even if the plugin is deactivated.
- * Version: 0.97.31
+ * Version: 0.98.2
  * Author: Jamie Marsland
  * Author URI: https://pootlepress.com
  * License: GPLv2 or later
@@ -23,7 +23,7 @@ add_action( 'init', function () {
 		'gogh-block',
 		plugins_url( 'gogh-block.js', __FILE__ ),
 		array( 'wp-blocks', 'wp-element', 'wp-block-editor' ),
-		'0.97.31-chrome',
+		'0.98.2-chrome',
 		true
 	);
 	register_block_type( 'gogh/section', array(
@@ -162,6 +162,147 @@ add_action( 'init', function () {
 			'content'    => file_get_contents( $file ),
 		) );
 	}
+} );
+
+/**
+ * Starter sites: whole sites (pages + menu + front page) shipped as
+ * manifests + block-markup files under starters/<slug>/. Pages register as
+ * hidden patterns so the preview route can render them; applying a starter
+ * is one REST call that trashes current pages (restorable), creates the new
+ * set, rebuilds the menu, and wires the front and posts pages.
+ */
+function gogh_starters() {
+	$out = array();
+	foreach ( glob( __DIR__ . '/starters/*/manifest.json' ) as $mf ) {
+		$slug = basename( dirname( $mf ) );
+		$m    = json_decode( file_get_contents( $mf ), true );
+		if ( $m && ! empty( $m['pages'] ) ) {
+			$m['slug']    = $slug;
+			$out[ $slug ] = $m;
+		}
+	}
+	return $out;
+}
+function gogh_starter_page_content( $slug, $pg ) {
+	$file = __DIR__ . '/starters/' . $slug . '/' . basename( $pg['file'] );
+	if ( ! is_readable( $file ) ) {
+		return '';
+	}
+	return str_replace( '{{gogh_theme}}', get_template_directory_uri(), file_get_contents( $file ) );
+}
+add_action( 'init', function () {
+	foreach ( gogh_starters() as $slug => $m ) {
+		foreach ( $m['pages'] as $pg ) {
+			$content = gogh_starter_page_content( $slug, $pg );
+			if ( '' === $content ) {
+				continue;
+			}
+			register_block_pattern( 'gogh-starter/' . $slug . '-' . $pg['slug'], array(
+				'title'    => $m['name'] . ' — ' . $pg['title'],
+				'inserter' => false,
+				'content'  => $content,
+			) );
+		}
+	}
+} );
+add_action( 'rest_api_init', function () {
+	register_rest_route( 'gogh/v1', '/starter', array(
+		'methods'             => 'POST',
+		'permission_callback' => function () {
+			return current_user_can( 'manage_options' );
+		},
+		'args'                => array( 'slug' => array( 'required' => true, 'type' => 'string' ) ),
+		'callback'            => function ( $req ) {
+			$starters = gogh_starters();
+			$slug     = sanitize_key( $req['slug'] );
+			if ( empty( $starters[ $slug ] ) ) {
+				return new WP_Error( 'gogh_no_starter', __( 'Unknown site design.', 'gogh-editor' ), array( 'status' => 404 ) );
+			}
+			$m = $starters[ $slug ];
+			// current pages step aside, restorably — never deleted
+			$old = get_posts( array(
+				'post_type'   => 'page',
+				'post_status' => array( 'publish', 'draft', 'private', 'pending' ),
+				'numberposts' => -1,
+				'fields'      => 'ids',
+			) );
+			foreach ( $old as $oid ) {
+				wp_trash_post( $oid );
+			}
+			$front = 0;
+			$blog  = 0;
+			$made  = array();
+			foreach ( $m['pages'] as $pg ) {
+				$id = wp_insert_post( array(
+					'post_type'    => 'page',
+					'post_status'  => 'publish',
+					'post_title'   => $pg['title'],
+					'post_name'    => $pg['slug'],
+					'post_content' => gogh_starter_page_content( $slug, $pg ),
+					'meta_input'   => empty( $pg['template'] ) ? array()
+						: array( '_wp_page_template' => sanitize_key( $pg['template'] ) ),
+				) );
+				if ( ! $id || is_wp_error( $id ) ) {
+					continue;
+				}
+				$made[] = array( 'id' => $id, 'title' => $pg['title'] );
+				if ( ! empty( $pg['front'] ) ) {
+					$front = $id;
+				}
+				if ( ! empty( $pg['blog'] ) ) {
+					$blog = $id;
+				}
+			}
+			if ( ! $made ) {
+				return new WP_Error( 'gogh_starter_failed', __( 'The site design could not be applied.', 'gogh-editor' ), array( 'status' => 500 ) );
+			}
+			$links = '';
+			foreach ( $made as $c ) {
+				$links .= '<!-- wp:navigation-link {"label":"' . esc_attr( $c['title'] ) . '","type":"page","id":' . $c['id'] .
+					',"url":"' . esc_url( get_permalink( $c['id'] ) ) . '","kind":"post-type"} /-->';
+			}
+			$nav_id = wp_insert_post( array(
+				'post_type'    => 'wp_navigation',
+				'post_status'  => 'publish',
+				'post_title'   => $m['name'] . ' menu',
+				'post_content' => $links,
+			) );
+			// point the live header's menu at the new navigation
+			$part = get_block_template( get_stylesheet() . '//header', 'wp_template_part' );
+			if ( $part && $nav_id && ! is_wp_error( $nav_id ) ) {
+				$praw = (string) $part->content;
+				$next = '';
+				if ( preg_match( '/wp:navigation[^>]*"ref":\d+/', $praw ) ) {
+					$next = preg_replace( '/("ref":)\d+/', '${1}' . $nav_id, $praw, 1 );
+				} elseif ( preg_match( '/<!--\s+wp:navigation\s+\{/', $praw ) ) {
+					$next = preg_replace( '/(<!--\s+wp:navigation\s+\{)/', '${1}"ref":' . $nav_id . ',', $praw, 1 );
+				} else {
+					$next = preg_replace( '/(<!--\s+wp:navigation)(\s+-->)/', '${1} {"ref":' . $nav_id . '}${2}', $praw, 1 );
+				}
+				if ( $next && $next !== $praw ) {
+					if ( ! empty( $part->wp_id ) ) {
+						wp_update_post( array( 'ID' => $part->wp_id, 'post_content' => $next ) );
+					} else {
+						$pid = wp_insert_post( array(
+							'post_type'    => 'wp_template_part',
+							'post_status'  => 'publish',
+							'post_title'   => 'header',
+							'post_name'    => 'header',
+							'post_content' => $next,
+						) );
+						if ( $pid && ! is_wp_error( $pid ) ) {
+							wp_set_post_terms( $pid, array( get_stylesheet() ), 'wp_theme' );
+							wp_set_post_terms( $pid, array( 'header' ), 'wp_template_part_area' );
+						}
+					}
+				}
+			}
+			update_option( 'show_on_front', 'page' );
+			update_option( 'page_on_front', $front ? $front : $made[0]['id'] );
+			update_option( 'page_for_posts', $blog ? $blog : 0 );
+			return array( 'home' => get_permalink( $front ? $front : $made[0]['id'] ) );
+		},
+	) );
 } );
 
 /**
@@ -343,7 +484,7 @@ add_action( 'wp_enqueue_scripts', function () {
 
 	// for every visitor: neutralise theme spacing around gogh sections, even
 	// on pages whose stored stylesheets predate this rule
-	wp_register_style( 'gogh-base', false, array(), '0.97.31-chrome' );
+	wp_register_style( 'gogh-base', false, array(), '0.98.2-chrome' );
 	wp_enqueue_style( 'gogh-base' );
 	wp_add_inline_style( 'gogh-base',
 		// full-bleed sections use 100vw, which includes the scrollbar — once
@@ -366,8 +507,8 @@ add_action( 'wp_enqueue_scripts', function () {
 		return;
 	}
 
-	wp_enqueue_script( 'gogh-editor', plugins_url( 'gogh-editor.js', __FILE__ ), array(), '0.97.31-chrome', true );
-	wp_enqueue_style( 'gogh-editor', plugins_url( 'gogh-editor.css', __FILE__ ), array(), '0.97.31-chrome' );
+	wp_enqueue_script( 'gogh-editor', plugins_url( 'gogh-editor.js', __FILE__ ), array(), '0.98.2-chrome', true );
+	wp_enqueue_style( 'gogh-editor', plugins_url( 'gogh-editor.css', __FILE__ ), array(), '0.98.2-chrome' );
 
 	// WebMCP bridge: the page registers its editing verbs as agent tools.
 	// OPT-IN only — add ?gogh-mcp=1 for a demo session (or enable sitewide
@@ -375,13 +516,13 @@ add_action( 'wp_enqueue_scripts', function () {
 	// agents from discovering publish-capable tools uninvited.
 	// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only opt-in toggle; script is capability-gated above.
 	if ( isset( $_GET['gogh-mcp'] ) || isset( $_GET['gogh-test'] ) || apply_filters( 'gogh_webmcp_enabled', false ) ) {
-		wp_enqueue_script( 'gogh-webmcp', plugins_url( 'gogh-webmcp.js', __FILE__ ), array( 'gogh-editor' ), '0.97.31-chrome', true );
+		wp_enqueue_script( 'gogh-webmcp', plugins_url( 'gogh-webmcp.js', __FILE__ ), array( 'gogh-editor' ), '0.98.2-chrome', true );
 	}
 
 	// regression suite: /page/?gogh-test (editors only, never saves)
 	// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only toggle enqueuing a test script for capability-checked editors.
 	if ( isset( $_GET['gogh-test'] ) ) {
-		wp_enqueue_script( 'gogh-tests', plugins_url( 'gogh-tests.js', __FILE__ ), array( 'gogh-editor' ), '0.97.31-chrome', true );
+		wp_enqueue_script( 'gogh-tests', plugins_url( 'gogh-tests.js', __FILE__ ), array( 'gogh-editor' ), '0.98.2-chrome', true );
 	}
 
 	$rest_base = ( 'page' === $post->post_type ) ? 'pages' : 'posts';
@@ -398,6 +539,16 @@ add_action( 'wp_enqueue_scripts', function () {
 		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only labs toggle
 		'experiments' => isset( $_GET['gogh-test'] ) || ( isset( $_GET['gogh-experiments'] ) && '0' !== $_GET['gogh-experiments'] ),
 		'brand'    => get_option( 'gogh_brand', null ) ?: null,
+		'starters' => array_values( array_map( function ( $m ) {
+			return array(
+				'slug'        => $m['slug'],
+				'name'        => $m['name'],
+				'description' => isset( $m['description'] ) ? $m['description'] : '',
+				'pages'       => array_map( function ( $pg ) {
+					return array( 'slug' => $pg['slug'], 'title' => $pg['title'] );
+				}, $m['pages'] ),
+			);
+		}, gogh_starters() ) ),
 		'pageTemplate'  => get_page_template_slug( $post ) ?: '',
 		'pageTemplates' => (function () use ( $post ) {
 			$out = array();
@@ -481,7 +632,7 @@ add_action( 'enqueue_block_assets', function () {
 	if ( ! is_admin() ) {
 		return;
 	}
-	wp_register_style( 'gogh-editor-base', false, array(), '0.97.31-chrome' );
+	wp_register_style( 'gogh-editor-base', false, array(), '0.98.2-chrome' );
 	wp_enqueue_style( 'gogh-editor-base' );
 	wp_add_inline_style( 'gogh-editor-base',
 		'.gogh-wrap { min-width: 100%; margin-block: 0 !important; }' .
