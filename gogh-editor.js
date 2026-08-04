@@ -9324,7 +9324,8 @@
     clearConvertBtns();
     placeStoredRmBtns();
     // v1 posture: converting arbitrary imported markup to freeform is a
-    // LABS feature (gogh_convert_enabled filter / ?gogh-convert=1) — its
+    // On by default since 0.97.6; ?gogh-experiments=0 (or the
+    // gogh_convert_enabled filter) hides it — its
     // input space is the whole web. Native light editing stays on.
     if (!editing || !cfg.canConvert) return;
     topBlockNodes().forEach(function (node) {
