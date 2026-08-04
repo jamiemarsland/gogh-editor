@@ -5655,6 +5655,30 @@
     '<button type="button" class="gogh-sbtn gogh-mirror-close" title="Hide">\u2715</button></div>' +
     '<div class="gogh-mirror-frame"><div class="gogh-mirror-vp"><div class="gogh-mirror-stage"></div></div></div>';
   document.body.appendChild(mirror);
+  // the stage is a static clone — no interactivity runtime — so the nav's
+  // hamburger would be a dead control ("mobile menu does not open"). Toggle
+  // the overlay classes ourselves, and keep preview links from navigating.
+  mirror.addEventListener('click', function (ev) {
+    var openBtn = ev.target.closest && ev.target.closest('.wp-block-navigation__responsive-container-open');
+    if (openBtn) {
+      ev.preventDefault();
+      ev.stopPropagation();
+      var nav = openBtn.closest('nav');
+      var mc = nav && nav.querySelector('.wp-block-navigation__responsive-container');
+      if (mc) mc.classList.add('is-menu-open', 'has-modal-open');
+      return;
+    }
+    var closeBtn = ev.target.closest && ev.target.closest('.wp-block-navigation__responsive-container-close');
+    if (closeBtn) {
+      ev.preventDefault();
+      ev.stopPropagation();
+      var mc2 = closeBtn.closest('.wp-block-navigation__responsive-container');
+      if (mc2) mc2.classList.remove('is-menu-open', 'has-modal-open');
+      return;
+    }
+    var a = ev.target.closest && ev.target.closest('.gogh-mirror-stage a');
+    if (a) ev.preventDefault();
+  });
   var mirrorBtnSide = side.querySelector('.gogh-mirroropen');
   var mirrorT = null;
   var mirrorObs = new MutationObserver(function () { scheduleMirror(); });
@@ -5675,6 +5699,11 @@
     // footer) AND native content: pasted holders awaiting publish plus
     // published native blocks (e.g. HTML sections never made freeform)
     var items = [];
+    // native site chrome frames the preview (freeform chrome arrives via S)
+    ['header', 'footer'].forEach(function (area) {
+      var pe = partElForArea(area);
+      if (pe && !pe.querySelector('.gogh-wrap')) items.push({ live: pe, src: pe });
+    });
     S.forEach(function (sec) {
       if (sec.sectionEl) items.push({ live: sec.wrapEl || sec.sectionEl, src: sec.sectionEl, sec: sec });
     });
@@ -5692,7 +5721,7 @@
       var clone = it.src.cloneNode(true);
       if (it.sec) clone.removeAttribute('style');
       [].slice.call(clone.querySelectorAll('[contenteditable]')).forEach(function (n) { n.removeAttribute('contenteditable'); });
-      [].slice.call(clone.querySelectorAll('.gogh-pendbar')).forEach(function (n) { n.remove(); });
+      [].slice.call(clone.querySelectorAll('.gogh-pendbar, .gogh-navadd, .gogh-logochip')).forEach(function (n) { n.remove(); });
       [].slice.call(clone.querySelectorAll('.gogh-selected, .gogh-dragsrc, .gogh-textedit, .gogh-fan')).forEach(function (n) {
         n.classList.remove('gogh-selected', 'gogh-dragsrc', 'gogh-textedit', 'gogh-fan');
         n.style.transform = '';
@@ -8795,8 +8824,13 @@
     var sr = sttEl.getBoundingClientRect();
     chip.style.left = (sr.left + window.scrollX) + 'px';
     chip.style.top = (sr.bottom + window.scrollY + 8) + 'px';
-    chip.addEventListener('mousedown', function (ev3) { ev3.preventDefault(); });
-    chip.addEventListener('click', function () {
+    // a real pointerdown on the chip blurs the leaf BEFORE mousedown even
+    // lands — onBlur removes the chip mid-gesture and the click never
+    // arrives. Act on pointerdown itself, and stop it reaching the
+    // document-level closer that would shut the panel we just opened.
+    chip.addEventListener('pointerdown', function (ev3) {
+      ev3.preventDefault();
+      ev3.stopPropagation();
       leaf.textContent = orig;
       leaf.blur();
       openLogoPicker(sttEl);

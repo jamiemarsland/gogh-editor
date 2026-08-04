@@ -2161,3 +2161,6 @@ html.gogh-textediting .gogh-convertbtn {
   box-shadow: 0 4px 14px rgba(0, 0, 0, .3);
 }
 .gogh-logochip:hover { background: #34363c; }
+
+/* fixed-position nav overlays must fill the phone, not the real viewport */
+.gogh-mirror-vp { transform: translateZ(0); }
