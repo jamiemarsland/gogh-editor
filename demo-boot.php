@@ -1,5 +1,5 @@
 <?php
-require '/wordpress/wp-load.php';
+require_once '/wordpress/wp-load.php';
 wp_set_current_user( 1 );
 require_once ABSPATH . 'wp-admin/includes/media.php';
 require_once ABSPATH . 'wp-admin/includes/file.php';
