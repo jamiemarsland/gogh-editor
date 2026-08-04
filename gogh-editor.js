@@ -158,7 +158,7 @@
   });
   scopeSeq = Math.max(scopeSeq, wrapTags.length);
 
-  document.documentElement.classList.add('gogh-editing');
+  if (wantEdit) document.documentElement.classList.add('gogh-editing');
   // arriving from a page-style switch: fade in instead of popping
   if (/[?&]gogh-ps=1/.test(location.search)) {
     (function () {
@@ -5787,7 +5787,7 @@
   try {
     // never auto-open during a test run — whole-page re-clones mid-suite
     // add noise the tests don't deserve
-    if (localStorage.getItem('gogh-mirror') === '1' && location.search.indexOf('gogh-test') === -1) {
+    if (wantEdit && localStorage.getItem('gogh-mirror') === '1' && location.search.indexOf('gogh-test') === -1) {
       mirror.hidden = false;
       mirrorBtnSide.classList.add('is-active');
     }
@@ -6817,10 +6817,13 @@
   // ---------- selection link bubble: select text in any light editor and a
   // 'Link' chip floats above it — ⌘K without having to know ⌘K ----------
   var activeLightEd = null;
-  var linkBubble = document.createElement('button');
-  linkBubble.type = 'button';
+  var linkBubble = document.createElement('div');
   linkBubble.className = 'gogh-linkbubble';
-  linkBubble.innerHTML = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M10 13a5 5 0 0 0 7.1.4l3-3a5 5 0 0 0-7-7.1l-1.7 1.7"/><path d="M14 11a5 5 0 0 0-7.1-.4l-3 3a5 5 0 0 0 7 7.1l1.7-1.7"/></svg>Link';
+  linkBubble.innerHTML =
+    '<button type="button" class="gogh-fmtbtn" data-fmt="bold" title="Bold"><b>B</b></button>' +
+    '<button type="button" class="gogh-fmtbtn" data-fmt="italic" title="Italic"><i>I</i></button>' +
+    '<button type="button" class="gogh-fmtbtn gogh-fmt-link" title="Link">' +
+    '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M10 13a5 5 0 0 0 7.1.4l3-3a5 5 0 0 0-7-7.1l-1.7 1.7"/><path d="M14 11a5 5 0 0 0-7.1-.4l-3 3a5 5 0 0 0 7 7.1l1.7-1.7"/></svg>Link</button>';
   linkBubble.hidden = true;
   document.body.appendChild(linkBubble);
   function setActiveLightEd(ctx) {
@@ -6873,6 +6876,20 @@
     var s = window.getSelection();
     if (!s.rangeCount || s.isCollapsed) return;
     var range = s.getRangeAt(0).cloneRange();
+    var fmtBtn = ev.target.closest && ev.target.closest('.gogh-fmtbtn');
+    var fmt = fmtBtn && fmtBtn.getAttribute('data-fmt');
+    if (fmt) {
+      // bold/italic act right here and KEEP the selection for more formatting
+      var wasEd = ctx.el.getAttribute('contenteditable') === 'true';
+      if (!wasEd) ctx.el.setAttribute('contenteditable', 'true');
+      s.removeAllRanges();
+      s.addRange(range);
+      try { document.execCommand(fmt, false, null); } catch (eF) {}
+      if (!wasEd) ctx.el.removeAttribute('contenteditable');
+      var leafF = ctx.leafOf(ctx.el);
+      if (leafF) ctx.sync(leafF);
+      return;
+    }
     linkBubble.hidden = true;
     openLinkCreatePanel(ctx.el, function (url) {
       // createLink needs an editable host — borrow editability if the
@@ -9697,6 +9714,18 @@
 
   // "Make freeform" overlay buttons on convertible blocks
   var convBtns = [];
+  // like the chrome pills: stored-block controls only show while the
+  // pointer is over their block (or the pill itself) — a page of patterns
+  // otherwise wears pill pairs on every block, and adjacent blocks stack
+  // identical pills
+  document.addEventListener('mouseover', function (ev) {
+    convBtns.concat(storedRmBtns).forEach(function (b) {
+      var over = b.contains(ev.target) ||
+        (b.__goghBlock && b.__goghBlock.contains(ev.target));
+      b.style.opacity = over ? '' : '0';
+      b.style.pointerEvents = over ? '' : 'none';
+    });
+  });
   function clearConvertBtns() {
     convBtns.forEach(function (b) { b.remove(); });
     convBtns = [];
@@ -9719,6 +9748,9 @@
       b.className = 'gogh-storedrm';
       b.textContent = '\u2715';
       b.title = 'Remove this section';
+      b.__goghBlock = en.el;
+      b.style.opacity = '0';
+      b.style.pointerEvents = 'none';
       b.style.left = (r.right + window.scrollX - 38) + 'px';
       b.style.top = (r.top + window.scrollY + 10) + 'px';
       b.addEventListener('click', function () {
@@ -9765,6 +9797,9 @@
       b.textContent = '\u2728 Make freeform';
       b.style.left = (r.right + window.scrollX - 10) + 'px';
       b.style.top = (r.top + window.scrollY + 10) + 'px';
+      b.__goghBlock = node;
+      b.style.opacity = '0';
+      b.style.pointerEvents = 'none';
       b.addEventListener('click', function () {
         b.disabled = true;
         b.textContent = 'Converting\u2026';

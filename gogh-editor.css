@@ -751,7 +751,9 @@
   gap: 7px;
   font-size: 12px;
   font-weight: 600;
-  color: rgba(232, 234, 240, 0.75);
+  /* the panel is themed via vars — a hardcoded light grey vanished on the
+     light UI ("can't read the custom label") */
+  color: color-mix(in srgb, var(--gogh-ui-fg, #e8eaf0) 78%, transparent);
 }
 .gogh-color {
   width: 40px;
@@ -1624,22 +1626,31 @@ html.gogh-editing .gogh-mirror { display: flex; }
   transform: translateX(-50%);
   z-index: 100002;
   display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  cursor: pointer;
+  align-items: stretch;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, sans-serif;
-  font-size: 11.5px;
-  font-weight: 700;
-  padding: 5px 11px;
   border-radius: 999px;
   background: rgba(20, 21, 25, 0.94);
-  color: #e8eaf0;
   border: 1px solid rgba(255, 255, 255, 0.25);
   box-shadow: 0 10px 28px -8px rgba(0, 0, 0, 0.5);
   white-space: nowrap;
+  overflow: hidden;
 }
 .gogh-linkbubble[hidden] { display: none; }
-.gogh-linkbubble:hover { background: rgba(35, 38, 46, 0.96); }
+.gogh-fmtbtn {
+  all: unset;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  cursor: pointer;
+  font-size: 11.5px;
+  font-weight: 700;
+  color: #e8eaf0;
+  padding: 6px 11px;
+}
+.gogh-fmtbtn:hover { background: rgba(255, 255, 255, 0.12); }
+.gogh-fmtbtn b { font-weight: 800; }
+.gogh-fmtbtn i { font-style: italic; font-family: Georgia, serif; }
+.gogh-fmtbtn + .gogh-fmtbtn { border-left: 1px solid rgba(255, 255, 255, 0.14); }
 
 /* each menu item's hover ✕ */
 .gogh-editing .gogh-lightedit .wp-block-navigation-item { position: relative; }
@@ -2179,3 +2190,8 @@ html.gogh-textediting .gogh-convertbtn {
 .gogh-logosize > span:first-child { font-size: 12px; color: #7a7b81; }
 .gogh-logosize input[type="range"] { flex: 1; accent-color: #4f5aee; }
 .gogh-logosize-val { font-size: 12px; min-width: 44px; text-align: right; color: #2c2d31; font-variant-numeric: tabular-nums; }
+
+
+/* stored-block pills wait for their block to be hovered (JS-driven via
+   inline opacity; this only smooths the change) */
+.gogh-storedrm { transition: opacity 0.15s ease; }
