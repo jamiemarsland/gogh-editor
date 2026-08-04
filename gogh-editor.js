@@ -10129,6 +10129,14 @@
       });
       document.body.appendChild(b);
       convBtns.push(b);
+      // the remove ✕ sits to the pill's LEFT — its default offset assumed a
+      // narrower pill and parked it on top of "freeform"
+      storedRmBtns.forEach(function (rb) {
+        if (rb.__goghBlock === node) {
+          rb.style.left = (r.right + window.scrollX - 10 - b.offsetWidth - 36) + 'px';
+          rb.style.top = (r.top + window.scrollY + 10) + 'px';
+        }
+      });
     });
   }
 
