@@ -592,8 +592,13 @@
         (e.type === 'image' ? ' aspect-ratio: ' + e.w + ' / ' + e.h + ';' : '') +
         // stacked mobile: decorative SHAPES step aside; plain boxes are
         // structural panels (photo-card scrims, feature mats) and keep
-        // their proportions instead of collapsing to zero height
-        (e.type === 'box' ? (e.shape ? ' display: none;' : ' aspect-ratio: ' + e.w + ' / ' + e.h + ';') : '') +
+        // their proportions instead of collapsing to zero height. CARDS are
+        // the exception — narrow width makes their text TALLER, so locking
+        // the design aspect squeezes kids into overlap; they size to
+        // content, with a gap standing in for the collapsed design spacers
+        (e.type === 'box' ? (e.shape ? ' display: none;' :
+          (e.kids && e.kids.length ? ' aspect-ratio: auto; height: auto; display: flex; flex-direction: column; gap: 3cqw; padding: 6cqw 5cqw; align-items: flex-start;' :
+            ' aspect-ratio: ' + e.w + ' / ' + e.h + ';')) : '') +
         (e.type === 'exp' ? ' aspect-ratio: ' + e.w + ' / ' + e.h + ';' : '') +
         (e.type === 'badge' ? ' width: max-content; height: 44px;' : '') + ' }');
     });
@@ -3944,6 +3949,25 @@
   // ---------- cards: joining, leaving, and editing kids ----------
   // dropping an element FULLY inside a plain box makes it a kid of that
   // card (one level only; boxes never join boxes)
+  var SETTLE_TYPES = { heading: 1, para: 1, button: 1, badge: 1 };
+  function settleKid(host, kid) {
+    // a card reads as a stack: TEXTY kids dropped roughly onto other texty
+    // kids tuck below them instead of sharing grid cells (which renders as
+    // genuine overlap). Images and boxes are exempt — text over a photo is
+    // a design, not an accident.
+    if (!SETTLE_TYPES[kid.type]) return;
+    var moved = true, guard = 0;
+    while (moved && guard++ < 8) {
+      moved = false;
+      (host.kids || []).forEach(function (ok) {
+        if (ok === kid || !SETTLE_TYPES[ok.type]) return;
+        var ox = Math.min(kid.x + kid.w, ok.x + ok.w) - Math.max(kid.x, ok.x);
+        var oy = Math.min(kid.y + kid.h, ok.y + ok.h) - Math.max(kid.y, ok.y);
+        if (ox > 12 && oy > 12) { kid.y = ok.y + ok.h + 12; moved = true; }
+      });
+    }
+    if (kid.y + kid.h > host.h) host.h = kid.y + kid.h + 16;
+  }
   function cardJoinTarget(sec, i) {
     var e = sec.els[i];
     if (!e || e.type === 'box') return -1;
@@ -4153,10 +4177,34 @@
         var kid = sec.els[i];
         sec.els.splice(i, 1);
         var host = sec.els[jb > i ? jb - 1 : jb];
-        kid.x = Math.max(0, Math.round(kid.x - host.x));
-        kid.y = Math.max(0, Math.round(kid.y - host.y));
+        var adopt = [kid];
+        if (!(host.kids && host.kids.length)) {
+          // an overlay-style card (converted patterns compose this way: a
+          // plain box with elements sitting ON it, not in it). Joining only
+          // the dropped element would make a one-kid grid that stretches it
+          // weirdly while the overlay text stacks by different rules on
+          // mobile — so the first join promotes the box to a TRUE card:
+          // everything fully on it becomes a kid together
+          for (var q = sec.els.length - 1; q >= 0; q--) {
+            var oe = sec.els[q];
+            if (oe === host || oe.type === 'box') continue;
+            if (oe.x >= host.x - 2 && oe.y >= host.y - 2 &&
+                oe.x + oe.w <= host.x + host.w + 2 &&
+                oe.y + oe.h <= host.y + host.h + 2) {
+              sec.els.splice(q, 1);
+              adopt.push(oe);
+            }
+          }
+          // reading order — kids render in array order
+          adopt.sort(function (a2, b2) { return (a2.y - b2.y) || (a2.x - b2.x); });
+        }
         host.kids = host.kids || [];
-        host.kids.push(kid);
+        adopt.forEach(function (k2) {
+          k2.x = Math.max(0, Math.round(k2.x - host.x));
+          k2.y = Math.max(0, Math.round(k2.y - host.y));
+          host.kids.push(k2);
+        });
+        settleKid(host, kid);
         sel = null;
         hideHandles();
         closePanel();
@@ -4323,6 +4371,8 @@
           { actions: [{ label: 'Undo', onClick: function () { undo(); } }] });
         return;
       }
+      settleKid(hostEl, hostEl.kids[kd.j]);
+      resolveAndApply(sec);
       pushState();
     } else if (!kd.already) {
       var kb = hostEl.kids[kd.j];
