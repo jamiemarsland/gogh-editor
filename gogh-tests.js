@@ -1886,6 +1886,73 @@
       return 'widget cards: intact, draggable whole, text editable';
     });
 
+    // ---- starter-site era: native pages, covers, converted deletes ----
+    test('native pages: no bootstrap placeholder, no delete-into-picker', function () {
+      var host = document.querySelector('.entry-content');
+      expect(host, 'fixture has entry-content');
+      expect(G.goghHasNativeContent() === false, 'fixture itself is all-gogh');
+      var fake = document.createElement('div');
+      fake.className = 'wp-block-group faux-native';
+      host.appendChild(fake);
+      var withNative = G.goghHasNativeContent();
+      fake.remove();
+      expect(withNative === true, 'a native top block flips the predicate');
+      expect(G.goghHasNativeContent() === false, 'and it flips back');
+      return 'goghHasNativeContent gates bootstrap + delete-picker paths';
+    });
+
+    test('cover blocks: scaffolding does not derail light-edit pairing', function () {
+      // mirror the REAL starter hero: cover > overlay + inner-container
+      // wrapper > columns > column > paragraph — two scaffold layers deep
+      var raw = '<!-- wp:cover {"customOverlayColor":"#e68b14"} -->\n' +
+        '<div class="wp-block-cover"><span aria-hidden="true" class="wp-block-cover__background has-background-dim-100 has-background-dim" style="background-color:#e68b14"></span>' +
+        '<div class="wp-block-cover__inner-container">' +
+        '<!-- wp:columns -->\n<div class="wp-block-columns">' +
+        '<!-- wp:column -->\n<div class="wp-block-column">' +
+        '<!-- wp:paragraph -->\n<p>Editable cover words</p>\n<!-- /wp:paragraph -->' +
+        '</div>\n<!-- /wp:column -->' +
+        '</div>\n<!-- /wp:columns -->' +
+        '</div></div>\n<!-- /wp:cover -->';
+      var holder = document.createElement('div');
+      holder.innerHTML = '<div class="wp-block-cover"><span aria-hidden="true" class="wp-block-cover__background has-background-dim-100 has-background-dim" style="background-color:#e68b14"></span>' +
+        '<div class="wp-block-cover__inner-container"><div class="wp-block-columns"><div class="wp-block-column"><p>Editable cover words</p></div></div></div></div>';
+      document.body.appendChild(holder);
+      var entry = { el: holder, raw: raw, savedRaw: raw, stored: true, title: 'Test cover' };
+      try {
+        G.bindPending(entry);
+        var p = holder.querySelector('p');
+        var leaf = entry.__leafOf && entry.__leafOf(p);
+        expect(leaf, 'cover paragraph pairs with its span despite the overlay scaffolding');
+      } finally {
+        holder.remove();
+      }
+      return 'cover overlay span no longer shifts the child pairing';
+    });
+
+    test('deleting a converted section excises, never resurrects', function () {
+      G.addSection({ title: 'T', minH: 200, els: [
+        { type: 'heading', x: 90, y: 40, w: 400, h: 40, text: 'Convert victim', fs: 'large' },
+      ] });
+      var c = contentSecs();
+      var victim = c[c.length - 1];
+      victim.srcSig = 'test-sig-x';
+      var fakeNode = document.createElement('div');
+      var fakeMarker = document.createComment('gogh-src');
+      document.body.appendChild(fakeMarker);
+      G.convertStash()['test-sig-x'] = { node: fakeNode, marker: fakeMarker, raw: '<!-- wp:group -->FAKE SPAN<!-- /wp:group -->' };
+      var storedBefore = G.storedEdits().length;
+      G.deleteSectionRaw(G.sections().indexOf(victim));
+      var entries = G.storedEdits();
+      var added = entries.length === storedBefore + 1 && entries[entries.length - 1].deleted &&
+        entries[entries.length - 1].savedRaw.indexOf('FAKE SPAN') !== -1;
+      expect(added, 'delete queued the original span for excision');
+      expect(!G.convertStash()['test-sig-x'], 'stash entry consumed');
+      expect(!fakeNode.parentNode, 'original block NOT resurrected into the page');
+      entries.pop();
+      fakeMarker.remove();
+      return 'converted delete = content gone + span excised on publish';
+    });
+
     // ---- guardrails: scrims behind text, struck swatches ----
     test('guardrails: auto-scrim behind text, honest swatch strikes', function () {
       var s0 = sec();

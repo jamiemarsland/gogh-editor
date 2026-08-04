@@ -30,14 +30,25 @@
   // become normal gogh sections on the next save.
   var wrapTags = [].slice.call(document.querySelectorAll('.gogh-wrap'));
   var wantEdit = /[?&]gogh-edit=1/.test(location.search);
+  // a page whose content is native blocks (a starter site's page, a classic
+  // page) is NOT an empty page — the blank-canvas machinery must leave it be
+  function goghHasNativeContent() {
+    var host = document.querySelector('.entry-content');
+    return !!host && [].some.call(host.children, function (n) {
+      return n.nodeType === 1 && !n.classList.contains('gogh-wrap') &&
+        !n.classList.contains('gogh-pending') && n.tagName !== 'STYLE';
+    });
+  }
   // wraps inside the header/footer are site chrome, not page content — a
   // freeform header must not stop an empty PAGE from getting its canvas
   var contentWraps = wrapTags.filter(function (w) { return !w.closest('.wp-block-template-part'); });
   if (!wrapTags.length && !wantEdit) return;
-  if (!contentWraps.length && wantEdit) {
-    // ?gogh-edit on a page with no gogh content yet: bootstrap an empty
-    // placeholder section at the end of the content so the editor has a
-    // canvas. It is never saved unless the user actually puts things in it.
+  if (!contentWraps.length && wantEdit && !goghHasNativeContent()) {
+    // ?gogh-edit on a GENUINELY empty page: bootstrap an empty placeholder
+    // section at the end of the content so the editor has a canvas. It is
+    // never saved unless the user actually puts things in it. Pages made of
+    // native blocks get no placeholder — it read as an undeletable empty
+    // section at the bottom of every starter page.
     var host = document.querySelector('.entry-content') || document.querySelector('main');
     if (!host && !wrapTags.length) return;
     if (host) {
@@ -51,7 +62,9 @@
       wrapTags.push(bWrap);
     }
   }
-  if (!wrapTags.length) return;
+  // native-only pages (a starter site) boot the editor with ZERO gogh
+  // sections: light editing, the palette and the picker all still apply
+  if (!wrapTags.length && !wantEdit) return;
 
   function inferModelFromDom(sectionEl) {
     var els = [];
@@ -241,7 +254,7 @@
       bgImage: model.bgImage || null, bgId: model.bgId || null,
       wrapEl: wrap, sectionEl: sectionEl, styleEl: styleEl, nodes: [] });
   });
-  if (!S.length) return;
+  if (!S.length && !wantEdit) return;
   // marker after the last CONTENT wrap (never inside a template part)
   var endMarker = document.createComment('gogh-end');
   var contentSecs = S.filter(function (s) { return !s.chrome; });
@@ -3405,11 +3418,19 @@
   // ---------- section operations ----------
   function deleteSection(idx) {
     if (!S[idx] || S[idx].chrome) return;
-    var st = S[idx].srcSig && convertStash[S[idx].srcSig];
+    var sig = S[idx].srcSig;
+    var st = sig && convertStash[sig];
     S[idx].wrapEl.remove();
     S[idx].styleEl.remove();
-    // deleting a converted section reverts it to the original Gutenberg block
-    if (st && !st.node.parentNode) pageParent.insertBefore(st.node, st.marker.nextSibling);
+    // deleting a converted section deletes the CONTENT — resurrecting the
+    // original block here read as "I can't delete anything freeform". Its
+    // stored span is marked for excision on the next publish instead (the
+    // undo stack still restores the section itself).
+    if (st && !st.node.parentNode && st.raw) {
+      storedEdits.push({ el: st.node, raw: st.raw, savedRaw: st.raw, stored: true, deleted: true, title: 'Section' });
+      delete convertStash[sig];
+      refreshChip();
+    }
     S.splice(idx, 1);
     sel = null;
     hideHandles();
@@ -3419,7 +3440,8 @@
     // deleting the LAST section is allowed: the page goes blank, an unsaved
     // placeholder becomes the canvas (same as booting an empty page), and
     // the picker opens so there's an obvious next step. Undo still works.
-    if (!S.filter(function (s) { return !s.chrome; }).length && !pendingBlocks.length) {
+    if (!S.filter(function (s) { return !s.chrome; }).length && !pendingBlocks.length &&
+        !goghHasNativeContent()) {
       var ph = newSectionShell('gogh-sec-' + (scopeSeq++));
       ph.bootstrap = true;
       pageParent.insertBefore(ph.wrapEl, endMarker);
@@ -6056,6 +6078,10 @@
     serializeNavModel: serializeNavModel,
     sanitizePastedHtml: sanitizePastedHtml,
     openPageStylePanel: openPageStylePanel,
+    goghHasNativeContent: goghHasNativeContent,
+    bindPending: bindPending,
+    convertStash: function () { return convertStash; },
+    deleteSectionRaw: deleteSection,
     contrastRatio: contrastRatio,
     brandToVariation: brandToVariation,
     cssColorToHex: cssColorToHex,
@@ -6621,7 +6647,8 @@
       sec.srcSig = sigOf(raw.slice(freeSpans[idx].start, freeSpans[idx].end));
       var marker = document.createComment('gogh-src');
       pageParent.insertBefore(marker, node);
-      convertStash[sec.srcSig] = { node: node, marker: marker };
+      convertStash[sec.srcSig] = { node: node, marker: marker,
+        raw: raw.slice(freeSpans[idx].start, freeSpans[idx].end) };
       pageParent.insertBefore(sec.wrapEl, node);
       node.remove();
       // S stays DOM-ordered
@@ -7097,18 +7124,33 @@
     entry.map = [];
     var pair = function pair(container, base, rawText) {
       var spans = parseTopBlocks(rawText);
-      var kids = [].slice.call(container.children).filter(function (c) {
+      var keepKid = function (c) {
+        if (c.nodeType !== 1) return false;
         if (c.classList && c.classList.contains('gogh-pendbar')) return false;
+        // cover blocks render scaffolding elements with no block-comment
+        // span of their own — counting them derails every leaf after them
+        if (c.classList && (c.classList.contains('wp-block-cover__background') ||
+          c.classList.contains('wp-block-cover__image-background'))) return false;
         // metadata children are never block output (a refreshed chrome part
         // carries a <style> from the renderer)
         var tg = c.tagName;
         return tg !== 'STYLE' && tg !== 'SCRIPT' && tg !== 'LINK' && tg !== 'TEMPLATE';
-      });
+      };
+      var kids = [].slice.call(container.children).filter(keepKid);
+      // the cover's inner-container is a WRAPPER, not a block — its children
+      // are the cover block's child blocks. Flatten it transparently.
+      for (var gi = 0; gi < kids.length; gi++) {
+        if (kids[gi].classList && kids[gi].classList.contains('wp-block-cover__inner-container')) {
+          var innerKids = [].slice.call(kids[gi].children).filter(keepKid);
+          Array.prototype.splice.apply(kids, [gi, 1].concat(innerKids));
+          gi += innerKids.length - 1;
+        }
+      }
       if (!spans.length || spans.length !== kids.length) return;
       spans.forEach(function (sp, k) {
         var dom = kids[k];
         var nm = String(sp.name || '').replace(/^core\//, '');
-        if (nm === 'group' || nm === 'columns' || nm === 'column' || nm === 'buttons') {
+        if (nm === 'group' || nm === 'columns' || nm === 'column' || nm === 'buttons' || nm === 'cover') {
           var inner = innerRawOf(rawText, sp);
           if (inner && dom.children.length) { pair(dom, base + inner.base, inner.text); return; }
         }
@@ -7131,7 +7173,7 @@
       if (sp0s.length === 1) {
         var sp0 = sp0s[0];
         var nm0 = String(sp0.name || '').replace(/^core\//, '');
-        if (nm0 === 'group' || nm0 === 'columns' || nm0 === 'buttons') {
+        if (nm0 === 'group' || nm0 === 'columns' || nm0 === 'buttons' || nm0 === 'cover') {
           var inner0 = innerRawOf(entry.raw, sp0);
           if (inner0 && entry.el.children.length) pair(entry.el, inner0.base, inner0.text);
         } else {
