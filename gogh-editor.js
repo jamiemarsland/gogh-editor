@@ -597,7 +597,7 @@
         // the design aspect squeezes kids into overlap; they size to
         // content, with a gap standing in for the collapsed design spacers
         (e.type === 'box' ? (e.shape ? ' display: none;' :
-          (e.kids && e.kids.length ? ' aspect-ratio: auto; height: auto; display: flex; flex-direction: column; gap: 3cqw; padding: 6cqw 5cqw; align-items: flex-start;' :
+          (e.kids && e.kids.length ? ' aspect-ratio: auto; height: auto; display: flex; flex-direction: column; gap: 3cqw; padding: 6cqw 5cqw !important; align-items: flex-start;' :
             ' aspect-ratio: ' + e.w + ' / ' + e.h + ';')) : '') +
         (e.type === 'exp' ? ' aspect-ratio: ' + e.w + ' / ' + e.h + ';' : '') +
         (e.type === 'badge' ? ' width: max-content; height: 44px;' : '') + ' }');
@@ -1785,7 +1785,21 @@
     var top = r.bottom + window.scrollY + 10;
     // 76px bottom reserve keeps the panel clear of the publish chip
     var maxTop = window.scrollY + window.innerHeight - ph - 76;
-    if (top > maxTop) top = Math.max(window.scrollY + 16, maxTop);
+    if (top > maxTop) {
+      // clamping would slide the panel up OVER its anchor ("the modal
+      // overlaps the actual button") — step BESIDE it instead, whichever
+      // side has the room
+      var sideTop = Math.max(window.scrollY + 16, Math.min(r.top + window.scrollY - 8, maxTop));
+      if (r.right + pw + 20 < window.innerWidth) {
+        left = r.right + window.scrollX + 12;
+        top = sideTop;
+      } else if (r.left - pw - 20 > 0) {
+        left = r.left + window.scrollX - pw - 12;
+        top = sideTop;
+      } else {
+        top = Math.max(window.scrollY + 16, maxTop);
+      }
+    }
     panel.style.left = left + 'px';
     panel.style.top = top + 'px';
     panelAnchor = node;
@@ -2004,7 +2018,15 @@
       renderSection(sec);
       placeHandles(sec, i);
       pushState();
-      buildBoxPanel(sec, i); // rebuild so active states stay honest
+      // update the active marks IN PLACE — a full rebuild refetches the
+      // media grid and reads as the panel closing and reopening
+      panel.querySelectorAll('.gogh-boxsw .gogh-sw').forEach(function (b2) {
+        b2.classList.toggle('is-active', (b2.dataset.col || '') === (e.boxBg || ''));
+      });
+      panel.querySelectorAll('.gogh-shapecell').forEach(function (b2) {
+        var d2 = SHAPE_DEFS[+b2.dataset.k];
+        b2.classList.toggle('is-active', (d2.key || null) === (e.shape || null));
+      });
     }
     panel.querySelectorAll('.gogh-shapecell').forEach(function (b) {
       b.addEventListener('click', function () {
@@ -3508,7 +3530,7 @@
   secBar.addEventListener('click', function (ev) {
     var b = ev.target.closest('.gogh-sb');
     if (!b || secBarIdx === null) return;
-    if (b.dataset.sec === 'bgimg') { openSecBgPanel(secBarIdx); return; }
+    if (b.dataset.sec === 'bgimg') { openSecBgPanel(secBarIdx, b); return; }
     if (b.dataset.sec === 'savepat') { openSavePatternPanel(secBarIdx); return; }
     if (b.dataset.sec === 'del') deleteSection(secBarIdx);
     else if (b.dataset.sec === 'up') moveSection(secBarIdx, -1);
@@ -3621,11 +3643,21 @@
     closePanel();
     pushState();
   }
-  function openSecBgPanel(idx) {
+  function openSecBgPanel(idx, anchorEl) {
     var secx = S[idx];
-    var r = secx.wrapEl.getBoundingClientRect();
-    panel.style.left = Math.max(8, r.right + window.scrollX - 360) + 'px';
-    panel.style.top = (r.top + window.scrollY + 52) + 'px';
+    // open by the button that asked for it — the old section-top-right
+    // anchor dates from when the toolbar lived there, and put the panel a
+    // whole screen away from the pill
+    if (anchorEl && anchorEl.getBoundingClientRect) {
+      var ar = anchorEl.getBoundingClientRect();
+      panel.style.left = Math.max(8, Math.min(ar.left + window.scrollX,
+        window.scrollX + window.innerWidth - 360)) + 'px';
+      panel.style.top = (ar.bottom + window.scrollY + 12) + 'px';
+    } else {
+      var r = secx.wrapEl.getBoundingClientRect();
+      panel.style.left = Math.max(8, r.right + window.scrollX - 360) + 'px';
+      panel.style.top = (r.top + window.scrollY + 52) + 'px';
+    }
     var pal = pickerPalette();
     panel.innerHTML =
       '<div class="gogh-panel-title">Section background</div>' +
@@ -7422,6 +7454,49 @@
     hideHandles();
     toast('\u2728 \u201c' + entry.title + '\u201d is freeform now \u2014 drag anything.', { ttl: 4500 });
   }
+  // "+ New page" in the admin bar: ask for a NAME first (the no-JS
+  // fallback still creates "Untitled page" via admin-post)
+  var npLink = document.querySelector('#wp-admin-bar-gogh-new-page a');
+  if (npLink) npLink.addEventListener('click', function (ev) {
+    ev.preventDefault();
+    panel.innerHTML =
+      '<div class="gogh-panel-title">New page</div>' +
+      '<div class="gogh-panel-row">' +
+      '<input type="text" class="gogh-input gogh-npname" placeholder="Page name\u2026" />' +
+      '<button type="button" class="gogh-btn gogh-btn-small gogh-npgo">Create</button>' +
+      '</div>' +
+      '<em class="gogh-panel-hint">It opens in gogh, ready to design.</em>';
+    placePanelNear(npLink);
+    panelOpen = true;
+    var inp = panel.querySelector('.gogh-npname');
+    var go = panel.querySelector('.gogh-npgo');
+    setTimeout(function () { inp.focus(); }, 50);
+    var create = function () {
+      var name = inp.value.trim();
+      if (!name) { inp.focus(); return; }
+      go.disabled = true;
+      go.textContent = 'Creating\u2026';
+      fetch(GSROOT + 'pages', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-WP-Nonce': cfg.nonce },
+        credentials: 'same-origin',
+        body: JSON.stringify({ title: name, status: 'publish' }),
+      }).then(function (r) { return r.ok ? r.json() : Promise.reject(new Error('HTTP ' + r.status)); })
+        .then(function (pg) {
+          discarding = true;
+          location.href = pg.link + (pg.link.indexOf('?') === -1 ? '?' : '&') + 'gogh-edit=1';
+        }).catch(function () {
+          go.disabled = false;
+          go.textContent = 'Create';
+          toast('gogh could not create the page \u2014 try again.', { error: true });
+        });
+    };
+    go.addEventListener('click', create);
+    inp.addEventListener('keydown', function (ev2) {
+      if (ev2.key === 'Enter') create();
+      if (ev2.key === 'Escape') closePanel();
+    });
+  });
   window.__goghAddPattern = function (name, idx) {
     return fetchSectionPatterns().then(function (pats) {
       var p = pats.filter(function (x) { return x.name === name; })[0];
@@ -8021,11 +8096,25 @@
     });
   }
   function swapChromeLayoutNow(area, active, chosen) {
+    var content = chosen.content || '';
+    if (area === 'header') {
+      // the site's identity choice survives a layout change: if the header
+      // currently leads with a LOGO, the incoming pattern's title block
+      // becomes a logo block (and never both — some patterns carry the two)
+      var pe = partElForArea('header');
+      var usingLogo = !!(pe && pe.querySelector('.wp-block-site-logo'));
+      if (usingLogo) {
+        var lg = logoizeHeaderRaw(content);
+        if (lg) content = lg;
+      } else if (content.indexOf('wp:site-logo') !== -1 && content.indexOf('wp:site-title') !== -1) {
+        content = content.replace(/<!--\s*wp:site-logo(\s+\{[^]*?\})?\s*\/-->\s*/, '');
+      }
+    }
     fetch(tpUrl(active.id), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'X-WP-Nonce': cfg.nonce },
       credentials: 'same-origin',
-      body: JSON.stringify({ content: chosen.content || '' }),
+      body: JSON.stringify({ content: content }),
     }).then(function (r) {
       if (!r.ok) throw new Error('HTTP ' + r.status);
       discarding = true;
@@ -8743,8 +8832,15 @@
     // both. Returns null (nothing to swap), '' (already right), or new raw.
     var next = praw;
     if (praw.indexOf('wp:site-logo') === -1) {
-      next = next.replace(/<!--\s*wp:site-title(\s+\{[^]*?\})?\s*\/-->/,
-        '<!-- wp:site-logo {"width":160,"shouldSyncIcon":false} /-->');
+      next = next.replace(/<!--\s*wp:site-title(\s+\{[^]*?\})?\s*\/-->/, function (m0, json) {
+        // a centred title begets a centred logo — alignment is part of the
+        // layout's design, not the block's
+        var t = {};
+        if (json) { try { t = JSON.parse(json.trim()); } catch (e) { t = {}; } }
+        var attrs = { width: 160, shouldSyncIcon: false };
+        if (t.textAlign === 'center' || t.align === 'center') attrs.align = 'center';
+        return '<!-- wp:site-logo ' + JSON.stringify(attrs) + ' /-->';
+      });
       if (next === praw) return null;
       return next;
     }
