@@ -249,7 +249,11 @@ add_action( 'rest_api_init', function () {
 				if ( ! $id || is_wp_error( $id ) ) {
 					continue;
 				}
-				$made[] = array( 'id' => $id, 'title' => $pg['title'] );
+				$made[] = array(
+					'id'      => $id,
+					'title'   => $pg['title'],
+					'no_menu' => isset( $pg['menu'] ) && false === $pg['menu'],
+				);
 				if ( ! empty( $pg['front'] ) ) {
 					$front = $id;
 				}
@@ -262,6 +266,9 @@ add_action( 'rest_api_init', function () {
 			}
 			$links = '';
 			foreach ( $made as $c ) {
+				if ( ! empty( $c['no_menu'] ) ) {
+					continue;
+				}
 				$links .= '<!-- wp:navigation-link {"label":"' . esc_attr( $c['title'] ) . '","type":"page","id":' . $c['id'] .
 					',"url":"' . esc_url( get_permalink( $c['id'] ) ) . '","kind":"post-type"} /-->';
 			}

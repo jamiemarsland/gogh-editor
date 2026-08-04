@@ -32,6 +32,12 @@
       "title": "Notes",
       "file": "notes.html",
       "blog": true
+    },
+    {
+      "slug": "workshops",
+      "title": "Workshops",
+      "file": "workshops.html",
+      "menu": false
     }
   ]
 }
