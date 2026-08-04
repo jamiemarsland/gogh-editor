@@ -2952,15 +2952,23 @@
         if (!st || !html) { b.remove(); return; }
         st.innerHTML = html;
         // a pattern that renders next to nothing (post meta, bare social
-        // icons) has no business as a section starting point
-        var textLen = (st.textContent || '').trim().length;
+        // icons) has no business as a section starting point — measured with
+        // the injected layout <style> text excluded, or CSS counts as content
+        var textOnly = function () {
+          var c = st.cloneNode(true);
+          [].slice.call(c.querySelectorAll('style')).forEach(function (n) { n.remove(); });
+          return c.textContent || '';
+        };
+        var textLen = textOnly().trim().length;
         if (textLen < 30 && !st.querySelector('img')) { b.remove(); return; }
         fitCardStage(pv, st);
         [].slice.call(st.querySelectorAll('img')).forEach(function (im) {
           if (!im.complete) im.addEventListener('load', function () { fitCardStage(pv, st); }, { once: true });
         });
         // trial-convert the very render we're showing: if the scan loses
-        // the content, don't offer the section at all
+        // the content, don't offer the section at all. Hand-picked shelf
+        // entries are exempt — they insert natively and were chosen on sight
+        if (GOGH_SHELF.indexOf(p.name) !== -1) return;
         try {
           var trial = scanDomWithRaw(st, p.content || '', { loose: true });
           if (!trial.els.length) { b.remove(); return; }
@@ -2969,7 +2977,7 @@
           }).join(' ').replace(/\s+/g, ' ').length;
           var widgetText = trial.els.filter(function (e) { return e.type === 'widget'; })
             .map(function (e) { return e.whtml || ''; }).join(' ').replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').length;
-          var total = (st.textContent || '').replace(/\s+/g, ' ').length;
+          var total = textOnly().replace(/\s+/g, ' ').length;
           if (total > 40 && (kept + widgetText) < total * 0.6) { b.remove(); return; }
         } catch (err) { b.remove(); return; }
       });
@@ -3133,15 +3141,22 @@
       };
 
       // ---- build the one grid: yours floated first ----
-      // curation: only the theme's hero and card/feature patterns make the
-      // cut — the long tail (post meta, footers, filler) read as noise
-      pats = pats.filter(function (p) {
-        // whole-header/footer patterns aren't page sections
-        var cats = (p.categories || []).map(function (c) { return String(c).split('/').pop(); });
-        if (cats.indexOf('header') !== -1 || cats.indexOf('footer') !== -1) return false;
-        var c = patCats(p);
-        return c.indexOf('hero') !== -1 || c.indexOf('cards') !== -1;
-      });
+      // curation: the hand-picked shelf (GOGH_SHELF, in its order) when the
+      // active theme has it; otherwise only hero and card/feature patterns
+      // make the cut — the long tail (post meta, footers, filler) is noise
+      var shelf = pats.filter(function (p) { return GOGH_SHELF.indexOf(p.name) !== -1; });
+      if (shelf.length) {
+        shelf.sort(function (a, b) { return GOGH_SHELF.indexOf(a.name) - GOGH_SHELF.indexOf(b.name); });
+        pats = shelf;
+      } else {
+        pats = pats.filter(function (p) {
+          // whole-header/footer patterns aren't page sections
+          var cats = (p.categories || []).map(function (c) { return String(c).split('/').pop(); });
+          if (cats.indexOf('header') !== -1 || cats.indexOf('footer') !== -1) return false;
+          var c = patCats(p);
+          return c.indexOf('hero') !== -1 || c.indexOf('cards') !== -1;
+        });
+      }
       var patCardByName = {};
       var themeLabel = 'From ' + (cfg.themeName || 'your theme');
       if (pats.length) {
@@ -6404,6 +6419,28 @@
       return pick(list);
     }).catch(function () { return []; });
   }
+  // the hand-picked shelf: James's curated favourites, in display order —
+  // theme patterns by full name plus gogh's own theme-agnostic ones
+  var GOGH_SHELF = [
+    'twentytwentyfive/hero-podcast',
+    'twentytwentyfive/page-link-in-bio-wide-margins',
+    'twentytwentyfive/services-team-photos',
+    'twentytwentyfive/banner-about-book',
+    'twentytwentyfive/banner-description-images-grid',
+    'twentytwentyfive/cta-grid-products-link',
+    'twentytwentyfive/media-instagram-grid',
+    'twentytwentyfive/page-coming-soon',
+    'twentytwentyfive/banner-intro',
+    'twentytwentyfive/contact-centered-social-link',
+    'twentytwentyfive/overlapped-images',
+    'twentytwentyfive/text-faqs',
+    'twentytwentyfive/cta-newsletter',
+    'twentytwentyfive/pricing-3-col',
+    'gogh/fullscreen-cover-image-gallery',
+    'gogh/fullwidth-headline-right',
+    'gogh/simple-call-to-action',
+    'gogh/three-column-pricing-table',
+  ];
   // content patterns from the active theme (not chrome, not page shells):
   // offered in the section picker and inserted as freeform sections
   function fetchSectionPatterns() {
@@ -6419,13 +6456,19 @@
       return list.filter(function (p) {
         var cats = p.categories || [];
         var c = p.content || '';
-        return p.name && p.name.indexOf(cfg.theme + '/') === 0 &&
+        // hard safety first — chrome and template plumbing never qualify,
+        // curated or not
+        var safe = p.name &&
           cats.indexOf('header') === -1 && cats.indexOf('footer') === -1 &&
           c.indexOf('wp:template-part') === -1 &&
           c.indexOf('wp:post-') === -1 &&
           c.indexOf('wp:comments') === -1 &&
-          c.indexOf('wp:query') === -1 &&
-          cats.indexOf('header') === -1 && cats.indexOf('footer') === -1 &&
+          c.indexOf('wp:query') === -1;
+        if (!safe) return false;
+        // the curated shelf skips the theme-prefix and bucket heuristics
+        // (it deliberately includes gogh/ patterns and _page-bucketed ones)
+        if (GOGH_SHELF.indexOf(p.name) !== -1) return true;
+        return p.name.indexOf(cfg.theme + '/') === 0 &&
           // internal buckets: whole-page layouts and post-format scraps
           !cats.some(function (cc) { return /_page$|post-format/.test(cc); });
       });
@@ -6433,16 +6476,28 @@
   }
   function renderPattern(p) {
     if (p.__rendered != null) return Promise.resolve(p.__rendered);
-    return fetch(restQ(GSROOT + 'block-renderer/core/pattern', 'context=edit&attributes%5Bslug%5D=' + encodeURIComponent(p.name)), {
-      headers: { 'X-WP-Nonce': cfg.nonce },
-      credentials: 'same-origin',
-    }).then(function (r) { return r.ok ? r.json() : Promise.reject(new Error('HTTP ' + r.status)); })
+    // gogh's own route: core's block-renderer omits the per-instance layout
+    // CSS the style engine generates during render, so grids/columns collapse
+    var opts = { headers: { 'X-WP-Nonce': cfg.nonce }, credentials: 'same-origin' };
+    return fetch(restQ(GSROOT.split('wp/v2/')[0] + 'gogh/v1/pattern', 'slug=' + encodeURIComponent(p.name)), opts)
+      .then(function (r) { return r.ok ? r.json() : Promise.reject(new Error('HTTP ' + r.status)); })
       .then(function (d) {
         var html = (d && d.rendered) || '';
+        if (html && d.css) html = '<style>' + d.css + '</style>' + html;
         if (html) p.__rendered = html; // only SUCCESS is cached
         return html;
       })
-      .catch(function () { return ''; });
+      .catch(function () {
+        // older/cached server without the route: core renderer, no layout CSS
+        return fetch(restQ(GSROOT + 'block-renderer/core/pattern', 'context=edit&attributes%5Bslug%5D=' + encodeURIComponent(p.name)), opts)
+          .then(function (r) { return r.ok ? r.json() : Promise.reject(new Error('HTTP ' + r.status)); })
+          .then(function (d) {
+            var html = (d && d.rendered) || '';
+            if (html) p.__rendered = html;
+            return html;
+          })
+          .catch(function () { return ''; });
+      });
   }
   var pendingBlocks = []; // native pattern sections awaiting publish
   // published native/HTML blocks, re-bound for light editing every time

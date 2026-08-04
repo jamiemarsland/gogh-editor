@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Gogh Editor
  * Description: A freeform canvas for WordPress — drag anything anywhere on your live page; Gogh publishes it back as clean, responsive core blocks that keep working even if the plugin is deactivated.
- * Version: 0.97.6
+ * Version: 0.97.8
  * Author: Jamie Marsland
  * Author URI: https://pootlepress.com
  * License: GPLv2 or later
@@ -23,7 +23,7 @@ add_action( 'init', function () {
 		'gogh-block',
 		plugins_url( 'gogh-block.js', __FILE__ ),
 		array( 'wp-blocks', 'wp-element', 'wp-block-editor' ),
-		'0.97.6-chrome',
+		'0.97.8-chrome',
 		true
 	);
 	register_block_type( 'gogh/section', array(
@@ -136,6 +136,58 @@ add_action( 'init', function () {
 		'description' => __( 'Just your content, no site header or footer.', 'gogh-editor' ),
 		'post_types'  => array( 'page' ),
 		'content'     => '<!-- wp:group {"tagName":"main","layout":{"type":"default"},"style":{"spacing":{"blockGap":"0","margin":{"top":"0","bottom":"0"}}}} --><main class="wp-block-group" style="margin-top:0;margin-bottom:0"><!-- wp:post-content /--></main><!-- /wp:group -->',
+	) );
+} );
+
+/**
+ * Gogh's own patterns: a few pattern-directory favourites captured as plugin
+ * patterns (they aren't registered locally by any theme), so every theme gets
+ * a decent shelf in the section picker.
+ */
+add_action( 'init', function () {
+	$pats = array(
+		'fullscreen-cover-image-gallery' => array( __( 'Fullscreen cover image gallery', 'gogh-editor' ), array( 'gallery', 'banner' ) ),
+		'fullwidth-headline-right'       => array( __( 'Fullwidth headline and description', 'gogh-editor' ), array( 'banner' ) ),
+		'simple-call-to-action'          => array( __( 'Simple call to action', 'gogh-editor' ), array( 'call-to-action' ) ),
+		'three-column-pricing-table'     => array( __( 'Three column pricing table', 'gogh-editor' ), array( 'call-to-action' ) ),
+	);
+	foreach ( $pats as $slug => $info ) {
+		$file = __DIR__ . '/patterns/' . $slug . '.html';
+		if ( ! is_readable( $file ) ) {
+			continue;
+		}
+		register_block_pattern( 'gogh/' . $slug, array(
+			'title'      => $info[0],
+			'categories' => $info[1],
+			'content'    => file_get_contents( $file ),
+		) );
+	}
+} );
+
+/**
+ * Pattern previews: core's block-renderer returns markup WITHOUT the
+ * per-instance layout CSS (flex/grid/gap rules the style engine generates
+ * during render), so grids collapse into a squished huddle in the picker.
+ * This route renders a pattern and hands back that CSS alongside the markup.
+ */
+add_action( 'rest_api_init', function () {
+	register_rest_route( 'gogh/v1', '/pattern', array(
+		'methods'             => 'GET',
+		'permission_callback' => function () {
+			return current_user_can( 'edit_posts' );
+		},
+		'args'                => array( 'slug' => array( 'required' => true, 'type' => 'string' ) ),
+		'callback'            => function ( $req ) {
+			$pat = WP_Block_Patterns_Registry::get_instance()->get_registered( (string) $req['slug'] );
+			if ( ! $pat ) {
+				return new WP_Error( 'gogh_no_pattern', __( 'Unknown pattern.', 'gogh-editor' ), array( 'status' => 404 ) );
+			}
+			$html = do_blocks( (string) $pat['content'] );
+			$css  = function_exists( 'wp_style_engine_get_stylesheet_from_context' )
+				? wp_style_engine_get_stylesheet_from_context( 'block-supports' )
+				: '';
+			return array( 'rendered' => $html, 'css' => $css );
+		},
 	) );
 } );
 
@@ -255,7 +307,7 @@ add_action( 'wp_enqueue_scripts', function () {
 
 	// for every visitor: neutralise theme spacing around gogh sections, even
 	// on pages whose stored stylesheets predate this rule
-	wp_register_style( 'gogh-base', false, array(), '0.97.6-chrome' );
+	wp_register_style( 'gogh-base', false, array(), '0.97.8-chrome' );
 	wp_enqueue_style( 'gogh-base' );
 	wp_add_inline_style( 'gogh-base',
 		// full-bleed sections use 100vw, which includes the scrollbar — once
@@ -278,8 +330,8 @@ add_action( 'wp_enqueue_scripts', function () {
 		return;
 	}
 
-	wp_enqueue_script( 'gogh-editor', plugins_url( 'gogh-editor.js', __FILE__ ), array(), '0.97.6-chrome', true );
-	wp_enqueue_style( 'gogh-editor', plugins_url( 'gogh-editor.css', __FILE__ ), array(), '0.97.6-chrome' );
+	wp_enqueue_script( 'gogh-editor', plugins_url( 'gogh-editor.js', __FILE__ ), array(), '0.97.8-chrome', true );
+	wp_enqueue_style( 'gogh-editor', plugins_url( 'gogh-editor.css', __FILE__ ), array(), '0.97.8-chrome' );
 
 	// WebMCP bridge: the page registers its editing verbs as agent tools.
 	// OPT-IN only — add ?gogh-mcp=1 for a demo session (or enable sitewide
@@ -287,13 +339,13 @@ add_action( 'wp_enqueue_scripts', function () {
 	// agents from discovering publish-capable tools uninvited.
 	// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only opt-in toggle; script is capability-gated above.
 	if ( isset( $_GET['gogh-mcp'] ) || isset( $_GET['gogh-test'] ) || apply_filters( 'gogh_webmcp_enabled', false ) ) {
-		wp_enqueue_script( 'gogh-webmcp', plugins_url( 'gogh-webmcp.js', __FILE__ ), array( 'gogh-editor' ), '0.97.6-chrome', true );
+		wp_enqueue_script( 'gogh-webmcp', plugins_url( 'gogh-webmcp.js', __FILE__ ), array( 'gogh-editor' ), '0.97.8-chrome', true );
 	}
 
 	// regression suite: /page/?gogh-test (editors only, never saves)
 	// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only toggle enqueuing a test script for capability-checked editors.
 	if ( isset( $_GET['gogh-test'] ) ) {
-		wp_enqueue_script( 'gogh-tests', plugins_url( 'gogh-tests.js', __FILE__ ), array( 'gogh-editor' ), '0.97.6-chrome', true );
+		wp_enqueue_script( 'gogh-tests', plugins_url( 'gogh-tests.js', __FILE__ ), array( 'gogh-editor' ), '0.97.8-chrome', true );
 	}
 
 	$rest_base = ( 'page' === $post->post_type ) ? 'pages' : 'posts';
@@ -393,7 +445,7 @@ add_action( 'enqueue_block_assets', function () {
 	if ( ! is_admin() ) {
 		return;
 	}
-	wp_register_style( 'gogh-editor-base', false, array(), '0.97.6-chrome' );
+	wp_register_style( 'gogh-editor-base', false, array(), '0.97.8-chrome' );
 	wp_enqueue_style( 'gogh-editor-base' );
 	wp_add_inline_style( 'gogh-editor-base',
 		'.gogh-wrap { min-width: 100%; margin-block: 0 !important; }' .
