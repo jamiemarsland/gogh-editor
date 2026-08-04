@@ -5658,6 +5658,11 @@
   // the stage is a static clone — no interactivity runtime — so the nav's
   // hamburger would be a dead control ("mobile menu does not open"). Toggle
   // the overlay classes ourselves, and keep preview links from navigating.
+  // the mirror is its own little world: pointerdowns inside it must not
+  // reach the page-level editor handlers (deselect etc.), whose DOM cleanup
+  // trips the mutation observer and rebuilds the stage 120ms later — the
+  // "menu opens then glitches closed" report
+  mirror.addEventListener('pointerdown', function (ev) { ev.stopPropagation(); });
   mirror.addEventListener('click', function (ev) {
     var openBtn = ev.target.closest && ev.target.closest('.wp-block-navigation__responsive-container-open');
     if (openBtn) {
@@ -5693,6 +5698,7 @@
   function refreshMirror() {
     if (mirror.hidden) return;
     var stage = mirror.querySelector('.gogh-mirror-stage');
+    var menuWasOpen = !!stage.querySelector('.wp-block-navigation__responsive-container.is-menu-open');
     stage.innerHTML = '';
     mirrorObs.disconnect();
     // the whole page, in true DOM order — freeform sections (header, content,
@@ -5730,6 +5736,10 @@
       clone.classList.remove('gogh-exploded', 'gogh-pending');
       stage.appendChild(clone);
     });
+    if (menuWasOpen) {
+      var mc0 = stage.querySelector('.wp-block-navigation__responsive-container');
+      if (mc0) mc0.classList.add('is-menu-open', 'has-modal-open');
+    }
     // zoom (not transform) so the scroll extent shrinks with the content
     // while container queries still see a 360px viewport
     stage.style.zoom = MIRROR_W / MIRROR_DESIGN;
@@ -7026,6 +7036,14 @@
       if (entry.chromePart && ev.target.closest && ev.target.closest('.wp-block-navigation')) return;
       var a = ev.target.closest && ev.target.closest('a');
       if (a && !a.closest('.gogh-pendbar')) ev.preventDefault();
+      // the site logo IS an image — its branch must beat the generic
+      // image-swap path or clicking the logo can never open the logo picker
+      var slgEarly = ev.target.closest && ev.target.closest('.wp-block-site-logo');
+      if (slgEarly && entry.chromePart) {
+        ev.preventDefault();
+        openLogoPicker(slgEarly);
+        return;
+      }
       var img = ev.target.closest && ev.target.closest('img');
       if (img) {
         ev.preventDefault();
@@ -7044,12 +7062,6 @@
       if (stt && entry.chromePart) {
         ev.preventDefault();
         editSiteTitle(stt);
-        return;
-      }
-      var slg = ev.target.closest && ev.target.closest('.wp-block-site-logo');
-      if (slg && entry.chromePart) {
-        ev.preventDefault();
-        openLogoPicker(slg);
         return;
       }
       var btnLink = ev.target.closest && ev.target.closest('.wp-block-button__link, .wp-element-button');
@@ -8701,15 +8713,62 @@
       }).catch(function () {});
     });
   }
+  function logoRawWithWidth(praw, w) {
+    return praw.replace(/<!--\s*wp:site-logo(\s+\{[^]*?\})?\s*\/-->/, function (m0, json) {
+      var attrs = {};
+      if (json) { try { attrs = JSON.parse(json.trim()); } catch (e) { attrs = {}; } }
+      attrs.width = w;
+      return '<!-- wp:site-logo ' + JSON.stringify(attrs) + ' /-->';
+    });
+  }
+  function saveLogoWidth(w) {
+    return activePartFor('header').then(function (active) {
+      if (!active) return;
+      var praw = String((active.content && (active.content.raw || active.content)) || '');
+      if (praw.indexOf('wp:site-logo') === -1) return;
+      var next = logoRawWithWidth(praw, w);
+      if (next === praw) return;
+      return fetch(tpUrl(active.id), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-WP-Nonce': cfg.nonce },
+        credentials: 'same-origin',
+        body: JSON.stringify({ content: next }),
+      });
+    }).catch(function () {});
+  }
   function openLogoPicker(anchorEl) {
     placePanelNear(anchorEl);
+    var logoImgs = [].slice.call(document.querySelectorAll('header .wp-block-site-logo img, .wp-block-template-part .wp-block-site-logo img'));
     panel.innerHTML =
       '<div class="gogh-panel-title">Site logo</div>' +
       '<em class="gogh-panel-hint">Pick or upload an image \u2014 it replaces the text title in your header.</em>' +
+      (logoImgs.length ?
+        '<div class="gogh-panel-row gogh-logosize"><span>Size</span>' +
+        '<input type="range" min="48" max="280" step="4" />' +
+        '<span class="gogh-logosize-val"></span></div>' : '') +
       '<label class="gogh-btn gogh-btn-small gogh-upload">Upload image<input type="file" accept="image/*" hidden /></label>' +
       '<div class="gogh-media"><span class="gogh-media-loading">Loading media\u2026</span></div>';
     panel.hidden = false;
     panelOpen = true;
+    var sizeIn = panel.querySelector('.gogh-logosize input');
+    if (sizeIn) {
+      var sizeVal = panel.querySelector('.gogh-logosize-val');
+      var cur = Math.round(logoImgs[0].getBoundingClientRect().width) || 160;
+      sizeIn.value = Math.max(48, Math.min(280, cur));
+      sizeVal.textContent = sizeIn.value + 'px';
+      sizeIn.addEventListener('input', function () {
+        sizeVal.textContent = sizeIn.value + 'px';
+        logoImgs.forEach(function (im) {
+          im.style.width = sizeIn.value + 'px';
+          im.style.height = 'auto';
+        });
+      });
+      sizeIn.addEventListener('change', function () {
+        saveLogoWidth(parseInt(sizeIn.value, 10)).then(function () {
+          toast('Logo size saved.');
+        });
+      });
+    }
     var busy = false;
     function useLogo(id) {
       if (busy) return;
@@ -8725,8 +8784,21 @@
       }).then(function (active) {
         if (!active) return null;
         var praw = String((active.content && (active.content.raw || active.content)) || '');
-        // an existing site-logo block just re-renders with the new image
-        if (praw.indexOf('wp:site-logo') !== -1) return null;
+        // an existing site-logo block re-renders with the new image — but a
+        // block with NO width renders the image at natural size (massive
+        // for most uploads), so guarantee a sane default
+        if (praw.indexOf('wp:site-logo') !== -1) {
+          var withW = /wp:site-logo\s+\{[^]*?"width"/.test(praw) ? praw : logoRawWithWidth(praw, 160);
+          if (withW === praw) return null;
+          return fetch(tpUrl(active.id), {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-WP-Nonce': cfg.nonce },
+            credentials: 'same-origin',
+            body: JSON.stringify({ content: withW }),
+          }).then(function (r2) {
+            if (!r2.ok) throw new Error('the header did not save');
+          });
+        }
         var next = praw.replace(/<!--\s*wp:site-title(\s+\{[^]*?\})?\s*\/-->/,
           '<!-- wp:site-logo {"width":160,"shouldSyncIcon":false} /-->');
         if (next === praw) throw new Error('this header has no title block to swap');
