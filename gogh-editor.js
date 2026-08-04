@@ -8884,8 +8884,15 @@
       activePartFor('header').then(function (active) {
         if (!active) throw new Error('no header found');
         var praw = String((active.content && (active.content.raw || active.content)) || '');
-        var next = praw.replace(/<!--\s*wp:site-logo(\s+\{[^]*?\})?\s*\/-->/,
-          '<!-- wp:site-title {"level":0} /-->');
+        var next = praw.replace(/<!--\s*wp:site-logo(\s+\{[^]*?\})?\s*\/-->/, function (m0, json) {
+          // alignment belongs to the layout — a centred logo begets a
+          // centred title on the way back too
+          var lg = {};
+          if (json) { try { lg = JSON.parse(json.trim()); } catch (e) { lg = {}; } }
+          var attrs = { level: 0 };
+          if (lg.align === 'center') attrs.textAlign = 'center';
+          return '<!-- wp:site-title ' + JSON.stringify(attrs) + ' /-->';
+        });
         if (next === praw) throw new Error('no logo block to swap');
         return fetch(tpUrl(active.id), {
           method: 'POST',
