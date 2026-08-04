@@ -8388,14 +8388,33 @@
         });
         if (best && px) e.fs = best.slug;
       }
-      if (freeMode) {
+      var needTf = freeMode;
+      if (!needTf) {
+        // native sections normally re-express text in theme presets — but
+        // display typography (huge inline sizes, tight leading, tracking,
+        // uppercase) has no preset equivalent, and stepping it to a preset
+        // is how a 12rem hero collapsed into body-sized text on convert.
+        // Capture the real look whenever it diverges from the preset story.
+        var pcs = getComputedStyle(dom);
+        var ppx = parseFloat(pcs.fontSize) || 0;
+        var chosen = null;
+        if (e.fs) {
+          fontSizes().forEach(function (sz) { if (sz.slug === e.fs) chosen = sz; });
+        }
+        var plh = parseFloat(pcs.lineHeight);
+        needTf = (chosen && ppx && Math.abs(chosen.px - ppx) > Math.max(3, ppx * 0.12)) ||
+          (parseFloat(pcs.letterSpacing) || 0) !== 0 ||
+          (pcs.textTransform && pcs.textTransform !== 'none') ||
+          (plh && ppx && plh / ppx < 1.05);
+      }
+      if (needTf) {
         // pasted HTML keeps its own look: capture the real typography so the
         // converted element renders like the paste, not the theme. Theme
         // controls win the moment the user reaches for them (setters clear
         // the matching override).
         var tcs = getComputedStyle(dom);
         var tf = {};
-        if (tcs.fontFamily) tf.ff = tcs.fontFamily;
+        if (freeMode && tcs.fontFamily) tf.ff = tcs.fontFamily;
         var fpx = parseFloat(tcs.fontSize);
         if (fpx) {
           tf.fs = Math.round(fpx * 100) / 100;
