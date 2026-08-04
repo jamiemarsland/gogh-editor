@@ -6544,7 +6544,7 @@
       if (si !== free.length) return; // leftover spans: mapping untrusted
       storedEdits = out;
       out.forEach(bindPending);
-      placeStoredRmBtns();
+      placeConvertBtns();
     }).catch(function () {});
   }
   function clampInsertIdx(idx) {
@@ -9383,7 +9383,15 @@
     // gogh_convert_enabled filter) hides it — its
     // input space is the whole web. Native light editing stays on.
     if (!editing || !cfg.canConvert) return;
-    topBlockNodes().forEach(function (node) {
+    // only nodes BOUND to stored content spans qualify — topBlockNodes()
+    // also returns template-owned siblings (the page title, when an empty
+    // post_content leaves no .entry-content wrapper and pageParent falls
+    // back to <main>), and offering to convert the page title is nonsense.
+    // storedEdits already pairs rendered nodes with stored spans and binds
+    // nothing on a count mismatch, so it is the safe source of truth.
+    storedEdits.forEach(function (en) {
+      var node = en.el;
+      if (en.deleted || !node || !node.isConnected) return;
       var r = node.getBoundingClientRect();
       if (r.height < 24) return;
       var b = document.createElement('button');
