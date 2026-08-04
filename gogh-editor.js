@@ -7017,6 +7017,12 @@
         editSiteTitle(stt);
         return;
       }
+      var slg = ev.target.closest && ev.target.closest('.wp-block-site-logo');
+      if (slg && entry.chromePart) {
+        ev.preventDefault();
+        openLogoPicker(slg);
+        return;
+      }
       var btnLink = ev.target.closest && ev.target.closest('.wp-block-button__link, .wp-element-button');
       if (btnLink && !btnLink.closest('.gogh-pendbar') && leafOf(btnLink)) {
         ev.preventDefault();
@@ -8666,6 +8672,92 @@
       }).catch(function () {});
     });
   }
+  function openLogoPicker(anchorEl) {
+    placePanelNear(anchorEl);
+    panel.innerHTML =
+      '<div class="gogh-panel-title">Site logo</div>' +
+      '<em class="gogh-panel-hint">Pick or upload an image \u2014 it replaces the text title in your header.</em>' +
+      '<label class="gogh-btn gogh-btn-small gogh-upload">Upload image<input type="file" accept="image/*" hidden /></label>' +
+      '<div class="gogh-media"><span class="gogh-media-loading">Loading media\u2026</span></div>';
+    panel.hidden = false;
+    panelOpen = true;
+    var busy = false;
+    function useLogo(id) {
+      if (busy) return;
+      busy = true;
+      fetch(GSROOT + 'settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-WP-Nonce': cfg.nonce },
+        credentials: 'same-origin',
+        body: JSON.stringify({ site_logo: id }),
+      }).then(function (r) {
+        if (!r.ok) throw new Error('saving needs an admin login');
+        return activePartFor('header');
+      }).then(function (active) {
+        if (!active) return null;
+        var praw = String((active.content && (active.content.raw || active.content)) || '');
+        // an existing site-logo block just re-renders with the new image
+        if (praw.indexOf('wp:site-logo') !== -1) return null;
+        var next = praw.replace(/<!--\s*wp:site-title(\s+\{[^]*?\})?\s*\/-->/,
+          '<!-- wp:site-logo {"width":160,"shouldSyncIcon":false} /-->');
+        if (next === praw) throw new Error('this header has no title block to swap');
+        return fetch(tpUrl(active.id), {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'X-WP-Nonce': cfg.nonce },
+          credentials: 'same-origin',
+          body: JSON.stringify({ content: next }),
+        }).then(function (r2) {
+          if (!r2.ok) throw new Error('the header did not save');
+        });
+      }).then(function () {
+        closePanel();
+        var pe = partElForArea('header');
+        return pe ? refreshChromePart(pe) : null;
+      }).then(function () {
+        toast('Logo set \u2014 your image now leads the header.');
+      }).catch(function (err) {
+        busy = false;
+        toast('gogh could not set the logo \u2014 ' + ((err && err.message) || 'try again.'), { error: true });
+      });
+    }
+    fetch(restQ(cfg.mediaUrl, 'per_page=12&media_type=image&orderby=date&order=desc'), {
+      headers: { 'X-WP-Nonce': cfg.nonce },
+      credentials: 'same-origin',
+    }).then(function (res) { return res.ok ? res.json() : []; }).catch(function () { return []; }).then(function (items) {
+      var box = panel.querySelector('.gogh-media');
+      if (!box || panel.hidden) return;
+      box.innerHTML = '';
+      items.forEach(function (item) {
+        var thumb = (item.media_details && item.media_details.sizes &&
+          (item.media_details.sizes.thumbnail || item.media_details.sizes.medium));
+        var b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'gogh-thumb';
+        b.style.backgroundImage = 'url("' + (thumb ? thumb.source_url : item.source_url) + '")';
+        b.addEventListener('click', function () { useLogo(item.id); });
+        box.appendChild(b);
+      });
+      reclampPanel();
+    });
+    var bfile = panel.querySelector('.gogh-upload input[type="file"]');
+    bfile.addEventListener('change', function () {
+      if (!bfile.files.length) return;
+      var fd = new FormData();
+      fd.append('file', bfile.files[0]);
+      panel.querySelector('.gogh-upload').firstChild.textContent = 'Uploading\u2026';
+      fetch(cfg.mediaUrl, {
+        method: 'POST',
+        headers: { 'X-WP-Nonce': cfg.nonce },
+        credentials: 'same-origin',
+        body: fd,
+      }).then(function (res) {
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        return res.json();
+      }).then(function (item) { useLogo(item.id); }).catch(function () {
+        panel.querySelector('.gogh-upload').firstChild.textContent = 'Upload failed';
+      });
+    });
+  }
   function editSiteTitle(sttEl) {
     var leaf = sttEl.querySelector('a') || sttEl;
     if (leaf.getAttribute('contenteditable') === 'true') return;
@@ -8696,12 +8788,27 @@
     var sel = window.getSelection();
     sel.removeAllRanges();
     sel.addRange(rng);
+    var chip = document.createElement('button');
+    chip.type = 'button';
+    chip.className = 'gogh-logochip';
+    chip.textContent = 'Use a logo image instead';
+    var sr = sttEl.getBoundingClientRect();
+    chip.style.left = (sr.left + window.scrollX) + 'px';
+    chip.style.top = (sr.bottom + window.scrollY + 8) + 'px';
+    chip.addEventListener('mousedown', function (ev3) { ev3.preventDefault(); });
+    chip.addEventListener('click', function () {
+      leaf.textContent = orig;
+      leaf.blur();
+      openLogoPicker(sttEl);
+    });
+    document.body.appendChild(chip);
     var onKey = function (ev2) {
       if (ev2.key === 'Enter') { ev2.preventDefault(); leaf.blur(); }
       else if (ev2.key === 'Escape') { leaf.textContent = orig; leaf.blur(); }
       ev2.stopPropagation();
     };
     var onBlur = function () {
+      chip.remove();
       leaf.removeEventListener('keydown', onKey);
       leaf.removeEventListener('blur', onBlur);
       leaf.removeAttribute('contenteditable');

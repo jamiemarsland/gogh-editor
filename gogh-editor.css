@@ -2146,3 +2146,18 @@ html.gogh-textediting .gogh-convertbtn {
   opacity: 0.85;
 }
 .gogh-storedrm:hover { opacity: 1; background: #c23d3d; }
+
+/* offered while renaming the site title: switch to an image logo */
+.gogh-logochip {
+  position: absolute;
+  z-index: 99999;
+  border: 0;
+  border-radius: 999px;
+  padding: 7px 14px;
+  font: 600 12.5px/1 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  background: #1d1e22;
+  color: #fff;
+  cursor: pointer;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, .3);
+}
+.gogh-logochip:hover { background: #34363c; }
