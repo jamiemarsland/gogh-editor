@@ -18,10 +18,13 @@ jobs:
           mkdir -p /tmp/pkg/gogh
           rsync -a --exclude-from=.distignore ./ /tmp/pkg/gogh/
           cd /tmp/pkg && zip -rq gogh.zip gogh
-          # identical bytes, separate counter: the Playground blueprint
-          # installs THIS asset, so demo boots and real installs get their
-          # own GitHub download counts
-          cp gogh.zip gogh-playground.zip
+          cd -
+          # the playground zip carries demo-assets too: the Yellow House
+          # starter and boot read the paintings and logo from the plugin
+          # directory. Separate asset name also keeps download counters
+          # split between demo boots and real installs.
+          rsync -a ./demo-assets/ /tmp/pkg/gogh/demo-assets/
+          cd /tmp/pkg && zip -rq gogh-playground.zip gogh
       - name: Create release with assets
         env:
           GH_TOKEN: ${{ github.token }}
