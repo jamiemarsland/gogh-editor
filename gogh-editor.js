@@ -444,6 +444,7 @@
   // kids inside a card (.gogh-k-N)
   function emitElCSS(out, sec, clsSel, e, i, a) {
       var extra = TYPE_RULES[e.type];
+      if (e.type === 'widget' && e.wcol) extra += ' color: ' + e.wcol + ';';
       if (e.type === 'image') {
         extra += e.src ? ' overflow: hidden;' : ' ' + imageBackground(e);
       }
@@ -659,7 +660,7 @@
       alt: e.alt || null, mediaId: e.mediaId || null, fs: e.fs || null,
       align: e.align || null, color: e.color || null, tf: e.tf || null,
       btnBg: e.btnBg || null, btnText: e.btnText || null, btnHover: e.btnHover || null,
-      wsrc: e.wsrc || null, whtml: e.whtml || null,
+      wsrc: e.wsrc || null, whtml: e.whtml || null, wcol: e.wcol || null,
       boxBg: e.boxBg || null, radius: e.radius || 0, shape: e.shape || null,
       boxImg: e.boxImg || null, boxImgId: e.boxImgId || null,
       ph: e.ph || null,
@@ -8531,7 +8532,10 @@
       }
       if (cl.contains('wp-block-spacer') || cl.contains('wp-block-separator') || tag === 'HR') return;
       place(dom, { type: 'widget', whtml: dom.outerHTML,
-        wsrc: markup != null ? markup : dom.outerHTML });
+        wsrc: markup != null ? markup : dom.outerHTML,
+        // verbatim markup keeps its OWN styles but loses everything it
+        // inherited from wrappers the conversion discards — pin the colour
+        wcol: getComputedStyle(dom).color });
     }
     function coverInto(dom, innerRawText) {
       // the cover's backdrop becomes a full-bleed image element; its inner
