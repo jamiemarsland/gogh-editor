@@ -6865,9 +6865,12 @@
       }
     } else {
       pair(entry.el, 0, entry.raw);
-      if (!entry.map.length) {
-        // one block, unmatched structure (an HTML block, say): the whole
-        // holder edits as a single span
+      // one block, unmatched structure (an HTML block, say): the whole
+      // holder edits as a single span. NEVER for chrome parts — their DOM
+      // is a template RENDER (self-closing site-title/navigation blocks,
+      // injected editor UI), and whole-copying it into the raw once
+      // replaced a header with its own rendered DOM, navadds included.
+      if (!entry.map.length && !entry.chromePart) {
         var spans0 = parseTopBlocks(entry.raw);
         if (spans0.length === 1) {
           entry.map.push({ node: entry.el, s: spans0[0].start, e: spans0[0].end, whole: true });
@@ -6886,6 +6889,13 @@
       var c = node.cloneNode(true);
       [].slice.call(c.querySelectorAll('[contenteditable]')).forEach(function (n) { n.removeAttribute('contenteditable'); });
       c.removeAttribute('contenteditable');
+      // gogh's own UI and markers must never travel into stored content
+      [].slice.call(c.querySelectorAll('[class*="gogh-"]')).forEach(function (n) { n.remove(); });
+      [].slice.call(c.querySelectorAll('*')).concat([c]).forEach(function (n) {
+        [].slice.call(n.attributes || []).forEach(function (at) {
+          if (at.name.indexOf('data-gogh') === 0) n.removeAttribute(at.name);
+        });
+      });
       return c.outerHTML;
     }
     function wholeCopy(node) {
