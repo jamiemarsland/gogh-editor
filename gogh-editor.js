@@ -8721,6 +8721,20 @@
       return '<!-- wp:site-logo ' + JSON.stringify(attrs) + ' /-->';
     });
   }
+  function logoizeHeaderRaw(praw) {
+    // one identity only: a header shows the logo OR the text title, never
+    // both. Returns null (nothing to swap), '' (already right), or new raw.
+    var next = praw;
+    if (praw.indexOf('wp:site-logo') === -1) {
+      next = next.replace(/<!--\s*wp:site-title(\s+\{[^]*?\})?\s*\/-->/,
+        '<!-- wp:site-logo {"width":160,"shouldSyncIcon":false} /-->');
+      if (next === praw) return null;
+      return next;
+    }
+    if (!/wp:site-logo\s+\{[^]*?"width"/.test(next)) next = logoRawWithWidth(next, 160);
+    next = next.replace(/<!--\s*wp:site-title(\s+\{[^]*?\})?\s*\/-->\s*/, '');
+    return next === praw ? '' : next;
+  }
   function saveLogoWidth(w) {
     return activePartFor('header').then(function (active) {
       if (!active) return;
@@ -8745,11 +8759,39 @@
       (logoImgs.length ?
         '<div class="gogh-panel-row gogh-logosize"><span>Size</span>' +
         '<input type="range" min="48" max="280" step="4" />' +
-        '<span class="gogh-logosize-val"></span></div>' : '') +
+        '<span class="gogh-logosize-val"></span></div>' +
+        '<button type="button" class="gogh-btn gogh-btn-small gogh-logo-totext">Use a text title instead</button>' : '') +
       '<label class="gogh-btn gogh-btn-small gogh-upload">Upload image<input type="file" accept="image/*" hidden /></label>' +
       '<div class="gogh-media"><span class="gogh-media-loading">Loading media\u2026</span></div>';
     panel.hidden = false;
     panelOpen = true;
+    var toText = panel.querySelector('.gogh-logo-totext');
+    if (toText) toText.addEventListener('click', function () {
+      toText.disabled = true;
+      activePartFor('header').then(function (active) {
+        if (!active) throw new Error('no header found');
+        var praw = String((active.content && (active.content.raw || active.content)) || '');
+        var next = praw.replace(/<!--\s*wp:site-logo(\s+\{[^]*?\})?\s*\/-->/,
+          '<!-- wp:site-title {"level":0} /-->');
+        if (next === praw) throw new Error('no logo block to swap');
+        return fetch(tpUrl(active.id), {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'X-WP-Nonce': cfg.nonce },
+          credentials: 'same-origin',
+          body: JSON.stringify({ content: next }),
+        });
+      }).then(function (r) {
+        if (r && !r.ok) throw new Error('the header did not save');
+        closePanel();
+        var pe = partElForArea('header');
+        return pe ? refreshChromePart(pe) : null;
+      }).then(function () {
+        toast('Text title restored \u2014 click it to rename your site.');
+      }).catch(function (err) {
+        toText.disabled = false;
+        toast('gogh could not switch back \u2014 ' + ((err && err.message) || 'try again.'), { error: true });
+      });
+    });
     var sizeIn = panel.querySelector('.gogh-logosize input');
     if (sizeIn) {
       var sizeVal = panel.querySelector('.gogh-logosize-val');
@@ -8784,24 +8826,9 @@
       }).then(function (active) {
         if (!active) return null;
         var praw = String((active.content && (active.content.raw || active.content)) || '');
-        // an existing site-logo block re-renders with the new image — but a
-        // block with NO width renders the image at natural size (massive
-        // for most uploads), so guarantee a sane default
-        if (praw.indexOf('wp:site-logo') !== -1) {
-          var withW = /wp:site-logo\s+\{[^]*?"width"/.test(praw) ? praw : logoRawWithWidth(praw, 160);
-          if (withW === praw) return null;
-          return fetch(tpUrl(active.id), {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'X-WP-Nonce': cfg.nonce },
-            credentials: 'same-origin',
-            body: JSON.stringify({ content: withW }),
-          }).then(function (r2) {
-            if (!r2.ok) throw new Error('the header did not save');
-          });
-        }
-        var next = praw.replace(/<!--\s*wp:site-title(\s+\{[^]*?\})?\s*\/-->/,
-          '<!-- wp:site-logo {"width":160,"shouldSyncIcon":false} /-->');
-        if (next === praw) throw new Error('this header has no title block to swap');
+        var next = logoizeHeaderRaw(praw);
+        if (next === null) throw new Error('this header has no title block to swap');
+        if (next === '') return null;
         return fetch(tpUrl(active.id), {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', 'X-WP-Nonce': cfg.nonce },
