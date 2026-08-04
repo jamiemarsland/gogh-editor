@@ -42,7 +42,9 @@
   // wraps inside the header/footer are site chrome, not page content — a
   // freeform header must not stop an empty PAGE from getting its canvas
   var contentWraps = wrapTags.filter(function (w) { return !w.closest('.wp-block-template-part'); });
-  if (!wrapTags.length && !wantEdit) return;
+  // native-only pages (starter sites, classic pages) still get the floating
+  // edit pill in view mode — bailing here was why it "sometimes" vanished
+  if (!wrapTags.length && !wantEdit && !goghHasNativeContent()) return;
   if (!contentWraps.length && wantEdit && !goghHasNativeContent()) {
     // ?gogh-edit on a GENUINELY empty page: bootstrap an empty placeholder
     // section at the end of the content so the editor has a canvas. It is
@@ -64,7 +66,7 @@
   }
   // native-only pages (a starter site) boot the editor with ZERO gogh
   // sections: light editing, the palette and the picker all still apply
-  if (!wrapTags.length && !wantEdit) return;
+  if (!wrapTags.length && !wantEdit && !goghHasNativeContent()) return;
 
   function inferModelFromDom(sectionEl) {
     var els = [];
@@ -254,7 +256,7 @@
       bgImage: model.bgImage || null, bgId: model.bgId || null,
       wrapEl: wrap, sectionEl: sectionEl, styleEl: styleEl, nodes: [] });
   });
-  if (!S.length && !wantEdit) return;
+  if (!S.length && !wantEdit && !goghHasNativeContent()) return;
   // marker after the last CONTENT wrap (never inside a template part)
   var endMarker = document.createComment('gogh-end');
   var contentSecs = S.filter(function (s) { return !s.chrome; });
@@ -1731,6 +1733,15 @@
   function setEditing(on) {
     editing = on;
     document.documentElement.classList.toggle('gogh-editing', on);
+    // the admin-bar landmark flips with the MODE, not just the URL — the
+    // floating pill enters editing without a reload
+    var abLink = document.querySelector('#wp-admin-bar-gogh-edit a');
+    if (abLink) {
+      abLink.textContent = on ? '\ud83c\udfa8 Exit gogh editor' : '\ud83c\udfa8 Edit with gogh';
+      var abUrl = new URL(location.href);
+      abUrl.searchParams[on ? 'delete' : 'set']('gogh-edit', '1');
+      abLink.href = abUrl.toString();
+    }
     side.hidden = !on;
     sideTab.hidden = !on;
     if (!on) {
