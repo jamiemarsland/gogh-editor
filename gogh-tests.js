@@ -1886,6 +1886,44 @@
       return 'widget cards: intact, draggable whole, text editable';
     });
 
+    // ---- guardrails: scrims behind text, struck swatches ----
+    test('guardrails: auto-scrim behind text, honest swatch strikes', function () {
+      var s0 = sec();
+      // section image with NO tint colour + text on top → soft base scrim
+      var keepBg = s0.bgImage;
+      s0.bgImage = 'data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==';
+      G.resolve(s0);
+      var css1 = s0.styleEl.textContent;
+      expect(/linear-gradient\(color-mix\(in srgb, var\(--wp--preset--color--base/.test(css1),
+        'no auto scrim behind text');
+      s0.bgImage = keepBg;
+      G.resolve(s0);
+      // photo card with words and no colour → scrim in the card rule
+      s0.els.push({ type: 'box', x: 60, y: 40, w: 400, h: 300, radius: 12,
+        boxImg: 'data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==',
+        kids: [ { type: 'heading', x: 20, y: 20, w: 300, h: 40, text: 'Words on photo' } ] });
+      G.renderSection(s0);
+      var css2 = s0.styleEl.textContent;
+      expect(css2.indexOf('color-mix(in srgb, var(--wp--preset--color--base, #fff) 40%') !== -1,
+        'photo card with words missing its scrim');
+      s0.els.pop();
+      G.renderSection(s0);
+      // swatch marking: a swatch matching the backdrop gets struck
+      var row = document.createElement('div');
+      row.innerHTML = '<button class="gogh-sw" data-col="probe-dark"></button>';
+      document.body.appendChild(row);
+      var probeStyle = document.createElement('style');
+      probeStyle.textContent = ':root { --wp--preset--color--probe-dark: #14161a; }';
+      document.head.appendChild(probeStyle);
+      G.markSwatchLegibility(row, '#101216');
+      var struck = row.querySelector('.gogh-sw').classList.contains('gogh-sw-lowc');
+      probeStyle.remove();
+      row.remove();
+      expect(struck, 'same-as-backdrop swatch not struck');
+      expect(G.cssColorToHex('#abcdef') === '#abcdef', 'hex passthrough broken');
+      return 'scrims where words meet photos \u00b7 strikes where colours collide';
+    });
+
     // ---- your brand: contrast maths + variation mapping ----
     test('brand: contrast ratio and variation mapping are sound', function () {
       expect(G.contrastRatio('#000000', '#ffffff') === 21, 'black/white should be 21, got ' + G.contrastRatio('#000000', '#ffffff'));

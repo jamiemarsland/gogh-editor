@@ -2094,8 +2094,6 @@ html.gogh-textediting .gogh-convertbtn {
 .gogh-brandrow { margin-bottom: 8px; }
 .gogh-brandsetup { width: 100%; }
 .gogh-brandbtn { position: relative; width: 100%; }
-.gogh-brandedit { position: absolute; right: 10px; top: 50%; transform: translateY(-50%); opacity: 0.55; }
-.gogh-brandbtn:hover .gogh-brandedit { opacity: 1; }
 .gogh-brandwells { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 8px; }
 .gogh-brandwell { display: flex; flex-direction: column; gap: 4px; border: 1px solid var(--gogh-ui-line, #e3e3e6); border-radius: 10px; padding: 8px; cursor: pointer; }
 .gogh-brandwell input[type="color"] { width: 100%; height: 30px; border: none; padding: 0; background: none; cursor: pointer; }
@@ -2110,3 +2108,21 @@ html.gogh-textediting .gogh-convertbtn {
 .gogh-brandfont-lab { font-size: 12px; color: var(--gogh-ui-dim, #777); min-width: 64px; }
 .gogh-brandfont { flex: 1; }
 .gogh-brandacts { justify-content: flex-end; }
+
+/* a swatch that would be unreadable on the current backdrop gets an honest
+   strike — still clickable, never a gate */
+.gogh-sw-lowc { position: relative; opacity: 0.8; }
+.gogh-sw-lowc::after {
+  content: '';
+  position: absolute;
+  left: 8%;
+  right: 8%;
+  top: 46%;
+  height: 2px;
+  background: rgba(205, 55, 55, 0.9);
+  transform: rotate(-35deg);
+  border-radius: 1px;
+  pointer-events: none;
+}
+
+.gogh-brandwell-hint { font-size: 10.5px; color: #a2a2aa; margin-top: -2px; }
