@@ -2247,3 +2247,5 @@ html.gogh-textediting .gogh-convertbtn {
 .gogh-sp-dialog .gogh-sp-actions { justify-content: flex-end; }
 .gogh-sp-go { background: #17181c; color: #fff; border-color: #17181c; }
 .gogh-sp-head .gogh-sbtn { flex: none; width: 32px; height: 32px; }
+.gogh-starterpick .gogh-sp-use { background: #17181c !important; color: #fff !important; border-color: #17181c !important; }
+.gogh-sp-prev { height: 250px; }

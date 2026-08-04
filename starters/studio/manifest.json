@@ -24,5 +24,13 @@
       "title": "Contact",
       "file": "contact.html"
     }
-  ]
+  ],
+  "variation": "Twilight",
+  "preview": {
+    "base": "#131313",
+    "contrast": "#FFFFFF",
+    "accent-1": "#4B52FF",
+    "accent-2": "#FF7A5C",
+    "accent-3": "#C9CCFB"
+  }
 }

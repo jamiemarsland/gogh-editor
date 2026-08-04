@@ -25,5 +25,13 @@
       "title": "Find us",
       "file": "find-us.html"
     }
-  ]
+  ],
+  "variation": "Noon",
+  "preview": {
+    "base": "#F8F7F5",
+    "contrast": "#191919",
+    "accent-1": "#FFFFFF",
+    "accent-2": "#F5B684",
+    "accent-3": "#EFE1CE"
+  }
 }

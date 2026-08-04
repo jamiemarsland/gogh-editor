@@ -4751,6 +4751,16 @@
       var prev = card.querySelector('.gogh-sp-prev');
       var stage = card.querySelector('.gogh-sp-stage');
       var pageName = card.querySelector('.gogh-sp-pagename');
+      // the preview wears the starter's OWN palette — the applied design
+      // brings these colours, so the card must sell them
+      if (st.preview) {
+        Object.keys(st.preview).forEach(function (k) {
+          stage.style.setProperty('--wp--preset--color--' + k, st.preview[k]);
+        });
+        prev.style.background = st.preview.base || '';
+        stage.style.background = st.preview.base || '';
+        stage.style.color = st.preview.contrast || '';
+      }
       var pi = 0;
       var showPage = function (i) {
         pi = ((i % st.pages.length) + st.pages.length) % st.pages.length;
@@ -4765,10 +4775,12 @@
             var html = d.rendered || '';
             if (html && d.css) html = '<style>' + d.css + '</style>' + html;
             stage.innerHTML = html;
-            fitCardStage(prev, stage);
-            [].slice.call(stage.querySelectorAll('img')).forEach(function (im) {
-              if (!im.complete) im.addEventListener('load', function () { fitCardStage(prev, stage); }, { once: true });
-            });
+            // hero crop: fill the card's width and show the top of the
+            // page at readable scale — a whole-page miniature reads as lint
+            var sc = prev.clientWidth / 1200;
+            stage.style.transform = 'scale(' + sc + ')';
+            stage.style.left = '0';
+            stage.style.top = '0';
           }).catch(function () { stage.innerHTML = ''; });
       };
       showPage(0);
@@ -4786,8 +4798,8 @@
     dlg.innerHTML =
       '<div class="gogh-sp-dialog">' +
       '<div class="gogh-sp-name"></div>' +
-      '<div class="gogh-sp-line gogh-sp-keep">\u2713 Keeps your posts, images, name and colours</div>' +
-      '<div class="gogh-sp-line gogh-sp-keep">\u2713 Your blog posts flow into the new design</div>' +
+      '<div class="gogh-sp-line gogh-sp-keep">\u2713 Keeps your posts, images, name and logo</div>' +
+      '<div class="gogh-sp-line gogh-sp-keep">\u2713 Brings its own colours \u2014 Your brand can re-apply yours any time</div>' +
       '<div class="gogh-sp-line gogh-sp-warn">\u26a0 Replaces your pages and menu \u2014 current pages move to Trash, restorable for 30 days</div>' +
       '<div class="gogh-sp-actions">' +
       '<button type="button" class="gogh-btn gogh-sp-cancel">Cancel</button>' +
