@@ -2126,3 +2126,23 @@ html.gogh-textediting .gogh-convertbtn {
 }
 
 .gogh-brandwell-hint { font-size: 10.5px; color: #a2a2aa; margin-top: -2px; }
+
+/* remove control on published native sections — deleting must never
+   require converting */
+.gogh-storedrm {
+  all: unset;
+  position: absolute;
+  z-index: 100004;
+  width: 28px;
+  height: 28px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: #16181c;
+  color: #fff;
+  font-size: 12px;
+  cursor: pointer;
+  box-shadow: 0 10px 26px -8px rgba(0,0,0,0.5);
+  opacity: 0.85;
+}
+.gogh-storedrm:hover { opacity: 1; background: #c23d3d; }

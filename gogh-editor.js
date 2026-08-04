@@ -5983,7 +5983,7 @@
   function isDirty() {
     if (pendingBlocks.length) return true;
     if (chromeLightEdits.some(function (e) { return e.savedRaw != null && e.raw !== e.savedRaw; })) return true;
-    if (storedEdits.some(function (e) { return e.raw !== e.savedRaw; })) return true;
+    if (storedEdits.some(function (e) { return e.raw !== e.savedRaw || e.deleted; })) return true;
     return savedSnap !== null && serialize() !== savedSnap;
   }
 
@@ -6489,6 +6489,7 @@
       if (si !== free.length) return; // leftover spans: mapping untrusted
       storedEdits = out;
       out.forEach(bindPending);
+      placeStoredRmBtns();
     }).catch(function () {});
   }
   function clampInsertIdx(idx) {
@@ -9280,8 +9281,48 @@
     convBtns.forEach(function (b) { b.remove(); });
     convBtns = [];
   }
+  var storedRmBtns = [];
+  function clearStoredRmBtns() {
+    storedRmBtns.forEach(function (b) { b.remove(); });
+    storedRmBtns = [];
+  }
+  function placeStoredRmBtns() {
+    clearStoredRmBtns();
+    if (!editing) return;
+    storedEdits.forEach(function (en) {
+      if (en.deleted || !en.el || !en.el.isConnected) return;
+      if (en.chromePart) return;
+      var r = en.el.getBoundingClientRect();
+      if (r.height < 24) return;
+      var b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'gogh-storedrm';
+      b.textContent = '\u2715';
+      b.title = 'Remove this section';
+      b.style.left = (r.right + window.scrollX - 38) + 'px';
+      b.style.top = (r.top + window.scrollY + 10) + 'px';
+      b.addEventListener('click', function () {
+        var slot = { parent: en.el.parentNode, next: en.el.nextSibling };
+        en.deleted = true;
+        en.el.remove();
+        clearStoredRmBtns();
+        placeStoredRmBtns();
+        refreshChip();
+        toast('Section removed \u2014 publish to make it real.', { actions: [{ label: 'Undo', onClick: function () {
+          en.deleted = false;
+          if (slot.parent) slot.parent.insertBefore(en.el, slot.next && slot.next.parentNode === slot.parent ? slot.next : null);
+          clearStoredRmBtns();
+          placeStoredRmBtns();
+          refreshChip();
+        } }] });
+      });
+      document.body.appendChild(b);
+      storedRmBtns.push(b);
+    });
+  }
   function placeConvertBtns() {
     clearConvertBtns();
+    placeStoredRmBtns();
     // v1 posture: converting arbitrary imported markup to freeform is a
     // LABS feature (gogh_convert_enabled filter / ?gogh-convert=1) — its
     // input space is the whole web. Native light editing stays on.
@@ -9319,6 +9360,14 @@
     // light edits to PUBLISHED native/HTML blocks: swap each edited block's
     // stored span (matched by the signature of its unedited form) for the
     // edited markup before anything else rewrites the content
+    storedEdits.forEach(function (en) {
+      if (!en.deleted) return;
+      var gone = raw.indexOf(en.savedRaw);
+      if (gone !== -1) {
+        raw = raw.slice(0, gone) + raw.slice(gone + en.savedRaw.length);
+      }
+    });
+    storedEdits = storedEdits.filter(function (en) { return !en.deleted; });
     storedEdits.forEach(function (en) {
       if (en.raw === en.savedRaw || !en.el.isConnected) return;
       // savedRaw is a verbatim slice of the stored content — exact-string
