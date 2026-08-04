@@ -4460,6 +4460,208 @@
       box.appendChild(b);
     });
   }
+  // ---------- your brand: four colours + two fonts as a first-class style ----------
+  function hexToRgb(h) {
+    var m = String(h || '').trim().match(/^#?([0-9a-f]{6})$/i);
+    if (!m) return null;
+    var n = parseInt(m[1], 16);
+    return [n >> 16 & 255, n >> 8 & 255, n & 255];
+  }
+  function contrastRatio(hexA, hexB) {
+    var lum = function (rgb) {
+      var c = rgb.map(function (v) {
+        v /= 255;
+        return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4);
+      });
+      return 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2];
+    };
+    var a = hexToRgb(hexA), b = hexToRgb(hexB);
+    if (!a || !b) return null;
+    var l1 = lum(a), l2 = lum(b);
+    return +(((Math.max(l1, l2) + 0.05) / (Math.min(l1, l2) + 0.05)).toFixed(2));
+  }
+  function fontCatalogue() {
+    // theme-declared font presets, parsed like themePalette()
+    var out = [], seen = {};
+    var gs = document.getElementById('global-styles-inline-css');
+    var cssText = gs ? gs.textContent : '';
+    var re = /--wp--preset--font-family--([a-z0-9-]+):\s*([^;}]+)/g, m;
+    while ((m = re.exec(cssText))) {
+      if (seen[m[1]]) continue;
+      seen[m[1]] = 1;
+      var fam = m[2].trim();
+      var pretty = fam.split(',')[0].replace(/["']/g, '').trim();
+      out.push({ slug: m[1], name: pretty, fontFamily: fam });
+    }
+    return out;
+  }
+  function brandToVariation(brand) {
+    var c = (brand && brand.colors) || {};
+    var cur = themePalette();
+    var slugs = cur.map(function (p) { return p.slug; });
+    if (!slugs.length) slugs = ['base', 'contrast', 'accent-1', 'accent-2'];
+    var accents = [c.accent, c.accent2].filter(Boolean);
+    var ai = 0;
+    var pal = [];
+    slugs.forEach(function (slug) {
+      var v = null;
+      if (/^(base|background)(-|$)/.test(slug)) v = c.background;
+      else if (/^(contrast|foreground|text)(-|$)/.test(slug)) v = c.text;
+      else if (/accent/.test(slug) && accents.length) { v = accents[ai % accents.length]; ai++; }
+      if (!v) {
+        var keep = cur.filter(function (p) { return p.slug === slug; })[0];
+        v = keep && keep.value;
+      }
+      if (v) pal.push({ slug: slug, color: v, name: slug });
+    });
+    var out = { title: 'Your brand', settings: { color: { palette: { theme: pal } } }, styles: {} };
+    var f = (brand && brand.fonts) || {};
+    var byFam = {};
+    fontCatalogue().forEach(function (x) { byFam[x.slug] = x; });
+    var used = [];
+    ['heading', 'body'].forEach(function (k) {
+      if (f[k] && byFam[f[k]]) used.push({ slug: f[k], name: byFam[f[k]].name, fontFamily: byFam[f[k]].fontFamily });
+    });
+    if (used.length) out.settings.typography = { fontFamilies: { theme: used } };
+    if (f.body && byFam[f.body]) out.styles.typography = { fontFamily: 'var:preset|font-family|' + f.body };
+    if (f.heading && byFam[f.heading]) {
+      out.styles.elements = { heading: { typography: { fontFamily: 'var:preset|font-family|' + f.heading } } };
+    }
+    return out;
+  }
+  function openBrandForm(anchorEl) {
+    var local = JSON.parse(JSON.stringify(cfg.brand || { colors: {
+      background: '#f6f2ea', text: '#1c2733', accent: '#c96f4a', accent2: '#7a9e7e',
+    }, fonts: {} }));
+    local.colors = local.colors || {};
+    local.fonts = local.fonts || {};
+    var WELLS = [
+      ['background', 'Background'],
+      ['text', 'Text'],
+      ['accent', 'Accent'],
+      ['accent2', 'Second accent'],
+    ];
+    var cat = fontCatalogue();
+    panel.innerHTML =
+      '<div class="gogh-panel-head"><span class="gogh-panel-title">Your brand</span>' +
+      '<button type="button" class="gogh-sbtn gogh-panel-close" title="Back">\u2715</button></div>' +
+      '<div class="gogh-swlab">Colours</div>' +
+      '<div class="gogh-brandwells">' +
+      WELLS.map(function (w) {
+        var val = local.colors[w[0]] || '#888888';
+        return '<label class="gogh-brandwell" data-k="' + w[0] + '">' +
+          '<input type="color" value="' + escAttr(val) + '" />' +
+          '<span class="gogh-brandwell-name">' + w[1] + '</span>' +
+          '<input type="text" class="gogh-input gogh-brandhex" value="' + escAttr(val) + '" spellcheck="false" />' +
+          '</label>';
+      }).join('') + '</div>' +
+      '<div class="gogh-brandcontrast"></div>' +
+      '<input type="text" class="gogh-input gogh-brandpaste" placeholder="Paste brand colours: #1B2A4A #C96F4A \u2026" />' +
+      '<div class="gogh-swlab">Fonts</div>' +
+      ['heading', 'body'].map(function (k) {
+        return '<div class="gogh-panel-row gogh-brandfontrow">' +
+          '<span class="gogh-brandfont-lab">' + (k === 'heading' ? 'Headings' : 'Body') + '</span>' +
+          '<select class="gogh-input gogh-brandfont" data-k="' + k + '">' +
+          '<option value="">Theme default</option>' +
+          cat.map(function (f2) {
+            return '<option value="' + escAttr(f2.slug) + '"' + (local.fonts[k] === f2.slug ? ' selected' : '') + '>' + escAttr(f2.name) + '</option>';
+          }).join('') + '</select></div>';
+      }).join('') +
+      '<div class="gogh-panel-row gogh-brandacts">' +
+      '<button type="button" class="gogh-btn gogh-btn-small gogh-brandcancel">Cancel</button>' +
+      '<button type="button" class="gogh-btn gogh-btn-small gogh-brandkeep">Keep this</button>' +
+      '</div>';
+    panel.hidden = false;
+    placePanelNear(anchorEl || side);
+    panelOpen = true;
+    var contrastEl = panel.querySelector('.gogh-brandcontrast');
+    function refreshContrast() {
+      var r = contrastRatio(local.colors.text, local.colors.background);
+      if (r == null) { contrastEl.textContent = ''; return; }
+      contrastEl.className = 'gogh-brandcontrast ' + (r >= 4.5 ? 'is-good' : r >= 3 ? 'is-mid' : 'is-bad');
+      contrastEl.textContent = r >= 4.5
+        ? '\u2713 Text reads clearly on your background'
+        : r >= 3
+          ? 'A little low \u2014 fine for large text only'
+          : 'These are hard to read together \u2014 try a darker text or lighter background';
+    }
+    var pvT = null;
+    function livePreview() {
+      refreshContrast();
+      clearTimeout(pvT);
+      pvT = setTimeout(function () { previewVariation(brandToVariation(local)); }, 150);
+    }
+    panel.querySelectorAll('.gogh-brandwell').forEach(function (well) {
+      var k = well.dataset.k;
+      var pick = well.querySelector('input[type="color"]');
+      var hex = well.querySelector('.gogh-brandhex');
+      pick.addEventListener('input', function () {
+        local.colors[k] = pick.value;
+        hex.value = pick.value;
+        livePreview();
+      });
+      hex.addEventListener('input', function () {
+        var v = hex.value.trim();
+        if (/^#?[0-9a-f]{6}$/i.test(v)) {
+          if (v[0] !== '#') v = '#' + v;
+          local.colors[k] = v.toLowerCase();
+          pick.value = v;
+          livePreview();
+        }
+      });
+    });
+    panel.querySelector('.gogh-brandpaste').addEventListener('input', function () {
+      var found = (this.value.match(/#?[0-9a-f]{6}\b/gi) || []).map(function (h) {
+        return (h[0] === '#' ? h : '#' + h).toLowerCase();
+      });
+      if (!found.length) return;
+      WELLS.forEach(function (w, i2) {
+        if (found[i2]) local.colors[w[0]] = found[i2];
+      });
+      panel.querySelectorAll('.gogh-brandwell').forEach(function (well) {
+        var k = well.dataset.k;
+        well.querySelector('input[type="color"]').value = local.colors[k];
+        well.querySelector('.gogh-brandhex').value = local.colors[k];
+      });
+      livePreview();
+    });
+    panel.querySelectorAll('.gogh-brandfont').forEach(function (sel2) {
+      sel2.addEventListener('change', function () {
+        if (sel2.value) local.fonts[sel2.dataset.k] = sel2.value;
+        else delete local.fonts[sel2.dataset.k];
+        livePreview();
+      });
+    });
+    panel.querySelector('.gogh-panel-close').addEventListener('click', function () {
+      clearVariationPreview();
+      openStylePanel(anchorEl);
+    });
+    panel.querySelector('.gogh-brandcancel').addEventListener('click', function () {
+      clearVariationPreview();
+      openStylePanel(anchorEl);
+    });
+    panel.querySelector('.gogh-brandkeep').addEventListener('click', function () {
+      var keepBtn = panel.querySelector('.gogh-brandkeep');
+      keepBtn.disabled = true;
+      fetch(GSROOT.replace(/wp\/v2\/$/, 'wp/v2/') + 'settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-WP-Nonce': cfg.nonce },
+        credentials: 'same-origin',
+        body: JSON.stringify({ gogh_brand: local }),
+      }).then(function (r) {
+        if (!r.ok) throw new Error('HTTP ' + r.status);
+        cfg.brand = local;
+        clearVariationPreview();
+        return applyVariation(brandToVariation(local));
+      }).then(function () {
+        openStylePanel(anchorEl);
+      }).catch(function (err) {
+        keepBtn.disabled = false;
+        toast('gogh could not save your brand \u2014 ' + ((err && err.message) || 'try again.'), { error: true });
+      });
+    });
+    refreshContrast();
+  }
   function openStylePanel(anchorEl) {
     if (!cfg.gsId || !cfg.theme) return;
     fetchVariations().then(function (vars) {
@@ -4474,6 +4676,41 @@
         openSide();
       });
       var box = panel.querySelector('.gogh-varlist');
+      // your brand sits ABOVE the theme's styles — the most important option
+      (function () {
+        var row = document.createElement('div');
+        row.className = 'gogh-brandrow';
+        if (cfg.brand && cfg.brand.colors) {
+          var b2 = document.createElement('button');
+          b2.type = 'button';
+          b2.className = 'gogh-varbtn gogh-brandbtn';
+          var order = ['background', 'text', 'accent', 'accent2'];
+          b2.innerHTML = order.map(function (k) {
+            var col = cfg.brand.colors[k];
+            return col ? '<span class="gogh-vardot" style="background:' + escAttr(col) + '"></span>' : '';
+          }).join('') + '<span class="gogh-varname">Your brand</span>' +
+            '<span class="gogh-brandedit" title="Edit your brand">\u270e</span>';
+          var bv = brandToVariation(cfg.brand);
+          b2.addEventListener('mouseenter', function () {
+            clearTimeout(previewHoverT);
+            previewHoverT = setTimeout(function () { previewVariation(bv); }, 120);
+          });
+          b2.addEventListener('click', function (ev) {
+            if (ev.target.closest('.gogh-brandedit')) { openBrandForm(anchorEl); return; }
+            clearVariationPreview();
+            applyVariation(bv, b2);
+          });
+          row.appendChild(b2);
+        } else {
+          var mk = document.createElement('button');
+          mk.type = 'button';
+          mk.className = 'gogh-btn gogh-btn-small gogh-brandsetup';
+          mk.textContent = '+ Set up your brand';
+          mk.addEventListener('click', function () { openBrandForm(anchorEl); });
+          row.appendChild(mk);
+        }
+        box.appendChild(row);
+      })();
       // colours and font pairs are different decisions — group them
       var groups = { color: [], font: [] };
       vars.forEach(function (v) {
@@ -5452,6 +5689,9 @@
     serializeNavModel: serializeNavModel,
     sanitizePastedHtml: sanitizePastedHtml,
     openPageStylePanel: openPageStylePanel,
+    contrastRatio: contrastRatio,
+    brandToVariation: brandToVariation,
+    openBrandForm: openBrandForm,
     openMenuManager: openMenuManager,
   };
   // the running build, visible at a glance: hover the gogh side tab, or read

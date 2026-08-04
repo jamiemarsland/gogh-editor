@@ -1886,6 +1886,26 @@
       return 'widget cards: intact, draggable whole, text editable';
     });
 
+    // ---- your brand: contrast maths + variation mapping ----
+    test('brand: contrast ratio and variation mapping are sound', function () {
+      expect(G.contrastRatio('#000000', '#ffffff') === 21, 'black/white should be 21, got ' + G.contrastRatio('#000000', '#ffffff'));
+      expect(G.contrastRatio('#777777', '#888888') < 1.3, 'near-identical greys should be ~1');
+      expect(G.contrastRatio('nope', '#fff') === null, 'invalid input should be null');
+      var v = G.brandToVariation({ colors: { background: '#f6f2ea', text: '#1b2a4a', accent: '#c96f4a', accent2: '#7a9e7e' }, fonts: {} });
+      var pal = v.settings.color.palette.theme;
+      expect(pal.length >= 2, 'palette too small: ' + pal.length);
+      var by = {};
+      pal.forEach(function (p) { by[p.slug] = p.color; });
+      var baseSlug = Object.keys(by).filter(function (k) { return /^(base|background)/.test(k); })[0];
+      var contrastSlug = Object.keys(by).filter(function (k) { return /^(contrast|text|foreground)/.test(k); })[0];
+      expect(baseSlug && by[baseSlug] === '#f6f2ea', 'background not mapped to ' + baseSlug);
+      expect(contrastSlug && by[contrastSlug] === '#1b2a4a', 'text not mapped to ' + contrastSlug);
+      var accentSlugs = Object.keys(by).filter(function (k) { return /accent/.test(k); });
+      expect(accentSlugs.every(function (k) { return by[k] === '#c96f4a' || by[k] === '#7a9e7e'; }) || accentSlugs.length === 0,
+        'accent slugs not cycled through brand accents');
+      return 'ratios exact · palette mapped onto theme slugs';
+    });
+
     // ---- page style: curated template switcher ----
     test('page style panel lists curated options with the current one marked', function () {
       expect(q('.gogh-pagestylebtn'), 'no palette button');

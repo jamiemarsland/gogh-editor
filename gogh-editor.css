@@ -2085,3 +2085,28 @@ html.gogh-textediting .gogh-convertbtn {
   opacity: 0;
   pointer-events: none;
 }
+
+/* the style panel must scroll — half its content (fonts) was unreachable
+   on laptop heights */
+.gogh-varlist { max-height: min(58vh, 560px); overflow-y: auto; overscroll-behavior: contain; padding-right: 4px; }
+
+/* ---------- your brand ---------- */
+.gogh-brandrow { margin-bottom: 8px; }
+.gogh-brandsetup { width: 100%; }
+.gogh-brandbtn { position: relative; width: 100%; }
+.gogh-brandedit { position: absolute; right: 10px; top: 50%; transform: translateY(-50%); opacity: 0.55; }
+.gogh-brandbtn:hover .gogh-brandedit { opacity: 1; }
+.gogh-brandwells { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 8px; }
+.gogh-brandwell { display: flex; flex-direction: column; gap: 4px; border: 1px solid var(--gogh-ui-line, #e3e3e6); border-radius: 10px; padding: 8px; cursor: pointer; }
+.gogh-brandwell input[type="color"] { width: 100%; height: 30px; border: none; padding: 0; background: none; cursor: pointer; }
+.gogh-brandwell-name { font-size: 11.5px; color: var(--gogh-ui-dim, #777); }
+.gogh-brandhex { font-size: 11.5px; padding: 4px 6px; }
+.gogh-brandcontrast { font-size: 12px; margin: 2px 0 8px; min-height: 16px; }
+.gogh-brandcontrast.is-good { color: #1d7a4f; }
+.gogh-brandcontrast.is-mid { color: #b07a17; }
+.gogh-brandcontrast.is-bad { color: #c23d3d; }
+.gogh-brandpaste { width: 100%; margin-bottom: 12px; font-size: 12px; }
+.gogh-brandfontrow { align-items: center; gap: 10px; }
+.gogh-brandfont-lab { font-size: 12px; color: var(--gogh-ui-dim, #777); min-width: 64px; }
+.gogh-brandfont { flex: 1; }
+.gogh-brandacts { justify-content: flex-end; }
