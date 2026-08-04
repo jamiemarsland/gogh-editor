@@ -2164,3 +2164,12 @@ html.gogh-textediting .gogh-convertbtn {
 
 /* fixed-position nav overlays must fill the phone, not the real viewport */
 .gogh-mirror-vp { transform: translateZ(0); }
+
+/* the nav's mobile switch is a MEDIA query (real window width), which the
+   zoomed 360px stage never triggers — so the mirror showed the desktop menu.
+   Inside the phone, the nav is always in its mobile state: hamburger shown,
+   inline menu hidden until our toggle opens the overlay. Navs with the
+   overlay set to "never" have no open button, so they stay inline — which
+   is what a real phone shows for them too. */
+.gogh-mirror-stage .wp-block-navigation__responsive-container-open { display: flex !important; }
+.gogh-mirror-stage .wp-block-navigation__responsive-container:not(.is-menu-open) { display: none !important; }
