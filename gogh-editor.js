@@ -6949,6 +6949,14 @@
         editSocialLink(entry, soc);
         return;
       }
+      // the logo text: clicking it renames the SITE (the block renders the
+      // blogname option — editing the template raw would change nothing)
+      var stt = ev.target.closest && ev.target.closest('.wp-block-site-title');
+      if (stt && entry.chromePart) {
+        ev.preventDefault();
+        editSiteTitle(stt);
+        return;
+      }
       var btnLink = ev.target.closest && ev.target.closest('.wp-block-button__link, .wp-element-button');
       if (btnLink && !btnLink.closest('.gogh-pendbar') && leafOf(btnLink)) {
         ev.preventDefault();
@@ -8597,6 +8605,63 @@
         placeNavAdders(partEl);
       }).catch(function () {});
     });
+  }
+  function editSiteTitle(sttEl) {
+    var leaf = sttEl.querySelector('a') || sttEl;
+    if (leaf.getAttribute('contenteditable') === 'true') return;
+    var orig = (leaf.textContent || '').trim();
+    var setEverywhere = function (name) {
+      [].slice.call(document.querySelectorAll('.wp-block-site-title')).forEach(function (el) {
+        var lf = el.querySelector('a') || el;
+        lf.textContent = name;
+      });
+    };
+    var save = function (name, then) {
+      return fetch(GSROOT + 'settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-WP-Nonce': cfg.nonce },
+        credentials: 'same-origin',
+        body: JSON.stringify({ title: name }),
+      }).then(function (r) {
+        if (!r.ok) throw new Error('HTTP ' + r.status);
+        if (then) then();
+      });
+    };
+    leaf.setAttribute('contenteditable', 'true');
+    document.documentElement.classList.add('gogh-textediting');
+    leaf.focus();
+    // renaming is usually wholesale — start with everything selected
+    var rng = document.createRange();
+    rng.selectNodeContents(leaf);
+    var sel = window.getSelection();
+    sel.removeAllRanges();
+    sel.addRange(rng);
+    var onKey = function (ev2) {
+      if (ev2.key === 'Enter') { ev2.preventDefault(); leaf.blur(); }
+      else if (ev2.key === 'Escape') { leaf.textContent = orig; leaf.blur(); }
+      ev2.stopPropagation();
+    };
+    var onBlur = function () {
+      leaf.removeEventListener('keydown', onKey);
+      leaf.removeEventListener('blur', onBlur);
+      leaf.removeAttribute('contenteditable');
+      document.documentElement.classList.remove('gogh-textediting');
+      var next = (leaf.textContent || '').replace(/\s+/g, ' ').trim();
+      if (!next || next === orig) { setEverywhere(orig); return; }
+      save(next, function () {
+        setEverywhere(next);
+        toast('Your site is now called \u201c' + next + '\u201d \u2014 it shows everywhere.', {
+          actions: [{ label: 'Undo', onClick: function () {
+            save(orig, function () { setEverywhere(orig); }).catch(function () {});
+          } }],
+        });
+      }).catch(function () {
+        setEverywhere(orig);
+        toast('gogh could not rename the site \u2014 that needs an admin login.', { error: true });
+      });
+    };
+    leaf.addEventListener('keydown', onKey);
+    leaf.addEventListener('blur', onBlur);
   }
   function saveChromeEntry(entry) {
     if (!entry || entry.savedRaw == null || entry.raw === entry.savedRaw) return Promise.resolve();
