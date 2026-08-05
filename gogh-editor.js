@@ -7095,6 +7095,14 @@
     ev.preventDefault();
     ev.stopPropagation();
   });
+  // and the bubble must not OVERSTAY: any press outside it dismisses (a
+  // fresh selection brings it straight back via selectionchange)
+  document.addEventListener('pointerdown', function (ev) {
+    if (!linkBubble.hidden && !linkBubble.contains(ev.target)) linkBubble.hidden = true;
+  }, true);
+  document.addEventListener('keydown', function (ev) {
+    if (ev.key === 'Escape' && !linkBubble.hidden) linkBubble.hidden = true;
+  });
   linkBubble.addEventListener('click', function (ev) {
     ev.stopPropagation();
     var ctx = linkBubble.__ctx || activeLightEd;
