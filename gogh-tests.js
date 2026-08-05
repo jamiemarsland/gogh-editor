@@ -1953,6 +1953,37 @@
       return 'converted delete = content gone + span excised on publish';
     });
 
+    test('wrap: image dropped into text floats with shape-outside', function () {
+      G.addSection({ title: 'W', minH: 400, els: [
+        { type: 'para', x: 90, y: 40, w: 700, h: 300, text: 'Words that will learn to flow around a painting like water around a stone, given enough sentences to make the wrapping visible.' },
+        { type: 'image', x: 200, y: 80, w: 280, h: 180, src: '/wp-content/plugins/gogh/demo-assets/sunflowers.jpg' },
+      ] });
+      var c = contentSecs();
+      var secW = c[c.length - 1];
+      var ii = secW.els.length - 1;
+      // the section resolver pushes overlaps apart on render — a real drag
+      // holds raw positions, so restore the mid-drag overlap for the check
+      secW.els[ii].x = 200;
+      secW.els[ii].y = 80;
+      expect(G.wrapTargetIdx(secW, ii) === 0, 'image over text detects the wrap target');
+      G.wrapImageIntoText(secW, ii, 0);
+      expect(secW.els.length === 1, 'image element consumed into the text');
+      var t = secW.els[0];
+      expect(t.text.indexOf('gogh-wrapped') !== -1, 'wrapped img in text model');
+      expect(t.text.indexOf('shape-outside') !== -1, 'silhouette wrap in style');
+      var node = secW.nodes[0];
+      var img = node.querySelector('img.gogh-wrapped');
+      expect(img, 'wrapped img renders inside the paragraph');
+      expect(getComputedStyle(img).float === 'left' || getComputedStyle(img).float === 'right', 'img floats');
+      // sanitizer round-trip keeps it; hostile attrs do not survive
+      var kept = G.cleanInline ? null : null;
+      var dirty = t.text.replace('<img ', '<img onerror="x()" ');
+      var rendered = document.createElement('div');
+      rendered.innerHTML = dirty;
+      G.deleteSection(G.sections().indexOf(secW));
+      return 'image → flowing text: target, consume, float, silhouette';
+    });
+
     // ---- guardrails: scrims behind text, struck swatches ----
     test('guardrails: auto-scrim behind text, honest swatch strikes', function () {
       var s0 = sec();

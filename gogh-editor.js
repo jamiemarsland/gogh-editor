@@ -848,7 +848,7 @@
   function cleanInline(html) {
     // self-contained: the boot-time collector calls this before mid-file
     // var assignments have run, so the allow-list must live inside
-    var INLINE_OK = { A: 1, STRONG: 1, EM: 1, B: 1, I: 1, BR: 1 };
+    var INLINE_OK = { A: 1, STRONG: 1, EM: 1, B: 1, I: 1, BR: 1, IMG: 1 };
     var tpl = document.createElement('template');
     tpl.innerHTML = html == null ? '' : String(html);
     (function walk(node) {
@@ -861,9 +861,16 @@
           return;
         }
         if (INLINE_OK[tag]) {
+          var IMG_OK = { src: 1, alt: 1, style: 1, class: 1, width: 1, height: 1 };
           [].slice.call(c.attributes).forEach(function (at) {
-            if (!(tag === 'A' && at.name === 'href')) c.removeAttribute(at.name);
+            if (tag === 'A' && at.name === 'href') return;
+            if (tag === 'IMG' && IMG_OK[at.name]) return;
+            c.removeAttribute(at.name);
           });
+          if (tag === 'IMG') {
+            var isrc = c.getAttribute('src') || '';
+            if (!/^(https?:|\/)/i.test(isrc.trim())) { node.removeChild(c); return; }
+          }
           if (tag === 'A') {
             var href = c.getAttribute('href') || '';
             if (!/^(https?:|mailto:|tel:|\/|#)/i.test(href.trim())) c.removeAttribute('href');
@@ -4062,6 +4069,127 @@
     }
     return -1;
   }
+  // ---------- wrap: an image dropped into flowing text floats there, and
+  // the words pour around its silhouette (shape-outside on its own alpha) --
+  function wrapTargetIdx(sec, i) {
+    var e = sec.els[i];
+    if (!e || e.type !== 'image' || !e.src) return -1;
+    var cx2 = e.x + e.w / 2;
+    for (var t2 = 0; t2 < sec.els.length; t2++) {
+      if (t2 === i) continue;
+      var o = sec.els[t2];
+      if (o.type !== 'para' || !(o.text || '').trim()) continue;
+      // paragraphs auto-shrink to their text, so centre-inside is too
+      // strict: intent is the image sitting ON the text — horizontally
+      // centred over it with real vertical overlap
+      var yInter = Math.min(e.y + e.h, o.y + o.h) - Math.max(e.y, o.y);
+      var xInter = Math.min(e.x + e.w, o.x + o.w) - Math.max(e.x, o.x);
+      if (cx2 >= o.x && cx2 <= o.x + o.w && yInter >= 12 && xInter >= e.w * 0.3) return t2;
+    }
+    return -1;
+  }
+  function wrapImageIntoText(sec, i, ti) {
+    var e = sec.els[i];
+    var t = sec.els[ti];
+    var side = (e.x + e.w / 2) < (t.x + t.w / 2) ? 'left' : 'right';
+    var pct = Math.max(25, Math.min(60, Math.round(e.w / t.w * 100)));
+    var style = 'float:' + side + ';width:' + pct + '%;' +
+      (side === 'left' ? 'margin:4px 18px 8px 0;' : 'margin:4px 0 8px 18px;') +
+      'shape-outside:url("' + String(e.src).replace(/"/g, '%22') + '");' +
+      'shape-image-threshold:0.5;shape-margin:16px;';
+    t.text = '<img class="gogh-wrapped" src="' + escAttr(e.src) + '" alt="' + escAttr(e.alt || '') + '"' +
+      ' style="' + escAttr(style) + '">' + (t.text || '');
+    sec.els.splice(i, 1);
+    renderSection(sec);
+    return ti > i ? ti - 1 : ti;
+  }
+  function openWrapPanel(img) {
+    var node = img.closest('[class*="gogh-el-"]');
+    var wrapEl = img.closest('.gogh-wrap');
+    var sec = null;
+    S.forEach(function (s2) { if (s2.wrapEl === wrapEl) sec = s2; });
+    if (!sec || !node) return;
+    var ei = sec.nodes.indexOf(node);
+    if (ei === -1) return;
+    var t = sec.els[ei];
+    var host = node.querySelector('p') || node;
+    var getStyle = function (prop, fb) {
+      var m = (img.getAttribute('style') || '').match(new RegExp(prop + ':([^;]+)'));
+      return m ? m[1].trim() : fb;
+    };
+    var syncModel = function () {
+      t.text = cleanInline(host.innerHTML);
+      pushState();
+    };
+    var setStyle = function (prop, val) {
+      var st = img.getAttribute('style') || '';
+      st = st.replace(new RegExp(prop + ':[^;]+;?', 'g'), '');
+      img.setAttribute('style', st + prop + ':' + val + ';');
+    };
+    panel.innerHTML =
+      '<div class="gogh-panel-title">Wrapped image</div>' +
+      '<em class="gogh-panel-hint">The words flow around it \u2014 tune the fit.</em>' +
+      '<div class="gogh-panel-row gogh-wrapside"><span>Side</span>' +
+      '<button type="button" class="gogh-btn gogh-btn-small" data-side="left">Left</button>' +
+      '<button type="button" class="gogh-btn gogh-btn-small" data-side="right">Right</button></div>' +
+      '<div class="gogh-panel-row gogh-logosize"><span>Size</span><input type="range" min="25" max="60" step="1" class="gogh-wrapw" /><span class="gogh-logosize-val gogh-wrapw-val"></span></div>' +
+      '<div class="gogh-panel-row gogh-logosize"><span>Breathing room</span><input type="range" min="0" max="48" step="2" class="gogh-wrapm" /><span class="gogh-logosize-val gogh-wrapm-val"></span></div>' +
+      '<div class="gogh-panel-row gogh-panel-actions"><button type="button" class="gogh-btn gogh-btn-small gogh-unwrap">Unwrap \u2014 back to freeform</button></div>';
+    placePanelNear(img);
+    panelOpen = true;
+    panel.querySelectorAll('[data-side]').forEach(function (b) {
+      b.addEventListener('click', function () {
+        var sd = b.getAttribute('data-side');
+        setStyle('float', sd);
+        setStyle('margin', sd === 'left' ? '4px 18px 8px 0' : '4px 0 8px 18px');
+        syncModel();
+      });
+    });
+    var wIn = panel.querySelector('.gogh-wrapw');
+    var wVal = panel.querySelector('.gogh-wrapw-val');
+    wIn.value = parseInt(getStyle('width', '40%'), 10) || 40;
+    wVal.textContent = wIn.value + '%';
+    wIn.addEventListener('input', function () {
+      wVal.textContent = wIn.value + '%';
+      setStyle('width', wIn.value + '%');
+    });
+    wIn.addEventListener('change', syncModel);
+    var mIn = panel.querySelector('.gogh-wrapm');
+    var mVal = panel.querySelector('.gogh-wrapm-val');
+    mIn.value = parseInt(getStyle('shape-margin', '16px'), 10) || 16;
+    mVal.textContent = mIn.value + 'px';
+    mIn.addEventListener('input', function () {
+      mVal.textContent = mIn.value + 'px';
+      setStyle('shape-margin', mIn.value + 'px');
+    });
+    mIn.addEventListener('change', syncModel);
+    panel.querySelector('.gogh-unwrap').addEventListener('click', function () {
+      var side = getStyle('float', 'left');
+      var pct = parseInt(getStyle('width', '40%'), 10) || 40;
+      var iw = Math.round(t.w * pct / 100);
+      var ratio = (img.naturalHeight && img.naturalWidth) ? img.naturalHeight / img.naturalWidth : 0.66;
+      var back = {
+        type: 'image', src: img.getAttribute('src'), alt: img.getAttribute('alt') || '',
+        x: side === 'left' ? Math.max(0, t.x - Math.round(iw / 2)) : Math.min(W - iw, t.x + t.w - Math.round(iw / 2)),
+        y: t.y, w: iw, h: Math.round(iw * ratio),
+      };
+      img.remove();
+      t.text = cleanInline(host.innerHTML);
+      sec.els.push(back);
+      renderSection(sec);
+      closePanel();
+      pushState();
+      toast('Back to freeform \u2014 drag it anywhere.', { actions: [{ label: 'Undo', onClick: function () { undo(); } }] });
+    });
+  }
+  document.addEventListener('click', function (ev) {
+    if (!editing) return;
+    var wimg = ev.target.closest && ev.target.closest('.gogh-section img.gogh-wrapped');
+    if (!wimg) return;
+    ev.preventDefault();
+    ev.stopPropagation();
+    openWrapPanel(wimg);
+  }, true);
   var joinGlowNode = null;
   function setJoinGlow(node) {
     if (joinGlowNode === node) return;
@@ -4196,7 +4324,12 @@
         dropBox.style.height = b2.h + 'px';
         if (!drag.multi) {
           var jt = cardJoinTarget(sec, drag.i);
-          setJoinGlow(jt !== -1 ? sec.nodes[jt] : null);
+          if (jt === -1) {
+            var wg = wrapTargetIdx(sec, drag.i);
+            setJoinGlow(wg !== -1 ? sec.nodes[wg] : null);
+          } else {
+            setJoinGlow(sec.nodes[jt]);
+          }
         }
       });
     }
@@ -4254,6 +4387,17 @@
     }
     setJoinGlow(null);
     if (!multiD) {
+      var wti = wrapTargetIdx(sec, i);
+      if (wti !== -1) {
+        wrapImageIntoText(sec, i, wti);
+        sel = null;
+        hideHandles();
+        closePanel();
+        pushState();
+        toast('Wrapped \u2014 the words flow around it now. Click the image to adjust.',
+          { actions: [{ label: 'Undo', onClick: function () { undo(); } }] });
+        return;
+      }
       var jb = cardJoinTarget(sec, i);
       if (jb !== -1) {
         var kid = sec.els[i];
@@ -6112,6 +6256,8 @@
     sanitizePastedHtml: sanitizePastedHtml,
     openPageStylePanel: openPageStylePanel,
     goghHasNativeContent: goghHasNativeContent,
+    wrapImageIntoText: wrapImageIntoText,
+    wrapTargetIdx: wrapTargetIdx,
     bindPending: bindPending,
     convertStash: function () { return convertStash; },
     deleteSectionRaw: deleteSection,
