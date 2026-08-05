@@ -7068,6 +7068,20 @@
     var ctx = (activeLightEd && activeLightEd.el.contains(s.anchorNode))
       ? activeLightEd
       : lightEdContextFor(s.anchorNode);
+    if (!ctx) {
+      // freeform text edits deserve the same toolbar: any selection inside
+      // a gogh element being edited gets B / I / Link too
+      var an = s.anchorNode;
+      var ael = an && (an.nodeType === 1 ? an : an.parentElement);
+      var edEl = ael && ael.closest && ael.closest('.gogh-section [contenteditable="true"]');
+      if (edEl) {
+        ctx = {
+          el: edEl,
+          leafOf: function () { return edEl; },
+          sync: function () { edEl.dispatchEvent(new Event('input', { bubbles: true })); },
+        };
+      }
+    }
     if (!ctx) { linkBubble.hidden = true; return; }
     var r = s.getRangeAt(0).getBoundingClientRect();
     if (!r.width) { linkBubble.hidden = true; return; }
