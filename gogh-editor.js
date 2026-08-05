@@ -3991,21 +3991,23 @@
         inserter.style.transform = prevSec ? 'translate(-100%, -50%)' : 'translate(-50%, -50%)';
         inserter.style.marginLeft = '0';
         inserter.style.top = (found.y + window.scrollY) + 'px';
+        inserter.classList.remove('gogh-byebye');
         inserter.hidden = false;
         if (prevSec) placeHbar(prevSec); else hideHbar();
         if (prevSec && nextSec && S.indexOf(nextSec) === S.indexOf(prevSec) + 1) {
           shapeIdx = S.indexOf(nextSec);
           shapeBtn.style.left = (cx + 40) + 'px';
           shapeBtn.style.top = (found.y + window.scrollY) + 'px';
+          shapeBtn.classList.remove('gogh-byebye');
           shapeBtn.hidden = false;
         } else {
           shapeBtn.hidden = true;
         }
         hideSecBar();
       } else {
-        if (!inserter.matches(':hover')) inserter.hidden = true;
+        if (!inserter.matches(':hover')) goghFadeOut(inserter);
         if (!hgrip.matches(':hover')) hideHbar();
-        if (!shapeBtn.matches(':hover')) shapeBtn.hidden = true;
+        if (!shapeBtn.matches(':hover')) goghFadeOut(shapeBtn);
         // not near a boundary: offer section actions for the hovered section
         if (!secBar.matches(':hover')) {
           var hov = null;
