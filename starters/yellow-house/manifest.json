@@ -39,5 +39,11 @@
       "file": "workshops.html",
       "menu": false
     }
-  ]
+  ],
+  "preview": {
+    "base": "#fdfbf4",
+    "contrast": "#17181c",
+    "accent-1": "#f2b52b",
+    "accent-2": "#f2b52b"
+  }
 }

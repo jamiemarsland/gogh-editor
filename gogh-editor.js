@@ -1461,7 +1461,21 @@
     return { x: r.left + window.scrollX + r.width / 2 - w / 2,
              y: r.top + window.scrollY + r.height / 2 - h / 2, w: w, h: h };
   }
-  function hideHandles() { grip.hidden = selBox.hidden = elbar.hidden = true; }
+  function goghFadeOut(el) {
+    if (el.hidden || el.classList.contains('gogh-byebye')) return;
+    el.classList.add('gogh-byebye');
+    setTimeout(function () {
+      // a show in the meantime clears the class — only hide if still leaving
+      if (el.classList.contains('gogh-byebye')) {
+        el.hidden = true;
+        el.classList.remove('gogh-byebye');
+      }
+    }, 190);
+  }
+  function hideHandles() {
+    grip.hidden = selBox.hidden = true;
+    goghFadeOut(elbar);
+  }
   function hideGuides() { guideV.hidden = guideH.hidden = true; }
 
   // the box the USER perceives: for buttons that's the pill, not its
@@ -1733,6 +1747,7 @@
   function setEditing(on) {
     editing = on;
     document.documentElement.classList.toggle('gogh-editing', on);
+    [elbar, secBar, hbar].forEach(function (b) { if (b) b.classList.remove('gogh-byebye'); });
     // the admin-bar landmark flips with the MODE, not just the URL — the
     // floating pill enters editing without a reload
     var abLink = document.querySelector('#wp-admin-bar-gogh-edit a');
@@ -3384,7 +3399,7 @@
     hgrip.style.top = (by + window.scrollY) + 'px';
     hgrip.hidden = false;
   }
-  function hideHbar() { hbar.hidden = hgrip.hidden = true; hbarSec = null; }
+  function hideHbar() { hgrip.hidden = true; goghFadeOut(hbar); hbarSec = null; }
 
   var hDrag = null, hRaf = false;
   hgrip.addEventListener('pointerdown', function (ev) {
@@ -3533,7 +3548,7 @@
   document.body.appendChild(secBar);
   var secBarIdx = null;
 
-  function hideSecBar() { secBar.hidden = true; secBarIdx = null; }
+  function hideSecBar() { goghFadeOut(secBar); secBarIdx = null; }
   function showSecBar(idx) {
     // the site header/footer isn't a page section: it can't move, duplicate
     // or be deleted, so the section toolbar has nothing to offer it
@@ -5027,7 +5042,12 @@
         srow.type = 'button';
         srow.className = 'gogh-varbtn gogh-starterrow';
         srow.title = 'Pick a whole site design';
-        srow.innerHTML = '<span class="gogh-startermini"><span></span><span></span></span>' +
+        // one generic mark for any number of starters: a little fan of pages
+        srow.innerHTML = '<span class="gogh-startermini">' +
+          '<span class="gogh-startermini-tile"></span>' +
+          '<span class="gogh-startermini-tile"></span>' +
+          '<span class="gogh-startermini-tile"><i></i></span>' +
+          '</span>' +
           '<span class="gogh-varname">Site designs</span>' +
           '<span class="gogh-starterarrow">\u2192</span>';
         srow.addEventListener('click', function () {

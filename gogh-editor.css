@@ -2198,9 +2198,22 @@ html.gogh-textediting .gogh-convertbtn {
 
 /* ---------- starter sites ---------- */
 .gogh-starterrow { position: relative; }
-.gogh-startermini { display: inline-flex; gap: 3px; }
-.gogh-startermini span { width: 22px; height: 15px; border-radius: 3px; background: #e7e3da; border: 1px solid #d5d0c4; }
-.gogh-startermini span:last-child { background: #4f5aee; border-color: #4f5aee; }
+.gogh-startermini { display: inline-flex; }
+.gogh-startermini-tile {
+  position: relative; width: 19px; height: 25px; border-radius: 4px;
+  background: #fff;
+  border: 1px solid rgba(20, 21, 25, 0.22);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
+  overflow: hidden;
+}
+.gogh-startermini-tile:nth-child(1) { background: #e9e6de; transform: rotate(-6deg) translateY(1px); }
+.gogh-startermini-tile:nth-child(2) { background: #f6f4ee; transform: translateY(-1px); }
+.gogh-startermini-tile:nth-child(3) { transform: rotate(6deg) translateY(1px); }
+.gogh-startermini-tile + .gogh-startermini-tile { margin-left: -9px; }
+.gogh-startermini-tile i {
+  position: absolute; left: 3px; top: 3px; width: 9px; height: 4px; border-radius: 2px; display: block;
+  background: #f2b52b;
+}
 .gogh-starterarrow { margin-left: auto; color: #9a9ba2; }
 .gogh-starterpick {
   position: fixed; inset: 0; z-index: 100010;
@@ -2251,3 +2264,12 @@ html.gogh-textediting .gogh-convertbtn {
 .gogh-sp-prev { height: 250px; }
 .gogh-starterpick .gogh-sp-go { background: #17181c !important; color: #fff !important; border-color: #17181c !important; }
 .gogh-starterpick .gogh-sp-go:hover, .gogh-starterpick .gogh-sp-use:hover { background: #2e2f36 !important; color: #fff !important; border-color: #2e2f36 !important; }
+
+
+/* gentle exits: toolbars fade and drift instead of vanishing */
+.gogh-byebye {
+  opacity: 0 !important;
+  transform: translateY(-2px);
+  transition: opacity 0.18s ease, transform 0.18s ease;
+  pointer-events: none !important;
+}
