@@ -1984,6 +1984,32 @@
       return 'image → flowing text: target, consume, float, silhouette';
     });
 
+    test('wrap: drop point chooses where the wrap begins', function () {
+      var filler = 'The words keep arriving, sentence after sentence, so the paragraph grows tall enough that a drop in its lower half is clearly distinct from its opening line. ';
+      G.addSection({ title: 'W2', minH: 400, els: [
+        { type: 'para', x: 90, y: 40, w: 700, h: 300, text: filler + filler + filler + filler },
+        { type: 'image', x: 200, y: 160, w: 240, h: 160, src: '/wp-content/plugins/gogh/demo-assets/sunflowers.jpg' },
+      ] });
+      var c = contentSecs();
+      var secW = c[c.length - 1];
+      var ii = secW.els.length - 1;
+      secW.els[ii].x = 200;
+      secW.els[ii].y = 160;
+      var host = secW.nodes[0];
+      if (host.tagName !== 'P') host = host.querySelector('p') || host;
+      host.scrollIntoView({ block: 'center' });
+      var hr = host.getBoundingClientRect();
+      // drop three-quarters of the way down the text — the wrap should
+      // begin there, leaving the opening lines full width
+      G.wrapImageIntoText(secW, ii, 0, hr.left + hr.width / 2, hr.top + hr.height * 0.75);
+      var t = secW.els[0];
+      var pos = t.text.indexOf('<img');
+      expect(pos !== -1, 'wrapped img in text model');
+      expect(pos > 40, 'img inserted at the drop point, not prepended');
+      G.deleteSection(G.sections().indexOf(secW));
+      return 'drop low in the text → wrap starts there, opening lines stay full width';
+    });
+
     // ---- guardrails: scrims behind text, struck swatches ----
     test('guardrails: auto-scrim behind text, honest swatch strikes', function () {
       var s0 = sec();

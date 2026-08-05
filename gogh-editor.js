@@ -4088,7 +4088,7 @@
     }
     return -1;
   }
-  function wrapImageIntoText(sec, i, ti) {
+  function wrapImageIntoText(sec, i, ti, cx, cy) {
     var e = sec.els[i];
     var t = sec.els[ti];
     var side = (e.x + e.w / 2) < (t.x + t.w / 2) ? 'left' : 'right';
@@ -4097,8 +4097,40 @@
       (side === 'left' ? 'margin:4px 18px 8px 0;' : 'margin:4px 0 8px 18px;') +
       'shape-outside:url("' + String(e.src).replace(/"/g, '%22') + '");' +
       'shape-image-threshold:0.5;shape-margin:16px;';
-    t.text = '<img class="gogh-wrapped" src="' + escAttr(e.src) + '" alt="' + escAttr(e.alt || '') + '"' +
-      ' style="' + escAttr(style) + '">' + (t.text || '');
+    // a float starts wrapping at the line it sits on, so the drop point
+    // decides where in the text the wrap begins: insert at the caret under
+    // the pointer (clamped into the paragraph, since the resolver may have
+    // nudged it since the pointer let go); top-of-text is the fallback
+    var placed = false;
+    if (cx != null && cy != null && document.caretRangeFromPoint) {
+      var host = sec.nodes[ti];
+      if (host && host.tagName !== 'P') host = host.querySelector('p') || host;
+      var dragNode = sec.nodes[i];
+      var prevDisp = dragNode ? dragNode.style.display : '';
+      if (dragNode) dragNode.style.display = 'none';
+      var cr = null;
+      try {
+        var hr = host.getBoundingClientRect();
+        cr = document.caretRangeFromPoint(
+          Math.max(hr.left + 2, Math.min(hr.right - 2, cx)),
+          Math.max(hr.top + 2, Math.min(hr.bottom - 2, cy)));
+      } catch (err) {}
+      if (dragNode) dragNode.style.display = prevDisp;
+      if (cr && host && host.contains(cr.startContainer)) {
+        var im = document.createElement('img');
+        im.className = 'gogh-wrapped';
+        im.src = e.src;
+        if (e.alt) im.alt = e.alt;
+        im.setAttribute('style', style);
+        cr.insertNode(im);
+        t.text = cleanInline(host.innerHTML);
+        placed = true;
+      }
+    }
+    if (!placed) {
+      t.text = '<img class="gogh-wrapped" src="' + escAttr(e.src) + '" alt="' + escAttr(e.alt || '') + '"' +
+        ' style="' + escAttr(style) + '">' + (t.text || '');
+    }
     sec.els.splice(i, 1);
     renderSection(sec);
     return ti > i ? ti - 1 : ti;
@@ -4257,6 +4289,7 @@
   });
   document.addEventListener('pointermove', function (ev) {
     if (!drag) return;
+    drag.cx = ev.clientX; drag.cy = ev.clientY;
     var dx = ev.clientX - drag.px, dy = ev.clientY - drag.py;
     var lockX = false, lockY = false;
     if (ev.shiftKey) {
@@ -4341,6 +4374,7 @@
     var gxCapD = !!drag.gxCap, gyCapD = !!drag.gyCap;
     var eqHD = !!drag.eqH, eqVD = !!drag.eqV;
     var lockedXD = !!drag.lockedX, lockedYD = !!drag.lockedY;
+    var dropCX = drag.cx, dropCY = drag.cy;
     var ghostTop = null;
     if (ghost) {
       ghostTop = ghost.getBoundingClientRect().top + window.scrollY;
@@ -4389,7 +4423,7 @@
     if (!multiD) {
       var wti = wrapTargetIdx(sec, i);
       if (wti !== -1) {
-        wrapImageIntoText(sec, i, wti);
+        wrapImageIntoText(sec, i, wti, dropCX, dropCY);
         sel = null;
         hideHandles();
         closePanel();
