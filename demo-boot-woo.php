@@ -64,12 +64,11 @@ $catalogue = array(
 		'desc'  => 'The products in this shop were seeded by the demo — add your own from the WordPress admin, and build the pages that sell them with gogh.',
 	),
 	array(
-		'name'  => 'Almond Blossom',
-		'price' => '0',
+		'name'  => 'Almond Blossom — giclée print',
+		'price' => '35',
 		'img'   => 'almond-blossom',
-		'short' => 'Painted for a newborn nephew. It hangs in the gift room — not for sale, and it never will be.',
-		'desc'  => 'Some things are not products. This one is here so the shop remembers that.',
-		'stock' => 'outofstock',
+		'short' => 'Painted for a newborn nephew — branches against a spring sky, 40×30cm.',
+		'desc'  => 'The original hangs in the gift room and is not for sale — it never will be. The prints are for everyone.',
 	),
 );
 

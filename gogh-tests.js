@@ -773,6 +773,24 @@
       return 'blank invites; backgrounded publishes and persists';
     });
 
+    test('products element: Woo grid in the ＋ menu, shortcode in the blocks', function () {
+      G.openSecAdd(G.sections().indexOf(sec()));
+      var btn = q('.gogh-panel [data-add="products"]');
+      var panelEl = q('.gogh-panel');
+      if (panelEl) panelEl.hidden = true;
+      if (!btn) return 'no WooCommerce here — Products stays out of the menu, as designed';
+      var e = G.addElementToSection(G.sections().indexOf(sec()), 'products');
+      expect(e.type === 'widget', 'products should be a widget element');
+      expect((e.wsrc || '').indexOf('[products') !== -1, 'wsrc should carry the Woo shortcode');
+      expect((e.whtml || '').indexOf('gogh-postsprev') !== -1, 'preview placeholder missing');
+      var snap = G.serialize();
+      expect(snap.indexOf('[products') !== -1, 'products shortcode should survive serialization');
+      var i = sec().els.indexOf(e);
+      sec().els.splice(i, 1);
+      G.renderSection(sec());
+      return 'Products offered, added, shortcode round-trips';
+    });
+
     test('site chrome sleeps behind a veil until invited', function () {
       var veils = document.querySelectorAll('.gogh-chromeveil');
       expect(veils.length >= 1, 'no chrome veil in edit mode');

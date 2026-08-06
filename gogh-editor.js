@@ -1212,7 +1212,8 @@
     '<button type="button" class="gogh-sitem" data-add="card" title="A card — drop elements inside and they stay together, even on mobile"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2.5"/><path d="M7 12h6M7 15.5h4"/></svg>Card</button>' +
     '<button type="button" class="gogh-sitem" data-act="shapes"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><circle cx="8.5" cy="8.5" r="5.5"/><rect x="11" y="11" width="10" height="10" rx="2"/></svg>Shape</button>' +
     (cfg.canExp ? '<button type="button" class="gogh-sitem" data-add="exp" title="Upload a self-contained HTML experience — it runs sandboxed"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M10 9.5l4.5 2.5-4.5 2.5z"/></svg>Experience</button>' : '') +
-    '<button type="button" class="gogh-sitem" data-add="posts" title="Your latest posts, live"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="4" width="16" height="6" rx="1.5"/><rect x="4" y="14" width="16" height="6" rx="1.5"/></svg>Posts</button>';
+    '<button type="button" class="gogh-sitem" data-add="posts" title="Your latest posts, live"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="4" width="16" height="6" rx="1.5"/><rect x="4" y="14" width="16" height="6" rx="1.5"/></svg>Posts</button>' +
+    (cfg.hasWoo ? '<button type="button" class="gogh-sitem" data-add="products" title="Your latest products, live — prices and add to cart included"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M6 7h12l1.5 13.5H4.5Z"/><path d="M9 10V6a3 3 0 0 1 6 0v4"/></svg>Products</button>' : '');
   var side = document.createElement('div');
   side.className = 'gogh-side';
   side.hidden = true;
@@ -2507,6 +2508,14 @@
       return { type: 'widget', x: 47, y: 60, w: 1106, h: 430, wsrc: wsrc,
         whtml: '<div class="gogh-postsprev gogh-postsprev-loading">Loading your latest posts\u2026</div>' };
     },
+    products: function () {
+      // WooCommerce's own grid via its shortcode block \u2014 Woo renders it
+      // fresh on the published page (prices, add-to-cart, the lot), and it
+      // keeps working with gogh deactivated
+      var wsrc = '<!-- wp:shortcode -->[products limit="3" columns="3" orderby="date" order="DESC"]<!-- /wp:shortcode -->';
+      return { type: 'widget', x: 47, y: 60, w: 1106, h: 470, wsrc: wsrc,
+        whtml: '<div class="gogh-postsprev gogh-postsprev-loading">Loading your products\u2026</div>' };
+    },
   };
   function postsPreviewHTML(posts) {
     return '<div class="gogh-postsprev">' + posts.map(function (p) {
@@ -2521,6 +2530,29 @@
         '<div class="gogh-postsprev-date">' + when + '</div>' +
         '</div>';
     }).join('') + '</div>';
+  }
+  function hydrateProductsPreview(sec, e) {
+    // the Store API is public — same shape as the posts preview, plus price
+    fetch(cfg.restUrl.split('wp/v2/')[0] + 'wc/store/v1/products?per_page=3&orderby=date&order=desc', {
+      credentials: 'same-origin',
+    }).then(function (r) { return r.ok ? r.json() : []; }).then(function (prods) {
+      if (!prods.length || sec.els.indexOf(e) === -1) return;
+      e.whtml = '<div class="gogh-postsprev">' + prods.map(function (p) {
+        var img = p.images && p.images[0] && p.images[0].src;
+        var price = '';
+        try {
+          var pr = p.prices;
+          price = pr.currency_symbol + (parseInt(pr.price, 10) / Math.pow(10, pr.currency_minor_unit)).toFixed(pr.currency_minor_unit);
+        } catch (err) {}
+        return '<div class="gogh-postsprev-card">' +
+          (img ? '<img src="' + escAttr(img) + '" alt="" />' : '<div class="gogh-postsprev-ph"></div>') +
+          '<h3>' + esc(p.name || 'Product') + '</h3>' +
+          '<div class="gogh-postsprev-date">' + esc(price) + '</div>' +
+          '</div>';
+      }).join('') + '</div>';
+      renderSection(sec);
+      if (sel && sel.sec === sec) placeHandles(sec, sec.els.indexOf(e));
+    }).catch(function () {});
   }
   function hydratePostsPreview(sec, e) {
     fetch(cfg.restUrl.split('wp/v2/')[0] + 'wp/v2/posts?per_page=3&_embed=wp:featuredmedia&status=publish', {
@@ -2598,17 +2630,22 @@
     if (kind === 'write') return startWriting();
     var e = placeElAtViewport(DEFAULTS[kind]());
     if (kind === 'posts') hydratePostsPreview(sel.sec, e);
+    if (kind === 'products') hydrateProductsPreview(sel.sec, e);
     return e;
   }
   function addElementToSection(idx, kind) {
     var secx = S[idx];
-    var e = typeof kind === 'string' ? DEFAULTS[kind]() : kind;
+    // kind may be a DEFAULTS key or a ready-made element object — keep the
+    // KEY for hydration: posts/products are 'widget' type in the model
+    var kindKey = typeof kind === 'string' ? kind : null;
+    var e = kindKey ? DEFAULTS[kindKey]() : kind;
     var H = designH(secx.els, secx.minH);
     e.x = Math.max(0, Math.min(W - e.w, Math.round((W - e.w) / 2 + (stagger % 5) * 24 - 48)));
     e.y = Math.max(8, Math.round(Math.min(Math.max(8, (H - e.h) / 2), Math.max(8, H - e.h - 8)) + (stagger % 5) * 24 - 48));
     stagger++;
     addElement(secx, e);
-    if (e.type === 'posts') hydratePostsPreview(secx, e);
+    if (kindKey === 'posts') hydratePostsPreview(secx, e);
+    if (kindKey === 'products') hydrateProductsPreview(secx, e);
     return e;
   }
   function openSecAddPanel(idx) {
@@ -3462,6 +3499,7 @@
       { label: 'Badge', kind: 'badge' },
       { label: 'Posts grid', kind: 'posts' },
     ];
+    if (cfg.hasWoo) items.push({ label: 'Products grid', kind: 'products' });
     TEMPLATES.forEach(function (t, ti) {
       if (t.els.length && !t.retired) items.push({ label: t.name + ' \u00b7 section', tpl: ti });
     });
@@ -10435,7 +10473,7 @@
       // layers icon read as a label, not an invitation
       b.innerHTML = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 3l4 4-4 4"/><path d="M20 7H7a4 4 0 0 0-4 4"/><path d="M8 21l-4-4 4-4"/><path d="M4 17h13a4 4 0 0 0 4-4"/></svg>' +
         (partEl.tagName === 'FOOTER' ? 'Change footer' : 'Change header');
-      b.dataset.tip = 'Flick through ' + (partEl.tagName === 'FOOTER' ? 'footer' : 'header') + ' designs — click text on the ' + (partEl.tagName === 'FOOTER' ? 'footer' : 'header') + ' itself to edit it';
+      b.dataset.tip = 'Flick through ' + (partEl.tagName === 'FOOTER' ? 'footer' : 'header') + ' designs';
       b.__goghPart = partEl;
       // both pills are viewport-fixed and centred on their edge — where
       // folks expect the control, and clear of the part's own content
