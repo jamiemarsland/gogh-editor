@@ -5261,26 +5261,7 @@
         openSide();
       });
       var box = panel.querySelector('.gogh-varlist');
-      // whole-site starters lead — the biggest decision goes first
-      if (cfg.starters && cfg.starters.length) {
-        var srow = document.createElement('button');
-        srow.type = 'button';
-        srow.className = 'gogh-varbtn gogh-starterrow';
-        srow.title = 'Pick a whole site design';
-        // one generic mark for any number of starters: a little fan of pages
-        srow.innerHTML = '<span class="gogh-startermini">' +
-          '<span class="gogh-startermini-tile"></span>' +
-          '<span class="gogh-startermini-tile"></span>' +
-          '<span class="gogh-startermini-tile"><i></i></span>' +
-          '</span>' +
-          '<span class="gogh-varname">Site designs</span>' +
-          '<span class="gogh-starterarrow">\u2192</span>';
-        srow.addEventListener('click', function () {
-          closePanel();
-          openStarterPicker();
-        });
-        box.appendChild(srow);
-      }
+      // Site designs lives in the Design drawer alone — this panel is styles
       // your brand sits ABOVE the theme's styles — the most important option
       (function () {
         var row = document.createElement('div');
