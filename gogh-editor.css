@@ -485,7 +485,7 @@
   background: #ff5b77;
 }
 .gogh-guide[hidden] { display: none; }
-/* composition guides: the golden section and thirds wear gold */
+/* golden ratio guides wear gold */
 .gogh-guide-comp { background: #d4af37; }
 .gogh-guide-comp::after {
   content: attr(data-tag);

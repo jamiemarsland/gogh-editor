@@ -1218,7 +1218,7 @@
     '<button type="button" class="gogh-sbtn gogh-gridbtn" data-act="gridsnap" title="Grid: show and snap">' +
     '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 9h18M3 15h18M9 3v18M15 3v18"/></svg>' +
     '</button>' +
-    '<button type="button" class="gogh-sbtn gogh-phibtn" data-act="compguides" title="Composition guides: golden ratio and thirds">φ</button>' +
+    '<button type="button" class="gogh-sbtn gogh-phibtn" data-act="compguides" title="Golden ratio guides">φ</button>' +
     '<button type="button" class="gogh-sbtn gogh-zoomopen" title="Whole page — reorder sections">' +
     '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="3" width="16" height="7" rx="1.6"/><rect x="4" y="14" width="16" height="7" rx="1.6"/><path d="M12 10.5v3"/></svg>' +
     '</button>' +
@@ -2634,18 +2634,18 @@
   }
   side.querySelector('.gogh-sd-designs').addEventListener('click', openStarterPicker);
   // turning φ on should SHOW you what you enabled: flash the golden-section
-  // (solid) and thirds (dashed) lines over the section you're looking at
+  // lines over the section you're looking at
   function flashCompLines(sec2) {
     if (!sec2 || !sec2.sectionEl) return;
     var ov = document.createElement('div');
     ov.className = 'gogh-compflash';
-    [0.382, 0.618, 1 / 3, 2 / 3].forEach(function (f, k) {
+    [0.382, 0.618].forEach(function (f) {
       var v = document.createElement('i');
-      v.className = k < 2 ? 'is-phi' : 'is-third';
+      v.className = 'is-phi';
       v.style.cssText = 'left:' + (f * 100) + '%;top:0;width:0;height:100%;';
       ov.appendChild(v);
       var h = document.createElement('i');
-      h.className = k < 2 ? 'is-phi' : 'is-third';
+      h.className = 'is-phi';
       h.style.cssText = 'top:' + (f * 100) + '%;left:0;height:0;width:100%;';
       ov.appendChild(h);
     });
@@ -2656,13 +2656,13 @@
     compGuidesOn = !compGuidesOn;
     var pb = side.querySelector('.gogh-phibtn');
     pb.classList.toggle('is-active', compGuidesOn);
-    pb.dataset.tip = 'Composition guides: ' + (compGuidesOn ? 'on' : 'off');
+    pb.dataset.tip = 'Golden ratio guides: ' + (compGuidesOn ? 'on' : 'off');
     pb.removeAttribute('title');
     if (compGuidesOn) {
       flashCompLines(viewportSection());
-      toast('Composition guides on — gold lines mark the golden section (solid) and thirds (dashed). Drag anything near one and it’ll catch.', { ttl: 6000 });
+      toast('Golden ratio guides on — the gold lines mark the golden section. Drag anything near one and it’ll catch.', { ttl: 6000 });
     } else {
-      toast('Composition guides off.');
+      toast('Golden ratio guides off.');
     }
   });
   elbar.querySelector('.gogh-eb-del').addEventListener('click', deleteSelected);
@@ -4791,15 +4791,15 @@
   document.addEventListener('pointercancel', function () { if (drag) endDrag(); });
 
   var gridSnapOn = false; // the always-on graph paper; drags show their own grid and snap regardless
-  // composition guides (a Design toggle): the golden section and thirds
+  // golden ratio guides (a Design toggle): the golden section lines
   // join the smart-guide candidates — layouts start landing in pleasing
   // spots without anyone being taught anything
   var compGuidesOn = false;
   function compCands(H) {
     if (!compGuidesOn) return { x: [], y: [] };
     return {
-      x: [Math.round(W * 0.382), Math.round(W * 0.618), Math.round(W / 3), Math.round(W * 2 / 3)],
-      y: [Math.round(H * 0.382), Math.round(H * 0.618), Math.round(H / 3), Math.round(H * 2 / 3)],
+      x: [Math.round(W * 0.382), Math.round(W * 0.618)],
+      y: [Math.round(H * 0.382), Math.round(H * 0.618)],
     };
   }
   function compTag(H, v, axis) {
@@ -4807,11 +4807,7 @@
     var r = Math.round(v);
     var phi = axis === 'x' ? [Math.round(W * 0.382), Math.round(W * 0.618)]
       : [Math.round(H * 0.382), Math.round(H * 0.618)];
-    var thirds = axis === 'x' ? [Math.round(W / 3), Math.round(W * 2 / 3)]
-      : [Math.round(H / 3), Math.round(H * 2 / 3)];
-    if (phi.indexOf(r) !== -1) return 'φ';
-    if (thirds.indexOf(r) !== -1) return '⅓';
-    return '';
+    return phi.indexOf(r) !== -1 ? 'φ' : '';
   }
 
   // ---------- theme style variations (drawer) ----------
