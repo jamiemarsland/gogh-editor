@@ -1218,7 +1218,7 @@
     '<button type="button" class="gogh-sbtn gogh-gridbtn" data-act="gridsnap" title="Grid: show and snap">' +
     '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 9h18M3 15h18M9 3v18M15 3v18"/></svg>' +
     '</button>' +
-    '<button type="button" class="gogh-sbtn gogh-phibtn" data-act="compguides" title="Golden ratio guides">φ</button>' +
+    (cfg.experiments ? '<button type="button" class="gogh-sbtn gogh-phibtn" data-act="compguides" title="Golden ratio guides">φ</button>' : '') +
     '<button type="button" class="gogh-sbtn gogh-zoomopen" title="Whole page — reorder sections">' +
     '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="3" width="16" height="7" rx="1.6"/><rect x="4" y="14" width="16" height="7" rx="1.6"/><path d="M12 10.5v3"/></svg>' +
     '</button>' +
@@ -2653,7 +2653,8 @@
     sec2.sectionEl.appendChild(ov);
     setTimeout(function () { ov.remove(); }, 2400);
   }
-  side.querySelector('[data-act="compguides"]').addEventListener('click', function () {
+  var phiToggle = side.querySelector('[data-act="compguides"]');
+  if (phiToggle) phiToggle.addEventListener('click', function () {
     compGuidesOn = !compGuidesOn;
     var pb = side.querySelector('.gogh-phibtn');
     pb.classList.toggle('is-active', compGuidesOn);
@@ -4351,6 +4352,21 @@
     node.classList.add('gogh-dragsrc');
     dropBox.hidden = false;
     drag = { sec: sec, i: i, px: ev.clientX, py: ev.clientY, x: e.x, y: e.y, gx: gL, gy: gT };
+    // centring a text box whose words don't fill it centres the BOX, not the
+    // ink — measure the rendered text so its visual centre snaps too
+    if (isText(e) || e.type === 'badge') {
+      try {
+        var thost = node.querySelector('p,h1,h2,h3,h4,h5,h6') || node;
+        var trng = document.createRange();
+        trng.selectNodeContents(thost);
+        var tw = trng.getBoundingClientRect().width / scaleOf(sec);
+        if (tw > 0 && tw < e.w - 4) {
+          var talign = e.align || 'left';
+          drag.textCXOff = talign === 'center' ? null
+            : (talign === 'right' ? e.w - tw / 2 : tw / 2);
+        }
+      } catch (err) {}
+    }
     sec.sectionEl.classList.add('gogh-grid-live');
     if (multiSel && multiSel.sec === sec && multiSel.idxs.indexOf(i) !== -1) {
       drag.multi = multiSel.idxs.filter(function (j) { return j !== i; }).map(function (j) {
@@ -4383,7 +4399,7 @@
     var e = sec.els[drag.i];
     var rx = Math.max(0, Math.min(W - e.w, drag.x + dx / s));
     var ry = Math.max(0, drag.y + dy / s);
-    var sn = snapPos(sec, e, rx, ry, e.w, e.h, free);
+    var sn = snapPos(sec, e, rx, ry, e.w, e.h, free, drag.textCXOff);
     e.x = Math.max(0, Math.min(W - e.w, sn.x));
     e.y = Math.max(0, sn.y);
     if (lockX) { e.x = drag.x; sn.gx = null; }
@@ -5539,7 +5555,7 @@
     openPageStylePanel(ev.currentTarget);
   });
 
-  function snapPos(sec, exclude, x, y, w, h, free) {
+  function snapPos(sec, exclude, x, y, w, h, free, textCXOff) {
     if (free) return { x: Math.round(x), y: Math.round(y), gx: null, gy: null };
     var H = designH(sec.els, sec.minH);
     var candX = [0, W, W / 2], candY = [0, H, H / 2];
@@ -5564,6 +5580,10 @@
     var xEdges = w > 0
       ? [{ v: x, off: 0 }, { v: x + w, off: w }, { v: x + w / 2, off: w / 2 }]
       : [{ v: x, off: 0 }];
+    // a text element's INK can snap by its visual centre as well as its box
+    if (textCXOff != null && textCXOff > 0 && textCXOff < w) {
+      xEdges.push({ v: x + textCXOff, off: textCXOff });
+    }
     var yEdges = h > 0
       ? [{ v: y, off: 0 }, { v: y + h, off: h }, { v: y + h / 2, off: h / 2 }]
       : [{ v: y, off: 0 }];

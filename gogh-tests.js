@@ -719,6 +719,32 @@
       return 'released 2 short of ' + phiX + ' — φ finished the drop';
     });
 
+    test('centring a text box centres the ink, not the box', function () {
+      addToSec('heading');
+      var n = sec().els.length - 1;
+      var e = sec().els[n];
+      // wide enough that the words leave slack, narrow enough that the ink
+      // can reach the section centre without the box hitting the right edge
+      e.w = 500; e.x = 100; e.y = 1900;
+      G.resolve(sec()); G.measure(sec()); G.resolve(sec());
+      var node = sec().nodes[n];
+      var host = node.matches('h1,h2,h3,h4,p') ? node : (node.querySelector('h1,h2,h3,h4,p') || node);
+      var rng = document.createRange();
+      rng.selectNodeContents(host);
+      var s = sec().sectionEl.getBoundingClientRect().width / 1200;
+      var tw = rng.getBoundingClientRect().width / s;
+      expect(tw > 0 && tw < e.w - 40, 'heading text should be narrower than its box (tw=' + Math.round(tw) + ')');
+      select(n);
+      var grip = q('.gogh-grip');
+      // release with the INK's centre 1 unit shy of the section centre —
+      // only the text-centre magnet can finish it (box centre is far away)
+      var dx = ((600 - tw / 2 - 1) - e.x) * s;
+      dragBy(grip, dx, 0, 97);
+      var inkCentre = Math.round(sec().els[n].x + tw / 2);
+      expect(inkCentre === 600, 'ink centre landed at ' + inkCentre + ', wanted 600 (box x=' + sec().els[n].x + ')');
+      return 'words centred at 600; box happily asymmetric';
+    });
+
     // ---- 14. image via URL becomes a real figure (v0.9) ----
     test('image URL apply → figure with img', function () {
       var i = findIdx('image');
