@@ -2633,12 +2633,37 @@
     });
   }
   side.querySelector('.gogh-sd-designs').addEventListener('click', openStarterPicker);
+  // turning φ on should SHOW you what you enabled: flash the golden-section
+  // (solid) and thirds (dashed) lines over the section you're looking at
+  function flashCompLines(sec2) {
+    if (!sec2 || !sec2.sectionEl) return;
+    var ov = document.createElement('div');
+    ov.className = 'gogh-compflash';
+    [0.382, 0.618, 1 / 3, 2 / 3].forEach(function (f, k) {
+      var v = document.createElement('i');
+      v.className = k < 2 ? 'is-phi' : 'is-third';
+      v.style.cssText = 'left:' + (f * 100) + '%;top:0;width:0;height:100%;';
+      ov.appendChild(v);
+      var h = document.createElement('i');
+      h.className = k < 2 ? 'is-phi' : 'is-third';
+      h.style.cssText = 'top:' + (f * 100) + '%;left:0;height:0;width:100%;';
+      ov.appendChild(h);
+    });
+    sec2.sectionEl.appendChild(ov);
+    setTimeout(function () { ov.remove(); }, 2400);
+  }
   side.querySelector('[data-act="compguides"]').addEventListener('click', function () {
     compGuidesOn = !compGuidesOn;
     var pb = side.querySelector('.gogh-phibtn');
     pb.classList.toggle('is-active', compGuidesOn);
     pb.dataset.tip = 'Composition guides: ' + (compGuidesOn ? 'on' : 'off');
     pb.removeAttribute('title');
+    if (compGuidesOn) {
+      flashCompLines(viewportSection());
+      toast('Composition guides on — gold lines mark the golden section (solid) and thirds (dashed). Drag anything near one and it’ll catch.', { ttl: 6000 });
+    } else {
+      toast('Composition guides off.');
+    }
   });
   elbar.querySelector('.gogh-eb-del').addEventListener('click', deleteSelected);
   side.querySelector('[data-act="gridsnap"]').addEventListener('click', function () {
