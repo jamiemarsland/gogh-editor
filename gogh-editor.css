@@ -485,6 +485,22 @@
   background: #ff5b77;
 }
 .gogh-guide[hidden] { display: none; }
+/* composition guides: the golden section and thirds wear gold */
+.gogh-guide-comp { background: #d4af37; }
+.gogh-guide-comp::after {
+  content: attr(data-tag);
+  position: absolute;
+  top: 8px;
+  left: 6px;
+  font: 700 12px/1 Georgia, serif;
+  font-style: italic;
+  color: #fff;
+  background: #d4af37;
+  padding: 3px 7px;
+  border-radius: 7px;
+}
+.gogh-guide-h.gogh-guide-comp::after { top: 6px; left: 10px; }
+.gogh-phibtn { font: 600 15px/1 Georgia, serif; font-style: italic; }
 .gogh-guide-v { width: 1px; }
 .gogh-guide-h { height: 1px; }
 

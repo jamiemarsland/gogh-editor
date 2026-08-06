@@ -1218,6 +1218,7 @@
     '<button type="button" class="gogh-sbtn gogh-gridbtn" data-act="gridsnap" title="Grid: show and snap">' +
     '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 9h18M3 15h18M9 3v18M15 3v18"/></svg>' +
     '</button>' +
+    '<button type="button" class="gogh-sbtn gogh-phibtn" data-act="compguides" title="Composition guides: golden ratio and thirds">φ</button>' +
     '<button type="button" class="gogh-sbtn gogh-zoomopen" title="Whole page — reorder sections">' +
     '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="3" width="16" height="7" rx="1.6"/><rect x="4" y="14" width="16" height="7" rx="1.6"/><path d="M12 10.5v3"/></svg>' +
     '</button>' +
@@ -1560,16 +1561,23 @@
   function showGuides(sec, gx, gy) {
     var r = sec.sectionEl.getBoundingClientRect();
     var s = r.width / W;
+    var Hc = designH(sec.els, sec.minH);
     if (gx !== null) {
       guideV.style.left = (r.left + window.scrollX + gx * s) + 'px';
       guideV.style.top = (r.top + window.scrollY) + 'px';
       guideV.style.height = r.height + 'px';
+      var tx = compTag(Hc, gx, 'x');
+      guideV.dataset.tag = tx;
+      guideV.classList.toggle('gogh-guide-comp', !!tx);
       guideV.hidden = false;
     } else guideV.hidden = true;
     if (gy !== null) {
       guideH.style.top = (r.top + window.scrollY + gy * s) + 'px';
       guideH.style.left = (r.left + window.scrollX) + 'px';
       guideH.style.width = r.width + 'px';
+      var ty = compTag(Hc, gy, 'y');
+      guideH.dataset.tag = ty;
+      guideH.classList.toggle('gogh-guide-comp', !!ty);
       guideH.hidden = false;
     } else guideH.hidden = true;
   }
@@ -2625,6 +2633,13 @@
     });
   }
   side.querySelector('.gogh-sd-designs').addEventListener('click', openStarterPicker);
+  side.querySelector('[data-act="compguides"]').addEventListener('click', function () {
+    compGuidesOn = !compGuidesOn;
+    var pb = side.querySelector('.gogh-phibtn');
+    pb.classList.toggle('is-active', compGuidesOn);
+    pb.dataset.tip = 'Composition guides: ' + (compGuidesOn ? 'on' : 'off');
+    pb.removeAttribute('title');
+  });
   elbar.querySelector('.gogh-eb-del').addEventListener('click', deleteSelected);
   side.querySelector('[data-act="gridsnap"]').addEventListener('click', function () {
     gridSnapOn = !gridSnapOn;
@@ -4751,6 +4766,28 @@
   document.addEventListener('pointercancel', function () { if (drag) endDrag(); });
 
   var gridSnapOn = false; // the always-on graph paper; drags show their own grid and snap regardless
+  // composition guides (a Design toggle): the golden section and thirds
+  // join the smart-guide candidates — layouts start landing in pleasing
+  // spots without anyone being taught anything
+  var compGuidesOn = false;
+  function compCands(H) {
+    if (!compGuidesOn) return { x: [], y: [] };
+    return {
+      x: [Math.round(W * 0.382), Math.round(W * 0.618), Math.round(W / 3), Math.round(W * 2 / 3)],
+      y: [Math.round(H * 0.382), Math.round(H * 0.618), Math.round(H / 3), Math.round(H * 2 / 3)],
+    };
+  }
+  function compTag(H, v, axis) {
+    if (!compGuidesOn || v === null) return '';
+    var r = Math.round(v);
+    var phi = axis === 'x' ? [Math.round(W * 0.382), Math.round(W * 0.618)]
+      : [Math.round(H * 0.382), Math.round(H * 0.618)];
+    var thirds = axis === 'x' ? [Math.round(W / 3), Math.round(W * 2 / 3)]
+      : [Math.round(H / 3), Math.round(H * 2 / 3)];
+    if (phi.indexOf(r) !== -1) return 'φ';
+    if (thirds.indexOf(r) !== -1) return '⅓';
+    return '';
+  }
 
   // ---------- theme style variations (drawer) ----------
   var GSROOT = cfg.restUrl.split('wp/v2/')[0] + 'wp/v2/';
@@ -5489,6 +5526,9 @@
       candX.push(o.x, o.x + o.w, o.x + o.w / 2);
       candY.push(o.y, o.y + o.h, o.y + o.h / 2);
     });
+    var cc = compCands(H);
+    cc.x.forEach(function (v) { candX.push(v); });
+    cc.y.forEach(function (v) { candY.push(v); });
     function best(edges, cands) {
       var d = SNAP + 1, snap = null, guide = null;
       edges.forEach(function (edge) {
@@ -5628,6 +5668,9 @@
         candX.push(o.x, o.x + o.w, o.x + o.w / 2);
         candY.push(o.y, o.y + o.h, o.y + o.h / 2);
       });
+      var ccR = compCands(designH(sec.els, sec.minH));
+      ccR.x.forEach(function (v) { candX.push(v); });
+      ccR.y.forEach(function (v) { candY.push(v); });
       resize = { sec: sec, i: sel.i, dir: dir, px: ev.clientX, py: ev.clientY,
         x: e.x, y: e.y, w: e.w, h: e.h, candX: candX, candY: candY };
       sec.sectionEl.classList.add('gogh-grid-live');
@@ -6320,6 +6363,7 @@
     addElementAt: addElementAtViewport,
     addElementToSection: addElementToSection,
     openSecAdd: openSecAddPanel,
+    showGuides: showGuides,
     addShape: addShapeAtViewport,
     shapeDefs: function () { return SHAPE_DEFS; },
     resequenceToDom: resequenceToDom,
