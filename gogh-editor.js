@@ -2530,6 +2530,34 @@
     if (kind === 'posts') hydratePostsPreview(sel.sec, e);
     return e;
   }
+  function addElementToSection(idx, kind) {
+    var secx = S[idx];
+    var e = DEFAULTS[kind]();
+    var H = designH(secx.els, secx.minH);
+    e.x = Math.max(0, Math.min(W - e.w, Math.round((W - e.w) / 2 + (stagger % 5) * 24 - 48)));
+    e.y = Math.max(8, Math.round(Math.min(Math.max(8, (H - e.h) / 2), Math.max(8, H - e.h - 8)) + (stagger % 5) * 24 - 48));
+    stagger++;
+    addElement(secx, e);
+    if (kind === 'posts') hydratePostsPreview(secx, e);
+    return e;
+  }
+  function openSecAddPanel(idx) {
+    var secx = S[idx];
+    // the palette's own buttons, borrowed — one source of truth for what an
+    // element is (exp/write run their own flows; they stay palette-only)
+    var items = [].map.call(side.querySelectorAll('.gogh-sitem[data-add]'), function (b) {
+      return (b.dataset.add === 'exp' || b.dataset.add === 'write') ? '' : b.outerHTML;
+    }).join('');
+    panel.innerHTML = '<div class="gogh-panel-title">Add to this section</div>' +
+      '<div class="gogh-addmenu">' + items + '</div>';
+    placePanelNear(secx.wrapEl);
+    panel.querySelectorAll('[data-add]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        addElementToSection(idx, btn.dataset.add);
+        closePanel();
+      });
+    });
+  }
   function addExperience() {
     var input = document.createElement('input');
     input.type = 'file';
@@ -3543,6 +3571,7 @@
   secBar.className = 'gogh-secbar';
   secBar.innerHTML =
     '<span class="gogh-secbar-label">Section</span>' +
+    '<button type="button" class="gogh-sb" data-sec="add" title="Add an element to this section">＋</button>' +
     '<button type="button" class="gogh-sb" data-sec="up" title="Move up">↑</button>' +
     '<button type="button" class="gogh-sb" data-sec="down" title="Move down">↓</button>' +
     '<button type="button" class="gogh-sb" data-sec="bgimg" title="Background image">' + CTX_ICONS.image + '</button>' +
@@ -3585,6 +3614,7 @@
   secBar.addEventListener('click', function (ev) {
     var b = ev.target.closest('.gogh-sb');
     if (!b || secBarIdx === null) return;
+    if (b.dataset.sec === 'add') { openSecAddPanel(secBarIdx); return; }
     if (b.dataset.sec === 'bgimg') { openSecBgPanel(secBarIdx, b); return; }
     if (b.dataset.sec === 'savepat') { openSavePatternPanel(secBarIdx); return; }
     if (b.dataset.sec === 'del') deleteSection(secBarIdx);
@@ -4274,6 +4304,7 @@
     node.classList.add('gogh-dragsrc');
     dropBox.hidden = false;
     drag = { sec: sec, i: i, px: ev.clientX, py: ev.clientY, x: e.x, y: e.y, gx: gL, gy: gT };
+    sec.sectionEl.classList.add('gogh-grid-live');
     if (multiSel && multiSel.sec === sec && multiSel.idxs.indexOf(i) !== -1) {
       drag.multi = multiSel.idxs.filter(function (j) { return j !== i; }).map(function (j) {
         return { j: j, x: sec.els[j].x, y: sec.els[j].y };
@@ -4299,6 +4330,7 @@
     }
     if (ghost) ghost.style.transform = 'translate(' + dx + 'px,' + dy + 'px)';
     var free = ev.metaKey || ev.ctrlKey;
+    drag.freeHeld = free;
     var sec = drag.sec;
     var s = scaleOf(sec);
     var e = sec.els[drag.i];
@@ -4375,6 +4407,8 @@
     var eqHD = !!drag.eqH, eqVD = !!drag.eqV;
     var lockedXD = !!drag.lockedX, lockedYD = !!drag.lockedY;
     var dropCX = drag.cx, dropCY = drag.cy;
+    var freeD = !!drag.freeHeld;
+    sec.sectionEl.classList.remove('gogh-grid-live');
     var ghostTop = null;
     if (ghost) {
       ghostTop = ghost.getBoundingClientRect().top + window.scrollY;
@@ -4412,8 +4446,9 @@
     }
     // the visible grid is a promise: axes the grid governed at release must
     // land ON it (alignment/equal-spacing/shift-locked axes keep their own
-    // promises and are left alone)
-    if (gridSnapOn) {
+    // promises and are left alone) — the grid shows on every drag now, so
+    // every drop keeps the promise unless ⌘ asked for full freedom
+    if (!freeD) {
       var eDrop = sec.els[i];
       if (!gxCapD && !eqHD && !lockedXD) eDrop.x = Math.max(0, Math.min(W - eDrop.w, Math.round(eDrop.x / BASE) * BASE));
       if (!gyCapD && !eqVD && !lockedYD) eDrop.y = Math.max(0, Math.round(eDrop.y / BASE) * BASE);
@@ -4709,7 +4744,7 @@
   document.addEventListener('pointerup', function () { if (drag) endDrag(); });
   document.addEventListener('pointercancel', function () { if (drag) endDrag(); });
 
-  var gridSnapOn = false; // opt-in: invisible magnets feel broken to beginners
+  var gridSnapOn = false; // the always-on graph paper; drags show their own grid and snap regardless
 
   // ---------- theme style variations (drawer) ----------
   var GSROOT = cfg.restUrl.split('wp/v2/')[0] + 'wp/v2/';
@@ -5473,9 +5508,10 @@
       : [{ v: y, off: 0 }];
     var sx = best(xEdges, candX);
     var sy = best(yEdges, candY);
+    var gl = gridSnapOn || !!drag || !!resize; // the grid is visible mid-gesture, so its magnets are honest
     return {
-      x: sx ? Math.round(sx.v) : (gridSnapOn ? Math.round(x / BASE) * BASE : Math.round(x)),
-      y: sy ? Math.round(sy.v) : (gridSnapOn ? Math.round(y / BASE) * BASE : Math.round(y)),
+      x: sx ? Math.round(sx.v) : (gl ? Math.round(x / BASE) * BASE : Math.round(x)),
+      y: sy ? Math.round(sy.v) : (gl ? Math.round(y / BASE) * BASE : Math.round(y)),
       gx: sx ? sx.g : null,
       gy: sy ? sy.g : null,
     };
@@ -5595,6 +5631,7 @@
       });
       resize = { sec: sec, i: sel.i, dir: dir, px: ev.clientX, py: ev.clientY,
         x: e.x, y: e.y, w: e.w, h: e.h, candX: candX, candY: candY };
+      sec.sectionEl.classList.add('gogh-grid-live');
       document.documentElement.classList.add('gogh-dragging');
       drag = null;
     });
@@ -5676,6 +5713,7 @@
     if (!resize) return;
     sizeChip.hidden = true;
     var sec = resize.sec, i = resize.i;
+    sec.sectionEl.classList.remove('gogh-grid-live');
     var e = sec.els[i];
     var oldH = e.h;
     resize = null;

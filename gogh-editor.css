@@ -188,6 +188,7 @@
 .gogh-sitem:hover { background: rgba(74, 99, 216, 0.1); color: #3d55c8; }
 .gogh-sitem:hover svg { opacity: 1; }
 .gogh-side-gap { flex: none; height: 10px; }
+.gogh-addmenu { display: grid; grid-template-columns: 1fr 1fr; gap: 2px; min-width: 250px; margin-top: 6px; }
 .gogh-side .gogh-btn { margin-top: 4px; }
 
 /* ---------- canvas states ---------- */
@@ -1115,23 +1116,43 @@
 
 /* visible grid while grid snap is on (8-unit minor, 40-unit major, in cqw
    so it scales with the section exactly like the layout itself) */
-.gogh-grid-on.gogh-editing .gogh-section::before {
+.gogh-editing .gogh-section::before {
   content: "";
   position: absolute;
   inset: 0;
   z-index: 0;
   pointer-events: none;
+  /* two-tone hairlines: each major line is a light stroke with a dark twin
+     1px over, so the grid reads on photos, tints and plain paper alike */
   background-image:
-    linear-gradient(to right, color-mix(in srgb, currentColor 22%, transparent) 1px, transparent 1px),
-    linear-gradient(to bottom, color-mix(in srgb, currentColor 22%, transparent) 1px, transparent 1px),
+    linear-gradient(to right, rgba(255, 255, 255, 0.65) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(255, 255, 255, 0.65) 1px, transparent 1px),
+    linear-gradient(to right, rgba(15, 23, 42, 0.4) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(15, 23, 42, 0.4) 1px, transparent 1px),
     linear-gradient(to right, color-mix(in srgb, currentColor 9%, transparent) 1px, transparent 1px),
     linear-gradient(to bottom, color-mix(in srgb, currentColor 9%, transparent) 1px, transparent 1px);
   background-size:
     3.3333cqw 3.3333cqw,
     3.3333cqw 3.3333cqw,
+    3.3333cqw 3.3333cqw,
+    3.3333cqw 3.3333cqw,
     0.6667cqw 0.6667cqw,
     0.6667cqw 0.6667cqw;
-  opacity: 0.5;
+  background-position: 0 0, 0 0, 1px 1px, 1px 1px, 0 0, 0 0;
+  opacity: 0;
+  transition: opacity 0.18s ease;
+}
+.gogh-grid-on.gogh-editing .gogh-section::before { opacity: 0.55; }
+/* mid-drag the active section shows its grid — majors only, the calm version */
+.gogh-editing .gogh-section.gogh-grid-live::before {
+  background-image:
+    linear-gradient(to right, rgba(255, 255, 255, 0.65) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(255, 255, 255, 0.65) 1px, transparent 1px),
+    linear-gradient(to right, rgba(15, 23, 42, 0.4) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(15, 23, 42, 0.4) 1px, transparent 1px);
+  background-size: 3.3333cqw 3.3333cqw;
+  background-position: 0 0, 0 0, 1px 1px, 1px 1px;
+  opacity: 0.55;
 }
 
 
