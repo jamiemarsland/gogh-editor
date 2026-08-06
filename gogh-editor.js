@@ -1213,7 +1213,8 @@
     '<button type="button" class="gogh-sitem" data-act="shapes"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><circle cx="8.5" cy="8.5" r="5.5"/><rect x="11" y="11" width="10" height="10" rx="2"/></svg>Shape</button>' +
     (cfg.canExp ? '<button type="button" class="gogh-sitem" data-add="exp" title="Upload a self-contained HTML experience — it runs sandboxed"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M10 9.5l4.5 2.5-4.5 2.5z"/></svg>Experience</button>' : '') +
     '<button type="button" class="gogh-sitem" data-add="posts" title="Your latest posts, live"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="4" width="16" height="6" rx="1.5"/><rect x="4" y="14" width="16" height="6" rx="1.5"/></svg>Posts</button>' +
-    (cfg.hasWoo ? '<button type="button" class="gogh-sitem" data-add="products" title="Your latest products, live — prices and add to cart included"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M6 7h12l1.5 13.5H4.5Z"/><path d="M9 10V6a3 3 0 0 1 6 0v4"/></svg>Products</button>' : '');
+    (cfg.hasWoo ? '<button type="button" class="gogh-sitem" data-add="products" title="Your latest products, live — prices and add to cart included"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M6 7h12l1.5 13.5H4.5Z"/><path d="M9 10V6a3 3 0 0 1 6 0v4"/></svg>Products</button>' +
+      '<button type="button" class="gogh-sitem" data-act="featured" title="One product, hero-sized — a card with a real add-to-cart button"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2.5"/><path d="M12 8.5l1.2 2.4 2.6.4-1.9 1.8.5 2.6-2.4-1.3-2.4 1.3.5-2.6-1.9-1.8 2.6-.4Z"/></svg>Featured product</button>' : '');
   var side = document.createElement('div');
   side.className = 'gogh-side';
   side.hidden = true;
@@ -2531,6 +2532,67 @@
         '</div>';
     }).join('') + '</div>';
   }
+  // a featured product is not an embed — it's a real gogh card composed of
+  // real gogh elements (image, name, price badge, add-to-cart button), so
+  // every piece drags like anything else and the card holds together on
+  // mobile. The button's link is Woo's add-to-cart URL: one click, real cart.
+  function storePriceText(p) {
+    try {
+      var pr = p.prices;
+      return pr.currency_symbol + (parseInt(pr.price, 10) / Math.pow(10, pr.currency_minor_unit)).toFixed(pr.currency_minor_unit);
+    } catch (err) { return ''; }
+  }
+  function composeFeaturedProduct(idx, p) {
+    var card = {
+      type: 'box', x: 150, y: 60, w: 900, h: 400, radius: 16,
+      boxBg: 'color-mix(in srgb, var(--wp--preset--color--contrast, #000) 6%, var(--wp--preset--color--base, transparent))',
+      kids: [
+        { type: 'image', x: 30, y: 30, w: 340, h: 340, src: p.img || null },
+        { type: 'heading', x: 420, y: 60, w: 440, h: 70, text: p.name || 'Product' },
+        { type: 'badge', x: 420, y: 170, w: 170, h: 48, text: p.priceText || '' },
+        { type: 'button', x: 420, y: 260, w: 250, h: 54, text: 'Add to cart', href: p.addUrl || p.permalink || null },
+      ],
+    };
+    return addElementToSection(idx, card);
+  }
+  function openFeaturedProductPanel(idx) {
+    panel.innerHTML = '<div class="gogh-panel-title">Feature a product</div>' +
+      '<div class="gogh-panel-hint">Pick one — it becomes a card of ordinary gogh pieces, add-to-cart included.</div>' +
+      '<div class="gogh-featlist"><span class="gogh-media-loading">Loading your products…</span></div>';
+    placePanelNear(S[idx] ? S[idx].wrapEl : side);
+    panelOpen = true;
+    fetch(cfg.restUrl.split('wp/v2/')[0] + 'wc/store/v1/products?per_page=8&orderby=date&order=desc', {
+      credentials: 'same-origin',
+    }).then(function (r) { return r.ok ? r.json() : []; }).then(function (prods) {
+      var box = panel.querySelector('.gogh-featlist');
+      if (!box) return;
+      if (!prods.length) {
+        box.innerHTML = '<div class="gogh-panel-hint">No products yet — add one in WooCommerce first.</div>';
+        return;
+      }
+      box.innerHTML = prods.map(function (p, k) {
+        var img = p.images && p.images[0] && p.images[0].src;
+        return '<button type="button" class="gogh-featrow" data-k="' + k + '">' +
+          (img ? '<img src="' + escAttr(img) + '" alt="" />' : '<span class="gogh-postsprev-ph"></span>') +
+          '<span class="gogh-featname">' + esc(p.name || 'Product') + '</span>' +
+          '<span class="gogh-featprice">' + esc(storePriceText(p)) + '</span>' +
+          '</button>';
+      }).join('');
+      [].forEach.call(box.querySelectorAll('.gogh-featrow'), function (row) {
+        row.addEventListener('click', function () {
+          var p = prods[+row.dataset.k];
+          closePanel();
+          composeFeaturedProduct(idx, {
+            name: p.name,
+            img: p.images && p.images[0] && p.images[0].src,
+            priceText: storePriceText(p),
+            permalink: p.permalink,
+            addUrl: p.id ? '?add-to-cart=' + p.id : null,
+          });
+        });
+      });
+    }).catch(function () {});
+  }
   function hydrateProductsPreview(sec, e) {
     // the Store API is public — same shape as the posts preview, plus price
     fetch(cfg.restUrl.split('wp/v2/')[0] + 'wc/store/v1/products?per_page=3&orderby=date&order=desc', {
@@ -2657,6 +2719,7 @@
       btn.addEventListener('click', function () {
         closePanel();
         if (btn.dataset.act === 'shapes') return openShapeInsertPanel();
+        if (btn.dataset.act === 'featured') return openFeaturedProductPanel(idx);
         if (btn.dataset.add === 'write') return startWriting(idx);
         if (btn.dataset.add === 'exp') return addExperience(idx);
         addElementToSection(idx, btn.dataset.add);
@@ -6508,6 +6571,7 @@
     closePanel: closePanel,
     addElementAt: addElementAtViewport,
     addElementToSection: addElementToSection,
+    composeFeaturedProduct: composeFeaturedProduct,
     openSecAdd: openSecAddPanel,
     showGuides: showGuides,
     addShape: addShapeAtViewport,

@@ -791,6 +791,28 @@
       return 'Products offered, added, shortcode round-trips';
     });
 
+    test('featured product composes a card of real gogh pieces', function () {
+      if (!G.composeFeaturedProduct) return 'compose not exported';
+      var card = G.composeFeaturedProduct(G.sections().indexOf(sec()), {
+        name: 'Sunflowers — giclée print',
+        img: '/wp-content/plugins/gogh/demo-assets/sunflowers.jpg',
+        priceText: '£25.00',
+        permalink: '/product/sunflowers',
+        addUrl: '?add-to-cart=99',
+      });
+      expect(card.type === 'box' && card.kids && card.kids.length === 4, 'not a 4-kid card');
+      var kinds = card.kids.map(function (k) { return k.type; }).join(',');
+      expect(kinds === 'image,heading,badge,button', 'kid kinds wrong: ' + kinds);
+      expect(card.kids[3].href === '?add-to-cart=99', 'buy button should carry the add-to-cart URL');
+      expect(card.kids[2].text === '£25.00', 'price badge wrong');
+      var snap = G.serialize();
+      expect(snap.indexOf('add-to-cart=99') !== -1, 'add-to-cart link should survive serialization');
+      var i2 = sec().els.indexOf(card);
+      sec().els.splice(i2, 1);
+      G.renderSection(sec());
+      return 'image + name + price + working buy button, one card';
+    });
+
     test('site chrome sleeps behind a veil until invited', function () {
       var veils = document.querySelectorAll('.gogh-chromeveil');
       expect(veils.length >= 1, 'no chrome veil in edit mode');
