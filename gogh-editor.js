@@ -1212,7 +1212,7 @@
   side.hidden = true;
   side.innerHTML =
     '<div class="gogh-side-head">' +
-    '<span class="gogh-side-title">gogh</span>' +
+    '<span class="gogh-side-title">Design</span>' +
     '<button type="button" class="gogh-sbtn gogh-close" title="Finish editing">✕</button>' +
     '</div>' +
     '<div class="gogh-side-row">' +
@@ -1226,7 +1226,6 @@
     '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="7" y="2.5" width="10" height="19" rx="2.5"/><path d="M10.5 18.5h3"/></svg>' +
     '</button>' +
     '</div>' +
-    '<div class="gogh-side-label">Design</div>' +
     '<button type="button" class="gogh-sitem gogh-stylebtn" title="Colours and fonts for the whole site"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M12 3a9 9 0 1 0 0 18h1.5a2.5 2.5 0 0 0 1.8-4.2 2.5 2.5 0 0 1 1.8-4.3H20a9 9 0 0 0-8-9.5Z"/><circle cx="7.5" cy="11" r="1.2" fill="currentColor" stroke="none"/><circle cx="10.5" cy="7.5" r="1.2" fill="currentColor" stroke="none"/><circle cx="15" cy="7.5" r="1.2" fill="currentColor" stroke="none"/></svg>Site style</button>' +
     '<button type="button" class="gogh-sitem gogh-pagestylebtn" title="Style this page"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M14 3v6h6"/></svg>Page style</button>' +
     '<button type="button" class="gogh-sitem gogh-brandrow" title="Your logo, colours and type"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M12 3l2.4 4.9 5.4.8-3.9 3.8.9 5.4-4.8-2.5-4.8 2.5.9-5.4L4.2 8.7l5.4-.8Z"/></svg>Your brand</button>' +
@@ -1242,7 +1241,7 @@
   var sideTab = document.createElement('button');
   sideTab.type = 'button';
   sideTab.className = 'gogh-side-tab';
-  sideTab.title = 'gogh palette';
+  sideTab.title = 'Design';
   sideTab.innerHTML = '<span class="gogh-side-tab-dot"></span><span>gogh</span>';
   sideTab.hidden = true;
   document.body.appendChild(sideTab);
