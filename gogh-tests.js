@@ -773,6 +773,18 @@
       return 'blank invites; backgrounded publishes and persists';
     });
 
+    test('site chrome sleeps behind a veil until invited', function () {
+      var veils = document.querySelectorAll('.gogh-chromeveil');
+      expect(veils.length >= 1, 'no chrome veil in edit mode');
+      var pill = veils[0].querySelector('.gogh-chromeveil-pill');
+      expect(pill && /edit site (header|footer)/i.test(pill.textContent), 'pill does not name the region');
+      var host = veils[0].parentNode;
+      pill.click();
+      expect(!veils[0].parentNode, 'veil should lift when clicked');
+      expect(host && host.isConnected, 'the chrome itself must survive the unveiling');
+      return veils.length + ' veil(s); clicked one open';
+    });
+
     // ---- 14. image via URL becomes a real figure (v0.9) ----
     test('image URL apply → figure with img', function () {
       var i = findIdx('image');

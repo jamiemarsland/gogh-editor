@@ -1775,9 +1775,35 @@
     }
   }
 
+  // the site header and footer sleep behind a veil while you arrange the
+  // page — hover says what they are, one click wakes them for editing.
+  // Accidental nav-drags die here, and editability announces itself.
+  var chromeVeils = [];
+  function veilChrome() {
+    ['header', 'footer'].forEach(function (area) {
+      var pe = partElForArea(area);
+      if (!pe || pe.querySelector('.gogh-chromeveil')) return;
+      var v = document.createElement('div');
+      v.className = 'gogh-chromeveil';
+      var b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'gogh-chromeveil-pill';
+      b.innerHTML = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>Edit site ' + area;
+      v.appendChild(b);
+      v.addEventListener('click', function () { v.remove(); });
+      if (getComputedStyle(pe).position === 'static') pe.style.position = 'relative';
+      pe.appendChild(v);
+      chromeVeils.push(v);
+    });
+  }
+  function unveilChrome() {
+    chromeVeils.forEach(function (v) { if (v.parentNode) v.remove(); });
+    chromeVeils = [];
+  }
   function setEditing(on) {
     editing = on;
     document.documentElement.classList.toggle('gogh-editing', on);
+    if (on) veilChrome(); else unveilChrome();
     [elbar, secBar, hbar].forEach(function (b) { if (b) b.classList.remove('gogh-byebye'); });
     // the admin-bar landmark flips with the MODE, not just the URL — the
     // floating pill enters editing without a reload
@@ -4177,7 +4203,9 @@
       // centred over it with real vertical overlap
       var yInter = Math.min(e.y + e.h, o.y + o.h) - Math.max(e.y, o.y);
       var xInter = Math.min(e.x + e.w, o.x + o.w) - Math.max(e.x, o.x);
-      if (cx2 >= o.x && cx2 <= o.x + o.w && yInter >= 12 && xInter >= e.w * 0.3) return t2;
+      // one grid square of real contact is intent enough — paras auto-shrink
+      // to their text, so a taller demand misses honest drops on short copy
+      if (cx2 >= o.x && cx2 <= o.x + o.w && yInter >= 8 && xInter >= e.w * 0.3) return t2;
     }
     return -1;
   }

@@ -190,6 +190,40 @@
 .gogh-side-gap { flex: none; height: 10px; }
 .gogh-addmenu { display: grid; grid-template-columns: 1fr 1fr; gap: 2px; min-width: 250px; margin-top: 6px; }
 
+/* site chrome veil: hover names the region, one click wakes it */
+.gogh-chromeveil {
+  position: absolute;
+  inset: 0;
+  z-index: 99979;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  background: transparent;
+  transition: background 0.16s ease;
+}
+.gogh-chromeveil:hover { background: color-mix(in srgb, #101014 30%, transparent); }
+.gogh-chromeveil-pill {
+  all: unset;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 10px 16px;
+  border-radius: 999px;
+  background: #fff;
+  color: #1c1c22;
+  font-size: 12.5px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.22);
+  opacity: 0;
+  transform: translateY(3px);
+  transition: opacity 0.16s ease, transform 0.16s ease;
+}
+.gogh-chromeveil:hover .gogh-chromeveil-pill { opacity: 1; transform: none; }
+
 /* blank-page invitation: visible only while editing */
 .gogh-bootinvite { display: none; }
 .gogh-editing .gogh-bootinvite {
