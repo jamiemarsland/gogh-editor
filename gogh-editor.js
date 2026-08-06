@@ -5580,8 +5580,11 @@
     var xEdges = w > 0
       ? [{ v: x, off: 0 }, { v: x + w, off: w }, { v: x + w / 2, off: w / 2 }]
       : [{ v: x, off: 0 }];
-    // a text element's INK can snap by its visual centre as well as its box
+    // when a text element's words don't fill its box, the ink's visual
+    // centre REPLACES the box centre — the two must not compete, or the box
+    // magnet catches first and the words sit visibly off-centre
     if (textCXOff != null && textCXOff > 0 && textCXOff < w) {
+      xEdges = xEdges.filter(function (edge) { return edge.off !== w / 2; });
       xEdges.push({ v: x + textCXOff, off: textCXOff });
     }
     var yEdges = h > 0

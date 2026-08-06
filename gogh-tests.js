@@ -742,7 +742,15 @@
       dragBy(grip, dx, 0, 97);
       var inkCentre = Math.round(sec().els[n].x + tw / 2);
       expect(inkCentre === 600, 'ink centre landed at ' + inkCentre + ', wanted 600 (box x=' + sec().els[n].x + ')');
-      return 'words centred at 600; box happily asymmetric';
+      // and the box centre must NOT compete: release with the BOX's centre
+      // a unit shy of 600 — nothing should catch (James's report: the box
+      // magnet won and the words sat visibly off-centre)
+      var e2 = sec().els[n];
+      var dx2 = ((600 - e2.w / 2 - 1) - e2.x) * s;
+      dragBy(q('.gogh-grip'), dx2, 0, 98);
+      var boxCentre = Math.round(sec().els[n].x + e2.w / 2);
+      expect(boxCentre !== 600, 'box centre snapped to 600 — the box magnet should be gone for slack text');
+      return 'words centred at 600; box magnet retired for slack text';
     });
 
     // ---- 14. image via URL becomes a real figure (v0.9) ----
