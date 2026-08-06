@@ -485,9 +485,8 @@
   background: #ff5b77;
 }
 .gogh-guide[hidden] { display: none; }
-/* golden ratio guides wear gold */
-.gogh-guide-comp { background: #d4af37; }
-.gogh-guide-comp::after {
+/* named guides carry a chip: centre wears pink, the golden section gold */
+.gogh-guide::after {
   content: attr(data-tag);
   position: absolute;
   top: 8px;
@@ -495,11 +494,14 @@
   font: 700 12px/1 Georgia, serif;
   font-style: italic;
   color: #fff;
-  background: #d4af37;
+  background: #ff5b77;
   padding: 3px 7px;
   border-radius: 7px;
 }
-.gogh-guide-h.gogh-guide-comp::after { top: 6px; left: 10px; }
+.gogh-guide[data-tag=""]::after, .gogh-guide:not([data-tag])::after { content: none; }
+.gogh-guide-comp { background: #d4af37; }
+.gogh-guide-comp::after { background: #d4af37; }
+.gogh-guide-h::after { top: 6px; left: 10px; }
 .gogh-phibtn { font: 600 15px/1 Georgia, serif; font-style: italic; }
 /* toggle-on reveal: where the composition magnets live */
 .gogh-compflash {

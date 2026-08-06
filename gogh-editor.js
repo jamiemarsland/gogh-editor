@@ -1567,7 +1567,8 @@
       guideV.style.top = (r.top + window.scrollY) + 'px';
       guideV.style.height = r.height + 'px';
       var tx = compTag(Hc, gx, 'x');
-      guideV.dataset.tag = tx;
+      // the centre earns a name too: pink says aligned, the tag says WHERE
+      guideV.dataset.tag = tx || (Math.round(gx) === Math.round(W / 2) ? 'centre' : '');
       guideV.classList.toggle('gogh-guide-comp', !!tx);
       guideV.hidden = false;
     } else guideV.hidden = true;
@@ -1576,7 +1577,7 @@
       guideH.style.left = (r.left + window.scrollX) + 'px';
       guideH.style.width = r.width + 'px';
       var ty = compTag(Hc, gy, 'y');
-      guideH.dataset.tag = ty;
+      guideH.dataset.tag = ty || (Math.round(gy) === Math.round(Hc / 2) ? 'centre' : '');
       guideH.classList.toggle('gogh-guide-comp', !!ty);
       guideH.hidden = false;
     } else guideH.hidden = true;
