@@ -1227,7 +1227,6 @@
     '</div>' +
     '<button type="button" class="gogh-sitem gogh-stylebtn" title="Colours and fonts"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M12 3a9 9 0 1 0 0 18h1.5a2.5 2.5 0 0 0 1.8-4.2 2.5 2.5 0 0 1 1.8-4.3H20a9 9 0 0 0-8-9.5Z"/><circle cx="7.5" cy="11" r="1.2" fill="currentColor" stroke="none"/><circle cx="10.5" cy="7.5" r="1.2" fill="currentColor" stroke="none"/><circle cx="15" cy="7.5" r="1.2" fill="currentColor" stroke="none"/></svg>Site style</button>' +
     '<button type="button" class="gogh-sitem gogh-pagestylebtn" title="Style this page"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M14 3v6h6"/></svg>Page style</button>' +
-    '<button type="button" class="gogh-sitem gogh-sd-brand" title="Your logo, colours and type"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M12 3l2.4 4.9 5.4.8-3.9 3.8.9 5.4-4.8-2.5-4.8 2.5.9-5.4L4.2 8.7l5.4-.8Z"/></svg>Your brand</button>' +
     '<button type="button" class="gogh-sitem gogh-sd-designs" title="Whole-site designs"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><rect x="3" y="6" width="13" height="15" rx="1.6"/><path d="M7 3h13v15"/></svg>Site designs</button>' +
     '<div class="gogh-side-gap"></div>' +
     '<div class="gogh-side-foot">' +
@@ -2625,9 +2624,6 @@
       });
     });
   }
-  side.querySelector('.gogh-sd-brand').addEventListener('click', function () {
-    openBrandForm(side.querySelector('.gogh-sd-brand'));
-  });
   side.querySelector('.gogh-sd-designs').addEventListener('click', openStarterPicker);
   elbar.querySelector('.gogh-eb-del').addEventListener('click', deleteSelected);
   side.querySelector('[data-act="gridsnap"]').addEventListener('click', function () {
