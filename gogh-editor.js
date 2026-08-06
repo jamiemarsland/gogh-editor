@@ -1213,7 +1213,6 @@
   side.innerHTML =
     '<div class="gogh-side-head">' +
     '<span class="gogh-side-title">Design</span>' +
-    '<button type="button" class="gogh-sbtn gogh-close" title="Finish editing">✕</button>' +
     '</div>' +
     '<div class="gogh-side-row">' +
     '<button type="button" class="gogh-sbtn gogh-gridbtn" data-act="gridsnap" title="Grid: show and snap">' +
@@ -1228,8 +1227,8 @@
     '</div>' +
     '<button type="button" class="gogh-sitem gogh-stylebtn" title="Colours and fonts for the whole site"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M12 3a9 9 0 1 0 0 18h1.5a2.5 2.5 0 0 0 1.8-4.2 2.5 2.5 0 0 1 1.8-4.3H20a9 9 0 0 0-8-9.5Z"/><circle cx="7.5" cy="11" r="1.2" fill="currentColor" stroke="none"/><circle cx="10.5" cy="7.5" r="1.2" fill="currentColor" stroke="none"/><circle cx="15" cy="7.5" r="1.2" fill="currentColor" stroke="none"/></svg>Site style</button>' +
     '<button type="button" class="gogh-sitem gogh-pagestylebtn" title="Style this page"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M14 3v6h6"/></svg>Page style</button>' +
-    '<button type="button" class="gogh-sitem gogh-brandrow" title="Your logo, colours and type"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M12 3l2.4 4.9 5.4.8-3.9 3.8.9 5.4-4.8-2.5-4.8 2.5.9-5.4L4.2 8.7l5.4-.8Z"/></svg>Your brand</button>' +
-    '<button type="button" class="gogh-sitem gogh-designsrow" title="Whole-site designs"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><rect x="3" y="6" width="13" height="15" rx="1.6"/><path d="M7 3h13v15"/></svg>Site designs</button>' +
+    '<button type="button" class="gogh-sitem gogh-sd-brand" title="Your logo, colours and type"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M12 3l2.4 4.9 5.4.8-3.9 3.8.9 5.4-4.8-2.5-4.8 2.5.9-5.4L4.2 8.7l5.4-.8Z"/></svg>Your brand</button>' +
+    '<button type="button" class="gogh-sitem gogh-sd-designs" title="Whole-site designs"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><rect x="3" y="6" width="13" height="15" rx="1.6"/><path d="M7 3h13v15"/></svg>Site designs</button>' +
     '<div class="gogh-side-gap"></div>' +
     '<div class="gogh-side-foot">' +
     '<button type="button" class="gogh-sbtn gogh-undo" title="Undo (⌘Z)">↺</button>' +
@@ -1242,7 +1241,7 @@
   sideTab.type = 'button';
   sideTab.className = 'gogh-side-tab';
   sideTab.title = 'Design';
-  sideTab.innerHTML = '<span class="gogh-side-tab-dot"></span><span>gogh</span>';
+  sideTab.innerHTML = '<span class="gogh-side-tab-dot"></span><span>Design</span>';
   sideTab.hidden = true;
   document.body.appendChild(sideTab);
   var sideTimer = null;
@@ -2626,10 +2625,10 @@
       });
     });
   }
-  side.querySelector('.gogh-brandrow').addEventListener('click', function () {
-    openBrandForm(side.querySelector('.gogh-brandrow'));
+  side.querySelector('.gogh-sd-brand').addEventListener('click', function () {
+    openBrandForm(side.querySelector('.gogh-sd-brand'));
   });
-  side.querySelector('.gogh-designsrow').addEventListener('click', openStarterPicker);
+  side.querySelector('.gogh-sd-designs').addEventListener('click', openStarterPicker);
   elbar.querySelector('.gogh-eb-del').addEventListener('click', deleteSelected);
   side.querySelector('[data-act="gridsnap"]').addEventListener('click', function () {
     gridSnapOn = !gridSnapOn;
@@ -6722,10 +6721,13 @@
     dismissBackup(new Date().toISOString().slice(0, 19));
     location.reload();
   });
-  side.querySelector('.gogh-close').addEventListener('click', function () {
+  // one exit, not two: the drawer's ✕ is gone — the admin bar's Exit link
+  // owns leaving, and the dirty-check panel intercepts it when work is
+  // unpublished (a clean exit navigates as the link always did)
+  var exitLink = document.querySelector('#wp-admin-bar-gogh-edit a');
+  if (exitLink) exitLink.addEventListener('click', function (ev) {
     refreshChip(); // text re-measures can dirty the model without a pushState
-    if (isDirty()) { exitPanel.hidden = false; return; }
-    setEditing(false);
+    if (editing && isDirty()) { ev.preventDefault(); exitPanel.hidden = false; }
   });
 
   window.addEventListener('beforeunload', function (ev) {

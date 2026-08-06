@@ -375,7 +375,7 @@
       if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
       window.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }));
       expect(window.__gogh.isDirty(), 'expected dirty state');
-      q('.gogh-side .gogh-close').click();
+      document.querySelector('#wp-admin-bar-gogh-edit a').click();
       var panel = q('.gogh-exit');
       expect(panel && !panel.hidden, 'exit panel did not open');
       q('.gogh-exit-keep').click();
