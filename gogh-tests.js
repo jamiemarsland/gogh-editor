@@ -782,7 +782,16 @@
       pill.click();
       expect(!veils[0].parentNode, 'veil should lift when clicked');
       expect(host && host.isConnected, 'the chrome itself must survive the unveiling');
-      return veils.length + ' veil(s); clicked one open';
+      expect(host.classList.contains('gogh-chrome-live'), 'woken chrome should wear the editing ring');
+      // clicking back into the page puts the chrome to sleep: ring off,
+      // veil re-armed (James: "I don't really know that's the focus")
+      sec().sectionEl.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, pointerId: 71 }));
+      expect(!host.classList.contains('gogh-chrome-live'), 'outside click should drop the ring');
+      expect(host.querySelector('.gogh-chromeveil'), 'outside click should re-arm the veil');
+      host.querySelector('.gogh-chromeveil').querySelector('.gogh-chromeveil-pill').click();
+      expect(host.classList.contains('gogh-chrome-live'), 'chrome should wake again after re-veiling');
+      sec().sectionEl.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, pointerId: 72 }));
+      return veils.length + ' veil(s); wake ring + sleep-on-outside-click verified';
     });
 
     // ---- 14. image via URL becomes a real figure (v0.9) ----
@@ -1716,8 +1725,11 @@
     test('footer pill is fixed at the viewport bottom and unobstructed', function () {
       var fp = q('.gogh-chromebtn.is-footpill');
       expect(fp, 'no fixed footer pill');
-      // pills reveal on hover over their part
+      // pills reveal on hover over their part — once the chrome is AWAKE
+      // (the armed veil keeps Change hidden so Edit is the one invitation)
       var fpart = document.querySelector('footer.wp-block-template-part') || document.body;
+      var fveil = fpart.querySelector('.gogh-chromeveil');
+      if (fveil) fveil.querySelector('.gogh-chromeveil-pill').click();
       fpart.dispatchEvent(new MouseEvent('mouseover', { bubbles: true }));
       expect(fp.classList.contains('is-vis'), 'pill not revealed by footer hover');
       var cs = getComputedStyle(fp);
@@ -1736,6 +1748,8 @@
       var hp = q('.gogh-chromebtn.is-headpill');
       expect(hp, 'no fixed header pill');
       var hpart = document.querySelector('header.wp-block-template-part') || document.body;
+      var hveil = hpart.querySelector('.gogh-chromeveil');
+      if (hveil) hveil.querySelector('.gogh-chromeveil-pill').click();
       hpart.dispatchEvent(new MouseEvent('mouseover', { bubbles: true }));
       expect(hp.classList.contains('is-vis'), 'pill not revealed by header hover');
       var cs = getComputedStyle(hp);

@@ -223,6 +223,11 @@
   transition: opacity 0.16s ease, transform 0.16s ease;
 }
 .gogh-chromeveil:hover .gogh-chromeveil-pill { opacity: 1; transform: none; }
+/* awake chrome wears its editing ring — you can SEE what has focus */
+.gogh-chrome-live {
+  outline: 2px solid rgba(74, 99, 216, 0.85);
+  outline-offset: -2px;
+}
 
 /* blank-page invitation: visible only while editing */
 .gogh-bootinvite { display: none; }

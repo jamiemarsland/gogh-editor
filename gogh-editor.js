@@ -1779,26 +1779,46 @@
   // page — hover says what they are, one click wakes them for editing.
   // Accidental nav-drags die here, and editability announces itself.
   var chromeVeils = [];
-  function veilChrome() {
-    ['header', 'footer'].forEach(function (area) {
-      var pe = partElForArea(area);
-      if (!pe || pe.querySelector('.gogh-chromeveil')) return;
-      var v = document.createElement('div');
-      v.className = 'gogh-chromeveil';
-      var b = document.createElement('button');
-      b.type = 'button';
-      b.className = 'gogh-chromeveil-pill';
-      b.innerHTML = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>Edit site ' + area;
-      v.appendChild(b);
-      v.addEventListener('click', function () { v.remove(); });
-      if (getComputedStyle(pe).position === 'static') pe.style.position = 'relative';
-      pe.appendChild(v);
-      chromeVeils.push(v);
+  function veilChromeArea(area) {
+    var pe = partElForArea(area);
+    if (!pe || pe.querySelector('.gogh-chromeveil')) return;
+    var v = document.createElement('div');
+    v.className = 'gogh-chromeveil';
+    var b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'gogh-chromeveil-pill';
+    b.innerHTML = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>Edit site ' + area;
+    v.appendChild(b);
+    v.addEventListener('click', function () {
+      v.remove();
+      wakeChrome(pe, area);
     });
+    if (getComputedStyle(pe).position === 'static') pe.style.position = 'relative';
+    pe.appendChild(v);
+    chromeVeils.push(v);
+  }
+  // awake = visibly in focus: an editing ring around the part, and a click
+  // anywhere back in the page puts the chrome to sleep again (re-veiled)
+  function wakeChrome(pe, area) {
+    pe.classList.add('gogh-chrome-live');
+    var sleep = function (ev) {
+      if (pe.contains(ev.target)) return;
+      // gogh's own surfaces (panels, drawer, toolbars, toasts) are part of
+      // the editing conversation — they don't put the chrome to sleep
+      if (ev.target.closest && ev.target.closest('.gogh-panel, .gogh-side, .gogh-side-tab, .gogh-elbar, .gogh-hbar, .gogh-secbar, .gogh-toast, .gogh-chip, .gogh-convertbtn, .gogh-picker, .gogh-navadd, #wpadminbar')) return;
+      pe.classList.remove('gogh-chrome-live');
+      document.removeEventListener('pointerdown', sleep, true);
+      if (editing) veilChromeArea(area);
+    };
+    document.addEventListener('pointerdown', sleep, true);
+  }
+  function veilChrome() {
+    ['header', 'footer'].forEach(veilChromeArea);
   }
   function unveilChrome() {
     chromeVeils.forEach(function (v) { if (v.parentNode) v.remove(); });
     chromeVeils = [];
+    document.querySelectorAll('.gogh-chrome-live').forEach(function (n) { n.classList.remove('gogh-chrome-live'); });
   }
   function setEditing(on) {
     editing = on;
@@ -10397,6 +10417,9 @@
           ? ev.clientY > window.innerHeight - 120
           : ev.clientY < 120);
       }
+      // while the veil is armed, the veil's pill is the ONLY invitation —
+      // Change header waits until the chrome is awake
+      if (over && b.__goghPart && b.__goghPart.querySelector('.gogh-chromeveil')) over = false;
       b.classList.toggle('is-vis', over);
     });
   });
