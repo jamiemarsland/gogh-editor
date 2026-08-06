@@ -5270,6 +5270,7 @@
           var b2 = document.createElement('button');
           b2.type = 'button';
           b2.className = 'gogh-varbtn gogh-brandbtn';
+          if ((cfg.activeStyle || '') === 'Your brand') b2.classList.add('is-current');
           b2.title = 'Your brand \u2014 click to edit it';
           var order = ['background', 'text', 'accent', 'accent2'];
           b2.innerHTML = order.map(function (k) {
@@ -5344,6 +5345,7 @@
             });
             b.appendChild(name);
           }
+          if ((v.title || '') && (v.title || '') === (cfg.activeStyle || '')) b.classList.add('is-current');
           b.addEventListener('click', function () {
             clearVariationPreview();
             applyVariation(v, b);
@@ -5436,6 +5438,16 @@
       resolveAll();
       if (sel) placeHandles(sel.sec, sel.i);
       if (btn) btn.disabled = false;
+      // remember the style's NAME — global styles forget it on copy
+      cfg.activeStyle = v.title || '';
+      fetch(cfg.restUrl.split('wp/v2/')[0] + 'gogh/v1/active-style', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-WP-Nonce': cfg.nonce },
+        credentials: 'same-origin',
+        body: JSON.stringify({ name: cfg.activeStyle }),
+      }).catch(function () {});
+      [].forEach.call(panel.querySelectorAll('.gogh-varbtn.is-current'), function (x) { x.classList.remove('is-current'); });
+      if (btn) btn.classList.add('is-current');
       toast('Theme style applied: ' + (v.title || ''));
       return true;
     }).catch(function (err) {
