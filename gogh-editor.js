@@ -820,8 +820,14 @@
       buildElBlocks(sec.els) + '\n</div></div>\n' +
       '<!-- /wp:gogh/section -->';
   }
+  // the blank-canvas placeholder is discardable only while it's TRULY blank:
+  // a background (image or colour) is content — the section publishes, the
+  // invite leaves, and nothing replaces it silently
+  function isBlankBoot(s) {
+    return s.bootstrap && !s.els.length && !s.bg && !s.bgImage;
+  }
   function realSections() {
-    return S.filter(function (s) { return !(s.bootstrap && !s.els.length) && !s.chrome; });
+    return S.filter(function (s) { return !isBlankBoot(s) && !s.chrome; });
   }
   function buildAllBlocks() {
     return realSections().map(buildSectionBlocksV3).join('\n\n');
@@ -1057,7 +1063,7 @@
     if (editing) sec.els.forEach(function (e, i) { bindEditable(sec, i, true); });
     // a blank page must invite, not just permit: the empty bootstrap canvas
     // carries a visible "first section" button (edit mode only, via CSS)
-    if (sec.bootstrap && !sec.els.length) {
+    if (isBlankBoot(sec)) {
       var inv = document.createElement('button');
       inv.type = 'button';
       inv.className = 'gogh-bootinvite';
@@ -3377,7 +3383,7 @@
     S.splice(idx, 0, sec);
     // a real section replaces the ?gogh-edit bootstrap placeholder
     for (var bi = S.length - 1; bi >= 0; bi--) {
-      if (S[bi].bootstrap && !S[bi].els.length && S[bi] !== sec) {
+      if (isBlankBoot(S[bi]) && S[bi] !== sec) {
         S[bi].wrapEl.remove();
         if (S[bi].styleEl && S[bi].styleEl.parentNode) S[bi].styleEl.parentNode.removeChild(S[bi].styleEl);
         S.splice(bi, 1);
@@ -3769,9 +3775,16 @@
     sec.wrapEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
     pushState();
   }
+  // the invite lives in the rendered section — keep it honest when a
+  // background arrives (or leaves) without a full re-render
+  function syncBootInvite(sec2) {
+    var has = !!sec2.sectionEl.querySelector('.gogh-bootinvite');
+    if (has !== isBlankBoot(sec2)) renderSection(sec2);
+  }
   function setSecBg(idx, src, id) {
     S[idx].bgImage = src || null;
     S[idx].bgId = src ? (id || null) : null;
+    syncBootInvite(S[idx]);
     resolveAll();
     closePanel();
     pushState();
@@ -3818,6 +3831,7 @@
     panel.querySelectorAll('.gogh-secbg-sw .gogh-sw').forEach(function (swb) {
       swb.addEventListener('click', function () {
         secx.bg = swb.dataset.val || null;
+        syncBootInvite(secx);
         resolveAll();
         pushState();
         panel.querySelectorAll('.gogh-secbg-sw .gogh-sw').forEach(function (b2) {
@@ -3829,6 +3843,7 @@
     if (secx.bg && secx.bg.charAt(0) === '#') custom.value = secx.bg;
     custom.addEventListener('input', function () {
       secx.bg = this.value;
+      syncBootInvite(secx);
       resolveAll();
     });
     custom.addEventListener('change', pushState);
@@ -10707,7 +10722,7 @@
       var bootContent = S.filter(function (s) { return !s.chrome; });
       // the blank-canvas greeting is for genuinely EMPTY pages — a page
       // full of native blocks (a starter site's home) is not one
-      if (bootContent.length === 1 && bootContent[0].bootstrap && !bootContent[0].els.length &&
+      if (bootContent.length === 1 && isBlankBoot(bootContent[0]) &&
           !topBlockNodes().length) {
         openPicker(S.indexOf(bootContent[0]));
       }

@@ -753,6 +753,26 @@
       return 'words centred at 600; box magnet retired for slack text';
     });
 
+    test('a background makes the blank placeholder real', function () {
+      G.addSection({ title: 'BB', minH: 200, els: [] });
+      var c = contentSecs();
+      var b = c[c.length - 1];
+      b.bootstrap = true;
+      G.renderSection(b);
+      expect(b.sectionEl.querySelector('.gogh-bootinvite'), 'blank bootstrap should show the invite');
+      b.bg = '#112233';
+      G.renderSection(b);
+      expect(!b.sectionEl.querySelector('.gogh-bootinvite'), 'a background should dismiss the invite');
+      // James's report: he gave the placeholder a background image, and it
+      // kept inviting — worse, publish and new sections treated it as blank
+      G.addSection({ title: 'BB2', minH: 200, els: [] });
+      expect(G.sections().indexOf(b) !== -1, 'backgrounded placeholder must survive a new section arriving');
+      var c2 = contentSecs();
+      G.deleteSection(G.sections().indexOf(c2[c2.length - 1]));
+      G.deleteSection(G.sections().indexOf(b));
+      return 'blank invites; backgrounded publishes and persists';
+    });
+
     // ---- 14. image via URL becomes a real figure (v0.9) ----
     test('image URL apply → figure with img', function () {
       var i = findIdx('image');
