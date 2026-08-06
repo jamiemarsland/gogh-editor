@@ -189,6 +189,32 @@
 .gogh-sitem:hover svg { opacity: 1; }
 .gogh-side-gap { flex: none; height: 10px; }
 .gogh-addmenu { display: grid; grid-template-columns: 1fr 1fr; gap: 2px; min-width: 250px; margin-top: 6px; }
+
+/* blank-page invitation: visible only while editing */
+.gogh-bootinvite { display: none; }
+.gogh-editing .gogh-bootinvite {
+  all: unset;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  margin: 40px auto 64px;
+  padding: 56px 72px;
+  border: 1.5px dashed color-mix(in srgb, currentColor 30%, transparent);
+  border-radius: 16px;
+  font-size: 15px;
+  font-weight: 650;
+  opacity: 0.75;
+  transition: opacity 0.15s ease, border-color 0.15s ease, background 0.15s ease;
+}
+.gogh-editing .gogh-bootinvite:hover {
+  opacity: 1;
+  background: color-mix(in srgb, currentColor 4%, transparent);
+}
+.gogh-bootinvite-plus { font-size: 26px; line-height: 1; }
+.gogh-bootinvite-hint { font-size: 12px; font-weight: 500; opacity: 0.6; }
 .gogh-side .gogh-btn { margin-top: 4px; }
 
 /* ---------- canvas states ---------- */

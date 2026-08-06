@@ -1055,6 +1055,16 @@
     });
     sec.nodes.forEach(function (n, i) { bindSelect(sec, i); });
     if (editing) sec.els.forEach(function (e, i) { bindEditable(sec, i, true); });
+    // a blank page must invite, not just permit: the empty bootstrap canvas
+    // carries a visible "first section" button (edit mode only, via CSS)
+    if (sec.bootstrap && !sec.els.length) {
+      var inv = document.createElement('button');
+      inv.type = 'button';
+      inv.className = 'gogh-bootinvite';
+      inv.innerHTML = '<span class="gogh-bootinvite-plus">＋</span><span>Add your first section</span><span class="gogh-bootinvite-hint">pick a layout, or start from a blank canvas</span>';
+      inv.addEventListener('click', function () { openPicker(S.indexOf(sec)); });
+      sec.sectionEl.appendChild(inv);
+    }
     resolveAndApply(sec);
     measureTextHeights(sec);
     resolveAndApply(sec);
@@ -1183,6 +1193,20 @@
   document.body.appendChild(editBtnWrap);
   var editBtn = editBtnWrap.querySelector('.gogh-btn-edit');
 
+  // the canonical element menu — served by the Section pill's ＋ ("Add to
+  // this section"); the drawer stopped listing elements when the pill
+  // learned to Add, and became the design side instead
+  var ELEM_ITEMS =
+    '<button type="button" class="gogh-sitem" data-add="heading"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M6 4v16M18 4v16M6 12h12"/></svg>Heading</button>' +
+    '<button type="button" class="gogh-sitem" data-add="para"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M4 6h16M4 12h16M4 18h10"/></svg>Text</button>' +
+    '<button type="button" class="gogh-sitem" data-add="button"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="8" width="18" height="8" rx="4"/></svg>Button</button>' +
+    '<button type="button" class="gogh-sitem" data-add="image"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="8.5" cy="10" r="1.6"/><path d="M21 16l-5-5-9 8"/></svg>Image</button>' +
+    '<button type="button" class="gogh-sitem" data-add="badge"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><circle cx="12" cy="9.5" r="5.5"/><path d="M9 14l-1.5 6 4.5-2.4 4.5 2.4L15 14"/></svg>Badge</button>' +
+    '<button type="button" class="gogh-sitem" data-add="write" title="Start writing — a reading column, cursor ready"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>Write</button>' +
+    '<button type="button" class="gogh-sitem" data-add="card" title="A card — drop elements inside and they stay together, even on mobile"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2.5"/><path d="M7 12h6M7 15.5h4"/></svg>Card</button>' +
+    '<button type="button" class="gogh-sitem" data-act="shapes"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><circle cx="8.5" cy="8.5" r="5.5"/><rect x="11" y="11" width="10" height="10" rx="2"/></svg>Shape</button>' +
+    (cfg.canExp ? '<button type="button" class="gogh-sitem" data-add="exp" title="Upload a self-contained HTML experience — it runs sandboxed"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M10 9.5l4.5 2.5-4.5 2.5z"/></svg>Experience</button>' : '') +
+    '<button type="button" class="gogh-sitem" data-add="posts" title="Your latest posts, live"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="4" width="16" height="6" rx="1.5"/><rect x="4" y="14" width="16" height="6" rx="1.5"/></svg>Posts</button>';
   var side = document.createElement('div');
   side.className = 'gogh-side';
   side.hidden = true;
@@ -1192,12 +1216,6 @@
     '<button type="button" class="gogh-sbtn gogh-close" title="Finish editing">✕</button>' +
     '</div>' +
     '<div class="gogh-side-row">' +
-    '<button type="button" class="gogh-sbtn gogh-stylebtn" title="Site style">' +
-    '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M12 3a9 9 0 1 0 0 18h1.5a2.5 2.5 0 0 0 1.8-4.2 2.5 2.5 0 0 1 1.8-4.3H20a9 9 0 0 0-8-9.5Z"/><circle cx="7.5" cy="11" r="1.2" fill="currentColor" stroke="none"/><circle cx="10.5" cy="7.5" r="1.2" fill="currentColor" stroke="none"/><circle cx="15" cy="7.5" r="1.2" fill="currentColor" stroke="none"/></svg>' +
-    '</button>' +
-    '<button type="button" class="gogh-sbtn gogh-pagestylebtn" title="Page style">' +
-    '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M14 3v6h6"/></svg>' +
-    '</button>' +
     '<button type="button" class="gogh-sbtn gogh-gridbtn" data-act="gridsnap" title="Grid: show and snap">' +
     '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 9h18M3 15h18M9 3v18M15 3v18"/></svg>' +
     '</button>' +
@@ -1208,17 +1226,11 @@
     '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="7" y="2.5" width="10" height="19" rx="2.5"/><path d="M10.5 18.5h3"/></svg>' +
     '</button>' +
     '</div>' +
-    '<div class="gogh-side-label">Add element</div>' +
-    '<button type="button" class="gogh-sitem" data-add="heading"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M6 4v16M18 4v16M6 12h12"/></svg>Heading</button>' +
-    '<button type="button" class="gogh-sitem" data-add="para"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M4 6h16M4 12h16M4 18h10"/></svg>Text</button>' +
-    '<button type="button" class="gogh-sitem" data-add="button"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="8" width="18" height="8" rx="4"/></svg>Button</button>' +
-    '<button type="button" class="gogh-sitem" data-add="image"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="8.5" cy="10" r="1.6"/><path d="M21 16l-5-5-9 8"/></svg>Image</button>' +
-    '<button type="button" class="gogh-sitem" data-add="badge"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><circle cx="12" cy="9.5" r="5.5"/><path d="M9 14l-1.5 6 4.5-2.4 4.5 2.4L15 14"/></svg>Badge</button>' +
-    '<button type="button" class="gogh-sitem" data-add="write" title="Start writing \u2014 a reading column, cursor ready"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>Write</button>' +
-    '<button type="button" class="gogh-sitem" data-add="card" title="A card \u2014 drop elements inside and they stay together, even on mobile"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2.5"/><path d="M7 12h6M7 15.5h4"/></svg>Card</button>' +
-    '<button type="button" class="gogh-sitem" data-act="shapes"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><circle cx="8.5" cy="8.5" r="5.5"/><rect x="11" y="11" width="10" height="10" rx="2"/></svg>Shape</button>' +
-    (cfg.canExp ? '<button type="button" class="gogh-sitem" data-add="exp" title="Upload a self-contained HTML experience \u2014 it runs sandboxed"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M10 9.5l4.5 2.5-4.5 2.5z"/></svg>Experience</button>' : '') +
-    '<button type="button" class="gogh-sitem" data-add="posts" title="Your latest posts, live"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="4" width="16" height="6" rx="1.5"/><rect x="4" y="14" width="16" height="6" rx="1.5"/></svg>Posts</button>' +
+    '<div class="gogh-side-label">Design</div>' +
+    '<button type="button" class="gogh-sitem gogh-stylebtn" title="Colours and fonts for the whole site"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M12 3a9 9 0 1 0 0 18h1.5a2.5 2.5 0 0 0 1.8-4.2 2.5 2.5 0 0 1 1.8-4.3H20a9 9 0 0 0-8-9.5Z"/><circle cx="7.5" cy="11" r="1.2" fill="currentColor" stroke="none"/><circle cx="10.5" cy="7.5" r="1.2" fill="currentColor" stroke="none"/><circle cx="15" cy="7.5" r="1.2" fill="currentColor" stroke="none"/></svg>Site style</button>' +
+    '<button type="button" class="gogh-sitem gogh-pagestylebtn" title="Style this page"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M14 3v6h6"/></svg>Page style</button>' +
+    '<button type="button" class="gogh-sitem gogh-brandrow" title="Your logo, colours and type"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M12 3l2.4 4.9 5.4.8-3.9 3.8.9 5.4-4.8-2.5-4.8 2.5.9-5.4L4.2 8.7l5.4-.8Z"/></svg>Your brand</button>' +
+    '<button type="button" class="gogh-sitem gogh-designsrow" title="Whole-site designs"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><rect x="3" y="6" width="13" height="15" rx="1.6"/><path d="M7 3h13v15"/></svg>Site designs</button>' +
     '<div class="gogh-side-gap"></div>' +
     '<div class="gogh-side-foot">' +
     '<button type="button" class="gogh-sbtn gogh-undo" title="Undo (⌘Z)">↺</button>' +
@@ -2532,33 +2544,31 @@
   }
   function addElementToSection(idx, kind) {
     var secx = S[idx];
-    var e = DEFAULTS[kind]();
+    var e = typeof kind === 'string' ? DEFAULTS[kind]() : kind;
     var H = designH(secx.els, secx.minH);
     e.x = Math.max(0, Math.min(W - e.w, Math.round((W - e.w) / 2 + (stagger % 5) * 24 - 48)));
     e.y = Math.max(8, Math.round(Math.min(Math.max(8, (H - e.h) / 2), Math.max(8, H - e.h - 8)) + (stagger % 5) * 24 - 48));
     stagger++;
     addElement(secx, e);
-    if (kind === 'posts') hydratePostsPreview(secx, e);
+    if (e.type === 'posts') hydratePostsPreview(secx, e);
     return e;
   }
   function openSecAddPanel(idx) {
     var secx = S[idx];
-    // the palette's own buttons, borrowed — one source of truth for what an
-    // element is (exp/write run their own flows; they stay palette-only)
-    var items = [].map.call(side.querySelectorAll('.gogh-sitem[data-add]'), function (b) {
-      return (b.dataset.add === 'exp' || b.dataset.add === 'write') ? '' : b.outerHTML;
-    }).join('');
     panel.innerHTML = '<div class="gogh-panel-title">Add to this section</div>' +
-      '<div class="gogh-addmenu">' + items + '</div>';
+      '<div class="gogh-addmenu">' + ELEM_ITEMS + '</div>';
     placePanelNear(secx.wrapEl);
-    panel.querySelectorAll('[data-add]').forEach(function (btn) {
+    panel.querySelectorAll('.gogh-sitem').forEach(function (btn) {
       btn.addEventListener('click', function () {
-        addElementToSection(idx, btn.dataset.add);
         closePanel();
+        if (btn.dataset.act === 'shapes') return openShapeInsertPanel();
+        if (btn.dataset.add === 'write') return startWriting(idx);
+        if (btn.dataset.add === 'exp') return addExperience(idx);
+        addElementToSection(idx, btn.dataset.add);
       });
     });
   }
-  function addExperience() {
+  function addExperience(targetIdx) {
     var input = document.createElement('input');
     input.type = 'file';
     input.accept = '.html,text/html';
@@ -2576,7 +2586,9 @@
         if (!res.ok) throw new Error('HTTP ' + res.status);
         return res.json();
       }).then(function (item) {
-        placeElAtViewport({ type: 'exp', x: 0, y: 0, w: 760, h: 480, expId: item.id, expUrl: item.source_url });
+        var expEl = { type: 'exp', x: 0, y: 0, w: 760, h: 480, expId: item.id, expUrl: item.source_url };
+        if (typeof targetIdx === 'number' && S[targetIdx]) addElementToSection(targetIdx, expEl);
+        else placeElAtViewport(expEl);
         toast('Experience added \u2014 it runs sandboxed; visitors can interact once published.', { ttl: 6000 });
       }).catch(function (err) {
         toast('Upload failed \u2014 .html uploads need admin rights.', { ttl: 6000 });
@@ -2605,7 +2617,7 @@
           '<span style="' + shapePreviewCss(d) + '"></span></button>';
       }).join('') +
       '</div>';
-    placePanelNear(side.querySelector('[data-act="shapes"]'));
+    placePanelNear(secBarIdx !== null && S[secBarIdx] ? S[secBarIdx].wrapEl : side);
     panelOpen = true;
     panel.querySelector('.gogh-panel-close').addEventListener('click', closePanel);
     [].forEach.call(panel.querySelectorAll('.gogh-shapecell'), function (b) {
@@ -2615,10 +2627,10 @@
       });
     });
   }
-  side.querySelectorAll('[data-add]').forEach(function (btn) {
-    btn.addEventListener('click', function () { addElementAtViewport(btn.dataset.add); });
+  side.querySelector('.gogh-brandrow').addEventListener('click', function () {
+    openBrandForm(side.querySelector('.gogh-brandrow'));
   });
-  side.querySelector('[data-act="shapes"]').addEventListener('click', openShapeInsertPanel);
+  side.querySelector('.gogh-designsrow').addEventListener('click', openStarterPicker);
   elbar.querySelector('.gogh-eb-del').addEventListener('click', deleteSelected);
   side.querySelector('[data-act="gridsnap"]').addEventListener('click', function () {
     gridSnapOn = !gridSnapOn;
@@ -5453,14 +5465,14 @@
       return false;
     });
   }
-  function startWriting() {
+  function startWriting(afterIdx) {
     // leaner than the Article starter: nothing to delete, only to replace
     // no heading: the PAGE title is the title — straight into prose
     // prose starts where a post's first line would: tight under the title
     var tpl = { name: '__write', minH: 120, els: [
       { type: 'para', x: 280, y: 12, w: 640, h: 60, text: '', ph: 'Start writing.' },
     ] };
-    var at = S.indexOf(viewportSection()) + 1;
+    var at = (typeof afterIdx === 'number' ? afterIdx : S.indexOf(viewportSection())) + 1;
     addSection(tpl, at);
     // straight into the words: select the heading and open its editor with
     // the caret ready — calm mode fades the chrome automatically
@@ -6319,6 +6331,8 @@
     mergeContent: mergeContent,
     closePanel: closePanel,
     addElementAt: addElementAtViewport,
+    addElementToSection: addElementToSection,
+    openSecAdd: openSecAddPanel,
     addShape: addShapeAtViewport,
     shapeDefs: function () { return SHAPE_DEFS; },
     resequenceToDom: resequenceToDom,

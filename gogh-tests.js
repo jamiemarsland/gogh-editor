@@ -30,6 +30,9 @@
       var all = G.sections();
       return all.filter(function (s) { return !s.chrome; })[0] || all[0];
     };
+    // elements are added via the Section pill's ＋ now (the drawer is the
+    // design side) — this is that path, aimed at the first content section
+    var addToSec = function (t) { return G.addElementToSection(G.sections().indexOf(sec()), t); };
     // the page may carry converted chrome (a published freeform footer sits
     // at the END of S) — "the section I just added" must skip chrome
     var contentSecs = function () {
@@ -62,8 +65,7 @@
     window.scrollTo(0, 0);
     ['heading', 'para', 'button', 'image', 'badge'].forEach(function (t) {
       if (sec().els.findIndex(function (e) { return e.type === t; }) === -1) {
-        var b = document.querySelector('.gogh-side [data-add="' + t + '"]');
-        if (b) b.click();
+        addToSec(t);
       }
     });
     SNAP = G.serialize();
@@ -292,14 +294,14 @@
     });
 
     // ---- 12. add element from palette ----
-    test('palette adds a badge', function () {
+    test('section ＋ adds a badge', function () {
       // the badge lands in the section you're looking at — wherever that is
       var totals = function () {
         return G.sections().reduce(function (n, s) { return n + s.els.length; }, 0);
       };
       var counts0 = G.sections().map(function (s) { return s.els.length; });
       var t0 = totals();
-      q('.gogh-side [data-add="badge"]').click();
+      addToSec('badge');
       expect(totals() === t0 + 1, 'not added');
       var grew = G.sections().filter(function (s, k) { return s.els.length === counts0[k] + 1; })[0];
       expect(grew, 'no section grew');
@@ -656,7 +658,7 @@
     test('grid on: drops land on the grid', function () {
       var btn = q('.gogh-side [data-act="gridsnap"]');
       if (!document.documentElement.classList.contains('gogh-grid-on')) btn.click();
-      q('.gogh-side [data-add="badge"]').click();
+      addToSec('badge');
       var n = sec().els.length - 1;
       var e = sec().els[n];
       e.w = 200; e.h = 60;
@@ -979,9 +981,9 @@
     // ---- 28. equal-spacing snap between two neighbours ----
     test('equal-spacing snap centres between neighbours', function () {
       // build a clean three-in-a-row far below existing content
-      q('.gogh-side [data-add="badge"]').click();
-      q('.gogh-side [data-add="badge"]').click();
-      q('.gogh-side [data-add="badge"]').click();
+      addToSec('badge');
+      addToSec('badge');
+      addToSec('badge');
       var n = sec().els.length;
       var a = sec().els[n - 3], b = sec().els[n - 2], c = sec().els[n - 1];
       a.x = 100; a.y = 1200; a.w = 200; a.h = 60;
@@ -1008,10 +1010,10 @@
       // midpoint (or 8-grid parity) made equal gaps unreachable. Distractor
       // badge d's left edge sits 5 units from the midpoint (inside SNAP=6),
       // and the free space is odd, so 8-grid steps alone can never equalise.
-      q('.gogh-side [data-add="badge"]').click();
-      q('.gogh-side [data-add="badge"]').click();
-      q('.gogh-side [data-add="badge"]').click();
-      q('.gogh-side [data-add="badge"]').click();
+      addToSec('badge');
+      addToSec('badge');
+      addToSec('badge');
+      addToSec('badge');
       var n = sec().els.length;
       var a = sec().els[n - 4], b = sec().els[n - 3], c = sec().els[n - 2], d = sec().els[n - 1];
       a.x = 100; a.y = 1400; a.w = 200; a.h = 60;
@@ -1037,10 +1039,10 @@
     test('reflow push keeps aligned rows together', function () {
       // James's report: growing a text box pushed only the buttons under it,
       // breaking the row. Para overlaps ONLY the left badge horizontally.
-      q('.gogh-side [data-add="para"]').click();
-      q('.gogh-side [data-add="badge"]').click();
-      q('.gogh-side [data-add="badge"]').click();
-      q('.gogh-side [data-add="badge"]').click();
+      addToSec('para');
+      addToSec('badge');
+      addToSec('badge');
+      addToSec('badge');
       var n = sec().els.length;
       var p = sec().els[n - 4], a = sec().els[n - 3], b = sec().els[n - 2], c = sec().els[n - 1];
       p.x = 100; p.y = 1800; p.w = 300; p.h = 100;
@@ -2369,8 +2371,9 @@
     // ---- shape element: palette flyout, back-of-stack insert, shipped CSS ----
     test('shapes: flyout inserts circle at the back with published CSS', function () {
       window.scrollTo(0, 0);
-      var btn = q('.gogh-side [data-act="shapes"]');
-      expect(btn, 'no Shape row in the palette');
+      G.openSecAdd(G.sections().indexOf(sec()));
+      var btn = q('.gogh-panel [data-act="shapes"]');
+      expect(btn, 'no Shape item in the section ＋ menu');
       btn.click();
       var cells = document.querySelectorAll('.gogh-panel .gogh-shapecell');
       expect(cells.length >= 8, 'shape flyout incomplete, got ' + cells.length + ' cells');
@@ -2397,7 +2400,8 @@
     // ---- shape element: corner resize keeps proportions ----
     test('shapes: corner-drag scales proportionally', function () {
       window.scrollTo(0, 0);
-      q('.gogh-side [data-act="shapes"]').click();
+      G.openSecAdd(G.sections().indexOf(sec()));
+      q('.gogh-panel [data-act="shapes"]').click();
       document.querySelectorAll('.gogh-panel .gogh-shapecell')[2].click(); // circle 320×320
       var s0 = sec();
       var i = s0.els.findIndex(function (e) { return e.type === 'box' && e.shape === 'circle'; });
