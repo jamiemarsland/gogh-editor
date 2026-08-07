@@ -507,6 +507,33 @@ add_action( 'init', function () {
 	) );
 } );
 
+add_action( 'admin_post_gogh_product_layout_all', function () {
+	$id = isset( $_GET['id'] ) ? (int) $_GET['id'] : 0;
+	if ( ! current_user_can( 'edit_others_posts' ) ) {
+		wp_die( esc_html__( 'You cannot change other products.', 'gogh-editor' ) );
+	}
+	check_admin_referer( 'gogh_product_layout_all' );
+	$layout = $id ? get_page_template_slug( $id ) : '';
+	if ( ! array_key_exists( $layout, gogh_product_layouts() ) ) {
+		$layout = '';
+	}
+	$ids = get_posts( array(
+		'post_type'      => 'product',
+		'post_status'    => 'any',
+		'posts_per_page' => -1,
+		'fields'         => 'ids',
+	) );
+	foreach ( $ids as $prod_id ) {
+		if ( '' === $layout ) {
+			delete_post_meta( $prod_id, '_wp_page_template' );
+		} else {
+			update_post_meta( $prod_id, '_wp_page_template', $layout );
+		}
+	}
+	wp_safe_redirect( $id ? get_permalink( $id ) : home_url( '/' ) );
+	exit;
+} );
+
 add_action( 'admin_post_gogh_product_layout', function () {
 	$id     = isset( $_GET['id'] ) ? (int) $_GET['id'] : 0;
 	$layout = isset( $_GET['layout'] ) ? sanitize_text_field( wp_unslash( $_GET['layout'] ) ) : '';
@@ -964,6 +991,15 @@ add_action( 'admin_bar_menu', function ( $bar ) {
 					'href'   => wp_nonce_url( admin_url( 'admin-post.php?action=gogh_product_layout&id=' . $pid . '&layout=' . rawurlencode( $slug ) ), 'gogh_product_layout_' . $pid ),
 				) );
 			}
+			// one more click stamps the catalogue — individual products can
+			// still be changed afterwards, one at a time
+			$current_label = preg_replace( '/\s+—.*$/u', '', $layouts[ $current ] );
+			$bar->add_node( array(
+				'id'     => 'gogh-product-layout-all',
+				'parent' => 'gogh-product-layout',
+				'title'  => sprintf( __( 'Apply “%s” to all products', 'gogh-editor' ), $current_label ),
+				'href'   => wp_nonce_url( admin_url( 'admin-post.php?action=gogh_product_layout_all&id=' . $pid ), 'gogh_product_layout_all' ),
+			) );
 		}
 	}
 	// one thing beginners DO need from the old menu: a new page — and it
