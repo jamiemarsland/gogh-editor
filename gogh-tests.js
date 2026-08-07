@@ -813,6 +813,33 @@
       return 'image + name + price + working buy button, one card';
     });
 
+    test('contrast sentinel: dark words on dark ground fix themselves', function () {
+      G.addSection({ title: 'CS', minH: 240, bg: '#101014', els: [] });
+      var c = contentSecs();
+      var s2 = c[c.length - 1];
+      var idx = G.sections().indexOf(s2);
+      G.addElementToSection(idx, 'heading');
+      var e = s2.els[s2.els.length - 1];
+      // addElement already ran the sentinel synchronously (no bg image):
+      // near-black theme ink on #101014 must have flipped to a light preset
+      expect(e.color, 'sentinel did not assign a readable colour (color=' + e.color + ')');
+      var node = s2.nodes[s2.els.indexOf(e)];
+      var host = node.matches('h1,h2,h3,h4,p') ? node : (node.querySelector('h1,h2,h3,h4,p') || node);
+      var rgb = (getComputedStyle(host).color.match(/[\d.]+/g) || []).slice(0, 3).map(Number);
+      var lum = (rgb[0] + rgb[1] + rgb[2]) / 3;
+      expect(lum > 128, 'flipped colour still reads dark (rgb ' + rgb.join() + ')');
+      // and on a light ground the sentinel stays quiet
+      G.addSection({ title: 'CS2', minH: 240, els: [] });
+      var c2 = contentSecs();
+      var s3 = c2[c2.length - 1];
+      G.addElementToSection(G.sections().indexOf(s3), 'heading');
+      var e3 = s3.els[s3.els.length - 1];
+      expect(!e3.color, 'sentinel recoloured text that was already readable');
+      G.deleteSection(G.sections().indexOf(s3));
+      G.deleteSection(G.sections().indexOf(s2));
+      return 'dark ground → light ink, light ground → untouched';
+    });
+
     test('site chrome sleeps behind a veil until invited', function () {
       var veils = document.querySelectorAll('.gogh-chromeveil');
       expect(veils.length >= 1, 'no chrome veil in edit mode');

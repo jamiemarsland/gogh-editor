@@ -2670,12 +2670,109 @@
       if (sel && sel.sec === sec) placeHandles(sec, sec.els.indexOf(e));
     }).catch(function () {});
   }
+  // ---------- contrast sentinel: unreadable text fixes itself ----------
+  // dark words on a dark background should be IMPOSSIBLE: when text lands on
+  // a section (or a section's background changes), gogh measures the
+  // effective contrast and quietly flips the text to the theme colour that
+  // reads — a toast with Undo keeps the human in charge. Auto-fix with an
+  // exit, never a warning: warnings are homework.
+  function sentinelLum(rgb) {
+    var a = rgb.map(function (v) {
+      v /= 255;
+      return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4);
+    });
+    return 0.2126 * a[0] + 0.7152 * a[1] + 0.0722 * a[2];
+  }
+  function sentinelContrast(l1, l2) {
+    var hi = Math.max(l1, l2), lo = Math.min(l1, l2);
+    return (hi + 0.05) / (lo + 0.05);
+  }
+  function cssToRgb(css) {
+    if (!css) return null;
+    var d = document.createElement('div');
+    d.style.color = css;
+    d.style.display = 'none';
+    document.body.appendChild(d);
+    var m = getComputedStyle(d).color.match(/[\d.]+/g);
+    d.remove();
+    return m && m.length >= 3 ? m.slice(0, 3).map(Number) : null;
+  }
+  function imgAvgLum(src, done) {
+    var im = new Image();
+    im.crossOrigin = 'anonymous';
+    im.onload = function () {
+      try {
+        var c = document.createElement('canvas');
+        c.width = c.height = 16;
+        var x = c.getContext('2d');
+        x.drawImage(im, 0, 0, 16, 16);
+        var d = x.getImageData(0, 0, 16, 16).data;
+        var r = 0, g = 0, b = 0, n = d.length / 4;
+        for (var i = 0; i < d.length; i += 4) { r += d[i]; g += d[i + 1]; b += d[i + 2]; }
+        done(sentinelLum([r / n, g / n, b / n]));
+      } catch (err) { done(null); } // cross-origin taint: tint-only fallback
+    };
+    im.onerror = function () { done(null); };
+    im.src = src;
+  }
+  var CONTRAST_FLOOR = 2.6; // art direction gets latitude below WCAG body-text strictness
+  function contrastSentinel(sec, onlyIdx) {
+    if (!editing || sec.chrome) return;
+    var tint = sec.bg ? cssToRgb(sec.bg) : null;
+    var judge = function (imgL) {
+      var bgL;
+      if (tint && imgL != null) bgL = sentinelLum(tint) * 0.62 + imgL * 0.38; // the published tint mix
+      else if (tint) bgL = sentinelLum(tint);
+      else if (imgL != null) {
+        // no user tint: the auto-scrim (45% theme base) sits behind texty sections
+        var baseRgb = cssToRgb('var(--wp--preset--color--base, #fff)');
+        bgL = imgL * 0.55 + (baseRgb ? sentinelLum(baseRgb) : 1) * 0.45;
+      } else {
+        var secRgb = cssToRgb(getComputedStyle(sec.sectionEl).backgroundColor);
+        if (!secRgb || getComputedStyle(sec.sectionEl).backgroundColor === 'rgba(0, 0, 0, 0)') {
+          secRgb = cssToRgb('var(--wp--preset--color--base, #fff)');
+        }
+        bgL = secRgb ? sentinelLum(secRgb) : 1;
+      }
+      var candidates = themePalette().filter(function (p) {
+        return /^(base|contrast)(-|$)/.test(p.slug);
+      });
+      var flips = [];
+      sec.els.forEach(function (e, i) {
+        if (onlyIdx != null && i !== onlyIdx) return;
+        if (!isText(e)) return;
+        var node = sec.nodes[i];
+        if (!node) return;
+        var host = node.matches('p,h1,h2,h3,h4,h5,h6') ? node : (node.querySelector('p,h1,h2,h3,h4,h5,h6') || node);
+        var txt = cssToRgb(getComputedStyle(host).color);
+        if (!txt) return;
+        if (sentinelContrast(sentinelLum(txt), bgL) >= CONTRAST_FLOOR) return;
+        var best = null, bestC = 0;
+        candidates.forEach(function (p) {
+          var rgb = cssToRgb(p.value);
+          if (!rgb) return;
+          var c = sentinelContrast(sentinelLum(rgb), bgL);
+          if (c > bestC) { bestC = c; best = p.slug; }
+        });
+        if (best && bestC >= CONTRAST_FLOOR && e.color !== best) flips.push({ i: i, to: best });
+      });
+      if (!flips.length) return;
+      pushState();
+      flips.forEach(function (f) { sec.els[f.i].color = f.to; });
+      renderSection(sec);
+      toast(flips.length === 1 ? 'Made the words readable on that background.'
+        : 'Made ' + flips.length + ' text pieces readable on that background.',
+        { actions: [{ label: 'Undo', onClick: function () { undo(); } }] });
+    };
+    if (sec.bgImage) imgAvgLum(sec.bgImage, judge); else judge(null);
+  }
   function addElement(sec, e, atBack) {
     // shapes are backdrops: they join the stack BEHIND everything else
     if (atBack) sec.els.unshift(e); else sec.els.push(e);
     renderSection(sec);
     placeHandles(sec, atBack ? 0 : sec.els.length - 1);
     pushState();
+    contrastSentinel(sec, atBack ? 0 : sec.els.length - 1);
   }
   function deleteSelected() {
     if (multiSel) {
@@ -3979,6 +4076,7 @@
     resolveAll();
     closePanel();
     pushState();
+    contrastSentinel(S[idx]);
   }
   function openSecBgPanel(idx, anchorEl) {
     var secx = S[idx];
@@ -4025,6 +4123,7 @@
         syncBootInvite(secx);
         resolveAll();
         pushState();
+        contrastSentinel(secx);
         panel.querySelectorAll('.gogh-secbg-sw .gogh-sw').forEach(function (b2) {
           b2.classList.toggle('is-active', b2 === swb && !!swb.dataset.val);
         });
@@ -4037,7 +4136,10 @@
       syncBootInvite(secx);
       resolveAll();
     });
-    custom.addEventListener('change', pushState);
+    custom.addEventListener('change', function () {
+      pushState();
+      contrastSentinel(secx);
+    });
     var input = panel.querySelector('input[type="url"]');
     input.value = secx.bgImage || '';
     panel.querySelector('.gogh-apply').addEventListener('click', function () {
@@ -6616,6 +6718,7 @@
     addElementAt: addElementAtViewport,
     addElementToSection: addElementToSection,
     composeFeaturedProduct: composeFeaturedProduct,
+    contrastSentinel: contrastSentinel,
     openSecAdd: openSecAddPanel,
     showGuides: showGuides,
     addShape: addShapeAtViewport,
