@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Gogh Editor
  * Description: A freeform canvas for WordPress — drag anything anywhere on your live page; Gogh publishes it back as clean, responsive core blocks that keep working even if the plugin is deactivated.
- * Version: 0.99.14
+ * Version: 0.99.15
  * Author: Jamie Marsland
  * Author URI: https://pootlepress.com
  * License: GPLv2 or later
@@ -23,7 +23,7 @@ add_action( 'init', function () {
 		'gogh-block',
 		plugins_url( 'gogh-block.js', __FILE__ ),
 		array( 'wp-blocks', 'wp-element', 'wp-block-editor' ),
-		'0.99.14-chrome',
+		'0.99.15-chrome',
 		true
 	);
 	register_block_type( 'gogh/section', array(
@@ -173,6 +173,7 @@ add_action( 'init', function () {
 		'gogh-header-minimal' => array( __( 'Minimal header — one quiet line', 'gogh-editor' ), 'header' ),
 		'gogh-header-bold'    => array( __( 'Bold header — a solid band', 'gogh-editor' ), 'header' ),
 		'gogh-header-split'   => array( __( 'Split header — menu centred, search right', 'gogh-editor' ), 'header' ),
+		'gogh-header-overlay' => array( __( 'Transparent header — floats over your hero', 'gogh-editor' ), 'header' ),
 		'gogh-footer-simple'  => array( __( 'Simple footer — everything centred', 'gogh-editor' ), 'footer' ),
 		'gogh-footer-columns' => array( __( 'Columns footer — brand, menu, small print', 'gogh-editor' ), 'footer' ),
 		'gogh-footer-bold'    => array( __( 'Bold footer — a solid band', 'gogh-editor' ), 'footer' ),
@@ -794,7 +795,7 @@ add_action( 'wp_enqueue_scripts', function () {
 
 	// for every visitor: neutralise theme spacing around gogh sections, even
 	// on pages whose stored stylesheets predate this rule
-	wp_register_style( 'gogh-base', false, array(), '0.99.14-chrome' );
+	wp_register_style( 'gogh-base', false, array(), '0.99.15-chrome' );
 	wp_enqueue_style( 'gogh-base' );
 	wp_add_inline_style( 'gogh-base',
 		// full-bleed sections use 100vw, which includes the scrollbar — once
@@ -810,15 +811,19 @@ add_action( 'wp_enqueue_scripts', function () {
 		'.gogh-section > * { box-sizing: border-box; }' .
 		// pasted-HTML sections: full bleed with zero vertical margins for
 		// every visitor — the theme's block-gap must not band between them
-		'.gogh-section-html { box-sizing: border-box !important; width: 100vw !important; max-width: 100vw !important; margin-inline: calc(50% - 50vw) !important; margin-block: 0 !important; }'
+		'.gogh-section-html { box-sizing: border-box !important; width: 100vw !important; max-width: 100vw !important; margin-inline: calc(50% - 50vw) !important; margin-block: 0 !important; }' .
+		// the transparent header floats over the first section: absolutely
+		// positioned with a soft top scrim so white chrome reads on any hero
+		'header.wp-block-template-part:has(> .gogh-header-overlay), header.wp-block-template-part:has(.gogh-header-overlay) { position: absolute; top: var(--wp-admin--admin-bar--height, 0px); left: 0; right: 0; z-index: 40; background: transparent; }' .
+		'.gogh-header-overlay { background: linear-gradient(to bottom, rgba(12, 12, 16, 0.38), transparent) !important; }'
 	);
 
 	if ( ! current_user_can( 'edit_post', $post->ID ) ) {
 		return;
 	}
 
-	wp_enqueue_script( 'gogh-editor', plugins_url( 'gogh-editor.js', __FILE__ ), array(), '0.99.14-chrome', true );
-	wp_enqueue_style( 'gogh-editor', plugins_url( 'gogh-editor.css', __FILE__ ), array(), '0.99.14-chrome' );
+	wp_enqueue_script( 'gogh-editor', plugins_url( 'gogh-editor.js', __FILE__ ), array(), '0.99.15-chrome', true );
+	wp_enqueue_style( 'gogh-editor', plugins_url( 'gogh-editor.css', __FILE__ ), array(), '0.99.15-chrome' );
 
 	// WebMCP bridge: the page registers its editing verbs as agent tools.
 	// OPT-IN only — add ?gogh-mcp=1 for a demo session (or enable sitewide
@@ -826,13 +831,13 @@ add_action( 'wp_enqueue_scripts', function () {
 	// agents from discovering publish-capable tools uninvited.
 	// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only opt-in toggle; script is capability-gated above.
 	if ( isset( $_GET['gogh-mcp'] ) || isset( $_GET['gogh-test'] ) || apply_filters( 'gogh_webmcp_enabled', false ) ) {
-		wp_enqueue_script( 'gogh-webmcp', plugins_url( 'gogh-webmcp.js', __FILE__ ), array( 'gogh-editor' ), '0.99.14-chrome', true );
+		wp_enqueue_script( 'gogh-webmcp', plugins_url( 'gogh-webmcp.js', __FILE__ ), array( 'gogh-editor' ), '0.99.15-chrome', true );
 	}
 
 	// regression suite: /page/?gogh-test (editors only, never saves)
 	// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only toggle enqueuing a test script for capability-checked editors.
 	if ( isset( $_GET['gogh-test'] ) ) {
-		wp_enqueue_script( 'gogh-tests', plugins_url( 'gogh-tests.js', __FILE__ ), array( 'gogh-editor' ), '0.99.14-chrome', true );
+		wp_enqueue_script( 'gogh-tests', plugins_url( 'gogh-tests.js', __FILE__ ), array( 'gogh-editor' ), '0.99.15-chrome', true );
 	}
 
 	// products live outside wp/v2, so gogh carries its own save route for
@@ -948,7 +953,7 @@ add_action( 'enqueue_block_assets', function () {
 	if ( ! is_admin() ) {
 		return;
 	}
-	wp_register_style( 'gogh-editor-base', false, array(), '0.99.14-chrome' );
+	wp_register_style( 'gogh-editor-base', false, array(), '0.99.15-chrome' );
 	wp_enqueue_style( 'gogh-editor-base' );
 	wp_add_inline_style( 'gogh-editor-base',
 		'.gogh-wrap { min-width: 100%; margin-block: 0 !important; }' .

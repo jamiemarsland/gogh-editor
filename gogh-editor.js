@@ -7347,7 +7347,7 @@
     // area signal is a category ('header') or a declared block type
     // ('core/template-part/header'), same as the site editor uses
     var pick = function (list) {
-      return list.filter(function (p) {
+      var inArea = list.filter(function (p) {
         if (!p.name) return false;
         var inCat = (p.categories || []).indexOf(area) !== -1;
         var inBT = (p.block_types || []).some(function (b) {
@@ -7355,6 +7355,12 @@
         });
         return inCat || inBT;
       });
+      // a few good choices, not a shelf of 24: when gogh's curated designs
+      // are present they ARE the pattern offer (the theme's real template
+      // parts still join from their own fetch); the theme-extra and
+      // remote-directory flood stays out. No gogh shelf → old behaviour.
+      var curated = inArea.filter(function (p) { return String(p.name).indexOf('gogh/') === 0; });
+      return curated.length ? curated : inArea;
     };
     if (patternCache) return Promise.resolve(pick(patternCache));
     return fetch(GSROOT + 'block-patterns/patterns', {
@@ -8391,6 +8397,13 @@
         options.push({ kind: 'pattern', id: 'pattern:' + p.name, slug: p.name,
           title: p.title || p.name, content: p.content || '' });
       });
+      // curated mode: gogh's designs plus the CURRENT part only — the
+      // theme's sibling parts (vertical headers, Woo-era leftovers) are the
+      // other half of the 24-option flood
+      var curated = patterns.some(function (p) { return String(p.name).indexOf('gogh/') === 0; });
+      if (curated) {
+        options = options.filter(function (o) { return o.kind !== 'part' || o.id === active.id; });
+      }
       // parts are often instances of the theme's patterns — same design twice
       var seenTitles = {};
       options = options.filter(function (o) {
