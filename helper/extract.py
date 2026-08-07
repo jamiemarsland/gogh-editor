@@ -15,6 +15,7 @@ Run from anywhere; paths resolve relative to the plugin root (the parent of
 this file's directory), which is where gogh.php lives.
 """
 
+import html
 import json
 import re
 import sys
@@ -270,10 +271,34 @@ def mcp_tools(webmcp):
 
 
 def ui_strings(js):
-    titles = uniq(unescape(t) for t in re.findall(r'title="([^"]{2,90})"', js))
-    # panel titles use a helper; toolbar/pill labels are plain text nodes
+    # Two ways a label reaches the screen, and both have to be read.
+    #
+    # Tooltips are title="…" attributes. Toolbar and palette labels are plain
+    # text nodes inside their button — "Site style" and "Page style" are the
+    # standing examples. Reading only the attributes made the audit announce
+    # those two as REMOVED the moment they stopped being tooltips, which is a
+    # false alarm of the worst kind: the bot then tells people a button they
+    # are looking at does not exist.
+    titles = [unescape(t) for t in re.findall(r'title="([^"]{2,90})"', js)]
+
+    # Text sitting directly before a closing </button> or </a>. Quotes and
+    # braces are excluded so this cannot straddle a string-concatenation seam
+    # or swallow a template expression.
+    labels = [
+        unescape(t).strip()
+        for t in re.findall(r'>([^<>{}\'"]{2,90}?)</(?:button|a)>', js)
+    ]
+    # Icon-only controls (↺, ⋯, ✏️) carry no prose; a label needs real words.
+    # Filtered after unescaping, so a \uXXXX arrow is judged on the character
+    # it becomes rather than on the letters in its escape sequence.
+    labels = [t for t in labels if len(re.findall(r'[A-Za-z]', t)) >= 2]
+
+    # Entities are how the source writes a literal &; the KB tells the bot to
+    # quote these verbatim, so it must carry "Publish & close", not "&amp;".
+    seen = uniq(html.unescape(t) for t in titles + labels)
+
     toasts = uniq(unescape(t) for t in re.findall(r"toast\(\s*'((?:[^'\\]|\\.){4,140})'", js))
-    return sorted(titles), sorted(toasts)
+    return sorted(seen), sorted(toasts)
 
 
 def php_surface(php):
