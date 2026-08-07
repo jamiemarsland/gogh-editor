@@ -160,24 +160,40 @@ const json = (obj, status = 200, extra = {}) =>
     headers: { 'content-type': 'application/json; charset=utf-8', ...extra },
   });
 
+// What the user is doing when they open the helper, as reported by ?ctx=.
+// Whitelisted: these strings reach the prompt, so they cannot be free text.
+const CTX_NOTES = {
+  'el-heading':   'They have a heading selected on the canvas. Lead with heading-related help — sizing, alignment, colour, linking — unless they ask about something else.',
+  'chrome-cycle': 'They are cycling the site header or footer designs. Remember that publishing chrome updates every page, and say so.',
+  'panel':        'They have a settings panel open, so they are configuring something specific.',
+  'canvas':       'They are on the canvas with nothing selected.',
+};
+
 function contextNote(ctx) {
-  // The plugin links here with ?v=<version>, so the bot knows which release the
-  // person is actually running rather than assuming the newest.
+  // The plugin links here with ?v= and ?ctx=, so the bot knows which release
+  // the person is on and what they are in the middle of doing.
   if (!ctx || typeof ctx !== 'object') return '';
   const bits = [];
-  if (typeof ctx.pluginVersion === 'string' && /^[\d.]{1,12}$/.test(ctx.pluginVersion)) {
+  if (typeof ctx.pluginVersion === 'string' && /^[\w.-]{1,24}$/.test(ctx.pluginVersion)) {
     bits.push(`They are running Gogh ${ctx.pluginVersion}. If that differs from the version in the knowledge base, say so when it matters to the answer.`);
   }
   if (ctx.from === 'editor') {
     bits.push('They opened this from inside the Gogh editor, so they are mid-task. Lead with the action.');
+  }
+  if (CTX_NOTES[ctx.ctx]) {
+    bits.push(CTX_NOTES[ctx.ctx]);
   }
   return bits.length ? '\n\nABOUT THIS PERSON\n\n' + bits.join('\n') : '';
 }
 
 function systemBlocks(kb, mode, ctx) {
   const note = PROMPT.modes[mode] || PROMPT.modes.auto;
+  // The bridge instructions only exist when the page can actually render a
+  // button. Sending them otherwise would have the bot promise something the
+  // user's page will silently drop.
+  const bridge = (ctx && ctx.bridge === true) ? '\n\n' + PROMPT.bridge : '';
   return [
-    { type: 'text', text: PROMPT.persona + '\n\n' + note + contextNote(ctx) },
+    { type: 'text', text: PROMPT.persona + bridge + '\n\n' + note + contextNote(ctx) },
     {
       type: 'text',
       text:

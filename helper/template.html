@@ -104,6 +104,23 @@ header{
 .body blockquote{margin:0 0 11px;padding-left:12px;border-left:2px solid var(--line2);color:var(--ink2)}
 .body hr{border:0;border-top:1px solid var(--line);margin:16px 0}
 
+.act{
+  display:flex;align-items:center;gap:10px;margin:0 0 12px;padding:10px 12px;
+  background:#20272e;border:1px solid #33414d;border-radius:10px;
+}
+.act button{
+  background:var(--accent2);color:#08243a;border:0;border-radius:8px;padding:7px 13px;
+  font:inherit;font-size:13.5px;font-weight:600;cursor:pointer;flex:none;transition:.13s;
+}
+.act button:hover:not(:disabled){filter:brightness(1.08)}
+.act button:disabled{background:var(--line2);color:var(--ink3);cursor:default}
+.act button.danger{background:#e0685c;color:#2a0f0c}
+.act .note{font-size:12.5px;color:var(--ink2);min-width:0}
+.act.done{border-color:#3d5c44;background:#1b241d}
+.act.done .note{color:var(--ok)}
+.act.failed{border-color:#5c332e;background:#241a18}
+.act.failed .note{color:#f0b3ab}
+
 .cursor{display:inline-block;width:7px;height:15px;background:var(--accent);vertical-align:-2px;animation:blink 1s steps(2) infinite}
 @keyframes blink{50%{opacity:0}}
 
@@ -237,6 +254,30 @@ const KB = __KB__;
 const PROMPT = __PROMPT__;
 const HOSTED = !KB;
 
+/* ---------- bridge ----------
+   With ?bridge=1 the page is running inside the editor and may hand the user
+   buttons that act on their page. Everything crosses a postMessage boundary, so
+   nothing here is trusted: verbs are whitelisted, replies are shape-checked,
+   and destructive verbs need a second click. */
+const BRIDGE = new URLSearchParams(location.search).get('bridge') === '1'
+            && window.parent && window.parent !== window;
+
+const CTX_VALUES = ['el-heading', 'chrome-cycle', 'panel', 'canvas'];
+
+// The verbs the editor exposes. gogh_publish is deliberately absent — the
+// editor refuses it, and we refuse it too rather than relying on that.
+const VERBS = {
+  gogh_page_overview:          { label: 'Look at the page' },
+  gogh_list_layouts:           { label: 'List the layouts' },
+  gogh_add_section:            { label: 'Add the section' },
+  gogh_paste_html:             { label: 'Add it' },
+  gogh_add_element:            { label: 'Add it' },
+  gogh_add_shape:              { label: 'Add the shape' },
+  gogh_set_section_background: { label: 'Change the background' },
+  gogh_edit_text:              { label: 'Replace the text' },
+  gogh_delete_section:         { label: 'Delete the section', danger: true },
+};
+
 /* ---------- 2. GoghBot (portable core) ---------- */
 const GoghBot = {
   endpoint: 'https://api.anthropic.com/v1/messages',
@@ -278,10 +319,13 @@ const GoghBot = {
      lets the bot answer for the release they are actually running. */
   context() {
     const q = new URLSearchParams(location.search);
-    const v = q.get('v'), from = q.get('from');
+    const v = q.get('v'), from = q.get('from'), ctx = q.get('ctx');
     const out = {};
-    if (v && /^[\d.]{1,12}$/.test(v)) out.pluginVersion = v;
+    if (v && /^[\w.-]{1,24}$/.test(v)) out.pluginVersion = v;
     if (from === 'editor') out.from = 'editor';
+    // What the user is doing right now, so the bot can lead with something relevant
+    if (CTX_VALUES.includes(ctx)) out.ctx = ctx;
+    if (BRIDGE) out.bridge = true;
     return Object.keys(out).length ? out : undefined;
   },
 
@@ -473,6 +517,7 @@ async function send() {
       chat.scrollTop = chat.scrollHeight;
     });
     body.innerHTML = md(full);
+    if (BRIDGE) bindActs(body);
     history.push({ role: 'assistant', content: full });
     setStatus('ok', 'Ready');
   } catch (err) {
@@ -486,9 +531,95 @@ async function send() {
   }
 }
 
+/* ---------- acting on the page ---------- */
+
+const pendingActs = new Map();
+let actSeq = 0;
+
+// Replies only count if they came from the frame we are embedded in and look
+// like what we asked for. Anything else on the message bus is ignored.
+window.addEventListener('message', ev => {
+  if (!BRIDGE || ev.source !== window.parent) return;
+  const d = ev.data;
+  if (!d || d.gogh !== 'act-result' || typeof d.id !== 'string') return;
+  const entry = pendingActs.get(d.id);
+  if (!entry) return;
+  pendingActs.delete(d.id);
+  clearTimeout(entry.timer);
+  entry.settle(d);
+});
+
+function runAct(verb, args) {
+  return new Promise(resolve => {
+    const id = 'act-' + (++actSeq) + '-' + String(actSeq * 2654435761 % 100000);
+    const timer = setTimeout(() => {
+      pendingActs.delete(id);
+      resolve({ ok: false, error: 'The editor did not respond.' });
+    }, 15000);
+    pendingActs.set(id, { timer, settle: resolve });
+    window.parent.postMessage({ gogh: 'act', verb, args: args || {}, id }, '*');
+  });
+}
+
+/* Turn the placeholders the renderer left behind into real buttons. Done after
+   the answer is written so a half-streamed JSON blob never becomes a button. */
+function bindActs(root) {
+  root.querySelectorAll('.act[data-act]').forEach(el => {
+    if (el.dataset.bound) return;
+    el.dataset.bound = '1';
+
+    let spec;
+    try { spec = JSON.parse(el.dataset.act); } catch (e) { el.remove(); return; }
+
+    const def = VERBS[spec.verb];
+    if (!def) { el.remove(); return; }          // unknown verb: drop it silently
+
+    const btn = el.querySelector('button');
+    const note = el.querySelector('.note');
+    let armed = !def.danger;                     // destructive verbs need two clicks
+
+    btn.textContent = spec.label || def.label;
+    if (def.danger) btn.classList.add('danger');
+
+    btn.onclick = async () => {
+      if (!armed) {
+        armed = true;
+        btn.textContent = 'Sure? ' + (spec.label || def.label);
+        note.textContent = 'This cannot be undone from here.';
+        return;
+      }
+      btn.disabled = true;
+      const was = btn.textContent;
+      btn.textContent = 'Working…';
+      note.textContent = '';
+
+      const res = await runAct(spec.verb, spec.args);
+
+      if (res.ok) {
+        el.className = 'act done';
+        btn.textContent = 'Done';
+        note.textContent = typeof res.result === 'string'
+          ? res.result.split('\n')[0].slice(0, 160)
+          : 'Nothing is published until you press Publish.';
+      } else {
+        el.className = 'act failed';
+        btn.disabled = false;
+        btn.textContent = was;
+        note.textContent = String(res.error || 'That did not work.').slice(0, 200);
+      }
+    };
+  });
+}
+
 /* ---------- minimal markdown ---------- */
 function esc(s) {
   return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+/* esc() is for text nodes and does not touch quotes. Attribute values need
+   them escaped too, or a JSON payload closes the attribute early. */
+function escAttr(s) {
+  return esc(s).replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 }
 
 /* Plain-ASCII sentinels, chosen so they cannot collide with model output. */
@@ -497,8 +628,12 @@ const BLK = 'zqBLOCKqz', KBD = 'zqKBDqz';
 function md(src) {
   const blocks = [];
   // fenced code first, stashed so nothing else touches it
-  src = src.replace(/```(\w*)\n([\s\S]*?)(?:```|$)/g, function (m, lang, code) {
-    blocks.push('<pre><code>' + esc(code.replace(/\n$/, '')) + '</code></pre>');
+  src = src.replace(/```([\w-]*)\n([\s\S]*?)(?:```|$)/g, function (m, lang, code) {
+    if (lang === 'gogh-act') {
+      blocks.push(actBlock(code));
+    } else {
+      blocks.push('<pre><code>' + esc(code.replace(/\n$/, '')) + '</code></pre>');
+    }
     return '\n' + BLK + (blocks.length - 1) + BLK + '\n';
   });
 
@@ -552,6 +687,22 @@ function md(src) {
   }
   flushAll();
   return out;
+}
+
+/* A gogh-act fence. Renders nothing outside the editor: the standalone build
+   and any stray copy of an answer must not show a button that cannot work. */
+function actBlock(code) {
+  if (!BRIDGE) return '';
+  let spec;
+  try { spec = JSON.parse(code); } catch (e) { return ''; }
+  if (!spec || !VERBS[spec.verb]) return '';
+  const safe = JSON.stringify({
+    verb: spec.verb,
+    args: (spec.args && typeof spec.args === 'object') ? spec.args : {},
+    label: typeof spec.label === 'string' ? spec.label.slice(0, 60) : '',
+  });
+  return '<div class="act" data-act="' + escAttr(safe) + '"><button></button>' +
+         '<span class="note"></span></div>';
 }
 
 function inline(s) {

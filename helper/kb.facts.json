@@ -1,12 +1,12 @@
 {
   "meta": {
-    "plugin_version": "0.96.5",
+    "plugin_version": "0.99.15",
     "requires_wp": "6.5",
     "requires_php": "7.4",
     "text_domain": "gogh-editor",
     "readme_stable_tag": "0.26.0",
     "readme_tested_up_to": "7.0",
-    "asset_version": "0.96.5-chrome"
+    "asset_version": "0.99.15-chrome"
   },
   "constants": {
     "TOL": 8,
@@ -253,6 +253,11 @@
     "mergeContent",
     "closePanel",
     "addElementAt",
+    "addElementToSection",
+    "composeFeaturedProduct",
+    "contrastSentinel",
+    "openSecAdd",
+    "showGuides",
     "addShape",
     "shapeDefs",
     "resequenceToDom",
@@ -261,6 +266,18 @@
     "serializeNavModel",
     "sanitizePastedHtml",
     "openPageStylePanel",
+    "goghHasNativeContent",
+    "wrapImageIntoText",
+    "wrapTargetIdx",
+    "bindPending",
+    "convertStash",
+    "deleteSectionRaw",
+    "contrastRatio",
+    "brandToVariation",
+    "cssColorToHex",
+    "effectiveBgHex",
+    "markSwatchLegibility",
+    "openBrandForm",
     "openMenuManager",
     "build"
   ],
@@ -368,9 +385,12 @@
     "' + sh.label + '",
     "A card — drop elements inside and they stay together, even on mobile",
     "Add a page to this menu",
+    "Add an element to this section",
     "All options",
+    "Back",
     "Back to the palette",
     "Background image",
+    "Bold",
     "Bring forward",
     "Close",
     "Cycle theme font sizes",
@@ -379,10 +399,12 @@
     "Delete section",
     "Duplicate (or Alt-drag)",
     "Duplicate section",
-    "Finish editing",
+    "Golden ratio guides",
     "Grid: show and snap",
     "Hide",
+    "Italic",
     "Keep this layout (updates every page)",
+    "Link",
     "Link text (⌘K)",
     "Live mobile preview",
     "Make it freeform",
@@ -390,7 +412,7 @@
     "Move down",
     "Move up",
     "None",
-    "Page style",
+    "One product, hero-sized — a card with a real add-to-cart button",
     "Put it back",
     "Redo (⇧⌘Z)",
     "Remove",
@@ -399,7 +421,6 @@
     "Save this section to reuse",
     "Send backward",
     "Show the next layout",
-    "Site style",
     "Start writing — a reading column, cursor ready",
     "Text alignment",
     "Text colour",
@@ -408,10 +429,12 @@
     "Updates every page",
     "Upload a self-contained HTML experience — it runs sandboxed",
     "Whole page — reorder sections",
-    "Your latest posts, live"
+    "Your latest posts, live",
+    "Your latest products, live — prices and add to cart included"
   ],
   "toasts": [
     "Added to the card — it moves and stacks with it now.",
+    "Back to freeform — drag it anywhere.",
     "Backup restored — publish when ready.",
     "Button updated.",
     "Could not add that section.",
@@ -425,11 +448,15 @@
     "Could not update the ",
     "Editing the site ",
     "Experience added — it runs sandboxed; visitors can interact once published.",
+    "Golden ratio guides off.",
+    "Golden ratio guides on — the gold lines mark the golden section. Drag anything near one and it’ll catch.",
     "Icon link updated.",
     "Image swapped.",
     "Link removed — the text stays.",
     "Link updated.",
     "Linked.",
+    "Logo set — your image now leads the header.",
+    "Logo size saved.",
     "Menu order updated — every page gets it.",
     "Menu switched — every page shows it.",
     "Out of the card — it’s a free element again.",
@@ -437,7 +464,9 @@
     "Publish your changes first — changing the page style reloads the page.",
     "Removed from the card.",
     "Section moved.",
+    "Section removed — publish to make it real.",
     "Site ",
+    "Text title restored — click it to rename your site.",
     "That saved section can’t be read.",
     "That section can’t move past other stored content yet.",
     "The backup could not be read.",
@@ -445,12 +474,20 @@
     "This ",
     "Upload failed — .html uploads need admin rights.",
     "Uploading experience…",
+    "Wrapped — the words flow around it now. Click the image to adjust.",
     "You have unpublished changes — switching the ",
+    "Your site is now called “",
     "gogh backed up unpublished work from an earlier session.",
     "gogh can’t safely swap this image.",
     "gogh could not change the page style — ",
     "gogh could not create that page.",
+    "gogh could not create the page — try again.",
+    "gogh could not rename the site — that needs an admin login.",
     "gogh could not save the menu — ",
+    "gogh could not save your brand — ",
+    "gogh could not set the logo — ",
+    "gogh could not switch back — ",
+    "gogh could not switch the design — ",
     "gogh could not switch the menu — ",
     "gogh couldn’t find that icon in the stored markup.",
     "gogh couldn’t identify that icon.",
@@ -467,6 +504,76 @@
       {
         "kind": "action",
         "hook": "init",
+        "priority": 10
+      },
+      {
+        "kind": "action",
+        "hook": "init",
+        "priority": 10
+      },
+      {
+        "kind": "action",
+        "hook": "init",
+        "priority": 10
+      },
+      {
+        "kind": "action",
+        "hook": "init",
+        "priority": 10
+      },
+      {
+        "kind": "action",
+        "hook": "rest_api_init",
+        "priority": 10
+      },
+      {
+        "kind": "action",
+        "hook": "init",
+        "priority": 10
+      },
+      {
+        "kind": "action",
+        "hook": "admin_post_gogh_product_layout_all",
+        "priority": 10
+      },
+      {
+        "kind": "action",
+        "hook": "admin_post_gogh_product_layout",
+        "priority": 10
+      },
+      {
+        "kind": "filter",
+        "hook": "safe_style_css",
+        "priority": 10
+      },
+      {
+        "kind": "filter",
+        "hook": "wp_kses_allowed_html",
+        "priority": 10
+      },
+      {
+        "kind": "filter",
+        "hook": "get_block_templates",
+        "priority": 10
+      },
+      {
+        "kind": "action",
+        "hook": "rest_api_init",
+        "priority": 10
+      },
+      {
+        "kind": "action",
+        "hook": "rest_api_init",
+        "priority": 10
+      },
+      {
+        "kind": "filter",
+        "hook": "rest_pre_insert_wp_template_part",
+        "priority": 10
+      },
+      {
+        "kind": "filter",
+        "hook": "rest_pre_insert_wp_navigation",
         "priority": 10
       },
       {
@@ -505,6 +612,21 @@
         "priority": 10
       },
       {
+        "kind": "action",
+        "hook": "admin_bar_menu",
+        "priority": 10
+      },
+      {
+        "kind": "action",
+        "hook": "admin_bar_menu",
+        "priority": 10
+      },
+      {
+        "kind": "action",
+        "hook": "admin_post_gogh_new_page",
+        "priority": 10
+      },
+      {
         "kind": "filter",
         "hook": "block_editor_settings_all",
         "priority": 10
@@ -516,20 +638,30 @@
       "gogh_convert_enabled"
     ],
     "rest_routes": [
+      "gogh/v1/starter",
+      "gogh/v1/active-style",
+      "wp/v2/gogh-product/(?P<id>\\d+)",
+      "wp/v2/gogh-product/(?P<id>\\d+)/autosaves",
+      "gogh/v1/pattern",
       "gogh/v1/render"
     ],
     "capabilities": [
-      "unfiltered_html",
-      "edit_post",
-      "upload_files",
+      "manage_options",
       "edit_theme_options",
-      "edit_posts"
+      "edit_post",
+      "edit_others_posts",
+      "edit_posts",
+      "unfiltered_html",
+      "upload_files",
+      "publish_pages"
     ],
     "query_switches": [
+      "id",
+      "layout",
       "gogh-edit",
       "gogh-mcp",
       "gogh-test",
-      "gogh-convert"
+      "gogh-experiments"
     ],
     "block_name": "gogh/section"
   },
@@ -553,6 +685,7 @@
       "image",
       "para",
       "posts",
+      "products",
       "write"
     ],
     "rest_endpoints": [
@@ -561,7 +694,6 @@
       "template-parts"
     ],
     "query_switches": [
-      "convert",
       "edit",
       "ps",
       "test"
@@ -580,5 +712,5 @@
     "has_deprecation": true,
     "block_title": "gogh Section"
   },
-  "test_count": 104
+  "test_count": 118
 }

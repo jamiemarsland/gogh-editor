@@ -45,28 +45,32 @@ Generated for plugin version {version} · knowledge base {kbid}.
 
 def load_prompt():
     """
-    Parse prompt.md into {persona, modes:{...}}. Section headers are
-    `## persona` and `## mode: <name>`; HTML comments are stripped.
+    Parse prompt.md into {persona, bridge, modes:{...}}. Section headers are
+    `## persona`, `## bridge` and `## mode: <name>`; HTML comments are stripped.
+
+    `bridge` is kept separate because it is only appended when the page is
+    embedded in the editor — the standalone build must never promise buttons it
+    cannot render.
 
     Both front ends get this same object, so the standalone build and the Worker
     can never disagree about what the bot is supposed to be.
     """
     raw = re.sub(r'<!--.*?-->', '', (HERE / 'prompt.md').read_text(encoding='utf-8'), flags=re.S)
 
-    out = {'persona': '', 'modes': {}}
+    out = {'persona': '', 'bridge': '', 'modes': {}}
     section, buf = None, []
 
     def flush():
         if section is None:
             return
         text = '\n'.join(buf).strip()
-        if section == 'persona':
-            out['persona'] = text
+        if section in ('persona', 'bridge'):
+            out[section] = text
         else:
             out['modes'][section] = text
 
     for line in raw.splitlines():
-        m = re.match(r'##\s+(?:(persona)|mode:\s*(\w+))\s*$', line.strip())
+        m = re.match(r'##\s+(?:(persona|bridge)|mode:\s*(\w+))\s*$', line.strip())
         if m:
             flush()
             section = m.group(1) or m.group(2)
@@ -80,6 +84,8 @@ def load_prompt():
         sys.exit('build.py: prompt.md has no "## persona" section')
     if 'auto' not in out['modes']:
         sys.exit('build.py: prompt.md must define "## mode: auto" — it is the fallback')
+    if not out['bridge']:
+        sys.exit('build.py: prompt.md has no "## bridge" section')
     return out
 
 

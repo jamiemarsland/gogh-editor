@@ -15,7 +15,7 @@ about something where they conflict, rather than picking one silently. Quote UI
 labels and message copy from the appendix, verbatim — those are the current
 strings, and a paraphrased button label is the fastest way to lose a user's trust.
 
-Generated for plugin version 0.96.5 · knowledge base 31b44b2.
+Generated for plugin version 0.99.15 · knowledge base 15ddd48.
 
 ---
 
@@ -783,11 +783,11 @@ Everything in this section is extracted mechanically from the Gogh source on eve
 
 ## Current release
 
-- Plugin version: **0.96.5**
+- Plugin version: **0.99.15**
 - Requires WordPress **6.5+**, PHP **7.4+**
 - Text domain: `gogh-editor`
 - readme.txt Stable tag: `0.26.0` · Tested up to: `7.0`
-- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.96.5`). Quote the plugin header version.
+- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.15`). Quote the plugin header version.
 
 ## Design constants
 
@@ -831,7 +831,7 @@ Divider shapes (plus "None"): `wave` (Wave), `curve` (Curve), `slant` (Slant), `
 
 Element types that survive a publish: `heading`, `para`, `button`, `image`, `badge`, `box`, `widget`, `exp`. Anything else added from the block editor is lost on the next Gogh publish.
 
-"Add element" palette items: `badge`, `button`, `card`, `exp`, `heading`, `image`, `para`, `posts`, `write`.
+"Add element" palette items: `badge`, `button`, `card`, `exp`, `heading`, `image`, `para`, `posts`, `products`, `write`.
 
 ## WebMCP tools
 
@@ -850,7 +850,7 @@ Element types that survive a publish: `heading`, `para`, `button`, `image`, `bad
 
 ## `window.__gogh` members
 
-`mirror`, `explode`, `multi`, `zoom`, `reorderSection`, `reorderNavRaw`, `stickyRawToggle`, `insertGoghPattern`, `addHtmlSection`, `startChromeCycle`, `openPicker`, `navLinkMarkup`, `chromeEdits`, `bindChromeTest`, `pending`, `storedEdits`, `previewVariation`, `clearVariationPreview`, `initStoredEdits`, `bindStoredTest`, `sections`, `showHbar`, `openShapePanel`, `openSecBgPanel`, `scan`, `addSection`, `renderSection`, `pushState`, `templates`, `resolveAll`, `reflowPush`, `measure`, `resolve`, `serialize`, `syncModelFromMarkup`, `cleanInline`, `showTip`, `applyTextLink`, `readingOrder`, `toast`, `publish`, `isDirty`, `parseTopBlocks`, `convertBlock`, `convertChrome`, `restore`, `setEditing`, `deleteSection`, `moveSection`, `duplicateSection`, `openSide`, `closeSide`, `fontSizes`, `setFontSize`, `stepFontSize`, `setSecBg`, `buildBlocks`, `buildV3`, `mergeContent`, `closePanel`, `addElementAt`, `addShape`, `shapeDefs`, `resequenceToDom`, `gatherRawUnits`, `parseNavModel`, `serializeNavModel`, `sanitizePastedHtml`, `openPageStylePanel`, `openMenuManager`, `build`.
+`mirror`, `explode`, `multi`, `zoom`, `reorderSection`, `reorderNavRaw`, `stickyRawToggle`, `insertGoghPattern`, `addHtmlSection`, `startChromeCycle`, `openPicker`, `navLinkMarkup`, `chromeEdits`, `bindChromeTest`, `pending`, `storedEdits`, `previewVariation`, `clearVariationPreview`, `initStoredEdits`, `bindStoredTest`, `sections`, `showHbar`, `openShapePanel`, `openSecBgPanel`, `scan`, `addSection`, `renderSection`, `pushState`, `templates`, `resolveAll`, `reflowPush`, `measure`, `resolve`, `serialize`, `syncModelFromMarkup`, `cleanInline`, `showTip`, `applyTextLink`, `readingOrder`, `toast`, `publish`, `isDirty`, `parseTopBlocks`, `convertBlock`, `convertChrome`, `restore`, `setEditing`, `deleteSection`, `moveSection`, `duplicateSection`, `openSide`, `closeSide`, `fontSizes`, `setFontSize`, `stepFontSize`, `setSecBg`, `buildBlocks`, `buildV3`, `mergeContent`, `closePanel`, `addElementAt`, `addElementToSection`, `composeFeaturedProduct`, `contrastSentinel`, `openSecAdd`, `showGuides`, `addShape`, `shapeDefs`, `resequenceToDom`, `gatherRawUnits`, `parseNavModel`, `serializeNavModel`, `sanitizePastedHtml`, `openPageStylePanel`, `goghHasNativeContent`, `wrapImageIntoText`, `wrapTargetIdx`, `bindPending`, `convertStash`, `deleteSectionRaw`, `contrastRatio`, `brandToVariation`, `cssColorToHex`, `effectiveBgHex`, `markSwatchLegibility`, `openBrandForm`, `openMenuManager`, `build`.
 
 ## WordPress surface
 
@@ -860,23 +860,40 @@ Block: `gogh/section` · v3 attributes: `css`, `model`, `scope`, `v`, `cssT`.
 |---|---|---|
 | `init` | action | 10 |
 | `init` | action | 10 |
+| `init` | action | 10 |
+| `init` | action | 10 |
+| `rest_api_init` | action | 10 |
+| `init` | action | 10 |
+| `admin_post_gogh_product_layout_all` | action | 10 |
+| `admin_post_gogh_product_layout` | action | 10 |
+| `safe_style_css` | filter | 10 |
+| `wp_kses_allowed_html` | filter | 10 |
+| `get_block_templates` | filter | 10 |
+| `rest_api_init` | action | 10 |
+| `rest_api_init` | action | 10 |
+| `rest_pre_insert_wp_template_part` | filter | 10 |
+| `rest_pre_insert_wp_navigation` | filter | 10 |
+| `init` | action | 10 |
 | `upload_mimes` | filter | 10 |
 | `wp_insert_post_data` | filter | 20 |
 | `wp_enqueue_scripts` | action | 10 |
 | `rest_api_init` | action | 10 |
 | `enqueue_block_assets` | action | 10 |
 | `admin_bar_menu` | action | 10 |
+| `admin_bar_menu` | action | 10 |
+| `admin_bar_menu` | action | 10 |
+| `admin_post_gogh_new_page` | action | 10 |
 | `block_editor_settings_all` | filter | 10 |
 
 Filters exposed for third parties: `gogh_rebake_enabled`, `gogh_webmcp_enabled`, `gogh_convert_enabled`.
 
-REST routes registered: `gogh/v1/render`.
+REST routes registered: `gogh/v1/starter`, `gogh/v1/active-style`, `wp/v2/gogh-product/(?P<id>\d+)`, `wp/v2/gogh-product/(?P<id>\d+)/autosaves`, `gogh/v1/pattern`, `gogh/v1/render`.
 
 Core REST endpoints used by the editor: `wp/v2/blocks`, `wp/v2/posts`, `wp/v2/template-parts`.
 
-Capability checks in PHP: `unfiltered_html`, `edit_post`, `upload_files`, `edit_theme_options`, `edit_posts`.
+Capability checks in PHP: `manage_options`, `edit_theme_options`, `edit_post`, `edit_others_posts`, `edit_posts`, `unfiltered_html`, `upload_files`, `publish_pages`.
 
-Query-string switches: `?gogh-convert`, `?gogh-edit`, `?gogh-ps`, `?gogh-test`.
+Query-string switches: `?gogh-edit`, `?gogh-ps`, `?gogh-test`.
 
 ## Exact UI labels (tooltips and button titles)
 
@@ -887,9 +904,12 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "' + sh.label + '"
 - "A card — drop elements inside and they stay together, even on mobile"
 - "Add a page to this menu"
+- "Add an element to this section"
 - "All options"
+- "Back"
 - "Back to the palette"
 - "Background image"
+- "Bold"
 - "Bring forward"
 - "Close"
 - "Cycle theme font sizes"
@@ -898,10 +918,12 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "Delete section"
 - "Duplicate (or Alt-drag)"
 - "Duplicate section"
-- "Finish editing"
+- "Golden ratio guides"
 - "Grid: show and snap"
 - "Hide"
+- "Italic"
 - "Keep this layout (updates every page)"
+- "Link"
 - "Link text (⌘K)"
 - "Live mobile preview"
 - "Make it freeform"
@@ -909,7 +931,7 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "Move down"
 - "Move up"
 - "None"
-- "Page style"
+- "One product, hero-sized — a card with a real add-to-cart button"
 - "Put it back"
 - "Redo (⇧⌘Z)"
 - "Remove"
@@ -918,7 +940,6 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "Save this section to reuse"
 - "Send backward"
 - "Show the next layout"
-- "Site style"
 - "Start writing — a reading column, cursor ready"
 - "Text alignment"
 - "Text colour"
@@ -928,10 +949,12 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "Upload a self-contained HTML experience — it runs sandboxed"
 - "Whole page — reorder sections"
 - "Your latest posts, live"
+- "Your latest products, live — prices and add to cart included"
 
 ## Exact toast and message copy
 
 - "Added to the card — it moves and stacks with it now."
+- "Back to freeform — drag it anywhere."
 - "Backup restored — publish when ready."
 - "Button updated."
 - "Could not add that section."
@@ -945,11 +968,15 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "Could not update the "
 - "Editing the site "
 - "Experience added — it runs sandboxed; visitors can interact once published."
+- "Golden ratio guides off."
+- "Golden ratio guides on — the gold lines mark the golden section. Drag anything near one and it’ll catch."
 - "Icon link updated."
 - "Image swapped."
 - "Link removed — the text stays."
 - "Link updated."
 - "Linked."
+- "Logo set — your image now leads the header."
+- "Logo size saved."
 - "Menu order updated — every page gets it."
 - "Menu switched — every page shows it."
 - "Out of the card — it’s a free element again."
@@ -957,7 +984,9 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "Publish your changes first — changing the page style reloads the page."
 - "Removed from the card."
 - "Section moved."
+- "Section removed — publish to make it real."
 - "Site "
+- "Text title restored — click it to rename your site."
 - "That saved section can’t be read."
 - "That section can’t move past other stored content yet."
 - "The backup could not be read."
@@ -965,12 +994,20 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "This "
 - "Upload failed — .html uploads need admin rights."
 - "Uploading experience…"
+- "Wrapped — the words flow around it now. Click the image to adjust."
 - "You have unpublished changes — switching the "
+- "Your site is now called “"
 - "gogh backed up unpublished work from an earlier session."
 - "gogh can’t safely swap this image."
 - "gogh could not change the page style — "
 - "gogh could not create that page."
+- "gogh could not create the page — try again."
+- "gogh could not rename the site — that needs an admin login."
 - "gogh could not save the menu — "
+- "gogh could not save your brand — "
+- "gogh could not set the logo — "
+- "gogh could not switch back — "
+- "gogh could not switch the design — "
 - "gogh could not switch the menu — "
 - "gogh couldn’t find that icon in the stored markup."
 - "gogh couldn’t identify that icon."
@@ -984,4 +1021,4 @@ These are the real strings in the current build. Use them verbatim; never paraph
 
 ## Test suite
 
-`104` tests, run by appending `?gogh-test` to any Gogh page URL while logged in with edit rights on that page.
+`118` tests, run by appending `?gogh-test` to any Gogh page URL while logged in with edit rights on that page.

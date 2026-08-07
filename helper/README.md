@@ -94,6 +94,24 @@ Both live in `worker/wrangler.jsonc` and are sized for Cloudflare's **free** KV 
 
 
 
+### Bridge mode — buttons that act on the page
+
+With `?bridge=1` the helper is running inside the editor and can offer the user a button that performs the action rather than describing it. The bot emits a fenced ` ```gogh-act ` block containing `{label, verb, args}`; the page renders it as a button and `postMessage`s the verb to the parent frame, then waits for `{gogh:'act-result', id, ok, result|error}`.
+
+Nothing across that boundary is trusted:
+
+- **Verbs are whitelisted client-side.** Only the nine the editor exposes render at all. `gogh_publish` is refused here as well as by the editor, rather than relying on the editor to refuse it.
+- **Replies must come from `window.parent`** and match a pending id. A message posted by any other source — including the page itself — is ignored.
+- **Destructive verbs need two clicks.** `gogh_delete_section` arms first ("Sure? Delete section 2") and only fires on the second press. Everything else is single-click.
+- **Nothing renders outside the editor.** A `gogh-act` block in the standalone build, or in a copied answer, produces no button at all.
+- Requests time out after 15s rather than hanging on a button that says "Working…" forever.
+
+The bridge instructions live in their own `## bridge` section of `prompt.md` and are only appended to the system prompt when `context.bridge === true`. Outside the editor the bot doesn't know buttons exist, so it can't promise one that won't appear.
+
+`?ctx=` (`el-heading`, `chrome-cycle`, `panel`, `canvas`) says what the user is doing; the Worker maps it through a whitelist to a prompt line so the bot leads with something relevant. Unknown values are dropped.
+
+The prompt tells the bot to offer a button **only when doing the thing beats explaining it** — someone asking "why does this work this way" doesn't want their page edited.
+
 ### Linking from the plugin
 
 `plugin-link.php` adds a `?` button to the side palette footer, next to Undo/Redo. Set `GOGH_HELPER_URL` and it appears; leave it empty and the file is inert.
@@ -112,6 +130,8 @@ Two test suites, both runnable with no Cloudflare account:
 cd helper/worker
 node test-worker.mjs     # 24 checks: routing, validation, streaming, auth, KB wiring
 node test-limits.mjs     # 13 checks: both caps, KV failure, usage reporting, plugin context
+node test-bridge.mjs     # 8 checks: bridge prompt gating, ctx whitelist
+node test-bridge-browser.mjs   # 18 checks: buttons, postMessage, confirm step, spoofing
 node test-browser.mjs    # mounts the Worker on localhost and drives the real UI
 ```
 
