@@ -2992,20 +2992,39 @@
   // the help bot lives in a small sheet — created on first ask, and it
   // learns the exact build from the script's own cache-buster
   var helpSheet = null;
+  // help that knows where you're standing: the sheet passes the build AND
+  // a context hint (what's selected, which mode is live) so the bot can
+  // open on the questions this exact moment tends to raise
+  function helpContext() {
+    if (document.body.classList.contains('gogh-cycling')) return 'chrome-cycle';
+    if (sel && sel.sec && sel.sec.els[sel.i]) return 'el-' + sel.sec.els[sel.i].type;
+    if (panelOpen) return 'panel';
+    return 'canvas';
+  }
+  function helpSrc() {
+    var hu = String(cfg.helpUrl);
+    return hu + (hu.indexOf('?') === -1 ? '?' : '&') +
+      'v=' + encodeURIComponent((window.__gogh && window.__gogh.build) || '') +
+      '&ctx=' + encodeURIComponent(helpContext());
+  }
   var helpBtn = side.querySelector('.gogh-help');
   if (helpBtn) helpBtn.addEventListener('click', function () {
     if (!helpSheet) {
-      var hu = String(cfg.helpUrl);
-      var hsrc = hu + (hu.indexOf('?') === -1 ? '?' : '&') + 'v=' + encodeURIComponent((window.__gogh && window.__gogh.build) || '');
       helpSheet = document.createElement('div');
       helpSheet.className = 'gogh-helpsheet';
       helpSheet.innerHTML = '<div class="gogh-helpsheet-bar"><span>gogh help</span>' +
         '<button type="button" class="gogh-sbtn gogh-helpsheet-x" title="Close">✕</button></div>' +
-        '<iframe src="' + escAttr(hsrc) + '" title="gogh help"></iframe>';
+        '<iframe src="' + escAttr(helpSrc()) + '" title="gogh help"></iframe>';
       document.body.appendChild(helpSheet);
       helpSheet.querySelector('.gogh-helpsheet-x').addEventListener('click', function () {
         helpSheet.classList.remove('is-open');
       });
+    } else if (!helpSheet.classList.contains('is-open')) {
+      // reopening in a NEW situation refreshes the bot's context; the same
+      // situation keeps the conversation exactly where it was
+      var fresh = helpSrc();
+      var fr = helpSheet.querySelector('iframe');
+      if (fr.getAttribute('src') !== fresh) fr.setAttribute('src', fresh);
     }
     helpSheet.classList.toggle('is-open');
     closeSide(true);

@@ -194,8 +194,10 @@
 .gogh-helpsheet {
   position: fixed;
   right: 18px;
-  bottom: 18px;
-  z-index: 100000;
+  /* clear of the publish chip (fixed bottom-right, z 100001): it was
+     sitting ON the bot's ask box, eating every click and keystroke */
+  bottom: 76px;
+  z-index: 100002;
   width: 380px;
   height: min(620px, 80vh);
   display: none;
@@ -218,6 +220,20 @@
   flex: none;
 }
 .gogh-helpsheet iframe { flex: 1; width: 100%; border: 0; }
+.gogh-helpsheet-x {
+  all: unset;
+  cursor: pointer;
+  flex: none;
+  width: 26px;
+  height: 26px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  font-size: 13px;
+  color: #1c1c22;
+  background: rgba(0, 0, 0, 0.05);
+}
+.gogh-helpsheet-x:hover { background: rgba(0, 0, 0, 0.1); }
 
 /* products preview: the sketch shows what Woo will render — button included */
 .gogh-postsprev-btn {
