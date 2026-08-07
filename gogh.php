@@ -388,6 +388,106 @@ add_action( 'rest_api_init', function () {
 			return array( 'name' => $name );
 		},
 	) );
+
+	// products live outside wp/v2 — gogh's own save route speaks the same
+	// minimal contract the editor already uses (GET raw, POST content,
+	// autosaves), registered under wp/v2 so the editor's root-splitting
+	// URL arithmetic keeps working
+	$gogh_product_perm = function ( $req ) {
+		return current_user_can( 'edit_post', (int) $req['id'] );
+	};
+	$gogh_product_get = function ( $req ) {
+		$p = get_post( (int) $req['id'] );
+		if ( ! $p || 'product' !== $p->post_type ) {
+			return new WP_Error( 'gogh_no_product', 'Not a product', array( 'status' => 404 ) );
+		}
+		return array( 'id' => $p->ID, 'content' => array( 'raw' => $p->post_content ) );
+	};
+	register_rest_route( 'wp/v2', '/gogh-product/(?P<id>\d+)', array(
+		array(
+			'methods'             => 'GET',
+			'permission_callback' => $gogh_product_perm,
+			'callback'            => $gogh_product_get,
+		),
+		array(
+			'methods'             => 'POST',
+			'permission_callback' => $gogh_product_perm,
+			'callback'            => function ( $req ) use ( $gogh_product_get ) {
+				$id = (int) $req['id'];
+				$p  = get_post( $id );
+				if ( ! $p || 'product' !== $p->post_type ) {
+					return new WP_Error( 'gogh_no_product', 'Not a product', array( 'status' => 404 ) );
+				}
+				wp_update_post( array( 'ID' => $id, 'post_content' => (string) $req['content'] ) );
+				return $gogh_product_get( $req );
+			},
+		),
+	) );
+	register_rest_route( 'wp/v2', '/gogh-product/(?P<id>\d+)/autosaves', array(
+		'methods'             => 'POST',
+		'permission_callback' => $gogh_product_perm,
+		'callback'            => function ( $req ) {
+			$id = (int) $req['id'];
+			$p  = get_post( $id );
+			if ( ! $p || 'product' !== $p->post_type ) {
+				return new WP_Error( 'gogh_no_product', 'Not a product', array( 'status' => 404 ) );
+			}
+			if ( ! function_exists( 'wp_create_post_autosave' ) ) {
+				require_once ABSPATH . 'wp-admin/includes/post.php';
+			}
+			$aid = wp_create_post_autosave( array(
+				'post_ID'      => $id,
+				'post_content' => (string) $req['content'],
+				'post_title'   => $p->post_title,
+				'post_type'    => 'product',
+			) );
+			return array( 'id' => is_wp_error( $aid ) ? 0 : (int) $aid );
+		},
+	) );
+} );
+
+/**
+ * The gogh product page: WooCommerce sells up top (gallery, price, add to
+ * cart — Woo's own blocks), and below it the product's content is a full
+ * gogh canvas for the story. Assigned per-product from the admin bar.
+ */
+add_action( 'init', function () {
+	if ( ! function_exists( 'register_block_template' ) || ! class_exists( 'WooCommerce' ) ) {
+		return;
+	}
+	register_block_template( 'gogh//gogh-product-story', array(
+		'title'       => __( 'Product story (gogh)', 'gogh-editor' ),
+		'description' => __( 'Woo sells up top; gogh tells the story below.', 'gogh-editor' ),
+		'post_types'  => array( 'product' ),
+		'content'     => '<!-- wp:template-part {"slug":"header"} /-->' .
+			'<!-- wp:group {"tagName":"main","layout":{"inherit":true,"type":"constrained"},"style":{"spacing":{"blockGap":"0","margin":{"top":"0","bottom":"0"}}}} -->' .
+			'<main class="wp-block-group" style="margin-top:0;margin-bottom:0">' .
+			'<!-- wp:woocommerce/store-notices /-->' .
+			'<!-- wp:group {"layout":{"type":"constrained"},"style":{"spacing":{"padding":{"top":"2rem","bottom":"2rem"}}}} --><div class="wp-block-group" style="padding-top:2rem;padding-bottom:2rem">' .
+			'<!-- wp:columns {"align":"wide"} --><div class="wp-block-columns alignwide">' .
+			'<!-- wp:column {"width":"45%"} --><div class="wp-block-column" style="flex-basis:45%"><!-- wp:woocommerce/product-image-gallery /--></div><!-- /wp:column -->' .
+			'<!-- wp:column {"width":"55%"} --><div class="wp-block-column" style="flex-basis:55%">' .
+			'<!-- wp:post-title {"level":1,"__woocommerceNamespace":"woocommerce/product-query/product-title"} /-->' .
+			'<!-- wp:woocommerce/product-price {"isDescendentOfSingleProductTemplate":true,"fontSize":"large"} /-->' .
+			'<!-- wp:woocommerce/add-to-cart-form /-->' .
+			'</div><!-- /wp:column -->' .
+			'</div><!-- /wp:columns -->' .
+			'</div><!-- /wp:group -->' .
+			'<!-- wp:post-content /-->' .
+			'</main><!-- /wp:group -->' .
+			'<!-- wp:template-part {"slug":"footer"} /-->',
+	) );
+} );
+
+add_action( 'admin_post_gogh_product_story', function () {
+	$id = isset( $_GET['id'] ) ? (int) $_GET['id'] : 0;
+	if ( ! $id || ! current_user_can( 'edit_post', $id ) ) {
+		wp_die( esc_html__( 'You cannot edit this product.', 'gogh-editor' ) );
+	}
+	check_admin_referer( 'gogh_product_story_' . $id );
+	update_post_meta( $id, '_wp_page_template', 'gogh-product-story' );
+	wp_safe_redirect( add_query_arg( 'gogh-edit', '1', get_permalink( $id ) ) );
+	exit;
 } );
 
 /**
@@ -586,6 +686,12 @@ add_action( 'wp_enqueue_scripts', function () {
 	// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only view toggle; editor assets are capability-gated below.
 	$want_edit = isset( $_GET['gogh-edit'] );
 	$can_edit  = current_user_can( 'edit_post', $post->ID );
+	// products: the editor belongs on the Product story template only — on
+	// Woo's own template the description hides in tabs and the canvas would
+	// fight the buy box (the admin bar offers the door instead)
+	if ( 'product' === $post->post_type && 'gogh-product-story' !== get_page_template_slug( $post ) ) {
+		return;
+	}
 	// visitors only need assets on gogh pages; EDITORS get the editor on
 	// every singular page — gating on 'gogh-section' in the content is why
 	// the floating edit pill never appeared on untouched or empty pages
@@ -636,7 +742,10 @@ add_action( 'wp_enqueue_scripts', function () {
 		wp_enqueue_script( 'gogh-tests', plugins_url( 'gogh-tests.js', __FILE__ ), array( 'gogh-editor' ), '0.99.14-chrome', true );
 	}
 
-	$rest_base = ( 'page' === $post->post_type ) ? 'pages' : 'posts';
+	// products live outside wp/v2, so gogh carries its own save route for
+	// them — registered UNDER wp/v2 deliberately: the editor derives the
+	// REST root by splitting on 'wp/v2/'
+	$rest_base = ( 'page' === $post->post_type ) ? 'pages' : ( 'product' === $post->post_type ? 'gogh-product' : 'posts' );
 	wp_localize_script( 'gogh-editor', 'GOGH', array(
 		'postId'   => $post->ID,
 		'restUrl'  => rest_url( 'wp/v2/' . $rest_base . '/' . $post->ID ),
@@ -794,6 +903,19 @@ add_action( 'admin_bar_menu', function ( $bar ) {
 	}
 	foreach ( array( 'site-editor', 'edit-site', 'customize', 'comments', 'new-content', 'edit' ) as $id ) {
 		$bar->remove_node( $id );
+	}
+	// products on Woo's own template: the admin bar offers the door into
+	// the gogh Product story template (the editor stays away until then)
+	if ( is_singular( 'product' ) ) {
+		$pid = get_queried_object_id();
+		if ( $pid && current_user_can( 'edit_post', $pid ) &&
+			'gogh-product-story' !== get_page_template_slug( $pid ) ) {
+			$bar->add_node( array(
+				'id'    => 'gogh-product-story',
+				'title' => '🎨 Design this product page',
+				'href'  => wp_nonce_url( admin_url( 'admin-post.php?action=gogh_product_story&id=' . $pid ), 'gogh_product_story_' . $pid ),
+			) );
+		}
 	}
 	// one thing beginners DO need from the old menu: a new page — and it
 	// goes straight into gogh

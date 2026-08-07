@@ -2593,9 +2593,52 @@
       });
     }).catch(function () {});
   }
-  function hydrateProductsPreview(sec, e) {
+  // Products can aim at one category: same widget, shortcode narrowed, and
+  // the ＋ flow asks "which products?" when the store has categories
+  function productsElFor(cat) {
+    var e = DEFAULTS.products();
+    if (cat && cat.slug) {
+      e.wsrc = '<!-- wp:shortcode -->[products limit="3" columns="3" category="' + cat.slug + '" orderby="date" order="DESC"]<!-- /wp:shortcode -->';
+    }
+    return e;
+  }
+  function openProductsPanel(idx) {
+    fetch(cfg.restUrl.split('wp/v2/')[0] + 'wc/store/v1/products/categories?per_page=12', {
+      credentials: 'same-origin',
+    }).then(function (r) { return r.ok ? r.json() : []; }).then(function (cats) {
+      cats = (cats || []).filter(function (c) { return c.count > 0; });
+      if (!cats.length) {
+        var e0 = addElementToSection(idx, productsElFor(null));
+        hydrateProductsPreview(S[idx], e0);
+        return;
+      }
+      panel.innerHTML = '<div class="gogh-panel-title">Products</div>' +
+        '<div class="gogh-panel-hint">Which products should the grid show?</div>' +
+        '<div class="gogh-featlist">' +
+        '<button type="button" class="gogh-featrow" data-all="1"><span class="gogh-featname">All products</span></button>' +
+        cats.map(function (c, k) {
+          return '<button type="button" class="gogh-featrow" data-k="' + k + '">' +
+            '<span class="gogh-featname">' + esc(c.name) + '</span>' +
+            '<span class="gogh-featprice">' + c.count + '</span></button>';
+        }).join('') + '</div>';
+      placePanelNear(S[idx] ? S[idx].wrapEl : side);
+      panelOpen = true;
+      [].forEach.call(panel.querySelectorAll('.gogh-featrow'), function (row) {
+        row.addEventListener('click', function () {
+          var cat = row.dataset.all ? null : cats[+row.dataset.k];
+          closePanel();
+          var e2 = addElementToSection(idx, productsElFor(cat));
+          hydrateProductsPreview(S[idx], e2, cat && cat.id);
+        });
+      });
+    }).catch(function () {
+      var e3 = addElementToSection(idx, productsElFor(null));
+      hydrateProductsPreview(S[idx], e3);
+    });
+  }
+  function hydrateProductsPreview(sec, e, catId) {
     // the Store API is public — same shape as the posts preview, plus price
-    fetch(cfg.restUrl.split('wp/v2/')[0] + 'wc/store/v1/products?per_page=3&orderby=date&order=desc', {
+    fetch(cfg.restUrl.split('wp/v2/')[0] + 'wc/store/v1/products?per_page=3&orderby=date&order=desc' + (catId ? '&category=' + catId : ''), {
       credentials: 'same-origin',
     }).then(function (r) { return r.ok ? r.json() : []; }).then(function (prods) {
       if (!prods.length || sec.els.indexOf(e) === -1) return;
@@ -2720,6 +2763,7 @@
         closePanel();
         if (btn.dataset.act === 'shapes') return openShapeInsertPanel();
         if (btn.dataset.act === 'featured') return openFeaturedProductPanel(idx);
+        if (btn.dataset.add === 'products') return openProductsPanel(idx);
         if (btn.dataset.add === 'write') return startWriting(idx);
         if (btn.dataset.add === 'exp') return addExperience(idx);
         addElementToSection(idx, btn.dataset.add);
