@@ -1248,6 +1248,7 @@
     '<div class="gogh-side-foot">' +
     '<button type="button" class="gogh-sbtn gogh-undo" title="Undo (⌘Z)">↺</button>' +
     '<button type="button" class="gogh-sbtn gogh-redo" title="Redo (⇧⌘Z)">↻</button>' +
+    (cfg.helpUrl ? '<button type="button" class="gogh-sbtn gogh-help" title="Help — ask gogh anything">?</button>' : '') +
     '</div>';
   document.body.appendChild(side);
 
@@ -2988,6 +2989,27 @@
   });
   side.querySelector('.gogh-undo').addEventListener('click', undo);
   side.querySelector('.gogh-redo').addEventListener('click', redo);
+  // the help bot lives in a small sheet — created on first ask, and it
+  // learns the exact build from the script's own cache-buster
+  var helpSheet = null;
+  var helpBtn = side.querySelector('.gogh-help');
+  if (helpBtn) helpBtn.addEventListener('click', function () {
+    if (!helpSheet) {
+      var hu = String(cfg.helpUrl);
+      var hsrc = hu + (hu.indexOf('?') === -1 ? '?' : '&') + 'v=' + encodeURIComponent((window.__gogh && window.__gogh.build) || '');
+      helpSheet = document.createElement('div');
+      helpSheet.className = 'gogh-helpsheet';
+      helpSheet.innerHTML = '<div class="gogh-helpsheet-bar"><span>gogh help</span>' +
+        '<button type="button" class="gogh-sbtn gogh-helpsheet-x" title="Close">✕</button></div>' +
+        '<iframe src="' + escAttr(hsrc) + '" title="gogh help"></iframe>';
+      document.body.appendChild(helpSheet);
+      helpSheet.querySelector('.gogh-helpsheet-x').addEventListener('click', function () {
+        helpSheet.classList.remove('is-open');
+      });
+    }
+    helpSheet.classList.toggle('is-open');
+    closeSide(true);
+  });
 
   // ---------- section templates & picker ----------
   var TEMPLATES = [

@@ -190,6 +190,35 @@
 .gogh-side-gap { flex: none; height: 10px; }
 .gogh-addmenu { display: grid; grid-template-columns: 1fr 1fr; gap: 2px; min-width: 250px; margin-top: 6px; }
 
+/* the help sheet: the bot, in a calm corner */
+.gogh-helpsheet {
+  position: fixed;
+  right: 18px;
+  bottom: 18px;
+  z-index: 100000;
+  width: 380px;
+  height: min(620px, 80vh);
+  display: none;
+  flex-direction: column;
+  background: #fff;
+  border-radius: 16px;
+  box-shadow: 0 12px 48px rgba(0, 0, 0, 0.24);
+  overflow: hidden;
+}
+.gogh-helpsheet.is-open { display: flex; }
+.gogh-helpsheet-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 10px 10px 16px;
+  font: 700 12.5px/1 -apple-system, BlinkMacSystemFont, sans-serif;
+  letter-spacing: 0.03em;
+  color: #1c1c22;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.07);
+  flex: none;
+}
+.gogh-helpsheet iframe { flex: 1; width: 100%; border: 0; }
+
 /* products preview: the sketch shows what Woo will render — button included */
 .gogh-postsprev-btn {
   display: inline-block;

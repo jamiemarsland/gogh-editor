@@ -863,6 +863,9 @@ add_action( 'wp_enqueue_scripts', function () {
 		'canConvert' => apply_filters( 'gogh_convert_enabled', ! isset( $_GET['gogh-experiments'] ) || '0' !== $_GET['gogh-experiments'] ),
 		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only labs toggle
 		'experiments' => isset( $_GET['gogh-test'] ) || ( isset( $_GET['gogh-experiments'] ) && '0' !== $_GET['gogh-experiments'] ),
+		// the help bot: gogh's editor embeds it in a small sheet; empty URL
+		// (via the filter) removes the ? button entirely
+		'helpUrl'  => apply_filters( 'gogh_helper_url', 'https://gogh-helper.jamesmarsland.workers.dev' ),
 		'brand'    => get_option( 'gogh_brand', null ) ?: null,
 		'activeStyle' => get_option( 'gogh_active_style', '' ),
 		'hasWoo'   => class_exists( 'WooCommerce' ),

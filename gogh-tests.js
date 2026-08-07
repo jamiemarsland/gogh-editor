@@ -840,6 +840,19 @@
       return 'dark ground → light ink, light ground → untouched';
     });
 
+    test('help: the ? opens the bot with the true build number', function () {
+      var btn = q('.gogh-side .gogh-help');
+      if (!btn) return 'no helpUrl configured — button rightly absent';
+      btn.click();
+      var sheet = q('.gogh-helpsheet');
+      expect(sheet && sheet.classList.contains('is-open'), 'help sheet did not open');
+      var src = sheet.querySelector('iframe').getAttribute('src');
+      expect(src.indexOf('v=') !== -1 && src.indexOf('0.99') !== -1, 'build number not passed to the bot (' + src + ')');
+      sheet.querySelector('.gogh-helpsheet-x').click();
+      expect(!sheet.classList.contains('is-open'), 'close did not close');
+      return 'sheet opens, knows the build, closes';
+    });
+
     test('site chrome sleeps behind a veil until invited', function () {
       var veils = document.querySelectorAll('.gogh-chromeveil');
       expect(veils.length >= 1, 'no chrome veil in edit mode');
