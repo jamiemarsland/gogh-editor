@@ -1,0 +1,20 @@
+{
+  "name": "gogh-helper",
+  "private": true,
+  "description": "In-product help bot for the Gogh Editor WordPress plugin",
+  "cloudflare": {
+    "label": "Gogh Helper",
+    "products": ["Workers", "Workers KV"],
+    "bindings": {
+      "ANTHROPIC_API_KEY": {
+        "description": "Your Anthropic API key, from console.anthropic.com. Every question asked is billed to it, so set a monthly spend limit there too."
+      },
+      "REFRESH_TOKEN": {
+        "description": "Optional. Any long random string. Lets GitHub push knowledge-base updates to this bot instantly instead of within 10 minutes."
+      },
+      "RATE": {
+        "description": "Storage for the rate limits that stop someone running up your API bill. Created for you — leave it as is."
+      }
+    }
+  }
+}
