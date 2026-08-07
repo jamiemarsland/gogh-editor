@@ -162,6 +162,34 @@ add_action( 'init', function () {
 			'content'    => file_get_contents( $file ),
 		) );
 	}
+
+	// gogh's own headers and footers: a curated shelf for the Change
+	// header/footer flicker, so every site gets good choices regardless of
+	// what the theme ships. Built from core blocks with theme preset
+	// colours — they re-dress when the site style changes.
+	$chrome = array(
+		'gogh-header-classic' => array( __( 'Classic header — logo left, menu right', 'gogh-editor' ), 'header' ),
+		'gogh-header-centred' => array( __( 'Centred header — stacked and calm', 'gogh-editor' ), 'header' ),
+		'gogh-header-minimal' => array( __( 'Minimal header — one quiet line', 'gogh-editor' ), 'header' ),
+		'gogh-header-bold'    => array( __( 'Bold header — a solid band', 'gogh-editor' ), 'header' ),
+		'gogh-header-split'   => array( __( 'Split header — menu centred, search right', 'gogh-editor' ), 'header' ),
+		'gogh-footer-simple'  => array( __( 'Simple footer — everything centred', 'gogh-editor' ), 'footer' ),
+		'gogh-footer-columns' => array( __( 'Columns footer — brand, menu, small print', 'gogh-editor' ), 'footer' ),
+		'gogh-footer-bold'    => array( __( 'Bold footer — a solid band', 'gogh-editor' ), 'footer' ),
+	);
+	foreach ( $chrome as $slug => $info ) {
+		$file = __DIR__ . '/patterns/' . $slug . '.html';
+		if ( ! is_readable( $file ) ) {
+			continue;
+		}
+		register_block_pattern( 'gogh/' . $slug, array(
+			'title'       => $info[0],
+			'categories'  => array( $info[1] ),
+			'blockTypes'  => array( 'core/template-part/' . $info[1] ),
+			'viewportWidth' => 1200,
+			'content'     => file_get_contents( $file ),
+		) );
+	}
 } );
 
 /**
