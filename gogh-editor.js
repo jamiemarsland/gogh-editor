@@ -3005,7 +3005,38 @@
     var hu = String(cfg.helpUrl);
     return hu + (hu.indexOf('?') === -1 ? '?' : '&') +
       'v=' + encodeURIComponent((window.__gogh && window.__gogh.build) || '') +
-      '&ctx=' + encodeURIComponent(helpContext());
+      '&ctx=' + encodeURIComponent(helpContext()) +
+      (cfg.experiments ? '&bridge=1' : '');
+  }
+  // ---------- the show-me bridge: help that DOES ----------
+  // With experiments on, the bot may drive the editor through the same
+  // WebMCP verbs a browser agent gets — messages are honoured only from
+  // the helper's own origin, publishing stays human, and every action
+  // lands as a toast with Undo. Documentation becomes demonstration.
+  if (cfg.experiments && cfg.helpUrl) {
+    var HELP_ORIGIN = (function () {
+      try { return new URL(cfg.helpUrl).origin; } catch (err) { return null; }
+    })();
+    window.addEventListener('message', function (ev) {
+      if (!HELP_ORIGIN || ev.origin !== HELP_ORIGIN) return;
+      var m = ev.data;
+      if (!m || m.gogh !== 'act' || typeof m.verb !== 'string') return;
+      var reply = function (payload) {
+        try {
+          ev.source.postMessage(Object.assign({ gogh: 'act-result', id: m.id || null }, payload), HELP_ORIGIN);
+        } catch (err) {}
+      };
+      var mcp = window.__goghMcp;
+      if (!mcp) { reply({ ok: false, error: 'bridge not loaded' }); return; }
+      if (m.verb === 'gogh_publish') { reply({ ok: false, error: 'publishing stays human' }); return; }
+      Promise.resolve().then(function () { return mcp.call(m.verb, m.args || {}); })
+        .then(function (res) {
+          toast('gogh helper: ' + m.verb.replace(/^gogh_/, '').replace(/_/g, ' '),
+            { actions: [{ label: 'Undo', onClick: function () { undo(); } }] });
+          reply({ ok: true, result: res });
+        })
+        .catch(function (err) { reply({ ok: false, error: String((err && err.message) || err) }); });
+    });
   }
   var helpBtn = side.querySelector('.gogh-help');
   if (helpBtn) helpBtn.addEventListener('click', function () {
@@ -3018,6 +3049,7 @@
       document.body.appendChild(helpSheet);
       helpSheet.querySelector('.gogh-helpsheet-x').addEventListener('click', function () {
         helpSheet.classList.remove('is-open');
+        document.body.classList.remove('gogh-help-open');
       });
     } else if (!helpSheet.classList.contains('is-open')) {
       // reopening in a NEW situation refreshes the bot's context; the same
@@ -3027,6 +3059,9 @@
       if (fr.getAttribute('src') !== fresh) fr.setAttribute('src', fresh);
     }
     helpSheet.classList.toggle('is-open');
+    // toasts share the bot's corner — while the sheet is open they step
+    // aside so nothing ever sits on the ask box
+    document.body.classList.toggle('gogh-help-open', helpSheet.classList.contains('is-open'));
     closeSide(true);
   });
 

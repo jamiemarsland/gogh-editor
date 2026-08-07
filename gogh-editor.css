@@ -197,7 +197,7 @@
   /* clear of the publish chip (fixed bottom-right, z 100001): it was
      sitting ON the bot's ask box, eating every click and keystroke */
   bottom: 76px;
-  z-index: 100002;
+  z-index: 100003;
   width: 380px;
   height: min(620px, 80vh);
   display: none;
@@ -220,6 +220,8 @@
   flex: none;
 }
 .gogh-helpsheet iframe { flex: 1; width: 100%; border: 0; }
+/* while the bot is open, toasts step left of its sheet */
+body.gogh-help-open .gogh-toasts { right: 416px; }
 .gogh-helpsheet-x {
   all: unset;
   cursor: pointer;
