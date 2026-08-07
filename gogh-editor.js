@@ -1537,8 +1537,11 @@
     elbar.style.left = (ar.left + window.scrollX + ar.width / 2) + 'px';
     elbar.style.top = (ar.top + window.scrollY - 14) + 'px';
     if (e.type === 'button' || e.type === 'image' || e.type === 'box') {
-      ctxBtn.innerHTML = CTX_ICONS[e.type === 'button' ? 'link' : e.type === 'box' ? 'shape' : 'image'];
-      ctxBtn.title = e.type === 'button' ? 'Button link' : e.type === 'box' ? 'Shape, colour & image' : e.type === 'widget' ? 'Block settings & link' : 'Choose image';
+      // cards share the section's background icon — one glyph for one idea;
+      // bare shapes keep the shape glyph (their panel really picks shapes)
+      var isCardEl = e.type === 'box' && e.kids && e.kids.length;
+      ctxBtn.innerHTML = CTX_ICONS[e.type === 'button' ? 'link' : e.type === 'box' ? (isCardEl ? 'image' : 'shape') : 'image'];
+      ctxBtn.title = e.type === 'button' ? 'Button link' : e.type === 'box' ? ( isCardEl ? 'Background image & colour' : 'Shape, colour & image' ) : e.type === 'widget' ? 'Block settings & link' : 'Choose image';
       ctxBtn.style.display = '';
     } else {
       ctxBtn.style.display = 'none';
