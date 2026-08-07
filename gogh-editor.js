@@ -252,7 +252,7 @@
       minH: model.minH || (bootEls.length ? null : 480),
       bg: model.bg || null, divider: model.divider || null,
       fx: model.fx || null,
-      bgImage: model.bgImage || null, bgId: model.bgId || null,
+      bgImage: model.bgImage || null, bgId: model.bgId || null, bgA: model.bgA != null ? model.bgA : null,
       wrapEl: wrap, sectionEl: sectionEl, styleEl: styleEl, nodes: [] });
   });
 
@@ -523,12 +523,15 @@
       '  display: grid;',
       '  position: relative;',
       (function () {
+        // the tint strength is a dial (Canva-style): default 62 over an
+        // image, solid for plain colour — opts.bgA is 0–100
+        var bgA = opts.bgA != null ? Math.max(0, Math.min(100, opts.bgA)) : null;
         if (opts.bgImage) {
           var img = 'url("' + String(opts.bgImage).replace(/"/g, '%22') + '") center / cover no-repeat';
           if (opts.bg) {
             // palette-aware tint over the image keeps text readable in any
             // style variation (the tint follows the theme's own colours)
-            var tint = 'color-mix(in srgb, ' + opts.bg + ' 62%, transparent)';
+            var tint = 'color-mix(in srgb, ' + opts.bg + ' ' + (bgA != null ? bgA : 62) + '%, transparent)';
             return '  background: linear-gradient(' + tint + ', ' + tint + '), ' + img + ';';
           }
           if (els.some(textyEl)) {
@@ -539,6 +542,9 @@
             return '  background: linear-gradient(' + auto + ', ' + auto + '), ' + img + ';';
           }
           return '  background: ' + img + ';';
+        }
+        if (opts.bg && bgA != null && bgA < 100) {
+          return '  background: color-mix(in srgb, ' + opts.bg + ' ' + bgA + '%, transparent);';
         }
         return opts.bg ? '  background: ' + opts.bg + ';' : '';
       })(),
@@ -764,7 +770,7 @@
       version: version, designW: W, minH: sec.minH || null,
       bg: sec.bg || null, divider: sec.divider || null,
       fx: sec.fx || null,
-      bgImage: sec.bgImage || null, bgId: sec.bgId || null,
+      bgImage: sec.bgImage || null, bgId: sec.bgId || null, bgA: sec.bgA != null ? sec.bgA : null,
       elements: sec.els.map(projEl),
     };
   }
@@ -999,7 +1005,7 @@
   function sectionOpts(sec) {
     var idx = S.indexOf(sec);
     var next = idx >= 0 ? S[idx + 1] : null;
-    return { bg: sec.bg, divider: sec.divider, bgImage: sec.bgImage,
+    return { bg: sec.bg, bgA: sec.bgA != null ? sec.bgA : null, divider: sec.divider, bgImage: sec.bgImage,
       fx: sec.fx || null,
       stickUnder: !!(next && next.fx && next.fx.curtain),
       divColor: next ? (next.bg || '#0f0e0c') : null };
@@ -1092,7 +1098,7 @@
   // ---------- history (undo/redo) ----------
   var history = [], hIdx = -1, textTimer = null;
   function serialize() {
-    return JSON.stringify(S.map(function (sec) { return { scope: sec.scope, els: sec.els, minH: sec.minH || null, bg: sec.bg || null, divider: sec.divider || null, fx: sec.fx || null, bgImage: sec.bgImage || null, bgId: sec.bgId || null, src: sec.srcSig || null, boot: sec.bootstrap || false, chrome: sec.chrome || null }; }));
+    return JSON.stringify(S.map(function (sec) { return { scope: sec.scope, els: sec.els, minH: sec.minH || null, bg: sec.bg || null, divider: sec.divider || null, fx: sec.fx || null, bgImage: sec.bgImage || null, bgId: sec.bgId || null, bgA: sec.bgA != null ? sec.bgA : null, src: sec.srcSig || null, boot: sec.bootstrap || false, chrome: sec.chrome || null }; }));
   }
   function pushState() {
     var snap = serialize();
@@ -1140,6 +1146,7 @@
       sec.fx = d.fx || null;
       sec.bgImage = d.bgImage || null;
       sec.bgId = d.bgId || null;
+      sec.bgA = d.bgA != null ? d.bgA : null;
       sec.srcSig = d.src || null;
       sec.bootstrap = !!d.boot;
       sec.chrome = d.chrome || null;
@@ -2725,7 +2732,12 @@
     var tint = sec.bg ? cssToRgb(sec.bg) : null;
     var judge = function (imgL) {
       var bgL;
-      if (tint && imgL != null) bgL = sentinelLum(tint) * 0.62 + imgL * 0.38; // the published tint mix
+      var mixA = (sec.bgA != null ? sec.bgA : 62) / 100; // the dial, or the old default
+      if (tint && imgL != null) bgL = sentinelLum(tint) * mixA + imgL * (1 - mixA); // the published tint mix
+      else if (tint && sec.bgA != null && sec.bgA < 100) {
+        var underRgb = cssToRgb('var(--wp--preset--color--base, #fff)');
+        bgL = sentinelLum(tint) * (sec.bgA / 100) + (underRgb ? sentinelLum(underRgb) : 1) * (1 - sec.bgA / 100);
+      }
       else if (tint) bgL = sentinelLum(tint);
       else if (imgL != null) {
         // no user tint: the auto-scrim (45% theme base) sits behind texty sections
@@ -3904,6 +3916,7 @@
     sec.fx = srcSec.fx ? JSON.parse(JSON.stringify(srcSec.fx)) : null;
     sec.bgImage = srcSec.bgImage || null;
     sec.bgId = srcSec.bgId || null;
+    sec.bgA = srcSec.bgA != null ? srcSec.bgA : null;
     srcSec.wrapEl.after(sec.wrapEl);
     S.splice(idx + 1, 0, sec);
     renderSection(sec);
@@ -4057,6 +4070,7 @@
     sec.fx = model.fx || null;
     sec.bgImage = model.bgImage || null;
     sec.bgId = model.bgId || null;
+    sec.bgA = model.bgA != null ? model.bgA : null;
     var nextContent = null;
     for (var ni = idx; ni < S.length; ni++) { if (!S[ni].chrome) { nextContent = S[ni]; break; } }
     pageParent.insertBefore(sec.wrapEl, (before && before.isConnected) ? before : (nextContent ? nextContent.wrapEl : endMarker));
@@ -4109,6 +4123,8 @@
           ' style="background: ' + val + '" title="' + p.slug + '"></button>';
       }).join('') + '</div>' +
       '<div class="gogh-panel-row gogh-panel-actions"><label class="gogh-colorlab">Custom <input type="color" class="gogh-color gogh-secbg-custom" /></label></div>' +
+      '<div class="gogh-panel-hint">Colour strength</div>' +
+      '<div class="gogh-panel-row"><input type="range" class="gogh-secbg-alpha" min="8" max="100" step="1" value="' + (secx.bgA != null ? secx.bgA : (secx.bgImage && secx.bg ? 62 : 100)) + '" style="flex:1" /><span class="gogh-secbg-alpha-val">' + (secx.bgA != null ? secx.bgA : (secx.bgImage && secx.bg ? 62 : 100)) + '</span></div>' +
       '<div class="gogh-panel-hint">Image</div>' +
       '<div class="gogh-panel-row">' +
       '<input type="url" class="gogh-input" placeholder="Paste image URL…" />' +
@@ -4141,6 +4157,17 @@
       resolveAll();
     });
     custom.addEventListener('change', function () {
+      pushState();
+      contrastSentinel(secx);
+    });
+    var alpha = panel.querySelector('.gogh-secbg-alpha');
+    var alphaVal = panel.querySelector('.gogh-secbg-alpha-val');
+    alpha.addEventListener('input', function () {
+      secx.bgA = +this.value;
+      alphaVal.textContent = this.value;
+      resolveAll();
+    });
+    alpha.addEventListener('change', function () {
       pushState();
       contrastSentinel(secx);
     });
@@ -7202,7 +7229,7 @@
   }
   function canonSec(d) {
     return { els: (d.els || []).map(projEl), minH: d.minH || null, bg: d.bg || null,
-      divider: d.divider || null, bgImage: d.bgImage || null, bgId: d.bgId || null };
+      divider: d.divider || null, bgImage: d.bgImage || null, bgId: d.bgId || null, bgA: d.bgA != null ? d.bgA : null };
   }
   function backupDiffers(data) {
     return JSON.stringify(data.map(canonSec)) !== JSON.stringify(realSections().map(canonSec));
@@ -8678,11 +8705,18 @@
     hideHandles();
     hideSecBar();
     closePanel();
+    // super simple, per James: Next, the count, keep, put back — the
+    // freeform convert and the browse-all live behind experiments for now
+    cycBar.querySelector('.gogh-cyc-edit').style.display = cfg.experiments ? '' : 'none';
+    cycBar.querySelector('.gogh-cyc-more').style.display = cfg.experiments ? '' : 'none';
     cycBar.hidden = false;
     // bring the part on screen — flicking through looks you can't see
     // isn't choosing. Instant, not smooth: preview reflows cancel smooth
     // scrolls midway.
     partEl.scrollIntoView({ block: area === 'footer' ? 'end' : 'start' });
+    // the pill click already MEANS "show me another" — arriving on the
+    // current look and asking for a second click read as clunky
+    st.advance();
     // open on the CURRENT design — 'Next look' starts the flicking
     render();
   }
@@ -11029,6 +11063,7 @@
         sec.fx = model.fx || null;
         sec.bgImage = model.bgImage || null;
         sec.bgId = model.bgId || null;
+        sec.bgA = model.bgA != null ? model.bgA : null;
       });
     }).catch(function (err) {
       console.warn('[gogh] v3 hydration failed:', err);

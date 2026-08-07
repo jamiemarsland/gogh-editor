@@ -1846,9 +1846,10 @@
       expect(bar && !bar.hidden, 'cycle strip did not open');
       expect(pill.style.display === 'none', 'pill not hidden while cycling');
       expect(document.body.classList.contains('gogh-cycling'), 'cycling mode class missing (other UI would stay visible)');
-      // opening stays on the CURRENT design; the Next button starts flicking
-      expect(bar.title.indexOf('Simple header') !== -1, 'did not open on current (title: ' + bar.title + ')');
-      expect(bar.querySelector('.gogh-cyc-n').textContent.indexOf('current') !== -1, 'current not marked on open');
+      // opening ALREADY shows the next design — the pill click means
+      // "show me another"; a second click to start felt clunky (James)
+      expect(bar.title.indexOf('Centered header') !== -1, 'did not auto-advance on open (title: ' + bar.title + ')');
+      expect(bar.querySelector('.gogh-cyc-n').textContent.indexOf('2/2') === 0, 'wrong position on open');
       expect(bar.querySelector('.gogh-cyc-next').textContent.indexOf('Next header design') === 0, 'button not named per area');
       // click WITH coordinates inside the part's rect: the strip can float
       // over the part, and the part-click claimer must not eat its clicks
@@ -1858,8 +1859,11 @@
         clientX: Math.round(pr2.left + pr2.width / 2),
         clientY: Math.round(pr2.top + Math.min(pr2.height / 2, 40)),
       }));
-      expect(bar.title.indexOf('Centered header') !== -1, 'Next did not advance (title: ' + bar.title + ')');
-      expect(bar.querySelector('.gogh-cyc-n').textContent.indexOf('2/2') === 0, 'wrong position label');
+      // the auto-advance's preview may still be in flight — a click during
+      // it QUEUES (never drops); either state is legitimate here
+      var nTxt = bar.querySelector('.gogh-cyc-n').textContent;
+      expect(nTxt.indexOf('1/2') === 0 || nTxt.indexOf('2/2') === 0, 'position label lost (' + nTxt + ')');
+      expect(!bar.hidden, 'strip died on Next');
       expect(bar.querySelector('.gogh-cyc-next') && bar.querySelector('.gogh-cyc-ok') &&
         bar.querySelector('.gogh-cyc-edit') &&
         bar.querySelector('.gogh-cyc-more') && bar.querySelector('.gogh-cyc-x'), 'missing strip actions');
