@@ -46,7 +46,7 @@ A chip shows current state:
 - **"Publish failed"** + a **Retry** button
 
 ### Getting out
-Click `✕` (**Finish editing**) in the side palette. If clean it exits straight away. If dirty you get a dialog:
+Click **🎨 Exit gogh editor** in the WordPress admin toolbar, at the top of the screen — not in the side palette. If clean it exits straight away. If dirty you get a dialog:
 - Title: **"You have unpublished changes"**
 - Body: "Publish them now, keep editing, or discard them and restore the live page."
 - Buttons: **Publish & close** / **Keep editing** / **Discard changes**
@@ -146,8 +146,8 @@ Cards matter because they're what keeps an image + heading + button together whe
 ## PART 5 — THE UI, CONTROL BY CONTROL
 
 ### Side palette (titled "gogh")
-Icon buttons across the top:
-- **Finish editing** (✕)
+Icon buttons across the top. There is no exit control here — leaving edit mode
+is **🎨 Exit gogh editor** in the admin toolbar.
 - **Site style** — theme style-variation drawer (hover to preview, click to keep; grouped Colours / Fonts)
 - **Page style** — page template chooser
 - **Grid: show and snap** — toggles the 8px grid; tooltip becomes "Grid: on"/"Grid: off". **Off by default**, deliberately: "invisible magnets feel broken to beginners" — the grid you snap to is the grid you see.
