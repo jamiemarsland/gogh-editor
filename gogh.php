@@ -447,14 +447,42 @@ add_action( 'rest_api_init', function () {
 } );
 
 /**
- * The gogh product page: WooCommerce sells up top (gallery, price, add to
- * cart — Woo's own blocks), and below it the product's content is a full
- * gogh canvas for the story. Assigned per-product from the admin bar.
+ * Product layouts: a FEW fixed, opinionated templates to pick from — never
+ * a template editor. Classic is WooCommerce's own untouched template; the
+ * gogh layouts add a content canvas below the buy box. Picking happens in
+ * the admin bar, one click, per product.
  */
+function gogh_product_layouts() {
+	return array(
+		''                     => __( 'Classic — WooCommerce\'s own', 'gogh-editor' ),
+		'gogh-product-story'   => __( 'Story — buy box, then your sections', 'gogh-editor' ),
+		'gogh-product-showcase' => __( 'Showcase — image-led and centred', 'gogh-editor' ),
+	);
+}
 add_action( 'init', function () {
 	if ( ! function_exists( 'register_block_template' ) || ! class_exists( 'WooCommerce' ) ) {
 		return;
 	}
+	register_block_template( 'gogh//gogh-product-showcase', array(
+		'title'       => __( 'Product showcase (gogh)', 'gogh-editor' ),
+		'description' => __( 'Image first, everything centred; your sections below.', 'gogh-editor' ),
+		'post_types'  => array( 'product' ),
+		'content'     => '<!-- wp:template-part {"slug":"header"} /-->' .
+			'<!-- wp:group {"tagName":"main","layout":{"inherit":true,"type":"constrained"},"style":{"spacing":{"blockGap":"0","margin":{"top":"0","bottom":"0"}}}} -->' .
+			'<main class="wp-block-group" style="margin-top:0;margin-bottom:0">' .
+			'<!-- wp:woocommerce/store-notices /-->' .
+			'<!-- wp:group {"layout":{"type":"constrained","contentSize":"760px"},"style":{"spacing":{"padding":{"top":"2.5rem","bottom":"2.5rem"},"blockGap":"1rem"}}} --><div class="wp-block-group" style="padding-top:2.5rem;padding-bottom:2.5rem">' .
+			'<!-- wp:woocommerce/product-image-gallery /-->' .
+			'<!-- wp:post-title {"level":1,"textAlign":"center","__woocommerceNamespace":"woocommerce/product-query/product-title"} /-->' .
+			'<!-- wp:group {"layout":{"type":"flex","orientation":"vertical","justifyContent":"center"}} --><div class="wp-block-group">' .
+			'<!-- wp:woocommerce/product-price {"isDescendentOfSingleProductTemplate":true,"textAlign":"center","fontSize":"large"} /-->' .
+			'<!-- wp:woocommerce/add-to-cart-form /-->' .
+			'</div><!-- /wp:group -->' .
+			'</div><!-- /wp:group -->' .
+			'<!-- wp:post-content /-->' .
+			'</main><!-- /wp:group -->' .
+			'<!-- wp:template-part {"slug":"footer"} /-->',
+	) );
 	register_block_template( 'gogh//gogh-product-story', array(
 		'title'       => __( 'Product story (gogh)', 'gogh-editor' ),
 		'description' => __( 'Woo sells up top; gogh tells the story below.', 'gogh-editor' ),
@@ -479,14 +507,23 @@ add_action( 'init', function () {
 	) );
 } );
 
-add_action( 'admin_post_gogh_product_story', function () {
-	$id = isset( $_GET['id'] ) ? (int) $_GET['id'] : 0;
+add_action( 'admin_post_gogh_product_layout', function () {
+	$id     = isset( $_GET['id'] ) ? (int) $_GET['id'] : 0;
+	$layout = isset( $_GET['layout'] ) ? sanitize_text_field( wp_unslash( $_GET['layout'] ) ) : '';
 	if ( ! $id || ! current_user_can( 'edit_post', $id ) ) {
 		wp_die( esc_html__( 'You cannot edit this product.', 'gogh-editor' ) );
 	}
-	check_admin_referer( 'gogh_product_story_' . $id );
-	update_post_meta( $id, '_wp_page_template', 'gogh-product-story' );
-	wp_safe_redirect( add_query_arg( 'gogh-edit', '1', get_permalink( $id ) ) );
+	check_admin_referer( 'gogh_product_layout_' . $id );
+	if ( ! array_key_exists( $layout, gogh_product_layouts() ) ) {
+		wp_die( esc_html__( 'Unknown layout.', 'gogh-editor' ) );
+	}
+	if ( '' === $layout ) {
+		delete_post_meta( $id, '_wp_page_template' );
+		wp_safe_redirect( get_permalink( $id ) );
+	} else {
+		update_post_meta( $id, '_wp_page_template', $layout );
+		wp_safe_redirect( add_query_arg( 'gogh-edit', '1', get_permalink( $id ) ) );
+	}
 	exit;
 } );
 
@@ -686,10 +723,11 @@ add_action( 'wp_enqueue_scripts', function () {
 	// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only view toggle; editor assets are capability-gated below.
 	$want_edit = isset( $_GET['gogh-edit'] );
 	$can_edit  = current_user_can( 'edit_post', $post->ID );
-	// products: the editor belongs on the Product story template only — on
-	// Woo's own template the description hides in tabs and the canvas would
-	// fight the buy box (the admin bar offers the door instead)
-	if ( 'product' === $post->post_type && 'gogh-product-story' !== get_page_template_slug( $post ) ) {
+	// products: the editor belongs on gogh's own layouts only — on Woo's
+	// classic template the description hides in tabs and the canvas would
+	// fight the buy box (the admin bar's layout menu is the door)
+	if ( 'product' === $post->post_type &&
+		! in_array( get_page_template_slug( $post ), array( 'gogh-product-story', 'gogh-product-showcase' ), true ) ) {
 		return;
 	}
 	// visitors only need assets on gogh pages; EDITORS get the editor on
@@ -904,17 +942,28 @@ add_action( 'admin_bar_menu', function ( $bar ) {
 	foreach ( array( 'site-editor', 'edit-site', 'customize', 'comments', 'new-content', 'edit' ) as $id ) {
 		$bar->remove_node( $id );
 	}
-	// products on Woo's own template: the admin bar offers the door into
-	// the gogh Product story template (the editor stays away until then)
-	if ( is_singular( 'product' ) ) {
+	// products: a tiny layout menu — pick one of a few fixed layouts,
+	// never edit a template
+	if ( is_singular( 'product' ) && function_exists( 'gogh_product_layouts' ) ) {
 		$pid = get_queried_object_id();
-		if ( $pid && current_user_can( 'edit_post', $pid ) &&
-			'gogh-product-story' !== get_page_template_slug( $pid ) ) {
+		if ( $pid && current_user_can( 'edit_post', $pid ) ) {
+			$current = get_page_template_slug( $pid );
+			$layouts = gogh_product_layouts();
+			if ( ! isset( $layouts[ $current ] ) ) {
+				$current = '';
+			}
 			$bar->add_node( array(
-				'id'    => 'gogh-product-story',
-				'title' => '🎨 Design this product page',
-				'href'  => wp_nonce_url( admin_url( 'admin-post.php?action=gogh_product_story&id=' . $pid ), 'gogh_product_story_' . $pid ),
+				'id'    => 'gogh-product-layout',
+				'title' => '🎨 Product layout',
 			) );
+			foreach ( $layouts as $slug => $label ) {
+				$bar->add_node( array(
+					'id'     => 'gogh-product-layout-' . ( $slug ? $slug : 'classic' ),
+					'parent' => 'gogh-product-layout',
+					'title'  => ( $slug === $current ? '✓ ' : '' ) . $label,
+					'href'   => wp_nonce_url( admin_url( 'admin-post.php?action=gogh_product_layout&id=' . $pid . '&layout=' . rawurlencode( $slug ) ), 'gogh_product_layout_' . $pid ),
+				) );
+			}
 		}
 	}
 	// one thing beginners DO need from the old menu: a new page — and it
