@@ -815,7 +815,14 @@ add_action( 'wp_enqueue_scripts', function () {
 		// the transparent header floats over the first section: absolutely
 		// positioned with a soft top scrim so white chrome reads on any hero
 		'header.wp-block-template-part:has(> .gogh-header-overlay), header.wp-block-template-part:has(.gogh-header-overlay) { position: absolute; top: var(--wp-admin--admin-bar--height, 0px); left: 0; right: 0; z-index: 40; background: transparent; }' .
-		'.gogh-header-overlay { background: linear-gradient(to bottom, rgba(12, 12, 16, 0.38), transparent) !important; }'
+		'.gogh-header-overlay { background: linear-gradient(to bottom, rgba(12, 12, 16, 0.38), transparent) !important; }' .
+		// WooCommerce block-hooks append cart/account icons after the nav in
+		// every header — give them a deliberate seat instead of a random one:
+		// nav pushes right, icons tuck in beside it, stacks stay centred
+		'.gogh-hrow { align-items: center; gap: 1.1rem; }' .
+		'.gogh-hrow > .wp-block-navigation { margin-left: auto; }' .
+		'.gogh-hrow > [class*="mini-cart"], .gogh-hrow > [class*="customer-account"] { flex: none; }' .
+		'.gogh-hstack > [class*="mini-cart"], .gogh-hstack > [class*="customer-account"] { align-self: center; }'
 	);
 
 	if ( ! current_user_can( 'edit_post', $post->ID ) ) {

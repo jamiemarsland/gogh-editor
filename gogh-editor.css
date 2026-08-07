@@ -190,6 +190,19 @@
 .gogh-side-gap { flex: none; height: 10px; }
 .gogh-addmenu { display: grid; grid-template-columns: 1fr 1fr; gap: 2px; min-width: 250px; margin-top: 6px; }
 
+/* products preview: the sketch shows what Woo will render — button included */
+.gogh-postsprev-btn {
+  display: inline-block;
+  margin-top: 0.6em;
+  padding: 0.55em 1.3em;
+  border-radius: 999px;
+  background: color-mix(in srgb, currentColor 88%, transparent);
+  color: var(--wp--preset--color--base, #fff);
+  font-size: 0.8em;
+  font-weight: 600;
+  pointer-events: none;
+}
+
 /* featured product picker */
 .gogh-featlist { display: flex; flex-direction: column; gap: 4px; min-width: 280px; max-height: 320px; overflow-y: auto; overflow-x: hidden; margin-top: 8px; }
 .gogh-featrow {

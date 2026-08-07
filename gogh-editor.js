@@ -2653,6 +2653,7 @@
           (img ? '<img src="' + escAttr(img) + '" alt="" />' : '<div class="gogh-postsprev-ph"></div>') +
           '<h3>' + esc(p.name || 'Product') + '</h3>' +
           '<div class="gogh-postsprev-date">' + esc(price) + '</div>' +
+          '<span class="gogh-postsprev-btn">Add to cart</span>' +
           '</div>';
       }).join('') + '</div>';
       renderSection(sec);
@@ -4372,6 +4373,9 @@
         // at the very bottom of the screen the pills would clip — keep them
         // reachable just inside the viewport
         found.y = Math.min(found.y, window.innerHeight - 36);
+        // the TOP boundary shares its corner with the fixed Change-header
+        // pill — keep + Section below it instead of cropping into it
+        if (found.first) found.y = Math.max(found.y, 132);
         // anchor to the block's own centre — themes with padded layouts
         // (Ollie) don't run sections to the viewport edge, so 50% drifts
         var refNode = found.node || bNodes[bNodes.length - 1];
@@ -10696,7 +10700,7 @@
       // a verb + swap arrows: the pill CHANGES the design — a bare noun and
       // layers icon read as a label, not an invitation
       b.innerHTML = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 3l4 4-4 4"/><path d="M20 7H7a4 4 0 0 0-4 4"/><path d="M8 21l-4-4 4-4"/><path d="M4 17h13a4 4 0 0 0 4-4"/></svg>' +
-        (partEl.tagName === 'FOOTER' ? 'Change footer' : 'Change header');
+        (partEl.tagName === 'FOOTER' ? 'Change footer layout' : 'Change header layout');
       b.dataset.tip = 'Flick through ' + (partEl.tagName === 'FOOTER' ? 'footer' : 'header') + ' designs';
       b.__goghPart = partEl;
       // both pills are viewport-fixed and centred on their edge — where
