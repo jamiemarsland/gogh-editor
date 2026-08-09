@@ -560,15 +560,12 @@ body.gogh-help-open .gogh-toasts { right: 416px; }
   position: absolute;
   z-index: 99996;
   pointer-events: none;
-  border: 1.5px dashed rgba(126, 168, 255, 0.95);
+  border: 1.5px dashed rgba(126, 168, 255, 0.9);
   border-radius: 8px;
-  /* the landing pad reads as a SOCKET (Squarespace's cell tangibility):
-     a soft fill plus faint interior cell lines matching the drag grid */
-  background:
-    linear-gradient(to right, rgba(126, 168, 255, 0.34) 1px, transparent 1px),
-    linear-gradient(to bottom, rgba(126, 168, 255, 0.34) 1px, transparent 1px),
-    rgba(126, 168, 255, 0.22);
-  background-size: 40px 40px, 40px 40px, auto; /* JS refines to the true cell */
+  /* tried Squarespace's tiled socket here — it reads as a smear under
+     gogh's TRANSPARENT elements (their blocks are opaque cards). The quiet
+     fill + the drag grid carry the legibility. */
+  background: rgba(126, 168, 255, 0.07);
 }
 .gogh-dropbox[hidden] { display: none; }
 
@@ -679,6 +676,7 @@ body.gogh-help-open .gogh-toasts { right: 416px; }
   outline: 1px solid rgba(22, 24, 28, 0.08);
 }
 .gogh-thumb:hover { outline: 2px solid #4a63d8; }
+.gogh-thumb.is-active { outline: 2.5px solid #4a63d8; box-shadow: 0 0 0 4px rgba(74, 99, 216, 0.18); }
 
 /* alignment guides */
 .gogh-guide {

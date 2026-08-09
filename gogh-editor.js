@@ -2350,15 +2350,6 @@
         var box = panel.querySelector('.gogh-media');
         if (!box || panel.hidden) return;
         box.innerHTML = '';
-        // a section BACKGROUND wants big, wide-ish images — logos, cutouts
-        // and portraits are noise here (Upload and the URL row still take
-        // anything). Fall back to everything if the filter empties the shelf.
-        var bgish = items.filter(function (it) {
-          var d = it.media_details || {};
-          return d.width >= 700 && d.width >= (d.height || 0) * 0.75;
-        }).slice(0, 8);
-        if (bgish.length) items = bgish;
-        else items = items.slice(0, 8);
         if (!items.length) {
           box.innerHTML = '<span class="gogh-media-loading">No images in the media library yet.</span>';
           reclampPanel();
@@ -4343,7 +4334,8 @@
     S[idx].bgId = src ? (id || null) : null;
     syncBootInvite(S[idx]);
     resolveAll();
-    closePanel();
+    // the panel STAYS open — picking an image is an audition, not a
+    // dismissal; people flick between backgrounds while deciding
     pushState();
     contrastSentinel(S[idx]);
   }
@@ -4518,14 +4510,27 @@
         var box = panel.querySelector('.gogh-media');
         if (!box || panel.hidden) return;
         box.innerHTML = '';
+        // a section BACKGROUND wants big, wide-ish images — logos, cutouts
+        // and portraits are noise on this shelf (Upload and the URL row
+        // still take anything); an over-strict filter falls back to recency
+        var bgish = items.filter(function (it) {
+          var d = it.media_details || {};
+          return d.width >= 700 && d.width >= (d.height || 0) * 0.75;
+        }).slice(0, 8);
+        items = bgish.length ? bgish : items.slice(0, 8);
         items.forEach(function (item) {
           var thumb = (item.media_details && item.media_details.sizes &&
             (item.media_details.sizes.thumbnail || item.media_details.sizes.medium));
           var b = document.createElement('button');
           b.type = 'button';
-          b.className = 'gogh-thumb';
+          b.className = 'gogh-thumb' + (S[idx].bgImage === item.source_url ? ' is-active' : '');
           b.style.backgroundImage = 'url("' + (thumb ? thumb.source_url : item.source_url) + '")';
-          b.addEventListener('click', function () { setSecBg(idx, item.source_url, item.id); });
+          b.addEventListener('click', function () {
+            setSecBg(idx, item.source_url, item.id);
+            box.querySelectorAll('.gogh-thumb').forEach(function (o) {
+              o.classList.toggle('is-active', o === b);
+            });
+          });
           box.appendChild(b);
         });
         reclampPanel();
@@ -5098,10 +5103,7 @@
         dropBox.style.top = b2.y + 'px';
         dropBox.style.width = b2.w + 'px';
         dropBox.style.height = b2.h + 'px';
-        // interior cell lines match the drag grid's true cell (the box lives
-        // on body, so container units can't reach it)
-        var cellPx = sec.sectionEl.getBoundingClientRect().width / 30;
-        dropBox.style.backgroundSize = cellPx + 'px ' + cellPx + 'px, ' + cellPx + 'px ' + cellPx + 'px, auto';
+
         if (!drag.multi) {
           var jt = cardJoinTarget(sec, drag.i);
           if (jt === -1) {
