@@ -936,6 +936,10 @@
       expect(sheet && sheet.classList.contains('is-open'), 'help sheet did not open');
       var src = sheet.querySelector('iframe').getAttribute('src');
       expect(src.indexOf('v=') !== -1 && src.indexOf('0.99') !== -1, 'build number not passed to the bot (' + src + ')');
+      // the edit-mode iframe-inerting rule must not reach the sheet — an
+      // inert help bot cannot be typed into (James, three reports running)
+      var pe = getComputedStyle(sheet.querySelector('iframe')).pointerEvents;
+      expect(pe === 'auto', 'help iframe is inert (pointer-events: ' + pe + ') — the ask box cannot be focused');
       sheet.querySelector('.gogh-helpsheet-x').click();
       expect(!sheet.classList.contains('is-open'), 'close did not close');
       return 'sheet opens, knows the build, closes';
