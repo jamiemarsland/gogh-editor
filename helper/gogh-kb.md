@@ -15,7 +15,7 @@ about something where they conflict, rather than picking one silently. Quote UI
 labels and message copy from the appendix, verbatim — those are the current
 strings, and a paraphrased button label is the fastest way to lose a user's trust.
 
-Generated for plugin version 0.99.24 · knowledge base 27e6546.
+Generated for plugin version 0.99.30 · knowledge base abcb5b1.
 
 ---
 
@@ -783,11 +783,11 @@ Everything in this section is extracted mechanically from the Gogh source on eve
 
 ## Current release
 
-- Plugin version: **0.99.24**
+- Plugin version: **0.99.30**
 - Requires WordPress **6.5+**, PHP **7.4+**
 - Text domain: `gogh-editor`
 - readme.txt Stable tag: `0.26.0` · Tested up to: `7.0`
-- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.24`). Quote the plugin header version.
+- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.30`). Quote the plugin header version.
 
 ## Design constants
 
@@ -815,11 +815,11 @@ Everything in this section is extracted mechanically from the Gogh source on eve
 
 ## Section templates
 
-Shown in the picker: **Hero**, **Feature cards**, **Big statement**, **Quote**, **Call to action**, **Article**, **Photo cards**, **Gallery**, **Get in touch**.
+Shown in the picker: **Hero**, **Big statement**, **Story**, **Numbers**, **Article**, **Feature cards**, **Pricing**, **Quote**, **Call to action**, **Get in touch**, **Gallery**, **Photo cards**, **Portfolio**, **Menu**, **Team**.
 
 Non-starter (surfaced elsewhere): **Start from scratch**.
 
-Retired — never shown, do not mention: Hero, Hero — centered, Split, Features, Call to action, Feature cards (classic).
+Retired — never shown, do not mention: Hero, Hero — centered, Split, Features, Call to action.
 
 ## Shapes and dividers
 
@@ -911,6 +911,7 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "Add an element to this section"
 - "Add link"
 - "Add to page"
+- "Adjust spacing"
 - "All options"
 - "Apply"
 - "Back"
@@ -1001,6 +1002,7 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "Your latest products, live — prices and add to cart included"
 - "gogh help"
 - "← All layouts"
+- "↕ Spacing…"
 - "✏️ Edit with gogh"
 - "✨ Make freeform"
 
@@ -1079,4 +1081,4 @@ These are the real strings in the current build. Use them verbatim; never paraph
 
 ## Test suite
 
-`123` tests, run by appending `?gogh-test` to any Gogh page URL while logged in with edit rights on that page.
+`126` tests, run by appending `?gogh-test` to any Gogh page URL while logged in with edit rights on that page.
