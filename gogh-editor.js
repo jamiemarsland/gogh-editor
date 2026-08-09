@@ -252,7 +252,7 @@
       minH: model.minH || (bootEls.length ? null : 480),
       bg: model.bg || null, divider: model.divider || null,
       fx: model.fx || null,
-      bgImage: model.bgImage || null, bgId: model.bgId || null, bgA: model.bgA != null ? model.bgA : null,
+      bgImage: model.bgImage || null, bgId: model.bgId || null, bgA: model.bgA != null ? model.bgA : null, theme: model.theme || null,
       wrapEl: wrap, sectionEl: sectionEl, styleEl: styleEl, nodes: [] });
   });
 
@@ -770,7 +770,7 @@
       version: version, designW: W, minH: sec.minH || null,
       bg: sec.bg || null, divider: sec.divider || null,
       fx: sec.fx || null,
-      bgImage: sec.bgImage || null, bgId: sec.bgId || null, bgA: sec.bgA != null ? sec.bgA : null,
+      bgImage: sec.bgImage || null, bgId: sec.bgId || null, bgA: sec.bgA != null ? sec.bgA : null, theme: sec.theme || null,
       elements: sec.els.map(projEl),
     };
   }
@@ -1098,7 +1098,7 @@
   // ---------- history (undo/redo) ----------
   var history = [], hIdx = -1, textTimer = null;
   function serialize() {
-    return JSON.stringify(S.map(function (sec) { return { scope: sec.scope, els: sec.els, minH: sec.minH || null, bg: sec.bg || null, divider: sec.divider || null, fx: sec.fx || null, bgImage: sec.bgImage || null, bgId: sec.bgId || null, bgA: sec.bgA != null ? sec.bgA : null, src: sec.srcSig || null, boot: sec.bootstrap || false, chrome: sec.chrome || null }; }));
+    return JSON.stringify(S.map(function (sec) { return { scope: sec.scope, els: sec.els, minH: sec.minH || null, bg: sec.bg || null, divider: sec.divider || null, fx: sec.fx || null, bgImage: sec.bgImage || null, bgId: sec.bgId || null, bgA: sec.bgA != null ? sec.bgA : null, theme: sec.theme || null, src: sec.srcSig || null, boot: sec.bootstrap || false, chrome: sec.chrome || null }; }));
   }
   function pushState() {
     var snap = serialize();
@@ -1147,6 +1147,7 @@
       sec.bgImage = d.bgImage || null;
       sec.bgId = d.bgId || null;
       sec.bgA = d.bgA != null ? d.bgA : null;
+      sec.theme = d.theme || null;
       sec.srcSig = d.src || null;
       sec.bootstrap = !!d.boot;
       sec.chrome = d.chrome || null;
@@ -3993,6 +3994,7 @@
     sec.bgImage = srcSec.bgImage || null;
     sec.bgId = srcSec.bgId || null;
     sec.bgA = srcSec.bgA != null ? srcSec.bgA : null;
+    sec.theme = srcSec.theme || null;
     srcSec.wrapEl.after(sec.wrapEl);
     S.splice(idx + 1, 0, sec);
     renderSection(sec);
@@ -4147,6 +4149,7 @@
     sec.bgImage = model.bgImage || null;
     sec.bgId = model.bgId || null;
     sec.bgA = model.bgA != null ? model.bgA : null;
+    sec.theme = model.theme || null;
     var nextContent = null;
     for (var ni = idx; ni < S.length; ni++) { if (!S[ni].chrome) { nextContent = S[ni]; break; } }
     pageParent.insertBefore(sec.wrapEl, (before && before.isConnected) ? before : (nextContent ? nextContent.wrapEl : endMarker));
@@ -4156,6 +4159,58 @@
     hideHandles();
     sec.wrapEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
     pushState();
+  }
+  // ---------- section themes: pick a look, never a hex ----------
+  // A few named looks derived from the LIVE palette — each carries a
+  // background and a contrast-verified ink, and because they're written as
+  // var() expressions they re-dress automatically when the site style
+  // changes. Freedom in layout, constraint in style.
+  function bestInkFor(bgCss) {
+    var rgb = cssToRgb(bgCss);
+    var bgL = rgb ? sentinelLum(rgb) : 1;
+    var best = 'contrast', bestC = 0;
+    themePalette().forEach(function (p) {
+      if (!/^(base|contrast)(-|$)/.test(p.slug)) return;
+      var prgb = cssToRgb(p.value);
+      if (!prgb) return;
+      var c = sentinelContrast(sentinelLum(prgb), bgL);
+      if (c > bestC) { bestC = c; best = p.slug; }
+    });
+    return best;
+  }
+  function sectionThemes() {
+    var v = function (slug) { return 'var(--wp--preset--color--' + slug + ')'; };
+    var pal = themePalette();
+    var has = {};
+    pal.forEach(function (p) { has[p.slug] = 1; });
+    if (!has.base || !has.contrast) return [];
+    var out = [
+      { slug: 'paper', name: 'Paper', bg: v('base'), ink: 'contrast' },
+      { slug: 'mist', name: 'Mist', bg: 'color-mix(in srgb, ' + v('contrast') + ' 6%, ' + v('base') + ')', ink: 'contrast' },
+      { slug: 'ink', name: 'Ink', bg: v('contrast'), ink: 'base' },
+    ];
+    ['accent-1', 'accent-2'].forEach(function (a, k) {
+      if (!has[a]) return;
+      out.push({ slug: a, name: 'Accent ' + (k + 1), bg: v(a), ink: bestInkFor(v(a)) });
+      out.push({ slug: a + '-soft', name: 'Accent ' + (k + 1) + ' soft',
+        bg: 'color-mix(in srgb, ' + v(a) + ' 14%, ' + v('base') + ')', ink: 'contrast' });
+    });
+    return out;
+  }
+  function applySectionTheme(idx, theme) {
+    var secx = S[idx];
+    pushState();
+    secx.theme = theme.slug;
+    secx.bg = theme.bg;
+    secx.bgA = null;
+    // the theme restyles the section's INK too — that's what makes it a
+    // theme and not a background (undo covers a change of heart)
+    secx.els.forEach(function (e) {
+      if (isText(e) || e.type === 'badge') e.color = theme.ink;
+    });
+    syncBootInvite(secx);
+    renderSection(secx);
+    resolveAll();
   }
   // the invite lives in the rendered section — keep it honest when a
   // background arrives (or leaves) without a full re-render
@@ -4190,6 +4245,13 @@
     var pal = pickerPalette();
     panel.innerHTML =
       '<div class="gogh-panel-title">Section background</div>' +
+      '<div class="gogh-panel-hint">Theme \u2014 a look for the section and its words</div>' +
+      '<div class="gogh-themerow">' +
+      sectionThemes().map(function (t) {
+        return '<button type="button" class="gogh-themechip' + (secx.theme === t.slug ? ' is-active' : '') + '" data-theme="' + t.slug + '" title="' + escAttr(t.name) + '">' +
+          '<span class="gogh-themechip-swatch" style="background:' + escAttr(t.bg) + ';color:var(--wp--preset--color--' + t.ink + ')">Aa</span>' +
+          '</button>';
+      }).join('') + '</div>' +
       '<div class="gogh-panel-hint">Colour \u2014 with an image, it becomes the tint</div>' +
       '<div class="gogh-swrow gogh-secbg-sw">' +
       '<button type="button" class="gogh-sw gogh-sw-none" data-val="" title="None"></button>' +
@@ -4213,9 +4275,21 @@
       '<div class="gogh-media"><span class="gogh-media-loading">Loading media…</span></div>';
     panel.hidden = false;
     panelOpen = true;
+    var themeDefs = sectionThemes();
+    panel.querySelectorAll('.gogh-themechip').forEach(function (tc) {
+      tc.addEventListener('click', function () {
+        var t = themeDefs.filter(function (x) { return x.slug === tc.dataset.theme; })[0];
+        if (!t) return;
+        applySectionTheme(idx, t);
+        panel.querySelectorAll('.gogh-themechip').forEach(function (o) {
+          o.classList.toggle('is-active', o === tc);
+        });
+      });
+    });
     panel.querySelectorAll('.gogh-secbg-sw .gogh-sw').forEach(function (swb) {
       swb.addEventListener('click', function () {
         secx.bg = swb.dataset.val || null;
+        secx.theme = null;
         syncBootInvite(secx);
         resolveAll();
         pushState();
@@ -6829,6 +6903,8 @@
     addElementToSection: addElementToSection,
     composeFeaturedProduct: composeFeaturedProduct,
     contrastSentinel: contrastSentinel,
+    sectionThemes: sectionThemes,
+    applySectionTheme: applySectionTheme,
     openSecAdd: openSecAddPanel,
     showGuides: showGuides,
     addShape: addShapeAtViewport,
@@ -7305,7 +7381,7 @@
   }
   function canonSec(d) {
     return { els: (d.els || []).map(projEl), minH: d.minH || null, bg: d.bg || null,
-      divider: d.divider || null, bgImage: d.bgImage || null, bgId: d.bgId || null, bgA: d.bgA != null ? d.bgA : null };
+      divider: d.divider || null, bgImage: d.bgImage || null, bgId: d.bgId || null, bgA: d.bgA != null ? d.bgA : null, theme: d.theme || null };
   }
   function backupDiffers(data) {
     return JSON.stringify(data.map(canonSec)) !== JSON.stringify(realSections().map(canonSec));
@@ -11182,6 +11258,7 @@
         sec.bgImage = model.bgImage || null;
         sec.bgId = model.bgId || null;
         sec.bgA = model.bgA != null ? model.bgA : null;
+        sec.theme = model.theme || null;
       });
     }).catch(function (err) {
       console.warn('[gogh] v3 hydration failed:', err);

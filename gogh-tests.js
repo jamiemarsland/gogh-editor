@@ -840,6 +840,25 @@
       return 'dark ground → light ink, light ground → untouched';
     });
 
+    test('section themes: pick a look, the words come with it', function () {
+      var themes = G.sectionThemes();
+      expect(themes.length >= 3, 'expected at least Paper/Mist/Ink, got ' + themes.length);
+      G.addSection({ title: 'TH', minH: 240, els: [ { type: 'heading', x: 90, y: 40, w: 500, h: 60, text: 'Themed' } ] });
+      var c = contentSecs();
+      var s2 = c[c.length - 1];
+      var idx = G.sections().indexOf(s2);
+      var ink = themes.filter(function (t2) { return t2.slug === 'ink'; })[0];
+      expect(ink, 'no Ink look derived');
+      G.applySectionTheme(idx, ink);
+      expect(s2.theme === 'ink', 'theme not recorded on the section');
+      expect(String(s2.bg).indexOf('--wp--preset--color--contrast') !== -1, 'Ink bg should ride the contrast var');
+      expect(s2.els[0].color === 'base', 'heading ink should flip to base (got ' + s2.els[0].color + ')');
+      var snap = G.serialize();
+      expect(snap.indexOf('"theme":"ink"') !== -1, 'theme should serialize');
+      G.deleteSection(G.sections().indexOf(s2));
+      return themes.length + ' looks; Ink flips bg and words together';
+    });
+
     test('help: the ? opens the bot with the true build number', function () {
       var btn = q('.gogh-side .gogh-help');
       if (!btn) return 'no helpUrl configured — button rightly absent';
