@@ -15,7 +15,7 @@ about something where they conflict, rather than picking one silently. Quote UI
 labels and message copy from the appendix, verbatim — those are the current
 strings, and a paraphrased button label is the fastest way to lose a user's trust.
 
-Generated for plugin version 0.99.31 · knowledge base 63c98c0.
+Generated for plugin version 0.99.32 · knowledge base 5be6598.
 
 ---
 
@@ -783,11 +783,11 @@ Everything in this section is extracted mechanically from the Gogh source on eve
 
 ## Current release
 
-- Plugin version: **0.99.31**
+- Plugin version: **0.99.32**
 - Requires WordPress **6.5+**, PHP **7.4+**
 - Text domain: `gogh-editor`
 - readme.txt Stable tag: `0.26.0` · Tested up to: `7.0`
-- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.31`). Quote the plugin header version.
+- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.32`). Quote the plugin header version.
 
 ## Design constants
 
@@ -815,7 +815,7 @@ Everything in this section is extracted mechanically from the Gogh source on eve
 
 ## Section templates
 
-Shown in the picker: **Hero**, **Big statement**, **Story**, **Numbers**, **Article**, **Feature cards**, **Pricing**, **Quote**, **Call to action**, **Get in touch**, **Gallery**, **Photo cards**, **Portfolio**, **Menu**, **Team**.
+Shown in the picker: **Hero**, **Big statement**, **Story**, **Numbers**, **Article**, **Feature cards**, **Pricing**, **Quote**, **Call to action**, **Get in touch**, **FAQ**, **Gallery**, **Photo cards**, **Portfolio**, **Menu**, **Team**.
 
 Non-starter (surfaced elsewhere): **Start from scratch**.
 
@@ -1081,4 +1081,4 @@ These are the real strings in the current build. Use them verbatim; never paraph
 
 ## Test suite
 
-`126` tests, run by appending `?gogh-test` to any Gogh page URL while logged in with edit rights on that page.
+`128` tests, run by appending `?gogh-test` to any Gogh page URL while logged in with edit rights on that page.
