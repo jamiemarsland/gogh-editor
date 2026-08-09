@@ -731,12 +731,17 @@
     });
 
     test('centring a text box centres the ink, not the box', function () {
-      addToSec('heading');
-      var n = sec().els.length - 1;
+      // an OWN section: the living fixture's cumulative reflow pushes can
+      // park symmetric neighbours anywhere, and their equal-spacing magnet
+      // then legitimately catches the box at 600 — this test is about the
+      // ink magnet alone, so it gets an empty room
+      G.addSection({ name: 'INK', minH: 600, els: [
+        { type: 'heading', x: 100, y: 200, w: 500, h: 60, text: 'A new heading' },
+      ] }, G.sections().length);
+      var inkSec = lastSec();
+      var sec = function () { return inkSec; };
+      var n = 0;
       var e = sec().els[n];
-      // wide enough that the words leave slack, narrow enough that the ink
-      // can reach the section centre without the box hitting the right edge
-      e.w = 500; e.x = 100; e.y = 1900;
       G.resolve(sec()); G.measure(sec()); G.resolve(sec());
       var node = sec().nodes[n];
       var host = node.matches('h1,h2,h3,h4,p') ? node : (node.querySelector('h1,h2,h3,h4,p') || node);
@@ -745,7 +750,7 @@
       var s = sec().sectionEl.getBoundingClientRect().width / 1200;
       var tw = rng.getBoundingClientRect().width / s;
       expect(tw > 0 && tw < e.w - 40, 'heading text should be narrower than its box (tw=' + Math.round(tw) + ')');
-      select(n);
+      pev('pointerdown', sec().nodes[n]); // the outer select() helper aims at the FIXTURE section
       var grip = q('.gogh-grip');
       // release with the INK's centre 1 unit shy of the section centre —
       // only the text-centre magnet can finish it (box centre is far away)
@@ -761,6 +766,7 @@
       dragBy(q('.gogh-grip'), dx2, 0, 98);
       var boxCentre = Math.round(sec().els[n].x + e2.w / 2);
       expect(boxCentre !== 600, 'box centre snapped to 600 — the box magnet should be gone for slack text');
+      G.deleteSection(G.sections().indexOf(inkSec));
       return 'words centred at 600; box magnet retired for slack text';
     });
 
@@ -999,6 +1005,53 @@
       }
       expect(G.sections().length === s0, 'cleanup failed');
       return 'grown text pushes its neighbours down on insert';
+    });
+
+    test('card moods: hover choreography in the CSS, mood in the model', function () {
+      G.addSection({ name: 'MOOD', minH: 400, els: [
+        { type: 'box', x: 80, y: 60, w: 320, h: 280, radius: 18, mood: 'lift',
+          boxBg: 'color-mix(in srgb, var(--wp--preset--color--contrast, #000) 7%, var(--wp--preset--color--base, transparent))',
+          kids: [ { type: 'heading', x: 24, y: 24, w: 200, h: 40, text: 'Lifted' } ] },
+        { type: 'box', x: 440, y: 60, w: 320, h: 280, radius: 18, mood: 'veil',
+          boxImg: '/wp-content/plugins/gogh/demo-assets/sunflowers.jpg',
+          kids: [ { type: 'heading', x: 24, y: 24, w: 200, h: 40, text: 'Veiled' } ] },
+        { type: 'box', x: 800, y: 60, w: 320, h: 280, radius: 18, mood: 'zoom' },
+      ] }, G.sections().length);
+      var c = contentSecs();
+      var s2 = c[c.length - 1];
+      try {
+        var css = s2.styleEl.textContent;
+        expect(/:hover\s*{\s*transform:\s*translateY\(-8px\)/.test(css), 'lift hover missing');
+        expect(/::before[^}]*filter:\s*blur/.test(css.replace(/\n/g, ' ')) || /:hover::before\s*{\s*filter:\s*blur/.test(css), 'veil blur missing');
+        // the veil moves the PICTURE to ::before — the words never blur
+        expect(/::before[^}]*background:[^}]*sunflowers/.test(css.replace(/\n/g, ' ')), 'veil background not on the pseudo');
+        expect(/:hover\s*{\s*transform:\s*scale\(1\.03\)/.test(css), 'zoom hover missing');
+        // the mood survives the model round-trip
+        expect(/"mood":"lift"/.test(G.serialize()), 'mood not serialized');
+      } finally {
+        G.deleteSection(G.sections().indexOf(s2));
+      }
+      return 'lift, veil and zoom all emit; mood rides the model';
+    });
+
+    test('FAQ starter: a real accordion block rides the widget', function () {
+      var tpl = G.templates().filter(function (t) { return t.name === 'FAQ'; })[0];
+      expect(tpl, 'FAQ template missing');
+      var w = tpl.els.filter(function (e) { return e.type === 'widget'; })[0];
+      expect(w && /wp:accordion/.test(w.wsrc), 'widget must carry core/accordion source');
+      expect(/accordion-heading__toggle/.test(w.wsrc), 'canonical heading toggle missing from source');
+      expect(w.whtml && /wp-block-accordion/.test(w.whtml), 'editor preview markup missing');
+      var s0 = G.sections().length;
+      G.addSection(tpl, G.sections().length);
+      var added = lastSec();
+      try {
+        var node = added.sectionEl.querySelector('.gogh-widget .wp-block-accordion');
+        expect(node, 'accordion preview did not render in the canvas');
+      } finally {
+        G.deleteSection(G.sections().indexOf(added));
+      }
+      expect(G.sections().length === s0, 'cleanup failed');
+      return 'source is a true core/accordion; canvas shows the preview';
     });
 
     test('header designer: dials rewrite native spacing, and round-trip', function () {

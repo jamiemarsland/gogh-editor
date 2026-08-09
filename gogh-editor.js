@@ -451,21 +451,47 @@
       if (e.type === 'box') {
         var bv = e.boxBg || '';
         if (bv && /^[a-z0-9-]+$/.test(bv)) bv = 'var(--wp--preset--color--' + bv + ')';
+        var boxBgCss = '';
         if (e.boxImg) {
           var bimg = 'url("' + String(e.boxImg).replace(/"/g, '%22') + '") center / cover no-repeat';
           if (bv) {
             var btint = 'color-mix(in srgb, ' + bv + ' 45%, transparent)';
-            extra += ' background: linear-gradient(' + btint + ', ' + btint + '), ' + bimg + ';';
+            boxBgCss = 'linear-gradient(' + btint + ', ' + btint + '), ' + bimg;
           } else if ((e.kids || []).some(textyEl)) {
             // GUARDRAIL: photo cards with words get the soft scrim too
             var bauto = 'color-mix(in srgb, var(--wp--preset--color--base, #fff) 40%, transparent)';
-            extra += ' background: linear-gradient(' + bauto + ', ' + bauto + '), ' + bimg + ';';
+            boxBgCss = 'linear-gradient(' + bauto + ', ' + bauto + '), ' + bimg;
           } else {
-            extra += ' background: ' + bimg + ';';
+            boxBgCss = bimg;
           }
-        } else if (bv) extra += ' background: ' + bv + ';';
+        } else if (bv) boxBgCss = bv;
+        if (e.mood === 'veil' && boxBgCss) {
+          // the veil blurs the PICTURE, never the words: the background
+          // moves to a ::before so only it takes the filter (James's
+          // Vertigo card) — the kids paint above in tree order
+          extra += ' position: relative;' + (e.shape ? '' : ' overflow: hidden;');
+          out.push(sec + clsSel + '::before { content: ""; position: absolute; inset: 0; z-index: 0;' +
+            ' background: ' + boxBgCss + '; border-radius: inherit; transition: filter 0.35s ease; }');
+          out.push(sec + clsSel + ':hover::before { filter: blur(10px) saturate(1.15); }');
+        } else if (boxBgCss) {
+          extra += ' background: ' + boxBgCss + ';';
+        }
         if (e.radius) extra += ' border-radius: ' + (Math.round(e.radius / 12 * 100) / 100) + 'cqw;';
         if (e.shape && SHAPE_CSS[e.shape]) extra += SHAPE_CSS[e.shape];
+        var moodBase = e.rot ? ' rotate(' + e.rot + 'deg)' : '';
+        if (e.mood === 'lift') {
+          extra += ' transition: transform 0.25s ease, box-shadow 0.25s ease;';
+          out.push(sec + clsSel + ':hover { transform: translateY(-8px)' + moodBase +
+            '; box-shadow: 0 26px 48px -20px rgba(0, 0, 0, 0.45); }');
+        } else if (e.mood === 'zoom') {
+          extra += ' transition: transform 0.3s ease;';
+          out.push(sec + clsSel + ':hover { transform: scale(1.03)' + moodBase + '; }');
+        }
+      }
+      if (e.type === 'image' && e.mood === 'zoom' && e.src) {
+        // pictures zoom INSIDE their frame
+        out.push(sec + clsSel + ' img { transition: transform 0.4s ease; }');
+        out.push(sec + clsSel + ':hover img { transform: scale(1.06); }');
       }
       if (e.rot) extra += ' transform: rotate(' + e.rot + 'deg);';
       if ((e.align === 'center' || e.align === 'right') && (e.type === 'heading' || e.type === 'para')) extra += ' text-align: ' + e.align + ';';
@@ -670,6 +696,7 @@
       wsrc: e.wsrc || null, whtml: e.whtml || null, wcol: e.wcol || null,
       boxBg: e.boxBg || null, radius: e.radius || 0, shape: e.shape || null,
       boxImg: e.boxImg || null, boxImgId: e.boxImgId || null,
+      mood: e.mood || null,
       ph: e.ph || null,
       expId: e.expId || null, expUrl: e.expUrl || null,
       kids: e.kids && e.kids.length ? e.kids.map(projEl) : null };
@@ -1908,6 +1935,35 @@
     else exitPanel.hidden = true;
   }
 
+  // ---------- pointer intent ----------
+  // a rushing pointer is TRANSIT, not intent: hover-summoned UI (tooltips,
+  // boundary pills, audition previews) waits for the hand to settle
+  var ptrIntent = { x: 0, y: 0, t: 0, v: 0 };
+  document.addEventListener('pointermove', function (ev) {
+    var now = performance.now();
+    var dt = now - ptrIntent.t;
+    if (dt > 0 && dt < 400) {
+      var inst = Math.hypot(ev.clientX - ptrIntent.x, ev.clientY - ptrIntent.y) / dt;
+      ptrIntent.v = ptrIntent.v * 0.6 + inst * 0.4; // smoothed px/ms
+    } else if (dt >= 400) ptrIntent.v = 0;
+    ptrIntent.x = ev.clientX; ptrIntent.y = ev.clientY; ptrIntent.t = now;
+  }, { passive: true });
+  function pointerRushing() { return ptrIntent.v > 0.6; } // ~600px/s
+  // hover auditions arm after a settle beat, so scrubbing across a grid
+  // never flickers the canvas — leaving before the beat costs nothing
+  function auditionHover(el, onIn, onOut) {
+    var t = null, on = false;
+    el.addEventListener('mouseenter', function () {
+      clearTimeout(t);
+      t = setTimeout(function () { on = true; onIn(); }, 70);
+    });
+    el.addEventListener('mouseleave', function () {
+      clearTimeout(t);
+      if (on) { on = false; onOut(); }
+    });
+    el.addEventListener('click', function () { clearTimeout(t); on = false; });
+  }
+
   // ---------- context panel (link / image) ----------
   var panel = document.createElement('div');
   panel.className = 'gogh-panel';
@@ -1976,8 +2032,13 @@
     panel.style.left = left + 'px';
     panel.style.top = top + 'px';
     panelAnchor = node;
+    panelSticky = false;
   }
   var panelAnchor = null;
+  // sticky panels (auditions: site style, rearrange) ignore outside
+  // clicks — glancing at the canvas mid-audition must not end the session;
+  // they close on ✕, Esc, or another panel opening
+  var panelSticky = false;
   function reclampPanel() { if (!panel.hidden && panelAnchor) placePanelNear(panelAnchor); }
   function openPanel(sec, i) {
     var e = sec.els[i];
@@ -2164,6 +2225,11 @@
           '<span style="' + shapePreviewCss(d) + '"></span></button>';
       }).join('') +
       '</div>' +
+      '<div class="gogh-swlab">Mood \u2014 how the card behaves under the pointer</div>' +
+      '<div class="gogh-hpresets gogh-moodrow">' +
+      [['', 'Still'], ['lift', 'Lift'], ['zoom', 'Zoom'], ['veil', 'Veil']].map(function (m) {
+        return '<button type="button" class="gogh-hpreset' + ((e.mood || '') === m[0] ? ' is-active' : '') + '" data-mood="' + m[0] + '">' + m[1] + '</button>';
+      }).join('') + '</div>' +
       '<div class="gogh-swlab">Colour</div><div class="gogh-swrow gogh-boxsw">' +
       '<button type="button" class="gogh-sw gogh-sw-none' + (!e.boxBg ? ' is-active' : '') + '" data-col="" title="None"></button>' +
       pickerPalette().map(function (p) {
@@ -2200,6 +2266,9 @@
         var d2 = SHAPE_DEFS[+b2.dataset.k];
         b2.classList.toggle('is-active', (d2.key || null) === (e.shape || null));
       });
+      panel.querySelectorAll('.gogh-moodrow .gogh-hpreset').forEach(function (b2) {
+        b2.classList.toggle('is-active', (b2.dataset.mood || '') === (e.mood || ''));
+      });
     }
     panel.querySelectorAll('.gogh-shapecell').forEach(function (b) {
       b.addEventListener('click', function () {
@@ -2212,6 +2281,12 @@
     panel.querySelectorAll('.gogh-boxsw .gogh-sw').forEach(function (swBtn) {
       swBtn.addEventListener('click', function () {
         e.boxBg = swBtn.dataset.col || null;
+        reapply();
+      });
+    });
+    panel.querySelectorAll('.gogh-moodrow .gogh-hpreset').forEach(function (mb) {
+      mb.addEventListener('click', function () {
+        e.mood = mb.dataset.mood || null;
         reapply();
       });
     });
@@ -2252,6 +2327,7 @@
         var mbox = panel.querySelector('.gogh-boximg-media');
         if (!mbox || panel.hidden) return;
         mbox.innerHTML = '';
+        var boxCur = { img: e.boxImg || null };
         items.forEach(function (item) {
           var url = ((item.media_details || {}).sizes || {}).thumbnail;
           url = (url && url.source_url) || item.source_url;
@@ -2261,8 +2337,18 @@
           tb.className = 'gogh-thumb';
           tb.style.backgroundImage = 'url("' + url + '")';
           tb.title = (item.title && item.title.rendered) || '';
-          tb.addEventListener('click', function () {
+          // hover auditions the picture on the card itself; leaving takes
+          // it back, clicking keeps it (auditioning is very gogh)
+          auditionHover(tb, function () {
             e.boxImg = item.source_url;
+            renderSection(sec);
+          }, function () {
+            e.boxImg = boxCur.img;
+            renderSection(sec);
+          });
+          tb.addEventListener('click', function () {
+            e.boxImg = boxCur.img; // undo lands on the true before
+            e.boxImg = boxCur.img = item.source_url;
             e.boxImgId = item.id;
             applyAndClose();
           });
@@ -2376,6 +2462,7 @@
           reclampPanel();
           return;
         }
+        var imgCur = { src: sec.els[i].src || null };
         items.forEach(function (item) {
           var thumb = (item.media_details && item.media_details.sizes &&
             (item.media_details.sizes.thumbnail || item.media_details.sizes.medium));
@@ -2385,7 +2472,16 @@
           b.className = 'gogh-thumb';
           b.style.backgroundImage = 'url("' + url + '")';
           b.title = (item.title && item.title.rendered) || '';
+          auditionHover(b, function () {
+            sec.els[i].src = item.source_url;
+            renderSection(sec);
+          }, function () {
+            sec.els[i].src = imgCur.src;
+            renderSection(sec);
+          });
           b.addEventListener('click', function () {
+            sec.els[i].src = imgCur.src; // undo lands on the true before
+            imgCur.src = item.source_url;
             setImage(sec, i, item.source_url, item.id, item.alt_text || null);
           });
           box.appendChild(b);
@@ -2488,7 +2584,7 @@
     pushState();
   });
   document.addEventListener('pointerdown', function (ev) {
-    if (panelOpen && !panel.contains(ev.target) && !elbar.contains(ev.target)) closePanel();
+    if (panelOpen && !panelSticky && !panel.contains(ev.target) && !elbar.contains(ev.target)) closePanel();
     if (!editing) return;
     var t = ev.target;
     if (!t || !t.closest) return;
@@ -2857,12 +2953,19 @@
         var curC = sentinelContrast(sentinelLum(txt), bgL);
         if (curC >= CONTRAST_FLOOR) return;
         var best = null, bestC = 0;
-        candidates.forEach(function (p) {
-          var rgb = cssToRgb(p.value);
-          if (!rgb) return;
-          var c = sentinelContrast(sentinelLum(rgb), bgL);
-          if (c > bestC) { bestC = c; best = p.slug; }
-        });
+        var consider = function (list) {
+          list.forEach(function (p) {
+            var rgb = cssToRgb(p.value);
+            if (!rgb) return;
+            var c = sentinelContrast(sentinelLum(rgb), bgL);
+            if (c > bestC) { bestC = c; best = p.slug; }
+          });
+        };
+        consider(candidates);
+        // some variations paint BOTH base and contrast pale (James's
+        // lemon-on-lemon) — when the family can't reach the floor, any
+        // palette colour that can is better than invisible words
+        if (bestC < CONTRAST_FLOOR) consider(themePalette());
         // mid-tone grounds can defeat every preset — flip anyway when the
         // best ink is a real improvement (15%+), not only when it's perfect;
         // leaving the worst ink because no ink is ideal helps nobody
@@ -3327,6 +3430,23 @@
       { type: 'button', x: 424, y: 338, w: 170, h: 56, text: 'Email us' },
       { type: 'button', x: 614, y: 338, w: 170, h: 56, text: 'Follow along', ghost: true },
     ] },
+    { starter: true, intent: 'sell', name: 'FAQ', gated: 'hasAccordion', minH: 560, els: [
+      { type: 'para', x: 400, y: 56, w: 400, h: 24, align: 'center', text: 'Questions, answered',
+        tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
+      { type: 'heading', x: 250, y: 96, w: 700, h: 64, text: 'Before you ask', fs: 'x-large', align: 'center' },
+      // a REAL core/accordion rides inside a widget: gogh places it, the
+      // block renders and toggles it on the published page
+      { type: 'widget', x: 240, y: 200, w: 720, h: 320,
+        wsrc: '<!-- wp:accordion -->\n<div class="wp-block-accordion"><!-- wp:accordion-item -->\n<div class="wp-block-accordion-item"><!-- wp:accordion-heading -->\n<h3 class="wp-block-accordion-heading"><button class="wp-block-accordion-heading__toggle" type="button"><span class="wp-block-accordion-heading__text">How long does a project take?</span><span class="wp-block-accordion-heading__icon"></span></button></h3>\n<!-- /wp:accordion-heading --><!-- wp:accordion-panel -->\n<div class="wp-block-accordion-panel"><div class="wp-block-accordion-panel__content"><!-- wp:paragraph --><p>Six to ten weeks for most sites. The Sprint is one week, by design.</p><!-- /wp:paragraph --></div></div>\n<!-- /wp:accordion-panel --></div>\n<!-- /wp:accordion-item --><!-- wp:accordion-item -->\n<div class="wp-block-accordion-item"><!-- wp:accordion-heading -->\n<h3 class="wp-block-accordion-heading"><button class="wp-block-accordion-heading__toggle" type="button"><span class="wp-block-accordion-heading__text">Do you work with small budgets?</span><span class="wp-block-accordion-heading__icon"></span></button></h3>\n<!-- /wp:accordion-heading --><!-- wp:accordion-panel -->\n<div class="wp-block-accordion-panel"><div class="wp-block-accordion-panel__content"><!-- wp:paragraph --><p>Yes \u2014 that is exactly what the Sprint is for. One week, one focused thing, done well.</p><!-- /wp:paragraph --></div></div>\n<!-- /wp:accordion-panel --></div>\n<!-- /wp:accordion-item --><!-- wp:accordion-item -->\n<div class="wp-block-accordion-item"><!-- wp:accordion-heading -->\n<h3 class="wp-block-accordion-heading"><button class="wp-block-accordion-heading__toggle" type="button"><span class="wp-block-accordion-heading__text">Who will we actually work with?</span><span class="wp-block-accordion-heading__icon"></span></button></h3>\n<!-- /wp:accordion-heading --><!-- wp:accordion-panel -->\n<div class="wp-block-accordion-panel"><div class="wp-block-accordion-panel__content"><!-- wp:paragraph --><p>The people on the team page \u2014 no handoffs to a bench you never met.</p><!-- /wp:paragraph --></div></div>\n<!-- /wp:accordion-panel --></div>\n<!-- /wp:accordion-item --></div>\n<!-- /wp:accordion -->',
+        whtml: '<div class="wp-block-accordion">' +
+          '<div class="wp-block-accordion-item"><h3 class="wp-block-accordion-heading"><span class="wp-block-accordion-heading__toggle"><span class="wp-block-accordion-heading__text">How long does a project take?</span><span class="wp-block-accordion-heading__icon"></span></span></h3>' +
+          '<div class="wp-block-accordion-panel"><div class="wp-block-accordion-panel__content"><p>Six to ten weeks for most sites. The Sprint is one week, by design.</p></div></div></div>' +
+          '<div class="wp-block-accordion-item"><h3 class="wp-block-accordion-heading"><span class="wp-block-accordion-heading__toggle"><span class="wp-block-accordion-heading__text">Do you work with small budgets?</span><span class="wp-block-accordion-heading__icon"></span></span></h3>' +
+          '<div class="wp-block-accordion-panel" style="display:none"><div class="wp-block-accordion-panel__content"><p>Yes.</p></div></div></div>' +
+          '<div class="wp-block-accordion-item"><h3 class="wp-block-accordion-heading"><span class="wp-block-accordion-heading__toggle"><span class="wp-block-accordion-heading__text">Who will we actually work with?</span><span class="wp-block-accordion-heading__icon"></span></span></h3>' +
+          '<div class="wp-block-accordion-panel" style="display:none"><div class="wp-block-accordion-panel__content"><p>The team page people.</p></div></div></div>' +
+          '</div>' },
+    ] },
     { starter: true, intent: 'showcase', name: 'Gallery', minH: 680, els: [
       { type: 'para', x: 72, y: 60, w: 300, h: 24, text: 'Selected work',
         tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
@@ -3455,7 +3575,7 @@
     'Hero': 'hero', 'Big statement': 'hero', 'Story': 'text', 'Numbers': 'text',
     'Article': 'text', 'Feature cards': 'cards', 'Pricing': 'cards',
     'Quote': 'text', 'Call to action': 'hero', 'Get in touch': 'contact',
-    'Gallery': 'photos', 'Photo cards': 'photos cards', 'Portfolio': 'photos',
+    'FAQ': 'text cards', 'Gallery': 'photos', 'Photo cards': 'photos cards', 'Portfolio': 'photos',
     'Menu': 'text', 'Team': 'contact photos',
   };
   function openPicker(idx, before) {
@@ -3491,6 +3611,7 @@
       var labelled = false;
       TEMPLATES.forEach(function (tpl, t) {
         if (tpl.retired || !tpl.starter || tpl.intent !== g.key) return;
+        if (tpl.gated && !cfg[tpl.gated]) return; // lights up when the block lands
         if (!labelled) {
           cardsArr.push('<div class="gogh-seclab gogh-intentlab">' + g.label +
             '<i>' + g.sub + '</i></div>');
@@ -3503,6 +3624,7 @@
     // safety net: an intent-less starter still gets shelved, never lost
     TEMPLATES.forEach(function (tpl, t) {
       if (tpl.retired || !tpl.starter || tpl.intent) return;
+      if (tpl.gated && !cfg[tpl.gated]) return;
       starterSeen++;
       cardsArr.push(tplCardHTML(tpl, t, false, starterSeen));
     });
@@ -3960,6 +4082,9 @@
     hideHandles();
     sec.wrapEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
     pushState();
+    // a template designed on a friendly palette can land on a hostile one
+    // (white display type on lemon) — the sentinel checks every insert
+    contrastSentinel(sec);
   }
 
   // ---------- "/" quick add: type to filter, Enter to insert ----------
@@ -4349,6 +4474,9 @@
     hideHandles();
     sec.wrapEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
     pushState();
+    // a template designed on a friendly palette can land on a hostile one
+    // (white display type on lemon) — the sentinel checks every insert
+    contrastSentinel(sec);
   }
   // ---------- rearrange: the solver proposes, the hover auditions ----------
   // Alternate arrangements computed from the elements already present.
@@ -4445,6 +4573,7 @@
     // bottom edge can be a screenful away from where James is looking
     placePanelNear(anchorEl && anchorEl.isConnected ? anchorEl : secx.wrapEl);
     panelOpen = true;
+    panelSticky = true; // auditioning must survive a glance at the canvas
     panel.querySelectorAll('.gogh-rearchip').forEach(function (chip) {
       chip.addEventListener('mouseenter', function () {
         applyPositions(secx, variants[+chip.dataset.k].pos);
@@ -4713,6 +4842,7 @@
           return d.width >= 700 && d.width >= (d.height || 0) * 0.75;
         }).slice(0, 8);
         items = bgish.length ? bgish : items.slice(0, 8);
+        var bgCur = { img: S[idx].bgImage || null };
         items.forEach(function (item) {
           var thumb = (item.media_details && item.media_details.sizes &&
             (item.media_details.sizes.thumbnail || item.media_details.sizes.medium));
@@ -4720,7 +4850,17 @@
           b.type = 'button';
           b.className = 'gogh-thumb' + (S[idx].bgImage === item.source_url ? ' is-active' : '');
           b.style.backgroundImage = 'url("' + (thumb ? thumb.source_url : item.source_url) + '")';
+          // hover auditions the whole backdrop; leaving takes it back
+          auditionHover(b, function () {
+            S[idx].bgImage = item.source_url;
+            resolveAndApply(S[idx]);
+          }, function () {
+            S[idx].bgImage = bgCur.img;
+            resolveAndApply(S[idx]);
+          });
           b.addEventListener('click', function () {
+            S[idx].bgImage = bgCur.img; // undo lands on the true before
+            bgCur.img = item.source_url;
             setSecBg(idx, item.source_url, item.id);
             box.querySelectorAll('.gogh-thumb').forEach(function (o) {
               o.classList.toggle('is-active', o === b);
@@ -4848,6 +4988,10 @@
   var insertRaf = false;
   document.addEventListener('pointermove', function (ev) {
     if (!editing || drag || resize || hDrag || rotD || panelOpen || !picker.hidden) { return; }
+    // a rushing pointer is heading SOMEWHERE ELSE — don't flash boundary
+    // pills along its route (they still hide instantly, and appear the
+    // moment the hand settles)
+    if (inserter.hidden && pointerRushing()) return;
     if (insertRaf) return;
     insertRaf = true;
     var cy = ev.clientY;
@@ -5210,12 +5354,13 @@
         var trng = document.createRange();
         trng.selectNodeContents(thost);
         var tw = trng.getBoundingClientRect().width / scaleOf(sec);
+        (window.__cxo = window.__cxo || []).push({ tw: Math.round(tw), w: e.w, scale: scaleOf(sec), host: thost.tagName });
         if (tw > 0 && tw < e.w - 4) {
           var talign = e.align || 'left';
           drag.textCXOff = talign === 'center' ? null
             : (talign === 'right' ? e.w - tw / 2 : tw / 2);
         }
-      } catch (err) {}
+      } catch (err) { (window.__cxo = window.__cxo || []).push({ err: String(err) }); }
     }
     sec.sectionEl.classList.add('gogh-grid-live');
     if (multiSel && multiSel.sec === sec && multiSel.idxs.indexOf(i) !== -1) {
@@ -6398,6 +6543,7 @@
       box.addEventListener('mouseleave', function () { clearVariationPreview(); });
       placePanelNear(anchorEl);
       panelOpen = true;
+      panelSticky = true; // hover-audition panel: outside clicks pass through
     }).catch(function () {});
   }
   // hover = instant local preview: the theme references its colours and
@@ -7591,9 +7737,19 @@
     var el = ev.target.closest('[title], [data-tip]');
     if (!el || !/gogh-/.test(el.className)) { hideTip(); return; }
     clearTimeout(tipTimer);
-    // first hover waits a beat; moving along a toolbar is instant
+    // first hover waits a beat; moving along a toolbar is instant — and a
+    // RUSHING pointer is just passing through, so the tip waits for calm
     if (Date.now() < tipVisibleUntil || !tipEl.hidden) showTipNow(el);
-    else tipTimer = setTimeout(function () { showTipNow(el); }, 140);
+    else {
+      var arm = function () {
+        if (pointerRushing()) { tipTimer = setTimeout(arm, 100); return; }
+        showTipNow(el);
+      };
+      tipTimer = setTimeout(arm, 140);
+    }
+  });
+  document.addEventListener('keydown', function (ev) {
+    if (ev.key === 'Escape' && panelOpen) closePanel();
   });
   document.addEventListener('pointerdown', function () { hideTip(true); }, true);
   document.addEventListener('scroll', function () { hideTip(true); }, true);
