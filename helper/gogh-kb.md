@@ -15,7 +15,7 @@ about something where they conflict, rather than picking one silently. Quote UI
 labels and message copy from the appendix, verbatim — those are the current
 strings, and a paraphrased button label is the fastest way to lose a user's trust.
 
-Generated for plugin version 0.99.15 · knowledge base 30ba330.
+Generated for plugin version 0.99.23 · knowledge base d08c83b.
 
 ---
 
@@ -783,11 +783,11 @@ Everything in this section is extracted mechanically from the Gogh source on eve
 
 ## Current release
 
-- Plugin version: **0.99.15**
+- Plugin version: **0.99.23**
 - Requires WordPress **6.5+**, PHP **7.4+**
 - Text domain: `gogh-editor`
 - readme.txt Stable tag: `0.26.0` · Tested up to: `7.0`
-- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.15`). Quote the plugin header version.
+- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.23`). Quote the plugin header version.
 
 ## Design constants
 
@@ -850,7 +850,7 @@ Element types that survive a publish: `heading`, `para`, `button`, `image`, `bad
 
 ## `window.__gogh` members
 
-`mirror`, `explode`, `multi`, `zoom`, `reorderSection`, `reorderNavRaw`, `stickyRawToggle`, `insertGoghPattern`, `addHtmlSection`, `startChromeCycle`, `openPicker`, `navLinkMarkup`, `chromeEdits`, `bindChromeTest`, `pending`, `storedEdits`, `previewVariation`, `clearVariationPreview`, `initStoredEdits`, `bindStoredTest`, `sections`, `showHbar`, `openShapePanel`, `openSecBgPanel`, `scan`, `addSection`, `renderSection`, `pushState`, `templates`, `resolveAll`, `reflowPush`, `measure`, `resolve`, `serialize`, `syncModelFromMarkup`, `cleanInline`, `showTip`, `applyTextLink`, `readingOrder`, `toast`, `publish`, `isDirty`, `parseTopBlocks`, `convertBlock`, `convertChrome`, `restore`, `setEditing`, `deleteSection`, `moveSection`, `duplicateSection`, `openSide`, `closeSide`, `fontSizes`, `setFontSize`, `stepFontSize`, `setSecBg`, `buildBlocks`, `buildV3`, `mergeContent`, `closePanel`, `addElementAt`, `addElementToSection`, `composeFeaturedProduct`, `contrastSentinel`, `openSecAdd`, `showGuides`, `addShape`, `shapeDefs`, `resequenceToDom`, `gatherRawUnits`, `parseNavModel`, `serializeNavModel`, `sanitizePastedHtml`, `openPageStylePanel`, `goghHasNativeContent`, `wrapImageIntoText`, `wrapTargetIdx`, `bindPending`, `convertStash`, `deleteSectionRaw`, `contrastRatio`, `brandToVariation`, `cssColorToHex`, `effectiveBgHex`, `markSwatchLegibility`, `openBrandForm`, `openMenuManager`, `build`.
+`build`.
 
 ## WordPress surface
 
@@ -885,9 +885,9 @@ Block: `gogh/section` · v3 attributes: `css`, `model`, `scope`, `v`, `cssT`.
 | `admin_post_gogh_new_page` | action | 10 |
 | `block_editor_settings_all` | filter | 10 |
 
-Filters exposed for third parties: `gogh_rebake_enabled`, `gogh_webmcp_enabled`, `gogh_convert_enabled`.
+Filters exposed for third parties: `gogh_rebake_enabled`, `gogh_webmcp_enabled`, `gogh_convert_enabled`, `gogh_helper_url`.
 
-REST routes registered: `gogh/v1/starter`, `gogh/v1/active-style`, `wp/v2/gogh-product/(?P<id>\d+)`, `wp/v2/gogh-product/(?P<id>\d+)/autosaves`, `gogh/v1/pattern`, `gogh/v1/render`.
+REST routes registered: `gogh/v1/starter`, `gogh/v1/type-scale`, `gogh/v1/active-style`, `wp/v2/gogh-product/(?P<id>\d+)`, `wp/v2/gogh-product/(?P<id>\d+)/autosaves`, `gogh/v1/pattern`, `gogh/v1/render`.
 
 Core REST endpoints used by the editor: `wp/v2/blocks`, `wp/v2/posts`, `wp/v2/template-parts`.
 
@@ -900,6 +900,8 @@ Query-string switches: `?gogh-edit`, `?gogh-ps`, `?gogh-test`.
 These are the real strings in the current build. Use them verbatim; never paraphrase a label.
 
 - "' + d.label + '"
+- "' + escAttr(t.name) + '"
+- "' + hp[1] + ' — ' + hp[2] + ' units"
 - "' + p.slug + '"
 - "' + sh.label + '"
 - "+ Link"
@@ -921,6 +923,7 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "Cancel"
 - "Card"
 - "Close"
+- "Colour & more ⌄"
 - "Create"
 - "Cycle theme font sizes"
 - "Delete (Del)"
@@ -931,9 +934,12 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "Duplicate section"
 - "Experience"
 - "Featured product"
+- "Fill screen"
+- "Fill the screen"
 - "Golden ratio guides"
 - "Grid: show and snap"
 - "Heading"
+- "Help — ask gogh anything"
 - "Hide"
 - "Image"
 - "Italic"
@@ -958,6 +964,7 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "Publish"
 - "Publish & close"
 - "Put it back"
+- "Rearrange — same pieces, new shapes"
 - "Redo (⇧⌘Z)"
 - "Remove"
 - "Remove from Your sections"
@@ -992,6 +999,7 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "Write"
 - "Your latest posts, live"
 - "Your latest products, live — prices and add to cart included"
+- "gogh help"
 - "← All layouts"
 - "✏️ Edit with gogh"
 - "✨ Make freeform"
@@ -1007,6 +1015,7 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "Could not delete that section."
 - "Could not open the layout panel."
 - "Could not preview that layout — "
+- "Could not rescale the type — "
 - "Could not restore it."
 - "Could not save that section."
 - "Could not switch the "
@@ -1024,9 +1033,11 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "Logo size saved."
 - "Menu order updated — every page gets it."
 - "Menu switched — every page shows it."
+- "Nothing to rearrange yet — add a couple of elements first."
 - "Out of the card — it’s a free element again."
 - "Publish failed: "
 - "Publish your changes first — changing the page style reloads the page."
+- "Rearranged — same pieces, new shape."
 - "Removed from the card."
 - "Section moved."
 - "Section removed — publish to make it real."
@@ -1037,6 +1048,7 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "The backup could not be read."
 - "Theme style applied: "
 - "This "
+- "Unpublished page changes will be lost when the "
 - "Upload failed — .html uploads need admin rights."
 - "Uploading experience…"
 - "Wrapped — the words flow around it now. Click the image to adjust."
@@ -1060,10 +1072,11 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "gogh couldn’t safely update this image in the saved markup."
 - "gogh couldn’t save that menu order."
 - "gogh found nothing it can edit in this section."
+- "gogh helper: "
 - "gogh: preview of “"
 - "“"
 - "✨ “"
 
 ## Test suite
 
-`118` tests, run by appending `?gogh-test` to any Gogh page URL while logged in with edit rights on that page.
+`123` tests, run by appending `?gogh-test` to any Gogh page URL while logged in with edit rights on that page.
