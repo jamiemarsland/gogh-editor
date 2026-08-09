@@ -1896,6 +1896,26 @@
   panel.hidden = true;
   document.body.appendChild(panel);
   var panelOpen = false;
+  // panels drag by their title — a tall panel otherwise covers the very
+  // section it styles, and auditioning a look means seeing the canvas
+  (function () {
+    var pd = null;
+    panel.addEventListener('pointerdown', function (ev) {
+      var t = ev.target.closest('.gogh-panel-title, .gogh-panel-head');
+      if (!t || ev.target.closest('button, input, a, select, textarea')) return;
+      var r = panel.getBoundingClientRect();
+      pd = { dx: ev.clientX - r.left, dy: ev.clientY - r.top };
+      try { panel.setPointerCapture(ev.pointerId); } catch (err) {}
+      ev.preventDefault();
+    });
+    panel.addEventListener('pointermove', function (ev) {
+      if (!pd) return;
+      panel.style.left = (ev.clientX - pd.dx + window.scrollX) + 'px';
+      panel.style.top = (ev.clientY - pd.dy + window.scrollY) + 'px';
+    });
+    panel.addEventListener('pointerup', function () { pd = null; });
+    panel.addEventListener('pointercancel', function () { pd = null; });
+  })();
   function closePanel() {
     panel.hidden = true;
     panelOpen = false;
@@ -4015,6 +4035,7 @@
     '<button type="button" class="gogh-sb" data-sec="up" title="Move up">↑</button>' +
     '<button type="button" class="gogh-sb" data-sec="down" title="Move down">↓</button>' +
     '<button type="button" class="gogh-sb" data-sec="bgimg" title="Background image">' + CTX_ICONS.image + '</button>' +
+    '<button type="button" class="gogh-sb" data-sec="rearrange" title="Rearrange \u2014 same pieces, new shapes"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><rect x="3" y="4" width="8" height="7" rx="1.5"/><rect x="14" y="13" width="7" height="7" rx="1.5"/><path d="M17 4h4v4M7 20H3v-4"/></svg></button>' +
     '<button type="button" class="gogh-sb" data-sec="savepat" title="Save this section to reuse">' +
     '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round"><path d="M6 3h12v18l-6-4.5L6 21Z"/></svg>' +
     '</button>' +
@@ -4056,6 +4077,7 @@
     if (!b || secBarIdx === null) return;
     if (b.dataset.sec === 'add') { openSecAddPanel(secBarIdx); return; }
     if (b.dataset.sec === 'bgimg') { openSecBgPanel(secBarIdx, b); return; }
+    if (b.dataset.sec === 'rearrange') { openRearrangePanel(secBarIdx); return; }
     if (b.dataset.sec === 'savepat') { openSavePatternPanel(secBarIdx); return; }
     if (b.dataset.sec === 'del') deleteSection(secBarIdx);
     else if (b.dataset.sec === 'up') moveSection(secBarIdx, -1);
@@ -4163,6 +4185,91 @@
     hideHandles();
     sec.wrapEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
     pushState();
+  }
+  // ---------- rearrange: the solver proposes, the hover auditions ----------
+  // Alternate arrangements computed from the elements already present.
+  // Hovering a chip applies the arrangement LIVE in the canvas (Squarespace
+  // shows static thumbnails; the live canvas is the improvement), clicking
+  // keeps it with Undo intact, leaving restores what was.
+  function rearrangeVariants(sec) {
+    var els = sec.els;
+    if (els.length < 2) return [];
+    var isMedia = function (e) {
+      return e.type === 'image' || e.type === 'box' || e.type === 'exp' || e.type === 'widget';
+    };
+    var reading = els.map(function (e, i) { return i; }).sort(function (a, b) {
+      return (els[a].y - els[b].y) || (els[a].x - els[b].x);
+    });
+    function stack(xOf) {
+      var pos = els.map(function (e) { return { x: e.x, y: e.y }; });
+      var y = 64;
+      reading.forEach(function (i) {
+        var e = els[i];
+        pos[i] = { x: Math.max(0, Math.min(W - e.w, xOf(e))), y: y };
+        y += e.h + 28;
+      });
+      return pos;
+    }
+    var out = [
+      { slug: 'mirror', name: 'Mirror',
+        pos: els.map(function (e) { return { x: Math.max(0, W - e.x - e.w), y: e.y }; }) },
+      { slug: 'centred', name: 'Centred',
+        pos: stack(function (e) { return (W - e.w) / 2; }) },
+      { slug: 'rail', name: 'Left rail',
+        pos: stack(function (e) { return 72; }) },
+    ];
+    if (els.some(isMedia) && els.some(function (e) { return !isMedia(e); })) {
+      var pos = els.map(function (e) { return { x: e.x, y: e.y }; });
+      var yT = 72, yM = 72;
+      reading.forEach(function (i) {
+        var e = els[i];
+        if (isMedia(e)) {
+          pos[i] = { x: Math.max(620, W - e.w - 72), y: yM };
+          yM += e.h + 28;
+        } else {
+          pos[i] = { x: 72, y: yT };
+          yT += e.h + 24;
+        }
+      });
+      out.push({ slug: 'split', name: 'Words · picture', pos: pos });
+    }
+    return out;
+  }
+  function applyPositions(sec, pos) {
+    sec.els.forEach(function (e, i) {
+      if (pos[i]) { e.x = Math.round(pos[i].x); e.y = Math.round(pos[i].y); }
+    });
+    renderSection(sec);
+  }
+  function openRearrangePanel(idx) {
+    var secx = S[idx];
+    var variants = rearrangeVariants(secx);
+    if (!variants.length) { toast('Nothing to rearrange yet — add a couple of elements first.'); return; }
+    var snap = secx.els.map(function (e) { return { x: e.x, y: e.y }; });
+    var committed = false;
+    panel.innerHTML = '<div class="gogh-panel-title">Rearrange this section</div>' +
+      '<div class="gogh-panel-hint">Hover to audition — click to keep. Same pieces, new arrangement.</div>' +
+      '<div class="gogh-rearrow">' + variants.map(function (v, k) {
+        return '<button type="button" class="gogh-rearchip" data-k="' + k + '">' + esc(v.name) + '</button>';
+      }).join('') + '</div>';
+    placePanelNear(secx.wrapEl);
+    panelOpen = true;
+    panel.querySelectorAll('.gogh-rearchip').forEach(function (chip) {
+      chip.addEventListener('mouseenter', function () {
+        if (!committed) applyPositions(secx, variants[+chip.dataset.k].pos);
+      });
+      chip.addEventListener('mouseleave', function () {
+        if (!committed) applyPositions(secx, snap);
+      });
+      chip.addEventListener('click', function () {
+        applyPositions(secx, snap); // restore, so undo lands on the true before
+        pushState();
+        applyPositions(secx, variants[+chip.dataset.k].pos);
+        committed = true;
+        closePanel();
+        toast('Rearranged — same pieces, new shape.', { actions: [{ label: 'Undo', onClick: function () { undo(); } }] });
+      });
+    });
   }
   // ---------- section themes: pick a look, never a hex ----------
   // A few named looks derived from the LIVE palette — each carries a
@@ -6933,6 +7040,7 @@
     composeFeaturedProduct: composeFeaturedProduct,
     contrastSentinel: contrastSentinel,
     sectionThemes: sectionThemes,
+    rearrangeVariants: rearrangeVariants,
     applySectionTheme: applySectionTheme,
     openSecAdd: openSecAddPanel,
     showGuides: showGuides,

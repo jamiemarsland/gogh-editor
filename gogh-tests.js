@@ -888,6 +888,30 @@
       return 'S/M/L via minH; Fill emits 100svh and round-trips';
     });
 
+    test('rearrange: the solver proposes honest alternatives', function () {
+      G.addSection({ title: 'RA', minH: 400, els: [
+        { type: 'heading', x: 72, y: 60, w: 500, h: 60, text: 'Rearrange me' },
+        { type: 'para', x: 72, y: 160, w: 420, h: 60, text: 'Some words to move about.' },
+        { type: 'image', x: 700, y: 60, w: 380, h: 260, src: '/wp-content/plugins/gogh/demo-assets/sunflowers.jpg' },
+      ] });
+      var c = contentSecs();
+      var s2 = c[c.length - 1];
+      var v = G.rearrangeVariants(s2);
+      expect(v.length >= 4, 'expected mirror/centred/rail/split, got ' + v.length);
+      var mirror = v.filter(function (x) { return x.slug === 'mirror'; })[0];
+      // mirror: x' = W - x - w for every element
+      s2.els.forEach(function (e, i) {
+        var want = Math.max(0, 1200 - e.x - e.w);
+        expect(Math.abs(mirror.pos[i].x - want) <= 1, 'mirror x wrong for el ' + i);
+      });
+      var split = v.filter(function (x) { return x.slug === 'split'; })[0];
+      expect(split, 'media+text section should offer the split');
+      expect(split.pos[2].x >= 620, 'split should push the image right');
+      expect(split.pos[0].x === 72 && split.pos[1].x === 72, 'split should rail the words left');
+      G.deleteSection(G.sections().indexOf(s2));
+      return v.length + ' arrangements; mirror and split verified by the numbers';
+    });
+
     test('help: the ? opens the bot with the true build number', function () {
       var btn = q('.gogh-side .gogh-help');
       if (!btn) return 'no helpUrl configured — button rightly absent';

@@ -190,6 +190,23 @@
 .gogh-side-gap { flex: none; height: 10px; }
 .gogh-addmenu { display: grid; grid-template-columns: 1fr 1fr; gap: 2px; min-width: 250px; margin-top: 6px; }
 
+/* panels drag by their title */
+.gogh-panel-title, .gogh-panel-head { cursor: move; user-select: none; }
+
+/* rearrange chips */
+.gogh-rearrow { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; min-width: 260px; }
+.gogh-rearchip {
+  all: unset;
+  cursor: pointer;
+  padding: 7px 13px;
+  border-radius: 9px;
+  border: 1.5px solid var(--gogh-ui-line, #e3e3e6);
+  font-size: 12.5px;
+  font-weight: 650;
+  transition: border-color 0.12s ease, background 0.12s ease;
+}
+.gogh-rearchip:hover { border-color: #4a63d8; background: rgba(74, 99, 216, 0.08); }
+
 /* height presets: S / M / L / Fill screen */
 .gogh-hpresets { display: flex; gap: 6px; margin: 4px 0 10px; }
 .gogh-hpreset {
