@@ -7568,13 +7568,20 @@
       tipEl.classList.remove('is-in', 'is-glide', 'is-out');
       return;
     }
-    tipEl.classList.remove('is-in', 'is-glide');
-    tipEl.classList.add('is-out');
     clearTimeout(tipHideT);
+    // grace beat: the PADDING between two toolbar buttons also fires a
+    // hide, and stripping is-in there made the next button replay the
+    // whole entrance (the tip visibly dropped and rose again). Hold the
+    // pill steady briefly — reaching another control cancels the hide and
+    // the glide continues; a real leave still fades out.
     tipHideT = setTimeout(function () {
-      tipEl.hidden = true;
-      tipEl.classList.remove('is-out');
-    }, 130);
+      tipEl.classList.remove('is-in', 'is-glide');
+      tipEl.classList.add('is-out');
+      tipHideT = setTimeout(function () {
+        tipEl.hidden = true;
+        tipEl.classList.remove('is-out');
+      }, 130);
+    }, 120);
   }
   document.addEventListener('pointerover', function (ev) {
     if (!(ev.target instanceof Element)) return;
