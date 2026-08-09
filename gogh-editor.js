@@ -4363,6 +4363,21 @@
           '<span class="gogh-themechip-swatch" style="background:' + escAttr(t.bg) + ';color:var(--wp--preset--color--' + t.ink + ')">Aa</span>' +
           '</button>';
       }).join('') + '</div>' +
+      '<div class="gogh-panel-hint">Height</div>' +
+      '<div class="gogh-hpresets">' +
+      [['s','S',320],['m','M',560],['l','L',800]].map(function (hp) {
+        return '<button type="button" class="gogh-hpreset' + (!secx.fill && secx.minH === hp[2] ? ' is-active' : '') + '" data-minh="' + hp[2] + '" title="' + hp[1] + ' — ' + hp[2] + ' units">' + hp[1] + '</button>';
+      }).join('') +
+      '<button type="button" class="gogh-hpreset gogh-hpreset-fill' + (secx.fill ? ' is-active' : '') + '" title="Fill the screen">Fill screen</button>' +
+      '</div>' +
+      '<div class="gogh-panel-hint">Image</div>' +
+      '<div class="gogh-panel-row gogh-panel-actions">' +
+      (cfg.canUpload ? '<label class="gogh-btn gogh-btn-small gogh-upload">Upload<input type="file" accept="image/*" hidden /></label>' : '') +
+      (secx.bgImage ? '<button type="button" class="gogh-btn gogh-btn-small gogh-clear">Remove image</button>' : '') +
+      '</div>' +
+      '<div class="gogh-media"><span class="gogh-media-loading">Loading media…</span></div>' +
+      '<button type="button" class="gogh-panel-more-toggle">Colour &amp; more \u2304</button>' +
+      '<div class="gogh-panel-more" hidden>' +
       '<div class="gogh-panel-hint">Colour \u2014 with an image, it becomes the tint</div>' +
       '<div class="gogh-swrow gogh-secbg-sw">' +
       '<button type="button" class="gogh-sw gogh-sw-none" data-val="" title="None"></button>' +
@@ -4374,25 +4389,19 @@
       '<div class="gogh-panel-row gogh-panel-actions"><label class="gogh-colorlab">Custom <input type="color" class="gogh-color gogh-secbg-custom" /></label></div>' +
       '<div class="gogh-panel-hint">Transparency</div>' +
       '<div class="gogh-panel-row"><input type="range" class="gogh-secbg-alpha" min="8" max="100" step="1" value="' + (secx.bgA != null ? secx.bgA : (secx.bgImage && secx.bg ? 62 : 100)) + '" style="flex:1" /><span class="gogh-secbg-alpha-val">' + (secx.bgA != null ? secx.bgA : (secx.bgImage && secx.bg ? 62 : 100)) + '</span></div>' +
-      '<div class="gogh-panel-hint">Height</div>' +
-      '<div class="gogh-hpresets">' +
-      [['s','S',320],['m','M',560],['l','L',800]].map(function (hp) {
-        return '<button type="button" class="gogh-hpreset' + (!secx.fill && secx.minH === hp[2] ? ' is-active' : '') + '" data-minh="' + hp[2] + '" title="' + hp[1] + ' — ' + hp[2] + ' units">' + hp[1] + '</button>';
-      }).join('') +
-      '<button type="button" class="gogh-hpreset gogh-hpreset-fill' + (secx.fill ? ' is-active' : '') + '" title="Fill the screen">Fill screen</button>' +
-      '</div>' +
-      '<div class="gogh-panel-hint">Image</div>' +
       '<div class="gogh-panel-row">' +
       '<input type="url" class="gogh-input" placeholder="Paste image URL…" />' +
       '<button type="button" class="gogh-btn gogh-btn-small gogh-apply">Apply</button>' +
       '</div>' +
-      '<div class="gogh-panel-row gogh-panel-actions">' +
-      (cfg.canUpload ? '<label class="gogh-btn gogh-btn-small gogh-upload">Upload<input type="file" accept="image/*" hidden /></label>' : '') +
-      (secx.bgImage ? '<button type="button" class="gogh-btn gogh-btn-small gogh-clear">Remove image</button>' : '') +
-      '</div>' +
-      '<div class="gogh-media"><span class="gogh-media-loading">Loading media…</span></div>';
+      '</div>';
     panel.hidden = false;
     panelOpen = true;
+    var moreT = panel.querySelector('.gogh-panel-more-toggle');
+    if (moreT) moreT.addEventListener('click', function () {
+      var more = panel.querySelector('.gogh-panel-more');
+      more.hidden = !more.hidden;
+      moreT.textContent = more.hidden ? 'Colour & more \u2304' : 'Colour & more \u2303';
+    });
     panel.querySelectorAll('.gogh-hpreset').forEach(function (hb) {
       hb.addEventListener('click', function () {
         pushState();

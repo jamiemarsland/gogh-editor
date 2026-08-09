@@ -190,6 +190,19 @@
 .gogh-side-gap { flex: none; height: 10px; }
 .gogh-addmenu { display: grid; grid-template-columns: 1fr 1fr; gap: 2px; min-width: 250px; margin-top: 6px; }
 
+/* the section panel's quiet drawer: colour & more */
+.gogh-panel-more-toggle {
+  all: unset;
+  cursor: pointer;
+  display: block;
+  margin-top: 10px;
+  padding: 6px 0;
+  font-size: 12px;
+  font-weight: 650;
+  opacity: 0.65;
+}
+.gogh-panel-more-toggle:hover { opacity: 1; }
+
 /* panels drag by their title */
 .gogh-panel-title, .gogh-panel-head { cursor: move; user-select: none; }
 
