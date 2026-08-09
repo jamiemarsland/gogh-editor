@@ -934,6 +934,17 @@
       return v.length + ' arrangements; mirror and split verified by the numbers';
     });
 
+    test('type scale: origin-keyed fontSizes unwrap to the theme list', function () {
+      var flat = [{ slug: 'small', size: '1rem' }];
+      expect(G.themeFontSizeList(flat) === flat, 'flat array should pass through');
+      var keyed = { default: [{ slug: 'd' }], theme: [{ slug: 't1' }, { slug: 't2' }] };
+      var got = G.themeFontSizeList(keyed);
+      expect(got && got.length === 2 && got[0].slug === 't1', 'origin-keyed shape should yield the theme list');
+      expect(G.themeFontSizeList({ default: [{ slug: 'd' }] })[0].slug === 'd', 'defaults are the last resort');
+      expect(G.themeFontSizeList(null) === null, 'null stays null');
+      return 'flat, origin-keyed and empty shapes all honest';
+    });
+
     test('type scale: calc-wraps every unit, never compounds', function () {
       var sizes = [
         { slug: 'small', size: '0.9rem' },

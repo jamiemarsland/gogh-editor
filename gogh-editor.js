@@ -6165,6 +6165,16 @@
   // Scaled sizes are written as calc(original * factor) into user Global
   // Styles, so px, rem and clamp() themes all scale uniformly — and always
   // from the THEME's originals, so the dial can never compound itself.
+  // the global-styles REST endpoint serves fontSizes either FLAT or keyed
+  // by origin ({default, theme, custom}) depending on WP version and
+  // context — James's dial read .length on the object and declared the
+  // theme fontless. Unwrap: the theme's own sizes first, then custom,
+  // then core defaults.
+  function themeFontSizeList(raw) {
+    if (Array.isArray(raw)) return raw;
+    if (raw && typeof raw === 'object') return raw.theme || raw.custom || raw.default || null;
+    return null;
+  }
   function scaleFontSizes(sizes, factor) {
     return (sizes || []).map(function (fs) {
       var out = { slug: fs.slug, name: fs.name || fs.slug, size: fs.size };
@@ -6181,7 +6191,7 @@
       fetch(GSROOT + 'global-styles/' + cfg.gsId + '?context=edit', { headers: H, credentials: 'same-origin' })
         .then(function (r) { return r.ok ? r.json() : Promise.reject(new Error('HTTP ' + r.status)); }),
     ]).then(function (both) {
-      var themeSizes = (((both[0] || {}).settings || {}).typography || {}).fontSizes;
+      var themeSizes = themeFontSizeList((((both[0] || {}).settings || {}).typography || {}).fontSizes);
       if (!themeSizes || !themeSizes.length) throw new Error('theme declares no font sizes');
       var settings = (both[1] && both[1].settings) || {};
       settings.typography = settings.typography || {};
@@ -7253,6 +7263,7 @@
     stickyRawToggle: stickyRawToggle,
     chromeDialsRead: chromeDialsRead,
     inkWidthOf: inkWidthOf,
+    themeFontSizeList: themeFontSizeList,
     chromeDialsApply: chromeDialsApply,
     insertGoghPattern: insertGoghPattern,
     addHtmlSection: addHtmlSection,
