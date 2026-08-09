@@ -2085,6 +2085,11 @@ html.gogh-editing .gogh-mirror { display: flex; }
 /* the drag ghost is sized inline in px — the gogh-wrap min-width floor
    (site-editor fix) must not inflate it to the viewport */
 .gogh-ghostel { min-width: 0 !important; }
+/* the ghost wears its section's scope classes for colours and fonts — but
+   a Fill section's min-height: 100svh then inflated the ghost box, and a
+   dragged BUTTON painted the whole 800px slab (text els hid it: they
+   paint at intrinsic size). The ghost is exactly its element, no taller */
+.gogh-ghostel { min-height: 0 !important; }
 
 .gogh-htmlpaste {
   width: 100%;
