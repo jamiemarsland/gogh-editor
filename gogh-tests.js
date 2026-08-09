@@ -1632,7 +1632,7 @@
       G.deleteSection(G.sections().indexOf(added));
     });
 
-    test('picker: no chip row — search filters, two-row browse cap', function () {
+    test('picker: no chip row — intent shelves, search filters', function () {
       G.openPicker(G.sections().length);
       expect(!q('.gogh-topstrip') && !q('.gogh-patcats'), 'chip row should be gone');
       var cardByName = function (nm) {
@@ -1641,20 +1641,20 @@
           return n && n.textContent.indexOf(nm) === 0;
         })[0];
       };
-      // first screen: at most two rows (8 layouts); extras wait behind See all
+      // first screen: every starter under its intent shelf — the shelves
+      // are the map, so nothing hides behind a See all
+      var shelfText = [].map.call(document.querySelectorAll('.gogh-cards .gogh-intentlab'), function (l) { return l.textContent; }).join(' ');
+      expect(/Introduce/.test(shelfText) && /Sell/.test(shelfText) && /Showcase/.test(shelfText),
+        'intent shelves missing: ' + shelfText);
       var totalTpl = document.querySelectorAll('.gogh-cards .gogh-card[data-tpl]').length;
       var visTpl = function () {
         return [].filter.call(document.querySelectorAll('.gogh-cards .gogh-card[data-tpl]'), function (c) {
           return c.style.display !== 'none';
         }).length;
       };
-      expect(visTpl() === Math.min(totalTpl, 8), 'expected ' + Math.min(totalTpl, 8) + ' layouts on the first screen, got ' + visTpl());
-      var seeAll = q('.gogh-browse-all');
-      expect(!!seeAll === (totalTpl > 8), 'See all presence wrong for ' + totalTpl + ' layouts');
-      if (seeAll) {
-        seeAll.click();
-        expect(visTpl() === totalTpl, 'See all did not reveal the rest, got ' + visTpl());
-      }
+      expect(totalTpl >= 15, 'the beauty pass promises ~15 starters, found ' + totalTpl);
+      expect(visTpl() === totalTpl, 'every starter should show on the first screen, got ' + visTpl() + '/' + totalTpl);
+      expect(!q('.gogh-browse-all'), 'See all should be gone — the shelves are the map');
       // search flattens to matches only
       var quick = q('.gogh-quickrow');
       var sIn = q('.gogh-picker-search .gogh-patsearch');
@@ -2599,7 +2599,7 @@
       var msg = window.__goghMcp.call('gogh_add_section', { layout: 'hero' });
       expect(/Added/.test(msg), 'add_section refused: ' + msg);
       expect(G.sections().length === s0 + 1, 'section not added via tool');
-      var msg2 = window.__goghMcp.call('gogh_edit_text', { find: 'Put it where', replace: 'Agents put it where' });
+      var msg2 = window.__goghMcp.call('gogh_edit_text', { find: 'brands people remember', replace: 'brands agents remember' });
       expect(/Replaced/.test(msg2), 'edit_text found nothing: ' + msg2);
       var shapeMsg = window.__goghMcp.call('gogh_add_shape', { shape: 'circle' });
       expect(/circle/.test(shapeMsg), 'add_shape failed: ' + shapeMsg);

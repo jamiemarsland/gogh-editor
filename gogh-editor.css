@@ -841,6 +841,10 @@ body.gogh-help-open .gogh-toasts { right: 416px; }
   margin: 18px 2px 0;
 }
 .gogh-quicklab { margin-top: 4px; }
+/* intent shelves: the label answers "what are you here to do?" — the sub
+   sits beside it, quiet, and the pair reads as one line */
+.gogh-intentlab { justify-content: flex-start; gap: 10px; font-size: 16px; margin-top: 26px; }
+.gogh-intentlab i { font-style: normal; font-size: 12.5px; font-weight: 500; color: #6b7280; }
 .gogh-seclab[hidden], .gogh-quickrow[hidden], .gogh-gridlab[hidden] { display: none; }
 /* Quick start: three tinted banners */
 .gogh-quickrow {

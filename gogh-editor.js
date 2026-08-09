@@ -3134,77 +3134,135 @@
       { type: 'button', x: 511, y: 330, w: 178, h: 52, text: 'Start now' },
     ]},
     { name: 'Start from scratch', minH: 480, els: [] },
-    // ---- starters: born freeform, theme-adaptive, gently teaching ----
-    { starter: true, name: 'Hero', minH: 640, els: [
-      { type: 'box', x: 600, y: 140, w: 540, h: 420, boxBg: 'color-mix(in srgb, var(--wp--preset--color--contrast, #000) 7%, var(--wp--preset--color--base, transparent))', radius: 24 },
-      { type: 'image', x: 560, y: 100, w: 540, h: 420, cool: true },
-      { type: 'badge', x: 520, y: 70, w: 214, h: 52, text: 'Born freeform' },
-      { type: 'heading', x: 72, y: 150, w: 440, h: 160, text: 'Put it where you want it', fs: '__max' },
-      { type: 'para', x: 72, y: 340, w: 400, h: 96, text: 'Every piece of this section is draggable \u2014 the photo, the badge, even this text. gogh keeps it all responsive.' },
-      { type: 'button', x: 72, y: 470, w: 172, h: 52, text: 'Get started' },
-      { type: 'button', x: 264, y: 470, w: 160, h: 52, text: 'See how', ghost: true },
+    // ---- starters: born freeform, theme-adaptive, art-directed ----
+    // one coherent world (a small design studio) so the previews read as a
+    // real site, not lorem; eyebrows are paras wearing tf, ink sections are
+    // theme-contrast backgrounds so every style variation re-dresses them
+    { starter: true, intent: 'introduce', name: 'Hero', minH: 640, els: [
+      { type: 'box', x: 640, y: 150, w: 500, h: 430, boxBg: 'color-mix(in srgb, var(--wp--preset--color--contrast, #000) 8%, var(--wp--preset--color--base, transparent))', radius: 26 },
+      { type: 'image', x: 600, y: 110, w: 500, h: 430, cool: true },
+      { type: 'badge', x: 560, y: 486, w: 196, h: 50, text: '\u2605 Est. 2019', rot: -2 },
+      { type: 'para', x: 72, y: 118, w: 340, h: 24, text: 'Design studio \u00b7 Brighton',
+        tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
+      { type: 'heading', x: 72, y: 162, w: 470, h: 200, text: 'We make brands people remember', fs: '__max' },
+      { type: 'para', x: 72, y: 396, w: 410, h: 72, text: 'Strategy, identity and websites for founders who care how things feel. Everything on this page is draggable \u2014 start here and make it yours.' },
+      { type: 'button', x: 72, y: 502, w: 180, h: 54, text: 'See the work' },
+      { type: 'button', x: 272, y: 502, w: 180, h: 54, text: 'Start a project', ghost: true },
     ] },
-    { starter: true, retired: true, name: 'Feature cards (classic)', minH: 600, els: [
-      { type: 'heading', x: 72, y: 60, w: 560, h: 64, text: 'Three reasons to care' },
-      { type: 'box', x: 72, y: 168, w: 330, h: 340, boxBg: 'color-mix(in srgb, var(--wp--preset--color--contrast, #000) 5%, var(--wp--preset--color--base, transparent))', radius: 20 },
-      { type: 'box', x: 435, y: 168, w: 330, h: 340, boxBg: 'color-mix(in srgb, var(--wp--preset--color--contrast, #000) 5%, var(--wp--preset--color--base, transparent))', radius: 20 },
-      { type: 'box', x: 798, y: 168, w: 330, h: 340, boxBg: 'color-mix(in srgb, var(--wp--preset--color--contrast, #000) 5%, var(--wp--preset--color--base, transparent))', radius: 20 },
-      { type: 'heading', x: 104, y: 208, w: 266, h: 46, text: 'Simple', fs: 'large' },
-      { type: 'para', x: 104, y: 266, w: 266, h: 110, text: 'Drag, drop, done. No columns, no rows, no settings maze.' },
-      { type: 'heading', x: 467, y: 208, w: 266, h: 46, text: 'Responsive', fs: 'large' },
-      { type: 'para', x: 467, y: 266, w: 266, h: 110, text: 'The layout solves itself for every screen, phones included.' },
-      { type: 'heading', x: 830, y: 208, w: 266, h: 46, text: 'Yours', fs: 'large' },
-      { type: 'para', x: 830, y: 266, w: 266, h: 110, text: 'Colours and type come from your theme, so everything matches.' },
+    { starter: true, intent: 'introduce', name: 'Big statement', minH: 520, els: [
+      { type: 'para', x: 400, y: 92, w: 400, h: 24, align: 'center', text: 'What we believe',
+        tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
+      { type: 'heading', x: 60, y: 150, w: 1080, h: 240, text: 'Good design is good business', fs: '__disp-l', align: 'center' },
+      { type: 'button', x: 516, y: 428, w: 168, h: 52, text: 'Our thinking', ghost: true },
     ] },
-    { starter: true, name: 'Feature cards', minH: 560, els: [
-      { type: 'heading', x: 100, y: 56, w: 1000, h: 60, text: 'Three reasons it works', fs: 'x-large', align: 'center' },
+    { starter: true, intent: 'introduce', name: 'Story', minH: 600, els: [
+      { type: 'image', x: 72, y: 84, w: 470, h: 452, cool: true },
+      { type: 'badge', x: 44, y: 58, w: 122, h: 48, text: 'N\u00ba 01', rot: -2 },
+      { type: 'para', x: 620, y: 122, w: 300, h: 24, text: 'Our story',
+        tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
+      { type: 'heading', x: 620, y: 162, w: 480, h: 120, text: 'It started in a spare room', fs: 'x-large' },
+      { type: 'para', x: 620, y: 306, w: 460, h: 84, text: 'Two desks, one borrowed lamp, and a first client who paid in coffee. We said yes to everything and learned what we were good at.' },
+      { type: 'para', x: 620, y: 406, w: 460, h: 84, text: 'Six years on we are eleven people, still small on purpose, and still excited on Mondays.' },
+      { type: 'button', x: 620, y: 512, w: 220, h: 52, text: 'The whole story', ghost: true },
+    ] },
+    { starter: true, intent: 'introduce', name: 'Numbers', minH: 420, els: [
+      { type: 'para', x: 72, y: 76, w: 300, h: 24, text: 'By the numbers',
+        tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
+      { type: 'heading', x: 72, y: 140, w: 330, h: 120, text: '184', fs: '__disp-m' },
+      { type: 'para', x: 76, y: 276, w: 290, h: 44, text: 'Projects shipped since 2019' },
+      { type: 'heading', x: 435, y: 140, w: 330, h: 120, text: '12', fs: '__disp-m' },
+      { type: 'para', x: 439, y: 276, w: 290, h: 44, text: 'Design awards on two shelves' },
+      { type: 'heading', x: 798, y: 140, w: 330, h: 120, text: '98%', fs: '__disp-m' },
+      { type: 'para', x: 802, y: 276, w: 290, h: 44, text: 'Clients who came back for more' },
+    ] },
+    { starter: true, intent: 'introduce', name: 'Article', minH: 620, els: [
+      { type: 'para', x: 280, y: 58, w: 300, h: 24, text: 'From the journal',
+        tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
+      { type: 'heading', x: 280, y: 98, w: 640, h: 70, text: 'Notes on doing less, better', fs: 'x-large' },
+      { type: 'para', x: 280, y: 196, w: 640, h: 66, text: 'A comfortable reading column, the width your theme uses for posts. Gogh is not only for splashy pages \u2014 it is a pleasant place to just write.' },
+      { type: 'para', x: 280, y: 286, w: 640, h: 66, text: 'Add paragraphs, pull a quote out to the side when you need one, and drop an image between thoughts. Everything still publishes as clean WordPress blocks.' },
+      { type: 'para', x: 280, y: 376, w: 640, h: 66, text: 'And the moment an article needs something bolder \u2014 a full-width image, a card, a big number \u2014 you can simply place it.' },
+      { type: 'button', x: 280, y: 482, w: 200, h: 54, text: 'Keep reading', ghost: true },
+    ] },
+    { starter: true, intent: 'sell', name: 'Feature cards', minH: 560, els: [
+      { type: 'heading', x: 100, y: 56, w: 1000, h: 60, text: 'What we do', fs: 'x-large', align: 'center' },
       { type: 'box', x: 100, y: 170, w: 320, h: 330, radius: 18,
         boxBg: 'color-mix(in srgb, var(--wp--preset--color--contrast, #000) 7%, var(--wp--preset--color--base, transparent))',
         kids: [
-          { type: 'badge', x: 28, y: 28, w: 120, h: 44, text: '\u2605 One' },
-          { type: 'heading', x: 28, y: 96, w: 264, h: 44, text: 'Real cards', fs: 'large' },
-          { type: 'para', x: 28, y: 152, w: 264, h: 100, text: 'Everything in this card belongs to it \u2014 drag the card and it all comes along.' },
+          { type: 'badge', x: 28, y: 28, w: 96, h: 44, text: '01' },
+          { type: 'heading', x: 28, y: 96, w: 264, h: 44, text: 'Brand identity', fs: 'large' },
+          { type: 'para', x: 28, y: 152, w: 264, h: 100, text: 'A name, a voice and a look that hold together everywhere \u2014 from the sign above the door to the invoice footer.' },
         ] },
       { type: 'box', x: 440, y: 170, w: 320, h: 330, radius: 18,
         boxBg: 'color-mix(in srgb, var(--wp--preset--color--contrast, #000) 7%, var(--wp--preset--color--base, transparent))',
         kids: [
-          { type: 'badge', x: 28, y: 28, w: 120, h: 44, text: '\u2605 Two' },
-          { type: 'heading', x: 28, y: 96, w: 264, h: 44, text: 'Drop to add', fs: 'large' },
-          { type: 'para', x: 28, y: 152, w: 264, h: 100, text: 'Drag any element inside \u2014 the card glows and takes it in. Drag it out to set it free.' },
+          { type: 'badge', x: 28, y: 28, w: 96, h: 44, text: '02' },
+          { type: 'heading', x: 28, y: 96, w: 264, h: 44, text: 'Websites', fs: 'large' },
+          { type: 'para', x: 28, y: 152, w: 264, h: 100, text: 'Fast, honest sites that read beautifully on a phone at a bus stop \u2014 which is where your customers are.' },
         ] },
       { type: 'box', x: 780, y: 170, w: 320, h: 330, radius: 18,
         boxBg: 'color-mix(in srgb, var(--wp--preset--color--contrast, #000) 7%, var(--wp--preset--color--base, transparent))',
         kids: [
-          { type: 'badge', x: 28, y: 28, w: 120, h: 44, text: '\u2605 Three' },
-          { type: 'heading', x: 28, y: 96, w: 264, h: 44, text: 'Mobile-proof', fs: 'large' },
-          { type: 'para', x: 28, y: 152, w: 264, h: 100, text: 'On phones each card stacks as one piece \u2014 nothing inside ever escapes.' },
+          { type: 'badge', x: 28, y: 28, w: 96, h: 44, text: '03' },
+          { type: 'heading', x: 28, y: 96, w: 264, h: 44, text: 'Art direction', fs: 'large' },
+          { type: 'para', x: 28, y: 152, w: 264, h: 100, text: 'Photography, illustration and the thousand small calls that make everything feel intentional.' },
         ] },
     ] },
-    { starter: true, name: 'Big statement', minH: 480, els: [
-      { type: 'badge', x: 486, y: 78, w: 228, h: 52, text: '\u2726 Say it once' },
-      { type: 'heading', x: 100, y: 168, w: 1000, h: 180, text: 'Make something people remember', fs: '__max', align: 'center' },
-      { type: 'button', x: 520, y: 392, w: 160, h: 52, text: 'Start now', ghost: true },
+    { starter: true, intent: 'sell', name: 'Pricing', minH: 640, els: [
+      { type: 'para', x: 400, y: 56, w: 400, h: 24, align: 'center', text: 'Simple pricing',
+        tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
+      { type: 'heading', x: 250, y: 96, w: 700, h: 64, text: 'Two ways to work with us', fs: 'x-large', align: 'center' },
+      { type: 'box', x: 230, y: 216, w: 350, h: 380, radius: 20,
+        boxBg: 'color-mix(in srgb, var(--wp--preset--color--contrast, #000) 6%, var(--wp--preset--color--base, transparent))',
+        kids: [
+          { type: 'heading', x: 32, y: 34, w: 286, h: 44, text: 'The Sprint', fs: 'large' },
+          { type: 'para', x: 32, y: 90, w: 286, h: 76, text: 'One focused week. A sharp brief in, a finished thing out.' },
+          { type: 'heading', x: 32, y: 186, w: 286, h: 60, text: '\u00a33,500', fs: 'x-large' },
+          { type: 'button', x: 32, y: 278, w: 286, h: 54, text: 'Book a sprint', ghost: true },
+        ] },
+      { type: 'box', x: 620, y: 196, w: 350, h: 400, radius: 20,
+        boxBg: 'var(--wp--preset--color--contrast, #16181c)',
+        kids: [
+          { type: 'badge', x: 210, y: 28, w: 116, h: 42, text: '\u2605 Loved' },
+          { type: 'heading', x: 32, y: 34, w: 240, h: 44, text: 'The Partnership', fs: 'large', tf: { col: 'var(--wp--preset--color--base, #fff)' } },
+          { type: 'para', x: 32, y: 98, w: 286, h: 76, text: 'A standing team beside yours \u2014 design, build and everything between.', tf: { col: 'color-mix(in srgb, var(--wp--preset--color--base, #fff) 78%, transparent)' } },
+          { type: 'heading', x: 32, y: 196, w: 286, h: 60, text: '\u00a34,000/mo', fs: 'x-large', tf: { col: 'var(--wp--preset--color--base, #fff)' } },
+          { type: 'button', x: 32, y: 290, w: 286, h: 54, text: 'Start together', tf: { bg: 'var(--wp--preset--color--base, #fff)', col: 'var(--wp--preset--color--contrast, #141519)' } },
+        ] },
     ] },
-    { starter: true, name: 'Quote', minH: 520, els: [
-      { type: 'box', x: 72, y: 90, w: 620, h: 340, boxBg: 'color-mix(in srgb, var(--wp--preset--color--contrast, #000) 7%, var(--wp--preset--color--base, transparent))', radius: 24 },
-      { type: 'para', x: 120, y: 138, w: 520, h: 170, text: '\u201cThe first tool that made our site feel like drawing. We stopped fighting layouts and started designing.\u201d', fs: 'large' },
-      { type: 'para', x: 120, y: 336, w: 420, h: 44, text: '\u2014 Someone you\u2019ll quote here' },
-      { type: 'image', x: 760, y: 90, w: 368, h: 340, cool: true },
+    { starter: true, intent: 'sell', name: 'Quote', minH: 480, els: [
+      { type: 'heading', x: 76, y: 44, w: 180, h: 160, text: '\u201c', fs: '__disp-l' },
+      { type: 'para', x: 200, y: 168, w: 800, h: 160, text: 'They understood us in the first meeting. The site feels like walking into our shop \u2014 people say that, unprompted.', fs: 'x-large', tf: { lh: 1.25 } },
+      { type: 'para', x: 204, y: 368, w: 500, h: 24, text: 'Hanna Lindqvist \u00b7 Hanna & Co',
+        tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
     ] },
-    { starter: true, name: 'Call to action', minH: 320, els: [
-      { type: 'box', x: 48, y: 56, w: 1104, h: 220, boxBg: 'color-mix(in srgb, var(--wp--preset--color--contrast, #000) 7%, var(--wp--preset--color--base, transparent))', radius: 26 },
-      { type: 'heading', x: 110, y: 104, w: 560, h: 66, text: 'Ready when you are' },
-      { type: 'para', x: 110, y: 180, w: 520, h: 48, text: 'One honest nudge. Keep it short, keep it warm.' },
-      { type: 'button', x: 880, y: 118, w: 210, h: 56, text: 'Let\u2019s go' },
+    { starter: true, intent: 'sell', name: 'Call to action', minH: 380,
+      bg: 'var(--wp--preset--color--contrast, #16181c)',
+      els: [
+      { type: 'para', x: 96, y: 88, w: 300, h: 24, text: 'Next step',
+        tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--base, #fff) 60%, transparent)' } },
+      { type: 'heading', x: 96, y: 130, w: 640, h: 130, text: 'Let\u2019s make yours', fs: '__max', tf: { col: 'var(--wp--preset--color--base, #fff)' } },
+      { type: 'para', x: 98, y: 286, w: 440, h: 44, text: 'No forms and no decks \u2014 just a conversation about what you are building.', tf: { col: 'color-mix(in srgb, var(--wp--preset--color--base, #fff) 75%, transparent)' } },
+      { type: 'button', x: 884, y: 186, w: 220, h: 60, text: 'Book a call', tf: { bg: 'var(--wp--preset--color--base, #fff)', col: 'var(--wp--preset--color--contrast, #141519)' } },
     ] },
-    { starter: true, name: 'Article', minH: 620, els: [
-      { type: 'heading', x: 280, y: 70, w: 640, h: 70, text: 'Write something worth reading', fs: 'x-large' },
-      { type: 'para', x: 280, y: 170, w: 640, h: 66, text: 'A comfortable reading column, the width your theme uses for posts. Gogh is not only for splashy pages \u2014 it is a pleasant place to just write.' },
-      { type: 'para', x: 280, y: 260, w: 640, h: 66, text: 'Add paragraphs, pull a quote out to the side when you need one, and drop an image between thoughts. Everything still publishes as clean WordPress blocks.' },
-      { type: 'para', x: 280, y: 350, w: 640, h: 66, text: 'And because it is a canvas, the moment an article needs something bolder \u2014 a full-width image, a card, a big number \u2014 you can simply place it.' },
-      { type: 'button', x: 280, y: 460, w: 200, h: 54, text: 'Keep reading', ghost: true },
+    { starter: true, intent: 'sell', name: 'Get in touch', minH: 460, els: [
+      { type: 'para', x: 400, y: 66, w: 400, h: 24, align: 'center', text: 'Say hello',
+        tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
+      { type: 'heading', x: 300, y: 122, w: 600, h: 100, text: 'Let\u2019s talk', fs: '__max', align: 'center' },
+      { type: 'para', x: 340, y: 248, w: 520, h: 52, align: 'center', text: 'A question, an idea, or just to say hi \u2014 we read everything, usually the same day.' },
+      { type: 'button', x: 424, y: 338, w: 170, h: 56, text: 'Email us' },
+      { type: 'button', x: 614, y: 338, w: 170, h: 56, text: 'Follow along', ghost: true },
     ] },
-    { starter: true, name: 'Photo cards', minH: 720, els: [
+    { starter: true, intent: 'showcase', name: 'Gallery', minH: 680, els: [
+      { type: 'para', x: 72, y: 60, w: 300, h: 24, text: 'Selected work',
+        tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
+      { type: 'heading', x: 72, y: 100, w: 520, h: 64, text: 'A few favourites', fs: 'x-large' },
+      { type: 'image', x: 72, y: 208, w: 330, h: 424, cool: true },
+      { type: 'image', x: 435, y: 260, w: 330, h: 372 },
+      { type: 'image', x: 798, y: 190, w: 330, h: 310, cool: true },
+      { type: 'button', x: 798, y: 546, w: 210, h: 54, text: 'See the archive', ghost: true },
+    ] },
+    { starter: true, intent: 'showcase', name: 'Photo cards', minH: 720, els: [
       { type: 'image', x: 100, y: 40, w: 470, h: 620, cool: true },
       { type: 'box', x: 100, y: 340, w: 470, h: 320, boxBg: 'linear-gradient(180deg, rgba(0,0,0,0) 0%, rgba(0,0,0,0.18) 30%, rgba(0,0,0,0.78) 100%)', radius: 20 },
       { type: 'heading', x: 136, y: 384, w: 340, h: 46, text: 'Quiet mountain cabin', fs: 'large', tf: { col: '#ffffff' } },
@@ -3220,19 +3278,48 @@
       { type: 'badge', x: 812, y: 538, w: 168, h: 44, text: 'Guest favourite' },
       { type: 'button', x: 666, y: 598, w: 398, h: 52, text: 'Reserve now', tf: { bg: '#ffffff', col: '#141519' } },
     ] },
-    { starter: true, name: 'Gallery', minH: 640, els: [
-      { type: 'heading', x: 72, y: 66, w: 520, h: 62, text: 'A few favourites' },
-      { type: 'image', x: 72, y: 168, w: 330, h: 424, cool: true },
-      { type: 'image', x: 435, y: 220, w: 330, h: 372, cool: true },
-      { type: 'image', x: 798, y: 150, w: 330, h: 310, cool: true },
-      { type: 'badge', x: 830, y: 430, w: 196, h: 52, text: '\ud83d\udcf7 Add yours' },
+    { starter: true, intent: 'showcase', name: 'Portfolio', minH: 580, els: [
+      { type: 'box', x: 40, y: 116, w: 560, h: 420, boxBg: 'color-mix(in srgb, var(--wp--preset--color--contrast, #000) 8%, var(--wp--preset--color--base, transparent))', radius: 24 },
+      { type: 'image', x: 72, y: 80, w: 560, h: 420, cool: true },
+      { type: 'badge', x: 104, y: 452, w: 190, h: 48, text: 'Hanna & Co' },
+      { type: 'para', x: 700, y: 130, w: 300, h: 24, text: 'Case study',
+        tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
+      { type: 'heading', x: 700, y: 170, w: 420, h: 120, text: 'A bakery worth queueing for', fs: 'x-large' },
+      { type: 'para', x: 700, y: 310, w: 400, h: 84, text: 'New identity, new site, same sourdough. Online orders doubled in the first month \u2014 the queue moved to the website.' },
+      { type: 'badge', x: 700, y: 414, w: 170, h: 46, text: '+204% orders' },
+      { type: 'badge', x: 886, y: 414, w: 160, h: 46, text: '6 weeks' },
+      { type: 'button', x: 700, y: 486, w: 210, h: 52, text: 'Read the study', ghost: true },
     ] },
-    { starter: true, name: 'Get in touch', minH: 460, els: [
-      { type: 'badge', x: 493, y: 58, w: 214, h: 52, text: 'Say hello' },
-      { type: 'heading', x: 300, y: 140, w: 600, h: 90, text: 'Let\u2019s talk', fs: '__max', align: 'center' },
-      { type: 'para', x: 340, y: 252, w: 520, h: 52, align: 'center', text: 'A question, an idea, or just to say hi \u2014 we read everything.' },
-      { type: 'button', x: 424, y: 342, w: 170, h: 56, text: 'Email us' },
-      { type: 'button', x: 614, y: 342, w: 170, h: 56, text: 'Follow us', ghost: true },
+    { starter: true, intent: 'showcase', name: 'Menu', minH: 600, els: [
+      { type: 'para', x: 400, y: 60, w: 400, h: 24, align: 'center', text: 'Served all day',
+        tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
+      { type: 'heading', x: 300, y: 100, w: 600, h: 70, text: 'Small plates', fs: 'x-large', align: 'center' },
+      { type: 'heading', x: 280, y: 212, w: 520, h: 40, text: 'Sourdough, cultured butter', fs: 'medium' },
+      { type: 'para', x: 850, y: 212, w: 70, h: 40, text: '\u00a36', align: 'right', fs: 'medium' },
+      { type: 'heading', x: 280, y: 288, w: 520, h: 40, text: 'Burrata, blood orange, mint', fs: 'medium' },
+      { type: 'para', x: 850, y: 288, w: 70, h: 40, text: '\u00a311', align: 'right', fs: 'medium' },
+      { type: 'heading', x: 280, y: 364, w: 520, h: 40, text: 'Wood-roast leeks, romesco', fs: 'medium' },
+      { type: 'para', x: 850, y: 364, w: 70, h: 40, text: '\u00a39', align: 'right', fs: 'medium' },
+      { type: 'heading', x: 280, y: 440, w: 520, h: 40, text: 'Anchovy toast, soft egg', fs: 'medium' },
+      { type: 'para', x: 850, y: 440, w: 70, h: 40, text: '\u00a38', align: 'right', fs: 'medium' },
+      { type: 'para', x: 280, y: 516, w: 640, h: 30, text: 'Everything changes with the seasons \u2014 ask what\u2019s good today.', tf: { fst: 'italic', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
+    ] },
+    { starter: true, intent: 'showcase', name: 'Team', minH: 620, els: [
+      { type: 'para', x: 72, y: 60, w: 300, h: 24, text: 'The studio',
+        tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
+      { type: 'heading', x: 72, y: 100, w: 600, h: 64, text: 'Eleven people, no egos', fs: 'x-large' },
+      { type: 'image', x: 72, y: 208, w: 330, h: 300, cool: true },
+      { type: 'heading', x: 74, y: 528, w: 320, h: 36, text: 'June Ashby', fs: 'medium' },
+      { type: 'para', x: 74, y: 570, w: 320, h: 24, text: 'Creative director',
+        tf: { fs: 13, fw: 600, ls2: 0.18, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
+      { type: 'image', x: 435, y: 208, w: 330, h: 300 },
+      { type: 'heading', x: 437, y: 528, w: 320, h: 36, text: 'Marco Reyes', fs: 'medium' },
+      { type: 'para', x: 437, y: 570, w: 320, h: 24, text: 'Lead engineer',
+        tf: { fs: 13, fw: 600, ls2: 0.18, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
+      { type: 'image', x: 798, y: 208, w: 330, h: 300, cool: true },
+      { type: 'heading', x: 800, y: 528, w: 320, h: 36, text: 'Priya Chandra', fs: 'medium' },
+      { type: 'para', x: 800, y: 570, w: 320, h: 24, text: 'Strategy',
+        tf: { fs: 13, fw: 600, ls2: 0.18, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
     ] },
   ];
 
@@ -3291,9 +3378,11 @@
     { key: 'contact', label: 'Contact & social', cats: ['contact', 'team', 'social', 'subscribe', 'newsletter'] },
   ];
   var STARTER_CATS = {
-    'Hero': 'hero', 'Feature cards': 'cards', 'Big statement': 'hero', 'Quote': 'text',
-    'Call to action': 'hero', 'Photo cards': 'photos cards', 'Gallery': 'photos',
-    'Get in touch': 'contact',
+    'Hero': 'hero', 'Big statement': 'hero', 'Story': 'text', 'Numbers': 'text',
+    'Article': 'text', 'Feature cards': 'cards', 'Pricing': 'cards',
+    'Quote': 'text', 'Call to action': 'hero', 'Get in touch': 'contact',
+    'Gallery': 'photos', 'Photo cards': 'photos cards', 'Portfolio': 'photos',
+    'Menu': 'text', 'Team': 'contact photos',
   };
   function openPicker(idx, before) {
     pickerIdx = idx;
@@ -3313,23 +3402,35 @@
         (popular ? '<span class="gogh-pop">🔥 Popular</span>' : '') + '</span>' +
         '</button>';
     };
-    // starters only in the grid, grouped like a library: the first four are
-    // the recommendations, the rest browse below. Blank lives in Quick start.
+    // starters shelve by INTENT, the question the user actually arrives
+    // with (Squarespace lesson) — not by layout anatomy. Blank lives in
+    // Quick start.
     var blankAt = TEMPLATES.findIndex(function (t) { return !t.retired && !t.starter; });
-    var totalStarters = TEMPLATES.filter(function (t) { return !t.retired && t.starter; }).length;
+    var INTENTS = [
+      { key: 'introduce', label: 'Introduce', sub: 'Say who you are' },
+      { key: 'sell', label: 'Sell', sub: 'Turn interest into action' },
+      { key: 'showcase', label: 'Showcase', sub: 'Let the work speak' },
+    ];
     var cardsArr = [];
     var starterSeen = 0;
+    INTENTS.forEach(function (g) {
+      var labelled = false;
+      TEMPLATES.forEach(function (tpl, t) {
+        if (tpl.retired || !tpl.starter || tpl.intent !== g.key) return;
+        if (!labelled) {
+          cardsArr.push('<div class="gogh-seclab gogh-intentlab">' + g.label +
+            '<i>' + g.sub + '</i></div>');
+          labelled = true;
+        }
+        starterSeen++;
+        cardsArr.push(tplCardHTML(tpl, t, false, starterSeen));
+      });
+    });
+    // safety net: an intent-less starter still gets shelved, never lost
     TEMPLATES.forEach(function (tpl, t) {
-      if (tpl.retired || !tpl.starter) return;
+      if (tpl.retired || !tpl.starter || tpl.intent) return;
       starterSeen++;
-      if (starterSeen === 1) cardsArr.push('<div class="gogh-seclab">Recommended</div>');
-      if (starterSeen === 5) {
-        // See all only earns its place when there IS more than the two rows
-        cardsArr.push('<div class="gogh-seclab">More layouts' +
-          (totalStarters > 8 ? '<button type="button" class="gogh-gridlab-all gogh-browse-all">See all →</button>' : '') +
-          '</div>');
-      }
-      cardsArr.push(tplCardHTML(tpl, t, starterSeen <= 3, starterSeen));
+      cardsArr.push(tplCardHTML(tpl, t, false, starterSeen));
     });
     var cards = cardsArr.join('');
     var quickTile = function (cls, icon, title, sub) {
@@ -3431,7 +3532,6 @@
     var emptyHint = picker.querySelector('.gogh-pickempty');
     var searchIn = picker.querySelector('.gogh-patsearch');
     var activeCat = '', query = '';
-    var browseAll = false; // first screen caps Browse at one row until See all
     // one grid, one filter: chips and search treat every card the same
     function applyFilter() {
       var shown = 0, teaser = 0;
@@ -3448,12 +3548,11 @@
         var ok;
         var isPat = b.classList.contains('gogh-card-pattern');
         if (!activeCat && !query) {
-          // first screen: two calm rows of layouts (Recommended + one Browse
-          // row; See all reveals the rest), plus a three-card taste of the
-          // theme's patterns under a labelled row (recents/faves carry
+          // first screen: every starter under its intent shelf — the
+          // shelves are the map, so nothing hides behind a See all — plus
+          // a one-row taste of the theme's patterns (recents/faves carry
           // kind="yours" and stay off the first screen)
-          // the theme teaser fills one full row of the 4-wide grid
-          ok = (b.dataset.tpl != null && (browseAll || +(b.dataset.si || 9) <= 8)) ||
+          ok = b.dataset.tpl != null ||
             (isPat && !b.dataset.kind && teaser < 4 && !!(++teaser));
         } else {
           var cats = (b.dataset.cats || '').split(' ');
@@ -3483,15 +3582,6 @@
       applyFilter();
     }
     picker.querySelector('.gogh-view-back').addEventListener('click', function () { setView('', ''); });
-    var browseBtn = cardsBox.querySelector('.gogh-browse-all');
-    if (browseBtn) {
-      browseBtn.addEventListener('click', function (ev) {
-        ev.stopPropagation();
-        browseAll = true;
-        browseBtn.remove();
-        applyFilter();
-      });
-    }
     searchIn.addEventListener('input', function () {
       query = this.value.trim().toLowerCase();
       applyFilter();
