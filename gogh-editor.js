@@ -4238,7 +4238,7 @@
     if (!b || secBarIdx === null) return;
     if (b.dataset.sec === 'add') { openSecAddPanel(secBarIdx); return; }
     if (b.dataset.sec === 'bgimg') { openSecBgPanel(secBarIdx, b); return; }
-    if (b.dataset.sec === 'rearrange') { openRearrangePanel(secBarIdx); return; }
+    if (b.dataset.sec === 'rearrange') { openRearrangePanel(secBarIdx, b); return; }
     if (b.dataset.sec === 'savepat') { openSavePatternPanel(secBarIdx); return; }
     if (b.dataset.sec === 'del') deleteSection(secBarIdx);
     else if (b.dataset.sec === 'up') moveSection(secBarIdx, -1);
@@ -4428,32 +4428,37 @@
     });
     renderSection(sec);
   }
-  function openRearrangePanel(idx) {
+  function openRearrangePanel(idx, anchorEl) {
     var secx = S[idx];
     var variants = rearrangeVariants(secx);
     if (!variants.length) { toast('Nothing to rearrange yet — add a couple of elements first.'); return; }
     var snap = secx.els.map(function (e) { return { x: e.x, y: e.y }; });
-    var committed = false;
     panel.innerHTML = '<div class="gogh-panel-title">Rearrange this section</div>' +
-      '<div class="gogh-panel-hint">Hover to audition — click to keep. Same pieces, new arrangement.</div>' +
+      '<div class="gogh-panel-hint">Hover to audition — click to keep. The panel stays for another try.</div>' +
       '<div class="gogh-rearrow">' + variants.map(function (v, k) {
         return '<button type="button" class="gogh-rearchip" data-k="' + k + '">' + esc(v.name) + '</button>';
       }).join('') + '</div>';
-    placePanelNear(secx.wrapEl);
+    // anchor to the BUTTON that asked, not the section: a tall section's
+    // bottom edge can be a screenful away from where James is looking
+    placePanelNear(anchorEl && anchorEl.isConnected ? anchorEl : secx.wrapEl);
     panelOpen = true;
     panel.querySelectorAll('.gogh-rearchip').forEach(function (chip) {
       chip.addEventListener('mouseenter', function () {
-        if (!committed) applyPositions(secx, variants[+chip.dataset.k].pos);
+        applyPositions(secx, variants[+chip.dataset.k].pos);
       });
       chip.addEventListener('mouseleave', function () {
-        if (!committed) applyPositions(secx, snap);
+        applyPositions(secx, snap);
       });
       chip.addEventListener('click', function () {
         applyPositions(secx, snap); // restore, so undo lands on the true before
         pushState();
         applyPositions(secx, variants[+chip.dataset.k].pos);
-        committed = true;
-        closePanel();
+        // keeping is not leaving: the kept shape becomes the new "before"
+        // and the panel stays open for the next audition
+        snap = secx.els.map(function (e) { return { x: e.x, y: e.y }; });
+        panel.querySelectorAll('.gogh-rearchip').forEach(function (o) {
+          o.classList.toggle('is-active', o === chip);
+        });
         toast('Rearranged — same pieces, new shape.', { actions: [{ label: 'Undo', onClick: function () { undo(); } }] });
       });
     });
@@ -6245,8 +6250,33 @@
           return '<button type="button" class="gogh-hpreset' + ((cfg.typeScale || 100) === ts[1] ? ' is-active' : '') + '" data-scale="' + ts[1] + '">' + ts[0] + '</button>';
         }).join('') + '</div>' +
         '<div class="gogh-varlist"></div>';
+      // the hint says "Hover to preview" — the type chips must honour it
+      // too. Local preview: override the font-size preset vars with scaled
+      // px (measured once), zero server round-trips, gone on leave.
+      var tsPreview = null;
+      var tsPreviewOff = function () {
+        if (tsPreview) { tsPreview.remove(); tsPreview = null; }
+      };
+      var tsPreviewOn = function (factor) {
+        tsPreviewOff();
+        if (factor === (cfg.typeScale || 100)) return;
+        var baseline = (cfg.typeScale || 100) / 100;
+        var rules = fontSizes().map(function (f) {
+          // f.px is the CURRENT (already-scaled) size — preview relative
+          // to the theme's own scale, never compounding
+          var px = f.px / baseline * (factor / 100);
+          return '--wp--preset--font-size--' + f.slug + ': ' + (Math.round(px * 100) / 100) + 'px;';
+        });
+        if (!rules.length) return;
+        tsPreview = document.createElement('style');
+        tsPreview.textContent = ':root, body { ' + rules.join(' ') + ' }';
+        document.head.appendChild(tsPreview);
+      };
       panel.querySelectorAll('.gogh-typescale .gogh-hpreset').forEach(function (tb) {
+        tb.addEventListener('mouseenter', function () { tsPreviewOn(+tb.dataset.scale); });
+        tb.addEventListener('mouseleave', tsPreviewOff);
         tb.addEventListener('click', function () {
+          tsPreviewOff();
           applyTypeScale(+tb.dataset.scale, tb).then(function (ok) {
             if (!ok) return;
             panel.querySelectorAll('.gogh-typescale .gogh-hpreset').forEach(function (o) {
@@ -6256,6 +6286,7 @@
         });
       });
       panel.querySelector('.gogh-panel-close').addEventListener('click', function () {
+        tsPreviewOff();
         closePanel();
         openSide();
       });
@@ -7343,6 +7374,7 @@
     contrastSentinel: contrastSentinel,
     sectionThemes: sectionThemes,
     rearrangeVariants: rearrangeVariants,
+    openRearrangePanel: openRearrangePanel,
     scaleFontSizes: scaleFontSizes,
     applySectionTheme: applySectionTheme,
     openSecAdd: openSecAddPanel,

@@ -219,6 +219,7 @@
   transition: border-color 0.12s ease, background 0.12s ease;
 }
 .gogh-rearchip:hover { border-color: #4a63d8; background: rgba(74, 99, 216, 0.08); }
+.gogh-rearchip.is-active { border-color: #4a63d8; background: rgba(74, 99, 216, 0.14); font-weight: 600; }
 
 /* height presets: S / M / L / Fill screen */
 .gogh-hpresets { display: flex; gap: 6px; margin: 4px 0 10px; }
