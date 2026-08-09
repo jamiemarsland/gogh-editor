@@ -912,6 +912,22 @@
       return v.length + ' arrangements; mirror and split verified by the numbers';
     });
 
+    test('type scale: calc-wraps every unit, never compounds', function () {
+      var sizes = [
+        { slug: 'small', size: '0.9rem' },
+        { slug: 'large', size: '24px' },
+        { slug: 'xx-large', size: 'clamp(2rem, 1rem + 4vw, 4rem)' },
+      ];
+      var same = G.scaleFontSizes(sizes, 100);
+      expect(same[0].size === '0.9rem' && same[2].size.indexOf('calc') === -1, '100% must pass originals through untouched');
+      var up = G.scaleFontSizes(sizes, 110);
+      expect(up[0].size === 'calc(0.9rem * 1.1)', 'rem not calc-wrapped: ' + up[0].size);
+      expect(up[1].size === 'calc(24px * 1.1)', 'px not calc-wrapped');
+      expect(up[2].size === 'calc(clamp(2rem, 1rem + 4vw, 4rem) * 1.1)', 'clamp not calc-wrapped');
+      expect(up[0].slug === 'small' && up.length === 3, 'slugs and count must survive');
+      return 'px, rem and clamp all scale through one calc';
+    });
+
     test('help: the ? opens the bot with the true build number', function () {
       var btn = q('.gogh-side .gogh-help');
       if (!btn) return 'no helpUrl configured — button rightly absent';

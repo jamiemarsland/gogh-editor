@@ -5080,6 +5080,10 @@
         dropBox.style.top = b2.y + 'px';
         dropBox.style.width = b2.w + 'px';
         dropBox.style.height = b2.h + 'px';
+        // interior cell lines match the drag grid's true cell (the box lives
+        // on body, so container units can't reach it)
+        var cellPx = sec.sectionEl.getBoundingClientRect().width / 30;
+        dropBox.style.backgroundSize = cellPx + 'px ' + cellPx + 'px, ' + cellPx + 'px ' + cellPx + 'px, auto';
         if (!drag.multi) {
           var jt = cardJoinTarget(sec, drag.i);
           if (jt === -1) {
@@ -5948,6 +5952,66 @@
     });
     refreshContrast();
   }
+  // ---------- type scale: one dial, every word ----------
+  // Scaled sizes are written as calc(original * factor) into user Global
+  // Styles, so px, rem and clamp() themes all scale uniformly — and always
+  // from the THEME's originals, so the dial can never compound itself.
+  function scaleFontSizes(sizes, factor) {
+    return (sizes || []).map(function (fs) {
+      var out = { slug: fs.slug, name: fs.name || fs.slug, size: fs.size };
+      if (factor !== 100 && fs.size) out.size = 'calc(' + fs.size + ' * ' + (factor / 100) + ')';
+      return out;
+    });
+  }
+  function applyTypeScale(factor, btn) {
+    if (btn) btn.disabled = true;
+    var H = { 'X-WP-Nonce': cfg.nonce };
+    return Promise.all([
+      fetch(GSROOT + 'global-styles/themes/' + encodeURIComponent(cfg.theme), { headers: H, credentials: 'same-origin' })
+        .then(function (r) { return r.ok ? r.json() : Promise.reject(new Error('HTTP ' + r.status)); }),
+      fetch(GSROOT + 'global-styles/' + cfg.gsId + '?context=edit', { headers: H, credentials: 'same-origin' })
+        .then(function (r) { return r.ok ? r.json() : Promise.reject(new Error('HTTP ' + r.status)); }),
+    ]).then(function (both) {
+      var themeSizes = (((both[0] || {}).settings || {}).typography || {}).fontSizes;
+      if (!themeSizes || !themeSizes.length) throw new Error('theme declares no font sizes');
+      var settings = (both[1] && both[1].settings) || {};
+      settings.typography = settings.typography || {};
+      settings.typography.fontSizes = scaleFontSizes(themeSizes, factor);
+      return fetch(GSROOT + 'global-styles/' + cfg.gsId, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-WP-Nonce': cfg.nonce },
+        credentials: 'same-origin',
+        body: JSON.stringify({ settings: settings }),
+      });
+    }).then(function (r) {
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      return fetch(location.href, { credentials: 'same-origin' });
+    }).then(function (r) { return r.text(); }).then(function (html) {
+      var doc = new DOMParser().parseFromString(html, 'text/html');
+      ['global-styles-inline-css', 'wp-fonts-local'].forEach(function (id) {
+        var fresh = doc.getElementById(id);
+        var cur = document.getElementById(id);
+        if (fresh && cur) cur.textContent = fresh.textContent;
+      });
+      fontSizesCache = null;
+      S.forEach(function (s2) { measureTextHeights(s2); });
+      resolveAll();
+      cfg.typeScale = factor;
+      fetch(cfg.restUrl.split('wp/v2/')[0] + 'gogh/v1/type-scale', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-WP-Nonce': cfg.nonce },
+        credentials: 'same-origin',
+        body: JSON.stringify({ scale: factor }),
+      }).catch(function () {});
+      if (btn) btn.disabled = false;
+      toast(factor === 100 ? 'Type back to the theme\u2019s own scale.' : 'Every word rescaled to ' + factor + '%.');
+      return true;
+    }).catch(function (err) {
+      if (btn) btn.disabled = false;
+      toast('Could not rescale the type \u2014 ' + ((err && err.message) || 'try again.'), { error: true });
+      return false;
+    });
+  }
   function openStylePanel(anchorEl) {
     if (!cfg.gsId || !cfg.theme) return;
     fetchVariations().then(function (vars) {
@@ -5956,7 +6020,22 @@
         '<div class="gogh-panel-head"><span class="gogh-panel-title">Site style</span>' +
         '<button type="button" class="gogh-sbtn gogh-panel-close" title="Back to the palette">\u2715</button></div>' +
         '<div class="gogh-panel-hint">Hover to preview \u2014 click to keep it</div>' +
+        '<div class="gogh-panel-hint" style="margin-top:6px">Type scale</div>' +
+        '<div class="gogh-hpresets gogh-typescale">' +
+        [['Compact', 90], ['Regular', 100], ['Generous', 110], ['Grand', 120]].map(function (ts) {
+          return '<button type="button" class="gogh-hpreset' + ((cfg.typeScale || 100) === ts[1] ? ' is-active' : '') + '" data-scale="' + ts[1] + '">' + ts[0] + '</button>';
+        }).join('') + '</div>' +
         '<div class="gogh-varlist"></div>';
+      panel.querySelectorAll('.gogh-typescale .gogh-hpreset').forEach(function (tb) {
+        tb.addEventListener('click', function () {
+          applyTypeScale(+tb.dataset.scale, tb).then(function (ok) {
+            if (!ok) return;
+            panel.querySelectorAll('.gogh-typescale .gogh-hpreset').forEach(function (o) {
+              o.classList.toggle('is-active', o === tb);
+            });
+          });
+        });
+      });
       panel.querySelector('.gogh-panel-close').addEventListener('click', function () {
         closePanel();
         openSide();
@@ -7041,6 +7120,7 @@
     contrastSentinel: contrastSentinel,
     sectionThemes: sectionThemes,
     rearrangeVariants: rearrangeVariants,
+    scaleFontSizes: scaleFontSizes,
     applySectionTheme: applySectionTheme,
     openSecAdd: openSecAddPanel,
     showGuides: showGuides,
