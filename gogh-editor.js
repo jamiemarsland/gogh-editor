@@ -1955,20 +1955,23 @@
     var top = r.bottom + window.scrollY + 10;
     // 76px bottom reserve keeps the panel clear of the publish chip
     var maxTop = window.scrollY + window.innerHeight - ph - 76;
+    panel.style.maxHeight = '';
     if (top > maxTop) {
-      // clamping would slide the panel up OVER its anchor ("the modal
-      // overlaps the actual button") — step BESIDE it instead, whichever
-      // side has the room
-      var sideTop = Math.max(window.scrollY + 16, Math.min(r.top + window.scrollY - 8, maxTop));
+      // clamping would slide the panel up OVER its anchor (or, for a
+      // near-viewport-tall panel, all the way to the top of the screen —
+      // James found it over the admin bar). Step BESIDE the anchor when
+      // there's room, and let the panel SHRINK to what's below: it
+      // scrolls inside itself, so staying with its button costs nothing.
+      var sideTop = Math.max(window.scrollY + 16, r.top + window.scrollY - 8);
       if (r.right + pw + 20 < window.innerWidth) {
         left = r.right + window.scrollX + 12;
-        top = sideTop;
       } else if (r.left - pw - 20 > 0) {
         left = r.left + window.scrollX - pw - 12;
-        top = sideTop;
-      } else {
-        top = Math.max(window.scrollY + 16, maxTop);
       }
+      top = sideTop;
+      // -90: 60px breathing room plus the panel's own padding, which sits
+      // OUTSIDE a content-box max-height
+      panel.style.maxHeight = Math.max(280, window.scrollY + window.innerHeight - top - 90) + 'px';
     }
     panel.style.left = left + 'px';
     panel.style.top = top + 'px';
