@@ -1,0 +1,198 @@
+# .github/workflows/kb.yml
+#
+# Keeps the Gogh Helper knowledge base in step with the plugin.
+#
+# On a version tag the facts appendix is regenerated from the tagged source and
+# committed back, and the rebuilt helper is attached to the release. If the
+# hand-written prose has drifted, an issue is opened — but the release is NOT
+# blocked, because the appendix is authoritative and the bot still answers
+# correctly. The only hard failure is the extractor itself breaking, which means
+# facts are missing from the appendix entirely.
+#
+# The pull_request job is the reason the tag run should be boring: drift gets
+# caught when the code changes, not months later at release time. Delete that
+# job if you'd rather only check at release.
+#
+# The Worker deploy is optional and only fires when CLOUDFLARE_API_TOKEN is set.
+# Note that deploying is NOT what keeps a hosted bot current — the Worker fetches
+# the knowledge base from GitHub at runtime, so the commit above is already
+# enough. The deploy only matters when the UI or the Worker code itself changed;
+# the refresh ping just skips the cache TTL so it goes live immediately.
+
+name: knowledge base
+
+on:
+  push:
+    tags: ['v*']
+  pull_request:
+    paths:
+      - 'gogh-editor.js'
+      - 'gogh.php'
+      - 'gogh-block.js'
+      - 'gogh-webmcp.js'
+      - 'gogh-tests.js'
+      - 'blueprint.json'
+      - 'readme.txt'
+      - 'helper/**'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  issues: write
+  pull-requests: write
+
+jobs:
+  # ---------------------------------------------------------------- release
+  refresh:
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Generate from the branch the tag came from, so the regenerated files
+          # can be committed straight back. Full history so audit.py can diff
+          # this build's facts against the previous one.
+          ref: ${{ github.event.repository.default_branch }}
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Refresh knowledge base
+        id: refresh
+        env:
+          CF_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: |
+          set +e
+          python3 helper/refresh.py
+          echo "code=$?" >> "$GITHUB_OUTPUT"
+          echo "CF_TOKEN=$CF_TOKEN" >> "$GITHUB_ENV"
+          echo "HELPER_URL=${{ vars.HELPER_URL }}" >> "$GITHUB_ENV"
+          echo "REFRESH_TOKEN=${{ secrets.HELPER_REFRESH_TOKEN }}" >> "$GITHUB_ENV"
+
+      - name: Fail if the extractor broke
+        if: steps.refresh.outputs.code == '2'
+        run: |
+          echo "::error::extract.py anchors stopped matching — the facts appendix is incomplete."
+          cat helper/kb.audit.md
+          exit 1
+
+      - name: Commit regenerated files
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add helper/kb.facts.json helper/kb.facts.md helper/kb.audit.md \
+                  helper/gogh-kb.md helper/gogh-helper.html \
+                  helper/worker/dist/worker.js
+          if git diff --cached --quiet; then
+            echo "knowledge base already current"
+          else
+            git commit -m "chore(helper): refresh knowledge base for ${GITHUB_REF_NAME:-manual run}"
+            git push origin "${{ github.event.repository.default_branch }}"
+          fi
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: kb-audit
+          path: |
+            helper/kb.audit.md
+            helper/gogh-kb.md
+            helper/gogh-helper.html
+
+      - name: Attach the helper to the release
+        if: startsWith(github.ref, 'refs/tags/v')
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release upload "$GITHUB_REF_NAME" \
+            helper/gogh-helper.html helper/gogh-kb.md --clobber
+
+      # --- optional: hosted deployment -----------------------------------
+      # Skipped entirely unless CLOUDFLARE_API_TOKEN exists, so the workflow is
+      # safe to merge before you have a Worker.
+      - name: Deploy the Worker
+        if: env.CF_TOKEN != ''
+        env:
+          CF_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        working-directory: helper/worker
+        run: npx --yes wrangler@latest deploy
+
+      - name: Tell the Worker to re-read the knowledge base
+        if: env.HELPER_URL != '' && env.REFRESH_TOKEN != ''
+        env:
+          HELPER_URL: ${{ vars.HELPER_URL }}
+          REFRESH_TOKEN: ${{ secrets.HELPER_REFRESH_TOKEN }}
+        run: |
+          # Without this the new KB still goes live by itself, just after the
+          # cache TTL rather than straight away.
+          curl -fsS -X POST "$HELPER_URL/api/refresh" \
+            -H "x-refresh-token: $REFRESH_TOKEN" || \
+            echo "::warning::refresh ping failed — the Worker will pick the KB up on its own TTL"
+
+      - name: Open an issue if the prose drifted
+        if: steps.refresh.outputs.code == '1'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TITLE="Knowledge base: prose drift (${GITHUB_REF_NAME:-manual run})"
+          BODY="$(cat helper/kb.audit.md)
+
+          ---
+          The generated facts appendix is already correct, so the helper bot is not
+          giving wrong answers. This is about the hand-written prose in
+          \`helper/kb.prose.md\` no longer matching the code.
+
+          Opened automatically by \`.github/workflows/kb.yml\`."
+          EXISTING=$(gh issue list --state open --label knowledge-base \
+                       --json number --jq '.[0].number' 2>/dev/null || true)
+          if [ -n "$EXISTING" ]; then
+            gh issue comment "$EXISTING" --body "$BODY"
+          else
+            gh label create knowledge-base --color ededed \
+              --description "Helper bot knowledge base" 2>/dev/null || true
+            gh issue create --title "$TITLE" --body "$BODY" --label knowledge-base
+          fi
+
+  # ------------------------------------------------------------ pull request
+  check:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Refresh and check for uncommitted drift
+        run: |
+          set +e
+          python3 helper/refresh.py
+          CODE=$?
+          set -e
+
+          if [ "$CODE" = "2" ]; then
+            echo "::error::extract.py anchors stopped matching — fix them in this PR."
+            cat helper/kb.audit.md
+            exit 1
+          fi
+
+          if ! git diff --quiet -- helper/kb.facts.json helper/kb.facts.md helper/gogh-kb.md; then
+            echo "::notice::This PR changes the knowledge base. Run 'python3 helper/refresh.py' and commit the result."
+            git diff --stat -- helper/
+          fi
+
+          if [ "$CODE" = "1" ]; then
+            echo "::warning::The prose in helper/kb.prose.md has drifted from this PR's code."
+          fi
+
+          {
+            echo "## Knowledge base"
+            echo
+            cat helper/kb.audit.md
+          } >> "$GITHUB_STEP_SUMMARY"

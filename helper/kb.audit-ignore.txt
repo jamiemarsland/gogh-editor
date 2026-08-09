@@ -1,0 +1,27 @@
+# One substring per line. Any audit finding containing it is suppressed.
+# Use this for known-fine findings so the report stays worth reading.
+
+# Test-only shims on __gogh — deliberately undocumented for users.
+`bindStoredTest`
+`bindChromeTest`
+
+# Deliberate paraphrases and compressions of real copy — the appendix carries
+# the verbatim strings, so the prose is free to summarise.
+Double click
+already at the back.
+Could not save/delete/add that section.
+Display S/M/L
+gogh-section gogh-sec-N
+Site header/footer updated across every page.
+Editing the site header — publishing will update every page.
+You have unpublished changes — switching the header
+rendered N vs stored M
+
+# Our own FAQ headings in PART 23, not UI copy.
+I added a block inside a Gogh section
+My inline formatting disappeared.
+'Make freeform' isn't showing.
+Publish failed.
+
+# Regex artefact: the quote scanner spans a sentence boundary here.
+variation, creates three ordinary Gutenberg pages

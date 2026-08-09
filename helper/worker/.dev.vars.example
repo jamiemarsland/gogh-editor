@@ -1,0 +1,9 @@
+# Secrets. The Deploy to Cloudflare button turns each line into a field in the
+# setup form; locally, copy this to .dev.vars and fill it in.
+
+# Required. From console.anthropic.com — this is what pays for each question.
+ANTHROPIC_API_KEY=
+
+# Optional. Any long random string. Lets the release workflow tell the Worker to
+# re-read the knowledge base immediately instead of waiting out the cache.
+REFRESH_TOKEN=
