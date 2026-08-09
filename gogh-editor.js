@@ -3447,6 +3447,19 @@
           '<div class="wp-block-accordion-panel" style="display:none"><div class="wp-block-accordion-panel__content"><p>The team page people.</p></div></div></div>' +
           '</div>' },
     ] },
+    { starter: true, intent: 'sell', name: 'Tabs', gated: 'hasTabs', minH: 520, els: [
+      { type: 'para', x: 400, y: 56, w: 400, h: 24, align: 'center', text: 'Ways to work with us',
+        tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
+      { type: 'heading', x: 250, y: 96, w: 700, h: 64, text: 'Pick your pace', fs: 'x-large', align: 'center' },
+      // a REAL core/tabs block (WP 7.1) rides the widget — this starter is
+      // gated on hasTabs, so it appears only where the block exists
+      { type: 'widget', x: 240, y: 200, w: 720, h: 280,
+        wsrc: '<!-- wp:tabs -->\n<div class="wp-block-tabs"><!-- wp:tab-list -->\n<div class="wp-block-tab-list" role="tablist"><button class="wp-block-tab-list__tab" type="button" role="tab">The Sprint</button><button class="wp-block-tab-list__tab" type="button" role="tab">The Partnership</button><button class="wp-block-tab-list__tab" type="button" role="tab">Ongoing care</button></div>\n<!-- /wp:tab-list --><!-- wp:tab-panels -->\n<div class="wp-block-tab-panels"><!-- wp:tab-panel {"label":"The Sprint"} -->\n<div class="wp-block-tab-panel"><!-- wp:paragraph --><p>One focused week. A sharp brief in, a finished thing out \u2014 built for small budgets and quick decisions.</p><!-- /wp:paragraph --></div>\n<!-- /wp:tab-panel --><!-- wp:tab-panel {"label":"The Partnership"} -->\n<div class="wp-block-tab-panel"><!-- wp:paragraph --><p>A standing team beside yours \u2014 design, build and everything between, month by month.</p><!-- /wp:paragraph --></div>\n<!-- /wp:tab-panel --><!-- wp:tab-panel {"label":"Ongoing care"} -->\n<div class="wp-block-tab-panel"><!-- wp:paragraph --><p>Quiet upkeep after launch: updates, tweaks and a person who answers.</p><!-- /wp:paragraph --></div>\n<!-- /wp:tab-panel --></div>\n<!-- /wp:tab-panels --></div>\n<!-- /wp:tabs -->',
+        whtml: '<div class="wp-block-tabs">' +
+          '<div class="wp-block-tab-list" role="tablist"><span class="wp-block-tab-list__tab" aria-selected="true">The Sprint</span><span class="wp-block-tab-list__tab">The Partnership</span><span class="wp-block-tab-list__tab">Ongoing care</span></div>' +
+          '<div class="wp-block-tab-panels"><div class="wp-block-tab-panel"><p>One focused week. A sharp brief in, a finished thing out \u2014 built for small budgets and quick decisions.</p></div></div>' +
+          '</div>' },
+    ] },
     { starter: true, intent: 'showcase', name: 'Gallery', minH: 680, els: [
       { type: 'para', x: 72, y: 60, w: 300, h: 24, text: 'Selected work',
         tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
@@ -3575,7 +3588,7 @@
     'Hero': 'hero', 'Big statement': 'hero', 'Story': 'text', 'Numbers': 'text',
     'Article': 'text', 'Feature cards': 'cards', 'Pricing': 'cards',
     'Quote': 'text', 'Call to action': 'hero', 'Get in touch': 'contact',
-    'FAQ': 'text cards', 'Gallery': 'photos', 'Photo cards': 'photos cards', 'Portfolio': 'photos',
+    'FAQ': 'text cards', 'Tabs': 'text cards', 'Gallery': 'photos', 'Photo cards': 'photos cards', 'Portfolio': 'photos',
     'Menu': 'text', 'Team': 'contact photos',
   };
   function openPicker(idx, before) {

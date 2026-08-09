@@ -1034,6 +1034,22 @@
       return 'lift, veil and zoom all emit; mood rides the model';
     });
 
+    test('Tabs starter: gated on the block, real core/tabs when present', function () {
+      var tpl = G.templates().filter(function (t) { return t.name === 'Tabs'; })[0];
+      expect(tpl && tpl.gated === 'hasTabs', 'Tabs template must be gated on hasTabs');
+      if (!window.GOGH.hasTabs) return 'core/tabs absent — starter rightly dormant';
+      var w = tpl.els.filter(function (e) { return e.type === 'widget'; })[0];
+      expect(w && /wp:tabs/.test(w.wsrc) && /wp:tab-panel/.test(w.wsrc), 'widget must carry core/tabs source');
+      expect(!/<button/.test(w.whtml), 'preview must not nest buttons in the picker card');
+      G.openPicker(G.sections().length);
+      var card = [].filter.call(document.querySelectorAll('.gogh-cards .gogh-card-name'), function (n) {
+        return n.textContent.indexOf('Tabs') === 0;
+      })[0];
+      expect(card, 'Tabs card missing from the shelf while hasTabs is true');
+      q('.gogh-picker-close').click();
+      return 'gated, sourced from the true block, shelved';
+    });
+
     test('FAQ starter: a real accordion block rides the widget', function () {
       var tpl = G.templates().filter(function (t) { return t.name === 'FAQ'; })[0];
       expect(tpl, 'FAQ template missing');
