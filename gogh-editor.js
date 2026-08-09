@@ -2350,6 +2350,15 @@
         var box = panel.querySelector('.gogh-media');
         if (!box || panel.hidden) return;
         box.innerHTML = '';
+        // a section BACKGROUND wants big, wide-ish images — logos, cutouts
+        // and portraits are noise here (Upload and the URL row still take
+        // anything). Fall back to everything if the filter empties the shelf.
+        var bgish = items.filter(function (it) {
+          var d = it.media_details || {};
+          return d.width >= 700 && d.width >= (d.height || 0) * 0.75;
+        }).slice(0, 8);
+        if (bgish.length) items = bgish;
+        else items = items.slice(0, 8);
         if (!items.length) {
           box.innerHTML = '<span class="gogh-media-loading">No images in the media library yet.</span>';
           reclampPanel();
