@@ -118,6 +118,13 @@
     test('reflow push on narrow (v0.11.8 regression)', function () {
       var i = findIdx('heading');
       var e = sec().els[i];
+      // the fixture is a living page — its words and widths drift with
+      // James's demos and style variations. Pin both, so narrowing MUST
+      // wrap in any font the active variation brings.
+      e.text = 'Make something people remember on every screen';
+      if (sec().nodes[i]) sec().nodes[i].textContent = e.text;
+      e.x = 72; e.w = 640;
+      G.resolve(sec()); G.measure(sec());
       var before = sec().els.map(function (o) { return o.y; });
       var h0 = e.h, x0 = e.x, w0 = e.w, y0 = e.y;
       // elements the user deliberately overlapped with the heading stay
@@ -130,7 +137,7 @@
       var rnScale = sec().sectionEl.getBoundingClientRect().width / 1200;
       dragBy(q('.gogh-h-e'), -(e.w - 180) * rnScale, 0, 13);
       var grew = e.h - h0;
-      expect(grew > 20, 'heading did not grow (' + grew + ')');
+      expect(grew > 20, 'heading did not grow (' + grew + ') w=' + e.w + ' h0=' + h0 + ' handle=' + !!q('.gogh-h-e'));
       var oldBottom = e.y + h0;
       var els0 = sec().els;
       var pushedIdx = [];
@@ -171,6 +178,10 @@
     test('per-frame resize push is incremental, not compounding', function () {
       var i = findIdx('heading');
       var e = sec().els[i];
+      e.text = 'Make something people remember on every screen';
+      if (sec().nodes[i]) sec().nodes[i].textContent = e.text;
+      e.x = 72; e.w = 520;
+      G.resolve(sec()); G.measure(sec());
       // the page is a living fixture — put a probe element in the push path
       var pj = sec().els.findIndex(function (o, k) { return k !== i && o.type !== 'image'; });
       var probe = sec().els[pj];
@@ -899,10 +910,21 @@
       var v = G.rearrangeVariants(s2);
       expect(v.length >= 4, 'expected mirror/centred/rail/split, got ' + v.length);
       var mirror = v.filter(function (x) { return x.slug === 'mirror'; })[0];
-      // mirror: x' = W - x - w for every element
+      // mirror: boxes flip by their box; slack left-aligned text flips by
+      // its INK so the words land where the eye expects
       s2.els.forEach(function (e, i) {
-        var want = Math.max(0, 1200 - e.x - e.w);
-        expect(Math.abs(mirror.pos[i].x - want) <= 1, 'mirror x wrong for el ' + i);
+        var iw = G.inkWidthOf(s2, i);
+        var want = (iw && (!e.align || e.align === 'left')) ? 1200 - e.x - iw : 1200 - e.x - e.w;
+        want = Math.max(0, Math.min(1200 - e.w, want));
+        expect(Math.abs(mirror.pos[i].x - want) <= 1, 'mirror x wrong for el ' + i + ' (got ' + mirror.pos[i].x + ' want ' + want + ')');
+      });
+      var centred = v.filter(function (x) { return x.slug === 'centred'; })[0];
+      // centred: the INK of slack text sits on the canvas centreline
+      s2.els.forEach(function (e, i) {
+        var iw = G.inkWidthOf(s2, i);
+        if (!iw || (e.align && e.align !== 'left')) return;
+        var inkMid = centred.pos[i].x + iw / 2;
+        expect(Math.abs(inkMid - 600) <= 2, 'centred ink off-centre for el ' + i + ' (mid ' + Math.round(inkMid) + ')');
       });
       var split = v.filter(function (x) { return x.slug === 'split'; })[0];
       expect(split, 'media+text section should offer the split');
@@ -943,6 +965,29 @@
       sheet.querySelector('.gogh-helpsheet-x').click();
       expect(!sheet.classList.contains('is-open'), 'close did not close');
       return 'sheet opens, knows the build, closes';
+    });
+
+    test('inserted templates: text taller than its box pushes, never overlaps', function () {
+      // James's serif theme wrapped a display heading over its own button —
+      // the designed box was honest for one theme and a lie for another.
+      // A deliberately squashed box stands in for every such theme.
+      var s0 = G.sections().length;
+      G.addSection({ name: 'Squash', minH: 300, els: [
+        { type: 'heading', x: 60, y: 40, w: 1080, h: 24, fs: '__disp-l', align: 'center',
+          text: 'Good design is good business and this must wrap tall' },
+        { type: 'button', x: 516, y: 80, w: 168, h: 52, text: 'Our thinking' },
+      ] }, G.sections().length);
+      var added = lastSec();
+      try {
+        var head = added.els[0], btn = added.els[1];
+        expect(head.h > 24, 'heading box did not grow to its rendered height (h=' + head.h + ')');
+        expect(btn.y >= head.y + head.h - 8,
+          'button overlaps the heading: btn.y=' + btn.y + ' vs heading bottom=' + (head.y + head.h));
+      } finally {
+        G.deleteSection(G.sections().indexOf(added));
+      }
+      expect(G.sections().length === s0, 'cleanup failed');
+      return 'grown text pushes its neighbours down on insert';
     });
 
     test('header designer: dials rewrite native spacing, and round-trip', function () {

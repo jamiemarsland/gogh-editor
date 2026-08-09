@@ -1079,6 +1079,24 @@
       sec.sectionEl.appendChild(inv);
     }
     resolveAndApply(sec);
+    // the theme has the last word on type: a serif variation can wrap a
+    // display heading TALLER than the box a template designed, and the
+    // words then sit on whatever was below (James's "Good design is good
+    // business" landed on its own button). Growth pushes — the same
+    // contract typing honours — processed top-down so pushes cascade.
+    var sMeasure = scaleOf(sec);
+    if (sMeasure > 0) {
+      sec.els.slice().sort(function (a, b) { return a.y - b.y; }).forEach(function (e) {
+        if (!isText(e)) return;
+        var i = sec.els.indexOf(e);
+        var h = sec.nodes[i] ? sec.nodes[i].offsetHeight / sMeasure : 0;
+        if (h > 0 && Math.round(h) > e.h + 2) {
+          var oldH = e.h;
+          e.h = Math.round(h);
+          reflowPush(sec, e, oldH);
+        }
+      });
+    }
     measureTextHeights(sec);
     resolveAndApply(sec);
   }
@@ -2732,6 +2750,41 @@
     d.remove();
     return m && m.length >= 3 ? m.slice(0, 3).map(Number) : null;
   }
+  // sample the image UNDER a text element, not the whole picture: a sky
+  // that is pale up top and dark in the bushes averages to "fine" while
+  // the words drown in the bushes (James's wheatfield). done(sampler) —
+  // sampler(nx, ny, nw, nh) averages a normalised region; null on taint.
+  function imgRegionLum(src, aspect, done) {
+    var im = new Image();
+    im.crossOrigin = 'anonymous';
+    var CW = 48, CH = Math.max(12, Math.round(48 * Math.max(0.1, Math.min(4, aspect || 0.5))));
+    im.onload = function () {
+      try {
+        var c = document.createElement('canvas');
+        c.width = CW; c.height = CH;
+        var ctx = c.getContext('2d');
+        var sc = Math.max(CW / im.width, CH / im.height); // cover, centre-crop
+        ctx.drawImage(im, (CW - im.width * sc) / 2, (CH - im.height * sc) / 2, im.width * sc, im.height * sc);
+        var data = ctx.getImageData(0, 0, CW, CH).data;
+        done(function (nx, ny, nw, nh) {
+          var x0 = Math.max(0, Math.floor(nx * CW)), y0 = Math.max(0, Math.floor(ny * CH));
+          var x1 = Math.min(CW, Math.ceil((nx + nw) * CW)), y1 = Math.min(CH, Math.ceil((ny + nh) * CH));
+          if (x1 <= x0 || y1 <= y0) return null;
+          var sum = 0, n = 0;
+          for (var y = y0; y < y1; y++) {
+            for (var x = x0; x < x1; x++) {
+              var k = (y * CW + x) * 4;
+              sum += sentinelLum([data[k], data[k + 1], data[k + 2]]);
+              n++;
+            }
+          }
+          return n ? sum / n : null;
+        });
+      } catch (err) { done(null); } // tainted canvas: tint-only judgement
+    };
+    im.onerror = function () { done(null); };
+    im.src = src;
+  }
   function imgAvgLum(src, done) {
     var im = new Image();
     im.crossOrigin = 'anonymous';
@@ -2750,30 +2803,41 @@
     im.onerror = function () { done(null); };
     im.src = src;
   }
-  var CONTRAST_FLOOR = 2.6; // art direction gets latitude below WCAG body-text strictness
+  // WCAG large-text wants 3.0 and body wants 4.5; 3.2 splits the
+  // difference — 2.6 let olive-on-near-black (2.76) pass as "readable"
+  var CONTRAST_FLOOR = 3.2;
   function contrastSentinel(sec, onlyIdx) {
     if (!editing || sec.chrome) return;
     var tint = sec.bg ? cssToRgb(sec.bg) : null;
-    var judge = function (imgL) {
-      var bgL;
+    var secHpx = sec.sectionEl.offsetHeight || 1;
+    var secWpx = sec.sectionEl.offsetWidth || 1;
+    var judge = function (sampler) {
       var mixA = (sec.bgA != null ? sec.bgA : 62) / 100; // the dial, or the old default
-      if (tint && imgL != null) bgL = sentinelLum(tint) * mixA + imgL * (1 - mixA); // the published tint mix
-      else if (tint && sec.bgA != null && sec.bgA < 100) {
-        var underRgb = cssToRgb('var(--wp--preset--color--base, #fff)');
-        bgL = sentinelLum(tint) * (sec.bgA / 100) + (underRgb ? sentinelLum(underRgb) : 1) * (1 - sec.bgA / 100);
-      }
-      else if (tint) bgL = sentinelLum(tint);
-      else if (imgL != null) {
-        // no user tint: the auto-scrim (45% theme base) sits behind texty sections
-        var baseRgb = cssToRgb('var(--wp--preset--color--base, #fff)');
-        bgL = imgL * 0.55 + (baseRgb ? sentinelLum(baseRgb) : 1) * 0.45;
-      } else {
+      // the ground under ONE element: local image luminance when there is a
+      // picture (a pale sky averages away the dark bushes the words sit in)
+      var secHunits = secHpx / (secWpx / W); // section height in design units
+      var groundFor = function (e) {
+        var imgL = null;
+        if (sampler) {
+          imgL = sampler(e.x / W, e.y / secHunits, e.w / W, e.h / secHunits);
+        }
+        if (tint && imgL != null) return sentinelLum(tint) * mixA + imgL * (1 - mixA); // the published tint mix
+        if (tint && sec.bgA != null && sec.bgA < 100) {
+          var underRgb = cssToRgb('var(--wp--preset--color--base, #fff)');
+          return sentinelLum(tint) * (sec.bgA / 100) + (underRgb ? sentinelLum(underRgb) : 1) * (1 - sec.bgA / 100);
+        }
+        if (tint) return sentinelLum(tint);
+        if (imgL != null) {
+          // no user tint: the auto-scrim (45% theme base) sits behind texty sections
+          var baseRgb = cssToRgb('var(--wp--preset--color--base, #fff)');
+          return imgL * 0.55 + (baseRgb ? sentinelLum(baseRgb) : 1) * 0.45;
+        }
         var secRgb = cssToRgb(getComputedStyle(sec.sectionEl).backgroundColor);
         if (!secRgb || getComputedStyle(sec.sectionEl).backgroundColor === 'rgba(0, 0, 0, 0)') {
           secRgb = cssToRgb('var(--wp--preset--color--base, #fff)');
         }
-        bgL = secRgb ? sentinelLum(secRgb) : 1;
-      }
+        return secRgb ? sentinelLum(secRgb) : 1;
+      };
       var candidates = themePalette().filter(function (p) {
         return /^(base|contrast)(-|$)/.test(p.slug);
       });
@@ -2786,7 +2850,9 @@
         var host = node.matches('p,h1,h2,h3,h4,h5,h6') ? node : (node.querySelector('p,h1,h2,h3,h4,h5,h6') || node);
         var txt = cssToRgb(getComputedStyle(host).color);
         if (!txt) return;
-        if (sentinelContrast(sentinelLum(txt), bgL) >= CONTRAST_FLOOR) return;
+        var bgL = groundFor(e);
+        var curC = sentinelContrast(sentinelLum(txt), bgL);
+        if (curC >= CONTRAST_FLOOR) return;
         var best = null, bestC = 0;
         candidates.forEach(function (p) {
           var rgb = cssToRgb(p.value);
@@ -2794,7 +2860,12 @@
           var c = sentinelContrast(sentinelLum(rgb), bgL);
           if (c > bestC) { bestC = c; best = p.slug; }
         });
-        if (best && bestC >= CONTRAST_FLOOR && e.color !== best) flips.push({ i: i, to: best });
+        // mid-tone grounds can defeat every preset — flip anyway when the
+        // best ink is a real improvement (15%+), not only when it's perfect;
+        // leaving the worst ink because no ink is ideal helps nobody
+        if (best && e.color !== best && (bestC >= CONTRAST_FLOOR || bestC >= curC * 1.15)) {
+          flips.push({ i: i, to: best });
+        }
       });
       if (!flips.length) return;
       pushState();
@@ -2804,7 +2875,7 @@
         : 'Made ' + flips.length + ' text pieces readable on that background.',
         { actions: [{ label: 'Undo', onClick: function () { undo(); } }] });
     };
-    if (sec.bgImage) imgAvgLum(sec.bgImage, judge); else judge(null);
+    if (sec.bgImage) imgRegionLum(sec.bgImage, secHpx / secWpx, judge); else judge(null);
   }
   function addElement(sec, e, atBack) {
     // shapes are backdrops: they join the stack BEHIND everything else
@@ -4281,12 +4352,27 @@
   // Hovering a chip applies the arrangement LIVE in the canvas (Squarespace
   // shows static thumbnails; the live canvas is the improvement), clicking
   // keeps it with Undo intact, leaving restores what was.
+  // the visible words, not their box: a text element's box often carries
+  // slack to the right of the ink, and arranging by box puts the WORDS in
+  // the wrong place (James: "feels like its still centering the box")
+  function inkWidthOf(sec, i) {
+    var e = sec.els[i], node = sec.nodes && sec.nodes[i];
+    if (!node || !(isText(e) || e.type === 'badge')) return null;
+    try {
+      var thost = node.querySelector('p,h1,h2,h3,h4,h5,h6') || node;
+      var trng = document.createRange();
+      trng.selectNodeContents(thost);
+      var tw = trng.getBoundingClientRect().width / scaleOf(sec);
+      return (tw > 0 && tw < e.w - 4) ? tw : null;
+    } catch (err) { return null; }
+  }
   function rearrangeVariants(sec) {
     var els = sec.els;
     if (els.length < 2) return [];
     var isMedia = function (e) {
       return e.type === 'image' || e.type === 'box' || e.type === 'exp' || e.type === 'widget';
     };
+    var inks = els.map(function (e, i) { return inkWidthOf(sec, i); });
     var reading = els.map(function (e, i) { return i; }).sort(function (a, b) {
       return (els[a].y - els[b].y) || (els[a].x - els[b].x);
     });
@@ -4295,16 +4381,27 @@
       var y = 64;
       reading.forEach(function (i) {
         var e = els[i];
-        pos[i] = { x: Math.max(0, Math.min(W - e.w, xOf(e))), y: y };
+        pos[i] = { x: Math.max(0, Math.min(W - e.w, xOf(e, i))), y: y };
         y += e.h + 28;
       });
       return pos;
     }
     var out = [
       { slug: 'mirror', name: 'Mirror',
-        pos: els.map(function (e) { return { x: Math.max(0, W - e.x - e.w), y: e.y }; }) },
+        // slack left-aligned text mirrors by its INK edge — the box's empty
+        // right half must not decide where the words land
+        pos: els.map(function (e, i) {
+          var iw = inks[i];
+          var nx = (iw && (!e.align || e.align === 'left')) ? W - e.x - iw : W - e.x - e.w;
+          return { x: Math.max(0, Math.min(W - e.w, nx)), y: e.y };
+        }) },
       { slug: 'centred', name: 'Centred',
-        pos: stack(function (e) { return (W - e.w) / 2; }) },
+        pos: stack(function (e, i) {
+          var iw = inks[i];
+          if (iw && (!e.align || e.align === 'left')) return (W - iw) / 2;
+          if (iw && e.align === 'right') return (W - iw) / 2 - (e.w - iw);
+          return (W - e.w) / 2;
+        }) },
       { slug: 'rail', name: 'Left rail',
         pos: stack(function (e) { return 72; }) },
     ];
@@ -4825,7 +4922,9 @@
           shapeBtn.style.left = (cx + 40) + 'px';
           shapeBtn.style.top = (found.y + window.scrollY) + 'px';
           shapeBtn.classList.remove('gogh-byebye');
-          shapeBtn.hidden = !cfg.experiments;
+          // un-gated: the φ sweep caught Transition by mistake — James
+          // uses it ("where has section transition gone?")
+          shapeBtn.hidden = false;
         } else {
           shapeBtn.hidden = true;
         }
@@ -7153,6 +7252,7 @@
     reorderNavRaw: reorderNavRaw,
     stickyRawToggle: stickyRawToggle,
     chromeDialsRead: chromeDialsRead,
+    inkWidthOf: inkWidthOf,
     chromeDialsApply: chromeDialsApply,
     insertGoghPattern: insertGoghPattern,
     addHtmlSection: addHtmlSection,
@@ -7647,6 +7747,9 @@
   }
   setInterval(function () {
     if (!editing || chipBusy || !isDirty()) return;
+    // the suite wrecks the page BY DESIGN (delete-everything tests) — backing
+    // that up would shadow the real fixture on every next boot
+    if (/gogh-test/.test(location.search)) return;
     // pending native sections live outside serialize() — fingerprint them
     // too, or pending-only changes would skip the backup
     var snap = serialize() + '\u0000' + pendingBlocks.map(function (pe) { return pe.raw; }).join('\u0000');

@@ -672,6 +672,10 @@ body.gogh-help-open .gogh-toasts { right: 416px; }
   gap: 6px;
   margin-top: 12px;
 }
+/* reserve the grid's two rows BEFORE the thumbs arrive: measuring the
+   panel without them placed it under the toolbar, then the late grid
+   re-clamped it sideways — a visible jump on every first open */
+.gogh-media:empty { min-height: 148px; }
 .gogh-media-loading {
   grid-column: 1 / -1;
   font-size: 12px;
