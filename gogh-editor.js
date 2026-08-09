@@ -4199,7 +4199,7 @@
           ' style="background: ' + val + '" title="' + p.slug + '"></button>';
       }).join('') + '</div>' +
       '<div class="gogh-panel-row gogh-panel-actions"><label class="gogh-colorlab">Custom <input type="color" class="gogh-color gogh-secbg-custom" /></label></div>' +
-      '<div class="gogh-panel-hint">Colour strength</div>' +
+      '<div class="gogh-panel-hint">Transparency</div>' +
       '<div class="gogh-panel-row"><input type="range" class="gogh-secbg-alpha" min="8" max="100" step="1" value="' + (secx.bgA != null ? secx.bgA : (secx.bgImage && secx.bg ? 62 : 100)) + '" style="flex:1" /><span class="gogh-secbg-alpha-val">' + (secx.bgA != null ? secx.bgA : (secx.bgImage && secx.bg ? 62 : 100)) + '</span></div>' +
       '<div class="gogh-panel-hint">Image</div>' +
       '<div class="gogh-panel-row">' +
@@ -4502,7 +4502,7 @@
           shapeBtn.style.left = (cx + 40) + 'px';
           shapeBtn.style.top = (found.y + window.scrollY) + 'px';
           shapeBtn.classList.remove('gogh-byebye');
-          shapeBtn.hidden = false;
+          shapeBtn.hidden = !cfg.experiments;
         } else {
           shapeBtn.hidden = true;
         }
@@ -8596,11 +8596,25 @@
     var st = {
       partEl: partEl, area: area, options: options,
       activeOpt: activeOpt, active: active, idx: 0, busy: false, alive: true,
+      // simple mode (James): ONE pill — it advances, carries the count and
+      // an inline ✓; no second strip ever appears. Experiments keeps the
+      // full strip (freeform convert, browse-all).
+      simple: !cfg.experiments,
     };
+    if (st.simple && pill) st.pillBase = pill.innerHTML;
     options.forEach(function (o, k) { if (activeOpt && o.id === activeOpt.id) st.idx = k; });
     function isCurrent(o) { return !!(activeOpt && o.id === activeOpt.id); }
     function render() {
       var o = st.options[st.idx];
+      if (st.simple && pill) {
+        pill.title = 'Site ' + area + ' — ' + o.title + ' (click for the next)';
+        pill.innerHTML = 'Next ' + area + ' › <em class="gogh-pill-n">' +
+          (st.idx + 1) + '/' + st.options.length + (isCurrent(o) ? ' · current' : '') + '</em>' +
+          (isCurrent(o) ? '' : '<span class="gogh-pill-keep" role="button" title="Keep this layout (updates every page)">✓</span>');
+        var keep = pill.querySelector('.gogh-pill-keep');
+        if (keep) keep.onclick = function (ev) { ev.stopPropagation(); commitChosen(true); };
+        return;
+      }
       // the layout name lives in the tooltip — the strip stays small
       cycBar.title = 'Site ' + area + ' — ' + o.title;
       cycBar.querySelector('.gogh-cyc-n').textContent =
@@ -8617,7 +8631,11 @@
       cycBar.hidden = true;
       cycBar.classList.remove('is-busy');
       document.body.classList.remove('gogh-cycling');
-      if (pill) { pill.style.display = ''; pill.disabled = false; }
+      if (pill) {
+        pill.style.display = '';
+        pill.disabled = false;
+        if (st.simple && st.pillBase != null) pill.innerHTML = st.pillBase;
+      }
       placeConvertBtns();
       placeChromeBtns();
     }
@@ -8630,6 +8648,7 @@
         ev.clientX >= r.left && ev.clientX <= r.right;
     }
     function onDocDown(ev) {
+      if (pill && pill.contains(ev.target)) return; // the pill's own click advances
       if (cycBar.contains(ev.target)) {
         // strip clicks are the cycle's business alone: without stopping
         // propagation they leak into gogh's global handlers, one of which
@@ -8699,7 +8718,10 @@
     };
     st.collapse = collapse;
     chromeCycle = st;
-    if (pill) pill.style.display = 'none';
+    if (pill) {
+      if (st.simple) { pill.disabled = false; }
+      else { pill.style.display = 'none'; }
+    }
     // footer controls live at the bottom of the screen, header's at the top
     cycBar.classList.toggle('is-bottom', area === 'footer');
     var hintInit = cycBar.querySelector('.gogh-cyc-hint');
@@ -8712,13 +8734,27 @@
       ev.stopPropagation();
       st.advance();
     };
-    cycBar.querySelector('.gogh-cyc-ok').onclick = function (ev) {
-      ev.stopPropagation();
+    function commitChosen(viaPill) {
       var chosen = st.options[st.idx];
       if (isCurrent(chosen)) { collapse(); return; }
       if (!isDirty()) { swapChromeLayoutNow(area, active, chosen); return; }
+      if (viaPill) {
+        toast('Unpublished page changes will be lost when the ' + area + ' switches.', {
+          ttl: 9000,
+          actions: [
+            { label: 'Switch anyway', onClick: function () { swapChromeLayoutNow(area, active, chosen); } },
+            { label: 'Back', onClick: function () {} },
+          ],
+        });
+        return;
+      }
+      commitViaStrip(chosen);
+    }
+    st.commitChosen = commitChosen;
+    function commitViaStrip(chosen) {
       // the confirmation lives IN the strip — a corner toast goes unseen
       // and reads as "the tick does nothing"
+      var area2 = st.area, active2 = st.active;
       var old = cycBar.querySelector('.gogh-cyc-confirm');
       if (old) old.remove();
       var conf = document.createElement('span');
@@ -8728,7 +8764,7 @@
         '<b role="button" class="gogh-cyc-no">Back</b>';
       conf.querySelector('.gogh-cyc-yes').onclick = function (e2) {
         e2.stopPropagation();
-        swapChromeLayoutNow(area, active, chosen);
+        swapChromeLayoutNow(area2, active2, chosen);
       };
       conf.querySelector('.gogh-cyc-no').onclick = function (e2) {
         e2.stopPropagation();
@@ -8736,6 +8772,10 @@
       };
       conf.onclick = function (e2) { e2.stopPropagation(); };
       cycBar.appendChild(conf);
+    }
+    cycBar.querySelector('.gogh-cyc-ok').onclick = function (ev) {
+      ev.stopPropagation();
+      commitChosen(false);
     };
     cycBar.querySelector('.gogh-cyc-edit').onclick = function (ev) {
       ev.stopPropagation();
@@ -8785,7 +8825,7 @@
     // freeform convert and the browse-all live behind experiments for now
     cycBar.querySelector('.gogh-cyc-edit').style.display = cfg.experiments ? '' : 'none';
     cycBar.querySelector('.gogh-cyc-more').style.display = cfg.experiments ? '' : 'none';
-    cycBar.hidden = false;
+    cycBar.hidden = !!st.simple;
     // bring the part on screen — flicking through looks you can't see
     // isn't choosing. Instant, not smooth: preview reflows cancel smooth
     // scrolls midway.
@@ -10821,6 +10861,8 @@
       // (the header pill used to overlap the nav)
       b.classList.add(partEl.tagName === 'FOOTER' ? 'is-footpill' : 'is-headpill');
       b.addEventListener('click', function () {
+        // mid-cycle the pill IS the next button (simple mode)
+        if (chromeCycle && chromeCycle.partEl === partEl) { chromeCycle.advance(); return; }
         b.disabled = true;
         convertChrome(partEl).then(function (sec) { if (!sec) b.disabled = false; }).catch(function () {
           b.disabled = false;

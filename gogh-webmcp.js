@@ -35,6 +35,10 @@
   function secOf(e) {
     return G.sections().filter(function (s) { return s.els.indexOf(e) !== -1; })[0] || null;
   }
+  // a soft failure the adapters can DISTINGUISH from success: __goghMcp.call
+  // and the WebMCP execute path both surface it as a real error (isError),
+  // never as a success-shaped string
+  function fail(msg) { return { __goghFail: String(msg) }; }
   function textOf(e) {
     return (e.text || '').replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
   }
@@ -113,7 +117,7 @@
       run: function (args) {
         ensureEditing();
         var tpl = findTemplate(args.layout);
-        if (!tpl) return 'No layout matches "' + args.layout + '". Options: ' + starterNames().join(', ');
+        if (!tpl) return fail('No layout matches "' + args.layout + '". Options: ' + starterNames().join(', '));
         G.addSection(tpl, G.sections().length);
         return 'Added a "' + tpl.name + '" section at position ' + (contentSecs().length - 1) + '.';
       },
@@ -127,7 +131,7 @@
         required: ['html'],
       },
       run: function (args) {
-        if (!args.html || !String(args.html).trim()) return 'No HTML given.';
+        if (!args.html || !String(args.html).trim()) return fail('No HTML given.');
         ensureEditing();
         G.addHtmlSection(String(args.html), G.sections().length);
         return 'HTML section added to the end of the page.';
@@ -148,7 +152,7 @@
       run: function (args) {
         ensureEditing();
         var kinds = ['heading', 'para', 'button', 'image', 'badge'];
-        if (kinds.indexOf(args.type) === -1) return 'Unknown element type "' + args.type + '". Use: ' + kinds.join(', ');
+        if (kinds.indexOf(args.type) === -1) return fail('Unknown element type "' + args.type + '". Use: ' + kinds.join(', '));
         var e = G.addElementAt(args.type);
         if (args.text && args.type !== 'image') e.text = String(args.text);
         settleInSection(e, args.section, false);
@@ -184,8 +188,8 @@
           return d.key === want || (d.label || '').toLowerCase().indexOf(want) === 0;
         })[0];
         if (!def) {
-          return 'Unknown shape "' + args.shape + '". Options: ' +
-            G.shapeDefs().map(function (d) { return d.key; }).join(', ');
+          return fail('Unknown shape "' + args.shape + '". Options: ' +
+            G.shapeDefs().map(function (d) { return d.key; }).join(', '));
         }
         var e = G.addShape(def);
         if (args.color) e.boxBg = /^[a-z0-9-]+$/.test(args.color) ? args.color : String(args.color);
@@ -212,7 +216,7 @@
         ensureEditing();
         var secs = contentSecs();
         var sec = secs[args.section | 0];
-        if (!sec) return 'No content section ' + args.section + ' — the page has ' + secs.length + '.';
+        if (!sec) return fail('No content section ' + args.section + ' — the page has ' + secs.length + '.');
         sec.bg = cssColor(args.color);
         G.resolveAll();
         G.pushState();
@@ -269,9 +273,15 @@
       },
       run: function (args) {
         ensureEditing();
+        // destructive tool: a missing required arg is an ERROR, never a
+        // default — agents mistype param names constantly, and "silently
+        // deleted section 0" is how trust dies
+        if (typeof args.section !== 'number') {
+          return fail('gogh_delete_section requires {section: <number>} — the index from gogh_page_overview. Nothing was deleted.');
+        }
         var secs = contentSecs();
         var sec = secs[args.section | 0];
-        if (!sec) return 'No content section ' + args.section + ' — the page has ' + secs.length + '.';
+        if (!sec) return fail('No content section ' + args.section + ' — the page has ' + secs.length + '.');
         var desc = sec.els.length ? sec.els.length + ' element(s)' : 'empty';
         G.deleteSection(G.sections().indexOf(sec));
         return 'Deleted section ' + (args.section | 0) + ' (' + desc + '). Sections renumbered — check gogh_page_overview.';
@@ -304,6 +314,10 @@
     return Promise.resolve()
       .then(function () { return t.run(args || {}); })
       .then(function (msg) {
+        if (msg && msg.__goghFail) {
+          logDone(t, args, via, performance.now() - t0, 'ERROR: ' + msg.__goghFail);
+          throw new Error(msg.__goghFail);
+        }
         logDone(t, args, via, performance.now() - t0, msg);
         return msg;
       });
@@ -318,6 +332,10 @@
       // only publish returns a promise
       var t0 = performance.now();
       var out = t.run(args || {});
+      if (out && out.__goghFail) {
+        logDone(t, args, 'console', performance.now() - t0, 'ERROR: ' + out.__goghFail);
+        throw new Error(out.__goghFail);
+      }
       if (out && typeof out.then === 'function') {
         return out.then(function (msg) {
           logDone(t, args, 'console', performance.now() - t0, msg);
@@ -329,9 +347,9 @@
     },
   };
 
-  var mc = navigator.modelContext;
+  var mc = document.modelContext || navigator.modelContext;
   if (!mc) {
-    console.info('[gogh] WebMCP: navigator.modelContext not present — tools available on __goghMcp only.');
+    console.info('[gogh] WebMCP: modelContext not present — tools available on __goghMcp only.');
     return;
   }
   var asDecl = function (t) {
@@ -340,11 +358,10 @@
       description: t.description,
       inputSchema: t.schema,
       execute: function (args) {
-        return logged(t, args, 'webmcp')
-          .then(function (msg) { return { content: [{ type: 'text', text: String(msg) }] }; })
-          .catch(function (err) {
-            return { content: [{ type: 'text', text: 'gogh error: ' + ((err && err.message) || err) }], isError: true };
-          });
+        // plain string out — the browser builds the envelope (wrapping one
+        // ourselves double-encoded every response); rejections become
+        // isError at the protocol layer
+        return logged(t, args, 'webmcp').then(function (msg) { return String(msg); });
       },
     };
   };
