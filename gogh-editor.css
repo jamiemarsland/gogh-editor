@@ -190,6 +190,19 @@
 .gogh-side-gap { flex: none; height: 10px; }
 .gogh-addmenu { display: grid; grid-template-columns: 1fr 1fr; gap: 2px; min-width: 250px; margin-top: 6px; }
 
+/* height presets: S / M / L / Fill screen */
+.gogh-hpresets { display: flex; gap: 6px; margin: 4px 0 10px; }
+.gogh-hpreset {
+  all: unset;
+  cursor: pointer;
+  padding: 6px 12px;
+  border-radius: 8px;
+  border: 1.5px solid var(--gogh-ui-line, #e3e3e6);
+  font-size: 12px;
+  font-weight: 700;
+}
+.gogh-hpreset.is-active { border-color: #4a63d8; color: #3d55c8; background: rgba(74, 99, 216, 0.08); }
+
 /* section theme chips: a look for the section and its words */
 .gogh-themerow { display: flex; gap: 8px; flex-wrap: wrap; margin: 4px 0 10px; }
 .gogh-themechip {

@@ -252,7 +252,7 @@
       minH: model.minH || (bootEls.length ? null : 480),
       bg: model.bg || null, divider: model.divider || null,
       fx: model.fx || null,
-      bgImage: model.bgImage || null, bgId: model.bgId || null, bgA: model.bgA != null ? model.bgA : null, theme: model.theme || null,
+      bgImage: model.bgImage || null, bgId: model.bgId || null, bgA: model.bgA != null ? model.bgA : null, theme: model.theme || null, fill: !!model.fill,
       wrapEl: wrap, sectionEl: sectionEl, styleEl: styleEl, nodes: [] });
   });
 
@@ -522,6 +522,7 @@
       sec + ' {',
       '  display: grid;',
       '  position: relative;',
+      (opts.fill ? '  min-height: 100svh;' : ''),
       (function () {
         // the tint strength is a dial (Canva-style): default 62 over an
         // image, solid for plain colour — opts.bgA is 0–100
@@ -770,7 +771,7 @@
       version: version, designW: W, minH: sec.minH || null,
       bg: sec.bg || null, divider: sec.divider || null,
       fx: sec.fx || null,
-      bgImage: sec.bgImage || null, bgId: sec.bgId || null, bgA: sec.bgA != null ? sec.bgA : null, theme: sec.theme || null,
+      bgImage: sec.bgImage || null, bgId: sec.bgId || null, bgA: sec.bgA != null ? sec.bgA : null, theme: sec.theme || null, fill: sec.fill || null,
       elements: sec.els.map(projEl),
     };
   }
@@ -1005,7 +1006,7 @@
   function sectionOpts(sec) {
     var idx = S.indexOf(sec);
     var next = idx >= 0 ? S[idx + 1] : null;
-    return { bg: sec.bg, bgA: sec.bgA != null ? sec.bgA : null, divider: sec.divider, bgImage: sec.bgImage,
+    return { bg: sec.bg, bgA: sec.bgA != null ? sec.bgA : null, fill: !!sec.fill, divider: sec.divider, bgImage: sec.bgImage,
       fx: sec.fx || null,
       stickUnder: !!(next && next.fx && next.fx.curtain),
       divColor: next ? (next.bg || '#0f0e0c') : null };
@@ -1098,7 +1099,7 @@
   // ---------- history (undo/redo) ----------
   var history = [], hIdx = -1, textTimer = null;
   function serialize() {
-    return JSON.stringify(S.map(function (sec) { return { scope: sec.scope, els: sec.els, minH: sec.minH || null, bg: sec.bg || null, divider: sec.divider || null, fx: sec.fx || null, bgImage: sec.bgImage || null, bgId: sec.bgId || null, bgA: sec.bgA != null ? sec.bgA : null, theme: sec.theme || null, src: sec.srcSig || null, boot: sec.bootstrap || false, chrome: sec.chrome || null }; }));
+    return JSON.stringify(S.map(function (sec) { return { scope: sec.scope, els: sec.els, minH: sec.minH || null, bg: sec.bg || null, divider: sec.divider || null, fx: sec.fx || null, bgImage: sec.bgImage || null, bgId: sec.bgId || null, bgA: sec.bgA != null ? sec.bgA : null, theme: sec.theme || null, fill: sec.fill || null, src: sec.srcSig || null, boot: sec.bootstrap || false, chrome: sec.chrome || null }; }));
   }
   function pushState() {
     var snap = serialize();
@@ -1148,6 +1149,7 @@
       sec.bgId = d.bgId || null;
       sec.bgA = d.bgA != null ? d.bgA : null;
       sec.theme = d.theme || null;
+      sec.fill = !!d.fill;
       sec.srcSig = d.src || null;
       sec.bootstrap = !!d.boot;
       sec.chrome = d.chrome || null;
@@ -3995,6 +3997,7 @@
     sec.bgId = srcSec.bgId || null;
     sec.bgA = srcSec.bgA != null ? srcSec.bgA : null;
     sec.theme = srcSec.theme || null;
+    sec.fill = !!srcSec.fill;
     srcSec.wrapEl.after(sec.wrapEl);
     S.splice(idx + 1, 0, sec);
     renderSection(sec);
@@ -4150,6 +4153,7 @@
     sec.bgId = model.bgId || null;
     sec.bgA = model.bgA != null ? model.bgA : null;
     sec.theme = model.theme || null;
+    sec.fill = !!model.fill;
     var nextContent = null;
     for (var ni = idx; ni < S.length; ni++) { if (!S[ni].chrome) { nextContent = S[ni]; break; } }
     pageParent.insertBefore(sec.wrapEl, (before && before.isConnected) ? before : (nextContent ? nextContent.wrapEl : endMarker));
@@ -4263,6 +4267,13 @@
       '<div class="gogh-panel-row gogh-panel-actions"><label class="gogh-colorlab">Custom <input type="color" class="gogh-color gogh-secbg-custom" /></label></div>' +
       '<div class="gogh-panel-hint">Transparency</div>' +
       '<div class="gogh-panel-row"><input type="range" class="gogh-secbg-alpha" min="8" max="100" step="1" value="' + (secx.bgA != null ? secx.bgA : (secx.bgImage && secx.bg ? 62 : 100)) + '" style="flex:1" /><span class="gogh-secbg-alpha-val">' + (secx.bgA != null ? secx.bgA : (secx.bgImage && secx.bg ? 62 : 100)) + '</span></div>' +
+      '<div class="gogh-panel-hint">Height</div>' +
+      '<div class="gogh-hpresets">' +
+      [['s','S',320],['m','M',560],['l','L',800]].map(function (hp) {
+        return '<button type="button" class="gogh-hpreset' + (!secx.fill && secx.minH === hp[2] ? ' is-active' : '') + '" data-minh="' + hp[2] + '" title="' + hp[1] + ' — ' + hp[2] + ' units">' + hp[1] + '</button>';
+      }).join('') +
+      '<button type="button" class="gogh-hpreset gogh-hpreset-fill' + (secx.fill ? ' is-active' : '') + '" title="Fill the screen">Fill screen</button>' +
+      '</div>' +
       '<div class="gogh-panel-hint">Image</div>' +
       '<div class="gogh-panel-row">' +
       '<input type="url" class="gogh-input" placeholder="Paste image URL…" />' +
@@ -4275,6 +4286,24 @@
       '<div class="gogh-media"><span class="gogh-media-loading">Loading media…</span></div>';
     panel.hidden = false;
     panelOpen = true;
+    panel.querySelectorAll('.gogh-hpreset').forEach(function (hb) {
+      hb.addEventListener('click', function () {
+        pushState();
+        if (hb.classList.contains('gogh-hpreset-fill')) {
+          secx.fill = !secx.fill;
+        } else {
+          secx.minH = +hb.dataset.minh;
+          secx.fill = false;
+        }
+        renderSection(secx);
+        resolveAll();
+        panel.querySelectorAll('.gogh-hpreset').forEach(function (o) {
+          var on = o.classList.contains('gogh-hpreset-fill') ? secx.fill
+            : (!secx.fill && secx.minH === +o.dataset.minh);
+          o.classList.toggle('is-active', on);
+        });
+      });
+    });
     var themeDefs = sectionThemes();
     panel.querySelectorAll('.gogh-themechip').forEach(function (tc) {
       tc.addEventListener('click', function () {
@@ -7381,7 +7410,7 @@
   }
   function canonSec(d) {
     return { els: (d.els || []).map(projEl), minH: d.minH || null, bg: d.bg || null,
-      divider: d.divider || null, bgImage: d.bgImage || null, bgId: d.bgId || null, bgA: d.bgA != null ? d.bgA : null, theme: d.theme || null };
+      divider: d.divider || null, bgImage: d.bgImage || null, bgId: d.bgId || null, bgA: d.bgA != null ? d.bgA : null, theme: d.theme || null, fill: d.fill || null };
   }
   function backupDiffers(data) {
     return JSON.stringify(data.map(canonSec)) !== JSON.stringify(realSections().map(canonSec));
@@ -11259,6 +11288,7 @@
         sec.bgId = model.bgId || null;
         sec.bgA = model.bgA != null ? model.bgA : null;
         sec.theme = model.theme || null;
+        sec.fill = !!model.fill;
       });
     }).catch(function (err) {
       console.warn('[gogh] v3 hydration failed:', err);

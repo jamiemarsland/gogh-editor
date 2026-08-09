@@ -814,30 +814,43 @@
     });
 
     test('contrast sentinel: dark words on dark ground fix themselves', function () {
-      G.addSection({ title: 'CS', minH: 240, bg: '#101014', els: [] });
+      // variation-proof: work out which of base/contrast is the DARK slug
+      // right now (James flips site styles constantly, and dark variations
+      // make the default ink light — the old test assumed dark ink)
+      var probe = function (slug) {
+        var d = document.createElement('div');
+        d.style.color = 'var(--wp--preset--color--' + slug + ')';
+        d.style.display = 'none';
+        document.body.appendChild(d);
+        var m = (getComputedStyle(d).color.match(/[\d.]+/g) || []).slice(0, 3).map(Number);
+        d.remove();
+        return (m[0] + m[1] + m[2]) / 3;
+      };
+      var darker = probe('base') < probe('contrast') ? 'base' : 'contrast';
+      var lighter = darker === 'base' ? 'contrast' : 'base';
+      G.addSection({ title: 'CS', minH: 240, bg: '#101014', els: [
+        { type: 'heading', x: 90, y: 40, w: 500, h: 60, text: 'Dark on dark' },
+      ] });
       var c = contentSecs();
       var s2 = c[c.length - 1];
-      var idx = G.sections().indexOf(s2);
-      G.addElementToSection(idx, 'heading');
-      var e = s2.els[s2.els.length - 1];
-      // addElement already ran the sentinel synchronously (no bg image):
-      // near-black theme ink on #101014 must have flipped to a light preset
-      expect(e.color, 'sentinel did not assign a readable colour (color=' + e.color + ')');
-      var node = s2.nodes[s2.els.indexOf(e)];
-      var host = node.matches('h1,h2,h3,h4,p') ? node : (node.querySelector('h1,h2,h3,h4,p') || node);
-      var rgb = (getComputedStyle(host).color.match(/[\d.]+/g) || []).slice(0, 3).map(Number);
-      var lum = (rgb[0] + rgb[1] + rgb[2]) / 3;
-      expect(lum > 128, 'flipped colour still reads dark (rgb ' + rgb.join() + ')');
-      // and on a light ground the sentinel stays quiet
-      G.addSection({ title: 'CS2', minH: 240, els: [] });
+      var e = s2.els[0];
+      e.color = darker;
+      G.renderSection(s2);
+      G.contrastSentinel(s2);
+      expect(e.color === lighter, 'dark ink on dark ground should flip to ' + lighter + ' (got ' + e.color + ')');
+      // and readable text is left alone: the darker ink on a pale ground
+      G.addSection({ title: 'CS2', minH: 240, bg: '#f5f5f2', els: [
+        { type: 'heading', x: 90, y: 40, w: 500, h: 60, text: 'Fine as is' },
+      ] });
       var c2 = contentSecs();
       var s3 = c2[c2.length - 1];
-      G.addElementToSection(G.sections().indexOf(s3), 'heading');
-      var e3 = s3.els[s3.els.length - 1];
-      expect(!e3.color, 'sentinel recoloured text that was already readable');
+      s3.els[0].color = darker;
+      G.renderSection(s3);
+      G.contrastSentinel(s3);
+      expect(s3.els[0].color === darker, 'sentinel recoloured text that was already readable');
       G.deleteSection(G.sections().indexOf(s3));
       G.deleteSection(G.sections().indexOf(s2));
-      return 'dark ground → light ink, light ground → untouched';
+      return 'dark ground flips ' + darker + '→' + lighter + '; pale ground untouched';
     });
 
     test('section themes: pick a look, the words come with it', function () {
@@ -857,6 +870,22 @@
       expect(snap.indexOf('"theme":"ink"') !== -1, 'theme should serialize');
       G.deleteSection(G.sections().indexOf(s2));
       return themes.length + ' looks; Ink flips bg and words together';
+    });
+
+    test('section height: presets set minH, Fill rides svh', function () {
+      G.addSection({ title: 'HT', minH: 240, els: [ { type: 'heading', x: 90, y: 40, w: 400, h: 60, text: 'Tall' } ] });
+      var c = contentSecs();
+      var s2 = c[c.length - 1];
+      s2.minH = 800; s2.fill = false;
+      G.renderSection(s2);
+      expect((s2.styleEl.textContent || '').indexOf('min-height: 100svh') === -1, 'no-fill section must not claim the screen');
+      s2.fill = true;
+      G.renderSection(s2);
+      expect((s2.styleEl.textContent || '').indexOf('min-height: 100svh') !== -1, 'Fill screen should emit min-height:100svh');
+      var snap = G.serialize();
+      expect(snap.indexOf('"boot":false') !== -1 || snap.indexOf('"fill":true') !== -1, 'fill should serialize');
+      G.deleteSection(G.sections().indexOf(s2));
+      return 'S/M/L via minH; Fill emits 100svh and round-trips';
     });
 
     test('help: the ? opens the bot with the true build number', function () {
