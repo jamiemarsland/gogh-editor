@@ -1,12 +1,12 @@
 {
   "meta": {
-    "plugin_version": "0.99.24",
+    "plugin_version": "0.99.30",
     "requires_wp": "6.5",
     "requires_php": "7.4",
     "text_domain": "gogh-editor",
     "readme_stable_tag": "0.26.0",
     "readme_tested_up_to": "7.0",
-    "asset_version": "0.99.24-chrome"
+    "asset_version": "0.99.30-chrome"
   },
   "constants": {
     "TOL": 8,
@@ -73,34 +73,22 @@
       "minH": 640
     },
     {
-      "name": "Feature cards (classic)",
-      "starter": true,
-      "retired": true,
-      "minH": 600
-    },
-    {
-      "name": "Feature cards",
-      "starter": true,
-      "retired": false,
-      "minH": 560
-    },
-    {
       "name": "Big statement",
-      "starter": true,
-      "retired": false,
-      "minH": 480
-    },
-    {
-      "name": "Quote",
       "starter": true,
       "retired": false,
       "minH": 520
     },
     {
-      "name": "Call to action",
+      "name": "Story",
       "starter": true,
       "retired": false,
-      "minH": 320
+      "minH": 600
+    },
+    {
+      "name": "Numbers",
+      "starter": true,
+      "retired": false,
+      "minH": 420
     },
     {
       "name": "Article",
@@ -109,22 +97,64 @@
       "minH": 620
     },
     {
-      "name": "Photo cards",
+      "name": "Feature cards",
       "starter": true,
       "retired": false,
-      "minH": 720
+      "minH": 560
     },
     {
-      "name": "Gallery",
+      "name": "Pricing",
       "starter": true,
       "retired": false,
       "minH": 640
+    },
+    {
+      "name": "Quote",
+      "starter": true,
+      "retired": false,
+      "minH": 480
+    },
+    {
+      "name": "Call to action",
+      "starter": true,
+      "retired": false,
+      "minH": 380
     },
     {
       "name": "Get in touch",
       "starter": true,
       "retired": false,
       "minH": 460
+    },
+    {
+      "name": "Gallery",
+      "starter": true,
+      "retired": false,
+      "minH": 680
+    },
+    {
+      "name": "Photo cards",
+      "starter": true,
+      "retired": false,
+      "minH": 720
+    },
+    {
+      "name": "Portfolio",
+      "starter": true,
+      "retired": false,
+      "minH": 580
+    },
+    {
+      "name": "Menu",
+      "starter": true,
+      "retired": false,
+      "minH": 600
+    },
+    {
+      "name": "Team",
+      "starter": true,
+      "retired": false,
+      "minH": 620
     }
   ],
   "shapes": [
@@ -305,6 +335,7 @@
     "Add an element to this section",
     "Add link",
     "Add to page",
+    "Adjust spacing",
     "All options",
     "Apply",
     "Back",
@@ -395,6 +426,7 @@
     "Your latest products, live — prices and add to cart included",
     "gogh help",
     "← All layouts",
+    "↕ Spacing…",
     "✏️ Edit with gogh",
     "✨ Make freeform"
   ],
@@ -685,5 +717,5 @@
     "has_deprecation": true,
     "block_title": "gogh Section"
   },
-  "test_count": 123
+  "test_count": 126
 }
