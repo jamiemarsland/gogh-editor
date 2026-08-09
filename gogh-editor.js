@@ -7152,6 +7152,8 @@
     reorderSection: reorderSection,
     reorderNavRaw: reorderNavRaw,
     stickyRawToggle: stickyRawToggle,
+    chromeDialsRead: chromeDialsRead,
+    chromeDialsApply: chromeDialsApply,
     insertGoghPattern: insertGoghPattern,
     addHtmlSection: addHtmlSection,
     startChromeCycle: startChromeCycle,
@@ -9011,11 +9013,22 @@
       var o = st.options[st.idx];
       if (st.simple && pill) {
         pill.title = 'Site ' + area + ' — ' + o.title + ' (click for the next)';
+        var spaceable = isCurrent(o) && !!chromeDialsRead((st.active && st.active.content && st.active.content.raw) || '');
         pill.innerHTML = 'Next ' + area + ' › <em class="gogh-pill-n">' +
           (st.idx + 1) + '/' + st.options.length + (isCurrent(o) ? ' · current' : '') + '</em>' +
-          (isCurrent(o) ? '' : '<span class="gogh-pill-keep" role="button" title="Keep this layout (updates every page)">✓</span>');
+          (isCurrent(o) ? '' : '<span class="gogh-pill-keep" role="button" title="Keep this layout (updates every page)">✓</span>') +
+          // spacing rides the pill only on the CURRENT layout — tune what is
+          // truly yours, never a preview (and only when the raw is dressable)
+          (spaceable ? '<span class="gogh-pill-space" role="button" title="Adjust spacing">↕</span>' : '');
         var keep = pill.querySelector('.gogh-pill-keep');
         if (keep) keep.onclick = function (ev) { ev.stopPropagation(); commitChosen(true); };
+        var spc = pill.querySelector('.gogh-pill-space');
+        if (spc) spc.onclick = function (ev) {
+          ev.stopPropagation();
+          var act = st.active;
+          collapse();
+          openChromeSpacingPanel(partEl, area, act);
+        };
         return;
       }
       // the layout name lives in the tooltip — the strip stays small
@@ -9239,6 +9252,83 @@
     // open on the CURRENT design — 'Next look' starts the flicking
     render();
   }
+  // the header designer, gogh-sized: three dials that paint the mounted
+  // part live and persist once through WordPress's own spacing supports
+  function openChromeSpacingPanel(partEl, area, active) {
+    var raw = (active && active.content && active.content.raw) || '';
+    var d0 = chromeDialsRead(raw);
+    if (!d0) {
+      toast('This ' + area + ' layout can\u2019t be re-spaced automatically.', { error: true });
+      return;
+    }
+    var dial = function (label, cls, min, max, val) {
+      return '<div class="gogh-panel-row gogh-logosize gogh-dialrow"><span>' + label + '</span>' +
+        '<input type="range" class="' + cls + '" min="' + min + '" max="' + max + '" step="2" value="' + val + '" />' +
+        '<span class="gogh-logosize-val ' + cls + '-val">' + val + '</span></div>';
+    };
+    panel.innerHTML =
+      '<div class="gogh-panel-head"><span class="gogh-panel-title">' + area.charAt(0).toUpperCase() + area.slice(1) + ' spacing</span>' +
+      '<button type="button" class="gogh-sbtn gogh-panel-close" title="Close">\u2715</button></div>' +
+      '<div class="gogh-panel-hint">Drag \u2014 the ' + area + ' follows live</div>' +
+      dial('Height', 'gogh-dial-pad', 4, 64, d0.pad) +
+      dial('Elements', 'gogh-dial-gap', 4, 48, d0.gap) +
+      (d0.hasNav ? dial('Links', 'gogh-dial-link', 8, 64, d0.linkGap) : '') +
+      '<div class="gogh-panel-row gogh-chrome-foot">' +
+      '<button type="button" class="gogh-btn gogh-btn-small gogh-dials-cancel">Cancel</button>' +
+      '<button type="button" class="gogh-btn-save gogh-btn-small gogh-dials-apply" title="Updates every page" disabled>Apply</button>' +
+      '</div>';
+    var dialApply = panel.querySelector('.gogh-dials-apply');
+    var readDials = function () {
+      var v = function (cls, fb) {
+        var inp = panel.querySelector('.' + cls);
+        return inp ? +inp.value : fb;
+      };
+      return { pad: v('gogh-dial-pad', d0.pad), gap: v('gogh-dial-gap', d0.gap), linkGap: v('gogh-dial-link', d0.linkGap) };
+    };
+    ['gogh-dial-pad', 'gogh-dial-gap', 'gogh-dial-link'].forEach(function (cls) {
+      var inp = panel.querySelector('.' + cls);
+      if (!inp) return;
+      inp.addEventListener('input', function () {
+        var lab = panel.querySelector('.' + cls + '-val');
+        if (lab) lab.textContent = inp.value;
+        chromeDialsPreview(partEl, readDials());
+        dialApply.disabled = false;
+      });
+    });
+    var bail = function () {
+      chromeDialsRevert(partEl);
+      closePanel();
+    };
+    panel.querySelector('.gogh-panel-close').addEventListener('click', bail);
+    panel.querySelector('.gogh-dials-cancel').addEventListener('click', bail);
+    dialApply.addEventListener('click', function () {
+      var newRaw = chromeDialsApply(raw, readDials());
+      if (newRaw == null) {
+        toast('This ' + area + ' layout can\u2019t be re-spaced automatically.', { error: true });
+        return;
+      }
+      dialApply.disabled = true;
+      dialApply.textContent = 'Applying\u2026';
+      confirmChromeReload(area, function () {
+        fetch(tpUrl(active.id), {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'X-WP-Nonce': cfg.nonce },
+          credentials: 'same-origin',
+          body: JSON.stringify({ content: newRaw }),
+        }).then(function (r) {
+          if (!r.ok) throw new Error('HTTP ' + r.status);
+          discarding = true;
+          location.reload();
+        }).catch(function () {
+          dialApply.disabled = false;
+          dialApply.textContent = 'Apply';
+          toast('Could not update the ' + area + '.', { error: true });
+        });
+      });
+    });
+    placePanelNear(partEl);
+    panelOpen = true;
+  }
   // the full panel: every layout by name, freeform, sticky
   function openChromeLayoutPanel(partEl, area, options, activeOpt, active) {
     var selId = activeOpt ? activeOpt.id : null;
@@ -9262,11 +9352,16 @@
           '<button type="button" class="gogh-btn gogh-btn-small gogh-chrome-sticky' + (chromeIsSticky(active) ? ' is-active' : '') + '">\ud83d\udccc ' +
           (chromeIsSticky(active) ? 'Sticky \u2014 on' : 'Stick to the top') + '</button>' +
           '</div>' : '') +
+        ((activeOpt && !isFreeform && !mounted && chromeDialsRead((active && active.content && active.content.raw) || '')) ?
+          '<div class="gogh-panel-row gogh-chrome-rows">' +
+          '<button type="button" class="gogh-btn gogh-btn-small gogh-chrome-space">\u2195 Spacing\u2026</button>' +
+          '</div>' : '') +
         '<div class="gogh-panel-row gogh-chrome-foot">' +
         '<button type="button" class="gogh-btn gogh-btn-small gogh-chrome-cancel">Cancel</button>' +
         '<button type="button" class="gogh-btn gogh-btn-small gogh-chrome-use" title="Updates every page"' + ((activeOpt && selId === activeOpt.id) ? ' disabled' : '') + '>Use this layout</button>' +
         '</div>';
       panel.querySelector('.gogh-panel-close').addEventListener('click', function () {
+        chromeDialsRevert(partEl);
         endChromePreview();
         closePanel();
       });
@@ -9274,6 +9369,11 @@
       if (stickyBtn) stickyBtn.addEventListener('click', function () {
         stickyBtn.disabled = true;
         toggleChromeSticky(area, active);
+      });
+      var spaceBtn = panel.querySelector('.gogh-chrome-space');
+      if (spaceBtn) spaceBtn.addEventListener('click', function () {
+        endChromePreview();
+        openChromeSpacingPanel(partEl, area, active);
       });
       options.forEach(function (o, k) {
         var b = panel.querySelector('.gogh-chrome-opt[data-k="' + k + '"]');
@@ -9294,6 +9394,7 @@
         editChromeFreeform(partEl, area, active);
       });
       panel.querySelector('.gogh-chrome-cancel').addEventListener('click', function () {
+        chromeDialsRevert(partEl);
         endChromePreview();
         closePanel();
       });
@@ -9495,6 +9596,107 @@
     }
     var head = Object.keys(attrs).length ? '<!-- wp:group ' + JSON.stringify(attrs) + ' -->' : '<!-- wp:group -->';
     return raw.slice(0, sp.start) + head + seg.slice(m[0].length) + raw.slice(sp.end);
+  }
+  // ---------- header designer: three dials, native attrs ----------
+  // Squarespace's header designer distilled to the dials that matter:
+  // Height (group padding), Element spacing (group blockGap), Link spacing
+  // (navigation blockGap). Everything writes WordPress's OWN spacing
+  // supports — like sticky above, it survives gogh's deactivation.
+  function chromeLenPx(v) {
+    var m = String(v == null ? '' : v).match(/^([\d.]+)\s*(px|rem|em)?$/);
+    if (!m) return null;
+    return Math.round(parseFloat(m[1]) * (m[2] && m[2] !== 'px' ? 16 : 1));
+  }
+  function chromeOuterGroup(raw) {
+    var spans = parseTopBlocks(raw);
+    var sp = spans[0];
+    if (!sp || String(sp.name || '').replace(/^core\//, '') !== 'group') return null;
+    var seg = raw.slice(sp.start, sp.end);
+    var m = seg.match(/^<!--\s*wp:group(\s+({[\s\S]*?}))?\s*-->/);
+    if (!m) return null;
+    var attrs = {};
+    try { attrs = m[2] ? JSON.parse(m[2]) : {}; } catch (err) { return null; }
+    return { sp: sp, seg: seg, head: m[0], attrs: attrs };
+  }
+  function chromeDialsRead(raw) {
+    var g = chromeOuterGroup(raw);
+    if (!g) return null;
+    var sty = g.attrs.style || {};
+    var spc = sty.spacing || {};
+    var padTop = spc.padding && spc.padding.top;
+    var navM = raw.match(/<!--\s*wp:navigation(\s+({[\s\S]*?}))?\s*\/-->/);
+    var navGap = null;
+    if (navM && navM[2]) {
+      try {
+        var na = JSON.parse(navM[2]);
+        navGap = na.style && na.style.spacing && na.style.spacing.blockGap;
+      } catch (err) {}
+    }
+    return {
+      pad: chromeLenPx(padTop) != null ? chromeLenPx(padTop) : 20,
+      gap: chromeLenPx(spc.blockGap) != null ? chromeLenPx(spc.blockGap) : 18,
+      linkGap: chromeLenPx(navGap) != null ? chromeLenPx(navGap) : 24,
+      hasNav: !!navM,
+    };
+  }
+  function chromeDialsApply(raw, d) {
+    var g = chromeOuterGroup(raw);
+    if (!g) return null;
+    var attrs = g.attrs;
+    attrs.style = attrs.style || {};
+    attrs.style.spacing = attrs.style.spacing || {};
+    var pad = attrs.style.spacing.padding || {};
+    pad.top = d.pad + 'px';
+    pad.bottom = d.pad + 'px';
+    attrs.style.spacing.padding = pad;
+    attrs.style.spacing.blockGap = d.gap + 'px';
+    var head = '<!-- wp:group ' + JSON.stringify(attrs) + ' -->';
+    var body = g.seg.slice(g.head.length);
+    // the saved markup carries padding as an inline style — keep it in
+    // lockstep with the attrs or the block reads as broken in WP's editor
+    body = body.replace(/(<div[^>]*?)(\sstyle="([^"]*)")?>/, function (m0, pre, styAttr, sty) {
+      var decls = (sty || '').split(';').map(function (x) { return x.trim(); })
+        .filter(function (x) { return x && !/^padding-(top|bottom)\s*:/.test(x); });
+      decls.push('padding-top:' + d.pad + 'px');
+      decls.push('padding-bottom:' + d.pad + 'px');
+      return pre + ' style="' + decls.join(';') + '">';
+    });
+    var out = raw.slice(0, g.sp.start) + head + body + raw.slice(g.sp.end);
+    // the navigation block is dynamic: its attrs alone carry the link gap
+    out = out.replace(/<!--\s*wp:navigation(\s+({[\s\S]*?}))?\s*\/-->/, function (m0, sp2, json) {
+      var na = {};
+      if (json) { try { na = JSON.parse(json); } catch (err) { return m0; } }
+      na.style = na.style || {};
+      na.style.spacing = na.style.spacing || {};
+      na.style.spacing.blockGap = d.linkGap + 'px';
+      return '<!-- wp:navigation ' + JSON.stringify(na) + ' /-->';
+    });
+    return out;
+  }
+  // live preview: paint the dials straight onto the mounted part — and
+  // remember the first sight of each element so Cancel can undress it
+  function chromeDialsPreview(partEl, d) {
+    if (!partEl.__goghDialsOrig) {
+      partEl.__goghDialsOrig = [].map.call(
+        partEl.querySelectorAll('.wp-block-group, .wp-block-navigation__container, .wp-block-navigation ul'),
+        function (el) { return [el, el.getAttribute('style')]; });
+    }
+    var grp = partEl.querySelector('.wp-block-group');
+    if (grp) {
+      grp.style.paddingTop = d.pad + 'px';
+      grp.style.paddingBottom = d.pad + 'px';
+      grp.style.gap = d.gap + 'px';
+    }
+    [].forEach.call(partEl.querySelectorAll('.wp-block-navigation__container, .wp-block-navigation ul'), function (ul) {
+      ul.style.gap = d.linkGap + 'px';
+    });
+  }
+  function chromeDialsRevert(partEl) {
+    (partEl.__goghDialsOrig || []).forEach(function (pair) {
+      if (pair[1] == null) pair[0].removeAttribute('style');
+      else pair[0].setAttribute('style', pair[1]);
+    });
+    partEl.__goghDialsOrig = null;
   }
   // gogh's OWN confirm, not window.confirm: Chrome can silently suppress
   // native dialogs in long-lived tabs, which made the \u2713 do nothing at all

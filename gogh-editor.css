@@ -270,6 +270,18 @@
   cursor: pointer;
 }
 .gogh-chromebtn .gogh-pill-keep:hover { background: rgba(255, 255, 255, 0.3); }
+/* the spacing glyph rides the pill like the ✓ does */
+.gogh-chromebtn .gogh-pill-space {
+  display: inline-grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  margin-left: 8px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.18);
+}
+.gogh-chromebtn .gogh-pill-space:hover { background: rgba(255, 255, 255, 0.3); }
+.gogh-dialrow input[type="range"] { flex: 1; accent-color: #4f5aee; }
 
 /* the help sheet: the bot, in a calm corner */
 .gogh-helpsheet {

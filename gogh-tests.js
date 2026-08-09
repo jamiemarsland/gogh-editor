@@ -945,6 +945,30 @@
       return 'sheet opens, knows the build, closes';
     });
 
+    test('header designer: dials rewrite native spacing, and round-trip', function () {
+      var raw = '<!-- wp:group {"align":"full","className":"gogh-hrow","style":{"spacing":{"padding":{"top":"1.25rem","bottom":"1.25rem","left":"2rem","right":"2rem"}}},"layout":{"type":"flex"}} -->\n' +
+        '<div class="wp-block-group alignfull gogh-hrow" style="padding-top:1.25rem;padding-right:2rem;padding-bottom:1.25rem;padding-left:2rem"><!-- wp:site-title {"level":0} /-->\n' +
+        '<!-- wp:navigation {"overlayMenu":"mobile"} /--></div>\n' +
+        '<!-- /wp:group -->';
+      var d0 = G.chromeDialsRead(raw);
+      expect(d0 && d0.pad === 20 && d0.hasNav, 'read failed: ' + JSON.stringify(d0));
+      var out = G.chromeDialsApply(raw, { pad: 32, gap: 24, linkGap: 40 });
+      expect(out, 'apply returned nothing');
+      // attrs and saved markup must stay in lockstep — WP validates both
+      expect(/"top":"32px"/.test(out) && /"bottom":"32px"/.test(out), 'padding attrs not written');
+      expect(/"blockGap":"24px"/.test(out), 'group blockGap not written');
+      expect(/padding-top:32px/.test(out) && /padding-bottom:32px/.test(out), 'inline style not in lockstep');
+      expect(/padding-right:2rem/.test(out) && /padding-left:2rem/.test(out), 'side padding must survive');
+      expect(/wp:navigation {[^}]*"spacing":{"blockGap":"40px"}/.test(out.replace(/\s+/g, ' ')) || /"blockGap":"40px"/.test(out.split('wp:navigation')[1]), 'nav link gap not written');
+      var d1 = G.chromeDialsRead(out);
+      expect(d1.pad === 32 && d1.gap === 24 && d1.linkGap === 40, 'round-trip drifted: ' + JSON.stringify(d1));
+      // idempotent: applying the same dials twice changes nothing
+      expect(G.chromeDialsApply(out, { pad: 32, gap: 24, linkGap: 40 }) === out, 'second apply must be a no-op');
+      // a non-group raw refuses politely, nothing exploded
+      expect(G.chromeDialsApply('<!-- wp:paragraph --><p>hi</p><!-- /wp:paragraph -->', { pad: 8, gap: 8, linkGap: 8 }) === null, 'non-group should return null');
+      return 'attrs + markup in lockstep, round-trip exact, no-op stable';
+    });
+
     test('site chrome sleeps behind a veil until invited', function () {
       var veils = document.querySelectorAll('.gogh-chromeveil');
       expect(veils.length >= 1, 'no chrome veil in edit mode');
