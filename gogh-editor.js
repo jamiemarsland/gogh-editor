@@ -1931,6 +1931,7 @@
     document.querySelectorAll('.gogh-chrome-live').forEach(function (n) { n.classList.remove('gogh-chrome-live'); });
   }
   function setEditing(on) {
+    if (on && window.__goghRenderCanvasOnce) window.__goghRenderCanvasOnce();
     editing = on;
     document.documentElement.classList.toggle('gogh-editing', on);
     if (on) veilChrome(); else unveilChrome();
@@ -2041,6 +2042,8 @@
   })();
   function closePanel() {
     panel.hidden = true;
+    panel.classList.remove('gogh-panel-wide');
+    panel.style.width = ''; // a hand-resized width belongs to that panel only
     panelOpen = false;
     // a style audition must never outlive its panel
     if (typeof clearVariationPreview === 'function') clearVariationPreview();
@@ -2091,6 +2094,7 @@
   function reclampPanel() { if (!panel.hidden && panelAnchor) placePanelNear(panelAnchor); }
   function openPanel(sec, i) {
     var e = sec.els[i];
+    panel.classList.remove('gogh-panel-wide');
     panel.innerHTML = '';
     if (e.type === 'button') buildLinkPanel(sec, i);
     else if (e.type === 'image') buildImagePanel(sec, i);
@@ -2162,6 +2166,7 @@
   // never as template surgery. Every change recomposes the true block.
   function buildQnaPanel(sec, i) {
     var e = sec.els[i];
+    panel.classList.add('gogh-panel-wide'); // words need room to breathe
     var kind = e.faq ? 'faq' : 'tabs';
     var items = e.faq || e.tabs;
     var labels = kind === 'faq'
@@ -2174,6 +2179,8 @@
         items.map(function (it, k) {
           return '<div class="gogh-qna" data-k="' + k + '">' +
             '<div class="gogh-qna-head"><input type="text" class="gogh-input gogh-qna-q" placeholder="' + labels.q + '" value="' + escAttr(it[labels.qk]) + '" />' +
+            '<button type="button" class="gogh-sbtn gogh-qna-mv" data-dir="-1" title="Move up"' + (k === 0 ? ' disabled' : '') + '>\u2191</button>' +
+            '<button type="button" class="gogh-sbtn gogh-qna-mv" data-dir="1" title="Move down"' + (k === items.length - 1 ? ' disabled' : '') + '>\u2193</button>' +
             (items.length > 1 ? '<button type="button" class="gogh-sbtn gogh-qna-x" title="Remove this ' + labels.one + '">\u2715</button>' : '') + '</div>' +
             '<textarea class="gogh-input gogh-qna-a" placeholder="' + labels.a + '">' + esc(it[labels.ak]) + '</textarea>' +
             '</div>';
@@ -2204,6 +2211,16 @@
           items.splice(k, 1);
           sync(true);
           render();
+        });
+        row.querySelectorAll('.gogh-qna-mv').forEach(function (mv) {
+          mv.addEventListener('click', function () {
+            var to = k + (+mv.dataset.dir);
+            if (to < 0 || to >= items.length) return;
+            var moved = items.splice(k, 1)[0];
+            items.splice(to, 0, moved);
+            sync(true);
+            render();
+          });
         });
       });
       panel.querySelector('.gogh-panel-close').addEventListener('click', function () { closePanel(); });
@@ -8480,7 +8497,7 @@
           .then(function (list) { patternCache = list; return list; })
           .catch(function () { return []; });
     return all.then(function (list) {
-      return list.filter(function (p) {
+      var out = list.filter(function (p) {
         var cats = p.categories || [];
         var c = p.content || '';
         // hard safety first — chrome and template plumbing never qualify,
@@ -8499,6 +8516,19 @@
           // internal buckets: whole-page layouts and post-format scraps
           !cats.some(function (cc) { return /_page$|post-format/.test(cc); });
       });
+      // the "From {theme}" shelf must speak the ACTIVE theme's language:
+      // gogh's legacy fillers exist for themes with nothing to offer — a
+      // theme with real patterns leads with them (James saw TT5-era cards
+      // under "From Ollie")
+      var themed = out.filter(function (p) { return p.name.indexOf(cfg.theme + '/') === 0; });
+      if (themed.length >= 4) {
+        out = out.filter(function (p) { return p.name.indexOf('gogh/') !== 0; });
+      }
+      out.sort(function (a, b) {
+        return (a.name.indexOf(cfg.theme + '/') === 0 ? 0 : 1) -
+          (b.name.indexOf(cfg.theme + '/') === 0 ? 0 : 1);
+      });
+      return out;
     });
   }
   function renderPattern(p) {
@@ -12355,8 +12385,21 @@
       S.forEach(function (s) { s.v3 = false; });
     });
   }
-  hydrateV3Sections().then(function () {
+  // the canvas renders ONCE, and only when editing actually begins — in
+  // plain view the server's DOM stays pristine, so interactive blocks
+  // (accordion, tabs, navigation) keep their hydration. Rendering on every
+  // boot replaced them with inert previews for every logged-in visit.
+  function renderCanvasOnce() {
+    if (renderCanvasOnce.done || !renderCanvasOnce.hydrated) return;
+    renderCanvasOnce.done = true;
     S.forEach(renderSection);
+  }
+  window.__goghRenderCanvasOnce = renderCanvasOnce;
+  hydrateV3Sections().then(function () {
+    renderCanvasOnce.hydrated = true;
+    if (wantEdit || editing) {
+      renderCanvasOnce();
+    }
     if (wantEdit) {
       setEditing(true);
       var bootContent = S.filter(function (s) { return !s.chrome; });

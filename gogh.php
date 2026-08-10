@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Gogh Editor
  * Description: A freeform canvas for WordPress — drag anything anywhere on your live page; Gogh publishes it back as clean, responsive core blocks that keep working even if the plugin is deactivated.
- * Version: 0.99.39
+ * Version: 0.99.40
  * Author: Jamie Marsland
  * Author URI: https://pootlepress.com
  * License: GPLv2 or later
@@ -23,7 +23,7 @@ add_action( 'init', function () {
 		'gogh-block',
 		plugins_url( 'gogh-block.js', __FILE__ ),
 		array( 'wp-blocks', 'wp-element', 'wp-block-editor' ),
-		'0.99.39-chrome',
+		'0.99.40-chrome',
 		true
 	);
 	register_block_type( 'gogh/section', array(
@@ -80,7 +80,45 @@ function gogh_render_section( $attrs, $content ) {
 		$out     = preg_replace( '/(<div class="wp-block-gogh-section[^"]*">)/', '$1' . $style, $content, 1, $n );
 		$content = $n ? $out : $style . $content;
 	}
-	return gogh_inject_experiences( $attrs, $content );
+	return gogh_inject_experiences( $attrs, gogh_faq_schema( $attrs ) . $content );
+}
+
+/**
+ * FAQ sections carry their questions as DATA in the model — so the render
+ * can speak schema.org fluently: one FAQPage JSON-LD script per FAQ
+ * section, generated fresh on every render (never stored, never kses'd).
+ */
+function gogh_faq_schema( $attrs ) {
+	$els = isset( $attrs['model']['elements'] ) && is_array( $attrs['model']['elements'] )
+		? $attrs['model']['elements'] : array();
+	$qa = array();
+	foreach ( $els as $e ) {
+		if ( empty( $e['faq'] ) || ! is_array( $e['faq'] ) ) {
+			continue;
+		}
+		foreach ( $e['faq'] as $item ) {
+			if ( empty( $item['q'] ) || empty( $item['a'] ) ) {
+				continue;
+			}
+			$qa[] = array(
+				'@type'          => 'Question',
+				'name'           => wp_strip_all_tags( $item['q'] ),
+				'acceptedAnswer' => array(
+					'@type' => 'Answer',
+					'text'  => wp_strip_all_tags( $item['a'] ),
+				),
+			);
+		}
+	}
+	if ( ! $qa ) {
+		return '';
+	}
+	$schema = array(
+		'@context'   => 'https://schema.org',
+		'@type'      => 'FAQPage',
+		'mainEntity' => $qa,
+	);
+	return '<script type="application/ld+json">' . wp_json_encode( $schema, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE ) . '</script>';
 }
 
 /**
@@ -808,7 +846,7 @@ add_action( 'wp_enqueue_scripts', function () {
 
 	// for every visitor: neutralise theme spacing around gogh sections, even
 	// on pages whose stored stylesheets predate this rule
-	wp_register_style( 'gogh-base', false, array(), '0.99.39-chrome' );
+	wp_register_style( 'gogh-base', false, array(), '0.99.40-chrome' );
 	wp_enqueue_style( 'gogh-base' );
 	wp_add_inline_style( 'gogh-base',
 		// full-bleed sections use 100vw, which includes the scrollbar — once
@@ -855,8 +893,8 @@ add_action( 'wp_enqueue_scripts', function () {
 		return;
 	}
 
-	wp_enqueue_script( 'gogh-editor', plugins_url( 'gogh-editor.js', __FILE__ ), array(), '0.99.39-chrome', true );
-	wp_enqueue_style( 'gogh-editor', plugins_url( 'gogh-editor.css', __FILE__ ), array(), '0.99.39-chrome' );
+	wp_enqueue_script( 'gogh-editor', plugins_url( 'gogh-editor.js', __FILE__ ), array(), '0.99.40-chrome', true );
+	wp_enqueue_style( 'gogh-editor', plugins_url( 'gogh-editor.css', __FILE__ ), array(), '0.99.40-chrome' );
 
 	// WebMCP bridge: the page registers its editing verbs as agent tools.
 	// OPT-IN only — add ?gogh-mcp=1 for a demo session (or enable sitewide
@@ -868,13 +906,13 @@ add_action( 'wp_enqueue_scripts', function () {
 	// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only labs toggle
 	$gogh_exp = isset( $_GET['gogh-test'] ) || ( isset( $_GET['gogh-experiments'] ) && '0' !== $_GET['gogh-experiments'] );
 	if ( isset( $_GET['gogh-mcp'] ) || $gogh_exp || apply_filters( 'gogh_webmcp_enabled', false ) ) {
-		wp_enqueue_script( 'gogh-webmcp', plugins_url( 'gogh-webmcp.js', __FILE__ ), array( 'gogh-editor' ), '0.99.39-chrome', true );
+		wp_enqueue_script( 'gogh-webmcp', plugins_url( 'gogh-webmcp.js', __FILE__ ), array( 'gogh-editor' ), '0.99.40-chrome', true );
 	}
 
 	// regression suite: /page/?gogh-test (editors only, never saves)
 	// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only toggle enqueuing a test script for capability-checked editors.
 	if ( isset( $_GET['gogh-test'] ) ) {
-		wp_enqueue_script( 'gogh-tests', plugins_url( 'gogh-tests.js', __FILE__ ), array( 'gogh-editor' ), '0.99.39-chrome', true );
+		wp_enqueue_script( 'gogh-tests', plugins_url( 'gogh-tests.js', __FILE__ ), array( 'gogh-editor' ), '0.99.40-chrome', true );
 	}
 
 	// products live outside wp/v2, so gogh carries its own save route for
@@ -997,7 +1035,7 @@ add_action( 'enqueue_block_assets', function () {
 	if ( ! is_admin() ) {
 		return;
 	}
-	wp_register_style( 'gogh-editor-base', false, array(), '0.99.39-chrome' );
+	wp_register_style( 'gogh-editor-base', false, array(), '0.99.40-chrome' );
 	wp_enqueue_style( 'gogh-editor-base' );
 	wp_add_inline_style( 'gogh-editor-base',
 		'.gogh-wrap { min-width: 100%; margin-block: 0 !important; }' .
