@@ -2148,30 +2148,27 @@
   function placePanelNear(node) {
     var r = node.getBoundingClientRect();
     panel.hidden = false;
+    panel.style.maxHeight = ''; // measure the TRUE content height
     var pw = panel.offsetWidth || 340;
     var ph = panel.offsetHeight || 220;
     var left = Math.max(8, Math.min(r.left, window.innerWidth - pw - 16));
+    // the WHOLE panel visible is the goal ("so i can see all of it") —
+    // below the anchor when it fits, pulled UP just enough when it
+    // doesn't, beside the anchor when pulling up would cover it, and only
+    // when the viewport is genuinely smaller than the content does the
+    // panel cap itself and scroll inside. 76px reserves the publish chip;
+    // 28 covers the panel's own padding outside its content box.
+    var need = ph + 28;
     var top = r.bottom + 10;
-    // 76px bottom reserve keeps the panel clear of the publish chip
-    var maxTop = window.innerHeight - ph - 76;
-    if (top > maxTop) {
-      // clamping would slide the panel up OVER its anchor (or, for a
-      // near-viewport-tall panel, all the way to the top of the screen —
-      // James found it over the admin bar). Step BESIDE the anchor when
-      // there's room, and let the panel SHRINK to what's below: it
-      // scrolls inside itself, so staying with its button costs nothing.
-      var sideTop = Math.max(16, r.top - 8);
-      if (r.right + pw + 20 < window.innerWidth) {
-        left = r.right + 12;
-      } else if (r.left - pw - 20 > 0) {
-        left = r.left - pw - 12;
+    if (top + need > window.innerHeight - 76) {
+      var fitTop = window.innerHeight - 76 - need;
+      top = Math.max(16, Math.min(r.top - 8, fitTop));
+      if (top < r.bottom + 10) {
+        // the pulled-up panel would sit over its anchor — step beside it
+        if (r.right + pw + 20 < window.innerWidth) left = r.right + 12;
+        else if (r.left - pw - 20 > 0) left = r.left - pw - 12;
       }
-      top = sideTop;
     }
-    // EVERY placement caps the panel to the space below it: a bottom cut
-    // off by the viewport begs the user to scroll, and scrolling can never
-    // reveal more of a fixed panel. -90: 60px breathing room plus the
-    // panel's own padding, which sits OUTSIDE a content-box max-height.
     panel.style.maxHeight = Math.max(280, window.innerHeight - top - 90) + 'px';
     panel.style.left = left + 'px';
     panel.style.top = top + 'px';
