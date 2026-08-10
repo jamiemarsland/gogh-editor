@@ -1,12 +1,12 @@
 {
   "meta": {
-    "plugin_version": "0.99.54",
+    "plugin_version": "0.99.55",
     "requires_wp": "6.5",
     "requires_php": "7.4",
     "text_domain": "gogh-editor",
     "readme_stable_tag": "0.26.0",
     "readme_tested_up_to": "7.0",
-    "asset_version": "0.99.54-chrome"
+    "asset_version": "0.99.55-chrome"
   },
   "constants": {
     "TOL": 8,
@@ -68,6 +68,12 @@
     },
     {
       "name": "Hero",
+      "starter": true,
+      "retired": false,
+      "minH": 640
+    },
+    {
+      "name": "Cover",
       "starter": true,
       "retired": false,
       "minH": 640
