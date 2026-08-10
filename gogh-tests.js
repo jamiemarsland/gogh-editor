@@ -875,6 +875,39 @@
       return 'dark ground flips ' + darker + '→' + lighter + '; pale ground untouched';
     });
 
+    test('sentinel reaches inside cards: kids judged on the card ground', function () {
+      var probe = function (slug) {
+        var d = document.createElement('div');
+        d.style.color = 'var(--wp--preset--color--' + slug + ')';
+        d.style.display = 'none';
+        document.body.appendChild(d);
+        var m = (getComputedStyle(d).color.match(/[\d.]+/g) || []).slice(0, 3).map(Number);
+        d.remove();
+        return (m[0] + m[1] + m[2]) / 3;
+      };
+      var roles = G.paletteRoles();
+      var darker = probe(roles.bgSlug) < probe(roles.textSlug) ? roles.bgSlug : roles.textSlug;
+      G.addSection({ name: 'CSK', minH: 300, els: [
+        { type: 'box', x: 80, y: 40, w: 400, h: 220, boxBg: '#101014', radius: 16, kids: [
+          { type: 'heading', x: 24, y: 24, w: 340, h: 44, text: 'Dark on dark card' },
+        ] },
+      ] }, G.sections().length);
+      var c = contentSecs();
+      var s2 = c[c.length - 1];
+      try {
+        var kid = s2.els[0].kids[0];
+        kid.color = darker;
+        kid.tf = { col: '#101014' }; // captured colour must clear on flip
+        G.renderSection(s2);
+        G.contrastSentinel(s2);
+        expect(kid.color !== darker, 'kid ink should flip on a dark card (still ' + kid.color + ')');
+        expect(!kid.tf.col, 'the flip must clear the kid\u2019s captured colour');
+      } finally {
+        G.deleteSection(G.sections().indexOf(s2));
+      }
+      return 'card kids flip on their own ground, tf cleared';
+    });
+
     test('section themes: pick a look, the words come with it', function () {
       var themes = G.sectionThemes();
       expect(themes.length >= 3, 'expected at least Paper/Mist/Ink, got ' + themes.length);

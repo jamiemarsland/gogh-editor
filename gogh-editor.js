@@ -648,13 +648,18 @@
         layers.push(opts.bg);
       }
       if (!layers.length) return;
+      // the selector arms itself: the editing grid's drag-time rule
+      // (.gogh-editing .gogh-section.gogh-grid-live::before) carries three
+      // classes and was repossessing this layer mid-drag — the scope class
+      // repeated twice makes four, decisive in any load order
+      var secFx = sec + '.' + scope + '.' + scope;
       // parallax needs headroom: the layer is taller than the section so
       // its slower journey never shows an edge
       var inset = fxBg === 'parallax' ? '-20% 0' : '0';
       // opacity: 1 declared, not assumed — the editing grid shares this
       // pseudo at opacity 0, which blanked every effect section's backdrop
       // in the editor (the grid simply skips effect sections now)
-      out.push(sec + '::before { content: ""; position: absolute; inset: ' + inset + '; z-index: 0; pointer-events: none; opacity: 1 !important; background: ' + layers.join(', ') + '; }');
+      out.push(secFx + '::before { content: ""; position: absolute; inset: ' + inset + '; z-index: 0; pointer-events: none; opacity: 1 !important; background: ' + layers.join(', ') + '; }');
       if (opts.fxDemo && (fxBg === 'parallax' || fxBg === 'reveal')) {
         // AUDITION THEATRE: scroll effects are invisible on a section
         // already in view, so hovering the chip performs a short canned
@@ -663,25 +668,25 @@
           ? '@keyframes gogh-fx-demo { 0% { transform: translateY(0); } 40% { transform: translateY(-9%); } 100% { transform: translateY(6%); } }'
           : '@keyframes gogh-fx-demo { from { opacity: 0.05; transform: scale(1.06) translateY(2%); } to { opacity: 1; transform: none; } }';
         out.push(demo);
-        out.push(sec + '::before { animation: gogh-fx-demo 1.5s ease both; }');
+        out.push(secFx + '::before { animation: gogh-fx-demo 1.5s ease both; }');
         return;
       }
       if (fxBg === 'parallax') {
         // TRUE parallax: the picture travels slower than the page, driven
         // by the section's own journey through the viewport (pure CSS,
         // every platform; without view() support it stands still)
-        out.push('@supports (animation-timeline: view()) { ' + sec + '::before { animation: gogh-parallax linear both; animation-timeline: view(); animation-range: cover 0% cover 100%; } }');
+        out.push('@supports (animation-timeline: view()) { ' + secFx + '::before { animation: gogh-parallax linear both; animation-timeline: view(); animation-range: cover 0% cover 100%; } }');
         out.push('@keyframes gogh-parallax { from { transform: translateY(-16%); } to { transform: translateY(16%); } }');
         return;
       }
       if (fxBg === 'drift') {
         // an imperceptible Ken Burns: the picture breathes over 36 seconds
-        out.push(sec + '::before { animation: gogh-drift 20s ease-in-out infinite alternate; }');
+        out.push(secFx + '::before { animation: gogh-drift 20s ease-in-out infinite alternate; }');
         out.push('@keyframes gogh-drift { from { transform: scale(1); } to { transform: scale(1.12); } }');
       } else {
         // reveal rides the scroll itself (CSS scroll-driven animation) —
         // browsers without view() simply show the finished state
-        out.push('@supports (animation-timeline: view()) { ' + sec + '::before { animation: gogh-reveal linear both; animation-timeline: view(); animation-range: entry 0% cover 45%; } }');
+        out.push('@supports (animation-timeline: view()) { ' + secFx + '::before { animation: gogh-reveal linear both; animation-timeline: view(); animation-range: entry 0% cover 45%; } }');
         out.push('@keyframes gogh-reveal { from { opacity: 0.05; transform: scale(1.06) translateY(2%); } to { opacity: 1; transform: none; } }');
       }
     })();
@@ -2518,6 +2523,7 @@
       placeHandles(sec, i);
       pushState();
       closePanel();
+      contrastSentinel(sec, i); // the card's new ground judges its words
     }
     var chBtn = panel.querySelector('.gogh-cardhref-apply');
     if (chBtn) chBtn.addEventListener('click', function () {
@@ -3127,6 +3133,26 @@
   // WCAG large-text wants 3.0 and body wants 4.5; 3.2 splits the
   // difference — 2.6 let olive-on-near-black (2.76) pass as "readable"
   var CONTRAST_FLOOR = 3.2;
+  // the best readable ink from the palette for a given ground — roles
+  // first, whole palette when the family can't reach the floor
+  function sentinelBestInk(bgL) {
+    var roles = paletteRoles();
+    var best = null, bestC = 0;
+    var consider = function (list) {
+      list.forEach(function (p) {
+        var rgb = cssToRgb(p.value);
+        if (!rgb) return;
+        var c = sentinelContrast(sentinelLum(rgb), bgL);
+        if (c > bestC) { bestC = c; best = p.slug; }
+      });
+    };
+    consider(themePalette().filter(function (p) {
+      return p.slug === roles.bgSlug || p.slug === roles.textSlug ||
+        /^(base|contrast)(-|$)/.test(p.slug);
+    }));
+    if (bestC < CONTRAST_FLOOR) consider(themePalette());
+    return { best: best, bestC: bestC };
+  }
   function contrastSentinel(sec, onlyIdx) {
     if (!editing || sec.chrome) return;
     var tint = sec.bg ? cssToRgb(sec.bg) : null;
@@ -3212,6 +3238,48 @@
         { actions: [{ label: 'Undo', onClick: function () { undo(); } }] });
     };
     if (sec.bgImage) imgRegionLum(sec.bgImage, secHpx / secWpx, judge); else judge(null);
+    // ---- cards: kids live on their card's OWN ground ----
+    sec.els.forEach(function (box, bi) {
+      if (onlyIdx != null && bi !== onlyIdx) return;
+      if (box.type !== 'box' || !box.kids || !box.kids.length) return;
+      var judgeKids = function (imgL) {
+        var bv = box.boxBg || '';
+        if (bv && /^[a-z0-9-]+$/.test(bv)) bv = 'var(--wp--preset--color--' + bv + ')';
+        var bvRgb = bv ? cssToRgb(bv) : null;
+        var baseRgb = cssToRgb('var(--wp--preset--color--base, #fff)');
+        var ground;
+        if (imgL != null && bvRgb) ground = sentinelLum(bvRgb) * 0.45 + imgL * 0.55; // the tint mix
+        else if (imgL != null) ground = imgL * 0.6 + (baseRgb ? sentinelLum(baseRgb) : 1) * 0.4; // the guardrail scrim
+        else if (bvRgb) ground = sentinelLum(bvRgb);
+        else return; // transparent card: the section pass already judged this ground
+        var cardNode = sec.nodes[bi];
+        if (!cardNode) return;
+        var kidFlips = [];
+        box.kids.forEach(function (k, j) {
+          if (!isText(k)) return;
+          var kn = cardNode.querySelector('.gogh-k-' + (j + 1));
+          if (!kn) return;
+          var host = kn.matches('p,h1,h2,h3,h4,h5,h6') ? kn : (kn.querySelector('p,h1,h2,h3,h4,h5,h6') || kn);
+          var txt = cssToRgb(getComputedStyle(host).color);
+          if (!txt) return;
+          if (sentinelContrast(sentinelLum(txt), ground) >= CONTRAST_FLOOR) return;
+          var pick = sentinelBestInk(ground);
+          if (pick.best && k.color !== pick.best) kidFlips.push({ j: j, to: pick.best });
+        });
+        if (!kidFlips.length) return;
+        pushState();
+        kidFlips.forEach(function (f) {
+          var k = box.kids[f.j];
+          k.color = f.to;
+          if (k.tf && k.tf.col) delete k.tf.col;
+        });
+        renderSection(sec);
+        toast('Made the card\u2019s words readable on its background.',
+          { actions: [{ label: 'Undo', onClick: function () { undo(); } }] });
+      };
+      if (box.boxImg) imgRegionLum(box.boxImg, box.h / Math.max(1, box.w), judgeKids);
+      else judgeKids(null);
+    });
   }
   function addElement(sec, e, atBack) {
     // shapes are backdrops: they join the stack BEHIND everything else
@@ -5025,7 +5093,9 @@
       '</div>' +
       '<div class="gogh-panel-hint">Effect \u2014 how the background behaves</div>' +
       '<div class="gogh-hpresets gogh-fxrow">' +
-      [['', 'Still', ''], ['parallax', 'Parallax', 'img'], ['drift', 'Drift', 'img'], ['reveal', 'Reveal', ''], ['grain', 'Grain', '']].map(function (fx) {
+      // Grain retired from the row (James: "i can't see anything it does" —
+      // the φ rule). The machinery stays: saved grain keeps rendering.
+      [['', 'Still', ''], ['parallax', 'Parallax', 'img'], ['drift', 'Drift', 'img'], ['reveal', 'Reveal', '']].map(function (fx) {
         // never disabled at build time: the panel stays open while images
         // are picked, so image-hunger is judged when the chip is touched
         return '<button type="button" class="gogh-hpreset' + (((secx.fx && secx.fx.bg) || '') === fx[0] ? ' is-active' : '') + '"' +
