@@ -614,10 +614,21 @@
       // image placeholders, which must be exactly their grid cell
       sec + ' > .wp-block-group { padding: 0 !important; }',
     ];
-    if (opts.divider && opts.divider.shape === 'melt' && opts.divColor) {
+    if (opts.topDivider) {
+      // the transition carved into THIS section's top: layer one is the
+      // divider shape (its filled side faces down, exactly the region that
+      // should stay visible), layer two keeps everything below the band
+      var tdMask = opts.topDivider === 'melt'
+        ? 'linear-gradient(to bottom, transparent, #000)'
+        : dividerBg(opts.topDivider, '#000');
+      var tdH = opts.topDivider === 'melt' ? '16cqw' : '8cqw';
+      var tdLayers = tdMask + ' top / 100% ' + tdH + ' no-repeat, linear-gradient(#000, #000) 0 calc(' + tdH + ' - 1px) / 100% calc(100% - ' + tdH + ' + 1px) no-repeat';
+      out.push(sec + ' { -webkit-mask-image: ' + (opts.topDivider === 'melt' ? tdMask : tdMask) + ', linear-gradient(#000, #000); -webkit-mask-position: top, 0 calc(' + tdH + ' - 1px); -webkit-mask-size: 100% ' + tdH + ', 100% calc(100% - ' + tdH + ' + 1px); -webkit-mask-repeat: no-repeat; mask-image: ' + (opts.topDivider === 'melt' ? tdMask : tdMask) + ', linear-gradient(#000, #000); mask-position: top, 0 calc(' + tdH + ' - 1px); mask-size: 100% ' + tdH + ', 100% calc(100% - ' + tdH + ' + 1px); mask-repeat: no-repeat; }');
+    }
+    if (opts.divider && !opts.divNextRich && opts.divider.shape === 'melt' && opts.divColor) {
       // no edge at all: the section dissolves into the next one's colour
       out.push(sec + '::after { content: ""; position: absolute; left: 0; right: 0; bottom: -1px; height: 16cqw; z-index: 0; pointer-events: none; background: linear-gradient(to bottom, transparent, ' + opts.divColor + '); }');
-    } else if (opts.divider && opts.divider.shape && opts.divColor && DIVIDER_PATHS[opts.divider.shape]) {
+    } else if (opts.divider && !opts.divNextRich && opts.divider.shape && opts.divColor && DIVIDER_PATHS[opts.divider.shape]) {
       // mask (not background-image) so the colour can be a CSS variable —
       // theme palette changes recolour dividers live
       var mask = dividerBg(opts.divider.shape, '#000');
@@ -1144,13 +1155,26 @@
       }
     });
   }
+  // a RICH background (photo, effect layer, gradient composition) cannot
+  // be represented by a flat divider band — the transition must be carved
+  // into the rich section's own top edge instead
+  function richBg(sec2) {
+    return !!(sec2 && (sec2.bgImage || (sec2.fx && sec2.fx.bg) ||
+      (sec2.bg && /gradient\(/.test(String(sec2.bg)))));
+  }
   function sectionOpts(sec) {
     var idx = S.indexOf(sec);
     var next = idx >= 0 ? S[idx + 1] : null;
+    var prev = idx > 0 ? S[idx - 1] : null;
     return { bg: sec.bg, bgA: sec.bgA != null ? sec.bgA : null, fill: !!sec.fill, divider: sec.divider, bgImage: sec.bgImage,
       fx: sec.fx || null,
       fxDemo: !!sec.__fxDemo,
       stickUnder: !!(next && next.fx && next.fx.curtain),
+      // the image IS part of the transition: a rich next section carves
+      // itself, so this section's colour band stands down
+      divNextRich: richBg(next),
+      topDivider: (prev && !prev.chrome && prev.divider && prev.divider.shape && richBg(sec))
+        ? prev.divider.shape : null,
       divColor: next ? (next.bg || '#0f0e0c') : null };
   }
   function resolveAndApply(sec) {

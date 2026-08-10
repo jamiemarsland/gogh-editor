@@ -1179,6 +1179,35 @@
       return 'parallax, drift, reveal, grain all emit; Still stays silent';
     });
 
+    test('transitions carve rich sections: the image is part of the shape', function () {
+      G.addSection({ name: 'TD1', minH: 240, bg: '#334455', els: [
+        { type: 'heading', x: 72, y: 40, w: 400, h: 60, text: 'Above' } ] }, G.sections().length);
+      G.addSection({ name: 'TD2', minH: 240, els: [
+        { type: 'heading', x: 72, y: 40, w: 400, h: 60, text: 'Below' } ] }, G.sections().length);
+      var c = contentSecs();
+      var above = c[c.length - 2], below = c[c.length - 1];
+      try {
+        above.divider = { shape: 'wave' };
+        // colour next: the classic band paints as before
+        G.resolve(above); G.resolve(below);
+        expect(/::after[^}]*mask-image/.test(above.styleEl.textContent.replace(/\n/g,' ')), 'colour next should keep the shaped band');
+        // rich next: the band stands down, the next section carves its top
+        below.bgImage = '/wp-content/plugins/gogh/demo-assets/wheat-field.jpg';
+        G.resolve(above); G.resolve(below);
+        expect(!/::after[^}]*mask-image/.test(above.styleEl.textContent.replace(/\n/g,' ')), 'band must stand down for a rich next section');
+        expect(/mask-image:[^;]*svg/.test(below.styleEl.textContent) && /mask-size: 100% 8cqw/.test(below.styleEl.textContent),
+          'rich section must carve its own top with the divider shape');
+        // melt fades the photo in
+        above.divider = { shape: 'melt' };
+        G.resolve(above); G.resolve(below);
+        expect(/mask-image: linear-gradient\(to bottom, transparent/.test(below.styleEl.textContent), 'melt must fade the rich top');
+      } finally {
+        G.deleteSection(G.sections().indexOf(below));
+        G.deleteSection(G.sections().indexOf(above));
+      }
+      return 'bands for colours, carved tops for photos, melt fades';
+    });
+
     test('header designer: dials rewrite native spacing, and round-trip', function () {
       var raw = '<!-- wp:group {"align":"full","className":"gogh-hrow","style":{"spacing":{"padding":{"top":"1.25rem","bottom":"1.25rem","left":"2rem","right":"2rem"}}},"layout":{"type":"flex"}} -->\n' +
         '<div class="wp-block-group alignfull gogh-hrow" style="padding-top:1.25rem;padding-right:2rem;padding-bottom:1.25rem;padding-left:2rem"><!-- wp:site-title {"level":0} /-->\n' +
