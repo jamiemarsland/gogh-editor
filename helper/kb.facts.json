@@ -1,12 +1,12 @@
 {
   "meta": {
-    "plugin_version": "0.99.33",
+    "plugin_version": "0.99.40",
     "requires_wp": "6.5",
     "requires_php": "7.4",
     "text_domain": "gogh-editor",
     "readme_stable_tag": "0.26.0",
     "readme_tested_up_to": "7.0",
-    "asset_version": "0.99.33-chrome"
+    "asset_version": "0.99.40-chrome"
   },
   "constants": {
     "TOL": 8,
@@ -131,6 +131,12 @@
       "starter": true,
       "retired": false,
       "minH": 560
+    },
+    {
+      "name": "Tabs",
+      "starter": true,
+      "retired": false,
+      "minH": 520
     },
     {
       "name": "Gallery",
@@ -361,6 +367,7 @@
     "Delete saved section",
     "Delete section",
     "Discard changes",
+    "Done",
     "Duplicate (or Alt-drag)",
     "Duplicate section",
     "Experience",
@@ -387,6 +394,7 @@
     "None",
     "One product, hero-sized — a card with a real add-to-cart button",
     "Open interactive experience",
+    "Original",
     "Outline",
     "Page style",
     "Peek at pages",
@@ -402,6 +410,7 @@
     "Remove from menu",
     "Remove image",
     "Remove link (keep the text)",
+    "Remove this ' + labels.one + '",
     "Right",
     "Save",
     "Save brand",
@@ -468,7 +477,6 @@
     "Out of the card — it’s a free element again.",
     "Publish failed: ",
     "Publish your changes first — changing the page style reloads the page.",
-    "Rearranged — same pieces, new shape.",
     "Removed from the card.",
     "Section moved.",
     "Section removed — publish to make it real.",
@@ -723,5 +731,5 @@
     "has_deprecation": true,
     "block_title": "gogh Section"
   },
-  "test_count": 128
+  "test_count": 129
 }
