@@ -881,7 +881,8 @@
       expect(ink, 'no Ink look derived');
       G.applySectionTheme(idx, ink);
       expect(s2.theme === 'ink', 'theme not recorded on the section');
-      expect(String(s2.bg).indexOf('--wp--preset--color--contrast') !== -1, 'Ink bg should ride the contrast var');
+      var inkVar = '--wp--preset--color--' + (G.paletteRoles() || {}).textSlug;
+      expect(String(s2.bg).indexOf(inkVar) !== -1, 'Ink bg should ride the text-role var (' + inkVar + ')');
       expect(s2.els[0].color === 'base', 'heading ink should flip to base (got ' + s2.els[0].color + ')');
       var snap = G.serialize();
       expect(snap.indexOf('"theme":"ink"') !== -1, 'theme should serialize');
@@ -2492,7 +2493,12 @@
       var by = {};
       pal.forEach(function (p) { by[p.slug] = p.color; });
       var baseSlug = Object.keys(by).filter(function (k) { return /^(base|background)/.test(k); })[0];
-      var contrastSlug = Object.keys(by).filter(function (k) { return /^(contrast|text|foreground)/.test(k); })[0];
+      // the text-role slug is whatever THIS theme calls its ink (TT5:
+      // contrast, Ollie: main) — resolve it by role, conventions second
+      var roleTx = (G.paletteRoles() || {}).textSlug;
+      var contrastSlug = Object.keys(by).filter(function (k) {
+        return k === roleTx || /^(contrast|text|foreground|main)(-|$)/.test(k);
+      })[0];
       expect(baseSlug && by[baseSlug] === '#f6f2ea', 'background not mapped to ' + baseSlug);
       expect(contrastSlug && by[contrastSlug] === '#1b2a4a', 'text not mapped to ' + contrastSlug);
       var accentSlugs = Object.keys(by).filter(function (k) { return /accent/.test(k); });

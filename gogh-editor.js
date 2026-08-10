@@ -1485,6 +1485,45 @@
     }
     return out;
   }
+  // the theme names its colours however it likes — TT5 says base/contrast,
+  // Ollie says base/main, others invent freely. ROLES come from what the
+  // page actually renders: the body's computed canvas and ink, matched
+  // back to palette slugs (cached per palette signature).
+  var paletteRolesCache = null;
+  function paletteRoles() {
+    var pal = themePalette();
+    var sig = pal.map(function (p) { return p.slug + ':' + p.value; }).join(',') + '|' + getComputedStyle(document.body).backgroundColor;
+    if (paletteRolesCache && paletteRolesCache.sig === sig) return paletteRolesCache;
+    var bodyBg = cssToRgb(getComputedStyle(document.body).backgroundColor) || [255, 255, 255];
+    var bodyTx = cssToRgb(getComputedStyle(document.body).color) || [20, 21, 25];
+    var dist = function (a, b) {
+      return !a || !b ? 1e9 : Math.abs(a[0] - b[0]) + Math.abs(a[1] - b[1]) + Math.abs(a[2] - b[2]);
+    };
+    var bgSlug = null, textSlug = null, bgBest = 90, txBest = 90;
+    pal.forEach(function (p) {
+      var rgb = cssToRgb(p.value);
+      var db = dist(rgb, bodyBg), dt = dist(rgb, bodyTx);
+      if (db < bgBest) { bgBest = db; bgSlug = p.slug; }
+      if (dt < txBest) { txBest = dt; textSlug = p.slug; }
+    });
+    // conventions as fallback, then luminance extremes — some themes paint
+    // the body through custom props the palette never mentions
+    var bySlug = {};
+    pal.forEach(function (p) { bySlug[p.slug] = p; });
+    if (!bgSlug) bgSlug = (bySlug.base && 'base') || (bySlug.background && 'background') || null;
+    if (!textSlug) textSlug = (bySlug.contrast && 'contrast') || (bySlug.foreground && 'foreground') || (bySlug.main && 'main') || null;
+    if ((!bgSlug || !textSlug) && pal.length > 1) {
+      var lums = pal.map(function (p) {
+        var rgb = cssToRgb(p.value);
+        return { slug: p.slug, l: rgb ? sentinelLum(rgb) : 0.5 };
+      }).sort(function (a, b) { return a.l - b.l; });
+      if (!textSlug) textSlug = lums[0].slug;
+      if (!bgSlug) bgSlug = lums[lums.length - 1].slug;
+    }
+    if (textSlug && textSlug === bgSlug) textSlug = null;
+    paletteRolesCache = { sig: sig, bgSlug: bgSlug, textSlug: textSlug };
+    return paletteRolesCache;
+  }
   function pickerPalette() {
     var seen = {};
     return themePalette().filter(function (p) {
@@ -2937,8 +2976,10 @@
         }
         return secRgb ? sentinelLum(secRgb) : 1;
       };
+      var roles = paletteRoles();
       var candidates = themePalette().filter(function (p) {
-        return /^(base|contrast)(-|$)/.test(p.slug);
+        return p.slug === roles.bgSlug || p.slug === roles.textSlug ||
+          /^(base|contrast)(-|$)/.test(p.slug);
       });
       var flips = [];
       sec.els.forEach(function (e, i) {
@@ -4347,8 +4388,20 @@
   document.body.appendChild(secBar);
   var secBarIdx = null;
 
-  function hideSecBar() { goghFadeOut(secBar); secBarIdx = null; }
+  function hideSecBar() { clearTimeout(secBarHideT); goghFadeOut(secBar); secBarIdx = null; }
+  // the gentle version: boundary mode may claim the pointer for a moment
+  // while the hand is still travelling to the toolbar — hold the bar for a
+  // beat, and only fade it if the pointer never arrives
+  var secBarHideT = null;
+  function hideSecBarSoon() {
+    clearTimeout(secBarHideT);
+    secBarHideT = setTimeout(function () {
+      if (secBar.matches(':hover')) return;
+      hideSecBar();
+    }, 280);
+  }
   function showSecBar(idx) {
+    clearTimeout(secBarHideT);
     // the site header/footer isn't a page section: it can't move, duplicate
     // or be deleted, so the section toolbar has nothing to offer it
     if (S[idx] && S[idx].chrome) { hideSecBar(); return; }
@@ -4577,9 +4630,14 @@
     var variants = rearrangeVariants(secx);
     if (!variants.length) { toast('Nothing to rearrange yet — add a couple of elements first.'); return; }
     var snap = secx.els.map(function (e) { return { x: e.x, y: e.y }; });
+    // the arrangement the panel OPENED on stays reachable forever — keeps
+    // rebase the working snapshot, but Original is the way home
+    var snap0 = snap.map(function (p) { return { x: p.x, y: p.y }; });
     panel.innerHTML = '<div class="gogh-panel-title">Rearrange this section</div>' +
       '<div class="gogh-panel-hint">Hover to audition — click to keep. The panel stays for another try.</div>' +
-      '<div class="gogh-rearrow">' + variants.map(function (v, k) {
+      '<div class="gogh-rearrow">' +
+      '<button type="button" class="gogh-rearchip gogh-rear-orig is-active">Original</button>' +
+      variants.map(function (v, k) {
         return '<button type="button" class="gogh-rearchip" data-k="' + k + '">' + esc(v.name) + '</button>';
       }).join('') + '</div>';
     // anchor to the BUTTON that asked, not the section: a tall section's
@@ -4588,8 +4646,11 @@
     panelOpen = true;
     panelSticky = true; // auditioning must survive a glance at the canvas
     panel.querySelectorAll('.gogh-rearchip').forEach(function (chip) {
+      var posFor = function () {
+        return chip.classList.contains('gogh-rear-orig') ? snap0 : variants[+chip.dataset.k].pos;
+      };
       chip.addEventListener('mouseenter', function () {
-        applyPositions(secx, variants[+chip.dataset.k].pos);
+        applyPositions(secx, posFor());
       });
       chip.addEventListener('mouseleave', function () {
         applyPositions(secx, snap);
@@ -4597,14 +4658,17 @@
       chip.addEventListener('click', function () {
         applyPositions(secx, snap); // restore, so undo lands on the true before
         pushState();
-        applyPositions(secx, variants[+chip.dataset.k].pos);
+        applyPositions(secx, posFor());
         // keeping is not leaving: the kept shape becomes the new "before"
         // and the panel stays open for the next audition
         snap = secx.els.map(function (e) { return { x: e.x, y: e.y }; });
         panel.querySelectorAll('.gogh-rearchip').forEach(function (o) {
           o.classList.toggle('is-active', o === chip);
         });
-        toast('Rearranged — same pieces, new shape.', { actions: [{ label: 'Undo', onClick: function () { undo(); } }] });
+        toast(chip.classList.contains('gogh-rear-orig')
+          ? 'Back to how it was.'
+          : 'Rearranged — same pieces, new shape.',
+          { actions: [{ label: 'Undo', onClick: function () { undo(); } }] });
       });
     });
   }
@@ -4616,9 +4680,10 @@
   function bestInkFor(bgCss) {
     var rgb = cssToRgb(bgCss);
     var bgL = rgb ? sentinelLum(rgb) : 1;
-    var best = 'contrast', bestC = 0;
+    var roles = paletteRoles();
+    var best = roles.textSlug || 'contrast', bestC = 0;
     themePalette().forEach(function (p) {
-      if (!/^(base|contrast)(-|$)/.test(p.slug)) return;
+      if (p.slug !== roles.bgSlug && p.slug !== roles.textSlug) return;
       var prgb = cssToRgb(p.value);
       if (!prgb) return;
       var c = sentinelContrast(sentinelLum(prgb), bgL);
@@ -4629,19 +4694,25 @@
   function sectionThemes() {
     var v = function (slug) { return 'var(--wp--preset--color--' + slug + ')'; };
     var pal = themePalette();
-    var has = {};
-    pal.forEach(function (p) { has[p.slug] = 1; });
-    if (!has.base || !has.contrast) return [];
+    // canvas and ink by ROLE, not by name — TT5's base/contrast, Ollie's
+    // base/main, and every invented palette all resolve the same way
+    var roles = paletteRoles();
+    var bgS = roles.bgSlug, txS = roles.textSlug;
+    if (!bgS || !txS) return [];
     var out = [
-      { slug: 'paper', name: 'Paper', bg: v('base'), ink: 'contrast' },
-      { slug: 'mist', name: 'Mist', bg: 'color-mix(in srgb, ' + v('contrast') + ' 6%, ' + v('base') + ')', ink: 'contrast' },
-      { slug: 'ink', name: 'Ink', bg: v('contrast'), ink: 'base' },
+      { slug: 'paper', name: 'Paper', bg: v(bgS), ink: txS },
+      { slug: 'mist', name: 'Mist', bg: 'color-mix(in srgb, ' + v(txS) + ' 6%, ' + v(bgS) + ')', ink: txS },
+      { slug: 'ink', name: 'Ink', bg: v(txS), ink: bgS },
     ];
-    ['accent-1', 'accent-2'].forEach(function (a, k) {
-      if (!has[a]) return;
-      out.push({ slug: a, name: 'Accent ' + (k + 1), bg: v(a), ink: bestInkFor(v(a)) });
-      out.push({ slug: a + '-soft', name: 'Accent ' + (k + 1) + ' soft',
-        bg: 'color-mix(in srgb, ' + v(a) + ' 14%, ' + v('base') + ')', ink: 'contrast' });
+    // accents: the theme's own extra colours, in its declared order —
+    // skipping the roles and structural entries (borders and the like)
+    var accents = pal.filter(function (p) {
+      return p.slug !== bgS && p.slug !== txS && !/^border|^shadow|gray$/.test(p.slug);
+    }).slice(0, 2);
+    accents.forEach(function (p, k) {
+      out.push({ slug: p.slug, name: 'Accent ' + (k + 1), bg: v(p.slug), ink: bestInkFor(v(p.slug)) });
+      out.push({ slug: p.slug + '-soft', name: 'Accent ' + (k + 1) + ' soft',
+        bg: 'color-mix(in srgb, ' + v(p.slug) + ' 14%, ' + v(bgS) + ')', ink: txS });
     });
     return out;
   }
@@ -5008,9 +5079,19 @@
     if (insertRaf) return;
     insertRaf = true;
     var cy = ev.clientY;
+    var cx = ev.clientX;
     requestAnimationFrame(function () {
       insertRaf = false;
       if (hDrag) return;
+      // approach corridor: the section toolbar lives NEAR the boundary
+      // band, so the path to it used to flip into boundary mode and hide
+      // it mid-flight (James: "tricky to focus on"). While the pointer is
+      // inside the toolbar's inflated rect, everything holds steady.
+      if (!secBar.hidden && secBarIdx !== null) {
+        var sbr = secBar.getBoundingClientRect();
+        if (cx >= sbr.left - 32 && cx <= sbr.right + 32 &&
+            cy >= sbr.top - 24 && cy <= sbr.bottom + 32) return;
+      }
       var found = null;
       // boundaries belong to page content — ALL of it: freeform sections,
       // pending pattern holders, and stored native blocks alike. (none
@@ -5093,7 +5174,7 @@
         } else {
           shapeBtn.hidden = true;
         }
-        hideSecBar();
+        hideSecBarSoon();
       } else {
         if (!inserter.matches(':hover')) goghFadeOut(inserter);
         if (!hgrip.matches(':hover')) hideHbar();
@@ -6039,11 +6120,12 @@
     var accents = [c.accent, c.accent2].filter(Boolean);
     var ai = 0;
     var pal = [];
+    var roles = paletteRoles();
     slugs.forEach(function (slug) {
       var v = null;
-      if (/^(base|background)(-|$)/.test(slug)) v = c.background;
-      else if (/^(contrast|foreground|text)(-|$)/.test(slug)) v = c.text;
-      else if (/accent/.test(slug) && accents.length) { v = accents[ai % accents.length]; ai++; }
+      if (slug === roles.bgSlug || /^(base|background)$/.test(slug)) v = c.background;
+      else if (slug === roles.textSlug || /^(contrast|foreground|text|main)$/.test(slug)) v = c.text;
+      else if (/accent|primary|secondary/.test(slug) && accents.length) { v = accents[ai % accents.length]; ai++; }
       if (!v) {
         var keep = cur.filter(function (p) { return p.slug === slug; })[0];
         v = keep && keep.value;
@@ -7457,6 +7539,7 @@
     chromeDialsRead: chromeDialsRead,
     inkWidthOf: inkWidthOf,
     themeFontSizeList: themeFontSizeList,
+    paletteRoles: paletteRoles,
     chromeDialsApply: chromeDialsApply,
     insertGoghPattern: insertGoghPattern,
     addHtmlSection: addHtmlSection,
