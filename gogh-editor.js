@@ -3089,7 +3089,13 @@
       });
       if (!flips.length) return;
       pushState();
-      flips.forEach(function (f) { sec.els[f.i].color = f.to; });
+      flips.forEach(function (f) {
+        var fe = sec.els[f.i];
+        fe.color = f.to;
+        // a captured tf colour paints with !important and would silently
+        // win over the flip (James's eyebrow stayed dark on the night sky)
+        if (fe.tf && fe.tf.col) delete fe.tf.col;
+      });
       renderSection(sec);
       toast(flips.length === 1 ? 'Made the words readable on that background.'
         : 'Made ' + flips.length + ' text pieces readable on that background.',
@@ -4829,9 +4835,7 @@
     });
     return out;
   }
-  function applySectionTheme(idx, theme) {
-    var secx = S[idx];
-    pushState();
+  function paintSectionTheme(secx, theme) {
     secx.theme = theme.slug;
     secx.bg = theme.bg;
     secx.bgA = null;
@@ -4843,6 +4847,23 @@
     syncBootInvite(secx);
     renderSection(secx);
     resolveAll();
+  }
+  function snapSectionLook(secx) {
+    return { theme: secx.theme, bg: secx.bg, bgA: secx.bgA,
+      colors: secx.els.map(function (e) { return e.color || null; }) };
+  }
+  function restoreSectionLook(secx, snap) {
+    secx.theme = snap.theme;
+    secx.bg = snap.bg;
+    secx.bgA = snap.bgA;
+    secx.els.forEach(function (e, k) { e.color = snap.colors[k]; });
+    syncBootInvite(secx);
+    renderSection(secx);
+    resolveAll();
+  }
+  function applySectionTheme(idx, theme) {
+    pushState();
+    paintSectionTheme(S[idx], theme);
   }
   // the invite lives in the rendered section — keep it honest when a
   // background arrives (or leaves) without a full re-render
@@ -4943,10 +4964,25 @@
       });
     });
     var themeDefs = sectionThemes();
+    // themes audition on hover like everything else (James: "i love
+    // auditioning") — leave restores the look, click keeps it
+    var themeSnap = null;
     panel.querySelectorAll('.gogh-themechip').forEach(function (tc) {
-      tc.addEventListener('click', function () {
-        var t = themeDefs.filter(function (x) { return x.slug === tc.dataset.theme; })[0];
+      var defOf = function () {
+        return themeDefs.filter(function (x) { return x.slug === tc.dataset.theme; })[0];
+      };
+      auditionHover(tc, function () {
+        var t = defOf();
         if (!t) return;
+        if (!themeSnap) themeSnap = snapSectionLook(secx);
+        paintSectionTheme(secx, t);
+      }, function () {
+        if (themeSnap) { restoreSectionLook(secx, themeSnap); themeSnap = null; }
+      });
+      tc.addEventListener('click', function () {
+        var t = defOf();
+        if (!t) return;
+        if (themeSnap) { restoreSectionLook(secx, themeSnap); themeSnap = null; }
         applySectionTheme(idx, t);
         panel.querySelectorAll('.gogh-themechip').forEach(function (o) {
           o.classList.toggle('is-active', o === tc);

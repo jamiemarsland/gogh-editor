@@ -852,9 +852,14 @@
       var s2 = c[c.length - 1];
       var e = s2.els[0];
       e.color = darker;
+      // an eyebrow-style captured colour paints with !important — the flip
+      // must clear it or it silently wins (James's night-sky eyebrow)
+      e.tf = { col: 'color-mix(in srgb, var(--wp--preset--color--' + darker + ') 62%, transparent)', ls2: 0.2 };
       G.renderSection(s2);
       G.contrastSentinel(s2);
       expect(e.color === lighter, 'dark ink on dark ground should flip to ' + lighter + ' (got ' + e.color + ')');
+      expect(!e.tf.col, 'the flip must clear the captured tf colour');
+      expect(e.tf.ls2 === 0.2, 'other captured typography must survive the flip');
       // and readable text is left alone: the darker ink on a pale ground
       G.addSection({ title: 'CS2', minH: 240, bg: '#f5f5f2', els: [
         { type: 'heading', x: 90, y: 40, w: 500, h: 60, text: 'Fine as is' },
