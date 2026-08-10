@@ -641,7 +641,9 @@ body.gogh-help-open .gogh-toasts { right: 416px; }
 
 /* ---------- context panel (link / image) ---------- */
 .gogh-panel {
-  position: absolute;
+  /* viewport-fixed: the panel rides along while you scroll — you can
+     audition a scroll effect WITH the panel still in hand */
+  position: fixed;
   z-index: 100000;
   width: 340px;
   background: var(--gogh-ui-bg);

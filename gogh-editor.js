@@ -647,7 +647,10 @@
       // parallax needs headroom: the layer is taller than the section so
       // its slower journey never shows an edge
       var inset = fxBg === 'parallax' ? '-18% 0' : '0';
-      out.push(sec + '::before { content: ""; position: absolute; inset: ' + inset + '; z-index: 0; pointer-events: none; background: ' + layers.join(', ') + '; }');
+      // opacity: 1 declared, not assumed — the editing grid shares this
+      // pseudo at opacity 0, which blanked every effect section's backdrop
+      // in the editor (the grid simply skips effect sections now)
+      out.push(sec + '::before { content: ""; position: absolute; inset: ' + inset + '; z-index: 0; pointer-events: none; opacity: 1 !important; background: ' + layers.join(', ') + '; }');
       if (fxBg === 'parallax') {
         // TRUE parallax: the picture travels slower than the page, driven
         // by the section's own journey through the viewport (pure CSS,
@@ -2107,8 +2110,8 @@
     });
     panel.addEventListener('pointermove', function (ev) {
       if (!pd) return;
-      panel.style.left = (ev.clientX - pd.dx + window.scrollX) + 'px';
-      panel.style.top = (ev.clientY - pd.dy + window.scrollY) + 'px';
+      panel.style.left = (ev.clientX - pd.dx) + 'px';
+      panel.style.top = (ev.clientY - pd.dy) + 'px';
     });
     panel.addEventListener('pointerup', function () { pd = null; });
     panel.addEventListener('pointercancel', function () { pd = null; });
@@ -2132,10 +2135,10 @@
     panel.hidden = false;
     var pw = panel.offsetWidth || 340;
     var ph = panel.offsetHeight || 220;
-    var left = Math.max(8, Math.min(r.left + window.scrollX, window.scrollX + window.innerWidth - pw - 16));
-    var top = r.bottom + window.scrollY + 10;
+    var left = Math.max(8, Math.min(r.left, window.innerWidth - pw - 16));
+    var top = r.bottom + 10;
     // 76px bottom reserve keeps the panel clear of the publish chip
-    var maxTop = window.scrollY + window.innerHeight - ph - 76;
+    var maxTop = window.innerHeight - ph - 76;
     panel.style.maxHeight = '';
     if (top > maxTop) {
       // clamping would slide the panel up OVER its anchor (or, for a
@@ -2143,16 +2146,16 @@
       // James found it over the admin bar). Step BESIDE the anchor when
       // there's room, and let the panel SHRINK to what's below: it
       // scrolls inside itself, so staying with its button costs nothing.
-      var sideTop = Math.max(window.scrollY + 16, r.top + window.scrollY - 8);
+      var sideTop = Math.max(16, r.top - 8);
       if (r.right + pw + 20 < window.innerWidth) {
-        left = r.right + window.scrollX + 12;
+        left = r.right + 12;
       } else if (r.left - pw - 20 > 0) {
-        left = r.left + window.scrollX - pw - 12;
+        left = r.left - pw - 12;
       }
       top = sideTop;
       // -90: 60px breathing room plus the panel's own padding, which sits
       // OUTSIDE a content-box max-height
-      panel.style.maxHeight = Math.max(280, window.scrollY + window.innerHeight - top - 90) + 'px';
+      panel.style.maxHeight = Math.max(280, window.innerHeight - top - 90) + 'px';
     }
     panel.style.left = left + 'px';
     panel.style.top = top + 'px';
