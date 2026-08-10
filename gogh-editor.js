@@ -1837,7 +1837,16 @@
     var pd = pendingDrag;
     pendingDrag = null;
     if (resize || ev.pointerId !== pd.ev.pointerId) return;
-    if (pd.wasSelected) enterTextEdit(pd.sec, pd.i, ev);
+    if (pd.wasSelected) {
+      var pe = pd.sec.els[pd.i];
+      // FAQ/Tabs have no in-place caret — the second click (the "let me
+      // edit the words" gesture) opens their form instead of dead-ending
+      if (pe && pe.type === 'widget' && ((pe.faq && pe.faq.length) || (pe.tabs && pe.tabs.length))) {
+        openPanel(pd.sec, pd.i);
+        return;
+      }
+      enterTextEdit(pd.sec, pd.i, ev);
+    }
   });
 
   function editableTarget(sec, i) {
