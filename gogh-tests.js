@@ -935,6 +935,20 @@
       expect(s2.els[0].color === 'base', 'heading ink should flip to base (got ' + s2.els[0].color + ')');
       var snap = G.serialize();
       expect(snap.indexOf('"theme":"ink"') !== -1, 'theme should serialize');
+      // BACKDROPS: designed gradient compositions join the theme shelf
+      var slugs = G.sectionThemes().map(function (x) { return x.slug; });
+      ['sweep', 'glow', 'duo', 'mesh', 'frame'].forEach(function (b) {
+        expect(slugs.indexOf(b) !== -1, 'backdrop missing: ' + b);
+      });
+      var sweep = G.sectionThemes().filter(function (x) { return x.slug === 'sweep'; })[0];
+      expect(/radial-gradient/.test(sweep.bg), 'sweep must be a gradient composition');
+      G.applySectionTheme(G.sections().indexOf(s2), sweep);
+      expect(s2.theme === 'sweep' && /gradient/.test(s2.bg), 'sweep should apply like any theme');
+      expect(/"theme":"sweep"/.test(G.serialize()), 'backdrop must serialize');
+      // a composition never leaks into a colour-mix (the tint dial path)
+      s2.bgA = 40;
+      G.resolve(s2);
+      expect(!/color-mix\(in srgb, radial-gradient/.test(s2.styleEl.textContent), 'gradient must not enter color-mix');
       G.deleteSection(G.sections().indexOf(s2));
       return themes.length + ' looks; Ink flips bg and words together';
     });

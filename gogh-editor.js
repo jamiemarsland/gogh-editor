@@ -556,9 +556,10 @@
         // image, solid for plain colour — opts.bgA is 0–100
         var bgA = opts.bgA != null ? Math.max(0, Math.min(100, opts.bgA)) : null;
         var layers = [];
+        var bgIsComposition = !!(opts.bg && /gradient\(/.test(opts.bg));
         if (opts.bgImage) {
           var img = 'url("' + String(opts.bgImage).replace(/"/g, '%22') + '") center / cover no-repeat';
-          if (opts.bg) {
+          if (opts.bg && !bgIsComposition) {
             // palette-aware tint over the image keeps text readable in any
             // style variation (the tint follows the theme's own colours)
             var tint = 'color-mix(in srgb, ' + opts.bg + ' ' + (bgA != null ? bgA : 62) + '%, transparent)';
@@ -571,7 +572,7 @@
             layers.push('linear-gradient(' + auto + ', ' + auto + ')');
           }
           layers.push(img);
-        } else if (opts.bg && bgA != null && bgA < 100) {
+        } else if (opts.bg && bgA != null && bgA < 100 && !bgIsComposition) {
           layers.push('color-mix(in srgb, ' + opts.bg + ' ' + bgA + '%, transparent)');
         } else if (opts.bg) {
           layers.push(opts.bg);
@@ -631,10 +632,11 @@
       // rebuild the same stack for the pseudo layer (kept in lockstep with
       // the branch above by construction)
       var bgA = opts.bgA != null ? Math.max(0, Math.min(100, opts.bgA)) : null;
+      var bgIsComposition = !!(opts.bg && /gradient\(/.test(opts.bg));
       var layers = [];
       if (opts.bgImage) {
         var img = 'url("' + String(opts.bgImage).replace(/"/g, '%22') + '") center / cover no-repeat';
-        if (opts.bg) {
+        if (opts.bg && !bgIsComposition) {
           var tint = 'color-mix(in srgb, ' + opts.bg + ' ' + (bgA != null ? bgA : 62) + '%, transparent)';
           layers.push('linear-gradient(' + tint + ', ' + tint + ')');
         } else if (els.some(textyEl)) {
@@ -642,7 +644,7 @@
           layers.push('linear-gradient(' + auto + ', ' + auto + ')');
         }
         layers.push(img);
-      } else if (opts.bg && bgA != null && bgA < 100) {
+      } else if (opts.bg && bgA != null && bgA < 100 && !bgIsComposition) {
         layers.push('color-mix(in srgb, ' + opts.bg + ' ' + bgA + '%, transparent)');
       } else if (opts.bg) {
         layers.push(opts.bg);
@@ -2447,25 +2449,27 @@
   }
   function buildBoxPanel(sec, i) {
     var e = sec.els[i];
+    // hierarchy by touch-frequency (James: "not sure shape deserves the
+    // top"): colour and picture first, mood, link — shape last. The image
+    // URL field retired; Upload and the grid carry it.
     panel.innerHTML =
-      '<div class="gogh-panel-title">Shape</div>' +
-      '<div class="gogh-shapegrid">' +
-      SHAPE_DEFS.map(function (d, k) {
-        var on = d.key === (e.shape || null);
-        return '<button type="button" class="gogh-shapecell' + (on ? ' is-active' : '') + '" data-k="' + k + '" title="' + d.label + '">' +
-          '<span style="' + shapePreviewCss(d) + '"></span></button>';
-      }).join('') +
-      '</div>' +
-      '<div class="gogh-swlab">Mood \u2014 how the card behaves under the pointer</div>' +
-      '<div class="gogh-hpresets gogh-moodrow">' +
-      [['', 'Still'], ['lift', 'Lift'], ['zoom', 'Zoom'], ['veil', 'Veil']].map(function (m) {
-        return '<button type="button" class="gogh-hpreset' + ((e.mood || '') === m[0] ? ' is-active' : '') + '" data-mood="' + m[0] + '">' + m[1] + '</button>';
-      }).join('') + '</div>' +
-      '<div class="gogh-swlab">Colour</div><div class="gogh-swrow gogh-boxsw">' +
+      '<div class="gogh-swlab">Colour \u2014 with an image, it becomes the tint</div>' +
+      '<div class="gogh-swrow gogh-boxsw">' +
       '<button type="button" class="gogh-sw gogh-sw-none' + (!e.boxBg ? ' is-active' : '') + '" data-col="" title="None"></button>' +
       pickerPalette().map(function (p) {
         return '<button type="button" class="gogh-sw' + (e.boxBg === p.slug ? ' is-active' : '') + '" data-col="' + p.slug + '"' +
           ' style="background: var(--wp--preset--color--' + p.slug + ')" title="' + p.slug + '"></button>';
+      }).join('') + '</div>' +
+      '<div class="gogh-swlab">Image</div>' +
+      '<div class="gogh-panel-row">' +
+      (cfg.canUpload ? '<label class="gogh-btn gogh-btn-small gogh-upload">Upload<input type="file" accept="image/*" hidden /></label>' : '') +
+      (e.boxImg ? '<button type="button" class="gogh-btn gogh-btn-small gogh-boximg-clear">Remove image</button>' : '') +
+      '</div>' +
+      '<div class="gogh-media gogh-boximg-media"></div>' +
+      '<div class="gogh-swlab">Mood \u2014 how the card behaves under the pointer</div>' +
+      '<div class="gogh-hpresets gogh-moodrow">' +
+      [['', 'Still'], ['lift', 'Lift'], ['zoom', 'Zoom'], ['veil', 'Veil']].map(function (m) {
+        return '<button type="button" class="gogh-hpreset' + ((e.mood || '') === m[0] ? ' is-active' : '') + '" data-mood="' + m[0] + '">' + m[1] + '</button>';
       }).join('') + '</div>' +
       (e.kids && e.kids.length
         ? '<div class="gogh-swlab">Link \u2014 the whole card is clickable</div>' +
@@ -2474,16 +2478,14 @@
           '<button type="button" class="gogh-btn gogh-btn-small gogh-cardhref-apply">Apply</button>' +
           '</div>'
         : '') +
-      '<div class="gogh-swlab">Image \u2014 the colour above becomes its tint</div>' +
-      '<div class="gogh-panel-row">' +
-      '<input type="url" class="gogh-input gogh-boximg-url" placeholder="https://\u2026" value="' + escAttr(e.boxImg || '') + '" />' +
-      '<button type="button" class="gogh-btn gogh-btn-small gogh-boximg-apply">Apply</button>' +
-      '</div>' +
-      '<div class="gogh-panel-row">' +
-      (cfg.canUpload ? '<label class="gogh-btn gogh-btn-small gogh-upload">Upload<input type="file" accept="image/*" hidden /></label>' : '') +
-      (e.boxImg ? '<button type="button" class="gogh-btn gogh-btn-small gogh-boximg-clear">Remove image</button>' : '') +
-      '</div>' +
-      '<div class="gogh-media gogh-boximg-media"></div>';
+      '<div class="gogh-swlab">Shape</div>' +
+      '<div class="gogh-shapegrid">' +
+      SHAPE_DEFS.map(function (d, k) {
+        var on = d.key === (e.shape || null);
+        return '<button type="button" class="gogh-shapecell' + (on ? ' is-active' : '') + '" data-k="' + k + '" title="' + d.label + '">' +
+          '<span style="' + shapePreviewCss(d) + '"></span></button>';
+      }).join('') +
+      '</div>';
     function reapply() {
       renderSection(sec);
       placeHandles(sec, i);
@@ -2539,12 +2541,6 @@
       pushState();
       closePanel();
       toast(u ? 'The whole card links to ' + u : 'Card link removed.');
-    });
-    panel.querySelector('.gogh-boximg-apply').addEventListener('click', function () {
-      var u = panel.querySelector('.gogh-boximg-url').value.trim();
-      e.boxImg = u || null;
-      if (!u) e.boxImgId = null;
-      applyAndClose();
     });
     var bclear = panel.querySelector('.gogh-boximg-clear');
     if (bclear) bclear.addEventListener('click', function () {
@@ -3192,7 +3188,7 @@
   }
   function contrastSentinel(sec, onlyIdx) {
     if (!editing || sec.chrome) return;
-    var tint = sec.bg ? cssToRgb(sec.bg) : null;
+    var tint = (sec.bg && !/gradient\(/.test(sec.bg)) ? cssToRgb(sec.bg) : null;
     var secHpx = sec.sectionEl.offsetHeight || 1;
     var secWpx = sec.sectionEl.offsetWidth || 1;
     var judge = function (sampler) {
@@ -5065,6 +5061,27 @@
       out.push({ slug: p.slug + '-soft', name: 'Accent ' + (k + 1) + ' soft',
         bg: 'color-mix(in srgb, ' + v(p.slug) + ' 14%, ' + v(bgS) + ')', ink: txS });
     });
+    // ---- BACKDROPS: designed compositions from the same palette ----
+    // lovely backgrounds with zero uploads: gradient arrangements of
+    // colours the site already owns. They re-dress with the variation
+    // like every theme chip, and the swatches preview the real shape.
+    var canvas = v(bgS);
+    var a1 = accents[0] ? v(accents[0].slug) : v(txS);
+    var a2 = accents[1] ? v(accents[1].slug) : a1;
+    var soft = function (c2, pc) { return 'color-mix(in srgb, ' + c2 + ' ' + pc + '%, ' + canvas + ')'; };
+    var flat = 'linear-gradient(' + canvas + ', ' + canvas + ')';
+    out.push({ slug: 'sweep', name: 'Sweep', ink: txS,
+      bg: 'radial-gradient(140% 95% at 50% -35%, ' + soft(a1, 88) + ' 0%, ' + soft(a1, 88) + ' 52%, transparent 66%), ' + flat });
+    out.push({ slug: 'glow', name: 'Glow', ink: txS,
+      bg: 'radial-gradient(70% 60% at 85% 8%, ' + soft(a1, 36) + ' 0%, transparent 70%), ' + flat });
+    out.push({ slug: 'duo', name: 'Duo', ink: txS,
+      bg: 'linear-gradient(135deg, ' + soft(txS, 7) + ' 0%, ' + soft(txS, 7) + ' 50%, ' + canvas + ' 50.4%)' });
+    out.push({ slug: 'mesh', name: 'Mesh', ink: txS,
+      bg: 'radial-gradient(55% 65% at 18% 22%, ' + soft(a1, 34) + ' 0%, transparent 62%), ' +
+        'radial-gradient(60% 55% at 82% 28%, ' + soft(a2, 30) + ' 0%, transparent 65%), ' +
+        'radial-gradient(75% 70% at 50% 95%, ' + soft(a1, 22) + ' 0%, transparent 62%), ' + flat });
+    out.push({ slug: 'frame', name: 'Frame', ink: txS,
+      bg: flat + ' center / calc(100% - 5cqw) calc(100% - 5cqw) no-repeat, linear-gradient(' + soft(txS, 8) + ', ' + soft(txS, 8) + ')' });
     return out;
   }
   function paintSectionTheme(secx, theme) {
