@@ -1101,7 +1101,7 @@
         };
         var par = cssFor('parallax');
         expect(/gogh-parallax/.test(par) && /animation-timeline: view\(\)/.test(par), 'parallax must be scroll-driven, not attachment-fixed');
-        expect(/inset: -18% 0/.test(par), 'parallax layer needs headroom beyond the section');
+        expect(/inset: -20% 0/.test(par), 'parallax layer needs headroom beyond the section');
         expect(!/background-attachment/.test(par), 'the old fixed-attachment trick must be gone');
         var drift = cssFor('drift');
         expect(/::before[^}]*sunflowers/.test(drift.replace(/\n/g, ' ')) && /gogh-drift/.test(drift), 'drift must animate the picture on a pseudo layer');

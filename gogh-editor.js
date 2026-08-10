@@ -646,28 +646,39 @@
       if (!layers.length) return;
       // parallax needs headroom: the layer is taller than the section so
       // its slower journey never shows an edge
-      var inset = fxBg === 'parallax' ? '-18% 0' : '0';
+      var inset = fxBg === 'parallax' ? '-20% 0' : '0';
       // opacity: 1 declared, not assumed — the editing grid shares this
       // pseudo at opacity 0, which blanked every effect section's backdrop
       // in the editor (the grid simply skips effect sections now)
       out.push(sec + '::before { content: ""; position: absolute; inset: ' + inset + '; z-index: 0; pointer-events: none; opacity: 1 !important; background: ' + layers.join(', ') + '; }');
+      if (opts.fxDemo && (fxBg === 'parallax' || fxBg === 'reveal')) {
+        // AUDITION THEATRE: scroll effects are invisible on a section
+        // already in view, so hovering the chip performs a short canned
+        // sweep of the real motion — the kept effect rides the scroll
+        var demo = fxBg === 'parallax'
+          ? '@keyframes gogh-fx-demo { 0% { transform: translateY(0); } 40% { transform: translateY(-9%); } 100% { transform: translateY(6%); } }'
+          : '@keyframes gogh-fx-demo { from { opacity: 0.05; transform: scale(1.06) translateY(2%); } to { opacity: 1; transform: none; } }';
+        out.push(demo);
+        out.push(sec + '::before { animation: gogh-fx-demo 1.5s ease both; }');
+        return;
+      }
       if (fxBg === 'parallax') {
         // TRUE parallax: the picture travels slower than the page, driven
         // by the section's own journey through the viewport (pure CSS,
         // every platform; without view() support it stands still)
         out.push('@supports (animation-timeline: view()) { ' + sec + '::before { animation: gogh-parallax linear both; animation-timeline: view(); animation-range: cover 0% cover 100%; } }');
-        out.push('@keyframes gogh-parallax { from { transform: translateY(-9%); } to { transform: translateY(9%); } }');
+        out.push('@keyframes gogh-parallax { from { transform: translateY(-16%); } to { transform: translateY(16%); } }');
         return;
       }
       if (fxBg === 'drift') {
         // an imperceptible Ken Burns: the picture breathes over 36 seconds
-        out.push(sec + '::before { animation: gogh-drift 36s ease-in-out infinite alternate; }');
-        out.push('@keyframes gogh-drift { from { transform: scale(1); } to { transform: scale(1.07); } }');
+        out.push(sec + '::before { animation: gogh-drift 20s ease-in-out infinite alternate; }');
+        out.push('@keyframes gogh-drift { from { transform: scale(1); } to { transform: scale(1.12); } }');
       } else {
         // reveal rides the scroll itself (CSS scroll-driven animation) —
         // browsers without view() simply show the finished state
         out.push('@supports (animation-timeline: view()) { ' + sec + '::before { animation: gogh-reveal linear both; animation-timeline: view(); animation-range: entry 0% cover 45%; } }');
-        out.push('@keyframes gogh-reveal { from { opacity: 0.1; transform: scale(1.05); } to { opacity: 1; transform: none; } }');
+        out.push('@keyframes gogh-reveal { from { opacity: 0.05; transform: scale(1.06) translateY(2%); } to { opacity: 1; transform: none; } }');
       }
     })();
     els.forEach(function (e, i) {
@@ -1112,6 +1123,7 @@
     var next = idx >= 0 ? S[idx + 1] : null;
     return { bg: sec.bg, bgA: sec.bgA != null ? sec.bgA : null, fill: !!sec.fill, divider: sec.divider, bgImage: sec.bgImage,
       fx: sec.fx || null,
+      fxDemo: !!sec.__fxDemo,
       stickUnder: !!(next && next.fx && next.fx.curtain),
       divColor: next ? (next.bg || '#0f0e0c') : null };
   }
@@ -2142,7 +2154,6 @@
     var top = r.bottom + 10;
     // 76px bottom reserve keeps the panel clear of the publish chip
     var maxTop = window.innerHeight - ph - 76;
-    panel.style.maxHeight = '';
     if (top > maxTop) {
       // clamping would slide the panel up OVER its anchor (or, for a
       // near-viewport-tall panel, all the way to the top of the screen —
@@ -2156,10 +2167,12 @@
         left = r.left - pw - 12;
       }
       top = sideTop;
-      // -90: 60px breathing room plus the panel's own padding, which sits
-      // OUTSIDE a content-box max-height
-      panel.style.maxHeight = Math.max(280, window.innerHeight - top - 90) + 'px';
     }
+    // EVERY placement caps the panel to the space below it: a bottom cut
+    // off by the viewport begs the user to scroll, and scrolling can never
+    // reveal more of a fixed panel. -90: 60px breathing room plus the
+    // panel's own padding, which sits OUTSIDE a content-box max-height.
+    panel.style.maxHeight = Math.max(280, window.innerHeight - top - 90) + 'px';
     panel.style.left = left + 'px';
     panel.style.top = top + 'px';
     panelAnchor = node;
@@ -5079,8 +5092,10 @@
       auditionHover(fb, function () {
         if (hungry()) return;
         if (fxSnap === null) fxSnap = (secx.fx && secx.fx.bg) || '';
+        secx.__fxDemo = true; // hover performs the motion, right now
         applyFx(fb.dataset.fx);
       }, function () {
+        delete secx.__fxDemo;
         if (fxSnap !== null) { applyFx(fxSnap); fxSnap = null; }
       });
       fb.addEventListener('click', function () {
@@ -5088,6 +5103,7 @@
           toast(fb.textContent + ' needs a background image \u2014 pick one below first.');
           return;
         }
+        delete secx.__fxDemo; // the kept effect is the real, scroll-driven one
         if (fxSnap !== null) { applyFx(fxSnap); fxSnap = null; }
         pushState();
         applyFx(fb.dataset.fx);
@@ -7369,7 +7385,9 @@
   var scrollRaf = false;
   window.addEventListener('scroll', function () {
     if (drag || resize || hDrag || rotD) return;
-    closePanel();
+    // panels are viewport-fixed and ride the scroll — closing them here
+    // was the "modal vanishes when I scroll" report (a relic from when
+    // panels were document-anchored popovers)
     inserter.hidden = true;
     hideHbar();
     shapeBtn.hidden = true;
