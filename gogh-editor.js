@@ -2168,7 +2168,8 @@
       ? { title: 'FAQ', one: 'question', q: 'Question', a: 'Answer', qk: 'q', ak: 'a' }
       : { title: 'Tabs', one: 'tab', q: 'Tab label', a: 'Tab content', qk: 't', ak: 'body' };
     var render = function () {
-      panel.innerHTML = '<div class="gogh-panel-title">' + labels.title + '</div>' +
+      panel.innerHTML = '<div class="gogh-panel-head"><span class="gogh-panel-title">' + labels.title + '</span>' +
+        '<button type="button" class="gogh-sbtn gogh-panel-close" title="Done">\u2715</button></div>' +
         '<div class="gogh-panel-hint">Edit the words \u2014 the block follows live.</div>' +
         items.map(function (it, k) {
           return '<div class="gogh-qna" data-k="' + k + '">' +
@@ -2205,6 +2206,7 @@
           render();
         });
       });
+      panel.querySelector('.gogh-panel-close').addEventListener('click', function () { closePanel(); });
       panel.querySelector('.gogh-qna-add').addEventListener('click', function () {
         var fresh = {};
         fresh[labels.qk] = kind === 'faq' ? 'Another question?' : 'Another tab';
@@ -4742,8 +4744,9 @@
     // the arrangement the panel OPENED on stays reachable forever — keeps
     // rebase the working snapshot, but Original is the way home
     var snap0 = snap.map(function (p) { return { x: p.x, y: p.y }; });
-    panel.innerHTML = '<div class="gogh-panel-title">Rearrange this section</div>' +
-      '<div class="gogh-panel-hint">Hover to audition — click to keep. The panel stays for another try.</div>' +
+    panel.innerHTML = '<div class="gogh-panel-head"><span class="gogh-panel-title">Rearrange this section</span>' +
+      '<button type="button" class="gogh-sbtn gogh-panel-close" title="Done">\u2715</button></div>' +
+      '<div class="gogh-panel-hint">Hover to audition — click to keep. Close with \u2715 when you\u2019re done.</div>' +
       '<div class="gogh-rearrow">' +
       '<button type="button" class="gogh-rearchip gogh-rear-orig is-active">Original</button>' +
       variants.map(function (v, k) {
@@ -4754,6 +4757,7 @@
     placePanelNear(anchorEl && anchorEl.isConnected ? anchorEl : secx.wrapEl);
     panelOpen = true;
     panelSticky = true; // auditioning must survive a glance at the canvas
+    panel.querySelector('.gogh-panel-close').addEventListener('click', function () { closePanel(); });
     panel.querySelectorAll('.gogh-rearchip').forEach(function (chip) {
       var posFor = function () {
         return chip.classList.contains('gogh-rear-orig') ? snap0 : variants[+chip.dataset.k].pos;
