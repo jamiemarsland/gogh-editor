@@ -3077,8 +3077,41 @@
     d.style.color = css;
     d.style.display = 'none';
     document.body.appendChild(d);
-    var m = getComputedStyle(d).color.match(/[\d.]+/g);
+    var str = getComputedStyle(d).color;
     d.remove();
+    if (/^color\(srgb[ -]/.test(str)) {
+      // the modern resolved form: color(srgb 0.93 0.93 0.93) — 0–1 floats.
+      // Read as 0–255 they turned near-white grounds near-black, and the
+      // sentinel painted pale cards white (James's "cards starting with
+      // white text").
+      var fm = str.match(/([\d.]+)\s+([\d.]+)\s+([\d.]+)/);
+      return fm ? [fm[1], fm[2], fm[3]].map(function (v) { return Math.round(+v * 255); }) : null;
+    }
+    if (str.indexOf('color-mix') !== -1) {
+      // some engines keep color-mix UNRESOLVED in the computed value — the
+      // old regex then grabbed the first component's numbers (the dark 7%
+      // of a pale mix) and the sentinel painted cards white. Mix it here.
+      var parts = [];
+      var re = /rgba?\(([\d.]+),\s*([\d.]+),\s*([\d.]+)(?:,\s*([\d.]+))?\)(?:\s+([\d.]+)%)?/g, pm;
+      while ((pm = re.exec(str))) {
+        parts.push({ rgb: [+pm[1], +pm[2], +pm[3]], a: pm[4] != null ? +pm[4] : 1, w: pm[5] != null ? +pm[5] / 100 : null });
+      }
+      // 'transparent' computes as rgba(0,0,0,0) and is caught above
+      if (parts.length === 2) {
+        if (parts[0].w == null && parts[1].w == null) { parts[0].w = 0.5; parts[1].w = 0.5; }
+        else if (parts[0].w == null) parts[0].w = 1 - parts[1].w;
+        else if (parts[1].w == null) parts[1].w = 1 - parts[0].w;
+        var e0 = parts[0].w * parts[0].a, e1 = parts[1].w * parts[1].a;
+        var tot = e0 + e1;
+        if (tot > 0) {
+          return [0, 1, 2].map(function (i) {
+            return Math.round((parts[0].rgb[i] * e0 + parts[1].rgb[i] * e1) / tot);
+          });
+        }
+      }
+      return null; // an unmixable ground judges nothing
+    }
+    var m = str.match(/[\d.]+/g);
     return m && m.length >= 3 ? m.slice(0, 3).map(Number) : null;
   }
   // sample the image UNDER a text element, not the whole picture: a sky
@@ -3683,23 +3716,20 @@
       { type: 'box', x: 100, y: 170, w: 320, h: 330, radius: 18,
         boxBg: 'color-mix(in srgb, var(--wp--preset--color--contrast, #000) 7%, var(--wp--preset--color--base, transparent))',
         kids: [
-          { type: 'badge', x: 28, y: 28, w: 96, h: 44, text: '01' },
-          { type: 'heading', x: 28, y: 96, w: 264, h: 44, text: 'Brand identity', fs: 'large' },
-          { type: 'para', x: 28, y: 152, w: 264, h: 100, text: 'A name, a voice and a look that hold together everywhere \u2014 from the sign above the door to the invoice footer.' },
+          { type: 'heading', x: 28, y: 32, w: 264, h: 44, text: 'Brand identity', fs: 'large' },
+          { type: 'para', x: 28, y: 92, w: 264, h: 100, text: 'A name, a voice and a look that hold together everywhere \u2014 from the sign above the door to the invoice footer.' },
         ] },
       { type: 'box', x: 440, y: 170, w: 320, h: 330, radius: 18,
         boxBg: 'color-mix(in srgb, var(--wp--preset--color--contrast, #000) 7%, var(--wp--preset--color--base, transparent))',
         kids: [
-          { type: 'badge', x: 28, y: 28, w: 96, h: 44, text: '02' },
-          { type: 'heading', x: 28, y: 96, w: 264, h: 44, text: 'Websites', fs: 'large' },
-          { type: 'para', x: 28, y: 152, w: 264, h: 100, text: 'Fast, honest sites that read beautifully on a phone at a bus stop \u2014 which is where your customers are.' },
+          { type: 'heading', x: 28, y: 32, w: 264, h: 44, text: 'Websites', fs: 'large' },
+          { type: 'para', x: 28, y: 92, w: 264, h: 100, text: 'Fast, honest sites that read beautifully on a phone at a bus stop \u2014 which is where your customers are.' },
         ] },
       { type: 'box', x: 780, y: 170, w: 320, h: 330, radius: 18,
         boxBg: 'color-mix(in srgb, var(--wp--preset--color--contrast, #000) 7%, var(--wp--preset--color--base, transparent))',
         kids: [
-          { type: 'badge', x: 28, y: 28, w: 96, h: 44, text: '03' },
-          { type: 'heading', x: 28, y: 96, w: 264, h: 44, text: 'Art direction', fs: 'large' },
-          { type: 'para', x: 28, y: 152, w: 264, h: 100, text: 'Photography, illustration and the thousand small calls that make everything feel intentional.' },
+          { type: 'heading', x: 28, y: 32, w: 264, h: 44, text: 'Art direction', fs: 'large' },
+          { type: 'para', x: 28, y: 92, w: 264, h: 100, text: 'Photography, illustration and the thousand small calls that make everything feel intentional.' },
         ] },
     ] },
     { starter: true, intent: 'sell', name: 'Pricing', minH: 640, els: [

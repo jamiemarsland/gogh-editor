@@ -902,6 +902,17 @@
         G.contrastSentinel(s2);
         expect(kid.color !== darker, 'kid ink should flip on a dark card (still ' + kid.color + ')');
         expect(!kid.tf.col, 'the flip must clear the kid\u2019s captured colour');
+        // and a PALE color-mix card must NOT flip dark ink to white — the
+        // naive number-grab read the mix's dark component as the ground
+        if (probe(roles.bgSlug) > 150) {
+          var mix = 'color-mix(in srgb, var(--wp--preset--color--' + roles.textSlug + ', #000) 7%, var(--wp--preset--color--' + roles.bgSlug + ', transparent))';
+          s2.els[0].boxBg = mix;
+          s2.els[0].kids[0].color = darker;
+          G.renderSection(s2);
+          G.contrastSentinel(s2);
+          expect(s2.els[0].kids[0].color === darker,
+            'pale-mix card wrongly flipped its ink to ' + s2.els[0].kids[0].color);
+        }
       } finally {
         G.deleteSection(G.sections().indexOf(s2));
       }
