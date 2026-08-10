@@ -5487,10 +5487,18 @@
       })() +
       '<label class="gogh-fxpull" style="margin-top:12px">Overlap the section above' +
       '<input type="range" class="gogh-pull" min="0" max="180" step="12" /></label>';
-    var r = { top: (S[idx - 1].wrapEl.getBoundingClientRect().bottom + window.scrollY) };
+    // viewport coords, NOT document coords: .gogh-panel went fixed in
+    // 0.99.49 and this placement kept adding scrollY — on any scrolled
+    // page the Transition panel opened below the viewport, reading as
+    // "clicking Transition does nothing"
+    var bTop = S[idx - 1].wrapEl.getBoundingClientRect().bottom;
     shapePanel.style.left = 'calc(50% - 170px)';
-    shapePanel.style.top = (r.top + 16) + 'px';
+    shapePanel.style.top = Math.max(16, bTop + 16) + 'px';
     shapePanel.hidden = false;
+    var spr = shapePanel.getBoundingClientRect();
+    if (spr.bottom > window.innerHeight - 40) {
+      shapePanel.style.top = Math.max(16, window.innerHeight - 40 - spr.height) + 'px';
+    }
     shapePanel.querySelector('.gogh-color-above').value = above.bg || '#0f0e0c';
     shapePanel.querySelector('.gogh-color-below').value = below.bg || '#0f0e0c';
     shapePanel.querySelectorAll('.gogh-shape').forEach(function (btn) {
@@ -8097,6 +8105,7 @@
     sectionThemes: sectionThemes,
     rearrangeVariants: rearrangeVariants,
     openRearrangePanel: openRearrangePanel,
+    openShapePanel: openShapePanel,
     scaleFontSizes: scaleFontSizes,
     applySectionTheme: applySectionTheme,
     openSecAdd: openSecAddPanel,
