@@ -1099,15 +1099,17 @@
           G.resolve(s2);
           return s2.styleEl.textContent;
         };
-        expect(/background-attachment: fixed/.test(cssFor('parallax')), 'parallax must fix the attachment');
-        expect(/-webkit-touch-callout/.test(s2.styleEl.textContent), 'parallax must degrade on iOS');
+        var par = cssFor('parallax');
+        expect(/gogh-parallax/.test(par) && /animation-timeline: view\(\)/.test(par), 'parallax must be scroll-driven, not attachment-fixed');
+        expect(/inset: -18% 0/.test(par), 'parallax layer needs headroom beyond the section');
+        expect(!/background-attachment/.test(par), 'the old fixed-attachment trick must be gone');
         var drift = cssFor('drift');
         expect(/::before[^}]*sunflowers/.test(drift.replace(/\n/g, ' ')) && /gogh-drift/.test(drift), 'drift must animate the picture on a pseudo layer');
         var reveal = cssFor('reveal');
         expect(/animation-timeline: view\(\)/.test(reveal) && /@supports/.test(reveal), 'reveal must ride the scroll, gated by @supports');
         var grain = cssFor('grain');
         expect(/feTurbulence/.test(grain) && /soft-light/.test(grain), 'grain must blend the noise layer');
-        expect(!/feTurbulence|gogh-drift|animation-timeline|background-attachment: fixed/.test(cssFor(null)), 'Still must emit no choreography');
+        expect(!/feTurbulence|gogh-drift|gogh-parallax|animation-timeline/.test(cssFor(null)), 'Still must emit no choreography');
         // the effect rides the model
         s2.fx = { bg: 'grain' };
         expect(/"fx":{"bg":"grain"}/.test(G.serialize()), 'fx.bg must serialize');

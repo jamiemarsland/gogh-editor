@@ -427,7 +427,7 @@
   }
 
   // film grain, 160px tile, generated once — soft-light over any stack
-  var GRAIN_LAYER = 'url("data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'160\' height=\'160\'%3E%3Cfilter id=\'n\'%3E%3CfeTurbulence type=\'fractalNoise\' baseFrequency=\'0.8\' numOctaves=\'2\'/%3E%3C/filter%3E%3Crect width=\'100%25\' height=\'100%25\' filter=\'url(%23n)\' opacity=\'0.32\'/%3E%3C/svg%3E") left top / 160px 160px repeat';
+  var GRAIN_LAYER = 'url("data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'160\' height=\'160\'%3E%3Cfilter id=\'n\'%3E%3CfeTurbulence type=\'fractalNoise\' baseFrequency=\'0.8\' numOctaves=\'2\'/%3E%3C/filter%3E%3Crect width=\'100%25\' height=\'100%25\' filter=\'url(%23n)\' opacity=\'0.5\'/%3E%3C/svg%3E") left top / 160px 160px repeat';
   var DIVIDER_PATHS = {
     wave: 'M0,64 C300,124 900,4 1200,64 L1200,120 L0,120 Z',
     brush: 'M0,88 C28,72 54,98 88,84 C118,72 142,94 178,80 C216,64 244,98 286,88 C322,80 352,60 392,76 C428,90 462,70 502,82 C538,92 574,66 612,78 C652,90 688,72 724,84 C762,96 800,62 842,74 C878,84 912,102 952,86 C990,70 1022,92 1060,80 C1096,68 1130,94 1162,84 C1178,79 1192,74 1200,72 L1200,120 L0,120 Z',
@@ -594,12 +594,7 @@
           return '  background: ' + GRAIN_LAYER + ', ' + wrapped.join(', ') + ';' +
             ' background-blend-mode: ' + blend.join(', ') + ';';
         }
-        if (fxBg === 'parallax' && opts.bgImage) {
-          // the picture scrolls slower than the page; iOS refuses fixed
-          // attachment with cover, so it quietly degrades to Still there
-          return '  background: ' + stack + '; background-attachment: fixed;';
-        }
-        if (fxBg === 'drift' || fxBg === 'reveal') {
+        if ((fxBg === 'parallax' && opts.bgImage) || fxBg === 'drift' || fxBg === 'reveal') {
           // the stack moves to a ::before so it can animate without ever
           // touching the words (elements stack above at z ≥ 1)
           return '  overflow: hidden;';
@@ -627,12 +622,8 @@
     }
     (function () {
       var fxBg = opts.fx && opts.fx.bg;
-      if (fxBg === 'parallax') {
-        // iOS paints fixed-attachment covers wrong — degrade to Still there
-        out.push('@supports (-webkit-touch-callout: none) { ' + sec + ' { background-attachment: scroll; } }');
-        return;
-      }
-      if (fxBg !== 'drift' && fxBg !== 'reveal') return;
+      if (fxBg !== 'parallax' && fxBg !== 'drift' && fxBg !== 'reveal') return;
+      if (fxBg === 'parallax' && !opts.bgImage) return;
       // rebuild the same stack for the pseudo layer (kept in lockstep with
       // the branch above by construction)
       var bgA = opts.bgA != null ? Math.max(0, Math.min(100, opts.bgA)) : null;
@@ -653,7 +644,18 @@
         layers.push(opts.bg);
       }
       if (!layers.length) return;
-      out.push(sec + '::before { content: ""; position: absolute; inset: 0; z-index: 0; pointer-events: none; background: ' + layers.join(', ') + '; }');
+      // parallax needs headroom: the layer is taller than the section so
+      // its slower journey never shows an edge
+      var inset = fxBg === 'parallax' ? '-18% 0' : '0';
+      out.push(sec + '::before { content: ""; position: absolute; inset: ' + inset + '; z-index: 0; pointer-events: none; background: ' + layers.join(', ') + '; }');
+      if (fxBg === 'parallax') {
+        // TRUE parallax: the picture travels slower than the page, driven
+        // by the section's own journey through the viewport (pure CSS,
+        // every platform; without view() support it stands still)
+        out.push('@supports (animation-timeline: view()) { ' + sec + '::before { animation: gogh-parallax linear both; animation-timeline: view(); animation-range: cover 0% cover 100%; } }');
+        out.push('@keyframes gogh-parallax { from { transform: translateY(-9%); } to { transform: translateY(9%); } }');
+        return;
+      }
       if (fxBg === 'drift') {
         // an imperceptible Ken Burns: the picture breathes over 36 seconds
         out.push(sec + '::before { animation: gogh-drift 36s ease-in-out infinite alternate; }');
@@ -5086,6 +5088,9 @@
         panel.querySelectorAll('.gogh-fxrow .gogh-hpreset').forEach(function (o) {
           o.classList.toggle('is-active', o === fb);
         });
+        if (fb.dataset.fx === 'parallax' || fb.dataset.fx === 'reveal') {
+          toast('Kept \u2014 ' + fb.textContent + ' moves with the page, so scroll to watch it.');
+        }
       });
     });
     var themeDefs = sectionThemes();
