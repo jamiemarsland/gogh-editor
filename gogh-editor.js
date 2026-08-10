@@ -658,10 +658,21 @@
       // parallax needs headroom: the layer is taller than the section so
       // its slower journey never shows an edge
       var inset = fxBg === 'parallax' ? '-20% 0' : '0';
+      // dragging must keep BOTH the picture and the grid: the hairlines
+      // join this very layer as top coats while gogh-grid-live is on
+      // (majors only — calm over photos). Published pages never carry
+      // .gogh-editing, so this costs them nothing.
+      var gridCoats = [
+        'linear-gradient(to right, rgba(255,255,255,0.65) 1px, transparent 1px) 0 0 / 3.3333cqw 3.3333cqw',
+        'linear-gradient(to bottom, rgba(255,255,255,0.65) 1px, transparent 1px) 0 0 / 3.3333cqw 3.3333cqw',
+        'linear-gradient(to right, rgba(15,23,42,0.4) 1px, transparent 1px) 1px 1px / 3.3333cqw 3.3333cqw',
+        'linear-gradient(to bottom, rgba(15,23,42,0.4) 1px, transparent 1px) 1px 1px / 3.3333cqw 3.3333cqw'
+      ].join(', ');
       // opacity: 1 declared, not assumed — the editing grid shares this
       // pseudo at opacity 0, which blanked every effect section's backdrop
       // in the editor (the grid simply skips effect sections now)
       out.push(secFx + '::before { content: ""; position: absolute; inset: ' + inset + '; z-index: 0; pointer-events: none; opacity: 1 !important; background: ' + layers.join(', ') + '; }');
+      out.push('.gogh-editing ' + secFx + '.gogh-grid-live::before, .gogh-grid-on.gogh-editing ' + secFx + '::before { background: ' + gridCoats + ', ' + layers.join(', ') + '; }');
       if (opts.fxDemo && (fxBg === 'parallax' || fxBg === 'reveal')) {
         // AUDITION THEATRE: scroll effects are invisible on a section
         // already in view, so hovering the chip performs a short canned
