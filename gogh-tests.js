@@ -937,7 +937,7 @@
       expect(snap.indexOf('"theme":"ink"') !== -1, 'theme should serialize');
       // BACKDROPS: designed gradient compositions join the theme shelf
       var slugs = G.sectionThemes().map(function (x) { return x.slug; });
-      ['sweep', 'glow', 'duo', 'mesh', 'frame'].forEach(function (b) {
+      ['sweep', 'mesh'].forEach(function (b) {
         expect(slugs.indexOf(b) !== -1, 'backdrop missing: ' + b);
       });
       var sweep = G.sectionThemes().filter(function (x) { return x.slug === 'sweep'; })[0];

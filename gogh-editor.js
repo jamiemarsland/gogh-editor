@@ -5083,16 +5083,10 @@
     var flat = 'linear-gradient(' + canvas + ', ' + canvas + ')';
     out.push({ slug: 'sweep', name: 'Sweep', ink: txS,
       bg: 'radial-gradient(140% 95% at 50% -35%, ' + soft(a1, 88) + ' 0%, ' + soft(a1, 88) + ' 52%, transparent 66%), ' + flat });
-    out.push({ slug: 'glow', name: 'Glow', ink: txS,
-      bg: 'radial-gradient(70% 60% at 85% 8%, ' + soft(a1, 36) + ' 0%, transparent 70%), ' + flat });
-    out.push({ slug: 'duo', name: 'Duo', ink: txS,
-      bg: 'linear-gradient(135deg, ' + soft(txS, 7) + ' 0%, ' + soft(txS, 7) + ' 50%, ' + canvas + ' 50.4%)' });
     out.push({ slug: 'mesh', name: 'Mesh', ink: txS,
       bg: 'radial-gradient(55% 65% at 18% 22%, ' + soft(a1, 34) + ' 0%, transparent 62%), ' +
         'radial-gradient(60% 55% at 82% 28%, ' + soft(a2, 30) + ' 0%, transparent 65%), ' +
         'radial-gradient(75% 70% at 50% 95%, ' + soft(a1, 22) + ' 0%, transparent 62%), ' + flat });
-    out.push({ slug: 'frame', name: 'Frame', ink: txS,
-      bg: flat + ' center / calc(100% - 5cqw) calc(100% - 5cqw) no-repeat, linear-gradient(' + soft(txS, 8) + ', ' + soft(txS, 8) + ')' });
     return out;
   }
   function paintSectionTheme(secx, theme) {
