@@ -1516,6 +1516,8 @@
     '<button type="button" class="gogh-eb gogh-eb-al" title="Text alignment"></button>' +
     '<button type="button" class="gogh-eb gogh-eb-lnk" title="Link text (\u2318K)"></button>' +
     '<button type="button" class="gogh-eb gogh-eb-col" title="Text colour"><span class="gogh-eb-colchip"></span></button>' +
+    '<button type="button" class="gogh-eb gogh-eb-paint" title="Copy style \u2014 then click other text to paint it">' +
+    '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 3h11a2 2 0 0 1 2 2v2a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/><path d="M18 6h2a1 1 0 0 1 1 1v3a2 2 0 0 1-2 2h-6a1 1 0 0 0-1 1v2"/><rect x="10.5" y="15" width="3" height="7" rx="1"/></svg></button>' +
     '<button type="button" class="gogh-eb gogh-eb-bck" title="Send backward">▼</button>' +
     '<button type="button" class="gogh-eb gogh-eb-fwd" title="Bring forward">▲</button>' +
     '<button type="button" class="gogh-eb gogh-eb-dup" title="Duplicate (or Alt-drag)">⧉</button>' +
@@ -1525,6 +1527,7 @@
   var alBtn = elbar.querySelector('.gogh-eb-al');
   var colBtn = elbar.querySelector('.gogh-eb-col');
   var lnkBtn = elbar.querySelector('.gogh-eb-lnk');
+  var paintBtn = elbar.querySelector('.gogh-eb-paint');
   var colChip = colBtn.querySelector('.gogh-eb-colchip');
   var CTX_ICONS = {
     link: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M10 14a5 5 0 0 0 7.5.5l3-3a5 5 0 0 0-7-7l-1.7 1.7"/><path d="M14 10a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7 7l1.7-1.7"/></svg>',
@@ -1793,8 +1796,10 @@
     if (isText(e)) {
       fsBtn.textContent = 'Aa' + (e.fs ? ' · ' + (DISPLAY_LABEL[e.fs] || e.fs) : '');
       fsBtn.style.display = '';
+      paintBtn.style.display = '';
     } else {
       fsBtn.style.display = 'none';
+      paintBtn.style.display = 'none';
     }
     if (e.type === 'heading' || e.type === 'para') {
       alBtn.innerHTML = ALIGN_ICONS[e.align || 'left'];
@@ -2865,6 +2870,105 @@
     placeHandles(sel.sec, sel.i);
     pushState();
   });
+  // ---------- copy styles (Canva's roller): pick up once, paint many ----------
+  // "might be nice for consistency" — the roller carries fs/align/colour and
+  // the captured text format; painting is explicit, so no sentinel veto
+  var stylePaint = null;
+  function endStylePaint() {
+    if (!stylePaint) return;
+    stylePaint = null;
+    document.body.classList.remove('gogh-painting');
+    paintBtn.classList.remove('is-on');
+  }
+  function startStylePaint(sec, i) {
+    var e = sec.els[i];
+    if (!isText(e)) return;
+    stylePaint = {
+      fs: e.fs || null, align: e.align || null, color: e.color || null,
+      tf: e.tf ? JSON.parse(JSON.stringify(e.tf)) : null,
+      srcSec: sec, srcI: i,
+    };
+    document.body.classList.add('gogh-painting');
+    paintBtn.classList.add('is-on');
+    toast('Style copied \u2014 click other text to paint it. Esc finishes.');
+  }
+  function paintStyleOnto(sec, i) {
+    var e = sec.els[i];
+    if (!isText(e)) return false;
+    pushState();
+    e.fs = stylePaint.fs;
+    e.align = stylePaint.align;
+    e.color = stylePaint.color;
+    e.tf = stylePaint.tf ? JSON.parse(JSON.stringify(stylePaint.tf)) : null;
+    var oldH = e.h;
+    renderSection(sec);
+    measureTextHeights(sec);
+    if (reflowPush(sec, e, oldH)) resolveAndApply(sec);
+    placeHandles(sec, i);
+    return true;
+  }
+  paintBtn.addEventListener('click', function () {
+    if (stylePaint) { endStylePaint(); return; }
+    if (sel) startStylePaint(sel.sec, sel.i);
+  });
+  document.addEventListener('pointerdown', function (ev) {
+    if (!stylePaint) return;
+    if (ev.target.closest && ev.target.closest('.gogh-elbar, .gogh-toast, .gogh-panel, .gogh-side')) return;
+    var hitSec = null, hitI = -1;
+    S.some(function (sec2) {
+      if (!sec2.nodes) return false;
+      for (var j = 0; j < sec2.nodes.length; j++) {
+        if (sec2.nodes[j] && sec2.nodes[j].contains(ev.target)) { hitSec = sec2; hitI = j; return true; }
+      }
+      return false;
+    });
+    if (hitSec && isText(hitSec.els[hitI]) &&
+        !(hitSec === stylePaint.srcSec && hitI === stylePaint.srcI)) {
+      ev.preventDefault();
+      ev.stopPropagation();
+      stylePaint.swallow = true; // the follow-up click must not start text editing
+      paintStyleOnto(hitSec, hitI);
+    } else if (hitSec && hitSec.els[hitI] && hitSec.els[hitI].type === 'box' &&
+        hitSec.els[hitI].kids && hitSec.els[hitI].kids.length) {
+      // card text: the hit resolves to the card box — find the KID under
+      // the pointer, or the roller rests on card chrome
+      var kn = ev.target.closest ? ev.target.closest('[class*="gogh-k-"]') : null;
+      var km = kn && (kn.className + '').match(/gogh-k-(\d+)/);
+      var kid = km ? hitSec.els[hitI].kids[+km[1] - 1] : null;
+      if (kid && isText(kid)) {
+        ev.preventDefault();
+        ev.stopPropagation();
+        stylePaint.swallow = true;
+        pushState();
+        kid.fs = stylePaint.fs;
+        kid.align = stylePaint.align;
+        kid.color = stylePaint.color;
+        kid.tf = stylePaint.tf ? JSON.parse(JSON.stringify(stylePaint.tf)) : null;
+        renderSection(hitSec);
+        measureTextHeights(hitSec);
+      } else {
+        endStylePaint();
+      }
+    } else {
+      // the roller rests when a click lands on anything that isn't text
+      endStylePaint();
+    }
+  }, true);
+  // the pointerup/click pair that follows a swallowed paint pointerdown
+  // must not reach the canvas — a click on selected text enters editing
+  ['pointerup', 'click'].forEach(function (evt) {
+    document.addEventListener(evt, function (ev) {
+      if (stylePaint && stylePaint.swallow) {
+        ev.preventDefault();
+        ev.stopPropagation();
+        if (evt === 'click') stylePaint.swallow = false;
+      }
+    }, true);
+  });
+  document.addEventListener('keydown', function (ev) {
+    if (ev.key === 'Escape' && stylePaint) { endStylePaint(); ev.stopPropagation(); }
+  }, true);
+
   elbar.querySelector('.gogh-eb-fwd').addEventListener('click', function () { layerMove(1); });
   elbar.querySelector('.gogh-eb-bck').addEventListener('click', function () { layerMove(-1); });
   elbar.querySelector('.gogh-eb-dup').addEventListener('click', function () {

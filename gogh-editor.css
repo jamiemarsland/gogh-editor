@@ -694,6 +694,9 @@ body.gogh-help-open .gogh-toasts { right: 416px; }
   color: var(--gogh-ui-fg);
 }
 .gogh-panel[hidden] { display: none; }
+/* the roller is loaded: the cursor IS the roller (James: keep the icon) */
+body.gogh-painting, body.gogh-painting .gogh-section * { cursor: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="white" stroke="black" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 3h11a2 2 0 0 1 2 2v2a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/><path d="M18 6h2a1 1 0 0 1 1 1v3a2 2 0 0 1-2 2h-6a1 1 0 0 0-1 1v2" fill="none"/><rect x="10.5" y="15" width="3" height="7" rx="1"/></svg>') 4 4, copy !important; }
+.gogh-eb-paint.is-on { color: #4f5aee; background: #eef0ff; border-radius: 8px; }
 .gogh-panel-title {
   font-size: 11px;
   font-weight: 700;

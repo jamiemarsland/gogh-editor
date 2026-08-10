@@ -2410,6 +2410,55 @@
       expect(back.indexOf('wp:site-title') !== -1, 'inner blocks lost in the round-trip');
     });
 
+    test('copy styles: the roller paints size, colour, align onto other text', function () {
+      G.addSection({ name: 'PaintA', minH: 300, els: [
+        { type: 'heading', x: 40, y: 40, w: 500, h: 60, text: 'Source', fs: 'xx-large', align: 'center', color: 'contrast' },
+        { type: 'para', x: 40, y: 160, w: 400, h: 40, text: 'Target' } ] }, G.sections().length);
+      var psec = contentSecs()[contentSecs().length - 1];
+      try {
+        pev('pointerdown', psec.nodes[0]);
+        pev('pointerup', psec.nodes[0]);
+        var pb = q('.gogh-eb-paint');
+        expect(pb && pb.style.display !== 'none', 'no paint-roller on a text element');
+        pb.click();
+        expect(document.body.classList.contains('gogh-painting'), 'painting mode did not start');
+        pev('pointerdown', psec.nodes[1]);
+        var t2 = psec.els[1];
+        expect(t2.fs === 'xx-large' && t2.align === 'center' && t2.color === 'contrast',
+          'style did not paint: ' + JSON.stringify({ fs: t2.fs, align: t2.align, color: t2.color }));
+        expect(document.body.classList.contains('gogh-painting'), 'the roller should stay loaded for more targets');
+        // clicking nothing texty rests the roller
+        pev('pointerdown', psec.sectionEl);
+        expect(!document.body.classList.contains('gogh-painting'), 'click-off did not finish painting');
+        // and Esc works too
+        pev('pointerdown', psec.nodes[0]); pev('pointerup', psec.nodes[0]);
+        q('.gogh-eb-paint').click();
+        document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+        expect(!document.body.classList.contains('gogh-painting'), 'Esc did not finish painting');
+        // undo returns the target's own look
+        q('.gogh-undo').click();
+        expect(psec.els[1].fs !== 'xx-large', 'undo did not restore the target');
+        // card kids paint too: the hit resolves through the card box
+        psec.els.push({ type: 'box', x: 40, y: 220, w: 300, h: 120, boxBg: 'base',
+          kids: [{ type: 'para', x: 12, y: 12, w: 200, h: 30, text: 'KidTarget' }] });
+        G.renderSection(psec);
+        pev('pointerdown', psec.nodes[0]); pev('pointerup', psec.nodes[0]);
+        q('.gogh-eb-paint').click();
+        var kidNode = psec.nodes[psec.els.length - 1].querySelector('.gogh-k-1');
+        expect(kidNode, 'card kid node missing');
+        pev('pointerdown', kidNode);
+        var kid = psec.els[psec.els.length - 1].kids[0];
+        expect(kid.fs === 'xx-large' && kid.color === 'contrast', 'kid did not take the paint: ' + JSON.stringify({fs: kid.fs, color: kid.color}));
+        document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+      } finally {
+        if (document.body.classList.contains('gogh-painting')) {
+          document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+        }
+        G.deleteSection(G.sections().indexOf(psec));
+      }
+      return 'picked up, painted, stayed loaded, rested on click-off and Esc';
+    });
+
     // ---- picker redesign: inline header search, theme chip ----
     test('picker: inline search filters, old toggle gone, theme chip present', function () {
       G.openPicker(G.sections().length);
