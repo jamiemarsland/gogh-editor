@@ -1,12 +1,12 @@
 {
   "meta": {
-    "plugin_version": "0.99.66",
+    "plugin_version": "0.99.67",
     "requires_wp": "6.5",
     "requires_php": "7.4",
     "text_domain": "gogh-editor",
     "readme_stable_tag": "0.26.0",
     "readme_tested_up_to": "7.0",
-    "asset_version": "0.99.66-chrome"
+    "asset_version": "0.99.67-chrome"
   },
   "constants": {
     "TOL": 8,
@@ -342,6 +342,7 @@
   ],
   "ui_titles": [
     "' + d.label + '",
+    "' + escAttr(l.name) + '",
     "' + escAttr(t.name) + '",
     "' + hp[1] + ' — ' + hp[2] + ' units",
     "' + p.slug + '",
@@ -450,7 +451,8 @@
     "← All layouts",
     "↕ Spacing…",
     "✏️ Edit with gogh",
-    "✨ Make freeform"
+    "✨ Make freeform",
+    "✨ Make it freeform"
   ],
   "toasts": [
     "Added to the card — it moves and stacks with it now.",
@@ -740,5 +742,5 @@
     "has_deprecation": true,
     "block_title": "gogh Section"
   },
-  "test_count": 132
+  "test_count": 134
 }
