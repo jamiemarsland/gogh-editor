@@ -2328,6 +2328,64 @@
       expect(!document.querySelector('.gogh-chrome-preview'), 'preview left behind after close');
     });
 
+    test('header panel: Esc reverts every audition - no stranded paint', function () {
+      var pill = q('.gogh-chromebtn');
+      var partEl = pill.__goghPart;
+      var options = [
+        { kind: 'part', id: 101, slug: 'header', theme: 'x', title: 'Simple header', content: '' },
+        { kind: 'part', id: 102, slug: 'header-b', theme: 'x', title: 'Centered header', content: '' },
+      ];
+      var active = { id: 101, content: { raw: '<!-- wp:group {"layout":{"type":"flex"}} --><div class="wp-block-group"></div><!-- /wp:group -->' } };
+      G.openHeaderPanel(partEl, 'header', options, options[0], active);
+      var panel = document.querySelector('.gogh-panel');
+      var dial = panel.querySelector('.gogh-dial-pad');
+      expect(dial, 'no Height dial');
+      var grp = partEl.querySelector('.wp-block-group');
+      dial.value = 60;
+      dial.dispatchEvent(new Event('input', { bubbles: true }));
+      expect(grp.style.paddingTop === '60px', 'dial did not paint the header');
+      document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+      expect(document.querySelector('.gogh-panel').hidden, 'Esc did not close the panel');
+      expect(!grp.style.paddingTop, 'Esc left stranded dial padding - the gap-under-the-nav bug');
+      expect(!partEl.querySelector('.gogh-chrome-preview'), 'Esc left a mounted layout preview');
+    });
+
+    test('header panel: dials paint the group on screen, not a hidden ghost', function () {
+      var pill = q('.gogh-chromebtn');
+      var partEl = pill.__goghPart;
+      var options = [
+        { kind: 'part', id: 101, slug: 'header', theme: 'x', title: 'Simple header', content: '' },
+        { kind: 'part', id: 102, slug: 'header-b', theme: 'x', title: 'Centered header', content: '' },
+      ];
+      var active = { id: 101, content: { raw: '<!-- wp:group {"layout":{"type":"flex"}} --><div class="wp-block-group"></div><!-- /wp:group -->' } };
+      G.openHeaderPanel(partEl, 'header', options, options[0], active);
+      var panel = document.querySelector('.gogh-panel');
+      // mimic a mounted layout preview: originals hidden, preview box visible
+      var hidden = [].slice.call(partEl.children);
+      hidden.forEach(function (c) { c.style.display = 'none'; });
+      var box = document.createElement('div');
+      box.className = 'gogh-chrome-preview';
+      box.innerHTML = '<div class="wp-block-group" style="height:40px"></div>';
+      partEl.appendChild(box);
+      try {
+        var dial = panel.querySelector('.gogh-dial-pad');
+        dial.value = 44;
+        dial.dispatchEvent(new Event('input', { bubbles: true }));
+        var prevGrp = box.querySelector('.wp-block-group');
+        expect(prevGrp.style.paddingTop === '44px',
+          'dial missed the visible preview group - "spacing not working" over a layout audition');
+        var origGrp = null;
+        hidden.forEach(function (c) {
+          if (!origGrp) origGrp = (c.matches && c.matches('.wp-block-group')) ? c : (c.querySelector && c.querySelector('.wp-block-group'));
+        });
+        expect(!origGrp || origGrp.style.paddingTop !== '44px', 'dial painted the hidden original');
+      } finally {
+        box.remove();
+        hidden.forEach(function (c) { c.style.display = ''; });
+        document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+      }
+    });
+
     test('header looks: colour writes attrs and classes in lockstep, and back', function () {
       var raw = '<!-- wp:group {"layout":{"type":"flex"}} --><div class="wp-block-group"><!-- wp:site-title /--></div><!-- /wp:group -->';
       var looks = G.headerLooks();

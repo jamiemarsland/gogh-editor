@@ -728,6 +728,8 @@ body.gogh-help-open .gogh-toasts { right: 416px; }
    panel without them placed it under the toolbar, then the late grid
    re-clamped it sideways — a visible jump on every first open */
 .gogh-media:empty { min-height: 148px; }
+/* the fuller shelf scrolls instead of growing the panel */
+.gogh-media { max-height: 244px; overflow-y: auto; }
 .gogh-media-loading {
   grid-column: 1 / -1;
   font-size: 12px;
@@ -1642,7 +1644,16 @@ body.gogh-help-open .gogh-toasts { right: 416px; }
 
 /* chrome layout picker rows */
 .gogh-chrome-rows { flex-direction: column; align-items: stretch; gap: 6px; }
-.gogh-chrome-foot { flex-direction: row; justify-content: space-between; align-items: center; margin-top: 12px; }
+.gogh-chrome-foot {
+  flex-direction: row; justify-content: space-between; align-items: center; margin-top: 12px;
+  /* the door stays in reach: the panel scrolls, Apply does not leave */
+  position: sticky; bottom: -14px; margin-bottom: -14px;
+  background: var(--gogh-ui-bg); border-top: 1px solid var(--gogh-ui-border);
+  padding: 10px 0 14px;
+}
+/* seven layouts as a stack blew the panel past its dock — wrap short chips */
+.gogh-hlayouts { flex-direction: row; flex-wrap: wrap; gap: 6px; }
+.gogh-hlayouts .gogh-btn { flex: 0 1 auto; }
 
 .gogh-chrome-foot { justify-content: flex-end; gap: 8px; margin-top: 4px; }
 .gogh-chrome-rows .gogh-btn.is-active { background: var(--gogh-ui-accent); color: var(--gogh-ui-accent-fg); }

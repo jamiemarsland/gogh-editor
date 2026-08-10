@@ -2188,7 +2188,9 @@
     panel.addEventListener('pointerup', function () { pd = null; });
     panel.addEventListener('pointercancel', function () { pd = null; });
   })();
+  var panelCleanup = null; // a panel's audition-undo — closePanel runs it on EVERY path (Esc included)
   function closePanel() {
+    if (panelCleanup) { var pc = panelCleanup; panelCleanup = null; pc(); }
     panel.hidden = true;
     panel.classList.remove('gogh-panel-wide');
     panel.style.width = ''; // a hand-resized width belongs to that panel only
@@ -2613,7 +2615,7 @@
       e.boxImgId = null;
       reapply();
     });
-    fetch(restQ(cfg.mediaUrl, 'per_page=12&media_type=image&orderby=date&order=desc'), {
+    fetch(restQ(cfg.mediaUrl, 'per_page=32&media_type=image&orderby=date&order=desc'), {
       headers: { 'X-WP-Nonce': cfg.nonce }, credentials: 'same-origin',
     }).then(function (r2) { return r2.ok ? r2.json() : []; }).catch(function () { return []; })
       .then(function (items) {
@@ -2742,7 +2744,7 @@
         });
       });
     }
-    fetch(restQ(cfg.mediaUrl, 'per_page=12&media_type=image&orderby=date&order=desc'), {
+    fetch(restQ(cfg.mediaUrl, 'per_page=32&media_type=image&orderby=date&order=desc'), {
       headers: { 'X-WP-Nonce': cfg.nonce },
       credentials: 'same-origin',
     }).then(function (res) { return res.ok ? res.json() : []; }).catch(function () { return []; })
@@ -5180,6 +5182,9 @@
   function applySectionTheme(idx, theme) {
     pushState();
     paintSectionTheme(S[idx], theme);
+    // the theme's ink was chosen for its flat background — over a PHOTO the
+    // tint mix is a different ground entirely (the dark hero heading)
+    contrastSentinel(S[idx]);
   }
   // the invite lives in the rendered section — keep it honest when a
   // background arrives (or leaves) without a full re-render
@@ -5413,7 +5418,7 @@
         });
       });
     }
-    fetch(restQ(cfg.mediaUrl, 'per_page=12&media_type=image&orderby=date&order=desc'), {
+    fetch(restQ(cfg.mediaUrl, 'per_page=32&media_type=image&orderby=date&order=desc'), {
       headers: { 'X-WP-Nonce': cfg.nonce },
       credentials: 'same-origin',
     }).then(function (res) { return res.ok ? res.json() : []; }).catch(function () { return []; })
@@ -5427,8 +5432,8 @@
         var bgish = items.filter(function (it) {
           var d = it.media_details || {};
           return d.width >= 700 && d.width >= (d.height || 0) * 0.75;
-        }).slice(0, 8);
-        items = bgish.length ? bgish : items.slice(0, 8);
+        }).slice(0, 24);
+        items = bgish.length ? bgish : items.slice(0, 24);
         var bgCur = { img: S[idx].bgImage || null };
         items.forEach(function (item) {
           var thumb = (item.media_details && item.media_details.sizes &&
@@ -7000,7 +7005,7 @@
         '<div class="gogh-panel-hint">Hover to preview \u2014 click to keep it</div>' +
         '<div class="gogh-panel-hint" style="margin-top:6px">Type scale</div>' +
         '<div class="gogh-hpresets gogh-typescale">' +
-        [['Compact', 90], ['Regular', 100], ['Generous', 110], ['Grand', 120]].map(function (ts) {
+        [['Snug', 90], ['Regular', 100], ['Airy', 110], ['Grand', 120]].map(function (ts) {
           return '<button type="button" class="gogh-hpreset' + ((cfg.typeScale || 100) === ts[1] ? ' is-active' : '') + '" data-scale="' + ts[1] + '">' + ts[0] + '</button>';
         }).join('') + '</div>' +
         '<div class="gogh-varlist"></div>';
@@ -9737,7 +9742,7 @@
       if (ev.key === 'Enter' && inp.value.trim()) useSrc(inp.value.trim());
       if (ev.key === 'Escape') closePanel();
     });
-    fetch(restQ(cfg.mediaUrl, 'per_page=12&media_type=image&orderby=date&order=desc'), {
+    fetch(restQ(cfg.mediaUrl, 'per_page=32&media_type=image&orderby=date&order=desc'), {
       headers: { 'X-WP-Nonce': cfg.nonce },
       credentials: 'same-origin',
     }).then(function (res) { return res.ok ? res.json() : []; }).catch(function () { return []; }).then(function (items) {
@@ -10244,10 +10249,8 @@
         dialApply.disabled = false;
       });
     });
-    var bail = function () {
-      chromeDialsRevert(partEl);
-      closePanel();
-    };
+    panelCleanup = function () { chromeDialsRevert(partEl); };
+    var bail = function () { closePanel(); };
     panel.querySelector('.gogh-panel-close').addEventListener('click', bail);
     panel.querySelector('.gogh-dials-cancel').addEventListener('click', bail);
     dialApply.addEventListener('click', function () {
@@ -10309,8 +10312,9 @@
       '<div class="gogh-swlab">Layout</div>' +
       '<div class="gogh-panel-row gogh-chrome-rows gogh-hlayouts">' +
       options.map(function (o, k) {
+        var short = String(o.title || '').split(' \u2014 ')[0];
         return '<button type="button" class="gogh-btn gogh-btn-small gogh-hlayout' +
-          (o.id === st.layoutId ? ' is-active' : '') + '" data-k="' + k + '">' + esc(o.title) + '</button>';
+          (o.id === st.layoutId ? ' is-active' : '') + '" data-k="' + k + '" title="' + escAttr(o.title) + '">' + esc(short) + '</button>';
       }).join('') + '</div>' +
       (looks.length ? '<div class="gogh-swlab">Look</div><div class="gogh-swrow gogh-hlooks">' +
         looks.map(function (l, k) {
@@ -10335,26 +10339,43 @@
     panelSticky = true;
     var applyBtn = panel.querySelector('.gogh-happly');
     var arm = function () { applyBtn.disabled = false; };
-    var bail = function () {
-      endChromePreview();
+    // closePanel runs this on EVERY close path — Esc left the header
+    // wearing a stranded preview + dial padding (the "gap under the nav")
+    panelCleanup = function () {
+      // reverts FIRST, preview-end LAST: a dial snapshot taken while a
+      // layout preview had the originals hidden re-applies display:none —
+      // endChromePreview's explicit unhide must have the final word
       chromeDialsRevert(partEl);
       chromeColorRevert(partEl);
-      closePanel();
+      endChromePreview();
     };
+    // after a layout preview mounts, the paint targets are NEW nodes — the
+    // chosen dials and look must follow the audition onto them
+    var repaint = function () {
+      if (st.dials) chromeDialsPreview(partEl, st.dials);
+      if (st.look !== undefined) chromeColorPreview(partEl, st.look);
+    };
+    var bail = function () { closePanel(); };
     panel.querySelector('.gogh-panel-close').addEventListener('click', bail);
     panel.querySelector('.gogh-hcancel').addEventListener('click', bail);
     // LAYOUT: hover previews via the render pipeline, click selects
     panel.querySelectorAll('.gogh-hlayout').forEach(function (lb) {
       var opt = options[+lb.dataset.k];
       auditionHover(lb, function () {
-        if (opt.id !== st.layoutId) previewChromeLayout(partEl, opt, function () {});
+        if (opt.id !== st.layoutId) previewChromeLayout(partEl, opt, repaint);
       }, function () {
-        if (opt.id !== st.layoutId) endChromePreview();
+        if (opt.id !== st.layoutId) {
+          endChromePreview();
+          if (st.layoutId !== (activeOpt && activeOpt.id)) {
+            var back = options.filter(function (o) { return o.id === st.layoutId; })[0];
+            if (back) previewChromeLayout(partEl, back, repaint);
+          } else repaint();
+        }
       });
       lb.addEventListener('click', function () {
         st.layoutId = opt.id;
-        if (opt.id === (activeOpt && activeOpt.id)) endChromePreview();
-        else previewChromeLayout(partEl, opt, function () {});
+        if (opt.id === (activeOpt && activeOpt.id)) { endChromePreview(); repaint(); }
+        else previewChromeLayout(partEl, opt, repaint);
         panel.querySelectorAll('.gogh-hlayout').forEach(function (o2) {
           o2.classList.toggle('is-active', o2 === lb);
         });
@@ -10794,9 +10815,21 @@
     });
     return raw.slice(0, g.sp.start) + head + body + raw.slice(g.sp.end);
   }
+  // the group the user can SEE: a mounted layout preview hides the original
+  // children, so the first .wp-block-group may be a display:none ghost —
+  // painting it is the "spacing not working" report
+  function chromeMountedGroup(partEl) {
+    var box = partEl.querySelector('.gogh-chrome-preview');
+    var root = box || partEl;
+    var gs = root.querySelectorAll('.wp-block-group');
+    for (var i = 0; i < gs.length; i++) {
+      if (gs[i].offsetWidth || gs[i].offsetHeight) return gs[i];
+    }
+    return gs[0] || null;
+  }
   // live audition on the mounted part; snapshot for the way back
   function chromeColorPreview(partEl, look) {
-    var grp = partEl.querySelector('.wp-block-group');
+    var grp = chromeMountedGroup(partEl);
     if (!grp) return;
     if (!partEl.__goghLookOrig) {
       partEl.__goghLookOrig = [grp, grp.getAttribute('style')];
@@ -10853,18 +10886,21 @@
   // live preview: paint the dials straight onto the mounted part — and
   // remember the first sight of each element so Cancel can undress it
   function chromeDialsPreview(partEl, d) {
-    if (!partEl.__goghDialsOrig) {
-      partEl.__goghDialsOrig = [].map.call(
-        partEl.querySelectorAll('.wp-block-group, .wp-block-navigation__container, .wp-block-navigation ul'),
-        function (el) { return [el, el.getAttribute('style')]; });
-    }
-    var grp = partEl.querySelector('.wp-block-group');
+    if (!partEl.__goghDialsOrig) partEl.__goghDialsOrig = [];
+    [].forEach.call(
+      partEl.querySelectorAll('.wp-block-group, .wp-block-navigation__container, .wp-block-navigation ul'),
+      function (el) {
+        var known = partEl.__goghDialsOrig.some(function (p) { return p[0] === el; });
+        if (!known) partEl.__goghDialsOrig.push([el, el.getAttribute('style')]);
+      });
+    var grp = chromeMountedGroup(partEl);
     if (grp) {
       grp.style.paddingTop = d.pad + 'px';
       grp.style.paddingBottom = d.pad + 'px';
       grp.style.gap = d.gap + 'px';
     }
-    [].forEach.call(partEl.querySelectorAll('.wp-block-navigation__container, .wp-block-navigation ul'), function (ul) {
+    var navRoot = partEl.querySelector('.gogh-chrome-preview') || partEl;
+    [].forEach.call(navRoot.querySelectorAll('.wp-block-navigation__container, .wp-block-navigation ul'), function (ul) {
       ul.style.gap = d.linkGap + 'px';
     });
   }
@@ -11808,7 +11844,7 @@
         toast('gogh could not set the logo \u2014 ' + ((err && err.message) || 'try again.'), { error: true });
       });
     }
-    fetch(restQ(cfg.mediaUrl, 'per_page=12&media_type=image&orderby=date&order=desc'), {
+    fetch(restQ(cfg.mediaUrl, 'per_page=32&media_type=image&orderby=date&order=desc'), {
       headers: { 'X-WP-Nonce': cfg.nonce },
       credentials: 'same-origin',
     }).then(function (res) { return res.ok ? res.json() : []; }).catch(function () { return []; }).then(function (items) {
