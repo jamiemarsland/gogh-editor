@@ -426,6 +426,8 @@
       : 'background: linear-gradient(140deg, #e8b04b 0%, #d9745a 55%, #7a3b52 100%);';
   }
 
+  // film grain, 160px tile, generated once — soft-light over any stack
+  var GRAIN_LAYER = 'url("data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'160\' height=\'160\'%3E%3Cfilter id=\'n\'%3E%3CfeTurbulence type=\'fractalNoise\' baseFrequency=\'0.8\' numOctaves=\'2\'/%3E%3C/filter%3E%3Crect width=\'100%25\' height=\'100%25\' filter=\'url(%23n)\' opacity=\'0.32\'/%3E%3C/svg%3E") left top / 160px 160px repeat';
   var DIVIDER_PATHS = {
     wave: 'M0,64 C300,124 900,4 1200,64 L1200,120 L0,120 Z',
     brush: 'M0,88 C28,72 54,98 88,84 C118,72 142,94 178,80 C216,64 244,98 286,88 C322,80 352,60 392,76 C428,90 462,70 502,82 C538,92 574,66 612,78 C652,90 688,72 724,84 C762,96 800,62 842,74 C878,84 912,102 952,86 C990,70 1022,92 1060,80 C1096,68 1130,94 1162,84 C1178,79 1192,74 1200,72 L1200,120 L0,120 Z',
@@ -553,27 +555,56 @@
         // the tint strength is a dial (Canva-style): default 62 over an
         // image, solid for plain colour — opts.bgA is 0–100
         var bgA = opts.bgA != null ? Math.max(0, Math.min(100, opts.bgA)) : null;
+        var layers = [];
         if (opts.bgImage) {
           var img = 'url("' + String(opts.bgImage).replace(/"/g, '%22') + '") center / cover no-repeat';
           if (opts.bg) {
             // palette-aware tint over the image keeps text readable in any
             // style variation (the tint follows the theme's own colours)
             var tint = 'color-mix(in srgb, ' + opts.bg + ' ' + (bgA != null ? bgA : 62) + '%, transparent)';
-            return '  background: linear-gradient(' + tint + ', ' + tint + '), ' + img + ';';
-          }
-          if (els.some(textyEl)) {
+            layers.push('linear-gradient(' + tint + ', ' + tint + ')');
+          } else if (els.some(textyEl)) {
             // GUARDRAIL: an image straight behind text gets a soft
             // theme-base scrim so words stay readable; picking a colour
             // replaces it with the user's own tint
             var auto = 'color-mix(in srgb, var(--wp--preset--color--base, #fff) 45%, transparent)';
-            return '  background: linear-gradient(' + auto + ', ' + auto + '), ' + img + ';';
+            layers.push('linear-gradient(' + auto + ', ' + auto + ')');
           }
-          return '  background: ' + img + ';';
+          layers.push(img);
+        } else if (opts.bg && bgA != null && bgA < 100) {
+          layers.push('color-mix(in srgb, ' + opts.bg + ' ' + bgA + '%, transparent)');
+        } else if (opts.bg) {
+          layers.push(opts.bg);
         }
-        if (opts.bg && bgA != null && bgA < 100) {
-          return '  background: color-mix(in srgb, ' + opts.bg + ' ' + bgA + '%, transparent);';
+        var fxBg = opts.fx && opts.fx.bg;
+        if (!layers.length) {
+          // grain textures ANY section, even one riding the theme's own
+          // background — the noise layer stands alone
+          return fxBg === 'grain' ? '  background: ' + GRAIN_LAYER + ';' : '';
         }
-        return opts.bg ? '  background: ' + opts.bg + ';' : '';
+        var stack = layers.join(', ');
+        // ---- section background effects: elegant, never flashy ----
+        if (fxBg === 'grain') {
+          // a whisper of film texture blended over the stack — plain
+          // colours wrap as gradients so the layers can stack
+          var wrapped = layers.map(function (l) {
+            return /gradient|url\(/.test(l) ? l : 'linear-gradient(' + l + ', ' + l + ')';
+          });
+          var blend = ['soft-light'].concat(wrapped.map(function () { return 'normal'; }));
+          return '  background: ' + GRAIN_LAYER + ', ' + wrapped.join(', ') + ';' +
+            ' background-blend-mode: ' + blend.join(', ') + ';';
+        }
+        if (fxBg === 'parallax' && opts.bgImage) {
+          // the picture scrolls slower than the page; iOS refuses fixed
+          // attachment with cover, so it quietly degrades to Still there
+          return '  background: ' + stack + '; background-attachment: fixed;';
+        }
+        if (fxBg === 'drift' || fxBg === 'reveal') {
+          // the stack moves to a ::before so it can animate without ever
+          // touching the words (elements stack above at z ≥ 1)
+          return '  overflow: hidden;';
+        }
+        return '  background: ' + stack + ';';
       })(),
       '  grid-template-columns: ' + g.cols.join(' ') + ';',
       '  grid-template-rows:\n    ' + g.rows.join('\n    ') + ';',
@@ -594,6 +625,46 @@
         '-webkit-mask-image: ' + mask + '; mask-image: ' + mask + '; ' +
         '-webkit-mask-size: 100% 100%; mask-size: 100% 100%; -webkit-mask-repeat: no-repeat; mask-repeat: no-repeat; }');
     }
+    (function () {
+      var fxBg = opts.fx && opts.fx.bg;
+      if (fxBg === 'parallax') {
+        // iOS paints fixed-attachment covers wrong — degrade to Still there
+        out.push('@supports (-webkit-touch-callout: none) { ' + sec + ' { background-attachment: scroll; } }');
+        return;
+      }
+      if (fxBg !== 'drift' && fxBg !== 'reveal') return;
+      // rebuild the same stack for the pseudo layer (kept in lockstep with
+      // the branch above by construction)
+      var bgA = opts.bgA != null ? Math.max(0, Math.min(100, opts.bgA)) : null;
+      var layers = [];
+      if (opts.bgImage) {
+        var img = 'url("' + String(opts.bgImage).replace(/"/g, '%22') + '") center / cover no-repeat';
+        if (opts.bg) {
+          var tint = 'color-mix(in srgb, ' + opts.bg + ' ' + (bgA != null ? bgA : 62) + '%, transparent)';
+          layers.push('linear-gradient(' + tint + ', ' + tint + ')');
+        } else if (els.some(textyEl)) {
+          var auto = 'color-mix(in srgb, var(--wp--preset--color--base, #fff) 45%, transparent)';
+          layers.push('linear-gradient(' + auto + ', ' + auto + ')');
+        }
+        layers.push(img);
+      } else if (opts.bg && bgA != null && bgA < 100) {
+        layers.push('color-mix(in srgb, ' + opts.bg + ' ' + bgA + '%, transparent)');
+      } else if (opts.bg) {
+        layers.push(opts.bg);
+      }
+      if (!layers.length) return;
+      out.push(sec + '::before { content: ""; position: absolute; inset: 0; z-index: 0; pointer-events: none; background: ' + layers.join(', ') + '; }');
+      if (fxBg === 'drift') {
+        // an imperceptible Ken Burns: the picture breathes over 36 seconds
+        out.push(sec + '::before { animation: gogh-drift 36s ease-in-out infinite alternate; }');
+        out.push('@keyframes gogh-drift { from { transform: scale(1); } to { transform: scale(1.07); } }');
+      } else {
+        // reveal rides the scroll itself (CSS scroll-driven animation) —
+        // browsers without view() simply show the finished state
+        out.push('@supports (animation-timeline: view()) { ' + sec + '::before { animation: gogh-reveal linear both; animation-timeline: view(); animation-range: entry 0% cover 45%; } }');
+        out.push('@keyframes gogh-reveal { from { opacity: 0.1; transform: scale(1.05); } to { opacity: 1; transform: none; } }');
+      }
+    })();
     els.forEach(function (e, i) {
       emitElCSS(out, sec, ' .gogh-el-' + (i + 1), e, i, g.areas[i]);
     });
@@ -4930,6 +5001,13 @@
       }).join('') +
       '<button type="button" class="gogh-hpreset gogh-hpreset-fill' + (secx.fill ? ' is-active' : '') + '" title="Fill the screen">Fill screen</button>' +
       '</div>' +
+      '<div class="gogh-panel-hint">Effect \u2014 how the background behaves</div>' +
+      '<div class="gogh-hpresets gogh-fxrow">' +
+      [['', 'Still', ''], ['parallax', 'Parallax', 'img'], ['drift', 'Drift', 'img'], ['reveal', 'Reveal', ''], ['grain', 'Grain', '']].map(function (fx) {
+        var needsImg = fx[2] === 'img' && !secx.bgImage;
+        return '<button type="button" class="gogh-hpreset' + (((secx.fx && secx.fx.bg) || '') === fx[0] ? ' is-active' : '') + '"' +
+          ' data-fx="' + fx[0] + '"' + (needsImg ? ' disabled title="Needs a background image"' : '') + '>' + fx[1] + '</button>';
+      }).join('') + '</div>' +
       '<div class="gogh-panel-hint">Image</div>' +
       '<div class="gogh-panel-row gogh-panel-actions">' +
       (cfg.canUpload ? '<label class="gogh-btn gogh-btn-small gogh-upload">Upload<input type="file" accept="image/*" hidden /></label>' : '') +
@@ -4962,7 +5040,7 @@
       more.hidden = !more.hidden;
       moreT.textContent = more.hidden ? 'Colour & more \u2304' : 'Colour & more \u2303';
     });
-    panel.querySelectorAll('.gogh-hpreset').forEach(function (hb) {
+    panel.querySelectorAll('.gogh-hpreset[data-minh], .gogh-hpreset-fill').forEach(function (hb) {
       hb.addEventListener('click', function () {
         pushState();
         if (hb.classList.contains('gogh-hpreset-fill')) {
@@ -4973,10 +5051,34 @@
         }
         renderSection(secx);
         resolveAll();
-        panel.querySelectorAll('.gogh-hpreset').forEach(function (o) {
+        panel.querySelectorAll('.gogh-hpreset[data-minh], .gogh-hpreset-fill').forEach(function (o) {
           var on = o.classList.contains('gogh-hpreset-fill') ? secx.fill
             : (!secx.fill && secx.minH === +o.dataset.minh);
           o.classList.toggle('is-active', on);
+        });
+      });
+    });
+    // background effects audition like everything else
+    var fxSnap = null;
+    var applyFx = function (val) {
+      if (val) { secx.fx = secx.fx || {}; secx.fx.bg = val; }
+      else if (secx.fx) { delete secx.fx.bg; if (!Object.keys(secx.fx).length) secx.fx = null; }
+      resolveAll();
+    };
+    panel.querySelectorAll('.gogh-fxrow .gogh-hpreset').forEach(function (fb) {
+      if (fb.disabled) return;
+      auditionHover(fb, function () {
+        if (fxSnap === null) fxSnap = (secx.fx && secx.fx.bg) || '';
+        applyFx(fb.dataset.fx);
+      }, function () {
+        if (fxSnap !== null) { applyFx(fxSnap); fxSnap = null; }
+      });
+      fb.addEventListener('click', function () {
+        if (fxSnap !== null) { applyFx(fxSnap); fxSnap = null; }
+        pushState();
+        applyFx(fb.dataset.fx);
+        panel.querySelectorAll('.gogh-fxrow .gogh-hpreset').forEach(function (o) {
+          o.classList.toggle('is-active', o === fb);
         });
       });
     });

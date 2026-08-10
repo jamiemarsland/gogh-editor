@@ -1086,6 +1086,37 @@
       return 'data → true block; edits recompose, escaped';
     });
 
+    test('background effects: each mood writes its choreography', function () {
+      G.addSection({ name: 'FX', minH: 300, bg: '#334455', els: [
+        { type: 'heading', x: 72, y: 60, w: 500, h: 60, text: 'Effects' },
+      ] }, G.sections().length);
+      var c = contentSecs();
+      var s2 = c[c.length - 1];
+      try {
+        s2.bgImage = '/wp-content/plugins/gogh/demo-assets/sunflowers.jpg';
+        var cssFor = function (fx) {
+          s2.fx = fx ? { bg: fx } : null;
+          G.resolve(s2);
+          return s2.styleEl.textContent;
+        };
+        expect(/background-attachment: fixed/.test(cssFor('parallax')), 'parallax must fix the attachment');
+        expect(/-webkit-touch-callout/.test(s2.styleEl.textContent), 'parallax must degrade on iOS');
+        var drift = cssFor('drift');
+        expect(/::before[^}]*sunflowers/.test(drift.replace(/\n/g, ' ')) && /gogh-drift/.test(drift), 'drift must animate the picture on a pseudo layer');
+        var reveal = cssFor('reveal');
+        expect(/animation-timeline: view\(\)/.test(reveal) && /@supports/.test(reveal), 'reveal must ride the scroll, gated by @supports');
+        var grain = cssFor('grain');
+        expect(/feTurbulence/.test(grain) && /soft-light/.test(grain), 'grain must blend the noise layer');
+        expect(!/feTurbulence|gogh-drift|animation-timeline|background-attachment: fixed/.test(cssFor(null)), 'Still must emit no choreography');
+        // the effect rides the model
+        s2.fx = { bg: 'grain' };
+        expect(/"fx":{"bg":"grain"}/.test(G.serialize()), 'fx.bg must serialize');
+      } finally {
+        G.deleteSection(G.sections().indexOf(s2));
+      }
+      return 'parallax, drift, reveal, grain all emit; Still stays silent';
+    });
+
     test('header designer: dials rewrite native spacing, and round-trip', function () {
       var raw = '<!-- wp:group {"align":"full","className":"gogh-hrow","style":{"spacing":{"padding":{"top":"1.25rem","bottom":"1.25rem","left":"2rem","right":"2rem"}}},"layout":{"type":"flex"}} -->\n' +
         '<div class="wp-block-group alignfull gogh-hrow" style="padding-top:1.25rem;padding-right:2rem;padding-bottom:1.25rem;padding-left:2rem"><!-- wp:site-title {"level":0} /-->\n' +
