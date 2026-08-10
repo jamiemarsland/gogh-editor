@@ -597,7 +597,11 @@
         if ((fxBg === 'parallax' && opts.bgImage) || fxBg === 'drift' || fxBg === 'reveal') {
           // the stack moves to a ::before so it can animate without ever
           // touching the words (elements stack above at z ≥ 1)
-          return '  overflow: hidden;';
+          return '  overflow: hidden; overflow: clip;';
+          // clip, NOT hidden: hidden makes the section itself a scroll
+          // container, which strangles the view() timeline (it tracks the
+          // layer against the section's own never-scrolling scrollport —
+          // the "parallax just doesn't" report). clip only clips.
         }
         return '  background: ' + stack + ';';
       })(),
