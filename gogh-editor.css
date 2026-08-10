@@ -2113,6 +2113,10 @@ html.gogh-editing .gogh-mirror { display: flex; }
    dragged BUTTON painted the whole 800px slab (text els hid it: they
    paint at intrinsic size). The ghost is exactly its element, no taller */
 .gogh-ghostel { min-height: 0 !important; }
+/* the ghost wears the section's scope classes for colours — which also
+   matched the effect layer's ::before and painted a slice of the PHOTO
+   over the dragged words. Ghosts carry no backdrop, ever. */
+.gogh-ghostel::before, .gogh-ghostel::after { content: none !important; }
 
 .gogh-htmlpaste {
   width: 100%;

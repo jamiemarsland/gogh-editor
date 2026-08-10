@@ -2198,6 +2198,15 @@
     panel.style.maxHeight = Math.max(280, window.innerHeight - top - 90) + 'px';
     panel.style.left = left + 'px';
     panel.style.top = top + 'px';
+    // truth check: whatever the measurement missed (late content, width
+    // wraps, anchors mid-hide), the viewport wins — measure the REAL rect
+    // and pull up once more if the bottom still hangs off screen
+    var pr = panel.getBoundingClientRect();
+    if (pr.bottom > window.innerHeight - 40) {
+      top = Math.max(16, top - (pr.bottom - (window.innerHeight - 40)));
+      panel.style.top = top + 'px';
+      panel.style.maxHeight = Math.max(280, window.innerHeight - top - 90) + 'px';
+    }
     panelAnchor = node;
     panelSticky = false;
   }
