@@ -4,11 +4,11 @@ Everything in this section is extracted mechanically from the Gogh source on eve
 
 ## Current release
 
-- Plugin version: **0.99.53**
+- Plugin version: **0.99.54**
 - Requires WordPress **6.5+**, PHP **7.4+**
 - Text domain: `gogh-editor`
 - readme.txt Stable tag: `0.26.0` · Tested up to: `7.0`
-- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.53`). Quote the plugin header version.
+- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.54`). Quote the plugin header version.
 
 ## Design constants
 
@@ -259,6 +259,7 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "Linked."
 - "Logo set — your image now leads the header."
 - "Logo size saved."
+- "Made the card’s words readable on its background."
 - "Menu order updated — every page gets it."
 - "Menu switched — every page shows it."
 - "Nothing to rearrange yet — add a couple of elements first."
@@ -306,5 +307,5 @@ These are the real strings in the current build. Use them verbatim; never paraph
 
 ## Test suite
 
-`130` tests, run by appending `?gogh-test` to any Gogh page URL while logged in with edit rights on that page.
+`131` tests, run by appending `?gogh-test` to any Gogh page URL while logged in with edit rights on that page.
 

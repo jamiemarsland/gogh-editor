@@ -1,12 +1,12 @@
 {
   "meta": {
-    "plugin_version": "0.99.53",
+    "plugin_version": "0.99.54",
     "requires_wp": "6.5",
     "requires_php": "7.4",
     "text_domain": "gogh-editor",
     "readme_stable_tag": "0.26.0",
     "readme_tested_up_to": "7.0",
-    "asset_version": "0.99.53-chrome"
+    "asset_version": "0.99.54-chrome"
   },
   "constants": {
     "TOL": 8,
@@ -473,6 +473,7 @@
     "Linked.",
     "Logo set — your image now leads the header.",
     "Logo size saved.",
+    "Made the card’s words readable on its background.",
     "Menu order updated — every page gets it.",
     "Menu switched — every page shows it.",
     "Nothing to rearrange yet — add a couple of elements first.",
@@ -733,5 +734,5 @@
     "has_deprecation": true,
     "block_title": "gogh Section"
   },
-  "test_count": 130
+  "test_count": 131
 }
