@@ -40,6 +40,45 @@
 .gogh-btn-small { padding: 7px 13px; font-size: 12px; box-shadow: none; }
 
 /* ---------- side palette ---------- */
+/* ---------- the motion pass: one spring, everywhere ----------
+   A damped spring with ~1.8% overshoot — enough mass to feel physical,
+   trimmed short of the showreel bounce (an all-day tool must not
+   high-five every sentence). linear() encodes the real curve; older
+   engines get a close cubic. */
+:root { --gogh-spring: cubic-bezier(0.34, 1.35, 0.44, 1); }
+@supports (transition-timing-function: linear(0, 1)) {
+  :root {
+    --gogh-spring: linear(0, 0.02 2.5%, 0.09 5.6%, 0.24 9.4%, 0.47 13.6%,
+      0.7 17.9%, 0.86 22.2%, 0.955 26.6%, 1.005 31.3%, 1.018 36.4%,
+      1.014 43%, 1.004 52%, 1);
+  }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .gogh-panel:not([hidden]) {
+    animation: gogh-enter 0.3s var(--gogh-spring) both;
+  }
+  @keyframes gogh-enter {
+    from { opacity: 0; transform: translateY(-6px) scale(0.985); }
+  }
+  /* contents arrive one beat behind their container — most of what
+     makes sprung UI feel expensive */
+  .gogh-panel .gogh-themechip, .gogh-panel .gogh-hpreset,
+  .gogh-panel .gogh-rearchip, .gogh-panel .gogh-shapecell {
+    animation: gogh-pop 0.34s var(--gogh-spring) both;
+  }
+  @keyframes gogh-pop {
+    from { opacity: 0; transform: translateY(4px) scale(0.96); }
+  }
+  .gogh-panel .gogh-themechip:nth-child(2), .gogh-panel .gogh-hpreset:nth-child(2), .gogh-panel .gogh-shapecell:nth-child(2), .gogh-panel .gogh-rearchip:nth-child(2) { animation-delay: 0.02s; }
+  .gogh-panel .gogh-themechip:nth-child(3), .gogh-panel .gogh-hpreset:nth-child(3), .gogh-panel .gogh-shapecell:nth-child(3), .gogh-panel .gogh-rearchip:nth-child(3) { animation-delay: 0.04s; }
+  .gogh-panel .gogh-themechip:nth-child(4), .gogh-panel .gogh-hpreset:nth-child(4), .gogh-panel .gogh-shapecell:nth-child(4), .gogh-panel .gogh-rearchip:nth-child(4) { animation-delay: 0.06s; }
+  .gogh-panel .gogh-themechip:nth-child(5), .gogh-panel .gogh-hpreset:nth-child(5), .gogh-panel .gogh-shapecell:nth-child(5), .gogh-panel .gogh-rearchip:nth-child(5) { animation-delay: 0.08s; }
+  .gogh-panel .gogh-themechip:nth-child(n+6), .gogh-panel .gogh-hpreset:nth-child(n+6), .gogh-panel .gogh-shapecell:nth-child(n+6), .gogh-panel .gogh-rearchip:nth-child(n+6) { animation-delay: 0.1s; }
+  .gogh-toast { animation: gogh-toast-in 0.32s var(--gogh-spring) both; }
+  @keyframes gogh-toast-in {
+    from { opacity: 0; transform: translateY(10px) scale(0.97); }
+  }
+}
 .gogh-side {
   position: fixed;
   right: 16px;
@@ -65,7 +104,7 @@
   transform: translate(calc(100% + 32px), -50%);
   opacity: 0;
   pointer-events: none;
-  transition: transform 0.32s cubic-bezier(0.22, 0.9, 0.26, 1), opacity 0.28s ease;
+  transition: transform 0.34s var(--gogh-spring), opacity 0.28s ease;
 }
 .gogh-side.is-open {
   transform: translate(0, -50%);
@@ -95,7 +134,7 @@
   border-right: none;
   border-radius: 12px 0 0 12px;
   box-shadow: -10px 0 28px -14px rgba(0, 0, 0, 0.6);
-  transition: transform 0.32s cubic-bezier(0.22, 0.9, 0.26, 1), opacity 0.28s ease;
+  transition: transform 0.34s var(--gogh-spring), opacity 0.28s ease;
 }
 .gogh-side-tab:hover { background: #f2f3f5; }
 .gogh-side-tab[hidden] { display: none; }
@@ -774,7 +813,7 @@ body.gogh-help-open .gogh-toasts { right: 416px; }
 .gogh-picker-inner {
   transform: scale(0.94) translateY(14px);
   opacity: 0;
-  transition: transform 0.32s cubic-bezier(0.22, 0.9, 0.3, 1), opacity 0.26s ease;
+  transition: transform 0.36s var(--gogh-spring), opacity 0.26s ease;
 }
 .gogh-picker.is-open .gogh-picker-inner {
   transform: none;
