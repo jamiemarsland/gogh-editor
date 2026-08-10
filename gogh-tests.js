@@ -1197,10 +1197,17 @@
         expect(!/::after[^}]*mask-image/.test(above.styleEl.textContent.replace(/\n/g,' ')), 'band must stand down for a rich next section');
         expect(/mask-image:[^;]*svg/.test(below.styleEl.textContent) && /mask-size: 100% 8cqw/.test(below.styleEl.textContent),
           'rich section must carve its own top with the divider shape');
+        // the cut must reveal the NEIGHBOUR's pixels, not page white: the
+        // carved section pulls itself up over the previous one (the white
+        // wedge between two photos was this missing)
+        expect(/margin-top: calc\(-1 \* 8cqw\)/.test(below.styleEl.textContent),
+          'carved section must overlap the previous section');
         // melt fades the photo in
         above.divider = { shape: 'melt' };
         G.resolve(above); G.resolve(below);
         expect(/mask-image: linear-gradient\(to bottom, transparent/.test(below.styleEl.textContent), 'melt must fade the rich top');
+        expect(/margin-top: calc\(-1 \* 16cqw\)/.test(below.styleEl.textContent),
+          'melt overlap must match its taller fade');
       } finally {
         G.deleteSection(G.sections().indexOf(below));
         G.deleteSection(G.sections().indexOf(above));
@@ -2280,6 +2287,66 @@
       expect(pill.style.display !== 'none', 'pill not restored after collapse');
       expect(pill.innerHTML === baseHTML, 'pill label changed');
       expect(!document.querySelector('.gogh-chrome-preview'), 'preview left behind after collapse');
+    });
+
+    test('header panel: layout, look, spacing, sticky in one home, one Apply', function () {
+      var pill = q('.gogh-chromebtn');
+      expect(pill, 'no chrome pill on the page');
+      var partEl = pill.__goghPart;
+      expect(partEl, 'pill lost its part reference');
+      var options = [
+        { kind: 'part', id: 101, slug: 'header', theme: 'x', title: 'Simple header', content: '' },
+        { kind: 'part', id: 102, slug: 'header-b', theme: 'x', title: 'Centered header', content: '' },
+      ];
+      var active = { id: 101, content: { raw: '<!-- wp:group {"layout":{"type":"flex"}} --><div class="wp-block-group"></div><!-- /wp:group -->' } };
+      G.openHeaderPanel(partEl, 'header', options, options[0], active);
+      var panel = document.querySelector('.gogh-panel');
+      try {
+        expect(!panel.hidden, 'panel did not open');
+        var lays = panel.querySelectorAll('.gogh-hlayout');
+        expect(lays.length === 2, 'expected 2 layout chips, got ' + lays.length);
+        expect(lays[0].classList.contains('is-active'), 'current layout not marked active');
+        var looks = G.headerLooks();
+        expect(panel.querySelectorAll('.gogh-hlooks .gogh-sw').length === looks.length,
+          'one swatch per look expected (' + looks.length + ')');
+        expect(panel.querySelector('.gogh-hsticky'), 'sticky toggle missing');
+        expect(panel.querySelector('.gogh-hfreeform'), 'freeform door missing');
+        expect(panel.querySelector('.gogh-panel-close'), 'sticky panel must show its own door');
+        var apply = panel.querySelector('.gogh-happly');
+        expect(apply && apply.disabled, 'Apply must start disabled - nothing to save yet');
+        // touching anything arms the one Apply
+        panel.querySelector('.gogh-hsticky').click();
+        expect(!apply.disabled, 'touching sticky did not arm Apply');
+        // docked and fully on screen (the below-the-fold family of bugs)
+        var r = panel.getBoundingClientRect();
+        expect(r.top >= 0 && r.bottom <= window.innerHeight + 1,
+          'panel not fully on screen: ' + Math.round(r.top) + '..' + Math.round(r.bottom));
+      } finally {
+        panel.querySelector('.gogh-panel-close').click();
+      }
+      expect(document.querySelector('.gogh-panel').hidden, 'panel did not close');
+      expect(!document.querySelector('.gogh-chrome-preview'), 'preview left behind after close');
+    });
+
+    test('header looks: colour writes attrs and classes in lockstep, and back', function () {
+      var raw = '<!-- wp:group {"layout":{"type":"flex"}} --><div class="wp-block-group"><!-- wp:site-title /--></div><!-- /wp:group -->';
+      var looks = G.headerLooks();
+      expect(looks.length >= 3, 'expected theme default + paper + ink at least, got ' + looks.length);
+      expect(!looks[0].bg, 'first look must be theme default (no paint)');
+      var painted = looks.filter(function (l) { return l.bg; })[0];
+      var out = G.chromeColorApply(raw, painted);
+      expect(out, 'apply returned nothing');
+      expect(out.indexOf('"backgroundColor":"' + painted.bg + '"') !== -1, 'backgroundColor attr missing');
+      expect(out.indexOf('"textColor":"' + painted.ink + '"') !== -1, 'textColor attr missing');
+      expect(out.indexOf('has-' + painted.bg + '-background-color') !== -1 && out.indexOf('has-background') !== -1,
+        'background classes missing - attrs alone do not paint');
+      expect(out.indexOf('has-' + painted.ink + '-color') !== -1 && out.indexOf('has-text-color') !== -1,
+        'text classes missing');
+      // back to theme default: attrs and classes both gone
+      var back = G.chromeColorApply(out, null);
+      expect(back.indexOf('backgroundColor') === -1 && back.indexOf('textColor') === -1, 'attrs not removed');
+      expect(back.indexOf('has-background') === -1 && back.indexOf('has-text-color') === -1, 'classes not stripped');
+      expect(back.indexOf('wp:site-title') !== -1, 'inner blocks lost in the round-trip');
     });
 
     // ---- picker redesign: inline header search, theme chip ----

@@ -623,6 +623,13 @@
         : dividerBg(opts.topDivider, '#000');
       var tdH = opts.topDivider === 'melt' ? '16cqw' : '8cqw';
       var tdLayers = tdMask + ' top / 100% ' + tdH + ' no-repeat, linear-gradient(#000, #000) 0 calc(' + tdH + ' - 1px) / 100% calc(100% - ' + tdH + ' + 1px) no-repeat';
+      // the carved-away area is transparent — without overlap it reveals the
+      // PAGE background (a white wedge between two photos). Pulling the
+      // section up by the carve height parks the cut over the previous
+      // section's real pixels, so the photo above shows through the shape.
+      // Margin only, no padding: the border box stays the design space the
+      // editor's pointer math lives in
+      out.push(sec + ' { margin-top: calc(-1 * ' + tdH + ') !important; }');
       out.push(sec + ' { -webkit-mask-image: ' + (opts.topDivider === 'melt' ? tdMask : tdMask) + ', linear-gradient(#000, #000); -webkit-mask-position: top, 0 calc(' + tdH + ' - 1px); -webkit-mask-size: 100% ' + tdH + ', 100% calc(100% - ' + tdH + ' + 1px); -webkit-mask-repeat: no-repeat; mask-image: ' + (opts.topDivider === 'melt' ? tdMask : tdMask) + ', linear-gradient(#000, #000); mask-position: top, 0 calc(' + tdH + ' - 1px); mask-size: 100% ' + tdH + ', 100% calc(100% - ' + tdH + ' + 1px); mask-repeat: no-repeat; }');
     }
     if (opts.divider && !opts.divNextRich && opts.divider.shape === 'melt' && opts.divColor) {
@@ -8080,6 +8087,9 @@
     sections: function () { return S; },
     showHbar: function (i) { placeHbar(S[i]); },
     openShapePanel: openShapePanel,
+    openHeaderPanel: openHeaderPanel,
+    chromeColorApply: chromeColorApply,
+    headerLooks: headerLooks,
     openSecBgPanel: openSecBgPanel,
     scan: scanDomWithRaw,
     addSection: addSection,
@@ -8130,6 +8140,9 @@
     rearrangeVariants: rearrangeVariants,
     openRearrangePanel: openRearrangePanel,
     openShapePanel: openShapePanel,
+    openHeaderPanel: openHeaderPanel,
+    chromeColorApply: chromeColorApply,
+    headerLooks: headerLooks,
     scaleFontSizes: scaleFontSizes,
     applySectionTheme: applySectionTheme,
     openSecAdd: openSecAddPanel,
@@ -9872,7 +9885,10 @@
         // and their renders are kept so every flick is instant.
         return screenChromeOptions(options, activeOpt).then(function (kept) {
           if (kept.length > 1) {
-            startChromeCycle(partEl, area, kept, activeOpt, active);
+            // simple mode gets the ONE panel — the pill-cycle choreography
+            // was the clunk James named; experiments keeps the cycle
+            if (!cfg.experiments) openHeaderPanel(partEl, area, kept, activeOpt, active);
+            else startChromeCycle(partEl, area, kept, activeOpt, active);
             return null;
           }
           return doConvertChrome(partEl, area, active);
@@ -10263,6 +10279,167 @@
     panelOpen = true;
   }
   // the full panel: every layout by name, freeform, sticky
+  // ---------- THE header panel: everything auditions, one Apply ----------
+  // the old flow was pills + cycles + a commit-and-reload per feature.
+  // This is one docked inspector: layout, look, spacing and sticky all
+  // audition live, and a single Apply writes one composed save.
+  function openHeaderPanel(partEl, area, options, activeOpt, active) {
+    var raw0 = (active && active.content && active.content.raw) || '';
+    var d0 = chromeDialsRead(raw0);
+    var looks = headerLooks();
+    var st = {
+      layoutId: activeOpt ? activeOpt.id : null,
+      look: undefined,          // undefined = untouched
+      dials: null,
+      sticky: chromeIsSticky(active),
+      sticky0: chromeIsSticky(active),
+    };
+    var chosenOpt = function () {
+      return options.filter(function (o) { return o.id === st.layoutId; })[0] || activeOpt;
+    };
+    var dial = function (label, cls, min, max, val) {
+      return '<div class="gogh-panel-row gogh-logosize gogh-dialrow"><span>' + label + '</span>' +
+        '<input type="range" class="' + cls + '" min="' + min + '" max="' + max + '" step="2" value="' + val + '" />' +
+        '<span class="gogh-logosize-val ' + cls + '-val">' + val + '</span></div>';
+    };
+    panel.innerHTML =
+      '<div class="gogh-panel-head"><span class="gogh-panel-title">Site ' + area + '</span>' +
+      '<button type="button" class="gogh-sbtn gogh-panel-close" title="Close">\u2715</button></div>' +
+      '<div class="gogh-panel-hint">Hover to audition \u2014 one Apply saves the lot.</div>' +
+      '<div class="gogh-swlab">Layout</div>' +
+      '<div class="gogh-panel-row gogh-chrome-rows gogh-hlayouts">' +
+      options.map(function (o, k) {
+        return '<button type="button" class="gogh-btn gogh-btn-small gogh-hlayout' +
+          (o.id === st.layoutId ? ' is-active' : '') + '" data-k="' + k + '">' + esc(o.title) + '</button>';
+      }).join('') + '</div>' +
+      (looks.length ? '<div class="gogh-swlab">Look</div><div class="gogh-swrow gogh-hlooks">' +
+        looks.map(function (l, k) {
+          return '<button type="button" class="gogh-sw' + (l.bg ? '' : ' gogh-sw-none') + '" data-k="' + k + '"' +
+            (l.bg ? ' style="background: var(--wp--preset--color--' + l.bg + ')"' : '') +
+            ' title="' + escAttr(l.name) + '"></button>';
+        }).join('') + '</div>' : '') +
+      (d0 ? '<div class="gogh-swlab">Spacing</div>' +
+        dial('Height', 'gogh-dial-pad', 4, 64, d0.pad) +
+        dial('Elements', 'gogh-dial-gap', 4, 48, d0.gap) +
+        (d0.hasNav ? dial('Links', 'gogh-dial-link', 8, 64, d0.linkGap) : '') : '') +
+      '<div class="gogh-panel-row gogh-chrome-rows">' +
+      '<button type="button" class="gogh-btn gogh-btn-small gogh-hsticky' + (st.sticky ? ' is-active' : '') + '">\ud83d\udccc ' + (st.sticky ? 'Sticky \u2014 on' : 'Stick to the top') + '</button>' +
+      '<button type="button" class="gogh-btn gogh-btn-small gogh-hfreeform">\u2728 Make it freeform</button>' +
+      '</div>' +
+      '<div class="gogh-panel-row gogh-chrome-foot">' +
+      '<button type="button" class="gogh-btn gogh-btn-small gogh-hcancel">Cancel</button>' +
+      '<button type="button" class="gogh-btn-save gogh-btn-small gogh-happly" title="Updates every page" disabled>Apply</button>' +
+      '</div>';
+    dockPanel();
+    panelOpen = true;
+    panelSticky = true;
+    var applyBtn = panel.querySelector('.gogh-happly');
+    var arm = function () { applyBtn.disabled = false; };
+    var bail = function () {
+      endChromePreview();
+      chromeDialsRevert(partEl);
+      chromeColorRevert(partEl);
+      closePanel();
+    };
+    panel.querySelector('.gogh-panel-close').addEventListener('click', bail);
+    panel.querySelector('.gogh-hcancel').addEventListener('click', bail);
+    // LAYOUT: hover previews via the render pipeline, click selects
+    panel.querySelectorAll('.gogh-hlayout').forEach(function (lb) {
+      var opt = options[+lb.dataset.k];
+      auditionHover(lb, function () {
+        if (opt.id !== st.layoutId) previewChromeLayout(partEl, opt, function () {});
+      }, function () {
+        if (opt.id !== st.layoutId) endChromePreview();
+      });
+      lb.addEventListener('click', function () {
+        st.layoutId = opt.id;
+        if (opt.id === (activeOpt && activeOpt.id)) endChromePreview();
+        else previewChromeLayout(partEl, opt, function () {});
+        panel.querySelectorAll('.gogh-hlayout').forEach(function (o2) {
+          o2.classList.toggle('is-active', o2 === lb);
+        });
+        arm();
+      });
+    });
+    // LOOK: instant inline audition
+    panel.querySelectorAll('.gogh-hlooks .gogh-sw').forEach(function (sw) {
+      var look = looks[+sw.dataset.k];
+      auditionHover(sw, function () {
+        chromeColorPreview(partEl, look);
+      }, function () {
+        chromeColorPreview(partEl, st.look !== undefined ? st.look : null);
+        if (st.look === undefined) chromeColorRevert(partEl);
+      });
+      sw.addEventListener('click', function () {
+        st.look = look;
+        chromeColorPreview(partEl, look);
+        panel.querySelectorAll('.gogh-hlooks .gogh-sw').forEach(function (o2) {
+          o2.classList.toggle('is-active', o2 === sw);
+        });
+        arm();
+      });
+    });
+    // SPACING: live dials
+    if (d0) {
+      var readDials = function () {
+        var v2 = function (cls, fb) {
+          var inp = panel.querySelector('.' + cls);
+          return inp ? +inp.value : fb;
+        };
+        return { pad: v2('gogh-dial-pad', d0.pad), gap: v2('gogh-dial-gap', d0.gap), linkGap: v2('gogh-dial-link', d0.linkGap) };
+      };
+      ['gogh-dial-pad', 'gogh-dial-gap', 'gogh-dial-link'].forEach(function (cls) {
+        var inp = panel.querySelector('.' + cls);
+        if (!inp) return;
+        inp.addEventListener('input', function () {
+          var lab = panel.querySelector('.' + cls + '-val');
+          if (lab) lab.textContent = inp.value;
+          st.dials = readDials();
+          chromeDialsPreview(partEl, st.dials);
+          arm();
+        });
+      });
+    }
+    // STICKY: visual toggle, written on Apply
+    var stickyBtn = panel.querySelector('.gogh-hsticky');
+    stickyBtn.addEventListener('click', function () {
+      st.sticky = !st.sticky;
+      stickyBtn.classList.toggle('is-active', st.sticky);
+      stickyBtn.innerHTML = '\ud83d\udccc ' + (st.sticky ? 'Sticky \u2014 on' : 'Stick to the top');
+      arm();
+    });
+    panel.querySelector('.gogh-hfreeform').addEventListener('click', function () {
+      bail();
+      editChromeFreeform(partEl, area, active);
+    });
+    // ONE Apply: compose every touched change into a single save
+    applyBtn.addEventListener('click', function () {
+      var base = (st.layoutId !== (activeOpt && activeOpt.id))
+        ? chromeLayoutContent(area, chosenOpt())
+        : raw0;
+      if (st.dials) base = chromeDialsApply(base, st.dials) || base;
+      if (st.look !== undefined) base = chromeColorApply(base, st.look && st.look.bg ? st.look : null) || base;
+      if (st.sticky !== st.sticky0) base = stickyRawToggle(base, st.sticky) || base;
+      applyBtn.disabled = true;
+      applyBtn.textContent = 'Applying\u2026';
+      confirmChromeReload(area, function () {
+        fetch(tpUrl(active.id), {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'X-WP-Nonce': cfg.nonce },
+          credentials: 'same-origin',
+          body: JSON.stringify({ content: base }),
+        }).then(function (r) {
+          if (!r.ok) throw new Error('HTTP ' + r.status);
+          discarding = true;
+          location.reload();
+        }).catch(function () {
+          applyBtn.disabled = false;
+          applyBtn.textContent = 'Apply';
+          toast('Could not update the ' + area + '.', { error: true });
+        });
+      });
+    });
+  }
   function openChromeLayoutPanel(partEl, area, options, activeOpt, active) {
     var selId = activeOpt ? activeOpt.id : null;
     var isFreeform = !!(activeOpt && activeOpt.content.indexOf('wp:gogh/section') !== -1);
@@ -10572,6 +10749,73 @@
       hasNav: !!navM,
     };
   }
+  // ---------- header LOOK: theme colours on the outer group ----------
+  // native block colour supports only (backgroundColor/textColor slugs),
+  // attrs and markup classes in lockstep — deactivation-safe like the dials
+  function headerLooks() {
+    var roles = paletteRoles();
+    if (!roles.bgSlug || !roles.textSlug) return [];
+    var v = function (slug) { return 'var(--wp--preset--color--' + slug + ')'; };
+    var out = [
+      { slug: '', name: 'Theme default', bg: null, ink: null },
+      { slug: roles.bgSlug, name: 'Paper', bg: roles.bgSlug, ink: roles.textSlug },
+      { slug: roles.textSlug, name: 'Ink', bg: roles.textSlug, ink: roles.bgSlug },
+    ];
+    themePalette().filter(function (p) {
+      return p.slug !== roles.bgSlug && p.slug !== roles.textSlug && !/^border|^shadow|gray$/.test(p.slug);
+    }).slice(0, 2).forEach(function (p) {
+      out.push({ slug: p.slug, name: p.slug, bg: p.slug, ink: bestInkFor(v(p.slug)) });
+    });
+    return out;
+  }
+  function chromeColorApply(raw, look) {
+    var g = chromeOuterGroup(raw);
+    if (!g) return null;
+    var attrs = g.attrs;
+    if (look && look.bg) {
+      attrs.backgroundColor = look.bg;
+      attrs.textColor = look.ink;
+    } else {
+      delete attrs.backgroundColor;
+      delete attrs.textColor;
+    }
+    var head = Object.keys(attrs).length ? '<!-- wp:group ' + JSON.stringify(attrs) + ' -->' : '<!-- wp:group -->';
+    var body = g.seg.slice(g.head.length);
+    body = body.replace(/(<div[^>]*?class=")([^"]*)"/, function (m0, pre, cls) {
+      var cleaned = cls.split(/\s+/).filter(function (c2) {
+        return !/^has-[a-z0-9-]+-background-color$/.test(c2) && c2 !== 'has-background' &&
+          !/^has-[a-z0-9-]+-color$/.test(c2) && c2 !== 'has-text-color';
+      });
+      if (look && look.bg) {
+        cleaned.push('has-' + look.bg + '-background-color', 'has-background',
+          'has-' + look.ink + '-color', 'has-text-color');
+      }
+      return pre + cleaned.join(' ') + '"';
+    });
+    return raw.slice(0, g.sp.start) + head + body + raw.slice(g.sp.end);
+  }
+  // live audition on the mounted part; snapshot for the way back
+  function chromeColorPreview(partEl, look) {
+    var grp = partEl.querySelector('.wp-block-group');
+    if (!grp) return;
+    if (!partEl.__goghLookOrig) {
+      partEl.__goghLookOrig = [grp, grp.getAttribute('style')];
+    }
+    if (look && look.bg) {
+      grp.style.backgroundColor = 'var(--wp--preset--color--' + look.bg + ')';
+      grp.style.color = 'var(--wp--preset--color--' + look.ink + ')';
+    } else {
+      grp.style.backgroundColor = '';
+      grp.style.color = '';
+    }
+  }
+  function chromeColorRevert(partEl) {
+    var o = partEl.__goghLookOrig;
+    if (!o) return;
+    if (o[1] == null) o[0].removeAttribute('style');
+    else o[0].setAttribute('style', o[1]);
+    partEl.__goghLookOrig = null;
+  }
   function chromeDialsApply(raw, d) {
     var g = chromeOuterGroup(raw);
     if (!g) return null;
@@ -10665,7 +10909,7 @@
       });
     });
   }
-  function swapChromeLayoutNow(area, active, chosen) {
+  function chromeLayoutContent(area, chosen) {
     var content = chosen.content || '';
     if (area === 'header') {
       // the site's identity choice survives a layout change: if the header
@@ -10680,6 +10924,10 @@
         content = content.replace(/<!--\s*wp:site-logo(\s+\{[^]*?\})?\s*\/-->\s*/, '');
       }
     }
+    return content;
+  }
+  function swapChromeLayoutNow(area, active, chosen) {
+    var content = chromeLayoutContent(area, chosen);
     fetch(tpUrl(active.id), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'X-WP-Nonce': cfg.nonce },
