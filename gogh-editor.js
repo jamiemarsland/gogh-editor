@@ -714,7 +714,11 @@
         ' grid-template-rows: ' + cardRows.join(' ') + '; }');
       out.push(cardSel + ' > * { margin: 0 !important; min-width: 0; box-sizing: border-box; }');
       if (e.href) {
-        out.push(cardSel + ' > .gogh-card-link { position: absolute; inset: 0; z-index: 0; grid-area: 1 / 1 / -1 / -1; }');
+        // the stretched link rides ABOVE the kids: with it underneath, every
+        // text block swallowed the hover and "that bit is not linked". While
+        // editing it goes inert so kids stay selectable and draggable.
+        out.push(cardSel + ' > .gogh-card-link { position: absolute; inset: 0; z-index: 60; grid-area: 1 / 1 / -1 / -1; }');
+        out.push('.gogh-editing ' + cardSel + ' > .gogh-card-link { pointer-events: none; }');
       }
       e.kids.forEach(function (k, j) {
         emitElCSS(out, cardSel, ' > .gogh-k-' + (j + 1), k, j, kg.areas[j]);
@@ -3624,6 +3628,21 @@
       { type: 'button', x: 72, y: 502, w: 180, h: 54, text: 'See the work' },
       { type: 'button', x: 272, y: 502, w: 180, h: 54, text: 'Start a project', ghost: true },
     ] },
+    { starter: true, intent: 'introduce', name: 'Cover', minH: 640,
+      // the canonical hero: full-bleed picture, theme tint, centred words,
+      // parallax by default (James's call — the flagship wears the effect).
+      // Ships on a wheat field from the plugin's own shelf — swap it from
+      // the media grid (hover auditions) and the tint follows the theme.
+      bg: 'var(--wp--preset--color--contrast, #16181c)', bgA: 45,
+      fx: { bg: 'parallax' },
+      bgImage: '/wp-content/plugins/gogh/demo-assets/wheat-field.jpg',
+      els: [
+      { type: 'para', x: 400, y: 150, w: 400, h: 24, align: 'center', text: 'Est. 2019 \u00b7 Brighton',
+        tf: { fs: 13, fw: 600, ls2: 0.24, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--base, #fff) 78%, transparent)' } },
+      { type: 'heading', x: 150, y: 210, w: 900, h: 160, text: 'Make it feel like you', fs: '__max', align: 'center', color: 'base' },
+      { type: 'para', x: 320, y: 400, w: 560, h: 52, align: 'center', text: 'One clear promise over one strong picture \u2014 the front door most sites need.', color: 'base' },
+      { type: 'button', x: 505, y: 496, w: 190, h: 56, text: 'Come on in', tf: { bg: 'var(--wp--preset--color--base, #fff)', col: 'var(--wp--preset--color--contrast, #141519)' } },
+    ] },
     { starter: true, intent: 'introduce', name: 'Big statement', minH: 520, els: [
       { type: 'para', x: 400, y: 92, w: 400, h: 24, align: 'center', text: 'What we believe',
         tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
@@ -3921,7 +3940,7 @@
     { key: 'contact', label: 'Contact & social', cats: ['contact', 'team', 'social', 'subscribe', 'newsletter'] },
   ];
   var STARTER_CATS = {
-    'Hero': 'hero', 'Big statement': 'hero', 'Story': 'text', 'Numbers': 'text',
+    'Hero': 'hero', 'Cover': 'hero banner', 'Big statement': 'hero', 'Story': 'text', 'Numbers': 'text',
     'Article': 'text', 'Feature cards': 'cards', 'Pricing': 'cards',
     'Quote': 'text', 'Call to action': 'hero', 'Get in touch': 'contact',
     'FAQ': 'text cards', 'Tabs': 'text cards', 'Gallery': 'photos', 'Photo cards': 'photos cards', 'Portfolio': 'photos',
@@ -4411,6 +4430,11 @@
     sec.els = tplEls(tpl);
     sec.minH = tpl.minH || null;
     sec.bg = tpl.bg || null;
+    // a template is a whole look: picture, tint, fill and effect ride along
+    sec.bgImage = tpl.bgImage || null;
+    sec.bgA = tpl.bgA != null ? tpl.bgA : null;
+    sec.fill = !!tpl.fill;
+    sec.fx = tpl.fx ? JSON.parse(JSON.stringify(tpl.fx)) : null;
     var nextContent = null;
     for (var ni = idx; ni < S.length; ni++) { if (!S[ni].chrome) { nextContent = S[ni]; break; } }
     // the DOM anchor wins when given: it can place the section above a
