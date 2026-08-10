@@ -5004,9 +5004,10 @@
       '<div class="gogh-panel-hint">Effect \u2014 how the background behaves</div>' +
       '<div class="gogh-hpresets gogh-fxrow">' +
       [['', 'Still', ''], ['parallax', 'Parallax', 'img'], ['drift', 'Drift', 'img'], ['reveal', 'Reveal', ''], ['grain', 'Grain', '']].map(function (fx) {
-        var needsImg = fx[2] === 'img' && !secx.bgImage;
+        // never disabled at build time: the panel stays open while images
+        // are picked, so image-hunger is judged when the chip is touched
         return '<button type="button" class="gogh-hpreset' + (((secx.fx && secx.fx.bg) || '') === fx[0] ? ' is-active' : '') + '"' +
-          ' data-fx="' + fx[0] + '"' + (needsImg ? ' disabled title="Needs a background image"' : '') + '>' + fx[1] + '</button>';
+          ' data-fx="' + fx[0] + '"' + (fx[2] === 'img' ? ' data-needs-img="1"' : '') + '>' + fx[1] + '</button>';
       }).join('') + '</div>' +
       '<div class="gogh-panel-hint">Image</div>' +
       '<div class="gogh-panel-row gogh-panel-actions">' +
@@ -5066,14 +5067,19 @@
       resolveAll();
     };
     panel.querySelectorAll('.gogh-fxrow .gogh-hpreset').forEach(function (fb) {
-      if (fb.disabled) return;
+      var hungry = function () { return fb.dataset.needsImg && !secx.bgImage; };
       auditionHover(fb, function () {
+        if (hungry()) return;
         if (fxSnap === null) fxSnap = (secx.fx && secx.fx.bg) || '';
         applyFx(fb.dataset.fx);
       }, function () {
         if (fxSnap !== null) { applyFx(fxSnap); fxSnap = null; }
       });
       fb.addEventListener('click', function () {
+        if (hungry()) {
+          toast(fb.textContent + ' needs a background image \u2014 pick one below first.');
+          return;
+        }
         if (fxSnap !== null) { applyFx(fxSnap); fxSnap = null; }
         pushState();
         applyFx(fb.dataset.fx);
