@@ -1374,7 +1374,10 @@
     '<button type="button" class="gogh-sbtn gogh-undo" title="Undo (⌘Z)">↺</button>' +
     '<button type="button" class="gogh-sbtn gogh-redo" title="Redo (⇧⌘Z)">↻</button>' +
     (cfg.helpUrl ? '<button type="button" class="gogh-sbtn gogh-help" title="Help — ask gogh anything">?</button>' : '') +
-    '</div>';
+    '</div>' +
+    // the build number, always in sight: five bug reports in one day were
+    // stale caches wearing fresh bugs' clothing
+    '<div class="gogh-side-ver" title="The gogh build this tab is running"></div>';
   document.body.appendChild(side);
 
   // tuck-away drawer: slim edge tab when collapsed, slide-in on hover
@@ -7936,6 +7939,8 @@
   var GOGH_BUILD = (document.querySelector('script[src*="gogh-editor.js"]') || { src: '' }).src.split('ver=')[1] || 'dev';
   window.__gogh.build = GOGH_BUILD;
   sideTab.title = 'gogh ' + GOGH_BUILD;
+  var verEl = side.querySelector('.gogh-side-ver');
+  if (verEl) verEl.textContent = GOGH_BUILD.replace('-chrome', '');
   try { console.info('[gogh] ' + GOGH_BUILD); } catch (e0) {}
   document.dispatchEvent(new CustomEvent('gogh:ready'));
 

@@ -1609,6 +1609,14 @@ body.gogh-help-open .gogh-toasts { right: 416px; }
 
 .gogh-stylebtn svg { display: block; }
 /* history lives at the palette's foot, under a hairline */
+.gogh-side-ver {
+  text-align: center;
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  color: #a6adb8;
+  padding: 4px 0 8px;
+  user-select: text;
+}
 .gogh-side-foot {
   display: flex;
   gap: 6px;
