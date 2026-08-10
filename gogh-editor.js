@@ -2215,6 +2215,20 @@
   // clicks — glancing at the canvas mid-audition must not end the session;
   // they close on ✕, Esc, or another panel opening
   var panelSticky = false;
+  // the DOCK: big design surfaces (section background) are inspectors,
+  // not popovers — they sit top-right of the VIEWPORT, always fully on
+  // screen, wherever the click came from. James, three rounds of cropped
+  // modals later: anchor maths was the wrong model for this panel.
+  function dockPanel() {
+    panel.hidden = false;
+    panel.style.maxHeight = '';
+    var pw = panel.offsetWidth || 340;
+    panel.style.left = Math.max(8, window.innerWidth - pw - 18) + 'px';
+    panel.style.top = '74px';
+    panel.style.maxHeight = Math.max(280, window.innerHeight - 74 - 100) + 'px';
+    panelAnchor = null;
+    panelSticky = false;
+  }
   function reclampPanel() { if (!panel.hidden && panelAnchor) placePanelNear(panelAnchor); }
   function openPanel(sec, i) {
     var e = sec.els[i];
@@ -5154,19 +5168,12 @@
   }
   function openSecBgPanel(idx, anchorEl) {
     var secx = S[idx];
-    // open by the button that asked for it — the old section-top-right
-    // anchor dates from when the toolbar lived there, and put the panel a
-    // whole screen away from the pill
-    if (anchorEl && anchorEl.getBoundingClientRect) {
-      var ar = anchorEl.getBoundingClientRect();
-      panel.style.left = Math.max(8, Math.min(ar.left + window.scrollX,
-        window.scrollX + window.innerWidth - 360)) + 'px';
-      panel.style.top = (ar.bottom + window.scrollY + 12) + 'px';
-    } else {
-      var r = secx.wrapEl.getBoundingClientRect();
-      panel.style.left = Math.max(8, r.right + window.scrollX - 360) + 'px';
-      panel.style.top = (r.top + window.scrollY + 52) + 'px';
-    }
+    // THE bug behind every "modal opens below the fold" report: this
+    // panel never used the shared placement — it carried its own legacy
+    // document-coordinate maths (scrollX/scrollY offsets) on a panel
+    // that became viewport-FIXED. Scrolled page, coordinates below the
+    // fold, three rounds of wrong fixes elsewhere. It DOCKS now: a
+    // design inspector top-right of the viewport, placed after build.
     var pal = pickerPalette();
     panel.innerHTML =
       '<div class="gogh-panel-title">Section background</div>' +
@@ -5218,7 +5225,7 @@
       '<button type="button" class="gogh-btn gogh-btn-small gogh-apply">Apply</button>' +
       '</div>' +
       '</div>';
-    panel.hidden = false;
+    dockPanel();
     panelOpen = true;
     var moreT = panel.querySelector('.gogh-panel-more-toggle');
     if (moreT) moreT.addEventListener('click', function () {
