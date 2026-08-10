@@ -4152,7 +4152,7 @@
         '<textarea class="gogh-htmlpaste" placeholder="&lt;section&gt;\u2026&lt;/section&gt;" spellcheck="false"></textarea>' +
         '<div class="gogh-panel-row gogh-chrome-foot">' +
         '<button type="button" class="gogh-btn gogh-btn-small gogh-html-back">Back</button>' +
-        '<button type="button" class="gogh-btn-save gogh-btn-small gogh-html-add">Add to page</button>' +
+        '<button type="button" class="gogh-btn gogh-btn-save gogh-btn-small gogh-html-add">Add to page</button>' +
         '</div>';
       inner.querySelector('.gogh-picker-close').addEventListener('click', closePicker);
       inner.querySelector('.gogh-html-back').addEventListener('click', function () { openPicker(pickerIdx, pickerBefore); });
@@ -10229,7 +10229,7 @@
       (d0.hasNav ? dial('Links', 'gogh-dial-link', 8, 64, d0.linkGap) : '') +
       '<div class="gogh-panel-row gogh-chrome-foot">' +
       '<button type="button" class="gogh-btn gogh-btn-small gogh-dials-cancel">Cancel</button>' +
-      '<button type="button" class="gogh-btn-save gogh-btn-small gogh-dials-apply" title="Updates every page" disabled>Apply</button>' +
+      '<button type="button" class="gogh-btn gogh-btn-save gogh-btn-small gogh-dials-apply" title="Updates every page" disabled>Apply</button>' +
       '</div>';
     var dialApply = panel.querySelector('.gogh-dials-apply');
     var readDials = function () {
@@ -10332,7 +10332,7 @@
       '</div>' +
       '<div class="gogh-panel-row gogh-chrome-foot">' +
       '<button type="button" class="gogh-btn gogh-btn-small gogh-hcancel">Cancel</button>' +
-      '<button type="button" class="gogh-btn-save gogh-btn-small gogh-happly" title="Updates every page" disabled>Apply</button>' +
+      '<button type="button" class="gogh-btn gogh-btn-save gogh-btn-small gogh-happly" title="Updates every page" disabled>Apply</button>' +
       '</div>';
     dockPanel();
     panelOpen = true;

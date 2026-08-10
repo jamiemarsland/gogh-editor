@@ -2341,12 +2341,15 @@
       var dial = panel.querySelector('.gogh-dial-pad');
       expect(dial, 'no Height dial');
       var grp = partEl.querySelector('.wp-block-group');
+      // the SAVED header may legitimately wear inline padding (applied
+      // dials write it into the markup) — Esc must restore THAT state
+      var pad0 = grp.style.paddingTop || '';
       dial.value = 60;
       dial.dispatchEvent(new Event('input', { bubbles: true }));
       expect(grp.style.paddingTop === '60px', 'dial did not paint the header');
       document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
       expect(document.querySelector('.gogh-panel').hidden, 'Esc did not close the panel');
-      expect(!grp.style.paddingTop, 'Esc left stranded dial padding - the gap-under-the-nav bug');
+      expect((grp.style.paddingTop || '') === pad0, 'Esc left stranded dial padding - the gap-under-the-nav bug (' + grp.style.paddingTop + ' vs ' + (pad0 || 'clean') + ')');
       expect(!partEl.querySelector('.gogh-chrome-preview'), 'Esc left a mounted layout preview');
     });
 
