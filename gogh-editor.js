@@ -5093,6 +5093,11 @@
     secx.theme = theme.slug;
     secx.bg = theme.bg;
     secx.bgA = null;
+    // a BACKDROP is a whole background: there is no sensible way to tint a
+    // photo with a gradient, so the composition replaces the picture
+    // ("they dont seem to do anything" — on image sections it painted
+    // nothing at all)
+    if (/gradient\(/.test(String(theme.bg))) { secx.bgImage = null; secx.bgId = null; }
     // the theme restyles the section's INK too — that's what makes it a
     // theme and not a background (undo covers a change of heart)
     secx.els.forEach(function (e) {
@@ -5104,12 +5109,15 @@
   }
   function snapSectionLook(secx) {
     return { theme: secx.theme, bg: secx.bg, bgA: secx.bgA,
+      bgImage: secx.bgImage, bgId: secx.bgId,
       colors: secx.els.map(function (e) { return e.color || null; }) };
   }
   function restoreSectionLook(secx, snap) {
     secx.theme = snap.theme;
     secx.bg = snap.bg;
     secx.bgA = snap.bgA;
+    secx.bgImage = snap.bgImage;
+    secx.bgId = snap.bgId;
     secx.els.forEach(function (e, k) { e.color = snap.colors[k]; });
     syncBootInvite(secx);
     renderSection(secx);

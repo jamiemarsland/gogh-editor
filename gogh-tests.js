@@ -942,8 +942,10 @@
       });
       var sweep = G.sectionThemes().filter(function (x) { return x.slug === 'sweep'; })[0];
       expect(/radial-gradient/.test(sweep.bg), 'sweep must be a gradient composition');
+      s2.bgImage = '/x.jpg'; // a backdrop must REPLACE a picture, not hide behind it
       G.applySectionTheme(G.sections().indexOf(s2), sweep);
       expect(s2.theme === 'sweep' && /gradient/.test(s2.bg), 'sweep should apply like any theme');
+      expect(!s2.bgImage, 'a backdrop replaces the background image');
       expect(/"theme":"sweep"/.test(G.serialize()), 'backdrop must serialize');
       // a composition never leaks into a colour-mix (the tint dial path)
       s2.bgA = 40;
