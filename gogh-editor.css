@@ -232,7 +232,7 @@
 .gogh-qna-a { width: 100%; margin-top: 6px; min-height: 54px; resize: vertical; font: inherit; font-size: 13px; box-sizing: border-box; }
 
 /* height presets: S / M / L / Fill screen */
-.gogh-hpresets { display: flex; gap: 6px; margin: 4px 0 10px; }
+.gogh-hpresets { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0 10px; }
 .gogh-hpreset {
   all: unset;
   cursor: pointer;
