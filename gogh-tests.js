@@ -1039,9 +1039,11 @@
       var tpl = G.templates().filter(function (t) { return t.name === 'Tabs'; })[0];
       expect(tpl && tpl.gated === 'hasTabs', 'Tabs template must be gated on hasTabs');
       if (!window.GOGH.hasTabs) return 'core/tabs absent — starter rightly dormant';
-      var w = tpl.els.filter(function (e) { return e.type === 'widget'; })[0];
-      expect(w && /wp:tabs/.test(w.wsrc) && /wp:tab-panel/.test(w.wsrc), 'widget must carry core/tabs source');
-      expect(!/<button/.test(w.whtml), 'preview must not nest buttons in the picker card');
+      var d = tpl.els.filter(function (e) { return e.tabs; })[0];
+      expect(d && d.tabs.length >= 2, 'Tabs template must carry structured tab data');
+      var c = G.composeTabs(d.tabs);
+      expect(/wp:tabs/.test(c.wsrc) && /wp:tab-panel/.test(c.wsrc), 'compose must yield the true core/tabs source');
+      expect(!/<button/.test(c.whtml), 'preview must not nest buttons in the picker card');
       G.openPicker(G.sections().length);
       var card = [].filter.call(document.querySelectorAll('.gogh-cards .gogh-card-name'), function (n) {
         return n.textContent.indexOf('Tabs') === 0;
@@ -1051,24 +1053,32 @@
       return 'gated, sourced from the true block, shelved';
     });
 
-    test('FAQ starter: a real accordion block rides the widget', function () {
+    test('FAQ starter: data composes a real accordion, edits recompose', function () {
       var tpl = G.templates().filter(function (t) { return t.name === 'FAQ'; })[0];
       expect(tpl, 'FAQ template missing');
-      var w = tpl.els.filter(function (e) { return e.type === 'widget'; })[0];
-      expect(w && /wp:accordion/.test(w.wsrc), 'widget must carry core/accordion source');
-      expect(/accordion-heading__toggle/.test(w.wsrc), 'canonical heading toggle missing from source');
-      expect(w.whtml && /wp-block-accordion/.test(w.whtml), 'editor preview markup missing');
+      var d = tpl.els.filter(function (e) { return e.faq; })[0];
+      expect(d && d.faq.length >= 3, 'FAQ template must carry structured q/a data');
       var s0 = G.sections().length;
       G.addSection(tpl, G.sections().length);
       var added = lastSec();
       try {
-        var node = added.sectionEl.querySelector('.gogh-widget .wp-block-accordion');
-        expect(node, 'accordion preview did not render in the canvas');
+        var w = added.els.filter(function (e) { return e.type === 'widget'; })[0];
+        expect(/wp:accordion/.test(w.wsrc) && /accordion-heading__toggle/.test(w.wsrc),
+          'insert must compose the true core/accordion source');
+        expect(added.sectionEl.querySelector('.gogh-widget .wp-block-accordion'),
+          'accordion preview did not render in the canvas');
+        // edit the data, recompose — the block follows, escaped honestly
+        w.faq[0].q = 'Can we <em>really</em> change this?';
+        G.composeFaq && (function () {
+          var c = G.composeFaq(w.faq);
+          expect(/Can we &lt;em&gt;really&lt;\/em&gt; change this\?/.test(c.wsrc), 'edited question must land escaped in the source');
+          expect(c.whtml.indexOf('&lt;em&gt;') !== -1, 'preview must escape too');
+        })();
       } finally {
         G.deleteSection(G.sections().indexOf(added));
       }
       expect(G.sections().length === s0, 'cleanup failed');
-      return 'source is a true core/accordion; canvas shows the preview';
+      return 'data → true block; edits recompose, escaped';
     });
 
     test('header designer: dials rewrite native spacing, and round-trip', function () {

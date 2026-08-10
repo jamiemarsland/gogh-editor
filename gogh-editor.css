@@ -220,6 +220,11 @@
 }
 .gogh-rearchip:hover { border-color: #4a63d8; background: rgba(74, 99, 216, 0.08); }
 .gogh-rearchip.is-active { border-color: #4a63d8; background: rgba(74, 99, 216, 0.14); font-weight: 600; }
+/* FAQ / Tabs editors: words in boxes, nothing more */
+.gogh-qna { margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--gogh-ui-border); }
+.gogh-qna-head { display: flex; gap: 6px; align-items: center; }
+.gogh-qna-head .gogh-input { flex: 1; font-weight: 600; }
+.gogh-qna-a { width: 100%; margin-top: 6px; min-height: 54px; resize: vertical; font: inherit; font-size: 13px; box-sizing: border-box; }
 
 /* height presets: S / M / L / Fill screen */
 .gogh-hpresets { display: flex; gap: 6px; margin: 4px 0 10px; }

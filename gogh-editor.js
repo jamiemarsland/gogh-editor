@@ -697,6 +697,7 @@
       boxBg: e.boxBg || null, radius: e.radius || 0, shape: e.shape || null,
       boxImg: e.boxImg || null, boxImgId: e.boxImgId || null,
       mood: e.mood || null,
+      faq: e.faq || null, tabs: e.tabs || null,
       ph: e.ph || null,
       expId: e.expId || null, expUrl: e.expUrl || null,
       kids: e.kids && e.kids.length ? e.kids.map(projEl) : null };
@@ -1636,7 +1637,7 @@
       // bare shapes keep the shape glyph (their panel really picks shapes)
       var isCardEl = e.type === 'box' && e.kids && e.kids.length;
       ctxBtn.innerHTML = CTX_ICONS[e.type === 'button' ? 'link' : e.type === 'box' ? (isCardEl ? 'image' : 'shape') : 'image'];
-      ctxBtn.title = e.type === 'button' ? 'Button link' : e.type === 'box' ? ( isCardEl ? 'Background image & colour' : 'Shape, colour & image' ) : e.type === 'widget' ? 'Block settings & link' : 'Choose image';
+      ctxBtn.title = e.type === 'button' ? 'Button link' : e.type === 'box' ? ( isCardEl ? 'Background image & colour' : 'Shape, colour & image' ) : e.type === 'widget' ? (e.faq ? 'Edit the questions' : e.tabs ? 'Edit the tabs' : 'Block settings & link') : 'Choose image';
       ctxBtn.style.display = '';
     } else {
       ctxBtn.style.display = 'none';
@@ -2088,6 +2089,8 @@
     else if (e.type === 'widget') buildWidgetPanel(sec, i);
     placePanelNear(sec.nodes[i]);
     panelOpen = true;
+    // the Q&A editors are typing surfaces — outside clicks pass through
+    if (e.type === 'widget' && ((e.faq && e.faq.length) || (e.tabs && e.tabs.length))) panelSticky = true;
   }
   var savedTextRange = null;
   function applyTextLink(url) {
@@ -2146,8 +2149,67 @@
     input.focus();
   }
 
+  // FAQ and Tabs edit as a FORM — words in boxes, add and remove rows —
+  // never as template surgery. Every change recomposes the true block.
+  function buildQnaPanel(sec, i) {
+    var e = sec.els[i];
+    var kind = e.faq ? 'faq' : 'tabs';
+    var items = e.faq || e.tabs;
+    var labels = kind === 'faq'
+      ? { title: 'FAQ', one: 'question', q: 'Question', a: 'Answer', qk: 'q', ak: 'a' }
+      : { title: 'Tabs', one: 'tab', q: 'Tab label', a: 'Tab content', qk: 't', ak: 'body' };
+    var render = function () {
+      panel.innerHTML = '<div class="gogh-panel-title">' + labels.title + '</div>' +
+        '<div class="gogh-panel-hint">Edit the words \u2014 the block follows live.</div>' +
+        items.map(function (it, k) {
+          return '<div class="gogh-qna" data-k="' + k + '">' +
+            '<div class="gogh-qna-head"><input type="text" class="gogh-input gogh-qna-q" placeholder="' + labels.q + '" value="' + escAttr(it[labels.qk]) + '" />' +
+            (items.length > 1 ? '<button type="button" class="gogh-sbtn gogh-qna-x" title="Remove this ' + labels.one + '">\u2715</button>' : '') + '</div>' +
+            '<textarea class="gogh-input gogh-qna-a" placeholder="' + labels.a + '">' + esc(it[labels.ak]) + '</textarea>' +
+            '</div>';
+        }).join('') +
+        '<div class="gogh-panel-row gogh-chrome-rows">' +
+        '<button type="button" class="gogh-btn gogh-btn-small gogh-qna-add">\uff0b Add ' + labels.one + '</button>' +
+        '</div>';
+      var syncT = null;
+      var sync = function (push) {
+        composeWidgetData(e);
+        renderSection(sec);
+        placeHandles(sec, i);
+        if (push) pushState();
+        else { clearTimeout(syncT); syncT = setTimeout(pushState, 900); }
+      };
+      panel.querySelectorAll('.gogh-qna').forEach(function (row) {
+        var k = +row.dataset.k;
+        row.querySelector('.gogh-qna-q').addEventListener('input', function () {
+          items[k][labels.qk] = this.value;
+          sync(false);
+        });
+        row.querySelector('.gogh-qna-a').addEventListener('input', function () {
+          items[k][labels.ak] = this.value;
+          sync(false);
+        });
+        var x = row.querySelector('.gogh-qna-x');
+        if (x) x.addEventListener('click', function () {
+          items.splice(k, 1);
+          sync(true);
+          render();
+        });
+      });
+      panel.querySelector('.gogh-qna-add').addEventListener('click', function () {
+        var fresh = {};
+        fresh[labels.qk] = kind === 'faq' ? 'Another question?' : 'Another tab';
+        fresh[labels.ak] = 'Your words here.';
+        items.push(fresh);
+        sync(true);
+        render();
+      });
+    };
+    render();
+  }
   function buildWidgetPanel(sec, i) {
     var e = sec.els[i];
+    if ((e.faq && e.faq.length) || (e.tabs && e.tabs.length)) return buildQnaPanel(sec, i);
     var node = sec.nodes[i];
     var editableSrc = e.wsrc != null && e.wsrc === e.whtml;
     var a = editableSrc ? node.querySelector('a') : null;
@@ -3475,31 +3537,25 @@
       { type: 'para', x: 400, y: 56, w: 400, h: 24, align: 'center', text: 'Questions, answered',
         tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
       { type: 'heading', x: 250, y: 96, w: 700, h: 64, text: 'Before you ask', fs: 'x-large', align: 'center' },
-      // a REAL core/accordion rides inside a widget: gogh places it, the
-      // block renders and toggles it on the published page
-      { type: 'widget', x: 240, y: 200, w: 720, h: 320,
-        wsrc: '<!-- wp:accordion -->\n<div class="wp-block-accordion"><!-- wp:accordion-item -->\n<div class="wp-block-accordion-item"><!-- wp:accordion-heading -->\n<h3 class="wp-block-accordion-heading"><button class="wp-block-accordion-heading__toggle" type="button"><span class="wp-block-accordion-heading__text">How long does a project take?</span><span class="wp-block-accordion-heading__icon"></span></button></h3>\n<!-- /wp:accordion-heading --><!-- wp:accordion-panel -->\n<div class="wp-block-accordion-panel"><div class="wp-block-accordion-panel__content"><!-- wp:paragraph --><p>Six to ten weeks for most sites. The Sprint is one week, by design.</p><!-- /wp:paragraph --></div></div>\n<!-- /wp:accordion-panel --></div>\n<!-- /wp:accordion-item --><!-- wp:accordion-item -->\n<div class="wp-block-accordion-item"><!-- wp:accordion-heading -->\n<h3 class="wp-block-accordion-heading"><button class="wp-block-accordion-heading__toggle" type="button"><span class="wp-block-accordion-heading__text">Do you work with small budgets?</span><span class="wp-block-accordion-heading__icon"></span></button></h3>\n<!-- /wp:accordion-heading --><!-- wp:accordion-panel -->\n<div class="wp-block-accordion-panel"><div class="wp-block-accordion-panel__content"><!-- wp:paragraph --><p>Yes \u2014 that is exactly what the Sprint is for. One week, one focused thing, done well.</p><!-- /wp:paragraph --></div></div>\n<!-- /wp:accordion-panel --></div>\n<!-- /wp:accordion-item --><!-- wp:accordion-item -->\n<div class="wp-block-accordion-item"><!-- wp:accordion-heading -->\n<h3 class="wp-block-accordion-heading"><button class="wp-block-accordion-heading__toggle" type="button"><span class="wp-block-accordion-heading__text">Who will we actually work with?</span><span class="wp-block-accordion-heading__icon"></span></button></h3>\n<!-- /wp:accordion-heading --><!-- wp:accordion-panel -->\n<div class="wp-block-accordion-panel"><div class="wp-block-accordion-panel__content"><!-- wp:paragraph --><p>The people on the team page \u2014 no handoffs to a bench you never met.</p><!-- /wp:paragraph --></div></div>\n<!-- /wp:accordion-panel --></div>\n<!-- /wp:accordion-item --></div>\n<!-- /wp:accordion -->',
-        whtml: '<div class="wp-block-accordion">' +
-          '<div class="wp-block-accordion-item"><h3 class="wp-block-accordion-heading"><span class="wp-block-accordion-heading__toggle"><span class="wp-block-accordion-heading__text">How long does a project take?</span><span class="wp-block-accordion-heading__icon"></span></span></h3>' +
-          '<div class="wp-block-accordion-panel"><div class="wp-block-accordion-panel__content"><p>Six to ten weeks for most sites. The Sprint is one week, by design.</p></div></div></div>' +
-          '<div class="wp-block-accordion-item"><h3 class="wp-block-accordion-heading"><span class="wp-block-accordion-heading__toggle"><span class="wp-block-accordion-heading__text">Do you work with small budgets?</span><span class="wp-block-accordion-heading__icon"></span></span></h3>' +
-          '<div class="wp-block-accordion-panel" style="display:none"><div class="wp-block-accordion-panel__content"><p>Yes.</p></div></div></div>' +
-          '<div class="wp-block-accordion-item"><h3 class="wp-block-accordion-heading"><span class="wp-block-accordion-heading__toggle"><span class="wp-block-accordion-heading__text">Who will we actually work with?</span><span class="wp-block-accordion-heading__icon"></span></span></h3>' +
-          '<div class="wp-block-accordion-panel" style="display:none"><div class="wp-block-accordion-panel__content"><p>The team page people.</p></div></div></div>' +
-          '</div>' },
+      // a REAL core/accordion rides inside a widget — regenerated from
+      // e.faq, which is what the selection panel edits
+      { type: 'widget', x: 240, y: 200, w: 720, h: 320, faq: [
+        { q: 'How long does a project take?', a: 'Six to ten weeks for most sites. The Sprint is one week, by design.' },
+        { q: 'Do you work with small budgets?', a: 'Yes \u2014 that is exactly what the Sprint is for. One week, one focused thing, done well.' },
+        { q: 'Who will we actually work with?', a: 'The people on the team page \u2014 no handoffs to a bench you never met.' },
+      ] },
     ] },
     { starter: true, intent: 'sell', name: 'Tabs', gated: 'hasTabs', minH: 520, els: [
       { type: 'para', x: 400, y: 56, w: 400, h: 24, align: 'center', text: 'Ways to work with us',
         tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
       { type: 'heading', x: 250, y: 96, w: 700, h: 64, text: 'Pick your pace', fs: 'x-large', align: 'center' },
-      // a REAL core/tabs block (WP 7.1) rides the widget — this starter is
-      // gated on hasTabs, so it appears only where the block exists
-      { type: 'widget', x: 240, y: 200, w: 720, h: 280,
-        wsrc: '<!-- wp:tabs -->\n<div class="wp-block-tabs"><!-- wp:tab-list -->\n<div class="wp-block-tab-list" role="tablist"><button class="wp-block-tab-list__tab" type="button" role="tab">The Sprint</button><button class="wp-block-tab-list__tab" type="button" role="tab">The Partnership</button><button class="wp-block-tab-list__tab" type="button" role="tab">Ongoing care</button></div>\n<!-- /wp:tab-list --><!-- wp:tab-panels -->\n<div class="wp-block-tab-panels"><!-- wp:tab-panel {"label":"The Sprint"} -->\n<div class="wp-block-tab-panel"><!-- wp:paragraph --><p>One focused week. A sharp brief in, a finished thing out \u2014 built for small budgets and quick decisions.</p><!-- /wp:paragraph --></div>\n<!-- /wp:tab-panel --><!-- wp:tab-panel {"label":"The Partnership"} -->\n<div class="wp-block-tab-panel"><!-- wp:paragraph --><p>A standing team beside yours \u2014 design, build and everything between, month by month.</p><!-- /wp:paragraph --></div>\n<!-- /wp:tab-panel --><!-- wp:tab-panel {"label":"Ongoing care"} -->\n<div class="wp-block-tab-panel"><!-- wp:paragraph --><p>Quiet upkeep after launch: updates, tweaks and a person who answers.</p><!-- /wp:paragraph --></div>\n<!-- /wp:tab-panel --></div>\n<!-- /wp:tab-panels --></div>\n<!-- /wp:tabs -->',
-        whtml: '<div class="wp-block-tabs">' +
-          '<div class="wp-block-tab-list" role="tablist"><span class="wp-block-tab-list__tab" aria-selected="true">The Sprint</span><span class="wp-block-tab-list__tab">The Partnership</span><span class="wp-block-tab-list__tab">Ongoing care</span></div>' +
-          '<div class="wp-block-tab-panels"><div class="wp-block-tab-panel"><p>One focused week. A sharp brief in, a finished thing out \u2014 built for small budgets and quick decisions.</p></div></div>' +
-          '</div>' },
+      // a REAL core/tabs block (WP 7.1) — regenerated from e.tabs, gated
+      // on the block existing
+      { type: 'widget', x: 240, y: 200, w: 720, h: 280, tabs: [
+        { t: 'The Sprint', body: 'One focused week. A sharp brief in, a finished thing out \u2014 built for small budgets and quick decisions.' },
+        { t: 'The Partnership', body: 'A standing team beside yours \u2014 design, build and everything between, month by month.' },
+        { t: 'Ongoing care', body: 'Quiet upkeep after launch: updates, tweaks and a person who answers.' },
+      ] },
     ] },
     { starter: true, intent: 'showcase', name: 'Gallery', minH: 680, els: [
       { type: 'para', x: 72, y: 60, w: 300, h: 24, text: 'Selected work',
@@ -3571,6 +3627,49 @@
     ] },
   ];
 
+  // FAQ and Tabs are DATA on the element (e.faq / e.tabs) — the block
+  // markup is always regenerated from it, so editing is a form, never a
+  // template. wsrc carries the true core block; whtml is the calm editor
+  // preview (spans for toggles: buttons cannot nest in the picker's card).
+  function composeFaq(items) {
+    var wsrc = '<!-- wp:accordion -->\n<div class="wp-block-accordion">' + items.map(function (it) {
+      return '<!-- wp:accordion-item -->\n<div class="wp-block-accordion-item"><!-- wp:accordion-heading -->\n' +
+        '<h3 class="wp-block-accordion-heading"><button class="wp-block-accordion-heading__toggle" type="button">' +
+        '<span class="wp-block-accordion-heading__text">' + esc(it.q) + '</span>' +
+        '<span class="wp-block-accordion-heading__icon"></span></button></h3>\n<!-- /wp:accordion-heading -->' +
+        '<!-- wp:accordion-panel -->\n<div class="wp-block-accordion-panel"><div class="wp-block-accordion-panel__content">' +
+        '<!-- wp:paragraph --><p>' + esc(it.a) + '</p><!-- /wp:paragraph --></div></div>\n<!-- /wp:accordion-panel --></div>\n<!-- /wp:accordion-item -->';
+    }).join('') + '</div>\n<!-- /wp:accordion -->';
+    var whtml = '<div class="wp-block-accordion">' + items.map(function (it, k) {
+      return '<div class="wp-block-accordion-item' + (k === 0 ? ' is-open' : '') + '">' +
+        '<h3 class="wp-block-accordion-heading"><span class="wp-block-accordion-heading__toggle">' +
+        '<span class="wp-block-accordion-heading__text">' + esc(it.q) + '</span>' +
+        '<span class="wp-block-accordion-heading__icon"></span></span></h3>' +
+        '<div class="wp-block-accordion-panel"' + (k === 0 ? '' : ' style="display:none"') + '>' +
+        '<div class="wp-block-accordion-panel__content"><p>' + esc(it.a) + '</p></div></div></div>';
+    }).join('') + '</div>';
+    return { wsrc: wsrc, whtml: whtml };
+  }
+  function composeTabs(items) {
+    var wsrc = '<!-- wp:tabs -->\n<div class="wp-block-tabs"><!-- wp:tab-list -->\n' +
+      '<div class="wp-block-tab-list" role="tablist">' + items.map(function (it) {
+        return '<button class="wp-block-tab-list__tab" type="button" role="tab">' + esc(it.t) + '</button>';
+      }).join('') + '</div>\n<!-- /wp:tab-list --><!-- wp:tab-panels -->\n<div class="wp-block-tab-panels">' +
+      items.map(function (it) {
+        return '<!-- wp:tab-panel {"label":' + JSON.stringify(String(it.t)) + '} -->\n' +
+          '<div class="wp-block-tab-panel"><!-- wp:paragraph --><p>' + esc(it.body) + '</p><!-- /wp:paragraph --></div>\n<!-- /wp:tab-panel -->';
+      }).join('') + '</div>\n<!-- /wp:tab-panels --></div>\n<!-- /wp:tabs -->';
+    var whtml = '<div class="wp-block-tabs">' +
+      '<div class="wp-block-tab-list" role="tablist">' + items.map(function (it, k) {
+        return '<span class="wp-block-tab-list__tab"' + (k === 0 ? ' aria-selected="true"' : '') + '>' + esc(it.t) + '</span>';
+      }).join('') + '</div>' +
+      '<div class="wp-block-tab-panels"><div class="wp-block-tab-panel"><p>' + esc(items[0] ? items[0].body : '') + '</p></div></div></div>';
+    return { wsrc: wsrc, whtml: whtml };
+  }
+  function composeWidgetData(e) {
+    if (e.faq && e.faq.length) { var c = composeFaq(e.faq); e.wsrc = c.wsrc; e.whtml = c.whtml; }
+    else if (e.tabs && e.tabs.length) { var c2 = composeTabs(e.tabs); e.wsrc = c2.wsrc; e.whtml = c2.whtml; }
+  }
   function tplEls(tpl) {
     var els = JSON.parse(JSON.stringify(tpl.els));
     var sizes = fontSizes();
@@ -3579,6 +3678,7 @@
         if (sizes.length) e.fs = sizes[sizes.length - 1].slug;
         else delete e.fs;
       }
+      composeWidgetData(e);
     });
     return els;
   }
@@ -7540,6 +7640,9 @@
     inkWidthOf: inkWidthOf,
     themeFontSizeList: themeFontSizeList,
     paletteRoles: paletteRoles,
+    composeFaq: composeFaq,
+    openPanel: openPanel,
+    composeTabs: composeTabs,
     chromeDialsApply: chromeDialsApply,
     insertGoghPattern: insertGoghPattern,
     addHtmlSection: addHtmlSection,
