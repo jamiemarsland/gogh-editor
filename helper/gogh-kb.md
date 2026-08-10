@@ -15,7 +15,7 @@ about something where they conflict, rather than picking one silently. Quote UI
 labels and message copy from the appendix, verbatim — those are the current
 strings, and a paraphrased button label is the fastest way to lose a user's trust.
 
-Generated for plugin version 0.99.33 · knowledge base d395280.
+Generated for plugin version 0.99.40 · knowledge base d8bf3a3.
 
 ---
 
@@ -783,11 +783,11 @@ Everything in this section is extracted mechanically from the Gogh source on eve
 
 ## Current release
 
-- Plugin version: **0.99.33**
+- Plugin version: **0.99.40**
 - Requires WordPress **6.5+**, PHP **7.4+**
 - Text domain: `gogh-editor`
 - readme.txt Stable tag: `0.26.0` · Tested up to: `7.0`
-- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.33`). Quote the plugin header version.
+- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.40`). Quote the plugin header version.
 
 ## Design constants
 
@@ -815,7 +815,7 @@ Everything in this section is extracted mechanically from the Gogh source on eve
 
 ## Section templates
 
-Shown in the picker: **Hero**, **Big statement**, **Story**, **Numbers**, **Article**, **Feature cards**, **Pricing**, **Quote**, **Call to action**, **Get in touch**, **FAQ**, **Gallery**, **Photo cards**, **Portfolio**, **Menu**, **Team**.
+Shown in the picker: **Hero**, **Big statement**, **Story**, **Numbers**, **Article**, **Feature cards**, **Pricing**, **Quote**, **Call to action**, **Get in touch**, **FAQ**, **Tabs**, **Gallery**, **Photo cards**, **Portfolio**, **Menu**, **Team**.
 
 Non-starter (surfaced elsewhere): **Start from scratch**.
 
@@ -931,6 +931,7 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "Delete saved section"
 - "Delete section"
 - "Discard changes"
+- "Done"
 - "Duplicate (or Alt-drag)"
 - "Duplicate section"
 - "Experience"
@@ -957,6 +958,7 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "None"
 - "One product, hero-sized — a card with a real add-to-cart button"
 - "Open interactive experience"
+- "Original"
 - "Outline"
 - "Page style"
 - "Peek at pages"
@@ -972,6 +974,7 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "Remove from menu"
 - "Remove image"
 - "Remove link (keep the text)"
+- "Remove this ' + labels.one + '"
 - "Right"
 - "Save"
 - "Save brand"
@@ -1039,7 +1042,6 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "Out of the card — it’s a free element again."
 - "Publish failed: "
 - "Publish your changes first — changing the page style reloads the page."
-- "Rearranged — same pieces, new shape."
 - "Removed from the card."
 - "Section moved."
 - "Section removed — publish to make it real."
@@ -1081,4 +1083,4 @@ These are the real strings in the current build. Use them verbatim; never paraph
 
 ## Test suite
 
-`128` tests, run by appending `?gogh-test` to any Gogh page URL while logged in with edit rights on that page.
+`129` tests, run by appending `?gogh-test` to any Gogh page URL while logged in with edit rights on that page.

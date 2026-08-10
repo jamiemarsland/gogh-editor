@@ -1,4 +1,4 @@
-# Knowledge-base audit — plugin v0.99.33
+# Knowledge-base audit — plugin v0.99.40
 
 _14 finding(s) suppressed by `kb.audit-ignore.txt`._
 
@@ -6,9 +6,9 @@ _14 finding(s) suppressed by `kb.audit-ignore.txt`._
 
 The prose states something the source contradicts. Fix these first — the bot will contradict itself, since the appendix carries the correct value.
 
-- plugin version is **0.99.33**, prose says **0.96.5**
+- plugin version is **0.99.40**, prose says **0.96.5**
 
-## MISSING (14)
+## MISSING (15)
 
 The source has something the prose never explains. The bot knows the name from the appendix but cannot say what it is for.
 
@@ -25,10 +25,16 @@ The source has something the prose never explains. The bot knows the name from t
 - template `Numbers` exists in source but is never mentioned in the prose
 - template `Pricing` exists in source but is never mentioned in the prose
 - template `FAQ` exists in source but is never mentioned in the prose
+- template `Tabs` exists in source but is never mentioned in the prose
 - template `Portfolio` exists in source but is never mentioned in the prose
 
 ## What changed since the last knowledge-base build
 
 Use this as the checklist for updating the prose — and as a sanity check on the release itself.
 
-- version: 0.99.32 → 0.99.33
+- version: 0.99.33 → 0.99.40
+- added template: "Tabs"
+- added UI label: "Done"
+- added UI label: "Original"
+- added UI label: "Remove this ' + labels.one + '"
+- removed toast: "Rearranged — same pieces, new shape."
