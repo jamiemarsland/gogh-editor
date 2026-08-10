@@ -1,12 +1,12 @@
 {
   "meta": {
-    "plugin_version": "0.99.43",
+    "plugin_version": "0.99.53",
     "requires_wp": "6.5",
     "requires_php": "7.4",
     "text_domain": "gogh-editor",
     "readme_stable_tag": "0.26.0",
     "readme_tested_up_to": "7.0",
-    "asset_version": "0.99.43-chrome"
+    "asset_version": "0.99.53-chrome"
   },
   "constants": {
     "TOL": 8,
@@ -427,6 +427,7 @@
     "Text",
     "Text alignment",
     "Text colour",
+    "The gogh build this tab is running",
     "Theme default",
     "Undo (⌘Z)",
     "Unwrap — back to freeform",
@@ -466,6 +467,7 @@
     "Golden ratio guides on — the gold lines mark the golden section. Drag anything near one and it’ll catch.",
     "Icon link updated.",
     "Image swapped.",
+    "Kept — ",
     "Link removed — the text stays.",
     "Link updated.",
     "Linked.",
@@ -731,5 +733,5 @@
     "has_deprecation": true,
     "block_title": "gogh Section"
   },
-  "test_count": 129
+  "test_count": 130
 }
