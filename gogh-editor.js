@@ -3736,16 +3736,26 @@
     sec.els.forEach(function (box, bi) {
       if (onlyIdx != null && bi !== onlyIdx) return;
       if (box.type !== 'box' || !box.kids || !box.kids.length) return;
-      var judgeKids = function (imgL) {
+      var judgeKids = function (sampler) {
+        // imgRegionLum hands over a region SAMPLER — treating it as a number
+        // made every photo-card ground NaN, and NaN comparisons silently
+        // skipped ALL judgement ("cant read text on photo cards"). Kids are
+        // judged on their OWN patch of the picture now, like section text.
         var bv = box.boxBg || '';
         if (bv && /^[a-z0-9-]+$/.test(bv)) bv = 'var(--wp--preset--color--' + bv + ')';
         var bvRgb = bv ? cssToRgb(bv) : null;
         var baseRgb = cssToRgb('var(--wp--preset--color--base, #fff)');
-        var ground;
-        if (imgL != null && bvRgb) ground = sentinelLum(bvRgb) * 0.45 + imgL * 0.55; // the tint mix
-        else if (imgL != null) ground = imgL * 0.6 + (baseRgb ? sentinelLum(baseRgb) : 1) * 0.4; // the guardrail scrim
-        else if (bvRgb) ground = sentinelLum(bvRgb);
-        else return; // transparent card: the section pass already judged this ground
+        var groundFor = function (k) {
+          var kidL = typeof sampler === 'function'
+            ? sampler(
+                Math.max(0, k.x / Math.max(1, box.w)), Math.max(0, k.y / Math.max(1, box.h)),
+                Math.min(1, k.w / Math.max(1, box.w)), Math.min(1, k.h / Math.max(1, box.h)))
+            : null;
+          if (kidL != null && bvRgb) return sentinelLum(bvRgb) * 0.45 + kidL * 0.55; // the tint mix
+          if (kidL != null) return kidL * 0.6 + (baseRgb ? sentinelLum(baseRgb) : 1) * 0.4; // the guardrail scrim
+          if (bvRgb) return sentinelLum(bvRgb);
+          return null; // transparent card: the section pass already judged this ground
+        };
         var cardNode = sec.nodes[bi];
         if (!cardNode) return;
         var kidFlips = [];
@@ -3756,6 +3766,8 @@
           var host = kn.matches('p,h1,h2,h3,h4,h5,h6') ? kn : (kn.querySelector('p,h1,h2,h3,h4,h5,h6') || kn);
           var txt = cssToRgb(getComputedStyle(host).color);
           if (!txt) return;
+          var ground = groundFor(k);
+          if (ground == null) return;
           if (sentinelContrast(sentinelLum(txt), ground) >= CONTRAST_FLOOR) return;
           var pick = sentinelBestInk(ground);
           if (pick.best && k.color !== pick.best) kidFlips.push({ j: j, to: pick.best });
