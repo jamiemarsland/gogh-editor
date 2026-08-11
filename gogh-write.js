@@ -507,6 +507,10 @@
     bubT = setTimeout(placeBub, 120);
   });
   bub.addEventListener('pointerdown', function (ev) { ev.preventDefault(); }); // keep the selection
+  // clicking anywhere else closes the bubble — including mid-link-typing
+  document.addEventListener('pointerdown', function (ev) {
+    if (!bub.hidden && !bub.contains(ev.target)) hideBub();
+  }, true);
   bub.addEventListener('click', function (ev) {
     var b2 = ev.target.closest('[data-fmt]');
     if (!b2) return;

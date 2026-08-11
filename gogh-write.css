@@ -414,6 +414,7 @@ body.gogh-writing ::selection {
   border-radius: 7px;
 }
 .gogh-w-bub button:hover { background: rgba(255, 255, 255, 0.12); }
+.gogh-w-bub button[hidden] { display: none; } /* all:unset defeats [hidden] */
 .gogh-w-bub-url {
   all: unset;
   color: #f2f3f5;
