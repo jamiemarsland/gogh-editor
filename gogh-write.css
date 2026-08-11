@@ -163,6 +163,9 @@ body.gogh-writing ::selection {
 .gogh-w-plus.is-vis:hover {
   opacity: 0.9;
 }
+.gogh-w-menu[hidden] {
+  display: none; /* author display:flex beats the UA [hidden] rule */
+}
 .gogh-w-menu {
   position: fixed;
   z-index: 99999;
@@ -273,4 +276,30 @@ body.gogh-writing ::selection {
   color: #fff;
   font-size: 13px;
   cursor: pointer;
+}
+
+.gogh-w-catsbtn {
+  all: unset;
+  cursor: pointer;
+  color: rgba(255, 255, 255, 0.75);
+  font-size: 12px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+.gogh-w-catsbtn:hover {
+  color: #fff;
+  border-color: rgba(255, 255, 255, 0.45);
+}
+
+.gogh-w-tags {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  margin-top: 4px;
+}
+.gogh-w-tagpill {
+  opacity: 0.92;
 }

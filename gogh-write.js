@@ -452,6 +452,7 @@
   var chip = document.createElement('div');
   chip.className = 'gogh-w-chip';
   chip.innerHTML = '<span class="gogh-w-count"></span><span class="gogh-w-saved"></span>' +
+    '<button type="button" class="gogh-w-catsbtn">File under</button>' +
     '<button type="button" class="gogh-w-publish">Publish</button>';
   document.body.appendChild(chip);
   var countEl = chip.querySelector('.gogh-w-count');
@@ -485,7 +486,7 @@
       body: JSON.stringify(Object.assign({
         title: title ? title.textContent.trim() : '',
         content: serialize(),
-      }, statusTo ? { status: statusTo } : {}, (statusTo && chosenCats.length) ? { categories: chosenCats } : {})),
+      }, statusTo ? { status: statusTo } : {}, chosenCats.length ? { categories: chosenCats } : {}, chosenTags.length ? { tags: chosenTags } : {})),
     }).then(function (r) {
       saving = false;
       if (r.ok) {
@@ -504,6 +505,7 @@
   if (title) title.addEventListener('input', queueSave);
 
   var chosenCats = [];
+  var chosenTags = [];
   var doPublish = function (b) {
     b.disabled = true;
     b.textContent = 'Publishing…';
@@ -520,20 +522,33 @@
     });
   };
   chip.querySelector('.gogh-w-publish').addEventListener('click', function () {
-    var b = chip.querySelector('.gogh-w-publish');
-    if (chip.querySelector('.gogh-w-cats')) { doPublish(b); return; }
-    // step one: file it — categories appear only at the moment of
-    // publishing; while writing they do not exist
-    b.textContent = 'Fetching…';
+    doPublish(chip.querySelector('.gogh-w-publish'));
+  });
+  var catsBtn = chip.querySelector('.gogh-w-catsbtn');
+  var catsLabel = function () {
+    var n = chosenCats.length + chosenTags.length;
+    catsBtn.textContent = 'File under' + (n ? ' \u00b7 ' + n : '');
+  };
+  catsBtn.addEventListener('click', function () {
+    var existing = chip.querySelector('.gogh-w-cats');
+    if (existing) {
+      existing.remove();
+      chip.classList.remove('is-filing');
+      catsLabel();
+      return;
+    }
+    var b = catsBtn;
+    b.textContent = '\u2026';
     fetch(cfg.restUrl + 'wp/v2/categories?per_page=50&hide_empty=0', {
       headers: { 'X-WP-Nonce': cfg.nonce },
       credentials: 'same-origin',
     }).then(function (r) { return r.ok ? r.json() : []; }).catch(function () { return []; }).then(function (cats) {
-      b.textContent = 'Publish';
+      catsLabel();
       var row = document.createElement('div');
       row.className = 'gogh-w-cats';
       var syncCats = function () {
         chosenCats = [].map.call(chip.querySelectorAll('.gogh-w-cat.is-on'), function (x) { return +x.dataset.cid; });
+        catsLabel();
       };
       cats.filter(function (c) { return c.slug !== 'uncategorized'; }).forEach(function (c) {
         var pill = document.createElement('button');
@@ -570,7 +585,48 @@
         });
       });
       row.appendChild(fresh);
-      chip.insertBefore(row, b);
+      // tags: freeform — type, Enter, it finds or creates
+      var tagLine = document.createElement('div');
+      tagLine.className = 'gogh-w-tags';
+      var tagIn = document.createElement('input');
+      tagIn.type = 'text';
+      tagIn.className = 'gogh-w-newcat gogh-w-newtag';
+      tagIn.placeholder = '# tag\u2026';
+      var addTagPill = function (t) {
+        var pill = document.createElement('button');
+        pill.type = 'button';
+        pill.className = 'gogh-w-cat is-on gogh-w-tagpill';
+        pill.textContent = '# ' + t.name;
+        pill.dataset.tid = t.id;
+        pill.addEventListener('click', function () {
+          pill.remove();
+          chosenTags = chosenTags.filter(function (x) { return x !== t.id; });
+          catsLabel();
+        });
+        tagLine.insertBefore(pill, tagIn);
+      };
+      tagIn.addEventListener('keydown', function (ev) {
+        ev.stopPropagation();
+        if (ev.key !== 'Enter' || !tagIn.value.trim()) return;
+        var name = tagIn.value.trim().replace(/^#\s*/, '');
+        tagIn.value = '';
+        fetch(cfg.restUrl + 'wp/v2/tags', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'X-WP-Nonce': cfg.nonce },
+          credentials: 'same-origin',
+          body: JSON.stringify({ name: name }),
+        }).then(function (r) { return r.json(); }).then(function (t) {
+          var id = t && t.id ? t.id : (t && t.code === 'term_exists' && t.data ? t.data.term_id : null);
+          if (!id) return;
+          if (chosenTags.indexOf(id) !== -1) return;
+          chosenTags.push(id);
+          addTagPill({ id: id, name: name });
+          catsLabel();
+        });
+      });
+      tagLine.appendChild(tagIn);
+      row.appendChild(tagLine);
+      chip.insertBefore(row, catsBtn);
       clearTimeout(chipHideT); // filing holds the chip open
       chip.classList.add('is-vis', 'is-filing');
     });
