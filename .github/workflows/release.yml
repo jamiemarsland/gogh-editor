@@ -1,0 +1,64 @@
+# Cut a GitHub Release with a countable plugin zip whenever a v* tag is
+# pushed. Release-asset downloads are the only downloads GitHub tracks —
+# repo/branch zips are invisible. Usage:
+#   git tag v0.83.0 && git push origin v0.83.0
+name: release
+on:
+  push:
+    tags: ['v*']
+permissions:
+  contents: write
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # knowledge step diffs against the previous tag
+      - name: Package plugin zips (honours .distignore)
+        run: |
+          mkdir -p /tmp/pkg/gogh
+          rsync -a --exclude-from=.distignore ./ /tmp/pkg/gogh/
+          cd /tmp/pkg && zip -rq gogh.zip gogh
+          cd -
+          # the playground zip carries demo-assets too: the Yellow House
+          # starter and boot read the paintings and logo from the plugin
+          # directory. Separate asset name also keeps download counters
+          # split between demo boots and real installs.
+          rsync -a ./demo-assets/ /tmp/pkg/gogh/demo-assets/
+          cd /tmp/pkg && zip -rq gogh-playground.zip gogh
+      - name: Build helper knowledge (feeds the Gogh Helper bot)
+        run: |
+          PREV=$(git describe --tags --abbrev=0 "${GITHUB_REF_NAME}^" 2>/dev/null || echo "")
+          python3 - "$PREV" <<'PY'
+          import json, re, subprocess, sys, datetime
+          prev = sys.argv[1]
+          rng = (prev + '..HEAD') if prev else 'HEAD'
+          log = subprocess.run(['git', 'log', rng, '--pretty=%s%n%b%n---'],
+                               capture_output=True, text=True).stdout
+          tests = re.findall(r"test\('([^']+)'", open('gogh-tests.js').read())
+          out = {
+            'version': subprocess.run(['git', 'describe', '--tags'], capture_output=True, text=True).stdout.strip(),
+            'released': datetime.date.today().isoformat(),
+            'changelog_since': prev or 'start',
+            'changelog': [c.strip() for c in log.split('---') if c.strip()],
+            'behaviours_under_test': tests,
+          }
+          json.dump(out, open('/tmp/pkg/knowledge.json', 'w'), indent=1)
+          print('knowledge:', len(out['changelog']), 'changes,', len(tests), 'tested behaviours')
+          PY
+      - name: Create release with assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "${GITHUB_REF_NAME}" /tmp/pkg/gogh.zip /tmp/pkg/gogh-playground.zip /tmp/pkg/knowledge.json \
+            --repo "${GITHUB_REPOSITORY}" \
+            --title "Gogh ${GITHUB_REF_NAME}" \
+            --generate-notes
+      - name: Nudge the helper to rebuild its knowledge
+        if: ${{ vars.GOGH_HELPER_REBUILD_URL != '' }}
+        run: |
+          curl -fsS -X POST "${{ vars.GOGH_HELPER_REBUILD_URL }}" \
+            -H 'Content-Type: application/json' \
+            -d "{\"version\":\"${GITHUB_REF_NAME}\",\"knowledge\":\"https://github.com/${GITHUB_REPOSITORY}/releases/download/${GITHUB_REF_NAME}/knowledge.json\"}" \
+            || echo "helper nudge failed (non-fatal)"

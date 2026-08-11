@@ -7,3 +7,6 @@ gogh-canvas.zip
 gogh-editor.zip
 *.bak
 .DS_Store
+spike
+gogh-tests.js
+.github

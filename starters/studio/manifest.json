@@ -1,0 +1,36 @@
+{
+  "name": "Studio",
+  "description": "A portfolio that leads with the work",
+  "pages": [
+    {
+      "slug": "home",
+      "title": "Home",
+      "file": "home.html",
+      "front": true,
+      "template": "page-no-title"
+    },
+    {
+      "slug": "work",
+      "title": "Work",
+      "file": "work.html"
+    },
+    {
+      "slug": "about",
+      "title": "About",
+      "file": "about.html"
+    },
+    {
+      "slug": "contact",
+      "title": "Contact",
+      "file": "contact.html"
+    }
+  ],
+  "variation": "Twilight",
+  "preview": {
+    "base": "#131313",
+    "contrast": "#FFFFFF",
+    "accent-1": "#4B52FF",
+    "accent-2": "#FF7A5C",
+    "accent-3": "#C9CCFB"
+  }
+}

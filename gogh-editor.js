@@ -7,6 +7,18 @@
   'use strict';
 
   var cfg = window.GOGH;
+  // poster type: three stops ABOVE the theme's largest preset. Container
+  // units scale with the section (phones included); the px floor keeps the
+  // smallest screens readable. Emitted into the section stylesheet, so
+  // published pages stay deactivation-safe and Global Styles stay untouched.
+  // (Defined here, top of file: the boot DOM-parse below reads it.)
+  var DISPLAY_FS = {
+    '__disp-s': 'max(6cqw, 30px)',
+    '__disp-m': 'max(9cqw, 36px)',
+    '__disp-l': 'max(13cqw, 42px)',
+  };
+  var DISPLAY_ORDER = ['__disp-s', '__disp-m', '__disp-l'];
+  var DISPLAY_LABEL = { '__disp-s': 'Display S', '__disp-m': 'Display M', '__disp-l': 'Display L' };
   if (!cfg) return;
 
   var TOL = 8, MIN_H = 560, PAD = 72, SNAP = 6, BASE = 8, W = 1200;
@@ -18,23 +30,43 @@
   // become normal gogh sections on the next save.
   var wrapTags = [].slice.call(document.querySelectorAll('.gogh-wrap'));
   var wantEdit = /[?&]gogh-edit=1/.test(location.search);
-  if (!wrapTags.length) {
-    if (!wantEdit) return;
-    // ?gogh-edit on a page with no gogh content yet: bootstrap an empty
-    // placeholder section at the end of the content so the editor has a
-    // canvas. It is never saved unless the user actually puts things in it.
-    var host = document.querySelector('.entry-content') || document.querySelector('main');
-    if (!host) return;
-    var bWrap = document.createElement('div');
-    bWrap.className = 'wp-block-gogh-section alignfull gogh-wrap';
-    var bSec = document.createElement('div');
-    bSec.className = 'gogh-section';
-    bWrap.appendChild(bSec);
-    host.appendChild(bWrap);
-    bWrap.__goghBootstrap = true;
-    wrapTags = [bWrap];
+  // a page whose content is native blocks (a starter site's page, a classic
+  // page) is NOT an empty page — the blank-canvas machinery must leave it be
+  function goghHasNativeContent() {
+    var host = document.querySelector('.entry-content');
+    return !!host && [].some.call(host.children, function (n) {
+      return n.nodeType === 1 && !n.classList.contains('gogh-wrap') &&
+        !n.classList.contains('gogh-pending') && n.tagName !== 'STYLE';
+    });
   }
-
+  // wraps inside the header/footer are site chrome, not page content — a
+  // freeform header must not stop an empty PAGE from getting its canvas
+  var contentWraps = wrapTags.filter(function (w) { return !w.closest('.wp-block-template-part'); });
+  // no early exit in view mode: this script only loads for users who can
+  // edit this page, so the floating pill belongs on EVERY page — gogh
+  // sections or not, content or not. (It "sometimes" vanished for years on
+  // native-only and empty pages.)
+  if (!contentWraps.length && wantEdit && !goghHasNativeContent()) {
+    // ?gogh-edit on a GENUINELY empty page: bootstrap an empty placeholder
+    // section at the end of the content so the editor has a canvas. It is
+    // never saved unless the user actually puts things in it. Pages made of
+    // native blocks get no placeholder — it read as an undeletable empty
+    // section at the bottom of every starter page.
+    var host = document.querySelector('.entry-content') || document.querySelector('main');
+    if (!host && !wrapTags.length) return;
+    if (host) {
+      var bWrap = document.createElement('div');
+      bWrap.className = 'wp-block-gogh-section alignfull gogh-wrap';
+      var bSec = document.createElement('div');
+      bSec.className = 'gogh-section';
+      bWrap.appendChild(bSec);
+      host.appendChild(bWrap);
+      bWrap.__goghBootstrap = true;
+      wrapTags.push(bWrap);
+    }
+  }
+  // native-only pages (a starter site) boot the editor with ZERO gogh
+  // sections: light editing, the palette and the picker all still apply
   function inferModelFromDom(sectionEl) {
     var els = [];
     var y = 72;
@@ -95,7 +127,9 @@
       if (e.type === 'heading' || e.type === 'para') {
         if ((node.textContent || '').trim()) e.text = cleanInline(node.innerHTML);
         var fm = cls.match(/has-([a-z0-9-]+)-font-size/);
-        e.fs = fm ? fm[1] : null;
+        // display sizes carry no preset class by design — the DOM can't
+        // testify about them, so the model's word stands
+        e.fs = fm ? fm[1] : (DISPLAY_FS[e.fs] ? e.fs : null);
         var am = cls.match(/has-text-align-(center|right)/);
         e.align = am ? am[1] : null;
         e.color = pickColorSlug(cls);
@@ -138,17 +172,43 @@
   });
   scopeSeq = Math.max(scopeSeq, wrapTags.length);
 
+  if (wantEdit) document.documentElement.classList.add('gogh-editing');
+  // arriving from a page-style switch: fade in instead of popping
+  if (/[?&]gogh-ps=1/.test(location.search)) {
+    (function () {
+      var ov0 = document.createElement('div');
+      ov0.className = 'gogh-pagefade is-on';
+      try { ov0.style.background = getComputedStyle(document.body).backgroundColor; } catch (err) {}
+      document.body.appendChild(ov0);
+      requestAnimationFrame(function () { ov0.classList.remove('is-on'); });
+      setTimeout(function () { ov0.remove(); }, 700);
+      try {
+        var uu = new URL(location.href);
+        uu.searchParams.delete('gogh-ps');
+        // "history" is gogh's UNDO STACK in this scope — the browser's
+        // lives on window
+        window.history.replaceState(null, '', uu.toString());
+      } catch (err2) {}
+    })();
+  }
   var S = []; // {scope, els, minH, bg, divider, wrapEl, sectionEl, styleEl, nodes}
   wrapTags.forEach(function (wrap) {
     var sectionEl = wrap.querySelector('.gogh-section');
     if (!sectionEl) return;
-    var model = null, styleEl = null;
+    var model = null, styleEl = null, v3wrap = false;
     // v0.18 gogh/section format: style + model live inside the wrapper
     var innerStyle = wrap.querySelector(':scope > style.gogh-style');
     var innerModel = wrap.querySelector(':scope > script.gogh-model');
     if (innerStyle && innerModel) {
       styleEl = innerStyle;
       try { model = JSON.parse(innerModel.textContent); } catch (e1) { model = null; }
+    } else if (innerStyle && !innerModel && sectionEl.getAttribute('data-gogh-scope')) {
+      // v3: the attributes are the stored truth — the model rides in the
+      // block comment, which the rendered DOM does not carry. Boot the shell
+      // now; hydrateV3Sections() fills the model from the raw content.
+      styleEl = innerStyle;
+      v3wrap = true;
+      model = { elements: [] };
     } else {
       // legacy carrier-pair format: style + model precede the wrapper
       var prev = wrap.previousElementSibling;
@@ -180,19 +240,33 @@
       document.head.appendChild(styleEl);
     }
     sectionEl.classList.add(scope);
+    var chromeHost = wrap.closest('.wp-block-template-part');
+    var chromeInfo = chromeHost ? { area: chromeHost.tagName === 'FOOTER' ? 'footer' : 'header' } : null;
     var bootEls = model.elements || [];
-    if (hadModel) bootEls = syncModelFromMarkup(sectionEl, bootEls);
+    if (hadModel && !v3wrap) bootEls = syncModelFromMarkup(sectionEl, bootEls);
     S.push({ scope: scope, els: bootEls,
+      v3: v3wrap,
+      srcScope: v3wrap ? sectionEl.getAttribute('data-gogh-scope') : null,
+      chrome: chromeInfo,
       bootstrap: !!wrap.__goghBootstrap,
       minH: model.minH || (bootEls.length ? null : 480),
       bg: model.bg || null, divider: model.divider || null,
-      bgImage: model.bgImage || null, bgId: model.bgId || null,
+      fx: model.fx || null,
+      bgImage: model.bgImage || null, bgId: model.bgId || null, bgA: model.bgA != null ? model.bgA : null, theme: model.theme || null, fill: !!model.fill,
       wrapEl: wrap, sectionEl: sectionEl, styleEl: styleEl, nodes: [] });
   });
-  if (!S.length) return;
-  // marker after the last wrap so full rebuilds keep document position
+
+  // marker after the last CONTENT wrap (never inside a template part)
   var endMarker = document.createComment('gogh-end');
-  S[S.length - 1].wrapEl.after(endMarker);
+  var contentSecs = S.filter(function (s) { return !s.chrome; });
+  if (contentSecs.length) {
+    contentSecs[contentSecs.length - 1].wrapEl.after(endMarker);
+  } else {
+    // only chrome sections exist: anchor page insertions in the page, not
+    // inside the header/footer template part
+    var mainHost = document.querySelector('.entry-content') || document.querySelector('main') || document.body;
+    mainHost.appendChild(endMarker);
+  }
   var pageParent = endMarker.parentNode;
 
   // ---------- solver ----------
@@ -219,9 +293,9 @@
       : (minH || MIN_H) - PAD;
     return Math.max(minH || MIN_H, bottom + PAD);
   }
-  function solve(els, minH) {
+  function solve(els, minH, dw) {
     var H = designH(els, minH);
-    var xs = cluster([0, W].concat(els.reduce(function (a, e) { return a.concat([e.x, e.x + e.w]); }, [])));
+    var xs = cluster([0, dw || W].concat(els.reduce(function (a, e) { return a.concat([e.x, e.x + e.w]); }, [])));
     var ys = cluster([0, H].concat(els.reduce(function (a, e) { return a.concat([e.y, e.y + e.h]); }, [])));
     var pct = function (v) { return +(v / W * 100).toFixed(2); };
     return {
@@ -310,6 +384,17 @@
     xyLinearize(items).forEach(function (r, kk) { rank[r.i] = kk; });
     return rank;
   }
+  // element indexes sorted by visual reading order. The els array stays in
+  // STACKING order (that's what bring-forward/send-back reorder); the DOM —
+  // editor canvas and published markup alike — is emitted in READING order,
+  // so tab and screen-reader order match what sighted readers see
+  // (WCAG 1.3.2). Position comes from grid-area and stacking from z-index,
+  // so the visuals never depend on DOM order.
+  function readingIndexOrder(els) {
+    var rank = readingRank(els);
+    return els.map(function (_, i) { return i; })
+      .sort(function (a, b) { return rank[a] - rank[b]; });
+  }
 
   // text elements hug their content (align-self: start) so measuring them
   // returns intrinsic height, not the stretched grid-cell height
@@ -320,10 +405,17 @@
     para: 'align-self: start;',
     button: '',
     image: 'border-radius: clamp(8px, 1.5cqw, 20px);',
-    badge: 'display: flex; align-items: center; gap: 0.6em; height: 100%; background: #fff; color: #141519; border-radius: clamp(6px, 1.2cqw, 14px); padding: 0 1.1em; font-size: clamp(11px, 1.15cqw, 14px); font-weight: 600; box-shadow: 0 14px 34px -12px rgba(0,0,0,0.55); white-space: nowrap;',
+    badge: 'display: flex; align-items: center; min-width: max-content; gap: 0.6em; height: 100%; background: #fff; color: #141519; border-radius: clamp(6px, 1.2cqw, 14px); padding: 0 1.1em; font-size: clamp(11px, 1.15cqw, 14px); font-weight: 600; box-shadow: 0 14px 34px -12px rgba(0,0,0,0.55); white-space: nowrap;',
+    widget: 'display: flex; align-items: center;',
+    box: '',
+    exp: 'position: relative; overflow: hidden; border-radius: clamp(8px, 1.5cqw, 20px); background: #101114;',
   };
   var isText = function (e) { return e.type === 'heading' || e.type === 'para'; };
-  var fixedHeight = function (e) { return e.type === 'button' || e.type === 'image' || e.type === 'badge'; };
+  var textyEl = function (e) {
+    return e.type === 'heading' || e.type === 'para' || e.type === 'badge' || e.type === 'button' ||
+      (e.kids || []).some(function (k) { return textyEl(k); });
+  };
+  var fixedHeight = function (e) { return e.type === 'button' || e.type === 'image' || e.type === 'badge' || e.type === 'widget' || e.type === 'box' || e.type === 'exp'; };
 
   function imageBackground(e) {
     if (e.src) {
@@ -334,8 +426,12 @@
       : 'background: linear-gradient(140deg, #e8b04b 0%, #d9745a 55%, #7a3b52 100%);';
   }
 
+  // film grain, 160px tile, generated once — soft-light over any stack
+  var GRAIN_LAYER = 'url("data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'160\' height=\'160\'%3E%3Cfilter id=\'n\'%3E%3CfeTurbulence type=\'fractalNoise\' baseFrequency=\'0.8\' numOctaves=\'2\'/%3E%3C/filter%3E%3Crect width=\'100%25\' height=\'100%25\' filter=\'url(%23n)\' opacity=\'0.5\'/%3E%3C/svg%3E") left top / 160px 160px repeat';
   var DIVIDER_PATHS = {
     wave: 'M0,64 C300,124 900,4 1200,64 L1200,120 L0,120 Z',
+    brush: 'M0,88 C28,72 54,98 88,84 C118,72 142,94 178,80 C216,64 244,98 286,88 C322,80 352,60 392,76 C428,90 462,70 502,82 C538,92 574,66 612,78 C652,90 688,72 724,84 C762,96 800,62 842,74 C878,84 912,102 952,86 C990,70 1022,92 1060,80 C1096,68 1130,94 1162,84 C1178,79 1192,74 1200,72 L1200,120 L0,120 Z',
+    torn: 'M0,86 L46,76 L94,90 L148,70 L206,88 L262,68 L328,86 L388,74 L452,92 L516,74 L582,88 L638,68 L698,86 L758,74 L822,92 L878,70 L938,84 L998,72 L1058,90 L1122,76 L1200,86 L1200,120 L0,120 Z',
     curve: 'M0,120 C400,10 800,10 1200,120 Z',
     slant: 'M0,120 L1200,30 L1200,120 Z',
     peaks: 'M0,120 L300,50 L600,110 L900,40 L1200,120 Z',
@@ -346,29 +442,180 @@
     return 'url("data:image/svg+xml,' + encodeURIComponent(svg) + '")';
   }
 
+  // one element's scoped rules — shared by sections (.gogh-el-N) and the
+  // kids inside a card (.gogh-k-N)
+  function emitElCSS(out, sec, clsSel, e, i, a) {
+      var extra = TYPE_RULES[e.type];
+      if (e.type === 'widget' && e.wcol) extra += ' color: ' + e.wcol + ';';
+      if (e.type === 'image') {
+        extra += e.src ? ' overflow: hidden;' : ' ' + imageBackground(e);
+      }
+      if (e.type === 'box') {
+        var bv = e.boxBg || '';
+        if (bv && /^[a-z0-9-]+$/.test(bv)) bv = 'var(--wp--preset--color--' + bv + ')';
+        var boxBgCss = '';
+        if (e.boxImg) {
+          var bimg = 'url("' + String(e.boxImg).replace(/"/g, '%22') + '") center / cover no-repeat';
+          if (bv) {
+            var btint = 'color-mix(in srgb, ' + bv + ' 45%, transparent)';
+            boxBgCss = 'linear-gradient(' + btint + ', ' + btint + '), ' + bimg;
+          } else if ((e.kids || []).some(textyEl)) {
+            // GUARDRAIL: photo cards with words get the soft scrim too
+            var bauto = 'color-mix(in srgb, var(--wp--preset--color--base, #fff) 40%, transparent)';
+            boxBgCss = 'linear-gradient(' + bauto + ', ' + bauto + '), ' + bimg;
+          } else {
+            boxBgCss = bimg;
+          }
+        } else if (bv) boxBgCss = bv;
+        if (e.mood === 'glass' && !e.boxImg) {
+          // frosted glass: translucent colour + backdrop blur — the photo
+          // behind melts through. Colour source = the card's own colour,
+          // else theme base. (James's glass-card references.)
+          var gsrc = bv || 'var(--wp--preset--color--base, #fff)';
+          boxBgCss = null;
+          extra += ' background: color-mix(in srgb, ' + gsrc + ' 70%, transparent);' +
+            ' -webkit-backdrop-filter: blur(18px) saturate(1.35); backdrop-filter: blur(18px) saturate(1.35);' +
+            ' border: 1px solid color-mix(in srgb, ' + gsrc + ' 55%, transparent);' +
+            ' box-shadow: 0 30px 60px -22px rgba(0, 0, 0, 0.45);';
+        }
+        if (e.mood === 'veil' && boxBgCss) {
+          // the veil blurs the PICTURE, never the words: the background
+          // moves to a ::before so only it takes the filter (James's
+          // Vertigo card) — the kids paint above in tree order
+          extra += ' position: relative;' + (e.shape ? '' : ' overflow: hidden;');
+          out.push(sec + clsSel + '::before { content: ""; position: absolute; inset: 0; z-index: 0;' +
+            ' background: ' + boxBgCss + '; border-radius: inherit; transition: filter 0.35s ease; }');
+          out.push(sec + clsSel + ':hover::before { filter: blur(10px) saturate(1.15); }');
+        } else if (boxBgCss) {
+          extra += ' background: ' + boxBgCss + ';';
+        }
+        if (e.radius) extra += ' border-radius: ' + (Math.round(e.radius / 12 * 100) / 100) + 'cqw;';
+        if (e.shape && SHAPE_CSS[e.shape]) extra += SHAPE_CSS[e.shape];
+        var moodBase = e.rot ? ' rotate(' + e.rot + 'deg)' : '';
+        if (e.mood === 'lift') {
+          extra += ' transition: transform 0.25s ease, box-shadow 0.25s ease;';
+          out.push(sec + clsSel + ':hover { transform: translateY(-8px)' + moodBase +
+            '; box-shadow: 0 26px 48px -20px rgba(0, 0, 0, 0.45); }');
+        } else if (e.mood === 'zoom') {
+          extra += ' transition: transform 0.3s ease;';
+          out.push(sec + clsSel + ':hover { transform: scale(1.03)' + moodBase + '; }');
+        }
+      }
+      if (e.type === 'image' && e.mood === 'zoom' && e.src) {
+        // pictures zoom INSIDE their frame
+        out.push(sec + clsSel + ' img { transition: transform 0.4s ease; }');
+        out.push(sec + clsSel + ':hover img { transform: scale(1.06); }');
+      }
+      if (e.rot) extra += ' transform: rotate(' + e.rot + 'deg);';
+      if ((e.align === 'center' || e.align === 'right') && (e.type === 'heading' || e.type === 'para')) extra += ' text-align: ' + e.align + ';';
+      // display sizes live in the scoped stylesheet, not theme presets
+      if (DISPLAY_FS[e.fs] && (e.type === 'heading' || e.type === 'para')) {
+        extra += ' font-size: ' + DISPLAY_FS[e.fs] + '; line-height: 1.05;';
+      }
+      if (e.tf) {
+        // captured look of pasted HTML: emitted after the theme's presets so
+        // the paste wins until the user picks a theme size/colour (which
+        // clears the matching field)
+        var tfd = [];
+        if (e.tf.ff) tfd.push('font-family: ' + e.tf.ff);
+        if (e.tf.fs2) {
+          // container units scale the paste's text down on phones with the
+          // section; the floor keeps small text readable (big text scales,
+          // tiny text holds its size)
+          var dpx = Math.round(e.tf.fs2 * 12);
+          tfd.push('font-size: max(' + e.tf.fs2 + 'cqw, ' + Math.min(dpx, 15) + 'px) !important');
+        } else if (e.tf.fs) {
+          tfd.push('font-size: ' + e.tf.fs + 'px !important');
+        }
+        if (e.tf.fw) tfd.push('font-weight: ' + e.tf.fw);
+        if (e.tf.fst) tfd.push('font-style: ' + e.tf.fst);
+        if (e.tf.lh) tfd.push('line-height: ' + e.tf.lh);
+        if (e.tf.ls2 != null) tfd.push('letter-spacing: ' + e.tf.ls2 + 'em');
+        else if (e.tf.ls) tfd.push('letter-spacing: ' + e.tf.ls + 'px');
+        if (e.tf.tt) tfd.push('text-transform: ' + e.tf.tt);
+        if (e.tf.col) tfd.push('color: ' + e.tf.col + ' !important');
+        if (e.tf.bg) tfd.push('background: ' + e.tf.bg + ' !important');
+        if (e.tf.rad != null) tfd.push('border-radius: ' + e.tf.rad + 'px');
+        if (tfd.length) {
+          out.push(sec + clsSel +
+            (e.type === 'button' ? ' .wp-block-button__link' : '') +
+            ' { ' + tfd.join('; ') + '; }');
+        }
+      }
+      if (e.type === 'button' && e.btnHover) {
+        out.push(sec + clsSel + ' .wp-block-button__link:hover { background-color: var(--wp--preset--color--' + e.btnHover + ') !important; }');
+      }
+      out.push(sec + clsSel + ' { grid-area: ' + a.r1 + ' / ' + a.c1 + ' / ' + a.r2 + ' / ' + a.c2 +
+        '; z-index: ' + (i + 1) + '; ' + extra + ' }');
+      if (e.type === 'image' && e.src) {
+        out.push(sec + clsSel + ' img { width: 100%; height: 100%; object-fit: cover; display: block; border-radius: inherit; }');
+      }
+  }
   function buildCSS(els, scope, minH, opts) {
     opts = opts || {};
     var g = solve(els, minH);
-    var rank = readingRank(els);
     var sec = '.gogh-section.' + scope;
     var out = [
       '/* generated by gogh */',
-      '.gogh-wrap { container-type: inline-size; margin-block: 0 !important; }',
+      '.gogh-wrap { container-type: inline-size; margin-block: 0 !important; min-width: 100%; }',
       sec + ' {',
       '  display: grid;',
       '  position: relative;',
+      (opts.fill ? '  min-height: 100svh;' : ''),
       (function () {
+        // the tint strength is a dial (Canva-style): default 62 over an
+        // image, solid for plain colour — opts.bgA is 0–100
+        var bgA = opts.bgA != null ? Math.max(0, Math.min(100, opts.bgA)) : null;
+        var layers = [];
+        var bgIsComposition = !!(opts.bg && /gradient\(/.test(opts.bg));
         if (opts.bgImage) {
           var img = 'url("' + String(opts.bgImage).replace(/"/g, '%22') + '") center / cover no-repeat';
-          if (opts.bg) {
+          if (opts.bg && !bgIsComposition) {
             // palette-aware tint over the image keeps text readable in any
             // style variation (the tint follows the theme's own colours)
-            var tint = 'color-mix(in srgb, ' + opts.bg + ' 62%, transparent)';
-            return '  background: linear-gradient(' + tint + ', ' + tint + '), ' + img + ';';
+            var tint = 'color-mix(in srgb, ' + opts.bg + ' ' + (bgA != null ? bgA : 62) + '%, transparent)';
+            layers.push('linear-gradient(' + tint + ', ' + tint + ')');
+          } else if (els.some(textyEl)) {
+            // GUARDRAIL: an image straight behind text gets a soft
+            // theme-base scrim so words stay readable; picking a colour
+            // replaces it with the user's own tint
+            var auto = 'color-mix(in srgb, var(--wp--preset--color--base, #fff) 45%, transparent)';
+            layers.push('linear-gradient(' + auto + ', ' + auto + ')');
           }
-          return '  background: ' + img + ';';
+          layers.push(img);
+        } else if (opts.bg && bgA != null && bgA < 100 && !bgIsComposition) {
+          layers.push('color-mix(in srgb, ' + opts.bg + ' ' + bgA + '%, transparent)');
+        } else if (opts.bg) {
+          layers.push(opts.bg);
         }
-        return opts.bg ? '  background: ' + opts.bg + ';' : '';
+        var fxBg = opts.fx && opts.fx.bg;
+        if (!layers.length) {
+          // grain textures ANY section, even one riding the theme's own
+          // background — the noise layer stands alone
+          return fxBg === 'grain' ? '  background: ' + GRAIN_LAYER + ';' : '';
+        }
+        var stack = layers.join(', ');
+        // ---- section background effects: elegant, never flashy ----
+        if (fxBg === 'grain') {
+          // a whisper of film texture blended over the stack — plain
+          // colours wrap as gradients so the layers can stack
+          var wrapped = layers.map(function (l) {
+            return /gradient|url\(/.test(l) ? l : 'linear-gradient(' + l + ', ' + l + ')';
+          });
+          var blend = ['soft-light'].concat(wrapped.map(function () { return 'normal'; }));
+          return '  background: ' + GRAIN_LAYER + ', ' + wrapped.join(', ') + ';' +
+            ' background-blend-mode: ' + blend.join(', ') + ';';
+        }
+        if ((fxBg === 'parallax' && opts.bgImage) || fxBg === 'drift' || fxBg === 'reveal') {
+          // the stack moves to a ::before so it can animate without ever
+          // touching the words (elements stack above at z ≥ 1)
+          return '  overflow: hidden; overflow: clip;';
+          // clip, NOT hidden: hidden makes the section itself a scroll
+          // container, which strangles the view() timeline (it tracks the
+          // layer against the section's own never-scrolling scrollport —
+          // the "parallax just doesn't" report). clip only clips.
+        }
+        return '  background: ' + stack + ';';
       })(),
       '  grid-template-columns: ' + g.cols.join(' ') + ';',
       '  grid-template-rows:\n    ' + g.rows.join('\n    ') + ';',
@@ -378,7 +625,28 @@
       // image placeholders, which must be exactly their grid cell
       sec + ' > .wp-block-group { padding: 0 !important; }',
     ];
-    if (opts.divider && opts.divider.shape && opts.divColor && DIVIDER_PATHS[opts.divider.shape]) {
+    if (opts.topDivider) {
+      // the transition carved into THIS section's top: layer one is the
+      // divider shape (its filled side faces down, exactly the region that
+      // should stay visible), layer two keeps everything below the band
+      var tdMask = opts.topDivider === 'melt'
+        ? 'linear-gradient(to bottom, transparent, #000)'
+        : dividerBg(opts.topDivider, '#000');
+      var tdH = opts.topDivider === 'melt' ? '16cqw' : '8cqw';
+      var tdLayers = tdMask + ' top / 100% ' + tdH + ' no-repeat, linear-gradient(#000, #000) 0 calc(' + tdH + ' - 1px) / 100% calc(100% - ' + tdH + ' + 1px) no-repeat';
+      // the carved-away area is transparent — without overlap it reveals the
+      // PAGE background (a white wedge between two photos). Pulling the
+      // section up by the carve height parks the cut over the previous
+      // section's real pixels, so the photo above shows through the shape.
+      // Margin only, no padding: the border box stays the design space the
+      // editor's pointer math lives in
+      out.push(sec + ' { margin-top: calc(-1 * ' + tdH + ') !important; }');
+      out.push(sec + ' { -webkit-mask-image: ' + (opts.topDivider === 'melt' ? tdMask : tdMask) + ', linear-gradient(#000, #000); -webkit-mask-position: top, 0 calc(' + tdH + ' - 1px); -webkit-mask-size: 100% ' + tdH + ', 100% calc(100% - ' + tdH + ' + 1px); -webkit-mask-repeat: no-repeat; mask-image: ' + (opts.topDivider === 'melt' ? tdMask : tdMask) + ', linear-gradient(#000, #000); mask-position: top, 0 calc(' + tdH + ' - 1px); mask-size: 100% ' + tdH + ', 100% calc(100% - ' + tdH + ' + 1px); mask-repeat: no-repeat; }');
+    }
+    if (opts.divider && !opts.divNextRich && opts.divider.shape === 'melt' && opts.divColor) {
+      // no edge at all: the section dissolves into the next one's colour
+      out.push(sec + '::after { content: ""; position: absolute; left: 0; right: 0; bottom: -1px; height: 16cqw; z-index: 0; pointer-events: none; background: linear-gradient(to bottom, transparent, ' + opts.divColor + '); }');
+    } else if (opts.divider && !opts.divNextRich && opts.divider.shape && opts.divColor && DIVIDER_PATHS[opts.divider.shape]) {
       // mask (not background-image) so the colour can be a CSS variable —
       // theme palette changes recolour dividers live
       var mask = dividerBg(opts.divider.shape, '#000');
@@ -386,22 +654,117 @@
         '-webkit-mask-image: ' + mask + '; mask-image: ' + mask + '; ' +
         '-webkit-mask-size: 100% 100%; mask-size: 100% 100%; -webkit-mask-repeat: no-repeat; mask-repeat: no-repeat; }');
     }
+    (function () {
+      var fxBg = opts.fx && opts.fx.bg;
+      if (fxBg !== 'parallax' && fxBg !== 'drift' && fxBg !== 'reveal') return;
+      if (fxBg === 'parallax' && !opts.bgImage) return;
+      // rebuild the same stack for the pseudo layer (kept in lockstep with
+      // the branch above by construction)
+      var bgA = opts.bgA != null ? Math.max(0, Math.min(100, opts.bgA)) : null;
+      var bgIsComposition = !!(opts.bg && /gradient\(/.test(opts.bg));
+      var layers = [];
+      if (opts.bgImage) {
+        var img = 'url("' + String(opts.bgImage).replace(/"/g, '%22') + '") center / cover no-repeat';
+        if (opts.bg && !bgIsComposition) {
+          var tint = 'color-mix(in srgb, ' + opts.bg + ' ' + (bgA != null ? bgA : 62) + '%, transparent)';
+          layers.push('linear-gradient(' + tint + ', ' + tint + ')');
+        } else if (els.some(textyEl)) {
+          var auto = 'color-mix(in srgb, var(--wp--preset--color--base, #fff) 45%, transparent)';
+          layers.push('linear-gradient(' + auto + ', ' + auto + ')');
+        }
+        layers.push(img);
+      } else if (opts.bg && bgA != null && bgA < 100 && !bgIsComposition) {
+        layers.push('color-mix(in srgb, ' + opts.bg + ' ' + bgA + '%, transparent)');
+      } else if (opts.bg) {
+        layers.push(opts.bg);
+      }
+      if (!layers.length) return;
+      // the selector arms itself: the editing grid's drag-time rule
+      // (.gogh-editing .gogh-section.gogh-grid-live::before) carries three
+      // classes and was repossessing this layer mid-drag — the scope class
+      // repeated twice makes four, decisive in any load order
+      var secFx = sec + '.' + scope + '.' + scope;
+      // parallax needs headroom: the layer is taller than the section so
+      // its slower journey never shows an edge
+      var inset = fxBg === 'parallax' ? '-20% 0' : '0';
+      // dragging must keep BOTH the picture and the grid: the hairlines
+      // join this very layer as top coats while gogh-grid-live is on
+      // (majors only — calm over photos). Published pages never carry
+      // .gogh-editing, so this costs them nothing.
+      var gridCoats = [
+        'linear-gradient(to right, rgba(255,255,255,0.65) 1px, transparent 1px) 0 0 / 3.3333cqw 3.3333cqw',
+        'linear-gradient(to bottom, rgba(255,255,255,0.65) 1px, transparent 1px) 0 0 / 3.3333cqw 3.3333cqw',
+        'linear-gradient(to right, rgba(15,23,42,0.4) 1px, transparent 1px) 1px 1px / 3.3333cqw 3.3333cqw',
+        'linear-gradient(to bottom, rgba(15,23,42,0.4) 1px, transparent 1px) 1px 1px / 3.3333cqw 3.3333cqw'
+      ].join(', ');
+      // opacity: 1 declared, not assumed — the editing grid shares this
+      // pseudo at opacity 0, which blanked every effect section's backdrop
+      // in the editor (the grid simply skips effect sections now)
+      out.push(secFx + '::before { content: ""; position: absolute; inset: ' + inset + '; z-index: 0; pointer-events: none; opacity: 1 !important; background: ' + layers.join(', ') + '; }');
+      out.push('.gogh-editing ' + secFx + '.gogh-grid-live::before, .gogh-grid-on.gogh-editing ' + secFx + '::before { background: ' + gridCoats + ', ' + layers.join(', ') + '; }');
+      if (opts.fxDemo && (fxBg === 'parallax' || fxBg === 'reveal')) {
+        // AUDITION THEATRE: scroll effects are invisible on a section
+        // already in view, so hovering the chip performs a short canned
+        // sweep of the real motion — the kept effect rides the scroll
+        var demo = fxBg === 'parallax'
+          ? '@keyframes gogh-fx-demo { 0% { transform: translateY(0); } 40% { transform: translateY(-9%); } 100% { transform: translateY(6%); } }'
+          : '@keyframes gogh-fx-demo { from { opacity: 0.05; transform: scale(1.06) translateY(2%); } to { opacity: 1; transform: none; } }';
+        out.push(demo);
+        out.push(secFx + '::before { animation: gogh-fx-demo 1.5s ease both; }');
+        return;
+      }
+      if (fxBg === 'parallax') {
+        // TRUE parallax: the picture travels slower than the page, driven
+        // by the section's own journey through the viewport (pure CSS,
+        // every platform; without view() support it stands still)
+        out.push('@supports (animation-timeline: view()) { ' + secFx + '::before { animation: gogh-parallax linear both; animation-timeline: view(); animation-range: cover 0% cover 100%; } }');
+        out.push('@keyframes gogh-parallax { from { transform: translateY(-16%); } to { transform: translateY(16%); } }');
+        return;
+      }
+      if (fxBg === 'drift') {
+        // an imperceptible Ken Burns: the picture breathes over 36 seconds
+        out.push(secFx + '::before { animation: gogh-drift 20s ease-in-out infinite alternate; }');
+        out.push('@keyframes gogh-drift { from { transform: scale(1); } to { transform: scale(1.12); } }');
+      } else {
+        // reveal rides the scroll itself (CSS scroll-driven animation) —
+        // browsers without view() simply show the finished state
+        out.push('@supports (animation-timeline: view()) { ' + secFx + '::before { animation: gogh-reveal linear both; animation-timeline: view(); animation-range: entry 0% cover 45%; } }');
+        out.push('@keyframes gogh-reveal { from { opacity: 0.05; transform: scale(1.06) translateY(2%); } to { opacity: 1; transform: none; } }');
+      }
+    })();
     els.forEach(function (e, i) {
-      var a = g.areas[i];
-      var extra = TYPE_RULES[e.type];
-      if (e.type === 'image') {
-        extra += e.src ? ' overflow: hidden;' : ' ' + imageBackground(e);
+      emitElCSS(out, sec, ' .gogh-el-' + (i + 1), e, i, g.areas[i]);
+    });
+    // a box with kids is a CARD — a mini-section: its own grid over the same
+    // solver. Columns in fr so the card fills its slot at ANY width (mobile
+    // stacking included); rows in section-cqw like everything else, so the
+    // card's proportions ride the page scale.
+    els.forEach(function (e, i) {
+      if (e.type !== 'box' || !e.kids || !e.kids.length) return;
+      var cardSel = sec + ' .gogh-el-' + (i + 1);
+      var kg = solve(e.kids, e.h, e.w);
+      var kidH = designH(e.kids, e.h);
+      var cardRows = kg.rows.map(function (r) {
+        // solve emits section-cqw (1cqw = W/100 design units); the card's
+        // rows must be % of the CARD's height so they scale with it
+        var x = parseFloat(String(r).replace('minmax(', ''));
+        var pctH = Math.max(0, +((x * W / 100) / kidH * 100).toFixed(2));
+        return 'minmax(' + pctH + '%, max-content)';
+      });
+      out.push(cardSel + ' { display: grid; position: relative; overflow: hidden;' +
+        ' grid-template-columns: ' + kg.cols.map(function (c) { return parseFloat(c) + 'fr'; }).join(' ') + ';' +
+        ' grid-template-rows: ' + cardRows.join(' ') + '; }');
+      out.push(cardSel + ' > * { margin: 0 !important; min-width: 0; box-sizing: border-box; }');
+      if (e.href) {
+        // the stretched link rides ABOVE the kids: with it underneath, every
+        // text block swallowed the hover and "that bit is not linked". While
+        // editing it goes inert so kids stay selectable and draggable.
+        out.push(cardSel + ' > .gogh-card-link { position: absolute; inset: 0; z-index: 60; grid-area: 1 / 1 / -1 / -1; }');
+        out.push('.gogh-editing ' + cardSel + ' > .gogh-card-link { pointer-events: none; }');
       }
-      if (e.rot) extra += ' transform: rotate(' + e.rot + 'deg);';
-      if ((e.align === 'center' || e.align === 'right') && (e.type === 'heading' || e.type === 'para')) extra += ' text-align: ' + e.align + ';';
-      if (e.type === 'button' && e.btnHover) {
-        out.push(sec + ' .gogh-el-' + (i + 1) + ' .wp-block-button__link:hover { background-color: var(--wp--preset--color--' + e.btnHover + ') !important; }');
-      }
-      out.push(sec + ' .gogh-el-' + (i + 1) + ' { grid-area: ' + a.r1 + ' / ' + a.c1 + ' / ' + a.r2 + ' / ' + a.c2 +
-        '; z-index: ' + (i + 1) + '; ' + extra + ' }');
-      if (e.type === 'image' && e.src) {
-        out.push(sec + ' .gogh-el-' + (i + 1) + ' img { width: 100%; height: 100%; object-fit: cover; display: block; border-radius: inherit; }');
-      }
+      e.kids.forEach(function (k, j) {
+        emitElCSS(out, cardSel, ' > .gogh-k-' + (j + 1), k, j, kg.areas[j]);
+      });
     });
     out.push(
       sec + ' .gogh-badge::before { content: "★"; width: 1.9em; height: 1.9em; flex: none; border-radius: 50%; background: #e8b04b; display: grid; place-items: center; color: #141519; }',
@@ -413,14 +776,48 @@
       '  ' + sec + ' { grid-template-columns: 7cqw 1fr 7cqw; grid-template-rows: none; grid-auto-rows: auto; row-gap: 6cqw; padding: 9cqw 0; }'
     );
     els.forEach(function (e, i) {
-      out.push('  ' + sec + ' .gogh-el-' + (i + 1) + ' { grid-area: auto; grid-column: 2; order: ' + rank[i] + ';' +
+      // no `order:` here — the DOM itself is written in reading order, so
+      // stacked mobile flow, tab order and screen-reader order all agree
+      out.push('  ' + sec + ' .gogh-el-' + (i + 1) + ' { grid-area: auto; grid-column: 2;' +
         (e.type === 'image' ? ' aspect-ratio: ' + e.w + ' / ' + e.h + ';' : '') +
+        // stacked mobile: decorative SHAPES step aside; plain boxes are
+        // structural panels (photo-card scrims, feature mats) and keep
+        // their proportions instead of collapsing to zero height. CARDS are
+        // the exception — narrow width makes their text TALLER, so locking
+        // the design aspect squeezes kids into overlap; they size to
+        // content, with a gap standing in for the collapsed design spacers
+        (e.type === 'box' ? (e.shape ? ' display: none;' :
+          (e.kids && e.kids.length ? ' aspect-ratio: auto; height: auto; display: flex; flex-direction: column; gap: 3cqw; padding: 6cqw 5cqw !important; align-items: flex-start;' :
+            ' aspect-ratio: ' + e.w + ' / ' + e.h + ';')) : '') +
+        (e.type === 'exp' ? ' aspect-ratio: ' + e.w + ' / ' + e.h + ';' : '') +
         (e.type === 'badge' ? ' width: max-content; height: 44px;' : '') + ' }');
     });
     out.push(
       '  ' + sec + ' .wp-block-button, ' + sec + ' .wp-block-button__link { width: max-content; height: 44px; padding: 0 24px; }',
       '}'
     );
+    var fx = opts.fx || {};
+    var wrapSel = '.gogh-wrap:has(> ' + sec + ')';
+    if (fx.pull) {
+      // the section rides up over the previous one (design units -> vw)
+      out.push(wrapSel + ' { margin-top: calc(-1 * ' + (Math.round(fx.pull / 12 * 100) / 100) + 'vw) !important; position: relative; z-index: 3; }');
+      out.push('@media (max-width: 700px) { ' + wrapSel + ' { margin-top: 0 !important; } }');
+    }
+    if (fx.curtain) {
+      // this section slides over the previous (which sectionOpts pins sticky)
+      out.push(wrapSel + ' { position: relative; z-index: 2; }');
+    }
+    if (opts.stickUnder) {
+      out.push(wrapSel + ' { position: sticky; top: 0; z-index: 0; }');
+      out.push('@media (max-width: 700px) { ' + wrapSel + ' { position: static; } }');
+    }
+    if (fx.reveal) {
+      // scroll-driven rise: published page only (never while editing);
+      // `translate` not `transform` so element rotation survives the fill
+      out.push('@keyframes gogh-rise { from { opacity: 0; translate: 0 46px; } to { opacity: 1; translate: 0 0; } }');
+      out.push('@supports (animation-timeline: view()) { html:not(.gogh-editing) ' + sec + ' > * { animation: gogh-rise linear both; animation-timeline: view(); animation-range: entry 8% entry 48%; } }');
+      out.push('@media (prefers-reduced-motion: reduce) { ' + sec + ' > * { animation: none; } }');
+    }
     return out.join('\n');
   }
 
@@ -440,30 +837,41 @@
       text: e.text || null, ghost: !!e.ghost, cool: !!e.cool,
       src: e.src || null, href: e.href || null, rot: e.rot || 0,
       alt: e.alt || null, mediaId: e.mediaId || null, fs: e.fs || null,
-      align: e.align || null, color: e.color || null,
-      btnBg: e.btnBg || null, btnText: e.btnText || null, btnHover: e.btnHover || null };
+      align: e.align || null, color: e.color || null, tf: e.tf || null,
+      btnBg: e.btnBg || null, btnText: e.btnText || null, btnHover: e.btnHover || null,
+      wsrc: e.wsrc || null, whtml: e.whtml || null, wcol: e.wcol || null,
+      boxBg: e.boxBg || null, radius: e.radius || 0, shape: e.shape || null,
+      boxImg: e.boxImg || null, boxImgId: e.boxImgId || null,
+      mood: e.mood || null,
+      faq: e.faq || null, tabs: e.tabs || null, slides: e.slides || null, copt: e.copt || null,
+      wall: e.wall || null, wopt: e.wopt || null,
+      ph: e.ph || null,
+      expId: e.expId || null, expUrl: e.expUrl || null,
+      kids: e.kids && e.kids.length ? e.kids.map(projEl) : null };
   }
-  function buildSectionBlocks(sec) {
-    var els = sec.els;
-    var inner = els.map(function (e, i) {
-      var cls = 'gogh-el-' + (i + 1);
+  function buildElBlocks(els, clsBase) {
+    // blocks are emitted in READING order; each keeps its stacking-indexed
+    // class, so grid placement and z-order are untouched by the resequence
+    return readingIndexOrder(els).map(function (i) {
+      var e = els[i];
+      var cls = (clsBase || 'gogh-el-') + (i + 1);
       switch (e.type) {
         case 'heading': {
           var hAttrs = { level: 2, className: cls };
           if (e.align === 'center' || e.align === 'right') hAttrs.textAlign = e.align;
-          if (e.fs) hAttrs.fontSize = e.fs;
+          if (e.fs && !DISPLAY_FS[e.fs]) hAttrs.fontSize = e.fs;
           if (e.color) hAttrs.textColor = e.color;
           return '<!-- wp:heading ' + JSON.stringify(hAttrs) + ' -->\n' +
-            '<h2 class="wp-block-heading ' + (e.align === 'center' || e.align === 'right' ? 'has-text-align-' + e.align + ' ' : '') + cls + (e.fs ? ' has-' + e.fs + '-font-size' : '') + (e.color ? ' has-text-color has-' + e.color + '-color' : '') + '">' +
+            '<h2 class="wp-block-heading ' + (e.align === 'center' || e.align === 'right' ? 'has-text-align-' + e.align + ' ' : '') + cls + (e.fs && !DISPLAY_FS[e.fs] ? ' has-' + e.fs + '-font-size' : '') + (e.color ? ' has-text-color has-' + e.color + '-color' : '') + '">' +
             cleanInline(e.text) + '</h2>\n<!-- /wp:heading -->';
         }
         case 'para': {
           var pAttrs = { className: cls };
           if (e.align === 'center' || e.align === 'right') pAttrs.align = e.align;
-          if (e.fs) pAttrs.fontSize = e.fs;
+          if (e.fs && !DISPLAY_FS[e.fs]) pAttrs.fontSize = e.fs;
           if (e.color) pAttrs.textColor = e.color;
           return '<!-- wp:paragraph ' + JSON.stringify(pAttrs) + ' -->\n' +
-            '<p class="' + (e.align === 'center' || e.align === 'right' ? 'has-text-align-' + e.align + ' ' : '') + cls + (e.fs ? ' has-' + e.fs + '-font-size' : '') + (e.color ? ' has-text-color has-' + e.color + '-color' : '') + '">' +
+            '<p class="' + (e.align === 'center' || e.align === 'right' ? 'has-text-align-' + e.align + ' ' : '') + cls + (e.fs && !DISPLAY_FS[e.fs] ? ' has-' + e.fs + '-font-size' : '') + (e.color ? ' has-text-color has-' + e.color + '-color' : '') + '">' +
             cleanInline(e.text) + '</p>\n<!-- /wp:paragraph -->';
         }
         case 'button': {
@@ -500,15 +908,53 @@
         case 'badge':
           return '<!-- wp:paragraph {"className":"' + cls + ' gogh-badge"} -->\n' +
             '<p class="' + cls + ' gogh-badge">' + esc(e.text) + '</p>\n<!-- /wp:paragraph -->';
+        case 'box': {
+          // a coloured backdrop rectangle: an empty group. Preset colours go
+          // in block attrs; raw colours ride in the section stylesheet, which
+          // ships inside the page either way.
+          var boxAttrs = { className: cls + ' gogh-box' + (e.kids && e.kids.length ? ' gogh-cardbox' : ''), layout: { type: 'default' } };
+          var boxCls = 'wp-block-group ' + cls + ' gogh-box' + (e.kids && e.kids.length ? ' gogh-cardbox' : '');
+          if (e.boxBg && /^[a-z0-9-]+$/.test(e.boxBg)) {
+            boxAttrs.backgroundColor = e.boxBg;
+            boxCls += ' has-' + e.boxBg + '-background-color has-background';
+          }
+          // a card publishes its kids INSIDE itself — plugin off, they
+          // degrade to normal stacked blocks in a group
+          var boxLink = e.href
+            ? '<a class="gogh-card-link" href="' + escAttr(e.href) + '" aria-label="' + escAttr((e.kids && e.kids.length && e.kids[0].text) || 'Card link') + '"></a>'
+            : '';
+          var boxInner = (boxLink || (e.kids && e.kids.length)) ? '\n' + boxLink + (e.kids && e.kids.length ? buildElBlocks(e.kids, 'gogh-k-') : '') + '\n' : '';
+          return '<!-- wp:group ' + JSON.stringify(boxAttrs) + ' -->\n' +
+            '<div class="' + boxCls + '">' + boxInner + '</div>\n<!-- /wp:group -->';
+        }
+        case 'widget':
+          // atomic block (navigation, site title…): source markup verbatim,
+          // wrapped so the solver can place it
+          return '<!-- wp:group {"className":"' + cls + ' gogh-widget","layout":{"type":"default"}} -->\n' +
+            '<div class="wp-block-group ' + cls + ' gogh-widget">\n' + (e.wsrc || '') + '\n</div>\n<!-- /wp:group -->';
+        case 'exp':
+          // stored markup carries ONLY a plain link (kses-safe, works with the
+          // plugin off); gogh_render_section swaps it for the sandboxed iframe
+          return '<!-- wp:group ' + JSON.stringify({ className: cls + ' gogh-exp' }) + ' -->\n' +
+            '<div class="wp-block-group ' + cls + ' gogh-exp">' +
+            (e.expUrl ? '<a class="gogh-exp-link" href="' + escAttr(e.expUrl) + '">Open interactive experience</a>' : '') +
+            '</div>\n<!-- /wp:group -->';
       }
     }).join('\n\n');
-
-    var json = JSON.stringify({
-      version: 2, designW: W, minH: sec.minH || null,
+  }
+  function sectionModelJSON(sec, version) {
+    return {
+      version: version, designW: W, minH: sec.minH || null,
       bg: sec.bg || null, divider: sec.divider || null,
-      bgImage: sec.bgImage || null, bgId: sec.bgId || null,
-      elements: els.map(projEl),
-    }).replace(/</g, '\\u003c');
+      fx: sec.fx || null,
+      bgImage: sec.bgImage || null, bgId: sec.bgId || null, bgA: sec.bgA != null ? sec.bgA : null, theme: sec.theme || null, fill: sec.fill || null,
+      elements: sec.els.map(projEl),
+    };
+  }
+  function buildSectionBlocks(sec) {
+    var els = sec.els;
+    var inner = buildElBlocks(els);
+    var json = JSON.stringify(sectionModelJSON(sec, 2)).replace(/</g, '\\u003c');
 
     return '<!-- wp:gogh/section -->\n' +
       '<div class="wp-block-gogh-section alignfull gogh-wrap">' +
@@ -518,11 +964,71 @@
       inner + '\n</div></div>\n' +
       '<!-- /wp:gogh/section -->';
   }
+
+  // ---------- SPIKE: attributes as the stored source of truth (v3) ----------
+  // The block comment carries { model, cssT }: the editing model plus the
+  // presentation compiled to a scope-templated stylesheet. PHP's job at
+  // render is scoping + emission ONLY — no visual logic lives server-side.
+  // Saved inner markup stays semantic core blocks: the plugin-off fallback.
+  function serializeBlockAttrs(obj) {
+    // mirror WP's serialize_block_attributes(): the JSON rides inside an
+    // HTML comment, so comment/HTML-sensitive sequences must be escaped
+    return JSON.stringify(obj)
+      .replace(/--/g, '\\u002d\\u002d')
+      .replace(/</g, '\\u003c')
+      .replace(/>/g, '\\u003e')
+      .replace(/&/g, '\\u0026')
+      .replace(/\\"/g, '\\u0022');
+  }
+  function buildSectionAttrsV3(sec) {
+    return {
+      v: 3,
+      scope: sec.scope,
+      model: sectionModelJSON(sec, 3),
+      // GOGHSCOPE placeholder: PHP substitutes the sanitized scope class.
+      // (Production refinement: split into per-rule declaration maps.)
+      cssT: buildCSS(sec.els, 'GOGHSCOPE', sec.minH, sectionOpts(sec)),
+    };
+  }
+  function buildSectionBlocksV3(sec) {
+    var attrs = buildSectionAttrsV3(sec);
+    // the baked stylesheet is a PROJECTION of the attrs (matches the block's
+    // save() output byte-for-byte, and the server rebake regenerates it when
+    // KSES strips it) — deactivation keeps the look, attrs stay the truth
+    var css = attrs.cssT.split('GOGHSCOPE').join(sec.scope);
+    return '<!-- wp:gogh/section ' + serializeBlockAttrs(attrs) + ' -->\n' +
+      '<div class="wp-block-gogh-section alignfull gogh-wrap">' +
+      '<style class="gogh-style">' + css + '</style>' +
+      '<div class="gogh-section ' + sec.scope + '" data-gogh-scope="' + sec.scope + '">\n' +
+      buildElBlocks(sec.els) + '\n</div></div>\n' +
+      '<!-- /wp:gogh/section -->';
+  }
+  // the blank-canvas placeholder is discardable only while it's TRULY blank:
+  // a background (image or colour) is content — the section publishes, the
+  // invite leaves, and nothing replaces it silently
+  function isBlankBoot(s) {
+    return s.bootstrap && !s.els.length && !s.bg && !s.bgImage;
+  }
   function realSections() {
-    return S.filter(function (s) { return !(s.bootstrap && !s.els.length); });
+    return S.filter(function (s) { return !isBlankBoot(s) && !s.chrome; });
   }
   function buildAllBlocks() {
-    return realSections().map(buildSectionBlocks).join('\n\n');
+    return realSections().map(buildSectionBlocksV3).join('\n\n');
+  }
+  // gogh sections and freshly added native patterns, in page order
+  function pageStream() {
+    var parts = [];
+    [].slice.call(pageParent.children).forEach(function (n) {
+      if (!n.classList) return;
+      if (n.classList.contains('gogh-wrap')) {
+        var sec = realSections().filter(function (s) { return s.wrapEl === n; })[0];
+        if (sec) parts.push(buildSectionBlocksV3(sec));
+      } else if (n.classList.contains('gogh-pending')) {
+        var pe = pendingBlocks.filter(function (q) { return q.el === n; })[0];
+        if (pe) parts.push(pe.raw);
+      }
+    });
+    return parts.join('\n\n');
   }
 
   // ---------- element factory & rendering ----------
@@ -531,7 +1037,7 @@
   function cleanInline(html) {
     // self-contained: the boot-time collector calls this before mid-file
     // var assignments have run, so the allow-list must live inside
-    var INLINE_OK = { A: 1, STRONG: 1, EM: 1, B: 1, I: 1, BR: 1 };
+    var INLINE_OK = { A: 1, STRONG: 1, EM: 1, B: 1, I: 1, BR: 1, IMG: 1 };
     var tpl = document.createElement('template');
     tpl.innerHTML = html == null ? '' : String(html);
     (function walk(node) {
@@ -544,9 +1050,16 @@
           return;
         }
         if (INLINE_OK[tag]) {
+          var IMG_OK = { src: 1, alt: 1, style: 1, class: 1, width: 1, height: 1 };
           [].slice.call(c.attributes).forEach(function (at) {
-            if (!(tag === 'A' && at.name === 'href')) c.removeAttribute(at.name);
+            if (tag === 'A' && at.name === 'href') return;
+            if (tag === 'IMG' && IMG_OK[at.name]) return;
+            c.removeAttribute(at.name);
           });
+          if (tag === 'IMG') {
+            var isrc = c.getAttribute('src') || '';
+            if (!/^(https?:|\/)/i.test(isrc.trim())) { node.removeChild(c); return; }
+          }
           if (tag === 'A') {
             var href = c.getAttribute('href') || '';
             if (!isSafeHref(href)) c.removeAttribute('href');
@@ -567,16 +1080,43 @@
   function makeNode(e, i) {
     var cls = 'gogh-el-' + (i + 1);
     var n;
+    // data-widgets (FAQ/Tabs/Carousel) edit through a form, not a caret —
+    // the hover tip teaches the gesture ("i wonder if we should give users
+    // some feedback... that they need to double click")
+    var formTip = e.type === 'widget'
+      ? (e.faq && e.faq.length ? 'Double-click to edit the questions'
+        : e.tabs && e.tabs.length ? 'Double-click to edit the tabs'
+        : e.slides && e.slides.length ? 'Double-click to edit the slides'
+        : e.wall && e.wall.length ? 'Double-click to edit the photos' : null)
+      : null;
     switch (e.type) {
+      case 'box':
+        n = document.createElement('div');
+        n.className = 'wp-block-group gogh-box ' + cls + (e.kids && e.kids.length ? ' gogh-cardbox' : '');
+        if (e.href) {
+          var cardA = document.createElement('a');
+          cardA.className = 'gogh-card-link';
+          cardA.href = e.href;
+          cardA.setAttribute('aria-label', (e.kids && e.kids.length && e.kids[0].text) || 'Card link');
+          n.appendChild(cardA);
+        }
+        if (e.kids) e.kids.forEach(function (k, j) {
+          var kn = makeNode(k, j);
+          kn.className = kn.className.replace('gogh-el-' + (j + 1), 'gogh-k-' + (j + 1));
+          n.appendChild(kn);
+        });
+        break;
       case 'heading':
         n = document.createElement('h2');
-        n.className = 'wp-block-heading ' + cls + (e.fs ? ' has-' + e.fs + '-font-size' : '') + (e.color ? ' has-text-color has-' + e.color + '-color' : '');
+        n.className = 'wp-block-heading ' + cls + (e.fs && !DISPLAY_FS[e.fs] ? ' has-' + e.fs + '-font-size' : '') + (e.color ? ' has-text-color has-' + e.color + '-color' : '');
         n.innerHTML = cleanInline(e.text);
+        if (e.ph && !(e.text && String(e.text).trim())) n.setAttribute('data-gogh-ph', e.ph);
         break;
       case 'para':
         n = document.createElement('p');
-        n.className = cls + (e.fs ? ' has-' + e.fs + '-font-size' : '') + (e.color ? ' has-text-color has-' + e.color + '-color' : '');
+        n.className = cls + (e.fs && !DISPLAY_FS[e.fs] ? ' has-' + e.fs + '-font-size' : '') + (e.color ? ' has-text-color has-' + e.color + '-color' : '');
         n.innerHTML = cleanInline(e.text);
+        if (e.ph && !(e.text && String(e.text).trim())) n.setAttribute('data-gogh-ph', e.ph);
         break;
       case 'button':
         n = document.createElement('div');
@@ -603,8 +1143,6 @@
         }
         break;
       case 'widget':
-        // produced by newer gogh versions (site-chrome branch): render the
-        // captured snapshot; treat as an opaque box
         n = document.createElement('div');
         n.className = 'wp-block-group ' + cls + ' gogh-widget';
         n.innerHTML = e.whtml || '';
@@ -614,12 +1152,29 @@
         n.className = cls + ' gogh-badge';
         n.textContent = e.text;
         break;
+      case 'exp': {
+        // uploaded HTML experience: sandboxed iframe with an OPAQUE origin —
+        // allow-scripts only, never allow-same-origin, so the bundle's code
+        // cannot read cookies or touch the embedding page
+        n = document.createElement('div');
+        n.className = 'wp-block-group ' + cls + ' gogh-exp';
+        if (e.expUrl) {
+          var fr = document.createElement('iframe');
+          fr.setAttribute('sandbox', 'allow-scripts');
+          fr.src = e.expUrl;
+          fr.title = 'Interactive experience';
+          fr.setAttribute('style', 'width:100%;height:100%;border:0;display:block;');
+          n.appendChild(fr);
+        }
+        break;
+      }
       default:
         // element type from a newer gogh: keep the page alive
         n = document.createElement('div');
         n.className = cls;
         break;
     }
+    if (formTip && n) n.dataset.tip = formTip;
     return n;
   }
 
@@ -634,10 +1189,26 @@
       }
     });
   }
+  // a RICH background (photo, effect layer, gradient composition) cannot
+  // be represented by a flat divider band — the transition must be carved
+  // into the rich section's own top edge instead
+  function richBg(sec2) {
+    return !!(sec2 && (sec2.bgImage || (sec2.fx && sec2.fx.bg) ||
+      (sec2.bg && /gradient\(/.test(String(sec2.bg)))));
+  }
   function sectionOpts(sec) {
     var idx = S.indexOf(sec);
     var next = idx >= 0 ? S[idx + 1] : null;
-    return { bg: sec.bg, divider: sec.divider, bgImage: sec.bgImage,
+    var prev = idx > 0 ? S[idx - 1] : null;
+    return { bg: sec.bg, bgA: sec.bgA != null ? sec.bgA : null, fill: !!sec.fill, divider: sec.divider, bgImage: sec.bgImage,
+      fx: sec.fx || null,
+      fxDemo: !!sec.__fxDemo,
+      stickUnder: !!(next && next.fx && next.fx.curtain),
+      // the image IS part of the transition: a rich next section carves
+      // itself, so this section's colour band stands down
+      divNextRich: richBg(next),
+      topDivider: (prev && !prev.chrome && prev.divider && prev.divider.shape && richBg(sec))
+        ? prev.divider.shape : null,
       divColor: next ? (next.bg || '#0f0e0c') : null };
   }
   function resolveAndApply(sec) {
@@ -689,14 +1260,43 @@
   function renderSection(sec) {
     if (textEditing && textEditing.sec === sec) exitTextEdit();
     sec.sectionEl.innerHTML = '';
-    sec.nodes = sec.els.map(function (e, i) {
-      var n = makeNode(e, i);
-      sec.sectionEl.appendChild(n);
-      return n;
+    sec.nodes = sec.els.map(function (e, i) { return makeNode(e, i); });
+    // append in READING order (nodes[] stays indexed by element) — keyboard
+    // tabbing through the canvas follows the visual flow
+    readingIndexOrder(sec.els).forEach(function (i) {
+      sec.sectionEl.appendChild(sec.nodes[i]);
     });
     sec.nodes.forEach(function (n, i) { bindSelect(sec, i); });
     if (editing) sec.els.forEach(function (e, i) { bindEditable(sec, i, true); });
+    // a blank page must invite, not just permit: the empty bootstrap canvas
+    // carries a visible "first section" button (edit mode only, via CSS)
+    if (isBlankBoot(sec)) {
+      var inv = document.createElement('button');
+      inv.type = 'button';
+      inv.className = 'gogh-bootinvite';
+      inv.innerHTML = '<span class="gogh-bootinvite-plus">＋</span><span>Add your first section</span><span class="gogh-bootinvite-hint">pick a layout, or start from a blank canvas</span>';
+      inv.addEventListener('click', function () { openPicker(S.indexOf(sec)); });
+      sec.sectionEl.appendChild(inv);
+    }
     resolveAndApply(sec);
+    // the theme has the last word on type: a serif variation can wrap a
+    // display heading TALLER than the box a template designed, and the
+    // words then sit on whatever was below (James's "Good design is good
+    // business" landed on its own button). Growth pushes — the same
+    // contract typing honours — processed top-down so pushes cascade.
+    var sMeasure = scaleOf(sec);
+    if (sMeasure > 0) {
+      sec.els.slice().sort(function (a, b) { return a.y - b.y; }).forEach(function (e) {
+        if (!isText(e)) return;
+        var i = sec.els.indexOf(e);
+        var h = sec.nodes[i] ? sec.nodes[i].offsetHeight / sMeasure : 0;
+        if (h > 0 && Math.round(h) > e.h + 2) {
+          var oldH = e.h;
+          e.h = Math.round(h);
+          reflowPush(sec, e, oldH);
+        }
+      });
+    }
     measureTextHeights(sec);
     resolveAndApply(sec);
   }
@@ -711,13 +1311,13 @@
     sectionEl.className = 'gogh-section ' + scope;
     sectionEl.setAttribute('data-gogh-scope', scope);
     wrap.appendChild(sectionEl);
-    return { scope: scope, els: [], minH: null, bg: null, divider: null, bgImage: null, bgId: null, wrapEl: wrap, sectionEl: sectionEl, styleEl: styleEl, nodes: [] };
+    return { scope: scope, els: [], minH: null, bg: null, divider: null, fx: null, bgImage: null, bgId: null, wrapEl: wrap, sectionEl: sectionEl, styleEl: styleEl, nodes: [] };
   }
 
   // ---------- history (undo/redo) ----------
   var history = [], hIdx = -1, textTimer = null;
   function serialize() {
-    return JSON.stringify(S.map(function (sec) { return { scope: sec.scope, els: sec.els, minH: sec.minH || null, bg: sec.bg || null, divider: sec.divider || null, bgImage: sec.bgImage || null, bgId: sec.bgId || null, src: sec.srcSig || null, boot: sec.bootstrap || false }; }));
+    return JSON.stringify(S.map(function (sec) { return { scope: sec.scope, els: sec.els, minH: sec.minH || null, bg: sec.bg || null, divider: sec.divider || null, fx: sec.fx || null, bgImage: sec.bgImage || null, bgId: sec.bgId || null, bgA: sec.bgA != null ? sec.bgA : null, theme: sec.theme || null, fill: sec.fill || null, src: sec.srcSig || null, boot: sec.bootstrap || false, chrome: sec.chrome || null }; }));
   }
   function pushState() {
     var snap = serialize();
@@ -728,9 +1328,19 @@
     hIdx = history.length - 1;
     syncHistoryButtons();
     placeConvertBtns(); // layout below may have shifted
+    placeChromeBtns();
     refreshChip();
   }
+  function partElForArea(area) {
+    var els = chromePartEls();
+    for (var i = 0; i < els.length; i++) {
+      var a = els[i].tagName === 'FOOTER' ? 'footer' : 'header';
+      if (a === area) return els[i];
+    }
+    return null;
+  }
   function restoreState(snap) {
+    clearMulti();
     var data = JSON.parse(snap);
     // full rebuild, but each section goes back to its own DOM position so
     // non-gogh blocks interleaved with sections stay where they are
@@ -744,7 +1354,7 @@
     });
     S.forEach(function (sec) { sec.wrapEl.remove(); sec.styleEl.remove(); });
     var newS = [];
-    var nextAnchor = endMarker;
+    var prevIns = null; // the section restored just before = the NEXT one in page order
     for (var di = data.length - 1; di >= 0; di--) {
       var d = data[di];
       var sec = newSectionShell(d.scope);
@@ -752,16 +1362,31 @@
       sec.minH = d.minH || null;
       sec.bg = d.bg || null;
       sec.divider = d.divider || null;
+      sec.fx = d.fx || null;
       sec.bgImage = d.bgImage || null;
       sec.bgId = d.bgId || null;
+      sec.bgA = d.bgA != null ? d.bgA : null;
+      sec.theme = d.theme || null;
+      sec.fill = !!d.fill;
       sec.srcSig = d.src || null;
       sec.bootstrap = !!d.boot;
-      var anchor = anchorOf[d.scope] ||
+      sec.chrome = d.chrome || null;
+      var stable = anchorOf[d.scope] ||
         (d.src && convertStash[d.src] && convertStash[d.src].marker.nextSibling) ||
-        nextAnchor;
-      var host = parentOf[d.scope] || pageParent;
+        endMarker;
+      // chrome canvases remount into their template part — falling back to
+      // pageParent stranded a converted footer in the page body (and the
+      // zoom then listed it twice)
+      var host = parentOf[d.scope] ||
+        (d.chrome && partElForArea(d.chrome.area)) ||
+        pageParent;
+      // adjacent sections all share one stable (non-gogh) anchor — inserting
+      // each AT it reverses the run. Chain through the section restored just
+      // before (our true next sibling) whenever it shares anchor and parent.
+      var anchor = (prevIns && prevIns.host === host && prevIns.stable === stable)
+        ? prevIns.wrap : stable;
       host.insertBefore(sec.wrapEl, anchor && anchor.parentNode === host ? anchor : null);
-      nextAnchor = sec.wrapEl;
+      prevIns = { wrap: sec.wrapEl, host: host, stable: stable };
       newS.unshift(sec);
     }
     S = newS;
@@ -773,6 +1398,13 @@
       if (!active && !st.node.parentNode) pageParent.insertBefore(st.node, st.marker.nextSibling);
     });
     S.forEach(renderSection);
+    // a part whose chrome canvas no longer exists gets its original
+    // header/footer back; one that does keeps the originals hidden
+    chromePartEls().forEach(function (pe) {
+      if (!pe.__goghHidden) return;
+      var owned = S.some(function (s) { return s.chrome && pe.contains(s.wrapEl); });
+      pe.__goghHidden.forEach(function (c) { c.style.display = owned ? 'none' : ''; });
+    });
     placeConvertBtns();
     sel = null;
     hideHandles();
@@ -795,37 +1427,62 @@
   document.body.appendChild(editBtnWrap);
   var editBtn = editBtnWrap.querySelector('.gogh-btn-edit');
 
+  // the canonical element menu — served by the Section pill's ＋ ("Add to
+  // this section"); the drawer stopped listing elements when the pill
+  // learned to Add, and became the design side instead
+  var ELEM_ITEMS =
+    '<button type="button" class="gogh-sitem" data-add="heading"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M6 4v16M18 4v16M6 12h12"/></svg>Heading</button>' +
+    '<button type="button" class="gogh-sitem" data-add="para"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M4 6h16M4 12h16M4 18h10"/></svg>Text</button>' +
+    '<button type="button" class="gogh-sitem" data-add="button"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="8" width="18" height="8" rx="4"/></svg>Button</button>' +
+    '<button type="button" class="gogh-sitem" data-add="image"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="8.5" cy="10" r="1.6"/><path d="M21 16l-5-5-9 8"/></svg>Image</button>' +
+    '<button type="button" class="gogh-sitem" data-add="badge"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><circle cx="12" cy="9.5" r="5.5"/><path d="M9 14l-1.5 6 4.5-2.4 4.5 2.4L15 14"/></svg>Badge</button>' +
+    '<button type="button" class="gogh-sitem" data-add="write" title="Start writing — a reading column, cursor ready"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>Write</button>' +
+    '<button type="button" class="gogh-sitem" data-add="card" title="A card — drop elements inside and they stay together, even on mobile"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2.5"/><path d="M7 12h6M7 15.5h4"/></svg>Card</button>' +
+    '<button type="button" class="gogh-sitem" data-act="shapes"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><circle cx="8.5" cy="8.5" r="5.5"/><rect x="11" y="11" width="10" height="10" rx="2"/></svg>Shape</button>' +
+    (cfg.canExp ? '<button type="button" class="gogh-sitem" data-add="exp" title="Upload a self-contained HTML experience — it runs sandboxed"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M10 9.5l4.5 2.5-4.5 2.5z"/></svg>Experience</button>' : '') +
+    '<button type="button" class="gogh-sitem" data-add="posts" title="Your latest posts, live"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="4" width="16" height="6" rx="1.5"/><rect x="4" y="14" width="16" height="6" rx="1.5"/></svg>Posts</button>' +
+    (cfg.hasWoo ? '<button type="button" class="gogh-sitem" data-add="products" title="Your latest products, live — prices and add to cart included"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M6 7h12l1.5 13.5H4.5Z"/><path d="M9 10V6a3 3 0 0 1 6 0v4"/></svg>Products</button>' +
+      '<button type="button" class="gogh-sitem" data-act="featured" title="One product, hero-sized — a card with a real add-to-cart button"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2.5"/><path d="M12 8.5l1.2 2.4 2.6.4-1.9 1.8.5 2.6-2.4-1.3-2.4 1.3.5-2.6-1.9-1.8 2.6-.4Z"/></svg>Featured product</button>' : '');
   var side = document.createElement('div');
   side.className = 'gogh-side';
   side.hidden = true;
   side.innerHTML =
     '<div class="gogh-side-head">' +
-    '<span class="gogh-side-title">gogh</span>' +
-    '<button type="button" class="gogh-sbtn gogh-theme" data-act="uitheme" title="Editor theme"></button>' +
-    '<button type="button" class="gogh-sbtn gogh-close" title="Finish editing">✕</button>' +
+    '<span class="gogh-side-title">Design</span>' +
     '</div>' +
     '<div class="gogh-side-row">' +
+    '<button type="button" class="gogh-sbtn gogh-gridbtn" data-act="gridsnap" title="Grid: show and snap">' +
+    '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 9h18M3 15h18M9 3v18M15 3v18"/></svg>' +
+    '</button>' +
+    (cfg.experiments ? '<button type="button" class="gogh-sbtn gogh-phibtn" data-act="compguides" title="Golden ratio guides">φ</button>' : '') +
+    '<button type="button" class="gogh-sbtn gogh-zoomopen" title="Whole page — reorder sections">' +
+    '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="3" width="16" height="7" rx="1.6"/><rect x="4" y="14" width="16" height="7" rx="1.6"/><path d="M12 10.5v3"/></svg>' +
+    '</button>' +
+    '<button type="button" class="gogh-sbtn gogh-mirroropen" title="Live mobile preview">' +
+    '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="7" y="2.5" width="10" height="19" rx="2.5"/><path d="M10.5 18.5h3"/></svg>' +
+    '</button>' +
+    '</div>' +
+    '<button type="button" class="gogh-sitem gogh-stylebtn"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M12 3a9 9 0 1 0 0 18h1.5a2.5 2.5 0 0 0 1.8-4.2 2.5 2.5 0 0 1 1.8-4.3H20a9 9 0 0 0-8-9.5Z"/><circle cx="7.5" cy="11" r="1.2" fill="currentColor" stroke="none"/><circle cx="10.5" cy="7.5" r="1.2" fill="currentColor" stroke="none"/><circle cx="15" cy="7.5" r="1.2" fill="currentColor" stroke="none"/></svg>Site style</button>' +
+    '<button type="button" class="gogh-sitem gogh-pagestylebtn"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M14 3v6h6"/></svg>Page style</button>' +
+    '<button type="button" class="gogh-sitem gogh-sd-designs"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><rect x="3" y="6" width="13" height="15" rx="1.6"/><path d="M7 3h13v15"/></svg>Site designs</button>' +
+    '<div class="gogh-side-gap"></div>' +
+    '<div class="gogh-side-foot">' +
     '<button type="button" class="gogh-sbtn gogh-undo" title="Undo (⌘Z)">↺</button>' +
     '<button type="button" class="gogh-sbtn gogh-redo" title="Redo (⇧⌘Z)">↻</button>' +
+    (cfg.helpUrl ? '<button type="button" class="gogh-sbtn gogh-help" title="Help — ask gogh anything">?</button>' : '') +
     '</div>' +
-    '<div class="gogh-side-label">Add element</div>' +
-    '<button type="button" class="gogh-sitem" data-add="heading">Heading</button>' +
-    '<button type="button" class="gogh-sitem" data-add="para">Text</button>' +
-    '<button type="button" class="gogh-sitem" data-add="button">Button</button>' +
-    '<button type="button" class="gogh-sitem" data-add="image">Image</button>' +
-    '<button type="button" class="gogh-sitem" data-add="badge">Badge</button>' +
-    '<div class="gogh-side-label">Page</div>' +
-    '<button type="button" class="gogh-sitem" data-act="addsec">+ Section</button>' +
-    '<button type="button" class="gogh-sitem" data-act="gridsnap" title="Show an 8-unit grid and snap to it">Grid: off</button>' +
-    '<div class="gogh-side-gap"></div>';
+    // the build number, always in sight: five bug reports in one day were
+    // stale caches wearing fresh bugs' clothing
+    '<a class="gogh-btn gogh-btn-small gogh-write-go" href="' + (location.origin + '/?gogh-new-post=1') + '" title="A clean canvas and space to think">\u270d Write a post</a>' +
+    '<div class="gogh-side-ver" title="The gogh build this tab is running"></div>';
   document.body.appendChild(side);
 
   // tuck-away drawer: slim edge tab when collapsed, slide-in on hover
   var sideTab = document.createElement('button');
   sideTab.type = 'button';
   sideTab.className = 'gogh-side-tab';
-  sideTab.title = 'gogh palette';
-  sideTab.innerHTML = '<span class="gogh-side-tab-dot"></span><span>gogh</span>';
+  sideTab.title = 'Design';
+  sideTab.innerHTML = '<span class="gogh-side-tab-dot"></span><span>Design</span>';
   sideTab.hidden = true;
   document.body.appendChild(sideTab);
   var sideTimer = null;
@@ -887,6 +1544,8 @@
     '<button type="button" class="gogh-eb gogh-eb-al" title="Text alignment"></button>' +
     '<button type="button" class="gogh-eb gogh-eb-lnk" title="Link text (\u2318K)"></button>' +
     '<button type="button" class="gogh-eb gogh-eb-col" title="Text colour"><span class="gogh-eb-colchip"></span></button>' +
+    '<button type="button" class="gogh-eb gogh-eb-paint" title="Copy style \u2014 then click other text to paint it">' +
+    '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 3h11a2 2 0 0 1 2 2v2a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/><path d="M18 6h2a1 1 0 0 1 1 1v3a2 2 0 0 1-2 2h-6a1 1 0 0 0-1 1v2"/><rect x="10.5" y="15" width="3" height="7" rx="1"/></svg></button>' +
     '<button type="button" class="gogh-eb gogh-eb-bck" title="Send backward">▼</button>' +
     '<button type="button" class="gogh-eb gogh-eb-fwd" title="Bring forward">▲</button>' +
     '<button type="button" class="gogh-eb gogh-eb-dup" title="Duplicate (or Alt-drag)">⧉</button>' +
@@ -896,10 +1555,12 @@
   var alBtn = elbar.querySelector('.gogh-eb-al');
   var colBtn = elbar.querySelector('.gogh-eb-col');
   var lnkBtn = elbar.querySelector('.gogh-eb-lnk');
+  var paintBtn = elbar.querySelector('.gogh-eb-paint');
   var colChip = colBtn.querySelector('.gogh-eb-colchip');
   var CTX_ICONS = {
     link: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M10 14a5 5 0 0 0 7.5.5l3-3a5 5 0 0 0-7-7l-1.7 1.7"/><path d="M14 10a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7 7l1.7-1.7"/></svg>',
     image: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="3"/><circle cx="9" cy="10" r="1.6" fill="currentColor" stroke="none"/><path d="M3 17l5-4.5 4 3.5 4-4 5 4.5"/></svg>',
+    shape: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round"><circle cx="8.5" cy="8.5" r="5.5"/><rect x="11" y="11" width="10" height="10" rx="2"/></svg>',
   };
   var ALIGN_ICONS = {
     left: '<svg width="13" height="12" viewBox="0 0 13 12"><g fill="currentColor"><rect width="13" height="2" rx="1"/><rect y="5" width="8" height="2" rx="1"/><rect y="10" width="11" height="2" rx="1"/></g></svg>',
@@ -946,6 +1607,7 @@
     var e = sec.els[i];
     if (!isText(e)) return;
     e.fs = slug || null;
+    if (e.tf) { delete e.tf.fs; delete e.tf.fs2; delete e.tf.lh; }
     var oldH = e.h;
     renderSection(sec);
     measureTextHeights(sec);
@@ -957,7 +1619,7 @@
     var sizes = fontSizes();
     if (!sizes.length) return;
     var e = sec.els[i];
-    var order = [null].concat(sizes.map(function (f) { return f.slug; }));
+    var order = [null].concat(sizes.map(function (f) { return f.slug; }), DISPLAY_ORDER);
     var idx = order.indexOf(e.fs || null);
     var next = (idx + dir + order.length) % order.length;
     setFontSize(sec, i, order[next]);
@@ -971,11 +1633,12 @@
     var sizes = fontSizes();
     if (!sizes.length) return;
     var e = sec.els[i];
-    var order = [null].concat(sizes.map(function (f) { return f.slug; }));
+    var order = [null].concat(sizes.map(function (f) { return f.slug; }), DISPLAY_ORDER);
     var idx = order.indexOf(e.fs || null);
     var next = Math.max(0, Math.min(order.length - 1, idx + delta));
     if (order[next] === (e.fs || null)) return;
     e.fs = order[next];
+    if (e.tf) { delete e.tf.fs; delete e.tf.fs2; delete e.tf.lh; }
     var oldH = e.h;
     renderSection(sec);
     measureTextHeights(sec);
@@ -992,9 +1655,68 @@
     while ((m = re.exec(cssText))) {
       if (!seen[m[1]]) { seen[m[1]] = 1; out.push({ slug: m[1], value: m[2].trim() }); }
     }
+    // the page CSS also carries WordPress's default presets — only offer the
+    // colours the THEME actually declares (the server told us their slugs)
+    if (cfg.palette && cfg.palette.length) {
+      var ok = {};
+      cfg.palette.forEach(function (p) { ok[p.slug] = 1; });
+      var themed = out.filter(function (p) { return ok[p.slug]; });
+      if (themed.length) return themed;
+    }
     return out;
   }
-
+  // the theme names its colours however it likes — TT5 says base/contrast,
+  // Ollie says base/main, others invent freely. ROLES come from what the
+  // page actually renders: the body's computed canvas and ink, matched
+  // back to palette slugs (cached per palette signature).
+  var paletteRolesCache = null;
+  function paletteRoles() {
+    var pal = themePalette();
+    var sig = pal.map(function (p) { return p.slug + ':' + p.value; }).join(',') + '|' + getComputedStyle(document.body).backgroundColor;
+    if (paletteRolesCache && paletteRolesCache.sig === sig) return paletteRolesCache;
+    var bodyBg = cssToRgb(getComputedStyle(document.body).backgroundColor) || [255, 255, 255];
+    var bodyTx = cssToRgb(getComputedStyle(document.body).color) || [20, 21, 25];
+    var dist = function (a, b) {
+      return !a || !b ? 1e9 : Math.abs(a[0] - b[0]) + Math.abs(a[1] - b[1]) + Math.abs(a[2] - b[2]);
+    };
+    var bgSlug = null, textSlug = null, bgBest = 90, txBest = 90;
+    pal.forEach(function (p) {
+      var rgb = cssToRgb(p.value);
+      var db = dist(rgb, bodyBg), dt = dist(rgb, bodyTx);
+      if (db < bgBest) { bgBest = db; bgSlug = p.slug; }
+      if (dt < txBest) { txBest = dt; textSlug = p.slug; }
+    });
+    // conventions as fallback, then luminance extremes — some themes paint
+    // the body through custom props the palette never mentions
+    var bySlug = {};
+    pal.forEach(function (p) { bySlug[p.slug] = p; });
+    if (!bgSlug) bgSlug = (bySlug.base && 'base') || (bySlug.background && 'background') || null;
+    if (!textSlug) textSlug = (bySlug.contrast && 'contrast') || (bySlug.foreground && 'foreground') || (bySlug.main && 'main') || null;
+    if ((!bgSlug || !textSlug) && pal.length > 1) {
+      var lums = pal.map(function (p) {
+        var rgb = cssToRgb(p.value);
+        return { slug: p.slug, l: rgb ? sentinelLum(rgb) : 0.5 };
+      }).sort(function (a, b) { return a.l - b.l; });
+      if (!textSlug) textSlug = lums[0].slug;
+      if (!bgSlug) bgSlug = lums[lums.length - 1].slug;
+    }
+    if (textSlug && textSlug === bgSlug) textSlug = null;
+    paletteRolesCache = { sig: sig, bgSlug: bgSlug, textSlug: textSlug };
+    return paletteRolesCache;
+  }
+  function pickerPalette() {
+    var seen = {};
+    return themePalette().filter(function (p) {
+      var probe = document.createElement('div');
+      probe.style.cssText = 'position:absolute;visibility:hidden;color:' + p.value;
+      document.body.appendChild(probe);
+      var key = getComputedStyle(probe).color || p.value;
+      probe.remove();
+      if (seen[key]) return false;
+      seen[key] = 1;
+      return true;
+    });
+  }
   var guideV = document.createElement('div');
   var guideH = document.createElement('div');
   guideV.className = 'gogh-guide gogh-guide-v';
@@ -1010,9 +1732,28 @@
   inserter.hidden = true;
   document.body.appendChild(inserter);
   var insertIdx = null;
+  var insertBefore = null; // DOM anchor: native blocks sit between sections, so an S-index alone cannot say “above the pattern”
 
   var editing = false;
   var sel = null; // {sec, i}
+  var multiSel = null; // {sec, idxs} — a group selection within one section
+  function clearMulti() {
+    if (!multiSel) return;
+    var m = multiSel;
+    multiSel = null;
+    m.idxs.forEach(function (j) { if (m.sec.nodes[j]) m.sec.nodes[j].classList.remove('gogh-multisel'); });
+  }
+  function setMulti(secM, idxs) {
+    clearMulti();
+    if (!idxs || !idxs.length) return;
+    if (idxs.length === 1) { placeHandles(secM, idxs[0]); return; }
+    exitTextEdit();
+    closePanel();
+    sel = null;
+    hideHandles();
+    multiSel = { sec: secM, idxs: idxs.slice().sort(function (a, b) { return a - b; }) };
+    multiSel.idxs.forEach(function (j) { if (secM.nodes[j]) secM.nodes[j].classList.add('gogh-multisel'); });
+  }
 
   function nodeBox(node) {
     var w = node.offsetWidth, h = node.offsetHeight;
@@ -1020,7 +1761,21 @@
     return { x: r.left + window.scrollX + r.width / 2 - w / 2,
              y: r.top + window.scrollY + r.height / 2 - h / 2, w: w, h: h };
   }
-  function hideHandles() { grip.hidden = selBox.hidden = elbar.hidden = true; }
+  function goghFadeOut(el) {
+    if (el.hidden || el.classList.contains('gogh-byebye')) return;
+    el.classList.add('gogh-byebye');
+    setTimeout(function () {
+      // a show in the meantime clears the class — only hide if still leaving
+      if (el.classList.contains('gogh-byebye')) {
+        el.hidden = true;
+        el.classList.remove('gogh-byebye');
+      }
+    }, 190);
+  }
+  function hideHandles() {
+    grip.hidden = selBox.hidden = true;
+    goghFadeOut(elbar);
+  }
   function hideGuides() { guideV.hidden = guideH.hidden = true; }
 
   // the box the USER perceives: for buttons that's the pill, not its
@@ -1056,18 +1811,23 @@
     var ar = node.getBoundingClientRect();
     elbar.style.left = (ar.left + window.scrollX + ar.width / 2) + 'px';
     elbar.style.top = (ar.top + window.scrollY - 14) + 'px';
-    if (e.type === 'button' || e.type === 'image') {
-      ctxBtn.innerHTML = CTX_ICONS[e.type === 'button' ? 'link' : 'image'];
-      ctxBtn.title = e.type === 'button' ? 'Button link' : 'Choose image';
+    if (e.type === 'button' || e.type === 'image' || e.type === 'box') {
+      // cards share the section's background icon — one glyph for one idea;
+      // bare shapes keep the shape glyph (their panel really picks shapes)
+      var isCardEl = e.type === 'box' && e.kids && e.kids.length;
+      ctxBtn.innerHTML = CTX_ICONS[e.type === 'button' ? 'link' : e.type === 'box' ? (isCardEl ? 'image' : 'shape') : 'image'];
+      ctxBtn.title = e.type === 'button' ? 'Button link' : e.type === 'box' ? ( isCardEl ? 'Background image & colour' : 'Shape, colour & image' ) : e.type === 'widget' ? (e.faq ? 'Edit the questions' : e.tabs ? 'Edit the tabs' : e.slides ? 'Edit the slides' : e.wall ? 'Edit the photos' : 'Block settings & link') : 'Choose image';
       ctxBtn.style.display = '';
     } else {
       ctxBtn.style.display = 'none';
     }
     if (isText(e)) {
-      fsBtn.textContent = 'Aa' + (e.fs ? ' · ' + e.fs : '');
+      fsBtn.textContent = 'Aa' + (e.fs ? ' · ' + (DISPLAY_LABEL[e.fs] || e.fs) : '');
       fsBtn.style.display = '';
+      paintBtn.style.display = '';
     } else {
       fsBtn.style.display = 'none';
+      paintBtn.style.display = 'none';
     }
     if (e.type === 'heading' || e.type === 'para') {
       alBtn.innerHTML = ALIGN_ICONS[e.align || 'left'];
@@ -1089,16 +1849,24 @@
   function showGuides(sec, gx, gy) {
     var r = sec.sectionEl.getBoundingClientRect();
     var s = r.width / W;
+    var Hc = designH(sec.els, sec.minH);
     if (gx !== null) {
       guideV.style.left = (r.left + window.scrollX + gx * s) + 'px';
       guideV.style.top = (r.top + window.scrollY) + 'px';
       guideV.style.height = r.height + 'px';
+      var tx = compTag(Hc, gx, 'x');
+      // the centre earns a name too: pink says aligned, the tag says WHERE
+      guideV.dataset.tag = tx || (Math.round(gx) === Math.round(W / 2) ? 'centre' : '');
+      guideV.classList.toggle('gogh-guide-comp', !!tx);
       guideV.hidden = false;
     } else guideV.hidden = true;
     if (gy !== null) {
       guideH.style.top = (r.top + window.scrollY + gy * s) + 'px';
       guideH.style.left = (r.left + window.scrollX) + 'px';
       guideH.style.width = r.width + 'px';
+      var ty = compTag(Hc, gy, 'y');
+      guideH.dataset.tag = ty || (Math.round(gy) === Math.round(Hc / 2) ? 'centre' : '');
+      guideH.classList.toggle('gogh-guide-comp', !!ty);
       guideH.hidden = false;
     } else guideH.hidden = true;
   }
@@ -1107,14 +1875,57 @@
   // a second click (or a click while selected) enters text editing.
   var pendingDrag = null;
   var textEditing = null; // {sec, i, node, target}
+  // pasted-HTML widgets carry identical live/source markup — those we can
+  // edit in place and write straight back. Block-backed widgets (posts)
+  // must never be overwritten from their DOM, so they stay read-only.
+  function widgetEditableLeaf(sec, i, ev) {
+    var e = sec.els[i];
+    if (e.type !== 'widget' || !e.wsrc || e.wsrc !== e.whtml || !ev) return null;
+    var node = sec.nodes[i];
+    var at = (ev.target instanceof Element && node.contains(ev.target))
+      ? ev.target
+      : document.elementFromPoint(ev.clientX, ev.clientY);
+    if (!at || !node.contains(at)) return null;
+    var SEL = 'h1,h2,h3,h4,h5,h6,p,li,figcaption,blockquote,dt,dd,span,a,button,em,strong,small';
+    var leaf = at.closest ? at.closest(SEL) : null;
+    while (leaf && node.contains(leaf) && leaf !== node) {
+      var direct = [].some.call(leaf.childNodes, function (n2) {
+        return n2.nodeType === 3 && n2.textContent.trim();
+      });
+      if (direct) return leaf;
+      leaf = leaf.parentElement && leaf.parentElement !== node ? leaf.parentElement.closest(SEL) : null;
+    }
+    return null;
+  }
+  function syncWidgetEdit() {
+    if (!textEditing || !textEditing.widget) return;
+    var e = textEditing.sec.els[textEditing.i];
+    var clone = textEditing.node.cloneNode(true);
+    [].slice.call(clone.querySelectorAll('[contenteditable]')).forEach(function (n2) { n2.removeAttribute('contenteditable'); });
+    var html = clone.innerHTML;
+    e.whtml = html;
+    e.wsrc = html;
+    clearTimeout(textTimer);
+    textTimer = setTimeout(pushState, 800);
+  }
   function enterTextEdit(sec, i, ev) {
-    var t = editableTarget(sec, i);
+    var widgetLeaf = widgetEditableLeaf(sec, i, ev);
+    var t = widgetLeaf || editableTarget(sec, i);
     if (!t) return;
     exitTextEdit();
     var e = sec.els[i];
-    t.contentEditable = (e.type === 'heading' || e.type === 'para') ? 'true' : 'plaintext-only';
+    t.contentEditable = (widgetLeaf || e.type === 'heading' || e.type === 'para') ? 'true' : 'plaintext-only';
     sec.nodes[i].classList.add('gogh-textedit');
-    textEditing = { sec: sec, i: i, node: sec.nodes[i], target: t };
+    // writing wants a CLEAN page: the selection box and handles fade out
+    // while the caret is live (the floating toolbar stays)
+    document.documentElement.classList.add('gogh-textediting');
+    textEditing = { sec: sec, i: i, node: sec.nodes[i], target: t, widget: !!widgetLeaf };
+    if (widgetLeaf) {
+      t.addEventListener('input', syncWidgetEdit);
+      var lk = t.closest('a');
+      textEditing.link = lk;
+      if (lk) lk.addEventListener('click', preventNav);
+    }
     t.focus();
     if (ev && document.caretRangeFromPoint) {
       var cr = document.caretRangeFromPoint(ev.clientX, ev.clientY);
@@ -1127,7 +1938,13 @@
   }
   function exitTextEdit() {
     if (!textEditing) return;
+    document.documentElement.classList.remove('gogh-textediting');
     var t = textEditing.target;
+    if (textEditing.widget) {
+      syncWidgetEdit();
+      t.removeEventListener('input', syncWidgetEdit);
+      if (textEditing.link) textEditing.link.removeEventListener('click', preventNav);
+    }
     t.contentEditable = 'false';
     if (textEditing.node.classList) textEditing.node.classList.remove('gogh-textedit');
     if (document.activeElement === t) t.blur();
@@ -1136,10 +1953,42 @@
   function bindSelect(sec, i) {
     var node = sec.nodes[i];
     node.addEventListener('dragstart', function (ev) { if (editing) ev.preventDefault(); });
+    // while editing, clicks select and edit — they never follow links
+    // (a pasted card's href="#" was scrolling the page to the top)
+    node.addEventListener('click', function (ev) {
+      if (!editing) return;
+      var a2 = ev.target.closest && ev.target.closest('a');
+      if (a2 && node.contains(a2)) ev.preventDefault();
+    });
     node.addEventListener('pointerdown', function (ev) {
       if (!editing || drag || resize) return;
       if (textEditing && textEditing.node === node) return; // native caret/selection
       if (textEditing) exitTextEdit();
+      if (ev.shiftKey && !ev.metaKey && !ev.ctrlKey) {
+        // shift-click gathers a group (and shift-clicking again drops one)
+        ev.preventDefault();
+        var base = (multiSel && multiSel.sec === sec) ? multiSel.idxs.slice()
+          : (sel && sel.sec === sec ? [sel.i] : []);
+        var at = base.indexOf(i);
+        if (at === -1) base.push(i); else base.splice(at, 1);
+        setMulti(sec, base);
+        return;
+      }
+      if (multiSel && multiSel.sec === sec && multiSel.idxs.indexOf(i) !== -1) {
+        // grabbing any member drags the whole group
+        sel = { sec: sec, i: i };
+        pendingDrag = { sec: sec, i: i, node: node,
+          x: ev.clientX, y: ev.clientY, wasSelected: false,
+          ev: { altKey: false, clientX: ev.clientX, clientY: ev.clientY, pointerId: ev.pointerId } };
+        return;
+      }
+      if (multiSel) clearMulti();
+      if (explodeSt) {
+        // exploded stack: a click plucks that element, anything else closes
+        var wasFan = explodeSt.sec === sec && explodeSt.cluster.indexOf(i) !== -1;
+        exitExplode();
+        if (wasFan) { placeHandles(sec, i); return; }
+      }
       var wasSelected = !!(sel && sel.sec === sec && sel.i === i);
       placeHandles(sec, i);
       // NO preventDefault here: it would stop the click from focusing this
@@ -1169,7 +2018,16 @@
     var pd = pendingDrag;
     pendingDrag = null;
     if (resize || ev.pointerId !== pd.ev.pointerId) return;
-    if (pd.wasSelected) enterTextEdit(pd.sec, pd.i, ev);
+    if (pd.wasSelected) {
+      var pe = pd.sec.els[pd.i];
+      // FAQ/Tabs have no in-place caret — the second click (the "let me
+      // edit the words" gesture) opens their form instead of dead-ending
+      if (pe && pe.type === 'widget' && ((pe.faq && pe.faq.length) || (pe.tabs && pe.tabs.length) || (pe.slides && pe.slides.length) || (pe.wall && pe.wall.length))) {
+        openPanel(pd.sec, pd.i);
+        return;
+      }
+      enterTextEdit(pd.sec, pd.i, ev);
+    }
   });
 
   function editableTarget(sec, i) {
@@ -1208,17 +2066,95 @@
     }
   }
 
+  // the site header and footer sleep behind a veil while you arrange the
+  // page — hover says what they are, one click wakes them for editing.
+  // Accidental nav-drags die here, and editability announces itself.
+  var chromeVeils = [];
+  function veilChromeArea(area) {
+    var pe = partElForArea(area);
+    if (!pe || pe.querySelector('.gogh-chromeveil')) return;
+    var v = document.createElement('div');
+    v.className = 'gogh-chromeveil';
+    var b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'gogh-chromeveil-pill';
+    b.innerHTML = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>Edit site ' + area;
+    v.appendChild(b);
+    v.addEventListener('click', function () {
+      v.remove();
+      wakeChrome(pe, area);
+      // straight to the panel — the "Change header layout" pill was a
+      // step with nothing in it (the panel edits everything anyway)
+      convertChrome(pe).catch(function () {
+        toast('Could not open the ' + area + ' panel.', { error: true });
+      });
+    });
+    // a CLASS, never an inline style: the transparent-header float rule
+    // (:has on the template part) must be able to win while editing
+    if (getComputedStyle(pe).position === 'static') pe.classList.add('gogh-chrome-anchor');
+    pe.appendChild(v);
+    chromeVeils.push(v);
+  }
+  // awake = visibly in focus: an editing ring around the part, and a click
+  // anywhere back in the page puts the chrome to sleep again (re-veiled)
+  function wakeChrome(pe, area) {
+    pe.classList.add('gogh-chrome-live');
+    var sleep = function (ev) {
+      if (pe.contains(ev.target)) return;
+      // gogh's own surfaces (panels, drawer, toolbars, toasts) are part of
+      // the editing conversation — they don't put the chrome to sleep
+      if (ev.target.closest && ev.target.closest('.gogh-panel, .gogh-side, .gogh-side-tab, .gogh-elbar, .gogh-hbar, .gogh-secbar, .gogh-toast, .gogh-chip, .gogh-convertbtn, .gogh-picker, .gogh-navadd, #wpadminbar')) return;
+      // an ARMED panel (something auditioned, Apply lit) holds focus —
+      // a stray page click must not throw the audition away
+      if (panelOpen && panel.dataset.goghArea === area) {
+        var ap = panel.querySelector('.gogh-happly');
+        if (ap && !ap.disabled) return;
+        closePanel();
+      }
+      pe.classList.remove('gogh-chrome-live');
+      document.removeEventListener('pointerdown', sleep, true);
+      if (editing) veilChromeArea(area);
+    };
+    document.addEventListener('pointerdown', sleep, true);
+  }
+  function veilChrome() {
+    ['header', 'footer'].forEach(veilChromeArea);
+  }
+  function unveilChrome() {
+    chromeVeils.forEach(function (v) { if (v.parentNode) v.remove(); });
+    chromeVeils = [];
+    document.querySelectorAll('.gogh-chrome-live').forEach(function (n) { n.classList.remove('gogh-chrome-live'); });
+  }
   function setEditing(on) {
+    if (on && window.__goghRenderCanvasOnce) window.__goghRenderCanvasOnce();
+    if (on) fetchMediaPool(); // starters dress in THEIR photos
     editing = on;
     document.documentElement.classList.toggle('gogh-editing', on);
+    if (on) veilChrome(); else unveilChrome();
+    [elbar, secBar, hbar].forEach(function (b) { if (b) b.classList.remove('gogh-byebye'); });
+    // the admin-bar landmark flips with the MODE, not just the URL — the
+    // floating pill enters editing without a reload
+    var abLink = document.querySelector('#wp-admin-bar-gogh-edit a');
+    if (abLink) {
+      abLink.textContent = on ? '\ud83c\udfa8 Exit gogh editor' : '\ud83c\udfa8 Edit with gogh';
+      var abUrl = new URL(location.href);
+      abUrl.searchParams[on ? 'delete' : 'set']('gogh-edit', '1');
+      abLink.href = abUrl.toString();
+    }
     side.hidden = !on;
     sideTab.hidden = !on;
-    if (on) {
-      // greet with the palette open, then tuck it away
-      openSide();
-      sideTimer = setTimeout(function () { closeSide(true); }, 1800);
-    } else {
+    if (!on) {
       closeSide(true);
+    }
+    // the palette waits to be invited — its pulsing tab is the greeting
+    if (on) {
+      // warm the picker's shelves so the modal opens complete, not in jolts
+      fetchSectionPatterns();
+      fetchBlocks();
+      // header/footer become lightly editable: text, links, menus in place
+      initChromeLightEdits();
+      // so do published native/HTML sections — publish is not a one-way door
+      initStoredEdits();
     }
     editBtnWrap.hidden = on;
     hideHandles();
@@ -1239,10 +2175,39 @@
     });
     if (on && history.length === 0) pushState();
     if (on && savedSnap === null) savedSnap = serialize();
-    if (on) placeConvertBtns(); else clearConvertBtns();
+    if (on) { placeConvertBtns(); placeChromeBtns(); } else { clearConvertBtns(); clearChromeBtns(); }
     chip.hidden = !on;
     if (on) { refreshChip(); checkRecovery(); }
     else exitPanel.hidden = true;
+  }
+
+  // ---------- pointer intent ----------
+  // a rushing pointer is TRANSIT, not intent: hover-summoned UI (tooltips,
+  // boundary pills, audition previews) waits for the hand to settle
+  var ptrIntent = { x: 0, y: 0, t: 0, v: 0 };
+  document.addEventListener('pointermove', function (ev) {
+    var now = performance.now();
+    var dt = now - ptrIntent.t;
+    if (dt > 0 && dt < 400) {
+      var inst = Math.hypot(ev.clientX - ptrIntent.x, ev.clientY - ptrIntent.y) / dt;
+      ptrIntent.v = ptrIntent.v * 0.6 + inst * 0.4; // smoothed px/ms
+    } else if (dt >= 400) ptrIntent.v = 0;
+    ptrIntent.x = ev.clientX; ptrIntent.y = ev.clientY; ptrIntent.t = now;
+  }, { passive: true });
+  function pointerRushing() { return ptrIntent.v > 0.6; } // ~600px/s
+  // hover auditions arm after a settle beat, so scrubbing across a grid
+  // never flickers the canvas — leaving before the beat costs nothing
+  function auditionHover(el, onIn, onOut) {
+    var t = null, on = false;
+    el.addEventListener('mouseenter', function () {
+      clearTimeout(t);
+      t = setTimeout(function () { on = true; onIn(); }, 70);
+    });
+    el.addEventListener('mouseleave', function () {
+      clearTimeout(t);
+      if (on) { on = false; onOut(); }
+    });
+    el.addEventListener('click', function () { clearTimeout(t); on = false; });
   }
 
   // ---------- context panel (link / image) ----------
@@ -1251,32 +2216,125 @@
   panel.hidden = true;
   document.body.appendChild(panel);
   var panelOpen = false;
-  function closePanel() { panel.hidden = true; panelOpen = false; }
+  // panels drag by their title — a tall panel otherwise covers the very
+  // section it styles, and auditioning a look means seeing the canvas
+  (function () {
+    var pd = null;
+    panel.addEventListener('pointerdown', function (ev) {
+      var t = ev.target.closest('.gogh-panel-title, .gogh-panel-head');
+      if (!t || ev.target.closest('button, input, a, select, textarea')) return;
+      var r = panel.getBoundingClientRect();
+      pd = { dx: ev.clientX - r.left, dy: ev.clientY - r.top };
+      try { panel.setPointerCapture(ev.pointerId); } catch (err) {}
+      ev.preventDefault();
+    });
+    panel.addEventListener('pointermove', function (ev) {
+      if (!pd) return;
+      panel.style.left = (ev.clientX - pd.dx) + 'px';
+      panel.style.top = (ev.clientY - pd.dy) + 'px';
+    });
+    panel.addEventListener('pointerup', function () { pd = null; });
+    panel.addEventListener('pointercancel', function () { pd = null; });
+  })();
+  var panelCleanup = null; // a panel's audition-undo — closePanel runs it on EVERY path (Esc included)
+  function closePanel() {
+    if (panelCleanup) { var pc = panelCleanup; panelCleanup = null; pc(); }
+    delete panel.dataset.goghArea;
+    panel.hidden = true;
+    panel.classList.remove('gogh-panel-wide');
+    panel.style.width = ''; // a hand-resized width belongs to that panel only
+    panelOpen = false;
+    // a style audition must never outlive its panel
+    if (typeof clearVariationPreview === 'function') clearVariationPreview();
+    // an ACTIVE cycle owns its preview — defensive closePanel calls from
+    // unrelated paths must not snuff it (the counter kept advancing while
+    // the preview died: James's exact symptom)
+    if (!chromeCycle) endChromePreview();
+  }
   // place the panel near the element but always fully inside the viewport —
   // a viewport-filling image would otherwise push it below the fold
   function placePanelNear(node) {
     var r = node.getBoundingClientRect();
     panel.hidden = false;
+    panel.style.maxHeight = ''; // measure the TRUE content height
     var pw = panel.offsetWidth || 340;
     var ph = panel.offsetHeight || 220;
-    var left = Math.max(8, Math.min(r.left + window.scrollX, window.scrollX + window.innerWidth - pw - 16));
-    var top = r.bottom + window.scrollY + 10;
-    // 76px bottom reserve keeps the panel clear of the publish chip
-    var maxTop = window.scrollY + window.innerHeight - ph - 76;
-    if (top > maxTop) top = Math.max(window.scrollY + 16, maxTop);
+    var left = Math.max(8, Math.min(r.left, window.innerWidth - pw - 16));
+    // the WHOLE panel visible is the goal ("so i can see all of it") —
+    // below the anchor when it fits, pulled UP just enough when it
+    // doesn't, beside the anchor when pulling up would cover it, and only
+    // when the viewport is genuinely smaller than the content does the
+    // panel cap itself and scroll inside. 76px reserves the publish chip;
+    // 28 covers the panel's own padding outside its content box.
+    var need = ph + 28;
+    var top = r.bottom + 10;
+    if (top + need > window.innerHeight - 76) {
+      var fitTop = window.innerHeight - 76 - need;
+      top = Math.max(16, Math.min(r.top - 8, fitTop));
+      if (top < r.bottom + 10) {
+        // the pulled-up panel would sit over its anchor — step beside it
+        if (r.right + pw + 20 < window.innerWidth) left = r.right + 12;
+        else if (r.left - pw - 20 > 0) left = r.left - pw - 12;
+      }
+    }
+    panel.style.maxHeight = Math.max(280, window.innerHeight - top - 90) + 'px';
     panel.style.left = left + 'px';
     panel.style.top = top + 'px';
+    // truth check: whatever the measurement missed (late content, width
+    // wraps, anchors mid-hide), the viewport wins — measure the REAL rect
+    // and pull up once more if the bottom still hangs off screen
+    var pr = panel.getBoundingClientRect();
+    if (pr.bottom > window.innerHeight - 40) {
+      top = Math.max(16, top - (pr.bottom - (window.innerHeight - 40)));
+      panel.style.top = top + 'px';
+      panel.style.maxHeight = Math.max(280, window.innerHeight - top - 90) + 'px';
+    }
     panelAnchor = node;
+    panelSticky = false;
   }
   var panelAnchor = null;
+  // sticky panels (auditions: site style, rearrange) ignore outside
+  // clicks — glancing at the canvas mid-audition must not end the session;
+  // they close on ✕, Esc, or another panel opening
+  var panelSticky = false;
+  // the DOCK: big design surfaces (section background) are inspectors,
+  // not popovers — they sit top-right of the VIEWPORT, always fully on
+  // screen, wherever the click came from. James, three rounds of cropped
+  // modals later: anchor maths was the wrong model for this panel.
+  function dockPanel(below) {
+    panel.hidden = false;
+    panel.style.maxHeight = '';
+    var pw = panel.offsetWidth || 340;
+    // an inspector must not cover its SUBJECT: docking below an anchor
+    // keeps the audited thing (the header) fully visible while it changes
+    var top = 74;
+    var left = Math.max(8, window.innerWidth - pw - 18);
+    if (below) {
+      var br = below.getBoundingClientRect();
+      if (br.bottom > 0 && br.bottom < window.innerHeight * 0.55) top = Math.round(br.bottom + 14);
+      // centred under its subject ("maybe center it?") — the header stays
+      // fully visible above, the panel presents like a stage card
+      left = Math.max(8, Math.round((window.innerWidth - pw) / 2));
+    }
+    panel.style.left = left + 'px';
+    panel.style.top = top + 'px';
+    panel.style.maxHeight = Math.max(280, window.innerHeight - top - 100) + 'px';
+    panelAnchor = null;
+    panelSticky = false;
+  }
   function reclampPanel() { if (!panel.hidden && panelAnchor) placePanelNear(panelAnchor); }
   function openPanel(sec, i) {
     var e = sec.els[i];
+    panel.classList.remove('gogh-panel-wide');
     panel.innerHTML = '';
     if (e.type === 'button') buildLinkPanel(sec, i);
     else if (e.type === 'image') buildImagePanel(sec, i);
+    else if (e.type === 'box') buildBoxPanel(sec, i);
+    else if (e.type === 'widget') buildWidgetPanel(sec, i);
     placePanelNear(sec.nodes[i]);
     panelOpen = true;
+    // the Q&A editors are typing surfaces — outside clicks pass through
+    if (e.type === 'widget' && ((e.faq && e.faq.length) || (e.tabs && e.tabs.length) || (e.slides && e.slides.length) || (e.wall && e.wall.length))) panelSticky = true;
   }
   var savedTextRange = null;
   function applyTextLink(url) {
@@ -1335,12 +2393,341 @@
     input.focus();
   }
 
-  function buildLinkPanel(sec, i) {
+  // FAQ and Tabs edit as a FORM — words in boxes, add and remove rows —
+  // never as template surgery. Every change recomposes the true block.
+  function buildQnaPanel(sec, i) {
     var e = sec.els[i];
+    panel.classList.add('gogh-panel-wide'); // words need room to breathe
+    var kind = e.faq ? 'faq' : 'tabs';
+    var items = e.faq || e.tabs;
+    var labels = kind === 'faq'
+      ? { title: 'FAQ', one: 'question', q: 'Question', a: 'Answer', qk: 'q', ak: 'a' }
+      : { title: 'Tabs', one: 'tab', q: 'Tab label', a: 'Tab content', qk: 't', ak: 'body' };
+    var render = function () {
+      panel.innerHTML = '<div class="gogh-panel-head"><span class="gogh-panel-title">' + labels.title + '</span>' +
+        '<button type="button" class="gogh-sbtn gogh-panel-close" title="Done">\u2715</button></div>' +
+        '<div class="gogh-panel-hint">Edit the words \u2014 the block follows live.</div>' +
+        items.map(function (it, k) {
+          return '<div class="gogh-qna" data-k="' + k + '">' +
+            '<div class="gogh-qna-head"><input type="text" class="gogh-input gogh-qna-q" placeholder="' + labels.q + '" value="' + escAttr(it[labels.qk]) + '" />' +
+            '<button type="button" class="gogh-sbtn gogh-qna-mv" data-dir="-1" title="Move up"' + (k === 0 ? ' disabled' : '') + '>\u2191</button>' +
+            '<button type="button" class="gogh-sbtn gogh-qna-mv" data-dir="1" title="Move down"' + (k === items.length - 1 ? ' disabled' : '') + '>\u2193</button>' +
+            (items.length > 1 ? '<button type="button" class="gogh-sbtn gogh-qna-x" title="Remove this ' + labels.one + '">\u2715</button>' : '') + '</div>' +
+            '<textarea class="gogh-input gogh-qna-a" placeholder="' + labels.a + '">' + esc(it[labels.ak]) + '</textarea>' +
+            '</div>';
+        }).join('') +
+        '<div class="gogh-panel-row gogh-chrome-rows">' +
+        '<button type="button" class="gogh-btn gogh-btn-small gogh-qna-add">\uff0b Add ' + labels.one + '</button>' +
+        '</div>';
+      var syncT = null;
+      var sync = function (push) {
+        composeWidgetData(e);
+        renderSection(sec);
+        placeHandles(sec, i);
+        if (push) pushState();
+        else { clearTimeout(syncT); syncT = setTimeout(pushState, 900); }
+      };
+      panel.querySelectorAll('.gogh-qna').forEach(function (row) {
+        var k = +row.dataset.k;
+        row.querySelector('.gogh-qna-q').addEventListener('input', function () {
+          items[k][labels.qk] = this.value;
+          sync(false);
+        });
+        row.querySelector('.gogh-qna-a').addEventListener('input', function () {
+          items[k][labels.ak] = this.value;
+          sync(false);
+        });
+        var x = row.querySelector('.gogh-qna-x');
+        if (x) x.addEventListener('click', function () {
+          items.splice(k, 1);
+          sync(true);
+          render();
+        });
+        row.querySelectorAll('.gogh-qna-mv').forEach(function (mv) {
+          mv.addEventListener('click', function () {
+            var to = k + (+mv.dataset.dir);
+            if (to < 0 || to >= items.length) return;
+            var moved = items.splice(k, 1)[0];
+            items.splice(to, 0, moved);
+            sync(true);
+            render();
+          });
+        });
+      });
+      panel.querySelector('.gogh-panel-close').addEventListener('click', function () { closePanel(); });
+      panel.querySelector('.gogh-qna-add').addEventListener('click', function () {
+        var fresh = {};
+        fresh[labels.qk] = kind === 'faq' ? 'Another question?' : 'Another tab';
+        fresh[labels.ak] = 'Your words here.';
+        items.push(fresh);
+        sync(true);
+        render();
+      });
+    };
+    render();
+  }
+  function buildCarouselPanel(sec, i) {
+    var e = sec.els[i];
+    panel.classList.add('gogh-panel-wide');
+    var items = e.slides;
+    var render = function () {
+      e.copt = e.copt || { light: 1 };
+      panel.innerHTML = '<div class="gogh-panel-head"><span class="gogh-panel-title">Carousel</span>' +
+        '<button type="button" class="gogh-sbtn gogh-panel-close" title="Done">\u2715</button></div>' +
+        '<div class="gogh-panel-hint">Photos slide and snap \u2014 captions are optional.</div>' +
+        '<div class="gogh-panel-row gogh-hpresets">' +
+        '<button type="button" class="gogh-btn gogh-btn-small gogh-crsl-opt' + (e.copt.auto ? ' is-active' : '') + '" data-opt="auto">\u25b6 Auto-play</button>' +
+        '<button type="button" class="gogh-btn gogh-btn-small gogh-crsl-opt' + (e.copt.light ? ' is-active' : '') + '" data-opt="light">\u26f6 Click to enlarge</button>' +
+        '</div>' +
+        '<div class="gogh-swlab">Arrows</div>' +
+        '<div class="gogh-panel-row gogh-hpresets">' +
+        ['below', 'sides', 'both'].map(function (nm) {
+          var on = (e.copt.nav || 'below') === nm;
+          return '<button type="button" class="gogh-btn gogh-btn-small gogh-crsl-nav-opt' + (on ? ' is-active' : '') + '" data-nav="' + nm + '">' +
+            (nm === 'below' ? 'Underneath' : nm === 'sides' ? 'By the pics' : 'Both') + '</button>';
+        }).join('') +
+        '</div>' +
+        items.map(function (it, k) {
+          return '<div class="gogh-qna gogh-crslrow" data-k="' + k + '">' +
+            '<div class="gogh-qna-head">' +
+            '<span class="gogh-crslthumb" style="background-image:url(\'' + escAttr(it.img) + '\')"></span>' +
+            '<input type="text" class="gogh-input gogh-crsl-cap" placeholder="Caption (optional)" value="' + escAttr(it.cap || '') + '" />' +
+            '<button type="button" class="gogh-sbtn gogh-qna-mv" data-dir="-1" title="Move left"' + (k === 0 ? ' disabled' : '') + '>\u2191</button>' +
+            '<button type="button" class="gogh-sbtn gogh-qna-mv" data-dir="1" title="Move right"' + (k === items.length - 1 ? ' disabled' : '') + '>\u2193</button>' +
+            (items.length > 1 ? '<button type="button" class="gogh-sbtn gogh-qna-x" title="Remove this slide">\u2715</button>' : '') +
+            '</div></div>';
+        }).join('') +
+        '<div class="gogh-swlab">Add from your library</div>' +
+        '<div class="gogh-media"><span class="gogh-media-loading">Loading media\u2026</span></div>';
+      var syncT = null;
+      var sync = function (push) {
+        composeWidgetData(e);
+        renderSection(sec);
+        placeHandles(sec, i);
+        if (push) pushState();
+        else { clearTimeout(syncT); syncT = setTimeout(pushState, 900); }
+      };
+      panel.querySelectorAll('.gogh-crslrow').forEach(function (row) {
+        var k = +row.dataset.k;
+        row.querySelector('.gogh-crsl-cap').addEventListener('input', function () {
+          items[k].cap = this.value;
+          sync(false);
+        });
+        var x = row.querySelector('.gogh-qna-x');
+        if (x) x.addEventListener('click', function () {
+          items.splice(k, 1);
+          sync(true);
+          render();
+        });
+        row.querySelectorAll('.gogh-qna-mv').forEach(function (mv) {
+          mv.addEventListener('click', function () {
+            var to = k + (+mv.dataset.dir);
+            if (to < 0 || to >= items.length) return;
+            var moved = items.splice(k, 1)[0];
+            items.splice(to, 0, moved);
+            sync(true);
+            render();
+          });
+        });
+      });
+      panel.querySelectorAll('.gogh-crsl-nav-opt').forEach(function (nb) {
+        nb.addEventListener('click', function () {
+          e.copt.nav = nb.dataset.nav;
+          panel.querySelectorAll('.gogh-crsl-nav-opt').forEach(function (o2) {
+            o2.classList.toggle('is-active', o2 === nb);
+          });
+          sync(true);
+        });
+      });
+      panel.querySelectorAll('.gogh-crsl-opt').forEach(function (ob) {
+        ob.addEventListener('click', function () {
+          var k2 = ob.dataset.opt;
+          e.copt[k2] = e.copt[k2] ? 0 : 1;
+          ob.classList.toggle('is-active', !!e.copt[k2]);
+          sync(true);
+        });
+      });
+      panel.querySelector('.gogh-panel-close').addEventListener('click', function () { closePanel(); });
+      fetch(restQ(cfg.mediaUrl, 'per_page=32&media_type=image&orderby=date&order=desc'), {
+        headers: { 'X-WP-Nonce': cfg.nonce },
+        credentials: 'same-origin',
+      }).then(function (res) { return res.ok ? res.json() : []; }).catch(function () { return []; }).then(function (list) {
+        var box = panel.querySelector('.gogh-media');
+        if (!box || panel.hidden) return;
+        box.innerHTML = '';
+        if (!list.length) { box.innerHTML = '<span class="gogh-media-loading">No images in the media library yet.</span>'; return; }
+        list.forEach(function (item) {
+          var thumb = (item.media_details && item.media_details.sizes &&
+            (item.media_details.sizes.thumbnail || item.media_details.sizes.medium));
+          var b = document.createElement('button');
+          b.type = 'button';
+          b.className = 'gogh-thumb';
+          b.title = 'Add to the carousel';
+          b.style.backgroundImage = 'url("' + (thumb ? thumb.source_url : item.source_url) + '")';
+          b.addEventListener('click', function () {
+            items.push({ img: item.source_url, cap: '' });
+            sync(true);
+            render();
+          });
+          box.appendChild(b);
+        });
+      });
+    };
+    render();
+  }
+  function buildWallPanel(sec, i) {
+    var e = sec.els[i];
+    panel.classList.add('gogh-panel-wide');
+    var items = e.wall;
+    var render = function () {
+      e.wopt = e.wopt || { light: 1, cols: 3 };
+      panel.innerHTML = '<div class="gogh-panel-head"><span class="gogh-panel-title">Photo wall</span>' +
+        '<button type="button" class="gogh-sbtn gogh-panel-close" title="Done">\u2715</button></div>' +
+        '<div class="gogh-panel-hint">Photos stack into columns \u2014 tall and short mix freely.</div>' +
+        '<div class="gogh-swlab">Columns</div>' +
+        '<div class="gogh-panel-row gogh-hpresets">' +
+        [2, 3, 4].map(function (nc) {
+          return '<button type="button" class="gogh-btn gogh-btn-small gogh-crsl-nav-opt' + ((e.wopt.cols || 3) === nc ? ' is-active' : '') + '" data-cols="' + nc + '">' + nc + '</button>';
+        }).join('') +
+        '<button type="button" class="gogh-btn gogh-btn-small gogh-crsl-opt' + (e.wopt.light ? ' is-active' : '') + '" data-opt="light">\u26f6 Click to enlarge</button>' +
+        '</div>' +
+        items.map(function (it, k) {
+          return '<div class="gogh-qna gogh-crslrow" data-k="' + k + '">' +
+            '<div class="gogh-qna-head">' +
+            '<span class="gogh-crslthumb" style="background-image:url(\'' + escAttr(it.img) + '\')"></span>' +
+            '<input type="text" class="gogh-input gogh-crsl-cap" placeholder="Caption (optional)" value="' + escAttr(it.cap || '') + '" />' +
+            '<button type="button" class="gogh-sbtn gogh-qna-mv" data-dir="-1" title="Move earlier"' + (k === 0 ? ' disabled' : '') + '>\u2191</button>' +
+            '<button type="button" class="gogh-sbtn gogh-qna-mv" data-dir="1" title="Move later"' + (k === items.length - 1 ? ' disabled' : '') + '>\u2193</button>' +
+            (items.length > 1 ? '<button type="button" class="gogh-sbtn gogh-qna-x" title="Remove this photo">\u2715</button>' : '') +
+            '</div></div>';
+        }).join('') +
+        '<div class="gogh-swlab">Add from your library</div>' +
+        '<div class="gogh-media"><span class="gogh-media-loading">Loading media\u2026</span></div>';
+      var syncT = null;
+      var sync = function (push) {
+        composeWidgetData(e);
+        renderSection(sec);
+        placeHandles(sec, i);
+        if (push) pushState();
+        else { clearTimeout(syncT); syncT = setTimeout(pushState, 900); }
+      };
+      panel.querySelectorAll('.gogh-crsl-nav-opt').forEach(function (nb) {
+        nb.addEventListener('click', function () {
+          e.wopt.cols = +nb.dataset.cols;
+          panel.querySelectorAll('.gogh-crsl-nav-opt').forEach(function (o2) {
+            o2.classList.toggle('is-active', o2 === nb);
+          });
+          sync(true);
+        });
+      });
+      var lb = panel.querySelector('.gogh-crsl-opt[data-opt="light"]');
+      lb.addEventListener('click', function () {
+        e.wopt.light = e.wopt.light ? 0 : 1;
+        lb.classList.toggle('is-active', !!e.wopt.light);
+        sync(true);
+      });
+      panel.querySelectorAll('.gogh-crslrow').forEach(function (row) {
+        var k = +row.dataset.k;
+        row.querySelector('.gogh-crsl-cap').addEventListener('input', function () {
+          items[k].cap = this.value;
+          sync(false);
+        });
+        var x = row.querySelector('.gogh-qna-x');
+        if (x) x.addEventListener('click', function () {
+          items.splice(k, 1);
+          sync(true);
+          render();
+        });
+        row.querySelectorAll('.gogh-qna-mv').forEach(function (mv) {
+          mv.addEventListener('click', function () {
+            var to = k + (+mv.dataset.dir);
+            if (to < 0 || to >= items.length) return;
+            var moved = items.splice(k, 1)[0];
+            items.splice(to, 0, moved);
+            sync(true);
+            render();
+          });
+        });
+      });
+      panel.querySelector('.gogh-panel-close').addEventListener('click', function () { closePanel(); });
+      fetch(restQ(cfg.mediaUrl, 'per_page=32&media_type=image&orderby=date&order=desc'), {
+        headers: { 'X-WP-Nonce': cfg.nonce },
+        credentials: 'same-origin',
+      }).then(function (res) { return res.ok ? res.json() : []; }).catch(function () { return []; }).then(function (list) {
+        var box = panel.querySelector('.gogh-media');
+        if (!box || panel.hidden) return;
+        box.innerHTML = '';
+        if (!list.length) { box.innerHTML = '<span class="gogh-media-loading">No images in the media library yet.</span>'; return; }
+        list.forEach(function (item) {
+          var thumb = (item.media_details && item.media_details.sizes &&
+            (item.media_details.sizes.thumbnail || item.media_details.sizes.medium));
+          var b = document.createElement('button');
+          b.type = 'button';
+          b.className = 'gogh-thumb';
+          b.title = 'Add to the wall';
+          b.style.backgroundImage = 'url("' + (thumb ? thumb.source_url : item.source_url) + '")';
+          b.addEventListener('click', function () {
+            items.push({ img: item.source_url, cap: '' });
+            sync(true);
+            render();
+          });
+          box.appendChild(b);
+        });
+      });
+    };
+    render();
+  }
+  function buildWidgetPanel(sec, i) {
+    var e = sec.els[i];
+    if ((e.faq && e.faq.length) || (e.tabs && e.tabs.length)) return buildQnaPanel(sec, i);
+    if (e.slides && e.slides.length) return buildCarouselPanel(sec, i);
+    if (e.wall && e.wall.length) return buildWallPanel(sec, i);
+    var node = sec.nodes[i];
+    var editableSrc = e.wsrc != null && e.wsrc === e.whtml;
+    var a = editableSrc ? node.querySelector('a') : null;
+    panel.innerHTML =
+      '<div class="gogh-panel-title">Imported block</div>' +
+      (a
+        ? '<div class="gogh-swlab">Link</div><div class="gogh-panel-row">' +
+          '<input type="url" class="gogh-input" placeholder="https://\u2026" />' +
+          '<button type="button" class="gogh-btn gogh-btn-small gogh-apply">Apply</button></div>' +
+          '<div class="gogh-panel-hint">Click its text to edit the words in place.</div>'
+        : '<div class="gogh-panel-hint">' + (editableSrc
+            ? 'Click text to edit it in place.'
+            : 'This block renders live WordPress content.') + '</div>');
+    if (a) {
+      var inp = panel.querySelector('input');
+      var href = a.getAttribute('href');
+      inp.value = href && href !== '#' ? href : '';
+      panel.querySelector('.gogh-apply').addEventListener('click', function () {
+        var url = inp.value.trim();
+        if (url && !/^https?:\/\//i.test(url) && url[0] !== '/' && url[0] !== '#') url = 'https://' + url;
+        a.setAttribute('href', url || '#');
+        var clone = node.cloneNode(true);
+        [].slice.call(clone.querySelectorAll('[contenteditable]')).forEach(function (n2) { n2.removeAttribute('contenteditable'); });
+        e.whtml = clone.innerHTML;
+        e.wsrc = clone.innerHTML;
+        pushState();
+        closePanel();
+        toast(url ? 'Card now links to ' + url : 'Link cleared.');
+      });
+    }
+  }
+  function buildLinkPanel(sec, i) {
+    buildLinkPanelFor(sec, sec.els[i], function () {
+      renderSection(sec);
+      placeHandles(sec, i);
+      pushState();
+      buildLinkPanel(sec, i); // rebuild so active states stay honest
+    });
+  }
+  // the same panel serves top-level buttons AND buttons inside cards —
+  // the caller owns re-rendering and reselection
+  function buildLinkPanelFor(sec, e, reapply) {
     function swRow(label, key) {
       return '<div class="gogh-swlab">' + label + '</div><div class="gogh-swrow" data-key="' + key + '">' +
         '<button type="button" class="gogh-sw gogh-sw-none' + (!e[key] ? ' is-active' : '') + '" data-col="" title="Theme default"></button>' +
-        themePalette().map(function (p) {
+        pickerPalette().map(function (p) {
           return '<button type="button" class="gogh-sw' + (e[key] === p.slug ? ' is-active' : '') + '" data-col="' + p.slug + '"' +
             ' style="background: var(--wp--preset--color--' + p.slug + ')" title="' + p.slug + '"></button>';
         }).join('') + '</div>';
@@ -1359,12 +2746,14 @@
       swRow('Background', 'btnBg') +
       swRow('Text', 'btnText') +
       swRow('Hover background', 'btnHover');
-    function reapply() {
-      renderSection(sec);
-      placeHandles(sec, i);
-      pushState();
-      buildLinkPanel(sec, i); // rebuild so active states stay honest
-    }
+    (function () {
+      var idx = sec.els.indexOf(e);
+      var host = idx !== -1 ? sec.nodes[idx] : null;
+      var link = host && host.querySelector('.wp-block-button__link');
+      if (!link) return; // kid buttons: marking arrives with kid panels later
+      var bgHex = cssColorToHex(getComputedStyle(link).backgroundColor);
+      markSwatchLegibility(panel.querySelector('.gogh-swrow[data-key="btnText"]'), bgHex);
+    })();
     panel.querySelector('.gogh-style-solid').addEventListener('click', function () {
       if (e.ghost) { e.ghost = false; reapply(); }
     });
@@ -1376,6 +2765,10 @@
       row.querySelectorAll('.gogh-sw').forEach(function (swBtn) {
         swBtn.addEventListener('click', function () {
           e[key] = swBtn.dataset.col || null;
+          if (e.tf) {
+            if (key === 'btnBg') delete e.tf.bg;
+            if (key === 'btnText') delete e.tf.col;
+          }
           reapply();
         });
       });
@@ -1394,6 +2787,168 @@
       if (ev.key === 'Escape') closePanel();
     });
     input.focus();
+  }
+  function buildBoxPanel(sec, i) {
+    var e = sec.els[i];
+    // hierarchy by touch-frequency (James: "not sure shape deserves the
+    // top"): colour and picture first, mood, link — shape last. The image
+    // URL field retired; Upload and the grid carry it.
+    panel.innerHTML =
+      '<div class="gogh-swlab">Colour \u2014 with an image, it becomes the tint</div>' +
+      '<div class="gogh-swrow gogh-boxsw">' +
+      '<button type="button" class="gogh-sw gogh-sw-none' + (!e.boxBg ? ' is-active' : '') + '" data-col="" title="None"></button>' +
+      pickerPalette().map(function (p) {
+        return '<button type="button" class="gogh-sw' + (e.boxBg === p.slug ? ' is-active' : '') + '" data-col="' + p.slug + '"' +
+          ' style="background: var(--wp--preset--color--' + p.slug + ')" title="' + p.slug + '"></button>';
+      }).join('') + '</div>' +
+      '<div class="gogh-swlab">Image</div>' +
+      '<div class="gogh-panel-row">' +
+      (cfg.canUpload ? '<label class="gogh-btn gogh-btn-small gogh-upload">Upload<input type="file" accept="image/*" hidden /></label>' : '') +
+      (e.boxImg ? '<button type="button" class="gogh-btn gogh-btn-small gogh-boximg-clear">Remove image</button>' : '') +
+      '</div>' +
+      '<div class="gogh-media gogh-boximg-media"></div>' +
+      '<div class="gogh-swlab">Mood \u2014 how the card behaves under the pointer</div>' +
+      '<div class="gogh-hpresets gogh-moodrow">' +
+      [['', 'Still'], ['lift', 'Lift'], ['zoom', 'Zoom'], ['veil', 'Veil'], ['glass', 'Glass']].map(function (m) {
+        return '<button type="button" class="gogh-hpreset' + ((e.mood || '') === m[0] ? ' is-active' : '') + '" data-mood="' + m[0] + '">' + m[1] + '</button>';
+      }).join('') + '</div>' +
+      (e.kids && e.kids.length
+        ? '<div class="gogh-swlab">Link \u2014 the whole card is clickable</div>' +
+          '<div class="gogh-panel-row">' +
+          '<input type="url" class="gogh-input gogh-cardhref" placeholder="https://\u2026" value="' + escAttr(e.href || '') + '" />' +
+          '<button type="button" class="gogh-btn gogh-btn-small gogh-cardhref-apply">Apply</button>' +
+          '</div>'
+        : '') +
+      '<div class="gogh-swlab">Shape</div>' +
+      '<div class="gogh-shapegrid">' +
+      SHAPE_DEFS.map(function (d, k) {
+        var on = d.key === (e.shape || null);
+        return '<button type="button" class="gogh-shapecell' + (on ? ' is-active' : '') + '" data-k="' + k + '" title="' + d.label + '">' +
+          '<span style="' + shapePreviewCss(d) + '"></span></button>';
+      }).join('') +
+      '</div>';
+    function reapply() {
+      renderSection(sec);
+      placeHandles(sec, i);
+      pushState();
+      // update the active marks IN PLACE — a full rebuild refetches the
+      // media grid and reads as the panel closing and reopening
+      panel.querySelectorAll('.gogh-boxsw .gogh-sw').forEach(function (b2) {
+        b2.classList.toggle('is-active', (b2.dataset.col || '') === (e.boxBg || ''));
+      });
+      panel.querySelectorAll('.gogh-shapecell').forEach(function (b2) {
+        var d2 = SHAPE_DEFS[+b2.dataset.k];
+        b2.classList.toggle('is-active', (d2.key || null) === (e.shape || null));
+      });
+      panel.querySelectorAll('.gogh-moodrow .gogh-hpreset').forEach(function (b2) {
+        b2.classList.toggle('is-active', (b2.dataset.mood || '') === (e.mood || ''));
+      });
+    }
+    panel.querySelectorAll('.gogh-shapecell').forEach(function (b) {
+      b.addEventListener('click', function () {
+        var d = SHAPE_DEFS[+b.dataset.k];
+        e.shape = d.key || null;
+        e.radius = d.radius || 0;
+        reapply();
+      });
+    });
+    panel.querySelectorAll('.gogh-boxsw .gogh-sw').forEach(function (swBtn) {
+      swBtn.addEventListener('click', function () {
+        e.boxBg = swBtn.dataset.col || null;
+        reapply();
+      });
+    });
+    panel.querySelectorAll('.gogh-moodrow .gogh-hpreset').forEach(function (mb) {
+      mb.addEventListener('click', function () {
+        e.mood = mb.dataset.mood || null;
+        reapply();
+      });
+    });
+    // choosing an image completes the task — close instead of rebuilding
+    function applyAndClose() {
+      renderSection(sec);
+      placeHandles(sec, i);
+      pushState();
+      closePanel();
+      contrastSentinel(sec, i); // the card's new ground judges its words
+    }
+    var chBtn = panel.querySelector('.gogh-cardhref-apply');
+    if (chBtn) chBtn.addEventListener('click', function () {
+      var u = panel.querySelector('.gogh-cardhref').value.trim();
+      if (u && !/^https?:\/\//i.test(u) && u[0] !== '/' && u[0] !== '#') u = 'https://' + u;
+      e.href = u || null;
+      renderSection(sec);
+      placeHandles(sec, i);
+      pushState();
+      closePanel();
+      toast(u ? 'The whole card links to ' + u : 'Card link removed.');
+    });
+    var bclear = panel.querySelector('.gogh-boximg-clear');
+    if (bclear) bclear.addEventListener('click', function () {
+      e.boxImg = null;
+      e.boxImgId = null;
+      reapply();
+    });
+    fetch(restQ(cfg.mediaUrl, 'per_page=32&media_type=image&orderby=date&order=desc'), {
+      headers: { 'X-WP-Nonce': cfg.nonce }, credentials: 'same-origin',
+    }).then(function (r2) { return r2.ok ? r2.json() : []; }).catch(function () { return []; })
+      .then(function (items) {
+        var mbox = panel.querySelector('.gogh-boximg-media');
+        if (!mbox || panel.hidden) return;
+        mbox.innerHTML = '';
+        var boxCur = { img: e.boxImg || null };
+        items.forEach(function (item) {
+          var url = ((item.media_details || {}).sizes || {}).thumbnail;
+          url = (url && url.source_url) || item.source_url;
+          if (!url) return;
+          var tb = document.createElement('button');
+          tb.type = 'button';
+          tb.className = 'gogh-thumb';
+          tb.style.backgroundImage = 'url("' + url + '")';
+          tb.title = (item.title && item.title.rendered) || '';
+          // hover auditions the picture on the card itself; leaving takes
+          // it back, clicking keeps it (auditioning is very gogh)
+          auditionHover(tb, function () {
+            e.boxImg = item.source_url;
+            renderSection(sec);
+          }, function () {
+            e.boxImg = boxCur.img;
+            renderSection(sec);
+          });
+          tb.addEventListener('click', function () {
+            e.boxImg = boxCur.img; // undo lands on the true before
+            e.boxImg = boxCur.img = item.source_url;
+            e.boxImgId = item.id;
+            applyAndClose();
+          });
+          mbox.appendChild(tb);
+        });
+        reclampPanel();
+      });
+    var bfile = panel.querySelector('.gogh-upload input[type="file"]');
+    if (bfile) bfile.addEventListener('change', function () {
+      if (!bfile.files.length) return;
+      var fd = new FormData();
+      fd.append('file', bfile.files[0]);
+      var blabel = panel.querySelector('.gogh-upload');
+      blabel.firstChild.textContent = 'Uploading\u2026';
+      fetch(cfg.mediaUrl, {
+        method: 'POST',
+        headers: { 'X-WP-Nonce': cfg.nonce },
+        credentials: 'same-origin',
+        body: fd,
+      }).then(function (res) {
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        return res.json();
+      }).then(function (item) {
+        e.boxImg = item.source_url;
+        e.boxImgId = item.id;
+        applyAndClose();
+      }).catch(function (err) {
+        blabel.firstChild.textContent = 'Upload failed';
+        console.error('gogh upload failed:', err);
+      });
+    });
   }
   function setImage(sec, i, src, mediaId, alt) {
     var e = sec.els[i];
@@ -1463,10 +3018,10 @@
         });
       });
     }
-    fetch(cfg.mediaUrl + '?per_page=12&media_type=image&orderby=date&order=desc', {
+    fetch(restQ(cfg.mediaUrl, 'per_page=32&media_type=image&orderby=date&order=desc'), {
       headers: { 'X-WP-Nonce': cfg.nonce },
       credentials: 'same-origin',
-    }).then(function (res) { return res.ok ? res.json() : []; })
+    }).then(function (res) { return res.ok ? res.json() : []; }).catch(function () { return []; })
       .then(function (items) {
         var box = panel.querySelector('.gogh-media');
         if (!box || panel.hidden) return;
@@ -1476,6 +3031,7 @@
           reclampPanel();
           return;
         }
+        var imgCur = { src: sec.els[i].src || null };
         items.forEach(function (item) {
           var thumb = (item.media_details && item.media_details.sizes &&
             (item.media_details.sizes.thumbnail || item.media_details.sizes.medium));
@@ -1485,7 +3041,16 @@
           b.className = 'gogh-thumb';
           b.style.backgroundImage = 'url("' + url + '")';
           b.title = (item.title && item.title.rendered) || '';
+          auditionHover(b, function () {
+            sec.els[i].src = item.source_url;
+            renderSection(sec);
+          }, function () {
+            sec.els[i].src = imgCur.src;
+            renderSection(sec);
+          });
           b.addEventListener('click', function () {
+            sec.els[i].src = imgCur.src; // undo lands on the true before
+            imgCur.src = item.source_url;
             setImage(sec, i, item.source_url, item.id, item.alt_text || null);
           });
           box.appendChild(b);
@@ -1501,11 +3066,24 @@
   });
   function layerMove(dir) {
     if (!sel) return;
-    var sec = sel.sec, i = sel.i, j = i + dir;
-    if (j < 0 || j >= sec.els.length) return;
-    var t = sec.els[i];
-    sec.els[i] = sec.els[j];
-    sec.els[j] = t;
+    var sec = sel.sec, i = sel.i, e = sec.els[i];
+    // stacking only shows between things that overlap, so jump straight
+    // past the nearest overlapping element — one click, visible result
+    var hits = function (o) {
+      return o.x < e.x + e.w && o.x + o.w > e.x && o.y < e.y + e.h && o.y + o.h > e.y;
+    };
+    var j = -1;
+    if (dir > 0) {
+      for (var k = i + 1; k < sec.els.length; k++) { if (hits(sec.els[k])) { j = k; break; } }
+    } else {
+      for (var k2 = i - 1; k2 >= 0; k2--) { if (hits(sec.els[k2])) { j = k2; break; } }
+    }
+    if (j === -1) {
+      toast(dir > 0 ? 'Nothing overlaps this \u2014 it\u2019s already in front.' : 'Nothing overlaps this \u2014 it\u2019s already at the back.', { ttl: 2600 });
+      return;
+    }
+    var t = sec.els.splice(i, 1)[0];
+    sec.els.splice(j, 0, t);
     renderSection(sec);
     placeHandles(sec, j);
     pushState();
@@ -1516,13 +3094,15 @@
     panel.innerHTML = '<div class="gogh-panel-title">Text colour</div>' +
       '<div class="gogh-swrow">' +
       '<button type="button" class="gogh-sw gogh-sw-none" data-col="" title="Theme default"></button>' +
-      themePalette().map(function (p) {
+      pickerPalette().map(function (p) {
         return '<button type="button" class="gogh-sw' + (e.color === p.slug ? ' is-active' : '') + '" data-col="' + p.slug + '"' +
           ' style="background: var(--wp--preset--color--' + p.slug + ')" title="' + p.slug + '"></button>';
       }).join('') + '</div>';
+    markSwatchLegibility(panel.querySelector('.gogh-swrow'), effectiveBgHex(sec.nodes[i]));
     panel.querySelectorAll('.gogh-sw').forEach(function (swBtn) {
       swBtn.addEventListener('click', function () {
         e.color = swBtn.dataset.col || null;
+        if (e.tf) delete e.tf.col;
         renderSection(sec);
         placeHandles(sec, i);
         closePanel();
@@ -1559,6 +3139,133 @@
     placeHandles(sel.sec, sel.i);
     pushState();
   });
+  // carousel controls in the EDITOR: arrows step (wrapping), dots jump —
+  // instant scroll, deterministic under the test pane's frozen rAF
+  document.addEventListener('click', function (ev) {
+    var ctl = ev.target.closest && ev.target.closest('.gogh-crsl-btn, .gogh-crsl-dot');
+    if (!ctl || !editing) return;
+    var shell = ctl.closest('.gogh-crsl-shell');
+    var strip = shell && shell.querySelector('.gogh-carousel');
+    if (!strip) return;
+    var slides2 = [].slice.call(strip.querySelectorAll('.gogh-slide'));
+    var mid = strip.scrollLeft + strip.clientWidth / 2, cur = 0, bd = 1e9;
+    slides2.forEach(function (sl, k) {
+      var c = sl.offsetLeft - strip.offsetLeft + sl.clientWidth / 2, d = Math.abs(c - mid);
+      if (d < bd) { bd = d; cur = k; }
+    });
+    var to = ctl.classList.contains('gogh-crsl-dot')
+      ? +ctl.dataset.k
+      : (cur + (+ctl.dataset.dir) + slides2.length) % slides2.length;
+    var t2 = slides2[to];
+    if (t2) strip.scrollLeft = t2.offsetLeft - strip.offsetLeft - (strip.clientWidth - t2.clientWidth) / 2;
+    var dots = shell.querySelectorAll('.gogh-crsl-dot');
+    [].forEach.call(dots, function (d2, k2) { d2.classList.toggle('is-here', k2 === to); });
+    ev.stopPropagation();
+  }, true);
+
+  // ---------- copy styles (Canva's roller): pick up once, paint many ----------
+  // "might be nice for consistency" — the roller carries fs/align/colour and
+  // the captured text format; painting is explicit, so no sentinel veto
+  var stylePaint = null;
+  function endStylePaint() {
+    if (!stylePaint) return;
+    stylePaint = null;
+    document.body.classList.remove('gogh-painting');
+    paintBtn.classList.remove('is-on');
+  }
+  function startStylePaint(sec, i) {
+    var e = sec.els[i];
+    if (!isText(e)) return;
+    stylePaint = {
+      fs: e.fs || null, align: e.align || null, color: e.color || null,
+      tf: e.tf ? JSON.parse(JSON.stringify(e.tf)) : null,
+      srcSec: sec, srcI: i,
+    };
+    document.body.classList.add('gogh-painting');
+    paintBtn.classList.add('is-on');
+    toast('Style copied \u2014 click other text to paint it. Esc finishes.');
+  }
+  function paintStyleOnto(sec, i) {
+    var e = sec.els[i];
+    if (!isText(e)) return false;
+    pushState();
+    e.fs = stylePaint.fs;
+    e.align = stylePaint.align;
+    e.color = stylePaint.color;
+    e.tf = stylePaint.tf ? JSON.parse(JSON.stringify(stylePaint.tf)) : null;
+    var oldH = e.h;
+    renderSection(sec);
+    measureTextHeights(sec);
+    if (reflowPush(sec, e, oldH)) resolveAndApply(sec);
+    placeHandles(sec, i);
+    // COMMIT convention: the pre-push above only dedups a stale stack —
+    // the paint itself must be pushed or undo skips past it entirely
+    pushState();
+    return true;
+  }
+  paintBtn.addEventListener('click', function () {
+    if (stylePaint) { endStylePaint(); return; }
+    if (sel) startStylePaint(sel.sec, sel.i);
+  });
+  document.addEventListener('pointerdown', function (ev) {
+    if (!stylePaint) return;
+    if (ev.target.closest && ev.target.closest('.gogh-elbar, .gogh-toast, .gogh-panel, .gogh-side')) return;
+    var hitSec = null, hitI = -1;
+    S.some(function (sec2) {
+      if (!sec2.nodes) return false;
+      for (var j = 0; j < sec2.nodes.length; j++) {
+        if (sec2.nodes[j] && sec2.nodes[j].contains(ev.target)) { hitSec = sec2; hitI = j; return true; }
+      }
+      return false;
+    });
+    if (hitSec && isText(hitSec.els[hitI]) &&
+        !(hitSec === stylePaint.srcSec && hitI === stylePaint.srcI)) {
+      ev.preventDefault();
+      ev.stopPropagation();
+      stylePaint.swallow = true; // the follow-up click must not start text editing
+      paintStyleOnto(hitSec, hitI);
+    } else if (hitSec && hitSec.els[hitI] && hitSec.els[hitI].type === 'box' &&
+        hitSec.els[hitI].kids && hitSec.els[hitI].kids.length) {
+      // card text: the hit resolves to the card box — find the KID under
+      // the pointer, or the roller rests on card chrome
+      var kn = ev.target.closest ? ev.target.closest('[class*="gogh-k-"]') : null;
+      var km = kn && (kn.className + '').match(/gogh-k-(\d+)/);
+      var kid = km ? hitSec.els[hitI].kids[+km[1] - 1] : null;
+      if (kid && isText(kid)) {
+        ev.preventDefault();
+        ev.stopPropagation();
+        stylePaint.swallow = true;
+        pushState();
+        kid.fs = stylePaint.fs;
+        kid.align = stylePaint.align;
+        kid.color = stylePaint.color;
+        kid.tf = stylePaint.tf ? JSON.parse(JSON.stringify(stylePaint.tf)) : null;
+        renderSection(hitSec);
+        measureTextHeights(hitSec);
+        pushState();
+      } else {
+        endStylePaint();
+      }
+    } else {
+      // the roller rests when a click lands on anything that isn't text
+      endStylePaint();
+    }
+  }, true);
+  // the pointerup/click pair that follows a swallowed paint pointerdown
+  // must not reach the canvas — a click on selected text enters editing
+  ['pointerup', 'click'].forEach(function (evt) {
+    document.addEventListener(evt, function (ev) {
+      if (stylePaint && stylePaint.swallow) {
+        ev.preventDefault();
+        ev.stopPropagation();
+        if (evt === 'click') stylePaint.swallow = false;
+      }
+    }, true);
+  });
+  document.addEventListener('keydown', function (ev) {
+    if (ev.key === 'Escape' && stylePaint) { endStylePaint(); ev.stopPropagation(); }
+  }, true);
+
   elbar.querySelector('.gogh-eb-fwd').addEventListener('click', function () { layerMove(1); });
   elbar.querySelector('.gogh-eb-bck').addEventListener('click', function () { layerMove(-1); });
   elbar.querySelector('.gogh-eb-dup').addEventListener('click', function () {
@@ -1573,7 +3280,7 @@
     pushState();
   });
   document.addEventListener('pointerdown', function (ev) {
-    if (panelOpen && !panel.contains(ev.target) && !elbar.contains(ev.target)) closePanel();
+    if (panelOpen && !panelSticky && !panel.contains(ev.target) && !elbar.contains(ev.target)) closePanel();
     if (!editing) return;
     var t = ev.target;
     if (!t || !t.closest) return;
@@ -1595,20 +3302,519 @@
 
   // ---------- add / delete elements ----------
   var stagger = 0;
+  // shapes are boxes wearing geometry — pure CSS in the section stylesheet,
+  // so they publish deactivation-safe like everything else
+  var SHAPE_CSS = {
+    circle: ' border-radius: 50%;',
+    pill: ' border-radius: 999px;',
+    arch: ' border-radius: 50% 50% 0 0 / 100% 100% 0 0;',
+    tri: ' clip-path: polygon(50% 0%, 100% 100%, 0% 100%);',
+    diamond: ' clip-path: polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%);',
+    blob: ' border-radius: 42% 58% 63% 37% / 55% 42% 58% 45%;',
+  };
+  var SHAPE_DEFS = [
+    // square/rounded have no SHAPE_CSS entry (radius covers them) but keep a
+    // key so corner-resize knows to hold their proportions
+    { key: 'square', label: 'Square', w: 320, h: 320, radius: 0 },
+    { key: 'rounded', label: 'Rounded', w: 320, h: 320, radius: 28 },
+    { key: 'circle', label: 'Circle', w: 320, h: 320 },
+    { key: 'pill', label: 'Pill', w: 380, h: 130 },
+    { key: 'arch', label: 'Arch', w: 320, h: 320 },
+    { key: 'tri', label: 'Triangle', w: 340, h: 300 },
+    { key: 'diamond', label: 'Diamond', w: 320, h: 320 },
+    { key: 'blob', label: 'Blob', w: 340, h: 320 },
+  ];
+  var SHAPE_DEFAULT_BG = 'color-mix(in srgb, var(--wp--preset--color--contrast, #000) 12%, var(--wp--preset--color--base, transparent))';
+  function shapePreviewCss(def) {
+    var css = 'background: currentColor;';
+    if (def.radius) css += 'border-radius: 18%;';
+    if (def.key && SHAPE_CSS[def.key]) css += SHAPE_CSS[def.key];
+    if (def.key === 'pill') css += 'height: 46%; align-self: center;';
+    return css;
+  }
   var DEFAULTS = {
     heading: function () { return { type: 'heading', x: 80, y: 80, w: 420, h: 60, text: 'A new heading', ghost: false, cool: false }; },
     para: function () { return { type: 'para', x: 80, y: 200, w: 380, h: 50, text: 'Some supporting copy. Drag me anywhere.', ghost: false, cool: false }; },
     button: function () { return { type: 'button', x: 80, y: 320, w: 170, h: 52, text: 'Click me', ghost: false, cool: false }; },
     image: function () { return { type: 'image', x: 520, y: 120, w: 360, h: 260, text: null, ghost: false, cool: true }; },
     badge: function () { return { type: 'badge', x: 520, y: 420, w: 220, h: 52, text: 'New badge', ghost: false, cool: false }; },
+    card: function () {
+      return { type: 'box', x: 360, y: 80, w: 480, h: 360, radius: 16,
+        boxBg: 'color-mix(in srgb, var(--wp--preset--color--contrast, #000) 7%, var(--wp--preset--color--base, transparent))' };
+    },
+    posts: function () {
+      // a real core query loop: WordPress renders it fresh on the published
+      // page (and it keeps working with the plugin deactivated)
+      var wsrc = '<!-- wp:query {"queryId":0,"query":{"perPage":3,"pages":0,"offset":0,"postType":"post","order":"desc","orderBy":"date","author":"","search":"","exclude":[],"sticky":"","inherit":false}} -->\n' +
+        '<div class="wp-block-query">' +
+        '<!-- wp:post-template {"layout":{"type":"grid","columnCount":3}} -->\n' +
+        '<!-- wp:post-featured-image {"isLink":true,"aspectRatio":"4/3"} /-->\n' +
+        '<!-- wp:post-title {"level":3,"isLink":true} /-->\n' +
+        '<!-- wp:post-date /-->\n' +
+        '<!-- /wp:post-template -->' +
+        '</div>\n<!-- /wp:query -->';
+      return { type: 'widget', x: 47, y: 60, w: 1106, h: 430, wsrc: wsrc,
+        whtml: '<div class="gogh-postsprev gogh-postsprev-loading">Loading your latest posts\u2026</div>' };
+    },
+    products: function () {
+      // WooCommerce's own grid via its shortcode block \u2014 Woo renders it
+      // fresh on the published page (prices, add-to-cart, the lot), and it
+      // keeps working with gogh deactivated
+      var wsrc = '<!-- wp:shortcode -->[products limit="3" columns="3" orderby="date" order="DESC"]<!-- /wp:shortcode -->';
+      return { type: 'widget', x: 47, y: 60, w: 1106, h: 470, wsrc: wsrc,
+        whtml: '<div class="gogh-postsprev gogh-postsprev-loading">Loading your products\u2026</div>' };
+    },
   };
-  function addElement(sec, e) {
-    sec.els.push(e);
+  function postsPreviewHTML(posts) {
+    return '<div class="gogh-postsprev">' + posts.map(function (p) {
+      var media = p._embedded && p._embedded['wp:featuredmedia'] && p._embedded['wp:featuredmedia'][0];
+      var sizes = media && media.media_details && media.media_details.sizes;
+      var src = sizes && ((sizes.medium_large || sizes.large || sizes.full || {}).source_url) || (media && media.source_url) || null;
+      var when = '';
+      try { when = new Date(p.date).toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' }); } catch (err) {}
+      return '<div class="gogh-postsprev-card">' +
+        (src ? '<img src="' + escAttr(src) + '" alt="" />' : '<div class="gogh-postsprev-ph"></div>') +
+        '<h3>' + esc((p.title && p.title.rendered) || 'Untitled') + '</h3>' +
+        '<div class="gogh-postsprev-date">' + when + '</div>' +
+        '</div>';
+    }).join('') + '</div>';
+  }
+  // a featured product is not an embed — it's a real gogh card composed of
+  // real gogh elements (image, name, price badge, add-to-cart button), so
+  // every piece drags like anything else and the card holds together on
+  // mobile. The button's link is Woo's add-to-cart URL: one click, real cart.
+  function storePriceText(p) {
+    try {
+      var pr = p.prices;
+      return pr.currency_symbol + (parseInt(pr.price, 10) / Math.pow(10, pr.currency_minor_unit)).toFixed(pr.currency_minor_unit);
+    } catch (err) { return ''; }
+  }
+  function composeFeaturedProduct(idx, p) {
+    var card = {
+      type: 'box', x: 150, y: 60, w: 900, h: 400, radius: 16,
+      boxBg: 'color-mix(in srgb, var(--wp--preset--color--contrast, #000) 6%, var(--wp--preset--color--base, transparent))',
+      kids: [
+        { type: 'image', x: 30, y: 30, w: 340, h: 340, src: p.img || null },
+        { type: 'heading', x: 420, y: 60, w: 440, h: 70, text: p.name || 'Product' },
+        { type: 'badge', x: 420, y: 170, w: 170, h: 48, text: p.priceText || '' },
+        { type: 'button', x: 420, y: 260, w: 250, h: 54, text: 'Add to cart', href: p.addUrl || p.permalink || null },
+      ],
+    };
+    return addElementToSection(idx, card);
+  }
+  function openFeaturedProductPanel(idx) {
+    panel.innerHTML = '<div class="gogh-panel-title">Feature a product</div>' +
+      '<div class="gogh-panel-hint">Pick one — it becomes a card of ordinary gogh pieces, add-to-cart included.</div>' +
+      '<div class="gogh-featlist"><span class="gogh-media-loading">Loading your products…</span></div>';
+    placePanelNear(S[idx] ? S[idx].wrapEl : side);
+    panelOpen = true;
+    fetch(cfg.restUrl.split('wp/v2/')[0] + 'wc/store/v1/products?per_page=8&orderby=date&order=desc', {
+      credentials: 'same-origin',
+    }).then(function (r) { return r.ok ? r.json() : []; }).then(function (prods) {
+      var box = panel.querySelector('.gogh-featlist');
+      if (!box) return;
+      if (!prods.length) {
+        box.innerHTML = '<div class="gogh-panel-hint">No products yet — add one in WooCommerce first.</div>';
+        return;
+      }
+      box.innerHTML = prods.map(function (p, k) {
+        var img = p.images && p.images[0] && p.images[0].src;
+        return '<button type="button" class="gogh-featrow" data-k="' + k + '">' +
+          (img ? '<img src="' + escAttr(img) + '" alt="" />' : '<span class="gogh-postsprev-ph"></span>') +
+          '<span class="gogh-featname">' + esc(p.name || 'Product') + '</span>' +
+          '<span class="gogh-featprice">' + esc(storePriceText(p)) + '</span>' +
+          '</button>';
+      }).join('');
+      [].forEach.call(box.querySelectorAll('.gogh-featrow'), function (row) {
+        row.addEventListener('click', function () {
+          var p = prods[+row.dataset.k];
+          closePanel();
+          composeFeaturedProduct(idx, {
+            name: p.name,
+            img: p.images && p.images[0] && p.images[0].src,
+            priceText: storePriceText(p),
+            permalink: p.permalink,
+            addUrl: p.id ? '?add-to-cart=' + p.id : null,
+          });
+        });
+      });
+    }).catch(function () {});
+  }
+  // Products can aim at one category: same widget, shortcode narrowed, and
+  // the ＋ flow asks "which products?" when the store has categories
+  function productsElFor(cat) {
+    var e = DEFAULTS.products();
+    if (cat && cat.slug) {
+      e.wsrc = '<!-- wp:shortcode -->[products limit="3" columns="3" category="' + cat.slug + '" orderby="date" order="DESC"]<!-- /wp:shortcode -->';
+    }
+    return e;
+  }
+  function openProductsPanel(idx) {
+    fetch(cfg.restUrl.split('wp/v2/')[0] + 'wc/store/v1/products/categories?per_page=12', {
+      credentials: 'same-origin',
+    }).then(function (r) { return r.ok ? r.json() : []; }).then(function (cats) {
+      cats = (cats || []).filter(function (c) { return c.count > 0; });
+      if (!cats.length) {
+        var e0 = addElementToSection(idx, productsElFor(null));
+        hydrateProductsPreview(S[idx], e0);
+        return;
+      }
+      panel.innerHTML = '<div class="gogh-panel-title">Products</div>' +
+        '<div class="gogh-panel-hint">Which products should the grid show?</div>' +
+        '<div class="gogh-featlist">' +
+        '<button type="button" class="gogh-featrow" data-all="1"><span class="gogh-featname">All products</span></button>' +
+        cats.map(function (c, k) {
+          return '<button type="button" class="gogh-featrow" data-k="' + k + '">' +
+            '<span class="gogh-featname">' + esc(c.name) + '</span>' +
+            '<span class="gogh-featprice">' + c.count + '</span></button>';
+        }).join('') + '</div>';
+      placePanelNear(S[idx] ? S[idx].wrapEl : side);
+      panelOpen = true;
+      [].forEach.call(panel.querySelectorAll('.gogh-featrow'), function (row) {
+        row.addEventListener('click', function () {
+          var cat = row.dataset.all ? null : cats[+row.dataset.k];
+          closePanel();
+          var e2 = addElementToSection(idx, productsElFor(cat));
+          hydrateProductsPreview(S[idx], e2, cat && cat.id);
+        });
+      });
+    }).catch(function () {
+      var e3 = addElementToSection(idx, productsElFor(null));
+      hydrateProductsPreview(S[idx], e3);
+    });
+  }
+  function hydrateProductsPreview(sec, e, catId) {
+    // the Store API is public — same shape as the posts preview, plus price
+    fetch(cfg.restUrl.split('wp/v2/')[0] + 'wc/store/v1/products?per_page=3&orderby=date&order=desc' + (catId ? '&category=' + catId : ''), {
+      credentials: 'same-origin',
+    }).then(function (r) { return r.ok ? r.json() : []; }).then(function (prods) {
+      if (!prods.length || sec.els.indexOf(e) === -1) return;
+      e.whtml = '<div class="gogh-postsprev">' + prods.map(function (p) {
+        var img = p.images && p.images[0] && p.images[0].src;
+        var price = '';
+        try {
+          var pr = p.prices;
+          price = pr.currency_symbol + (parseInt(pr.price, 10) / Math.pow(10, pr.currency_minor_unit)).toFixed(pr.currency_minor_unit);
+        } catch (err) {}
+        return '<div class="gogh-postsprev-card">' +
+          (img ? '<img src="' + escAttr(img) + '" alt="" />' : '<div class="gogh-postsprev-ph"></div>') +
+          '<h3>' + esc(p.name || 'Product') + '</h3>' +
+          '<div class="gogh-postsprev-date">' + esc(price) + '</div>' +
+          '<span class="gogh-postsprev-btn">Add to cart</span>' +
+          '</div>';
+      }).join('') + '</div>';
+      renderSection(sec);
+      if (sel && sel.sec === sec) placeHandles(sec, sec.els.indexOf(e));
+    }).catch(function () {});
+  }
+  function hydratePostsPreview(sec, e) {
+    fetch(cfg.restUrl.split('wp/v2/')[0] + 'wp/v2/posts?per_page=3&_embed=wp:featuredmedia&status=publish', {
+      headers: { 'X-WP-Nonce': cfg.nonce },
+      credentials: 'same-origin',
+    }).then(function (r) { return r.ok ? r.json() : []; }).then(function (posts) {
+      if (!posts.length || sec.els.indexOf(e) === -1) return;
+      e.whtml = postsPreviewHTML(posts);
+      renderSection(sec);
+      if (sel && sel.sec === sec) placeHandles(sec, sec.els.indexOf(e));
+    }).catch(function () {});
+  }
+  // ---------- contrast sentinel: unreadable text fixes itself ----------
+  // dark words on a dark background should be IMPOSSIBLE: when text lands on
+  // a section (or a section's background changes), gogh measures the
+  // effective contrast and quietly flips the text to the theme colour that
+  // reads — a toast with Undo keeps the human in charge. Auto-fix with an
+  // exit, never a warning: warnings are homework.
+  function sentinelLum(rgb) {
+    var a = rgb.map(function (v) {
+      v /= 255;
+      return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4);
+    });
+    return 0.2126 * a[0] + 0.7152 * a[1] + 0.0722 * a[2];
+  }
+  function sentinelContrast(l1, l2) {
+    var hi = Math.max(l1, l2), lo = Math.min(l1, l2);
+    return (hi + 0.05) / (lo + 0.05);
+  }
+  function cssToRgb(css) {
+    if (!css) return null;
+    var d = document.createElement('div');
+    d.style.color = css;
+    d.style.display = 'none';
+    document.body.appendChild(d);
+    var str = getComputedStyle(d).color;
+    d.remove();
+    if (/^color\(srgb[ -]/.test(str)) {
+      // the modern resolved form: color(srgb 0.93 0.93 0.93) — 0–1 floats.
+      // Read as 0–255 they turned near-white grounds near-black, and the
+      // sentinel painted pale cards white (James's "cards starting with
+      // white text").
+      var fm = str.match(/([\d.]+)\s+([\d.]+)\s+([\d.]+)/);
+      return fm ? [fm[1], fm[2], fm[3]].map(function (v) { return Math.round(+v * 255); }) : null;
+    }
+    if (str.indexOf('color-mix') !== -1) {
+      // some engines keep color-mix UNRESOLVED in the computed value — the
+      // old regex then grabbed the first component's numbers (the dark 7%
+      // of a pale mix) and the sentinel painted cards white. Mix it here.
+      var parts = [];
+      var re = /rgba?\(([\d.]+),\s*([\d.]+),\s*([\d.]+)(?:,\s*([\d.]+))?\)(?:\s+([\d.]+)%)?/g, pm;
+      while ((pm = re.exec(str))) {
+        parts.push({ rgb: [+pm[1], +pm[2], +pm[3]], a: pm[4] != null ? +pm[4] : 1, w: pm[5] != null ? +pm[5] / 100 : null });
+      }
+      // 'transparent' computes as rgba(0,0,0,0) and is caught above
+      if (parts.length === 2) {
+        if (parts[0].w == null && parts[1].w == null) { parts[0].w = 0.5; parts[1].w = 0.5; }
+        else if (parts[0].w == null) parts[0].w = 1 - parts[1].w;
+        else if (parts[1].w == null) parts[1].w = 1 - parts[0].w;
+        var e0 = parts[0].w * parts[0].a, e1 = parts[1].w * parts[1].a;
+        var tot = e0 + e1;
+        if (tot > 0) {
+          return [0, 1, 2].map(function (i) {
+            return Math.round((parts[0].rgb[i] * e0 + parts[1].rgb[i] * e1) / tot);
+          });
+        }
+      }
+      return null; // an unmixable ground judges nothing
+    }
+    var m = str.match(/[\d.]+/g);
+    return m && m.length >= 3 ? m.slice(0, 3).map(Number) : null;
+  }
+  // sample the image UNDER a text element, not the whole picture: a sky
+  // that is pale up top and dark in the bushes averages to "fine" while
+  // the words drown in the bushes (James's wheatfield). done(sampler) —
+  // sampler(nx, ny, nw, nh) averages a normalised region; null on taint.
+  function imgRegionLum(src, aspect, done) {
+    var im = new Image();
+    im.crossOrigin = 'anonymous';
+    var CW = 48, CH = Math.max(12, Math.round(48 * Math.max(0.1, Math.min(4, aspect || 0.5))));
+    im.onload = function () {
+      try {
+        var c = document.createElement('canvas');
+        c.width = CW; c.height = CH;
+        var ctx = c.getContext('2d');
+        var sc = Math.max(CW / im.width, CH / im.height); // cover, centre-crop
+        ctx.drawImage(im, (CW - im.width * sc) / 2, (CH - im.height * sc) / 2, im.width * sc, im.height * sc);
+        var data = ctx.getImageData(0, 0, CW, CH).data;
+        done(function (nx, ny, nw, nh) {
+          var x0 = Math.max(0, Math.floor(nx * CW)), y0 = Math.max(0, Math.floor(ny * CH));
+          var x1 = Math.min(CW, Math.ceil((nx + nw) * CW)), y1 = Math.min(CH, Math.ceil((ny + nh) * CH));
+          if (x1 <= x0 || y1 <= y0) return null;
+          var sum = 0, n = 0;
+          for (var y = y0; y < y1; y++) {
+            for (var x = x0; x < x1; x++) {
+              var k = (y * CW + x) * 4;
+              sum += sentinelLum([data[k], data[k + 1], data[k + 2]]);
+              n++;
+            }
+          }
+          return n ? sum / n : null;
+        });
+      } catch (err) { done(null); } // tainted canvas: tint-only judgement
+    };
+    im.onerror = function () { done(null); };
+    im.src = src;
+  }
+  function imgAvgLum(src, done) {
+    var im = new Image();
+    im.crossOrigin = 'anonymous';
+    im.onload = function () {
+      try {
+        var c = document.createElement('canvas');
+        c.width = c.height = 16;
+        var x = c.getContext('2d');
+        x.drawImage(im, 0, 0, 16, 16);
+        var d = x.getImageData(0, 0, 16, 16).data;
+        var r = 0, g = 0, b = 0, n = d.length / 4;
+        for (var i = 0; i < d.length; i += 4) { r += d[i]; g += d[i + 1]; b += d[i + 2]; }
+        done(sentinelLum([r / n, g / n, b / n]));
+      } catch (err) { done(null); } // cross-origin taint: tint-only fallback
+    };
+    im.onerror = function () { done(null); };
+    im.src = src;
+  }
+  // WCAG large-text wants 3.0 and body wants 4.5; 3.2 splits the
+  // difference — 2.6 let olive-on-near-black (2.76) pass as "readable"
+  var CONTRAST_FLOOR = 3.2;
+  // the best readable ink from the palette for a given ground — roles
+  // first, whole palette when the family can't reach the floor
+  function sentinelBestInk(bgL) {
+    var roles = paletteRoles();
+    var best = null, bestC = 0;
+    var consider = function (list) {
+      list.forEach(function (p) {
+        var rgb = cssToRgb(p.value);
+        if (!rgb) return;
+        var c = sentinelContrast(sentinelLum(rgb), bgL);
+        if (c > bestC) { bestC = c; best = p.slug; }
+      });
+    };
+    consider(themePalette().filter(function (p) {
+      return p.slug === roles.bgSlug || p.slug === roles.textSlug ||
+        /^(base|contrast)(-|$)/.test(p.slug);
+    }));
+    if (bestC < CONTRAST_FLOOR) consider(themePalette());
+    return { best: best, bestC: bestC };
+  }
+  function contrastSentinel(sec, onlyIdx) {
+    if (!editing || sec.chrome) return;
+    var tint = (sec.bg && !/gradient\(/.test(sec.bg)) ? cssToRgb(sec.bg) : null;
+    var secHpx = sec.sectionEl.offsetHeight || 1;
+    var secWpx = sec.sectionEl.offsetWidth || 1;
+    var judge = function (sampler) {
+      var mixA = (sec.bgA != null ? sec.bgA : 62) / 100; // the dial, or the old default
+      // the ground under ONE element: local image luminance when there is a
+      // picture (a pale sky averages away the dark bushes the words sit in)
+      var secHunits = secHpx / (secWpx / W); // section height in design units
+      var groundFor = function (e) {
+        var imgL = null;
+        if (sampler) {
+          imgL = sampler(e.x / W, e.y / secHunits, e.w / W, e.h / secHunits);
+        }
+        if (tint && imgL != null) return sentinelLum(tint) * mixA + imgL * (1 - mixA); // the published tint mix
+        if (tint && sec.bgA != null && sec.bgA < 100) {
+          var underRgb = cssToRgb('var(--wp--preset--color--base, #fff)');
+          return sentinelLum(tint) * (sec.bgA / 100) + (underRgb ? sentinelLum(underRgb) : 1) * (1 - sec.bgA / 100);
+        }
+        if (tint) return sentinelLum(tint);
+        if (imgL != null) {
+          // no user tint: the auto-scrim (45% theme base) sits behind texty sections
+          var baseRgb = cssToRgb('var(--wp--preset--color--base, #fff)');
+          return imgL * 0.55 + (baseRgb ? sentinelLum(baseRgb) : 1) * 0.45;
+        }
+        var secRgb = cssToRgb(getComputedStyle(sec.sectionEl).backgroundColor);
+        if (!secRgb || getComputedStyle(sec.sectionEl).backgroundColor === 'rgba(0, 0, 0, 0)') {
+          secRgb = cssToRgb('var(--wp--preset--color--base, #fff)');
+        }
+        return secRgb ? sentinelLum(secRgb) : 1;
+      };
+      var roles = paletteRoles();
+      var candidates = themePalette().filter(function (p) {
+        return p.slug === roles.bgSlug || p.slug === roles.textSlug ||
+          /^(base|contrast)(-|$)/.test(p.slug);
+      });
+      var flips = [];
+      sec.els.forEach(function (e, i) {
+        if (onlyIdx != null && i !== onlyIdx) return;
+        if (!isText(e)) return;
+        var node = sec.nodes[i];
+        if (!node) return;
+        var host = node.matches('p,h1,h2,h3,h4,h5,h6') ? node : (node.querySelector('p,h1,h2,h3,h4,h5,h6') || node);
+        var txt = cssToRgb(getComputedStyle(host).color);
+        if (!txt) return;
+        var bgL = groundFor(e);
+        var curC = sentinelContrast(sentinelLum(txt), bgL);
+        if (curC >= CONTRAST_FLOOR) return;
+        var best = null, bestC = 0;
+        var consider = function (list) {
+          list.forEach(function (p) {
+            var rgb = cssToRgb(p.value);
+            if (!rgb) return;
+            var c = sentinelContrast(sentinelLum(rgb), bgL);
+            if (c > bestC) { bestC = c; best = p.slug; }
+          });
+        };
+        consider(candidates);
+        // some variations paint BOTH base and contrast pale (James's
+        // lemon-on-lemon) — when the family can't reach the floor, any
+        // palette colour that can is better than invisible words
+        if (bestC < CONTRAST_FLOOR) consider(themePalette());
+        // mid-tone grounds can defeat every preset — flip anyway when the
+        // best ink is a real improvement (15%+), not only when it's perfect;
+        // leaving the worst ink because no ink is ideal helps nobody
+        if (best && e.color !== best && (bestC >= CONTRAST_FLOOR || bestC >= curC * 1.15)) {
+          flips.push({ i: i, to: best });
+        }
+      });
+      if (!flips.length) return;
+      pushState();
+      flips.forEach(function (f) {
+        var fe = sec.els[f.i];
+        fe.color = f.to;
+        // a captured tf colour paints with !important and would silently
+        // win over the flip (James's eyebrow stayed dark on the night sky)
+        if (fe.tf && fe.tf.col) delete fe.tf.col;
+      });
+      renderSection(sec);
+      toast(flips.length === 1 ? 'Made the words readable on that background.'
+        : 'Made ' + flips.length + ' text pieces readable on that background.',
+        { actions: [{ label: 'Undo', onClick: function () { undo(); } }] });
+    };
+    if (sec.bgImage) imgRegionLum(sec.bgImage, secHpx / secWpx, judge); else judge(null);
+    // ---- cards: kids live on their card's OWN ground ----
+    sec.els.forEach(function (box, bi) {
+      if (onlyIdx != null && bi !== onlyIdx) return;
+      if (box.type !== 'box' || !box.kids || !box.kids.length) return;
+      var judgeKids = function (sampler) {
+        // imgRegionLum hands over a region SAMPLER — treating it as a number
+        // made every photo-card ground NaN, and NaN comparisons silently
+        // skipped ALL judgement ("cant read text on photo cards"). Kids are
+        // judged on their OWN patch of the picture now, like section text.
+        var bv = box.boxBg || '';
+        if (bv && /^[a-z0-9-]+$/.test(bv)) bv = 'var(--wp--preset--color--' + bv + ')';
+        var bvRgb = bv ? cssToRgb(bv) : null;
+        var baseRgb = cssToRgb('var(--wp--preset--color--base, #fff)');
+        var groundFor = function (k) {
+          var kidL = typeof sampler === 'function'
+            ? sampler(
+                Math.max(0, k.x / Math.max(1, box.w)), Math.max(0, k.y / Math.max(1, box.h)),
+                Math.min(1, k.w / Math.max(1, box.w)), Math.min(1, k.h / Math.max(1, box.h)))
+            : null;
+          if (kidL != null && bvRgb) return sentinelLum(bvRgb) * 0.45 + kidL * 0.55; // the tint mix
+          if (kidL != null) return kidL * 0.6 + (baseRgb ? sentinelLum(baseRgb) : 1) * 0.4; // the guardrail scrim
+          if (bvRgb) return sentinelLum(bvRgb);
+          return null; // transparent card: the section pass already judged this ground
+        };
+        var cardNode = sec.nodes[bi];
+        if (!cardNode) return;
+        var kidFlips = [];
+        box.kids.forEach(function (k, j) {
+          if (!isText(k)) return;
+          var kn = cardNode.querySelector('.gogh-k-' + (j + 1));
+          if (!kn) return;
+          var host = kn.matches('p,h1,h2,h3,h4,h5,h6') ? kn : (kn.querySelector('p,h1,h2,h3,h4,h5,h6') || kn);
+          var txt = cssToRgb(getComputedStyle(host).color);
+          if (!txt) return;
+          var ground = groundFor(k);
+          if (ground == null) return;
+          if (sentinelContrast(sentinelLum(txt), ground) >= CONTRAST_FLOOR) return;
+          var pick = sentinelBestInk(ground);
+          if (pick.best && k.color !== pick.best) kidFlips.push({ j: j, to: pick.best });
+        });
+        if (!kidFlips.length) return;
+        pushState();
+        kidFlips.forEach(function (f) {
+          var k = box.kids[f.j];
+          k.color = f.to;
+          if (k.tf && k.tf.col) delete k.tf.col;
+        });
+        renderSection(sec);
+        toast('Made the card\u2019s words readable on its background.',
+          { actions: [{ label: 'Undo', onClick: function () { undo(); } }] });
+      };
+      if (box.boxImg) imgRegionLum(box.boxImg, box.h / Math.max(1, box.w), judgeKids);
+      else judgeKids(null);
+    });
+  }
+  function addElement(sec, e, atBack) {
+    // shapes are backdrops: they join the stack BEHIND everything else
+    if (atBack) sec.els.unshift(e); else sec.els.push(e);
     renderSection(sec);
-    placeHandles(sec, sec.els.length - 1);
+    placeHandles(sec, atBack ? 0 : sec.els.length - 1);
     pushState();
+    contrastSentinel(sec, atBack ? 0 : sec.els.length - 1);
   }
   function deleteSelected() {
+    if (multiSel) {
+      var msec = multiSel.sec;
+      var idxs = multiSel.idxs.slice().sort(function (a, b) { return b - a; });
+      clearMulti();
+      idxs.forEach(function (j) { msec.els.splice(j, 1); });
+      sel = null;
+      hideHandles();
+      closePanel();
+      renderSection(msec);
+      pushState();
+      return;
+    }
     if (!sel) return;
     var sec = sel.sec;
     sec.els.splice(sel.i, 1);
@@ -1622,6 +3828,7 @@
   function viewportSection() {
     var best = null, bestPx = 0;
     S.forEach(function (sec) {
+      if (sec.chrome) return; // never auto-target the site header/footer
       var r = sec.wrapEl.getBoundingClientRect();
       var vis = Math.min(r.bottom, window.innerHeight) - Math.max(r.top, 0);
       if (vis > bestPx) { bestPx = vis; best = sec; }
@@ -1632,8 +3839,7 @@
     var r = sec.wrapEl.getBoundingClientRect();
     return r.bottom > 60 && r.top < window.innerHeight - 60;
   }
-  function addElementAtViewport(kind) {
-    var e = DEFAULTS[kind]();
+  function placeElAtViewport(e, atBack) {
     // land in what the user is looking at: the selected section if it's on
     // screen, else the most visible one — centred in the viewport
     var sec = (sel && sectionVisible(sel.sec)) ? sel.sec : viewportSection();
@@ -1646,43 +3852,234 @@
     e.x = Math.max(0, Math.min(W - e.w, e.x));
     e.y = Math.max(8, e.y);
     stagger++;
-    addElement(sec, e);
+    addElement(sec, e, atBack);
+    return e;
   }
-  side.querySelectorAll('[data-add]').forEach(function (btn) {
-    btn.addEventListener('click', function () { addElementAtViewport(btn.dataset.add); });
+  function addElementAtViewport(kind) {
+    if (kind === 'exp') return addExperience();
+    if (kind === 'write') return startWriting();
+    var e = placeElAtViewport(DEFAULTS[kind]());
+    if (kind === 'posts') hydratePostsPreview(sel.sec, e);
+    if (kind === 'products') hydrateProductsPreview(sel.sec, e);
+    return e;
+  }
+  function addElementToSection(idx, kind) {
+    var secx = S[idx];
+    // kind may be a DEFAULTS key or a ready-made element object — keep the
+    // KEY for hydration: posts/products are 'widget' type in the model
+    var kindKey = typeof kind === 'string' ? kind : null;
+    var e = kindKey ? DEFAULTS[kindKey]() : kind;
+    var H = designH(secx.els, secx.minH);
+    e.x = Math.max(0, Math.min(W - e.w, Math.round((W - e.w) / 2 + (stagger % 5) * 24 - 48)));
+    e.y = Math.max(8, Math.round(Math.min(Math.max(8, (H - e.h) / 2), Math.max(8, H - e.h - 8)) + (stagger % 5) * 24 - 48));
+    stagger++;
+    addElement(secx, e);
+    if (kindKey === 'posts') hydratePostsPreview(secx, e);
+    if (kindKey === 'products') hydrateProductsPreview(secx, e);
+    return e;
+  }
+  function openSecAddPanel(idx) {
+    var secx = S[idx];
+    panel.innerHTML = '<div class="gogh-panel-title">Add to this section</div>' +
+      '<div class="gogh-addmenu">' + ELEM_ITEMS + '</div>';
+    placePanelNear(secx.wrapEl);
+    panel.querySelectorAll('.gogh-sitem').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        closePanel();
+        if (btn.dataset.act === 'shapes') return openShapeInsertPanel();
+        if (btn.dataset.act === 'featured') return openFeaturedProductPanel(idx);
+        if (btn.dataset.add === 'products') return openProductsPanel(idx);
+        if (btn.dataset.add === 'write') return startWriting(idx);
+        if (btn.dataset.add === 'exp') return addExperience(idx);
+        addElementToSection(idx, btn.dataset.add);
+      });
+    });
+  }
+  function addExperience(targetIdx) {
+    var input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.html,text/html';
+    input.addEventListener('change', function () {
+      if (!input.files.length) return;
+      var fd = new FormData();
+      fd.append('file', input.files[0]);
+      toast('Uploading experience\u2026');
+      fetch(cfg.mediaUrl, {
+        method: 'POST',
+        headers: { 'X-WP-Nonce': cfg.nonce },
+        credentials: 'same-origin',
+        body: fd,
+      }).then(function (res) {
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        return res.json();
+      }).then(function (item) {
+        var expEl = { type: 'exp', x: 0, y: 0, w: 760, h: 480, expId: item.id, expUrl: item.source_url };
+        if (typeof targetIdx === 'number' && S[targetIdx]) addElementToSection(targetIdx, expEl);
+        else placeElAtViewport(expEl);
+        toast('Experience added \u2014 it runs sandboxed; visitors can interact once published.', { ttl: 6000 });
+      }).catch(function (err) {
+        toast('Upload failed \u2014 .html uploads need admin rights.', { ttl: 6000 });
+        console.error('gogh experience upload failed:', err);
+      });
+    });
+    input.click();
+  }
+  function addShapeAtViewport(def) {
+    return placeElAtViewport({
+      type: 'box',
+      x: 0, y: 0, w: def.w, h: def.h,
+      shape: def.key || null,
+      radius: def.radius || 0,
+      boxBg: SHAPE_DEFAULT_BG,
+    }, true);
+  }
+  function openShapeInsertPanel() {
+    panel.innerHTML =
+      '<div class="gogh-panel-head"><span class="gogh-panel-title">Add a shape</span>' +
+      '<button type="button" class="gogh-sbtn gogh-panel-close" title="Close">✕</button></div>' +
+      '<div class="gogh-panel-hint">A backdrop for other elements — send it backward once it\'s placed.</div>' +
+      '<div class="gogh-shapegrid">' +
+      SHAPE_DEFS.map(function (d, k) {
+        return '<button type="button" class="gogh-shapecell" data-k="' + k + '" title="' + d.label + '">' +
+          '<span style="' + shapePreviewCss(d) + '"></span></button>';
+      }).join('') +
+      '</div>';
+    placePanelNear(secBarIdx !== null && S[secBarIdx] ? S[secBarIdx].wrapEl : side);
+    panelOpen = true;
+    panel.querySelector('.gogh-panel-close').addEventListener('click', closePanel);
+    [].forEach.call(panel.querySelectorAll('.gogh-shapecell'), function (b) {
+      b.addEventListener('click', function () {
+        closePanel();
+        addShapeAtViewport(SHAPE_DEFS[+b.dataset.k]);
+      });
+    });
+  }
+  side.querySelector('.gogh-sd-designs').addEventListener('click', openStarterPicker);
+  // turning φ on should SHOW you what you enabled: flash the golden-section
+  // lines over the section you're looking at
+  function flashCompLines(sec2) {
+    if (!sec2 || !sec2.sectionEl) return;
+    var ov = document.createElement('div');
+    ov.className = 'gogh-compflash';
+    [0.382, 0.618].forEach(function (f) {
+      var v = document.createElement('i');
+      v.className = 'is-phi';
+      v.style.cssText = 'left:' + (f * 100) + '%;top:0;width:0;height:100%;';
+      ov.appendChild(v);
+      var h = document.createElement('i');
+      h.className = 'is-phi';
+      h.style.cssText = 'top:' + (f * 100) + '%;left:0;height:0;width:100%;';
+      ov.appendChild(h);
+    });
+    sec2.sectionEl.appendChild(ov);
+    setTimeout(function () { ov.remove(); }, 2400);
+  }
+  var phiToggle = side.querySelector('[data-act="compguides"]');
+  if (phiToggle) phiToggle.addEventListener('click', function () {
+    compGuidesOn = !compGuidesOn;
+    var pb = side.querySelector('.gogh-phibtn');
+    pb.classList.toggle('is-active', compGuidesOn);
+    pb.dataset.tip = 'Golden ratio guides: ' + (compGuidesOn ? 'on' : 'off');
+    pb.removeAttribute('title');
+    if (compGuidesOn) {
+      flashCompLines(viewportSection());
+      toast('Golden ratio guides on — the gold lines mark the golden section. Drag anything near one and it’ll catch.', { ttl: 6000 });
+    } else {
+      toast('Golden ratio guides off.');
+    }
   });
   elbar.querySelector('.gogh-eb-del').addEventListener('click', deleteSelected);
-  side.querySelector('[data-act="addsec"]').addEventListener('click', function () { openPicker(S.length); });
-  side.querySelector('[data-act="gridsnap"]').addEventListener('click', function (ev) {
+  side.querySelector('[data-act="gridsnap"]').addEventListener('click', function () {
     gridSnapOn = !gridSnapOn;
     // the grid you snap to is the grid you see — never invisible magnets
     document.documentElement.classList.toggle('gogh-grid-on', gridSnapOn);
-    ev.target.textContent = 'Grid: ' + (gridSnapOn ? 'on' : 'off');
-  });
-  var THEME_ICONS = {
-    sun: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="12" cy="12" r="4.4"/><path d="M12 2.5v2.6M12 18.9v2.6M2.5 12h2.6M18.9 12h2.6M5 5l1.8 1.8M17.2 17.2 19 19M19 5l-1.8 1.8M6.8 17.2 5 19"/></svg>',
-    moon: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round"><path d="M20 14.5A8.5 8.5 0 0 1 9.5 4a8.5 8.5 0 1 0 10.5 10.5Z"/></svg>',
-  };
-  function syncThemeBtn() {
-    var light = document.documentElement.classList.contains('gogh-ui-light');
-    var b = side.querySelector('.gogh-theme');
-    b.innerHTML = light ? THEME_ICONS.moon : THEME_ICONS.sun;
-    b.dataset.tip = light ? 'Dark editor' : 'Light editor';
-    b.removeAttribute('title');
-  }
-  side.querySelector('.gogh-theme').addEventListener('click', function () {
-    var light = !document.documentElement.classList.contains('gogh-ui-light');
-    try { localStorage.setItem('gogh-ui-theme', light ? 'light' : 'dark'); } catch (e) {}
-    document.documentElement.classList.toggle('gogh-ui-light', light);
-    syncThemeBtn();
+    var gb = side.querySelector('.gogh-gridbtn');
+    gb.classList.toggle('is-active', gridSnapOn);
+    gb.dataset.tip = 'Grid: ' + (gridSnapOn ? 'on' : 'off');
+    gb.removeAttribute('title');
   });
   side.querySelector('.gogh-undo').addEventListener('click', undo);
   side.querySelector('.gogh-redo').addEventListener('click', redo);
+  // the help bot lives in a small sheet — created on first ask, and it
+  // learns the exact build from the script's own cache-buster
+  var helpSheet = null;
+  // help that knows where you're standing: the sheet passes the build AND
+  // a context hint (what's selected, which mode is live) so the bot can
+  // open on the questions this exact moment tends to raise
+  function helpContext() {
+    if (document.body.classList.contains('gogh-cycling')) return 'chrome-cycle';
+    if (sel && sel.sec && sel.sec.els[sel.i]) return 'el-' + sel.sec.els[sel.i].type;
+    if (panelOpen) return 'panel';
+    return 'canvas';
+  }
+  function helpSrc() {
+    var hu = String(cfg.helpUrl);
+    return hu + (hu.indexOf('?') === -1 ? '?' : '&') +
+      'v=' + encodeURIComponent((window.__gogh && window.__gogh.build) || '') +
+      '&ctx=' + encodeURIComponent(helpContext()) +
+      (cfg.experiments ? '&bridge=1' : '');
+  }
+  // ---------- the show-me bridge: help that DOES ----------
+  // With experiments on, the bot may drive the editor through the same
+  // WebMCP verbs a browser agent gets — messages are honoured only from
+  // the helper's own origin, publishing stays human, and every action
+  // lands as a toast with Undo. Documentation becomes demonstration.
+  if (cfg.experiments && cfg.helpUrl) {
+    var HELP_ORIGIN = (function () {
+      try { return new URL(cfg.helpUrl).origin; } catch (err) { return null; }
+    })();
+    window.addEventListener('message', function (ev) {
+      if (!HELP_ORIGIN || ev.origin !== HELP_ORIGIN) return;
+      var m = ev.data;
+      if (!m || m.gogh !== 'act' || typeof m.verb !== 'string') return;
+      var reply = function (payload) {
+        try {
+          ev.source.postMessage(Object.assign({ gogh: 'act-result', id: m.id || null }, payload), HELP_ORIGIN);
+        } catch (err) {}
+      };
+      var mcp = window.__goghMcp;
+      if (!mcp) { reply({ ok: false, error: 'bridge not loaded' }); return; }
+      if (m.verb === 'gogh_publish') { reply({ ok: false, error: 'publishing stays human' }); return; }
+      Promise.resolve().then(function () { return mcp.call(m.verb, m.args || {}); })
+        .then(function (res) {
+          toast('gogh helper: ' + m.verb.replace(/^gogh_/, '').replace(/_/g, ' '),
+            { actions: [{ label: 'Undo', onClick: function () { undo(); } }] });
+          reply({ ok: true, result: res });
+        })
+        .catch(function (err) { reply({ ok: false, error: String((err && err.message) || err) }); });
+    });
+  }
+  var helpBtn = side.querySelector('.gogh-help');
+  if (helpBtn) helpBtn.addEventListener('click', function () {
+    if (!helpSheet) {
+      helpSheet = document.createElement('div');
+      helpSheet.className = 'gogh-helpsheet';
+      helpSheet.innerHTML = '<div class="gogh-helpsheet-bar"><span>gogh help</span>' +
+        '<button type="button" class="gogh-sbtn gogh-helpsheet-x" title="Close">✕</button></div>' +
+        '<iframe src="' + escAttr(helpSrc()) + '" title="gogh help"></iframe>';
+      document.body.appendChild(helpSheet);
+      helpSheet.querySelector('.gogh-helpsheet-x').addEventListener('click', function () {
+        helpSheet.classList.remove('is-open');
+        document.body.classList.remove('gogh-help-open');
+      });
+    } else if (!helpSheet.classList.contains('is-open')) {
+      // reopening in a NEW situation refreshes the bot's context; the same
+      // situation keeps the conversation exactly where it was
+      var fresh = helpSrc();
+      var fr = helpSheet.querySelector('iframe');
+      if (fr.getAttribute('src') !== fresh) fr.setAttribute('src', fresh);
+    }
+    helpSheet.classList.toggle('is-open');
+    // toasts share the bot's corner — while the sheet is open they step
+    // aside so nothing ever sits on the ask box
+    document.body.classList.toggle('gogh-help-open', helpSheet.classList.contains('is-open'));
+    closeSide(true);
+  });
 
   // ---------- section templates & picker ----------
   var TEMPLATES = [
     // fs '__max' resolves to the theme's largest font-size preset at insert
-    { name: 'Hero', minH: 640,
+    { retired: true, name: 'Hero', minH: 640,
       bg: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 5%, var(--wp--preset--color--base, transparent))',
       els: [
       { type: 'badge', x: 72, y: 88, w: 230, h: 52, text: 'Fresh off the canvas' },
@@ -1693,7 +4090,7 @@
       { type: 'image', x: 756, y: 110, w: 372, h: 430 },
       { type: 'badge', x: 690, y: 486, w: 240, h: 56, text: 'Loved by builders' },
     ]},
-    { name: 'Hero — centered', minH: 600,
+    { retired: true, name: 'Hero — centered', minH: 600,
       bg: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 5%, var(--wp--preset--color--base, transparent))',
       els: [
       { type: 'badge', x: 500, y: 92, w: 200, h: 52, text: 'New for 2026' },
@@ -1702,13 +4099,13 @@
       { type: 'button', x: 400, y: 470, w: 190, h: 56, text: 'Start free' },
       { type: 'button', x: 610, y: 470, w: 190, h: 56, text: 'Take the tour', ghost: true },
     ]},
-    { name: 'Split', els: [
+    { retired: true, name: 'Split', els: [
       { type: 'image', x: 72, y: 72, w: 500, h: 400, cool: true },
       { type: 'heading', x: 644, y: 120, w: 480, h: 100, text: 'Show the thing, then say the thing' },
       { type: 'para', x: 644, y: 264, w: 440, h: 78, text: 'A classic split layout: image on one side, message on the other. Swap sides by dragging.' },
       { type: 'button', x: 644, y: 380, w: 190, h: 52, text: 'See details' },
     ]},
-    { name: 'Features', els: [
+    { retired: true, name: 'Features', els: [
       { type: 'heading', x: 300, y: 72, w: 600, h: 60, text: 'Three reasons to care' },
       { type: 'image', x: 72, y: 190, w: 328, h: 180 },
       { type: 'image', x: 436, y: 190, w: 328, h: 180, cool: true },
@@ -1717,24 +4114,459 @@
       { type: 'para', x: 436, y: 396, w: 328, h: 60, text: 'Second feature, briefly and confidently described.' },
       { type: 'para', x: 800, y: 396, w: 328, h: 60, text: 'Third feature, briefly and confidently described.' },
     ]},
-    { name: 'Call to action',
+    { retired: true, name: 'Call to action',
       bg: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 8%, var(--wp--preset--color--base, transparent))',
       els: [
       { type: 'heading', x: 300, y: 120, w: 600, h: 60, text: 'Ready when you are', align: 'center' },
       { type: 'para', x: 350, y: 220, w: 500, h: 55, text: 'One last nudge. Keep it short, keep it warm.', align: 'center' },
       { type: 'button', x: 511, y: 330, w: 178, h: 52, text: 'Start now' },
     ]},
-    { name: 'Start from scratch', els: [] },
+    { name: 'Start from scratch', minH: 480, els: [] },
+    // ---- starters: born freeform, theme-adaptive, art-directed ----
+    // one coherent world (a small design studio) so the previews read as a
+    // real site, not lorem; eyebrows are paras wearing tf, ink sections are
+    // theme-contrast backgrounds so every style variation re-dresses them
+    { starter: true, intent: 'introduce', name: 'Hero', minH: 640, els: [
+      { type: 'box', x: 640, y: 150, w: 500, h: 430, boxBg: 'color-mix(in srgb, var(--wp--preset--color--contrast, #000) 8%, var(--wp--preset--color--base, transparent))', radius: 26 },
+      { type: 'image', x: 600, y: 110, w: 500, h: 430, cool: true },
+      { type: 'badge', x: 560, y: 486, w: 196, h: 50, text: '\u2605 Est. 2019', rot: -2 },
+      { type: 'para', x: 72, y: 118, w: 340, h: 24, text: 'Design studio \u00b7 Brighton',
+        tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
+      { type: 'heading', x: 72, y: 162, w: 470, h: 200, text: 'We make brands people remember', fs: '__max' },
+      { type: 'para', x: 72, y: 396, w: 410, h: 72, text: 'Strategy, identity and websites for founders who care how things feel. Everything on this page is draggable \u2014 start here and make it yours.' },
+      { type: 'button', x: 72, y: 502, w: 180, h: 54, text: 'See the work' },
+      { type: 'button', x: 272, y: 502, w: 180, h: 54, text: 'Start a project', ghost: true },
+    ] },
+    { starter: true, intent: 'introduce', name: 'Cover', minH: 640,
+      // the canonical hero: full-bleed picture, theme tint, centred words,
+      // parallax by default (James's call — the flagship wears the effect).
+      // Ships on a wheat field from the plugin's own shelf — swap it from
+      // the media grid (hover auditions) and the tint follows the theme.
+      bg: 'var(--wp--preset--color--contrast, #16181c)', bgA: 45,
+      fx: { bg: 'parallax' },
+      bgImage: '/wp-content/plugins/gogh/demo-assets/wheat-field.jpg',
+      els: [
+      { type: 'para', x: 400, y: 150, w: 400, h: 24, align: 'center', text: 'Est. 2019 \u00b7 Brighton',
+        tf: { fs: 13, fw: 600, ls2: 0.24, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--base, #fff) 78%, transparent)' } },
+      { type: 'heading', x: 150, y: 210, w: 900, h: 160, text: 'Make it feel like you', fs: '__max', align: 'center', color: 'base' },
+      { type: 'para', x: 320, y: 400, w: 560, h: 52, align: 'center', text: 'One clear promise over one strong picture \u2014 the front door most sites need.', color: 'base' },
+      { type: 'button', x: 505, y: 496, w: 190, h: 56, text: 'Come on in', tf: { bg: 'var(--wp--preset--color--base, #fff)', col: 'var(--wp--preset--color--contrast, #141519)' } },
+    ] },
+    { starter: true, intent: 'introduce', name: 'Big statement', minH: 520, els: [
+      { type: 'para', x: 400, y: 92, w: 400, h: 24, align: 'center', text: 'What we believe',
+        tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
+      { type: 'heading', x: 60, y: 150, w: 1080, h: 240, text: 'Good design is good business', fs: '__disp-l', align: 'center' },
+      { type: 'button', x: 516, y: 428, w: 168, h: 52, text: 'Our thinking', ghost: true },
+    ] },
+    { starter: true, intent: 'introduce', name: 'Story', minH: 600, els: [
+      { type: 'image', x: 72, y: 84, w: 470, h: 452, cool: true },
+      { type: 'badge', x: 44, y: 58, w: 122, h: 48, text: 'N\u00ba 01', rot: -2 },
+      { type: 'para', x: 620, y: 122, w: 300, h: 24, text: 'Our story',
+        tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
+      { type: 'heading', x: 620, y: 162, w: 480, h: 120, text: 'It started in a spare room', fs: 'x-large' },
+      { type: 'para', x: 620, y: 306, w: 460, h: 84, text: 'Two desks, one borrowed lamp, and a first client who paid in coffee. We said yes to everything and learned what we were good at.' },
+      { type: 'para', x: 620, y: 406, w: 460, h: 84, text: 'Six years on we are eleven people, still small on purpose, and still excited on Mondays.' },
+      { type: 'button', x: 620, y: 512, w: 220, h: 52, text: 'The whole story', ghost: true },
+    ] },
+    { starter: true, intent: 'introduce', name: 'Numbers', minH: 420, els: [
+      { type: 'para', x: 72, y: 76, w: 300, h: 24, text: 'By the numbers',
+        tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
+      { type: 'heading', x: 72, y: 140, w: 330, h: 120, text: '184', fs: '__disp-m' },
+      { type: 'para', x: 76, y: 276, w: 290, h: 44, text: 'Projects shipped since 2019' },
+      { type: 'heading', x: 435, y: 140, w: 330, h: 120, text: '12', fs: '__disp-m' },
+      { type: 'para', x: 439, y: 276, w: 290, h: 44, text: 'Design awards on two shelves' },
+      { type: 'heading', x: 798, y: 140, w: 330, h: 120, text: '98%', fs: '__disp-m' },
+      { type: 'para', x: 802, y: 276, w: 290, h: 44, text: 'Clients who came back for more' },
+    ] },
+    { starter: true, intent: 'introduce', name: 'Article', minH: 620, els: [
+      { type: 'para', x: 280, y: 58, w: 300, h: 24, text: 'From the journal',
+        tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
+      { type: 'heading', x: 280, y: 98, w: 640, h: 70, text: 'Notes on doing less, better', fs: 'x-large' },
+      { type: 'para', x: 280, y: 196, w: 640, h: 66, text: 'A comfortable reading column, the width your theme uses for posts. Gogh is not only for splashy pages \u2014 it is a pleasant place to just write.' },
+      { type: 'para', x: 280, y: 286, w: 640, h: 66, text: 'Add paragraphs, pull a quote out to the side when you need one, and drop an image between thoughts. Everything still publishes as clean WordPress blocks.' },
+      { type: 'para', x: 280, y: 376, w: 640, h: 66, text: 'And the moment an article needs something bolder \u2014 a full-width image, a card, a big number \u2014 you can simply place it.' },
+      { type: 'button', x: 280, y: 482, w: 200, h: 54, text: 'Keep reading', ghost: true },
+    ] },
+    { starter: true, intent: 'sell', name: 'Feature cards', minH: 560, els: [
+      { type: 'heading', x: 100, y: 56, w: 1000, h: 60, text: 'What we do', fs: 'x-large', align: 'center' },
+      { type: 'box', x: 100, y: 170, w: 320, h: 330, radius: 18,
+        boxBg: 'color-mix(in srgb, var(--wp--preset--color--contrast, #000) 7%, var(--wp--preset--color--base, transparent))',
+        kids: [
+          { type: 'heading', x: 28, y: 32, w: 264, h: 44, text: 'Brand identity', fs: 'large' },
+          { type: 'para', x: 28, y: 92, w: 264, h: 100, text: 'A name, a voice and a look that hold together everywhere \u2014 from the sign above the door to the invoice footer.' },
+        ] },
+      { type: 'box', x: 440, y: 170, w: 320, h: 330, radius: 18,
+        boxBg: 'color-mix(in srgb, var(--wp--preset--color--contrast, #000) 7%, var(--wp--preset--color--base, transparent))',
+        kids: [
+          { type: 'heading', x: 28, y: 32, w: 264, h: 44, text: 'Websites', fs: 'large' },
+          { type: 'para', x: 28, y: 92, w: 264, h: 100, text: 'Fast, honest sites that read beautifully on a phone at a bus stop \u2014 which is where your customers are.' },
+        ] },
+      { type: 'box', x: 780, y: 170, w: 320, h: 330, radius: 18,
+        boxBg: 'color-mix(in srgb, var(--wp--preset--color--contrast, #000) 7%, var(--wp--preset--color--base, transparent))',
+        kids: [
+          { type: 'heading', x: 28, y: 32, w: 264, h: 44, text: 'Art direction', fs: 'large' },
+          { type: 'para', x: 28, y: 92, w: 264, h: 100, text: 'Photography, illustration and the thousand small calls that make everything feel intentional.' },
+        ] },
+    ] },
+    { starter: true, intent: 'sell', name: 'Pricing', minH: 640, els: [
+      { type: 'para', x: 400, y: 56, w: 400, h: 24, align: 'center', text: 'Simple pricing',
+        tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
+      { type: 'heading', x: 250, y: 96, w: 700, h: 64, text: 'Two ways to work with us', fs: 'x-large', align: 'center' },
+      { type: 'box', x: 230, y: 216, w: 350, h: 380, radius: 20,
+        boxBg: 'color-mix(in srgb, var(--wp--preset--color--contrast, #000) 6%, var(--wp--preset--color--base, transparent))',
+        kids: [
+          { type: 'heading', x: 32, y: 34, w: 286, h: 44, text: 'The Sprint', fs: 'large' },
+          { type: 'para', x: 32, y: 90, w: 286, h: 76, text: 'One focused week. A sharp brief in, a finished thing out.' },
+          { type: 'heading', x: 32, y: 186, w: 286, h: 60, text: '\u00a33,500', fs: 'x-large' },
+          { type: 'button', x: 32, y: 278, w: 286, h: 54, text: 'Book a sprint', ghost: true },
+        ] },
+      { type: 'box', x: 620, y: 196, w: 350, h: 400, radius: 20,
+        boxBg: 'var(--wp--preset--color--contrast, #16181c)',
+        kids: [
+          { type: 'badge', x: 210, y: 28, w: 116, h: 42, text: '\u2605 Loved' },
+          { type: 'heading', x: 32, y: 34, w: 240, h: 44, text: 'The Partnership', fs: 'large', tf: { col: 'var(--wp--preset--color--base, #fff)' } },
+          { type: 'para', x: 32, y: 98, w: 286, h: 76, text: 'A standing team beside yours \u2014 design, build and everything between.', tf: { col: 'color-mix(in srgb, var(--wp--preset--color--base, #fff) 78%, transparent)' } },
+          { type: 'heading', x: 32, y: 196, w: 286, h: 60, text: '\u00a34,000/mo', fs: 'x-large', tf: { col: 'var(--wp--preset--color--base, #fff)' } },
+          { type: 'button', x: 32, y: 290, w: 286, h: 54, text: 'Start together', tf: { bg: 'var(--wp--preset--color--base, #fff)', col: 'var(--wp--preset--color--contrast, #141519)' } },
+        ] },
+    ] },
+    { starter: true, intent: 'sell', name: 'Quote', minH: 480, els: [
+      { type: 'heading', x: 76, y: 44, w: 180, h: 160, text: '\u201c', fs: '__disp-l' },
+      { type: 'para', x: 200, y: 168, w: 800, h: 160, text: 'They understood us in the first meeting. The site feels like walking into our shop \u2014 people say that, unprompted.', fs: 'x-large', tf: { lh: 1.25 } },
+      { type: 'para', x: 204, y: 368, w: 500, h: 24, text: 'Hanna Lindqvist \u00b7 Hanna & Co',
+        tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
+    ] },
+    { starter: true, intent: 'sell', name: 'Call to action', minH: 380,
+      bg: 'var(--wp--preset--color--contrast, #16181c)',
+      els: [
+      { type: 'para', x: 96, y: 88, w: 300, h: 24, text: 'Next step',
+        tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--base, #fff) 60%, transparent)' } },
+      { type: 'heading', x: 96, y: 130, w: 640, h: 130, text: 'Let\u2019s make yours', fs: '__max', tf: { col: 'var(--wp--preset--color--base, #fff)' } },
+      { type: 'para', x: 98, y: 286, w: 440, h: 44, text: 'No forms and no decks \u2014 just a conversation about what you are building.', tf: { col: 'color-mix(in srgb, var(--wp--preset--color--base, #fff) 75%, transparent)' } },
+      { type: 'button', x: 884, y: 186, w: 220, h: 60, text: 'Book a call', tf: { bg: 'var(--wp--preset--color--base, #fff)', col: 'var(--wp--preset--color--contrast, #141519)' } },
+    ] },
+    { starter: true, intent: 'sell', name: 'Get in touch', minH: 460, els: [
+      { type: 'para', x: 400, y: 66, w: 400, h: 24, align: 'center', text: 'Say hello',
+        tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
+      { type: 'heading', x: 300, y: 122, w: 600, h: 100, text: 'Let\u2019s talk', fs: '__max', align: 'center' },
+      { type: 'para', x: 340, y: 248, w: 520, h: 52, align: 'center', text: 'A question, an idea, or just to say hi \u2014 we read everything, usually the same day.' },
+      { type: 'button', x: 424, y: 338, w: 170, h: 56, text: 'Email us' },
+      { type: 'button', x: 614, y: 338, w: 170, h: 56, text: 'Follow along', ghost: true },
+    ] },
+    { starter: true, intent: 'introduce', name: 'Profile card', minH: 620, els: [
+      // full-bleed photo + one frosted card floating centre — the glass
+      // recipe: radius 24, glass mood, tiny badge, meta row, one button
+      { type: 'badge', x: 84, y: 64, w: 150, h: 34, text: '\u25cf Available' },
+      { type: 'box', x: 400, y: 130, w: 400, h: 360, radius: 24, mood: 'glass', kids: [
+        { type: 'para', x: 32, y: 36, w: 336, h: 22, align: 'center', text: 'DESIGN \u00b7 DIRECTION',
+          tf: { fs: 12, fw: 600, ls2: 0.24, tt: 'uppercase' } },
+        { type: 'heading', x: 32, y: 70, w: 336, h: 48, align: 'center', text: 'Vincent van Gogh', fs: 'large' },
+        { type: 'para', x: 32, y: 130, w: 336, h: 48, align: 'center', text: 'Painter of light. 900 works, one sunflower obsession.' },
+        { type: 'para', x: 32, y: 196, w: 336, h: 22, align: 'center', text: 'Arles \u00b7 Saint-R\u00e9my \u00b7 Auvers',
+          tf: { fs: 13, col: 'color-mix(in srgb, currentColor 65%, transparent)' } },
+        { type: 'button', x: 116, y: 248, w: 168, h: 48, text: 'Say hello' },
+      ] },
+    ], bgImage: '/wp-content/plugins/gogh/demo-assets/wheat-field.jpg', bgA: 20, bg: 'var(--wp--preset--color--contrast)' },
+    { starter: true, intent: 'sell', name: 'Job card', minH: 620, els: [
+      { type: 'box', x: 380, y: 110, w: 440, h: 400, radius: 24, mood: 'glass', kids: [
+        { type: 'badge', x: 32, y: 32, w: 110, h: 32, text: 'Hiring' },
+        { type: 'heading', x: 32, y: 84, w: 376, h: 44, text: 'Senior designer', fs: 'large' },
+        { type: 'para', x: 32, y: 140, w: 376, h: 66, text: 'Own the look of everything we ship \u2014 from the site to the side of the van.' },
+        { type: 'para', x: 32, y: 220, w: 376, h: 22, text: '\u00a370\u201385k \u00b7 Remote-first \u00b7 Full time',
+          tf: { fs: 13, fw: 600 } },
+        { type: 'button', x: 32, y: 268, w: 180, h: 52, text: 'Apply now' },
+      ] },
+    ], bgImage: '/wp-content/plugins/gogh/demo-assets/starry-night.jpg', bgA: 25, bg: 'var(--wp--preset--color--contrast)' },
+    { starter: true, intent: 'showcase', name: 'Place card', minH: 620, els: [
+      { type: 'badge', x: 84, y: 64, w: 130, h: 34, text: 'Est. 1888' },
+      { type: 'box', x: 400, y: 150, w: 400, h: 330, radius: 24, mood: 'glass', kids: [
+        { type: 'para', x: 32, y: 34, w: 336, h: 22, align: 'center', text: 'THE YELLOW HOUSE',
+          tf: { fs: 12, fw: 600, ls2: 0.24, tt: 'uppercase' } },
+        { type: 'heading', x: 32, y: 66, w: 336, h: 44, align: 'center', text: 'Come see it in person', fs: 'large' },
+        { type: 'para', x: 32, y: 124, w: 336, h: 48, align: 'center', text: 'The little studio on the square \u2014 open Thursday to Sunday.' },
+        { type: 'para', x: 32, y: 188, w: 336, h: 22, align: 'center', text: '\ud83d\udccd Place Lamartine, Arles',
+          tf: { fs: 13 } },
+        { type: 'button', x: 116, y: 228, w: 168, h: 48, text: 'Plan a visit' },
+      ] },
+    ], bgImage: '/wp-content/plugins/gogh/demo-assets/sunflowers.jpg', bgA: 20, bg: 'var(--wp--preset--color--contrast)' },
+    { starter: true, intent: 'showcase', name: 'Photo wall', minH: 640, els: [
+      { type: 'para', x: 400, y: 56, w: 400, h: 24, align: 'center', text: 'In pictures',
+        tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
+      { type: 'heading', x: 250, y: 96, w: 700, h: 64, text: 'The wall', fs: 'x-large', align: 'center' },
+      // CSS columns do the masonry — tall and short photos pack themselves
+      { type: 'widget', x: 120, y: 200, w: 960, h: 400, wopt: { light: 1, cols: 3 }, wall: [
+        { img: '/wp-content/plugins/gogh/demo-assets/wheat-field.jpg', cap: '' },
+        { img: '/wp-content/plugins/gogh/demo-assets/starry-night.jpg', cap: '' },
+        { img: '/wp-content/plugins/gogh/demo-assets/sunflowers.jpg', cap: '' },
+        { img: '/wp-content/plugins/gogh/demo-assets/almond-blossom.jpg', cap: '' },
+        { img: '/wp-content/plugins/gogh/demo-assets/wheat-field.jpg', cap: '' },
+        { img: '/wp-content/plugins/gogh/demo-assets/sunflowers.jpg', cap: '' },
+      ] },
+    ] },
+    { starter: true, intent: 'showcase', name: 'Carousel', minH: 520, els: [
+      { type: 'para', x: 400, y: 56, w: 400, h: 24, align: 'center', text: 'A closer look',
+        tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
+      { type: 'heading', x: 250, y: 96, w: 700, h: 64, text: 'Slide through the work', fs: 'x-large', align: 'center' },
+      // real core image blocks in a scroll-snap group — zero JS, works
+      // with the plugin off, and Chrome's CSS carousel dots light up free
+      { type: 'widget', x: 120, y: 200, w: 960, h: 280, copt: { light: 1 }, slides: [
+        { img: '/wp-content/plugins/gogh/demo-assets/wheat-field.jpg', cap: 'Wheat Field with Cypresses' },
+        { img: '/wp-content/plugins/gogh/demo-assets/starry-night.jpg', cap: 'The Starry Night' },
+        { img: '/wp-content/plugins/gogh/demo-assets/sunflowers.jpg', cap: 'Sunflowers' },
+        { img: '/wp-content/plugins/gogh/demo-assets/almond-blossom.jpg', cap: 'Almond Blossom' },
+      ] },
+    ] },
+    { starter: true, intent: 'sell', name: 'FAQ', gated: 'hasAccordion', minH: 560, els: [
+      { type: 'para', x: 400, y: 56, w: 400, h: 24, align: 'center', text: 'Questions, answered',
+        tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
+      { type: 'heading', x: 250, y: 96, w: 700, h: 64, text: 'Before you ask', fs: 'x-large', align: 'center' },
+      // a REAL core/accordion rides inside a widget — regenerated from
+      // e.faq, which is what the selection panel edits
+      { type: 'widget', x: 240, y: 200, w: 720, h: 320, faq: [
+        { q: 'How long does a project take?', a: 'Six to ten weeks for most sites. The Sprint is one week, by design.' },
+        { q: 'Do you work with small budgets?', a: 'Yes \u2014 that is exactly what the Sprint is for. One week, one focused thing, done well.' },
+        { q: 'Who will we actually work with?', a: 'The people on the team page \u2014 no handoffs to a bench you never met.' },
+      ] },
+    ] },
+    { starter: true, intent: 'sell', name: 'Tabs', gated: 'hasTabs', minH: 520, els: [
+      { type: 'para', x: 400, y: 56, w: 400, h: 24, align: 'center', text: 'Ways to work with us',
+        tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
+      { type: 'heading', x: 250, y: 96, w: 700, h: 64, text: 'Pick your pace', fs: 'x-large', align: 'center' },
+      // a REAL core/tabs block (WP 7.1) — regenerated from e.tabs, gated
+      // on the block existing
+      { type: 'widget', x: 240, y: 200, w: 720, h: 280, tabs: [
+        { t: 'The Sprint', body: 'One focused week. A sharp brief in, a finished thing out \u2014 built for small budgets and quick decisions.' },
+        { t: 'The Partnership', body: 'A standing team beside yours \u2014 design, build and everything between, month by month.' },
+        { t: 'Ongoing care', body: 'Quiet upkeep after launch: updates, tweaks and a person who answers.' },
+      ] },
+    ] },
+    { starter: true, intent: 'showcase', name: 'Gallery', minH: 680, els: [
+      { type: 'para', x: 72, y: 60, w: 300, h: 24, text: 'Selected work',
+        tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
+      { type: 'heading', x: 72, y: 100, w: 520, h: 64, text: 'A few favourites', fs: 'x-large' },
+      { type: 'image', x: 72, y: 208, w: 330, h: 424, cool: true },
+      { type: 'image', x: 435, y: 260, w: 330, h: 372 },
+      { type: 'image', x: 798, y: 190, w: 330, h: 310, cool: true },
+      { type: 'button', x: 798, y: 546, w: 210, h: 54, text: 'See the archive', ghost: true },
+    ] },
+    { starter: true, intent: 'showcase', name: 'Photo cards', minH: 720, els: [
+      { type: 'image', x: 100, y: 40, w: 470, h: 620, cool: true },
+      { type: 'box', x: 100, y: 340, w: 470, h: 320, boxBg: 'linear-gradient(180deg, rgba(0,0,0,0) 0%, rgba(0,0,0,0.18) 30%, rgba(0,0,0,0.78) 100%)', radius: 20 },
+      { type: 'heading', x: 136, y: 384, w: 340, h: 46, text: 'Quiet mountain cabin', fs: 'large', tf: { col: '#ffffff' } },
+      { type: 'para', x: 136, y: 442, w: 398, h: 84, text: 'Wake up above the clouds. Two rooms, one stove, zero notifications \u2014 the good kind of nowhere.', tf: { col: '#ffffff' } },
+      { type: 'badge', x: 136, y: 538, w: 130, h: 44, text: '\u2605 4.9' },
+      { type: 'badge', x: 282, y: 538, w: 168, h: 44, text: '3 night stay' },
+      { type: 'button', x: 136, y: 598, w: 398, h: 52, text: 'Reserve now', tf: { bg: '#ffffff', col: '#141519' } },
+      { type: 'image', x: 630, y: 40, w: 470, h: 620, cool: true },
+      { type: 'box', x: 630, y: 340, w: 470, h: 320, boxBg: 'linear-gradient(180deg, rgba(0,0,0,0) 0%, rgba(0,0,0,0.18) 30%, rgba(0,0,0,0.78) 100%)', radius: 20 },
+      { type: 'heading', x: 666, y: 384, w: 340, h: 46, text: 'Coastal hideaway', fs: 'large', tf: { col: '#ffffff' } },
+      { type: 'para', x: 666, y: 442, w: 398, h: 84, text: 'Salt air, slow mornings and a five-minute walk to the water. Bring a book you\u2019ve been meaning to finish.', tf: { col: '#ffffff' } },
+      { type: 'badge', x: 666, y: 538, w: 130, h: 44, text: '\u2605 4.8' },
+      { type: 'badge', x: 812, y: 538, w: 168, h: 44, text: 'Guest favourite' },
+      { type: 'button', x: 666, y: 598, w: 398, h: 52, text: 'Reserve now', tf: { bg: '#ffffff', col: '#141519' } },
+    ] },
+    { starter: true, intent: 'showcase', name: 'Portfolio', minH: 580, els: [
+      { type: 'box', x: 40, y: 116, w: 560, h: 420, boxBg: 'color-mix(in srgb, var(--wp--preset--color--contrast, #000) 8%, var(--wp--preset--color--base, transparent))', radius: 24 },
+      { type: 'image', x: 72, y: 80, w: 560, h: 420, cool: true },
+      { type: 'badge', x: 104, y: 452, w: 190, h: 48, text: 'Hanna & Co' },
+      { type: 'para', x: 700, y: 130, w: 300, h: 24, text: 'Case study',
+        tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
+      { type: 'heading', x: 700, y: 170, w: 420, h: 120, text: 'A bakery worth queueing for', fs: 'x-large' },
+      { type: 'para', x: 700, y: 310, w: 400, h: 84, text: 'New identity, new site, same sourdough. Online orders doubled in the first month \u2014 the queue moved to the website.' },
+      { type: 'badge', x: 700, y: 414, w: 170, h: 46, text: '+204% orders' },
+      { type: 'badge', x: 886, y: 414, w: 160, h: 46, text: '6 weeks' },
+      { type: 'button', x: 700, y: 486, w: 210, h: 52, text: 'Read the study', ghost: true },
+    ] },
+    { starter: true, intent: 'showcase', name: 'Menu', minH: 600, els: [
+      { type: 'para', x: 400, y: 60, w: 400, h: 24, align: 'center', text: 'Served all day',
+        tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
+      { type: 'heading', x: 300, y: 100, w: 600, h: 70, text: 'Small plates', fs: 'x-large', align: 'center' },
+      { type: 'heading', x: 280, y: 212, w: 520, h: 40, text: 'Sourdough, cultured butter', fs: 'medium' },
+      { type: 'para', x: 850, y: 212, w: 70, h: 40, text: '\u00a36', align: 'right', fs: 'medium' },
+      { type: 'heading', x: 280, y: 288, w: 520, h: 40, text: 'Burrata, blood orange, mint', fs: 'medium' },
+      { type: 'para', x: 850, y: 288, w: 70, h: 40, text: '\u00a311', align: 'right', fs: 'medium' },
+      { type: 'heading', x: 280, y: 364, w: 520, h: 40, text: 'Wood-roast leeks, romesco', fs: 'medium' },
+      { type: 'para', x: 850, y: 364, w: 70, h: 40, text: '\u00a39', align: 'right', fs: 'medium' },
+      { type: 'heading', x: 280, y: 440, w: 520, h: 40, text: 'Anchovy toast, soft egg', fs: 'medium' },
+      { type: 'para', x: 850, y: 440, w: 70, h: 40, text: '\u00a38', align: 'right', fs: 'medium' },
+      { type: 'para', x: 280, y: 516, w: 640, h: 30, text: 'Everything changes with the seasons \u2014 ask what\u2019s good today.', tf: { fst: 'italic', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
+    ] },
+    { starter: true, intent: 'showcase', name: 'Team', minH: 620, els: [
+      { type: 'para', x: 72, y: 60, w: 300, h: 24, text: 'The studio',
+        tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
+      { type: 'heading', x: 72, y: 100, w: 600, h: 64, text: 'Eleven people, no egos', fs: 'x-large' },
+      { type: 'image', x: 72, y: 208, w: 330, h: 300, cool: true },
+      { type: 'heading', x: 74, y: 528, w: 320, h: 36, text: 'June Ashby', fs: 'medium' },
+      { type: 'para', x: 74, y: 570, w: 320, h: 24, text: 'Creative director',
+        tf: { fs: 13, fw: 600, ls2: 0.18, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
+      { type: 'image', x: 435, y: 208, w: 330, h: 300 },
+      { type: 'heading', x: 437, y: 528, w: 320, h: 36, text: 'Marco Reyes', fs: 'medium' },
+      { type: 'para', x: 437, y: 570, w: 320, h: 24, text: 'Lead engineer',
+        tf: { fs: 13, fw: 600, ls2: 0.18, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
+      { type: 'image', x: 798, y: 208, w: 330, h: 300, cool: true },
+      { type: 'heading', x: 800, y: 528, w: 320, h: 36, text: 'Priya Chandra', fs: 'medium' },
+      { type: 'para', x: 800, y: 570, w: 320, h: 24, text: 'Strategy',
+        tf: { fs: 13, fw: 600, ls2: 0.18, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
+    ] },
   ];
 
+  // FAQ and Tabs are DATA on the element (e.faq / e.tabs) — the block
+  // markup is always regenerated from it, so editing is a form, never a
+  // template. wsrc carries the true core block; whtml is the calm editor
+  // preview (spans for toggles: buttons cannot nest in the picker's card).
+  function composeFaq(items) {
+    var wsrc = '<!-- wp:accordion -->\n<div class="wp-block-accordion">' + items.map(function (it) {
+      return '<!-- wp:accordion-item -->\n<div class="wp-block-accordion-item"><!-- wp:accordion-heading -->\n' +
+        '<h3 class="wp-block-accordion-heading"><button class="wp-block-accordion-heading__toggle" type="button">' +
+        '<span class="wp-block-accordion-heading__text">' + esc(it.q) + '</span>' +
+        '<span class="wp-block-accordion-heading__icon"></span></button></h3>\n<!-- /wp:accordion-heading -->' +
+        '<!-- wp:accordion-panel -->\n<div class="wp-block-accordion-panel"><div class="wp-block-accordion-panel__content">' +
+        '<!-- wp:paragraph --><p>' + esc(it.a) + '</p><!-- /wp:paragraph --></div></div>\n<!-- /wp:accordion-panel --></div>\n<!-- /wp:accordion-item -->';
+    }).join('') + '</div>\n<!-- /wp:accordion -->';
+    var whtml = '<div class="wp-block-accordion">' + items.map(function (it, k) {
+      return '<div class="wp-block-accordion-item' + (k === 0 ? ' is-open' : '') + '">' +
+        '<h3 class="wp-block-accordion-heading"><span class="wp-block-accordion-heading__toggle">' +
+        '<span class="wp-block-accordion-heading__text">' + esc(it.q) + '</span>' +
+        '<span class="wp-block-accordion-heading__icon"></span></span></h3>' +
+        '<div class="wp-block-accordion-panel"' + (k === 0 ? '' : ' style="display:none"') + '>' +
+        '<div class="wp-block-accordion-panel__content"><p>' + esc(it.a) + '</p></div></div></div>';
+    }).join('') + '</div>';
+    return { wsrc: wsrc, whtml: whtml };
+  }
+  function composeTabs(items) {
+    var wsrc = '<!-- wp:tabs -->\n<div class="wp-block-tabs"><!-- wp:tab-list -->\n' +
+      '<div class="wp-block-tab-list" role="tablist">' + items.map(function (it) {
+        return '<button class="wp-block-tab-list__tab" type="button" role="tab">' + esc(it.t) + '</button>';
+      }).join('') + '</div>\n<!-- /wp:tab-list --><!-- wp:tab-panels -->\n<div class="wp-block-tab-panels">' +
+      items.map(function (it) {
+        return '<!-- wp:tab-panel {"label":' + JSON.stringify(String(it.t)) + '} -->\n' +
+          '<div class="wp-block-tab-panel"><!-- wp:paragraph --><p>' + esc(it.body) + '</p><!-- /wp:paragraph --></div>\n<!-- /wp:tab-panel -->';
+      }).join('') + '</div>\n<!-- /wp:tab-panels --></div>\n<!-- /wp:tabs -->';
+    var whtml = '<div class="wp-block-tabs">' +
+      '<div class="wp-block-tab-list" role="tablist">' + items.map(function (it, k) {
+        return '<span class="wp-block-tab-list__tab"' + (k === 0 ? ' aria-selected="true"' : '') + '>' + esc(it.t) + '</span>';
+      }).join('') + '</div>' +
+      '<div class="wp-block-tab-panels"><div class="wp-block-tab-panel"><p>' + esc(items[0] ? items[0].body : '') + '</p></div></div></div>';
+    return { wsrc: wsrc, whtml: whtml };
+  }
+  function composeCarousel(items, copt) {
+    copt = copt || {};
+    var cls = 'gogh-carousel' + (copt.auto ? ' gogh-crsl-auto' : '') +
+      (copt.light ? ' gogh-crsl-light' : '') +
+      (copt.nav === 'sides' ? ' gogh-crsl-nav-sides' : copt.nav === 'both' ? ' gogh-crsl-nav-both' : '');
+    var fig = function (it) {
+      return '<figure class="wp-block-image size-large gogh-slide"><img src="' + escAttr(it.img) + '" alt="' + escAttr(it.cap || '') + '"/>' +
+        (it.cap ? '<figcaption class="wp-element-caption">' + esc(it.cap) + '</figcaption>' : '') + '</figure>';
+    };
+    // gogh's own lightbox (the class above): core's cannot move between
+    // images, and moving between images is the point
+    var imgAttrs = { sizeSlug: 'large', className: 'gogh-slide' };
+    var wsrc = '<!-- wp:group {"className":"' + cls + '"} -->\n<div class="wp-block-group ' + cls + '">' +
+      items.map(function (it) {
+        return '<!-- wp:image ' + JSON.stringify(imgAttrs) + ' -->\n' + fig(it) + '\n<!-- /wp:image -->';
+      }).join('') + '</div>\n<!-- /wp:group -->';
+    // the preview wears working arrows (wired by the editor's delegate);
+    // the SAVED markup never carries them — view-time injection only
+    var navMode = copt.nav === 'sides' ? 'sides' : copt.nav === 'both' ? 'both' : 'below';
+    var rowArrows = navMode !== 'sides';
+    var dots = '<span class="gogh-crsl-dots">' + items.map(function (x2, k2) {
+      return '<span class="gogh-crsl-dot' + (k2 === 0 ? ' is-here' : '') + '" data-k="' + k2 + '" role="button" aria-label="Slide ' + (k2 + 1) + '"></span>';
+    }).join('') + '</span>';
+    var nav = items.length > 1
+      ? '<div class="gogh-crsl-nav">' +
+        (rowArrows ? '<span class="gogh-crsl-btn" data-dir="-1" role="button" aria-label="Previous">\u2039</span>' : '') +
+        dots +
+        (rowArrows ? '<span class="gogh-crsl-btn" data-dir="1" role="button" aria-label="Next">\u203a</span>' : '') +
+        '</div>'
+      : '';
+    var sideArrows = items.length > 1 && navMode !== 'below'
+      ? '<span class="gogh-crsl-btn gogh-crsl-side gogh-crsl-side-l" data-dir="-1" role="button" aria-label="Previous">\u2039</span>' +
+        '<span class="gogh-crsl-btn gogh-crsl-side gogh-crsl-side-r" data-dir="1" role="button" aria-label="Next">\u203a</span>'
+      : '';
+    var whtml = '<div class="gogh-crsl-shell">' + sideArrows +
+      '<div class="wp-block-group ' + cls + '">' + items.map(fig).join('') + '</div>' + nav + '</div>';
+    return { wsrc: wsrc, whtml: whtml };
+  }
+  function composeWall(items, wopt) {
+    wopt = wopt || {};
+    var cols = wopt.cols === 2 || wopt.cols === 4 ? wopt.cols : 3;
+    var cls = 'gogh-wall gogh-wall-' + cols + (wopt.light ? ' gogh-crsl-light' : '');
+    var fig = function (it) {
+      return '<figure class="wp-block-image size-large gogh-brick"><img src="' + escAttr(it.img) + '" alt="' + escAttr(it.cap || '') + '"/>' +
+        (it.cap ? '<figcaption class="wp-element-caption">' + esc(it.cap) + '</figcaption>' : '') + '</figure>';
+    };
+    var wsrc = '<!-- wp:group {"className":"' + cls + '"} -->\n<div class="wp-block-group ' + cls + '">' +
+      items.map(function (it) {
+        return '<!-- wp:image {"sizeSlug":"large","className":"gogh-brick"} -->\n' + fig(it) + '\n<!-- /wp:image -->';
+      }).join('') + '</div>\n<!-- /wp:group -->';
+    var whtml = '<div class="wp-block-group ' + cls + '">' + items.map(fig).join('') + '</div>';
+    return { wsrc: wsrc, whtml: whtml };
+  }
+  function composeWidgetData(e) {
+    if (e.faq && e.faq.length) { var c = composeFaq(e.faq); e.wsrc = c.wsrc; e.whtml = c.whtml; }
+    else if (e.tabs && e.tabs.length) { var c2 = composeTabs(e.tabs); e.wsrc = c2.wsrc; e.whtml = c2.whtml; }
+    else if (e.slides && e.slides.length) { var c3 = composeCarousel(e.slides, e.copt); e.wsrc = c3.wsrc; e.whtml = c3.whtml; }
+    else if (e.wall && e.wall.length) { var c4 = composeWall(e.wall, e.wopt); e.wsrc = c4.wsrc; e.whtml = c4.whtml; }
+  }
+  // ---------- their photos, not our placeholders ----------
+  // starters populate from the site's OWN media library: shelf previews and
+  // inserts draw the same deterministic picks (seeded by template name), so
+  // the photo you see on the shelf is the photo that lands on the page
+  var mediaPool = { imgs: [], bgs: [], fetched: false };
+  function fetchMediaPool() {
+    if (mediaPool.fetched || !cfg.mediaUrl) return;
+    mediaPool.fetched = true;
+    fetch(restQ(cfg.mediaUrl, 'per_page=40&media_type=image&orderby=date&order=desc'), {
+      headers: { 'X-WP-Nonce': cfg.nonce },
+      credentials: 'same-origin',
+    }).then(function (r) { return r.ok ? r.json() : []; }).catch(function () { return []; }).then(function (items) {
+      items.forEach(function (it) {
+        var d = it.media_details || {};
+        var src = it.source_url;
+        if (!src || /gogh\/demo-assets/.test(src)) return;
+        mediaPool.imgs.push(src);
+        // backgrounds want big and wide-ish
+        if (d.width >= 900 && d.width >= (d.height || 0) * 0.9) mediaPool.bgs.push(src);
+      });
+    });
+  }
+  function poolPick(list, seed, k) {
+    if (!list.length) return null;
+    var h = 0, str = String(seed);
+    for (var i = 0; i < str.length; i++) h = (h * 31 + str.charCodeAt(i)) >>> 0;
+    return list[(h + (k || 0)) % list.length];
+  }
+  function tplBgFor(tpl) {
+    if (!tpl.bgImage) return tpl.bgImage || null;
+    if (/demo-assets/.test(tpl.bgImage)) {
+      var mine = poolPick(mediaPool.bgs, tpl.name, 0);
+      if (mine) return mine;
+    }
+    return tpl.bgImage;
+  }
   function tplEls(tpl) {
     var els = JSON.parse(JSON.stringify(tpl.els));
     var sizes = fontSizes();
+    var k = 0;
     els.forEach(function (e) {
       if (e.fs === '__max') {
         if (sizes.length) e.fs = sizes[sizes.length - 1].slug;
         else delete e.fs;
       }
+      if (e.type === 'image' && !e.src) {
+        var mine = poolPick(mediaPool.imgs, tpl.name, ++k);
+        if (mine) e.src = mine;
+      }
+      [e.slides, e.wall].forEach(function (coll) {
+        if (!coll) return;
+        coll.forEach(function (sl) {
+          if (/demo-assets/.test(sl.img || '')) {
+            var mine2 = poolPick(mediaPool.imgs, tpl.name, ++k);
+            if (mine2) { sl.img = mine2; sl.cap = ''; }
+          }
+        });
+      });
+      composeWidgetData(e);
     });
     return els;
   }
@@ -1744,57 +4576,549 @@
   picker.hidden = true;
   document.body.appendChild(picker);
   var pickerIdx = null;
+  var pickerBefore = null;
 
-  function closePicker() { picker.hidden = true; }
-  function openPicker(idx) {
+  var pickerCloseT = null;
+  function closePicker() {
+    clearTimeout(pickerCloseT);
+    if (picker.__io) { picker.__io.disconnect(); picker.__io = null; }
+    picker.classList.remove('is-open');
+    if (/gogh-test/.test(location.search)) {
+      // the suite runs synchronously — no 240ms of half-open picker
+      picker.hidden = true;
+      return;
+    }
+    pickerCloseT = setTimeout(function () { picker.hidden = true; }, 240);
+  }
+  // the modal grows out of whatever was clicked to open it
+  document.addEventListener('pointerdown', function (ev) {
+    picker.__ox = ev.clientX;
+    picker.__oy = ev.clientY;
+  }, true);
+  function fitCardStage(pv, st) {
+    // show the WHOLE design: shrink tall sections to fit, centre the rest
+    var h = st.scrollHeight || 1;
+    var scale = Math.min(pv.clientWidth / 1200, (pv.clientHeight || 1) / h);
+    if (!isFinite(scale) || scale <= 0) scale = pv.clientWidth / 1200;
+    st.style.transform = 'scale(' + scale + ')';
+    st.style.left = Math.max(0, Math.round((pv.clientWidth - 1200 * scale) / 2)) + 'px';
+    st.style.top = Math.max(0, Math.round(((pv.clientHeight || 0) - h * scale) / 2)) + 'px';
+  }
+  // one taxonomy for everything in the picker \u2014 starters and theme patterns
+  // share these buckets, so the chips are the only navigation concept
+  var BUCKETS = [
+    { key: 'hero', label: 'Heroes & banners', cats: ['banner', 'hero', 'featured', 'call-to-action', 'cover', 'header'] },
+    { key: 'text', label: 'Text', cats: ['text', 'about', 'quotes', 'quote', 'testimonials', 'testimonial'] },
+    { key: 'cards', label: 'Cards & pricing', cats: ['card', 'cards', 'pricing', 'services', 'features', 'columns'] },
+    { key: 'photos', label: 'Photos', cats: ['gallery', 'media', 'portfolio', 'images'] },
+    { key: 'contact', label: 'Contact & social', cats: ['contact', 'team', 'social', 'subscribe', 'newsletter'] },
+  ];
+  var STARTER_CATS = {
+    'Hero': 'hero', 'Cover': 'hero banner', 'Big statement': 'hero', 'Story': 'text', 'Numbers': 'text',
+    'Article': 'text', 'Feature cards': 'cards', 'Pricing': 'cards',
+    'Quote': 'text', 'Call to action': 'hero', 'Get in touch': 'contact',
+    'FAQ': 'text cards', 'Tabs': 'text cards', 'Gallery': 'photos', 'Photo cards': 'photos cards', 'Portfolio': 'photos',
+    'Menu': 'text', 'Team': 'contact photos',
+  };
+  function openPicker(idx, before) {
     pickerIdx = idx;
-    var cards = TEMPLATES.map(function (tpl, t) {
+    pickerBefore = (before && before.isConnected) ? before : null;
+    try { picker.style.setProperty('--gogh-body-ff', getComputedStyle(document.body).fontFamily); } catch (err) {}
+    var tplCardHTML = function (tpl, t, popular, si) {
       var els = tplEls(tpl);
       var scope = 'gogh-tpl-' + t;
-      var css = els.length ? buildCSS(els, scope, tpl.minH || null, { bg: tpl.bg || null }) : '';
+      var css = els.length ? buildCSS(els, scope, tpl.minH || null, { bg: tpl.bg || null, bgImage: tplBgFor(tpl), bgA: tpl.bgA != null ? tpl.bgA : null }) : '';
       var inner = els.map(function (e, i) { return makeNode(e, i).outerHTML; }).join('');
-      return '<button type="button" class="gogh-card" data-tpl="' + t + '">' +
+      return '<button type="button" class="gogh-card" data-tpl="' + t + '" data-si="' + (si || 0) + '"' +
+        ' data-cats="' + (STARTER_CATS[tpl.name] || '') + '">' +
         '<span class="gogh-card-prev"><style>' + css + '</style>' +
         '<span class="gogh-card-stage gogh-wrap"><span class="gogh-card-sec gogh-section ' + scope + '">' + inner + '</span></span>' +
         '</span>' +
-        '<span class="gogh-card-name">' + tpl.name + '</span>' +
+        '<span class="gogh-card-name">' + tpl.name +
+        (popular ? '<span class="gogh-pop">🔥 Popular</span>' : '') + '</span>' +
         '</button>';
-    }).join('');
+    };
+    // starters shelve by INTENT, the question the user actually arrives
+    // with (Squarespace lesson) — not by layout anatomy. Blank lives in
+    // Quick start.
+    var blankAt = TEMPLATES.findIndex(function (t) { return !t.retired && !t.starter; });
+    var INTENTS = [
+      { key: 'introduce', label: 'Introduce', sub: 'Say who you are' },
+      { key: 'sell', label: 'Sell', sub: 'Turn interest into action' },
+      { key: 'showcase', label: 'Showcase', sub: 'Let the work speak' },
+    ];
+    var cardsArr = [];
+    var starterSeen = 0;
+    INTENTS.forEach(function (g) {
+      var labelled = false;
+      TEMPLATES.forEach(function (tpl, t) {
+        if (tpl.retired || !tpl.starter || tpl.intent !== g.key) return;
+        if (tpl.gated && !cfg[tpl.gated]) return; // lights up when the block lands
+        if (!labelled) {
+          cardsArr.push('<div class="gogh-seclab gogh-intentlab">' + g.label +
+            '<i>' + g.sub + '</i></div>');
+          labelled = true;
+        }
+        starterSeen++;
+        cardsArr.push(tplCardHTML(tpl, t, false, starterSeen));
+      });
+    });
+    // safety net: an intent-less starter still gets shelved, never lost
+    TEMPLATES.forEach(function (tpl, t) {
+      if (tpl.retired || !tpl.starter || tpl.intent) return;
+      if (tpl.gated && !cfg[tpl.gated]) return;
+      starterSeen++;
+      cardsArr.push(tplCardHTML(tpl, t, false, starterSeen));
+    });
+    var cards = cardsArr.join('');
+    var quickTile = function (cls, icon, title, sub) {
+      return '<button type="button" class="gogh-quick ' + cls + '">' +
+        '<span class="gogh-quick-ic">' + icon + '</span>' +
+        '<span class="gogh-quick-tx"><b>' + title + '</b><i>' + sub + '</i></span>' +
+        '<span class="gogh-quick-chev">' +
+        '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5l7 7-7 7"/></svg>' +
+        '</span></button>';
+    };
     picker.innerHTML =
       '<div class="gogh-picker-inner">' +
-      '<div class="gogh-picker-head">Add a section' +
-      '<button type="button" class="gogh-btn gogh-btn-small gogh-picker-close">Close</button></div>' +
+      '<div class="gogh-picker-head">' +
+      '<span class="gogh-picker-headings"><span class="gogh-picker-title">Add a section</span>' +
+      '<span class="gogh-picker-sub">Choose a layout to get started. You can customise everything.</span></span>' +
+      '<span class="gogh-picker-tools">' +
+      '<label class="gogh-picker-search">' +
+      '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><circle cx="10.5" cy="10.5" r="6.5"/><path d="M20 20l-4.6-4.6"/></svg>' +
+      '<input type="text" class="gogh-patsearch" placeholder="Search layouts\u2026" />' +
+      '</label>' +
+      '<button type="button" class="gogh-picker-close gogh-picker-x" title="Close">' +
+      '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>' +
+      '</button>' +
+      '</span></div>' +
+      // no chip row: search + the labelled shelves carry the whole modal —
+      // "My sections" and the theme shelf open lightweight VIEWS instead,
+      // with this bar as the way back
+      '<div class="gogh-seclab gogh-viewbar" hidden><span></span>' +
+      '<button type="button" class="gogh-gridlab-all gogh-view-back">← All layouts</button></div>' +
+      '<div class="gogh-seclab gogh-quicklab">Quick start</div>' +
+      '<div class="gogh-quickrow">' +
+      quickTile('gogh-quick-scratch',
+        '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>',
+        'Start from scratch', 'Build your section on a blank canvas') +
+      quickTile('gogh-quick-paste gogh-card-htmladd', '⌘V',
+        'Paste HTML', 'Paste your HTML and we’ll convert it') +
+      quickTile('gogh-quick-yours',
+        '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M12 21S3.8 15.9 1.7 10.9C.3 7.6 2.4 4 5.9 4c2.2 0 3.8 1.2 4.7 2.6L12 8.5l1.4-1.9C14.3 5.2 15.9 4 18.1 4c3.5 0 5.6 3.6 4.2 6.9C20.2 15.9 12 21 12 21z"/></svg>',
+        'My sections', 'Reuse your saved sections') +
+      '</div>' +
       '<div class="gogh-cards">' + cards + '</div>' +
+      '<div class="gogh-pickempty" hidden>Nothing here matches \u2014 try another filter.</div>' +
       '</div>';
+    clearTimeout(pickerCloseT);
     picker.hidden = false;
+    var pin = picker.querySelector('.gogh-picker-inner');
+    if (pin && picker.__ox != null) {
+      pin.style.transformOrigin =
+        Math.round(picker.__ox / window.innerWidth * 100) + '% ' +
+        Math.round(picker.__oy / window.innerHeight * 100) + '%';
+    }
+    picker.classList.remove('is-open');
+    void picker.offsetWidth; // restart the transition
+    picker.classList.add('is-open');
     picker.querySelector('.gogh-picker-close').addEventListener('click', closePicker);
+    picker.querySelector('.gogh-card-htmladd').addEventListener('click', function () {
+      var inner = picker.querySelector('.gogh-picker-inner');
+      inner.innerHTML =
+        '<div class="gogh-picker-head"><span class="gogh-picker-title">Paste HTML</span>' +
+        '<button type="button" class="gogh-btn gogh-btn-small gogh-picker-close">Close</button></div>' +
+        '<div class="gogh-panel-hint">It lands as a real HTML block \u2014 click text to edit it, \u2728 makes it freeform. Great with AI-written HTML. Tip: you can also just press \u2318V anywhere on the page.</div>' +
+        '<textarea class="gogh-htmlpaste" placeholder="&lt;section&gt;\u2026&lt;/section&gt;" spellcheck="false"></textarea>' +
+        '<div class="gogh-panel-row gogh-chrome-foot">' +
+        '<button type="button" class="gogh-btn gogh-btn-small gogh-html-back">Back</button>' +
+        '<button type="button" class="gogh-btn gogh-btn-save gogh-btn-small gogh-html-add">Add to page</button>' +
+        '</div>';
+      inner.querySelector('.gogh-picker-close').addEventListener('click', closePicker);
+      inner.querySelector('.gogh-html-back').addEventListener('click', function () { openPicker(pickerIdx, pickerBefore); });
+      var ta = inner.querySelector('.gogh-htmlpaste');
+      ta.focus();
+      inner.querySelector('.gogh-html-add').addEventListener('click', function () {
+        if (!ta.value.trim()) { ta.focus(); return; }
+        addHtmlSection(ta.value, pickerIdx, pickerBefore);
+        closePicker();
+      });
+    });
     picker.addEventListener('pointerdown', function (ev) {
       if (ev.target === picker) closePicker();
     });
     picker.querySelectorAll('.gogh-card').forEach(function (card) {
+      if (card.dataset.tpl == null) return;
       card.addEventListener('click', function () {
-        addSection(TEMPLATES[+card.dataset.tpl], pickerIdx);
+        addSection(TEMPLATES[+card.dataset.tpl], pickerIdx, pickerBefore);
         closePicker();
       });
     });
+    picker.querySelector('.gogh-quick-scratch').addEventListener('click', function () {
+      addSection(TEMPLATES[blankAt], pickerIdx, pickerBefore);
+      closePicker();
+    });
+    picker.querySelector('.gogh-quick-yours').addEventListener('click', function () {
+      setView('yours', 'Your sections'); // empty state falls through to the grid's hint
+    });
     picker.querySelectorAll('.gogh-card-prev').forEach(function (p) {
       var st = p.querySelector('.gogh-card-stage');
-      if (st) st.style.transform = 'scale(' + (p.clientWidth / 1200) + ')';
+      if (st) fitCardStage(p, st);
+    });
+    var cardsBox = picker.querySelector('.gogh-cards');
+    var emptyHint = picker.querySelector('.gogh-pickempty');
+    var searchIn = picker.querySelector('.gogh-patsearch');
+    var activeCat = '', query = '';
+    // one grid, one filter: chips and search treat every card the same
+    function applyFilter() {
+      var shown = 0, teaser = 0;
+      var filtered = !!(activeCat || query);
+      // the labelled library shape (Quick start / Recommended / Browse) only
+      // makes sense on the first screen — filters flatten to one plain grid
+      [].forEach.call(picker.querySelectorAll('.gogh-quicklab, .gogh-quickrow'), function (n) {
+        n.hidden = filtered;
+      });
+      [].forEach.call(cardsBox.querySelectorAll('.gogh-seclab'), function (n) {
+        n.hidden = filtered;
+      });
+      [].slice.call(cardsBox.querySelectorAll('.gogh-card')).forEach(function (b) {
+        var ok;
+        var isPat = b.classList.contains('gogh-card-pattern');
+        if (!activeCat && !query) {
+          // first screen: every starter under its intent shelf — the
+          // shelves are the map, so nothing hides behind a See all — plus
+          // a one-row taste of the theme's patterns (recents/faves carry
+          // kind="yours" and stay off the first screen)
+          ok = b.dataset.tpl != null ||
+            (isPat && !b.dataset.kind && teaser < 4 && !!(++teaser));
+        } else {
+          var cats = (b.dataset.cats || '').split(' ');
+          var name = ((b.querySelector('.gogh-card-name') || {}).textContent || '').toLowerCase();
+          ok = (!activeCat ||
+            (activeCat === 'yours' ? b.dataset.kind === 'yours' :
+              activeCat === 'theme' ? isPat : cats.indexOf(activeCat) !== -1)) &&
+            (!query || name.indexOf(query) !== -1);
+        }
+        b.style.display = ok ? '' : 'none';
+        if (ok) {
+          shown++;
+          if (io && b.__pat && !b.__hydrated) { io.unobserve(b); hydrate(b, b.__pat); }
+        }
+      });
+      var lab = cardsBox.querySelector('.gogh-gridlab');
+      if (lab) lab.hidden = !(!activeCat && !query && teaser > 0);
+      emptyHint.hidden = shown > 0;
+    }
+    // lightweight views (yours / theme) replace the old chip row
+    var viewBar = picker.querySelector('.gogh-viewbar');
+    function setView(cat, label) {
+      activeCat = cat;
+      picker.classList.toggle('gogh-view-yours', cat === 'yours');
+      viewBar.querySelector('span').textContent = label || '';
+      viewBar.hidden = !cat;
+      applyFilter();
+    }
+    picker.querySelector('.gogh-view-back').addEventListener('click', function () { setView('', ''); });
+    searchIn.addEventListener('input', function () {
+      query = this.value.trim().toLowerCase();
+      applyFilter();
+    });
+    // cap the first screen NOW — pattern loading used to be the only
+    // early applyFilter trigger, so a 9th starter leaked past the cap
+    applyFilter();
+    // ---- pattern card machinery (lazy hydration) ----
+    var hydrate = function (b, p) {
+      if (b.__hydrated) return;
+      b.__hydrated = true;
+      renderPattern(p).then(function (html) {
+        var st = b.querySelector('.gogh-card-stage');
+        var pv = b.querySelector('.gogh-card-prev');
+        if (!st || !html) { b.remove(); return; }
+        st.innerHTML = html;
+        // a pattern that renders next to nothing (post meta, bare social
+        // icons) has no business as a section starting point — measured with
+        // the injected layout <style> text excluded, or CSS counts as content
+        var textOnly = function () {
+          var c = st.cloneNode(true);
+          [].slice.call(c.querySelectorAll('style')).forEach(function (n) { n.remove(); });
+          return c.textContent || '';
+        };
+        var textLen = textOnly().trim().length;
+        if (textLen < 30 && !st.querySelector('img')) { b.remove(); return; }
+        fitCardStage(pv, st);
+        [].slice.call(st.querySelectorAll('img')).forEach(function (im) {
+          if (!im.complete) im.addEventListener('load', function () { fitCardStage(pv, st); }, { once: true });
+        });
+        // trial-convert the very render we're showing: if the scan loses
+        // the content, don't offer the section at all. Hand-picked shelf
+        // entries are exempt — they insert natively and were chosen on sight
+        if (GOGH_SHELF.indexOf(p.name) !== -1) return;
+        try {
+          var trial = scanDomWithRaw(st, p.content || '', { loose: true });
+          if (!trial.els.length) { b.remove(); return; }
+          var kept = trial.els.map(function (e) {
+            return e.type === 'widget' ? '' : (e.text || '');
+          }).join(' ').replace(/\s+/g, ' ').length;
+          var widgetText = trial.els.filter(function (e) { return e.type === 'widget'; })
+            .map(function (e) { return e.whtml || ''; }).join(' ').replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').length;
+          var total = textOnly().replace(/\s+/g, ' ').length;
+          if (total > 40 && (kept + widgetText) < total * 0.6) { b.remove(); return; }
+        } catch (err) { b.remove(); return; }
+      });
+    };
+    if (picker.__io) picker.__io.disconnect();
+    var io = window.IntersectionObserver ? new IntersectionObserver(function (entries) {
+      entries.forEach(function (en) {
+        if (!en.isIntersecting) return;
+        io.unobserve(en.target);
+        hydrate(en.target, en.target.__pat);
+      });
+    }, { rootMargin: '200px' }) : null;
+    picker.__io = io;
+    Promise.all([
+      fetchBlocks(),
+      fetchSectionPatterns(),
+    ]).then(function (res) {
+      if (picker.hidden || !cardsBox.parentNode) return;
+      var blocks = res[0] || [], pats = res[1] || [];
+      var favs = {};
+      try { (JSON.parse(localStorage.getItem('gogh-fav-patterns') || '[]')).forEach(function (n) { favs[n] = 1; }); } catch (err) {}
+      var recents = [];
+      try { recents = JSON.parse(localStorage.getItem('gogh-recent-sections') || '[]'); } catch (err) {}
+      if (!Array.isArray(recents)) recents = [];
+      var mine = blocks.filter(function (bk) {
+        return ((bk.content && bk.content.raw) || '').indexOf('wp:gogh/section') !== -1;
+      });
+      var mineById = {};
+      mine.forEach(function (bk) { mineById[bk.id] = bk; });
+
+      var patCats = function (p) {
+        // themes namespace their categories (ollie/hero, ollie/card) — match
+        // on the bare name so the buckets see them
+        var cats = (p.categories || []).map(function (c) { return String(c).split('/').pop(); });
+        return BUCKETS.filter(function (bu) {
+          return cats.some(function (c) { return bu.cats.indexOf(c) !== -1; });
+        }).map(function (bu) { return bu.key; }).join(' ');
+      };
+      // no chip row anymore — but never strand the user inside an emptied
+      // "Your sections" view
+      var updateYoursChip = function () {
+        if (activeCat === 'yours' && !cardsBox.querySelector('.gogh-card[data-kind="yours"]')) {
+          setView('', '');
+        }
+      };
+      var patCard = function (p) {
+        var b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'gogh-card gogh-card-pattern';
+        b.__pat = p;
+        b.dataset.cats = patCats(p);
+        if (favs[p.name]) b.dataset.kind = 'yours';
+        b.innerHTML = '<span class="gogh-card-prev"><span class="gogh-card-stage"></span></span>' +
+          '<span class="gogh-card-name"></span>' +
+          '<span class="gogh-card-fav">\u2665</span>' +
+          '<span class="gogh-card-delpat gogh-card-unfav" title="Remove from Your sections">\u2715</span>';
+        b.querySelector('.gogh-card-name').textContent = p.title || p.name;
+        var favEl = b.querySelector('.gogh-card-fav');
+        var syncFav = function () {
+          favEl.classList.toggle('is-fav', !!favs[p.name]);
+          favEl.title = favs[p.name] ? 'Remove from Your sections' : 'Favourite \u2014 adds to Your sections';
+          if (favs[p.name]) b.dataset.kind = 'yours'; else delete b.dataset.kind;
+        };
+        syncFav();
+        var setFav = function (on) {
+          if (on) favs[p.name] = 1; else delete favs[p.name];
+          try { localStorage.setItem('gogh-fav-patterns', JSON.stringify(Object.keys(favs))); } catch (err) {}
+          syncFav();
+          updateYoursChip();
+          if (activeCat === 'yours') applyFilter();
+        };
+        var removeFav = function () {
+          setFav(false);
+          toast('\u201c' + (p.title || p.name) + '\u201d removed from Your sections.',
+            { actions: [{ label: 'Undo', onClick: function () { setFav(true); } }] });
+        };
+        favEl.addEventListener('click', function (ev) {
+          ev.stopPropagation();
+          if (favs[p.name]) removeFav(); else setFav(true);
+        });
+        b.querySelector('.gogh-card-unfav').addEventListener('click', function (ev) {
+          ev.stopPropagation();
+          removeFav();
+        });
+        b.addEventListener('click', function () {
+          addPatternSection(p, pickerIdx, pickerBefore);
+          closePicker();
+        });
+        if (io) io.observe(b); else hydrate(b, p);
+        return b;
+      };
+      var mineCard = function (bk) {
+        var raw = (bk.content && bk.content.raw) || '';
+        var tpl2 = document.createElement('template');
+        tpl2.innerHTML = raw;
+        var modelEl = tpl2.content.querySelector('script.gogh-model');
+        var model = null;
+        try { model = modelEl ? JSON.parse(modelEl.textContent) : null; } catch (err) {}
+        if (!model || !model.elements) return null;
+        var b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'gogh-card gogh-card-mine';
+        b.dataset.kind = 'yours';
+        var scope = 'gogh-mine-' + bk.id;
+        var css = buildCSS(model.elements, scope, model.minH || null, { bg: model.bg || null, bgImage: model.bgImage || null });
+        var inner2 = model.elements.map(function (e, i) { return makeNode(e, i).outerHTML; }).join('');
+        b.innerHTML = '<span class="gogh-card-prev"><style>' + css + '</style>' +
+          '<span class="gogh-card-stage gogh-wrap"><span class="gogh-card-sec gogh-section ' + scope + '">' + inner2 + '</span></span>' +
+          '</span>' +
+          '<span class="gogh-card-name"></span>' +
+          '<span class="gogh-card-delpat" title="Delete saved section">\u2715</span>';
+        b.querySelector('.gogh-card-name').textContent = '\u2764 ' + ((bk.title && bk.title.raw) || 'My section');
+        b.addEventListener('click', function () {
+          recordRecent('b', bk.id);
+          insertGoghPattern(raw, pickerIdx, pickerBefore);
+          closePicker();
+        });
+        b.querySelector('.gogh-card-delpat').addEventListener('click', function (ev) {
+          ev.stopPropagation();
+          var slot = { parent: b.parentNode, next: b.nextSibling };
+          var gone = function (undoable) {
+            blocksCache = null;
+            b.remove();
+            updateYoursChip();
+            toast('\u201c' + ((bk.title && bk.title.raw) || 'My section') + '\u201d deleted.',
+              undoable ? { actions: [{ label: 'Undo', onClick: function () {
+                fetch(blocksUrl(bk.id), {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json', 'X-WP-Nonce': cfg.nonce },
+                  credentials: 'same-origin',
+                  body: JSON.stringify({ status: 'publish' }),
+                }).then(function (r3) {
+                  if (!r3.ok) throw new Error('HTTP ' + r3.status);
+                  blocksCache = null;
+                  slot.parent.insertBefore(b, slot.next && slot.next.parentNode === slot.parent ? slot.next : null);
+                  updateYoursChip();
+                }).catch(function () { toast('Could not restore it.', { error: true }); });
+              } }] } : undefined);
+          };
+          // trash first — restorable; some setups refuse trashing wp_block,
+          // then (and only then) delete outright
+          fetch(blocksUrl(bk.id), {
+            method: 'DELETE',
+            headers: { 'X-WP-Nonce': cfg.nonce },
+            credentials: 'same-origin',
+          }).then(function (res2) {
+            if (res2.ok) { gone(true); return null; }
+            return fetch(restQ(blocksUrl(bk.id), 'force=true'), {
+              method: 'DELETE',
+              headers: { 'X-WP-Nonce': cfg.nonce },
+              credentials: 'same-origin',
+            }).then(function (res3) {
+              if (res3.ok) gone(false);
+              else toast('Could not delete that section.', { error: true });
+            });
+          }).catch(function () {
+            toast('Could not delete that section.', { error: true });
+          });
+        });
+        return b;
+      };
+
+      // ---- build the one grid: yours floated first ----
+      // curation: the hand-picked shelf (GOGH_SHELF, in its order) when the
+      // active theme has it; otherwise only hero and card/feature patterns
+      // make the cut — the long tail (post meta, footers, filler) is noise
+      var shelf = pats.filter(function (p) { return GOGH_SHELF.indexOf(p.name) !== -1; });
+      if (shelf.length) {
+        shelf.sort(function (a, b) { return GOGH_SHELF.indexOf(a.name) - GOGH_SHELF.indexOf(b.name); });
+        pats = shelf;
+      } else {
+        pats = pats.filter(function (p) {
+          // whole-header/footer patterns aren't page sections
+          var cats = (p.categories || []).map(function (c) { return String(c).split('/').pop(); });
+          if (cats.indexOf('header') !== -1 || cats.indexOf('footer') !== -1) return false;
+          var c = patCats(p);
+          return c.indexOf('hero') !== -1 || c.indexOf('cards') !== -1;
+        });
+      }
+      var patCardByName = {};
+      var themeLabel = 'From ' + (cfg.themeName || 'your theme');
+      if (pats.length) {
+        // the theme's patterns get a labelled shelf on the first screen (a
+        // three-card taste); See all opens the full set as a view
+        var lab = document.createElement('div');
+        lab.className = 'gogh-gridlab';
+        lab.hidden = true;
+        lab.innerHTML = '<span></span><button type="button" class="gogh-gridlab-all">See all →</button>';
+        lab.querySelector('span').textContent = themeLabel;
+        cardsBox.appendChild(lab);
+        lab.querySelector('.gogh-gridlab-all').addEventListener('click', function () {
+          setView('theme', themeLabel);
+        });
+      }
+      pats.forEach(function (p) {
+        var b = patCard(p);
+        patCardByName[p.name] = b;
+        cardsBox.appendChild(b);
+      });
+      var mineCardById = {};
+      mine.forEach(function (bk) {
+        var b = mineCard(bk);
+        if (b) mineCardById[bk.id] = b;
+      });
+      // front of All: recents (newest first), then remaining saved sections
+      var front = [];
+      var seenF = {};
+      recents.forEach(function (rc) {
+        var c = rc.t === 'p' ? patCardByName[rc.k] : mineCardById[rc.k];
+        if (!c || seenF[rc.t + rc.k]) return;
+        seenF[rc.t + rc.k] = 1;
+        c.dataset.kind = 'yours';
+        front.push(c);
+      });
+      mine.forEach(function (bk) {
+        if (mineCardById[bk.id] && !seenF['b' + bk.id]) { seenF['b' + bk.id] = 1; front.push(mineCardById[bk.id]); }
+      });
+      var anchor = cardsBox.querySelector('.gogh-card-blank');
+      front.forEach(function (c) {
+        cardsBox.insertBefore(c, anchor ? anchor.nextSibling : cardsBox.firstChild);
+        anchor = c;
+      });
+      // saved-section cards render at design scale until fitted
+      front.forEach(function (c) {
+        if (c.__pat) return;
+        var pv = c.querySelector('.gogh-card-prev');
+        var st = c.querySelector('.gogh-card-stage');
+        if (pv && st) fitCardStage(pv, st);
+      });
+      updateYoursChip();
+      applyFilter();
     });
   }
 
-  function addSection(tpl, idx) {
+  function addSection(tpl, idx, before) {
     if (idx == null) idx = S.length;
+    idx = clampInsertIdx(idx);
     var sec = newSectionShell('gogh-sec-' + (scopeSeq++));
     sec.els = tplEls(tpl);
     sec.minH = tpl.minH || null;
     sec.bg = tpl.bg || null;
-    var anchor = idx < S.length ? S[idx].wrapEl : endMarker;
+    // a template is a whole look: picture, tint, fill and effect ride along
+    sec.bgImage = tplBgFor(tpl);
+    sec.bgA = tpl.bgA != null ? tpl.bgA : null;
+    sec.fill = !!tpl.fill;
+    sec.fx = tpl.fx ? JSON.parse(JSON.stringify(tpl.fx)) : null;
+    var nextContent = null;
+    for (var ni = idx; ni < S.length; ni++) { if (!S[ni].chrome) { nextContent = S[ni]; break; } }
+    // the DOM anchor wins when given: it can place the section above a
+    // native block, which the S-index cannot express
+    var anchor = (before && before.isConnected) ? before : (nextContent ? nextContent.wrapEl : endMarker);
     pageParent.insertBefore(sec.wrapEl, anchor);
     S.splice(idx, 0, sec);
     // a real section replaces the ?gogh-edit bootstrap placeholder
     for (var bi = S.length - 1; bi >= 0; bi--) {
-      if (S[bi].bootstrap && !S[bi].els.length && S[bi] !== sec) {
+      if (isBlankBoot(S[bi]) && S[bi] !== sec) {
         S[bi].wrapEl.remove();
         if (S[bi].styleEl && S[bi].styleEl.parentNode) S[bi].styleEl.parentNode.removeChild(S[bi].styleEl);
         S.splice(bi, 1);
@@ -1805,6 +5129,9 @@
     hideHandles();
     sec.wrapEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
     pushState();
+    // a template designed on a friendly palette can land on a hostile one
+    // (white display type on lemon) — the sentinel checks every insert
+    contrastSentinel(sec);
   }
 
   // ---------- "/" quick add: type to filter, Enter to insert ----------
@@ -1825,9 +5152,11 @@
       { label: 'Button', kind: 'button' },
       { label: 'Image', kind: 'image' },
       { label: 'Badge', kind: 'badge' },
+      { label: 'Posts grid', kind: 'posts' },
     ];
+    if (cfg.hasWoo) items.push({ label: 'Products grid', kind: 'products' });
     TEMPLATES.forEach(function (t, ti) {
-      if (t.els.length) items.push({ label: t.name + ' \u00b7 section', tpl: ti });
+      if (t.els.length && !t.retired) items.push({ label: t.name + ' \u00b7 section', tpl: ti });
     });
     return items;
   }
@@ -1889,15 +5218,16 @@
   function placeHbar(sec) {
     hbarSec = sec;
     var r = sec.wrapEl.getBoundingClientRect();
+    var by = Math.min(r.bottom, window.innerHeight - 36);
     hbar.style.left = (r.left + window.scrollX) + 'px';
     hbar.style.width = r.width + 'px';
-    hbar.style.top = (r.bottom + window.scrollY) + 'px';
+    hbar.style.top = (by + window.scrollY) + 'px';
     hbar.hidden = false;
     hgrip.style.left = (r.left + r.width / 2 + window.scrollX) + 'px';
-    hgrip.style.top = (r.bottom + window.scrollY) + 'px';
+    hgrip.style.top = (by + window.scrollY) + 'px';
     hgrip.hidden = false;
   }
-  function hideHbar() { hbar.hidden = hgrip.hidden = true; hbarSec = null; }
+  function hideHbar() { hgrip.hidden = true; goghFadeOut(hbar); hbarSec = null; }
 
   var hDrag = null, hRaf = false;
   hgrip.addEventListener('pointerdown', function (ev) {
@@ -1907,6 +5237,7 @@
     hDrag = { sec: hbarSec, py: ev.clientY, h: designH(hbarSec.els, hbarSec.minH) };
     document.documentElement.classList.add('gogh-dragging');
     inserter.hidden = true;
+    shapeBtn.hidden = true;
   });
   hgrip.addEventListener('pointermove', function (ev) {
     if (!hDrag) return;
@@ -1940,22 +5271,51 @@
 
   // ---------- section operations ----------
   function deleteSection(idx) {
-    if (S.length <= 1 || !S[idx]) return;
-    var st = S[idx].srcSig && convertStash[S[idx].srcSig];
+    if (!S[idx] || S[idx].chrome) return;
+    var sig = S[idx].srcSig;
+    var st = sig && convertStash[sig];
     S[idx].wrapEl.remove();
     S[idx].styleEl.remove();
-    // deleting a converted section reverts it to the original Gutenberg block
-    if (st && !st.node.parentNode) pageParent.insertBefore(st.node, st.marker.nextSibling);
+    // deleting a converted section deletes the CONTENT — resurrecting the
+    // original block here read as "I can't delete anything freeform". Its
+    // stored span is marked for excision on the next publish instead (the
+    // undo stack still restores the section itself).
+    if (st && !st.node.parentNode && st.raw) {
+      storedEdits.push({ el: st.node, raw: st.raw, savedRaw: st.raw, stored: true, deleted: true, title: 'Section' });
+      delete convertStash[sig];
+      refreshChip();
+    }
     S.splice(idx, 1);
     sel = null;
     hideHandles();
     hideHbar();
     closePanel();
     hideSecBar();
+    // deleting the LAST section is allowed: the page goes blank, an unsaved
+    // placeholder becomes the canvas (same as booting an empty page), and
+    // the picker opens so there's an obvious next step. Undo still works.
+    if (!S.filter(function (s) { return !s.chrome; }).length && !pendingBlocks.length &&
+        !goghHasNativeContent()) {
+      var ph = newSectionShell('gogh-sec-' + (scopeSeq++));
+      ph.bootstrap = true;
+      pageParent.insertBefore(ph.wrapEl, endMarker);
+      S.splice(clampInsertIdx(S.length), 0, ph);
+      renderSection(ph);
+      resolveAll();
+      pushState();
+      openPicker(S.indexOf(ph));
+      return;
+    }
     resolveAll();
     pushState();
   }
+  function hideBoundaryUI() {
+    inserter.hidden = true;
+    shapeBtn.hidden = true;
+    hideHbar();
+  }
   function moveSection(idx, dir) {
+    hideBoundaryUI();
     var j = idx + dir;
     if (j < 0 || j >= S.length || !S[idx]) return;
     var a = S[idx];
@@ -1963,6 +5323,19 @@
     else S[j].wrapEl.after(a.wrapEl);
     S.splice(idx, 1);
     S.splice(j, 0, a);
+    resolveAll();
+    hideSecBar();
+    pushState();
+  }
+  function reorderSection(from, to) {
+    if (from === to || !S[from]) return;
+    var a = S[from];
+    var target = S[to];
+    if (!target) return;
+    if (to < from) target.wrapEl.before(a.wrapEl);
+    else target.wrapEl.after(a.wrapEl);
+    S.splice(from, 1);
+    S.splice(to, 0, a);
     resolveAll();
     hideSecBar();
     pushState();
@@ -1975,6 +5348,12 @@
     sec.minH = srcSec.minH;
     sec.bg = srcSec.bg;
     sec.divider = srcSec.divider ? JSON.parse(JSON.stringify(srcSec.divider)) : null;
+    sec.fx = srcSec.fx ? JSON.parse(JSON.stringify(srcSec.fx)) : null;
+    sec.bgImage = srcSec.bgImage || null;
+    sec.bgId = srcSec.bgId || null;
+    sec.bgA = srcSec.bgA != null ? srcSec.bgA : null;
+    sec.theme = srcSec.theme || null;
+    sec.fill = !!srcSec.fill;
     srcSec.wrapEl.after(sec.wrapEl);
     S.splice(idx + 1, 0, sec);
     renderSection(sec);
@@ -1988,58 +5367,603 @@
   secBar.className = 'gogh-secbar';
   secBar.innerHTML =
     '<span class="gogh-secbar-label">Section</span>' +
+    '<button type="button" class="gogh-sb" data-sec="add" title="Add an element to this section">＋</button>' +
     '<button type="button" class="gogh-sb" data-sec="up" title="Move up">↑</button>' +
     '<button type="button" class="gogh-sb" data-sec="down" title="Move down">↓</button>' +
     '<button type="button" class="gogh-sb" data-sec="bgimg" title="Background image">' + CTX_ICONS.image + '</button>' +
+    '<button type="button" class="gogh-sb" data-sec="rearrange" title="Rearrange \u2014 same pieces, new shapes"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><rect x="3" y="4" width="8" height="7" rx="1.5"/><rect x="14" y="13" width="7" height="7" rx="1.5"/><path d="M17 4h4v4M7 20H3v-4"/></svg></button>' +
+    '<button type="button" class="gogh-sb" data-sec="savepat" title="Save this section to reuse">' +
+    '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round"><path d="M6 3h12v18l-6-4.5L6 21Z"/></svg>' +
+    '</button>' +
     '<button type="button" class="gogh-sb" data-sec="dup" title="Duplicate section">⧉</button>' +
     '<button type="button" class="gogh-sb gogh-sb-del" data-sec="del" title="Delete section">🗑</button>';
   secBar.hidden = true;
   document.body.appendChild(secBar);
   var secBarIdx = null;
 
-  function hideSecBar() { secBar.hidden = true; secBarIdx = null; }
+  function hideSecBar() { clearTimeout(secBarHideT); goghFadeOut(secBar); secBarIdx = null; }
+  // the gentle version: boundary mode may claim the pointer for a moment
+  // while the hand is still travelling to the toolbar — hold the bar for a
+  // beat, and only fade it if the pointer never arrives
+  var secBarHideT = null;
+  function hideSecBarSoon() {
+    clearTimeout(secBarHideT);
+    secBarHideT = setTimeout(function () {
+      if (secBar.matches(':hover')) return;
+      hideSecBar();
+    }, 280);
+  }
   function showSecBar(idx) {
+    clearTimeout(secBarHideT);
+    // the site header/footer isn't a page section: it can't move, duplicate
+    // or be deleted, so the section toolbar has nothing to offer it
+    if (S[idx] && S[idx].chrome) { hideSecBar(); return; }
     secBarIdx = idx;
     var r = S[idx].wrapEl.getBoundingClientRect();
-    secBar.style.left = (r.right + window.scrollX - 16) + 'px';
+    secBar.style.left = (r.left + window.scrollX + 16) + 'px';
     secBar.style.top = (r.top + window.scrollY + 14) + 'px';
-    secBar.querySelector('[data-sec="up"]').disabled = idx === 0;
-    secBar.querySelector('[data-sec="down"]').disabled = idx === S.length - 1;
-    secBar.querySelector('[data-sec="del"]').disabled = S.length <= 1;
+    var contentIdxs = [];
+    S.forEach(function (s, k) { if (!s.chrome) contentIdxs.push(k); });
+    secBar.querySelector('[data-sec="up"]').disabled = idx === contentIdxs[0];
+    secBar.querySelector('[data-sec="down"]').disabled = idx === contentIdxs[contentIdxs.length - 1];
+    secBar.querySelector('[data-sec="del"]').disabled = false;
     secBar.hidden = false;
+    // don't sit on the Edit header/footer pill — duck below it
+    var sr = secBar.getBoundingClientRect();
+    chromeBtns.forEach(function (cb) {
+      var cr = cb.getBoundingClientRect();
+      var clear = sr.right < cr.left - 8 || sr.left > cr.right + 8 ||
+        sr.bottom < cr.top - 8 || sr.top > cr.bottom + 8;
+      if (!clear) {
+        secBar.style.top = (cr.bottom + window.scrollY + 10) + 'px';
+        sr = secBar.getBoundingClientRect();
+      }
+    });
   }
   secBar.addEventListener('click', function (ev) {
     var b = ev.target.closest('.gogh-sb');
     if (!b || secBarIdx === null) return;
-    if (b.dataset.sec === 'bgimg') { openSecBgPanel(secBarIdx); return; }
+    if (b.dataset.sec === 'add') { openSecAddPanel(secBarIdx); return; }
+    if (b.dataset.sec === 'bgimg') { openSecBgPanel(secBarIdx, b); return; }
+    if (b.dataset.sec === 'rearrange') { openRearrangePanel(secBarIdx, b); return; }
+    if (b.dataset.sec === 'savepat') { openSavePatternPanel(secBarIdx); return; }
     if (b.dataset.sec === 'del') deleteSection(secBarIdx);
     else if (b.dataset.sec === 'up') moveSection(secBarIdx, -1);
     else if (b.dataset.sec === 'down') moveSection(secBarIdx, 1);
     else if (b.dataset.sec === 'dup') duplicateSection(secBarIdx);
   });
 
+  // plain-permalink safe: cfg URLs may already carry ?rest_route=…
+  function restQ(url, qs) {
+    return url + (url.indexOf('?') === -1 ? '?' : '&') + qs;
+  }
+  var blocksCache = null;
+  function fetchBlocks() {
+    if (blocksCache) return Promise.resolve(blocksCache);
+    return fetch(restQ(blocksUrl(), 'per_page=100&context=edit'), {
+      headers: { 'X-WP-Nonce': cfg.nonce },
+      credentials: 'same-origin',
+    }).then(function (r) { return r.ok ? r.json() : Promise.reject(new Error('HTTP ' + r.status)); })
+      .then(function (list) { blocksCache = list; return list; })
+      .catch(function () { return []; }); // failures are NOT cached — retry next call
+  }
+  function blocksUrl(id) {
+    var base = cfg.restUrl.split('wp/v2/')[0] + 'wp/v2/blocks';
+    return id ? base + '/' + id : base;
+  }
+  function openSavePatternPanel(idx) {
+    var secx = S[idx];
+    placePanelNear(secx.wrapEl);
+    panel.innerHTML =
+      '<div class="gogh-panel-title">Save this section</div>' +
+      '<div class="gogh-panel-hint">It joins \u201cYour sections\u201d in + Section \u2014 and Gutenberg\u2019s pattern library too.</div>' +
+      '<div class="gogh-panel-row">' +
+      '<input type="text" class="gogh-input gogh-patname" placeholder="Name it\u2026" />' +
+      '<button type="button" class="gogh-btn gogh-btn-small gogh-patsave">Save</button>' +
+      '</div>';
+    panel.hidden = false;
+    panelOpen = true;
+    var input = panel.querySelector('.gogh-patname');
+    input.focus();
+    var doSave = function () {
+      var name = input.value.trim();
+      if (!name) { input.focus(); return; }
+      var btn = panel.querySelector('.gogh-patsave');
+      btn.disabled = true;
+      fetch(blocksUrl(), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-WP-Nonce': cfg.nonce },
+        credentials: 'same-origin',
+        body: JSON.stringify({ title: name, status: 'publish',
+          content: buildSectionBlocks(secx),
+          meta: { wp_pattern_sync_status: 'unsynced' } }),
+      }).then(function (res) {
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        blocksCache = null;
+        closePanel();
+        toast('\u201c' + name + '\u201d saved \u2014 it\u2019s in + Section under Your sections.', { ttl: 5000 });
+      }).catch(function () {
+        btn.disabled = false;
+        toast('Could not save that section.', { error: true });
+      });
+    };
+    panel.querySelector('.gogh-patsave').addEventListener('click', doSave);
+    input.addEventListener('keydown', function (ev) {
+      if (ev.key === 'Enter') doSave();
+      if (ev.key === 'Escape') closePanel();
+    });
+  }
+  function insertGoghPattern(content, idx, before) {
+    var tpl = document.createElement('template');
+    tpl.innerHTML = content;
+    var wrap = tpl.content.querySelector('.gogh-wrap');
+    var modelEl = wrap && wrap.querySelector('script.gogh-model');
+    var model = null;
+    try { model = modelEl ? JSON.parse(modelEl.textContent) : null; } catch (err) {}
+    if (!model) {
+      // v3 markup: the model rides in the block-comment attributes
+      var am = String(content).match(/<!--\s+wp:gogh\/section\s+(\{[\s\S]*?\})\s*-->/);
+      if (am) {
+        try { var a3 = JSON.parse(am[1]); model = a3 && a3.model; } catch (e9) {}
+      }
+    }
+    if (!model || !model.elements) {
+      toast('That saved section can\u2019t be read.', { error: true });
+      return;
+    }
+    if (idx == null) idx = S.length;
+    idx = clampInsertIdx(idx);
+    var sec = newSectionShell('gogh-sec-' + (scopeSeq++));
+    sec.els = model.elements;
+    sec.minH = model.minH || null;
+    sec.bg = model.bg || null;
+    sec.divider = model.divider || null;
+    sec.fx = model.fx || null;
+    sec.bgImage = model.bgImage || null;
+    sec.bgId = model.bgId || null;
+    sec.bgA = model.bgA != null ? model.bgA : null;
+    sec.theme = model.theme || null;
+    sec.fill = !!model.fill;
+    var nextContent = null;
+    for (var ni = idx; ni < S.length; ni++) { if (!S[ni].chrome) { nextContent = S[ni]; break; } }
+    pageParent.insertBefore(sec.wrapEl, (before && before.isConnected) ? before : (nextContent ? nextContent.wrapEl : endMarker));
+    S.splice(idx, 0, sec);
+    renderSection(sec);
+    sel = null;
+    hideHandles();
+    sec.wrapEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    pushState();
+    // a template designed on a friendly palette can land on a hostile one
+    // (white display type on lemon) — the sentinel checks every insert
+    contrastSentinel(sec);
+  }
+  // ---------- rearrange: the solver proposes, the hover auditions ----------
+  // Alternate arrangements computed from the elements already present.
+  // Hovering a chip applies the arrangement LIVE in the canvas (Squarespace
+  // shows static thumbnails; the live canvas is the improvement), clicking
+  // keeps it with Undo intact, leaving restores what was.
+  // the visible words, not their box: a text element's box often carries
+  // slack to the right of the ink, and arranging by box puts the WORDS in
+  // the wrong place (James: "feels like its still centering the box")
+  function inkWidthOf(sec, i) {
+    var e = sec.els[i], node = sec.nodes && sec.nodes[i];
+    if (!node || !(isText(e) || e.type === 'badge')) return null;
+    try {
+      var thost = node.querySelector('p,h1,h2,h3,h4,h5,h6') || node;
+      var trng = document.createRange();
+      trng.selectNodeContents(thost);
+      var tw = trng.getBoundingClientRect().width / scaleOf(sec);
+      return (tw > 0 && tw < e.w - 4) ? tw : null;
+    } catch (err) { return null; }
+  }
+  function rearrangeVariants(sec) {
+    var els = sec.els;
+    if (els.length < 2) return [];
+    var isMedia = function (e) {
+      return e.type === 'image' || e.type === 'box' || e.type === 'exp' || e.type === 'widget';
+    };
+    var inks = els.map(function (e, i) { return inkWidthOf(sec, i); });
+    var reading = els.map(function (e, i) { return i; }).sort(function (a, b) {
+      return (els[a].y - els[b].y) || (els[a].x - els[b].x);
+    });
+    function stack(xOf) {
+      var pos = els.map(function (e) { return { x: e.x, y: e.y }; });
+      var y = 64;
+      reading.forEach(function (i) {
+        var e = els[i];
+        pos[i] = { x: Math.max(0, Math.min(W - e.w, xOf(e, i))), y: y };
+        y += e.h + 28;
+      });
+      return pos;
+    }
+    var out = [
+      { slug: 'mirror', name: 'Mirror',
+        // slack left-aligned text mirrors by its INK edge — the box's empty
+        // right half must not decide where the words land
+        pos: els.map(function (e, i) {
+          var iw = inks[i];
+          var nx = (iw && (!e.align || e.align === 'left')) ? W - e.x - iw : W - e.x - e.w;
+          return { x: Math.max(0, Math.min(W - e.w, nx)), y: e.y };
+        }) },
+      { slug: 'centred', name: 'Centred',
+        pos: stack(function (e, i) {
+          var iw = inks[i];
+          if (iw && (!e.align || e.align === 'left')) return (W - iw) / 2;
+          if (iw && e.align === 'right') return (W - iw) / 2 - (e.w - iw);
+          return (W - e.w) / 2;
+        }) },
+      { slug: 'rail', name: 'Left rail',
+        pos: stack(function (e) { return 72; }) },
+    ];
+    if (els.some(isMedia) && els.some(function (e) { return !isMedia(e); })) {
+      var pos = els.map(function (e) { return { x: e.x, y: e.y }; });
+      var yT = 72, yM = 72;
+      reading.forEach(function (i) {
+        var e = els[i];
+        if (isMedia(e)) {
+          pos[i] = { x: Math.max(620, W - e.w - 72), y: yM };
+          yM += e.h + 28;
+        } else {
+          pos[i] = { x: 72, y: yT };
+          yT += e.h + 24;
+        }
+      });
+      out.push({ slug: 'split', name: 'Words · picture', pos: pos });
+    }
+    return out;
+  }
+  function applyPositions(sec, pos) {
+    sec.els.forEach(function (e, i) {
+      if (pos[i]) { e.x = Math.round(pos[i].x); e.y = Math.round(pos[i].y); }
+    });
+    renderSection(sec);
+  }
+  function openRearrangePanel(idx, anchorEl) {
+    var secx = S[idx];
+    var variants = rearrangeVariants(secx);
+    if (!variants.length) { toast('Nothing to rearrange yet — add a couple of elements first.'); return; }
+    var snap = secx.els.map(function (e) { return { x: e.x, y: e.y }; });
+    // the arrangement the panel OPENED on stays reachable forever — keeps
+    // rebase the working snapshot, but Original is the way home
+    var snap0 = snap.map(function (p) { return { x: p.x, y: p.y }; });
+    panel.innerHTML = '<div class="gogh-panel-head"><span class="gogh-panel-title">Rearrange this section</span>' +
+      '<button type="button" class="gogh-sbtn gogh-panel-close" title="Done">\u2715</button></div>' +
+      '<div class="gogh-panel-hint">Hover to audition — click to keep. Close with \u2715 when you\u2019re done.</div>' +
+      '<div class="gogh-rearrow">' +
+      '<button type="button" class="gogh-rearchip gogh-rear-orig is-active">Original</button>' +
+      variants.map(function (v, k) {
+        return '<button type="button" class="gogh-rearchip" data-k="' + k + '">' + esc(v.name) + '</button>';
+      }).join('') + '</div>';
+    // anchor to the BUTTON that asked, not the section: a tall section's
+    // bottom edge can be a screenful away from where James is looking
+    placePanelNear(anchorEl && anchorEl.isConnected ? anchorEl : secx.wrapEl);
+    panelOpen = true;
+    panelSticky = true; // auditioning must survive a glance at the canvas
+    panel.querySelector('.gogh-panel-close').addEventListener('click', function () { closePanel(); });
+    panel.querySelectorAll('.gogh-rearchip').forEach(function (chip) {
+      var posFor = function () {
+        return chip.classList.contains('gogh-rear-orig') ? snap0 : variants[+chip.dataset.k].pos;
+      };
+      chip.addEventListener('mouseenter', function () {
+        applyPositions(secx, posFor());
+      });
+      chip.addEventListener('mouseleave', function () {
+        applyPositions(secx, snap);
+      });
+      chip.addEventListener('click', function () {
+        applyPositions(secx, snap); // restore, so undo lands on the true before
+        pushState();
+        applyPositions(secx, posFor());
+        // keeping is not leaving: the kept shape becomes the new "before"
+        // and the panel stays open for the next audition
+        snap = secx.els.map(function (e) { return { x: e.x, y: e.y }; });
+        panel.querySelectorAll('.gogh-rearchip').forEach(function (o) {
+          o.classList.toggle('is-active', o === chip);
+        });
+        toast(chip.classList.contains('gogh-rear-orig')
+          ? 'Back to how it was.'
+          : 'Rearranged — same pieces, new shape.',
+          { actions: [{ label: 'Undo', onClick: function () { undo(); } }] });
+      });
+    });
+  }
+  // ---------- section themes: pick a look, never a hex ----------
+  // A few named looks derived from the LIVE palette — each carries a
+  // background and a contrast-verified ink, and because they're written as
+  // var() expressions they re-dress automatically when the site style
+  // changes. Freedom in layout, constraint in style.
+  function bestInkFor(bgCss) {
+    var rgb = cssToRgb(bgCss);
+    var bgL = rgb ? sentinelLum(rgb) : 1;
+    var roles = paletteRoles();
+    var best = roles.textSlug || 'contrast', bestC = 0;
+    themePalette().forEach(function (p) {
+      if (p.slug !== roles.bgSlug && p.slug !== roles.textSlug) return;
+      var prgb = cssToRgb(p.value);
+      if (!prgb) return;
+      var c = sentinelContrast(sentinelLum(prgb), bgL);
+      if (c > bestC) { bestC = c; best = p.slug; }
+    });
+    return best;
+  }
+  function sectionThemes() {
+    var v = function (slug) { return 'var(--wp--preset--color--' + slug + ')'; };
+    var pal = themePalette();
+    // canvas and ink by ROLE, not by name — TT5's base/contrast, Ollie's
+    // base/main, and every invented palette all resolve the same way
+    var roles = paletteRoles();
+    var bgS = roles.bgSlug, txS = roles.textSlug;
+    if (!bgS || !txS) return [];
+    var out = [
+      { slug: 'paper', name: 'Paper', bg: v(bgS), ink: txS },
+      { slug: 'mist', name: 'Mist', bg: 'color-mix(in srgb, ' + v(txS) + ' 6%, ' + v(bgS) + ')', ink: txS },
+      { slug: 'ink', name: 'Ink', bg: v(txS), ink: bgS },
+    ];
+    // accents: the theme's own extra colours, in its declared order —
+    // skipping the roles and structural entries (borders and the like)
+    var accents = pal.filter(function (p) {
+      return p.slug !== bgS && p.slug !== txS && !/^border|^shadow|gray$/.test(p.slug);
+    }).slice(0, 2);
+    accents.forEach(function (p, k) {
+      out.push({ slug: p.slug, name: 'Accent ' + (k + 1), bg: v(p.slug), ink: bestInkFor(v(p.slug)) });
+      out.push({ slug: p.slug + '-soft', name: 'Accent ' + (k + 1) + ' soft',
+        bg: 'color-mix(in srgb, ' + v(p.slug) + ' 14%, ' + v(bgS) + ')', ink: txS });
+    });
+    // ---- BACKDROPS: designed compositions from the same palette ----
+    // lovely backgrounds with zero uploads: gradient arrangements of
+    // colours the site already owns. They re-dress with the variation
+    // like every theme chip, and the swatches preview the real shape.
+    var canvas = v(bgS);
+    var a1 = accents[0] ? v(accents[0].slug) : v(txS);
+    var a2 = accents[1] ? v(accents[1].slug) : a1;
+    var soft = function (c2, pc) { return 'color-mix(in srgb, ' + c2 + ' ' + pc + '%, ' + canvas + ')'; };
+    var flat = 'linear-gradient(' + canvas + ', ' + canvas + ')';
+    out.push({ slug: 'sweep', name: 'Sweep', ink: txS,
+      bg: 'radial-gradient(140% 95% at 50% -35%, ' + soft(a1, 88) + ' 0%, ' + soft(a1, 88) + ' 52%, transparent 66%), ' + flat });
+    out.push({ slug: 'mesh', name: 'Mesh', ink: txS,
+      bg: 'radial-gradient(55% 65% at 18% 22%, ' + soft(a1, 34) + ' 0%, transparent 62%), ' +
+        'radial-gradient(60% 55% at 82% 28%, ' + soft(a2, 30) + ' 0%, transparent 65%), ' +
+        'radial-gradient(75% 70% at 50% 95%, ' + soft(a1, 22) + ' 0%, transparent 62%), ' + flat });
+    return out;
+  }
+  function paintSectionTheme(secx, theme) {
+    secx.theme = theme.slug;
+    secx.bg = theme.bg;
+    secx.bgA = null;
+    // a BACKDROP is a whole background: there is no sensible way to tint a
+    // photo with a gradient, so the composition replaces the picture
+    // ("they dont seem to do anything" — on image sections it painted
+    // nothing at all)
+    if (/gradient\(/.test(String(theme.bg))) { secx.bgImage = null; secx.bgId = null; }
+    // the theme restyles the section's INK too — that's what makes it a
+    // theme and not a background (undo covers a change of heart)
+    secx.els.forEach(function (e) {
+      if (isText(e) || e.type === 'badge') e.color = theme.ink;
+    });
+    syncBootInvite(secx);
+    renderSection(secx);
+    resolveAll();
+  }
+  function snapSectionLook(secx) {
+    return { theme: secx.theme, bg: secx.bg, bgA: secx.bgA,
+      bgImage: secx.bgImage, bgId: secx.bgId,
+      colors: secx.els.map(function (e) { return e.color || null; }) };
+  }
+  function restoreSectionLook(secx, snap) {
+    secx.theme = snap.theme;
+    secx.bg = snap.bg;
+    secx.bgA = snap.bgA;
+    secx.bgImage = snap.bgImage;
+    secx.bgId = snap.bgId;
+    secx.els.forEach(function (e, k) { e.color = snap.colors[k]; });
+    syncBootInvite(secx);
+    renderSection(secx);
+    resolveAll();
+  }
+  function applySectionTheme(idx, theme) {
+    pushState();
+    paintSectionTheme(S[idx], theme);
+    // the theme's ink was chosen for its flat background — over a PHOTO the
+    // tint mix is a different ground entirely (the dark hero heading)
+    contrastSentinel(S[idx]);
+  }
+  // the invite lives in the rendered section — keep it honest when a
+  // background arrives (or leaves) without a full re-render
+  function syncBootInvite(sec2) {
+    var has = !!sec2.sectionEl.querySelector('.gogh-bootinvite');
+    if (has !== isBlankBoot(sec2)) renderSection(sec2);
+  }
   function setSecBg(idx, src, id) {
     S[idx].bgImage = src || null;
     S[idx].bgId = src ? (id || null) : null;
+    syncBootInvite(S[idx]);
     resolveAll();
-    closePanel();
+    // the panel STAYS open — picking an image is an audition, not a
+    // dismissal; people flick between backgrounds while deciding
     pushState();
+    contrastSentinel(S[idx]);
   }
-  function openSecBgPanel(idx) {
+  function openSecBgPanel(idx, anchorEl) {
     var secx = S[idx];
-    var r = secx.wrapEl.getBoundingClientRect();
-    panel.style.left = Math.max(8, r.right + window.scrollX - 360) + 'px';
-    panel.style.top = (r.top + window.scrollY + 52) + 'px';
+    // THE bug behind every "modal opens below the fold" report: this
+    // panel never used the shared placement — it carried its own legacy
+    // document-coordinate maths (scrollX/scrollY offsets) on a panel
+    // that became viewport-FIXED. Scrolled page, coordinates below the
+    // fold, three rounds of wrong fixes elsewhere. It DOCKS now: a
+    // design inspector top-right of the viewport, placed after build.
+    var pal = pickerPalette();
     panel.innerHTML =
-      '<div class="gogh-panel-title">Section background image</div>' +
+      '<div class="gogh-panel-title">Section background</div>' +
+      '<div class="gogh-panel-hint">Theme \u2014 a look for the section and its words</div>' +
+      '<div class="gogh-themerow">' +
+      sectionThemes().map(function (t) {
+        return '<button type="button" class="gogh-themechip' + (secx.theme === t.slug ? ' is-active' : '') + '" data-theme="' + t.slug + '" title="' + escAttr(t.name) + '">' +
+          '<span class="gogh-themechip-swatch" style="background:' + escAttr(t.bg) + ';color:var(--wp--preset--color--' + t.ink + ')">Aa</span>' +
+          '</button>';
+      }).join('') + '</div>' +
+      '<div class="gogh-panel-hint">Height</div>' +
+      '<div class="gogh-hpresets">' +
+      [['s','S',320],['m','M',560],['l','L',800]].map(function (hp) {
+        return '<button type="button" class="gogh-hpreset' + (!secx.fill && secx.minH === hp[2] ? ' is-active' : '') + '" data-minh="' + hp[2] + '" title="' + hp[1] + ' — ' + hp[2] + ' units">' + hp[1] + '</button>';
+      }).join('') +
+      '<button type="button" class="gogh-hpreset gogh-hpreset-fill' + (secx.fill ? ' is-active' : '') + '" title="Fill the screen">Fill screen</button>' +
+      '</div>' +
+      '<div class="gogh-panel-hint">Effect \u2014 how the background behaves</div>' +
+      '<div class="gogh-hpresets gogh-fxrow">' +
+      // Grain retired from the row (James: "i can't see anything it does" —
+      // the φ rule). The machinery stays: saved grain keeps rendering.
+      [['', 'Still', ''], ['parallax', 'Parallax', 'img'], ['drift', 'Drift', 'img'], ['reveal', 'Reveal', '']].map(function (fx) {
+        // never disabled at build time: the panel stays open while images
+        // are picked, so image-hunger is judged when the chip is touched
+        return '<button type="button" class="gogh-hpreset' + (((secx.fx && secx.fx.bg) || '') === fx[0] ? ' is-active' : '') + '"' +
+          ' data-fx="' + fx[0] + '"' + (fx[2] === 'img' ? ' data-needs-img="1"' : '') + '>' + fx[1] + '</button>';
+      }).join('') + '</div>' +
+      '<div class="gogh-panel-hint">Image</div>' +
+      '<div class="gogh-panel-row gogh-panel-actions">' +
+      (cfg.canUpload ? '<label class="gogh-btn gogh-btn-small gogh-upload">Upload<input type="file" accept="image/*" hidden /></label>' : '') +
+      (secx.bgImage ? '<button type="button" class="gogh-btn gogh-btn-small gogh-clear">Remove image</button>' : '') +
+      '</div>' +
+      '<div class="gogh-media"><span class="gogh-media-loading">Loading media…</span></div>' +
+      '<button type="button" class="gogh-panel-more-toggle">Colour &amp; more \u2304</button>' +
+      '<div class="gogh-panel-more" hidden>' +
+      '<div class="gogh-panel-hint">Colour \u2014 with an image, it becomes the tint</div>' +
+      '<div class="gogh-swrow gogh-secbg-sw">' +
+      '<button type="button" class="gogh-sw gogh-sw-none" data-val="" title="None"></button>' +
+      pal.map(function (p) {
+        var val = 'var(--wp--preset--color--' + p.slug + ')';
+        return '<button type="button" class="gogh-sw' + (secx.bg === val ? ' is-active' : '') + '" data-val="' + val + '"' +
+          ' style="background: ' + val + '" title="' + p.slug + '"></button>';
+      }).join('') + '</div>' +
+      '<div class="gogh-panel-row gogh-panel-actions"><label class="gogh-colorlab">Custom <input type="color" class="gogh-color gogh-secbg-custom" /></label></div>' +
+      '<div class="gogh-panel-hint">Transparency</div>' +
+      '<div class="gogh-panel-row"><input type="range" class="gogh-secbg-alpha" min="8" max="100" step="1" value="' + (secx.bgA != null ? secx.bgA : (secx.bgImage && secx.bg ? 62 : 100)) + '" style="flex:1" /><span class="gogh-secbg-alpha-val">' + (secx.bgA != null ? secx.bgA : (secx.bgImage && secx.bg ? 62 : 100)) + '</span></div>' +
       '<div class="gogh-panel-row">' +
       '<input type="url" class="gogh-input" placeholder="Paste image URL…" />' +
       '<button type="button" class="gogh-btn gogh-btn-small gogh-apply">Apply</button>' +
       '</div>' +
-      (secx.bgImage ? '<div class="gogh-panel-row gogh-panel-actions"><button type="button" class="gogh-btn gogh-btn-small gogh-clear">Remove image</button></div>' : '') +
-      '<div class="gogh-media"><span class="gogh-media-loading">Loading media…</span></div>';
-    panel.hidden = false;
+      '</div>';
+    dockPanel();
     panelOpen = true;
+    var moreT = panel.querySelector('.gogh-panel-more-toggle');
+    if (moreT) moreT.addEventListener('click', function () {
+      var more = panel.querySelector('.gogh-panel-more');
+      more.hidden = !more.hidden;
+      moreT.textContent = more.hidden ? 'Colour & more \u2304' : 'Colour & more \u2303';
+    });
+    panel.querySelectorAll('.gogh-hpreset[data-minh], .gogh-hpreset-fill').forEach(function (hb) {
+      hb.addEventListener('click', function () {
+        pushState();
+        if (hb.classList.contains('gogh-hpreset-fill')) {
+          secx.fill = !secx.fill;
+        } else {
+          secx.minH = +hb.dataset.minh;
+          secx.fill = false;
+        }
+        renderSection(secx);
+        resolveAll();
+        panel.querySelectorAll('.gogh-hpreset[data-minh], .gogh-hpreset-fill').forEach(function (o) {
+          var on = o.classList.contains('gogh-hpreset-fill') ? secx.fill
+            : (!secx.fill && secx.minH === +o.dataset.minh);
+          o.classList.toggle('is-active', on);
+        });
+      });
+    });
+    // background effects audition like everything else
+    var fxSnap = null;
+    var applyFx = function (val) {
+      if (val) { secx.fx = secx.fx || {}; secx.fx.bg = val; }
+      else if (secx.fx) { delete secx.fx.bg; if (!Object.keys(secx.fx).length) secx.fx = null; }
+      resolveAll();
+    };
+    panel.querySelectorAll('.gogh-fxrow .gogh-hpreset').forEach(function (fb) {
+      var hungry = function () { return fb.dataset.needsImg && !secx.bgImage; };
+      auditionHover(fb, function () {
+        if (hungry()) return;
+        if (fxSnap === null) fxSnap = (secx.fx && secx.fx.bg) || '';
+        secx.__fxDemo = true; // hover performs the motion, right now
+        applyFx(fb.dataset.fx);
+      }, function () {
+        delete secx.__fxDemo;
+        if (fxSnap !== null) { applyFx(fxSnap); fxSnap = null; }
+      });
+      fb.addEventListener('click', function () {
+        if (hungry()) {
+          toast(fb.textContent + ' needs a background image \u2014 pick one below first.');
+          return;
+        }
+        delete secx.__fxDemo; // the kept effect is the real, scroll-driven one
+        if (fxSnap !== null) { applyFx(fxSnap); fxSnap = null; }
+        pushState();
+        applyFx(fb.dataset.fx);
+        panel.querySelectorAll('.gogh-fxrow .gogh-hpreset').forEach(function (o) {
+          o.classList.toggle('is-active', o === fb);
+        });
+        if (fb.dataset.fx === 'parallax' || fb.dataset.fx === 'reveal') {
+          toast('Kept \u2014 ' + fb.textContent + ' moves with the page, so scroll to watch it.');
+        }
+      });
+    });
+    var themeDefs = sectionThemes();
+    // themes audition on hover like everything else (James: "i love
+    // auditioning") — leave restores the look, click keeps it
+    var themeSnap = null;
+    panel.querySelectorAll('.gogh-themechip').forEach(function (tc) {
+      var defOf = function () {
+        return themeDefs.filter(function (x) { return x.slug === tc.dataset.theme; })[0];
+      };
+      auditionHover(tc, function () {
+        var t = defOf();
+        if (!t) return;
+        if (!themeSnap) themeSnap = snapSectionLook(secx);
+        paintSectionTheme(secx, t);
+      }, function () {
+        if (themeSnap) { restoreSectionLook(secx, themeSnap); themeSnap = null; }
+      });
+      tc.addEventListener('click', function () {
+        var t = defOf();
+        if (!t) return;
+        if (themeSnap) { restoreSectionLook(secx, themeSnap); themeSnap = null; }
+        applySectionTheme(idx, t);
+        panel.querySelectorAll('.gogh-themechip').forEach(function (o) {
+          o.classList.toggle('is-active', o === tc);
+        });
+      });
+    });
+    panel.querySelectorAll('.gogh-secbg-sw .gogh-sw').forEach(function (swb) {
+      swb.addEventListener('click', function () {
+        secx.bg = swb.dataset.val || null;
+        secx.theme = null;
+        syncBootInvite(secx);
+        resolveAll();
+        pushState();
+        contrastSentinel(secx);
+        panel.querySelectorAll('.gogh-secbg-sw .gogh-sw').forEach(function (b2) {
+          b2.classList.toggle('is-active', b2 === swb && !!swb.dataset.val);
+        });
+      });
+    });
+    var custom = panel.querySelector('.gogh-secbg-custom');
+    if (secx.bg && secx.bg.charAt(0) === '#') custom.value = secx.bg;
+    custom.addEventListener('input', function () {
+      secx.bg = this.value;
+      syncBootInvite(secx);
+      resolveAll();
+    });
+    custom.addEventListener('change', function () {
+      pushState();
+      contrastSentinel(secx);
+    });
+    var alpha = panel.querySelector('.gogh-secbg-alpha');
+    var alphaVal = panel.querySelector('.gogh-secbg-alpha-val');
+    alpha.addEventListener('input', function () {
+      secx.bgA = +this.value;
+      alphaVal.textContent = this.value;
+      resolveAll();
+    });
+    alpha.addEventListener('change', function () {
+      pushState();
+      contrastSentinel(secx);
+    });
     var input = panel.querySelector('input[type="url"]');
     input.value = secx.bgImage || '';
     panel.querySelector('.gogh-apply').addEventListener('click', function () {
@@ -2051,22 +5975,70 @@
     });
     var clear = panel.querySelector('.gogh-clear');
     if (clear) clear.addEventListener('click', function () { setSecBg(idx, null); });
-    fetch(cfg.mediaUrl + '?per_page=12&media_type=image&orderby=date&order=desc', {
+    var file = panel.querySelector('input[type="file"]');
+    if (file) {
+      file.addEventListener('change', function () {
+        if (!file.files.length) return;
+        var fd = new FormData();
+        fd.append('file', file.files[0]);
+        var label = panel.querySelector('.gogh-upload');
+        label.firstChild.textContent = 'Uploading…';
+        fetch(cfg.mediaUrl, {
+          method: 'POST',
+          headers: { 'X-WP-Nonce': cfg.nonce },
+          credentials: 'same-origin',
+          body: fd,
+        }).then(function (res) {
+          if (!res.ok) throw new Error('HTTP ' + res.status);
+          return res.json();
+        }).then(function (item) {
+          setSecBg(idx, item.source_url, item.id);
+        }).catch(function (err) {
+          label.firstChild.textContent = 'Upload failed';
+          console.error('gogh upload failed:', err);
+        });
+      });
+    }
+    fetch(restQ(cfg.mediaUrl, 'per_page=32&media_type=image&orderby=date&order=desc'), {
       headers: { 'X-WP-Nonce': cfg.nonce },
       credentials: 'same-origin',
-    }).then(function (res) { return res.ok ? res.json() : []; })
+    }).then(function (res) { return res.ok ? res.json() : []; }).catch(function () { return []; })
       .then(function (items) {
         var box = panel.querySelector('.gogh-media');
         if (!box || panel.hidden) return;
         box.innerHTML = '';
+        // a section BACKGROUND wants big, wide-ish images — logos, cutouts
+        // and portraits are noise on this shelf (Upload and the URL row
+        // still take anything); an over-strict filter falls back to recency
+        var bgish = items.filter(function (it) {
+          var d = it.media_details || {};
+          return d.width >= 700 && d.width >= (d.height || 0) * 0.75;
+        }).slice(0, 24);
+        items = bgish.length ? bgish : items.slice(0, 24);
+        var bgCur = { img: S[idx].bgImage || null };
         items.forEach(function (item) {
           var thumb = (item.media_details && item.media_details.sizes &&
             (item.media_details.sizes.thumbnail || item.media_details.sizes.medium));
           var b = document.createElement('button');
           b.type = 'button';
-          b.className = 'gogh-thumb';
+          b.className = 'gogh-thumb' + (S[idx].bgImage === item.source_url ? ' is-active' : '');
           b.style.backgroundImage = 'url("' + (thumb ? thumb.source_url : item.source_url) + '")';
-          b.addEventListener('click', function () { setSecBg(idx, item.source_url, item.id); });
+          // hover auditions the whole backdrop; leaving takes it back
+          auditionHover(b, function () {
+            S[idx].bgImage = item.source_url;
+            resolveAndApply(S[idx]);
+          }, function () {
+            S[idx].bgImage = bgCur.img;
+            resolveAndApply(S[idx]);
+          });
+          b.addEventListener('click', function () {
+            S[idx].bgImage = bgCur.img; // undo lands on the true before
+            bgCur.img = item.source_url;
+            setSecBg(idx, item.source_url, item.id);
+            box.querySelectorAll('.gogh-thumb').forEach(function (o) {
+              o.classList.toggle('is-active', o === b);
+            });
+          });
           box.appendChild(b);
         });
         reclampPanel();
@@ -2077,7 +6049,7 @@
   var shapeBtn = document.createElement('button');
   shapeBtn.type = 'button';
   shapeBtn.className = 'gogh-shapebtn';
-  shapeBtn.textContent = '◠ Shape';
+  shapeBtn.textContent = '◠ Transition';
   shapeBtn.hidden = true;
   document.body.appendChild(shapeBtn);
   var shapePanel = document.createElement('div');
@@ -2097,14 +6069,19 @@
       { key: 'curve', label: 'Curve', path: DIVIDER_PATHS.curve },
       { key: 'slant', label: 'Slant', path: DIVIDER_PATHS.slant },
       { key: 'peaks', label: 'Peaks', path: DIVIDER_PATHS.peaks },
+      { key: 'brush', label: 'Brush', path: DIVIDER_PATHS.brush },
+      { key: 'torn', label: 'Torn', path: DIVIDER_PATHS.torn },
+      { key: 'melt', label: 'Melt', melt: true },
     ];
     shapePanel.innerHTML =
-      '<div class="gogh-panel-title">Section divider</div>' +
+      '<div class="gogh-panel-title">Section transition</div>' +
       '<div class="gogh-shapes">' +
       shapes.map(function (sh) {
+        var icon = sh.melt
+          ? '<span class="gogh-shape-melt"></span>'
+          : '<svg viewBox="0 0 1200 120" preserveAspectRatio="none"><path d="' + sh.path + '"/></svg>';
         return '<button type="button" class="gogh-shape' + (sh.key === current ? ' is-active' : '') + '" data-shape="' + sh.key + '" title="' + sh.label + '">' +
-          '<svg viewBox="0 0 1200 120" preserveAspectRatio="none"><path d="' + sh.path + '"/></svg>' +
-          '<span>' + sh.label + '</span></button>';
+          icon + '<span>' + sh.label + '</span></button>';
       }).join('') +
       '</div>' +
       '<div class="gogh-panel-row gogh-panel-actions">' +
@@ -2112,7 +6089,7 @@
       '<label class="gogh-colorlab">Below <input type="color" class="gogh-color gogh-color-below" /></label>' +
       '</div>' +
       (function () {
-        var pal = themePalette();
+        var pal = pickerPalette();
         if (!pal.length) return '';
         var sw = function (which) {
           return '<div class="gogh-swrow"><span class="gogh-swlab">' + which + '</span>' +
@@ -2124,11 +6101,21 @@
             }).join('') + '</div>';
         };
         return '<div class="gogh-panel-title" style="margin-top:12px">Theme palette</div>' + sw('above') + sw('below');
-      })();
-    var r = { top: (S[idx - 1].wrapEl.getBoundingClientRect().bottom + window.scrollY) };
+      })() +
+      '<label class="gogh-fxpull" style="margin-top:12px">Overlap the section above' +
+      '<input type="range" class="gogh-pull" min="0" max="180" step="12" /></label>';
+    // viewport coords, NOT document coords: .gogh-panel went fixed in
+    // 0.99.49 and this placement kept adding scrollY — on any scrolled
+    // page the Transition panel opened below the viewport, reading as
+    // "clicking Transition does nothing"
+    var bTop = S[idx - 1].wrapEl.getBoundingClientRect().bottom;
     shapePanel.style.left = 'calc(50% - 170px)';
-    shapePanel.style.top = (r.top + 16) + 'px';
+    shapePanel.style.top = Math.max(16, bTop + 16) + 'px';
     shapePanel.hidden = false;
+    var spr = shapePanel.getBoundingClientRect();
+    if (spr.bottom > window.innerHeight - 40) {
+      shapePanel.style.top = Math.max(16, window.innerHeight - 40 - spr.height) + 'px';
+    }
     shapePanel.querySelector('.gogh-color-above').value = above.bg || '#0f0e0c';
     shapePanel.querySelector('.gogh-color-below').value = below.bg || '#0f0e0c';
     shapePanel.querySelectorAll('.gogh-shape').forEach(function (btn) {
@@ -2160,6 +6147,16 @@
         pushState();
       });
     });
+    // reveal/curtain UI removed for simplicity \u2014 existing sections that
+    // carry those flags still render them (published pages stay intact)
+    shapePanel.querySelector('.gogh-pull').value = (below.fx && below.fx.pull) || 0;
+    var pullInp = shapePanel.querySelector('.gogh-pull');
+    pullInp.addEventListener('input', function () {
+      below.fx = below.fx || {};
+      below.fx.pull = +this.value || 0;
+      resolveAll();
+    });
+    pullInp.addEventListener('change', pushState);
   }
   shapeBtn.addEventListener('click', function () {
     if (shapeIdx !== null) openShapePanel(shapeIdx);
@@ -2172,43 +6169,113 @@
   var insertRaf = false;
   document.addEventListener('pointermove', function (ev) {
     if (!editing || drag || resize || hDrag || rotD || panelOpen || !picker.hidden) { return; }
+    // a rushing pointer is heading SOMEWHERE ELSE — don't flash boundary
+    // pills along its route (they still hide instantly, and appear the
+    // moment the hand settles)
+    if (inserter.hidden && pointerRushing()) return;
     if (insertRaf) return;
     insertRaf = true;
     var cy = ev.clientY;
+    var cx = ev.clientX;
     requestAnimationFrame(function () {
       insertRaf = false;
       if (hDrag) return;
+      // approach corridor: the section toolbar lives NEAR the boundary
+      // band, so the path to it used to flip into boundary mode and hide
+      // it mid-flight (James: "tricky to focus on"). While the pointer is
+      // inside the toolbar's inflated rect, everything holds steady.
+      if (!secBar.hidden && secBarIdx !== null) {
+        var sbr = secBar.getBoundingClientRect();
+        if (cx >= sbr.left - 32 && cx <= sbr.right + 32 &&
+            cy >= sbr.top - 24 && cy <= sbr.bottom + 32) return;
+      }
       var found = null;
-      for (var idx = 0; idx <= S.length; idx++) {
-        var by = idx < S.length
-          ? S[idx].wrapEl.getBoundingClientRect().top
-          : S[S.length - 1].wrapEl.getBoundingClientRect().bottom;
-        if (Math.abs(cy - by) < 28) { found = { idx: idx, y: by }; break; }
+      // boundaries belong to page content — ALL of it: freeform sections,
+      // pending pattern holders, and stored native blocks alike. (none
+      // above the site header, none below the site footer)
+      var secOf = function (n2) {
+        for (var s2 = 0; s2 < S.length; s2++) {
+          if (!S[s2].chrome && S[s2].wrapEl === n2) return S[s2];
+        }
+        return null;
+      };
+      var bNodes = [];
+      [].slice.call(pageParent.children).forEach(function (bn) {
+        if (!bn.classList || bn.tagName === 'STYLE' || bn.tagName === 'SCRIPT') return;
+        if (bn.classList.contains('gogh-wrap')) {
+          if (secOf(bn)) bNodes.push(bn);
+        } else if (bn.classList.contains('gogh-pending') ||
+          (bn.textContent || '').trim().length > 0 || bn.querySelector('img,iframe,video,svg,canvas')) {
+          bNodes.push(bn);
+        }
+      });
+      for (var bi = 0; bi <= bNodes.length && bNodes.length; bi++) {
+        var node, by;
+        if (bi < bNodes.length) {
+          node = bNodes[bi];
+          by = node.getBoundingClientRect().top;
+        } else {
+          node = null;
+          by = bNodes[bNodes.length - 1].getBoundingClientRect().bottom;
+        }
+        if (Math.abs(cy - by) < 28) {
+          found = { node: node, y: by, prevNode: bi > 0 ? bNodes[bi - 1] : null, first: bi === 0 };
+          break;
+        }
       }
       if (found) {
-        insertIdx = found.idx;
-        inserter.style.left = '50%';
-        // the height pill (44px) occupies the centre of every boundary except
-        // the very top one — flank it symmetrically: Shape's right edge and
-        // + Section's left edge each 18px from the pill (22 + 18 = 40)
-        inserter.style.transform = found.idx >= 1 ? 'translate(0, -50%)' : 'translate(-50%, -50%)';
-        inserter.style.marginLeft = found.idx >= 1 ? '40px' : '0';
+        // model index: the first content section at or after the anchor
+        var sIdx = null;
+        if (found.node) {
+          for (var n3 = found.node; n3 && sIdx === null; n3 = n3.nextElementSibling) {
+            var so = secOf(n3);
+            if (so) sIdx = S.indexOf(so);
+          }
+        }
+        insertIdx = sIdx === null ? clampInsertIdx(S.length) : sIdx;
+        insertBefore = found.node;
+        // the section above this boundary, if it IS a section — the height
+        // pill and the divider button are freeform-only affordances
+        var prevSec = found.prevNode ? secOf(found.prevNode)
+          : (found.first && S[insertIdx - 1] && S[insertIdx - 1].chrome ? S[insertIdx - 1] : null);
+        var nextSec = found.node ? secOf(found.node) : null;
+        // at the very bottom of the screen the pills would clip — keep them
+        // reachable just inside the viewport
+        found.y = Math.min(found.y, window.innerHeight - 36);
+        // the TOP boundary shares its corner with the fixed Change-header
+        // pill — keep + Section below it instead of cropping into it
+        if (found.first) found.y = Math.max(found.y, 132);
+        // anchor to the block's own centre — themes with padded layouts
+        // (Ollie) don't run sections to the viewport edge, so 50% drifts
+        var refNode = found.node || bNodes[bNodes.length - 1];
+        var refR = refNode.getBoundingClientRect();
+        var cx = refR.left + refR.width / 2 + window.scrollX;
+        inserter.style.left = (prevSec ? (cx - 40) : cx) + 'px';
+        // the height pill (44px) occupies the centre of every boundary whose
+        // upper neighbour is freeform — + Section reads first (left),
+        // Transition after (right), each 18px from the pill (22 + 18 = 40)
+        inserter.style.transform = prevSec ? 'translate(-100%, -50%)' : 'translate(-50%, -50%)';
+        inserter.style.marginLeft = '0';
         inserter.style.top = (found.y + window.scrollY) + 'px';
+        inserter.classList.remove('gogh-byebye');
         inserter.hidden = false;
-        if (found.idx >= 1) placeHbar(S[found.idx - 1]); else hideHbar();
-        if (found.idx >= 1 && found.idx < S.length) {
-          shapeIdx = found.idx;
-          shapeBtn.style.left = 'calc(50% - 40px)';
+        if (prevSec) placeHbar(prevSec); else hideHbar();
+        if (prevSec && nextSec && S.indexOf(nextSec) === S.indexOf(prevSec) + 1) {
+          shapeIdx = S.indexOf(nextSec);
+          shapeBtn.style.left = (cx + 40) + 'px';
           shapeBtn.style.top = (found.y + window.scrollY) + 'px';
+          shapeBtn.classList.remove('gogh-byebye');
+          // un-gated: the φ sweep caught Transition by mistake — James
+          // uses it ("where has section transition gone?")
           shapeBtn.hidden = false;
         } else {
           shapeBtn.hidden = true;
         }
-        hideSecBar();
+        hideSecBarSoon();
       } else {
-        if (!inserter.matches(':hover')) inserter.hidden = true;
+        if (!inserter.matches(':hover')) goghFadeOut(inserter);
         if (!hgrip.matches(':hover')) hideHbar();
-        if (!shapeBtn.matches(':hover')) shapeBtn.hidden = true;
+        if (!shapeBtn.matches(':hover')) goghFadeOut(shapeBtn);
         // not near a boundary: offer section actions for the hovered section
         if (!secBar.matches(':hover')) {
           var hov = null;
@@ -2223,12 +6290,208 @@
   }, { passive: true });
   inserter.addEventListener('click', function () {
     inserter.hidden = true;
-    openPicker(insertIdx == null ? S.length : insertIdx);
+    openPicker(insertIdx == null ? S.length : insertIdx, insertBefore);
   });
 
   // ---------- dragging with ghost (no cursor drift) ----------
   var drag = null, dragRaf = false;
   var ghost = null;
+  // ---------- cards: joining, leaving, and editing kids ----------
+  // dropping an element FULLY inside a plain box makes it a kid of that
+  // card (one level only; boxes never join boxes)
+  var SETTLE_TYPES = { heading: 1, para: 1, button: 1, badge: 1 };
+  function settleKid(host, kid) {
+    // a card reads as a stack: TEXTY kids dropped roughly onto other texty
+    // kids tuck below them instead of sharing grid cells (which renders as
+    // genuine overlap). Images and boxes are exempt — text over a photo is
+    // a design, not an accident.
+    if (!SETTLE_TYPES[kid.type]) return;
+    var moved = true, guard = 0;
+    while (moved && guard++ < 8) {
+      moved = false;
+      (host.kids || []).forEach(function (ok) {
+        if (ok === kid || !SETTLE_TYPES[ok.type]) return;
+        var ox = Math.min(kid.x + kid.w, ok.x + ok.w) - Math.max(kid.x, ok.x);
+        var oy = Math.min(kid.y + kid.h, ok.y + ok.h) - Math.max(kid.y, ok.y);
+        if (ox > 12 && oy > 12) { kid.y = ok.y + ok.h + 12; moved = true; }
+      });
+    }
+    if (kid.y + kid.h > host.h) host.h = kid.y + kid.h + 16;
+  }
+  function cardJoinTarget(sec, i) {
+    var e = sec.els[i];
+    if (!e || e.type === 'box') return -1;
+    for (var b = sec.els.length - 1; b >= 0; b--) {
+      if (b === i) continue;
+      var o = sec.els[b];
+      if (o.type !== 'box' || o.shape) continue;
+      if (e.x >= o.x - 2 && e.y >= o.y - 2 &&
+          e.x + e.w <= o.x + o.w + 2 && e.y + e.h <= o.y + o.h + 2) return b;
+    }
+    return -1;
+  }
+  // ---------- wrap: an image dropped into flowing text floats there, and
+  // the words pour around its silhouette (shape-outside on its own alpha) --
+  function wrapTargetIdx(sec, i) {
+    var e = sec.els[i];
+    if (!e || e.type !== 'image' || !e.src) return -1;
+    var cx2 = e.x + e.w / 2;
+    for (var t2 = 0; t2 < sec.els.length; t2++) {
+      if (t2 === i) continue;
+      var o = sec.els[t2];
+      if (o.type !== 'para' || !(o.text || '').trim()) continue;
+      // paragraphs auto-shrink to their text, so centre-inside is too
+      // strict: intent is the image sitting ON the text — horizontally
+      // centred over it with real vertical overlap
+      var yInter = Math.min(e.y + e.h, o.y + o.h) - Math.max(e.y, o.y);
+      var xInter = Math.min(e.x + e.w, o.x + o.w) - Math.max(e.x, o.x);
+      // one grid square of real contact is intent enough — paras auto-shrink
+      // to their text, so a taller demand misses honest drops on short copy
+      if (cx2 >= o.x && cx2 <= o.x + o.w && yInter >= 8 && xInter >= e.w * 0.3) return t2;
+    }
+    return -1;
+  }
+  function wrapImageIntoText(sec, i, ti, cx, cy) {
+    var e = sec.els[i];
+    var t = sec.els[ti];
+    var side = (e.x + e.w / 2) < (t.x + t.w / 2) ? 'left' : 'right';
+    var pct = Math.max(25, Math.min(60, Math.round(e.w / t.w * 100)));
+    var style = 'float:' + side + ';width:' + pct + '%;' +
+      (side === 'left' ? 'margin:4px 18px 8px 0;' : 'margin:4px 0 8px 18px;') +
+      'shape-outside:url("' + String(e.src).replace(/"/g, '%22') + '");' +
+      'shape-image-threshold:0.5;shape-margin:16px;';
+    // a float starts wrapping at the line it sits on, so the drop point
+    // decides where in the text the wrap begins: insert at the caret under
+    // the pointer (clamped into the paragraph, since the resolver may have
+    // nudged it since the pointer let go); top-of-text is the fallback
+    var placed = false;
+    if (cx != null && cy != null && document.caretRangeFromPoint) {
+      var host = sec.nodes[ti];
+      if (host && host.tagName !== 'P') host = host.querySelector('p') || host;
+      var dragNode = sec.nodes[i];
+      var prevDisp = dragNode ? dragNode.style.display : '';
+      if (dragNode) dragNode.style.display = 'none';
+      var cr = null;
+      try {
+        var hr = host.getBoundingClientRect();
+        cr = document.caretRangeFromPoint(
+          Math.max(hr.left + 2, Math.min(hr.right - 2, cx)),
+          Math.max(hr.top + 2, Math.min(hr.bottom - 2, cy)));
+      } catch (err) {}
+      if (dragNode) dragNode.style.display = prevDisp;
+      if (cr && host && host.contains(cr.startContainer)) {
+        var im = document.createElement('img');
+        im.className = 'gogh-wrapped';
+        im.src = e.src;
+        if (e.alt) im.alt = e.alt;
+        im.setAttribute('style', style);
+        cr.insertNode(im);
+        t.text = cleanInline(host.innerHTML);
+        placed = true;
+      }
+    }
+    if (!placed) {
+      t.text = '<img class="gogh-wrapped" src="' + escAttr(e.src) + '" alt="' + escAttr(e.alt || '') + '"' +
+        ' style="' + escAttr(style) + '">' + (t.text || '');
+    }
+    sec.els.splice(i, 1);
+    renderSection(sec);
+    return ti > i ? ti - 1 : ti;
+  }
+  function openWrapPanel(img) {
+    var node = img.closest('[class*="gogh-el-"]');
+    var wrapEl = img.closest('.gogh-wrap');
+    var sec = null;
+    S.forEach(function (s2) { if (s2.wrapEl === wrapEl) sec = s2; });
+    if (!sec || !node) return;
+    var ei = sec.nodes.indexOf(node);
+    if (ei === -1) return;
+    var t = sec.els[ei];
+    var host = node.querySelector('p') || node;
+    var getStyle = function (prop, fb) {
+      var m = (img.getAttribute('style') || '').match(new RegExp(prop + ':([^;]+)'));
+      return m ? m[1].trim() : fb;
+    };
+    var syncModel = function () {
+      t.text = cleanInline(host.innerHTML);
+      pushState();
+    };
+    var setStyle = function (prop, val) {
+      var st = img.getAttribute('style') || '';
+      st = st.replace(new RegExp(prop + ':[^;]+;?', 'g'), '');
+      img.setAttribute('style', st + prop + ':' + val + ';');
+    };
+    panel.innerHTML =
+      '<div class="gogh-panel-title">Wrapped image</div>' +
+      '<em class="gogh-panel-hint">The words flow around it \u2014 tune the fit.</em>' +
+      '<div class="gogh-panel-row gogh-wrapside"><span>Side</span>' +
+      '<button type="button" class="gogh-btn gogh-btn-small" data-side="left">Left</button>' +
+      '<button type="button" class="gogh-btn gogh-btn-small" data-side="right">Right</button></div>' +
+      '<div class="gogh-panel-row gogh-logosize"><span>Size</span><input type="range" min="25" max="60" step="1" class="gogh-wrapw" /><span class="gogh-logosize-val gogh-wrapw-val"></span></div>' +
+      '<div class="gogh-panel-row gogh-logosize"><span>Breathing room</span><input type="range" min="0" max="48" step="2" class="gogh-wrapm" /><span class="gogh-logosize-val gogh-wrapm-val"></span></div>' +
+      '<div class="gogh-panel-row gogh-panel-actions"><button type="button" class="gogh-btn gogh-btn-small gogh-unwrap">Unwrap \u2014 back to freeform</button></div>';
+    placePanelNear(img);
+    panelOpen = true;
+    panel.querySelectorAll('[data-side]').forEach(function (b) {
+      b.addEventListener('click', function () {
+        var sd = b.getAttribute('data-side');
+        setStyle('float', sd);
+        setStyle('margin', sd === 'left' ? '4px 18px 8px 0' : '4px 0 8px 18px');
+        syncModel();
+      });
+    });
+    var wIn = panel.querySelector('.gogh-wrapw');
+    var wVal = panel.querySelector('.gogh-wrapw-val');
+    wIn.value = parseInt(getStyle('width', '40%'), 10) || 40;
+    wVal.textContent = wIn.value + '%';
+    wIn.addEventListener('input', function () {
+      wVal.textContent = wIn.value + '%';
+      setStyle('width', wIn.value + '%');
+    });
+    wIn.addEventListener('change', syncModel);
+    var mIn = panel.querySelector('.gogh-wrapm');
+    var mVal = panel.querySelector('.gogh-wrapm-val');
+    mIn.value = parseInt(getStyle('shape-margin', '16px'), 10) || 16;
+    mVal.textContent = mIn.value + 'px';
+    mIn.addEventListener('input', function () {
+      mVal.textContent = mIn.value + 'px';
+      setStyle('shape-margin', mIn.value + 'px');
+    });
+    mIn.addEventListener('change', syncModel);
+    panel.querySelector('.gogh-unwrap').addEventListener('click', function () {
+      var side = getStyle('float', 'left');
+      var pct = parseInt(getStyle('width', '40%'), 10) || 40;
+      var iw = Math.round(t.w * pct / 100);
+      var ratio = (img.naturalHeight && img.naturalWidth) ? img.naturalHeight / img.naturalWidth : 0.66;
+      var back = {
+        type: 'image', src: img.getAttribute('src'), alt: img.getAttribute('alt') || '',
+        x: side === 'left' ? Math.max(0, t.x - Math.round(iw / 2)) : Math.min(W - iw, t.x + t.w - Math.round(iw / 2)),
+        y: t.y, w: iw, h: Math.round(iw * ratio),
+      };
+      img.remove();
+      t.text = cleanInline(host.innerHTML);
+      sec.els.push(back);
+      renderSection(sec);
+      closePanel();
+      pushState();
+      toast('Back to freeform \u2014 drag it anywhere.', { actions: [{ label: 'Undo', onClick: function () { undo(); } }] });
+    });
+  }
+  document.addEventListener('click', function (ev) {
+    if (!editing) return;
+    var wimg = ev.target.closest && ev.target.closest('.gogh-section img.gogh-wrapped');
+    if (!wimg) return;
+    ev.preventDefault();
+    ev.stopPropagation();
+    openWrapPanel(wimg);
+  }, true);
+  var joinGlowNode = null;
+  function setJoinGlow(node) {
+    if (joinGlowNode === node) return;
+    if (joinGlowNode) joinGlowNode.classList.remove('gogh-card-glow');
+    joinGlowNode = node;
+    if (node) node.classList.add('gogh-card-glow');
+  }
   function beginDrag(ev) {
     if (!editing || !sel) return;
     closePanel();
@@ -2246,6 +6509,18 @@
     var e = sec.els[i];
     var node = sec.nodes[i];
     var r = node.getBoundingClientRect();
+    // a rotated element's client rect is its INFLATED bounding box — sizing
+    // the ghost to it stretches the clone, and the scoped rotate then spins
+    // that inflated copy into the 'two badges' weirdness. Use the true
+    // unrotated size, centred where the element's centre is (rotation-safe).
+    var gL = r.left, gT = r.top, gW = r.width, gH = r.height;
+    if (e.rot) {
+      var gs = scaleOf(sec);
+      gW = e.w * gs;
+      gH = e.h * gs;
+      gL = r.left + (r.width - gW) / 2;
+      gT = r.top + (r.height - gH) / 2;
+    }
     // ghost rides inside a wrapper carrying the section's scope classes so
     // the scoped element styles (colours, fonts) apply outside the section
     var inner = node.cloneNode(true);
@@ -2256,13 +6531,36 @@
     inner.style.height = '100%';
     ghost = document.createElement('div');
     ghost.className = 'gogh-wrap gogh-section ' + sec.scope + ' gogh-ghostel';
-    ghost.style.cssText = 'position:fixed;display:block;background:transparent;container-type:normal;left:' + r.left + 'px;top:' + r.top + 'px;width:' + r.width + 'px;height:' + r.height + 'px;';
+    ghost.style.cssText = 'position:fixed;display:block;background:transparent;container-type:normal;left:' + gL + 'px;top:' + gT + 'px;width:' + gW + 'px;height:' + gH + 'px;';
     ghost.appendChild(inner);
     document.body.appendChild(ghost);
     node.classList.add('gogh-dragsrc');
     dropBox.hidden = false;
-    drag = { sec: sec, i: i, px: ev.clientX, py: ev.clientY, x: e.x, y: e.y, gx: r.left, gy: r.top };
+    drag = { sec: sec, i: i, px: ev.clientX, py: ev.clientY, x: e.x, y: e.y, gx: gL, gy: gT };
+    // centring a text box whose words don't fill it centres the BOX, not the
+    // ink — measure the rendered text so its visual centre snaps too
+    if (isText(e) || e.type === 'badge') {
+      try {
+        var thost = node.querySelector('p,h1,h2,h3,h4,h5,h6') || node;
+        var trng = document.createRange();
+        trng.selectNodeContents(thost);
+        var tw = trng.getBoundingClientRect().width / scaleOf(sec);
+        (window.__cxo = window.__cxo || []).push({ tw: Math.round(tw), w: e.w, scale: scaleOf(sec), host: thost.tagName });
+        if (tw > 0 && tw < e.w - 4) {
+          var talign = e.align || 'left';
+          drag.textCXOff = talign === 'center' ? null
+            : (talign === 'right' ? e.w - tw / 2 : tw / 2);
+        }
+      } catch (err) { (window.__cxo = window.__cxo || []).push({ err: String(err) }); }
+    }
+    sec.sectionEl.classList.add('gogh-grid-live');
+    if (multiSel && multiSel.sec === sec && multiSel.idxs.indexOf(i) !== -1) {
+      drag.multi = multiSel.idxs.filter(function (j) { return j !== i; }).map(function (j) {
+        return { j: j, x: sec.els[j].x, y: sec.els[j].y };
+      });
+    }
     document.documentElement.classList.add('gogh-dragging');
+    hideBoundaryUI();
     hideHandles();
   }
   grip.addEventListener('pointerdown', function (ev) {
@@ -2271,6 +6569,7 @@
   });
   document.addEventListener('pointermove', function (ev) {
     if (!drag) return;
+    drag.cx = ev.clientX; drag.cy = ev.clientY;
     var dx = ev.clientX - drag.px, dy = ev.clientY - drag.py;
     var lockX = false, lockY = false;
     if (ev.shiftKey) {
@@ -2280,12 +6579,13 @@
     }
     if (ghost) ghost.style.transform = 'translate(' + dx + 'px,' + dy + 'px)';
     var free = ev.metaKey || ev.ctrlKey;
+    drag.freeHeld = free;
     var sec = drag.sec;
     var s = scaleOf(sec);
     var e = sec.els[drag.i];
     var rx = Math.max(0, Math.min(W - e.w, drag.x + dx / s));
     var ry = Math.max(0, drag.y + dy / s);
-    var sn = snapPos(sec, e, rx, ry, e.w, e.h, free);
+    var sn = snapPos(sec, e, rx, ry, e.w, e.h, free, drag.textCXOff);
     e.x = Math.max(0, Math.min(W - e.w, sn.x));
     e.y = Math.max(0, sn.y);
     if (lockX) { e.x = drag.x; sn.gx = null; }
@@ -2315,6 +6615,14 @@
         }
       }
     }
+    if (drag.multi) {
+      var mdx = e.x - drag.x, mdy = e.y - drag.y;
+      drag.multi.forEach(function (mm) {
+        var o = sec.els[mm.j];
+        o.x = Math.max(0, Math.min(W - o.w, mm.x + mdx));
+        o.y = Math.max(0, mm.y + mdy);
+      });
+    }
     if (!dragRaf) {
       dragRaf = true;
       requestAnimationFrame(function () {
@@ -2328,15 +6636,29 @@
         dropBox.style.top = b2.y + 'px';
         dropBox.style.width = b2.w + 'px';
         dropBox.style.height = b2.h + 'px';
+
+        if (!drag.multi) {
+          var jt = cardJoinTarget(sec, drag.i);
+          if (jt === -1) {
+            var wg = wrapTargetIdx(sec, drag.i);
+            setJoinGlow(wg !== -1 ? sec.nodes[wg] : null);
+          } else {
+            setJoinGlow(sec.nodes[jt]);
+          }
+        }
       });
     }
   });
   function endDrag() {
     if (!drag) return;
     var sec = drag.sec, i = drag.i;
+    var multiD = drag.multi || null;
     var gxCapD = !!drag.gxCap, gyCapD = !!drag.gyCap;
     var eqHD = !!drag.eqH, eqVD = !!drag.eqV;
     var lockedXD = !!drag.lockedX, lockedYD = !!drag.lockedY;
+    var dropCX = drag.cx, dropCY = drag.cy;
+    var freeD = !!drag.freeHeld;
+    sec.sectionEl.classList.remove('gogh-grid-live');
     var ghostTop = null;
     if (ghost) {
       ghostTop = ghost.getBoundingClientRect().top + window.scrollY;
@@ -2355,42 +6677,1185 @@
     // button padding stretch max-content rows), so the linear pointer→model
     // mapping lands low — correct until the element sits where the ghost was
     if (ghostTop !== null) {
+      var totalCorr = 0;
       for (var pass = 0; pass < 2; pass++) {
         var b = nodeBox(sec.nodes[i]);
         var dDesign = Math.round((ghostTop - b.y) / scaleOf(sec));
         if (Math.abs(dDesign) < 3) break;
         sec.els[i].y = Math.max(0, sec.els[i].y + dDesign);
+        totalCorr += dDesign;
+        resolveAndApply(sec);
+      }
+      if (multiD && totalCorr) {
+        multiD.forEach(function (mm) {
+          var o = sec.els[mm.j];
+          o.y = Math.max(0, o.y + totalCorr);
+        });
         resolveAndApply(sec);
       }
     }
     // the visible grid is a promise: axes the grid governed at release must
     // land ON it (alignment/equal-spacing/shift-locked axes keep their own
-    // promises and are left alone)
-    if (gridSnapOn) {
+    // promises and are left alone) — the grid shows on every drag now, so
+    // every drop keeps the promise unless ⌘ asked for full freedom
+    if (!freeD) {
       var eDrop = sec.els[i];
       if (!gxCapD && !eqHD && !lockedXD) eDrop.x = Math.max(0, Math.min(W - eDrop.w, Math.round(eDrop.x / BASE) * BASE));
       if (!gyCapD && !eqVD && !lockedYD) eDrop.y = Math.max(0, Math.round(eDrop.y / BASE) * BASE);
       resolveAndApply(sec);
     }
-    placeHandles(sec, i);
+    setJoinGlow(null);
+    if (!multiD) {
+      var wti = wrapTargetIdx(sec, i);
+      if (wti !== -1) {
+        wrapImageIntoText(sec, i, wti, dropCX, dropCY);
+        sel = null;
+        hideHandles();
+        closePanel();
+        pushState();
+        toast('Wrapped \u2014 the words flow around it now. Click the image to adjust.',
+          { actions: [{ label: 'Undo', onClick: function () { undo(); } }] });
+        return;
+      }
+      var jb = cardJoinTarget(sec, i);
+      if (jb !== -1) {
+        var kid = sec.els[i];
+        sec.els.splice(i, 1);
+        var host = sec.els[jb > i ? jb - 1 : jb];
+        var adopt = [kid];
+        if (!(host.kids && host.kids.length)) {
+          // an overlay-style card (converted patterns compose this way: a
+          // plain box with elements sitting ON it, not in it). Joining only
+          // the dropped element would make a one-kid grid that stretches it
+          // weirdly while the overlay text stacks by different rules on
+          // mobile — so the first join promotes the box to a TRUE card:
+          // everything fully on it becomes a kid together
+          for (var q = sec.els.length - 1; q >= 0; q--) {
+            var oe = sec.els[q];
+            if (oe === host || oe.type === 'box') continue;
+            if (oe.x >= host.x - 2 && oe.y >= host.y - 2 &&
+                oe.x + oe.w <= host.x + host.w + 2 &&
+                oe.y + oe.h <= host.y + host.h + 2) {
+              sec.els.splice(q, 1);
+              adopt.push(oe);
+            }
+          }
+          // reading order — kids render in array order
+          adopt.sort(function (a2, b2) { return (a2.y - b2.y) || (a2.x - b2.x); });
+        }
+        host.kids = host.kids || [];
+        adopt.forEach(function (k2) {
+          k2.x = Math.max(0, Math.round(k2.x - host.x));
+          k2.y = Math.max(0, Math.round(k2.y - host.y));
+          host.kids.push(k2);
+        });
+        settleKid(host, kid);
+        sel = null;
+        hideHandles();
+        closePanel();
+        renderSection(sec);
+        pushState();
+        toast('Added to the card \u2014 it moves and stacks with it now.',
+          { actions: [{ label: 'Undo', onClick: function () { undo(); } }] });
+        return;
+      }
+    }
+    if (multiD) { sel = null; } else { placeHandles(sec, i); }
     pushState();
   }
+  // ---------- kid selection, movement, escape, and text ----------
+  var kidSel = null; // {sec, ci, j, node}
+  var kidDrag = null;
+  var kidEd = null; // text editing inside a kid
+  function clearKidSel() {
+    if (!kidSel) return;
+    if (kidSel.node && kidSel.node.classList) kidSel.node.classList.remove('gogh-kid-selected');
+    kidSel = null;
+  }
+  function exitKidEd() {
+    if (!kidEd) return;
+    document.documentElement.classList.remove('gogh-textediting');
+    kidEd.node.removeAttribute('contenteditable');
+    if (document.activeElement === kidEd.node) kidEd.node.blur();
+    kidEd = null;
+    pushState();
+  }
+  function openKidLinkPanel(sec, ci, j) {
+    var hostEl = sec.els[ci];
+    var kid = hostEl && hostEl.kids && hostEl.kids[j];
+    if (!kid) return;
+    buildLinkPanelFor(sec, kid, function () {
+      renderSection(sec);
+      pushState();
+      var card = sec.nodes[ci];
+      var kn2 = card && card.querySelector('.gogh-k-' + (j + 1));
+      if (kn2) {
+        clearKidSel();
+        kidSel = { sec: sec, ci: ci, j: j, node: kn2 };
+        kn2.classList.add('gogh-kid-selected');
+      }
+      openKidLinkPanel(sec, ci, j);
+    });
+    var card0 = sec.nodes[ci];
+    var kn0 = card0 && card0.querySelector('.gogh-k-' + (j + 1));
+    placePanelNear(kn0 || card0 || sec.sectionEl);
+    panelOpen = true;
+  }
+  function kidHostOf(card) {
+    var found = null;
+    S.some(function (s2) {
+      var at = s2.nodes ? s2.nodes.indexOf(card) : -1;
+      if (at !== -1) { found = { sec: s2, ci: at }; return true; }
+      return false;
+    });
+    return found;
+  }
+  document.addEventListener('pointerdown', function (ev) {
+    if (!editing || drag || resize) return;
+    if (!(ev.target instanceof Element)) return;
+    if (kidEd && kidEd.node.contains(ev.target)) return; // caret work
+    var kn = ev.target.closest('[class*="gogh-k-"]');
+    var card = kn && kn.closest('.gogh-cardbox');
+    if (!kn || !card) {
+      if (kidSel && !(ev.target.closest && ev.target.closest('.gogh-toast'))) clearKidSel();
+      if (kidEd) exitKidEd();
+      return;
+    }
+    var host = kidHostOf(card);
+    if (!host) return;
+    var m = (kn.className + '').match(/gogh-k-(\d+)/);
+    if (!m) return;
+    var j = +m[1] - 1;
+    var sec = host.sec, ci = host.ci;
+    var hostEl = sec.els[ci];
+    if (!hostEl || !hostEl.kids || !hostEl.kids[j]) return;
+    ev.preventDefault();
+    ev.stopPropagation(); // the card's own select must not fire
+    exitKidEd();
+    var already = kidSel && kidSel.node === kn;
+    clearKidSel();
+    sel = null;
+    hideHandles();
+    closePanel();
+    kidSel = { sec: sec, ci: ci, j: j, node: kn };
+    kn.classList.add('gogh-kid-selected');
+    var kid = hostEl.kids[j];
+    kidDrag = { sec: sec, ci: ci, j: j, node: kn,
+      px: ev.clientX, py: ev.clientY, x0: kid.x, y0: kid.y,
+      moved: false, already: !!already, id: ev.pointerId };
+  }, true);
+  document.addEventListener('pointermove', function (ev) {
+    if (!kidDrag || ev.pointerId !== kidDrag.id) return;
+    var sec = kidDrag.sec;
+    var hostEl = sec.els[kidDrag.ci];
+    if (!hostEl || !hostEl.kids) { kidDrag = null; return; }
+    var kid = hostEl.kids[kidDrag.j];
+    var sc = scaleOf(sec);
+    var dx = (ev.clientX - kidDrag.px) / sc;
+    var dy = (ev.clientY - kidDrag.py) / sc;
+    if (!kidDrag.moved && Math.abs(dx) + Math.abs(dy) < 3) return;
+    kidDrag.moved = true;
+    kid.x = Math.round(Math.max(0, Math.min(hostEl.w - kid.w, kidDrag.x0 + dx)));
+    kid.y = Math.round(Math.max(0, Math.min(Math.max(0, hostEl.h - kid.h), kidDrag.y0 + dy)));
+    // leaving intent: pointer beyond the card's box. The kid itself is
+    // clamped inside the card's grid, so a GHOST follows the pointer out —
+    // without it, the kid pinning at the wall reads as "can't leave"
+    var cardR = sec.nodes[kidDrag.ci].getBoundingClientRect();
+    var outside = ev.clientX < cardR.left - 4 || ev.clientX > cardR.right + 4 ||
+      ev.clientY < cardR.top - 4 || ev.clientY > cardR.bottom + 4;
+    sec.nodes[kidDrag.ci].classList.toggle('gogh-card-leaving', outside);
+    if (outside && !kidDrag.ghost) {
+      var kg = kidDrag.node.cloneNode(true);
+      kg.classList.remove('gogh-kid-selected');
+      kg.className += ' gogh-kid-ghost';
+      var kr = kidDrag.node.getBoundingClientRect();
+      kg.style.width = kr.width + 'px';
+      kg.style.height = kr.height + 'px';
+      document.body.appendChild(kg);
+      kidDrag.ghost = kg;
+      kidDrag.node.style.visibility = 'hidden';
+    } else if (!outside && kidDrag.ghost) {
+      kidDrag.ghost.remove();
+      kidDrag.ghost = null;
+      kidDrag.node.style.visibility = '';
+    }
+    if (kidDrag.ghost) {
+      kidDrag.ghost.style.left = ev.clientX + 'px';
+      kidDrag.ghost.style.top = ev.clientY + 'px';
+    }
+    resolveAndApply(sec);
+  });
+  document.addEventListener('pointerup', function (ev) {
+    if (!kidDrag || ev.pointerId !== kidDrag.id) return;
+    var kd = kidDrag;
+    kidDrag = null;
+    var sec = kd.sec;
+    var cardNode = sec.nodes[kd.ci];
+    if (cardNode) cardNode.classList.remove('gogh-card-leaving');
+    if (kd.ghost) { kd.ghost.remove(); kd.node.style.visibility = ''; }
+    var hostEl = sec.els[kd.ci];
+    if (!hostEl || !hostEl.kids) return;
+    if (kd.moved) {
+      var cardR = cardNode.getBoundingClientRect();
+      var outside = ev.clientX < cardR.left - 4 || ev.clientX > cardR.right + 4 ||
+        ev.clientY < cardR.top - 4 || ev.clientY > cardR.bottom + 4;
+      if (outside) {
+        // the kid leaves the card, landing under the pointer in page space
+        var kid = hostEl.kids.splice(kd.j, 1)[0];
+        if (!hostEl.kids.length) hostEl.kids = null;
+        var secR = sec.sectionEl.getBoundingClientRect();
+        var sc2 = scaleOf(sec);
+        kid.x = Math.round(Math.max(0, Math.min(W - kid.w, (ev.clientX - secR.left) / sc2 - kid.w / 2)));
+        kid.y = Math.round(Math.max(0, (ev.clientY - secR.top) / sc2 - kid.h / 2));
+        clearKidSel();
+        sec.els.push(kid);
+        renderSection(sec);
+        placeHandles(sec, sec.els.length - 1);
+        pushState();
+        toast('Out of the card \u2014 it\u2019s a free element again.',
+          { actions: [{ label: 'Undo', onClick: function () { undo(); } }] });
+        return;
+      }
+      settleKid(hostEl, hostEl.kids[kd.j]);
+      resolveAndApply(sec);
+      pushState();
+    } else if (!kd.already) {
+      var kb = hostEl.kids[kd.j];
+      if (kb && kb.type === 'button') openKidLinkPanel(sec, kd.ci, kd.j);
+    } else if (kd.already) {
+      // second click on a selected kid: edit its text in place
+      var kid2 = hostEl.kids[kd.j];
+      if (kid2 && (kid2.type === 'heading' || kid2.type === 'para' || kid2.type === 'badge' || kid2.type === 'button')) {
+        var target = kid2.type === 'button' ? (kd.node.querySelector('.wp-block-button__link') || kd.node) : kd.node;
+        target.setAttribute('contenteditable', kid2.type === 'heading' || kid2.type === 'para' ? 'true' : 'plaintext-only');
+        document.documentElement.classList.add('gogh-textediting');
+        kidEd = { sec: sec, ci: kd.ci, j: kd.j, node: target, kid: kid2 };
+        target.focus();
+        if (document.caretRangeFromPoint) {
+          var cr = document.caretRangeFromPoint(ev.clientX, ev.clientY);
+          if (cr && target.contains(cr.startContainer)) {
+            var so = window.getSelection();
+            so.removeAllRanges();
+            so.addRange(cr);
+          }
+        }
+      }
+    }
+  });
+  document.addEventListener('input', function (ev) {
+    if (!kidEd || ev.target !== kidEd.node) return;
+    var k = kidEd.kid;
+    k.text = (k.type === 'heading' || k.type === 'para') ? cleanInline(kidEd.node.innerHTML) : kidEd.node.textContent;
+  });
+  document.addEventListener('keydown', function (ev) {
+    if (kidEd && ev.key === 'Escape') { ev.stopPropagation(); exitKidEd(); return; }
+    if (!kidSel || kidEd) return;
+    if (ev.key === 'Escape') { clearKidSel(); return; }
+    if (ev.key === 'Backspace' || ev.key === 'Delete') {
+      var sec = kidSel.sec;
+      var hostEl = sec.els[kidSel.ci];
+      if (!hostEl || !hostEl.kids) return;
+      ev.preventDefault();
+      hostEl.kids.splice(kidSel.j, 1);
+      if (!hostEl.kids.length) hostEl.kids = null;
+      clearKidSel();
+      renderSection(sec);
+      pushState();
+      toast('Removed from the card.', { actions: [{ label: 'Undo', onClick: function () { undo(); } }] });
+    }
+  }, true);
+  // writer's Enter: in a heading it finishes and hops to the paragraph
+  // below (contents selected — typing replaces); in a paragraph it makes a
+  // REAL paragraph gap like WordPress (Shift+Enter keeps the single break)
+  document.addEventListener('keydown', function (ev) {
+    if (!textEditing || ev.key !== 'Enter') return;
+    var secK = textEditing.sec;
+    var eK = secK.els[textEditing.i];
+    if (!eK) return;
+    if (eK.type === 'heading') {
+      ev.preventDefault();
+      for (var jk = textEditing.i + 1; jk < secK.els.length; jk++) {
+        if (secK.els[jk].type === 'para') {
+          exitTextEdit();
+          placeHandles(secK, jk);
+          enterTextEdit(secK, jk);
+          return;
+        }
+      }
+      exitTextEdit();
+      return;
+    }
+    if (eK.type === 'para' && !ev.shiftKey) {
+      ev.preventDefault();
+      document.execCommand('insertHTML', false, '<br><br>');
+      textEditing.target.dispatchEvent(new Event('input', { bubbles: true }));
+    }
+  }, true);
   document.addEventListener('pointerup', function () { if (drag) endDrag(); });
   document.addEventListener('pointercancel', function () { if (drag) endDrag(); });
 
-  var gridSnapOn = false; // opt-in: invisible magnets feel broken to beginners
-
-  // editor chrome theme: follows the system unless the user chose one
-  function applyUiTheme() {
-    var saved = null;
-    try { saved = localStorage.getItem('gogh-ui-theme'); } catch (e) {}
-    var light = saved === 'light'; // dark is gogh's default
-    document.documentElement.classList.toggle('gogh-ui-light', light);
-    return light;
+  var gridSnapOn = false; // the always-on graph paper; drags show their own grid and snap regardless
+  // golden ratio guides (a Design toggle): the golden section lines
+  // join the smart-guide candidates — layouts start landing in pleasing
+  // spots without anyone being taught anything
+  var compGuidesOn = false;
+  function compCands(H) {
+    if (!compGuidesOn) return { x: [], y: [] };
+    return {
+      x: [Math.round(W * 0.382), Math.round(W * 0.618)],
+      y: [Math.round(H * 0.382), Math.round(H * 0.618)],
+    };
   }
-  applyUiTheme();
-  syncThemeBtn();
-  function snapPos(sec, exclude, x, y, w, h, free) {
+  function compTag(H, v, axis) {
+    if (!compGuidesOn || v === null) return '';
+    var r = Math.round(v);
+    var phi = axis === 'x' ? [Math.round(W * 0.382), Math.round(W * 0.618)]
+      : [Math.round(H * 0.382), Math.round(H * 0.618)];
+    return phi.indexOf(r) !== -1 ? 'φ' : '';
+  }
+
+  // ---------- theme style variations (drawer) ----------
+  var GSROOT = cfg.restUrl.split('wp/v2/')[0] + 'wp/v2/';
+  var variationsCache = null;
+  function fetchVariations() {
+    if (variationsCache) return Promise.resolve(variationsCache);
+    return fetch(GSROOT + 'global-styles/themes/' + encodeURIComponent(cfg.theme) + '/variations', {
+      headers: { 'X-WP-Nonce': cfg.nonce },
+      credentials: 'same-origin',
+    }).then(function (r) { return r.ok ? r.json() : Promise.reject(new Error('HTTP ' + r.status)); }).then(function (vars) {
+      // the API lists full variations and colour-only ones under one name
+      var seen = {};
+      variationsCache = vars.filter(function (v) {
+        var t = v.title || '';
+        if (seen[t]) return false;
+        seen[t] = 1;
+        return true;
+      });
+      return variationsCache;
+    });
+  }
+  var previewFaces = {};
+  function ensureVariationFonts(v) {
+    if (!window.FontFace || !document.fonts) return;
+    var fams = (((v.settings || {}).typography || {}).fontFamilies || {}).theme || [];
+    fams.forEach(function (f) {
+      if (!f.fontFamily) return;
+      var fam = f.fontFamily.split(',')[0].replace(/["']/g, '').trim();
+      if (previewFaces[fam] || document.fonts.check('16px "' + fam + '"')) { previewFaces[fam] = 1; return; }
+      var faces = f.fontFace || [];
+      var face = faces.filter(function (ff) { return String(ff.fontStyle || 'normal') === 'normal'; })[0] || faces[0];
+      var src = face && face.src ? [].concat(face.src)[0] : null;
+      if (!src) return;
+      if (src.indexOf('file:./') === 0) src = location.origin + '/wp-content/themes/' + cfg.theme + '/' + src.slice(7);
+      previewFaces[fam] = 1;
+      try {
+        var ff2 = new FontFace(fam, 'url("' + src + '")', {
+          weight: String(face.fontWeight || '400'),
+          style: face.fontStyle || 'normal',
+        });
+        ff2.load().then(function (loaded) { document.fonts.add(loaded); }).catch(function () {});
+      } catch (err) {}
+    });
+  }
+  // ---------- page style: which template this page renders with ----------
+  // Curated friendly names over raw template slugs; applying is a one-field
+  // save, then a reload (the page chrome itself changes).
+  function pageStyleLabel(t) {
+    if (!t.slug) return { name: 'Standard', hint: 'The theme\u2019s normal page' };
+    if (/no-title/.test(t.slug)) return { name: 'No page title', hint: 'Your content starts at the top' };
+    if (/blank-canvas$/.test(t.slug)) return { name: 'Blank canvas', hint: 'No header or footer \u2014 pure gogh' };
+    if (/full|wide/.test(t.slug)) return { name: t.title || 'Full width', hint: 'Content runs edge to edge' };
+    return { name: t.title || t.slug, hint: '' };
+  }
+  function openPageStylePanel(anchorEl) {
+    var options = [{ slug: '', title: 'Standard' }].concat(cfg.pageTemplates || []);
+    panel.innerHTML =
+      '<div class="gogh-panel-head"><span class="gogh-panel-title">Page style</span>' +
+      '<button type="button" class="gogh-sbtn gogh-panel-close" title="Back to the palette">\u2715</button></div>' +
+      '<div class="gogh-panel-hint">How this page is framed by your theme.</div>' +
+      '<div class="gogh-pagestyles"></div>';
+    // the panel keeps its LAST position unless placed — without this it can
+    // open wherever it was previously used, often outside the viewport
+    placePanelNear(anchorEl || side.querySelector('.gogh-pagestylebtn'));
+    panelOpen = true;
+    panel.querySelector('.gogh-panel-close').addEventListener('click', function () {
+      closePanel();
+      openSide();
+    });
+    var box = panel.querySelector('.gogh-pagestyles');
+    options.forEach(function (t) {
+      var lab = pageStyleLabel(t);
+      var b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'gogh-btn gogh-pagestyle' + ((cfg.pageTemplate || '') === t.slug ? ' is-current' : '');
+      b.innerHTML = '<span class="gogh-pagestyle-name"></span>' +
+        (lab.hint ? '<span class="gogh-pagestyle-hint"></span>' : '') +
+        '<span class="gogh-pagestyle-tick">\u2713</span>';
+      b.querySelector('.gogh-pagestyle-name').textContent = lab.name;
+      if (lab.hint) b.querySelector('.gogh-pagestyle-hint').textContent = lab.hint;
+      b.addEventListener('click', function () {
+        if ((cfg.pageTemplate || '') === t.slug) return;
+        if (isDirty()) {
+          toast('Publish your changes first \u2014 changing the page style reloads the page.', { error: true });
+          return;
+        }
+        b.disabled = true;
+        fetch(cfg.restUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'X-WP-Nonce': cfg.nonce },
+          credentials: 'same-origin',
+          body: JSON.stringify({ template: t.slug }),
+        }).then(function (r) {
+          if (!r.ok) throw new Error('HTTP ' + r.status);
+          var u = new URL(location.href);
+          u.searchParams.set('gogh-edit', '1');
+          u.searchParams.set('gogh-ps', '1');
+          var ov = document.createElement('div');
+          ov.className = 'gogh-pagefade';
+          ov.style.background = pageBg();
+          ov.innerHTML = '<span class="gogh-pagefade-pill">Switching page style\u2026</span>';
+          document.body.appendChild(ov);
+          requestAnimationFrame(function () { ov.classList.add('is-on'); });
+          setTimeout(function () { location.href = u.toString(); }, 340);
+        }).catch(function (err) {
+          b.disabled = false;
+          toast('gogh could not change the page style \u2014 ' + ((err && err.message) || 'try again.'), { error: true });
+        });
+      });
+      box.appendChild(b);
+    });
+  }
+  // ---------- your brand: four colours + two fonts as a first-class style ----------
+  function hexToRgb(h) {
+    var m = String(h || '').trim().match(/^#?([0-9a-f]{6})$/i);
+    if (!m) return null;
+    var n = parseInt(m[1], 16);
+    return [n >> 16 & 255, n >> 8 & 255, n & 255];
+  }
+  function contrastRatio(hexA, hexB) {
+    var lum = function (rgb) {
+      var c = rgb.map(function (v) {
+        v /= 255;
+        return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4);
+      });
+      return 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2];
+    };
+    var a = hexToRgb(hexA), b = hexToRgb(hexB);
+    if (!a || !b) return null;
+    var l1 = lum(a), l2 = lum(b);
+    return +(((Math.max(l1, l2) + 0.05) / (Math.min(l1, l2) + 0.05)).toFixed(2));
+  }
+  function cssColorToHex(str) {
+    // resolve ANY css colour expression (var(), color-mix, names) by
+    // letting the browser compute it on a probe element
+    var probe = document.createElement('div');
+    probe.style.cssText = 'position:absolute;visibility:hidden;color:' + str;
+    document.body.appendChild(probe);
+    var rgb = getComputedStyle(probe).color;
+    probe.remove();
+    var m = rgb.match(/rgba?\(([\d.]+)[, ]+([\d.]+)[, ]+([\d.]+)(?:[,\s\/]+([\d.]+))?\)/);
+    if (!m) return null;
+    if (m[4] != null && parseFloat(m[4]) < 0.5) return null;
+    var h = function (v) { return ('0' + Math.round(+v).toString(16)).slice(-2); };
+    return '#' + h(m[1]) + h(m[2]) + h(m[3]);
+  }
+  function effectiveBgHex(node) {
+    // the nearest ancestor that PAINTS a solid backdrop. Image backdrops
+    // return null — contrast is unknowable there, and the auto-scrim
+    // guardrail owns that case.
+    var n = node;
+    while (n && n !== document.documentElement) {
+      var cs = getComputedStyle(n);
+      if (cs.backgroundImage && cs.backgroundImage !== 'none' && cs.backgroundImage.indexOf('url(') !== -1) return null;
+      var bg = cs.backgroundColor;
+      if (bg && bg !== 'transparent') {
+        var m2 = bg.match(/rgba?\(([\d.]+)[, ]+([\d.]+)[, ]+([\d.]+)(?:[,\s\/]+([\d.]+))?\)/);
+        if (m2 && (m2[4] == null || parseFloat(m2[4]) >= 0.5)) {
+          var h2 = function (v) { return ('0' + Math.round(+v).toString(16)).slice(-2); };
+          return '#' + h2(m2[1]) + h2(m2[2]) + h2(m2[3]);
+        }
+      }
+      n = n.parentElement;
+    }
+    return cssColorToHex(getComputedStyle(document.body).backgroundColor) || '#ffffff';
+  }
+  function markSwatchLegibility(rowEl, bgHex) {
+    // guardrail, not a gate: swatches that would be hard to read get a
+    // strike and an honest tooltip — they stay clickable
+    if (!bgHex || !rowEl) return;
+    rowEl.querySelectorAll('.gogh-sw[data-col]').forEach(function (sw) {
+      if (!sw.dataset.col) return; // theme default: trust the theme
+      var hex = cssColorToHex('var(--wp--preset--color--' + sw.dataset.col + ')');
+      if (!hex) return;
+      var r = contrastRatio(hex, bgHex);
+      if (r != null && r < 3) {
+        sw.classList.add('gogh-sw-lowc');
+        sw.title = sw.dataset.col + ' \u2014 hard to read on this background';
+      }
+    });
+  }
+  function fontCatalogue() {
+    // theme-declared font presets, parsed like themePalette()
+    var out = [], seen = {};
+    var gs = document.getElementById('global-styles-inline-css');
+    var cssText = gs ? gs.textContent : '';
+    var re = /--wp--preset--font-family--([a-z0-9-]+):\s*([^;}]+)/g, m;
+    while ((m = re.exec(cssText))) {
+      if (seen[m[1]]) continue;
+      seen[m[1]] = 1;
+      var fam = m[2].trim();
+      var pretty = fam.split(',')[0].replace(/["']/g, '').trim();
+      out.push({ slug: m[1], name: pretty, fontFamily: fam });
+    }
+    return out;
+  }
+  function brandToVariation(brand) {
+    var c = (brand && brand.colors) || {};
+    var cur = themePalette();
+    var slugs = cur.map(function (p) { return p.slug; });
+    if (!slugs.length) slugs = ['base', 'contrast', 'accent-1', 'accent-2'];
+    var accents = [c.accent, c.accent2].filter(Boolean);
+    var ai = 0;
+    var pal = [];
+    var roles = paletteRoles();
+    slugs.forEach(function (slug) {
+      var v = null;
+      if (slug === roles.bgSlug || /^(base|background)$/.test(slug)) v = c.background;
+      else if (slug === roles.textSlug || /^(contrast|foreground|text|main)$/.test(slug)) v = c.text;
+      else if (/accent|primary|secondary/.test(slug) && accents.length) { v = accents[ai % accents.length]; ai++; }
+      if (!v) {
+        var keep = cur.filter(function (p) { return p.slug === slug; })[0];
+        v = keep && keep.value;
+      }
+      if (v) pal.push({ slug: slug, color: v, name: slug });
+    });
+    var out = { title: 'Your brand', settings: { color: { palette: { theme: pal } } }, styles: {} };
+    var f = (brand && brand.fonts) || {};
+    var byFam = {};
+    fontCatalogue().forEach(function (x) { byFam[x.slug] = x; });
+    var used = [];
+    ['heading', 'body'].forEach(function (k) {
+      if (f[k] && byFam[f[k]]) used.push({ slug: f[k], name: byFam[f[k]].name, fontFamily: byFam[f[k]].fontFamily });
+    });
+    if (used.length) out.settings.typography = { fontFamilies: { theme: used } };
+    if (f.body && byFam[f.body]) out.styles.typography = { fontFamily: 'var:preset|font-family|' + f.body };
+    if (f.heading && byFam[f.heading]) {
+      out.styles.elements = { heading: { typography: { fontFamily: 'var:preset|font-family|' + f.heading } } };
+    }
+    return out;
+  }
+  var starterPick = null;
+  function openStarterPicker() {
+    if (starterPick) starterPick.remove();
+    var ov = document.createElement('div');
+    ov.className = 'gogh-starterpick';
+    ov.innerHTML =
+      '<div class="gogh-sp-sheet">' +
+      '<div class="gogh-sp-head"><div>' +
+      '<div class="gogh-sp-title">Site designs</div>' +
+      '<div class="gogh-sp-sub">A whole site, ready to tweak. Your posts, name, logo and brand colours stay.</div>' +
+      '</div><button type="button" class="gogh-sbtn gogh-sp-close" title="Close">\u2715</button></div>' +
+      '<div class="gogh-sp-grid"></div></div>';
+    document.body.appendChild(ov);
+    starterPick = ov;
+    var close = function () { ov.remove(); starterPick = null; };
+    ov.querySelector('.gogh-sp-close').addEventListener('click', close);
+    ov.addEventListener('pointerdown', function (ev) {
+      ev.stopPropagation();
+      if (ev.target === ov) close();
+    });
+    var grid = ov.querySelector('.gogh-sp-grid');
+    (cfg.starters || []).forEach(function (st) {
+      var card = document.createElement('div');
+      card.className = 'gogh-sp-card';
+      card.innerHTML =
+        '<div class="gogh-sp-prev"><div class="gogh-card-stage gogh-sp-stage"></div>' +
+        '<span class="gogh-sp-pagename"></span></div>' +
+        '<div class="gogh-sp-body"><div class="gogh-sp-name"></div>' +
+        '<div class="gogh-sp-desc"></div><div class="gogh-sp-chips"></div>' +
+        '<div class="gogh-sp-actions">' +
+        '<button type="button" class="gogh-btn gogh-sp-use">Use this design</button>' +
+        (st.pages.length > 1 ? '<button type="button" class="gogh-btn gogh-sp-peek">Peek at pages</button>' : '') +
+        '</div></div>';
+      card.querySelector('.gogh-sp-name').textContent = st.name;
+      card.querySelector('.gogh-sp-desc').textContent = st.description || '';
+      card.querySelector('.gogh-sp-chips').textContent = st.pages.map(function (p) { return p.title; }).join(' \u00b7 ');
+      var prev = card.querySelector('.gogh-sp-prev');
+      var stage = card.querySelector('.gogh-sp-stage');
+      var pageName = card.querySelector('.gogh-sp-pagename');
+      // the preview wears the starter's OWN palette — the applied design
+      // brings these colours, so the card must sell them
+      if (st.preview) {
+        Object.keys(st.preview).forEach(function (k) {
+          stage.style.setProperty('--wp--preset--color--' + k, st.preview[k]);
+        });
+        prev.style.background = st.preview.base || '';
+        stage.style.background = st.preview.base || '';
+        stage.style.color = st.preview.contrast || '';
+      }
+      var pi = 0;
+      var showPage = function (i) {
+        pi = ((i % st.pages.length) + st.pages.length) % st.pages.length;
+        var pg = st.pages[pi];
+        pageName.textContent = pg.title;
+        fetch(restQ(GSROOT.split('wp/v2/')[0] + 'gogh/v1/pattern',
+          'slug=' + encodeURIComponent('gogh-starter/' + st.slug + '-' + pg.slug)), {
+          headers: { 'X-WP-Nonce': cfg.nonce },
+          credentials: 'same-origin',
+        }).then(function (r) { return r.ok ? r.json() : Promise.reject(new Error('HTTP ' + r.status)); })
+          .then(function (d) {
+            var html = d.rendered || '';
+            if (html && d.css) html = '<style>' + d.css + '</style>' + html;
+            stage.innerHTML = html;
+            // hero crop: fill the card's width and show the top of the
+            // page at readable scale — a whole-page miniature reads as lint
+            var sc = prev.clientWidth / 1200;
+            stage.style.transform = 'scale(' + sc + ')';
+            stage.style.left = '0';
+            stage.style.top = '0';
+          }).catch(function () { stage.innerHTML = ''; });
+      };
+      showPage(0);
+      var peek = card.querySelector('.gogh-sp-peek');
+      if (peek) peek.addEventListener('click', function () { showPage(pi + 1); });
+      card.querySelector('.gogh-sp-use').addEventListener('click', function () { confirmStarter(st, ov); });
+      grid.appendChild(card);
+    });
+  }
+  function confirmStarter(st, ov) {
+    var old = ov.querySelector('.gogh-sp-confirm');
+    if (old) old.remove();
+    var dlg = document.createElement('div');
+    dlg.className = 'gogh-sp-confirm';
+    dlg.innerHTML =
+      '<div class="gogh-sp-dialog">' +
+      '<div class="gogh-sp-name"></div>' +
+      '<div class="gogh-sp-line gogh-sp-keep">\u2713 Keeps your posts, images, name and logo</div>' +
+      '<div class="gogh-sp-line gogh-sp-keep">\u2713 Brings its own colours \u2014 Your brand can re-apply yours any time</div>' +
+      '<div class="gogh-sp-line gogh-sp-warn">\u26a0 Replaces your pages and menu \u2014 current pages move to Trash, restorable for 30 days</div>' +
+      '<div class="gogh-sp-actions">' +
+      '<button type="button" class="gogh-btn gogh-sp-cancel">Cancel</button>' +
+      '<button type="button" class="gogh-btn gogh-sp-go">Switch design</button>' +
+      '</div></div>';
+    dlg.querySelector('.gogh-sp-name').textContent = 'Switch to ' + st.name + '?';
+    ov.appendChild(dlg);
+    dlg.addEventListener('pointerdown', function (ev) {
+      ev.stopPropagation();
+      if (ev.target === dlg) dlg.remove();
+    });
+    dlg.querySelector('.gogh-sp-cancel').addEventListener('click', function () { dlg.remove(); });
+    var go = dlg.querySelector('.gogh-sp-go');
+    go.addEventListener('click', function () {
+      go.disabled = true;
+      go.textContent = 'Building\u2026';
+      fetch(GSROOT.split('wp/v2/')[0] + 'gogh/v1/starter', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-WP-Nonce': cfg.nonce },
+        credentials: 'same-origin',
+        body: JSON.stringify({ slug: st.slug }),
+      }).then(function (r) { return r.ok ? r.json() : Promise.reject(new Error('HTTP ' + r.status)); })
+        .then(function (d) {
+          discarding = true;
+          var fade = document.createElement('div');
+          fade.className = 'gogh-pagefade';
+          fade.innerHTML = '<span class="gogh-pagefade-pill">Building your site\u2026</span>';
+          document.body.appendChild(fade);
+          requestAnimationFrame(function () { fade.classList.add('is-on'); });
+          setTimeout(function () {
+            location.href = d.home + (d.home.indexOf('?') === -1 ? '?' : '&') + 'gogh-edit=1';
+          }, 420);
+        }).catch(function (err) {
+          go.disabled = false;
+          go.textContent = 'Switch design';
+          toast('gogh could not switch the design \u2014 ' + ((err && err.message) || 'try again.'), { error: true });
+        });
+    });
+  }
+  function openBrandForm(anchorEl) {
+    var local = JSON.parse(JSON.stringify(cfg.brand || { colors: {
+      background: '#f6f2ea', text: '#1c2733', accent: '#c96f4a', accent2: '#7a9e7e',
+    }, fonts: {} }));
+    local.colors = local.colors || {};
+    local.fonts = local.fonts || {};
+    var WELLS = [
+      ['background', 'Background', 'The page behind everything'],
+      ['text', 'Text', 'Your words'],
+      ['accent', 'Accent', 'Buttons and links'],
+      ['accent2', 'Second accent', 'Badges and extra highlights'],
+    ];
+    var cat = fontCatalogue();
+    panel.innerHTML =
+      '<div class="gogh-panel-head"><span class="gogh-panel-title">Your brand</span>' +
+      '<button type="button" class="gogh-sbtn gogh-panel-close" title="Back">\u2715</button></div>' +
+      '<div class="gogh-swlab">Colours</div>' +
+      '<div class="gogh-brandwells">' +
+      WELLS.map(function (w) {
+        var val = local.colors[w[0]] || '#888888';
+        return '<label class="gogh-brandwell" data-k="' + w[0] + '">' +
+          '<input type="color" value="' + escAttr(val) + '" />' +
+          '<span class="gogh-brandwell-name">' + w[1] + '</span>' +
+          '<span class="gogh-brandwell-hint">' + w[2] + '</span>' +
+          '<input type="text" class="gogh-input gogh-brandhex" value="' + escAttr(val) + '" spellcheck="false" />' +
+          '</label>';
+      }).join('') + '</div>' +
+      '<div class="gogh-brandcontrast"></div>' +
+      '<div class="gogh-panel-hint gogh-brandpaste-hint">Already have brand colours? Paste them below \u2014 gogh finds the codes and fills the boxes above.</div>' +
+      '<input type="text" class="gogh-input gogh-brandpaste" placeholder="Anything with codes like #1B2A4A works" />' +
+      '<div class="gogh-swlab">Fonts</div>' +
+      ['heading', 'body'].map(function (k) {
+        return '<div class="gogh-panel-row gogh-brandfontrow">' +
+          '<span class="gogh-brandfont-lab">' + (k === 'heading' ? 'Headings' : 'Body') + '</span>' +
+          '<select class="gogh-input gogh-brandfont" data-k="' + k + '">' +
+          '<option value="">Theme default</option>' +
+          cat.map(function (f2) {
+            return '<option value="' + escAttr(f2.slug) + '"' + (local.fonts[k] === f2.slug ? ' selected' : '') + '>' + escAttr(f2.name) + '</option>';
+          }).join('') + '</select></div>';
+      }).join('') +
+      '<div class="gogh-panel-row gogh-brandacts">' +
+      '<button type="button" class="gogh-btn gogh-btn-small gogh-brandcancel">Cancel</button>' +
+      '<button type="button" class="gogh-btn gogh-btn-small gogh-brandkeep">Save brand</button>' +
+      '</div>';
+    panel.hidden = false;
+    placePanelNear(anchorEl || side);
+    panelOpen = true;
+    var contrastEl = panel.querySelector('.gogh-brandcontrast');
+    function refreshContrast() {
+      var r = contrastRatio(local.colors.text, local.colors.background);
+      if (r == null) { contrastEl.textContent = ''; return; }
+      contrastEl.className = 'gogh-brandcontrast ' + (r >= 4.5 ? 'is-good' : r >= 3 ? 'is-mid' : 'is-bad');
+      contrastEl.textContent = r >= 4.5
+        ? '\u2713 Your Text colour is easy to read on your Background'
+        : r >= 3
+          ? 'Your Text and Background are close \u2014 big headlines will read, small words won\u2019t'
+          : 'Your Text colour can\u2019t be read on your Background \u2014 try a darker text or a lighter background';
+    }
+    var pvT = null;
+    function livePreview() {
+      refreshContrast();
+      clearTimeout(pvT);
+      pvT = setTimeout(function () { previewVariation(brandToVariation(local)); }, 150);
+    }
+    panel.querySelectorAll('.gogh-brandwell').forEach(function (well) {
+      var k = well.dataset.k;
+      var pick = well.querySelector('input[type="color"]');
+      var hex = well.querySelector('.gogh-brandhex');
+      pick.addEventListener('input', function () {
+        local.colors[k] = pick.value;
+        hex.value = pick.value;
+        livePreview();
+      });
+      hex.addEventListener('input', function () {
+        var v = hex.value.trim();
+        if (/^#?[0-9a-f]{6}$/i.test(v)) {
+          if (v[0] !== '#') v = '#' + v;
+          local.colors[k] = v.toLowerCase();
+          pick.value = v;
+          livePreview();
+        }
+      });
+    });
+    panel.querySelector('.gogh-brandpaste').addEventListener('input', function () {
+      var found = (this.value.match(/#?[0-9a-f]{6}\b/gi) || []).map(function (h) {
+        return (h[0] === '#' ? h : '#' + h).toLowerCase();
+      });
+      if (!found.length) return;
+      WELLS.forEach(function (w, i2) {
+        if (found[i2]) local.colors[w[0]] = found[i2];
+      });
+      panel.querySelectorAll('.gogh-brandwell').forEach(function (well) {
+        var k = well.dataset.k;
+        well.querySelector('input[type="color"]').value = local.colors[k];
+        well.querySelector('.gogh-brandhex').value = local.colors[k];
+      });
+      livePreview();
+    });
+    panel.querySelectorAll('.gogh-brandfont').forEach(function (sel2) {
+      sel2.addEventListener('change', function () {
+        if (sel2.value) local.fonts[sel2.dataset.k] = sel2.value;
+        else delete local.fonts[sel2.dataset.k];
+        livePreview();
+      });
+    });
+    panel.querySelector('.gogh-panel-close').addEventListener('click', function () {
+      clearVariationPreview();
+      openStylePanel(anchorEl);
+    });
+    panel.querySelector('.gogh-brandcancel').addEventListener('click', function () {
+      clearVariationPreview();
+      openStylePanel(anchorEl);
+    });
+    panel.querySelector('.gogh-brandkeep').addEventListener('click', function () {
+      var keepBtn = panel.querySelector('.gogh-brandkeep');
+      keepBtn.disabled = true;
+      fetch(GSROOT.replace(/wp\/v2\/$/, 'wp/v2/') + 'settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-WP-Nonce': cfg.nonce },
+        credentials: 'same-origin',
+        body: JSON.stringify({ gogh_brand: local }),
+      }).then(function (r) {
+        if (!r.ok) throw new Error('HTTP ' + r.status);
+        cfg.brand = local;
+        clearVariationPreview();
+        return applyVariation(brandToVariation(local));
+      }).then(function () {
+        openStylePanel(anchorEl);
+      }).catch(function (err) {
+        keepBtn.disabled = false;
+        toast('gogh could not save your brand \u2014 ' + ((err && err.message) || 'try again.'), { error: true });
+      });
+    });
+    refreshContrast();
+  }
+  // ---------- type scale: one dial, every word ----------
+  // Scaled sizes are written as calc(original * factor) into user Global
+  // Styles, so px, rem and clamp() themes all scale uniformly — and always
+  // from the THEME's originals, so the dial can never compound itself.
+  // the global-styles REST endpoint serves fontSizes either FLAT or keyed
+  // by origin ({default, theme, custom}) depending on WP version and
+  // context — James's dial read .length on the object and declared the
+  // theme fontless. Unwrap: the theme's own sizes first, then custom,
+  // then core defaults.
+  function themeFontSizeList(raw) {
+    if (Array.isArray(raw)) return raw;
+    if (raw && typeof raw === 'object') return raw.theme || raw.custom || raw.default || null;
+    return null;
+  }
+  function scaleFontSizes(sizes, factor) {
+    return (sizes || []).map(function (fs) {
+      var out = { slug: fs.slug, name: fs.name || fs.slug, size: fs.size };
+      if (factor !== 100 && fs.size) out.size = 'calc(' + fs.size + ' * ' + (factor / 100) + ')';
+      return out;
+    });
+  }
+  function applyTypeScale(factor, btn) {
+    if (btn) btn.disabled = true;
+    var H = { 'X-WP-Nonce': cfg.nonce };
+    return Promise.all([
+      fetch(GSROOT + 'global-styles/themes/' + encodeURIComponent(cfg.theme), { headers: H, credentials: 'same-origin' })
+        .then(function (r) { return r.ok ? r.json() : Promise.reject(new Error('HTTP ' + r.status)); }),
+      fetch(GSROOT + 'global-styles/' + cfg.gsId + '?context=edit', { headers: H, credentials: 'same-origin' })
+        .then(function (r) { return r.ok ? r.json() : Promise.reject(new Error('HTTP ' + r.status)); }),
+    ]).then(function (both) {
+      var themeSizes = themeFontSizeList((((both[0] || {}).settings || {}).typography || {}).fontSizes);
+      if (!themeSizes || !themeSizes.length) throw new Error('theme declares no font sizes');
+      var settings = (both[1] && both[1].settings) || {};
+      settings.typography = settings.typography || {};
+      settings.typography.fontSizes = scaleFontSizes(themeSizes, factor);
+      return fetch(GSROOT + 'global-styles/' + cfg.gsId, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-WP-Nonce': cfg.nonce },
+        credentials: 'same-origin',
+        body: JSON.stringify({ settings: settings }),
+      });
+    }).then(function (r) {
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      return fetch(location.href, { credentials: 'same-origin' });
+    }).then(function (r) { return r.text(); }).then(function (html) {
+      var doc = new DOMParser().parseFromString(html, 'text/html');
+      ['global-styles-inline-css', 'wp-fonts-local'].forEach(function (id) {
+        var fresh = doc.getElementById(id);
+        var cur = document.getElementById(id);
+        if (fresh && cur) cur.textContent = fresh.textContent;
+      });
+      fontSizesCache = null;
+      S.forEach(function (s2) { measureTextHeights(s2); });
+      resolveAll();
+      cfg.typeScale = factor;
+      fetch(cfg.restUrl.split('wp/v2/')[0] + 'gogh/v1/type-scale', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-WP-Nonce': cfg.nonce },
+        credentials: 'same-origin',
+        body: JSON.stringify({ scale: factor }),
+      }).catch(function () {});
+      if (btn) btn.disabled = false;
+      toast(factor === 100 ? 'Type back to the theme\u2019s own scale.' : 'Every word rescaled to ' + factor + '%.');
+      return true;
+    }).catch(function (err) {
+      if (btn) btn.disabled = false;
+      toast('Could not rescale the type \u2014 ' + ((err && err.message) || 'try again.'), { error: true });
+      return false;
+    });
+  }
+  function openStylePanel(anchorEl) {
+    if (!cfg.gsId || !cfg.theme) return;
+    fetchVariations().then(function (vars) {
+      if (!vars.length) return;
+      panel.innerHTML =
+        '<div class="gogh-panel-head"><span class="gogh-panel-title">Site style</span>' +
+        '<button type="button" class="gogh-sbtn gogh-panel-close" title="Back to the palette">\u2715</button></div>' +
+        '<div class="gogh-panel-hint">Hover to preview \u2014 click to keep it</div>' +
+        '<div class="gogh-panel-hint" style="margin-top:6px">Type scale</div>' +
+        '<div class="gogh-hpresets gogh-typescale">' +
+        [['Snug', 90], ['Regular', 100], ['Airy', 110], ['Grand', 120]].map(function (ts) {
+          return '<button type="button" class="gogh-hpreset' + ((cfg.typeScale || 100) === ts[1] ? ' is-active' : '') + '" data-scale="' + ts[1] + '">' + ts[0] + '</button>';
+        }).join('') + '</div>' +
+        '<div class="gogh-varlist"></div>';
+      // the hint says "Hover to preview" — the type chips must honour it
+      // too. Local preview: override the font-size preset vars with scaled
+      // px (measured once), zero server round-trips, gone on leave.
+      var tsPreview = null;
+      var tsPreviewOff = function () {
+        if (tsPreview) { tsPreview.remove(); tsPreview = null; }
+      };
+      var tsPreviewOn = function (factor) {
+        tsPreviewOff();
+        if (factor === (cfg.typeScale || 100)) return;
+        var baseline = (cfg.typeScale || 100) / 100;
+        var rules = fontSizes().map(function (f) {
+          // f.px is the CURRENT (already-scaled) size — preview relative
+          // to the theme's own scale, never compounding
+          var px = f.px / baseline * (factor / 100);
+          return '--wp--preset--font-size--' + f.slug + ': ' + (Math.round(px * 100) / 100) + 'px;';
+        });
+        if (!rules.length) return;
+        tsPreview = document.createElement('style');
+        tsPreview.textContent = ':root, body { ' + rules.join(' ') + ' }';
+        document.head.appendChild(tsPreview);
+      };
+      panel.querySelectorAll('.gogh-typescale .gogh-hpreset').forEach(function (tb) {
+        tb.addEventListener('mouseenter', function () { tsPreviewOn(+tb.dataset.scale); });
+        tb.addEventListener('mouseleave', tsPreviewOff);
+        tb.addEventListener('click', function () {
+          tsPreviewOff();
+          applyTypeScale(+tb.dataset.scale, tb).then(function (ok) {
+            if (!ok) return;
+            panel.querySelectorAll('.gogh-typescale .gogh-hpreset').forEach(function (o) {
+              o.classList.toggle('is-active', o === tb);
+            });
+          });
+        });
+      });
+      panel.querySelector('.gogh-panel-close').addEventListener('click', function () {
+        tsPreviewOff();
+        closePanel();
+        openSide();
+      });
+      var box = panel.querySelector('.gogh-varlist');
+      // Site designs lives in the Design drawer alone — this panel is styles
+      // your brand sits ABOVE the theme's styles — the most important option
+      (function () {
+        var row = document.createElement('div');
+        row.className = 'gogh-brandrow';
+        if (cfg.brand && cfg.brand.colors) {
+          var b2 = document.createElement('button');
+          b2.type = 'button';
+          b2.className = 'gogh-varbtn gogh-brandbtn';
+          if ((cfg.activeStyle || '') === 'Your brand') b2.classList.add('is-current');
+          b2.title = 'Your brand \u2014 click to edit it';
+          var order = ['background', 'text', 'accent', 'accent2'];
+          b2.innerHTML = order.map(function (k) {
+            var col = cfg.brand.colors[k];
+            return col ? '<span class="gogh-vardot" style="background:' + escAttr(col) + '"></span>' : '';
+          }).join('') + '<span class="gogh-varname">Your brand</span>';
+          var bv = brandToVariation(cfg.brand);
+          b2.addEventListener('mouseenter', function () {
+            clearTimeout(previewHoverT);
+            previewHoverT = setTimeout(function () { previewVariation(bv); }, 120);
+          });
+          // the whole row is the door to your brand — applying happens from
+          // the editor's Keep, with live preview along the way
+          b2.addEventListener('click', function () {
+            clearVariationPreview();
+            openBrandForm(anchorEl);
+          });
+          row.appendChild(b2);
+        } else {
+          var mk = document.createElement('button');
+          mk.type = 'button';
+          mk.className = 'gogh-btn gogh-btn-small gogh-brandsetup';
+          mk.textContent = '+ Set up your brand';
+          mk.addEventListener('click', function () { openBrandForm(anchorEl); });
+          row.appendChild(mk);
+        }
+        box.appendChild(row);
+      })();
+      // colours and font pairs are different decisions — group them
+      var groups = { color: [], font: [] };
+      vars.forEach(function (v) {
+        var pal = ((v.settings || {}).color || {}).palette || {};
+        var colors = (pal.theme || pal.default || []).slice(0, 4);
+        groups[colors.length ? 'color' : 'font'].push({ v: v, colors: colors });
+      });
+      [['color', 'Colours'], ['font', 'Fonts']].forEach(function (g) {
+        if (!groups[g[0]].length) return;
+        if (groups.color.length && groups.font.length) {
+          var lab = document.createElement('div');
+          lab.className = 'gogh-panel-group';
+          lab.textContent = g[1];
+          box.appendChild(lab);
+        }
+        groups[g[0]].forEach(function (item) {
+          var v = item.v;
+          var b = document.createElement('button');
+          b.type = 'button';
+          b.className = 'gogh-varbtn';
+          if (item.colors.length) {
+            b.innerHTML = item.colors.map(function (c) {
+              return '<span class="gogh-vardot" style="background:' + c.color + '"></span>';
+            }).join('') + '<span class="gogh-varname"></span>';
+            b.querySelector('.gogh-varname').textContent = v.title || 'Style';
+          } else {
+            // the name is the specimen: each half of the pair in its own face
+            ensureVariationFonts(v);
+            var fams = (((v.settings || {}).typography || {}).fontFamilies || {}).theme || [];
+            var name = document.createElement('span');
+            name.className = 'gogh-varname gogh-varname-fonts';
+            (v.title || 'Style').split(' & ').forEach(function (pt, k) {
+              var piece = document.createElement('span');
+              piece.textContent = (k ? ' & ' : '') + pt;
+              var match = null;
+              fams.forEach(function (f) {
+                if (match) return;
+                var label = (f.name || f.slug || f.fontFamily || '').toLowerCase();
+                if (label.indexOf(pt.trim().toLowerCase()) !== -1) match = f;
+              });
+              if (!match) match = fams[k] || fams[0];
+              if (match && match.fontFamily) piece.style.fontFamily = match.fontFamily;
+              name.appendChild(piece);
+            });
+            b.appendChild(name);
+          }
+          if ((v.title || '') && (v.title || '') === (cfg.activeStyle || '')) b.classList.add('is-current');
+          b.addEventListener('click', function () {
+            clearVariationPreview();
+            applyVariation(v, b);
+          });
+          // hover auditions the style — small debounce so sweeping the
+          // cursor down the list doesn't strobe the page
+          b.addEventListener('mouseenter', function () {
+            clearTimeout(previewHoverT);
+            previewHoverT = setTimeout(function () {
+              ensureVariationFonts(v);
+              previewVariation(v);
+            }, 120);
+          });
+          box.appendChild(b);
+        });
+      });
+      box.addEventListener('mouseleave', function () { clearVariationPreview(); });
+      placePanelNear(anchorEl);
+      panelOpen = true;
+      panelSticky = true; // hover-audition panel: outside clicks pass through
+    }).catch(function () {});
+  }
+  // hover = instant local preview: the theme references its colours and
+  // fonts through preset CSS variables, so overriding those vars in one
+  // appended stylesheet re-skins the whole page with zero network. Click
+  // still persists via applyVariation (full fidelity from the server).
+  var previewStyleEl = null;
+  var previewHoverT = null;
+  function previewVariation(v) {
+    var css = ':root{';
+    var pal = ((v.settings || {}).color || {}).palette || {};
+    (pal.theme || pal.default || []).forEach(function (p) {
+      if (p.slug && p.color) css += '--wp--preset--color--' + p.slug + ':' + p.color + ';';
+    });
+    var fams = (((v.settings || {}).typography || {}).fontFamilies || {}).theme || [];
+    fams.forEach(function (f) {
+      if (f.slug && f.fontFamily) css += '--wp--preset--font-family--' + f.slug + ':' + f.fontFamily + ';';
+    });
+    css += '}';
+    var resolve = function (s) {
+      return String(s || '')
+        .replace(/^var:preset\|color\|(.+)$/, 'var(--wp--preset--color--$1)')
+        .replace(/^var:preset\|font-family\|(.+)$/, 'var(--wp--preset--font-family--$1)');
+    };
+    var sc = (v.styles || {}).color || {};
+    var body = '';
+    if (sc.background) body += 'background-color:' + resolve(sc.background) + ';';
+    if (sc.text) body += 'color:' + resolve(sc.text) + ';';
+    // font variations register their families under NEW preset slugs — the
+    // page only picks them up through the variation's body/heading mappings,
+    // so the preview must apply those too (colours reuse slugs; fonts don't)
+    var ty = (v.styles || {}).typography || {};
+    if (ty.fontFamily) body += 'font-family:' + resolve(ty.fontFamily) + ';';
+    if (body) css += 'body{' + body + '}';
+    var hty = ((((v.styles || {}).elements) || {}).heading || {}).typography || {};
+    if (hty.fontFamily) {
+      css += 'h1,h2,h3,h4,h5,h6,.wp-block-heading{font-family:' + resolve(hty.fontFamily) + ';}';
+    }
+    if (!previewStyleEl) {
+      previewStyleEl = document.createElement('style');
+      previewStyleEl.id = 'gogh-style-preview';
+      document.head.appendChild(previewStyleEl);
+    }
+    previewStyleEl.textContent = css;
+  }
+  function clearVariationPreview() {
+    clearTimeout(previewHoverT);
+    if (previewStyleEl) previewStyleEl.textContent = '';
+  }
+  function applyVariation(v, btn) {
+    if (btn) btn.disabled = true;
+    return fetch(GSROOT + 'global-styles/' + cfg.gsId, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-WP-Nonce': cfg.nonce },
+      credentials: 'same-origin',
+      body: JSON.stringify({ styles: v.styles || {}, settings: v.settings || {} }),
+    }).then(function (r) {
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      // hot-swap the theme CSS so the whole page re-skins without a reload
+      return fetch(location.href, { credentials: 'same-origin' });
+    }).then(function (r) { return r.text(); }).then(function (html) {
+      var doc = new DOMParser().parseFromString(html, 'text/html');
+      ['global-styles-inline-css', 'wp-fonts-local'].forEach(function (id) {
+        var fresh = doc.getElementById(id);
+        var cur = document.getElementById(id);
+        if (fresh && cur) cur.textContent = fresh.textContent;
+        else if (fresh && !cur) document.head.appendChild(fresh.cloneNode(true));
+      });
+      fontSizesCache = null;
+      S.forEach(function (s) { measureTextHeights(s); });
+      resolveAll();
+      if (sel) placeHandles(sel.sec, sel.i);
+      if (btn) btn.disabled = false;
+      // remember the style's NAME — global styles forget it on copy
+      cfg.activeStyle = v.title || '';
+      fetch(cfg.restUrl.split('wp/v2/')[0] + 'gogh/v1/active-style', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-WP-Nonce': cfg.nonce },
+        credentials: 'same-origin',
+        body: JSON.stringify({ name: cfg.activeStyle }),
+      }).catch(function () {});
+      [].forEach.call(panel.querySelectorAll('.gogh-varbtn.is-current'), function (x) { x.classList.remove('is-current'); });
+      if (btn) btn.classList.add('is-current');
+      toast('Theme style applied: ' + (v.title || ''));
+      return true;
+    }).catch(function (err) {
+      if (btn) btn.disabled = false;
+      toast('Could not apply that style.', { error: true });
+      return false;
+    });
+  }
+  function startWriting(afterIdx) {
+    // leaner than the Article starter: nothing to delete, only to replace
+    // no heading: the PAGE title is the title — straight into prose
+    // prose starts where a post's first line would: tight under the title
+    var tpl = { name: '__write', minH: 120, els: [
+      { type: 'para', x: 280, y: 12, w: 640, h: 60, text: '', ph: 'Start writing.' },
+    ] };
+    var at = (typeof afterIdx === 'number' ? afterIdx : S.indexOf(viewportSection())) + 1;
+    addSection(tpl, at);
+    // straight into the words: select the heading and open its editor with
+    // the caret ready — calm mode fades the chrome automatically
+    var secW = null;
+    for (var wi = S.length - 1; wi >= 0; wi--) {
+      if (!S[wi].chrome && S[wi].els.length && S[wi].els[0].ph === tpl.els[0].ph) { secW = S[wi]; break; }
+    }
+    if (!secW) return;
+    setTimeout(function () {
+      placeHandles(secW, 0);
+      enterTextEdit(secW, 0); // ghost placeholder: just start typing
+    }, 350);
+  }
+  side.querySelector('.gogh-stylebtn').addEventListener('click', function (ev) {
+    openStylePanel(ev.currentTarget);
+  });
+  side.querySelector('.gogh-pagestylebtn').addEventListener('click', function (ev) {
+    openPageStylePanel(ev.currentTarget);
+  });
+
+  function snapPos(sec, exclude, x, y, w, h, free, textCXOff) {
     if (free) return { x: Math.round(x), y: Math.round(y), gx: null, gy: null };
     var H = designH(sec.els, sec.minH);
     var candX = [0, W, W / 2], candY = [0, H, H / 2];
@@ -2399,6 +7864,9 @@
       candX.push(o.x, o.x + o.w, o.x + o.w / 2);
       candY.push(o.y, o.y + o.h, o.y + o.h / 2);
     });
+    var cc = compCands(H);
+    cc.x.forEach(function (v) { candX.push(v); });
+    cc.y.forEach(function (v) { candY.push(v); });
     function best(edges, cands) {
       var d = SNAP + 1, snap = null, guide = null;
       edges.forEach(function (edge) {
@@ -2412,14 +7880,22 @@
     var xEdges = w > 0
       ? [{ v: x, off: 0 }, { v: x + w, off: w }, { v: x + w / 2, off: w / 2 }]
       : [{ v: x, off: 0 }];
+    // when a text element's words don't fill its box, the ink's visual
+    // centre REPLACES the box centre — the two must not compete, or the box
+    // magnet catches first and the words sit visibly off-centre
+    if (textCXOff != null && textCXOff > 0 && textCXOff < w) {
+      xEdges = xEdges.filter(function (edge) { return edge.off !== w / 2; });
+      xEdges.push({ v: x + textCXOff, off: textCXOff });
+    }
     var yEdges = h > 0
       ? [{ v: y, off: 0 }, { v: y + h, off: h }, { v: y + h / 2, off: h / 2 }]
       : [{ v: y, off: 0 }];
     var sx = best(xEdges, candX);
     var sy = best(yEdges, candY);
+    var gl = gridSnapOn || !!drag || !!resize; // the grid is visible mid-gesture, so its magnets are honest
     return {
-      x: sx ? Math.round(sx.v) : (gridSnapOn ? Math.round(x / BASE) * BASE : Math.round(x)),
-      y: sy ? Math.round(sy.v) : (gridSnapOn ? Math.round(y / BASE) * BASE : Math.round(y)),
+      x: sx ? Math.round(sx.v) : (gl ? Math.round(x / BASE) * BASE : Math.round(x)),
+      y: sy ? Math.round(sy.v) : (gl ? Math.round(y / BASE) * BASE : Math.round(y)),
       gx: sx ? sx.g : null,
       gy: sy ? sy.g : null,
     };
@@ -2492,6 +7968,23 @@
       c = (Math.max(e.x, nb.B.x) + Math.min(e.x + e.w, nb.B.x + nb.B.w)) / 2;
       showDist(di++, false, px(c), py(e.y + e.h), g * s, g * s, eqV);
     }
+    // no neighbour on a side → measure to the SECTION edge instead: page
+    // margins are the distances people eyeball most
+    if (!nb.L && (g = e.x) > 4) {
+      showDist(di++, true, px(0), py(e.y + e.h / 2), g * s, g * s, false);
+    }
+    if (!nb.R && (g = W - (e.x + e.w)) > 4) {
+      showDist(di++, true, px(e.x + e.w), py(e.y + e.h / 2), g * s, g * s, false);
+    }
+    if (!nb.T && (g = e.y) > 4) {
+      showDist(di++, false, px(e.x + e.w / 2), py(0), g * s, g * s, false);
+    }
+    if (!nb.B) {
+      var H2 = designH(sec.els, sec.minH);
+      if ((g = H2 - (e.y + e.h)) > 4) {
+        showDist(di++, false, px(e.x + e.w / 2), py(e.y + e.h), g * s, g * s, false);
+      }
+    }
   }
 
   // ---------- resizing: 8-direction handles ----------
@@ -2520,8 +8013,12 @@
         candX.push(o.x, o.x + o.w, o.x + o.w / 2);
         candY.push(o.y, o.y + o.h, o.y + o.h / 2);
       });
+      var ccR = compCands(designH(sec.els, sec.minH));
+      ccR.x.forEach(function (v) { candX.push(v); });
+      ccR.y.forEach(function (v) { candY.push(v); });
       resize = { sec: sec, i: sel.i, dir: dir, px: ev.clientX, py: ev.clientY,
         x: e.x, y: e.y, w: e.w, h: e.h, candX: candX, candY: candY };
+      sec.sectionEl.classList.add('gogh-grid-live');
       document.documentElement.classList.add('gogh-dragging');
       drag = null;
     });
@@ -2540,7 +8037,7 @@
           applyFontStep(sec, resize.i, want - (resize.fsSteps || 0));
           resize.fsSteps = want;
         }
-        sizeChip.textContent = e.fs ? e.fs : 'theme default';
+        sizeChip.textContent = e.fs ? (DISPLAY_LABEL[e.fs] || e.fs) : 'theme default';
         sizeChip.style.left = (ev.clientX + 18 + window.scrollX) + 'px';
         sizeChip.style.top = (ev.clientY + 18 + window.scrollY) + 'px';
         sizeChip.hidden = false;
@@ -2565,6 +8062,13 @@
           var st = snapAxis(resize.candY, resize.y + dy);
           ny = st.v; nh = resize.y + resize.h - st.v; gy = st.g;
         }
+      }
+      // Canva-style: corner-drag on a SHAPE scales it, keeping its
+      // proportions (edge handles still stretch it freely on purpose)
+      if (e.type === 'box' && e.shape && dir.dx !== 0 && dir.dy !== 0) {
+        nh = nw * (resize.h / resize.w);
+        if (dir.dy === -1) ny = resize.y + resize.h - nh;
+        gy = null;
       }
       if (nw < 60) { if (dir.dx === -1) nx = resize.x + resize.w - 60; nw = 60; }
       if (nh < 32) { if (dir.dy === -1) ny = resize.y + resize.h - 32; nh = 32; }
@@ -2596,6 +8100,7 @@
     if (!resize) return;
     sizeChip.hidden = true;
     var sec = resize.sec, i = resize.i;
+    sec.sectionEl.classList.remove('gogh-grid-live');
     var e = sec.els[i];
     var oldH = e.h;
     resize = null;
@@ -2668,13 +8173,17 @@
     if (resize) endResize();
     if (hDrag) endHDrag();
     if (rotD) endRot();
+    pendingDrag = null;
+    if (marq) { marq = null; marqBox.hidden = true; }
   }, true);
 
   // on scroll, keep the selection and move its handles with it
   var scrollRaf = false;
   window.addEventListener('scroll', function () {
     if (drag || resize || hDrag || rotD) return;
-    closePanel();
+    // panels are viewport-fixed and ride the scroll — closing them here
+    // was the "modal vanishes when I scroll" report (a relic from when
+    // panels were document-anchored popovers)
     inserter.hidden = true;
     hideHbar();
     shapeBtn.hidden = true;
@@ -2691,7 +8200,476 @@
   }, { passive: true });
 
   // debug/state hook
+  // ---------- bird's-eye: the whole page, sections drag to reorder ----------
+  var zoomOv = document.createElement('div');
+  zoomOv.className = 'gogh-zoom';
+  zoomOv.hidden = true;
+  zoomOv.innerHTML = '<div class="gogh-zoom-head">Whole page \u2014 drag sections to reorder' +
+    '<button type="button" class="gogh-btn gogh-btn-small gogh-zoom-close">Close</button></div>' +
+    '<div class="gogh-zoom-col"></div>';
+  document.body.appendChild(zoomOv);
+  // opened from the gogh palette (the floating corner tabs are gone \u2014
+  // the canvas stays clean)
+  function closeZoom() { zoomOv.hidden = true; }
+  zoomOv.querySelector('.gogh-zoom-close').addEventListener('click', closeZoom);
+  // clicking the backdrop (anywhere off the cards) also closes
+  zoomOv.addEventListener('pointerdown', function (ev) {
+    if (ev.target === zoomOv || ev.target.classList.contains('gogh-zoom-col')) closeZoom();
+  });
+  document.addEventListener('keydown', function (ev) {
+    if (ev.key === 'Escape' && !zoomOv.hidden) { closeZoom(); ev.stopPropagation(); }
+  }, true);
+  function resyncContentOrder() {
+    var order = [].slice.call(pageParent.children);
+    var pos = function (sec) { return order.indexOf(sec.wrapEl); };
+    var head = S.filter(function (s) { return s.chrome && s.chrome.area !== 'footer'; });
+    var foot = S.filter(function (s) { return s.chrome && s.chrome.area === 'footer'; });
+    var content = S.filter(function (s) { return !s.chrome; }).sort(function (a, b) { return pos(a) - pos(b); });
+    S.length = 0;
+    head.concat(content, foot).forEach(function (s) { S.push(s); });
+    resolveAll();
+    pushState();
+  }
+  function openZoom() {
+    var col = zoomOv.querySelector('.gogh-zoom-col');
+    col.innerHTML = '';
+    var CARD_W = 440;
+    // the page in true order: freeform sections AND native pattern sections
+    // drag to reorder; other stored blocks show pinned for context
+    var items = [];
+    S.filter(function (s) { return s.chrome && s.chrome.area !== 'footer'; }).forEach(function (s) {
+      items.push({ kind: 'chrome', sec: s, label: 'Header' });
+    });
+    [].slice.call(pageParent.children).forEach(function (n) {
+      if (!n.classList) return;
+      if (n.classList.contains('gogh-wrap')) {
+        var sec = S.filter(function (s) { return s.wrapEl === n; })[0];
+        // chrome sections render as the pinned Header/Footer cards — never
+        // twice, even if a stray remount left their wrap in the page body
+        if (sec && !sec.chrome) items.push({ kind: 'sec', sec: sec, node: n });
+      } else if (n.classList.contains('gogh-pending')) {
+        items.push({ kind: 'pending', node: n });
+      } else if (n.tagName !== 'STYLE' && n.tagName !== 'SCRIPT' &&
+        ((n.textContent || '').trim().length > 0 || n.querySelector('img,iframe,video,svg,canvas'))) {
+        items.push({ kind: 'static', node: n, bound: storedEdits.some(function (en) { return en.el === n; }) });
+      }
+    });
+    S.filter(function (s) { return s.chrome && s.chrome.area === 'footer'; }).forEach(function (s) {
+      items.push({ kind: 'chrome', sec: s, label: 'Footer' });
+    });
+    var secN = 0;
+    items.forEach(function (it) {
+      var card = document.createElement('div');
+      // stored native blocks drag too once their raw span is bound (publish
+      // re-emits top-level spans in DOM order); unbound ones stay pinned
+      var pinned = it.kind === 'chrome' || (it.kind === 'static' && !it.bound);
+      card.className = 'gogh-zoom-card' + (pinned ? ' is-chrome' : '');
+      card.__it = it;
+      var label;
+      if (it.kind === 'chrome') label = it.label;
+      else if (it.kind === 'static' && !it.bound) label = 'Other content';
+      else {
+        secN++;
+        label = 'Section ' + secN +
+          (it.kind === 'pending' ? ' \u00b7 pattern \u2014 drag me' : ' \u00b7 drag me');
+      }
+      var srcEl = it.sec ? it.sec.sectionEl : it.node;
+      var stage = document.createElement('div');
+      stage.className = 'gogh-zoom-stage';
+      var clone = srcEl.cloneNode(true);
+      clone.removeAttribute('style');
+      [].slice.call(clone.querySelectorAll('[contenteditable]')).forEach(function (n2) { n2.removeAttribute('contenteditable'); });
+      [].slice.call(clone.querySelectorAll('.gogh-selected, .gogh-dragsrc, .gogh-textedit, .gogh-fan, .gogh-multisel')).forEach(function (n2) {
+        n2.classList.remove('gogh-selected', 'gogh-dragsrc', 'gogh-textedit', 'gogh-fan', 'gogh-multisel');
+      });
+      [].slice.call(clone.querySelectorAll('.gogh-pendbar')).forEach(function (n2) { n2.remove(); });
+      clone.classList.remove('gogh-pending');
+      stage.appendChild(clone);
+      stage.style.zoom = CARD_W / 1200;
+      stage.style.background = pageBg();
+      card.innerHTML = '<div class="gogh-zoom-label">' + label + '</div>';
+      card.appendChild(stage);
+      col.appendChild(card);
+    });
+    zoomOv.hidden = false;
+    var zdrag = null;
+    var cardsOf = function () { return [].slice.call(col.querySelectorAll('.gogh-zoom-card')); };
+    var lastDragMeta = null;
+    function zdragSigCheck(card) {
+      if (!lastDragMeta) return false;
+      if (pinnedSig(card) === lastDragMeta.origSig) return false;
+      col.insertBefore(card, lastDragMeta.origNext);
+      toast('That section can\u2019t move past other stored content yet.', { error: true });
+      return true;
+    }
+    var pinnedSig = function (card) {
+      return cardsOf().filter(function (c) { return c.classList.contains('is-chrome') && c.__it && c.__it.kind === 'static'; })
+        .map(function (p) { return (p.compareDocumentPosition(card) & 2) ? 'a' : 'b'; }).join('');
+    };
+    col.onpointerdown = function (ev) {
+      var card = ev.target.closest ? ev.target.closest('.gogh-zoom-card') : null;
+      if (!card || card.classList.contains('is-chrome')) return;
+      ev.preventDefault();
+      zdrag = { card: card, y0: ev.clientY, moved: false,
+        origNext: card.nextSibling, origSig: pinnedSig(card) };
+      try { col.setPointerCapture(ev.pointerId); } catch (err) {}
+    };
+    col.onpointermove = function (ev) {
+      if (!zdrag) return;
+      var dy = ev.clientY - zdrag.y0;
+      if (!zdrag.moved && Math.abs(dy) < 5) return;
+      zdrag.moved = true;
+      zdrag.card.classList.add('is-lifting');
+      zdrag.card.style.transform = 'translateY(' + dy + 'px)';
+      var r = zdrag.card.getBoundingClientRect();
+      var mid = r.top + r.height / 2;
+      cardsOf().forEach(function (other) {
+        if (other === zdrag.card || other.classList.contains('is-chrome')) return;
+        var or2 = other.getBoundingClientRect();
+        var omid = or2.top + or2.height / 2;
+        if (mid < omid && zdrag.card.compareDocumentPosition(other) & 2) {
+          other.before(zdrag.card);
+          zdrag.y0 = ev.clientY;
+          zdrag.card.style.transform = '';
+        } else if (mid > omid && zdrag.card.compareDocumentPosition(other) & 4) {
+          other.after(zdrag.card);
+          zdrag.y0 = ev.clientY;
+          zdrag.card.style.transform = '';
+        }
+      });
+    };
+    col.onpointercancel = function () {
+      if (!zdrag) return;
+      zdrag.card.classList.remove('is-lifting');
+      zdrag.card.style.transform = '';
+      zdrag = null;
+    };
+    col.onpointerup = function () {
+      if (!zdrag) return;
+      var card = zdrag.card;
+      var wasDrag = zdrag.moved;
+      lastDragMeta = { origSig: zdrag.origSig, origNext: zdrag.origNext };
+      zdrag = null;
+      card.classList.remove('is-lifting');
+      card.style.transform = '';
+      var it = card.__it;
+      if (!wasDrag) {
+        closeZoom();
+        (it.sec ? it.sec.wrapEl : it.node).scrollIntoView({ behavior: 'smooth', block: 'start' });
+        return;
+      }
+      // reordering across a stored non-gogh block would silently revert on
+      // publish (its position lives in the page's raw) — refuse honestly
+      if (zdragSigCheck(card)) return;
+      // move the page node to mirror the card's new column position
+      var node = it.node || (it.sec && it.sec.wrapEl);
+      if (!node) return;
+      var arr = cardsOf();
+      var i2 = arr.indexOf(card);
+      var before = null;
+      for (var k = i2 + 1; k < arr.length; k++) {
+        var itk = arr[k].__it;
+        if (!itk || itk.kind === 'chrome') continue;
+        before = itk.node || (itk.sec && itk.sec.wrapEl);
+        if (before) break;
+      }
+      pageParent.insertBefore(node, before || endMarker);
+      if (it.kind === 'sec') resyncContentOrder();
+      else { resolveAll(); refreshChip(); }
+      toast('Section moved.');
+    };
+  }
+  side.querySelector('.gogh-zoomopen').addEventListener('click', openZoom);
+
+  // ---------- marquee: drag on empty canvas to lasso a group ----------
+  var marq = null;
+  var marqBox = document.createElement('div');
+  marqBox.className = 'gogh-marquee';
+  marqBox.hidden = true;
+  document.body.appendChild(marqBox);
+  document.addEventListener('pointerdown', function (ev) {
+    if (!editing || drag || resize || hDrag || rotD || panelOpen || !picker.hidden) return;
+    if (ev.button !== 0 || ev.shiftKey) return;
+    var t = ev.target;
+    if (!t.classList || !t.classList.contains('gogh-section')) return;
+    var secM = S.filter(function (s) { return s.sectionEl === t; })[0];
+    if (!secM) return;
+    marq = { sec: secM, x0: ev.clientX, y0: ev.clientY, x1: ev.clientX, y1: ev.clientY, on: false };
+  });
+  document.addEventListener('pointermove', function (ev) {
+    if (!marq) return;
+    marq.x1 = ev.clientX;
+    marq.y1 = ev.clientY;
+    if (!marq.on && Math.hypot(marq.x1 - marq.x0, marq.y1 - marq.y0) < 6) return;
+    marq.on = true;
+    marqBox.style.left = Math.min(marq.x0, marq.x1) + 'px';
+    marqBox.style.top = Math.min(marq.y0, marq.y1) + 'px';
+    marqBox.style.width = Math.abs(marq.x1 - marq.x0) + 'px';
+    marqBox.style.height = Math.abs(marq.y1 - marq.y0) + 'px';
+    marqBox.hidden = false;
+  });
+  document.addEventListener('pointerup', function () {
+    if (!marq) return;
+    var m = marq;
+    marq = null;
+    marqBox.hidden = true;
+    if (!m.on) return;
+    var r = m.sec.sectionEl.getBoundingClientRect();
+    if (r.width < 10) return;
+    var s = r.width / W;
+    var rx0 = (Math.min(m.x0, m.x1) - r.left) / s, rx1 = (Math.max(m.x0, m.x1) - r.left) / s;
+    var ry0 = (Math.min(m.y0, m.y1) - r.top) / s, ry1 = (Math.max(m.y0, m.y1) - r.top) / s;
+    var hits = [];
+    m.sec.els.forEach(function (o, j) {
+      if (o.x < rx1 && o.x + o.w > rx0 && o.y < ry1 && o.y + o.h > ry0) hits.push(j);
+    });
+    if (hits.length >= 2) setMulti(m.sec, hits);
+    else if (hits.length === 1) placeHandles(m.sec, hits[0]);
+  });
+
+  // ---------- exploded layers: fan a stack out (programmatic only — the
+  // press-and-hold trigger was removed; it kept firing on slow clicks) ----------
+  var explodeSt = null;
+  function enterExplode(sec, cluster) {
+    exitExplode();
+    explodeSt = { sec: sec, cluster: cluster };
+    sec.sectionEl.classList.add('gogh-exploded');
+    sec.sectionEl.style.perspective = '1400px';
+    hideHandles();
+    var n = cluster.length;
+    cluster.forEach(function (idx, ci) {
+      var node = sec.nodes[idx];
+      if (!node) return;
+      var e = sec.els[idx];
+      var spread = ci - (n - 1) / 2;
+      node.classList.add('gogh-fan');
+      node.style.zIndex = 9990 + ci;
+      node.style.transform =
+        (e.rot ? 'rotate(' + e.rot + 'deg) ' : '') +
+        'translate(' + Math.round(spread * 56) + 'px,' + Math.round(spread * -44) + 'px) ' +
+        'translateZ(' + (ci * 48) + 'px) rotate(' + (spread * 2.5) + 'deg)';
+    });
+  }
+  function exitExplode() {
+    if (!explodeSt) return;
+    var st = explodeSt;
+    explodeSt = null;
+    st.sec.sectionEl.classList.remove('gogh-exploded');
+    st.sec.sectionEl.style.perspective = '';
+    st.cluster.forEach(function (idx) {
+      var node = st.sec.nodes[idx];
+      if (!node) return;
+      node.classList.remove('gogh-fan');
+      node.style.zIndex = '';
+      node.style.transform = '';
+    });
+  }
+  document.addEventListener('keydown', function (ev) {
+    if (ev.key === 'Escape' && explodeSt) { exitExplode(); ev.stopPropagation(); }
+    else if (ev.key === 'Escape' && multiSel) { clearMulti(); ev.stopPropagation(); }
+  }, true);
+  document.addEventListener('pointerdown', function (ev) {
+    if (!multiSel || ev.shiftKey) return;
+    if (ev.target.closest && ev.target.closest('.gogh-side, .gogh-panel, .gogh-secbar, .gogh-elbar, .gogh-marquee')) return;
+    var member = false;
+    multiSel.idxs.forEach(function (j) {
+      var n = multiSel.sec.nodes[j];
+      if (n && (n === ev.target || n.contains(ev.target))) member = true;
+    });
+    if (!member) clearMulti();
+  }, true);
+
+  // ---------- live mobile mirror ----------
+  var MIRROR_W = 250, MIRROR_DESIGN = 360;
+  var mirror = document.createElement('div');
+  mirror.className = 'gogh-mirror';
+  mirror.hidden = true;
+  mirror.innerHTML =
+    '<div class="gogh-mirror-head"><span>Mobile \u00b7 live</span>' +
+    '<button type="button" class="gogh-sbtn gogh-mirror-close" title="Hide">\u2715</button></div>' +
+    '<div class="gogh-mirror-frame"><div class="gogh-mirror-vp"><div class="gogh-mirror-stage"></div></div></div>';
+  document.body.appendChild(mirror);
+  // the stage is a static clone — no interactivity runtime — so the nav's
+  // hamburger would be a dead control ("mobile menu does not open"). Toggle
+  // the overlay classes ourselves, and keep preview links from navigating.
+  // the mirror is its own little world: pointerdowns inside it must not
+  // reach the page-level editor handlers (deselect etc.), whose DOM cleanup
+  // trips the mutation observer and rebuilds the stage 120ms later — the
+  // "menu opens then glitches closed" report
+  mirror.addEventListener('pointerdown', function (ev) { ev.stopPropagation(); });
+  mirror.addEventListener('click', function (ev) {
+    var openBtn = ev.target.closest && ev.target.closest('.wp-block-navigation__responsive-container-open');
+    if (openBtn) {
+      ev.preventDefault();
+      ev.stopPropagation();
+      var nav = openBtn.closest('nav');
+      var mc = nav && nav.querySelector('.wp-block-navigation__responsive-container');
+      if (mc) mc.classList.add('is-menu-open', 'has-modal-open');
+      return;
+    }
+    var closeBtn = ev.target.closest && ev.target.closest('.wp-block-navigation__responsive-container-close');
+    if (closeBtn) {
+      ev.preventDefault();
+      ev.stopPropagation();
+      var mc2 = closeBtn.closest('.wp-block-navigation__responsive-container');
+      if (mc2) mc2.classList.remove('is-menu-open', 'has-modal-open');
+      return;
+    }
+    var a = ev.target.closest && ev.target.closest('.gogh-mirror-stage a');
+    if (a) ev.preventDefault();
+  });
+  var mirrorBtnSide = side.querySelector('.gogh-mirroropen');
+  var mirrorT = null;
+  var mirrorObs = new MutationObserver(function () { scheduleMirror(); });
+  function pageBg() {
+    // sections with no background inherit the page's — miniatures must too
+    var b = getComputedStyle(document.body).backgroundColor;
+    if (!b || b === 'rgba(0, 0, 0, 0)' || b === 'transparent') {
+      b = getComputedStyle(document.documentElement).backgroundColor;
+    }
+    return (!b || b === 'rgba(0, 0, 0, 0)' || b === 'transparent') ? '#fff' : b;
+  }
+  function refreshMirror() {
+    if (mirror.hidden) return;
+    var stage = mirror.querySelector('.gogh-mirror-stage');
+    var menuWasOpen = !!stage.querySelector('.wp-block-navigation__responsive-container.is-menu-open');
+    stage.innerHTML = '';
+    mirrorObs.disconnect();
+    // the whole page, in true DOM order — freeform sections (header, content,
+    // footer) AND native content: pasted holders awaiting publish plus
+    // published native blocks (e.g. HTML sections never made freeform)
+    var items = [];
+    // native site chrome frames the preview (freeform chrome arrives via S)
+    ['header', 'footer'].forEach(function (area) {
+      var pe = partElForArea(area);
+      if (pe && !pe.querySelector('.gogh-wrap')) items.push({ live: pe, src: pe });
+    });
+    S.forEach(function (sec) {
+      if (sec.sectionEl) items.push({ live: sec.wrapEl || sec.sectionEl, src: sec.sectionEl, sec: sec });
+    });
+    pendingBlocks.forEach(function (p) {
+      if (p.el && p.el.isConnected) items.push({ live: p.el, src: p.el });
+    });
+    topBlockNodes().forEach(function (n) {
+      if (n.tagName !== 'STYLE') items.push({ live: n, src: n });
+    });
+    items.sort(function (a, b) {
+      return (a.live.compareDocumentPosition(b.live) & Node.DOCUMENT_POSITION_FOLLOWING) ? -1 : 1;
+    });
+    items.forEach(function (it) {
+      mirrorObs.observe(it.src, { subtree: true, childList: true, characterData: true });
+      var clone = it.src.cloneNode(true);
+      if (it.sec) clone.removeAttribute('style');
+      [].slice.call(clone.querySelectorAll('[contenteditable]')).forEach(function (n) { n.removeAttribute('contenteditable'); });
+      [].slice.call(clone.querySelectorAll('.gogh-pendbar, .gogh-navadd, .gogh-logochip')).forEach(function (n) { n.remove(); });
+      [].slice.call(clone.querySelectorAll('.gogh-selected, .gogh-dragsrc, .gogh-textedit, .gogh-fan')).forEach(function (n) {
+        n.classList.remove('gogh-selected', 'gogh-dragsrc', 'gogh-textedit', 'gogh-fan');
+        n.style.transform = '';
+        n.style.zIndex = '';
+      });
+      clone.classList.remove('gogh-exploded', 'gogh-pending');
+      stage.appendChild(clone);
+    });
+    if (menuWasOpen) {
+      var mc0 = stage.querySelector('.wp-block-navigation__responsive-container');
+      if (mc0) mc0.classList.add('is-menu-open', 'has-modal-open');
+    }
+    // zoom (not transform) so the scroll extent shrinks with the content
+    // while container queries still see a 360px viewport
+    stage.style.zoom = MIRROR_W / MIRROR_DESIGN;
+    var frame = mirror.querySelector('.gogh-mirror-frame');
+    frame.style.background = pageBg();
+  }
+  function scheduleMirror() {
+    if (mirror.hidden) return;
+    clearTimeout(mirrorT);
+    mirrorT = setTimeout(refreshMirror, 120);
+  }
+  function openMirror() {
+    mirror.hidden = false;
+    mirrorBtnSide.classList.add('is-active');
+    try { localStorage.setItem('gogh-mirror', '1'); } catch (err) {}
+    refreshMirror();
+  }
+  function closeMirror() {
+    mirror.hidden = true;
+    mirrorBtnSide.classList.remove('is-active');
+    mirrorObs.disconnect();
+    try { localStorage.setItem('gogh-mirror', '0'); } catch (err) {}
+  }
+  // the mirror rides along: as you scroll the page it follows the section
+  // in view and scrolls its own little viewport in step
+  var mirrorScrollT = null;
+  function syncMirrorScroll() {
+    if (mirror.hidden) return;
+    var vp = mirror.querySelector('.gogh-mirror-vp');
+    var denom = Math.max(1, document.documentElement.scrollHeight - window.innerHeight);
+    var p = Math.max(0, Math.min(1, window.scrollY / denom));
+    var range = vp.scrollHeight - vp.clientHeight;
+    if (range > 0) vp.scrollTo({ top: p * range, behavior: 'smooth' });
+  }
+  window.addEventListener('scroll', function () {
+    if (mirror.hidden) return;
+    clearTimeout(mirrorScrollT);
+    mirrorScrollT = setTimeout(syncMirrorScroll, 110);
+  }, { passive: true });
+  mirrorBtnSide.addEventListener('click', function () {
+    if (mirror.hidden) openMirror(); else closeMirror();
+  });
+  mirror.querySelector('.gogh-mirror-close').addEventListener('click', closeMirror);
+  document.addEventListener('pointerup', function () { scheduleMirror(); });
+  try {
+    // never auto-open during a test run — whole-page re-clones mid-suite
+    // add noise the tests don't deserve
+    if (wantEdit && localStorage.getItem('gogh-mirror') === '1' && location.search.indexOf('gogh-test') === -1) {
+      mirror.hidden = false;
+      mirrorBtnSide.classList.add('is-active');
+    }
+  } catch (err) {}
+
   window.__gogh = {
+    mirror: { open: openMirror, close: closeMirror, refresh: refreshMirror, el: mirror },
+    explode: { enter: enterExplode, exit: exitExplode, state: function () { return explodeSt; } },
+    multi: { set: setMulti, clear: clearMulti, state: function () { return multiSel; } },
+    zoom: { open: openZoom, close: closeZoom, el: zoomOv },
+    reorderSection: reorderSection,
+    reorderNavRaw: reorderNavRaw,
+    stickyRawToggle: stickyRawToggle,
+    chromeDialsRead: chromeDialsRead,
+    inkWidthOf: inkWidthOf,
+    themeFontSizeList: themeFontSizeList,
+    paletteRoles: paletteRoles,
+    composeFaq: composeFaq,
+    openPanel: openPanel,
+    composeTabs: composeTabs,
+    composeCarousel: composeCarousel,
+    composeWall: composeWall,
+    mediaPool: mediaPool,
+    tplEls: tplEls,
+    chromeDialsApply: chromeDialsApply,
+    insertGoghPattern: insertGoghPattern,
+    addHtmlSection: addHtmlSection,
+    startChromeCycle: startChromeCycle,
+    openPicker: openPicker,
+    navLinkMarkup: navLinkMarkup,
+    chromeEdits: function () { return chromeLightEdits; },
+    bindChromeTest: function (el, raw) {
+      var e = { el: el, raw: raw, savedRaw: raw, chromePart: true, partId: 0, title: 'test chrome' };
+      chromeLightEdits.push(e);
+      bindPending(e);
+      return e;
+    },
+    pending: function () { return pendingBlocks; },
+    storedEdits: function () { return storedEdits; },
+    previewVariation: previewVariation,
+    clearVariationPreview: clearVariationPreview,
+    initStoredEdits: initStoredEdits,
+    bindStoredTest: function (el, raw) {
+      var e = { el: el, raw: raw, savedRaw: raw, stored: true, selfBlock: true, title: 'test stored' };
+      storedEdits.push(e);
+      bindPending(e);
+      return e;
+    },
     get state() {
       return { editing: editing, sections: S.length, sel: sel ? { i: sel.i } : null,
         drag: !!drag, resize: !!resize, history: history.length, hIdx: hIdx };
@@ -2699,6 +8677,15 @@
     sections: function () { return S; },
     showHbar: function (i) { placeHbar(S[i]); },
     openShapePanel: openShapePanel,
+    openHeaderPanel: openHeaderPanel,
+    chromeColorApply: chromeColorApply,
+    headerLooks: headerLooks,
+    openSecBgPanel: openSecBgPanel,
+    scan: scanDomWithRaw,
+    addSection: addSection,
+    renderSection: renderSection,
+    pushState: pushState,
+    templates: function () { return TEMPLATES; },
     resolveAll: resolveAll,
     reflowPush: reflowPush,
     measure: measureTextHeights,
@@ -2718,8 +8705,8 @@
     publish: publish,
     isDirty: isDirty,
     parseTopBlocks: parseTopBlocks,
-    convertScan: convertScan,
     convertBlock: convertBlock,
+    convertChrome: convertChrome,
     restore: restoreState,
     setEditing: setEditing,
     deleteSection: deleteSection,
@@ -2732,12 +8719,62 @@
     stepFontSize: stepFontSize,
     setSecBg: setSecBg,
     buildBlocks: buildAllBlocks,
+    buildV3: function () { return realSections().map(buildSectionBlocksV3).join('\n\n'); },
     mergeContent: mergeContent,
+    closePanel: closePanel,
+    addElementAt: addElementAtViewport,
+    addElementToSection: addElementToSection,
+    composeFeaturedProduct: composeFeaturedProduct,
+    contrastSentinel: contrastSentinel,
+    sectionThemes: sectionThemes,
+    rearrangeVariants: rearrangeVariants,
+    openRearrangePanel: openRearrangePanel,
+    openShapePanel: openShapePanel,
+    openHeaderPanel: openHeaderPanel,
+    chromeColorApply: chromeColorApply,
+    headerLooks: headerLooks,
+    scaleFontSizes: scaleFontSizes,
+    applySectionTheme: applySectionTheme,
+    openSecAdd: openSecAddPanel,
+    showGuides: showGuides,
+    addShape: addShapeAtViewport,
+    shapeDefs: function () { return SHAPE_DEFS; },
+    resequenceToDom: resequenceToDom,
+    gatherRawUnits: gatherRawUnits,
+    parseNavModel: parseNavModel,
+    serializeNavModel: serializeNavModel,
+    sanitizePastedHtml: sanitizePastedHtml,
+    openPageStylePanel: openPageStylePanel,
+    goghHasNativeContent: goghHasNativeContent,
+    wrapImageIntoText: wrapImageIntoText,
+    wrapTargetIdx: wrapTargetIdx,
+    bindPending: bindPending,
+    convertStash: function () { return convertStash; },
+    deleteSectionRaw: deleteSection,
+    contrastRatio: contrastRatio,
+    brandToVariation: brandToVariation,
+    cssColorToHex: cssColorToHex,
+    effectiveBgHex: effectiveBgHex,
+    markSwatchLegibility: markSwatchLegibility,
+    openBrandForm: openBrandForm,
+    openMenuManager: openMenuManager,
   };
+  // the running build, visible at a glance: hover the gogh side tab, or read
+  // it in the console — kills "is this tab stale?" debugging forever
+  var GOGH_BUILD = (document.querySelector('script[src*="gogh-editor.js"]') || { src: '' }).src.split('ver=')[1] || 'dev';
+  window.__gogh.build = GOGH_BUILD;
+  sideTab.title = 'gogh ' + GOGH_BUILD;
+  var verEl = side.querySelector('.gogh-side-ver');
+  if (verEl) verEl.textContent = GOGH_BUILD.replace('-chrome', '');
+  try { console.info('[gogh] ' + GOGH_BUILD); } catch (e0) {}
   document.dispatchEvent(new CustomEvent('gogh:ready'));
 
   // ---------- keyboard ----------
   window.addEventListener('keydown', function (ev) {
+    if (ev.key === 'Escape' && panelOpen) {
+      closePanel();
+      return;
+    }
     if (!editing || panelOpen || !picker.hidden) return;
     var a = document.activeElement;
     var typing = a && (a.isContentEditable || /INPUT|TEXTAREA/.test(a.tagName));
@@ -2770,12 +8807,29 @@
       return;
     }
     if (typing) return;
-    if ((ev.key === 'Delete' || ev.key === 'Backspace') && sel) {
+    if ((ev.key === 'Delete' || ev.key === 'Backspace') && (sel || multiSel)) {
       ev.preventDefault();
       deleteSelected();
       return;
     }
-    if (!sel || !/^Arrow/.test(ev.key)) return;
+    if ((!sel && !multiSel) || !/^Arrow/.test(ev.key)) return;
+    if (multiSel) {
+      var mstep = ev.shiftKey ? BASE : 1;
+      var msec2 = multiSel.sec;
+      multiSel.idxs.forEach(function (j) {
+        var o = msec2.els[j];
+        if (ev.key === 'ArrowLeft') o.x = Math.max(0, o.x - mstep);
+        else if (ev.key === 'ArrowRight') o.x = Math.min(W - o.w, o.x + mstep);
+        else if (ev.key === 'ArrowUp') o.y = Math.max(0, o.y - mstep);
+        else if (ev.key === 'ArrowDown') o.y = o.y + mstep;
+      });
+      ev.preventDefault();
+      resolveAndApply(msec2);
+      clearTimeout(textTimer);
+      textTimer = setTimeout(pushState, 500);
+      refreshChip();
+      return;
+    }
     var step = ev.shiftKey ? BASE : 1;
     var sec = sel.sec;
     var e = sec.els[sel.i];
@@ -2803,11 +8857,18 @@
   // ---------- toolbar actions ----------
   editBtn.addEventListener('click', function () { setEditing(true); });
   // ---------- instant tooltips (native title has a multi-second delay) ----------
+  // One persistent tooltip that GLIDES: first hover rises in with a settle;
+  // moving along a toolbar it slides to the next control and morphs its
+  // width around the new text instead of blinking out and in.
   var tipEl = document.createElement('div');
   tipEl.className = 'gogh-tip';
   tipEl.hidden = true;
+  var tipTextEl = document.createElement('span');
+  tipTextEl.className = 'gogh-tip-text';
+  tipEl.appendChild(tipTextEl);
   document.body.appendChild(tipEl);
   var tipTimer = null;
+  var tipHideT = null;
   var tipVisibleUntil = 0;
   function showTipNow(el) {
     var text = el.getAttribute('title') || el.dataset.tip || '';
@@ -2817,32 +8878,92 @@
       text = el.dataset.tip;
     }
     if (!text) return;
-    tipEl.textContent = text;
+    clearTimeout(tipHideT);
+    var gliding = !tipEl.hidden && tipEl.classList.contains('is-in');
+    var oldW = gliding ? tipEl.offsetWidth : 0;
+    tipEl.classList.remove('is-out');
     tipEl.hidden = false;
-    var r = el.getBoundingClientRect();
+    // measure at natural size before deciding geometry
+    tipEl.classList.remove('is-glide');
+    tipEl.style.width = 'auto';
+    tipTextEl.textContent = text;
     var tw = tipEl.offsetWidth;
+    var th = tipEl.offsetHeight;
+    var r = el.getBoundingClientRect();
     var left = Math.max(6, Math.min(r.left + r.width / 2 - tw / 2, window.innerWidth - tw - 6));
     var top = r.bottom + 8;
-    if (top + tipEl.offsetHeight > window.innerHeight - 6) top = r.top - tipEl.offsetHeight - 8;
-    tipEl.style.left = left + 'px';
-    tipEl.style.top = top + 'px';
+    if (top + th > window.innerHeight - 6) top = r.top - th - 8;
+    if (gliding) {
+      // FLIP: start from the old width, glide position and width together.
+      // The label fades IN as the pill travels — swapping it instantly left
+      // the new text rattling around the old width (visible spare space).
+      tipTextEl.style.transition = 'none';
+      tipTextEl.style.opacity = '0';
+      tipEl.style.width = oldW + 'px';
+      void tipEl.offsetWidth;
+      tipEl.classList.add('is-glide');
+      tipEl.style.width = tw + 'px';
+      tipEl.style.left = left + 'px';
+      tipEl.style.top = top + 'px';
+      tipTextEl.style.transition = 'opacity 0.1s ease 0.06s';
+      tipTextEl.style.opacity = '1';
+    } else {
+      tipTextEl.style.transition = 'none';
+      tipTextEl.style.opacity = '1';
+      tipEl.style.width = tw + 'px';
+      tipEl.style.left = left + 'px';
+      tipEl.style.top = top + 'px';
+      tipEl.classList.remove('is-in');
+      void tipEl.offsetWidth; // restart the entrance
+      tipEl.classList.add('is-in');
+    }
+    if (gliding) tipEl.classList.add('is-in');
   }
-  function hideTip() {
+  function hideTip(instant) {
     clearTimeout(tipTimer);
-    if (!tipEl.hidden) tipVisibleUntil = Date.now() + 400;
-    tipEl.hidden = true;
+    if (tipEl.hidden) return;
+    tipVisibleUntil = Date.now() + 400;
+    if (instant === true) {
+      tipEl.hidden = true;
+      tipEl.classList.remove('is-in', 'is-glide', 'is-out');
+      return;
+    }
+    clearTimeout(tipHideT);
+    // grace beat: the PADDING between two toolbar buttons also fires a
+    // hide, and stripping is-in there made the next button replay the
+    // whole entrance (the tip visibly dropped and rose again). Hold the
+    // pill steady briefly — reaching another control cancels the hide and
+    // the glide continues; a real leave still fades out.
+    tipHideT = setTimeout(function () {
+      tipEl.classList.remove('is-in', 'is-glide');
+      tipEl.classList.add('is-out');
+      tipHideT = setTimeout(function () {
+        tipEl.hidden = true;
+        tipEl.classList.remove('is-out');
+      }, 130);
+    }, 120);
   }
   document.addEventListener('pointerover', function (ev) {
     if (!(ev.target instanceof Element)) return;
     var el = ev.target.closest('[title], [data-tip]');
     if (!el || !/gogh-/.test(el.className)) { hideTip(); return; }
     clearTimeout(tipTimer);
-    // first hover waits a beat; moving along a toolbar is instant
+    // first hover waits a beat; moving along a toolbar is instant — and a
+    // RUSHING pointer is just passing through, so the tip waits for calm
     if (Date.now() < tipVisibleUntil || !tipEl.hidden) showTipNow(el);
-    else tipTimer = setTimeout(function () { showTipNow(el); }, 140);
+    else {
+      var arm = function () {
+        if (pointerRushing()) { tipTimer = setTimeout(arm, 100); return; }
+        showTipNow(el);
+      };
+      tipTimer = setTimeout(arm, 140);
+    }
   });
-  document.addEventListener('pointerdown', hideTip, true);
-  document.addEventListener('scroll', hideTip, true);
+  document.addEventListener('keydown', function (ev) {
+    if (ev.key === 'Escape' && panelOpen) closePanel();
+  });
+  document.addEventListener('pointerdown', function () { hideTip(true); }, true);
+  document.addEventListener('scroll', function () { hideTip(true); }, true);
 
   // ---------- publish state: status chip, toasts, exit panel ----------
   var savedSnap = null;
@@ -2851,7 +8972,12 @@
   var backedUp = false;
   var discarding = false;
 
-  function isDirty() { return savedSnap !== null && serialize() !== savedSnap; }
+  function isDirty() {
+    if (pendingBlocks.length) return true;
+    if (chromeLightEdits.some(function (e) { return e.savedRaw != null && e.raw !== e.savedRaw; })) return true;
+    if (storedEdits.some(function (e) { return e.raw !== e.savedRaw || e.deleted; })) return true;
+    return savedSnap !== null && serialize() !== savedSnap;
+  }
 
   var chip = document.createElement('div');
   chip.className = 'gogh-chip';
@@ -2921,13 +9047,55 @@
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'X-WP-Nonce': cfg.nonce },
         credentials: 'same-origin',
-        body: JSON.stringify({ content: mergeContent(raw) }),
+        body: JSON.stringify({ content: resequenceToDom(mergeContent(raw), gatherRawUnits()) }),
       });
     }).then(function (res) {
       if (!res.ok) throw new Error('HTTP ' + res.status);
       return res.json();
     }).then(function (post) {
       if (post.content && post.content.raw) rawCache = post.content.raw;
+      // native pattern sections are stored now: they graduate to ordinary
+      // page content (the per-block Make freeform machinery owns them next).
+      // gogh-pended keeps the EXACT presentation (full bleed, zero margins)
+      // — stripping it caused a publish-moment reflow: the block-gap band
+      // returned and the canvas shifted sideways.
+      pendingBlocks.forEach(function (pe) {
+        var bar = pe.el.querySelector(':scope > .gogh-pendbar');
+        if (bar) bar.remove();
+        pe.el.classList.remove('gogh-pending');
+        pe.el.classList.add('gogh-pended');
+      });
+      pendingBlocks = [];
+      // everything just stored — rebuild the stored-edit bindings against the
+      // fresh content so the graduated blocks (and prior edits) stay editable
+      initStoredEdits();
+      // site chrome saves to its template part — one write, every page.
+      // Resolve ids first (booted freeform chrome has none), and AWAIT the
+      // saves: publish isn't done until the header/footer actually saved.
+      return resolveChromeIds().then(function () {
+        var unsaved = S.filter(function (s) { return s.chrome && !s.chrome.id; });
+        if (unsaved.length) {
+          throw new Error('could not find the ' + unsaved[0].chrome.area + ' template part');
+        }
+        return Promise.all(S.filter(function (s) { return s.chrome && s.chrome.id; }).map(function (s) {
+          return fetch(tpUrl(s.chrome.id), {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-WP-Nonce': cfg.nonce },
+            credentials: 'same-origin',
+            body: JSON.stringify({ content: buildSectionBlocks(s) }),
+          }).then(function (r) {
+            if (!r.ok) throw new Error('the ' + s.chrome.area + ' did not save');
+            toast('Site ' + s.chrome.area + ' updated across every page.');
+          });
+        }).concat(chromeLightEdits
+          .filter(function (e) { return e.savedRaw != null && e.raw !== e.savedRaw; })
+          .map(function (e) {
+            return saveChromeEntry(e).then(function () {
+              toast(e.title + ' updated across every page.');
+            });
+          })));
+      });
+    }).then(function () {
       // conversions are now committed: sections are ordinary gogh spans
       S.forEach(function (s) { s.srcSig = null; });
       savedSnap = serialize();
@@ -2978,10 +9146,13 @@
     dismissBackup(new Date().toISOString().slice(0, 19));
     location.reload();
   });
-  side.querySelector('.gogh-close').addEventListener('click', function () {
+  // one exit, not two: the drawer's ✕ is gone — the admin bar's Exit link
+  // owns leaving, and the dirty-check panel intercepts it when work is
+  // unpublished (a clean exit navigates as the link always did)
+  var exitLink = document.querySelector('#wp-admin-bar-gogh-edit a');
+  if (exitLink) exitLink.addEventListener('click', function (ev) {
     refreshChip(); // text re-measures can dirty the model without a pushState
-    if (isDirty()) { exitPanel.hidden = false; return; }
-    setEditing(false);
+    if (editing && isDirty()) { ev.preventDefault(); exitPanel.hidden = false; }
   });
 
   window.addEventListener('beforeunload', function (ev) {
@@ -2996,7 +9167,12 @@
   }
   setInterval(function () {
     if (!editing || chipBusy || !isDirty()) return;
-    var snap = serialize();
+    // the suite wrecks the page BY DESIGN (delete-everything tests) — backing
+    // that up would shadow the real fixture on every next boot
+    if (/gogh-test/.test(location.search)) return;
+    // pending native sections live outside serialize() — fingerprint them
+    // too, or pending-only changes would skip the backup
+    var snap = serialize() + '\u0000' + pendingBlocks.map(function (pe) { return pe.raw; }).join('\u0000');
     if (snap === lastAutoSnap) return;
     (rawCache !== null ? Promise.resolve(rawCache) : fetchRaw()).then(function (raw) {
       return fetch(autosaveUrl(), {
@@ -3057,7 +9233,7 @@
   }
   function canonSec(d) {
     return { els: (d.els || []).map(projEl), minH: d.minH || null, bg: d.bg || null,
-      divider: d.divider || null, bgImage: d.bgImage || null, bgId: d.bgId || null };
+      divider: d.divider || null, bgImage: d.bgImage || null, bgId: d.bgId || null, bgA: d.bgA != null ? d.bgA : null, theme: d.theme || null, fill: d.fill || null };
   }
   function backupDiffers(data) {
     return JSON.stringify(data.map(canonSec)) !== JSON.stringify(realSections().map(canonSec));
@@ -3101,106 +9277,11 @@
   // measure a Gutenberg block's rendered leaves into gogh elements.
   // containers (group/columns/cover) are flattened; unsupported content is
   // reported, never silently dropped.
-  function convertScan(root) {
-    var out = { els: [], bad: [] };
-    var rr = root.getBoundingClientRect();
-    if (rr.width < 10) return out;
-    var sx = W / rr.width;
-    function leaf(el, e) {
-      var r = el.getBoundingClientRect();
-      if (r.width < 2 || r.height < 2) return;
-      e.x = Math.max(0, Math.round((r.left - rr.left) * sx));
-      e.y = Math.max(0, Math.round((r.top - rr.top) * sx));
-      e.w = Math.max(16, Math.round(r.width * sx));
-      e.h = Math.max(16, Math.round(r.height * sx));
-      var fm = (el.className + '').match(/has-([a-z0-9-]+)-font-size/);
-      if (fm) e.fs = fm[1];
-      var am = (el.className + '').match(/has-text-align-(center|right)/);
-      if (am) e.align = am[1];
-      var cm = (el.className + '').match(/has-([a-z0-9-]+)-color/g);
-      if (cm) {
-        for (var ci = 0; ci < cm.length; ci++) {
-          var cslug = cm[ci].replace(/^has-/, '').replace(/-color$/, '');
-          if (cslug !== 'text' && cslug.indexOf('background') === -1 && cslug !== 'link') { e.color = cslug; break; }
-        }
-      }
-      out.els.push(e);
-    }
-    function walk(el) {
-      [].slice.call(el.children).forEach(function (c) {
-        var cl = c.classList, tag = c.tagName;
-        if (/^H[1-6]$/.test(tag)) return leaf(c, { type: 'heading', text: cleanInline(c.innerHTML).trim() });
-        if (tag === 'P') return leaf(c, { type: 'para', text: cleanInline(c.innerHTML).trim() });
-        if (cl.contains('wp-block-buttons')) {
-          [].slice.call(c.querySelectorAll('.wp-block-button')).forEach(function (b) {
-            var a = b.querySelector('a');
-            var lc = (a && a.className) || '';
-            var bgm = lc.match(/has-([a-z0-9-]+)-background-color/);
-            var txm = lc.replace(/has-[a-z0-9-]+-background-color/g, '').match(/has-((?!text-color)[a-z0-9-]+)-color/);
-            leaf(b, { type: 'button',
-              text: ((a || b).textContent || '').trim(),
-              href: (a && a.getAttribute('href') && a.getAttribute('href') !== '#') ? a.getAttribute('href') : null,
-              btnBg: bgm ? bgm[1] : null,
-              btnText: txm ? txm[1] : null,
-              ghost: b.className.indexOf('is-style-outline') !== -1 });
-          });
-          return;
-        }
-        if (tag === 'FIGURE' && cl.contains('wp-block-image')) {
-          var img = c.querySelector('img');
-          var e = { type: 'image' };
-          if (img) {
-            e.src = img.currentSrc || img.src || null;
-            e.alt = img.alt || null;
-            var mm = (img.className || '').match(/wp-image-(\d+)/);
-            e.mediaId = mm ? +mm[1] : null;
-          }
-          return leaf(c, e);
-        }
-        // pure layout / decoration: nothing to carry over
-        if (cl.contains('wp-block-spacer') || tag === 'HR' ||
-            cl.contains('wp-block-cover__background') ||
-            cl.contains('wp-block-cover__image-background') || tag === 'VIDEO') return;
-        // containers: flatten
-        if (cl.contains('wp-block-group') || cl.contains('wp-block-columns') ||
-            cl.contains('wp-block-column') || cl.contains('wp-block-cover') ||
-            cl.contains('wp-block-cover__inner-container') || !c.className) return walk(c);
-        if ((c.textContent || '').trim() || c.querySelector('img')) {
-          out.bad.push((c.className + '').split(' ')[0] || tag.toLowerCase());
-        }
-      });
-    }
-    // the clicked block may itself be a single leaf (a bare paragraph,
-    // heading, image or buttons row) rather than a container
-    var rtag = root.tagName, rcl = root.classList;
-    if (/^H[1-6]$/.test(rtag)) leaf(root, { type: 'heading', text: cleanInline(root.innerHTML).trim() });
-    else if (rtag === 'P') leaf(root, { type: 'para', text: cleanInline(root.innerHTML).trim() });
-    else if (rcl.contains('wp-block-buttons')) {
-      [].slice.call(root.querySelectorAll('.wp-block-button')).forEach(function (b) {
-        var a = b.querySelector('a');
-        leaf(b, { type: 'button',
-          text: ((a || b).textContent || '').trim(),
-          href: (a && a.getAttribute('href') && a.getAttribute('href') !== '#') ? a.getAttribute('href') : null,
-          ghost: b.className.indexOf('is-style-outline') !== -1 });
-      });
-    } else if (rtag === 'FIGURE' && rcl.contains('wp-block-image')) {
-      var rimg = root.querySelector('img');
-      var re2 = { type: 'image' };
-      if (rimg) {
-        re2.src = rimg.currentSrc || rimg.src || null;
-        re2.alt = rimg.alt || null;
-        var rmm = (rimg.className || '').match(/wp-image-(\d+)/);
-        re2.mediaId = rmm ? +rmm[1] : null;
-      }
-      leaf(root, re2);
-    } else walk(root);
-    return out;
-  }
-
   // non-gogh top-level blocks eligible for conversion
   function topBlockNodes() {
     return [].slice.call(pageParent.children).filter(function (n) {
-      return n.nodeType === 1 && !n.classList.contains('gogh-wrap');
+      return n.nodeType === 1 && !n.classList.contains('gogh-wrap') &&
+        !n.classList.contains('gogh-pending');
     });
   }
 
@@ -3230,11 +9311,11 @@
       }
       var idx = statics.indexOf(node);
       if (idx === -1) throw new Error('block not found');
-      var scan = convertScan(node);
-      if (scan.bad.length) {
-        var uniq = scan.bad.filter(function (v, i, a) { return a.indexOf(v) === i; });
-        throw new Error('This block contains content gogh can\u2019t edit yet: ' + uniq.join(', '));
-      }
+      // the modern scanner: typed leaves with typography, styled groups as
+      // boxes, and anything exotic (quotes, embeds…) becomes a draggable
+      // widget instead of an error — we have this block's exact markup
+      var blockRaw = raw.slice(freeSpans[idx].start, freeSpans[idx].end);
+      var scan = scanDomWithRaw(node, blockRaw, { loose: true, rootIsBlock: true });
       if (!scan.els.length) throw new Error('gogh found nothing it can edit in this block.');
 
       var rr = node.getBoundingClientRect();
@@ -3252,6 +9333,7 @@
           if (oc && oc !== 'rgba(0, 0, 0, 0)') sec.bg = oc;
         }
       }
+      if (!sec.bg && scan.rootBg) sec.bg = scan.rootBg;
       if (!sec.bg) {
         var rc = getComputedStyle(node).backgroundColor;
         if (rc && rc !== 'rgba(0, 0, 0, 0)' && rc !== 'transparent') sec.bg = rc;
@@ -3259,7 +9341,8 @@
       sec.srcSig = sigOf(raw.slice(freeSpans[idx].start, freeSpans[idx].end));
       var marker = document.createComment('gogh-src');
       pageParent.insertBefore(marker, node);
-      convertStash[sec.srcSig] = { node: node, marker: marker };
+      convertStash[sec.srcSig] = { node: node, marker: marker,
+        raw: raw.slice(freeSpans[idx].start, freeSpans[idx].end) };
       pageParent.insertBefore(sec.wrapEl, node);
       node.remove();
       // S stays DOM-ordered
@@ -3279,16 +9362,4137 @@
     });
   }
 
+  // ---------- site chrome (header/footer template parts) as canvases ----------
+  function chromePartEls() {
+    return [].slice.call(document.querySelectorAll('.wp-block-template-part')).filter(function (el) {
+      return el.tagName === 'HEADER' || el.tagName === 'FOOTER';
+    });
+  }
+  function tpUrl(id) {
+    var base = cfg.restUrl.replace(/wp\/v2\/(pages|posts)\/\d+.*$/, 'wp/v2/template-parts');
+    return id ? base + '/' + encodeURIComponent(id) : base;
+  }
+  function innerRawOf(raw, span) {
+    var s = raw.slice(span.start, span.end);
+    var open = s.indexOf('-->');
+    var close = s.lastIndexOf('<!--');
+    if (open === -1 || close <= open) return null;
+    return { text: s.slice(open + 3, close), base: span.start + open + 3 };
+  }
+  var patternCache = null;
+  function fetchAreaPatterns(area) {
+    // the theme's own patterns AND WordPress's pattern-directory ones — the
+    // area signal is a category ('header') or a declared block type
+    // ('core/template-part/header'), same as the site editor uses
+    var pick = function (list) {
+      var inArea = list.filter(function (p) {
+        if (!p.name) return false;
+        var inCat = (p.categories || []).indexOf(area) !== -1;
+        var inBT = (p.block_types || []).some(function (b) {
+          return String(b).indexOf('template-part/' + area) !== -1;
+        });
+        return inCat || inBT;
+      });
+      // a few good choices, not a shelf of 24: when gogh's curated designs
+      // are present they ARE the pattern offer (the theme's real template
+      // parts still join from their own fetch); the theme-extra and
+      // remote-directory flood stays out. No gogh shelf → old behaviour.
+      var curated = inArea.filter(function (p) { return String(p.name).indexOf('gogh/') === 0; });
+      return curated.length ? curated : inArea;
+    };
+    if (patternCache) return Promise.resolve(pick(patternCache));
+    return fetch(GSROOT + 'block-patterns/patterns', {
+      headers: { 'X-WP-Nonce': cfg.nonce },
+      credentials: 'same-origin',
+    }).then(function (r) { return r.ok ? r.json() : Promise.reject(new Error('HTTP ' + r.status)); }).then(function (list) {
+      patternCache = list;
+      return pick(list);
+    }).catch(function () { return []; });
+  }
+  // the hand-picked shelf: James's curated favourites, in display order —
+  // theme patterns by full name plus gogh's own theme-agnostic ones
+  var GOGH_SHELF = [
+    'twentytwentyfive/hero-podcast',
+    'twentytwentyfive/page-link-in-bio-wide-margins',
+    'twentytwentyfive/services-team-photos',
+    'twentytwentyfive/banner-about-book',
+    'twentytwentyfive/banner-description-images-grid',
+    'twentytwentyfive/cta-grid-products-link',
+    'twentytwentyfive/media-instagram-grid',
+    'twentytwentyfive/page-coming-soon',
+    'twentytwentyfive/banner-intro',
+    'twentytwentyfive/contact-centered-social-link',
+    'twentytwentyfive/overlapped-images',
+    'twentytwentyfive/text-faqs',
+    'twentytwentyfive/cta-newsletter',
+    'twentytwentyfive/pricing-3-col',
+    'gogh/fullscreen-cover-image-gallery',
+    'gogh/fullwidth-headline-right',
+    'gogh/simple-call-to-action',
+    'gogh/three-column-pricing-table',
+  ];
+  // content patterns from the active theme (not chrome, not page shells):
+  // offered in the section picker and inserted as freeform sections
+  function fetchSectionPatterns() {
+    var all = patternCache
+      ? Promise.resolve(patternCache)
+      : fetch(GSROOT + 'block-patterns/patterns', {
+          headers: { 'X-WP-Nonce': cfg.nonce },
+          credentials: 'same-origin',
+        }).then(function (r) { return r.ok ? r.json() : Promise.reject(new Error('HTTP ' + r.status)); })
+          .then(function (list) { patternCache = list; return list; })
+          .catch(function () { return []; });
+    return all.then(function (list) {
+      var out = list.filter(function (p) {
+        var cats = p.categories || [];
+        var c = p.content || '';
+        // hard safety first — chrome and template plumbing never qualify,
+        // curated or not
+        var safe = p.name &&
+          cats.indexOf('header') === -1 && cats.indexOf('footer') === -1 &&
+          c.indexOf('wp:template-part') === -1 &&
+          c.indexOf('wp:post-') === -1 &&
+          c.indexOf('wp:comments') === -1 &&
+          c.indexOf('wp:query') === -1;
+        if (!safe) return false;
+        // the curated shelf skips the theme-prefix and bucket heuristics
+        // (it deliberately includes gogh/ patterns and _page-bucketed ones)
+        if (GOGH_SHELF.indexOf(p.name) !== -1) return true;
+        return p.name.indexOf(cfg.theme + '/') === 0 &&
+          // internal buckets: whole-page layouts and post-format scraps
+          !cats.some(function (cc) { return /_page$|post-format/.test(cc); });
+      });
+      // the "From {theme}" shelf must speak the ACTIVE theme's language:
+      // gogh's legacy fillers exist for themes with nothing to offer — a
+      // theme with real patterns leads with them (James saw TT5-era cards
+      // under "From Ollie")
+      var themed = out.filter(function (p) { return p.name.indexOf(cfg.theme + '/') === 0; });
+      if (themed.length >= 4) {
+        out = out.filter(function (p) { return p.name.indexOf('gogh/') !== 0; });
+      }
+      out.sort(function (a, b) {
+        return (a.name.indexOf(cfg.theme + '/') === 0 ? 0 : 1) -
+          (b.name.indexOf(cfg.theme + '/') === 0 ? 0 : 1);
+      });
+      return out;
+    });
+  }
+  function renderPattern(p) {
+    if (p.__rendered != null) return Promise.resolve(p.__rendered);
+    // gogh's own route: core's block-renderer omits the per-instance layout
+    // CSS the style engine generates during render, so grids/columns collapse
+    var opts = { headers: { 'X-WP-Nonce': cfg.nonce }, credentials: 'same-origin' };
+    return fetch(restQ(GSROOT.split('wp/v2/')[0] + 'gogh/v1/pattern', 'slug=' + encodeURIComponent(p.name)), opts)
+      .then(function (r) { return r.ok ? r.json() : Promise.reject(new Error('HTTP ' + r.status)); })
+      .then(function (d) {
+        var html = (d && d.rendered) || '';
+        if (html && d.css) html = '<style>' + d.css + '</style>' + html;
+        if (html) p.__rendered = html; // only SUCCESS is cached
+        return html;
+      })
+      .catch(function () {
+        // older/cached server without the route: core renderer, no layout CSS
+        return fetch(restQ(GSROOT + 'block-renderer/core/pattern', 'context=edit&attributes%5Bslug%5D=' + encodeURIComponent(p.name)), opts)
+          .then(function (r) { return r.ok ? r.json() : Promise.reject(new Error('HTTP ' + r.status)); })
+          .then(function (d) {
+            var html = (d && d.rendered) || '';
+            if (html) p.__rendered = html;
+            return html;
+          })
+          .catch(function () { return ''; });
+      });
+  }
+  var pendingBlocks = []; // native pattern sections awaiting publish
+  // published native/HTML blocks, re-bound for light editing every time
+  // editing turns on — publish must not be the end of click-to-edit
+  var storedEdits = [];
+  function initStoredEdits() {
+    fetchRaw().then(function (raw) {
+      storedEdits = [];
+      var spans = parseTopBlocks(raw);
+      var claimed = {};
+      S.forEach(function (s) { if (s.srcSig) claimed[s.srcSig] = true; });
+      // stored NON-gogh spans pair positionally with rendered non-gogh top
+      // nodes — the same mapping convertBlock trusts. Counts differ → bind
+      // nothing rather than bind wrongly.
+      var free = spans.filter(function (sp) {
+        if (sp.name === 'gogh/section') return false;
+        return !claimed[sigOf(raw.slice(sp.start, sp.end))];
+      });
+      var kids = topBlockNodes();
+      if (!free.length || !kids.length) return;
+      // a graduated holder (same-session publish) wraps SEVERAL top blocks —
+      // it consumes one span per rendered block child; bare blocks take one
+      var blockKids = function (el) {
+        return [].slice.call(el.children).filter(function (c) {
+          var tg = c.tagName;
+          return tg !== 'STYLE' && tg !== 'SCRIPT' && tg !== 'LINK' && tg !== 'TEMPLATE' &&
+            !(c.classList && c.classList.contains('gogh-pendbar'));
+        });
+      };
+      var out = [];
+      var si = 0;
+      for (var ki = 0; ki < kids.length; ki++) {
+        var kid = kids[ki];
+        var pended = kid.classList && kid.classList.contains('gogh-pended');
+        var m = pended ? Math.max(1, blockKids(kid).length) : 1;
+        if (si + m > free.length) return;
+        var seg = raw.slice(free[si].start, free[si + m - 1].end);
+        out.push({
+          el: kid, raw: seg, savedRaw: seg, stored: true,
+          selfBlock: !pended, title: 'Section',
+        });
+        si += m;
+      }
+      if (si !== free.length) return; // leftover spans: mapping untrusted
+      storedEdits = out;
+      out.forEach(bindPending);
+      placeConvertBtns();
+    }).catch(function () {});
+  }
+  function clampInsertIdx(idx) {
+    var footAt = -1;
+    S.forEach(function (s, k) { if (footAt === -1 && s.chrome && s.chrome.area === 'footer') footAt = k; });
+    return footAt === -1 ? idx : Math.min(idx, footAt);
+  }
+  function insertNative(raw, html, title, idx, before) {
+    if (idx == null) idx = S.length;
+    idx = clampInsertIdx(idx);
+    // arrives as REAL blocks — pixel-perfect, no conversion. Freeform is one
+    // click away on its overlay, like any page content.
+    var holder = document.createElement('div');
+    holder.className = 'gogh-pending alignfull has-global-padding is-layout-constrained';
+    holder.innerHTML = html;
+    var nextContent = null;
+    for (var ni = idx; ni < S.length; ni++) { if (!S[ni].chrome) { nextContent = S[ni]; break; } }
+    pageParent.insertBefore(holder, (before && before.isConnected) ? before : (nextContent ? nextContent.wrapEl : endMarker));
+    var entry = { el: holder, raw: raw || '', title: title || 'Section' };
+    pendingBlocks.push(entry);
+    var bar = document.createElement('div');
+    bar.className = 'gogh-pendbar';
+    bar.innerHTML =
+      (cfg.canConvert ? '<button type="button" class="gogh-btn gogh-btn-small gogh-pend-ff">\u2728 Make freeform</button>' : '') +
+      '<button type="button" class="gogh-btn gogh-btn-small gogh-pend-rm" title="Remove">\u2715</button>';
+    holder.appendChild(bar);
+    var ffBtn = bar.querySelector('.gogh-pend-ff');
+    if (ffBtn) ffBtn.addEventListener('click', function () {
+      convertPending(entry);
+    });
+    bar.querySelector('.gogh-pend-rm').addEventListener('click', function () {
+      holder.remove();
+      pendingBlocks = pendingBlocks.filter(function (q) { return q !== entry; });
+      refreshChip();
+    });
+    bindPending(entry);
+    holder.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    refreshChip();
+    toast('\u201c' + entry.title + '\u201d added \u2014 click text to edit it.' + (cfg.canConvert ? ' \u2728 to go freeform.' : ''), { ttl: 5000 });
+    return entry;
+  }
+  function recordRecent(t, k) {
+    try {
+      var list = JSON.parse(localStorage.getItem('gogh-recent-sections') || '[]');
+      list = list.filter(function (rc) { return !(rc.t === t && rc.k === k); });
+      list.unshift({ t: t, k: k });
+      localStorage.setItem('gogh-recent-sections', JSON.stringify(list.slice(0, 6)));
+    } catch (err) {}
+  }
+  function addPatternSection(p, idx, before) {
+    return renderPattern(p).then(function (html) {
+      if (!html) throw new Error('empty');
+      recordRecent('p', p.name);
+      insertNative(p.content || '', html, p.title, idx, before);
+    }).catch(function () {
+      toast('Could not add that section.', { error: true });
+    });
+  }
+  var lastPasteRelUrls = 0; // root-relative refs we could not repair
+  function sanitizePastedHtml(html) {
+    // parse inert, then strip what would EXECUTE: script elements, on*
+    // handler attributes, javascript: URLs (script tags via innerHTML never
+    // run, but handler attributes do)
+    var t = document.createElement('template');
+    t.innerHTML = String(html || '');
+    [].slice.call(t.content.querySelectorAll('script')).forEach(function (n) { n.remove(); });
+    [].slice.call(t.content.querySelectorAll('*')).forEach(function (el) {
+      [].slice.call(el.attributes).forEach(function (a) {
+        var n = a.name.toLowerCase();
+        if (n.indexOf('on') === 0) el.removeAttribute(a.name);
+        else if ((n === 'href' || n === 'src' || n === 'xlink:href') &&
+          /^\s*javascript:/i.test(a.value)) el.removeAttribute(a.name);
+      });
+    });
+    // lazy-loading markup shows only its placeholder once pasted — promote
+    // the real image and pin the largest srcset candidate
+    [].slice.call(t.content.querySelectorAll('img')).forEach(function (img) {
+      var lazy = img.getAttribute('data-src') || img.getAttribute('data-lazy-src') || img.getAttribute('data-original');
+      if (lazy && !/^data:/.test(lazy)) img.setAttribute('src', lazy);
+      var ss = img.getAttribute('srcset') || img.getAttribute('data-srcset');
+      if (ss) {
+        var best = null, bw = -1;
+        ss.split(',').forEach(function (cand) {
+          var parts = cand.trim().split(/\s+/);
+          if (!parts[0]) return;
+          var w = parseFloat((parts[1] || '').replace(/[^0-9.]/g, '')) || 0;
+          if (w >= bw) { bw = w; best = parts[0]; }
+        });
+        if (best) img.setAttribute('src', best);
+        img.removeAttribute('srcset');
+        img.removeAttribute('sizes');
+        img.removeAttribute('data-srcset');
+      }
+    });
+    // URL repair: protocol-relative always; root-relative only when every
+    // absolute URL in the paste names ONE foreign origin (else we'd guess)
+    var origins = {};
+    var noteAbs = function (u) {
+      var mm = String(u).match(/^https?:\/\/[^\/"')\s]+/i);
+      if (mm && mm[0].toLowerCase().indexOf(location.host.toLowerCase()) === -1) origins[mm[0]] = 1;
+    };
+    [].slice.call(t.content.querySelectorAll('[src],[poster]')).forEach(function (el) {
+      noteAbs(el.getAttribute('src') || el.getAttribute('poster') || '');
+    });
+    (t.innerHTML.match(/url\(\s*['"]?(https?:[^'")\s]+)/gi) || []).forEach(function (mch) {
+      noteAbs(mch.replace(/^url\(\s*['"]?/i, ''));
+    });
+    var keys = Object.keys(origins);
+    var origin = keys.length === 1 ? keys[0] : null;
+    lastPasteRelUrls = 0;
+    var fixUrl = function (u) {
+      u = String(u);
+      if (/^\/\//.test(u)) return 'https:' + u;
+      if (u[0] === '/' && u[1] !== '/') {
+        if (origin) return origin + u;
+        lastPasteRelUrls++;
+        return u;
+      }
+      return u;
+    };
+    [].slice.call(t.content.querySelectorAll('[src],[poster]')).forEach(function (el) {
+      ['src', 'poster'].forEach(function (at) {
+        var v = el.getAttribute(at);
+        if (v) el.setAttribute(at, fixUrl(v));
+      });
+    });
+    var fixCssUrls = function (css) {
+      return css.replace(/url\(\s*(['"]?)([^'")]+)\1\s*\)/gi, function (_, q, u) {
+        return 'url(' + q + fixUrl(u.trim()) + q + ')';
+      });
+    };
+    [].slice.call(t.content.querySelectorAll('[style]')).forEach(function (el) {
+      var st = el.getAttribute('style');
+      if (st && st.indexOf('url(') !== -1) el.setAttribute('style', fixCssUrls(st));
+    });
+    [].slice.call(t.content.querySelectorAll('style')).forEach(function (st) {
+      if (st.textContent.indexOf('url(') !== -1) st.textContent = fixCssUrls(st.textContent);
+    });
+    return t.innerHTML;
+  }
+  function addHtmlSection(html, idx, before) {
+    html = sanitizePastedHtml(html).trim();
+    if (!html) return;
+    if (lastPasteRelUrls) {
+      toast(lastPasteRelUrls + ' image path' + (lastPasteRelUrls === 1 ? '' : 's') +
+        ' in this paste point at the original site \u2014 they may not load here.', { ttl: 6500 });
+    }
+    // a real core HTML block inside a FULL-WIDTH group: pasted HTML owns the
+    // whole canvas (its own CSS decides any constraints), in the editor and
+    // on the published page alike
+    // the wrapper carries a persistent identity class and zero vertical
+    // margins: pasted sections stay full-bleed and butt against their
+    // neighbours everywhere — in the editor, after publish, after reload,
+    // and for visitors (gogh.php ships the matching front-end CSS)
+    var raw = '<!-- wp:group {"align":"full","className":"gogh-section-html","style":{"spacing":{"margin":{"top":"0","bottom":"0"}}},"layout":{"type":"default"}} -->\n' +
+      '<div class="wp-block-group alignfull gogh-section-html" style="margin-top:0;margin-bottom:0">\n' +
+      '<!-- wp:html -->\n' + html + '\n<!-- /wp:html -->\n' +
+      '</div>\n<!-- /wp:group -->';
+    var entry = insertNative(raw, '<div class="wp-block-group alignfull gogh-section-html" style="margin-top:0;margin-bottom:0">' + html + '</div>', 'HTML', idx, before);
+    if (entry) entry.freeHtml = true;
+  }
+  // frictionless paste: Cmd+V anywhere in edit mode drops HTML straight onto
+  // the page as a section — no modal, no textarea. Only pastes that are
+  // clearly HTML source are claimed; typing into any field keeps its meaning.
+  document.addEventListener('paste', function (ev) {
+    if (!editing) return;
+    var t = ev.target;
+    if (t && (t.isContentEditable || t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' ||
+      (t.closest && t.closest('[contenteditable="true"]')))) return;
+    var txt = ((ev.clipboardData && ev.clipboardData.getData('text/plain')) || '').trim();
+    if (txt[0] !== '<' || !(/<\/[a-z]/i.test(txt) || /\/>/.test(txt))) return;
+    ev.preventDefault();
+    var idx = picker.hidden ? null : pickerIdx;
+    var before = picker.hidden ? null : pickerBefore;
+    if (!picker.hidden) closePicker();
+    addHtmlSection(txt, idx == null ? undefined : idx, before);
+  });
+  // ---------- light editing on native (pre-freeform) sections ----------
+  // Rendered leaves pair with their markup spans; edits replace the span's
+  // HTML with the live DOM, so publish and Make freeform both see them.
+  // ---------- selection link bubble: select text in any light editor and a
+  // 'Link' chip floats above it — ⌘K without having to know ⌘K ----------
+  var activeLightEd = null;
+  var linkBubble = document.createElement('div');
+  linkBubble.className = 'gogh-linkbubble';
+  linkBubble.innerHTML =
+    '<button type="button" class="gogh-fmtbtn" data-fmt="bold" title="Bold"><b>B</b></button>' +
+    '<button type="button" class="gogh-fmtbtn" data-fmt="italic" title="Italic"><i>I</i></button>' +
+    '<button type="button" class="gogh-fmtbtn gogh-fmt-link" title="Link">' +
+    '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M10 13a5 5 0 0 0 7.1.4l3-3a5 5 0 0 0-7-7.1l-1.7 1.7"/><path d="M14 11a5 5 0 0 0-7.1-.4l-3 3a5 5 0 0 0 7 7.1l1.7-1.7"/></svg>Link</button>';
+  linkBubble.hidden = true;
+  document.body.appendChild(linkBubble);
+  function setActiveLightEd(ctx) {
+    activeLightEd = ctx;
+    if (!ctx) linkBubble.hidden = true;
+  }
+  // any selection inside editable light-edit text earns the bubble — even
+  // before the paragraph was clicked into edit mode
+  function lightEdContextFor(node) {
+    var el = node && (node.nodeType === 1 ? node : node.parentElement);
+    if (!el || !el.closest) return null;
+    if (el.closest('.wp-block-navigation')) return null;
+    var t = el.closest('h1,h2,h3,h4,h5,h6,p,figcaption');
+    if (!t) return null;
+    var all = chromeLightEdits.concat(pendingBlocks, storedEdits);
+    for (var i = 0; i < all.length; i++) {
+      var en = all[i];
+      if (!en.el || !en.__leafOf || !en.el.contains(t)) continue;
+      if (en.chromePart && en.el.querySelector('.gogh-wrap')) continue;
+      var leaf = en.__leafOf(t);
+      if (!leaf) return null;
+      return { el: t, leafOf: en.__leafOf, sync: en.__sync };
+    }
+    return null;
+  }
+  document.addEventListener('selectionchange', function () {
+    if (!editing) { linkBubble.hidden = true; return; }
+    var s = window.getSelection();
+    if (!s.rangeCount || s.isCollapsed) { linkBubble.hidden = true; return; }
+    var ctx = (activeLightEd && activeLightEd.el.contains(s.anchorNode))
+      ? activeLightEd
+      : lightEdContextFor(s.anchorNode);
+    if (!ctx) {
+      // freeform text edits deserve the same toolbar: any selection inside
+      // a gogh element being edited gets B / I / Link too
+      var an = s.anchorNode;
+      var ael = an && (an.nodeType === 1 ? an : an.parentElement);
+      var edEl = ael && ael.closest && ael.closest('.gogh-section [contenteditable="true"]');
+      if (edEl) {
+        ctx = {
+          el: edEl,
+          leafOf: function () { return edEl; },
+          sync: function () { edEl.dispatchEvent(new Event('input', { bubbles: true })); },
+        };
+      }
+    }
+    if (!ctx) { linkBubble.hidden = true; return; }
+    var r = s.getRangeAt(0).getBoundingClientRect();
+    if (!r.width) { linkBubble.hidden = true; return; }
+    linkBubble.__ctx = ctx;
+    linkBubble.style.left = (r.left + r.width / 2 + window.scrollX) + 'px';
+    linkBubble.style.top = (r.top + window.scrollY - 36) + 'px';
+    linkBubble.hidden = false;
+  });
+  // taking the bubble must not steal the selection it exists for
+  linkBubble.addEventListener('pointerdown', function (ev) {
+    ev.preventDefault();
+    ev.stopPropagation();
+  });
+  // and the bubble must not OVERSTAY: any press outside it dismisses (a
+  // fresh selection brings it straight back via selectionchange)
+  document.addEventListener('pointerdown', function (ev) {
+    if (!linkBubble.hidden && !linkBubble.contains(ev.target)) linkBubble.hidden = true;
+  }, true);
+  document.addEventListener('keydown', function (ev) {
+    if (ev.key === 'Escape' && !linkBubble.hidden) linkBubble.hidden = true;
+  });
+  linkBubble.addEventListener('click', function (ev) {
+    ev.stopPropagation();
+    var ctx = linkBubble.__ctx || activeLightEd;
+    if (!ctx) return;
+    var s = window.getSelection();
+    if (!s.rangeCount || s.isCollapsed) return;
+    var range = s.getRangeAt(0).cloneRange();
+    var fmtBtn = ev.target.closest && ev.target.closest('.gogh-fmtbtn');
+    var fmt = fmtBtn && fmtBtn.getAttribute('data-fmt');
+    if (fmt) {
+      // bold/italic act right here and KEEP the selection for more formatting
+      var wasEd = ctx.el.getAttribute('contenteditable') === 'true';
+      if (!wasEd) ctx.el.setAttribute('contenteditable', 'true');
+      s.removeAllRanges();
+      s.addRange(range);
+      try { document.execCommand(fmt, false, null); } catch (eF) {}
+      if (!wasEd) ctx.el.removeAttribute('contenteditable');
+      var leafF = ctx.leafOf(ctx.el);
+      if (leafF) ctx.sync(leafF);
+      return;
+    }
+    linkBubble.hidden = true;
+    openLinkCreatePanel(ctx.el, function (url) {
+      // createLink needs an editable host — borrow editability if the
+      // paragraph was never clicked into edit mode
+      var wasEditable = ctx.el.getAttribute('contenteditable') === 'true';
+      if (!wasEditable) ctx.el.setAttribute('contenteditable', 'true');
+      s.removeAllRanges();
+      s.addRange(range);
+      try { document.execCommand('createLink', false, url); } catch (e2) {}
+      if (!wasEditable) ctx.el.removeAttribute('contenteditable');
+      var leaf = ctx.leafOf(ctx.el);
+      if (leaf) ctx.sync(leaf);
+      toast('Linked.');
+    });
+  });
+  function bindPending(entry) {
+    // shared light editor: pending sections AND non-freeform chrome parts.
+    // A chrome entry lives while editing is on and the part has no mounted
+    // freeform canvas; a pending entry lives while it is still pending.
+    var live = function () {
+      if (entry.chromePart) {
+        return editing && chromeLightEdits.indexOf(entry) !== -1 &&
+          !entry.el.querySelector('.gogh-wrap');
+      }
+      // published blocks stay lightly editable for as long as editing is on
+      if (entry.stored) return editing && storedEdits.indexOf(entry) !== -1;
+      return pendingBlocks.indexOf(entry) !== -1;
+    };
+    var fresh = !entry.__bound;
+    entry.__bound = true;
+    entry.map = [];
+    var pair = function pair(container, base, rawText) {
+      var spans = parseTopBlocks(rawText);
+      var keepKid = function (c) {
+        if (c.nodeType !== 1) return false;
+        if (c.classList && c.classList.contains('gogh-pendbar')) return false;
+        // cover blocks render scaffolding elements with no block-comment
+        // span of their own — counting them derails every leaf after them
+        if (c.classList && (c.classList.contains('wp-block-cover__background') ||
+          c.classList.contains('wp-block-cover__image-background'))) return false;
+        // metadata children are never block output (a refreshed chrome part
+        // carries a <style> from the renderer)
+        var tg = c.tagName;
+        return tg !== 'STYLE' && tg !== 'SCRIPT' && tg !== 'LINK' && tg !== 'TEMPLATE';
+      };
+      var kids = [].slice.call(container.children).filter(keepKid);
+      // the cover's inner-container is a WRAPPER, not a block — its children
+      // are the cover block's child blocks. Flatten it transparently.
+      for (var gi = 0; gi < kids.length; gi++) {
+        if (kids[gi].classList && kids[gi].classList.contains('wp-block-cover__inner-container')) {
+          var innerKids = [].slice.call(kids[gi].children).filter(keepKid);
+          Array.prototype.splice.apply(kids, [gi, 1].concat(innerKids));
+          gi += innerKids.length - 1;
+        }
+      }
+      if (!spans.length || spans.length !== kids.length) return;
+      spans.forEach(function (sp, k) {
+        var dom = kids[k];
+        var nm = String(sp.name || '').replace(/^core\//, '');
+        if (nm === 'group' || nm === 'columns' || nm === 'column' || nm === 'buttons' || nm === 'cover') {
+          var inner = innerRawOf(rawText, sp);
+          if (inner && dom.children.length) { pair(dom, base + inner.base, inner.text); return; }
+        }
+        var seg = rawText.slice(sp.start, sp.end);
+        var bodyStart = seg.indexOf('-->');
+        var bodyEnd = seg.lastIndexOf('<!--');
+        if (bodyStart === -1 || bodyEnd <= bodyStart) return; // self-closing: nothing editable
+        // a leaf whose body still contains block comments (cover, quote,
+        // gallery…) cannot be rewritten safely from the DOM — leave it
+        // uneditable rather than risk corrupting the markup
+        if (seg.slice(bodyStart + 3, bodyEnd).indexOf('<!-- wp:') !== -1) return;
+        entry.map.push({ node: dom, s: base + sp.start, e: base + sp.end });
+      });
+    };
+    if (entry.selfBlock) {
+      // a stored entry whose el IS the block's own root (not a holder of
+      // blocks): descend into container blocks, or edit the node as the
+      // block body when it holds no nested blocks
+      var sp0s = parseTopBlocks(entry.raw);
+      if (sp0s.length === 1) {
+        var sp0 = sp0s[0];
+        var nm0 = String(sp0.name || '').replace(/^core\//, '');
+        if (nm0 === 'group' || nm0 === 'columns' || nm0 === 'buttons' || nm0 === 'cover') {
+          var inner0 = innerRawOf(entry.raw, sp0);
+          if (inner0 && entry.el.children.length) pair(entry.el, inner0.base, inner0.text);
+        } else {
+          var seg0 = entry.raw.slice(sp0.start, sp0.end);
+          var bs0 = seg0.indexOf('-->');
+          var be0 = seg0.lastIndexOf('<!--');
+          if (bs0 !== -1 && be0 > bs0 && seg0.slice(bs0 + 3, be0).indexOf('<!-- wp:') === -1) {
+            entry.map.push({ node: entry.el, s: sp0.start, e: sp0.end });
+          }
+        }
+      }
+    } else {
+      pair(entry.el, 0, entry.raw);
+      // one block, unmatched structure (an HTML block, say): the whole
+      // holder edits as a single span. NEVER for chrome parts — their DOM
+      // is a template RENDER (self-closing site-title/navigation blocks,
+      // injected editor UI), and whole-copying it into the raw once
+      // replaced a header with its own rendered DOM, navadds included.
+      if (!entry.map.length && !entry.chromePart) {
+        var spans0 = parseTopBlocks(entry.raw);
+        if (spans0.length === 1) {
+          entry.map.push({ node: entry.el, s: spans0[0].start, e: spans0[0].end, whole: true });
+        }
+      }
+    }
+    var holder = entry.el;
+    var syncT = null;
+    function leafOf(node) {
+      for (var i = 0; i < entry.map.length; i++) {
+        if (entry.map[i].node === node || entry.map[i].node.contains(node)) return entry.map[i];
+      }
+      return null;
+    }
+    function cleanCopy(node) {
+      var c = node.cloneNode(true);
+      [].slice.call(c.querySelectorAll('[contenteditable]')).forEach(function (n) { n.removeAttribute('contenteditable'); });
+      c.removeAttribute('contenteditable');
+      // gogh's own UI and markers must never travel into stored content
+      [].slice.call(c.querySelectorAll('[class*="gogh-"]')).forEach(function (n) { n.remove(); });
+      [].slice.call(c.querySelectorAll('*')).concat([c]).forEach(function (n) {
+        [].slice.call(n.attributes || []).forEach(function (at) {
+          if (at.name.indexOf('data-gogh') === 0) n.removeAttribute(at.name);
+        });
+      });
+      return c.outerHTML;
+    }
+    function wholeCopy(node) {
+      return [].slice.call(node.children).filter(function (c) {
+        return !(c.classList && c.classList.contains('gogh-pendbar'));
+      }).map(function (c) { return cleanCopy(c); }).join('\n');
+    }
+    function syncLeaf(leaf) {
+      var markup = entry.raw.slice(leaf.s, leaf.e);
+      // the body sits between the opening comment and the LAST comment (the
+      // leaf's own closer) — never an inner block's closer
+      var bodyStart = markup.indexOf('-->');
+      var bodyEnd = markup.lastIndexOf('<!--');
+      if (bodyStart === -1 || bodyEnd <= bodyStart) return;
+      var next = markup.slice(0, bodyStart + 3) + '\n' +
+        (leaf.whole ? wholeCopy(leaf.node) : cleanCopy(leaf.node)) + '\n' +
+        markup.slice(bodyEnd);
+      var delta = next.length - markup.length;
+      entry.raw = entry.raw.slice(0, leaf.s) + next + entry.raw.slice(leaf.e);
+      leaf.e += delta;
+      entry.map.forEach(function (l) {
+        if (l !== leaf && l.s >= leaf.e - delta) { l.s += delta; l.e += delta; }
+      });
+      refreshChip();
+    }
+    entry.__sync = syncLeaf;
+    entry.__leafOf = leafOf;
+    var activeEd = null;
+    function stopEdit() {
+      if (!activeEd) return;
+      // focus returned (or never left): the editor is in use — keep it
+      if (document.activeElement === activeEd.el) return;
+      activeEd.el.removeAttribute('contenteditable');
+      var leaf = leafOf(activeEd.el);
+      if (leaf) syncLeaf(leaf);
+      if (activeLightEd && activeLightEd.el === activeEd.el) setActiveLightEd(null);
+      activeEd = null;
+    }
+    if (!fresh) return; // re-bind refreshes the map; listeners attach once
+    // anchors and images are natively DRAGGABLE: a one-pixel hand tremor
+    // during a click starts a browser link-drag and kills the caret the
+    // click just placed — the classic "caret appears then vanishes"
+    holder.addEventListener('dragstart', function (ev) {
+      if (editing && live()) ev.preventDefault();
+    });
+    holder.addEventListener('click', function (ev) {
+      if (!editing || !live()) return;
+      // the menu has its own physics (drag to reorder, + to add)
+      if (entry.chromePart && ev.target.closest && ev.target.closest('.wp-block-navigation')) return;
+      var a = ev.target.closest && ev.target.closest('a');
+      if (a && !a.closest('.gogh-pendbar')) ev.preventDefault();
+      // the site logo IS an image — its branch must beat the generic
+      // image-swap path or clicking the logo can never open the logo picker
+      var slgEarly = ev.target.closest && ev.target.closest('.wp-block-site-logo');
+      if (slgEarly && entry.chromePart) {
+        ev.preventDefault();
+        openLogoPicker(slgEarly);
+        return;
+      }
+      var img = ev.target.closest && ev.target.closest('img');
+      if (img) {
+        ev.preventDefault();
+        pickPendingImage(entry, img);
+        return;
+      }
+      var soc = ev.target.closest && ev.target.closest('.wp-block-social-link');
+      if (soc) {
+        ev.preventDefault();
+        editSocialLink(entry, soc);
+        return;
+      }
+      // the logo text: clicking it renames the SITE (the block renders the
+      // blogname option — editing the template raw would change nothing)
+      var stt = ev.target.closest && ev.target.closest('.wp-block-site-title');
+      if (stt && entry.chromePart) {
+        ev.preventDefault();
+        editSiteTitle(stt);
+        return;
+      }
+      var btnLink = ev.target.closest && ev.target.closest('.wp-block-button__link, .wp-element-button');
+      if (btnLink && !btnLink.closest('.gogh-pendbar') && leafOf(btnLink)) {
+        ev.preventDefault();
+        editPendingLink(entry, btnLink, leafOf(btnLink), syncLeaf);
+        return;
+      }
+      var t = ev.target.closest &&
+        ev.target.closest('h1,h2,h3,h4,h5,h6,p,figcaption');
+      if (!t && ev.target.closest) {
+        // standalone text spans (eyebrows, link labels) edit too — but a
+        // span INSIDE an editable block defers to the block
+        var sp2 = ev.target.closest('span,em,strong,small');
+        if (sp2 && !sp2.closest('h1,h2,h3,h4,h5,h6,p,figcaption') &&
+          [].some.call(sp2.childNodes, function (n2) { return n2.nodeType === 3 && n2.textContent.trim(); })) {
+          t = sp2;
+        }
+      }
+      // a plain text link inside editable text: edit or remove it. But a
+      // CARD — an anchor wrapping whole headings/paragraphs — edits its
+      // WORDS on text clicks; its link is edited from the padding.
+      if (a && !a.closest('.gogh-pendbar') && leafOf(a) && !(t && a.contains(t))) {
+        editTextLink(entry, a, leafOf(a), syncLeaf);
+        return;
+      }
+      if (!t || t.closest('.gogh-pendbar') || !leafOf(t)) return;
+      if (activeEd && activeEd.el !== t) stopEdit();
+      if (t.getAttribute('contenteditable') !== 'true') {
+        t.setAttribute('contenteditable', 'true');
+        activeEd = { el: t };
+        // the selection bubble knows which editor owns the selection
+        setActiveLightEd({ el: t, leafOf: leafOf, sync: syncLeaf });
+        // select-then-click is how people link text: the click that makes
+        // this editable must not focus() away the selection they just made
+        var selNow = window.getSelection();
+        var keepSel = selNow && selNow.rangeCount && !selNow.isCollapsed && t.contains(selNow.anchorNode);
+        if (!keepSel) {
+          t.focus();
+          // land the caret exactly under the click — focus() alone parks it
+          // at the start, costing an extra click or three to re-aim
+          if (document.caretRangeFromPoint) {
+            var cr = document.caretRangeFromPoint(ev.clientX, ev.clientY);
+            if (cr && t.contains(cr.startContainer)) {
+              var so = window.getSelection();
+              so.removeAllRanges();
+              so.addRange(cr);
+            }
+          }
+        }
+      }
+    });
+    holder.addEventListener('input', function (ev) {
+      if (!live()) return;
+      var leaf = leafOf(ev.target);
+      if (!leaf) return;
+      clearTimeout(syncT);
+      syncT = setTimeout(function () { syncLeaf(leaf); }, 500);
+    });
+    holder.addEventListener('keydown', function (ev) {
+      // WordPress-feel Enter in the light editor too: a real paragraph gap
+      // (Shift+Enter keeps the single break); headings finish on Enter
+      if (!activeEd || ev.key !== 'Enter') return;
+      var tEl = activeEd.el;
+      if (/^H[1-6]$/.test(tEl.tagName)) {
+        ev.preventDefault();
+        stopEdit();
+        return;
+      }
+      if (!ev.shiftKey) {
+        ev.preventDefault();
+        document.execCommand('insertHTML', false, '<br><br>');
+        tEl.dispatchEvent(new Event('input', { bubbles: true }));
+      }
+    });
+    holder.addEventListener('focusout', function (ev) {
+      // focus hopping WITHIN the holder must not stop editing: on anchor
+      // cards, mousedown natively focuses the <a>, then edit entry focuses
+      // the heading — that a→heading hop fired this and killed the fresh
+      // caret 80ms in ("appears for an instant, then vanishes")
+      if (ev.relatedTarget && holder.contains(ev.relatedTarget)) return;
+      setTimeout(stopEdit, 80);
+    });
+    holder.addEventListener('keydown', function (ev) {
+      // Cmd/Ctrl+K links the selected text, same shortcut as the canvas
+      if ((ev.metaKey || ev.ctrlKey) && ev.key.toLowerCase() === 'k' && activeEd) {
+        ev.preventDefault();
+        var selObj = window.getSelection();
+        if (!selObj.rangeCount || selObj.isCollapsed) return;
+        var range = selObj.getRangeAt(0).cloneRange();
+        var edEl = activeEd.el;
+        // gogh's own panel, never window.prompt \u2014 Chrome can mute native
+        // dialogs in long-lived tabs
+        openLinkCreatePanel(edEl, function (url) {
+          selObj.removeAllRanges();
+          selObj.addRange(range);
+          try { document.execCommand('createLink', false, url); } catch (err) {}
+          var leaf = leafOf(edEl);
+          if (leaf) syncLeaf(leaf);
+        });
+      }
+    });
+  }
+  function openLinkCreatePanel(nearEl, apply) {
+    placePanelNear(nearEl);
+    panel.innerHTML =
+      '<div class="gogh-panel-title">Link the selected text</div>' +
+      '<div class="gogh-panel-row">' +
+      '<input type="url" class="gogh-input gogh-linkurl" placeholder="https://" />' +
+      '<button type="button" class="gogh-btn gogh-btn-small gogh-apply">Link</button>' +
+      '</div>';
+    panel.hidden = false;
+    panelOpen = true;
+    var inp = panel.querySelector('.gogh-linkurl');
+    inp.focus();
+    var go = function () {
+      var v = inp.value.trim();
+      if (!v || v === 'https://') return;
+      closePanel();
+      apply(v);
+    };
+    panel.querySelector('.gogh-apply').addEventListener('click', go);
+    inp.addEventListener('keydown', function (e2) { if (e2.key === 'Enter') go(); });
+  }
+  function editTextLink(entry, aEl, leaf, sync) {
+    placePanelNear(aEl);
+    panel.innerHTML =
+      '<div class="gogh-panel-title">Link</div>' +
+      '<div class="gogh-panel-row">' +
+      '<input type="url" class="gogh-input gogh-linkurl" placeholder="https://" />' +
+      '<button type="button" class="gogh-btn gogh-btn-small gogh-apply">Apply</button>' +
+      '</div>' +
+      '<div class="gogh-panel-row">' +
+      '<button type="button" class="gogh-btn gogh-btn-small gogh-unlink">Remove link (keep the text)</button>' +
+      '</div>';
+    panel.hidden = false;
+    panelOpen = true;
+    var inp = panel.querySelector('.gogh-linkurl');
+    inp.value = aEl.getAttribute('href') || '';
+    var apply = function () {
+      var v = inp.value.trim();
+      if (v) aEl.setAttribute('href', v);
+      sync(leaf);
+      closePanel();
+      toast('Link updated.');
+    };
+    panel.querySelector('.gogh-apply').addEventListener('click', apply);
+    inp.addEventListener('keydown', function (e2) { if (e2.key === 'Enter') apply(); });
+    panel.querySelector('.gogh-unlink').addEventListener('click', function () {
+      aEl.replaceWith(document.createTextNode(aEl.textContent || ''));
+      sync(leaf);
+      closePanel();
+      toast('Link removed — the text stays.');
+    });
+  }
+  function editSocialLink(entry, li) {
+    var m = (li.className + '').match(/wp-social-link-([a-z0-9_-]+)/);
+    var service = m ? m[1] : null;
+    if (!service) { toast('gogh couldn’t identify that icon.', { error: true }); return; }
+    var re = /<!--\s*wp:social-link\s*({[\s\S]*?})\s*\/-->/g;
+    var hits = [];
+    var mm;
+    while ((mm = re.exec(entry.raw))) {
+      try {
+        var at = JSON.parse(mm[1]);
+        if (at.service === service) hits.push({ start: mm.index, end: re.lastIndex, attrs: at });
+      } catch (e2) {}
+    }
+    var same = [].slice.call(entry.el.querySelectorAll('.wp-social-link-' + service));
+    var hit = hits[Math.max(0, same.indexOf(li))] || hits[0];
+    if (!hit) { toast('gogh couldn’t find that icon in the stored markup.', { error: true }); return; }
+    placePanelNear(li);
+    panel.innerHTML =
+      '<div class="gogh-panel-title">' + service.charAt(0).toUpperCase() + service.slice(1) + ' link</div>' +
+      '<div class="gogh-panel-row">' +
+      '<input type="url" class="gogh-input gogh-linkurl" placeholder="https://" />' +
+      '<button type="button" class="gogh-btn gogh-btn-small gogh-apply">Apply</button>' +
+      '</div>';
+    panel.hidden = false;
+    panelOpen = true;
+    var inp = panel.querySelector('.gogh-linkurl');
+    inp.value = hit.attrs.url || '';
+    inp.focus();
+    var apply = function () {
+      var v = inp.value.trim();
+      if (!v) return;
+      hit.attrs.url = v;
+      var next = '<!-- wp:social-link ' + JSON.stringify(hit.attrs) + ' /-->';
+      var delta = next.length - (hit.end - hit.start);
+      entry.raw = entry.raw.slice(0, hit.start) + next + entry.raw.slice(hit.end);
+      // keep every leaf's offsets honest around the splice
+      entry.map.forEach(function (l) {
+        if (l.s >= hit.end) { l.s += delta; l.e += delta; }
+        else if (l.e > hit.start) { l.e += delta; }
+      });
+      var aa = li.querySelector('a');
+      if (aa) aa.setAttribute('href', v);
+      refreshChip();
+      closePanel();
+      toast('Icon link updated.');
+    };
+    panel.querySelector('.gogh-apply').addEventListener('click', apply);
+    inp.addEventListener('keydown', function (e2) { if (e2.key === 'Enter') apply(); });
+  }
+  function editPendingLink(entry, aEl, leaf, syncLeaf) {
+    placePanelNear(aEl);
+    panel.innerHTML =
+      '<div class="gogh-panel-title">Button</div>' +
+      '<div class="gogh-panel-row">' +
+      '<input type="text" class="gogh-input gogh-btnlabel" placeholder="Label" />' +
+      '</div>' +
+      '<div class="gogh-panel-row">' +
+      '<input type="url" class="gogh-input gogh-btnhref" placeholder="Link to\u2026 (https://)" />' +
+      '<button type="button" class="gogh-btn gogh-btn-small gogh-apply">Apply</button>' +
+      '</div>';
+    panel.hidden = false;
+    panelOpen = true;
+    var lab = panel.querySelector('.gogh-btnlabel');
+    var href = panel.querySelector('.gogh-btnhref');
+    lab.value = (aEl.textContent || '').trim();
+    href.value = aEl.getAttribute('href') || '';
+    var apply = function () {
+      if (lab.value.trim()) aEl.textContent = lab.value.trim();
+      if (href.value.trim()) aEl.setAttribute('href', href.value.trim());
+      syncLeaf(leaf);
+      closePanel();
+      toast('Button updated.');
+    };
+    panel.querySelector('.gogh-apply').addEventListener('click', apply);
+    [lab, href].forEach(function (inp) {
+      inp.addEventListener('keydown', function (ev) {
+        if (ev.key === 'Enter') apply();
+        if (ev.key === 'Escape') closePanel();
+      });
+    });
+    lab.focus();
+  }
+  function pickPendingImage(entry, img) {
+    var leaf = null;
+    for (var i = 0; i < entry.map.length; i++) {
+      if (entry.map[i].node.contains(img)) { leaf = entry.map[i]; break; }
+    }
+    if (!leaf) { toast('gogh can\u2019t safely swap this image.', { error: true }); return; }
+    placePanelNear(img);
+    panel.innerHTML =
+      '<div class="gogh-panel-title">Replace image</div>' +
+      '<div class="gogh-panel-row">' +
+      '<input type="url" class="gogh-input" placeholder="Paste image URL\u2026" />' +
+      '<button type="button" class="gogh-btn gogh-btn-small gogh-apply">Apply</button>' +
+      '</div>' +
+      '<div class="gogh-media"><span class="gogh-media-loading">Loading media\u2026</span></div>';
+    panel.hidden = false;
+    panelOpen = true;
+    function useSrc(src2) {
+      img.src = src2;
+      img.removeAttribute('srcset');
+      img.removeAttribute('sizes');
+      var entryLeaf = leaf;
+      var markup = entry.raw.slice(entryLeaf.s, entryLeaf.e);
+      var bodyStart = markup.indexOf('-->');
+      var bodyEnd = markup.lastIndexOf('<!--');
+      var synced = false;
+      if (bodyStart !== -1 && bodyEnd > bodyStart) {
+        var frag = document.createElement('div');
+        frag.innerHTML = markup.slice(bodyStart + 3, bodyEnd);
+        var leafImgs = [].slice.call(entryLeaf.node.querySelectorAll('img')).filter(function (i2) {
+          return !i2.closest('.gogh-pendbar');
+        });
+        var idx2 = leafImgs.indexOf(img);
+        var im2 = idx2 === -1 ? null : frag.querySelectorAll('img')[idx2];
+        if (im2) {
+          im2.src = src2;
+          im2.removeAttribute('srcset');
+          im2.removeAttribute('sizes');
+          var next = markup.slice(0, bodyStart + 3) + frag.innerHTML + markup.slice(bodyEnd);
+          var delta = next.length - markup.length;
+          entry.raw = entry.raw.slice(0, entryLeaf.s) + next + entry.raw.slice(entryLeaf.e);
+          entryLeaf.e += delta;
+          entry.map.forEach(function (l) {
+            if (l !== entryLeaf && l.s >= entryLeaf.e - delta) { l.s += delta; l.e += delta; }
+          });
+          synced = true;
+        }
+      }
+      closePanel();
+      refreshChip();
+      if (synced) toast('Image swapped.');
+      else toast('gogh couldn\u2019t safely update this image in the saved markup.', { error: true });
+    }
+    var inp = panel.querySelector('input');
+    panel.querySelector('.gogh-apply').addEventListener('click', function () {
+      if (inp.value.trim()) useSrc(inp.value.trim());
+    });
+    inp.addEventListener('keydown', function (ev) {
+      if (ev.key === 'Enter' && inp.value.trim()) useSrc(inp.value.trim());
+      if (ev.key === 'Escape') closePanel();
+    });
+    fetch(restQ(cfg.mediaUrl, 'per_page=32&media_type=image&orderby=date&order=desc'), {
+      headers: { 'X-WP-Nonce': cfg.nonce },
+      credentials: 'same-origin',
+    }).then(function (res) { return res.ok ? res.json() : []; }).catch(function () { return []; }).then(function (items) {
+      var box = panel.querySelector('.gogh-media');
+      if (!box || panel.hidden) return;
+      box.innerHTML = '';
+      items.forEach(function (item) {
+        var thumb = (item.media_details && item.media_details.sizes &&
+          (item.media_details.sizes.thumbnail || item.media_details.sizes.medium));
+        var b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'gogh-thumb';
+        b.style.backgroundImage = 'url("' + (thumb ? thumb.source_url : item.source_url) + '")';
+        b.addEventListener('click', function () { useSrc(item.source_url); });
+        box.appendChild(b);
+      });
+      reclampPanel();
+    });
+  }
+  function convertPending(entry) {
+    var holder = entry.el;
+    var scan = scanDomWithRaw(holder, entry.raw, { loose: true, freeHtml: !!entry.freeHtml });
+    if (!scan.els.length) {
+      toast('gogh found nothing it can edit in this section.', { error: true });
+      return;
+    }
+    var sec = newSectionShell('gogh-sec-' + (scopeSeq++));
+    sec.els = scan.els;
+    sec.minH = scan.minH;
+    if (scan.rootBg) sec.bg = scan.rootBg;
+    var first = holder.firstElementChild;
+    if (!sec.bg && first && !(first.classList && first.classList.contains('gogh-pendbar'))) {
+      var bgc = getComputedStyle(first).backgroundColor;
+      if (bgc && bgc !== 'rgba(0, 0, 0, 0)' && bgc !== 'transparent') sec.bg = bgc;
+    }
+    holder.replaceWith(sec.wrapEl);
+    pendingBlocks = pendingBlocks.filter(function (q) { return q !== entry; });
+    S.push(sec);
+    renderSection(sec);
+    // canonical model order comes from the DOM, not a guess
+    resyncContentOrder();
+    sel = null;
+    hideHandles();
+    toast('\u2728 \u201c' + entry.title + '\u201d is freeform now \u2014 drag anything.', { ttl: 4500 });
+  }
+  // "+ New page" in the admin bar: ask for a NAME first (the no-JS
+  // fallback still creates "Untitled page" via admin-post)
+  var npLink = document.querySelector('#wp-admin-bar-gogh-new-page a');
+  if (npLink) npLink.addEventListener('click', function (ev) {
+    ev.preventDefault();
+    panel.innerHTML =
+      '<div class="gogh-panel-title">New page</div>' +
+      '<div class="gogh-panel-row">' +
+      '<input type="text" class="gogh-input gogh-npname" placeholder="Page name\u2026" />' +
+      '<button type="button" class="gogh-btn gogh-btn-small gogh-npgo">Create</button>' +
+      '</div>' +
+      '<em class="gogh-panel-hint">It opens in gogh, ready to design.</em>';
+    placePanelNear(npLink);
+    panelOpen = true;
+    var inp = panel.querySelector('.gogh-npname');
+    var go = panel.querySelector('.gogh-npgo');
+    setTimeout(function () { inp.focus(); }, 50);
+    var create = function () {
+      var name = inp.value.trim();
+      if (!name) { inp.focus(); return; }
+      go.disabled = true;
+      go.textContent = 'Creating\u2026';
+      fetch(GSROOT + 'pages', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-WP-Nonce': cfg.nonce },
+        credentials: 'same-origin',
+        body: JSON.stringify({ title: name, status: 'publish' }),
+      }).then(function (r) { return r.ok ? r.json() : Promise.reject(new Error('HTTP ' + r.status)); })
+        .then(function (pg) {
+          discarding = true;
+          location.href = pg.link + (pg.link.indexOf('?') === -1 ? '?' : '&') + 'gogh-edit=1';
+        }).catch(function () {
+          go.disabled = false;
+          go.textContent = 'Create';
+          toast('gogh could not create the page \u2014 try again.', { error: true });
+        });
+    };
+    go.addEventListener('click', create);
+    inp.addEventListener('keydown', function (ev2) {
+      if (ev2.key === 'Enter') create();
+      if (ev2.key === 'Escape') closePanel();
+    });
+  });
+  window.__goghAddPattern = function (name, idx) {
+    return fetchSectionPatterns().then(function (pats) {
+      var p = pats.filter(function (x) { return x.name === name; })[0];
+      if (p) return addPatternSection(p, idx);
+    });
+  };
+
+  function convertChrome(partEl) {
+    var area = partEl.tagName === 'FOOTER' ? 'footer' : 'header';
+    return Promise.all([
+      fetch(restQ(tpUrl(), 'area=' + area + '&context=edit'), {
+        headers: { 'X-WP-Nonce': cfg.nonce },
+        credentials: 'same-origin',
+      }).then(function (res) {
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        return res.json();
+      }),
+      fetchAreaPatterns(area),
+    ]).then(function (both) {
+      var parts = both[0], patterns = both[1];
+      if (!parts.length) throw new Error('No ' + area + ' template part found.');
+      var active = parts.filter(function (p) { return p.slug === area; })[0] || parts[0];
+      // one flat list of layouts: template parts + the theme's patterns
+      var options = parts.map(function (p) {
+        return { kind: 'part', id: p.id, slug: p.slug, theme: p.theme,
+          title: (p.title && p.title.rendered) || p.slug,
+          content: (p.content && p.content.raw) || '' };
+      });
+      patterns.forEach(function (p) {
+        options.push({ kind: 'pattern', id: 'pattern:' + p.name, slug: p.name,
+          title: p.title || p.name, content: p.content || '' });
+      });
+      // curated mode: gogh's designs plus the CURRENT part only — the
+      // theme's sibling parts (vertical headers, Woo-era leftovers) are the
+      // other half of the 24-option flood
+      var curated = patterns.some(function (p) { return String(p.name).indexOf('gogh/') === 0; });
+      if (curated) {
+        options = options.filter(function (o) { return o.kind !== 'part' || o.id === active.id; });
+      }
+      // parts are often instances of the theme's patterns — same design twice
+      var seenTitles = {};
+      options = options.filter(function (o) {
+        var t = o.title.toLowerCase().replace(/\s+/g, ' ').trim();
+        if (seenTitles[t]) return false;
+        seenTitles[t] = 1;
+        return true;
+      });
+      var activeOpt = options.filter(function (o) { return o.id === active.id; })[0];
+      if (activeOpt && activeOpt.content.indexOf('wp:gogh/section') !== -1) {
+        activeOpt.title += ' \u00b7 freeform';
+      }
+      if (options.length > 1) {
+        // render-screen the list first: themes ship duplicates and
+        // lookalikes (core + theme copies of the same footer, patterns
+        // whose broken pieces render just like the current part) — cycling
+        // through those FEELS dead. Only visibly-distinct looks survive,
+        // and their renders are kept so every flick is instant.
+        return screenChromeOptions(options, activeOpt).then(function (kept) {
+          if (kept.length > 1) {
+            // simple mode gets the ONE panel — the pill-cycle choreography
+            // was the clunk James named; experiments keeps the cycle.
+            // A LATE arrival checks the chrome is still awake: the user who
+            // clicked away must not get a surprise panel seconds later
+            if (!cfg.experiments) {
+              if (partEl.classList.contains('gogh-chrome-live')) {
+                openHeaderPanel(partEl, area, kept, activeOpt, active);
+              }
+            } else startChromeCycle(partEl, area, kept, activeOpt, active);
+            return null;
+          }
+          return doConvertChrome(partEl, area, active);
+        });
+      }
+      return doConvertChrome(partEl, area, active);
+    }).catch(function (err) {
+      toast(err.message || 'Could not edit the ' + area, { error: true });
+      return null;
+    });
+  }
+  // enter freeform editing for a chrome part: reuse the mounted section if
+  // there is one, otherwise convert now
+  function editChromeFreeform(partEl, area, active) {
+    endChromePreview();
+    closePanel();
+    var existing = null;
+    S.forEach(function (s) { if (s.chrome && partEl.contains(s.wrapEl)) existing = s; });
+    if (existing) {
+      if (!existing.chrome.id && active) existing.chrome.id = active.id;
+      placeHandles(existing, 0);
+      return;
+    }
+    doConvertChrome(partEl, area, active).catch(function (err) {
+      toast(err.message || 'Could not edit the ' + area, { error: true });
+    });
+  }
+  // no panel at all: the Header/Footer pill IS the control. Each click on it
+  // flicks the part to the next layout as a live preview; a tick keeps what
+  // you're looking at, click-off or Esc reverts. ✨ edits, ⋯ opens the full
+  // panel (every layout by name, sticky).
+  var chromeCycle = null;
+  var cycBar = document.createElement('div');
+  cycBar.className = 'gogh-cycbar';
+  cycBar.hidden = true;
+  cycBar.innerHTML =
+    '<b class="gogh-cyc-next" role="button" title="Show the next layout">Next look ›</b>' +
+    '<span class="gogh-cyc-n"></span>' +
+    '<em class="gogh-cyc-hint"></em>' +
+    '<em class="gogh-cyc-build"></em>' +
+    '<span class="gogh-cyc-ok" role="button" title="Keep this layout (updates every page)">✓</span>' +
+    '<span class="gogh-cyc-edit" role="button" title="Make it freeform">✨</span>' +
+    '<span class="gogh-cyc-more" role="button" title="All options">⋯</span>' +
+    '<span class="gogh-cyc-x" role="button" title="Put it back">✕</span>';
+  document.body.appendChild(cycBar);
+  // "click the footer for the next look" reads like a button — so clicking
+  // the strip itself (anywhere that isn't ✓ ✨ ⋯ ✕) advances too
+  cycBar.addEventListener('click', function (ev) {
+    if (ev.target.closest('.gogh-cyc-ok,.gogh-cyc-edit,.gogh-cyc-more,.gogh-cyc-x')) return;
+    if (chromeCycle) chromeCycle.advance();
+  });
+  // the header ITSELF is the button while cycling: the control strip docks
+  // at the very top of the screen (over the admin bar) so nothing ever
+  // covers the header being previewed
+  function startChromeCycle(partEl, area, options, activeOpt, active) {
+    if (chromeCycle) chromeCycle.collapse();
+    var pill = null;
+    chromeBtns.forEach(function (b) { if (b.__goghPart === partEl) pill = b; });
+    var st = {
+      partEl: partEl, area: area, options: options,
+      activeOpt: activeOpt, active: active, idx: 0, busy: false, alive: true,
+      // simple mode (James): ONE pill — it advances, carries the count and
+      // an inline ✓; no second strip ever appears. Experiments keeps the
+      // full strip (freeform convert, browse-all).
+      simple: !cfg.experiments,
+    };
+    if (st.simple && pill) st.pillBase = pill.innerHTML;
+    options.forEach(function (o, k) { if (activeOpt && o.id === activeOpt.id) st.idx = k; });
+    function isCurrent(o) { return !!(activeOpt && o.id === activeOpt.id); }
+    function render() {
+      var o = st.options[st.idx];
+      if (st.simple && pill) {
+        pill.title = 'Site ' + area + ' — ' + o.title + ' (click for the next)';
+        var spaceable = isCurrent(o) && !!chromeDialsRead((st.active && st.active.content && st.active.content.raw) || '');
+        pill.innerHTML = 'Next ' + area + ' › <em class="gogh-pill-n">' +
+          (st.idx + 1) + '/' + st.options.length + (isCurrent(o) ? ' · current' : '') + '</em>' +
+          (isCurrent(o) ? '' : '<span class="gogh-pill-keep" role="button" title="Keep this layout (updates every page)">✓</span>') +
+          // spacing rides the pill only on the CURRENT layout — tune what is
+          // truly yours, never a preview (and only when the raw is dressable)
+          (spaceable ? '<span class="gogh-pill-space" role="button" title="Adjust spacing">↕</span>' : '');
+        var keep = pill.querySelector('.gogh-pill-keep');
+        if (keep) keep.onclick = function (ev) { ev.stopPropagation(); commitChosen(true); };
+        var spc = pill.querySelector('.gogh-pill-space');
+        if (spc) spc.onclick = function (ev) {
+          ev.stopPropagation();
+          var act = st.active;
+          collapse();
+          openChromeSpacingPanel(partEl, area, act);
+        };
+        return;
+      }
+      // the layout name lives in the tooltip — the strip stays small
+      cycBar.title = 'Site ' + area + ' — ' + o.title;
+      cycBar.querySelector('.gogh-cyc-n').textContent =
+        (st.idx + 1) + '/' + st.options.length + (isCurrent(o) ? ' · current' : '');
+    }
+    function collapse(keepPreview) {
+      if (!st.alive) return;
+      st.alive = false;
+      chromeCycle = null;
+      document.removeEventListener('pointerdown', onDocDown, true);
+      document.removeEventListener('click', onDocClick, true);
+      document.removeEventListener('keydown', onKey, true);
+      if (!keepPreview) endChromePreview();
+      cycBar.hidden = true;
+      cycBar.classList.remove('is-busy');
+      document.body.classList.remove('gogh-cycling');
+      if (pill) {
+        pill.style.display = '';
+        pill.disabled = false;
+        if (st.simple && st.pillBase != null) pill.innerHTML = st.pillBase;
+      }
+      placeConvertBtns();
+      placeChromeBtns();
+    }
+    function inPart(ev) {
+      // geometry as well as containment: a full-bleed overlay hovering over
+      // the part must not steal the "next look" click
+      if (partEl.contains(ev.target)) return true;
+      var r = partEl.getBoundingClientRect();
+      return ev.clientY >= r.top && ev.clientY <= r.bottom &&
+        ev.clientX >= r.left && ev.clientX <= r.right;
+    }
+    function onDocDown(ev) {
+      if (pill && pill.contains(ev.target)) return; // the pill's own click advances
+      if (cycBar.contains(ev.target)) {
+        // strip clicks are the cycle's business alone: without stopping
+        // propagation they leak into gogh's global handlers, one of which
+        // closes panels — destroying the just-applied preview
+        ev.stopPropagation();
+        return;
+      }
+      if (inPart(ev)) {
+        // clicking the header = next look; swallow it before nav links act
+        ev.preventDefault();
+        ev.stopPropagation();
+        st.advance();
+        return;
+      }
+      collapse();
+    }
+    function onDocClick(ev) {
+      if (!st.alive) return;
+      // the strip floats INSIDE the footer's rect — its clicks are its own
+      // (this ate every real click on 'Next look' while synthetic test
+      // clicks at 0,0 sailed past the geometry check)
+      if (cycBar.contains(ev.target)) return;
+      // the pointerdown consumed the gesture — stop the follow-up click from
+      // navigating a header link mid-cycle
+      if (inPart(ev)) { ev.preventDefault(); ev.stopPropagation(); }
+    }
+    function onKey(ev) { if (ev.key === 'Escape') { collapse(); ev.stopPropagation(); } }
+    st.advance = function () {
+      // a click during a slow preview fetch queues instead of vanishing —
+      // dropped clicks read as "the footer toggle doesn't work"
+      if (st.busy) { st.queued = true; return; }
+      var prevIdx = st.idx;
+      st.idx = (st.idx + 1) % st.options.length;
+      var o = st.options[st.idx];
+      render();
+      if (isCurrent(o)) {
+        endChromePreview();
+        var h0 = cycBar.querySelector('.gogh-cyc-hint');
+        if (h0) { h0.textContent = ''; h0.classList.remove('is-warn'); }
+        return;
+      }
+      st.busy = true;
+      cycBar.classList.add('is-busy');
+      previewChromeLayout(partEl, o, function (ok) {
+        st.busy = false;
+        cycBar.classList.remove('is-busy');
+        // a preview that lands after the cycle ended must not stick around —
+        // but only end a preview that is OURS, never a newer cycle's stage
+        if (!st.alive) {
+          if (ok && chromePreview && chromePreview.partEl === partEl) endChromePreview();
+          return;
+        }
+        if (!ok) {
+          // the label must never claim a look that isn't on screen
+          st.idx = prevIdx;
+          render();
+          return;
+        }
+        // the swap reflows the page and can cancel the opening scroll —
+        // re-assert once the first preview is actually on screen
+        if (!st.scrolled) {
+          st.scrolled = true;
+          partEl.scrollIntoView({ block: st.area === 'footer' ? 'end' : 'start' });
+        }
+        if (st.queued) { st.queued = false; st.advance(); }
+      });
+    };
+    st.collapse = collapse;
+    chromeCycle = st;
+    if (pill) {
+      if (st.simple) { pill.disabled = false; }
+      else { pill.style.display = 'none'; }
+    }
+    // footer controls live at the bottom of the screen, header's at the top
+    cycBar.classList.toggle('is-bottom', area === 'footer');
+    var hintInit = cycBar.querySelector('.gogh-cyc-hint');
+    hintInit.textContent = '';
+    hintInit.classList.remove('is-warn');
+    cycBar.querySelector('.gogh-cyc-build').textContent = (window.__gogh.build || '').replace('-chrome', '');
+    var nextBtn = cycBar.querySelector('.gogh-cyc-next');
+    nextBtn.textContent = 'Next ' + area + ' design ›';
+    nextBtn.onclick = function (ev) {
+      ev.stopPropagation();
+      st.advance();
+    };
+    function commitChosen(viaPill) {
+      var chosen = st.options[st.idx];
+      if (isCurrent(chosen)) { collapse(); return; }
+      if (!isDirty()) { swapChromeLayoutNow(area, active, chosen); return; }
+      if (viaPill) {
+        toast('Unpublished page changes will be lost when the ' + area + ' switches.', {
+          ttl: 9000,
+          actions: [
+            { label: 'Switch anyway', onClick: function () { swapChromeLayoutNow(area, active, chosen); } },
+            { label: 'Back', onClick: function () {} },
+          ],
+        });
+        return;
+      }
+      commitViaStrip(chosen);
+    }
+    st.commitChosen = commitChosen;
+    function commitViaStrip(chosen) {
+      // the confirmation lives IN the strip — a corner toast goes unseen
+      // and reads as "the tick does nothing"
+      var area2 = st.area, active2 = st.active;
+      var old = cycBar.querySelector('.gogh-cyc-confirm');
+      if (old) old.remove();
+      var conf = document.createElement('span');
+      conf.className = 'gogh-cyc-confirm';
+      conf.innerHTML = '<span>Unpublished page changes will be lost.</span>' +
+        '<b role="button" class="gogh-cyc-yes">Switch anyway</b>' +
+        '<b role="button" class="gogh-cyc-no">Back</b>';
+      conf.querySelector('.gogh-cyc-yes').onclick = function (e2) {
+        e2.stopPropagation();
+        swapChromeLayoutNow(area2, active2, chosen);
+      };
+      conf.querySelector('.gogh-cyc-no').onclick = function (e2) {
+        e2.stopPropagation();
+        conf.remove();
+      };
+      conf.onclick = function (e2) { e2.stopPropagation(); };
+      cycBar.appendChild(conf);
+    }
+    cycBar.querySelector('.gogh-cyc-ok').onclick = function (ev) {
+      ev.stopPropagation();
+      commitChosen(false);
+    };
+    cycBar.querySelector('.gogh-cyc-edit').onclick = function (ev) {
+      ev.stopPropagation();
+      var chosen = st.options[st.idx];
+      var existing = null;
+      S.forEach(function (s) { if (s.chrome && partEl.contains(s.wrapEl)) existing = s; });
+      if (existing) {
+        collapse();
+        if (!existing.chrome.id && active) existing.chrome.id = active.id;
+        placeHandles(existing, 0);
+        return;
+      }
+      // ✨ converts what's ON SCREEN — the previewed look, not the saved one
+      var partArg = isCurrent(chosen) ? active : { id: active.id, content: { raw: chosen.content || '' } };
+      var scanRoot = null;
+      if (!isCurrent(chosen) && chromePreview && chromePreview.partEl === partEl) {
+        // scan the preview box; it then joins the hidden originals under
+        // the mounted canvas
+        scanRoot = chromePreview.box;
+        chromePreview = null;
+      }
+      collapse(true);
+      doConvertChrome(partEl, area, partArg, scanRoot).catch(function (err) {
+        toast(err.message || 'Could not edit the ' + area, { error: true });
+      });
+    };
+    cycBar.querySelector('.gogh-cyc-more').onclick = function (ev) {
+      ev.stopPropagation();
+      collapse();
+      openChromeLayoutPanel(partEl, area, options, activeOpt, active);
+    };
+    cycBar.querySelector('.gogh-cyc-x').onclick = function (ev) {
+      ev.stopPropagation();
+      collapse();
+    };
+    document.addEventListener('pointerdown', onDocDown, true);
+    document.addEventListener('click', onDocClick, true);
+    document.addEventListener('keydown', onKey, true);
+    // choosing a header is a MODE: every other editing affordance hides so
+    // the page is just the thing being chosen
+    document.body.classList.add('gogh-cycling');
+    sel = null;
+    hideHandles();
+    hideSecBar();
+    closePanel();
+    // super simple, per James: Next, the count, keep, put back — the
+    // freeform convert and the browse-all live behind experiments for now
+    cycBar.querySelector('.gogh-cyc-edit').style.display = cfg.experiments ? '' : 'none';
+    cycBar.querySelector('.gogh-cyc-more').style.display = cfg.experiments ? '' : 'none';
+    cycBar.hidden = !!st.simple;
+    // bring the part on screen — flicking through looks you can't see
+    // isn't choosing. Instant, not smooth: preview reflows cancel smooth
+    // scrolls midway.
+    partEl.scrollIntoView({ block: area === 'footer' ? 'end' : 'start' });
+    // the pill click already MEANS "show me another" — arriving on the
+    // current look and asking for a second click read as clunky
+    st.advance();
+    // open on the CURRENT design — 'Next look' starts the flicking
+    render();
+  }
+  // the header designer, gogh-sized: three dials that paint the mounted
+  // part live and persist once through WordPress's own spacing supports
+  function openChromeSpacingPanel(partEl, area, active) {
+    var raw = (active && active.content && active.content.raw) || '';
+    var d0 = chromeDialsRead(raw);
+    if (!d0) {
+      toast('This ' + area + ' layout can\u2019t be re-spaced automatically.', { error: true });
+      return;
+    }
+    var dial = function (label, cls, min, max, val) {
+      return '<div class="gogh-panel-row gogh-logosize gogh-dialrow"><span>' + label + '</span>' +
+        '<input type="range" class="' + cls + '" min="' + min + '" max="' + max + '" step="2" value="' + val + '" />' +
+        '<span class="gogh-logosize-val ' + cls + '-val">' + val + '</span></div>';
+    };
+    panel.innerHTML =
+      '<div class="gogh-panel-head"><span class="gogh-panel-title">' + area.charAt(0).toUpperCase() + area.slice(1) + ' spacing</span>' +
+      '<button type="button" class="gogh-sbtn gogh-panel-close" title="Close">\u2715</button></div>' +
+      '<div class="gogh-panel-hint">Drag \u2014 the ' + area + ' follows live</div>' +
+      dial('Height', 'gogh-dial-pad', 4, 64, d0.pad) +
+      (d0.hasNav ? dial('Menu items', 'gogh-dial-link', 8, 64, d0.linkGap) : '') +
+      '<div class="gogh-panel-row gogh-chrome-foot">' +
+      '<button type="button" class="gogh-btn gogh-btn-small gogh-dials-cancel">Cancel</button>' +
+      '<button type="button" class="gogh-btn gogh-btn-save gogh-btn-small gogh-dials-apply" title="Updates every page" disabled>Apply</button>' +
+      '</div>';
+    var dialApply = panel.querySelector('.gogh-dials-apply');
+    var readDials = function () {
+      var v = function (cls, fb) {
+        var inp = panel.querySelector('.' + cls);
+        return inp ? +inp.value : fb;
+      };
+      return { pad: v('gogh-dial-pad', d0.pad), gap: v('gogh-dial-gap', d0.gap), linkGap: v('gogh-dial-link', d0.linkGap) };
+    };
+    ['gogh-dial-pad', 'gogh-dial-gap', 'gogh-dial-link'].forEach(function (cls) {
+      var inp = panel.querySelector('.' + cls);
+      if (!inp) return;
+      inp.addEventListener('input', function () {
+        var lab = panel.querySelector('.' + cls + '-val');
+        if (lab) lab.textContent = inp.value;
+        chromeDialsPreview(partEl, readDials());
+        dialApply.disabled = false;
+      });
+    });
+    panelCleanup = function () { chromeDialsRevert(partEl); };
+    var bail = function () { closePanel(); };
+    panel.querySelector('.gogh-panel-close').addEventListener('click', bail);
+    panel.querySelector('.gogh-dials-cancel').addEventListener('click', bail);
+    dialApply.addEventListener('click', function () {
+      var newRaw = chromeDialsApply(raw, readDials());
+      if (newRaw == null) {
+        toast('This ' + area + ' layout can\u2019t be re-spaced automatically.', { error: true });
+        return;
+      }
+      dialApply.disabled = true;
+      dialApply.textContent = 'Applying\u2026';
+      confirmChromeReload(area, function () {
+        fetch(tpUrl(active.id), {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'X-WP-Nonce': cfg.nonce },
+          credentials: 'same-origin',
+          body: JSON.stringify({ content: newRaw }),
+        }).then(function (r) {
+          if (!r.ok) throw new Error('HTTP ' + r.status);
+          discarding = true;
+          location.reload();
+        }).catch(function () {
+          dialApply.disabled = false;
+          dialApply.textContent = 'Apply';
+          toast('Could not update the ' + area + '.', { error: true });
+        });
+      });
+    });
+    placePanelNear(partEl);
+    panelOpen = true;
+  }
+  // the full panel: every layout by name, freeform, sticky
+  // ---------- THE header panel: everything auditions, one Apply ----------
+  // the old flow was pills + cycles + a commit-and-reload per feature.
+  // This is one docked inspector: layout, look, spacing and sticky all
+  // audition live, and a single Apply writes one composed save.
+  function openHeaderPanel(partEl, area, options, activeOpt, active) {
+    var raw0 = (active && active.content && active.content.raw) || '';
+    var d0 = chromeDialsRead(raw0);
+    var looks = headerLooks();
+    var st = {
+      layoutId: activeOpt ? activeOpt.id : null,
+      look: undefined,          // undefined = untouched
+      dials: null,
+      sticky: chromeIsSticky(active),
+      sticky0: chromeIsSticky(active),
+    };
+    var chosenOpt = function () {
+      return options.filter(function (o) { return o.id === st.layoutId; })[0] || activeOpt;
+    };
+    var dial = function (label, cls, min, max, val) {
+      return '<div class="gogh-panel-row gogh-logosize gogh-dialrow"><span>' + label + '</span>' +
+        '<input type="range" class="' + cls + '" min="' + min + '" max="' + max + '" step="2" value="' + val + '" />' +
+        '<span class="gogh-logosize-val ' + cls + '-val">' + val + '</span></div>';
+    };
+    panel.innerHTML =
+      '<div class="gogh-panel-head"><span class="gogh-panel-title">Site ' + area + '</span>' +
+      '<button type="button" class="gogh-sbtn gogh-panel-close" title="Close">\u2715</button></div>' +
+      '<div class="gogh-panel-hint">Hover to audition \u2014 one Apply saves the lot.</div>' +
+      '<div class="gogh-swlab">Layout</div>' +
+      '<div class="gogh-panel-row gogh-chrome-rows gogh-hlayouts">' +
+      options.map(function (o, k) {
+        var short = String(o.title || '').split(' \u2014 ')[0];
+        return '<button type="button" class="gogh-btn gogh-btn-small gogh-hlayout' +
+          (o.id === st.layoutId ? ' is-active' : '') + '" data-k="' + k + '" title="' + escAttr(o.title) + '">' + esc(short) + '</button>';
+      }).join('') + '</div>' +
+      (looks.length ? '<div class="gogh-swlab">Look</div><div class="gogh-swrow gogh-hlooks">' +
+        looks.map(function (l, k) {
+          return '<button type="button" class="gogh-sw' + (l.bg ? '' : ' gogh-sw-none') + '" data-k="' + k + '"' +
+            (l.bg ? ' style="background: var(--wp--preset--color--' + l.bg + ')"' : '') +
+            ' title="' + escAttr(l.name) + '"></button>';
+        }).join('') +
+        '<label class="gogh-sw gogh-sw-pick" title="Custom colour"><input type="color" class="gogh-hcustom" value="#1c1c22"></label>' +
+        '</div>' +
+        '<div class="gogh-panel-row gogh-logosize gogh-halpha-row" hidden><span>Transparency</span>' +
+        '<input type="range" class="gogh-halpha" min="0" max="90" step="5" value="0" />' +
+        '<span class="gogh-logosize-val gogh-halpha-val">0</span></div>' : '') +
+      (d0 ? '<div class="gogh-swlab">Spacing</div>' +
+        dial('Height', 'gogh-dial-pad', 4, 64, d0.pad) +
+        (d0.hasNav ? dial('Menu items', 'gogh-dial-link', 8, 64, d0.linkGap) : '') +
+        dial('Text size', 'gogh-dial-fsz', 12, 30, d0.fsz) : '') +
+      '<div class="gogh-panel-row gogh-chrome-rows">' +
+      '<button type="button" class="gogh-btn gogh-btn-small gogh-hsticky' + (st.sticky ? ' is-active' : '') + '">\ud83d\udccc ' + (st.sticky ? 'Sticky \u2014 on' : 'Stick to the top') + '</button>' +
+      '<button type="button" class="gogh-btn gogh-btn-small gogh-hfreeform">\u2728 Make it freeform</button>' +
+      '</div>' +
+      '<div class="gogh-panel-row gogh-chrome-foot">' +
+      '<button type="button" class="gogh-btn gogh-btn-small gogh-hcancel">Cancel</button>' +
+      '<button type="button" class="gogh-btn gogh-btn-save gogh-btn-small gogh-happly" title="Updates every page" disabled>Apply</button>' +
+      '</div>';
+    dockPanel(partEl);
+    panelOpen = true;
+    panelSticky = true;
+    panel.dataset.goghArea = area;
+    var applyBtn = panel.querySelector('.gogh-happly');
+    var arm = function () { applyBtn.disabled = false; };
+    // closePanel runs this on EVERY close path — Esc left the header
+    // wearing a stranded preview + dial padding (the "gap under the nav")
+    panelCleanup = function () {
+      // reverts FIRST, preview-end LAST: a dial snapshot taken while a
+      // layout preview had the originals hidden re-applies display:none —
+      // endChromePreview's explicit unhide must have the final word
+      chromeDialsRevert(partEl);
+      chromeColorRevert(partEl);
+      endChromePreview();
+      var mg = chromeMountedGroup(partEl);
+      if (mg) mg.classList.toggle('gogh-sticky', st.sticky0);
+    };
+    // after a layout preview mounts, the paint targets are NEW nodes — the
+    // chosen dials and look must follow the audition onto them
+    var repaint = function () {
+      if (st.dials) chromeDialsPreview(partEl, st.dials);
+      if (st.look !== undefined) chromeColorPreview(partEl, st.look);
+    };
+    var bail = function () { closePanel(); };
+    panel.querySelector('.gogh-panel-close').addEventListener('click', bail);
+    panel.querySelector('.gogh-hcancel').addEventListener('click', bail);
+    // LAYOUT: hover previews via the render pipeline, click selects
+    panel.querySelectorAll('.gogh-hlayout').forEach(function (lb) {
+      var opt = options[+lb.dataset.k];
+      auditionHover(lb, function () {
+        if (opt.id !== st.layoutId) previewChromeLayout(partEl, opt, repaint);
+      }, function () {
+        if (opt.id !== st.layoutId) {
+          endChromePreview();
+          if (st.layoutId !== (activeOpt && activeOpt.id)) {
+            var back = options.filter(function (o) { return o.id === st.layoutId; })[0];
+            if (back) previewChromeLayout(partEl, back, repaint);
+          } else repaint();
+        }
+      });
+      lb.addEventListener('click', function () {
+        st.layoutId = opt.id;
+        if (opt.id === (activeOpt && activeOpt.id)) { endChromePreview(); repaint(); }
+        else previewChromeLayout(partEl, opt, repaint);
+        panel.querySelectorAll('.gogh-hlayout').forEach(function (o2) {
+          o2.classList.toggle('is-active', o2 === lb);
+        });
+        arm();
+      });
+    });
+    // LOOK: instant inline audition; the Transparency dial composes with
+    // WHICHEVER look is chosen ("when i set a transparency and a color -
+    // it's not transparent" — it only listened to the custom picker)
+    var hexPair = function (n) { return ('0' + Math.round(n).toString(16)).slice(-2); };
+    var applyLookState = function () {
+      if (!st.base) return;
+      var a = 100 - (alphaIn ? +alphaIn.value : 0);
+      if (st.base.custom) {
+        st.look = customLook();
+      } else if (!st.base.bg || a >= 100) {
+        st.look = st.base;
+      } else {
+        var rgb = cssToRgb('var(--wp--preset--color--' + st.base.bg + ')');
+        st.look = rgb
+          ? { custom: true, hex8: '#' + hexPair(rgb[0]) + hexPair(rgb[1]) + hexPair(rgb[2]) + hexPair(a / 100 * 255),
+              name: st.base.name + ' ' + a + '%', ink: st.base.ink }
+          : st.base;
+      }
+      chromeColorPreview(partEl, st.look);
+      if (alphaRow) alphaRow.hidden = !(st.base.bg || st.base.custom);
+      arm();
+    };
+    panel.querySelectorAll('.gogh-hlooks .gogh-sw').forEach(function (sw) {
+      var look = looks[+sw.dataset.k];
+      auditionHover(sw, function () {
+        chromeColorPreview(partEl, look);
+      }, function () {
+        chromeColorPreview(partEl, st.look !== undefined ? st.look : null);
+        if (st.look === undefined) chromeColorRevert(partEl);
+      });
+      sw.addEventListener('click', function () {
+        st.base = look;
+        panel.querySelectorAll('.gogh-hlooks .gogh-sw').forEach(function (o2) {
+          o2.classList.toggle('is-active', o2 === sw);
+        });
+        applyLookState();
+      });
+    });
+    // CUSTOM look: any colour, any transparency ("probs need a custom
+    // color option") — hex8 through WP's own style.color.background
+    var customIn = panel.querySelector('.gogh-hcustom');
+    var alphaRow = panel.querySelector('.gogh-halpha-row');
+    var alphaIn = panel.querySelector('.gogh-halpha');
+    var customLook = function () {
+      var hex = customIn.value;
+      // the dial reads as TRANSPARENCY: right = more see-through
+      var a = 100 - (alphaIn ? +alphaIn.value : 0);
+      var hex8 = a >= 100 ? hex : hex + ('0' + Math.round(a / 100 * 255).toString(16)).slice(-2);
+      return { slug: '', name: 'Custom', custom: true, hex8: hex8, hex: hex, alpha: a,
+        ink: bestInkFor(hex) };
+    };
+    var pickCustom = function () {
+      st.base = { custom: true };
+      panel.querySelectorAll('.gogh-hlooks .gogh-sw').forEach(function (o2) {
+        o2.classList.toggle('is-active', o2.classList.contains('gogh-sw-pick'));
+      });
+      applyLookState();
+    };
+    if (customIn) {
+      customIn.addEventListener('input', pickCustom);
+      customIn.addEventListener('change', pickCustom);
+    }
+    if (alphaIn) {
+      alphaIn.addEventListener('input', function () {
+        var lab = panel.querySelector('.gogh-halpha-val');
+        if (lab) lab.textContent = alphaIn.value;
+        applyLookState();
+      });
+    }
+    // SPACING: live dials
+    if (d0) {
+      var readDials = function () {
+        var v2 = function (cls, fb) {
+          var inp = panel.querySelector('.' + cls);
+          return inp ? +inp.value : fb;
+        };
+        return { pad: v2('gogh-dial-pad', d0.pad), gap: v2('gogh-dial-gap', d0.gap), linkGap: v2('gogh-dial-link', d0.linkGap), fsz: v2('gogh-dial-fsz', d0.fsz) };
+      };
+      ['gogh-dial-pad', 'gogh-dial-gap', 'gogh-dial-link', 'gogh-dial-fsz'].forEach(function (cls) {
+        var inp = panel.querySelector('.' + cls);
+        if (!inp) return;
+        inp.addEventListener('input', function () {
+          var lab = panel.querySelector('.' + cls + '-val');
+          if (lab) lab.textContent = inp.value;
+          st.dials = readDials();
+          chromeDialsPreview(partEl, st.dials);
+          arm();
+        });
+      });
+    }
+    // STICKY: visual toggle, written on Apply
+    var stickyBtn = panel.querySelector('.gogh-hsticky');
+    stickyBtn.addEventListener('click', function () {
+      st.sticky = !st.sticky;
+      stickyBtn.classList.toggle('is-active', st.sticky);
+      stickyBtn.innerHTML = '\ud83d\udccc ' + (st.sticky ? 'Sticky \u2014 on' : 'Stick to the top');
+      // live audition: the marker class pins the header right now — scroll
+      // and SEE it stick before ever applying
+      var mg = chromeMountedGroup(partEl);
+      if (mg) mg.classList.toggle('gogh-sticky', st.sticky);
+      arm();
+    });
+    panel.querySelector('.gogh-hfreeform').addEventListener('click', function () {
+      bail();
+      editChromeFreeform(partEl, area, active);
+    });
+    // ONE Apply: compose every touched change into a single save
+    applyBtn.addEventListener('click', function () {
+      var base = (st.layoutId !== (activeOpt && activeOpt.id))
+        ? chromeLayoutContent(area, chosenOpt())
+        : raw0;
+      if (st.dials) base = chromeDialsApply(base, st.dials) || base;
+      if (st.look !== undefined) base = chromeColorApply(base, st.look && st.look.bg ? st.look : null) || base;
+      if (st.sticky !== st.sticky0) base = stickyRawToggle(base, st.sticky) || base;
+      applyBtn.disabled = true;
+      applyBtn.textContent = 'Applying\u2026';
+      confirmChromeReload(area, function () {
+        fetch(tpUrl(active.id), {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'X-WP-Nonce': cfg.nonce },
+          credentials: 'same-origin',
+          body: JSON.stringify({ content: base }),
+        }).then(function (r) {
+          if (!r.ok) throw new Error('HTTP ' + r.status);
+          discarding = true;
+          location.reload();
+        }).catch(function () {
+          applyBtn.disabled = false;
+          applyBtn.textContent = 'Apply';
+          toast('Could not update the ' + area + '.', { error: true });
+        });
+      });
+    });
+  }
+  function openChromeLayoutPanel(partEl, area, options, activeOpt, active) {
+    var selId = activeOpt ? activeOpt.id : null;
+    var isFreeform = !!(activeOpt && activeOpt.content.indexOf('wp:gogh/section') !== -1);
+    var mounted = partEl.querySelector('.gogh-wrap');
+    function render() {
+      panel.innerHTML =
+        '<div class="gogh-panel-head"><span class="gogh-panel-title">Site ' + area + '</span>' +
+        '<button type="button" class="gogh-sbtn gogh-panel-close" title="Close">\u2715</button></div>' +
+        '<div class="gogh-panel-hint">Click a layout to preview it live' + (isFreeform ? ' \u2014 picking one replaces your freeform design' : '') + '</div>' +
+        '<div class="gogh-panel-row gogh-chrome-rows">' +
+        options.map(function (o, k) {
+          return '<button type="button" class="gogh-btn gogh-btn-small gogh-chrome-opt' + (o.id === selId ? ' is-active' : '') + '" data-k="' + k + '"></button>';
+        }).join('') +
+        '</div>' +
+        '<div class="gogh-panel-hint">Or make it yours</div>' +
+        '<div class="gogh-panel-row gogh-chrome-rows">' +
+        '<button type="button" class="gogh-btn gogh-btn-small gogh-chrome-edit">\u2728 ' + (isFreeform || mounted ? 'Edit freeform' : 'Make freeform') + '</button>' +
+        '</div>' +
+        (activeOpt ? '<div class="gogh-panel-row gogh-chrome-rows">' +
+          '<button type="button" class="gogh-btn gogh-btn-small gogh-chrome-sticky' + (chromeIsSticky(active) ? ' is-active' : '') + '">\ud83d\udccc ' +
+          (chromeIsSticky(active) ? 'Sticky \u2014 on' : 'Stick to the top') + '</button>' +
+          '</div>' : '') +
+        ((activeOpt && !isFreeform && !mounted && chromeDialsRead((active && active.content && active.content.raw) || '')) ?
+          '<div class="gogh-panel-row gogh-chrome-rows">' +
+          '<button type="button" class="gogh-btn gogh-btn-small gogh-chrome-space">\u2195 Spacing\u2026</button>' +
+          '</div>' : '') +
+        '<div class="gogh-panel-row gogh-chrome-foot">' +
+        '<button type="button" class="gogh-btn gogh-btn-small gogh-chrome-cancel">Cancel</button>' +
+        '<button type="button" class="gogh-btn gogh-btn-small gogh-chrome-use" title="Updates every page"' + ((activeOpt && selId === activeOpt.id) ? ' disabled' : '') + '>Use this layout</button>' +
+        '</div>';
+      panel.querySelector('.gogh-panel-close').addEventListener('click', function () {
+        chromeDialsRevert(partEl);
+        endChromePreview();
+        closePanel();
+      });
+      var stickyBtn = panel.querySelector('.gogh-chrome-sticky');
+      if (stickyBtn) stickyBtn.addEventListener('click', function () {
+        stickyBtn.disabled = true;
+        toggleChromeSticky(area, active);
+      });
+      var spaceBtn = panel.querySelector('.gogh-chrome-space');
+      if (spaceBtn) spaceBtn.addEventListener('click', function () {
+        endChromePreview();
+        openChromeSpacingPanel(partEl, area, active);
+      });
+      options.forEach(function (o, k) {
+        var b = panel.querySelector('.gogh-chrome-opt[data-k="' + k + '"]');
+        b.textContent = o.title + ((activeOpt && o.id === activeOpt.id) ? ' (current)' : '');
+        b.addEventListener('click', function () {
+          if (activeOpt && o.id === activeOpt.id) {
+            endChromePreview();
+            selId = o.id;
+            render();
+            return;
+          }
+          previewChromeLayout(partEl, o, function (ok) {
+            if (ok) { selId = o.id; render(); }
+          });
+        });
+      });
+      panel.querySelector('.gogh-chrome-edit').addEventListener('click', function () {
+        editChromeFreeform(partEl, area, active);
+      });
+      panel.querySelector('.gogh-chrome-cancel').addEventListener('click', function () {
+        chromeDialsRevert(partEl);
+        endChromePreview();
+        closePanel();
+      });
+      panel.querySelector('.gogh-chrome-use').addEventListener('click', function () {
+        var chosen = options.filter(function (o) { return o.id === selId; })[0];
+        if (!chosen || (activeOpt && chosen.id === activeOpt.id)) return;
+        this.disabled = true;
+        this.textContent = 'Applying\u2026';
+        swapChromeLayout(area, active, chosen);
+      });
+    }
+    render();
+    placePanelNear(partEl);
+    panelOpen = true;
+  }
+  var chromePreview = null; // {partEl, box, hidden}
+  function endChromePreview() {
+    if (!chromePreview) return;
+    chromePreview.box.remove();
+    chromePreview.hidden.forEach(function (c) { c.style.display = ''; });
+    chromePreview = null;
+  }
+  var prevStyleHandles = {}; // block stylesheets pulled in for previews
+  function applyChromePreview(partEl, opt, d, done) {
+    (d.styles || []).forEach(function (href) {
+      if (prevStyleHandles[href]) return;
+      prevStyleHandles[href] = 1;
+      if (document.querySelector('link[href="' + href.replace(/"/g, '%22') + '"]')) return;
+      var lnk = document.createElement('link');
+      lnk.rel = 'stylesheet';
+      lnk.href = href;
+      document.head.appendChild(lnk);
+    });
+    // a response landing after the preview stage moved to ANOTHER part
+    // (header fetch resolving mid-footer-cycle) must not write into it —
+    // that both showed the wrong content and let the dead cycle's cleanup
+    // destroy the live preview
+    if (chromePreview && chromePreview.partEl !== partEl) {
+      if (done) done(false);
+      return;
+    }
+    if (!chromePreview) {
+      var hidden = [].slice.call(partEl.children);
+      hidden.forEach(function (c) { c.style.display = 'none'; });
+      var box = document.createElement('div');
+      box.className = 'gogh-chrome-preview';
+      partEl.appendChild(box);
+      chromePreview = { partEl: partEl, box: box, hidden: hidden };
+    }
+    chromePreview.box.innerHTML = (d.css ? '<style>' + d.css + '</style>' : '') + (d.html || '');
+    // self-check: an "applied" preview the user can't SEE is the worst
+    // failure mode — detect it, and REPORT the outcome on the strip itself
+    // so a single screenshot carries the full diagnosis
+    setTimeout(function () {
+      if (!chromePreview || chromePreview.partEl !== partEl) return;
+      var bh = chromePreview.box.getBoundingClientRect().height;
+      var origVisible = chromePreview.hidden.some(function (c) {
+        return getComputedStyle(c).display !== 'none';
+      });
+      var hintEl = cycBar.querySelector('.gogh-cyc-hint');
+      if (bh < 20 || origVisible) {
+        if (hintEl && chromeCycle && chromeCycle.partEl === partEl) {
+          hintEl.textContent = '⚠ applied but hidden: ' + Math.round(bh) + 'px' +
+            (origVisible ? ', original visible' : '');
+          hintEl.classList.add('is-warn');
+        }
+        toast('gogh: preview of “' + (opt.title || opt.slug) + '” applied but not visible' +
+          ' (box ' + Math.round(bh) + 'px' + (origVisible ? ', original still showing' : '') +
+          ', html ' + ((d.html || '').length) + ' chars)', { error: true, ttl: 9000 });
+      } else if (hintEl && chromeCycle && chromeCycle.partEl === partEl) {
+        // healthy previews stay quiet — the strip only speaks on failure
+        hintEl.textContent = '';
+        hintEl.classList.remove('is-warn');
+      }
+    }, 120);
+    if (done) done(true);
+  }
+  function previewChromeLayout(partEl, opt, done) {
+    // screened options carry their render — applying is instant
+    if (opt.__prev) { applyChromePreview(partEl, opt, opt.__prev, done); return; }
+    // gogh's own renderer: do_blocks output PLUS the generated layout CSS
+    // and block stylesheets — the core block-renderer returns bare markup
+    // that leaves navigations as bulleted lists
+    renderChromeOption(opt).then(function (d) {
+      if (!d) throw new Error('render failed');
+      applyChromePreview(partEl, opt, d, done);
+    }).catch(function (err) {
+      var hintEl = cycBar.querySelector('.gogh-cyc-hint');
+      if (hintEl && chromeCycle && chromeCycle.partEl === partEl) {
+        hintEl.textContent = '⚠ ' + ((err && err.message) || 'network error');
+        hintEl.classList.add('is-warn');
+      }
+      toast('Could not preview that layout — ' + ((err && err.message) || 'network error'), { error: true, ttl: 7000 });
+      if (done) done(false);
+    });
+  }
+  function renderChromeOption(o) {
+    if (o.__prev) return Promise.resolve(o.__prev);
+    return fetch(GSROOT.replace(/wp\/v2\/$/, '') + 'gogh/v1/render', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-WP-Nonce': cfg.nonce },
+      credentials: 'same-origin',
+      body: JSON.stringify({ content: o.content || '' }),
+    }).then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (d) {
+        if (d && d.html != null) { o.__prev = d; return d; }
+        return null;
+      }).catch(function () { return null; });
+  }
+  // structural signature: identical looks collapse regardless of the
+  // generated hashes WordPress sprinkles through the markup
+  function chromeRenderSig(html) {
+    return (html || '')
+      .replace(/wp-elements-[a-f0-9]+/g, '')
+      .replace(/wp-container-[\w-]+/g, '')
+      .replace(/\bid="[^"]*"/g, '')
+      .replace(/\s+/g, ' ')
+      .trim();
+  }
+  function chromeTextSig(html) {
+    var t = document.createElement('template');
+    t.innerHTML = html || '';
+    return (t.content.textContent || '').replace(/\s+/g, ' ').trim().toLowerCase();
+  }
+  // what a look IS to the eye: its words plus its colour scheme — a dark
+  // twin of the current layout is a REAL alternative, a same-coloured
+  // lookalike is not
+  function chromeLookSig(html) {
+    var bgs = ((html || '').match(/has-[a-z0-9-]+-background-color/g) || []).sort().join(',');
+    return chromeTextSig(html) + '::' + bgs;
+  }
+  // render every candidate once, up front: options that render empty, or
+  // identical to another option, or indistinguishable from the CURRENT
+  // part get dropped — flicking through lookalikes feels broken. The kept
+  // renders make every subsequent flick instant.
+  function screenChromeOptions(options, activeOpt) {
+    return Promise.all(options.map(renderChromeOption)).then(function () {
+      var seen = {};
+      var activeLook = null;
+      if (activeOpt && activeOpt.__prev) {
+        seen[chromeRenderSig(activeOpt.__prev.html)] = 1;
+        activeLook = chromeLookSig(activeOpt.__prev.html);
+      }
+      return options.filter(function (o) {
+        if (o === activeOpt) return true;
+        var d = o.__prev;
+        if (!d || !d.html || chromeTextSig(d.html).length < 8) return false;
+        var sig = chromeRenderSig(d.html);
+        if (seen[sig]) return false;
+        seen[sig] = 1;
+        if (activeLook && chromeLookSig(d.html) === activeLook) return false;
+        return true;
+      });
+    });
+  }
+  // booted freeform chrome has no template-part id — resolve it so edits
+  // actually save somewhere
+  function resolveChromeIds() {
+    var missing = S.filter(function (s) { return s.chrome && !s.chrome.id; });
+    if (!missing.length) return Promise.resolve();
+    var areas = [];
+    missing.forEach(function (s) { if (areas.indexOf(s.chrome.area) === -1) areas.push(s.chrome.area); });
+    return Promise.all(areas.map(function (area) {
+      return fetch(restQ(tpUrl(), 'area=' + encodeURIComponent(area) + '&context=edit'), {
+        headers: { 'X-WP-Nonce': cfg.nonce },
+        credentials: 'same-origin',
+      }).then(function (r) { return r.ok ? r.json() : []; }).then(function (parts) {
+        var active = null;
+        (parts || []).forEach(function (p) {
+          if (!active && p.slug === area && (!p.theme || p.theme === cfg.theme)) active = p;
+        });
+        if (active) {
+          missing.forEach(function (s) { if (s.chrome.area === area) s.chrome.id = active.id; });
+        }
+      }).catch(function () {});
+    }));
+  }
+  function chromeIsSticky(active) {
+    var raw = (active && active.content && active.content.raw) || '';
+    return /"position":\s*{[^}]*"type":"sticky"/.test(raw);
+  }
+  function stickyRawToggle(raw, on) {
+    var spans = parseTopBlocks(raw);
+    var sp = spans[0];
+    var nm = sp ? String(sp.name || '').replace(/^core\//, '') : '';
+    if (nm !== 'group') return null;
+    var seg = raw.slice(sp.start, sp.end);
+    var m = seg.match(/^<!--\s*wp:group(\s+({[\s\S]*?}))?\s*-->/);
+    if (!m) return null;
+    var attrs = {};
+    try { attrs = m[2] ? JSON.parse(m[2]) : {}; } catch (err) { return null; }
+    attrs.style = attrs.style || {};
+    if (on) {
+      // WordPress's own position support: core CSS, deactivation-safe
+      attrs.style.position = { type: 'sticky', top: '0px' };
+    } else {
+      delete attrs.style.position;
+      if (!Object.keys(attrs.style).length) delete attrs.style;
+    }
+    // gogh's own marker rides along: WP's attr sits on the INNER group,
+    // whose parent (the header element) is exactly as tall — zero travel,
+    // it can never stick. The marker lets base CSS pin the header ITSELF,
+    // on any theme, with or without theme.json position support.
+    var cls = String(attrs.className || '').split(/\s+/).filter(function (c2) {
+      return c2 && c2 !== 'gogh-sticky';
+    });
+    if (on) cls.push('gogh-sticky');
+    if (cls.length) attrs.className = cls.join(' ');
+    else delete attrs.className;
+    var head = Object.keys(attrs).length ? '<!-- wp:group ' + JSON.stringify(attrs) + ' -->' : '<!-- wp:group -->';
+    var body = seg.slice(m[0].length);
+    body = body.replace(/(<div[^>]*?class=")([^"]*)"/, function (m0, pre, dc) {
+      var dcl = dc.split(/\s+/).filter(function (c2) { return c2 && c2 !== 'gogh-sticky'; });
+      if (on) dcl.push('gogh-sticky');
+      return pre + dcl.join(' ') + '"';
+    });
+    return raw.slice(0, sp.start) + head + body + raw.slice(sp.end);
+  }
+  // ---------- header designer: three dials, native attrs ----------
+  // Squarespace's header designer distilled to the dials that matter:
+  // Height (group padding), Element spacing (group blockGap), Link spacing
+  // (navigation blockGap). Everything writes WordPress's OWN spacing
+  // supports — like sticky above, it survives gogh's deactivation.
+  function chromeLenPx(v) {
+    var m = String(v == null ? '' : v).match(/^([\d.]+)\s*(px|rem|em)?$/);
+    if (!m) return null;
+    return Math.round(parseFloat(m[1]) * (m[2] && m[2] !== 'px' ? 16 : 1));
+  }
+  function chromeOuterGroup(raw) {
+    var spans = parseTopBlocks(raw);
+    var sp = spans[0];
+    if (!sp || String(sp.name || '').replace(/^core\//, '') !== 'group') return null;
+    var seg = raw.slice(sp.start, sp.end);
+    var m = seg.match(/^<!--\s*wp:group(\s+({[\s\S]*?}))?\s*-->/);
+    if (!m) return null;
+    var attrs = {};
+    try { attrs = m[2] ? JSON.parse(m[2]) : {}; } catch (err) { return null; }
+    return { sp: sp, seg: seg, head: m[0], attrs: attrs };
+  }
+  function chromeDialsRead(raw) {
+    var g = chromeOuterGroup(raw);
+    if (!g) return null;
+    var sty = g.attrs.style || {};
+    var spc = sty.spacing || {};
+    var padTop = spc.padding && spc.padding.top;
+    var navM = raw.match(/<!--\s*wp:navigation(\s+({[\s\S]*?}))?\s*\/-->/);
+    var navGap = null;
+    if (navM && navM[2]) {
+      try {
+        var na = JSON.parse(navM[2]);
+        navGap = na.style && na.style.spacing && na.style.spacing.blockGap;
+      } catch (err) {}
+    }
+    var typo = sty.typography || {};
+    return {
+      pad: chromeLenPx(padTop) != null ? chromeLenPx(padTop) : 20,
+      gap: chromeLenPx(spc.blockGap) != null ? chromeLenPx(spc.blockGap) : 18,
+      linkGap: chromeLenPx(navGap) != null ? chromeLenPx(navGap) : 24,
+      fsz: chromeLenPx(typo.fontSize) != null ? chromeLenPx(typo.fontSize) : 16,
+      hasNav: !!navM,
+    };
+  }
+  // ---------- header LOOK: theme colours on the outer group ----------
+  // native block colour supports only (backgroundColor/textColor slugs),
+  // attrs and markup classes in lockstep — deactivation-safe like the dials
+  function headerLooks() {
+    var roles = paletteRoles();
+    if (!roles.bgSlug || !roles.textSlug) return [];
+    var v = function (slug) { return 'var(--wp--preset--color--' + slug + ')'; };
+    var out = [
+      { slug: '', name: 'Theme default', bg: null, ink: null },
+      { slug: roles.bgSlug, name: 'Paper', bg: roles.bgSlug, ink: roles.textSlug },
+      { slug: roles.textSlug, name: 'Ink', bg: roles.textSlug, ink: roles.bgSlug },
+    ];
+    themePalette().filter(function (p) {
+      return p.slug !== roles.bgSlug && p.slug !== roles.textSlug && !/^border|^shadow|gray$/.test(p.slug);
+    }).slice(0, 2).forEach(function (p) {
+      out.push({ slug: p.slug, name: p.slug, bg: p.slug, ink: bestInkFor(v(p.slug)) });
+    });
+    return out;
+  }
+  function chromeColorApply(raw, look) {
+    var g = chromeOuterGroup(raw);
+    if (!g) return null;
+    var attrs = g.attrs;
+    var dropCustomBg = function () {
+      if (attrs.style && attrs.style.color) {
+        delete attrs.style.color.background;
+        if (!Object.keys(attrs.style.color).length) delete attrs.style.color;
+        if (!Object.keys(attrs.style).length) delete attrs.style;
+      }
+    };
+    if (look && look.custom) {
+      // any colour, any alpha: WP's own style.color.background takes hex8
+      delete attrs.backgroundColor;
+      attrs.textColor = look.ink;
+      attrs.style = attrs.style || {};
+      attrs.style.color = attrs.style.color || {};
+      attrs.style.color.background = look.hex8;
+    } else if (look && look.bg) {
+      attrs.backgroundColor = look.bg;
+      attrs.textColor = look.ink;
+      dropCustomBg();
+    } else {
+      delete attrs.backgroundColor;
+      delete attrs.textColor;
+      dropCustomBg();
+    }
+    var head = Object.keys(attrs).length ? '<!-- wp:group ' + JSON.stringify(attrs) + ' -->' : '<!-- wp:group -->';
+    var body = g.seg.slice(g.head.length);
+    body = body.replace(/(<div[^>]*?class=")([^"]*)"/, function (m0, pre, cls) {
+      var cleaned = cls.split(/\s+/).filter(function (c2) {
+        return !/^has-[a-z0-9-]+-background-color$/.test(c2) && c2 !== 'has-background' &&
+          !/^has-[a-z0-9-]+-color$/.test(c2) && c2 !== 'has-text-color';
+      });
+      if (look && look.custom) {
+        cleaned.push('has-background', 'has-' + look.ink + '-color', 'has-text-color');
+      } else if (look && look.bg) {
+        cleaned.push('has-' + look.bg + '-background-color', 'has-background',
+          'has-' + look.ink + '-color', 'has-text-color');
+      }
+      return pre + cleaned.join(' ') + '"';
+    });
+    // custom colours are not classes: the saved markup carries the inline
+    // background in lockstep with the attr (like the dials carry padding)
+    body = body.replace(/(<div[^>]*?)(\sstyle="([^"]*)")?>/, function (m0, pre, styAttr, sty) {
+      var decls = (sty || '').split(';').map(function (x) { return x.trim(); })
+        .filter(function (x) { return x && !/^background-color\s*:/.test(x); });
+      if (look && look.custom) decls.push('background-color:' + look.hex8);
+      if (!decls.length) return pre + '>';
+      return pre + ' style="' + decls.join(';') + '">';
+    });
+    return raw.slice(0, g.sp.start) + head + body + raw.slice(g.sp.end);
+  }
+  // the group the user can SEE: a mounted layout preview hides the original
+  // children, so the first .wp-block-group may be a display:none ghost —
+  // painting it is the "spacing not working" report
+  function chromeMountedGroup(partEl) {
+    var box = partEl.querySelector('.gogh-chrome-preview');
+    var root = box || partEl;
+    var gs = root.querySelectorAll('.wp-block-group');
+    for (var i = 0; i < gs.length; i++) {
+      if (gs[i].offsetWidth || gs[i].offsetHeight) return gs[i];
+    }
+    return gs[0] || null;
+  }
+  // live audition on the mounted part; snapshot for the way back
+  function chromeColorPreview(partEl, look) {
+    var grp = chromeMountedGroup(partEl);
+    if (!grp) return;
+    if (!partEl.__goghLookOrig) {
+      partEl.__goghLookOrig = [grp, grp.getAttribute('style')];
+    }
+    if (look && look.custom) {
+      grp.style.backgroundColor = look.hex8;
+      grp.style.color = 'var(--wp--preset--color--' + look.ink + ')';
+    } else if (look && look.bg) {
+      grp.style.backgroundColor = 'var(--wp--preset--color--' + look.bg + ')';
+      grp.style.color = 'var(--wp--preset--color--' + look.ink + ')';
+    } else {
+      grp.style.backgroundColor = '';
+      grp.style.color = '';
+    }
+  }
+  function chromeColorRevert(partEl) {
+    var o = partEl.__goghLookOrig;
+    if (!o) return;
+    if (o[1] == null) o[0].removeAttribute('style');
+    else o[0].setAttribute('style', o[1]);
+    partEl.__goghLookOrig = null;
+  }
+  function chromeDialsApply(raw, d) {
+    var g = chromeOuterGroup(raw);
+    if (!g) return null;
+    var attrs = g.attrs;
+    attrs.style = attrs.style || {};
+    attrs.style.spacing = attrs.style.spacing || {};
+    var pad = attrs.style.spacing.padding || {};
+    pad.top = d.pad + 'px';
+    pad.bottom = d.pad + 'px';
+    attrs.style.spacing.padding = pad;
+    attrs.style.spacing.blockGap = d.gap + 'px';
+    if (d.fsz) {
+      attrs.style.typography = attrs.style.typography || {};
+      attrs.style.typography.fontSize = d.fsz + 'px';
+    }
+    var head = '<!-- wp:group ' + JSON.stringify(attrs) + ' -->';
+    var body = g.seg.slice(g.head.length);
+    // the saved markup carries padding as an inline style — keep it in
+    // lockstep with the attrs or the block reads as broken in WP's editor
+    body = body.replace(/(<div[^>]*?)(\sstyle="([^"]*)")?>/, function (m0, pre, styAttr, sty) {
+      var decls = (sty || '').split(';').map(function (x) { return x.trim(); })
+        .filter(function (x) { return x && !/^padding-(top|bottom)\s*:/.test(x); });
+      decls = decls.filter(function (x) { return !/^font-size\s*:/.test(x); });
+      decls.push('padding-top:' + d.pad + 'px');
+      decls.push('padding-bottom:' + d.pad + 'px');
+      if (d.fsz) decls.push('font-size:' + d.fsz + 'px');
+      return pre + ' style="' + decls.join(';') + '">';
+    });
+    var out = raw.slice(0, g.sp.start) + head + body + raw.slice(g.sp.end);
+    // the navigation block is dynamic: its attrs alone carry the link gap
+    out = out.replace(/<!--\s*wp:navigation(\s+({[\s\S]*?}))?\s*\/-->/, function (m0, sp2, json) {
+      var na = {};
+      if (json) { try { na = JSON.parse(json); } catch (err) { return m0; } }
+      na.style = na.style || {};
+      na.style.spacing = na.style.spacing || {};
+      na.style.spacing.blockGap = d.linkGap + 'px';
+      if (d.fsz) {
+        // menu items keep their own theme size unless the nav block says
+        // otherwise — the group's size alone never reaches them
+        na.style.typography = na.style.typography || {};
+        na.style.typography.fontSize = d.fsz + 'px';
+      }
+      return '<!-- wp:navigation ' + JSON.stringify(na) + ' /-->';
+    });
+    return out;
+  }
+  // live preview: paint the dials straight onto the mounted part — and
+  // remember the first sight of each element so Cancel can undress it
+  function chromeDialsPreview(partEl, d) {
+    if (!partEl.__goghDialsOrig) partEl.__goghDialsOrig = [];
+    [].forEach.call(
+      partEl.querySelectorAll('.wp-block-group, .wp-block-navigation, .wp-block-navigation__container, .wp-block-navigation ul'),
+      function (el) {
+        var known = partEl.__goghDialsOrig.some(function (p) { return p[0] === el; });
+        if (!known) partEl.__goghDialsOrig.push([el, el.getAttribute('style')]);
+      });
+    var grp = chromeMountedGroup(partEl);
+    if (grp) {
+      grp.style.paddingTop = d.pad + 'px';
+      grp.style.paddingBottom = d.pad + 'px';
+      grp.style.gap = d.gap + 'px';
+      if (d.fsz) grp.style.fontSize = d.fsz + 'px';
+    }
+    var navRoot = partEl.querySelector('.gogh-chrome-preview') || partEl;
+    [].forEach.call(navRoot.querySelectorAll('.wp-block-navigation__container, .wp-block-navigation ul'), function (ul) {
+      ul.style.gap = d.linkGap + 'px';
+    });
+    [].forEach.call(navRoot.querySelectorAll('.wp-block-navigation'), function (nv) {
+      if (d.fsz) nv.style.fontSize = d.fsz + 'px';
+    });
+  }
+  function chromeDialsRevert(partEl) {
+    (partEl.__goghDialsOrig || []).forEach(function (pair) {
+      if (pair[1] == null) pair[0].removeAttribute('style');
+      else pair[0].setAttribute('style', pair[1]);
+    });
+    partEl.__goghDialsOrig = null;
+  }
+  // gogh's OWN confirm, not window.confirm: Chrome can silently suppress
+  // native dialogs in long-lived tabs, which made the \u2713 do nothing at all
+  function confirmChromeReload(area, proceed) {
+    if (!isDirty()) { proceed(); return; }
+    toast('You have unpublished changes \u2014 switching the ' + area + ' reloads the page and discards them.', {
+      sticky: true,
+      actions: [
+        { label: 'Switch anyway', onClick: proceed },
+        { label: 'Cancel' },
+      ],
+    });
+  }
+  function toggleChromeSticky(area, active) {
+    confirmChromeReload(area, function () {
+      var raw = (active && active.content && active.content.raw) || '';
+      var newRaw = stickyRawToggle(raw, !chromeIsSticky(active));
+      if (newRaw == null) {
+        toast('This ' + area + ' layout can\u2019t be pinned automatically.', { error: true });
+        return;
+      }
+      fetch(tpUrl(active.id), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-WP-Nonce': cfg.nonce },
+        credentials: 'same-origin',
+        body: JSON.stringify({ content: newRaw }),
+      }).then(function (r) {
+        if (!r.ok) throw new Error('HTTP ' + r.status);
+        discarding = true;
+        location.reload();
+      }).catch(function () {
+        toast('Could not update the ' + area + '.', { error: true });
+      });
+    });
+  }
+  function chromeLayoutContent(area, chosen) {
+    var content = chosen.content || '';
+    if (area === 'header') {
+      // the site's identity choice survives a layout change: if the header
+      // currently leads with a LOGO, the incoming pattern's title block
+      // becomes a logo block (and never both — some patterns carry the two)
+      var pe = partElForArea('header');
+      var usingLogo = !!(pe && pe.querySelector('.wp-block-site-logo'));
+      if (usingLogo) {
+        var lg = logoizeHeaderRaw(content);
+        if (lg) content = lg;
+      } else if (content.indexOf('wp:site-logo') !== -1 && content.indexOf('wp:site-title') !== -1) {
+        content = content.replace(/<!--\s*wp:site-logo(\s+\{[^]*?\})?\s*\/-->\s*/, '');
+      }
+    }
+    return content;
+  }
+  function swapChromeLayoutNow(area, active, chosen) {
+    var content = chromeLayoutContent(area, chosen);
+    fetch(tpUrl(active.id), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-WP-Nonce': cfg.nonce },
+      credentials: 'same-origin',
+      body: JSON.stringify({ content: content }),
+    }).then(function (r) {
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      discarding = true;
+      location.reload();
+    }).catch(function () {
+      toast('Could not switch the ' + area + ' layout.', { error: true });
+    });
+  }
+  function swapChromeLayout(area, active, chosen) {
+    confirmChromeReload(area, function () {
+      swapChromeLayoutNow(area, active, chosen);
+    });
+  }
+  // measure a rendered container against its raw block markup: known leaves
+  // become typed elements, anything else becomes an atomic widget. Shared by
+  // chrome conversion and pattern insertion.
+  function scanDomWithRaw(rootEl, raw, opts) {
+    opts = opts || {};
+    var rr = rootEl.getBoundingClientRect();
+    if (rr.width < 10) return { els: [], minH: 0 };
+    var sx = W / rr.width;
+    var out = [];
+    var styleTexts = []; // <style> tags in pasted HTML — rebundled into widgets
+    // free mode = we're inside raw pasted HTML (not wp blocks). It flips on
+    // INTRINSICALLY whenever the walk enters an html block or an arbitrary
+    // non-wp container, so published pastes and recovered pastes convert
+    // with their own look too — not only fresh ones carrying the flag.
+    var freeMode = !!opts.freeHtml;
+    function place(dom, e) {
+      var r = dom.getBoundingClientRect();
+      if (r.width < 2 || r.height < 2) return;
+      e.x = Math.max(0, Math.round((r.left - rr.left) * sx));
+      e.y = Math.max(0, Math.round((r.top - rr.top) * sx));
+      e.w = Math.max(24, Math.round(r.width * sx));
+      e.h = Math.max(16, Math.round(r.height * sx));
+      out.push(e);
+    }
+    function boxFrom(dom) {
+      // a group that paints its own background must not vanish when we
+      // flatten it — it becomes a box element behind its children
+      var cs = getComputedStyle(dom);
+      var bgc = cs.backgroundColor;
+      var hasBg = bgc && bgc !== 'rgba(0, 0, 0, 0)' && bgc !== 'transparent';
+      var grad = cs.backgroundImage && cs.backgroundImage.indexOf('gradient') !== -1;
+      // a PHOTO background (url) must survive too — container divs get
+      // flattened, and their backdrop image used to vanish with them
+      var photo = cs.backgroundImage && cs.backgroundImage.indexOf('url(') !== -1;
+      if (!hasBg && !grad && !photo) return;
+      var e = { type: 'box' };
+      var m = (dom.className + '').match(/has-([a-z0-9-]+)-background-color/);
+      if (m) e.boxBg = m[1];
+      else if (photo) {
+        // single layer keeps position/size as a shorthand; layered
+        // backgrounds (commas between layers) keep the image list only
+        var solo = !/\),\s*(?:url|linear|radial|conic)/.test(cs.backgroundImage);
+        e.boxBg = solo
+          ? cs.backgroundImage + ' ' + cs.backgroundPosition + ' / ' + cs.backgroundSize + ' ' + cs.backgroundRepeat
+          : cs.backgroundImage;
+      }
+      else e.boxBg = grad ? cs.backgroundImage : bgc;
+      var rad = parseFloat(cs.borderTopLeftRadius) || 0;
+      if (rad) e.radius = Math.round(rad * sx);
+      place(dom, e);
+    }
+    function textStyle(dom, e) {
+      var cls = dom.className + '';
+      var fm = cls.match(/has-([a-z0-9-]+)-font-size/);
+      if (fm) e.fs = fm[1];
+      var am = cls.match(/has-text-align-(center|right)/);
+      if (am) e.align = am[1];
+      var cm = cls.match(/has-([a-z0-9-]+)-color/g);
+      if (cm) {
+        for (var ci = 0; ci < cm.length; ci++) {
+          var cslug = cm[ci].replace(/^has-/, '').replace(/-color$/, '');
+          if (cslug !== 'text' && cslug.indexOf('background') === -1 && cslug !== 'link') { e.color = cslug; break; }
+        }
+      }
+      if (!e.fs) {
+        // custom-sized text (clamp() and friends): keep the visual scale by
+        // stepping to the nearest theme preset instead of falling to default
+        var px = parseFloat(getComputedStyle(dom).fontSize);
+        var sizes = fontSizes();
+        var best = null, bestD = Infinity;
+        sizes.forEach(function (s) {
+          var d = Math.abs(s.px - px);
+          if (d < bestD) { bestD = d; best = s; }
+        });
+        if (best && px) e.fs = best.slug;
+      }
+      var needTf = freeMode;
+      if (!needTf) {
+        // native sections normally re-express text in theme presets — but
+        // display typography (huge inline sizes, tight leading, tracking,
+        // uppercase) has no preset equivalent, and stepping it to a preset
+        // is how a 12rem hero collapsed into body-sized text on convert.
+        // Capture the real look whenever it diverges from the preset story.
+        var pcs = getComputedStyle(dom);
+        var ppx = parseFloat(pcs.fontSize) || 0;
+        var chosen = null;
+        if (e.fs) {
+          fontSizes().forEach(function (sz) { if (sz.slug === e.fs) chosen = sz; });
+        }
+        var plh = parseFloat(pcs.lineHeight);
+        needTf = (chosen && ppx && Math.abs(chosen.px - ppx) > Math.max(3, ppx * 0.12)) ||
+          (parseFloat(pcs.letterSpacing) || 0) !== 0 ||
+          (pcs.textTransform && pcs.textTransform !== 'none') ||
+          (plh && ppx && plh / ppx < 1.05);
+      }
+      if (needTf) {
+        // pasted HTML keeps its own look: capture the real typography so the
+        // converted element renders like the paste, not the theme. Theme
+        // controls win the moment the user reaches for them (setters clear
+        // the matching override).
+        var tcs = getComputedStyle(dom);
+        var tf = {};
+        if (freeMode && tcs.fontFamily) tf.ff = tcs.fontFamily;
+        var fpx = parseFloat(tcs.fontSize);
+        if (fpx) {
+          tf.fs = Math.round(fpx * 100) / 100;
+          // container units so captured text scales down on phones like the
+          // rest of the section (fs2 cqw ≡ the same size at design width)
+          tf.fs2 = Math.round(fpx * sx / 12 * 1000) / 1000;
+        }
+        if (tcs.fontWeight && tcs.fontWeight !== '400') tf.fw = tcs.fontWeight;
+        if (tcs.fontStyle && tcs.fontStyle !== 'normal') tf.fst = tcs.fontStyle;
+        var lhp = parseFloat(tcs.lineHeight);
+        if (lhp && fpx) tf.lh = Math.round(lhp / fpx * 100) / 100;
+        var lsp = parseFloat(tcs.letterSpacing);
+        if (lsp) {
+          tf.ls = Math.round(lsp * 100) / 100;
+          // em tracks the font size at every breakpoint; raw px would keep
+          // desktop tracking on phone-sized text
+          tf.ls2 = Math.round(lsp / fpx * 1000) / 1000;
+        }
+        if (tcs.textTransform && tcs.textTransform !== 'none') tf.tt = tcs.textTransform;
+        if (tcs.color) tf.col = tcs.color;
+        e.tf = tf;
+        if (!e.align) {
+          var ta = tcs.textAlign;
+          if (ta === 'center' || ta === 'right') e.align = ta;
+        }
+      }
+      return e;
+    }
+    function looksLikeButton(dom) {
+      var cs = getComputedStyle(dom);
+      var bgc = cs.backgroundColor;
+      var hasBg = bgc && bgc !== 'rgba(0, 0, 0, 0)' && bgc !== 'transparent';
+      var hasBorder = parseFloat(cs.borderTopWidth) > 0 && cs.borderTopStyle !== 'none';
+      // an anchor holding headings/paragraphs, or standing card-tall, is a
+      // CARD — squashing it into a button label mangles its content
+      if (dom.querySelector('h1,h2,h3,h4,h5,h6,p')) return false;
+      if (dom.getBoundingClientRect().height > 120) return false;
+      return (hasBg || hasBorder) && (dom.textContent || '').trim().length < 60 && !dom.querySelector('img');
+    }
+    function leafFrom(dom, markup) {
+      var cl = dom.classList, tag = dom.tagName;
+      if (/^H[1-6]$/.test(tag)) return place(dom, textStyle(dom, { type: 'heading', text: cleanInline(dom.innerHTML).trim() }));
+      if (tag === 'P' && !cl.contains('gogh-badge')) return place(dom, textStyle(dom, { type: 'para', text: cleanInline(dom.innerHTML).trim() }));
+      if (tag === 'IMG') {
+        return place(dom, { type: 'image', src: dom.currentSrc || dom.src || null, alt: dom.alt || null });
+      }
+      if ((tag === 'A' || tag === 'BUTTON') && looksLikeButton(dom)) {
+        var bhref = tag === 'A' ? dom.getAttribute('href') : null;
+        var bcs = getComputedStyle(dom);
+        var bbg = bcs.backgroundColor;
+        var bGhost = (!bbg || bbg === 'rgba(0, 0, 0, 0)' || bbg === 'transparent');
+        var be = { type: 'button',
+          text: (dom.textContent || '').trim(),
+          href: (bhref && bhref !== '#') ? bhref : null,
+          ghost: bGhost };
+        if (freeMode) {
+          var btf = {};
+          if (!bGhost) btf.bg = bbg;
+          if (bcs.color) btf.col = bcs.color;
+          var brad = parseFloat(bcs.borderTopLeftRadius);
+          if (brad) btf.rad = Math.round(brad);
+          var bfpx = parseFloat(bcs.fontSize);
+          if (bfpx) {
+            btf.fs = Math.round(bfpx * 100) / 100;
+            btf.fs2 = Math.round(bfpx * sx / 12 * 1000) / 1000;
+          }
+          if (bcs.fontWeight && bcs.fontWeight !== '400') btf.fw = bcs.fontWeight;
+          if (bcs.fontFamily) btf.ff = bcs.fontFamily;
+          be.tf = btf;
+        }
+        return place(dom, be);
+      }
+      if (tag === 'FIGURE' && cl.contains('wp-block-image')) {
+        var img = dom.querySelector('img');
+        var e = { type: 'image' };
+        if (img) {
+          e.src = img.currentSrc || img.src || null;
+          e.alt = img.alt || null;
+          var mm = (img.className || '').match(/wp-image-(\d+)/);
+          e.mediaId = mm ? +mm[1] : null;
+        }
+        return place(dom, e);
+      }
+      if (cl.contains('wp-block-buttons')) {
+        // every button becomes a real, individually draggable button
+        var btns = [].slice.call(dom.querySelectorAll('.wp-block-button'));
+        if (btns.length) {
+          btns.forEach(function (btn) {
+            var a = btn.querySelector('a');
+            var lc = (a && a.className) || '';
+            var bgm = lc.match(/has-([a-z0-9-]+)-background-color/);
+            var txm = lc.replace(/has-[a-z0-9-]+-background-color/g, '').match(/has-((?!text-color)[a-z0-9-]+)-color/);
+            // geometry from the LINK, not the wrapper: stretched button rows
+            // make the wrapper span the row while the link hugs its label
+            place(a || btn, { type: 'button',
+              text: ((a || btn).textContent || '').trim(),
+              href: (a && a.getAttribute('href') && a.getAttribute('href') !== '#') ? a.getAttribute('href') : null,
+              btnBg: bgm ? bgm[1] : null,
+              btnText: txm ? txm[1] : null,
+              ghost: btn.className.indexOf('is-style-outline') !== -1 });
+          });
+          return;
+        }
+      }
+      if (cl.contains('wp-block-spacer') || cl.contains('wp-block-separator') || tag === 'HR') return;
+      place(dom, { type: 'widget', whtml: dom.outerHTML,
+        wsrc: markup != null ? markup : dom.outerHTML,
+        // verbatim markup keeps its OWN styles but loses everything it
+        // inherited from wrappers the conversion discards — pin the colour
+        wcol: getComputedStyle(dom).color });
+    }
+    function coverInto(dom, innerRawText) {
+      // the cover's backdrop becomes a full-bleed image element; its inner
+      // content becomes normal elements on top
+      var img = dom.querySelector(':scope > .wp-block-cover__image-background');
+      if (img) {
+        var cm = (img.className || '').match(/wp-image-(\d+)/);
+        place(dom, { type: 'image',
+          src: img.currentSrc || img.src || null, alt: img.alt || null,
+          mediaId: cm ? +cm[1] : null });
+      }
+      var inner = dom.querySelector(':scope > .wp-block-cover__inner-container');
+      if (inner) {
+        if (innerRawText) walk(inner, innerRawText);
+        else walkDomOnly(inner);
+      }
+    }
+    var FREE_ATOMIC = /^(UL|OL|DL|TABLE|FORM|VIDEO|AUDIO|IFRAME|CANVAS|PRE|BLOCKQUOTE|PICTURE|SELECT|INPUT|TEXTAREA|NAV|DETAILS)$/;
+    function hasDirectText(dom) {
+      return [].some.call(dom.childNodes, function (n) {
+        return n.nodeType === 3 && n.textContent.trim();
+      });
+    }
+    function walkDomOnly(containerDom) {
+      [].slice.call(containerDom.children).forEach(function (c) {
+        var cl = c.classList;
+        if (cl && cl.contains('gogh-pendbar')) return;
+        var tag = c.tagName;
+        if (tag === 'STYLE' || tag === 'SCRIPT' || tag === 'LINK' || tag === 'TEMPLATE') {
+          if (tag === 'STYLE' && c.textContent.trim()) styleTexts.push(c.textContent);
+          return;
+        }
+        if (cl.contains('wp-block-cover')) return coverInto(c, null);
+        // a leaf TAG is never a container — a classless <h1> holding a
+        // styling <span> must stay one heading, not be descended into
+        // (which drops its bare text nodes)
+        var leafTag = FREE_ATOMIC.test(tag) || /^(H[1-6]|P|IMG|A|BUTTON|FIGURE|SVG)$/i.test(tag);
+        if (!leafTag) {
+          if (cl.contains('wp-block-group') || cl.contains('wp-block-columns') ||
+              cl.contains('wp-block-column') || !c.className) {
+            if (c.children.length && !hasDirectText(c)) { boxFrom(c); return walkDomOnly(c); }
+          }
+          // arbitrary pasted HTML: containers descend by SHAPE, not class —
+          // an element wrapping only other elements is layout, not content
+          if ((c.className + '').indexOf('wp-block-') === -1 &&
+              c.children.length && !hasDirectText(c)) {
+            boxFrom(c);
+            var fmC = freeMode;
+            freeMode = true;
+            walkDomOnly(c);
+            freeMode = fmC;
+            return;
+          }
+        }
+        leafFrom(c, null);
+      });
+    }
+    function walk(containerDom, rawText) {
+      var spans = parseTopBlocks(rawText);
+      var kids = [].slice.call(containerDom.children).filter(function (c) {
+        if (c.classList && c.classList.contains('gogh-pendbar')) return false;
+        // metadata children are never block output — counting them against
+        // the markup spans breaks pairing (a preview box carries a <style>)
+        var tg = c.tagName;
+        return tg !== 'STYLE' && tg !== 'SCRIPT' && tg !== 'LINK' && tg !== 'TEMPLATE';
+      });
+      // a lone html block renders ALL these children (a paste's <style> +
+      // content roots) — span↔child pairing is meaningless, free-walk them
+      if (spans.length === 1 && kids.length &&
+          String(spans[0].name || '').replace(/^core\//, '') === 'html') {
+        var fmW = freeMode;
+        freeMode = true;
+        walkDomOnly(containerDom);
+        freeMode = fmW;
+        return;
+      }
+      if (!spans.length || spans.length !== kids.length) {
+        if (opts.loose) { walkDomOnly(containerDom); return; }
+        // strict (chrome): capture the container whole so its blocks stay
+        // dynamic (menus, site titles) rather than becoming snapshots
+        leafFrom(containerDom, rawText);
+        return;
+      }
+      spans.forEach(function (sp, k) {
+        var dom = kids[k];
+        var markup = rawText.slice(sp.start, sp.end);
+        var nm = String(sp.name || '').replace(/^core\//, '');
+        if (nm === 'cover') {
+          var cInner = innerRawOf(rawText, sp);
+          return coverInto(dom, cInner ? cInner.text : null);
+        }
+        if (nm === 'html' && dom.children.length) {
+          // raw HTML block: no inner block structure to pair — walk the DOM.
+          // The root often paints the section's backdrop; keep it as a box.
+          boxFrom(dom);
+          var fmH = freeMode;
+          freeMode = true;
+          walkDomOnly(dom);
+          freeMode = fmH;
+          return;
+        }
+        if (nm === 'group' || nm === 'columns' || nm === 'column') {
+          var inner = innerRawOf(rawText, sp);
+          if (inner && dom.children.length) {
+            var innerSpans = parseTopBlocks(inner.text);
+            var innerKids = [].slice.call(dom.children).filter(function (c2) {
+              return !(c2.classList && c2.classList.contains('gogh-pendbar'));
+            });
+            if (opts.loose || (innerSpans.length && innerSpans.length === innerKids.length)) {
+              boxFrom(dom);
+              walk(dom, inner.text);
+              return;
+            }
+            // strict + unpaired children: atomize the whole group with its
+            // FULL markup so attrs/layout survive — and no orphan box
+            leafFrom(dom, markup);
+            return;
+          }
+        }
+        leafFrom(dom, markup);
+      });
+    }
+    if (opts.rootIsBlock) {
+      // the root element IS the block (converting one page block): pair it
+      // with the whole markup instead of pairing its children
+      var spans0 = parseTopBlocks(raw);
+      var sp0 = spans0[0];
+      var nm0 = sp0 ? String(sp0.name || '').replace(/^core\//, '') : '';
+      if (nm0 === 'cover') {
+        var cInner0 = innerRawOf(raw, sp0);
+        coverInto(rootEl, cInner0 ? cInner0.text : null);
+      } else if (nm0 === 'html' && rootEl.children.length) {
+        boxFrom(rootEl);
+        freeMode = true;
+        walkDomOnly(rootEl);
+        freeMode = !!opts.freeHtml;
+      } else if ((nm0 === 'group' || nm0 === 'columns' || nm0 === 'column') && rootEl.children.length) {
+        // root background lifts to the section, not a box — callers handle it
+        var inner0 = innerRawOf(raw, sp0);
+        if (inner0) walk(rootEl, inner0.text); else walkDomOnly(rootEl);
+      } else {
+        leafFrom(rootEl, raw);
+      }
+    } else {
+      walk(rootEl, raw);
+    }
+    if (styleTexts.length) {
+      // the paste's <style> rides with its first widget chunk so raw pieces
+      // keep their look; converted text/images are the theme's business now
+      var styleTag = '<style>' + styleTexts.join('\n') + '</style>';
+      var carried = false;
+      for (var wi = 0; wi < out.length; wi++) {
+        if (out[wi].type === 'widget') {
+          out[wi].whtml = styleTag + (out[wi].whtml || '');
+          out[wi].wsrc = styleTag + (out[wi].wsrc || '');
+          carried = true;
+          break;
+        }
+      }
+      if (!carried &&
+        /:{1,2}(hover|focus|active|before|after)|@media|@keyframes|@font-face|@supports/.test(styleTexts.join(''))) {
+        // fully-atomized pastes dropped their stylesheet on the floor. The
+        // STATIC rules are already captured per-element from computed style;
+        // only dynamic/conditional rules (hover, pseudo, media, font-face)
+        // genuinely need the sheet — those get a tiny carrier widget.
+        out.push({ type: 'widget', x: 0, y: 0, w: 24, h: 16,
+          whtml: styleTag, wsrc: styleTag });
+      }
+    }
+    var minH = Math.round(rr.height * sx);
+    // a backdrop box that covers the whole section becomes the SECTION's
+    // background instead: a box has the measured height, but the rendered
+    // section can end up taller (text metrics, viewport units) — and the
+    // page background bleeding through the difference reads as a gap
+    // between dark sections. The section's own bg stretches with it.
+    var rootBg = null;
+    if (out.length && out[0].type === 'box' &&
+        out[0].x <= 6 && out[0].y <= 6 && out[0].w >= W - 12 &&
+        out[0].h >= minH - Math.max(12, minH * 0.04)) {
+      rootBg = out[0].boxBg || null;
+      // boxBg may be a palette slug — as a section bg it must be real CSS
+      if (rootBg && /^[a-z0-9-]+$/.test(rootBg)) rootBg = 'var(--wp--preset--color--' + rootBg + ')';
+      out.shift();
+    }
+    return { els: out, minH: minH, rootBg: rootBg };
+  }
+
+  function doConvertChrome(partEl, area, part, scanRoot) {
+    return Promise.resolve().then(function () {
+      var raw = (part.content && part.content.raw) || '';
+      // converting a PREVIEWED look scans the preview box: partEl's other
+      // children are the hidden originals and would wreck span pairing
+      var scanEl = scanRoot || partEl;
+      var rr = scanEl.getBoundingClientRect();
+      var sx = W / rr.width;
+      var chromeScan = scanDomWithRaw(scanEl, raw);
+      var out = chromeScan.els;
+      if (!out.length) throw new Error('Nothing to edit in this ' + area + '.');
+      var sec = newSectionShell('gogh-sec-' + (scopeSeq++));
+      sec.els = out;
+      sec.minH = Math.round(rr.height * sx);
+      sec.chrome = { area: area, id: part.id };
+      if (chromeScan.rootBg) sec.bg = chromeScan.rootBg;
+      var bgc = getComputedStyle(partEl).backgroundColor;
+      if (!sec.bg && bgc && bgc !== 'rgba(0, 0, 0, 0)' && bgc !== 'transparent') sec.bg = bgc;
+      // hide the live chrome, mount the canvas in its place (tracked on the
+      // part element so undo/redo can restore visibility)
+      partEl.__goghHidden = [].slice.call(partEl.children);
+      partEl.__goghHidden.forEach(function (c) { c.style.display = 'none'; });
+      partEl.appendChild(sec.wrapEl);
+      if (area === 'header') { S.unshift(sec); } else { S.push(sec); }
+      renderSection(sec);
+      sel = null;
+      hideHandles();
+      pushState();
+      placeChromeBtns();
+      toast('Editing the site ' + area + ' \u2014 publishing will update every page.', { ttl: 6000 });
+      return sec;
+    });
+  }
+  // ---------- drag the site menu into a new order ----------
+  // top-level nav links in a (non-freeform) header or footer are draggable
+  // while editing; the new order is written back to the WordPress menu, so
+  // every page gets it.
+  var navDrag = null;
+  // ---------- menu manager: structured model of a navigation post ----------
+  // One level of nesting only. Unchanged items keep their original bytes;
+  // structural conversions (link <-> submenu) reuse the item's attrs JSON
+  // verbatim so ids/kinds/opensInNewTab survive untouched.
+  function parseNavModel(nraw) {
+    return parseTopBlocks(nraw).map(function (sp) {
+      var text = nraw.slice(sp.start, sp.end);
+      var name = sp.name || '';
+      var openEnd = text.indexOf('-->');
+      var head = openEnd === -1 ? text : text.slice(0, openEnd);
+      var jm = head.match(/\{[\s\S]*\}/);
+      var attrs = {};
+      var attrsText = jm ? jm[0] : null;
+      try { attrs = attrsText ? JSON.parse(attrsText) : {}; } catch (err) { attrs = {}; attrsText = null; }
+      var it = {
+        name: name, text: text,
+        attrsText: attrsText, attrs: attrs,
+        label: attrs.label || '', url: attrs.url || '',
+        kind: attrs.kind || null, children: null,
+      };
+      if (name.indexOf('navigation-submenu') !== -1 && openEnd !== -1) {
+        var closeAt = text.lastIndexOf('<!--');
+        var inner = closeAt > openEnd ? text.slice(openEnd + 3, closeAt) : '';
+        it.children = parseTopBlocks(inner).map(function (cs) {
+          var ct = inner.slice(cs.start, cs.end);
+          var chead = ct.slice(0, ct.indexOf('-->'));
+          var cjm = chead.match(/\{[\s\S]*\}/);
+          var cat = {};
+          try { cat = cjm ? JSON.parse(cjm[0]) : {}; } catch (e2) {}
+          return { name: cs.name || '', text: ct, attrsText: cjm ? cjm[0] : null,
+            attrs: cat, label: cat.label || '', url: cat.url || '',
+            kind: cat.kind || null, children: null };
+        });
+      }
+      return it;
+    });
+  }
+  function navAttrsText(it) {
+    if (it.attrsText) return it.attrsText;
+    var a = { label: it.label || '', url: it.url || '#' };
+    if (it.kind) a.kind = it.kind;
+    return JSON.stringify(a).replace(/</g, '\\u003c');
+  }
+  function serializeNavModel(items) {
+    return items.map(function (it) {
+      if (it.children && it.children.length) {
+        return '<!-- wp:navigation-submenu ' + navAttrsText(it) + ' -->\n' +
+          it.children.map(function (c) { return serializeNavLeaf(c); }).join('\n') +
+          '\n<!-- /wp:navigation-submenu -->';
+      }
+      return serializeNavLeaf(it);
+    }).join('\n');
+  }
+  function serializeNavLeaf(it) {
+    // an untouched plain link keeps its exact stored bytes
+    if (it.text && it.name.indexOf('navigation-link') !== -1 && !it.dirty) return it.text;
+    return '<!-- wp:navigation-link ' + navAttrsText(it) + ' /-->';
+  }
+
+  function navItemsOf(list) {
+    return [].slice.call(list.children).filter(function (c) {
+      return c.classList && c.classList.contains('wp-block-navigation-item');
+    });
+  }
+  function reorderNavRaw(nraw, items) {
+    var spans = parseTopBlocks(nraw);
+    if (spans.length && spans.every(function (sp) { return (sp.name || '').indexOf('page-list') !== -1; })) {
+      // an automatic page list has no order of its own: pin it down as
+      // explicit links in the order the user just made (Gutenberg does the
+      // same the moment you customise the list)
+      return items.map(function (it) {
+        return '<!-- wp:navigation-link {"label":' + JSON.stringify(it.label) + ',"url":' + JSON.stringify(it.href || '#') + ',"kind":"post-type"} /-->';
+      }).join('\n');
+    }
+    var pool = spans.map(function (sp) {
+      return { text: nraw.slice(sp.start, sp.end), used: false };
+    });
+    var ordered = [];
+    var pathOf = function (t) {
+      var um = t.match(/"url":"((?:[^"\\]|\\.)*)"/);
+      if (!um) return null;
+      var u = JSON.parse('"' + um[1] + '"');
+      return u.replace(/^https?:\/\/[^\/]+/, '').replace(/\/$/, '') || '/';
+    };
+    var labelOf = function (t) {
+      var lm = t.match(/"label":"((?:[^"\\]|\\.)*)"/);
+      return lm ? JSON.parse('"' + lm[1] + '"').trim() : null;
+    };
+    items.forEach(function (it) {
+      if (!ordered) return;
+      var hit = null;
+      for (var j = 0; j < pool.length && !hit; j++) {
+        if (!pool[j].used && it.path != null && pathOf(pool[j].text) === it.path) hit = pool[j];
+      }
+      for (j = 0; j < pool.length && !hit; j++) {
+        if (!pool[j].used && it.label && labelOf(pool[j].text) === it.label) hit = pool[j];
+      }
+      if (!hit) { ordered = null; return; }
+      hit.used = true;
+      ordered.push(hit.text);
+    });
+    if (!ordered) return null;
+    pool.forEach(function (p) { if (!p.used) ordered.push(p.text); });
+    return ordered.join('\n');
+  }
+  function saveNavOrder(partEl, listEl) {
+    var area = partEl.tagName === 'FOOTER' ? 'footer' : 'header';
+    var items = navItemsOf(listEl).map(function (li) {
+      var a = li.querySelector('a');
+      var path = null;
+      if (a && a.href) {
+        try { path = new URL(a.href, location.href).pathname.replace(/\/$/, '') || '/'; } catch (err) {}
+      }
+      return { label: navItemLabel(li), path: path, href: a ? a.getAttribute('href') : null };
+    });
+    var hdrs = { 'X-WP-Nonce': cfg.nonce, 'Content-Type': 'application/json' };
+    return fetch(restQ(tpUrl(), 'area=' + area + '&context=edit'), {
+      headers: { 'X-WP-Nonce': cfg.nonce },
+      credentials: 'same-origin',
+    }).then(function (r) { return r.ok ? r.json() : []; }).then(function (parts) {
+      var active = null;
+      (parts || []).forEach(function (p) {
+        if (!active && p.slug === area && (!p.theme || p.theme === cfg.theme)) active = p;
+      });
+      if (!active) throw new Error('no part');
+      var praw = (active.content && (active.content.raw || active.content)) || '';
+      var refM = String(praw).match(/wp:navigation[^>]*"ref":(\d+)/);
+      if (refM) {
+        var navId = +refM[1];
+        return fetch(restQ(GSROOT + 'navigation/' + navId, 'context=edit'), {
+          headers: { 'X-WP-Nonce': cfg.nonce },
+          credentials: 'same-origin',
+        }).then(function (r) { if (!r.ok) throw new Error('nav'); return r.json(); }).then(function (nav) {
+          var nraw = (nav.content && nav.content.raw) || '';
+          var next = reorderNavRaw(nraw, items);
+          if (next == null) throw new Error('map');
+          return fetch(GSROOT + 'navigation/' + navId, {
+            method: 'POST', headers: hdrs, credentials: 'same-origin',
+            body: JSON.stringify({ content: next }),
+          }).then(function (r) { if (!r.ok) throw new Error('save'); });
+        });
+      }
+      // no ref: a bare wp:navigation renders the newest menu post, or the
+      // page list when none exists. Reorder that post \u2014 or mint one.
+      return fetch(restQ(GSROOT + 'navigation', 'context=edit&per_page=1'), {
+        headers: { 'X-WP-Nonce': cfg.nonce },
+        credentials: 'same-origin',
+      }).then(function (r) { return r.ok ? r.json() : []; }).then(function (navs) {
+        var nav = (navs || [])[0];
+        if (nav) {
+          var nraw = (nav.content && nav.content.raw) || '';
+          var next2 = reorderNavRaw(nraw, items);
+          if (next2 == null) throw new Error('map');
+          return fetch(GSROOT + 'navigation/' + nav.id, {
+            method: 'POST', headers: hdrs, credentials: 'same-origin',
+            body: JSON.stringify({ content: next2 }),
+          }).then(function (r) { if (!r.ok) throw new Error('save'); });
+        }
+        // page-list fallback: pin it down as an explicit menu in this order
+        var links = items.map(function (it) {
+          return '<!-- wp:navigation-link {"label":' + JSON.stringify(it.label) + ',"url":' + JSON.stringify(it.href || '#') + ',"kind":"post-type"} /-->';
+        }).join('\n');
+        return fetch(GSROOT + 'navigation', {
+          method: 'POST', headers: hdrs, credentials: 'same-origin',
+          body: JSON.stringify({ title: 'Navigation', status: 'publish', content: links }),
+        }).then(function (r) { if (!r.ok) throw new Error('save'); });
+      });
+    });
+  }
+  document.addEventListener('pointerdown', function (ev) {
+    if (!editing || navDrag) return;
+    if (ev.button !== 0) return;
+    if (ev.target.closest && ev.target.closest('.gogh-navrm, .gogh-navadd')) return;
+    var item = ev.target.closest ? ev.target.closest('.wp-block-navigation-item') : null;
+    if (!item) return;
+    if (item.parentElement.closest('.wp-block-navigation-item')) return; // submenu: leave alone
+    if (ev.target.closest('.gogh-wrap')) return; // freeform canvas has its own physics
+    var parts = chromePartEls();
+    var partEl = null;
+    for (var i = 0; i < parts.length; i++) if (parts[i].contains(item)) partEl = parts[i];
+    if (!partEl) return;
+    ev.preventDefault();
+    navDrag = { item: item, list: item.parentElement, partEl: partEl,
+      startX: ev.clientX, startY: ev.clientY, started: false,
+      order0: navItemsOf(item.parentElement) };
+  }, true);
+  document.addEventListener('pointermove', function (ev) {
+    if (!navDrag) return;
+    if (!navDrag.started) {
+      if (Math.hypot(ev.clientX - navDrag.startX, ev.clientY - navDrag.startY) < 5) return;
+      navDrag.started = true;
+      navDrag.item.classList.add('gogh-navdragging');
+    }
+    var sibs = navItemsOf(navDrag.list).filter(function (s) { return s !== navDrag.item; });
+    if (!sibs.length) return;
+    var r0 = sibs[0].getBoundingClientRect();
+    var r1 = sibs[sibs.length - 1].getBoundingClientRect();
+    var horiz = Math.abs(r1.left - r0.left) >= Math.abs(r1.top - r0.top);
+    var before = null;
+    for (var i = 0; i < sibs.length; i++) {
+      var r = sibs[i].getBoundingClientRect();
+      var c = horiz ? r.left + r.width / 2 : r.top + r.height / 2;
+      if ((horiz ? ev.clientX : ev.clientY) < c) { before = sibs[i]; break; }
+    }
+    if (before === null) {
+      if (navDrag.item.nextElementSibling) navDrag.list.appendChild(navDrag.item);
+    } else if (before !== navDrag.item && before !== navDrag.item.nextElementSibling) {
+      navDrag.list.insertBefore(navDrag.item, before);
+    }
+  });
+  document.addEventListener('pointercancel', function () {
+    // abandon, don't commit: half-done gestures must not save
+    if (navDrag) {
+      if (navDrag.started) {
+        navDrag.item.classList.remove('gogh-navdragging');
+        navDrag.order0.forEach(function (li) { navDrag.list.appendChild(li); });
+      }
+      navDrag = null;
+    }
+  });
+  document.addEventListener('pointerup', function () {
+    if (!navDrag) return;
+    var d = navDrag;
+    navDrag = null;
+    if (!d.started) return;
+    d.item.classList.remove('gogh-navdragging');
+    var now = navItemsOf(d.list);
+    var same = now.length === d.order0.length && now.every(function (n, i) { return n === d.order0[i]; });
+    if (same) return;
+    saveNavOrder(d.partEl, d.list).then(function () {
+      toast('Menu order updated \u2014 every page gets it.', { ttl: 4500 });
+    }).catch(function () {
+      // put the menu back the way it was
+      d.order0.forEach(function (li) { d.list.appendChild(li); });
+      toast('gogh couldn\u2019t save that menu order.', { error: true });
+    });
+  });
+
+  // ---------- light chrome editing: text, links and menus in the
+  // header/footer, no freeform required ----------
+  var chromeLightEdits = [];
+  function activePartFor(area) {
+    return fetch(restQ(tpUrl(), 'area=' + encodeURIComponent(area) + '&context=edit'), {
+      headers: { 'X-WP-Nonce': cfg.nonce },
+      credentials: 'same-origin',
+    }).then(function (r) { return r.ok ? r.json() : []; }).then(function (parts) {
+      var active = null;
+      (parts || []).forEach(function (p) {
+        if (!active && p.slug === area && (!p.theme || p.theme === cfg.theme)) active = p;
+      });
+      return active;
+    });
+  }
+  function initChromeLightEdits() {
+    ['header', 'footer'].forEach(function (area) {
+      var partEl = partElForArea(area);
+      if (!partEl || partEl.querySelector('.gogh-wrap')) return;
+      activePartFor(area).then(function (active) {
+        if (!active) return;
+        var raw = (active.content && active.content.raw) || '';
+        var entry = partEl.__goghChromeEntry;
+        if (!entry) {
+          entry = { el: partEl, chromePart: true, title: 'Site ' + area };
+          partEl.__goghChromeEntry = entry;
+          chromeLightEdits.push(entry);
+        }
+        entry.partId = active.id;
+        entry.raw = raw;
+        entry.savedRaw = raw;
+        bindPending(entry);
+        partEl.classList.add('gogh-lightedit');
+        placeNavAdders(partEl);
+      }).catch(function () {});
+    });
+  }
+  function logoRawWithWidth(praw, w) {
+    return praw.replace(/<!--\s*wp:site-logo(\s+\{[^]*?\})?\s*\/-->/, function (m0, json) {
+      var attrs = {};
+      if (json) { try { attrs = JSON.parse(json.trim()); } catch (e) { attrs = {}; } }
+      attrs.width = w;
+      return '<!-- wp:site-logo ' + JSON.stringify(attrs) + ' /-->';
+    });
+  }
+  function logoizeHeaderRaw(praw) {
+    // one identity only: a header shows the logo OR the text title, never
+    // both. Returns null (nothing to swap), '' (already right), or new raw.
+    var next = praw;
+    if (praw.indexOf('wp:site-logo') === -1) {
+      next = next.replace(/<!--\s*wp:site-title(\s+\{[^]*?\})?\s*\/-->/, function (m0, json) {
+        // a centred title begets a centred logo — alignment is part of the
+        // layout's design, not the block's
+        var t = {};
+        if (json) { try { t = JSON.parse(json.trim()); } catch (e) { t = {}; } }
+        var attrs = { width: 160, shouldSyncIcon: false };
+        if (t.textAlign === 'center' || t.align === 'center') attrs.align = 'center';
+        return '<!-- wp:site-logo ' + JSON.stringify(attrs) + ' /-->';
+      });
+      if (next === praw) return null;
+      return next;
+    }
+    if (!/wp:site-logo\s+\{[^]*?"width"/.test(next)) next = logoRawWithWidth(next, 160);
+    next = next.replace(/<!--\s*wp:site-title(\s+\{[^]*?\})?\s*\/-->\s*/, '');
+    return next === praw ? '' : next;
+  }
+  function saveLogoWidth(w) {
+    return activePartFor('header').then(function (active) {
+      if (!active) return;
+      var praw = String((active.content && (active.content.raw || active.content)) || '');
+      if (praw.indexOf('wp:site-logo') === -1) return;
+      var next = logoRawWithWidth(praw, w);
+      if (next === praw) return;
+      return fetch(tpUrl(active.id), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-WP-Nonce': cfg.nonce },
+        credentials: 'same-origin',
+        body: JSON.stringify({ content: next }),
+      });
+    }).catch(function () {});
+  }
+  function openLogoPicker(anchorEl) {
+    placePanelNear(anchorEl);
+    var logoImgs = [].slice.call(document.querySelectorAll('header .wp-block-site-logo img, .wp-block-template-part .wp-block-site-logo img'));
+    panel.innerHTML =
+      '<div class="gogh-panel-title">Site logo</div>' +
+      '<em class="gogh-panel-hint">Pick or upload an image \u2014 it replaces the text title in your header.</em>' +
+      (logoImgs.length ?
+        '<div class="gogh-panel-row gogh-logosize"><span>Size</span>' +
+        '<input type="range" min="48" max="280" step="4" />' +
+        '<span class="gogh-logosize-val"></span></div>' +
+        '<button type="button" class="gogh-btn gogh-btn-small gogh-logo-totext">Use a text title instead</button>' : '') +
+      '<label class="gogh-btn gogh-btn-small gogh-upload">Upload image<input type="file" accept="image/*" hidden /></label>' +
+      '<div class="gogh-media"><span class="gogh-media-loading">Loading media\u2026</span></div>';
+    panel.hidden = false;
+    panelOpen = true;
+    var toText = panel.querySelector('.gogh-logo-totext');
+    if (toText) toText.addEventListener('click', function () {
+      toText.disabled = true;
+      activePartFor('header').then(function (active) {
+        if (!active) throw new Error('no header found');
+        var praw = String((active.content && (active.content.raw || active.content)) || '');
+        var next = praw.replace(/<!--\s*wp:site-logo(\s+\{[^]*?\})?\s*\/-->/, function (m0, json) {
+          // alignment belongs to the layout — a centred logo begets a
+          // centred title on the way back too
+          var lg = {};
+          if (json) { try { lg = JSON.parse(json.trim()); } catch (e) { lg = {}; } }
+          var attrs = { level: 0 };
+          if (lg.align === 'center') attrs.textAlign = 'center';
+          return '<!-- wp:site-title ' + JSON.stringify(attrs) + ' /-->';
+        });
+        if (next === praw) throw new Error('no logo block to swap');
+        return fetch(tpUrl(active.id), {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'X-WP-Nonce': cfg.nonce },
+          credentials: 'same-origin',
+          body: JSON.stringify({ content: next }),
+        });
+      }).then(function (r) {
+        if (r && !r.ok) throw new Error('the header did not save');
+        closePanel();
+        var pe = partElForArea('header');
+        return pe ? refreshChromePart(pe) : null;
+      }).then(function () {
+        toast('Text title restored \u2014 click it to rename your site.');
+      }).catch(function (err) {
+        toText.disabled = false;
+        toast('gogh could not switch back \u2014 ' + ((err && err.message) || 'try again.'), { error: true });
+      });
+    });
+    var sizeIn = panel.querySelector('.gogh-logosize input');
+    if (sizeIn) {
+      var sizeVal = panel.querySelector('.gogh-logosize-val');
+      var cur = Math.round(logoImgs[0].getBoundingClientRect().width) || 160;
+      sizeIn.value = Math.max(48, Math.min(280, cur));
+      sizeVal.textContent = sizeIn.value + 'px';
+      sizeIn.addEventListener('input', function () {
+        sizeVal.textContent = sizeIn.value + 'px';
+        logoImgs.forEach(function (im) {
+          im.style.width = sizeIn.value + 'px';
+          im.style.height = 'auto';
+        });
+      });
+      sizeIn.addEventListener('change', function () {
+        saveLogoWidth(parseInt(sizeIn.value, 10)).then(function () {
+          toast('Logo size saved.');
+        });
+      });
+    }
+    var busy = false;
+    function useLogo(id) {
+      if (busy) return;
+      busy = true;
+      fetch(GSROOT + 'settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-WP-Nonce': cfg.nonce },
+        credentials: 'same-origin',
+        body: JSON.stringify({ site_logo: id }),
+      }).then(function (r) {
+        if (!r.ok) throw new Error('saving needs an admin login');
+        return activePartFor('header');
+      }).then(function (active) {
+        if (!active) return null;
+        var praw = String((active.content && (active.content.raw || active.content)) || '');
+        var next = logoizeHeaderRaw(praw);
+        if (next === null) throw new Error('this header has no title block to swap');
+        if (next === '') return null;
+        return fetch(tpUrl(active.id), {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'X-WP-Nonce': cfg.nonce },
+          credentials: 'same-origin',
+          body: JSON.stringify({ content: next }),
+        }).then(function (r2) {
+          if (!r2.ok) throw new Error('the header did not save');
+        });
+      }).then(function () {
+        closePanel();
+        var pe = partElForArea('header');
+        return pe ? refreshChromePart(pe) : null;
+      }).then(function () {
+        toast('Logo set \u2014 your image now leads the header.');
+      }).catch(function (err) {
+        busy = false;
+        toast('gogh could not set the logo \u2014 ' + ((err && err.message) || 'try again.'), { error: true });
+      });
+    }
+    fetch(restQ(cfg.mediaUrl, 'per_page=32&media_type=image&orderby=date&order=desc'), {
+      headers: { 'X-WP-Nonce': cfg.nonce },
+      credentials: 'same-origin',
+    }).then(function (res) { return res.ok ? res.json() : []; }).catch(function () { return []; }).then(function (items) {
+      var box = panel.querySelector('.gogh-media');
+      if (!box || panel.hidden) return;
+      box.innerHTML = '';
+      items.forEach(function (item) {
+        var thumb = (item.media_details && item.media_details.sizes &&
+          (item.media_details.sizes.thumbnail || item.media_details.sizes.medium));
+        var b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'gogh-thumb';
+        b.style.backgroundImage = 'url("' + (thumb ? thumb.source_url : item.source_url) + '")';
+        b.addEventListener('click', function () { useLogo(item.id); });
+        box.appendChild(b);
+      });
+      reclampPanel();
+    });
+    var bfile = panel.querySelector('.gogh-upload input[type="file"]');
+    bfile.addEventListener('change', function () {
+      if (!bfile.files.length) return;
+      var fd = new FormData();
+      fd.append('file', bfile.files[0]);
+      panel.querySelector('.gogh-upload').firstChild.textContent = 'Uploading\u2026';
+      fetch(cfg.mediaUrl, {
+        method: 'POST',
+        headers: { 'X-WP-Nonce': cfg.nonce },
+        credentials: 'same-origin',
+        body: fd,
+      }).then(function (res) {
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        return res.json();
+      }).then(function (item) { useLogo(item.id); }).catch(function () {
+        panel.querySelector('.gogh-upload').firstChild.textContent = 'Upload failed';
+      });
+    });
+  }
+  function editSiteTitle(sttEl) {
+    var leaf = sttEl.querySelector('a') || sttEl;
+    if (leaf.getAttribute('contenteditable') === 'true') return;
+    var orig = (leaf.textContent || '').trim();
+    var setEverywhere = function (name) {
+      [].slice.call(document.querySelectorAll('.wp-block-site-title')).forEach(function (el) {
+        var lf = el.querySelector('a') || el;
+        lf.textContent = name;
+      });
+    };
+    var save = function (name, then) {
+      return fetch(GSROOT + 'settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-WP-Nonce': cfg.nonce },
+        credentials: 'same-origin',
+        body: JSON.stringify({ title: name }),
+      }).then(function (r) {
+        if (!r.ok) throw new Error('HTTP ' + r.status);
+        if (then) then();
+      });
+    };
+    leaf.setAttribute('contenteditable', 'true');
+    document.documentElement.classList.add('gogh-textediting');
+    leaf.focus();
+    // renaming is usually wholesale — start with everything selected
+    var rng = document.createRange();
+    rng.selectNodeContents(leaf);
+    var sel = window.getSelection();
+    sel.removeAllRanges();
+    sel.addRange(rng);
+    var chip = document.createElement('button');
+    chip.type = 'button';
+    chip.className = 'gogh-logochip';
+    chip.textContent = 'Use a logo image instead';
+    var sr = sttEl.getBoundingClientRect();
+    chip.style.left = (sr.left + window.scrollX) + 'px';
+    chip.style.top = (sr.bottom + window.scrollY + 8) + 'px';
+    // a real pointerdown on the chip blurs the leaf BEFORE mousedown even
+    // lands — onBlur removes the chip mid-gesture and the click never
+    // arrives. Act on pointerdown itself, and stop it reaching the
+    // document-level closer that would shut the panel we just opened.
+    chip.addEventListener('pointerdown', function (ev3) {
+      ev3.preventDefault();
+      ev3.stopPropagation();
+      leaf.textContent = orig;
+      leaf.blur();
+      openLogoPicker(sttEl);
+    });
+    document.body.appendChild(chip);
+    var onKey = function (ev2) {
+      if (ev2.key === 'Enter') { ev2.preventDefault(); leaf.blur(); }
+      else if (ev2.key === 'Escape') { leaf.textContent = orig; leaf.blur(); }
+      ev2.stopPropagation();
+    };
+    var onBlur = function () {
+      chip.remove();
+      leaf.removeEventListener('keydown', onKey);
+      leaf.removeEventListener('blur', onBlur);
+      leaf.removeAttribute('contenteditable');
+      document.documentElement.classList.remove('gogh-textediting');
+      var next = (leaf.textContent || '').replace(/\s+/g, ' ').trim();
+      if (!next || next === orig) { setEverywhere(orig); return; }
+      save(next, function () {
+        setEverywhere(next);
+        toast('Your site is now called \u201c' + next + '\u201d \u2014 it shows everywhere.', {
+          actions: [{ label: 'Undo', onClick: function () {
+            save(orig, function () { setEverywhere(orig); }).catch(function () {});
+          } }],
+        });
+      }).catch(function () {
+        setEverywhere(orig);
+        toast('gogh could not rename the site \u2014 that needs an admin login.', { error: true });
+      });
+    };
+    leaf.addEventListener('keydown', onKey);
+    leaf.addEventListener('blur', onBlur);
+  }
+  function saveChromeEntry(entry) {
+    if (!entry || entry.savedRaw == null || entry.raw === entry.savedRaw) return Promise.resolve();
+    return fetch(tpUrl(entry.partId), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-WP-Nonce': cfg.nonce },
+      credentials: 'same-origin',
+      body: JSON.stringify({ content: entry.raw }),
+    }).then(function (r) {
+      if (!r.ok) throw new Error('could not save the ' + entry.title);
+      entry.savedRaw = entry.raw;
+    });
+  }
+  function navItemLabel(li) {
+    var a = li.querySelector('a');
+    return ((a ? a.textContent : li.textContent) || '').trim();
+  }
+  function placeNavAdders(partEl) {
+    [].slice.call(partEl.querySelectorAll('.wp-block-navigation__container')).forEach(function (list) {
+      if (list.closest('.wp-block-navigation-item')) return; // submenus: no
+      if (list.querySelector(':scope > .gogh-navadd')) return;
+      var li = document.createElement('li');
+      li.className = 'gogh-navadd';
+      li.innerHTML = '<button type="button" title="Add a page to this menu">+</button>';
+      li.querySelector('button').addEventListener('click', function (ev) {
+        ev.preventDefault();
+        ev.stopPropagation();
+        openNavAddPanel(partEl, list, li);
+      });
+      list.appendChild(li);
+      var mg = document.createElement('li');
+      mg.className = 'gogh-navadd gogh-navmanage';
+      mg.innerHTML = '<button type="button" title="Manage this menu \u2014 reorder, nest, swap menus">\u22ef</button>';
+      mg.querySelector('button').addEventListener('click', function (ev) {
+        ev.preventDefault();
+        ev.stopPropagation();
+        openMenuManager(partEl, mg);
+      });
+      list.appendChild(mg);
+    });
+    // every top-level item gets a hover ✕ to leave the menu
+    [].slice.call(partEl.querySelectorAll('.wp-block-navigation-item')).forEach(function (li) {
+      if (li.parentElement.closest('.wp-block-navigation-item')) return;
+      if (li.querySelector(':scope > .gogh-navrm')) return;
+      var x = document.createElement('button');
+      x.type = 'button';
+      x.className = 'gogh-navrm';
+      x.title = 'Remove from menu';
+      x.textContent = '✕';
+      x.addEventListener('click', function (ev) {
+        ev.preventDefault();
+        ev.stopPropagation();
+        removeNavItem(partEl, li);
+      });
+      li.appendChild(x);
+    });
+  }
+  function resolveNavTarget(partEl) {
+    var area = partEl.tagName === 'FOOTER' ? 'footer' : 'header';
+    return activePartFor(area).then(function (active) {
+      if (!active) throw new Error('no ' + area + ' part');
+      var praw = String((active.content && (active.content.raw || active.content)) || '');
+      var refM = praw.match(/wp:navigation[^>]*"ref":(\d+)/);
+      if (refM) return +refM[1];
+      return fetch(restQ(GSROOT + 'navigation', 'context=edit&per_page=1'), {
+        headers: { 'X-WP-Nonce': cfg.nonce }, credentials: 'same-origin',
+      }).then(function (r) { return r.ok ? r.json() : []; })
+        .then(function (navs) { return navs && navs[0] ? navs[0].id : null; });
+    });
+  }
+  function saveNavRemove(partEl, listEl, li) {
+    var hdrs = { 'X-WP-Nonce': cfg.nonce, 'Content-Type': 'application/json' };
+    var a = li.querySelector('a');
+    var path = null;
+    if (a && a.href) {
+      try { path = new URL(a.href, location.href).pathname.replace(/\/$/, '') || '/'; } catch (e2) {}
+    }
+    var label = navItemLabel(li);
+    var restLinks = function () {
+      return navItemsOf(listEl).filter(function (x) { return x !== li; }).map(function (it) {
+        var ia = it.querySelector('a');
+        return '<!-- wp:navigation-link {"label":' + JSON.stringify(navItemLabel(it)) +
+          ',"url":' + JSON.stringify(ia ? ia.getAttribute('href') : '#') + ',"kind":"post-type"} /-->';
+      }).join('\n');
+    };
+    return resolveNavTarget(partEl).then(function (navId) {
+      if (navId == null) {
+        return fetch(GSROOT + 'navigation', {
+          method: 'POST', headers: hdrs, credentials: 'same-origin',
+          body: JSON.stringify({ title: 'Navigation', status: 'publish', content: restLinks() }),
+        }).then(function (r) { if (!r.ok) throw new Error('save'); return { navId: null }; });
+      }
+      return fetch(restQ(GSROOT + 'navigation/' + navId, 'context=edit'), {
+        headers: { 'X-WP-Nonce': cfg.nonce }, credentials: 'same-origin',
+      }).then(function (r) { if (!r.ok) throw new Error('nav'); return r.json(); })
+        .then(function (nav) {
+          var nraw = ((nav.content && nav.content.raw) || '').trim();
+          var spans = parseTopBlocks(nraw);
+          if (!spans.length || spans.every(function (sp) { return (sp.name || '').indexOf('page-list') !== -1; })) {
+            // automatic list: pin everything EXCEPT the removed item
+            return fetch(GSROOT + 'navigation/' + navId, {
+              method: 'POST', headers: hdrs, credentials: 'same-origin',
+              body: JSON.stringify({ content: restLinks() }),
+            }).then(function (r) { if (!r.ok) throw new Error('save'); return { navId: navId }; });
+          }
+          var pathOf = function (t) {
+            var um = t.match(/"url":"((?:[^"\\]|\\.)*)"/);
+            if (!um) return null;
+            var u = JSON.parse('"' + um[1] + '"');
+            return u.replace(/^https?:\/\/[^\/]+/, '').replace(/\/$/, '') || '/';
+          };
+          var labelOf = function (t) {
+            var lm = t.match(/"label":"((?:[^"\\]|\\.)*)"/);
+            return lm ? JSON.parse('"' + lm[1] + '"').trim() : null;
+          };
+          var hit = null;
+          for (var j = 0; j < spans.length && !hit; j++) {
+            var t = nraw.slice(spans[j].start, spans[j].end);
+            if (path != null && pathOf(t) === path) hit = spans[j];
+          }
+          for (j = 0; j < spans.length && !hit; j++) {
+            var t2 = nraw.slice(spans[j].start, spans[j].end);
+            if (label && labelOf(t2) === label) hit = spans[j];
+          }
+          if (!hit) throw new Error('gogh couldn’t match that item in the menu');
+          var removed = nraw.slice(hit.start, hit.end);
+          var next = (nraw.slice(0, hit.start) + nraw.slice(hit.end)).replace(/\n{3,}/g, '\n\n').trim();
+          return fetch(GSROOT + 'navigation/' + navId, {
+            method: 'POST', headers: hdrs, credentials: 'same-origin',
+            body: JSON.stringify({ content: next }),
+          }).then(function (r) {
+            if (!r.ok) throw new Error('save');
+            return { navId: navId, removed: removed };
+          });
+        });
+    });
+  }
+  function removeNavItem(partEl, li) {
+    var label = navItemLabel(li);
+    li.style.opacity = '0.35';
+    var entry = partEl.__goghChromeEntry;
+    saveChromeEntry(entry).then(function () {
+      return saveNavRemove(partEl, li.parentElement, li);
+    }).then(function (info) {
+      var actions = [];
+      if (info && info.navId != null && info.removed) {
+        actions.push({
+          label: 'Put it back',
+          onClick: function () {
+            fetch(restQ(GSROOT + 'navigation/' + info.navId, 'context=edit'), {
+              headers: { 'X-WP-Nonce': cfg.nonce }, credentials: 'same-origin',
+            }).then(function (r) { return r.json(); }).then(function (nav) {
+              var nraw = ((nav.content && nav.content.raw) || '').trim();
+              return fetch(GSROOT + 'navigation/' + info.navId, {
+                method: 'POST',
+                headers: { 'X-WP-Nonce': cfg.nonce, 'Content-Type': 'application/json' },
+                credentials: 'same-origin',
+                body: JSON.stringify({ content: (nraw ? nraw + '\n' : '') + info.removed }),
+              });
+            }).then(function (r) {
+              if (r && !r.ok) throw new Error('restore');
+              return refreshChromePart(partEl);
+            }).then(function () {
+              toast('“' + label + '” is back in the menu.');
+            }).catch(function () {
+              toast('gogh couldn’t restore it.', { error: true });
+            });
+          },
+        });
+      }
+      toast('“' + label + '” removed from the menu — every page gets it.', { ttl: 7000, actions: actions });
+      return refreshChromePart(partEl);
+    }).catch(function (err) {
+      li.style.opacity = '';
+      toast((err && err.message) || 'gogh couldn’t remove that item.', { error: true });
+    });
+  }
+  function navLinkMarkup(page) {
+    var title = (page.title && page.title.rendered ? page.title.rendered.replace(/<[^>]+>/g, '') : 'Page');
+    return '<!-- wp:navigation-link {"label":' + JSON.stringify(title) +
+      ',"type":"page","id":' + (+page.id || 0) +
+      ',"url":' + JSON.stringify(page.link || '#') + ',"kind":"post-type"} /-->';
+  }
+  function domNavLinks(listEl) {
+    return navItemsOf(listEl).map(function (li) {
+      var a = li.querySelector('a');
+      return '<!-- wp:navigation-link {"label":' + JSON.stringify(navItemLabel(li)) +
+        ',"url":' + JSON.stringify(a ? a.getAttribute('href') : '#') + ',"kind":"post-type"} /-->';
+    });
+  }
+  function saveNavAppend(partEl, listEl, page) {
+    var area = partEl.tagName === 'FOOTER' ? 'footer' : 'header';
+    var hdrs = { 'X-WP-Nonce': cfg.nonce, 'Content-Type': 'application/json' };
+    var link = navLinkMarkup(page);
+    return activePartFor(area).then(function (active) {
+      if (!active) throw new Error('no ' + area + ' part');
+      var praw = (active.content && (active.content.raw || active.content)) || '';
+      var refM = String(praw).match(/wp:navigation[^>]*"ref":(\d+)/);
+      var target = refM ? Promise.resolve(+refM[1])
+        : fetch(restQ(GSROOT + 'navigation', 'context=edit&per_page=1'), {
+            headers: { 'X-WP-Nonce': cfg.nonce }, credentials: 'same-origin',
+          }).then(function (r) { return r.ok ? r.json() : []; })
+            .then(function (navs) { return navs && navs[0] ? navs[0].id : null; });
+      return target.then(function (navId) {
+        if (navId == null) {
+          // no menu post anywhere: mint one from what's rendered + the page
+          return fetch(GSROOT + 'navigation', {
+            method: 'POST', headers: hdrs, credentials: 'same-origin',
+            body: JSON.stringify({ title: 'Navigation', status: 'publish',
+              content: domNavLinks(listEl).concat([link]).join('\n') }),
+          }).then(function (r) { if (!r.ok) throw new Error('save'); });
+        }
+        return fetch(restQ(GSROOT + 'navigation/' + navId, 'context=edit'), {
+          headers: { 'X-WP-Nonce': cfg.nonce }, credentials: 'same-origin',
+        }).then(function (r) { if (!r.ok) throw new Error('nav'); return r.json(); })
+          .then(function (nav) {
+            var nraw = ((nav.content && nav.content.raw) || '').trim();
+            // an automatic page list shows everything already — pin it as
+            // explicit links so the menu becomes deliberate
+            if (parseTopBlocks(nraw).every(function (sp) { return (sp.name || '').indexOf('page-list') !== -1; })) {
+              nraw = domNavLinks(listEl).join('\n');
+            }
+            return fetch(GSROOT + 'navigation/' + navId, {
+              method: 'POST', headers: hdrs, credentials: 'same-origin',
+              body: JSON.stringify({ content: (nraw ? nraw + '\n' : '') + link }),
+            }).then(function (r) { if (!r.ok) throw new Error('save'); });
+          });
+      });
+    });
+  }
+  function refreshChromePart(partEl) {
+    var area = partEl.tagName === 'FOOTER' ? 'footer' : 'header';
+    return activePartFor(area).then(function (active) {
+      if (!active) return;
+      var raw = (active.content && active.content.raw) || '';
+      return renderChromeOption({ content: raw }).then(function (d) {
+        if (!d) return;
+        partEl.innerHTML = (d.css ? '<style>' + d.css + '</style>' : '') + (d.html || '');
+        var entry = partEl.__goghChromeEntry;
+        if (entry) { entry.raw = raw; entry.savedRaw = raw; bindPending(entry); }
+        placeNavAdders(partEl);
+        placeChromeBtns();
+      });
+    });
+  }
+  function openNavAddPanel(partEl, listEl, anchorEl) {
+    placePanelNear(anchorEl);
+    panel.innerHTML =
+      '<div class="gogh-panel-head"><span class="gogh-panel-title">Add to menu</span>' +
+      '<button type="button" class="gogh-sbtn gogh-panel-close" title="Close">✕</button></div>' +
+      '<div class="gogh-panel-hint">Pick a page — the menu updates on every page of your site.</div>' +
+      '<div class="gogh-navadd-list"><em class="gogh-panel-hint">Loading pages…</em></div>';
+    panel.hidden = false;
+    panelOpen = true;
+    panel.querySelector('.gogh-panel-close').addEventListener('click', closePanel);
+    var inMenu = {};
+    navItemsOf(listEl).forEach(function (li) {
+      var a = li.querySelector('a');
+      if (!a) return;
+      try { inMenu[new URL(a.href, location.href).pathname.replace(/\/$/, '') || '/'] = 1; } catch (e2) {}
+    });
+    fetch(restQ(GSROOT + 'pages', 'status=publish&per_page=100&_fields=id,title,link'), {
+      headers: { 'X-WP-Nonce': cfg.nonce }, credentials: 'same-origin',
+    }).then(function (r) { return r.ok ? r.json() : []; }).then(function (pages) {
+      var box = panel.querySelector('.gogh-navadd-list');
+      if (!box) return;
+      var avail = (pages || []).filter(function (p) {
+        var path = '/';
+        try { path = new URL(p.link).pathname.replace(/\/$/, '') || '/'; } catch (e3) {}
+        return !inMenu[path];
+      });
+      if (!avail.length) {
+        box.innerHTML = '<em class="gogh-panel-hint">Every page is already in this menu.</em>';
+        return;
+      }
+      box.innerHTML = '';
+      avail.forEach(function (p) {
+        var title = (p.title && p.title.rendered ? p.title.rendered.replace(/<[^>]+>/g, '') : 'Page ' + p.id);
+        var b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'gogh-btn gogh-btn-small gogh-navadd-item';
+        b.textContent = title;
+        b.addEventListener('click', function () {
+          b.disabled = true;
+          b.textContent = 'Adding…';
+          var entry = partEl.__goghChromeEntry;
+          saveChromeEntry(entry).then(function () {
+            return saveNavAppend(partEl, listEl, p);
+          }).then(function () {
+            closePanel();
+            toast('“' + title + '” added to the menu — every page gets it.', { ttl: 4500 });
+            return refreshChromePart(partEl);
+          }).catch(function (err) {
+            b.disabled = false;
+            b.textContent = title;
+            toast((err && err.message) || 'gogh couldn’t add that page.', { error: true });
+          });
+        });
+        box.appendChild(b);
+      });
+    });
+  }
+
+
+  // ---------- menu manager panel ----------
+  // Canvas edits words; this panel edits STRUCTURE: which menu shows, the
+  // order, one level of submenus, and adding pages or custom links.
+  function openMenuManager(partEl, anchorEl) {
+    placePanelNear(anchorEl);
+    var mmNavId = null;
+    var mmItems = [];
+    var mmMenus = [];
+    var area = partEl.tagName === 'FOOTER' ? 'footer' : 'header';
+    var hdrs = { 'X-WP-Nonce': cfg.nonce, 'Content-Type': 'application/json' };
+    panel.innerHTML =
+      '<div class="gogh-panel-head"><span class="gogh-panel-title">Menu</span>' +
+      '<button type="button" class="gogh-sbtn gogh-panel-close" title="Close">\u2715</button></div>' +
+      '<div class="gogh-mm-body"><em class="gogh-panel-hint">Loading menu\u2026</em></div>';
+    panel.hidden = false;
+    panelOpen = true;
+    panel.querySelector('.gogh-panel-close').addEventListener('click', closePanel);
+    var body = panel.querySelector('.gogh-mm-body');
+
+    function commit() {
+      var content = serializeNavModel(mmItems);
+      var entry = partEl.__goghChromeEntry;
+      var pre = entry ? saveChromeEntry(entry) : Promise.resolve();
+      return pre.then(function () {
+        if (mmNavId != null) {
+          return fetch(GSROOT + 'navigation/' + mmNavId, {
+            method: 'POST', headers: hdrs, credentials: 'same-origin',
+            body: JSON.stringify({ content: content }),
+          });
+        }
+        return fetch(GSROOT + 'navigation', {
+          method: 'POST', headers: hdrs, credentials: 'same-origin',
+          body: JSON.stringify({ title: 'Navigation', status: 'publish', content: content }),
+        }).then(function (r) {
+          return r.json().then(function (j) { if (j && j.id) mmNavId = j.id; return r; });
+        });
+      }).then(function (r) {
+        if (r && !r.ok) throw new Error('HTTP ' + r.status);
+        return refreshChromePart(partEl);
+      }).catch(function (err) {
+        toast('gogh could not save the menu \u2014 ' + ((err && err.message) || 'try again.'), { error: true });
+      });
+    }
+    function snapshot() { return JSON.parse(JSON.stringify(mmItems)); }
+    function undoToast(msg, snap) {
+      toast(msg, { actions: [{ label: 'Undo', onClick: function () {
+        mmItems = snap;
+        renderList();
+        commit();
+      } }] });
+    }
+    function isExternal(it) {
+      if (it.kind === 'custom') return true;
+      try { return it.url && new URL(it.url, location.href).origin !== location.origin; } catch (err) { return false; }
+    }
+
+    function rowEl(it, parent) {
+      var r = document.createElement('div');
+      r.className = 'gogh-mm-row' + (parent ? ' gogh-mm-sub' : '');
+      r.__it = it; r.__parent = parent || null;
+      r.innerHTML =
+        (parent ? '<span class="gogh-mm-ind">\u21b3</span>' : '<span class="gogh-mm-grip">\u22ee\u22ee</span>') +
+        '<span class="gogh-mm-label"></span>' +
+        (it.children && it.children.length ? '<span class="gogh-mm-count">' + it.children.length + ' inside</span>' : '') +
+        (isExternal(it) ? '<span class="gogh-mm-link">link</span>' : '') +
+        '<button type="button" class="gogh-mm-x" title="Remove from menu">\u2715</button>';
+      r.querySelector('.gogh-mm-label').textContent = it.label || it.url || 'Untitled';
+      r.querySelector('.gogh-mm-x').addEventListener('click', function (ev) {
+        ev.stopPropagation();
+        var snap = snapshot();
+        if (parent) {
+          parent.children.splice(parent.children.indexOf(it), 1);
+          if (!parent.children.length) { parent.children = null; parent.dirty = true; }
+        } else {
+          var at = mmItems.indexOf(it);
+          var kids = (it.children || []).map(function (c) { c.dirty = true; return c; });
+          mmItems.splice.apply(mmItems, [at, 1].concat(kids));
+        }
+        renderList();
+        commit();
+        undoToast('\u201c' + (it.label || 'Item') + '\u201d removed from the menu.', snap);
+      });
+      r.addEventListener('pointerdown', function (ev) {
+        if (ev.button !== 0 || ev.target.closest('.gogh-mm-x')) return;
+        ev.preventDefault();
+        startRowDrag(ev, r);
+      });
+      return r;
+    }
+    var listBox = null;
+    function renderList() {
+      body.innerHTML = '';
+      var sel = document.createElement('div');
+      sel.className = 'gogh-mm-showing';
+      sel.innerHTML = '<label>Showing</label><select class="gogh-input"></select>';
+      var dd = sel.querySelector('select');
+      if (mmMenus.length) {
+        mmMenus.forEach(function (m) {
+          var o = document.createElement('option');
+          o.value = m.id;
+          o.textContent = (m.title && (m.title.rendered || m.title.raw)) || ('Menu ' + m.id);
+          if (m.id === mmNavId) o.selected = true;
+          dd.appendChild(o);
+        });
+        dd.addEventListener('change', function () { switchMenu(+dd.value); });
+      } else {
+        var o2 = document.createElement('option');
+        o2.textContent = 'New menu';
+        dd.appendChild(o2);
+        dd.disabled = true;
+      }
+      body.appendChild(sel);
+      listBox = document.createElement('div');
+      listBox.className = 'gogh-mm-list';
+      if (!mmItems.length) {
+        listBox.innerHTML = '<em class="gogh-panel-hint">Nothing in this menu yet \u2014 add a page below.</em>';
+      }
+      mmItems.forEach(function (it) {
+        var g = document.createElement('div');
+        g.className = 'gogh-mm-group';
+        g.__it = it;
+        g.appendChild(rowEl(it, null));
+        (it.children || []).forEach(function (c) { g.appendChild(rowEl(c, it)); });
+        listBox.appendChild(g);
+      });
+      body.appendChild(listBox);
+      var foot = document.createElement('div');
+      foot.className = 'gogh-mm-foot';
+      foot.innerHTML =
+        '<button type="button" class="gogh-btn gogh-btn-small gogh-mm-addpage">+ Page</button>' +
+        '<button type="button" class="gogh-btn gogh-btn-small gogh-mm-addlink">+ Link</button>';
+      foot.querySelector('.gogh-mm-addpage').addEventListener('click', renderAddPage);
+      foot.querySelector('.gogh-mm-addlink').addEventListener('click', renderAddLink);
+      body.appendChild(foot);
+      var hint = document.createElement('div');
+      hint.className = 'gogh-panel-hint';
+      hint.textContent = 'Drag to reorder \u00b7 drag right to nest under the item above';
+      body.appendChild(hint);
+    }
+
+    function startRowDrag(ev, row) {
+      var it = row.__it, parent = row.__parent;
+      var unit = parent ? row : row.parentNode; // a family moves as one block
+      var canNest = !parent && !(it.children && it.children.length);
+      var y0 = ev.clientY, x0 = ev.clientX, moved = false, nestG = null;
+      var sibsOf = function () {
+        return [].slice.call(unit.parentNode.children).filter(function (n) {
+          return n !== unit && (parent ? n.classList.contains('gogh-mm-sub') : n.classList.contains('gogh-mm-group'));
+        });
+      };
+      var clearNest = function () {
+        if (nestG) { nestG.classList.remove('gogh-mm-nest-target'); nestG = null; }
+      };
+      var onMove = function (e2) {
+        var dy = e2.clientY - y0, dx = e2.clientX - x0;
+        if (!moved && Math.abs(dy) < 4 && Math.abs(dx) < 4) return;
+        moved = true;
+        unit.classList.add('is-lifting');
+        unit.style.transform = 'translate(' + Math.max(-20, Math.min(40, dx)) + 'px,' + dy + 'px)';
+        // siblings step aside the moment the dragged block crosses their middle
+        var r = unit.getBoundingClientRect();
+        var mid = r.top + r.height / 2;
+        sibsOf().forEach(function (other) {
+          var om = other.getBoundingClientRect();
+          var omid = om.top + om.height / 2;
+          if (mid < omid && (unit.compareDocumentPosition(other) & 2)) {
+            other.before(unit);
+            y0 = e2.clientY;
+            unit.style.transform = 'translate(' + Math.max(-20, Math.min(40, dx)) + 'px,0)';
+          } else if (mid > omid && (unit.compareDocumentPosition(other) & 4)) {
+            other.after(unit);
+            y0 = e2.clientY;
+            unit.style.transform = 'translate(' + Math.max(-20, Math.min(40, dx)) + 'px,0)';
+          }
+        });
+        var nesting = canNest && dx > 32 && unit.previousElementSibling &&
+          unit.previousElementSibling.classList.contains('gogh-mm-group');
+        row.classList.toggle('is-nesting', !!nesting);
+        row.classList.toggle('is-unnesting', !!parent && dx < -32);
+        clearNest();
+        if (nesting) {
+          nestG = unit.previousElementSibling;
+          nestG.classList.add('gogh-mm-nest-target');
+        }
+      };
+      var onUp = function (e3) {
+        document.removeEventListener('pointermove', onMove);
+        document.removeEventListener('pointerup', onUp);
+        unit.classList.remove('is-lifting');
+        row.classList.remove('is-nesting', 'is-unnesting');
+        unit.style.transform = '';
+        var hostG = nestG;
+        clearNest();
+        if (!moved) return;
+        var dx = e3.clientX - x0;
+        var snap = snapshot();
+        var changed = false;
+        if (parent) {
+          if (dx < -32) {
+            parent.children.splice(parent.children.indexOf(it), 1);
+            if (!parent.children.length) { parent.children = null; parent.dirty = true; }
+            it.dirty = true;
+            mmItems.splice(mmItems.indexOf(parent) + 1, 0, it);
+            changed = true;
+          } else {
+            // the DOM already shows the order the user made — adopt it
+            var order = [].slice.call(unit.parentNode.children)
+              .filter(function (n) { return n.classList.contains('gogh-mm-sub'); })
+              .map(function (n) { return n.__it; });
+            changed = order.some(function (o, k) { return o !== parent.children[k]; });
+            parent.children = order;
+          }
+        } else if (hostG && canNest) {
+          mmItems.splice(mmItems.indexOf(it), 1);
+          var host = hostG.__it;
+          host.children = host.children || [];
+          host.dirty = true;
+          it.dirty = true;
+          host.children.push(it);
+          changed = true;
+        } else {
+          var order2 = [].slice.call(listBox.children)
+            .filter(function (n) { return n.classList.contains('gogh-mm-group'); })
+            .map(function (n) { return n.__it; });
+          changed = order2.some(function (o, k) { return o !== mmItems[k]; });
+          mmItems = order2;
+        }
+        if (changed) {
+          renderList();
+          commit();
+          undoToast('Menu updated.', snap);
+        } else {
+          renderList();
+        }
+      };
+      document.addEventListener('pointermove', onMove);
+      document.addEventListener('pointerup', onUp);
+    }
+
+
+    function backBar(label) {
+      var bb = document.createElement('button');
+      bb.type = 'button';
+      bb.className = 'gogh-btn gogh-btn-small gogh-mm-back';
+      bb.textContent = '\u2190 ' + label;
+      bb.addEventListener('click', renderList);
+      return bb;
+    }
+    function addItem(label, url, kind) {
+      mmItems.push({ name: '', text: null, attrsText: null, attrs: {},
+        label: label, url: url, kind: kind, children: null, dirty: true });
+      renderList();
+      commit();
+      toast('\u201c' + label + '\u201d added \u2014 the menu updates on every page.');
+    }
+    function renderAddPage() {
+      body.innerHTML = '';
+      body.appendChild(backBar('Menu'));
+      var box = document.createElement('div');
+      box.className = 'gogh-mm-pages';
+      box.innerHTML = '<em class="gogh-panel-hint">Loading pages\u2026</em>';
+      body.appendChild(box);
+      var mk = document.createElement('div');
+      mk.className = 'gogh-mm-newpage';
+      mk.innerHTML = '<input type="text" class="gogh-input" placeholder="New page title" />' +
+        '<button type="button" class="gogh-btn gogh-btn-small">Create</button>';
+      body.appendChild(mk);
+      mk.querySelector('button').addEventListener('click', function () {
+        var t = mk.querySelector('input').value.trim();
+        if (!t) return;
+        mk.querySelector('button').textContent = 'Creating\u2026';
+        fetch(GSROOT + 'pages', {
+          method: 'POST', headers: hdrs, credentials: 'same-origin',
+          body: JSON.stringify({ title: t, status: 'publish', content: '' }),
+        }).then(function (r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
+          .then(function (pg) { addItem(t, pg.link, 'post-type'); })
+          .catch(function () {
+            mk.querySelector('button').textContent = 'Create';
+            toast('gogh could not create that page.', { error: true });
+          });
+      });
+      var inMenu = {};
+      var noteUrl = function (u) {
+        try { inMenu[new URL(u, location.href).pathname.replace(/\/$/, '') || '/'] = 1; } catch (err) {}
+      };
+      mmItems.forEach(function (it) { noteUrl(it.url); (it.children || []).forEach(function (c) { noteUrl(c.url); }); });
+      fetch(restQ(GSROOT + 'pages', 'status=publish&per_page=100&_fields=id,title,link'), {
+        headers: { 'X-WP-Nonce': cfg.nonce }, credentials: 'same-origin',
+      }).then(function (r) { return r.ok ? r.json() : []; }).then(function (pages) {
+        var avail = (pages || []).filter(function (pg) {
+          var path = '/';
+          try { path = new URL(pg.link).pathname.replace(/\/$/, '') || '/'; } catch (err) {}
+          return !inMenu[path];
+        });
+        box.innerHTML = avail.length ? '' : '<em class="gogh-panel-hint">Every page is already in this menu.</em>';
+        avail.forEach(function (pg) {
+          var title = (pg.title && pg.title.rendered ? pg.title.rendered.replace(/<[^>]+>/g, '') : 'Page ' + pg.id);
+          var b = document.createElement('button');
+          b.type = 'button';
+          b.className = 'gogh-btn gogh-btn-small gogh-navadd-item';
+          b.textContent = title;
+          b.addEventListener('click', function () { addItem(title, pg.link, 'post-type'); });
+          box.appendChild(b);
+        });
+      });
+    }
+    function renderAddLink() {
+      body.innerHTML = '';
+      body.appendChild(backBar('Menu'));
+      var f = document.createElement('div');
+      f.className = 'gogh-mm-newlink';
+      f.innerHTML = '<input type="text" class="gogh-input gogh-mm-lab" placeholder="Label" />' +
+        '<input type="url" class="gogh-input gogh-mm-url" placeholder="https://\u2026" />' +
+        '<button type="button" class="gogh-btn gogh-btn-small">Add link</button>';
+      body.appendChild(f);
+      f.querySelector('button').addEventListener('click', function () {
+        var lab = f.querySelector('.gogh-mm-lab').value.trim();
+        var url = f.querySelector('.gogh-mm-url').value.trim();
+        if (!lab || !url) return;
+        if (!/^https?:\/\//i.test(url) && url[0] !== '/' && url[0] !== '#') url = 'https://' + url;
+        addItem(lab, url, 'custom');
+      });
+    }
+    function switchMenu(newId) {
+      activePartFor(area).then(function (active) {
+        if (!active) throw new Error('no ' + area + ' part');
+        var praw = String((active.content && (active.content.raw || active.content)) || '');
+        var next;
+        if (/wp:navigation[^>]*"ref":\d+/.test(praw)) {
+          next = praw.replace(/("ref":)\d+/, '$1' + newId);
+        } else if (/<!--\s+wp:navigation\s+\{/.test(praw)) {
+          next = praw.replace(/(<!--\s+wp:navigation\s+\{)/, '$1"ref":' + newId + ',');
+        } else {
+          next = praw.replace(/(<!--\s+wp:navigation)(\s+-->)/, '$1 {"ref":' + newId + '} -->');
+        }
+        if (next === praw && praw.indexOf('wp:navigation') === -1) throw new Error('this ' + area + ' has no menu block');
+        return fetch(tpUrl(active.id), {
+          method: 'POST', headers: hdrs, credentials: 'same-origin',
+          body: JSON.stringify({ content: next }),
+        }).then(function (r) {
+          if (!r.ok) throw new Error('HTTP ' + r.status);
+          mmNavId = newId;
+          return refreshChromePart(partEl);
+        }).then(loadItems).then(function () {
+          toast('Menu switched \u2014 every page shows it.');
+        });
+      }).catch(function (err) {
+        toast('gogh could not switch the menu \u2014 ' + ((err && err.message) || 'try again.'), { error: true });
+        renderList();
+      });
+    }
+    function loadItems() {
+      if (mmNavId == null) { mmItems = []; renderList(); return Promise.resolve(); }
+      return fetch(restQ(GSROOT + 'navigation/' + mmNavId, 'context=edit'), {
+        headers: { 'X-WP-Nonce': cfg.nonce }, credentials: 'same-origin',
+      }).then(function (r) { return r.ok ? r.json() : null; }).then(function (nav) {
+        mmItems = nav ? parseNavModel(((nav.content && nav.content.raw) || '').trim()) : [];
+        renderList();
+      });
+    }
+    resolveNavTarget(partEl).then(function (navId) {
+      mmNavId = navId;
+      return fetch(restQ(GSROOT + 'navigation', 'per_page=100&_fields=id,title'), {
+        headers: { 'X-WP-Nonce': cfg.nonce }, credentials: 'same-origin',
+      }).then(function (r) { return r.ok ? r.json() : []; });
+    }).then(function (menus) {
+      mmMenus = menus || [];
+      return loadItems();
+    }).catch(function () {
+      body.innerHTML = '<em class="gogh-panel-hint">gogh could not load this menu.</em>';
+    });
+  }
+
+  var chromeBtns = [];
+  function clearChromeBtns() {
+    if (chromeCycle) chromeCycle.collapse();
+    chromeBtns.forEach(function (b) { b.remove(); });
+    chromeBtns = [];
+  }
+  // pills only appear while the pointer is over their part (or the pill
+  // itself) — less cognitive noise everywhere else on the page
+  document.addEventListener('mouseover', function (ev) {
+    chromeBtns.forEach(function (b) {
+      // simple mode has no pill step at all — the veil opens the panel
+      // directly, and mid-panel the pill is pure noise ("is that
+      // intentional?" — no longer). Experiments keeps it for the cycle.
+      if (!cfg.experiments) { b.classList.remove('is-vis'); return; }
+      var over = b.contains(ev.target) ||
+        (b.__goghPart && b.__goghPart.contains(ev.target));
+      // the pills are viewport-fixed: while their part is on screen, the
+      // matching edge of the screen counts as hovering — otherwise the
+      // pointer can never reach the pill across the gap
+      if (!over && b.__goghPart &&
+          (b.classList.contains('is-footpill') || b.classList.contains('is-headpill'))) {
+        var fr = b.__goghPart.getBoundingClientRect();
+        var onScreen = fr.top < window.innerHeight && fr.bottom > 0;
+        over = onScreen && (b.classList.contains('is-footpill')
+          ? ev.clientY > window.innerHeight - 120
+          : ev.clientY < 120);
+      }
+      // while the veil is armed, the veil's pill is the ONLY invitation —
+      // Change header waits until the chrome is awake
+      if (over && b.__goghPart && b.__goghPart.querySelector('.gogh-chromeveil')) over = false;
+      b.classList.toggle('is-vis', over);
+    });
+  });
+  function placeChromeBtns() {
+    clearChromeBtns();
+    if (!editing) return;
+    chromePartEls().forEach(function (partEl) {
+      var r = partEl.getBoundingClientRect();
+      var b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'gogh-convertbtn gogh-chromebtn';
+      // a verb + swap arrows: the pill CHANGES the design — a bare noun and
+      // layers icon read as a label, not an invitation
+      b.innerHTML = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 3l4 4-4 4"/><path d="M20 7H7a4 4 0 0 0-4 4"/><path d="M8 21l-4-4 4-4"/><path d="M4 17h13a4 4 0 0 0 4-4"/></svg>' +
+        (partEl.tagName === 'FOOTER' ? 'Change footer layout' : 'Change header layout');
+      b.dataset.tip = 'Flick through ' + (partEl.tagName === 'FOOTER' ? 'footer' : 'header') + ' designs';
+      b.__goghPart = partEl;
+      // both pills are viewport-fixed and centred on their edge — where
+      // folks expect the control, and clear of the part's own content
+      // (the header pill used to overlap the nav)
+      b.classList.add(partEl.tagName === 'FOOTER' ? 'is-footpill' : 'is-headpill');
+      b.addEventListener('click', function () {
+        // mid-cycle the pill IS the next button (simple mode)
+        if (chromeCycle && chromeCycle.partEl === partEl) { chromeCycle.advance(); return; }
+        b.disabled = true;
+        convertChrome(partEl).then(function (sec) { if (!sec) b.disabled = false; }).catch(function () {
+          b.disabled = false;
+          toast('Could not open the layout panel.', { error: true });
+        });
+      });
+      document.body.appendChild(b);
+      chromeBtns.push(b);
+    });
+  }
+
   // "Make freeform" overlay buttons on convertible blocks
   var convBtns = [];
+  // like the chrome pills: stored-block controls only show while the
+  // pointer is over their block (or the pill itself) — a page of patterns
+  // otherwise wears pill pairs on every block, and adjacent blocks stack
+  // identical pills
+  document.addEventListener('mouseover', function (ev) {
+    convBtns.concat(storedRmBtns).forEach(function (b) {
+      var over = b.contains(ev.target) ||
+        (b.__goghBlock && b.__goghBlock.contains(ev.target));
+      b.style.opacity = over ? '' : '0';
+      b.style.pointerEvents = over ? '' : 'none';
+    });
+  });
   function clearConvertBtns() {
     convBtns.forEach(function (b) { b.remove(); });
     convBtns = [];
   }
+  var storedRmBtns = [];
+  function clearStoredRmBtns() {
+    storedRmBtns.forEach(function (b) { b.remove(); });
+    storedRmBtns = [];
+  }
+  function placeStoredRmBtns() {
+    clearStoredRmBtns();
+    if (!editing) return;
+    storedEdits.forEach(function (en) {
+      if (en.deleted || !en.el || !en.el.isConnected) return;
+      if (en.chromePart) return;
+      var r = en.el.getBoundingClientRect();
+      if (r.height < 24) return;
+      var b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'gogh-storedrm';
+      b.textContent = '\u2715';
+      b.title = 'Remove this section';
+      b.__goghBlock = en.el;
+      b.style.opacity = '0';
+      b.style.pointerEvents = 'none';
+      b.style.left = (r.right + window.scrollX - 38) + 'px';
+      b.style.top = (r.top + window.scrollY + 10) + 'px';
+      b.addEventListener('click', function () {
+        var slot = { parent: en.el.parentNode, next: en.el.nextSibling };
+        en.deleted = true;
+        en.el.remove();
+        clearStoredRmBtns();
+        placeStoredRmBtns();
+        refreshChip();
+        toast('Section removed \u2014 publish to make it real.', { actions: [{ label: 'Undo', onClick: function () {
+          en.deleted = false;
+          if (slot.parent) slot.parent.insertBefore(en.el, slot.next && slot.next.parentNode === slot.parent ? slot.next : null);
+          clearStoredRmBtns();
+          placeStoredRmBtns();
+          refreshChip();
+        } }] });
+      });
+      document.body.appendChild(b);
+      storedRmBtns.push(b);
+    });
+  }
   function placeConvertBtns() {
     clearConvertBtns();
-    if (!editing) return;
-    topBlockNodes().forEach(function (node) {
+    placeStoredRmBtns();
+    // v1 posture: converting arbitrary imported markup to freeform is a
+    // On by default since 0.97.6; ?gogh-experiments=0 (or the
+    // gogh_convert_enabled filter) hides it — its
+    // input space is the whole web. Native light editing stays on.
+    if (!editing || !cfg.canConvert) return;
+    // only nodes BOUND to stored content spans qualify — topBlockNodes()
+    // also returns template-owned siblings (the page title, when an empty
+    // post_content leaves no .entry-content wrapper and pageParent falls
+    // back to <main>), and offering to convert the page title is nonsense.
+    // storedEdits already pairs rendered nodes with stored spans and binds
+    // nothing on a count mismatch, so it is the safe source of truth.
+    storedEdits.forEach(function (en) {
+      var node = en.el;
+      if (en.deleted || !node || !node.isConnected) return;
       var r = node.getBoundingClientRect();
       if (r.height < 24) return;
       var b = document.createElement('button');
@@ -3297,15 +13501,30 @@
       b.textContent = '\u2728 Make freeform';
       b.style.left = (r.right + window.scrollX - 10) + 'px';
       b.style.top = (r.top + window.scrollY + 10) + 'px';
+      b.__goghBlock = node;
+      b.style.opacity = '0';
+      b.style.pointerEvents = 'none';
       b.addEventListener('click', function () {
         b.disabled = true;
         b.textContent = 'Converting\u2026';
         convertBlock(node).then(function (sec) {
           if (!sec) { b.disabled = false; b.textContent = '\u2728 Make freeform'; }
+        }).catch(function (err) {
+          b.disabled = false;
+          b.textContent = '\u2728 Make freeform';
+          toast((err && err.message) || 'gogh could not convert this block.', { error: true });
         });
       });
       document.body.appendChild(b);
       convBtns.push(b);
+      // the remove ✕ sits to the pill's LEFT — its default offset assumed a
+      // narrower pill and parked it on top of "freeform"
+      storedRmBtns.forEach(function (rb) {
+        if (rb.__goghBlock === node) {
+          rb.style.left = (r.right + window.scrollX - 10 - b.offsetWidth - 36) + 'px';
+          rb.style.top = (r.top + window.scrollY + 10) + 'px';
+        }
+      });
     });
   }
 
@@ -3314,6 +13533,26 @@
   // the page had none, whole-replace only for legacy full-gogh pages
   function mergeContent(raw) {
     var OPEN = '<!-- wp:gogh/section -->', CLOSE = '<!-- /wp:gogh/section -->';
+    // light edits to PUBLISHED native/HTML blocks: swap each edited block's
+    // stored span (matched by the signature of its unedited form) for the
+    // edited markup before anything else rewrites the content
+    storedEdits.forEach(function (en) {
+      if (!en.deleted) return;
+      var gone = raw.indexOf(en.savedRaw);
+      if (gone !== -1) {
+        raw = raw.slice(0, gone) + raw.slice(gone + en.savedRaw.length);
+      }
+    });
+    storedEdits = storedEdits.filter(function (en) { return !en.deleted; });
+    storedEdits.forEach(function (en) {
+      if (en.raw === en.savedRaw || !en.el.isConnected) return;
+      // savedRaw is a verbatim slice of the stored content — exact-string
+      // replacement handles single blocks and multi-block holders alike; a
+      // miss (content changed elsewhere) skips rather than corrupts
+      var at = raw.indexOf(en.savedRaw);
+      if (at === -1) return;
+      raw = raw.slice(0, at) + en.raw + raw.slice(at + en.savedRaw.length);
+    });
     // converted Gutenberg blocks: swap each source span for its section, then
     // the generic paths below see them as ordinary gogh sections
     var converted = realSections().filter(function (s) { return s.srcSig; });
@@ -3332,20 +13571,15 @@
       });
       repl.sort(function (a, b) { return b.sp.start - a.sp.start; });
       repl.forEach(function (r) {
-        raw = raw.slice(0, r.sp.start) + buildSectionBlocks(r.sec) + raw.slice(r.sp.end);
+        raw = raw.slice(0, r.sp.start) + buildSectionBlocksV3(r.sec) + raw.slice(r.sp.end);
       });
     }
-    var blocks = buildAllBlocks();
-    var spans = [], i = 0;
-    for (;;) {
-      var a = raw.indexOf(OPEN, i);
-      if (a === -1) break;
-      var b = raw.indexOf(CLOSE, a);
-      if (b === -1) break;
-      b += CLOSE.length;
-      spans.push([a, b]);
-      i = b;
-    }
+    var blocks = pendingBlocks.length ? pageStream() : buildAllBlocks();
+    // v3 comments carry attributes, so exact-string matching would miss
+    // them — span the sections with the real block parser
+    var spans = parseTopBlocks(raw).filter(function (sp) {
+      return sp.name === 'gogh/section';
+    }).map(function (sp) { return [sp.start, sp.end]; });
     if (!spans.length) {
       // legacy carrier pages were 100% gogh: migrate the whole content
       if (raw.indexOf('gogh-model') !== -1) return blocks;
@@ -3355,13 +13589,29 @@
     }
     var secs = realSections();
     if (spans.length === secs.length) {
-      // 1:1 — rewrite each span in place, preserving interleaved blocks
+      // 1:1 — rewrite each span in place, preserving interleaved blocks.
+      // Pending native sections splice in at their DOM position relative to
+      // the section that follows them (or at the end).
+      var pendBefore = {}, pendTail = '';
+      pendingBlocks.forEach(function (pe) {
+        if (!pe.el.isConnected) return;
+        var n = pe.el.nextElementSibling, target = -1;
+        while (n) {
+          if (n.classList && n.classList.contains('gogh-wrap')) {
+            var owner = secs.filter(function (s2) { return s2.wrapEl === n; })[0];
+            if (owner) { target = secs.indexOf(owner); break; }
+          }
+          n = n.nextElementSibling;
+        }
+        if (target >= 0) pendBefore[target] = (pendBefore[target] || '') + pe.raw + '\n\n';
+        else pendTail += '\n\n' + pe.raw;
+      });
       var out = '', pos = 0;
       spans.forEach(function (sp, k) {
-        out += raw.slice(pos, sp[0]) + buildSectionBlocks(secs[k]);
+        out += raw.slice(pos, sp[0]) + (pendBefore[k] || '') + buildSectionBlocksV3(secs[k]);
         pos = sp[1];
       });
-      return out + raw.slice(pos);
+      return out + pendTail + raw.slice(pos);
     }
     // sections were added/removed: replace the whole gogh region, keep
     // prefix/suffix, and carry along non-gogh chunks from between sections
@@ -3375,16 +13625,142 @@
     return head + blocks + between + tail;
   }
 
+  // The zoom modal can move native blocks, but mergeContent's in-place span
+  // rewriting keeps every PUBLISHED native block in its old raw slot. These
+  // two re-emit the merged content's top-level spans in live DOM order.
+  // Every unit is an exact-text slice we authored or bound, so the mapping
+  // is byte-precise; ANY ambiguity returns the merged raw untouched — the
+  // failure mode is a stale order, never corrupted content.
+  function gatherRawUnits() {
+    var units = [];
+    var kids = [].slice.call(pageParent.children);
+    for (var i = 0; i < kids.length; i++) {
+      var n = kids[i];
+      if (!n.classList || n.tagName === 'STYLE' || n.tagName === 'SCRIPT') continue;
+      if (n.classList.contains('gogh-wrap')) {
+        var sec = realSections().filter(function (s) { return s.wrapEl === n; })[0];
+        if (sec) units.push(buildSectionBlocksV3(sec));
+      } else if (n.classList.contains('gogh-pending')) {
+        var pe = pendingBlocks.filter(function (p) { return p.el === n; })[0];
+        if (!pe) return null;
+        units.push(pe.raw);
+      } else {
+        var en = storedEdits.filter(function (s2) { return s2.el === n; })[0];
+        if (!en) return null; // unbound stored block: order must not be touched
+        units.push(en.raw);
+      }
+    }
+    return units;
+  }
+  function resequenceToDom(merged, units) {
+    if (!units || units.length < 2) return merged;
+    var ranges = [];
+    for (var i = 0; i < units.length; i++) {
+      var t = units[i];
+      if (!t) return merged;
+      var from = 0, at;
+      for (;;) {
+        at = merged.indexOf(t, from);
+        if (at === -1) return merged; // unit not present verbatim: bail
+        var lo = at;
+        var clash = ranges.some(function (r) { return lo < r.end && lo + t.length > r.start; });
+        if (!clash) break;
+        from = at + 1;
+      }
+      ranges.push({ start: at, end: at + t.length, i: i });
+    }
+    var sorted = ranges.slice().sort(function (a, b) { return a.start - b.start; });
+    var inOrder = sorted.every(function (r, k) { return r.i === k; });
+    if (inOrder) return merged; // nothing moved: keep the merge byte-for-byte
+    for (var k = 1; k < sorted.length; k++) {
+      if (/\S/.test(merged.slice(sorted[k - 1].end, sorted[k].start))) return merged;
+    }
+    var head = merged.slice(0, sorted[0].start);
+    var tail = merged.slice(sorted[sorted.length - 1].end);
+    // content outside the claimed region must not contain blocks we'd strand
+    if (parseTopBlocks(head).length || parseTopBlocks(tail).length) return merged;
+    return head + units.join('\n\n') + tail;
+  }
+
 
   // ---------- boot ----------
-  S.forEach(renderSection);
-  if (wantEdit) {
-    setEditing(true);
-    if (S.length === 1 && S[0].bootstrap && !S[0].els.length) openPicker(0);
-    try {
-      var u = new URL(location.href);
-      u.searchParams.delete('gogh-edit');
-      history.replaceState(null, '', u);
-    } catch (e3) {}
+  // v3 sections carry their model in the block-comment attributes, which
+  // the rendered DOM does not include — hydrate them from the raw content
+  // over authenticated REST before the editor takes over. v2 pages resolve
+  // immediately (no fetch).
+  function hydrateV3Sections() {
+    var pending = S.filter(function (s) { return s.v3; });
+    if (!pending.length) return Promise.resolve();
+    return fetchRaw().then(function (raw) {
+      var freeAttrs = [];
+      var byScope = {};
+      parseTopBlocks(raw).forEach(function (sp) {
+        if (sp.name !== 'gogh/section') return;
+        var am = raw.slice(sp.start, sp.end).match(/^<!--\s+wp:gogh\/section\s+(\{[\s\S]*?\})\s*-->/);
+        if (!am) return;
+        try {
+          var a = JSON.parse(am[1]);
+          if (a && a.model) {
+            freeAttrs.push(a);
+            if (a.scope) byScope[a.scope] = a;
+          }
+        } catch (err) {}
+      });
+      pending.forEach(function (sec) {
+        // primary match by the stored scope; duplicated pages can carry
+        // colliding scopes, so fall back to document order
+        var a = (sec.srcScope && byScope[sec.srcScope]) || freeAttrs.shift() || null;
+        if (a && byScope[a.scope] === a) delete byScope[a.scope];
+        var idx = freeAttrs.indexOf(a);
+        if (idx !== -1) freeAttrs.splice(idx, 1);
+        sec.v3 = false;
+        if (!a) return; // orphan: renders as-is, uneditable model-wise
+        var model = a.model;
+        sec.els = syncModelFromMarkup(sec.sectionEl, model.elements || []);
+        sec.minH = model.minH || null;
+        sec.bg = model.bg || null;
+        sec.divider = model.divider || null;
+        sec.fx = model.fx || null;
+        sec.bgImage = model.bgImage || null;
+        sec.bgId = model.bgId || null;
+        sec.bgA = model.bgA != null ? model.bgA : null;
+        sec.theme = model.theme || null;
+        sec.fill = !!model.fill;
+      });
+    }).catch(function (err) {
+      console.warn('[gogh] v3 hydration failed:', err);
+      S.forEach(function (s) { s.v3 = false; });
+    });
   }
+  // the canvas renders ONCE, and only when editing actually begins — in
+  // plain view the server's DOM stays pristine, so interactive blocks
+  // (accordion, tabs, navigation) keep their hydration. Rendering on every
+  // boot replaced them with inert previews for every logged-in visit.
+  function renderCanvasOnce() {
+    if (renderCanvasOnce.done || !renderCanvasOnce.hydrated) return;
+    renderCanvasOnce.done = true;
+    S.forEach(renderSection);
+  }
+  window.__goghRenderCanvasOnce = renderCanvasOnce;
+  hydrateV3Sections().then(function () {
+    renderCanvasOnce.hydrated = true;
+    if (wantEdit || editing) {
+      renderCanvasOnce();
+    }
+    if (wantEdit) {
+      setEditing(true);
+      var bootContent = S.filter(function (s) { return !s.chrome; });
+      // the blank-canvas greeting is for genuinely EMPTY pages — a page
+      // full of native blocks (a starter site's home) is not one
+      if (bootContent.length === 1 && isBlankBoot(bootContent[0]) &&
+          !topBlockNodes().length) {
+        openPicker(S.indexOf(bootContent[0]));
+      }
+      try {
+        var u = new URL(location.href);
+        u.searchParams.delete('gogh-edit');
+        history.replaceState(null, '', u);
+      } catch (e3) {}
+    }
+  });
 })();

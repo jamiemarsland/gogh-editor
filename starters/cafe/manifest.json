@@ -1,0 +1,37 @@
+{
+  "name": "Caf\u00e9",
+  "description": "Warm, hungry and open every day",
+  "pages": [
+    {
+      "slug": "home",
+      "title": "Home",
+      "file": "home.html",
+      "front": true,
+      "template": "page-no-title"
+    },
+    {
+      "slug": "menu",
+      "title": "Menu",
+      "file": "menu.html"
+    },
+    {
+      "slug": "blog",
+      "title": "Blog",
+      "file": "blog.html",
+      "blog": true
+    },
+    {
+      "slug": "find-us",
+      "title": "Find us",
+      "file": "find-us.html"
+    }
+  ],
+  "variation": "Noon",
+  "preview": {
+    "base": "#F8F7F5",
+    "contrast": "#191919",
+    "accent-1": "#FFFFFF",
+    "accent-2": "#F5B684",
+    "accent-3": "#EFE1CE"
+  }
+}

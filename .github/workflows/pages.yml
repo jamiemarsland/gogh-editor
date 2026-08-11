@@ -1,0 +1,71 @@
+# .github/workflows/pages.yml
+#
+# Publishes the standalone helper to GitHub Pages on each version tag.
+#
+# This is the bring-your-own-key build: Pages serves static files only, so it
+# cannot hold an API key and each visitor supplies their own. Good for you and
+# collaborators; not something to link from the plugin — use the Worker for
+# that (see helper/DEPLOY.md).
+#
+# Enable it at Settings → Pages → Source: GitHub Actions.
+
+name: pages
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Never let two publishes race; the newest tag should win.
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      # Build fresh rather than trusting the committed artifact, so a tag always
+      # publishes a helper that matches the source it was cut from.
+      - name: Build the helper
+        run: |
+          set +e
+          python3 helper/refresh.py
+          code=$?
+          if [ "$code" = "2" ]; then
+            echo "::error::extract.py anchors stopped matching — not publishing a helper with missing facts."
+            exit 1
+          fi
+          exit 0
+
+      - name: Assemble the site
+        run: |
+          mkdir -p _site
+          cp helper/gogh-helper.html _site/index.html
+          # Served alongside so anything else can fetch the same knowledge base.
+          cp helper/gogh-kb.md _site/gogh-kb.md
+          cp helper/kb.facts.json _site/kb.facts.json
+
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+      - id: deploy
+        uses: actions/deploy-pages@v4

@@ -1,0 +1,68 @@
+{
+	"$schema": "https://playground.wordpress.net/blueprint-schema.json",
+	"meta": {
+		"title": "Gogh Editor × WooCommerce",
+		"description": "The Yellow House with a real shop — gogh paints the pages, WooCommerce sells the prints.",
+		"author": "jamiemarsland",
+		"categories": [
+			"editor",
+			"design",
+			"ecommerce"
+		]
+	},
+	"landingPage": "/?gogh-edit=1",
+	"preferredVersions": {
+		"php": "8.2",
+		"wp": "latest"
+	},
+	"features": {
+		"networking": true
+	},
+	"login": true,
+	"steps": [
+		{
+			"step": "installTheme",
+			"themeData": {
+				"resource": "wordpress.org/themes",
+				"slug": "twentytwentyfive"
+			},
+			"options": {
+				"activate": true
+			}
+		},
+		{
+			"step": "installPlugin",
+			"pluginData": {
+				"resource": "wordpress.org/plugins",
+				"slug": "woocommerce"
+			},
+			"options": {
+				"activate": true
+			}
+		},
+		{
+			"step": "installPlugin",
+			"pluginData": {
+				"resource": "url",
+				"url": "https://github-proxy.com/proxy/?repo=jamiemarsland/gogh-editor&release=latest&asset=gogh-playground.zip"
+			},
+			"options": {
+				"activate": true
+			}
+		},
+		{
+			"step": "runPHP",
+			"code": "<?php\nrequire '/wordpress/wp-load.php';\n// blueprint.json is CDN-cached for a week wherever it's linked — so the\n// living boot code is fetched fresh from the repo (raw caches ~5 minutes).\n// If the fetch fails, fall back to whatever this cached copy knows.\n$boot = false;\ntry {\n\t$boot = file_get_contents( 'https://raw.githubusercontent.com/jamiemarsland/gogh-editor/main/demo-boot.php' );\n} catch ( \\Throwable $e ) {}\nif ( $boot && false !== strpos( $boot, 'gogh' ) ) {\n\teval( '?>' . $boot );\n} else {\n\twp_set_current_user( 1 );\n\ttry {\n\t\t$req = new WP_REST_Request( 'POST', '/gogh/v1/starter' );\n\t\t$req->set_param( 'slug', 'yellow-house' );\n\t\trest_do_request( $req );\n\t} catch ( \\Throwable $e ) {}\n}\n"
+		},
+		{
+			"step": "runPHP",
+			"code": "<?php\nrequire '/wordpress/wp-load.php';\n// woo extras ride the same evergreen pattern: fetched fresh, evaluated,\n// with an inline fallback that at least restores Woo's own pages.\n$boot = false;\ntry {\n\t$boot = file_get_contents( 'https://raw.githubusercontent.com/jamiemarsland/gogh-editor/main/demo-boot-woo.php' );\n} catch ( \\Throwable $e ) {}\nif ( $boot && false !== strpos( $boot, 'gogh' ) ) {\n\teval( '?>' . $boot );\n} elseif ( class_exists( 'WC_Install' ) ) {\n\twp_set_current_user( 1 );\n\ttry { WC_Install::create_pages(); } catch ( \\Throwable $e ) {}\n}\n"
+		},
+		{
+			"step": "setSiteOptions",
+			"options": {
+				"blogname": "The Yellow House"
+			}
+		}
+	]
+}
