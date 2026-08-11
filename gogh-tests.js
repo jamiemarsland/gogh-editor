@@ -2547,6 +2547,18 @@
         expect(panel.querySelectorAll('.gogh-crslrow').length === 3, 'one row per slide expected');
         expect(panel.querySelectorAll('.gogh-crsl-opt').length === 2, 'Auto-play + Click-to-enlarge chips expected');
         expect(panel.querySelectorAll('.gogh-crsl-nav-opt').length === 3, 'Underneath / By the pics / Both expected');
+        // chips must LOOK selected — twice now a toggled class had no CSS
+        var navOn = panel.querySelector('.gogh-crsl-nav-opt.is-active') || panel.querySelector('.gogh-crsl-nav-opt');
+        navOn.click();
+        var navOff = [].filter.call(panel.querySelectorAll('.gogh-crsl-nav-opt'), function (b2) { return !b2.classList.contains('is-active'); })[0];
+        expect(getComputedStyle(navOn).backgroundColor !== getComputedStyle(navOff).backgroundColor,
+          'selected arrow chip paints like an unselected one - no feedback');
+        var optOn = panel.querySelector('.gogh-crsl-opt[data-opt="light"]');
+        if (!optOn.classList.contains('is-active')) optOn.click();
+        var optOff = panel.querySelector('.gogh-crsl-opt[data-opt="auto"]');
+        if (optOff.classList.contains('is-active')) optOff.click();
+        expect(getComputedStyle(optOn).backgroundColor !== getComputedStyle(optOff).backgroundColor,
+          'selected option chip paints like an unselected one - no feedback');
         // caption edits recompose the block
         var cap = panel.querySelector('.gogh-crsl-cap');
         cap.value = 'Renamed';

@@ -268,7 +268,7 @@
 .gogh-qna-head .gogh-input { flex: 1; font-weight: 600; min-width: 0; }
 .gogh-qna-head .gogh-sbtn { flex: 0 0 auto; width: 30px; height: 30px; display: grid; place-items: center; border-radius: 8px; }
 .gogh-qna-head .gogh-sbtn[disabled] { opacity: 0.3; cursor: default; }
-.gogh-crsl-opt.is-active { background: var(--gogh-ui-accent); color: var(--gogh-ui-accent-fg); border-color: transparent; }
+.gogh-crsl-opt.is-active, .gogh-crsl-nav-opt.is-active { background: var(--gogh-ui-accent); color: var(--gogh-ui-accent-fg); border-color: transparent; }
 .gogh-crslthumb { width: 44px; height: 34px; flex: none; border-radius: 6px; background-size: cover; background-position: center; border: 1px solid var(--gogh-ui-border); }
 .gogh-qna-a { width: 100%; margin-top: 6px; min-height: 54px; resize: vertical; font: inherit; font-size: 13px; box-sizing: border-box; }
 
