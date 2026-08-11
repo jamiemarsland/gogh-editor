@@ -1,4 +1,4 @@
-# Knowledge-base audit — plugin v0.99.89
+# Knowledge-base audit — plugin v0.99.90
 
 _13 finding(s) suppressed by `kb.audit-ignore.txt`._
 
@@ -6,7 +6,7 @@ _13 finding(s) suppressed by `kb.audit-ignore.txt`._
 
 The prose states something the source contradicts. Fix these first — the bot will contradict itself, since the appendix carries the correct value.
 
-- plugin version is **0.99.89**, prose says **0.96.5**
+- plugin version is **0.99.90**, prose says **0.96.5**
 
 ## MISSING (22)
 
@@ -39,7 +39,4 @@ The source has something the prose never explains. The bot knows the name from t
 
 Use this as the checklist for updating the prose — and as a sanity check on the release itself.
 
-- version: 0.99.88 → 0.99.89
-- added WP hook: "template_redirect"
-- added UI label: "A clean canvas and space to think"
-- added UI label: "✍ Write a post"
+- version: 0.99.89 → 0.99.90
