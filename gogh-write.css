@@ -24,6 +24,10 @@ html body.gogh-writing {
 }
 body.gogh-writing main {
   padding-top: clamp(48px, 12vh, 140px);
+  /* room below the last line: the page can always scroll the caret up
+     into the comfortable zone — without this it only scrolls when the
+     words physically run out of screen */
+  padding-bottom: 45vh;
 }
 
 /* the byline belongs to the PUBLISHED page — while writing it is gone

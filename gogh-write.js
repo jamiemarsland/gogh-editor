@@ -494,6 +494,33 @@
     return out.join('\n\n');
   };
 
+  // ---------- the view follows the caret (typewriter's kindness) ----------
+  // writing happens in the middle of the screen, not at its bottom edge:
+  // whenever the caret sinks past the comfort line, the page steps down.
+  // Instant, small steps — the classic typewriter snap, no easing queasiness.
+  var followT = null;
+  var caretFollow = function () {
+    var sel = getSelection();
+    if (!sel.rangeCount || !body.contains(sel.anchorNode)) return;
+    var rect = sel.getRangeAt(0).cloneRange().getBoundingClientRect();
+    if (!rect || (!rect.top && !rect.bottom && !rect.height)) {
+      var blk = blockOf(sel.anchorNode);
+      if (blk) rect = blk.getBoundingClientRect();
+    }
+    if (!rect) return;
+    var comfort = window.innerHeight * 0.68;
+    if (rect.bottom > comfort) {
+      window.scrollBy({ top: rect.bottom - comfort, behavior: 'auto' });
+    }
+  };
+  body.addEventListener('input', function () {
+    clearTimeout(followT);
+    followT = setTimeout(caretFollow, 60);
+  });
+  body.addEventListener('keyup', function (ev) {
+    if (ev.key === 'Enter' || ev.key === 'ArrowDown') caretFollow();
+  });
+
   // ---------- silent autosave + the one chip ----------
   var chip = document.createElement('div');
   chip.className = 'gogh-w-chip';
