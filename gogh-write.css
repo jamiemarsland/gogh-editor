@@ -17,19 +17,17 @@ body.gogh-writing main {
   padding-top: clamp(48px, 12vh, 140px);
 }
 
-/* template furniture (byline, date, categories) steps back while you
-   think — still there, just quieter; hover brings it back */
+/* the byline belongs to the PUBLISHED page — while writing it is gone
+   entirely (half-faded read as broken; "admin in Uncategorized" answers
+   questions nobody mid-thought is asking) */
 body.gogh-writing .wp-block-post-author,
 body.gogh-writing .wp-block-post-author-name,
 body.gogh-writing .wp-block-post-date,
 body.gogh-writing .wp-block-post-terms,
-body.gogh-writing .entry-content ~ .wp-block-group,
-body.gogh-writing .wp-block-post-title ~ *:not(.entry-content):not(.wp-block-post-content) {
-  opacity: 0.18;
-  transition: opacity 0.25s ease;
-}
-body.gogh-writing .wp-block-post-title ~ *:not(.entry-content):not(.wp-block-post-content):hover {
-  opacity: 0.8;
+body.gogh-writing :is(.wp-block-group, .wp-block-post-meta, p):has(> .wp-block-post-author-name),
+body.gogh-writing :is(.wp-block-group, .wp-block-post-meta, p):has(> .wp-block-post-terms),
+body.gogh-writing :is(.wp-block-group, .wp-block-post-meta, p):has(> .wp-block-post-date) {
+  display: none !important;
 }
 
 /* the surface: the theme's own type, a calm caret, no rings */
