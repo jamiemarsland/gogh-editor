@@ -2123,6 +2123,19 @@
   function setEditing(on) {
     if (on && window.__goghRenderCanvasOnce) window.__goghRenderCanvasOnce();
     if (on) fetchMediaPool(); // starters dress in THEIR photos
+    // "Design site" (the site menu) lands here with the drawer already
+    // open on the site's style — the closest thing to a whole-site room
+    if (on && /[?&]gogh-design=1/.test(location.search) && !setEditing.__designed) {
+      setEditing.__designed = true;
+      setTimeout(function () {
+        openSide();
+        openPageStylePanel();
+        // in the site room the panel wears its true name — the variations
+        // it auditions are Global Styles, site-wide
+        var tt = panel.querySelector('.gogh-panel-title');
+        if (tt) tt.textContent = 'Site style';
+      }, 400);
+    }
     editing = on;
     document.documentElement.classList.toggle('gogh-editing', on);
     if (on) veilChrome(); else unveilChrome();
