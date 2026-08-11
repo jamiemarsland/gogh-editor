@@ -10451,7 +10451,7 @@
         }).join('') +
         '<label class="gogh-sw gogh-sw-pick" title="Custom colour"><input type="color" class="gogh-hcustom" value="#1c1c22"></label>' +
         '</div>' +
-        '<div class="gogh-panel-row gogh-logosize gogh-halpha-row" hidden><span>See-through</span>' +
+        '<div class="gogh-panel-row gogh-logosize gogh-halpha-row" hidden><span>Transparency</span>' +
         '<input type="range" class="gogh-halpha" min="10" max="100" step="5" value="100" />' +
         '<span class="gogh-logosize-val gogh-halpha-val">100</span></div>' : '') +
       (d0 ? '<div class="gogh-swlab">Spacing</div>' +
