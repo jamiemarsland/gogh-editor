@@ -2497,6 +2497,12 @@
       expect((c.wsrc.match(/wp:image/g) || []).length === 4, 'each slide must be a real core image block');
       expect(/figcaption[^>]*>Sunflowers</.test(c.wsrc), 'caption must publish');
       expect(c.whtml.indexOf('<!--') === -1, 'preview must carry no block comments');
+      expect(/gogh-crsl-btn/.test(c.whtml), 'preview must wear arrows (multi-slide)');
+      // options: lightbox = WP's own attr; autoplay = a class; both stored-clean
+      var co = G.composeCarousel([{ img: '/a.jpg' }, { img: '/b.jpg' }], { light: 1, auto: 1 });
+      expect(/"lightbox":\{"enabled":true\}/.test(co.wsrc), 'lightbox attr missing');
+      expect(/gogh-crsl-auto/.test(co.wsrc), 'autoplay class missing');
+      expect(!/gogh-crsl-btn/.test(co.wsrc), 'arrows must NEVER be stored');
       // live: the snap machinery is real CSS on the rendered widget
       G.addSection({ name: 'Crsl', minH: 400, els: [
         { type: 'widget', x: 40, y: 40, w: 900, h: 280, slides: [
@@ -2513,11 +2519,18 @@
           'snap machinery missing: ' + cs.display + '/' + cs.scrollSnapType + '/' + cs.overflowX);
         var slide = strip.querySelector('.gogh-slide');
         expect(slide && getComputedStyle(slide).scrollSnapAlign === 'center', 'slides must snap to centre');
+        // the editor's arrows genuinely scroll the strip
+        var shell = csec.sectionEl.querySelector('.gogh-crsl-shell');
+        expect(shell && shell.querySelector('.gogh-crsl-next'), 'editor preview lost its arrows');
+        var sl0 = strip.scrollLeft;
+        shell.querySelector('.gogh-crsl-next').click();
+        expect(strip.scrollLeft > sl0, 'arrow did not advance the strip (' + sl0 + ' -> ' + strip.scrollLeft + ')');
         // the panel: second click opens the slide editor
         G.openPanel(csec, 0);
         var panel = document.querySelector('.gogh-panel');
         expect(!panel.hidden && /Carousel/.test(panel.querySelector('.gogh-panel-title').textContent), 'carousel panel did not open');
         expect(panel.querySelectorAll('.gogh-crslrow').length === 3, 'one row per slide expected');
+        expect(panel.querySelectorAll('.gogh-crsl-opt').length === 2, 'Auto-play + Click-to-enlarge chips expected');
         // caption edits recompose the block
         var cap = panel.querySelector('.gogh-crsl-cap');
         cap.value = 'Renamed';

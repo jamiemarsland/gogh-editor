@@ -828,7 +828,7 @@
       boxBg: e.boxBg || null, radius: e.radius || 0, shape: e.shape || null,
       boxImg: e.boxImg || null, boxImgId: e.boxImgId || null,
       mood: e.mood || null,
-      faq: e.faq || null, tabs: e.tabs || null, slides: e.slides || null,
+      faq: e.faq || null, tabs: e.tabs || null, slides: e.slides || null, copt: e.copt || null,
       ph: e.ph || null,
       expId: e.expId || null, expUrl: e.expUrl || null,
       kids: e.kids && e.kids.length ? e.kids.map(projEl) : null };
@@ -2431,9 +2431,14 @@
     panel.classList.add('gogh-panel-wide');
     var items = e.slides;
     var render = function () {
+      e.copt = e.copt || { light: 1 };
       panel.innerHTML = '<div class="gogh-panel-head"><span class="gogh-panel-title">Carousel</span>' +
         '<button type="button" class="gogh-sbtn gogh-panel-close" title="Done">\u2715</button></div>' +
         '<div class="gogh-panel-hint">Photos slide and snap \u2014 captions are optional.</div>' +
+        '<div class="gogh-panel-row gogh-hpresets">' +
+        '<button type="button" class="gogh-btn gogh-btn-small gogh-crsl-opt' + (e.copt.auto ? ' is-active' : '') + '" data-opt="auto">\u25b6 Auto-play</button>' +
+        '<button type="button" class="gogh-btn gogh-btn-small gogh-crsl-opt' + (e.copt.light ? ' is-active' : '') + '" data-opt="light">\u26f6 Click to enlarge</button>' +
+        '</div>' +
         items.map(function (it, k) {
           return '<div class="gogh-qna gogh-crslrow" data-k="' + k + '">' +
             '<div class="gogh-qna-head">' +
@@ -2475,6 +2480,14 @@
             sync(true);
             render();
           });
+        });
+      });
+      panel.querySelectorAll('.gogh-crsl-opt').forEach(function (ob) {
+        ob.addEventListener('click', function () {
+          var k2 = ob.dataset.opt;
+          e.copt[k2] = e.copt[k2] ? 0 : 1;
+          ob.classList.toggle('is-active', !!e.copt[k2]);
+          sync(true);
         });
       });
       panel.querySelector('.gogh-panel-close').addEventListener('click', function () { closePanel(); });
@@ -2965,6 +2978,19 @@
     placeHandles(sel.sec, sel.i);
     pushState();
   });
+  // carousel arrows in the EDITOR: the preview's chevrons scroll the strip
+  document.addEventListener('click', function (ev) {
+    var btn = ev.target.closest && ev.target.closest('.gogh-crsl-btn');
+    if (!btn || !editing) return;
+    var shell = btn.closest('.gogh-crsl-shell');
+    var strip = shell && shell.querySelector('.gogh-carousel');
+    if (!strip) return;
+    var slide = strip.querySelector('.gogh-slide');
+    var step = slide ? slide.getBoundingClientRect().width + 14 : strip.clientWidth * 0.7;
+    strip.scrollLeft += step * (+btn.dataset.dir || 1);
+    ev.stopPropagation();
+  }, true);
+
   // ---------- copy styles (Canva's roller): pick up once, paint many ----------
   // "might be nice for consistency" — the roller carries fs/align/colour and
   // the captured text format; painting is explicit, so no sentinel veto
@@ -4049,7 +4075,7 @@
       { type: 'heading', x: 250, y: 96, w: 700, h: 64, text: 'Slide through the work', fs: 'x-large', align: 'center' },
       // real core image blocks in a scroll-snap group — zero JS, works
       // with the plugin off, and Chrome's CSS carousel dots light up free
-      { type: 'widget', x: 120, y: 200, w: 960, h: 280, slides: [
+      { type: 'widget', x: 120, y: 200, w: 960, h: 280, copt: { light: 1 }, slides: [
         { img: '/wp-content/plugins/gogh/demo-assets/wheat-field.jpg', cap: 'Wheat Field with Cypresses' },
         { img: '/wp-content/plugins/gogh/demo-assets/starry-night.jpg', cap: 'The Starry Night' },
         { img: '/wp-content/plugins/gogh/demo-assets/sunflowers.jpg', cap: 'Sunflowers' },
@@ -4189,25 +4215,34 @@
       '<div class="wp-block-tab-panels"><div class="wp-block-tab-panel"><p>' + esc(items[0] ? items[0].body : '') + '</p></div></div></div>';
     return { wsrc: wsrc, whtml: whtml };
   }
-  function composeCarousel(items) {
+  function composeCarousel(items, copt) {
+    copt = copt || {};
+    var cls = 'gogh-carousel' + (copt.auto ? ' gogh-crsl-auto' : '');
     var fig = function (it) {
-      return '<figure class="wp-block-image size-large"><img src="' + escAttr(it.img) + '" alt="' + escAttr(it.cap || '') + '"/>' +
+      return '<figure class="wp-block-image size-large gogh-slide"><img src="' + escAttr(it.img) + '" alt="' + escAttr(it.cap || '') + '"/>' +
         (it.cap ? '<figcaption class="wp-element-caption">' + esc(it.cap) + '</figcaption>' : '') + '</figure>';
     };
-    var wsrc = '<!-- wp:group {"className":"gogh-carousel"} -->\n<div class="wp-block-group gogh-carousel">' +
+    var imgAttrs = { sizeSlug: 'large', className: 'gogh-slide' };
+    // WP's OWN enlarge-on-click: one attr, zero code, deactivation-safe
+    if (copt.light) imgAttrs.lightbox = { enabled: true };
+    var wsrc = '<!-- wp:group {"className":"' + cls + '"} -->\n<div class="wp-block-group ' + cls + '">' +
       items.map(function (it) {
-        return '<!-- wp:image {"sizeSlug":"large","className":"gogh-slide"} -->\n' +
-          fig(it).replace('wp-block-image size-large', 'wp-block-image size-large gogh-slide') + '\n<!-- /wp:image -->';
+        return '<!-- wp:image ' + JSON.stringify(imgAttrs) + ' -->\n' + fig(it) + '\n<!-- /wp:image -->';
       }).join('') + '</div>\n<!-- /wp:group -->';
-    var whtml = '<div class="wp-block-group gogh-carousel">' + items.map(function (it) {
-      return fig(it).replace('wp-block-image size-large', 'wp-block-image size-large gogh-slide');
-    }).join('') + '</div>';
+    // the preview wears working arrows (wired by the editor's delegate);
+    // the SAVED markup never carries them — view-time injection only
+    var arrows = items.length > 1
+      ? '<span class="gogh-crsl-btn gogh-crsl-prev" data-dir="-1" role="button" aria-label="Previous">\u2039</span>' +
+        '<span class="gogh-crsl-btn gogh-crsl-next" data-dir="1" role="button" aria-label="Next">\u203a</span>'
+      : '';
+    var whtml = '<div class="gogh-crsl-shell">' + arrows +
+      '<div class="wp-block-group ' + cls + '">' + items.map(fig).join('') + '</div></div>';
     return { wsrc: wsrc, whtml: whtml };
   }
   function composeWidgetData(e) {
     if (e.faq && e.faq.length) { var c = composeFaq(e.faq); e.wsrc = c.wsrc; e.whtml = c.whtml; }
     else if (e.tabs && e.tabs.length) { var c2 = composeTabs(e.tabs); e.wsrc = c2.wsrc; e.whtml = c2.whtml; }
-    else if (e.slides && e.slides.length) { var c3 = composeCarousel(e.slides); e.wsrc = c3.wsrc; e.whtml = c3.whtml; }
+    else if (e.slides && e.slides.length) { var c3 = composeCarousel(e.slides, e.copt); e.wsrc = c3.wsrc; e.whtml = c3.whtml; }
   }
   function tplEls(tpl) {
     var els = JSON.parse(JSON.stringify(tpl.els));
