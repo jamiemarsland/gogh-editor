@@ -66,6 +66,15 @@
   var surfaceFromRaw = function (raw) {
     var blocks = parseBlocks(raw);
     if (!blocks.length) return false;
+    // a fresh draft is just its empty seed paragraph — rebuilding it
+    // would swap the typeable <p><br></p> for a caret-proof <p></p>
+    var hasContent = blocks.some(function (b) {
+      if (b.name !== 'paragraph') return true;
+      return !!innerOf(b.raw).replace(/<[^>]*>/g, '').trim();
+    });
+    if (!hasContent) return false;
+    var sel0 = getSelection();
+    var caretWasInBody = sel0.rangeCount > 0 && body.contains(sel0.anchorNode);
     var frag = document.createDocumentFragment();
     blocks.forEach(function (b) {
       var name = String(b.name || '');
@@ -113,6 +122,12 @@
       tail.innerHTML = '<br>';
       body.appendChild(tail);
     }
+    // an empty block without <br> is caret-proof — contenteditable
+    // cannot place the cursor inside it, and typing lands nowhere
+    [].forEach.call(body.querySelectorAll('p, h2, h3, h4, li'), function (el) {
+      if (!el.textContent.trim() && !el.firstElementChild) el.innerHTML = '<br>';
+    });
+    if (caretWasInBody) caretInto(body.firstElementChild);
     return true;
   };
   // if the writer starts typing before the raw arrives, their words win
@@ -589,20 +604,33 @@
     bubUrl.hidden = true;
     [].forEach.call(bub.querySelectorAll('button'), function (b2) { b2.hidden = false; });
   };
+  var pinBub = function (rect) {
+    bub.hidden = false;
+    var bw = bub.offsetWidth || 180;
+    bub.style.left = Math.max(8, Math.min(window.innerWidth - bw - 8, rect.left + rect.width / 2 - bw / 2)) + 'px';
+    bub.style.top = Math.max(8, rect.top - 46) + 'px';
+  };
   var placeBub = function () {
     if (!bubUrl.hidden) return; // typing a link holds the bubble
     var sel = getSelection();
     if (!sel.rangeCount || sel.isCollapsed || !body.contains(sel.anchorNode)) { hideBub(); return; }
     var rect = sel.getRangeAt(0).getBoundingClientRect();
     if (!rect || !rect.width) { hideBub(); return; }
-    bub.hidden = false;
-    var bw = bub.offsetWidth || 180;
-    bub.style.left = Math.max(8, Math.min(window.innerWidth - bw - 8, rect.left + rect.width / 2 - bw / 2)) + 'px';
-    bub.style.top = Math.max(8, rect.top - 46) + 'px';
+    pinBub(rect);
     // the link button doubles as unlink inside an existing link
     var a = sel.anchorNode.parentElement && sel.anchorNode.parentElement.closest('a');
     bub.querySelector('[data-fmt="link"]').textContent = a ? '\u26d3\ufe0e\u2715' : '\ud83d\udd17';
   };
+  // scrolling used to leave the bubble hanging at its old viewport spot
+  // (over the title, over anything) \u2014 it stays glued to its words instead
+  window.addEventListener('scroll', function () {
+    if (bub.hidden) return;
+    if (!bubUrl.hidden) {
+      if (savedRange) pinBub(savedRange.getBoundingClientRect());
+      return;
+    }
+    placeBub();
+  }, { passive: true });
   var bubT = null;
   document.addEventListener('selectionchange', function () {
     clearTimeout(bubT);
@@ -643,9 +671,26 @@
       bubUrl.focus();
     }
   });
+  // focus drifting anywhere outside the bubble ends link mode — Tab,
+  // a click the capture listener missed, anything
+  bubUrl.addEventListener('blur', function () {
+    setTimeout(function () {
+      if (!bubUrl.hidden && !bub.contains(document.activeElement)) hideBub();
+    }, 0);
+  });
   bubUrl.addEventListener('keydown', function (ev) {
     ev.stopPropagation();
-    if (ev.key === 'Escape') { hideBub(); return; }
+    if (ev.key === 'Escape') {
+      hideBub();
+      // hand the caret back to the words the writer was linking
+      if (savedRange) {
+        body.focus();
+        var s0 = getSelection();
+        s0.removeAllRanges();
+        s0.addRange(savedRange);
+      }
+      return;
+    }
     if (ev.key !== 'Enter') return;
     ev.preventDefault();
     var url = bubUrl.value.trim();
