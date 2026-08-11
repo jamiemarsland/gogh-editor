@@ -2451,6 +2451,14 @@
         '<button type="button" class="gogh-btn gogh-btn-small gogh-crsl-opt' + (e.copt.auto ? ' is-active' : '') + '" data-opt="auto">\u25b6 Auto-play</button>' +
         '<button type="button" class="gogh-btn gogh-btn-small gogh-crsl-opt' + (e.copt.light ? ' is-active' : '') + '" data-opt="light">\u26f6 Click to enlarge</button>' +
         '</div>' +
+        '<div class="gogh-swlab">Arrows</div>' +
+        '<div class="gogh-panel-row gogh-hpresets">' +
+        ['below', 'sides', 'both'].map(function (nm) {
+          var on = (e.copt.nav || 'below') === nm;
+          return '<button type="button" class="gogh-btn gogh-btn-small gogh-crsl-nav-opt' + (on ? ' is-active' : '') + '" data-nav="' + nm + '">' +
+            (nm === 'below' ? 'Underneath' : nm === 'sides' ? 'By the pics' : 'Both') + '</button>';
+        }).join('') +
+        '</div>' +
         items.map(function (it, k) {
           return '<div class="gogh-qna gogh-crslrow" data-k="' + k + '">' +
             '<div class="gogh-qna-head">' +
@@ -2492,6 +2500,15 @@
             sync(true);
             render();
           });
+        });
+      });
+      panel.querySelectorAll('.gogh-crsl-nav-opt').forEach(function (nb) {
+        nb.addEventListener('click', function () {
+          e.copt.nav = nb.dataset.nav;
+          panel.querySelectorAll('.gogh-crsl-nav-opt').forEach(function (o2) {
+            o2.classList.toggle('is-active', o2 === nb);
+          });
+          sync(true);
         });
       });
       panel.querySelectorAll('.gogh-crsl-opt').forEach(function (ob) {
@@ -4240,28 +4257,39 @@
   }
   function composeCarousel(items, copt) {
     copt = copt || {};
-    var cls = 'gogh-carousel' + (copt.auto ? ' gogh-crsl-auto' : '');
+    var cls = 'gogh-carousel' + (copt.auto ? ' gogh-crsl-auto' : '') +
+      (copt.light ? ' gogh-crsl-light' : '') +
+      (copt.nav === 'sides' ? ' gogh-crsl-nav-sides' : copt.nav === 'both' ? ' gogh-crsl-nav-both' : '');
     var fig = function (it) {
       return '<figure class="wp-block-image size-large gogh-slide"><img src="' + escAttr(it.img) + '" alt="' + escAttr(it.cap || '') + '"/>' +
         (it.cap ? '<figcaption class="wp-element-caption">' + esc(it.cap) + '</figcaption>' : '') + '</figure>';
     };
+    // gogh's own lightbox (the class above): core's cannot move between
+    // images, and moving between images is the point
     var imgAttrs = { sizeSlug: 'large', className: 'gogh-slide' };
-    // WP's OWN enlarge-on-click: one attr, zero code, deactivation-safe
-    if (copt.light) imgAttrs.lightbox = { enabled: true };
     var wsrc = '<!-- wp:group {"className":"' + cls + '"} -->\n<div class="wp-block-group ' + cls + '">' +
       items.map(function (it) {
         return '<!-- wp:image ' + JSON.stringify(imgAttrs) + ' -->\n' + fig(it) + '\n<!-- /wp:image -->';
       }).join('') + '</div>\n<!-- /wp:group -->';
     // the preview wears working arrows (wired by the editor's delegate);
     // the SAVED markup never carries them — view-time injection only
+    var navMode = copt.nav === 'sides' ? 'sides' : copt.nav === 'both' ? 'both' : 'below';
+    var rowArrows = navMode !== 'sides';
+    var dots = '<span class="gogh-crsl-dots">' + items.map(function (x2, k2) {
+      return '<span class="gogh-crsl-dot' + (k2 === 0 ? ' is-here' : '') + '" data-k="' + k2 + '" role="button" aria-label="Slide ' + (k2 + 1) + '"></span>';
+    }).join('') + '</span>';
     var nav = items.length > 1
-      ? '<div class="gogh-crsl-nav"><span class="gogh-crsl-btn" data-dir="-1" role="button" aria-label="Previous">\u2039</span>' +
-        '<span class="gogh-crsl-dots">' + items.map(function (x2, k2) {
-          return '<span class="gogh-crsl-dot' + (k2 === 0 ? ' is-here' : '') + '" data-k="' + k2 + '" role="button" aria-label="Slide ' + (k2 + 1) + '"></span>';
-        }).join('') + '</span>' +
-        '<span class="gogh-crsl-btn" data-dir="1" role="button" aria-label="Next">\u203a</span></div>'
+      ? '<div class="gogh-crsl-nav">' +
+        (rowArrows ? '<span class="gogh-crsl-btn" data-dir="-1" role="button" aria-label="Previous">\u2039</span>' : '') +
+        dots +
+        (rowArrows ? '<span class="gogh-crsl-btn" data-dir="1" role="button" aria-label="Next">\u203a</span>' : '') +
+        '</div>'
       : '';
-    var whtml = '<div class="gogh-crsl-shell">' +
+    var sideArrows = items.length > 1 && navMode !== 'below'
+      ? '<span class="gogh-crsl-btn gogh-crsl-side gogh-crsl-side-l" data-dir="-1" role="button" aria-label="Previous">\u2039</span>' +
+        '<span class="gogh-crsl-btn gogh-crsl-side gogh-crsl-side-r" data-dir="1" role="button" aria-label="Next">\u203a</span>'
+      : '';
+    var whtml = '<div class="gogh-crsl-shell">' + sideArrows +
       '<div class="wp-block-group ' + cls + '">' + items.map(fig).join('') + '</div>' + nav + '</div>';
     return { wsrc: wsrc, whtml: whtml };
   }

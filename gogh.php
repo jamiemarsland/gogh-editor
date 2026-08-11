@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Gogh Editor
  * Description: A freeform canvas for WordPress — drag anything anywhere on your live page; Gogh publishes it back as clean, responsive core blocks that keep working even if the plugin is deactivated.
- * Version: 0.99.77
+ * Version: 0.99.78
  * Author: Jamie Marsland
  * Author URI: https://pootlepress.com
  * License: GPLv2 or later
@@ -23,7 +23,7 @@ add_action( 'init', function () {
 		'gogh-block',
 		plugins_url( 'gogh-block.js', __FILE__ ),
 		array( 'wp-blocks', 'wp-element', 'wp-block-editor' ),
-		'0.99.77-chrome',
+		'0.99.78-chrome',
 		true
 	);
 	register_block_type( 'gogh/section', array(
@@ -846,8 +846,8 @@ add_action( 'wp_enqueue_scripts', function () {
 
 	// for every visitor: neutralise theme spacing around gogh sections, even
 	// on pages whose stored stylesheets predate this rule
-	wp_register_style( 'gogh-base', false, array(), '0.99.77-chrome' );
-	wp_register_script( 'gogh-view', false, array(), '0.99.77-chrome', true );
+	wp_register_style( 'gogh-base', false, array(), '0.99.78-chrome' );
+	wp_register_script( 'gogh-view', false, array(), '0.99.78-chrome', true );
 	wp_enqueue_script( 'gogh-view' );
 	wp_add_inline_script( 'gogh-view',
 		// carousel arrows + autoplay are VIEW-TIME: never stored, so saved
@@ -869,6 +869,33 @@ add_action( 'wp_enqueue_scripts', function () {
 		'var next=document.createElement("button");next.type="button";next.className="gogh-crsl-btn";next.setAttribute("aria-label","Next slide");next.textContent="\u203a";' .
 		'next.addEventListener("click",function(){var c=current();go(c>=slides.length-1?0:c+1);});nav.appendChild(next);' .
 		'shell.appendChild(nav);' .
+		'var navMode=strip.classList.contains("gogh-crsl-nav-sides")?"sides":strip.classList.contains("gogh-crsl-nav-both")?"both":"below";' .
+		'if(navMode!=="below"){["l","r"].forEach(function(sd){var b=document.createElement("button");b.type="button";' .
+		'b.className="gogh-crsl-btn gogh-crsl-side gogh-crsl-side-"+sd;b.setAttribute("aria-label",sd==="l"?"Previous slide":"Next slide");' .
+		'b.textContent=sd==="l"?"\u2039":"\u203a";' .
+		'b.addEventListener("click",function(){var c=current();go(sd==="l"?(c<=0?slides.length-1:c-1):(c>=slides.length-1?0:c+1));});' .
+		'shell.insertBefore(b,strip);' .
+		'var fit=function(){b.style.top=(strip.offsetTop+strip.clientHeight/2)+"px";b.style.transform="translateY(-50%)";};fit();' .
+		'if(window.ResizeObserver)new ResizeObserver(fit).observe(strip);});' .
+		'if(navMode==="sides")nav.querySelectorAll(".gogh-crsl-btn").forEach(function(b2){b2.remove();});}' .
+		'if(strip.classList.contains("gogh-crsl-light")){' .
+		'var lbAt=-1;var lb=null;' .
+		'var lbShow=function(k){lbAt=(k+slides.length)%slides.length;var im=slides[lbAt].querySelector("img");var cp=slides[lbAt].querySelector("figcaption");' .
+		'lb.querySelector("img").src=im?im.src:"";lb.querySelector("figcaption").textContent=cp?cp.textContent:"";};' .
+		'var lbClose=function(){if(lb){lb.remove();lb=null;document.removeEventListener("keydown",lbKeys);}};' .
+		'var lbKeys=function(ev){if(ev.key==="Escape")lbClose();if(ev.key==="ArrowRight")lbShow(lbAt+1);if(ev.key==="ArrowLeft")lbShow(lbAt-1);};' .
+		'var lbOpen=function(k){lb=document.createElement("div");lb.className="gogh-lbx";lb.setAttribute("role","dialog");lb.setAttribute("aria-label","Image viewer");' .
+		'lb.innerHTML=\'<img alt=""/><figcaption></figcaption>\'+' .
+		'\'<button type="button" class="gogh-crsl-btn gogh-lbx-l" aria-label="Previous">\u2039</button>\'+' .
+		'\'<button type="button" class="gogh-crsl-btn gogh-lbx-r" aria-label="Next">\u203a</button>\'+' .
+		'\'<button type="button" class="gogh-crsl-btn gogh-lbx-x" aria-label="Close">\u2715</button>\';' .
+		'lb.addEventListener("click",function(ev){if(ev.target===lb)lbClose();});' .
+		'lb.querySelector(".gogh-lbx-l").addEventListener("click",function(){lbShow(lbAt-1);});' .
+		'lb.querySelector(".gogh-lbx-r").addEventListener("click",function(){lbShow(lbAt+1);});' .
+		'lb.querySelector(".gogh-lbx-x").addEventListener("click",lbClose);' .
+		'document.addEventListener("keydown",lbKeys);document.body.appendChild(lb);lbShow(k);};' .
+		'slides.forEach(function(sl,k){var im=sl.querySelector("img");if(!im)return;im.style.cursor="zoom-in";' .
+		'im.addEventListener("click",function(){lbOpen(k);});});}' .
 		'var syncT=null;strip.addEventListener("scroll",function(){if(syncT)return;syncT=requestAnimationFrame(function(){syncT=null;var c=current();' .
 		'[].forEach.call(dots.children,function(d,k){d.classList.toggle("is-here",k===c);});});},{passive:true});' .
 		'if(strip.classList.contains("gogh-crsl-auto")&&!matchMedia("(prefers-reduced-motion: reduce)").matches){' .
@@ -914,6 +941,16 @@ add_action( 'wp_enqueue_scripts', function () {
 		'.gogh-crsl-dots { display: flex; gap: 9px; }' .
 		'.gogh-crsl-dot { width: 9px; height: 9px; border-radius: 50%; border: 0; padding: 0; cursor: pointer; background: currentColor; opacity: 0.22; transition: opacity 0.15s ease, scale 0.15s ease; }' .
 		'.gogh-crsl-dot.is-here { opacity: 0.9; scale: 1.15; }' .
+		'.gogh-crsl-side { position: absolute; z-index: 2; width: 40px; height: 40px; font-size: 24px; background: color-mix(in srgb, var(--wp--preset--color--base, #fff) 85%, transparent); box-shadow: 0 6px 18px -6px rgba(0,0,0,0.35); backdrop-filter: blur(6px); }' .
+		'.gogh-crsl-side-l { left: 10px; } .gogh-crsl-side-r { right: 10px; }' .
+		// gogh's lightbox: walkable, unlike core's single frame
+		'.gogh-lbx { position: fixed; inset: 0; z-index: 100000; display: flex; align-items: center; justify-content: center; background: color-mix(in srgb, #0c0c10 82%, transparent); backdrop-filter: blur(10px); }' .
+		'.gogh-lbx img { max-width: min(92vw, 1400px); max-height: 84vh; object-fit: contain; border-radius: 10px; box-shadow: 0 30px 90px -20px rgba(0,0,0,0.7); }' .
+		'.gogh-lbx figcaption { position: absolute; left: 0; right: 0; bottom: 26px; text-align: center; color: #fff; opacity: 0.85; font-size: 15px; }' .
+		'.gogh-lbx .gogh-crsl-btn { position: absolute; top: 50%; transform: translateY(-50%); width: 44px; height: 44px; font-size: 26px; background: rgba(255,255,255,0.14); color: #fff; }' .
+		'.gogh-lbx .gogh-lbx-l { left: 22px; } .gogh-lbx .gogh-lbx-r { right: 22px; }' .
+		'.gogh-lbx .gogh-lbx-x { position: absolute; top: 18px; right: 22px; transform: none; font-size: 20px; }' .
+		'@media (prefers-reduced-motion: no-preference) { .gogh-lbx { animation: gogh-lbx-in 0.18s ease; } @keyframes gogh-lbx-in { from { opacity: 0; } } }' .
 		// the transparent header floats over the first section: absolutely
 		// positioned with a soft top scrim so white chrome reads on any hero
 		'header.wp-block-template-part:has(> .gogh-header-overlay), header.wp-block-template-part:has(.gogh-header-overlay) { position: absolute; top: var(--wp-admin--admin-bar--height, 0px); left: 0; right: 0; z-index: 40; background: transparent; }' .
@@ -964,8 +1001,8 @@ add_action( 'wp_enqueue_scripts', function () {
 		return;
 	}
 
-	wp_enqueue_script( 'gogh-editor', plugins_url( 'gogh-editor.js', __FILE__ ), array(), '0.99.77-chrome', true );
-	wp_enqueue_style( 'gogh-editor', plugins_url( 'gogh-editor.css', __FILE__ ), array(), '0.99.77-chrome' );
+	wp_enqueue_script( 'gogh-editor', plugins_url( 'gogh-editor.js', __FILE__ ), array(), '0.99.78-chrome', true );
+	wp_enqueue_style( 'gogh-editor', plugins_url( 'gogh-editor.css', __FILE__ ), array(), '0.99.78-chrome' );
 
 	// WebMCP bridge: the page registers its editing verbs as agent tools.
 	// OPT-IN only — add ?gogh-mcp=1 for a demo session (or enable sitewide
@@ -977,13 +1014,13 @@ add_action( 'wp_enqueue_scripts', function () {
 	// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only labs toggle
 	$gogh_exp = isset( $_GET['gogh-test'] ) || ( isset( $_GET['gogh-experiments'] ) && '0' !== $_GET['gogh-experiments'] );
 	if ( isset( $_GET['gogh-mcp'] ) || $gogh_exp || apply_filters( 'gogh_webmcp_enabled', false ) ) {
-		wp_enqueue_script( 'gogh-webmcp', plugins_url( 'gogh-webmcp.js', __FILE__ ), array( 'gogh-editor' ), '0.99.77-chrome', true );
+		wp_enqueue_script( 'gogh-webmcp', plugins_url( 'gogh-webmcp.js', __FILE__ ), array( 'gogh-editor' ), '0.99.78-chrome', true );
 	}
 
 	// regression suite: /page/?gogh-test (editors only, never saves)
 	// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only toggle enqueuing a test script for capability-checked editors.
 	if ( isset( $_GET['gogh-test'] ) ) {
-		wp_enqueue_script( 'gogh-tests', plugins_url( 'gogh-tests.js', __FILE__ ), array( 'gogh-editor' ), '0.99.77-chrome', true );
+		wp_enqueue_script( 'gogh-tests', plugins_url( 'gogh-tests.js', __FILE__ ), array( 'gogh-editor' ), '0.99.78-chrome', true );
 	}
 
 	// products live outside wp/v2, so gogh carries its own save route for
@@ -1114,7 +1151,7 @@ add_action( 'enqueue_block_assets', function () {
 	if ( ! is_admin() ) {
 		return;
 	}
-	wp_register_style( 'gogh-editor-base', false, array(), '0.99.77-chrome' );
+	wp_register_style( 'gogh-editor-base', false, array(), '0.99.78-chrome' );
 	wp_enqueue_style( 'gogh-editor-base' );
 	wp_add_inline_style( 'gogh-editor-base',
 		'.gogh-wrap { min-width: 100%; margin-block: 0 !important; }' .

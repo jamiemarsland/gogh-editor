@@ -2499,10 +2499,14 @@
       expect(c.whtml.indexOf('<!--') === -1, 'preview must carry no block comments');
       expect(/gogh-crsl-nav/.test(c.whtml) && /gogh-crsl-dot/.test(c.whtml), 'preview must wear the centred nav row with dots');
       // options: lightbox = WP's own attr; autoplay = a class; both stored-clean
-      var co = G.composeCarousel([{ img: '/a.jpg' }, { img: '/b.jpg' }], { light: 1, auto: 1 });
-      expect(/"lightbox":\{"enabled":true\}/.test(co.wsrc), 'lightbox attr missing');
+      var co = G.composeCarousel([{ img: '/a.jpg' }, { img: '/b.jpg' }], { light: 1, auto: 1, nav: 'sides' });
+      expect(/gogh-crsl-light/.test(co.wsrc), 'lightbox class missing (gogh lightbox pages between images)');
       expect(/gogh-crsl-auto/.test(co.wsrc), 'autoplay class missing');
+      expect(/gogh-crsl-nav-sides/.test(co.wsrc), 'arrow placement class missing');
       expect(!/gogh-crsl-btn/.test(co.wsrc), 'arrows must NEVER be stored');
+      expect(/gogh-crsl-side/.test(co.whtml), 'sides mode preview must wear side arrows');
+      var cb = G.composeCarousel([{ img: '/a.jpg' }, { img: '/b.jpg' }], {});
+      expect(!/gogh-crsl-side/.test(cb.whtml) && /gogh-crsl-nav/.test(cb.whtml), 'below mode: row only');
       // live: the snap machinery is real CSS on the rendered widget
       G.addSection({ name: 'Crsl', minH: 400, els: [
         { type: 'widget', x: 40, y: 40, w: 900, h: 280, slides: [
@@ -2542,6 +2546,7 @@
         expect(!panel.hidden && /Carousel/.test(panel.querySelector('.gogh-panel-title').textContent), 'carousel panel did not open');
         expect(panel.querySelectorAll('.gogh-crslrow').length === 3, 'one row per slide expected');
         expect(panel.querySelectorAll('.gogh-crsl-opt').length === 2, 'Auto-play + Click-to-enlarge chips expected');
+        expect(panel.querySelectorAll('.gogh-crsl-nav-opt').length === 3, 'Underneath / By the pics / Both expected');
         // caption edits recompose the block
         var cap = panel.querySelector('.gogh-crsl-cap');
         cap.value = 'Renamed';
