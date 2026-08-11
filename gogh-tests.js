@@ -2497,7 +2497,7 @@
       expect((c.wsrc.match(/wp:image/g) || []).length === 4, 'each slide must be a real core image block');
       expect(/figcaption[^>]*>Sunflowers</.test(c.wsrc), 'caption must publish');
       expect(c.whtml.indexOf('<!--') === -1, 'preview must carry no block comments');
-      expect(/gogh-crsl-btn/.test(c.whtml), 'preview must wear arrows (multi-slide)');
+      expect(/gogh-crsl-nav/.test(c.whtml) && /gogh-crsl-dot/.test(c.whtml), 'preview must wear the centred nav row with dots');
       // options: lightbox = WP's own attr; autoplay = a class; both stored-clean
       var co = G.composeCarousel([{ img: '/a.jpg' }, { img: '/b.jpg' }], { light: 1, auto: 1 });
       expect(/"lightbox":\{"enabled":true\}/.test(co.wsrc), 'lightbox attr missing');
@@ -2521,10 +2521,21 @@
         expect(slide && getComputedStyle(slide).scrollSnapAlign === 'center', 'slides must snap to centre');
         // the editor's arrows genuinely scroll the strip
         var shell = csec.sectionEl.querySelector('.gogh-crsl-shell');
-        expect(shell && shell.querySelector('.gogh-crsl-next'), 'editor preview lost its arrows');
+        var nextBtn = shell && shell.querySelector('.gogh-crsl-btn[data-dir="1"]');
+        expect(nextBtn, 'editor preview lost its nav arrows');
         var sl0 = strip.scrollLeft;
-        shell.querySelector('.gogh-crsl-next').click();
+        nextBtn.click();
         expect(strip.scrollLeft > sl0, 'arrow did not advance the strip (' + sl0 + ' -> ' + strip.scrollLeft + ')');
+        expect(shell.querySelectorAll('.gogh-crsl-dot').length === 3, 'one dot per slide expected');
+        // dots jump; the active dot follows
+        var dot0 = shell.querySelector('.gogh-crsl-dot[data-k="0"]');
+        dot0.click();
+        expect(strip.scrollLeft < sl0 + 1, 'dot did not jump back to the first slide');
+        expect(dot0.classList.contains('is-here'), 'active dot did not follow the jump');
+        // arrows wrap: prev from the first slide lands on the last
+        shell.querySelector('.gogh-crsl-btn[data-dir="-1"]').click();
+        var lastDot = shell.querySelector('.gogh-crsl-dot[data-k="2"]');
+        expect(lastDot.classList.contains('is-here'), 'prev from first must wrap to the last slide');
         // the panel: second click opens the slide editor
         G.openPanel(csec, 0);
         var panel = document.querySelector('.gogh-panel');
@@ -2546,6 +2557,33 @@
         G.deleteSection(G.sections().indexOf(csec));
       }
       return 'core blocks, live snap CSS, caption/remove edits follow';
+    });
+
+    test('starters dress in the site\u2019s own photos (deterministic)', function () {
+      var pool = G.mediaPool;
+      var save = { imgs: pool.imgs.slice(), bgs: pool.bgs.slice() };
+      try {
+        pool.imgs.length = 0; pool.bgs.length = 0;
+        ['/wp-content/uploads/a.jpg', '/wp-content/uploads/b.jpg', '/wp-content/uploads/c.jpg'].forEach(function (u) { pool.imgs.push(u); });
+        pool.bgs.push('/wp-content/uploads/wide.jpg');
+        var hero = G.templates().filter(function (tp) { return tp.starter && tp.els.some(function (e2) { return e2.type === 'image' && !e2.src; }); })[0];
+        expect(hero, 'no starter with a placeholder image found');
+        var els1 = G.tplEls(hero);
+        var img1 = els1.filter(function (e2) { return e2.type === 'image'; })[0];
+        expect(/uploads\//.test(img1.src || ''), 'placeholder image not populated from the library');
+        var els2 = G.tplEls(hero);
+        var img2 = els2.filter(function (e2) { return e2.type === 'image'; })[0];
+        expect(img1.src === img2.src, 'picks must be deterministic - shelf preview and insert must match');
+        var crsl = G.templates().filter(function (tp) { return tp.name === 'Carousel'; })[0];
+        var slides = G.tplEls(crsl).filter(function (e2) { return e2.slides; })[0].slides;
+        expect(slides.every(function (sl) { return /uploads\//.test(sl.img); }), 'carousel demo art must swap for their photos');
+        expect(slides.every(function (sl) { return !sl.cap; }), 'painting captions must not ride their photos');
+      } finally {
+        pool.imgs.length = 0; pool.bgs.length = 0;
+        save.imgs.forEach(function (u) { pool.imgs.push(u); });
+        save.bgs.forEach(function (u) { pool.bgs.push(u); });
+      }
+      return 'placeholders fill from uploads, deterministic, demo art swapped';
     });
 
     // ---- picker redesign: inline header search, theme chip ----

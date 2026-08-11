@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Gogh Editor
  * Description: A freeform canvas for WordPress — drag anything anywhere on your live page; Gogh publishes it back as clean, responsive core blocks that keep working even if the plugin is deactivated.
- * Version: 0.99.76
+ * Version: 0.99.77
  * Author: Jamie Marsland
  * Author URI: https://pootlepress.com
  * License: GPLv2 or later
@@ -23,7 +23,7 @@ add_action( 'init', function () {
 		'gogh-block',
 		plugins_url( 'gogh-block.js', __FILE__ ),
 		array( 'wp-blocks', 'wp-element', 'wp-block-editor' ),
-		'0.99.76-chrome',
+		'0.99.77-chrome',
 		true
 	);
 	register_block_type( 'gogh/section', array(
@@ -846,30 +846,36 @@ add_action( 'wp_enqueue_scripts', function () {
 
 	// for every visitor: neutralise theme spacing around gogh sections, even
 	// on pages whose stored stylesheets predate this rule
-	wp_register_style( 'gogh-base', false, array(), '0.99.76-chrome' );
-	wp_register_script( 'gogh-view', false, array(), '0.99.76-chrome', true );
+	wp_register_style( 'gogh-base', false, array(), '0.99.77-chrome' );
+	wp_register_script( 'gogh-view', false, array(), '0.99.77-chrome', true );
 	wp_enqueue_script( 'gogh-view' );
 	wp_add_inline_script( 'gogh-view',
 		// carousel arrows + autoplay are VIEW-TIME: never stored, so saved
 		// content stays pure core blocks (plugin off = clean snap strip)
 		'(function(){function init(){document.querySelectorAll(".gogh-carousel").forEach(function(strip){' .
 		'if(strip.__gogh)return;strip.__gogh=1;' .
-		'var slides=strip.querySelectorAll(".gogh-slide");if(slides.length<2)return;' .
+		'var slides=[].slice.call(strip.querySelectorAll(".gogh-slide"));if(slides.length<2)return;' .
 		'var shell=strip.parentElement;' .
 		'if(!shell||!shell.classList.contains("gogh-crsl-shell")){shell=document.createElement("div");shell.className="gogh-crsl-shell";strip.parentNode.insertBefore(shell,strip);shell.appendChild(strip);}' .
-		'if(shell.querySelector(".gogh-crsl-btn"))return;' .
-		'var step=function(){var s0=strip.querySelector(".gogh-slide");return s0?s0.getBoundingClientRect().width+14:strip.clientWidth*0.7;};' .
-		'["prev","next"].forEach(function(kind){var b=document.createElement("button");b.type="button";' .
-		'b.className="gogh-crsl-btn gogh-crsl-"+kind;b.setAttribute("aria-label",kind==="prev"?"Previous slide":"Next slide");' .
-		'b.textContent=kind==="prev"?"\u2039":"\u203a";' .
-		'b.addEventListener("click",function(){strip.scrollBy({left:step()*(kind==="prev"?-1:1),behavior:"smooth"});});' .
-		'shell.appendChild(b);});' .
+		'if(shell.querySelector(".gogh-crsl-nav"))return;' .
+		'var nav=document.createElement("div");nav.className="gogh-crsl-nav";' .
+		'var go=function(k){var s0=slides[Math.max(0,Math.min(slides.length-1,k))];if(s0)strip.scrollTo({left:s0.offsetLeft-strip.offsetLeft-(strip.clientWidth-s0.clientWidth)/2,behavior:"smooth"});};' .
+		'var current=function(){var mid=strip.scrollLeft+strip.clientWidth/2,best=0,bd=1e9;slides.forEach(function(sl,k){var c=sl.offsetLeft-strip.offsetLeft+sl.clientWidth/2,d=Math.abs(c-mid);if(d<bd){bd=d;best=k;}});return best;};' .
+		'var prev=document.createElement("button");prev.type="button";prev.className="gogh-crsl-btn";prev.setAttribute("aria-label","Previous slide");prev.textContent="\u2039";' .
+		'prev.addEventListener("click",function(){var c=current();go(c<=0?slides.length-1:c-1);});nav.appendChild(prev);' .
+		'var dots=document.createElement("div");dots.className="gogh-crsl-dots";' .
+		'slides.forEach(function(sl,k){var d=document.createElement("button");d.type="button";d.className="gogh-crsl-dot"+(k===0?" is-here":"");d.setAttribute("aria-label","Slide "+(k+1));' .
+		'd.addEventListener("click",function(){go(k);});dots.appendChild(d);});nav.appendChild(dots);' .
+		'var next=document.createElement("button");next.type="button";next.className="gogh-crsl-btn";next.setAttribute("aria-label","Next slide");next.textContent="\u203a";' .
+		'next.addEventListener("click",function(){var c=current();go(c>=slides.length-1?0:c+1);});nav.appendChild(next);' .
+		'shell.appendChild(nav);' .
+		'var syncT=null;strip.addEventListener("scroll",function(){if(syncT)return;syncT=requestAnimationFrame(function(){syncT=null;var c=current();' .
+		'[].forEach.call(dots.children,function(d,k){d.classList.toggle("is-here",k===c);});});},{passive:true});' .
 		'if(strip.classList.contains("gogh-crsl-auto")&&!matchMedia("(prefers-reduced-motion: reduce)").matches){' .
 		'var hold=0;["pointerenter","pointerdown","focusin"].forEach(function(t){shell.addEventListener(t,function(){hold=Date.now();});});' .
 		'shell.addEventListener("pointerleave",function(){hold=0;});' .
 		'setInterval(function(){if(document.hidden||(hold&&Date.now()-hold<6000))return;' .
-		'var max=strip.scrollWidth-strip.clientWidth-4;' .
-		'if(strip.scrollLeft>=max)strip.scrollTo({left:0,behavior:"smooth"});else strip.scrollBy({left:step(),behavior:"smooth"});},4200);}' .
+		'var c=current();go(c>=slides.length-1?0:c+1);},4200);}' .
 		'});}' .
 		'if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",init);else init();})();'
 	);
@@ -898,15 +904,16 @@ add_action( 'wp_enqueue_scripts', function () {
 		'.gogh-carousel .gogh-slide img { width: 100%; aspect-ratio: 3 / 2; object-fit: cover; border-radius: 14px; display: block; }' .
 		'.gogh-carousel .gogh-slide figcaption { text-align: center; font-size: 0.85em; opacity: 0.72; margin-top: 8px; }' .
 		'.gogh-crsl-shell { position: relative; }' .
-		'.gogh-crsl-btn { position: absolute; top: 50%; transform: translateY(-50%); z-index: 2; width: 40px; height: 40px; border-radius: 50%; border: 0; display: flex; align-items: center; justify-content: center; font-size: 26px; line-height: 1; cursor: pointer; background: color-mix(in srgb, var(--wp--preset--color--base, #fff) 82%, transparent); color: var(--wp--preset--color--contrast, #16181c); box-shadow: 0 6px 18px -6px rgba(0,0,0,0.35); backdrop-filter: blur(6px); opacity: 0.85; transition: opacity 0.15s ease, scale 0.15s ease; user-select: none; }' .
-		'.gogh-crsl-btn:hover { opacity: 1; scale: 1.06; }' .
-		'.gogh-crsl-prev { left: 10px; } .gogh-crsl-next { right: 10px; }' .
-		'@supports (scroll-marker-group: after) { ' .
-		'.gogh-carousel { scroll-marker-group: after; } ' .
-		'.gogh-carousel::scroll-marker-group { display: flex; justify-content: center; gap: 8px; padding-top: 12px; } ' .
-		'.gogh-carousel > .gogh-slide::scroll-marker { content: ""; width: 8px; height: 8px; border-radius: 50%; background: currentColor; opacity: 0.25; } ' .
-		'.gogh-carousel > .gogh-slide::scroll-marker:target-current { opacity: 0.9; } ' .
-		'}' .
+		// ONE centred control row under the strip: arrows flank clickable
+		// dots (James: "align arrows horizontally centered" + "these should
+		// be clickable right?"). Ours, everywhere — the Chrome-only pseudo
+		// markers are retired.
+		'.gogh-crsl-nav { display: flex; align-items: center; justify-content: center; gap: 12px; margin-top: 14px; }' .
+		'.gogh-crsl-btn { width: 34px; height: 34px; border-radius: 50%; border: 0; display: flex; align-items: center; justify-content: center; font-size: 21px; line-height: 1; cursor: pointer; background: color-mix(in srgb, var(--wp--preset--color--contrast, #16181c) 8%, transparent); color: var(--wp--preset--color--contrast, #16181c); transition: background 0.15s ease, scale 0.15s ease; user-select: none; }' .
+		'.gogh-crsl-btn:hover { background: color-mix(in srgb, var(--wp--preset--color--contrast, #16181c) 16%, transparent); scale: 1.08; }' .
+		'.gogh-crsl-dots { display: flex; gap: 9px; }' .
+		'.gogh-crsl-dot { width: 9px; height: 9px; border-radius: 50%; border: 0; padding: 0; cursor: pointer; background: currentColor; opacity: 0.22; transition: opacity 0.15s ease, scale 0.15s ease; }' .
+		'.gogh-crsl-dot.is-here { opacity: 0.9; scale: 1.15; }' .
 		// the transparent header floats over the first section: absolutely
 		// positioned with a soft top scrim so white chrome reads on any hero
 		'header.wp-block-template-part:has(> .gogh-header-overlay), header.wp-block-template-part:has(.gogh-header-overlay) { position: absolute; top: var(--wp-admin--admin-bar--height, 0px); left: 0; right: 0; z-index: 40; background: transparent; }' .
@@ -957,8 +964,8 @@ add_action( 'wp_enqueue_scripts', function () {
 		return;
 	}
 
-	wp_enqueue_script( 'gogh-editor', plugins_url( 'gogh-editor.js', __FILE__ ), array(), '0.99.76-chrome', true );
-	wp_enqueue_style( 'gogh-editor', plugins_url( 'gogh-editor.css', __FILE__ ), array(), '0.99.76-chrome' );
+	wp_enqueue_script( 'gogh-editor', plugins_url( 'gogh-editor.js', __FILE__ ), array(), '0.99.77-chrome', true );
+	wp_enqueue_style( 'gogh-editor', plugins_url( 'gogh-editor.css', __FILE__ ), array(), '0.99.77-chrome' );
 
 	// WebMCP bridge: the page registers its editing verbs as agent tools.
 	// OPT-IN only — add ?gogh-mcp=1 for a demo session (or enable sitewide
@@ -970,13 +977,13 @@ add_action( 'wp_enqueue_scripts', function () {
 	// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only labs toggle
 	$gogh_exp = isset( $_GET['gogh-test'] ) || ( isset( $_GET['gogh-experiments'] ) && '0' !== $_GET['gogh-experiments'] );
 	if ( isset( $_GET['gogh-mcp'] ) || $gogh_exp || apply_filters( 'gogh_webmcp_enabled', false ) ) {
-		wp_enqueue_script( 'gogh-webmcp', plugins_url( 'gogh-webmcp.js', __FILE__ ), array( 'gogh-editor' ), '0.99.76-chrome', true );
+		wp_enqueue_script( 'gogh-webmcp', plugins_url( 'gogh-webmcp.js', __FILE__ ), array( 'gogh-editor' ), '0.99.77-chrome', true );
 	}
 
 	// regression suite: /page/?gogh-test (editors only, never saves)
 	// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only toggle enqueuing a test script for capability-checked editors.
 	if ( isset( $_GET['gogh-test'] ) ) {
-		wp_enqueue_script( 'gogh-tests', plugins_url( 'gogh-tests.js', __FILE__ ), array( 'gogh-editor' ), '0.99.76-chrome', true );
+		wp_enqueue_script( 'gogh-tests', plugins_url( 'gogh-tests.js', __FILE__ ), array( 'gogh-editor' ), '0.99.77-chrome', true );
 	}
 
 	// products live outside wp/v2, so gogh carries its own save route for
@@ -1107,7 +1114,7 @@ add_action( 'enqueue_block_assets', function () {
 	if ( ! is_admin() ) {
 		return;
 	}
-	wp_register_style( 'gogh-editor-base', false, array(), '0.99.76-chrome' );
+	wp_register_style( 'gogh-editor-base', false, array(), '0.99.77-chrome' );
 	wp_enqueue_style( 'gogh-editor-base' );
 	wp_add_inline_style( 'gogh-editor-base',
 		'.gogh-wrap { min-width: 100%; margin-block: 0 !important; }' .

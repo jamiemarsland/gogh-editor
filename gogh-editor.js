@@ -2099,6 +2099,7 @@
   }
   function setEditing(on) {
     if (on && window.__goghRenderCanvasOnce) window.__goghRenderCanvasOnce();
+    if (on) fetchMediaPool(); // starters dress in THEIR photos
     editing = on;
     document.documentElement.classList.toggle('gogh-editing', on);
     if (on) veilChrome(); else unveilChrome();
@@ -2272,13 +2273,24 @@
   // not popovers — they sit top-right of the VIEWPORT, always fully on
   // screen, wherever the click came from. James, three rounds of cropped
   // modals later: anchor maths was the wrong model for this panel.
-  function dockPanel() {
+  function dockPanel(below) {
     panel.hidden = false;
     panel.style.maxHeight = '';
     var pw = panel.offsetWidth || 340;
-    panel.style.left = Math.max(8, window.innerWidth - pw - 18) + 'px';
-    panel.style.top = '74px';
-    panel.style.maxHeight = Math.max(280, window.innerHeight - 74 - 100) + 'px';
+    // an inspector must not cover its SUBJECT: docking below an anchor
+    // keeps the audited thing (the header) fully visible while it changes
+    var top = 74;
+    var left = Math.max(8, window.innerWidth - pw - 18);
+    if (below) {
+      var br = below.getBoundingClientRect();
+      if (br.bottom > 0 && br.bottom < window.innerHeight * 0.55) top = Math.round(br.bottom + 14);
+      // centred under its subject ("maybe center it?") — the header stays
+      // fully visible above, the panel presents like a stage card
+      left = Math.max(8, Math.round((window.innerWidth - pw) / 2));
+    }
+    panel.style.left = left + 'px';
+    panel.style.top = top + 'px';
+    panel.style.maxHeight = Math.max(280, window.innerHeight - top - 100) + 'px';
     panelAnchor = null;
     panelSticky = false;
   }
@@ -2978,16 +2990,27 @@
     placeHandles(sel.sec, sel.i);
     pushState();
   });
-  // carousel arrows in the EDITOR: the preview's chevrons scroll the strip
+  // carousel controls in the EDITOR: arrows step (wrapping), dots jump —
+  // instant scroll, deterministic under the test pane's frozen rAF
   document.addEventListener('click', function (ev) {
-    var btn = ev.target.closest && ev.target.closest('.gogh-crsl-btn');
-    if (!btn || !editing) return;
-    var shell = btn.closest('.gogh-crsl-shell');
+    var ctl = ev.target.closest && ev.target.closest('.gogh-crsl-btn, .gogh-crsl-dot');
+    if (!ctl || !editing) return;
+    var shell = ctl.closest('.gogh-crsl-shell');
     var strip = shell && shell.querySelector('.gogh-carousel');
     if (!strip) return;
-    var slide = strip.querySelector('.gogh-slide');
-    var step = slide ? slide.getBoundingClientRect().width + 14 : strip.clientWidth * 0.7;
-    strip.scrollLeft += step * (+btn.dataset.dir || 1);
+    var slides2 = [].slice.call(strip.querySelectorAll('.gogh-slide'));
+    var mid = strip.scrollLeft + strip.clientWidth / 2, cur = 0, bd = 1e9;
+    slides2.forEach(function (sl, k) {
+      var c = sl.offsetLeft - strip.offsetLeft + sl.clientWidth / 2, d = Math.abs(c - mid);
+      if (d < bd) { bd = d; cur = k; }
+    });
+    var to = ctl.classList.contains('gogh-crsl-dot')
+      ? +ctl.dataset.k
+      : (cur + (+ctl.dataset.dir) + slides2.length) % slides2.length;
+    var t2 = slides2[to];
+    if (t2) strip.scrollLeft = t2.offsetLeft - strip.offsetLeft - (strip.clientWidth - t2.clientWidth) / 2;
+    var dots = shell.querySelectorAll('.gogh-crsl-dot');
+    [].forEach.call(dots, function (d2, k2) { d2.classList.toggle('is-here', k2 === to); });
     ev.stopPropagation();
   }, true);
 
@@ -4231,12 +4254,15 @@
       }).join('') + '</div>\n<!-- /wp:group -->';
     // the preview wears working arrows (wired by the editor's delegate);
     // the SAVED markup never carries them — view-time injection only
-    var arrows = items.length > 1
-      ? '<span class="gogh-crsl-btn gogh-crsl-prev" data-dir="-1" role="button" aria-label="Previous">\u2039</span>' +
-        '<span class="gogh-crsl-btn gogh-crsl-next" data-dir="1" role="button" aria-label="Next">\u203a</span>'
+    var nav = items.length > 1
+      ? '<div class="gogh-crsl-nav"><span class="gogh-crsl-btn" data-dir="-1" role="button" aria-label="Previous">\u2039</span>' +
+        '<span class="gogh-crsl-dots">' + items.map(function (x2, k2) {
+          return '<span class="gogh-crsl-dot' + (k2 === 0 ? ' is-here' : '') + '" data-k="' + k2 + '" role="button" aria-label="Slide ' + (k2 + 1) + '"></span>';
+        }).join('') + '</span>' +
+        '<span class="gogh-crsl-btn" data-dir="1" role="button" aria-label="Next">\u203a</span></div>'
       : '';
-    var whtml = '<div class="gogh-crsl-shell">' + arrows +
-      '<div class="wp-block-group ' + cls + '">' + items.map(fig).join('') + '</div></div>';
+    var whtml = '<div class="gogh-crsl-shell">' +
+      '<div class="wp-block-group ' + cls + '">' + items.map(fig).join('') + '</div>' + nav + '</div>';
     return { wsrc: wsrc, whtml: whtml };
   }
   function composeWidgetData(e) {
@@ -4244,13 +4270,62 @@
     else if (e.tabs && e.tabs.length) { var c2 = composeTabs(e.tabs); e.wsrc = c2.wsrc; e.whtml = c2.whtml; }
     else if (e.slides && e.slides.length) { var c3 = composeCarousel(e.slides, e.copt); e.wsrc = c3.wsrc; e.whtml = c3.whtml; }
   }
+  // ---------- their photos, not our placeholders ----------
+  // starters populate from the site's OWN media library: shelf previews and
+  // inserts draw the same deterministic picks (seeded by template name), so
+  // the photo you see on the shelf is the photo that lands on the page
+  var mediaPool = { imgs: [], bgs: [], fetched: false };
+  function fetchMediaPool() {
+    if (mediaPool.fetched || !cfg.mediaUrl) return;
+    mediaPool.fetched = true;
+    fetch(restQ(cfg.mediaUrl, 'per_page=40&media_type=image&orderby=date&order=desc'), {
+      headers: { 'X-WP-Nonce': cfg.nonce },
+      credentials: 'same-origin',
+    }).then(function (r) { return r.ok ? r.json() : []; }).catch(function () { return []; }).then(function (items) {
+      items.forEach(function (it) {
+        var d = it.media_details || {};
+        var src = it.source_url;
+        if (!src || /gogh\/demo-assets/.test(src)) return;
+        mediaPool.imgs.push(src);
+        // backgrounds want big and wide-ish
+        if (d.width >= 900 && d.width >= (d.height || 0) * 0.9) mediaPool.bgs.push(src);
+      });
+    });
+  }
+  function poolPick(list, seed, k) {
+    if (!list.length) return null;
+    var h = 0, str = String(seed);
+    for (var i = 0; i < str.length; i++) h = (h * 31 + str.charCodeAt(i)) >>> 0;
+    return list[(h + (k || 0)) % list.length];
+  }
+  function tplBgFor(tpl) {
+    if (!tpl.bgImage) return tpl.bgImage || null;
+    if (/demo-assets/.test(tpl.bgImage)) {
+      var mine = poolPick(mediaPool.bgs, tpl.name, 0);
+      if (mine) return mine;
+    }
+    return tpl.bgImage;
+  }
   function tplEls(tpl) {
     var els = JSON.parse(JSON.stringify(tpl.els));
     var sizes = fontSizes();
+    var k = 0;
     els.forEach(function (e) {
       if (e.fs === '__max') {
         if (sizes.length) e.fs = sizes[sizes.length - 1].slug;
         else delete e.fs;
+      }
+      if (e.type === 'image' && !e.src) {
+        var mine = poolPick(mediaPool.imgs, tpl.name, ++k);
+        if (mine) e.src = mine;
+      }
+      if (e.slides) {
+        e.slides.forEach(function (sl) {
+          if (/demo-assets/.test(sl.img || '')) {
+            var mine2 = poolPick(mediaPool.imgs, tpl.name, ++k);
+            if (mine2) { sl.img = mine2; sl.cap = ''; }
+          }
+        });
       }
       composeWidgetData(e);
     });
@@ -4313,7 +4388,7 @@
     var tplCardHTML = function (tpl, t, popular, si) {
       var els = tplEls(tpl);
       var scope = 'gogh-tpl-' + t;
-      var css = els.length ? buildCSS(els, scope, tpl.minH || null, { bg: tpl.bg || null }) : '';
+      var css = els.length ? buildCSS(els, scope, tpl.minH || null, { bg: tpl.bg || null, bgImage: tplBgFor(tpl), bgA: tpl.bgA != null ? tpl.bgA : null }) : '';
       var inner = els.map(function (e, i) { return makeNode(e, i).outerHTML; }).join('');
       return '<button type="button" class="gogh-card" data-tpl="' + t + '" data-si="' + (si || 0) + '"' +
         ' data-cats="' + (STARTER_CATS[tpl.name] || '') + '">' +
@@ -4791,7 +4866,7 @@
     sec.minH = tpl.minH || null;
     sec.bg = tpl.bg || null;
     // a template is a whole look: picture, tint, fill and effect ride along
-    sec.bgImage = tpl.bgImage || null;
+    sec.bgImage = tplBgFor(tpl);
     sec.bgA = tpl.bgA != null ? tpl.bgA : null;
     sec.fill = !!tpl.fill;
     sec.fx = tpl.fx ? JSON.parse(JSON.stringify(tpl.fx)) : null;
@@ -8329,6 +8404,8 @@
     openPanel: openPanel,
     composeTabs: composeTabs,
     composeCarousel: composeCarousel,
+    mediaPool: mediaPool,
+    tplEls: tplEls,
     chromeDialsApply: chromeDialsApply,
     insertGoghPattern: insertGoghPattern,
     addHtmlSection: addHtmlSection,
@@ -10610,7 +10687,7 @@
       '<button type="button" class="gogh-btn gogh-btn-small gogh-hcancel">Cancel</button>' +
       '<button type="button" class="gogh-btn gogh-btn-save gogh-btn-small gogh-happly" title="Updates every page" disabled>Apply</button>' +
       '</div>';
-    dockPanel();
+    dockPanel(partEl);
     panelOpen = true;
     panelSticky = true;
     panel.dataset.goghArea = area;
