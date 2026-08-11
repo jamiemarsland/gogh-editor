@@ -1,4 +1,4 @@
-# Knowledge-base audit — plugin v0.99.70
+# Knowledge-base audit — plugin v0.99.71
 
 _14 finding(s) suppressed by `kb.audit-ignore.txt`._
 
@@ -6,7 +6,7 @@ _14 finding(s) suppressed by `kb.audit-ignore.txt`._
 
 The prose states something the source contradicts. Fix these first — the bot will contradict itself, since the appendix carries the correct value.
 
-- plugin version is **0.99.70**, prose says **0.96.5**
+- plugin version is **0.99.71**, prose says **0.96.5**
 
 ## MISSING (15)
 
@@ -32,6 +32,5 @@ The source has something the prose never explains. The bot knows the name from t
 
 Use this as the checklist for updating the prose — and as a sanity check on the release itself.
 
-- version: 0.99.69 → 0.99.70
-- added UI label: "Copy style — then click other text to paint it"
-- added toast: "Style copied — click other text to paint it. Esc finishes."
+- version: 0.99.70 → 0.99.71
+- added UI label: "Custom colour"
