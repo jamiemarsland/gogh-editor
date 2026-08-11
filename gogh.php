@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Gogh Editor
  * Description: A freeform canvas for WordPress — drag anything anywhere on your live page; Gogh publishes it back as clean, responsive core blocks that keep working even if the plugin is deactivated.
- * Version: 0.99.82
+ * Version: 0.99.83
  * Author: Jamie Marsland
  * Author URI: https://pootlepress.com
  * License: GPLv2 or later
@@ -23,7 +23,7 @@ add_action( 'init', function () {
 		'gogh-block',
 		plugins_url( 'gogh-block.js', __FILE__ ),
 		array( 'wp-blocks', 'wp-element', 'wp-block-editor' ),
-		'0.99.82-chrome',
+		'0.99.83-chrome',
 		true
 	);
 	register_block_type( 'gogh/section', array(
@@ -846,13 +846,35 @@ add_action( 'wp_enqueue_scripts', function () {
 
 	// for every visitor: neutralise theme spacing around gogh sections, even
 	// on pages whose stored stylesheets predate this rule
-	wp_register_style( 'gogh-base', false, array(), '0.99.82-chrome' );
-	wp_register_script( 'gogh-view', false, array(), '0.99.82-chrome', true );
+	wp_register_style( 'gogh-base', false, array(), '0.99.83-chrome' );
+	wp_register_script( 'gogh-view', false, array(), '0.99.83-chrome', true );
 	wp_enqueue_script( 'gogh-view' );
 	wp_add_inline_script( 'gogh-view',
 		// carousel arrows + autoplay are VIEW-TIME: never stored, so saved
 		// content stays pure core blocks (plugin off = clean snap strip)
-		'(function(){function init(){document.querySelectorAll(".gogh-carousel").forEach(function(strip){' .
+		'(function(){var bindLightbox=function(container,slides){' .
+		'var lbAt=-1;var lb=null;' .
+		'var lbShow=function(k){lbAt=(k+slides.length)%slides.length;var im=slides[lbAt].querySelector("img");var cp=slides[lbAt].querySelector("figcaption");' .
+		'lb.querySelector("img").src=im?im.src:"";lb.querySelector("figcaption").textContent=cp?cp.textContent:"";};' .
+		'var lbKeys;var lbClose=function(){if(lb){lb.remove();lb=null;document.removeEventListener("keydown",lbKeys);}};' .
+		'lbKeys=function(ev){if(ev.key==="Escape")lbClose();if(ev.key==="ArrowRight")lbShow(lbAt+1);if(ev.key==="ArrowLeft")lbShow(lbAt-1);};' .
+		'var lbOpen=function(k){lb=document.createElement("div");lb.className="gogh-lbx";lb.setAttribute("role","dialog");lb.setAttribute("aria-label","Image viewer");' .
+		'lb.innerHTML=\'<img alt=""/><figcaption></figcaption>\'+' .
+		'\'<button type="button" class="gogh-crsl-btn gogh-lbx-l" aria-label="Previous">\u2039</button>\'+' .
+		'\'<button type="button" class="gogh-crsl-btn gogh-lbx-r" aria-label="Next">\u203a</button>\'+' .
+		'\'<button type="button" class="gogh-crsl-btn gogh-lbx-x" aria-label="Close">\u2715</button>\';' .
+		'lb.addEventListener("click",function(ev){if(ev.target===lb)lbClose();});' .
+		'lb.querySelector(".gogh-lbx-l").addEventListener("click",function(){lbShow(lbAt-1);});' .
+		'lb.querySelector(".gogh-lbx-r").addEventListener("click",function(){lbShow(lbAt+1);});' .
+		'lb.querySelector(".gogh-lbx-x").addEventListener("click",lbClose);' .
+		'document.addEventListener("keydown",lbKeys);document.body.appendChild(lb);lbShow(k);};' .
+		'slides.forEach(function(sl,k){var im=sl.querySelector("img");if(!im)return;im.style.cursor="zoom-in";' .
+		'im.addEventListener("click",function(){lbOpen(k);});});};' .
+		'function init(){' .
+		'document.querySelectorAll(".gogh-wall.gogh-crsl-light").forEach(function(wall){' .
+		'if(wall.__gogh)return;wall.__gogh=1;' .
+		'bindLightbox(wall,[].slice.call(wall.querySelectorAll(".gogh-brick")));});' .
+		'document.querySelectorAll(".gogh-carousel").forEach(function(strip){' .
 		'if(strip.__gogh)return;strip.__gogh=1;' .
 		'var slides=[].slice.call(strip.querySelectorAll(".gogh-slide"));if(slides.length<2)return;' .
 		'var shell=strip.parentElement;' .
@@ -878,24 +900,7 @@ add_action( 'wp_enqueue_scripts', function () {
 		'var fit=function(){b.style.top=(strip.offsetTop+strip.clientHeight/2)+"px";b.style.transform="translateY(-50%)";};fit();' .
 		'if(window.ResizeObserver)new ResizeObserver(fit).observe(strip);});' .
 		'if(navMode==="sides")nav.querySelectorAll(".gogh-crsl-btn").forEach(function(b2){b2.remove();});}' .
-		'if(strip.classList.contains("gogh-crsl-light")){' .
-		'var lbAt=-1;var lb=null;' .
-		'var lbShow=function(k){lbAt=(k+slides.length)%slides.length;var im=slides[lbAt].querySelector("img");var cp=slides[lbAt].querySelector("figcaption");' .
-		'lb.querySelector("img").src=im?im.src:"";lb.querySelector("figcaption").textContent=cp?cp.textContent:"";};' .
-		'var lbClose=function(){if(lb){lb.remove();lb=null;document.removeEventListener("keydown",lbKeys);}};' .
-		'var lbKeys=function(ev){if(ev.key==="Escape")lbClose();if(ev.key==="ArrowRight")lbShow(lbAt+1);if(ev.key==="ArrowLeft")lbShow(lbAt-1);};' .
-		'var lbOpen=function(k){lb=document.createElement("div");lb.className="gogh-lbx";lb.setAttribute("role","dialog");lb.setAttribute("aria-label","Image viewer");' .
-		'lb.innerHTML=\'<img alt=""/><figcaption></figcaption>\'+' .
-		'\'<button type="button" class="gogh-crsl-btn gogh-lbx-l" aria-label="Previous">\u2039</button>\'+' .
-		'\'<button type="button" class="gogh-crsl-btn gogh-lbx-r" aria-label="Next">\u203a</button>\'+' .
-		'\'<button type="button" class="gogh-crsl-btn gogh-lbx-x" aria-label="Close">\u2715</button>\';' .
-		'lb.addEventListener("click",function(ev){if(ev.target===lb)lbClose();});' .
-		'lb.querySelector(".gogh-lbx-l").addEventListener("click",function(){lbShow(lbAt-1);});' .
-		'lb.querySelector(".gogh-lbx-r").addEventListener("click",function(){lbShow(lbAt+1);});' .
-		'lb.querySelector(".gogh-lbx-x").addEventListener("click",lbClose);' .
-		'document.addEventListener("keydown",lbKeys);document.body.appendChild(lb);lbShow(k);};' .
-		'slides.forEach(function(sl,k){var im=sl.querySelector("img");if(!im)return;im.style.cursor="zoom-in";' .
-		'im.addEventListener("click",function(){lbOpen(k);});});}' .
+		'if(strip.classList.contains("gogh-crsl-light"))bindLightbox(strip,slides);' .
 		'var syncT=null;strip.addEventListener("scroll",function(){if(syncT)return;syncT=requestAnimationFrame(function(){syncT=null;var c=current();' .
 		'[].forEach.call(dots.children,function(d,k){d.classList.toggle("is-here",k===c);});});},{passive:true});' .
 		'if(strip.classList.contains("gogh-crsl-auto")&&!matchMedia("(prefers-reduced-motion: reduce)").matches){' .
@@ -930,6 +935,13 @@ add_action( 'wp_enqueue_scripts', function () {
 		'.gogh-carousel > .wp-block-image.gogh-slide { flex: 0 0 min(72%, 460px); scroll-snap-align: center; margin: 0 !important; }' .
 		'.gogh-carousel .gogh-slide img { width: 100%; aspect-ratio: 3 / 2; object-fit: cover; border-radius: 14px; display: block; }' .
 		'.gogh-carousel .gogh-slide figcaption { text-align: center; font-size: 0.85em; opacity: 0.72; margin-top: 8px; }' .
+		// the photo wall: CSS columns ARE the masonry — no measuring, no JS
+		'.gogh-wall { columns: 3; gap: 14px; }' .
+		'.gogh-wall-2 { columns: 2; } .gogh-wall-4 { columns: 4; }' .
+		'@media (max-width: 700px) { .gogh-wall, .gogh-wall-4 { columns: 2; } }' .
+		'.gogh-wall > .gogh-brick { break-inside: avoid; margin: 0 0 14px !important; display: block; }' .
+		'.gogh-wall .gogh-brick img { width: 100%; height: auto; border-radius: 12px; display: block; }' .
+		'.gogh-wall .gogh-brick figcaption { font-size: 0.85em; opacity: 0.72; margin-top: 6px; }' .
 		'.gogh-crsl-shell { position: relative; }' .
 		// ONE centred control row under the strip: arrows flank clickable
 		// dots (James: "align arrows horizontally centered" + "these should
@@ -1001,8 +1013,8 @@ add_action( 'wp_enqueue_scripts', function () {
 		return;
 	}
 
-	wp_enqueue_script( 'gogh-editor', plugins_url( 'gogh-editor.js', __FILE__ ), array(), '0.99.82-chrome', true );
-	wp_enqueue_style( 'gogh-editor', plugins_url( 'gogh-editor.css', __FILE__ ), array(), '0.99.82-chrome' );
+	wp_enqueue_script( 'gogh-editor', plugins_url( 'gogh-editor.js', __FILE__ ), array(), '0.99.83-chrome', true );
+	wp_enqueue_style( 'gogh-editor', plugins_url( 'gogh-editor.css', __FILE__ ), array(), '0.99.83-chrome' );
 
 	// WebMCP bridge: the page registers its editing verbs as agent tools.
 	// OPT-IN only — add ?gogh-mcp=1 for a demo session (or enable sitewide
@@ -1014,13 +1026,13 @@ add_action( 'wp_enqueue_scripts', function () {
 	// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only labs toggle
 	$gogh_exp = isset( $_GET['gogh-test'] ) || ( isset( $_GET['gogh-experiments'] ) && '0' !== $_GET['gogh-experiments'] );
 	if ( isset( $_GET['gogh-mcp'] ) || $gogh_exp || apply_filters( 'gogh_webmcp_enabled', false ) ) {
-		wp_enqueue_script( 'gogh-webmcp', plugins_url( 'gogh-webmcp.js', __FILE__ ), array( 'gogh-editor' ), '0.99.82-chrome', true );
+		wp_enqueue_script( 'gogh-webmcp', plugins_url( 'gogh-webmcp.js', __FILE__ ), array( 'gogh-editor' ), '0.99.83-chrome', true );
 	}
 
 	// regression suite: /page/?gogh-test (editors only, never saves)
 	// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only toggle enqueuing a test script for capability-checked editors.
 	if ( isset( $_GET['gogh-test'] ) ) {
-		wp_enqueue_script( 'gogh-tests', plugins_url( 'gogh-tests.js', __FILE__ ), array( 'gogh-editor' ), '0.99.82-chrome', true );
+		wp_enqueue_script( 'gogh-tests', plugins_url( 'gogh-tests.js', __FILE__ ), array( 'gogh-editor' ), '0.99.83-chrome', true );
 	}
 
 	// products live outside wp/v2, so gogh carries its own save route for
@@ -1151,7 +1163,7 @@ add_action( 'enqueue_block_assets', function () {
 	if ( ! is_admin() ) {
 		return;
 	}
-	wp_register_style( 'gogh-editor-base', false, array(), '0.99.82-chrome' );
+	wp_register_style( 'gogh-editor-base', false, array(), '0.99.83-chrome' );
 	wp_enqueue_style( 'gogh-editor-base' );
 	wp_add_inline_style( 'gogh-editor-base',
 		'.gogh-wrap { min-width: 100%; margin-block: 0 !important; }' .

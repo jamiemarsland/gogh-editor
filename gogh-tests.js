@@ -2607,6 +2607,45 @@
       return 'placeholders fill from uploads, deterministic, demo art swapped';
     });
 
+    test('photo wall: columns masonry, panel edits, lightbox class', function () {
+      var c = G.composeWall([
+        { img: '/wp-content/plugins/gogh/demo-assets/sunflowers.jpg', cap: 'Sun' },
+        { img: '/wp-content/plugins/gogh/demo-assets/starry-night.jpg', cap: '' },
+      ], { cols: 2, light: 1 });
+      expect(/gogh-wall gogh-wall-2/.test(c.wsrc), 'columns class missing');
+      expect(/gogh-crsl-light/.test(c.wsrc), 'lightbox class missing');
+      expect((c.wsrc.match(/wp:image/g) || []).length === 4, 'each brick must be a real core image block');
+      expect(c.whtml.indexOf('<!--') === -1, 'preview must carry no block comments');
+      G.addSection({ name: 'Wall', minH: 500, els: [
+        { type: 'widget', x: 40, y: 40, w: 900, h: 400, wopt: { cols: 3, light: 1 }, wall: [
+          { img: '/wp-content/plugins/gogh/demo-assets/sunflowers.jpg', cap: 'One' },
+          { img: '/wp-content/plugins/gogh/demo-assets/starry-night.jpg', cap: 'Two' },
+          { img: '/wp-content/plugins/gogh/demo-assets/wheat-field.jpg', cap: 'Three' },
+          { img: '/wp-content/plugins/gogh/demo-assets/almond-blossom.jpg', cap: 'Four' },
+        ] } ] }, G.sections().length);
+      var wsec = contentSecs()[contentSecs().length - 1];
+      try {
+        var wallEl = wsec.sectionEl.querySelector('.gogh-wall');
+        expect(wallEl, 'wall did not render');
+        var cs = getComputedStyle(wallEl);
+        expect(cs.columnCount === '3', 'CSS columns missing: ' + cs.columnCount);
+        expect(wsec.nodes[0].dataset.tip === 'Double-click to edit the photos', 'wall must carry the double-click tip');
+        G.openPanel(wsec, 0);
+        var panel = document.querySelector('.gogh-panel');
+        expect(/Photo wall/.test(panel.querySelector('.gogh-panel-title').textContent), 'wall panel did not open');
+        expect(panel.querySelectorAll('.gogh-crslrow').length === 4, 'one row per photo expected');
+        // columns chip recomposes live
+        panel.querySelector('.gogh-crsl-nav-opt[data-cols="2"]').click();
+        expect(/gogh-wall-2/.test(wsec.els[0].wsrc), 'columns chip did not recompose');
+        expect(getComputedStyle(wsec.sectionEl.querySelector('.gogh-wall')).columnCount === '2', 'render did not follow the columns change');
+        document.querySelector('.gogh-panel .gogh-panel-close').click();
+      } finally {
+        wsec = contentSecs()[contentSecs().length - 1];
+        G.deleteSection(G.sections().indexOf(wsec));
+      }
+      return 'columns masonry, live panel edits, tips';
+    });
+
     // ---- picker redesign: inline header search, theme chip ----
     test('picker: inline search filters, old toggle gone, theme chip present', function () {
       G.openPicker(G.sections().length);
