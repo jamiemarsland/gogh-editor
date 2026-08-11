@@ -1,6 +1,6 @@
 # Knowledge-base audit — plugin v0.99.79
 
-_14 finding(s) suppressed by `kb.audit-ignore.txt`._
+_13 finding(s) suppressed by `kb.audit-ignore.txt`._
 
 ## DRIFT (1)
 
@@ -28,9 +28,3 @@ The source has something the prose never explains. The bot knows the name from t
 - template `FAQ` exists in source but is never mentioned in the prose
 - template `Tabs` exists in source but is never mentioned in the prose
 - template `Portfolio` exists in source but is never mentioned in the prose
-
-## What changed since the last knowledge-base build
-
-Use this as the checklist for updating the prose — and as a sanity check on the release itself.
-
-- version: 0.99.78 → 0.99.79
