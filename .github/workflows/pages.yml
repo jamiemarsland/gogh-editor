@@ -1,19 +1,22 @@
 # .github/workflows/pages.yml
 #
-# Publishes the standalone helper to GitHub Pages on each version tag.
+# Publishes the standalone helper to GitHub Pages on each push to main.
 #
 # This is the bring-your-own-key build: Pages serves static files only, so it
-# cannot hold an API key and each visitor supplies their own. Good for you and
+# cannot hold an api key and each visitor supplies their own. Good for you and
 # collaborators; not something to link from the plugin — use the Worker for
 # that (see helper/DEPLOY.md).
 #
-# Enable it at Settings → Pages → Source: GitHub Actions.
+# Deploys from main (every release merges there), which is what the
+# github-pages environment's protection rules allow — tag-triggered
+# deploys were rejected by them, and the build checked out the default
+# branch anyway, so the tag never carried information.
 
 name: pages
 
 on:
   push:
-    tags: ['v*']
+    branches: [main]
   workflow_dispatch:
 
 permissions:
