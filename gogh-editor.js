@@ -10895,8 +10895,8 @@
         '<label class="gogh-sw gogh-sw-pick" title="Custom colour"><input type="color" class="gogh-hcustom" value="#1c1c22"></label>' +
         '</div>' +
         '<div class="gogh-panel-row gogh-logosize gogh-halpha-row" hidden><span>Transparency</span>' +
-        '<input type="range" class="gogh-halpha" min="10" max="100" step="5" value="100" />' +
-        '<span class="gogh-logosize-val gogh-halpha-val">100</span></div>' : '') +
+        '<input type="range" class="gogh-halpha" min="0" max="90" step="5" value="0" />' +
+        '<span class="gogh-logosize-val gogh-halpha-val">0</span></div>' : '') +
       (d0 ? '<div class="gogh-swlab">Spacing</div>' +
         dial('Height', 'gogh-dial-pad', 4, 64, d0.pad) +
         (d0.hasNav ? dial('Menu items', 'gogh-dial-link', 8, 64, d0.linkGap) : '') +
@@ -10966,7 +10966,7 @@
     var hexPair = function (n) { return ('0' + Math.round(n).toString(16)).slice(-2); };
     var applyLookState = function () {
       if (!st.base) return;
-      var a = alphaIn ? +alphaIn.value : 100;
+      var a = 100 - (alphaIn ? +alphaIn.value : 0);
       if (st.base.custom) {
         st.look = customLook();
       } else if (!st.base.bg || a >= 100) {
@@ -11005,7 +11005,8 @@
     var alphaIn = panel.querySelector('.gogh-halpha');
     var customLook = function () {
       var hex = customIn.value;
-      var a = alphaIn ? +alphaIn.value : 100;
+      // the dial reads as TRANSPARENCY: right = more see-through
+      var a = 100 - (alphaIn ? +alphaIn.value : 0);
       var hex8 = a >= 100 ? hex : hex + ('0' + Math.round(a / 100 * 255).toString(16)).slice(-2);
       return { slug: '', name: 'Custom', custom: true, hex8: hex8, hex: hex, alpha: a,
         ink: bestInkFor(hex) };
