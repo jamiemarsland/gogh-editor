@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Gogh Editor
  * Description: A freeform canvas for WordPress — drag anything anywhere on your live page; Gogh publishes it back as clean, responsive core blocks that keep working even if the plugin is deactivated.
- * Version: 0.99.87
+ * Version: 0.99.88
  * Author: Jamie Marsland
  * Author URI: https://pootlepress.com
  * License: GPLv2 or later
@@ -23,7 +23,7 @@ add_action( 'init', function () {
 		'gogh-block',
 		plugins_url( 'gogh-block.js', __FILE__ ),
 		array( 'wp-blocks', 'wp-element', 'wp-block-editor' ),
-		'0.99.87-chrome',
+		'0.99.88-chrome',
 		true
 	);
 	register_block_type( 'gogh/section', array(
@@ -238,6 +238,66 @@ add_action( 'init', function () {
  * is one REST call that trashes current pages (restorable), creates the new
  * set, rebuilds the menu, and wires the front and posts pages.
  */
+// the test fixture recreates itself: it reads as junk in the Pages list
+// and keeps getting trashed (twice now). Visiting any page with
+// ?gogh-test=1 restores or rebuilds it from the bundled copy.
+add_action( 'init', function () {
+	if ( ! isset( $_GET['gogh-test'] ) || ! current_user_can( 'edit_posts' ) ) {
+		return;
+	}
+	$fixture = get_page_by_path( 'gogh-test-fixture' );
+	if ( $fixture && 'publish' === $fixture->post_status ) {
+		return;
+	}
+	if ( $fixture && 'trash' === $fixture->post_status ) {
+		wp_untrash_post( $fixture->ID );
+		wp_update_post( array( 'ID' => $fixture->ID, 'post_status' => 'publish', 'post_name' => 'gogh-test-fixture' ) );
+		return;
+	}
+	$file = __DIR__ . '/tests-fixture.html';
+	if ( is_readable( $file ) ) {
+		wp_insert_post( array(
+			'post_type'    => 'page',
+			'post_status'  => 'publish',
+			'post_title'   => 'gogh test fixture',
+			'post_name'    => 'gogh-test-fixture',
+			'post_content' => file_get_contents( $file ),
+		) );
+	}
+} );
+
+// menus heal themselves: trashing a page removes its links from every
+// menu ("i deleted some pages and now the menu looks broken" — core
+// leaves a hole where the dead link was). Untrash re-adds nothing; a
+// restored page is one drag away in the nav editor.
+add_action( 'trashed_post', function ( $post_id ) {
+	$type = get_post_type( $post_id );
+	if ( ! in_array( $type, array( 'page', 'post' ), true ) ) {
+		return;
+	}
+	$navs = get_posts( array(
+		'post_type'   => 'wp_navigation',
+		'post_status' => 'publish',
+		'numberposts' => 20,
+	) );
+	foreach ( $navs as $nav ) {
+		if ( false === strpos( $nav->post_content, '"id":' . $post_id ) ) {
+			continue;
+		}
+		$cleaned = preg_replace_callback(
+			'/<!--\s*wp:navigation-link\s+({[\s\S]*?})\s*\/-->/',
+			function ( $m ) use ( $post_id ) {
+				$attrs = json_decode( $m[1], true );
+				return ( is_array( $attrs ) && isset( $attrs['id'] ) && (int) $attrs['id'] === (int) $post_id ) ? '' : $m[0];
+			},
+			$nav->post_content
+		);
+		if ( null !== $cleaned && $cleaned !== $nav->post_content ) {
+			wp_update_post( array( 'ID' => $nav->ID, 'post_content' => $cleaned ) );
+		}
+	}
+} );
+
 function gogh_starters() {
 	$out = array();
 	foreach ( glob( __DIR__ . '/starters/*/manifest.json' ) as $mf ) {
@@ -846,8 +906,8 @@ add_action( 'wp_enqueue_scripts', function () {
 
 	// for every visitor: neutralise theme spacing around gogh sections, even
 	// on pages whose stored stylesheets predate this rule
-	wp_register_style( 'gogh-base', false, array(), '0.99.87-chrome' );
-	wp_register_script( 'gogh-view', false, array(), '0.99.87-chrome', true );
+	wp_register_style( 'gogh-base', false, array(), '0.99.88-chrome' );
+	wp_register_script( 'gogh-view', false, array(), '0.99.88-chrome', true );
 	wp_enqueue_script( 'gogh-view' );
 	wp_add_inline_script( 'gogh-view',
 		// carousel arrows + autoplay are VIEW-TIME: never stored, so saved
@@ -1017,8 +1077,8 @@ add_action( 'wp_enqueue_scripts', function () {
 		return;
 	}
 
-	wp_enqueue_script( 'gogh-editor', plugins_url( 'gogh-editor.js', __FILE__ ), array(), '0.99.87-chrome', true );
-	wp_enqueue_style( 'gogh-editor', plugins_url( 'gogh-editor.css', __FILE__ ), array(), '0.99.87-chrome' );
+	wp_enqueue_script( 'gogh-editor', plugins_url( 'gogh-editor.js', __FILE__ ), array(), '0.99.88-chrome', true );
+	wp_enqueue_style( 'gogh-editor', plugins_url( 'gogh-editor.css', __FILE__ ), array(), '0.99.88-chrome' );
 
 	// WebMCP bridge: the page registers its editing verbs as agent tools.
 	// OPT-IN only — add ?gogh-mcp=1 for a demo session (or enable sitewide
@@ -1030,13 +1090,13 @@ add_action( 'wp_enqueue_scripts', function () {
 	// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only labs toggle
 	$gogh_exp = isset( $_GET['gogh-test'] ) || ( isset( $_GET['gogh-experiments'] ) && '0' !== $_GET['gogh-experiments'] );
 	if ( isset( $_GET['gogh-mcp'] ) || $gogh_exp || apply_filters( 'gogh_webmcp_enabled', false ) ) {
-		wp_enqueue_script( 'gogh-webmcp', plugins_url( 'gogh-webmcp.js', __FILE__ ), array( 'gogh-editor' ), '0.99.87-chrome', true );
+		wp_enqueue_script( 'gogh-webmcp', plugins_url( 'gogh-webmcp.js', __FILE__ ), array( 'gogh-editor' ), '0.99.88-chrome', true );
 	}
 
 	// regression suite: /page/?gogh-test (editors only, never saves)
 	// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only toggle enqueuing a test script for capability-checked editors.
 	if ( isset( $_GET['gogh-test'] ) ) {
-		wp_enqueue_script( 'gogh-tests', plugins_url( 'gogh-tests.js', __FILE__ ), array( 'gogh-editor' ), '0.99.87-chrome', true );
+		wp_enqueue_script( 'gogh-tests', plugins_url( 'gogh-tests.js', __FILE__ ), array( 'gogh-editor' ), '0.99.88-chrome', true );
 	}
 
 	// products live outside wp/v2, so gogh carries its own save route for
@@ -1167,7 +1227,7 @@ add_action( 'enqueue_block_assets', function () {
 	if ( ! is_admin() ) {
 		return;
 	}
-	wp_register_style( 'gogh-editor-base', false, array(), '0.99.87-chrome' );
+	wp_register_style( 'gogh-editor-base', false, array(), '0.99.88-chrome' );
 	wp_enqueue_style( 'gogh-editor-base' );
 	wp_add_inline_style( 'gogh-editor-base',
 		'.gogh-wrap { min-width: 100%; margin-block: 0 !important; }' .
