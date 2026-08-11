@@ -1,4 +1,4 @@
-# Knowledge-base audit — plugin v0.99.79
+# Knowledge-base audit — plugin v0.99.81
 
 _13 finding(s) suppressed by `kb.audit-ignore.txt`._
 
@@ -6,7 +6,7 @@ _13 finding(s) suppressed by `kb.audit-ignore.txt`._
 
 The prose states something the source contradicts. Fix these first — the bot will contradict itself, since the appendix carries the correct value.
 
-- plugin version is **0.99.79**, prose says **0.96.5**
+- plugin version is **0.99.81**, prose says **0.96.5**
 
 ## MISSING (16)
 
@@ -28,3 +28,9 @@ The source has something the prose never explains. The bot knows the name from t
 - template `FAQ` exists in source but is never mentioned in the prose
 - template `Tabs` exists in source but is never mentioned in the prose
 - template `Portfolio` exists in source but is never mentioned in the prose
+
+## What changed since the last knowledge-base build
+
+Use this as the checklist for updating the prose — and as a sanity check on the release itself.
+
+- version: 0.99.79 → 0.99.81
