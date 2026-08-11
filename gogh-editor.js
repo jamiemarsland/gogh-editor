@@ -2055,6 +2055,11 @@
     v.addEventListener('click', function () {
       v.remove();
       wakeChrome(pe, area);
+      // straight to the panel — the "Change header layout" pill was a
+      // step with nothing in it (the panel edits everything anyway)
+      convertChrome(pe).catch(function () {
+        toast('Could not open the ' + area + ' panel.', { error: true });
+      });
     });
     // a CLASS, never an inline style: the transparent-header float rule
     // (:has on the template part) must be able to win while editing
@@ -2071,6 +2076,13 @@
       // gogh's own surfaces (panels, drawer, toolbars, toasts) are part of
       // the editing conversation — they don't put the chrome to sleep
       if (ev.target.closest && ev.target.closest('.gogh-panel, .gogh-side, .gogh-side-tab, .gogh-elbar, .gogh-hbar, .gogh-secbar, .gogh-toast, .gogh-chip, .gogh-convertbtn, .gogh-picker, .gogh-navadd, #wpadminbar')) return;
+      // an ARMED panel (something auditioned, Apply lit) holds focus —
+      // a stray page click must not throw the audition away
+      if (panelOpen && panel.dataset.goghArea === area) {
+        var ap = panel.querySelector('.gogh-happly');
+        if (ap && !ap.disabled) return;
+        closePanel();
+      }
       pe.classList.remove('gogh-chrome-live');
       document.removeEventListener('pointerdown', sleep, true);
       if (editing) veilChromeArea(area);
@@ -2198,6 +2210,7 @@
   var panelCleanup = null; // a panel's audition-undo — closePanel runs it on EVERY path (Esc included)
   function closePanel() {
     if (panelCleanup) { var pc = panelCleanup; panelCleanup = null; pc(); }
+    delete panel.dataset.goghArea;
     panel.hidden = true;
     panel.classList.remove('gogh-panel-wide');
     panel.style.width = ''; // a hand-resized width belongs to that panel only
@@ -10001,9 +10014,14 @@
         return screenChromeOptions(options, activeOpt).then(function (kept) {
           if (kept.length > 1) {
             // simple mode gets the ONE panel — the pill-cycle choreography
-            // was the clunk James named; experiments keeps the cycle
-            if (!cfg.experiments) openHeaderPanel(partEl, area, kept, activeOpt, active);
-            else startChromeCycle(partEl, area, kept, activeOpt, active);
+            // was the clunk James named; experiments keeps the cycle.
+            // A LATE arrival checks the chrome is still awake: the user who
+            // clicked away must not get a surprise panel seconds later
+            if (!cfg.experiments) {
+              if (partEl.classList.contains('gogh-chrome-live')) {
+                openHeaderPanel(partEl, area, kept, activeOpt, active);
+              }
+            } else startChromeCycle(partEl, area, kept, activeOpt, active);
             return null;
           }
           return doConvertChrome(partEl, area, active);
@@ -10450,6 +10468,7 @@
     dockPanel();
     panelOpen = true;
     panelSticky = true;
+    panel.dataset.goghArea = area;
     var applyBtn = panel.querySelector('.gogh-happly');
     var arm = function () { applyBtn.disabled = false; };
     // closePanel runs this on EVERY close path — Esc left the header
