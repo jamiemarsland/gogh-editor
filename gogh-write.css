@@ -312,6 +312,14 @@ body.gogh-writing ::selection {
   color: #fff;
   font-size: 13px;
   cursor: pointer;
+  /* present on hover, always — beginners never discover click-to-pick */
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+.gogh-w-body figure:hover .gogh-w-figx,
+.gogh-w-body .gogh-splash:hover .gogh-w-figx,
+.gogh-w-body .is-picked .gogh-w-figx {
+  opacity: 1;
 }
 
 .gogh-w-catsbtn {
@@ -552,7 +560,7 @@ body.gogh-writing ::selection {
 }
 .gogh-w-splash-go { float: right; }
 /* splash previews in the column: full-bleed ones bleed */
-.gogh-w-body .gogh-splash { margin: 1.6em 0; }
+.gogh-w-body .gogh-splash { margin: 1.6em 0; position: relative; }
 .gogh-w-body .gogh-splash:has(.alignfull) {
   width: 100vw;
   margin-inline: calc(50% - 50vw);

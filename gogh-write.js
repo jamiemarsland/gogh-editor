@@ -28,6 +28,106 @@
   if (!title.textContent.trim()) title.innerHTML = '';
   document.body.classList.add('gogh-writing');
 
+  // ---------- boot from RAW, not the rendered page ----------
+  // the theme's rendered DOM is for READERS; the write surface rebuilds
+  // itself from the stored block markup, so every block — splashes,
+  // floats, captions, even blocks gogh does not know — round-trips
+  // byte-faithfully. Unknown blocks ride as protected pass-throughs.
+  var parseBlocks = function (raw) {
+    var out = [];
+    var re = /<!--\s*(\/)?wp:([a-z0-9\/-]+)([^>]*?)(\/)?-->/g;
+    var m, depth = 0, start = 0, startTag = null;
+    while ((m = re.exec(raw))) {
+      var isClose = !!m[1];
+      var isSelf = !!m[4];
+      if (isClose) {
+        depth--;
+        if (depth === 0) out.push({ name: startTag, raw: raw.slice(start, m.index + m[0].length) });
+      } else if (isSelf) {
+        if (depth === 0) out.push({ name: m[2], raw: m[0] });
+      } else {
+        if (depth === 0) { start = m.index; startTag = m[2]; }
+        depth++;
+      }
+    }
+    return out;
+  };
+  var innerOf = function (blockRaw) {
+    return blockRaw.replace(/<!--\s*\/?wp:[^>]*?-->/g, '').trim();
+  };
+  var keeperNode = function (blockRaw, html) {
+    var node = document.createElement('div');
+    node.className = 'gogh-splash';
+    node.contentEditable = 'false';
+    node.dataset.goghRaw = encodeURIComponent(blockRaw);
+    node.innerHTML = html || innerOf(blockRaw) || '<em style="opacity:.5">A block gogh keeps safe for you</em>';
+    return node;
+  };
+  var surfaceFromRaw = function (raw) {
+    var blocks = parseBlocks(raw);
+    if (!blocks.length) return false;
+    var frag = document.createDocumentFragment();
+    blocks.forEach(function (b) {
+      var name = String(b.name || '');
+      var inner = innerOf(b.raw);
+      var tmp = document.createElement('div');
+      if (name === 'paragraph' || name === 'heading' || name === 'list' ||
+          name === 'quote' || name === 'separator') {
+        tmp.innerHTML = inner || (name === 'separator' ? '<hr>' : '');
+        while (tmp.firstChild) frag.appendChild(tmp.firstChild);
+      } else if (name === 'image' && !/gogh-splash-break/.test(b.raw)) {
+        tmp.innerHTML = inner;
+        var fig = tmp.querySelector('figure');
+        if (fig) {
+          var mid = (b.raw.match(/"id":(\d+)/) || [])[1];
+          if (mid) fig.dataset.mid = mid;
+          fig.contentEditable = 'false';
+          var cap = fig.querySelector('figcaption');
+          if (!cap) {
+            cap = document.createElement('figcaption');
+            cap.className = 'wp-element-caption gogh-w-cap';
+            fig.appendChild(cap);
+          }
+          cap.classList.add('gogh-w-cap');
+          cap.contentEditable = 'true';
+          frag.appendChild(fig);
+        }
+      } else if (name === 'embed') {
+        var eu = (b.raw.match(/"url":"([^"]+)"/) || [])[1];
+        if (eu) {
+          var ef = document.createElement('figure');
+          ef.className = 'gogh-w-embed';
+          ef.dataset.url = eu;
+          ef.innerHTML = embedPreview(eu);
+          frag.appendChild(ef);
+        }
+      } else {
+        // splash compositions AND unknown blocks: protected pass-throughs
+        frag.appendChild(keeperNode(b.raw, inner));
+      }
+    });
+    body.innerHTML = '';
+    body.appendChild(frag);
+    if (!body.lastElementChild || !/^(P|H2|H3|H4)$/.test(body.lastElementChild.tagName)) {
+      var tail = document.createElement('p');
+      tail.innerHTML = '<br>';
+      body.appendChild(tail);
+    }
+    return true;
+  };
+  // if the writer starts typing before the raw arrives, their words win
+  var typedFirst = false;
+  body.addEventListener('input', function () { typedFirst = true; }, { once: true, capture: true });
+  fetch(cfg.restUrl + 'wp/v2/posts/' + cfg.postId + '?context=edit', {
+    headers: { 'X-WP-Nonce': cfg.nonce },
+    credentials: 'same-origin',
+  }).then(function (r) { return r.ok ? r.json() : null; }).then(function (post) {
+    var raw = post && post.content && post.content.raw || '';
+    if (!typedFirst && raw.trim() && surfaceFromRaw(raw)) {
+      [].forEach.call(body.querySelectorAll('figure, .gogh-splash'), attachObjControls);
+    }
+  }).catch(function () {});
+
   // ---------- the surface ----------
   if (title) {
     title.contentEditable = 'plaintext-only';
@@ -144,6 +244,7 @@
       img.className = 'wp-image-' + m.id;
       fig.dataset.mid = m.id;
       fig.classList.remove('gogh-w-uploading');
+      attachObjControls(fig);
       queueSave();
     }).catch(function () { fig.remove(); });
   };
@@ -302,6 +403,7 @@
       node.after(after);
     }
     caretInto(node.nextElementSibling);
+    attachObjControls(node);
     closeSplash();
     queueSave();
   };
@@ -559,12 +661,46 @@
     hideBub();
   });
 
-  // ---------- images are objects: click picks, Delete removes ----------
+  // ---------- objects wear their controls: hover shows ✕ (and ✎ on a
+  // splash) — beginners never have to discover click-to-pick ----------
+  var attachObjControls = function (node) {
+    if (node.__goghCtl || node.classList.contains('gogh-w-embedline')) return;
+    // figures INSIDE a splash belong to the composition — the splash's own
+    // ✕/✎ are the only controls; a ✕ on a brick would edit nothing real
+    if (!node.classList.contains('gogh-splash') && node.closest('.gogh-splash')) return;
+    node.__goghCtl = true;
+    var x = document.createElement('button');
+    x.type = 'button';
+    x.className = 'gogh-w-figx';
+    x.setAttribute('aria-label', 'Remove');
+    x.textContent = '\u2715';
+    x.addEventListener('click', function (ev2) {
+      ev2.stopPropagation();
+      removeFig(node);
+    });
+    node.appendChild(x);
+    if (node.classList.contains('gogh-splash')) {
+      var pen = document.createElement('button');
+      pen.type = 'button';
+      pen.className = 'gogh-w-figx gogh-w-figpen';
+      pen.setAttribute('aria-label', 'Replace');
+      pen.textContent = '\u270e';
+      pen.addEventListener('click', function (ev2) {
+        ev2.stopPropagation();
+        var target = node;
+        unpick();
+        openSplash(target);
+      });
+      node.appendChild(pen);
+    }
+  };
+  setTimeout(function () {
+    [].forEach.call(body.querySelectorAll('figure, .gogh-splash'), attachObjControls);
+  }, 300);
   var picked = null;
   var unpick = function () {
     if (!picked) return;
     picked.classList.remove('is-picked');
-    [].forEach.call(picked.querySelectorAll('.gogh-w-figx'), function (x2) { x2.remove(); });
     var ar = picked.querySelector('.gogh-w-altrow');
     if (ar) ar.remove(); // the alt field leaves with the pick
     picked = null;
@@ -593,32 +729,8 @@
     unpick();
     picked = fig;
     fig.classList.add('is-picked');
-    var x = document.createElement('button');
-    x.type = 'button';
-    x.className = 'gogh-w-figx';
-    x.setAttribute('aria-label', 'Remove');
-    x.textContent = '\u2715';
-    x.addEventListener('click', function (ev2) {
-      ev2.stopPropagation();
-      removeFig(fig);
-    });
-    fig.appendChild(x);
-    if (fig.classList.contains('gogh-splash')) {
-      // splash edits by REPLACEMENT: the shelf reopens for this spot
-      var pen = document.createElement('button');
-      pen.type = 'button';
-      pen.className = 'gogh-w-figx gogh-w-figpen';
-      pen.setAttribute('aria-label', 'Replace');
-      pen.textContent = '\u270e';
-      pen.addEventListener('click', function (ev2) {
-        ev2.stopPropagation();
-        var target = fig;
-        unpick();
-        openSplash(target);
-      });
-      fig.appendChild(pen);
-      return;
-    }
+    attachObjControls(fig);
+    if (fig.classList.contains('gogh-splash')) return;
     // alt text edits on pick — LABELLED, and gone again on unpick
     var altRow = document.createElement('div');
     altRow.className = 'gogh-w-altrow';
@@ -682,11 +794,16 @@
   }, true);
 
   // ---------- serialization: pure core blocks, nothing exotic ----------
+  // serialize from a COPY — stripping controls off the live node would
+  // leave the writer with no ✕ two seconds after the first autosave
   var stripEditorGoo = function (fig) {
+    fig = fig.cloneNode(true);
     var x = fig.querySelector('.gogh-w-figx');
     if (x) x.remove();
     var a = fig.querySelector('.gogh-w-altrow');
     if (a) a.remove();
+    var p = fig.querySelector('.gogh-w-figpen');
+    if (p) p.remove();
     return fig;
   };
   var inlineClean = function (el) {
@@ -709,7 +826,7 @@
     [].forEach.call(body.children, function (n) {
       var tag = n.tagName;
       if (n.classList && n.classList.contains('gogh-splash') && n.dataset.goghRaw) {
-        [].forEach.call(n.querySelectorAll('.gogh-w-figx'), function (x3) { x3.remove(); });
+        // raw rides verbatim; the live node (and its controls) stays untouched
         out.push(decodeURIComponent(n.dataset.goghRaw));
       } else if (tag === 'P' || tag === 'DIV') {
         var html = inlineClean(n);
@@ -737,7 +854,7 @@
       } else if (tag === 'HR') {
         out.push('<!-- wp:separator -->\n<hr class="wp-block-separator has-alpha-channel-opacity"/>\n<!-- /wp:separator -->');
       } else if (tag === 'FIGURE' && n.querySelector('img') && !n.classList.contains('gogh-w-uploading')) {
-        stripEditorGoo(n);
+        n = stripEditorGoo(n);
         var img = n.querySelector('img');
         var mid = n.dataset.mid ? +n.dataset.mid : null;
         var cap = n.querySelector('figcaption');
