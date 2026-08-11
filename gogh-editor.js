@@ -467,6 +467,17 @@
             boxBgCss = bimg;
           }
         } else if (bv) boxBgCss = bv;
+        if (e.mood === 'glass' && !e.boxImg) {
+          // frosted glass: translucent colour + backdrop blur — the photo
+          // behind melts through. Colour source = the card's own colour,
+          // else theme base. (James's glass-card references.)
+          var gsrc = bv || 'var(--wp--preset--color--base, #fff)';
+          boxBgCss = null;
+          extra += ' background: color-mix(in srgb, ' + gsrc + ' 70%, transparent);' +
+            ' -webkit-backdrop-filter: blur(18px) saturate(1.35); backdrop-filter: blur(18px) saturate(1.35);' +
+            ' border: 1px solid color-mix(in srgb, ' + gsrc + ' 55%, transparent);' +
+            ' box-shadow: 0 30px 60px -22px rgba(0, 0, 0, 0.45);';
+        }
         if (e.mood === 'veil' && boxBgCss) {
           // the veil blurs the PICTURE, never the words: the background
           // moves to a ::before so only it takes the filter (James's
@@ -2791,7 +2802,7 @@
       '<div class="gogh-media gogh-boximg-media"></div>' +
       '<div class="gogh-swlab">Mood \u2014 how the card behaves under the pointer</div>' +
       '<div class="gogh-hpresets gogh-moodrow">' +
-      [['', 'Still'], ['lift', 'Lift'], ['zoom', 'Zoom'], ['veil', 'Veil']].map(function (m) {
+      [['', 'Still'], ['lift', 'Lift'], ['zoom', 'Zoom'], ['veil', 'Veil'], ['glass', 'Glass']].map(function (m) {
         return '<button type="button" class="gogh-hpreset' + ((e.mood || '') === m[0] ? ' is-active' : '') + '" data-mood="' + m[0] + '">' + m[1] + '</button>';
       }).join('') + '</div>' +
       (e.kids && e.kids.length
@@ -4223,6 +4234,42 @@
       { type: 'button', x: 424, y: 338, w: 170, h: 56, text: 'Email us' },
       { type: 'button', x: 614, y: 338, w: 170, h: 56, text: 'Follow along', ghost: true },
     ] },
+    { starter: true, intent: 'introduce', name: 'Profile card', minH: 620, els: [
+      // full-bleed photo + one frosted card floating centre — the glass
+      // recipe: radius 24, glass mood, tiny badge, meta row, one button
+      { type: 'badge', x: 84, y: 64, w: 150, h: 34, text: '\u25cf Available' },
+      { type: 'box', x: 400, y: 130, w: 400, h: 360, radius: 24, mood: 'glass', kids: [
+        { type: 'para', x: 32, y: 36, w: 336, h: 22, align: 'center', text: 'DESIGN \u00b7 DIRECTION',
+          tf: { fs: 12, fw: 600, ls2: 0.24, tt: 'uppercase' } },
+        { type: 'heading', x: 32, y: 70, w: 336, h: 48, align: 'center', text: 'Vincent van Gogh', fs: 'large' },
+        { type: 'para', x: 32, y: 130, w: 336, h: 48, align: 'center', text: 'Painter of light. 900 works, one sunflower obsession.' },
+        { type: 'para', x: 32, y: 196, w: 336, h: 22, align: 'center', text: 'Arles \u00b7 Saint-R\u00e9my \u00b7 Auvers',
+          tf: { fs: 13, col: 'color-mix(in srgb, currentColor 65%, transparent)' } },
+        { type: 'button', x: 116, y: 248, w: 168, h: 48, text: 'Say hello' },
+      ] },
+    ], bgImage: '/wp-content/plugins/gogh/demo-assets/wheat-field.jpg', bgA: 20, bg: 'var(--wp--preset--color--contrast)' },
+    { starter: true, intent: 'sell', name: 'Job card', minH: 620, els: [
+      { type: 'box', x: 380, y: 110, w: 440, h: 400, radius: 24, mood: 'glass', kids: [
+        { type: 'badge', x: 32, y: 32, w: 110, h: 32, text: 'Hiring' },
+        { type: 'heading', x: 32, y: 84, w: 376, h: 44, text: 'Senior designer', fs: 'large' },
+        { type: 'para', x: 32, y: 140, w: 376, h: 66, text: 'Own the look of everything we ship \u2014 from the site to the side of the van.' },
+        { type: 'para', x: 32, y: 220, w: 376, h: 22, text: '\u00a370\u201385k \u00b7 Remote-first \u00b7 Full time',
+          tf: { fs: 13, fw: 600 } },
+        { type: 'button', x: 32, y: 268, w: 180, h: 52, text: 'Apply now' },
+      ] },
+    ], bgImage: '/wp-content/plugins/gogh/demo-assets/starry-night.jpg', bgA: 25, bg: 'var(--wp--preset--color--contrast)' },
+    { starter: true, intent: 'showcase', name: 'Place card', minH: 620, els: [
+      { type: 'badge', x: 84, y: 64, w: 130, h: 34, text: 'Est. 1888' },
+      { type: 'box', x: 400, y: 150, w: 400, h: 330, radius: 24, mood: 'glass', kids: [
+        { type: 'para', x: 32, y: 34, w: 336, h: 22, align: 'center', text: 'THE YELLOW HOUSE',
+          tf: { fs: 12, fw: 600, ls2: 0.24, tt: 'uppercase' } },
+        { type: 'heading', x: 32, y: 66, w: 336, h: 44, align: 'center', text: 'Come see it in person', fs: 'large' },
+        { type: 'para', x: 32, y: 124, w: 336, h: 48, align: 'center', text: 'The little studio on the square \u2014 open Thursday to Sunday.' },
+        { type: 'para', x: 32, y: 188, w: 336, h: 22, align: 'center', text: '\ud83d\udccd Place Lamartine, Arles',
+          tf: { fs: 13 } },
+        { type: 'button', x: 116, y: 228, w: 168, h: 48, text: 'Plan a visit' },
+      ] },
+    ], bgImage: '/wp-content/plugins/gogh/demo-assets/sunflowers.jpg', bgA: 20, bg: 'var(--wp--preset--color--contrast)' },
     { starter: true, intent: 'showcase', name: 'Photo wall', minH: 640, els: [
       { type: 'para', x: 400, y: 56, w: 400, h: 24, align: 'center', text: 'In pictures',
         tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },

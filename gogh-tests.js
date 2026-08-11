@@ -2646,6 +2646,29 @@
       return 'columns masonry, live panel edits, tips';
     });
 
+    test('glass mood: frosted card CSS, starters on the shelves', function () {
+      G.addSection({ name: 'GlassChk', minH: 400, bgImage: '/wp-content/plugins/gogh/demo-assets/wheat-field.jpg', els: [
+        { type: 'box', x: 400, y: 60, w: 400, h: 280, radius: 24, mood: 'glass', kids: [
+          { type: 'heading', x: 32, y: 40, w: 336, h: 44, text: 'Frosted' } ] } ] }, G.sections().length);
+      var gsec = contentSecs()[contentSecs().length - 1];
+      try {
+        var css = gsec.styleEl.textContent;
+        expect(/backdrop-filter: blur/.test(css), 'glass must backdrop-blur');
+        expect(/color-mix\(in srgb, var\(--wp--preset--color--base, #fff\) 70%/.test(css), 'glass must be translucent base');
+        var node = gsec.nodes[0];
+        var cs = getComputedStyle(node);
+        expect(cs.backdropFilter && cs.backdropFilter !== 'none', 'computed backdrop-filter missing: ' + cs.backdropFilter);
+        expect(cs.boxShadow !== 'none', 'glass card must cast a shadow');
+      } finally {
+        G.deleteSection(G.sections().indexOf(gsec));
+      }
+      var names = G.templates().filter(function (tp) { return tp.starter && !tp.retired; }).map(function (tp) { return tp.name; });
+      ['Profile card', 'Job card', 'Place card'].forEach(function (nm) {
+        expect(names.indexOf(nm) !== -1, nm + ' starter missing from the shelves');
+      });
+      return 'frosted CSS real, three glass starters shelved';
+    });
+
     // ---- picker redesign: inline header search, theme chip ----
     test('picker: inline search filters, old toggle gone, theme chip present', function () {
       G.openPicker(G.sections().length);
