@@ -1,12 +1,12 @@
 {
   "meta": {
-    "plugin_version": "0.99.87",
+    "plugin_version": "0.99.88",
     "requires_wp": "6.5",
     "requires_php": "7.4",
     "text_domain": "gogh-editor",
     "readme_stable_tag": "0.26.0",
     "readme_tested_up_to": "7.0",
-    "asset_version": "0.99.87-chrome"
+    "asset_version": "0.99.88-chrome"
   },
   "constants": {
     "TOL": 8,
@@ -594,6 +594,16 @@
       },
       {
         "kind": "action",
+        "hook": "trashed_post",
+        "priority": 10
+      },
+      {
+        "kind": "action",
+        "hook": "init",
+        "priority": 10
+      },
+      {
+        "kind": "action",
         "hook": "rest_api_init",
         "priority": 10
       },
@@ -719,20 +729,20 @@
       "gogh/v1/render"
     ],
     "capabilities": [
+      "edit_posts",
       "manage_options",
       "edit_theme_options",
       "edit_post",
       "edit_others_posts",
-      "edit_posts",
       "unfiltered_html",
       "upload_files",
       "publish_pages"
     ],
     "query_switches": [
+      "gogh-test",
       "id",
       "layout",
       "gogh-edit",
-      "gogh-test",
       "gogh-experiments",
       "gogh-mcp"
     ],
