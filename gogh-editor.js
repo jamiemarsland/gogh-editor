@@ -11579,6 +11579,12 @@
       na.style = na.style || {};
       na.style.spacing = na.style.spacing || {};
       na.style.spacing.blockGap = d.linkGap + 'px';
+      if (d.fsz) {
+        // menu items keep their own theme size unless the nav block says
+        // otherwise — the group's size alone never reaches them
+        na.style.typography = na.style.typography || {};
+        na.style.typography.fontSize = d.fsz + 'px';
+      }
       return '<!-- wp:navigation ' + JSON.stringify(na) + ' /-->';
     });
     return out;
@@ -11588,7 +11594,7 @@
   function chromeDialsPreview(partEl, d) {
     if (!partEl.__goghDialsOrig) partEl.__goghDialsOrig = [];
     [].forEach.call(
-      partEl.querySelectorAll('.wp-block-group, .wp-block-navigation__container, .wp-block-navigation ul'),
+      partEl.querySelectorAll('.wp-block-group, .wp-block-navigation, .wp-block-navigation__container, .wp-block-navigation ul'),
       function (el) {
         var known = partEl.__goghDialsOrig.some(function (p) { return p[0] === el; });
         if (!known) partEl.__goghDialsOrig.push([el, el.getAttribute('style')]);
@@ -11603,6 +11609,9 @@
     var navRoot = partEl.querySelector('.gogh-chrome-preview') || partEl;
     [].forEach.call(navRoot.querySelectorAll('.wp-block-navigation__container, .wp-block-navigation ul'), function (ul) {
       ul.style.gap = d.linkGap + 'px';
+    });
+    [].forEach.call(navRoot.querySelectorAll('.wp-block-navigation'), function (nv) {
+      if (d.fsz) nv.style.fontSize = d.fsz + 'px';
     });
   }
   function chromeDialsRevert(partEl) {

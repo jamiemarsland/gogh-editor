@@ -1229,6 +1229,7 @@
       expect(/"blockGap":"24px"/.test(out), 'group blockGap not written');
       expect(/padding-top:32px/.test(out) && /padding-bottom:32px/.test(out), 'inline style not in lockstep');
       expect(/"fontSize":"18px"/.test(out) && /font-size:18px/.test(out), 'text size must write attr + inline in lockstep');
+      expect(/wp:navigation {[\s\S]*"typography":{"fontSize":"18px"}/.test(out), 'menu items must carry the size natively on the nav block');
       expect(/padding-right:2rem/.test(out) && /padding-left:2rem/.test(out), 'side padding must survive');
       expect(/wp:navigation {[^}]*"spacing":{"blockGap":"40px"}/.test(out.replace(/\s+/g, ' ')) || /"blockGap":"40px"/.test(out.split('wp:navigation')[1]), 'nav link gap not written');
       var d1 = G.chromeDialsRead(out);
