@@ -508,8 +508,13 @@
       if (blk) rect = blk.getBoundingClientRect();
     }
     if (!rect) return;
-    var comfort = window.innerHeight * 0.68;
-    if (rect.bottom > comfort) {
+    // STEP scrolling, not creep: the caret descends freely until it
+    // nears the bottom, then the page takes ONE deliberate step back to
+    // the comfort line — a per-wrap nudge moved the whole page on every
+    // line break ("the text reshuffles - its a bit unsettling")
+    var threshold = window.innerHeight * 0.86;
+    var comfort = window.innerHeight * 0.62;
+    if (rect.bottom > threshold) {
       window.scrollBy({ top: rect.bottom - comfort, behavior: 'auto' });
     }
   };
