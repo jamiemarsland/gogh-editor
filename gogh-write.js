@@ -931,7 +931,8 @@
   chip.innerHTML = '<span class="gogh-w-count"></span><span class="gogh-w-saved"></span>' +
     '<button type="button" class="gogh-w-draft">Save draft</button>' +
     '<button type="button" class="gogh-w-catsbtn">Categories & tags</button>' +
-    '<button type="button" class="gogh-w-publish">Publish</button>';
+    '<button type="button" class="gogh-w-publish">Publish</button>' +
+    '<a class="gogh-w-back" href="' + (cfg.homeUrl || '/') + '">Back to site</a>';
   document.body.appendChild(chip);
   var countEl = chip.querySelector('.gogh-w-count');
   var savedEl = chip.querySelector('.gogh-w-saved');
@@ -1013,6 +1014,15 @@
   };
   chip.querySelector('.gogh-w-publish').addEventListener('click', function () {
     doPublish(chip.querySelector('.gogh-w-publish'));
+  });
+  // leaving flushes any words the 2.5s debounce hasn't saved yet
+  chip.querySelector('.gogh-w-back').addEventListener('click', function (ev) {
+    if (clean && !saveT && !inflight) return; // nothing pending — plain link
+    ev.preventDefault();
+    var href = ev.currentTarget.href;
+    clearTimeout(saveT);
+    saveT = null;
+    save().then(function () { location.href = href; });
   });
   chip.querySelector('.gogh-w-draft').addEventListener('click', function () {
     var d = chip.querySelector('.gogh-w-draft');

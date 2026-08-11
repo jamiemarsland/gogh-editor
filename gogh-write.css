@@ -119,6 +119,7 @@ body.gogh-writing ::selection {
    intent (growing leftward from the anchored corner) */
 .gogh-w-chip:not(:hover):not(:focus-within):not(.is-filing) .gogh-w-catsbtn,
 .gogh-w-chip:not(:hover):not(:focus-within):not(.is-filing) .gogh-w-publish,
+.gogh-w-chip:not(:hover):not(:focus-within):not(.is-filing) .gogh-w-back,
 .gogh-w-chip:not(:hover):not(:focus-within):not(.is-filing) .gogh-w-saved {
   display: none;
 }
@@ -145,6 +146,18 @@ body.gogh-writing ::selection {
 .gogh-w-publish:disabled {
   opacity: 0.7;
   cursor: default;
+}
+/* the door: last in the row, quietest thing in it */
+.gogh-w-back {
+  color: #f2f3f5;
+  opacity: 0.6;
+  text-decoration: none;
+  padding: 7px 6px;
+  white-space: nowrap;
+}
+.gogh-w-back:hover {
+  opacity: 1;
+  text-decoration: underline;
 }
 
 @media (prefers-reduced-motion: reduce) {
