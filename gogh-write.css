@@ -572,6 +572,17 @@ body.gogh-writing ::selection {
   outline-offset: -3px;
 }
 .gogh-w-splash-go { float: right; }
+/* the escape hatch reads as a footnote, not a second button */
+.gogh-w-splash-rekind {
+  all: unset;
+  cursor: pointer;
+  font-size: 12px;
+  opacity: 0.55;
+  text-decoration: underline;
+  margin-top: 12px;
+  display: inline-block;
+}
+.gogh-w-splash-rekind:hover { opacity: 0.9; }
 /* splash previews in the column: full-bleed ones bleed */
 .gogh-w-body .gogh-splash { margin: 1.6em 0; position: relative; }
 .gogh-w-body .gogh-splash:has(.alignfull) {

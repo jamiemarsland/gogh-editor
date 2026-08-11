@@ -423,13 +423,56 @@
     queueSave();
   };
   var node2After = function (ref, node) { ref.after(node); };
+  // \u270e on an existing splash EDITS it: the stage opens on its kind with
+  // its photos already chosen, its words already in the fields \u2014 folks
+  // adjust, they don't rebuild ("wouldn't it make more sense if it
+  // brought up the existing splash")
+  var readSplash = function (blk) {
+    if (!blk || !blk.classList || !blk.classList.contains('gogh-splash') || !blk.dataset.goghRaw) return null;
+    var raw = decodeURIComponent(blk.dataset.goghRaw);
+    var tmp = document.createElement('div');
+    tmp.innerHTML = raw.replace(/<!--[\s\S]*?-->/g, '');
+    var kind = /gogh-carousel/.test(raw) ? 'carousel' : /gogh-wall/.test(raw) ? 'wall'
+      : /gogh-splash-break/.test(raw) ? 'break' : /gogh-splash-glasswrap/.test(raw) ? 'glass' : null;
+    if (!kind) return null;
+    var cur = { kind: kind, urls: [], caps: {}, opts: {} };
+    if (kind === 'carousel' || kind === 'wall') {
+      [].forEach.call(tmp.querySelectorAll('.gogh-slide img, .gogh-brick img'), function (im) {
+        cur.urls.push(im.getAttribute('src'));
+        var cap = im.parentElement.querySelector('figcaption');
+        if (cap && cap.textContent.trim()) cur.caps[im.getAttribute('src')] = cap.textContent;
+      });
+      cur.opts.light = /gogh-crsl-light/.test(raw) ? 1 : 0;
+      if (kind === 'carousel') {
+        if (/gogh-crsl-auto/.test(raw)) cur.opts.auto = 1;
+        cur.opts.nav = /gogh-crsl-nav-both/.test(raw) ? 'both' : /gogh-crsl-nav-sides/.test(raw) ? 'sides' : undefined;
+      } else {
+        var cm = raw.match(/gogh-wall-(\d)/);
+        cur.opts.cols = cm ? +cm[1] : 3;
+      }
+    } else {
+      var im2 = tmp.querySelector('img');
+      if (im2) cur.urls.push(im2.getAttribute('src'));
+      if (kind === 'break') cur.alt = im2 ? im2.getAttribute('alt') || '' : '';
+      if (kind === 'glass') {
+        var k2 = tmp.querySelector('.gogh-glass-kicker');
+        var h2 = tmp.querySelector('.gogh-glass h2');
+        var p2 = tmp.querySelector('.gogh-glass p:not(.gogh-glass-kicker)');
+        cur.kicker = k2 ? k2.textContent : '';
+        cur.title = h2 ? h2.textContent : '';
+        cur.text = p2 ? p2.textContent : '';
+      }
+    }
+    return cur;
+  };
   var openSplash = function (refBlk) {
     closeSplash();
+    var cur = readSplash(refBlk);
     splashOv = document.createElement('div');
     splashOv.className = 'gogh-w-splash';
     splashOv.innerHTML =
       '<div class="gogh-w-splash-card">' +
-      '<div class="gogh-w-splash-head">\u2726 A splash between the words' +
+      '<div class="gogh-w-splash-head">\u2726 ' + (cur ? 'Edit your splash' : 'A splash between the words') +
       '<button type="button" class="gogh-w-splash-x">\u2715</button></div>' +
       '<div class="gogh-w-splash-tiles">' +
       '<button type="button" data-splash="carousel">\ud83c\udfa0<b>Carousel</b><i>photos that glide</i></button>' +
@@ -444,23 +487,38 @@
       if (ev.target === splashOv) closeSplash();
     });
     splashOv.querySelector('.gogh-w-splash-x').addEventListener('click', closeSplash);
-    splashOv.querySelector('.gogh-w-splash-tiles').addEventListener('click', function (ev) {
-      var t = ev.target.closest('[data-splash]');
-      if (!t) return;
-      var kind = t.dataset.splash;
+    var showStage = function (kind, seed) {
       var stage = splashOv.querySelector('.gogh-w-splash-stage');
       splashOv.querySelector('.gogh-w-splash-tiles').hidden = true;
       stage.hidden = false;
       var multi = kind === 'carousel' || kind === 'wall';
+      var editing = !!seed;
       stage.innerHTML = '<div class="gogh-w-splash-hint">' +
-        (multi ? 'Pick a few photos, then Add.' : 'Pick the photo.') + '</div>' +
+        (editing
+          ? (multi ? 'Tap photos to add or remove, then Update.' : 'Tap a photo to swap it in.')
+          : (multi ? 'Pick a few photos, then Add.' : 'Pick the photo.')) + '</div>' +
         (kind === 'glass'
-          ? '<input type="text" class="gogh-input gogh-w-splash-title" placeholder="Card title" value="A moment worth a card" />' +
-            '<input type="text" class="gogh-input gogh-w-splash-text" placeholder="One good line (optional)" />'
+          ? '<input type="text" class="gogh-input gogh-w-splash-title" placeholder="Card title" value="' +
+            String(seed && seed.title ? seed.title : 'A moment worth a card').replace(/"/g, '&quot;') + '" />' +
+            '<input type="text" class="gogh-input gogh-w-splash-text" placeholder="One good line (optional)" value="' +
+            String(seed && seed.text ? seed.text : '').replace(/"/g, '&quot;') + '" />'
           : '') +
         '<div class="gogh-media gogh-w-splash-media"><span class="gogh-media-loading">Loading media\u2026</span></div>' +
-        (multi ? '<button type="button" class="gogh-w-publish gogh-w-splash-go" disabled>Add</button>' : '');
-      var chosen = [];
+        (multi ? '<button type="button" class="gogh-w-publish gogh-w-splash-go" disabled>' + (editing ? 'Update' : 'Add') + '</button>' : '') +
+        (editing && kind === 'glass' ? '<button type="button" class="gogh-w-publish gogh-w-splash-go">Update</button>' : '') +
+        (editing ? '<button type="button" class="gogh-w-splash-rekind">Start over with a different kind</button>' : '');
+      var chosen = editing && multi ? seed.urls.slice() : [];
+      var caps = editing ? seed.caps || {} : {};
+      var opts = editing ? seed.opts || {} : (kind === 'wall' ? { cols: 3, light: 1 } : { light: 1 });
+      var goLabel = function (go) {
+        go.disabled = chosen.length < 2;
+        go.textContent = chosen.length ? (editing ? 'Update ' : 'Add ') + chosen.length + ' photos' : (editing ? 'Update' : 'Add');
+      };
+      var rk = stage.querySelector('.gogh-w-splash-rekind');
+      if (rk) rk.addEventListener('click', function () {
+        stage.hidden = true;
+        splashOv.querySelector('.gogh-w-splash-tiles').hidden = false;
+      });
       fetch(cfg.restUrl + 'wp/v2/media?per_page=32&media_type=image&orderby=date&order=desc', {
         headers: { 'X-WP-Nonce': cfg.nonce },
         credentials: 'same-origin',
@@ -474,12 +532,16 @@
           var b = document.createElement('button');
           b.type = 'button';
           b.className = 'gogh-thumb';
+          if (editing && (multi ? chosen.indexOf(item.source_url) !== -1 : seed.urls[0] === item.source_url)) {
+            b.classList.add('is-active');
+          }
           b.style.backgroundImage = 'url("' + (thumb ? thumb.source_url : item.source_url) + '")';
           b.addEventListener('click', function () {
             if (!multi) {
               var made = kind === 'break'
                 ? window.__goghCompose.breakImage(item.source_url, item.alt_text || '')
                 : window.__goghCompose.glass(item.source_url, {
+                    kicker: editing ? seed.kicker || '' : '',
                     title: (stage.querySelector('.gogh-w-splash-title') || {}).value || '',
                     text: (stage.querySelector('.gogh-w-splash-text') || {}).value || '',
                   });
@@ -490,22 +552,38 @@
             var url = item.source_url;
             if (b.classList.contains('is-active')) chosen.push(url);
             else chosen = chosen.filter(function (u) { return u !== url; });
-            var go = stage.querySelector('.gogh-w-splash-go');
-            go.disabled = chosen.length < 2;
-            go.textContent = chosen.length ? 'Add ' + chosen.length + ' photos' : 'Add';
+            goLabel(stage.querySelector('.gogh-w-splash-go'));
           });
           box.appendChild(b);
         });
         var go = stage.querySelector('.gogh-w-splash-go');
-        if (go) go.addEventListener('click', function () {
-          var items2 = chosen.map(function (u) { return { img: u, cap: '' }; });
-          var made = kind === 'carousel'
-            ? window.__goghCompose.carousel(items2, { light: 1 })
-            : window.__goghCompose.wall(items2, { cols: 3, light: 1 });
-          insertSplash(made, refBlk);
-        });
+        if (go && multi) {
+          if (editing) goLabel(go);
+          go.addEventListener('click', function () {
+            var items2 = chosen.map(function (u) { return { img: u, cap: caps[u] || '' }; });
+            var made = kind === 'carousel'
+              ? window.__goghCompose.carousel(items2, opts)
+              : window.__goghCompose.wall(items2, opts);
+            insertSplash(made, refBlk);
+          });
+        } else if (go && kind === 'glass') {
+          // words-only edits apply with the photo it already wears
+          go.addEventListener('click', function () {
+            insertSplash(window.__goghCompose.glass(seed.urls[0], {
+              kicker: seed.kicker || '',
+              title: (stage.querySelector('.gogh-w-splash-title') || {}).value || '',
+              text: (stage.querySelector('.gogh-w-splash-text') || {}).value || '',
+            }), refBlk);
+          });
+        }
       });
+    };
+    splashOv.querySelector('.gogh-w-splash-tiles').addEventListener('click', function (ev) {
+      var t = ev.target.closest('[data-splash]');
+      if (!t) return;
+      showStage(t.dataset.splash, null);
     });
+    if (cur) showStage(cur.kind, cur);
   };
   var addAt = function (kind) {
     var blk = plusBlk;
