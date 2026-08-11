@@ -195,7 +195,8 @@
     '<button type="button" data-add="image">\ud83d\udcf7 Image</button>' +
     '<button type="button" data-add="quote">\u275d Quote</button>' +
     '<button type="button" data-add="embed">\u25b6 Embed</button>' +
-    '<button type="button" data-add="rule">\u2014 Divider</button>';
+    '<button type="button" data-add="rule">\u2014 Divider</button>' +
+    '<button type="button" data-add="splash" class="gogh-w-splashbtn">\u2726 Splash</button>';
   menu.hidden = true;
   document.body.appendChild(menu);
   var filePick = document.createElement('input');
@@ -268,10 +269,136 @@
     if (vm) return '<iframe src="https://player.vimeo.com/video/' + vm[1] + '" allowfullscreen loading="lazy"></iframe>';
     return '<a href="' + url + '">' + url + '</a>';
   };
+  // ---------- ✦ Splash: a gogh composition between the paragraphs ----------
+  var splashOv = null;
+  var closeSplash = function () {
+    if (splashOv) { splashOv.remove(); splashOv = null; }
+  };
+  var insertSplash = function (made, refBlk) {
+    var node = document.createElement('div');
+    node.className = 'gogh-splash';
+    node.contentEditable = 'false';
+    node.dataset.goghRaw = encodeURIComponent(made.raw);
+    node.innerHTML = made.html;
+    if (refBlk && refBlk.classList && refBlk.classList.contains('gogh-splash')) {
+      refBlk.replaceWith(node); // ✎ Replace swaps in place
+    } else if (refBlk && refBlk.parentNode === body && !refBlk.textContent.trim()) {
+      refBlk.replaceWith(node);
+    } else if (refBlk && refBlk.parentNode === body) {
+      node2After(refBlk, node);
+    } else {
+      body.appendChild(node);
+    }
+    // boundary guarantees: there is ALWAYS a line to type on either side
+    // ("if i insert them i can't type at the start")
+    if (!node.previousElementSibling || /^(FIGURE|HR)$/.test(node.previousElementSibling.tagName) || node.previousElementSibling.classList.contains('gogh-splash')) {
+      var before = document.createElement('p');
+      before.innerHTML = '<br>';
+      node.before(before);
+    }
+    if (!node.nextElementSibling || /^(FIGURE|HR)$/.test(node.nextElementSibling.tagName) || node.nextElementSibling.classList.contains('gogh-splash')) {
+      var after = document.createElement('p');
+      after.innerHTML = '<br>';
+      node.after(after);
+    }
+    caretInto(node.nextElementSibling);
+    closeSplash();
+    queueSave();
+  };
+  var node2After = function (ref, node) { ref.after(node); };
+  var openSplash = function (refBlk) {
+    closeSplash();
+    splashOv = document.createElement('div');
+    splashOv.className = 'gogh-w-splash';
+    splashOv.innerHTML =
+      '<div class="gogh-w-splash-card">' +
+      '<div class="gogh-w-splash-head">\u2726 A splash between the words' +
+      '<button type="button" class="gogh-w-splash-x">\u2715</button></div>' +
+      '<div class="gogh-w-splash-tiles">' +
+      '<button type="button" data-splash="carousel">\ud83c\udfa0<b>Carousel</b><i>photos that glide</i></button>' +
+      '<button type="button" data-splash="wall">\ud83e\uddf1<b>Photo wall</b><i>a gallery interlude</i></button>' +
+      '<button type="button" data-splash="break">\ud83c\udf04<b>Break image</b><i>a full-bleed pause</i></button>' +
+      '<button type="button" data-splash="glass">\ud83c\udccf<b>Glass card</b><i>a frosted call-out</i></button>' +
+      '</div>' +
+      '<div class="gogh-w-splash-stage" hidden></div>' +
+      '</div>';
+    document.body.appendChild(splashOv);
+    splashOv.addEventListener('pointerdown', function (ev) {
+      if (ev.target === splashOv) closeSplash();
+    });
+    splashOv.querySelector('.gogh-w-splash-x').addEventListener('click', closeSplash);
+    splashOv.querySelector('.gogh-w-splash-tiles').addEventListener('click', function (ev) {
+      var t = ev.target.closest('[data-splash]');
+      if (!t) return;
+      var kind = t.dataset.splash;
+      var stage = splashOv.querySelector('.gogh-w-splash-stage');
+      splashOv.querySelector('.gogh-w-splash-tiles').hidden = true;
+      stage.hidden = false;
+      var multi = kind === 'carousel' || kind === 'wall';
+      stage.innerHTML = '<div class="gogh-w-splash-hint">' +
+        (multi ? 'Pick a few photos, then Add.' : 'Pick the photo.') + '</div>' +
+        (kind === 'glass'
+          ? '<input type="text" class="gogh-input gogh-w-splash-title" placeholder="Card title" value="A moment worth a card" />' +
+            '<input type="text" class="gogh-input gogh-w-splash-text" placeholder="One good line (optional)" />'
+          : '') +
+        '<div class="gogh-media gogh-w-splash-media"><span class="gogh-media-loading">Loading media\u2026</span></div>' +
+        (multi ? '<button type="button" class="gogh-w-publish gogh-w-splash-go" disabled>Add</button>' : '');
+      var chosen = [];
+      fetch(cfg.restUrl + 'wp/v2/media?per_page=32&media_type=image&orderby=date&order=desc', {
+        headers: { 'X-WP-Nonce': cfg.nonce },
+        credentials: 'same-origin',
+      }).then(function (r) { return r.ok ? r.json() : []; }).catch(function () { return []; }).then(function (items) {
+        var box = stage.querySelector('.gogh-w-splash-media');
+        box.innerHTML = '';
+        if (!items.length) { box.innerHTML = '<span class="gogh-media-loading">No images yet \u2014 upload some first.</span>'; return; }
+        items.forEach(function (item) {
+          var thumb = (item.media_details && item.media_details.sizes &&
+            (item.media_details.sizes.thumbnail || item.media_details.sizes.medium));
+          var b = document.createElement('button');
+          b.type = 'button';
+          b.className = 'gogh-thumb';
+          b.style.backgroundImage = 'url("' + (thumb ? thumb.source_url : item.source_url) + '")';
+          b.addEventListener('click', function () {
+            if (!multi) {
+              var made = kind === 'break'
+                ? window.__goghCompose.breakImage(item.source_url, item.alt_text || '')
+                : window.__goghCompose.glass(item.source_url, {
+                    title: (stage.querySelector('.gogh-w-splash-title') || {}).value || '',
+                    text: (stage.querySelector('.gogh-w-splash-text') || {}).value || '',
+                  });
+              insertSplash(made, refBlk);
+              return;
+            }
+            b.classList.toggle('is-active');
+            var url = item.source_url;
+            if (b.classList.contains('is-active')) chosen.push(url);
+            else chosen = chosen.filter(function (u) { return u !== url; });
+            var go = stage.querySelector('.gogh-w-splash-go');
+            go.disabled = chosen.length < 2;
+            go.textContent = chosen.length ? 'Add ' + chosen.length + ' photos' : 'Add';
+          });
+          box.appendChild(b);
+        });
+        var go = stage.querySelector('.gogh-w-splash-go');
+        if (go) go.addEventListener('click', function () {
+          var items2 = chosen.map(function (u) { return { img: u, cap: '' }; });
+          var made = kind === 'carousel'
+            ? window.__goghCompose.carousel(items2, { light: 1 })
+            : window.__goghCompose.wall(items2, { cols: 3, light: 1 });
+          insertSplash(made, refBlk);
+        });
+      });
+    });
+  };
   var addAt = function (kind) {
     var blk = plusBlk;
     menu.hidden = true;
     if (!blk) return;
+    if (kind === 'splash') {
+      hidePlus();
+      openSplash(blk);
+      return;
+    }
     if (kind === 'image') {
       filePick.onchange = function () {
         [].forEach.call(filePick.files, function (f) { insertImageAt(f, blk); });
@@ -433,8 +560,7 @@
   var unpick = function () {
     if (!picked) return;
     picked.classList.remove('is-picked');
-    var x = picked.querySelector('.gogh-w-figx');
-    if (x) x.remove();
+    [].forEach.call(picked.querySelectorAll('.gogh-w-figx'), function (x2) { x2.remove(); });
     var ar = picked.querySelector('.gogh-w-altrow');
     if (ar) ar.remove(); // the alt field leaves with the pick
     picked = null;
@@ -456,7 +582,8 @@
     queueSave();
   };
   body.addEventListener('click', function (ev) {
-    var fig = ev.target.closest && ev.target.closest('figure');
+    var fig = ev.target.closest && ev.target.closest('figure, .gogh-splash');
+    if (fig && fig.closest('.gogh-splash')) fig = fig.closest('.gogh-splash');
     if (!fig || !body.contains(fig) || fig.classList.contains('gogh-w-embedline')) { unpick(); return; }
     if (picked === fig) return;
     unpick();
@@ -472,6 +599,22 @@
       removeFig(fig);
     });
     fig.appendChild(x);
+    if (fig.classList.contains('gogh-splash')) {
+      // splash edits by REPLACEMENT: the shelf reopens for this spot
+      var pen = document.createElement('button');
+      pen.type = 'button';
+      pen.className = 'gogh-w-figx gogh-w-figpen';
+      pen.setAttribute('aria-label', 'Replace');
+      pen.textContent = '\u270e';
+      pen.addEventListener('click', function (ev2) {
+        ev2.stopPropagation();
+        var target = fig;
+        unpick();
+        openSplash(target);
+      });
+      fig.appendChild(pen);
+      return;
+    }
     // alt text edits on pick — LABELLED, and gone again on unpick
     var altRow = document.createElement('div');
     altRow.className = 'gogh-w-altrow';
@@ -561,7 +704,10 @@
     var out = [];
     [].forEach.call(body.children, function (n) {
       var tag = n.tagName;
-      if (tag === 'P' || tag === 'DIV') {
+      if (n.classList && n.classList.contains('gogh-splash') && n.dataset.goghRaw) {
+        [].forEach.call(n.querySelectorAll('.gogh-w-figx'), function (x3) { x3.remove(); });
+        out.push(decodeURIComponent(n.dataset.goghRaw));
+      } else if (tag === 'P' || tag === 'DIV') {
         var html = inlineClean(n);
         var dc = n.classList && n.classList.contains('has-drop-cap');
         if (html && html !== '<br>') out.push('<!-- wp:paragraph ' + (dc ? '{"dropCap":true} ' : '') + '-->\n<p' + (dc ? ' class="has-drop-cap"' : '') + '>' + html + '</p>\n<!-- /wp:paragraph -->');

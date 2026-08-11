@@ -2670,6 +2670,23 @@
       return 'frosted CSS real, three glass starters shelved';
     });
 
+    test('compose module matches the editor (splash drift guard)', function () {
+      var items = [{ img: '/a.jpg', cap: 'One' }, { img: '/b.jpg', cap: '' }];
+      var C = window.__goghCompose;
+      expect(C, 'gogh-compose module missing in editor context');
+      var e1 = G.composeCarousel(items, { light: 1, nav: 'sides' });
+      var m1 = C.carousel(items, { light: 1, nav: 'sides' });
+      expect(e1.wsrc === m1.raw, 'carousel compose drifted between editor and module');
+      var e2 = G.composeWall(items, { cols: 2, light: 1 });
+      var m2 = C.wall(items, { cols: 2, light: 1 });
+      expect(e2.wsrc === m2.raw, 'wall compose drifted between editor and module');
+      var b = C.breakImage('/c.jpg', 'alt words');
+      expect(/"align":"full"/.test(b.raw) && /gogh-splash-break/.test(b.raw), 'break image markup wrong');
+      var g = C.glass('/d.jpg', { title: 'T', text: 'L', kicker: 'K' });
+      expect(/wp:cover/.test(g.raw) && /gogh-glass/.test(g.raw) && /<h2 class="wp-block-heading">T<\/h2>/.test(g.raw), 'glass markup wrong');
+      return 'module and editor compose identically; break + glass shaped right';
+    });
+
     // ---- picker redesign: inline header search, theme chip ----
     test('picker: inline search filters, old toggle gone, theme chip present', function () {
       G.openPicker(G.sections().length);
