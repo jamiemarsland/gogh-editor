@@ -15,7 +15,7 @@ about something where they conflict, rather than picking one silently. Quote UI
 labels and message copy from the appendix, verbatim — those are the current
 strings, and a paraphrased button label is the fastest way to lose a user's trust.
 
-Generated for plugin version 0.99.88 · knowledge base b879ba8.
+Generated for plugin version 0.99.89 · knowledge base ca59e17.
 
 ---
 
@@ -783,11 +783,11 @@ Everything in this section is extracted mechanically from the Gogh source on eve
 
 ## Current release
 
-- Plugin version: **0.99.88**
+- Plugin version: **0.99.89**
 - Requires WordPress **6.5+**, PHP **7.4+**
 - Text domain: `gogh-editor`
 - readme.txt Stable tag: `0.26.0` · Tested up to: `7.0`
-- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.88`). Quote the plugin header version.
+- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.89`). Quote the plugin header version.
 
 ## Design constants
 
@@ -862,6 +862,8 @@ Block: `gogh/section` · v3 attributes: `css`, `model`, `scope`, `v`, `cssT`.
 | `init` | action | 10 |
 | `init` | action | 10 |
 | `init` | action | 10 |
+| `template_redirect` | action | 10 |
+| `wp_enqueue_scripts` | action | 10 |
 | `trashed_post` | action | 10 |
 | `init` | action | 10 |
 | `rest_api_init` | action | 10 |
@@ -893,7 +895,7 @@ REST routes registered: `gogh/v1/starter`, `gogh/v1/type-scale`, `gogh/v1/active
 
 Core REST endpoints used by the editor: `wp/v2/blocks`, `wp/v2/posts`, `wp/v2/template-parts`.
 
-Capability checks in PHP: `edit_posts`, `manage_options`, `edit_theme_options`, `edit_post`, `edit_others_posts`, `unfiltered_html`, `upload_files`, `publish_pages`.
+Capability checks in PHP: `edit_posts`, `edit_post`, `manage_options`, `edit_theme_options`, `edit_others_posts`, `unfiltered_html`, `upload_files`, `publish_pages`.
 
 Query-string switches: `?gogh-edit`, `?gogh-ps`, `?gogh-test`.
 
@@ -911,6 +913,7 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "+ Link"
 - "+ Page"
 - "A card — drop elements inside and they stay together, even on mobile"
+- "A clean canvas and space to think"
 - "Add a page to this menu"
 - "Add an element to this section"
 - "Add link"
@@ -1021,6 +1024,7 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "↕ Spacing…"
 - "▶ Auto-play"
 - "⛶ Click to enlarge"
+- "✍ Write a post"
 - "✏️ Edit with gogh"
 - "✨ Make freeform"
 - "✨ Make it freeform"

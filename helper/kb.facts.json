@@ -1,12 +1,12 @@
 {
   "meta": {
-    "plugin_version": "0.99.88",
+    "plugin_version": "0.99.89",
     "requires_wp": "6.5",
     "requires_php": "7.4",
     "text_domain": "gogh-editor",
     "readme_stable_tag": "0.26.0",
     "readme_tested_up_to": "7.0",
-    "asset_version": "0.99.88-chrome"
+    "asset_version": "0.99.89-chrome"
   },
   "constants": {
     "TOL": 8,
@@ -381,6 +381,7 @@
     "+ Link",
     "+ Page",
     "A card — drop elements inside and they stay together, even on mobile",
+    "A clean canvas and space to think",
     "Add a page to this menu",
     "Add an element to this section",
     "Add link",
@@ -491,6 +492,7 @@
     "↕ Spacing…",
     "▶ Auto-play",
     "⛶ Click to enlarge",
+    "✍ Write a post",
     "✏️ Edit with gogh",
     "✨ Make freeform",
     "✨ Make it freeform"
@@ -590,6 +592,16 @@
       {
         "kind": "action",
         "hook": "init",
+        "priority": 10
+      },
+      {
+        "kind": "action",
+        "hook": "template_redirect",
+        "priority": 10
+      },
+      {
+        "kind": "action",
+        "hook": "wp_enqueue_scripts",
         "priority": 10
       },
       {
@@ -730,9 +742,9 @@
     ],
     "capabilities": [
       "edit_posts",
+      "edit_post",
       "manage_options",
       "edit_theme_options",
-      "edit_post",
       "edit_others_posts",
       "unfiltered_html",
       "upload_files",
@@ -740,6 +752,8 @@
     ],
     "query_switches": [
       "gogh-test",
+      "gogh-new-post",
+      "gogh-write",
       "id",
       "layout",
       "gogh-edit",
