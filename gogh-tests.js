@@ -2307,8 +2307,9 @@
         expect(lays.length === 2, 'expected 2 layout chips, got ' + lays.length);
         expect(lays[0].classList.contains('is-active'), 'current layout not marked active');
         var looks = G.headerLooks();
-        expect(panel.querySelectorAll('.gogh-hlooks .gogh-sw').length === looks.length,
-          'one swatch per look expected (' + looks.length + ')');
+        expect(panel.querySelectorAll('.gogh-hlooks .gogh-sw').length === looks.length + 1,
+          'one swatch per look plus the custom picker expected (' + looks.length + '+1)');
+        expect(panel.querySelector('.gogh-sw-pick input[type="color"]'), 'custom colour picker missing');
         expect(panel.querySelector('.gogh-hsticky'), 'sticky toggle missing');
         expect(panel.querySelector('.gogh-hfreeform'), 'freeform door missing');
         expect(panel.querySelector('.gogh-panel-close'), 'sticky panel must show its own door');
@@ -2408,6 +2409,18 @@
       expect(back.indexOf('backgroundColor') === -1 && back.indexOf('textColor') === -1, 'attrs not removed');
       expect(back.indexOf('has-background') === -1 && back.indexOf('has-text-color') === -1, 'classes not stripped');
       expect(back.indexOf('wp:site-title') !== -1, 'inner blocks lost in the round-trip');
+      // custom colour: hex8 through style.color.background + inline lockstep
+      var cust = G.chromeColorApply(raw, { custom: true, hex8: '#11223344', ink: 'base' });
+      expect(cust.indexOf('"background":"#11223344"') !== -1, 'custom hex8 attr missing');
+      expect(/background-color:#11223344/.test(cust), 'custom inline bg missing');
+      expect(cust.indexOf('has-background') !== -1 && cust.indexOf('"textColor":"base"') !== -1, 'custom classes/ink missing');
+      var back2 = G.chromeColorApply(cust, null);
+      expect(back2.indexOf('#11223344') === -1, 'custom colour not fully removed');
+      // sticky rides gogh's own marker (the WP attr alone has zero travel)
+      var stickyOn = G.stickyRawToggle(raw, true);
+      expect(/"type":"sticky"/.test(stickyOn) && /gogh-sticky/.test(stickyOn), 'sticky attr + marker class expected');
+      var stickyOff = G.stickyRawToggle(stickyOn, false);
+      expect(!/gogh-sticky/.test(stickyOff) && !/"type":"sticky"/.test(stickyOff), 'sticky must strip cleanly');
     });
 
     test('copy styles: the roller paints size, colour, align onto other text', function () {
@@ -2435,8 +2448,10 @@
         q('.gogh-eb-paint').click();
         document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
         expect(!document.body.classList.contains('gogh-painting'), 'Esc did not finish painting');
-        // undo returns the target's own look
+        // undo returns the target's own look — undo REBUILDS the model, so
+        // the section must be re-derived (a held reference goes stale)
         q('.gogh-undo').click();
+        psec = contentSecs()[contentSecs().length - 1];
         expect(psec.els[1].fs !== 'xx-large', 'undo did not restore the target');
         // card kids paint too: the hit resolves through the card box
         psec.els.push({ type: 'box', x: 40, y: 220, w: 300, h: 120, boxBg: 'base',
@@ -2454,6 +2469,7 @@
         if (document.body.classList.contains('gogh-painting')) {
           document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
         }
+        psec = contentSecs()[contentSecs().length - 1];
         G.deleteSection(G.sections().indexOf(psec));
       }
       return 'picked up, painted, stayed loaded, rested on click-off and Esc';

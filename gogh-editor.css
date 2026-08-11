@@ -444,6 +444,7 @@ body.gogh-help-open .gogh-toasts { right: 416px; }
 }
 .gogh-chromeveil:hover .gogh-chromeveil-pill { opacity: 1; transform: none; }
 /* awake chrome wears its editing ring — you can SEE what has focus */
+.gogh-chrome-anchor { position: relative; }
 .gogh-chrome-live {
   outline: 2px solid rgba(74, 99, 216, 0.85);
   outline-offset: -2px;
@@ -2525,6 +2526,9 @@ html.gogh-textediting .gogh-convertbtn {
 
 /* a swatch that would be unreadable on the current backdrop gets an honest
    strike — still clickable, never a gate */
+.gogh-sw-pick { position: relative; overflow: hidden; padding: 0; display: inline-block; cursor: pointer; background: conic-gradient(#e66465, #f6d365, #7bd389, #64a2f4, #b57edc, #e66465); }
+.gogh-sw-pick input[type="color"] { position: absolute; inset: -4px; opacity: 0; cursor: pointer; }
+.gogh-halpha-row { margin-top: 6px; }
 .gogh-sw-lowc { position: relative; opacity: 0.8; }
 .gogh-sw-lowc::after {
   content: '';

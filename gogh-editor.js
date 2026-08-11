@@ -2056,7 +2056,9 @@
       v.remove();
       wakeChrome(pe, area);
     });
-    if (getComputedStyle(pe).position === 'static') pe.style.position = 'relative';
+    // a CLASS, never an inline style: the transparent-header float rule
+    // (:has on the template part) must be able to win while editing
+    if (getComputedStyle(pe).position === 'static') pe.classList.add('gogh-chrome-anchor');
     pe.appendChild(v);
     chromeVeils.push(v);
   }
@@ -2905,6 +2907,9 @@
     measureTextHeights(sec);
     if (reflowPush(sec, e, oldH)) resolveAndApply(sec);
     placeHandles(sec, i);
+    // COMMIT convention: the pre-push above only dedups a stale stack —
+    // the paint itself must be pushed or undo skips past it entirely
+    pushState();
     return true;
   }
   paintBtn.addEventListener('click', function () {
@@ -2946,6 +2951,7 @@
         kid.tf = stylePaint.tf ? JSON.parse(JSON.stringify(stylePaint.tf)) : null;
         renderSection(hitSec);
         measureTextHeights(hitSec);
+        pushState();
       } else {
         endStylePaint();
       }
@@ -10329,8 +10335,7 @@
       '<button type="button" class="gogh-sbtn gogh-panel-close" title="Close">\u2715</button></div>' +
       '<div class="gogh-panel-hint">Drag \u2014 the ' + area + ' follows live</div>' +
       dial('Height', 'gogh-dial-pad', 4, 64, d0.pad) +
-      dial('Elements', 'gogh-dial-gap', 4, 48, d0.gap) +
-      (d0.hasNav ? dial('Links', 'gogh-dial-link', 8, 64, d0.linkGap) : '') +
+      (d0.hasNav ? dial('Menu items', 'gogh-dial-link', 8, 64, d0.linkGap) : '') +
       '<div class="gogh-panel-row gogh-chrome-foot">' +
       '<button type="button" class="gogh-btn gogh-btn-small gogh-dials-cancel">Cancel</button>' +
       '<button type="button" class="gogh-btn gogh-btn-save gogh-btn-small gogh-dials-apply" title="Updates every page" disabled>Apply</button>' +
@@ -10425,11 +10430,15 @@
           return '<button type="button" class="gogh-sw' + (l.bg ? '' : ' gogh-sw-none') + '" data-k="' + k + '"' +
             (l.bg ? ' style="background: var(--wp--preset--color--' + l.bg + ')"' : '') +
             ' title="' + escAttr(l.name) + '"></button>';
-        }).join('') + '</div>' : '') +
+        }).join('') +
+        '<label class="gogh-sw gogh-sw-pick" title="Custom colour"><input type="color" class="gogh-hcustom" value="#1c1c22"></label>' +
+        '</div>' +
+        '<div class="gogh-panel-row gogh-logosize gogh-halpha-row" hidden><span>See-through</span>' +
+        '<input type="range" class="gogh-halpha" min="10" max="100" step="5" value="100" />' +
+        '<span class="gogh-logosize-val gogh-halpha-val">100</span></div>' : '') +
       (d0 ? '<div class="gogh-swlab">Spacing</div>' +
         dial('Height', 'gogh-dial-pad', 4, 64, d0.pad) +
-        dial('Elements', 'gogh-dial-gap', 4, 48, d0.gap) +
-        (d0.hasNav ? dial('Links', 'gogh-dial-link', 8, 64, d0.linkGap) : '') : '') +
+        (d0.hasNav ? dial('Menu items', 'gogh-dial-link', 8, 64, d0.linkGap) : '') : '') +
       '<div class="gogh-panel-row gogh-chrome-rows">' +
       '<button type="button" class="gogh-btn gogh-btn-small gogh-hsticky' + (st.sticky ? ' is-active' : '') + '">\ud83d\udccc ' + (st.sticky ? 'Sticky \u2014 on' : 'Stick to the top') + '</button>' +
       '<button type="button" class="gogh-btn gogh-btn-small gogh-hfreeform">\u2728 Make it freeform</button>' +
@@ -10452,6 +10461,8 @@
       chromeDialsRevert(partEl);
       chromeColorRevert(partEl);
       endChromePreview();
+      var mg = chromeMountedGroup(partEl);
+      if (mg) mg.classList.toggle('gogh-sticky', st.sticky0);
     };
     // after a layout preview mounts, the paint targets are NEW nodes — the
     // chosen dials and look must follow the audition onto them
@@ -10504,6 +10515,38 @@
         arm();
       });
     });
+    // CUSTOM look: any colour, any transparency ("probs need a custom
+    // color option") — hex8 through WP's own style.color.background
+    var customIn = panel.querySelector('.gogh-hcustom');
+    var alphaRow = panel.querySelector('.gogh-halpha-row');
+    var alphaIn = panel.querySelector('.gogh-halpha');
+    var customLook = function () {
+      var hex = customIn.value;
+      var a = alphaIn ? +alphaIn.value : 100;
+      var hex8 = a >= 100 ? hex : hex + ('0' + Math.round(a / 100 * 255).toString(16)).slice(-2);
+      return { slug: '', name: 'Custom', custom: true, hex8: hex8, hex: hex, alpha: a,
+        ink: bestInkFor(hex) };
+    };
+    var pickCustom = function () {
+      st.look = customLook();
+      chromeColorPreview(partEl, st.look);
+      if (alphaRow) alphaRow.hidden = false;
+      panel.querySelectorAll('.gogh-hlooks .gogh-sw').forEach(function (o2) {
+        o2.classList.toggle('is-active', o2.classList.contains('gogh-sw-pick'));
+      });
+      arm();
+    };
+    if (customIn) {
+      customIn.addEventListener('input', pickCustom);
+      customIn.addEventListener('change', pickCustom);
+    }
+    if (alphaIn) {
+      alphaIn.addEventListener('input', function () {
+        var lab = panel.querySelector('.gogh-halpha-val');
+        if (lab) lab.textContent = alphaIn.value;
+        if (st.look && st.look.custom) pickCustom();
+      });
+    }
     // SPACING: live dials
     if (d0) {
       var readDials = function () {
@@ -10531,6 +10574,10 @@
       st.sticky = !st.sticky;
       stickyBtn.classList.toggle('is-active', st.sticky);
       stickyBtn.innerHTML = '\ud83d\udccc ' + (st.sticky ? 'Sticky \u2014 on' : 'Stick to the top');
+      // live audition: the marker class pins the header right now — scroll
+      // and SEE it stick before ever applying
+      var mg = chromeMountedGroup(partEl);
+      if (mg) mg.classList.toggle('gogh-sticky', st.sticky);
       arm();
     });
     panel.querySelector('.gogh-hfreeform').addEventListener('click', function () {
@@ -10829,8 +10876,24 @@
       delete attrs.style.position;
       if (!Object.keys(attrs.style).length) delete attrs.style;
     }
+    // gogh's own marker rides along: WP's attr sits on the INNER group,
+    // whose parent (the header element) is exactly as tall — zero travel,
+    // it can never stick. The marker lets base CSS pin the header ITSELF,
+    // on any theme, with or without theme.json position support.
+    var cls = String(attrs.className || '').split(/\s+/).filter(function (c2) {
+      return c2 && c2 !== 'gogh-sticky';
+    });
+    if (on) cls.push('gogh-sticky');
+    if (cls.length) attrs.className = cls.join(' ');
+    else delete attrs.className;
     var head = Object.keys(attrs).length ? '<!-- wp:group ' + JSON.stringify(attrs) + ' -->' : '<!-- wp:group -->';
-    return raw.slice(0, sp.start) + head + seg.slice(m[0].length) + raw.slice(sp.end);
+    var body = seg.slice(m[0].length);
+    body = body.replace(/(<div[^>]*?class=")([^"]*)"/, function (m0, pre, dc) {
+      var dcl = dc.split(/\s+/).filter(function (c2) { return c2 && c2 !== 'gogh-sticky'; });
+      if (on) dcl.push('gogh-sticky');
+      return pre + dcl.join(' ') + '"';
+    });
+    return raw.slice(0, sp.start) + head + body + raw.slice(sp.end);
   }
   // ---------- header designer: three dials, native attrs ----------
   // Squarespace's header designer distilled to the dials that matter:
@@ -10897,12 +10960,28 @@
     var g = chromeOuterGroup(raw);
     if (!g) return null;
     var attrs = g.attrs;
-    if (look && look.bg) {
+    var dropCustomBg = function () {
+      if (attrs.style && attrs.style.color) {
+        delete attrs.style.color.background;
+        if (!Object.keys(attrs.style.color).length) delete attrs.style.color;
+        if (!Object.keys(attrs.style).length) delete attrs.style;
+      }
+    };
+    if (look && look.custom) {
+      // any colour, any alpha: WP's own style.color.background takes hex8
+      delete attrs.backgroundColor;
+      attrs.textColor = look.ink;
+      attrs.style = attrs.style || {};
+      attrs.style.color = attrs.style.color || {};
+      attrs.style.color.background = look.hex8;
+    } else if (look && look.bg) {
       attrs.backgroundColor = look.bg;
       attrs.textColor = look.ink;
+      dropCustomBg();
     } else {
       delete attrs.backgroundColor;
       delete attrs.textColor;
+      dropCustomBg();
     }
     var head = Object.keys(attrs).length ? '<!-- wp:group ' + JSON.stringify(attrs) + ' -->' : '<!-- wp:group -->';
     var body = g.seg.slice(g.head.length);
@@ -10911,11 +10990,22 @@
         return !/^has-[a-z0-9-]+-background-color$/.test(c2) && c2 !== 'has-background' &&
           !/^has-[a-z0-9-]+-color$/.test(c2) && c2 !== 'has-text-color';
       });
-      if (look && look.bg) {
+      if (look && look.custom) {
+        cleaned.push('has-background', 'has-' + look.ink + '-color', 'has-text-color');
+      } else if (look && look.bg) {
         cleaned.push('has-' + look.bg + '-background-color', 'has-background',
           'has-' + look.ink + '-color', 'has-text-color');
       }
       return pre + cleaned.join(' ') + '"';
+    });
+    // custom colours are not classes: the saved markup carries the inline
+    // background in lockstep with the attr (like the dials carry padding)
+    body = body.replace(/(<div[^>]*?)(\sstyle="([^"]*)")?>/, function (m0, pre, styAttr, sty) {
+      var decls = (sty || '').split(';').map(function (x) { return x.trim(); })
+        .filter(function (x) { return x && !/^background-color\s*:/.test(x); });
+      if (look && look.custom) decls.push('background-color:' + look.hex8);
+      if (!decls.length) return pre + '>';
+      return pre + ' style="' + decls.join(';') + '">';
     });
     return raw.slice(0, g.sp.start) + head + body + raw.slice(g.sp.end);
   }
@@ -10938,7 +11028,10 @@
     if (!partEl.__goghLookOrig) {
       partEl.__goghLookOrig = [grp, grp.getAttribute('style')];
     }
-    if (look && look.bg) {
+    if (look && look.custom) {
+      grp.style.backgroundColor = look.hex8;
+      grp.style.color = 'var(--wp--preset--color--' + look.ink + ')';
+    } else if (look && look.bg) {
       grp.style.backgroundColor = 'var(--wp--preset--color--' + look.bg + ')';
       grp.style.color = 'var(--wp--preset--color--' + look.ink + ')';
     } else {
