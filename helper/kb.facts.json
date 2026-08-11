@@ -1,12 +1,12 @@
 {
   "meta": {
-    "plugin_version": "0.99.82",
+    "plugin_version": "0.99.83",
     "requires_wp": "6.5",
     "requires_php": "7.4",
     "text_domain": "gogh-editor",
     "readme_stable_tag": "0.26.0",
     "readme_tested_up_to": "7.0",
-    "asset_version": "0.99.82-chrome"
+    "asset_version": "0.99.83-chrome"
   },
   "constants": {
     "TOL": 8,
@@ -131,6 +131,12 @@
       "starter": true,
       "retired": false,
       "minH": 460
+    },
+    {
+      "name": "Photo wall",
+      "starter": true,
+      "retired": false,
+      "minH": 640
     },
     {
       "name": "Carousel",
@@ -406,6 +412,8 @@
     "Make it freeform",
     "Manage this menu — reorder, nest, swap menus",
     "Move down",
+    "Move earlier",
+    "Move later",
     "Move left",
     "Move right",
     "Move up",
@@ -429,6 +437,7 @@
     "Remove image",
     "Remove link (keep the text)",
     "Remove this ' + labels.one + '",
+    "Remove this photo",
     "Remove this slide",
     "Right",
     "Save",
@@ -758,5 +767,5 @@
     "has_deprecation": true,
     "block_title": "gogh Section"
   },
-  "test_count": 139
+  "test_count": 140
 }

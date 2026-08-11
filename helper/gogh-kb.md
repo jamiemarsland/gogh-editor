@@ -15,7 +15,7 @@ about something where they conflict, rather than picking one silently. Quote UI
 labels and message copy from the appendix, verbatim — those are the current
 strings, and a paraphrased button label is the fastest way to lose a user's trust.
 
-Generated for plugin version 0.99.82 · knowledge base d4bb4e6.
+Generated for plugin version 0.99.83 · knowledge base ed60770.
 
 ---
 
@@ -783,11 +783,11 @@ Everything in this section is extracted mechanically from the Gogh source on eve
 
 ## Current release
 
-- Plugin version: **0.99.82**
+- Plugin version: **0.99.83**
 - Requires WordPress **6.5+**, PHP **7.4+**
 - Text domain: `gogh-editor`
 - readme.txt Stable tag: `0.26.0` · Tested up to: `7.0`
-- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.82`). Quote the plugin header version.
+- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.83`). Quote the plugin header version.
 
 ## Design constants
 
@@ -815,7 +815,7 @@ Everything in this section is extracted mechanically from the Gogh source on eve
 
 ## Section templates
 
-Shown in the picker: **Hero**, **Cover**, **Big statement**, **Story**, **Numbers**, **Article**, **Feature cards**, **Pricing**, **Quote**, **Call to action**, **Get in touch**, **Carousel**, **FAQ**, **Tabs**, **Gallery**, **Photo cards**, **Portfolio**, **Menu**, **Team**.
+Shown in the picker: **Hero**, **Cover**, **Big statement**, **Story**, **Numbers**, **Article**, **Feature cards**, **Pricing**, **Quote**, **Call to action**, **Get in touch**, **Photo wall**, **Carousel**, **FAQ**, **Tabs**, **Gallery**, **Photo cards**, **Portfolio**, **Menu**, **Team**.
 
 Non-starter (surfaced elsewhere): **Start from scratch**.
 
@@ -958,6 +958,8 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "Make it freeform"
 - "Manage this menu — reorder, nest, swap menus"
 - "Move down"
+- "Move earlier"
+- "Move later"
 - "Move left"
 - "Move right"
 - "Move up"
@@ -981,6 +983,7 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "Remove image"
 - "Remove link (keep the text)"
 - "Remove this ' + labels.one + '"
+- "Remove this photo"
 - "Remove this slide"
 - "Right"
 - "Save"
@@ -1098,4 +1101,4 @@ These are the real strings in the current build. Use them verbatim; never paraph
 
 ## Test suite
 
-`139` tests, run by appending `?gogh-test` to any Gogh page URL while logged in with edit rights on that page.
+`140` tests, run by appending `?gogh-test` to any Gogh page URL while logged in with edit rights on that page.

@@ -1,4 +1,4 @@
-# Knowledge-base audit — plugin v0.99.82
+# Knowledge-base audit — plugin v0.99.83
 
 _13 finding(s) suppressed by `kb.audit-ignore.txt`._
 
@@ -6,9 +6,9 @@ _13 finding(s) suppressed by `kb.audit-ignore.txt`._
 
 The prose states something the source contradicts. Fix these first — the bot will contradict itself, since the appendix carries the correct value.
 
-- plugin version is **0.99.82**, prose says **0.96.5**
+- plugin version is **0.99.83**, prose says **0.96.5**
 
-## MISSING (16)
+## MISSING (17)
 
 The source has something the prose never explains. The bot knows the name from the appendix but cannot say what it is for.
 
@@ -24,6 +24,7 @@ The source has something the prose never explains. The bot knows the name from t
 - template `Story` exists in source but is never mentioned in the prose
 - template `Numbers` exists in source but is never mentioned in the prose
 - template `Pricing` exists in source but is never mentioned in the prose
+- template `Photo wall` exists in source but is never mentioned in the prose
 - template `Carousel` exists in source but is never mentioned in the prose
 - template `FAQ` exists in source but is never mentioned in the prose
 - template `Tabs` exists in source but is never mentioned in the prose
@@ -33,4 +34,8 @@ The source has something the prose never explains. The bot knows the name from t
 
 Use this as the checklist for updating the prose — and as a sanity check on the release itself.
 
-- version: 0.99.81 → 0.99.82
+- version: 0.99.82 → 0.99.83
+- added template: "Photo wall"
+- added UI label: "Move earlier"
+- added UI label: "Move later"
+- added UI label: "Remove this photo"
