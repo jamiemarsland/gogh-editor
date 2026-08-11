@@ -19,10 +19,12 @@
   // ---------- the surface ----------
   if (title) {
     title.contentEditable = 'plaintext-only';
+    title.spellcheck = false;
     title.classList.add('gogh-w-title');
     if (!title.textContent.trim()) title.textContent = '';
   }
   body.contentEditable = 'true';
+  body.spellcheck = false; // red squiggles are not space to think
   body.classList.add('gogh-w-body');
   try { document.execCommand('defaultParagraphSeparator', false, 'p'); } catch (e) {}
   if (!body.textContent.trim() && !body.querySelector('img')) {

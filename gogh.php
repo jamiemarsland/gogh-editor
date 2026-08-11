@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Gogh Editor
  * Description: A freeform canvas for WordPress — drag anything anywhere on your live page; Gogh publishes it back as clean, responsive core blocks that keep working even if the plugin is deactivated.
- * Version: 0.99.90
+ * Version: 0.99.91
  * Author: Jamie Marsland
  * Author URI: https://pootlepress.com
  * License: GPLv2 or later
@@ -23,7 +23,7 @@ add_action( 'init', function () {
 		'gogh-block',
 		plugins_url( 'gogh-block.js', __FILE__ ),
 		array( 'wp-blocks', 'wp-element', 'wp-block-editor' ),
-		'0.99.90-chrome',
+		'0.99.91-chrome',
 		true
 	);
 	register_block_type( 'gogh/section', array(
@@ -266,6 +266,25 @@ add_action( 'init', function () {
 	}
 } );
 
+// ✍ Write in the top toolbar — but only when the site actually HAS a
+// blog (a posts page in Reading settings, or a front page of posts):
+// a button to write posts on a site with nowhere to show them is noise
+add_action( 'admin_bar_menu', function ( $bar ) {
+	if ( ! current_user_can( 'edit_posts' ) ) {
+		return;
+	}
+	$has_blog = 'posts' === get_option( 'show_on_front' ) || (int) get_option( 'page_for_posts' ) > 0;
+	if ( ! $has_blog ) {
+		return;
+	}
+	$bar->add_node( array(
+		'id'    => 'gogh-write',
+		'title' => "\u{270D} Write",
+		'href'  => add_query_arg( 'gogh-new-post', '1', home_url( '/' ) ),
+		'meta'  => array( 'title' => 'A clean canvas and space to think' ),
+	) );
+}, 35 );
+
 // gogh write: a clean canvas and space to think. ?gogh-new-post creates
 // a draft and lands the writer straight on the front-end surface;
 // ?gogh-write=1 on any editable post enables the mode.
@@ -294,8 +313,8 @@ add_action( 'wp_enqueue_scripts', function () {
 	if ( ! $post || ! current_user_can( 'edit_post', $post->ID ) ) {
 		return;
 	}
-	wp_enqueue_script( 'gogh-write', plugins_url( 'gogh-write.js', __FILE__ ), array(), '0.99.90-chrome', true );
-	wp_enqueue_style( 'gogh-write', plugins_url( 'gogh-write.css', __FILE__ ), array(), '0.99.90-chrome' );
+	wp_enqueue_script( 'gogh-write', plugins_url( 'gogh-write.js', __FILE__ ), array(), '0.99.91-chrome', true );
+	wp_enqueue_style( 'gogh-write', plugins_url( 'gogh-write.css', __FILE__ ), array(), '0.99.91-chrome' );
 	wp_localize_script( 'gogh-write', 'GOGHWRITE', array(
 		'postId'  => $post->ID,
 		'restUrl' => esc_url_raw( rest_url() ),
@@ -944,8 +963,8 @@ add_action( 'wp_enqueue_scripts', function () {
 
 	// for every visitor: neutralise theme spacing around gogh sections, even
 	// on pages whose stored stylesheets predate this rule
-	wp_register_style( 'gogh-base', false, array(), '0.99.90-chrome' );
-	wp_register_script( 'gogh-view', false, array(), '0.99.90-chrome', true );
+	wp_register_style( 'gogh-base', false, array(), '0.99.91-chrome' );
+	wp_register_script( 'gogh-view', false, array(), '0.99.91-chrome', true );
 	wp_enqueue_script( 'gogh-view' );
 	wp_add_inline_script( 'gogh-view',
 		// carousel arrows + autoplay are VIEW-TIME: never stored, so saved
@@ -1118,8 +1137,15 @@ add_action( 'wp_enqueue_scripts', function () {
 		return;
 	}
 
-	wp_enqueue_script( 'gogh-editor', plugins_url( 'gogh-editor.js', __FILE__ ), array(), '0.99.90-chrome', true );
-	wp_enqueue_style( 'gogh-editor', plugins_url( 'gogh-editor.css', __FILE__ ), array(), '0.99.90-chrome' );
+	// write mode owns the room: the canvas editor stays out ("lots of
+	// distractions here?" — the ＋Section pill and convert buttons were
+	// gate-crashing the clean canvas)
+	if ( isset( $_GET['gogh-write'] ) ) {
+		return;
+	}
+
+	wp_enqueue_script( 'gogh-editor', plugins_url( 'gogh-editor.js', __FILE__ ), array(), '0.99.91-chrome', true );
+	wp_enqueue_style( 'gogh-editor', plugins_url( 'gogh-editor.css', __FILE__ ), array(), '0.99.91-chrome' );
 
 	// WebMCP bridge: the page registers its editing verbs as agent tools.
 	// OPT-IN only — add ?gogh-mcp=1 for a demo session (or enable sitewide
@@ -1131,13 +1157,13 @@ add_action( 'wp_enqueue_scripts', function () {
 	// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only labs toggle
 	$gogh_exp = isset( $_GET['gogh-test'] ) || ( isset( $_GET['gogh-experiments'] ) && '0' !== $_GET['gogh-experiments'] );
 	if ( isset( $_GET['gogh-mcp'] ) || $gogh_exp || apply_filters( 'gogh_webmcp_enabled', false ) ) {
-		wp_enqueue_script( 'gogh-webmcp', plugins_url( 'gogh-webmcp.js', __FILE__ ), array( 'gogh-editor' ), '0.99.90-chrome', true );
+		wp_enqueue_script( 'gogh-webmcp', plugins_url( 'gogh-webmcp.js', __FILE__ ), array( 'gogh-editor' ), '0.99.91-chrome', true );
 	}
 
 	// regression suite: /page/?gogh-test (editors only, never saves)
 	// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only toggle enqueuing a test script for capability-checked editors.
 	if ( isset( $_GET['gogh-test'] ) ) {
-		wp_enqueue_script( 'gogh-tests', plugins_url( 'gogh-tests.js', __FILE__ ), array( 'gogh-editor' ), '0.99.90-chrome', true );
+		wp_enqueue_script( 'gogh-tests', plugins_url( 'gogh-tests.js', __FILE__ ), array( 'gogh-editor' ), '0.99.91-chrome', true );
 	}
 
 	// products live outside wp/v2, so gogh carries its own save route for
@@ -1268,7 +1294,7 @@ add_action( 'enqueue_block_assets', function () {
 	if ( ! is_admin() ) {
 		return;
 	}
-	wp_register_style( 'gogh-editor-base', false, array(), '0.99.90-chrome' );
+	wp_register_style( 'gogh-editor-base', false, array(), '0.99.91-chrome' );
 	wp_enqueue_style( 'gogh-editor-base' );
 	wp_add_inline_style( 'gogh-editor-base',
 		'.gogh-wrap { min-width: 100%; margin-block: 0 !important; }' .
