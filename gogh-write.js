@@ -498,6 +498,29 @@
   // writing happens in the middle of the screen, not at its bottom edge:
   // whenever the caret sinks past the comfort line, the page steps down.
   // Instant, small steps — the classic typewriter snap, no easing queasiness.
+  // the step GLIDES: 420ms ease-out, cancelled the moment the writer
+  // scrolls for themselves, instant under reduced-motion ("can we make
+  // it beautifully smooth")
+  var glideT = null;
+  var glideBy = function (delta) {
+    if (matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      window.scrollBy(0, delta);
+      return;
+    }
+    clearInterval(glideT);
+    var start = window.scrollY;
+    var t0 = Date.now();
+    var D = 420;
+    var ease = function (t) { return 1 - Math.pow(1 - t, 4); };
+    var cancel = function () { clearInterval(glideT); };
+    window.addEventListener('wheel', cancel, { once: true, passive: true });
+    window.addEventListener('touchstart', cancel, { once: true, passive: true });
+    glideT = setInterval(function () {
+      var t = Math.min(1, (Date.now() - t0) / D);
+      window.scrollTo(0, start + delta * ease(t));
+      if (t >= 1) clearInterval(glideT);
+    }, 16);
+  };
   var followT = null;
   var caretFollow = function () {
     var sel = getSelection();
@@ -514,9 +537,7 @@
     // line break ("the text reshuffles - its a bit unsettling")
     var threshold = window.innerHeight * 0.86;
     var comfort = window.innerHeight * 0.62;
-    if (rect.bottom > threshold) {
-      window.scrollBy({ top: rect.bottom - comfort, behavior: 'auto' });
-    }
+    if (rect.bottom > threshold) glideBy(rect.bottom - comfort);
   };
   body.addEventListener('input', function () {
     clearTimeout(followT);
