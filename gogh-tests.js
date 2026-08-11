@@ -1222,18 +1222,19 @@
         '<!-- /wp:group -->';
       var d0 = G.chromeDialsRead(raw);
       expect(d0 && d0.pad === 20 && d0.hasNav, 'read failed: ' + JSON.stringify(d0));
-      var out = G.chromeDialsApply(raw, { pad: 32, gap: 24, linkGap: 40 });
+      var out = G.chromeDialsApply(raw, { pad: 32, gap: 24, linkGap: 40, fsz: 18 });
       expect(out, 'apply returned nothing');
       // attrs and saved markup must stay in lockstep — WP validates both
       expect(/"top":"32px"/.test(out) && /"bottom":"32px"/.test(out), 'padding attrs not written');
       expect(/"blockGap":"24px"/.test(out), 'group blockGap not written');
       expect(/padding-top:32px/.test(out) && /padding-bottom:32px/.test(out), 'inline style not in lockstep');
+      expect(/"fontSize":"18px"/.test(out) && /font-size:18px/.test(out), 'text size must write attr + inline in lockstep');
       expect(/padding-right:2rem/.test(out) && /padding-left:2rem/.test(out), 'side padding must survive');
       expect(/wp:navigation {[^}]*"spacing":{"blockGap":"40px"}/.test(out.replace(/\s+/g, ' ')) || /"blockGap":"40px"/.test(out.split('wp:navigation')[1]), 'nav link gap not written');
       var d1 = G.chromeDialsRead(out);
-      expect(d1.pad === 32 && d1.gap === 24 && d1.linkGap === 40, 'round-trip drifted: ' + JSON.stringify(d1));
+      expect(d1.pad === 32 && d1.gap === 24 && d1.linkGap === 40 && d1.fsz === 18, 'round-trip drifted: ' + JSON.stringify(d1));
       // idempotent: applying the same dials twice changes nothing
-      expect(G.chromeDialsApply(out, { pad: 32, gap: 24, linkGap: 40 }) === out, 'second apply must be a no-op');
+      expect(G.chromeDialsApply(out, { pad: 32, gap: 24, linkGap: 40, fsz: 18 }) === out, 'second apply must be a no-op');
       // a non-group raw refuses politely, nothing exploded
       expect(G.chromeDialsApply('<!-- wp:paragraph --><p>hi</p><!-- /wp:paragraph -->', { pad: 8, gap: 8, linkGap: 8 }) === null, 'non-group should return null');
       return 'attrs + markup in lockstep, round-trip exact, no-op stable';

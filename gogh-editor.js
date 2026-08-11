@@ -10715,7 +10715,8 @@
         '<span class="gogh-logosize-val gogh-halpha-val">100</span></div>' : '') +
       (d0 ? '<div class="gogh-swlab">Spacing</div>' +
         dial('Height', 'gogh-dial-pad', 4, 64, d0.pad) +
-        (d0.hasNav ? dial('Menu items', 'gogh-dial-link', 8, 64, d0.linkGap) : '') : '') +
+        (d0.hasNav ? dial('Menu items', 'gogh-dial-link', 8, 64, d0.linkGap) : '') +
+        dial('Text size', 'gogh-dial-fsz', 12, 30, d0.fsz) : '') +
       '<div class="gogh-panel-row gogh-chrome-rows">' +
       '<button type="button" class="gogh-btn gogh-btn-small gogh-hsticky' + (st.sticky ? ' is-active' : '') + '">\ud83d\udccc ' + (st.sticky ? 'Sticky \u2014 on' : 'Stick to the top') + '</button>' +
       '<button type="button" class="gogh-btn gogh-btn-small gogh-hfreeform">\u2728 Make it freeform</button>' +
@@ -10850,9 +10851,9 @@
           var inp = panel.querySelector('.' + cls);
           return inp ? +inp.value : fb;
         };
-        return { pad: v2('gogh-dial-pad', d0.pad), gap: v2('gogh-dial-gap', d0.gap), linkGap: v2('gogh-dial-link', d0.linkGap) };
+        return { pad: v2('gogh-dial-pad', d0.pad), gap: v2('gogh-dial-gap', d0.gap), linkGap: v2('gogh-dial-link', d0.linkGap), fsz: v2('gogh-dial-fsz', d0.fsz) };
       };
-      ['gogh-dial-pad', 'gogh-dial-gap', 'gogh-dial-link'].forEach(function (cls) {
+      ['gogh-dial-pad', 'gogh-dial-gap', 'gogh-dial-link', 'gogh-dial-fsz'].forEach(function (cls) {
         var inp = panel.querySelector('.' + cls);
         if (!inp) return;
         inp.addEventListener('input', function () {
@@ -11226,10 +11227,12 @@
         navGap = na.style && na.style.spacing && na.style.spacing.blockGap;
       } catch (err) {}
     }
+    var typo = sty.typography || {};
     return {
       pad: chromeLenPx(padTop) != null ? chromeLenPx(padTop) : 20,
       gap: chromeLenPx(spc.blockGap) != null ? chromeLenPx(spc.blockGap) : 18,
       linkGap: chromeLenPx(navGap) != null ? chromeLenPx(navGap) : 24,
+      fsz: chromeLenPx(typo.fontSize) != null ? chromeLenPx(typo.fontSize) : 16,
       hasNav: !!navM,
     };
   }
@@ -11353,6 +11356,10 @@
     pad.bottom = d.pad + 'px';
     attrs.style.spacing.padding = pad;
     attrs.style.spacing.blockGap = d.gap + 'px';
+    if (d.fsz) {
+      attrs.style.typography = attrs.style.typography || {};
+      attrs.style.typography.fontSize = d.fsz + 'px';
+    }
     var head = '<!-- wp:group ' + JSON.stringify(attrs) + ' -->';
     var body = g.seg.slice(g.head.length);
     // the saved markup carries padding as an inline style — keep it in
@@ -11360,8 +11367,10 @@
     body = body.replace(/(<div[^>]*?)(\sstyle="([^"]*)")?>/, function (m0, pre, styAttr, sty) {
       var decls = (sty || '').split(';').map(function (x) { return x.trim(); })
         .filter(function (x) { return x && !/^padding-(top|bottom)\s*:/.test(x); });
+      decls = decls.filter(function (x) { return !/^font-size\s*:/.test(x); });
       decls.push('padding-top:' + d.pad + 'px');
       decls.push('padding-bottom:' + d.pad + 'px');
+      if (d.fsz) decls.push('font-size:' + d.fsz + 'px');
       return pre + ' style="' + decls.join(';') + '">';
     });
     var out = raw.slice(0, g.sp.start) + head + body + raw.slice(g.sp.end);
@@ -11391,6 +11400,7 @@
       grp.style.paddingTop = d.pad + 'px';
       grp.style.paddingBottom = d.pad + 'px';
       grp.style.gap = d.gap + 'px';
+      if (d.fsz) grp.style.fontSize = d.fsz + 'px';
     }
     var navRoot = partEl.querySelector('.gogh-chrome-preview') || partEl;
     [].forEach.call(navRoot.querySelectorAll('.wp-block-navigation__container, .wp-block-navigation ul'), function (ul) {
