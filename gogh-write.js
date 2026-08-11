@@ -496,11 +496,18 @@
   // place, never popping in or out ("keeps popping up when i dont want
   // it" + "not sure how to make it pop up" = the summoning model was
   // wrong both ways). Hovering it opens the full chip; that is all.
-  countEl.textContent = '0 words';
+  // the quiet label names the document's STATE — "Draft · 12 words"
+  // says both "your work is safe" and "publishing lives here"
+  var statusWord = cfg.status === 'publish' ? 'Published' : 'Draft';
+  var quietLabel = function () {
+    var n = words();
+    countEl.textContent = statusWord + ' · ' + n + (n === 1 ? ' word' : ' words');
+  };
+  quietLabel();
   var countT = null;
   body.addEventListener('input', function () {
     clearTimeout(countT);
-    countT = setTimeout(function () { countEl.textContent = words() + ' words'; }, 300);
+    countT = setTimeout(quietLabel, 300);
   });
 
   var saveT = null, inflight = null;
@@ -544,6 +551,8 @@
       if (post && post.link) {
         b.textContent = 'Published ↗';
         b.disabled = false;
+        statusWord = 'Published';
+        quietLabel();
         b.onclick = function () { location.href = post.link; };
       } else {
         b.textContent = 'Publish';
