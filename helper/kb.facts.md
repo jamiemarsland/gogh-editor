@@ -4,11 +4,11 @@ Everything in this section is extracted mechanically from the Gogh source on eve
 
 ## Current release
 
-- Plugin version: **0.99.74**
+- Plugin version: **0.99.75**
 - Requires WordPress **6.5+**, PHP **7.4+**
 - Text domain: `gogh-editor`
 - readme.txt Stable tag: `0.26.0` · Tested up to: `7.0`
-- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.74`). Quote the plugin header version.
+- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.75`). Quote the plugin header version.
 
 ## Design constants
 
@@ -36,7 +36,7 @@ Everything in this section is extracted mechanically from the Gogh source on eve
 
 ## Section templates
 
-Shown in the picker: **Hero**, **Cover**, **Big statement**, **Story**, **Numbers**, **Article**, **Feature cards**, **Pricing**, **Quote**, **Call to action**, **Get in touch**, **FAQ**, **Tabs**, **Gallery**, **Photo cards**, **Portfolio**, **Menu**, **Team**.
+Shown in the picker: **Hero**, **Cover**, **Big statement**, **Story**, **Numbers**, **Article**, **Feature cards**, **Pricing**, **Quote**, **Call to action**, **Get in touch**, **Carousel**, **FAQ**, **Tabs**, **Gallery**, **Photo cards**, **Portfolio**, **Menu**, **Team**.
 
 Non-starter (surfaced elsewhere): **Start from scratch**.
 
@@ -179,6 +179,8 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "Make it freeform"
 - "Manage this menu — reorder, nest, swap menus"
 - "Move down"
+- "Move left"
+- "Move right"
 - "Move up"
 - "None"
 - "One product, hero-sized — a card with a real add-to-cart button"
@@ -200,6 +202,7 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "Remove image"
 - "Remove link (keep the text)"
 - "Remove this ' + labels.one + '"
+- "Remove this slide"
 - "Right"
 - "Save"
 - "Save brand"
@@ -314,5 +317,5 @@ These are the real strings in the current build. Use them verbatim; never paraph
 
 ## Test suite
 
-`137` tests, run by appending `?gogh-test` to any Gogh page URL while logged in with edit rights on that page.
+`138` tests, run by appending `?gogh-test` to any Gogh page URL while logged in with edit rights on that page.
 
