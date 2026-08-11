@@ -351,3 +351,15 @@ body.gogh-writing ::selection {
   font-size: 12.5px;
 }
 .gogh-w-alt::placeholder { color: rgba(255, 255, 255, 0.45); }
+
+.gogh-w-draft {
+  all: unset;
+  cursor: pointer;
+  color: rgba(255, 255, 255, 0.75);
+  font-size: 12px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+.gogh-w-draft:hover { color: #fff; border-color: rgba(255, 255, 255, 0.45); }
+.gogh-w-chip:not(:hover):not(:focus-within):not(.is-filing) .gogh-w-draft { display: none; }

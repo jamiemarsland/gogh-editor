@@ -483,7 +483,8 @@
   var chip = document.createElement('div');
   chip.className = 'gogh-w-chip';
   chip.innerHTML = '<span class="gogh-w-count"></span><span class="gogh-w-saved"></span>' +
-    '<button type="button" class="gogh-w-catsbtn">File under</button>' +
+    '<button type="button" class="gogh-w-draft">Save draft</button>' +
+    '<button type="button" class="gogh-w-catsbtn">Categories & tags</button>' +
     '<button type="button" class="gogh-w-publish">Publish</button>';
   document.body.appendChild(chip);
   var countEl = chip.querySelector('.gogh-w-count');
@@ -502,11 +503,12 @@
     countT = setTimeout(function () { countEl.textContent = words() + ' words'; }, 300);
   });
 
-  var saveT = null, saving = false, dirty = false;
+  var saveT = null, inflight = null;
   var save = function (statusTo) {
-    if (saving) { dirty = true; return Promise.resolve(); }
-    saving = true;
-    return fetch(cfg.restUrl + 'wp/v2/posts/' + cfg.postId, {
+    // saves SERIALIZE: a publish clicked mid-autosave waits its turn —
+    // the old queue dropped the status and Publish "did nothing"
+    if (inflight) return inflight.then(function () { return save(statusTo); });
+    inflight = fetch(cfg.restUrl + 'wp/v2/posts/' + cfg.postId, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'X-WP-Nonce': cfg.nonce },
       credentials: 'same-origin',
@@ -515,14 +517,14 @@
         content: serialize(),
       }, statusTo ? { status: statusTo } : {}, chosenCats.length ? { categories: chosenCats } : {}, chosenTags.length ? { tags: chosenTags } : {})),
     }).then(function (r) {
-      saving = false;
+      inflight = null;
       if (r.ok) {
         savedEl.textContent = 'saved';
         setTimeout(function () { savedEl.textContent = ''; }, 1600);
       }
-      if (dirty) { dirty = false; return save(); }
       return r.ok ? r.json() : null;
-    }).catch(function () { saving = false; });
+    }).catch(function () { inflight = null; });
+    return inflight;
   };
   var queueSave = function () {
     clearTimeout(saveT);
@@ -533,6 +535,7 @@
 
   var chosenCats = [];
   var chosenTags = [];
+  var chosenNames = [];
   var doPublish = function (b) {
     b.disabled = true;
     b.textContent = 'Publishing…';
@@ -551,17 +554,34 @@
   chip.querySelector('.gogh-w-publish').addEventListener('click', function () {
     doPublish(chip.querySelector('.gogh-w-publish'));
   });
+  chip.querySelector('.gogh-w-draft').addEventListener('click', function () {
+    var d = chip.querySelector('.gogh-w-draft');
+    d.textContent = 'Saving\u2026';
+    clearTimeout(saveT);
+    save().then(function () {
+      d.textContent = 'Saved \u2713';
+      setTimeout(function () { d.textContent = 'Save draft'; }, 1400);
+    });
+  });
   var catsBtn = chip.querySelector('.gogh-w-catsbtn');
   var catsLabel = function () {
-    var n = chosenCats.length + chosenTags.length;
-    catsBtn.textContent = 'File under' + (n ? ' \u00b7 ' + n : '');
+    // the button says WHAT IT HOLDS — a count needed a translator
+    if (!chosenNames.length) { catsBtn.textContent = 'Categories & tags'; return; }
+    catsBtn.textContent = chosenNames.slice(0, 2).join(', ') + (chosenNames.length > 2 ? ' +' + (chosenNames.length - 2) : '');
   };
+  var closeFiling = function () {
+    var row = chip.querySelector('.gogh-w-cats');
+    if (row) row.remove();
+    chip.classList.remove('is-filing');
+    catsLabel();
+  };
+  // clicking off the card closes it — the canvas is always one click away
+  document.addEventListener('pointerdown', function (ev) {
+    if (chip.classList.contains('is-filing') && !chip.contains(ev.target)) closeFiling();
+  }, true);
   catsBtn.addEventListener('click', function () {
-    var existing = chip.querySelector('.gogh-w-cats');
-    if (existing) {
-      existing.remove();
-      chip.classList.remove('is-filing');
-      catsLabel();
+    if (chip.querySelector('.gogh-w-cats')) {
+      closeFiling();
       return;
     }
     var b = catsBtn;
@@ -577,7 +597,12 @@
       lab1.textContent = 'Categories';
       row.appendChild(lab1);
       var syncCats = function () {
-        chosenCats = [].map.call(chip.querySelectorAll('.gogh-w-cat.is-on'), function (x) { return +x.dataset.cid; });
+        chosenCats = [];
+        chosenNames.length = 0;
+        [].forEach.call(chip.querySelectorAll('.gogh-w-cat.is-on'), function (x) {
+          if (x.dataset.cid) chosenCats.push(+x.dataset.cid);
+          chosenNames.push(x.textContent.replace(/^#\s*/, '#'));
+        });
         catsLabel();
       };
       cats.filter(function (c) { return c.slug !== 'uncategorized'; }).forEach(function (c) {
@@ -635,6 +660,7 @@
         pill.addEventListener('click', function () {
           pill.remove();
           chosenTags = chosenTags.filter(function (x) { return x !== t.id; });
+          chosenNames = chosenNames.filter(function (nm) { return nm !== '#' + t.name; });
           catsLabel();
         });
         tagLine.insertBefore(pill, tagIn);
@@ -654,6 +680,7 @@
           if (!id) return;
           if (chosenTags.indexOf(id) !== -1) return;
           chosenTags.push(id);
+          chosenNames.push('#' + name);
           addTagPill({ id: id, name: name });
           catsLabel();
         });
