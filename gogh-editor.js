@@ -10516,7 +10516,28 @@
         arm();
       });
     });
-    // LOOK: instant inline audition
+    // LOOK: instant inline audition; the Transparency dial composes with
+    // WHICHEVER look is chosen ("when i set a transparency and a color -
+    // it's not transparent" — it only listened to the custom picker)
+    var hexPair = function (n) { return ('0' + Math.round(n).toString(16)).slice(-2); };
+    var applyLookState = function () {
+      if (!st.base) return;
+      var a = alphaIn ? +alphaIn.value : 100;
+      if (st.base.custom) {
+        st.look = customLook();
+      } else if (!st.base.bg || a >= 100) {
+        st.look = st.base;
+      } else {
+        var rgb = cssToRgb('var(--wp--preset--color--' + st.base.bg + ')');
+        st.look = rgb
+          ? { custom: true, hex8: '#' + hexPair(rgb[0]) + hexPair(rgb[1]) + hexPair(rgb[2]) + hexPair(a / 100 * 255),
+              name: st.base.name + ' ' + a + '%', ink: st.base.ink }
+          : st.base;
+      }
+      chromeColorPreview(partEl, st.look);
+      if (alphaRow) alphaRow.hidden = !(st.base.bg || st.base.custom);
+      arm();
+    };
     panel.querySelectorAll('.gogh-hlooks .gogh-sw').forEach(function (sw) {
       var look = looks[+sw.dataset.k];
       auditionHover(sw, function () {
@@ -10526,12 +10547,11 @@
         if (st.look === undefined) chromeColorRevert(partEl);
       });
       sw.addEventListener('click', function () {
-        st.look = look;
-        chromeColorPreview(partEl, look);
+        st.base = look;
         panel.querySelectorAll('.gogh-hlooks .gogh-sw').forEach(function (o2) {
           o2.classList.toggle('is-active', o2 === sw);
         });
-        arm();
+        applyLookState();
       });
     });
     // CUSTOM look: any colour, any transparency ("probs need a custom
@@ -10547,13 +10567,11 @@
         ink: bestInkFor(hex) };
     };
     var pickCustom = function () {
-      st.look = customLook();
-      chromeColorPreview(partEl, st.look);
-      if (alphaRow) alphaRow.hidden = false;
+      st.base = { custom: true };
       panel.querySelectorAll('.gogh-hlooks .gogh-sw').forEach(function (o2) {
         o2.classList.toggle('is-active', o2.classList.contains('gogh-sw-pick'));
       });
-      arm();
+      applyLookState();
     };
     if (customIn) {
       customIn.addEventListener('input', pickCustom);
@@ -10563,7 +10581,7 @@
       alphaIn.addEventListener('input', function () {
         var lab = panel.querySelector('.gogh-halpha-val');
         if (lab) lab.textContent = alphaIn.value;
-        if (st.look && st.look.custom) pickCustom();
+        applyLookState();
       });
     }
     // SPACING: live dials
@@ -12861,6 +12879,10 @@
   // itself) — less cognitive noise everywhere else on the page
   document.addEventListener('mouseover', function (ev) {
     chromeBtns.forEach(function (b) {
+      // simple mode has no pill step at all — the veil opens the panel
+      // directly, and mid-panel the pill is pure noise ("is that
+      // intentional?" — no longer). Experiments keeps it for the cycle.
+      if (!cfg.experiments) { b.classList.remove('is-vis'); return; }
       var over = b.contains(ev.target) ||
         (b.__goghPart && b.__goghPart.contains(ev.target));
       // the pills are viewport-fixed: while their part is on screen, the

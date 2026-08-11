@@ -2191,6 +2191,13 @@
     test('footer pill is fixed at the viewport bottom and unobstructed', function () {
       var fp = q('.gogh-chromebtn.is-footpill');
       expect(fp, 'no fixed footer pill');
+      // SIMPLE MODE: the pill never reveals — the veil is the only door
+      var exp0 = window.GOGH.experiments;
+      window.GOGH.experiments = false;
+      var fpart0 = document.querySelector('footer.wp-block-template-part') || document.body;
+      fpart0.dispatchEvent(new MouseEvent('mouseover', { bubbles: true }));
+      expect(!fp.classList.contains('is-vis'), 'pill revealed in simple mode (the retired step)');
+      window.GOGH.experiments = true; // the rest of this test is cycle-era behaviour
       // pills reveal on hover over their part — once the chrome is AWAKE
       // (the armed veil keeps Change hidden so Edit is the one invitation)
       var fpart = document.querySelector('footer.wp-block-template-part') || document.body;
@@ -2208,11 +2215,15 @@
       expect(hit === fp || fp.contains(hit), 'footer pill is covered by ' + (hit ? hit.className : 'nothing'));
       document.body.dispatchEvent(new MouseEvent('mouseover', { bubbles: true }));
       expect(!fp.classList.contains('is-vis'), 'pill did not hide after hover-away');
+      window.GOGH.experiments = exp0; // restore the boot value — forcing
+      // false here put every LATER cycle-era test in simple mode
     });
 
     test('header pill is fixed at the viewport top, centred', function () {
       var hp = q('.gogh-chromebtn.is-headpill');
       expect(hp, 'no fixed header pill');
+      var exp0 = window.GOGH.experiments;
+      window.GOGH.experiments = true; // pills are experiments-only now
       var hpart = document.querySelector('header.wp-block-template-part') || document.body;
       var hveil = hpart.querySelector('.gogh-chromeveil');
       if (hveil) hveil.querySelector('.gogh-chromeveil-pill').click();
@@ -2227,6 +2238,7 @@
       expect(hit === hp || hp.contains(hit), 'header pill is covered by ' + (hit ? hit.className : 'nothing'));
       document.body.dispatchEvent(new MouseEvent('mouseover', { bubbles: true, clientY: 400 }));
       expect(!hp.classList.contains('is-vis'), 'pill did not hide after hover-away');
+      window.GOGH.experiments = exp0;
     });
 
     test('header pill cycles layouts in place, click-off reverts', function () {
