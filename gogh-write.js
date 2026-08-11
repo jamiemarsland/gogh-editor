@@ -514,9 +514,11 @@
   // the quiet label names the document's STATE — "Draft · 12 words"
   // says both "your work is safe" and "publishing lives here"
   var statusWord = cfg.status === 'publish' ? 'Published' : 'Draft';
+  var clean = true; // "saved" only appears when it is TRUE
   var quietLabel = function () {
     var n = words();
-    countEl.textContent = statusWord + ' · ' + n + (n === 1 ? ' word' : ' words');
+    var state = statusWord === 'Draft' && clean ? 'Draft saved' : statusWord;
+    countEl.textContent = state + ' · ' + n + (n === 1 ? ' word' : ' words');
   };
   quietLabel();
   var countT = null;
@@ -543,14 +545,17 @@
       if (r.ok) {
         savedEl.textContent = 'saved';
         setTimeout(function () { savedEl.textContent = ''; }, 1600);
+        if (!saveT) { clean = true; quietLabel(); } // nothing newer waiting
       }
       return r.ok ? r.json() : null;
     }).catch(function () { inflight = null; });
     return inflight;
   };
   var queueSave = function () {
+    clean = false;
+    quietLabel();
     clearTimeout(saveT);
-    saveT = setTimeout(function () { save(); }, 2500);
+    saveT = setTimeout(function () { saveT = null; save(); }, 2500);
   };
   body.addEventListener('input', queueSave);
   if (title) title.addEventListener('input', queueSave);
