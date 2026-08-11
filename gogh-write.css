@@ -49,6 +49,15 @@ body.gogh-writing :is(.wp-block-group, .wp-block-post-meta, p):has(> .wp-block-p
   outline: none;
   caret-color: #4f5aee;
 }
+/* WORDS STAY WHERE YOU PUT THEM: themes ship text-wrap pretty/balance,
+   which re-typesets every line break on each keystroke — earlier words
+   hop between lines as you type ("the text reshuffles"). Writing uses
+   greedy wrapping; the PUBLISHED page keeps the theme's pretty type. */
+.gogh-w-title,
+.gogh-w-body,
+.gogh-w-body * {
+  text-wrap: wrap !important;
+}
 .gogh-w-title {
   min-height: 1.25em;
   min-width: 8ch;
@@ -381,3 +390,73 @@ body.gogh-writing ::selection {
 }
 .gogh-w-draft:hover { color: #fff; border-color: rgba(255, 255, 255, 0.45); }
 .gogh-w-chip:not(:hover):not(:focus-within):not(.is-filing) .gogh-w-draft { display: none; }
+
+/* the selection bubble */
+.gogh-w-bub {
+  position: fixed;
+  z-index: 99999;
+  display: flex;
+  gap: 2px;
+  padding: 4px;
+  border-radius: 10px;
+  background: rgba(20, 21, 25, 0.94);
+  box-shadow: 0 12px 34px -10px rgba(0, 0, 0, 0.5);
+}
+.gogh-w-bub button {
+  all: unset;
+  cursor: pointer;
+  color: #f2f3f5;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, sans-serif;
+  font-size: 13px;
+  min-width: 30px;
+  text-align: center;
+  padding: 6px 8px;
+  border-radius: 7px;
+}
+.gogh-w-bub button:hover { background: rgba(255, 255, 255, 0.12); }
+.gogh-w-bub-url {
+  all: unset;
+  color: #f2f3f5;
+  font-size: 12.5px;
+  padding: 6px 10px;
+  min-width: 220px;
+}
+/* drop caps preview even before the theme weighs in */
+.gogh-w-body .has-drop-cap::first-letter {
+  float: left;
+  font-size: 3.4em;
+  line-height: 0.72;
+  padding: 0.08em 0.12em 0 0;
+  font-weight: 700;
+}
+/* floats: the words wrap around the picture */
+.gogh-w-body figure.alignleft {
+  float: left;
+  width: min(46%, 380px);
+  margin: 0.35em 1.6em 0.7em 0;
+}
+.gogh-w-body figure.alignright {
+  float: right;
+  width: min(46%, 380px);
+  margin: 0.35em 0 0.7em 1.6em;
+}
+.gogh-w-layrow {
+  display: inline-flex;
+  gap: 4px;
+  margin-left: 10px;
+}
+.gogh-w-lay {
+  all: unset;
+  cursor: pointer;
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 11px;
+  padding: 4px 9px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+}
+.gogh-w-lay.is-on {
+  background: #f2f3f5;
+  color: #141519;
+  border-color: transparent;
+  font-weight: 600;
+}

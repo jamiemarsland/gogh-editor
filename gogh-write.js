@@ -341,6 +341,93 @@
     }
   });
 
+  // ---------- the selection bubble: appears over selected words ----------
+  // bold, italic, a link, a drop cap — the four moves prose actually makes
+  var bub = document.createElement('div');
+  bub.className = 'gogh-w-bub';
+  bub.hidden = true;
+  bub.innerHTML =
+    '<button type="button" data-fmt="bold"><b>B</b></button>' +
+    '<button type="button" data-fmt="italic"><i>I</i></button>' +
+    '<button type="button" data-fmt="link">\ud83d\udd17</button>' +
+    '<button type="button" data-fmt="dropcap" title="Drop cap">\u00c1a</button>' +
+    '<input type="url" class="gogh-w-bub-url" placeholder="Paste a link, Enter" hidden />';
+  document.body.appendChild(bub);
+  var bubUrl = bub.querySelector('.gogh-w-bub-url');
+  var savedRange = null;
+  var hideBub = function () {
+    bub.hidden = true;
+    bubUrl.hidden = true;
+    [].forEach.call(bub.querySelectorAll('button'), function (b2) { b2.hidden = false; });
+  };
+  var placeBub = function () {
+    if (!bubUrl.hidden) return; // typing a link holds the bubble
+    var sel = getSelection();
+    if (!sel.rangeCount || sel.isCollapsed || !body.contains(sel.anchorNode)) { hideBub(); return; }
+    var rect = sel.getRangeAt(0).getBoundingClientRect();
+    if (!rect || !rect.width) { hideBub(); return; }
+    bub.hidden = false;
+    var bw = bub.offsetWidth || 180;
+    bub.style.left = Math.max(8, Math.min(window.innerWidth - bw - 8, rect.left + rect.width / 2 - bw / 2)) + 'px';
+    bub.style.top = Math.max(8, rect.top - 46) + 'px';
+    // the link button doubles as unlink inside an existing link
+    var a = sel.anchorNode.parentElement && sel.anchorNode.parentElement.closest('a');
+    bub.querySelector('[data-fmt="link"]').textContent = a ? '\u26d3\ufe0e\u2715' : '\ud83d\udd17';
+  };
+  var bubT = null;
+  document.addEventListener('selectionchange', function () {
+    clearTimeout(bubT);
+    bubT = setTimeout(placeBub, 120);
+  });
+  bub.addEventListener('pointerdown', function (ev) { ev.preventDefault(); }); // keep the selection
+  bub.addEventListener('click', function (ev) {
+    var b2 = ev.target.closest('[data-fmt]');
+    if (!b2) return;
+    var kind = b2.dataset.fmt;
+    if (kind === 'bold' || kind === 'italic') {
+      document.execCommand(kind);
+      queueSave();
+    } else if (kind === 'dropcap') {
+      var sel = getSelection();
+      var blk = sel.rangeCount ? blockOf(sel.anchorNode) : null;
+      if (blk && blk.tagName === 'P') {
+        blk.classList.toggle('has-drop-cap');
+        queueSave();
+      }
+    } else if (kind === 'link') {
+      var sel2 = getSelection();
+      var a = sel2.anchorNode && sel2.anchorNode.parentElement && sel2.anchorNode.parentElement.closest('a');
+      if (a) {
+        document.execCommand('unlink');
+        queueSave();
+        hideBub();
+        return;
+      }
+      savedRange = sel2.rangeCount ? sel2.getRangeAt(0).cloneRange() : null;
+      [].forEach.call(bub.querySelectorAll('button'), function (x2) { x2.hidden = true; });
+      bubUrl.hidden = false;
+      bubUrl.value = '';
+      bubUrl.focus();
+    }
+  });
+  bubUrl.addEventListener('keydown', function (ev) {
+    ev.stopPropagation();
+    if (ev.key === 'Escape') { hideBub(); return; }
+    if (ev.key !== 'Enter') return;
+    ev.preventDefault();
+    var url = bubUrl.value.trim();
+    if (savedRange) {
+      var sel = getSelection();
+      sel.removeAllRanges();
+      sel.addRange(savedRange);
+    }
+    if (url) {
+      document.execCommand('createLink', false, /^https?:|^mailto:|^\//.test(url) ? url : 'https://' + url);
+      queueSave();
+    }
+    hideBub();
+  });
+
   // ---------- images are objects: click picks, Delete removes ----------
   var picked = null;
   var unpick = function () {
@@ -405,6 +492,25 @@
     });
     altRow.appendChild(altLab);
     altRow.appendChild(alt);
+    // layout chips: Wide, or float the image INTO the words (the
+    // transparent-cutout trick — text wraps around it)
+    var layRow = document.createElement('span');
+    layRow.className = 'gogh-w-layrow';
+    [['', 'Wide'], ['alignleft', 'Left'], ['alignright', 'Right']].forEach(function (L) {
+      var lb = document.createElement('button');
+      lb.type = 'button';
+      lb.className = 'gogh-w-lay' + ((L[0] ? fig.classList.contains(L[0]) : !/align(left|right)/.test(fig.className)) ? ' is-on' : '');
+      lb.textContent = L[1];
+      lb.addEventListener('click', function (ev3) {
+        ev3.stopPropagation();
+        fig.classList.remove('alignleft', 'alignright');
+        if (L[0]) fig.classList.add(L[0]);
+        [].forEach.call(layRow.children, function (o2) { o2.classList.toggle('is-on', o2 === lb); });
+        queueSave();
+      });
+      layRow.appendChild(lb);
+    });
+    altRow.appendChild(layRow);
     altRow.addEventListener('click', function (ev2) { ev2.stopPropagation(); });
     fig.appendChild(altRow);
     // clicking an existing caption-less image can still gain a caption
@@ -457,7 +563,8 @@
       var tag = n.tagName;
       if (tag === 'P' || tag === 'DIV') {
         var html = inlineClean(n);
-        if (html && html !== '<br>') out.push('<!-- wp:paragraph -->\n<p>' + html + '</p>\n<!-- /wp:paragraph -->');
+        var dc = n.classList && n.classList.contains('has-drop-cap');
+        if (html && html !== '<br>') out.push('<!-- wp:paragraph ' + (dc ? '{"dropCap":true} ' : '') + '-->\n<p' + (dc ? ' class="has-drop-cap"' : '') + '>' + html + '</p>\n<!-- /wp:paragraph -->');
       } else if (tag === 'H2' || tag === 'H3' || tag === 'H4') {
         var lvl = +tag.slice(1);
         out.push('<!-- wp:heading ' + (lvl === 2 ? '' : '{"level":' + lvl + '} ') + '-->\n<h' + lvl + ' class="wp-block-heading">' + inlineClean(n) + '</h' + lvl + '>\n<!-- /wp:heading -->');
@@ -485,8 +592,12 @@
         var mid = n.dataset.mid ? +n.dataset.mid : null;
         var cap = n.querySelector('figcaption');
         var capTxt = cap && cap.textContent.trim() ? inlineClean(cap) : '';
-        out.push('<!-- wp:image ' + (mid ? '{"id":' + mid + ',"sizeSlug":"large"} ' : '{"sizeSlug":"large"} ') + '-->\n' +
-          '<figure class="wp-block-image size-large"><img src="' + img.src + '" alt="' + (img.alt || '') + '"' + (mid ? ' class="wp-image-' + mid + '"' : '') + '/>' +
+        var flo = n.classList.contains('alignleft') ? 'left' : n.classList.contains('alignright') ? 'right' : null;
+        var iattrs = { sizeSlug: 'large' };
+        if (mid) iattrs.id = mid;
+        if (flo) iattrs.align = flo;
+        out.push('<!-- wp:image ' + JSON.stringify(iattrs) + ' -->\n' +
+          '<figure class="wp-block-image' + (flo ? ' align' + flo : '') + ' size-large"><img src="' + img.src + '" alt="' + (img.alt || '') + '"' + (mid ? ' class="wp-image-' + mid + '"' : '') + '/>' +
           (capTxt ? '<figcaption class="wp-element-caption">' + capTxt + '</figcaption>' : '') +
           '</figure>\n<!-- /wp:image -->');
       }
