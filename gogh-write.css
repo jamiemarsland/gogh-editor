@@ -484,6 +484,8 @@ body.gogh-writing ::selection {
 }
 
 /* ✦ Splash overlay */
+/* the splash card is PAPER, like the room it visits — a quiet sheet,
+   not a dark slab ("not very lightweight, elegant or gogh like") */
 .gogh-w-splash {
   position: fixed;
   inset: 0;
@@ -491,54 +493,64 @@ body.gogh-writing ::selection {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(12, 12, 16, 0.55);
-  backdrop-filter: blur(6px);
+  background: rgba(30, 30, 34, 0.22);
+  backdrop-filter: blur(7px);
 }
 .gogh-w-splash-card {
-  width: min(92vw, 560px);
+  width: min(92vw, 480px);
   max-height: 84vh;
   overflow: auto;
-  border-radius: 18px;
-  background: rgba(20, 21, 25, 0.97);
-  color: #f2f3f5;
+  border-radius: 14px;
+  background: #fbfaf8;
+  color: #1d1e22;
+  border: 1px solid rgba(0, 0, 0, 0.07);
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, sans-serif;
-  padding: 18px;
-  box-shadow: 0 30px 80px -20px rgba(0, 0, 0, 0.7);
+  padding: 22px 22px 18px;
+  box-shadow: 0 24px 70px -24px rgba(0, 0, 0, 0.35);
 }
 .gogh-w-splash-head {
   display: flex;
   justify-content: space-between;
-  align-items: center;
-  font-weight: 700;
-  margin-bottom: 14px;
+  align-items: baseline;
+  font-family: "Iowan Old Style", Georgia, "Times New Roman", serif;
+  font-size: 17px;
+  font-weight: 500;
+  letter-spacing: 0.01em;
+  margin-bottom: 16px;
 }
 .gogh-w-splash-x {
   all: unset;
   cursor: pointer;
   padding: 4px 8px;
-  opacity: 0.7;
+  opacity: 0.45;
+  font-size: 13px;
 }
 .gogh-w-splash-x:hover { opacity: 1; }
 .gogh-w-splash-tiles {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
 }
 .gogh-w-splash-tiles button {
   all: unset;
   cursor: pointer;
   display: flex;
-  flex-direction: column;
-  gap: 3px;
-  padding: 16px;
-  border-radius: 12px;
-  border: 1px solid rgba(255, 255, 255, 0.14);
-  font-size: 20px;
+  align-items: center;
+  gap: 15px;
+  padding: 11px 12px;
+  border-radius: 10px;
 }
-.gogh-w-splash-tiles button:hover { background: rgba(255, 255, 255, 0.08); }
-.gogh-w-splash-tiles b { font-size: 14px; }
-.gogh-w-splash-tiles i { font-size: 12px; font-style: normal; opacity: 0.6; }
-.gogh-w-splash-hint { font-size: 12.5px; opacity: 0.7; margin-bottom: 10px; }
+.gogh-w-splash-tiles button:hover { background: rgba(0, 0, 0, 0.045); }
+.gogh-w-splash-tiles svg {
+  width: 26px;
+  height: 26px;
+  flex: none;
+  opacity: 0.75;
+}
+.gogh-w-splash-tiles span { display: flex; flex-direction: column; gap: 1px; }
+.gogh-w-splash-tiles b { font-size: 14px; font-weight: 600; }
+.gogh-w-splash-tiles i { font-size: 12.5px; font-style: normal; opacity: 0.55; }
+.gogh-w-splash-hint { font-size: 12.5px; opacity: 0.6; margin-bottom: 10px; }
 .gogh-w-splash-stage .gogh-input {
   all: unset;
   display: block;
@@ -547,8 +559,8 @@ body.gogh-writing ::selection {
   padding: 9px 12px;
   margin-bottom: 8px;
   border-radius: 9px;
-  background: rgba(255, 255, 255, 0.09);
-  color: #f2f3f5;
+  background: rgba(0, 0, 0, 0.05);
+  color: inherit;
   font-size: 13px;
 }
 .gogh-w-splash-media {

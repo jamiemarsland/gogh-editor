@@ -140,6 +140,7 @@
     var raw = post && post.content && post.content.raw || '';
     if (!typedFirst && raw.trim() && surfaceFromRaw(raw)) {
       [].forEach.call(body.querySelectorAll('figure, .gogh-splash'), attachObjControls);
+      if (window.__goghViewInit) window.__goghViewInit();
     }
   }).catch(function () {});
 
@@ -419,6 +420,9 @@
     }
     caretInto(node.nextElementSibling);
     attachObjControls(node);
+    // the splash comes ALIVE in the room — arrows, dots, lightbox — the
+    // same audition the published page gives ("without having to publish")
+    if (window.__goghViewInit) window.__goghViewInit();
     closeSplash();
     queueSave();
   };
@@ -475,10 +479,18 @@
       '<div class="gogh-w-splash-head">\u2726 ' + (cur ? 'Edit your splash' : 'A splash between the words') +
       '<button type="button" class="gogh-w-splash-x">\u2715</button></div>' +
       '<div class="gogh-w-splash-tiles">' +
-      '<button type="button" data-splash="carousel">\ud83c\udfa0<b>Carousel</b><i>photos that glide</i></button>' +
-      '<button type="button" data-splash="wall">\ud83e\uddf1<b>Photo wall</b><i>a gallery interlude</i></button>' +
-      '<button type="button" data-splash="break">\ud83c\udf04<b>Break image</b><i>a full-bleed pause</i></button>' +
-      '<button type="button" data-splash="glass">\ud83c\udccf<b>Glass card</b><i>a frosted call-out</i></button>' +
+      '<button type="button" data-splash="carousel">' +
+      '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="8" y="5" width="8" height="14" rx="1.5"/><path d="M4 8.5v7M20 8.5v7"/></svg>' +
+      '<span><b>Carousel</b><i>photos that glide</i></span></button>' +
+      '<button type="button" data-splash="wall">' +
+      '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="7" height="9" rx="1"/><rect x="13" y="4" width="7" height="5" rx="1"/><rect x="13" y="11" width="7" height="9" rx="1"/><rect x="4" y="15" width="7" height="5" rx="1"/></svg>' +
+      '<span><b>Photo wall</b><i>a gallery interlude</i></span></button>' +
+      '<button type="button" data-splash="break">' +
+      '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2 6h20M2 18h20"/><path d="M5 15l4-4 3 3 2.5-2.5L19 15"/></svg>' +
+      '<span><b>Break image</b><i>a full-bleed pause</i></span></button>' +
+      '<button type="button" data-splash="glass">' +
+      '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="1.5"/><rect x="7" y="9" width="10" height="6" rx="1"/></svg>' +
+      '<span><b>Glass card</b><i>a frosted call-out</i></span></button>' +
       '</div>' +
       '<div class="gogh-w-splash-stage" hidden></div>' +
       '</div>';
@@ -1069,6 +1081,12 @@
   // the quiet label names the document's STATE — "Draft · 12 words"
   // says both "your work is safe" and "publishing lives here"
   var statusWord = cfg.status === 'publish' ? 'Published' : 'Draft';
+  // a published post updates — it doesn't "publish" again, and "Save
+  // draft" would be a lie (it never unpublishes anything)
+  if (statusWord === 'Published') {
+    chip.querySelector('.gogh-w-draft').remove();
+    chip.querySelector('.gogh-w-publish').textContent = 'Update';
+  }
   var clean = true; // "saved" only appears when it is TRUE
   var quietLabel = function () {
     var n = words();
@@ -1119,18 +1137,19 @@
   var chosenTags = [];
   var chosenNames = [];
   var doPublish = function (b) {
+    var already = statusWord === 'Published';
     b.disabled = true;
-    b.textContent = 'Publishing…';
+    b.textContent = already ? 'Updating…' : 'Publishing…';
     clearTimeout(saveT);
     save('publish').then(function (post) {
       if (post && post.link) {
-        b.textContent = 'Published ↗';
+        b.textContent = already ? 'Updated ↗' : 'Published ↗';
         b.disabled = false;
         statusWord = 'Published';
         quietLabel();
         b.onclick = function () { location.href = post.link; };
       } else {
-        b.textContent = 'Publish';
+        b.textContent = already ? 'Update' : 'Publish';
         b.disabled = false;
       }
     });
@@ -1147,13 +1166,13 @@
     saveT = null;
     save().then(function () { location.href = href; });
   });
-  chip.querySelector('.gogh-w-draft').addEventListener('click', function () {
-    var d = chip.querySelector('.gogh-w-draft');
-    d.textContent = 'Saving\u2026';
+  var draftBtn = chip.querySelector('.gogh-w-draft'); // absent on published posts
+  if (draftBtn) draftBtn.addEventListener('click', function () {
+    draftBtn.textContent = 'Saving\u2026';
     clearTimeout(saveT);
     save().then(function () {
-      d.textContent = 'Saved \u2713';
-      setTimeout(function () { d.textContent = 'Save draft'; }, 1400);
+      draftBtn.textContent = 'Saved \u2713';
+      setTimeout(function () { draftBtn.textContent = 'Save draft'; }, 1400);
     });
   });
   var catsBtn = chip.querySelector('.gogh-w-catsbtn');
