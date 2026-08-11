@@ -1063,6 +1063,14 @@
   function makeNode(e, i) {
     var cls = 'gogh-el-' + (i + 1);
     var n;
+    // data-widgets (FAQ/Tabs/Carousel) edit through a form, not a caret —
+    // the hover tip teaches the gesture ("i wonder if we should give users
+    // some feedback... that they need to double click")
+    var formTip = e.type === 'widget'
+      ? (e.faq && e.faq.length ? 'Double-click to edit the questions'
+        : e.tabs && e.tabs.length ? 'Double-click to edit the tabs'
+        : e.slides && e.slides.length ? 'Double-click to edit the slides' : null)
+      : null;
     switch (e.type) {
       case 'box':
         n = document.createElement('div');
@@ -1148,6 +1156,7 @@
         n.className = cls;
         break;
     }
+    if (formTip && n) n.dataset.tip = formTip;
     return n;
   }
 

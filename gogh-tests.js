@@ -2540,6 +2540,9 @@
         shell.querySelector('.gogh-crsl-btn[data-dir="-1"]').click();
         var lastDot = shell.querySelector('.gogh-crsl-dot[data-k="2"]');
         expect(lastDot.classList.contains('is-here'), 'prev from first must wrap to the last slide');
+        // the hover tip teaches the gesture on every data-widget
+        expect(csec.nodes[0].dataset.tip === 'Double-click to edit the slides',
+          'carousel widget must carry the double-click tip');
         // the panel: second click opens the slide editor
         G.openPanel(csec, 0);
         var panel = document.querySelector('.gogh-panel');
