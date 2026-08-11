@@ -191,6 +191,7 @@
   var menu = document.createElement('div');
   menu.className = 'gogh-w-menu';
   menu.innerHTML =
+    '<button type="button" data-add="heading">H Heading</button>' +
     '<button type="button" data-add="image">\ud83d\udcf7 Image</button>' +
     '<button type="button" data-add="quote">\u275d Quote</button>' +
     '<button type="button" data-add="embed">\u25b6 Embed</button>' +
@@ -280,7 +281,10 @@
       filePick.click();
       return;
     }
-    if (kind === 'quote') {
+    if (kind === 'heading') {
+      var h = swapBlock(blk, '<h2><br></h2>');
+      caretInto(h);
+    } else if (kind === 'quote') {
       var q = swapBlock(blk, '<blockquote><p><br></p></blockquote>');
       caretInto(q.querySelector('p') || q);
     } else if (kind === 'rule') {
@@ -344,6 +348,8 @@
     picked.classList.remove('is-picked');
     var x = picked.querySelector('.gogh-w-figx');
     if (x) x.remove();
+    var ar = picked.querySelector('.gogh-w-altrow');
+    if (ar) ar.remove(); // the alt field leaves with the pick
     picked = null;
   };
   var removeFig = function (fig) {
@@ -379,11 +385,17 @@
       removeFig(fig);
     });
     fig.appendChild(x);
-    // alt text edits on pick — for the readers who listen
+    // alt text edits on pick — LABELLED, and gone again on unpick
+    var altRow = document.createElement('div');
+    altRow.className = 'gogh-w-altrow';
+    var altLab = document.createElement('span');
+    altLab.className = 'gogh-w-altlab';
+    altLab.textContent = 'Alt text';
+    altLab.title = 'Describes the image for screen readers and search';
     var alt = document.createElement('input');
     alt.type = 'text';
     alt.className = 'gogh-w-alt';
-    alt.placeholder = 'Describe this image (alt text)\u2026';
+    alt.placeholder = 'Describe this image\u2026';
     alt.value = (fig.querySelector('img') || {}).alt || '';
     alt.addEventListener('click', function (ev2) { ev2.stopPropagation(); });
     alt.addEventListener('input', function () {
@@ -391,7 +403,10 @@
       if (im) im.alt = alt.value;
       queueSave();
     });
-    fig.appendChild(alt);
+    altRow.appendChild(altLab);
+    altRow.appendChild(alt);
+    altRow.addEventListener('click', function (ev2) { ev2.stopPropagation(); });
+    fig.appendChild(altRow);
     // clicking an existing caption-less image can still gain a caption
     if (!fig.querySelector('figcaption')) {
       var cap2 = document.createElement('figcaption');
@@ -417,7 +432,7 @@
   var stripEditorGoo = function (fig) {
     var x = fig.querySelector('.gogh-w-figx');
     if (x) x.remove();
-    var a = fig.querySelector('.gogh-w-alt');
+    var a = fig.querySelector('.gogh-w-altrow');
     if (a) a.remove();
     return fig;
   };
