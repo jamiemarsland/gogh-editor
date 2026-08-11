@@ -1,4 +1,4 @@
-# Knowledge-base audit — plugin v0.99.75
+# Knowledge-base audit — plugin v0.99.76
 
 _14 finding(s) suppressed by `kb.audit-ignore.txt`._
 
@@ -6,7 +6,7 @@ _14 finding(s) suppressed by `kb.audit-ignore.txt`._
 
 The prose states something the source contradicts. Fix these first — the bot will contradict itself, since the appendix carries the correct value.
 
-- plugin version is **0.99.75**, prose says **0.96.5**
+- plugin version is **0.99.76**, prose says **0.96.5**
 
 ## MISSING (16)
 
@@ -33,8 +33,6 @@ The source has something the prose never explains. The bot knows the name from t
 
 Use this as the checklist for updating the prose — and as a sanity check on the release itself.
 
-- version: 0.99.74 → 0.99.75
-- added template: "Carousel"
-- added UI label: "Move left"
-- added UI label: "Move right"
-- added UI label: "Remove this slide"
+- version: 0.99.75 → 0.99.76
+- added UI label: "▶ Auto-play"
+- added UI label: "⛶ Click to enlarge"

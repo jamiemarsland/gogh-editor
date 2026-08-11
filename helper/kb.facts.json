@@ -1,12 +1,12 @@
 {
   "meta": {
-    "plugin_version": "0.99.75",
+    "plugin_version": "0.99.76",
     "requires_wp": "6.5",
     "requires_php": "7.4",
     "text_domain": "gogh-editor",
     "readme_stable_tag": "0.26.0",
     "readme_tested_up_to": "7.0",
-    "asset_version": "0.99.75-chrome"
+    "asset_version": "0.99.76-chrome"
   },
   "constants": {
     "TOL": 8,
@@ -462,6 +462,8 @@
     "gogh help",
     "← All layouts",
     "↕ Spacing…",
+    "▶ Auto-play",
+    "⛶ Click to enlarge",
     "✏️ Edit with gogh",
     "✨ Make freeform",
     "✨ Make it freeform"
