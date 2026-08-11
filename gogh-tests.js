@@ -2487,6 +2487,54 @@
       return 'picked up, painted, stayed loaded, rested on click-off and Esc';
     });
 
+    test('carousel: slides compose to snap group, render live, panel edits', function () {
+      // compose: real core image blocks in the snap group; preview = same
+      var c = G.composeCarousel([
+        { img: '/wp-content/plugins/gogh/demo-assets/sunflowers.jpg', cap: 'Sunflowers' },
+        { img: '/wp-content/plugins/gogh/demo-assets/starry-night.jpg', cap: '' },
+      ]);
+      expect(/wp:group \{"className":"gogh-carousel"\}/.test(c.wsrc), 'snap group missing from save');
+      expect((c.wsrc.match(/wp:image/g) || []).length === 4, 'each slide must be a real core image block');
+      expect(/figcaption[^>]*>Sunflowers</.test(c.wsrc), 'caption must publish');
+      expect(c.whtml.indexOf('<!--') === -1, 'preview must carry no block comments');
+      // live: the snap machinery is real CSS on the rendered widget
+      G.addSection({ name: 'Crsl', minH: 400, els: [
+        { type: 'widget', x: 40, y: 40, w: 900, h: 280, slides: [
+          { img: '/wp-content/plugins/gogh/demo-assets/sunflowers.jpg', cap: 'One' },
+          { img: '/wp-content/plugins/gogh/demo-assets/starry-night.jpg', cap: 'Two' },
+          { img: '/wp-content/plugins/gogh/demo-assets/wheat-field.jpg', cap: 'Three' },
+        ] } ] }, G.sections().length);
+      var csec = contentSecs()[contentSecs().length - 1];
+      try {
+        var strip = csec.sectionEl.querySelector('.gogh-carousel');
+        expect(strip, 'carousel did not render');
+        var cs = getComputedStyle(strip);
+        expect(cs.display === 'flex' && /mandatory/.test(cs.scrollSnapType) && (cs.overflowX === 'auto' || cs.overflowX === 'scroll'),
+          'snap machinery missing: ' + cs.display + '/' + cs.scrollSnapType + '/' + cs.overflowX);
+        var slide = strip.querySelector('.gogh-slide');
+        expect(slide && getComputedStyle(slide).scrollSnapAlign === 'center', 'slides must snap to centre');
+        // the panel: second click opens the slide editor
+        G.openPanel(csec, 0);
+        var panel = document.querySelector('.gogh-panel');
+        expect(!panel.hidden && /Carousel/.test(panel.querySelector('.gogh-panel-title').textContent), 'carousel panel did not open');
+        expect(panel.querySelectorAll('.gogh-crslrow').length === 3, 'one row per slide expected');
+        // caption edits recompose the block
+        var cap = panel.querySelector('.gogh-crsl-cap');
+        cap.value = 'Renamed';
+        cap.dispatchEvent(new Event('input', { bubbles: true }));
+        expect(/Renamed/.test(csec.els[0].wsrc), 'caption edit did not recompose');
+        // remove keeps the strip honest
+        panel.querySelector('.gogh-qna-x').click();
+        expect(csec.els[0].slides.length === 2, 'remove failed');
+        expect(csec.sectionEl.querySelectorAll('.gogh-slide').length === 2, 'render did not follow the removal');
+        document.querySelector('.gogh-panel .gogh-panel-close').click();
+      } finally {
+        csec = contentSecs()[contentSecs().length - 1];
+        G.deleteSection(G.sections().indexOf(csec));
+      }
+      return 'core blocks, live snap CSS, caption/remove edits follow';
+    });
+
     // ---- picker redesign: inline header search, theme chip ----
     test('picker: inline search filters, old toggle gone, theme chip present', function () {
       G.openPicker(G.sections().length);

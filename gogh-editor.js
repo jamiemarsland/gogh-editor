@@ -828,7 +828,7 @@
       boxBg: e.boxBg || null, radius: e.radius || 0, shape: e.shape || null,
       boxImg: e.boxImg || null, boxImgId: e.boxImgId || null,
       mood: e.mood || null,
-      faq: e.faq || null, tabs: e.tabs || null,
+      faq: e.faq || null, tabs: e.tabs || null, slides: e.slides || null,
       ph: e.ph || null,
       expId: e.expId || null, expUrl: e.expUrl || null,
       kids: e.kids && e.kids.length ? e.kids.map(projEl) : null };
@@ -1788,7 +1788,7 @@
       // bare shapes keep the shape glyph (their panel really picks shapes)
       var isCardEl = e.type === 'box' && e.kids && e.kids.length;
       ctxBtn.innerHTML = CTX_ICONS[e.type === 'button' ? 'link' : e.type === 'box' ? (isCardEl ? 'image' : 'shape') : 'image'];
-      ctxBtn.title = e.type === 'button' ? 'Button link' : e.type === 'box' ? ( isCardEl ? 'Background image & colour' : 'Shape, colour & image' ) : e.type === 'widget' ? (e.faq ? 'Edit the questions' : e.tabs ? 'Edit the tabs' : 'Block settings & link') : 'Choose image';
+      ctxBtn.title = e.type === 'button' ? 'Button link' : e.type === 'box' ? ( isCardEl ? 'Background image & colour' : 'Shape, colour & image' ) : e.type === 'widget' ? (e.faq ? 'Edit the questions' : e.tabs ? 'Edit the tabs' : e.slides ? 'Edit the slides' : 'Block settings & link') : 'Choose image';
       ctxBtn.style.display = '';
     } else {
       ctxBtn.style.display = 'none';
@@ -1994,7 +1994,7 @@
       var pe = pd.sec.els[pd.i];
       // FAQ/Tabs have no in-place caret — the second click (the "let me
       // edit the words" gesture) opens their form instead of dead-ending
-      if (pe && pe.type === 'widget' && ((pe.faq && pe.faq.length) || (pe.tabs && pe.tabs.length))) {
+      if (pe && pe.type === 'widget' && ((pe.faq && pe.faq.length) || (pe.tabs && pe.tabs.length) || (pe.slides && pe.slides.length))) {
         openPanel(pd.sec, pd.i);
         return;
       }
@@ -2294,7 +2294,7 @@
     placePanelNear(sec.nodes[i]);
     panelOpen = true;
     // the Q&A editors are typing surfaces — outside clicks pass through
-    if (e.type === 'widget' && ((e.faq && e.faq.length) || (e.tabs && e.tabs.length))) panelSticky = true;
+    if (e.type === 'widget' && ((e.faq && e.faq.length) || (e.tabs && e.tabs.length) || (e.slides && e.slides.length))) panelSticky = true;
   }
   var savedTextRange = null;
   function applyTextLink(url) {
@@ -2426,9 +2426,89 @@
     };
     render();
   }
+  function buildCarouselPanel(sec, i) {
+    var e = sec.els[i];
+    panel.classList.add('gogh-panel-wide');
+    var items = e.slides;
+    var render = function () {
+      panel.innerHTML = '<div class="gogh-panel-head"><span class="gogh-panel-title">Carousel</span>' +
+        '<button type="button" class="gogh-sbtn gogh-panel-close" title="Done">\u2715</button></div>' +
+        '<div class="gogh-panel-hint">Photos slide and snap \u2014 captions are optional.</div>' +
+        items.map(function (it, k) {
+          return '<div class="gogh-qna gogh-crslrow" data-k="' + k + '">' +
+            '<div class="gogh-qna-head">' +
+            '<span class="gogh-crslthumb" style="background-image:url(\'' + escAttr(it.img) + '\')"></span>' +
+            '<input type="text" class="gogh-input gogh-crsl-cap" placeholder="Caption (optional)" value="' + escAttr(it.cap || '') + '" />' +
+            '<button type="button" class="gogh-sbtn gogh-qna-mv" data-dir="-1" title="Move left"' + (k === 0 ? ' disabled' : '') + '>\u2191</button>' +
+            '<button type="button" class="gogh-sbtn gogh-qna-mv" data-dir="1" title="Move right"' + (k === items.length - 1 ? ' disabled' : '') + '>\u2193</button>' +
+            (items.length > 1 ? '<button type="button" class="gogh-sbtn gogh-qna-x" title="Remove this slide">\u2715</button>' : '') +
+            '</div></div>';
+        }).join('') +
+        '<div class="gogh-swlab">Add from your library</div>' +
+        '<div class="gogh-media"><span class="gogh-media-loading">Loading media\u2026</span></div>';
+      var syncT = null;
+      var sync = function (push) {
+        composeWidgetData(e);
+        renderSection(sec);
+        placeHandles(sec, i);
+        if (push) pushState();
+        else { clearTimeout(syncT); syncT = setTimeout(pushState, 900); }
+      };
+      panel.querySelectorAll('.gogh-crslrow').forEach(function (row) {
+        var k = +row.dataset.k;
+        row.querySelector('.gogh-crsl-cap').addEventListener('input', function () {
+          items[k].cap = this.value;
+          sync(false);
+        });
+        var x = row.querySelector('.gogh-qna-x');
+        if (x) x.addEventListener('click', function () {
+          items.splice(k, 1);
+          sync(true);
+          render();
+        });
+        row.querySelectorAll('.gogh-qna-mv').forEach(function (mv) {
+          mv.addEventListener('click', function () {
+            var to = k + (+mv.dataset.dir);
+            if (to < 0 || to >= items.length) return;
+            var moved = items.splice(k, 1)[0];
+            items.splice(to, 0, moved);
+            sync(true);
+            render();
+          });
+        });
+      });
+      panel.querySelector('.gogh-panel-close').addEventListener('click', function () { closePanel(); });
+      fetch(restQ(cfg.mediaUrl, 'per_page=32&media_type=image&orderby=date&order=desc'), {
+        headers: { 'X-WP-Nonce': cfg.nonce },
+        credentials: 'same-origin',
+      }).then(function (res) { return res.ok ? res.json() : []; }).catch(function () { return []; }).then(function (list) {
+        var box = panel.querySelector('.gogh-media');
+        if (!box || panel.hidden) return;
+        box.innerHTML = '';
+        if (!list.length) { box.innerHTML = '<span class="gogh-media-loading">No images in the media library yet.</span>'; return; }
+        list.forEach(function (item) {
+          var thumb = (item.media_details && item.media_details.sizes &&
+            (item.media_details.sizes.thumbnail || item.media_details.sizes.medium));
+          var b = document.createElement('button');
+          b.type = 'button';
+          b.className = 'gogh-thumb';
+          b.title = 'Add to the carousel';
+          b.style.backgroundImage = 'url("' + (thumb ? thumb.source_url : item.source_url) + '")';
+          b.addEventListener('click', function () {
+            items.push({ img: item.source_url, cap: '' });
+            sync(true);
+            render();
+          });
+          box.appendChild(b);
+        });
+      });
+    };
+    render();
+  }
   function buildWidgetPanel(sec, i) {
     var e = sec.els[i];
     if ((e.faq && e.faq.length) || (e.tabs && e.tabs.length)) return buildQnaPanel(sec, i);
+    if (e.slides && e.slides.length) return buildCarouselPanel(sec, i);
     var node = sec.nodes[i];
     var editableSrc = e.wsrc != null && e.wsrc === e.whtml;
     var a = editableSrc ? node.querySelector('a') : null;
@@ -3963,6 +4043,19 @@
       { type: 'button', x: 424, y: 338, w: 170, h: 56, text: 'Email us' },
       { type: 'button', x: 614, y: 338, w: 170, h: 56, text: 'Follow along', ghost: true },
     ] },
+    { starter: true, intent: 'showcase', name: 'Carousel', minH: 520, els: [
+      { type: 'para', x: 400, y: 56, w: 400, h: 24, align: 'center', text: 'A closer look',
+        tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
+      { type: 'heading', x: 250, y: 96, w: 700, h: 64, text: 'Slide through the work', fs: 'x-large', align: 'center' },
+      // real core image blocks in a scroll-snap group — zero JS, works
+      // with the plugin off, and Chrome's CSS carousel dots light up free
+      { type: 'widget', x: 120, y: 200, w: 960, h: 280, slides: [
+        { img: '/wp-content/plugins/gogh/demo-assets/wheat-field.jpg', cap: 'Wheat Field with Cypresses' },
+        { img: '/wp-content/plugins/gogh/demo-assets/starry-night.jpg', cap: 'The Starry Night' },
+        { img: '/wp-content/plugins/gogh/demo-assets/sunflowers.jpg', cap: 'Sunflowers' },
+        { img: '/wp-content/plugins/gogh/demo-assets/almond-blossom.jpg', cap: 'Almond Blossom' },
+      ] },
+    ] },
     { starter: true, intent: 'sell', name: 'FAQ', gated: 'hasAccordion', minH: 560, els: [
       { type: 'para', x: 400, y: 56, w: 400, h: 24, align: 'center', text: 'Questions, answered',
         tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
@@ -4096,9 +4189,25 @@
       '<div class="wp-block-tab-panels"><div class="wp-block-tab-panel"><p>' + esc(items[0] ? items[0].body : '') + '</p></div></div></div>';
     return { wsrc: wsrc, whtml: whtml };
   }
+  function composeCarousel(items) {
+    var fig = function (it) {
+      return '<figure class="wp-block-image size-large"><img src="' + escAttr(it.img) + '" alt="' + escAttr(it.cap || '') + '"/>' +
+        (it.cap ? '<figcaption class="wp-element-caption">' + esc(it.cap) + '</figcaption>' : '') + '</figure>';
+    };
+    var wsrc = '<!-- wp:group {"className":"gogh-carousel"} -->\n<div class="wp-block-group gogh-carousel">' +
+      items.map(function (it) {
+        return '<!-- wp:image {"sizeSlug":"large","className":"gogh-slide"} -->\n' +
+          fig(it).replace('wp-block-image size-large', 'wp-block-image size-large gogh-slide') + '\n<!-- /wp:image -->';
+      }).join('') + '</div>\n<!-- /wp:group -->';
+    var whtml = '<div class="wp-block-group gogh-carousel">' + items.map(function (it) {
+      return fig(it).replace('wp-block-image size-large', 'wp-block-image size-large gogh-slide');
+    }).join('') + '</div>';
+    return { wsrc: wsrc, whtml: whtml };
+  }
   function composeWidgetData(e) {
     if (e.faq && e.faq.length) { var c = composeFaq(e.faq); e.wsrc = c.wsrc; e.whtml = c.whtml; }
     else if (e.tabs && e.tabs.length) { var c2 = composeTabs(e.tabs); e.wsrc = c2.wsrc; e.whtml = c2.whtml; }
+    else if (e.slides && e.slides.length) { var c3 = composeCarousel(e.slides); e.wsrc = c3.wsrc; e.whtml = c3.whtml; }
   }
   function tplEls(tpl) {
     var els = JSON.parse(JSON.stringify(tpl.els));
@@ -8184,6 +8293,7 @@
     composeFaq: composeFaq,
     openPanel: openPanel,
     composeTabs: composeTabs,
+    composeCarousel: composeCarousel,
     chromeDialsApply: chromeDialsApply,
     insertGoghPattern: insertGoghPattern,
     addHtmlSection: addHtmlSection,
