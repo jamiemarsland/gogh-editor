@@ -11,9 +11,21 @@
   var cfg = window.GOGHWRITE || {};
   if (!cfg.postId || !cfg.restUrl) return;
 
-  var title = document.querySelector('.wp-block-post-title, h1.entry-title');
   var body = document.querySelector('.entry-content, .wp-block-post-content');
   if (!body) return;
+  // the RIGHT title: the nearest one PRECEDING the content — templates
+  // scatter post-titles through "more posts" furniture, and some render
+  // no main title at all for an empty draft. Find it or make it.
+  var title = null;
+  [].forEach.call(document.querySelectorAll('.wp-block-post-title, h1.entry-title'), function (t) {
+    if (t.compareDocumentPosition(body) & Node.DOCUMENT_POSITION_FOLLOWING) title = t;
+  });
+  if (!title) {
+    title = document.createElement('h1');
+    title.className = 'wp-block-post-title';
+    body.parentNode.insertBefore(title, body);
+  }
+  if (!title.textContent.trim()) title.innerHTML = '';
   document.body.classList.add('gogh-writing');
 
   // ---------- the surface ----------
@@ -101,9 +113,22 @@
   var insertImageAt = function (file, refNode) {
     var fig = document.createElement('figure');
     fig.className = 'wp-block-image size-large gogh-w-uploading';
+    fig.contentEditable = 'false'; // the image is an OBJECT, not text
     fig.innerHTML = '<img alt="" src="' + URL.createObjectURL(file) + '"/>';
     if (refNode && refNode.parentNode === body) body.insertBefore(fig, refNode.nextSibling);
     else body.appendChild(fig);
+    // there is ALWAYS a line below an image ("i cant write below")
+    if (!fig.nextElementSibling || /^(FIGURE|HR)$/.test(fig.nextElementSibling.tagName)) {
+      var after = document.createElement('p');
+      after.innerHTML = '<br>';
+      fig.after(after);
+    }
+    var cr2 = document.createRange();
+    cr2.selectNodeContents(fig.nextElementSibling);
+    cr2.collapse(true);
+    var s2 = getSelection();
+    s2.removeAllRanges();
+    s2.addRange(cr2);
     var fd = new FormData();
     fd.append('file', file);
     fetch(cfg.restUrl + 'wp/v2/media', {
@@ -304,7 +329,68 @@
     }
   });
 
+  // ---------- images are objects: click picks, Delete removes ----------
+  var picked = null;
+  var unpick = function () {
+    if (!picked) return;
+    picked.classList.remove('is-picked');
+    var x = picked.querySelector('.gogh-w-figx');
+    if (x) x.remove();
+    picked = null;
+  };
+  var removeFig = function (fig) {
+    var next = fig.nextElementSibling;
+    fig.remove();
+    unpick();
+    if (!body.children.length) body.innerHTML = '<p><br></p>';
+    var target = (next && body.contains(next)) ? next : body.lastElementChild;
+    if (target && /^(P|H2|H3|DIV)$/.test(target.tagName)) {
+      var r2 = document.createRange();
+      r2.selectNodeContents(target);
+      r2.collapse(true);
+      var s3 = getSelection();
+      s3.removeAllRanges();
+      s3.addRange(r2);
+    }
+    queueSave();
+  };
+  body.addEventListener('click', function (ev) {
+    var fig = ev.target.closest && ev.target.closest('figure');
+    if (!fig || !body.contains(fig) || fig.classList.contains('gogh-w-embedline')) { unpick(); return; }
+    if (picked === fig) return;
+    unpick();
+    picked = fig;
+    fig.classList.add('is-picked');
+    var x = document.createElement('button');
+    x.type = 'button';
+    x.className = 'gogh-w-figx';
+    x.setAttribute('aria-label', 'Remove');
+    x.textContent = '\u2715';
+    x.addEventListener('click', function (ev2) {
+      ev2.stopPropagation();
+      removeFig(fig);
+    });
+    fig.appendChild(x);
+  });
+  document.addEventListener('keydown', function (ev) {
+    if (!picked) return;
+    if (ev.key === 'Delete' || ev.key === 'Backspace') {
+      ev.preventDefault();
+      removeFig(picked);
+    } else if (ev.key === 'Escape') {
+      unpick();
+    }
+  }, true);
+  document.addEventListener('pointerdown', function (ev) {
+    if (picked && !picked.contains(ev.target)) unpick();
+  }, true);
+
   // ---------- serialization: pure core blocks, nothing exotic ----------
+  var stripEditorGoo = function (fig) {
+    var x = fig.querySelector('.gogh-w-figx');
+    if (x) x.remove();
+    return fig;
+  };
   var inlineClean = function (el) {
     var tmp = document.createElement('div');
     tmp.innerHTML = el.innerHTML;
@@ -349,6 +435,7 @@
       } else if (tag === 'HR') {
         out.push('<!-- wp:separator -->\n<hr class="wp-block-separator has-alpha-channel-opacity"/>\n<!-- /wp:separator -->');
       } else if (tag === 'FIGURE' && n.querySelector('img') && !n.classList.contains('gogh-w-uploading')) {
+        stripEditorGoo(n);
         var img = n.querySelector('img');
         var mid = n.dataset.mid ? +n.dataset.mid : null;
         var cap = n.querySelector('figcaption');
@@ -381,7 +468,8 @@
   };
   // the chip answers the MOUSE — typing keeps the canvas bare
   document.addEventListener('mousemove', wakeChip);
-  document.addEventListener('keydown', function () {
+  document.addEventListener('keydown', function (ev) {
+    if (chip.classList.contains('is-filing')) return; // filing holds the door
     clearTimeout(chipHideT);
     chip.classList.remove('is-vis');
   }, true);
@@ -397,7 +485,7 @@
       body: JSON.stringify(Object.assign({
         title: title ? title.textContent.trim() : '',
         content: serialize(),
-      }, statusTo ? { status: statusTo } : {})),
+      }, statusTo ? { status: statusTo } : {}, (statusTo && chosenCats.length) ? { categories: chosenCats } : {})),
     }).then(function (r) {
       saving = false;
       if (r.ok) {
@@ -415,8 +503,8 @@
   body.addEventListener('input', queueSave);
   if (title) title.addEventListener('input', queueSave);
 
-  chip.querySelector('.gogh-w-publish').addEventListener('click', function () {
-    var b = chip.querySelector('.gogh-w-publish');
+  var chosenCats = [];
+  var doPublish = function (b) {
     b.disabled = true;
     b.textContent = 'Publishing…';
     clearTimeout(saveT);
@@ -429,6 +517,62 @@
         b.textContent = 'Publish';
         b.disabled = false;
       }
+    });
+  };
+  chip.querySelector('.gogh-w-publish').addEventListener('click', function () {
+    var b = chip.querySelector('.gogh-w-publish');
+    if (chip.querySelector('.gogh-w-cats')) { doPublish(b); return; }
+    // step one: file it — categories appear only at the moment of
+    // publishing; while writing they do not exist
+    b.textContent = 'Fetching…';
+    fetch(cfg.restUrl + 'wp/v2/categories?per_page=50&hide_empty=0', {
+      headers: { 'X-WP-Nonce': cfg.nonce },
+      credentials: 'same-origin',
+    }).then(function (r) { return r.ok ? r.json() : []; }).catch(function () { return []; }).then(function (cats) {
+      b.textContent = 'Publish';
+      var row = document.createElement('div');
+      row.className = 'gogh-w-cats';
+      var syncCats = function () {
+        chosenCats = [].map.call(chip.querySelectorAll('.gogh-w-cat.is-on'), function (x) { return +x.dataset.cid; });
+      };
+      cats.filter(function (c) { return c.slug !== 'uncategorized'; }).forEach(function (c) {
+        var pill = document.createElement('button');
+        pill.type = 'button';
+        pill.className = 'gogh-w-cat';
+        pill.textContent = c.name;
+        pill.dataset.cid = c.id;
+        pill.addEventListener('click', function () { pill.classList.toggle('is-on'); syncCats(); });
+        row.appendChild(pill);
+      });
+      var fresh = document.createElement('input');
+      fresh.type = 'text';
+      fresh.className = 'gogh-w-newcat';
+      fresh.placeholder = 'new…';
+      fresh.addEventListener('keydown', function (ev) {
+        ev.stopPropagation();
+        if (ev.key !== 'Enter' || !fresh.value.trim()) return;
+        fetch(cfg.restUrl + 'wp/v2/categories', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'X-WP-Nonce': cfg.nonce },
+          credentials: 'same-origin',
+          body: JSON.stringify({ name: fresh.value.trim() }),
+        }).then(function (r) { return r.ok ? r.json() : null; }).then(function (c) {
+          if (!c) return;
+          var pill = document.createElement('button');
+          pill.type = 'button';
+          pill.className = 'gogh-w-cat is-on';
+          pill.textContent = c.name;
+          pill.dataset.cid = c.id;
+          pill.addEventListener('click', function () { pill.classList.toggle('is-on'); syncCats(); });
+          row.insertBefore(pill, fresh);
+          fresh.value = '';
+          syncCats();
+        });
+      });
+      row.appendChild(fresh);
+      chip.insertBefore(row, b);
+      clearTimeout(chipHideT); // filing holds the chip open
+      chip.classList.add('is-vis', 'is-filing');
     });
   });
 

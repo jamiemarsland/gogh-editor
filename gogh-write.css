@@ -7,7 +7,16 @@ body.gogh-writing footer,
 body.gogh-writing #wpadminbar,
 body.gogh-writing .gogh-convertbtn,
 body.gogh-writing .gogh-side,
-body.gogh-writing .gogh-side-tab {
+body.gogh-writing .gogh-side-tab,
+body.gogh-writing .wp-block-post-navigation-link,
+body.gogh-writing nav.post-navigation,
+body.gogh-writing .wp-block-comments,
+body.gogh-writing #comments,
+body.gogh-writing .comments-area,
+body.gogh-writing .wp-block-post-comments-form,
+body.gogh-writing .wp-block-query,
+body.gogh-writing .wp-block-group:has(.wp-block-post-navigation-link):not(:has(.gogh-w-body)),
+body.gogh-writing .wp-block-group:has(.wp-block-query):not(:has(.gogh-w-body)) {
   display: none !important;
 }
 html body.gogh-writing {
@@ -35,6 +44,11 @@ body.gogh-writing :is(.wp-block-group, .wp-block-post-meta, p):has(> .wp-block-p
 .gogh-w-body {
   outline: none;
   caret-color: #4f5aee;
+}
+.gogh-w-title {
+  min-height: 1.25em;
+  min-width: 8ch;
+  display: block;
 }
 .gogh-w-title:empty::before {
   content: 'Title';
@@ -191,4 +205,72 @@ body.gogh-writing ::selection {
   aspect-ratio: 16 / 9;
   border: 0;
   border-radius: 12px;
+}
+
+/* filing happens at the door: category pills unfold inside the chip */
+.gogh-w-chip.is-filing {
+  flex-wrap: wrap;
+  max-width: min(78vw, 560px);
+  border-radius: 22px;
+}
+.gogh-w-cats {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+.gogh-w-cat {
+  all: unset;
+  cursor: pointer;
+  padding: 5px 11px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  color: #f2f3f5;
+  font-size: 12px;
+}
+.gogh-w-cat.is-on {
+  background: #e8b04b;
+  border-color: transparent;
+  color: #141519;
+  font-weight: 600;
+}
+.gogh-w-newcat {
+  all: unset;
+  min-width: 54px;
+  max-width: 110px;
+  padding: 5px 11px;
+  border-radius: 999px;
+  border: 1px dashed rgba(255, 255, 255, 0.3);
+  color: #f2f3f5;
+  font-size: 12px;
+}
+.gogh-w-newcat::placeholder {
+  color: rgba(255, 255, 255, 0.4);
+}
+
+/* a picked image says so, and offers the door */
+.gogh-w-body figure {
+  position: relative;
+  cursor: default;
+}
+.gogh-w-body figure.is-picked {
+  outline: 2px solid rgba(79, 90, 238, 0.65);
+  outline-offset: 3px;
+  border-radius: 4px;
+}
+.gogh-w-figx {
+  all: unset;
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: rgba(20, 21, 25, 0.85);
+  color: #fff;
+  font-size: 13px;
+  cursor: pointer;
 }
