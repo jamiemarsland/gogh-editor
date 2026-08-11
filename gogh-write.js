@@ -153,6 +153,157 @@
     imgs.forEach(function (i) { insertImageAt(i.getAsFile(), ref); });
   });
 
+  // ---------- the ＋ margin menu: answers that exist only while the
+  // question does — an empty line asks "what goes next?", the ＋ offers
+  // the few things a writer actually reaches for. Typing melts it away.
+  var plus = document.createElement('button');
+  plus.type = 'button';
+  plus.className = 'gogh-w-plus';
+  plus.setAttribute('aria-label', 'Add something here');
+  plus.textContent = '+';
+  document.body.appendChild(plus);
+  var menu = document.createElement('div');
+  menu.className = 'gogh-w-menu';
+  menu.innerHTML =
+    '<button type="button" data-add="image">\ud83d\udcf7 Image</button>' +
+    '<button type="button" data-add="quote">\u275d Quote</button>' +
+    '<button type="button" data-add="embed">\u25b6 Embed</button>' +
+    '<button type="button" data-add="rule">\u2014 Divider</button>';
+  menu.hidden = true;
+  document.body.appendChild(menu);
+  var filePick = document.createElement('input');
+  filePick.type = 'file';
+  filePick.accept = 'image/*';
+  filePick.multiple = true;
+  filePick.hidden = true;
+  document.body.appendChild(filePick);
+
+  var plusBlk = null;
+  var emptyBlock = function (blk) {
+    return blk && /^(P|DIV)$/.test(blk.tagName) && !blk.textContent.trim() && !blk.querySelector('img');
+  };
+  var hidePlus = function () {
+    plus.classList.remove('is-vis');
+    menu.hidden = true;
+    plusBlk = null;
+  };
+  var placePlus = function () {
+    var sel = getSelection();
+    if (!sel.rangeCount || !body.contains(sel.anchorNode)) { hidePlus(); return; }
+    var blk = blockOf(sel.anchorNode);
+    if (!emptyBlock(blk)) { hidePlus(); return; }
+    plusBlk = blk;
+    var r = blk.getBoundingClientRect();
+    plus.style.left = Math.max(8, r.left - 46) + 'px';
+    plus.style.top = (r.top + r.height / 2) + 'px';
+    plus.classList.add('is-vis');
+    if (!menu.hidden) {
+      menu.style.left = Math.max(8, r.left) + 'px';
+      menu.style.top = (r.top + r.height / 2) + 'px';
+    }
+  };
+  document.addEventListener('selectionchange', function () {
+    if (menu.hidden) placePlus();
+  });
+  window.addEventListener('scroll', function () { if (plusBlk) placePlus(); }, { passive: true });
+
+  var openMenu = function () {
+    if (!plusBlk) return;
+    var r = plusBlk.getBoundingClientRect();
+    menu.style.left = Math.max(8, r.left) + 'px';
+    menu.style.top = (r.top + r.height / 2) + 'px';
+    menu.hidden = false;
+  };
+  plus.addEventListener('click', function (ev) { ev.preventDefault(); openMenu(); });
+  document.addEventListener('pointerdown', function (ev) {
+    if (!menu.hidden && !menu.contains(ev.target) && ev.target !== plus) menu.hidden = true;
+  }, true);
+
+  var caretInto = function (el, atEnd) {
+    var r = document.createRange();
+    r.selectNodeContents(el);
+    r.collapse(!atEnd);
+    var s2 = getSelection();
+    s2.removeAllRanges();
+    s2.addRange(r);
+  };
+  var embedPreview = function (url) {
+    var yt = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([\w-]{6,})/);
+    if (yt) return '<iframe src="https://www.youtube.com/embed/' + yt[1] + '" allowfullscreen loading="lazy"></iframe>';
+    var vm = url.match(/vimeo\.com\/(\d+)/);
+    if (vm) return '<iframe src="https://player.vimeo.com/video/' + vm[1] + '" allowfullscreen loading="lazy"></iframe>';
+    return '<a href="' + url + '">' + url + '</a>';
+  };
+  var addAt = function (kind) {
+    var blk = plusBlk;
+    menu.hidden = true;
+    if (!blk) return;
+    if (kind === 'image') {
+      filePick.onchange = function () {
+        [].forEach.call(filePick.files, function (f) { insertImageAt(f, blk); });
+        filePick.value = '';
+        queueSave();
+      };
+      filePick.click();
+      return;
+    }
+    if (kind === 'quote') {
+      var q = swapBlock(blk, '<blockquote><p><br></p></blockquote>');
+      caretInto(q.querySelector('p') || q);
+    } else if (kind === 'rule') {
+      var hr = document.createElement('hr');
+      blk.replaceWith(hr);
+      var p2 = document.createElement('p');
+      p2.innerHTML = '<br>';
+      hr.after(p2);
+      caretInto(p2);
+    } else if (kind === 'embed') {
+      var line = swapBlock(blk, '<p class="gogh-w-embedline"><br></p>');
+      caretInto(line);
+      var finish = function () {
+        var url = line.textContent.trim();
+        line.removeEventListener('keydown', onKey);
+        if (!/^https?:\/\//.test(url)) {
+          line.className = '';
+          return;
+        }
+        var fig = document.createElement('figure');
+        fig.className = 'gogh-w-embed';
+        fig.dataset.url = url;
+        fig.innerHTML = embedPreview(url);
+        line.replaceWith(fig);
+        var p3 = document.createElement('p');
+        p3.innerHTML = '<br>';
+        fig.after(p3);
+        caretInto(p3);
+        queueSave();
+      };
+      var onKey = function (ev) {
+        if (ev.key === 'Enter') { ev.preventDefault(); finish(); }
+        if (ev.key === 'Escape') { line.className = ''; line.removeEventListener('keydown', onKey); }
+      };
+      line.addEventListener('keydown', onKey);
+    }
+    hidePlus();
+    queueSave();
+  };
+  menu.addEventListener('click', function (ev) {
+    var b = ev.target.closest('[data-add]');
+    if (b) addAt(b.dataset.add);
+  });
+  // "/" on an empty line opens the same menu — the keyboard's ＋
+  body.addEventListener('keydown', function (ev) {
+    if (ev.key === '/' ) {
+      var blk = blockOf(getSelection().anchorNode);
+      if (emptyBlock(blk)) {
+        ev.preventDefault();
+        plusBlk = blk;
+        placePlus();
+        openMenu();
+      }
+    }
+  });
+
   // ---------- serialization: pure core blocks, nothing exotic ----------
   var inlineClean = function (el) {
     var tmp = document.createElement('div');
@@ -188,6 +339,13 @@
           return '<!-- wp:list-item -->\n<li>' + inlineClean(li) + '</li>\n<!-- /wp:list-item -->';
         }).join('');
         out.push('<!-- wp:list ' + (tag === 'OL' ? '{"ordered":true} ' : '') + '-->\n<' + tag.toLowerCase() + ' class="wp-block-list">' + lis + '</' + tag.toLowerCase() + '>\n<!-- /wp:list -->');
+      } else if (tag === 'FIGURE' && n.classList.contains('gogh-w-embed') && n.dataset.url) {
+        var eu = n.dataset.url;
+        var prov = /youtu/.test(eu) ? 'youtube' : /vimeo/.test(eu) ? 'vimeo' : null;
+        var attrs = { url: eu };
+        if (prov) { attrs.type = 'video'; attrs.providerNameSlug = prov; attrs.responsive = true; }
+        var figCls = 'wp-block-embed' + (prov ? ' is-type-video is-provider-' + prov + ' wp-block-embed-' + prov : '');
+        out.push('<!-- wp:embed ' + JSON.stringify(attrs) + ' -->\n<figure class="' + figCls + '"><div class="wp-block-embed__wrapper">\n' + eu + '\n</div></figure>\n<!-- /wp:embed -->');
       } else if (tag === 'HR') {
         out.push('<!-- wp:separator -->\n<hr class="wp-block-separator has-alpha-channel-opacity"/>\n<!-- /wp:separator -->');
       } else if (tag === 'FIGURE' && n.querySelector('img') && !n.classList.contains('gogh-w-uploading')) {
