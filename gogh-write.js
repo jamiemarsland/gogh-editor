@@ -114,7 +114,8 @@
     var fig = document.createElement('figure');
     fig.className = 'wp-block-image size-large gogh-w-uploading';
     fig.contentEditable = 'false'; // the image is an OBJECT, not text
-    fig.innerHTML = '<img alt="" src="' + URL.createObjectURL(file) + '"/>';
+    fig.innerHTML = '<img alt="" src="' + URL.createObjectURL(file) + '"/>' +
+      '<figcaption class="wp-element-caption gogh-w-cap" contenteditable="true"></figcaption>';
     if (refNode && refNode.parentNode === body) body.insertBefore(fig, refNode.nextSibling);
     else body.appendChild(fig);
     // there is ALWAYS a line below an image ("i cant write below")
@@ -227,9 +228,16 @@
       menu.style.top = (r.top + r.height / 2) + 'px';
     }
   };
-  document.addEventListener('selectionchange', function () {
-    if (menu.hidden) placePlus();
-  });
+  var placeSoon = null;
+  var queuePlace = function () {
+    if (!menu.hidden) return;
+    clearTimeout(placeSoon);
+    placeSoon = setTimeout(placePlus, 60);
+  };
+  document.addEventListener('selectionchange', queuePlace);
+  body.addEventListener('keyup', queuePlace);
+  body.addEventListener('click', queuePlace);
+  body.addEventListener('input', queuePlace);
   window.addEventListener('scroll', function () { if (plusBlk) placePlus(); }, { passive: true });
 
   var openMenu = function () {
@@ -371,6 +379,26 @@
       removeFig(fig);
     });
     fig.appendChild(x);
+    // alt text edits on pick — for the readers who listen
+    var alt = document.createElement('input');
+    alt.type = 'text';
+    alt.className = 'gogh-w-alt';
+    alt.placeholder = 'Describe this image (alt text)\u2026';
+    alt.value = (fig.querySelector('img') || {}).alt || '';
+    alt.addEventListener('click', function (ev2) { ev2.stopPropagation(); });
+    alt.addEventListener('input', function () {
+      var im = fig.querySelector('img');
+      if (im) im.alt = alt.value;
+      queueSave();
+    });
+    fig.appendChild(alt);
+    // clicking an existing caption-less image can still gain a caption
+    if (!fig.querySelector('figcaption')) {
+      var cap2 = document.createElement('figcaption');
+      cap2.className = 'wp-element-caption gogh-w-cap';
+      cap2.contentEditable = 'true';
+      fig.insertBefore(cap2, x);
+    }
   });
   document.addEventListener('keydown', function (ev) {
     if (!picked) return;
@@ -389,6 +417,8 @@
   var stripEditorGoo = function (fig) {
     var x = fig.querySelector('.gogh-w-figx');
     if (x) x.remove();
+    var a = fig.querySelector('.gogh-w-alt');
+    if (a) a.remove();
     return fig;
   };
   var inlineClean = function (el) {
@@ -439,9 +469,10 @@
         var img = n.querySelector('img');
         var mid = n.dataset.mid ? +n.dataset.mid : null;
         var cap = n.querySelector('figcaption');
+        var capTxt = cap && cap.textContent.trim() ? inlineClean(cap) : '';
         out.push('<!-- wp:image ' + (mid ? '{"id":' + mid + ',"sizeSlug":"large"} ' : '{"sizeSlug":"large"} ') + '-->\n' +
           '<figure class="wp-block-image size-large"><img src="' + img.src + '" alt="' + (img.alt || '') + '"' + (mid ? ' class="wp-image-' + mid + '"' : '') + '/>' +
-          (cap ? '<figcaption class="wp-element-caption">' + inlineClean(cap) + '</figcaption>' : '') +
+          (capTxt ? '<figcaption class="wp-element-caption">' + capTxt + '</figcaption>' : '') +
           '</figure>\n<!-- /wp:image -->');
       }
     });
@@ -460,20 +491,16 @@
   var words = function () {
     return (body.innerText.trim().match(/\S+/g) || []).length;
   };
-  var chipHideT = null;
-  var wakeChip = function () {
-    countEl.textContent = words() + ' words';
-    chip.classList.add('is-vis');
-    clearTimeout(chipHideT);
-    chipHideT = setTimeout(function () { chip.classList.remove('is-vis'); }, 2200);
-  };
-  // the chip answers the MOUSE — typing keeps the canvas bare
-  document.addEventListener('mousemove', wakeChip);
-  document.addEventListener('keydown', function (ev) {
-    if (chip.classList.contains('is-filing')) return; // filing holds the door
-    clearTimeout(chipHideT);
-    chip.classList.remove('is-vis');
-  }, true);
+  // the chip LIVES bottom-right — a quiet count, always in the same
+  // place, never popping in or out ("keeps popping up when i dont want
+  // it" + "not sure how to make it pop up" = the summoning model was
+  // wrong both ways). Hovering it opens the full chip; that is all.
+  countEl.textContent = '0 words';
+  var countT = null;
+  body.addEventListener('input', function () {
+    clearTimeout(countT);
+    countT = setTimeout(function () { countEl.textContent = words() + ' words'; }, 300);
+  });
 
   var saveT = null, saving = false, dirty = false;
   var save = function (statusTo) {
@@ -543,9 +570,12 @@
       headers: { 'X-WP-Nonce': cfg.nonce },
       credentials: 'same-origin',
     }).then(function (r) { return r.ok ? r.json() : []; }).catch(function () { return []; }).then(function (cats) {
-      catsLabel();
       var row = document.createElement('div');
       row.className = 'gogh-w-cats';
+      var lab1 = document.createElement('span');
+      lab1.className = 'gogh-w-lab';
+      lab1.textContent = 'Categories';
+      row.appendChild(lab1);
       var syncCats = function () {
         chosenCats = [].map.call(chip.querySelectorAll('.gogh-w-cat.is-on'), function (x) { return +x.dataset.cid; });
         catsLabel();
@@ -586,8 +616,12 @@
       });
       row.appendChild(fresh);
       // tags: freeform — type, Enter, it finds or creates
+      var lab2 = document.createElement('span');
+      lab2.className = 'gogh-w-lab';
+      lab2.textContent = 'Tags';
       var tagLine = document.createElement('div');
       tagLine.className = 'gogh-w-tags';
+      tagLine.__lab = lab2;
       var tagIn = document.createElement('input');
       tagIn.type = 'text';
       tagIn.className = 'gogh-w-newcat gogh-w-newtag';
@@ -625,10 +659,11 @@
         });
       });
       tagLine.appendChild(tagIn);
+      row.appendChild(lab2);
       row.appendChild(tagLine);
       chip.insertBefore(row, catsBtn);
-      clearTimeout(chipHideT); // filing holds the chip open
-      chip.classList.add('is-vis', 'is-filing');
+      chip.classList.add('is-filing');
+      catsBtn.textContent = 'Done';
     });
   });
 
