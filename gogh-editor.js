@@ -1468,6 +1468,7 @@
     '</div>' +
     // the build number, always in sight: five bug reports in one day were
     // stale caches wearing fresh bugs' clothing
+    '<a class="gogh-btn gogh-btn-small gogh-write-go" href="' + (location.origin + '/?gogh-new-post=1') + '" title="A clean canvas and space to think">\u270d Write a post</a>' +
     '<div class="gogh-side-ver" title="The gogh build this tab is running"></div>';
   document.body.appendChild(side);
 
