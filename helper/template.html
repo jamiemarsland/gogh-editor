@@ -6,9 +6,10 @@
 <title>Gogh Helper — standalone prototype</title>
 <style>
 :root{
-  --bg:#14110e; --bg2:#1c1814; --line:#2f2822; --line2:#3d342b;
-  --ink:#f2ece3; --ink2:#b8ab99; --ink3:#7d7264;
-  --accent:#e8a33d; --accent2:#4d9de0; --ok:#6bbf7b; --err:#e0685c;
+  /* paper, like the rooms it explains — the gogh language */
+  --bg:#fbfaf8; --bg2:#f3f1ec; --line:#e7e4dd; --line2:#d9d5cb;
+  --ink:#1d1e22; --ink2:#5d5b55; --ink3:#918d83;
+  --accent:#e8b04b; --accent2:#3a6ea5; --ok:#3e7d4e; --err:#b4483c;
   --radius:14px;
   --font:-apple-system,BlinkMacSystemFont,"Segoe UI",Inter,Roboto,Helvetica,Arial,sans-serif;
   --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
@@ -80,7 +81,7 @@ header{
 .msg.bot .avatar{background:linear-gradient(135deg,var(--accent),#b8651c);color:#2a1a08}
 .body{min-width:0;flex:1;padding-top:2px}
 .msg.user .body{color:var(--ink)}
-.msg.bot .body{color:#e6ded2}
+.msg.bot .body{color:var(--ink)}
 
 /* markdown */
 .body>*:first-child{margin-top:0}
@@ -89,16 +90,16 @@ header{
 .body p{margin:0 0 11px}
 .body ul,.body ol{margin:0 0 11px;padding-left:22px}
 .body li{margin:3px 0}
-.body code{font-family:var(--mono);font-size:12.5px;background:#241f1a;border:1px solid var(--line);padding:1px 5px;border-radius:5px;color:#f0c987}
-.body pre{background:#0f0d0b;border:1px solid var(--line);border-radius:10px;padding:12px 14px;overflow-x:auto;margin:0 0 12px}
-.body pre code{background:none;border:0;padding:0;color:#dcd3c6;font-size:12.5px;line-height:1.5}
+.body code{font-family:var(--mono);font-size:12.5px;background:#f0ede5;border:1px solid var(--line);padding:1px 5px;border-radius:5px;color:#7a5416}
+.body pre{background:#f2efe8;border:1px solid var(--line);border-radius:10px;padding:12px 14px;overflow-x:auto;margin:0 0 12px}
+.body pre code{background:none;border:0;padding:0;color:#413f39;font-size:12.5px;line-height:1.5}
 .body a{color:var(--accent2)}
 .body strong{color:var(--ink);font-weight:640}
 .body table{border-collapse:collapse;margin:0 0 12px;font-size:13.5px;display:block;overflow-x:auto}
 .body th,.body td{border:1px solid var(--line2);padding:6px 10px;text-align:left;vertical-align:top}
 .body th{background:var(--bg2);font-weight:600}
 .body kbd{
-  font-family:var(--font);font-size:11.5px;background:var(--line2);border:1px solid #4d4238;
+  font-family:var(--font);font-size:11.5px;background:#f0ede5;border:1px solid var(--line2);
   border-bottom-width:2px;border-radius:5px;padding:1px 6px;color:var(--ink)
 }
 .body blockquote{margin:0 0 11px;padding-left:12px;border-left:2px solid var(--line2);color:var(--ink2)}
@@ -106,30 +107,30 @@ header{
 
 .act{
   display:flex;align-items:center;gap:10px;margin:0 0 12px;padding:10px 12px;
-  background:#20272e;border:1px solid #33414d;border-radius:10px;
+  background:#eef2f6;border:1px solid #cdd9e3;border-radius:10px;
 }
 .act button{
-  background:var(--accent2);color:#08243a;border:0;border-radius:8px;padding:7px 13px;
+  background:var(--accent2);color:#fff;border:0;border-radius:8px;padding:7px 13px;
   font:inherit;font-size:13.5px;font-weight:600;cursor:pointer;flex:none;transition:.13s;
 }
 .act button:hover:not(:disabled){filter:brightness(1.08)}
 .act button:disabled{background:var(--line2);color:var(--ink3);cursor:default}
-.act button.danger{background:#e0685c;color:#2a0f0c}
+.act button.danger{background:var(--err);color:#fff}
 .act .note{font-size:12.5px;color:var(--ink2);min-width:0}
-.act.done{border-color:#3d5c44;background:#1b241d}
+.act.done{border-color:#c6d9c6;background:#eef4ee}
 .act.done .note{color:var(--ok)}
-.act.failed{border-color:#5c332e;background:#241a18}
-.act.failed .note{color:#f0b3ab}
+.act.failed{border-color:#e0c6c0;background:#f8efec}
+.act.failed .note{color:#9c4a3c}
 
 .cursor{display:inline-block;width:7px;height:15px;background:var(--accent);vertical-align:-2px;animation:blink 1s steps(2) infinite}
 @keyframes blink{50%{opacity:0}}
 
-.error{border:1px solid #5c332e;background:#2a1a17;color:#f0b3ab;padding:11px 14px;border-radius:10px;font-size:13.5px}
+.error{border:1px solid #e0c6c0;background:#f8efec;color:#8c4438;padding:11px 14px;border-radius:10px;font-size:13.5px}
 .error code{font-family:var(--mono);font-size:12px}
 
 /* ---------- welcome ---------- */
 .welcome{text-align:center;padding:36px 0 8px}
-.welcome h1{font-size:23px;margin:0 0 8px;font-weight:650;letter-spacing:-.02em}
+.welcome h1{font-family:"Iowan Old Style",Georgia,"Times New Roman",serif;font-size:25px;margin:0 0 8px;font-weight:500;letter-spacing:.005em}
 .welcome p{color:var(--ink2);margin:0 auto 24px;max-width:460px;font-size:14px}
 .chips{display:flex;flex-wrap:wrap;gap:8px;justify-content:center}
 .chip{
