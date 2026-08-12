@@ -2,7 +2,7 @@
 	"$schema": "https://playground.wordpress.net/blueprint-schema.json",
 	"meta": {
 		"title": "Gogh Editor",
-		"description": "A freeform canvas for WordPress \u2014 drag anything anywhere on the live page.",
+		"description": "A freeform canvas for WordPress — drag anything anywhere on the live page.",
 		"author": "jamiemarsland",
 		"categories": [
 			"editor",
@@ -33,7 +33,7 @@
 			"step": "installPlugin",
 			"pluginData": {
 				"resource": "url",
-				"url": "https://github-proxy.com/proxy/?repo=jamiemarsland/gogh-editor&release=latest&asset=gogh-playground.zip"
+				"url": "https://raw.githubusercontent.com/jamiemarsland/gogh-demo/main/gogh-playground.zip"
 			},
 			"options": {
 				"activate": true
@@ -41,7 +41,7 @@
 		},
 		{
 			"step": "runPHP",
-			"code": "<?php\nrequire '/wordpress/wp-load.php';\n// blueprint.json is CDN-cached for a week wherever it's linked \u2014 so the\n// living boot code is fetched fresh from the repo (raw caches ~5 minutes).\n// If the fetch fails, fall back to whatever this cached copy knows.\n$boot = false;\ntry {\n\t$boot = file_get_contents( 'https://raw.githubusercontent.com/jamiemarsland/gogh-editor/main/demo-boot.php' );\n} catch ( \\Throwable $e ) {}\nif ( $boot && false !== strpos( $boot, 'gogh' ) ) {\n\teval( '?>' . $boot );\n\treturn;\n}\n// fallback: minimal boot \u2014 apply the newest starter the installed plugin has\nwp_set_current_user( 1 );\ntry {\n\t$req = new WP_REST_Request( 'POST', '/gogh/v1/starter' );\n\t$req->set_param( 'slug', 'yellow-house' );\n\trest_do_request( $req );\n} catch ( \\Throwable $e ) {}\n"
+			"code": "<?php\nrequire '/wordpress/wp-load.php';\n// blueprint.json is CDN-cached for a week wherever it's linked — so the\n// living boot code is fetched fresh from the repo (raw caches ~5 minutes).\n// If the fetch fails, fall back to whatever this cached copy knows.\n$boot = false;\ntry {\n\t$boot = file_get_contents( 'https://raw.githubusercontent.com/jamiemarsland/gogh-demo/main/demo-boot.php' );\n} catch ( \\Throwable $e ) {}\nif ( $boot && false !== strpos( $boot, 'gogh' ) ) {\n\teval( '?>' . $boot );\n\treturn;\n}\n// fallback: minimal boot — apply the newest starter the installed plugin has\nwp_set_current_user( 1 );\ntry {\n\t$req = new WP_REST_Request( 'POST', '/gogh/v1/starter' );\n\t$req->set_param( 'slug', 'yellow-house' );\n\trest_do_request( $req );\n} catch ( \\Throwable $e ) {}\n"
 		},
 		{
 			"step": "setSiteOptions",
