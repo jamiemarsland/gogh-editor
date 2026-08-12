@@ -15,7 +15,7 @@ about something where they conflict, rather than picking one silently. Quote UI
 labels and message copy from the appendix, verbatim — those are the current
 strings, and a paraphrased button label is the fastest way to lose a user's trust.
 
-Generated for plugin version 0.99.128 · knowledge base 7f30d41.
+Generated for plugin version 0.99.128 · knowledge base 58809c2.
 
 ---
 
@@ -920,6 +920,7 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "Adjust spacing"
 - "All options"
 - "Apply"
+- "Auto"
 - "Back"
 - "Back to the palette"
 - "Background image"
@@ -934,7 +935,9 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "Copy style — then click other text to paint it"
 - "Create"
 - "Custom colour"
+- "Custom text colour"
 - "Cycle theme font sizes"
+- "Dark"
 - "Delete (Del)"
 - "Delete saved section"
 - "Delete section"
@@ -956,6 +959,7 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "Keep editing"
 - "Keep this layout (updates every page)"
 - "Left"
+- "Light"
 - "Link"
 - "Link text (⌘K)"
 - "Live mobile preview"
