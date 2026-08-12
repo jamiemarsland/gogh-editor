@@ -2163,19 +2163,6 @@
   function setEditing(on) {
     if (on && window.__goghRenderCanvasOnce) window.__goghRenderCanvasOnce();
     if (on) fetchMediaPool(); // starters dress in THEIR photos
-    // "Design site" (the site menu) lands here with the drawer already
-    // open on the site's style — the closest thing to a whole-site room
-    if (on && /[?&]gogh-design=1/.test(location.search) && !setEditing.__designed) {
-      setEditing.__designed = true;
-      setTimeout(function () {
-        openSide();
-        openPageStylePanel();
-        // in the site room the panel wears its true name — the variations
-        // it auditions are Global Styles, site-wide
-        var tt = panel.querySelector('.gogh-panel-title');
-        if (tt) tt.textContent = 'Site style';
-      }, 400);
-    }
     editing = on;
     document.documentElement.classList.toggle('gogh-editing', on);
     if (on) veilChrome(); else unveilChrome();
@@ -4184,48 +4171,6 @@
   // ---------- section templates & picker ----------
   var TEMPLATES = [
     // fs '__max' resolves to the theme's largest font-size preset at insert
-    { retired: true, name: 'Hero', minH: 640,
-      bg: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 5%, var(--wp--preset--color--base, transparent))',
-      els: [
-      { type: 'badge', x: 72, y: 88, w: 230, h: 52, text: 'Fresh off the canvas' },
-      { type: 'heading', x: 72, y: 172, w: 640, h: 170, text: 'Make something people remember', fs: '__max' },
-      { type: 'para', x: 72, y: 380, w: 500, h: 80, text: 'Supporting copy that explains the promise in a sentence or two. Drag anything anywhere — gogh keeps it responsive.' },
-      { type: 'button', x: 72, y: 496, w: 190, h: 56, text: 'Get started' },
-      { type: 'button', x: 282, y: 496, w: 190, h: 56, text: 'See how it works', ghost: true },
-      { type: 'image', x: 756, y: 110, w: 372, h: 430 },
-      { type: 'badge', x: 690, y: 486, w: 240, h: 56, text: 'Loved by builders' },
-    ]},
-    { retired: true, name: 'Hero — centered', minH: 600,
-      bg: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 5%, var(--wp--preset--color--base, transparent))',
-      els: [
-      { type: 'badge', x: 500, y: 92, w: 200, h: 52, text: 'New for 2026' },
-      { type: 'heading', x: 200, y: 176, w: 800, h: 160, text: 'Big ideas, front and centre', fs: '__max', align: 'center' },
-      { type: 'para', x: 320, y: 372, w: 560, h: 60, text: 'One clear promise, a little supporting warmth, and nothing in the way.', align: 'center' },
-      { type: 'button', x: 400, y: 470, w: 190, h: 56, text: 'Start free' },
-      { type: 'button', x: 610, y: 470, w: 190, h: 56, text: 'Take the tour', ghost: true },
-    ]},
-    { retired: true, name: 'Split', els: [
-      { type: 'image', x: 72, y: 72, w: 500, h: 400, cool: true },
-      { type: 'heading', x: 644, y: 120, w: 480, h: 100, text: 'Show the thing, then say the thing' },
-      { type: 'para', x: 644, y: 264, w: 440, h: 78, text: 'A classic split layout: image on one side, message on the other. Swap sides by dragging.' },
-      { type: 'button', x: 644, y: 380, w: 190, h: 52, text: 'See details' },
-    ]},
-    { retired: true, name: 'Features', els: [
-      { type: 'heading', x: 300, y: 72, w: 600, h: 60, text: 'Three reasons to care' },
-      { type: 'image', x: 72, y: 190, w: 328, h: 180 },
-      { type: 'image', x: 436, y: 190, w: 328, h: 180, cool: true },
-      { type: 'image', x: 800, y: 190, w: 328, h: 180 },
-      { type: 'para', x: 72, y: 396, w: 328, h: 60, text: 'First feature, briefly and confidently described.' },
-      { type: 'para', x: 436, y: 396, w: 328, h: 60, text: 'Second feature, briefly and confidently described.' },
-      { type: 'para', x: 800, y: 396, w: 328, h: 60, text: 'Third feature, briefly and confidently described.' },
-    ]},
-    { retired: true, name: 'Call to action',
-      bg: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 8%, var(--wp--preset--color--base, transparent))',
-      els: [
-      { type: 'heading', x: 300, y: 120, w: 600, h: 60, text: 'Ready when you are', align: 'center' },
-      { type: 'para', x: 350, y: 220, w: 500, h: 55, text: 'One last nudge. Keep it short, keep it warm.', align: 'center' },
-      { type: 'button', x: 511, y: 330, w: 178, h: 52, text: 'Start now' },
-    ]},
     { name: 'Start from scratch', minH: 480, els: [] },
     // ---- starters: born freeform, theme-adaptive, art-directed ----
     // one coherent world (a small design studio) so the previews read as a
@@ -12997,6 +12942,21 @@
     var a = li.querySelector('a');
     return ((a ? a.textContent : li.textContent) || '').trim();
   }
+  function clampNavAdders(list) {
+    var adders = [].slice.call(list.querySelectorAll(':scope > .gogh-navadd'));
+    if (!adders.length) return;
+    adders.forEach(function (a) { a.classList.remove('gogh-navadd-below'); });
+    // measure the outermost pill; if it spills past the viewport, flip all
+    // of them below the nav's right edge
+    var far = adders[adders.length - 1].getBoundingClientRect();
+    if (far.right > window.innerWidth - 4 || far.left < 4) {
+      adders.forEach(function (a) { a.classList.add('gogh-navadd-below'); });
+    }
+  }
+  window.addEventListener('resize', function () {
+    [].slice.call(document.querySelectorAll('.wp-block-navigation__container'))
+      .forEach(function (l) { if (l.querySelector(':scope > .gogh-navadd')) clampNavAdders(l); });
+  }, { passive: true });
   function placeNavAdders(partEl) {
     [].slice.call(partEl.querySelectorAll('.wp-block-navigation__container')).forEach(function (list) {
       if (list.closest('.wp-block-navigation-item')) return; // submenus: no
@@ -13019,6 +12979,12 @@
         openMenuManager(partEl, mg);
       });
       list.appendChild(mg);
+      // the pills float past the nav's right edge — but a menu that reaches
+      // the viewport edge (Split/Bold, tight padding) would clip them off
+      // screen. When there's no room outside, drop them just BELOW the
+      // nav's right edge instead. Deferred: the header may still be laying
+      // out when the adders are appended.
+      requestAnimationFrame(function () { clampNavAdders(list); });
     });
     // every top-level item gets a hover ✕ to leave the menu
     [].slice.call(partEl.querySelectorAll('.wp-block-navigation-item')).forEach(function (li) {

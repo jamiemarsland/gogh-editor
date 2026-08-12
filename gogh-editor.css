@@ -2007,6 +2007,18 @@ html.gogh-editing .gogh-mirror { display: flex; }
 }
 /* the second pill stacks BELOW the first — beside it would clip at the viewport edge */
 .gogh-navadd + .gogh-navadd { top: calc(50% + 30px); }
+/* no room to the right (edge-aligned menus): drop the pills just below the
+   nav's right edge, growing leftward, so they never clip off screen */
+.gogh-navadd.gogh-navadd-below {
+  left: auto;
+  right: 0;
+  top: calc(100% + 6px);
+  transform: none;
+}
+.gogh-navadd.gogh-navadd-below + .gogh-navadd.gogh-navadd-below {
+  right: 32px;
+  top: calc(100% + 6px);
+}
 .gogh-editing .gogh-lightedit .wp-block-navigation__container,
 .gogh-editing .gogh-lightedit .wp-block-navigation ul { position: relative; }
 .gogh-navadd button {
@@ -2690,7 +2702,19 @@ html.gogh-textediting .gogh-convertbtn {
 .gogh-sp-warn { color: #8a6215; margin-bottom: 12px; }
 .gogh-sp-dialog .gogh-sp-actions { justify-content: flex-end; }
 .gogh-sp-go { background: #17181c; color: #fff; border-color: #17181c; }
-.gogh-sp-head .gogh-sbtn { flex: none; width: 32px; height: 32px; }
+.gogh-sp-head .gogh-sbtn {
+  flex: none;
+  width: 32px;
+  height: 32px;
+  display: grid;
+  place-items: center;
+  font-size: 15px;
+  line-height: 1;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--gogh-ui-muted);
+}
+.gogh-sp-head .gogh-sbtn:hover { background: var(--gogh-ui-hover); color: var(--gogh-ui-fg); }
 .gogh-starterpick .gogh-sp-use { background: #17181c !important; color: #fff !important; border-color: #17181c !important; }
 .gogh-sp-prev { height: 250px; }
 .gogh-starterpick .gogh-sp-go { background: #17181c !important; color: #fff !important; border-color: #17181c !important; }

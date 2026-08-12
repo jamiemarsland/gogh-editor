@@ -333,17 +333,23 @@
       expect(added.styleEl.textContent.indexOf(added.scope) !== -1, 'scoped CSS missing');
     });
 
-    test('Hero template resolves largest font preset + minH', function () {
+    test('__max font sentinel resolves to the largest preset at insert', function () {
       var s0 = G.sections().length;
-      G.addSection(G.templates()[0], G.sections().length);
+      // any template whose heading carries the __max sentinel (the starters do)
+      var tpls = G.templates();
+      var idx = -1;
+      for (var i = 0; i < tpls.length; i++) {
+        if ((tpls[i].els || []).some(function (e) { return e.type === 'heading' && e.fs === '__max'; })) { idx = i; break; }
+      }
+      expect(idx !== -1, 'no template carries the __max sentinel');
+      G.addSection(tpls[idx], G.sections().length);
       var added = lastSec();
-      var head = added.els.filter(function (e) { return e.type === 'heading'; })[0];
+      var head = added.els.filter(function (e) { return e.type === 'heading' && e.fs; })[0];
       var sizes = G.fontSizes();
       var biggest = sizes.length ? sizes[sizes.length - 1].slug : null;
-      expect(head, 'hero has no heading');
+      expect(head, 'template has no sized heading');
       expect(head.fs === biggest, 'heading fs ' + head.fs + ' != largest preset ' + biggest);
       expect(head.fs !== '__max', 'sentinel leaked into model');
-      expect(added.minH === 640, 'hero minH not applied: ' + added.minH);
       G.deleteSection(G.sections().indexOf(added));
       expect(G.sections().length === s0, 'cleanup failed');
     });
