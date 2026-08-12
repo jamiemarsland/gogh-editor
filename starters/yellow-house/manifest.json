@@ -1,49 +1,60 @@
 {
-  "name": "The Yellow House",
-  "description": "A little gallery in Arles \u2014 and a guided tour of gogh",
-  "palette": {
-    "base": "#fdfbf4",
-    "contrast": "#17181c",
-    "accents": [
-      "#f2b52b",
-      "#2f5db3"
-    ]
-  },
-  "pages": [
-    {
-      "slug": "home",
-      "title": "Home",
-      "file": "home.html",
-      "front": true,
-      "template": "page-no-title"
-    },
-    {
-      "slug": "collection",
-      "title": "Collection",
-      "file": "collection.html"
-    },
-    {
-      "slug": "visit",
-      "title": "Visit",
-      "file": "visit.html"
-    },
-    {
-      "slug": "notes",
-      "title": "Notes",
-      "file": "notes.html",
-      "blog": true
-    },
-    {
-      "slug": "workshops",
-      "title": "Workshops",
-      "file": "workshops.html",
-      "menu": false
-    }
-  ],
-  "preview": {
-    "base": "#fdfbf4",
-    "contrast": "#17181c",
-    "accent-1": "#f2b52b",
-    "accent-2": "#f2b52b"
-  }
+	"name": "The Yellow House",
+	"description": "A little gallery in Arles — and a guided tour of gogh",
+	"palette": {
+		"base": "#fdfbf4",
+		"contrast": "#17181c",
+		"accents": [
+			"#f2b52b",
+			"#2f5db3"
+		]
+	},
+	"pages": [
+		{
+			"slug": "home",
+			"title": "Home",
+			"file": "home.html",
+			"front": true,
+			"template": "page-no-title"
+		},
+		{
+			"slug": "collection",
+			"title": "Collection",
+			"file": "collection.html"
+		},
+		{
+			"slug": "visit",
+			"title": "Visit",
+			"file": "visit.html"
+		},
+		{
+			"slug": "notes",
+			"title": "Notes",
+			"file": "notes.html",
+			"blog": true
+		},
+		{
+			"slug": "workshops",
+			"title": "Workshops",
+			"file": "workshops.html",
+			"menu": false
+		}
+	],
+	"preview": {
+		"base": "#fdfbf4",
+		"contrast": "#17181c",
+		"accent-1": "#f2b52b",
+		"accent-2": "#f2b52b"
+	},
+	"chrome": {
+		"header": "gogh-header-overlay"
+	},
+	"posts": [
+		{
+			"slug": "the-light-in-arles",
+			"title": "The light in Arles",
+			"file": "first-note.html",
+			"category": "Notebook"
+		}
+	]
 }
