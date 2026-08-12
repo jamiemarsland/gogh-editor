@@ -10956,6 +10956,11 @@
       '<button type="button" class="gogh-btn gogh-btn-small gogh-hsticky' + (st.sticky ? ' is-active' : '') + '">\ud83d\udccc ' + (st.sticky ? 'Sticky \u2014 on' : 'Stick to the top') + '</button>' +
       '<button type="button" class="gogh-btn gogh-btn-small gogh-hfreeform">\u2728 Make it freeform</button>' +
       '</div>' +
+      // the doorway: menu items live IN this header, so the question
+      // arises here \u2014 but the rooms stay exclusive (auditions rebuild the
+      // very DOM the menu editor would be holding)
+      (d0 && d0.hasNav ? '<div class="gogh-panel-row gogh-chrome-rows">' +
+        '<button type="button" class="gogh-btn gogh-btn-small gogh-hmenu">\u2630 Edit menu items</button></div>' : '') +
       '<div class="gogh-panel-row gogh-chrome-foot">' +
       '<button type="button" class="gogh-btn gogh-btn-small gogh-hcancel">Cancel</button>' +
       '<button type="button" class="gogh-btn gogh-btn-save gogh-btn-small gogh-happly" title="Updates every page" disabled>Apply</button>' +
@@ -11116,6 +11121,22 @@
     panel.querySelector('.gogh-hfreeform').addEventListener('click', function () {
       bail();
       editChromeFreeform(partEl, area, active);
+    });
+    var menuBtn = panel.querySelector('.gogh-hmenu');
+    if (menuBtn) menuBtn.addEventListener('click', function () {
+      var through = function () {
+        var anchor = chromeMountedGroup(partEl) || partEl;
+        closePanel(); // cleanup ends any audition before the menu room opens
+        openMenuManager(partEl, anchor);
+      };
+      // an unapplied audition deserves one honest question, not a modal
+      if (applyBtn.disabled || menuBtn.dataset.armed) { through(); return; }
+      menuBtn.dataset.armed = '1';
+      menuBtn.textContent = 'Unapplied changes will be lost — tap again';
+      setTimeout(function () {
+        delete menuBtn.dataset.armed;
+        menuBtn.textContent = '☰ Edit menu items';
+      }, 2800);
     });
     // ONE Apply: compose every touched change into a single save
     applyBtn.addEventListener('click', function () {
