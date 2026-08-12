@@ -9,6 +9,7 @@
 (function () {
   'use strict';
   var cfg = window.GOGHWRITE || {};
+  var readOnly = false; // a classic/mixed post is shown but never saved over
   if (!cfg.postId || !cfg.restUrl) return;
 
   var body = document.querySelector('.entry-content, .wp-block-post-content');
@@ -145,12 +146,40 @@
   // if the writer starts typing before the raw arrives, their words win
   var typedFirst = false;
   body.addEventListener('input', function () { typedFirst = true; }, { once: true, capture: true });
+  // gogh write faithfully round-trips gogh's own blocks and the core
+  // blocks it understands; classic-editor prose and blocks nested outside
+  // the top level would be flattened by the serializer. Rather than
+  // silently mangle a rich post (audit), REFUSE it read-only.
+  var stripToText = function (s) {
+    return s.replace(/<!--[\s\S]*?-->/g, '').replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim();
+  };
+  var refuseReadOnly = function (why) {
+    readOnly = true;
+    body.contentEditable = 'false';
+    if (title) title.contentEditable = 'false';
+    var bar = document.createElement('div');
+    bar.className = 'gogh-w-locked';
+    bar.innerHTML = '<b>This post was written in the WordPress editor.</b> ' +
+      'To keep every part of it safe, edit it there. gogh write is for new posts and gogh-authored ones.' +
+      ' <a href="' + (cfg.adminEdit || ('/wp-admin/post.php?post=' + cfg.postId + '&action=edit')) + '">Open in WordPress →</a>';
+    document.body.appendChild(bar);
+    // nothing to save means nothing to click — retire the surfaces
+    [].forEach.call(document.querySelectorAll('.gogh-w-chip, .gogh-w-plus, .gogh-w-bub'), function (el) {
+      el.style.display = 'none';
+    });
+  };
   fetch(cfg.restUrl + 'wp/v2/posts/' + cfg.postId + '?context=edit', {
     headers: { 'X-WP-Nonce': cfg.nonce },
     credentials: 'same-origin',
   }).then(function (r) { return r.ok ? r.json() : null; }).then(function (post) {
     var raw = post && post.content && post.content.raw || '';
-    if (!typedFirst && raw.trim() && surfaceFromRaw(raw)) {
+    if (typedFirst || !raw.trim()) return; // fresh draft, or the writer beat us to it
+    var blocks = parseBlocks(raw);
+    var classic = !blocks.length && stripToText(raw).length > 0;
+    var mixed = blocks.length &&
+      stripToText(raw).length > stripToText(blocks.map(function (b) { return b.raw; }).join('')).length + 4;
+    if (classic || mixed) { refuseReadOnly(classic ? 'classic' : 'mixed'); return; }
+    if (surfaceFromRaw(raw)) {
       [].forEach.call(body.querySelectorAll('figure, .gogh-splash'), attachObjControls);
       if (window.__goghViewInit) window.__goghViewInit();
       window.gogh.enhance(body);
@@ -164,7 +193,7 @@
     title.classList.add('gogh-w-title');
     if (!title.textContent.trim()) title.textContent = '';
   }
-  body.contentEditable = 'true';
+  if (!readOnly) body.contentEditable = 'true';
   body.spellcheck = false; // red squiggles are not space to think
   body.classList.add('gogh-w-body');
   try { document.execCommand('defaultParagraphSeparator', false, 'p'); } catch (e) {}
@@ -1068,14 +1097,19 @@
   var inlineClean = function (el) {
     var tmp = document.createElement('div');
     tmp.innerHTML = el.innerHTML;
+    // richer inline set (audit: footnote SUP, citation, mark, strike,
+    // etc. were being flattened away on every autosave). Attributes kept
+    // per tag: a link's href/target/rel, a footnote marker's id/refs.
     tmp.querySelectorAll('*').forEach(function (n) {
-      var keep = /^(A|STRONG|B|EM|I|CODE|BR)$/.test(n.tagName);
+      var keep = /^(A|STRONG|B|EM|I|CODE|BR|SUP|SUB|MARK|S|U|KBD|CITE|SMALL)$/.test(n.tagName);
       if (!keep) {
         n.replaceWith.apply(n, [].slice.call(n.childNodes));
         return;
       }
       [].slice.call(n.attributes).forEach(function (a) {
-        if (!(n.tagName === 'A' && a.name === 'href')) n.removeAttribute(a.name);
+        var okA = n.tagName === 'A' && /^(href|target|rel)$/.test(a.name);
+        var okId = a.name === 'id' || a.name === 'data-fn'; // footnote anchors/markers
+        if (!okA && !okId) n.removeAttribute(a.name);
       });
     });
     return tmp.innerHTML.trim();
@@ -1118,15 +1152,24 @@
         var mid = n.dataset.mid ? +n.dataset.mid : null;
         var cap = n.querySelector('figcaption');
         var capTxt = cap && cap.textContent.trim() ? inlineClean(cap) : '';
-        var flo = n.classList.contains('alignleft') ? 'left' : n.classList.contains('alignright') ? 'right' : null;
+        var flo = n.classList.contains('alignfull') ? 'full' : n.classList.contains('alignwide') ? 'wide'
+          : n.classList.contains('alignleft') ? 'left' : n.classList.contains('alignright') ? 'right' : null;
         // pack treatments travel as block styles — one class, pure core
         var styleCls = [].filter.call(n.classList, function (c4) { return c4.indexOf('is-style-') === 0; });
+        // a link-to-media/link-to-URL wrapper is real user intent — the
+        // audit flagged it silently dropped on every save
+        var linkEl = n.querySelector('a');
+        var href = linkEl && linkEl.getAttribute('href');
         var iattrs = { sizeSlug: 'large' };
         if (mid) iattrs.id = mid;
         if (flo) iattrs.align = flo;
+        if (href) iattrs.linkDestination = 'custom';
         if (styleCls.length) iattrs.className = styleCls.join(' ');
+        var imgTag = '<img src="' + img.src + '" alt="' + (img.alt || '') + '"' + (mid ? ' class="wp-image-' + mid + '"' : '') + '/>';
+        if (href) imgTag = '<a href="' + href.replace(/"/g, '&quot;') + '"' +
+          (linkEl.getAttribute('target') === '_blank' ? ' target="_blank" rel="noreferrer noopener"' : '') + '>' + imgTag + '</a>';
         out.push('<!-- wp:image ' + JSON.stringify(iattrs) + ' -->\n' +
-          '<figure class="wp-block-image' + (flo ? ' align' + flo : '') + (styleCls.length ? ' ' + styleCls.join(' ') : '') + ' size-large"><img src="' + img.src + '" alt="' + (img.alt || '') + '"' + (mid ? ' class="wp-image-' + mid + '"' : '') + '/>' +
+          '<figure class="wp-block-image' + (flo ? ' align' + flo : '') + (styleCls.length ? ' ' + styleCls.join(' ') : '') + ' size-large">' + imgTag +
           (capTxt ? '<figcaption class="wp-element-caption">' + capTxt + '</figcaption>' : '') +
           '</figure>\n<!-- /wp:image -->');
       }
@@ -1333,6 +1376,7 @@
     return inflight;
   };
   var queueSave = function () {
+    if (readOnly) return; // never overwrite a post we refused to fully parse
     clean = false;
     quietLabel();
     clearTimeout(saveT);
