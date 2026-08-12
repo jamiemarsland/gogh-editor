@@ -2135,6 +2135,11 @@
   function wakeChrome(pe, area) {
     pe.classList.add('gogh-chrome-live');
     var sleep = function (ev) {
+      // inside the header room the scrim + Done/Cancel/Esc fully govern the
+      // exit — the old click-away-sleeps behaviour stands down (it used to
+      // fight the room and, once Done was always enabled, never re-veiled →
+      // "the edit-header pill won't show")
+      if (document.documentElement.classList.contains('gogh-chrome-mode')) return;
       if (pe.contains(ev.target)) return;
       // gogh's own surfaces (panels, drawer, toolbars, toasts) are part of
       // the editing conversation — they don't put the chrome to sleep
@@ -2151,6 +2156,64 @@
       if (editing) veilChromeArea(area);
     };
     document.addEventListener('pointerdown', sleep, true);
+  }
+  // ---------- the header room: a clear place you enter and leave ----------
+  // James's diagnosis: with no clean way to STOP editing the header, audition
+  // state and previews leaked and everything downstream got confusing. The
+  // room dims the page, spotlights the header, and every exit path (Done,
+  // Cancel, Esc, ✕) runs closePanel → exitChromeMode, so nothing lingers.
+  var chromeScrim = null;
+  function enterChromeMode(partEl, area) {
+    exitChromeMode();
+    document.documentElement.classList.add('gogh-chrome-mode');
+    partEl.classList.add('gogh-chrome-spotlight');
+    chromeScrim = document.createElement('div');
+    chromeScrim.className = 'gogh-chrome-scrim';
+    var place = function () {
+      var r = partEl.getBoundingClientRect();
+      // dim everything EXCEPT the part: below a header, above a footer
+      if (area === 'footer') {
+        chromeScrim.style.top = '0px';
+        chromeScrim.style.height = Math.max(0, r.top) + 'px';
+      } else {
+        chromeScrim.style.top = Math.max(0, r.bottom) + 'px';
+        chromeScrim.style.height = '';
+      }
+    };
+    chromeScrim.__place = place;
+    document.body.appendChild(chromeScrim);
+    place();
+    window.addEventListener('scroll', place, { passive: true });
+    window.addEventListener('resize', place, { passive: true });
+    // a stray click on the dim never drops you out with work half-done —
+    // it points you at the two honest exits instead
+    chromeScrim.addEventListener('click', function () {
+      var done = panel.querySelector('.gogh-happly');
+      if (done) { done.classList.add('gogh-nudge'); setTimeout(function () { done.classList.remove('gogh-nudge'); }, 700); }
+      toast('Keep your changes with Done, or undo them with Cancel.');
+    });
+    var label = document.createElement('div');
+    label.className = 'gogh-chrome-label';
+    label.textContent = 'Editing the ' + area + ' — changes preview live';
+    partEl.appendChild(label);
+  }
+  function exitChromeMode() {
+    var wasInRoom = !!chromeScrim;
+    document.documentElement.classList.remove('gogh-chrome-mode');
+    [].forEach.call(document.querySelectorAll('.gogh-chrome-spotlight'), function (n) {
+      n.classList.remove('gogh-chrome-spotlight');
+      n.classList.remove('gogh-chrome-live'); // put the part back to sleep
+    });
+    [].forEach.call(document.querySelectorAll('.gogh-chrome-label'), function (n) { n.remove(); });
+    if (chromeScrim) {
+      window.removeEventListener('scroll', chromeScrim.__place);
+      window.removeEventListener('resize', chromeScrim.__place);
+      chromeScrim.remove();
+      chromeScrim = null;
+    }
+    // restore the "Edit header/footer" pill so you can edit again — the veil
+    // is consumed on click and was never coming back ("pill won't show")
+    if (wasInRoom && editing) veilChrome();
   }
   function veilChrome() {
     ['header', 'footer'].forEach(veilChromeArea);
@@ -2274,6 +2337,7 @@
   var panelCleanup = null; // a panel's audition-undo — closePanel runs it on EVERY path (Esc included)
   function closePanel() {
     if (panelCleanup) { var pc = panelCleanup; panelCleanup = null; pc(); }
+    exitChromeMode(); // leave the header room cleanly — dim off, spotlight off
     delete panel.dataset.goghArea;
     panel.hidden = true;
     panel.classList.remove('gogh-panel-wide');
@@ -11040,8 +11104,8 @@
     };
     panel.innerHTML =
       '<div class="gogh-panel-head"><span class="gogh-panel-title">Site ' + area + '</span>' +
-      '<button type="button" class="gogh-sbtn gogh-panel-close" title="Close">\u2715</button></div>' +
-      '<div class="gogh-panel-hint">Hover to audition \u2014 one Apply saves the lot.</div>' +
+      '<button type="button" class="gogh-sbtn gogh-panel-close" title="Cancel">\u2715</button></div>' +
+      '<div class="gogh-panel-hint">Every change previews live. Keep them with Done, or undo with Cancel.</div>' +
       '<div class="gogh-swlab">Layout</div>' +
       '<div class="gogh-panel-row gogh-chrome-rows gogh-hlayouts">' +
       options.map(function (o, k) {
@@ -11081,14 +11145,16 @@
       '</div>' +
       '<div class="gogh-panel-row gogh-chrome-foot">' +
       '<button type="button" class="gogh-btn gogh-btn-small gogh-hcancel">Cancel</button>' +
-      '<button type="button" class="gogh-btn gogh-btn-save gogh-btn-small gogh-happly" title="Updates every page" disabled>Apply</button>' +
+      '<button type="button" class="gogh-btn gogh-btn-save gogh-btn-small gogh-happly" title="Keeps your changes on every page">Done</button>' +
       '</div>';
     dockPanel(partEl);
+    enterChromeMode(partEl, area); // the header room: dim the page, spotlight the header
     panelOpen = true;
     panelSticky = true;
     panel.dataset.goghArea = area;
     var applyBtn = panel.querySelector('.gogh-happly');
-    var arm = function () { applyBtn.disabled = false; };
+    var armed = false;
+    var arm = function () { armed = true; };
     // closePanel runs this on EVERY close path — Esc left the header
     // wearing a stranded preview + dial padding (the "gap under the nav")
     panelCleanup = function () {
@@ -11110,6 +11176,15 @@
     var bail = function () { closePanel(); };
     panel.querySelector('.gogh-panel-close').addEventListener('click', bail);
     panel.querySelector('.gogh-hcancel').addEventListener('click', bail);
+    // Escape leaves the room the safe way — Cancel (closePanel reverts every
+    // audition via panelCleanup). Registered here, retired on close.
+    var onEsc = function (ev) { if (ev.key === 'Escape') { ev.stopPropagation(); bail(); } };
+    document.addEventListener('keydown', onEsc, true);
+    var prevCleanup = panelCleanup;
+    panelCleanup = function () {
+      document.removeEventListener('keydown', onEsc, true);
+      if (prevCleanup) prevCleanup();
+    };
     // LAYOUT: hover previews via the render pipeline, click selects
     panel.querySelectorAll('.gogh-hlayout').forEach(function (lb) {
       var opt = options[+lb.dataset.k];
@@ -11304,6 +11379,9 @@
     });
     // ONE Apply: compose every touched change into a single save
     applyBtn.addEventListener('click', function () {
+      // Done with nothing changed just leaves the room — no needless save,
+      // no reload. A beginner clicks Done to say "I'm finished here."
+      if (!armed) { closePanel(); return; }
       var base = (st.layoutId !== (activeOpt && activeOpt.id))
         ? chromeLayoutContent(area, chosenOpt())
         : raw0;

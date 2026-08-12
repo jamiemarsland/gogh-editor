@@ -2368,10 +2368,14 @@
         expect(panel.querySelector('.gogh-hfreeform'), 'freeform door missing');
         expect(panel.querySelector('.gogh-panel-close'), 'sticky panel must show its own door');
         var apply = panel.querySelector('.gogh-happly');
-        expect(apply && apply.disabled, 'Apply must start disabled - nothing to save yet');
-        // touching anything arms the one Apply
+        expect(apply, 'the single Done button is missing');
+        // header-room model: Done is always clickable — with nothing armed it
+        // just leaves the room; touching a control makes it save on the way out
+        expect(!apply.disabled, 'Done must always be clickable in the header room');
+        expect(/done/i.test(apply.textContent), 'the save button should read Done');
+        // touching anything still keeps exactly one save home
         panel.querySelector('.gogh-hsticky').click();
-        expect(!apply.disabled, 'touching sticky did not arm Apply');
+        expect(panel.querySelectorAll('.gogh-happly').length === 1, 'must stay one single Done button');
         // docked and fully on screen (the below-the-fold family of bugs)
         var r = panel.getBoundingClientRect();
         expect(r.top >= 0 && r.bottom <= window.innerHeight + 1,
