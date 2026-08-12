@@ -2381,7 +2381,7 @@
     if (e.type === 'widget' && ((e.faq && e.faq.length) || (e.tabs && e.tabs.length) || (e.slides && e.slides.length) || (e.wall && e.wall.length))) panelSticky = true;
   }
   var savedTextRange = null;
-  function applyTextLink(url) {
+  function applyTextLink(url, newTab) {
     var selObj = window.getSelection();
     if (savedTextRange) {
       selObj.removeAllRanges();
@@ -2396,8 +2396,48 @@
       selObj.addRange(savedTextRange);
     }
     document.execCommand(url ? 'createLink' : 'unlink', false, url || undefined);
+    // the fresh anchor wears its window preference
+    if (url && newTab) {
+      var an = selObj.anchorNode && (selObj.anchorNode.nodeType === 1 ? selObj.anchorNode : selObj.anchorNode.parentElement);
+      var aEl2 = an && an.closest && an.closest('a');
+      if (aEl2) { aEl2.setAttribute('target', '_blank'); aEl2.setAttribute('rel', 'noopener'); }
+    }
     savedTextRange = null;
     if (host) host.dispatchEvent(new Event('input', { bubbles: true }));
+  }
+  // your own pages, one tap away in every link panel
+  var pageLinkCache = null;
+  function fetchPageLinks() {
+    if (pageLinkCache) return Promise.resolve(pageLinkCache);
+    return fetch(GSROOT + 'pages?per_page=20&_fields=title,link&orderby=menu_order&order=asc', {
+      headers: { 'X-WP-Nonce': cfg.nonce }, credentials: 'same-origin',
+    }).then(function (r) { return r.ok ? r.json() : []; }).then(function (ps) {
+      pageLinkCache = ps.map(function (p) { return { t: (p.title && p.title.rendered) || '(untitled)', u: p.link }; });
+      return pageLinkCache;
+    }).catch(function () { return []; });
+  }
+  function wirePageSuggest(inp) {
+    var box = document.createElement('div');
+    box.className = 'gogh-pagelinks';
+    inp.parentNode.parentNode.appendChild(box);
+    var paint = function () {
+      var q2 = inp.value.trim().toLowerCase();
+      if (/^https?:\/\/.+/.test(q2) && q2 !== 'https://') { box.innerHTML = ''; return; }
+      fetchPageLinks().then(function (ps) {
+        var hits = ps.filter(function (p) { return !q2 || q2 === 'https://' || p.t.toLowerCase().indexOf(q2) !== -1; }).slice(0, 6);
+        box.innerHTML = hits.map(function (p, k) {
+          return '<button type="button" class="gogh-pagelink" data-k="' + k + '">' + p.t.replace(/</g, '&lt;') + '</button>';
+        }).join('');
+        [].forEach.call(box.querySelectorAll('.gogh-pagelink'), function (b2) {
+          b2.addEventListener('click', function () {
+            inp.value = hits[+b2.dataset.k].u;
+            inp.dispatchEvent(new Event('gogh-picked'));
+          });
+        });
+      });
+    };
+    inp.addEventListener('input', paint);
+    paint();
   }
   function openTextLinkPanel() {
     var selObj = window.getSelection();
@@ -5481,6 +5521,16 @@
         sr = secBar.getBoundingClientRect();
       }
     });
+    // a transparent/sticky header FLOATS over the first section — the
+    // section bar must not dress itself as header furniture ("the
+    // section pill appears in the header")
+    var hdrEl = document.querySelector('header');
+    if (hdrEl) {
+      var hr2 = hdrEl.getBoundingClientRect();
+      var inHdr = hr2.height > 0 && !(sr.right < hr2.left || sr.left > hr2.right ||
+        sr.bottom < hr2.top || sr.top > hr2.bottom + 4);
+      if (inHdr) secBar.style.top = (hr2.bottom + window.scrollY + 12) + 'px';
+    }
   }
   secBar.addEventListener('click', function (ev) {
     var b = ev.target.closest('.gogh-sb');
@@ -10256,9 +10306,10 @@
     panel.innerHTML =
       '<div class="gogh-panel-title">Link the selected text</div>' +
       '<div class="gogh-panel-row">' +
-      '<input type="url" class="gogh-input gogh-linkurl" placeholder="https://" />' +
+      '<input type="url" class="gogh-input gogh-linkurl" placeholder="https:// — or pick a page below" />' +
       '<button type="button" class="gogh-btn gogh-btn-small gogh-apply">Link</button>' +
-      '</div>';
+      '</div>' +
+      '<label class="gogh-newtab"><input type="checkbox" class="gogh-linktab" /> Open in a new tab</label>';
     panel.hidden = false;
     panelOpen = true;
     var inp = panel.querySelector('.gogh-linkurl');
@@ -10266,11 +10317,14 @@
     var go = function () {
       var v = inp.value.trim();
       if (!v || v === 'https://') return;
+      var nt = panel.querySelector('.gogh-linktab').checked;
       closePanel();
-      apply(v);
+      apply(v, nt);
     };
     panel.querySelector('.gogh-apply').addEventListener('click', go);
     inp.addEventListener('keydown', function (e2) { if (e2.key === 'Enter') go(); });
+    inp.addEventListener('gogh-picked', go); // picking a page links it in one tap
+    wirePageSuggest(inp);
   }
   function editTextLink(entry, aEl, leaf, sync) {
     placePanelNear(aEl);
@@ -10280,6 +10334,7 @@
       '<input type="url" class="gogh-input gogh-linkurl" placeholder="https://" />' +
       '<button type="button" class="gogh-btn gogh-btn-small gogh-apply">Apply</button>' +
       '</div>' +
+      '<label class="gogh-newtab"><input type="checkbox" class="gogh-linktab" /> Open in a new tab</label>' +
       '<div class="gogh-panel-row">' +
       '<button type="button" class="gogh-btn gogh-btn-small gogh-unlink">Remove link (keep the text)</button>' +
       '</div>';
@@ -10287,13 +10342,19 @@
     panelOpen = true;
     var inp = panel.querySelector('.gogh-linkurl');
     inp.value = aEl.getAttribute('href') || '';
+    var tabBox = panel.querySelector('.gogh-linktab');
+    tabBox.checked = aEl.getAttribute('target') === '_blank';
     var apply = function () {
       var v = inp.value.trim();
       if (v) aEl.setAttribute('href', v);
+      if (tabBox.checked) { aEl.setAttribute('target', '_blank'); aEl.setAttribute('rel', 'noopener'); }
+      else { aEl.removeAttribute('target'); aEl.removeAttribute('rel'); }
       sync(leaf);
       closePanel();
       toast('Link updated.');
     };
+    inp.addEventListener('gogh-picked', function () {});
+    wirePageSuggest(inp);
     panel.querySelector('.gogh-apply').addEventListener('click', apply);
     inp.addEventListener('keydown', function (e2) { if (e2.key === 'Enter') apply(); });
     panel.querySelector('.gogh-unlink').addEventListener('click', function () {
@@ -11049,15 +11110,13 @@
         dial('Height', 'gogh-dial-pad', 4, 64, d0.pad) +
         (d0.hasNav ? dial('Menu items', 'gogh-dial-link', 8, 64, d0.linkGap) : '') +
         dial('Text size', 'gogh-dial-fsz', 12, 30, d0.fsz) : '') +
-      '<div class="gogh-panel-row gogh-chrome-rows">' +
+      '<div class="gogh-panel-row gogh-chrome-rows gogh-hpills">' +
       '<button type="button" class="gogh-btn gogh-btn-small gogh-hsticky' + (st.sticky ? ' is-active' : '') + '">\ud83d\udccc ' + (st.sticky ? 'Sticky \u2014 on' : 'Stick to the top') + '</button>' +
       '<button type="button" class="gogh-btn gogh-btn-small gogh-hfreeform">\u2728 Make it freeform</button>' +
+      // the doorway rides the same row: one wrapping band, not a 170px
+      // stack — the panel must fit a laptop without scrolling
+      (d0 && d0.hasNav ? '<button type="button" class="gogh-btn gogh-btn-small gogh-hmenu">\u2630 Edit menu items</button>' : '') +
       '</div>' +
-      // the doorway: menu items live IN this header, so the question
-      // arises here \u2014 but the rooms stay exclusive (auditions rebuild the
-      // very DOM the menu editor would be holding)
-      (d0 && d0.hasNav ? '<div class="gogh-panel-row gogh-chrome-rows">' +
-        '<button type="button" class="gogh-btn gogh-btn-small gogh-hmenu">\u2630 Edit menu items</button></div>' : '') +
       '<div class="gogh-panel-row gogh-chrome-foot">' +
       '<button type="button" class="gogh-btn gogh-btn-small gogh-hcancel">Cancel</button>' +
       '<button type="button" class="gogh-btn gogh-btn-save gogh-btn-small gogh-happly" title="Updates every page" disabled>Apply</button>' +

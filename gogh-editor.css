@@ -1378,7 +1378,7 @@ body.gogh-painting, body.gogh-painting .gogh-section * { cursor: url('data:image
 /* swatch + style-toggle active states in panels */
 .gogh-panel .gogh-sw.is-active { outline: 2px solid #7ea8ff; outline-offset: 2px; }
 .gogh-btnstyle .gogh-btn.is-active { background: var(--gogh-ui-accent); color: var(--gogh-ui-accent-fg); }
-.gogh-panel .gogh-swlab { margin-top: 14px; margin-bottom: 4px; }
+.gogh-panel .gogh-swlab { margin-top: 11px; margin-bottom: 3px; }
 
 /* panels never outgrow the viewport; long content scrolls inside */
 .gogh-panel { max-height: calc(100vh - 120px); overflow-y: auto; }
@@ -1650,6 +1650,8 @@ body.gogh-painting, body.gogh-painting .gogh-section * { cursor: url('data:image
 
 /* chrome layout picker rows */
 .gogh-chrome-rows { flex-direction: column; align-items: stretch; gap: 6px; }
+.gogh-hpills { flex-direction: row; flex-wrap: wrap; gap: 6px; }
+.gogh-hpills .gogh-btn { flex: 1 1 auto; text-align: center; white-space: nowrap; font-size: 12px; padding: 8px 10px; }
 .gogh-chrome-foot {
   flex-direction: row; justify-content: space-between; align-items: center; margin-top: 12px;
   /* the door stays in reach: the panel scrolls, Apply does not leave */
@@ -2708,3 +2710,12 @@ html.gogh-textediting .gogh-convertbtn {
   }
   .gogh-secbar-label { display: none; }
 }
+
+/* link panels: your pages one tap away, the window choice a quiet line */
+.gogh-pagelinks { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 8px; max-width: 320px; }
+.gogh-pagelink {
+  all: unset; cursor: pointer; font-size: 12px; padding: 5px 10px;
+  border-radius: 999px; border: 1px solid var(--gogh-ui-border); color: var(--gogh-ui-fg);
+}
+.gogh-pagelink:hover { background: rgba(0, 0, 0, 0.05); }
+.gogh-newtab { display: flex; align-items: center; gap: 7px; font-size: 12.5px; margin-top: 8px; color: var(--gogh-ui-fg); cursor: pointer; }
