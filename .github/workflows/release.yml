@@ -74,6 +74,18 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      # regenerate the KB from THIS tag's source — the committed copy
+      # always trails by one release (kb.yml refreshes it after tagging)
+      - name: Rebuild the knowledge base
+        run: |
+          set +e
+          python3 helper/refresh.py
+          code=$?
+          [ "$code" = "2" ] && echo "::warning::extractor broke — shipping the committed KB instead"
+          exit 0
       - name: Sync gogh-demo and wake the helper
         env:
           GH_TOKEN: ${{ github.token }}
