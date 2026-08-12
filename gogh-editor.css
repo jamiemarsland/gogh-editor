@@ -2019,8 +2019,11 @@ html.gogh-editing .gogh-mirror { display: flex; }
   right: 32px;
   top: calc(100% + 6px);
 }
+/* the navadd + pills anchor to the top-level list — but NOT to a submenu
+   popup: forcing position:relative there kills core's absolute dropdown and
+   the submenu renders as a stark white box inline in the menu row */
 .gogh-editing .gogh-lightedit .wp-block-navigation__container,
-.gogh-editing .gogh-lightedit .wp-block-navigation ul { position: relative; }
+.gogh-editing .gogh-lightedit .wp-block-navigation ul:not(.wp-block-navigation__submenu-container) { position: relative; }
 .gogh-navadd button {
   all: unset;
   cursor: pointer;
