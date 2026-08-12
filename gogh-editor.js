@@ -5402,6 +5402,7 @@
   }
   function showSecBar(idx) {
     clearTimeout(secBarHideT);
+    secBar.classList.remove('gogh-byebye'); // a fresh summon always lands visible
     // the site header/footer isn't a page section: it can't move, duplicate
     // or be deleted, so the section toolbar has nothing to offer it
     if (S[idx] && S[idx].chrome) { hideSecBar(); return; }
@@ -6295,6 +6296,30 @@
       }
     });
   }, { passive: true });
+  // PHONES: hover does not exist — a TAP summons the section's verbs, a
+  // second tap (or a tap elsewhere) folds them away. The first slice of
+  // simple mobile editing: reorder, duplicate, background, delete by thumb.
+  if (matchMedia('(pointer: coarse)').matches) {
+    document.addEventListener('click', function (ev) {
+      if (ev.target.closest('.gogh-secbar, .gogh-panel, .gogh-side, .gogh-side-tab, .gogh-elbar, .gogh-hbar, .gogh-cycbar, .gogh-chromeveil, .gogh-toast, .gogh-inserter, button, a, input, textarea, select, [contenteditable="true"]')) return;
+      var hit = null;
+      for (var si = 0; si < S.length; si++) {
+        var wr = S[si].wrapEl.getBoundingClientRect();
+        if (ev.clientY >= wr.top && ev.clientY <= wr.bottom) { hit = si; break; }
+      }
+      if (hit === null) { hideSecBar(); return; }
+      if (secBarIdx === hit && !secBar.hidden) { hideSecBar(); return; }
+      showSecBar(hit);
+    });
+    // moving hides the bar (desktop re-hovers; thumbs can't) — follow the
+    // section to its new seat so a second nudge is one tap away
+    secBar.addEventListener('click', function (ev2) {
+      var b = ev2.target.closest('[data-sec="up"], [data-sec="down"]');
+      if (!b || b.disabled || secBarIdx === null) return;
+      var landing = secBarIdx + (b.dataset.sec === 'up' ? -1 : 1);
+      setTimeout(function () { if (S[landing]) showSecBar(landing); }, 80);
+    }, true);
+  }
   inserter.addEventListener('click', function () {
     inserter.hidden = true;
     openPicker(insertIdx == null ? S.length : insertIdx, insertBefore);

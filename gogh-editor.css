@@ -2682,3 +2682,25 @@ html.gogh-textediting .gogh-convertbtn {
   transition: opacity 0.18s ease, transform 0.18s ease;
   pointer-events: none !important;
 }
+
+/* ---------- editing by thumb (pointer: coarse) ----------
+   the first slice of simple mobile editing: the section bar answers to
+   tap and every verb owns a finger-sized target; the design drawer
+   arrives tucked so the page keeps the room */
+@media (pointer: coarse) {
+  .gogh-secbar {
+    left: 12px !important;
+    right: 12px;
+    justify-content: space-between;
+    padding: 8px 12px;
+    border-radius: 16px;
+  }
+  .gogh-sb {
+    min-width: 42px;
+    min-height: 42px;
+    display: inline-grid;
+    place-items: center;
+    font-size: 17px;
+  }
+  .gogh-secbar-label { display: none; }
+}
