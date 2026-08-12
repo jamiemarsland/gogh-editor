@@ -561,7 +561,11 @@
       sec + ' {',
       '  display: grid;',
       '  position: relative;',
-      (opts.fill ? '  min-height: 100svh;' : ''),
+      // subtract the admin bar while it's there: a fill-screen hero sized
+      // to the raw viewport sits 32px lower against its own pixels for the
+      // logged-in designer than for visitors — the header menu appeared to
+      // "shift between edit mode and view mode"
+      (opts.fill ? '  min-height: calc(100svh - var(--wp-admin--admin-bar--height, 0px));' : ''),
       (function () {
         // the tint strength is a dial (Canva-style): default 62 over an
         // image, solid for plain colour — opts.bgA is 0–100

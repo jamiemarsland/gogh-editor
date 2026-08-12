@@ -995,10 +995,10 @@
       var s2 = c[c.length - 1];
       s2.minH = 800; s2.fill = false;
       G.renderSection(s2);
-      expect((s2.styleEl.textContent || '').indexOf('min-height: 100svh') === -1, 'no-fill section must not claim the screen');
+      expect((s2.styleEl.textContent || '').indexOf('min-height: calc(100svh - var(--wp-admin--admin-bar--height, 0px))') === -1, 'no-fill section must not claim the screen');
       s2.fill = true;
       G.renderSection(s2);
-      expect((s2.styleEl.textContent || '').indexOf('min-height: 100svh') !== -1, 'Fill screen should emit min-height:100svh');
+      expect((s2.styleEl.textContent || '').indexOf('min-height: calc(100svh - var(--wp-admin--admin-bar--height, 0px))') !== -1, 'Fill screen should emit min-height:100svh');
       var snap = G.serialize();
       expect(snap.indexOf('"boot":false') !== -1 || snap.indexOf('"fill":true') !== -1, 'fill should serialize');
       G.deleteSection(G.sections().indexOf(s2));
