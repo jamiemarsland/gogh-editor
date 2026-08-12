@@ -27,7 +27,7 @@ const UI = __UI__;
 const PROMPT = __PROMPT__;
 
 const DEFAULTS = {
-  KB_URL: 'https://raw.githubusercontent.com/jamiemarsland/gogh-editor/main/helper/gogh-kb.md',
+  KB_URL: 'https://raw.githubusercontent.com/jamiemarsland/gogh-demo/main/gogh-kb.md', // the public demo repo — gogh-editor went private
   MODEL: 'claude-sonnet-4-5',
   MAX_TOKENS: '1400',
   KB_TTL_SECONDS: '600',
