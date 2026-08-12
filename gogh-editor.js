@@ -11332,6 +11332,11 @@
         if (o === activeOpt) return true;
         var d = o.__prev;
         if (!d || !d.html || chromeTextSig(d.html).length < 8) return false;
+        // gogh's curated shelf is hand-picked, not a flood — and the
+        // similarity screen is blind to what makes some of it special
+        // (a transparent header over a plain screening background looks
+        // exactly like a normal one, so the screen was culling it)
+        if (String(o.slug || '').indexOf('gogh/') === 0) return true;
         var sig = chromeRenderSig(d.html);
         if (seen[sig]) return false;
         seen[sig] = 1;

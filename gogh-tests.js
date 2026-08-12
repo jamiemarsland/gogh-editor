@@ -3043,7 +3043,12 @@
       })[0];
       expect(baseSlug && by[baseSlug] === '#f6f2ea', 'background not mapped to ' + baseSlug);
       expect(contrastSlug && by[contrastSlug] === '#1b2a4a', 'text not mapped to ' + contrastSlug);
-      var accentSlugs = Object.keys(by).filter(function (k) { return /accent/.test(k); });
+      // a theme styling may seat TEXT (or background) in an accent-N slot —
+      // TT5's dark looks use accent-4 as ink — and brandToVariation rightly
+      // gives such a slot the ROLE colour, not an accent
+      var accentSlugs = Object.keys(by).filter(function (k) {
+        return /accent/.test(k) && k !== roleTx && k !== baseSlug && k !== contrastSlug;
+      });
       expect(accentSlugs.every(function (k) { return by[k] === '#c96f4a' || by[k] === '#7a9e7e'; }) || accentSlugs.length === 0,
         'accent slugs not cycled through brand accents');
       return 'ratios exact · palette mapped onto theme slugs';
