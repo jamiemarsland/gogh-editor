@@ -1181,9 +1181,27 @@
       if (isText(e)) {
         var h = sec.nodes[i].offsetHeight / s;
         if (h > 0) e.h = Math.round(h);
+      } else if (e.type === 'image' && !e.kids) {
+        // a tall photo inflates its max-content rows past the design
+        // height — the model must absorb the rendered truth or every
+        // element below lives at two different addresses and drags grab
+        // from one world and drop into the other ("drag and drop
+        // struggles ... especially if its a high image")
+        var ih = sec.nodes[i].offsetHeight / s;
+        // deadband 12: real inflation is hundreds of units, solver
+        // re-quantization wiggles by single digits — absorb only truth
+        if (ih > 0 && Math.abs(ih - e.h) > 12) e.h = Math.round(ih);
       }
     });
   }
+  // images announce their real height only once loaded — absorb it then
+  document.addEventListener('load', function (ev) {
+    var img = ev.target;
+    if (!editing || !img || img.tagName !== 'IMG') return;
+    var sec = S.filter(function (s2) { return s2.sectionEl && s2.sectionEl.contains(img); })[0];
+    if (!sec) return;
+    setTimeout(function () { measureTextHeights(sec); resolveAndApply(sec); }, 60);
+  }, true);
   // a RICH background (photo, effect layer, gradient composition) cannot
   // be represented by a flat divider band — the transition must be carved
   // into the rich section's own top edge instead
@@ -10475,8 +10493,10 @@
   }
   // "+ New page" in the admin bar: ask for a NAME first (the no-JS
   // fallback still creates "Untitled page" via admin-post)
-  var npLink = document.querySelector('#wp-admin-bar-gogh-new-page a');
-  if (npLink) npLink.addEventListener('click', function (ev) {
+  // the button moved into the Gogh menu (id -menu) — the naming panel
+  // must follow it, or the menu copy silently creates "Untitled page"
+  var npLinks = [].slice.call(document.querySelectorAll('#wp-admin-bar-gogh-new-page a, #wp-admin-bar-gogh-new-page-menu a'));
+  npLinks.forEach(function (npLink) { npLink.addEventListener('click', function (ev) {
     ev.preventDefault();
     panel.innerHTML =
       '<div class="gogh-panel-title">New page</div>' +
@@ -10515,7 +10535,7 @@
       if (ev2.key === 'Enter') create();
       if (ev2.key === 'Escape') closePanel();
     });
-  });
+  }); });
   window.__goghAddPattern = function (name, idx) {
     return fetchSectionPatterns().then(function (pats) {
       var p = pats.filter(function (x) { return x.name === name; })[0];
