@@ -143,6 +143,7 @@
     if (!typedFirst && raw.trim() && surfaceFromRaw(raw)) {
       [].forEach.call(body.querySelectorAll('figure, .gogh-splash'), attachObjControls);
       if (window.__goghViewInit) window.__goghViewInit();
+      window.gogh.enhance(body);
     }
   }).catch(function () {});
 
@@ -428,6 +429,7 @@
     // the splash comes ALIVE in the room — arrows, dots, lightbox — the
     // same audition the published page gives ("without having to publish")
     if (window.__goghViewInit) window.__goghViewInit();
+    window.gogh.enhance(body);
     closeSplash();
     queueSave();
   };
@@ -474,6 +476,40 @@
     }
     return cur;
   };
+  // ---------- the pack door ----------
+  // add-on packs teach gogh new splash kinds without touching core:
+  //   window.gogh.registerSplash({ key, label, hint, icon, multi,
+  //     minPhotos, lines, linesHint, compose(items, opts) -> {raw, html} })
+  // saved output must stay pure core blocks — the pack's enhancer only
+  // decorates at view time, exactly like gogh's own carousel.
+  window.gogh = window.gogh || {};
+  window.gogh._splashes = window.gogh._splashes || {};
+  window.gogh.registerSplash = function (def) {
+    if (def && def.key && typeof def.compose === 'function') {
+      window.gogh._splashes[def.key] = def;
+    }
+  };
+  window.gogh._imageStyles = window.gogh._imageStyles || [];
+  window.gogh.registerImageStyle = function (def) {
+    if (def && def.cls && def.label) window.gogh._imageStyles.push(def);
+  };
+  window.gogh._enhancers = window.gogh._enhancers || [];
+  window.gogh.registerEnhancer = function (fn) {
+    if (typeof fn === 'function') window.gogh._enhancers.push(fn);
+  };
+  window.gogh.enhance = function (root) {
+    (window.gogh._enhancers || []).forEach(function (fn) {
+      try { fn(root || document); } catch (e) {}
+    });
+  };
+  var packSplashes = function () {
+    var out = [];
+    for (var k in window.gogh._splashes) out.push(window.gogh._splashes[k]);
+    return out;
+  };
+  var esc = function (t) {
+    return String(t == null ? '' : t).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  };
   var openSplash = function (refBlk) {
     closeSplash();
     var cur = readSplash(refBlk);
@@ -496,6 +532,11 @@
       '<button type="button" data-splash="glass">' +
       '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="1.5"/><rect x="7" y="9" width="10" height="6" rx="1"/></svg>' +
       '<span><b>Glass card</b><i>a frosted call-out</i></span></button>' +
+      packSplashes().map(function (p) {
+        return '<button type="button" data-splash="pack:' + p.key + '">' +
+          (p.icon || '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 4l1.8 6.2L20 12l-6.2 1.8L12 20l-1.8-6.2L4 12l6.2-1.8z"/></svg>') +
+          '<span><b>' + esc(p.label || p.key) + '</b><i>' + esc(p.hint || '') + '</i></span></button>';
+      }).join('') +
       '</div>' +
       '<div class="gogh-w-splash-stage" hidden></div>' +
       '</div>';
@@ -508,12 +549,17 @@
       var stage = splashOv.querySelector('.gogh-w-splash-stage');
       splashOv.querySelector('.gogh-w-splash-tiles').hidden = true;
       stage.hidden = false;
-      var multi = kind === 'carousel' || kind === 'wall';
+      var pack = kind.indexOf('pack:') === 0 ? window.gogh._splashes[kind.slice(5)] : null;
+      var multi = kind === 'carousel' || kind === 'wall' || (pack && pack.multi !== false);
       var editing = !!seed;
       stage.innerHTML = '<div class="gogh-w-splash-hint">' +
         (editing
           ? (multi ? 'Tap photos to add or remove, then Update.' : 'Tap a photo to swap it in.')
           : (multi ? 'Pick a few photos, then Add.' : 'Pick the photo.')) + '</div>' +
+        (pack && pack.lines
+          ? '<textarea class="gogh-input gogh-w-splash-lines" rows="3" placeholder="' +
+            String(pack.linesHint || 'One line per photo\u2026').replace(/"/g, '&quot;') + '"></textarea>'
+          : '') +
         (kind === 'glass'
           ? '<input type="text" class="gogh-input gogh-w-splash-title" placeholder="Card title" value="' +
             String(seed && seed.title ? seed.title : 'A moment worth a card').replace(/"/g, '&quot;') + '" />' +
@@ -528,7 +574,7 @@
       var caps = editing ? seed.caps || {} : {};
       var opts = editing ? seed.opts || {} : (kind === 'wall' ? { cols: 3, light: 1 } : { light: 1 });
       var goLabel = function (go) {
-        go.disabled = chosen.length < 2;
+        go.disabled = chosen.length < (pack && pack.minPhotos ? pack.minPhotos : 2);
         go.textContent = chosen.length ? (editing ? 'Update ' : 'Add ') + chosen.length + ' photos' : (editing ? 'Update' : 'Add');
       };
       var renumber = function () {
@@ -589,10 +635,16 @@
           if (editing) goLabel(go);
           go.addEventListener('click', function () {
             var items2 = chosen.map(function (u) { return { img: u, cap: caps[u] || '' }; });
-            var made = kind === 'carousel'
-              ? window.__goghCompose.carousel(items2, opts)
-              : window.__goghCompose.wall(items2, opts);
-            insertSplash(made, refBlk);
+            var made;
+            if (pack) {
+              var linesEl = stage.querySelector('.gogh-w-splash-lines');
+              made = pack.compose(items2, { lines: linesEl ? linesEl.value.split('\n') : [] });
+            } else {
+              made = kind === 'carousel'
+                ? window.__goghCompose.carousel(items2, opts)
+                : window.__goghCompose.wall(items2, opts);
+            }
+            if (made && made.raw) insertSplash(made, refBlk);
           });
         } else if (go && kind === 'glass') {
           // words-only edits apply with the photo it already wears
@@ -906,6 +958,21 @@
     // transparent-cutout trick — text wraps around it)
     var layRow = document.createElement('span');
     layRow.className = 'gogh-w-layrow';
+    // pack styles ride the same row: one-tap treatments (Melt, Rise...)
+    (window.gogh._imageStyles || []).forEach(function (st2) {
+      var pb = document.createElement('button');
+      pb.type = 'button';
+      pb.className = 'gogh-w-lay' + (fig.classList.contains(st2.cls) ? ' is-on' : '');
+      pb.textContent = st2.label;
+      pb.addEventListener('click', function (ev4) {
+        ev4.stopPropagation();
+        var on = fig.classList.toggle(st2.cls);
+        pb.classList.toggle('is-on', on);
+        if (window.gogh.enhance) window.gogh.enhance(fig.parentNode || fig);
+        queueSave();
+      });
+      layRow.appendChild(pb);
+    });
     [['', 'Wide'], ['alignleft', 'Left'], ['alignright', 'Right']].forEach(function (L) {
       var lb = document.createElement('button');
       lb.type = 'button';
@@ -1011,11 +1078,14 @@
         var cap = n.querySelector('figcaption');
         var capTxt = cap && cap.textContent.trim() ? inlineClean(cap) : '';
         var flo = n.classList.contains('alignleft') ? 'left' : n.classList.contains('alignright') ? 'right' : null;
+        // pack treatments travel as block styles — one class, pure core
+        var styleCls = [].filter.call(n.classList, function (c4) { return c4.indexOf('is-style-') === 0; });
         var iattrs = { sizeSlug: 'large' };
         if (mid) iattrs.id = mid;
         if (flo) iattrs.align = flo;
+        if (styleCls.length) iattrs.className = styleCls.join(' ');
         out.push('<!-- wp:image ' + JSON.stringify(iattrs) + ' -->\n' +
-          '<figure class="wp-block-image' + (flo ? ' align' + flo : '') + ' size-large"><img src="' + img.src + '" alt="' + (img.alt || '') + '"' + (mid ? ' class="wp-image-' + mid + '"' : '') + '/>' +
+          '<figure class="wp-block-image' + (flo ? ' align' + flo : '') + (styleCls.length ? ' ' + styleCls.join(' ') : '') + ' size-large"><img src="' + img.src + '" alt="' + (img.alt || '') + '"' + (mid ? ' class="wp-image-' + mid + '"' : '') + '/>' +
           (capTxt ? '<figcaption class="wp-element-caption">' + capTxt + '</figcaption>' : '') +
           '</figure>\n<!-- /wp:image -->');
       }

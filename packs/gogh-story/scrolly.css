@@ -1,0 +1,61 @@
+/* Gogh Story — the scenes.
+ * Without JS: a calm sequence of full images and words (the fallback IS
+ * a design). With JS: images pin to the viewport and hand over as the
+ * words scroll past — the classic scrollytelling contract, CSS-first.
+ */
+.gogh-scrolly { margin-block: 0; }
+.gogh-scene { position: relative; }
+.gogh-scene-img { position: sticky; top: 0; margin: 0; height: 100svh; overflow: clip; }
+.gogh-scene-img img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.gogh-scene-words {
+  position: relative;
+  z-index: 2;
+  max-width: 34rem;
+  margin: -50svh auto 0;
+  padding: 28vh 1.4rem;
+  text-align: center;
+  font-size: clamp(1.3rem, 2.6vw, 2rem);
+  line-height: 1.45;
+  color: #fff;
+  text-shadow: 0 2px 24px rgba(0, 0, 0, 0.55), 0 1px 4px rgba(0, 0, 0, 0.5);
+  opacity: 0.45;
+  transition: opacity 0.5s ease;
+}
+.gogh-scene.is-live .gogh-scene-words { opacity: 1; }
+/* scene handover: a soft veil settles on the outgoing image */
+.gogh-scene-img::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: rgba(10, 10, 14, 0.18);
+  opacity: 1;
+  transition: opacity 0.5s ease;
+}
+.gogh-scene.is-live .gogh-scene-img::after { opacity: 0; }
+@media (prefers-reduced-motion: reduce) {
+  .gogh-scene-img { position: static; height: auto; }
+  .gogh-scene-words { margin-top: 0; padding: 2rem 1.4rem; opacity: 1; color: inherit; text-shadow: none; }
+}
+
+/* ---------- Melt ----------
+ * the photo's edges dissolve to true transparency — it melts into any
+ * background: colour, gradient, even another photo. */
+.is-style-gogh-melt img {
+  mask-image: radial-gradient(120% 120% at 50% 45%, #000 52%, transparent 97%);
+  -webkit-mask-image: radial-gradient(120% 120% at 50% 45%, #000 52%, transparent 97%);
+}
+.is-style-gogh-melt { background: transparent; }
+
+/* ---------- the entrance family ----------
+ * no JS, no motion preference, no pack: everything simply visible. */
+html.gogh-anim .is-style-gogh-rise { opacity: 0; transform: translateY(26px); transition: opacity 0.7s ease, transform 0.7s cubic-bezier(0.2, 0.6, 0.2, 1); }
+html.gogh-anim .is-style-gogh-rise.gogh-in { opacity: 1; transform: none; }
+html.gogh-anim .is-style-gogh-unveil { clip-path: inset(0 0 100% 0); transition: clip-path 0.9s cubic-bezier(0.3, 0.7, 0.2, 1); }
+html.gogh-anim .is-style-gogh-unveil.gogh-in { clip-path: inset(0 0 0 0); }
+.is-style-gogh-breathe img { animation: gogh-breathe 14s ease-in-out infinite alternate; }
+@keyframes gogh-breathe { from { transform: scale(1); } to { transform: scale(1.07); } }
+.is-style-gogh-breathe { overflow: clip; }
+@media (prefers-reduced-motion: reduce) {
+  html.gogh-anim .is-style-gogh-rise, html.gogh-anim .is-style-gogh-unveil { opacity: 1; transform: none; clip-path: none; transition: none; }
+  .is-style-gogh-breathe img { animation: none; }
+}
