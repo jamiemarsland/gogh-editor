@@ -110,5 +110,13 @@ jobs:
             if curl -fsS "https://raw.githubusercontent.com/jamiemarsland/gogh-demo/main/gogh-kb.md" | grep -q "${GITHUB_REF_NAME#v}"; then break; fi
             sleep 20
           done
-          curl -fsS -X POST "https://gogh-helper.jamesmarsland.workers.dev/api/refresh" \
-            -H "x-refresh-token: ${REFRESH_TOKEN}" || echo "refresh ping failed — TTL will catch it"
+          # raw's edges disagree for a while after a force-push: the runner
+          # can see the new file while the worker's edge still serves the
+          # old one. Ping until the helper actually reports this release.
+          for i in $(seq 1 10); do
+            out=$(curl -fsS -X POST "https://gogh-helper.jamesmarsland.workers.dev/api/refresh" \
+              -H "x-refresh-token: ${REFRESH_TOKEN}" 2>/dev/null) || out=""
+            echo "helper: $out"
+            echo "$out" | grep -q "\"pluginVersion\":\"${GITHUB_REF_NAME#v}\"" && break
+            sleep 30
+          done
