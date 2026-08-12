@@ -57,7 +57,9 @@
   };
   var keeperNode = function (blockRaw, html) {
     var node = document.createElement('div');
-    node.className = 'gogh-splash';
+    // wearing alignfull lets WP's own container rules bleed the wrapper —
+    // they only reach DIRECT children, and the wrapper stands between
+    node.className = 'gogh-splash' + (/alignfull/.test(blockRaw) ? ' alignfull' : '');
     node.contentEditable = 'false';
     node.dataset.goghRaw = encodeURIComponent(blockRaw);
     node.innerHTML = html || innerOf(blockRaw) || '<em style="opacity:.5">A block gogh keeps safe for you</em>';
@@ -307,13 +309,16 @@
   document.body.appendChild(plus);
   var menu = document.createElement('div');
   menu.className = 'gogh-w-menu';
+  var mIc = function (paths) {
+    return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">' + paths + '</svg>';
+  };
   menu.innerHTML =
-    '<button type="button" data-add="heading">H Heading</button>' +
-    '<button type="button" data-add="image">\ud83d\udcf7 Image</button>' +
-    '<button type="button" data-add="quote">\u275d Quote</button>' +
-    '<button type="button" data-add="embed">\u25b6 Embed</button>' +
-    '<button type="button" data-add="rule">\u2014 Divider</button>' +
-    '<button type="button" data-add="splash" class="gogh-w-splashbtn">\u2726 Splash</button>';
+    '<button type="button" data-add="heading">' + mIc('<path d="M6 5v14M18 5v14M6 12h12"/>') + 'Heading</button>' +
+    '<button type="button" data-add="image">' + mIc('<rect x="3" y="5" width="18" height="14" rx="1.5"/><path d="M6 15l4-4 3 3 2.5-2.5L19 15"/><circle cx="9" cy="9" r="1.2"/>') + 'Image</button>' +
+    '<button type="button" data-add="quote">' + mIc('<path d="M9 7c-2.5 0.5-4 2.5-4 5v5h5v-5H7c0-2 1-3 2-3.5zM19 7c-2.5 0.5-4 2.5-4 5v5h5v-5h-3c0-2 1-3 2-3.5z"/>') + 'Quote</button>' +
+    '<button type="button" data-add="embed">' + mIc('<rect x="3" y="5" width="18" height="14" rx="1.5"/><path d="M10 9.5l4.5 2.5L10 14.5z"/>') + 'Embed</button>' +
+    '<button type="button" data-add="rule">' + mIc('<path d="M4 12h16"/>') + 'Divider</button>' +
+    '<button type="button" data-add="splash" class="gogh-w-splashbtn">' + mIc('<path d="M12 4l1.8 6.2L20 12l-6.2 1.8L12 20l-1.8-6.2L4 12l6.2-1.8z"/>') + 'Splash</button>';
   menu.hidden = true;
   document.body.appendChild(menu);
   var filePick = document.createElement('input');
@@ -393,7 +398,7 @@
   };
   var insertSplash = function (made, refBlk) {
     var node = document.createElement('div');
-    node.className = 'gogh-splash';
+    node.className = 'gogh-splash' + (/alignfull/.test(made.raw) ? ' alignfull' : '');
     node.contentEditable = 'false';
     node.dataset.goghRaw = encodeURIComponent(made.raw);
     node.innerHTML = made.html;
@@ -526,6 +531,13 @@
         go.disabled = chosen.length < 2;
         go.textContent = chosen.length ? (editing ? 'Update ' : 'Add ') + chosen.length + ' photos' : (editing ? 'Update' : 'Add');
       };
+      var renumber = function () {
+        [].forEach.call(stage.querySelectorAll('.gogh-thumb'), function (t) {
+          var i = chosen.indexOf(t.dataset.url);
+          if (i >= 0) t.dataset.n = i + 1;
+          else if (t.dataset.n !== '✓') t.removeAttribute('data-n');
+        });
+      };
       var rk = stage.querySelector('.gogh-w-splash-rekind');
       if (rk) rk.addEventListener('click', function () {
         stage.hidden = true;
@@ -544,8 +556,10 @@
           var b = document.createElement('button');
           b.type = 'button';
           b.className = 'gogh-thumb';
+          b.dataset.url = item.source_url;
           if (editing && (multi ? chosen.indexOf(item.source_url) !== -1 : seed.urls[0] === item.source_url)) {
             b.classList.add('is-active');
+            if (!multi) b.dataset.n = '✓'; // the photo it wears today
           }
           b.style.backgroundImage = 'url("' + (thumb ? thumb.source_url : item.source_url) + '")';
           b.addEventListener('click', function () {
@@ -564,10 +578,12 @@
             var url = item.source_url;
             if (b.classList.contains('is-active')) chosen.push(url);
             else chosen = chosen.filter(function (u) { return u !== url; });
+            renumber();
             goLabel(stage.querySelector('.gogh-w-splash-go'));
           });
           box.appendChild(b);
         });
+        renumber(); // editing arrives with its picks already numbered
         var go = stage.querySelector('.gogh-w-splash-go');
         if (go && multi) {
           if (editing) goLabel(go);
@@ -619,7 +635,7 @@
       var h = swapBlock(blk, '<h2><br></h2>');
       caretInto(h);
     } else if (kind === 'quote') {
-      var q = swapBlock(blk, '<blockquote><p><br></p></blockquote>');
+      var q = swapBlock(blk, '<blockquote class="wp-block-quote"><p><br></p></blockquote>');
       caretInto(q.querySelector('p') || q);
     } else if (kind === 'rule') {
       var hr = document.createElement('hr');
@@ -1007,6 +1023,46 @@
     return out.join('\n\n');
   };
 
+  // ---------- no block traps the caret ----------
+  // Enter on an empty line inside a quote steps OUT of it (the browser
+  // would keep making paragraphs inside forever — "i can't add any other
+  // blocks"); Enter at the end of a heading starts a paragraph.
+  body.addEventListener('keydown', function (ev) {
+    if (ev.key !== 'Enter' || ev.shiftKey) return;
+    var sel = getSelection();
+    if (!sel.rangeCount || !sel.isCollapsed) return;
+    var el = sel.anchorNode.nodeType === 1 ? sel.anchorNode : sel.anchorNode.parentElement;
+    if (!el || !body.contains(el)) return;
+    var bq = el.closest('blockquote');
+    if (bq && bq.parentNode === body) {
+      var para = el.closest('p');
+      if (para && !para.textContent.trim()) {
+        ev.preventDefault();
+        var out = document.createElement('p');
+        out.innerHTML = '<br>';
+        bq.after(out);
+        para.remove();
+        if (!bq.textContent.trim() && !bq.querySelector('img')) bq.remove();
+        caretInto(out);
+        queueSave();
+      }
+      return;
+    }
+    var h = el.closest('h2, h3, h4');
+    if (h && h.parentNode === body) {
+      var probe = sel.getRangeAt(0).cloneRange();
+      probe.selectNodeContents(h);
+      probe.setStart(sel.getRangeAt(0).endContainer, sel.getRangeAt(0).endOffset);
+      if (!probe.toString().trim()) {
+        ev.preventDefault();
+        var np = document.createElement('p');
+        np.innerHTML = '<br>';
+        h.after(np);
+        caretInto(np);
+      }
+    }
+  });
+
   // ---------- the view follows the caret (typewriter's kindness) ----------
   // writing happens in the middle of the screen, not at its bottom edge:
   // whenever the caret sinks past the comfort line, the page steps down.
@@ -1087,6 +1143,14 @@
     chip.querySelector('.gogh-w-draft').remove();
     chip.querySelector('.gogh-w-publish').textContent = 'Update';
   }
+  // phones have no hover: tapping the quiet chip opens the row, tapping
+  // anywhere else folds it away again
+  chip.addEventListener('click', function (ev) {
+    if (!ev.target.closest('button')) chip.classList.toggle('is-open');
+  });
+  document.addEventListener('pointerdown', function (ev) {
+    if (!chip.contains(ev.target)) chip.classList.remove('is-open');
+  }, true);
   var clean = true; // "saved" only appears when it is TRUE
   var quietLabel = function () {
     var n = words();

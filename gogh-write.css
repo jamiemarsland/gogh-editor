@@ -112,15 +112,16 @@ body.gogh-writing ::selection {
 }
 .gogh-w-chip:hover,
 .gogh-w-chip:focus-within,
+.gogh-w-chip.is-open,
 .gogh-w-chip.is-filing {
   opacity: 1;
 }
-/* quiet until hovered: the count keeps the seat, the buttons arrive on
-   intent (growing leftward from the anchored corner) */
-.gogh-w-chip:not(:hover):not(:focus-within):not(.is-filing) .gogh-w-catsbtn,
-.gogh-w-chip:not(:hover):not(:focus-within):not(.is-filing) .gogh-w-publish,
-.gogh-w-chip:not(:hover):not(:focus-within):not(.is-filing) .gogh-w-back,
-.gogh-w-chip:not(:hover):not(:focus-within):not(.is-filing) .gogh-w-saved {
+/* quiet until hovered — or TAPPED: phones have no hover, so the chip
+   also opens on .is-open (toggled by tap, closed by tapping elsewhere) */
+.gogh-w-chip:not(:hover):not(:focus-within):not(.is-filing):not(.is-open) .gogh-w-catsbtn,
+.gogh-w-chip:not(:hover):not(:focus-within):not(.is-filing):not(.is-open) .gogh-w-publish,
+.gogh-w-chip:not(:hover):not(:focus-within):not(.is-filing):not(.is-open) .gogh-w-back,
+.gogh-w-chip:not(:hover):not(:focus-within):not(.is-filing):not(.is-open) .gogh-w-saved {
   display: none;
 }
 .gogh-w-count {
@@ -197,28 +198,50 @@ body.gogh-writing ::selection {
 .gogh-w-menu[hidden] {
   display: none; /* author display:flex beats the UA [hidden] rule */
 }
+/* the margin menu is PAPER, same sheet as the splash card — a quiet
+   list rising beside the empty line, not a dark pill ("doesnt feel
+   very gogh") */
 .gogh-w-menu {
   position: fixed;
   z-index: 99999;
   transform: translateY(-50%);
   display: flex;
-  gap: 4px;
-  padding: 5px;
-  border-radius: 999px;
-  background: rgba(20, 21, 25, 0.94);
-  box-shadow: 0 14px 40px -12px rgba(0, 0, 0, 0.5);
+  flex-direction: column;
+  gap: 1px;
+  padding: 6px;
+  min-width: 170px;
+  border-radius: 12px;
+  background: #fbfaf8;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  box-shadow: 0 18px 50px -18px rgba(0, 0, 0, 0.3);
 }
 .gogh-w-menu button {
   all: unset;
   cursor: pointer;
-  color: #f2f3f5;
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  color: #1d1e22;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, sans-serif;
-  font-size: 12.5px;
-  padding: 7px 12px;
-  border-radius: 999px;
+  font-size: 13.5px;
+  padding: 8px 10px;
+  border-radius: 8px;
 }
 .gogh-w-menu button:hover {
-  background: rgba(255, 255, 255, 0.12);
+  background: rgba(0, 0, 0, 0.045);
+}
+.gogh-w-menu svg {
+  width: 18px;
+  height: 18px;
+  flex: none;
+  opacity: 0.7;
+}
+/* quotes must LOOK like quotes in the room, theme or no theme */
+.gogh-w-body blockquote {
+  border-inline-start: 3px solid rgba(0, 0, 0, 0.22);
+  padding-inline-start: 1em;
+  margin-inline: 0;
+  font-style: italic;
 }
 
 /* the embed line asks for one thing */
@@ -410,9 +433,10 @@ body.gogh-writing ::selection {
   border: 1px solid rgba(255, 255, 255, 0.2);
 }
 .gogh-w-draft:hover { color: #fff; border-color: rgba(255, 255, 255, 0.45); }
-.gogh-w-chip:not(:hover):not(:focus-within):not(.is-filing) .gogh-w-draft { display: none; }
+.gogh-w-chip:not(:hover):not(:focus-within):not(.is-filing):not(.is-open) .gogh-w-draft { display: none; }
 
 /* the selection bubble */
+.gogh-w-bub[hidden] { display: none; } /* display:flex would defeat [hidden] — the invisible 440px bubble was widening phones */
 .gogh-w-bub {
   position: fixed;
   z-index: 99999;
@@ -526,6 +550,7 @@ body.gogh-writing ::selection {
   font-size: 13px;
 }
 .gogh-w-splash-x:hover { opacity: 1; }
+.gogh-w-splash-tiles[hidden] { display: none; } /* display:flex defeats [hidden] — the tiles were haunting the stage */
 .gogh-w-splash-tiles {
   display: flex;
   flex-direction: column;
@@ -574,14 +599,36 @@ body.gogh-writing ::selection {
 .gogh-w-splash-media .gogh-thumb {
   all: unset;
   cursor: pointer;
+  position: relative;
   aspect-ratio: 1;
   border-radius: 8px;
   background-size: cover;
   background-position: center;
+  transition: transform 0.12s ease;
 }
+/* chosen photos are UNMISSABLE: ink ring, gentle shrink, and a badge
+   numbering the pick order (order is the carousel's story) */
 .gogh-w-splash-media .gogh-thumb.is-active {
-  outline: 3px solid #e8b04b;
-  outline-offset: -3px;
+  transform: scale(0.93);
+  box-shadow: 0 0 0 3px #1d1e22;
+}
+.gogh-w-splash-media .gogh-thumb.is-active::after {
+  content: attr(data-n);
+  position: absolute;
+  top: 5px;
+  right: 5px;
+  min-width: 22px;
+  height: 22px;
+  padding-inline: 4px;
+  box-sizing: border-box;
+  border-radius: 999px;
+  background: #1d1e22;
+  color: #fff;
+  font-size: 12.5px;
+  font-weight: 700;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, sans-serif;
+  display: grid;
+  place-items: center;
 }
 .gogh-w-splash-go { float: right; }
 /* the escape hatch reads as a footnote, not a second button */
@@ -596,11 +643,13 @@ body.gogh-writing ::selection {
 }
 .gogh-w-splash-rekind:hover { opacity: 0.9; }
 /* splash previews in the column: full-bleed ones bleed */
-.gogh-w-body .gogh-splash { margin: 1.6em 0; position: relative; }
-.gogh-w-body .gogh-splash:has(.alignfull) {
-  width: 100vw;
-  margin-inline: calc(50% - 50vw);
-}
+/* margin-BLOCK only: the shorthand's inline-0 was overriding core's
+   .has-global-padding > .alignfull negative margins (same specificity,
+   later load) and quietly killing the full bleed */
+.gogh-w-body .gogh-splash { margin-block: 1.6em; position: relative; }
+/* full-bleed splashes wear .alignfull on the wrapper itself, so WP's
+   own generated container rules bleed them — no vw math here, ever
+   (vw includes scrollbars: that was the 30px sideways shove) */
 .gogh-w-body .gogh-splash.is-picked { outline-offset: -2px; }
 
 .gogh-w-figpen { right: 44px; }
