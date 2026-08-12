@@ -102,12 +102,14 @@ body.gogh-writing ::selection {
   gap: 12px;
   padding: 9px 10px 9px 16px;
   border-radius: 999px;
-  background: rgba(20, 21, 25, 0.92);
-  color: #f2f3f5;
+  background: rgba(251, 250, 248, 0.94);
+  color: #1d1e22;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  backdrop-filter: blur(10px);
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, sans-serif;
   font-size: 12.5px;
-  box-shadow: 0 14px 40px -12px rgba(0, 0, 0, 0.5);
-  opacity: 0.3;
+  box-shadow: 0 16px 44px -20px rgba(0, 0, 0, 0.28);
+  opacity: 0.45;
   transition: opacity 0.2s ease;
 }
 .gogh-w-chip:hover,
@@ -150,8 +152,8 @@ body.gogh-writing ::selection {
 }
 /* the door: last in the row, quietest thing in it */
 .gogh-w-back {
-  color: #f2f3f5;
-  opacity: 0.6;
+  color: inherit;
+  opacity: 0.55;
   text-decoration: none;
   padding: 7px 6px;
   white-space: nowrap;
@@ -299,14 +301,14 @@ body.gogh-writing ::selection {
   cursor: pointer;
   padding: 5px 11px;
   border-radius: 999px;
-  border: 1px solid rgba(255, 255, 255, 0.25);
-  color: #f2f3f5;
+  border: 1px solid rgba(0, 0, 0, 0.2);
+  color: #1d1e22;
   font-size: 12px;
 }
 .gogh-w-cat.is-on {
-  background: #f2f3f5;
+  background: #1d1e22;
   border-color: transparent;
-  color: #141519;
+  color: #fbfaf8;
   font-weight: 600;
 }
 .gogh-w-newcat {
@@ -315,12 +317,12 @@ body.gogh-writing ::selection {
   max-width: 110px;
   padding: 5px 11px;
   border-radius: 999px;
-  border: 1px dashed rgba(255, 255, 255, 0.3);
-  color: #f2f3f5;
+  border: 1px dashed rgba(0, 0, 0, 0.28);
+  color: #1d1e22;
   font-size: 12px;
 }
 .gogh-w-newcat::placeholder {
-  color: rgba(255, 255, 255, 0.4);
+  color: rgba(29, 30, 34, 0.4);
 }
 
 /* a picked image says so, and offers the door */
@@ -361,15 +363,15 @@ body.gogh-writing ::selection {
 .gogh-w-catsbtn {
   all: unset;
   cursor: pointer;
-  color: rgba(255, 255, 255, 0.75);
+  color: rgba(29, 30, 34, 0.75);
   font-size: 12px;
   padding: 6px 10px;
   border-radius: 999px;
-  border: 1px solid rgba(255, 255, 255, 0.2);
+  border: 1px solid rgba(0, 0, 0, 0.16);
 }
 .gogh-w-catsbtn:hover {
-  color: #fff;
-  border-color: rgba(255, 255, 255, 0.45);
+  color: #1d1e22;
+  border-color: rgba(0, 0, 0, 0.34);
 }
 
 .gogh-w-tags {
@@ -426,13 +428,13 @@ body.gogh-writing ::selection {
 .gogh-w-draft {
   all: unset;
   cursor: pointer;
-  color: rgba(255, 255, 255, 0.75);
+  color: rgba(29, 30, 34, 0.75);
   font-size: 12px;
   padding: 6px 10px;
   border-radius: 999px;
-  border: 1px solid rgba(255, 255, 255, 0.2);
+  border: 1px solid rgba(0, 0, 0, 0.16);
 }
-.gogh-w-draft:hover { color: #fff; border-color: rgba(255, 255, 255, 0.45); }
+.gogh-w-draft:hover { color: #1d1e22; border-color: rgba(0, 0, 0, 0.34); }
 .gogh-w-chip:not(:hover):not(:focus-within):not(.is-filing):not(.is-open) .gogh-w-draft { display: none; }
 
 /* the selection bubble */
