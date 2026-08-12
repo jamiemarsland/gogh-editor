@@ -56,7 +56,13 @@ async function getKB(env, { force = false } = {}) {
 
   let res = force ? null : await cache.match(cacheKey);
   if (!res) {
-    res = await fetch(url, { cf: { cacheTtl: ttl, cacheEverything: true } });
+    // force means FORCE: cf.cacheTtl caches the raw response at
+    // Cloudflare's edge too, and a forced refresh must punch through
+    // that layer or "refresh" serves the same stale copy for ttl seconds
+    // a force-refresh must MISS Cloudflare's fetch cache, and cacheTtl:0
+    // doesn't evict an existing entry — only a new cache key does
+    const fetchUrl = force ? url + (url.includes('?') ? '&' : '?') + 'fresh=' + Date.now() : url;
+    res = await fetch(fetchUrl, { cf: force ? { cacheTtl: 0, cacheEverything: false } : { cacheTtl: ttl, cacheEverything: true } });
     if (!res.ok) {
       // A stale KB beats no bot at all.
       if (memo) return memo;
