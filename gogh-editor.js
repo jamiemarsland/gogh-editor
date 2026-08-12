@@ -1191,20 +1191,38 @@
     return !!(sec2 && (sec2.bgImage || (sec2.fx && sec2.fx.bg) ||
       (sec2.bg && /gradient\(/.test(String(sec2.bg)))));
   }
+  // a plain-block band paints its own background — the divider above it
+  // melts into THAT, not into the next gogh section further down
+  function rawBandColor(el) {
+    var probe = el, guard = 0;
+    while (probe && guard++ < 4) {
+      var cs = getComputedStyle(probe);
+      if (cs.backgroundColor && cs.backgroundColor !== 'rgba(0, 0, 0, 0)') return cs.backgroundColor;
+      probe = probe.firstElementChild;
+    }
+    return 'var(--wp--preset--color--base, #fff)';
+  }
+  function domSuccessor(sec) {
+    var n = sec.wrapEl ? sec.wrapEl.nextElementSibling : null;
+    while (n && (n.tagName === 'STYLE' || n.tagName === 'SCRIPT')) n = n.nextElementSibling;
+    return n;
+  }
   function sectionOpts(sec) {
     var idx = S.indexOf(sec);
     var next = idx >= 0 ? S[idx + 1] : null;
     var prev = idx > 0 ? S[idx - 1] : null;
+    var domNext = domSuccessor(sec);
+    var nextIsRaw = !!(domNext && (!next || next.wrapEl !== domNext));
     return { bg: sec.bg, bgA: sec.bgA != null ? sec.bgA : null, fill: !!sec.fill, divider: sec.divider, bgImage: sec.bgImage,
       fx: sec.fx || null,
       fxDemo: !!sec.__fxDemo,
       stickUnder: !!(next && next.fx && next.fx.curtain),
       // the image IS part of the transition: a rich next section carves
       // itself, so this section's colour band stands down
-      divNextRich: richBg(next),
+      divNextRich: nextIsRaw ? false : richBg(next),
       topDivider: (prev && !prev.chrome && prev.divider && prev.divider.shape && richBg(sec))
         ? prev.divider.shape : null,
-      divColor: next ? (next.bg || '#0f0e0c') : null };
+      divColor: nextIsRaw ? rawBandColor(domNext) : (next ? (next.bg || '#0f0e0c') : null) };
   }
   function resolveAndApply(sec) {
     sec.styleEl.textContent = buildCSS(sec.els, sec.scope, sec.minH, sectionOpts(sec));
@@ -6083,11 +6101,12 @@
   shapePanel.hidden = true;
   document.body.appendChild(shapePanel);
   var shapeIdx = null; // boundary index: divider on S[shapeIdx-1], colours above/below
+  var shapeRawBelow = false; // the below-neighbour is a plain-block band
 
   function closeShapePanel() { shapePanel.hidden = true; }
   function openShapePanel(idx) {
     shapeIdx = idx;
-    var above = S[idx - 1], below = S[idx];
+    var above = S[idx - 1], below = shapeRawBelow ? null : S[idx];
     var current = (above.divider && above.divider.shape) || '';
     var shapes = [
       { key: '', label: 'None', path: 'M0,110 L1200,110' },
@@ -6112,7 +6131,7 @@
       '</div>' +
       '<div class="gogh-panel-row gogh-panel-actions">' +
       '<label class="gogh-colorlab">Above <input type="color" class="gogh-color gogh-color-above" /></label>' +
-      '<label class="gogh-colorlab">Below <input type="color" class="gogh-color gogh-color-below" /></label>' +
+      (below ? '<label class="gogh-colorlab">Below <input type="color" class="gogh-color gogh-color-below" /></label>' : '') +
       '</div>' +
       (function () {
         var pal = pickerPalette();
@@ -6126,10 +6145,10 @@
                 ' style="background: var(--wp--preset--color--' + p.slug + ')" title="' + p.slug + '"></button>';
             }).join('') + '</div>';
         };
-        return '<div class="gogh-panel-title" style="margin-top:12px">Theme palette</div>' + sw('above') + sw('below');
+        return '<div class="gogh-panel-title" style="margin-top:12px">Theme palette</div>' + sw('above') + (below ? sw('below') : '');
       })() +
-      '<label class="gogh-fxpull" style="margin-top:12px">Overlap the section above' +
-      '<input type="range" class="gogh-pull" min="0" max="180" step="12" /></label>';
+      (below ? '<label class="gogh-fxpull" style="margin-top:12px">Overlap the section above' +
+      '<input type="range" class="gogh-pull" min="0" max="180" step="12" /></label>' : '');
     // viewport coords, NOT document coords: .gogh-panel went fixed in
     // 0.99.49 and this placement kept adding scrollY — on any scrolled
     // page the Transition panel opened below the viewport, reading as
@@ -6143,7 +6162,8 @@
       shapePanel.style.top = Math.max(16, window.innerHeight - 40 - spr.height) + 'px';
     }
     shapePanel.querySelector('.gogh-color-above').value = above.bg || '#0f0e0c';
-    shapePanel.querySelector('.gogh-color-below').value = below.bg || '#0f0e0c';
+    var belowColor = shapePanel.querySelector('.gogh-color-below');
+    if (belowColor) belowColor.value = below.bg || '#0f0e0c';
     shapePanel.querySelectorAll('.gogh-shape').forEach(function (btn) {
       btn.addEventListener('click', function () {
         above.divider = btn.dataset.shape ? { shape: btn.dataset.shape } : null;
@@ -6158,7 +6178,7 @@
       above.bg = this.value;
       resolveAll();
     });
-    shapePanel.querySelector('.gogh-color-below').addEventListener('input', function () {
+    if (belowColor) belowColor.addEventListener('input', function () {
       below.bg = this.value;
       resolveAll();
     });
@@ -6168,6 +6188,7 @@
     shapePanel.querySelectorAll('.gogh-sw').forEach(function (btn) {
       btn.addEventListener('click', function () {
         var target = btn.dataset.which === 'above' ? above : below;
+        if (!target) return;
         target.bg = btn.dataset.val || null;
         resolveAll();
         pushState();
@@ -6175,14 +6196,16 @@
     });
     // reveal/curtain UI removed for simplicity \u2014 existing sections that
     // carry those flags still render them (published pages stay intact)
-    shapePanel.querySelector('.gogh-pull').value = (below.fx && below.fx.pull) || 0;
     var pullInp = shapePanel.querySelector('.gogh-pull');
-    pullInp.addEventListener('input', function () {
-      below.fx = below.fx || {};
-      below.fx.pull = +this.value || 0;
-      resolveAll();
-    });
-    pullInp.addEventListener('change', pushState);
+    if (pullInp) {
+      pullInp.value = (below.fx && below.fx.pull) || 0;
+      pullInp.addEventListener('input', function () {
+        below.fx = below.fx || {};
+        below.fx.pull = +this.value || 0;
+        resolveAll();
+      });
+      pullInp.addEventListener('change', pushState);
+    }
   }
   shapeBtn.addEventListener('click', function () {
     if (shapeIdx !== null) openShapePanel(shapeIdx);
@@ -6286,8 +6309,13 @@
         inserter.classList.remove('gogh-byebye');
         inserter.hidden = false;
         if (prevSec) placeHbar(prevSec); else hideHbar();
-        if (prevSec && nextSec && S.indexOf(nextSec) === S.indexOf(prevSec) + 1) {
-          shapeIdx = S.indexOf(nextSec);
+        // a plain-block band below still deserves a doorway: the divider
+        // melts into the band's own colour ("its odd when they dont show
+        // as an option and will confuse folks")
+        var rawBelow = !!(prevSec && !nextSec && found.node);
+        if (prevSec && ((nextSec && S.indexOf(nextSec) === S.indexOf(prevSec) + 1) || rawBelow)) {
+          shapeIdx = nextSec ? S.indexOf(nextSec) : S.indexOf(prevSec) + 1;
+          shapeRawBelow = rawBelow;
           shapeBtn.style.left = (cx + 40) + 'px';
           shapeBtn.style.top = (found.y + window.scrollY) + 'px';
           shapeBtn.classList.remove('gogh-byebye');
@@ -13647,14 +13675,15 @@
         var slot = { parent: en.el.parentNode, next: en.el.nextSibling };
         en.deleted = true;
         en.el.remove();
-        clearStoredRmBtns();
-        placeStoredRmBtns();
+        // EVERY floating control re-anchors: a convert pill left at its
+        // old document coordinates props the page open ("the footer has
+        // a huge space underneath it")
+        placeConvertBtns();
         refreshChip();
         toast('Section removed \u2014 publish to make it real.', { actions: [{ label: 'Undo', onClick: function () {
           en.deleted = false;
           if (slot.parent) slot.parent.insertBefore(en.el, slot.next && slot.next.parentNode === slot.parent ? slot.next : null);
-          clearStoredRmBtns();
-          placeStoredRmBtns();
+          placeConvertBtns();
           refreshChip();
         } }] });
       });
