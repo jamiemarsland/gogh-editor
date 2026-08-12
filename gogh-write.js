@@ -119,10 +119,20 @@
     });
     body.innerHTML = '';
     body.appendChild(frag);
+    // guarantee a typeable line beside every splash/figure, exactly as
+    // insertSplash does at insert time — without this, two splashes saved
+    // back-to-back (or a splash as the first block) reload with no place
+    // the caret can ever go between them (audit: caret-proof islands)
+    var isIsland = function (el) {
+      return el && el.classList && (el.classList.contains('gogh-splash') || el.tagName === 'FIGURE' || el.tagName === 'HR');
+    };
+    var gap = function () { var p = document.createElement('p'); p.innerHTML = '<br>'; return p; };
+    [].forEach.call([].slice.call(body.children), function (el) {
+      if (!isIsland(el)) return;
+      if (!el.previousElementSibling || isIsland(el.previousElementSibling)) el.before(gap());
+    });
     if (!body.lastElementChild || !/^(P|H2|H3|H4)$/.test(body.lastElementChild.tagName)) {
-      var tail = document.createElement('p');
-      tail.innerHTML = '<br>';
-      body.appendChild(tail);
+      body.appendChild(gap());
     }
     // an empty block without <br> is caret-proof — contenteditable
     // cannot place the cursor inside it, and typing lands nowhere
@@ -739,6 +749,28 @@
         plusBlk = blk;
         placePlus();
         openMenu();
+      }
+    }
+    // Backspace/Delete at a splash BOUNDARY must not silently swallow the
+    // whole composition (the audit's booby trap) — turn it into a pick,
+    // so the writer sees what they're about to remove and confirms
+    if (ev.key === 'Backspace' || ev.key === 'Delete') {
+      var sel = getSelection();
+      if (!sel.rangeCount || !sel.isCollapsed) return;
+      var blk2 = blockOf(sel.anchorNode);
+      if (!blk2) return;
+      var r = sel.getRangeAt(0).cloneRange();
+      var neighbour = null;
+      if (ev.key === 'Backspace') {
+        r.setStart(blk2, 0); // text before the caret within this block
+        if (!r.toString().trim()) neighbour = blk2.previousElementSibling;
+      } else {
+        r.setEnd(blk2, blk2.childNodes.length); // text after the caret
+        if (!r.toString().trim()) neighbour = blk2.nextElementSibling;
+      }
+      if (neighbour && neighbour.classList && neighbour.classList.contains('gogh-splash')) {
+        ev.preventDefault();
+        neighbour.click(); // pick it; ✕ (and the picked-key confirm) take over
       }
     }
   });

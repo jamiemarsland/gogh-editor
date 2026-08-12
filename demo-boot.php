@@ -1,4 +1,13 @@
 <?php
+// Defense in depth: this file is meant to be FETCHED and eval'd by the
+// demo blueprint, never executed as a URL. When hit directly over HTTP
+// its own path is the requested script; refuse that. (It is also
+// excluded from the distributed plugin zip via .distignore.)
+if ( isset( $_SERVER['SCRIPT_FILENAME'] ) && @realpath( $_SERVER['SCRIPT_FILENAME'] ) === __FILE__ ) {
+	http_response_code( 403 );
+	exit;
+}
+
 require_once '/wordpress/wp-load.php';
 wp_set_current_user( 1 );
 require_once ABSPATH . 'wp-admin/includes/media.php';
