@@ -1467,8 +1467,8 @@
     (cfg.helpUrl ? '<button type="button" class="gogh-sbtn gogh-help" title="Help — ask gogh anything">?</button>' : '') +
     '</div>' +
     // the build number, always in sight: five bug reports in one day were
-    // stale caches wearing fresh bugs' clothing
-    '<a class="gogh-btn gogh-btn-small gogh-write-go" href="' + (location.origin + '/?gogh-new-post=1') + '" title="A clean canvas and space to think">\u270d Write a post</a>' +
+    // stale caches wearing fresh bugs' clothing. (The Write a post pill
+    // lived here once \u2014 the toolbar's New post is the one true door now.)
     '<div class="gogh-side-ver" title="The gogh build this tab is running"></div>';
   document.body.appendChild(side);
 
