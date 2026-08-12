@@ -524,22 +524,56 @@
   window.gogh = window.gogh || {};
   window.gogh._splashes = window.gogh._splashes || {};
   window.gogh.registerSplash = function (def) {
-    if (def && def.key && typeof def.compose === 'function') {
-      window.gogh._splashes[def.key] = def;
+    if (!def || typeof def.compose !== 'function') return;
+    // keys ride into markup and DOM ids — keep them boring, and never let
+    // one pack silently clobber another (audit: last-write-wins collisions)
+    if (!/^[a-z0-9-]+$/.test(def.key || '')) {
+      try { console.warn('gogh: splash key must match [a-z0-9-]:', def.key); } catch (e) {}
+      return;
     }
+    if (window.gogh._splashes[def.key]) {
+      try { console.warn('gogh: splash key already registered, ignoring:', def.key); } catch (e) {}
+      return;
+    }
+    window.gogh._splashes[def.key] = def;
   };
   window.gogh._imageStyles = window.gogh._imageStyles || [];
   window.gogh.registerImageStyle = function (def) {
-    if (def && def.cls && def.label) window.gogh._imageStyles.push(def);
+    if (!def || !def.cls || !def.label) return;
+    if (window.gogh._imageStyles.some(function (d) { return d.cls === def.cls; })) return; // dedupe
+    window.gogh._imageStyles.push(def);
   };
   window.gogh._enhancers = window.gogh._enhancers || [];
   window.gogh.registerEnhancer = function (fn) {
-    if (typeof fn === 'function') window.gogh._enhancers.push(fn);
+    if (typeof fn !== 'function') return;
+    if (window.gogh._enhancers.indexOf(fn) !== -1) return; // dedupe
+    window.gogh._enhancers.push(fn);
   };
   window.gogh.enhance = function (root) {
     (window.gogh._enhancers || []).forEach(function (fn) {
       try { fn(root || document); } catch (e) {}
     });
+  };
+  // a third-party pack's compose() is untrusted: a throw, a missing raw,
+  // or unbalanced block comments would corrupt the post (a malformed
+  // splash swallows every block after it on the next boot). Catch and
+  // validate before anything is inserted.
+  var packMade = function (pack, items, opts) {
+    var made;
+    try { made = pack.compose(items, opts || {}); } catch (e) {
+      try { console.warn('gogh: splash pack "' + pack.key + '" threw', e); } catch (e2) {}
+      return null;
+    }
+    if (!made || typeof made.raw !== 'string' || !made.raw.trim()) return null;
+    var blocks = parseBlocks(made.raw);
+    if (!blocks.length) return null; // no top-level block
+    // every non-self-closing open must have a close, or a later boot's
+    // parseBlocks never returns to depth 0 and swallows the rest of the post
+    var opens = (made.raw.match(/<!--\s+wp:[a-z0-9\/-]+(?![^>]*\/-->)[^>]*-->/g) || []).length;
+    var closes = (made.raw.match(/<!--\s+\/wp:[a-z0-9\/-]+\s+-->/g) || []).length;
+    if (opens !== closes) { try { console.warn('gogh: pack "' + pack.key + '" made unbalanced markup'); } catch (e) {} return null; }
+    if (made.html == null) made.html = made.raw.replace(/<!--[\s\S]*?-->/g, '');
+    return made;
   };
   var packSplashes = function () {
     var out = [];
@@ -649,14 +683,22 @@
           b.style.backgroundImage = 'url("' + (thumb ? thumb.source_url : item.source_url) + '")';
           b.addEventListener('click', function () {
             if (!multi) {
-              var made = kind === 'break'
-                ? window.__goghCompose.breakImage(item.source_url, item.alt_text || '')
-                : window.__goghCompose.glass(item.source_url, {
-                    kicker: editing ? seed.kicker || '' : '',
-                    title: (stage.querySelector('.gogh-w-splash-title') || {}).value || '',
-                    text: (stage.querySelector('.gogh-w-splash-text') || {}).value || '',
-                  });
-              insertSplash(made, refBlk);
+              var made;
+              if (pack) {
+                // a single-photo PACK composes through its own maker —
+                // the old path silently made a core glass card instead
+                made = packMade(pack, [{ img: item.source_url, cap: item.alt_text || '' }],
+                  { lines: [], title: (stage.querySelector('.gogh-w-splash-title') || {}).value || '' });
+              } else {
+                made = kind === 'break'
+                  ? window.__goghCompose.breakImage(item.source_url, item.alt_text || '')
+                  : window.__goghCompose.glass(item.source_url, {
+                      kicker: editing ? seed.kicker || '' : '',
+                      title: (stage.querySelector('.gogh-w-splash-title') || {}).value || '',
+                      text: (stage.querySelector('.gogh-w-splash-text') || {}).value || '',
+                    });
+              }
+              if (made) insertSplash(made, refBlk);
               return;
             }
             b.classList.toggle('is-active');
@@ -677,13 +719,13 @@
             var made;
             if (pack) {
               var linesEl = stage.querySelector('.gogh-w-splash-lines');
-              made = pack.compose(items2, { lines: linesEl ? linesEl.value.split('\n') : [] });
+              made = packMade(pack, items2, { lines: linesEl ? linesEl.value.split('\n') : [] });
             } else {
               made = kind === 'carousel'
                 ? window.__goghCompose.carousel(items2, opts)
                 : window.__goghCompose.wall(items2, opts);
             }
-            if (made && made.raw) insertSplash(made, refBlk);
+            if (made) insertSplash(made, refBlk);
           });
         } else if (go && kind === 'glass') {
           // words-only edits apply with the photo it already wears

@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Gogh Editor
  * Description: A freeform canvas for WordPress — drag anything anywhere on your live page; Gogh publishes it back as clean, responsive core blocks that keep working even if the plugin is deactivated.
- * Version: 0.99.141
+ * Version: 0.99.142
  * Author: Jamie Marsland
  * Author URI: https://pootlepress.com
  * License: GPLv2 or later
@@ -23,7 +23,7 @@ add_action( 'init', function () {
 		'gogh-block',
 		plugins_url( 'gogh-block.js', __FILE__ ),
 		array( 'wp-blocks', 'wp-element', 'wp-block-editor' ),
-		'0.99.141-chrome',
+		'0.99.142-chrome',
 		true
 	);
 	register_block_type( 'gogh/section', array(
@@ -294,9 +294,9 @@ add_action( 'wp_enqueue_scripts', function () {
 	if ( ! $post || ! current_user_can( 'edit_post', $post->ID ) ) {
 		return;
 	}
-	wp_register_script( 'gogh-compose', plugins_url( 'gogh-compose.js', __FILE__ ), array(), '0.99.141-chrome', true );
-	wp_enqueue_script( 'gogh-write', plugins_url( 'gogh-write.js', __FILE__ ), array( 'gogh-compose' ), '0.99.141-chrome', true );
-	wp_enqueue_style( 'gogh-write', plugins_url( 'gogh-write.css', __FILE__ ), array(), '0.99.141-chrome' );
+	wp_register_script( 'gogh-compose', plugins_url( 'gogh-compose.js', __FILE__ ), array(), '0.99.142-chrome', true );
+	wp_enqueue_script( 'gogh-write', plugins_url( 'gogh-write.js', __FILE__ ), array( 'gogh-compose' ), '0.99.142-chrome', true );
+	wp_enqueue_style( 'gogh-write', plugins_url( 'gogh-write.css', __FILE__ ), array(), '0.99.142-chrome' );
 	wp_localize_script( 'gogh-write', 'GOGHWRITE', array(
 		'postId'  => $post->ID,
 		'restUrl' => esc_url_raw( rest_url() ),
@@ -979,8 +979,8 @@ add_action( 'wp_enqueue_scripts', function () {
 
 	// for every visitor: neutralise theme spacing around gogh sections, even
 	// on pages whose stored stylesheets predate this rule
-	wp_register_style( 'gogh-base', false, array(), '0.99.141-chrome' );
-	wp_register_script( 'gogh-view', false, array(), '0.99.141-chrome', true );
+	wp_register_style( 'gogh-base', false, array(), '0.99.142-chrome' );
+	wp_register_script( 'gogh-view', false, array(), '0.99.142-chrome', true );
 	wp_enqueue_script( 'gogh-view' );
 	wp_add_inline_script( 'gogh-view',
 		// carousel arrows + autoplay are VIEW-TIME: never stored, so saved
@@ -1129,7 +1129,14 @@ add_action( 'wp_enqueue_scripts', function () {
 		'@media (prefers-reduced-motion: no-preference) { .gogh-lbx { animation: gogh-lbx-in 0.18s ease; } @keyframes gogh-lbx-in { from { opacity: 0; } } }' .
 		// the transparent header floats over the first section: absolutely
 		// positioned with a soft top scrim so white chrome reads on any hero
-		'header.wp-block-template-part:has(> .gogh-header-overlay), header.wp-block-template-part:has(.gogh-header-overlay) { position: absolute; top: var(--wp-admin--admin-bar--height, 0px); left: 0; right: 0; z-index: 40; background: transparent; }' .
+		// While a layout is AUDITIONING, the chosen layout lives in a
+		// .gogh-chrome-preview box and the old content is merely HIDDEN — but
+		// :has ignores display, so the hidden original's overlay class kept
+		// the header transparent even while previewing a solid layout, so the
+		// audition lied and switching away "did nothing" (the stuck-header
+		// report). Rule: while previewing, ONLY the preview box governs;
+		// otherwise (and always on the published page) the part's own content.
+		'header.wp-block-template-part:not(:has(.gogh-chrome-preview)):has(.gogh-header-overlay), header.wp-block-template-part:has(.gogh-chrome-preview .gogh-header-overlay) { position: absolute; top: var(--wp-admin--admin-bar--height, 0px); left: 0; right: 0; z-index: 40; background: transparent; }' .
 		// no automatic scrim: transparent means TRANSPARENT ("transparent not
 		// transparent" — over a pale hero the helpful gradient read as a grey
 		// smear). The Look row's custom colour + see-through dial is the
@@ -1146,11 +1153,11 @@ add_action( 'wp_enqueue_scripts', function () {
 		'.gogh-hrow:has(.wp-block-site-logo img) .wp-block-site-title { display: none; }' .
 		// sticky pins the HEADER ELEMENT (the inner group has zero travel);
 		// theme-independent, admin-bar aware
-		'header.wp-block-template-part:has(> .gogh-sticky), header.wp-block-template-part:has(.gogh-sticky) { position: sticky; top: var(--wp-admin--admin-bar--height, 0px); z-index: 90; }' .
+		'header.wp-block-template-part:not(:has(.gogh-chrome-preview)):has(.gogh-sticky), header.wp-block-template-part:has(.gogh-chrome-preview .gogh-sticky) { position: sticky; top: var(--wp-admin--admin-bar--height, 0px); z-index: 90; }' .
 		// transparent AND sticky: sticky alone keeps its flow space (the
 		// grey band that hid the float through three bug reports) — fixed
 		// floats over the hero AND stays through the scroll
-		'header.wp-block-template-part:has(.gogh-header-overlay):has(.gogh-sticky) { position: fixed; top: var(--wp-admin--admin-bar--height, 0px); left: 0; right: 0; z-index: 90; }' .
+		'header.wp-block-template-part:not(:has(.gogh-chrome-preview)):has(.gogh-header-overlay):has(.gogh-sticky), header.wp-block-template-part:has(.gogh-chrome-preview .gogh-header-overlay):has(.gogh-chrome-preview .gogh-sticky) { position: fixed; top: var(--wp-admin--admin-bar--height, 0px); left: 0; right: 0; z-index: 90; }' .
 		// WooCommerce block-hooks append cart/account icons after the nav in
 		// every header — give them a deliberate seat instead of a random one:
 		// nav pushes right, icons tuck in beside it, stacks stay centred
@@ -1194,9 +1201,9 @@ add_action( 'wp_enqueue_scripts', function () {
 
 	// compose must be REGISTERED here too — a dependency on an
 	// unregistered handle silently drops the whole editor script
-	wp_register_script( 'gogh-compose', plugins_url( 'gogh-compose.js', __FILE__ ), array(), '0.99.141-chrome', true );
-	wp_enqueue_script( 'gogh-editor', plugins_url( 'gogh-editor.js', __FILE__ ), array( 'gogh-compose' ), '0.99.141-chrome', true );
-	wp_enqueue_style( 'gogh-editor', plugins_url( 'gogh-editor.css', __FILE__ ), array(), '0.99.141-chrome' );
+	wp_register_script( 'gogh-compose', plugins_url( 'gogh-compose.js', __FILE__ ), array(), '0.99.142-chrome', true );
+	wp_enqueue_script( 'gogh-editor', plugins_url( 'gogh-editor.js', __FILE__ ), array( 'gogh-compose' ), '0.99.142-chrome', true );
+	wp_enqueue_style( 'gogh-editor', plugins_url( 'gogh-editor.css', __FILE__ ), array(), '0.99.142-chrome' );
 
 	// WebMCP bridge: the page registers its editing verbs as agent tools.
 	// OPT-IN only — add ?gogh-mcp=1 for a demo session (or enable sitewide
@@ -1208,13 +1215,13 @@ add_action( 'wp_enqueue_scripts', function () {
 	// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only labs toggle
 	$gogh_exp = isset( $_GET['gogh-test'] ) || ( isset( $_GET['gogh-experiments'] ) && '0' !== $_GET['gogh-experiments'] );
 	if ( isset( $_GET['gogh-mcp'] ) || $gogh_exp || apply_filters( 'gogh_webmcp_enabled', false ) ) {
-		wp_enqueue_script( 'gogh-webmcp', plugins_url( 'gogh-webmcp.js', __FILE__ ), array( 'gogh-editor' ), '0.99.141-chrome', true );
+		wp_enqueue_script( 'gogh-webmcp', plugins_url( 'gogh-webmcp.js', __FILE__ ), array( 'gogh-editor' ), '0.99.142-chrome', true );
 	}
 
 	// regression suite: /page/?gogh-test (editors only, never saves)
 	// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only toggle enqueuing a test script for capability-checked editors.
 	if ( isset( $_GET['gogh-test'] ) ) {
-		wp_enqueue_script( 'gogh-tests', plugins_url( 'gogh-tests.js', __FILE__ ), array( 'gogh-editor' ), '0.99.141-chrome', true );
+		wp_enqueue_script( 'gogh-tests', plugins_url( 'gogh-tests.js', __FILE__ ), array( 'gogh-editor' ), '0.99.142-chrome', true );
 	}
 
 	// products live outside wp/v2, so gogh carries its own save route for
@@ -1345,7 +1352,7 @@ add_action( 'enqueue_block_assets', function () {
 	if ( ! is_admin() ) {
 		return;
 	}
-	wp_register_style( 'gogh-editor-base', false, array(), '0.99.141-chrome' );
+	wp_register_style( 'gogh-editor-base', false, array(), '0.99.142-chrome' );
 	wp_enqueue_style( 'gogh-editor-base' );
 	wp_add_inline_style( 'gogh-editor-base',
 		'.gogh-wrap { min-width: 100%; margin-block: 0 !important; }' .

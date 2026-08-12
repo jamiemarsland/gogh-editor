@@ -8879,10 +8879,6 @@
     sectionThemes: sectionThemes,
     rearrangeVariants: rearrangeVariants,
     openRearrangePanel: openRearrangePanel,
-    openShapePanel: openShapePanel,
-    openHeaderPanel: openHeaderPanel,
-    chromeColorApply: chromeColorApply,
-    headerLooks: headerLooks,
     scaleFontSizes: scaleFontSizes,
     applySectionTheme: applySectionTheme,
     openSecAdd: openSecAddPanel,
@@ -10649,6 +10645,19 @@
         return true;
       });
       var activeOpt = options.filter(function (o) { return o.id === active.id; })[0];
+      // a saved part carrying gogh's overlay marker IS the Transparent
+      // header \u2014 collapse it into that pattern chip so the panel tells the
+      // truth ("stuck on transparent": the overlay part showed as "Header",
+      // so re-picking "Header" silently re-applied the transparent layout)
+      if (activeOpt && activeOpt.kind === 'part' && /gogh-header-overlay/.test(activeOpt.content || '')) {
+        var overlayPatt = options.filter(function (o) {
+          return o.kind === 'pattern' && /gogh-header-overlay/.test(o.content || '');
+        })[0];
+        if (overlayPatt) {
+          options = options.filter(function (o) { return o !== activeOpt; });
+          activeOpt = overlayPatt; // the chip that's really applied
+        }
+      }
       if (activeOpt && activeOpt.content.indexOf('wp:gogh/section') !== -1) {
         activeOpt.title += ' \u00b7 freeform';
       }
