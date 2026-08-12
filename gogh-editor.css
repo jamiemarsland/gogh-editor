@@ -1378,7 +1378,7 @@ body.gogh-painting, body.gogh-painting .gogh-section * { cursor: url('data:image
 /* swatch + style-toggle active states in panels */
 .gogh-panel .gogh-sw.is-active { outline: 2px solid #7ea8ff; outline-offset: 2px; }
 .gogh-btnstyle .gogh-btn.is-active { background: var(--gogh-ui-accent); color: var(--gogh-ui-accent-fg); }
-.gogh-panel .gogh-swlab { margin-top: 10px; }
+.gogh-panel .gogh-swlab { margin-top: 14px; margin-bottom: 4px; }
 
 /* panels never outgrow the viewport; long content scrolls inside */
 .gogh-panel { max-height: calc(100vh - 120px); overflow-y: auto; }
@@ -1654,11 +1654,15 @@ body.gogh-painting, body.gogh-painting .gogh-section * { cursor: url('data:image
   flex-direction: row; justify-content: space-between; align-items: center; margin-top: 12px;
   /* the door stays in reach: the panel scrolls, Apply does not leave */
   position: sticky; bottom: -14px; margin-bottom: -14px;
-  background: var(--gogh-ui-bg); border-top: 1px solid var(--gogh-ui-border);
+  /* fully opaque: the ui-bg var keeps 2% translucency, which turns the
+     sticky foot into a ghost projector for whatever scrolls beneath it */
+  background: #fff; border-top: 1px solid var(--gogh-ui-border);
   padding: 10px 0 14px;
 }
 /* seven layouts as a stack blew the panel past its dock — wrap short chips */
-.gogh-hlayouts { flex-direction: row; flex-wrap: wrap; gap: 6px; }
+/* the layout shelf breathes: air between the pills and under the label
+   ("could do with a little more breathing room") */
+.gogh-hlayouts { flex-direction: row; flex-wrap: wrap; gap: 9px 8px; margin-top: 4px; margin-bottom: 6px; }
 .gogh-hlayouts .gogh-btn { flex: 0 1 auto; }
 
 .gogh-chrome-foot { justify-content: flex-end; gap: 8px; margin-top: 4px; }

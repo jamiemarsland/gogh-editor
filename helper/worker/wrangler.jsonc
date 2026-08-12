@@ -16,7 +16,7 @@
     // Where the knowledge base is read from at runtime. This is the whole
     // trick: the release workflow commits a regenerated KB to main, and the
     // deployed Worker picks it up within KB_TTL_SECONDS with no redeploy.
-    "KB_URL": "https://raw.githubusercontent.com/jamiemarsland/gogh-editor/main/helper/gogh-kb.md",
+    "KB_URL": "https://raw.githubusercontent.com/jamiemarsland/gogh-demo/main/gogh-kb.md",
 
     "MODEL": "claude-sonnet-4-5",
     "MAX_TOKENS": "1400",
