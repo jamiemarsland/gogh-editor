@@ -1992,7 +1992,23 @@ html.gogh-editing .gogh-mirror { display: flex; }
   outline: 1.5px dashed rgba(126, 168, 255, 0.6);
   outline-offset: 3px;
 }
-.gogh-navadd { list-style: none; display: flex; align-items: center; }
+/* the + and ⋯ pills FLOAT beside the menu instead of sitting inside
+   its flex flow — as list items they widened the nav and shoved the
+   real menu items left, so edit mode disagreed with view mode about
+   where the menu lives ("the menu items move to the left") */
+.gogh-navadd {
+  list-style: none;
+  display: flex;
+  align-items: center;
+  position: absolute;
+  left: calc(100% + 8px);
+  top: 50%;
+  transform: translateY(-50%);
+}
+/* the second pill stacks BELOW the first — beside it would clip at the viewport edge */
+.gogh-navadd + .gogh-navadd { top: calc(50% + 30px); }
+.gogh-editing .gogh-lightedit .wp-block-navigation__container,
+.gogh-editing .gogh-lightedit .wp-block-navigation ul { position: relative; }
 .gogh-navadd button {
   all: unset;
   cursor: pointer;
