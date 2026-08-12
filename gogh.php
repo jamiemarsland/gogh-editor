@@ -1010,7 +1010,11 @@ add_action( 'wp_enqueue_scripts', function () {
 		'if(strip.__gogh)return;strip.__gogh=1;' .
 		'var slides=[].slice.call(strip.querySelectorAll(".gogh-slide"));if(slides.length<2)return;' .
 		'var shell=strip.parentElement;' .
-		'if(!shell||!shell.classList.contains("gogh-crsl-shell")){shell=document.createElement("div");shell.className="gogh-crsl-shell";strip.parentNode.insertBefore(shell,strip);shell.appendChild(strip);}' .
+		'if(!shell||!shell.classList.contains("gogh-crsl-shell")){shell=document.createElement("div");shell.className="gogh-crsl-shell";' .
+		// the shell must WEAR the strip's alignment or constrained layout
+		// squeezes a wide carousel back into the text column
+		'["alignwide","alignfull"].forEach(function(a){if(strip.classList.contains(a))shell.classList.add(a);});' .
+		'strip.parentNode.insertBefore(shell,strip);shell.appendChild(strip);}' .
 		'if(shell.querySelector(".gogh-crsl-nav"))return;' .
 		'var nav=document.createElement("div");nav.className="gogh-crsl-nav";' .
 		'var go=function(k){var s0=slides[Math.max(0,Math.min(slides.length-1,k))];if(s0)strip.scrollTo({left:s0.offsetLeft-strip.offsetLeft-(strip.clientWidth-s0.clientWidth)/2,behavior:"smooth"});};' .
@@ -1101,6 +1105,9 @@ add_action( 'wp_enqueue_scripts', function () {
 		// 100vw resolves against the inflated width — a self-sustaining 30px
 		// shove. Clipping the root pins vw to the device and ends the loop.
 		'html:has(.gogh-splash-break, .gogh-splash-glasswrap) { overflow-x: clip; }' .
+		// consecutive full-bleed bands touch: the root block gap otherwise
+		// leaves a pale slit between painted sections (the white wedge law)
+		'.entry-content > .gogh-wrap + .alignfull, .entry-content > .alignfull + .gogh-wrap, .entry-content > .alignfull + .alignfull { margin-block-start: 0; }' .
 		// figure.wp-block-image.gogh-splash-break outguns the theme's
 		// .wp-block-image.alignfull img { height: auto } — without it the
 		// break renders at the photo's full natural height
