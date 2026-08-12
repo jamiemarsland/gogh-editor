@@ -9198,9 +9198,9 @@
       // element is gone; nothing resurrects from stale byte-matching
       // ("i delete, but then they come back"), nothing reorders under the
       // footer. Any unbound block → null → the conservative merge path.
-      var units = gatherRawUnits();
+      var units = gatherRawUnits(raw);
       var content = units ? units.join('\n\n')
-        : resequenceToDom(mergeContent(raw), gatherRawUnits());
+        : resequenceToDom(mergeContent(raw), gatherRawUnits(raw));
       return fetch(cfg.restUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'X-WP-Nonce': cfg.nonce },
@@ -13929,12 +13929,12 @@
   // Every unit is an exact-text slice we authored or bound, so the mapping
   // is byte-precise; ANY ambiguity returns the merged raw untouched — the
   // failure mode is a stale order, never corrupted content.
-  function gatherRawUnits() {
+  function gatherRawUnits(raw) {
     var units = [];
     var kids = [].slice.call(pageParent.children);
     for (var i = 0; i < kids.length; i++) {
       var n = kids[i];
-      if (!n.classList || n.tagName === 'STYLE' || n.tagName === 'SCRIPT') continue;
+      if (!n.classList) continue;
       if (n.classList.contains('gogh-wrap')) {
         var sec = realSections().filter(function (s) { return s.wrapEl === n; })[0];
         if (sec) units.push(buildSectionBlocksV3(sec));
@@ -13944,9 +13944,25 @@
         units.push(pe.raw);
       } else {
         var en = storedEdits.filter(function (s2) { return s2.el === n; })[0];
-        if (!en) return null; // unbound stored block: order must not be touched
-        units.push(en.raw);
+        // a bound stored block rides on its raw — including <style>/<script>
+        // wp:html blocks, which the old skip silently DELETED at publish
+        if (en) { units.push(en.raw); continue; }
+        // gogh's own furniture (injected style/script, empty markers) is
+        // fine to skip; a real unbound block must not have its order touched
+        if (n.tagName === 'STYLE' || n.tagName === 'SCRIPT') continue;
+        return null;
       }
+    }
+    // COMPLETENESS GATE: a renderless block (deactivated shortcode, a
+    // wp:html holding only a comment, a dynamic block returning '') has a
+    // span in the stored raw but NO dom node — it can never become a unit,
+    // and the units path would silently drop it. If the DOM units don't
+    // reconstruct as many top-level blocks as the stored raw holds, this
+    // path is not safe: bail to the conservative merge path.
+    if (raw != null) {
+      var have = 0;
+      units.forEach(function (u) { have += parseTopBlocks(u).length; });
+      if (have !== parseTopBlocks(raw).length) return null;
     }
     return units;
   }
