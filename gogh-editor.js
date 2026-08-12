@@ -9093,17 +9093,28 @@
     S.forEach(measureTextHeights);
     setChip('saving', 'Publishing\u2026');
     return fetchRaw().then(function (raw) {
+      // when EVERY top-level block is accounted for, the DOM order IS the
+      // page: what you see is what saves. Deletions stick because the
+      // element is gone; nothing resurrects from stale byte-matching
+      // ("i delete, but then they come back"), nothing reorders under the
+      // footer. Any unbound block → null → the conservative merge path.
+      var units = gatherRawUnits();
+      var content = units ? units.join('\n\n')
+        : resequenceToDom(mergeContent(raw), gatherRawUnits());
       return fetch(cfg.restUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'X-WP-Nonce': cfg.nonce },
         credentials: 'same-origin',
-        body: JSON.stringify({ content: resequenceToDom(mergeContent(raw), gatherRawUnits()) }),
+        body: JSON.stringify({ content: content }),
       });
     }).then(function (res) {
       if (!res.ok) throw new Error('HTTP ' + res.status);
       return res.json();
     }).then(function (post) {
       if (post.content && post.content.raw) rawCache = post.content.raw;
+      // published deletions are REAL now — the staged flags have done
+      // their work and must not haunt the next re-bind
+      storedEdits = storedEdits.filter(function (e2) { return !e2.deleted; });
       // native pattern sections are stored now: they graduate to ordinary
       // page content (the per-block Make freeform machinery owns them next).
       // gogh-pended keeps the EXACT presentation (full bleed, zero margins)
@@ -9558,7 +9569,11 @@
   var storedEdits = [];
   function initStoredEdits() {
     fetchRaw().then(function (raw) {
-      storedEdits = [];
+      // a re-bind must NOT forget staged deletions — resetting the list
+      // used to wipe the deleted flags and every removed section came
+      // back at publish ("i delete, but then they come back")
+      var prev = storedEdits;
+      var carried = prev.filter(function (e) { return e.deleted; });
       var spans = parseTopBlocks(raw);
       var claimed = {};
       S.forEach(function (s) { if (s.srcSig) claimed[s.srcSig] = true; });
@@ -9569,8 +9584,15 @@
         if (sp.name === 'gogh/section') return false;
         return !claimed[sigOf(raw.slice(sp.start, sp.end))];
       });
+      // staged deletions still live in the stored raw but pair with no
+      // rendered node — lift their spans out before positional pairing
+      carried.forEach(function (e) {
+        for (var fi = 0; fi < free.length; fi++) {
+          if (raw.slice(free[fi].start, free[fi].end) === e.savedRaw) { free.splice(fi, 1); return; }
+        }
+      });
       var kids = topBlockNodes();
-      if (!free.length || !kids.length) return;
+      if (!free.length || !kids.length) { storedEdits = carried; return; }
       // a graduated holder (same-session publish) wraps SEVERAL top blocks —
       // it consumes one span per rendered block child; bare blocks take one
       var blockKids = function (el) {
@@ -9586,7 +9608,7 @@
         var kid = kids[ki];
         var pended = kid.classList && kid.classList.contains('gogh-pended');
         var m = pended ? Math.max(1, blockKids(kid).length) : 1;
-        if (si + m > free.length) return;
+        if (si + m > free.length) { storedEdits = prev; return; }
         var seg = raw.slice(free[si].start, free[si + m - 1].end);
         out.push({
           el: kid, raw: seg, savedRaw: seg, stored: true,
@@ -9594,8 +9616,8 @@
         });
         si += m;
       }
-      if (si !== free.length) return; // leftover spans: mapping untrusted
-      storedEdits = out;
+      if (si !== free.length) { storedEdits = prev; return; } // leftover spans: mapping untrusted
+      storedEdits = carried.concat(out);
       out.forEach(bindPending);
       placeConvertBtns();
     }).catch(function () {});
@@ -10932,6 +10954,7 @@
     var st = {
       layoutId: activeOpt ? activeOpt.id : null,
       look: undefined,          // undefined = untouched
+      inkPick: null,            // Menu text override: null = Auto
       dials: null,
       sticky: chromeIsSticky(active),
       sticky0: chromeIsSticky(active),
@@ -10965,7 +10988,15 @@
         '</div>' +
         '<div class="gogh-panel-row gogh-logosize gogh-halpha-row" hidden><span>Transparency</span>' +
         '<input type="range" class="gogh-halpha" min="0" max="90" step="5" value="0" />' +
-        '<span class="gogh-logosize-val gogh-halpha-val">0</span></div>' : '') +
+        '<span class="gogh-logosize-val gogh-halpha-val">0</span></div>' +
+        // the words get their own say: Auto keeps the look's judgement,
+        // Light/Dark force the theme's poles, the picker goes anywhere
+        '<div class="gogh-panel-row gogh-logosize gogh-hink-row"><span>Menu text</span>' +
+        '<button type="button" class="gogh-btn gogh-btn-small gogh-hink is-active" data-ink="auto">Auto</button>' +
+        '<button type="button" class="gogh-btn gogh-btn-small gogh-hink" data-ink="light">Light</button>' +
+        '<button type="button" class="gogh-btn gogh-btn-small gogh-hink" data-ink="dark">Dark</button>' +
+        '<label class="gogh-sw gogh-sw-pick" title="Custom text colour"><input type="color" class="gogh-hinkpick" value="#ffffff"></label>' +
+        '</div>' : '') +
       (d0 ? '<div class="gogh-swlab">Spacing</div>' +
         dial('Height', 'gogh-dial-pad', 4, 64, d0.pad) +
         (d0.hasNav ? dial('Menu items', 'gogh-dial-link', 8, 64, d0.linkGap) : '') +
@@ -11039,9 +11070,17 @@
     // it's not transparent" — it only listened to the custom picker)
     var hexPair = function (n) { return ('0' + Math.round(n).toString(16)).slice(-2); };
     var applyLookState = function () {
-      if (!st.base) return;
+      if (!st.base && !st.inkPick) {
+        // back to Auto with no look chosen: the preview clears and the
+        // colour becomes UNTOUCHED again — Apply must not wipe the saved
+        // look just because someone auditioned an ink and changed their mind
+        if (st.look !== undefined) { chromeColorPreview(partEl, null); st.look = undefined; }
+        return;
+      }
       var a = 100 - (alphaIn ? +alphaIn.value : 0);
-      if (st.base.custom) {
+      if (!st.base) {
+        st.look = {}; // ink-only edit: the background stays as saved
+      } else if (st.base.custom) {
         st.look = customLook();
       } else if (!st.base.bg || a >= 100) {
         st.look = st.base;
@@ -11052,10 +11091,48 @@
               name: st.base.name + ' ' + a + '%', ink: st.base.ink }
           : st.base;
       }
+      // the Menu text override outranks the look's automatic judgement
+      if (st.inkPick) {
+        st.look = Object.assign({}, st.look);
+        if (st.inkPick.hex) { st.look.inkHex = st.inkPick.hex; delete st.look.ink; }
+        else { st.look.ink = st.inkPick.slug; delete st.look.inkHex; }
+      }
       chromeColorPreview(partEl, st.look);
-      if (alphaRow) alphaRow.hidden = !(st.base.bg || st.base.custom);
+      if (alphaRow) alphaRow.hidden = !(st.base && (st.base.bg || st.base.custom));
       arm();
     };
+    // Light and Dark are the THEME's poles, whichever slugs play them today
+    var inkPoles = (function () {
+      var r2 = paletteRoles();
+      var lum = function (slug) {
+        var rgb = cssToRgb('var(--wp--preset--color--' + slug + ')');
+        return rgb ? sentinelLum(rgb) : 0.5;
+      };
+      var a2 = r2.bgSlug || 'base', b2 = r2.textSlug || 'contrast';
+      return lum(a2) >= lum(b2) ? { light: a2, dark: b2 } : { light: b2, dark: a2 };
+    })();
+    panel.querySelectorAll('.gogh-hink').forEach(function (ib) {
+      ib.addEventListener('click', function () {
+        var kind = ib.dataset.ink;
+        st.inkPick = kind === 'auto' ? null
+          : { slug: kind === 'light' ? inkPoles.light : inkPoles.dark };
+        panel.querySelectorAll('.gogh-hink').forEach(function (o2) { o2.classList.toggle('is-active', o2 === ib); });
+        var pk = panel.querySelector('.gogh-hinkpick');
+        if (pk) pk.closest('.gogh-sw-pick').classList.remove('is-active');
+        applyLookState();
+      });
+    });
+    var inkPick = panel.querySelector('.gogh-hinkpick');
+    if (inkPick) {
+      var pickInkHex = function () {
+        st.inkPick = { hex: inkPick.value };
+        panel.querySelectorAll('.gogh-hink').forEach(function (o2) { o2.classList.remove('is-active'); });
+        inkPick.closest('.gogh-sw-pick').classList.add('is-active');
+        applyLookState();
+      };
+      inkPick.addEventListener('input', pickInkHex);
+      inkPick.addEventListener('change', pickInkHex);
+    }
     panel.querySelectorAll('.gogh-hlooks .gogh-sw').forEach(function (sw) {
       var look = looks[+sw.dataset.k];
       auditionHover(sw, function () {
@@ -11162,7 +11239,7 @@
         ? chromeLayoutContent(area, chosenOpt())
         : raw0;
       if (st.dials) base = chromeDialsApply(base, st.dials) || base;
-      if (st.look !== undefined) base = chromeColorApply(base, st.look && st.look.bg ? st.look : null) || base;
+      if (st.look !== undefined) base = chromeColorApply(base, st.look && (st.look.bg || st.look.custom || st.look.ink || st.look.inkHex) ? st.look : null) || base;
       if (st.sticky !== st.sticky0) base = stickyRawToggle(base, st.sticky) || base;
       applyBtn.disabled = true;
       applyBtn.textContent = 'Applying\u2026';
@@ -11546,17 +11623,38 @@
         if (!Object.keys(attrs.style).length) delete attrs.style;
       }
     };
+    var setInk = function () {
+      // a stored elements.link colour would outlive the change and keep
+      // painting the menu the OLD ink — the fresh choice owns the links
+      if ((look.inkHex || look.ink) && attrs.style && attrs.style.elements && attrs.style.elements.link) {
+        delete attrs.style.elements.link.color;
+        if (!Object.keys(attrs.style.elements.link).length) delete attrs.style.elements.link;
+        if (!Object.keys(attrs.style.elements).length) delete attrs.style.elements;
+      }
+      if (look.inkHex) {
+        delete attrs.textColor;
+        attrs.style = attrs.style || {};
+        attrs.style.color = attrs.style.color || {};
+        attrs.style.color.text = look.inkHex;
+      } else if (look.ink) {
+        attrs.textColor = look.ink;
+        if (attrs.style && attrs.style.color) delete attrs.style.color.text;
+      }
+    };
     if (look && look.custom) {
       // any colour, any alpha: WP's own style.color.background takes hex8
       delete attrs.backgroundColor;
-      attrs.textColor = look.ink;
       attrs.style = attrs.style || {};
       attrs.style.color = attrs.style.color || {};
       attrs.style.color.background = look.hex8;
+      setInk();
     } else if (look && look.bg) {
       attrs.backgroundColor = look.bg;
-      attrs.textColor = look.ink;
       dropCustomBg();
+      setInk();
+    } else if (look && (look.ink || look.inkHex)) {
+      // ink-only: the background keeps whatever it wears today
+      setInk();
     } else {
       delete attrs.backgroundColor;
       delete attrs.textColor;
@@ -11569,11 +11667,17 @@
         return !/^has-[a-z0-9-]+-background-color$/.test(c2) && c2 !== 'has-background' &&
           !/^has-[a-z0-9-]+-color$/.test(c2) && c2 !== 'has-text-color';
       });
+      var inkCls = look ? (look.inkHex ? ['has-text-color'] : look.ink ? ['has-' + look.ink + '-color', 'has-text-color'] : []) : [];
       if (look && look.custom) {
-        cleaned.push('has-background', 'has-' + look.ink + '-color', 'has-text-color');
+        cleaned.push.apply(cleaned, ['has-background'].concat(inkCls));
       } else if (look && look.bg) {
-        cleaned.push('has-' + look.bg + '-background-color', 'has-background',
-          'has-' + look.ink + '-color', 'has-text-color');
+        cleaned.push.apply(cleaned, ['has-' + look.bg + '-background-color', 'has-background'].concat(inkCls));
+      } else if (look && inkCls.length) {
+        // ink-only: keep the background classes that are already there
+        var kept = cls.split(/\s+/).filter(function (c3) {
+          return /^has-[a-z0-9-]+-background-color$/.test(c3) || c3 === 'has-background';
+        });
+        cleaned.push.apply(cleaned, kept.concat(inkCls));
       }
       return pre + cleaned.join(' ') + '"';
     });
@@ -11581,8 +11685,10 @@
     // background in lockstep with the attr (like the dials carry padding)
     body = body.replace(/(<div[^>]*?)(\sstyle="([^"]*)")?>/, function (m0, pre, styAttr, sty) {
       var decls = (sty || '').split(';').map(function (x) { return x.trim(); })
-        .filter(function (x) { return x && !/^background-color\s*:/.test(x); });
+        .filter(function (x) { return x && !/^background-color\s*:/.test(x) && !(look && (look.inkHex || look.ink) && /^color\s*:/.test(x)); });
       if (look && look.custom) decls.push('background-color:' + look.hex8);
+      if (look && look.inkHex) decls.push('color:' + look.inkHex);
+      else if (look && look.ink) decls.push('color:var(--wp--preset--color--' + look.ink + ')');
       if (!decls.length) return pre + '>';
       return pre + ' style="' + decls.join(';') + '">';
     });
@@ -11607,12 +11713,16 @@
     if (!partEl.__goghLookOrig) {
       partEl.__goghLookOrig = [grp, grp.getAttribute('style')];
     }
+    var inkCss = look && (look.inkHex || (look.ink ? 'var(--wp--preset--color--' + look.ink + ')' : ''));
     if (look && look.custom) {
       grp.style.backgroundColor = look.hex8;
-      grp.style.color = 'var(--wp--preset--color--' + look.ink + ')';
+      grp.style.color = inkCss || '';
     } else if (look && look.bg) {
       grp.style.backgroundColor = 'var(--wp--preset--color--' + look.bg + ')';
-      grp.style.color = 'var(--wp--preset--color--' + look.ink + ')';
+      grp.style.color = inkCss || '';
+    } else if (look && inkCss) {
+      // ink-only edit: the background stays exactly as saved
+      grp.style.color = inkCss;
     } else {
       grp.style.backgroundColor = '';
       grp.style.color = '';
