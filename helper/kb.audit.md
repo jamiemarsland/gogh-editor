@@ -34,9 +34,3 @@ The source has something the prose never explains. The bot knows the name from t
 - template `FAQ` exists in source but is never mentioned in the prose
 - template `Tabs` exists in source but is never mentioned in the prose
 - template `Portfolio` exists in source but is never mentioned in the prose
-
-## What changed since the last knowledge-base build
-
-Use this as the checklist for updating the prose — and as a sanity check on the release itself.
-
-- version: 0.99.127 → 0.99.128
