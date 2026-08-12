@@ -1000,6 +1000,15 @@
   });
   document.addEventListener('keydown', function (ev) {
     if (!picked) return;
+    // typing in the alt row, a caption, or any input must NEVER delete
+    // the picture — Backspace only removes when the FIGURE itself holds
+    // focus (the audit's booby trap: fixing a caption typo ate the image)
+    var t = ev.target;
+    var island = t && t !== body && t.isContentEditable && t.closest && t.closest('figure, .gogh-splash');
+    if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || island)) {
+      if (ev.key === 'Escape') unpick();
+      return;
+    }
     if (ev.key === 'Delete' || ev.key === 'Backspace') {
       ev.preventDefault();
       removeFig(picked);
@@ -1234,7 +1243,27 @@
     countT = setTimeout(quietLabel, 300);
   });
 
-  var saveT = null, inflight = null;
+  var saveT = null, inflight = null, saveFailed = false;
+  var saveTrouble = function (code) {
+    // failure must be VISIBLE — the audit's worst finding was saves
+    // dying silently (an expired overnight nonce made Publish a no-op)
+    saveFailed = true;
+    savedEl.textContent = code === 403 ? 'signed out — reconnecting…' : 'not saved — retrying';
+    countEl.textContent = '⚠ Your latest words are NOT saved yet';
+  };
+  var saveHealed = function () {
+    if (!saveFailed) return;
+    saveFailed = false;
+    quietLabel();
+  };
+  var refreshNonce = function () {
+    // an expired nonce is recoverable: WordPress hands out a fresh one
+    return fetch(cfg.restUrl.replace(/wp\/v2\/?$/, '') + '?rest_route=/', { credentials: 'same-origin' })
+      .then(function () {
+        return fetch('/wp-admin/admin-ajax.php?action=rest-nonce', { credentials: 'same-origin' });
+      }).then(function (r) { return r.ok ? r.text() : null; })
+      .then(function (n) { if (n && /^[a-f0-9]+$/.test(n.trim())) cfg.nonce = n.trim(); });
+  };
   var save = function (statusTo) {
     // saves SERIALIZE: a publish clicked mid-autosave waits its turn —
     // the old queue dropped the status and Publish "did nothing"
@@ -1250,12 +1279,25 @@
     }).then(function (r) {
       inflight = null;
       if (r.ok) {
+        saveHealed();
         savedEl.textContent = 'saved';
         setTimeout(function () { savedEl.textContent = ''; }, 1600);
         if (!saveT) { clean = true; quietLabel(); } // nothing newer waiting
+        return r.json();
       }
-      return r.ok ? r.json() : null;
-    }).catch(function () { inflight = null; });
+      saveTrouble(r.status);
+      if (r.status === 403) {
+        // heal the session, then retry this save once
+        return refreshNonce().then(function () { return save(statusTo); });
+      }
+      setTimeout(function () { if (saveFailed) save(statusTo); }, 8000);
+      return null;
+    }).catch(function () {
+      inflight = null;
+      saveTrouble(0);
+      setTimeout(function () { if (saveFailed) save(statusTo); }, 8000);
+      return null;
+    });
     return inflight;
   };
   var queueSave = function () {
@@ -1293,12 +1335,17 @@
   });
   // leaving flushes any words the 2.5s debounce hasn't saved yet
   chip.querySelector('.gogh-w-back').addEventListener('click', function (ev) {
-    if (clean && !saveT && !inflight) return; // nothing pending — plain link
+    if (clean && !saveT && !inflight && !saveFailed) return; // nothing pending — plain link
     ev.preventDefault();
     var href = ev.currentTarget.href;
     clearTimeout(saveT);
     saveT = null;
-    save().then(function () { location.href = href; });
+    save().then(function (post) {
+      // the door only opens on a SAVED room — leaving after a failed
+      // save was guaranteed silent loss
+      if (post) { location.href = href; }
+      else { countEl.textContent = '⚠ Not saved — staying here so nothing is lost'; }
+    });
   });
   var draftBtn = chip.querySelector('.gogh-w-draft'); // absent on published posts
   if (draftBtn) draftBtn.addEventListener('click', function () {
