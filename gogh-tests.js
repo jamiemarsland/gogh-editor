@@ -2477,6 +2477,65 @@
       expect(!/gogh-sticky/.test(stickyOff) && !/"type":"sticky"/.test(stickyOff), 'sticky must strip cleanly');
     });
 
+    test('header ink override: Menu text writes textColor / style.color.text', function () {
+      var raw = '<!-- wp:group {"layout":{"type":"flex"}} --><div class="wp-block-group"><!-- wp:navigation /--></div><!-- /wp:group -->';
+      // a slug ink override (Light/Dark) writes textColor + class
+      var slug = G.chromeColorApply(raw, { ink: 'base' });
+      expect(/"textColor":"base"/.test(slug), 'slug ink not written as textColor');
+      expect(/has-base-color/.test(slug) && /has-text-color/.test(slug), 'slug ink classes missing');
+      // a custom hex ink writes style.color.text, not a preset class
+      var hex = G.chromeColorApply(raw, { inkHex: '#abcdef' });
+      expect(/"text":"#abcdef"/.test(hex), 'hex ink not written to style.color.text');
+      expect(!/has-[a-z0-9-]+-color has-text-color/.test(hex.replace('has-text-color', '')), 'hex ink should not add a preset colour class');
+    });
+
+    test('transparent header: preview box governs, the hidden original does not', function () {
+      // the stuck-header bug: :has ignores display, so a hidden original
+      // overlay kept the header transparent even while auditioning a solid
+      // layout. Rule: while previewing, ONLY the preview box governs.
+      var h = document.createElement('header');
+      h.className = 'wp-block-template-part';
+      document.body.appendChild(h);
+      // 1) plain overlay (no preview) → floats
+      h.innerHTML = '<div class="gogh-header-overlay">nav</div>';
+      expect(getComputedStyle(h).position === 'absolute', 'overlay header should float (absolute)');
+      // 2) previewing a SOLID layout while the overlay original hides → solid
+      h.innerHTML = '<div class="gogh-chrome-preview"><div class="wp-block-group">solid</div></div>' +
+        '<div class="gogh-header-overlay" style="display:none">hidden original</div>';
+      expect(getComputedStyle(h).position !== 'absolute', 'previewing a solid layout must NOT stay transparent');
+      // 3) previewing the transparent layout → floats again
+      h.innerHTML = '<div class="gogh-chrome-preview"><div class="gogh-header-overlay">nav</div></div>';
+      expect(getComputedStyle(h).position === 'absolute', 'previewing the transparent layout should float');
+      h.remove();
+    });
+
+    test('one identity: a logo image hides the text title, any layout', function () {
+      var h = document.createElement('header');
+      h.className = 'wp-block-template-part';
+      document.body.appendChild(h);
+      // the Centred layout has no .gogh-hrow — the old rule missed it
+      h.innerHTML = '<span class="wp-block-site-logo"><img src="data:," alt=""></span>' +
+        '<span class="wp-block-site-title">My Site</span>';
+      expect(getComputedStyle(h.querySelector('.wp-block-site-title')).display === 'none',
+        'text title should hide when a logo image is present');
+      // no logo image → the title shows
+      h.innerHTML = '<span class="wp-block-site-title">My Site</span>';
+      expect(getComputedStyle(h.querySelector('.wp-block-site-title')).display !== 'none',
+        'text title should show when there is no logo image');
+      h.remove();
+    });
+
+    test('the edit-header pill appears on the site header part', function () {
+      var pe = G.partElForArea('header');
+      expect(pe, 'no header template part found');
+      // veils are rebuilt idempotently — running it again must not double up
+      G.veilChrome();
+      var before = G.chromeVeilCount();
+      G.veilChrome();
+      expect(G.chromeVeilCount() === before, 'veilChrome double-added a pill');
+      expect(before >= 1, 'no edit-header pill was mounted');
+    });
+
     test('copy styles: the roller paints size, colour, align onto other text', function () {
       G.addSection({ name: 'PaintA', minH: 300, els: [
         { type: 'heading', x: 40, y: 40, w: 500, h: 60, text: 'Source', fs: 'xx-large', align: 'center', color: 'contrast' },

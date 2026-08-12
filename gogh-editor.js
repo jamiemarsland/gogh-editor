@@ -8775,6 +8775,10 @@
     openHeaderPanel: openHeaderPanel,
     chromeColorApply: chromeColorApply,
     headerLooks: headerLooks,
+    partElForArea: partElForArea,
+    veilChrome: veilChrome,
+    clampNavAdders: clampNavAdders,
+    chromeVeilCount: function () { return document.querySelectorAll('.gogh-chromeveil').length; },
     openSecBgPanel: openSecBgPanel,
     scan: scanDomWithRaw,
     addSection: addSection,
@@ -11882,12 +11886,18 @@
   // native dialogs in long-lived tabs, which made the \u2713 do nothing at all
   function confirmChromeReload(area, proceed) {
     if (!isDirty()) { proceed(); return; }
-    toast('You have unpublished changes \u2014 switching the ' + area + ' reloads the page and discards them.', {
-      sticky: true,
-      actions: [
-        { label: 'Switch anyway', onClick: proceed },
-        { label: 'Cancel' },
-      ],
+    // applying the header reloads the page, which would discard unsaved
+    // page edits \u2014 so save them FIRST, then apply. No forced choice,
+    // nothing lost. (The old dismissable "Switch anyway" toast was the
+    // "sometimes not saving" report: miss it and the header change died,
+    // entangled with the page's dirty state.)
+    toast('Saving your page changes, then updating the ' + area + '\u2026');
+    publish().then(function (ok) {
+      if (ok === false) {
+        toast('Could not save the page, so the ' + area + ' was left unchanged.', { error: true });
+        return;
+      }
+      proceed();
     });
   }
   function toggleChromeSticky(area, active) {
