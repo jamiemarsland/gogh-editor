@@ -4,11 +4,11 @@ Everything in this section is extracted mechanically from the Gogh source on eve
 
 ## Current release
 
-- Plugin version: **0.99.120**
+- Plugin version: **0.99.121**
 - Requires WordPress **6.5+**, PHP **7.4+**
 - Text domain: `gogh-editor`
 - readme.txt Stable tag: `0.26.0` · Tested up to: `7.0`
-- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.120`). Quote the plugin header version.
+- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.121`). Quote the plugin header version.
 
 ## Design constants
 
@@ -134,7 +134,6 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "+ Link"
 - "+ Page"
 - "A card — drop elements inside and they stay together, even on mobile"
-- "A clean canvas and space to think"
 - "Add a page to this menu"
 - "Add an element to this section"
 - "Add link"
@@ -245,7 +244,6 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "↕ Spacing…"
 - "▶ Auto-play"
 - "⛶ Click to enlarge"
-- "✍ Write a post"
 - "✏️ Edit with gogh"
 - "✨ Make freeform"
 - "✨ Make it freeform"
