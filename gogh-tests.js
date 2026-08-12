@@ -875,6 +875,40 @@
       return 'dark ground flips ' + darker + '→' + lighter + '; pale ground untouched';
     });
 
+    test('sentinel reads gradient grounds, not the theme-base fallback', function () {
+      // meshes are background-IMAGE: colour computes transparent, and the
+      // old fallback judged words against theme base — on a dark styling
+      // that approved white words on a pale sky ("sentinels not working
+      // on the top hero")
+      var probe = function (slug) {
+        var d = document.createElement('div');
+        d.style.color = 'var(--wp--preset--color--' + slug + ')';
+        d.style.display = 'none';
+        document.body.appendChild(d);
+        var m = (getComputedStyle(d).color.match(/[\d.]+/g) || []).slice(0, 3).map(Number);
+        d.remove();
+        return (m[0] + m[1] + m[2]) / 3;
+      };
+      var darker = probe('base') < probe('contrast') ? 'base' : 'contrast';
+      var lighter = darker === 'base' ? 'contrast' : 'base';
+      G.addSection({ title: 'GR', minH: 240, els: [
+        { type: 'heading', x: 90, y: 40, w: 500, h: 60, text: 'Words on a mesh' },
+      ] });
+      var c = contentSecs();
+      var s = c[c.length - 1];
+      // a pale gradient painted the way moods paint: image, not colour
+      s.sectionEl.style.backgroundImage = 'linear-gradient(180deg, rgb(250,244,225), rgb(236,228,205))';
+      s.sectionEl.style.backgroundColor = 'transparent';
+      s.els[0].color = lighter; // pale ink on a pale sky
+      G.renderSection(s);
+      s.sectionEl.style.backgroundImage = 'linear-gradient(180deg, rgb(250,244,225), rgb(236,228,205))';
+      s.sectionEl.style.backgroundColor = 'transparent';
+      G.contrastSentinel(s);
+      expect(s.els[0].color === darker, 'pale ink on a pale gradient should flip to ' + darker + ' (got ' + s.els[0].color + ')');
+      G.deleteSection(G.sections().indexOf(s));
+      return 'gradient stops are the ground: ' + lighter + '→' + darker + ' on cream mesh';
+    });
+
     test('sentinel reaches inside cards: kids judged on the card ground', function () {
       var probe = function (slug) {
         var d = document.createElement('div');

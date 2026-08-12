@@ -3687,6 +3687,24 @@
           var baseRgb = cssToRgb('var(--wp--preset--color--base, #fff)');
           return imgL * 0.55 + (baseRgb ? sentinelLum(baseRgb) : 1) * 0.45;
         }
+        // meshes and gradients are background-IMAGE: the colour reads
+        // transparent and the old fallback judged words against the theme
+        // base instead of the actual pale sky ("sentinels not working on
+        // the top hero"). Read the gradient's own stops.
+        var bgi = getComputedStyle(sec.sectionEl).backgroundImage;
+        if (bgi && bgi.indexOf('gradient') !== -1) {
+          var stops = bgi.match(/rgba?\([^)]+\)|#[0-9a-fA-F]{3,8}/g) || [];
+          var lums = [];
+          stops.forEach(function (st) {
+            var rgb = cssToRgb(st);
+            if (rgb) lums.push(sentinelLum(rgb));
+          });
+          if (lums.length) {
+            var sum = 0;
+            lums.forEach(function (l) { sum += l; });
+            return sum / lums.length;
+          }
+        }
         var secRgb = cssToRgb(getComputedStyle(sec.sectionEl).backgroundColor);
         if (!secRgb || getComputedStyle(sec.sectionEl).backgroundColor === 'rgba(0, 0, 0, 0)') {
           secRgb = cssToRgb('var(--wp--preset--color--base, #fff)');
