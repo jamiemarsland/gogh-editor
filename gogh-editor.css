@@ -83,7 +83,7 @@
    the home for Site style / Page style / Site designs and the tools */
 .gogh-side {
   position: fixed;
-  top: 32px; right: 0; bottom: 0;
+  top: 32px; left: 0; bottom: 0;
   z-index: 99999;
   box-sizing: border-box;
   width: 384px; max-width: 46vw; min-width: 320px;
@@ -91,9 +91,9 @@
   flex-direction: column;
   gap: 16px;
   background: #fff; /* fully opaque — the ui-bg var carries 2% translucency */
-  border-left: 1px solid var(--gogh-ui-border);
+  border-right: 1px solid var(--gogh-ui-border);
   padding: 22px 24px 18px;
-  box-shadow: -18px 0 50px -28px rgba(0, 0, 0, 0.45);
+  box-shadow: 18px 0 50px -28px rgba(0, 0, 0, 0.45);
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, sans-serif;
   color: var(--gogh-ui-fg);
   overflow-y: auto;
@@ -101,7 +101,7 @@
 }
 .gogh-side[hidden] { display: none; }
 .gogh-side {
-  transform: translateX(26px);
+  transform: translateX(-26px);
   opacity: 0;
   pointer-events: none;
   transition: transform 0.34s var(--gogh-spring), opacity 0.26s ease;
@@ -131,12 +131,12 @@
 .gogh-scard-s { font-size: 13px; color: #6b7280; }
 .gogh-scard-chev { color: #bcc0c8; margin-left: auto; flex: 0 0 auto; }
 .gogh-side-gap { flex: 1 1 auto; min-height: 8px; }
-.gogh-side-x { flex: 0 0 auto; width: 30px; height: 30px; display: grid; place-items: center; padding: 0; }
-.gogh-side-x svg { display: block; }
+.gogh-side .gogh-side-x { flex: 0 0 auto; width: 30px; height: 30px; display: grid; place-items: center; padding: 0; }
+.gogh-side .gogh-side-x svg { display: block; }
 .gogh-side-tab {
   all: unset;
   position: fixed;
-  right: 0;
+  left: 0;
   top: 50%;
   transform: translateY(-50%);
   z-index: 99998;
@@ -153,15 +153,15 @@
   color: var(--gogh-ui-fg);
   background: var(--gogh-ui-bg);
   border: 1px solid var(--gogh-ui-border);
-  border-right: none;
-  border-radius: 12px 0 0 12px;
-  box-shadow: -10px 0 28px -14px rgba(0, 0, 0, 0.6);
+  border-left: none;
+  border-radius: 0 12px 12px 0;
+  box-shadow: 10px 0 28px -14px rgba(0, 0, 0, 0.6);
   transition: transform 0.34s var(--gogh-spring), opacity 0.28s ease;
 }
 .gogh-side-tab:hover { background: #f2f3f5; }
 .gogh-side-tab[hidden] { display: none; }
 .gogh-side-tab.is-away {
-  transform: translate(110%, -50%);
+  transform: translate(-110%, -50%);
   opacity: 0;
   pointer-events: none;
 }
@@ -286,20 +286,20 @@
    solid and anchored, not a floating card. The zoomed page fills the left. */
 .gogh-panel.gogh-panel-sidebar {
   box-sizing: border-box;
-  right: 0; left: auto; bottom: 0;
+  left: 0; right: auto; bottom: 0;
   width: 384px; max-width: 46vw; min-width: 320px;
   height: auto; max-height: none;
   border-radius: 0;
   border: none;
-  border-left: 1px solid var(--gogh-ui-border);
-  box-shadow: -18px 0 50px -28px rgba(0, 0, 0, 0.45);
+  border-right: 1px solid var(--gogh-ui-border);
+  box-shadow: 18px 0 50px -28px rgba(0, 0, 0, 0.45);
   padding: 22px 24px 28px;
   overflow-y: auto;
   overflow-x: hidden;
   resize: none;
   animation: gogh-sidebar-in 0.34s var(--gogh-spring, cubic-bezier(0.2, 0.8, 0.2, 1)) both;
 }
-@keyframes gogh-sidebar-in { from { transform: translateX(24px); opacity: 0.4; } to { transform: none; opacity: 1; } }
+@keyframes gogh-sidebar-in { from { transform: translateX(-24px); opacity: 0.4; } to { transform: none; opacity: 1; } }
 /* one scroll, not two: inner lists expand to their full length and the SIDEBAR
    itself scrolls as a single column — no cramped nested scroll boxes, and the
    full height gets used ("weird scrolling" + "use all the sidebar realestate") */

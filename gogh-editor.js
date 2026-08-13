@@ -2371,9 +2371,9 @@
     panel.hidden = false;
     panel.classList.add('gogh-panel-sidebar');
     panel.style.top = topGap + 'px';
-    panel.style.right = '0px';
+    panel.style.left = '0px';
     panel.style.bottom = '0px';
-    panel.style.left = 'auto';
+    panel.style.right = 'auto';
     panel.style.width = '';
     panel.style.height = '';
     panel.style.maxHeight = '';
@@ -2413,13 +2413,13 @@
     if (!zoomState) return;
     var wrap = zoomState.wrap;
     var pad = 28;
-    // the sidebar owns the right edge; fit the page into the clear area to its
-    // left, centred. A comfortable scale independent of page LENGTH (scroll
-    // handles the rest). Measure whichever sidebar is live — the section panel
-    // or the Design home — so the page always clears it.
+    // the sidebar owns the LEFT edge (WordPress Customizer convention); fit the
+    // page into the clear area to its RIGHT, centred. Comfortable scale,
+    // independent of page LENGTH (scroll handles the rest). Measure whichever
+    // surface is live — the section panel or the Design home.
     var bar = (panelOpen && !panel.hidden) ? panel : side;
-    var panelLeft = bar.getBoundingClientRect().left || window.innerWidth;
-    var pageAreaW = panelLeft - pad * 2;
+    var barRight = bar.getBoundingClientRect().right || 0;
+    var pageAreaW = window.innerWidth - barRight - pad * 2;
     var pageW = wrap.offsetWidth || window.innerWidth;
     // pull back to a clear "zoomed out" size (cap ~0.62 so a wide screen doesn't
     // leave it near full-size), but never past what the clear area can hold
@@ -2427,7 +2427,7 @@
     var originalH = wrap.offsetHeight; // layout height, unaffected by transform
     var pageScreenW = pageW * s;
     wrap.style.transformOrigin = 'top left';
-    var tx = Math.max(pad, (pageAreaW - pageScreenW) / 2 + pad);
+    var tx = barRight + pad + Math.max(0, (pageAreaW - pageScreenW) / 2);
     wrap.style.transform = 'translateX(' + tx + 'px) scale(' + s + ')';
     // cap the body to the SCALED height (html keeps the scroll) so the document
     // ends exactly where the shrunk page does — vertical scroll stops at the
@@ -7729,9 +7729,8 @@
       '<button type="button" class="gogh-btn gogh-btn-small gogh-brandcancel">Cancel</button>' +
       '<button type="button" class="gogh-btn gogh-btn-small gogh-brandkeep">Save brand</button>' +
       '</div>';
-    panel.hidden = false;
-    placePanelNear(anchorEl || side);
-    panelOpen = true;
+    dockSidebar();
+    zoomOutCanvas(); // keep the page in view beside the docked brand form
     var contrastEl = panel.querySelector('.gogh-brandcontrast');
     function refreshContrast() {
       var r = contrastRatio(local.colors.text, local.colors.background);
