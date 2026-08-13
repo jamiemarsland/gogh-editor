@@ -2335,6 +2335,23 @@
     panel.addEventListener('pointercancel', function () { pd = null; });
   })();
   var panelCleanup = null; // a panel's audition-undo — closePanel runs it on EVERY path (Esc included)
+  // SIDEBAR: dock the style surface flush to the right edge, full height — a
+  // solid anchored panel, not a floating card. CSS does the look; this pins it.
+  function dockSidebar() {
+    var adminBar = document.getElementById('wpadminbar');
+    var topGap = adminBar ? adminBar.offsetHeight : 0;
+    panel.hidden = false;
+    panel.classList.add('gogh-panel-sidebar');
+    panel.style.top = topGap + 'px';
+    panel.style.right = '0px';
+    panel.style.bottom = '0px';
+    panel.style.left = 'auto';
+    panel.style.width = '';
+    panel.style.height = '';
+    panel.style.maxHeight = '';
+    panelOpen = true;
+    panelSticky = true;
+  }
   // ZOOM OUT: when a whole-page style panel opens (Site style / Page style),
   // pull the canvas back so folks see the WHOLE design at once while they
   // audition — "get a real sense of the design". The panel and admin bar sit
@@ -2366,22 +2383,19 @@
   function layoutZoom() {
     if (!zoomState) return;
     var wrap = zoomState.wrap;
-    var adminBar = document.getElementById('wpadminbar');
-    var topGap = adminBar ? adminBar.offsetHeight : 0;
-    var pad = 24, gap = 24;
-    var panelW = panel.offsetWidth || 360;
-    panel.style.right = pad + 'px';
-    panel.style.top = (topGap + pad) + 'px';
-    panel.style.left = 'auto';
-    panel.style.bottom = 'auto';
-    // fit the page WIDTH into the clear area left of the panel — a comfortable
-    // scale independent of how LONG the page is (that's what scroll is for)
-    var pageAreaW = window.innerWidth - pad - panelW - gap - pad;
+    var pad = 28;
+    // the sidebar owns the right edge; fit the page into the clear area to its
+    // left, centred. A comfortable scale independent of page LENGTH (scroll
+    // handles the rest). Read the panel's real left edge so it always clears.
+    var panelLeft = panel.getBoundingClientRect().left || window.innerWidth;
+    var pageAreaW = panelLeft - pad * 2;
     var pageW = wrap.offsetWidth || window.innerWidth;
     var s = Math.max(0.4, Math.min(0.85, pageAreaW / pageW));
     var originalH = wrap.offsetHeight; // layout height, unaffected by transform
+    var pageScreenW = pageW * s;
     wrap.style.transformOrigin = 'top left';
-    wrap.style.transform = 'translateX(' + pad + 'px) scale(' + s + ')';
+    var tx = Math.max(pad, (pageAreaW - pageScreenW) / 2 + pad);
+    wrap.style.transform = 'translateX(' + tx + 'px) scale(' + s + ')';
     // cap the body to the SCALED height (html keeps the scroll) so the document
     // ends exactly where the shrunk page does — vertical scroll stops at the
     // real bottom, no sea of empty desk to wade through
@@ -2411,6 +2425,9 @@
     delete panel.dataset.goghArea;
     panel.hidden = true;
     panel.classList.remove('gogh-panel-wide');
+    // leave sidebar mode cleanly — the next panel places itself
+    panel.classList.remove('gogh-panel-sidebar');
+    panel.style.top = ''; panel.style.right = ''; panel.style.bottom = ''; panel.style.left = '';
     panel.style.width = ''; // a hand-resized width belongs to that panel only
     panelOpen = false;
     // a style audition must never outlive its panel
@@ -7305,11 +7322,29 @@
     h.classList.remove('gogh-ps-notitle', 'gogh-ps-blank');
     if (/blank-canvas$/.test(slug)) h.classList.add('gogh-ps-blank');
     else if (/no-title/.test(slug)) h.classList.add('gogh-ps-notitle');
-    // hiding chrome changes the page height \u2014 refit the birds-eye
+    // showing/hiding chrome changes the page height \u2014 refit the zoom
     if (zoomState) layoutZoom();
+  }
+  // a no-title page has NO title block in the DOM, so hovering Standard had
+  // nothing to reveal ("Standard is not auditioning"). Drop in a stand-in title
+  // \u2014 the page's own name \u2014 carrying the theme's post-title class so it styles
+  // right and the same show/hide rules govern it. Removed when the panel closes.
+  function ensurePreviewTitle() {
+    if (document.querySelector('.wp-block-post-title')) return; // a real one exists
+    var main = document.querySelector('.wp-site-blocks .wp-block-post-content') ||
+      document.querySelector('.wp-site-blocks > main') ||
+      document.querySelector('.wp-site-blocks main');
+    if (!main) return;
+    var t = (document.title || '').split(/\s[\u2013\u2014-]\s/)[0].trim() || 'Page title';
+    var h1 = document.createElement('h1');
+    h1.className = 'wp-block-post-title gogh-ps-title-preview';
+    h1.textContent = t;
+    main.insertBefore(h1, main.firstChild);
   }
   function clearPageStylePreview() {
     document.documentElement.classList.remove('gogh-ps-notitle', 'gogh-ps-blank');
+    var pv = document.querySelector('.gogh-ps-title-preview');
+    if (pv) pv.remove();
   }
   function openPageStylePanel(anchorEl) {
     var options = [{ slug: '', title: 'Standard' }].concat(cfg.pageTemplates || []);
@@ -7320,9 +7355,10 @@
       '<div class="gogh-pagestyles"></div>';
     // the panel keeps its LAST position unless placed — without this it can
     // open wherever it was previously used, often outside the viewport
-    placePanelNear(anchorEl || side.querySelector('.gogh-pagestylebtn'));
-    panelOpen = true;
+    dockSidebar();
     zoomOutCanvas(); // pull the whole page into view to sense the framing
+    ensurePreviewTitle();                      // so Standard has a title to reveal
+    previewPageStyle(cfg.pageTemplate || '');  // start from the committed framing
     panel.querySelector('.gogh-panel-close').addEventListener('click', function () {
       closePanel();
       openSide();
@@ -7981,8 +8017,7 @@
         });
       });
       box.addEventListener('mouseleave', function () { clearVariationPreview(); });
-      placePanelNear(anchorEl);
-      panelOpen = true;
+      dockSidebar();
       panelSticky = true; // hover-audition panel: outside clicks pass through
       zoomOutCanvas(); // pull the whole page into view to audition the style
     }).catch(function () {});

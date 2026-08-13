@@ -262,6 +262,28 @@
 /* panels resize by their corner — folks asked for room */
 .gogh-panel { resize: both; min-width: 300px; max-width: 680px; }
 .gogh-panel-wide { width: 480px; }
+/* SIDEBAR mode: the style surfaces dock flush to the right edge, full height —
+   solid and anchored, not a floating card. The zoomed page fills the left. */
+.gogh-panel.gogh-panel-sidebar {
+  box-sizing: border-box;
+  right: 0; left: auto; bottom: 0;
+  width: 384px; max-width: 46vw; min-width: 320px;
+  height: auto; max-height: none;
+  border-radius: 0;
+  border: none;
+  border-left: 1px solid var(--gogh-ui-border);
+  box-shadow: -18px 0 50px -28px rgba(0, 0, 0, 0.45);
+  padding: 22px 24px 28px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  resize: none;
+  animation: gogh-sidebar-in 0.34s var(--gogh-spring, cubic-bezier(0.2, 0.8, 0.2, 1)) both;
+}
+@keyframes gogh-sidebar-in { from { transform: translateX(24px); opacity: 0.4; } to { transform: none; opacity: 1; } }
+/* the sidebar carries the panel — drag-to-move and resize don't belong on a
+   docked surface */
+.gogh-panel.gogh-panel-sidebar .gogh-panel-title,
+.gogh-panel.gogh-panel-sidebar .gogh-panel-head { cursor: default; }
 /* FAQ / Tabs editors: words in boxes, nothing more */
 .gogh-qna { margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--gogh-ui-border); }
 .gogh-qna-head { display: flex; gap: 6px; align-items: center; }
