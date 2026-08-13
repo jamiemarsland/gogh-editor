@@ -2411,6 +2411,12 @@
   // audition — "get a real sense of the design". The panel and admin bar sit
   // OUTSIDE .wp-site-blocks, so scaling that wrapper leaves them full size.
   var zoomState = null;
+  // editing in the zoomed-out (birds-eye) view: drag/resize begin by closing
+  // any open panel, and closePanel's safety-net unzoom would otherwise snap
+  // the page back to full size mid-grab ("it zooms in when I drag"). This
+  // transient flag lets those two paths keep the birds-eye while everything
+  // else — Esc, opening a different panel, ending an audition — still unzooms.
+  var keepZoomThroughClose = false;
   function zoomOutCanvas() {
     if (zoomState) { layoutZoom(); return; } // re-fit if already zoomed
     var wrap = document.querySelector('.wp-site-blocks');
@@ -2496,7 +2502,7 @@
   function closePanel() {
     if (panelCleanup) { var pc = panelCleanup; panelCleanup = null; pc(); }
     clearPageStylePreview(); // a page-style audition never outlives its panel
-    unzoomCanvas(); // a style audition's zoom-out never outlives its panel
+    if (!keepZoomThroughClose) unzoomCanvas(); // a style audition's zoom-out never outlives its panel
     exitChromeMode(); // leave the header room cleanly — dim off, spotlight off
     delete panel.dataset.goghArea;
     panel.hidden = true;
@@ -6827,7 +6833,9 @@
   }
   function beginDrag(ev) {
     if (!editing || !sel) return;
+    keepZoomThroughClose = !!zoomState; // dragging in birds-eye keeps the zoom
     closePanel();
+    keepZoomThroughClose = false;
     exitTextEdit();
     if (ev.altKey) {
       // alt-drag: duplicate in place, then drag the copy
@@ -8407,7 +8415,9 @@
       if (!editing || !sel) return;
       ev.preventDefault();
       ev.stopPropagation();
+      keepZoomThroughClose = !!zoomState; // resizing in birds-eye keeps the zoom
       closePanel();
+      keepZoomThroughClose = false;
       try { hBtn.setPointerCapture(ev.pointerId); } catch (err) {}
       var sec = sel.sec;
       var e = sec.els[sel.i];
