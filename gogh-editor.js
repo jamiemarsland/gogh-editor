@@ -11095,6 +11095,7 @@
       look: undefined,          // undefined = untouched
       inkPick: null,            // Menu text override: null = Auto
       dials: null,
+      caseTT: null,             // Menu case override: null = untouched
       sticky: chromeIsSticky(active),
       sticky0: chromeIsSticky(active),
     };
@@ -11117,6 +11118,17 @@
         return '<button type="button" class="gogh-btn gogh-btn-small gogh-hlayout' +
           (o.id === st.layoutId ? ' is-active' : '') + '" data-k="' + k + '" title="' + escAttr(o.title) + '">' + esc(short) + '</button>';
       }).join('') + '</div>' +
+      // YOUR HEADER: the content actions folks reach for most — their logo/name
+      // and their menu — ride up top, never buried under the styling dials
+      '<div class="gogh-swlab">Your ' + area + '</div>' +
+      '<div class="gogh-panel-row gogh-chrome-rows gogh-hcontent">' +
+      '<button type="button" class="gogh-btn gogh-btn-small gogh-hlogo">🏷️ ' + (usingLogo ? 'Logo &amp; size' : 'Logo &amp; name') + '</button>' +
+      (d0 && d0.hasNav ? '<button type="button" class="gogh-btn gogh-btn-small gogh-hmenu">☰ Edit menu items</button>' : '') +
+      '</div>' +
+      // everything below is fine-tuning — folded away so the panel stays short
+      // by default and Done is always in reach (no crop at the bottom)
+      '<button type="button" class="gogh-hmore" aria-expanded="false">Style &amp; spacing <span class="gogh-hmore-chev">▾</span></button>' +
+      '<div class="gogh-hmorebox" hidden>' +
       (looks.length ? '<div class="gogh-swlab">Look</div><div class="gogh-swrow gogh-hlooks">' +
         looks.map(function (l, k) {
           return '<button type="button" class="gogh-sw' + (l.bg ? '' : ' gogh-sw-none') + '" data-k="' + k + '"' +
@@ -11136,6 +11148,13 @@
         '<button type="button" class="gogh-btn gogh-btn-small gogh-hink" data-ink="dark">Dark</button>' +
         '<label class="gogh-sw gogh-sw-pick" title="Custom text colour"><input type="color" class="gogh-hinkpick" value="#ffffff"></label>' +
         '</div>' : '') +
+      // Menu case: change the nav's letter case ("need for folks to change
+      // case — upper/lower"). Aa = as typed, AG = UPPERCASE, ag = lowercase
+      (d0 && d0.hasNav ? '<div class="gogh-panel-row gogh-logosize gogh-hcase-row"><span>Menu case</span>' +
+        '<button type="button" class="gogh-btn gogh-btn-small gogh-hcase" data-case="none" title="As typed">Aa</button>' +
+        '<button type="button" class="gogh-btn gogh-btn-small gogh-hcase" data-case="uppercase" title="UPPERCASE">AG</button>' +
+        '<button type="button" class="gogh-btn gogh-btn-small gogh-hcase" data-case="lowercase" title="lowercase">ag</button>' +
+        '</div>' : '') +
       (d0 ? '<div class="gogh-swlab">Spacing</div>' +
         dial('Height', 'gogh-dial-pad', 4, 64, d0.pad) +
         (d0.hasNav ? dial('Menu items', 'gogh-dial-link', 8, 64, d0.linkGap) : '') +
@@ -11143,11 +11162,8 @@
       '<div class="gogh-panel-row gogh-chrome-rows gogh-hpills">' +
       '<button type="button" class="gogh-btn gogh-btn-small gogh-hsticky' + (st.sticky ? ' is-active' : '') + '">\ud83d\udccc ' + (st.sticky ? 'Sticky \u2014 on' : 'Stick to the top') + '</button>' +
       '<button type="button" class="gogh-btn gogh-btn-small gogh-hfreeform">\u2728 Make it freeform</button>' +
-      // the doorway rides the same row: one wrapping band, not a 170px
-      // stack — the panel must fit a laptop without scrolling
-      '<button type="button" class="gogh-btn gogh-btn-small gogh-hlogo">\ud83c\udff7\ufe0f ' + (usingLogo ? 'Logo &amp; size' : 'Logo &amp; name') + '</button>' +
-      (d0 && d0.hasNav ? '<button type="button" class="gogh-btn gogh-btn-small gogh-hmenu">\u2630 Edit menu items</button>' : '') +
       '</div>' +
+      '</div>' + // end .gogh-hmorebox
       '<div class="gogh-panel-row gogh-chrome-foot">' +
       '<button type="button" class="gogh-btn gogh-btn-small gogh-hcancel">Cancel</button>' +
       '<button type="button" class="gogh-btn gogh-btn-save gogh-btn-small gogh-happly" title="Keeps your changes on every page">Done</button>' +
@@ -11168,15 +11184,17 @@
       // endChromePreview's explicit unhide must have the final word
       chromeDialsRevert(partEl);
       chromeColorRevert(partEl);
+      chromeCaseRevert(partEl);
       endChromePreview();
       var mg = chromeMountedGroup(partEl);
       if (mg) mg.classList.toggle('gogh-sticky', st.sticky0);
     };
     // after a layout preview mounts, the paint targets are NEW nodes — the
-    // chosen dials and look must follow the audition onto them
+    // chosen dials, look and case must follow the audition onto them
     var repaint = function () {
       if (st.dials) chromeDialsPreview(partEl, st.dials);
       if (st.look !== undefined) chromeColorPreview(partEl, st.look);
+      if (st.caseTT != null) chromeCasePreview(partEl, st.caseTT);
     };
     var bail = function () { closePanel(); };
     panel.querySelector('.gogh-panel-close').addEventListener('click', bail);
@@ -11394,6 +11412,34 @@
     doorway(panel.querySelector('.gogh-hlogo'), function () {
       openLogoPicker(chromeMountedGroup(partEl) || partEl);
     });
+    // MORE: styling & spacing fold away so the panel stays short by default
+    var moreBtn = panel.querySelector('.gogh-hmore');
+    if (moreBtn) moreBtn.addEventListener('click', function () {
+      var box = panel.querySelector('.gogh-hmorebox');
+      var opening = box.hasAttribute('hidden');
+      if (opening) box.removeAttribute('hidden'); else box.setAttribute('hidden', '');
+      moreBtn.setAttribute('aria-expanded', opening ? 'true' : 'false');
+      var chev = moreBtn.querySelector('.gogh-hmore-chev');
+      if (chev) chev.textContent = opening ? '▴' : '▾';
+      reclampPanel();
+    });
+    // MENU CASE: UPPER / lower / as-typed for the nav. Mark the button that
+    // matches the menu's current rendered case, so the panel tells the truth
+    var caseBtns = panel.querySelectorAll('.gogh-hcase');
+    if (caseBtns.length) {
+      var navProbe = partEl.querySelector('.wp-block-navigation-item a, .wp-block-navigation a, .wp-block-navigation');
+      var curTT = navProbe ? getComputedStyle(navProbe).textTransform : 'none';
+      var curCase = curTT === 'uppercase' ? 'uppercase' : curTT === 'lowercase' ? 'lowercase' : 'none';
+      caseBtns.forEach(function (cb) {
+        if (cb.dataset.case === curCase) cb.classList.add('is-active');
+        cb.addEventListener('click', function () {
+          st.caseTT = cb.dataset.case;
+          caseBtns.forEach(function (o2) { o2.classList.toggle('is-active', o2 === cb); });
+          chromeCasePreview(partEl, cb.dataset.case);
+          arm();
+        });
+      });
+    }
     // ONE Apply: compose every touched change into a single save
     applyBtn.addEventListener('click', function () {
       // Done with nothing changed just leaves the room — no needless save,
@@ -11404,6 +11450,7 @@
         : raw0;
       if (st.dials) base = chromeDialsApply(base, st.dials) || base;
       if (st.look !== undefined) base = chromeColorApply(base, st.look && (st.look.bg || st.look.custom || st.look.ink || st.look.inkHex) ? st.look : null) || base;
+      if (st.caseTT != null) base = chromeCaseApply(base, st.caseTT) || base;
       if (st.sticky !== st.sticky0) base = stickyRawToggle(base, st.sticky) || base;
       applyBtn.disabled = true;
       applyBtn.textContent = 'Applying\u2026';
@@ -11968,6 +12015,37 @@
     });
     [].forEach.call(navRoot.querySelectorAll('.wp-block-navigation'), function (nv) {
       if (d.fsz) nv.style.fontSize = d.fsz + 'px';
+    });
+  }
+  // MENU CASE: the nav's letter-case. Preview paints text-transform onto the
+  // links with !important so a theme rule on the item can't out-shout it;
+  // save writes it into the navigation block's own typography.
+  function chromeCasePreview(partEl, tt) {
+    if (!partEl.__goghCaseOrig) partEl.__goghCaseOrig = [];
+    var root = partEl.querySelector('.gogh-chrome-preview') || partEl;
+    var targets = root.querySelectorAll('.wp-block-navigation, .wp-block-navigation a, .wp-block-navigation-item__label');
+    [].forEach.call(targets, function (el) {
+      if (!partEl.__goghCaseOrig.some(function (p) { return p[0] === el; })) {
+        partEl.__goghCaseOrig.push([el, el.style.getPropertyValue('text-transform'), el.style.getPropertyPriority('text-transform')]);
+      }
+      el.style.setProperty('text-transform', tt, 'important');
+    });
+  }
+  function chromeCaseRevert(partEl) {
+    (partEl.__goghCaseOrig || []).forEach(function (p) {
+      if (!p[1]) p[0].style.removeProperty('text-transform');
+      else p[0].style.setProperty('text-transform', p[1], p[2] || '');
+    });
+    partEl.__goghCaseOrig = null;
+  }
+  function chromeCaseApply(raw, tt) {
+    return raw.replace(/<!--\s*wp:navigation(\s+({[\s\S]*?}))?\s*\/-->/, function (m0, sp, json) {
+      var na = {};
+      if (json) { try { na = JSON.parse(json); } catch (e) { return m0; } }
+      na.style = na.style || {};
+      na.style.typography = na.style.typography || {};
+      na.style.typography.textTransform = tt; // 'none' | 'uppercase' | 'lowercase'
+      return '<!-- wp:navigation ' + JSON.stringify(na) + ' /-->';
     });
   }
   function chromeDialsRevert(partEl) {

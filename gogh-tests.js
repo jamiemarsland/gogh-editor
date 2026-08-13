@@ -2387,6 +2387,36 @@
       expect(!document.querySelector('.gogh-chrome-preview'), 'preview left behind after close');
     });
 
+    test('header panel: content up top, styling folded behind More', function () {
+      var pill = q('.gogh-chromebtn');
+      var partEl = pill.__goghPart;
+      var options = [
+        { kind: 'part', id: 101, slug: 'header', theme: 'x', title: 'Simple header', content: '' },
+        { kind: 'part', id: 102, slug: 'header-b', theme: 'x', title: 'Centered header', content: '' },
+      ];
+      var active = { id: 101, content: { raw: '<!-- wp:group {"layout":{"type":"flex"}} --><div class="wp-block-group"></div><!-- /wp:group -->' } };
+      G.openHeaderPanel(partEl, 'header', options, options[0], active);
+      var panel = document.querySelector('.gogh-panel');
+      try {
+        // the logo doorway is a first-class citizen up top, NOT in the fold
+        var logo = panel.querySelector('.gogh-hcontent .gogh-hlogo');
+        expect(logo, 'the Logo doorway must ride in the Your-header row, up top');
+        var box = panel.querySelector('.gogh-hmorebox');
+        expect(box, 'the More fold is missing');
+        expect(box.hasAttribute('hidden'), 'styling must be folded away by default (compact)');
+        // Look/Spacing live INSIDE the fold, not loose in the panel
+        expect(box.querySelector('.gogh-hlooks'), 'Look belongs inside the fold');
+        expect(!panel.querySelector('.gogh-hcontent .gogh-hlooks'), 'Look must not sit in the content row');
+        // the toggle opens the fold
+        var more = panel.querySelector('.gogh-hmore');
+        expect(more, 'the More toggle is missing');
+        more.click();
+        expect(!box.hasAttribute('hidden'), 'More did not reveal the fold');
+      } finally {
+        panel.querySelector('.gogh-panel-close').click();
+      }
+    });
+
     test('header panel: Esc reverts every audition - no stranded paint', function () {
       var pill = q('.gogh-chromebtn');
       var partEl = pill.__goghPart;
