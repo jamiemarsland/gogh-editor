@@ -1780,12 +1780,11 @@ html.gogh-zoomed { overflow-x: hidden; background: #dfe0e5; }
 /* a neutral desk behind the shrunk page — the site's own colour stays ON the
    page (painted onto .wp-site-blocks in JS), so it no longer floods the frame */
 html.gogh-zoomed body { background: #dfe0e5 !important; }
-/* the birds-eye is a preview: get every editing affordance out of the frame so
-   folks see the DESIGN, not the chrome (mirrors the cycling-mode hide). The
-   ELEMENT toolbar is the exception — you now arrange AND edit in the zoomed
-   view, so a selected element keeps its toolbar (it only shows on selection,
-   so an audition with nothing selected stays clean) */
+/* the birds-eye is a DESIGN surface, not an element editor: get every editing
+   affordance out of the frame so folks see the DESIGN and arrange SECTIONS, not
+   fiddle element by element (that's the zoomed-in edit mode) */
 html.gogh-zoomed .gogh-secbar,
+html.gogh-zoomed .gogh-elbar,
 html.gogh-zoomed .gogh-hbar,
 html.gogh-zoomed .gogh-inserter,
 html.gogh-zoomed .gogh-chip,
@@ -1794,8 +1793,16 @@ html.gogh-zoomed .gogh-chromebtn,
 html.gogh-zoomed .gogh-chromeveil,
 html.gogh-zoomed .gogh-navadd,
 html.gogh-zoomed .gogh-navrm,
+html.gogh-zoomed .gogh-selbox,
+html.gogh-zoomed .gogh-grip,
 html.gogh-zoomed .gogh-handle,
 html.gogh-zoomed .gogh-hgrip { display: none !important; }
+/* design mode: content sections invite a drag to reorder; a drop line shows
+   where the grabbed section will land */
+html.gogh-designmode .wp-site-blocks .gogh-wrap { cursor: grab; }
+html.gogh-designmode .wp-site-blocks .gogh-wrap:hover { outline: 2px dashed rgba(75, 65, 255, 0.55); outline-offset: -2px; }
+.gogh-secdrag-src { opacity: 0.45; cursor: grabbing !important; transition: opacity 0.12s ease; }
+.gogh-secdropline { position: fixed; height: 3px; background: #4b41ff; border-radius: 2px; z-index: 2147483600; pointer-events: none; box-shadow: 0 0 0 1.5px rgba(255, 255, 255, 0.75); }
 /* the header/footer editing room dims the page and spotlights the chrome — a
    page section's toolbar/handles/inserter must not float over it (the cropped
    SECTION pill above the header) */

@@ -1515,8 +1515,6 @@
     (cfg.experiments ? '<button type="button" class="gogh-sbtn gogh-phibtn" data-act="compguides" title="Golden ratio guides">φ</button>' : '') +
     '<button type="button" class="gogh-sbtn gogh-mirroropen" title="Live mobile preview">' +
     '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="7" y="2.5" width="10" height="19" rx="2.5"/><path d="M10.5 18.5h3"/></svg></button>' +
-    '<button type="button" class="gogh-sbtn gogh-zoomopen" title="Whole page — reorder sections">' +
-    '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="3" width="16" height="7" rx="1.6"/><rect x="4" y="14" width="16" height="7" rx="1.6"/><path d="M12 10.5v3"/></svg></button>' +
     '<button type="button" class="gogh-sbtn gogh-undo" title="Undo (⌘Z)">' +
     '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 14l-4-4 4-4"/><path d="M5 10h11a4 4 0 0 1 0 8h-1"/></svg></button>' +
     '<button type="button" class="gogh-sbtn gogh-redo" title="Redo (⇧⌘Z)">' +
@@ -1570,6 +1568,7 @@
     side.classList.remove('gogh-side-away');
     sideTab.classList.add('is-away');
     zoomOutCanvas(); // the design surface pairs with a zoomed-out page
+    document.documentElement.classList.add('gogh-designmode'); // sections drag to reorder
   }
   function closeSide(now) {
     clearTimeout(sideTimer);
@@ -1577,6 +1576,7 @@
       side.classList.remove('is-open');
       side.classList.remove('gogh-side-away');
       sideTab.classList.remove('is-away');
+      document.documentElement.classList.remove('gogh-designmode');
       if (!panelOpen) unzoomCanvas(); // a section may still hold the zoom
     };
     if (now) doIt(); else sideTimer = setTimeout(doIt, 500);
@@ -1593,6 +1593,7 @@
     panelOpen = false;
     side.classList.remove('gogh-side-away');
     side.classList.add('is-open');
+    document.documentElement.classList.add('gogh-designmode'); // back to arranging sections
     if (zoomState) layoutZoom();
   }
   // deliberate open — a docked, zooming surface, not a hover peek
@@ -2054,6 +2055,7 @@
     });
     node.addEventListener('pointerdown', function (ev) {
       if (!editing || drag || resize) return;
+      if (designMode()) return; // birds-eye = arrange sections, not edit elements
       if (textEditing && textEditing.node === node) return; // native caret/selection
       if (textEditing) exitTextEdit();
       if (ev.shiftKey && !ev.metaKey && !ev.ctrlKey) {
@@ -2409,6 +2411,7 @@
     panelOpen = true;
     panelSticky = true;
     side.classList.add('gogh-side-away'); // a section takes the surface; home waits
+    document.documentElement.classList.remove('gogh-designmode'); // a panel owns the surface now
   }
   // ZOOM OUT: when a whole-page style panel opens (Site style / Page style),
   // pull the canvas back so folks see the WHOLE design at once while they
@@ -2505,6 +2508,90 @@
       if (!zoomState) { z.wrap.style.transformOrigin = z.org || ''; z.wrap.style.transition = z.tr || ''; }
     }, 420);
   }
+
+  // ---------- design mode: drag whole SECTIONS to reorder ----------
+  // the birds-eye is a DESIGN surface: you arrange the page (style, framing,
+  // header/footer, section order), you don't nudge elements one by one — that
+  // precise work belongs to the zoomed-IN edit mode. So here a pointerdown on a
+  // content section reorders the whole section, and element selection is gated
+  // off (see bindSelect). One surface replaces the old separate reorder overlay.
+  var secDrag = null;
+  var secDropTarget = null; // wrapEl to drop before; null = end of the content
+  var secDropLine = document.createElement('div');
+  secDropLine.className = 'gogh-secdropline';
+  secDropLine.hidden = true;
+  document.body.appendChild(secDropLine);
+  function designMode() {
+    // the design home is showing (not an audition panel) over the zoomed page
+    return !!(zoomState && side.classList.contains('is-open') && !panelOpen);
+  }
+  function movableSecs() {
+    return S.filter(function (s) { return !s.chrome; }); // header/footer stay pinned
+  }
+  function placeSecDropLine() {
+    if (!zoomState) return;
+    var pr = zoomState.wrap.getBoundingClientRect();
+    var top;
+    if (secDropTarget) {
+      top = secDropTarget.getBoundingClientRect().top;
+    } else {
+      var cs = movableSecs();
+      var last = cs.length ? cs[cs.length - 1].wrapEl : null;
+      top = last ? last.getBoundingClientRect().bottom : pr.top;
+    }
+    secDropLine.style.left = pr.left + 'px';
+    secDropLine.style.width = pr.width + 'px';
+    secDropLine.style.top = (top - 1.5) + 'px';
+    secDropLine.hidden = false;
+  }
+  document.addEventListener('pointerdown', function (ev) {
+    if (!designMode()) return;
+    if (ev.button != null && ev.button !== 0) return;
+    // gogh's own surfaces never start a section drag
+    if (ev.target.closest && ev.target.closest('.gogh-side, .gogh-panel, .gogh-zoomslider, .gogh-toast, #wpadminbar')) return;
+    var wrap = ev.target.closest && ev.target.closest('.gogh-wrap');
+    if (!wrap) return;
+    var sec = S.filter(function (s) { return s.wrapEl === wrap; })[0];
+    if (!sec || sec.chrome) return; // header/footer stay pinned
+    ev.preventDefault();
+    secDrag = { wrap: wrap, y: ev.clientY, pointerId: ev.pointerId, moved: false };
+    secDropTarget = wrap;
+    try { if (ev.target.setPointerCapture) ev.target.setPointerCapture(ev.pointerId); } catch (e) {}
+  }, true);
+  document.addEventListener('pointermove', function (ev) {
+    if (!secDrag || ev.pointerId !== secDrag.pointerId) return;
+    if (!secDrag.moved && Math.abs(ev.clientY - secDrag.y) < 4) return;
+    if (!secDrag.moved) { secDrag.wrap.classList.add('gogh-secdrag-src'); secDrag.moved = true; }
+    var y = ev.clientY, target = null;
+    var cs = movableSecs();
+    for (var k = 0; k < cs.length; k++) {
+      if (cs[k].wrapEl === secDrag.wrap) continue;
+      var r = cs[k].wrapEl.getBoundingClientRect();
+      if (y < r.top + r.height / 2) { target = cs[k].wrapEl; break; }
+    }
+    secDropTarget = target;
+    placeSecDropLine();
+  }, true);
+  document.addEventListener('pointerup', function (ev) {
+    if (!secDrag) return;
+    var sd = secDrag; secDrag = null;
+    sd.wrap.classList.remove('gogh-secdrag-src');
+    secDropLine.hidden = true;
+    if (!sd.moved) return;
+    var ref = secDropTarget;
+    if (ref === sd.wrap) return;
+    if (ref) {
+      if (sd.wrap.nextElementSibling === ref) return; // already in place
+      pageParent.insertBefore(sd.wrap, ref);
+    } else {
+      if (!sd.wrap.nextElementSibling || sd.wrap.nextElementSibling === endMarker) return;
+      pageParent.insertBefore(sd.wrap, endMarker);
+    }
+    resyncContentOrder(); // re-derives S from DOM order and re-pins header/footer
+    if (zoomState) layoutZoom();
+    toast('Section moved.');
+  }, true);
+
   function closePanel() {
     if (panelCleanup) { var pc = panelCleanup; panelCleanup = null; pc(); }
     clearPageStylePreview(); // a page-style audition never outlives its panel
@@ -8817,7 +8904,10 @@
       toast('Section moved.');
     };
   }
-  side.querySelector('.gogh-zoomopen').addEventListener('click', openZoom);
+  // the section-reorder overlay retired into the design view (sections now drag
+  // in place there); openZoom stays callable for the webmcp API, just unbound here
+  var zoomOpenBtn = side.querySelector('.gogh-zoomopen');
+  if (zoomOpenBtn) zoomOpenBtn.addEventListener('click', openZoom);
 
   // ---------- marquee: drag on empty canvas to lasso a group ----------
   var marq = null;
@@ -11394,8 +11484,10 @@
       '<div class="gogh-panel-row gogh-chrome-rows gogh-hlayouts">' +
       options.map(function (o, k) {
         var short = String(o.title || '').split(' \u2014 ')[0];
+        // no title tooltip: the chip auditions live on hover, so a hover
+        // tooltip just fights the preview ("we dont need tool tips here")
         return '<button type="button" class="gogh-btn gogh-btn-small gogh-hlayout' +
-          (o.id === st.layoutId ? ' is-active' : '') + '" data-k="' + k + '" title="' + escAttr(o.title) + '">' + esc(short) + '</button>';
+          (o.id === st.layoutId ? ' is-active' : '') + '" data-k="' + k + '">' + esc(short) + '</button>';
       }).join('') + '</div>' +
       // YOUR HEADER: the content actions folks reach for most — their logo/name
       // and their menu — ride up top, never buried under the styling dials
