@@ -11086,6 +11086,10 @@
     var raw0 = (active && active.content && active.content.raw) || '';
     var d0 = chromeDialsRead(raw0);
     var looks = headerLooks();
+    // the header wears ONE identity: an image logo OR the text name. The
+    // doorway label follows whichever is live, so folks aren't hunting the
+    // tiny logo + a floating chip to change it
+    var usingLogo = !!(partEl && partEl.querySelector('.wp-block-site-logo img'));
     var st = {
       layoutId: activeOpt ? activeOpt.id : null,
       look: undefined,          // undefined = untouched
@@ -11141,6 +11145,7 @@
       '<button type="button" class="gogh-btn gogh-btn-small gogh-hfreeform">\u2728 Make it freeform</button>' +
       // the doorway rides the same row: one wrapping band, not a 170px
       // stack — the panel must fit a laptop without scrolling
+      '<button type="button" class="gogh-btn gogh-btn-small gogh-hlogo">\ud83c\udff7\ufe0f ' + (usingLogo ? 'Logo &amp; size' : 'Logo &amp; name') + '</button>' +
       (d0 && d0.hasNav ? '<button type="button" class="gogh-btn gogh-btn-small gogh-hmenu">\u2630 Edit menu items</button>' : '') +
       '</div>' +
       '<div class="gogh-panel-row gogh-chrome-foot">' +
@@ -11361,21 +11366,33 @@
       bail();
       editChromeFreeform(partEl, area, active);
     });
-    var menuBtn = panel.querySelector('.gogh-hmenu');
-    if (menuBtn) menuBtn.addEventListener('click', function () {
-      var through = function () {
-        var anchor = chromeMountedGroup(partEl) || partEl;
-        closePanel(); // cleanup ends any audition before the menu room opens
-        openMenuManager(partEl, anchor);
-      };
-      // an unapplied audition deserves one honest question, not a modal
-      if (applyBtn.disabled || menuBtn.dataset.armed) { through(); return; }
-      menuBtn.dataset.armed = '1';
-      menuBtn.textContent = 'Unapplied changes will be lost — tap again';
-      setTimeout(function () {
-        delete menuBtn.dataset.armed;
-        menuBtn.textContent = '☰ Edit menu items';
-      }, 2800);
+    // doorways out of the header room (menu manager, logo & name): if an
+    // audition is pending, one honest two-tap warning before we leave and
+    // lose it — otherwise straight through. Guards on `armed` (the real
+    // unsaved-work flag): Done is always enabled now, so applyBtn.disabled
+    // is no longer a signal and would force a needless double-tap.
+    var doorway = function (btn, go) {
+      if (!btn) return;
+      btn.addEventListener('click', function () {
+        if (!armed || btn.dataset.armed) {
+          closePanel(); // cleanup ends any audition before the next room opens
+          go();
+          return;
+        }
+        btn.dataset.armed = '1';
+        var prev = btn.innerHTML;
+        btn.textContent = 'Unapplied changes will be lost — tap again';
+        setTimeout(function () {
+          delete btn.dataset.armed;
+          btn.innerHTML = prev;
+        }, 2800);
+      });
+    };
+    doorway(panel.querySelector('.gogh-hmenu'), function () {
+      openMenuManager(partEl, chromeMountedGroup(partEl) || partEl);
+    });
+    doorway(panel.querySelector('.gogh-hlogo'), function () {
+      openLogoPicker(chromeMountedGroup(partEl) || partEl);
     });
     // ONE Apply: compose every touched change into a single save
     applyBtn.addEventListener('click', function () {
@@ -12797,16 +12814,56 @@
   function openLogoPicker(anchorEl) {
     placePanelNear(anchorEl);
     var logoImgs = [].slice.call(document.querySelectorAll('header .wp-block-site-logo img, .wp-block-template-part .wp-block-site-logo img'));
+    var titleEl = document.querySelector('.wp-block-site-title a, .wp-block-site-title');
+    var curName = ((titleEl && titleEl.textContent) || '').trim();
     panel.innerHTML =
-      '<div class="gogh-panel-title">Site logo</div>' +
-      '<em class="gogh-panel-hint">Pick or upload an image \u2014 it replaces the text title in your header.</em>' +
+      '<div class="gogh-panel-head"><span class="gogh-panel-title">Logo &amp; name</span>' +
+      '<button type="button" class="gogh-sbtn gogh-panel-close" title="Close">\u2715</button></div>' +
+      '<em class="gogh-panel-hint">' + (logoImgs.length
+        ? 'Resize your logo, swap the image below, or switch back to a text name.'
+        : 'Type your site name \u2014 or add a logo image below to lead the header instead.') + '</em>' +
+      // TEXT identity: rename right here, no more hunting the tiny title
+      (!logoImgs.length ?
+        '<div class="gogh-panel-row gogh-logoname"><span>Name</span>' +
+        '<input type="text" class="gogh-logoname-in" value="' + escAttr(curName) + '" placeholder="Your site name" /></div>' : '') +
+      // IMAGE identity: size + a way back to text
       (logoImgs.length ?
         '<div class="gogh-panel-row gogh-logosize"><span>Size</span>' +
         '<input type="range" min="48" max="280" step="4" />' +
         '<span class="gogh-logosize-val"></span></div>' +
-        '<button type="button" class="gogh-btn gogh-btn-small gogh-logo-totext">Use a text title instead</button>' : '') +
-      '<label class="gogh-btn gogh-btn-small gogh-upload">Upload image<input type="file" accept="image/*" hidden /></label>' +
+        '<button type="button" class="gogh-btn gogh-btn-small gogh-logo-totext">Use a text name instead</button>' : '') +
+      '<label class="gogh-btn gogh-btn-small gogh-upload">' + (logoImgs.length ? 'Upload a different image' : 'Upload a logo image') + '<input type="file" accept="image/*" hidden /></label>' +
       '<div class="gogh-media"><span class="gogh-media-loading">Loading media\u2026</span></div>';
+    var closeX = panel.querySelector('.gogh-panel-close');
+    if (closeX) closeX.addEventListener('click', function () { closePanel(); });
+    // rename saves the global title setting and mirrors it into every
+    // site-title on the page \u2014 same contract as clicking the title inline
+    var nameIn = panel.querySelector('.gogh-logoname-in');
+    if (nameIn) {
+      var saveName = function () {
+        var v = (nameIn.value || '').replace(/\s+/g, ' ').trim();
+        if (!v || v === curName) return;
+        fetch(GSROOT + 'settings', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'X-WP-Nonce': cfg.nonce },
+          credentials: 'same-origin',
+          body: JSON.stringify({ title: v }),
+        }).then(function (r) {
+          if (!r.ok) throw new Error('save');
+          curName = v;
+          [].slice.call(document.querySelectorAll('.wp-block-site-title')).forEach(function (el) {
+            var lf = el.querySelector('a') || el; lf.textContent = v;
+          });
+          toast('Site name saved.');
+        }).catch(function () { toast('Could not save the name \u2014 try again.', { error: true }); });
+      };
+      nameIn.addEventListener('change', saveName);
+      // keystrokes stay in the field \u2014 the panel's Esc-closer must not fire
+      nameIn.addEventListener('keydown', function (ev) {
+        if (ev.key === 'Enter') { ev.preventDefault(); nameIn.blur(); }
+        ev.stopPropagation();
+      });
+    }
     panel.hidden = false;
     panelOpen = true;
     var toText = panel.querySelector('.gogh-logo-totext');
