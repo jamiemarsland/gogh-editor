@@ -2390,7 +2390,9 @@
     var panelLeft = panel.getBoundingClientRect().left || window.innerWidth;
     var pageAreaW = panelLeft - pad * 2;
     var pageW = wrap.offsetWidth || window.innerWidth;
-    var s = Math.max(0.4, Math.min(0.85, pageAreaW / pageW));
+    // pull back to a clear "zoomed out" size (cap ~0.62 so a wide screen doesn't
+    // leave it near full-size), but never past what the clear area can hold
+    var s = Math.max(0.38, Math.min(0.62, pageAreaW / pageW));
     var originalH = wrap.offsetHeight; // layout height, unaffected by transform
     var pageScreenW = pageW * s;
     wrap.style.transformOrigin = 'top left';
