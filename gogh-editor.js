@@ -2353,9 +2353,15 @@
     var s = Math.max(0.35, Math.min(1, (avail / contentH) * 0.9));
     if (s >= 0.999) return; // already fits — nothing to pull back
     window.scrollTo(0, 0); // birds-eye starts from the top of the page
-    zoomState = { wrap: wrap, tf: wrap.style.transform, org: wrap.style.transformOrigin, tr: wrap.style.transition };
+    zoomState = { wrap: wrap, tf: wrap.style.transform, org: wrap.style.transformOrigin,
+      tr: wrap.style.transition, bg: wrap.style.background, sh: wrap.style.boxShadow };
     wrap.style.transformOrigin = 'top center';
     wrap.style.transition = 'transform 0.5s cubic-bezier(0.4, 0, 0.2, 1)';
+    // the site's colour belongs ON the page, not leaking across the desk:
+    // paint the site bg onto the artboard (tracks the live audition via the
+    // var) and float it with a shadow. The neutral desk behind is CSS.
+    wrap.style.background = 'var(--wp--preset--color--background, ' + getComputedStyle(document.body).backgroundColor + ')';
+    wrap.style.boxShadow = '0 30px 90px -24px rgba(0, 0, 0, 0.4)';
     void wrap.offsetHeight; // reflow so the transition actually runs
     wrap.style.transform = 'scale(' + s + ')';
     document.documentElement.classList.add('gogh-zoomed');
@@ -2364,6 +2370,8 @@
     if (!zoomState) return;
     var z = zoomState; zoomState = null;
     z.wrap.style.transform = z.tf || '';
+    z.wrap.style.background = z.bg || '';
+    z.wrap.style.boxShadow = z.sh || '';
     document.documentElement.classList.remove('gogh-zoomed');
     // tidy origin/transition once the ride home finishes (unless re-zoomed)
     setTimeout(function () {
