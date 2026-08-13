@@ -1532,17 +1532,21 @@
 
   // zoom slider: pull the birds-eye further out on the right of the canvas.
   // Drives the scale factor directly; shown only while the design view is zoomed.
-  var zoomScaleOverride = null; // null = auto-fit
+  // the slider surfaces a friendly 0–100% where 100% = the fitted view (what
+  // folks see when they open the birds-eye). The real CSS scale is this
+  // fraction OF the fit — the fit itself caps around 0.62, but that number is
+  // an implementation detail nobody should have to reason about. null = fitted.
+  var zoomFrac = null;
   var lastZoomAuto = 0.62;
   var zoomSlider = document.createElement('div');
   zoomSlider.className = 'gogh-zoomslider';
   zoomSlider.hidden = true;
   zoomSlider.innerHTML =
-    '<span class="gogh-zoomslider-val">62%</span>' +
-    '<input type="range" min="20" max="100" step="1" value="62" aria-label="Zoom the page">';
+    '<span class="gogh-zoomslider-val">100%</span>' +
+    '<input type="range" min="20" max="100" step="1" value="100" aria-label="Zoom the page">';
   document.body.appendChild(zoomSlider);
   zoomSlider.querySelector('input').addEventListener('input', function () {
-    zoomScaleOverride = (+this.value) / 100;
+    zoomFrac = (+this.value) / 100; // 100% = fitted; drag down to zoom further out
     zoomSlider.querySelector('.gogh-zoomslider-val').textContent = this.value + '%';
     // track the slider directly — a transition here would lag the thumb; the
     // page follows the finger at 60fps, then the open/close ease is restored
@@ -2433,13 +2437,13 @@
     wrap.style.background = 'var(--wp--preset--color--background, ' + getComputedStyle(document.body).backgroundColor + ')';
     wrap.style.boxShadow = '0 30px 90px -24px rgba(0, 0, 0, 0.4)';
     document.documentElement.classList.add('gogh-zoomed');
-    zoomScaleOverride = null; // start at auto-fit
+    zoomFrac = null; // start fitted
     layoutZoom();
-    // the fit size is the MAX zoom (bigger would overlap the sides); start there
+    // 100% = the fitted view (the most zoomed-in we allow — bigger would overlap
+    // the sides); the slider drags DOWN from there to zoom further out
     var zi = zoomSlider.querySelector('input');
-    zi.max = Math.round(lastZoomAuto * 100);
-    zi.value = zi.max;
-    zoomSlider.querySelector('.gogh-zoomslider-val').textContent = zi.value + '%';
+    zi.value = 100;
+    zoomSlider.querySelector('.gogh-zoomslider-val').textContent = '100%';
     zoomSlider.hidden = false;
   }
   // dock the style panel on the RIGHT and scale the page to a comfortable,
@@ -2469,7 +2473,9 @@
     lastZoomAuto = Math.max(0.38, Math.min(0.62, (span - pad * 2) / pageW));
     // the slider can pull OUT from the fit size but never past it — a bigger
     // scale would overlap the sidebar/slider, so auto-fit is the max zoom
-    var s = zoomScaleOverride != null ? Math.max(0.15, Math.min(lastZoomAuto, zoomScaleOverride)) : lastZoomAuto;
+    // 100% = the fit; lower reads as a fraction OF the fit (frac ≥ 0.2 keeps the
+    // page comfortably visible, so no separate floor is needed)
+    var s = zoomFrac != null ? lastZoomAuto * zoomFrac : lastZoomAuto;
     var originalH = wrap.offsetHeight; // layout height, unaffected by transform
     var pageScreenW = pageW * s;
     wrap.style.transformOrigin = 'top left';
@@ -2494,7 +2500,7 @@
     panel.style.right = z.pr || ''; panel.style.bottom = z.pb || '';
     document.documentElement.classList.remove('gogh-zoomed');
     zoomSlider.hidden = true;
-    zoomScaleOverride = null;
+    zoomFrac = null;
     setTimeout(function () {
       if (!zoomState) { z.wrap.style.transformOrigin = z.org || ''; z.wrap.style.transition = z.tr || ''; }
     }, 420);
