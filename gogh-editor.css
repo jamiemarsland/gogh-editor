@@ -1775,6 +1775,16 @@ html.gogh-zoomed .gogh-navadd,
 html.gogh-zoomed .gogh-navrm,
 html.gogh-zoomed .gogh-handle,
 html.gogh-zoomed .gogh-hgrip { display: none !important; }
+/* the header/footer editing room dims the page and spotlights the chrome — a
+   page section's toolbar/handles/inserter must not float over it (the cropped
+   SECTION pill above the header) */
+html.gogh-chrome-mode .gogh-secbar,
+html.gogh-chrome-mode .gogh-elbar,
+html.gogh-chrome-mode .gogh-hbar,
+html.gogh-chrome-mode .gogh-inserter,
+html.gogh-chrome-mode .gogh-selbox,
+html.gogh-chrome-mode .gogh-handle,
+html.gogh-chrome-mode .gogh-hgrip { display: none !important; }
 /* when the fold is open and the panel scrolls, keep the last controls clear of
    the sticky Done/Cancel foot — the reserved space tucks under it, not a row */
 .gogh-hmorebox { padding-bottom: 56px; }
