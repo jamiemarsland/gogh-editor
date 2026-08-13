@@ -303,14 +303,14 @@
 /* one scroll, not two: inner lists expand to their full length and the SIDEBAR
    itself scrolls as a single column — no cramped nested scroll boxes, and the
    full height gets used ("weird scrolling" + "use all the sidebar realestate") */
-.gogh-panel-sidebar .gogh-varlist,
-.gogh-panel-sidebar .gogh-media,
-.gogh-panel-sidebar .gogh-featlist,
-.gogh-panel-sidebar .gogh-chrome-rows,
-.gogh-panel-sidebar .gogh-mm-pages,
-.gogh-panel-sidebar .gogh-navadd-list { max-height: none; overflow: visible; }
+.gogh-panel.gogh-panel-sidebar .gogh-varlist,
+.gogh-panel.gogh-panel-sidebar .gogh-media,
+.gogh-panel.gogh-panel-sidebar .gogh-featlist,
+.gogh-panel.gogh-panel-sidebar .gogh-chrome-rows,
+.gogh-panel.gogh-panel-sidebar .gogh-mm-pages,
+.gogh-panel.gogh-panel-sidebar .gogh-navadd-list { max-height: none !important; overflow: visible !important; }
 /* the colour/variation rows breathe into the extra room */
-.gogh-panel-sidebar .gogh-varlist { gap: 2px; }
+.gogh-panel.gogh-panel-sidebar .gogh-varlist { gap: 2px; }
 /* the sidebar carries the panel — drag-to-move and resize don't belong on a
    docked surface */
 .gogh-panel.gogh-panel-sidebar .gogh-panel-title,
