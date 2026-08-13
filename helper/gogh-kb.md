@@ -15,7 +15,7 @@ about something where they conflict, rather than picking one silently. Quote UI
 labels and message copy from the appendix, verbatim — those are the current
 strings, and a paraphrased button label is the fastest way to lose a user's trust.
 
-Generated for plugin version 0.99.148 · knowledge base 062b884.
+Generated for plugin version 0.99.149 · knowledge base 781f569.
 
 ---
 
@@ -783,11 +783,11 @@ Everything in this section is extracted mechanically from the Gogh source on eve
 
 ## Current release
 
-- Plugin version: **0.99.148**
+- Plugin version: **0.99.149**
 - Requires WordPress **6.5+**, PHP **7.4+**
 - Text domain: `gogh-editor`
 - readme.txt Stable tag: `0.26.0` · Tested up to: `7.0`
-- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.148`). Quote the plugin header version.
+- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.149`). Quote the plugin header version.
 
 ## Design constants
 
@@ -1014,7 +1014,7 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "Unwrap — back to freeform"
 - "Updates every page"
 - "Upload a self-contained HTML experience — it runs sandboxed"
-- "Use a text title instead"
+- "Use a text name instead"
 - "Use this design"
 - "Use this layout"
 - "Whole page — reorder sections"
@@ -1046,6 +1046,7 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "Could not rescale the type — "
 - "Could not restore it."
 - "Could not save that section."
+- "Could not save the name — try again."
 - "Could not save the page, so the "
 - "Could not switch the "
 - "Could not update the "
@@ -1074,6 +1075,7 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "Section moved."
 - "Section removed — publish to make it real."
 - "Site "
+- "Site name saved."
 - "Style copied — click other text to paint it. Esc finishes."
 - "Text title restored — click it to rename your site."
 - "That saved section can’t be read."
