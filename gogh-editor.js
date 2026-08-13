@@ -1484,27 +1484,39 @@
   side.innerHTML =
     '<div class="gogh-side-head">' +
     '<span class="gogh-side-title">Design</span>' +
-    '</div>' +
-    '<div class="gogh-side-row">' +
-    '<button type="button" class="gogh-sbtn gogh-gridbtn" data-act="gridsnap" title="Grid: show and snap">' +
-    '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 9h18M3 15h18M9 3v18M15 3v18"/></svg>' +
-    '</button>' +
-    (cfg.experiments ? '<button type="button" class="gogh-sbtn gogh-phibtn" data-act="compguides" title="Golden ratio guides">φ</button>' : '') +
-    '<button type="button" class="gogh-sbtn gogh-zoomopen" title="Whole page — reorder sections">' +
-    '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="3" width="16" height="7" rx="1.6"/><rect x="4" y="14" width="16" height="7" rx="1.6"/><path d="M12 10.5v3"/></svg>' +
-    '</button>' +
-    '<button type="button" class="gogh-sbtn gogh-mirroropen" title="Live mobile preview">' +
-    '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="7" y="2.5" width="10" height="19" rx="2.5"/><path d="M10.5 18.5h3"/></svg>' +
+    '<button type="button" class="gogh-sbtn gogh-side-x" title="Done">' +
+    '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>' +
     '</button>' +
     '</div>' +
-    '<button type="button" class="gogh-sitem gogh-stylebtn"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M12 3a9 9 0 1 0 0 18h1.5a2.5 2.5 0 0 0 1.8-4.2 2.5 2.5 0 0 1 1.8-4.3H20a9 9 0 0 0-8-9.5Z"/><circle cx="7.5" cy="11" r="1.2" fill="currentColor" stroke="none"/><circle cx="10.5" cy="7.5" r="1.2" fill="currentColor" stroke="none"/><circle cx="15" cy="7.5" r="1.2" fill="currentColor" stroke="none"/></svg>Site style</button>' +
-    '<button type="button" class="gogh-sitem gogh-pagestylebtn"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M14 3v6h6"/></svg>Page style</button>' +
-    '<button type="button" class="gogh-sitem gogh-sd-designs"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><rect x="3" y="6" width="13" height="15" rx="1.6"/><path d="M7 3h13v15"/></svg>Site designs</button>' +
+    '<div class="gogh-side-cards">' +
+    '<button type="button" class="gogh-sitem gogh-scard gogh-stylebtn">' +
+    '<span class="gogh-scard-ic is-accent"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M12 3a9 9 0 1 0 0 18h1.5a2.5 2.5 0 0 0 1.8-4.2 2.5 2.5 0 0 1 1.8-4.3H20a9 9 0 0 0-8-9.5Z"/><circle cx="7.5" cy="11" r="1.2" fill="currentColor" stroke="none"/><circle cx="10.5" cy="7.5" r="1.2" fill="currentColor" stroke="none"/><circle cx="15" cy="7.5" r="1.2" fill="currentColor" stroke="none"/></svg></span>' +
+    '<span class="gogh-scard-tx"><span class="gogh-scard-t">Site style</span><span class="gogh-scard-s">Colours, type, brand</span></span>' +
+    '<svg class="gogh-scard-chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg></button>' +
+    '<button type="button" class="gogh-sitem gogh-scard gogh-pagestylebtn">' +
+    '<span class="gogh-scard-ic"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M14 3v6h6"/></svg></span>' +
+    '<span class="gogh-scard-tx"><span class="gogh-scard-t">Page style</span><span class="gogh-scard-s">How this page is framed</span></span>' +
+    '<svg class="gogh-scard-chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg></button>' +
+    '<button type="button" class="gogh-sitem gogh-scard gogh-sd-designs">' +
+    '<span class="gogh-scard-ic"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><rect x="3" y="6" width="13" height="15" rx="1.6"/><path d="M7 3h13v15"/></svg></span>' +
+    '<span class="gogh-scard-tx"><span class="gogh-scard-t">Site designs</span><span class="gogh-scard-s">Swap the whole look</span></span>' +
+    '<svg class="gogh-scard-chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg></button>' +
+    '</div>' +
     '<div class="gogh-side-gap"></div>' +
     '<div class="gogh-side-foot">' +
-    '<button type="button" class="gogh-sbtn gogh-undo" title="Undo (⌘Z)">↺</button>' +
-    '<button type="button" class="gogh-sbtn gogh-redo" title="Redo (⇧⌘Z)">↻</button>' +
-    (cfg.helpUrl ? '<button type="button" class="gogh-sbtn gogh-help" title="Help — ask gogh anything">?</button>' : '') +
+    '<button type="button" class="gogh-sbtn gogh-gridbtn" data-act="gridsnap" title="Grid: show and snap">' +
+    '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 9h18M3 15h18M9 3v18M15 3v18"/></svg></button>' +
+    (cfg.experiments ? '<button type="button" class="gogh-sbtn gogh-phibtn" data-act="compguides" title="Golden ratio guides">φ</button>' : '') +
+    '<button type="button" class="gogh-sbtn gogh-mirroropen" title="Live mobile preview">' +
+    '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="7" y="2.5" width="10" height="19" rx="2.5"/><path d="M10.5 18.5h3"/></svg></button>' +
+    '<button type="button" class="gogh-sbtn gogh-zoomopen" title="Whole page — reorder sections">' +
+    '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="3" width="16" height="7" rx="1.6"/><rect x="4" y="14" width="16" height="7" rx="1.6"/><path d="M12 10.5v3"/></svg></button>' +
+    '<button type="button" class="gogh-sbtn gogh-undo" title="Undo (⌘Z)">' +
+    '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 14l-4-4 4-4"/><path d="M5 10h11a4 4 0 0 1 0 8h-1"/></svg></button>' +
+    '<button type="button" class="gogh-sbtn gogh-redo" title="Redo (⇧⌘Z)">' +
+    '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 14l4-4-4-4"/><path d="M19 10H8a4 4 0 0 0 0 8h1"/></svg></button>' +
+    (cfg.helpUrl ? '<button type="button" class="gogh-sbtn gogh-help" title="Help — ask gogh anything">' +
+    '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M9.5 9.5a2.5 2.5 0 1 1 3 2.5c-.8.3-1 .8-1 1.5"/><path d="M12 17h.01"/></svg></button>' : '') +
     '</div>' +
     // the build number, always in sight: five bug reports in one day were
     // stale caches wearing fresh bugs' clothing. (The Write a post pill
@@ -1523,24 +1535,40 @@
   var sideTimer = null;
   function openSide() {
     clearTimeout(sideTimer);
+    var ab = document.getElementById('wpadminbar');
+    side.style.top = (ab ? ab.offsetHeight : 0) + 'px';
     side.classList.add('is-open');
+    side.classList.remove('gogh-side-away');
     sideTab.classList.add('is-away');
+    zoomOutCanvas(); // the design surface pairs with a zoomed-out page
   }
   function closeSide(now) {
     clearTimeout(sideTimer);
     var doIt = function () {
       side.classList.remove('is-open');
+      side.classList.remove('gogh-side-away');
       sideTab.classList.remove('is-away');
+      if (!panelOpen) unzoomCanvas(); // a section may still hold the zoom
     };
     if (now) doIt(); else sideTimer = setTimeout(doIt, 500);
   }
-  sideTab.addEventListener('pointerenter', openSide);
+  // return from a section to the Design home WITHOUT unzooming — one surface,
+  // navigating. Tears down the section panel but keeps the birds-eye.
+  function backToDesign() {
+    if (panelCleanup) { var pc = panelCleanup; panelCleanup = null; pc(); }
+    if (typeof clearPageStylePreview === 'function') clearPageStylePreview();
+    panel.hidden = true;
+    panel.classList.remove('gogh-panel-sidebar', 'gogh-panel-wide');
+    panel.style.top = ''; panel.style.right = ''; panel.style.bottom = '';
+    panel.style.left = ''; panel.style.width = '';
+    panelOpen = false;
+    side.classList.remove('gogh-side-away');
+    side.classList.add('is-open');
+    if (zoomState) layoutZoom();
+  }
+  // deliberate open — a docked, zooming surface, not a hover peek
   sideTab.addEventListener('click', openSide);
-  side.addEventListener('pointerenter', openSide);
-  side.addEventListener('pointerleave', function () { closeSide(false); });
-  document.addEventListener('pointermove', function (ev) {
-    if (editing && ev.clientX >= window.innerWidth - 12) openSide();
-  }, { passive: true });
+  side.querySelector('.gogh-side-x').addEventListener('click', function () { closeSide(true); });
 
   // handles
   var grip = document.createElement('div');
@@ -2351,6 +2379,7 @@
     panel.style.maxHeight = '';
     panelOpen = true;
     panelSticky = true;
+    side.classList.add('gogh-side-away'); // a section takes the surface; home waits
   }
   // ZOOM OUT: when a whole-page style panel opens (Site style / Page style),
   // pull the canvas back so folks see the WHOLE design at once while they
@@ -2386,8 +2415,10 @@
     var pad = 28;
     // the sidebar owns the right edge; fit the page into the clear area to its
     // left, centred. A comfortable scale independent of page LENGTH (scroll
-    // handles the rest). Read the panel's real left edge so it always clears.
-    var panelLeft = panel.getBoundingClientRect().left || window.innerWidth;
+    // handles the rest). Measure whichever sidebar is live — the section panel
+    // or the Design home — so the page always clears it.
+    var bar = (panelOpen && !panel.hidden) ? panel : side;
+    var panelLeft = bar.getBoundingClientRect().left || window.innerWidth;
     var pageAreaW = panelLeft - pad * 2;
     var pageW = wrap.offsetWidth || window.innerWidth;
     // pull back to a clear "zoomed out" size (cap ~0.62 so a wide screen doesn't
@@ -7352,7 +7383,7 @@
     var options = [{ slug: '', title: 'Standard' }].concat(cfg.pageTemplates || []);
     panel.innerHTML =
       '<div class="gogh-panel-head"><span class="gogh-panel-title">Page style</span>' +
-      '<button type="button" class="gogh-sbtn gogh-panel-close" title="Back to the palette">\u2715</button></div>' +
+      '<button type="button" class="gogh-sbtn gogh-panel-close gogh-panel-back" title="Back to Design"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"/></svg></button></div>' +
       '<div class="gogh-panel-hint">Hover to preview \u2014 click to keep it</div>' +
       '<div class="gogh-pagestyles"></div>';
     // the panel keeps its LAST position unless placed — without this it can
@@ -7361,10 +7392,7 @@
     zoomOutCanvas(); // pull the whole page into view to sense the framing
     ensurePreviewTitle();                      // so Standard has a title to reveal
     previewPageStyle(cfg.pageTemplate || '');  // start from the committed framing
-    panel.querySelector('.gogh-panel-close').addEventListener('click', function () {
-      closePanel();
-      openSide();
-    });
+    panel.querySelector('.gogh-panel-close').addEventListener('click', backToDesign);
     var box = panel.querySelector('.gogh-pagestyles');
     options.forEach(function (t) {
       var lab = pageStyleLabel(t);
@@ -7868,7 +7896,7 @@
       if (!vars.length) return;
       panel.innerHTML =
         '<div class="gogh-panel-head"><span class="gogh-panel-title">Site style</span>' +
-        '<button type="button" class="gogh-sbtn gogh-panel-close" title="Back to the palette">\u2715</button></div>' +
+        '<button type="button" class="gogh-sbtn gogh-panel-close gogh-panel-back" title="Back to Design"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"/></svg></button></div>' +
         '<div class="gogh-panel-hint">Hover to preview \u2014 click to keep it</div>' +
         '<div class="gogh-panel-hint" style="margin-top:6px">Type scale</div>' +
         '<div class="gogh-hpresets gogh-typescale">' +
@@ -7913,8 +7941,7 @@
       });
       panel.querySelector('.gogh-panel-close').addEventListener('click', function () {
         tsPreviewOff();
-        closePanel();
-        openSide();
+        backToDesign();
       });
       var box = panel.querySelector('.gogh-varlist');
       // Site designs lives in the Design drawer alone — this panel is styles

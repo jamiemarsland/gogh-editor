@@ -79,38 +79,60 @@
     from { opacity: 0; transform: translateY(10px) scale(0.97); }
   }
 }
+/* DESIGN sidebar: a solid docked surface, flush to the right edge, full height —
+   the home for Site style / Page style / Site designs and the tools */
 .gogh-side {
   position: fixed;
-  right: 16px;
-  top: 50%;
-  transform: translateY(-50%);
+  top: 32px; right: 0; bottom: 0;
   z-index: 99999;
-  width: 168px;
+  box-sizing: border-box;
+  width: 384px; max-width: 46vw; min-width: 320px;
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  background: var(--gogh-ui-bg);
-  border: 1px solid var(--gogh-ui-border);
-  border-radius: 16px;
-  padding: 14px 12px;
-  box-shadow: 0 24px 60px -18px rgba(0, 0, 0, 0.7);
+  gap: 16px;
+  background: #fff; /* fully opaque — the ui-bg var carries 2% translucency */
+  border-left: 1px solid var(--gogh-ui-border);
+  padding: 22px 24px 18px;
+  box-shadow: -18px 0 50px -28px rgba(0, 0, 0, 0.45);
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, sans-serif;
-  max-height: calc(100vh - 120px);
-  overflow: auto;
+  color: var(--gogh-ui-fg);
+  overflow-y: auto;
+  overflow-x: hidden;
 }
 .gogh-side[hidden] { display: none; }
-/* tuck-away drawer: collapsed off the right edge, slides in on hover */
 .gogh-side {
-  transform: translate(calc(100% + 32px), -50%);
+  transform: translateX(26px);
   opacity: 0;
   pointer-events: none;
-  transition: transform 0.34s var(--gogh-spring), opacity 0.28s ease;
+  transition: transform 0.34s var(--gogh-spring), opacity 0.26s ease;
 }
-.gogh-side.is-open {
-  transform: translate(0, -50%);
-  opacity: 1;
-  pointer-events: auto;
+.gogh-side.is-open { transform: none; opacity: 1; pointer-events: auto; }
+.gogh-side.gogh-side-away { visibility: hidden; }
+/* the home's cards: icon · title · subtitle · chevron */
+.gogh-side-cards { display: flex; flex-direction: column; gap: 10px; }
+.gogh-scard {
+  all: unset; box-sizing: border-box; cursor: pointer;
+  display: flex; align-items: center; gap: 14px;
+  padding: 14px; border-radius: 12px;
+  border: 1px solid var(--gogh-ui-border);
+  background: var(--gogh-ui-bg);
+  transition: border-color 0.15s ease, background 0.15s ease, transform 0.08s ease;
 }
+.gogh-scard:hover { border-color: #c7cad1; background: #fafbfc; }
+.gogh-scard:active { transform: scale(0.992); }
+.gogh-scard-ic {
+  width: 38px; height: 38px; border-radius: 10px; flex: 0 0 auto;
+  background: #f1f2f4; color: #4b4f57;
+  display: flex; align-items: center; justify-content: center;
+}
+.gogh-scard-ic.is-accent { background: #eef0ff; color: #4f5aee; }
+.gogh-scard-tx { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.gogh-scard-t { font-size: 15px; font-weight: 600; letter-spacing: -0.01em; }
+.gogh-scard-s { font-size: 13px; color: #6b7280; }
+.gogh-scard-chev { color: #bcc0c8; margin-left: auto; flex: 0 0 auto; }
+.gogh-side-gap { flex: 1 1 auto; min-height: 8px; }
+.gogh-side-x { flex: 0 0 auto; width: 30px; height: 30px; display: grid; place-items: center; padding: 0; }
+.gogh-side-x svg { display: block; }
 .gogh-side-tab {
   all: unset;
   position: fixed;
@@ -159,14 +181,12 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 2px 6px;
 }
 .gogh-side-title {
-  font-size: 14px;
-  font-weight: 800;
+  font-size: 17px;
+  font-weight: 700;
   color: var(--gogh-ui-fg);
   letter-spacing: -0.01em;
-  padding: 0 4px;
 }
 .gogh-side-label {
   font-size: 9px;
@@ -1758,19 +1778,30 @@ html.gogh-zoomed .gogh-hgrip { display: none !important; }
 /* history lives at the palette's foot, under a hairline */
 .gogh-side-ver {
   text-align: center;
-  font-size: 10px;
-  letter-spacing: 0.06em;
+  font-size: 11px;
+  letter-spacing: 0.04em;
   color: #a6adb8;
-  padding: 4px 0 8px;
+  padding: 6px 0 0;
   user-select: text;
 }
 .gogh-side-foot {
   display: flex;
-  gap: 6px;
-  margin-top: 6px;
-  padding-top: 10px;
+  align-items: center;
+  gap: 8px;
+  padding-top: 14px;
   border-top: 1px solid var(--gogh-ui-border);
 }
+/* footer tools: even icon buttons, help pushed to the far end */
+.gogh-side-foot .gogh-sbtn {
+  flex: 0 0 auto;
+  width: 36px; height: 36px;
+  display: grid; place-items: center;
+  padding: 0;
+}
+.gogh-side-foot .gogh-sbtn svg { display: block; }
+.gogh-side-foot .gogh-help { margin-left: auto; }
+/* the flex-fill gap between cards and footer — override the old fixed height */
+.gogh-side .gogh-side-gap { flex: 1 1 auto; height: auto; min-height: 12px; }
 .gogh-panel .gogh-varlist { max-height: 320px; overflow-y: auto; }
 
 .gogh-panel-head {
