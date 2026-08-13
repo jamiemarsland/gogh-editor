@@ -1781,9 +1781,11 @@ html.gogh-zoomed { overflow-x: hidden; background: #dfe0e5; }
    page (painted onto .wp-site-blocks in JS), so it no longer floods the frame */
 html.gogh-zoomed body { background: #dfe0e5 !important; }
 /* the birds-eye is a preview: get every editing affordance out of the frame so
-   folks see the DESIGN, not the chrome (mirrors the cycling-mode hide) */
+   folks see the DESIGN, not the chrome (mirrors the cycling-mode hide). The
+   ELEMENT toolbar is the exception — you now arrange AND edit in the zoomed
+   view, so a selected element keeps its toolbar (it only shows on selection,
+   so an audition with nothing selected stays clean) */
 html.gogh-zoomed .gogh-secbar,
-html.gogh-zoomed .gogh-elbar,
 html.gogh-zoomed .gogh-hbar,
 html.gogh-zoomed .gogh-inserter,
 html.gogh-zoomed .gogh-chip,

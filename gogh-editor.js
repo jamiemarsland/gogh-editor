@@ -2599,7 +2599,21 @@
     else if (e.type === 'image') buildImagePanel(sec, i);
     else if (e.type === 'box') buildBoxPanel(sec, i);
     else if (e.type === 'widget') buildWidgetPanel(sec, i);
-    placePanelNear(sec.nodes[i]);
+    // in the zoomed Design view, dock the panel into the sidebar with a
+    // Back-to-Design header (as the style/page auditions do) — a panel
+    // floating over the shrunk canvas reads as "lost", and closing it used
+    // to drop the birds-eye. Back returns home with the zoom intact.
+    if (zoomState && side.classList.contains('is-open')) {
+      var titles = { button: 'Link', image: 'Image', box: 'Box', widget: 'Widget' };
+      panel.insertAdjacentHTML('afterbegin',
+        '<div class="gogh-panel-head"><span class="gogh-panel-title">' + (titles[e.type] || 'Element') + '</span>' +
+        '<button type="button" class="gogh-sbtn gogh-panel-back" title="Back to Design"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"/></svg></button></div>');
+      panel.querySelector('.gogh-panel-back').addEventListener('click', backToDesign);
+      dockSidebar();
+      layoutZoom(); // re-centre the page around the docked panel's width
+    } else {
+      placePanelNear(sec.nodes[i]);
+    }
     panelOpen = true;
     // the Q&A editors are typing surfaces — outside clicks pass through
     if (e.type === 'widget' && ((e.faq && e.faq.length) || (e.tabs && e.tabs.length) || (e.slides && e.slides.length) || (e.wall && e.wall.length))) panelSticky = true;
@@ -5559,6 +5573,7 @@
     resolveAndApply(sec);
     placeHbar(sec);
     pushState();
+    if (zoomState) layoutZoom(); // section height changed — re-fit the birds-eye
   }
   hgrip.addEventListener('pointerup', endHDrag);
   hgrip.addEventListener('pointercancel', endHDrag);
@@ -7103,6 +7118,7 @@
     }
     if (multiD) { sel = null; } else { placeHandles(sec, i); }
     pushState();
+    if (zoomState) layoutZoom(); // a taller/shorter section shifts the birds-eye — re-fit the scroll cap
   }
   // ---------- kid selection, movement, escape, and text ----------
   var kidSel = null; // {sec, ci, j, node}
@@ -8527,6 +8543,7 @@
     else resolveAndApply(sec);
     placeHandles(sec, i);
     pushState();
+    if (zoomState) layoutZoom(); // resizing changed the height — re-fit the birds-eye
   }
 
   // ---------- rotation ----------
