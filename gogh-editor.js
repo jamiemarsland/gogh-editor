@@ -1530,6 +1530,23 @@
     '<div class="gogh-side-ver" title="The gogh build this tab is running"></div>';
   document.body.appendChild(side);
 
+  // zoom slider: pull the birds-eye further out on the right of the canvas.
+  // Drives the scale factor directly; shown only while the design view is zoomed.
+  var zoomScaleOverride = null; // null = auto-fit
+  var lastZoomAuto = 0.62;
+  var zoomSlider = document.createElement('div');
+  zoomSlider.className = 'gogh-zoomslider';
+  zoomSlider.hidden = true;
+  zoomSlider.innerHTML =
+    '<span class="gogh-zoomslider-val">62%</span>' +
+    '<input type="range" min="20" max="100" step="1" value="62" aria-label="Zoom the page">';
+  document.body.appendChild(zoomSlider);
+  zoomSlider.querySelector('input').addEventListener('input', function () {
+    zoomScaleOverride = (+this.value) / 100;
+    zoomSlider.querySelector('.gogh-zoomslider-val').textContent = this.value + '%';
+    if (zoomState) layoutZoom();
+  });
+
   // tuck-away drawer: slim edge tab when collapsed, slide-in on hover
   var sideTab = document.createElement('button');
   sideTab.type = 'button';
@@ -2408,7 +2425,13 @@
     wrap.style.background = 'var(--wp--preset--color--background, ' + getComputedStyle(document.body).backgroundColor + ')';
     wrap.style.boxShadow = '0 30px 90px -24px rgba(0, 0, 0, 0.4)';
     document.documentElement.classList.add('gogh-zoomed');
+    zoomScaleOverride = null; // start at auto-fit
     layoutZoom();
+    // reflect the auto-fit scale on the slider, and reveal it
+    var zi = zoomSlider.querySelector('input');
+    zi.value = Math.round(lastZoomAuto * 100);
+    zoomSlider.querySelector('.gogh-zoomslider-val').textContent = zi.value + '%';
+    zoomSlider.hidden = false;
   }
   // dock the style panel on the RIGHT and scale the page to a comfortable,
   // readable size that clears it on the left — a middle ground, NOT crushed to
@@ -2425,11 +2448,13 @@
     // surface is live — the section panel or the Design home.
     var bar = (panelOpen && !panel.hidden) ? panel : side;
     var barRight = bar.getBoundingClientRect().right || 0;
-    var pageAreaW = window.innerWidth - barRight - pad * 2;
+    var sliderW = 56; // reserve room for the zoom slider on the right edge
+    var pageAreaW = window.innerWidth - barRight - pad * 2 - sliderW;
     var pageW = wrap.offsetWidth || window.innerWidth;
-    // pull back to a clear "zoomed out" size (cap ~0.62 so a wide screen doesn't
-    // leave it near full-size), but never past what the clear area can hold
-    var s = Math.max(0.38, Math.min(0.62, pageAreaW / pageW));
+    // auto-fit: a clear "zoomed out" size (cap ~0.62 so a wide screen doesn't
+    // leave it near full-size). The slider can override it (0.15–1).
+    lastZoomAuto = Math.max(0.38, Math.min(0.62, pageAreaW / pageW));
+    var s = zoomScaleOverride != null ? Math.max(0.15, Math.min(1, zoomScaleOverride)) : lastZoomAuto;
     var originalH = wrap.offsetHeight; // layout height, unaffected by transform
     var pageScreenW = pageW * s;
     wrap.style.transformOrigin = 'top left';
@@ -2452,6 +2477,8 @@
     panel.style.left = z.pl || ''; panel.style.top = z.pt || '';
     panel.style.right = z.pr || ''; panel.style.bottom = z.pb || '';
     document.documentElement.classList.remove('gogh-zoomed');
+    zoomSlider.hidden = true;
+    zoomScaleOverride = null;
     setTimeout(function () {
       if (!zoomState) { z.wrap.style.transformOrigin = z.org || ''; z.wrap.style.transition = z.tr || ''; }
     }, 420);
