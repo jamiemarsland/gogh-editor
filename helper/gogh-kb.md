@@ -15,7 +15,7 @@ about something where they conflict, rather than picking one silently. Quote UI
 labels and message copy from the appendix, verbatim — those are the current
 strings, and a paraphrased button label is the fastest way to lose a user's trust.
 
-Generated for plugin version 0.99.149 · knowledge base 781f569.
+Generated for plugin version 0.99.150 · knowledge base fad62b5.
 
 ---
 
@@ -783,11 +783,11 @@ Everything in this section is extracted mechanically from the Gogh source on eve
 
 ## Current release
 
-- Plugin version: **0.99.149**
+- Plugin version: **0.99.150**
 - Requires WordPress **6.5+**, PHP **7.4+**
 - Text domain: `gogh-editor`
 - readme.txt Stable tag: `0.26.0` · Tested up to: `7.0`
-- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.149`). Quote the plugin header version.
+- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.150`). Quote the plugin header version.
 
 ## Design constants
 
@@ -911,6 +911,8 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "+ Link"
 - "+ Page"
 - "A card — drop elements inside and they stay together, even on mobile"
+- "AG"
+- "Aa"
 - "Add a page to this menu"
 - "Add an element to this section"
 - "Add link"
@@ -918,6 +920,7 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "Adjust spacing"
 - "All options"
 - "Apply"
+- "As typed"
 - "Auto"
 - "Back"
 - "Back to the palette"
@@ -1010,6 +1013,7 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "Text colour"
 - "The gogh build this tab is running"
 - "Theme default"
+- "UPPERCASE"
 - "Undo (⌘Z)"
 - "Unwrap — back to freeform"
 - "Updates every page"
@@ -1021,7 +1025,9 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "Write"
 - "Your latest posts, live"
 - "Your latest products, live — prices and add to cart included"
+- "ag"
 - "gogh help"
+- "lowercase"
 - "← All layouts"
 - "↕ Spacing…"
 - "▶ Auto-play"
@@ -1113,4 +1119,4 @@ These are the real strings in the current build. Use them verbatim; never paraph
 
 ## Test suite
 
-`147` tests, run by appending `?gogh-test` to any Gogh page URL while logged in with edit rights on that page.
+`148` tests, run by appending `?gogh-test` to any Gogh page URL while logged in with edit rights on that page.
