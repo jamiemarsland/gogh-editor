@@ -1,12 +1,12 @@
 {
   "meta": {
-    "plugin_version": "0.99.149",
+    "plugin_version": "0.99.150",
     "requires_wp": "6.5",
     "requires_php": "7.4",
     "text_domain": "gogh-editor",
     "readme_stable_tag": "0.26.0",
     "readme_tested_up_to": "7.0",
-    "asset_version": "0.99.149-chrome"
+    "asset_version": "0.99.150-chrome"
   },
   "constants": {
     "TOL": 8,
@@ -351,6 +351,8 @@
     "+ Link",
     "+ Page",
     "A card — drop elements inside and they stay together, even on mobile",
+    "AG",
+    "Aa",
     "Add a page to this menu",
     "Add an element to this section",
     "Add link",
@@ -358,6 +360,7 @@
     "Adjust spacing",
     "All options",
     "Apply",
+    "As typed",
     "Auto",
     "Back",
     "Back to the palette",
@@ -450,6 +453,7 @@
     "Text colour",
     "The gogh build this tab is running",
     "Theme default",
+    "UPPERCASE",
     "Undo (⌘Z)",
     "Unwrap — back to freeform",
     "Updates every page",
@@ -461,7 +465,9 @@
     "Write",
     "Your latest posts, live",
     "Your latest products, live — prices and add to cart included",
+    "ag",
     "gogh help",
+    "lowercase",
     "← All layouts",
     "↕ Spacing…",
     "▶ Auto-play",
@@ -787,5 +793,5 @@
     "has_deprecation": true,
     "block_title": "gogh Section"
   },
-  "test_count": 147
+  "test_count": 148
 }
