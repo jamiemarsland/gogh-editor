@@ -7393,10 +7393,44 @@
     h1.textContent = t;
     main.insertBefore(h1, main.firstChild);
   }
+  // the harder half: a Blank-canvas (or no-title) page has NO header/footer in
+  // the DOM either, so auditioning "Standard" had nothing to bring back. Fetch
+  // the site's own rendered chrome ONCE (the header/footer are site-wide) and
+  // drop hidden clones in, so the preview can reveal them from any starting
+  // template. Scripts stripped; marked .gogh-ps-injected; removed on close.
+  var _psChromeHTML = null;
+  function ensurePreviewChrome(after) {
+    var wrap = document.querySelector('.wp-site-blocks');
+    var haveHeader = !!document.querySelector('header.wp-block-template-part');
+    var haveFooter = !!document.querySelector('footer.wp-block-template-part');
+    if (!wrap || (haveHeader && haveFooter)) { if (after) after(); return; }
+    var inject = function (html) {
+      try {
+        var doc = new DOMParser().parseFromString(html || '', 'text/html');
+        [].forEach.call(doc.querySelectorAll('script'), function (s) { s.remove(); });
+        if (!haveHeader) {
+          var h = doc.querySelector('header.wp-block-template-part');
+          if (h) { h.classList.add('gogh-ps-injected'); wrap.insertBefore(h, wrap.firstChild); }
+        }
+        if (!haveFooter) {
+          var f = doc.querySelector('footer.wp-block-template-part');
+          if (f) { f.classList.add('gogh-ps-injected'); wrap.appendChild(f); }
+        }
+      } catch (e) {}
+      if (after) after();
+    };
+    if (_psChromeHTML != null) { inject(_psChromeHTML); return; }
+    // the front page renders the real header + footer; a public GET, no nonce
+    fetch(location.origin + '/', { credentials: 'same-origin' })
+      .then(function (r) { return r.ok ? r.text() : ''; })
+      .then(function (html) { _psChromeHTML = html; inject(html); })
+      .catch(function () { if (after) after(); });
+  }
   function clearPageStylePreview() {
     document.documentElement.classList.remove('gogh-ps-notitle', 'gogh-ps-blank');
     var pv = document.querySelector('.gogh-ps-title-preview');
     if (pv) pv.remove();
+    [].forEach.call(document.querySelectorAll('.gogh-ps-injected'), function (n) { n.remove(); });
   }
   function openPageStylePanel(anchorEl) {
     var options = [{ slug: '', title: 'Standard' }].concat(cfg.pageTemplates || []);
@@ -7410,7 +7444,12 @@
     dockSidebar();
     zoomOutCanvas(); // pull the whole page into view to sense the framing
     ensurePreviewTitle();                      // so Standard has a title to reveal
-    previewPageStyle(cfg.pageTemplate || '');  // start from the committed framing
+    // header/footer too (may be async — a fetch when they're not in the DOM),
+    // then start from the committed framing and refit the birds-eye
+    ensurePreviewChrome(function () {
+      previewPageStyle(cfg.pageTemplate || '');
+      if (zoomState) layoutZoom();
+    });
     panel.querySelector('.gogh-panel-close').addEventListener('click', backToDesign);
     var box = panel.querySelector('.gogh-pagestyles');
     options.forEach(function (t) {
