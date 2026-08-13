@@ -1686,6 +1686,14 @@ body.gogh-painting, body.gogh-painting .gogh-section * { cursor: url('data:image
 /* ZOOM OUT while auditioning a whole-page style: the birds-eye fills the frame,
    so lock the scroll (the empty space below the shrunk canvas isn't a place to
    wander) — the style panel keeps its own inner scroll */
+/* PAGE STYLE audition (client-side, no reload): the three framings are just
+   which chrome shows. No page title drops the title; Blank canvas drops the
+   header + footer (and title) — pure gogh. */
+html.gogh-ps-notitle .wp-block-post-title,
+html.gogh-ps-blank .wp-block-post-title,
+html.gogh-ps-blank header.wp-block-template-part,
+html.gogh-ps-blank footer.wp-block-template-part { display: none !important; }
+
 html.gogh-zoomed { overflow: hidden; background: #dfe0e5; }
 /* a neutral desk behind the shrunk page — the site's own colour stays ON the
    page (painted onto .wp-site-blocks in JS), so it no longer floods the frame */

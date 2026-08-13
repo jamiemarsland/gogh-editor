@@ -2341,21 +2341,13 @@
   // OUTSIDE .wp-site-blocks, so scaling that wrapper leaves them full size.
   var zoomState = null;
   function zoomOutCanvas() {
-    if (zoomState) return;
+    if (zoomState) { layoutZoom(); return; } // re-fit if already zoomed
     var wrap = document.querySelector('.wp-site-blocks');
     if (!wrap) return;
-    var adminBar = document.getElementById('wpadminbar');
-    var topGap = adminBar ? adminBar.offsetHeight : 0;
-    var avail = window.innerHeight - topGap;
-    var contentH = wrap.scrollHeight;
-    // fit the page to the viewport with a little breathing room; never zoom IN,
-    // and floor it so a very long page becomes a birds-eye, not a postage stamp
-    var s = Math.max(0.35, Math.min(1, (avail / contentH) * 0.9));
-    if (s >= 0.999) return; // already fits — nothing to pull back
     window.scrollTo(0, 0); // birds-eye starts from the top of the page
     zoomState = { wrap: wrap, tf: wrap.style.transform, org: wrap.style.transformOrigin,
-      tr: wrap.style.transition, bg: wrap.style.background, sh: wrap.style.boxShadow };
-    wrap.style.transformOrigin = 'top center';
+      tr: wrap.style.transition, bg: wrap.style.background, sh: wrap.style.boxShadow,
+      pl: panel.style.left, pt: panel.style.top, pr: panel.style.right, pb: panel.style.bottom };
     wrap.style.transition = 'transform 0.5s cubic-bezier(0.4, 0, 0.2, 1)';
     // the site's colour belongs ON the page, not leaking across the desk:
     // paint the site bg onto the artboard (tracks the live audition via the
@@ -2363,8 +2355,34 @@
     wrap.style.background = 'var(--wp--preset--color--background, ' + getComputedStyle(document.body).backgroundColor + ')';
     wrap.style.boxShadow = '0 30px 90px -24px rgba(0, 0, 0, 0.4)';
     void wrap.offsetHeight; // reflow so the transition actually runs
-    wrap.style.transform = 'scale(' + s + ')';
     document.documentElement.classList.add('gogh-zoomed');
+    layoutZoom();
+  }
+  // dock the style panel on the LEFT and fit the page into the space to its
+  // right, so the panel never sits over the page ("position it on the left so
+  // it's not overlapping the actual page"). Re-runs on resize.
+  function layoutZoom() {
+    if (!zoomState) return;
+    var wrap = zoomState.wrap;
+    var adminBar = document.getElementById('wpadminbar');
+    var topGap = adminBar ? adminBar.offsetHeight : 0;
+    var pad = 20;
+    var panelW = panel.offsetWidth || 360;
+    panel.style.left = pad + 'px';
+    panel.style.top = (topGap + pad) + 'px';
+    panel.style.right = 'auto';
+    panel.style.bottom = 'auto';
+    var leftCol = pad + panelW + pad;         // panel column + gaps
+    var availW = window.innerWidth - leftCol - pad;
+    var availH = window.innerHeight - topGap - pad * 2;
+    var pageW = wrap.offsetWidth || window.innerWidth;
+    var contentH = wrap.scrollHeight;
+    var s = Math.min(availW / pageW, availH / contentH);
+    s = Math.max(0.3, Math.min(1, s * 0.98)); // floor so it never goes tiny
+    // origin top-left + translate: scale toward the corner, then slot the page
+    // into the clear area to the RIGHT of the docked panel
+    wrap.style.transformOrigin = 'top left';
+    wrap.style.transform = 'translate(' + leftCol + 'px, ' + pad + 'px) scale(' + s + ')';
   }
   function unzoomCanvas() {
     if (!zoomState) return;
@@ -2372,6 +2390,8 @@
     z.wrap.style.transform = z.tf || '';
     z.wrap.style.background = z.bg || '';
     z.wrap.style.boxShadow = z.sh || '';
+    panel.style.left = z.pl || ''; panel.style.top = z.pt || '';
+    panel.style.right = z.pr || ''; panel.style.bottom = z.pb || '';
     document.documentElement.classList.remove('gogh-zoomed');
     // tidy origin/transition once the ride home finishes (unless re-zoomed)
     setTimeout(function () {
@@ -2380,6 +2400,7 @@
   }
   function closePanel() {
     if (panelCleanup) { var pc = panelCleanup; panelCleanup = null; pc(); }
+    clearPageStylePreview(); // a page-style audition never outlives its panel
     unzoomCanvas(); // a style audition's zoom-out never outlives its panel
     exitChromeMode(); // leave the header room cleanly — dim off, spotlight off
     delete panel.dataset.goghArea;
@@ -7270,12 +7291,27 @@
     if (/full|wide/.test(t.slug)) return { name: t.title || 'Full width', hint: 'Content runs edge to edge' };
     return { name: t.title || t.slug, hint: '' };
   }
+  // audition a page style WITHOUT a reload: the three framings are just which
+  // chrome shows, so toggle it live via html classes. Blank canvas drops the
+  // header + footer; No page title drops the title. Reverts to the applied
+  // template on leave; committing (click) does the real save + reload.
+  function previewPageStyle(slug) {
+    var h = document.documentElement;
+    h.classList.remove('gogh-ps-notitle', 'gogh-ps-blank');
+    if (/blank-canvas$/.test(slug)) h.classList.add('gogh-ps-blank');
+    else if (/no-title/.test(slug)) h.classList.add('gogh-ps-notitle');
+    // hiding chrome changes the page height \u2014 refit the birds-eye
+    if (zoomState) layoutZoom();
+  }
+  function clearPageStylePreview() {
+    document.documentElement.classList.remove('gogh-ps-notitle', 'gogh-ps-blank');
+  }
   function openPageStylePanel(anchorEl) {
     var options = [{ slug: '', title: 'Standard' }].concat(cfg.pageTemplates || []);
     panel.innerHTML =
       '<div class="gogh-panel-head"><span class="gogh-panel-title">Page style</span>' +
       '<button type="button" class="gogh-sbtn gogh-panel-close" title="Back to the palette">\u2715</button></div>' +
-      '<div class="gogh-panel-hint">How this page is framed by your theme.</div>' +
+      '<div class="gogh-panel-hint">Hover to preview \u2014 click to keep it</div>' +
       '<div class="gogh-pagestyles"></div>';
     // the panel keeps its LAST position unless placed — without this it can
     // open wherever it was previously used, often outside the viewport
@@ -7297,6 +7333,9 @@
         '<span class="gogh-pagestyle-tick">\u2713</span>';
       b.querySelector('.gogh-pagestyle-name').textContent = lab.name;
       if (lab.hint) b.querySelector('.gogh-pagestyle-hint').textContent = lab.hint;
+      // hover auditions the framing live (no reload) — leave restores current
+      b.addEventListener('mouseenter', function () { previewPageStyle(t.slug); });
+      b.addEventListener('mouseleave', function () { previewPageStyle(cfg.pageTemplate || ''); });
       b.addEventListener('click', function () {
         if ((cfg.pageTemplate || '') === t.slug) return;
         if (isDirty()) {
