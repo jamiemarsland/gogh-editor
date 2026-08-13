@@ -1544,7 +1544,9 @@
   zoomSlider.querySelector('input').addEventListener('input', function () {
     zoomScaleOverride = (+this.value) / 100;
     zoomSlider.querySelector('.gogh-zoomslider-val').textContent = this.value + '%';
-    if (zoomState) layoutZoom();
+    // track the slider directly — a transition here would lag the thumb; the
+    // page follows the finger at 60fps, then the open/close ease is restored
+    if (zoomState) { zoomState.wrap.style.transition = 'none'; layoutZoom(); }
   });
 
   // tuck-away drawer: slim edge tab when collapsed, slide-in on hover
@@ -2427,9 +2429,10 @@
     document.documentElement.classList.add('gogh-zoomed');
     zoomScaleOverride = null; // start at auto-fit
     layoutZoom();
-    // reflect the auto-fit scale on the slider, and reveal it
+    // the fit size is the MAX zoom (bigger would overlap the sides); start there
     var zi = zoomSlider.querySelector('input');
-    zi.value = Math.round(lastZoomAuto * 100);
+    zi.max = Math.round(lastZoomAuto * 100);
+    zi.value = zi.max;
     zoomSlider.querySelector('.gogh-zoomslider-val').textContent = zi.value + '%';
     zoomSlider.hidden = false;
   }
@@ -2447,18 +2450,25 @@
     // independent of page LENGTH (scroll handles the rest). Measure whichever
     // surface is live — the section panel or the Design home.
     var bar = (panelOpen && !panel.hidden) ? panel : side;
-    var barRight = bar.getBoundingClientRect().right || 0;
-    var sliderW = 56; // reserve room for the zoom slider on the right edge
-    var pageAreaW = window.innerWidth - barRight - pad * 2 - sliderW;
+    // offsetWidth, not getBoundingClientRect: both surfaces dock at left:0, and
+    // the rect is still MOVING during the slide-in (measuring it mid-animation
+    // is what made the left/right gaps unequal). offsetWidth is the settled edge.
+    var barRight = bar.offsetWidth || 0;
+    var sliderReserve = 64; // the zoom slider's footprint on the right edge
+    // the clear span between the sidebar (left) and the slider (right); centring
+    // the page in THIS gives equal gaps on both sides
+    var span = window.innerWidth - barRight - sliderReserve;
     var pageW = wrap.offsetWidth || window.innerWidth;
-    // auto-fit: a clear "zoomed out" size (cap ~0.62 so a wide screen doesn't
-    // leave it near full-size). The slider can override it (0.15–1).
-    lastZoomAuto = Math.max(0.38, Math.min(0.62, pageAreaW / pageW));
-    var s = zoomScaleOverride != null ? Math.max(0.15, Math.min(1, zoomScaleOverride)) : lastZoomAuto;
+    // auto-fit within the span (cap ~0.62); the slider can override it (0.15–1)
+    lastZoomAuto = Math.max(0.38, Math.min(0.62, (span - pad * 2) / pageW));
+    // the slider can pull OUT from the fit size but never past it — a bigger
+    // scale would overlap the sidebar/slider, so auto-fit is the max zoom
+    var s = zoomScaleOverride != null ? Math.max(0.15, Math.min(lastZoomAuto, zoomScaleOverride)) : lastZoomAuto;
     var originalH = wrap.offsetHeight; // layout height, unaffected by transform
     var pageScreenW = pageW * s;
     wrap.style.transformOrigin = 'top left';
-    var tx = barRight + pad + Math.max(0, (pageAreaW - pageScreenW) / 2);
+    // centre in the span → the gap to the sidebar equals the gap to the slider
+    var tx = barRight + Math.max(pad, (span - pageScreenW) / 2);
     wrap.style.transform = 'translateX(' + tx + 'px) scale(' + s + ')';
     // cap the body to the SCALED height (html keeps the scroll) so the document
     // ends exactly where the shrunk page does — vertical scroll stops at the
