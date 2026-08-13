@@ -1746,6 +1746,14 @@ html.gogh-ps-notitle .wp-block-post-title,
 html.gogh-ps-blank .wp-block-post-title,
 html.gogh-ps-blank header.wp-block-template-part,
 html.gogh-ps-blank footer.wp-block-template-part { display: none !important; }
+/* with the header/title gone, the theme's top spacing on the content (a ~70px
+   margin/padding that normally sits below the header) becomes a dark gap at the
+   very top — collapse it so the content sits flush ("strip along the top" /
+   "extra margin under the nav") */
+html.gogh-ps-blank .wp-site-blocks > main,
+html.gogh-ps-notitle .wp-site-blocks > main { margin-top: 0 !important; }
+html.gogh-ps-blank .wp-site-blocks > main > :first-child,
+html.gogh-ps-notitle .wp-site-blocks > main > :first-child { padding-top: 0 !important; }
 
 /* zoomed view SCROLLS vertically (the page is a comfortable size, not crushed
    to fit) — only lock horizontal so the desk never slides sideways */
