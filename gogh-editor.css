@@ -1683,6 +1683,11 @@ body.gogh-painting, body.gogh-painting .gogh-section * { cursor: url('data:image
 .gogh-hmore:hover { opacity: 0.95; }
 .gogh-hmore-chev { font-size: 10px; opacity: 0.8; }
 .gogh-hmorebox[hidden] { display: none; }
+/* ZOOM OUT while auditioning a whole-page style: the birds-eye fills the frame,
+   so lock the scroll (the empty space below the shrunk canvas isn't a place to
+   wander) — the style panel keeps its own inner scroll */
+html.gogh-zoomed { overflow: hidden; }
+html.gogh-zoomed .wp-site-blocks { will-change: transform; }
 /* when the fold is open and the panel scrolls, keep the last controls clear of
    the sticky Done/Cancel foot — the reserved space tucks under it, not a row */
 .gogh-hmorebox { padding-bottom: 56px; }

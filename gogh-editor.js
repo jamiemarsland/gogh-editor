@@ -2335,8 +2335,44 @@
     panel.addEventListener('pointercancel', function () { pd = null; });
   })();
   var panelCleanup = null; // a panel's audition-undo — closePanel runs it on EVERY path (Esc included)
+  // ZOOM OUT: when a whole-page style panel opens (Site style / Page style),
+  // pull the canvas back so folks see the WHOLE design at once while they
+  // audition — "get a real sense of the design". The panel and admin bar sit
+  // OUTSIDE .wp-site-blocks, so scaling that wrapper leaves them full size.
+  var zoomState = null;
+  function zoomOutCanvas() {
+    if (zoomState) return;
+    var wrap = document.querySelector('.wp-site-blocks');
+    if (!wrap) return;
+    var adminBar = document.getElementById('wpadminbar');
+    var topGap = adminBar ? adminBar.offsetHeight : 0;
+    var avail = window.innerHeight - topGap;
+    var contentH = wrap.scrollHeight;
+    // fit the page to the viewport with a little breathing room; never zoom IN,
+    // and floor it so a very long page becomes a birds-eye, not a postage stamp
+    var s = Math.max(0.35, Math.min(1, (avail / contentH) * 0.9));
+    if (s >= 0.999) return; // already fits — nothing to pull back
+    window.scrollTo(0, 0); // birds-eye starts from the top of the page
+    zoomState = { wrap: wrap, tf: wrap.style.transform, org: wrap.style.transformOrigin, tr: wrap.style.transition };
+    wrap.style.transformOrigin = 'top center';
+    wrap.style.transition = 'transform 0.5s cubic-bezier(0.4, 0, 0.2, 1)';
+    void wrap.offsetHeight; // reflow so the transition actually runs
+    wrap.style.transform = 'scale(' + s + ')';
+    document.documentElement.classList.add('gogh-zoomed');
+  }
+  function unzoomCanvas() {
+    if (!zoomState) return;
+    var z = zoomState; zoomState = null;
+    z.wrap.style.transform = z.tf || '';
+    document.documentElement.classList.remove('gogh-zoomed');
+    // tidy origin/transition once the ride home finishes (unless re-zoomed)
+    setTimeout(function () {
+      if (!zoomState) { z.wrap.style.transformOrigin = z.org || ''; z.wrap.style.transition = z.tr || ''; }
+    }, 520);
+  }
   function closePanel() {
     if (panelCleanup) { var pc = panelCleanup; panelCleanup = null; pc(); }
+    unzoomCanvas(); // a style audition's zoom-out never outlives its panel
     exitChromeMode(); // leave the header room cleanly — dim off, spotlight off
     delete panel.dataset.goghArea;
     panel.hidden = true;
@@ -7237,6 +7273,7 @@
     // open wherever it was previously used, often outside the viewport
     placePanelNear(anchorEl || side.querySelector('.gogh-pagestylebtn'));
     panelOpen = true;
+    zoomOutCanvas(); // pull the whole page into view to sense the framing
     panel.querySelector('.gogh-panel-close').addEventListener('click', function () {
       closePanel();
       openSide();
@@ -7895,6 +7932,7 @@
       placePanelNear(anchorEl);
       panelOpen = true;
       panelSticky = true; // hover-audition panel: outside clicks pass through
+      zoomOutCanvas(); // pull the whole page into view to audition the style
     }).catch(function () {});
   }
   // hover = instant local preview: the theme references its colours and
