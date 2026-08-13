@@ -1,4 +1,4 @@
-# Knowledge-base audit — plugin v0.99.158
+# Knowledge-base audit — plugin v0.99.160
 
 _13 finding(s) suppressed by `kb.audit-ignore.txt`._
 
@@ -6,7 +6,14 @@ _13 finding(s) suppressed by `kb.audit-ignore.txt`._
 
 The prose states something the source contradicts. Fix these first — the bot will contradict itself, since the appendix carries the correct value.
 
-- plugin version is **0.99.158**, prose says **0.96.5**
+- plugin version is **0.99.160**, prose says **0.96.5**
+
+## STALE (2)
+
+The prose names something that no longer exists.
+
+- UI label "Page style" was removed in this release, but the prose still describes it
+- UI label "Site style" was removed in this release, but the prose still describes it
 
 ## MISSING (22)
 
@@ -39,4 +46,9 @@ The source has something the prose never explains. The bot knows the name from t
 
 Use this as the checklist for updating the prose — and as a sanity check on the release itself.
 
-- version: 0.99.157 → 0.99.158
+- version: 0.99.158 → 0.99.160
+- removed UI label: "Back to the palette"
+- removed UI label: "Page style"
+- removed UI label: "Site designs"
+- removed UI label: "Site style"
+- added UI label: "Back to Design"
