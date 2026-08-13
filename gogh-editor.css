@@ -2049,6 +2049,12 @@ html.gogh-editing .gogh-mirror { display: flex; }
    the submenu renders as a stark white box inline in the menu row */
 .gogh-editing .gogh-lightedit .wp-block-navigation__container,
 .gogh-editing .gogh-lightedit .wp-block-navigation ul:not(.wp-block-navigation__submenu-container) { position: relative; }
+/* while the header is asleep under its "Edit header" veil, the nav's +/…/✕
+   affordances used to poke out below the veil's edge — cut in half (James:
+   "the menu affordance is getting cut off"). They belong to the awake header,
+   so hide them until the veil lifts. */
+.gogh-chrome-anchor:has(> .gogh-chromeveil) .gogh-navadd,
+.gogh-chrome-anchor:has(> .gogh-chromeveil) .gogh-navrm { display: none; }
 .gogh-navadd button {
   all: unset;
   cursor: pointer;
