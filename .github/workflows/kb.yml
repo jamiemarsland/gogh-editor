@@ -105,8 +105,19 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
+          # The release itself is created by release.yml on the SAME tag push,
+          # so this can lose the race and see "release not found". Wait briefly
+          # for it, and never fail the run either way: the worker reads the KB
+          # from the committed file, so the release asset is a convenience, not
+          # a dependency.
+          for i in 1 2 3 4 5 6; do
+            gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1 && break
+            echo "waiting for release $GITHUB_REF_NAME to exist (try $i)…"
+            sleep 10
+          done
           gh release upload "$GITHUB_REF_NAME" \
-            helper/gogh-helper.html helper/gogh-kb.md --clobber
+            helper/gogh-helper.html helper/gogh-kb.md --clobber \
+            || echo "::warning::couldn't attach helper assets to $GITHUB_REF_NAME — the worker reads the KB from the committed file anyway"
 
       # --- optional: hosted deployment -----------------------------------
       # Skipped entirely unless CLOUDFLARE_API_TOKEN exists, so the workflow is
