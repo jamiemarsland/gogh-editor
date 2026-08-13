@@ -4,11 +4,11 @@ Everything in this section is extracted mechanically from the Gogh source on eve
 
 ## Current release
 
-- Plugin version: **0.99.158**
+- Plugin version: **0.99.160**
 - Requires WordPress **6.5+**, PHP **7.4+**
 - Text domain: `gogh-editor`
 - readme.txt Stable tag: `0.26.0` · Tested up to: `7.0`
-- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.158`). Quote the plugin header version.
+- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.160`). Quote the plugin header version.
 
 ## Design constants
 
@@ -144,7 +144,7 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "As typed"
 - "Auto"
 - "Back"
-- "Back to the palette"
+- "Back to Design"
 - "Background image"
 - "Badge"
 - "Bold"
@@ -199,7 +199,6 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "Open interactive experience"
 - "Original"
 - "Outline"
-- "Page style"
 - "Peek at pages"
 - "Posts"
 - "Products"
@@ -224,8 +223,6 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "Send backward"
 - "Shape"
 - "Show the next layout"
-- "Site designs"
-- "Site style"
 - "Solid"
 - "Start writing — a reading column, cursor ready"
 - "Switch design"
