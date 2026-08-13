@@ -2358,9 +2358,9 @@
     document.documentElement.classList.add('gogh-zoomed');
     layoutZoom();
   }
-  // dock the style panel on the LEFT and fit the page into the space to its
-  // right, so the panel never sits over the page ("position it on the left so
-  // it's not overlapping the actual page"). Re-runs on resize.
+  // dock the style panel on the RIGHT and fit the page into the space to its
+  // left, so the panel never sits over the page (James: "i'd kinda like the
+  // site style modal here" — the right). Re-runs on resize.
   function layoutZoom() {
     if (!zoomState) return;
     var wrap = zoomState.wrap;
@@ -2368,21 +2368,24 @@
     var topGap = adminBar ? adminBar.offsetHeight : 0;
     var pad = 20;
     var panelW = panel.offsetWidth || 360;
-    panel.style.left = pad + 'px';
+    panel.style.right = pad + 'px';
     panel.style.top = (topGap + pad) + 'px';
-    panel.style.right = 'auto';
+    panel.style.left = 'auto';
     panel.style.bottom = 'auto';
-    var leftCol = pad + panelW + pad;         // panel column + gaps
-    var availW = window.innerWidth - leftCol - pad;
+    var rightCol = pad + panelW + pad;        // panel column + gaps
+    var availW = window.innerWidth - rightCol - pad;
     var availH = window.innerHeight - topGap - pad * 2;
     var pageW = wrap.offsetWidth || window.innerWidth;
     var contentH = wrap.scrollHeight;
-    var s = Math.min(availW / pageW, availH / contentH);
-    s = Math.max(0.3, Math.min(1, s * 0.98)); // floor so it never goes tiny
-    // origin top-left + translate: scale toward the corner, then slot the page
-    // into the clear area to the RIGHT of the docked panel
+    // fit the WHOLE page in the clear area — no floor, so a tall page pulls all
+    // the way back to a true birds-eye instead of being cut off at the fold
+    var s = Math.min(1, Math.min(availW / pageW, availH / contentH) * 0.96);
+    // origin top-left + translate: scale toward the corner, then centre the
+    // page within the clear area to the LEFT of the docked panel
     wrap.style.transformOrigin = 'top left';
-    wrap.style.transform = 'translate(' + leftCol + 'px, ' + pad + 'px) scale(' + s + ')';
+    var pageScreenW = pageW * s;
+    var tx = Math.max(pad, (availW - pageScreenW) / 2 + pad);
+    wrap.style.transform = 'translate(' + tx + 'px, ' + pad + 'px) scale(' + s + ')';
   }
   function unzoomCanvas() {
     if (!zoomState) return;
