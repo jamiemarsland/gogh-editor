@@ -1694,11 +1694,12 @@ html.gogh-ps-blank .wp-block-post-title,
 html.gogh-ps-blank header.wp-block-template-part,
 html.gogh-ps-blank footer.wp-block-template-part { display: none !important; }
 
-html.gogh-zoomed { overflow: hidden; background: #dfe0e5; }
+/* zoomed view SCROLLS vertically (the page is a comfortable size, not crushed
+   to fit) — only lock horizontal so the desk never slides sideways */
+html.gogh-zoomed { overflow-x: hidden; background: #dfe0e5; }
 /* a neutral desk behind the shrunk page — the site's own colour stays ON the
    page (painted onto .wp-site-blocks in JS), so it no longer floods the frame */
 html.gogh-zoomed body { background: #dfe0e5 !important; }
-html.gogh-zoomed .wp-site-blocks { will-change: transform; }
 /* the birds-eye is a preview: get every editing affordance out of the frame so
    folks see the DESIGN, not the chrome (mirrors the cycling-mode hide) */
 html.gogh-zoomed .gogh-secbar,

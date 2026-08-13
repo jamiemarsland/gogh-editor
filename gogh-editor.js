@@ -2344,48 +2344,49 @@
     if (zoomState) { layoutZoom(); return; } // re-fit if already zoomed
     var wrap = document.querySelector('.wp-site-blocks');
     if (!wrap) return;
-    window.scrollTo(0, 0); // birds-eye starts from the top of the page
+    window.scrollTo(0, 0); // start from the top of the page
     zoomState = { wrap: wrap, tf: wrap.style.transform, org: wrap.style.transformOrigin,
       tr: wrap.style.transition, bg: wrap.style.background, sh: wrap.style.boxShadow,
+      bh: document.body.style.height, bo: document.body.style.overflowY,
       pl: panel.style.left, pt: panel.style.top, pr: panel.style.right, pb: panel.style.bottom };
-    wrap.style.transition = 'transform 0.5s cubic-bezier(0.4, 0, 0.2, 1)';
+    wrap.style.transition = 'transform 0.4s cubic-bezier(0.4, 0, 0.2, 1)';
     // the site's colour belongs ON the page, not leaking across the desk:
     // paint the site bg onto the artboard (tracks the live audition via the
     // var) and float it with a shadow. The neutral desk behind is CSS.
     wrap.style.background = 'var(--wp--preset--color--background, ' + getComputedStyle(document.body).backgroundColor + ')';
     wrap.style.boxShadow = '0 30px 90px -24px rgba(0, 0, 0, 0.4)';
-    void wrap.offsetHeight; // reflow so the transition actually runs
     document.documentElement.classList.add('gogh-zoomed');
     layoutZoom();
   }
-  // dock the style panel on the RIGHT and fit the page into the space to its
-  // left, so the panel never sits over the page (James: "i'd kinda like the
-  // site style modal here" — the right). Re-runs on resize.
+  // dock the style panel on the RIGHT and scale the page to a comfortable,
+  // readable size that clears it on the left — a middle ground, NOT crushed to
+  // fit. transform:scale shrinks it visually; a negative margin collapses the
+  // layout gap the transform leaves, so the document scrolls to the SCALED
+  // height and folks scroll up/down through the zoomed page ("kinda tiny" fix).
   function layoutZoom() {
     if (!zoomState) return;
     var wrap = zoomState.wrap;
     var adminBar = document.getElementById('wpadminbar');
     var topGap = adminBar ? adminBar.offsetHeight : 0;
-    var pad = 20;
+    var pad = 24, gap = 24;
     var panelW = panel.offsetWidth || 360;
     panel.style.right = pad + 'px';
     panel.style.top = (topGap + pad) + 'px';
     panel.style.left = 'auto';
     panel.style.bottom = 'auto';
-    var rightCol = pad + panelW + pad;        // panel column + gaps
-    var availW = window.innerWidth - rightCol - pad;
-    var availH = window.innerHeight - topGap - pad * 2;
+    // fit the page WIDTH into the clear area left of the panel — a comfortable
+    // scale independent of how LONG the page is (that's what scroll is for)
+    var pageAreaW = window.innerWidth - pad - panelW - gap - pad;
     var pageW = wrap.offsetWidth || window.innerWidth;
-    var contentH = wrap.scrollHeight;
-    // fit the WHOLE page in the clear area — no floor, so a tall page pulls all
-    // the way back to a true birds-eye instead of being cut off at the fold
-    var s = Math.min(1, Math.min(availW / pageW, availH / contentH) * 0.96);
-    // origin top-left + translate: scale toward the corner, then centre the
-    // page within the clear area to the LEFT of the docked panel
+    var s = Math.max(0.4, Math.min(0.85, pageAreaW / pageW));
+    var originalH = wrap.offsetHeight; // layout height, unaffected by transform
     wrap.style.transformOrigin = 'top left';
-    var pageScreenW = pageW * s;
-    var tx = Math.max(pad, (availW - pageScreenW) / 2 + pad);
-    wrap.style.transform = 'translate(' + tx + 'px, ' + pad + 'px) scale(' + s + ')';
+    wrap.style.transform = 'translateX(' + pad + 'px) scale(' + s + ')';
+    // cap the body to the SCALED height (html keeps the scroll) so the document
+    // ends exactly where the shrunk page does — vertical scroll stops at the
+    // real bottom, no sea of empty desk to wade through
+    document.body.style.height = Math.round(originalH * s) + 'px';
+    document.body.style.overflowY = 'hidden';
   }
   function unzoomCanvas() {
     if (!zoomState) return;
@@ -2393,13 +2394,14 @@
     z.wrap.style.transform = z.tf || '';
     z.wrap.style.background = z.bg || '';
     z.wrap.style.boxShadow = z.sh || '';
+    document.body.style.height = z.bh || '';
+    document.body.style.overflowY = z.bo || '';
     panel.style.left = z.pl || ''; panel.style.top = z.pt || '';
     panel.style.right = z.pr || ''; panel.style.bottom = z.pb || '';
     document.documentElement.classList.remove('gogh-zoomed');
-    // tidy origin/transition once the ride home finishes (unless re-zoomed)
     setTimeout(function () {
       if (!zoomState) { z.wrap.style.transformOrigin = z.org || ''; z.wrap.style.transition = z.tr || ''; }
-    }, 520);
+    }, 420);
   }
   function closePanel() {
     if (panelCleanup) { var pc = panelCleanup; panelCleanup = null; pc(); }
