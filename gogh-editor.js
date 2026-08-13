@@ -1501,6 +1501,14 @@
     '<span class="gogh-scard-ic"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><rect x="3" y="6" width="13" height="15" rx="1.6"/><path d="M7 3h13v15"/></svg></span>' +
     '<span class="gogh-scard-tx"><span class="gogh-scard-t">Site designs</span><span class="gogh-scard-s">Swap the whole look</span></span>' +
     '<svg class="gogh-scard-chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg></button>' +
+    '<button type="button" class="gogh-sitem gogh-scard gogh-editheader">' +
+    '<span class="gogh-scard-ic"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18"/></svg></span>' +
+    '<span class="gogh-scard-tx"><span class="gogh-scard-t">Edit header</span><span class="gogh-scard-s">Logo, menu, layout</span></span>' +
+    '<svg class="gogh-scard-chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg></button>' +
+    '<button type="button" class="gogh-sitem gogh-scard gogh-editfooter">' +
+    '<span class="gogh-scard-ic"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 15h18"/></svg></span>' +
+    '<span class="gogh-scard-tx"><span class="gogh-scard-t">Edit footer</span><span class="gogh-scard-s">The foot of every page</span></span>' +
+    '<svg class="gogh-scard-chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg></button>' +
     '</div>' +
     '<div class="gogh-side-gap"></div>' +
     '<div class="gogh-side-foot">' +
@@ -4231,6 +4239,17 @@
     });
   }
   side.querySelector('.gogh-sd-designs').addEventListener('click', openStarterPicker);
+  // Edit header / Edit footer: leave the design surface and open that part's
+  // editing room (dim the page, spotlight the chrome) — the existing flow
+  function editChromeFromDesign(area) {
+    closeSide(true);
+    var pe = partElForArea(area);
+    if (!pe) { toast('No ' + area + ' to edit here.', { error: true }); return; }
+    wakeChrome(pe, area);
+    convertChrome(pe).catch(function () { toast('Could not open the ' + area + ' panel.', { error: true }); });
+  }
+  side.querySelector('.gogh-editheader').addEventListener('click', function () { editChromeFromDesign('header'); });
+  side.querySelector('.gogh-editfooter').addEventListener('click', function () { editChromeFromDesign('footer'); });
   // turning φ on should SHOW you what you enabled: flash the golden-section
   // lines over the section you're looking at
   function flashCompLines(sec2) {
