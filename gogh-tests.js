@@ -1909,6 +1909,26 @@
       return 'artboard tinted to the previewed base';
     });
 
+    // ---- 34c. audition applies the heading colour, not just the family ----
+    test('site style audition previews the heading colour', function () {
+      if (!G.previewVariation) return 'no audition API';
+      // a variation can give headings their OWN colour (Morning's is 'contrast',
+      // dark, over grey body text). The preview must apply it or hover headings
+      // inherit body text and look wrong vs the applied result ('grey not black').
+      try {
+        G.previewVariation({ settings: {}, styles: { color: { text: 'var:preset|color|accent-4' },
+          elements: { heading: { color: { text: 'var:preset|color|contrast' } } } } });
+        var css = (document.getElementById('gogh-style-preview') || {}).textContent || '';
+      } finally {
+        G.clearVariationPreview();
+        var pv = document.getElementById('gogh-style-preview'); if (pv) pv.textContent = '';
+      }
+      var hm = css.replace(/\s/g, '').match(/h1,h2,h3,h4,h5,h6[^{]*\{([^}]*)\}/);
+      expect(hm && /color:var\(--wp--preset--color--contrast\)/.test(hm[1]),
+        'heading preview must carry its own colour (rule: ' + (hm ? hm[1] : 'none') + ')');
+      return 'heading previews its own colour, distinct from body';
+    });
+
     // ---- 35. audit coverage: the untested features ----
     test('menu reorder rewrites navigation markup by url then label', function () {
       var nraw = '<!-- wp:navigation-link {"label":"Home","url":"https://x.test/"} /-->\n' +

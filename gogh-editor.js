@@ -8265,9 +8265,15 @@
       return o;
     };
     var sc = (v.styles || {}).color || {};
+    // the theme's default text/heading colour is the 'contrast' preset (re-mapped
+    // in :root above). Use it as the fallback when a variation names no colour of
+    // its own — that mirrors the APPLIED cascade, where an unset colour resolves
+    // to the base, not to whatever the currently-committed page happens to use.
+    var baseText = 'var(--wp--preset--color--contrast)';
+    var bodyText = sc.text ? resolve(sc.text) : baseText;
     var body = '';
     if (sc.background) body += 'background-color:' + resolve(sc.background) + ';';
-    if (sc.text) body += 'color:' + resolve(sc.text) + ';';
+    body += 'color:' + bodyText + ';';
     // font variations register their families under NEW preset slugs — the
     // page only picks them up through the variation's body/heading mappings,
     // so the preview must apply those too (colours reuse slugs; fonts don't)
@@ -8275,11 +8281,15 @@
     if (bodyFF) body += 'font-family:' + resolve(bodyFF) + ';';
     body += typo((v.styles || {}).typography);
     if (body) css += 'body{' + body + '}';
-    var hty = ((((v.styles || {}).elements) || {}).heading || {}).typography || {};
-    var hcss = '';
+    var hEl = (((v.styles || {}).elements) || {}).heading || {};
+    var hty = hEl.typography || {};
+    // headings keep their OWN colour when the variation sets one — Morning's is
+    // 'contrast' (dark) over grey body text; without it, headings follow the body
+    var hColor = ((hEl.color || {}).text) ? resolve(hEl.color.text) : bodyText;
+    var hcss = 'color:' + hColor + ';';
     if (hty.fontFamily) hcss += 'font-family:' + resolve(hty.fontFamily) + ';';
     hcss += typo(hty);
-    if (hcss) css += 'h1,h2,h3,h4,h5,h6,.wp-block-heading{' + hcss + '}';
+    css += 'h1,h2,h3,h4,h5,h6,.wp-block-heading{' + hcss + '}';
     if (!previewStyleEl) {
       previewStyleEl = document.createElement('style');
       previewStyleEl.id = 'gogh-style-preview';
