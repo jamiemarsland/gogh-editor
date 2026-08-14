@@ -1312,7 +1312,7 @@
   // processed top-down so the pushes cascade. Runs after a render AND after a
   // global-style / brand swap (which reskins the SAME nodes, so heights move
   // without a re-render).
-  function growReflow(sec) {
+  function growReflow(sec, allowShrink) {
     if (!sec.nodes) return;
     var sMeasure = scaleOf(sec);
     if (sMeasure > 0) {
@@ -1320,9 +1320,16 @@
         if (!isText(e)) return;
         var i = sec.els.indexOf(e);
         var h = sec.nodes[i] ? sec.nodes[i].offsetHeight / sMeasure : 0;
-        if (h > 0 && Math.round(h) > e.h + 2) {
+        if (h <= 0) return;
+        var rh = Math.round(h);
+        // GROW always — a taller wrap must never sit on what's below. SHRINK
+        // only when asked: a style change re-flows both ways (a compact style
+        // after a tall serif pulls the gap back closed), but a plain re-render
+        // must leave stored positions be. reflowPush moves the elements below
+        // by the SAME delta, so the sign handles both directions.
+        if (rh > e.h + 2 || (allowShrink && rh < e.h - 2)) {
           var oldH = e.h;
-          e.h = Math.round(h);
+          e.h = rh;
           reflowPush(sec, e, oldH);
         }
       });
@@ -8048,7 +8055,7 @@
         if (fresh && cur) cur.textContent = fresh.textContent;
       });
       fontSizesCache = null;
-      S.forEach(growReflow); // new brand type can wrap a heading taller — push what's below, don't overlap it
+      S.forEach(function (s2) { growReflow(s2, true); }); // new brand type re-wraps headings — push/pull to match
       if (wasClean) savedSnap = serialize(); // re-measured heights are the new clean baseline
       refreshChip();
       cfg.typeScale = factor;
@@ -8424,7 +8431,7 @@
         else if (fresh && !cur) document.head.appendChild(fresh.cloneNode(true));
       });
       fontSizesCache = null;
-      S.forEach(growReflow); // new type can wrap a heading taller — push what's below, don't overlap it
+      S.forEach(function (s) { growReflow(s, true); }); // new type re-wraps headings — push/pull what's below to match
       if (wasClean) savedSnap = serialize(); // re-measured heights are the new clean baseline
       if (sel) placeHandles(sel.sec, sel.i);
       refreshChip();

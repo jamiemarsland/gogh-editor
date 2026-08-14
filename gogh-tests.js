@@ -209,6 +209,40 @@
       return 'heading grew ' + Math.round(delta) + 'u, button tracked it (no overlap)';
     });
 
+    // ---- 5a-bis. ...and the reverse: a COMPACT style after a tall serif pulls
+    // the gap back CLOSED. growReflow(sec, true) shrinks as well as grows, so
+    // the button rides the heading back UP — no orphaned gap. (A plain
+    // re-render omits the flag, leaving stored positions be.) ----
+    test('growReflow with allowShrink pulls a button back up under a shrinking heading', function () {
+      var s = sec();
+      var hi = findIdx('heading');
+      var head = s.els[hi];
+      head.x = 72; head.w = 700; head.y = 80;
+      var btn = { type: 'button', text: 'Our thinking', x: 72, y: 0, w: 220, h: 52 };
+      s.els.push(btn);
+      var bi = s.els.indexOf(btn);
+      G.renderSection(s);
+      var naturalH = head.h;
+      btn.y = head.y + naturalH + 40; // park it a fixed 40u below the heading
+      G.resolve(s);
+      var btnNatural = btn.y;
+      // a tall serif lands: force the heading tall; model + button follow down
+      var scale = s.sectionEl.offsetWidth / 1200;
+      s.nodes[hi].style.minHeight = (s.nodes[hi].offsetHeight + Math.round(320 * scale)) + 'px';
+      G.growReflow(s, true);
+      expect(head.h > naturalH + 100, 'heading did not grow (' + head.h + ' vs ' + naturalH + ')');
+      expect(btn.y > btnNatural + 100, 'button not pushed down by the tall heading');
+      // a compact style replaces it: same node renders short again, model still
+      // reads tall — exactly applyVariation's state at the moment it re-flows
+      s.nodes[hi].style.minHeight = '';
+      G.growReflow(s, true);
+      expect(approx(head.h, naturalH, 8), 'heading did not shrink back (' + head.h + ' vs ' + naturalH + ')');
+      expect(approx(btn.y, btnNatural, 10), 'button not pulled back up: ' + btn.y + ' vs ' + btnNatural);
+      s.els.splice(bi, 1); // restore
+      G.renderSection(s);
+      return 'button rode the heading down then back up (' + Math.round(btnNatural) + '→' + Math.round(btn.y) + ')';
+    });
+
     // ---- 5b. frame-interleaved resize pushes exactly once (v0.12.1) ----
     test('per-frame resize push is incremental, not compounding', function () {
       var i = findIdx('heading');
