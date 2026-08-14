@@ -1512,7 +1512,6 @@
     '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><rect x="3" y="6" width="13" height="15" rx="1.6"/><path d="M7 3h13v15"/></svg></button>' +
     '<button type="button" class="gogh-sbtn gogh-gridbtn" data-act="gridsnap" title="Grid: show and snap">' +
     '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 9h18M3 15h18M9 3v18M15 3v18"/></svg></button>' +
-    (cfg.experiments ? '<button type="button" class="gogh-sbtn gogh-phibtn" data-act="compguides" title="Golden ratio guides">φ</button>' : '') +
     '<button type="button" class="gogh-sbtn gogh-mirroropen" title="Live mobile preview">' +
     '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="7" y="2.5" width="10" height="19" rx="2.5"/><path d="M10.5 18.5h3"/></svg></button>' +
     '<button type="button" class="gogh-sbtn gogh-undo" title="Undo (⌘Z)">' +
@@ -1947,19 +1946,15 @@
       guideV.style.left = (r.left + window.scrollX + gx * s) + 'px';
       guideV.style.top = (r.top + window.scrollY) + 'px';
       guideV.style.height = r.height + 'px';
-      var tx = compTag(Hc, gx, 'x');
-      // the centre earns a name too: pink says aligned, the tag says WHERE
-      guideV.dataset.tag = tx || (Math.round(gx) === Math.round(W / 2) ? 'centre' : '');
-      guideV.classList.toggle('gogh-guide-comp', !!tx);
+      // the centre earns a name: pink says aligned, the tag says WHERE
+      guideV.dataset.tag = (Math.round(gx) === Math.round(W / 2) ? 'centre' : '');
       guideV.hidden = false;
     } else guideV.hidden = true;
     if (gy !== null) {
       guideH.style.top = (r.top + window.scrollY + gy * s) + 'px';
       guideH.style.left = (r.left + window.scrollX) + 'px';
       guideH.style.width = r.width + 'px';
-      var ty = compTag(Hc, gy, 'y');
-      guideH.dataset.tag = ty || (Math.round(gy) === Math.round(Hc / 2) ? 'centre' : '');
-      guideH.classList.toggle('gogh-guide-comp', !!ty);
+      guideH.dataset.tag = (Math.round(gy) === Math.round(Hc / 2) ? 'centre' : '');
       guideH.hidden = false;
     } else guideH.hidden = true;
   }
@@ -4398,39 +4393,6 @@
   }
   side.querySelector('.gogh-editheader').addEventListener('click', function () { editChromeFromDesign('header'); });
   side.querySelector('.gogh-editfooter').addEventListener('click', function () { editChromeFromDesign('footer'); });
-  // turning φ on should SHOW you what you enabled: flash the golden-section
-  // lines over the section you're looking at
-  function flashCompLines(sec2) {
-    if (!sec2 || !sec2.sectionEl) return;
-    var ov = document.createElement('div');
-    ov.className = 'gogh-compflash';
-    [0.382, 0.618].forEach(function (f) {
-      var v = document.createElement('i');
-      v.className = 'is-phi';
-      v.style.cssText = 'left:' + (f * 100) + '%;top:0;width:0;height:100%;';
-      ov.appendChild(v);
-      var h = document.createElement('i');
-      h.className = 'is-phi';
-      h.style.cssText = 'top:' + (f * 100) + '%;left:0;height:0;width:100%;';
-      ov.appendChild(h);
-    });
-    sec2.sectionEl.appendChild(ov);
-    setTimeout(function () { ov.remove(); }, 2400);
-  }
-  var phiToggle = side.querySelector('[data-act="compguides"]');
-  if (phiToggle) phiToggle.addEventListener('click', function () {
-    compGuidesOn = !compGuidesOn;
-    var pb = side.querySelector('.gogh-phibtn');
-    pb.classList.toggle('is-active', compGuidesOn);
-    pb.dataset.tip = 'Golden ratio guides: ' + (compGuidesOn ? 'on' : 'off');
-    pb.removeAttribute('title');
-    if (compGuidesOn) {
-      flashCompLines(viewportSection());
-      toast('Golden ratio guides on — the gold lines mark the golden section. Drag anything near one and it’ll catch.', { ttl: 6000 });
-    } else {
-      toast('Golden ratio guides off.');
-    }
-  });
   elbar.querySelector('.gogh-eb-del').addEventListener('click', deleteSelected);
   side.querySelector('[data-act="gridsnap"]').addEventListener('click', function () {
     gridSnapOn = !gridSnapOn;
@@ -7445,24 +7407,6 @@
   document.addEventListener('pointercancel', function () { if (drag) endDrag(); });
 
   var gridSnapOn = false; // the always-on graph paper; drags show their own grid and snap regardless
-  // golden ratio guides (a Design toggle): the golden section lines
-  // join the smart-guide candidates — layouts start landing in pleasing
-  // spots without anyone being taught anything
-  var compGuidesOn = false;
-  function compCands(H) {
-    if (!compGuidesOn) return { x: [], y: [] };
-    return {
-      x: [Math.round(W * 0.382), Math.round(W * 0.618)],
-      y: [Math.round(H * 0.382), Math.round(H * 0.618)],
-    };
-  }
-  function compTag(H, v, axis) {
-    if (!compGuidesOn || v === null) return '';
-    var r = Math.round(v);
-    var phi = axis === 'x' ? [Math.round(W * 0.382), Math.round(W * 0.618)]
-      : [Math.round(H * 0.382), Math.round(H * 0.618)];
-    return phi.indexOf(r) !== -1 ? 'φ' : '';
-  }
 
   // ---------- theme style variations (drawer) ----------
   var GSROOT = cfg.restUrl.split('wp/v2/')[0] + 'wp/v2/';
@@ -8410,9 +8354,6 @@
       candX.push(o.x, o.x + o.w, o.x + o.w / 2);
       candY.push(o.y, o.y + o.h, o.y + o.h / 2);
     });
-    var cc = compCands(H);
-    cc.x.forEach(function (v) { candX.push(v); });
-    cc.y.forEach(function (v) { candY.push(v); });
     function best(edges, cands) {
       var d = SNAP + 1, snap = null, guide = null;
       edges.forEach(function (edge) {
@@ -8561,9 +8502,6 @@
         candX.push(o.x, o.x + o.w, o.x + o.w / 2);
         candY.push(o.y, o.y + o.h, o.y + o.h / 2);
       });
-      var ccR = compCands(designH(sec.els, sec.minH));
-      ccR.x.forEach(function (v) { candX.push(v); });
-      ccR.y.forEach(function (v) { candY.push(v); });
       resize = { sec: sec, i: sel.i, dir: dir, px: ev.clientX, py: ev.clientY,
         x: e.x, y: e.y, w: e.w, h: e.h, candX: candX, candY: candY };
       sec.sectionEl.classList.add('gogh-grid-live');

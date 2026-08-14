@@ -834,7 +834,7 @@ body.gogh-painting, body.gogh-painting .gogh-section * { cursor: url('data:image
   background: #ff5b77;
 }
 .gogh-guide[hidden] { display: none; }
-/* named guides carry a chip: centre wears pink, the golden section gold */
+/* named guides carry a chip: centre wears pink */
 .gogh-guide::after {
   content: attr(data-tag);
   position: absolute;
@@ -848,30 +848,7 @@ body.gogh-painting, body.gogh-painting .gogh-section * { cursor: url('data:image
   border-radius: 7px;
 }
 .gogh-guide[data-tag=""]::after, .gogh-guide:not([data-tag])::after { content: none; }
-.gogh-guide-comp { background: #d4af37; }
-.gogh-guide-comp::after { background: #d4af37; }
 .gogh-guide-h::after { top: 6px; left: 10px; }
-.gogh-phibtn { font: 600 15px/1 Georgia, serif; font-style: italic; }
-/* toggle-on reveal: where the composition magnets live */
-.gogh-compflash {
-  position: absolute;
-  inset: 0;
-  z-index: 99996;
-  pointer-events: none;
-  animation: gogh-compflash-fade 2.4s ease forwards;
-}
-.gogh-compflash i {
-  position: absolute;
-  display: block;
-}
-.gogh-compflash i.is-phi { border-left: 2px solid #d4af37; border-top: 2px solid #d4af37; }
-.gogh-compflash i.is-third { border-left: 2px dashed color-mix(in srgb, #d4af37 65%, transparent); border-top: 2px dashed color-mix(in srgb, #d4af37 65%, transparent); }
-@keyframes gogh-compflash-fade {
-  0% { opacity: 0; }
-  12% { opacity: 1; }
-  70% { opacity: 1; }
-  100% { opacity: 0; }
-}
 .gogh-guide-v { width: 1px; }
 .gogh-guide-h { height: 1px; }
 

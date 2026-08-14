@@ -710,32 +710,6 @@
       return 'landed on grid at ' + e.x + ',' + e.y;
     });
 
-    test('composition guides: the φ line catches a dragged edge', function () {
-      var pb = q('.gogh-side [data-act="compguides"]');
-      expect(pb, 'no φ toggle in the drawer');
-      pb.click(); // on
-      addToSec('badge');
-      var n = sec().els.length - 1;
-      var e = sec().els[n];
-      e.w = 200; e.h = 60; e.x = 300; e.y = 1700;
-      G.resolve(sec()); G.measure(sec()); G.resolve(sec());
-      select(n);
-      var phiX = Math.round(1200 * 0.618);
-      var s = sec().sectionEl.getBoundingClientRect().width / 1200;
-      var grip = q('.gogh-grip');
-      var r = grip.getBoundingClientRect();
-      var dx = (phiX - 2 - e.x) * s; // release 2 units shy — only φ can finish it
-      grip.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, clientX: r.x + 12, clientY: r.y + 12, pointerId: 92 }));
-      grip.dispatchEvent(new PointerEvent('pointermove', { bubbles: true, clientX: r.x + 12 + dx, clientY: r.y + 12, pointerId: 92 }));
-      // guide VISUALS paint in rAF, which sync dispatch never yields — the
-      // gold line is eyeball-verified; the model snap is what we assert
-      grip.dispatchEvent(new PointerEvent('pointerup', { bubbles: true, clientX: r.x + 12 + dx, clientY: r.y + 12, pointerId: 92 }));
-      var landed = e.x;
-      pb.click(); // off — default state restored
-      expect(landed === phiX, 'edge did not land on the golden section (x=' + landed + ', wanted ' + phiX + ')');
-      return 'released 2 short of ' + phiX + ' — φ finished the drop';
-    });
-
     test('centring a text box centres the ink, not the box', function () {
       // an OWN section: the living fixture's cumulative reflow pushes can
       // park symmetric neighbours anywhere, and their equal-spacing magnet
