@@ -1563,9 +1563,10 @@
   var zoomSlider = document.createElement('div');
   zoomSlider.className = 'gogh-zoomslider';
   zoomSlider.hidden = true;
+  zoomSlider.title = 'Zoom — ⌥ scroll, or ⌥Z to toggle the design view'; // discover the shortcuts
   zoomSlider.innerHTML =
     '<span class="gogh-zoomslider-val">100%</span>' +
-    '<input type="range" min="20" max="100" step="1" value="100" aria-label="Zoom the page">';
+    '<input type="range" min="20" max="100" step="1" value="100" aria-label="Zoom the page (Option-scroll, or Option-Z to toggle)">';
   document.body.appendChild(zoomSlider);
   zoomSlider.querySelector('input').addEventListener('input', function () {
     zoomFrac = (+this.value) / 100; // 100% = fitted; drag down to zoom further out
@@ -2541,6 +2542,52 @@
   function designMode() {
     return !!(zoomState && side.classList.contains('is-open') && !panelOpen);
   }
+
+  // ⌥-zoom shortcuts. The birds-eye design view and the edit surface are the
+  // two ends of one zoom axis, so give them a Figma-familiar gesture: ⌥Z
+  // toggles between them, and ⌥+scroll rides the whole axis — scroll OUT from
+  // the edit surface drops into the birds-eye, keeps pulling the fit further
+  // out, and scrolling IN past the fit returns to the edit surface. (James:
+  // "a shortcut for the zoom in and out ... like hold option and then mouse.")
+  function setZoomPct(v) {
+    v = Math.max(20, Math.min(100, Math.round(v)));
+    zoomSlider.querySelector('input').value = v;
+    zoomFrac = v / 100; // 100% = the fit; lower reads as a fraction OF the fit
+    zoomSlider.querySelector('.gogh-zoomslider-val').textContent = v + '%';
+    if (zoomState) { zoomState.wrap.style.transition = 'none'; layoutZoom(); }
+  }
+  function zoomShortcutBlocked(t) {
+    // never hijack a wheel/key aimed at a real field or the docked surfaces
+    return !!(t && (t.isContentEditable || t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' ||
+      (t.closest && t.closest('[contenteditable="true"], .gogh-panel, .gogh-side'))));
+  }
+  var wheelZoomGate = 0; // debounce the enter/exit transitions to one per gesture
+  window.addEventListener('wheel', function (ev) {
+    if (!editing || !ev.altKey || ev.metaKey || ev.ctrlKey) return;
+    if (zoomShortcutBlocked(ev.target)) return;
+    ev.preventDefault(); // ⌥+wheel zooms; it must not also scroll the page
+    var now = (window.performance && performance.now) ? performance.now() : (+new Date());
+    var zoomingIn = ev.deltaY < 0; // scroll up = zoom in (toward the edit surface)
+    var step = Math.max(2, Math.min(10, Math.round(Math.abs(ev.deltaY) / 6)));
+    if (zoomState) {
+      var v = +zoomSlider.querySelector('input').value;
+      if (zoomingIn && v >= 100) {
+        if (now - wheelZoomGate > 320) { wheelZoomGate = now; closeSide(true); } // back to full size
+      } else {
+        setZoomPct(v + (zoomingIn ? step : -step));
+      }
+    } else if (!zoomingIn) {
+      if (now - wheelZoomGate > 320) { wheelZoomGate = now; openSide(); } // drop into the birds-eye
+    }
+  }, { passive: false });
+  document.addEventListener('keydown', function (ev) {
+    if (!editing || !ev.altKey || ev.metaKey || ev.ctrlKey || ev.shiftKey) return;
+    if (ev.code !== 'KeyZ') return; // ⌥Z — match the physical key ('⌥z' prints 'Ω' on macOS)
+    if (zoomShortcutBlocked(ev.target)) return;
+    ev.preventDefault();
+    if (side.classList.contains('is-open') || zoomState) closeSide(true);
+    else openSide();
+  });
 
   function closePanel() {
     if (panelCleanup) { var pc = panelCleanup; panelCleanup = null; pc(); }
