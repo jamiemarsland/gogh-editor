@@ -7432,12 +7432,14 @@
       return variationsCache;
     });
   }
-  var previewFaces = {};
+  var fontLoads = {}; // fam -> promise that resolves when that face has loaded
   // load the fonts a variation's audition will need — its own AND the theme
   // base's (a preview can fall back to a base font the committed page never
   // loaded, e.g. Evening -> base Manrope). Returns a promise that resolves when
   // they're ready (capped, so a slow font never hangs the audition), so the
   // preview can wait and never flash the generic serif/sans fallback first.
+  // Keyed by a PROMISE, not a boolean: a second (jittery re-)hover must WAIT for
+  // an in-flight load, not skip it and paint on the fallback ('wrong on hover').
   function ensureVariationFonts(v) {
     if (!window.FontFace || !document.fonts) return Promise.resolve();
     var vFams = (((v.settings || {}).typography || {}).fontFamilies || {}).theme || [];
@@ -7446,20 +7448,23 @@
     all.forEach(function (f) {
       if (!f.fontFamily) return;
       var fam = f.fontFamily.split(',')[0].replace(/["']/g, '').trim();
-      if (previewFaces[fam] || document.fonts.check('16px "' + fam + '"')) { previewFaces[fam] = 1; return; }
+      if (document.fonts.check('16px "' + fam + '"')) return; // already available
+      if (fontLoads[fam]) { jobs.push(fontLoads[fam]); return; } // in flight — wait for it
       var faces = f.fontFace || [];
       var face = faces.filter(function (ff) { return String(ff.fontStyle || 'normal') === 'normal'; })[0] || faces[0];
       var src = face && face.src ? [].concat(face.src)[0] : null;
       if (!src) return;
       if (src.indexOf('file:./') === 0) src = location.origin + '/wp-content/themes/' + cfg.theme + '/' + src.slice(7);
-      previewFaces[fam] = 1;
+      var p;
       try {
         var ff2 = new FontFace(fam, 'url("' + src + '")', {
           weight: String(face.fontWeight || '400'),
           style: face.fontStyle || 'normal',
         });
-        jobs.push(ff2.load().then(function (loaded) { document.fonts.add(loaded); }).catch(function () {}));
-      } catch (err) {}
+        p = ff2.load().then(function (loaded) { document.fonts.add(loaded); }).catch(function () {});
+      } catch (err) { p = Promise.resolve(); }
+      fontLoads[fam] = p;
+      jobs.push(p);
     });
     if (!jobs.length) return Promise.resolve();
     return Promise.race([
@@ -8320,6 +8325,27 @@
       if (f.slug && f.fontFamily) css += '--wp--preset--font-family--' + f.slug + ':' + f.fontFamily + ';';
     });
     css += '}';
+
+    // Define the fonts the SAME way the applied result does — real @font-face
+    // rules — not only via the FontFace API. The applied page loads fonts through
+    // wp-fonts-local @font-face and always renders them; the FontFace-API path was
+    // sometimes leaving the preview on a fallback ('hover shows the wrong font').
+    // With the face declared here, the browser loads and swaps it natively too.
+    var faceCss = '';
+    var emitFaces = function (f) {
+      var fam = String(f.fontFamily || '').split(',')[0].replace(/["']/g, '').trim();
+      if (!fam) return;
+      (f.fontFace || []).forEach(function (face) {
+        var src = face && face.src ? [].concat(face.src)[0] : null;
+        if (!src) return;
+        if (src.indexOf('file:./') === 0) src = location.origin + '/wp-content/themes/' + cfg.theme + '/' + src.slice(7);
+        faceCss += '@font-face{font-family:"' + fam + '";src:url("' + src + '") format("woff2");'
+          + 'font-weight:' + (face.fontWeight || '400') + ';font-style:' + (face.fontStyle || 'normal') + ';font-display:swap;}';
+      });
+    };
+    fams.forEach(emitFaces);
+    (_themeBaseFams || []).forEach(emitFaces);
+    css = faceCss + css;
 
     var bodyText = vColor.text ? resolve(vColor.text)
       : (bColor.text ? resolve(bColor.text) : 'var(--wp--preset--color--contrast)');
