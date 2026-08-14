@@ -552,7 +552,11 @@ body.gogh-help-open .gogh-toasts { right: 416px; }
 .gogh-side .gogh-btn { margin-top: 4px; }
 
 /* ---------- canvas states ---------- */
-.gogh-editing .gogh-section > *:hover:not(.gogh-selected) {
+/* the birds-eye design view (.gogh-zoomed) is a preview, not an edit
+   surface — a hover outline there promises an element interaction the view
+   doesn't offer, so scope it to the real edit surface (James: "even though
+   they can't do anything it makes the experience a little confusing") */
+.gogh-editing:not(.gogh-zoomed) .gogh-section > *:hover:not(.gogh-selected) {
   outline: 1.5px dashed rgba(126, 168, 255, 0.8);
   outline-offset: 3px;
 }
@@ -1432,9 +1436,11 @@ body.gogh-painting, body.gogh-painting .gogh-section * { cursor: url('data:image
 /* panels never outgrow the viewport; long content scrolls inside */
 .gogh-panel { max-height: calc(100vh - 120px); overflow-y: auto; }
 
-/* Canva pointer model: elements read as draggable, text mode gets a caret */
-.gogh-editing .gogh-section > *,
-.gogh-editing .gogh-section > * * { cursor: move; }
+/* Canva pointer model: elements read as draggable, text mode gets a caret.
+   Not in the birds-eye design view — there elements don't drag, so a move
+   cursor there is a false promise (keep the default pointer instead). */
+.gogh-editing:not(.gogh-zoomed) .gogh-section > *,
+.gogh-editing:not(.gogh-zoomed) .gogh-section > * * { cursor: move; }
 .gogh-editing .gogh-section > .gogh-textedit,
 .gogh-editing .gogh-section > .gogh-textedit * { cursor: text; }
 
