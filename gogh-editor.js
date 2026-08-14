@@ -8266,6 +8266,21 @@
   // still persists via applyVariation (full fidelity from the server).
   var previewStyleEl = null;
   var previewHoverT = null;
+  // the body font a variation intends. Some theme font-pairs (e.g. "Roboto Slab
+  // & Manrope") register BOTH families in settings but only map the heading in
+  // styles — leaving styles.typography.fontFamily empty, so the body never
+  // changes on audition OR apply. When that happens, infer the body font from
+  // the registered family that isn't the heading's, so the pair fully applies.
+  function variationBodyFont(v) {
+    var ty = (v.styles || {}).typography || {};
+    if (ty.fontFamily) return ty.fontFamily;
+    var fams = (((v.settings || {}).typography || {}).fontFamilies || {}).theme || [];
+    if (!fams.length) return null;
+    var hty = ((((v.styles || {}).elements) || {}).heading || {}).typography || {};
+    var headSlug = (String(hty.fontFamily || '').match(/font-family--([a-z0-9-]+)/) || [])[1];
+    var other = fams.filter(function (f) { return f.slug && f.slug !== headSlug; })[0];
+    return other ? 'var(--wp--preset--font-family--' + other.slug + ')' : null;
+  }
   function previewVariation(v) {
     var css = ':root{';
     var pal = ((v.settings || {}).color || {}).palette || {};
@@ -8289,8 +8304,8 @@
     // font variations register their families under NEW preset slugs — the
     // page only picks them up through the variation's body/heading mappings,
     // so the preview must apply those too (colours reuse slugs; fonts don't)
-    var ty = (v.styles || {}).typography || {};
-    if (ty.fontFamily) body += 'font-family:' + resolve(ty.fontFamily) + ';';
+    var bodyFF = variationBodyFont(v);
+    if (bodyFF) body += 'font-family:' + resolve(bodyFF) + ';';
     if (body) css += 'body{' + body + '}';
     var hty = ((((v.styles || {}).elements) || {}).heading || {}).typography || {};
     if (hty.fontFamily) {
@@ -8309,11 +8324,20 @@
   }
   function applyVariation(v, btn) {
     if (btn) btn.disabled = true;
+    // keep what the audition showed: if the pair only mapped the heading, write
+    // the inferred body font in too, so applying matches the preview (and the name)
+    var styles = v.styles || {};
+    var inferredBody = variationBodyFont(v);
+    if (inferredBody && !((styles.typography || {}).fontFamily)) {
+      styles = JSON.parse(JSON.stringify(styles));
+      styles.typography = styles.typography || {};
+      styles.typography.fontFamily = inferredBody;
+    }
     return fetch(GSROOT + 'global-styles/' + cfg.gsId, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'X-WP-Nonce': cfg.nonce },
       credentials: 'same-origin',
-      body: JSON.stringify({ styles: v.styles || {}, settings: v.settings || {} }),
+      body: JSON.stringify({ styles: styles, settings: v.settings || {} }),
     }).then(function (r) {
       if (!r.ok) throw new Error('HTTP ' + r.status);
       // hot-swap the theme CSS so the whole page re-skins without a reload
