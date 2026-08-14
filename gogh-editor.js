@@ -404,7 +404,7 @@
     heading: 'align-self: start;',
     para: 'align-self: start;',
     button: '',
-    image: 'border-radius: clamp(8px, 1.5cqw, 20px);',
+    image: 'align-self: start; border-radius: clamp(8px, 1.5cqw, 20px);',
     badge: 'display: flex; align-items: center; min-width: max-content; gap: 0.6em; height: 100%; background: #fff; color: #141519; border-radius: clamp(6px, 1.2cqw, 14px); padding: 0 1.1em; font-size: clamp(11px, 1.15cqw, 14px); font-weight: 600; box-shadow: 0 14px 34px -12px rgba(0,0,0,0.55); white-space: nowrap;',
     widget: 'display: flex; align-items: center;',
     box: '',
@@ -1192,6 +1192,19 @@
         // from one world and drop into the other ("drag and drop
         // struggles ... especially if its a high image")
         var ih = sec.nodes[i].offsetHeight / s;
+        // ...BUT never absorb a grid STRETCH: when a style change grows the
+        // text column beside it, the image's row gets taller and (without
+        // align-self:start) the cell stretches, so offsetHeight reads that
+        // stretched height and the aspect goes tall-and-thin. align-self:
+        // start stops it going forward; here we clamp a runaway reading back
+        // to the photo's own height (natural aspect at width e.w), which
+        // also heals any model already poisoned. Ordinary crops sit close to
+        // natural and pass straight through.
+        var img = sec.nodes[i].querySelector('img');
+        if (img && img.naturalWidth && img.naturalHeight) {
+          var natH = e.w * (img.naturalHeight / img.naturalWidth);
+          if (natH > 0 && ih > natH * 1.5) ih = natH;
+        }
         // deadband 12: real inflation is hundreds of units, solver
         // re-quantization wiggles by single digits — absorb only truth
         if (ih > 0 && Math.abs(ih - e.h) > 12) e.h = Math.round(ih);

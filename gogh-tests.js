@@ -1293,6 +1293,23 @@
       expect(sec().nodes[i].querySelector('img'), 'no img inside figure');
     });
 
+    // regression: a style change that grows the text column beside a photo
+    // used to stretch the image's grid cell (default align-self: stretch),
+    // whose inflated height got absorbed into the model — the photo turned
+    // into a thin tall strip. Images now pin to align-self:start, so a tall
+    // row can never stretch them. (James: "images are being stretched like
+    // crazy" after applying a site style)
+    test('images pin to align-self:start so a tall row cannot stretch them', function () {
+      var i = sec().els.findIndex(function (e) { return e.type === 'image' && !e.kids; });
+      expect(i >= 0, 'no bare image element in fixture section');
+      var css = sec().styleEl.textContent;
+      var m = css.match(new RegExp('\\.gogh-el-' + (i + 1) + '\\s*\\{([^}]*)\\}'));
+      var block = m ? m[1] : '';
+      expect(/align-self:\s*start/.test(block),
+        'image rule missing align-self:start — the grid can stretch it: ' + block.slice(0, 140));
+      return 'image pinned start: ' + block.replace(/\s+/g, ' ').trim().slice(0, 60);
+    });
+
     // ---- 15. divider + section backgrounds (v0.10) ----
     test('divider CSS generated with next-section colour', function () {
       G.addSection(G.templates()[3], G.sections().length);
