@@ -8239,7 +8239,23 @@
     var resolve = function (s) {
       return String(s || '')
         .replace(/^var:preset\|color\|(.+)$/, 'var(--wp--preset--color--$1)')
-        .replace(/^var:preset\|font-family\|(.+)$/, 'var(--wp--preset--font-family--$1)');
+        .replace(/^var:preset\|font-family\|(.+)$/, 'var(--wp--preset--font-family--$1)')
+        .replace(/^var:preset\|font-size\|(.+)$/, 'var(--wp--preset--font-size--$1)');
+    };
+    // a variation's type is more than its family: weight, size, line-height and
+    // letter-spacing are part of the look, and the audition must show them or
+    // the hover won't match what clicking keeps ("2 different styles"). font-size
+    // resolves through the preset var, so the Type scale control still governs it.
+    var typo = function (ty) {
+      var o = '';
+      if (!ty) return o;
+      if (ty.fontWeight) o += 'font-weight:' + ty.fontWeight + ';';
+      if (ty.fontSize) o += 'font-size:' + resolve(ty.fontSize) + ';';
+      if (ty.lineHeight) o += 'line-height:' + ty.lineHeight + ';';
+      if (ty.letterSpacing) o += 'letter-spacing:' + ty.letterSpacing + ';';
+      if (ty.textTransform) o += 'text-transform:' + ty.textTransform + ';';
+      if (ty.fontStyle) o += 'font-style:' + ty.fontStyle + ';';
+      return o;
     };
     var sc = (v.styles || {}).color || {};
     var body = '';
@@ -8250,11 +8266,13 @@
     // so the preview must apply those too (colours reuse slugs; fonts don't)
     var bodyFF = variationBodyFont(v);
     if (bodyFF) body += 'font-family:' + resolve(bodyFF) + ';';
+    body += typo((v.styles || {}).typography);
     if (body) css += 'body{' + body + '}';
     var hty = ((((v.styles || {}).elements) || {}).heading || {}).typography || {};
-    if (hty.fontFamily) {
-      css += 'h1,h2,h3,h4,h5,h6,.wp-block-heading{font-family:' + resolve(hty.fontFamily) + ';}';
-    }
+    var hcss = '';
+    if (hty.fontFamily) hcss += 'font-family:' + resolve(hty.fontFamily) + ';';
+    hcss += typo(hty);
+    if (hcss) css += 'h1,h2,h3,h4,h5,h6,.wp-block-heading{' + hcss + '}';
     if (!previewStyleEl) {
       previewStyleEl = document.createElement('style');
       previewStyleEl.id = 'gogh-style-preview';
