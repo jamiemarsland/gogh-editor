@@ -4,11 +4,11 @@ Everything in this section is extracted mechanically from the Gogh source on eve
 
 ## Current release
 
-- Plugin version: **0.99.176**
+- Plugin version: **0.99.177**
 - Requires WordPress **6.5+**, PHP **7.4+**
 - Text domain: `gogh-editor`
 - readme.txt Stable tag: `0.26.0` · Tested up to: `7.0`
-- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.176`). Quote the plugin header version.
+- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.177`). Quote the plugin header version.
 
 ## Design constants
 
@@ -170,7 +170,6 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "Featured product"
 - "Fill screen"
 - "Fill the screen"
-- "Golden ratio guides"
 - "Grid: show and snap"
 - "Heading"
 - "Help — ask gogh anything"
@@ -275,8 +274,6 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "Could not update the "
 - "Editing the site "
 - "Experience added — it runs sandboxed; visitors can interact once published."
-- "Golden ratio guides off."
-- "Golden ratio guides on — the gold lines mark the golden section. Drag anything near one and it’ll catch."
 - "Icon link updated."
 - "Image swapped."
 - "Keep your changes with Done, or undo them with Cancel."
@@ -336,5 +333,5 @@ These are the real strings in the current build. Use them verbatim; never paraph
 
 ## Test suite
 
-`148` tests, run by appending `?gogh-test` to any Gogh page URL while logged in with edit rights on that page.
+`147` tests, run by appending `?gogh-test` to any Gogh page URL while logged in with edit rights on that page.
 
