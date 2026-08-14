@@ -4,11 +4,11 @@ Everything in this section is extracted mechanically from the Gogh source on eve
 
 ## Current release
 
-- Plugin version: **0.99.173**
+- Plugin version: **0.99.175**
 - Requires WordPress **6.5+**, PHP **7.4+**
 - Text domain: `gogh-editor`
 - readme.txt Stable tag: `0.26.0` · Tested up to: `7.0`
-- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.173`). Quote the plugin header version.
+- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.175`). Quote the plugin header version.
 
 ## Design constants
 
@@ -124,7 +124,6 @@ These are the real strings in the current build. Use them verbatim; never paraph
 
 - "' + d.label + '"
 - "' + escAttr(l.name) + '"
-- "' + escAttr(o.title) + '"
 - "' + escAttr(t.name) + '"
 - "' + hp[1] + ' — ' + hp[2] + ' units"
 - "' + p.slug + '"
@@ -240,7 +239,6 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "Use a text name instead"
 - "Use this design"
 - "Use this layout"
-- "Whole page — reorder sections"
 - "Write"
 - "Your latest posts, live"
 - "Your latest products, live — prices and add to cart included"
