@@ -1,4 +1,4 @@
-# Knowledge-base audit — plugin v0.99.177
+# Knowledge-base audit — plugin v0.99.178
 
 _13 finding(s) suppressed by `kb.audit-ignore.txt`._
 
@@ -6,7 +6,7 @@ _13 finding(s) suppressed by `kb.audit-ignore.txt`._
 
 The prose states something the source contradicts. Fix these first — the bot will contradict itself, since the appendix carries the correct value.
 
-- plugin version is **0.99.177**, prose says **0.96.5**
+- plugin version is **0.99.178**, prose says **0.96.5**
 
 ## MISSING (22)
 
@@ -39,7 +39,4 @@ The source has something the prose never explains. The bot knows the name from t
 
 Use this as the checklist for updating the prose — and as a sanity check on the release itself.
 
-- version: 0.99.176 → 0.99.177
-- removed UI label: "Golden ratio guides"
-- removed toast: "Golden ratio guides off."
-- removed toast: "Golden ratio guides on — the gold lines mark the golden section. Drag anything near one and it’ll catch."
+- version: 0.99.177 → 0.99.178
