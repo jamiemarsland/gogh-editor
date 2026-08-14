@@ -2430,9 +2430,13 @@
       pl: panel.style.left, pt: panel.style.top, pr: panel.style.right, pb: panel.style.bottom };
     wrap.style.transition = 'transform 0.4s cubic-bezier(0.4, 0, 0.2, 1)';
     // the site's colour belongs ON the page, not leaking across the desk:
-    // paint the site bg onto the artboard (tracks the live audition via the
-    // var) and float it with a shadow. The neutral desk behind is CSS.
-    wrap.style.background = 'var(--wp--preset--color--background, ' + getComputedStyle(document.body).backgroundColor + ')';
+    // paint the site bg onto the artboard and float it with a shadow. Use the
+    // theme's real bg slug (base) not 'background' (undefined here) — the whole
+    // point is that overriding --base in a hover audition re-tints the artboard;
+    // the wrong slug froze it on the committed colour, so a light style
+    // auditioned over a dark page (or vice-versa) washed out. The neutral desk
+    // behind is CSS.
+    wrap.style.background = 'var(--wp--preset--color--base, ' + getComputedStyle(document.body).backgroundColor + ')';
     wrap.style.boxShadow = '0 30px 90px -24px rgba(0, 0, 0, 0.4)';
     document.documentElement.classList.add('gogh-zoomed');
     zoomFrac = null; // start fitted

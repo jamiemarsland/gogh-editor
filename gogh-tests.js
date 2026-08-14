@@ -1886,6 +1886,29 @@
       G.reorderSection(i0, i1);
     });
 
+    // ---- 34b. auditioning a style re-tints the whole page ----
+    test('site style audition re-tints the artboard background', function () {
+      if (!G.openSide || !G.previewVariation) return 'no audition API';
+      // the birds-eye paints an opaque background on the page so it doesn't show
+      // the desk through transparent sections. That background MUST track a hover
+      // audition (via --base) — a wrong slug once froze it on the committed colour,
+      // so a light style auditioned over a dark page (or vice-versa) washed out.
+      G.openSide();
+      var wrap = q('.wp-site-blocks');
+      try {
+        G.previewVariation({ settings: { color: { palette: { theme: [
+          { slug: 'base', color: '#112233' }, { slug: 'contrast', color: '#ffffff' },
+        ] } } }, styles: {} });
+        var bg = getComputedStyle(wrap).backgroundColor;
+      } finally {
+        G.clearVariationPreview();
+        G.closeSide(true);
+        var pv = document.getElementById('gogh-style-preview'); if (pv) pv.textContent = '';
+      }
+      expect(bg === 'rgb(17, 34, 51)', 'artboard did not follow the audition base (got ' + bg + ' — must re-tint or opposite-brightness styles wash out)');
+      return 'artboard tinted to the previewed base';
+    });
+
     // ---- 35. audit coverage: the untested features ----
     test('menu reorder rewrites navigation markup by url then label', function () {
       var nraw = '<!-- wp:navigation-link {"label":"Home","url":"https://x.test/"} /-->\n' +
