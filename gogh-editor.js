@@ -8033,7 +8033,9 @@
       });
     }).then(function (r) {
       if (!r.ok) throw new Error('HTTP ' + r.status);
-      return fetch(location.href, { credentials: 'same-origin' });
+      // bypass the cache (see applyVariation) — a cached copy re-skins to the old scale
+      var bust = location.href + (location.href.indexOf('?') >= 0 ? '&' : '?') + 'goghcssbust=' + (window.performance && performance.now ? Math.round(performance.now()) : (+new Date()));
+      return fetch(bust, { credentials: 'same-origin', cache: 'no-store' });
     }).then(function (r) { return r.text(); }).then(function (html) {
       var doc = new DOMParser().parseFromString(html, 'text/html');
       ['global-styles-inline-css', 'wp-fonts-local'].forEach(function (id) {
@@ -8376,9 +8378,20 @@
       body: JSON.stringify({ styles: styles, settings: v.settings || {} }),
     }).then(function (r) {
       if (!r.ok) throw new Error('HTTP ' + r.status);
-      // hot-swap the theme CSS so the whole page re-skins without a reload
-      return fetch(location.href, { credentials: 'same-origin' });
-    }).then(function (r) { return r.text(); }).then(function (html) {
+      // hot-swap the theme CSS so the whole page re-skins without a reload. MUST
+      // bypass the cache: a cached copy carries the OLD style's fonts/colours, so
+      // clicking a style would sometimes land the previous look ('wrong on click').
+      // no-store + a bust param defeats browser and intermediate caches alike.
+      var bust = location.href + (location.href.indexOf('?') >= 0 ? '&' : '?') + 'goghcssbust=' + (window.performance && performance.now ? Math.round(performance.now()) : (+new Date()));
+      // fetch the fresh CSS AND preload the variation's fonts in parallel, so the
+      // swap lands with the webfont already loaded — otherwise the applied heading
+      // flashes the generic fallback while the font loads ('wrong on click')
+      return Promise.all([
+        fetch(bust, { credentials: 'same-origin', cache: 'no-store' }).then(function (r) { return r.text(); }),
+        ensureVariationFonts(v),
+      ]);
+    }).then(function (arr) {
+      var html = arr[0];
       var doc = new DOMParser().parseFromString(html, 'text/html');
       ['global-styles-inline-css', 'wp-fonts-local'].forEach(function (id) {
         var fresh = doc.getElementById(id);
