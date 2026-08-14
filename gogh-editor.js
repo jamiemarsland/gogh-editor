@@ -7996,6 +7996,7 @@
   }
   function applyTypeScale(factor, btn) {
     if (btn) btn.disabled = true;
+    var wasClean = !isDirty(); // rescaling re-measures heights; don't falsely dirty clean content
     var H = { 'X-WP-Nonce': cfg.nonce };
     return Promise.all([
       fetch(GSROOT + 'global-styles/themes/' + encodeURIComponent(cfg.theme), { headers: H, credentials: 'same-origin' })
@@ -8027,6 +8028,8 @@
       fontSizesCache = null;
       S.forEach(function (s2) { measureTextHeights(s2); });
       resolveAll();
+      if (wasClean) savedSnap = serialize(); // re-measured heights are the new clean baseline
+      refreshChip();
       cfg.typeScale = factor;
       fetch(cfg.restUrl.split('wp/v2/')[0] + 'gogh/v1/type-scale', {
         method: 'POST',
@@ -8286,6 +8289,11 @@
   }
   function applyVariation(v, btn) {
     if (btn) btn.disabled = true;
+    // a style change re-measures every text height (new font), which shifts the
+    // serialization — if the CONTENT was clean, those re-measured heights are the
+    // new clean baseline (the style itself is saved server-side), so re-baseline
+    // and don't falsely block "change page style" with a publish-first nag
+    var wasClean = !isDirty();
     // keep what the audition showed: if the pair only mapped the heading, write
     // the inferred body font in too, so applying matches the preview (and the name)
     var styles = v.styles || {};
@@ -8315,7 +8323,9 @@
       fontSizesCache = null;
       S.forEach(function (s) { measureTextHeights(s); });
       resolveAll();
+      if (wasClean) savedSnap = serialize(); // re-measured heights are the new clean baseline
       if (sel) placeHandles(sel.sec, sel.i);
+      refreshChip();
       if (btn) btn.disabled = false;
       // remember the style's NAME — global styles forget it on copy
       cfg.activeStyle = v.title || '';
