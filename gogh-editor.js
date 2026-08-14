@@ -8052,6 +8052,7 @@
   }
   function openStylePanel(anchorEl) {
     if (!cfg.gsId || !cfg.theme) return;
+    ensureThemeBase(); // warm the theme base so the first hover previews the full merge
     fetchVariations().then(function (vars) {
       if (!vars.length) return;
       panel.innerHTML =
@@ -8232,27 +8233,34 @@
     var other = fams.filter(function (f) { return f.slug && f.slug !== headSlug; })[0];
     return other ? 'var(--wp--preset--font-family--' + other.slug + ')' : null;
   }
+  // theme.json's OWN styles — the floor every variation sits on. Applying a
+  // variation replaces the global styles with base<-variation, so undeclared
+  // properties resolve to the base, not to the committed page. Cached once.
+  var _themeBase = null;
+  var _themeBaseFams = []; // the theme's own registered font families (base fonts)
+  function ensureThemeBase() {
+    if (_themeBase) return Promise.resolve(_themeBase);
+    return fetch(GSROOT + 'global-styles/themes/' + encodeURIComponent(cfg.theme), {
+      headers: { 'X-WP-Nonce': cfg.nonce }, credentials: 'same-origin',
+    }).then(function (r) { return r.ok ? r.json() : {}; })
+      .then(function (d) {
+        _themeBase = (d && d.styles) || {};
+        _themeBaseFams = (((((d || {}).settings) || {}).typography) || {}).fontFamilies;
+        _themeBaseFams = (_themeBaseFams && (_themeBaseFams.theme || _themeBaseFams.default)) || [];
+        return _themeBase;
+      })
+      .catch(function () { _themeBase = {}; return _themeBase; });
+  }
   function previewVariation(v) {
-    var css = ':root{';
-    var pal = ((v.settings || {}).color || {}).palette || {};
-    (pal.theme || pal.default || []).forEach(function (p) {
-      if (p.slug && p.color) css += '--wp--preset--color--' + p.slug + ':' + p.color + ';';
-    });
-    var fams = (((v.settings || {}).typography || {}).fontFamilies || {}).theme || [];
-    fams.forEach(function (f) {
-      if (f.slug && f.fontFamily) css += '--wp--preset--font-family--' + f.slug + ':' + f.fontFamily + ';';
-    });
-    css += '}';
     var resolve = function (s) {
       return String(s || '')
         .replace(/^var:preset\|color\|(.+)$/, 'var(--wp--preset--color--$1)')
         .replace(/^var:preset\|font-family\|(.+)$/, 'var(--wp--preset--font-family--$1)')
         .replace(/^var:preset\|font-size\|(.+)$/, 'var(--wp--preset--font-size--$1)');
     };
-    // a variation's type is more than its family: weight, size, line-height and
-    // letter-spacing are part of the look, and the audition must show them or
-    // the hover won't match what clicking keeps ("2 different styles"). font-size
-    // resolves through the preset var, so the Type scale control still governs it.
+    // weight, size, line-height, letter-spacing — all part of a variation's type.
+    // Emitting base declarations then the variation's IN THE SAME RULE merges them
+    // (later wins), so an unset property keeps the theme base, not the committed page.
     var typo = function (ty) {
       var o = '';
       if (!ty) return o;
@@ -8264,32 +8272,56 @@
       if (ty.fontStyle) o += 'font-style:' + ty.fontStyle + ';';
       return o;
     };
-    var sc = (v.styles || {}).color || {};
-    // the theme's default text/heading colour is the 'contrast' preset (re-mapped
-    // in :root above). Use it as the fallback when a variation names no colour of
-    // its own — that mirrors the APPLIED cascade, where an unset colour resolves
-    // to the base, not to whatever the currently-committed page happens to use.
-    var baseText = 'var(--wp--preset--color--contrast)';
-    var bodyText = sc.text ? resolve(sc.text) : baseText;
-    var body = '';
-    if (sc.background) body += 'background-color:' + resolve(sc.background) + ';';
-    body += 'color:' + bodyText + ';';
-    // font variations register their families under NEW preset slugs — the
-    // page only picks them up through the variation's body/heading mappings,
-    // so the preview must apply those too (colours reuse slugs; fonts don't)
-    var bodyFF = variationBodyFont(v);
-    if (bodyFF) body += 'font-family:' + resolve(bodyFF) + ';';
-    body += typo((v.styles || {}).typography);
-    if (body) css += 'body{' + body + '}';
-    var hEl = (((v.styles || {}).elements) || {}).heading || {};
-    var hty = hEl.typography || {};
-    // headings keep their OWN colour when the variation sets one — Morning's is
-    // 'contrast' (dark) over grey body text; without it, headings follow the body
-    var hColor = ((hEl.color || {}).text) ? resolve(hEl.color.text) : bodyText;
-    var hcss = 'color:' + hColor + ';';
-    if (hty.fontFamily) hcss += 'font-family:' + resolve(hty.fontFamily) + ';';
-    hcss += typo(hty);
+    // APPLYING a variation = theme base OVERRIDDEN by the variation. The audition
+    // must render that same merge or the committed style bleeds through the hover
+    // (Evening declares no font, so it applies the base sans — but the preview used
+    // to keep the committed serif). Merge base<-variation for every slot.
+    var B = _themeBase || {};
+    var vs = v.styles || {};
+    var bColor = B.color || {}, vColor = vs.color || {};
+    var bBodyTy = B.typography || {}, vBodyTy = vs.typography || {};
+    var bHead = (B.elements || {}).heading || {}, vHead = (vs.elements || {}).heading || {};
+    var bHeadTy = bHead.typography || {}, vHeadTy = vHead.typography || {};
+
+    var css = ':root{';
+    var pal = ((v.settings || {}).color || {}).palette || {};
+    (pal.theme || pal.default || []).forEach(function (p) {
+      if (p.slug && p.color) css += '--wp--preset--color--' + p.slug + ':' + p.color + ';';
+    });
+    // register the theme's BASE fonts first, then the variation's (same slug
+    // overrides) — so a base-font fallback like Manrope resolves even when the
+    // currently-committed variation never registered it
+    (_themeBaseFams || []).forEach(function (f) {
+      if (f.slug && f.fontFamily) css += '--wp--preset--font-family--' + f.slug + ':' + f.fontFamily + ';';
+    });
+    var fams = (((v.settings || {}).typography || {}).fontFamilies || {}).theme || [];
+    fams.forEach(function (f) {
+      if (f.slug && f.fontFamily) css += '--wp--preset--font-family--' + f.slug + ':' + f.fontFamily + ';';
+    });
+    css += '}';
+
+    var bodyText = vColor.text ? resolve(vColor.text)
+      : (bColor.text ? resolve(bColor.text) : 'var(--wp--preset--color--contrast)');
+    // variationBodyFont may return either preset form (var:preset|...) or CSS-var
+    // form, so resolve it; fall back to the theme base's body font
+    var vBodyFF = variationBodyFont(v);
+    var bodyFF = vBodyFF ? resolve(vBodyFF) : (bBodyTy.fontFamily ? resolve(bBodyTy.fontFamily) : null);
+    var body = 'color:' + bodyText + ';';
+    if (vColor.background) body += 'background-color:' + resolve(vColor.background) + ';';
+    if (bodyFF) body += 'font-family:' + bodyFF + ';';
+    body += typo(bBodyTy) + typo(vBodyTy);
+    css += 'body{' + body + '}';
+
+    // headings: own font/colour when set, else the base's, else follow the body
+    var headFF = vHeadTy.fontFamily ? resolve(vHeadTy.fontFamily)
+      : (bHeadTy.fontFamily ? resolve(bHeadTy.fontFamily) : bodyFF);
+    var headColor = (vHead.color || {}).text ? resolve(vHead.color.text)
+      : ((bHead.color || {}).text ? resolve(bHead.color.text) : bodyText);
+    var hcss = 'color:' + headColor + ';';
+    if (headFF) hcss += 'font-family:' + headFF + ';';
+    hcss += typo(bHeadTy) + typo(vHeadTy);
     css += 'h1,h2,h3,h4,h5,h6,.wp-block-heading{' + hcss + '}';
+
     if (!previewStyleEl) {
       previewStyleEl = document.createElement('style');
       previewStyleEl.id = 'gogh-style-preview';
