@@ -1304,6 +1304,33 @@
     return true;
   }
 
+  // the theme has the last word on type: a serif variation can wrap a display
+  // heading TALLER than the box a template drew, and the words then sit on
+  // whatever was below (James's "Good design is good business" landed on its
+  // own button). Re-measure each text element against the LIVE type and push
+  // whatever sat below down by the growth — the same contract typing honours —
+  // processed top-down so the pushes cascade. Runs after a render AND after a
+  // global-style / brand swap (which reskins the SAME nodes, so heights move
+  // without a re-render).
+  function growReflow(sec) {
+    if (!sec.nodes) return;
+    var sMeasure = scaleOf(sec);
+    if (sMeasure > 0) {
+      sec.els.slice().sort(function (a, b) { return a.y - b.y; }).forEach(function (e) {
+        if (!isText(e)) return;
+        var i = sec.els.indexOf(e);
+        var h = sec.nodes[i] ? sec.nodes[i].offsetHeight / sMeasure : 0;
+        if (h > 0 && Math.round(h) > e.h + 2) {
+          var oldH = e.h;
+          e.h = Math.round(h);
+          reflowPush(sec, e, oldH);
+        }
+      });
+    }
+    measureTextHeights(sec);
+    resolveAndApply(sec);
+  }
+
   // (re)build one section's DOM from its model
   function renderSection(sec) {
     if (textEditing && textEditing.sec === sec) exitTextEdit();
@@ -1327,26 +1354,7 @@
       sec.sectionEl.appendChild(inv);
     }
     resolveAndApply(sec);
-    // the theme has the last word on type: a serif variation can wrap a
-    // display heading TALLER than the box a template designed, and the
-    // words then sit on whatever was below (James's "Good design is good
-    // business" landed on its own button). Growth pushes — the same
-    // contract typing honours — processed top-down so pushes cascade.
-    var sMeasure = scaleOf(sec);
-    if (sMeasure > 0) {
-      sec.els.slice().sort(function (a, b) { return a.y - b.y; }).forEach(function (e) {
-        if (!isText(e)) return;
-        var i = sec.els.indexOf(e);
-        var h = sec.nodes[i] ? sec.nodes[i].offsetHeight / sMeasure : 0;
-        if (h > 0 && Math.round(h) > e.h + 2) {
-          var oldH = e.h;
-          e.h = Math.round(h);
-          reflowPush(sec, e, oldH);
-        }
-      });
-    }
-    measureTextHeights(sec);
-    resolveAndApply(sec);
+    growReflow(sec);
   }
 
   function newSectionShell(scope) {
@@ -7993,8 +8001,7 @@
         if (fresh && cur) cur.textContent = fresh.textContent;
       });
       fontSizesCache = null;
-      S.forEach(function (s2) { measureTextHeights(s2); });
-      resolveAll();
+      S.forEach(growReflow); // new brand type can wrap a heading taller — push what's below, don't overlap it
       if (wasClean) savedSnap = serialize(); // re-measured heights are the new clean baseline
       refreshChip();
       cfg.typeScale = factor;
@@ -8370,8 +8377,7 @@
         else if (fresh && !cur) document.head.appendChild(fresh.cloneNode(true));
       });
       fontSizesCache = null;
-      S.forEach(function (s) { measureTextHeights(s); });
-      resolveAll();
+      S.forEach(growReflow); // new type can wrap a heading taller — push what's below, don't overlap it
       if (wasClean) savedSnap = serialize(); // re-measured heights are the new clean baseline
       if (sel) placeHandles(sel.sec, sel.i);
       refreshChip();
@@ -9259,6 +9265,7 @@
     templates: function () { return TEMPLATES; },
     resolveAll: resolveAll,
     reflowPush: reflowPush,
+    growReflow: growReflow,
     measure: measureTextHeights,
     resolve: resolveAndApply,
     serialize: serialize,

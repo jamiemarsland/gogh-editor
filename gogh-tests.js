@@ -174,6 +174,41 @@
       return 'grew ' + grew + ', in-path pushed equally';
     });
 
+    // ---- 5a. a style change grows a heading → what sits below is PUSHED,
+    // not overlapped. applyVariation reskins the SAME nodes then runs
+    // growReflow; a serif variation can wrap a display heading taller than
+    // the template drew. (James: "button overlap issue when we change styles"
+    // — "Our thinking" landed on "Good design is good business".) ----
+    test('growReflow pushes what sits below a heading grown by a style change', function () {
+      var s = sec();
+      var hi = findIdx('heading');
+      var head = s.els[hi];
+      head.x = 72; head.w = 700; head.y = 80;
+      G.renderSection(s); // lay out + measure the heading at the live type
+      // park a button directly below the heading, in its horizontal path
+      var btn = { type: 'button', text: 'Our thinking', x: 72, y: head.y + head.h + 40, w: 220, h: 52 };
+      s.els.push(btn);
+      G.renderSection(s);
+      var bi = s.els.indexOf(btn);
+      var oldHeadH = head.h, btnY0 = btn.y;
+      // simulate a serif variation wrapping the heading ~300u taller: force the
+      // rendered node height, then run the exact tail applyVariation runs
+      var scale = s.sectionEl.offsetWidth / 1200;
+      s.nodes[hi].style.minHeight = (s.nodes[hi].offsetHeight + Math.round(300 * scale)) + 'px';
+      G.growReflow(s);
+      var delta = head.h - oldHeadH;
+      expect(delta > 200, 'heading model did not grow (' + delta + ')');
+      expect(approx(btn.y - btnY0, delta, 6),
+        'button not pushed by the growth: moved ' + (btn.y - btnY0) + ' vs ' + delta);
+      expect(!rectsOverlap(s.nodes[hi].getBoundingClientRect(), s.nodes[bi].getBoundingClientRect()),
+        'button overlaps the grown heading');
+      // restore: drop the scratch button and its forced height
+      s.nodes[hi].style.minHeight = '';
+      s.els.splice(bi, 1);
+      G.renderSection(s);
+      return 'heading grew ' + Math.round(delta) + 'u, button tracked it (no overlap)';
+    });
+
     // ---- 5b. frame-interleaved resize pushes exactly once (v0.12.1) ----
     test('per-frame resize push is incremental, not compounding', function () {
       var i = findIdx('heading');
