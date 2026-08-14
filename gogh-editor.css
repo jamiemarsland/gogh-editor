@@ -1774,12 +1774,6 @@ html.gogh-zoomed .gogh-selbox,
 html.gogh-zoomed .gogh-grip,
 html.gogh-zoomed .gogh-handle,
 html.gogh-zoomed .gogh-hgrip { display: none !important; }
-/* design mode: content sections invite a drag to reorder; a drop line shows
-   where the grabbed section will land */
-html.gogh-designmode .wp-site-blocks .gogh-wrap { cursor: grab; }
-html.gogh-designmode .wp-site-blocks .gogh-wrap:hover { outline: 2px dashed rgba(75, 65, 255, 0.55); outline-offset: -2px; }
-.gogh-secdrag-src { opacity: 0.45; cursor: grabbing !important; transition: opacity 0.12s ease; }
-.gogh-secdropline { position: fixed; height: 3px; background: #4b41ff; border-radius: 2px; z-index: 2147483600; pointer-events: none; box-shadow: 0 0 0 1.5px rgba(255, 255, 255, 0.75); }
 /* the header/footer editing room dims the page and spotlights the chrome — a
    page section's toolbar/handles/inserter must not float over it (the cropped
    SECTION pill above the header) */

@@ -1505,6 +1505,10 @@
     '<span class="gogh-scard-ic"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 15h18"/></svg></span>' +
     '<span class="gogh-scard-tx"><span class="gogh-scard-t">Edit footer</span><span class="gogh-scard-s">The foot of every page</span></span>' +
     '<svg class="gogh-scard-chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg></button>' +
+    '<button type="button" class="gogh-sitem gogh-scard gogh-rearrange">' +
+    '<span class="gogh-scard-ic"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><rect x="4" y="3" width="16" height="7" rx="1.6"/><rect x="4" y="14" width="16" height="7" rx="1.6"/><path d="M12 10.5v3"/></svg></span>' +
+    '<span class="gogh-scard-tx"><span class="gogh-scard-t">Rearrange sections</span><span class="gogh-scard-s">Drag the whole page into order</span></span>' +
+    '<svg class="gogh-scard-chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg></button>' +
     '</div>' +
     '<div class="gogh-side-gap"></div>' +
     '<div class="gogh-side-foot">' +
@@ -2508,88 +2512,14 @@
     }, 420);
   }
 
-  // ---------- design mode: drag whole SECTIONS to reorder ----------
-  // the birds-eye is a DESIGN surface: you arrange the page (style, framing,
-  // header/footer, section order), you don't nudge elements one by one — that
-  // precise work belongs to the zoomed-IN edit mode. So here a pointerdown on a
-  // content section reorders the whole section, and element selection is gated
-  // off (see bindSelect). One surface replaces the old separate reorder overlay.
-  var secDrag = null;
-  var secDropTarget = null; // wrapEl to drop before; null = end of the content
-  var secDropLine = document.createElement('div');
-  secDropLine.className = 'gogh-secdropline';
-  secDropLine.hidden = true;
-  document.body.appendChild(secDropLine);
+  // the birds-eye is a DESIGN surface: you arrange the page at a high level —
+  // style, framing, header/footer, and section ORDER. Element editing is gated
+  // off here (see bindSelect). Section order is changed through the labelled
+  // "Rearrange sections" overlay (openZoom), a clearer abstraction than dragging
+  // the live page — folks couldn't tell what counted as a section on the artboard.
   function designMode() {
-    // the design home is showing (not an audition panel) over the zoomed page
     return !!(zoomState && side.classList.contains('is-open') && !panelOpen);
   }
-  function movableSecs() {
-    return S.filter(function (s) { return !s.chrome; }); // header/footer stay pinned
-  }
-  function placeSecDropLine() {
-    if (!zoomState) return;
-    var pr = zoomState.wrap.getBoundingClientRect();
-    var top;
-    if (secDropTarget) {
-      top = secDropTarget.getBoundingClientRect().top;
-    } else {
-      var cs = movableSecs();
-      var last = cs.length ? cs[cs.length - 1].wrapEl : null;
-      top = last ? last.getBoundingClientRect().bottom : pr.top;
-    }
-    secDropLine.style.left = pr.left + 'px';
-    secDropLine.style.width = pr.width + 'px';
-    secDropLine.style.top = (top - 1.5) + 'px';
-    secDropLine.hidden = false;
-  }
-  document.addEventListener('pointerdown', function (ev) {
-    if (!designMode()) return;
-    if (ev.button != null && ev.button !== 0) return;
-    // gogh's own surfaces never start a section drag
-    if (ev.target.closest && ev.target.closest('.gogh-side, .gogh-panel, .gogh-zoomslider, .gogh-toast, #wpadminbar')) return;
-    var wrap = ev.target.closest && ev.target.closest('.gogh-wrap');
-    if (!wrap) return;
-    var sec = S.filter(function (s) { return s.wrapEl === wrap; })[0];
-    if (!sec || sec.chrome) return; // header/footer stay pinned
-    ev.preventDefault();
-    secDrag = { wrap: wrap, y: ev.clientY, pointerId: ev.pointerId, moved: false };
-    secDropTarget = wrap;
-    try { if (ev.target.setPointerCapture) ev.target.setPointerCapture(ev.pointerId); } catch (e) {}
-  }, true);
-  document.addEventListener('pointermove', function (ev) {
-    if (!secDrag || ev.pointerId !== secDrag.pointerId) return;
-    if (!secDrag.moved && Math.abs(ev.clientY - secDrag.y) < 4) return;
-    if (!secDrag.moved) { secDrag.wrap.classList.add('gogh-secdrag-src'); secDrag.moved = true; }
-    var y = ev.clientY, target = null;
-    var cs = movableSecs();
-    for (var k = 0; k < cs.length; k++) {
-      if (cs[k].wrapEl === secDrag.wrap) continue;
-      var r = cs[k].wrapEl.getBoundingClientRect();
-      if (y < r.top + r.height / 2) { target = cs[k].wrapEl; break; }
-    }
-    secDropTarget = target;
-    placeSecDropLine();
-  }, true);
-  document.addEventListener('pointerup', function (ev) {
-    if (!secDrag) return;
-    var sd = secDrag; secDrag = null;
-    sd.wrap.classList.remove('gogh-secdrag-src');
-    secDropLine.hidden = true;
-    if (!sd.moved) return;
-    var ref = secDropTarget;
-    if (ref === sd.wrap) return;
-    if (ref) {
-      if (sd.wrap.nextElementSibling === ref) return; // already in place
-      pageParent.insertBefore(sd.wrap, ref);
-    } else {
-      if (!sd.wrap.nextElementSibling || sd.wrap.nextElementSibling === endMarker) return;
-      pageParent.insertBefore(sd.wrap, endMarker);
-    }
-    resyncContentOrder(); // re-derives S from DOM order and re-pins header/footer
-    if (zoomState) layoutZoom();
-    toast('Section moved.');
-  }, true);
 
   function closePanel() {
     if (panelCleanup) { var pc = panelCleanup; panelCleanup = null; pc(); }
@@ -4397,6 +4327,7 @@
   }
   side.querySelector('.gogh-editheader').addEventListener('click', function () { editChromeFromDesign('header'); });
   side.querySelector('.gogh-editfooter').addEventListener('click', function () { editChromeFromDesign('footer'); });
+  side.querySelector('.gogh-rearrange').addEventListener('click', function () { openZoom(); });
   elbar.querySelector('.gogh-eb-del').addEventListener('click', deleteSelected);
   side.querySelector('[data-act="gridsnap"]').addEventListener('click', function () {
     gridSnapOn = !gridSnapOn;
