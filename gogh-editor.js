@@ -7433,10 +7433,17 @@
     });
   }
   var previewFaces = {};
+  // load the fonts a variation's audition will need — its own AND the theme
+  // base's (a preview can fall back to a base font the committed page never
+  // loaded, e.g. Evening -> base Manrope). Returns a promise that resolves when
+  // they're ready (capped, so a slow font never hangs the audition), so the
+  // preview can wait and never flash the generic serif/sans fallback first.
   function ensureVariationFonts(v) {
-    if (!window.FontFace || !document.fonts) return;
-    var fams = (((v.settings || {}).typography || {}).fontFamilies || {}).theme || [];
-    fams.forEach(function (f) {
+    if (!window.FontFace || !document.fonts) return Promise.resolve();
+    var vFams = (((v.settings || {}).typography || {}).fontFamilies || {}).theme || [];
+    var all = vFams.concat(_themeBaseFams || []);
+    var jobs = [];
+    all.forEach(function (f) {
       if (!f.fontFamily) return;
       var fam = f.fontFamily.split(',')[0].replace(/["']/g, '').trim();
       if (previewFaces[fam] || document.fonts.check('16px "' + fam + '"')) { previewFaces[fam] = 1; return; }
@@ -7451,9 +7458,14 @@
           weight: String(face.fontWeight || '400'),
           style: face.fontStyle || 'normal',
         });
-        ff2.load().then(function (loaded) { document.fonts.add(loaded); }).catch(function () {});
+        jobs.push(ff2.load().then(function (loaded) { document.fonts.add(loaded); }).catch(function () {}));
       } catch (err) {}
     });
+    if (!jobs.length) return Promise.resolve();
+    return Promise.race([
+      Promise.all(jobs),
+      new Promise(function (res) { setTimeout(res, 1200); }),
+    ]);
   }
   // ---------- page style: which template this page renders with ----------
   // Curated friendly names over raw template slugs; applying is a one-field
@@ -7904,7 +7916,7 @@
     function livePreview() {
       refreshContrast();
       clearTimeout(pvT);
-      pvT = setTimeout(function () { previewVariation(brandToVariation(local)); }, 150);
+      pvT = setTimeout(function () { auditionVariation(brandToVariation(local)); }, 150);
     }
     panel.querySelectorAll('.gogh-brandwell').forEach(function (well) {
       var k = well.dataset.k;
@@ -8124,7 +8136,7 @@
           var bv = brandToVariation(cfg.brand);
           b2.addEventListener('mouseenter', function () {
             clearTimeout(previewHoverT);
-            previewHoverT = setTimeout(function () { previewVariation(bv); }, 120);
+            previewHoverT = setTimeout(function () { auditionVariation(bv); }, 120);
           });
           // the whole row is the door to your brand — applying happens from
           // the editor's Keep, with live preview along the way
@@ -8198,10 +8210,7 @@
           // cursor down the list doesn't strobe the page
           b.addEventListener('mouseenter', function () {
             clearTimeout(previewHoverT);
-            previewHoverT = setTimeout(function () {
-              ensureVariationFonts(v);
-              previewVariation(v);
-            }, 120);
+            previewHoverT = setTimeout(function () { auditionVariation(v); }, 120);
           });
           box.appendChild(b);
         });
@@ -8218,6 +8227,16 @@
   // still persists via applyVariation (full fidelity from the server).
   var previewStyleEl = null;
   var previewHoverT = null;
+  var previewSeq = 0; // guards against a slow font-load applying a stale audition
+  // audition a variation the way clicking it will land: load its fonts (and the
+  // base fonts it may fall back to) FIRST, then paint the preview — so the hover
+  // never flashes a generic serif/sans while the real webfont is still loading
+  function auditionVariation(v) {
+    var seq = ++previewSeq;
+    ensureVariationFonts(v).then(function () {
+      if (seq === previewSeq) previewVariation(v);
+    });
+  }
   // the body font a variation intends. Some theme font-pairs (e.g. "Roboto Slab
   // & Manrope") register BOTH families in settings but only map the heading in
   // styles — leaving styles.typography.fontFamily empty, so the body never
@@ -8330,6 +8349,7 @@
     previewStyleEl.textContent = css;
   }
   function clearVariationPreview() {
+    previewSeq++; // cancel any in-flight audition so it can't paint after leave
     clearTimeout(previewHoverT);
     if (previewStyleEl) previewStyleEl.textContent = '';
   }
