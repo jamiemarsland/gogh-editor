@@ -1,4 +1,4 @@
-# Knowledge-base audit — plugin v0.99.175
+# Knowledge-base audit — plugin v0.99.176
 
 _13 finding(s) suppressed by `kb.audit-ignore.txt`._
 
@@ -6,13 +6,7 @@ _13 finding(s) suppressed by `kb.audit-ignore.txt`._
 
 The prose states something the source contradicts. Fix these first — the bot will contradict itself, since the appendix carries the correct value.
 
-- plugin version is **0.99.175**, prose says **0.96.5**
-
-## STALE (1)
-
-The prose names something that no longer exists.
-
-- UI label "Whole page — reorder sections" was removed in this release, but the prose still describes it
+- plugin version is **0.99.176**, prose says **0.96.5**
 
 ## MISSING (22)
 
@@ -45,6 +39,4 @@ The source has something the prose never explains. The bot knows the name from t
 
 Use this as the checklist for updating the prose — and as a sanity check on the release itself.
 
-- version: 0.99.173 → 0.99.175
-- removed UI label: "' + escAttr(o.title) + '"
-- removed UI label: "Whole page — reorder sections"
+- version: 0.99.175 → 0.99.176
