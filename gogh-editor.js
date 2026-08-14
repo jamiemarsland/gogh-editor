@@ -1177,10 +1177,20 @@
     return n;
   }
 
+  // VISUAL scale: getBoundingClientRect is post-transform, so this is the on-
+  // screen size ratio — right for mapping pointer deltas (screen px) to model
+  // units while dragging/resizing, INCLUDING inside the zoomed birds-eye.
   function scaleOf(sec) { return sec.sectionEl.getBoundingClientRect().width / W; }
+  // LAYOUT scale: offsetWidth is pre-transform, so this ignores the birds-eye
+  // zoom. Use it whenever the numerator is ALSO a layout value (offsetHeight) —
+  // dividing a layout height by the VISUAL scale would inflate the result by
+  // 1/zoom in the zoomed view (a heading measured there came out ~1.6x too
+  // tall, and re-flow shoved everything below it into a huge gap: "big issues
+  // if I change styles zoomed out").
+  function measureScaleOf(sec) { return sec.sectionEl.offsetWidth / W; }
   function measureTextHeights(sec) {
     if (!sec.nodes || sec.nodes.some(function (n) { return !n; })) return;
-    var s = scaleOf(sec);
+    var s = measureScaleOf(sec);
     sec.els.forEach(function (e, i) {
       if (isText(e)) {
         var h = sec.nodes[i].offsetHeight / s;
@@ -1314,7 +1324,7 @@
   // without a re-render).
   function growReflow(sec, allowShrink) {
     if (!sec.nodes) return;
-    var sMeasure = scaleOf(sec);
+    var sMeasure = measureScaleOf(sec); // layout scale — the birds-eye zoom must not inflate the measure
     if (sMeasure > 0) {
       sec.els.slice().sort(function (a, b) { return a.y - b.y; }).forEach(function (e) {
         if (!isText(e)) return;
@@ -1336,6 +1346,38 @@
     }
     measureTextHeights(sec);
     resolveAndApply(sec);
+  }
+
+  // A swapped-in font can re-render a heading over the next several hundred ms
+  // (the family only paints once its webfont lands), changing its height AFTER
+  // the synchronous re-flow already ran — leaving the model out of step with
+  // the screen and stranding everything below (James: "big issues if I change
+  // styles"). So re-flow a few more times across a short window; each pass is a
+  // no-op once the render settles, so this simply catches the FINAL height.
+  //
+  // (A ResizeObserver would be the elegant catch, but re-flowing mutates the
+  // very nodes it would watch — a feedback loop Chrome then silences by
+  // disabling observer delivery page-wide. Bounded timers stay predictable.)
+  function settleReflowPasses() {
+    [180, 420, 900].forEach(function (ms) {
+      setTimeout(function () {
+        if (!editing || drag || resize || hDrag || textEditing) return;
+        if (previewStyleEl && previewStyleEl.textContent) return; // an audition must never bake in
+        var changed = S.some(function (s) {
+          if (!s.nodes) return false;
+          var sc = measureScaleOf(s);
+          return sc && s.els.some(function (e, i) {
+            return isText(e) && s.nodes[i] && Math.abs(Math.round(s.nodes[i].offsetHeight / sc) - e.h) > 2;
+          });
+        });
+        if (!changed) return;
+        var wasClean = !isDirty();
+        S.forEach(function (s) { growReflow(s, true); });
+        if (wasClean) savedSnap = serialize(); // a late font nudge is not an unsaved edit
+        if (sel) placeHandles(sel.sec, sel.i);
+        refreshChip();
+      }, ms);
+    });
   }
 
   // (re)build one section's DOM from its model
@@ -8055,9 +8097,10 @@
         if (fresh && cur) cur.textContent = fresh.textContent;
       });
       fontSizesCache = null;
-      S.forEach(function (s2) { growReflow(s2, true); }); // new brand type re-wraps headings — push/pull to match
+      S.forEach(function (s2) { growReflow(s2, true); }); // new type scale re-wraps headings — push/pull to match
       if (wasClean) savedSnap = serialize(); // re-measured heights are the new clean baseline
       refreshChip();
+      settleReflowPasses(); // catch a late webfont re-render
       cfg.typeScale = factor;
       fetch(cfg.restUrl.split('wp/v2/')[0] + 'gogh/v1/type-scale', {
         method: 'POST',
@@ -8431,10 +8474,20 @@
         else if (fresh && !cur) document.head.appendChild(fresh.cloneNode(true));
       });
       fontSizesCache = null;
+      // Re-flow AFTER the swapped-in fonts actually paint. A heading measured
+      // mid-FOUT reads the FALLBACK font's height — often far taller than the
+      // real webfont — so growReflow pushes everything below down to a phantom
+      // bottom, then the font lands, the heading shrinks, and the button is
+      // stranded in a sea of empty space ("big issues if I change styles zoomed
+      // out"). rAF lets the browser register the new @font-face needs, then
+      // document.fonts.ready waits for them, so the measure sees the real
+      // wrapped height. (ensureVariationFonts above preloads the JS FontFaces;
+      // this also covers the CSS @font-face the swap brings in.)
       S.forEach(function (s) { growReflow(s, true); }); // new type re-wraps headings — push/pull what's below to match
       if (wasClean) savedSnap = serialize(); // re-measured heights are the new clean baseline
       if (sel) placeHandles(sel.sec, sel.i);
       refreshChip();
+      settleReflowPasses(); // the webfont can re-render the heading a few frames later — catch that height too
       if (btn) btn.disabled = false;
       // remember the style's NAME — global styles forget it on copy
       cfg.activeStyle = v.title || '';

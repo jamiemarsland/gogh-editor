@@ -243,6 +243,30 @@
       return 'button rode the heading down then back up (' + Math.round(btnNatural) + '→' + Math.round(btn.y) + ')';
     });
 
+    // ---- 5a-ter. text measurement must ignore the birds-eye ZOOM. The zoom is
+    // a CSS transform on an ancestor: it shrinks getBoundingClientRect (visual)
+    // but NOT offsetWidth (layout). Text height is offsetHeight (layout) / scale,
+    // so the scale MUST be layout too — else a heading measured while zoomed
+    // comes out ~1/zoom too tall and re-flow shoves everything below into a huge
+    // gap (James: "big issues if I change styles zoomed out"). ----
+    test('text measurement ignores a zoom transform on an ancestor', function () {
+      var i = findIdx('heading');
+      var s = sec();
+      G.measure(s); // baseline at 1:1
+      var h1 = s.els[i].h;
+      var host = s.sectionEl.parentElement || document.body;
+      var prevTf = host.style.transform, prevOrigin = host.style.transformOrigin;
+      host.style.transformOrigin = 'top left';
+      host.style.transform = 'scale(0.5)'; // stand in for the zoomed-out artboard
+      G.measure(s); // re-measure under the transform
+      var h2 = s.els[i].h;
+      host.style.transform = prevTf;
+      host.style.transformOrigin = prevOrigin;
+      G.measure(s); // restore the model to the untransformed reading
+      expect(approx(h1, h2, 4), 'zoom transform changed the measured height: ' + h1 + ' -> ' + h2);
+      return 'measured ' + h1 + ' at 1:1 and ' + h2 + ' under scale(0.5) — zoom-independent';
+    });
+
     // ---- 5b. frame-interleaved resize pushes exactly once (v0.12.1) ----
     test('per-frame resize push is incremental, not compounding', function () {
       var i = findIdx('heading');
