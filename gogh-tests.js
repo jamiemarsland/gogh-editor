@@ -1822,16 +1822,6 @@
       expect(Math.abs(e.x - (x0 + 37)) <= 1, 'expected free landing at ' + (x0 + 37) + ', got ' + e.x);
     });
 
-    // ---- 31. the dazzle features ----
-    test('mobile mirror renders the container-query layout', function () {
-      G.mirror.open();
-      G.mirror.refresh();
-      var clone = document.querySelector('.gogh-mirror-stage .gogh-section');
-      expect(clone, 'no clone in mirror');
-      var cols = getComputedStyle(clone).gridTemplateColumns.split(' ').length;
-      expect(cols === 3, 'clone not stacked: ' + cols + ' columns');
-      G.mirror.close();
-    });
     // ---- publish re-emits top-level spans in live DOM order ----
     test('resequenceToDom reorders exact units, bails on any ambiguity', function () {
       var A = '<!-- wp:paragraph -->\n<p>Alpha</p>\n<!-- /wp:paragraph -->';
@@ -1888,24 +1878,6 @@
       G.deleteSection(G.sections().indexOf(added));
       entry.el.querySelector('.gogh-pend-rm').click();
       return 'anchored insertion beats index-only insertion';
-    });
-    test('mobile mirror shows native sections too, in page order', function () {
-      G.addHtmlSection('<div style="padding:40px"><h2>Mirror me native</h2><p>Still not freeform</p></div>', null);
-      var entry = G.pending()[G.pending().length - 1];
-      expect(entry, 'no pending entry');
-      G.mirror.open();
-      G.mirror.refresh();
-      var stage = document.querySelector('.gogh-mirror-stage');
-      expect(stage.textContent.indexOf('Mirror me native') !== -1, 'pasted section missing from mirror');
-      expect(!stage.querySelector('.gogh-pendbar'), 'editing chrome leaked into mirror');
-      expect(!stage.querySelector('.gogh-pending'), 'pending class leaked into mirror');
-      // page order: the freeform section clone precedes the pasted holder clone
-      var kids = [].slice.call(stage.children);
-      var iSec = kids.findIndex(function (n) { return n.classList.contains('gogh-section') || n.querySelector('.gogh-section'); });
-      var iNat = kids.findIndex(function (n) { return n.textContent.indexOf('Mirror me native') !== -1; });
-      expect(iSec !== -1 && iNat !== -1 && iSec < iNat, 'order wrong: sec@' + iSec + ' native@' + iNat);
-      G.mirror.close();
-      entry.el.querySelector('.gogh-pend-rm').click();
     });
     test('exploded layers fan out and restore', function () {
       var s0 = sec();

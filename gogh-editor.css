@@ -1968,54 +1968,6 @@ html.gogh-chrome-mode .gogh-hgrip { display: none !important; }
   outline-offset: 3px;
 }
 
-/* ---------- live mobile mirror ---------- */
-.gogh-mirror {
-  position: fixed;
-  left: 20px;
-  bottom: 20px;
-  z-index: 99999;
-  display: none;
-  flex-direction: column;
-  background: var(--gogh-ui-bg);
-  border: 1px solid var(--gogh-ui-border);
-  border-radius: 18px;
-  box-shadow: 0 24px 60px -18px rgba(0, 0, 0, 0.7);
-  overflow: hidden;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, sans-serif;
-}
-html.gogh-editing .gogh-mirror { display: flex; }
-.gogh-mirror[hidden] { display: none !important; }
-.gogh-mirror-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 8px 8px 8px 14px;
-  font-size: 11px;
-  font-weight: 800;
-  letter-spacing: 0.09em;
-  text-transform: uppercase;
-  color: var(--gogh-ui-muted);
-}
-.gogh-mirror-head .gogh-sbtn { flex: 0 0 auto; width: 24px; height: 24px; padding: 0; display: grid; place-items: center; font-size: 11px; }
-.gogh-mirror-frame {
-  width: 250px;
-  height: 420px;
-  overflow: hidden;
-  border-top: 1px solid var(--gogh-ui-border);
-  background: #fff;
-}
-.gogh-mirror-vp {
-  width: 250px;
-  height: 420px;
-  overflow-y: auto;
-  overflow-x: hidden;
-}
-.gogh-mirror-stage {
-  width: 360px;
-  transform-origin: 0 0;
-  container-type: inline-size;
-}
-.gogh-mirror-stage .gogh-section { pointer-events: none; }
 
 /* editor-side preview of the posts query widget */
 .gogh-postsprev {
@@ -2524,8 +2476,6 @@ html.gogh-editing .gogh-mirror { display: flex; }
   background: #fff;
 }
 .gogh-zoom-card .gogh-zoom-label { color: rgba(232,234,240,0.8); }
-/* zoom + mirror open from the palette; is-active marks the mirror on */
-.gogh-mirroropen.is-active { background: var(--gogh-ui-accent); color: var(--gogh-ui-accent-fg); }
 
 /* anything that arrives in the picker fades up into place — late fetches
    feel intentional instead of jolting */
@@ -2783,17 +2733,6 @@ html.gogh-textediting .gogh-convertbtn {
 }
 .gogh-logochip:hover { background: #34363c; }
 
-/* fixed-position nav overlays must fill the phone, not the real viewport */
-.gogh-mirror-vp { transform: translateZ(0); }
-
-/* the nav's mobile switch is a MEDIA query (real window width), which the
-   zoomed 360px stage never triggers — so the mirror showed the desktop menu.
-   Inside the phone, the nav is always in its mobile state: hamburger shown,
-   inline menu hidden until our toggle opens the overlay. Navs with the
-   overlay set to "never" have no open button, so they stay inline — which
-   is what a real phone shows for them too. */
-.gogh-mirror-stage .wp-block-navigation__responsive-container-open { display: flex !important; }
-.gogh-mirror-stage .wp-block-navigation__responsive-container:not(.is-menu-open) { display: none !important; }
 
 /* logo size row in the Site logo panel */
 .gogh-logosize { display: flex; align-items: center; gap: 10px; margin: 8px 0 10px; }

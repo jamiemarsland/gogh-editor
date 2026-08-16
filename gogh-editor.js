@@ -1188,6 +1188,15 @@
   // tall, and re-flow shoved everything below it into a huge gap: "big issues
   // if I change styles zoomed out").
   function measureScaleOf(sec) { return sec.sectionEl.offsetWidth / W; }
+  // the page's effective background — sections/overlays that declare none
+  // inherit it; fall back to white so a miniature is never transparent
+  function pageBg() {
+    var b = getComputedStyle(document.body).backgroundColor;
+    if (!b || b === 'rgba(0, 0, 0, 0)' || b === 'transparent') {
+      b = getComputedStyle(document.documentElement).backgroundColor;
+    }
+    return (!b || b === 'rgba(0, 0, 0, 0)' || b === 'transparent') ? '#fff' : b;
+  }
   function measureTextHeights(sec) {
     if (!sec.nodes || sec.nodes.some(function (n) { return !n; })) return;
     var s = measureScaleOf(sec);
@@ -1586,8 +1595,6 @@
     '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><rect x="3" y="6" width="13" height="15" rx="1.6"/><path d="M7 3h13v15"/></svg></button>' +
     '<button type="button" class="gogh-sbtn gogh-gridbtn" data-act="gridsnap" title="Grid: show and snap">' +
     '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 9h18M3 15h18M9 3v18M15 3v18"/></svg></button>' +
-    '<button type="button" class="gogh-sbtn gogh-mirroropen" title="Live mobile preview">' +
-    '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="7" y="2.5" width="10" height="19" rx="2.5"/><path d="M10.5 18.5h3"/></svg></button>' +
     '<button type="button" class="gogh-sbtn gogh-undo" title="Undo (⌘Z)">' +
     '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 14l-4-4 4-4"/><path d="M5 10h11a4 4 0 0 1 0 8h-1"/></svg></button>' +
     '<button type="button" class="gogh-sbtn gogh-redo" title="Redo (⇧⌘Z)">' +
@@ -9200,156 +9207,7 @@
     if (!member) clearMulti();
   }, true);
 
-  // ---------- live mobile mirror ----------
-  var MIRROR_W = 250, MIRROR_DESIGN = 360;
-  var mirror = document.createElement('div');
-  mirror.className = 'gogh-mirror';
-  mirror.hidden = true;
-  mirror.innerHTML =
-    '<div class="gogh-mirror-head"><span>Mobile \u00b7 live</span>' +
-    '<button type="button" class="gogh-sbtn gogh-mirror-close" title="Hide">\u2715</button></div>' +
-    '<div class="gogh-mirror-frame"><div class="gogh-mirror-vp"><div class="gogh-mirror-stage"></div></div></div>';
-  document.body.appendChild(mirror);
-  // the stage is a static clone — no interactivity runtime — so the nav's
-  // hamburger would be a dead control ("mobile menu does not open"). Toggle
-  // the overlay classes ourselves, and keep preview links from navigating.
-  // the mirror is its own little world: pointerdowns inside it must not
-  // reach the page-level editor handlers (deselect etc.), whose DOM cleanup
-  // trips the mutation observer and rebuilds the stage 120ms later — the
-  // "menu opens then glitches closed" report
-  mirror.addEventListener('pointerdown', function (ev) { ev.stopPropagation(); });
-  mirror.addEventListener('click', function (ev) {
-    var openBtn = ev.target.closest && ev.target.closest('.wp-block-navigation__responsive-container-open');
-    if (openBtn) {
-      ev.preventDefault();
-      ev.stopPropagation();
-      var nav = openBtn.closest('nav');
-      var mc = nav && nav.querySelector('.wp-block-navigation__responsive-container');
-      if (mc) mc.classList.add('is-menu-open', 'has-modal-open');
-      return;
-    }
-    var closeBtn = ev.target.closest && ev.target.closest('.wp-block-navigation__responsive-container-close');
-    if (closeBtn) {
-      ev.preventDefault();
-      ev.stopPropagation();
-      var mc2 = closeBtn.closest('.wp-block-navigation__responsive-container');
-      if (mc2) mc2.classList.remove('is-menu-open', 'has-modal-open');
-      return;
-    }
-    var a = ev.target.closest && ev.target.closest('.gogh-mirror-stage a');
-    if (a) ev.preventDefault();
-  });
-  var mirrorBtnSide = side.querySelector('.gogh-mirroropen');
-  var mirrorT = null;
-  var mirrorObs = new MutationObserver(function () { scheduleMirror(); });
-  function pageBg() {
-    // sections with no background inherit the page's — miniatures must too
-    var b = getComputedStyle(document.body).backgroundColor;
-    if (!b || b === 'rgba(0, 0, 0, 0)' || b === 'transparent') {
-      b = getComputedStyle(document.documentElement).backgroundColor;
-    }
-    return (!b || b === 'rgba(0, 0, 0, 0)' || b === 'transparent') ? '#fff' : b;
-  }
-  function refreshMirror() {
-    if (mirror.hidden) return;
-    var stage = mirror.querySelector('.gogh-mirror-stage');
-    var menuWasOpen = !!stage.querySelector('.wp-block-navigation__responsive-container.is-menu-open');
-    stage.innerHTML = '';
-    mirrorObs.disconnect();
-    // the whole page, in true DOM order — freeform sections (header, content,
-    // footer) AND native content: pasted holders awaiting publish plus
-    // published native blocks (e.g. HTML sections never made freeform)
-    var items = [];
-    // native site chrome frames the preview (freeform chrome arrives via S)
-    ['header', 'footer'].forEach(function (area) {
-      var pe = partElForArea(area);
-      if (pe && !pe.querySelector('.gogh-wrap')) items.push({ live: pe, src: pe });
-    });
-    S.forEach(function (sec) {
-      if (sec.sectionEl) items.push({ live: sec.wrapEl || sec.sectionEl, src: sec.sectionEl, sec: sec });
-    });
-    pendingBlocks.forEach(function (p) {
-      if (p.el && p.el.isConnected) items.push({ live: p.el, src: p.el });
-    });
-    topBlockNodes().forEach(function (n) {
-      if (n.tagName !== 'STYLE') items.push({ live: n, src: n });
-    });
-    items.sort(function (a, b) {
-      return (a.live.compareDocumentPosition(b.live) & Node.DOCUMENT_POSITION_FOLLOWING) ? -1 : 1;
-    });
-    items.forEach(function (it) {
-      mirrorObs.observe(it.src, { subtree: true, childList: true, characterData: true });
-      var clone = it.src.cloneNode(true);
-      if (it.sec) clone.removeAttribute('style');
-      [].slice.call(clone.querySelectorAll('[contenteditable]')).forEach(function (n) { n.removeAttribute('contenteditable'); });
-      [].slice.call(clone.querySelectorAll('.gogh-pendbar, .gogh-navadd, .gogh-logochip')).forEach(function (n) { n.remove(); });
-      [].slice.call(clone.querySelectorAll('.gogh-selected, .gogh-dragsrc, .gogh-textedit, .gogh-fan')).forEach(function (n) {
-        n.classList.remove('gogh-selected', 'gogh-dragsrc', 'gogh-textedit', 'gogh-fan');
-        n.style.transform = '';
-        n.style.zIndex = '';
-      });
-      clone.classList.remove('gogh-exploded', 'gogh-pending');
-      stage.appendChild(clone);
-    });
-    if (menuWasOpen) {
-      var mc0 = stage.querySelector('.wp-block-navigation__responsive-container');
-      if (mc0) mc0.classList.add('is-menu-open', 'has-modal-open');
-    }
-    // zoom (not transform) so the scroll extent shrinks with the content
-    // while container queries still see a 360px viewport
-    stage.style.zoom = MIRROR_W / MIRROR_DESIGN;
-    var frame = mirror.querySelector('.gogh-mirror-frame');
-    frame.style.background = pageBg();
-  }
-  function scheduleMirror() {
-    if (mirror.hidden) return;
-    clearTimeout(mirrorT);
-    mirrorT = setTimeout(refreshMirror, 120);
-  }
-  function openMirror() {
-    mirror.hidden = false;
-    mirrorBtnSide.classList.add('is-active');
-    try { localStorage.setItem('gogh-mirror', '1'); } catch (err) {}
-    refreshMirror();
-  }
-  function closeMirror() {
-    mirror.hidden = true;
-    mirrorBtnSide.classList.remove('is-active');
-    mirrorObs.disconnect();
-    try { localStorage.setItem('gogh-mirror', '0'); } catch (err) {}
-  }
-  // the mirror rides along: as you scroll the page it follows the section
-  // in view and scrolls its own little viewport in step
-  var mirrorScrollT = null;
-  function syncMirrorScroll() {
-    if (mirror.hidden) return;
-    var vp = mirror.querySelector('.gogh-mirror-vp');
-    var denom = Math.max(1, document.documentElement.scrollHeight - window.innerHeight);
-    var p = Math.max(0, Math.min(1, window.scrollY / denom));
-    var range = vp.scrollHeight - vp.clientHeight;
-    if (range > 0) vp.scrollTo({ top: p * range, behavior: 'smooth' });
-  }
-  window.addEventListener('scroll', function () {
-    if (mirror.hidden) return;
-    clearTimeout(mirrorScrollT);
-    mirrorScrollT = setTimeout(syncMirrorScroll, 110);
-  }, { passive: true });
-  mirrorBtnSide.addEventListener('click', function () {
-    if (mirror.hidden) openMirror(); else closeMirror();
-  });
-  mirror.querySelector('.gogh-mirror-close').addEventListener('click', closeMirror);
-  document.addEventListener('pointerup', function () { scheduleMirror(); });
-  try {
-    // never auto-open during a test run — whole-page re-clones mid-suite
-    // add noise the tests don't deserve
-    if (wantEdit && localStorage.getItem('gogh-mirror') === '1' && location.search.indexOf('gogh-test') === -1) {
-      mirror.hidden = false;
-      mirrorBtnSide.classList.add('is-active');
-    }
-  } catch (err) {}
-
   window.__gogh = {
-    mirror: { open: openMirror, close: closeMirror, refresh: refreshMirror, el: mirror },
     explode: { enter: enterExplode, exit: exitExplode, state: function () { return explodeSt; } },
     multi: { set: setMulti, clear: clearMulti, state: function () { return multiSel; } },
     zoom: { open: openZoom, close: closeZoom, el: zoomOv },
