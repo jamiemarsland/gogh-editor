@@ -4,11 +4,11 @@ Everything in this section is extracted mechanically from the Gogh source on eve
 
 ## Current release
 
-- Plugin version: **0.99.196**
+- Plugin version: **0.99.200**
 - Requires WordPress **6.5+**, PHP **7.4+**
 - Text domain: `gogh-editor`
 - readme.txt Stable tag: `0.26.0` · Tested up to: `7.0`
-- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.196`). Quote the plugin header version.
+- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.200`). Quote the plugin header version.
 
 ## Design constants
 
@@ -27,8 +27,7 @@ Everything in this section is extracted mechanically from the Gogh source on eve
 | `min_resize_h` | 32 |
 | `section_min_h` | 160 |
 | `section_max_h` | 4000 |
-| `mirror_width_px` | 250 |
-| `mirror_design_px` | 360 |
+| `phone_preview_w` | 390 |
 | `drag_threshold_px` | 4 |
 | `rotation_snap_deg` | 15 |
 | `rotation_magnet_deg` | 5 |
@@ -174,7 +173,6 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "Grid: show and snap"
 - "Heading"
 - "Help — ask gogh anything"
-- "Hide"
 - "Image"
 - "Italic"
 - "Keep editing"
@@ -184,15 +182,16 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "Light"
 - "Link"
 - "Link text (⌘K)"
-- "Live mobile preview"
 - "Make it freeform"
 - "Manage this menu — reorder, nest, swap menus"
 - "Move down"
+- "Move down in the phone stack"
 - "Move earlier"
 - "Move later"
 - "Move left"
 - "Move right"
 - "Move up"
+- "Move up in the phone stack"
 - "None"
 - "One product, hero-sized — a card with a real add-to-cart button"
 - "Open interactive experience"
@@ -335,5 +334,5 @@ These are the real strings in the current build. Use them verbatim; never paraph
 
 ## Test suite
 
-`153` tests, run by appending `?gogh-test` to any Gogh page URL while logged in with edit rights on that page.
+`154` tests, run by appending `?gogh-test` to any Gogh page URL while logged in with edit rights on that page.
 

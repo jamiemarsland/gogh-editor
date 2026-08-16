@@ -25,3 +25,8 @@ Publish failed.
 
 # Regex artefact: the quote scanner spans a sentence boundary here.
 variation, creates three ordinary Gutenberg pages
+
+# Substring collision: the mirror's close button ("Hide") is gone, and the
+# prose only says "Hide on phone" / "Hides once editing starts" — different
+# labels that happen to contain the removed one.
+UI label "Hide" was removed

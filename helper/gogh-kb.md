@@ -15,11 +15,11 @@ about something where they conflict, rather than picking one silently. Quote UI
 labels and message copy from the appendix, verbatim — those are the current
 strings, and a paraphrased button label is the fastest way to lose a user's trust.
 
-Generated for plugin version 0.99.196 · knowledge base 702f2b5.
+Generated for plugin version 0.99.200 · knowledge base 9e47dcc.
 
 ---
 
-Source of truth: github.com/jamiemarsland/gogh-editor. Plugin header version **0.96.5** (readme.txt `Stable tag` says 0.26.0 — the readme is out of sync; trust 0.96.5). Author Jamie Marsland / PootlePress. GPLv2+.
+Source of truth: github.com/jamiemarsland/gogh-editor. The current plugin version lives in the facts appendix — this prose never states one, so it can't drift (readme.txt `Stable tag` is chronically out of sync; trust the appendix). Author Jamie Marsland / PootlePress. GPLv2+.
 
 ---
 
@@ -171,7 +171,7 @@ is **🎨 Exit gogh editor** in the admin toolbar.
 - **Page style** — page template chooser
 - **Grid: show and snap** — toggles the 8px grid; tooltip becomes "Grid: on"/"Grid: off". **Off by default**, deliberately: "invisible magnets feel broken to beginners" — the grid you snap to is the grid you see.
 - **Whole page — reorder sections** — opens the zoom-out page map
-- **Live mobile preview** — a 250px-wide live mobile mirror
+- **Phone preview** — a desktop/phone device toggle on the design view's zoom cluster. Phone mode pins the artboard to a phone's width so the page's own mobile layout renders live. In it you can tune the phone layout without touching desktop: tap an element for a toolbar with **Hide on phone** / **Show on phone** and ↑/↓ arrows that re-stack the mobile column; tap a section's background to **Hide section on phone** (hidden things stay visible in the preview, dimmed with a badge, so they're one tap from back). Overrides are stored as sparse `m` patches on the element/section and self-clear when they match the automatic layout again. (This replaced the old floating 250px mobile-mirror panel in v0.99.197.)
 
 Then **Add element**: `Heading` · `Text` · `Button` · `Image` · `Badge` · `Write` (a reading column, cursor ready) · `Card` (drop elements inside and they stay together, even on mobile) · `Shape` · `Experience` (upload a self-contained HTML experience, runs sandboxed — only if you have the capability) · `Posts` (your latest posts, live).
 
@@ -526,7 +526,6 @@ Also shipped to **every visitor**, not just editors: `html { overflow-x: clip }`
 Installed early in boot; `__gogh.build` carries the version. `document` fires `gogh:ready` synchronously once the object exists — **before** v3 hydration and before the first render (see Part 8).
 
 ### Namespaced
-- `__gogh.mirror.open() / .close() / .refresh() / .el` — the 250px live mobile mirror
 - `__gogh.explode.enter(sec, cluster) / .exit() / .state()` — fan a stack of elements out in 3D. **Programmatic only** — the press-and-hold trigger was removed because it kept firing on slow clicks
 - `__gogh.multi.set(sec, idxs) / .clear() / .state()` — multi-selection within one section
 - `__gogh.zoom.open() / .close() / .el` — the page-map modal
@@ -718,7 +717,7 @@ Append **`?gogh-test`** to any Gogh page URL, logged in as a user who can edit t
 
 The harness is a self-invoking IIFE, no framework. `test(name, fn)` catches throws; the model snapshot is **restored after every test**. It waits for `document.fonts.ready` because layout-dependent tests must measure with the real fonts. A global `onerror` handler collects `jsErrors` and reports them separately.
 
-**104 tests**, covering: boot and selection · resize and reflow · drag and drag modifiers · snapping and grid · history and element ops · palette and UI · publish lifecycle · theme fidelity (typography, presets, palette, style variations) · sections (templates, duplicate, move, dividers, backgrounds, saved sections) · Gutenberg interop (boot sync, block parsing, scanning, Make freeform, resequencing) · paste and sanitisation · links · site chrome and menus · mobile and accessibility (XY-cut, mirror, WCAG 1.3.2 reading order) · cards, shapes, images, rotation · the picker · the WebMCP bridge.
+**104 tests**, covering: boot and selection · resize and reflow · drag and drag modifiers · snapping and grid · history and element ops · palette and UI · publish lifecycle · theme fidelity (typography, presets, palette, style variations) · sections (templates, duplicate, move, dividers, backgrounds, saved sections) · Gutenberg interop (boot sync, block parsing, scanning, Make freeform, resequencing) · paste and sanitisation · links · site chrome and menus · mobile and accessibility (XY-cut, phone preview and mobile overrides, WCAG 1.3.2 reading order) · cards, shapes, images, rotation · the picker · the WebMCP bridge.
 
 **Note**: `?gogh-test` also enables the WebMCP bridge and the convert flag.
 
@@ -783,11 +782,11 @@ Everything in this section is extracted mechanically from the Gogh source on eve
 
 ## Current release
 
-- Plugin version: **0.99.196**
+- Plugin version: **0.99.200**
 - Requires WordPress **6.5+**, PHP **7.4+**
 - Text domain: `gogh-editor`
 - readme.txt Stable tag: `0.26.0` · Tested up to: `7.0`
-- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.196`). Quote the plugin header version.
+- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.200`). Quote the plugin header version.
 
 ## Design constants
 
@@ -806,8 +805,7 @@ Everything in this section is extracted mechanically from the Gogh source on eve
 | `min_resize_h` | 32 |
 | `section_min_h` | 160 |
 | `section_max_h` | 4000 |
-| `mirror_width_px` | 250 |
-| `mirror_design_px` | 360 |
+| `phone_preview_w` | 390 |
 | `drag_threshold_px` | 4 |
 | `rotation_snap_deg` | 15 |
 | `rotation_magnet_deg` | 5 |
@@ -953,7 +951,6 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "Grid: show and snap"
 - "Heading"
 - "Help — ask gogh anything"
-- "Hide"
 - "Image"
 - "Italic"
 - "Keep editing"
@@ -963,15 +960,16 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "Light"
 - "Link"
 - "Link text (⌘K)"
-- "Live mobile preview"
 - "Make it freeform"
 - "Manage this menu — reorder, nest, swap menus"
 - "Move down"
+- "Move down in the phone stack"
 - "Move earlier"
 - "Move later"
 - "Move left"
 - "Move right"
 - "Move up"
+- "Move up in the phone stack"
 - "None"
 - "One product, hero-sized — a card with a real add-to-cart button"
 - "Open interactive experience"
@@ -1114,4 +1112,4 @@ These are the real strings in the current build. Use them verbatim; never paraph
 
 ## Test suite
 
-`153` tests, run by appending `?gogh-test` to any Gogh page URL while logged in with edit rights on that page.
+`154` tests, run by appending `?gogh-test` to any Gogh page URL while logged in with edit rights on that page.

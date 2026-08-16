@@ -155,8 +155,9 @@ def constants(js):
         ('min_resize_h',           r'if \(nh < (\d+)\)'),
         ('section_min_h',          r'Math\.min\(\s*4000\s*,\s*Math\.max\(\s*(\d+)'),
         ('section_max_h',          r'Math\.min\(\s*(4000)\s*,\s*Math\.max'),
-        ('mirror_width_px',        r'MIRROR_W\s*=\s*(\d+)'),
-        ('mirror_design_px',       r'MIRROR_DESIGN\s*=\s*(\d+)'),
+        # (the 250px live mobile mirror was removed in v0.99.197 — the phone
+        # preview in the design view replaced it)
+        ('phone_preview_w',        r'PHONE_W\s*=\s*(\d+)'),
         ('drag_threshold_px',      r'pendingDrag\.x\)\s*\+\s*Math\.abs\([^)]*pendingDrag\.y\)\s*<\s*(\d+)'),
         ('rotation_snap_deg',      r'snap15\s*=\s*Math\.round\(deg\s*/\s*(\d+)\)'),
         ('rotation_magnet_deg',    r'Math\.abs\(deg\s*-\s*snap15\)\s*<\s*(\d+)'),
