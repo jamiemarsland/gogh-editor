@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Gogh Editor
  * Description: A freeform canvas for WordPress — drag anything anywhere on your live page; Gogh publishes it back as clean, responsive core blocks that keep working even if the plugin is deactivated.
- * Version: 0.99.205
+ * Version: 0.99.206
  * Author: Jamie Marsland
  * Author URI: https://pootlepress.com
  * License: GPLv2 or later
@@ -23,7 +23,7 @@ add_action( 'init', function () {
 		'gogh-block',
 		plugins_url( 'gogh-block.js', __FILE__ ),
 		array( 'wp-blocks', 'wp-element', 'wp-block-editor' ),
-		'0.99.205-chrome',
+		'0.99.206-chrome',
 		true
 	);
 	register_block_type( 'gogh/section', array(
@@ -294,9 +294,9 @@ add_action( 'wp_enqueue_scripts', function () {
 	if ( ! $post || ! current_user_can( 'edit_post', $post->ID ) ) {
 		return;
 	}
-	wp_register_script( 'gogh-compose', plugins_url( 'gogh-compose.js', __FILE__ ), array(), '0.99.205-chrome', true );
-	wp_enqueue_script( 'gogh-write', plugins_url( 'gogh-write.js', __FILE__ ), array( 'gogh-compose' ), '0.99.205-chrome', true );
-	wp_enqueue_style( 'gogh-write', plugins_url( 'gogh-write.css', __FILE__ ), array(), '0.99.205-chrome' );
+	wp_register_script( 'gogh-compose', plugins_url( 'gogh-compose.js', __FILE__ ), array(), '0.99.206-chrome', true );
+	wp_enqueue_script( 'gogh-write', plugins_url( 'gogh-write.js', __FILE__ ), array( 'gogh-compose' ), '0.99.206-chrome', true );
+	wp_enqueue_style( 'gogh-write', plugins_url( 'gogh-write.css', __FILE__ ), array(), '0.99.206-chrome' );
 	wp_localize_script( 'gogh-write', 'GOGHWRITE', array(
 		'postId'  => $post->ID,
 		'restUrl' => esc_url_raw( rest_url() ),
@@ -971,6 +971,48 @@ function gogh_rebake_post_data( $data ) {
 add_filter( 'wp_insert_post_data', 'gogh_rebake_post_data', 20 );
 
 /**
+ * ✦ Splash presentation — the carousel, photo wall, break image, and glass
+ * card are pure core blocks wearing gogh classes; THIS css is their whole
+ * look. Shared verbatim between the front end and the block editor so a
+ * splash never "breaks in the gutenberg view": same rules, both rooms.
+ * (Interactivity — arrows, autoplay, lightbox, parallax — stays view-time
+ * and front-end only; the editor just has to look right.)
+ */
+function gogh_splash_css() {
+	return
+		// CSS-only carousel: flex + scroll-snap does all the work — zero JS,
+		// deactivation-safe. Chrome's CSS carousel spec (scroll markers)
+		// lights the dots up as a free progressive enhancement.
+		'.gogh-carousel { display: flex; flex-wrap: nowrap; gap: 14px; overflow-x: auto; scroll-snap-type: x mandatory; overscroll-behavior-x: contain; scrollbar-width: none; -webkit-overflow-scrolling: touch; }' .
+		'.gogh-carousel::-webkit-scrollbar { display: none; }' .
+		'.gogh-carousel > .wp-block-image.gogh-slide { flex: 0 0 min(72%, 460px); scroll-snap-align: center; margin: 0 !important; }' .
+		'.gogh-carousel .gogh-slide img { width: 100%; aspect-ratio: 3 / 2; object-fit: cover; border-radius: 14px; display: block; }' .
+		'.gogh-carousel .gogh-slide figcaption { text-align: center; font-size: 0.85em; opacity: 0.72; margin-top: 8px; }' .
+		// the photo wall: CSS columns ARE the masonry — no measuring, no JS
+		'.gogh-wall { columns: 3; gap: 14px; }' .
+		'.gogh-wall-2 { columns: 2; } .gogh-wall-4 { columns: 4; }' .
+		'@media (max-width: 700px) { .gogh-wall, .gogh-wall-4 { columns: 2; } }' .
+		'.gogh-wall > .gogh-brick { break-inside: avoid; margin: 0 0 14px !important; display: block; }' .
+		'.gogh-wall .gogh-brick img { width: 100%; height: auto; border-radius: 12px; display: block; }' .
+		'.gogh-wall .gogh-brick figcaption { font-size: 0.85em; opacity: 0.72; margin-top: 6px; }' .
+		// the chapter-break image: a fixed window over a cover-fit photo.
+		// figure.wp-block-image.gogh-splash-break outguns the theme's
+		// .wp-block-image.alignfull img { height: auto } — without it the
+		// break renders at the photo's full natural height.
+		// crop from the TOP, not the centre: faces live in the top of
+		// photographs, and a centre-cropped portrait loses its head ("images
+		// are cropping"). Tested 50% 25% first — an extreme portrait still
+		// lost the head; top-anchoring never does. Landscape sources are
+		// untouched either way (wide images crop their sides, not their top).
+		'.gogh-splash-break { overflow: clip; margin-block: 0; }' .
+		'.gogh-splash-break img, figure.wp-block-image.gogh-splash-break img { width: 100%; height: min(66vh, 640px); object-fit: cover; object-position: 50% 0%; display: block; }' .
+		// the frosted call-out
+		'.gogh-splash-glasswrap { min-height: min(70vh, 560px); display: flex; align-items: center; justify-content: center; padding: 6vh 6vw; }' .
+		'.gogh-glass { max-width: 480px; padding: 2.2rem 2.4rem; border-radius: 24px; background: color-mix(in srgb, #ffffff 72%, transparent); -webkit-backdrop-filter: blur(18px) saturate(1.35); backdrop-filter: blur(18px) saturate(1.35); border: 1px solid color-mix(in srgb, #ffffff 55%, transparent); box-shadow: 0 30px 60px -22px rgba(0,0,0,0.45); text-align: center; }' .
+		'.gogh-glass-kicker { font-size: 0.78rem; font-weight: 700; letter-spacing: 0.16em; text-transform: uppercase; opacity: 0.6; margin-bottom: 0.4rem; }';
+}
+
+/**
  * Front-end editor: enqueue for users who can edit the current page.
  */
 add_action( 'wp_enqueue_scripts', function () {
@@ -1001,8 +1043,10 @@ add_action( 'wp_enqueue_scripts', function () {
 
 	// for every visitor: neutralise theme spacing around gogh sections, even
 	// on pages whose stored stylesheets predate this rule
-	wp_register_style( 'gogh-base', false, array(), '0.99.205-chrome' );
-	wp_register_script( 'gogh-view', false, array(), '0.99.205-chrome', true );
+	wp_register_style( 'gogh-base', false, array(), '0.99.206-chrome' );
+	// (the splash presentation itself lives in gogh_splash_css(), shared with
+	// the block editor — a wall in Gutenberg must look like a wall)
+	wp_register_script( 'gogh-view', false, array(), '0.99.206-chrome', true );
 	wp_enqueue_script( 'gogh-view' );
 	wp_add_inline_script( 'gogh-view',
 		// carousel arrows + autoplay are VIEW-TIME: never stored, so saved
@@ -1089,21 +1133,7 @@ add_action( 'wp_enqueue_scripts', function () {
 		// pasted-HTML sections: full bleed with zero vertical margins for
 		// every visitor — the theme's block-gap must not band between them
 		'.gogh-section-html { box-sizing: border-box !important; width: 100vw !important; max-width: 100vw !important; margin-inline: calc(50% - 50vw) !important; margin-block: 0 !important; }' .
-		// CSS-only carousel: flex + scroll-snap does all the work — zero JS,
-		// deactivation-safe. Chrome's CSS carousel spec (scroll markers)
-		// lights the dots up as a free progressive enhancement.
-		'.gogh-carousel { display: flex; flex-wrap: nowrap; gap: 14px; overflow-x: auto; scroll-snap-type: x mandatory; overscroll-behavior-x: contain; scrollbar-width: none; -webkit-overflow-scrolling: touch; }' .
-		'.gogh-carousel::-webkit-scrollbar { display: none; }' .
-		'.gogh-carousel > .wp-block-image.gogh-slide { flex: 0 0 min(72%, 460px); scroll-snap-align: center; margin: 0 !important; }' .
-		'.gogh-carousel .gogh-slide img { width: 100%; aspect-ratio: 3 / 2; object-fit: cover; border-radius: 14px; display: block; }' .
-		'.gogh-carousel .gogh-slide figcaption { text-align: center; font-size: 0.85em; opacity: 0.72; margin-top: 8px; }' .
-		// the photo wall: CSS columns ARE the masonry — no measuring, no JS
-		'.gogh-wall { columns: 3; gap: 14px; }' .
-		'.gogh-wall-2 { columns: 2; } .gogh-wall-4 { columns: 4; }' .
-		'@media (max-width: 700px) { .gogh-wall, .gogh-wall-4 { columns: 2; } }' .
-		'.gogh-wall > .gogh-brick { break-inside: avoid; margin: 0 0 14px !important; display: block; }' .
-		'.gogh-wall .gogh-brick img { width: 100%; height: auto; border-radius: 12px; display: block; }' .
-		'.gogh-wall .gogh-brick figcaption { font-size: 0.85em; opacity: 0.72; margin-top: 6px; }' .
+		gogh_splash_css() .
 		'.gogh-crsl-shell { position: relative; }' .
 		// ONE centred control row under the strip: arrows flank clickable
 		// dots (James: "align arrows horizontally centered" + "these should
@@ -1115,8 +1145,7 @@ add_action( 'wp_enqueue_scripts', function () {
 		'.gogh-crsl-dots { display: flex; gap: 9px; }' .
 		'.gogh-crsl-dot { width: 9px; height: 9px; border-radius: 50%; border: 0; padding: 0; cursor: pointer; background: currentColor; opacity: 0.22; transition: opacity 0.15s ease, scale 0.15s ease; }' .
 		'.gogh-crsl-dot.is-here { opacity: 0.9; scale: 1.15; }' .
-		// ✦ Splash: the chapter-break image and the frosted call-out
-		'.gogh-splash-break { overflow: clip; margin-block: 0; }' .
+		// ✦ Splash motion + bleed plumbing (the LOOK is gogh_splash_css above)
 		// full bleed means the VIEWPORT, not the content column — themes
 		// pad alignfull unevenly, so the splash claims its own edges
 		// full bleed rides WP's OWN generated container rules (they emit
@@ -1131,15 +1160,6 @@ add_action( 'wp_enqueue_scripts', function () {
 		// consecutive full-bleed bands touch: the root block gap otherwise
 		// leaves a pale slit between painted sections (the white wedge law)
 		'.entry-content > .gogh-wrap + .alignfull, .entry-content > .alignfull + .gogh-wrap, .entry-content > .alignfull + .alignfull { margin-block-start: 0; }' .
-		// figure.wp-block-image.gogh-splash-break outguns the theme's
-		// .wp-block-image.alignfull img { height: auto } — without it the
-		// break renders at the photo's full natural height
-		// crop from the TOP, not the centre: faces live in the top of
-		// photographs, and a centre-cropped portrait loses its head ("images
-		// are cropping"). Tested 50% 25% first — an extreme portrait still
-		// lost the head; top-anchoring never does. Landscape sources are
-		// untouched either way (wide images crop their sides, not their top).
-		'.gogh-splash-break img, figure.wp-block-image.gogh-splash-break img { width: 100%; height: min(66vh, 640px); object-fit: cover; object-position: 50% 0%; display: block; }' .
 		'@supports (animation-timeline: view()) { .gogh-splash-break img { scale: 1.16; animation: gogh-bkpx linear both; animation-timeline: view(); } @keyframes gogh-bkpx { from { translate: 0 -5%; } to { translate: 0 5%; } } }' .
 		// breakout images (wide/full figures in prose) parallax by default —
 		// James: "i kinda love paralax". Gentler than the Break splash: the
@@ -1152,9 +1172,6 @@ add_action( 'wp_enqueue_scripts', function () {
 		'@keyframes gogh-wfpx { from { translate: 0 -3%; } to { translate: 0 3%; } } }' .
 		// motion is a garnish, never a requirement
 		'@media (prefers-reduced-motion: reduce) { .gogh-splash-break img, .entry-content figure.wp-block-image.alignwide img, .entry-content figure.wp-block-image.alignfull img { animation: none; scale: 1; translate: none; } }' .
-		'.gogh-splash-glasswrap { min-height: min(70vh, 560px); display: flex; align-items: center; justify-content: center; padding: 6vh 6vw; }' .
-		'.gogh-glass { max-width: 480px; padding: 2.2rem 2.4rem; border-radius: 24px; background: color-mix(in srgb, #ffffff 72%, transparent); -webkit-backdrop-filter: blur(18px) saturate(1.35); backdrop-filter: blur(18px) saturate(1.35); border: 1px solid color-mix(in srgb, #ffffff 55%, transparent); box-shadow: 0 30px 60px -22px rgba(0,0,0,0.45); text-align: center; }' .
-		'.gogh-glass-kicker { font-size: 0.78rem; font-weight: 700; letter-spacing: 0.16em; text-transform: uppercase; opacity: 0.6; margin-bottom: 0.4rem; }' .
 		'.gogh-crsl-side { position: absolute; z-index: 2; width: 40px; height: 40px; font-size: 24px; background: color-mix(in srgb, var(--wp--preset--color--base, #fff) 85%, transparent); box-shadow: 0 6px 18px -6px rgba(0,0,0,0.35); backdrop-filter: blur(6px); top: calc(50% - 24px); transform: translateY(-50%); }' .
 		'.gogh-crsl-side-l { left: 10px; } .gogh-crsl-side-r { right: 10px; }' .
 		// gogh's lightbox: walkable, unlike core's single frame
@@ -1242,9 +1259,9 @@ add_action( 'wp_enqueue_scripts', function () {
 
 	// compose must be REGISTERED here too — a dependency on an
 	// unregistered handle silently drops the whole editor script
-	wp_register_script( 'gogh-compose', plugins_url( 'gogh-compose.js', __FILE__ ), array(), '0.99.205-chrome', true );
-	wp_enqueue_script( 'gogh-editor', plugins_url( 'gogh-editor.js', __FILE__ ), array( 'gogh-compose' ), '0.99.205-chrome', true );
-	wp_enqueue_style( 'gogh-editor', plugins_url( 'gogh-editor.css', __FILE__ ), array(), '0.99.205-chrome' );
+	wp_register_script( 'gogh-compose', plugins_url( 'gogh-compose.js', __FILE__ ), array(), '0.99.206-chrome', true );
+	wp_enqueue_script( 'gogh-editor', plugins_url( 'gogh-editor.js', __FILE__ ), array( 'gogh-compose' ), '0.99.206-chrome', true );
+	wp_enqueue_style( 'gogh-editor', plugins_url( 'gogh-editor.css', __FILE__ ), array(), '0.99.206-chrome' );
 
 	// WebMCP bridge: the page registers its editing verbs as agent tools.
 	// OPT-IN only — add ?gogh-mcp=1 for a demo session (or enable sitewide
@@ -1256,13 +1273,13 @@ add_action( 'wp_enqueue_scripts', function () {
 	// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only labs toggle
 	$gogh_exp = isset( $_GET['gogh-test'] ) || ( isset( $_GET['gogh-experiments'] ) && '0' !== $_GET['gogh-experiments'] );
 	if ( isset( $_GET['gogh-mcp'] ) || $gogh_exp || apply_filters( 'gogh_webmcp_enabled', false ) ) {
-		wp_enqueue_script( 'gogh-webmcp', plugins_url( 'gogh-webmcp.js', __FILE__ ), array( 'gogh-editor' ), '0.99.205-chrome', true );
+		wp_enqueue_script( 'gogh-webmcp', plugins_url( 'gogh-webmcp.js', __FILE__ ), array( 'gogh-editor' ), '0.99.206-chrome', true );
 	}
 
 	// regression suite: /page/?gogh-test (editors only, never saves)
 	// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only toggle enqueuing a test script for capability-checked editors.
 	if ( isset( $_GET['gogh-test'] ) ) {
-		wp_enqueue_script( 'gogh-tests', plugins_url( 'gogh-tests.js', __FILE__ ), array( 'gogh-editor' ), '0.99.205-chrome', true );
+		wp_enqueue_script( 'gogh-tests', plugins_url( 'gogh-tests.js', __FILE__ ), array( 'gogh-editor' ), '0.99.206-chrome', true );
 	}
 
 	// products live outside wp/v2, so gogh carries its own save route for
@@ -1396,12 +1413,21 @@ add_action( 'enqueue_block_assets', function () {
 	if ( ! is_admin() ) {
 		return;
 	}
-	wp_register_style( 'gogh-editor-base', false, array(), '0.99.205-chrome' );
+	wp_register_style( 'gogh-editor-base', false, array(), '0.99.206-chrome' );
 	wp_enqueue_style( 'gogh-editor-base' );
 	wp_add_inline_style( 'gogh-editor-base',
 		'.gogh-wrap { min-width: 100%; margin-block: 0 !important; }' .
 		'.gogh-section > .wp-block-group { padding: 0 !important; box-sizing: border-box; }' .
-		'.gogh-section > * { box-sizing: border-box; }'
+		'.gogh-section > * { box-sizing: border-box; }' .
+		// splashes are core blocks wearing gogh classes — without their
+		// presentation the editor shows a wall as a stack and a carousel as
+		// a pile ("kinda breaking in the gutenberg view"). Same CSS, both rooms.
+		gogh_splash_css() .
+		// the editor prefixes theme rules with .editor-styles-wrapper, which
+		// out-specifies the shared height rule (its height:auto won, so the
+		// break showed the photo's full natural height) — re-state the window
+		// at editor specificity
+		'.editor-styles-wrapper figure.wp-block-image.gogh-splash-break img { height: min(66vh, 640px); }'
 	);
 } );
 
