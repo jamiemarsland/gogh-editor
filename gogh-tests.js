@@ -209,6 +209,31 @@
       return 'heading grew ' + Math.round(delta) + 'u, button tracked it (no overlap)';
     });
 
+    // ---- 5a-quater. mobile override — hide on phone. m.hidden emits a GATED
+    // display:none: real ≤700px viewports hide it, but the editor's phone
+    // preview (html.gogh-phone-preview) keeps it visible-but-dimmed so it can be
+    // un-hidden. The sparse patch marks the node and round-trips through the
+    // model. (First slice of the mobile-tailoring overrides.) ----
+    test('mobile hide: m.hidden emits a gated hide rule, marks the node, and round-trips', function () {
+      var s = sec();
+      var i = findIdx('image'); if (i < 0) i = 0;
+      s.els[i].m = { hidden: true };
+      G.renderSection(s);
+      expect(s.nodes[i].classList.contains('gogh-m-hidden'), 'node missing gogh-m-hidden marker');
+      var css = s.styleEl.textContent.replace(/\s+/g, ' ');
+      expect(css.indexOf('html:not(.gogh-phone-preview)') !== -1, 'hide rule not gated to the real front-end');
+      expect(new RegExp('gogh-el-' + (i + 1) + ' \\{ display: none').test(css), 'no display:none for the hidden element');
+      // rides through the model snapshot
+      var snapSec = JSON.parse(G.serialize()).filter(function (o) { return o.scope === s.scope; })[0];
+      expect(snapSec && snapSec.els[i].m && snapSec.els[i].m.hidden, 'm.hidden lost in serialize');
+      // showing again clears both the marker and the rule
+      s.els[i].m = null;
+      G.renderSection(s);
+      expect(!s.nodes[i].classList.contains('gogh-m-hidden'), 'marker not cleared on show');
+      expect(s.styleEl.textContent.indexOf('html:not(.gogh-phone-preview)') === -1, 'hide rule lingered after show');
+      return 'hidden gated + marked + round-tripped; cleared on show';
+    });
+
     // ---- 5a-bis. ...and the reverse: a COMPACT style after a tall serif pulls
     // the gap back CLOSED. growReflow(sec, true) shrinks as well as grows, so
     // the button rides the heading back UP — no orphaned gap. (A plain

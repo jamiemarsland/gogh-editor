@@ -795,6 +795,12 @@
             ' aspect-ratio: ' + e.w + ' / ' + e.h + ';')) : '') +
         (e.type === 'exp' ? ' aspect-ratio: ' + e.w + ' / ' + e.h + ';' : '') +
         (e.type === 'badge' ? ' width: max-content; height: 44px;' : '') + ' }');
+      // mobile override — hidden on phones. Gate on :not(.gogh-phone-preview)
+      // so the EDITOR's phone preview still renders it (the CSS dims it for
+      // un-hiding); the published page and any real ≤700px viewport hide it.
+      if (e.m && e.m.hidden) {
+        out.push('  html:not(.gogh-phone-preview) ' + sec + ' .gogh-el-' + (i + 1) + ' { display: none; }');
+      }
     });
     out.push(
       '  ' + sec + ' .wp-block-button, ' + sec + ' .wp-block-button__link { width: max-content; height: 44px; padding: 0 24px; }',
@@ -847,6 +853,7 @@
       wall: e.wall || null, wopt: e.wopt || null,
       ph: e.ph || null,
       expId: e.expId || null, expUrl: e.expUrl || null,
+      m: (e.m && Object.keys(e.m).length) ? e.m : null, // sparse mobile overrides (hidden, …)
       kids: e.kids && e.kids.length ? e.kids.map(projEl) : null };
   }
   function buildElBlocks(els, clsBase) {
@@ -1077,7 +1084,7 @@
   }
 
   function makeNode(e, i) {
-    var cls = 'gogh-el-' + (i + 1);
+    var cls = 'gogh-el-' + (i + 1) + (e.m && e.m.hidden ? ' gogh-m-hidden' : '');
     var n;
     // data-widgets (FAQ/Tabs/Carousel) edit through a form, not a caret —
     // the hover tip teaches the gesture ("i wonder if we should give users
@@ -1646,6 +1653,7 @@
     if (mode !== 'phone' && mode !== 'desktop') return;
     if (mode === deviceMode) return;
     deviceMode = mode;
+    clearMobileSel(); // a selection/toolbar never outlives a device switch
     [].forEach.call(zoomSlider.querySelectorAll('.gogh-dev'), function (b) {
       var on = b.getAttribute('data-dev') === mode;
       b.classList.toggle('is-on', on);
@@ -1663,6 +1671,92 @@
   [].forEach.call(zoomSlider.querySelectorAll('.gogh-dev'), function (b) {
     b.addEventListener('click', function () { setDevice(b.getAttribute('data-dev')); });
   });
+
+  // ---------- mobile overrides: tune the phone layout from the desktop editor ----------
+  // In phone preview, click an element to select it; a small toolbar offers the
+  // override (Hide on phone for now — reorder/size will join it). Writes to the
+  // element's sparse `m` patch and re-emits the section CSS. Nothing here runs
+  // on the published page.
+  var mSel = null; // { sec, i, node }
+  var mtoolbar = document.createElement('div');
+  mtoolbar.className = 'gogh-mtoolbar';
+  mtoolbar.hidden = true;
+  mtoolbar.innerHTML = '<button type="button" class="gogh-mt-btn gogh-mt-hide"></button>';
+  document.body.appendChild(mtoolbar);
+  function mElFromTarget(target) {
+    var node = target && target.closest && target.closest('.gogh-section > *');
+    if (!node) return null;
+    var secEl = node.parentElement;
+    for (var k = 0; k < S.length; k++) {
+      if (S[k].sectionEl === secEl && S[k].nodes) {
+        var i = S[k].nodes.indexOf(node);
+        if (i >= 0) return { sec: S[k], i: i, node: node };
+      }
+    }
+    return null;
+  }
+  function clearMobileSel() {
+    mSel = null;
+    mtoolbar.hidden = true;
+    [].forEach.call(document.querySelectorAll('.gogh-m-sel'), function (n) { n.classList.remove('gogh-m-sel'); });
+  }
+  function positionMtoolbar() {
+    if (!mSel) return;
+    var r = mSel.node.getBoundingClientRect();
+    var tw = mtoolbar.offsetWidth, th = mtoolbar.offsetHeight;
+    var top = r.top - th - 8;
+    if (top < 8) top = Math.min(window.innerHeight - th - 8, r.bottom + 8);
+    var left = Math.max(8, Math.min(window.innerWidth - tw - 8, r.left + r.width / 2 - tw / 2));
+    mtoolbar.style.top = Math.round(top) + 'px';
+    mtoolbar.style.left = Math.round(left) + 'px';
+  }
+  function updateMtoolbar() {
+    if (!mSel) { mtoolbar.hidden = true; return; }
+    var e = mSel.sec.els[mSel.i];
+    var hidden = !!(e.m && e.m.hidden);
+    var btn = mtoolbar.querySelector('.gogh-mt-hide');
+    btn.textContent = hidden ? 'Show on phone' : 'Hide on phone';
+    btn.classList.toggle('is-restoring', hidden);
+    mtoolbar.hidden = false;
+    positionMtoolbar();
+    // the artboard may still be easing (device switch / re-fit); re-pin once it
+    // settles so the toolbar never strands where the element WAS
+    requestAnimationFrame(function () { if (mSel) positionMtoolbar(); });
+    setTimeout(function () { if (mSel) positionMtoolbar(); }, 380);
+  }
+  function selectMobileEl(target) {
+    var hit = mElFromTarget(target);
+    if (!hit) { clearMobileSel(); return; }
+    if (mSel && mSel.node !== hit.node) mSel.node.classList.remove('gogh-m-sel');
+    mSel = hit;
+    hit.node.classList.add('gogh-m-sel');
+    updateMtoolbar();
+  }
+  mtoolbar.querySelector('.gogh-mt-hide').addEventListener('click', function (ev) {
+    ev.preventDefault(); ev.stopPropagation();
+    if (!mSel) return;
+    var e = mSel.sec.els[mSel.i];
+    e.m = e.m || {};
+    if (e.m.hidden) delete e.m.hidden; else e.m.hidden = true;
+    if (!Object.keys(e.m).length) e.m = null;
+    mSel.node.classList.toggle('gogh-m-hidden', !!(e.m && e.m.hidden));
+    resolveAndApply(mSel.sec); // re-emit the section CSS with/without the hide rule
+    if (typeof pushState === 'function') pushState();
+    updateMtoolbar();
+  });
+  // click-to-select, only in the phone preview; clicks tune the layout rather
+  // than activate links
+  document.addEventListener('click', function (ev) {
+    if (!editing || !document.documentElement.classList.contains('gogh-phone-preview')) return;
+    if (ev.target.closest('.gogh-mtoolbar')) return;
+    if (ev.target.closest('.gogh-section')) {
+      ev.preventDefault(); ev.stopPropagation();
+      selectMobileEl(ev.target);
+    } else if (!ev.target.closest('.gogh-zoomslider, .gogh-panel, .gogh-side')) {
+      clearMobileSel();
+    }
+  }, true);
+  window.addEventListener('scroll', function () { if (mSel) positionMtoolbar(); }, { passive: true });
 
   // tuck-away drawer: slim edge tab when collapsed, slide-in on hover
   var sideTab = document.createElement('button');
@@ -2610,6 +2704,7 @@
     // real bottom, no sea of empty desk to wade through
     document.body.style.height = Math.round(originalH * s) + 'px';
     document.body.style.overflowY = 'hidden';
+    if (mSel) positionMtoolbar(); // keep the override toolbar pinned to its element
   }
   function unzoomCanvas() {
     if (!zoomState) return;
@@ -2618,6 +2713,7 @@
     z.wrap.style.background = z.bg || '';
     z.wrap.style.boxShadow = z.sh || '';
     z.wrap.style.width = z.ww || ''; // drop any phone-preview width pin
+    clearMobileSel();
     if (deviceMode === 'phone') setDevice('desktop'); // leave the design view on desktop (updates buttons + class)
     document.body.style.height = z.bh || '';
     document.body.style.overflowY = z.bo || '';
