@@ -1609,11 +1609,22 @@
   // an implementation detail nobody should have to reason about. null = fitted.
   var zoomFrac = null;
   var lastZoomAuto = 0.62;
+  // Preview device. 'phone' constrains the artboard to a phone's width so the
+  // page's own @container (max-width: 700px) rules fire — you see the REAL
+  // mobile layout, live, and (soon) tune it. Desktop is the default.
+  var deviceMode = 'desktop';
+  var PHONE_W = 390; // design px; < 700 so the mobile container queries engage
   var zoomSlider = document.createElement('div');
   zoomSlider.className = 'gogh-zoomslider';
   zoomSlider.hidden = true;
   zoomSlider.title = 'Zoom — ⌥ scroll, or ⌥Z to toggle the design view'; // discover the shortcuts
   zoomSlider.innerHTML =
+    '<div class="gogh-devtoggle" role="group" aria-label="Preview device">' +
+    '<button type="button" class="gogh-dev is-on" data-dev="desktop" title="Desktop" aria-pressed="true">' +
+    '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><rect x="3" y="4" width="18" height="12" rx="1.5"/><path d="M8 20h8M12 16v4"/></svg></button>' +
+    '<button type="button" class="gogh-dev" data-dev="phone" title="Phone — see and tune the mobile layout" aria-pressed="false">' +
+    '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><rect x="7" y="3" width="10" height="18" rx="2.5"/><path d="M11 18h2"/></svg></button>' +
+    '</div>' +
     '<span class="gogh-zoomslider-val">100%</span>' +
     '<input type="range" min="20" max="100" step="1" value="100" aria-label="Zoom the page (Option-scroll, or Option-Z to toggle)">';
   document.body.appendChild(zoomSlider);
@@ -1623,6 +1634,27 @@
     // track the slider directly — a transition here would lag the thumb; the
     // page follows the finger at 60fps, then the open/close ease is restored
     if (zoomState) { zoomState.wrap.style.transition = 'none'; layoutZoom(); }
+  });
+  function setDevice(mode) {
+    if (mode !== 'phone' && mode !== 'desktop') return;
+    if (mode === deviceMode) return;
+    deviceMode = mode;
+    [].forEach.call(zoomSlider.querySelectorAll('.gogh-dev'), function (b) {
+      var on = b.getAttribute('data-dev') === mode;
+      b.classList.toggle('is-on', on);
+      b.setAttribute('aria-pressed', on ? 'true' : 'false');
+    });
+    document.documentElement.classList.toggle('gogh-phone-preview', mode === 'phone');
+    zoomFrac = null; // re-fit to the new artboard width
+    if (zoomState) {
+      zoomState.wrap.style.transition = 'transform 0.35s cubic-bezier(0.4,0,0.2,1), width 0.35s cubic-bezier(0.4,0,0.2,1)';
+      layoutZoom();
+      var zi = zoomSlider.querySelector('input');
+      zi.value = 100; zoomSlider.querySelector('.gogh-zoomslider-val').textContent = '100%';
+    }
+  }
+  [].forEach.call(zoomSlider.querySelectorAll('.gogh-dev'), function (b) {
+    b.addEventListener('click', function () { setDevice(b.getAttribute('data-dev')); });
   });
 
   // tuck-away drawer: slim edge tab when collapsed, slide-in on hover
@@ -2501,7 +2533,7 @@
     window.scrollTo(0, 0); // start from the top of the page
     zoomState = { wrap: wrap, tf: wrap.style.transform, org: wrap.style.transformOrigin,
       tr: wrap.style.transition, bg: wrap.style.background, sh: wrap.style.boxShadow,
-      bh: document.body.style.height, bo: document.body.style.overflowY,
+      ww: wrap.style.width, bh: document.body.style.height, bo: document.body.style.overflowY,
       pl: panel.style.left, pt: panel.style.top, pr: panel.style.right, pb: panel.style.bottom };
     wrap.style.transition = 'transform 0.4s cubic-bezier(0.4, 0, 0.2, 1)';
     // the site's colour belongs ON the page, not leaking across the desk:
@@ -2531,6 +2563,10 @@
   function layoutZoom() {
     if (!zoomState) return;
     var wrap = zoomState.wrap;
+    // phone preview pins the artboard to a phone's width so the page's own
+    // mobile @container rules fire; desktop clears any pinned width
+    if (deviceMode === 'phone') { if (wrap.style.width !== PHONE_W + 'px') wrap.style.width = PHONE_W + 'px'; }
+    else if (wrap.style.width) { wrap.style.width = ''; }
     var pad = 28;
     // the sidebar owns the LEFT edge (WordPress Customizer convention); fit the
     // page into the clear area to its RIGHT, centred. Comfortable scale,
@@ -2546,8 +2582,11 @@
     // the page in THIS gives equal gaps on both sides
     var span = window.innerWidth - barRight - sliderReserve;
     var pageW = wrap.offsetWidth || window.innerWidth;
-    // auto-fit within the span (cap ~0.62); the slider can override it (0.15–1)
-    lastZoomAuto = Math.max(0.38, Math.min(0.62, (span - pad * 2) / pageW));
+    // auto-fit within the span; the slider can override it (0.15–1). The full
+    // desktop page caps at 0.62 so it never overlaps the chrome, but a phone
+    // artboard is already narrow — let it show near life-size (up to 1)
+    var maxFit = deviceMode === 'phone' ? 1 : 0.62;
+    lastZoomAuto = Math.max(0.38, Math.min(maxFit, (span - pad * 2) / pageW));
     // the slider can pull OUT from the fit size but never past it — a bigger
     // scale would overlap the sidebar/slider, so auto-fit is the max zoom
     // 100% = the fit; lower reads as a fraction OF the fit (frac ≥ 0.2 keeps the
@@ -2571,6 +2610,8 @@
     z.wrap.style.transform = z.tf || '';
     z.wrap.style.background = z.bg || '';
     z.wrap.style.boxShadow = z.sh || '';
+    z.wrap.style.width = z.ww || ''; // drop any phone-preview width pin
+    if (deviceMode === 'phone') setDevice('desktop'); // leave the design view on desktop (updates buttons + class)
     document.body.style.height = z.bh || '';
     document.body.style.overflowY = z.bo || '';
     panel.style.left = z.pl || ''; panel.style.top = z.pt || '';

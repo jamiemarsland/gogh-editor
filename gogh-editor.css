@@ -146,6 +146,18 @@
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, sans-serif;
 }
 .gogh-zoomslider[hidden] { display: none; }
+/* device toggle: desktop / phone preview, sitting atop the zoom cluster */
+.gogh-devtoggle { display: flex; flex-direction: column; gap: 2px; padding: 2px; background: var(--gogh-ui-hover); border-radius: 11px; }
+.gogh-dev {
+  all: unset; box-sizing: border-box; display: grid; place-items: center;
+  width: 30px; height: 27px; border-radius: 9px; color: var(--gogh-ui-muted); cursor: pointer;
+  transition: color .12s, background .12s;
+}
+.gogh-dev:hover { color: var(--gogh-ui-fg); }
+.gogh-dev.is-on { background: #fff; color: #4f5aee; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.14); }
+/* phone preview: the artboard is pinned narrow (JS); round its corners so it
+   reads as a device rather than a cropped page */
+html.gogh-phone-preview .wp-site-blocks { border-radius: 30px; overflow: hidden; }
 .gogh-zoomslider-val { font-size: 11px; font-weight: 600; color: var(--gogh-ui-fg); letter-spacing: 0.02em; }
 .gogh-zoomslider input[type="range"] {
   writing-mode: vertical-lr;
