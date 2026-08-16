@@ -1340,6 +1340,35 @@
       return 'lift, veil and zoom all emit; mood rides the model';
     });
 
+    // ---- composed FAQ/Tabs must match core's CURRENT save() shape, or
+    // Gutenberg shows 'Block contains unexpected or invalid content' on every
+    // widget (James's report). The markers below are core 6.9's; when core
+    // moves again this test names the drift. Stale saved wsrc heals at render
+    // (regenerated from the data) — asserted here too. ----
+    test('FAQ/Tabs compose to core 6.9 save shapes; stale wsrc heals at render', function () {
+      var t = G.composeTabs([{ t: 'One', body: 'Alpha' }, { t: 'Two', body: 'Beta' }]);
+      expect(t.wsrc.indexOf('<section role="tabpanel" tabindex="0" class="wp-block-tab-panel">') !== -1,
+        'tab-panel must be a section with role+tabindex');
+      expect(t.wsrc.indexOf('<button type="button" role="tab">One</button>') !== -1,
+        'tab buttons must be bare (no class): ' + t.wsrc.slice(0, 200));
+      var f = G.composeFaq([{ q: 'Q1', a: 'A1' }]);
+      expect(f.wsrc.indexOf('<div role="group" class="wp-block-accordion">') !== -1, 'accordion wrapper needs role=group');
+      expect(f.wsrc.indexOf('accordion-heading__toggle-title') !== -1 && f.wsrc.indexOf('aria-hidden="true">+<') !== -1,
+        'heading must use __toggle-title and the + icon span');
+      expect(f.wsrc.indexOf('role="region" class="wp-block-accordion-panel"') !== -1 &&
+        f.wsrc.indexOf('__content') === -1, 'panel must be role=region with NO __content div');
+      // heal: a widget carrying the OLD markup regenerates from data on render
+      var s = sec();
+      s.els.push({ type: 'widget', x: 72, y: 40, w: 900, h: 300,
+        tabs: [{ t: 'One', body: 'Alpha' }], wsrc: '<!-- wp:tabs --><div class="wp-block-tab-panel">old</div><!-- /wp:tabs -->', whtml: '<div>old</div>' });
+      G.renderSection(s);
+      var e2 = s.els[s.els.length - 1];
+      expect(e2.wsrc.indexOf('role="tabpanel"') !== -1, 'stale tabs wsrc did not heal at render');
+      s.els.pop();
+      G.renderSection(s);
+      return 'canonical shapes verified; stale markup regenerates from data';
+    });
+
     test('Tabs starter: gated on the block, real core/tabs when present', function () {
       var tpl = G.templates().filter(function (t) { return t.name === 'Tabs'; })[0];
       expect(tpl && tpl.gated === 'hasTabs', 'Tabs template must be gated on hasTabs');

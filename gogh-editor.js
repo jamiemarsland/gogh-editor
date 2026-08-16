@@ -1423,6 +1423,15 @@
   // (re)build one section's DOM from its model
   function renderSection(sec) {
     if (textEditing && textEditing.sec === sec) exitTextEdit();
+    // FAQ/Tabs markup is always regenerated from the DATA (e.faq / e.tabs) —
+    // so when core's save() format moves on, saved wsrc heals here: regenerate
+    // any widget whose markup predates the current shape (the markers are the
+    // roles core 6.9 added). One-way and idempotent; publish then stores the
+    // valid form and Gutenberg stops offering 'Attempt recovery'.
+    sec.els.forEach(function (e) {
+      if (e.faq && e.faq.length && e.wsrc && e.wsrc.indexOf('role="group"') === -1) composeWidgetData(e);
+      if (e.tabs && e.tabs.length && e.wsrc && e.wsrc.indexOf('role="tabpanel"') === -1) composeWidgetData(e);
+    });
     sec.sectionEl.innerHTML = '';
     sec.nodes = sec.els.map(function (e, i) { return makeNode(e, i); });
     // append in READING order (nodes[] stays indexed by element) — keyboard
@@ -5059,14 +5068,19 @@
   // template. wsrc carries the true core block; whtml is the calm editor
   // preview (spans for toggles: buttons cannot nest in the picker's card).
   function composeFaq(items) {
-    var wsrc = '<!-- wp:accordion -->\n<div class="wp-block-accordion">' + items.map(function (it) {
+    // wsrc mirrors core/accordion's CURRENT save() exactly — Gutenberg
+    // validates stored markup against it, and any drift shows the user a
+    // 'Block contains unexpected or invalid content' banner. Captured from
+    // wp.blocks.serialize on WP 6.9 (role=group wrapper, has-icon heading,
+    // __toggle-title/__toggle-icon spans, role=region panel, no __content div).
+    var wsrc = '<!-- wp:accordion -->\n<div role="group" class="wp-block-accordion">' + items.map(function (it) {
       return '<!-- wp:accordion-item -->\n<div class="wp-block-accordion-item"><!-- wp:accordion-heading -->\n' +
-        '<h3 class="wp-block-accordion-heading"><button class="wp-block-accordion-heading__toggle" type="button">' +
-        '<span class="wp-block-accordion-heading__text">' + esc(it.q) + '</span>' +
-        '<span class="wp-block-accordion-heading__icon"></span></button></h3>\n<!-- /wp:accordion-heading -->' +
-        '<!-- wp:accordion-panel -->\n<div class="wp-block-accordion-panel"><div class="wp-block-accordion-panel__content">' +
-        '<!-- wp:paragraph --><p>' + esc(it.a) + '</p><!-- /wp:paragraph --></div></div>\n<!-- /wp:accordion-panel --></div>\n<!-- /wp:accordion-item -->';
-    }).join('') + '</div>\n<!-- /wp:accordion -->';
+        '<h3 class="wp-block-accordion-heading has-icon has-icon-right"><button type="button" class="wp-block-accordion-heading__toggle">' +
+        '<span class="wp-block-accordion-heading__toggle-title">' + esc(it.q) + '</span>' +
+        '<span class="wp-block-accordion-heading__toggle-icon" aria-hidden="true">+</span></button></h3>\n<!-- /wp:accordion-heading -->\n\n' +
+        '<!-- wp:accordion-panel -->\n<div role="region" class="wp-block-accordion-panel">' +
+        '<!-- wp:paragraph -->\n<p>' + esc(it.a) + '</p>\n<!-- /wp:paragraph --></div>\n<!-- /wp:accordion-panel --></div>\n<!-- /wp:accordion-item -->';
+    }).join('\n\n') + '</div>\n<!-- /wp:accordion -->';
     var whtml = '<div class="wp-block-accordion">' + items.map(function (it, k) {
       return '<div class="wp-block-accordion-item' + (k === 0 ? ' is-open' : '') + '">' +
         '<h3 class="wp-block-accordion-heading"><span class="wp-block-accordion-heading__toggle">' +
@@ -5078,14 +5092,17 @@
     return { wsrc: wsrc, whtml: whtml };
   }
   function composeTabs(items) {
+    // wsrc mirrors core/tabs' CURRENT save() exactly (see composeFaq's note).
+    // Captured from wp.blocks.serialize on WP 6.9: bare tab buttons (no
+    // class), and tab-panels are <section role="tabpanel" tabindex="0">.
     var wsrc = '<!-- wp:tabs -->\n<div class="wp-block-tabs"><!-- wp:tab-list -->\n' +
-      '<div class="wp-block-tab-list" role="tablist">' + items.map(function (it) {
-        return '<button class="wp-block-tab-list__tab" type="button" role="tab">' + esc(it.t) + '</button>';
-      }).join('') + '</div>\n<!-- /wp:tab-list --><!-- wp:tab-panels -->\n<div class="wp-block-tab-panels">' +
+      '<div role="tablist" class="wp-block-tab-list">' + items.map(function (it) {
+        return '<button type="button" role="tab">' + esc(it.t) + '</button>';
+      }).join('') + '</div>\n<!-- /wp:tab-list -->\n\n<!-- wp:tab-panels -->\n<div class="wp-block-tab-panels">' +
       items.map(function (it) {
         return '<!-- wp:tab-panel {"label":' + JSON.stringify(String(it.t)) + '} -->\n' +
-          '<div class="wp-block-tab-panel"><!-- wp:paragraph --><p>' + esc(it.body) + '</p><!-- /wp:paragraph --></div>\n<!-- /wp:tab-panel -->';
-      }).join('') + '</div>\n<!-- /wp:tab-panels --></div>\n<!-- /wp:tabs -->';
+          '<section role="tabpanel" tabindex="0" class="wp-block-tab-panel"><!-- wp:paragraph -->\n<p>' + esc(it.body) + '</p>\n<!-- /wp:paragraph --></section>\n<!-- /wp:tab-panel -->';
+      }).join('\n\n') + '</div>\n<!-- /wp:tab-panels --></div>\n<!-- /wp:tabs -->';
     var whtml = '<div class="wp-block-tabs">' +
       '<div class="wp-block-tab-list" role="tablist">' + items.map(function (it, k) {
         return '<span class="wp-block-tab-list__tab"' + (k === 0 ? ' aria-selected="true"' : '') + '>' + esc(it.t) + '</span>';
