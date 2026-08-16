@@ -1,4 +1,4 @@
-# Knowledge-base audit — plugin v0.99.195
+# Knowledge-base audit — plugin v0.99.196
 
 _13 finding(s) suppressed by `kb.audit-ignore.txt`._
 
@@ -6,7 +6,7 @@ _13 finding(s) suppressed by `kb.audit-ignore.txt`._
 
 The prose states something the source contradicts. Fix these first — the bot will contradict itself, since the appendix carries the correct value.
 
-- plugin version is **0.99.195**, prose says **0.96.5**
+- plugin version is **0.99.196**, prose says **0.96.5**
 
 ## MISSING (22)
 
@@ -39,4 +39,6 @@ The source has something the prose never explains. The bot knows the name from t
 
 Use this as the checklist for updating the prose — and as a sanity check on the release itself.
 
-- version: 0.99.194 → 0.99.195
+- version: 0.99.195 → 0.99.196
+- added UI label: "Desktop"
+- added UI label: "Phone — see and tune the mobile layout"
