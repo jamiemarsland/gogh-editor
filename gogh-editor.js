@@ -253,6 +253,7 @@
       bg: model.bg || null, divider: model.divider || null,
       fx: model.fx || null,
       bgImage: model.bgImage || null, bgId: model.bgId || null, bgA: model.bgA != null ? model.bgA : null, theme: model.theme || null, fill: !!model.fill,
+      m: model.m || null, // section-level mobile overrides (hidden, …)
       wrapEl: wrap, sectionEl: sectionEl, styleEl: styleEl, nodes: [] });
   });
 
@@ -808,6 +809,13 @@
     );
     var fx = opts.fx || {};
     var wrapSel = '.gogh-wrap:has(> ' + sec + ')';
+    // section-level mobile override — the whole band hidden on phones. A real
+    // viewport media query (the WRAP leaves the flow, so a container query on
+    // it would never fire), gated off the editor's phone preview, which shows
+    // the section dimmed instead so it can be brought back.
+    if (opts.m && opts.m.hidden) {
+      out.push('@media (max-width: 700px) { html:not(.gogh-phone-preview) ' + wrapSel + ' { display: none; } }');
+    }
     if (fx.pull) {
       // the section rides up over the previous one (design units -> vw)
       out.push(wrapSel + ' { margin-top: calc(-1 * ' + (Math.round(fx.pull / 12 * 100) / 100) + 'vw) !important; position: relative; z-index: 3; }');
@@ -954,6 +962,7 @@
       bg: sec.bg || null, divider: sec.divider || null,
       fx: sec.fx || null,
       bgImage: sec.bgImage || null, bgId: sec.bgId || null, bgA: sec.bgA != null ? sec.bgA : null, theme: sec.theme || null, fill: sec.fill || null,
+      m: (sec.m && Object.keys(sec.m).length) ? sec.m : null, // sparse section-level mobile overrides
       elements: sec.els.map(projEl),
     };
   }
@@ -1275,6 +1284,7 @@
     var domNext = domSuccessor(sec);
     var nextIsRaw = !!(domNext && (!next || next.wrapEl !== domNext));
     return { bg: sec.bg, bgA: sec.bgA != null ? sec.bgA : null, fill: !!sec.fill, divider: sec.divider, bgImage: sec.bgImage,
+      m: sec.m || null,
       fx: sec.fx || null,
       fxDemo: !!sec.__fxDemo,
       stickUnder: !!(next && next.fx && next.fx.curtain),
@@ -1418,6 +1428,7 @@
       inv.addEventListener('click', function () { openPicker(S.indexOf(sec)); });
       sec.sectionEl.appendChild(inv);
     }
+    sec.sectionEl.classList.toggle('gogh-msec-hidden', !!(sec.m && sec.m.hidden));
     resolveAndApply(sec);
     growReflow(sec);
   }
@@ -1438,7 +1449,7 @@
   // ---------- history (undo/redo) ----------
   var history = [], hIdx = -1, textTimer = null;
   function serialize() {
-    return JSON.stringify(S.map(function (sec) { return { scope: sec.scope, els: sec.els, minH: sec.minH || null, bg: sec.bg || null, divider: sec.divider || null, fx: sec.fx || null, bgImage: sec.bgImage || null, bgId: sec.bgId || null, bgA: sec.bgA != null ? sec.bgA : null, theme: sec.theme || null, fill: sec.fill || null, src: sec.srcSig || null, boot: sec.bootstrap || false, chrome: sec.chrome || null }; }));
+    return JSON.stringify(S.map(function (sec) { return { scope: sec.scope, els: sec.els, minH: sec.minH || null, bg: sec.bg || null, divider: sec.divider || null, fx: sec.fx || null, bgImage: sec.bgImage || null, bgId: sec.bgId || null, bgA: sec.bgA != null ? sec.bgA : null, theme: sec.theme || null, fill: sec.fill || null, m: (sec.m && Object.keys(sec.m).length) ? sec.m : null, src: sec.srcSig || null, boot: sec.bootstrap || false, chrome: sec.chrome || null }; }));
   }
   function pushState() {
     var snap = serialize();
@@ -1489,6 +1500,7 @@
       sec.bgA = d.bgA != null ? d.bgA : null;
       sec.theme = d.theme || null;
       sec.fill = !!d.fill;
+      sec.m = d.m || null;
       sec.srcSig = d.src || null;
       sec.bootstrap = !!d.boot;
       sec.chrome = d.chrome || null;
@@ -1685,12 +1697,23 @@
   document.body.appendChild(mtoolbar);
   function mElFromTarget(target) {
     var node = target && target.closest && target.closest('.gogh-section > *');
-    if (!node) return null;
-    var secEl = node.parentElement;
-    for (var k = 0; k < S.length; k++) {
-      if (S[k].sectionEl === secEl && S[k].nodes) {
-        var i = S[k].nodes.indexOf(node);
-        if (i >= 0) return { sec: S[k], i: i, node: node };
+    if (node) {
+      var secEl = node.parentElement;
+      for (var k = 0; k < S.length; k++) {
+        if (S[k].sectionEl === secEl && S[k].nodes) {
+          var i = S[k].nodes.indexOf(node);
+          if (i >= 0) return { kind: 'el', sec: S[k], i: i, node: node };
+        }
+      }
+    }
+    // no element under the tap — the section's own background: select the
+    // WHOLE band (hiding a full section is the bigger, commoner mobile move)
+    var secHit = target && target.closest && target.closest('.gogh-section');
+    if (secHit) {
+      for (var k2 = 0; k2 < S.length; k2++) {
+        if (S[k2].sectionEl === secHit && !S[k2].chrome) {
+          return { kind: 'sec', sec: S[k2], i: -1, node: secHit };
+        }
       }
     }
     return null;
@@ -1712,10 +1735,10 @@
   }
   function updateMtoolbar() {
     if (!mSel) { mtoolbar.hidden = true; return; }
-    var e = mSel.sec.els[mSel.i];
-    var hidden = !!(e.m && e.m.hidden);
+    var holder = mSel.kind === 'sec' ? mSel.sec : mSel.sec.els[mSel.i];
+    var hidden = !!(holder.m && holder.m.hidden);
     var btn = mtoolbar.querySelector('.gogh-mt-hide');
-    btn.textContent = hidden ? 'Show on phone' : 'Hide on phone';
+    btn.textContent = (hidden ? 'Show' : 'Hide') + (mSel.kind === 'sec' ? ' section' : '') + ' on phone';
     btn.classList.toggle('is-restoring', hidden);
     mtoolbar.hidden = false;
     positionMtoolbar();
@@ -1735,11 +1758,13 @@
   mtoolbar.querySelector('.gogh-mt-hide').addEventListener('click', function (ev) {
     ev.preventDefault(); ev.stopPropagation();
     if (!mSel) return;
-    var e = mSel.sec.els[mSel.i];
-    e.m = e.m || {};
-    if (e.m.hidden) delete e.m.hidden; else e.m.hidden = true;
-    if (!Object.keys(e.m).length) e.m = null;
-    mSel.node.classList.toggle('gogh-m-hidden', !!(e.m && e.m.hidden));
+    var holder = mSel.kind === 'sec' ? mSel.sec : mSel.sec.els[mSel.i];
+    holder.m = holder.m || {};
+    if (holder.m.hidden) delete holder.m.hidden; else holder.m.hidden = true;
+    if (!Object.keys(holder.m).length) holder.m = null;
+    var nowHidden = !!(holder.m && holder.m.hidden);
+    if (mSel.kind === 'sec') mSel.sec.sectionEl.classList.toggle('gogh-msec-hidden', nowHidden);
+    else mSel.node.classList.toggle('gogh-m-hidden', nowHidden);
     resolveAndApply(mSel.sec); // re-emit the section CSS with/without the hide rule
     if (typeof pushState === 'function') pushState();
     updateMtoolbar();
@@ -5914,6 +5939,7 @@
     sec.bgA = srcSec.bgA != null ? srcSec.bgA : null;
     sec.theme = srcSec.theme || null;
     sec.fill = !!srcSec.fill;
+    sec.m = srcSec.m ? JSON.parse(JSON.stringify(srcSec.m)) : null;
     srcSec.wrapEl.after(sec.wrapEl);
     S.splice(idx + 1, 0, sec);
     renderSection(sec);
@@ -6095,6 +6121,7 @@
     sec.bgA = model.bgA != null ? model.bgA : null;
     sec.theme = model.theme || null;
     sec.fill = !!model.fill;
+    sec.m = model.m || null;
     var nextContent = null;
     for (var ni = idx; ni < S.length; ni++) { if (!S[ni].chrome) { nextContent = S[ni]; break; } }
     pageParent.insertBefore(sec.wrapEl, (before && before.isConnected) ? before : (nextContent ? nextContent.wrapEl : endMarker));
@@ -14757,6 +14784,7 @@
         sec.bgA = model.bgA != null ? model.bgA : null;
         sec.theme = model.theme || null;
         sec.fill = !!model.fill;
+        sec.m = model.m || null;
       });
     }).catch(function (err) {
       console.warn('[gogh] v3 hydration failed:', err);

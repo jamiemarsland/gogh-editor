@@ -234,6 +234,30 @@
       return 'hidden gated + marked + round-tripped; cleared on show';
     });
 
+    // ---- 5a-quinquies. ...and the WHOLE-SECTION version: sec.m.hidden drops
+    // the band on real phones via a viewport media query on the wrap (the wrap
+    // leaves the flow, so a container query could never fire there), gated the
+    // same way so the editor's phone preview shows a labelled ghost instead. ----
+    test('mobile hide: sec.m.hidden hides the whole band on phones, gated + round-tripping', function () {
+      var s = sec();
+      s.m = { hidden: true };
+      G.renderSection(s);
+      expect(s.sectionEl.classList.contains('gogh-msec-hidden'), 'section missing gogh-msec-hidden marker');
+      var css = s.styleEl.textContent.replace(/\s+/g, ' ');
+      expect(css.indexOf('@media (max-width: 700px)') !== -1 &&
+        css.indexOf('html:not(.gogh-phone-preview) .gogh-wrap:has(') !== -1,
+        'wrap hide rule missing or un-gated');
+      var snapSec = JSON.parse(G.serialize()).filter(function (o) { return o.scope === s.scope; })[0];
+      expect(snapSec && snapSec.m && snapSec.m.hidden, 'sec.m lost in serialize');
+      s.m = null;
+      G.renderSection(s);
+      expect(!s.sectionEl.classList.contains('gogh-msec-hidden'), 'marker not cleared on show');
+      expect(s.styleEl.textContent.indexOf('.gogh-wrap:has(') === -1 ||
+        s.styleEl.textContent.indexOf('html:not(.gogh-phone-preview) .gogh-wrap:has(') === -1,
+        'wrap hide rule lingered after show');
+      return 'section band gated-hidden + round-tripped; cleared on show';
+    });
+
     // ---- 5a-bis. ...and the reverse: a COMPACT style after a tall serif pulls
     // the gap back CLOSED. growReflow(sec, true) shrinks as well as grows, so
     // the button rides the heading back UP — no orphaned gap. (A plain

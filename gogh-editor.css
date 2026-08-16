@@ -171,6 +171,22 @@ html.gogh-phone-preview .gogh-section .gogh-m-hidden::after {
   background: #4f5aee; color: #fff; font: 700 10px/1.4 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   letter-spacing: 0.02em; padding: 2px 6px; border-radius: 5px; pointer-events: none;
 }
+/* a whole section hidden on phone: a louder ghost — the band stays visible,
+   collapsed and dimmed, wearing its badge, so it is always one tap from back.
+   Badge + dim live on the WRAP: the section's own ::before/::after belong to
+   backgrounds and dividers. */
+html.gogh-phone-preview .gogh-wrap:has(> .gogh-msec-hidden) {
+  position: relative; outline: 2px dashed #4f5aee; outline-offset: -2px;
+}
+html.gogh-phone-preview .gogh-wrap:has(> .gogh-msec-hidden)::after {
+  content: "Section hidden on phone"; position: absolute; top: 8px; left: 50%; transform: translateX(-50%);
+  z-index: 6; background: #4f5aee; color: #fff;
+  font: 700 10px/1.4 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  letter-spacing: 0.02em; padding: 3px 8px; border-radius: 6px; pointer-events: none; white-space: nowrap;
+}
+html.gogh-phone-preview .gogh-section.gogh-msec-hidden {
+  opacity: 0.32; max-height: 180px; overflow: hidden;
+}
 .gogh-mtoolbar { position: fixed; z-index: 100001; }
 .gogh-mtoolbar[hidden] { display: none; }
 .gogh-mt-btn {
