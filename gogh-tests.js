@@ -258,6 +258,34 @@
       return 'section band gated-hidden + round-tripped; cleared on show';
     });
 
+    // ---- 5a-sexies. mobile reorder: sec.m.order re-stacks the phone column
+    // via CSS order (UN-gated — the phone preview must show it too), repairs
+    // stale indices, and a stale/partial array still covers every element. ----
+    test('mobile reorder: sec.m.order emits order rules, repaired against edits', function () {
+      var s = sec();
+      var n = s.els.length;
+      expect(n >= 2, 'fixture section too small');
+      // swap the first two of the natural order, keep the rest
+      var seq = (window.__gogh.readingOrder(s.els) || []).slice();
+      var t = seq[0]; seq[0] = seq[1]; seq[1] = t;
+      s.m = { order: seq };
+      G.resolve(s);
+      var css = s.styleEl.textContent.replace(/\s+/g, ' ');
+      var rules = css.match(/gogh-el-(\d+) \{ order: (\d+)/g) || [];
+      expect(rules.length === n, 'expected ' + n + ' order rules, got ' + rules.length);
+      expect(new RegExp('gogh-el-' + (seq[0] + 1) + ' \\{ order: 0').test(css), 'first stack slot wrong');
+      expect(new RegExp('gogh-el-' + (seq[1] + 1) + ' \\{ order: 1').test(css), 'second stack slot wrong');
+      // a STALE patch (bad index, missing entries) still covers every element
+      s.m = { order: [99, seq[0]] };
+      G.resolve(s);
+      var rules2 = (s.styleEl.textContent.replace(/\s+/g, ' ').match(/order: \d+/g) || []).length;
+      expect(rules2 === n, 'repair failed: ' + rules2 + ' rules for ' + n + ' elements');
+      s.m = null;
+      G.resolve(s);
+      expect((s.styleEl.textContent.match(/\{ order: \d+/g) || []).length === 0, 'order rules lingered after clear');
+      return n + ' elements re-stacked, stale patch repaired, cleared clean';
+    });
+
     // ---- 5a-bis. ...and the reverse: a COMPACT style after a tall serif pulls
     // the gap back CLOSED. growReflow(sec, true) shrinks as well as grows, so
     // the button rides the heading back UP — no orphaned gap. (A plain

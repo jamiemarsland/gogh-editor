@@ -187,8 +187,12 @@ html.gogh-phone-preview .gogh-wrap:has(> .gogh-msec-hidden)::after {
 html.gogh-phone-preview .gogh-section.gogh-msec-hidden {
   opacity: 0.32; max-height: 180px; overflow: hidden;
 }
-.gogh-mtoolbar { position: fixed; z-index: 100001; }
+.gogh-mtoolbar { position: fixed; z-index: 100001; display: flex; gap: 6px; align-items: center; }
 .gogh-mtoolbar[hidden] { display: none; }
+.gogh-mt-arrow { padding: 0; width: 32px; height: 32px; justify-content: center; border-radius: 50%; }
+.gogh-mt-arrow[hidden] { display: none; }
+.gogh-mt-arrow:disabled { opacity: 0.35; cursor: default; }
+.gogh-mt-arrow:disabled:hover { background: #17181b; }
 .gogh-mt-btn {
   all: unset; box-sizing: border-box; cursor: pointer;
   display: inline-flex; align-items: center; padding: 7px 14px; border-radius: 999px;

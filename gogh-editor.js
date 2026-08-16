@@ -803,6 +803,20 @@
         out.push('  html:not(.gogh-phone-preview) ' + sec + ' .gogh-el-' + (i + 1) + ' { display: none; }');
       }
     });
+    // section-level mobile override — a hand-tuned stack order (m.order lists
+    // element indices in their phone order). Emitted UN-gated: the phone
+    // preview must show the new order too. This deliberately trades the
+    // DOM/tab-order agreement the auto stack keeps — the user's explicit
+    // choice wins. Repair as we read: drop stale indices, append missing, so
+    // an edited section never breaks the stack.
+    if (opts.m && Array.isArray(opts.m.order)) {
+      var mSeen = {};
+      var mSeq = opts.m.order.filter(function (ix) { return ix >= 0 && ix < els.length && !mSeen[ix] && (mSeen[ix] = 1); });
+      els.forEach(function (_, ix) { if (!mSeen[ix]) mSeq.push(ix); });
+      mSeq.forEach(function (elIx, pos) {
+        out.push('  ' + sec + ' .gogh-el-' + (elIx + 1) + ' { order: ' + pos + '; }');
+      });
+    }
     out.push(
       '  ' + sec + ' .wp-block-button, ' + sec + ' .wp-block-button__link { width: max-content; height: 44px; padding: 0 24px; }',
       '}'
@@ -1693,8 +1707,22 @@
   var mtoolbar = document.createElement('div');
   mtoolbar.className = 'gogh-mtoolbar';
   mtoolbar.hidden = true;
-  mtoolbar.innerHTML = '<button type="button" class="gogh-mt-btn gogh-mt-hide"></button>';
+  mtoolbar.innerHTML =
+    '<button type="button" class="gogh-mt-btn gogh-mt-arrow gogh-mt-up" title="Move up in the phone stack">' +
+    '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5M5 12l7-7 7 7"/></svg></button>' +
+    '<button type="button" class="gogh-mt-btn gogh-mt-arrow gogh-mt-down" title="Move down in the phone stack">' +
+    '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12l7 7 7-7"/></svg></button>' +
+    '<button type="button" class="gogh-mt-btn gogh-mt-hide"></button>';
   document.body.appendChild(mtoolbar);
+  // the phone stack's current order for a section: the hand-tuned m.order if
+  // set (repaired against edits), else the natural reading order
+  function mobileOrderOf(s2) {
+    var base = (s2.m && Array.isArray(s2.m.order)) ? s2.m.order.slice() : readingIndexOrder(s2.els);
+    var seen = {};
+    var seq = base.filter(function (ix) { return ix >= 0 && ix < s2.els.length && !seen[ix] && (seen[ix] = 1); });
+    s2.els.forEach(function (_, ix) { if (!seen[ix]) seq.push(ix); });
+    return seq;
+  }
   function mElFromTarget(target) {
     var node = target && target.closest && target.closest('.gogh-section > *');
     if (node) {
@@ -1740,6 +1768,16 @@
     var btn = mtoolbar.querySelector('.gogh-mt-hide');
     btn.textContent = (hidden ? 'Show' : 'Hide') + (mSel.kind === 'sec' ? ' section' : '') + ' on phone';
     btn.classList.toggle('is-restoring', hidden);
+    // reorder arrows: elements only, dimmed at the ends of the stack
+    var up = mtoolbar.querySelector('.gogh-mt-up'), down = mtoolbar.querySelector('.gogh-mt-down');
+    var isEl = mSel.kind === 'el';
+    up.hidden = down.hidden = !isEl;
+    if (isEl) {
+      var seq = mobileOrderOf(mSel.sec);
+      var p = seq.indexOf(mSel.i);
+      up.disabled = p <= 0;
+      down.disabled = p < 0 || p >= seq.length - 1;
+    }
     mtoolbar.hidden = false;
     positionMtoolbar();
     // the artboard may still be easing (device switch / re-fit); re-pin once it
@@ -1769,6 +1807,25 @@
     if (typeof pushState === 'function') pushState();
     updateMtoolbar();
   });
+  function moveMobile(dir) {
+    if (!mSel || mSel.kind !== 'el') return;
+    var s2 = mSel.sec;
+    var seq = mobileOrderOf(s2);
+    var p = seq.indexOf(mSel.i), q = p + dir;
+    if (p < 0 || q < 0 || q >= seq.length) return;
+    var t = seq[p]; seq[p] = seq[q]; seq[q] = t;
+    // back at the natural reading order → the patch has nothing to say
+    var natural = readingIndexOrder(s2.els);
+    var same = seq.length === natural.length && seq.every(function (v, k) { return v === natural[k]; });
+    s2.m = s2.m || {};
+    if (same) delete s2.m.order; else s2.m.order = seq;
+    if (!Object.keys(s2.m).length) s2.m = null;
+    resolveAndApply(s2);
+    if (typeof pushState === 'function') pushState();
+    updateMtoolbar(); // the element moved — re-pin the toolbar to it
+  }
+  mtoolbar.querySelector('.gogh-mt-up').addEventListener('click', function (ev) { ev.preventDefault(); ev.stopPropagation(); moveMobile(-1); });
+  mtoolbar.querySelector('.gogh-mt-down').addEventListener('click', function (ev) { ev.preventDefault(); ev.stopPropagation(); moveMobile(1); });
   // click-to-select, only in the phone preview; clicks tune the layout rather
   // than activate links
   document.addEventListener('click', function (ev) {
