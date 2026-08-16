@@ -286,6 +286,40 @@
       return n + ' elements re-stacked, stale patch repaired, cleared clean';
     });
 
+    // ---- breakout images parallax by default (James: "i kinda love paralax").
+    // Wide/full figures in prose get a gentle scroll-driven drift: overflow
+    // clipped, img scaled 1.08 for headroom, gogh-wfpx on a view() timeline.
+    // Reduced motion turns it all off. ----
+    test('breakout images (alignwide/full) parallax by default, reduced-motion off switch served', function () {
+      var ec = document.querySelector('.entry-content');
+      expect(ec, 'fixture has no .entry-content');
+      var f = document.createElement('figure');
+      f.className = 'wp-block-image alignwide';
+      f.innerHTML = '<img alt="">';
+      ec.appendChild(f);
+      var img = f.querySelector('img');
+      var supports = CSS.supports('animation-timeline: view()');
+      if (supports) {
+        var cs = getComputedStyle(img);
+        expect(cs.animationName === 'gogh-wfpx', 'no default parallax on a wide figure (animation: ' + cs.animationName + ')');
+        expect(cs.scale === '1.08', 'headroom scale missing: ' + cs.scale);
+        expect(getComputedStyle(f).overflowY === 'clip', 'figure not clipped: ' + getComputedStyle(f).overflowY);
+      }
+      // contract present in the served CSS either way (rules + the off switch)
+      var served = { wfpx: false, reduced: false };
+      [].forEach.call(document.styleSheets, function (ss) {
+        try { [].forEach.call(ss.cssRules || [], function (r) {
+          var t = r.cssText || '';
+          if (t.indexOf('gogh-wfpx') !== -1) served.wfpx = true;
+          if (t.indexOf('prefers-reduced-motion') !== -1 && t.indexOf('gogh-splash-break') !== -1) served.reduced = true;
+        }); } catch (err) {}
+      });
+      f.remove();
+      expect(served.wfpx, 'gogh-wfpx rules not served');
+      expect(served.reduced, 'reduced-motion guard not served');
+      return supports ? 'drifting on a view() timeline, guard served' : 'rules served (no view() support here)';
+    });
+
     // ---- 5a-bis. ...and the reverse: a COMPACT style after a tall serif pulls
     // the gap back CLOSED. growReflow(sec, true) shrinks as well as grows, so
     // the button rides the heading back UP — no orphaned gap. (A plain
