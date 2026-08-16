@@ -1,6 +1,12 @@
-# Knowledge-base audit — plugin v0.99.204
+# Knowledge-base audit — plugin v0.99.205
 
 _13 finding(s) suppressed by `kb.audit-ignore.txt`._
+
+## STALE (1)
+
+The prose names something that no longer exists.
+
+- UI label "✏️ Edit with gogh" was removed in this release, but the prose still describes it
 
 ## MISSING (22)
 
@@ -33,4 +39,5 @@ The source has something the prose never explains. The bot knows the name from t
 
 Use this as the checklist for updating the prose — and as a sanity check on the release itself.
 
-- version: 0.99.203 → 0.99.204
+- version: 0.99.204 → 0.99.205
+- removed UI label: "✏️ Edit with gogh"
