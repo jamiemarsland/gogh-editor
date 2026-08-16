@@ -1,6 +1,6 @@
-# Knowledge-base audit — plugin v0.99.200
+# Knowledge-base audit — plugin v0.99.201
 
-_14 finding(s) suppressed by `kb.audit-ignore.txt`._
+_13 finding(s) suppressed by `kb.audit-ignore.txt`._
 
 ## MISSING (22)
 
@@ -33,8 +33,4 @@ The source has something the prose never explains. The bot knows the name from t
 
 Use this as the checklist for updating the prose — and as a sanity check on the release itself.
 
-- version: 0.99.196 → 0.99.200
-- removed UI label: "Hide"
-- removed UI label: "Live mobile preview"
-- added UI label: "Move down in the phone stack"
-- added UI label: "Move up in the phone stack"
+- version: 0.99.200 → 0.99.201
