@@ -1570,7 +1570,10 @@
   // ---------- UI chrome ----------
   var editBtnWrap = document.createElement('div');
   editBtnWrap.className = 'gogh-bar';
-  editBtnWrap.innerHTML = '<button type="button" class="gogh-btn gogh-btn-edit">✏️ Edit with gogh</button>';
+  // two rooms, one landmark: on a POST this pill opens the write room (same
+  // door the admin bar's Edit post opens); everywhere else, the canvas
+  editBtnWrap.innerHTML = '<button type="button" class="gogh-btn gogh-btn-edit">' +
+    (cfg.writeUrl ? '✏️ Edit post' : '✏️ Edit with gogh') + '</button>';
   document.body.appendChild(editBtnWrap);
   var editBtn = editBtnWrap.querySelector('.gogh-btn-edit');
 
@@ -9615,7 +9618,10 @@
   var nudgeDistTimer = null;
 
   // ---------- toolbar actions ----------
-  editBtn.addEventListener('click', function () { setEditing(true); });
+  editBtn.addEventListener('click', function () {
+    if (cfg.writeUrl) { location.href = cfg.writeUrl; return; } // posts open the write room
+    setEditing(true);
+  });
   // ---------- instant tooltips (native title has a multi-second delay) ----------
   // One persistent tooltip that GLIDES: first hover rises in with a settle;
   // moving along a toolbar it slides to the next control and morphs its
