@@ -473,6 +473,46 @@
     queueSave();
   };
   var node2After = function (ref, node) { ref.after(node); };
+  // ---------- break-image focal point: drag the photo to reframe ----------
+  // The break window crops from the top by default; when that frames a photo
+  // badly, grab the picture and slide it. The chosen slice persists as an
+  // inline object-position, recomposed into the block raw on release.
+  (function () {
+    var fd = null; // { img, blk, startY, startFocal, moved }
+    var focalOf = function (img) {
+      var m = /50%\s+(-?[\d.]+)%/.exec(img.style.objectPosition || '');
+      return m ? +m[1] : 0; // no inline style = the top-crop default
+    };
+    body.addEventListener('pointerdown', function (ev) {
+      var img = ev.target.closest && ev.target.closest('.gogh-splash figure.gogh-splash-break img');
+      if (!img) return;
+      var blk = img.closest('.gogh-splash');
+      if (!blk || !blk.dataset.goghRaw) return;
+      ev.preventDefault(); // the wrapper is contentEditable=false; no caret to place
+      fd = { img: img, blk: blk, startY: ev.clientY, startFocal: focalOf(img), moved: false };
+      try { img.setPointerCapture(ev.pointerId); } catch (err) {}
+    }, true);
+    body.addEventListener('pointermove', function (ev) {
+      if (!fd) return;
+      var dy = ev.clientY - fd.startY;
+      if (Math.abs(dy) > 2) fd.moved = true;
+      // dragging the photo DOWN reveals what is above the window: lower focal
+      var next = Math.max(0, Math.min(100, fd.startFocal - dy / fd.img.clientHeight * 100));
+      fd.img.style.objectPosition = '50% ' + Math.round(next) + '%';
+    }, true);
+    var endFocalDrag = function () {
+      if (!fd) return;
+      var d = fd; fd = null;
+      if (!d.moved) return; // a plain tap is not a reframe
+      var raw = decodeURIComponent(d.blk.dataset.goghRaw);
+      var alt = (/(?:alt="([^"]*)")/.exec(raw) || [])[1] || '';
+      var made = window.__goghCompose.breakImage(d.img.getAttribute('src'), alt, focalOf(d.img));
+      d.blk.dataset.goghRaw = encodeURIComponent(made.raw);
+      queueSave();
+    };
+    body.addEventListener('pointerup', endFocalDrag, true);
+    body.addEventListener('pointercancel', endFocalDrag, true);
+  })();
   // \u270e on an existing splash EDITS it: the stage opens on its kind with
   // its photos already chosen, its words already in the fields \u2014 folks
   // adjust, they don't rebuild ("wouldn't it make more sense if it

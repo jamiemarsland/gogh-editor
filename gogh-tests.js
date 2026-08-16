@@ -320,6 +320,25 @@
       return supports ? 'drifting on a view() timeline, guard served' : 'rules served (no view() support here)';
     });
 
+    // ---- break-image focal point: the composer carries the chosen slice as
+    // an inline object-position (0=top default emits nothing; values clamp). ----
+    test('breakImage composer carries a clamped focal point inline', function () {
+      var C = window.__goghCompose;
+      expect(C && C.breakImage, 'no __goghCompose.breakImage');
+      var plain = C.breakImage('https://x.test/a.jpg', 'hi');
+      expect(plain.raw.indexOf('object-position') === -1, 'default break should carry no inline focal');
+      var mid = C.breakImage('https://x.test/a.jpg', 'hi', 37.4);
+      expect(mid.raw.indexOf('style="object-position:50% 37%"') !== -1, 'focal not emitted: ' + mid.raw.slice(0, 200));
+      expect(mid.html.indexOf('object-position:50% 37%') !== -1, 'focal missing from preview html');
+      var over = C.breakImage('https://x.test/a.jpg', '', 240);
+      expect(over.raw.indexOf('object-position:50% 100%') !== -1, 'focal not clamped to 100');
+      var under = C.breakImage('https://x.test/a.jpg', '', -33);
+      expect(under.raw.indexOf('object-position:50% 0%') !== -1, 'focal not clamped to 0');
+      // still a real core image block with the break class
+      expect(/wp:image \{"align":"full"/.test(mid.raw) && /gogh-splash-break/.test(mid.raw), 'break block shape changed');
+      return 'no-focal clean; 37.4→37%, clamps at 0 and 100';
+    });
+
     // ---- 5a-bis. ...and the reverse: a COMPACT style after a tall serif pulls
     // the gap back CLOSED. growReflow(sec, true) shrinks as well as grows, so
     // the button rides the heading back UP — no orphaned gap. (A plain

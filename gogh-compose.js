@@ -48,9 +48,14 @@
     return { raw: raw, html: html };
   };
 
-  // a chapter break: one full-bleed picture, words resuming beneath it
-  var breakImage = function (img, alt) {
-    var fig = '<figure class="wp-block-image alignfull size-full gogh-splash-break"><img src="' + escAttr(img) + '" alt="' + escAttr(alt || '') + '"/></figure>';
+  // a chapter break: one full-bleed picture, words resuming beneath it.
+  // focal (0–100) picks WHICH slice of a tall photo the window shows —
+  // 0 = top (the default, where faces live), 100 = bottom. Stored as an
+  // inline object-position so it rides the block markup itself.
+  var breakImage = function (img, alt, focal) {
+    var style = (focal != null && isFinite(focal))
+      ? ' style="object-position:50% ' + Math.max(0, Math.min(100, Math.round(focal))) + '%"' : '';
+    var fig = '<figure class="wp-block-image alignfull size-full gogh-splash-break"><img src="' + escAttr(img) + '" alt="' + escAttr(alt || '') + '"' + style + '/></figure>';
     var raw = '<!-- wp:image {"align":"full","sizeSlug":"full","className":"gogh-splash-break"} -->\n' + fig + '\n<!-- /wp:image -->';
     return { raw: raw, html: fig };
   };

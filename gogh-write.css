@@ -676,3 +676,7 @@ body.gogh-writing ::selection {
   text-align: center;
 }
 .gogh-w-locked a { color: #b07d1a; font-weight: 600; white-space: nowrap; }
+
+/* break-image focal point: the photo itself is the control — grab and slide
+   to choose the slice the window shows (persisted as object-position) */
+.gogh-w-body .gogh-splash figure.gogh-splash-break img { cursor: ns-resize; touch-action: none; }
