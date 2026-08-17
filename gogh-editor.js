@@ -10095,8 +10095,10 @@
       setChip('clean', 'Published \u2713');
       chipTimer = setTimeout(refreshChip, 1800);
       // Answer-ready: the marketer's receipt. The server just projected this
-      // model into JSON-LD \u2014 say so in plain words, only when there's meaning
-      // to report (an answered question), never as noise on every publish.
+      // model into JSON-LD \u2014 say so in plain words on EVERY publish, because
+      // every gogh page gets the brand facts and page summary; answered
+      // questions join the line when the page has them ("do we surface what
+      // its doing in gogh?").
       var aq = 0;
       S.forEach(function (s) {
         if (s.chrome) return;
@@ -10109,7 +10111,9 @@
           });
         })(s.els);
       });
-      if (aq) toast('Answer-ready \u2713 \u2014 ' + aq + ' answered question' + (aq === 1 ? '' : 's') +
+      var receipt = ['your brand facts', 'the page summary'];
+      if (aq) receipt.push(aq + ' answered question' + (aq === 1 ? '' : 's'));
+      toast('Answer-ready \u2713 \u2014 ' + receipt.join(' + ') +
         ' now travel with this page for search engines and AIs.');
       return true;
     }).catch(function (err) {
