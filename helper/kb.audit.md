@@ -1,8 +1,8 @@
-# Knowledge-base audit — plugin v0.99.215
+# Knowledge-base audit — plugin v0.99.216
 
 _13 finding(s) suppressed by `kb.audit-ignore.txt`._
 
-## MISSING (23)
+## MISSING (24)
 
 The source has something the prose never explains. The bot knows the name from the appendix but cannot say what it is for.
 
@@ -18,6 +18,7 @@ The source has something the prose never explains. The bot knows the name from t
 - WP hook `rest_pre_insert_wp_template_part` exists in source but is never mentioned in the prose
 - WP hook `rest_pre_insert_wp_navigation` exists in source but is never mentioned in the prose
 - WP hook `admin_post_gogh_new_page` exists in source but is never mentioned in the prose
+- WP hook `wp_insert_post` exists in source but is never mentioned in the prose
 - template `Story` exists in source but is never mentioned in the prose
 - template `Numbers` exists in source but is never mentioned in the prose
 - template `Pricing` exists in source but is never mentioned in the prose
@@ -34,5 +35,6 @@ The source has something the prose never explains. The bot knows the name from t
 
 Use this as the checklist for updating the prose — and as a sanity check on the release itself.
 
-- version: 0.99.214 → 0.99.215
-- added UI label: "re-centre"
+- version: 0.99.215 → 0.99.216
+- added WP hook: "wp_insert_post"
+- added REST route: "gogh/v1/version"
