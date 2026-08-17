@@ -231,6 +231,36 @@
       return 'placeholder ' + Math.round(r.width) + 'x' + Math.round(r.height) + 'px, design aspect held';
     });
 
+    // ---- the insert audit: EVERYTHING in the add menu must be visible the
+    // moment it lands. The placeholder collapse hid for 30 releases because
+    // the suite checked models and CSS strings, not rendered pixels — this
+    // sweep renders every default insert and measures its box, so no element
+    // type can silently ship invisible again. ----
+    test('every add-menu element renders visibly at its default size', function () {
+      var s = sec();
+      var defaults = G.elDefaults();
+      var specs = Object.keys(defaults).map(function (k) { return { key: k, el: defaults[k]() }; });
+      // the Shape entry inserts a box carrying a shape key — audit one too
+      specs.push({ key: 'shape', el: { type: 'box', x: 80, y: 80, w: 320, h: 320, shape: 'square' } });
+      var seen = [];
+      specs.forEach(function (spec) {
+        s.els.push(spec.el);
+        G.renderSection(s);
+        var i = s.els.indexOf(spec.el);
+        var node = s.nodes[i];
+        var r = node ? node.getBoundingClientRect() : { width: 0, height: 0 };
+        var cs = node ? getComputedStyle(node) : null;
+        var invisible = !node || r.width < 12 || r.height < 12 ||
+          (cs && (cs.display === 'none' || cs.visibility === 'hidden' || parseFloat(cs.opacity) === 0));
+        expect(!invisible, spec.key + ' renders invisible (' +
+          Math.round(r.width) + 'x' + Math.round(r.height) + 'px)');
+        seen.push(spec.key + ' ' + Math.round(r.width) + 'x' + Math.round(r.height));
+        s.els.splice(i, 1);
+      });
+      G.renderSection(s);
+      return specs.length + ' insert kinds visible: ' + seen.join(', ');
+    });
+
     // ---- 5a-quater. mobile override — hide on phone. m.hidden emits a GATED
     // display:none: real ≤700px viewports hide it, but the editor's phone
     // preview (html.gogh-phone-preview) keeps it visible-but-dimmed so it can be

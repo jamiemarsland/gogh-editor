@@ -9621,6 +9621,7 @@
     composeWall: composeWall,
     mediaPool: mediaPool,
     tplEls: tplEls,
+    elDefaults: function () { return DEFAULTS; },
     chromeDialsApply: chromeDialsApply,
     insertGoghPattern: insertGoghPattern,
     addHtmlSection: addHtmlSection,
