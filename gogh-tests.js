@@ -209,6 +209,28 @@
       return 'heading grew ' + Math.round(delta) + 'u, button tracked it (no overlap)';
     });
 
+    // ---- image frames own their height. align-self: start (v0.99.188)
+    // stopped grid stretch poisoning image measurements, but it also let a
+    // fresh src-less placeholder collapse to 0px — inserted images vanished
+    // ("inserting images is very broken ... it does not show anymore"). The
+    // design aspect on the frame keeps it visible at e.w / e.h. ----
+    test('a fresh image placeholder renders at its design aspect', function () {
+      var s = sec();
+      var ph = { type: 'image', x: 520, y: 120, w: 360, h: 260, text: null, ghost: false, cool: true };
+      s.els.push(ph);
+      G.renderSection(s);
+      var i = s.els.indexOf(ph);
+      var r = s.nodes[i].getBoundingClientRect();
+      var ratio = r.width / r.height;
+      var okH = r.height > 40;
+      var okR = Math.abs(ratio - 360 / 260) < 0.08;
+      s.els.splice(i, 1);
+      G.renderSection(s);
+      expect(okH, 'placeholder collapsed: ' + Math.round(r.height) + 'px tall');
+      expect(okR, 'placeholder aspect drifted: ' + ratio.toFixed(2));
+      return 'placeholder ' + Math.round(r.width) + 'x' + Math.round(r.height) + 'px, design aspect held';
+    });
+
     // ---- 5a-quater. mobile override — hide on phone. m.hidden emits a GATED
     // display:none: real ≤700px viewports hide it, but the editor's phone
     // preview (html.gogh-phone-preview) keeps it visible-but-dimmed so it can be

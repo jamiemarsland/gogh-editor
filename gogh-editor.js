@@ -477,6 +477,15 @@
       }
       if (e.type === 'widget' && e.wcol) extra += ' color: ' + e.wcol + ';';
       if (e.type === 'image') {
+        // align-self: start stopped grid stretch poisoning measurements
+        // (v0.99.188) but it also stopped the frame filling its rows — a
+        // fresh placeholder (no <img> inside) collapsed to 0px and vanished
+        // ("inserting images is very broken ... it does not show anymore").
+        // The design aspect gives the frame its own height: width comes from
+        // the fixed column tracks, so the rendered height IS e.h regardless
+        // of what the neighbouring rows do — the placeholder shows, placed
+        // photos keep their designed crop, and measurement reads the truth.
+        if (e.w > 0 && e.h > 0) extra += ' aspect-ratio: ' + e.w + ' / ' + e.h + ';';
         extra += e.src ? ' overflow: hidden;' : ' ' + imageBackground(e);
       }
       if (e.type === 'box') {
