@@ -1885,6 +1885,34 @@
   }, true);
   window.addEventListener('scroll', function () { if (mSel) positionMtoolbar(); }, { passive: true });
 
+  // ---------- stale-tab guard ----------
+  // A tab that outlives a release silently misses features ("im not seeing
+  // any changes" — twice in one day). On window focus (throttled), ask the
+  // server its build; if it moved on, offer a one-click reload. The chip
+  // never forces anything — unsaved work keeps its beforeunload protection.
+  (function () {
+    if (!cfg.build) return;
+    var lastCheck = 0, chipEl = null;
+    var check = function () {
+      var now = Date.now();
+      if (now - lastCheck < 5 * 60 * 1000 || chipEl) return;
+      lastCheck = now;
+      fetch(cfg.restUrl.split('wp/v2/')[0] + 'gogh/v1/version', {
+        headers: { 'X-WP-Nonce': cfg.nonce }, credentials: 'same-origin',
+      }).then(function (r) { return r.ok ? r.json() : null; }).then(function (d) {
+        if (!d || !d.build || d.build === cfg.build) return;
+        chipEl = document.createElement('button');
+        chipEl.type = 'button';
+        chipEl.className = 'gogh-freshchip';
+        chipEl.textContent = '✨ A newer gogh is ready — reload';
+        chipEl.addEventListener('click', function () { location.reload(); });
+        document.body.appendChild(chipEl);
+      }).catch(function () {});
+    };
+    window.addEventListener('focus', check);
+    setTimeout(check, 4000);
+  })();
+
   // tuck-away drawer: slim edge tab when collapsed, slide-in on hover
   var sideTab = document.createElement('button');
   sideTab.type = 'button';

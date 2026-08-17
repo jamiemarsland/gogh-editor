@@ -2965,3 +2965,12 @@ html.gogh-textediting .gogh-convertbtn {
 .gogh-section.gogh-focal-live { cursor: grab; }
 .gogh-focal-hint { font-size: 11.5px; opacity: 0.8; }
 .gogh-focal-hint .gogh-focal-reset { all: unset; cursor: pointer; text-decoration: underline; color: #4f5aee; }
+
+/* the fresh-build chip: quiet, bottom-centre, one click to catch up */
+.gogh-freshchip {
+  all: unset; cursor: pointer; position: fixed; left: 50%; bottom: 18px; transform: translateX(-50%);
+  z-index: 100002; padding: 9px 16px; border-radius: 999px; background: #17181b; color: #fff;
+  font: 600 12.5px/1.4 -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, sans-serif;
+  box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.5);
+}
+.gogh-freshchip:hover { background: #000; }
