@@ -7498,7 +7498,6 @@
       if (Math.abs(dx) > Math.abs(dy)) { dy = 0; lockY = true; }
       else { dx = 0; lockX = true; }
     }
-    if (ghost) ghost.style.transform = 'translate(' + dx + 'px,' + dy + 'px)';
     var free = ev.metaKey || ev.ctrlKey;
     drag.freeHeld = free;
     var sec = drag.sec;
@@ -7536,6 +7535,12 @@
         }
       }
     }
+    // the ghost is a PROMISE, so it moves in model coordinates, not raw
+    // pointer pixels: it ticks onto the grid and onto magnets exactly as
+    // the element will land. Raw-pixel ghosts drifted from the quantized
+    // model — the drop teleported the text a few px ("it feels like text
+    // (headings) move slightly right after i drop").
+    if (ghost) ghost.style.transform = 'translate(' + ((e.x - drag.x) * s) + 'px,' + ((e.y - drag.y) * s) + 'px)';
     if (drag.multi) {
       var mdx = e.x - drag.x, mdy = e.y - drag.y;
       drag.multi.forEach(function (mm) {
