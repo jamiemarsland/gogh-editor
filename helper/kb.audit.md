@@ -1,4 +1,4 @@
-# Knowledge-base audit — plugin v0.99.226
+# Knowledge-base audit — plugin v0.99.227
 
 _13 finding(s) suppressed by `kb.audit-ignore.txt`._
 
@@ -39,6 +39,5 @@ The source has something the prose never explains. The bot knows the name from t
 
 Use this as the checklist for updating the prose — and as a sanity check on the release itself.
 
-- version: 0.99.225 → 0.99.226
-- removed toast: "Answer-ready ✓ — "
-- added toast: "Answer-ready ✓"
+- version: 0.99.226 → 0.99.227
+- added UI label: "Answer-ready — see what machines see"
