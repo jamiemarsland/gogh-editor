@@ -2959,3 +2959,9 @@ html.gogh-textediting .gogh-convertbtn {
 
 /* fill-the-width toggle: lit while the text is fitted */
 .gogh-eb-fit.is-on { color: #4f5aee; background: #eef0ff; border-radius: 8px; }
+
+/* focal-point mode: while the background panel is open, the section's own
+   surface is the control — the cursor says "grab the photo" */
+.gogh-section.gogh-focal-live { cursor: grab; }
+.gogh-focal-hint { font-size: 11.5px; opacity: 0.8; }
+.gogh-focal-hint .gogh-focal-reset { all: unset; cursor: pointer; text-decoration: underline; color: #4f5aee; }

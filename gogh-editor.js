@@ -254,6 +254,7 @@
       fx: model.fx || null,
       bgImage: model.bgImage || null, bgId: model.bgId || null, bgA: model.bgA != null ? model.bgA : null, theme: model.theme || null, fill: !!model.fill,
       m: model.m || null, // section-level mobile overrides (hidden, …)
+      bgPos: model.bgPos || null,
       wrapEl: wrap, sectionEl: sectionEl, styleEl: styleEl, nodes: [] });
   });
 
@@ -463,7 +464,17 @@
       // fill-the-width text: the fitted size lives in cqw so it scales with
       // the section container everywhere (phones included), no runtime JS.
       // !important outguns the theme's preset-size classes (also !important).
-      if (e.fitW && e.fitFs) extra += ' font-size: ' + e.fitFs + 'cqw !important; line-height: 1.05; white-space: nowrap;';
+      // text-box trims the line box to the INK — without it, flush-to-edge
+      // means the invisible descender allowance touches the edge while the
+      // letters float above it ("we still cant make the actual text flush").
+      // Words with descenders keep the font's text edge so g/y/p aren't
+      // clipped; caps-ish words trim to the baseline. Unsupported browsers
+      // simply keep the small gap.
+      if (e.fitW && e.fitFs) {
+        var tbEdge = /[gjpqy]/.test(String(e.text || '')) ? 'text' : 'alphabetic';
+        extra += ' font-size: ' + e.fitFs + 'cqw !important; line-height: 1.05; white-space: nowrap;' +
+          ' text-box: trim-both cap ' + tbEdge + ';';
+      }
       if (e.type === 'widget' && e.wcol) extra += ' color: ' + e.wcol + ';';
       if (e.type === 'image') {
         extra += e.src ? ' overflow: hidden;' : ' ' + imageBackground(e);
@@ -591,7 +602,7 @@
         var layers = [];
         var bgIsComposition = !!(opts.bg && /gradient\(/.test(opts.bg));
         if (opts.bgImage) {
-          var img = 'url("' + String(opts.bgImage).replace(/"/g, '%22') + '") center / cover no-repeat';
+          var img = 'url("' + String(opts.bgImage).replace(/"/g, '%22') + '") ' + (opts.bgPos ? opts.bgPos.x + '% ' + opts.bgPos.y + '%' : 'center') + ' / cover no-repeat';
           if (opts.bg && !bgIsComposition) {
             // palette-aware tint over the image keeps text readable in any
             // style variation (the tint follows the theme's own colours)
@@ -686,7 +697,7 @@
       var bgIsComposition = !!(opts.bg && /gradient\(/.test(opts.bg));
       var layers = [];
       if (opts.bgImage) {
-        var img = 'url("' + String(opts.bgImage).replace(/"/g, '%22') + '") center / cover no-repeat';
+        var img = 'url("' + String(opts.bgImage).replace(/"/g, '%22') + '") ' + (opts.bgPos ? opts.bgPos.x + '% ' + opts.bgPos.y + '%' : 'center') + ' / cover no-repeat';
         if (opts.bg && !bgIsComposition) {
           var tint = 'color-mix(in srgb, ' + opts.bg + ' ' + (bgA != null ? bgA : 62) + '%, transparent)';
           layers.push('linear-gradient(' + tint + ', ' + tint + ')');
@@ -996,6 +1007,7 @@
       fx: sec.fx || null,
       bgImage: sec.bgImage || null, bgId: sec.bgId || null, bgA: sec.bgA != null ? sec.bgA : null, theme: sec.theme || null, fill: sec.fill || null,
       m: (sec.m && Object.keys(sec.m).length) ? sec.m : null, // sparse section-level mobile overrides
+      bgPos: sec.bgPos || null, // background focal point
       elements: sec.els.map(projEl),
     };
   }
@@ -1318,6 +1330,7 @@
     var nextIsRaw = !!(domNext && (!next || next.wrapEl !== domNext));
     return { bg: sec.bg, bgA: sec.bgA != null ? sec.bgA : null, fill: !!sec.fill, divider: sec.divider, bgImage: sec.bgImage,
       m: sec.m || null,
+      bgPos: sec.bgPos || null,
       fx: sec.fx || null,
       fxDemo: !!sec.__fxDemo,
       stickUnder: !!(next && next.fx && next.fx.curtain),
@@ -1491,7 +1504,7 @@
   // ---------- history (undo/redo) ----------
   var history = [], hIdx = -1, textTimer = null;
   function serialize() {
-    return JSON.stringify(S.map(function (sec) { return { scope: sec.scope, els: sec.els, minH: sec.minH || null, bg: sec.bg || null, divider: sec.divider || null, fx: sec.fx || null, bgImage: sec.bgImage || null, bgId: sec.bgId || null, bgA: sec.bgA != null ? sec.bgA : null, theme: sec.theme || null, fill: sec.fill || null, m: (sec.m && Object.keys(sec.m).length) ? sec.m : null, src: sec.srcSig || null, boot: sec.bootstrap || false, chrome: sec.chrome || null }; }));
+    return JSON.stringify(S.map(function (sec) { return { scope: sec.scope, els: sec.els, minH: sec.minH || null, bg: sec.bg || null, divider: sec.divider || null, fx: sec.fx || null, bgImage: sec.bgImage || null, bgId: sec.bgId || null, bgA: sec.bgA != null ? sec.bgA : null, theme: sec.theme || null, fill: sec.fill || null, m: (sec.m && Object.keys(sec.m).length) ? sec.m : null, bgPos: sec.bgPos || null, src: sec.srcSig || null, boot: sec.bootstrap || false, chrome: sec.chrome || null }; }));
   }
   function pushState() {
     var snap = serialize();
@@ -1543,6 +1556,7 @@
       sec.theme = d.theme || null;
       sec.fill = !!d.fill;
       sec.m = d.m || null;
+      sec.bgPos = d.bgPos || null;
       sec.srcSig = d.src || null;
       sec.bootstrap = !!d.boot;
       sec.chrome = d.chrome || null;
@@ -6106,6 +6120,7 @@
     sec.theme = srcSec.theme || null;
     sec.fill = !!srcSec.fill;
     sec.m = srcSec.m ? JSON.parse(JSON.stringify(srcSec.m)) : null;
+    sec.bgPos = srcSec.bgPos ? { x: srcSec.bgPos.x, y: srcSec.bgPos.y } : null;
     srcSec.wrapEl.after(sec.wrapEl);
     S.splice(idx + 1, 0, sec);
     renderSection(sec);
@@ -6288,6 +6303,7 @@
     sec.theme = model.theme || null;
     sec.fill = !!model.fill;
     sec.m = model.m || null;
+    sec.bgPos = model.bgPos || null;
     var nextContent = null;
     for (var ni = idx; ni < S.length; ni++) { if (!S[ni].chrome) { nextContent = S[ni]; break; } }
     pageParent.insertBefore(sec.wrapEl, (before && before.isConnected) ? before : (nextContent ? nextContent.wrapEl : endMarker));
@@ -6583,6 +6599,7 @@
           ' data-fx="' + fx[0] + '"' + (fx[2] === 'img' ? ' data-needs-img="1"' : '') + '>' + fx[1] + '</button>';
       }).join('') + '</div>' +
       '<div class="gogh-panel-hint">Image</div>' +
+      (secx.bgImage ? '<div class="gogh-panel-hint gogh-focal-hint">✋ Drag the section itself to reframe the photo' + (secx.bgPos ? ' · <button type="button" class="gogh-focal-reset">re-centre</button>' : '') + '</div>' : '') +
       '<div class="gogh-panel-row gogh-panel-actions">' +
       (cfg.canUpload ? '<label class="gogh-btn gogh-btn-small gogh-upload">Upload<input type="file" accept="image/*" hidden /></label>' : '') +
       (secx.bgImage ? '<button type="button" class="gogh-btn gogh-btn-small gogh-clear">Remove image</button>' : '') +
@@ -6608,6 +6625,49 @@
       '</div>';
     dockPanel();
     panelOpen = true;
+    // ---------- focal point: drag the section to reframe its photo ----------
+    // The break-image gesture, for backgrounds ("add our cool choose focal
+    // point for background images"). Live only while THIS panel is open, and
+    // only from the section's own background — element drags keep working.
+    (function () {
+      if (!secx.bgImage) return;
+      var fd = null;
+      secx.sectionEl.classList.add('gogh-focal-live');
+      var down = function (ev) {
+        if (!secx.bgImage) return;
+        if (ev.target.closest('.gogh-panel, .gogh-elbar, .gogh-selbox, .gogh-grip, .gogh-handle, .gogh-secbar, .gogh-zoomslider, .gogh-side')) return;
+        var elNode = ev.target.closest('.gogh-section > *');
+        if (elNode && secx.nodes && secx.nodes.indexOf(elNode) >= 0) return; // an element drag, not a reframe
+        if (!(ev.target === secx.sectionEl || secx.sectionEl.contains(ev.target))) return;
+        fd = { px: ev.clientX, py: ev.clientY,
+          x: secx.bgPos ? secx.bgPos.x : 50, y: secx.bgPos ? secx.bgPos.y : 50 };
+        ev.preventDefault(); ev.stopPropagation();
+      };
+      var move = function (ev) {
+        if (!fd) return;
+        var r = secx.sectionEl.getBoundingClientRect();
+        // dragging the photo right/down reveals its left/top: position decreases
+        secx.bgPos = {
+          x: Math.max(0, Math.min(100, Math.round(fd.x - (ev.clientX - fd.px) / r.width * 100))),
+          y: Math.max(0, Math.min(100, Math.round(fd.y - (ev.clientY - fd.py) / r.height * 100))),
+        };
+        resolveAndApply(secx);
+      };
+      var up = function () { if (fd) { fd = null; pushState(); } };
+      document.addEventListener('pointerdown', down, true);
+      document.addEventListener('pointermove', move, true);
+      document.addEventListener('pointerup', up, true);
+      var resetBtn = panel.querySelector('.gogh-focal-reset');
+      if (resetBtn) resetBtn.addEventListener('click', function () {
+        secx.bgPos = null; resolveAndApply(secx); pushState();
+      });
+      panelCleanup = function () {
+        secx.sectionEl.classList.remove('gogh-focal-live');
+        document.removeEventListener('pointerdown', down, true);
+        document.removeEventListener('pointermove', move, true);
+        document.removeEventListener('pointerup', up, true);
+      };
+    })();
     var moreT = panel.querySelector('.gogh-panel-more-toggle');
     if (moreT) moreT.addEventListener('click', function () {
       var more = panel.querySelector('.gogh-panel-more');
@@ -14964,6 +15024,7 @@
         sec.theme = model.theme || null;
         sec.fill = !!model.fill;
         sec.m = model.m || null;
+        sec.bgPos = model.bgPos || null;
       });
     }).catch(function (err) {
       console.warn('[gogh] v3 hydration failed:', err);
