@@ -10238,13 +10238,11 @@
           });
         })(s.els);
       });
-      var receipt = ['your brand facts', 'the page summary'];
-      if (aq) receipt.push(aq + ' answered question' + (aq === 1 ? '' : 's'));
-      toast('Answer-ready \u2713 \u2014 ' + receipt.join(' + ') +
-        ' now travel with this page for search engines and AIs.', {
-          ttl: 10000,
-          actions: [{ label: 'See what machines see', onClick: openAnswerReadyPanel }],
-        });
+      // one short line, normal fade \u2014 the panel holds the detail ("this is
+      // a little intrusive"); aq feeds the label so FAQs still get their nod
+      toast('Answer-ready \u2713' + (aq ? ' \u2014 ' + aq + ' question' + (aq === 1 ? '' : 's') + ' answered' : ''), {
+        actions: [{ label: 'See what machines see', onClick: openAnswerReadyPanel }],
+      });
       return true;
     }).catch(function (err) {
       chipBusy = false;
