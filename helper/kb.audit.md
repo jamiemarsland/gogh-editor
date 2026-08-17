@@ -1,4 +1,4 @@
-# Knowledge-base audit — plugin v0.99.212
+# Knowledge-base audit — plugin v0.99.213
 
 _13 finding(s) suppressed by `kb.audit-ignore.txt`._
 
@@ -34,5 +34,4 @@ The source has something the prose never explains. The bot knows the name from t
 
 Use this as the checklist for updating the prose — and as a sanity check on the release itself.
 
-- version: 0.99.211 → 0.99.212
-- added UI label: "Fill the width — size the text to its box"
+- version: 0.99.212 → 0.99.213
