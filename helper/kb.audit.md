@@ -1,11 +1,13 @@
-# Knowledge-base audit — plugin v0.99.219
+# Knowledge-base audit — plugin v0.99.220
 
 _13 finding(s) suppressed by `kb.audit-ignore.txt`._
 
-## MISSING (24)
+## MISSING (28)
 
 The source has something the prose never explains. The bot knows the name from the appendix but cannot say what it is for.
 
+- exposed filter `gogh_schema` exists in source but is never mentioned in the prose
+- exposed filter `gogh_schema_enabled` exists in source but is never mentioned in the prose
 - exposed filter `gogh_helper_url` exists in source but is never mentioned in the prose
 - WP hook `template_redirect` exists in source but is never mentioned in the prose
 - WP hook `body_class` exists in source but is never mentioned in the prose
@@ -17,6 +19,8 @@ The source has something the prose never explains. The bot knows the name from t
 - WP hook `get_block_templates` exists in source but is never mentioned in the prose
 - WP hook `rest_pre_insert_wp_template_part` exists in source but is never mentioned in the prose
 - WP hook `rest_pre_insert_wp_navigation` exists in source but is never mentioned in the prose
+- WP hook `save_post` exists in source but is never mentioned in the prose
+- WP hook `wp_head` exists in source but is never mentioned in the prose
 - WP hook `admin_post_gogh_new_page` exists in source but is never mentioned in the prose
 - WP hook `wp_insert_post` exists in source but is never mentioned in the prose
 - template `Story` exists in source but is never mentioned in the prose
@@ -35,4 +39,9 @@ The source has something the prose never explains. The bot knows the name from t
 
 Use this as the checklist for updating the prose — and as a sanity check on the release itself.
 
-- version: 0.99.218 → 0.99.219
+- version: 0.99.219 → 0.99.220
+- added exposed filter: "gogh_schema"
+- added exposed filter: "gogh_schema_enabled"
+- added WP hook: "save_post"
+- added WP hook: "wp_head"
+- added toast: "Answer-ready ✓ — "

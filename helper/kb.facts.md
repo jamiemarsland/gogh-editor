@@ -4,11 +4,11 @@ Everything in this section is extracted mechanically from the Gogh source on eve
 
 ## Current release
 
-- Plugin version: **0.99.219**
+- Plugin version: **0.99.220**
 - Requires WordPress **6.5+**, PHP **7.4+**
 - Text domain: `gogh-editor`
 - readme.txt Stable tag: `0.26.0` · Tested up to: `7.0`
-- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.219`). Quote the plugin header version.
+- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.220`). Quote the plugin header version.
 
 ## Design constants
 
@@ -100,6 +100,8 @@ Block: `gogh/section` · v3 attributes: `css`, `model`, `scope`, `v`, `cssT`.
 | `init` | action | 10 |
 | `upload_mimes` | filter | 10 |
 | `wp_insert_post_data` | filter | 20 |
+| `save_post` | action | 10 |
+| `wp_head` | action | 10 |
 | `wp_enqueue_scripts` | action | 10 |
 | `rest_api_init` | action | 10 |
 | `enqueue_block_assets` | action | 10 |
@@ -110,7 +112,7 @@ Block: `gogh/section` · v3 attributes: `css`, `model`, `scope`, `v`, `cssT`.
 | `wp_insert_post` | action | 10 |
 | `block_editor_settings_all` | filter | 10 |
 
-Filters exposed for third parties: `gogh_rebake_enabled`, `gogh_webmcp_enabled`, `gogh_convert_enabled`, `gogh_helper_url`.
+Filters exposed for third parties: `gogh_rebake_enabled`, `gogh_schema`, `gogh_schema_enabled`, `gogh_webmcp_enabled`, `gogh_convert_enabled`, `gogh_helper_url`.
 
 REST routes registered: `gogh/v1/version`, `gogh/v1/starter`, `gogh/v1/type-scale`, `gogh/v1/active-style`, `wp/v2/gogh-product/(?P<id>\d+)`, `wp/v2/gogh-product/(?P<id>\d+)/autosaves`, `gogh/v1/pattern`, `gogh/v1/render`.
 
@@ -261,6 +263,7 @@ These are the real strings in the current build. Use them verbatim; never paraph
 ## Exact toast and message copy
 
 - "Added to the card — it moves and stacks with it now."
+- "Answer-ready ✓ — "
 - "Back to freeform — drag it anywhere."
 - "Backup restored — publish when ready."
 - "Button updated."
