@@ -1482,6 +1482,9 @@
       { key: '', name: 'Default', hint: 'the theme’s own look' },
       { key: 'magazine', name: 'Magazine', hint: 'big centred title, drop cap' },
       { key: 'journal', name: 'Journal', hint: 'quiet, narrow, contained' },
+      { key: 'essay', name: 'Essay', hint: 'calm and spacious, soft quotes' },
+      { key: 'gazette', name: 'Gazette', hint: 'newsprint rules, tight columns' },
+      { key: 'photostory', name: 'Photo story', hint: 'pictures lead, words breathe' },
     ];
     var current = cfg.postStyle || '';
     var CLASSES = LOOKS.map(function (l) { return 'gogh-read-' + l.key; }).filter(function (c) { return c !== 'gogh-read-'; });

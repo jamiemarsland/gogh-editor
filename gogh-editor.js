@@ -2342,9 +2342,13 @@
       fsBtn.textContent = 'Aa' + (e.fs ? ' · ' + (DISPLAY_LABEL[e.fs] || e.fs) : '');
       fsBtn.style.display = '';
       paintBtn.style.display = '';
+      // corner-drag engages the fit now, so the button's only remaining job
+      // is the way BACK — it shows only while a fit is on ("not sure what
+      // purpose this icon is serving anymore")
       var fitB = elbar.querySelector('.gogh-eb-fit');
-      fitB.style.display = '';
+      fitB.style.display = e.fitW ? '' : 'none';
       fitB.classList.toggle('is-on', !!e.fitW);
+      fitB.title = 'Fitted to the width — tap to let the text wrap again';
     } else {
       fsBtn.style.display = 'none';
       paintBtn.style.display = 'none';
@@ -9183,7 +9187,7 @@
         e.fitW = true;
         e.fitFs = computeFitFs(sec, resize.i);
         var fitBtn2 = elbar.querySelector('.gogh-eb-fit');
-        if (fitBtn2) fitBtn2.classList.add('is-on');
+        if (fitBtn2) { fitBtn2.classList.add('is-on'); fitBtn2.style.display = ''; }
       }
       var dx = (ev.clientX - resize.px) / s;
       var dy = (ev.clientY - resize.py) / s;
