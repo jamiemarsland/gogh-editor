@@ -293,14 +293,19 @@
       ? Math.max.apply(null, els.map(function (e) { return e.y + e.h; }))
       : (minH || MIN_H) - PAD;
     var floor = minH || MIN_H;
-    // flush is allowed at the section's OWN edge: content within minH never
-    // gets a phantom pad, so text can sit exactly on the bottom of a
-    // fixed-height hero ("i can't drag text so it sits flush"). The old
-    // unconditional +PAD meant the bottom ran away as you chased it. Once
-    // content OUTGROWS minH, the pad returns as breathing room below the
-    // overflow — drop geometry there stays as it always was.
-    if (bottom <= floor) return floor;
-    return bottom + PAD;
+    // Three truths at once:
+    // 1. content within minH never gets a phantom pad — flush at a fixed
+    //    hero's edge just works;
+    // 2. content that OUTGROWS minH keeps PAD as breathing room (drop and
+    //    snap geometry unchanged);
+    // 3. an element the user DRAGGED TO THE EDGE (e.flushB, set at drag end
+    //    when it was released at the edge it could see) is exempt from the
+    //    pad — so flush works in grown sections too, and the bottom stops
+    //    running away as you chase it.
+    var maxPad = -1;
+    els.forEach(function (e) { if (!e.flushB) maxPad = Math.max(maxPad, e.y + e.h); });
+    var padTerm = maxPad > floor ? maxPad + PAD : floor;
+    return Math.max(floor, bottom, padTerm);
   }
   function solve(els, minH, dw) {
     var H = designH(els, minH);
@@ -889,6 +894,7 @@
       expId: e.expId || null, expUrl: e.expUrl || null,
       m: (e.m && Object.keys(e.m).length) ? e.m : null, // sparse mobile overrides (hidden, …)
       fitW: e.fitW ? true : null, fitFs: e.fitW && e.fitFs ? e.fitFs : null, // fill-the-width text
+      flushB: e.flushB ? true : null, // dragged flush to the section bottom
       kids: e.kids && e.kids.length ? e.kids.map(projEl) : null };
   }
   function buildElBlocks(els, clsBase) {
@@ -4581,9 +4587,25 @@
     // shapes are backdrops: they join the stack BEHIND everything else
     if (atBack) sec.els.unshift(e); else sec.els.push(e);
     renderSection(sec);
-    placeHandles(sec, atBack ? 0 : sec.els.length - 1);
+    var iNew = atBack ? 0 : sec.els.length - 1;
+    // fresh TEXT hugs its words: a box wider than the ink reads as broken
+    // ("shouldn't the box be the size of the text"). Measure the rendered
+    // line and shrink the default box to it (+ a whisker), never wider.
+    if (isText(e) && e.text) {
+      var nNew = sec.nodes[iNew];
+      var tHost = nNew && (nNew.querySelector('p,h1,h2,h3,h4,h5,h6') || nNew);
+      if (tHost) {
+        try {
+          var rg = document.createRange();
+          rg.selectNodeContents(tHost);
+          var inkW = Math.ceil(rg.getBoundingClientRect().width / measureScaleOf(sec)) + 8;
+          if (inkW > 40 && inkW < e.w) { e.w = inkW; renderSection(sec); }
+        } catch (err) {}
+      }
+    }
+    placeHandles(sec, iNew);
     pushState();
-    contrastSentinel(sec, atBack ? 0 : sec.els.length - 1);
+    contrastSentinel(sec, iNew);
   }
   function deleteSelected() {
     if (multiSel) {
@@ -7314,7 +7336,8 @@
     document.body.appendChild(ghost);
     node.classList.add('gogh-dragsrc');
     dropBox.hidden = false;
-    drag = { sec: sec, i: i, px: ev.clientX, py: ev.clientY, x: e.x, y: e.y, gx: gL, gy: gT };
+    drag = { sec: sec, i: i, px: ev.clientX, py: ev.clientY, x: e.x, y: e.y, gx: gL, gy: gT,
+      secH0: designH(sec.els, sec.minH) }; // the edge the user SEES — release there means flush
     // centring a text box whose words don't fill it centres the BOX, not the
     // ink — measure the rendered text so its visual centre snaps too
     if (isText(e) || e.type === 'badge') {
@@ -7446,9 +7469,18 @@
     dropBox.hidden = true;
     hideDists();
     sec.nodes[i].classList.remove('gogh-dragsrc');
+    var secH0D = drag.secH0;
     drag = null;
     document.documentElement.classList.remove('gogh-dragging');
     hideGuides();
+    // released at (or past) the edge the user could SEE at pick-up → this
+    // element goes flush: the pad yields to intent (and only for it). Dragged
+    // clearly back above the edge → the flag lifts and the pad returns.
+    var eD = sec.els[i];
+    if (secH0D) {
+      if (eD.y + eD.h >= secH0D - 12) eD.flushB = true;
+      else if (eD.flushB && eD.y + eD.h < secH0D - 24) eD.flushB = null;
+    }
     measureTextHeights(sec);
     resolveAndApply(sec);
     // the grid can render rows taller than the model predicts (theme fonts,
@@ -9021,20 +9053,16 @@
       var dir = resize.dir;
       // Canva-style: corner-drag on TEXT steps through the theme's preset
       // font sizes rather than free-scaling (Global Styles stay authoritative)
-      // fitted text: corner drags resize the BOX (the fit follows) — preset
-      // stepping would fight the fill-the-width contract
+      // corner-dragging TEXT scales the words with the box — the Canva
+      // gesture, now the default ("should the stretch text be default
+      // behaviour"): the first corner move engages fill-the-width and the
+      // per-frame refit does the scaling. Preset sizes stay one click away
+      // on the Aa button. (Preset-stepping used to live on this corner.)
       if (isText(e) && !e.fitW && dir.dx !== 0 && dir.dy !== 0) {
-        var diag = ((ev.clientX - resize.px) * dir.dx + (ev.clientY - resize.py) * dir.dy) / 2;
-        var want = Math.round(diag / 56);
-        if (want !== (resize.fsSteps || 0)) {
-          applyFontStep(sec, resize.i, want - (resize.fsSteps || 0));
-          resize.fsSteps = want;
-        }
-        sizeChip.textContent = e.fs ? (DISPLAY_LABEL[e.fs] || e.fs) : 'theme default';
-        sizeChip.style.left = (ev.clientX + 18 + window.scrollX) + 'px';
-        sizeChip.style.top = (ev.clientY + 18 + window.scrollY) + 'px';
-        sizeChip.hidden = false;
-        return;
+        e.fitW = true;
+        e.fitFs = computeFitFs(sec, resize.i);
+        var fitBtn2 = elbar.querySelector('.gogh-eb-fit');
+        if (fitBtn2) fitBtn2.classList.add('is-on');
       }
       var dx = (ev.clientX - resize.px) / s;
       var dy = (ev.clientY - resize.py) / s;
