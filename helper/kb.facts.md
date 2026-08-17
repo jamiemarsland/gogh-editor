@@ -4,11 +4,11 @@ Everything in this section is extracted mechanically from the Gogh source on eve
 
 ## Current release
 
-- Plugin version: **0.99.226**
+- Plugin version: **0.99.227**
 - Requires WordPress **6.5+**, PHP **7.4+**
 - Text domain: `gogh-editor`
 - readme.txt Stable tag: `0.26.0` · Tested up to: `7.0`
-- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.226`). Quote the plugin header version.
+- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.227`). Quote the plugin header version.
 
 ## Design constants
 
@@ -143,6 +143,7 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "Add to page"
 - "Adjust spacing"
 - "All options"
+- "Answer-ready — see what machines see"
 - "Apply"
 - "As typed"
 - "Auto"
