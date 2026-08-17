@@ -1676,6 +1676,13 @@
     '<span class="gogh-scard-tx"><span class="gogh-scard-t">Rearrange sections</span><span class="gogh-scard-s">Drag the whole page into order</span></span>' +
     '<svg class="gogh-scard-chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg></button>' +
     '</div>' +
+    // the gold, quietly restated: not a settings panel, one standing line —
+    // every gogh page ships answer-ready, tap to see the proof
+    '<button type="button" class="gogh-arbadge" title="See what machines see">' +
+    '<span class="gogh-arbadge-tick">✦</span>' +
+    '<span class="gogh-arbadge-tx"><b>Answer-ready</b>' +
+    '<span>Every page publishes with a machine layer for search &amp; AIs — tap to see it</span></span>' +
+    '</button>' +
     '<div class="gogh-side-gap"></div>' +
     '<div class="gogh-side-foot">' +
     '<button type="button" class="gogh-sbtn gogh-sd-designs" title="Site designs — swap the whole look">' +
@@ -8978,6 +8985,9 @@
   side.querySelector('.gogh-pagestylebtn').addEventListener('click', function (ev) {
     openPageStylePanel(ev.currentTarget);
   });
+  side.querySelector('.gogh-arbadge').addEventListener('click', function () {
+    openAnswerReadyPanel();
+  });
 
   function snapPos(sec, exclude, x, y, w, h, free, textCXOff) {
     if (free) return { x: Math.round(x), y: Math.round(y), gx: null, gy: null };
@@ -9622,6 +9632,7 @@
     mediaPool: mediaPool,
     tplEls: tplEls,
     elDefaults: function () { return DEFAULTS; },
+    openAnswerReady: openAnswerReadyPanel,
     chromeDialsApply: chromeDialsApply,
     insertGoghPattern: insertGoghPattern,
     addHtmlSection: addHtmlSection,
@@ -9985,6 +9996,110 @@
   var toastBox = document.createElement('div');
   toastBox.className = 'gogh-toasts';
   document.body.appendChild(toastBox);
+  // ---------- Answer-ready: what machines see ----------
+  // The receipt's detail view, for people who will never open view-source
+  // ("its their receipt and we're asking them to do something technical").
+  // Everything shown is fetched from the LIVE published page — never a mock,
+  // so the panel and the crawlers always read the same bytes.
+  function openAnswerReadyPanel() {
+    var old = document.querySelector('.gogh-arwrap');
+    if (old) old.remove();
+    var escHtml = function (s) { var d = document.createElement('div'); d.textContent = String(s || ''); return d.innerHTML; };
+    var wrap = document.createElement('div');
+    wrap.className = 'gogh-arwrap';
+    wrap.innerHTML = '<div class="gogh-arback"></div>' +
+      '<div class="gogh-arpanel" role="dialog" aria-label="What machines see">' +
+      '<h3>What machines see</h3>' +
+      '<p class="gogh-ar-sub">Search engines and AIs read your page as facts. These are yours, straight from the live page.</p>' +
+      '<div class="gogh-ar-rows"><div class="gogh-ar-row">Reading the published page…</div></div>' +
+      '<div class="gogh-ar-cap">The machine layer — exactly what crawlers read</div>' +
+      '<p class="gogh-ar-why">This is your page in the standard format (schema.org) that Google, ChatGPT ' +
+      'and other AIs read facts in. Sites usually need an SEO plugin and a form-filling session to get this. ' +
+      'Gogh wrote it from your design — it updates itself every time you publish.</p>' +
+      '<div class="gogh-armachine"><pre>…</pre></div>' +
+      '<div class="gogh-ar-actions"><button type="button" class="gogh-ar-share">Copy summary to share</button>' +
+      '<button type="button" class="gogh-ar-copy">Copy machine version</button>' +
+      '<button type="button" class="gogh-ar-done">Done</button></div></div>';
+    document.body.appendChild(wrap);
+    var onKey = function (ev) { if (ev.key === 'Escape') close(); };
+    var close = function () { wrap.remove(); document.removeEventListener('keydown', onKey); };
+    document.addEventListener('keydown', onKey);
+    wrap.querySelector('.gogh-arback').addEventListener('click', close);
+    wrap.querySelector('.gogh-ar-done').addEventListener('click', close);
+    fetch(location.pathname, { credentials: 'same-origin', cache: 'no-store' })
+      .then(function (r) { return r.text(); })
+      .then(function (html) {
+        if (!wrap.parentNode) return;
+        var rows = wrap.querySelector('.gogh-ar-rows');
+        var m = html.match(/<script type="application\/ld\+json" class="gogh-schema">([\s\S]*?)<\/script>/);
+        if (!m) {
+          rows.innerHTML = '<div class="gogh-ar-row">Publish once and the machine layer appears — it is computed when the page saves.</div>';
+          wrap.querySelector('.gogh-armachine pre').textContent = '—';
+          return;
+        }
+        var g = JSON.parse(m[1]);
+        var pretty = JSON.stringify(g, null, 2);
+        wrap.querySelector('.gogh-armachine pre').textContent = pretty;
+        var copyBtn = wrap.querySelector('.gogh-ar-copy');
+        copyBtn.addEventListener('click', function () {
+          var p = navigator.clipboard && navigator.clipboard.writeText ? navigator.clipboard.writeText(pretty) : Promise.reject();
+          p.then(function () { copyBtn.textContent = 'Copied ✓ — paste into validator.schema.org'; },
+            function () { copyBtn.textContent = 'Copy failed — select the dark box instead'; });
+        });
+        // the boss-shaped receipt: a plain-English summary for Slack or an
+        // email — the page's answer-readiness travels between HUMANS too
+        var shareBtn = wrap.querySelector('.gogh-ar-share');
+        shareBtn.addEventListener('click', function () {
+          var lines = [];
+          (g['@graph'] || []).forEach(function (n) {
+            if (n['@type'] === 'WebPage') lines.push('Our page “' + (n.name || '') + '” is answer-ready.');
+            if (n['@type'] === 'Article') lines.push('Our post “' + (n.headline || '') + '” is answer-ready.');
+          });
+          lines.push('It publishes with a machine-readable layer that Google, ChatGPT, Perplexity and other AIs read — so when they talk about us, they work from our facts, not guesses.');
+          (g['@graph'] || []).forEach(function (n) {
+            if (n['@type'] === 'Organization') lines.push('✓ Our brand facts (name' + (n.logo ? ' and logo' : '') + ') travel with the page.');
+            if (n['@type'] === 'WebPage' && n.description) lines.push('✓ A summary in our own words, plus the last-updated date.');
+            if (n['@type'] === 'Article') lines.push('✓ Headline, author, dates and image, stated as facts.');
+            if (n['@type'] === 'FAQPage') {
+              var qn = (n.mainEntity || []).map(function (q) { return q.name; });
+              lines.push('✓ ' + qn.length + ' question' + (qn.length === 1 ? '' : 's') + ' answered word for word: ' + qn.join(' · '));
+            }
+          });
+          lines.push('Standard schema.org format, written automatically every time we publish — no plugin, no forms, no extra work.');
+          var msg = lines.join('\n');
+          var p2 = navigator.clipboard && navigator.clipboard.writeText ? navigator.clipboard.writeText(msg) : Promise.reject();
+          p2.then(function () { shareBtn.textContent = 'Copied ✓ — paste into Slack or an email'; },
+            function () { shareBtn.textContent = 'Copy failed'; });
+        });
+        var out = [];
+        (g['@graph'] || []).forEach(function (n) {
+          var t = n['@type'];
+          if (t === 'Organization') {
+            out.push('<div class="gogh-ar-row"><span class="tick">✓</span><div><b>Your brand</b> — ' +
+              escHtml(n.name) + (n.logo ? ', with your logo' : '') + '</div></div>');
+          } else if (t === 'WebPage') {
+            out.push('<div class="gogh-ar-row"><span class="tick">✓</span><div><b>This page</b> — “' + escHtml(n.name) + '”' +
+              (n.description ? ', with a summary in your own words' : '') +
+              (n.dateModified ? ', and its last-updated date so answers stay fresh' : '') + '</div></div>');
+          } else if (t === 'Article') {
+            out.push('<div class="gogh-ar-row"><span class="tick">✓</span><div><b>This story</b> — “' + escHtml(n.headline) + '”' +
+              (n.author && n.author.name ? ', by ' + escHtml(n.author.name) : '') +
+              (n.image ? ', with its picture' : '') + ', dated and stamped</div></div>');
+          } else if (t === 'FAQPage') {
+            var qs = (n.mainEntity || []).map(function (q) { return '<li>' + escHtml(q.name) + '</li>'; });
+            out.push('<div class="gogh-ar-row"><span class="tick">✓</span><div><b>' + qs.length +
+              ' question' + (qs.length === 1 ? '' : 's') + ' answered</b>, word for word' +
+              '<ul class="gogh-ar-qs">' + qs.join('') + '</ul></div></div>');
+          }
+        });
+        rows.innerHTML = out.join('') || '<div class="gogh-ar-row">Nothing emitted yet.</div>';
+      })
+      .catch(function () {
+        if (!wrap.parentNode) return;
+        wrap.querySelector('.gogh-ar-rows').innerHTML = '<div class="gogh-ar-row">Could not read the published page — try again in a moment.</div>';
+      });
+  }
+
   function toast(msg, opts) {
     opts = opts || {};
     var t = document.createElement('div');
@@ -10114,7 +10229,10 @@
       var receipt = ['your brand facts', 'the page summary'];
       if (aq) receipt.push(aq + ' answered question' + (aq === 1 ? '' : 's'));
       toast('Answer-ready \u2713 \u2014 ' + receipt.join(' + ') +
-        ' now travel with this page for search engines and AIs.');
+        ' now travel with this page for search engines and AIs.', {
+          ttl: 10000,
+          actions: [{ label: 'See what machines see', onClick: openAnswerReadyPanel }],
+        });
       return true;
     }).catch(function (err) {
       chipBusy = false;

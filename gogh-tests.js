@@ -3968,6 +3968,26 @@
       });
     });
 
+    // ---- answer-ready: the panel is the receipt for people who will never
+    // open view-source. It fetches the LIVE page, translates the graph into
+    // plain-English rows, and shows the machine layer verbatim.
+    testAsync('answer-ready: the what-machines-see panel reads the live page', function () {
+      G.openAnswerReady();
+      return new Promise(function (res) { setTimeout(res, 2500); }).then(function () {
+        var p = document.querySelector('.gogh-arpanel');
+        expect(p, 'panel did not open');
+        var txt = p.textContent || '';
+        expect(txt.indexOf('Your brand') !== -1, 'plain-English brand row missing');
+        expect(txt.indexOf('This page') !== -1, 'plain-English page row missing');
+        var pre = p.querySelector('.gogh-armachine pre');
+        expect(pre && pre.textContent.indexOf('"@graph"') !== -1, 'machine layer not shown verbatim');
+        expect(p.querySelector('.gogh-ar-share'), 'share-summary button missing');
+        p.querySelector('.gogh-ar-done').click();
+        expect(!document.querySelector('.gogh-arpanel'), 'panel did not close');
+        return 'live fetch → brand + page rows + verbatim machine layer → closes';
+      });
+    });
+
     // ---- report ----
     function finishReport() {
     var passed = results.filter(function (r) { return r.pass; }).length;
