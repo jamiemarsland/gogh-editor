@@ -7589,8 +7589,10 @@
     resolveAndApply(sec);
     // the grid can render rows taller than the model predicts (theme fonts,
     // button padding stretch max-content rows), so the linear pointer→model
-    // mapping lands low — correct until the element sits where the ghost was
-    if (ghostTop !== null) {
+    // mapping lands low — correct until the element sits where the ghost was.
+    // NOT under a shift-lock: the pinned axis is model truth by declaration,
+    // and "correcting" it re-moves the exact coordinate the user froze
+    if (ghostTop !== null && !lockedYD) {
       var totalCorr = 0;
       for (var pass = 0; pass < 2; pass++) {
         var b = nodeBox(sec.nodes[i]);
@@ -10012,6 +10014,15 @@
       '<h3>What machines see</h3>' +
       '<p class="gogh-ar-sub">Search engines and AIs read your page as facts. These are yours, straight from the live page.</p>' +
       '<div class="gogh-ar-rows"><div class="gogh-ar-row">Reading the published page…</div></div>' +
+      // true of EVERY gogh page by construction — no per-page computation,
+      // and every line here is checked by the suite, not aspiration
+      '<div class="gogh-ar-cap">And built into every gogh page</div>' +
+      '<div class="gogh-ar-always">' +
+      '<div class="gogh-ar-row"><span class="tick">✓</span><div><b>Real structure</b> — proper headings and paragraphs, not builder div-soup, so machines and screen readers read the page like a document</div></div>' +
+      '<div class="gogh-ar-row"><span class="tick">✓</span><div><b>Reading order kept</b> — drag things anywhere; the page still reads top-to-bottom for screen readers and AIs</div></div>' +
+      '<div class="gogh-ar-row"><span class="tick">✓</span><div><b>Phone-ready</b> — every section reflows for small screens automatically, and Google indexes mobile first</div></div>' +
+      '<div class="gogh-ar-row"><span class="tick">✓</span><div><b>Light pages</b> — your layout is pure CSS, not page-builder scripts, so pages stay fast</div></div>' +
+      '</div>' +
       '<div class="gogh-ar-cap">The machine layer — exactly what crawlers read</div>' +
       '<p class="gogh-ar-why">This is your page in the standard format (schema.org) that Google, ChatGPT ' +
       'and other AIs read facts in. Sites usually need an SEO plugin and a form-filling session to get this. ' +
@@ -10065,6 +10076,7 @@
               lines.push('✓ ' + qn.length + ' question' + (qn.length === 1 ? '' : 's') + ' answered word for word: ' + qn.join(' · '));
             }
           });
+          lines.push('Also built in: real semantic HTML (proper headings, not div-soup), a reading order that works for screen readers, automatic phone layouts, and lightweight pure-CSS pages.');
           lines.push('Standard schema.org format, written automatically every time we publish — no plugin, no forms, no extra work.');
           var msg = lines.join('\n');
           var p2 = navigator.clipboard && navigator.clipboard.writeText ? navigator.clipboard.writeText(msg) : Promise.reject();

@@ -1360,8 +1360,119 @@
     '<button type="button" class="gogh-w-stylebtn">Post style</button>' +
     '<button type="button" class="gogh-w-catsbtn">Categories & tags</button>' +
     '<button type="button" class="gogh-w-publish">Publish</button>' +
+    '<button type="button" class="gogh-w-arbtn" title="Answer-ready — see what machines see">✦</button>' +
     '<a class="gogh-w-back" href="' + (cfg.homeUrl || '/') + '">Back to site</a>';
   document.body.appendChild(chip);
+  // a quiet word in the chip's saved slot — shared by Post style, publish,
+  // and the Answer-ready receipt (it lived inside the Post-style closure
+  // once, and the publish receipt calling it from outside threw)
+  var noteT = null;
+  var note = function (msg) {
+    var el = chip.querySelector('.gogh-w-saved');
+    if (!el) return;
+    var prev = el.textContent;
+    el.textContent = msg;
+    clearTimeout(noteT);
+    noteT = setTimeout(function () { el.textContent = prev; }, 2400);
+  };
+
+  // ---------- Answer-ready: what machines see (the write-room twin of the
+  // editor's panel — same classes, same live-page fetch, Article-shaped) ----
+  var publishedLink = null; // doPublish learns the clean permalink
+  function openARPanel() {
+    var old = document.querySelector('.gogh-arwrap');
+    if (old) old.remove();
+    var escHtml = function (s) { var d = document.createElement('div'); d.textContent = String(s || ''); return d.innerHTML; };
+    var wrap = document.createElement('div');
+    wrap.className = 'gogh-arwrap';
+    wrap.innerHTML = '<div class="gogh-arback"></div>' +
+      '<div class="gogh-arpanel" role="dialog" aria-label="What machines see">' +
+      '<h3>What machines see</h3>' +
+      '<p class="gogh-ar-sub">Search engines and AIs read your post as facts. These are yours, straight from the live page.</p>' +
+      '<div class="gogh-ar-rows"><div class="gogh-ar-row">Reading the published post…</div></div>' +
+      '<div class="gogh-ar-cap">And built into every gogh post</div>' +
+      '<div class="gogh-ar-always">' +
+      '<div class="gogh-ar-row"><span class="tick">✓</span><div><b>Real structure</b> — proper headings and paragraphs, so machines and screen readers read the post like a document</div></div>' +
+      '<div class="gogh-ar-row"><span class="tick">✓</span><div><b>Plain WordPress blocks</b> — your words are stored as ordinary core blocks, no lock-in</div></div>' +
+      '<div class="gogh-ar-row"><span class="tick">✓</span><div><b>Phone-ready</b> — the post reads beautifully on small screens, and Google indexes mobile first</div></div>' +
+      '</div>' +
+      '<div class="gogh-ar-cap">The machine layer — exactly what crawlers read</div>' +
+      '<p class="gogh-ar-why">This is your post in the standard format (schema.org) that Google, ChatGPT ' +
+      'and other AIs read facts in. Sites usually need an SEO plugin and a form-filling session to get this. ' +
+      'Gogh wrote it from your post — it updates itself every time you publish.</p>' +
+      '<div class="gogh-armachine"><pre>…</pre></div>' +
+      '<div class="gogh-ar-actions"><button type="button" class="gogh-ar-share">Copy summary to share</button>' +
+      '<button type="button" class="gogh-ar-copy">Copy machine version</button>' +
+      '<button type="button" class="gogh-ar-done">Done</button></div></div>';
+    document.body.appendChild(wrap);
+    var onKey = function (ev) { if (ev.key === 'Escape') close(); };
+    var close = function () { wrap.remove(); document.removeEventListener('keydown', onKey); };
+    document.addEventListener('keydown', onKey);
+    wrap.querySelector('.gogh-arback').addEventListener('click', close);
+    wrap.querySelector('.gogh-ar-done').addEventListener('click', close);
+    var target = publishedLink || cfg.permalink || location.pathname;
+    fetch(target, { credentials: 'same-origin', cache: 'no-store' })
+      .then(function (r) { return r.text(); })
+      .then(function (html) {
+        if (!wrap.parentNode) return;
+        var rows = wrap.querySelector('.gogh-ar-rows');
+        var m = html.match(/<script type="application\/ld\+json" class="gogh-schema">([\s\S]*?)<\/script>/);
+        if (!m) {
+          rows.innerHTML = '<div class="gogh-ar-row">Publish once and the machine layer appears — it is computed when the post saves.</div>';
+          wrap.querySelector('.gogh-armachine pre').textContent = '—';
+          return;
+        }
+        var g = JSON.parse(m[1]);
+        var pretty = JSON.stringify(g, null, 2);
+        wrap.querySelector('.gogh-armachine pre').textContent = pretty;
+        var out = [];
+        (g['@graph'] || []).forEach(function (n) {
+          var t = n['@type'];
+          if (t === 'Organization') {
+            out.push('<div class="gogh-ar-row"><span class="tick">✓</span><div><b>Your brand</b> — ' +
+              escHtml(n.name) + (n.logo ? ', with your logo' : '') + '</div></div>');
+          } else if (t === 'Article') {
+            out.push('<div class="gogh-ar-row"><span class="tick">✓</span><div><b>This story</b> — “' + escHtml(n.headline) + '”' +
+              (n.author && n.author.name ? ', by ' + escHtml(n.author.name) : '') +
+              (n.image ? ', with its picture' : '') + ', dated so answers stay fresh</div></div>');
+          } else if (t === 'FAQPage') {
+            var qs = (n.mainEntity || []).map(function (q) { return '<li>' + escHtml(q.name) + '</li>'; });
+            out.push('<div class="gogh-ar-row"><span class="tick">✓</span><div><b>' + qs.length +
+              ' question' + (qs.length === 1 ? '' : 's') + ' answered</b>, word for word' +
+              '<ul class="gogh-ar-qs">' + qs.join('') + '</ul></div></div>');
+          }
+        });
+        rows.innerHTML = out.join('') || '<div class="gogh-ar-row">Nothing emitted yet.</div>';
+        wrap.querySelector('.gogh-ar-copy').addEventListener('click', function (ev) {
+          var b = ev.currentTarget;
+          var p = navigator.clipboard && navigator.clipboard.writeText ? navigator.clipboard.writeText(pretty) : Promise.reject();
+          p.then(function () { b.textContent = 'Copied ✓ — paste into validator.schema.org'; },
+            function () { b.textContent = 'Copy failed — select the dark box instead'; });
+        });
+        wrap.querySelector('.gogh-ar-share').addEventListener('click', function (ev) {
+          var b = ev.currentTarget;
+          var lines = [];
+          (g['@graph'] || []).forEach(function (n) {
+            if (n['@type'] === 'Article') lines.push('Our post “' + (n.headline || '') + '” is answer-ready.');
+          });
+          lines.push('It publishes with a machine-readable layer that Google, ChatGPT, Perplexity and other AIs read — so when they talk about us, they work from our facts, not guesses.');
+          (g['@graph'] || []).forEach(function (n) {
+            if (n['@type'] === 'Organization') lines.push('✓ Our brand facts (name' + (n.logo ? ' and logo' : '') + ') travel with the post.');
+            if (n['@type'] === 'Article') lines.push('✓ Headline, author, dates and image, stated as facts.');
+          });
+          lines.push('Also built in: real semantic HTML, plain WordPress blocks (no lock-in), and phone-ready reading.');
+          lines.push('Standard schema.org format, written automatically every time we publish — no plugin, no forms, no extra work.');
+          var p2 = navigator.clipboard && navigator.clipboard.writeText ? navigator.clipboard.writeText(lines.join('\n')) : Promise.reject();
+          p2.then(function () { b.textContent = 'Copied ✓ — paste into Slack or an email'; },
+            function () { b.textContent = 'Copy failed'; });
+        });
+      })
+      .catch(function () {
+        if (!wrap.parentNode) return;
+        wrap.querySelector('.gogh-ar-rows').innerHTML = '<div class="gogh-ar-row">Could not read the published post — try again in a moment.</div>';
+      });
+  }
+  chip.querySelector('.gogh-w-arbtn').addEventListener('click', openARPanel);
   // ---------- Post style: how this post READS ----------
   // The third of the family (Site style / Page style / Post style). Hover a
   // look to audition — the room IS the post, so flipping the body class is
@@ -1374,15 +1485,6 @@
     ];
     var current = cfg.postStyle || '';
     var CLASSES = LOOKS.map(function (l) { return 'gogh-read-' + l.key; }).filter(function (c) { return c !== 'gogh-read-'; });
-    var noteT = null;
-    var note = function (msg) { // a quiet word in the chip's saved slot
-      var el = chip.querySelector('.gogh-w-saved');
-      if (!el) return;
-      var prev = el.textContent;
-      el.textContent = msg;
-      clearTimeout(noteT);
-      noteT = setTimeout(function () { el.textContent = prev; }, 2400);
-    };
     var wear = function (key) {
       CLASSES.forEach(function (c) { document.body.classList.remove(c); });
       if (key) document.body.classList.add('gogh-read-' + key);
@@ -1557,7 +1659,8 @@
         quietLabel();
         // Answer-ready: the story's facts (headline, dates, author, image)
         // just went out as Article schema — the writer's receipt
-        note('Answer-ready ✓ — your story facts travel with this post for search engines and AIs.');
+        publishedLink = post.link;
+        note('Answer-ready ✓ — your story facts travel with this post. Tap ✦ to see what machines see.');
         b.onclick = function () { location.href = post.link; };
       } else {
         b.textContent = already ? 'Update' : 'Publish';
