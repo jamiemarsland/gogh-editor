@@ -339,6 +339,44 @@
       return 'no-focal clean; 37.4→37%, clamps at 0 and 100';
     });
 
+    // ---- flush bottom: the section is exactly content-tall (or minH) — the
+    // old +PAD below the lowest element made the bottom RUN AWAY as you
+    // chased it ("i can't drag text so it sits flush with the bottom") ----
+    test('an element can sit flush with the section bottom (no phantom pad)', function () {
+      var s = sec();
+      var i = findIdx('heading');
+      var e = s.els[i];
+      var x0 = e.x, y0 = e.y, w0 = e.w, h0 = e.h;
+      var floor = s.minH || 560;
+      e.y = floor - e.h; // bottom exactly at the minH line
+      G.resolve(s);
+      var r = s.sectionEl.getBoundingClientRect();
+      var designHNow = r.height / (r.width / 1200);
+      expect(Math.abs(designHNow - floor) <= 12,
+        'section ran past the flush element: ' + Math.round(designHNow) + ' vs minH ' + floor);
+      e.x = x0; e.y = y0; e.w = w0; e.h = h0;
+      G.resolve(s);
+      return 'bottom at ' + floor + ', section ' + Math.round(designHNow) + ' — flush';
+    });
+
+    // ---- fill-the-width text: the fitted size is stored in cqw (container
+    // units), emitted with !important to outgun theme preset classes, and
+    // wears nowrap so the fit means ONE line ----
+    test('fitW text emits its cqw size into the section CSS', function () {
+      var s = sec();
+      var i = findIdx('heading');
+      var e = s.els[i];
+      e.fitW = true; e.fitFs = 8.25;
+      G.resolve(s);
+      var css = s.styleEl.textContent.replace(/\s+/g, ' ');
+      expect(css.indexOf('font-size: 8.25cqw !important') !== -1, 'fitted cqw size not emitted');
+      expect(new RegExp('gogh-el-' + (i + 1) + ' \\{[^}]*white-space: nowrap').test(css), 'fit must be single-line');
+      e.fitW = null; e.fitFs = null;
+      G.resolve(s);
+      expect(s.styleEl.textContent.indexOf('cqw !important') === -1, 'fit rule lingered after clearing');
+      return '8.25cqw !important + nowrap emitted; clears clean';
+    });
+
     // ---- 5a-bis. ...and the reverse: a COMPACT style after a tall serif pulls
     // the gap back CLOSED. growReflow(sec, true) shrinks as well as grows, so
     // the button rides the heading back UP — no orphaned gap. (A plain

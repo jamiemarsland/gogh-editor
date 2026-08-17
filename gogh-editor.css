@@ -2956,3 +2956,6 @@ html.gogh-textediting .gogh-convertbtn {
   .gogh-chrome-scrim { animation: none; }
   .gogh-nudge { animation: none; }
 }
+
+/* fill-the-width toggle: lit while the text is fitted */
+.gogh-eb-fit.is-on { color: #4f5aee; background: #eef0ff; border-radius: 8px; }

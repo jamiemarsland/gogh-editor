@@ -292,7 +292,15 @@
     var bottom = els.length
       ? Math.max.apply(null, els.map(function (e) { return e.y + e.h; }))
       : (minH || MIN_H) - PAD;
-    return Math.max(minH || MIN_H, bottom + PAD);
+    var floor = minH || MIN_H;
+    // flush is allowed at the section's OWN edge: content within minH never
+    // gets a phantom pad, so text can sit exactly on the bottom of a
+    // fixed-height hero ("i can't drag text so it sits flush"). The old
+    // unconditional +PAD meant the bottom ran away as you chased it. Once
+    // content OUTGROWS minH, the pad returns as breathing room below the
+    // overflow — drop geometry there stays as it always was.
+    if (bottom <= floor) return floor;
+    return bottom + PAD;
   }
   function solve(els, minH, dw) {
     var H = designH(els, minH);
@@ -447,6 +455,10 @@
   // kids inside a card (.gogh-k-N)
   function emitElCSS(out, sec, clsSel, e, i, a) {
       var extra = TYPE_RULES[e.type];
+      // fill-the-width text: the fitted size lives in cqw so it scales with
+      // the section container everywhere (phones included), no runtime JS.
+      // !important outguns the theme's preset-size classes (also !important).
+      if (e.fitW && e.fitFs) extra += ' font-size: ' + e.fitFs + 'cqw !important; line-height: 1.05; white-space: nowrap;';
       if (e.type === 'widget' && e.wcol) extra += ' color: ' + e.wcol + ';';
       if (e.type === 'image') {
         extra += e.src ? ' overflow: hidden;' : ' ' + imageBackground(e);
@@ -876,6 +888,7 @@
       ph: e.ph || null,
       expId: e.expId || null, expUrl: e.expUrl || null,
       m: (e.m && Object.keys(e.m).length) ? e.m : null, // sparse mobile overrides (hidden, …)
+      fitW: e.fitW ? true : null, fitFs: e.fitW && e.fitFs ? e.fitFs : null, // fill-the-width text
       kids: e.kids && e.kids.length ? e.kids.map(projEl) : null };
   }
   function buildElBlocks(els, clsBase) {
@@ -1935,6 +1948,8 @@
   elbar.innerHTML =
     '<button type="button" class="gogh-eb gogh-eb-ctx"></button>' +
     '<button type="button" class="gogh-eb gogh-eb-fs" title="Cycle theme font sizes"></button>' +
+    '<button type="button" class="gogh-eb gogh-eb-fit" title="Fill the width — size the text to its box">' +
+    '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h18M3 12l4-4M3 12l4 4M21 12l-4-4M21 12l-4 4"/></svg></button>' +
     '<button type="button" class="gogh-eb gogh-eb-al" title="Text alignment"></button>' +
     '<button type="button" class="gogh-eb gogh-eb-lnk" title="Link text (\u2318K)"></button>' +
     '<button type="button" class="gogh-eb gogh-eb-col" title="Text colour"><span class="gogh-eb-colchip"></span></button>' +
@@ -2017,6 +2032,50 @@
     var idx = order.indexOf(e.fs || null);
     var next = (idx + dir + order.length) % order.length;
     setFontSize(sec, i, order[next]);
+  }
+
+  // ---------- fill the width: text sized to its box ----------
+  // Gutenberg-style fit text, the gogh way: the size is computed ONCE and
+  // stored in cqw — the section is a container, so the fitted text scales
+  // with it on every screen (phones included) with zero runtime on the
+  // published page. Refits when the words change.
+  function computeFitFs(sec, i) {
+    var e = sec.els[i], n = sec.nodes[i];
+    if (!n) return null;
+    var t = editableTarget(sec, i) || n;
+    var cs = getComputedStyle(t);
+    var probe = document.createElement('span');
+    probe.textContent = (t.textContent || '').trim() || 'Aa';
+    probe.style.cssText = 'position:absolute;left:-99999px;top:0;visibility:hidden;white-space:nowrap;' +
+      'font-family:' + cs.fontFamily + ';font-weight:' + cs.fontWeight + ';font-style:' + cs.fontStyle +
+      ';text-transform:' + cs.textTransform + ';font-size:100px';
+    document.body.appendChild(probe);
+    var w100 = probe.getBoundingClientRect().width;
+    probe.remove();
+    if (!w100) return null;
+    var boxW = n.offsetWidth;             // layout px of the element's box
+    var secW = sec.sectionEl.offsetWidth; // layout px of the container
+    if (!boxW || !secW) return null;
+    var px = 100 * boxW / w100 * 0.985;   // a hair inside the box
+    return Math.max(1, +(px / (secW / 100)).toFixed(2)); // → cqw
+  }
+  function refitText(sec, i) {
+    var e = sec.els[i];
+    if (!e.fitW) return;
+    var fs = computeFitFs(sec, i);
+    if (fs) { e.fitFs = fs; resolveAndApply(sec); }
+  }
+  function toggleFitWidth(sec, i) {
+    var e = sec.els[i];
+    if (!isText(e)) return;
+    if (e.fitW) { e.fitW = null; e.fitFs = null; }
+    else { e.fitW = true; e.fitFs = computeFitFs(sec, i); }
+    var oldH = e.h;
+    renderSection(sec);
+    measureTextHeights(sec);
+    if (reflowPush(sec, e, oldH)) resolveAndApply(sec);
+    placeHandles(sec, i);
+    pushState();
   }
 
   var sizeChip = document.createElement('div');
@@ -2219,9 +2278,13 @@
       fsBtn.textContent = 'Aa' + (e.fs ? ' · ' + (DISPLAY_LABEL[e.fs] || e.fs) : '');
       fsBtn.style.display = '';
       paintBtn.style.display = '';
+      var fitB = elbar.querySelector('.gogh-eb-fit');
+      fitB.style.display = '';
+      fitB.classList.toggle('is-on', !!e.fitW);
     } else {
       fsBtn.style.display = 'none';
       paintBtn.style.display = 'none';
+      elbar.querySelector('.gogh-eb-fit').style.display = 'none';
     }
     if (e.type === 'heading' || e.type === 'para') {
       alBtn.innerHTML = ALIGN_ICONS[e.align || 'left'];
@@ -2435,6 +2498,7 @@
       sec.els.forEach(function (e, i) {
         if (editableTarget(sec, i) !== t) return;
         e.text = (e.type === 'heading' || e.type === 'para') ? cleanInline(t.innerHTML) : t.textContent;
+        if (e.fitW) refitText(sec, i); // fitted text follows the words as they change
         var oldH = e.h;
         measureTextHeights(sec);
         if (isText(e) && reflowPush(sec, e, oldH)) resolveAndApply(sec);
@@ -3761,6 +3825,9 @@
   });
   fsBtn.addEventListener('click', function () {
     if (sel) stepFontSize(sel.sec, sel.i, 1);
+  });
+  elbar.querySelector('.gogh-eb-fit').addEventListener('click', function () {
+    if (sel) toggleFitWidth(sel.sec, sel.i);
   });
   function layerMove(dir) {
     if (!sel) return;
