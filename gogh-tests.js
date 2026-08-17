@@ -3925,6 +3925,49 @@
       });
     });
 
+    // ---- answer-ready for Write: a published POST carries Article schema.
+    // Posts are pure core blocks (no gogh/section), so the graph is built
+    // from WordPress's own facts — title, dates, author. Round-trip: create
+    // a real post over REST → fetch its front end → validate → delete it.
+    testAsync('answer-ready: a published post emits an Article graph', function () {
+      var base = (window.GOGH && GOGH.restUrl) ? GOGH.restUrl.split('wp/v2/')[0] + 'wp/v2/posts' : '/wp-json/wp/v2/posts';
+      var nonce = window.GOGH && GOGH.nonce;
+      var made = null;
+      return fetch(base, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-WP-Nonce': nonce },
+        credentials: 'same-origin',
+        body: JSON.stringify({ title: 'Answer-ready probe post', status: 'publish',
+          content: '<!-- wp:paragraph --><p>Written the Write way: plain words, core blocks.</p><!-- /wp:paragraph -->' }),
+      }).then(function (r) {
+        expect(r.ok, 'could not create the probe post (' + r.status + ')');
+        return r.json();
+      }).then(function (post) {
+        made = post;
+        return fetch(post.link, { credentials: 'same-origin', cache: 'no-store' });
+      }).then(function (r) { return r.text(); }).then(function (html) {
+        var m = html.match(/<script type="application\/ld\+json" class="gogh-schema">([\s\S]*?)<\/script>/);
+        expect(m, 'no gogh-schema JSON-LD on the published post');
+        var nodes = (JSON.parse(m[1])['@graph']) || [];
+        var art = nodes.filter(function (n) { return n['@type'] === 'Article'; })[0];
+        expect(art, 'Article missing (' + nodes.map(function (n) { return n['@type']; }).join(', ') + ')');
+        expect(art.headline === 'Answer-ready probe post', 'headline wrong: ' + art.headline);
+        expect(art.datePublished && art.author && art.author.name, 'dates or author missing');
+      }).then(function () {
+        return fetch(base + '/' + made.id + '?force=true', {
+          method: 'DELETE',
+          headers: { 'X-WP-Nonce': nonce },
+          credentials: 'same-origin',
+        });
+      }).then(function () {
+        return 'post created → Article graph with headline, dates, author → deleted';
+      }).catch(function (err) {
+        // never leave the probe post behind, even on failure
+        if (made) fetch(base + '/' + made.id + '?force=true', { method: 'DELETE', headers: { 'X-WP-Nonce': nonce }, credentials: 'same-origin' });
+        throw err;
+      });
+    });
+
     // ---- report ----
     function finishReport() {
     var passed = results.filter(function (r) { return r.pass; }).length;

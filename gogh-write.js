@@ -1555,6 +1555,9 @@
         b.disabled = false;
         statusWord = 'Published';
         quietLabel();
+        // Answer-ready: the story's facts (headline, dates, author, image)
+        // just went out as Article schema — the writer's receipt
+        note('Answer-ready ✓ — your story facts travel with this post for search engines and AIs.');
         b.onclick = function () { location.href = post.link; };
       } else {
         b.textContent = already ? 'Update' : 'Publish';

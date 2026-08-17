@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Gogh Editor
  * Description: A freeform canvas for WordPress — drag anything anywhere on your live page; Gogh publishes it back as clean, responsive core blocks that keep working even if the plugin is deactivated.
- * Version: 0.99.221
+ * Version: 0.99.222
  * Author: Jamie Marsland
  * Author URI: https://pootlepress.com
  * License: GPLv2 or later
@@ -23,7 +23,7 @@ add_action( 'init', function () {
 		'gogh-block',
 		plugins_url( 'gogh-block.js', __FILE__ ),
 		array( 'wp-blocks', 'wp-element', 'wp-block-editor' ),
-		'0.99.221-chrome',
+		'0.99.222-chrome',
 		true
 	);
 	register_block_type( 'gogh/section', array(
@@ -294,9 +294,9 @@ add_action( 'wp_enqueue_scripts', function () {
 	if ( ! $post || ! current_user_can( 'edit_post', $post->ID ) ) {
 		return;
 	}
-	wp_register_script( 'gogh-compose', plugins_url( 'gogh-compose.js', __FILE__ ), array(), '0.99.221-chrome', true );
-	wp_enqueue_script( 'gogh-write', plugins_url( 'gogh-write.js', __FILE__ ), array( 'gogh-compose' ), '0.99.221-chrome', true );
-	wp_enqueue_style( 'gogh-write', plugins_url( 'gogh-write.css', __FILE__ ), array(), '0.99.221-chrome' );
+	wp_register_script( 'gogh-compose', plugins_url( 'gogh-compose.js', __FILE__ ), array(), '0.99.222-chrome', true );
+	wp_enqueue_script( 'gogh-write', plugins_url( 'gogh-write.js', __FILE__ ), array( 'gogh-compose' ), '0.99.222-chrome', true );
+	wp_enqueue_style( 'gogh-write', plugins_url( 'gogh-write.css', __FILE__ ), array(), '0.99.222-chrome' );
 	wp_localize_script( 'gogh-write', 'GOGHWRITE', array(
 		'postId'  => $post->ID,
 		'restUrl' => esc_url_raw( rest_url() ),
@@ -464,7 +464,7 @@ add_action( 'rest_api_init', function () {
 			return current_user_can( 'edit_posts' );
 		},
 		'callback'            => function () {
-			return array( 'build' => '0.99.221-chrome' );
+			return array( 'build' => '0.99.222-chrome' );
 		},
 	) );
 	register_rest_route( 'gogh/v1', '/starter', array(
@@ -1124,15 +1124,47 @@ function gogh_schema_build( $post ) {
 			$org['logo'] = $logo;
 		}
 	}
-	$page = array(
-		'@type'        => 'WebPage',
-		'name'         => get_the_title( $post ),
-		'url'          => get_permalink( $post ),
-		'dateModified' => get_post_modified_time( 'c', true, $post ),
-		'publisher'    => array( '@id' => $home . '#org' ),
-	);
-	if ( '' !== $first_para ) {
-		$page['description'] = mb_substr( $first_para, 0, 160 );
+	if ( 'post' === $post->post_type ) {
+		// Write posts are pure core blocks (deactivation-safe by design), so
+		// the Article's facts come from WordPress itself — headline, dates,
+		// author, image. Nothing here is inferred; every field is a fact WP
+		// already asserts about the post.
+		$page = array(
+			'@type'            => 'Article',
+			'headline'         => mb_substr( get_the_title( $post ), 0, 110 ),
+			'url'              => get_permalink( $post ),
+			'mainEntityOfPage' => get_permalink( $post ),
+			'datePublished'    => get_post_time( 'c', true, $post ),
+			'dateModified'     => get_post_modified_time( 'c', true, $post ),
+			'publisher'        => array( '@id' => $home . '#org' ),
+		);
+		$author = get_the_author_meta( 'display_name', $post->post_author );
+		if ( $author ) {
+			$page['author'] = array( '@type' => 'Person', 'name' => $author );
+		}
+		$img = get_the_post_thumbnail_url( $post, 'full' );
+		if ( ! $img && preg_match( '/<img[^>]+src="([^"]+)"/', $post->post_content, $im ) ) {
+			$img = $im[1]; // the first break/splash image stands in for a missing featured image
+		}
+		if ( $img ) {
+			$page['image'] = $img;
+		}
+		$desc = '' !== $first_para ? $first_para
+			: wp_trim_words( wp_strip_all_tags( strip_shortcodes( $post->post_content ) ), 28, '…' );
+		if ( $desc ) {
+			$page['description'] = mb_substr( $desc, 0, 160 );
+		}
+	} else {
+		$page = array(
+			'@type'        => 'WebPage',
+			'name'         => get_the_title( $post ),
+			'url'          => get_permalink( $post ),
+			'dateModified' => get_post_modified_time( 'c', true, $post ),
+			'publisher'    => array( '@id' => $home . '#org' ),
+		);
+		if ( '' !== $first_para ) {
+			$page['description'] = mb_substr( $first_para, 0, 160 );
+		}
 	}
 	$graph = array( $org, $page );
 	if ( $faq ) {
@@ -1160,9 +1192,16 @@ add_action( 'save_post', function ( $post_id, $post ) {
 	if ( ! in_array( $post->post_type, array( 'page', 'post' ), true ) ) {
 		return;
 	}
-	if ( ! has_block( 'gogh/section', $post ) ) {
+	// pages carry meaning in their section models — no sections, no graph.
+	// POSTS always emit: the Article's facts (title, dates, author, image)
+	// are WordPress's own assertions, true whether or not the words were
+	// written in gogh's Write room ("does this work with write?").
+	if ( 'page' === $post->post_type && ! has_block( 'gogh/section', $post ) ) {
 		delete_post_meta( $post_id, '_gogh_schema' );
 		return;
+	}
+	if ( 'publish' !== $post->post_status && 'post' === $post->post_type && ! has_block( 'gogh/section', $post ) ) {
+		return; // drafts keep whatever they had; the graph lands on publish
 	}
 	$graph = gogh_schema_build( $post );
 	if ( $graph ) {
@@ -1263,10 +1302,10 @@ add_action( 'wp_enqueue_scripts', function () {
 
 	// for every visitor: neutralise theme spacing around gogh sections, even
 	// on pages whose stored stylesheets predate this rule
-	wp_register_style( 'gogh-base', false, array(), '0.99.221-chrome' );
+	wp_register_style( 'gogh-base', false, array(), '0.99.222-chrome' );
 	// (the splash presentation itself lives in gogh_splash_css(), shared with
 	// the block editor — a wall in Gutenberg must look like a wall)
-	wp_register_script( 'gogh-view', false, array(), '0.99.221-chrome', true );
+	wp_register_script( 'gogh-view', false, array(), '0.99.222-chrome', true );
 	wp_enqueue_script( 'gogh-view' );
 	wp_add_inline_script( 'gogh-view',
 		// carousel arrows + autoplay are VIEW-TIME: never stored, so saved
@@ -1531,9 +1570,9 @@ add_action( 'wp_enqueue_scripts', function () {
 
 	// compose must be REGISTERED here too — a dependency on an
 	// unregistered handle silently drops the whole editor script
-	wp_register_script( 'gogh-compose', plugins_url( 'gogh-compose.js', __FILE__ ), array(), '0.99.221-chrome', true );
-	wp_enqueue_script( 'gogh-editor', plugins_url( 'gogh-editor.js', __FILE__ ), array( 'gogh-compose' ), '0.99.221-chrome', true );
-	wp_enqueue_style( 'gogh-editor', plugins_url( 'gogh-editor.css', __FILE__ ), array(), '0.99.221-chrome' );
+	wp_register_script( 'gogh-compose', plugins_url( 'gogh-compose.js', __FILE__ ), array(), '0.99.222-chrome', true );
+	wp_enqueue_script( 'gogh-editor', plugins_url( 'gogh-editor.js', __FILE__ ), array( 'gogh-compose' ), '0.99.222-chrome', true );
+	wp_enqueue_style( 'gogh-editor', plugins_url( 'gogh-editor.css', __FILE__ ), array(), '0.99.222-chrome' );
 
 	// WebMCP bridge: the page registers its editing verbs as agent tools.
 	// OPT-IN only — add ?gogh-mcp=1 for a demo session (or enable sitewide
@@ -1545,13 +1584,13 @@ add_action( 'wp_enqueue_scripts', function () {
 	// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only labs toggle
 	$gogh_exp = isset( $_GET['gogh-test'] ) || ( isset( $_GET['gogh-experiments'] ) && '0' !== $_GET['gogh-experiments'] );
 	if ( isset( $_GET['gogh-mcp'] ) || $gogh_exp || apply_filters( 'gogh_webmcp_enabled', false ) ) {
-		wp_enqueue_script( 'gogh-webmcp', plugins_url( 'gogh-webmcp.js', __FILE__ ), array( 'gogh-editor' ), '0.99.221-chrome', true );
+		wp_enqueue_script( 'gogh-webmcp', plugins_url( 'gogh-webmcp.js', __FILE__ ), array( 'gogh-editor' ), '0.99.222-chrome', true );
 	}
 
 	// regression suite: /page/?gogh-test (editors only, never saves)
 	// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only toggle enqueuing a test script for capability-checked editors.
 	if ( isset( $_GET['gogh-test'] ) ) {
-		wp_enqueue_script( 'gogh-tests', plugins_url( 'gogh-tests.js', __FILE__ ), array( 'gogh-editor' ), '0.99.221-chrome', true );
+		wp_enqueue_script( 'gogh-tests', plugins_url( 'gogh-tests.js', __FILE__ ), array( 'gogh-editor' ), '0.99.222-chrome', true );
 	}
 
 	// products live outside wp/v2, so gogh carries its own save route for
@@ -1560,7 +1599,7 @@ add_action( 'wp_enqueue_scripts', function () {
 	$rest_base = ( 'page' === $post->post_type ) ? 'pages' : ( 'product' === $post->post_type ? 'gogh-product' : 'posts' );
 	wp_localize_script( 'gogh-editor', 'GOGH', array(
 		'postId'   => $post->ID,
-		'build'    => '0.99.221-chrome',
+		'build'    => '0.99.222-chrome',
 		// two rooms, one landmark (same contract as the admin bar): on a POST
 		// the corner pill opens the WRITING surface, not the freeform canvas
 		'writeUrl' => is_singular( 'post' ) ? add_query_arg( 'gogh-write', '1', get_permalink( $post ) ) : null,
@@ -1686,7 +1725,7 @@ add_action( 'enqueue_block_assets', function () {
 	if ( ! is_admin() ) {
 		return;
 	}
-	wp_register_style( 'gogh-editor-base', false, array(), '0.99.221-chrome' );
+	wp_register_style( 'gogh-editor-base', false, array(), '0.99.222-chrome' );
 	wp_enqueue_style( 'gogh-editor-base' );
 	wp_add_inline_style( 'gogh-editor-base',
 		'.gogh-wrap { min-width: 100%; margin-block: 0 !important; }' .
