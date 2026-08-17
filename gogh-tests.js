@@ -57,6 +57,10 @@
       }
       G.restore(SNAP);
     }
+    // async tests (network round-trips) queue here and drain before the
+    // report exists — __goghTestResults only appears once EVERYTHING ran
+    var asyncQueue = [];
+    function testAsync(name, fn) { asyncQueue.push({ name: name, fn: fn }); }
     function expect(cond, msg) { if (!cond) throw new Error(msg); }
 
     G.setEditing(true);
@@ -3887,7 +3891,42 @@
       return w0 + '→' + e.w + ' square held';
     });
 
+    // ---- answer-ready: the model becomes JSON-LD on the published page.
+    // Full round-trip: compose an FAQ → publish → fetch the FRONT END →
+    // parse the emitted graph. Pixels have the insert audit; meaning has
+    // this. Restores the saved page afterwards by publishing the snapshot.
+    testAsync('answer-ready: published FAQ emits an FAQPage graph', function () {
+      var s = sec();
+      var probe = 'Is gogh answer-ready?';
+      var f = G.composeFaq([{ q: probe, a: 'Yes — the model itself becomes schema.' }]);
+      s.els.push({ type: 'widget', x: 100, y: 60, w: 900, h: 300,
+        faq: [{ q: probe, a: 'Yes — the model itself becomes schema.' }],
+        wsrc: f.wsrc, whtml: f.whtml });
+      G.renderSection(s);
+      return G.publish().then(function () {
+        return fetch(location.pathname, { credentials: 'same-origin', cache: 'no-store' });
+      }).then(function (r) { return r.text(); }).then(function (html) {
+        var m = html.match(/<script type="application\/ld\+json" class="gogh-schema">([\s\S]*?)<\/script>/);
+        expect(m, 'no gogh-schema JSON-LD on the published page');
+        var g = JSON.parse(m[1]);
+        var nodes = g['@graph'] || [];
+        var types = nodes.map(function (n) { return n['@type']; });
+        expect(types.indexOf('Organization') !== -1, 'Organization missing (' + types.join(', ') + ')');
+        expect(types.indexOf('WebPage') !== -1, 'WebPage missing (' + types.join(', ') + ')');
+        var fp = nodes.filter(function (n) { return n['@type'] === 'FAQPage'; })[0];
+        expect(fp, 'FAQPage missing (' + types.join(', ') + ')');
+        var qs = (fp.mainEntity || []).map(function (n) { return n.name; });
+        expect(qs.indexOf(probe) !== -1, 'probe question not in graph: ' + qs.join(' | '));
+        // put the saved page back exactly as the suite found it
+        G.restore(SNAP);
+        return G.publish().then(function () {
+          return 'graph carries Organization + WebPage + FAQPage with the probe question';
+        });
+      });
+    });
+
     // ---- report ----
+    function finishReport() {
     var passed = results.filter(function (r) { return r.pass; }).length;
     var summary = passed + '/' + results.length + ' passed' +
       (jsErrors.length ? ' — ' + jsErrors.length + ' JS ERROR(S)' : '');
@@ -3908,6 +3947,18 @@
       (jsErrors.length ? '<div style="margin-top:8px;color:#ff8d75">JS errors:<br>' + jsErrors.join('<br>') + '</div>' : '');
     document.body.appendChild(panel);
     console.log('[gogh-tests] ' + summary, window.__goghTestResults);
+    }
+
+    // drain the async queue, then report — one at a time, restore between
+    (function drain() {
+      var t = asyncQueue.shift();
+      if (!t) { finishReport(); return; }
+      Promise.resolve().then(t.fn).then(function (detail) {
+        results.push({ name: t.name, pass: true, detail: detail || '' });
+      }).catch(function (err) {
+        results.push({ name: t.name, pass: false, detail: String((err && err.message) || err) });
+      }).then(function () { G.restore(SNAP); drain(); });
+    })();
   }
 
   function runWhenReady() {

@@ -10094,6 +10094,23 @@
       chipBusy = false;
       setChip('clean', 'Published \u2713');
       chipTimer = setTimeout(refreshChip, 1800);
+      // Answer-ready: the marketer's receipt. The server just projected this
+      // model into JSON-LD \u2014 say so in plain words, only when there's meaning
+      // to report (an answered question), never as noise on every publish.
+      var aq = 0;
+      S.forEach(function (s) {
+        if (s.chrome) return;
+        (function walk(els) {
+          (els || []).forEach(function (e) {
+            (e.faq || []).forEach(function (it) {
+              if (String(it.q || '').trim() && String(it.a || '').trim()) aq++;
+            });
+            if (e.kids) walk(e.kids);
+          });
+        })(s.els);
+      });
+      if (aq) toast('Answer-ready \u2713 \u2014 ' + aq + ' answered question' + (aq === 1 ? '' : 's') +
+        ' now travel with this page for search engines and AIs.');
       return true;
     }).catch(function (err) {
       chipBusy = false;
