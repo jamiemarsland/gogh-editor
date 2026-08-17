@@ -1357,10 +1357,84 @@
   chip.className = 'gogh-w-chip';
   chip.innerHTML = '<span class="gogh-w-count"></span><span class="gogh-w-saved"></span>' +
     '<button type="button" class="gogh-w-draft">Save draft</button>' +
+    '<button type="button" class="gogh-w-stylebtn">Post style</button>' +
     '<button type="button" class="gogh-w-catsbtn">Categories & tags</button>' +
     '<button type="button" class="gogh-w-publish">Publish</button>' +
     '<a class="gogh-w-back" href="' + (cfg.homeUrl || '/') + '">Back to site</a>';
   document.body.appendChild(chip);
+  // ---------- Post style: how this post READS ----------
+  // The third of the family (Site style / Page style / Post style). Hover a
+  // look to audition — the room IS the post, so flipping the body class is
+  // the truth — click to keep (post meta; the words never change).
+  (function () {
+    var LOOKS = [
+      { key: '', name: 'Default', hint: 'the theme’s own look' },
+      { key: 'magazine', name: 'Magazine', hint: 'big centred title, drop cap' },
+      { key: 'journal', name: 'Journal', hint: 'quiet, narrow, contained' },
+    ];
+    var current = cfg.postStyle || '';
+    var CLASSES = LOOKS.map(function (l) { return 'gogh-read-' + l.key; }).filter(function (c) { return c !== 'gogh-read-'; });
+    var noteT = null;
+    var note = function (msg) { // a quiet word in the chip's saved slot
+      var el = chip.querySelector('.gogh-w-saved');
+      if (!el) return;
+      var prev = el.textContent;
+      el.textContent = msg;
+      clearTimeout(noteT);
+      noteT = setTimeout(function () { el.textContent = prev; }, 2400);
+    };
+    var wear = function (key) {
+      CLASSES.forEach(function (c) { document.body.classList.remove(c); });
+      if (key) document.body.classList.add('gogh-read-' + key);
+    };
+    wear(current); // arrive dressed in the saved look
+    var pop = document.createElement('div');
+    pop.className = 'gogh-w-stylepop';
+    pop.hidden = true;
+    pop.innerHTML = LOOKS.map(function (l) {
+      return '<button type="button" data-look="' + l.key + '"><b>' + l.name + '</b><i>' + l.hint + '</i></button>';
+    }).join('');
+    document.body.appendChild(pop);
+    var mark = function () {
+      [].forEach.call(pop.querySelectorAll('button'), function (b) {
+        b.classList.toggle('is-current', b.getAttribute('data-look') === current);
+      });
+    };
+    var sbtn = chip.querySelector('.gogh-w-stylebtn');
+    sbtn.addEventListener('click', function (ev) {
+      ev.stopPropagation();
+      pop.hidden = !pop.hidden;
+      if (!pop.hidden) {
+        mark();
+        var r = chip.getBoundingClientRect();
+        pop.style.right = Math.max(12, window.innerWidth - r.right) + 'px';
+        pop.style.bottom = (window.innerHeight - r.top + 10) + 'px';
+      }
+    });
+    document.addEventListener('click', function (ev) {
+      if (!pop.hidden && !ev.target.closest('.gogh-w-stylepop, .gogh-w-stylebtn')) pop.hidden = true;
+    });
+    [].forEach.call(pop.querySelectorAll('button'), function (b) {
+      var key = b.getAttribute('data-look');
+      b.addEventListener('mouseenter', function () { wear(key); });      // audition
+      b.addEventListener('click', function () {                          // keep
+        current = key;
+        wear(key);
+        mark();
+        fetch(cfg.restUrl + 'wp/v2/posts/' + cfg.postId, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'X-WP-Nonce': cfg.nonce },
+          credentials: 'same-origin',
+          body: JSON.stringify({ meta: { _gogh_post_style: key } }),
+        }).then(function (r) {
+          note(r.ok ? ((LOOKS.filter(function (l) { return l.key === key; })[0] || {}).name + ' ✓')
+            : 'style not saved');
+        }).catch(function () { note('style not saved'); });
+        pop.hidden = true;
+      });
+    });
+    pop.addEventListener('mouseleave', function () { wear(current); }); // audition never outlives the hover
+  })();
   var countEl = chip.querySelector('.gogh-w-count');
   var savedEl = chip.querySelector('.gogh-w-saved');
   var words = function () {
