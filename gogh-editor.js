@@ -6683,12 +6683,18 @@
         var elNode = ev.target.closest('.gogh-section > *');
         if (elNode && secx.nodes && secx.nodes.indexOf(elNode) >= 0) return; // an element drag, not a reframe
         if (!(ev.target === secx.sectionEl || secx.sectionEl.contains(ev.target))) return;
-        fd = { px: ev.clientX, py: ev.clientY,
+        fd = { px: ev.clientX, py: ev.clientY, moved: false,
           x: secx.bgPos ? secx.bgPos.x : 50, y: secx.bgPos ? secx.bgPos.y : 50 };
+        // swallowing this pointerdown also silences the click-away closer
+        // (bubble phase), so the verdict moves to pointerup: a real drag
+        // reframes, a plain click closes ("clicking off section backgrounds
+        // is no longer closing the modal")
         ev.preventDefault(); ev.stopPropagation();
       };
       var move = function (ev) {
         if (!fd) return;
+        if (!fd.moved && Math.abs(ev.clientX - fd.px) + Math.abs(ev.clientY - fd.py) < 4) return;
+        fd.moved = true;
         var r = secx.sectionEl.getBoundingClientRect();
         // dragging the photo right/down reveals its left/top: position decreases
         secx.bgPos = {
@@ -6697,7 +6703,13 @@
         };
         resolveAndApply(secx);
       };
-      var up = function () { if (fd) { fd = null; pushState(); } };
+      var up = function () {
+        if (!fd) return;
+        var was = fd;
+        fd = null;
+        if (was.moved) pushState();
+        else closePanel(); // a click, not a drag — the click-away promise holds
+      };
       document.addEventListener('pointerdown', down, true);
       document.addEventListener('pointermove', move, true);
       document.addEventListener('pointerup', up, true);
