@@ -9976,8 +9976,16 @@
   chip.className = 'gogh-chip';
   chip.hidden = true;
   chip.innerHTML = '<span class="gogh-chip-dot"></span><span class="gogh-chip-txt"></span>' +
-    '<button type="button" class="gogh-btn-save gogh-chip-btn">Publish</button>';
+    '<button type="button" class="gogh-btn-save gogh-chip-btn">Publish</button>' +
+    // the answer-ready mark, standing where the eye already rests — the
+    // toast and the drawer badge teach the ✦; here it only needs to be
+    // recognised (tooltip carries the words). Shown on the clean chip via
+    // CSS, hidden while there's publishing to think about.
+    '<button type="button" class="gogh-chip-ar" title="Answer-ready — see what machines see">✦</button>';
   document.body.appendChild(chip);
+  chip.querySelector('.gogh-chip-ar').addEventListener('click', function () {
+    openAnswerReadyPanel();
+  });
   var chipTxt = chip.querySelector('.gogh-chip-txt');
   var chipBtn = chip.querySelector('.gogh-chip-btn');
   var chipBusy = false;
