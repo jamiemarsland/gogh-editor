@@ -9021,7 +9021,9 @@
       var dir = resize.dir;
       // Canva-style: corner-drag on TEXT steps through the theme's preset
       // font sizes rather than free-scaling (Global Styles stay authoritative)
-      if (isText(e) && dir.dx !== 0 && dir.dy !== 0) {
+      // fitted text: corner drags resize the BOX (the fit follows) — preset
+      // stepping would fight the fill-the-width contract
+      if (isText(e) && !e.fitW && dir.dx !== 0 && dir.dy !== 0) {
         var diag = ((ev.clientX - resize.px) * dir.dx + (ev.clientY - resize.py) * dir.dy) / 2;
         var want = Math.round(diag / 56);
         if (want !== (resize.fsSteps || 0)) {
@@ -9077,6 +9079,7 @@
           if (!resize) return;
           var oldH = e.h;
           resolveAndApply(sec);
+          if (e.fitW) refitText(sec, resize.i); // the words grow WITH the box, live
           measureTextHeights(sec);
           if (isText(e) && reflowPush(sec, e, oldH)) resolveAndApply(sec);
           showGuides(sec, gx, gy);
@@ -9098,6 +9101,7 @@
     document.documentElement.classList.remove('gogh-dragging');
     hideGuides();
     resolveAndApply(sec);
+    if (e.fitW) refitText(sec, i); // settle the fit at the final box width
     measureTextHeights(sec);
     if (isText(e) && reflowPush(sec, e, oldH)) resolveAndApply(sec);
     else resolveAndApply(sec);
