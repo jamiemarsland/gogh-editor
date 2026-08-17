@@ -7505,11 +7505,18 @@
     var e = sec.els[drag.i];
     var rx = Math.max(0, Math.min(W - e.w, drag.x + dx / s));
     var ry = Math.max(0, drag.y + dy / s);
+    // an axis the pointer never moved is not being dragged: it keeps its
+    // exact coordinate — no re-grid, no magnets. Picking up an off-grid
+    // element used to quantize BOTH axes, so a purely horizontal drag
+    // nudged y and the section's height with it ("when i move one element
+    // on a section other sections are moving ever so slightly")
+    if (Math.abs(ev.clientX - drag.px) > 3) drag.movedX = true;
+    if (Math.abs(ev.clientY - drag.py) > 3) drag.movedY = true;
     var sn = snapPos(sec, e, rx, ry, e.w, e.h, free, drag.textCXOff);
     e.x = Math.max(0, Math.min(W - e.w, sn.x));
     e.y = Math.max(0, sn.y);
-    if (lockX) { e.x = drag.x; sn.gx = null; }
-    if (lockY) { e.y = drag.y; sn.gy = null; }
+    if (lockX || !drag.movedX) { e.x = drag.x; sn.gx = null; }
+    if (lockY || !drag.movedY) { e.y = drag.y; sn.gy = null; }
     drag.gxCap = sn.gx !== null;
     drag.gyCap = sn.gy !== null;
     drag.lockedX = lockX;
@@ -7582,6 +7589,7 @@
     var gxCapD = !!drag.gxCap, gyCapD = !!drag.gyCap;
     var eqHD = !!drag.eqH, eqVD = !!drag.eqV;
     var lockedXD = !!drag.lockedX, lockedYD = !!drag.lockedY;
+    var movedXD = !!drag.movedX, movedYD = !!drag.movedY;
     var dropCX = drag.cx, dropCY = drag.cy;
     var freeD = !!drag.freeHeld;
     sec.sectionEl.classList.remove('gogh-grid-live');
@@ -7637,8 +7645,8 @@
     // every drop keeps the promise unless ⌘ asked for full freedom
     if (!freeD) {
       var eDrop = sec.els[i];
-      if (!gxCapD && !eqHD && !lockedXD) eDrop.x = Math.max(0, Math.min(W - eDrop.w, Math.round(eDrop.x / BASE) * BASE));
-      if (!gyCapD && !eqVD && !lockedYD) eDrop.y = Math.max(0, Math.round(eDrop.y / BASE) * BASE);
+      if (!gxCapD && !eqHD && !lockedXD && movedXD) eDrop.x = Math.max(0, Math.min(W - eDrop.w, Math.round(eDrop.x / BASE) * BASE));
+      if (!gyCapD && !eqVD && !lockedYD && movedYD) eDrop.y = Math.max(0, Math.round(eDrop.y / BASE) * BASE);
       resolveAndApply(sec);
     }
     setJoinGlow(null);
