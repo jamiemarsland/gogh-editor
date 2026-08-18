@@ -10058,7 +10058,7 @@
       '<div class="gogh-ar-row"><span class="tick">✓</span><div><b>Real structure</b> — proper headings and paragraphs, not builder div-soup, so machines and screen readers read the page like a document</div></div>' +
       '<div class="gogh-ar-row"><span class="tick">✓</span><div><b>Reading order kept</b> — drag things anywhere; the page still reads top-to-bottom for screen readers and AIs</div></div>' +
       '<div class="gogh-ar-row"><span class="tick">✓</span><div><b>Phone-ready</b> — every section reflows for small screens automatically, and Google indexes mobile first</div></div>' +
-      '<div class="gogh-ar-row"><span class="tick">✓</span><div><b>Light pages</b> — your layout is pure CSS, not page-builder scripts, so pages stay fast</div></div>' +
+      '<div class="gogh-ar-row"><span class="tick">✓</span><div><b>Light pages, no lock-in</b> — your layout is pure CSS, not page-builder scripts, and your site keeps its look even with gogh switched off</div></div>' +
       '</div>' +
       '<div class="gogh-ar-cap">The machine layer — exactly what crawlers read</div>' +
       '<p class="gogh-ar-why">This is your page in the standard format (schema.org) that Google, ChatGPT ' +

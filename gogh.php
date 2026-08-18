@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Gogh Editor
  * Description: A freeform canvas for WordPress — drag anything anywhere on your live page; Gogh publishes it back as clean, responsive core blocks that keep working even if the plugin is deactivated.
- * Version: 0.99.231
+ * Version: 0.99.232
  * Author: Jamie Marsland
  * Author URI: https://pootlepress.com
  * License: GPLv2 or later
@@ -23,7 +23,7 @@ add_action( 'init', function () {
 		'gogh-block',
 		plugins_url( 'gogh-block.js', __FILE__ ),
 		array( 'wp-blocks', 'wp-element', 'wp-block-editor' ),
-		'0.99.231-chrome',
+		'0.99.232-chrome',
 		true
 	);
 	register_block_type( 'gogh/section', array(
@@ -294,9 +294,9 @@ add_action( 'wp_enqueue_scripts', function () {
 	if ( ! $post || ! current_user_can( 'edit_post', $post->ID ) ) {
 		return;
 	}
-	wp_register_script( 'gogh-compose', plugins_url( 'gogh-compose.js', __FILE__ ), array(), '0.99.231-chrome', true );
-	wp_enqueue_script( 'gogh-write', plugins_url( 'gogh-write.js', __FILE__ ), array( 'gogh-compose' ), '0.99.231-chrome', true );
-	wp_enqueue_style( 'gogh-write', plugins_url( 'gogh-write.css', __FILE__ ), array(), '0.99.231-chrome' );
+	wp_register_script( 'gogh-compose', plugins_url( 'gogh-compose.js', __FILE__ ), array(), '0.99.232-chrome', true );
+	wp_enqueue_script( 'gogh-write', plugins_url( 'gogh-write.js', __FILE__ ), array( 'gogh-compose' ), '0.99.232-chrome', true );
+	wp_enqueue_style( 'gogh-write', plugins_url( 'gogh-write.css', __FILE__ ), array(), '0.99.232-chrome' );
 	wp_localize_script( 'gogh-write', 'GOGHWRITE', array(
 		'postId'  => $post->ID,
 		'restUrl' => esc_url_raw( rest_url() ),
@@ -503,7 +503,7 @@ add_action( 'rest_api_init', function () {
 			return current_user_can( 'edit_posts' );
 		},
 		'callback'            => function () {
-			return array( 'build' => '0.99.231-chrome' );
+			return array( 'build' => '0.99.232-chrome' );
 		},
 	) );
 	register_rest_route( 'gogh/v1', '/starter', array(
@@ -1269,6 +1269,89 @@ add_action( 'wp_head', function () {
 } );
 
 /**
+ * ✦ The deactivation promise: switch gogh off and the site keeps its look.
+ * Section layout is already baked into the saved content (the rebake), but
+ * the splash and widget presentation lived only in enqueued CSS — a
+ * carousel collapsed to a stack the moment the plugin went quiet. On
+ * deactivation this writes the presentation CSS into the theme's own
+ * Additional CSS (no plugin required to serve it); reactivation removes
+ * the marked block again so nothing is ever doubled.
+ */
+function gogh_leavebehind_css() {
+	return gogh_splash_css() . gogh_widget_css() .
+		// the template-level gap zeroing keeps painted bands touching
+		'.wp-site-blocks > header, .wp-site-blocks > main, .wp-site-blocks > footer, .wp-site-blocks > .wp-block-template-part { margin-block: 0 !important; }' .
+		'.gogh-wrap { margin-block: 0 !important; min-width: 100%; }' .
+		'.entry-content:has(> .gogh-wrap) { margin-block: 0 !important; }' .
+		'.gogh-section > .wp-block-group { padding: 0 !important; box-sizing: border-box; }' .
+		'.gogh-section > * { box-sizing: border-box; }' .
+		'.gogh-section-html { box-sizing: border-box !important; width: 100vw !important; max-width: 100vw !important; margin-inline: calc(50% - 50vw) !important; margin-block: 0 !important; }' .
+		'html { overflow-x: clip; }' .
+		'.entry-content > .gogh-wrap + .alignfull, .entry-content > .alignfull + .gogh-wrap, .entry-content > .alignfull + .alignfull { margin-block-start: 0; }';
+}
+function gogh_strip_leavebehind( $css ) {
+	return preg_replace( '/\n?\/\* gogh:keep-the-look start \*\/.*?\/\* gogh:keep-the-look end \*\/\n?/s', '', (string) $css );
+}
+register_deactivation_hook( __FILE__, function () {
+	$css = gogh_strip_leavebehind( wp_get_custom_css() );
+	wp_update_custom_css_post( $css . "\n/* gogh:keep-the-look start */\n" . gogh_leavebehind_css() . "\n/* gogh:keep-the-look end */\n" );
+} );
+register_activation_hook( __FILE__, function () {
+	$css   = wp_get_custom_css();
+	$clean = gogh_strip_leavebehind( $css );
+	if ( $clean !== $css ) {
+		wp_update_custom_css_post( $clean );
+	}
+} );
+
+/**
+ * FAQ + Tabs widget polish — one source for the front end, the editor,
+ * and the deactivation leave-behind.
+ */
+function gogh_widget_css() {
+	return
+		// FAQ + Tabs widgets: quiet, theme-inked styling for the real blocks —
+		// the same rules dress the editor preview (the edit page IS the front)
+		// the theme's flow blockGap dresses accordion internals like prose —
+		// big margins between item, heading and panel (James: "formatting
+		// breakage"). The widget owns its rhythm.
+		// the widget wrapper is display:flex (it centres SMALL widgets — nav,
+		// site title); accordion and tabs are block content and must fill the
+		// box, not shrink to their words (the "narrow accordion" report)
+		'.gogh-widget > .wp-block-accordion, .gogh-widget > .wp-block-tabs { flex: 1 1 100%; width: 100%; }' .
+		'.gogh-widget .wp-block-accordion > *, .gogh-widget .wp-block-accordion-item > *, .gogh-widget .wp-block-tabs > *, .gogh-widget .wp-block-accordion-panel__content > *, .gogh-widget .wp-block-accordion-panel > *, .gogh-widget .wp-block-tab-panel > * { margin-block: 0 !important; }' .
+		'.gogh-widget .wp-block-accordion-item { border-top: 1px solid color-mix(in srgb, currentColor 16%, transparent); }' .
+		'.gogh-widget .wp-block-accordion-item:last-child { border-bottom: 1px solid color-mix(in srgb, currentColor 16%, transparent); }' .
+		'.gogh-widget .wp-block-accordion-heading { margin: 0; font-size: 1.02em; }' .
+		'.gogh-widget .wp-block-accordion-heading__toggle { display: flex; width: 100%; justify-content: space-between; align-items: center; gap: 1em; padding: 0.9em 0; background: none; border: 0; font: inherit; font-weight: 600; color: inherit; cursor: pointer; text-align: left; }' .
+		'.gogh-widget .wp-block-accordion-heading__icon::before { content: "+"; font-size: 1.25em; font-weight: 400; opacity: 0.55; line-height: 1; }' .
+		'.gogh-widget .is-open .wp-block-accordion-heading__icon::before, .gogh-widget .wp-block-accordion-item.is-open .wp-block-accordion-heading__icon::before { content: "\2212"; }' .
+		// core 6.9 markup: the icon is a literal + in __toggle-icon — rotating
+		// it 45° reads as × when open, and the transition makes it turn
+		'.gogh-widget .wp-block-accordion-heading__toggle-icon { font-size: 1.25em; font-weight: 400; opacity: 0.55; line-height: 1; transition: rotate 0.3s ease; }' .
+		'.gogh-widget .wp-block-accordion-heading button[aria-expanded="true"] .wp-block-accordion-heading__toggle-icon { rotate: 45deg; }' .
+		'.gogh-widget .wp-block-accordion-panel__content { padding: 0 0 1.1em; opacity: 0.85; }' .
+		'.gogh-widget .wp-block-accordion-panel > p { padding: 0 0 1.1em; opacity: 0.85; }' .
+		'.gogh-widget .wp-block-tab-list { display: flex; gap: 0.25em; border-bottom: 1px solid color-mix(in srgb, currentColor 16%, transparent); margin-bottom: 1.2em; }' .
+		'.gogh-widget .wp-block-tab-list__tab, .gogh-widget .wp-block-tab-list > button { padding: 0.7em 1em; background: none; border: 0; border-bottom: 2px solid transparent; margin-bottom: -1px; font: inherit; font-weight: 600; color: inherit; opacity: 0.55; cursor: pointer; }' .
+		'.gogh-widget .wp-block-tab-list__tab[aria-selected="true"], .gogh-widget .wp-block-tab-list > button[aria-selected="true"] { opacity: 1; border-bottom-color: currentColor; }' .
+		'.gogh-widget .wp-block-tab-panel { padding-top: 0.2em; }' .
+		// ---- smooth open/close (James: "kinda harsh and janky") ----
+		// The accordion's closed panel wears hidden=until-found (still
+		// display:block), so with interpolate-size the height can transition
+		// 0 ↔ auto; content-visibility transitions discretely, staying visible
+		// while the panel closes. Pure view-time CSS — nothing stored — and
+		// browsers without support keep today's instant toggle.
+		// (accordion/tab open motion is WAAPI in gogh-view below — CSS
+		// transitions AND animations freeze inside the accordion's
+		// content-visibility-skipped panel, and transitioning
+		// content-visibility itself froze the tab. element.animate on the
+		// just-revealed panel is immune to all of it.)
+		// motion is a garnish, never a requirement
+		'@media (prefers-reduced-motion: reduce) { .gogh-widget .wp-block-accordion-heading__toggle-icon { transition: none; } }';
+}
+
+/**
  * ✦ Splash presentation — the carousel, photo wall, break image, and glass
  * card are pure core blocks wearing gogh classes; THIS css is their whole
  * look. Shared verbatim between the front end and the block editor so a
@@ -1341,10 +1424,10 @@ add_action( 'wp_enqueue_scripts', function () {
 
 	// for every visitor: neutralise theme spacing around gogh sections, even
 	// on pages whose stored stylesheets predate this rule
-	wp_register_style( 'gogh-base', false, array(), '0.99.231-chrome' );
+	wp_register_style( 'gogh-base', false, array(), '0.99.232-chrome' );
 	// (the splash presentation itself lives in gogh_splash_css(), shared with
 	// the block editor — a wall in Gutenberg must look like a wall)
-	wp_register_script( 'gogh-view', false, array(), '0.99.231-chrome', true );
+	wp_register_script( 'gogh-view', false, array(), '0.99.232-chrome', true );
 	wp_enqueue_script( 'gogh-view' );
 	wp_add_inline_script( 'gogh-view',
 		// carousel arrows + autoplay are VIEW-TIME: never stored, so saved
@@ -1555,45 +1638,7 @@ add_action( 'wp_enqueue_scripts', function () {
 		'.gogh-hrow > .wp-block-navigation { margin-left: auto; }' .
 		'.gogh-hrow > [class*="mini-cart"], .gogh-hrow > [class*="customer-account"] { flex: none; }' .
 		'.gogh-hstack > [class*="mini-cart"], .gogh-hstack > [class*="customer-account"] { align-self: center; }' .
-		// FAQ + Tabs widgets: quiet, theme-inked styling for the real blocks —
-		// the same rules dress the editor preview (the edit page IS the front)
-		// the theme's flow blockGap dresses accordion internals like prose —
-		// big margins between item, heading and panel (James: "formatting
-		// breakage"). The widget owns its rhythm.
-		// the widget wrapper is display:flex (it centres SMALL widgets — nav,
-		// site title); accordion and tabs are block content and must fill the
-		// box, not shrink to their words (the "narrow accordion" report)
-		'.gogh-widget > .wp-block-accordion, .gogh-widget > .wp-block-tabs { flex: 1 1 100%; width: 100%; }' .
-		'.gogh-widget .wp-block-accordion > *, .gogh-widget .wp-block-accordion-item > *, .gogh-widget .wp-block-tabs > *, .gogh-widget .wp-block-accordion-panel__content > *, .gogh-widget .wp-block-accordion-panel > *, .gogh-widget .wp-block-tab-panel > * { margin-block: 0 !important; }' .
-		'.gogh-widget .wp-block-accordion-item { border-top: 1px solid color-mix(in srgb, currentColor 16%, transparent); }' .
-		'.gogh-widget .wp-block-accordion-item:last-child { border-bottom: 1px solid color-mix(in srgb, currentColor 16%, transparent); }' .
-		'.gogh-widget .wp-block-accordion-heading { margin: 0; font-size: 1.02em; }' .
-		'.gogh-widget .wp-block-accordion-heading__toggle { display: flex; width: 100%; justify-content: space-between; align-items: center; gap: 1em; padding: 0.9em 0; background: none; border: 0; font: inherit; font-weight: 600; color: inherit; cursor: pointer; text-align: left; }' .
-		'.gogh-widget .wp-block-accordion-heading__icon::before { content: "+"; font-size: 1.25em; font-weight: 400; opacity: 0.55; line-height: 1; }' .
-		'.gogh-widget .is-open .wp-block-accordion-heading__icon::before, .gogh-widget .wp-block-accordion-item.is-open .wp-block-accordion-heading__icon::before { content: "\2212"; }' .
-		// core 6.9 markup: the icon is a literal + in __toggle-icon — rotating
-		// it 45° reads as × when open, and the transition makes it turn
-		'.gogh-widget .wp-block-accordion-heading__toggle-icon { font-size: 1.25em; font-weight: 400; opacity: 0.55; line-height: 1; transition: rotate 0.3s ease; }' .
-		'.gogh-widget .wp-block-accordion-heading button[aria-expanded="true"] .wp-block-accordion-heading__toggle-icon { rotate: 45deg; }' .
-		'.gogh-widget .wp-block-accordion-panel__content { padding: 0 0 1.1em; opacity: 0.85; }' .
-		'.gogh-widget .wp-block-accordion-panel > p { padding: 0 0 1.1em; opacity: 0.85; }' .
-		'.gogh-widget .wp-block-tab-list { display: flex; gap: 0.25em; border-bottom: 1px solid color-mix(in srgb, currentColor 16%, transparent); margin-bottom: 1.2em; }' .
-		'.gogh-widget .wp-block-tab-list__tab, .gogh-widget .wp-block-tab-list > button { padding: 0.7em 1em; background: none; border: 0; border-bottom: 2px solid transparent; margin-bottom: -1px; font: inherit; font-weight: 600; color: inherit; opacity: 0.55; cursor: pointer; }' .
-		'.gogh-widget .wp-block-tab-list__tab[aria-selected="true"], .gogh-widget .wp-block-tab-list > button[aria-selected="true"] { opacity: 1; border-bottom-color: currentColor; }' .
-		'.gogh-widget .wp-block-tab-panel { padding-top: 0.2em; }' .
-		// ---- smooth open/close (James: "kinda harsh and janky") ----
-		// The accordion's closed panel wears hidden=until-found (still
-		// display:block), so with interpolate-size the height can transition
-		// 0 ↔ auto; content-visibility transitions discretely, staying visible
-		// while the panel closes. Pure view-time CSS — nothing stored — and
-		// browsers without support keep today's instant toggle.
-		// (accordion/tab open motion is WAAPI in gogh-view below — CSS
-		// transitions AND animations freeze inside the accordion's
-		// content-visibility-skipped panel, and transitioning
-		// content-visibility itself froze the tab. element.animate on the
-		// just-revealed panel is immune to all of it.)
-		// motion is a garnish, never a requirement
-		'@media (prefers-reduced-motion: reduce) { .gogh-widget .wp-block-accordion-heading__toggle-icon { transition: none; } }'
+		gogh_widget_css()
 	);
 
 	if ( ! current_user_can( 'edit_post', $post->ID ) ) {
@@ -1609,9 +1654,9 @@ add_action( 'wp_enqueue_scripts', function () {
 
 	// compose must be REGISTERED here too — a dependency on an
 	// unregistered handle silently drops the whole editor script
-	wp_register_script( 'gogh-compose', plugins_url( 'gogh-compose.js', __FILE__ ), array(), '0.99.231-chrome', true );
-	wp_enqueue_script( 'gogh-editor', plugins_url( 'gogh-editor.js', __FILE__ ), array( 'gogh-compose' ), '0.99.231-chrome', true );
-	wp_enqueue_style( 'gogh-editor', plugins_url( 'gogh-editor.css', __FILE__ ), array(), '0.99.231-chrome' );
+	wp_register_script( 'gogh-compose', plugins_url( 'gogh-compose.js', __FILE__ ), array(), '0.99.232-chrome', true );
+	wp_enqueue_script( 'gogh-editor', plugins_url( 'gogh-editor.js', __FILE__ ), array( 'gogh-compose' ), '0.99.232-chrome', true );
+	wp_enqueue_style( 'gogh-editor', plugins_url( 'gogh-editor.css', __FILE__ ), array(), '0.99.232-chrome' );
 
 	// WebMCP bridge: the page registers its editing verbs as agent tools.
 	// OPT-IN only — add ?gogh-mcp=1 for a demo session (or enable sitewide
@@ -1623,13 +1668,13 @@ add_action( 'wp_enqueue_scripts', function () {
 	// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only labs toggle
 	$gogh_exp = isset( $_GET['gogh-test'] ) || ( isset( $_GET['gogh-experiments'] ) && '0' !== $_GET['gogh-experiments'] );
 	if ( isset( $_GET['gogh-mcp'] ) || $gogh_exp || apply_filters( 'gogh_webmcp_enabled', false ) ) {
-		wp_enqueue_script( 'gogh-webmcp', plugins_url( 'gogh-webmcp.js', __FILE__ ), array( 'gogh-editor' ), '0.99.231-chrome', true );
+		wp_enqueue_script( 'gogh-webmcp', plugins_url( 'gogh-webmcp.js', __FILE__ ), array( 'gogh-editor' ), '0.99.232-chrome', true );
 	}
 
 	// regression suite: /page/?gogh-test (editors only, never saves)
 	// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only toggle enqueuing a test script for capability-checked editors.
 	if ( isset( $_GET['gogh-test'] ) ) {
-		wp_enqueue_script( 'gogh-tests', plugins_url( 'gogh-tests.js', __FILE__ ), array( 'gogh-editor' ), '0.99.231-chrome', true );
+		wp_enqueue_script( 'gogh-tests', plugins_url( 'gogh-tests.js', __FILE__ ), array( 'gogh-editor' ), '0.99.232-chrome', true );
 	}
 
 	// products live outside wp/v2, so gogh carries its own save route for
@@ -1638,7 +1683,7 @@ add_action( 'wp_enqueue_scripts', function () {
 	$rest_base = ( 'page' === $post->post_type ) ? 'pages' : ( 'product' === $post->post_type ? 'gogh-product' : 'posts' );
 	wp_localize_script( 'gogh-editor', 'GOGH', array(
 		'postId'   => $post->ID,
-		'build'    => '0.99.231-chrome',
+		'build'    => '0.99.232-chrome',
 		// two rooms, one landmark (same contract as the admin bar): on a POST
 		// the corner pill opens the WRITING surface, not the freeform canvas
 		'writeUrl' => is_singular( 'post' ) ? add_query_arg( 'gogh-write', '1', get_permalink( $post ) ) : null,
@@ -1764,7 +1809,7 @@ add_action( 'enqueue_block_assets', function () {
 	if ( ! is_admin() ) {
 		return;
 	}
-	wp_register_style( 'gogh-editor-base', false, array(), '0.99.231-chrome' );
+	wp_register_style( 'gogh-editor-base', false, array(), '0.99.232-chrome' );
 	wp_enqueue_style( 'gogh-editor-base' );
 	wp_add_inline_style( 'gogh-editor-base',
 		'.gogh-wrap { min-width: 100%; margin-block: 0 !important; }' .

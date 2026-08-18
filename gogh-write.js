@@ -1393,7 +1393,7 @@
       '<div class="gogh-ar-cap">And built into every gogh post</div>' +
       '<div class="gogh-ar-always">' +
       '<div class="gogh-ar-row"><span class="tick">✓</span><div><b>Real structure</b> — proper headings and paragraphs, so machines and screen readers read the post like a document</div></div>' +
-      '<div class="gogh-ar-row"><span class="tick">✓</span><div><b>Plain WordPress blocks</b> — your words are stored as ordinary core blocks, no lock-in</div></div>' +
+      '<div class="gogh-ar-row"><span class="tick">✓</span><div><b>Plain WordPress blocks</b> — your words are stored as ordinary core blocks, and they keep their look even with gogh switched off</div></div>' +
       '<div class="gogh-ar-row"><span class="tick">✓</span><div><b>Phone-ready</b> — the post reads beautifully on small screens, and Google indexes mobile first</div></div>' +
       '</div>' +
       '<div class="gogh-ar-cap">The machine layer — exactly what crawlers read</div>' +
