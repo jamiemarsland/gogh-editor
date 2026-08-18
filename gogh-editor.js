@@ -1631,6 +1631,27 @@
   // the canonical element menu — served by the Section pill's ＋ ("Add to
   // this section"); the drawer stopped listing elements when the pill
   // learned to Add, and became the design side instead
+  // ---------- the pack door, part two: add-ons contribute ELEMENTS ----------
+  // window.gogh.registerElement({ key, label, title?, icon?, make() → element })
+  // The Story Pack law: a pack contributes, never patches. Entries join the
+  // ＋ Add-to-section menu; make() returns a ready element — usually a
+  // widget carrying wsrc block markup, so the saved page stays plain blocks
+  // and the deactivation promise holds by construction.
+  var addonElements = [];
+  window.gogh = window.gogh || {};
+  window.gogh.registerElement = function (def) {
+    if (!def || !def.key || !def.label || typeof def.make !== 'function') return;
+    if (addonElements.some(function (d) { return d.key === def.key; })) return;
+    addonElements.push(def);
+  };
+  var ADDON_ICON = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M12 3l2.2 4.4 4.9.7-3.5 3.5.8 4.9-4.4-2.3-4.4 2.3.8-4.9L4.9 8.1l4.9-.7Z"/></svg>';
+  function addonItemsHTML() {
+    return addonElements.map(function (d) {
+      return '<button type="button" class="gogh-sitem" data-addon="' + d.key + '"' +
+        (d.title ? ' title="' + d.title.replace(/"/g, '&quot;') + '"' : '') + '>' +
+        (d.icon || ADDON_ICON) + d.label + '</button>';
+    }).join('');
+  }
   var ELEM_ITEMS =
     '<button type="button" class="gogh-sitem" data-add="heading"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M6 4v16M18 4v16M6 12h12"/></svg>Heading</button>' +
     '<button type="button" class="gogh-sitem" data-add="para"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M4 6h16M4 12h16M4 18h10"/></svg>Text</button>' +
@@ -4748,13 +4769,18 @@
   function openSecAddPanel(idx) {
     var secx = S[idx];
     panel.innerHTML = '<div class="gogh-panel-title">Add to this section</div>' +
-      '<div class="gogh-addmenu">' + ELEM_ITEMS + '</div>';
+      '<div class="gogh-addmenu">' + ELEM_ITEMS + addonItemsHTML() + '</div>';
     placePanelNear(secx.wrapEl);
     panel.querySelectorAll('.gogh-sitem').forEach(function (btn) {
       btn.addEventListener('click', function () {
         closePanel();
         if (btn.dataset.act === 'shapes') return openShapeInsertPanel();
         if (btn.dataset.act === 'featured') return openFeaturedProductPanel(idx);
+        if (btn.dataset.addon) {
+          var d = addonElements.filter(function (a) { return a.key === btn.dataset.addon; })[0];
+          if (d) addElementToSection(idx, d.make());
+          return;
+        }
         if (btn.dataset.add === 'products') return openProductsPanel(idx);
         if (btn.dataset.add === 'write') return startWriting(idx);
         if (btn.dataset.add === 'exp') return addExperience(idx);
