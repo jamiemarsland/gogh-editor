@@ -4,11 +4,11 @@ Everything in this section is extracted mechanically from the Gogh source on eve
 
 ## Current release
 
-- Plugin version: **0.99.232**
+- Plugin version: **0.99.233**
 - Requires WordPress **6.5+**, PHP **7.4+**
 - Text domain: `gogh-editor`
 - readme.txt Stable tag: `0.26.0` · Tested up to: `7.0`
-- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.232`). Quote the plugin header version.
+- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.233`). Quote the plugin header version.
 
 ## Design constants
 
@@ -127,6 +127,7 @@ Query-string switches: `?gogh-edit`, `?gogh-ps`, `?gogh-test`.
 These are the real strings in the current build. Use them verbatim; never paraphrase a label.
 
 - "' + d.label + '"
+- "' + d.title.replace(/"
 - "' + escAttr(l.name) + '"
 - "' + escAttr(t.name) + '"
 - "' + hp[1] + ' — ' + hp[2] + ' units"

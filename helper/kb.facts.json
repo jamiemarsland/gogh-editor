@@ -1,12 +1,12 @@
 {
   "meta": {
-    "plugin_version": "0.99.232",
+    "plugin_version": "0.99.233",
     "requires_wp": "6.5",
     "requires_php": "7.4",
     "text_domain": "gogh-editor",
     "readme_stable_tag": "0.26.0",
     "readme_tested_up_to": "7.0",
-    "asset_version": "0.99.232-chrome"
+    "asset_version": "0.99.233-chrome"
   },
   "constants": {
     "TOL": 8,
@@ -341,6 +341,7 @@
   ],
   "ui_titles": [
     "' + d.label + '",
+    "' + d.title.replace(/",
     "' + escAttr(l.name) + '",
     "' + escAttr(t.name) + '",
     "' + hp[1] + ' — ' + hp[2] + ' units",
