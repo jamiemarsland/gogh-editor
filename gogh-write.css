@@ -479,36 +479,40 @@ body.gogh-writing ::selection {
 
 /* the selection bubble */
 .gogh-w-bub[hidden] { display: none; } /* display:flex would defeat [hidden] — the invisible 440px bubble was widening phones */
+/* the format pill speaks gogh's toolbar language — white, ink, soft depth —
+   not a dark slab over the words ("feels a little ungogh") */
 .gogh-w-bub {
   position: fixed;
   z-index: 99999;
   display: flex;
+  align-items: center;
   gap: 2px;
-  padding: 4px;
-  border-radius: 10px;
-  background: rgba(20, 21, 25, 0.94);
-  box-shadow: 0 12px 34px -10px rgba(0, 0, 0, 0.5);
+  padding: 5px 6px;
+  border-radius: 999px;
+  background: #fff;
+  box-shadow: 0 16px 44px -14px rgba(0, 0, 0, 0.38), 0 0 0 1px rgba(15, 17, 23, 0.07);
 }
 .gogh-w-bub button {
   all: unset;
   cursor: pointer;
-  color: #f2f3f5;
+  color: #1c1e24;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, sans-serif;
-  font-size: 13px;
+  font-size: 13.5px;
   min-width: 30px;
   text-align: center;
-  padding: 6px 8px;
-  border-radius: 7px;
+  padding: 6px 10px;
+  border-radius: 999px;
 }
-.gogh-w-bub button:hover { background: rgba(255, 255, 255, 0.12); }
+.gogh-w-bub button:hover { background: rgba(15, 17, 23, 0.07); }
 .gogh-w-bub button[hidden] { display: none; } /* all:unset defeats [hidden] */
 .gogh-w-bub-url {
   all: unset;
-  color: #f2f3f5;
-  font-size: 12.5px;
-  padding: 6px 10px;
+  color: #1c1e24;
+  font-size: 13px;
+  padding: 6px 12px;
   min-width: 220px;
 }
+.gogh-w-bub-url::placeholder { color: rgba(28, 30, 36, 0.38); }
 /* drop caps preview even before the theme weighs in */
 .gogh-w-body .has-drop-cap::first-letter {
   float: left;
@@ -751,3 +755,48 @@ body.gogh-writing ::selection {
 .gogh-ar-always .gogh-ar-row { padding: 6px 0; font-size: 12.5px; color: #4a4e57; }
 .gogh-ar-always .gogh-ar-row b { color: #1c1e24; }
 .gogh-ar-always .gogh-ar-row .tick { color: #2e9e6b; }
+
+/* ---------- the saved-slot breathes ---------- */
+.gogh-w-saved {
+  display: inline-block;
+  overflow: hidden;
+  white-space: nowrap;
+  vertical-align: bottom;
+  transition: width 0.34s cubic-bezier(0.3, 1, 0.35, 1), opacity 0.13s ease;
+}
+.gogh-w-saved.is-turning { opacity: 0; }
+
+/* ---------- Post style audition: the whole post in one eyeful ---------- */
+body.gogh-writing main { transition: zoom 0.4s ease; }
+body.gogh-w-audition main { zoom: 0.52; }
+
+/* ---------- the image door: library first, Upload one tap away ---------- */
+.gogh-w-imgpick {
+  position: fixed; inset: 0; z-index: 100000;
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(15, 17, 23, 0.45); padding: 24px;
+}
+.gogh-w-imgpick-sheet {
+  width: min(640px, 94vw); max-height: 80vh; overflow: auto;
+  background: #fff; border-radius: 18px; padding: 18px 20px;
+  box-shadow: 0 40px 90px -30px rgba(0, 0, 0, 0.55); color: #1c1e24;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, sans-serif;
+}
+.gogh-w-imgpick-head { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; font-size: 15px; }
+.gogh-w-imgpick-sp { flex: 1; }
+.gogh-w-imgpick-head button {
+  font: 600 13px/1.3 inherit; font-family: inherit; border-radius: 999px;
+  padding: 7px 14px; cursor: pointer; border: 1px solid #d7dae2; background: #fff; color: #1c1e24;
+}
+.gogh-w-imgpick-x { min-width: 34px; }
+.gogh-w-imgpick-head button:hover { background: #f2f3f6; }
+.gogh-w-imgpick-grid {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 8px;
+}
+.gogh-w-imgpick-cell {
+  aspect-ratio: 1; border: 0; border-radius: 10px; cursor: pointer;
+  background-size: cover; background-position: center; background-color: #eceef2;
+  transition: transform 0.12s ease, box-shadow 0.12s ease;
+}
+.gogh-w-imgpick-cell:hover { transform: scale(1.04); box-shadow: 0 10px 24px -10px rgba(0, 0, 0, 0.4); }
+.gogh-media-loading { color: #6b6f78; font-size: 13px; }

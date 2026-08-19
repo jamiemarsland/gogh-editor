@@ -306,6 +306,87 @@
       queueSave();
     }).catch(function () { fig.remove(); });
   };
+  // a picture already in the library lands without re-uploading — same
+  // figure shape insertImageAt settles into after its upload round-trip
+  var insertMediaItemAt = function (m, refNode) {
+    var fig = document.createElement('figure');
+    fig.className = 'wp-block-image size-large';
+    fig.contentEditable = 'false';
+    var big = m.media_details && m.media_details.sizes &&
+      (m.media_details.sizes.large || m.media_details.sizes.full);
+    var img = document.createElement('img');
+    img.alt = m.alt_text || '';
+    img.className = 'wp-image-' + m.id;
+    img.src = big ? big.source_url : m.source_url;
+    fig.appendChild(img);
+    var cap = document.createElement('figcaption');
+    cap.className = 'wp-element-caption gogh-w-cap';
+    cap.contentEditable = 'true';
+    fig.appendChild(cap);
+    fig.dataset.mid = m.id;
+    if (refNode && refNode.parentNode === body) body.insertBefore(fig, refNode.nextSibling);
+    else body.appendChild(fig);
+    if (!fig.nextElementSibling || /^(FIGURE|HR)$/.test(fig.nextElementSibling.tagName)) {
+      var after = document.createElement('p');
+      after.innerHTML = '<br>';
+      fig.after(after);
+    }
+    attachObjControls(fig);
+  };
+  // the image door opens on the LIBRARY first ("we need to let folks choose
+  // images from their media library"), with Upload one tap away
+  var openImageLibrary = function (blk) {
+    var ov = document.createElement('div');
+    ov.className = 'gogh-w-imgpick';
+    ov.innerHTML = '<div class="gogh-w-imgpick-sheet">' +
+      '<div class="gogh-w-imgpick-head"><b>Add an image</b>' +
+      '<span class="gogh-w-imgpick-sp"></span>' +
+      '<button type="button" class="gogh-w-imgpick-up">Upload</button>' +
+      '<button type="button" class="gogh-w-imgpick-x" title="Close">✕</button></div>' +
+      '<div class="gogh-w-imgpick-grid"><span class="gogh-media-loading">Loading your library…</span></div></div>';
+    document.body.appendChild(ov);
+    var close = function () { ov.remove(); };
+    ov.addEventListener('pointerdown', function (ev) { if (ev.target === ov) close(); });
+    ov.querySelector('.gogh-w-imgpick-x').addEventListener('click', close);
+    ov.querySelector('.gogh-w-imgpick-up').addEventListener('click', function () {
+      close();
+      filePick.onchange = function () {
+        [].forEach.call(filePick.files, function (f) { insertImageAt(f, blk); });
+        filePick.value = '';
+        queueSave();
+      };
+      filePick.click();
+    });
+    fetch(cfg.restUrl + 'wp/v2/media?per_page=48&media_type=image&orderby=date&order=desc', {
+      headers: { 'X-WP-Nonce': cfg.nonce },
+      credentials: 'same-origin',
+    }).then(function (r) { return r.json(); }).then(function (items) {
+      var box = ov.querySelector('.gogh-w-imgpick-grid');
+      box.innerHTML = '';
+      if (!items.length) {
+        box.innerHTML = '<span class="gogh-media-loading">No images yet — Upload is right up there.</span>';
+        return;
+      }
+      items.forEach(function (item) {
+        var thumb = item.media_details && item.media_details.sizes &&
+          (item.media_details.sizes.thumbnail || item.media_details.sizes.medium);
+        var b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'gogh-w-imgpick-cell';
+        b.style.backgroundImage = 'url("' + (thumb ? thumb.source_url : item.source_url) + '")';
+        if (item.alt_text) b.title = item.alt_text;
+        b.addEventListener('click', function () {
+          insertMediaItemAt(item, blk);
+          close();
+          queueSave();
+        });
+        box.appendChild(b);
+      });
+    }).catch(function () {
+      ov.querySelector('.gogh-w-imgpick-grid').innerHTML =
+        '<span class="gogh-media-loading">Could not reach the library — try Upload.</span>';
+    });
+  };
   body.addEventListener('dragover', function (ev) {
     if (ev.dataTransfer && [].some.call(ev.dataTransfer.items || [], function (i) { return i.kind === 'file'; })) {
       ev.preventDefault();
@@ -796,12 +877,8 @@
       return;
     }
     if (kind === 'image') {
-      filePick.onchange = function () {
-        [].forEach.call(filePick.files, function (f) { insertImageAt(f, blk); });
-        filePick.value = '';
-        queueSave();
-      };
-      filePick.click();
+      openImageLibrary(blk);
+      hidePlus();
       return;
     }
     if (kind === 'heading') {
@@ -1367,13 +1444,32 @@
   // and the Answer-ready receipt (it lived inside the Post-style closure
   // once, and the publish receipt calling it from outside threw)
   var noteT = null;
+  // the chip breathes instead of snapping ("kinda grows and shrinks - it's
+  // a little inelegant"): the saved-slot measures its destination, animates
+  // its width on a soft spring, and cross-fades the words mid-journey
+  var noteSwap = function (el, text) {
+    var probe = document.createElement('span');
+    probe.className = el.className.replace('is-turning', '');
+    probe.style.cssText = 'position:absolute;visibility:hidden;white-space:nowrap;width:auto;';
+    probe.textContent = text;
+    el.parentNode.appendChild(probe);
+    var w = probe.getBoundingClientRect().width;
+    probe.remove();
+    el.style.width = el.getBoundingClientRect().width + 'px';
+    el.classList.add('is-turning');
+    setTimeout(function () {
+      el.textContent = text;
+      el.style.width = w + 'px';
+      el.classList.remove('is-turning');
+    }, 130);
+  };
   var note = function (msg) {
     var el = chip.querySelector('.gogh-w-saved');
     if (!el) return;
     var prev = el.textContent;
-    el.textContent = msg;
+    noteSwap(el, msg);
     clearTimeout(noteT);
-    noteT = setTimeout(function () { el.textContent = prev; }, 2400);
+    noteT = setTimeout(function () { noteSwap(el, prev); }, 2400);
   };
 
   // ---------- Answer-ready: what machines see (the write-room twin of the
@@ -1505,19 +1601,34 @@
         b.classList.toggle('is-current', b.getAttribute('data-look') === current);
       });
     };
+    // auditioning zooms the whole post out so a LOOK reads at a glance —
+    // title treatment, measure, rhythm, all in one eyeful ("how about we
+    // zoom out so folks can see the full effect"). Scroll comes back to
+    // where the writer was when the popover closes.
+    var audScroll = 0;
+    var popOpen = function () {
+      mark();
+      var r = chip.getBoundingClientRect();
+      pop.style.right = Math.max(12, window.innerWidth - r.right) + 'px';
+      pop.style.bottom = (window.innerHeight - r.top + 10) + 'px';
+      pop.hidden = false;
+      audScroll = window.scrollY;
+      document.body.classList.add('gogh-w-audition');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    };
+    var popClose = function () {
+      if (pop.hidden) return;
+      pop.hidden = true;
+      document.body.classList.remove('gogh-w-audition');
+      window.scrollTo({ top: audScroll, behavior: 'smooth' });
+    };
     var sbtn = chip.querySelector('.gogh-w-stylebtn');
     sbtn.addEventListener('click', function (ev) {
       ev.stopPropagation();
-      pop.hidden = !pop.hidden;
-      if (!pop.hidden) {
-        mark();
-        var r = chip.getBoundingClientRect();
-        pop.style.right = Math.max(12, window.innerWidth - r.right) + 'px';
-        pop.style.bottom = (window.innerHeight - r.top + 10) + 'px';
-      }
+      if (pop.hidden) popOpen(); else popClose();
     });
     document.addEventListener('click', function (ev) {
-      if (!pop.hidden && !ev.target.closest('.gogh-w-stylepop, .gogh-w-stylebtn')) pop.hidden = true;
+      if (!pop.hidden && !ev.target.closest('.gogh-w-stylepop, .gogh-w-stylebtn')) popClose();
     });
     [].forEach.call(pop.querySelectorAll('button'), function (b) {
       var key = b.getAttribute('data-look');
@@ -1535,7 +1646,7 @@
           note(r.ok ? ((LOOKS.filter(function (l) { return l.key === key; })[0] || {}).name + ' ✓')
             : 'style not saved');
         }).catch(function () { note('style not saved'); });
-        pop.hidden = true;
+        popClose();
       });
     });
     pop.addEventListener('mouseleave', function () { wear(current); }); // audition never outlives the hover
@@ -1584,7 +1695,7 @@
     // failure must be VISIBLE — the audit's worst finding was saves
     // dying silently (an expired overnight nonce made Publish a no-op)
     saveFailed = true;
-    savedEl.textContent = code === 403 ? 'signed out — reconnecting…' : 'not saved — retrying';
+    noteSwap(savedEl, code === 403 ? 'signed out — reconnecting…' : 'not saved — retrying');
     countEl.textContent = '⚠ Your latest words are NOT saved yet';
   };
   var saveHealed = function () {
@@ -1616,8 +1727,8 @@
       inflight = null;
       if (r.ok) {
         saveHealed();
-        savedEl.textContent = 'saved';
-        setTimeout(function () { savedEl.textContent = ''; }, 1600);
+        noteSwap(savedEl, 'saved');
+        setTimeout(function () { noteSwap(savedEl, ''); }, 1600);
         if (!saveT) { clean = true; quietLabel(); } // nothing newer waiting
         return r.json();
       }
