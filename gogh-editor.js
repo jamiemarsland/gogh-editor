@@ -1645,6 +1645,18 @@
     addonElements.push(def);
   };
   var ADDON_ICON = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M12 3l2.2 4.4 4.9.7-3.5 3.5.8 4.9-4.4-2.3-4.4 2.3.8-4.9L4.9 8.1l4.9-.7Z"/></svg>';
+  // the pack door, part three: add-ons compose WHOLE PAGES. Section
+  // templates (same shape the built-in templates use: name, minH, bg,
+  // fill, els[…]) land after the last content section; the composed page
+  // is model truth like anything drawn by hand — review, drag, publish.
+  window.gogh.insertSections = function (tpls) {
+    if (!editing || !Array.isArray(tpls) || !tpls.length) return 0;
+    var at = -1;
+    S.forEach(function (s, i) { if (!s.chrome) at = i; });
+    tpls.forEach(function (tpl, k) { addSection(tpl, at + 1 + k); });
+    pushState();
+    return tpls.length;
+  };
   function addonItemsHTML() {
     return addonElements.map(function (d) {
       return '<button type="button" class="gogh-sitem" data-addon="' + d.key + '"' +
