@@ -513,13 +513,27 @@ body.gogh-writing ::selection {
   min-width: 220px;
 }
 .gogh-w-bub-url::placeholder { color: rgba(28, 30, 36, 0.38); }
-/* drop caps preview even before the theme weighs in */
+/* drop caps preview even before the theme weighs in — the float version is
+   the fallback; initial-letter is the real thing: the cap sinks three lines
+   with its top on line one and its base on line three, no seams ("could we
+   improve the drop cap") */
 .gogh-w-body .has-drop-cap::first-letter {
   float: left;
   font-size: 3.4em;
   line-height: 0.72;
   padding: 0.08em 0.12em 0 0;
   font-weight: 700;
+}
+@supports (initial-letter: 3) {
+  .gogh-w-body .has-drop-cap::first-letter {
+    float: none;
+    font-size: unset;
+    line-height: unset;
+    padding: 0;
+    initial-letter: 3;
+    font-weight: 650;
+    margin-right: 0.16em;
+  }
 }
 /* floats: the words wrap around the picture */
 .gogh-w-body figure.alignleft {
