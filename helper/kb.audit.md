@@ -1,4 +1,4 @@
-# Knowledge-base audit — plugin v0.99.238
+# Knowledge-base audit — plugin v0.99.239
 
 _13 finding(s) suppressed by `kb.audit-ignore.txt`._
 
@@ -40,5 +40,4 @@ The source has something the prose never explains. The bot knows the name from t
 
 Use this as the checklist for updating the prose — and as a sanity check on the release itself.
 
-- version: 0.99.237 → 0.99.238
-- removed UI label: "See what machines see"
+- version: 0.99.238 → 0.99.239
