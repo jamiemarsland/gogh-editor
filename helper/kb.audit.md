@@ -1,4 +1,4 @@
-# Knowledge-base audit — plugin v0.99.236
+# Knowledge-base audit — plugin v0.99.237
 
 _13 finding(s) suppressed by `kb.audit-ignore.txt`._
 
@@ -40,6 +40,6 @@ The source has something the prose never explains. The bot knows the name from t
 
 Use this as the checklist for updating the prose — and as a sanity check on the release itself.
 
-- version: 0.99.235 → 0.99.236
-- added REST route: "gogh/v1/motion"
-- added toast: "Could not save the motion style."
+- version: 0.99.236 → 0.99.237
+- added UI label: "Six looks derived from your brand — hover to wear one, tap Remix again for six more"
+- added UI label: "✦ Remix"
