@@ -4,11 +4,11 @@ Everything in this section is extracted mechanically from the Gogh source on eve
 
 ## Current release
 
-- Plugin version: **0.99.249**
+- Plugin version: **0.99.250**
 - Requires WordPress **6.5+**, PHP **7.4+**
 - Text domain: `gogh-editor`
 - readme.txt Stable tag: `0.26.0` · Tested up to: `7.0`
-- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.249`). Quote the plugin header version.
+- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.250`). Quote the plugin header version.
 
 ## Design constants
 
@@ -287,6 +287,7 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "Could not save the motion style."
 - "Could not save the name — try again."
 - "Could not save the page, so the "
+- "Could not save the style."
 - "Could not switch the "
 - "Could not update the "
 - "Editing the site "
