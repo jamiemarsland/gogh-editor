@@ -4902,6 +4902,7 @@
     return hu + (hu.indexOf('?') === -1 ? '?' : '&') +
       'v=' + encodeURIComponent((window.__gogh && window.__gogh.build) || '') +
       '&ctx=' + encodeURIComponent(helpContext()) +
+      '&embed=1' + // the sheet carries the name — the page hides its own
       (cfg.experiments ? '&bridge=1' : '');
   }
   // ---------- the show-me bridge: help that DOES ----------

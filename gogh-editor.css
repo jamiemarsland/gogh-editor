@@ -3074,3 +3074,32 @@ html.gogh-textediting .gogh-convertbtn {
 .gogh-brandrow { margin: 6px 0 10px; }
 .gogh-panel.gogh-panel-sidebar .gogh-varlist { gap: 5px; }
 .gogh-hpresets { margin-bottom: 4px; }
+
+/* the room outranks the door ("something is nagging at me"): heads with a
+   back control stack — a small quiet "‹ Design" up top, then the panel's
+   name as a REAL title beneath it. Heads without a back keep their row. */
+.gogh-panel-head:has(.gogh-panel-back) {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 7px;
+  margin-bottom: 12px;
+}
+.gogh-panel-head:has(.gogh-panel-back) .gogh-panel-title {
+  font-size: 16.5px;
+  font-weight: 700;
+  text-transform: none;
+  letter-spacing: -0.01em;
+  color: var(--gogh-ui-fg);
+  margin-right: 0;
+}
+.gogh-panel-head .gogh-panel-back {
+  background: transparent;
+  color: var(--gogh-ui-muted);
+  height: 26px;
+  padding: 0 8px 0 2px;
+  margin-left: -2px;
+  font-size: 12px;
+}
+.gogh-panel-head .gogh-panel-back::after { font-size: 12px; font-weight: 600; }
+.gogh-panel-head .gogh-panel-back svg { width: 15px; height: 15px; }
+.gogh-panel-head .gogh-panel-back:hover { background: var(--gogh-ui-hover); color: var(--gogh-ui-fg); }

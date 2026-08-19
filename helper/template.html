@@ -32,7 +32,12 @@ header{
   background:radial-gradient(circle at 30% 30%, var(--accent), #b8651c 70%);
   display:grid;place-items:center;font-size:16px;
 }
-.title{font-weight:650;letter-spacing:-.01em}
+.title{font-weight:650;letter-spacing:-.01em;white-space:nowrap}
+/* embedded in gogh's help sheet the SHEET carries the name — repeating the
+   logo and title here read as duplication and wrapped in the narrow frame
+   ("we're kinda duplicating here"). ?embed=1 keeps just the working parts. */
+.embedded .logo,.embedded .title,.embedded .sub{display:none}
+.embedded header{padding-block:8px}
 .sub{font-size:12px;color:var(--ink3);margin-top:-2px}
 .spacer{flex:1}
 
@@ -260,6 +265,7 @@ const HOSTED = !KB;
    buttons that act on their page. Everything crosses a postMessage boundary, so
    nothing here is trusted: verbs are whitelisted, replies are shape-checked,
    and destructive verbs need a second click. */
+if (new URLSearchParams(location.search).get('embed') === '1') document.documentElement.classList.add('embedded');
 const BRIDGE = new URLSearchParams(location.search).get('bridge') === '1'
             && window.parent && window.parent !== window;
 
