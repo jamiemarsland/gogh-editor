@@ -10282,30 +10282,16 @@
       savedSnap = serialize();
       backedUp = false;
       chipBusy = false;
+      // Answer-ready arrives as chip choreography, not a toast ("it still
+      // kinda feels a bit too in your face"): Published \u2713 \u2192 a beat of
+      // Answer-ready \u2192 the chip settles to rest with the \u2726 popping into
+      // place. One surface, three seconds; the \u2726 stays as the standing
+      // door and the drawer badge carries the words for newcomers.
       setChip('clean', 'Published \u2713');
-      chipTimer = setTimeout(refreshChip, 1800);
-      // Answer-ready: the marketer's receipt. The server just projected this
-      // model into JSON-LD \u2014 say so in plain words on EVERY publish, because
-      // every gogh page gets the brand facts and page summary; answered
-      // questions join the line when the page has them ("do we surface what
-      // its doing in gogh?").
-      var aq = 0;
-      S.forEach(function (s) {
-        if (s.chrome) return;
-        (function walk(els) {
-          (els || []).forEach(function (e) {
-            (e.faq || []).forEach(function (it) {
-              if (String(it.q || '').trim() && String(it.a || '').trim()) aq++;
-            });
-            if (e.kids) walk(e.kids);
-          });
-        })(s.els);
-      });
-      // one short line, normal fade \u2014 the panel holds the detail ("this is
-      // a little intrusive"); aq feeds the label so FAQs still get their nod
-      toast('Answer-ready \u2713' + (aq ? ' \u2014 ' + aq + ' question' + (aq === 1 ? '' : 's') + ' answered' : ''), {
-        actions: [{ label: 'See what machines see', onClick: openAnswerReadyPanel }],
-      });
+      chipTimer = setTimeout(function () {
+        setChip('clean', 'Answer-ready');
+        chipTimer = setTimeout(refreshChip, 2000);
+      }, 1600);
       return true;
     }).catch(function (err) {
       chipBusy = false;

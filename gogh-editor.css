@@ -3022,3 +3022,9 @@ html.gogh-textediting .gogh-convertbtn {
 }
 .gogh-chip.is-clean .gogh-chip-ar { display: inline-block; }
 .gogh-chip-ar:hover { transform: scale(1.15); }
+/* the ✦ pops into its resting place when the chip settles clean — the
+   arrival IS the answer-ready message, no toast required */
+@media (prefers-reduced-motion: no-preference) {
+  .gogh-chip.is-clean .gogh-chip-ar { animation: gogh-ar-pop 0.5s cubic-bezier(0.2, 1.5, 0.4, 1); }
+  @keyframes gogh-ar-pop { from { scale: 0; rotate: -60deg; } }
+}
