@@ -3044,3 +3044,11 @@ html.gogh-textediting .gogh-convertbtn {
 .gogh-remixbtn { width: 100%; }
 .gogh-remixcards { display: flex; flex-direction: column; gap: 6px; margin-top: 8px; }
 .gogh-remixcard { display: flex; align-items: center; gap: 6px; }
+
+/* the way out of every panel deserves a real target ("is this back button
+   a little small?") — 36px square, bigger chevron, same spot */
+.gogh-panel-head .gogh-sbtn {
+  flex: 0 0 auto; width: 36px; height: 36px; padding: 0;
+  display: grid; place-items: center; border-radius: 10px;
+}
+.gogh-panel-head .gogh-sbtn svg { width: 19px; height: 19px; }
