@@ -1,4 +1,4 @@
-# Knowledge-base audit — plugin v0.99.237
+# Knowledge-base audit — plugin v0.99.238
 
 _13 finding(s) suppressed by `kb.audit-ignore.txt`._
 
@@ -40,6 +40,5 @@ The source has something the prose never explains. The bot knows the name from t
 
 Use this as the checklist for updating the prose — and as a sanity check on the release itself.
 
-- version: 0.99.236 → 0.99.237
-- added UI label: "Six looks derived from your brand — hover to wear one, tap Remix again for six more"
-- added UI label: "✦ Remix"
+- version: 0.99.237 → 0.99.238
+- removed UI label: "See what machines see"
