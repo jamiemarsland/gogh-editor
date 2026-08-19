@@ -1628,6 +1628,73 @@
   document.body.appendChild(editBtnWrap);
   var editBtn = editBtnWrap.querySelector('.gogh-btn-edit');
 
+  // ---------- Post style, chosen while READING ----------
+  // On a post's front end the pill grows a sibling: pick a reading look
+  // right here, where the full effect lives — hover wears it across the
+  // real page, click keeps it ("let folks choose different beautiful
+  // layouts for their posts").
+  if (cfg.writeUrl) {
+    var READ_LOOKS = [
+      { key: '', name: 'Default', hint: 'the theme’s own look' },
+      { key: 'magazine', name: 'Magazine', hint: 'big centred title, drop cap' },
+      { key: 'journal', name: 'Journal', hint: 'quiet, narrow, contained' },
+      { key: 'essay', name: 'Essay', hint: 'calm and spacious, soft quotes' },
+      { key: 'gazette', name: 'Gazette', hint: 'newsprint rules, tight columns' },
+      { key: 'photostory', name: 'Photo story', hint: 'pictures lead, words breathe' },
+      { key: 'feature', name: 'Feature', hint: 'huge left title, offset images' },
+    ];
+    var lookCur = cfg.postStyle || '';
+    var lookWear = function (k) {
+      READ_LOOKS.forEach(function (l) { if (l.key) document.body.classList.remove('gogh-read-' + l.key); });
+      if (k) document.body.classList.add('gogh-read-' + k);
+    };
+    var lookBtn = document.createElement('button');
+    lookBtn.type = 'button';
+    lookBtn.className = 'gogh-btn gogh-btn-look';
+    lookBtn.textContent = '🎨 Post style';
+    editBtnWrap.insertBefore(lookBtn, editBtn);
+    var lookPop = document.createElement('div');
+    lookPop.className = 'gogh-lookpop';
+    lookPop.hidden = true;
+    READ_LOOKS.forEach(function (l) {
+      var b = document.createElement('button');
+      b.type = 'button';
+      b.innerHTML = '<b></b><i></i>';
+      b.querySelector('b').textContent = l.name;
+      b.querySelector('i').textContent = l.hint;
+      b.classList.toggle('is-current', lookCur === l.key);
+      b.addEventListener('mouseenter', function () { lookWear(l.key); });
+      b.addEventListener('click', function () {
+        lookCur = l.key;
+        lookWear(l.key);
+        [].forEach.call(lookPop.children, function (x) { x.classList.toggle('is-current', x === b); });
+        fetch(cfg.restUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'X-WP-Nonce': cfg.nonce },
+          credentials: 'same-origin',
+          body: JSON.stringify({ meta: { _gogh_post_style: l.key } }),
+        }).then(function (r) {
+          toast(r.ok ? 'Post style: ' + l.name + ' — this is how readers see it.'
+            : 'Could not save the style.', r.ok ? {} : { error: true });
+        }).catch(function () { toast('Could not save the style.', { error: true }); });
+        lookPop.hidden = true;
+      });
+      lookPop.appendChild(b);
+    });
+    lookPop.addEventListener('mouseleave', function () { lookWear(lookCur); });
+    document.body.appendChild(lookPop);
+    lookBtn.addEventListener('click', function (ev) {
+      ev.stopPropagation();
+      lookPop.hidden = !lookPop.hidden;
+    });
+    document.addEventListener('click', function (ev) {
+      if (!lookPop.hidden && !ev.target.closest('.gogh-lookpop, .gogh-btn-look')) {
+        lookPop.hidden = true;
+        lookWear(lookCur);
+      }
+    });
+  }
+
   // the canonical element menu — served by the Section pill's ＋ ("Add to
   // this section"); the drawer stopped listing elements when the pill
   // learned to Add, and became the design side instead

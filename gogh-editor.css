@@ -3103,3 +3103,24 @@ html.gogh-textediting .gogh-convertbtn {
 .gogh-panel-head .gogh-panel-back::after { font-size: 12px; font-weight: 600; }
 .gogh-panel-head .gogh-panel-back svg { width: 15px; height: 15px; }
 .gogh-panel-head .gogh-panel-back:hover { background: var(--gogh-ui-hover); color: var(--gogh-ui-fg); }
+
+/* ---------- the front-end look chooser: reading looks, chosen while reading ---------- */
+.gogh-lookpop {
+  position: fixed; right: 22px; bottom: 74px; z-index: 100000;
+  display: flex; flex-direction: column; gap: 2px;
+  width: 280px; padding: 8px; border-radius: 16px;
+  background: #fff; color: #1c1e24;
+  box-shadow: 0 24px 60px -18px rgba(0, 0, 0, 0.45), 0 0 0 1px rgba(15, 17, 23, 0.06);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, sans-serif;
+}
+.gogh-lookpop[hidden] { display: none; }
+.gogh-lookpop button {
+  all: unset; cursor: pointer; display: flex; align-items: baseline; gap: 8px;
+  padding: 9px 12px; border-radius: 10px; position: relative;
+}
+.gogh-lookpop button:hover { background: rgba(15, 17, 23, 0.06); }
+.gogh-lookpop button b { font-size: 13.5px; font-weight: 650; }
+.gogh-lookpop button i { font-style: normal; font-size: 11.5px; color: #6b6f78; }
+.gogh-lookpop button.is-current::after {
+  content: "✓"; position: absolute; right: 12px; color: #2e9e6b; font-weight: 700;
+}
