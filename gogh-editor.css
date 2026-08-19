@@ -2976,17 +2976,6 @@ html.gogh-textediting .gogh-convertbtn {
 .gogh-freshchip:hover { background: #000; }
 
 /* ---------- Answer-ready: the badge and the what-machines-see panel ---------- */
-.gogh-arbadge {
-  display: flex; align-items: flex-start; gap: 9px; width: 100%;
-  margin: 10px 0 0; padding: 10px 12px; border: 0; border-radius: 12px;
-  background: color-mix(in srgb, #e8b04b 9%, transparent);
-  text-align: left; cursor: pointer; font: inherit; color: inherit;
-}
-.gogh-arbadge:hover { background: color-mix(in srgb, #e8b04b 16%, transparent); }
-.gogh-arbadge-tick { color: #b17e1f; font-size: 14px; line-height: 1.35; flex: none; }
-.gogh-arbadge-tx { display: flex; flex-direction: column; gap: 1px; }
-.gogh-arbadge-tx b { font-size: 12.5px; font-weight: 650; }
-.gogh-arbadge-tx > span { font-size: 11.5px; color: #6b6f78; line-height: 1.4; }
 .gogh-arwrap { position: fixed; inset: 0; z-index: 1000001; display: flex; align-items: center; justify-content: center; padding: 24px; }
 .gogh-arback { position: absolute; inset: 0; background: rgba(15, 17, 23, 0.45); }
 .gogh-arpanel {

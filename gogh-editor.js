@@ -1713,13 +1713,10 @@
     '<span class="gogh-scard-tx"><span class="gogh-scard-t">Rearrange sections</span><span class="gogh-scard-s">Drag the whole page into order</span></span>' +
     '<svg class="gogh-scard-chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg></button>' +
     '</div>' +
-    // the gold, quietly restated: not a settings panel, one standing line —
-    // every gogh page ships answer-ready, tap to see the proof
-    '<button type="button" class="gogh-arbadge" title="See what machines see">' +
-    '<span class="gogh-arbadge-tick">✦</span>' +
-    '<span class="gogh-arbadge-tx"><b>Answer-ready</b>' +
-    '<span>Every page publishes with a machine layer for search &amp; AIs — tap to see it</span></span>' +
-    '</button>' +
+    // (the Answer-ready badge lived here once — but the drawer is DESIGN,
+    // and answer-readiness is a property of publishing ("its about content
+    // not design"). The ✦ on the publish chip and the publish choreography
+    // are its standing surfaces now.)
     '<div class="gogh-side-gap"></div>' +
     '<div class="gogh-side-foot">' +
     '<button type="button" class="gogh-sbtn gogh-sd-designs" title="Site designs — swap the whole look">' +
@@ -9235,9 +9232,6 @@
   });
   side.querySelector('.gogh-pagestylebtn').addEventListener('click', function (ev) {
     openPageStylePanel(ev.currentTarget);
-  });
-  side.querySelector('.gogh-arbadge').addEventListener('click', function () {
-    openAnswerReadyPanel();
   });
   side.querySelector('.gogh-motionbtn').addEventListener('click', function () {
     openMotionPanel();
