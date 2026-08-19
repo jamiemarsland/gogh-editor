@@ -1,4 +1,4 @@
-# Knowledge-base audit — plugin v0.99.251
+# Knowledge-base audit — plugin v0.99.252
 
 _13 finding(s) suppressed by `kb.audit-ignore.txt`._
 
@@ -43,6 +43,4 @@ The source has something the prose never explains. The bot knows the name from t
 
 Use this as the checklist for updating the prose — and as a sanity check on the release itself.
 
-- version: 0.99.250 → 0.99.251
-- added WP hook: "render_block_core/post-template"
-- added REST route: "gogh/v1/blog-style"
+- version: 0.99.251 → 0.99.252
