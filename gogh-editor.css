@@ -3064,3 +3064,13 @@ html.gogh-textediting .gogh-convertbtn {
   display: inline-flex; align-items: center; gap: 3px;
 }
 .gogh-panel-back::after { content: "Design"; font-size: 12px; font-weight: 650; }
+
+/* breathing room: the panel gained real navigation but kept its old tight
+   rhythm ("does this feel a little tight?") — the head gets clearance,
+   hints get air above their group, rows stop touching */
+.gogh-panel-head { margin-bottom: 14px; }
+.gogh-panel-hint { margin: 14px 0 8px; line-height: 1.5; }
+.gogh-panel-head + .gogh-panel-hint { margin-top: 0; }
+.gogh-brandrow { margin: 6px 0 10px; }
+.gogh-panel.gogh-panel-sidebar .gogh-varlist { gap: 5px; }
+.gogh-hpresets { margin-bottom: 4px; }
