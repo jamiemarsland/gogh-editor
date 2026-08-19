@@ -1625,6 +1625,7 @@
       { key: 'essay', name: 'Essay', hint: 'calm and spacious, soft quotes' },
       { key: 'gazette', name: 'Gazette', hint: 'newsprint rules, tight columns' },
       { key: 'photostory', name: 'Photo story', hint: 'pictures lead, words breathe' },
+      { key: 'feature', name: 'Feature', hint: 'huge left title, offset images' },
     ];
     var current = cfg.postStyle || '';
     var CLASSES = LOOKS.map(function (l) { return 'gogh-read-' + l.key; }).filter(function (c) { return c !== 'gogh-read-'; });
