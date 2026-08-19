@@ -3052,3 +3052,15 @@ html.gogh-textediting .gogh-convertbtn {
   display: grid; place-items: center; border-radius: 10px;
 }
 .gogh-panel-head .gogh-sbtn svg { width: 19px; height: 19px; }
+
+/* back reads as back: the chevron moves LEFT of the title and says where
+   it goes — "‹ Design" — while close-only heads keep their button on the
+   right (the title's auto margin does the sorting) */
+.gogh-panel-head { justify-content: flex-start; gap: 10px; }
+.gogh-panel-head .gogh-panel-title { margin-right: auto; }
+.gogh-panel-head .gogh-panel-back { order: -1; }
+.gogh-panel-head .gogh-panel-back {
+  width: auto; padding: 0 12px 0 8px;
+  display: inline-flex; align-items: center; gap: 3px;
+}
+.gogh-panel-back::after { content: "Design"; font-size: 12px; font-weight: 650; }
