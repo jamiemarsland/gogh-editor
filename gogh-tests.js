@@ -4009,6 +4009,36 @@
       });
     });
 
+    // ---- remix: the candidate factory. The gate is the promise — every
+    // spin must produce readable pairs, honest hex, and only theme fonts.
+    test('remix: every candidate leaves the factory legible', function () {
+      var lum = function (hex) {
+        var n = parseInt(hex.slice(1), 16);
+        var f = function (v) { v /= 255; return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); };
+        return 0.2126 * f(n >> 16 & 255) + 0.7152 * f(n >> 8 & 255) + 0.0722 * f(n & 255);
+      };
+      var ratio = function (a, b) {
+        var x = lum(a), y = lum(b);
+        return (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05);
+      };
+      var worst = 99;
+      for (var spin = 0; spin < 5; spin++) {
+        var cands = G.remixCandidates();
+        expect(cands.length === 6, 'expected 6 candidates, got ' + cands.length);
+        cands.forEach(function (c) {
+          ['background', 'text', 'accent'].forEach(function (k) {
+            expect(/^#[0-9a-f]{6}$/i.test(c.colors[k]), c.name + ' ' + k + ' is not hex: ' + c.colors[k]);
+          });
+          var r = ratio(c.colors.text, c.colors.background);
+          worst = Math.min(worst, r);
+          expect(r >= 6.5, c.name + ' text/ground contrast only ' + r.toFixed(1));
+          expect(ratio(c.colors.accent, c.colors.background) >= 2.7,
+            c.name + ' accent barely visible on its ground');
+        });
+      }
+      return '30 candidates over 5 spins, worst text contrast ' + worst.toFixed(1) + ':1';
+    });
+
     // ---- report ----
     function finishReport() {
     var passed = results.filter(function (r) { return r.pass; }).length;

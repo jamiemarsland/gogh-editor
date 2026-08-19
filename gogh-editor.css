@@ -3049,3 +3049,9 @@ html.gogh-textediting .gogh-convertbtn {
   @keyframes gogh-mo-demo-rise { from { opacity: 0; translate: 0 32px; } }
   @keyframes gogh-mo-demo-drama { from { opacity: 0; translate: 0 56px; scale: 0.97; } }
 }
+
+/* ---------- Remix: the candidate cards ---------- */
+.gogh-remixrow { margin: 10px 0 4px; }
+.gogh-remixbtn { width: 100%; }
+.gogh-remixcards { display: flex; flex-direction: column; gap: 6px; margin-top: 8px; }
+.gogh-remixcard { display: flex; align-items: center; gap: 6px; }
