@@ -1,8 +1,8 @@
-# Knowledge-base audit — plugin v0.99.235
+# Knowledge-base audit — plugin v0.99.236
 
 _13 finding(s) suppressed by `kb.audit-ignore.txt`._
 
-## MISSING (28)
+## MISSING (29)
 
 The source has something the prose never explains. The bot knows the name from the appendix but cannot say what it is for.
 
@@ -10,6 +10,7 @@ The source has something the prose never explains. The bot knows the name from t
 - exposed filter `gogh_schema_enabled` exists in source but is never mentioned in the prose
 - exposed filter `gogh_helper_url` exists in source but is never mentioned in the prose
 - WP hook `template_redirect` exists in source but is never mentioned in the prose
+- WP hook `body_class` exists in source but is never mentioned in the prose
 - WP hook `body_class` exists in source but is never mentioned in the prose
 - WP hook `trashed_post` exists in source but is never mentioned in the prose
 - WP hook `admin_post_gogh_product_layout_all` exists in source but is never mentioned in the prose
@@ -39,4 +40,6 @@ The source has something the prose never explains. The bot knows the name from t
 
 Use this as the checklist for updating the prose — and as a sanity check on the release itself.
 
-- version: 0.99.234 → 0.99.235
+- version: 0.99.235 → 0.99.236
+- added REST route: "gogh/v1/motion"
+- added toast: "Could not save the motion style."
