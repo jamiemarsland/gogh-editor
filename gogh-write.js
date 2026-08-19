@@ -750,6 +750,7 @@
         (editing
           ? (multi ? 'Tap photos to add or remove, then Update.' : 'Tap a photo to swap it in.')
           : (multi ? 'Pick a few photos, then Add.' : 'Pick the photo.')) + '</div>' +
+        '<button type="button" class="gogh-btn gogh-w-splash-upload">Upload photos</button>' +
         (pack && pack.lines
           ? '<textarea class="gogh-input gogh-w-splash-lines" rows="3" placeholder="' +
             String(pack.linesHint || 'One line per photo\u2026').replace(/"/g, '&quot;') + '"></textarea>'
@@ -783,6 +784,89 @@
         stage.hidden = true;
         splashOv.querySelector('.gogh-w-splash-tiles').hidden = false;
       });
+      // one builder for every cell — the library fetch and fresh uploads share
+      // it, so an uploaded photo behaves exactly like one that was always there
+      var addCell = function (item, atFront) {
+        var box = stage.querySelector('.gogh-w-splash-media');
+        var empty = box.querySelector('.gogh-media-loading');
+        if (empty) empty.remove();
+        var thumb = (item.media_details && item.media_details.sizes &&
+          (item.media_details.sizes.thumbnail || item.media_details.sizes.medium));
+        var b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'gogh-thumb';
+        b.dataset.url = item.source_url;
+        if (editing && (multi ? chosen.indexOf(item.source_url) !== -1 : seed.urls[0] === item.source_url)) {
+          b.classList.add('is-active');
+          if (!multi) b.dataset.n = '\u2713'; // the photo it wears today
+        }
+        b.style.backgroundImage = 'url("' + (thumb ? thumb.source_url : item.source_url) + '")';
+        b.addEventListener('click', function () {
+          if (!multi) {
+            var made;
+            if (pack) {
+              made = packMade(pack, [{ img: item.source_url, cap: item.alt_text || '' }],
+                { lines: [], title: (stage.querySelector('.gogh-w-splash-title') || {}).value || '' });
+            } else {
+              made = kind === 'break'
+                ? window.__goghCompose.breakImage(item.source_url, item.alt_text || '')
+                : window.__goghCompose.glass(item.source_url, {
+                    kicker: editing ? seed.kicker || '' : '',
+                    title: (stage.querySelector('.gogh-w-splash-title') || {}).value || '',
+                    text: (stage.querySelector('.gogh-w-splash-text') || {}).value || '',
+                  });
+            }
+            if (made) insertSplash(made, refBlk);
+            return;
+          }
+          b.classList.toggle('is-active');
+          var url = item.source_url;
+          if (b.classList.contains('is-active')) chosen.push(url);
+          else chosen = chosen.filter(function (u) { return u !== url; });
+          renumber();
+          goLabel(stage.querySelector('.gogh-w-splash-go'));
+        });
+        if (atFront && box.firstChild) box.insertBefore(b, box.firstChild);
+        else box.appendChild(b);
+        return b;
+      };
+      // fresh photos join the wall without leaving the sheet ("folks need
+      // to be able to upload photos to the photo wall") — and arrive
+      // already picked, because uploading IS picking
+      var up = stage.querySelector('.gogh-w-splash-upload');
+      if (up) up.addEventListener('click', function () {
+        var inp = document.createElement('input');
+        inp.type = 'file';
+        inp.accept = 'image/*';
+        inp.multiple = true;
+        inp.addEventListener('change', function () {
+          var todo = inp.files.length;
+          if (!todo) return;
+          up.disabled = true;
+          up.textContent = 'Uploading\u2026';
+          [].forEach.call(inp.files, function (f) {
+            var fd = new FormData();
+            fd.append('file', f);
+            fetch(cfg.restUrl + 'wp/v2/media', {
+              method: 'POST',
+              headers: { 'X-WP-Nonce': cfg.nonce },
+              credentials: 'same-origin',
+              body: fd,
+            }).then(function (r) { return r.ok ? r.json() : null; }).then(function (m) {
+              todo--;
+              if (m) {
+                var cell = addCell(m, true);
+                if (multi && cell) cell.click();
+              }
+              if (todo <= 0) { up.disabled = false; up.textContent = 'Upload photos'; }
+            }).catch(function () {
+              todo--;
+              if (todo <= 0) { up.disabled = false; up.textContent = 'Upload photos'; }
+            });
+          });
+        });
+        inp.click();
+      });
       fetch(cfg.restUrl + 'wp/v2/media?per_page=32&media_type=image&orderby=date&order=desc', {
         headers: { 'X-WP-Nonce': cfg.nonce },
         credentials: 'same-origin',
@@ -790,47 +874,7 @@
         var box = stage.querySelector('.gogh-w-splash-media');
         box.innerHTML = '';
         if (!items.length) { box.innerHTML = '<span class="gogh-media-loading">No images yet \u2014 upload some first.</span>'; return; }
-        items.forEach(function (item) {
-          var thumb = (item.media_details && item.media_details.sizes &&
-            (item.media_details.sizes.thumbnail || item.media_details.sizes.medium));
-          var b = document.createElement('button');
-          b.type = 'button';
-          b.className = 'gogh-thumb';
-          b.dataset.url = item.source_url;
-          if (editing && (multi ? chosen.indexOf(item.source_url) !== -1 : seed.urls[0] === item.source_url)) {
-            b.classList.add('is-active');
-            if (!multi) b.dataset.n = '✓'; // the photo it wears today
-          }
-          b.style.backgroundImage = 'url("' + (thumb ? thumb.source_url : item.source_url) + '")';
-          b.addEventListener('click', function () {
-            if (!multi) {
-              var made;
-              if (pack) {
-                // a single-photo PACK composes through its own maker —
-                // the old path silently made a core glass card instead
-                made = packMade(pack, [{ img: item.source_url, cap: item.alt_text || '' }],
-                  { lines: [], title: (stage.querySelector('.gogh-w-splash-title') || {}).value || '' });
-              } else {
-                made = kind === 'break'
-                  ? window.__goghCompose.breakImage(item.source_url, item.alt_text || '')
-                  : window.__goghCompose.glass(item.source_url, {
-                      kicker: editing ? seed.kicker || '' : '',
-                      title: (stage.querySelector('.gogh-w-splash-title') || {}).value || '',
-                      text: (stage.querySelector('.gogh-w-splash-text') || {}).value || '',
-                    });
-              }
-              if (made) insertSplash(made, refBlk);
-              return;
-            }
-            b.classList.toggle('is-active');
-            var url = item.source_url;
-            if (b.classList.contains('is-active')) chosen.push(url);
-            else chosen = chosen.filter(function (u) { return u !== url; });
-            renumber();
-            goLabel(stage.querySelector('.gogh-w-splash-go'));
-          });
-          box.appendChild(b);
-        });
+        items.forEach(function (item) { addCell(item); });
         renumber(); // editing arrives with its picks already numbered
         var go = stage.querySelector('.gogh-w-splash-go');
         if (go && multi) {

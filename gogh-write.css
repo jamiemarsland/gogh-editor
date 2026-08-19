@@ -814,3 +814,14 @@ body.gogh-w-audition main { zoom: 0.52; }
 }
 .gogh-w-imgpick-cell:hover { transform: scale(1.04); box-shadow: 0 10px 24px -10px rgba(0, 0, 0, 0.4); }
 .gogh-media-loading { color: #6b6f78; font-size: 13px; }
+
+/* the splash sheet's upload door */
+.gogh-w-splash-upload {
+  align-self: flex-start;
+  font: 600 13px/1.3 -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, sans-serif;
+  border: 1px solid rgba(0, 0, 0, 0.14); border-radius: 999px;
+  background: #fff; color: #1d1e22; padding: 7px 14px; cursor: pointer;
+  margin-bottom: 10px;
+}
+.gogh-w-splash-upload:hover { background: #f2f0ec; }
+.gogh-w-splash-upload:disabled { opacity: 0.6; cursor: default; }
