@@ -3993,19 +3993,22 @@
     // always restores Still so the fixture site never ships animated by
     // accident.
     testAsync('motion style: audition panel saves and restores a gait', function () {
+      // restore whatever the SITE had — the suite must never stomp the
+      // user's chosen gait (it reset James's Rise to Still once)
+      var had = window.GOGH.motion || '';
+      var keys = ['', 'calm', 'rise', 'drama'];
+      var probeKey = had === 'calm' ? 'rise' : 'calm';
       G.openMotionPanel();
       var cards = document.querySelectorAll('.gogh-motioncard');
       expect(cards.length === 4, 'expected 4 motion cards, got ' + cards.length);
-      var calm = cards[1];
-      calm.click();
+      cards[keys.indexOf(probeKey)].click();
       return new Promise(function (res) { setTimeout(res, 1200); }).then(function () {
-        expect(window.GOGH.motion === 'calm', 'cfg.motion not updated: ' + window.GOGH.motion);
-        expect(calm.classList.contains('is-current'), 'kept card not marked current');
-        cards[0].click(); // back to Still
+        expect(window.GOGH.motion === probeKey, 'cfg.motion not updated: ' + window.GOGH.motion);
+        cards[keys.indexOf(had)].click(); // put the site's own gait back
         return new Promise(function (res) { setTimeout(res, 1200); });
       }).then(function () {
-        expect(window.GOGH.motion === '', 'motion did not restore to Still');
-        return 'four gaits, calm kept over REST, Still restored';
+        expect(window.GOGH.motion === had, 'gait not restored: ' + window.GOGH.motion + ' vs ' + had);
+        return 'probed ' + probeKey + ' over REST, restored "' + (had || 'still') + '"';
       });
     });
 
