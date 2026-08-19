@@ -1,8 +1,8 @@
-# Knowledge-base audit — plugin v0.99.250
+# Knowledge-base audit — plugin v0.99.251
 
 _13 finding(s) suppressed by `kb.audit-ignore.txt`._
 
-## MISSING (30)
+## MISSING (32)
 
 The source has something the prose never explains. The bot knows the name from the appendix but cannot say what it is for.
 
@@ -10,6 +10,8 @@ The source has something the prose never explains. The bot knows the name from t
 - exposed filter `gogh_schema_enabled` exists in source but is never mentioned in the prose
 - exposed filter `gogh_helper_url` exists in source but is never mentioned in the prose
 - WP hook `template_redirect` exists in source but is never mentioned in the prose
+- WP hook `body_class` exists in source but is never mentioned in the prose
+- WP hook `render_block_core/post-template` exists in source but is never mentioned in the prose
 - WP hook `body_class` exists in source but is never mentioned in the prose
 - WP hook `body_class` exists in source but is never mentioned in the prose
 - WP hook `body_class` exists in source but is never mentioned in the prose
@@ -41,5 +43,6 @@ The source has something the prose never explains. The bot knows the name from t
 
 Use this as the checklist for updating the prose — and as a sanity check on the release itself.
 
-- version: 0.99.249 → 0.99.250
-- added toast: "Could not save the style."
+- version: 0.99.250 → 0.99.251
+- added WP hook: "render_block_core/post-template"
+- added REST route: "gogh/v1/blog-style"
