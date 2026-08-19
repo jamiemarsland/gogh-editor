@@ -1482,7 +1482,9 @@
     '<button type="button" class="gogh-w-catsbtn">Categories & tags</button>' +
     '<button type="button" class="gogh-w-publish">Publish</button>' +
     '<button type="button" class="gogh-w-arbtn" title="Answer-ready — see what machines see">✦</button>' +
-    '<a class="gogh-w-back" href="' + (cfg.homeUrl || '/') + '">Back to site</a>';
+    // the door leads to the POST, not the home page — the writing loop is
+    // write → see it as readers do ("should it say view post?")
+    '<a class="gogh-w-back" href="' + (cfg.permalink || cfg.homeUrl || '/') + '">View post</a>';
   document.body.appendChild(chip);
   // a quiet word in the chip's saved slot — shared by Post style, publish,
   // and the Answer-ready receipt (it lived inside the Post-style closure
