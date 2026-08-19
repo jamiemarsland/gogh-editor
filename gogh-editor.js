@@ -1696,6 +1696,10 @@
     '<span class="gogh-scard-ic"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M14 3v6h6"/></svg></span>' +
     '<span class="gogh-scard-tx"><span class="gogh-scard-t">Page style</span><span class="gogh-scard-s">How this page is framed</span></span>' +
     '<svg class="gogh-scard-chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg></button>' +
+    '<button type="button" class="gogh-sitem gogh-scard gogh-motionbtn">' +
+    '<span class="gogh-scard-ic"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12c3-6 6-6 9 0s6 6 9 0"/></svg></span>' +
+    '<span class="gogh-scard-tx"><span class="gogh-scard-t">Motion</span><span class="gogh-scard-s">How the site moves as visitors scroll</span></span>' +
+    '<svg class="gogh-scard-chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg></button>' +
     '<button type="button" class="gogh-sitem gogh-scard gogh-editheader">' +
     '<span class="gogh-scard-ic"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18"/></svg></span>' +
     '<span class="gogh-scard-tx"><span class="gogh-scard-t">Edit header</span><span class="gogh-scard-s">Logo, menu, layout</span></span>' +
@@ -8117,6 +8121,68 @@
     if (pv) pv.remove();
     [].forEach.call(document.querySelectorAll('.gogh-ps-injected'), function (n) { n.remove(); });
   }
+  // ---------- Motion style: how the site moves ----------
+  // The fourth of the family. The published page animates with pure CSS
+  // scroll timelines (server-side pack, keyed to a body class); the editor
+  // stays still so dragging never fights an entrance. Hovering a card here
+  // plays a short TIME-based performance on the section in view — the
+  // audition-theatre idea, because scroll effects are invisible until you
+  // scroll ("like when someone scrolls stuff happens").
+  var MOTION_LOOKS = [
+    { key: '', name: 'Still', hint: 'nothing moves — a legitimate choice' },
+    { key: 'calm', name: 'Calm', hint: 'soft fades, barely there' },
+    { key: 'rise', name: 'Rise', hint: 'content lifts into place, gently staggered' },
+    { key: 'drama', name: 'Drama', hint: 'bigger travel, a breath of scale' },
+  ];
+  function motionDemo(key) {
+    var sec = viewportSection();
+    if (!sec || !sec.sectionEl) return;
+    var el = sec.sectionEl;
+    MOTION_LOOKS.forEach(function (l) { if (l.key) el.classList.remove('gogh-mo-demo-' + l.key); });
+    if (!key) return;
+    void el.offsetWidth; // restart the animation even on repeat hovers
+    el.classList.add('gogh-mo-demo-' + key);
+  }
+  function openMotionPanel() {
+    panel.innerHTML =
+      '<div class="gogh-panel-head"><span class="gogh-panel-title">Motion</span>' +
+      '<button type="button" class="gogh-sbtn gogh-panel-close gogh-panel-back" title="Back to Design"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"/></svg></button></div>' +
+      '<div class="gogh-panel-hint">One gait for the whole site — hover to audition, click to keep. Visitors who prefer reduced motion always see it still.</div>' +
+      '<div class="gogh-motionlist"></div>';
+    dockSidebar();
+    panel.querySelector('.gogh-panel-close').addEventListener('click', backToDesign);
+    var box = panel.querySelector('.gogh-motionlist');
+    MOTION_LOOKS.forEach(function (l) {
+      var b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'gogh-btn gogh-motioncard' + ((cfg.motion || '') === l.key ? ' is-current' : '');
+      b.innerHTML = '<span class="gogh-motioncard-name"></span><span class="gogh-motioncard-hint"></span><span class="gogh-pagestyle-tick">✓</span>';
+      b.querySelector('.gogh-motioncard-name').textContent = l.name;
+      b.querySelector('.gogh-motioncard-hint').textContent = l.hint;
+      b.addEventListener('mouseenter', function () { motionDemo(l.key); });
+      b.addEventListener('mouseleave', function () { motionDemo(''); });
+      b.addEventListener('click', function () {
+        fetch(cfg.restUrl.split('wp/v2/')[0] + 'gogh/v1/motion', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'X-WP-Nonce': cfg.nonce },
+          credentials: 'same-origin',
+          body: JSON.stringify({ key: l.key }),
+        }).then(function (r) {
+          if (!r.ok) throw new Error('HTTP ' + r.status);
+          cfg.motion = l.key;
+          [].forEach.call(box.querySelectorAll('.gogh-motioncard'), function (x) { x.classList.remove('is-current'); });
+          b.classList.add('is-current');
+          toast(l.key ? 'Motion style: ' + l.name + ' — the whole site moves this way as visitors scroll.'
+            : 'Motion style: Still — nothing moves.');
+        }).catch(function () {
+          toast('Could not save the motion style.', { error: true });
+        });
+      });
+      box.appendChild(b);
+    });
+    panelOpen = true;
+  }
+
   function openPageStylePanel(anchorEl) {
     var options = [{ slug: '', title: 'Standard' }].concat(cfg.pageTemplates || []);
     panel.innerHTML =
@@ -9057,6 +9123,9 @@
   side.querySelector('.gogh-arbadge').addEventListener('click', function () {
     openAnswerReadyPanel();
   });
+  side.querySelector('.gogh-motionbtn').addEventListener('click', function () {
+    openMotionPanel();
+  });
 
   function snapPos(sec, exclude, x, y, w, h, free, textCXOff) {
     if (free) return { x: Math.round(x), y: Math.round(y), gx: null, gy: null };
@@ -9702,6 +9771,7 @@
     tplEls: tplEls,
     elDefaults: function () { return DEFAULTS; },
     openAnswerReady: openAnswerReadyPanel,
+    openMotionPanel: openMotionPanel,
     chromeDialsApply: chromeDialsApply,
     insertGoghPattern: insertGoghPattern,
     addHtmlSection: addHtmlSection,

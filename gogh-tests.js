@@ -3988,6 +3988,27 @@
       });
     });
 
+    // ---- motion style: the fourth of the family. Panel opens, four gaits,
+    // keeping one saves the option over REST and marks the card; the suite
+    // always restores Still so the fixture site never ships animated by
+    // accident.
+    testAsync('motion style: audition panel saves and restores a gait', function () {
+      G.openMotionPanel();
+      var cards = document.querySelectorAll('.gogh-motioncard');
+      expect(cards.length === 4, 'expected 4 motion cards, got ' + cards.length);
+      var calm = cards[1];
+      calm.click();
+      return new Promise(function (res) { setTimeout(res, 1200); }).then(function () {
+        expect(window.GOGH.motion === 'calm', 'cfg.motion not updated: ' + window.GOGH.motion);
+        expect(calm.classList.contains('is-current'), 'kept card not marked current');
+        cards[0].click(); // back to Still
+        return new Promise(function (res) { setTimeout(res, 1200); });
+      }).then(function () {
+        expect(window.GOGH.motion === '', 'motion did not restore to Still');
+        return 'four gaits, calm kept over REST, Still restored';
+      });
+    });
+
     // ---- report ----
     function finishReport() {
     var passed = results.filter(function (r) { return r.pass; }).length;
