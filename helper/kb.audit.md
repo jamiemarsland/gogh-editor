@@ -1,4 +1,4 @@
-# Knowledge-base audit — plugin v0.99.233
+# Knowledge-base audit — plugin v0.99.234
 
 _13 finding(s) suppressed by `kb.audit-ignore.txt`._
 
@@ -39,5 +39,5 @@ The source has something the prose never explains. The bot knows the name from t
 
 Use this as the checklist for updating the prose — and as a sanity check on the release itself.
 
-- version: 0.99.232 → 0.99.233
-- added UI label: "' + d.title.replace(/"
+- version: 0.99.233 → 0.99.234
+- removed toast: "Answer-ready ✓"
