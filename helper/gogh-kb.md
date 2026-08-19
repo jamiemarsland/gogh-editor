@@ -15,7 +15,7 @@ about something where they conflict, rather than picking one silently. Quote UI
 labels and message copy from the appendix, verbatim — those are the current
 strings, and a paraphrased button label is the fastest way to lose a user's trust.
 
-Generated for plugin version 0.99.252 · knowledge base 1ce2508.
+Generated for plugin version 0.99.253 · knowledge base 3aa6b0c.
 
 ---
 
@@ -782,11 +782,11 @@ Everything in this section is extracted mechanically from the Gogh source on eve
 
 ## Current release
 
-- Plugin version: **0.99.252**
+- Plugin version: **0.99.253**
 - Requires WordPress **6.5+**, PHP **7.4+**
 - Text domain: `gogh-editor`
 - readme.txt Stable tag: `0.26.0` · Tested up to: `7.0`
-- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.252`). Quote the plugin header version.
+- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.253`). Quote the plugin header version.
 
 ## Design constants
 
@@ -901,7 +901,7 @@ REST routes registered: `gogh/v1/version`, `gogh/v1/starter`, `gogh/v1/type-scal
 
 Core REST endpoints used by the editor: `wp/v2/blocks`, `wp/v2/posts`, `wp/v2/template-parts`.
 
-Capability checks in PHP: `edit_posts`, `edit_post`, `manage_options`, `edit_theme_options`, `edit_others_posts`, `unfiltered_html`, `upload_files`, `publish_pages`.
+Capability checks in PHP: `edit_posts`, `edit_post`, `edit_theme_options`, `manage_options`, `edit_others_posts`, `unfiltered_html`, `upload_files`, `publish_pages`.
 
 Query-string switches: `?gogh-edit`, `?gogh-ps`, `?gogh-test`.
 
