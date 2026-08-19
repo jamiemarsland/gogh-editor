@@ -1,12 +1,12 @@
 {
   "meta": {
-    "plugin_version": "0.99.236",
+    "plugin_version": "0.99.237",
     "requires_wp": "6.5",
     "requires_php": "7.4",
     "text_domain": "gogh-editor",
     "readme_stable_tag": "0.26.0",
     "readme_tested_up_to": "7.0",
-    "asset_version": "0.99.236-chrome"
+    "asset_version": "0.99.237-chrome"
   },
   "constants": {
     "TOL": 8,
@@ -448,6 +448,7 @@
     "Shape",
     "Show the next layout",
     "Site designs — swap the whole look",
+    "Six looks derived from your brand — hover to wear one, tap Remix again for six more",
     "Solid",
     "Start writing — a reading column, cursor ready",
     "Switch design",
@@ -476,6 +477,7 @@
     "▶ Auto-play",
     "☰ Edit menu items",
     "⛶ Click to enlarge",
+    "✦ Remix",
     "✨ Make freeform",
     "✨ Make it freeform"
   ],
@@ -828,5 +830,5 @@
     "has_deprecation": true,
     "block_title": "gogh Section"
   },
-  "test_count": 161
+  "test_count": 162
 }
