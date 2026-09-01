@@ -7173,7 +7173,11 @@
         credentials: 'same-origin',
         body: JSON.stringify({ instruction: myInput.value, section: askProject(S[idx]) }),
       }).then(function (res2) {
-        return res2.ok ? res2.json() : Promise.reject(new Error('HTTP ' + res2.status));
+        if (res2.ok) return res2.json();
+        return res2.json().then(
+          function (j) { return Promise.reject(j); },
+          function () { return Promise.reject(null); }
+        );
       }).then(function (data) {
         var cands = ((data && data.candidates) || []).map(function (c) {
           return {
@@ -7187,12 +7191,47 @@
         k = 0;
         applied = false;
         showResult(tryCand(0));
-      }).catch(function () {
+      }).catch(function (j) {
         if (!myInput.isConnected) return;
         resRow.hidden = true;
         missRow.hidden = false;
-        missRow.innerHTML = 'The imagination didn’t answer — try again, or one of these:' +
-          chipify(ASK_EXAMPLES.slice(0, 4)) +
+        // a workspace-linked key gets its own door: paste the id (an
+        // identifier, not a secret) and the pending ask re-runs
+        if (j && j.code === 'gogh_ask_need_ws' && cfg.canKey) {
+          missRow.innerHTML = '<div class="gogh-askkey">' + esc(j.message) +
+            '<div class="gogh-askrow"><input type="text" class="gogh-input gogh-askwsin" placeholder="wrkspc_…" autocomplete="off" />' +
+            '<button type="button" class="gogh-btn gogh-btn-small gogh-askwsgo">Save</button></div></div>';
+          var wsGo = missRow.querySelector('.gogh-askwsgo');
+          var wsIn = missRow.querySelector('.gogh-askwsin');
+          var wsSave = function () {
+            var v = wsIn.value.trim();
+            if (!v) { wsIn.focus(); return; }
+            wsGo.disabled = true;
+            wsGo.textContent = 'Saving…';
+            fetch(cfg.restUrl.split('wp/v2/')[0] + 'gogh/v1/ask-key', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json', 'X-WP-Nonce': cfg.nonce },
+              credentials: 'same-origin',
+              body: JSON.stringify({ workspace: v }),
+            }).then(function (r) { return r.ok ? r.json() : r.json().then(function (e2) { return Promise.reject(e2); }); })
+              .then(function () { submit(); })
+              .catch(function (e2) {
+                wsGo.disabled = false;
+                wsGo.textContent = 'Save';
+                wsIn.value = '';
+                wsIn.placeholder = (e2 && e2.message) ? e2.message : 'That didn’t take — try again';
+                wsIn.focus();
+              });
+          };
+          wsGo.addEventListener('click', wsSave);
+          wsIn.addEventListener('keydown', function (ev) {
+            if (ev.key === 'Enter') { ev.preventDefault(); wsSave(); }
+          });
+          wsIn.focus();
+          return;
+        }
+        missRow.innerHTML = esc((j && j.message) || 'The imagination didn’t answer') +
+          ' — try again, or one of these:' + chipify(ASK_EXAMPLES.slice(0, 4)) +
           (cfg.canKey ? '<div class="gogh-askkey">Key trouble? <button type="button" class="gogh-askchip gogh-askforget">Forget the key</button> and paste a fresh one.</div>' : '');
         bindChips();
         var fg = missRow.querySelector('.gogh-askforget');

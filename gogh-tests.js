@@ -4191,6 +4191,20 @@
       });
     });
 
+    testAsync('ask gogh: the key door refuses a malformed workspace id', function () {
+      // workspace-only payload — by design it must not brush the stored key
+      var root = (window.GOGH && GOGH.restUrl) ? GOGH.restUrl.split('wp/v2/')[0] : '/wp-json/';
+      return fetch(root + 'gogh/v1/ask-key', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-WP-Nonce': (window.GOGH || {}).nonce },
+        credentials: 'same-origin',
+        body: JSON.stringify({ workspace: 'not-a-workspace' }),
+      }).then(function (res) {
+        expect(res.status === 400, 'expected 400 for a malformed workspace id, got ' + res.status);
+        return 'malformed workspace refused with 400';
+      });
+    });
+
     test('ask gogh: seam reads become the right shelf sections', function () {
       var m = G.askSeamMatch('three customer testimonials');
       expect(m && m.tpl.name === 'Testimonials', 'testimonials read as ' + (m && m.tpl.name));
