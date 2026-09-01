@@ -4389,6 +4389,39 @@
       return 'B’s lines held still while A streamed past';
     });
 
+    testAsync('drag: the landing box is the model’s own footprint', function () {
+      // the dashed box must promise exactly what the ghost promises —
+      // reading the solved cell ballooned it once the dragged element
+      // stopped contributing grid lines
+      var stalled = false;
+      var frame = function () {
+        return new Promise(function (r) {
+          var fired = false;
+          requestAnimationFrame(function () { requestAnimationFrame(function () { fired = true; r(true); }); });
+          setTimeout(function () { if (!fired) { stalled = true; r(false); } }, 250);
+        });
+      };
+      var i = findIdx('image');
+      var node = sec().nodes[i];
+      var r = node.getBoundingClientRect();
+      var cx = r.x + r.width / 2, cy = r.y + r.height / 2;
+      pev('pointerdown', node, cx, cy, 31);
+      pev('pointermove', node, cx + 24, cy + 8, 31);
+      pev('pointermove', node, cx + 48, cy + 16, 31);
+      return frame().then(function (ok) {
+        var done = function (msg) { pev('pointerup', node, cx + 48, cy + 16, 31); return msg; };
+        if (!ok || stalled) return done('rAF frozen (background tab) — front the tab for the full check');
+        var e = sec().els[i];
+        var sr = sec().sectionEl.getBoundingClientRect();
+        var s = sr.width / 1200;
+        var db = q('.gogh-dropbox').getBoundingClientRect();
+        expect(Math.abs(db.width - e.w * s) < 6 && Math.abs(db.height - e.h * s) < 6,
+          'landing box ' + Math.round(db.width) + '×' + Math.round(db.height) +
+          ' vs model ' + Math.round(e.w * s) + '×' + Math.round(e.h * s));
+        return done('landing box matches the model footprint');
+      });
+    });
+
     test('section bar: four doors, housekeeping in words', function () {
       var bar = q('.gogh-secbar');
       expect(bar.querySelectorAll('.gogh-sb').length === 4,

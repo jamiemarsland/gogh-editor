@@ -8969,11 +8969,18 @@
         resolveAndApply(sec);
         showGuides(sec, sn.gx, sn.gy);
         drawDists(sec, drag.i, drag.eqH, drag.eqV);
-        var b2 = nodeBox(visualNode(sec, drag.i));
-        dropBox.style.left = b2.x + 'px';
-        dropBox.style.top = b2.y + 'px';
-        dropBox.style.width = b2.w + 'px';
-        dropBox.style.height = b2.h + 'px';
+        // the landing box is drawn from MODEL coordinates — the same
+        // promise the ghost makes. Reading the solved node's cell broke
+        // when the dragged element stopped contributing grid lines: its
+        // cell spans the neighbours' lines and the dashed box ballooned
+        // ("the box is much bigger than the element")
+        var e2 = sec.els[drag.i];
+        var r3 = sec.sectionEl.getBoundingClientRect();
+        var s3 = r3.width / W;
+        dropBox.style.left = (r3.left + window.scrollX + e2.x * s3) + 'px';
+        dropBox.style.top = (r3.top + window.scrollY + e2.y * s3) + 'px';
+        dropBox.style.width = (e2.w * s3) + 'px';
+        dropBox.style.height = (e2.h * s3) + 'px';
 
         if (!drag.multi) {
           var jt = cardJoinTarget(sec, drag.i);
