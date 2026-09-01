@@ -4,11 +4,11 @@ Everything in this section is extracted mechanically from the Gogh source on eve
 
 ## Current release
 
-- Plugin version: **0.99.256**
+- Plugin version: **0.99.257**
 - Requires WordPress **6.5+**, PHP **7.4+**
 - Text domain: `gogh-editor`
 - readme.txt Stable tag: `0.26.0` · Tested up to: `7.0`
-- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.256`). Quote the plugin header version.
+- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.257`). Quote the plugin header version.
 
 ## Design constants
 
@@ -35,7 +35,7 @@ Everything in this section is extracted mechanically from the Gogh source on eve
 
 ## Section templates
 
-Shown in the picker: **Hero**, **Cover**, **Big statement**, **Story**, **Numbers**, **Article**, **Feature cards**, **Pricing**, **Quote**, **Call to action**, **Get in touch**, **Profile card**, **Job card**, **Place card**, **Photo wall**, **Carousel**, **FAQ**, **Tabs**, **Gallery**, **Photo cards**, **Portfolio**, **Menu**, **Team**.
+Shown in the picker: **Hero**, **Cover**, **Big statement**, **Story**, **Numbers**, **Article**, **Feature cards**, **Pricing**, **Quote**, **Testimonials**, **Call to action**, **Get in touch**, **Profile card**, **Job card**, **Place card**, **Photo wall**, **Carousel**, **FAQ**, **Tabs**, **Gallery**, **Photo cards**, **Portfolio**, **Menu**, **Team**.
 
 Non-starter (surfaced elsewhere): **Start from scratch**.
 
@@ -144,6 +144,7 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "A card — drop elements inside and they stay together, even on mobile"
 - "AG"
 - "Aa"
+- "Add"
 - "Add a page to this menu"
 - "Add an element to this section"
 - "Add link"
@@ -176,6 +177,7 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "Delete (Del)"
 - "Delete saved section"
 - "Delete section"
+- "Describe a change — Gogh makes it"
 - "Desktop"
 - "Discard changes"
 - "Done"
@@ -186,6 +188,7 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "Fill screen"
 - "Fill the screen"
 - "Fill the width — size the text to its box"
+- "Go"
 - "Grid: show and snap"
 - "Heading"
 - "Help — ask gogh anything"
@@ -200,6 +203,7 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "Link text (⌘K)"
 - "Make it freeform"
 - "Manage this menu — reorder, nest, swap menus"
+- "More…"
 - "Move down"
 - "Move down in the phone stack"
 - "Move earlier"
@@ -248,7 +252,9 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "Text colour"
 - "The gogh build this tab is running"
 - "Theme default"
+- "Try another"
 - "UPPERCASE"
+- "Undo"
 - "Undo (⌘Z)"
 - "Unwrap — back to freeform"
 - "Updates every page"
@@ -262,12 +268,14 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "ag"
 - "gogh help"
 - "lowercase"
+- "pick from the shelf"
 - "re-centre"
 - "← All layouts"
 - "↕ Spacing…"
 - "▶ Auto-play"
 - "☰ Edit menu items"
 - "⛶ Click to enlarge"
+- "✦ Ask Gogh"
 - "✦ Remix"
 - "✨ Make freeform"
 - "✨ Make it freeform"
@@ -354,5 +362,5 @@ These are the real strings in the current build. Use them verbatim; never paraph
 
 ## Test suite
 
-`162` tests, run by appending `?gogh-test` to any Gogh page URL while logged in with edit rights on that page.
+`168` tests, run by appending `?gogh-test` to any Gogh page URL while logged in with edit rights on that page.
 

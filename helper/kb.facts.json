@@ -1,12 +1,12 @@
 {
   "meta": {
-    "plugin_version": "0.99.256",
+    "plugin_version": "0.99.257",
     "requires_wp": "6.5",
     "requires_php": "7.4",
     "text_domain": "gogh-editor",
     "readme_stable_tag": "0.26.0",
     "readme_tested_up_to": "7.0",
-    "asset_version": "0.99.256-chrome"
+    "asset_version": "0.99.257-chrome"
   },
   "constants": {
     "TOL": 8,
@@ -88,6 +88,12 @@
       "starter": true,
       "retired": false,
       "minH": 480
+    },
+    {
+      "name": "Testimonials",
+      "starter": true,
+      "retired": false,
+      "minH": 560
     },
     {
       "name": "Call to action",
@@ -352,6 +358,7 @@
     "A card — drop elements inside and they stay together, even on mobile",
     "AG",
     "Aa",
+    "Add",
     "Add a page to this menu",
     "Add an element to this section",
     "Add link",
@@ -384,6 +391,7 @@
     "Delete (Del)",
     "Delete saved section",
     "Delete section",
+    "Describe a change — Gogh makes it",
     "Desktop",
     "Discard changes",
     "Done",
@@ -394,6 +402,7 @@
     "Fill screen",
     "Fill the screen",
     "Fill the width — size the text to its box",
+    "Go",
     "Grid: show and snap",
     "Heading",
     "Help — ask gogh anything",
@@ -408,6 +417,7 @@
     "Link text (⌘K)",
     "Make it freeform",
     "Manage this menu — reorder, nest, swap menus",
+    "More…",
     "Move down",
     "Move down in the phone stack",
     "Move earlier",
@@ -456,7 +466,9 @@
     "Text colour",
     "The gogh build this tab is running",
     "Theme default",
+    "Try another",
     "UPPERCASE",
+    "Undo",
     "Undo (⌘Z)",
     "Unwrap — back to freeform",
     "Updates every page",
@@ -470,12 +482,14 @@
     "ag",
     "gogh help",
     "lowercase",
+    "pick from the shelf",
     "re-centre",
     "← All layouts",
     "↕ Spacing…",
     "▶ Auto-play",
     "☰ Edit menu items",
     "⛶ Click to enlarge",
+    "✦ Ask Gogh",
     "✦ Remix",
     "✨ Make freeform",
     "✨ Make it freeform"
@@ -857,5 +871,5 @@
     "has_deprecation": true,
     "block_title": "gogh Section"
   },
-  "test_count": 162
+  "test_count": 168
 }
