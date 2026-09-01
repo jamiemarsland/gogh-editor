@@ -1173,42 +1173,73 @@ body.gogh-painting, body.gogh-painting .gogh-section * { cursor: url('data:image
 .gogh-shapebtn:hover { background: #e8f0ff; }
 .gogh-shapebtn[hidden] { display: none; }
 
-.gogh-shapepanel { width: 340px; }
+.gogh-shapepanel { width: min(560px, 92vw); }
 .gogh-shapes {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
-  gap: 6px;
+  gap: 10px;
+  margin-top: 10px;
 }
+/* transition chips: each one a miniature PAGE — the two real sections
+   meeting at this exact boundary, in their true inks (all colours come
+   inline from the panel, never from here) */
 .gogh-shape {
   all: unset;
   cursor: pointer;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 4px;
-  padding: 7px 4px;
-  border-radius: 9px;
-  outline: 1px solid rgba(22, 24, 28, 0.1);
+  gap: 7px;
+  padding: 6px;
+  border-radius: 12px;
+  transition: transform 0.18s ease;
+  animation: gogh-shape-in 0.32s ease backwards;
 }
-.gogh-shape svg {
-  width: 100%;
-  height: 22px;
+.gogh-shape:nth-child(2) { animation-delay: 0.03s; }
+.gogh-shape:nth-child(3) { animation-delay: 0.06s; }
+.gogh-shape:nth-child(4) { animation-delay: 0.09s; }
+.gogh-shape:nth-child(5) { animation-delay: 0.12s; }
+.gogh-shape:nth-child(6) { animation-delay: 0.15s; }
+.gogh-shape:nth-child(7) { animation-delay: 0.18s; }
+.gogh-shape:nth-child(8) { animation-delay: 0.21s; }
+@keyframes gogh-shape-in {
+  from { opacity: 0; transform: translateY(7px); }
+}
+.gogh-shape-stage {
   display: block;
-}
-/* the chip previews wear the REAL ink of the boundary they'd join —
-   colours come inline from the panel, never from here */
-.gogh-shape svg {
-  border-radius: 4px;
+  width: 100%;
+  height: 62px;
+  border-radius: 9px;
   overflow: hidden;
   outline: 1px solid rgba(22, 24, 28, 0.12);
+  box-shadow: 0 1px 3px rgba(22, 24, 28, 0.1);
+  transition: box-shadow 0.18s ease, outline-color 0.18s ease;
+}
+.gogh-shape-stage svg {
+  width: 100%;
+  height: 100%;
+  display: block;
 }
 .gogh-shape span {
   font-size: 10px;
-  font-weight: 600;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
   color: var(--gogh-ui-muted, #6b6c72);
 }
-.gogh-shape:hover { outline-color: #7ea8ff; }
-.gogh-shape.is-active { outline: 2px solid #7ea8ff; background: rgba(126, 168, 255, 0.12); }
+.gogh-shape:hover { transform: translateY(-3px); }
+.gogh-shape:hover .gogh-shape-stage {
+  box-shadow: 0 10px 22px -8px rgba(22, 24, 28, 0.35);
+  outline-color: #7ea8ff;
+}
+.gogh-shape.is-active .gogh-shape-stage {
+  outline: 2px solid #4a63d8;
+  box-shadow: 0 6px 16px -6px rgba(74, 99, 216, 0.4);
+}
+.gogh-shape.is-active span { color: #4a63d8; }
+@media (prefers-reduced-motion: reduce) {
+  .gogh-shape { animation: none; transition: none; }
+}
 
 .gogh-colorlab {
   display: flex;

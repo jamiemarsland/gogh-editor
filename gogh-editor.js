@@ -8276,17 +8276,45 @@
     var inkBelow = shapeRawBelow
       ? rawBandColor(domSuccessor(above))
       : ((below && below.bg) || pageBg() || '#0f0e0c');
-    var inkAbove = (above.bg || pageBg() || 'transparent');
+    var inkAbove = (above.bg || pageBg() || '#fff');
+    // each chip is a MINIATURE PAGE: the two real sections meeting at
+    // this exact boundary, with faint content bars in each band's own
+    // legible ink — the preview reads as the page, not an abstract flag
+    var textOn = function (bgCss) {
+      var slug = bestInkFor(bgCss);
+      return slug ? 'var(--wp--preset--color--' + slug + ')' : 'currentColor';
+    };
+    var hintAbove = textOn(inkAbove);
+    var hintBelow = textOn(inkBelow);
+    var stage = function (sh, k) {
+      var bars =
+        '<rect x="90" y="30" width="430" height="20" rx="10" fill="' + escAttr(hintAbove) + '" opacity="0.55"/>' +
+        '<rect x="90" y="66" width="260" height="14" rx="7" fill="' + escAttr(hintAbove) + '" opacity="0.3"/>' +
+        '<rect x="90" y="196" width="330" height="14" rx="7" fill="' + escAttr(hintBelow) + '" opacity="0.4"/>';
+      var join;
+      if (sh.melt) {
+        join = '<defs><linearGradient id="gogh-meltg-' + k + '" x1="0" y1="0" x2="0" y2="1">' +
+          '<stop offset="0" stop-color="' + escAttr(inkBelow) + '" stop-opacity="0"/>' +
+          '<stop offset="1" stop-color="' + escAttr(inkBelow) + '" stop-opacity="1"/></linearGradient></defs>' +
+          '<rect x="0" y="60" width="1200" height="120" fill="url(#gogh-meltg-' + k + ')"/>' +
+          '<rect x="0" y="179" width="1200" height="61" fill="' + escAttr(inkBelow) + '"/>';
+      } else if (!sh.key) {
+        join = '<rect x="0" y="120" width="1200" height="120" fill="' + escAttr(inkBelow) + '"/>';
+      } else {
+        join = '<g transform="translate(0,60)"><path d="' + sh.path + ' L1200,120 L0,120 Z" fill="' + escAttr(inkBelow) + '"/></g>' +
+          '<rect x="0" y="179" width="1200" height="61" fill="' + escAttr(inkBelow) + '"/>';
+      }
+      return '<span class="gogh-shape-stage"><svg viewBox="0 0 1200 240" preserveAspectRatio="none">' +
+        '<rect x="0" y="0" width="1200" height="240" fill="' + escAttr(inkAbove) + '"/>' +
+        join + bars + '</svg></span>';
+    };
     shapePanel.innerHTML =
       '<div class="gogh-panel-title">Section transition</div>' +
       '<div class="gogh-panel-hint">Hover to audition — click to keep.</div>' +
       '<div class="gogh-shapes">' +
-      shapes.map(function (sh) {
-        var icon = sh.melt
-          ? '<span class="gogh-shape-melt" style="background: linear-gradient(to bottom, transparent, ' + escAttr(inkBelow) + ')"></span>'
-          : '<svg viewBox="0 0 1200 120" preserveAspectRatio="none" style="background:' + escAttr(inkAbove) + '"><path d="' + sh.path + (sh.key ? ' L1200,120 L0,120 Z' : '') + '" style="fill:' + (sh.key ? escAttr(inkBelow) : 'none') + ';stroke:' + escAttr(inkBelow) + ';stroke-width:6"/></svg>';
+      shapes.map(function (sh, k) {
         return '<button type="button" class="gogh-shape' + (sh.key === current ? ' is-active' : '') + '" data-shape="' + sh.key + '" title="' + sh.label + '">' +
-          icon + '<span>' + sh.label + '</span></button>';
+          stage(sh, k) + '<span>' + sh.label + '</span></button>';
       }).join('') +
       '</div>';
     // viewport coords, NOT document coords: .gogh-panel went fixed in
@@ -8294,7 +8322,7 @@
     // page the Transition panel opened below the viewport, reading as
     // "clicking Transition does nothing"
     var bTop = S[idx - 1].wrapEl.getBoundingClientRect().bottom;
-    shapePanel.style.left = 'calc(50% - 170px)';
+    shapePanel.style.left = 'max(8px, calc(50% - 280px))';
     shapePanel.style.top = Math.max(16, bTop + 16) + 'px';
     shapePanel.hidden = false;
     var spr = shapePanel.getBoundingClientRect();
