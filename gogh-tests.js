@@ -4395,6 +4395,32 @@
       return 'preset exits fitW; the !important rule is gone';
     });
 
+    test('drag stability: a moving element cannot bend its neighbours’ lines', function () {
+      // (restored — a test-file edit at v0.99.275 accidentally deleted
+      // this test, and the zero-span bug walked straight through the gap)
+      var els = [
+        { type: 'heading', x: 100, y: 40, w: 200, h: 60 },
+        { type: 'para', x: 306, y: 40, w: 200, h: 60 },
+      ];
+      var merged = G.solve(els, 320, null);
+      var stable = G.solve(els, 320, null, [0]);
+      expect(JSON.stringify(merged.cols) !== JSON.stringify(stable.cols),
+        'skipping the dragged element changed nothing');
+      var stableAgain = G.solve([{ type: 'heading', x: 250, y: 40, w: 200, h: 60 }, els[1]], 320, null, [0]);
+      expect(JSON.stringify(stable.cols) === JSON.stringify(stableAgain.cols),
+        'moving the skipped element still bent the grid');
+      // and NEVER a zero-span area: a skipped element whose edges both
+      // land nearest the same foreign line collapsed the GHOST with it
+      // ("text is now disappearing when i drag it!")
+      var tight = G.solve([
+        { type: 'heading', x: 100, y: 40, w: 60, h: 40 },
+        { type: 'para', x: 700, y: 300, w: 300, h: 60 },
+      ], 400, null, [0]);
+      expect(tight.areas[0].c2 > tight.areas[0].c1 && tight.areas[0].r2 > tight.areas[0].r1,
+        'the skipped element got a zero-span area: ' + JSON.stringify(tight.areas[0]));
+      return 'lines held still, and no area ever spans zero';
+    });
+
     test('snapping: the painted grid is a real magnet', function () {
       // resize: an edge near a painted 40-unit line lands ON it (44→40),
       // not beside it on the free 8-grid (which would say 48); far from

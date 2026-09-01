@@ -332,10 +332,17 @@
       cols: xs.slice(1).map(function (x, i) { return pct(x - xs[i]) + 'cqw'; }),
       rows: ys.slice(1).map(function (y, i) { return 'minmax(' + pct(y - ys[i]) + 'cqw, max-content)'; }),
       areas: els.map(function (e) {
-        return {
+        var a = {
           c1: nearest(e.x, xs) + 1, c2: nearest(e.x + e.w, xs) + 1,
           r1: nearest(e.y, ys) + 1, r2: nearest(e.y + e.h, ys) + 1,
         };
+        // NEVER a zero-span area: a skipped (dragged) element's edges can
+        // both land nearest the same foreign line, and the ghost — which
+        // wears the same scope class and stylesheet — collapsed with it
+        // ("text is now disappearing when i drag it!")
+        if (a.c2 <= a.c1) a.c2 = a.c1 + 1;
+        if (a.r2 <= a.r1) a.r2 = a.r1 + 1;
+        return a;
       }),
     };
   }
