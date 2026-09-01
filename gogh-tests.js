@@ -4370,6 +4370,25 @@
       });
     });
 
+    test('drag stability: a moving element cannot bend its neighbours’ lines', function () {
+      // A's right edge (300) sits within cluster tolerance of B's left
+      // (306): unskipped they average into one shared line, so a dragged
+      // A bent B's rendered position ("other elements moving slightly").
+      // With A skipped, B's lines come only from resting elements.
+      var els = [
+        { type: 'heading', x: 100, y: 40, w: 200, h: 60 },
+        { type: 'para', x: 306, y: 40, w: 200, h: 60 },
+      ];
+      var merged = G.solve(els, 320, null);
+      var stable = G.solve(els, 320, null, [0]);
+      expect(JSON.stringify(merged.cols) !== JSON.stringify(stable.cols),
+        'skipping the dragged element changed nothing');
+      var stableAgain = G.solve([{ type: 'heading', x: 250, y: 40, w: 200, h: 60 }, els[1]], 320, null, [0]);
+      expect(JSON.stringify(stable.cols) === JSON.stringify(stableAgain.cols),
+        'moving the skipped element still bent the grid: ' + stable.cols + ' vs ' + stableAgain.cols);
+      return 'B’s lines held still while A streamed past';
+    });
+
     test('section bar: four doors, housekeeping in words', function () {
       var bar = q('.gogh-secbar');
       expect(bar.querySelectorAll('.gogh-sb').length === 4,
