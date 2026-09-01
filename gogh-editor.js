@@ -8939,7 +8939,7 @@
         if (!drag) return;
         resolveAndApply(sec);
         showGuides(sec, sn.gx, sn.gy);
-        drawDists(sec, drag.i, drag.eqH, drag.eqV);
+        drawDists(sec, drag.i, drag.eqH, drag.eqV, sn.gx, sn.gy);
         // the landing box is drawn from MODEL coordinates — the same
         // promise the ghost makes. Reading the solved node's cell broke
         // when the dragged element stopped contributing grid lines: its
@@ -10681,7 +10681,7 @@
     d.firstChild.textContent = (equal ? '= ' : '') + Math.round(label);
     d.hidden = false;
   }
-  function drawDists(sec, i, eqH, eqV) {
+  function drawDists(sec, i, eqH, eqV, gx, gy) {
     hideDists();
     var e = sec.els[i];
     var nb = neighbors(sec, e);
@@ -10689,37 +10689,42 @@
     var s = r.width / W;
     var px = function (v) { return r.left + window.scrollX + v * s; };
     var py = function (v) { return r.top + window.scrollY + v * s; };
+    // a live guide OWNS its column/row: a measurement line drawn down the
+    // same axis painted a pink stripe through the gold centre line — the
+    // line read as broken ("not quite right")
+    var clearV = function (xm) { return gx == null || Math.abs(xm - gx) > 12; };
+    var clearH = function (ym) { return gy == null || Math.abs(ym - gy) > 12; };
     var di = 0, g, c;
     if (nb.L && (g = e.x - (nb.L.x + nb.L.w)) > 4) {
       c = (Math.max(e.y, nb.L.y) + Math.min(e.y + e.h, nb.L.y + nb.L.h)) / 2;
-      showDist(di++, true, px(nb.L.x + nb.L.w), py(c), g * s, g * s, eqH);
+      if (clearH(c)) showDist(di++, true, px(nb.L.x + nb.L.w), py(c), g * s, g * s, eqH);
     }
     if (nb.R && (g = nb.R.x - (e.x + e.w)) > 4) {
       c = (Math.max(e.y, nb.R.y) + Math.min(e.y + e.h, nb.R.y + nb.R.h)) / 2;
-      showDist(di++, true, px(e.x + e.w), py(c), g * s, g * s, eqH);
+      if (clearH(c)) showDist(di++, true, px(e.x + e.w), py(c), g * s, g * s, eqH);
     }
     if (nb.T && (g = e.y - (nb.T.y + nb.T.h)) > 4) {
       c = (Math.max(e.x, nb.T.x) + Math.min(e.x + e.w, nb.T.x + nb.T.w)) / 2;
-      showDist(di++, false, px(c), py(nb.T.y + nb.T.h), g * s, g * s, eqV);
+      if (clearV(c)) showDist(di++, false, px(c), py(nb.T.y + nb.T.h), g * s, g * s, eqV);
     }
     if (nb.B && (g = nb.B.y - (e.y + e.h)) > 4) {
       c = (Math.max(e.x, nb.B.x) + Math.min(e.x + e.w, nb.B.x + nb.B.w)) / 2;
-      showDist(di++, false, px(c), py(e.y + e.h), g * s, g * s, eqV);
+      if (clearV(c)) showDist(di++, false, px(c), py(e.y + e.h), g * s, g * s, eqV);
     }
     // no neighbour on a side → measure to the SECTION edge instead: page
     // margins are the distances people eyeball most
-    if (!nb.L && (g = e.x) > 4) {
+    if (!nb.L && (g = e.x) > 4 && clearH(e.y + e.h / 2)) {
       showDist(di++, true, px(0), py(e.y + e.h / 2), g * s, g * s, false);
     }
-    if (!nb.R && (g = W - (e.x + e.w)) > 4) {
+    if (!nb.R && (g = W - (e.x + e.w)) > 4 && clearH(e.y + e.h / 2)) {
       showDist(di++, true, px(e.x + e.w), py(e.y + e.h / 2), g * s, g * s, false);
     }
-    if (!nb.T && (g = e.y) > 4) {
+    if (!nb.T && (g = e.y) > 4 && clearV(e.x + e.w / 2)) {
       showDist(di++, false, px(e.x + e.w / 2), py(0), g * s, g * s, false);
     }
     if (!nb.B) {
       var H2 = designH(sec.els, sec.minH);
-      if ((g = H2 - (e.y + e.h)) > 4) {
+      if ((g = H2 - (e.y + e.h)) > 4 && clearV(e.x + e.w / 2)) {
         showDist(di++, false, px(e.x + e.w / 2), py(e.y + e.h), g * s, g * s, false);
       }
     }
