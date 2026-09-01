@@ -6234,7 +6234,14 @@
     hbar.style.width = r.width + 'px';
     hbar.style.top = (by + window.scrollY) + 'px';
     hbar.hidden = false;
-    hgrip.style.left = (r.left + r.width / 2 + window.scrollX) + 'px';
+    // the grip hugs the centred + Section pill's right edge when the pill
+    // is up — one composed object, symmetric around the label; alone on
+    // the boundary (no pill) it keeps the centre itself
+    var gx2 = r.left + r.width / 2 + window.scrollX;
+    if (!inserter.hidden && !inserter.classList.contains('gogh-byebye')) {
+      gx2 += (inserter.offsetWidth / 2) + 34;
+    }
+    hgrip.style.left = gx2 + 'px';
     hgrip.style.top = (by + window.scrollY) + 'px';
     hgrip.hidden = false;
   }
@@ -8548,11 +8555,11 @@
         var refNode = found.node || bNodes[bNodes.length - 1];
         var refR = refNode.getBoundingClientRect();
         var cx = refR.left + refR.width / 2 + window.scrollX;
-        inserter.style.left = (prevSec ? (cx - 40) : cx) + 'px';
-        // the height pill (44px) occupies the centre of every boundary whose
-        // upper neighbour is freeform — + Section reads first (left),
-        // Transition after (right), each 18px from the pill (22 + 18 = 40)
-        inserter.style.transform = prevSec ? 'translate(-100%, -50%)' : 'translate(-50%, -50%)';
+        // + Section OWNS the centre — the labelled pill is what the eye
+        // seeks ("not having section centred really bugs my eyes"). The
+        // height grip becomes its right-hand accessory via placeHbar.
+        inserter.style.left = cx + 'px';
+        inserter.style.transform = 'translate(-50%, -50%)';
         inserter.style.marginLeft = '0';
         inserter.style.top = (found.y + window.scrollY) + 'px';
         inserter.classList.remove('gogh-byebye');
