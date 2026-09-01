@@ -1,8 +1,18 @@
-# Knowledge-base audit — plugin v0.99.268
+# Knowledge-base audit — plugin v0.99.269
 
 _13 finding(s) suppressed by `kb.audit-ignore.txt`._
 
-## MISSING (34)
+## STALE (5)
+
+The prose names something that no longer exists.
+
+- divider "brush" was removed in this release, but the prose still describes it
+- divider "peaks" was removed in this release, but the prose still describes it
+- divider "slant" was removed in this release, but the prose still describes it
+- divider "torn" was removed in this release, but the prose still describes it
+- divider "wave" was removed in this release, but the prose still describes it
+
+## MISSING (36)
 
 The source has something the prose never explains. The bot knows the name from the appendix but cannot say what it is for.
 
@@ -40,6 +50,8 @@ The source has something the prose never explains. The bot knows the name from t
 - template `FAQ` exists in source but is never mentioned in the prose
 - template `Tabs` exists in source but is never mentioned in the prose
 - template `Portfolio` exists in source but is never mentioned in the prose
+- divider `dunes` exists in source but is never mentioned in the prose
+- divider `mist` exists in source but is never mentioned in the prose
 
 ## QUOTE (1)
 
@@ -51,4 +63,14 @@ Quoted copy not found verbatim in the source. Paraphrases are fine; changed UI c
 
 Use this as the checklist for updating the prose — and as a sanity check on the release itself.
 
-- version: 0.99.267 → 0.99.268
+- version: 0.99.268 → 0.99.269
+- removed divider: "brush"
+- removed divider: "peaks"
+- removed divider: "slant"
+- removed divider: "torn"
+- removed divider: "wave"
+- added divider: "arch"
+- added divider: "dunes"
+- added divider: "mist"
+- added divider: "sheet"
+- added divider: "sweep"

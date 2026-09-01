@@ -1,12 +1,12 @@
 {
   "meta": {
-    "plugin_version": "0.99.268",
+    "plugin_version": "0.99.269",
     "requires_wp": "6.5",
     "requires_php": "7.4",
     "text_domain": "gogh-editor",
     "readme_stable_tag": "0.26.0",
     "readme_tested_up_to": "7.0",
-    "asset_version": "0.99.268-chrome"
+    "asset_version": "0.99.269-chrome"
   },
   "constants": {
     "TOL": 8,
@@ -216,32 +216,32 @@
   ],
   "dividers": [
     {
-      "key": "wave",
-      "label": "Wave"
-    },
-    {
       "key": "curve",
       "label": "Curve"
     },
     {
-      "key": "slant",
-      "label": "Slant"
+      "key": "sweep",
+      "label": "Sweep"
     },
     {
-      "key": "peaks",
-      "label": "Peaks"
+      "key": "dunes",
+      "label": "Dunes"
     },
     {
-      "key": "brush",
-      "label": "Brush"
+      "key": "arch",
+      "label": "Arch"
     },
     {
-      "key": "torn",
-      "label": "Torn"
+      "key": "sheet",
+      "label": "Sheet"
     },
     {
       "key": "melt",
       "label": "Melt"
+    },
+    {
+      "key": "mist",
+      "label": "Mist"
     }
   ],
   "gogh_api": [
@@ -877,5 +877,5 @@
     "has_deprecation": true,
     "block_title": "gogh Section"
   },
-  "test_count": 176
+  "test_count": 177
 }
