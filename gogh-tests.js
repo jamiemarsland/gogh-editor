@@ -4051,6 +4051,8 @@
         ['Make this more premium', 'premium'],
         ['Make this less cluttered', 'simpler'],
         ['Make this more playful', 'playful'],
+        ['Add more photos', 'photos'],
+        ['Add another button', 'button'],
       ];
       reads.forEach(function (r) {
         var got = G.askRead(r[0]);
@@ -4111,6 +4113,24 @@
       expect(first !== base, 'first candidate changed nothing');
       expect(second !== first, 'Try another produced the same answer');
       return 'two distinct answers from one instruction';
+    });
+
+    test('ask gogh: "add more photos" lands a row below, one undo removes it', function () {
+      var i = G.sections().indexOf(sec());
+      var count = sec().els.length;
+      var images = sec().els.filter(function (e) { return e.type === 'image'; }).length;
+      var floor = Math.max.apply(null, sec().els.map(function (e) { return e.y + e.h; }));
+      G.openAskPanel(i, null);
+      q('.gogh-panel .gogh-askin').value = 'add more photos';
+      q('.gogh-panel .gogh-askgo').click();
+      q('.gogh-panel .gogh-asktry').click(); // Two, side by side
+      var added = sec().els.filter(function (e) { return e.type === 'image'; }).length - images;
+      expect(added === 2, 'expected 2 photos, got ' + added);
+      var lowest = Math.min.apply(null, sec().els.slice(count).map(function (e) { return e.y; }));
+      expect(lowest >= floor, 'new photos overlap the furniture (y ' + lowest + ' < floor ' + floor + ')');
+      q('.gogh-panel .gogh-askundo').click();
+      expect(sec().els.length === count, 'one Undo did not remove the whole row');
+      return '2 photos below y=' + floor + ', one undo cleared them';
     });
 
     test('ask gogh: seam reads become the right shelf sections', function () {

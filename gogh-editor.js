@@ -6718,6 +6718,34 @@
     });
     renderSection(sec);
   }
+  // "add a …" composes the model directly — ONE state change per answer
+  // (addElement pushes history per element, which would leave Try another
+  // undoing a third of a row). New arrivals land BELOW the existing
+  // furniture: honest placement the hand can refine, never an overlap.
+  function askAddImages(s, n) {
+    var H = designH(s.els, s.minH);
+    var w = n === 1 ? 420 : 340, h = n === 1 ? 300 : 240, pad = 72;
+    var gap = n > 1 ? Math.round((W - 2 * pad - n * w) / (n - 1)) : 0;
+    for (var i = 0; i < n; i++) {
+      var e = DEFAULTS.image();
+      e.w = w; e.h = h;
+      e.x = n === 1 ? Math.round((W - w) / 2) : Math.round(pad + i * (w + gap));
+      e.y = Math.round(H + 32);
+      s.els.push(e);
+    }
+    s.minH = Math.max(s.minH || 0, Math.round(H + 32 + h + 64));
+    renderSection(s);
+  }
+  function askAddOne(s, kind, tweak) {
+    var e = DEFAULTS[kind]();
+    if (tweak) tweak(e);
+    var H = designH(s.els, s.minH);
+    e.x = Math.max(0, Math.round((W - e.w) / 2));
+    e.y = Math.round(H + 24);
+    s.els.push(e);
+    s.minH = Math.max(s.minH || 0, Math.round(e.y + e.h + 56));
+    renderSection(s);
+  }
   // the reads: each returns { label, build(sec) -> [{name, apply(sec)}] }.
   // build() runs at submit time against the LIVE section; apply() receives
   // the (possibly rebuilt-by-undo) section, so candidates never go stale.
@@ -6731,6 +6759,50 @@
           return rearrangeVariants(sec).map(function (v) {
             return { name: v.name, apply: function (s) { applyPositions(s, v.pos); } };
           });
+        } };
+    }
+    if (has(/(add|another|more|extra).{0,16}(photo|image|picture)/)) {
+      return { label: 'more photos',
+        build: function () {
+          return [
+            { name: 'One more photo', apply: function (s) { askAddImages(s, 1); } },
+            { name: 'Two, side by side', apply: function (s) { askAddImages(s, 2); } },
+            { name: 'A row of three', apply: function (s) { askAddImages(s, 3); } },
+          ];
+        } };
+    }
+    if (has(/(add|another).{0,14}button/)) {
+      return { label: 'a button',
+        build: function () {
+          return [
+            { name: 'A button', apply: function (s) { askAddOne(s, 'button'); } },
+            { name: 'A quiet button', apply: function (s) { askAddOne(s, 'button', function (e) { e.ghost = true; }); } },
+          ];
+        } };
+    }
+    if (has(/(add|another).{0,14}(heading|title)/)) {
+      return { label: 'a heading',
+        build: function () {
+          return [
+            { name: 'A heading', apply: function (s) { askAddOne(s, 'heading'); } },
+            { name: 'A big heading', apply: function (s) { askAddOne(s, 'heading', function (e) { e.fs = '__disp-s'; e.w = 720; e.h = 110; }); } },
+          ];
+        } };
+    }
+    if (has(/(add|another).{0,14}(text|paragraph|copy|words)/)) {
+      return { label: 'some text',
+        build: function () {
+          return [
+            { name: 'A paragraph', apply: function (s) { askAddOne(s, 'para'); } },
+          ];
+        } };
+    }
+    if (has(/(add|another).{0,14}badge/)) {
+      return { label: 'a badge',
+        build: function () {
+          return [
+            { name: 'A badge', apply: function (s) { askAddOne(s, 'badge'); } },
+          ];
         } };
     }
     if (has(/(bigger|larger|huge|grow).{0,14}(image|photo|picture)|(image|photo|picture).{0,14}(bigger|larger|huge)/)) {
@@ -6868,6 +6940,7 @@
     'Give this more breathing room…',
     'Make the headline stand out…',
     'Try a completely different layout…',
+    'Add another photo…',
     'Make this simpler…',
     'Make the image bigger…',
     'Make this more playful…',
