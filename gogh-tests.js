@@ -4327,8 +4327,13 @@
       expect(!q('.gogh-secbar').hidden, 'the four-door bar did not dock');
       select(0);
       expect(s.sectionEl.classList.contains('gogh-selsec-faint'), 'choosing a piece did not go faint');
+      // ONE editing surface: with a piece chosen, the section bar stands down
+      var bar0 = q('.gogh-secbar');
+      expect(bar0.hidden || bar0.classList.contains('gogh-byebye'), 'two editing surfaces at once');
       document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
-      expect(s.sectionEl.classList.contains('gogh-selsec'), 'first Esc should keep the section');
+      expect(s.sectionEl.classList.contains('gogh-selsec') &&
+        !s.sectionEl.classList.contains('gogh-selsec-faint'), 'first Esc should promote the section');
+      expect(!bar0.hidden && !bar0.classList.contains('gogh-byebye'), 'the bar did not return with the section');
       document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
       expect(!s.sectionEl.classList.contains('gogh-selsec'), 'second Esc did not deselect the section');
       var bar = q('.gogh-secbar');

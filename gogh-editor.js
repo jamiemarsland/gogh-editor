@@ -4295,6 +4295,8 @@
       hideHandles();
       var sn2 = document.querySelector('.gogh-selected');
       if (sn2) sn2.classList.remove('gogh-selected');
+      // the piece cleared: the section steps forward again, bar and all
+      if (selSecIdx !== null) selectSection(selSecIdx);
       return;
     }
     deselectSection();
@@ -6501,7 +6503,11 @@
     selSecIdx = idx;
     S[idx].sectionEl.classList.add('gogh-selsec');
     S[idx].sectionEl.classList.toggle('gogh-selsec-faint', !!faint);
-    showSecBar(idx);
+    // ONE editing surface at a time: while a piece is the subject, the
+    // faint ring alone says which section — the section bar stands down
+    // and returns when the piece clears ("two editing surfaces?")
+    if (faint) hideSecBar();
+    else showSecBar(idx);
   }
   function deselectSection() {
     if (selSecIdx !== null && S[selSecIdx] && S[selSecIdx].sectionEl) {
