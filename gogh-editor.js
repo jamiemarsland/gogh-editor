@@ -444,6 +444,14 @@
   // film grain, 160px tile, generated once — soft-light over any stack
   var GRAIN_LAYER = 'url("data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'160\' height=\'160\'%3E%3Cfilter id=\'n\'%3E%3CfeTurbulence type=\'fractalNoise\' baseFrequency=\'0.8\' numOctaves=\'2\'/%3E%3C/filter%3E%3Crect width=\'100%25\' height=\'100%25\' filter=\'url(%23n)\' opacity=\'0.5\'/%3E%3C/svg%3E") left top / 160px 160px repeat';
   var DIVIDER_PATHS = {
+    // ---- the 2026 set: soft, asymmetric, organic (research: symmetric
+    // zigzags and uniform waves read as the 2018 shape-divider kit) ----
+    sweep: 'M0,104 C300,96 520,18 820,20 C1020,22 1130,52 1200,72 L1200,120 L0,120 Z',
+    dunes: 'M0,84 C130,54 260,42 420,58 C560,72 610,96 760,92 C920,88 1040,40 1200,52 L1200,120 L0,120 Z',
+    arch: 'M0,108 L60,108 C210,108 240,22 600,22 C960,22 990,108 1140,108 L1200,108 L1200,120 L0,120 Z',
+    sheet: 'M0,120 L0,110 Q0,40 170,40 L1030,40 Q1200,40 1200,110 L1200,120 Z',
+    // ---- retired from the chooser, rendered forever (the leave-behind
+    // rule): pages already wearing these keep their look ----
     wave: 'M0,64 C300,124 900,4 1200,64 L1200,120 L0,120 Z',
     brush: 'M0,88 C28,72 54,98 88,84 C118,72 142,94 178,80 C216,64 244,98 286,88 C322,80 352,60 392,76 C428,90 462,70 502,82 C538,92 574,66 612,78 C652,90 688,72 724,84 C762,96 800,62 842,74 C878,84 912,102 952,86 C990,70 1022,92 1060,80 C1096,68 1130,94 1162,84 C1178,79 1192,74 1200,72 L1200,120 L0,120 Z',
     torn: 'M0,86 L46,76 L94,90 L148,70 L206,88 L262,68 L328,86 L388,74 L452,92 L516,74 L582,88 L638,68 L698,86 L758,74 L822,92 L878,70 L938,84 L998,72 L1058,90 L1122,76 L1200,86 L1200,120 L0,120 Z',
@@ -673,8 +681,8 @@
       // should stay visible), layer two keeps everything below the band
       var tdMask = opts.topDivider === 'melt'
         ? 'linear-gradient(to bottom, transparent, #000)'
-        : dividerBg(opts.topDivider, '#000');
-      var tdH = opts.topDivider === 'melt' ? '16cqw' : '8cqw';
+        : dividerBg(opts.topDivider === 'mist' ? 'curve' : opts.topDivider, '#000');
+      var tdH = opts.topDivider === 'melt' ? '16cqw' : (opts.topDivider === 'mist' ? '12cqw' : '8cqw');
       var tdLayers = tdMask + ' top / 100% ' + tdH + ' no-repeat, linear-gradient(#000, #000) 0 calc(' + tdH + ' - 1px) / 100% calc(100% - ' + tdH + ' + 1px) no-repeat';
       // the carved-away area is transparent — without overlap it reveals the
       // PAGE background (a white wedge between two photos). Pulling the
@@ -688,6 +696,12 @@
     if (opts.divider && !opts.divNextRich && opts.divider.shape === 'melt' && opts.divColor) {
       // no edge at all: the section dissolves into the next one's colour
       out.push(sec + '::after { content: ""; position: absolute; left: 0; right: 0; bottom: -1px; height: 16cqw; z-index: 0; pointer-events: none; background: linear-gradient(to bottom, transparent, ' + opts.divColor + '); }');
+    } else if (opts.divider && !opts.divNextRich && opts.divider.shape === 'mist' && opts.divColor) {
+      // Melt's fade wearing Curve's edge: a curved, feathered dissolve
+      var mistMask = dividerBg('curve', '#000');
+      out.push(sec + '::after { content: ""; position: absolute; left: 0; right: 0; bottom: -1px; height: 12cqw; z-index: 0; pointer-events: none; background: linear-gradient(to bottom, transparent, ' + opts.divColor + ' 78%); ' +
+        '-webkit-mask-image: ' + mistMask + '; mask-image: ' + mistMask + '; ' +
+        '-webkit-mask-size: 100% 100%; mask-size: 100% 100%; -webkit-mask-repeat: no-repeat; mask-repeat: no-repeat; }');
     } else if (opts.divider && !opts.divNextRich && opts.divider.shape && opts.divColor && DIVIDER_PATHS[opts.divider.shape]) {
       // mask (not background-image) so the colour can be a CSS variable —
       // theme palette changes recolour dividers live
@@ -6965,14 +6979,14 @@
           return [{ name: 'A straight edge', apply: function (s) { s.divider = null; resolveAll(); } }];
         } };
     }
-    if (has(/transition|\bmelt\b|blend into|soften the (join|edge|bottom)|\bwave\b|flow into/)) {
+    if (has(/transition|\bmelt\b|\bfade\b|blend into|soften the (join|edge|bottom)|\bwave\b|flow into/)) {
       return { label: 'a softer transition',
         build: function () {
           return [
             { name: 'Melt', key: 'melt' },
-            { name: 'Wave', key: 'wave' },
+            { name: 'Mist', key: 'mist' },
+            { name: 'Sweep', key: 'sweep' },
             { name: 'Curve', key: 'curve' },
-            { name: 'Slant', key: 'slant' },
           ].map(function (c) {
             return { name: c.name, apply: function (s) { s.divider = { shape: c.key }; resolveAll(); } };
           });
@@ -8257,15 +8271,18 @@
     shapeIdx = idx;
     var above = S[idx - 1], below = shapeRawBelow ? null : S[idx];
     var current = (above.divider && above.divider.shape) || '';
+    // the 2026 shelf: soft, asymmetric, organic. Wave/Slant/Peaks/Brush/
+    // Torn are retired from the chooser — pages wearing them keep
+    // rendering forever, we just stopped offering them
     var shapes = [
-      { key: '', label: 'None', path: 'M0,110 L1200,110' },
-      { key: 'wave', label: 'Wave', path: DIVIDER_PATHS.wave },
+      { key: '', label: 'None' },
       { key: 'curve', label: 'Curve', path: DIVIDER_PATHS.curve },
-      { key: 'slant', label: 'Slant', path: DIVIDER_PATHS.slant },
-      { key: 'peaks', label: 'Peaks', path: DIVIDER_PATHS.peaks },
-      { key: 'brush', label: 'Brush', path: DIVIDER_PATHS.brush },
-      { key: 'torn', label: 'Torn', path: DIVIDER_PATHS.torn },
+      { key: 'sweep', label: 'Sweep', path: DIVIDER_PATHS.sweep },
+      { key: 'dunes', label: 'Dunes', path: DIVIDER_PATHS.dunes },
+      { key: 'arch', label: 'Arch', path: DIVIDER_PATHS.arch },
+      { key: 'sheet', label: 'Sheet', path: DIVIDER_PATHS.sheet },
       { key: 'melt', label: 'Melt', melt: true },
+      { key: 'mist', label: 'Mist', mist: true },
     ];
     // the gogh version: shapes as LOOKS, nothing else. The transition
     // already inks itself from the next section's real background
@@ -8298,6 +8315,13 @@
           '<stop offset="1" stop-color="' + escAttr(inkBelow) + '" stop-opacity="1"/></linearGradient></defs>' +
           '<rect x="0" y="60" width="1200" height="120" fill="url(#gogh-meltg-' + k + ')"/>' +
           '<rect x="0" y="179" width="1200" height="61" fill="' + escAttr(inkBelow) + '"/>';
+      } else if (sh.mist) {
+        join = '<defs><linearGradient id="gogh-mistg-' + k + '" x1="0" y1="0" x2="0" y2="1">' +
+          '<stop offset="0" stop-color="' + escAttr(inkBelow) + '" stop-opacity="0"/>' +
+          '<stop offset="0.75" stop-color="' + escAttr(inkBelow) + '" stop-opacity="1"/></linearGradient>' +
+          '<mask id="gogh-mistm-' + k + '"><g transform="translate(0,60)"><path d="' + DIVIDER_PATHS.curve + '" fill="#fff"/></g>' +
+          '<rect x="0" y="179" width="1200" height="61" fill="#fff"/></mask></defs>' +
+          '<g mask="url(#gogh-mistm-' + k + ')"><rect x="0" y="40" width="1200" height="200" fill="url(#gogh-mistg-' + k + ')"/></g>';
       } else if (!sh.key) {
         join = '<rect x="0" y="120" width="1200" height="120" fill="' + escAttr(inkBelow) + '"/>';
       } else {

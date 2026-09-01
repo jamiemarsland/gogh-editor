@@ -1676,6 +1676,25 @@
       q('.gogh-shapepanel').hidden = true;
     });
 
+    test('transitions: the new shapes render, the retired keep rendering', function () {
+      G.addSection(G.templates()[3], G.sections().length);
+      var below = G.sections()[1];
+      below.bg = '#222831';
+      var s0 = G.sections()[0];
+      ['sweep', 'dunes', 'arch', 'sheet', 'mist', 'wave', 'torn', 'peaks'].forEach(function (k) {
+        s0.divider = { shape: k };
+        G.setSecBg(0, null); // side effect: resolveAll re-emits the CSS
+        var css = s0.styleEl.textContent;
+        expect(css.indexOf('::after') !== -1, k + ' emitted no transition band');
+        expect(css.indexOf('mask-image') !== -1, k + ' is not mask-based');
+        if (k === 'mist') {
+          expect(css.indexOf('linear-gradient(to bottom, transparent') !== -1,
+            'mist lost its feather — mask without the fade');
+        }
+      });
+      return 'sweep/dunes/arch/sheet/mist render; wave/torn/peaks keep rendering retired';
+    });
+
     // ---- 16. rotation ----
     test('rotation sets model + CSS transform', function () {
       var i = findIdx('image');
@@ -4358,13 +4377,15 @@
       expect(sp.querySelectorAll('.gogh-shape').length === 8, 'expected 8 shape chips');
       expect(!sp.querySelector('.gogh-color') && !sp.querySelector('.gogh-sw') && !sp.querySelector('.gogh-pull'),
         'a picker or slider survived the redesign');
-      var wave = sp.querySelector('[data-shape="wave"]');
-      wave.dispatchEvent(new MouseEvent('mouseenter', { bubbles: true }));
-      expect(above.divider && above.divider.shape === 'wave', 'hover did not audition the wave');
-      wave.dispatchEvent(new MouseEvent('mouseleave', { bubbles: true }));
+      var sweep = sp.querySelector('[data-shape="sweep"]');
+      sweep.dispatchEvent(new MouseEvent('mouseenter', { bubbles: true }));
+      expect(above.divider && above.divider.shape === 'sweep', 'hover did not audition the sweep');
+      sweep.dispatchEvent(new MouseEvent('mouseleave', { bubbles: true }));
       expect(!above.divider, 'leaving did not restore the boundary');
-      wave.click();
-      expect(above.divider && above.divider.shape === 'wave', 'click did not keep the wave');
+      sweep.click();
+      expect(above.divider && above.divider.shape === 'sweep', 'click did not keep the sweep');
+      expect(!sp.querySelector('[data-shape="peaks"]') && !sp.querySelector('[data-shape="torn"]'),
+        'a retired shape is still on the shelf');
       sp.hidden = true;
       return '8 chips, no pickers, audition round-trip clean';
     });
