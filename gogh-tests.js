@@ -4053,6 +4053,10 @@
         ['Make this more playful', 'playful'],
         ['Add more photos', 'photos'],
         ['Add another button', 'button'],
+        ['Change the background image', 'background photo'],
+        ['Remove the background image', 'plain background'],
+        ['Change the background to dark', 'darker'],
+        ['Make the background lighter', 'lighter'],
       ];
       reads.forEach(function (r) {
         var got = G.askRead(r[0]);
@@ -4172,6 +4176,50 @@
         expect(res.status !== 404, 'the route does not exist');
         expect(res.status === 400 || res.status === 501, 'expected 400 (bad ask) or 501 (no key), got ' + res.status);
         return 'route answers ' + res.status + (res.status === 501 ? ' (no key configured)' : '');
+      });
+    });
+
+    test('ask gogh: "dark" is measured, never name-trusted', function () {
+      // on a dark-mode palette "Ink" paints WHITE — the read must offer
+      // themes by the colour they actually paint (James's exact report)
+      var s = sec();
+      var read = G.askRead('change the background to dark');
+      expect(read && /darker/.test(read.label), '"background to dark" read as ' + (read && read.label));
+      var cands = read.build(s);
+      if (!cands.length) return 'palette has no dark colour — honest miss';
+      cands[0].apply(s);
+      var bg = getComputedStyle(s.sectionEl).backgroundColor;
+      var m = (bg.match(/\d+(\.\d+)?/g) || []).map(Number);
+      expect(m.length >= 3, 'unreadable computed background: ' + bg);
+      var lum = (m[0] * 0.2126 + m[1] * 0.7152 + m[2] * 0.0722) / 255;
+      expect(lum < 0.4, 'the painted background is not dark: ' + bg);
+      return 'painted ' + bg + ' (luminance ' + lum.toFixed(2) + ')';
+    });
+
+    test('ask gogh: "remove the background" clears the photo in one change', function () {
+      var s = sec();
+      s.bgImage = 'https://example.test/fake-photo.jpg';
+      s.bgId = 123;
+      var read = G.askRead('remove the background image');
+      var cands = read.build(s);
+      expect(cands.length === 1, 'expected one candidate, got ' + cands.length);
+      cands[0].apply(s);
+      expect(s.bgImage === null && s.bgId === null, 'the photo did not clear');
+      return 'photo cleared, id cleared';
+    });
+
+    testAsync('ask gogh: the background read gathers photos from the library', function () {
+      var read = G.askRead('change the background image');
+      expect(read && read.buildAsync, 'the background read is not async');
+      return read.buildAsync(sec()).then(function (cands) {
+        if (!cands.length) return 'library empty — the read misses honestly';
+        cands.forEach(function (c) {
+          expect(c.name && typeof c.apply === 'function', 'candidate is malformed');
+        });
+        var s = sec();
+        cands[0].apply(s);
+        expect(!!s.bgImage, 'applying a candidate did not set the photo');
+        return cands.length + ' photos offered, first applied';
       });
     });
 

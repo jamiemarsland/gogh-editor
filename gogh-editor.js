@@ -6689,6 +6689,19 @@
     var list = sectionThemes();
     return list.filter(function (t) { return t.slug === slug; })[0] || null;
   }
+  // dark is a MEASUREMENT, not a name: on a dark-mode palette "Ink" is
+  // white (bg wears the text colour) — asks about dark/light must judge
+  // themes by the colour they actually paint
+  function askThemeFeel(t) {
+    if (/gradient\(/.test(String(t.bg))) return null; // backdrops: mixed
+    var rgb = cssToRgb(t.bg);
+    if (!rgb) return null;
+    var l = sentinelLum(rgb);
+    return l < 0.3 ? 'dark' : (l > 0.55 ? 'light' : 'mid');
+  }
+  function askThemesFeeling(feel) {
+    return sectionThemes().filter(function (t) { return askThemeFeel(t) === feel; });
+  }
   // "louder" always means UP: from any theme preset (or none) the first
   // display tier is the step up — applyFontStep's ladder would step a
   // default-sized heading DOWN into the theme's smallest preset
@@ -6755,7 +6768,11 @@
     return {
       minH: sec.minH || null,
       theme: sec.theme || null,
-      themes: sectionThemes().map(function (t) { return t.slug; }),
+      // slug + measured feel: on a dark-mode palette "ink" is white, and
+      // the model can't know that without being told
+      themes: sectionThemes().map(function (t) {
+        return { slug: t.slug, feel: askThemeFeel(t) || 'backdrop' };
+      }),
       els: sec.els.slice(0, 24).map(function (e, i) {
         var o = { i: i, type: e.type, x: e.x, y: e.y, w: e.w, h: e.h };
         if (e.text) o.text = String(e.text).slice(0, 120);
@@ -6847,6 +6864,71 @@
         build: function (sec) {
           return rearrangeVariants(sec).map(function (v) {
             return { name: v.name, apply: function (s) { applyPositions(s, v.pos); } };
+          });
+        } };
+    }
+    // colour asks outrank photo asks: "background to dark" is a colour
+    // wish, not a request to go photo-shopping. Lighter first — "less
+    // dark" must not fall into the dark read.
+    if (has(/lighter|brighter|softer|less dark|\bwhite\b|\blight\b|\bpale\b/)) {
+      return { label: 'a lighter touch', miss: 'Your palette has no light colour to offer here.',
+        build: function () {
+          return askThemesFeeling('light').concat(askThemesFeeling('mid')).slice(0, 3).map(function (t) {
+            return { name: t.name, apply: function (s) { paintSectionTheme(s, t); } };
+          });
+        } };
+    }
+    if (has(/darker|moodier|more dramatic|\bdark\b|\bblack\b|\bnight\b/)) {
+      return { label: 'a darker mood', miss: 'Your palette has no dark colour to offer here.',
+        build: function () {
+          return askThemesFeeling('dark').concat(askThemesFeeling('mid')).slice(0, 3).map(function (t) {
+            return { name: t.name, apply: function (s) { paintSectionTheme(s, t); } };
+          });
+        } };
+    }
+    if (has(/(remove|clear|drop|delete|lose|no more).{0,14}background/)) {
+      return { label: 'a plain background',
+        build: function () {
+          return [
+            { name: 'No photo', apply: function (s) {
+              s.bgImage = null;
+              s.bgId = null;
+              syncBootInvite(s);
+              resolveAll();
+            } },
+          ];
+        } };
+    }
+    if (has(/(change|swap|different|new|another|fresh).{0,16}background|background (image|photo|picture)/)) {
+      // the library IS the candidate list: Try another flips through the
+      // site's own photographs, wide ones first — no model, no wait
+      return { label: 'a different background photo',
+        miss: 'No photos in your library yet — the 🖼 door on the section toolbar can upload some.',
+        buildAsync: function (sec) {
+          fetchMediaPool();
+          return new Promise(function (done) {
+            var tries = 16;
+            var t = setInterval(function () {
+              if (mediaPool.bgs.length || mediaPool.imgs.length || --tries <= 0) {
+                clearInterval(t);
+                done();
+              }
+            }, 250);
+          }).then(function () {
+            var pics = (mediaPool.bgs.length ? mediaPool.bgs : mediaPool.imgs)
+              .filter(function (p) { return p !== sec.bgImage; })
+              .slice(0, 10);
+            return pics.map(function (src, i2) {
+              var name = (String(src).split('/').pop() || '')
+                .replace(/\.[a-z0-9]+$/i, '').replace(/[-_]+/g, ' ')
+                .replace(/\b\d{2,}\b/g, '').replace(/\s+/g, ' ').trim().slice(0, 28) || 'Photo ' + (i2 + 1);
+              return { name: name, apply: function (s) {
+                s.bgImage = src;
+                s.bgId = null;
+                syncBootInvite(s);
+                resolveAll();
+              } };
+            });
           });
         } };
     }
@@ -6980,28 +7062,6 @@
           return out;
         } };
     }
-    if (has(/darker|moodier|more dramatic|dark background/)) {
-      return { label: 'a darker mood',
-        build: function () {
-          var slugs = ['ink'].concat(sectionThemes().filter(function (th) {
-            return !/^(paper|mist|ink|sweep|mesh)$/.test(th.slug) && !/-soft$/.test(th.slug);
-          }).map(function (th) { return th.slug; }));
-          return slugs.slice(0, 3).map(function (sl, k) {
-            return { name: k === 0 ? 'Ink' : 'Accent ' + k, apply: function (s) { askPaint(s, sl); } };
-          });
-        } };
-    }
-    if (has(/lighter|brighter|softer|light background|less dark/)) {
-      return { label: 'a lighter touch',
-        build: function () {
-          var soft = sectionThemes().filter(function (th) { return /-soft$/.test(th.slug); })
-            .map(function (th) { return th.slug; });
-          var slugs = ['paper', 'mist'].concat(soft).slice(0, 3);
-          return slugs.map(function (sl, k) {
-            return { name: ['Paper', 'Mist', 'A wash of colour'][k] || sl, apply: function (s) { askPaint(s, sl); } };
-          });
-        } };
-    }
     if (has(/centre|center/)) {
       return { label: 'everything centred', miss: 'Nothing to centre yet — add a couple of elements first.',
         build: function (sec) {
@@ -7085,6 +7145,7 @@
     'Make the headline stand out…',
     'Try a completely different layout…',
     'Add another photo…',
+    'Change the background photo…',
     'Make this simpler…',
     'Make the image bigger…',
     'Make this more playful…',
@@ -7258,6 +7319,27 @@
         return;
       }
       read = r;
+      // some reads gather their candidates (the media library) — a beat
+      // of looking, then the same instant cycle
+      if (read.buildAsync) {
+        var myInput2 = input;
+        var myRead = read;
+        resRow.hidden = true;
+        missRow.hidden = false;
+        missRow.innerHTML = '<span class="gogh-askthink">✦ Looking through your pictures…</span>';
+        read.buildAsync(S[idx]).then(function (cands) {
+          if (!myInput2.isConnected || panel.hidden || read !== myRead) return;
+          if (!cands.length) {
+            missRow.textContent = myRead.miss || 'Nothing here answers to that yet.';
+            return;
+          }
+          read._cands = cands;
+          k = 0;
+          applied = false;
+          showResult(tryCand(0));
+        });
+        return;
+      }
       read._cands = read.build(S[idx]);
       if (!read._cands.length) {
         resRow.hidden = true;
