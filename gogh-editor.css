@@ -914,6 +914,17 @@ body.gogh-painting, body.gogh-painting .gogh-section * { cursor: url('data:image
 .gogh-guide-h::after { top: 6px; left: 10px; }
 .gogh-guide-v { width: 1px; }
 .gogh-guide-h { height: 1px; }
+/* CENTRED is a different fact from ALIGNED — the line itself says so
+   (the Squarespace cue): gold, a touch wider, with a soft glow. Pink
+   stays the colour of ordinary edge alignment. */
+.gogh-guide[data-tag="centre"] {
+  background: #f2a413;
+  box-shadow: 0 0 0 0.5px rgba(242, 164, 19, 0.5), 0 0 10px rgba(242, 164, 19, 0.6);
+}
+.gogh-guide[data-tag="centre"]::after {
+  background: #f2a413;
+  color: #231a05;
+}
 
 /* ---------- section template picker ---------- */
 .gogh-picker {
