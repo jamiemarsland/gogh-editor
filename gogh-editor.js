@@ -2748,7 +2748,7 @@
       if (pe.contains(ev.target)) return;
       // gogh's own surfaces (panels, drawer, toolbars, toasts) are part of
       // the editing conversation — they don't put the chrome to sleep
-      if (ev.target.closest && ev.target.closest('.gogh-panel, .gogh-side, .gogh-side-tab, .gogh-elbar, .gogh-hbar, .gogh-secbar, .gogh-toast, .gogh-chip, .gogh-convertbtn, .gogh-picker, .gogh-navadd, #wpadminbar')) return;
+      if (ev.target.closest && ev.target.closest('.gogh-panel, .gogh-side, .gogh-side-tab, .gogh-elbar, .gogh-hbar, .gogh-secbar, .gogh-secmore, .gogh-toast, .gogh-chip, .gogh-convertbtn, .gogh-picker, .gogh-navadd, #wpadminbar')) return;
       // an ARMED panel (something auditioned, Apply lit) holds focus —
       // a stray page click must not throw the audition away
       if (panelOpen && panel.dataset.goghArea === area) {
@@ -2990,6 +2990,12 @@
     wrap.style.background = 'var(--wp--preset--color--base, ' + getComputedStyle(document.body).backgroundColor + ')';
     wrap.style.boxShadow = '0 30px 90px -24px rgba(0, 0, 0, 0.4)';
     document.documentElement.classList.add('gogh-zoomed');
+    // the floating furniture belongs to the 1:1 canvas — fold it away the
+    // moment the desk zooms out
+    goghFadeOut(inserter);
+    goghFadeOut(shapeBtn);
+    hideSecBar();
+    hideHbar();
     zoomFrac = null; // start fitted
     layoutZoom();
     // 100% = the fitted view (the most zoomed-in we allow — bigger would overlap
@@ -6331,20 +6337,17 @@
     '<span class="gogh-secbar-label">Section</span>' +
     '<button type="button" class="gogh-sb gogh-sb-ask" data-sec="ask" title="Describe a change — Gogh makes it">✦ Ask Gogh</button>' +
     '<button type="button" class="gogh-sb" data-sec="add" title="Add an element to this section">＋</button>' +
-    '<button type="button" class="gogh-sb" data-sec="up" title="Move up">↑</button>' +
-    '<button type="button" class="gogh-sb" data-sec="down" title="Move down">↓</button>' +
-    '<button type="button" class="gogh-sb" data-sec="bgimg" title="Background image">' + CTX_ICONS.image + '</button>' +
-    '<button type="button" class="gogh-sb" data-sec="rearrange" title="Rearrange \u2014 same pieces, new shapes"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><rect x="3" y="4" width="8" height="7" rx="1.5"/><rect x="14" y="13" width="7" height="7" rx="1.5"/><path d="M17 4h4v4M7 20H3v-4"/></svg></button>' +
-    '<button type="button" class="gogh-sb" data-sec="savepat" title="Save this section to reuse">' +
-    '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round"><path d="M6 3h12v18l-6-4.5L6 21Z"/></svg>' +
-    '</button>' +
-    '<button type="button" class="gogh-sb" data-sec="dup" title="Duplicate section">⧉</button>' +
-    '<button type="button" class="gogh-sb gogh-sb-del" data-sec="del" title="Delete section">🗑</button>';
+    // four doors, read at a glance: the star, add, design, more — the
+    // housekeeping verbs (move, duplicate, rearrange, save, delete) live
+    // in the ⋯ menu as WORDS. Rare actions don't earn permanent icons
+    // (James: "lots of options... a little ungogh")
+    '<button type="button" class="gogh-sb" data-sec="bgimg" title="Background &amp; look">' + CTX_ICONS.image + '</button>' +
+    '<button type="button" class="gogh-sb gogh-sb-more" data-sec="more" title="Move, duplicate, save, delete…">⋯</button>';
   secBar.hidden = true;
   document.body.appendChild(secBar);
   var secBarIdx = null;
 
-  function hideSecBar() { clearTimeout(secBarHideT); goghFadeOut(secBar); secBarIdx = null; }
+  function hideSecBar() { clearTimeout(secBarHideT); goghFadeOut(secBar); secBarIdx = null; closeSecMore(); }
   // the gentle version: boundary mode may claim the pointer for a moment
   // while the hand is still travelling to the toolbar — hold the bar for a
   // beat, and only fade it if the pointer never arrives
@@ -6366,11 +6369,6 @@
     var r = S[idx].wrapEl.getBoundingClientRect();
     secBar.style.left = (r.left + window.scrollX + 16) + 'px';
     secBar.style.top = (r.top + window.scrollY + 14) + 'px';
-    var contentIdxs = [];
-    S.forEach(function (s, k) { if (!s.chrome) contentIdxs.push(k); });
-    secBar.querySelector('[data-sec="up"]').disabled = idx === contentIdxs[0];
-    secBar.querySelector('[data-sec="down"]').disabled = idx === contentIdxs[contentIdxs.length - 1];
-    secBar.querySelector('[data-sec="del"]').disabled = false;
     secBar.hidden = false;
     // don't sit on the Edit header/footer pill — duck below it
     var sr = secBar.getBoundingClientRect();
@@ -6400,12 +6398,54 @@
     if (b.dataset.sec === 'ask') { openAskPanel(secBarIdx, b); return; }
     if (b.dataset.sec === 'add') { openSecAddPanel(secBarIdx); return; }
     if (b.dataset.sec === 'bgimg') { openSecBgPanel(secBarIdx, b); return; }
-    if (b.dataset.sec === 'rearrange') { openRearrangePanel(secBarIdx, b); return; }
-    if (b.dataset.sec === 'savepat') { openSavePatternPanel(secBarIdx); return; }
-    if (b.dataset.sec === 'del') deleteSection(secBarIdx);
-    else if (b.dataset.sec === 'up') moveSection(secBarIdx, -1);
-    else if (b.dataset.sec === 'down') moveSection(secBarIdx, 1);
-    else if (b.dataset.sec === 'dup') duplicateSection(secBarIdx);
+    if (b.dataset.sec === 'more') { openSecMore(secBarIdx, b); return; }
+  });
+  // ---------- the ⋯ menu: housekeeping in words ----------
+  var secMore = document.createElement('div');
+  secMore.className = 'gogh-secmore';
+  secMore.hidden = true;
+  document.body.appendChild(secMore);
+  function closeSecMore() { secMore.hidden = true; }
+  function openSecMore(idx, anchor) {
+    var contentIdxs = [];
+    S.forEach(function (s, k) { if (!s.chrome) contentIdxs.push(k); });
+    secMore.innerHTML = [
+      ['up', 'Move up', idx === contentIdxs[0]],
+      ['down', 'Move down', idx === contentIdxs[contentIdxs.length - 1]],
+      ['dup', 'Duplicate', false],
+      ['rearrange', 'Rearrange', false],
+      ['savepat', 'Save to reuse', false],
+      ['del', 'Delete', false],
+    ].map(function (it) {
+      return '<button type="button" class="gogh-secmore-it' + (it[0] === 'del' ? ' gogh-secmore-del' : '') +
+        '" data-act="' + it[0] + '"' + (it[2] ? ' disabled' : '') + '>' + it[1] + '</button>';
+    }).join('');
+    var r = anchor.getBoundingClientRect();
+    secMore.style.left = (Math.min(r.left, window.innerWidth - 190) + window.scrollX) + 'px';
+    secMore.style.top = (r.bottom + window.scrollY + 8) + 'px';
+    secMore.hidden = false;
+    secMore.querySelectorAll('.gogh-secmore-it').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var act = btn.dataset.act;
+        closeSecMore();
+        if (act === 'up' || act === 'down') {
+          var to = idx + (act === 'up' ? -1 : 1);
+          moveSection(idx, act === 'up' ? -1 : 1);
+          // follow the section to its new seat — the next nudge is one
+          // click away (desktop re-hover can't happen mid-scroll; thumbs
+          // can't hover at all)
+          setTimeout(function () { if (S[to] && !S[to].chrome) showSecBar(to); }, 80);
+          return;
+        }
+        if (act === 'dup') { duplicateSection(idx); return; }
+        if (act === 'rearrange') { openRearrangePanel(idx, anchor); return; }
+        if (act === 'savepat') { openSavePatternPanel(idx); return; }
+        if (act === 'del') deleteSection(idx);
+      });
+    });
+  }
+  document.addEventListener('pointerdown', function (ev) {
+    if (!secMore.hidden && !secMore.contains(ev.target) && !ev.target.closest('[data-sec="more"]')) closeSecMore();
   });
 
   // plain-permalink safe: cfg URLs may already carry ?rest_route=…
@@ -8387,6 +8427,15 @@
   var insertRaf = false;
   document.addEventListener('pointermove', function (ev) {
     if (!editing || drag || resize || hDrag || rotD || panelOpen || !picker.hidden) { return; }
+    // the zoomed-out design view is for LOOKING — full-size boundary
+    // furniture floating over a half-scale canvas reads as debris
+    // ("we shouldn't show transition option when zoomed out")
+    if (document.documentElement.classList.contains('gogh-zoomed')) {
+      goghFadeOut(inserter);
+      goghFadeOut(shapeBtn);
+      hideSecBarSoon();
+      return;
+    }
     // a rushing pointer is heading SOMEWHERE ELSE — don't flash boundary
     // pills along its route (they still hide instantly, and appear the
     // moment the hand settles)
@@ -8541,14 +8590,8 @@
       if (secBarIdx === hit && !secBar.hidden) { hideSecBar(); return; }
       showSecBar(hit);
     });
-    // moving hides the bar (desktop re-hovers; thumbs can't) — follow the
-    // section to its new seat so a second nudge is one tap away
-    secBar.addEventListener('click', function (ev2) {
-      var b = ev2.target.closest('[data-sec="up"], [data-sec="down"]');
-      if (!b || b.disabled || secBarIdx === null) return;
-      var landing = secBarIdx + (b.dataset.sec === 'up' ? -1 : 1);
-      setTimeout(function () { if (S[landing]) showSecBar(landing); }, 80);
-    }, true);
+    // (move up/down live in the ⋯ menu now, which follows the section to
+    // its new seat itself)
   }
   inserter.addEventListener('click', function () {
     // the seam asks WHAT, not WHICH — the full shelf stays one chip away.
@@ -11189,6 +11232,7 @@
     elDefaults: function () { return DEFAULTS; },
     openAnswerReady: openAnswerReadyPanel,
     askRead: askRead,
+    openSecMore: openSecMore,
     askApplyOps: askApplyOps,
     askProject: askProject,
     askSeamMatch: askSeamMatch,

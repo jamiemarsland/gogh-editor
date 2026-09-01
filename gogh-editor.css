@@ -3259,3 +3259,33 @@ html.gogh-textediting .gogh-convertbtn {
 @media (prefers-reduced-motion: reduce) {
   .gogh-askthink, .gogh-ask-thinking { animation: none; }
 }
+
+/* the ⋯ menu: housekeeping in words — rare verbs earn a quiet menu,
+   not permanent icons */
+.gogh-sb-more { font-weight: 800; letter-spacing: 0.05em; }
+.gogh-secmore {
+  position: absolute;
+  z-index: 99999;
+  background: #fff;
+  border-radius: 12px;
+  padding: 6px;
+  min-width: 168px;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 16px 44px -12px rgba(0, 0, 0, 0.5);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, sans-serif;
+}
+.gogh-secmore[hidden] { display: none; }
+.gogh-secmore-it {
+  all: unset;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+  color: #141519;
+  padding: 9px 12px;
+  border-radius: 8px;
+}
+.gogh-secmore-it:hover { background: #eef2ff; }
+.gogh-secmore-it:disabled { opacity: 0.3; cursor: default; }
+.gogh-secmore-del { color: #b3261e; }
+.gogh-secmore-del:hover { background: #ffe3db; }

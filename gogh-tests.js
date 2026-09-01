@@ -4321,17 +4321,20 @@
       // the corridor logic settles inside requestAnimationFrame — and a
       // BACKGROUND tab freezes rAF entirely (the observation goblin), so
       // probe liveness first and report honestly rather than fail falsely
+      // every frame-wait carries a timeout: focus can be LOST MID-TEST
+      // (the tab backgrounds, rAF freezes between steps) and that must
+      // read as "untestable here", never as a false failure
+      var stalled = false;
       var frame = function () {
         return new Promise(function (r) {
-          requestAnimationFrame(function () { requestAnimationFrame(r); });
+          var fired = false;
+          requestAnimationFrame(function () {
+            requestAnimationFrame(function () { fired = true; r(true); });
+          });
+          setTimeout(function () { if (!fired) { stalled = true; r(false); } }, 250);
         });
       };
-      var alive = new Promise(function (res) {
-        var done = false;
-        requestAnimationFrame(function () { done = true; res(true); });
-        setTimeout(function () { if (!done) res(false); }, 150);
-      });
-      return alive.then(function (ok) {
+      return frame().then(function (ok) {
         if (!ok) return 'rAF frozen (background tab) — front the tab for the full check';
         G.openSeamAsk(null, null);
         q('.gogh-panel .gogh-askin').value = 'pricing';
@@ -4348,19 +4351,40 @@
         };
         var inserter2 = q('.gogh-inserter');
         var bar = q('.gogh-secbar');
+        var SKIP = 'rAF stalled mid-test (tab backgrounded) — front the tab for the full check';
         return move(wr.top + 4).then(function () {
+          if (stalled) return SKIP;
           expect(!inserter2.hidden, 'the seam corridor did not summon + Section');
           expect(bar.hidden || bar.classList.contains('gogh-byebye'), 'the toolbar crowded the seam');
-          return move(wr.top + 48);
-        }).then(function () {
-          expect(bar.hidden || bar.classList.contains('gogh-byebye'), 'the toolbar spoke from the neutral band');
-          return move(wr.top + Math.min(140, wr.height - 80));
-        }).then(function () {
-          expect(!bar.hidden && !bar.classList.contains('gogh-byebye'), 'the toolbar did not appear in the body');
-          expect(inserter2.hidden || inserter2.classList.contains('gogh-byebye'), '+ Section overstayed in the body');
-          return 'corridor → pills, neutral band → calm, body → toolbar';
+          return move(wr.top + 48).then(function () {
+            if (stalled) return SKIP;
+            expect(bar.hidden || bar.classList.contains('gogh-byebye'), 'the toolbar spoke from the neutral band');
+            return move(wr.top + Math.min(140, wr.height - 80)).then(function () {
+              if (stalled) return SKIP;
+              expect(!bar.hidden && !bar.classList.contains('gogh-byebye'), 'the toolbar did not appear in the body');
+              expect(inserter2.hidden || inserter2.classList.contains('gogh-byebye'), '+ Section overstayed in the body');
+              return 'corridor → pills, neutral band → calm, body → toolbar';
+            });
+          });
         });
       });
+    });
+
+    test('section bar: four doors, housekeeping in words', function () {
+      var bar = q('.gogh-secbar');
+      expect(bar.querySelectorAll('.gogh-sb').length === 4,
+        'expected 4 controls, got ' + bar.querySelectorAll('.gogh-sb').length);
+      expect(bar.querySelector('.gogh-sb-ask') && bar.querySelector('[data-sec="more"]'),
+        'the star or the ⋯ is missing');
+      var i = G.sections().indexOf(sec());
+      G.openSecMore(i, bar.querySelector('[data-sec="more"]'));
+      var items = [].map.call(document.querySelectorAll('.gogh-secmore .gogh-secmore-it'),
+        function (b) { return b.textContent + (b.disabled ? '·off' : ''); });
+      expect(items.length === 6, 'expected 6 menu verbs, got ' + items.length);
+      expect(/Move up·off/.test(items[0]), 'the first section can somehow move up: ' + items[0]);
+      expect(document.querySelector('.gogh-secmore-del'), 'Delete lost its red');
+      document.querySelector('.gogh-secmore').hidden = true;
+      return items.join(', ');
     });
 
     test('transition panel: shapes only, self-inked, hover-auditioned', function () {
