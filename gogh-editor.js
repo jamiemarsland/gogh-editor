@@ -6746,6 +6746,95 @@
     s.minH = Math.max(s.minH || 0, Math.round(e.y + e.h + 56));
     renderSection(s);
   }
+  // ---------- the imagination tier: a model behind the SAME seam ----------
+  // Asks the vocabulary can't read go to gogh/v1/ask. The model never
+  // writes markup — it returns ops against the section model, and every
+  // field lands here to be whitelisted and clamped before the solver
+  // renders it. One state change per candidate, so Undo stays one step.
+  function askProject(sec) {
+    return {
+      minH: sec.minH || null,
+      theme: sec.theme || null,
+      themes: sectionThemes().map(function (t) { return t.slug; }),
+      els: sec.els.slice(0, 24).map(function (e, i) {
+        var o = { i: i, type: e.type, x: e.x, y: e.y, w: e.w, h: e.h };
+        if (e.text) o.text = String(e.text).slice(0, 120);
+        if (e.fs) o.fs = e.fs;
+        if (e.align) o.align = e.align;
+        if (e.ghost) o.ghost = true;
+        if (e.kids && e.kids.length) o.kids = e.kids.map(function (k2) {
+          return { type: k2.type, text: k2.text ? String(k2.text).slice(0, 60) : undefined };
+        });
+        return o;
+      }),
+    };
+  }
+  var ASK_ADD_TYPES = { heading: 1, para: 1, button: 1, image: 1, badge: 1 };
+  function askNum(v, lo, hi, fb) {
+    v = +v;
+    return isFinite(v) ? Math.max(lo, Math.min(hi, Math.round(v))) : fb;
+  }
+  function askApplyOps(sec, ops) {
+    ops = ops || {};
+    (Array.isArray(ops.set) ? ops.set : []).forEach(function (ch) {
+      if (!ch) return;
+      var e = sec.els[parseInt(ch.i, 10)];
+      if (!e) return;
+      if ('w' in ch) e.w = askNum(ch.w, 40, W, e.w);
+      if ('h' in ch) e.h = askNum(ch.h, 20, 1600, e.h);
+      if ('x' in ch) e.x = askNum(ch.x, 0, W - e.w, e.x);
+      if ('y' in ch) e.y = askNum(ch.y, 0, 3000, e.y);
+      if ('text' in ch && typeof ch.text === 'string' &&
+          (e.type === 'heading' || e.type === 'para' || e.type === 'button' || e.type === 'badge')) {
+        e.text = ch.text.slice(0, 400) || e.text;
+      }
+      if ('fs' in ch && (ch.fs === null || DISPLAY_FS[ch.fs])) {
+        e.fs = ch.fs || null;
+        if (e.tf) { delete e.tf.fs; delete e.tf.fs2; delete e.tf.lh; }
+      }
+      if ('align' in ch && /^(left|center|right)$/.test(String(ch.align))) {
+        e.align = ch.align === 'left' ? null : ch.align;
+      }
+      if ('rot' in ch) e.rot = Math.max(-6, Math.min(6, +ch.rot || 0)) || 0;
+      if ('ghost' in ch && e.type === 'button') e.ghost = !!ch.ghost;
+      if ('mood' in ch && (e.type === 'image' || e.type === 'box')) {
+        e.mood = /^(lift|zoom)$/.test(String(ch.mood)) ? ch.mood : null;
+      }
+      if (ch.tf && typeof ch.tf === 'object') {
+        e.tf = e.tf || {};
+        if ('fw' in ch.tf) e.tf.fw = askNum(ch.tf.fw, 100, 900, e.tf.fw);
+        if ('ls2' in ch.tf && isFinite(+ch.tf.ls2)) e.tf.ls2 = Math.max(-0.05, Math.min(0.4, +ch.tf.ls2));
+        if ('tt' in ch.tf) { if (ch.tf.tt === 'uppercase') e.tf.tt = 'uppercase'; else delete e.tf.tt; }
+        if ('lh' in ch.tf && isFinite(+ch.tf.lh)) e.tf.lh = Math.max(0.9, Math.min(2, +ch.tf.lh));
+      }
+    });
+    (Array.isArray(ops.remove) ? ops.remove : [])
+      .map(function (n) { return parseInt(n, 10); })
+      .filter(function (n) { return isFinite(n) && n >= 0 && n < sec.els.length; })
+      .sort(function (a, b) { return b - a; })
+      .forEach(function (n) { sec.els.splice(n, 1); });
+    (Array.isArray(ops.add) ? ops.add : []).slice(0, 6).forEach(function (ad) {
+      if (!ad || !ASK_ADD_TYPES[ad.type] || !DEFAULTS[ad.type]) return;
+      var e = DEFAULTS[ad.type]();
+      if (typeof ad.text === 'string' && e.text !== null && ad.text) e.text = ad.text.slice(0, 400);
+      if ('w' in ad) e.w = askNum(ad.w, 40, W, e.w);
+      if ('h' in ad) e.h = askNum(ad.h, 20, 1600, e.h);
+      e.x = 'x' in ad ? askNum(ad.x, 0, W - e.w, e.x) : Math.round((W - e.w) / 2);
+      e.y = 'y' in ad ? askNum(ad.y, 0, 3000, e.y) : Math.round(designH(sec.els, sec.minH) + 24);
+      sec.els.push(e);
+    });
+    var sc = ops.section;
+    if (sc && typeof sc === 'object') {
+      if (sc.theme && askThemeBy(String(sc.theme))) askPaint(sec, String(sc.theme));
+      if ('minH' in sc) sec.minH = askNum(sc.minH, 240, 2400, sec.minH);
+      var sp = +sc.spread;
+      if (isFinite(sp) && sp > 0.5 && sp < 2 && Math.abs(sp - 1) > 0.02) askSpread(sec, sp);
+    }
+    sel = null;
+    hideHandles();
+    clearMulti();
+    renderSection(sec);
+  }
   // the reads: each returns { label, build(sec) -> [{name, apply(sec)}] }.
   // build() runs at submit time against the LIVE section; apply() receives
   // the (possibly rebuilt-by-undo) section, so candidates never go stale.
@@ -7017,13 +7106,56 @@
       resRow.hidden = false;
       panel.querySelector('.gogh-askres-name').textContent = resName;
     };
+    var imagine = function () {
+      var myInput = input; // a stale panel must never paint a fresh one
+      resRow.hidden = true;
+      missRow.hidden = false;
+      missRow.innerHTML = '<span class="gogh-askthink">✦ Gogh is imagining…</span>';
+      S[idx].wrapEl.classList.add('gogh-ask-thinking');
+      fetch(cfg.restUrl.split('wp/v2/')[0] + 'gogh/v1/ask', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-WP-Nonce': cfg.nonce },
+        credentials: 'same-origin',
+        body: JSON.stringify({ instruction: myInput.value, section: askProject(S[idx]) }),
+      }).then(function (res2) {
+        return res2.ok ? res2.json() : Promise.reject(new Error('HTTP ' + res2.status));
+      }).then(function (data) {
+        var cands = ((data && data.candidates) || []).map(function (c) {
+          return {
+            name: String((c && c.name) || 'Another way').slice(0, 42),
+            apply: function (s) { askApplyOps(s, (c && c.ops) || {}); },
+          };
+        });
+        if (!cands.length) throw new Error('empty');
+        if (!myInput.isConnected || panel.hidden) return; // they moved on
+        read = { label: 'imagined', build: function () { return cands; }, _cands: cands };
+        k = 0;
+        applied = false;
+        showResult(tryCand(0));
+      }).catch(function () {
+        if (!myInput.isConnected) return;
+        resRow.hidden = true;
+        missRow.hidden = false;
+        missRow.innerHTML = 'The imagination didn’t answer — try again, or one of these:' +
+          chipify(ASK_EXAMPLES.slice(0, 4));
+        bindChips();
+      }).then(function () {
+        S.forEach(function (s) { s.wrapEl.classList.remove('gogh-ask-thinking'); });
+      });
+    };
     var submit = function () {
       var r = askRead(input.value);
       if (!r) {
+        // the vocabulary answers instantly; what it can't read goes to
+        // the imagination — same seam, same Undo, still no chat
+        if (input.value.trim() && cfg.askAI) { imagine(); return; }
         resRow.hidden = true;
         missRow.hidden = false;
         missRow.innerHTML = (input.value.trim() ? 'Gogh didn’t catch that — try one of these:' :
-          'Tell Gogh what you’d like — for example:') + chipify(ASK_EXAMPLES.slice(0, 4));
+          'Tell Gogh what you’d like — for example:') + chipify(ASK_EXAMPLES.slice(0, 4)) +
+          (input.value.trim() && !cfg.askAI
+            ? '<div class="gogh-askkey">Bigger asks need Gogh’s imagination — add an Anthropic API key to wp-config.php: <code>define(\'GOGH_ASK_KEY\', \'sk-ant-…\')</code></div>'
+            : '');
         bindChips();
         return;
       }
@@ -10581,6 +10713,8 @@
     elDefaults: function () { return DEFAULTS; },
     openAnswerReady: openAnswerReadyPanel,
     askRead: askRead,
+    askApplyOps: askApplyOps,
+    askProject: askProject,
     askSeamMatch: askSeamMatch,
     openAskPanel: openAskPanel,
     openSeamAsk: openSeamAsk,

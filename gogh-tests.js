@@ -4133,6 +4133,48 @@
       return '2 photos below y=' + floor + ', one undo cleared them';
     });
 
+    test('ask gogh: the imagination’s ops are clamped and whitelisted', function () {
+      var s = sec();
+      var count = s.els.length;
+      var e0 = s.els[0];
+      G.askApplyOps(s, {
+        set: [
+          { i: 0, x: 99999, fs: 'evil-size', align: 'sideways', rot: 720, tf: { fw: 5000, tt: 'blink' } },
+          { i: 999, x: 0 }, // no such element — ignored
+        ],
+        add: [
+          { type: 'image', w: 340, h: 240 },
+          { type: 'script', text: 'nope' }, // unknown type — refused
+        ],
+        remove: [999, -1], // out of range — ignored
+        section: { theme: 'not-a-theme', minH: 99999, spread: 40 },
+      });
+      expect(e0.x <= 1200 - e0.w, 'x was not clamped to the canvas (x=' + e0.x + ')');
+      expect(e0.fs !== 'evil-size', 'a bogus fs got through');
+      expect(e0.align !== 'sideways', 'a bogus align got through');
+      expect(e0.rot >= -6 && e0.rot <= 6, 'rot was not clamped (' + e0.rot + ')');
+      expect((e0.tf || {}).fw <= 900, 'tf.fw was not clamped');
+      expect((e0.tf || {}).tt !== 'blink', 'a bogus text-transform got through');
+      expect(s.els.length === count + 1, 'expected exactly 1 addition, got ' + (s.els.length - count));
+      expect(s.els[s.els.length - 1].type === 'image', 'the added element is not the image');
+      expect(s.minH <= 2400, 'minH was not clamped (' + s.minH + ')');
+      return 'hostile ops came out safe: clamped, refused, or ignored';
+    });
+
+    testAsync('ask gogh: the imagination door exists (and fails honestly keyless)', function () {
+      var root = (window.GOGH && GOGH.restUrl) ? GOGH.restUrl.split('wp/v2/')[0] : '/wp-json/';
+      return fetch(root + 'gogh/v1/ask', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-WP-Nonce': (window.GOGH || {}).nonce },
+        credentials: 'same-origin',
+        body: JSON.stringify({}), // no instruction on purpose — must NOT reach the model
+      }).then(function (res) {
+        expect(res.status !== 404, 'the route does not exist');
+        expect(res.status === 400 || res.status === 501, 'expected 400 (bad ask) or 501 (no key), got ' + res.status);
+        return 'route answers ' + res.status + (res.status === 501 ? ' (no key configured)' : '');
+      });
+    });
+
     test('ask gogh: seam reads become the right shelf sections', function () {
       var m = G.askSeamMatch('three customer testimonials');
       expect(m && m.tpl.name === 'Testimonials', 'testimonials read as ' + (m && m.tpl.name));

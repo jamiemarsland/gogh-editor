@@ -3193,3 +3193,36 @@ html.gogh-textediting .gogh-convertbtn {
 @media (prefers-reduced-motion: reduce) {
   .gogh-askborn { animation: none; }
 }
+
+/* the imagination tier: the section breathes while it thinks */
+.gogh-askthink {
+  font-size: 12.5px;
+  font-weight: 700;
+  color: #7c4ad8;
+  animation: gogh-askthink 1.4s ease-in-out infinite;
+}
+@keyframes gogh-askthink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.45; }
+}
+.gogh-ask-thinking {
+  animation: gogh-askbreathe 1.6s ease-in-out infinite;
+}
+@keyframes gogh-askbreathe {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.82; }
+}
+.gogh-askkey {
+  margin-top: 10px;
+  font-size: 11.5px;
+  color: var(--gogh-ui-muted, #6b6c72);
+}
+.gogh-askkey code {
+  font-size: 10.5px;
+  background: rgba(0, 0, 0, 0.06);
+  padding: 2px 5px;
+  border-radius: 5px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .gogh-askthink, .gogh-ask-thinking { animation: none; }
+}
