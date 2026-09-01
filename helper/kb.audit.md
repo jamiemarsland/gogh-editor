@@ -1,4 +1,4 @@
-# Knowledge-base audit — plugin v0.99.257
+# Knowledge-base audit — plugin v0.99.258
 
 _13 finding(s) suppressed by `kb.audit-ignore.txt`._
 
@@ -45,13 +45,4 @@ The source has something the prose never explains. The bot knows the name from t
 
 Use this as the checklist for updating the prose — and as a sanity check on the release itself.
 
-- version: 0.99.256 → 0.99.257
-- added template: "Testimonials"
-- added UI label: "Add"
-- added UI label: "Describe a change — Gogh makes it"
-- added UI label: "Go"
-- added UI label: "More…"
-- added UI label: "Try another"
-- added UI label: "Undo"
-- added UI label: "pick from the shelf"
-- added UI label: "✦ Ask Gogh"
+- version: 0.99.257 → 0.99.258
