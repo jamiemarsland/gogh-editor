@@ -4,11 +4,11 @@ Everything in this section is extracted mechanically from the Gogh source on eve
 
 ## Current release
 
-- Plugin version: **0.99.269**
+- Plugin version: **0.99.270**
 - Requires WordPress **6.5+**, PHP **7.4+**
 - Text domain: `gogh-editor`
 - readme.txt Stable tag: `0.26.0` · Tested up to: `7.0`
-- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.269`). Quote the plugin header version.
+- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.270`). Quote the plugin header version.
 
 ## Design constants
 
@@ -157,7 +157,7 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "Auto"
 - "Back"
 - "Back to Design"
-- "Background image"
+- "Background & look"
 - "Badge"
 - "Bold"
 - "Bring forward"
@@ -176,13 +176,11 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "Dark"
 - "Delete (Del)"
 - "Delete saved section"
-- "Delete section"
 - "Describe a change — Gogh makes it"
 - "Desktop"
 - "Discard changes"
 - "Done"
 - "Duplicate (or Alt-drag)"
-- "Duplicate section"
 - "Experience"
 - "Featured product"
 - "Fill screen"
@@ -213,6 +211,7 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "Move right"
 - "Move up"
 - "Move up in the phone stack"
+- "Move, duplicate, save, delete…"
 - "None"
 - "One product, hero-sized — a card with a real add-to-cart button"
 - "Open interactive experience"
@@ -225,7 +224,6 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "Publish"
 - "Publish & close"
 - "Put it back"
-- "Rearrange — same pieces, new shapes"
 - "Redo (⇧⌘Z)"
 - "Remove"
 - "Remove from Your sections"
@@ -238,7 +236,6 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "Right"
 - "Save"
 - "Save brand"
-- "Save this section to reuse"
 - "See all →"
 - "Send backward"
 - "Shape"
@@ -365,5 +362,5 @@ These are the real strings in the current build. Use them verbatim; never paraph
 
 ## Test suite
 
-`177` tests, run by appending `?gogh-test` to any Gogh page URL while logged in with edit rights on that page.
+`178` tests, run by appending `?gogh-test` to any Gogh page URL while logged in with edit rights on that page.
 
