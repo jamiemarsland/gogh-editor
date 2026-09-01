@@ -6702,6 +6702,39 @@
   function askThemesFeeling(feel) {
     return sectionThemes().filter(function (t) { return askThemeFeel(t) === feel; });
   }
+  function askThemeRgb(t) {
+    if (/gradient\(/.test(String(t.bg))) return null;
+    return cssToRgb(t.bg);
+  }
+  function askRgbHsl(rgb) {
+    var r = rgb[0] / 255, g = rgb[1] / 255, b = rgb[2] / 255;
+    var mx = Math.max(r, g, b), mn = Math.min(r, g, b), d = mx - mn;
+    var h = 0;
+    if (d) {
+      if (mx === r) h = ((g - b) / d + (g < b ? 6 : 0)) * 60;
+      else if (mx === g) h = ((b - r) / d + 2) * 60;
+      else h = ((r - g) / d + 4) * 60;
+    }
+    var l = (mx + mn) / 2;
+    var s = d === 0 ? 0 : d / (1 - Math.abs(2 * l - 1));
+    return { h: h, s: s, l: l };
+  }
+  // colour names resolve against the PALETTE, by hue distance — gogh never
+  // invents a colour the site style doesn't own (that's Remix's job)
+  var ASK_HUES = { red: 0, crimson: 348, orange: 28, coral: 16, peach: 32, yellow: 52, gold: 45, green: 120, mint: 150, teal: 175, cyan: 190, blue: 225, navy: 232, indigo: 255, purple: 275, violet: 285, magenta: 310, pink: 335 };
+  function askThemesNear(hue) {
+    return sectionThemes().map(function (t) {
+      var rgb = askThemeRgb(t);
+      if (!rgb) return null;
+      var hsl = askRgbHsl(rgb);
+      if (hsl.s < 0.22 || hsl.l < 0.06 || hsl.l > 0.96) return null; // greys can't answer a colour
+      var d = Math.abs(hsl.h - hue);
+      return { t: t, d: Math.min(d, 360 - d) };
+    }).filter(Boolean)
+      .filter(function (x) { return x.d <= 45; })
+      .sort(function (a, b) { return a.d - b.d; })
+      .map(function (x) { return x.t; });
+  }
   // "louder" always means UP: from any theme preset (or none) the first
   // display tier is the step up — applyFontStep's ladder would step a
   // default-sized heading DOWN into the theme's smallest preset
@@ -6771,7 +6804,9 @@
       // slug + measured feel: on a dark-mode palette "ink" is white, and
       // the model can't know that without being told
       themes: sectionThemes().map(function (t) {
-        return { slug: t.slug, feel: askThemeFeel(t) || 'backdrop' };
+        var rgb = askThemeRgb(t);
+        return { slug: t.slug, feel: askThemeFeel(t) || 'backdrop',
+          hex: rgb ? '#' + rgb.map(function (v) { return (v | 256).toString(16).slice(-2); }).join('') : null };
       }),
       els: sec.els.slice(0, 24).map(function (e, i) {
         var o = { i: i, type: e.type, x: e.x, y: e.y, w: e.w, h: e.h };
@@ -6859,6 +6894,20 @@
     var t = ' ' + String(raw || '').toLowerCase().replace(/[^a-z0-9 ]+/g, ' ').replace(/\s+/g, ' ').trim() + ' ';
     if (t === '  ') return null;
     var has = function (re) { return re.test(t); };
+    // "add a … section" spoken at a section: the seam's vocabulary
+    // answers, and the new section lands right below this one — beginners
+    // shouldn't need to know which door was "correct"
+    if (has(/\b(add|insert|create|put|new)\b.{0,30}section/)) {
+      var seam = askSeamMatch(raw);
+      return { label: 'a new section below',
+        miss: 'Say what kind — “add a testimonials section”, “add a pricing section” — or use the + between sections.',
+        build: function () {
+          if (!seam) return [];
+          return [{ name: seam.tpl.name + ' — below this one', apply: function (s) {
+            askSeamInsert(seam, S.indexOf(s) + 1, null);
+          } }];
+        } };
+    }
     if (has(/ (different|new|another|fresh) (layout|arrangement|look) |rearrange|shuffle|switch (it|things) (up|around)/)) {
       return { label: 'a different layout', miss: 'Nothing to rearrange yet — add a couple of elements first.',
         build: function (sec) {
@@ -6883,6 +6932,17 @@
         build: function () {
           return askThemesFeeling('dark').concat(askThemesFeeling('mid')).slice(0, 3).map(function (t) {
             return { name: t.name, apply: function (s) { paintSectionTheme(s, t); } };
+          });
+        } };
+    }
+    var colorWord = t.match(/\b(red|crimson|orange|coral|peach|yellow|gold|green|mint|teal|cyan|blue|navy|indigo|purple|violet|magenta|pink)\b/);
+    if (colorWord) {
+      var wantHue = ASK_HUES[colorWord[1]];
+      return { label: 'a ' + colorWord[1] + ' background',
+        miss: 'Your site style has no ' + colorWord[1] + ' — gogh only paints with the palette the site owns. Remix (in Site style) can find you a new one.',
+        build: function () {
+          return askThemesNear(wantHue).slice(0, 3).map(function (th) {
+            return { name: th.name, apply: function (s) { paintSectionTheme(s, th); } };
           });
         } };
     }
@@ -7388,6 +7448,9 @@
   // "Add a section here": the seam asks WHAT, not WHICH. Words become the
   // closest section from the shelf, with the heading rewritten to match.
   var SEAM_READS = [
+    // a hero that mentions a picture is the Cover — the one template that
+    // carries a background photo (auto-swapped for the site's own library)
+    { re: /(hero|cover|banner|intro|top).{0,40}(image|photo|picture)|(image|photo|picture).{0,30}(hero|cover|banner)|full.?(screen|bleed) (photo|image)/, name: 'Cover' },
     { re: /testimonial|review|kind words|customers? (say|love)|social proof/, name: 'Testimonials' },
     { re: /how it works|how (we|it) work|explain|steps|process|what happens/, name: 'Feature cards', heading: 'How it works' },
     { re: /benefit|feature|what (we|you) (do|offer|get)|services/, name: 'Feature cards' },

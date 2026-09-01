@@ -4057,6 +4057,8 @@
         ['Remove the background image', 'plain background'],
         ['Change the background to dark', 'darker'],
         ['Make the background lighter', 'lighter'],
+        ['Make the background red', 'red background'],
+        ['Add a hero section with a background image', 'new section below'],
       ];
       reads.forEach(function (r) {
         var got = G.askRead(r[0]);
@@ -4194,6 +4196,49 @@
       var lum = (m[0] * 0.2126 + m[1] * 0.7152 + m[2] * 0.0722) / 255;
       expect(lum < 0.4, 'the painted background is not dark: ' + bg);
       return 'painted ' + bg + ' (luminance ' + lum.toFixed(2) + ')';
+    });
+
+    test('ask gogh: colour names resolve by hue against the real palette', function () {
+      // "red" must never come back blue (James's exact report) — the read
+      // scores palette themes by measured hue distance
+      var s = sec();
+      var comp = function () {
+        var m = (getComputedStyle(s.sectionEl).backgroundColor.match(/\d+(\.\d+)?/g) || []).map(Number);
+        return m;
+      };
+      var red = G.askRead('make the background red');
+      var reds = red.build(s);
+      if (reds.length) {
+        reds[0].apply(s);
+        var m1 = comp();
+        expect(m1[0] > m1[2], 'asked red, painted b>=r: rgb(' + m1.join(',') + ')');
+      }
+      G.restore(SNAP);
+      s = sec();
+      var blue = G.askRead('make the background blue');
+      var blues = blue.build(s);
+      if (blues.length) {
+        blues[0].apply(s);
+        var m2 = comp();
+        expect(m2[2] > m2[0], 'asked blue, painted r>=b: rgb(' + m2.join(',') + ')');
+      }
+      if (!reds.length && !blues.length) return 'palette offers neither — honest misses';
+      return 'red got warm, blue got cool, by measurement';
+    });
+
+    test('ask gogh: "add a hero section with a background image" lands a Cover below', function () {
+      var m = G.askSeamMatch('a hero with a big background image');
+      expect(m && m.tpl.name === 'Cover', 'hero+photo read as ' + (m && m.tpl.name));
+      var count = contentSecs().length;
+      var s = sec();
+      var read = G.askRead('add a hero section with a background image');
+      var cands = read.build(s);
+      expect(cands.length === 1 && /Cover/.test(cands[0].name), 'expected a Cover candidate, got ' + (cands[0] && cands[0].name));
+      cands[0].apply(s);
+      expect(contentSecs().length === count + 1, 'no section arrived');
+      var born = contentSecs()[1];
+      expect(!!born.bgImage, 'the Cover arrived without a background photo');
+      return 'Cover below, wearing ' + String(born.bgImage).split('/').pop().slice(0, 30);
     });
 
     test('ask gogh: "remove the background" clears the photo in one change', function () {
