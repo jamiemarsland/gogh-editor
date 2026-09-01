@@ -4422,6 +4422,33 @@
       });
     });
 
+    test('snapping: the painted grid is a real magnet', function () {
+      // resize: an edge near a painted 40-unit line lands ON it (44→40),
+      // not beside it on the free 8-grid (which would say 48); far from
+      // any line the free 8-grid still rules (22→24)
+      expect(G.snapAxis([], 44).v === 40, 'resize edge at 44 landed at ' + G.snapAxis([], 44).v + ', not 40');
+      expect(G.snapAxis([], 22).v === 24, 'free positioning broke: 22 landed at ' + G.snapAxis([], 22).v);
+      // alignment magnets still outrank the grid
+      expect(G.snapAxis([43], 44).v === 43, 'a neighbour magnet lost to the grid');
+      // drag: same tiering through snapPos — pick a grid line far from
+      // every magnet the fixture offers so only the grid can catch
+      var s = sec();
+      var cands = [0, 1200, 600];
+      s.els.forEach(function (o) { cands.push(o.x, o.x + o.w, o.x + o.w / 2); });
+      var X0 = null;
+      for (var k = 2; k < 28 && X0 === null; k++) {
+        var line = k * 40;
+        var clear = cands.every(function (c) { return Math.abs(c - line) > 8 && Math.abs(c - (line + 4)) > 8; });
+        if (clear) X0 = line;
+      }
+      if (X0 === null) return 'fixture too crowded to isolate a grid line — resize checks passed';
+      G.setGridSnap(true); // outside a live gesture the tier is gated; arm it
+      var r = G.snapPos(s, s.els[0], X0 + 4, 9999, 0, 0, false, null);
+      G.setGridSnap(false);
+      expect(r.x === X0, 'drag edge at ' + (X0 + 4) + ' landed at ' + r.x + ', not on the painted line ' + X0);
+      return '44→40 on the line, 22→24 free, magnets still first, drag x' + (X0 + 4) + '→' + X0;
+    });
+
     test('section bar: four doors, housekeeping in words', function () {
       var bar = q('.gogh-secbar');
       expect(bar.querySelectorAll('.gogh-sb').length === 4,

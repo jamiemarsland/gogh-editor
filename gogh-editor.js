@@ -22,6 +22,10 @@
   if (!cfg) return;
 
   var TOL = 8, MIN_H = 560, PAD = 72, SNAP = 6, BASE = 8, W = 1200;
+  // the PAINTED grid (3.333cqw of the 1200 canvas = 40 units). It must be
+  // a real snap target: edges that nearly kiss a line the user can see
+  // must land exactly ON it ("this needs to be, and feel, perfect")
+  var GRID = 40;
 
   // ---------- collect sections (resilient to Gutenberg-side edits) ----------
   // Carriers are paired by ADJACENCY (the style+model immediately before each
@@ -10645,9 +10649,24 @@
     var sx = best(xEdges, candX);
     var sy = best(yEdges, candY);
     var gl = gridSnapOn || !!drag || !!resize; // the grid is visible mid-gesture, so its magnets are honest
+    // the painted grid is the middle tier: alignment magnets beat it,
+    // but an outer EDGE (never a centre) within reach of a line the user
+    // can see lands exactly on it — beside-the-line is the feel-killer
+    var gridTier = function (edges, span) {
+      var bestV = null, d = SNAP + 1;
+      edges.forEach(function (edge) {
+        if (edge.off !== 0 && edge.off !== span) return;
+        var gv = Math.round(edge.v / GRID) * GRID;
+        var dd = Math.abs(gv - edge.v);
+        if (dd < d) { d = dd; bestV = gv - edge.off; }
+      });
+      return bestV;
+    };
+    var ggx = (!sx && gl) ? gridTier(xEdges, w) : null;
+    var ggy = (!sy && gl) ? gridTier(yEdges, h) : null;
     return {
-      x: sx ? Math.round(sx.v) : (gl ? Math.round(x / BASE) * BASE : Math.round(x)),
-      y: sy ? Math.round(sy.v) : (gl ? Math.round(y / BASE) * BASE : Math.round(y)),
+      x: sx ? Math.round(sx.v) : (ggx !== null ? Math.round(ggx) : (gl ? Math.round(x / BASE) * BASE : Math.round(x))),
+      y: sy ? Math.round(sy.v) : (ggy !== null ? Math.round(ggy) : (gl ? Math.round(y / BASE) * BASE : Math.round(y))),
       gx: sx ? sx.g : null,
       gy: sy ? sy.g : null,
     };
@@ -10747,7 +10766,12 @@
       var dd = Math.abs(c - v);
       if (dd < d) { d = dd; best = c; }
     });
-    return best !== null ? { v: best, g: best } : { v: Math.round(v / BASE) * BASE, g: null };
+    if (best !== null) return { v: best, g: best };
+    // no alignment magnet: the painted grid line catches next — an edge
+    // near a line the user can SEE lands exactly on it, never beside it
+    var gv = Math.round(v / GRID) * GRID;
+    if (Math.abs(gv - v) <= SNAP) return { v: gv, g: null };
+    return { v: Math.round(v / BASE) * BASE, g: null };
   }
   selBox.querySelectorAll('.gogh-h').forEach(function (hBtn) {
     hBtn.addEventListener('pointerdown', function (ev) {
@@ -11256,6 +11280,9 @@
     openAnswerReady: openAnswerReadyPanel,
     askRead: askRead,
     solve: solve,
+    snapAxis: snapAxis,
+    snapPos: snapPos,
+    setGridSnap: function (on) { gridSnapOn = !!on; },
     openSecMore: openSecMore,
     askApplyOps: askApplyOps,
     askProject: askProject,
