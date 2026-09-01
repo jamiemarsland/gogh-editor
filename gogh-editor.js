@@ -7024,6 +7024,61 @@
   }
   // the sayable, taught by example: these rotate through the empty prompt
   // and stand in as chips when a read misses
+  // the key door: folks bring their own Anthropic key, pasted once right
+  // where the need arises. It goes straight to the site (write-only) and
+  // the pending ask re-runs the moment it lands — paste, and the answer
+  // you were waiting for simply happens.
+  function askKeyDoorHTML() {
+    if (!cfg.canKey) {
+      return '<div class="gogh-askkey">Bigger asks use Gogh’s imagination — ask your site’s admin to switch it on with an Anthropic API key.</div>';
+    }
+    return '<div class="gogh-askkey">Bigger asks run on your own Anthropic key ' +
+      '(<a href="https://console.anthropic.com/settings/keys" target="_blank" rel="noopener">get one here</a>). ' +
+      'It stays on your site and only ever talks to Anthropic.' +
+      '<div class="gogh-askrow"><input type="password" class="gogh-input gogh-askkeyin" placeholder="sk-ant-…" autocomplete="off" />' +
+      '<button type="button" class="gogh-btn gogh-btn-small gogh-askkeygo">Switch it on</button></div></div>';
+  }
+  function bindKeyDoor(host, onReady) {
+    var go = host.querySelector('.gogh-askkeygo');
+    if (!go) return;
+    var kin = host.querySelector('.gogh-askkeyin');
+    var save = function () {
+      var v = kin.value.trim();
+      if (!v) { kin.focus(); return; }
+      go.disabled = true;
+      go.textContent = 'Checking…';
+      fetch(cfg.restUrl.split('wp/v2/')[0] + 'gogh/v1/ask-key', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-WP-Nonce': cfg.nonce },
+        credentials: 'same-origin',
+        body: JSON.stringify({ key: v }),
+      }).then(function (r) { return r.ok ? r.json() : r.json().then(function (j) { return Promise.reject(j); }); })
+        .then(function (j) {
+          cfg.askAI = !!(j && j.on);
+          kin.value = ''; // out of the DOM the moment it's stored
+          if (cfg.askAI && onReady) onReady();
+        })
+        .catch(function (j) {
+          go.disabled = false;
+          go.textContent = 'Switch it on';
+          kin.placeholder = (j && j.message) ? j.message : 'That key didn’t take — try again';
+          kin.value = '';
+          kin.focus();
+        });
+    };
+    go.addEventListener('click', save);
+    kin.addEventListener('keydown', function (ev) {
+      if (ev.key === 'Enter') { ev.preventDefault(); save(); }
+    });
+  }
+  function askForgetKey() {
+    return fetch(cfg.restUrl.split('wp/v2/')[0] + 'gogh/v1/ask-key', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-WP-Nonce': cfg.nonce },
+      credentials: 'same-origin',
+      body: JSON.stringify({ key: '' }),
+    }).then(function (r) { return r.json(); }).then(function (j) { cfg.askAI = !!(j && j.on); });
+  }
   var ASK_EXAMPLES = [
     'Make this more premium…',
     'Give this more breathing room…',
@@ -7137,8 +7192,13 @@
         resRow.hidden = true;
         missRow.hidden = false;
         missRow.innerHTML = 'The imagination didn’t answer — try again, or one of these:' +
-          chipify(ASK_EXAMPLES.slice(0, 4));
+          chipify(ASK_EXAMPLES.slice(0, 4)) +
+          (cfg.canKey ? '<div class="gogh-askkey">Key trouble? <button type="button" class="gogh-askchip gogh-askforget">Forget the key</button> and paste a fresh one.</div>' : '');
         bindChips();
+        var fg = missRow.querySelector('.gogh-askforget');
+        if (fg) fg.addEventListener('click', function () {
+          askForgetKey().then(function () { submit(); });
+        });
       }).then(function () {
         S.forEach(function (s) { s.wrapEl.classList.remove('gogh-ask-thinking'); });
       });
@@ -7153,10 +7213,9 @@
         missRow.hidden = false;
         missRow.innerHTML = (input.value.trim() ? 'Gogh didn’t catch that — try one of these:' :
           'Tell Gogh what you’d like — for example:') + chipify(ASK_EXAMPLES.slice(0, 4)) +
-          (input.value.trim() && !cfg.askAI
-            ? '<div class="gogh-askkey">Bigger asks need Gogh’s imagination — add an Anthropic API key to wp-config.php: <code>define(\'GOGH_ASK_KEY\', \'sk-ant-…\')</code></div>'
-            : '');
+          (input.value.trim() && !cfg.askAI ? askKeyDoorHTML() : '');
         bindChips();
+        bindKeyDoor(missRow, function () { submit(); });
         return;
       }
       read = r;

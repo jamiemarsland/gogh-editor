@@ -4175,6 +4175,22 @@
       });
     });
 
+    testAsync('ask gogh: the key door refuses a malformed key', function () {
+      // rejection path only — a valid or empty POST would touch the real
+      // stored key, and the suite must never do that
+      var root = (window.GOGH && GOGH.restUrl) ? GOGH.restUrl.split('wp/v2/')[0] : '/wp-json/';
+      return fetch(root + 'gogh/v1/ask-key', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-WP-Nonce': (window.GOGH || {}).nonce },
+        credentials: 'same-origin',
+        body: JSON.stringify({ key: 'not-an-anthropic-key' }),
+      }).then(function (res) {
+        expect(res.status !== 404, 'the key door does not exist');
+        expect(res.status === 400, 'expected 400 for a malformed key, got ' + res.status);
+        return 'malformed key refused with 400';
+      });
+    });
+
     test('ask gogh: seam reads become the right shelf sections', function () {
       var m = G.askSeamMatch('three customer testimonials');
       expect(m && m.tpl.name === 'Testimonials', 'testimonials read as ' + (m && m.tpl.name));

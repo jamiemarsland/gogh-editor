@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Gogh Editor
  * Description: A freeform canvas for WordPress — drag anything anywhere on your live page; Gogh publishes it back as clean, responsive core blocks that keep working even if the plugin is deactivated.
- * Version: 0.99.259
+ * Version: 0.99.260
  * Author: Jamie Marsland
  * Author URI: https://pootlepress.com
  * License: GPLv2 or later
@@ -23,7 +23,7 @@ add_action( 'init', function () {
 		'gogh-block',
 		plugins_url( 'gogh-block.js', __FILE__ ),
 		array( 'wp-blocks', 'wp-element', 'wp-block-editor' ),
-		'0.99.259-chrome',
+		'0.99.260-chrome',
 		true
 	);
 	register_block_type( 'gogh/section', array(
@@ -294,9 +294,9 @@ add_action( 'wp_enqueue_scripts', function () {
 	if ( ! $post || ! current_user_can( 'edit_post', $post->ID ) ) {
 		return;
 	}
-	wp_register_script( 'gogh-compose', plugins_url( 'gogh-compose.js', __FILE__ ), array(), '0.99.259-chrome', true );
-	wp_enqueue_script( 'gogh-write', plugins_url( 'gogh-write.js', __FILE__ ), array( 'gogh-compose' ), '0.99.259-chrome', true );
-	wp_enqueue_style( 'gogh-write', plugins_url( 'gogh-write.css', __FILE__ ), array(), '0.99.259-chrome' );
+	wp_register_script( 'gogh-compose', plugins_url( 'gogh-compose.js', __FILE__ ), array(), '0.99.260-chrome', true );
+	wp_enqueue_script( 'gogh-write', plugins_url( 'gogh-write.js', __FILE__ ), array( 'gogh-compose' ), '0.99.260-chrome', true );
+	wp_enqueue_style( 'gogh-write', plugins_url( 'gogh-write.css', __FILE__ ), array(), '0.99.260-chrome' );
 	wp_localize_script( 'gogh-write', 'GOGHWRITE', array(
 		'postId'  => $post->ID,
 		'restUrl' => esc_url_raw( rest_url() ),
@@ -501,14 +501,20 @@ function gogh_motion_css() {
 		'@keyframes gogh-mo-drama { from { opacity: 0; translate: 0 72px; scale: 0.96; } }' .
 		'} }';
 }
-// the imagination's key: wp-config's GOGH_ASK_KEY, or the environment.
-// No key = the tier simply isn't there; the vocabulary still answers.
+// the imagination's key — folks bring their own. Three sources, first
+// wins: wp-config's GOGH_ASK_KEY (hosts/pros), the environment, or the
+// option an admin pasted into the Ask panel (stored unautoloaded,
+// write-only: it never travels back to a browser). No key = the tier
+// simply isn't there; the vocabulary still answers.
 function gogh_ask_key() {
 	if ( defined( 'GOGH_ASK_KEY' ) && GOGH_ASK_KEY ) {
 		return GOGH_ASK_KEY;
 	}
 	$env = getenv( 'ANTHROPIC_API_KEY' );
-	return $env ? $env : '';
+	if ( $env ) {
+		return $env;
+	}
+	return (string) get_option( 'gogh_ask_key', '' );
 }
 function gogh_ask_handler( $req ) {
 	$key = gogh_ask_key();
@@ -970,7 +976,7 @@ add_action( 'rest_api_init', function () {
 			return current_user_can( 'edit_posts' );
 		},
 		'callback'            => function () {
-			return array( 'build' => '0.99.259-chrome' );
+			return array( 'build' => '0.99.260-chrome' );
 		},
 	) );
 	register_rest_route( 'gogh/v1', '/starter', array(
@@ -1248,6 +1254,29 @@ add_action( 'rest_api_init', function () {
 			return current_user_can( 'edit_theme_options' );
 		},
 		'callback'            => 'gogh_ask_handler',
+	) );
+
+	// the key door: paste once in the Ask panel, gone from sight forever.
+	// Admins only (it's a billing credential), shape-checked, write-only —
+	// an empty key forgets it. A wp-config constant outranks the option.
+	register_rest_route( 'gogh/v1', '/ask-key', array(
+		'methods'             => 'POST',
+		'permission_callback' => function () {
+			return current_user_can( 'manage_options' );
+		},
+		'callback'            => function ( $req ) {
+			$p   = $req->get_json_params();
+			$key = isset( $p['key'] ) ? trim( (string) $p['key'] ) : '';
+			if ( '' === $key ) {
+				delete_option( 'gogh_ask_key' );
+				return array( 'on' => (bool) gogh_ask_key() );
+			}
+			if ( ! preg_match( '/^sk-ant-[A-Za-z0-9_\-]{10,250}$/', $key ) ) {
+				return new WP_Error( 'gogh_ask_key_shape', __( 'That doesn’t look like an Anthropic key (they start sk-ant-…).', 'gogh-editor' ), array( 'status' => 400 ) );
+			}
+			update_option( 'gogh_ask_key', $key, false );
+			return array( 'on' => true );
+		},
 	) );
 
 	register_rest_route( 'gogh/v1', '/active-style', array(
@@ -1910,7 +1939,7 @@ function gogh_splash_css() {
 // wearing Magazine must read as Magazine logged-out, and the site's gait
 // is site-wide; both packs are a few KB of pure CSS.
 add_action( 'wp_enqueue_scripts', function () {
-	wp_register_style( 'gogh-looks', false, array(), '0.99.259-chrome' );
+	wp_register_style( 'gogh-looks', false, array(), '0.99.260-chrome' );
 	wp_enqueue_style( 'gogh-looks' );
 	wp_add_inline_style( 'gogh-looks', gogh_reading_style_css() . gogh_motion_css() . gogh_blog_style_css() );
 
@@ -1931,7 +1960,7 @@ add_action( 'wp_enqueue_scripts', function () {
 	foreach ( $looks as $l ) {
 		$items .= '<button type="button" data-blog-look="' . esc_attr( $l[0] ) . '" class="' . ( $cur === $l[0] ? 'is-current' : '' ) . '"><b>' . esc_html( $l[1] ) . '</b><i>' . esc_html( $l[2] ) . '</i></button>';
 	}
-	wp_register_script( 'gogh-blogstyle', false, array(), '0.99.259-chrome', true );
+	wp_register_script( 'gogh-blogstyle', false, array(), '0.99.260-chrome', true );
 	wp_enqueue_script( 'gogh-blogstyle' );
 	wp_add_inline_style( 'gogh-looks',
 		'.gogh-bs-pillwrap { position: fixed; right: 22px; bottom: 20px; z-index: 99999; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, sans-serif; }' .
@@ -2002,10 +2031,10 @@ add_action( 'wp_enqueue_scripts', function () {
 
 	// for every visitor: neutralise theme spacing around gogh sections, even
 	// on pages whose stored stylesheets predate this rule
-	wp_register_style( 'gogh-base', false, array(), '0.99.259-chrome' );
+	wp_register_style( 'gogh-base', false, array(), '0.99.260-chrome' );
 	// (the splash presentation itself lives in gogh_splash_css(), shared with
 	// the block editor — a wall in Gutenberg must look like a wall)
-	wp_register_script( 'gogh-view', false, array(), '0.99.259-chrome', true );
+	wp_register_script( 'gogh-view', false, array(), '0.99.260-chrome', true );
 	wp_enqueue_script( 'gogh-view' );
 	wp_add_inline_script( 'gogh-view',
 		// carousel arrows + autoplay are VIEW-TIME: never stored, so saved
@@ -2234,9 +2263,9 @@ add_action( 'wp_enqueue_scripts', function () {
 
 	// compose must be REGISTERED here too — a dependency on an
 	// unregistered handle silently drops the whole editor script
-	wp_register_script( 'gogh-compose', plugins_url( 'gogh-compose.js', __FILE__ ), array(), '0.99.259-chrome', true );
-	wp_enqueue_script( 'gogh-editor', plugins_url( 'gogh-editor.js', __FILE__ ), array( 'gogh-compose' ), '0.99.259-chrome', true );
-	wp_enqueue_style( 'gogh-editor', plugins_url( 'gogh-editor.css', __FILE__ ), array(), '0.99.259-chrome' );
+	wp_register_script( 'gogh-compose', plugins_url( 'gogh-compose.js', __FILE__ ), array(), '0.99.260-chrome', true );
+	wp_enqueue_script( 'gogh-editor', plugins_url( 'gogh-editor.js', __FILE__ ), array( 'gogh-compose' ), '0.99.260-chrome', true );
+	wp_enqueue_style( 'gogh-editor', plugins_url( 'gogh-editor.css', __FILE__ ), array(), '0.99.260-chrome' );
 
 	// WebMCP bridge: the page registers its editing verbs as agent tools.
 	// OPT-IN only — add ?gogh-mcp=1 for a demo session (or enable sitewide
@@ -2248,13 +2277,13 @@ add_action( 'wp_enqueue_scripts', function () {
 	// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only labs toggle
 	$gogh_exp = isset( $_GET['gogh-test'] ) || ( isset( $_GET['gogh-experiments'] ) && '0' !== $_GET['gogh-experiments'] );
 	if ( isset( $_GET['gogh-mcp'] ) || $gogh_exp || apply_filters( 'gogh_webmcp_enabled', false ) ) {
-		wp_enqueue_script( 'gogh-webmcp', plugins_url( 'gogh-webmcp.js', __FILE__ ), array( 'gogh-editor' ), '0.99.259-chrome', true );
+		wp_enqueue_script( 'gogh-webmcp', plugins_url( 'gogh-webmcp.js', __FILE__ ), array( 'gogh-editor' ), '0.99.260-chrome', true );
 	}
 
 	// regression suite: /page/?gogh-test (editors only, never saves)
 	// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only toggle enqueuing a test script for capability-checked editors.
 	if ( isset( $_GET['gogh-test'] ) ) {
-		wp_enqueue_script( 'gogh-tests', plugins_url( 'gogh-tests.js', __FILE__ ), array( 'gogh-editor' ), '0.99.259-chrome', true );
+		wp_enqueue_script( 'gogh-tests', plugins_url( 'gogh-tests.js', __FILE__ ), array( 'gogh-editor' ), '0.99.260-chrome', true );
 	}
 
 	// products live outside wp/v2, so gogh carries its own save route for
@@ -2263,7 +2292,7 @@ add_action( 'wp_enqueue_scripts', function () {
 	$rest_base = ( 'page' === $post->post_type ) ? 'pages' : ( 'product' === $post->post_type ? 'gogh-product' : 'posts' );
 	wp_localize_script( 'gogh-editor', 'GOGH', array(
 		'postId'   => $post->ID,
-		'build'    => '0.99.259-chrome',
+		'build'    => '0.99.260-chrome',
 		// two rooms, one landmark (same contract as the admin bar): on a POST
 		// the corner pill opens the WRITING surface, not the freeform canvas
 		'writeUrl' => is_singular( 'post' ) ? add_query_arg( 'gogh-write', '1', get_permalink( $post ) ) : null,
@@ -2284,6 +2313,7 @@ add_action( 'wp_enqueue_scripts', function () {
 		'activeStyle' => get_option( 'gogh_active_style', '' ),
 		'motion'   => get_option( 'gogh_motion', '' ),
 		'askAI'    => (bool) gogh_ask_key(),
+		'canKey'   => current_user_can( 'manage_options' ),
 		'typeScale' => (int) get_option( 'gogh_type_scale', 100 ),
 		'hasWoo'   => class_exists( 'WooCommerce' ),
 		// block-gated pieces light up the day the block exists (7.1 brings tabs)
@@ -2391,7 +2421,7 @@ add_action( 'enqueue_block_assets', function () {
 	if ( ! is_admin() ) {
 		return;
 	}
-	wp_register_style( 'gogh-editor-base', false, array(), '0.99.259-chrome' );
+	wp_register_style( 'gogh-editor-base', false, array(), '0.99.260-chrome' );
 	wp_enqueue_style( 'gogh-editor-base' );
 	wp_add_inline_style( 'gogh-editor-base',
 		'.gogh-wrap { min-width: 100%; margin-block: 0 !important; }' .
