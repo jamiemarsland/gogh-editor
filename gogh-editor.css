@@ -1195,15 +1195,17 @@ body.gogh-painting, body.gogh-painting .gogh-section * { cursor: url('data:image
   height: 22px;
   display: block;
 }
-.gogh-shape svg path {
-  fill: none;
-  stroke: #4a63d8;
-  stroke-width: 10;
+/* the chip previews wear the REAL ink of the boundary they'd join —
+   colours come inline from the panel, never from here */
+.gogh-shape svg {
+  border-radius: 4px;
+  overflow: hidden;
+  outline: 1px solid rgba(22, 24, 28, 0.12);
 }
 .gogh-shape span {
   font-size: 10px;
   font-weight: 600;
-  color: rgba(232, 234, 240, 0.7);
+  color: var(--gogh-ui-muted, #6b6c72);
 }
 .gogh-shape:hover { outline-color: #7ea8ff; }
 .gogh-shape.is-active { outline: 2px solid #7ea8ff; background: rgba(126, 168, 255, 0.12); }

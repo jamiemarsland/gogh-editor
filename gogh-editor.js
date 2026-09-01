@@ -1348,7 +1348,9 @@
       divNextRich: nextIsRaw ? false : richBg(next),
       topDivider: (prev && !prev.chrome && prev.divider && prev.divider.shape && richBg(sec))
         ? prev.divider.shape : null,
-      divColor: nextIsRaw ? rawBandColor(domNext) : (next ? (next.bg || '#0f0e0c') : null) };
+      // a bg-less neighbour IS the page canvas — inking the divider
+      // near-black there painted a band the section itself never had
+      divColor: nextIsRaw ? rawBandColor(domNext) : (next ? (next.bg || pageBg()) : null) };
   }
   function resolveAndApply(sec) {
     sec.styleEl.textContent = buildCSS(sec.els, sec.scope, sec.minH, sectionOpts(sec));
@@ -6955,6 +6957,27 @@
       return { label: 'motion', miss: 'Scroll motion lives in the Design drawer → Motion — one gait for the whole site, so pages feel composed rather than busy.',
         build: function () { return []; } };
     }
+    // the seam between sections is a look too — melt/wave/curve chips,
+    // spoken. The ink comes from the next section automatically.
+    if (has(/(remove|no|none|flat|straight).{0,14}transition|transition.{0,10}(off|away)/)) {
+      return { label: 'a clean edge',
+        build: function () {
+          return [{ name: 'A straight edge', apply: function (s) { s.divider = null; resolveAll(); } }];
+        } };
+    }
+    if (has(/transition|\bmelt\b|blend into|soften the (join|edge|bottom)|\bwave\b|flow into/)) {
+      return { label: 'a softer transition',
+        build: function () {
+          return [
+            { name: 'Melt', key: 'melt' },
+            { name: 'Wave', key: 'wave' },
+            { name: 'Curve', key: 'curve' },
+            { name: 'Slant', key: 'slant' },
+          ].map(function (c) {
+            return { name: c.name, apply: function (s) { s.divider = { shape: c.key }; resolveAll(); } };
+          });
+        } };
+    }
     // colour asks outrank photo asks: "background to dark" is a colour
     // wish, not a request to go photo-shopping. Lighter first — "less
     // dark" must not fall into the dark read.
@@ -7317,6 +7340,20 @@
       if (ev.key === 'Enter') { ev.preventDefault(); save(); }
     });
   }
+  // an ask that missed, errored, or was instantly undone IS a bug
+  // report — log it quietly (fire-and-forget) so gaps surface as data
+  function askLog(ask, outcome) {
+    ask = String(ask || '').trim();
+    if (!ask) return;
+    try {
+      fetch(cfg.restUrl.split('wp/v2/')[0] + 'gogh/v1/ask-log', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-WP-Nonce': cfg.nonce },
+        credentials: 'same-origin',
+        body: JSON.stringify({ ask: ask.slice(0, 120), outcome: outcome }),
+      }).catch(function () {});
+    } catch (err) {}
+  }
   function askForgetKey() {
     return fetch(cfg.restUrl.split('wp/v2/')[0] + 'gogh/v1/ask-key', {
       method: 'POST',
@@ -7447,6 +7484,7 @@
         showResult(tryCand(0));
       }).catch(function (j) {
         if (!myInput.isConnected) return;
+        if (!(j && j.code === 'gogh_ask_need_ws')) askLog(myInput.value, 'model-error');
         resRow.hidden = true;
         missRow.hidden = false;
         // a workspace-linked key gets its own door: paste the id (an
@@ -7504,6 +7542,7 @@
         if (input.value.trim() && cfg.askAI) { imagine(); return; }
         resRow.hidden = true;
         missRow.hidden = false;
+        if (input.value.trim()) askLog(input.value, 'miss');
         missRow.innerHTML = (input.value.trim() ? 'Gogh didn’t catch that — try one of these:' :
           'Tell Gogh what you’d like — for example:') + chipify(ASK_EXAMPLES.slice(0, 4)) +
           (input.value.trim() && !cfg.askAI ? askKeyDoorHTML() : '');
@@ -7523,6 +7562,7 @@
         read.buildAsync(S[idx]).then(function (cands) {
           if (!myInput2.isConnected || panel.hidden || read !== myRead) return;
           if (!cands.length) {
+            askLog(myInput2.value, 'refused');
             missRow.textContent = myRead.miss || 'Nothing here answers to that yet.';
             return;
           }
@@ -7535,6 +7575,7 @@
       }
       read._cands = read.build(S[idx]);
       if (!read._cands.length) {
+        askLog(input.value, 'refused');
         resRow.hidden = true;
         missRow.hidden = false;
         missRow.textContent = read.miss || 'Nothing here answers to that yet.';
@@ -7568,6 +7609,7 @@
     panel.querySelector('.gogh-askundo').addEventListener('click', function () {
       var text = input.value;
       if (applied) {
+        askLog(text, 'undone'); // an instantly-undone answer is feedback
         undo();
         openAskPanel(idx, null, { text: text, read: null, k: 0, applied: false });
         return;
@@ -7737,6 +7779,7 @@
       var m = askSeamMatch(text);
       if (!m) {
         if (!String(text || '').trim()) { input.focus(); return; }
+        askLog(text, 'seam-miss');
         // the words didn't land — the full shelf is one click away, and
         // it stays the same trusted picker it always was
         missRow.hidden = false;
@@ -8224,37 +8267,28 @@
       { key: 'torn', label: 'Torn', path: DIVIDER_PATHS.torn },
       { key: 'melt', label: 'Melt', melt: true },
     ];
+    // the gogh version: shapes as LOOKS, nothing else. The transition
+    // already inks itself from the next section's real background
+    // (divColor), so the old Above/Below pickers were recolouring whole
+    // sections from the wrong door — and the chip previews now wear the
+    // TRUE ink, so what you hover is what you get. Saved overlaps and
+    // colours keep rendering; we just stopped asking.
+    var inkBelow = shapeRawBelow
+      ? rawBandColor(domSuccessor(above))
+      : ((below && below.bg) || pageBg() || '#0f0e0c');
+    var inkAbove = (above.bg || pageBg() || 'transparent');
     shapePanel.innerHTML =
       '<div class="gogh-panel-title">Section transition</div>' +
+      '<div class="gogh-panel-hint">Hover to audition — click to keep.</div>' +
       '<div class="gogh-shapes">' +
       shapes.map(function (sh) {
         var icon = sh.melt
-          ? '<span class="gogh-shape-melt"></span>'
-          : '<svg viewBox="0 0 1200 120" preserveAspectRatio="none"><path d="' + sh.path + '"/></svg>';
+          ? '<span class="gogh-shape-melt" style="background: linear-gradient(to bottom, transparent, ' + escAttr(inkBelow) + ')"></span>'
+          : '<svg viewBox="0 0 1200 120" preserveAspectRatio="none" style="background:' + escAttr(inkAbove) + '"><path d="' + sh.path + (sh.key ? ' L1200,120 L0,120 Z' : '') + '" style="fill:' + (sh.key ? escAttr(inkBelow) : 'none') + ';stroke:' + escAttr(inkBelow) + ';stroke-width:6"/></svg>';
         return '<button type="button" class="gogh-shape' + (sh.key === current ? ' is-active' : '') + '" data-shape="' + sh.key + '" title="' + sh.label + '">' +
           icon + '<span>' + sh.label + '</span></button>';
       }).join('') +
-      '</div>' +
-      '<div class="gogh-panel-row gogh-panel-actions">' +
-      '<label class="gogh-colorlab">Above <input type="color" class="gogh-color gogh-color-above" /></label>' +
-      (below ? '<label class="gogh-colorlab">Below <input type="color" class="gogh-color gogh-color-below" /></label>' : '') +
-      '</div>' +
-      (function () {
-        var pal = pickerPalette();
-        if (!pal.length) return '';
-        var sw = function (which) {
-          return '<div class="gogh-swrow"><span class="gogh-swlab">' + which + '</span>' +
-            '<button type="button" class="gogh-sw gogh-sw-none" data-which="' + which + '" data-val="" title="Theme default"></button>' +
-            pal.map(function (p) {
-              return '<button type="button" class="gogh-sw" data-which="' + which + '"' +
-                ' data-val="var(--wp--preset--color--' + p.slug + ')"' +
-                ' style="background: var(--wp--preset--color--' + p.slug + ')" title="' + p.slug + '"></button>';
-            }).join('') + '</div>';
-        };
-        return '<div class="gogh-panel-title" style="margin-top:12px">Theme palette</div>' + sw('above') + (below ? sw('below') : '');
-      })() +
-      (below ? '<label class="gogh-fxpull" style="margin-top:12px">Overlap the section above' +
-      '<input type="range" class="gogh-pull" min="0" max="180" step="12" /></label>' : '');
+      '</div>';
     // viewport coords, NOT document coords: .gogh-panel went fixed in
     // 0.99.49 and this placement kept adding scrollY — on any scrolled
     // page the Transition panel opened below the viewport, reading as
@@ -8267,51 +8301,28 @@
     if (spr.bottom > window.innerHeight - 40) {
       shapePanel.style.top = Math.max(16, window.innerHeight - 40 - spr.height) + 'px';
     }
-    shapePanel.querySelector('.gogh-color-above').value = above.bg || '#0f0e0c';
-    var belowColor = shapePanel.querySelector('.gogh-color-below');
-    if (belowColor) belowColor.value = below.bg || '#0f0e0c';
+    // audition like everything else in gogh: hover wears the shape on the
+    // REAL boundary, leaving restores, click keeps (and stays open for
+    // the next audition)
+    var kept = above.divider ? { shape: above.divider.shape } : null;
+    var wear = function (key) {
+      above.divider = key ? { shape: key } : null;
+      resolveAll();
+    };
     shapePanel.querySelectorAll('.gogh-shape').forEach(function (btn) {
+      btn.addEventListener('mouseenter', function () { wear(btn.dataset.shape); });
+      btn.addEventListener('mouseleave', function () { wear(kept && kept.shape); });
       btn.addEventListener('click', function () {
-        above.divider = btn.dataset.shape ? { shape: btn.dataset.shape } : null;
-        resolveAll();
+        wear(kept && kept.shape); // restore, so undo lands on the true before
+        pushState();
+        kept = btn.dataset.shape ? { shape: btn.dataset.shape } : null;
+        wear(kept && kept.shape);
         pushState();
         shapePanel.querySelectorAll('.gogh-shape').forEach(function (b) {
           b.classList.toggle('is-active', b === btn);
         });
       });
     });
-    shapePanel.querySelector('.gogh-color-above').addEventListener('input', function () {
-      above.bg = this.value;
-      resolveAll();
-    });
-    if (belowColor) belowColor.addEventListener('input', function () {
-      below.bg = this.value;
-      resolveAll();
-    });
-    shapePanel.querySelectorAll('.gogh-color').forEach(function (inp) {
-      inp.addEventListener('change', pushState);
-    });
-    shapePanel.querySelectorAll('.gogh-sw').forEach(function (btn) {
-      btn.addEventListener('click', function () {
-        var target = btn.dataset.which === 'above' ? above : below;
-        if (!target) return;
-        target.bg = btn.dataset.val || null;
-        resolveAll();
-        pushState();
-      });
-    });
-    // reveal/curtain UI removed for simplicity \u2014 existing sections that
-    // carry those flags still render them (published pages stay intact)
-    var pullInp = shapePanel.querySelector('.gogh-pull');
-    if (pullInp) {
-      pullInp.value = (below.fx && below.fx.pull) || 0;
-      pullInp.addEventListener('input', function () {
-        below.fx = below.fx || {};
-        below.fx.pull = +this.value || 0;
-        resolveAll();
-      });
-      pullInp.addEventListener('change', pushState);
-    }
   }
   shapeBtn.addEventListener('click', function () {
     if (shapeIdx !== null) openShapePanel(shapeIdx);

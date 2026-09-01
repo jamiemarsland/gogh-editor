@@ -1659,11 +1659,12 @@
     // ---- 15. divider + section backgrounds (v0.10) ----
     test('divider CSS generated with next-section colour', function () {
       G.addSection(G.templates()[3], G.sections().length);
+      // the redesigned panel has no pickers: the ink is READ from the
+      // section below (its bg, else the page canvas), never asked for
+      var below = G.sections()[1];
+      below.bg = '#123456';
       G.openShapePanel(1);
-      q('.gogh-shape[data-shape="curve"]').click();
-      var belowInput = q('.gogh-color-below');
-      belowInput.value = '#123456';
-      belowInput.dispatchEvent(new Event('input', { bubbles: true }));
+      q('.gogh-shape[data-shape="curve"]').click(); // keep() re-resolves
       var s0 = G.sections()[0];
       expect(s0.divider && s0.divider.shape === 'curve', 'divider not set');
       var css = s0.styleEl.textContent;
@@ -1672,6 +1673,7 @@
       // variables (theme palette) work as divider colours
       expect(css.indexOf('mask-image') !== -1, 'divider not mask-based');
       expect(css.indexOf('background: #123456') !== -1, 'divider colour missing');
+      q('.gogh-shapepanel').hidden = true;
     });
 
     // ---- 16. rotation ----
@@ -4069,6 +4071,8 @@
         ['smaller heading', 'quieter'],
         ['delete the badge', 'badge'],
         ['make things move when I scroll', 'motion'],
+        ['melt this into the next section', 'softer transition'],
+        ['remove the transition', 'clean edge'],
       ];
       reads.forEach(function (r) {
         var got = G.askRead(r[0]);
@@ -4278,6 +4282,57 @@
         var imgEl = s.els.filter(function (e) { return e.type === 'image' && e.src; })[0];
         expect(!!s.bgImage || !!imgEl, 'applying a candidate set no photo anywhere');
         return cands.length + ' photos offered, first applied to ' + (s.bgImage ? 'the background' : 'the picture element');
+      });
+    });
+
+    test('ask gogh: transitions are spoken looks', function () {
+      var s = sec();
+      var read = G.askRead('melt this into the next section');
+      var cands = read.build(s);
+      expect(cands.length >= 3, 'expected shape candidates, got ' + cands.length);
+      cands[0].apply(s);
+      expect(s.divider && s.divider.shape === 'melt', 'Melt did not wear: ' + JSON.stringify(s.divider));
+      var off = G.askRead('remove the transition').build(s);
+      off[0].apply(s);
+      expect(s.divider === null, 'the transition did not come off');
+      return 'melt worn, then a straight edge';
+    });
+
+    test('transition panel: shapes only, self-inked, hover-auditioned', function () {
+      // build a real boundary: a section below the first
+      G.openSeamAsk(null, null);
+      q('.gogh-panel .gogh-askin').value = 'pricing';
+      q('.gogh-panel .gogh-askgo').click();
+      var below = lastSec();
+      var bIdx = G.sections().indexOf(below);
+      var above = G.sections()[bIdx - 1];
+      G.openShapePanel(bIdx);
+      var sp = q('.gogh-shapepanel');
+      expect(sp && !sp.hidden, 'the transition panel did not open');
+      expect(sp.querySelectorAll('.gogh-shape').length === 8, 'expected 8 shape chips');
+      expect(!sp.querySelector('.gogh-color') && !sp.querySelector('.gogh-sw') && !sp.querySelector('.gogh-pull'),
+        'a picker or slider survived the redesign');
+      var wave = sp.querySelector('[data-shape="wave"]');
+      wave.dispatchEvent(new MouseEvent('mouseenter', { bubbles: true }));
+      expect(above.divider && above.divider.shape === 'wave', 'hover did not audition the wave');
+      wave.dispatchEvent(new MouseEvent('mouseleave', { bubbles: true }));
+      expect(!above.divider, 'leaving did not restore the boundary');
+      wave.click();
+      expect(above.divider && above.divider.shape === 'wave', 'click did not keep the wave');
+      sp.hidden = true;
+      return '8 chips, no pickers, audition round-trip clean';
+    });
+
+    testAsync('ask gogh: the miss-log refuses junk', function () {
+      var root = (window.GOGH && GOGH.restUrl) ? GOGH.restUrl.split('wp/v2/')[0] : '/wp-json/';
+      return fetch(root + 'gogh/v1/ask-log', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-WP-Nonce': (window.GOGH || {}).nonce },
+        credentials: 'same-origin',
+        body: JSON.stringify({ ask: 'x', outcome: 'not-an-outcome' }),
+      }).then(function (res) {
+        expect(res.status === 400, 'expected 400 for a junk outcome, got ' + res.status);
+        return 'junk outcome refused with 400';
       });
     });
 
