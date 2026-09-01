@@ -4298,6 +4298,52 @@
       return 'melt worn, then a straight edge';
     });
 
+    testAsync('seam and section furniture never speak at once', function () {
+      // the corridor logic settles inside requestAnimationFrame — and a
+      // BACKGROUND tab freezes rAF entirely (the observation goblin), so
+      // probe liveness first and report honestly rather than fail falsely
+      var frame = function () {
+        return new Promise(function (r) {
+          requestAnimationFrame(function () { requestAnimationFrame(r); });
+        });
+      };
+      var alive = new Promise(function (res) {
+        var done = false;
+        requestAnimationFrame(function () { done = true; res(true); });
+        setTimeout(function () { if (!done) res(false); }, 150);
+      });
+      return alive.then(function (ok) {
+        if (!ok) return 'rAF frozen (background tab) — front the tab for the full check';
+        G.openSeamAsk(null, null);
+        q('.gogh-panel .gogh-askin').value = 'pricing';
+        q('.gogh-panel .gogh-askgo').click();
+        var below = lastSec();
+        below.wrapEl.scrollIntoView({ block: 'center' });
+        var wr = below.wrapEl.getBoundingClientRect();
+        var cx = wr.left + wr.width / 2;
+        var move = function (y) {
+          // twice at one spot: the first may read as a rushing pointer
+          pev('pointermove', document.body, cx, y);
+          pev('pointermove', document.body, cx, y);
+          return frame();
+        };
+        var inserter2 = q('.gogh-inserter');
+        var bar = q('.gogh-secbar');
+        return move(wr.top + 4).then(function () {
+          expect(!inserter2.hidden, 'the seam corridor did not summon + Section');
+          expect(bar.hidden || bar.classList.contains('gogh-byebye'), 'the toolbar crowded the seam');
+          return move(wr.top + 48);
+        }).then(function () {
+          expect(bar.hidden || bar.classList.contains('gogh-byebye'), 'the toolbar spoke from the neutral band');
+          return move(wr.top + Math.min(140, wr.height - 80));
+        }).then(function () {
+          expect(!bar.hidden && !bar.classList.contains('gogh-byebye'), 'the toolbar did not appear in the body');
+          expect(inserter2.hidden || inserter2.classList.contains('gogh-byebye'), '+ Section overstayed in the body');
+          return 'corridor → pills, neutral band → calm, body → toolbar';
+        });
+      });
+    });
+
     test('transition panel: shapes only, self-inked, hover-auditioned', function () {
       // build a real boundary: a section below the first
       G.openSeamAsk(null, null);

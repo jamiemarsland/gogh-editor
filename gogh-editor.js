@@ -8482,7 +8482,22 @@
             var wr = S[si].wrapEl.getBoundingClientRect();
             if (cy >= wr.top && cy <= wr.bottom) { hov = si; break; }
           }
-          if (hov !== null) showSecBar(hov); else hideSecBar();
+          // one voice at a time: the seam's claim runs WIDER than its
+          // pill corridor, so the section toolbar never crowds in next
+          // to + Section and Transition ("very close together"). The
+          // 28-72px band is deliberately quiet — neutral ground between
+          // the seam's furniture and the section's — and short sections
+          // shrink the claim so their toolbar stays reachable.
+          if (hov !== null) {
+            var wrH = S[hov].wrapEl.getBoundingClientRect();
+            var claim = Math.min(72, Math.max(28, (wrH.bottom - wrH.top) / 3));
+            if (cy - wrH.top < claim || wrH.bottom - cy < claim) {
+              hideSecBarSoon(); // grace: a hand travelling TO the bar survives
+              hov = null;
+            }
+          }
+          if (hov !== null) showSecBar(hov);
+          else hideSecBarSoon();
         }
       }
     });
