@@ -4053,12 +4053,22 @@
         ['Make this more playful', 'playful'],
         ['Add more photos', 'photos'],
         ['Add another button', 'button'],
-        ['Change the background image', 'background photo'],
+        ['Change the background image', 'different photo'],
         ['Remove the background image', 'plain background'],
         ['Change the background to dark', 'darker'],
         ['Make the background lighter', 'lighter'],
         ['Make the background red', 'red background'],
         ['Add a hero section with a background image', 'new section below'],
+        // the sweep's catches: spacing beats colour, elements beat sections,
+        // site-wide decisions refuse instantly with a pointer
+        ['less white space', 'tighter'],
+        ['give it some air', 'breathing'],
+        ['make the button green', 'piece'],
+        ['use a different font', 'type'],
+        ['swap the photo', 'different photo'],
+        ['smaller heading', 'quieter'],
+        ['delete the badge', 'badge'],
+        ['make things move when I scroll', 'motion'],
       ];
       reads.forEach(function (r) {
         var got = G.askRead(r[0]);
@@ -4263,8 +4273,11 @@
         });
         var s = sec();
         cands[0].apply(s);
-        expect(!!s.bgImage, 'applying a candidate did not set the photo');
-        return cands.length + ' photos offered, first applied';
+        // a section wearing a background swaps that; otherwise its biggest
+        // picture element takes the new photo
+        var imgEl = s.els.filter(function (e) { return e.type === 'image' && e.src; })[0];
+        expect(!!s.bgImage || !!imgEl, 'applying a candidate set no photo anywhere');
+        return cands.length + ' photos offered, first applied to ' + (s.bgImage ? 'the background' : 'the picture element');
       });
     });
 
@@ -4310,8 +4323,13 @@
       expect(m && m.tpl.name === 'Call to action', 'cta read as ' + (m && m.tpl.name));
       m = G.askSeamMatch('a big photo and quote');
       expect(m && m.tpl.name === 'Quote', 'photo+quote read as ' + (m && m.tpl.name));
+      m = G.askSeamMatch('our latest posts');
+      expect(m && m.synth === 'posts' && m.tpl.els.some(function (e) { return e.type === 'widget'; }),
+        'latest posts read as ' + (m && m.tpl.name));
+      m = G.askSeamMatch('what our customers think');
+      expect(m && m.tpl.name === 'Testimonials', 'customers-think read as ' + (m && m.tpl.name));
       expect(G.askSeamMatch('xyzzy plugh') === null, 'nonsense should miss');
-      return '5 seam reads matched, nonsense refused';
+      return '7 seam reads matched, nonsense refused';
     });
 
     test('ask gogh: the seam ask inserts a real testimonials section', function () {

@@ -6743,7 +6743,10 @@
     if (i === -1) return;
     var e = s.els[i];
     var di = DISPLAY_ORDER.indexOf(e.fs);
-    e.fs = DISPLAY_ORDER[Math.max(0, Math.min(DISPLAY_ORDER.length - 1, (di === -1 ? -1 : di) + n))];
+    // negative steps walk back DOWN the display tiers and out (null = the
+    // theme's own heading size — quieter than any display tier)
+    var target = (di === -1 ? (n > 0 ? n - 1 : -1) : di + n);
+    e.fs = target < 0 ? null : DISPLAY_ORDER[Math.min(DISPLAY_ORDER.length - 1, target)];
     if (e.tf) { delete e.tf.fs; delete e.tf.fs2; delete e.tf.lh; }
     if (bold) { e.tf = e.tf || {}; e.tf.fw = 800; }
     var oldH = e.h;
@@ -6820,6 +6823,14 @@
         return o;
       }),
     };
+  }
+  function askBigImageIdx(sec) {
+    var best = -1;
+    sec.els.forEach(function (e, i) {
+      if (e.type !== 'image') return;
+      if (best === -1 || e.w * e.h > sec.els[best].w * sec.els[best].h) best = i;
+    });
+    return best;
   }
   var ASK_ADD_TYPES = { heading: 1, para: 1, button: 1, image: 1, badge: 1 };
   function askNum(v, lo, hi, fb) {
@@ -6908,7 +6919,7 @@
           } }];
         } };
     }
-    if (has(/ (different|new|another|fresh) (layout|arrangement|look) |rearrange|shuffle|switch (it|things) (up|around)/)) {
+    if (has(/ (different|new|another|fresh) (layout|arrangement|look) |rearrange|shuffle|switch (it|things) (up|around)|\bflip\b|\bmirror\b|swap sides|other side|on the (left|right)|something (different|else|new)|mix it up/)) {
       return { label: 'a different layout', miss: 'Nothing to rearrange yet — add a couple of elements first.',
         build: function (sec) {
           return rearrangeVariants(sec).map(function (v) {
@@ -6916,10 +6927,38 @@
           });
         } };
     }
+    // spacing outranks colour: "less white space" is about SPACE, and
+    // the word "white" must not drag it into a colour read
+    if (has(/breathing room|breathe|(more|some) (space|room|air)|\bairy\b|airier|spacious|less (cramped|crowded|dense)|too cramped|cramped|crowded|squashed|spread (things |it |them )?out|more padding|\bpadding\b|more margin/)) {
+      return { label: 'more breathing room',
+        build: function () {
+          return [1.18, 1.35, 1.55].map(function (f, k) {
+            return { name: ['Gentle', 'Generous', 'Grand'][k], apply: function (s) { askSpread(s, f); } };
+          });
+        } };
+    }
+    if (has(/tighten|tighter|more compact|less (space|room|white ?space|whitespace)|closer together|squeeze|too spread/)) {
+      return { label: 'a tighter fit',
+        build: function () {
+          return [0.85, 0.72].map(function (f, k) {
+            return { name: ['Snug', 'Tight'][k], apply: function (s) { askSpread(s, f); } };
+          });
+        } };
+    }
+    // type and motion are SITE decisions — refuse instantly and point at
+    // the right door, never roulette the model on them
+    if (has(/\bfonts?\b|typeface|\bserif\b|sans.?serif|typography/)) {
+      return { label: 'the type', miss: 'Type is a site-wide voice — change it in Site style, in the Design drawer. One type voice per site is what keeps everything looking designed.',
+        build: function () { return []; } };
+    }
+    if (has(/animat|\bmotion\b|move (when|on|as|while)|scroll effect|when (i|you|they) scroll/)) {
+      return { label: 'motion', miss: 'Scroll motion lives in the Design drawer → Motion — one gait for the whole site, so pages feel composed rather than busy.',
+        build: function () { return []; } };
+    }
     // colour asks outrank photo asks: "background to dark" is a colour
     // wish, not a request to go photo-shopping. Lighter first — "less
     // dark" must not fall into the dark read.
-    if (has(/lighter|brighter|softer|less dark|\bwhite\b|\blight\b|\bpale\b/)) {
+    if (has(/lighter|brighter|brighten|softer|less dark|\bwhite\b|\blight\b|\bpale\b/)) {
       return { label: 'a lighter touch', miss: 'Your palette has no light colour to offer here.',
         build: function () {
           return askThemesFeeling('light').concat(askThemesFeeling('mid')).slice(0, 3).map(function (t) {
@@ -6935,8 +6974,25 @@
           });
         } };
     }
+    if (has(/brand colou?r|our colou?r|house colou?r|accent colou?r/)) {
+      return { label: 'your brand colour', miss: 'Your palette has no accent to lean on here.',
+        build: function () {
+          return sectionThemes().filter(function (th) {
+            return !/^(paper|mist|ink|sweep|mesh)$/.test(th.slug);
+          }).slice(0, 4).map(function (th) {
+            return { name: th.name, apply: function (s) { paintSectionTheme(s, th); } };
+          });
+        } };
+    }
     var colorWord = t.match(/\b(red|crimson|orange|coral|peach|yellow|gold|green|mint|teal|cyan|blue|navy|indigo|purple|violet|magenta|pink)\b/);
     if (colorWord) {
+      // an ELEMENT-targeted colour ask must never repaint the section —
+      // point at the element's own colour controls instead
+      if (has(/\b(button|badge|link)\b/) || (has(/\b(headline|heading|title|text|words)\b/) && !has(/background/))) {
+        return { label: 'one piece’s colour',
+          miss: 'Gogh paints whole sections here — for one piece’s colour, click it and use its own colour dial in the toolbar.',
+          build: function () { return []; } };
+      }
       var wantHue = ASK_HUES[colorWord[1]];
       return { label: 'a ' + colorWord[1] + ' background',
         miss: 'Your site style has no ' + colorWord[1] + ' — gogh only paints with the palette the site owns. Remix (in Site style) can find you a new one.',
@@ -6959,11 +7015,12 @@
           ];
         } };
     }
-    if (has(/(change|swap|different|new|another|fresh).{0,16}background|background (image|photo|picture)/)) {
+    if (has(/(change|swap|different|new|another|fresh).{0,16}(background|photo|image|picture)|background (image|photo|picture)/) && !has(/\b(add|more|extra)\b/)) {
       // the library IS the candidate list: Try another flips through the
-      // site's own photographs, wide ones first — no model, no wait
-      return { label: 'a different background photo',
-        miss: 'No photos in your library yet — the 🖼 door on the section toolbar can upload some.',
+      // site's own photographs. A section wearing a background photo
+      // swaps that; otherwise its biggest picture element swaps.
+      return { label: 'a different photo',
+        miss: 'No picture here to swap — and no photos in your library yet. The 🖼 door on the section toolbar can upload some.',
         buildAsync: function (sec) {
           fetchMediaPool();
           return new Promise(function (done) {
@@ -6975,21 +7032,96 @@
               }
             }, 250);
           }).then(function () {
-            var pics = (mediaPool.bgs.length ? mediaPool.bgs : mediaPool.imgs)
-              .filter(function (p) { return p !== sec.bgImage; })
+            var onBg = !!sec.bgImage;
+            var bi = askBigImageIdx(sec);
+            if (!onBg && bi === -1) return [];
+            var current = onBg ? sec.bgImage : sec.els[bi].src;
+            var pics = ((onBg && mediaPool.bgs.length) ? mediaPool.bgs : mediaPool.imgs)
+              .filter(function (p) { return p !== current; })
               .slice(0, 10);
             return pics.map(function (src, i2) {
               var name = (String(src).split('/').pop() || '')
                 .replace(/\.[a-z0-9]+$/i, '').replace(/[-_]+/g, ' ')
                 .replace(/\b\d{2,}\b/g, '').replace(/\s+/g, ' ').trim().slice(0, 28) || 'Photo ' + (i2 + 1);
               return { name: name, apply: function (s) {
-                s.bgImage = src;
-                s.bgId = null;
-                syncBootInvite(s);
-                resolveAll();
+                if (onBg) {
+                  s.bgImage = src;
+                  s.bgId = null;
+                  syncBootInvite(s);
+                  resolveAll();
+                  return;
+                }
+                var j = askBigImageIdx(s);
+                if (j === -1) return;
+                s.els[j].src = src;
+                s.els[j].mediaId = null;
+                renderSection(s);
               } };
             });
           });
+        } };
+    }
+    if (has(/(get rid of|remove|delete|drop|lose).{0,14}(image|photo|picture)/)) {
+      return { label: 'losing a picture', miss: 'There’s no picture in this section to remove.',
+        build: function (sec) {
+          var out = [];
+          if (sec.bgImage) {
+            out.push({ name: 'No background photo', apply: function (s) {
+              s.bgImage = null;
+              s.bgId = null;
+              syncBootInvite(s);
+              resolveAll();
+            } });
+          }
+          if (askBigImageIdx(sec) !== -1) {
+            out.push({ name: 'Remove the picture', apply: function (s) {
+              var j = askBigImageIdx(s);
+              if (j === -1) return;
+              s.els.splice(j, 1);
+              sel = null;
+              hideHandles();
+              clearMulti();
+              renderSection(s);
+            } });
+          }
+          return out;
+        } };
+    }
+    if (has(/(bigger|larger|chunkier).{0,12}button|button.{0,16}(bigger|larger)/)) {
+      return { label: 'a bigger button', miss: 'There’s no button in this section yet.',
+        build: function (sec) {
+          if (!sec.els.some(function (e) { return e.type === 'button'; })) return [];
+          var scale = function (f) {
+            return function (s) {
+              s.els.forEach(function (e) {
+                if (e.type !== 'button') return;
+                e.w = Math.round(Math.min(W, e.w * f));
+                e.h = Math.round(Math.min(120, e.h * f));
+                e.x = Math.round(Math.max(0, Math.min(W - e.w, e.x)));
+              });
+              renderSection(s);
+            };
+          };
+          return [
+            { name: 'A little bigger', apply: scale(1.15) },
+            { name: 'Chunky', apply: scale(1.35) },
+          ];
+        } };
+    }
+    if (has(/(delete|remove|get rid of|lose|drop).{0,14}(badge|button)/)) {
+      var delKind = t.match(/badge|button/)[0];
+      return { label: 'losing a ' + delKind, miss: 'There’s no ' + delKind + ' in this section.',
+        build: function (sec) {
+          if (!sec.els.some(function (e) { return e.type === delKind; })) return [];
+          return [{ name: 'No ' + delKind, apply: function (s) {
+            for (var j = s.els.length - 1; j >= 0; j--) {
+              if (s.els[j].type === delKind) { s.els.splice(j, 1); break; }
+            }
+            sel = null;
+            hideHandles();
+            clearMulti();
+            renderSection(s);
+          } }];
         } };
     }
     if (has(/(add|another|more|extra).{0,16}(photo|image|picture)/)) {
@@ -7065,20 +7197,14 @@
           ];
         } };
     }
-    if (has(/breathing room|breathe|more (space|room|air)|spacious|airy|less (cramped|crowded|dense)/)) {
-      return { label: 'more breathing room',
-        build: function () {
-          return [1.18, 1.35, 1.55].map(function (f, k) {
-            return { name: ['Gentle', 'Generous', 'Grand'][k], apply: function (s) { askSpread(s, f); } };
-          });
-        } };
-    }
-    if (has(/tighter|more compact|less (space|room)|closer together|squeeze/)) {
-      return { label: 'a tighter fit',
-        build: function () {
-          return [0.85, 0.72].map(function (f, k) {
-            return { name: ['Snug', 'Tight'][k], apply: function (s) { askSpread(s, f); } };
-          });
+    if (has(/(headline|heading|title).{0,24}(smaller|quieter|too big|too loud)|smaller (headline|heading|title)/)) {
+      return { label: 'a quieter headline', miss: 'There’s no heading in this section yet.',
+        build: function (sec) {
+          if (askHeadlineIdx(sec) === -1) return [];
+          return [
+            { name: 'Quieter', apply: function (s) { askHeadlineBump(s, -1); } },
+            { name: 'The theme’s own size', apply: function (s) { askHeadlineBump(s, -3); } },
+          ];
         } };
     }
     if (has(/simpler|simple|less clutter|cluttered|cleaner|clean (it|this) up|too busy|too much going on|calm (it|this) down/)) {
@@ -7288,11 +7414,18 @@
       missRow.hidden = false;
       missRow.innerHTML = '<span class="gogh-askthink">✦ Gogh is imagining…</span>';
       S[idx].wrapEl.classList.add('gogh-ask-thinking');
-      fetch(cfg.restUrl.split('wp/v2/')[0] + 'gogh/v1/ask', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'X-WP-Nonce': cfg.nonce },
-        credentials: 'same-origin',
-        body: JSON.stringify({ instruction: myInput.value, section: askProject(S[idx]) }),
+      var askOnce = function () {
+        return fetch(cfg.restUrl.split('wp/v2/')[0] + 'gogh/v1/ask', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'X-WP-Nonce': cfg.nonce },
+          credentials: 'same-origin',
+          body: JSON.stringify({ instruction: myInput.value, section: askProject(S[idx]) }),
+        });
+      };
+      askOnce().then(function (res2) {
+        // one quiet retry: a transient 5xx must not cost the whole ask
+        if (!res2.ok && res2.status >= 500) return askOnce();
+        return res2;
       }).then(function (res2) {
         if (res2.ok) return res2.json();
         return res2.json().then(
@@ -7451,7 +7584,8 @@
     // a hero that mentions a picture is the Cover — the one template that
     // carries a background photo (auto-swapped for the site's own library)
     { re: /(hero|cover|banner|intro|top).{0,40}(image|photo|picture)|(image|photo|picture).{0,30}(hero|cover|banner)|full.?(screen|bleed) (photo|image)/, name: 'Cover' },
-    { re: /testimonial|review|kind words|customers? (say|love)|social proof/, name: 'Testimonials' },
+    { re: /testimonial|review|kind words|customers? (say|love|think)|what (people|customers|clients) (say|think)|social proof/, name: 'Testimonials' },
+    { re: /latest posts|our posts|from the blog|\bblog\b|articles|\bnews\b/, synth: 'posts', name: 'Latest posts' },
     { re: /how it works|how (we|it) work|explain|steps|process|what happens/, name: 'Feature cards', heading: 'How it works' },
     { re: /benefit|feature|what (we|you) (do|offer|get)|services/, name: 'Feature cards' },
     { re: /team|people|staff|who (we|you) are|faces/, name: 'Team' },
@@ -7462,7 +7596,7 @@
     { re: /quote/, name: 'Quote' },
     { re: /event|webinar|launch party|workshop|meetup/, name: 'Call to action', heading: 'Our next event' },
     { re: /call to action|cta|sign ?up|subscribe|join|get started/, name: 'Call to action' },
-    { re: /contact|get in touch|find us|reach us|say hello/, name: 'Get in touch' },
+    { re: /contact|get in touch|find us|reach us|say hello|\bmap\b|where we are|address|location/, name: 'Get in touch' },
     { re: /number|stats|statistics|metrics|figures/, name: 'Numbers' },
     { re: /faq|questions/, name: 'FAQ' },
     { re: /portfolio|our work|projects|case stud/, name: 'Portfolio' },
@@ -7477,6 +7611,16 @@
     for (var i = 0; i < SEAM_READS.length; i++) {
       if (SEAM_READS[i].re.test(t)) {
         var m = SEAM_READS[i];
+        if (m.synth === 'posts') {
+          // not a shelf template: a real core query loop, composed here —
+          // WordPress renders it fresh and it survives gogh's absence
+          var pw = DEFAULTS.posts();
+          pw.y = 170;
+          return { synth: 'posts', heading: null, tpl: { name: 'Latest posts', minH: 660, els: [
+            { type: 'heading', x: 100, y: 56, w: 1000, h: 60, text: 'From the blog', fs: 'x-large', align: 'center' },
+            pw,
+          ] } };
+        }
         var tpl = null;
         TEMPLATES.forEach(function (x) { if (x.name === m.name && !tpl) tpl = x; });
         if (!tpl) return null;
@@ -7509,6 +7653,10 @@
     // refine loop continues without a seam
     var born = S.filter(function (s) { return seen.indexOf(s.wrapEl) === -1; })[0];
     if (born) {
+      if (match.synth === 'posts') {
+        var pwEl = born.els.filter(function (e2) { return e2.type === 'widget'; })[0];
+        if (pwEl) hydratePostsPreview(born, pwEl);
+      }
       born.wrapEl.classList.add('gogh-askborn');
       setTimeout(function () { born.wrapEl.classList.remove('gogh-askborn'); }, 1800);
       setTimeout(function () {
@@ -7544,10 +7692,17 @@
       { label: 'Pricing', say: 'pricing', re: /pricing|per month/ },
       { label: 'Call to action', say: 'a strong call to action', re: /let s make yours|get started|next step/ },
       { label: 'Team', say: 'show our team', re: /the team|our team/ },
+      { label: 'A big quote', say: 'a big photo and quote', re: /[“”]/ },
+      { label: 'Latest posts', say: 'our latest posts', re: /from the blog|latest posts/ },
+      { label: 'Numbers', say: 'the numbers that matter', re: /by the numbers/ },
+      { label: 'Get in touch', say: 'a contact section', re: /say hello|let s talk/ },
+      { label: 'FAQ', say: 'questions and answers', re: /faq|questions, answered/ },
+      { label: 'Our story', say: 'our story', re: /our story/ },
     ];
     // suggest what the page is MISSING — the chips read as gogh
-    // understanding the page, not as a menu
-    return pool.filter(function (c) { return !c.re.test(pageText); }).slice(0, 4);
+    // understanding the page, not as a menu ("we could probs have a few
+    // more things here" — the panel has the room)
+    return pool.filter(function (c) { return !c.re.test(pageText); }).slice(0, 7);
   }
   function openSeamAsk(idx, before) {
     var chips = askSeamChips();
