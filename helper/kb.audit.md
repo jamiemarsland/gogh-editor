@@ -1,4 +1,4 @@
-# Knowledge-base audit — plugin v0.99.259
+# Knowledge-base audit — plugin v0.99.260
 
 _13 finding(s) suppressed by `kb.audit-ignore.txt`._
 
@@ -45,5 +45,8 @@ The source has something the prose never explains. The bot knows the name from t
 
 Use this as the checklist for updating the prose — and as a sanity check on the release itself.
 
-- version: 0.99.258 → 0.99.259
-- added REST route: "gogh/v1/ask"
+- version: 0.99.259 → 0.99.260
+- added REST route: "gogh/v1/ask-key"
+- added UI label: "Forget the key"
+- added UI label: "Switch it on"
+- added UI label: "get one here"
