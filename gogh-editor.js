@@ -2218,6 +2218,11 @@
     var e = sec.els[i];
     if (!isText(e)) return;
     e.fs = slug || null;
+    // choosing a NAMED size is choosing to leave fill-the-width — the
+    // fitted cqw size is !important and would silently outgun the preset
+    // ("these dont seem to work anymore")
+    e.fitW = false;
+    e.fitFs = null;
     if (e.tf) { delete e.tf.fs; delete e.tf.fs2; delete e.tf.lh; }
     var oldH = e.h;
     renderSection(sec);
@@ -2293,6 +2298,8 @@
     var next = Math.max(0, Math.min(order.length - 1, idx + delta));
     if (order[next] === (e.fs || null)) return;
     e.fs = order[next];
+    e.fitW = false; // a named size exits fill-the-width (its cqw is !important)
+    e.fitFs = null;
     if (e.tf) { delete e.tf.fs; delete e.tf.fs2; delete e.tf.lh; }
     var oldH = e.h;
     renderSection(sec);
@@ -6875,6 +6882,8 @@
     // theme's own heading size — quieter than any display tier)
     var target = (di === -1 ? (n > 0 ? n - 1 : -1) : di + n);
     e.fs = target < 0 ? null : DISPLAY_ORDER[Math.min(DISPLAY_ORDER.length - 1, target)];
+    e.fitW = false; // a named size exits fill-the-width (its cqw is !important)
+    e.fitFs = null;
     if (e.tf) { delete e.tf.fs; delete e.tf.fs2; delete e.tf.lh; }
     if (bold) { e.tf = e.tf || {}; e.tf.fw = 800; }
     var oldH = e.h;
@@ -11235,6 +11244,7 @@
     elDefaults: function () { return DEFAULTS; },
     openAnswerReady: openAnswerReadyPanel,
     askRead: askRead,
+    setFontSize: setFontSize,
     solve: solve,
     selectSection: selectSection,
     deselectSection: deselectSection,

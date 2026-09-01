@@ -4377,6 +4377,24 @@
       });
     });
 
+    test('Aa presets win the text back from fill-the-width', function () {
+      // corner-drag stores a fitted cqw size with !important — a preset
+      // click must EXIT that mode or it silently does nothing ("these
+      // dont seem to work anymore")
+      var i = findIdx('heading');
+      var s = sec();
+      var e = s.els[i];
+      e.fitW = true;
+      e.fitFs = 6;
+      G.renderSection(s);
+      expect(s.styleEl.textContent.indexOf('cqw !important') !== -1, 'fitW did not engage for the setup');
+      G.setFontSize(s, i, null);
+      expect(!e.fitW && e.fitFs === null, 'a named size did not exit fill-the-width');
+      expect(s.styleEl.textContent.indexOf('cqw !important') === -1,
+        'the fitted !important size still outguns the preset');
+      return 'preset exits fitW; the !important rule is gone';
+    });
+
     test('snapping: the painted grid is a real magnet', function () {
       // resize: an edge near a painted 40-unit line lands ON it (44→40),
       // not beside it on the free 8-grid (which would say 48); far from
