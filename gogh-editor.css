@@ -767,31 +767,26 @@ body.gogh-help-open .gogh-toasts { right: 416px; }
 .gogh-dropbox[hidden] { display: none; }
 
 /* section-height handle: bar across the section's bottom edge + drag pill */
+/* the LINE is the height handle — no grip nub. A generous hit area via
+   padding, drawn thin via background-clip, thickening on hover so the
+   affordance announces itself the moment the hand arrives. */
 .gogh-hbar {
   position: absolute;
   z-index: 99996;
-  height: 3px;
+  height: 4px;
+  padding: 7px 0;
   background: #3858e9;
+  background-clip: content-box;
   transform: translateY(-50%);
-  pointer-events: none;
-  border-radius: 2px;
-}
-.gogh-hbar[hidden] { display: none; }
-.gogh-hgrip {
-  all: unset;
-  position: absolute;
-  z-index: 99998;
-  width: 44px;
-  height: 12px;
-  background: #3858e9;
-  border-radius: 999px;
-  transform: translate(-50%, -50%);
   cursor: ns-resize;
-  box-shadow: 0 6px 16px -4px rgba(0, 0, 0, 0.5);
   touch-action: none;
+  border-radius: 2px;
+  transition: height 0.12s ease;
+  box-sizing: content-box;
 }
-.gogh-hgrip:hover { background: #536be8; }
-.gogh-hgrip[hidden] { display: none; }
+.gogh-hbar:hover { height: 8px; }
+.gogh-hbar[hidden] { display: none; }
+/* .gogh-hgrip retired — the line itself resizes */
 
 /* between-section inserter — WordPress blue, like Save Draft */
 .gogh-inserter {

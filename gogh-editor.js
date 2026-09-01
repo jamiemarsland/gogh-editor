@@ -4264,7 +4264,7 @@
     var inUI = selBox.contains(t) || elbar.contains(t) || grip.contains(t) ||
       side.contains(t) || panel.contains(t) || picker.contains(t) ||
       secBar.contains(t) || secMore.contains(t) ||
-      t === inserter || t === hgrip || t === hbar;
+      t === inserter || t === hbar;
     var inElement = t.closest('.gogh-section') && t.closest('.gogh-section > *');
     if (!inUI && !inElement) {
       sel = null;
@@ -6213,17 +6213,17 @@
   });
   cmd.addEventListener('pointerdown', function (ev) { if (ev.target === cmd) closeCmd(); });
 
-  // ---------- section-height handle (Canva-style bottom-edge bar) ----------
+  // ---------- section-height handle: the LINE is the handle ----------
+  // No grip nub: the boundary line itself resizes — hover it and the
+  // cursor says ns-resize, drag anywhere along it. One piece of furniture
+  // on the seam (the centred + Section pill); the line stopped carrying
+  // furniture and became the affordance ("it still feels kinda weird" —
+  // the pill and a separate nub kept breaking each other's symmetry).
   var hbar = document.createElement('div');
   hbar.className = 'gogh-hbar';
-  var hgrip = document.createElement('button');
-  hgrip.type = 'button';
-  hgrip.className = 'gogh-hgrip';
-  hgrip.title = 'Drag to move — or drag the element itself. Arrow keys nudge (Shift = 8\u00d7)';
+  hbar.title = 'Drag to set the section\u2019s height';
   hbar.hidden = true;
   document.body.appendChild(hbar);
-  document.body.appendChild(hgrip);
-  hgrip.hidden = true;
   var hbarSec = null;
 
   function placeHbar(sec) {
@@ -6234,29 +6234,20 @@
     hbar.style.width = r.width + 'px';
     hbar.style.top = (by + window.scrollY) + 'px';
     hbar.hidden = false;
-    // the grip hugs the centred + Section pill's right edge when the pill
-    // is up — one composed object, symmetric around the label; alone on
-    // the boundary (no pill) it keeps the centre itself
-    var gx2 = r.left + r.width / 2 + window.scrollX;
-    if (!inserter.hidden && !inserter.classList.contains('gogh-byebye')) {
-      gx2 += (inserter.offsetWidth / 2) + 34;
-    }
-    hgrip.style.left = gx2 + 'px';
-    hgrip.style.top = (by + window.scrollY) + 'px';
-    hgrip.hidden = false;
   }
-  function hideHbar() { hgrip.hidden = true; goghFadeOut(hbar); hbarSec = null; }
+  function hideHbar() { goghFadeOut(hbar); hbarSec = null; }
 
   var hDrag = null, hRaf = false;
-  hgrip.addEventListener('pointerdown', function (ev) {
+  hbar.addEventListener('pointerdown', function (ev) {
     if (!editing || !hbarSec) return;
     ev.preventDefault();
-    try { hgrip.setPointerCapture(ev.pointerId); } catch (err) {}
+    try { hbar.setPointerCapture(ev.pointerId); } catch (err) {}
     hDrag = { sec: hbarSec, py: ev.clientY, h: designH(hbarSec.els, hbarSec.minH) };
     document.documentElement.classList.add('gogh-dragging');
     inserter.hidden = true;
   });
-  hgrip.addEventListener('pointermove', function (ev) {
+  hbar.addEventListener('pointermove', function (ev) {
+
     if (!hDrag) return;
     var sec = hDrag.sec;
     var s = scaleOf(sec);
@@ -6284,8 +6275,8 @@
     pushState();
     if (zoomState) layoutZoom(); // section height changed — re-fit the birds-eye
   }
-  hgrip.addEventListener('pointerup', endHDrag);
-  hgrip.addEventListener('pointercancel', endHDrag);
+  hbar.addEventListener('pointerup', endHDrag);
+  hbar.addEventListener('pointercancel', endHDrag);
 
   // ---------- section operations ----------
   function deleteSection(idx) {
@@ -8573,7 +8564,7 @@
         // corridors, claims and neutral bands are simply gone)
       } else {
         if (!inserter.matches(':hover')) goghFadeOut(inserter);
-        if (!hgrip.matches(':hover')) hideHbar();
+        if (!hbar.matches(':hover')) hideHbar();
       }
     });
   }, { passive: true });
