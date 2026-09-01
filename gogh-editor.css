@@ -3124,3 +3124,72 @@ html.gogh-textediting .gogh-convertbtn {
 .gogh-lookpop button.is-current::after {
   content: "✓"; position: absolute; right: 12px; color: #2e9e6b; font-weight: 700;
 }
+
+/* ---------- Ask Gogh: two doors, no chat ---------- */
+/* the section toolbar's ask door wears the one accent the bar allows —
+   it is the discoverability, so it reads as words, not an icon */
+.gogh-sb-ask {
+  font-size: 12px;
+  font-weight: 700;
+  padding: 8px 12px;
+  color: #fff;
+  background: linear-gradient(120deg, #4a63d8, #7c4ad8);
+  white-space: nowrap;
+}
+.gogh-sb-ask:hover { background: linear-gradient(120deg, #3b53c4, #6c3ac9); }
+.gogh-askrow {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin-top: 10px;
+}
+.gogh-askrow .gogh-askin { flex: 1; min-width: 240px; }
+.gogh-askchips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 10px;
+}
+.gogh-askchip {
+  all: unset;
+  cursor: pointer;
+  padding: 6px 11px;
+  border-radius: 999px;
+  border: 1.5px solid var(--gogh-ui-line, #e3e3e6);
+  font-size: 12px;
+  font-weight: 650;
+  transition: border-color 0.12s ease, background 0.12s ease;
+}
+.gogh-askchip:hover { border-color: #4a63d8; background: rgba(74, 99, 216, 0.08); }
+.gogh-askres {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 10px;
+}
+.gogh-askres[hidden] { display: none; }
+.gogh-askres-name {
+  font-size: 12.5px;
+  font-weight: 700;
+  color: #4a63d8;
+  margin-right: auto;
+}
+.gogh-askmiss {
+  margin-top: 10px;
+  font-size: 12.5px;
+  color: var(--gogh-ui-muted, #6b6c72);
+  line-height: 1.5;
+}
+.gogh-askmiss[hidden] { display: none; }
+.gogh-askmiss .gogh-askchips { margin-top: 8px; }
+/* a section born from the seam glows for a beat — arrival, not alert */
+.gogh-askborn {
+  animation: gogh-askborn 1.7s ease;
+}
+@keyframes gogh-askborn {
+  0% { box-shadow: inset 0 0 0 3px rgba(124, 74, 216, 0.65); }
+  100% { box-shadow: inset 0 0 0 3px rgba(124, 74, 216, 0); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .gogh-askborn { animation: none; }
+}

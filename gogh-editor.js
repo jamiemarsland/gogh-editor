@@ -5147,6 +5147,30 @@
       { type: 'para', x: 204, y: 368, w: 500, h: 24, text: 'Hanna Lindqvist \u00b7 Hanna & Co',
         tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
     ] },
+    { starter: true, intent: 'sell', name: 'Testimonials', minH: 560, els: [
+      { type: 'heading', x: 100, y: 56, w: 1000, h: 60, text: 'Kind words', fs: 'x-large', align: 'center' },
+      { type: 'box', x: 100, y: 170, w: 320, h: 330, radius: 18,
+        boxBg: 'color-mix(in srgb, var(--wp--preset--color--contrast, #000) 7%, var(--wp--preset--color--base, transparent))',
+        kids: [
+          { type: 'para', x: 28, y: 36, w: 264, h: 150, text: '“They understood us in the first meeting. The site feels like walking into our shop.”', tf: { lh: 1.45 } },
+          { type: 'para', x: 28, y: 250, w: 264, h: 24, text: 'Hanna · Hanna & Co',
+            tf: { fs: 13, fw: 600, ls2: 0.18, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
+        ] },
+      { type: 'box', x: 440, y: 170, w: 320, h: 330, radius: 18,
+        boxBg: 'color-mix(in srgb, var(--wp--preset--color--contrast, #000) 7%, var(--wp--preset--color--base, transparent))',
+        kids: [
+          { type: 'para', x: 28, y: 36, w: 264, h: 150, text: '“Every question got a straight answer. We launched two weeks early — nobody believes that.”', tf: { lh: 1.45 } },
+          { type: 'para', x: 28, y: 250, w: 264, h: 24, text: 'Dev · Marlow Bikes',
+            tf: { fs: 13, fw: 600, ls2: 0.18, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
+        ] },
+      { type: 'box', x: 780, y: 170, w: 320, h: 330, radius: 18,
+        boxBg: 'color-mix(in srgb, var(--wp--preset--color--contrast, #000) 7%, var(--wp--preset--color--base, transparent))',
+        kids: [
+          { type: 'para', x: 28, y: 36, w: 264, h: 150, text: '“People compliment the website like it’s a member of staff. Honestly, it works like one.”', tf: { lh: 1.45 } },
+          { type: 'para', x: 28, y: 250, w: 264, h: 24, text: 'Ruth · The Corner Bakery',
+            tf: { fs: 13, fw: 600, ls2: 0.18, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
+        ] },
+    ] },
     { starter: true, intent: 'sell', name: 'Call to action', minH: 380,
       bg: 'var(--wp--preset--color--contrast, #16181c)',
       els: [
@@ -6289,6 +6313,7 @@
   secBar.className = 'gogh-secbar';
   secBar.innerHTML =
     '<span class="gogh-secbar-label">Section</span>' +
+    '<button type="button" class="gogh-sb gogh-sb-ask" data-sec="ask" title="Describe a change — Gogh makes it">✦ Ask Gogh</button>' +
     '<button type="button" class="gogh-sb" data-sec="add" title="Add an element to this section">＋</button>' +
     '<button type="button" class="gogh-sb" data-sec="up" title="Move up">↑</button>' +
     '<button type="button" class="gogh-sb" data-sec="down" title="Move down">↓</button>' +
@@ -6356,6 +6381,7 @@
   secBar.addEventListener('click', function (ev) {
     var b = ev.target.closest('.gogh-sb');
     if (!b || secBarIdx === null) return;
+    if (b.dataset.sec === 'ask') { openAskPanel(secBarIdx, b); return; }
     if (b.dataset.sec === 'add') { openSecAddPanel(secBarIdx); return; }
     if (b.dataset.sec === 'bgimg') { openSecBgPanel(secBarIdx, b); return; }
     if (b.dataset.sec === 'rearrange') { openRearrangePanel(secBarIdx, b); return; }
@@ -6600,6 +6626,536 @@
           : 'Rearranged — same pieces, new shape.',
           { actions: [{ label: 'Undo', onClick: function () { undo(); } }] });
       });
+    });
+  }
+  // ---------- Ask Gogh: two doors, no chat ----------
+  // "Change this section": the clicked section IS the context, the changed
+  // section IS the response. A small local vocabulary answers instantly —
+  // every read returns CANDIDATES, so "Try another" cycles without waiting
+  // and Undo is the ordinary history. No sidebar, no transcript, no wait.
+  function askSpread(sec, f) {
+    if (!sec.els.length) return;
+    var top = Math.min.apply(null, sec.els.map(function (e) { return e.y; }));
+    var left = Math.min.apply(null, sec.els.map(function (e) { return e.x; }));
+    // gaps open on BOTH axes (a one-row section breathes sideways), and the
+    // canvas itself grows so the margins breathe with the furniture
+    var extra = Math.round(Math.max(0, f - 1) * 120);
+    var bottom = 0;
+    sec.els.forEach(function (e) {
+      e.y = Math.round(top + (e.y - top) * f) + Math.round(extra / 2);
+      e.x = Math.round(Math.max(0, Math.min(W - e.w, left + (e.x - left) * f)));
+      bottom = Math.max(bottom, e.y + e.h);
+    });
+    sec.minH = Math.max(320, Math.round(bottom + Math.max(48, top) + extra / 2));
+    renderSection(sec);
+  }
+  function askGrowImages(sec, f) {
+    var media = sec.els.filter(function (e) { return e.type === 'image'; });
+    media.forEach(function (e) {
+      var oldH = e.h;
+      var cx = e.x + e.w / 2;
+      e.w = Math.round(Math.min(W, e.w * f));
+      e.h = Math.round(e.h * f);
+      e.x = Math.round(Math.max(0, Math.min(W - e.w, cx - e.w / 2)));
+      reflowPush(sec, e, oldH);
+    });
+    if (media.length) renderSection(sec);
+  }
+  function askHeadlineIdx(sec) {
+    var best = -1;
+    sec.els.forEach(function (e, i) {
+      if (e.type !== 'heading') return;
+      if (best === -1 || e.w * e.h > sec.els[best].w * sec.els[best].h) best = i;
+    });
+    return best;
+  }
+  function askQuiet(sec, spare) {
+    sec.els.forEach(function (e) { e.rot = 0; e.mood = null; });
+    if (spare) {
+      var buttons = 0, paras = 0;
+      sec.els = sec.els.filter(function (e) {
+        if (e.type === 'badge') return false;
+        if (e.type === 'button') return ++buttons <= 1;
+        if (e.type === 'para') return ++paras <= 2;
+        return true;
+      });
+    }
+    sel = null;
+    hideHandles();
+    clearMulti();
+    renderSection(sec);
+  }
+  function askThemeBy(slug) {
+    var list = sectionThemes();
+    return list.filter(function (t) { return t.slug === slug; })[0] || null;
+  }
+  // "louder" always means UP: from any theme preset (or none) the first
+  // display tier is the step up — applyFontStep's ladder would step a
+  // default-sized heading DOWN into the theme's smallest preset
+  function askHeadlineBump(s, n, bold) {
+    var i = askHeadlineIdx(s);
+    if (i === -1) return;
+    var e = s.els[i];
+    var di = DISPLAY_ORDER.indexOf(e.fs);
+    e.fs = DISPLAY_ORDER[Math.max(0, Math.min(DISPLAY_ORDER.length - 1, (di === -1 ? -1 : di) + n))];
+    if (e.tf) { delete e.tf.fs; delete e.tf.fs2; delete e.tf.lh; }
+    if (bold) { e.tf = e.tf || {}; e.tf.fw = 800; }
+    var oldH = e.h;
+    renderSection(s);
+    measureTextHeights(s);
+    if (reflowPush(s, e, oldH)) resolveAndApply(s);
+  }
+  function askPaint(sec, slug) {
+    var t = askThemeBy(slug);
+    if (t) paintSectionTheme(sec, t);
+  }
+  function askTilt(sec) {
+    var k = 0;
+    sec.els.forEach(function (e) {
+      if (e.type === 'badge') e.rot = (k++ % 2 ? 2 : -2);
+      if (e.type === 'image') e.rot = (k++ % 2 ? 1.5 : -1.5);
+      if (e.type === 'box') e.mood = 'lift';
+    });
+    renderSection(sec);
+  }
+  // the reads: each returns { label, build(sec) -> [{name, apply(sec)}] }.
+  // build() runs at submit time against the LIVE section; apply() receives
+  // the (possibly rebuilt-by-undo) section, so candidates never go stale.
+  function askRead(raw) {
+    var t = ' ' + String(raw || '').toLowerCase().replace(/[^a-z0-9 ]+/g, ' ').replace(/\s+/g, ' ').trim() + ' ';
+    if (t === '  ') return null;
+    var has = function (re) { return re.test(t); };
+    if (has(/ (different|new|another|fresh) (layout|arrangement|look) |rearrange|shuffle|switch (it|things) (up|around)/)) {
+      return { label: 'a different layout', miss: 'Nothing to rearrange yet — add a couple of elements first.',
+        build: function (sec) {
+          return rearrangeVariants(sec).map(function (v) {
+            return { name: v.name, apply: function (s) { applyPositions(s, v.pos); } };
+          });
+        } };
+    }
+    if (has(/(bigger|larger|huge|grow).{0,14}(image|photo|picture)|(image|photo|picture).{0,14}(bigger|larger|huge)/)) {
+      return { label: 'a bigger picture', miss: 'There’s no picture in this section to grow.',
+        build: function (sec) {
+          if (!sec.els.some(function (e) { return e.type === 'image'; })) return [];
+          return [1.25, 1.45, 1.7].map(function (f, k) {
+            return { name: ['A bit bigger', 'Half again', 'Big'][k], apply: function (s) { askGrowImages(s, f); } };
+          });
+        } };
+    }
+    if (has(/(smaller|shrink).{0,14}(image|photo|picture)|(image|photo|picture).{0,14}smaller/)) {
+      return { label: 'a smaller picture', miss: 'There’s no picture in this section to shrink.',
+        build: function (sec) {
+          if (!sec.els.some(function (e) { return e.type === 'image'; })) return [];
+          return [0.8, 0.65].map(function (f, k) {
+            return { name: ['A little smaller', 'Much smaller'][k], apply: function (s) { askGrowImages(s, f); } };
+          });
+        } };
+    }
+    if (has(/(headline|heading|title).{0,24}(stand out|bigger|larger|bolder|louder|pop|huge)|(bigger|bolder|louder) (headline|heading|title)/)) {
+      return { label: 'a louder headline', miss: 'There’s no heading in this section yet.',
+        build: function (sec) {
+          if (askHeadlineIdx(sec) === -1) return [];
+          return [
+            { name: 'Bigger', apply: function (s) { askHeadlineBump(s, 1); } },
+            { name: 'Bigger still', apply: function (s) { askHeadlineBump(s, 2); } },
+            { name: 'Big and bold', apply: function (s) { askHeadlineBump(s, 1, true); } },
+          ];
+        } };
+    }
+    if (has(/breathing room|breathe|more (space|room|air)|spacious|airy|less (cramped|crowded|dense)/)) {
+      return { label: 'more breathing room',
+        build: function () {
+          return [1.18, 1.35, 1.55].map(function (f, k) {
+            return { name: ['Gentle', 'Generous', 'Grand'][k], apply: function (s) { askSpread(s, f); } };
+          });
+        } };
+    }
+    if (has(/tighter|more compact|less (space|room)|closer together|squeeze/)) {
+      return { label: 'a tighter fit',
+        build: function () {
+          return [0.85, 0.72].map(function (f, k) {
+            return { name: ['Snug', 'Tight'][k], apply: function (s) { askSpread(s, f); } };
+          });
+        } };
+    }
+    if (has(/simpler|simple|less clutter|cluttered|cleaner|clean (it|this) up|too busy|too much going on|calm (it|this) down/)) {
+      return { label: 'something simpler',
+        build: function () {
+          return [
+            { name: 'Quiet', apply: function (s) { askQuiet(s, false); } },
+            { name: 'Spare', apply: function (s) { askQuiet(s, true); } },
+          ];
+        } };
+    }
+    if (has(/premium|luxur|elegant|upmarket|sophisticated|classy|expensive|high end/)) {
+      return { label: 'a more premium feel',
+        build: function () {
+          return [
+            { name: 'Ink & air', apply: function (s) { askPaint(s, 'ink'); askSpread(s, 1.25); } },
+            { name: 'Soft mist', apply: function (s) {
+              askPaint(s, 'mist');
+              askSpread(s, 1.2);
+              askHeadlineBump(s, 1);
+            } },
+            { name: 'Gallery', apply: function (s) { askPaint(s, 'paper'); askSpread(s, 1.4); } },
+          ];
+        } };
+    }
+    if (has(/playful|fun |funner|lively|livelier|more energy|energetic|pop |bouncy|joy/)) {
+      return { label: 'something more playful',
+        build: function (sec) {
+          var soft = sectionThemes().filter(function (th) { return /-soft$/.test(th.slug); })[0];
+          var out = [
+            { name: 'A little tilt', apply: function (s) { askTilt(s); } },
+            { name: 'Alive on hover', apply: function (s) {
+              s.els.forEach(function (e) { if (e.type === 'image' || e.type === 'box') e.mood = 'zoom'; });
+              renderSection(s);
+            } },
+          ];
+          if (soft) out.splice(1, 0, { name: 'Accent pop', apply: function (s) {
+            paintSectionTheme(s, soft);
+            askTilt(s);
+          } });
+          return out;
+        } };
+    }
+    if (has(/darker|moodier|more dramatic|dark background/)) {
+      return { label: 'a darker mood',
+        build: function () {
+          var slugs = ['ink'].concat(sectionThemes().filter(function (th) {
+            return !/^(paper|mist|ink|sweep|mesh)$/.test(th.slug) && !/-soft$/.test(th.slug);
+          }).map(function (th) { return th.slug; }));
+          return slugs.slice(0, 3).map(function (sl, k) {
+            return { name: k === 0 ? 'Ink' : 'Accent ' + k, apply: function (s) { askPaint(s, sl); } };
+          });
+        } };
+    }
+    if (has(/lighter|brighter|softer|light background|less dark/)) {
+      return { label: 'a lighter touch',
+        build: function () {
+          var soft = sectionThemes().filter(function (th) { return /-soft$/.test(th.slug); })
+            .map(function (th) { return th.slug; });
+          var slugs = ['paper', 'mist'].concat(soft).slice(0, 3);
+          return slugs.map(function (sl, k) {
+            return { name: ['Paper', 'Mist', 'A wash of colour'][k] || sl, apply: function (s) { askPaint(s, sl); } };
+          });
+        } };
+    }
+    if (has(/centre|center/)) {
+      return { label: 'everything centred', miss: 'Nothing to centre yet — add a couple of elements first.',
+        build: function (sec) {
+          var v = rearrangeVariants(sec).filter(function (x) { return x.slug === 'centred'; })[0];
+          if (!v) return [];
+          return [
+            { name: 'Centred', apply: function (s) {
+              s.els.forEach(function (e) { if (e.type === 'heading' || e.type === 'para') e.align = 'center'; });
+              applyPositions(s, v.pos);
+            } },
+            { name: 'Centred, spaced', apply: function (s) {
+              s.els.forEach(function (e) { if (e.type === 'heading' || e.type === 'para') e.align = 'center'; });
+              applyPositions(s, v.pos);
+              askSpread(s, 1.25);
+            } },
+          ];
+        } };
+    }
+    return null;
+  }
+  // the sayable, taught by example: these rotate through the empty prompt
+  // and stand in as chips when a read misses
+  var ASK_EXAMPLES = [
+    'Make this more premium…',
+    'Give this more breathing room…',
+    'Make the headline stand out…',
+    'Try a completely different layout…',
+    'Make this simpler…',
+    'Make the image bigger…',
+    'Make this more playful…',
+  ];
+  function askRotate(input) {
+    var k = Math.floor(Math.random() * ASK_EXAMPLES.length);
+    var tick = setInterval(function () {
+      if (!input.isConnected) { clearInterval(tick); return; }
+      if (input.value) return;
+      k = (k + 1) % ASK_EXAMPLES.length;
+      input.placeholder = ASK_EXAMPLES[k];
+    }, 2600);
+    input.placeholder = ASK_EXAMPLES[k];
+  }
+  function openAskPanel(idx, anchorEl, resume) {
+    var chipify = function (labels) {
+      return '<div class="gogh-askchips">' + labels.map(function (l) {
+        return '<button type="button" class="gogh-askchip" data-say="' + escAttr(l.replace(/…$/, '')) + '">' + esc(l.replace(/…$/, '')) + '</button>';
+      }).join('') + '</div>';
+    };
+    panel.innerHTML =
+      '<div class="gogh-panel-head"><span class="gogh-panel-title">✦ Ask Gogh</span>' +
+      '<button type="button" class="gogh-sbtn gogh-panel-close" title="Done">✕</button></div>' +
+      '<div class="gogh-askrow">' +
+      '<input type="text" class="gogh-input gogh-askin" />' +
+      '<button type="button" class="gogh-btn gogh-btn-small gogh-askgo">Go</button></div>' +
+      '<div class="gogh-panel-hint gogh-askhint">Say what you want — this section changes right here.</div>' +
+      '<div class="gogh-askres" hidden><span class="gogh-askres-name"></span>' +
+      '<button type="button" class="gogh-askchip gogh-askundo">Undo</button>' +
+      '<button type="button" class="gogh-askchip gogh-asktry">Try another</button></div>' +
+      '<div class="gogh-askmiss" hidden></div>';
+    placePanelNear(anchorEl && anchorEl.isConnected ? anchorEl : S[idx].wrapEl);
+    panelOpen = true;
+    panelSticky = true; // trying things must survive a glance at the canvas
+    var input = panel.querySelector('.gogh-askin');
+    var resRow = panel.querySelector('.gogh-askres');
+    var missRow = panel.querySelector('.gogh-askmiss');
+    askRotate(input);
+    var read = resume ? resume.read : null;
+    var k = resume ? resume.k : 0;
+    var applied = resume ? resume.applied : false;
+    if (resume) {
+      input.value = resume.text || '';
+      if (resume.resName) {
+        resRow.hidden = false;
+        panel.querySelector('.gogh-askres-name').textContent = resume.resName;
+      }
+    } else {
+      input.focus();
+    }
+    var tryCand = function (k2) {
+      if (applied) undo(); // back to the true before; S[idx] is rebuilt
+      // anchor the before at the TOP of history — undo must land exactly
+      // here, even if the live state drifted from the last snapshot
+      pushState();
+      var c = read._cands[k2 % read._cands.length];
+      var before = serialize();
+      c.apply(S[idx]);
+      contrastSentinel(S[idx]);
+      applied = serialize() !== before;
+      if (applied) pushState();
+      return c;
+    };
+    // the undo inside a cycle closes EVERY panel (restoreState rebuilds the
+    // page) — this one comes straight back, carrying its conversation…
+    // which is one instruction and one answer, never a transcript
+    var showResult = function (c) {
+      var resName = applied ? c.name : c.name + ' — it already looks like that';
+      if (panel.hidden || !input.isConnected) {
+        openAskPanel(idx, null, { text: input.value, read: read, k: k, applied: applied, resName: resName });
+        return;
+      }
+      missRow.hidden = true;
+      resRow.hidden = false;
+      panel.querySelector('.gogh-askres-name').textContent = resName;
+    };
+    var submit = function () {
+      var r = askRead(input.value);
+      if (!r) {
+        resRow.hidden = true;
+        missRow.hidden = false;
+        missRow.innerHTML = (input.value.trim() ? 'Gogh didn’t catch that — try one of these:' :
+          'Tell Gogh what you’d like — for example:') + chipify(ASK_EXAMPLES.slice(0, 4));
+        bindChips();
+        return;
+      }
+      read = r;
+      read._cands = read.build(S[idx]);
+      if (!read._cands.length) {
+        resRow.hidden = true;
+        missRow.hidden = false;
+        missRow.textContent = read.miss || 'Nothing here answers to that yet.';
+        return;
+      }
+      k = 0;
+      applied = false;
+      showResult(tryCand(0));
+    };
+    var bindChips = function () {
+      panel.querySelectorAll('.gogh-askchip[data-say]').forEach(function (ch) {
+        ch.addEventListener('click', function () {
+          input.value = ch.dataset.say;
+          submit();
+        });
+      });
+    };
+    panel.querySelector('.gogh-panel-close').addEventListener('click', function () { closePanel(); });
+    panel.querySelector('.gogh-askgo').addEventListener('click', submit);
+    input.addEventListener('keydown', function (ev) {
+      if (ev.key === 'Enter') { ev.preventDefault(); submit(); }
+    });
+    // a fresh instruction starts a fresh cycle on the KEPT state — editing
+    // the words is refinement, so the previous answer stays until undone
+    input.addEventListener('input', function () { read = null; applied = false; });
+    panel.querySelector('.gogh-asktry').addEventListener('click', function () {
+      if (!read || !read._cands) return;
+      k++;
+      showResult(tryCand(k));
+    });
+    panel.querySelector('.gogh-askundo').addEventListener('click', function () {
+      var text = input.value;
+      if (applied) {
+        undo();
+        openAskPanel(idx, null, { text: text, read: null, k: 0, applied: false });
+        return;
+      }
+      read = null;
+      resRow.hidden = true;
+      input.focus();
+      input.select();
+    });
+  }
+  // "Add a section here": the seam asks WHAT, not WHICH. Words become the
+  // closest section from the shelf, with the heading rewritten to match.
+  var SEAM_READS = [
+    { re: /testimonial|review|kind words|customers? (say|love)|social proof/, name: 'Testimonials' },
+    { re: /how it works|how (we|it) work|explain|steps|process|what happens/, name: 'Feature cards', heading: 'How it works' },
+    { re: /benefit|feature|what (we|you) (do|offer|get)|services/, name: 'Feature cards' },
+    { re: /team|people|staff|who (we|you) are|faces/, name: 'Team' },
+    { re: /photo wall|wall of photos/, name: 'Photo wall' },
+    { re: /gallery|photos|pictures|images/, name: 'Gallery' },
+    { re: /pricing|price|plans|cost|how much/, name: 'Pricing' },
+    { re: /(photo|picture|image).{0,10}quote|quote.{0,10}(photo|picture|image)/, name: 'Quote' },
+    { re: /quote/, name: 'Quote' },
+    { re: /event|webinar|launch party|workshop|meetup/, name: 'Call to action', heading: 'Our next event' },
+    { re: /call to action|cta|sign ?up|subscribe|join|get started/, name: 'Call to action' },
+    { re: /contact|get in touch|find us|reach us|say hello/, name: 'Get in touch' },
+    { re: /number|stats|statistics|metrics|figures/, name: 'Numbers' },
+    { re: /faq|questions/, name: 'FAQ' },
+    { re: /portfolio|our work|projects|case stud/, name: 'Portfolio' },
+    { re: /menu|dishes/, name: 'Menu' },
+    { re: /story|about us|history|journey/, name: 'Story' },
+    { re: /hero|welcome|intro/, name: 'Hero' },
+    { re: /carousel|slider|slideshow/, name: 'Carousel' },
+  ];
+  function askSeamMatch(raw) {
+    var t = ' ' + String(raw || '').toLowerCase().replace(/[^a-z0-9 ]+/g, ' ').replace(/\s+/g, ' ').trim() + ' ';
+    if (t === '  ') return null;
+    for (var i = 0; i < SEAM_READS.length; i++) {
+      if (SEAM_READS[i].re.test(t)) {
+        var m = SEAM_READS[i];
+        var tpl = null;
+        TEMPLATES.forEach(function (x) { if (x.name === m.name && !tpl) tpl = x; });
+        if (!tpl) return null;
+        // a gated shelf item (FAQ needs the accordion pack) falls back to
+        // cards rather than failing the ask
+        if (tpl.gated && !cfg[tpl.gated]) {
+          TEMPLATES.forEach(function (x) { if (x.name === 'Feature cards') tpl = x; });
+          return { tpl: tpl, heading: m.heading || 'Questions, answered' };
+        }
+        return { tpl: tpl, heading: m.heading || null };
+      }
+    }
+    return null;
+  }
+  function askSeamInsert(match, idx, before) {
+    var clone = JSON.parse(JSON.stringify(match.tpl));
+    if (match.heading) {
+      var done = false;
+      var rewrite = function (e) {
+        if (done) return;
+        if (e.type === 'heading') { e.text = match.heading; done = true; return; }
+        (e.kids || []).forEach(rewrite);
+      };
+      (clone.els || []).forEach(rewrite);
+    }
+    var seen = [];
+    S.forEach(function (s) { seen.push(s.wrapEl); });
+    addSection(clone, idx == null ? S.length : idx, before);
+    // the new arrival glows for a beat and offers its own toolbar — the
+    // refine loop continues without a seam
+    var born = S.filter(function (s) { return seen.indexOf(s.wrapEl) === -1; })[0];
+    if (born) {
+      born.wrapEl.classList.add('gogh-askborn');
+      setTimeout(function () { born.wrapEl.classList.remove('gogh-askborn'); }, 1800);
+      setTimeout(function () {
+        var bi = S.indexOf(born);
+        if (bi !== -1) showSecBar(bi);
+      }, 850);
+    }
+  }
+  var SEAM_EXAMPLES = [
+    'Three customer testimonials…',
+    'Explain how it works…',
+    'Show our team…',
+    'A photo gallery…',
+    'Pricing…',
+    'A strong call to action…',
+    'A big photo and quote…',
+  ];
+  function askSeamChips() {
+    var textOf = function (s) {
+      var out = '';
+      var walk = function (e) {
+        out += ' ' + String(e.text || '').toLowerCase();
+        (e.kids || []).forEach(walk);
+      };
+      (s.els || []).forEach(walk);
+      return out;
+    };
+    var pageText = S.filter(function (s) { return !s.chrome; }).map(textOf).join(' ');
+    var pool = [
+      { label: 'Testimonials', say: 'three customer testimonials', re: /kind words|testimonial/ },
+      { label: 'Benefits', say: 'what we offer', re: /what we do|what we offer/ },
+      { label: 'Gallery', say: 'a photo gallery', re: /gallery/ },
+      { label: 'Pricing', say: 'pricing', re: /pricing|per month/ },
+      { label: 'Call to action', say: 'a strong call to action', re: /let s make yours|get started|next step/ },
+      { label: 'Team', say: 'show our team', re: /the team|our team/ },
+    ];
+    // suggest what the page is MISSING — the chips read as gogh
+    // understanding the page, not as a menu
+    return pool.filter(function (c) { return !c.re.test(pageText); }).slice(0, 4);
+  }
+  function openSeamAsk(idx, before) {
+    var chips = askSeamChips();
+    panel.innerHTML =
+      '<div class="gogh-panel-head"><span class="gogh-panel-title">What should go here?</span>' +
+      '<button type="button" class="gogh-sbtn gogh-panel-close" title="Done">✕</button></div>' +
+      '<div class="gogh-askrow">' +
+      '<input type="text" class="gogh-input gogh-askin" />' +
+      '<button type="button" class="gogh-btn gogh-btn-small gogh-askgo">Add</button></div>' +
+      '<div class="gogh-askchips">' +
+      chips.map(function (c) {
+        return '<button type="button" class="gogh-askchip" data-say="' + escAttr(c.say) + '">' + esc(c.label) + '</button>';
+      }).join('') +
+      '<button type="button" class="gogh-askchip gogh-askmore">More…</button></div>' +
+      '<div class="gogh-askmiss" hidden></div>';
+    var anchorRect = inserter.getBoundingClientRect();
+    placePanelNear({ getBoundingClientRect: function () { return anchorRect; } });
+    panelOpen = true;
+    panelSticky = true;
+    var input = panel.querySelector('.gogh-askin');
+    var missRow = panel.querySelector('.gogh-askmiss');
+    var k0 = Math.floor(Math.random() * SEAM_EXAMPLES.length);
+    input.placeholder = SEAM_EXAMPLES[k0];
+    var tick = setInterval(function () {
+      if (!input.isConnected) { clearInterval(tick); return; }
+      if (input.value) return;
+      k0 = (k0 + 1) % SEAM_EXAMPLES.length;
+      input.placeholder = SEAM_EXAMPLES[k0];
+    }, 2600);
+    input.focus();
+    var go = function (text) {
+      var m = askSeamMatch(text);
+      if (!m) {
+        if (!String(text || '').trim()) { input.focus(); return; }
+        // the words didn't land — the full shelf is one click away, and
+        // it stays the same trusted picker it always was
+        missRow.hidden = false;
+        missRow.innerHTML = 'Gogh didn’t catch that — <button type="button" class="gogh-askchip gogh-askmore2">pick from the shelf</button> or try “testimonials”, “pricing”, “our team”…';
+        var m2 = missRow.querySelector('.gogh-askmore2');
+        if (m2) m2.addEventListener('click', function () { closePanel(); openPicker(idx == null ? S.length : idx, before); });
+        return;
+      }
+      closePanel();
+      askSeamInsert(m, idx, before);
+    };
+    panel.querySelector('.gogh-panel-close').addEventListener('click', function () { closePanel(); });
+    panel.querySelector('.gogh-askgo').addEventListener('click', function () { go(input.value); });
+    input.addEventListener('keydown', function (ev) {
+      if (ev.key === 'Enter') { ev.preventDefault(); go(input.value); }
+    });
+    panel.querySelectorAll('.gogh-askchip[data-say]').forEach(function (ch) {
+      ch.addEventListener('click', function () { go(ch.dataset.say); });
+    });
+    panel.querySelector('.gogh-askmore').addEventListener('click', function () {
+      closePanel();
+      openPicker(idx == null ? S.length : idx, before);
     });
   }
   // ---------- section themes: pick a look, never a hex ----------
@@ -7314,8 +7870,10 @@
     }, true);
   }
   inserter.addEventListener('click', function () {
+    // the seam asks WHAT, not WHICH — the full shelf stays one chip away.
+    // Open BEFORE hiding: the panel anchors to the button's live rect
+    openSeamAsk(insertIdx, insertBefore);
     inserter.hidden = true;
-    openPicker(insertIdx == null ? S.length : insertIdx, insertBefore);
   });
 
   // ---------- dragging with ghost (no cursor drift) ----------
@@ -9949,6 +10507,10 @@
     tplEls: tplEls,
     elDefaults: function () { return DEFAULTS; },
     openAnswerReady: openAnswerReadyPanel,
+    askRead: askRead,
+    askSeamMatch: askSeamMatch,
+    openAskPanel: openAskPanel,
+    openSeamAsk: openSeamAsk,
     openMotionPanel: openMotionPanel,
     remixCandidates: remixCandidates,
     chromeDialsApply: chromeDialsApply,

@@ -4042,6 +4042,109 @@
       return '30 candidates over 5 spins, worst text contrast ' + worst.toFixed(1) + ':1';
     });
 
+    test('ask gogh: the vocabulary reads plain instructions', function () {
+      var reads = [
+        ['Give this more breathing room', 'breathing'],
+        ['Try a completely different layout', 'layout'],
+        ['Make the image bigger', 'picture'],
+        ['Make the headline stand out more', 'headline'],
+        ['Make this more premium', 'premium'],
+        ['Make this less cluttered', 'simpler'],
+        ['Make this more playful', 'playful'],
+      ];
+      reads.forEach(function (r) {
+        var got = G.askRead(r[0]);
+        expect(got, 'no read for "' + r[0] + '"');
+        expect(got.label.indexOf(r[1]) !== -1, '"' + r[0] + '" read as "' + got.label + '"');
+      });
+      expect(G.askRead('flurble the wombat') === null, 'gibberish should read as null');
+      expect(G.askRead('') === null, 'empty should read as null');
+      return reads.length + ' instructions read, gibberish refused';
+    });
+
+    test('ask gogh: breathing room spreads the section and candidates differ', function () {
+      var s = sec();
+      var read = G.askRead('give this more breathing room');
+      var cands = read.build(s);
+      expect(cands.length >= 3, 'expected 3 spacings, got ' + cands.length);
+      // breathing room = gaps open (either axis) AND the canvas grows;
+      // a one-row section breathes sideways, a stack breathes down
+      var reach = function () {
+        return Math.max.apply(null, s.els.map(function (e) { return e.y + e.h; }));
+      };
+      var before = reach();
+      var beforeMinH = s.minH || 0;
+      cands[1].apply(s);
+      var mid = reach();
+      expect(mid > before, 'Generous did not spread (reach ' + before + ' -> ' + mid + ')');
+      expect((s.minH || 0) > beforeMinH, 'the section did not grow (minH ' + beforeMinH + ' -> ' + s.minH + ')');
+      return 'reach ' + before + ' -> ' + mid + ', minH ' + beforeMinH + ' -> ' + s.minH;
+    });
+
+    test('ask gogh: the panel applies, then Undo restores the exact before', function () {
+      var i = G.sections().indexOf(sec());
+      var before = JSON.stringify(sec().els.map(function (e) { return [e.x, e.y, e.w, e.h]; }));
+      G.openAskPanel(i, null);
+      var input = q('.gogh-panel .gogh-askin');
+      expect(input, 'ask panel did not open');
+      input.value = 'more breathing room';
+      q('.gogh-panel .gogh-askgo').click();
+      var res = q('.gogh-panel .gogh-askres');
+      expect(res && !res.hidden, 'result row did not appear');
+      var after = JSON.stringify(sec().els.map(function (e) { return [e.x, e.y, e.w, e.h]; }));
+      expect(after !== before, 'submit changed nothing');
+      q('.gogh-panel .gogh-askundo').click();
+      var back = JSON.stringify(sec().els.map(function (e) { return [e.x, e.y, e.w, e.h]; }));
+      expect(back === before, 'Undo did not restore the before');
+      return 'apply changed, Undo restored';
+    });
+
+    test('ask gogh: Try another lands a different answer on the same before', function () {
+      var i = G.sections().indexOf(sec());
+      var base = JSON.stringify(sec().els.map(function (e) { return [e.y, e.h]; }));
+      G.openAskPanel(i, null);
+      q('.gogh-panel .gogh-askin').value = 'more breathing room';
+      q('.gogh-panel .gogh-askgo').click();
+      var first = JSON.stringify(sec().els.map(function (e) { return [e.y, e.h]; }));
+      q('.gogh-panel .gogh-asktry').click();
+      var second = JSON.stringify(sec().els.map(function (e) { return [e.y, e.h]; }));
+      expect(first !== base, 'first candidate changed nothing');
+      expect(second !== first, 'Try another produced the same answer');
+      return 'two distinct answers from one instruction';
+    });
+
+    test('ask gogh: seam reads become the right shelf sections', function () {
+      var m = G.askSeamMatch('three customer testimonials');
+      expect(m && m.tpl.name === 'Testimonials', 'testimonials read as ' + (m && m.tpl.name));
+      m = G.askSeamMatch('explain how it works');
+      expect(m && m.tpl.name === 'Feature cards' && m.heading === 'How it works',
+        'how-it-works read as ' + (m && m.tpl.name + '/' + m.heading));
+      m = G.askSeamMatch('show our team');
+      expect(m && m.tpl.name === 'Team', 'team read as ' + (m && m.tpl.name));
+      m = G.askSeamMatch('a strong call to action');
+      expect(m && m.tpl.name === 'Call to action', 'cta read as ' + (m && m.tpl.name));
+      m = G.askSeamMatch('a big photo and quote');
+      expect(m && m.tpl.name === 'Quote', 'photo+quote read as ' + (m && m.tpl.name));
+      expect(G.askSeamMatch('xyzzy plugh') === null, 'nonsense should miss');
+      return '5 seam reads matched, nonsense refused';
+    });
+
+    test('ask gogh: the seam ask inserts a real testimonials section', function () {
+      var count = contentSecs().length;
+      G.openSeamAsk(null, null);
+      var input = q('.gogh-panel .gogh-askin');
+      expect(input, 'seam ask did not open');
+      input.value = 'three customer testimonials';
+      q('.gogh-panel .gogh-askgo').click();
+      expect(contentSecs().length === count + 1, 'no section arrived');
+      var born = lastSec();
+      var quotes = born.els.filter(function (e) {
+        return e.type === 'box' && (e.kids || []).some(function (k) { return k.type === 'para'; });
+      });
+      expect(quotes.length === 3, 'expected 3 quote cards, got ' + quotes.length);
+      return 'testimonials landed with ' + quotes.length + ' cards';
+    });
+
     // ---- report ----
     function finishReport() {
     var passed = results.filter(function (r) { return r.pass; }).length;
