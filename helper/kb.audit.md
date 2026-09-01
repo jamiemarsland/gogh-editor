@@ -1,16 +1,15 @@
-# Knowledge-base audit — plugin v0.99.269
+# Knowledge-base audit — plugin v0.99.270
 
 _13 finding(s) suppressed by `kb.audit-ignore.txt`._
 
-## STALE (5)
+## STALE (4)
 
 The prose names something that no longer exists.
 
-- divider "brush" was removed in this release, but the prose still describes it
-- divider "peaks" was removed in this release, but the prose still describes it
-- divider "slant" was removed in this release, but the prose still describes it
-- divider "torn" was removed in this release, but the prose still describes it
-- divider "wave" was removed in this release, but the prose still describes it
+- UI label "Background image" was removed in this release, but the prose still describes it
+- UI label "Delete section" was removed in this release, but the prose still describes it
+- UI label "Duplicate section" was removed in this release, but the prose still describes it
+- UI label "Save this section to reuse" was removed in this release, but the prose still describes it
 
 ## MISSING (36)
 
@@ -53,24 +52,23 @@ The source has something the prose never explains. The bot knows the name from t
 - divider `dunes` exists in source but is never mentioned in the prose
 - divider `mist` exists in source but is never mentioned in the prose
 
-## QUOTE (1)
+## QUOTE (3)
 
 Quoted copy not found verbatim in the source. Paraphrases are fine; changed UI copy is not.
 
 - Overlap the section above
+- Save this section to reuse
+- Save this section to reuse
 
 ## What changed since the last knowledge-base build
 
 Use this as the checklist for updating the prose — and as a sanity check on the release itself.
 
-- version: 0.99.268 → 0.99.269
-- removed divider: "brush"
-- removed divider: "peaks"
-- removed divider: "slant"
-- removed divider: "torn"
-- removed divider: "wave"
-- added divider: "arch"
-- added divider: "dunes"
-- added divider: "mist"
-- added divider: "sheet"
-- added divider: "sweep"
+- version: 0.99.269 → 0.99.270
+- removed UI label: "Background image"
+- removed UI label: "Delete section"
+- removed UI label: "Duplicate section"
+- removed UI label: "Rearrange — same pieces, new shapes"
+- removed UI label: "Save this section to reuse"
+- added UI label: "Background & look"
+- added UI label: "Move, duplicate, save, delete…"
