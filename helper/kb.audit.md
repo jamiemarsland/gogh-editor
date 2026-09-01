@@ -1,8 +1,8 @@
-# Knowledge-base audit — plugin v0.99.255
+# Knowledge-base audit — plugin v0.99.256
 
 _13 finding(s) suppressed by `kb.audit-ignore.txt`._
 
-## MISSING (32)
+## MISSING (33)
 
 The source has something the prose never explains. The bot knows the name from the appendix but cannot say what it is for.
 
@@ -12,6 +12,7 @@ The source has something the prose never explains. The bot knows the name from t
 - WP hook `template_redirect` exists in source but is never mentioned in the prose
 - WP hook `body_class` exists in source but is never mentioned in the prose
 - WP hook `render_block_core/post-template` exists in source but is never mentioned in the prose
+- WP hook `body_class` exists in source but is never mentioned in the prose
 - WP hook `body_class` exists in source but is never mentioned in the prose
 - WP hook `body_class` exists in source but is never mentioned in the prose
 - WP hook `body_class` exists in source but is never mentioned in the prose
@@ -43,4 +44,4 @@ The source has something the prose never explains. The bot knows the name from t
 
 Use this as the checklist for updating the prose — and as a sanity check on the release itself.
 
-- version: 0.99.253 → 0.99.255
+- version: 0.99.255 → 0.99.256
