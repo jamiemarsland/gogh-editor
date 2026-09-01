@@ -1,15 +1,6 @@
-# Knowledge-base audit — plugin v0.99.270
+# Knowledge-base audit — plugin v0.99.271
 
 _13 finding(s) suppressed by `kb.audit-ignore.txt`._
-
-## STALE (4)
-
-The prose names something that no longer exists.
-
-- UI label "Background image" was removed in this release, but the prose still describes it
-- UI label "Delete section" was removed in this release, but the prose still describes it
-- UI label "Duplicate section" was removed in this release, but the prose still describes it
-- UI label "Save this section to reuse" was removed in this release, but the prose still describes it
 
 ## MISSING (36)
 
@@ -64,11 +55,4 @@ Quoted copy not found verbatim in the source. Paraphrases are fine; changed UI c
 
 Use this as the checklist for updating the prose — and as a sanity check on the release itself.
 
-- version: 0.99.269 → 0.99.270
-- removed UI label: "Background image"
-- removed UI label: "Delete section"
-- removed UI label: "Duplicate section"
-- removed UI label: "Rearrange — same pieces, new shapes"
-- removed UI label: "Save this section to reuse"
-- added UI label: "Background & look"
-- added UI label: "Move, duplicate, save, delete…"
+- version: 0.99.270 → 0.99.271
