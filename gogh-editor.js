@@ -1573,6 +1573,7 @@
   }
   function restoreState(snap) {
     clearMulti();
+    deselectSection(); // the rebuild replaces every sectionEl — a stale ring would orphan
     var data = JSON.parse(snap);
     // full rebuild, but each section goes back to its own DOM position so
     // non-gogh blocks interleaved with sections stay where they are
@@ -2442,6 +2443,9 @@
   function placeHandles(sec, i) {
     if (!sec.nodes[i]) { hideHandles(); return; }
     sel = { sec: sec, i: i };
+    // choosing a piece implies its section — ring on, but faint: the
+    // piece is the subject
+    selectSection(S.indexOf(sec), true);
     var e = sec.els[i];
     var node = sec.nodes[i];
     var prev = document.querySelector('.gogh-selected');
@@ -3011,7 +3015,7 @@
     // the floating furniture belongs to the 1:1 canvas — fold it away the
     // moment the desk zooms out
     goghFadeOut(inserter);
-    hideSecBar();
+    deselectSection(); // the zoomed desk is for LOOKING
     hideHbar();
     zoomFrac = null; // start fitted
     layoutZoom();
@@ -4259,6 +4263,7 @@
     if (!t || !t.closest) return;
     var inUI = selBox.contains(t) || elbar.contains(t) || grip.contains(t) ||
       side.contains(t) || panel.contains(t) || picker.contains(t) ||
+      secBar.contains(t) || secMore.contains(t) ||
       t === inserter || t === hgrip || t === hbar;
     var inElement = t.closest('.gogh-section') && t.closest('.gogh-section > *');
     if (!inUI && !inElement) {
@@ -4270,7 +4275,29 @@
       if (document.activeElement && document.activeElement.isContentEditable) {
         document.activeElement.blur();
       }
+      // the ground IS a click target now: inside a section's empty space
+      // the section itself is chosen; outside every section, everything
+      // folds — furniture on commitment, never on proximity
+      var groundEl = t.closest('.gogh-section');
+      var gIdx = -1;
+      if (groundEl) S.forEach(function (s2, k2) { if (s2.sectionEl === groundEl) gIdx = k2; });
+      if (gIdx !== -1 && !S[gIdx].chrome) selectSection(gIdx);
+      else deselectSection();
     }
+  });
+  // Esc walks outward: piece first, then the section, one press at a time
+  document.addEventListener('keydown', function (ev) {
+    if (ev.key !== 'Escape' || !editing) return;
+    if (textEditing || panelOpen || stylePaint) return; // theirs to handle
+    if (sel || multiSel) {
+      sel = null;
+      clearMulti();
+      hideHandles();
+      var sn2 = document.querySelector('.gogh-selected');
+      if (sn2) sn2.classList.remove('gogh-selected');
+      return;
+    }
+    deselectSection();
   });
 
   // ---------- add / delete elements ----------
@@ -6362,20 +6389,10 @@
   document.body.appendChild(secBar);
   var secBarIdx = null;
 
-  function hideSecBar() { clearTimeout(secBarHideT); goghFadeOut(secBar); secBarIdx = null; closeSecMore(); }
-  // the gentle version: boundary mode may claim the pointer for a moment
-  // while the hand is still travelling to the toolbar — hold the bar for a
-  // beat, and only fade it if the pointer never arrives
-  var secBarHideT = null;
-  function hideSecBarSoon() {
-    clearTimeout(secBarHideT);
-    secBarHideT = setTimeout(function () {
-      if (secBar.matches(':hover')) return;
-      hideSecBar();
-    }, 280);
-  }
+  function hideSecBar() { goghFadeOut(secBar); secBarIdx = null; closeSecMore(); }
+  // (hideSecBarSoon and its travel-grace timer retired with hover
+  // summoning — the bar now lives and dies with the SELECTION)
   function showSecBar(idx) {
-    clearTimeout(secBarHideT);
     secBar.classList.remove('gogh-byebye'); // a fresh summon always lands visible
     // the site header/footer isn't a page section: it can't move, duplicate
     // or be deleted, so the section toolbar has nothing to offer it
@@ -6383,7 +6400,14 @@
     secBarIdx = idx;
     var r = S[idx].wrapEl.getBoundingClientRect();
     secBar.style.left = (r.left + window.scrollX + 16) + 'px';
-    secBar.style.top = (r.top + window.scrollY + 14) + 'px';
+    // the bar DOCKS: it sits at the section's top edge, and for a section
+    // taller than the screen it pins to the viewport while any of the
+    // section remains — the doors never scroll out of reach
+    var topDoc = r.top + window.scrollY + 14;
+    var maxTop = r.bottom + window.scrollY - 64;
+    var t2 = Math.max(topDoc, window.scrollY + 76);
+    if (t2 > maxTop) t2 = Math.max(topDoc, maxTop);
+    secBar.style.top = Math.round(t2) + 'px';
     secBar.hidden = false;
     // don't sit on the Edit header/footer pill — duck below it
     var sr = secBar.getBoundingClientRect();
@@ -6449,7 +6473,7 @@
           // follow the section to its new seat — the next nudge is one
           // click away (desktop re-hover can't happen mid-scroll; thumbs
           // can't hover at all)
-          setTimeout(function () { if (S[to] && !S[to].chrome) showSecBar(to); }, 80);
+          setTimeout(function () { if (S[to] && !S[to].chrome) selectSection(to); }, 80);
           return;
         }
         if (act === 'dup') { duplicateSection(idx); return; }
@@ -6462,6 +6486,35 @@
   document.addEventListener('pointerdown', function (ev) {
     if (!secMore.hidden && !secMore.contains(ev.target) && !ev.target.closest('[data-sec="more"]')) closeSecMore();
   });
+  // ---------- the selected section: furniture on COMMITMENT ----------
+  // Click the ground and the section is chosen: it wears a quiet ring and
+  // the four-door bar docks and stays. Click a piece and the piece wins,
+  // the ring going faint. Click away or Esc and everything folds. Hover
+  // summons nothing any more — a hover appears while you're deciding; a
+  // click IS the decision ("this feels much more gogh").
+  var selSecIdx = null;
+  function selectSection(idx, faint) {
+    if (idx == null || !S[idx] || S[idx].chrome) return;
+    if (selSecIdx !== null && selSecIdx !== idx && S[selSecIdx] && S[selSecIdx].sectionEl) {
+      S[selSecIdx].sectionEl.classList.remove('gogh-selsec', 'gogh-selsec-faint');
+    }
+    selSecIdx = idx;
+    S[idx].sectionEl.classList.add('gogh-selsec');
+    S[idx].sectionEl.classList.toggle('gogh-selsec-faint', !!faint);
+    showSecBar(idx);
+  }
+  function deselectSection() {
+    if (selSecIdx !== null && S[selSecIdx] && S[selSecIdx].sectionEl) {
+      S[selSecIdx].sectionEl.classList.remove('gogh-selsec', 'gogh-selsec-faint');
+    }
+    selSecIdx = null;
+    hideSecBar();
+  }
+  // the docked bar follows the scroll (the viewport pin lives in
+  // showSecBar); selection survives scrolling by design
+  window.addEventListener('scroll', function () {
+    if (selSecIdx !== null && !secBar.hidden && S[selSecIdx]) showSecBar(selSecIdx);
+  }, { passive: true });
 
   // plain-permalink safe: cfg URLs may already carry ?rest_route=…
   function restQ(url, qs) {
@@ -7770,10 +7823,10 @@
       }
       born.wrapEl.classList.add('gogh-askborn');
       setTimeout(function () { born.wrapEl.classList.remove('gogh-askborn'); }, 1800);
-      setTimeout(function () {
-        var bi = S.indexOf(born);
-        if (bi !== -1) showSecBar(bi);
-      }, 850);
+      // a fresh section arrives SELECTED — its birth glow simply is the
+      // selection, and the refine loop continues without a seam
+      var bi = S.indexOf(born);
+      if (bi !== -1) selectSection(bi);
     }
   }
   var SEAM_EXAMPLES = [
@@ -8406,7 +8459,6 @@
     // ("we shouldn't show transition option when zoomed out")
     if (document.documentElement.classList.contains('gogh-zoomed')) {
       goghFadeOut(inserter);
-      hideSecBarSoon();
       return;
     }
     // a rushing pointer is heading SOMEWHERE ELSE — don't flash boundary
@@ -8503,57 +8555,18 @@
         // a plain-block band below still deserves a doorway: the divider
         // melts into the band's own colour ("its odd when they dont show
         // as an option and will confuse folks")
-        // (the Transition pill retired from the seam — its chips live in
-        // the section design panel now; the seam keeps one job)
-        hideSecBarSoon();
+        // (the Transition pill retired from the seam; the section toolbar
+        // no longer answers hover at all — selection owns it, so the
+        // corridors, claims and neutral bands are simply gone)
       } else {
         if (!inserter.matches(':hover')) goghFadeOut(inserter);
         if (!hgrip.matches(':hover')) hideHbar();
-        // not near a boundary: offer section actions for the hovered section
-        if (!secBar.matches(':hover')) {
-          var hov = null;
-          for (var si = 0; si < S.length; si++) {
-            var wr = S[si].wrapEl.getBoundingClientRect();
-            if (cy >= wr.top && cy <= wr.bottom) { hov = si; break; }
-          }
-          // one voice at a time: the seam's claim runs WIDER than its
-          // pill corridor, so the section toolbar never crowds in next
-          // to + Section and Transition ("very close together"). The
-          // 28-72px band is deliberately quiet — neutral ground between
-          // the seam's furniture and the section's — and short sections
-          // shrink the claim so their toolbar stays reachable.
-          if (hov !== null) {
-            var wrH = S[hov].wrapEl.getBoundingClientRect();
-            var claim = Math.min(72, Math.max(28, (wrH.bottom - wrH.top) / 3));
-            if (cy - wrH.top < claim || wrH.bottom - cy < claim) {
-              hideSecBarSoon(); // grace: a hand travelling TO the bar survives
-              hov = null;
-            }
-          }
-          if (hov !== null) showSecBar(hov);
-          else hideSecBarSoon();
-        }
       }
     });
   }, { passive: true });
-  // PHONES: hover does not exist — a TAP summons the section's verbs, a
-  // second tap (or a tap elsewhere) folds them away. The first slice of
-  // simple mobile editing: reorder, duplicate, background, delete by thumb.
-  if (matchMedia('(pointer: coarse)').matches) {
-    document.addEventListener('click', function (ev) {
-      if (ev.target.closest('.gogh-secbar, .gogh-panel, .gogh-side, .gogh-side-tab, .gogh-elbar, .gogh-hbar, .gogh-cycbar, .gogh-chromeveil, .gogh-toast, .gogh-inserter, button, a, input, textarea, select, [contenteditable="true"]')) return;
-      var hit = null;
-      for (var si = 0; si < S.length; si++) {
-        var wr = S[si].wrapEl.getBoundingClientRect();
-        if (ev.clientY >= wr.top && ev.clientY <= wr.bottom) { hit = si; break; }
-      }
-      if (hit === null) { hideSecBar(); return; }
-      if (secBarIdx === hit && !secBar.hidden) { hideSecBar(); return; }
-      showSecBar(hit);
-    });
-    // (move up/down live in the ⋯ menu now, which follows the section to
-    // its new seat itself)
-  }
+  // PHONES: a tap IS a click — the unified ground-click selection handles
+  // touch identically (tap ground = select, tap away = deselect). The old
+  // coarse-pointer summoning is gone with the rest of hover's empire.
   inserter.addEventListener('click', function () {
     // the seam asks WHAT, not WHICH — the full shelf stays one chip away.
     // Open BEFORE hiding: the panel anchors to the button's live rect
@@ -11219,6 +11232,9 @@
     openAnswerReady: openAnswerReadyPanel,
     askRead: askRead,
     solve: solve,
+    selectSection: selectSection,
+    deselectSection: deselectSection,
+    selSec: function () { return selSecIdx; },
     snapAxis: snapAxis,
     snapPos: snapPos,
     setGridSnap: function (on) { gridSnapOn = !!on; },

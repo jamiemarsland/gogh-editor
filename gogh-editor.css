@@ -3291,3 +3291,16 @@ html.gogh-textediting .gogh-convertbtn {
 .gogh-secmore-it:disabled { opacity: 0.3; cursor: default; }
 .gogh-secmore-del { color: #b3261e; }
 .gogh-secmore-del:hover { background: #ffe3db; }
+
+/* the selected section: a quiet ring, present enough to answer "which
+   one", calm enough to design inside of. Faint when a piece is the
+   subject. outline never shifts layout. */
+.gogh-editing .gogh-section.gogh-selsec {
+  outline: 2px solid #4a63d8;
+  outline-offset: -2px;
+  box-shadow: 0 0 0 5px rgba(74, 99, 216, 0.14);
+}
+.gogh-editing .gogh-section.gogh-selsec.gogh-selsec-faint {
+  outline-color: rgba(74, 99, 216, 0.35);
+  box-shadow: none;
+}

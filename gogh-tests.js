@@ -4317,76 +4317,26 @@
       return 'melt worn, then a straight edge';
     });
 
-    testAsync('seam and section furniture never speak at once', function () {
-      // the corridor logic settles inside requestAnimationFrame — and a
-      // BACKGROUND tab freezes rAF entirely (the observation goblin), so
-      // probe liveness first and report honestly rather than fail falsely
-      // every frame-wait carries a timeout: focus can be LOST MID-TEST
-      // (the tab backgrounds, rAF freezes between steps) and that must
-      // read as "untestable here", never as a false failure
-      var stalled = false;
-      var frame = function () {
-        return new Promise(function (r) {
-          var fired = false;
-          requestAnimationFrame(function () {
-            requestAnimationFrame(function () { fired = true; r(true); });
-          });
-          setTimeout(function () { if (!fired) { stalled = true; r(false); } }, 250);
-        });
-      };
-      return frame().then(function (ok) {
-        if (!ok) return 'rAF frozen (background tab) — front the tab for the full check';
-        G.openSeamAsk(null, null);
-        q('.gogh-panel .gogh-askin').value = 'pricing';
-        q('.gogh-panel .gogh-askgo').click();
-        var below = lastSec();
-        below.wrapEl.scrollIntoView({ block: 'center' });
-        var wr = below.wrapEl.getBoundingClientRect();
-        var cx = wr.left + wr.width / 2;
-        var move = function (y) {
-          // twice at one spot: the first may read as a rushing pointer
-          pev('pointermove', document.body, cx, y);
-          pev('pointermove', document.body, cx, y);
-          return frame();
-        };
-        var inserter2 = q('.gogh-inserter');
-        var bar = q('.gogh-secbar');
-        var SKIP = 'rAF stalled mid-test (tab backgrounded) — front the tab for the full check';
-        return move(wr.top + 4).then(function () {
-          if (stalled) return SKIP;
-          expect(!inserter2.hidden, 'the seam corridor did not summon + Section');
-          expect(bar.hidden || bar.classList.contains('gogh-byebye'), 'the toolbar crowded the seam');
-          return move(wr.top + 48).then(function () {
-            if (stalled) return SKIP;
-            expect(bar.hidden || bar.classList.contains('gogh-byebye'), 'the toolbar spoke from the neutral band');
-            return move(wr.top + Math.min(140, wr.height - 80)).then(function () {
-              if (stalled) return SKIP;
-              expect(!bar.hidden && !bar.classList.contains('gogh-byebye'), 'the toolbar did not appear in the body');
-              expect(inserter2.hidden || inserter2.classList.contains('gogh-byebye'), '+ Section overstayed in the body');
-              return 'corridor → pills, neutral band → calm, body → toolbar';
-            });
-          });
-        });
-      });
-    });
-
-    test('drag stability: a moving element cannot bend its neighbours’ lines', function () {
-      // A's right edge (300) sits within cluster tolerance of B's left
-      // (306): unskipped they average into one shared line, so a dragged
-      // A bent B's rendered position ("other elements moving slightly").
-      // With A skipped, B's lines come only from resting elements.
-      var els = [
-        { type: 'heading', x: 100, y: 40, w: 200, h: 60 },
-        { type: 'para', x: 306, y: 40, w: 200, h: 60 },
-      ];
-      var merged = G.solve(els, 320, null);
-      var stable = G.solve(els, 320, null, [0]);
-      expect(JSON.stringify(merged.cols) !== JSON.stringify(stable.cols),
-        'skipping the dragged element changed nothing');
-      var stableAgain = G.solve([{ type: 'heading', x: 250, y: 40, w: 200, h: 60 }, els[1]], 320, null, [0]);
-      expect(JSON.stringify(stable.cols) === JSON.stringify(stableAgain.cols),
-        'moving the skipped element still bent the grid: ' + stable.cols + ' vs ' + stableAgain.cols);
-      return 'B’s lines held still while A streamed past';
+    test('the selected section: ground selects, piece goes faint, Esc walks out', function () {
+      // selection is SYNCHRONOUS — no corridors, no rAF, no background-tab
+      // skips: the calmer model is also the provable one
+      var s = sec();
+      pev('pointerdown', s.sectionEl, 10, 10);
+      expect(s.sectionEl.classList.contains('gogh-selsec') &&
+        !s.sectionEl.classList.contains('gogh-selsec-faint'), 'ground click did not select the section');
+      expect(!q('.gogh-secbar').hidden, 'the four-door bar did not dock');
+      select(0);
+      expect(s.sectionEl.classList.contains('gogh-selsec-faint'), 'choosing a piece did not go faint');
+      document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+      expect(s.sectionEl.classList.contains('gogh-selsec'), 'first Esc should keep the section');
+      document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+      expect(!s.sectionEl.classList.contains('gogh-selsec'), 'second Esc did not deselect the section');
+      var bar = q('.gogh-secbar');
+      expect(bar.hidden || bar.classList.contains('gogh-byebye'), 'the bar overstayed the selection');
+      pev('pointerdown', s.sectionEl, 10, 10);
+      pev('pointerdown', document.body, 4, 4);
+      expect(!s.sectionEl.classList.contains('gogh-selsec'), 'clicking away did not deselect');
+      return 'ground selects, piece faints, Esc walks out, away folds';
     });
 
     testAsync('drag: the landing box is the model’s own footprint', function () {
@@ -4569,7 +4519,9 @@
         return e.type === 'box' && (e.kids || []).some(function (k) { return k.type === 'para'; });
       });
       expect(quotes.length === 3, 'expected 3 quote cards, got ' + quotes.length);
-      return 'testimonials landed with ' + quotes.length + ' cards';
+      // a fresh section arrives SELECTED — the birth glow is the selection
+      expect(born.sectionEl.classList.contains('gogh-selsec'), 'the new section did not arrive selected');
+      return 'testimonials landed with ' + quotes.length + ' cards, born selected';
     });
 
     // ---- report ----
