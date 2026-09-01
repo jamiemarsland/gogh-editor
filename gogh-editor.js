@@ -2886,8 +2886,6 @@
     closePicker();
     inserter.hidden = true;
     hideHbar();
-    shapeBtn.hidden = true;
-    closeShapePanel();
     hideSecBar();
     exitTextEdit();
     var selNode = document.querySelector('.gogh-selected');
@@ -3013,7 +3011,6 @@
     // the floating furniture belongs to the 1:1 canvas — fold it away the
     // moment the desk zooms out
     goghFadeOut(inserter);
-    goghFadeOut(shapeBtn);
     hideSecBar();
     hideHbar();
     zoomFrac = null; // start fitted
@@ -6222,7 +6219,6 @@
     hDrag = { sec: hbarSec, py: ev.clientY, h: designH(hbarSec.els, hbarSec.minH) };
     document.documentElement.classList.add('gogh-dragging');
     inserter.hidden = true;
-    shapeBtn.hidden = true;
   });
   hgrip.addEventListener('pointermove', function (ev) {
     if (!hDrag) return;
@@ -6297,7 +6293,6 @@
   }
   function hideBoundaryUI() {
     inserter.hidden = true;
-    shapeBtn.hidden = true;
     hideHbar();
   }
   function moveSection(idx, dir) {
@@ -8029,6 +8024,7 @@
         return '<button type="button" class="gogh-hpreset' + (((secx.fx && secx.fx.bg) || '') === fx[0] ? ' is-active' : '') + '"' +
           ' data-fx="' + fx[0] + '"' + (fx[2] === 'img' ? ' data-needs-img="1"' : '') + '>' + fx[1] + '</button>';
       }).join('') + '</div>' +
+      transitionRowHTML(secx) +
       '<div class="gogh-panel-hint">Image</div>' +
       (secx.bgImage ? '<div class="gogh-panel-hint gogh-focal-hint">✋ Drag the section itself to reframe the photo' + (secx.bgPos ? ' · <button type="button" class="gogh-focal-reset">re-centre</button>' : '') + '</div>' : '') +
       '<div class="gogh-panel-row gogh-panel-actions">' +
@@ -8055,6 +8051,7 @@
       '</div>' +
       '</div>';
     dockPanel();
+    bindTransitionRow(secx);
     panelOpen = true;
     // ---------- focal point: drag the section to reframe its photo ----------
     // The break-image gesture, for backgrounds ("add our cool choose focal
@@ -8313,28 +8310,13 @@
   }
 
   // ---------- divider / colours chooser at boundaries ----------
-  var shapeBtn = document.createElement('button');
-  shapeBtn.type = 'button';
-  shapeBtn.className = 'gogh-shapebtn';
-  shapeBtn.textContent = '◠ Transition';
-  shapeBtn.hidden = true;
-  document.body.appendChild(shapeBtn);
-  var shapePanel = document.createElement('div');
-  shapePanel.className = 'gogh-panel gogh-shapepanel';
-  shapePanel.hidden = true;
-  document.body.appendChild(shapePanel);
-  var shapeIdx = null; // boundary index: divider on S[shapeIdx-1], colours above/below
-  var shapeRawBelow = false; // the below-neighbour is a plain-block band
-
-  function closeShapePanel() { shapePanel.hidden = true; }
-  function openShapePanel(idx) {
-    shapeIdx = idx;
-    var above = S[idx - 1], below = shapeRawBelow ? null : S[idx];
-    var current = (above.divider && above.divider.shape) || '';
-    // the 2026 shelf: soft, asymmetric, organic. Wave/Slant/Peaks/Brush/
-    // Torn are retired from the chooser — pages wearing them keep
-    // rendering forever, we just stopped offering them
-    var shapes = [
+  // ---------- "How this section ends": transitions live on the SECTION ----------
+  // The seam keeps ONE job (+ Section, centred, the Squarespace gesture);
+  // the divider was always stored on the section as its bottom edge, so
+  // its chips live in the section's design panel now — same mini-page
+  // previews, same hover audition on the live boundary.
+  function transitionShapes() {
+    return [
       { key: '', label: 'None' },
       { key: 'curve', label: 'Curve', path: DIVIDER_PATHS.curve },
       { key: 'sweep', label: 'Sweep', path: DIVIDER_PATHS.sweep },
@@ -8344,25 +8326,19 @@
       { key: 'melt', label: 'Melt', melt: true },
       { key: 'mist', label: 'Mist', mist: true },
     ];
-    // the gogh version: shapes as LOOKS, nothing else. The transition
-    // already inks itself from the next section's real background
-    // (divColor), so the old Above/Below pickers were recolouring whole
-    // sections from the wrong door — and the chip previews now wear the
-    // TRUE ink, so what you hover is what you get. Saved overlaps and
-    // colours keep rendering; we just stopped asking.
-    var inkBelow = shapeRawBelow
-      ? rawBandColor(domSuccessor(above))
-      : ((below && below.bg) || pageBg() || '#0f0e0c');
-    var inkAbove = (above.bg || pageBg() || '#fff');
-    // each chip is a MINIATURE PAGE: the two real sections meeting at
-    // this exact boundary, with faint content bars in each band's own
-    // legible ink — the preview reads as the page, not an abstract flag
+  }
+  function transitionRowHTML(secx) {
+    var so = sectionOpts(secx);
+    if (!so.divColor) return ''; // nothing below to meet — no edge to design
+    var inkBelow = so.divColor;
+    var inkAbove = secx.bg || pageBg() || '#fff';
     var textOn = function (bgCss) {
       var slug = bestInkFor(bgCss);
       return slug ? 'var(--wp--preset--color--' + slug + ')' : 'currentColor';
     };
     var hintAbove = textOn(inkAbove);
     var hintBelow = textOn(inkBelow);
+    var current = (secx.divider && secx.divider.shape) || '';
     var stage = function (sh, k) {
       var bars =
         '<rect x="90" y="30" width="430" height="20" rx="10" fill="' + escAttr(hintAbove) + '" opacity="0.55"/>' +
@@ -8392,36 +8368,20 @@
         '<rect x="0" y="0" width="1200" height="240" fill="' + escAttr(inkAbove) + '"/>' +
         join + bars + '</svg></span>';
     };
-    shapePanel.innerHTML =
-      '<div class="gogh-panel-title">Section transition</div>' +
-      '<div class="gogh-panel-hint">Hover to audition — click to keep.</div>' +
+    return '<div class="gogh-panel-hint">How this section ends</div>' +
       '<div class="gogh-shapes">' +
-      shapes.map(function (sh, k) {
-        return '<button type="button" class="gogh-shape' + (sh.key === current ? ' is-active' : '') + '" data-shape="' + sh.key + '" title="' + sh.label + '">' +
-          stage(sh, k) + '<span>' + sh.label + '</span></button>';
-      }).join('') +
-      '</div>';
-    // viewport coords, NOT document coords: .gogh-panel went fixed in
-    // 0.99.49 and this placement kept adding scrollY — on any scrolled
-    // page the Transition panel opened below the viewport, reading as
-    // "clicking Transition does nothing"
-    var bTop = S[idx - 1].wrapEl.getBoundingClientRect().bottom;
-    shapePanel.style.left = 'max(8px, calc(50% - 280px))';
-    shapePanel.style.top = Math.max(16, bTop + 16) + 'px';
-    shapePanel.hidden = false;
-    var spr = shapePanel.getBoundingClientRect();
-    if (spr.bottom > window.innerHeight - 40) {
-      shapePanel.style.top = Math.max(16, window.innerHeight - 40 - spr.height) + 'px';
-    }
-    // audition like everything else in gogh: hover wears the shape on the
-    // REAL boundary, leaving restores, click keeps (and stays open for
-    // the next audition)
-    var kept = above.divider ? { shape: above.divider.shape } : null;
+      transitionShapes().map(function (sh, k) {
+        return '<button type="button" class="gogh-shape' + (sh.key === current ? ' is-active' : '') +
+          '" data-shape="' + sh.key + '" title="' + sh.label + '">' + stage(sh, k) + '<span>' + sh.label + '</span></button>';
+      }).join('') + '</div>';
+  }
+  function bindTransitionRow(secx) {
+    var kept = secx.divider ? { shape: secx.divider.shape } : null;
     var wear = function (key) {
-      above.divider = key ? { shape: key } : null;
+      secx.divider = key ? { shape: key } : null;
       resolveAll();
     };
-    shapePanel.querySelectorAll('.gogh-shape').forEach(function (btn) {
+    panel.querySelectorAll('.gogh-shape').forEach(function (btn) {
       btn.addEventListener('mouseenter', function () { wear(btn.dataset.shape); });
       btn.addEventListener('mouseleave', function () { wear(kept && kept.shape); });
       btn.addEventListener('click', function () {
@@ -8430,18 +8390,12 @@
         kept = btn.dataset.shape ? { shape: btn.dataset.shape } : null;
         wear(kept && kept.shape);
         pushState();
-        shapePanel.querySelectorAll('.gogh-shape').forEach(function (b) {
+        panel.querySelectorAll('.gogh-shape').forEach(function (b) {
           b.classList.toggle('is-active', b === btn);
         });
       });
     });
   }
-  shapeBtn.addEventListener('click', function () {
-    if (shapeIdx !== null) openShapePanel(shapeIdx);
-  });
-  document.addEventListener('pointerdown', function (ev) {
-    if (!shapePanel.hidden && !shapePanel.contains(ev.target) && ev.target !== shapeBtn) closeShapePanel();
-  });
 
   // ---------- between-section inserter + height handle proximity ----------
   var insertRaf = false;
@@ -8452,7 +8406,6 @@
     // ("we shouldn't show transition option when zoomed out")
     if (document.documentElement.classList.contains('gogh-zoomed')) {
       goghFadeOut(inserter);
-      goghFadeOut(shapeBtn);
       hideSecBarSoon();
       return;
     }
@@ -8550,24 +8503,12 @@
         // a plain-block band below still deserves a doorway: the divider
         // melts into the band's own colour ("its odd when they dont show
         // as an option and will confuse folks")
-        var rawBelow = !!(prevSec && !nextSec && found.node);
-        if (prevSec && ((nextSec && S.indexOf(nextSec) === S.indexOf(prevSec) + 1) || rawBelow)) {
-          shapeIdx = nextSec ? S.indexOf(nextSec) : S.indexOf(prevSec) + 1;
-          shapeRawBelow = rawBelow;
-          shapeBtn.style.left = (cx + 40) + 'px';
-          shapeBtn.style.top = (found.y + window.scrollY) + 'px';
-          shapeBtn.classList.remove('gogh-byebye');
-          // un-gated: the φ sweep caught Transition by mistake — James
-          // uses it ("where has section transition gone?")
-          shapeBtn.hidden = false;
-        } else {
-          shapeBtn.hidden = true;
-        }
+        // (the Transition pill retired from the seam — its chips live in
+        // the section design panel now; the seam keeps one job)
         hideSecBarSoon();
       } else {
         if (!inserter.matches(':hover')) goghFadeOut(inserter);
         if (!hgrip.matches(':hover')) hideHbar();
-        if (!shapeBtn.matches(':hover')) goghFadeOut(shapeBtn);
         // not near a boundary: offer section actions for the hovered section
         if (!secBar.matches(':hover')) {
           var hov = null;
@@ -10962,8 +10903,6 @@
     // panels were document-anchored popovers)
     inserter.hidden = true;
     hideHbar();
-    shapeBtn.hidden = true;
-    closeShapePanel();
     hideSecBar();
     hideGuides();
     hideDists();
@@ -11321,7 +11260,6 @@
     },
     sections: function () { return S; },
     showHbar: function (i) { placeHbar(S[i]); },
-    openShapePanel: openShapePanel,
     openHeaderPanel: openHeaderPanel,
     chromeColorApply: chromeColorApply,
     headerLooks: headerLooks,

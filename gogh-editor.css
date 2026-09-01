@@ -1173,7 +1173,7 @@ body.gogh-painting, body.gogh-painting .gogh-section * { cursor: url('data:image
 .gogh-shapebtn:hover { background: #e8f0ff; }
 .gogh-shapebtn[hidden] { display: none; }
 
-.gogh-shapepanel { width: min(560px, 92vw); }
+/* .gogh-shapepanel retired — transition chips live in the section design panel */
 .gogh-shapes {
   display: grid;
   grid-template-columns: repeat(4, 1fr);

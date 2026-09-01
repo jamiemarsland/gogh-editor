@@ -1659,12 +1659,12 @@
     // ---- 15. divider + section backgrounds (v0.10) ----
     test('divider CSS generated with next-section colour', function () {
       G.addSection(G.templates()[3], G.sections().length);
-      // the redesigned panel has no pickers: the ink is READ from the
-      // section below (its bg, else the page canvas), never asked for
+      // the ink is READ from the section below (its bg, else the page
+      // canvas) — never asked for; the chips live in the design panel
       var below = G.sections()[1];
       below.bg = '#123456';
-      G.openShapePanel(1);
-      q('.gogh-shape[data-shape="curve"]').click(); // keep() re-resolves
+      G.openSecBgPanel(0);
+      q('.gogh-panel .gogh-shape[data-shape="curve"]').click(); // keep() re-resolves
       var s0 = G.sections()[0];
       expect(s0.divider && s0.divider.shape === 'curve', 'divider not set');
       var css = s0.styleEl.textContent;
@@ -1673,7 +1673,7 @@
       // variables (theme palette) work as divider colours
       expect(css.indexOf('mask-image') !== -1, 'divider not mask-based');
       expect(css.indexOf('background: #123456') !== -1, 'divider colour missing');
-      q('.gogh-shapepanel').hidden = true;
+      pev('pointerdown', document.body, 4, 4); // close the docked panel properly
     });
 
     test('transitions: the new shapes render, the retired keep rendering', function () {
@@ -4466,31 +4466,30 @@
       return items.join(', ');
     });
 
-    test('transition panel: shapes only, self-inked, hover-auditioned', function () {
+    test('transitions live on the section: chips in the design panel, seam keeps one job', function () {
       // build a real boundary: a section below the first
       G.openSeamAsk(null, null);
       q('.gogh-panel .gogh-askin').value = 'pricing';
       q('.gogh-panel .gogh-askgo').click();
-      var below = lastSec();
-      var bIdx = G.sections().indexOf(below);
-      var above = G.sections()[bIdx - 1];
-      G.openShapePanel(bIdx);
-      var sp = q('.gogh-shapepanel');
-      expect(sp && !sp.hidden, 'the transition panel did not open');
-      expect(sp.querySelectorAll('.gogh-shape').length === 8, 'expected 8 shape chips');
-      expect(!sp.querySelector('.gogh-color') && !sp.querySelector('.gogh-sw') && !sp.querySelector('.gogh-pull'),
-        'a picker or slider survived the redesign');
-      var sweep = sp.querySelector('[data-shape="sweep"]');
+      var above = sec(); // the FIRST section — the chips edit ITS bottom edge
+      var aIdx = G.sections().indexOf(above);
+      G.openSecBgPanel(aIdx);
+      var row = q('.gogh-panel .gogh-shapes');
+      expect(row, 'the design panel has no How-it-ends row');
+      expect(row.querySelectorAll('.gogh-shape').length === 8, 'expected 8 shape chips');
+      expect(!row.querySelector('[data-shape="peaks"]') && !row.querySelector('[data-shape="torn"]'),
+        'a retired shape is still on the shelf');
+      var sweep = row.querySelector('[data-shape="sweep"]');
       sweep.dispatchEvent(new MouseEvent('mouseenter', { bubbles: true }));
       expect(above.divider && above.divider.shape === 'sweep', 'hover did not audition the sweep');
       sweep.dispatchEvent(new MouseEvent('mouseleave', { bubbles: true }));
       expect(!above.divider, 'leaving did not restore the boundary');
       sweep.click();
       expect(above.divider && above.divider.shape === 'sweep', 'click did not keep the sweep');
-      expect(!sp.querySelector('[data-shape="peaks"]') && !sp.querySelector('[data-shape="torn"]'),
-        'a retired shape is still on the shelf');
-      sp.hidden = true;
-      return '8 chips, no pickers, audition round-trip clean';
+      // the seam pill is GONE — the section owns its own edge now
+      expect(!q('.gogh-shapebtn'), 'the Transition pill still haunts the seam');
+      pev('pointerdown', document.body, 4, 4); // close the docked panel properly
+      return '8 chips in the design panel, seam pill retired, audition clean';
     });
 
     testAsync('ask gogh: the miss-log refuses junk', function () {
