@@ -1,8 +1,8 @@
-# Knowledge-base audit — plugin v0.99.256
+# Knowledge-base audit — plugin v0.99.257
 
 _13 finding(s) suppressed by `kb.audit-ignore.txt`._
 
-## MISSING (33)
+## MISSING (34)
 
 The source has something the prose never explains. The bot knows the name from the appendix but cannot say what it is for.
 
@@ -31,6 +31,7 @@ The source has something the prose never explains. The bot knows the name from t
 - template `Story` exists in source but is never mentioned in the prose
 - template `Numbers` exists in source but is never mentioned in the prose
 - template `Pricing` exists in source but is never mentioned in the prose
+- template `Testimonials` exists in source but is never mentioned in the prose
 - template `Profile card` exists in source but is never mentioned in the prose
 - template `Job card` exists in source but is never mentioned in the prose
 - template `Place card` exists in source but is never mentioned in the prose
@@ -44,4 +45,13 @@ The source has something the prose never explains. The bot knows the name from t
 
 Use this as the checklist for updating the prose — and as a sanity check on the release itself.
 
-- version: 0.99.255 → 0.99.256
+- version: 0.99.256 → 0.99.257
+- added template: "Testimonials"
+- added UI label: "Add"
+- added UI label: "Describe a change — Gogh makes it"
+- added UI label: "Go"
+- added UI label: "More…"
+- added UI label: "Try another"
+- added UI label: "Undo"
+- added UI label: "pick from the shelf"
+- added UI label: "✦ Ask Gogh"
