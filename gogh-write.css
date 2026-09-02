@@ -924,7 +924,8 @@ body.gogh-w-audition main { zoom: 0.52; }
   color: #141519;
   transition: background 0.15s ease;
 }
-.gogh-w-tab { position: relative; transition: background 0.15s ease, color 0.18s ease, letter-spacing 0.24s cubic-bezier(0.22, 0.9, 0.3, 1); }
+.gogh-w-tab { position: relative; transition: background 0.15s ease, color 0.18s ease; }
+.gogh-w-tab span { transition: transform 0.2s cubic-bezier(0.22, 0.9, 0.3, 1); }
 .gogh-w-tab::before {
   content: "";
   position: absolute;
@@ -938,12 +939,13 @@ body.gogh-w-audition main { zoom: 0.52; }
   opacity: 0;
   transition: transform 0.2s cubic-bezier(0.22, 0.9, 0.3, 1), opacity 0.2s ease;
 }
-.gogh-w-tab:hover { color: #4a63d8; letter-spacing: 0.3em; background: #f6f7fa; }
+.gogh-w-tab:hover { color: #4a63d8; background: #f6f7fa; }
+.gogh-w-tab:hover span { transform: translateX(3px); } /* the lean, not the stretch */
 .gogh-w-tab:hover::before { transform: none; opacity: 1; }
 .gogh-w-tab + .gogh-w-tab { border-top: 1px solid #e8e9ec; }
 @media (prefers-reduced-motion: reduce) {
-  .gogh-w-tab, .gogh-w-tab::before { transition: none; }
-  .gogh-w-tab:hover { letter-spacing: 0.14em; }
+  .gogh-w-tab, .gogh-w-tab span, .gogh-w-tab::before { transition: none; }
+  .gogh-w-tab:hover span { transform: none; }
 }
 .gogh-w-tab-dot {
   width: 7px;

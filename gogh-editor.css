@@ -271,8 +271,9 @@ html.gogh-phone-preview .gogh-section.gogh-msec-hidden {
   border-radius: 0;
   box-shadow: none;
   background: transparent;
-  transition: background 0.15s ease, color 0.18s ease, letter-spacing 0.24s cubic-bezier(0.22, 0.9, 0.3, 1);
+  transition: background 0.15s ease, color 0.18s ease;
 }
+.gogh-rail .gogh-side-tab span { transition: transform 0.2s cubic-bezier(0.22, 0.9, 0.3, 1); }
 .gogh-rail .gogh-side-tab + .gogh-side-tab { border-top: 1px solid var(--gogh-ui-border); }
 /* the greeting: hover and the door leans out — the word inks to the
    accent and breathes its letterspacing open, while a little accent
@@ -291,11 +292,12 @@ html.gogh-phone-preview .gogh-section.gogh-msec-hidden {
   opacity: 0;
   transition: transform 0.2s cubic-bezier(0.22, 0.9, 0.3, 1), opacity 0.2s ease;
 }
-.gogh-rail .gogh-side-tab:hover { color: #4a63d8; letter-spacing: 0.3em; background: #f6f7fa; }
+.gogh-rail .gogh-side-tab:hover { color: #4a63d8; background: #f6f7fa; }
+.gogh-rail .gogh-side-tab:hover span { transform: translateX(3px); } /* the lean, not the stretch — nothing else moves */
 .gogh-rail .gogh-side-tab:hover::before { transform: none; opacity: 1; }
 @media (prefers-reduced-motion: reduce) {
-  .gogh-rail .gogh-side-tab, .gogh-rail .gogh-side-tab::before { transition: none; }
-  .gogh-rail .gogh-side-tab:hover { letter-spacing: 0.14em; }
+  .gogh-rail .gogh-side-tab, .gogh-rail .gogh-side-tab span, .gogh-rail .gogh-side-tab::before { transition: none; }
+  .gogh-rail .gogh-side-tab:hover span { transform: none; }
 }
 .gogh-rail .gogh-side-tab.is-away { transform: none; opacity: 1; pointer-events: auto; } /* the rail carries the exit */
 .gogh-side-tab[hidden] { display: none; }
