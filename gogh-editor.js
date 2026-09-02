@@ -5762,6 +5762,13 @@
       // no chip row: search + the labelled shelves carry the whole modal —
       // "My sections" and the theme shelf open lightweight VIEWS instead,
       // with this bar as the way back
+      // the rail: a MAP of the shelves, not a taxonomy (the Squarespace
+      // sidebar's real job is telling you what exists before you scroll —
+      // ours lists exactly the shelves on the page, and grows only when
+      // a shelf does)
+      '<div class="gogh-picker-body">' +
+      '<nav class="gogh-pickrail" aria-label="Section shelves"></nav>' +
+      '<div class="gogh-picker-main">' +
       '<div class="gogh-seclab gogh-viewbar" hidden><span></span>' +
       '<button type="button" class="gogh-gridlab-all gogh-view-back">← All layouts</button></div>' +
       '<div class="gogh-seclab gogh-quicklab">Quick start</div>' +
@@ -5777,6 +5784,7 @@
       '</div>' +
       '<div class="gogh-cards">' + cards + '</div>' +
       '<div class="gogh-pickempty" hidden>Nothing here matches \u2014 try another filter.</div>' +
+      '</div></div>' +
       '</div>';
     clearTimeout(pickerCloseT);
     picker.hidden = false;
@@ -5875,6 +5883,52 @@
       var lab = cardsBox.querySelector('.gogh-gridlab');
       if (lab) lab.hidden = !(!activeCat && !query && teaser > 0);
       emptyHint.hidden = shown > 0;
+      // filters flatten the modal to one plain grid — a map of hidden
+      // shelves would lie, so the rail steps aside with them
+      var railN = picker.querySelector('.gogh-pickrail');
+      if (railN) { railN.hidden = filtered; buildRail(); }
+    }
+    // ---- the rail: sticky shelf map — jump, don't hunt ----
+    function buildRail() {
+      var railN = picker.querySelector('.gogh-pickrail');
+      if (!railN || railN.hidden) return;
+      // rebuilt from the DOM each pass, so the async theme shelf simply
+      // appears on the map the moment it appears on the page
+      var stops = [].slice.call(picker.querySelectorAll('.gogh-quicklab, .gogh-intentlab, .gogh-gridlab'))
+        .filter(function (n) { return !n.hidden; });
+      railN.innerHTML = stops.map(function (n, i) {
+        var t = String((n.firstChild && n.firstChild.textContent) || n.textContent || '').trim();
+        return '<button type="button" data-stop="' + i + '">' + esc(t) + '</button>';
+      }).join('');
+      var mark = function () {
+        var top = pin.getBoundingClientRect().top;
+        var here = 0;
+        stops.forEach(function (n, i) {
+          if (n.getBoundingClientRect().top - top < 130) here = i;
+        });
+        railN.querySelectorAll('button').forEach(function (b, i) {
+          b.classList.toggle('is-here', i === here);
+        });
+      };
+      railN.querySelectorAll('button').forEach(function (b) {
+        b.addEventListener('click', function () {
+          var n = stops[+b.dataset.stop];
+          if (!n) return;
+          pin.scrollTo({
+            top: n.getBoundingClientRect().top - pin.getBoundingClientRect().top + pin.scrollTop - 14,
+            behavior: 'smooth',
+          });
+        });
+      });
+      pin.__railMark = mark; // each rebuild swaps in its own stops
+      if (!pin.__railSpy) {
+        pin.__railSpy = true;
+        pin.addEventListener('scroll', function () {
+          var r2 = picker.querySelector('.gogh-pickrail');
+          if (r2 && !r2.hidden && pin.__railMark) pin.__railMark();
+        }, { passive: true });
+      }
+      mark();
     }
     // lightweight views (yours / theme) replace the old chip row
     var viewBar = picker.querySelector('.gogh-viewbar');

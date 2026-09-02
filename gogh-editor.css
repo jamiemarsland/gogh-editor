@@ -1028,6 +1028,43 @@ body.gogh-painting, body.gogh-painting .gogh-section * { cursor: url('data:image
 }
 .gogh-picker-search .gogh-patsearch::placeholder { color: #9aa1ac; }
 .gogh-picker-search:focus-within .gogh-patsearch { width: 200px; }
+/* the rail: a sticky map of the shelves — jump, don't hunt. It lists
+   exactly the shelves on the page (Quick start / Introduce / Sell /
+   Showcase / From the theme) and steps aside when a filter flattens
+   the modal to one grid. */
+.gogh-picker-body { display: flex; gap: 24px; align-items: flex-start; }
+.gogh-picker-main { flex: 1 1 auto; min-width: 0; }
+.gogh-pickrail {
+  flex: 0 0 132px;
+  position: sticky;
+  top: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding-top: 6px;
+}
+.gogh-pickrail[hidden] { display: none; }
+.gogh-pickrail button {
+  all: unset;
+  cursor: pointer;
+  font-size: 13.5px;
+  font-weight: 600;
+  color: #6b7280;
+  padding: 7px 11px;
+  border-radius: 8px;
+  line-height: 1.25;
+  transition: background 0.14s ease, color 0.14s ease;
+}
+.gogh-pickrail button:hover { background: #e8eaee; color: #16181c; }
+.gogh-pickrail button.is-here {
+  color: #16181c;
+  background: #fff;
+  box-shadow: 0 1px 5px rgba(20, 24, 40, 0.09);
+}
+@media (max-width: 780px) {
+  .gogh-pickrail { display: none; }
+}
+
 /* section labels: Quick start / Recommended / Browse all layouts */
 .gogh-seclab {
   grid-column: 1 / -1;

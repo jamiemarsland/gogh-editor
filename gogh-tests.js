@@ -2388,6 +2388,38 @@
       expect(q('.gogh-picker').hidden, 'picker did not close');
     });
 
+    test('picker: the rail maps the shelves', function () {
+      G.openPicker(G.sections().length);
+      var rail = q('.gogh-pickrail');
+      expect(rail && !rail.hidden, 'the rail is missing from the first screen');
+      var names = [].map.call(rail.querySelectorAll('button'), function (b) { return b.textContent; });
+      expect(names.length >= 4, 'expected at least four shelves on the map, got ' + names.join(', '));
+      expect(/Quick start/.test(names[0]) && names.indexOf('Introduce') !== -1 &&
+        names.indexOf('Sell') !== -1 && names.indexOf('Showcase') !== -1,
+        'the map misnames the shelves: ' + names.join(', '));
+      expect(rail.querySelector('button.is-here'), 'no shelf is marked as here');
+      // the spy follows the scroll — dispatched by hand, because background
+      // tabs freeze smooth scrolling but never the listener
+      var pin = q('.gogh-picker-inner');
+      pin.scrollTop = pin.scrollHeight;
+      pin.dispatchEvent(new Event('scroll'));
+      var here = rail.querySelector('button.is-here');
+      expect(here && here.textContent !== names[0],
+        'scrolled to the bottom, but the map still says ' + (here ? here.textContent : 'nothing'));
+      pin.scrollTop = 0;
+      pin.dispatchEvent(new Event('scroll'));
+      // filters flatten the modal to one grid — the map steps aside too
+      var sIn = q('.gogh-picker-search .gogh-patsearch');
+      sIn.value = 'quote';
+      sIn.dispatchEvent(new Event('input', { bubbles: true }));
+      expect(rail.hidden, 'the rail should hide while a filter is on');
+      sIn.value = '';
+      sIn.dispatchEvent(new Event('input', { bubbles: true }));
+      expect(!q('.gogh-pickrail').hidden, 'the rail should return when the filter clears');
+      q('.gogh-picker-close').click();
+      return 'rail: ' + names.join(' · ');
+    });
+
     test('Cmd+V pastes HTML straight in as a section', function () {
       var dt = new DataTransfer();
       dt.setData('text/plain', '<section style="padding:40px"><h2>Pasted by keyboard</h2></section>');
