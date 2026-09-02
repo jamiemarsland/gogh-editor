@@ -4,11 +4,11 @@ Everything in this section is extracted mechanically from the Gogh source on eve
 
 ## Current release
 
-- Plugin version: **0.99.294**
+- Plugin version: **0.99.295**
 - Requires WordPress **6.5+**, PHP **7.4+**
 - Text domain: `gogh-editor`
 - readme.txt Stable tag: `0.26.0` · Tested up to: `7.0`
-- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.294`). Quote the plugin header version.
+- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.295`). Quote the plugin header version.
 
 ## Design constants
 
@@ -82,6 +82,7 @@ Block: `gogh/section` · v3 attributes: `css`, `model`, `scope`, `v`, `cssT`.
 | `init` | action | 10 |
 | `template_redirect` | action | 10 |
 | `wp_enqueue_scripts` | action | 10 |
+| `init` | action | 10 |
 | `body_class` | filter | 10 |
 | `render_block_core/post-template` | filter | 10 |
 | `body_class` | filter | 10 |
@@ -236,6 +237,7 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "Right"
 - "Save"
 - "Save brand"
+- "Save description"
 - "See all →"
 - "Send backward"
 - "Shape"
@@ -301,6 +303,7 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "Could not save the style."
 - "Could not switch the "
 - "Could not update the "
+- "Description saved ✓"
 - "Editing the site "
 - "Experience added — it runs sandboxed; visitors can interact once published."
 - "Icon link updated."
@@ -330,6 +333,7 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "That saved section can’t be read."
 - "That section can’t move past other stored content yet."
 - "The backup could not be read."
+- "The description could not be saved — try again."
 - "Theme style applied: "
 - "This "
 - "Unpublished page changes will be lost when the "
@@ -362,5 +366,5 @@ These are the real strings in the current build. Use them verbatim; never paraph
 
 ## Test suite
 
-`186` tests, run by appending `?gogh-test` to any Gogh page URL while logged in with edit rights on that page.
+`187` tests, run by appending `?gogh-test` to any Gogh page URL while logged in with edit rights on that page.
 
