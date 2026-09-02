@@ -2083,6 +2083,9 @@
   var sideTimer = null;
   function setSideMode(mode) {
     side.dataset.mode = mode;
+    // panels' back links name the drawer they return to ("← Design" went
+    // stale the day the drawer split into Page and Site)
+    document.documentElement.dataset.goghScope = mode;
     side.querySelector('.gogh-side-title').textContent = mode === 'site' ? 'Site' : 'Page';
     side.querySelector('.gogh-cards-page').hidden = mode !== 'page';
     side.querySelector('.gogh-cards-site').hidden = mode !== 'site';
@@ -3294,7 +3297,7 @@
       var titles = { button: 'Link', image: 'Image', box: 'Box', widget: 'Widget' };
       panel.insertAdjacentHTML('afterbegin',
         '<div class="gogh-panel-head"><span class="gogh-panel-title">' + (titles[e.type] || 'Element') + '</span>' +
-        '<button type="button" class="gogh-sbtn gogh-panel-back" title="Back to Design"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"/></svg></button></div>');
+        '<button type="button" class="gogh-sbtn gogh-panel-back" title="Back"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"/></svg></button></div>');
       panel.querySelector('.gogh-panel-back').addEventListener('click', backToDesign);
       dockSidebar();
       layoutZoom(); // re-centre the page around the docked panel's width
@@ -9690,7 +9693,7 @@
   function openMotionPanel() {
     panel.innerHTML =
       '<div class="gogh-panel-head"><span class="gogh-panel-title">Motion</span>' +
-      '<button type="button" class="gogh-sbtn gogh-panel-close gogh-panel-back" title="Back to Design"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"/></svg></button></div>' +
+      '<button type="button" class="gogh-sbtn gogh-panel-close gogh-panel-back" title="Back"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"/></svg></button></div>' +
       '<div class="gogh-panel-hint">One gait for the whole site — hover to audition, click to keep. Visitors who prefer reduced motion always see it still.</div>' +
       '<div class="gogh-motionlist"></div>';
     dockSidebar();
@@ -9731,7 +9734,7 @@
     var options = [{ slug: '', title: 'Standard' }].concat(cfg.pageTemplates || []);
     panel.innerHTML =
       '<div class="gogh-panel-head"><span class="gogh-panel-title">Page style</span>' +
-      '<button type="button" class="gogh-sbtn gogh-panel-close gogh-panel-back" title="Back to Design"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"/></svg></button></div>' +
+      '<button type="button" class="gogh-sbtn gogh-panel-close gogh-panel-back" title="Back"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"/></svg></button></div>' +
       '<div class="gogh-panel-hint">Hover to preview \u2014 click to keep it</div>' +
       '<div class="gogh-pagestyles"></div>';
     // the panel keeps its LAST position unless placed — without this it can
@@ -10340,7 +10343,7 @@
       if (!vars.length) return;
       panel.innerHTML =
         '<div class="gogh-panel-head"><span class="gogh-panel-title">Site style</span>' +
-        '<button type="button" class="gogh-sbtn gogh-panel-close gogh-panel-back" title="Back to Design"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"/></svg></button></div>' +
+        '<button type="button" class="gogh-sbtn gogh-panel-close gogh-panel-back" title="Back"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"/></svg></button></div>' +
         '<div class="gogh-panel-hint">Hover to preview \u2014 click to keep it</div>' +
         '<div class="gogh-panel-hint" style="margin-top:6px">Type scale</div>' +
         '<div class="gogh-hpresets gogh-typescale">' +
@@ -11597,11 +11600,12 @@
     openBrandForm: openBrandForm,
     openMenuManager: openMenuManager,
   };
-  // the running build, visible at a glance: hover the gogh side tab, or read
-  // it in the console — kills "is this tab stale?" debugging forever
+  // the running build, visible at a glance: the drawer's foot and the
+  // console — kills "is this tab stale?" debugging forever. (It rode the
+  // side tab's tooltip once, but that clobbered the Page door's own words
+  // — "this tool tip is a little weird now".)
   var GOGH_BUILD = (document.querySelector('script[src*="gogh-editor.js"]') || { src: '' }).src.split('ver=')[1] || 'dev';
   window.__gogh.build = GOGH_BUILD;
-  sideTab.title = 'gogh ' + GOGH_BUILD;
   var verEl = side.querySelector('.gogh-side-ver');
   if (verEl) verEl.textContent = GOGH_BUILD.replace('-chrome', '');
   try { console.info('[gogh] ' + GOGH_BUILD); } catch (e0) {}

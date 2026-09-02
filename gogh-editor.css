@@ -3201,7 +3201,10 @@ html.gogh-textediting .gogh-convertbtn {
   width: auto; padding: 0 12px 0 8px;
   display: inline-flex; align-items: center; gap: 3px;
 }
-.gogh-panel-back::after { content: "Design"; font-size: 12px; font-weight: 650; }
+/* the back link names the drawer it returns to — the live scope, not a
+   name the drawer stopped wearing ("i kinda find the design link odd") */
+.gogh-panel-back::after { content: "Page"; font-size: 12px; font-weight: 650; }
+html[data-gogh-scope="site"] .gogh-panel-back::after { content: "Site"; }
 
 /* breathing room: the panel gained real navigation but kept its old tight
    rhythm ("does this feel a little tight?") — the head gets clearance,
