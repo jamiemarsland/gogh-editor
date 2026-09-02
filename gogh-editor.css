@@ -240,8 +240,9 @@ html.gogh-phone-preview .gogh-section.gogh-msec-hidden {
 }
 .gogh-side-tab:hover { background: #f2f3f5; }
 /* three doors, three scopes: Page/Post above centre, Site at centre,
-   SEO below — the rail reads big-to-small top-down from the middle out */
-.gogh-local-tab { top: calc(50% - 96px); }
+   SEO below. Close ranks — 96px gaps read as three strangers, not one
+   rail ("does the spacing feel a little odd?") */
+.gogh-local-tab { top: calc(50% - 72px); }
 .gogh-side-tab[hidden] { display: none; }
 .gogh-side-tab.is-away {
   transform: translate(-110%, -50%);
@@ -3408,6 +3409,6 @@ html.gogh-textediting .gogh-convertbtn {
 .gogh-bgrow-body { padding: 2px 0 8px; }
 .gogh-bgrow-body[hidden] { display: none; }
 
-/* the rail's second (and last) tab: Answer-ready — a receipt door */
-.gogh-ar-tab { top: calc(50% + 96px); }
+/* the rail's third tab: SEO — a receipt door */
+.gogh-ar-tab { top: calc(50% + 72px); }
 .gogh-side-tab-dot.gogh-ar-dot { background: #f2a413; }

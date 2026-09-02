@@ -4971,33 +4971,92 @@
     });
   }
   function addExperience(targetIdx) {
-    var input = document.createElement('input');
-    input.type = 'file';
-    input.accept = '.html,text/html';
-    input.addEventListener('change', function () {
-      if (!input.files.length) return;
-      var fd = new FormData();
-      fd.append('file', input.files[0]);
-      toast('Uploading experience\u2026');
-      fetch(cfg.mediaUrl, {
-        method: 'POST',
-        headers: { 'X-WP-Nonce': cfg.nonce },
-        credentials: 'same-origin',
-        body: fd,
-      }).then(function (res) {
-        if (!res.ok) throw new Error('HTTP ' + res.status);
-        return res.json();
-      }).then(function (item) {
-        var expEl = { type: 'exp', x: 0, y: 0, w: 760, h: 480, expId: item.id, expUrl: item.source_url };
-        if (typeof targetIdx === 'number' && S[targetIdx]) addElementToSection(targetIdx, expEl);
-        else placeElAtViewport(expEl);
-        toast('Experience added \u2014 it runs sandboxed; visitors can interact once published.', { ttl: 6000 });
-      }).catch(function (err) {
-        toast('Upload failed \u2014 .html uploads need admin rights.', { ttl: 6000 });
-        console.error('gogh experience upload failed:', err);
+    var landExp = function (id, url, name) {
+      var expEl = { type: 'exp', x: 0, y: 0, w: 760, h: 480, expId: id, expUrl: url };
+      if (typeof targetIdx === 'number' && S[targetIdx]) addElementToSection(targetIdx, expEl);
+      else placeElAtViewport(expEl);
+      toast((name ? '\u201c' + name + '\u201d lives \u2014 ' : 'Experience added \u2014 ') +
+        'sandboxed in its frame, saved in your media library.', { ttl: 7000 });
+    };
+    var uploadPick = function () {
+      var input = document.createElement('input');
+      input.type = 'file';
+      input.accept = '.html,text/html';
+      input.addEventListener('change', function () {
+        if (!input.files.length) return;
+        var fd = new FormData();
+        fd.append('file', input.files[0]);
+        toast('Uploading experience\u2026');
+        fetch(cfg.mediaUrl, {
+          method: 'POST',
+          headers: { 'X-WP-Nonce': cfg.nonce },
+          credentials: 'same-origin',
+          body: fd,
+        }).then(function (res) {
+          if (!res.ok) throw new Error('HTTP ' + res.status);
+          return res.json();
+        }).then(function (item) {
+          landExp(item.id, item.source_url, null);
+        }).catch(function (err) {
+          toast('Upload failed \u2014 .html uploads need admin rights.', { ttl: 6000 });
+          console.error('gogh experience upload failed:', err);
+        });
       });
+      input.click();
+    };
+    // the gallery law: calm walls, wild frames. Without the imagination
+    // tier the old upload door stands alone, unchanged.
+    if (!cfg.askAI) { uploadPick(); return; }
+    panel.innerHTML =
+      '<div class="gogh-panel-head"><span class="gogh-panel-title">Add an experience</span>' +
+      '<button type="button" class="gogh-sbtn gogh-panel-close" title="Close">\u2715</button></div>' +
+      '<div class="gogh-panel-hint">Full creative mode, in its own frame \u2014 the page around it stays calm. Describe it and gogh writes the code into your media library.</div>' +
+      '<div class="gogh-askrow"><input type="text" class="gogh-input gogh-expin" />' +
+      '<button type="button" class="gogh-btn gogh-btn-small gogh-expgo">Imagine</button></div>' +
+      '<div class="gogh-panel-hint gogh-expwait" hidden>Painting\u2026 a whole piece takes a minute or two \u2014 stay on this page.</div>' +
+      '<div class="gogh-panel-row gogh-chrome-foot">' +
+      '<button type="button" class="gogh-btn gogh-btn-small gogh-expupload">Upload an .html file instead</button></div>';
+    placePanelNear(typeof targetIdx === 'number' && S[targetIdx] ? S[targetIdx].wrapEl : side);
+    panelOpen = true;
+    var input2 = panel.querySelector('.gogh-expin');
+    var goBtn = panel.querySelector('.gogh-expgo');
+    var wait = panel.querySelector('.gogh-expwait');
+    var EXP_SEEDS = ['A starry night sky\u2026', 'A playable mini synth\u2026', 'Slow lava lamps in our brand colours\u2026', 'A warp-speed star tunnel\u2026', 'Falling autumn leaves\u2026'];
+    input2.placeholder = EXP_SEEDS[Math.floor(Math.random() * EXP_SEEDS.length)];
+    input2.focus();
+    panel.querySelector('.gogh-panel-close').addEventListener('click', closePanel);
+    panel.querySelector('.gogh-expupload').addEventListener('click', function () { closePanel(); uploadPick(); });
+    var going = false;
+    var go = function () {
+      var text = input2.value.trim();
+      if (!text || going) { input2.focus(); return; }
+      going = true;
+      goBtn.disabled = true;
+      goBtn.textContent = 'Imagining\u2026';
+      wait.hidden = false;
+      fetch(cfg.restUrl.split('wp/v2/')[0] + 'gogh/v1/imagine-exp', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-WP-Nonce': cfg.nonce },
+        credentials: 'same-origin',
+        body: JSON.stringify({ prompt: text }),
+      }).then(function (r) {
+        return r.json().then(function (j) { return { ok: r.ok, j: j }; });
+      }).then(function (out) {
+        if (!out.ok) throw new Error((out.j && out.j.message) || 'The imagination did not answer.');
+        closePanel();
+        landExp(out.j.id, out.j.url, out.j.title || text);
+      }).catch(function (err) {
+        going = false;
+        goBtn.disabled = false;
+        goBtn.textContent = 'Imagine';
+        wait.hidden = true;
+        toast(err.message || 'The imagination did not answer.', { error: true, ttl: 8000 });
+      });
+    };
+    goBtn.addEventListener('click', go);
+    input2.addEventListener('keydown', function (ev) {
+      if (ev.key === 'Enter') { ev.preventDefault(); go(); }
     });
-    input.click();
   }
   function addShapeAtViewport(def) {
     return placeElAtViewport({

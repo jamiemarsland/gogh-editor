@@ -4752,6 +4752,21 @@
       });
     });
 
+    testAsync('imagine an experience: the door refuses an empty ask', function () {
+      // rejection path only — a real prompt would spend the real key
+      var root = (window.GOGH && GOGH.restUrl) ? GOGH.restUrl.split('wp/v2/')[0] : '/wp-json/';
+      return fetch(root + 'gogh/v1/imagine-exp', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-WP-Nonce': (window.GOGH || {}).nonce },
+        credentials: 'same-origin',
+        body: JSON.stringify({ prompt: '' }),
+      }).then(function (res) {
+        expect(res.status !== 404, 'the imagine-exp door does not exist');
+        expect(res.status === 400 || res.status === 501, 'expected 400 (or 501 keyless), got ' + res.status);
+        return 'empty ask refused with ' + res.status;
+      });
+    });
+
     test('ask gogh: seam reads become the right shelf sections', function () {
       var m = G.askSeamMatch('three customer testimonials');
       expect(m && m.tpl.name === 'Testimonials', 'testimonials read as ' + (m && m.tpl.name));

@@ -876,7 +876,7 @@ body.gogh-w-audition main { zoom: 0.52; }
   box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.35);
 }
 .gogh-w-tab:hover { color: #4a63d8; }
-.gogh-w-tab-seo { top: calc(50% + 96px); }
+.gogh-w-tab-seo { top: calc(50% + 76px); } /* close ranks with Design — one rail, not two strangers */
 .gogh-w-tab-dot {
   width: 7px;
   height: 7px;

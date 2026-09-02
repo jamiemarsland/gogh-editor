@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Gogh Editor
  * Description: A freeform canvas for WordPress — drag anything anywhere on your live page; Gogh publishes it back as clean, responsive core blocks that keep working even if the plugin is deactivated.
- * Version: 0.99.305
+ * Version: 0.99.306
  * Author: Jamie Marsland
  * Author URI: https://pootlepress.com
  * License: GPLv2 or later
@@ -23,7 +23,7 @@ add_action( 'init', function () {
 		'gogh-block',
 		plugins_url( 'gogh-block.js', __FILE__ ),
 		array( 'wp-blocks', 'wp-element', 'wp-block-editor' ),
-		'0.99.305-chrome',
+		'0.99.306-chrome',
 		true
 	);
 	register_block_type( 'gogh/section', array(
@@ -294,9 +294,9 @@ add_action( 'wp_enqueue_scripts', function () {
 	if ( ! $post || ! current_user_can( 'edit_post', $post->ID ) ) {
 		return;
 	}
-	wp_register_script( 'gogh-compose', plugins_url( 'gogh-compose.js', __FILE__ ), array(), '0.99.305-chrome', true );
-	wp_enqueue_script( 'gogh-write', plugins_url( 'gogh-write.js', __FILE__ ), array( 'gogh-compose' ), '0.99.305-chrome', true );
-	wp_enqueue_style( 'gogh-write', plugins_url( 'gogh-write.css', __FILE__ ), array(), '0.99.305-chrome' );
+	wp_register_script( 'gogh-compose', plugins_url( 'gogh-compose.js', __FILE__ ), array(), '0.99.306-chrome', true );
+	wp_enqueue_script( 'gogh-write', plugins_url( 'gogh-write.js', __FILE__ ), array( 'gogh-compose' ), '0.99.306-chrome', true );
+	wp_enqueue_style( 'gogh-write', plugins_url( 'gogh-write.css', __FILE__ ), array(), '0.99.306-chrome' );
 	wp_localize_script( 'gogh-write', 'GOGHWRITE', array(
 		'postId'  => $post->ID,
 		'restUrl' => esc_url_raw( rest_url() ),
@@ -710,6 +710,142 @@ function gogh_ask_handler( $req ) {
 	return array( 'candidates' => array_slice( array_values( $out['candidates'] ), 0, 3 ) );
 }
 
+// ✦ Imagine an experience: one prompt in, one self-contained HTML file
+// out — written by the model, saved into the user's OWN media library,
+// framed by the sandboxed Experience element. Same key, same workspace,
+// same hard-won transport lessons as gogh/v1/ask.
+function gogh_imagine_exp_handler( $req ) {
+	$key = gogh_ask_key();
+	if ( ! $key ) {
+		return new WP_Error( 'gogh_ask_no_key', __( 'The imagination tier has no key.', 'gogh-editor' ), array( 'status' => 501 ) );
+	}
+	$p      = $req->get_json_params();
+	$prompt = isset( $p['prompt'] ) ? substr( sanitize_text_field( (string) $p['prompt'] ), 0, 400 ) : '';
+	if ( '' === $prompt ) {
+		return new WP_Error( 'gogh_exp_bad', __( 'Describe the experience first.', 'gogh-editor' ), array( 'status' => 400 ) );
+	}
+	// the site's own inks travel along, so "in our brand colours" lands
+	$pal     = array();
+	$palette = wp_get_global_settings( array( 'color', 'palette' ) );
+	foreach ( (array) ( $palette['theme'] ?? array() ) as $c ) {
+		if ( isset( $c['slug'], $c['color'] ) ) {
+			$pal[] = $c['slug'] . ' ' . $c['color'];
+		}
+	}
+	$sys = 'You write ONE complete, self-contained HTML file: a small interactive or generative "experience" that runs inside a sandboxed iframe on a WordPress page. Rules: ' .
+		'look stunning — full creative mode; canvas, SVG and CSS are all yours, motion welcome; ' .
+		'ONE file, zero external requests: no CDNs, no web fonts, no remote images, no fetch — everything inline; ' .
+		'fill the viewport (html and body at height 100%, margin 0) and adapt to any frame size; ' .
+		'respect prefers-reduced-motion with a beautiful still fallback; ' .
+		'the frame may report a 0x0 viewport at first paint — size everything from a function that re-runs on the resize event, never once at load; ' .
+		'pointer and touch input welcome; sound only if the ask requests it; no alert(), no storage; ' .
+		'keep the source under 60KB. ' .
+		( $pal ? 'If the ask mentions brand or site colours, the palette is: ' . implode( ', ', array_slice( $pal, 0, 10 ) ) . '. ' : '' ) .
+		'Answer with the HTML file ONLY — no fences, no commentary — starting with <!doctype html>.';
+	$headers = array(
+		'content-type'      => 'application/json',
+		'x-api-key'         => $key,
+		'anthropic-version' => '2023-06-01',
+	);
+	$ws = gogh_ask_workspace();
+	if ( $ws ) {
+		$headers['anthropic-workspace-id'] = $ws;
+	}
+	if ( function_exists( 'set_time_limit' ) ) {
+		set_time_limit( 240 ); // a whole file takes longer than an op list
+	}
+	$res = wp_remote_post( 'https://api.anthropic.com/v1/messages', array(
+		'timeout' => 180,
+		'headers' => $headers,
+		'body'    => wp_json_encode( array(
+			'model'      => 'claude-sonnet-5',
+			// a whole file, plus any thinking the model spends first
+			'max_tokens' => 24000,
+			'system'     => $sys,
+			'messages'   => array( array( 'role' => 'user', 'content' => $prompt ) ),
+		) ),
+	) );
+	if ( is_wp_error( $res ) ) {
+		return new WP_Error( 'gogh_ask_down', sprintf(
+			/* translators: %s: transport error detail */
+			__( 'The imagination could not be reached — %s', 'gogh-editor' ),
+			$res->get_error_message()
+		), array( 'status' => 502 ) );
+	}
+	$code = wp_remote_retrieve_response_code( $res );
+	$body = json_decode( wp_remote_retrieve_body( $res ), true );
+	if ( 401 === $code || 403 === $code ) {
+		return new WP_Error( 'gogh_ask_bad_key', __( 'The key was refused — forget it and paste a fresh one.', 'gogh-editor' ), array( 'status' => 502 ) );
+	}
+	$text = '';
+	if ( ! empty( $body['content'] ) && is_array( $body['content'] ) ) {
+		foreach ( $body['content'] as $blk ) {
+			if ( isset( $blk['type'], $blk['text'] ) && 'text' === $blk['type'] ) {
+				$text .= $blk['text'];
+			}
+		}
+	}
+	$text = trim( $text );
+	if ( 200 !== $code || '' === $text ) {
+		$why = isset( $body['error']['message'] ) ? substr( (string) $body['error']['message'], 0, 160 ) : 'HTTP ' . $code;
+		if ( false !== stripos( $why, 'workspace' ) ) {
+			return new WP_Error( 'gogh_ask_need_ws', __( 'Your key is workspace-linked — it needs its Workspace ID (starts wrkspc_…, shown beside the key in the console).', 'gogh-editor' ), array( 'status' => 502 ) );
+		}
+		return new WP_Error( 'gogh_ask_down', sprintf(
+			/* translators: %s: upstream error detail */
+			__( 'The imagination did not answer — %s', 'gogh-editor' ),
+			$why
+		), array( 'status' => 502 ) );
+	}
+	// unwrap fences if the model added them anyway, and cut to the document
+	$text = preg_replace( '/^```(?:html)?\s*|\s*```$/', '', $text );
+	$a    = stripos( $text, '<!doctype' );
+	if ( false === $a ) {
+		$a = stripos( $text, '<html' );
+	}
+	if ( false !== $a ) {
+		$text = substr( $text, $a );
+	}
+	$z = strripos( $text, '</html>' );
+	if ( false !== $z ) {
+		$text = substr( $text, 0, $z + 7 );
+	}
+	if ( false === stripos( $text, '<body' ) && false === stripos( $text, '<canvas' ) ) {
+		return new WP_Error( 'gogh_exp_odd', __( 'The imagination mumbled — try describing it differently.', 'gogh-editor' ), array( 'status' => 502 ) );
+	}
+	if ( strlen( $text ) > 400000 ) {
+		return new WP_Error( 'gogh_exp_big', __( 'That came out too large — ask for something simpler.', 'gogh-editor' ), array( 'status' => 502 ) );
+	}
+	// the seatbelt: sandboxed frames can boot at 0x0 before layout sizes
+	// them — a tiny injected watcher fires one synthetic resize the moment
+	// the viewport is real, so any well-behaved rebuild-on-resize file
+	// (the prompt requires one) heals itself
+	$seatbelt = '<script>(function(){var n=0,iv=setInterval(function(){if(innerWidth>0&&innerHeight>0){clearInterval(iv);dispatchEvent(new Event("resize"));}else if(++n>600){clearInterval(iv);}},50);})();</script>';
+	if ( false !== stripos( $text, '<head>' ) ) {
+		$text = preg_replace( '/<head>/i', '<head>' . $seatbelt, $text, 1 );
+	} else {
+		$text = $seatbelt . $text;
+	}
+	$slug = sanitize_title( wp_trim_words( $prompt, 6, '' ) );
+	$up   = wp_upload_bits( ( $slug ? $slug : 'experience' ) . '.html', null, $text );
+	if ( ! empty( $up['error'] ) ) {
+		return new WP_Error( 'gogh_exp_save', $up['error'], array( 'status' => 500 ) );
+	}
+	$att = wp_insert_attachment( array(
+		'post_mime_type' => 'text/html',
+		'post_title'     => ucwords( wp_trim_words( $prompt, 8 ) ),
+		'post_status'    => 'inherit',
+	), $up['file'] );
+	if ( ! $att || is_wp_error( $att ) ) {
+		return new WP_Error( 'gogh_exp_save', __( 'The file could not join the media library.', 'gogh-editor' ), array( 'status' => 500 ) );
+	}
+	return array(
+		'id'    => (int) $att,
+		'url'   => $up['url'],
+		'title' => get_the_title( $att ),
+	);
+}
+
 // preview any reading look on any post: ?gogh-look=gazette — CSS-only,
 // nothing stored; lets a writer share "how would this read as X" links
 // (and lets screenshots be taken without touching the post)
@@ -1092,7 +1228,7 @@ add_action( 'rest_api_init', function () {
 			return current_user_can( 'edit_posts' );
 		},
 		'callback'            => function () {
-			return array( 'build' => '0.99.305-chrome' );
+			return array( 'build' => '0.99.306-chrome' );
 		},
 	) );
 	register_rest_route( 'gogh/v1', '/starter', array(
@@ -1370,6 +1506,19 @@ add_action( 'rest_api_init', function () {
 			return current_user_can( 'edit_theme_options' );
 		},
 		'callback'            => 'gogh_ask_handler',
+	) );
+
+	// ✦ Imagine an experience: the gallery hangs wild paintings on calm
+	// walls. Full-creative-mode HTML, model-written, uploaded to the
+	// user's OWN media library and framed in the sandboxed Experience
+	// element — the walls stay themed, the frame holds the madness.
+	// Gated like the manual upload: this mints text/html attachments.
+	register_rest_route( 'gogh/v1', '/imagine-exp', array(
+		'methods'             => 'POST',
+		'permission_callback' => function () {
+			return current_user_can( 'upload_files' ) && current_user_can( 'unfiltered_html' );
+		},
+		'callback'            => 'gogh_imagine_exp_handler',
 	) );
 
 	// the key door: paste once in the Ask panel, gone from sight forever.
@@ -2117,7 +2266,7 @@ function gogh_splash_css() {
 // wearing Magazine must read as Magazine logged-out, and the site's gait
 // is site-wide; both packs are a few KB of pure CSS.
 add_action( 'wp_enqueue_scripts', function () {
-	wp_register_style( 'gogh-looks', false, array(), '0.99.305-chrome' );
+	wp_register_style( 'gogh-looks', false, array(), '0.99.306-chrome' );
 	wp_enqueue_style( 'gogh-looks' );
 	wp_add_inline_style( 'gogh-looks', gogh_reading_style_css() . gogh_motion_css() . gogh_blog_style_css() );
 
@@ -2138,7 +2287,7 @@ add_action( 'wp_enqueue_scripts', function () {
 	foreach ( $looks as $l ) {
 		$items .= '<button type="button" data-blog-look="' . esc_attr( $l[0] ) . '" class="' . ( $cur === $l[0] ? 'is-current' : '' ) . '"><b>' . esc_html( $l[1] ) . '</b><i>' . esc_html( $l[2] ) . '</i></button>';
 	}
-	wp_register_script( 'gogh-blogstyle', false, array(), '0.99.305-chrome', true );
+	wp_register_script( 'gogh-blogstyle', false, array(), '0.99.306-chrome', true );
 	wp_enqueue_script( 'gogh-blogstyle' );
 	wp_add_inline_style( 'gogh-looks',
 		'.gogh-bs-pillwrap { position: fixed; right: 22px; bottom: 20px; z-index: 99999; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, sans-serif; }' .
@@ -2209,10 +2358,10 @@ add_action( 'wp_enqueue_scripts', function () {
 
 	// for every visitor: neutralise theme spacing around gogh sections, even
 	// on pages whose stored stylesheets predate this rule
-	wp_register_style( 'gogh-base', false, array(), '0.99.305-chrome' );
+	wp_register_style( 'gogh-base', false, array(), '0.99.306-chrome' );
 	// (the splash presentation itself lives in gogh_splash_css(), shared with
 	// the block editor — a wall in Gutenberg must look like a wall)
-	wp_register_script( 'gogh-view', false, array(), '0.99.305-chrome', true );
+	wp_register_script( 'gogh-view', false, array(), '0.99.306-chrome', true );
 	wp_enqueue_script( 'gogh-view' );
 	wp_add_inline_script( 'gogh-view',
 		// carousel arrows + autoplay are VIEW-TIME: never stored, so saved
@@ -2441,9 +2590,9 @@ add_action( 'wp_enqueue_scripts', function () {
 
 	// compose must be REGISTERED here too — a dependency on an
 	// unregistered handle silently drops the whole editor script
-	wp_register_script( 'gogh-compose', plugins_url( 'gogh-compose.js', __FILE__ ), array(), '0.99.305-chrome', true );
-	wp_enqueue_script( 'gogh-editor', plugins_url( 'gogh-editor.js', __FILE__ ), array( 'gogh-compose' ), '0.99.305-chrome', true );
-	wp_enqueue_style( 'gogh-editor', plugins_url( 'gogh-editor.css', __FILE__ ), array(), '0.99.305-chrome' );
+	wp_register_script( 'gogh-compose', plugins_url( 'gogh-compose.js', __FILE__ ), array(), '0.99.306-chrome', true );
+	wp_enqueue_script( 'gogh-editor', plugins_url( 'gogh-editor.js', __FILE__ ), array( 'gogh-compose' ), '0.99.306-chrome', true );
+	wp_enqueue_style( 'gogh-editor', plugins_url( 'gogh-editor.css', __FILE__ ), array(), '0.99.306-chrome' );
 
 	// WebMCP bridge: the page registers its editing verbs as agent tools.
 	// OPT-IN only — add ?gogh-mcp=1 for a demo session (or enable sitewide
@@ -2455,13 +2604,13 @@ add_action( 'wp_enqueue_scripts', function () {
 	// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only labs toggle
 	$gogh_exp = isset( $_GET['gogh-test'] ) || ( isset( $_GET['gogh-experiments'] ) && '0' !== $_GET['gogh-experiments'] );
 	if ( isset( $_GET['gogh-mcp'] ) || $gogh_exp || apply_filters( 'gogh_webmcp_enabled', false ) ) {
-		wp_enqueue_script( 'gogh-webmcp', plugins_url( 'gogh-webmcp.js', __FILE__ ), array( 'gogh-editor' ), '0.99.305-chrome', true );
+		wp_enqueue_script( 'gogh-webmcp', plugins_url( 'gogh-webmcp.js', __FILE__ ), array( 'gogh-editor' ), '0.99.306-chrome', true );
 	}
 
 	// regression suite: /page/?gogh-test (editors only, never saves)
 	// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only toggle enqueuing a test script for capability-checked editors.
 	if ( isset( $_GET['gogh-test'] ) ) {
-		wp_enqueue_script( 'gogh-tests', plugins_url( 'gogh-tests.js', __FILE__ ), array( 'gogh-editor' ), '0.99.305-chrome', true );
+		wp_enqueue_script( 'gogh-tests', plugins_url( 'gogh-tests.js', __FILE__ ), array( 'gogh-editor' ), '0.99.306-chrome', true );
 	}
 
 	// products live outside wp/v2, so gogh carries its own save route for
@@ -2476,7 +2625,7 @@ add_action( 'wp_enqueue_scripts', function () {
 		'postTitle'  => get_the_title( $post ),
 		'permalink'  => esc_url_raw( get_permalink( $post->ID ) ),
 		'excerpt'    => (string) $post->post_excerpt,
-		'build'    => '0.99.305-chrome',
+		'build'    => '0.99.306-chrome',
 		// two rooms, one landmark (same contract as the admin bar): on a POST
 		// the corner pill opens the WRITING surface, not the freeform canvas
 		'writeUrl' => is_singular( 'post' ) ? add_query_arg( 'gogh-write', '1', get_permalink( $post ) ) : null,
@@ -2605,7 +2754,7 @@ add_action( 'enqueue_block_assets', function () {
 	if ( ! is_admin() ) {
 		return;
 	}
-	wp_register_style( 'gogh-editor-base', false, array(), '0.99.305-chrome' );
+	wp_register_style( 'gogh-editor-base', false, array(), '0.99.306-chrome' );
 	wp_enqueue_style( 'gogh-editor-base' );
 	wp_add_inline_style( 'gogh-editor-base',
 		'.gogh-wrap { min-width: 100%; margin-block: 0 !important; }' .
