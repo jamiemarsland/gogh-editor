@@ -4402,6 +4402,32 @@
       return n + '/20 distinct widths — continuous scaling';
     });
 
+    test('fill-the-width wraps at the readability floor, never spills', function () {
+      // a box narrower than the words at 1cqw used to spill them on one
+      // nowrap line ("weird stuff happens if i drag a text box smaller")
+      var i = findIdx('para');
+      var s = sec();
+      var e = s.els[i];
+      e.fitW = true;
+      G.refitText(s, i);
+      e.w = 112;
+      G.renderSection(s);
+      G.refitText(s, i);
+      expect(e.fitFloor === true, 'the readability floor was not detected');
+      var n = s.nodes[i];
+      var t2 = n.querySelector('p') || n;
+      var rg = document.createRange();
+      rg.selectNodeContents(t2);
+      var inkW = rg.getBoundingClientRect().width;
+      expect(inkW <= n.offsetWidth + 4,
+        'text spills: ink ' + Math.round(inkW) + 'px in a ' + Math.round(n.offsetWidth) + 'px box');
+      e.w = 500;
+      G.renderSection(s);
+      G.refitText(s, i);
+      expect(!e.fitFloor, 'growing the box back did not release the floor');
+      return 'floored: wrapped and contained; grown: one line again';
+    });
+
     test('Aa presets win the text back from fill-the-width', function () {
       // corner-drag stores a fitted cqw size with !important — a preset
       // click must EXIT that mode or it silently does nothing ("these

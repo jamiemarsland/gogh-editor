@@ -502,7 +502,10 @@
       // simply keep the small gap.
       if (e.fitW && e.fitFs) {
         var tbEdge = /[gjpqy]/.test(String(e.text || '')) ? 'text' : 'alphabetic';
-        extra += ' font-size: ' + e.fitFs + 'cqw !important; line-height: 1.05; white-space: nowrap;' +
+        extra += ' font-size: ' + e.fitFs + 'cqw !important;' +
+          (e.fitFloor
+            ? ' line-height: 1.3; white-space: normal;' // at the readability floor: wrap, never spill
+            : ' line-height: 1.05; white-space: nowrap;') +
           ' text-box: trim-both cap ' + tbEdge + ';';
       }
       if (e.type === 'widget' && e.wcol) extra += ' color: ' + e.wcol + ';';
@@ -2271,7 +2274,14 @@
     var secW = sec.sectionEl.offsetWidth; // layout px of the container
     if (!boxW || !secW) return null;
     var px = 100 * boxW / w100 * 0.985;   // a hair inside the box
-    return Math.max(1, +(px / (secW / 100)).toFixed(2)); // → cqw
+    var raw = +(px / (secW / 100)).toFixed(2); // → cqw
+    // the 1cqw floor is a READABILITY floor — but held on one nowrap
+    // line it made narrow boxes spill their words ("weird stuff happens
+    // if i drag a text box smaller"). Below the floor the text WRAPS at
+    // the floor size instead: contained and readable, and it returns to
+    // one line by itself the moment the box can afford it again.
+    e.fitFloor = raw < 1;
+    return Math.max(1, raw);
   }
   function refitText(sec, i) {
     var e = sec.els[i];
@@ -11275,6 +11285,8 @@
     elDefaults: function () { return DEFAULTS; },
     openAnswerReady: openAnswerReadyPanel,
     askRead: askRead,
+    refitText: refitText,
+    computeFitFs: computeFitFs,
     setFontSize: setFontSize,
     solve: solve,
     selectSection: selectSection,
