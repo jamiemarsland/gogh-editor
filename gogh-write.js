@@ -1502,6 +1502,20 @@
   railSEO.innerHTML = '<span class="gogh-w-tab-dot gogh-w-tab-dot-gold"></span><span>SEO</span>';
   document.body.appendChild(railSEO);
   railSEO.addEventListener('click', function () { openARPanel(); });
+  // the dot is a receipt light, never a score: grey = not published yet,
+  // amber = published but no description, green = the machine layer is
+  // complete. The tooltip says why.
+  function updateSEODot() {
+    var dot = railSEO.querySelector('.gogh-w-tab-dot');
+    var published = cfg.status === 'publish' || !!publishedLink;
+    var hasDesc = !!String(cfg.excerpt || '').trim();
+    var state = !published ? ['#b9bcc4', 'Not published yet — the machine layer appears on first publish']
+      : (!hasDesc ? ['#f2a413', 'Published — add a description on the search preview to complete the machine layer']
+        : ['#2e9e6b', 'Complete — schema, description and structure all in place']);
+    dot.style.background = state[0];
+    railSEO.title = 'SEO & AI answers — ' + state[1];
+  }
+  updateSEODot();
   // a quiet word in the chip's saved slot — shared by Post style, publish,
   // and the Answer-ready receipt (it lived inside the Post-style closure
   // once, and the publish receipt calling it from outside threw)
@@ -1547,6 +1561,14 @@
       '<div class="gogh-arpanel" role="dialog" aria-label="What machines see">' +
       '<h3>What machines see</h3>' +
       '<p class="gogh-ar-sub">Search engines and AIs read your post as facts. These are yours, straight from the live page.</p>' +
+      '<div class="gogh-ar-cap">How it looks in search</div>' +
+      '<div class="gogh-arsnippet">' +
+      '<div class="gogh-arsnip-url">' + escHtml((cfg.permalink || location.href).replace(/^https?:\/\//, '').replace(/\?.*$/, '')) + '</div>' +
+      '<div class="gogh-arsnip-title"></div>' +
+      '<div class="gogh-arsnip-desc" contenteditable="true" spellcheck="true"></div>' +
+      '</div>' +
+      '<p class="gogh-ar-why gogh-arsnip-hint">Gogh drafted the description from your opening — edit it right here. It saves as the post\u2019s description, which search results and AI answers lean on.</p>' +
+      '<div class="gogh-ar-actions gogh-arsnip-actions" hidden><button type="button" class="gogh-arsnip-save">Save description</button></div>' +
       '<div class="gogh-ar-rows"><div class="gogh-ar-row">Reading the published post…</div></div>' +
       '<div class="gogh-ar-cap">And built into every gogh post</div>' +
       '<div class="gogh-ar-always">' +
@@ -1563,6 +1585,42 @@
       '<button type="button" class="gogh-ar-copy">Copy machine version</button>' +
       '<button type="button" class="gogh-ar-done">Done</button></div></div>';
     document.body.appendChild(wrap);
+    // the snippet: the writer polishes how the post LOOKS in results —
+    // never a labelled meta-description form. Saved as the native excerpt
+    // so it survives gogh, feeds the schema, and every SEO tool respects it.
+    (function () {
+      var titleEl = document.querySelector('.gogh-w-title');
+      wrap.querySelector('.gogh-arsnip-title').textContent =
+        ((titleEl && titleEl.textContent.trim()) || document.title || 'Untitled').slice(0, 70);
+      var draft = function () {
+        var b = document.querySelector('.gogh-w-body');
+        var txt = (b ? b.textContent : '').replace(/\s+/g, ' ').trim();
+        if (txt.length <= 155) return txt;
+        var cut = txt.slice(0, 155);
+        return cut.slice(0, cut.lastIndexOf(' ')) + '\u2026';
+      };
+      var descEl = wrap.querySelector('.gogh-arsnip-desc');
+      var saved = String(cfg.excerpt || '').trim();
+      descEl.textContent = saved || draft();
+      var actions = wrap.querySelector('.gogh-arsnip-actions');
+      descEl.addEventListener('input', function () { actions.hidden = false; });
+      if (!saved && descEl.textContent.trim()) actions.hidden = false; // the draft is offered, one click keeps it
+      wrap.querySelector('.gogh-arsnip-save').addEventListener('click', function () {
+        var text = descEl.textContent.replace(/\s+/g, ' ').trim().slice(0, 300);
+        fetch(cfg.restUrl + 'wp/v2/posts/' + cfg.postId, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'X-WP-Nonce': cfg.nonce },
+          credentials: 'same-origin',
+          body: JSON.stringify({ excerpt: text }),
+        }).then(function (r) {
+          if (!r.ok) throw new Error('HTTP ' + r.status);
+          cfg.excerpt = text;
+          actions.hidden = true;
+          note('description saved \u2713');
+          updateSEODot();
+        }).catch(function () { note('description not saved'); });
+      });
+    })();
     var onKey = function (ev) { if (ev.key === 'Escape') close(); };
     var close = function () { wrap.remove(); document.removeEventListener('keydown', onKey); };
     document.addEventListener('keydown', onKey);
@@ -1577,7 +1635,10 @@
         var m = html.match(/<script type="application\/ld\+json" class="gogh-schema">([\s\S]*?)<\/script>/);
         if (!m) {
           rows.innerHTML = '<div class="gogh-ar-row">Publish once and the machine layer appears — it is computed when the post saves.</div>';
-          wrap.querySelector('.gogh-armachine pre').textContent = '—';
+          // no layer yet: no empty black box, no dead copy button
+          wrap.querySelector('.gogh-armachine').hidden = true;
+          var cpy = wrap.querySelector('.gogh-ar-copy');
+          if (cpy) cpy.hidden = true;
           return;
         }
         var g = JSON.parse(m[1]);
@@ -1837,6 +1898,7 @@
         // Answer-ready: the story's facts (headline, dates, author, image)
         // just went out as Article schema — the writer's receipt
         publishedLink = post.link;
+        updateSEODot();
         note('Answer-ready ✓ — your story facts travel with this post. Tap ✦ to see what machines see.');
         b.onclick = function () { location.href = post.link; };
       } else {
