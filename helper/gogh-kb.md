@@ -15,7 +15,7 @@ about something where they conflict, rather than picking one silently. Quote UI
 labels and message copy from the appendix, verbatim — those are the current
 strings, and a paraphrased button label is the fastest way to lose a user's trust.
 
-Generated for plugin version 0.99.315 · knowledge base 101f873.
+Generated for plugin version 0.99.316 · knowledge base 86f1625.
 
 ---
 
@@ -782,11 +782,11 @@ Everything in this section is extracted mechanically from the Gogh source on eve
 
 ## Current release
 
-- Plugin version: **0.99.315**
+- Plugin version: **0.99.316**
 - Requires WordPress **6.5+**, PHP **7.4+**
 - Text domain: `gogh-editor`
 - readme.txt Stable tag: `0.26.0` · Tested up to: `7.0`
-- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.315`). Quote the plugin header version.
+- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.316`). Quote the plugin header version.
 
 ## Design constants
 
@@ -827,7 +827,7 @@ Divider shapes (plus "None"): `curve` (Curve), `sweep` (Sweep), `dunes` (Dunes),
 
 Element types that survive a publish: `heading`, `para`, `button`, `image`, `badge`, `box`, `widget`, `exp`. Anything else added from the block editor is lost on the next Gogh publish.
 
-"Add element" palette items: `badge`, `button`, `card`, `exp`, `heading`, `image`, `para`, `posts`, `products`, `write`.
+"Add element" palette items: `badge`, `button`, `card`, `exp`, `form`, `heading`, `image`, `para`, `posts`, `products`, `write`.
 
 ## WebMCP tools
 
@@ -865,6 +865,12 @@ Block: `gogh/section` · v3 attributes: `css`, `model`, `scope`, `v`, `cssT`.
 | `render_block_core/post-template` | filter | 10 |
 | `body_class` | filter | 10 |
 | `body_class` | filter | 10 |
+| `init` | action | 10 |
+| `manage_gogh_message_posts_columns` | filter | 10 |
+| `manage_gogh_message_posts_custom_column` | action | 10 |
+| `admin_post_gogh_form_message` | action | 10 |
+| `admin_post_nopriv_gogh_form_message` | action | 10 |
+| `wp_enqueue_scripts` | action | 10 |
 | `init` | action | 10 |
 | `body_class` | filter | 10 |
 | `wp_enqueue_scripts` | action | 10 |
@@ -965,6 +971,7 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "Fill the screen"
 - "Fill the width — size the text to its box"
 - "Forget the key"
+- "Form"
 - "Go"
 - "Grid: show and snap"
 - "Heading"
@@ -991,6 +998,7 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "Move up"
 - "Move up in the phone stack"
 - "Move, duplicate, save, delete…"
+- "Name, email and a message — straight into your own site, no plugin"
 - "None"
 - "One product, hero-sized — a card with a real add-to-cart button"
 - "Open interactive experience"
@@ -1017,6 +1025,7 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "Save brand"
 - "Save description"
 - "See all →"
+- "Send"
 - "Send backward"
 - "Shape"
 - "Show the next layout"
@@ -1143,4 +1152,4 @@ These are the real strings in the current build. Use them verbatim; never paraph
 
 ## Test suite
 
-`189` tests, run by appending `?gogh-test` to any Gogh page URL while logged in with edit rights on that page.
+`190` tests, run by appending `?gogh-test` to any Gogh page URL while logged in with edit rights on that page.

@@ -1,8 +1,8 @@
-# Knowledge-base audit — plugin v0.99.315
+# Knowledge-base audit — plugin v0.99.316
 
 _13 finding(s) suppressed by `kb.audit-ignore.txt`._
 
-## MISSING (36)
+## MISSING (40)
 
 The source has something the prose never explains. The bot knows the name from the appendix but cannot say what it is for.
 
@@ -14,6 +14,10 @@ The source has something the prose never explains. The bot knows the name from t
 - WP hook `render_block_core/post-template` exists in source but is never mentioned in the prose
 - WP hook `body_class` exists in source but is never mentioned in the prose
 - WP hook `body_class` exists in source but is never mentioned in the prose
+- WP hook `manage_gogh_message_posts_columns` exists in source but is never mentioned in the prose
+- WP hook `manage_gogh_message_posts_custom_column` exists in source but is never mentioned in the prose
+- WP hook `admin_post_gogh_form_message` exists in source but is never mentioned in the prose
+- WP hook `admin_post_nopriv_gogh_form_message` exists in source but is never mentioned in the prose
 - WP hook `body_class` exists in source but is never mentioned in the prose
 - WP hook `body_class` exists in source but is never mentioned in the prose
 - WP hook `trashed_post` exists in source but is never mentioned in the prose
@@ -59,4 +63,11 @@ Quoted copy not found verbatim in the source. Paraphrases are fine; changed UI c
 
 Use this as the checklist for updating the prose — and as a sanity check on the release itself.
 
-- version: 0.99.314 → 0.99.315
+- version: 0.99.315 → 0.99.316
+- added WP hook: "admin_post_gogh_form_message"
+- added WP hook: "admin_post_nopriv_gogh_form_message"
+- added WP hook: "manage_gogh_message_posts_columns"
+- added WP hook: "manage_gogh_message_posts_custom_column"
+- added UI label: "Form"
+- added UI label: "Name, email and a message — straight into your own site, no plugin"
+- added UI label: "Send"

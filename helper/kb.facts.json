@@ -1,12 +1,12 @@
 {
   "meta": {
-    "plugin_version": "0.99.315",
+    "plugin_version": "0.99.316",
     "requires_wp": "6.5",
     "requires_php": "7.4",
     "text_domain": "gogh-editor",
     "readme_stable_tag": "0.26.0",
     "readme_tested_up_to": "7.0",
-    "asset_version": "0.99.315-chrome"
+    "asset_version": "0.99.316-chrome"
   },
   "constants": {
     "TOL": 8,
@@ -399,6 +399,7 @@
     "Fill the screen",
     "Fill the width — size the text to its box",
     "Forget the key",
+    "Form",
     "Go",
     "Grid: show and snap",
     "Heading",
@@ -425,6 +426,7 @@
     "Move up",
     "Move up in the phone stack",
     "Move, duplicate, save, delete…",
+    "Name, email and a message — straight into your own site, no plugin",
     "None",
     "One product, hero-sized — a card with a real add-to-cart button",
     "Open interactive experience",
@@ -451,6 +453,7 @@
     "Save brand",
     "Save description",
     "See all →",
+    "Send",
     "Send backward",
     "Shape",
     "Show the next layout",
@@ -629,6 +632,36 @@
       {
         "kind": "filter",
         "hook": "body_class",
+        "priority": 10
+      },
+      {
+        "kind": "action",
+        "hook": "init",
+        "priority": 10
+      },
+      {
+        "kind": "filter",
+        "hook": "manage_gogh_message_posts_columns",
+        "priority": 10
+      },
+      {
+        "kind": "action",
+        "hook": "manage_gogh_message_posts_custom_column",
+        "priority": 10
+      },
+      {
+        "kind": "action",
+        "hook": "admin_post_gogh_form_message",
+        "priority": 10
+      },
+      {
+        "kind": "action",
+        "hook": "admin_post_nopriv_gogh_form_message",
+        "priority": 10
+      },
+      {
+        "kind": "action",
+        "hook": "wp_enqueue_scripts",
         "priority": 10
       },
       {
@@ -831,6 +864,7 @@
       "gogh-new-post",
       "gogh-write",
       "gogh-look",
+      "gogh-thanks",
       "id",
       "layout",
       "gogh-edit",
@@ -855,6 +889,7 @@
       "button",
       "card",
       "exp",
+      "form",
       "heading",
       "image",
       "para",
@@ -886,5 +921,5 @@
     "has_deprecation": true,
     "block_title": "gogh Section"
   },
-  "test_count": 189
+  "test_count": 190
 }
