@@ -15,7 +15,7 @@ about something where they conflict, rather than picking one silently. Quote UI
 labels and message copy from the appendix, verbatim — those are the current
 strings, and a paraphrased button label is the fastest way to lose a user's trust.
 
-Generated for plugin version 0.99.305 · knowledge base 3c6ca38.
+Generated for plugin version 0.99.306 · knowledge base 2de2c44.
 
 ---
 
@@ -782,11 +782,11 @@ Everything in this section is extracted mechanically from the Gogh source on eve
 
 ## Current release
 
-- Plugin version: **0.99.305**
+- Plugin version: **0.99.306**
 - Requires WordPress **6.5+**, PHP **7.4+**
 - Text domain: `gogh-editor`
 - readme.txt Stable tag: `0.26.0` · Tested up to: `7.0`
-- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.305`). Quote the plugin header version.
+- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.306`). Quote the plugin header version.
 
 ## Design constants
 
@@ -900,11 +900,11 @@ Block: `gogh/section` · v3 attributes: `css`, `model`, `scope`, `v`, `cssT`.
 
 Filters exposed for third parties: `gogh_rebake_enabled`, `gogh_schema`, `gogh_schema_enabled`, `gogh_webmcp_enabled`, `gogh_convert_enabled`, `gogh_helper_url`.
 
-REST routes registered: `gogh/v1/version`, `gogh/v1/starter`, `gogh/v1/type-scale`, `gogh/v1/blog-style`, `gogh/v1/motion`, `gogh/v1/ask`, `gogh/v1/ask-key`, `gogh/v1/ask-log`, `gogh/v1/active-style`, `wp/v2/gogh-product/(?P<id>\d+)`, `wp/v2/gogh-product/(?P<id>\d+)/autosaves`, `gogh/v1/pattern`, `gogh/v1/render`.
+REST routes registered: `gogh/v1/version`, `gogh/v1/starter`, `gogh/v1/type-scale`, `gogh/v1/blog-style`, `gogh/v1/motion`, `gogh/v1/ask`, `gogh/v1/imagine-exp`, `gogh/v1/ask-key`, `gogh/v1/ask-log`, `gogh/v1/active-style`, `wp/v2/gogh-product/(?P<id>\d+)`, `wp/v2/gogh-product/(?P<id>\d+)/autosaves`, `gogh/v1/pattern`, `gogh/v1/render`.
 
 Core REST endpoints used by the editor: `wp/v2/blocks`, `wp/v2/posts`, `wp/v2/template-parts`.
 
-Capability checks in PHP: `edit_posts`, `edit_post`, `edit_theme_options`, `manage_options`, `edit_others_posts`, `unfiltered_html`, `upload_files`, `publish_pages`.
+Capability checks in PHP: `edit_posts`, `edit_post`, `edit_theme_options`, `manage_options`, `upload_files`, `unfiltered_html`, `edit_others_posts`, `publish_pages`.
 
 Query-string switches: `?gogh-edit`, `?gogh-ps`, `?gogh-test`.
 
@@ -971,6 +971,7 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "Heading"
 - "Help — ask gogh anything"
 - "Image"
+- "Imagine"
 - "Italic"
 - "Keep editing"
 - "Keep this layout (updates every page)"
@@ -1038,6 +1039,7 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "Unwrap — back to freeform"
 - "Updates every page"
 - "Upload a self-contained HTML experience — it runs sandboxed"
+- "Upload an .html file instead"
 - "Use a text name instead"
 - "Use this design"
 - "Use this layout"
@@ -1082,7 +1084,6 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "Could not update the "
 - "Description saved ✓"
 - "Editing the site "
-- "Experience added — it runs sandboxed; visitors can interact once published."
 - "Icon link updated."
 - "Image swapped."
 - "Keep your changes with Done, or undo them with Cancel."

@@ -1,6 +1,12 @@
-# Knowledge-base audit — plugin v0.99.305
+# Knowledge-base audit — plugin v0.99.306
 
 _13 finding(s) suppressed by `kb.audit-ignore.txt`._
+
+## STALE (1)
+
+The prose names something that no longer exists.
+
+- toast "Experience added — it runs sandboxed; visitors can interact once published." was removed in this release, but the prose still describes it
 
 ## MISSING (36)
 
@@ -43,7 +49,7 @@ The source has something the prose never explains. The bot knows the name from t
 - divider `dunes` exists in source but is never mentioned in the prose
 - divider `mist` exists in source but is never mentioned in the prose
 
-## QUOTE (6)
+## QUOTE (7)
 
 Quoted copy not found verbatim in the source. Paraphrases are fine; changed UI copy is not.
 
@@ -53,9 +59,14 @@ Quoted copy not found verbatim in the source. Paraphrases are fine; changed UI c
 - Save this section to reuse
 - Save this section to reuse
 - Out of the card — it's a free element again.
+- Experience added — it runs sandboxed; visitors can interact once published.
 
 ## What changed since the last knowledge-base build
 
 Use this as the checklist for updating the prose — and as a sanity check on the release itself.
 
-- version: 0.99.304 → 0.99.305
+- version: 0.99.305 → 0.99.306
+- added REST route: "gogh/v1/imagine-exp"
+- added UI label: "Imagine"
+- added UI label: "Upload an .html file instead"
+- removed toast: "Experience added — it runs sandboxed; visitors can interact once published."
