@@ -2083,9 +2083,13 @@
   coverChip.innerHTML = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="8.5" cy="10" r="1.6"/><path d="M21 16l-5-5-9 8"/></svg><span>Cover photo</span>';
   coverChip.hidden = true;
   document.body.appendChild(coverChip);
+  var coverHasPhoto = function () {
+    return /url\(/.test(getComputedStyle(document.body).getPropertyValue('--gogh-cover-img'));
+  };
   var placeCoverChip = function () {
     var on = document.body.classList.contains('gogh-read-cover');
     coverChip.hidden = !on;
+    document.body.classList.toggle('gogh-cover-grab', on && coverHasPhoto());
     if (!on) return;
     var r = title.getBoundingClientRect();
     coverChip.style.left = Math.max(18, r.left + 18) + 'px';
@@ -2107,11 +2111,62 @@
         }).then(function (r) {
           if (!r.ok) throw new Error('HTTP ' + r.status);
           document.body.style.setProperty('--gogh-cover-img', 'url("' + item.source_url + '")');
-          note('cover photo set ✓');
+          placeCoverChip();
+          note('cover photo set ✓ — drag the sky to reframe it');
         }).catch(function () { note('cover photo not saved'); });
       },
     });
   });
+  // grab the sky: with a cover photo set, press and drag on the cover to
+  // choose the slice ("move the cover photo like other background
+  // photos"). The verdict moves to pointerup — a real drag reframes, a
+  // plain press still puts the caret in the title.
+  (function () {
+    var fd = null;
+    var posNow = function () {
+      var v = parseFloat(getComputedStyle(document.body).getPropertyValue('--gogh-cover-pos'));
+      return isNaN(v) ? 50 : v;
+    };
+    title.addEventListener('pointerdown', function (ev) {
+      if (ev.button !== 0) return;
+      if (!document.body.classList.contains('gogh-cover-grab')) return;
+      fd = { x0: ev.clientX, y0: ev.clientY, start: posNow(), pos: null, moved: false };
+      ev.preventDefault();
+      try { title.setPointerCapture(ev.pointerId); } catch (e) {}
+    });
+    title.addEventListener('pointermove', function (ev) {
+      if (!fd) return;
+      var dy = ev.clientY - fd.y0;
+      if (!fd.moved && Math.abs(dy) + Math.abs(ev.clientX - fd.x0) < 5) return;
+      fd.moved = true;
+      var h = title.getBoundingClientRect().height || 1;
+      // pulling the photo down reveals its top: the position slides up
+      fd.pos = Math.max(0, Math.min(100, fd.start - (dy / h) * 100));
+      document.body.style.setProperty('--gogh-cover-pos', fd.pos.toFixed(1) + '%');
+    });
+    var coverUp = function (ev) {
+      if (!fd) return;
+      var was = fd;
+      fd = null;
+      if (was.moved) {
+        fetch(cfg.restUrl + 'wp/v2/posts/' + cfg.postId, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'X-WP-Nonce': cfg.nonce },
+          credentials: 'same-origin',
+          body: JSON.stringify({ meta: { _gogh_cover_pos: Math.round(was.pos != null ? was.pos : was.start) } }),
+        }).then(function (r) { note(r.ok ? 'cover reframed ✓' : 'reframe not saved'); })
+          .catch(function () { note('reframe not saved'); });
+        return;
+      }
+      // a plain press: the caret lands where the finger did
+      var cr = document.caretRangeFromPoint ? document.caretRangeFromPoint(ev.clientX, ev.clientY) : null;
+      var sel2 = getSelection();
+      if (cr) { sel2.removeAllRanges(); sel2.addRange(cr); }
+      title.focus();
+    };
+    title.addEventListener('pointerup', coverUp);
+    title.addEventListener('pointercancel', function () { fd = null; });
+  })();
   var draftBtn = chip.querySelector('.gogh-w-draft'); // absent on published posts
   if (draftBtn) draftBtn.addEventListener('click', function () {
     draftBtn.textContent = 'Saving\u2026';

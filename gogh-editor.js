@@ -8027,7 +8027,11 @@
     // suggest what the page is MISSING — the chips read as gogh
     // understanding the page, not as a menu ("we could probs have a few
     // more things here" — the panel has the room)
-    return pool.filter(function (c) { return !c.re.test(pageText); }).slice(0, 7);
+    var out = pool.filter(function (c) { return !c.re.test(pageText); }).slice(0, 7);
+    // the wild door shows at the seam too ("i dont see experience?") —
+    // saying it inserts a fresh section and opens the Experience chooser
+    if (cfg.canExp && cfg.askAI) out.push({ label: 'Experience', say: 'an interactive experience' });
+    return out;
   }
   function openSeamAsk(idx, before) {
     var chips = askSeamChips();
@@ -8059,6 +8063,20 @@
     }, 2600);
     input.focus();
     var go = function (text) {
+      // "an interactive experience" is an ELEMENT ask spoken at a section
+      // door — cross-door delegation: a fresh band arrives and the
+      // Experience chooser opens straight into it
+      if (cfg.canExp && /\bexperience\b|\binteractive\b/i.test(String(text || ''))) {
+        closePanel();
+        var seen2 = [];
+        S.forEach(function (s2) { seen2.push(s2.wrapEl); });
+        addSection({ name: 'experience', minH: 640, els: [] }, idx == null ? S.length : idx, before);
+        pushState();
+        var born2 = S.filter(function (s2) { return seen2.indexOf(s2.wrapEl) === -1; })[0];
+        var bi2 = S.indexOf(born2);
+        if (bi2 !== -1) { selectSection(bi2); addExperience(bi2); }
+        return;
+      }
       var m = askSeamMatch(text);
       if (!m) {
         if (!String(text || '').trim()) { input.focus(); return; }

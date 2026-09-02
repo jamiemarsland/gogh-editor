@@ -91,6 +91,10 @@ body.gogh-writing ::selection {
   border-radius: 8px;
 }
 
+/* the sky is grabbable: with a cover photo set, the cursor says so */
+body.gogh-cover-grab .wp-block-post-title { cursor: grab; }
+body.gogh-cover-grab .wp-block-post-title:active { cursor: grabbing; }
+
 /* the cover's own door: a quiet glass chip on the photo it changes */
 .gogh-w-coverchip {
   all: unset;
