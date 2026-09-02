@@ -14030,7 +14030,15 @@
     // the header wears ONE identity: an image logo OR the text name. The
     // doorway label follows whichever is live, so folks aren't hunting the
     // tiny logo + a floating chip to change it
-    var usingLogo = !!(partEl && partEl.querySelector('.wp-block-site-logo img'));
+    var usingLogo = raw0.indexOf('wp:site-logo') !== -1; // from the SAVE, not the auditioning DOM
+    if (area === 'header') {
+      // every option is dressed in the saved identity BEFORE anything
+      // previews — auditions and the final save then agree by construction
+      options = options.map(function (o) {
+        return Object.assign({}, o, { content: chromeLayoutContent('header', o, usingLogo) });
+      });
+      if (activeOpt) activeOpt = options.filter(function (o) { return o.id === activeOpt.id; })[0] || activeOpt;
+    }
     var st = {
       layoutId: activeOpt ? activeOpt.id : null,
       look: undefined,          // undefined = untouched
@@ -14389,7 +14397,7 @@
       // no reload. A beginner clicks Done to say "I'm finished here."
       if (!armed) { closePanel(); return; }
       var base = (st.layoutId !== (activeOpt && activeOpt.id))
-        ? chromeLayoutContent(area, chosenOpt())
+        ? chromeLayoutContent(area, chosenOpt(), area === 'header' ? usingLogo : null)
         : raw0;
       if (st.dials) base = chromeDialsApply(base, st.dials) || base;
       if (st.look !== undefined) base = chromeColorApply(base, st.look && (st.look.bg || st.look.custom || st.look.ink || st.look.inkHex) ? st.look : null) || base;
@@ -15038,19 +15046,37 @@
       });
     });
   }
-  function chromeLayoutContent(area, chosen) {
+  function chromeLayoutContent(area, chosen, wantLogo) {
     var content = chosen.content || '';
     if (area === 'header') {
-      // the site's identity choice survives a layout change: if the header
-      // currently leads with a LOGO, the incoming pattern's title block
-      // becomes a logo block (and never both — some patterns carry the two)
-      var pe = partElForArea('header');
-      var usingLogo = !!(pe && pe.querySelector('.wp-block-site-logo'));
+      // the site's ONE identity choice survives a layout change — logo or
+      // text, whichever the SAVED header wears ("if i set it as text, it
+      // should remember that if i change layouts"). The caller passes the
+      // saved identity: reading the live DOM here lied whenever a hover
+      // audition had already dressed the header in another pattern.
+      var usingLogo = wantLogo;
+      if (usingLogo == null) {
+        var pe = partElForArea('header');
+        usingLogo = !!(pe && pe.querySelector('.wp-block-site-logo'));
+      }
       if (usingLogo) {
         var lg = logoizeHeaderRaw(content);
         if (lg) content = lg;
-      } else if (content.indexOf('wp:site-logo') !== -1 && content.indexOf('wp:site-title') !== -1) {
-        content = content.replace(/<!--\s*wp:site-logo(\s+\{[^]*?\})?\s*\/-->\s*/, '');
+      } else if (content.indexOf('wp:site-logo') !== -1) {
+        if (content.indexOf('wp:site-title') !== -1) {
+          // the pattern carries both — drop its logo, keep its title
+          content = content.replace(/<!--\s*wp:site-logo(\s+\{[^]*?\})?\s*\/-->\s*/, '');
+        } else {
+          // a logo-led pattern on a text-identity site: the logo block
+          // BECOMES the title block, alignment carried
+          content = content.replace(/<!--\s*wp:site-logo(\s+\{[^]*?\})?\s*\/-->/, function (m0, json) {
+            var a = {};
+            if (json) { try { a = JSON.parse(json.trim()); } catch (e) { a = {}; } }
+            var t = { level: 0 };
+            if (a.align === 'center') t.textAlign = 'center';
+            return '<!-- wp:site-title ' + JSON.stringify(t) + ' /-->';
+          });
+        }
       }
     }
     return content;

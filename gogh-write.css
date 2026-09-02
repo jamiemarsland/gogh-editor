@@ -172,10 +172,13 @@ body.gogh-cover-grab .wp-block-post-title:active { cursor: grabbing; }
 }
 /* quiet until hovered — or TAPPED: phones have no hover, so the chip
    also opens on .is-open (toggled by tap, closed by tapping elsewhere) */
-.gogh-w-chip:not(:hover):not(:focus-within):not(.is-filing):not(.is-open) .gogh-w-catsbtn,
-.gogh-w-chip:not(:hover):not(:focus-within):not(.is-filing):not(.is-open) .gogh-w-stylebtn,
-.gogh-w-chip:not(:hover):not(:focus-within):not(.is-filing):not(.is-open) .gogh-w-publish,
-.gogh-w-chip:not(:hover):not(:focus-within):not(.is-filing):not(.is-open) .gogh-w-back,
+/* saving whispers, it doesn't unfurl: is-filing reveals ONLY the quiet
+   'saved' word — the buttons wait for a hover ("the pill expands out on
+   saving - too quick to read - and unsettles me") */
+.gogh-w-chip:not(:hover):not(:focus-within):not(.is-open) .gogh-w-catsbtn,
+.gogh-w-chip:not(:hover):not(:focus-within):not(.is-open) .gogh-w-stylebtn,
+.gogh-w-chip:not(:hover):not(:focus-within):not(.is-open) .gogh-w-publish,
+.gogh-w-chip:not(:hover):not(:focus-within):not(.is-open) .gogh-w-back,
 .gogh-w-chip:not(:hover):not(:focus-within):not(.is-filing):not(.is-open) .gogh-w-saved {
   display: none;
 }
