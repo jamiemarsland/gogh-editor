@@ -1,12 +1,6 @@
-# Knowledge-base audit — plugin v0.99.317
+# Knowledge-base audit — plugin v0.99.318
 
 _13 finding(s) suppressed by `kb.audit-ignore.txt`._
-
-## STALE (1)
-
-The prose names something that no longer exists.
-
-- UI label "Send" was removed in this release, but the prose still describes it
 
 ## MISSING (40)
 
@@ -69,5 +63,4 @@ Quoted copy not found verbatim in the source. Paraphrases are fine; changed UI c
 
 Use this as the checklist for updating the prose — and as a sanity check on the release itself.
 
-- version: 0.99.316 → 0.99.317
-- removed UI label: "Send"
+- version: 0.99.317 → 0.99.318
