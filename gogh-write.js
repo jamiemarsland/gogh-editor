@@ -1734,6 +1734,7 @@
     })();
     var onKey = function (ev) { if (ev.key === 'Escape') close(); };
     var close = function () { wrap.remove(); document.removeEventListener('keydown', onKey); };
+    // (the write room's rail stays put — it has no drawer choreography)
     document.addEventListener('keydown', onKey);
     wrap.querySelector('.gogh-arback').addEventListener('click', close);
     wrap.querySelector('.gogh-ar-done').addEventListener('click', close);

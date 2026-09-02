@@ -11921,6 +11921,7 @@
       '<button type="button" class="gogh-ar-copy">Copy machine version</button>' +
       '<button type="button" class="gogh-ar-done">Done</button></div></div>';
     document.body.appendChild(wrap);
+    railBox.classList.add('is-away'); // the rail steps aside for its own door
     // the light, EXPLAINED, beside the action that changes it — same
     // three sentences as the write room
     var renderStatus = function () {
@@ -11983,7 +11984,7 @@
       });
     })();
     var onKey = function (ev) { if (ev.key === 'Escape') close(); };
-    var close = function () { wrap.remove(); document.removeEventListener('keydown', onKey); };
+    var close = function () { wrap.remove(); railBox.classList.remove('is-away'); document.removeEventListener('keydown', onKey); };
     document.addEventListener('keydown', onKey);
     wrap.querySelector('.gogh-arback').addEventListener('click', close);
     wrap.querySelector('.gogh-ar-done').addEventListener('click', close);

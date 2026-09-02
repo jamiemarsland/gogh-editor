@@ -265,15 +265,38 @@ html.gogh-phone-preview .gogh-section.gogh-msec-hidden {
   pointer-events: none;
 }
 .gogh-rail .gogh-side-tab {
-  position: static;
+  position: relative;
   transform: none;
   border: 0;
   border-radius: 0;
   box-shadow: none;
   background: transparent;
-  transition: background 0.15s ease;
+  transition: background 0.15s ease, color 0.18s ease, letter-spacing 0.24s cubic-bezier(0.22, 0.9, 0.3, 1);
 }
 .gogh-rail .gogh-side-tab + .gogh-side-tab { border-top: 1px solid var(--gogh-ui-border); }
+/* the greeting: hover and the door leans out — the word inks to the
+   accent and breathes its letterspacing open, while a little accent
+   tongue slides in from the wall ("some delightful feedback as they
+   roll over these menus") */
+.gogh-rail .gogh-side-tab::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 11px;
+  bottom: 11px;
+  width: 3px;
+  border-radius: 0 3px 3px 0;
+  background: #4a63d8;
+  transform: translateX(-4px);
+  opacity: 0;
+  transition: transform 0.2s cubic-bezier(0.22, 0.9, 0.3, 1), opacity 0.2s ease;
+}
+.gogh-rail .gogh-side-tab:hover { color: #4a63d8; letter-spacing: 0.3em; background: #f6f7fa; }
+.gogh-rail .gogh-side-tab:hover::before { transform: none; opacity: 1; }
+@media (prefers-reduced-motion: reduce) {
+  .gogh-rail .gogh-side-tab, .gogh-rail .gogh-side-tab::before { transition: none; }
+  .gogh-rail .gogh-side-tab:hover { letter-spacing: 0.14em; }
+}
 .gogh-rail .gogh-side-tab.is-away { transform: none; opacity: 1; pointer-events: auto; } /* the rail carries the exit */
 .gogh-side-tab[hidden] { display: none; }
 .gogh-side-tab.is-away {
@@ -3095,14 +3118,21 @@ html.gogh-textediting .gogh-convertbtn {
 .gogh-freshchip:hover { background: #000; }
 
 /* ---------- Answer-ready: the badge and the what-machines-see panel ---------- */
-.gogh-arwrap { position: fixed; inset: 0; z-index: 1000001; display: flex; align-items: center; justify-content: center; padding: 24px; }
-.gogh-arback { position: absolute; inset: 0; background: rgba(15, 17, 23, 0.45); }
+/* the SEO room is a SIDEBAR like its rail siblings — one rail, one
+   species of door ("feels a little odd that seo opens in a modal") */
+.gogh-arwrap { position: fixed; inset: 0; z-index: 1000001; }
+.gogh-arback { position: absolute; inset: 0; background: transparent; }
 .gogh-arpanel {
-  position: relative; width: min(580px, 94vw); max-height: 86vh; overflow: auto;
-  background: #fff; border-radius: 18px; padding: 22px 24px; color: #1c1e24;
+  position: absolute; left: 0; top: 0; bottom: 0;
+  width: min(480px, 92vw); overflow: auto; box-sizing: border-box;
+  background: #fff; border-right: 1px solid rgba(0, 0, 0, 0.08);
+  border-radius: 0; padding: 22px 24px; color: #1c1e24;
   font: 14px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, sans-serif;
-  box-shadow: 0 40px 90px -30px rgba(0, 0, 0, 0.55);
+  box-shadow: 18px 0 50px -28px rgba(0, 0, 0, 0.45);
+  animation: gogh-ar-slidein 0.3s cubic-bezier(0.22, 0.9, 0.3, 1);
 }
+@keyframes gogh-ar-slidein { from { transform: translateX(-26px); opacity: 0; } to { transform: none; opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .gogh-arpanel { animation: none; } }
 .gogh-arpanel h3 { margin: 0 0 4px; font-size: 18px; }
 .gogh-ar-sub { color: #6b6f78; margin: 0 0 14px; }
 .gogh-ar-row { display: flex; gap: 10px; padding: 9px 0; border-top: 1px solid #eceef2; }

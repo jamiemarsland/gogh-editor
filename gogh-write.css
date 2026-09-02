@@ -767,14 +767,20 @@ body.gogh-writing ::selection {
 
 /* ---------- Answer-ready: the write-room twin of what-machines-see ---------- */
 .gogh-w-chip .gogh-w-arbtn { color: #b17e1f; font-size: 15px; padding: 6px 8px; }
-.gogh-arwrap { position: fixed; inset: 0; z-index: 1000001; display: flex; align-items: center; justify-content: center; padding: 24px; }
-.gogh-arback { position: absolute; inset: 0; background: rgba(15, 17, 23, 0.45); }
+/* the SEO room is a SIDEBAR like its rail sibling — one species of door */
+.gogh-arwrap { position: fixed; inset: 0; z-index: 1000001; }
+.gogh-arback { position: absolute; inset: 0; background: transparent; }
 .gogh-arpanel {
-  position: relative; width: min(580px, 94vw); max-height: 86vh; overflow: auto;
-  background: #fff; border-radius: 18px; padding: 22px 24px; color: #1c1e24;
+  position: absolute; left: 0; top: 0; bottom: 0;
+  width: min(480px, 92vw); overflow: auto; box-sizing: border-box;
+  background: #fff; border-right: 1px solid rgba(0, 0, 0, 0.08);
+  border-radius: 0; padding: 22px 24px; color: #1c1e24;
   font: 14px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, sans-serif;
-  box-shadow: 0 40px 90px -30px rgba(0, 0, 0, 0.55);
+  box-shadow: 18px 0 50px -28px rgba(0, 0, 0, 0.45);
+  animation: gogh-ar-slidein 0.3s cubic-bezier(0.22, 0.9, 0.3, 1);
 }
+@keyframes gogh-ar-slidein { from { transform: translateX(-26px); opacity: 0; } to { transform: none; opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .gogh-arpanel { animation: none; } }
 .gogh-arpanel h3 { margin: 0 0 4px; font-size: 18px; }
 .gogh-ar-sub { color: #6b6f78; margin: 0 0 14px; }
 .gogh-ar-row { display: flex; gap: 10px; padding: 9px 0; border-top: 1px solid #eceef2; }
@@ -883,8 +889,27 @@ body.gogh-w-audition main { zoom: 0.52; }
   color: #141519;
   transition: background 0.15s ease;
 }
-.gogh-w-tab:hover { color: #4a63d8; background: #f2f3f5; }
+.gogh-w-tab { position: relative; transition: background 0.15s ease, color 0.18s ease, letter-spacing 0.24s cubic-bezier(0.22, 0.9, 0.3, 1); }
+.gogh-w-tab::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 11px;
+  bottom: 11px;
+  width: 3px;
+  border-radius: 0 3px 3px 0;
+  background: #4a63d8;
+  transform: translateX(-4px);
+  opacity: 0;
+  transition: transform 0.2s cubic-bezier(0.22, 0.9, 0.3, 1), opacity 0.2s ease;
+}
+.gogh-w-tab:hover { color: #4a63d8; letter-spacing: 0.3em; background: #f6f7fa; }
+.gogh-w-tab:hover::before { transform: none; opacity: 1; }
 .gogh-w-tab + .gogh-w-tab { border-top: 1px solid #e8e9ec; }
+@media (prefers-reduced-motion: reduce) {
+  .gogh-w-tab, .gogh-w-tab::before { transition: none; }
+  .gogh-w-tab:hover { letter-spacing: 0.14em; }
+}
 .gogh-w-tab-dot {
   width: 7px;
   height: 7px;
