@@ -1319,6 +1319,42 @@
     });
     return tmp.innerHTML.trim();
   };
+  // Chrome's contenteditable merge is a messy roommate: deleting across a
+  // paragraph boundary can wrap the merged text in spans carrying copied
+  // inline styles — on screen the paragraph reads double-spaced ("if i
+  // delete the first para, the lines get double spaced") while the save
+  // strips it clean. Normalize the LIVE block to exactly what the
+  // serializer will keep, so the screen never lies about the post.
+  body.addEventListener('input', function (ev) {
+    if (!/^delete/.test(ev.inputType || '')) return;
+    var sel = getSelection();
+    if (!sel.rangeCount) return;
+    var blk = blockOf(sel.anchorNode);
+    if (!blk || !/^(P|DIV|H2|H3|H4)$/.test(blk.tagName)) return;
+    if (!blk.getAttribute('style') && !blk.querySelector('[style], span, font')) return;
+    // the caret survives as a character offset — cleaning only strips
+    // tags, never text, so the offset still lands on the same letter
+    var r = sel.getRangeAt(0);
+    var pre = document.createRange();
+    pre.selectNodeContents(blk);
+    pre.setEnd(r.startContainer, r.startOffset);
+    var off = pre.toString().length;
+    blk.removeAttribute('style');
+    blk.innerHTML = inlineClean(blk) || '<br>';
+    var walker = document.createTreeWalker(blk, NodeFilter.SHOW_TEXT, null);
+    var node, seen = 0;
+    while ((node = walker.nextNode())) {
+      if (seen + node.length >= off) {
+        var r2 = document.createRange();
+        r2.setStart(node, off - seen);
+        r2.collapse(true);
+        sel.removeAllRanges();
+        sel.addRange(r2);
+        break;
+      }
+      seen += node.length;
+    }
+  });
   var serialize = function () {
     var out = [];
     [].forEach.call(body.children, function (n) {
