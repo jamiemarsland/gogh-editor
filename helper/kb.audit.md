@@ -1,4 +1,4 @@
-# Knowledge-base audit — plugin v0.99.285
+# Knowledge-base audit — plugin v0.99.286
 
 _13 finding(s) suppressed by `kb.audit-ignore.txt`._
 
@@ -58,12 +58,4 @@ Quoted copy not found verbatim in the source. Paraphrases are fine; changed UI c
 
 Use this as the checklist for updating the prose — and as a sanity check on the release itself.
 
-- version: 0.99.284 → 0.99.285
-- removed UI label: "A card — drop elements inside and they stay together, even on mobile"
-- removed UI label: "Add an element to this section"
-- added UI label: "A card — drop pieces inside and they stay together, even on mobile"
-- added UI label: "Add something to this section"
-- removed toast: "Nothing to rearrange yet — add a couple of elements first."
-- removed toast: "Out of the card — it’s a free element again."
-- added toast: "Nothing to rearrange yet — add a couple of pieces first."
-- added toast: "Out of the card — it’s its own piece again."
+- version: 0.99.285 → 0.99.286
