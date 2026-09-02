@@ -1692,7 +1692,34 @@
   // widget carrying wsrc block markup, so the saved page stays plain blocks
   // and the deactivation promise holds by construction.
   var addonElements = [];
+  // the pack door, part four: add-ons contribute PAGE-SCOPE CARDS to the
+  // Page drawer — receipts and verbs that belong to this page (a campaign
+  // pack's visitors · sign-ups line, say). Contribute, never patch.
+  // { key, title, sub?, icon? (svg string), onClick(cardEl) }
+  var addonPageCards = [];
+  function renderAddonPageCards() {
+    var slot = side.querySelector('.gogh-pagecards-addon');
+    if (!slot) return;
+    slot.innerHTML = '';
+    addonPageCards.forEach(function (d) {
+      var b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'gogh-sitem gogh-scard gogh-scard-addon';
+      b.innerHTML = '<span class="gogh-scard-ic">' + (d.icon || ADDON_ICON) + '</span>' +
+        '<span class="gogh-scard-tx"><span class="gogh-scard-t"></span><span class="gogh-scard-s"></span></span>';
+      b.querySelector('.gogh-scard-t').textContent = d.title || d.key;
+      b.querySelector('.gogh-scard-s').textContent = d.sub || '';
+      if (typeof d.onClick === 'function') b.addEventListener('click', function () { d.onClick(b); });
+      slot.appendChild(b);
+    });
+  }
   window.gogh = window.gogh || {};
+  window.gogh.registerPageCard = function (def) {
+    if (!def || !def.key || !def.title) return;
+    if (addonPageCards.some(function (d) { return d.key === def.key; })) return;
+    addonPageCards.push(def);
+    renderAddonPageCards();
+  };
   window.gogh.registerElement = function (def) {
     if (!def || !def.key || !def.label || typeof def.make !== 'function') return;
     if (addonElements.some(function (d) { return d.key === def.key; })) return;
@@ -1772,6 +1799,7 @@
     '<span class="gogh-scard-ic"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><rect x="4" y="3" width="16" height="7" rx="1.6"/><rect x="4" y="14" width="16" height="7" rx="1.6"/><path d="M12 10.5v3"/></svg></span>' +
     '<span class="gogh-scard-tx"><span class="gogh-scard-t">Rearrange sections</span><span class="gogh-scard-s">Drag the whole page into order</span></span>' +
     '<svg class="gogh-scard-chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg></button>' +
+    '<span class="gogh-pagecards-addon" style="display: contents"></span>' +
     '</div>' +
     // (the Answer-ready badge lived here once — but the drawer is DESIGN,
     // and answer-readiness is a property of publishing ("its about content

@@ -4580,6 +4580,27 @@
       return 'three scopes, three doors';
     });
 
+    test('pack door: registerPageCard contributes to the Page drawer', function () {
+      // the campaign pack's receipt rides this door — a page-scope card
+      // with a title, a sub line, and a click of its own
+      var hits = 0;
+      window.gogh.registerPageCard({
+        key: 'test-receipt', title: 'Test receipt', sub: '3 gulls · 1 chip',
+        onClick: function () { hits++; },
+      });
+      var card = q('.gogh-pagecards-addon .gogh-scard-addon');
+      expect(card, 'the contributed card did not render');
+      expect(/Test receipt/.test(card.textContent) && /3 gulls/.test(card.textContent),
+        'the card lost its words');
+      card.click();
+      expect(hits === 1, 'the card did not answer its click');
+      window.gogh.registerPageCard({ key: 'test-receipt', title: 'Twice?' });
+      expect(document.querySelectorAll('.gogh-pagecards-addon .gogh-scard-addon').length === 1,
+        'the same key registered twice');
+      card.remove();
+      return 'a pack card in the Page drawer, clickable, deduped';
+    });
+
     test('SEO panel: pages get the search-preview card too', function () {
       // the write room's card, on the canvas — status line + editable
       // description drafted from the page's own words. Look, never touch:
