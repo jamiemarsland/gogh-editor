@@ -1,6 +1,12 @@
-# Knowledge-base audit — plugin v0.99.316
+# Knowledge-base audit — plugin v0.99.317
 
 _13 finding(s) suppressed by `kb.audit-ignore.txt`._
+
+## STALE (1)
+
+The prose names something that no longer exists.
+
+- UI label "Send" was removed in this release, but the prose still describes it
 
 ## MISSING (40)
 
@@ -63,11 +69,5 @@ Quoted copy not found verbatim in the source. Paraphrases are fine; changed UI c
 
 Use this as the checklist for updating the prose — and as a sanity check on the release itself.
 
-- version: 0.99.315 → 0.99.316
-- added WP hook: "admin_post_gogh_form_message"
-- added WP hook: "admin_post_nopriv_gogh_form_message"
-- added WP hook: "manage_gogh_message_posts_columns"
-- added WP hook: "manage_gogh_message_posts_custom_column"
-- added UI label: "Form"
-- added UI label: "Name, email and a message — straight into your own site, no plugin"
-- added UI label: "Send"
+- version: 0.99.316 → 0.99.317
+- removed UI label: "Send"
