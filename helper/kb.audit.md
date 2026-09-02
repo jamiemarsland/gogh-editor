@@ -1,4 +1,4 @@
-# Knowledge-base audit — plugin v0.99.297
+# Knowledge-base audit — plugin v0.99.298
 
 _13 finding(s) suppressed by `kb.audit-ignore.txt`._
 
@@ -58,4 +58,5 @@ Quoted copy not found verbatim in the source. Paraphrases are fine; changed UI c
 
 Use this as the checklist for updating the prose — and as a sanity check on the release itself.
 
-- version: 0.99.296 → 0.99.297
+- version: 0.99.297 → 0.99.298
+- removed UI label: "Colour & more ⌄"
