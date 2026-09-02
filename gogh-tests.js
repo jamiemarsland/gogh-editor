@@ -4767,6 +4767,14 @@
       // the add menu offers it as a first-class citizen
       expect(/data-add="form"/.test(document.body.innerHTML) || true, 'menu check is markup-level');
       G.deleteSection(G.sections().indexOf(fsec));
+      // the seam speaks form, and Get in touch carries the real thing —
+      // with a NESTABLE preview (a button inside the picker's button
+      // cards once ate half the shelf)
+      var m = G.askSeamMatch('a contact form');
+      expect(m && m.tpl.name === 'Get in touch', 'the seam does not read "a contact form"');
+      var fe = m.tpl.els.filter(function (e2) { return e2.wsrc && e2.wsrc.indexOf('gogh/form') !== -1; })[0];
+      expect(fe, 'Get in touch lost its form');
+      expect(fe.whtml.indexOf('<button') === -1, 'the preview carries a nested button again');
       return 'a form element: plain wp:gogh/form in the model, preview on the canvas';
     });
 

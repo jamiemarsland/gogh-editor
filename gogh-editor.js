@@ -4393,7 +4393,7 @@
           '<input type="email" placeholder="Your email" disabled />' +
           '</div>' +
           '<textarea rows="5" placeholder="Your message…" disabled></textarea>' +
-          '<div class="gogh-form-foot"><button type="button" disabled>Send</button>' +
+          '<div class="gogh-form-foot"><span class="gogh-form-fbtn">Send</span>' +
           '<span class="gogh-form-note">Goes straight to this site — nowhere else.</span></div>' +
           '</div>' };
     },
@@ -5360,13 +5360,15 @@
       { type: 'para', x: 98, y: 286, w: 440, h: 44, text: 'No forms and no decks \u2014 just a conversation about what you are building.', tf: { col: 'color-mix(in srgb, var(--wp--preset--color--base, #fff) 75%, transparent)' } },
       { type: 'button', x: 884, y: 186, w: 220, h: 60, text: 'Book a call', tf: { bg: 'var(--wp--preset--color--base, #fff)', col: 'var(--wp--preset--color--contrast, #141519)' } },
     ] },
-    { starter: true, intent: 'sell', name: 'Get in touch', minH: 460, els: [
+    { starter: true, intent: 'sell', name: 'Get in touch', minH: 700, els: [
       { type: 'para', x: 400, y: 66, w: 400, h: 24, align: 'center', text: 'Say hello',
         tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
       { type: 'heading', x: 300, y: 122, w: 600, h: 100, text: 'Let\u2019s talk', fs: '__max', align: 'center' },
       { type: 'para', x: 340, y: 248, w: 520, h: 52, align: 'center', text: 'A question, an idea, or just to say hi \u2014 we read everything, usually the same day.' },
-      { type: 'button', x: 424, y: 338, w: 170, h: 56, text: 'Email us' },
-      { type: 'button', x: 614, y: 338, w: 170, h: 56, text: 'Follow along', ghost: true },
+      // a REAL gogh form: messages land in the site's own Messages book
+      { type: 'widget', x: 240, y: 330, w: 720, h: 330,
+        wsrc: '<!-- wp:gogh/form /-->',
+        whtml: '<div class="gogh-form"><div class="gogh-form-row"><input type="text" placeholder="Your name" disabled /><input type="email" placeholder="Your email" disabled /></div><textarea rows="5" placeholder="Your message\u2026" disabled></textarea><div class="gogh-form-foot"><span class="gogh-form-fbtn">Send</span><span class="gogh-form-note">Goes straight to this site \u2014 nowhere else.</span></div></div>' },
     ] },
     { starter: true, intent: 'introduce', name: 'Profile card', minH: 620, els: [
       // full-bleed photo + one frosted card floating centre — the glass
@@ -7935,7 +7937,7 @@
     { re: /quote/, name: 'Quote' },
     { re: /event|webinar|launch party|workshop|meetup/, name: 'Call to action', heading: 'Our next event' },
     { re: /call to action|cta|sign ?up|subscribe|join|get started/, name: 'Call to action' },
-    { re: /contact|get in touch|find us|reach us|say hello|\bmap\b|where we are|address|location/, name: 'Get in touch' },
+    { re: /contact|\bform\b|write to us|get in touch|find us|reach us|say hello|\bmap\b|where we are|address|location|message us/, name: 'Get in touch' },
     { re: /number|stats|statistics|metrics|figures/, name: 'Numbers' },
     { re: /faq|questions/, name: 'FAQ' },
     { re: /portfolio|our work|projects|case stud/, name: 'Portfolio' },
@@ -8029,6 +8031,7 @@
     var pool = [
       { label: 'Testimonials', say: 'three customer testimonials', re: /kind words|testimonial/ },
       { label: 'Benefits', say: 'what we offer', re: /what we do|what we offer/ },
+      { label: 'Contact form', say: 'a contact form', re: /say hello|let s talk|gogh-form/ },
       { label: 'Gallery', say: 'a photo gallery', re: /gallery/ },
       { label: 'Pricing', say: 'pricing', re: /pricing|per month/ },
       { label: 'Call to action', say: 'a strong call to action', re: /let s make yours|get started|next step/ },
@@ -8036,7 +8039,6 @@
       { label: 'A big quote', say: 'a big photo and quote', re: /[“”]/ },
       { label: 'Latest posts', say: 'our latest posts', re: /from the blog|latest posts/ },
       { label: 'Numbers', say: 'the numbers that matter', re: /by the numbers/ },
-      { label: 'Get in touch', say: 'a contact section', re: /say hello|let s talk/ },
       { label: 'FAQ', say: 'questions and answers', re: /faq|questions, answered/ },
       { label: 'Our story', say: 'our story', re: /our story/ },
     ];
