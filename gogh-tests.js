@@ -4551,6 +4551,8 @@
         'latest posts read as ' + (m && m.tpl.name));
       m = G.askSeamMatch('what our customers think');
       expect(m && m.tpl.name === 'Testimonials', 'customers-think read as ' + (m && m.tpl.name));
+      m = G.askSeamMatch('two column layout');
+      expect(m && m.tpl.name === 'Story', 'two-column read as ' + (m && m.tpl.name));
       expect(G.askSeamMatch('xyzzy plugh') === null, 'nonsense should miss');
       return '7 seam reads matched, nonsense refused';
     });

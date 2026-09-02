@@ -7487,6 +7487,9 @@
   function askLog(ask, outcome) {
     ask = String(ask || '').trim();
     if (!ask) return;
+    // the suite exercises miss and undo paths on purpose — its reports
+    // are rehearsals, not feedback (day one: 50 fake entries, 1 real)
+    if (/[?&]gogh-test=1/.test(location.search)) return;
     try {
       fetch(cfg.restUrl.split('wp/v2/')[0] + 'gogh/v1/ask-log', {
         method: 'POST',
@@ -7785,6 +7788,8 @@
     { re: /faq|questions/, name: 'FAQ' },
     { re: /portfolio|our work|projects|case stud/, name: 'Portfolio' },
     { re: /menu|dishes/, name: 'Menu' },
+    // the miss-log's first real catch: "two column layout", asked twice
+    { re: /two.?columns?|2 columns?|columns? layout|side by side|text and image|image and text/, name: 'Story' },
     { re: /story|about us|history|journey/, name: 'Story' },
     { re: /hero|welcome|intro/, name: 'Hero' },
     { re: /carousel|slider|slideshow/, name: 'Carousel' },
