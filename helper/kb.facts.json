@@ -1,12 +1,12 @@
 {
   "meta": {
-    "plugin_version": "0.99.284",
+    "plugin_version": "0.99.285",
     "requires_wp": "6.5",
     "requires_php": "7.4",
     "text_domain": "gogh-editor",
     "readme_stable_tag": "0.26.0",
     "readme_tested_up_to": "7.0",
-    "asset_version": "0.99.284-chrome"
+    "asset_version": "0.99.285-chrome"
   },
   "constants": {
     "TOL": 8,
@@ -355,13 +355,13 @@
     "' + sh.label + '",
     "+ Link",
     "+ Page",
-    "A card — drop elements inside and they stay together, even on mobile",
+    "A card — drop pieces inside and they stay together, even on mobile",
     "AG",
     "Aa",
     "Add",
     "Add a page to this menu",
-    "Add an element to this section",
     "Add link",
+    "Add something to this section",
     "Add to page",
     "Adjust spacing",
     "All options",
@@ -528,8 +528,8 @@
     "Made the card’s words readable on its background.",
     "Menu order updated — every page gets it.",
     "Menu switched — every page shows it.",
-    "Nothing to rearrange yet — add a couple of elements first.",
-    "Out of the card — it’s a free element again.",
+    "Nothing to rearrange yet — add a couple of pieces first.",
+    "Out of the card — it’s its own piece again.",
     "Publish failed: ",
     "Publish your changes first — changing the page style reloads the page.",
     "Removed from the card.",

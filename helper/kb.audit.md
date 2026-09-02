@@ -1,4 +1,4 @@
-# Knowledge-base audit — plugin v0.99.284
+# Knowledge-base audit — plugin v0.99.285
 
 _13 finding(s) suppressed by `kb.audit-ignore.txt`._
 
@@ -43,16 +43,27 @@ The source has something the prose never explains. The bot knows the name from t
 - divider `dunes` exists in source but is never mentioned in the prose
 - divider `mist` exists in source but is never mentioned in the prose
 
-## QUOTE (3)
+## QUOTE (6)
 
 Quoted copy not found verbatim in the source. Paraphrases are fine; changed UI copy is not.
 
+- Out of the card — it's a free element again.
+- A backdrop for other elements — send it backward once it's placed.
 - Overlap the section above
 - Save this section to reuse
 - Save this section to reuse
+- Out of the card — it's a free element again.
 
 ## What changed since the last knowledge-base build
 
 Use this as the checklist for updating the prose — and as a sanity check on the release itself.
 
-- version: 0.99.283 → 0.99.284
+- version: 0.99.284 → 0.99.285
+- removed UI label: "A card — drop elements inside and they stay together, even on mobile"
+- removed UI label: "Add an element to this section"
+- added UI label: "A card — drop pieces inside and they stay together, even on mobile"
+- added UI label: "Add something to this section"
+- removed toast: "Nothing to rearrange yet — add a couple of elements first."
+- removed toast: "Out of the card — it’s a free element again."
+- added toast: "Nothing to rearrange yet — add a couple of pieces first."
+- added toast: "Out of the card — it’s its own piece again."
