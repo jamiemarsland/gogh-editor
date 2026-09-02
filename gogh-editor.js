@@ -8186,7 +8186,11 @@
     var bgRow = function (key, label, val, body) {
       return '<div class="gogh-bgrow" data-row="' + key + '">' +
         '<button type="button" class="gogh-bgrow-head"><span>' + label + '</span>' +
-        '<span class="gogh-bgrow-val">' + esc(val) + '</span><span class="gogh-bgrow-caret">⌄</span></button>' +
+        // a drawn chevron, not a font's ("icons stop trusting fonts"):
+        // the glyph rendered thin and cold in the theme's hands
+        '<span class="gogh-bgrow-val">' + esc(val) + '</span><span class="gogh-bgrow-caret">' +
+        '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>' +
+        '</span></button>' +
         '<div class="gogh-bgrow-body" hidden>' + body + '</div></div>';
     };
     panel.innerHTML =
@@ -8222,7 +8226,9 @@
         }).join('') + '</div>') +
       (transitionRowHTML(secx) ? bgRow('ends', 'How it ends', endVal(), transitionRowHTML(secx)) : '') +
       '<div class="gogh-media"><span class="gogh-media-loading">Loading media…</span></div>' +
-      '<button type="button" class="gogh-panel-more-toggle">Colour &amp; more \u2304</button>' +
+      '<button type="button" class="gogh-panel-more-toggle">Colour &amp; more <span class="gogh-bgrow-caret">' +
+      '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>' +
+      '</span></button>' +
       '<div class="gogh-panel-more" hidden>' +
       '<div class="gogh-panel-hint">Colour \u2014 with an image, it becomes the tint</div>' +
       '<div class="gogh-swrow gogh-secbg-sw">' +
@@ -8328,7 +8334,7 @@
     if (moreT) moreT.addEventListener('click', function () {
       var more = panel.querySelector('.gogh-panel-more');
       more.hidden = !more.hidden;
-      moreT.textContent = more.hidden ? 'Colour & more \u2304' : 'Colour & more \u2303';
+      moreT.classList.toggle('is-open', !more.hidden); // the chevron turns, the words stay
       if (!more.hidden) {
         // the reveal must be SEEN: the toggle lives at the panel's fold,
         // so the colours were unfolding below the visible edge and the

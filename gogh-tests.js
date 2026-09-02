@@ -4627,7 +4627,8 @@
       expect(t && more && more.hidden, 'the more block should arrive folded');
       t.click();
       expect(!more.hidden, 'the toggle did not unfold the colours');
-      expect(/⌃/.test(t.textContent), 'the glyph did not flip open');
+      expect(t.classList.contains('is-open'), 'the toggle did not mark itself open');
+      expect(t.querySelector('.gogh-bgrow-caret svg'), 'the chevron should be drawn, not a font glyph');
       return frames(20).then(function (ok) {
         var done = function (msg) { pev('pointerdown', document.body, 4, 4); return msg; };
         if (!ok || stalled) return done('rAF frozen (background tab) — front the tab for the scroll check');
