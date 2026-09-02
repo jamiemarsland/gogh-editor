@@ -239,10 +239,42 @@ html.gogh-phone-preview .gogh-section.gogh-msec-hidden {
   transition: transform 0.34s var(--gogh-spring), opacity 0.28s ease;
 }
 .gogh-side-tab:hover { background: #f2f3f5; }
-/* three doors, three scopes: Page/Post above centre, Site at centre,
-   SEO below. Close ranks — 96px gaps read as three strangers, not one
-   rail ("does the spacing feel a little odd?") */
-.gogh-local-tab { top: calc(50% - 72px); }
+/* ONE pill, three doors: the rail is a single rounded tab and Page /
+   Site / SEO are segments inside it, parted by hairlines — one piece
+   of furniture on the wall ("i still dont love this") */
+.gogh-rail {
+  position: fixed;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 99998;
+  display: flex;
+  flex-direction: column;
+  background: var(--gogh-ui-bg);
+  border: 1px solid var(--gogh-ui-border);
+  border-left: none;
+  border-radius: 0 14px 14px 0;
+  box-shadow: 10px 0 28px -14px rgba(0, 0, 0, 0.6);
+  overflow: hidden;
+  transition: transform 0.34s var(--gogh-spring), opacity 0.28s ease;
+}
+.gogh-rail[hidden] { display: none; }
+.gogh-rail.is-away {
+  transform: translate(-110%, -50%);
+  opacity: 0;
+  pointer-events: none;
+}
+.gogh-rail .gogh-side-tab {
+  position: static;
+  transform: none;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  background: transparent;
+  transition: background 0.15s ease;
+}
+.gogh-rail .gogh-side-tab + .gogh-side-tab { border-top: 1px solid var(--gogh-ui-border); }
+.gogh-rail .gogh-side-tab.is-away { transform: none; opacity: 1; pointer-events: auto; } /* the rail carries the exit */
 .gogh-side-tab[hidden] { display: none; }
 .gogh-side-tab.is-away {
   transform: translate(-110%, -50%);
@@ -3409,6 +3441,5 @@ html.gogh-textediting .gogh-convertbtn {
 .gogh-bgrow-body { padding: 2px 0 8px; }
 .gogh-bgrow-body[hidden] { display: none; }
 
-/* the rail's third tab: SEO — a receipt door */
-.gogh-ar-tab { top: calc(50% + 72px); }
+/* the SEO segment needs no position of its own — the rail stacks it */
 .gogh-side-tab-dot.gogh-ar-dot { background: #f2a413; }

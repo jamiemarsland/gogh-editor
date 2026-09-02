@@ -1568,18 +1568,22 @@
   // the rail reaches the write room: Post style lives in a Design tab and
   // the receipts behind SEO — one grammar, every room ("have you moved
   // the post layouts to a tab - i still see this?")
+  // one pill, two doors — the write room's rail matches the editor's
+  var wRail = document.createElement('div');
+  wRail.className = 'gogh-w-rail';
+  document.body.appendChild(wRail);
   var railDesign = document.createElement('button');
   railDesign.type = 'button';
   railDesign.className = 'gogh-w-tab';
   railDesign.title = 'Design — choose this post\u2019s reading look';
   railDesign.innerHTML = '<span>Design</span>'; // no dot: only the SEO tab's light means something
-  document.body.appendChild(railDesign);
+  wRail.appendChild(railDesign);
   var railSEO = document.createElement('button');
   railSEO.type = 'button';
   railSEO.className = 'gogh-w-tab gogh-w-tab-seo';
   railSEO.title = 'SEO & AI answers — how machines read this post';
-  railSEO.innerHTML = '<span class="gogh-w-tab-dot gogh-w-tab-dot-gold"></span><span>SEO</span>';
-  document.body.appendChild(railSEO);
+  railSEO.innerHTML = '<span>SEO</span><span class="gogh-w-tab-dot gogh-w-tab-dot-gold"></span>'; // the light reads after the word
+  wRail.appendChild(railSEO);
   railSEO.addEventListener('click', function () { openARPanel(); });
   // the dot is a receipt light, never a score: grey = not published yet,
   // amber = published but no description, green = the machine layer is

@@ -2051,33 +2051,33 @@
     setTimeout(check, 4000);
   })();
 
-  // tuck-away drawer: slim edge tabs when collapsed, slide-in on click.
-  // Three doors, three scopes ("should we separate them out?"): Page (this
-  // page), Site (the whole site), SEO (what machines see).
+  // tuck-away drawer: ONE pill, three doors ("i still dont love this" —
+  // three separate lozenges read as clutter however tight they stand).
+  // The rail is a single rounded tab; Page, Site and SEO are segments
+  // inside it, parted by hairlines. One piece of furniture on the wall.
+  var railBox = document.createElement('div');
+  railBox.className = 'gogh-rail';
+  railBox.hidden = true;
+  document.body.appendChild(railBox);
   var sideTab = document.createElement('button');
   sideTab.type = 'button';
   sideTab.className = 'gogh-side-tab gogh-local-tab';
   sideTab.title = 'Page — the style and order of this page';
   sideTab.innerHTML = '<span>Page</span>'; // no dot: a dot that never resolves is fake status
-  sideTab.hidden = true;
-  document.body.appendChild(sideTab);
+  railBox.appendChild(sideTab);
   var siteTab = document.createElement('button');
   siteTab.type = 'button';
   siteTab.className = 'gogh-side-tab gogh-site-tab';
   siteTab.title = 'Site — colours, type, motion and chrome, everywhere at once';
   siteTab.innerHTML = '<span>Site</span>';
-  siteTab.hidden = true;
-  document.body.appendChild(siteTab);
+  railBox.appendChild(siteTab);
   siteTab.addEventListener('click', function () { openSide('site'); });
-  // Answer-ready earns its own door: it's a RECEIPT, not a choice-set —
-  // the second (and last) tab on the rail ("feels important")
   var arTab = document.createElement('button');
   arTab.type = 'button';
   arTab.className = 'gogh-side-tab gogh-ar-tab';
   arTab.title = 'SEO & AI answers — how machines read this page';
   arTab.innerHTML = '<span>SEO</span>'; // no dot: a dot beside Design's decorative one read as fake status
-  arTab.hidden = true;
-  document.body.appendChild(arTab);
+  railBox.appendChild(arTab);
   arTab.addEventListener('click', function () { openAnswerReadyPanel(); });
   updateSEOTabs();
   var sideTimer = null;
@@ -2097,7 +2097,8 @@
     side.style.top = (ab ? ab.offsetHeight : 0) + 'px';
     side.classList.add('is-open');
     side.classList.remove('gogh-side-away');
-    // every rail tab steps aside together — one drawer, whoever opened it
+    // the rail steps aside as one — one pill, whoever opened the drawer
+    railBox.classList.add('is-away');
     document.querySelectorAll('.gogh-side-tab').forEach(function (t) { t.classList.add('is-away'); });
     if (!cfg.writeUrl) { // a post view has no canvas to zoom
       zoomOutCanvas(); // the design surface pairs with a zoomed-out page
@@ -2109,6 +2110,7 @@
     var doIt = function () {
       side.classList.remove('is-open');
       side.classList.remove('gogh-side-away');
+      railBox.classList.remove('is-away');
       document.querySelectorAll('.gogh-side-tab').forEach(function (t) { t.classList.remove('is-away'); });
       document.documentElement.classList.remove('gogh-designmode');
       if (!panelOpen) unzoomCanvas(); // a section may still hold the zoom
@@ -2901,9 +2903,7 @@
       abLink.href = abUrl.toString();
     }
     side.hidden = !on;
-    sideTab.hidden = !on;
-    siteTab.hidden = !on;
-    arTab.hidden = !on;
+    railBox.hidden = !on;
     if (!on) {
       closeSide(true);
     }
@@ -11867,7 +11867,8 @@
     var done = (cfg.postType === 'page' || cfg.postType === 'post') &&
       cfg.postStatus === 'publish' && !!String(cfg.excerpt || '').trim();
     document.querySelectorAll('.gogh-ar-tab').forEach(function (t) {
-      t.innerHTML = (done ? '<span class="gogh-ar-ticky">✓</span>' : '') + '<span>SEO</span>';
+      // the tick reads AFTER the word in the rail's vertical run — "SEO ✓"
+      t.innerHTML = '<span>SEO</span>' + (done ? '<span class="gogh-ar-ticky">✓</span>' : '');
       if (done) t.title = 'SEO & AI answers — complete: schema, description and structure all in place';
     });
   }

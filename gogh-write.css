@@ -853,13 +853,23 @@ body.gogh-w-audition main { zoom: 0.52; }
 .gogh-w-splash-upload:disabled { opacity: 0.6; cursor: default; }
 
 /* the rail, write-room edition: Design + SEO, same grammar as everywhere */
-.gogh-w-tab {
-  all: unset;
+/* one pill, two doors: the rail is a single rounded tab, Design and
+   SEO are its segments, parted by a hairline */
+.gogh-w-rail {
   position: fixed;
   left: 0;
   top: 50%;
   transform: translateY(-50%);
   z-index: 99998;
+  display: flex;
+  flex-direction: column;
+  background: #fff;
+  border-radius: 0 14px 14px 0;
+  box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.35);
+  overflow: hidden;
+}
+.gogh-w-tab {
+  all: unset;
   cursor: pointer;
   writing-mode: vertical-rl;
   display: flex;
@@ -871,12 +881,10 @@ body.gogh-w-audition main { zoom: 0.52; }
   font-weight: 800;
   letter-spacing: 0.14em;
   color: #141519;
-  background: #fff;
-  border-radius: 0 12px 12px 0;
-  box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.35);
+  transition: background 0.15s ease;
 }
-.gogh-w-tab:hover { color: #4a63d8; }
-.gogh-w-tab-seo { top: calc(50% + 76px); } /* close ranks with Design — one rail, not two strangers */
+.gogh-w-tab:hover { color: #4a63d8; background: #f2f3f5; }
+.gogh-w-tab + .gogh-w-tab { border-top: 1px solid #e8e9ec; }
 .gogh-w-tab-dot {
   width: 7px;
   height: 7px;
