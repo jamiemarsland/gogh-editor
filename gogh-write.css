@@ -997,6 +997,19 @@ body.gogh-writing .gogh-w-body p:last-of-type::after {
 }
 .gogh-arsnip-desc:hover { background: #f6f7f9; }
 .gogh-arsnip-desc:focus { background: #f2f5ff; box-shadow: 0 0 0 2px rgba(74, 99, 216, 0.35); }
+/* the draft wears draft clothes: gogh's guess is grey, italic and
+   dash-invited, glows hello once, and straightens into confident ink
+   the moment it's touched — the feel-good arc of making it yours */
+.gogh-arsnip-desc.gogh-arsnip-draft {
+  color: #7a7f8a;
+  font-style: italic;
+  text-decoration: underline dashed rgba(74, 99, 216, 0.45);
+  text-underline-offset: 4px;
+  animation: gogh-desc-hello 1.6s ease 0.5s backwards;
+}
+@keyframes gogh-desc-hello { from { background: rgba(74, 99, 216, 0.12); } to { background: transparent; } }
+@media (prefers-reduced-motion: reduce) { .gogh-arsnip-desc.gogh-arsnip-draft { animation: none; } }
+
 .gogh-arsnip-hint { margin-top: 8px; }
 .gogh-arsnip-actions { margin: 6px 0 2px; }
 .gogh-arsnip-actions[hidden] { display: none; }

@@ -11963,6 +11963,19 @@
       var descEl = wrap.querySelector('.gogh-arsnip-desc');
       var saved = String(cfg.excerpt || '').trim();
       descEl.textContent = saved || draft();
+      // the invitation lives in the text itself: gogh's guess wears DRAFT
+      // clothes — grey, italic, dashed — and straightens into confident
+      // ink the moment it's touched ("i want them to feel good about
+      // doing it")
+      if (!saved && descEl.textContent.trim()) {
+        descEl.classList.add('gogh-arsnip-draft');
+        var hintEl = wrap.querySelector('.gogh-arsnip-hint');
+        if (hintEl) hintEl.textContent = 'That grey line is gogh\u2019s rough guess. Tap it and say it your way \u2014 one honest line about this page \u2014 and search results and AI answers will quote you, word for word.';
+        var lift = function () { descEl.classList.remove('gogh-arsnip-draft'); };
+        descEl.addEventListener('pointerdown', lift, { once: true });
+        descEl.addEventListener('focus', lift, { once: true });
+        descEl.addEventListener('input', lift, { once: true });
+      }
       var actions = wrap.querySelector('.gogh-arsnip-actions');
       descEl.addEventListener('input', function () { actions.hidden = false; });
       if (!saved && descEl.textContent.trim()) actions.hidden = false; // the draft is offered, one click keeps it
@@ -11977,7 +11990,7 @@
           if (!r.ok) throw new Error('HTTP ' + r.status);
           cfg.excerpt = text;
           actions.hidden = true;
-          toast('Description saved ✓');
+          toast('Saved \u2014 search results and AI answers now quote your words ✓');
           renderStatus();
           updateSEOTabs();
         }).catch(function () { toast('The description could not be saved — try again.', { error: true }); });

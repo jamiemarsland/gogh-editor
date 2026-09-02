@@ -1726,6 +1726,16 @@
       var descEl = wrap.querySelector('.gogh-arsnip-desc');
       var saved = String(cfg.excerpt || '').trim();
       descEl.textContent = saved || draft();
+      // gogh's guess wears DRAFT clothes; touching it makes it YOURS
+      if (!saved && descEl.textContent.trim()) {
+        descEl.classList.add('gogh-arsnip-draft');
+        var hintEl = wrap.querySelector('.gogh-arsnip-hint');
+        if (hintEl) hintEl.textContent = 'That grey line is gogh\u2019s rough guess. Tap it and say it your way \u2014 one honest line about this post \u2014 and search results and AI answers will quote you, word for word.';
+        var lift = function () { descEl.classList.remove('gogh-arsnip-draft'); };
+        descEl.addEventListener('pointerdown', lift, { once: true });
+        descEl.addEventListener('focus', lift, { once: true });
+        descEl.addEventListener('input', lift, { once: true });
+      }
       var actions = wrap.querySelector('.gogh-arsnip-actions');
       descEl.addEventListener('input', function () { actions.hidden = false; });
       if (!saved && descEl.textContent.trim()) actions.hidden = false; // the draft is offered, one click keeps it
@@ -1740,7 +1750,7 @@
           if (!r.ok) throw new Error('HTTP ' + r.status);
           cfg.excerpt = text;
           actions.hidden = true;
-          note('description saved \u2713');
+          note('saved \u2014 machines now quote your words \u2713');
           updateSEODot();
           renderStatus();
         }).catch(function () { note('description not saved'); });
