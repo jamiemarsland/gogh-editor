@@ -8329,6 +8329,16 @@
       var more = panel.querySelector('.gogh-panel-more');
       more.hidden = !more.hidden;
       moreT.textContent = more.hidden ? 'Colour & more \u2304' : 'Colour & more \u2303';
+      if (!more.hidden) {
+        // the reveal must be SEEN: the toggle lives at the panel's fold,
+        // so the colours were unfolding below the visible edge and the
+        // button read as dead ("colour and more does nothing atm") \u2014
+        // opening scrolls the toggle to the top, colours in full view
+        panel.scrollTo({
+          top: panel.scrollTop + moreT.getBoundingClientRect().top - panel.getBoundingClientRect().top - 12,
+          behavior: 'smooth',
+        });
+      }
     });
     panel.querySelectorAll('.gogh-hpreset[data-minh], .gogh-hpreset-fill').forEach(function (hb) {
       hb.addEventListener('click', function () {

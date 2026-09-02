@@ -4603,6 +4603,45 @@
       return rows.length + ' folded rows, exclusive open, summary "' + hv + '"';
     });
 
+    testAsync('Colour & more: opening scrolls the colours into view', function () {
+      // the toggle lives at the panel's fold — without the scroll, the
+      // block unfolded below the visible edge and the button read as
+      // dead ("colour and more does nothing atm")
+      var stalled = false;
+      var frames = function (n) {
+        return new Promise(function (r) {
+          var fired = false;
+          var step = function (k) {
+            if (k <= 0) { fired = true; r(true); return; }
+            requestAnimationFrame(function () { step(k - 1); });
+          };
+          step(n);
+          setTimeout(function () { if (!fired) { stalled = true; r(false); } }, 900);
+        });
+      };
+      var i = G.sections().indexOf(sec());
+      G.openSecBgPanel(i);
+      var t = q('.gogh-panel-more-toggle');
+      var more = q('.gogh-panel-more');
+      var pnl = q('.gogh-panel');
+      expect(t && more && more.hidden, 'the more block should arrive folded');
+      t.click();
+      expect(!more.hidden, 'the toggle did not unfold the colours');
+      expect(/⌃/.test(t.textContent), 'the glyph did not flip open');
+      return frames(20).then(function (ok) {
+        var done = function (msg) { pev('pointerdown', document.body, 4, 4); return msg; };
+        if (!ok || stalled) return done('rAF frozen (background tab) — front the tab for the scroll check');
+        if (pnl.scrollHeight <= pnl.clientHeight + 4) return done('panel fits without scrolling here — nothing to reveal');
+        expect(pnl.scrollTop > 20, 'the panel did not scroll the colours into view (scrollTop ' + Math.round(pnl.scrollTop) + ')');
+        // the target clamps at the panel's bottom, so assert what matters:
+        // the colour block itself is inside the visible box
+        var mr = more.getBoundingClientRect();
+        var pr = pnl.getBoundingClientRect();
+        expect(mr.top < pr.bottom - 40, 'the colours are still below the fold (+' + Math.round(mr.top - pr.bottom) + ')');
+        return done('unfolds AND shows it: scrolled ' + Math.round(pnl.scrollTop) + 'px');
+      });
+    });
+
     test('transitions live on the section: chips in the design panel, seam keeps one job', function () {
       // build a real boundary: a section below the first
       G.openSeamAsk(null, null);
