@@ -1710,6 +1710,7 @@
     arPostTab.innerHTML = '<span>SEO</span>';
     document.body.appendChild(arPostTab);
     arPostTab.addEventListener('click', function () { openAnswerReadyPanel(); });
+    updateSEOTabs();
     var lookPop = document.createElement('div');
     lookPop.className = 'gogh-lookpop';
     lookPop.hidden = true;
@@ -2111,6 +2112,7 @@
   arTab.hidden = true;
   document.body.appendChild(arTab);
   arTab.addEventListener('click', function () { openAnswerReadyPanel(); });
+  updateSEOTabs();
   var sideTimer = null;
   function openSide() {
     clearTimeout(sideTimer);
@@ -11749,16 +11751,44 @@
   // ("its their receipt and we're asking them to do something technical").
   // Everything shown is fetched from the LIVE published page — never a mock,
   // so the panel and the crawlers always read the same bytes.
+  // status speaks in ticks, identity speaks in dots: the rail's SEO tab
+  // earns a green ✓ only when the machine layer is truly complete
+  // (published + a hand description) — and wears nothing otherwise, so
+  // nothing on this rail can be mistaken for decoration
+  function updateSEOTabs() {
+    var done = (cfg.postType === 'page' || cfg.postType === 'post') &&
+      cfg.postStatus === 'publish' && !!String(cfg.excerpt || '').trim();
+    document.querySelectorAll('.gogh-ar-tab').forEach(function (t) {
+      t.innerHTML = (done ? '<span class="gogh-ar-ticky">✓</span>' : '') + '<span>SEO</span>';
+      if (done) t.title = 'SEO & AI answers — complete: schema, description and structure all in place';
+    });
+  }
+
   function openAnswerReadyPanel() {
     var old = document.querySelector('.gogh-arwrap');
     if (old) old.remove();
     var escHtml = function (s) { var d = document.createElement('div'); d.textContent = String(s || ''); return d.innerHTML; };
+    // the search-preview card works wherever the description saves as a
+    // native excerpt — pages and posts; products keep the receipts only
+    var snippable = cfg.postType === 'page' || cfg.postType === 'post';
+    var noun = cfg.postType === 'post' ? 'post' : 'page';
     var wrap = document.createElement('div');
     wrap.className = 'gogh-arwrap';
     wrap.innerHTML = '<div class="gogh-arback"></div>' +
       '<div class="gogh-arpanel" role="dialog" aria-label="What machines see">' +
       '<h3>What machines see</h3>' +
       '<p class="gogh-ar-sub">Search engines and AIs read your page as facts. These are yours, straight from the live page.</p>' +
+      (snippable ?
+        '<div class="gogh-ar-status"><span class="gogh-ar-statusdot"></span><span class="gogh-ar-statustext"></span></div>' +
+        '<div class="gogh-ar-cap">How it looks in search</div>' +
+        '<div class="gogh-arsnippet">' +
+        '<div class="gogh-arsnip-url">' + escHtml((cfg.permalink || location.href).replace(/^https?:\/\//, '').replace(/\?.*$/, '')) + '</div>' +
+        '<div class="gogh-arsnip-title"></div>' +
+        '<div class="gogh-arsnip-desc" contenteditable="true" spellcheck="true"></div>' +
+        '</div>' +
+        '<p class="gogh-ar-why gogh-arsnip-hint">Gogh drafted the description from the ' + noun + '’s own words — edit it right here. It saves as the ' + noun + '’s description, which search results and AI answers lean on.</p>' +
+        '<div class="gogh-ar-actions gogh-arsnip-actions" hidden><button type="button" class="gogh-arsnip-save">Save description</button></div>'
+        : '') +
       '<div class="gogh-ar-rows"><div class="gogh-ar-row">Reading the published page…</div></div>' +
       // true of EVERY gogh page by construction — no per-page computation,
       // and every line here is checked by the suite, not aspiration
@@ -11778,6 +11808,67 @@
       '<button type="button" class="gogh-ar-copy">Copy machine version</button>' +
       '<button type="button" class="gogh-ar-done">Done</button></div></div>';
     document.body.appendChild(wrap);
+    // the light, EXPLAINED, beside the action that changes it — same
+    // three sentences as the write room
+    var renderStatus = function () {
+      if (!snippable) return;
+      var published = cfg.postStatus === 'publish';
+      var hasDesc = !!String(cfg.excerpt || '').trim();
+      var s = !published
+        ? ['#b9bcc4', 'Not published yet — publish once and the machine layer appears.']
+        : (!hasDesc
+          ? ['#f2a413', 'One step left — keep or edit the description below, and this turns green.']
+          : ['#2e9e6b', 'Complete — schema, description and structure are all in place.']);
+      wrap.querySelector('.gogh-ar-statusdot').style.background = s[0];
+      wrap.querySelector('.gogh-ar-statustext').textContent = s[1];
+    };
+    renderStatus();
+    // the snippet: polishing how the page LOOKS in results, never a
+    // labelled meta-description form — saved as the native excerpt
+    if (snippable) (function () {
+      wrap.querySelector('.gogh-arsnip-title').textContent =
+        String(cfg.postTitle || document.title || 'Untitled').slice(0, 70);
+      var draft = function () {
+        var txt = '';
+        try { // pages: the section model's own words, in reading order
+          realSections().forEach(function (s) {
+            (s.els || []).forEach(function (e) {
+              if (e.type === 'para' && e.text) txt += ' ' + String(e.text).replace(/<[^>]*>/g, ' ');
+            });
+          });
+        } catch (err) { txt = ''; }
+        txt = txt.replace(/\s+/g, ' ').trim();
+        if (!txt) { // post view: the rendered words are the model
+          var ec = document.querySelector('.entry-content');
+          txt = (ec ? ec.textContent : '').replace(/\s+/g, ' ').trim();
+        }
+        if (txt.length <= 155) return txt;
+        var cut = txt.slice(0, 155);
+        return cut.slice(0, cut.lastIndexOf(' ')) + '…';
+      };
+      var descEl = wrap.querySelector('.gogh-arsnip-desc');
+      var saved = String(cfg.excerpt || '').trim();
+      descEl.textContent = saved || draft();
+      var actions = wrap.querySelector('.gogh-arsnip-actions');
+      descEl.addEventListener('input', function () { actions.hidden = false; });
+      if (!saved && descEl.textContent.trim()) actions.hidden = false; // the draft is offered, one click keeps it
+      wrap.querySelector('.gogh-arsnip-save').addEventListener('click', function () {
+        var text = descEl.textContent.replace(/\s+/g, ' ').trim().slice(0, 300);
+        fetch(cfg.restUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'X-WP-Nonce': cfg.nonce },
+          credentials: 'same-origin',
+          body: JSON.stringify({ excerpt: text }),
+        }).then(function (r) {
+          if (!r.ok) throw new Error('HTTP ' + r.status);
+          cfg.excerpt = text;
+          actions.hidden = true;
+          toast('Description saved ✓');
+          renderStatus();
+          updateSEOTabs();
+        }).catch(function () { toast('The description could not be saved — try again.', { error: true }); });
+      });
+    })();
     var onKey = function (ev) { if (ev.key === 'Escape') close(); };
     var close = function () { wrap.remove(); document.removeEventListener('keydown', onKey); };
     document.addEventListener('keydown', onKey);
@@ -11791,7 +11882,10 @@
         var m = html.match(/<script type="application\/ld\+json" class="gogh-schema">([\s\S]*?)<\/script>/);
         if (!m) {
           rows.innerHTML = '<div class="gogh-ar-row">Publish once and the machine layer appears — it is computed when the page saves.</div>';
-          wrap.querySelector('.gogh-armachine pre').textContent = '—';
+          // no layer yet: no empty black box, no dead copy button
+          wrap.querySelector('.gogh-armachine').hidden = true;
+          var cpy0 = wrap.querySelector('.gogh-ar-copy');
+          if (cpy0) cpy0.hidden = true;
           return;
         }
         var g = JSON.parse(m[1]);

@@ -3036,6 +3036,25 @@ html.gogh-textediting .gogh-convertbtn {
 .gogh-ar-why { margin: 0 0 8px; color: #6b6f78; font-size: 13px; }
 .gogh-armachine { background: #171c26; color: #d8dde8; border-radius: 12px; padding: 12px 14px; margin: 4px 0 6px; overflow: auto; max-height: 30vh; }
 .gogh-armachine pre { margin: 0; font: 11.5px/1.5 ui-monospace, Menlo, monospace; white-space: pre; }
+.gogh-armachine[hidden] { display: none; }
+
+/* the search-preview card: polish how the page LOOKS in results */
+.gogh-arsnippet { border: 1px solid #e3e3e6; border-radius: 12px; padding: 14px 16px; background: #fff; font-family: arial, -apple-system, sans-serif; /* the SERP's own voice */ }
+.gogh-arsnip-url { font-size: 12px; color: #4d5156; margin-bottom: 4px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.gogh-arsnip-title { font-size: 19px; line-height: 1.25; color: #1a0dab; font-weight: 400; margin-bottom: 4px; }
+.gogh-arsnip-desc { font-size: 14px; line-height: 1.5; color: #4d5156; outline: none; border-radius: 6px; padding: 2px 4px; margin: 0 -4px; }
+.gogh-arsnip-desc:hover { background: #f6f7f9; }
+.gogh-arsnip-desc:focus { background: #f2f5ff; box-shadow: 0 0 0 2px rgba(74, 99, 216, 0.35); }
+.gogh-arsnip-hint { margin-top: 8px; }
+.gogh-arsnip-actions { margin: 6px 0 2px; }
+.gogh-arsnip-actions[hidden] { display: none; }
+
+/* the receipt light, explained in the panel — beside its action */
+.gogh-ar-status { display: flex; align-items: center; gap: 9px; padding: 9px 12px; border-radius: 10px; background: #f6f7f9; font-size: 13px; font-weight: 600; color: #3c3f46; margin-bottom: 14px; }
+.gogh-ar-statusdot { width: 9px; height: 9px; flex: none; border-radius: 50%; background: #b9bcc4; }
+
+/* the rail tab's earned tick: status in receipt language, never decor */
+.gogh-side-tab .gogh-ar-ticky { color: #2e9e6b; font-size: 13px; font-weight: 800; line-height: 1; }
 .gogh-ar-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 14px; flex-wrap: wrap; }
 .gogh-ar-actions button {
   font: 600 13px/1.3 -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, sans-serif;

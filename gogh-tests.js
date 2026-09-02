@@ -4529,6 +4529,26 @@
       return 'two tabs on the rail; ✦ opens the receipts';
     });
 
+    test('SEO panel: pages get the search-preview card too', function () {
+      // the write room's card, on the canvas — status line + editable
+      // description drafted from the page's own words. Look, never touch:
+      // saving would write an excerpt to the fixture.
+      q('.gogh-ar-tab').click();
+      var wrap = q('.gogh-arwrap');
+      expect(wrap, 'the SEO tab opened nothing');
+      expect(wrap.querySelector('.gogh-ar-status .gogh-ar-statustext').textContent.length > 10,
+        'the status line says nothing');
+      var card = wrap.querySelector('.gogh-arsnippet');
+      expect(card, 'no search-preview card on a page');
+      var desc = card.querySelector('.gogh-arsnip-desc');
+      expect(desc && desc.getAttribute('contenteditable') === 'true', 'the description is not editable');
+      expect(desc.textContent.trim().length > 0, 'the description drafted nothing from a page full of words');
+      expect(card.querySelector('.gogh-arsnip-title').textContent.trim().length > 0, 'the title is empty');
+      expect(wrap.querySelector('.gogh-arsnip-save'), 'no way to keep the description');
+      wrap.remove();
+      return 'card present, drafted “' + desc.textContent.trim().slice(0, 40) + '…”';
+    });
+
     test('background panel: first paint is Theme + Image, one row open at a time', function () {
       var i = G.sections().indexOf(sec());
       G.openSecBgPanel(i);
