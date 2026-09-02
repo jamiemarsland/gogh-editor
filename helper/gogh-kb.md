@@ -15,7 +15,7 @@ about something where they conflict, rather than picking one silently. Quote UI
 labels and message copy from the appendix, verbatim — those are the current
 strings, and a paraphrased button label is the fastest way to lose a user's trust.
 
-Generated for plugin version 0.99.284 · knowledge base 186188e.
+Generated for plugin version 0.99.285 · knowledge base e82c02a.
 
 ---
 
@@ -782,11 +782,11 @@ Everything in this section is extracted mechanically from the Gogh source on eve
 
 ## Current release
 
-- Plugin version: **0.99.284**
+- Plugin version: **0.99.285**
 - Requires WordPress **6.5+**, PHP **7.4+**
 - Text domain: `gogh-editor`
 - readme.txt Stable tag: `0.26.0` · Tested up to: `7.0`
-- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.284`). Quote the plugin header version.
+- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.285`). Quote the plugin header version.
 
 ## Design constants
 
@@ -919,13 +919,13 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "' + sh.label + '"
 - "+ Link"
 - "+ Page"
-- "A card — drop elements inside and they stay together, even on mobile"
+- "A card — drop pieces inside and they stay together, even on mobile"
 - "AG"
 - "Aa"
 - "Add"
 - "Add a page to this menu"
-- "Add an element to this section"
 - "Add link"
+- "Add something to this section"
 - "Add to page"
 - "Adjust spacing"
 - "All options"
@@ -1093,8 +1093,8 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "Made the card’s words readable on its background."
 - "Menu order updated — every page gets it."
 - "Menu switched — every page shows it."
-- "Nothing to rearrange yet — add a couple of elements first."
-- "Out of the card — it’s a free element again."
+- "Nothing to rearrange yet — add a couple of pieces first."
+- "Out of the card — it’s its own piece again."
 - "Publish failed: "
 - "Publish your changes first — changing the page style reloads the page."
 - "Removed from the card."
