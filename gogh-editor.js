@@ -7260,17 +7260,17 @@
     // wish, not a request to go photo-shopping. Lighter first — "less
     // dark" must not fall into the dark read.
     if (has(/lighter|brighter|brighten|softer|less dark|\bwhite\b|\blight\b|\bpale\b/)) {
-      return { label: 'a lighter touch', miss: 'Your palette has no light colour to offer here.',
+      return { label: 'a lighter touch', miss: 'Your site\u2019s palette has no lighter colour to offer \u2014 gogh only paints with colours the site owns. Remix (in Site style) can bring new ones.',
         build: function () {
-          return askThemesFeeling('light').concat(askThemesFeeling('mid')).slice(0, 3).map(function (t) {
+          return askThemesFeeling('light').slice(0, 3).map(function (t) {
             return { name: t.name, apply: function (s) { paintSectionTheme(s, t); } };
           });
         } };
     }
     if (has(/darker|moodier|more dramatic|\bdark\b|\bblack\b|\bnight\b/)) {
-      return { label: 'a darker mood', miss: 'Your palette has no dark colour to offer here.',
+      return { label: 'a darker mood', miss: 'Your site\u2019s palette has no darker colour to offer \u2014 gogh only paints with colours the site owns. Remix (in Site style) can bring new ones.',
         build: function () {
-          return askThemesFeeling('dark').concat(askThemesFeeling('mid')).slice(0, 3).map(function (t) {
+          return askThemesFeeling('dark').slice(0, 3).map(function (t) {
             return { name: t.name, apply: function (s) { paintSectionTheme(s, t); } };
           });
         } };
@@ -7676,7 +7676,7 @@
       '<div class="gogh-askrow">' +
       '<input type="text" class="gogh-input gogh-askin" />' +
       '<button type="button" class="gogh-btn gogh-btn-small gogh-askgo">Go</button></div>' +
-      '<div class="gogh-panel-hint gogh-askhint">Say what you want — this section changes right here.</div>' +
+      '<div class="gogh-panel-hint gogh-askhint">Say what you want — this section changes right here. Gogh answers in your site\u2019s own colours and type — new ones live in Site style.</div>' +
       '<div class="gogh-askres" hidden><span class="gogh-askres-name"></span>' +
       '<button type="button" class="gogh-askchip gogh-askundo">Undo</button>' +
       '<button type="button" class="gogh-askchip gogh-asktry">Try another</button></div>' +
