@@ -2690,6 +2690,25 @@ html.gogh-chrome-mode .gogh-hgrip { display: none !important; }
 /* ---------- experiences (uploaded HTML in a sandboxed iframe) ---------- */
 /* while editing, the frame must not swallow canvas drags/clicks */
 .gogh-section .gogh-exp iframe { pointer-events: none; }
+/* the canvas shows the form as an OBJECT you arrange — the real one
+   types and sends on the published page; the tag says so, because a
+   dead-looking input reads as broken ("i can't type anything into it").
+   Editing surface only: the published page never wears it. */
+html.gogh-editing .gogh-section .gogh-widget:has(.gogh-form) { position: relative; }
+html.gogh-editing .gogh-section .gogh-widget:has(.gogh-form)::after {
+  content: 'Form — comes alive when published';
+  position: absolute;
+  right: 10px;
+  bottom: 10px;
+  padding: 3px 9px;
+  border-radius: 999px;
+  background: rgba(16, 17, 20, 0.72);
+  color: #fff;
+  font: 600 10px/1.6 ui-sans-serif, system-ui, sans-serif;
+  letter-spacing: 0.04em;
+  pointer-events: none;
+}
+
 .gogh-section .gogh-exp::after {
   content: 'Experience';
   position: absolute;
