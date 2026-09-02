@@ -441,7 +441,8 @@
     '<button type="button" data-add="quote">' + mIc('<path d="M9 7c-2.5 0.5-4 2.5-4 5v5h5v-5H7c0-2 1-3 2-3.5zM19 7c-2.5 0.5-4 2.5-4 5v5h5v-5h-3c0-2 1-3 2-3.5z"/>') + 'Quote</button>' +
     '<button type="button" data-add="embed">' + mIc('<rect x="3" y="5" width="18" height="14" rx="1.5"/><path d="M10 9.5l4.5 2.5L10 14.5z"/>') + 'Embed</button>' +
     '<button type="button" data-add="rule">' + mIc('<path d="M4 12h16"/>') + 'Divider</button>' +
-    '<button type="button" data-add="splash" class="gogh-w-splashbtn">' + mIc('<path d="M12 4l1.8 6.2L20 12l-6.2 1.8L12 20l-1.8-6.2L4 12l6.2-1.8z"/>') + 'Splash</button>';
+    '<button type="button" data-add="splash" class="gogh-w-splashbtn">' + mIc('<path d="M12 4l1.8 6.2L20 12l-6.2 1.8L12 20l-1.8-6.2L4 12l6.2-1.8z"/>') + 'Splash</button>' +
+    '<button type="button" data-add="break">' + mIc('<rect x="3" y="8" width="18" height="8" rx="1.5"/><path d="M12 3v2.5M12 18.5V21"/>') + 'Freeform break</button>';
   menu.hidden = true;
   document.body.appendChild(menu);
   var filePick = document.createElement('input');
@@ -554,8 +555,37 @@
     window.gogh.enhance(body);
     closeSplash();
     queueSave();
+    return node;
   };
   var node2After = function (ref, node) { ref.after(node); };
+  // ---------- 🎪 Freeform break: a full canvas band inside the story ----------
+  // ("could / should we have a freeform option — no limits") — shape A from
+  // The Freeform Post note. The band is a REAL gogh section: it arrives
+  // designed, rides the splash rails through save and load, and its ✎
+  // opens the canvas on this very post, where it drags like anything drawn
+  // by hand. The prose around it is untouched — the canvas save splices.
+  var insertBreak = function (refBlk) {
+    if (!cfg.breakTpl) return;
+    // a fresh scope per break, or two breaks would share one stylesheet
+    var raw = cfg.breakTpl.replace(/gogh-sec-2/g, 'gogh-sec-brk' + Math.random().toString(36).slice(2, 8));
+    var node = insertSplash({ raw: raw, html: innerOf(raw) }, refBlk);
+    if (node) {
+      node.classList.add('gogh-w-break'); // controls attached first — retell the pen its job
+      var pen = node.querySelector('.gogh-w-figpen');
+      if (pen) { pen.setAttribute('aria-label', 'Design this break on the canvas'); pen.title = 'Design this break on the canvas'; }
+    }
+  };
+  // the pencil's promise on a break: flush the words, then open the canvas
+  var designBreak = function () {
+    var base = cfg.permalink || location.href.split('?')[0];
+    var url = base + (base.indexOf('?') === -1 ? '?' : '&') + 'gogh-edit=1';
+    clearTimeout(saveT);
+    saveT = null;
+    save().then(function (post) {
+      if (post) { location.href = url; }
+      else if (typeof countEl !== 'undefined') { countEl.textContent = '⚠ Not saved — staying here so nothing is lost'; }
+    });
+  };
   // ---------- break-image focal point: drag the photo to reframe ----------
   // The break window crops from the top by default; when that frames a photo
   // badly, grab the picture and slide it. The chosen slice persists as an
@@ -922,6 +952,11 @@
       openSplash(blk);
       return;
     }
+    if (kind === 'break') {
+      hidePlus();
+      insertBreak(blk);
+      return;
+    }
     if (kind === 'image') {
       openImageLibrary(blk);
       hidePlus();
@@ -1152,10 +1187,13 @@
       var pen = document.createElement('button');
       pen.type = 'button';
       pen.className = 'gogh-w-figx gogh-w-figpen';
-      pen.setAttribute('aria-label', 'Replace');
+      var isBreak = node.classList.contains('gogh-w-break');
+      pen.setAttribute('aria-label', isBreak ? 'Design this break on the canvas' : 'Replace');
+      pen.title = isBreak ? 'Design this break on the canvas' : '';
       pen.textContent = '\u270e';
       pen.addEventListener('click', function (ev2) {
         ev2.stopPropagation();
+        if (node.classList.contains('gogh-w-break')) { designBreak(); return; }
         var target = node;
         unpick();
         openSplash(target);
@@ -1164,6 +1202,11 @@
     }
   };
   setTimeout(function () {
+    // a break loaded from save is a splash whose raw is a gogh section —
+    // re-mark it BEFORE controls attach, so its ✎ opens the canvas
+    [].forEach.call(body.querySelectorAll('.gogh-splash'), function (n) {
+      if (/gogh-sec-brk/.test(n.dataset.goghRaw || '')) n.classList.add('gogh-w-break');
+    });
     [].forEach.call(body.querySelectorAll('figure, .gogh-splash'), attachObjControls);
   }, 300);
   var picked = null;
