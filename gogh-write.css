@@ -858,3 +858,11 @@ body.gogh-w-audition main { zoom: 0.52; }
   background: #e5a83c;
 }
 .gogh-w-tab-dot-gold { background: #f2a413; }
+
+/* reading furniture stays out of the writing surface: the looks' end-mark
+   (the printer's tombstone after the last paragraph) landed on the empty
+   line being written — "the weird grey box" */
+body.gogh-writing .entry-content > p:last-of-type::after,
+body.gogh-writing .gogh-w-body p:last-of-type::after {
+  content: none !important;
+}
