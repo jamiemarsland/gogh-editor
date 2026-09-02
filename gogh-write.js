@@ -1493,7 +1493,7 @@
   railDesign.type = 'button';
   railDesign.className = 'gogh-w-tab';
   railDesign.title = 'Design — choose this post\u2019s reading look';
-  railDesign.innerHTML = '<span class="gogh-w-tab-dot"></span><span>Design</span>';
+  railDesign.innerHTML = '<span>Design</span>'; // no dot: only the SEO tab's light means something
   document.body.appendChild(railDesign);
   var railSEO = document.createElement('button');
   railSEO.type = 'button';

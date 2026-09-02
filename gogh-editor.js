@@ -1701,7 +1701,7 @@
     lookTab.type = 'button';
     lookTab.className = 'gogh-side-tab gogh-local-tab gogh-look-tab';
     lookTab.title = 'Post — choose this post\u2019s reading look';
-    lookTab.innerHTML = '<span class="gogh-side-tab-dot"></span><span>Post</span>';
+    lookTab.innerHTML = '<span>Post</span>';
     document.body.appendChild(lookTab);
     var arPostTab = document.createElement('button');
     arPostTab.type = 'button';
@@ -2107,7 +2107,7 @@
   sideTab.type = 'button';
   sideTab.className = 'gogh-side-tab gogh-local-tab';
   sideTab.title = 'Page — the style and order of this page';
-  sideTab.innerHTML = '<span class="gogh-side-tab-dot"></span><span>Page</span>';
+  sideTab.innerHTML = '<span>Page</span>'; // no dot: a dot that never resolves is fake status
   sideTab.hidden = true;
   document.body.appendChild(sideTab);
   var siteTab = document.createElement('button');
