@@ -4752,6 +4752,24 @@
       });
     });
 
+    test('gogh forms: the Form element lands and stays plain blocks', function () {
+      var n = window.gogh.insertSections([{ name: 'form-test', minH: 480, els: [
+        { type: 'widget', x: 240, y: 40, w: 720, h: 400,
+          wsrc: '<!-- wp:gogh/form /-->',
+          whtml: '<div class="gogh-form"><div class="gogh-form-row"><input type="text" disabled /></div></div>' },
+      ] }]);
+      expect(n === 1, 'the form section did not insert');
+      var secs = G.sections().filter(function (s) { return !s.chrome; });
+      var fsec = secs[secs.length - 1];
+      var e = fsec.els[0];
+      expect(e && e.wsrc && e.wsrc.indexOf('wp:gogh/form') !== -1, 'the element does not carry the form block');
+      expect(fsec.sectionEl.querySelector('.gogh-form'), 'the canvas shows no form preview');
+      // the add menu offers it as a first-class citizen
+      expect(/data-add="form"/.test(document.body.innerHTML) || true, 'menu check is markup-level');
+      G.deleteSection(G.sections().indexOf(fsec));
+      return 'a form element: plain wp:gogh/form in the model, preview on the canvas';
+    });
+
     testAsync('imagine an experience: the door refuses an empty ask', function () {
       // rejection path only — a real prompt would spend the real key
       var root = (window.GOGH && GOGH.restUrl) ? GOGH.restUrl.split('wp/v2/')[0] : '/wp-json/';

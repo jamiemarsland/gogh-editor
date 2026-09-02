@@ -1755,6 +1755,7 @@
     '<button type="button" class="gogh-sitem" data-add="card" title="A card — drop pieces inside and they stay together, even on mobile"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2.5"/><path d="M7 12h6M7 15.5h4"/></svg>Card</button>' +
     '<button type="button" class="gogh-sitem" data-act="shapes"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><circle cx="8.5" cy="8.5" r="5.5"/><rect x="11" y="11" width="10" height="10" rx="2"/></svg>Shape</button>' +
     (cfg.canExp ? '<button type="button" class="gogh-sitem" data-add="exp" title="Upload a self-contained HTML experience — it runs sandboxed"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M10 9.5l4.5 2.5-4.5 2.5z"/></svg>Experience</button>' : '') +
+    '<button type="button" class="gogh-sitem" data-add="form" title="Name, email and a message — straight into your own site, no plugin"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M7 9h10M7 13h6"/><rect x="14" y="15" width="4" height="2.5" rx="1"/></svg>Form</button>' +
     '<button type="button" class="gogh-sitem" data-add="posts" title="Your latest posts, live"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="4" width="16" height="6" rx="1.5"/><rect x="4" y="14" width="16" height="6" rx="1.5"/></svg>Posts</button>' +
     (cfg.hasWoo ? '<button type="button" class="gogh-sitem" data-add="products" title="Your latest products, live — prices and add to cart included"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M6 7h12l1.5 13.5H4.5Z"/><path d="M9 10V6a3 3 0 0 1 6 0v4"/></svg>Products</button>' +
       '<button type="button" class="gogh-sitem" data-act="featured" title="One product, hero-sized — a card with a real add-to-cart button"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2.5"/><path d="M12 8.5l1.2 2.4 2.6.4-1.9 1.8.5 2.6-2.4-1.3-2.4 1.3.5-2.6-1.9-1.8 2.6-.4Z"/></svg>Featured product</button>' : '');
@@ -4380,6 +4381,21 @@
     card: function () {
       return { type: 'box', x: 360, y: 80, w: 480, h: 360, radius: 16,
         boxBg: 'color-mix(in srgb, var(--wp--preset--color--contrast, #000) 7%, var(--wp--preset--color--base, transparent))' };
+    },
+    form: function () {
+      // gogh's own form: name, email, message — every submission lands in
+      // the Messages book in wp-admin and in the site's email. No plugin.
+      return { type: 'widget', x: 240, y: 60, w: 720, h: 420,
+        wsrc: '<!-- wp:gogh/form /-->',
+        whtml: '<div class="gogh-form">' +
+          '<div class="gogh-form-row">' +
+          '<input type="text" placeholder="Your name" disabled />' +
+          '<input type="email" placeholder="Your email" disabled />' +
+          '</div>' +
+          '<textarea rows="5" placeholder="Your message…" disabled></textarea>' +
+          '<div class="gogh-form-foot"><button type="button" disabled>Send</button>' +
+          '<span class="gogh-form-note">Goes straight to this site — nowhere else.</span></div>' +
+          '</div>' };
     },
     posts: function () {
       // a real core query loop: WordPress renders it fresh on the published
