@@ -1561,6 +1561,7 @@
       '<div class="gogh-arpanel" role="dialog" aria-label="What machines see">' +
       '<h3>What machines see</h3>' +
       '<p class="gogh-ar-sub">Search engines and AIs read your post as facts. These are yours, straight from the live page.</p>' +
+      '<div class="gogh-ar-status"><span class="gogh-ar-statusdot"></span><span class="gogh-ar-statustext"></span></div>' +
       '<div class="gogh-ar-cap">How it looks in search</div>' +
       '<div class="gogh-arsnippet">' +
       '<div class="gogh-arsnip-url">' + escHtml((cfg.permalink || location.href).replace(/^https?:\/\//, '').replace(/\?.*$/, '')) + '</div>' +
@@ -1585,6 +1586,21 @@
       '<button type="button" class="gogh-ar-copy">Copy machine version</button>' +
       '<button type="button" class="gogh-ar-done">Done</button></div></div>';
     document.body.appendChild(wrap);
+    // the light, EXPLAINED, beside the action that changes it — a tooltip
+    // on an 8px dot is guidance nobody finds ("i'm not sure how folks
+    // would know how to effect this")
+    var renderStatus = function () {
+      var published = cfg.status === 'publish' || !!publishedLink;
+      var hasDesc = !!String(cfg.excerpt || '').trim();
+      var s = !published
+        ? ['#b9bcc4', 'Not published yet — publish once and the machine layer appears.']
+        : (!hasDesc
+          ? ['#f2a413', 'One step left — keep or edit the description below, and this turns green.']
+          : ['#2e9e6b', 'Complete — schema, description and structure are all in place.']);
+      wrap.querySelector('.gogh-ar-statusdot').style.background = s[0];
+      wrap.querySelector('.gogh-ar-statustext').textContent = s[1];
+    };
+    renderStatus();
     // the snippet: the writer polishes how the post LOOKS in results —
     // never a labelled meta-description form. Saved as the native excerpt
     // so it survives gogh, feeds the schema, and every SEO tool respects it.
@@ -1618,6 +1634,7 @@
           actions.hidden = true;
           note('description saved \u2713');
           updateSEODot();
+          renderStatus();
         }).catch(function () { note('description not saved'); });
       });
     })();

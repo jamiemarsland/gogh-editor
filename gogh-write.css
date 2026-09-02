@@ -905,3 +905,24 @@ body.gogh-writing .gogh-w-body p:last-of-type::after {
 .gogh-arsnip-actions { margin: 6px 0 2px; }
 .gogh-arsnip-actions[hidden] { display: none; }
 .gogh-armachine[hidden] { display: none; }
+
+/* the receipt light, explained in the panel — beside its action */
+.gogh-ar-status {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 9px 12px;
+  border-radius: 10px;
+  background: #f6f7f9;
+  font-size: 13px;
+  font-weight: 600;
+  color: #3c3f46;
+  margin-bottom: 14px;
+}
+.gogh-ar-statusdot {
+  width: 9px;
+  height: 9px;
+  flex: none;
+  border-radius: 50%;
+  background: #b9bcc4;
+}
