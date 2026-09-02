@@ -110,6 +110,11 @@
 .gogh-side.gogh-side-away { visibility: hidden; }
 /* the home's cards: icon · title · subtitle · chevron */
 .gogh-side-cards { display: flex; flex-direction: column; gap: 10px; }
+.gogh-side-cards[hidden] { display: none; }
+/* one drawer, two wardrobes: the foot's tools follow the scope — canvas
+   tools stay with Page, the whole-look swap stays with Site */
+.gogh-side[data-mode="site"] :is(.gogh-gridbtn, .gogh-undo, .gogh-redo) { display: none; }
+.gogh-side[data-mode="page"] .gogh-sd-designs { display: none; }
 .gogh-scard {
   all: unset; box-sizing: border-box; cursor: pointer;
   display: flex; align-items: center; gap: 14px;
@@ -234,6 +239,9 @@ html.gogh-phone-preview .gogh-section.gogh-msec-hidden {
   transition: transform 0.34s var(--gogh-spring), opacity 0.28s ease;
 }
 .gogh-side-tab:hover { background: #f2f3f5; }
+/* three doors, three scopes: Page/Post above centre, Site at centre,
+   SEO below — the rail reads big-to-small top-down from the middle out */
+.gogh-local-tab { top: calc(50% - 96px); }
 .gogh-side-tab[hidden] { display: none; }
 .gogh-side-tab.is-away {
   transform: translate(-110%, -50%);

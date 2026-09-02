@@ -4548,17 +4548,36 @@
       return items.join(', ');
     });
 
-    test('the rail has two tabs: Design and ✦ Answer-ready', function () {
-      var d = q('.gogh-side-tab:not(.gogh-ar-tab)');
+    test('the rail: Page · Site · SEO, each door honest about its scope', function () {
+      var pg = q('.gogh-local-tab');
+      var st = q('.gogh-site-tab');
       var ar = q('.gogh-ar-tab');
-      expect(d && !d.hidden, 'the Design tab is missing');
-      expect(ar && !ar.hidden, 'the Answer-ready tab is missing');
+      expect(pg && !pg.hidden && /Page/.test(pg.textContent), 'the Page tab is missing or misnamed');
+      expect(st && !st.hidden && /Site/.test(st.textContent), 'the Site tab is missing or misnamed');
+      expect(ar && !ar.hidden, 'the SEO tab is missing');
+      var side = q('.gogh-side');
+      // the Site door opens the drawer wearing SITE clothes only
+      st.click();
+      expect(side.classList.contains('is-open'), 'the Site tab did not open the drawer');
+      expect(q('.gogh-side-title').textContent === 'Site', 'the drawer head does not say Site');
+      expect(side.querySelector('.gogh-cards-page').hidden, 'page cards leaked into Site mode');
+      expect(!side.querySelector('.gogh-cards-site').hidden, 'site cards missing in Site mode');
+      expect(side.querySelector('.gogh-cards-site .gogh-stylebtn'), 'Site style lost its card');
+      expect(side.querySelector('.gogh-cards-site .gogh-editheader'), 'Edit header lost its card');
+      G.closeSide(true);
+      // and the Page door swaps to PAGE clothes
+      pg.click();
+      expect(q('.gogh-side-title').textContent === 'Page', 'the drawer head does not say Page');
+      expect(!side.querySelector('.gogh-cards-page').hidden, 'page cards missing in Page mode');
+      expect(side.querySelector('.gogh-cards-site').hidden, 'site cards leaked into Page mode');
+      expect(side.querySelector('.gogh-cards-page .gogh-pagestylebtn'), 'Page style lost its card');
+      expect(side.querySelector('.gogh-cards-page .gogh-rearrange'), 'Rearrange lost its card');
+      G.closeSide(true);
       ar.click();
       var wrap = q('.gogh-arwrap');
-      expect(wrap, 'the Answer-ready tab opened nothing');
-      expect(/What machines see/.test(wrap.textContent), 'the receipts dialog is not the receipts');
+      expect(wrap && /What machines see/.test(wrap.textContent), 'the SEO tab did not open the receipts');
       wrap.remove();
-      return 'two tabs on the rail; ✦ opens the receipts';
+      return 'three scopes, three doors';
     });
 
     test('SEO panel: pages get the search-preview card too', function () {

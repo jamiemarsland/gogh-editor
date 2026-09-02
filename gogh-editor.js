@@ -1699,9 +1699,9 @@
     // pages ("move post formats to a design tab (like we do in pages)")
     var lookTab = document.createElement('button');
     lookTab.type = 'button';
-    lookTab.className = 'gogh-side-tab gogh-look-tab';
-    lookTab.title = 'Design — choose this post\u2019s reading look';
-    lookTab.innerHTML = '<span class="gogh-side-tab-dot"></span><span>Design</span>';
+    lookTab.className = 'gogh-side-tab gogh-local-tab gogh-look-tab';
+    lookTab.title = 'Post — choose this post\u2019s reading look';
+    lookTab.innerHTML = '<span class="gogh-side-tab-dot"></span><span>Post</span>';
     document.body.appendChild(lookTab);
     var arPostTab = document.createElement('button');
     arPostTab.type = 'button';
@@ -1744,7 +1744,7 @@
     // the drawer opens beside its tab, not in the corner
     lookPop.style.left = '52px';
     lookPop.style.right = 'auto';
-    lookPop.style.top = '50%';
+    lookPop.style.top = 'calc(50% - 96px)'; // beside the Post tab, which sits above centre now
     lookPop.style.bottom = 'auto';
     lookPop.style.transform = 'translateY(-50%)';
     lookTab.addEventListener('click', function (ev) {
@@ -1811,21 +1811,21 @@
   var side = document.createElement('div');
   side.className = 'gogh-side';
   side.hidden = true;
+  // one drawer, two wardrobes: the cards split by BLAST RADIUS ("we have
+  // page design mingled with site design"). Page mode dresses this page,
+  // Site mode dresses the whole site — the tab names answer "will this
+  // change everything or just here?" before the click.
   side.innerHTML =
     '<div class="gogh-side-head">' +
-    '<span class="gogh-side-title">Design</span>' +
+    '<span class="gogh-side-title">Page</span>' +
     '<button type="button" class="gogh-sbtn gogh-side-x" title="Done">' +
     '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>' +
     '</button>' +
     '</div>' +
-    '<div class="gogh-side-cards">' +
+    '<div class="gogh-side-cards gogh-cards-site" hidden>' +
     '<button type="button" class="gogh-sitem gogh-scard gogh-stylebtn">' +
     '<span class="gogh-scard-ic is-accent"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M12 3a9 9 0 1 0 0 18h1.5a2.5 2.5 0 0 0 1.8-4.2 2.5 2.5 0 0 1 1.8-4.3H20a9 9 0 0 0-8-9.5Z"/><circle cx="7.5" cy="11" r="1.2" fill="currentColor" stroke="none"/><circle cx="10.5" cy="7.5" r="1.2" fill="currentColor" stroke="none"/><circle cx="15" cy="7.5" r="1.2" fill="currentColor" stroke="none"/></svg></span>' +
     '<span class="gogh-scard-tx"><span class="gogh-scard-t">Site style</span><span class="gogh-scard-s">Colours, type, brand</span></span>' +
-    '<svg class="gogh-scard-chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg></button>' +
-    '<button type="button" class="gogh-sitem gogh-scard gogh-pagestylebtn">' +
-    '<span class="gogh-scard-ic"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M14 3v6h6"/></svg></span>' +
-    '<span class="gogh-scard-tx"><span class="gogh-scard-t">Page style</span><span class="gogh-scard-s">How this page is framed</span></span>' +
     '<svg class="gogh-scard-chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg></button>' +
     '<button type="button" class="gogh-sitem gogh-scard gogh-motionbtn">' +
     '<span class="gogh-scard-ic"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12c3-6 6-6 9 0s6 6 9 0"/></svg></span>' +
@@ -1838,6 +1838,12 @@
     '<button type="button" class="gogh-sitem gogh-scard gogh-editfooter">' +
     '<span class="gogh-scard-ic"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 15h18"/></svg></span>' +
     '<span class="gogh-scard-tx"><span class="gogh-scard-t">Edit footer</span><span class="gogh-scard-s">The foot of every page</span></span>' +
+    '<svg class="gogh-scard-chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg></button>' +
+    '</div>' +
+    '<div class="gogh-side-cards gogh-cards-page">' +
+    '<button type="button" class="gogh-sitem gogh-scard gogh-pagestylebtn">' +
+    '<span class="gogh-scard-ic"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M14 3v6h6"/></svg></span>' +
+    '<span class="gogh-scard-tx"><span class="gogh-scard-t">Page style</span><span class="gogh-scard-s">How this page is framed</span></span>' +
     '<svg class="gogh-scard-chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg></button>' +
     '<button type="button" class="gogh-sitem gogh-scard gogh-rearrange">' +
     '<span class="gogh-scard-ic"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><rect x="4" y="3" width="16" height="7" rx="1.6"/><rect x="4" y="14" width="16" height="7" rx="1.6"/><path d="M12 10.5v3"/></svg></span>' +
@@ -2094,14 +2100,27 @@
     setTimeout(check, 4000);
   })();
 
-  // tuck-away drawer: slim edge tab when collapsed, slide-in on hover
+  // tuck-away drawer: slim edge tabs when collapsed, slide-in on click.
+  // Three doors, three scopes ("should we separate them out?"): Page (this
+  // page), Site (the whole site), SEO (what machines see).
   var sideTab = document.createElement('button');
   sideTab.type = 'button';
-  sideTab.className = 'gogh-side-tab';
-  sideTab.title = 'Design';
-  sideTab.innerHTML = '<span class="gogh-side-tab-dot"></span><span>Design</span>';
+  sideTab.className = 'gogh-side-tab gogh-local-tab';
+  sideTab.title = 'Page — the style and order of this page';
+  sideTab.innerHTML = '<span class="gogh-side-tab-dot"></span><span>Page</span>';
   sideTab.hidden = true;
   document.body.appendChild(sideTab);
+  var siteTab = document.createElement('button');
+  siteTab.type = 'button';
+  siteTab.className = 'gogh-side-tab gogh-site-tab';
+  siteTab.title = 'Site — colours, type, motion and chrome, everywhere at once';
+  siteTab.innerHTML = '<span>Site</span>';
+  siteTab.hidden = true;
+  document.body.appendChild(siteTab);
+  siteTab.addEventListener('click', function () { openSide('site'); });
+  // the access asymmetry ends here: posts get the Site door too — before
+  // this, changing the site's fonts meant going to find a page to edit
+  if (cfg.writeUrl) { siteTab.hidden = false; side.hidden = false; }
   // Answer-ready earns its own door: it's a RECEIPT, not a choice-set —
   // the second (and last) tab on the rail ("feels important")
   var arTab = document.createElement('button');
@@ -2114,24 +2133,35 @@
   arTab.addEventListener('click', function () { openAnswerReadyPanel(); });
   updateSEOTabs();
   var sideTimer = null;
-  function openSide() {
+  function setSideMode(mode) {
+    side.dataset.mode = mode;
+    side.querySelector('.gogh-side-title').textContent = mode === 'site' ? 'Site' : 'Page';
+    side.querySelector('.gogh-cards-page').hidden = mode !== 'page';
+    side.querySelector('.gogh-cards-site').hidden = mode !== 'site';
+  }
+  function openSide(mode) {
+    // callers without an opinion (wheel-zoom, ⌥Z, old doors) get the local
+    // scope — on a post there is no page drawer, so Site stands in
+    if (mode !== 'site' && mode !== 'page') mode = cfg.writeUrl ? 'site' : 'page';
+    setSideMode(mode);
     clearTimeout(sideTimer);
     var ab = document.getElementById('wpadminbar');
     side.style.top = (ab ? ab.offsetHeight : 0) + 'px';
     side.classList.add('is-open');
     side.classList.remove('gogh-side-away');
-    sideTab.classList.add('is-away');
-    arTab.classList.add('is-away');
-    zoomOutCanvas(); // the design surface pairs with a zoomed-out page
-    document.documentElement.classList.add('gogh-designmode'); // sections drag to reorder
+    // every rail tab steps aside together — one drawer, whoever opened it
+    document.querySelectorAll('.gogh-side-tab').forEach(function (t) { t.classList.add('is-away'); });
+    if (!cfg.writeUrl) { // a post view has no canvas to zoom
+      zoomOutCanvas(); // the design surface pairs with a zoomed-out page
+      document.documentElement.classList.add('gogh-designmode'); // sections drag to reorder
+    }
   }
   function closeSide(now) {
     clearTimeout(sideTimer);
     var doIt = function () {
       side.classList.remove('is-open');
       side.classList.remove('gogh-side-away');
-      sideTab.classList.remove('is-away');
-      arTab.classList.remove('is-away');
+      document.querySelectorAll('.gogh-side-tab').forEach(function (t) { t.classList.remove('is-away'); });
       document.documentElement.classList.remove('gogh-designmode');
       if (!panelOpen) unzoomCanvas(); // a section may still hold the zoom
     };
@@ -2153,7 +2183,7 @@
     if (zoomState) layoutZoom();
   }
   // deliberate open — a docked, zooming surface, not a hover peek
-  sideTab.addEventListener('click', openSide);
+  sideTab.addEventListener('click', function () { openSide('page'); });
   side.querySelector('.gogh-side-x').addEventListener('click', function () { closeSide(true); });
 
   // handles
@@ -2924,6 +2954,7 @@
     }
     side.hidden = !on;
     sideTab.hidden = !on;
+    siteTab.hidden = !on;
     arTab.hidden = !on;
     if (!on) {
       closeSide(true);
