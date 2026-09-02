@@ -1,12 +1,12 @@
 {
   "meta": {
-    "plugin_version": "0.99.305",
+    "plugin_version": "0.99.306",
     "requires_wp": "6.5",
     "requires_php": "7.4",
     "text_domain": "gogh-editor",
     "readme_stable_tag": "0.26.0",
     "readme_tested_up_to": "7.0",
-    "asset_version": "0.99.305-chrome"
+    "asset_version": "0.99.306-chrome"
   },
   "constants": {
     "TOL": 8,
@@ -405,6 +405,7 @@
     "Heading",
     "Help — ask gogh anything",
     "Image",
+    "Imagine",
     "Italic",
     "Keep editing",
     "Keep this layout (updates every page)",
@@ -472,6 +473,7 @@
     "Unwrap — back to freeform",
     "Updates every page",
     "Upload a self-contained HTML experience — it runs sandboxed",
+    "Upload an .html file instead",
     "Use a text name instead",
     "Use this design",
     "Use this layout",
@@ -515,7 +517,6 @@
     "Could not update the ",
     "Description saved ✓",
     "Editing the site ",
-    "Experience added — it runs sandboxed; visitors can interact once published.",
     "Icon link updated.",
     "Image swapped.",
     "Keep your changes with Done, or undo them with Cancel.",
@@ -807,6 +808,7 @@
       "gogh/v1/blog-style",
       "gogh/v1/motion",
       "gogh/v1/ask",
+      "gogh/v1/imagine-exp",
       "gogh/v1/ask-key",
       "gogh/v1/ask-log",
       "gogh/v1/active-style",
@@ -820,9 +822,9 @@
       "edit_post",
       "edit_theme_options",
       "manage_options",
-      "edit_others_posts",
-      "unfiltered_html",
       "upload_files",
+      "unfiltered_html",
+      "edit_others_posts",
       "publish_pages"
     ],
     "query_switches": [
