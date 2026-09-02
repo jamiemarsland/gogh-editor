@@ -1939,7 +1939,7 @@
     doPublish(chip.querySelector('.gogh-w-publish'));
   });
   // leaving flushes any words the 2.5s debounce hasn't saved yet
-  chip.querySelector('.gogh-w-back').addEventListener('click', function (ev) {
+  var leaveGuard = function (ev) {
     if (clean && !saveT && !inflight && !saveFailed) return; // nothing pending — plain link
     ev.preventDefault();
     var href = ev.currentTarget.href;
@@ -1951,7 +1951,18 @@
       if (post) { location.href = href; }
       else { countEl.textContent = '⚠ Not saved — staying here so nothing is lost'; }
     });
-  });
+  };
+  chip.querySelector('.gogh-w-back').addEventListener('click', leaveGuard);
+  // the way home is the web's oldest promise: the site's own name, top
+  // left, quiet as a masthead ("folks need some way to get back home
+  // from the write screen") — same saved-room guard as View post
+  var mast = document.createElement('a');
+  mast.className = 'gogh-w-mast';
+  mast.href = cfg.homeUrl || '/';
+  mast.textContent = cfg.siteName || 'Home';
+  mast.title = 'Back to your site';
+  document.body.appendChild(mast);
+  mast.addEventListener('click', leaveGuard);
   var draftBtn = chip.querySelector('.gogh-w-draft'); // absent on published posts
   if (draftBtn) draftBtn.addEventListener('click', function () {
     draftBtn.textContent = 'Saving\u2026';

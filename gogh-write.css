@@ -91,6 +91,32 @@ body.gogh-writing ::selection {
   border-radius: 8px;
 }
 
+/* the masthead: the site's name, top left — the web's oldest way home.
+   Faint until wanted; never part of the writing surface. */
+.gogh-w-mast {
+  position: fixed;
+  top: 18px;
+  left: 22px;
+  z-index: 99999;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, sans-serif;
+  font-size: 11.5px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: inherit;
+  opacity: 0.38;
+  text-decoration: none;
+  transition: opacity 0.15s ease;
+}
+.gogh-w-mast:hover { opacity: 1; }
+.gogh-w-mast::before {
+  content: '←';
+  margin-right: 7px;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+.gogh-w-mast:hover::before { opacity: 0.7; }
+
 /* the one chip: summoned by the mouse, dismissed by typing */
 .gogh-w-chip {
   position: fixed;
