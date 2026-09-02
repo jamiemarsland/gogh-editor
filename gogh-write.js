@@ -426,7 +426,9 @@
   plus.type = 'button';
   plus.className = 'gogh-w-plus';
   plus.setAttribute('aria-label', 'Add something here');
-  plus.textContent = '+';
+  // an SVG, not a text glyph: the site's own font renders '+' however it
+  // pleases (Literata drew a hairline — 'the plus sign looks broken')
+  plus.innerHTML = '<svg width="14" height="14" viewBox="0 0 14 14" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M7 1.5v11M1.5 7h11"/></svg>';
   document.body.appendChild(plus);
   var menu = document.createElement('div');
   menu.className = 'gogh-w-menu';
