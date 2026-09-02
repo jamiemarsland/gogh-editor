@@ -8086,6 +8086,24 @@
     // fold, three rounds of wrong fixes elsewhere. It DOCKS now: a
     // design inspector top-right of the viewport, placed after build.
     var pal = pickerPalette();
+    // summary values for the folded rows — recomputed after every click
+    var hVal = function () {
+      if (secx.fill) return 'Fill screen';
+      return secx.minH === 320 ? 'S' : secx.minH === 560 ? 'M' : secx.minH === 800 ? 'L' : (secx.minH ? String(secx.minH) : 'M');
+    };
+    var fxVal = function () {
+      return { '': 'Still', parallax: 'Parallax', drift: 'Drift', reveal: 'Reveal' }[(secx.fx && secx.fx.bg) || ''] || 'Still';
+    };
+    var endVal = function () {
+      var names = { curve: 'Curve', sweep: 'Sweep', dunes: 'Dunes', arch: 'Arch', sheet: 'Sheet', melt: 'Melt', mist: 'Mist', wave: 'Wave', slant: 'Slant', peaks: 'Peaks', brush: 'Brush', torn: 'Torn' };
+      return (secx.divider && names[secx.divider.shape]) || 'None';
+    };
+    var bgRow = function (key, label, val, body) {
+      return '<div class="gogh-bgrow" data-row="' + key + '">' +
+        '<button type="button" class="gogh-bgrow-head"><span>' + label + '</span>' +
+        '<span class="gogh-bgrow-val">' + esc(val) + '</span><span class="gogh-bgrow-caret">⌄</span></button>' +
+        '<div class="gogh-bgrow-body" hidden>' + body + '</div></div>';
+    };
     panel.innerHTML =
       '<div class="gogh-panel-title">Section background</div>' +
       '<div class="gogh-panel-hint">Theme \u2014 a look for the section and its words</div>' +
@@ -8095,30 +8113,29 @@
           '<span class="gogh-themechip-swatch" style="background:' + escAttr(t.bg) + ';color:var(--wp--preset--color--' + t.ink + ')">Aa</span>' +
           '</button>';
       }).join('') + '</div>' +
-      '<div class="gogh-panel-hint">Height</div>' +
-      '<div class="gogh-hpresets">' +
-      [['s','S',320],['m','M',560],['l','L',800]].map(function (hp) {
-        return '<button type="button" class="gogh-hpreset' + (!secx.fill && secx.minH === hp[2] ? ' is-active' : '') + '" data-minh="' + hp[2] + '" title="' + hp[1] + ' — ' + hp[2] + ' units">' + hp[1] + '</button>';
-      }).join('') +
-      '<button type="button" class="gogh-hpreset gogh-hpreset-fill' + (secx.fill ? ' is-active' : '') + '" title="Fill the screen">Fill screen</button>' +
-      '</div>' +
-      '<div class="gogh-panel-hint">Effect \u2014 how the background behaves</div>' +
-      '<div class="gogh-hpresets gogh-fxrow">' +
-      // Grain retired from the row (James: "i can't see anything it does" —
-      // the φ rule). The machinery stays: saved grain keeps rendering.
-      [['', 'Still', ''], ['parallax', 'Parallax', 'img'], ['drift', 'Drift', 'img'], ['reveal', 'Reveal', '']].map(function (fx) {
-        // never disabled at build time: the panel stays open while images
-        // are picked, so image-hunger is judged when the chip is touched
-        return '<button type="button" class="gogh-hpreset' + (((secx.fx && secx.fx.bg) || '') === fx[0] ? ' is-active' : '') + '"' +
-          ' data-fx="' + fx[0] + '"' + (fx[2] === 'img' ? ' data-needs-img="1"' : '') + '>' + fx[1] + '</button>';
-      }).join('') + '</div>' +
-      transitionRowHTML(secx) +
+      // ---- the diet: Theme and Image answer first; Height, Effect and
+      // How-it-ends fold into quiet summary rows that open ONE at a time
+      // ("there's too much cognitive load atm") ----
       '<div class="gogh-panel-hint">Image</div>' +
       (secx.bgImage ? '<div class="gogh-panel-hint gogh-focal-hint">✋ Drag the section itself to reframe the photo' + (secx.bgPos ? ' · <button type="button" class="gogh-focal-reset">re-centre</button>' : '') + '</div>' : '') +
       '<div class="gogh-panel-row gogh-panel-actions">' +
       (cfg.canUpload ? '<label class="gogh-btn gogh-btn-small gogh-upload">Upload<input type="file" accept="image/*" hidden /></label>' : '') +
       (secx.bgImage ? '<button type="button" class="gogh-btn gogh-btn-small gogh-clear">Remove image</button>' : '') +
       '</div>' +
+      bgRow('height', 'Height', hVal(),
+        '<div class="gogh-hpresets">' +
+        [['s','S',320],['m','M',560],['l','L',800]].map(function (hp) {
+          return '<button type="button" class="gogh-hpreset' + (!secx.fill && secx.minH === hp[2] ? ' is-active' : '') + '" data-minh="' + hp[2] + '" title="' + hp[1] + ' — ' + hp[2] + ' units">' + hp[1] + '</button>';
+        }).join('') +
+        '<button type="button" class="gogh-hpreset gogh-hpreset-fill' + (secx.fill ? ' is-active' : '') + '" title="Fill the screen">Fill screen</button>' +
+        '</div>') +
+      bgRow('fx', 'Effect', fxVal(),
+        '<div class="gogh-hpresets gogh-fxrow">' +
+        [['', 'Still', ''], ['parallax', 'Parallax', 'img'], ['drift', 'Drift', 'img'], ['reveal', 'Reveal', '']].map(function (fx) {
+          return '<button type="button" class="gogh-hpreset' + (((secx.fx && secx.fx.bg) || '') === fx[0] ? ' is-active' : '') + '"' +
+            ' data-fx="' + fx[0] + '"' + (fx[2] === 'img' ? ' data-needs-img="1"' : '') + '>' + fx[1] + '</button>';
+        }).join('') + '</div>') +
+      (transitionRowHTML(secx) ? bgRow('ends', 'How it ends', endVal(), transitionRowHTML(secx)) : '') +
       '<div class="gogh-media"><span class="gogh-media-loading">Loading media…</span></div>' +
       '<button type="button" class="gogh-panel-more-toggle">Colour &amp; more \u2304</button>' +
       '<div class="gogh-panel-more" hidden>' +
@@ -8140,6 +8157,32 @@
       '</div>';
     dockPanel();
     bindTransitionRow(secx);
+    // one question at a time: opening a row folds the others; the summary
+    // values follow every click so the folded state stays truthful
+    panel.querySelectorAll('.gogh-bgrow-head').forEach(function (head) {
+      head.addEventListener('click', function () {
+        var row = head.parentElement;
+        var wasOpen = row.classList.contains('is-open');
+        panel.querySelectorAll('.gogh-bgrow').forEach(function (r2) {
+          r2.classList.remove('is-open');
+          r2.querySelector('.gogh-bgrow-body').hidden = true;
+        });
+        if (!wasOpen) {
+          row.classList.add('is-open');
+          row.querySelector('.gogh-bgrow-body').hidden = false;
+        }
+      });
+    });
+    panel.addEventListener('click', function () {
+      setTimeout(function () {
+        var vals = { height: hVal(), fx: fxVal(), ends: endVal() };
+        panel.querySelectorAll('.gogh-bgrow').forEach(function (r2) {
+          var v = vals[r2.dataset.row];
+          var vs = r2.querySelector('.gogh-bgrow-val');
+          if (v != null && vs) vs.textContent = v;
+        });
+      }, 0);
+    });
     panelOpen = true;
     // ---------- focal point: drag the section to reframe its photo ----------
     // The break-image gesture, for backgrounds ("add our cool choose focal
@@ -8456,8 +8499,7 @@
         '<rect x="0" y="0" width="1200" height="240" fill="' + escAttr(inkAbove) + '"/>' +
         join + bars + '</svg></span>';
     };
-    return '<div class="gogh-panel-hint">How this section ends</div>' +
-      '<div class="gogh-shapes">' +
+    return '<div class="gogh-shapes">' +
       transitionShapes().map(function (sh, k) {
         return '<button type="button" class="gogh-shape' + (sh.key === current ? ' is-active' : '') +
           '" data-shape="' + sh.key + '" title="' + sh.label + '">' + stage(sh, k) + '<span>' + sh.label + '</span></button>';

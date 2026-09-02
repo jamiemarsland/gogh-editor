@@ -3310,3 +3310,32 @@ html.gogh-textediting .gogh-convertbtn {
   outline-color: rgba(74, 99, 216, 0.35);
   box-shadow: none;
 }
+
+/* the background panel's folded rows: one question at a time */
+.gogh-bgrow { border-top: 1px solid var(--gogh-ui-line, #ececef); margin-top: 10px; }
+.gogh-bgrow-head {
+  all: unset;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  box-sizing: border-box;
+  padding: 10px 2px 8px;
+  font-size: 12px;
+  font-weight: 700;
+  color: #141519;
+}
+.gogh-bgrow-head:hover { color: #4a63d8; }
+.gogh-bgrow-val {
+  margin-left: auto;
+  font-weight: 600;
+  color: var(--gogh-ui-muted, #6b6c72);
+}
+.gogh-bgrow-caret {
+  color: var(--gogh-ui-muted, #6b6c72);
+  transition: transform 0.15s ease;
+}
+.gogh-bgrow.is-open .gogh-bgrow-caret { transform: rotate(180deg); }
+.gogh-bgrow-body { padding: 2px 0 8px; }
+.gogh-bgrow-body[hidden] { display: none; }

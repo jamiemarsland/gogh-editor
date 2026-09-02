@@ -4516,6 +4516,28 @@
       return items.join(', ');
     });
 
+    test('background panel: first paint is Theme + Image, one row open at a time', function () {
+      var i = G.sections().indexOf(sec());
+      G.openSecBgPanel(i);
+      expect(q('.gogh-panel .gogh-themerow'), 'Theme row missing from first paint');
+      expect(q('.gogh-panel .gogh-media'), 'Image area missing from first paint');
+      var rows = document.querySelectorAll('.gogh-panel .gogh-bgrow');
+      expect(rows.length >= 2, 'expected folded rows, got ' + rows.length);
+      rows.forEach(function (r2) {
+        expect(r2.querySelector('.gogh-bgrow-body').hidden, r2.dataset.row + ' arrived unfolded');
+      });
+      var heads = document.querySelectorAll('.gogh-panel .gogh-bgrow-head');
+      heads[0].click();
+      expect(!rows[0].querySelector('.gogh-bgrow-body').hidden, 'first row did not open');
+      heads[1].click();
+      expect(rows[0].querySelector('.gogh-bgrow-body').hidden, 'opening the second row left the first open');
+      expect(!rows[1].querySelector('.gogh-bgrow-body').hidden, 'second row did not open');
+      var hv = rows[0].querySelector('.gogh-bgrow-val').textContent;
+      expect(hv.length > 0, 'the height summary is empty');
+      pev('pointerdown', document.body, 4, 4);
+      return rows.length + ' folded rows, exclusive open, summary "' + hv + '"';
+    });
+
     test('transitions live on the section: chips in the design panel, seam keeps one job', function () {
       // build a real boundary: a section below the first
       G.openSeamAsk(null, null);
