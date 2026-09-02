@@ -1782,7 +1782,7 @@
     '<button type="button" class="gogh-sitem" data-add="image"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="8.5" cy="10" r="1.6"/><path d="M21 16l-5-5-9 8"/></svg>Image</button>' +
     '<button type="button" class="gogh-sitem" data-add="badge"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><circle cx="12" cy="9.5" r="5.5"/><path d="M9 14l-1.5 6 4.5-2.4 4.5 2.4L15 14"/></svg>Badge</button>' +
     '<button type="button" class="gogh-sitem" data-add="write" title="Start writing — a reading column, cursor ready"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>Write</button>' +
-    '<button type="button" class="gogh-sitem" data-add="card" title="A card — drop elements inside and they stay together, even on mobile"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2.5"/><path d="M7 12h6M7 15.5h4"/></svg>Card</button>' +
+    '<button type="button" class="gogh-sitem" data-add="card" title="A card — drop pieces inside and they stay together, even on mobile"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2.5"/><path d="M7 12h6M7 15.5h4"/></svg>Card</button>' +
     '<button type="button" class="gogh-sitem" data-act="shapes"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><circle cx="8.5" cy="8.5" r="5.5"/><rect x="11" y="11" width="10" height="10" rx="2"/></svg>Shape</button>' +
     (cfg.canExp ? '<button type="button" class="gogh-sitem" data-add="exp" title="Upload a self-contained HTML experience — it runs sandboxed"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M10 9.5l4.5 2.5-4.5 2.5z"/></svg>Experience</button>' : '') +
     '<button type="button" class="gogh-sitem" data-add="posts" title="Your latest posts, live"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="4" width="16" height="6" rx="1.5"/><rect x="4" y="14" width="16" height="6" rx="1.5"/></svg>Posts</button>' +
@@ -4992,7 +4992,7 @@
     panel.innerHTML =
       '<div class="gogh-panel-head"><span class="gogh-panel-title">Add a shape</span>' +
       '<button type="button" class="gogh-sbtn gogh-panel-close" title="Close">✕</button></div>' +
-      '<div class="gogh-panel-hint">A backdrop for other elements — send it backward once it\'s placed.</div>' +
+      '<div class="gogh-panel-hint">A backdrop for the rest — send it backward once it\'s placed.</div>' +
       '<div class="gogh-shapegrid">' +
       SHAPE_DEFS.map(function (d, k) {
         return '<button type="button" class="gogh-shapecell" data-k="' + k + '" title="' + d.label + '">' +
@@ -6392,7 +6392,7 @@
   secBar.innerHTML =
     '<span class="gogh-secbar-label">Section</span>' +
     '<button type="button" class="gogh-sb gogh-sb-ask" data-sec="ask" title="Describe a change — Gogh makes it">✦ Ask Gogh</button>' +
-    '<button type="button" class="gogh-sb" data-sec="add" title="Add an element to this section">＋</button>' +
+    '<button type="button" class="gogh-sb" data-sec="add" title="Add something to this section">＋</button>' +
     // four doors, read at a glance: the star, add, design, more — the
     // housekeeping verbs (move, duplicate, rearrange, save, delete) live
     // in the ⋯ menu as WORDS. Rare actions don't earn permanent icons
@@ -6724,7 +6724,7 @@
   function openRearrangePanel(idx, anchorEl) {
     var secx = S[idx];
     var variants = rearrangeVariants(secx);
-    if (!variants.length) { toast('Nothing to rearrange yet — add a couple of elements first.'); return; }
+    if (!variants.length) { toast('Nothing to rearrange yet — add a couple of pieces first.'); return; }
     var snap = secx.els.map(function (e) { return { x: e.x, y: e.y }; });
     // the arrangement the panel OPENED on stays reachable forever — keeps
     // rebase the working snapshot, but Original is the way home
@@ -7064,7 +7064,7 @@
         } };
     }
     if (has(/ (different|new|another|fresh) (layout|arrangement|look) |rearrange|shuffle|switch (it|things) (up|around)|\bflip\b|\bmirror\b|swap sides|other side|on the (left|right)|something (different|else|new)|mix it up/)) {
-      return { label: 'a different layout', miss: 'Nothing to rearrange yet — add a couple of elements first.',
+      return { label: 'a different layout', miss: 'Nothing to rearrange yet — add a couple of pieces first.',
         build: function (sec) {
           return rearrangeVariants(sec).map(function (v) {
             return { name: v.name, apply: function (s) { applyPositions(s, v.pos); } };
@@ -7414,7 +7414,7 @@
         } };
     }
     if (has(/centre|center/)) {
-      return { label: 'everything centred', miss: 'Nothing to centre yet — add a couple of elements first.',
+      return { label: 'everything centred', miss: 'Nothing to centre yet — add a couple of pieces first.',
         build: function (sec) {
           var v = rearrangeVariants(sec).filter(function (x) { return x.slug === 'centred'; })[0];
           if (!v) return [];
@@ -9253,7 +9253,7 @@
         renderSection(sec);
         placeHandles(sec, sec.els.length - 1);
         pushState();
-        toast('Out of the card \u2014 it\u2019s a free element again.',
+        toast('Out of the card \u2014 it\u2019s its own piece again.',
           { actions: [{ label: 'Undo', onClick: function () { undo(); } }] });
         return;
       }
