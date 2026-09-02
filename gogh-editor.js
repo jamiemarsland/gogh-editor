@@ -1707,7 +1707,7 @@
     arPostTab.type = 'button';
     arPostTab.className = 'gogh-side-tab gogh-ar-tab';
     arPostTab.title = 'SEO & AI answers — how machines read this post';
-    arPostTab.innerHTML = '<span class="gogh-side-tab-dot gogh-ar-dot"></span><span>SEO</span>';
+    arPostTab.innerHTML = '<span>SEO</span>';
     document.body.appendChild(arPostTab);
     arPostTab.addEventListener('click', function () { openAnswerReadyPanel(); });
     var lookPop = document.createElement('div');
@@ -2107,7 +2107,7 @@
   arTab.type = 'button';
   arTab.className = 'gogh-side-tab gogh-ar-tab';
   arTab.title = 'SEO & AI answers — how machines read this page';
-  arTab.innerHTML = '<span class="gogh-side-tab-dot gogh-ar-dot"></span><span>SEO</span>';
+  arTab.innerHTML = '<span>SEO</span>'; // no dot: a dot beside Design's decorative one read as fake status
   arTab.hidden = true;
   document.body.appendChild(arTab);
   arTab.addEventListener('click', function () { openAnswerReadyPanel(); });

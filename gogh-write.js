@@ -1506,14 +1506,25 @@
   // amber = published but no description, green = the machine layer is
   // complete. The tooltip says why.
   function updateSEODot() {
+    // status speaks in TICKS, identity speaks in dots: the green state is
+    // a ✓ so it can never be mistaken for the Design tab's decorative dot
+    // ("the design has an orange dot that's not a feedback mechanism")
     var dot = railSEO.querySelector('.gogh-w-tab-dot');
     var published = cfg.status === 'publish' || !!publishedLink;
     var hasDesc = !!String(cfg.excerpt || '').trim();
-    var state = !published ? ['#b9bcc4', 'Not published yet — the machine layer appears on first publish']
-      : (!hasDesc ? ['#f2a413', 'Published — add a description on the search preview to complete the machine layer']
-        : ['#2e9e6b', 'Complete — schema, description and structure all in place']);
-    dot.style.background = state[0];
-    railSEO.title = 'SEO & AI answers — ' + state[1];
+    if (published && hasDesc) {
+      dot.classList.add('is-tick');
+      dot.style.background = 'transparent';
+      dot.textContent = '\u2713';
+      railSEO.title = 'SEO & AI answers — complete: schema, description and structure all in place';
+      return;
+    }
+    dot.classList.remove('is-tick');
+    dot.textContent = '';
+    dot.style.background = published ? '#f2a413' : '#b9bcc4';
+    railSEO.title = 'SEO & AI answers — ' + (published
+      ? 'add a description on the search preview to complete the machine layer'
+      : 'the machine layer appears on first publish');
   }
   updateSEODot();
   // a quiet word in the chip's saved slot — shared by Post style, publish,

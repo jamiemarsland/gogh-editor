@@ -926,3 +926,14 @@ body.gogh-writing .gogh-w-body p:last-of-type::after {
   border-radius: 50%;
   background: #b9bcc4;
 }
+
+/* the SEO tab's tick state: status in receipt language */
+.gogh-w-tab-dot.is-tick {
+  width: auto;
+  height: auto;
+  border-radius: 0;
+  color: #2e9e6b;
+  font-size: 13px;
+  font-weight: 800;
+  line-height: 1;
+}
