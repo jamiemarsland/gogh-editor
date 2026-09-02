@@ -14053,7 +14053,10 @@
       // every option is dressed in the saved identity BEFORE anything
       // previews — auditions and the final save then agree by construction
       options = options.map(function (o) {
-        return Object.assign({}, o, { content: chromeLayoutContent('header', o, usingLogo) });
+        // __prev is the PRE-SCREENING's cached render of the UNDRESSED
+        // pattern — carrying it over served auditions with the pattern's
+        // own identity while the dressed content sat unused
+        return Object.assign({}, o, { content: chromeLayoutContent('header', o, usingLogo), __prev: null });
       });
       if (activeOpt) activeOpt = options.filter(function (o) { return o.id === activeOpt.id; })[0] || activeOpt;
     }
