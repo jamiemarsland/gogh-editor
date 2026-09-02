@@ -1695,11 +1695,21 @@
       READ_LOOKS.forEach(function (l) { if (l.key) document.body.classList.remove('gogh-read-' + l.key); });
       if (k) document.body.classList.add('gogh-read-' + k);
     };
-    var lookBtn = document.createElement('button');
-    lookBtn.type = 'button';
-    lookBtn.className = 'gogh-btn gogh-btn-look';
-    lookBtn.textContent = '🎨 Post style';
-    editBtnWrap.insertBefore(lookBtn, editBtn);
+    // the floating 🎨 pill retired: posts wear the same left-edge rail as
+    // pages ("move post formats to a design tab (like we do in pages)")
+    var lookTab = document.createElement('button');
+    lookTab.type = 'button';
+    lookTab.className = 'gogh-side-tab gogh-look-tab';
+    lookTab.title = 'Design — choose this post\u2019s reading look';
+    lookTab.innerHTML = '<span class="gogh-side-tab-dot"></span><span>Design</span>';
+    document.body.appendChild(lookTab);
+    var arPostTab = document.createElement('button');
+    arPostTab.type = 'button';
+    arPostTab.className = 'gogh-side-tab gogh-ar-tab';
+    arPostTab.title = 'Answer-ready — how machines read this post';
+    arPostTab.innerHTML = '<span class="gogh-side-tab-dot gogh-ar-dot"></span><span>✦ Answer-ready</span>';
+    document.body.appendChild(arPostTab);
+    arPostTab.addEventListener('click', function () { openAnswerReadyPanel(); });
     var lookPop = document.createElement('div');
     lookPop.className = 'gogh-lookpop';
     lookPop.hidden = true;
@@ -1730,12 +1740,18 @@
     });
     lookPop.addEventListener('mouseleave', function () { lookWear(lookCur); });
     document.body.appendChild(lookPop);
-    lookBtn.addEventListener('click', function (ev) {
+    // the drawer opens beside its tab, not in the corner
+    lookPop.style.left = '52px';
+    lookPop.style.right = 'auto';
+    lookPop.style.top = '50%';
+    lookPop.style.bottom = 'auto';
+    lookPop.style.transform = 'translateY(-50%)';
+    lookTab.addEventListener('click', function (ev) {
       ev.stopPropagation();
       lookPop.hidden = !lookPop.hidden;
     });
     document.addEventListener('click', function (ev) {
-      if (!lookPop.hidden && !ev.target.closest('.gogh-lookpop, .gogh-btn-look')) {
+      if (!lookPop.hidden && !ev.target.closest('.gogh-lookpop, .gogh-look-tab')) {
         lookPop.hidden = true;
         lookWear(lookCur);
       }
@@ -2085,6 +2101,16 @@
   sideTab.innerHTML = '<span class="gogh-side-tab-dot"></span><span>Design</span>';
   sideTab.hidden = true;
   document.body.appendChild(sideTab);
+  // Answer-ready earns its own door: it's a RECEIPT, not a choice-set —
+  // the second (and last) tab on the rail ("feels important")
+  var arTab = document.createElement('button');
+  arTab.type = 'button';
+  arTab.className = 'gogh-side-tab gogh-ar-tab';
+  arTab.title = 'Answer-ready — how machines read this page';
+  arTab.innerHTML = '<span class="gogh-side-tab-dot gogh-ar-dot"></span><span>✦ Answer-ready</span>';
+  arTab.hidden = true;
+  document.body.appendChild(arTab);
+  arTab.addEventListener('click', function () { openAnswerReadyPanel(); });
   var sideTimer = null;
   function openSide() {
     clearTimeout(sideTimer);
@@ -2093,6 +2119,7 @@
     side.classList.add('is-open');
     side.classList.remove('gogh-side-away');
     sideTab.classList.add('is-away');
+    arTab.classList.add('is-away');
     zoomOutCanvas(); // the design surface pairs with a zoomed-out page
     document.documentElement.classList.add('gogh-designmode'); // sections drag to reorder
   }
@@ -2102,6 +2129,7 @@
       side.classList.remove('is-open');
       side.classList.remove('gogh-side-away');
       sideTab.classList.remove('is-away');
+      arTab.classList.remove('is-away');
       document.documentElement.classList.remove('gogh-designmode');
       if (!panelOpen) unzoomCanvas(); // a section may still hold the zoom
     };
@@ -2894,6 +2922,7 @@
     }
     side.hidden = !on;
     sideTab.hidden = !on;
+    arTab.hidden = !on;
     if (!on) {
       closeSide(true);
     }

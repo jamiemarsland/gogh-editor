@@ -4516,6 +4516,19 @@
       return items.join(', ');
     });
 
+    test('the rail has two tabs: Design and ✦ Answer-ready', function () {
+      var d = q('.gogh-side-tab:not(.gogh-ar-tab)');
+      var ar = q('.gogh-ar-tab');
+      expect(d && !d.hidden, 'the Design tab is missing');
+      expect(ar && !ar.hidden, 'the Answer-ready tab is missing');
+      ar.click();
+      var wrap = q('.gogh-arwrap');
+      expect(wrap, 'the Answer-ready tab opened nothing');
+      expect(/What machines see/.test(wrap.textContent), 'the receipts dialog is not the receipts');
+      wrap.remove();
+      return 'two tabs on the rail; ✦ opens the receipts';
+    });
+
     test('background panel: first paint is Theme + Image, one row open at a time', function () {
       var i = G.sections().indexOf(sec());
       G.openSecBgPanel(i);

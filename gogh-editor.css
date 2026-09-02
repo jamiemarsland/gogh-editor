@@ -3339,3 +3339,7 @@ html.gogh-textediting .gogh-convertbtn {
 .gogh-bgrow.is-open .gogh-bgrow-caret { transform: rotate(180deg); }
 .gogh-bgrow-body { padding: 2px 0 8px; }
 .gogh-bgrow-body[hidden] { display: none; }
+
+/* the rail's second (and last) tab: Answer-ready — a receipt door */
+.gogh-ar-tab { top: calc(50% + 136px); }
+.gogh-side-tab-dot.gogh-ar-dot { background: #f2a413; }
