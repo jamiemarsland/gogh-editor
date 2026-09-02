@@ -825,3 +825,36 @@ body.gogh-w-audition main { zoom: 0.52; }
 }
 .gogh-w-splash-upload:hover { background: #f2f0ec; }
 .gogh-w-splash-upload:disabled { opacity: 0.6; cursor: default; }
+
+/* the rail, write-room edition: Design + SEO, same grammar as everywhere */
+.gogh-w-tab {
+  all: unset;
+  position: fixed;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 99998;
+  cursor: pointer;
+  writing-mode: vertical-rl;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 13px 7px;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, sans-serif;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  color: #141519;
+  background: #fff;
+  border-radius: 0 12px 12px 0;
+  box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.35);
+}
+.gogh-w-tab:hover { color: #4a63d8; }
+.gogh-w-tab-seo { top: calc(50% + 96px); }
+.gogh-w-tab-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #e5a83c;
+}
+.gogh-w-tab-dot-gold { background: #f2a413; }

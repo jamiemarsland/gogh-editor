@@ -1480,14 +1480,28 @@
   chip.className = 'gogh-w-chip';
   chip.innerHTML = '<span class="gogh-w-count"></span><span class="gogh-w-saved"></span>' +
     '<button type="button" class="gogh-w-draft">Save draft</button>' +
-    '<button type="button" class="gogh-w-stylebtn">Post style</button>' +
     '<button type="button" class="gogh-w-catsbtn">Categories & tags</button>' +
     '<button type="button" class="gogh-w-publish">Publish</button>' +
-    '<button type="button" class="gogh-w-arbtn" title="Answer-ready — see what machines see">✦</button>' +
     // the door leads to the POST, not the home page — the writing loop is
     // write → see it as readers do ("should it say view post?")
     '<a class="gogh-w-back" href="' + (cfg.permalink || cfg.homeUrl || '/') + '">View post</a>';
   document.body.appendChild(chip);
+  // the rail reaches the write room: Post style lives in a Design tab and
+  // the receipts behind SEO — one grammar, every room ("have you moved
+  // the post layouts to a tab - i still see this?")
+  var railDesign = document.createElement('button');
+  railDesign.type = 'button';
+  railDesign.className = 'gogh-w-tab';
+  railDesign.title = 'Design — choose this post\u2019s reading look';
+  railDesign.innerHTML = '<span class="gogh-w-tab-dot"></span><span>Design</span>';
+  document.body.appendChild(railDesign);
+  var railSEO = document.createElement('button');
+  railSEO.type = 'button';
+  railSEO.className = 'gogh-w-tab gogh-w-tab-seo';
+  railSEO.title = 'SEO & AI answers — how machines read this post';
+  railSEO.innerHTML = '<span class="gogh-w-tab-dot gogh-w-tab-dot-gold"></span><span>SEO</span>';
+  document.body.appendChild(railSEO);
+  railSEO.addEventListener('click', function () { openARPanel(); });
   // a quiet word in the chip's saved slot — shared by Post style, publish,
   // and the Answer-ready receipt (it lived inside the Post-style closure
   // once, and the publish receipt calling it from outside threw)
@@ -1616,7 +1630,6 @@
         wrap.querySelector('.gogh-ar-rows').innerHTML = '<div class="gogh-ar-row">Could not read the published post — try again in a moment.</div>';
       });
   }
-  chip.querySelector('.gogh-w-arbtn').addEventListener('click', openARPanel);
   // ---------- Post style: how this post READS ----------
   // The third of the family (Site style / Page style / Post style). Hover a
   // look to audition — the room IS the post, so flipping the body class is
@@ -1657,9 +1670,11 @@
     var audScroll = 0;
     var popOpen = function () {
       mark();
-      var r = chip.getBoundingClientRect();
-      pop.style.right = Math.max(12, window.innerWidth - r.right) + 'px';
-      pop.style.bottom = (window.innerHeight - r.top + 10) + 'px';
+      pop.style.left = '52px';
+      pop.style.right = 'auto';
+      pop.style.top = '50%';
+      pop.style.bottom = 'auto';
+      pop.style.transform = 'translateY(-50%)';
       pop.hidden = false;
       audScroll = window.scrollY;
       document.body.classList.add('gogh-w-audition');
@@ -1671,13 +1686,12 @@
       document.body.classList.remove('gogh-w-audition');
       window.scrollTo({ top: audScroll, behavior: 'smooth' });
     };
-    var sbtn = chip.querySelector('.gogh-w-stylebtn');
-    sbtn.addEventListener('click', function (ev) {
+    railDesign.addEventListener('click', function (ev) {
       ev.stopPropagation();
       if (pop.hidden) popOpen(); else popClose();
     });
     document.addEventListener('click', function (ev) {
-      if (!pop.hidden && !ev.target.closest('.gogh-w-stylepop, .gogh-w-stylebtn')) popClose();
+      if (!pop.hidden && !ev.target.closest('.gogh-w-stylepop, .gogh-w-tab')) popClose();
     });
     [].forEach.call(pop.querySelectorAll('button'), function (b) {
       var key = b.getAttribute('data-look');
