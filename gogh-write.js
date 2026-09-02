@@ -335,11 +335,13 @@
   };
   // the image door opens on the LIBRARY first ("we need to let folks choose
   // images from their media library"), with Upload one tap away
-  var openImageLibrary = function (blk) {
+  // opts: { title, onPick(mediaItem) } turns the library into a PICKER —
+  // the cover photo chooser rides this; without opts it inserts as ever
+  var openImageLibrary = function (blk, opts) {
     var ov = document.createElement('div');
     ov.className = 'gogh-w-imgpick';
     ov.innerHTML = '<div class="gogh-w-imgpick-sheet">' +
-      '<div class="gogh-w-imgpick-head"><b>Add an image</b>' +
+      '<div class="gogh-w-imgpick-head"><b>' + ((opts && opts.title) || 'Add an image') + '</b>' +
       '<span class="gogh-w-imgpick-sp"></span>' +
       '<button type="button" class="gogh-w-imgpick-up">Upload</button>' +
       '<button type="button" class="gogh-w-imgpick-x" title="Close">✕</button></div>' +
@@ -351,6 +353,17 @@
     ov.querySelector('.gogh-w-imgpick-up').addEventListener('click', function () {
       close();
       filePick.onchange = function () {
+        if (opts && opts.onPick) {
+          var f0 = filePick.files[0];
+          filePick.value = '';
+          if (!f0) return;
+          var fd0 = new FormData();
+          fd0.append('file', f0);
+          fetch(cfg.restUrl + 'wp/v2/media', { method: 'POST', headers: { 'X-WP-Nonce': cfg.nonce }, credentials: 'same-origin', body: fd0 })
+            .then(function (r) { return r.ok ? r.json() : null; })
+            .then(function (m) { if (m) opts.onPick(m); });
+          return;
+        }
         [].forEach.call(filePick.files, function (f) { insertImageAt(f, blk); });
         filePick.value = '';
         queueSave();
@@ -376,6 +389,7 @@
         b.style.backgroundImage = 'url("' + (thumb ? thumb.source_url : item.source_url) + '")';
         if (item.alt_text) b.title = item.alt_text;
         b.addEventListener('click', function () {
+          if (opts && opts.onPick) { opts.onPick(item); close(); return; }
           insertMediaItemAt(item, blk);
           close();
           queueSave();
@@ -2048,6 +2062,46 @@
   mast.title = 'Back to your site';
   document.body.appendChild(mast);
   mast.addEventListener('click', leaveGuard);
+  // ---------- the cover chooses its photo ----------
+  // ("we need to be able to set a background image for the cover post
+  // type") — when the post wears Cover, a quiet glass chip sits on the
+  // cover itself; picking saves the FEATURED image (the cover's source)
+  // and repaints the sky without a reload.
+  var coverChip = document.createElement('button');
+  coverChip.type = 'button';
+  coverChip.className = 'gogh-w-coverchip';
+  coverChip.innerHTML = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="8.5" cy="10" r="1.6"/><path d="M21 16l-5-5-9 8"/></svg><span>Cover photo</span>';
+  coverChip.hidden = true;
+  document.body.appendChild(coverChip);
+  var placeCoverChip = function () {
+    var on = document.body.classList.contains('gogh-read-cover');
+    coverChip.hidden = !on;
+    if (!on) return;
+    var r = title.getBoundingClientRect();
+    coverChip.style.left = Math.max(18, r.left + 18) + 'px';
+    coverChip.style.top = Math.max(70, r.bottom - 52) + 'px';
+  };
+  new MutationObserver(placeCoverChip).observe(document.body, { attributes: true, attributeFilter: ['class'] });
+  window.addEventListener('scroll', placeCoverChip, { passive: true });
+  window.addEventListener('resize', placeCoverChip);
+  placeCoverChip();
+  coverChip.addEventListener('click', function () {
+    openImageLibrary(null, {
+      title: 'Choose the cover photo',
+      onPick: function (item) {
+        fetch(cfg.restUrl + 'wp/v2/posts/' + cfg.postId, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'X-WP-Nonce': cfg.nonce },
+          credentials: 'same-origin',
+          body: JSON.stringify({ featured_media: item.id }),
+        }).then(function (r) {
+          if (!r.ok) throw new Error('HTTP ' + r.status);
+          document.body.style.setProperty('--gogh-cover-img', 'url("' + item.source_url + '")');
+          note('cover photo set ✓');
+        }).catch(function () { note('cover photo not saved'); });
+      },
+    });
+  });
   var draftBtn = chip.querySelector('.gogh-w-draft'); // absent on published posts
   if (draftBtn) draftBtn.addEventListener('click', function () {
     draftBtn.textContent = 'Saving\u2026';
