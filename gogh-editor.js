@@ -10804,12 +10804,26 @@
       var dy = (ev.clientY - resize.py) / s;
       var nx = resize.x, ny = resize.y, nw = resize.w, nh = resize.h;
       var gx = null, gy = null;
+      // corner-scaling TYPE is continuous: no magnets, no grid, no 8-step.
+      // The refit follows the box every frame, so a width that rubber-bands
+      // through capture zones makes the SIZE stutter ("some weirdness when
+      // i try to increase or decrease the size by dragging"). Edge drags
+      // keep their snapping — widening a text box is layout, not scaling.
+      var textScale = isText(e) && dir.dx !== 0 && dir.dy !== 0;
       if (dir.dx === 1) {
-        var sr = snapAxis(resize.candX, resize.x + resize.w + dx);
-        nw = sr.v - resize.x; gx = sr.g;
+        if (textScale) {
+          nw = resize.w + dx;
+        } else {
+          var sr = snapAxis(resize.candX, resize.x + resize.w + dx);
+          nw = sr.v - resize.x; gx = sr.g;
+        }
       } else if (dir.dx === -1) {
-        var sl = snapAxis(resize.candX, resize.x + dx);
-        nx = sl.v; nw = resize.x + resize.w - sl.v; gx = sl.g;
+        if (textScale) {
+          nx = resize.x + dx; nw = resize.w - dx;
+        } else {
+          var sl = snapAxis(resize.candX, resize.x + dx);
+          nx = sl.v; nw = resize.x + resize.w - sl.v; gx = sl.g;
+        }
       }
       if (fixedHeight(e)) {
         if (dir.dy === 1) {

@@ -4377,6 +4377,31 @@
       });
     });
 
+    test('type scales continuously: corner-drag never rubber-bands', function () {
+      // snapping is for layout; SCALING type through magnet/grid capture
+      // zones made the size stutter ("weirdness when i try to increase or
+      // decrease the size by dragging the box")
+      var i = findIdx('heading');
+      select(i);
+      var h = q('.gogh-h[data-d="se"]');
+      expect(h, 'no corner handle after selection');
+      var e = sec().els[i];
+      var hr = h.getBoundingClientRect();
+      var widths = [];
+      pev('pointerdown', h, hr.x + 5, hr.y + 5, 41);
+      for (var k = 1; k <= 20; k++) {
+        pev('pointermove', h, hr.x + 5 + k * 4, hr.y + 5 + k * 2, 41);
+        widths.push(e.w);
+      }
+      pev('pointerup', h, hr.x + 85, hr.y + 45, 41);
+      var seen = {};
+      widths.forEach(function (w) { seen[w] = 1; });
+      var n = Object.keys(seen).length;
+      expect(n >= 18, 'scaling rubber-banded: ' + n + '/20 distinct widths (' + widths.join(',') + ')');
+      expect(e.fitW, 'corner-drag did not engage fill-the-width');
+      return n + '/20 distinct widths — continuous scaling';
+    });
+
     test('Aa presets win the text back from fill-the-width', function () {
       // corner-drag stores a fitted cqw size with !important — a preset
       // click must EXIT that mode or it silently does nothing ("these
