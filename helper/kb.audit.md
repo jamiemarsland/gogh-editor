@@ -1,4 +1,4 @@
-# Knowledge-base audit — plugin v0.99.331
+# Knowledge-base audit — plugin v0.99.332
 
 _13 finding(s) suppressed by `kb.audit-ignore.txt`._
 
@@ -75,7 +75,4 @@ Quoted copy not found verbatim in the source. Paraphrases are fine; changed UI c
 
 Use this as the checklist for updating the prose — and as a sanity check on the release itself.
 
-- version: 0.99.330 → 0.99.331
-- added REST route: "gogh/v1/first-minute"
-- added UI label: "I’ll find my own way"
-- added toast: "That’s gogh. Everything else is just more of this."
+- version: 0.99.331 → 0.99.332
