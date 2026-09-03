@@ -4,11 +4,11 @@ Everything in this section is extracted mechanically from the Gogh source on eve
 
 ## Current release
 
-- Plugin version: **0.99.360**
+- Plugin version: **0.99.361**
 - Requires WordPress **6.5+**, PHP **7.4+**
 - Text domain: `gogh-editor`
 - readme.txt Stable tag: `0.26.0` · Tested up to: `7.0`
-- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.360`). Quote the plugin header version.
+- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.361`). Quote the plugin header version.
 
 ## Design constants
 
@@ -103,6 +103,7 @@ Block: `gogh/section` · v3 attributes: `css`, `model`, `scope`, `v`, `cssT`.
 | `admin_post_gogh_messages_csv` | action | 10 |
 | `admin_post_gogh_form_message` | action | 10 |
 | `admin_post_nopriv_gogh_form_message` | action | 10 |
+| `wp_enqueue_scripts` | action | 10 |
 | `wp_enqueue_scripts` | action | 10 |
 | `init` | action | 10 |
 | `body_class` | filter | 10 |
