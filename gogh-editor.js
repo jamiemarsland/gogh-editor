@@ -13162,7 +13162,13 @@
   var chip = document.createElement('div');
   chip.className = 'gogh-chip';
   chip.hidden = true;
-  chip.innerHTML = '<span class="gogh-chip-dot"></span><span class="gogh-chip-txt"></span>' +
+  // the nameplate: the page's name lives beside its status (James: "an
+  // elegant way to surface the page title to reassure folks") — and an
+  // unnamed page wears a soft invitation instead. Click to name or
+  // rename at ANY moment; the name saves immediately, so even an
+  // abandoned draft is findable by name in the Pages list.
+  chip.innerHTML = '<button type="button" class="gogh-chip-name" hidden></button>' +
+    '<span class="gogh-chip-dot"></span><span class="gogh-chip-txt"></span>' +
     '<button type="button" class="gogh-btn-save gogh-chip-btn">Publish</button>' +
     // the answer-ready mark, standing where the eye already rests — the
     // toast and the drawer badge teach the ✦; here it only needs to be
@@ -13175,6 +13181,16 @@
   });
   var chipTxt = chip.querySelector('.gogh-chip-txt');
   var chipBtn = chip.querySelector('.gogh-chip-btn');
+  var chipName = chip.querySelector('.gogh-chip-name');
+  chipName.addEventListener('click', function () { openPageNamePanel('rename'); });
+  function refreshChipName() {
+    if (cfg.postType !== 'page') { chipName.hidden = true; return; }
+    var t = String(cfg.postTitle || '').trim();
+    chipName.textContent = t || 'Untitled page — name it';
+    chipName.classList.toggle('is-unnamed', !t);
+    chipName.title = t ? 'Rename this page' : 'Give this page its name';
+    chipName.hidden = false;
+  }
   var chipBusy = false;
   var chipTimer = null;
   function setChip(state, txt, btnLabel) {
@@ -13188,6 +13204,7 @@
     clearTimeout(chipTimer);
     if (isDirty()) setChip('dirty', backedUp ? 'Unpublished changes \u00b7 backed up' : 'Unpublished changes', 'Publish');
     else setChip('clean', 'All changes published');
+    refreshChipName();
   }
 
   var toastBox = document.createElement('div');
@@ -13470,27 +13487,47 @@
     });
     return best.slice(0, 60);
   }
-  function openPageNamePanel() {
+  function openPageNamePanel(mode) {
+    var renaming = 'rename' === mode;
     placePanelNear(chip);
     panel.innerHTML =
       '<div class="gogh-panel-title">Name this page</div>' +
       '<div class="gogh-panel-hint">Its name in menus \u2014 and its web address.</div>' +
       '<div class="gogh-panel-row">' +
       '<input type="text" class="gogh-input gogh-pagename" placeholder="Home, About, Say hello\u2026" />' +
-      '<button type="button" class="gogh-btn gogh-btn-small gogh-pagego">Publish page</button>' +
+      '<button type="button" class="gogh-btn gogh-btn-small gogh-pagego">' +
+      (renaming ? 'Save name' : 'Publish page') + '</button>' +
       '</div>';
     panel.hidden = false;
     panelOpen = true;
     var input = panel.querySelector('.gogh-pagename');
-    input.value = firstHeadlineText();
+    input.value = String(cfg.postTitle || '').trim() || firstHeadlineText();
     input.focus();
     input.select();
     var go = function () {
       var name = input.value.trim();
       if (!name) { input.focus(); return; }
       pageNamed = true;
-      pendingPageTitle = name;
       closePanel();
+      if (renaming) {
+        // the name saves NOW, on its own — a draft named early is
+        // findable even if they wander off before publishing
+        fetch(cfg.restUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'X-WP-Nonce': cfg.nonce },
+          credentials: 'same-origin',
+          body: JSON.stringify({ title: name }),
+        }).then(function (r) {
+          if (!r.ok) throw new Error('HTTP ' + r.status);
+          cfg.postTitle = name;
+          refreshChipName();
+          toast('This page is \u201c' + name + '\u201d now.', { ttl: 3200 });
+        }).catch(function () {
+          toast('The name didn\u2019t save \u2014 try again.', { error: true });
+        });
+        return;
+      }
+      pendingPageTitle = name;
       publish();
     };
     panel.querySelector('.gogh-pagego').addEventListener('click', go);

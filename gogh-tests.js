@@ -5071,6 +5071,36 @@
       return 'the draft cannot go out into the world nameless';
     });
 
+    test('the nameplate: the page wears its name beside its status', function () {
+      var C = window.GOGH || {};
+      var was = { t: C.postTitle, ty: C.postType };
+      try {
+        var plate = q('.gogh-chip-name');
+        expect(plate, 'the chip has no nameplate');
+        expect(!plate.hidden && plate.textContent.length > 0, 'the fixture page is not wearing its name');
+        // an unnamed page wears the invitation, and clicking it opens the
+        // namer in rename clothes — the name can be given at ANY moment
+        C.postTitle = '';
+        C.postType = 'page';
+        G.publish(); // dirty state not needed: refresh via the gate path is separate
+        G.closePanel();
+        var refresh = window.__gogh; // refreshChip runs on pushState
+        G.pushState();
+        plate = q('.gogh-chip-name');
+        expect(/name it/.test(plate.textContent), 'the unnamed page is not invited to a name');
+        expect(plate.classList.contains('is-unnamed'), 'the invitation does not wear its amber');
+        plate.click();
+        var goBtn = q('.gogh-panel .gogh-pagego');
+        expect(goBtn && /Save name/.test(goBtn.textContent), 'the rename door does not say Save name');
+        expect(q('.gogh-panel .gogh-pagename'), 'the rename door has no input');
+      } finally {
+        G.closePanel();
+        C.postTitle = was.t;
+        C.postType = was.ty;
+      }
+      return 'identity beside status, renameable at any moment';
+    });
+
     // ---- report ----
     function finishReport() {
     var passed = results.filter(function (r) { return r.pass; }).length;

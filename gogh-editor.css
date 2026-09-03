@@ -1603,6 +1603,21 @@ body.gogh-painting, body.gogh-painting .gogh-section * { cursor: url('data:image
 .gogh-convertbtn:disabled { opacity: 0.6; cursor: default; }
 
 /* publish status chip */
+/* the nameplate: identity beside status — the page's name lives on the
+   chip, and an unnamed page wears a soft amber invitation instead */
+.gogh-chip-name {
+  all: unset;
+  cursor: pointer;
+  font-weight: 650;
+  max-width: 200px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  padding-right: 10px;
+  border-right: 1px solid var(--gogh-ui-border, #e3e3e6);
+}
+.gogh-chip-name:hover, .gogh-chip-name:focus-visible { text-decoration: underline; text-underline-offset: 3px; }
+.gogh-chip-name.is-unnamed { color: #b47816; font-weight: 600; }
 .gogh-chip {
   position: fixed;
   right: 20px;
