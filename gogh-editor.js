@@ -1572,6 +1572,7 @@
     placeConvertBtns(); // layout below may have shifted
     placeChromeBtns();
     refreshChip();
+    fmCheck(); // the first minute listens to every state change
   }
   function partElForArea(area) {
     var els = chromePartEls();
@@ -6735,6 +6736,147 @@
     return { face: next, of: faces.length, take: t2.take || null };
   }
 
+  // ---------- the first minute ----------
+  // Not a tour: the person's first three edits, gently staged on their
+  // real first section (design note: The First Minute). Type the
+  // headline, drag the photo, roll the die — one visible edit inside
+  // sixty seconds, then the moment retires forever. Chips, never modals;
+  // doing a thing organically completes its beat, in any order; one
+  // click skips everything and it never returns.
+  var fm = { armed: false, active: false, sec: null, snap: null, done: {}, t0: 0, chipBeat: 0 };
+  var fmChip = null;
+  function fmHeadsText(sec) {
+    return diceFlatten(sec.els).filter(function (e) { return e.type === 'heading'; })
+      .map(function (e) { return e.text || ''; }).join('|');
+  }
+  function fmTargets(sec) {
+    var els = sec.els || [];
+    var headIdx = -1;
+    for (var i = 0; i < els.length; i++) {
+      if (els[i].type === 'heading' ||
+        (els[i].type === 'box' && (els[i].kids || []).some(function (k) { return k.type === 'heading'; }))) {
+        headIdx = i;
+        break;
+      }
+    }
+    var moveIdx = -1, moveWord = '';
+    ['image', 'button', 'badge'].some(function (t) {
+      for (var j = 0; j < els.length; j++) {
+        if (els[j].type === t) { moveIdx = j; moveWord = t === 'image' ? 'photo' : t; return true; }
+      }
+      return false;
+    });
+    return { headIdx: headIdx, moveIdx: moveIdx, moveWord: moveWord,
+      hasDie: !!(sec.m && sec.m.tpl && diceFaces(sec.m.tpl)) };
+  }
+  function fmSectionLanded(sec) {
+    if (!fm.armed || fm.active || !sec || sec.chrome) return;
+    var t = fmTargets(sec);
+    if (t.headIdx === -1 && t.moveIdx === -1 && !t.hasDie) return; // scratch: stay armed for the next landing
+    fm.active = true;
+    fm.sec = sec;
+    fm.t0 = Date.now();
+    fm.snap = {
+      head: fmHeadsText(sec),
+      headIdx: t.headIdx,
+      moveIdx: t.moveIdx,
+      moveWord: t.moveWord,
+      moveX: t.moveIdx !== -1 ? sec.els[t.moveIdx].x : 0,
+      moveY: t.moveIdx !== -1 ? sec.els[t.moveIdx].y : 0,
+      face0: (sec.m && sec.m.face) || 0,
+    };
+    fm.done = { 1: t.headIdx === -1, 2: t.moveIdx === -1, 3: !t.hasDie };
+    fmShow();
+  }
+  function fmNode(idx) {
+    return (fm.sec && fm.sec.nodes && fm.sec.nodes[idx]) || null;
+  }
+  function fmShow() {
+    var beat = !fm.done[1] ? 1 : !fm.done[2] ? 2 : !fm.done[3] ? 3 : 0;
+    if (!beat) { fmFinish('done'); return; }
+    if (!fmChip) {
+      fmChip = document.createElement('div');
+      fmChip.className = 'gogh-fm-chip';
+      fmChip.innerHTML = '<span class="gogh-fm-say"></span>' +
+        '<button type="button" class="gogh-fm-skip">I’ll find my own way</button>';
+      document.body.appendChild(fmChip);
+      fmChip.querySelector('.gogh-fm-skip').addEventListener('click', function () { fmFinish('skipped'); });
+      window.addEventListener('scroll', fmPlace, { passive: true });
+      window.addEventListener('resize', fmPlace);
+    }
+    fmChip.querySelector('.gogh-fm-say').textContent =
+      beat === 1 ? 'Type your headline — make it yours'
+        : beat === 2 ? 'Drag the ' + (fm.snap.moveWord || 'photo') + ' anywhere — nothing breaks'
+          : 'Roll the die — four rolls always lead home';
+    // the invited piece wears the pulse — one at a time, never two
+    [].forEach.call(document.querySelectorAll('.gogh-fm-mark'), function (n) { n.classList.remove('gogh-fm-mark'); });
+    fm.chipBeat = beat;
+    var mark = beat === 1 ? fmNode(fm.snap.headIdx) : beat === 2 ? fmNode(fm.snap.moveIdx) : null;
+    if (mark) mark.classList.add('gogh-fm-mark');
+    fmPlace();
+  }
+  function fmPlace() {
+    if (!fm.active || !fmChip) return;
+    var anchor = null;
+    if (fm.chipBeat === 3) {
+      var die = (typeof secBar !== 'undefined' && secBar && !secBar.hidden) ? secBar.querySelector('.gogh-sb-dice') : null;
+      anchor = (die && !die.hidden) ? die : (fm.sec && fm.sec.wrapEl);
+    } else {
+      anchor = fmNode(fm.chipBeat === 1 ? fm.snap.headIdx : fm.snap.moveIdx) || (fm.sec && fm.sec.wrapEl);
+    }
+    if (!anchor || !anchor.getBoundingClientRect) return;
+    var r = anchor.getBoundingClientRect();
+    fmChip.style.left = Math.max(10, r.left + window.scrollX) + 'px';
+    fmChip.style.top = Math.max(10, r.top + window.scrollY - 48) + 'px';
+    fmChip.hidden = false;
+  }
+  function fmCheck() {
+    if (!fm.active || !fm.sec) return;
+    if (!fm.sec.wrapEl || !fm.sec.wrapEl.isConnected) { fmTeardown(); return; } // their canvas, their rules
+    if (!fm.done[1] && fmHeadsText(fm.sec) !== fm.snap.head) fm.done[1] = true;
+    if (!fm.done[2]) {
+      var e = fm.sec.els[fm.snap.moveIdx];
+      // moved counts; deleting it counts too — that is also fluency
+      if (!e || e.x !== fm.snap.moveX || e.y !== fm.snap.moveY) fm.done[2] = true;
+    }
+    if (!fm.done[3] && ((fm.sec.m && fm.sec.m.face) || 0) !== fm.snap.face0) fm.done[3] = true;
+    fmShow();
+  }
+  function fmTeardown() {
+    fm.active = false;
+    fm.armed = false;
+    cfg.firstMinute = false;
+    [].forEach.call(document.querySelectorAll('.gogh-fm-mark'), function (n) { n.classList.remove('gogh-fm-mark'); });
+    if (fmChip) {
+      fmChip.remove();
+      fmChip = null;
+      window.removeEventListener('scroll', fmPlace);
+      window.removeEventListener('resize', fmPlace);
+    }
+  }
+  function fmFinish(outcome) {
+    var secs = Math.round((Date.now() - fm.t0) / 1000);
+    fmTeardown();
+    if (outcome === 'done') toast('That’s gogh. Everything else is just more of this.', { ttl: 5200 });
+    // the suite rehearses the minute — a rehearsal never retires the show
+    if (/[?&]gogh-test=1/.test(location.search)) return;
+    try {
+      fetch(cfg.restUrl.split('wp/v2/')[0] + 'gogh/v1/first-minute', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-WP-Nonce': cfg.nonce },
+        credentials: 'same-origin',
+        body: JSON.stringify({ outcome: outcome, secs: secs }),
+      }).catch(function () {});
+    } catch (err) {}
+  }
+  // typing must complete beat one AS IT HAPPENS, not at blur — the model
+  // syncs on input, so the check can ride the same event
+  document.addEventListener('input', function () { if (fm.active) fmCheck(); }, true);
+  // the minute arms only on a truly blank page: the person's first ever
+  // section is the stage (since gogh became the front door, that is
+  // Add Page on day one)
+  fm.armed = !!(cfg.firstMinute && !realSections().length);
+
   var picker = document.createElement('div');
   picker.className = 'gogh-picker';
   picker.hidden = true;
@@ -7354,6 +7496,7 @@
     // a template designed on a friendly palette can land on a hostile one
     // (white display type on lemon) — the sentinel checks every insert
     contrastSentinel(sec);
+    fmSectionLanded(sec);
   }
 
   // ---------- "/" quick add: type to filter, Enter to insert ----------
@@ -7851,6 +7994,7 @@
     // a template designed on a friendly palette can land on a hostile one
     // (white display type on lemon) — the sentinel checks every insert
     contrastSentinel(sec);
+    fmSectionLanded(sec);
   }
   // ---------- rearrange: the solver proposes, the hover auditions ----------
   // Alternate arrangements computed from the elements already present.
@@ -12654,6 +12798,9 @@
     duplicateSection: duplicateSection,
     rollSection: rollSection,
     diceFaces: diceFaces,
+    fm: function () { return fm; },
+    fmLand: fmSectionLanded,
+    fmReset: fmTeardown,
     openSide: openSide,
     closeSide: closeSide,
     fontSizes: fontSizes,

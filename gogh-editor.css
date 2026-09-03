@@ -1414,6 +1414,48 @@ body.gogh-painting, body.gogh-painting .gogh-section * { cursor: url('data:image
 .gogh-sb[hidden] { display: none; }
 .gogh-sb:hover { background: #e8f0ff; }
 .gogh-sb svg { width: 15px; height: 15px; display: block; }
+/* ---- the first minute: chips, never modals ---- */
+.gogh-fm-chip {
+  position: absolute;
+  z-index: 100001;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: #16181c;
+  color: #fff;
+  border-radius: 999px;
+  padding: 8px 15px;
+  font: 500 13px/1.2 -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, sans-serif;
+  box-shadow: 0 12px 30px -10px rgba(0, 0, 0, 0.55);
+  animation: gogh-fm-in 0.35s ease;
+}
+@keyframes gogh-fm-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: none; }
+}
+.gogh-fm-skip {
+  all: unset;
+  cursor: pointer;
+  font-size: 11px;
+  opacity: 0.5;
+  white-space: nowrap;
+}
+.gogh-fm-skip:hover, .gogh-fm-skip:focus-visible { opacity: 0.95; text-decoration: underline; }
+/* the invited piece wears a slow breath — outline only, layout untouched */
+.gogh-fm-mark {
+  outline: 2px solid rgba(255, 176, 46, 0.9);
+  outline-offset: 6px;
+  border-radius: 8px;
+  animation: gogh-fm-pulse 2.2s ease infinite;
+}
+@keyframes gogh-fm-pulse {
+  0%, 100% { outline-offset: 6px; outline-color: rgba(255, 176, 46, 0.9); }
+  50% { outline-offset: 11px; outline-color: rgba(255, 176, 46, 0.45); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .gogh-fm-chip { animation: none; }
+  .gogh-fm-mark { animation: none; }
+}
 /* the die tumbles on a roll — transform only, the bar never shifts */
 .gogh-sb-dice.is-rolling svg { animation: gogh-diceroll 0.5s ease; }
 @keyframes gogh-diceroll {

@@ -4981,6 +4981,72 @@
       });
     });
 
+    test('the first minute: three beats, then the moment retires', function () {
+      var fm = G.fm();
+      fm.armed = true;
+      var hero = G.templates().filter(function (t) { return t.name === 'Hero'; })[0];
+      G.addSection(hero, G.sections().length);
+      var s2 = lastSec();
+      var idx = G.sections().indexOf(s2);
+      expect(fm.active, 'the landing did not start the minute');
+      var chip = q('.gogh-fm-chip');
+      expect(chip && /headline/.test(chip.textContent), 'beat one is not inviting the headline');
+      expect(q('.gogh-fm-mark'), 'no piece wears the pulse');
+      var h = s2.els.filter(function (e) { return e.type === 'heading'; })[0];
+      h.text = 'My own words';
+      G.pushState();
+      chip = q('.gogh-fm-chip');
+      expect(chip && /Drag the photo/.test(chip.textContent), 'beat two did not follow the typing');
+      var img = s2.els.filter(function (e) { return e.type === 'image'; })[0];
+      img.x += 60;
+      G.pushState();
+      chip = q('.gogh-fm-chip');
+      expect(chip && /Roll the die/.test(chip.textContent), 'beat three did not follow the drag');
+      G.rollSection(idx);
+      expect(!fm.active, 'the minute did not retire after the roll');
+      expect(!q('.gogh-fm-chip'), 'the chip outlived the minute');
+      expect(!q('.gogh-fm-mark'), 'the pulse outlived the minute');
+      G.fmReset();
+      return 'type, drag, roll — and the moment is gone forever';
+    });
+    test('the first minute: doing it before being asked counts', function () {
+      var fm = G.fm();
+      fm.armed = true;
+      var hero = G.templates().filter(function (t) { return t.name === 'Hero'; })[0];
+      G.addSection(hero, G.sections().length);
+      var s2 = lastSec();
+      var idx = G.sections().indexOf(s2);
+      // they roll FIRST and drag SECOND — beats complete in any order
+      G.rollSection(idx);
+      var img = s2.els.filter(function (e) { return e.type === 'image'; })[0];
+      img.y += 40;
+      G.pushState();
+      var chip = q('.gogh-fm-chip');
+      expect(fm.active && chip && /headline/.test(chip.textContent),
+        'the chip is not waiting on the one remaining beat');
+      var h = G.fm().sec.els.filter(function (e) { return e.type === 'heading'; })[0] ||
+        (function () { var f = null; G.fm().sec.els.forEach(function (e) { (e.kids || []).forEach(function (k) { if (!f && k.type === 'heading') f = k; }); }); return f; })();
+      h.text = 'Out of order and fine';
+      G.pushState();
+      expect(!G.fm().active, 'three organic edits did not finish the minute');
+      G.fmReset();
+      return 'the choreography follows the person, never the reverse';
+    });
+    test('the first minute: one click skips, nothing lingers', function () {
+      var fm = G.fm();
+      fm.armed = true;
+      var cover = G.templates().filter(function (t) { return t.name === 'Cover'; })[0];
+      G.addSection(cover, G.sections().length);
+      expect(fm.active, 'the landing did not start the minute');
+      var skip = q('.gogh-fm-chip .gogh-fm-skip');
+      expect(skip && /find my own way/.test(skip.textContent), 'the skip is missing or misworded');
+      skip.click();
+      expect(!fm.active && !fm.armed, 'skipping did not retire the minute');
+      expect(!q('.gogh-fm-chip') && !q('.gogh-fm-mark'), 'skip left furniture behind');
+      G.fmReset();
+      return 'no confirmation, no guilt, no residue';
+    });
+
     // ---- report ----
     function finishReport() {
     var passed = results.filter(function (r) { return r.pass; }).length;
