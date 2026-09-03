@@ -18107,11 +18107,13 @@
     var listBox = null;
     function renderList() {
       body.innerHTML = '';
-      var sel = document.createElement('div');
-      sel.className = 'gogh-mm-showing';
-      sel.innerHTML = '<label>Showing</label><select class="gogh-input"></select>';
-      var dd = sel.querySelector('select');
-      if (mmMenus.length) {
+      // the Showing switcher appears only when there is a real choice —
+      // one menu (the usual case) needs no switcher at all
+      if (mmMenus.length > 1) {
+        var sel = document.createElement('div');
+        sel.className = 'gogh-mm-showing';
+        sel.innerHTML = '<label>Showing</label><select class="gogh-input"></select>';
+        var dd = sel.querySelector('select');
         mmMenus.forEach(function (m) {
           var o = document.createElement('option');
           o.value = m.id;
@@ -18120,13 +18122,8 @@
           dd.appendChild(o);
         });
         dd.addEventListener('change', function () { switchMenu(+dd.value); });
-      } else {
-        var o2 = document.createElement('option');
-        o2.textContent = 'New menu';
-        dd.appendChild(o2);
-        dd.disabled = true;
+        body.appendChild(sel);
       }
-      body.appendChild(sel);
       listBox = document.createElement('div');
       listBox.className = 'gogh-mm-list';
       if (!mmItems.length) {
@@ -18381,8 +18378,26 @@
         headers: { 'X-WP-Nonce': cfg.nonce }, credentials: 'same-origin',
       }).then(function (r) { return r.ok ? r.json() : []; });
     }).then(function (menus) {
-      mmMenus = menus || [];
-      return loadItems();
+      // only menus that MATTER: the one showing, plus any a header or
+      // footer actually points at. WordPress mints a default 'Navigation'
+      // the first time a theme header renders, and starters mint their
+      // own — the orphan must not haunt the switcher (James: "why do we
+      // have 2 menus? how is this possible?")
+      var all = menus || [];
+      return Promise.all([activePartFor('header'), activePartFor('footer')]).then(function (parts) {
+        var refs = {};
+        parts.forEach(function (pt) {
+          var raw = String((pt && pt.content && (pt.content.raw || pt.content)) || '');
+          var re = /wp:navigation[^>]*"ref":(\d+)/g, m;
+          while ((m = re.exec(raw))) refs[+m[1]] = 1;
+        });
+        mmMenus = all.filter(function (m) { return m.id === mmNavId || refs[m.id]; });
+        if (!mmMenus.length) mmMenus = all;
+        return loadItems();
+      }, function () {
+        mmMenus = all;
+        return loadItems();
+      });
     }).catch(function () {
       body.innerHTML = '<em class="gogh-panel-hint">gogh could not load this menu.</em>';
     });
