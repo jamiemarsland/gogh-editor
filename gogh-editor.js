@@ -7611,6 +7611,10 @@
     // a template designed on a friendly palette can land on a hostile one
     // (white display type on lemon) — the sentinel checks every insert
     contrastSentinel(sec);
+    // born SELECTED, every arrival: the ring is the birth glow and the
+    // section bar docks at once, so the doors are seen the moment there
+    // is something to open them on (James: "would that be helpful?")
+    selectSection(S.indexOf(sec));
     fmSectionLanded(sec);
   }
 
@@ -8109,6 +8113,10 @@
     // a template designed on a friendly palette can land on a hostile one
     // (white display type on lemon) — the sentinel checks every insert
     contrastSentinel(sec);
+    // born SELECTED, every arrival: the ring is the birth glow and the
+    // section bar docks at once, so the doors are seen the moment there
+    // is something to open them on (James: "would that be helpful?")
+    selectSection(S.indexOf(sec));
     fmSectionLanded(sec);
   }
   // ---------- rearrange: the solver proposes, the hover auditions ----------
