@@ -1,11 +1,12 @@
-# Knowledge-base audit — plugin v0.99.324
+# Knowledge-base audit — plugin v0.99.325
 
 _13 finding(s) suppressed by `kb.audit-ignore.txt`._
 
-## MISSING (40)
+## MISSING (41)
 
 The source has something the prose never explains. The bot knows the name from the appendix but cannot say what it is for.
 
+- exposed filter `gogh_labs_ask` exists in source but is never mentioned in the prose
 - exposed filter `gogh_schema` exists in source but is never mentioned in the prose
 - exposed filter `gogh_schema_enabled` exists in source but is never mentioned in the prose
 - exposed filter `gogh_helper_url` exists in source but is never mentioned in the prose
@@ -63,4 +64,5 @@ Quoted copy not found verbatim in the source. Paraphrases are fine; changed UI c
 
 Use this as the checklist for updating the prose — and as a sanity check on the release itself.
 
-- version: 0.99.323 → 0.99.324
+- version: 0.99.324 → 0.99.325
+- added exposed filter: "gogh_labs_ask"
