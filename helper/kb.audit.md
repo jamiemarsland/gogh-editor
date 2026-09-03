@@ -1,12 +1,6 @@
-# Knowledge-base audit — plugin v0.99.340
+# Knowledge-base audit — plugin v0.99.341
 
 _13 finding(s) suppressed by `kb.audit-ignore.txt`._
-
-## STALE (1)
-
-The prose names something that no longer exists.
-
-- UI label "Links" was removed in this release, but the prose still describes it
 
 ## MISSING (51)
 
@@ -80,12 +74,8 @@ Quoted copy not found verbatim in the source. Paraphrases are fine; changed UI c
 
 Use this as the checklist for updating the prose — and as a sanity check on the release itself.
 
-- version: 0.99.339 → 0.99.340
-- removed UI label: "Folded behind the ☰ everywhere"
-- removed UI label: "Links"
-- removed UI label: "Links in a row; folds on phones"
-- removed UI label: "☰ Hamburger"
-- added UI label: "Links (☰ on phones)"
-- added UI label: "Links across the top; they fold behind ☰ on phones by themselves"
-- added UI label: "The whole menu folds behind ☰ on every screen, desktop too"
-- added UI label: "☰ Everywhere"
+- version: 0.99.340 → 0.99.341
+- removed UI label: "Links (☰ on phones)"
+- removed UI label: "Links across the top; they fold behind ☰ on phones by themselves"
+- removed UI label: "The whole menu folds behind ☰ on every screen, desktop too"
+- removed UI label: "☰ Everywhere"
