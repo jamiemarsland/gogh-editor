@@ -4,11 +4,11 @@ Everything in this section is extracted mechanically from the Gogh source on eve
 
 ## Current release
 
-- Plugin version: **0.99.352**
+- Plugin version: **0.99.353**
 - Requires WordPress **6.5+**, PHP **7.4+**
 - Text domain: `gogh-editor`
 - readme.txt Stable tag: `0.26.0` · Tested up to: `7.0`
-- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.352`). Quote the plugin header version.
+- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.353`). Quote the plugin header version.
 
 ## Design constants
 
@@ -279,7 +279,6 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "Updates every page"
 - "Upload a self-contained HTML experience — it runs sandboxed"
 - "Upload an .html file instead"
-- "Use a text name instead"
 - "Use this design"
 - "Use this layout"
 - "Write"

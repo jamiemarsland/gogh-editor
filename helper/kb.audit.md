@@ -1,4 +1,4 @@
-# Knowledge-base audit — plugin v0.99.352
+# Knowledge-base audit — plugin v0.99.353
 
 _13 finding(s) suppressed by `kb.audit-ignore.txt`._
 
@@ -74,4 +74,5 @@ Quoted copy not found verbatim in the source. Paraphrases are fine; changed UI c
 
 Use this as the checklist for updating the prose — and as a sanity check on the release itself.
 
-- version: 0.99.351 → 0.99.352
+- version: 0.99.352 → 0.99.353
+- removed UI label: "Use a text name instead"
