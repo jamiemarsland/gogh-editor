@@ -5406,27 +5406,32 @@
           { type: 'para', x: 28, y: 92, w: 264, h: 100, text: 'Photography, illustration and the thousand small calls that make everything feel intentional.' },
         ] },
     ] },
-    { starter: true, intent: 'sell', name: 'Pricing', minH: 640, els: [
+    { starter: true, intent: 'sell', name: 'Pricing', minH: 680, els: [
+      // three prices is the common shape (James), so it is the BASE face —
+      // the middle card wears the ink and the Most-popular star; the old
+      // two-card layout lives on in the drawer as The pair
       { type: 'para', x: 400, y: 56, w: 400, h: 24, align: 'center', text: 'Simple pricing',
         tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
-      { type: 'heading', x: 250, y: 96, w: 700, h: 64, text: 'Two ways to work with us', fs: 'x-large', align: 'center' },
-      { type: 'box', x: 230, y: 216, w: 350, h: 380, radius: 20,
-        boxBg: 'color-mix(in srgb, var(--wp--preset--color--contrast, #000) 6%, var(--wp--preset--color--base, transparent))',
-        kids: [
-          { type: 'heading', x: 32, y: 34, w: 286, h: 44, text: 'The Sprint', fs: 'large' },
-          { type: 'para', x: 32, y: 90, w: 286, h: 76, text: 'One focused week. A sharp brief in, a finished thing out.' },
-          { type: 'heading', x: 32, y: 186, w: 286, h: 60, text: '\u00a33,500', fs: 'x-large' },
-          { type: 'button', x: 32, y: 278, w: 286, h: 54, text: 'Book a sprint', ghost: true },
-        ] },
-      { type: 'box', x: 620, y: 196, w: 350, h: 400, radius: 20,
-        boxBg: 'var(--wp--preset--color--contrast, #16181c)',
-        kids: [
-          { type: 'badge', x: 210, y: 28, w: 116, h: 42, text: '\u2605 Loved' },
-          { type: 'heading', x: 32, y: 34, w: 240, h: 44, text: 'The Partnership', fs: 'large', tf: { col: 'var(--wp--preset--color--base, #fff)' } },
-          { type: 'para', x: 32, y: 98, w: 286, h: 76, text: 'A standing team beside yours \u2014 design, build and everything between.', tf: { col: 'color-mix(in srgb, var(--wp--preset--color--base, #fff) 78%, transparent)' } },
-          { type: 'heading', x: 32, y: 196, w: 286, h: 60, text: '\u00a34,000/mo', fs: 'x-large', tf: { col: 'var(--wp--preset--color--base, #fff)' } },
-          { type: 'button', x: 32, y: 290, w: 286, h: 54, text: 'Start together', tf: { bg: 'var(--wp--preset--color--base, #fff)', col: 'var(--wp--preset--color--contrast, #141519)' } },
-        ] },
+      { type: 'heading', x: 250, y: 96, w: 700, h: 64, text: 'Three ways to work with us', fs: 'x-large', align: 'center' },
+      { type: 'box', x: 72, y: 236, w: 340, h: 360, radius: 20, boxBg: 'color-mix(in srgb, var(--wp--preset--color--contrast, #000) 6%, var(--wp--preset--color--base, transparent))', kids: [
+        { type: 'heading', x: 28, y: 30, w: 284, h: 40, text: 'The Sprint', fs: 'large' },
+        { type: 'para', x: 28, y: 82, w: 284, h: 66, text: 'One focused week. A sharp brief in, a finished thing out.' },
+        { type: 'heading', x: 28, y: 168, w: 284, h: 56, text: '\u00a33,500', fs: 'x-large' },
+        { type: 'button', x: 28, y: 252, w: 284, h: 52, text: 'Book a sprint', ghost: true },
+      ] },
+      { type: 'box', x: 430, y: 200, w: 340, h: 420, radius: 20, boxBg: 'var(--wp--preset--color--contrast, #16181c)', kids: [
+        { type: 'badge', x: 95, y: 28, w: 150, h: 40, text: '\u2605 Most popular' },
+        { type: 'heading', x: 28, y: 86, w: 284, h: 40, text: 'The Partnership', fs: 'large', tf: { col: 'var(--wp--preset--color--base, #fff)' } },
+        { type: 'para', x: 28, y: 138, w: 284, h: 66, text: 'A standing team beside yours \u2014 design, build and everything between.', tf: { col: 'color-mix(in srgb, var(--wp--preset--color--base, #fff) 78%, transparent)' } },
+        { type: 'heading', x: 28, y: 222, w: 284, h: 56, text: '\u00a34,000/mo', fs: 'x-large', tf: { col: 'var(--wp--preset--color--base, #fff)' } },
+        { type: 'button', x: 28, y: 306, w: 284, h: 54, text: 'Start together', tf: { bg: 'var(--wp--preset--color--base, #fff)', col: 'var(--wp--preset--color--contrast, #141519)' } },
+      ] },
+      { type: 'box', x: 788, y: 236, w: 340, h: 360, radius: 20, boxBg: 'color-mix(in srgb, var(--wp--preset--color--contrast, #000) 6%, var(--wp--preset--color--base, transparent))', kids: [
+        { type: 'heading', x: 28, y: 30, w: 284, h: 40, text: 'Ongoing care', fs: 'large' },
+        { type: 'para', x: 28, y: 82, w: 284, h: 66, text: 'Quiet upkeep after launch: updates, tweaks and a person who answers.' },
+        { type: 'heading', x: 28, y: 168, w: 284, h: 56, text: '\u00a3600/mo', fs: 'x-large' },
+        { type: 'button', x: 28, y: 252, w: 284, h: 52, text: 'Stay with us', ghost: true },
+      ] },
     ] },
     { starter: true, intent: 'sell', name: 'Quote', minH: 480, els: [
       { type: 'heading', x: 76, y: 44, w: 180, h: 160, text: '\u201c', fs: '__disp-l' },
@@ -6056,16 +6061,16 @@
     ],
 
     'Pricing': [
-      { name: 'Pricing', take: 'The flip', minH: 640, els: [
+      { name: 'Pricing', take: 'The pair', minH: 640, els: [
         { type: 'para', x: 400, y: 56, w: 400, h: 24, align: 'center', text: 'Simple pricing', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
         { type: 'heading', x: 250, y: 96, w: 700, h: 64, text: 'Two ways to work with us', fs: 'x-large', align: 'center' },
-        { type: 'box', x: 620, y: 216, w: 350, h: 380, radius: 20, boxBg: 'color-mix(in srgb, var(--wp--preset--color--contrast, #000) 6%, var(--wp--preset--color--base, transparent))', kids: [
+        { type: 'box', x: 230, y: 216, w: 350, h: 380, radius: 20, boxBg: 'color-mix(in srgb, var(--wp--preset--color--contrast, #000) 6%, var(--wp--preset--color--base, transparent))', kids: [
           { type: 'heading', x: 32, y: 34, w: 286, h: 44, text: 'The Sprint', fs: 'large' },
           { type: 'para', x: 32, y: 90, w: 286, h: 76, text: 'One focused week. A sharp brief in, a finished thing out.' },
           { type: 'heading', x: 32, y: 186, w: 286, h: 60, text: '\u00a33,500', fs: 'x-large' },
           { type: 'button', x: 32, y: 278, w: 286, h: 54, text: 'Book a sprint', ghost: true },
         ] },
-        { type: 'box', x: 230, y: 196, w: 350, h: 400, radius: 20, boxBg: 'var(--wp--preset--color--contrast, #16181c)', kids: [
+        { type: 'box', x: 620, y: 196, w: 350, h: 400, radius: 20, boxBg: 'var(--wp--preset--color--contrast, #16181c)', kids: [
           { type: 'badge', x: 210, y: 28, w: 116, h: 42, text: '\u2605 Loved' },
           { type: 'heading', x: 32, y: 34, w: 240, h: 44, text: 'The Partnership', fs: 'large', tf: { col: 'var(--wp--preset--color--base, #fff)' } },
           { type: 'para', x: 32, y: 98, w: 286, h: 76, text: 'A standing team beside yours \u2014 design, build and everything between.', tf: { col: 'color-mix(in srgb, var(--wp--preset--color--base, #fff) 78%, transparent)' } },
@@ -6936,8 +6941,9 @@
     var secs = Math.round((Date.now() - fm.t0) / 1000);
     fmTeardown();
     if (outcome === 'done') toast('That’s gogh. Everything else is just more of this.', { ttl: 5200 });
-    // the suite rehearses the minute — a rehearsal never retires the show
-    if (/[?&]gogh-test=1/.test(location.search)) return;
+    // the suite and ?gogh-minute=1 rehearse the minute — a rehearsal
+    // never retires the show and never writes the clock
+    if (fm.forced || /[?&]gogh-test=1/.test(location.search)) return;
     try {
       fetch(cfg.restUrl.split('wp/v2/')[0] + 'gogh/v1/first-minute', {
         method: 'POST',
@@ -6954,6 +6960,13 @@
   // section is the stage (since gogh became the front door, that is
   // Add Page on day one)
   fm.armed = !!(cfg.firstMinute && !realSections().length);
+  // ?gogh-minute=1 re-arms a spent minute for TESTING (James: "im trying
+  // to test the first 60 seconds") — a forced run is a rehearsal: it
+  // plays in full but writes no meta and no log
+  if (/[?&]gogh-minute=1/.test(location.search)) {
+    fm.armed = true;
+    fm.forced = true;
+  }
 
   var picker = document.createElement('div');
   picker.className = 'gogh-picker';
