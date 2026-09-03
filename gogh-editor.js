@@ -2853,6 +2853,13 @@
     place();
     window.addEventListener('scroll', place, { passive: true });
     window.addEventListener('resize', place, { passive: true });
+    // the spotlight follows the part's OWN size — a hover-audition mounts
+    // a taller or shorter layout inside it and the dim must move with it
+    // (James: "on some the overlay is not quite right")
+    if (window.ResizeObserver) {
+      chromeScrim.__ro = new ResizeObserver(place);
+      chromeScrim.__ro.observe(partEl);
+    }
     // a stray click on the dim never drops you out with work half-done —
     // it points you at the two honest exits instead
     chromeScrim.addEventListener('click', function () {
@@ -2876,6 +2883,7 @@
     if (chromeScrim) {
       window.removeEventListener('scroll', chromeScrim.__place);
       window.removeEventListener('resize', chromeScrim.__place);
+      if (chromeScrim.__ro) chromeScrim.__ro.disconnect();
       chromeScrim.remove();
       chromeScrim = null;
     }
@@ -4114,7 +4122,12 @@
         return '<button type="button" class="gogh-sw' + (e.color === p.slug ? ' is-active' : '') + '" data-col="' + p.slug + '"' +
           ' style="background: var(--wp--preset--color--' + p.slug + ')" title="' + p.slug + '"></button>';
       }).join('') + '</div>';
-    markSwatchLegibility(panel.querySelector('.gogh-swrow'), effectiveBgHex(sec.nodes[i]));
+    // the MODEL knows when a photo sits behind the words — the DOM walk
+    // can't see a background layer painted beside the text's ancestors,
+    // so it struck the pale inks that WORK on a dark photo (James: "why
+    // do we have crosses through these color options?"). On a picture,
+    // contrast is unknowable here: no strikes, the sentinel owns it.
+    markSwatchLegibility(panel.querySelector('.gogh-swrow'), sec.bgImage ? null : effectiveBgHex(sec.nodes[i]));
     panel.querySelectorAll('.gogh-sw').forEach(function (swBtn) {
       swBtn.addEventListener('click', function () {
         e.color = swBtn.dataset.col || null;
@@ -15429,6 +15442,7 @@
       inkPick: null,            // Menu text override: null = Auto
       dials: null,
       caseTT: null,             // Menu case override: null = untouched
+      menuStyle: null,          // hamburger override: null = untouched
       sticky: chromeIsSticky(active),
       sticky0: chromeIsSticky(active),
     };
@@ -15490,6 +15504,10 @@
         '</div>' : '') +
       // Menu case: change the nav's letter case ("need for folks to change
       // case — upper/lower"). Aa = as typed, AG = UPPERCASE, ag = lowercase
+      (d0 && d0.hasNav ? '<div class="gogh-panel-row gogh-logosize gogh-hburger-row"><span>Menu style</span>' +
+        '<button type="button" class="gogh-btn gogh-btn-small gogh-hburger" data-mb="mobile" title="Links in a row; folds on phones">Links</button>' +
+        '<button type="button" class="gogh-btn gogh-btn-small gogh-hburger" data-mb="always" title="Folded behind the ☰ everywhere">☰ Hamburger</button>' +
+        '</div>' : '') +
       (d0 && d0.hasNav ? '<div class="gogh-panel-row gogh-logosize gogh-hcase-row"><span>Menu case</span>' +
         '<button type="button" class="gogh-btn gogh-btn-small gogh-hcase" data-case="none" title="As typed">Aa</button>' +
         '<button type="button" class="gogh-btn gogh-btn-small gogh-hcase" data-case="uppercase" title="UPPERCASE">AG</button>' +
@@ -15747,10 +15765,10 @@
       });
     };
     doorway(panel.querySelector('.gogh-hmenu'), function () {
-      openMenuManager(partEl, chromeMountedGroup(partEl) || partEl);
+      openMenuManager(partEl, chromeMountedGroup(partEl) || partEl, { room: partEl, area: area });
     });
     doorway(panel.querySelector('.gogh-hlogo'), function () {
-      openLogoPicker(chromeMountedGroup(partEl) || partEl);
+      openLogoPicker(chromeMountedGroup(partEl) || partEl, { room: partEl, area: area });
     });
     // MORE: styling & spacing fold away so the panel stays short by default
     var moreBtn = panel.querySelector('.gogh-hmore');
@@ -15780,6 +15798,24 @@
         });
       });
     }
+    var mbBtns = panel.querySelectorAll('.gogh-hburger');
+    if (mbBtns.length) {
+      var mb0 = /wp:navigation[^>]*"overlayMenu"\s*:\s*"always"/.test(raw0) ? 'always' : 'mobile';
+      mbBtns.forEach(function (bb) {
+        if (bb.dataset.mb === mb0) bb.classList.add('is-active');
+        bb.addEventListener('click', function () {
+          st.menuStyle = bb.dataset.mb;
+          mbBtns.forEach(function (o2) { o2.classList.toggle('is-active', o2 === bb); });
+          arm();
+          // an honest preview: the ☰ is server-rendered markup, so the room
+          // renders the rewritten nav live instead of pretending with CSS
+          var baseNow = (st.layoutId !== (activeOpt && activeOpt.id))
+            ? chromeLayoutContent(area, chosenOpt(), area === 'header' ? usingLogo : null)
+            : raw0;
+          previewChromeLayout(partEl, { id: '__mb', title: '', content: chromeMenuApply(baseNow, bb.dataset.mb) }, repaint);
+        });
+      });
+    }
     // ONE Apply: compose every touched change into a single save
     applyBtn.addEventListener('click', function () {
       // Done with nothing changed just leaves the room — no needless save,
@@ -15791,6 +15827,7 @@
       if (st.dials) base = chromeDialsApply(base, st.dials) || base;
       if (st.look !== undefined) base = chromeColorApply(base, st.look && (st.look.bg || st.look.custom || st.look.ink || st.look.inkHex) ? st.look : null) || base;
       if (st.caseTT != null) base = chromeCaseApply(base, st.caseTT) || base;
+      if (st.menuStyle != null) base = chromeMenuApply(base, st.menuStyle) || base;
       if (st.sticky !== st.sticky0) base = stickyRawToggle(base, st.sticky) || base;
       applyBtn.disabled = true;
       applyBtn.textContent = 'Applying\u2026';
@@ -16385,6 +16422,17 @@
       na.style = na.style || {};
       na.style.typography = na.style.typography || {};
       na.style.typography.textTransform = tt; // 'none' | 'uppercase' | 'lowercase'
+      return '<!-- wp:navigation ' + JSON.stringify(na) + ' /-->';
+    });
+  }
+  // the hamburger (James: "we should have a hamburger option"): the nav's
+  // overlayMenu attribute decides whether links spread out or fold behind
+  // ☰ — 'always' is the hamburger, 'mobile' (WP's default) folds on phones
+  function chromeMenuApply(raw, style) {
+    return raw.replace(/<!--\s*wp:navigation(\s+({[\s\S]*?}))?\s*\/-->/, function (m0, sp, json) {
+      var na = {};
+      if (json) { try { na = JSON.parse(json); } catch (e) { return m0; } }
+      na.overlayMenu = style;
       return '<!-- wp:navigation ' + JSON.stringify(na) + ' /-->';
     });
   }
@@ -17247,8 +17295,25 @@
       });
     }).catch(function () {});
   }
-  function openLogoPicker(anchorEl) {
+  // a drill-down from the header room stays IN the room — same stage-card
+  // seat, same spotlight, a soft content swap. The old jump-to-a-corner
+  // scene change was the jank (James: "pretty janky").
+  function stayInRoom(roomOpt, anchorEl) {
+    if (roomOpt && roomOpt.room) {
+      dockPanel(roomOpt.room);
+      enterChromeMode(roomOpt.room, roomOpt.area);
+      panelCleanup = exitChromeMode;
+      panel.classList.add('gogh-room-swap');
+      panel.addEventListener('animationend', function h() {
+        panel.classList.remove('gogh-room-swap');
+        panel.removeEventListener('animationend', h);
+      });
+      return;
+    }
     placePanelNear(anchorEl);
+  }
+  function openLogoPicker(anchorEl, roomOpt) {
+    stayInRoom(roomOpt, anchorEl);
     var logoImgs = [].slice.call(document.querySelectorAll('header .wp-block-site-logo img, .wp-block-template-part .wp-block-site-logo img'));
     var titleEl = document.querySelector('.wp-block-site-title a, .wp-block-site-title');
     var curName = ((titleEl && titleEl.textContent) || '').trim();
@@ -17834,8 +17899,8 @@
   // ---------- menu manager panel ----------
   // Canvas edits words; this panel edits STRUCTURE: which menu shows, the
   // order, one level of submenus, and adding pages or custom links.
-  function openMenuManager(partEl, anchorEl) {
-    placePanelNear(anchorEl);
+  function openMenuManager(partEl, anchorEl, roomOpt) {
+    stayInRoom(roomOpt, anchorEl);
     var mmNavId = null;
     var mmItems = [];
     var mmMenus = [];

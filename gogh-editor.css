@@ -1446,6 +1446,15 @@ body.gogh-painting, body.gogh-painting .gogh-section * { cursor: url('data:image
   z-index: 100000;
   pointer-events: none;
 }
+/* a drill-down swaps content in place — no scene change */
+.gogh-panel.gogh-room-swap { animation: gogh-roomswap 0.22s ease; }
+@keyframes gogh-roomswap {
+  from { opacity: 0.35; transform: translateY(5px); }
+  to { opacity: 1; transform: none; }
+}
+.gogh-hburger.is-active { background: var(--gogh-ui-accent, #4a63d8); color: var(--gogh-ui-accent-fg, #fff); }
+@media (prefers-reduced-motion: reduce) { .gogh-panel.gogh-room-swap { animation: none; } }
+
 /* ---- the header room: one grammar per role ---- */
 /* choices are a radio list — the real header above is the preview */
 .gogh-hoptlist {
