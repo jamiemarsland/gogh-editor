@@ -1,4 +1,4 @@
-# Knowledge-base audit — plugin v0.99.337
+# Knowledge-base audit — plugin v0.99.338
 
 _13 finding(s) suppressed by `kb.audit-ignore.txt`._
 
@@ -74,6 +74,5 @@ Quoted copy not found verbatim in the source. Paraphrases are fine; changed UI c
 
 Use this as the checklist for updating the prose — and as a sanity check on the release itself.
 
-- version: 0.99.336 → 0.99.337
-- removed WP hook: "admin_post_gogh_new_page"
-- removed toast: "gogh could not create the page — try again."
+- version: 0.99.337 → 0.99.338
+- removed UI label: "☰ Edit menu items"
