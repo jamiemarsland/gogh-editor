@@ -15503,8 +15503,10 @@
       // which also hands the room back its real estate
       '<div class="gogh-swlab">Your ' + area + '</div>' +
       '<div class="gogh-hdoors gogh-hcontent">' +
-      '<button type="button" class="gogh-hdoor gogh-hlaydoor" aria-expanded="false"><span class="gogh-hdoor-ic">\u25a6</span><span>Layout</span>' +
-      '<span class="gogh-hdoor-now">' + esc(String((chosenOpt() && chosenOpt().title) || '').split(' \u2014 ')[0]) + '</span>' +
+      // words only (James: 'not sure we need all those icons - they hurt my
+      // eyes'; and the layout's name beside the arrow read as a stutter —
+      // the header above already shows which one is on)
+      '<button type="button" class="gogh-hdoor gogh-hlaydoor" aria-expanded="false"><span>Layout</span>' +
       '<span class="gogh-hdoor-chev">\u203a</span></button>' +
       '<div class="gogh-hlaybox" hidden><div class="gogh-hoptlist gogh-hlayouts">' +
       options.map(function (o, k) {
@@ -15515,14 +15517,14 @@
           (o.id === st.layoutId ? ' is-active' : '') + '" data-k="' + k + '">' +
           '<span class="gogh-hopt-dot"></span><span class="gogh-hopt-name">' + esc(short) + '</span></button>';
       }).join('') + '</div></div>' +
-      '<button type="button" class="gogh-hdoor gogh-hlogo"><span class="gogh-hdoor-ic">🏷️</span><span>' + (usingLogo ? 'Logo &amp; size' : 'Logo &amp; name') + '</span><span class="gogh-hdoor-chev">\u203a</span></button>' +
-      (d0 && d0.hasNav ? '<button type="button" class="gogh-hdoor gogh-hmenu"><span class="gogh-hdoor-ic">☰</span><span>Edit menu items</span><span class="gogh-hdoor-chev">\u203a</span></button>' : '') +
+      '<button type="button" class="gogh-hdoor gogh-hlogo"><span>' + (usingLogo ? 'Logo &amp; size' : 'Logo &amp; name') + '</span><span class="gogh-hdoor-chev">\u203a</span></button>' +
+      (d0 && d0.hasNav ? '<button type="button" class="gogh-hdoor gogh-hmenu"><span>Edit menu items</span><span class="gogh-hdoor-chev">\u203a</span></button>' : '') +
       '</div>' +
       // the high-traffic settings live in daylight (James: "styles and
       // spacing are pretty important, but really hidden - and making sticky
       // is soo common"): Sticky is a top-level SWITCH, Colour a top-level
       // row — the fold keeps only true fine-tuning
-      '<div class="gogh-hstickyrow"><span>📌 Stick to the top</span>' +
+      '<div class="gogh-hstickyrow"><span>Stick to the top</span>' +
       '<button type="button" class="gogh-hswitch gogh-hsticky' + (st.sticky ? ' is-on' : '') + '" role="switch" aria-checked="' + (st.sticky ? 'true' : 'false') + '" title="The header rides along as visitors scroll"><span class="gogh-hswitch-knob"></span></button></div>' +
       (looks.length ? '<div class="gogh-swlab">Colour</div><div class="gogh-swrow gogh-hlooks">' +
         looks.map(function (l, k) {
