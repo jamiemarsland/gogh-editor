@@ -15,7 +15,7 @@ about something where they conflict, rather than picking one silently. Quote UI
 labels and message copy from the appendix, verbatim — those are the current
 strings, and a paraphrased button label is the fastest way to lose a user's trust.
 
-Generated for plugin version 0.99.327 · knowledge base 6b6517f.
+Generated for plugin version 0.99.328 · knowledge base 9895678.
 
 ---
 
@@ -782,11 +782,11 @@ Everything in this section is extracted mechanically from the Gogh source on eve
 
 ## Current release
 
-- Plugin version: **0.99.327**
+- Plugin version: **0.99.328**
 - Requires WordPress **6.5+**, PHP **7.4+**
 - Text domain: `gogh-editor`
 - readme.txt Stable tag: `0.26.0` · Tested up to: `7.0`
-- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.327`). Quote the plugin header version.
+- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.328`). Quote the plugin header version.
 
 ## Design constants
 
@@ -858,6 +858,10 @@ Block: `gogh/section` · v3 attributes: `css`, `model`, `scope`, `v`, `cssT`.
 | `init` | action | 10 |
 | `init` | action | 10 |
 | `init` | action | 10 |
+| `load-post-new.php` | action | 10 |
+| `get_edit_post_link` | filter | 10 |
+| `page_row_actions` | filter | 10 |
+| `post_row_actions` | filter | 10 |
 | `template_redirect` | action | 10 |
 | `wp_enqueue_scripts` | action | 10 |
 | `init` | action | 10 |
@@ -904,7 +908,7 @@ Block: `gogh/section` · v3 attributes: `css`, `model`, `scope`, `v`, `cssT`.
 | `wp_insert_post` | action | 10 |
 | `block_editor_settings_all` | filter | 10 |
 
-Filters exposed for third parties: `gogh_labs_ask`, `gogh_rebake_enabled`, `gogh_schema`, `gogh_schema_enabled`, `gogh_webmcp_enabled`, `gogh_convert_enabled`, `gogh_helper_url`.
+Filters exposed for third parties: `gogh_default_editor`, `gogh_claims_post`, `gogh_labs_ask`, `gogh_rebake_enabled`, `gogh_schema`, `gogh_schema_enabled`, `gogh_webmcp_enabled`, `gogh_convert_enabled`, `gogh_helper_url`.
 
 REST routes registered: `gogh/v1/version`, `gogh/v1/starter`, `gogh/v1/type-scale`, `gogh/v1/blog-style`, `gogh/v1/motion`, `gogh/v1/ask`, `gogh/v1/imagine-exp`, `gogh/v1/ask-key`, `gogh/v1/ask-log`, `gogh/v1/active-style`, `wp/v2/gogh-product/(?P<id>\d+)`, `wp/v2/gogh-product/(?P<id>\d+)/autosaves`, `gogh/v1/pattern`, `gogh/v1/render`.
 
