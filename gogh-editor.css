@@ -1393,6 +1393,9 @@ body.gogh-painting, body.gogh-painting .gogh-section * { cursor: url('data:image
   text-transform: uppercase;
   letter-spacing: 0.05em;
   color: rgba(20, 21, 25, 0.5);
+  /* the doors carry their own inner padding — the word needs the same
+     optical inset or it crowds the pill's left edge (James's catch) */
+  margin-left: 9px;
   margin-right: 4px;
 }
 .gogh-sb {
