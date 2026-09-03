@@ -2868,13 +2868,7 @@
     // a taller or shorter layout inside it and the dim must move with it
     // (James: "on some the overlay is not quite right")
     if (window.ResizeObserver) {
-      chromeScrim.__ro = new ResizeObserver(function () {
-        place();
-        // the room's panel docks BELOW the part — when an audition makes the
-        // part taller (Centred header), the panel must re-seat too, or it
-        // sits on the very header it previews (James: "this is not ideal")
-        if (panelOpen && !panel.hidden && panel.dataset.goghArea === area) dockPanel(partEl);
-      });
+      chromeScrim.__ro = new ResizeObserver(place);
       chromeScrim.__ro.observe(partEl);
     }
     // a stray click on the dim never drops you out with work half-done —
@@ -15474,6 +15468,10 @@
         return Object.assign({}, o, { content: chromeLayoutContent('header', o, usingLogo), __prev: null });
       });
       if (activeOpt) activeOpt = options.filter(function (o) { return o.id === activeOpt.id; })[0] || activeOpt;
+      // warm every dressed render NOW, in the background — a first hover
+      // that has to visit the server is a hover that doesn't answer
+      // (James: "header doesn't always change instantly")
+      options.forEach(function (o) { renderChromeOption(o).catch(function () {}); });
     }
     var st = {
       layoutId: activeOpt ? activeOpt.id : null,
@@ -15633,6 +15631,7 @@
       });
       lb.addEventListener('click', function () {
         st.layoutId = opt.id;
+        roomReseatArmed = true; // a pick may change the header's height — re-seat once it lands
         if (opt.id === (activeOpt && activeOpt.id)) { endChromePreview(); repaint(); }
         else previewChromeLayout(partEl, opt, repaint);
         panel.querySelectorAll('.gogh-hlayout').forEach(function (o2) {
@@ -16003,8 +16002,15 @@
   // observers freeze in background tabs and never fire for mid-drag swaps;
   // this is the deterministic path (James: "this is not ideal" — the panel
   // sat on the Centred header it was previewing).
+  // the spotlight always follows; the PANEL re-seats only on a pick — a
+  // hover-audition swaps the header under the pointer, and re-docking the
+  // panel for every row you pass over made the room shake (James:
+  // "auditioning these feels a little shaky")
+  var roomReseatArmed = false;
   function reseatChromeRoom(partEl) {
     if (chromeScrim && chromeScrim.__place) chromeScrim.__place();
+    if (!roomReseatArmed) return;
+    roomReseatArmed = false;
     if (panelOpen && !panel.hidden && panel.dataset.goghArea) dockPanel(partEl);
   }
   function endChromePreview() {
