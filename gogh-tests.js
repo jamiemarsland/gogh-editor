@@ -4531,15 +4531,16 @@
       return '44→40 on the line, 22→24 free, magnets still first, drag x' + (X0 + 4) + '→' + X0;
     });
 
-    test('section bar: four doors, housekeeping in words', function () {
+    test('section bar: three doors, housekeeping in words', function () {
       var bar = q('.gogh-secbar');
-      // the die only counts as a door where a drawer of takes exists —
-      // on a plain section it stays hidden and the bar reads four doors
+      // the die only counts as a door where a drawer of takes exists — on
+      // a plain section it stays hidden and the bar reads three doors; the
+      // ✦ Ask Gogh door retired with the parked model tier
       var doors = [].filter.call(bar.querySelectorAll('.gogh-sb'), function (b) { return !b.hidden; });
-      expect(doors.length === 4,
-        'expected 4 visible controls, got ' + doors.length);
-      expect(bar.querySelector('.gogh-sb-ask') && bar.querySelector('[data-sec="more"]'),
-        'the star or the ⋯ is missing');
+      expect(doors.length === 3,
+        'expected 3 visible controls, got ' + doors.length);
+      expect(!bar.querySelector('.gogh-sb-ask'), 'the retired ✦ door is back on the bar');
+      expect(bar.querySelector('[data-sec="more"]'), 'the ⋯ is missing');
       var i = G.sections().indexOf(sec());
       G.openSecMore(i, bar.querySelector('[data-sec="more"]'));
       var items = [].map.call(document.querySelectorAll('.gogh-secmore .gogh-secmore-it'),

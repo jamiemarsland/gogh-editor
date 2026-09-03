@@ -7588,12 +7588,11 @@
   secBar.className = 'gogh-secbar';
   secBar.innerHTML =
     '<span class="gogh-secbar-label">Section</span>' +
-    '<button type="button" class="gogh-sb gogh-sb-ask" data-sec="ask" title="Describe a change — Gogh makes it">✦ Ask Gogh</button>' +
     '<button type="button" class="gogh-sb" data-sec="add" title="Add something to this section">＋</button>' +
-    // four doors, read at a glance: the star, add, design, more — the
-    // housekeeping verbs (move, duplicate, rearrange, save, delete) live
-    // in the ⋯ menu as WORDS. Rare actions don't earn permanent icons
-    // (James: "lots of options... a little ungogh")
+    // three doors, read at a glance: add, design, more (plus the die where
+    // a drawer exists) — housekeeping verbs live in the ⋯ menu as WORDS,
+    // and the ✦ Ask Gogh door retired with the parked model tier (James:
+    // "i dont think we need it") — the dice answers the same itch
     // the die appears only where a drawer of takes exists (see VARIANTS)
     '<button type="button" class="gogh-sb gogh-sb-dice" data-sec="dice" title="Roll another take of this design" hidden><svg width="15" height="15" viewBox="0 0 16 16" fill="none" aria-hidden="true"><rect x="1.5" y="1.5" width="13" height="13" rx="3.2" stroke="currentColor" stroke-width="1.6"/><circle cx="5.4" cy="5.4" r="1.25" fill="currentColor"/><circle cx="10.6" cy="5.4" r="1.25" fill="currentColor"/><circle cx="8" cy="8" r="1.25" fill="currentColor"/><circle cx="5.4" cy="10.6" r="1.25" fill="currentColor"/><circle cx="10.6" cy="10.6" r="1.25" fill="currentColor"/></svg></button>' +
     '<button type="button" class="gogh-sb" data-sec="bgimg" title="Background &amp; look">' + CTX_ICONS.image + '</button>' +
@@ -7649,7 +7648,6 @@
   secBar.addEventListener('click', function (ev) {
     var b = ev.target.closest('.gogh-sb');
     if (!b || secBarIdx === null) return;
-    if (b.dataset.sec === 'ask') { openAskPanel(secBarIdx, b); return; }
     if (b.dataset.sec === 'add') { openSecAddPanel(secBarIdx); return; }
     if (b.dataset.sec === 'dice') {
       var rolled = rollSection(secBarIdx);
