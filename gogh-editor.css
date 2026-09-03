@@ -811,24 +811,30 @@ body.gogh-help-open .gogh-toasts { right: 416px; }
   pointer-events: none;
   opacity: 1;
   margin: 0 !important;
-  box-shadow: 0 30px 70px -20px rgba(0, 0, 0, 0.8);
+  /* held, not floating: a solid accent frame and a lift you can feel */
+  outline: 2px solid #4a63d8;
+  outline-offset: 2px;
+  box-shadow: 0 22px 48px -18px rgba(0, 0, 0, 0.55);
   border-radius: 8px;
   will-change: transform;
   caret-color: transparent;
 }
-/* the dragged element itself is invisible while dragging — the ghost is the
-   only visible copy; the dashed dropbox marks where it will land */
-.gogh-dragsrc { visibility: hidden !important; }
+/* THE STABILITY LAW: while a drag is live, only the dragged piece may move.
+   The dragged node leaves the grid's flow entirely (display, not
+   visibility) — a hidden node still SIZES its row, so a tall image
+   passing through a max-content row shoved everything beneath it
+   (James's "weird text" video: "if i drag an image up and down the text
+   is moving"). The ghost is the only visible copy. */
+.gogh-dragsrc { display: none !important; }
+/* the landing box is the one always-on promise: solid, snapped, exactly
+   where it lands — dashes read as tentative, and a promise is not */
 .gogh-dropbox {
   position: absolute;
   z-index: 99996;
   pointer-events: none;
-  border: 1.5px dashed rgba(126, 168, 255, 0.9);
+  border: 2px solid #4a63d8;
   border-radius: 8px;
-  /* tried Squarespace's tiled socket here — it reads as a smear under
-     gogh's TRANSPARENT elements (their blocks are opaque cards). The quiet
-     fill + the drag grid carry the legibility. */
-  background: rgba(126, 168, 255, 0.07);
+  background: rgba(74, 99, 216, 0.08);
 }
 .gogh-dropbox[hidden] { display: none; }
 
@@ -960,7 +966,8 @@ body.gogh-painting, body.gogh-painting .gogh-section * { cursor: url('data:image
   position: absolute;
   z-index: 99997;
   pointer-events: none;
-  background: #ff5b77;
+  /* alignment is a quiet fact in the accent, not an alarm in red */
+  background: rgba(74, 99, 216, 0.55);
 }
 .gogh-guide[hidden] { display: none; }
 /* named guides carry a chip: centre wears pink */
@@ -972,7 +979,7 @@ body.gogh-painting, body.gogh-painting .gogh-section * { cursor: url('data:image
   font: 700 12px/1 Georgia, serif;
   font-style: italic;
   color: #fff;
-  background: #ff5b77;
+  background: #4a63d8;
   padding: 3px 7px;
   border-radius: 7px;
 }

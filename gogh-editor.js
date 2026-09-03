@@ -10390,7 +10390,6 @@
     ghost.style.cssText = 'position:fixed;display:block;background:transparent;container-type:normal;left:' + gL + 'px;top:' + gT + 'px;width:' + gW + 'px;height:' + gH + 'px;';
     ghost.appendChild(inner);
     document.body.appendChild(ghost);
-    node.classList.add('gogh-dragsrc');
     dropBox.hidden = false;
     drag = { sec: sec, i: i, px: ev.clientX, py: ev.clientY, x: e.x, y: e.y, gx: gL, gy: gT,
       secH0: designH(sec.els, sec.minH) }; // the edge the user SEES — release there means flush
@@ -10410,6 +10409,9 @@
         }
       } catch (err) { (window.__cxo = window.__cxo || []).push({ err: String(err) }); }
     }
+    // only NOW does the node leave the flow (display:none) — the ink
+    // measurement above needs it laid out, and the ghost already exists
+    node.classList.add('gogh-dragsrc');
     sec.sectionEl.classList.add('gogh-grid-live');
     if (multiSel && multiSel.sec === sec && multiSel.idxs.indexOf(i) !== -1) {
       drag.multi = multiSel.idxs.filter(function (j) { return j !== i; }).map(function (j) {
@@ -10436,6 +10438,7 @@
     }
     var free = ev.metaKey || ev.ctrlKey;
     drag.freeHeld = free;
+    drag.altHeld = ev.altKey;
     var sec = drag.sec;
     var s = scaleOf(sec);
     var e = sec.els[drag.i];
@@ -10499,7 +10502,12 @@
         if (!drag) return;
         resolveAndApply(sec);
         showGuides(sec, sn.gx, sn.gy);
-        drawDists(sec, drag.i, drag.eqH, drag.eqV, sn.gx, sn.gy);
+        // the numbers are power-user furniture: distance rulers and their
+        // badges appear while Alt is held, never by default. A plain drag
+        // says one thing — the solid ghost and the landing box (James's
+        // Squarespace comparison: "theirs feels a little more solid")
+        if (drag.altHeld) drawDists(sec, drag.i, drag.eqH, drag.eqV, sn.gx, sn.gy);
+        else hideDists();
         // the landing box is drawn from MODEL coordinates — the same
         // promise the ghost makes. Reading the solved node's cell broke
         // when the dragged element stopped contributing grid lines: its

@@ -562,12 +562,14 @@
       var g = getComputedStyle(inner), o = getComputedStyle(node);
       expect(g.color === o.color, 'ghost colour ' + g.color + ' vs ' + o.color);
       expect(g.fontSize === o.fontSize, 'ghost font ' + g.fontSize + ' vs ' + o.fontSize);
-      expect(getComputedStyle(node).visibility === 'hidden', 'original visible during drag');
+      // the stability law: the dragged node leaves the FLOW (display), so
+      // it can never size a row and shove its neighbours mid-drag
+      expect(getComputedStyle(node).display === 'none', 'original still in the flow during drag');
       expect(!q('.gogh-dropbox').hidden, 'dropbox not shown');
       pev('pointerup', grip, r.x + 60, r.y + 40, 14);
       expect(!q('.gogh-ghostel'), 'ghost not cleaned up');
       expect(q('.gogh-dropbox').hidden, 'dropbox not hidden after drop');
-      expect(getComputedStyle(node).visibility === 'visible', 'original still hidden');
+      expect(getComputedStyle(node).display !== 'none', 'original still hidden');
     });
 
     // ---- 8. drag moves the element ----
