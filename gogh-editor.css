@@ -826,15 +826,17 @@ body.gogh-help-open .gogh-toasts { right: 416px; }
    (James's "weird text" video: "if i drag an image up and down the text
    is moving"). The ghost is the only visible copy. */
 .gogh-dragsrc { display: none !important; }
-/* the landing box is the one always-on promise: solid, snapped, exactly
-   where it lands — dashes read as tentative, and a promise is not */
+/* the landing socket: the ghost moves in model coordinates, so ghost and
+   landing box always coincide — two frames on one spot read as a double
+   border (James: "why do we have two borders here?"). The ghost wears
+   the one frame; the socket is a quiet tint beneath it. */
 .gogh-dropbox {
   position: absolute;
   z-index: 99996;
   pointer-events: none;
-  border: 2px solid #4a63d8;
+  border: 0;
   border-radius: 8px;
-  background: rgba(74, 99, 216, 0.08);
+  background: rgba(74, 99, 216, 0.09);
 }
 .gogh-dropbox[hidden] { display: none; }
 
