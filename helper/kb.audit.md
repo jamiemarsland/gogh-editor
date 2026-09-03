@@ -1,8 +1,8 @@
-# Knowledge-base audit — plugin v0.99.329
+# Knowledge-base audit — plugin v0.99.330
 
 _13 finding(s) suppressed by `kb.audit-ignore.txt`._
 
-## MISSING (47)
+## MISSING (52)
 
 The source has something the prose never explains. The bot knows the name from the appendix but cannot say what it is for.
 
@@ -23,6 +23,11 @@ The source has something the prose never explains. The bot knows the name from t
 - WP hook `body_class` exists in source but is never mentioned in the prose
 - WP hook `manage_gogh_message_posts_columns` exists in source but is never mentioned in the prose
 - WP hook `manage_gogh_message_posts_custom_column` exists in source but is never mentioned in the prose
+- WP hook `get_edit_post_link` exists in source but is never mentioned in the prose
+- WP hook `post_row_actions` exists in source but is never mentioned in the prose
+- WP hook `admin_menu` exists in source but is never mentioned in the prose
+- WP hook `views_edit-gogh_message` exists in source but is never mentioned in the prose
+- WP hook `admin_post_gogh_messages_csv` exists in source but is never mentioned in the prose
 - WP hook `admin_post_gogh_form_message` exists in source but is never mentioned in the prose
 - WP hook `admin_post_nopriv_gogh_form_message` exists in source but is never mentioned in the prose
 - WP hook `body_class` exists in source but is never mentioned in the prose
@@ -70,4 +75,7 @@ Quoted copy not found verbatim in the source. Paraphrases are fine; changed UI c
 
 Use this as the checklist for updating the prose — and as a sanity check on the release itself.
 
-- version: 0.99.328 → 0.99.329
+- version: 0.99.329 → 0.99.330
+- added WP hook: "admin_menu"
+- added WP hook: "admin_post_gogh_messages_csv"
+- added WP hook: "views_edit-gogh_message"
