@@ -1446,6 +1446,61 @@ body.gogh-painting, body.gogh-painting .gogh-section * { cursor: url('data:image
   z-index: 100000;
   pointer-events: none;
 }
+/* ---- the header room: one grammar per role ---- */
+/* choices are a radio list — the real header above is the preview */
+.gogh-hoptlist {
+  display: flex;
+  flex-direction: column;
+  margin: 2px 0 14px;
+  border: 1.5px solid var(--gogh-ui-line, #e3e3e6);
+  border-radius: 12px;
+  overflow: hidden;
+}
+.gogh-hopt {
+  all: unset;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 13px;
+  font-size: 13px;
+  font-weight: 600;
+  border-top: 1px solid var(--gogh-ui-line, #e3e3e6);
+  transition: background 0.12s ease;
+}
+.gogh-hopt:first-child { border-top: 0; }
+.gogh-hopt:hover { background: rgba(74, 99, 216, 0.07); }
+.gogh-hopt-dot {
+  flex: none;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  border: 1.6px solid #b9bcc7;
+  box-sizing: border-box;
+}
+.gogh-hopt.is-active { color: #2f4bb3; }
+.gogh-hopt.is-active .gogh-hopt-dot {
+  border-color: #4a63d8;
+  background: radial-gradient(circle, #4a63d8 0 4.5px, transparent 5px);
+}
+/* doors are rows with a chevron — a different job wears different clothes */
+.gogh-hdoors { display: flex; flex-direction: column; gap: 8px; margin: 2px 0 8px; }
+.gogh-hdoor {
+  all: unset;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 13px;
+  border: 1.5px solid var(--gogh-ui-line, #e3e3e6);
+  border-radius: 12px;
+  font-size: 13px;
+  font-weight: 650;
+  transition: border-color 0.12s ease, background 0.12s ease;
+}
+.gogh-hdoor:hover { border-color: #4a63d8; background: rgba(74, 99, 216, 0.06); }
+.gogh-hdoor-chev { margin-left: auto; opacity: 0.45; font-size: 16px; line-height: 1; }
+
 /* the seam's More chip is a DOOR among things — a quiet tint and an
    arrow set it apart from the content chips around it */
 .gogh-askchip.gogh-askmore {
@@ -2029,13 +2084,11 @@ body.gogh-painting, body.gogh-painting .gogh-section * { cursor: url('data:image
 /* seven layouts as a stack blew the panel past its dock — wrap short chips */
 /* the layout shelf breathes: air between the pills and under the label
    ("could do with a little more breathing room") */
-.gogh-hlayouts { flex-direction: row; flex-wrap: wrap; gap: 9px 8px; margin-top: 4px; margin-bottom: 6px; }
-.gogh-hlayouts .gogh-btn { flex: 0 1 auto; }
+/* (the old pill-cloud rules retired with the radio list — the wrapper
+   keeps the .gogh-hlayouts name only for the wiring) */
 
 .gogh-chrome-foot { justify-content: flex-end; gap: 8px; margin-top: 4px; }
-/* YOUR HEADER: the two content doorways share the row, each pulling its weight */
-.gogh-hcontent { flex-wrap: wrap; gap: 8px; margin-top: 4px; }
-.gogh-hcontent .gogh-btn { flex: 1 1 auto; justify-content: center; }
+/* (YOUR HEADER doors are .gogh-hdoor rows now — shared-row rules retired) */
 /* MORE: the fold-away toggle for styling & spacing — quiet until you want it */
 .gogh-hmore {
   all: unset; box-sizing: border-box; cursor: pointer;

@@ -15443,22 +15443,27 @@
     panel.innerHTML =
       '<div class="gogh-panel-head"><span class="gogh-panel-title">Site ' + area + '</span>' +
       '<button type="button" class="gogh-sbtn gogh-panel-close" title="Cancel">\u2715</button></div>' +
-      '<div class="gogh-panel-hint">Every change previews live. Keep them with Done, or undo with Cancel.</div>' +
+      '<div class="gogh-panel-hint">Hover a layout to try it on \u2014 the header above is the preview.</div>' +
+      // ONE GRAMMAR PER ROLE (James: "it kinda hurts my eyes"): choices
+      // are a radio LIST — the ragged pill cloud retired — doors are rows
+      // with a chevron, verbs stay in the footer. The real header is the
+      // thumbnail; the panel only needs to be calm.
       '<div class="gogh-swlab">Layout</div>' +
-      '<div class="gogh-panel-row gogh-chrome-rows gogh-hlayouts">' +
+      '<div class="gogh-hoptlist gogh-hlayouts">' +
       options.map(function (o, k) {
         var short = String(o.title || '').split(' \u2014 ')[0];
-        // no title tooltip: the chip auditions live on hover, so a hover
+        // no title tooltip: the row auditions live on hover, so a hover
         // tooltip just fights the preview ("we dont need tool tips here")
-        return '<button type="button" class="gogh-btn gogh-btn-small gogh-hlayout' +
-          (o.id === st.layoutId ? ' is-active' : '') + '" data-k="' + k + '">' + esc(short) + '</button>';
+        return '<button type="button" class="gogh-hopt gogh-hlayout' +
+          (o.id === st.layoutId ? ' is-active' : '') + '" data-k="' + k + '">' +
+          '<span class="gogh-hopt-dot"></span><span class="gogh-hopt-name">' + esc(short) + '</span></button>';
       }).join('') + '</div>' +
       // YOUR HEADER: the content actions folks reach for most — their logo/name
       // and their menu — ride up top, never buried under the styling dials
       '<div class="gogh-swlab">Your ' + area + '</div>' +
-      '<div class="gogh-panel-row gogh-chrome-rows gogh-hcontent">' +
-      '<button type="button" class="gogh-btn gogh-btn-small gogh-hlogo">🏷️ ' + (usingLogo ? 'Logo &amp; size' : 'Logo &amp; name') + '</button>' +
-      (d0 && d0.hasNav ? '<button type="button" class="gogh-btn gogh-btn-small gogh-hmenu">☰ Edit menu items</button>' : '') +
+      '<div class="gogh-hdoors gogh-hcontent">' +
+      '<button type="button" class="gogh-hdoor gogh-hlogo"><span class="gogh-hdoor-ic">🏷️</span><span>' + (usingLogo ? 'Logo &amp; size' : 'Logo &amp; name') + '</span><span class="gogh-hdoor-chev">\u203a</span></button>' +
+      (d0 && d0.hasNav ? '<button type="button" class="gogh-hdoor gogh-hmenu"><span class="gogh-hdoor-ic">☰</span><span>Edit menu items</span><span class="gogh-hdoor-chev">\u203a</span></button>' : '') +
       '</div>' +
       // everything below is fine-tuning — folded away so the panel stays short
       // by default and Done is always in reach (no crop at the bottom)
