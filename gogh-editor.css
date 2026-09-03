@@ -1441,6 +1441,22 @@ body.gogh-painting, body.gogh-painting .gogh-section * { cursor: url('data:image
   white-space: nowrap;
 }
 .gogh-fm-skip:hover, .gogh-fm-skip:focus-visible { opacity: 0.95; text-decoration: underline; }
+.gogh-fm-arrow {
+  position: absolute;
+  z-index: 100000;
+  pointer-events: none;
+}
+/* chip and arrow breathe together — one gentle bob, transform only */
+.gogh-fm-arrow { animation: gogh-fm-bob 2.6s ease-in-out infinite; }
+.gogh-fm-chip { animation: gogh-fm-in 0.35s ease, gogh-fm-bob 2.6s ease-in-out infinite; }
+@keyframes gogh-fm-bob {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(4px); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .gogh-fm-arrow, .gogh-fm-chip { animation: none; }
+  .gogh-fm-arrow .gogh-fm-line { transition: none !important; }
+}
 /* the invited piece wears a slow breath — outline only, layout untouched */
 .gogh-fm-mark {
   outline: 2px solid rgba(255, 176, 46, 0.9);

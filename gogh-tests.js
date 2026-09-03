@@ -4992,6 +4992,7 @@
       var chip = q('.gogh-fm-chip');
       expect(chip && /headline/.test(chip.textContent), 'beat one is not inviting the headline');
       expect(q('.gogh-fm-mark'), 'no piece wears the pulse');
+      expect(q('.gogh-fm-arrow') && !q('.gogh-fm-arrow').hidden, 'the arrow is not pointing at the piece');
       var h = s2.els.filter(function (e) { return e.type === 'heading'; })[0];
       h.text = 'My own words';
       G.pushState();

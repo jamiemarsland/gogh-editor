@@ -6815,6 +6815,21 @@
     if (mark) mark.classList.add('gogh-fm-mark');
     fmPlace();
   }
+  var fmArrow = null;
+  function fmArrowEl() {
+    // a drawn annotation arrow, not a UI triangle — it sweeps from the
+    // chip to the invited piece so the invitation cannot be missed
+    // (James: "the prompts are way too easy to miss")
+    if (fmArrow) return fmArrow;
+    fmArrow = document.createElement('div');
+    fmArrow.className = 'gogh-fm-arrow';
+    fmArrow.innerHTML = '<svg width="10" height="10" aria-hidden="true">' +
+      '<defs><marker id="gogh-fm-head" viewBox="0 0 10 10" refX="6.5" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse">' +
+      '<path d="M 0.5 1 L 8 5 L 0.5 9" fill="none" stroke="#ffb02e" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></marker></defs>' +
+      '<path class="gogh-fm-line" d="" fill="none" stroke="#ffb02e" stroke-width="2.6" stroke-linecap="round" marker-end="url(#gogh-fm-head)"/></svg>';
+    document.body.appendChild(fmArrow);
+    return fmArrow;
+  }
   function fmPlace() {
     if (!fm.active || !fmChip) return;
     var anchor = null;
@@ -6826,9 +6841,56 @@
     }
     if (!anchor || !anchor.getBoundingClientRect) return;
     var r = anchor.getBoundingClientRect();
-    fmChip.style.left = Math.max(10, r.left + window.scrollX) + 'px';
-    fmChip.style.top = Math.max(10, r.top + window.scrollY - 48) + 'px';
+    var tx = r.left + window.scrollX;
+    var ty = r.top + window.scrollY;
+    // the chip floats up and left of the piece, leaving air for the swoop
+    var cx = Math.max(12, tx - 30);
+    var cy = Math.max(12, ty - 104);
+    fmChip.style.left = cx + 'px';
+    fmChip.style.top = cy + 'px';
     fmChip.hidden = false;
+    var chipR = fmChip.getBoundingClientRect();
+    var x1 = cx + Math.min(46, chipR.width * 0.22);
+    var y1 = cy + chipR.height + 6;
+    var x2 = tx + Math.min(70, Math.max(24, r.width * 0.22));
+    var y2 = ty - 10;
+    var host = fmArrowEl();
+    if (y2 - y1 < 18) {
+      // no air to draw in — the chip alone carries the invitation
+      host.hidden = true;
+      return;
+    }
+    var pad = 26;
+    var left = Math.min(x1, x2) - pad;
+    var top = y1 - pad;
+    var w = Math.abs(x2 - x1) + pad * 2;
+    var h = (y2 - y1) + pad * 2;
+    host.style.left = left + 'px';
+    host.style.top = top + 'px';
+    host.hidden = false;
+    var svg = host.firstChild;
+    svg.setAttribute('width', w);
+    svg.setAttribute('height', h);
+    var lx1 = x1 - left, ly1 = y1 - top, lx2 = x2 - left, ly2 = y2 - top;
+    // one painterly curve: it leaves the chip leaning left, then lands on
+    // the piece's shoulder from above
+    var qx = lx1 - 18;
+    var qy = ly1 + (ly2 - ly1) * 0.62;
+    var path = svg.querySelector('.gogh-fm-line');
+    path.setAttribute('d', 'M ' + lx1 + ' ' + ly1 + ' Q ' + qx + ' ' + qy + ' ' + lx2 + ' ' + ly2);
+    if (fm.drawnBeat !== fm.chipBeat) {
+      // the arrow draws itself once per beat — an entrance, then stillness
+      fm.drawnBeat = fm.chipBeat;
+      try {
+        var L = path.getTotalLength();
+        path.style.transition = 'none';
+        path.style.strokeDasharray = L + ' ' + L;
+        path.style.strokeDashoffset = L;
+        void path.getBoundingClientRect();
+        path.style.transition = 'stroke-dashoffset 0.55s ease 0.12s';
+        path.style.strokeDashoffset = '0';
+      } catch (err) {}
+    }
   }
   function fmCheck() {
     if (!fm.active || !fm.sec) return;
@@ -6852,6 +6914,10 @@
       fmChip = null;
       window.removeEventListener('scroll', fmPlace);
       window.removeEventListener('resize', fmPlace);
+    }
+    if (fmArrow) {
+      fmArrow.remove();
+      fmArrow = null;
     }
   }
   function fmFinish(outcome) {
