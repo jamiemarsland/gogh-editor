@@ -15824,11 +15824,15 @@
         }, 2800);
       });
     };
+    // the way back reopens THIS room with the same furniture
+    var roomOpt = { room: partEl, area: area, back: function () {
+      openHeaderPanel(partEl, area, options, activeOpt, active);
+    } };
     doorway(panel.querySelector('.gogh-hmenu'), function () {
-      openMenuManager(partEl, chromeMountedGroup(partEl) || partEl, { room: partEl, area: area });
+      openMenuManager(partEl, chromeMountedGroup(partEl) || partEl, roomOpt);
     });
     doorway(panel.querySelector('.gogh-hlogo'), function () {
-      openLogoPicker(chromeMountedGroup(partEl) || partEl, { room: partEl, area: area });
+      openLogoPicker(chromeMountedGroup(partEl) || partEl, roomOpt);
     });
     // MORE: styling & spacing fold away so the panel stays short by default
     var moreBtn = panel.querySelector('.gogh-hmore');
@@ -17336,6 +17340,26 @@
         panel.classList.remove('gogh-room-swap');
         panel.removeEventListener('animationend', h);
       });
+      // a page OF the same modal, not a different one: the head grows a
+      // way back to the header room (James: "would it make sense for edit
+      // menu items to open in the same edit header modal?"). The callee
+      // paints its head synchronously after this, so the link lands on a
+      // microtask.
+      if (roomOpt.back) {
+        Promise.resolve().then(function () {
+          var head = panel.querySelector('.gogh-panel-head');
+          if (!head || head.querySelector('.gogh-room-back')) return;
+          var back = document.createElement('button');
+          back.type = 'button';
+          back.className = 'gogh-room-back';
+          back.textContent = '\u2039 ' + (roomOpt.area === 'footer' ? 'Footer' : 'Header');
+          back.addEventListener('click', function () {
+            closePanel();
+            roomOpt.back();
+          });
+          head.insertBefore(back, head.firstChild);
+        });
+      }
       return;
     }
     placePanelNear(anchorEl);

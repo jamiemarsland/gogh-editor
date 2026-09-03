@@ -1494,6 +1494,18 @@ body.gogh-painting, body.gogh-painting .gogh-section * { cursor: url('data:image
 .gogh-hswitch.is-on .gogh-hswitch-knob { transform: translateX(16px); }
 .gogh-hswitch:focus-visible { outline: 2px solid var(--gogh-ui-accent, #4a63d8); outline-offset: 2px; }
 
+/* the way back from a drill-down: a page of the same modal */
+.gogh-room-back {
+  all: unset;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 650;
+  color: #4a63d8;
+  margin-right: auto;
+  padding: 4px 6px 4px 0;
+}
+.gogh-room-back:hover, .gogh-room-back:focus-visible { text-decoration: underline; text-underline-offset: 3px; }
+.gogh-panel-head:has(.gogh-room-back) .gogh-panel-title { margin-left: 8px; }
 /* a drill-down swaps content in place — no scene change */
 .gogh-panel.gogh-room-swap { animation: gogh-roomswap 0.22s ease; }
 @keyframes gogh-roomswap {
