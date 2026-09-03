@@ -1,4 +1,4 @@
-# Knowledge-base audit — plugin v0.99.341
+# Knowledge-base audit — plugin v0.99.342
 
 _13 finding(s) suppressed by `kb.audit-ignore.txt`._
 
@@ -74,8 +74,5 @@ Quoted copy not found verbatim in the source. Paraphrases are fine; changed UI c
 
 Use this as the checklist for updating the prose — and as a sanity check on the release itself.
 
-- version: 0.99.340 → 0.99.341
-- removed UI label: "Links (☰ on phones)"
-- removed UI label: "Links across the top; they fold behind ☰ on phones by themselves"
-- removed UI label: "The whole menu folds behind ☰ on every screen, desktop too"
-- removed UI label: "☰ Everywhere"
+- version: 0.99.341 → 0.99.342
+- added UI label: "The header rides along as visitors scroll"
