@@ -2868,7 +2868,13 @@
     // a taller or shorter layout inside it and the dim must move with it
     // (James: "on some the overlay is not quite right")
     if (window.ResizeObserver) {
-      chromeScrim.__ro = new ResizeObserver(place);
+      chromeScrim.__ro = new ResizeObserver(function () {
+        place();
+        // the room's panel docks BELOW the part — when an audition makes the
+        // part taller (Centred header), the panel must re-seat too, or it
+        // sits on the very header it previews (James: "this is not ideal")
+        if (panelOpen && !panel.hidden && panel.dataset.goghArea === area) dockPanel(partEl);
+      });
       chromeScrim.__ro.observe(partEl);
     }
     // a stray click on the dim never drops you out with work half-done —
@@ -12934,6 +12940,7 @@
     duplicateSection: duplicateSection,
     rollSection: rollSection,
     diceFaces: diceFaces,
+    reseatRoom: reseatChromeRoom,
     fm: function () { return fm; },
     fmLand: fmSectionLanded,
     fmReset: fmTeardown,
@@ -15990,11 +15997,23 @@
     panelOpen = true;
   }
   var chromePreview = null; // {partEl, box, hidden}
+  // the spotlight and the room's panel both sit relative to the part — when
+  // an audition mounts (or leaves) and the part changes height, both must
+  // re-seat NOW. The ResizeObserver covers the rest, but rendering-timed
+  // observers freeze in background tabs and never fire for mid-drag swaps;
+  // this is the deterministic path (James: "this is not ideal" — the panel
+  // sat on the Centred header it was previewing).
+  function reseatChromeRoom(partEl) {
+    if (chromeScrim && chromeScrim.__place) chromeScrim.__place();
+    if (panelOpen && !panel.hidden && panel.dataset.goghArea) dockPanel(partEl);
+  }
   function endChromePreview() {
     if (!chromePreview) return;
+    var pe = chromePreview.partEl;
     chromePreview.box.remove();
     chromePreview.hidden.forEach(function (c) { c.style.display = ''; });
     chromePreview = null;
+    reseatChromeRoom(pe);
   }
   var prevStyleHandles = {}; // block stylesheets pulled in for previews
   function applyChromePreview(partEl, opt, d, done) {
@@ -16024,6 +16043,7 @@
       chromePreview = { partEl: partEl, box: box, hidden: hidden };
     }
     chromePreview.box.innerHTML = (d.css ? '<style>' + d.css + '</style>' : '') + (d.html || '');
+    reseatChromeRoom(partEl);
     // self-check: an "applied" preview the user can't SEE is the worst
     // failure mode — detect it, and REPORT the outcome on the strip itself
     // so a single screenshot carries the full diagnosis
