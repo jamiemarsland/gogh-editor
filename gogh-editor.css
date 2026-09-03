@@ -1555,7 +1555,17 @@ body.gogh-painting, body.gogh-painting .gogh-section * { cursor: url('data:image
   transition: border-color 0.12s ease, background 0.12s ease;
 }
 .gogh-hdoor:hover { border-color: #4a63d8; background: rgba(74, 99, 216, 0.06); }
-.gogh-hdoor-chev { margin-left: auto; opacity: 0.45; font-size: 16px; line-height: 1; }
+.gogh-hdoor-chev { margin-left: auto; opacity: 0.45; font-size: 16px; line-height: 1; transition: transform 0.15s ease; }
+/* the Layout door wears its current choice and folds its list open beneath */
+.gogh-hdoor-now { margin-left: auto; font-weight: 550; opacity: 0.6; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 45%; }
+.gogh-hdoor-now + .gogh-hdoor-chev { margin-left: 10px; }
+.gogh-hlaydoor[aria-expanded="true"] .gogh-hdoor-chev { transform: rotate(90deg); }
+.gogh-hlaydoor[aria-expanded="true"] { border-color: #4a63d8; }
+/* in daylight the [hidden] attribute must win over the row's own flex —
+   inside the fold it never had to */
+.gogh-halpha-row[hidden] { display: none; }
+.gogh-hlaybox { margin: -2px 0 2px; }
+.gogh-hlaybox .gogh-hoptlist { margin: 0; max-height: 296px; overflow-y: auto; }
 
 /* the seam's More chip is a DOOR among things — a quiet tint and an
    arrow set it apart from the content chips around it */

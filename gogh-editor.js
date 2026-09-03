@@ -15493,8 +15493,16 @@
       // are a radio LIST — the ragged pill cloud retired — doors are rows
       // with a chevron, verbs stay in the footer. The real header is the
       // thumbnail; the panel only needs to be calm.
-      '<div class="gogh-swlab">Layout</div>' +
-      '<div class="gogh-hoptlist gogh-hlayouts">' +
+      // YOUR HEADER: everything that IS the header, one grammar — Layout is
+      // a door like Logo & name and Edit menu items (James: "it feels like
+      // it's on the same level"), its radio list folding open beneath it,
+      // which also hands the room back its real estate
+      '<div class="gogh-swlab">Your ' + area + '</div>' +
+      '<div class="gogh-hdoors gogh-hcontent">' +
+      '<button type="button" class="gogh-hdoor gogh-hlaydoor" aria-expanded="false"><span class="gogh-hdoor-ic">\u25a6</span><span>Layout</span>' +
+      '<span class="gogh-hdoor-now">' + esc(String((activeOpt && activeOpt.title) || '').split(' \u2014 ')[0]) + '</span>' +
+      '<span class="gogh-hdoor-chev">\u203a</span></button>' +
+      '<div class="gogh-hlaybox" hidden><div class="gogh-hoptlist gogh-hlayouts">' +
       options.map(function (o, k) {
         var short = String(o.title || '').split(' \u2014 ')[0];
         // no title tooltip: the row auditions live on hover, so a hover
@@ -15502,11 +15510,7 @@
         return '<button type="button" class="gogh-hopt gogh-hlayout' +
           (o.id === st.layoutId ? ' is-active' : '') + '" data-k="' + k + '">' +
           '<span class="gogh-hopt-dot"></span><span class="gogh-hopt-name">' + esc(short) + '</span></button>';
-      }).join('') + '</div>' +
-      // YOUR HEADER: the content actions folks reach for most — their logo/name
-      // and their menu — ride up top, never buried under the styling dials
-      '<div class="gogh-swlab">Your ' + area + '</div>' +
-      '<div class="gogh-hdoors gogh-hcontent">' +
+      }).join('') + '</div></div>' +
       '<button type="button" class="gogh-hdoor gogh-hlogo"><span class="gogh-hdoor-ic">🏷️</span><span>' + (usingLogo ? 'Logo &amp; size' : 'Logo &amp; name') + '</span><span class="gogh-hdoor-chev">\u203a</span></button>' +
       (d0 && d0.hasNav ? '<button type="button" class="gogh-hdoor gogh-hmenu"><span class="gogh-hdoor-ic">☰</span><span>Edit menu items</span><span class="gogh-hdoor-chev">\u203a</span></button>' : '') +
       '</div>' +
@@ -15617,9 +15621,33 @@
         panel.querySelectorAll('.gogh-hlayout').forEach(function (o2) {
           o2.classList.toggle('is-active', o2 === lb);
         });
+        // the door wears the choice and folds — the header above already
+        // shows it, the list has done its job
+        if (layNow) layNow.textContent = String(opt.title || '').split(' \u2014 ')[0];
+        foldLayouts(false);
+        syncAlpha();
         arm();
       });
     });
+    var layDoor = panel.querySelector('.gogh-hlaydoor');
+    var layBox = panel.querySelector('.gogh-hlaybox');
+    var layNow = panel.querySelector('.gogh-hdoor-now');
+    var foldLayouts = function (open) {
+      if (!layBox) return;
+      if (open) layBox.removeAttribute('hidden'); else layBox.setAttribute('hidden', '');
+      if (layDoor) layDoor.setAttribute('aria-expanded', open ? 'true' : 'false');
+    };
+    if (layDoor) layDoor.addEventListener('click', function () { foldLayouts(layBox.hasAttribute('hidden')); });
+    // the Transparency dial belongs to the Transparent header (James:
+    // "should only show when transparent header is selected") — and still
+    // needs a colour to be transparent WITH
+    var isSeeThrough = function (o) {
+      return !!o && (/gogh-header-overlay/.test(o.content || '') || /transparent|overlay/i.test((o.title || '') + ' ' + (o.slug || '')));
+    };
+    var syncAlpha = function () {
+      var ar = panel.querySelector('.gogh-halpha-row');
+      if (ar) ar.hidden = !(isSeeThrough(chosenOpt()) && st.base && (st.base.bg || st.base.custom));
+    };
     // LOOK: instant inline audition; the Transparency dial composes with
     // WHICHEVER look is chosen ("when i set a transparency and a color -
     // it's not transparent" — it only listened to the custom picker)
@@ -15653,7 +15681,7 @@
         else { st.look.ink = st.inkPick.slug; delete st.look.inkHex; }
       }
       chromeColorPreview(partEl, st.look);
-      if (alphaRow) alphaRow.hidden = !(st.base && (st.base.bg || st.base.custom));
+      syncAlpha();
       arm();
     };
     // Light and Dark are the THEME's poles, whichever slugs play them today
