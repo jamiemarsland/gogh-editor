@@ -4533,8 +4533,11 @@
 
     test('section bar: four doors, housekeeping in words', function () {
       var bar = q('.gogh-secbar');
-      expect(bar.querySelectorAll('.gogh-sb').length === 4,
-        'expected 4 controls, got ' + bar.querySelectorAll('.gogh-sb').length);
+      // the die only counts as a door where a drawer of takes exists —
+      // on a plain section it stays hidden and the bar reads four doors
+      var doors = [].filter.call(bar.querySelectorAll('.gogh-sb'), function (b) { return !b.hidden; });
+      expect(doors.length === 4,
+        'expected 4 visible controls, got ' + doors.length);
       expect(bar.querySelector('.gogh-sb-ask') && bar.querySelector('[data-sec="more"]'),
         'the star or the ⋯ is missing');
       var i = G.sections().indexOf(sec());
@@ -4832,6 +4835,86 @@
       // a fresh section arrives SELECTED — the birth glow is the selection
       expect(born.sectionEl.classList.contains('gogh-selsec'), 'the new section did not arrive selected');
       return 'testimonials landed with ' + quotes.length + ' cards, born selected';
+    });
+
+    // ---- the dice: hidden takes behind the starters ----
+    var diceFlat = function (els) {
+      var out = [];
+      (els || []).forEach(function w(e) { out.push(e); (e.kids || []).forEach(w); });
+      return out;
+    };
+    test('the dice: starters remember their family, drawers hold four takes', function () {
+      var cover = G.templates().filter(function (t) { return t.name === 'Cover'; })[0];
+      expect(cover, 'no Cover starter on the shelf');
+      G.addSection(cover, G.sections().length);
+      var s2 = lastSec();
+      expect(s2.m && s2.m.tpl === 'Cover' && s2.m.face === 0, 'the cover forgot its family');
+      var faces = G.diceFaces('Cover');
+      expect(faces && faces.length === 4, 'the Cover drawer is not four takes');
+      expect(!G.diceFaces('Numbers'), 'Numbers grew takes nobody authored');
+      // take previews must stay nestable — the form shelf-eater lesson
+      G.diceFaces('Get in touch').slice(1).forEach(function (f) {
+        f.els.forEach(function (e) {
+          if (e.whtml) expect(e.whtml.indexOf('<button') === -1, 'a take preview carries a nested button');
+        });
+      });
+      return 'Cover + Get in touch + Hero each hide three more takes';
+    });
+    test('the dice: a roll changes the take and four rolls come home', function () {
+      var cover = G.templates().filter(function (t) { return t.name === 'Cover'; })[0];
+      G.addSection(cover, G.sections().length);
+      var s2 = lastSec();
+      var idx = G.sections().indexOf(s2);
+      var els0 = JSON.stringify(s2.els.map(function (e) { return e.type + '@' + e.x + ',' + e.y; }));
+      var r1 = G.rollSection(idx);
+      expect(r1 && r1.face === 1 && s2.m.face === 1, 'roll one did not land on take 2');
+      var els1 = JSON.stringify(s2.els.map(function (e) { return e.type + '@' + e.x + ',' + e.y; }));
+      expect(els1 !== els0, 'take 2 wears the same layout as take 1');
+      G.rollSection(idx);
+      G.rollSection(idx);
+      var r4 = G.rollSection(idx);
+      expect(r4 && r4.face === 0, 'four rolls did not come home');
+      var elsH = JSON.stringify(s2.els.map(function (e) { return e.type + '@' + e.x + ',' + e.y; }));
+      expect(elsH === els0, 'home is not the layout we left');
+      return 'the roll is a loop — four faces and home again';
+    });
+    test('the dice: your words and your photo survive the roll', function () {
+      var hero = G.templates().filter(function (t) { return t.name === 'Hero'; })[0];
+      G.addSection(hero, G.sections().length);
+      var s2 = lastSec();
+      var idx = G.sections().indexOf(s2);
+      var h = diceFlat(s2.els).filter(function (e) { return e.type === 'heading'; })[0];
+      h.text = 'Vermilion & Co';
+      var img = diceFlat(s2.els).filter(function (e) { return e.type === 'image'; })[0];
+      img.src = 'https://example.com/mine.jpg';
+      G.rollSection(idx);
+      var h2 = diceFlat(s2.els).filter(function (e) { return e.type === 'heading'; })[0];
+      var i2 = diceFlat(s2.els).filter(function (e) { return e.type === 'image'; })[0];
+      expect(h2 && h2.text === 'Vermilion & Co', 'the roll dropped the edited heading');
+      expect(i2 && i2.src === 'https://example.com/mine.jpg', 'the roll dropped the swapped photo');
+      G.rollSection(idx);
+      G.rollSection(idx);
+      G.rollSection(idx);
+      var h3 = diceFlat(s2.els).filter(function (e) { return e.type === 'heading'; })[0];
+      var i3 = diceFlat(s2.els).filter(function (e) { return e.type === 'image'; })[0];
+      expect(h3 && h3.text === 'Vermilion & Co', 'the words did not make it home');
+      expect(i3 && i3.src === 'https://example.com/mine.jpg', 'the photo did not make it home');
+      return 'edits ride every take and arrive home intact';
+    });
+    test('the dice: the die shows only where takes exist', function () {
+      G.addSection({ name: 'NOFAM', minH: 300, els: [
+        { type: 'heading', x: 80, y: 60, w: 400, h: 60, text: 'Plain' },
+      ] }, G.sections().length);
+      G.selectSection(G.sections().indexOf(lastSec()));
+      var die = q('.gogh-sb-dice');
+      expect(die, 'the die is not on the section bar');
+      expect(die.hidden, 'the die shows on a family-less section');
+      var cover = G.templates().filter(function (t) { return t.name === 'Cover'; })[0];
+      G.addSection(cover, G.sections().length);
+      G.selectSection(G.sections().indexOf(lastSec()));
+      expect(!die.hidden, 'the die is missing on a cover');
+      G.deselectSection();
+      return 'the die appears exactly where a drawer exists';
     });
 
     // ---- report ----

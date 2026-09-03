@@ -5696,6 +5696,199 @@
     return els;
   }
 
+
+  // ---------- the dice: other takes of the same design ----------
+  // A starter can hide a few sibling layouts that never crowd the picker
+  // (the shelf stays a calm dozen); a little die on the section bar cycles
+  // them. Choice within guidelines, and the roll is a LOOP, never a
+  // gamble: four faces and you're home. Words already written, a swapped
+  // photo, a changed button label -- the user's edits ride along into
+  // every take, matched by ROLE (first heading to first heading).
+  // Variants borrow the family's name so the media-pool picks (seeded by
+  // name) stay the same photos across takes; 'take' is only a label.
+  var DICE_FORM_WSRC = '<!-- wp:gogh/form /-->';
+  var DICE_FORM_WHTML = '<div class="gogh-form"><div class="gogh-form-row"><input type="text" placeholder="Your name" disabled /><input type="email" placeholder="Your email" disabled /></div><textarea rows="5" placeholder="Your message…" disabled></textarea><div class="gogh-form-foot"><span class="gogh-form-fbtn">Send</span><span class="gogh-form-note">Goes straight to this site — nowhere else.</span></div></div>';
+  var VARIANTS = {
+    'Cover': [
+      { name: 'Cover', take: 'The anchor', minH: 700,
+        bg: 'var(--wp--preset--color--contrast, #16181c)', bgA: 55, bgImage: '/wp-content/plugins/gogh/demo-assets/wheat-field.jpg',
+        els: [
+        { type: 'para', x: 76, y: 380, w: 400, h: 24, text: 'Est. 2019 · Brighton', tf: { fs: 13, fw: 600, ls2: 0.24, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--base, #fff) 78%, transparent)' } },
+        { type: 'heading', x: 72, y: 420, w: 760, h: 150, text: 'Make it feel like you', fs: '__max', color: 'base' },
+        { type: 'para', x: 76, y: 590, w: 500, h: 48, text: 'One clear promise over one strong picture — the front door most sites need.', color: 'base' },
+        { type: 'button', x: 900, y: 584, w: 190, h: 56, text: 'Come on in', tf: { bg: 'var(--wp--preset--color--base, #fff)', col: 'var(--wp--preset--color--contrast, #141519)' } },
+      ] },
+      { name: 'Cover', take: 'The panel', minH: 640,
+        bg: 'var(--wp--preset--color--contrast, #16181c)', bgA: 25, bgImage: '/wp-content/plugins/gogh/demo-assets/wheat-field.jpg', fx: { bg: 'parallax' },
+        els: [
+        { type: 'box', x: 620, y: 110, w: 470, h: 420, radius: 24, mood: 'glass', kids: [
+          { type: 'para', x: 36, y: 40, w: 398, h: 22, text: 'Est. 2019 · Brighton', tf: { fs: 12, fw: 600, ls2: 0.24, tt: 'uppercase' } },
+          { type: 'heading', x: 36, y: 84, w: 398, h: 120, text: 'Make it feel like you', fs: 'x-large' },
+          { type: 'para', x: 36, y: 228, w: 398, h: 72, text: 'One clear promise over one strong picture — the front door most sites need.' },
+          { type: 'button', x: 36, y: 322, w: 190, h: 54, text: 'Come on in' },
+        ] },
+      ] },
+      { name: 'Cover', take: 'The statement', minH: 620,
+        bg: 'var(--wp--preset--color--contrast, #16181c)',
+        els: [
+        { type: 'para', x: 400, y: 120, w: 400, h: 24, align: 'center', text: 'Est. 2019 · Brighton', tf: { fs: 13, fw: 600, ls2: 0.24, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--base, #fff) 78%, transparent)' } },
+        { type: 'heading', x: 100, y: 170, w: 1000, h: 220, text: 'Make it feel like you', fs: '__disp-l', align: 'center', tf: { col: 'var(--wp--preset--color--base, #fff)' } },
+        { type: 'para', x: 350, y: 420, w: 500, h: 48, align: 'center', text: 'One clear promise over one strong picture — the front door most sites need.', tf: { col: 'color-mix(in srgb, var(--wp--preset--color--base, #fff) 75%, transparent)' } },
+        { type: 'button', x: 505, y: 500, w: 190, h: 56, text: 'Come on in', tf: { bg: 'var(--wp--preset--color--base, #fff)', col: 'var(--wp--preset--color--contrast, #141519)' } },
+      ] },
+    ],
+    'Get in touch': [
+      { name: 'Get in touch', take: 'Side by side', minH: 640, els: [
+        { type: 'para', x: 72, y: 90, w: 300, h: 24, text: 'Say hello', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
+        { type: 'heading', x: 72, y: 132, w: 420, h: 150, text: 'Let’s talk', fs: '__max' },
+        { type: 'para', x: 72, y: 310, w: 400, h: 72, text: 'A question, an idea, or just to say hi — we read everything, usually the same day.' },
+        { type: 'para', x: 72, y: 410, w: 400, h: 24, text: 'hello@yourstudio.com · Brighton', tf: { fs: 13, fw: 600, col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
+        { type: 'widget', x: 540, y: 90, w: 560, h: 460, wsrc: DICE_FORM_WSRC, whtml: DICE_FORM_WHTML },
+      ] },
+      { name: 'Get in touch', take: 'The note', minH: 780, els: [
+        { type: 'para', x: 400, y: 66, w: 400, h: 24, align: 'center', text: 'Say hello', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
+        { type: 'heading', x: 300, y: 108, w: 600, h: 80, text: 'Let’s talk', fs: 'x-large', align: 'center' },
+        { type: 'para', x: 340, y: 208, w: 520, h: 48, align: 'center', text: 'A question, an idea, or just to say hi — we read everything, usually the same day.' },
+        { type: 'box', x: 270, y: 290, w: 660, h: 440, radius: 22, boxBg: 'color-mix(in srgb, var(--wp--preset--color--contrast, #000) 6%, var(--wp--preset--color--base, transparent))' },
+        { type: 'widget', x: 310, y: 330, w: 580, h: 360, wsrc: DICE_FORM_WSRC, whtml: DICE_FORM_WHTML },
+      ] },
+      { name: 'Get in touch', take: 'The statement', minH: 700, els: [
+        { type: 'para', x: 72, y: 84, w: 300, h: 24, text: 'Say hello', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
+        { type: 'heading', x: 72, y: 126, w: 460, h: 220, text: 'Let’s talk', fs: '__disp-m' },
+        { type: 'para', x: 72, y: 390, w: 400, h: 72, text: 'A question, an idea, or just to say hi — we read everything, usually the same day.' },
+        { type: 'widget', x: 560, y: 110, w: 540, h: 460, wsrc: DICE_FORM_WSRC, whtml: DICE_FORM_WHTML },
+      ] },
+    ],
+    'Hero': [
+      { name: 'Hero', take: 'The mirror', minH: 640, els: [
+        { type: 'box', x: 60, y: 150, w: 500, h: 430, boxBg: 'color-mix(in srgb, var(--wp--preset--color--contrast, #000) 8%, var(--wp--preset--color--base, transparent))', radius: 26 },
+        { type: 'image', x: 100, y: 110, w: 500, h: 430, cool: true },
+        { type: 'badge', x: 444, y: 486, w: 196, h: 50, text: '★ Est. 2019', rot: 2 },
+        { type: 'para', x: 660, y: 118, w: 340, h: 24, text: 'Design studio · Brighton', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
+        { type: 'heading', x: 660, y: 162, w: 470, h: 200, text: 'We make brands people remember', fs: '__max' },
+        { type: 'para', x: 660, y: 396, w: 410, h: 72, text: 'Strategy, identity and websites for founders who care how things feel.' },
+        { type: 'button', x: 660, y: 502, w: 180, h: 54, text: 'See the work' },
+        { type: 'button', x: 860, y: 502, w: 180, h: 54, text: 'Start a project', ghost: true },
+      ] },
+      { name: 'Hero', take: 'The stage', minH: 840, els: [
+        { type: 'image', x: 150, y: 470, w: 900, h: 330, cool: true },
+        { type: 'badge', x: 920, y: 438, w: 196, h: 50, text: '★ Est. 2019', rot: 2 },
+        { type: 'para', x: 400, y: 84, w: 400, h: 24, align: 'center', text: 'Design studio · Brighton', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
+        { type: 'heading', x: 150, y: 128, w: 900, h: 150, text: 'We make brands people remember', fs: '__max', align: 'center' },
+        { type: 'para', x: 360, y: 300, w: 480, h: 52, align: 'center', text: 'Strategy, identity and websites for founders who care how things feel.' },
+        { type: 'button', x: 420, y: 376, w: 180, h: 54, text: 'See the work' },
+        { type: 'button', x: 620, y: 376, w: 180, h: 54, text: 'Start a project', ghost: true },
+      ] },
+      { name: 'Hero', take: 'The overlap', minH: 640, els: [
+        { type: 'image', x: 460, y: 70, w: 640, h: 500, cool: true },
+        { type: 'badge', x: 1000, y: 46, w: 150, h: 44, text: '★ Est. 2019', rot: 2 },
+        { type: 'box', x: 100, y: 140, w: 470, h: 380, radius: 24, mood: 'glass', kids: [
+          { type: 'para', x: 36, y: 36, w: 398, h: 22, text: 'Design studio · Brighton', tf: { fs: 12, fw: 600, ls2: 0.22, tt: 'uppercase' } },
+          { type: 'heading', x: 36, y: 76, w: 398, h: 140, text: 'We make brands people remember', fs: 'x-large' },
+          { type: 'para', x: 36, y: 236, w: 398, h: 66, text: 'Strategy, identity and websites for founders who care how things feel.' },
+          { type: 'button', x: 36, y: 320, w: 180, h: 48, text: 'See the work' },
+        ] },
+      ] },
+    ],
+  };
+  function diceFaces(famName) {
+    var base = null;
+    TEMPLATES.forEach(function (t) { if (!base && t.name === famName) base = t; });
+    var vars = VARIANTS[famName];
+    return (base && vars && vars.length) ? [base].concat(vars) : null;
+  }
+  function diceFlatten(els) {
+    var out = [];
+    (els || []).forEach(function walk(e) {
+      out.push(e);
+      (e.kids || []).forEach(walk);
+    });
+    return out;
+  }
+  // what a piece MEANS, not where it sits -- edits travel between takes
+  // by role-position (an eyebrow is a para in uppercase clothes)
+  function diceRole(e) {
+    if (e.type === 'para') return (e.tf && e.tf.tt === 'uppercase') ? 'eyebrow' : 'para';
+    if (e.type === 'heading' || e.type === 'button' || e.type === 'badge' || e.type === 'image') return e.type;
+    return null;
+  }
+  function diceByRole(els) {
+    var map = {};
+    diceFlatten(els).forEach(function (e) {
+      var r = diceRole(e);
+      if (r) (map[r] = map[r] || []).push(e);
+    });
+    return map;
+  }
+  function rollSection(idx) {
+    var sec = S[idx];
+    var fam = sec && sec.m && sec.m.tpl;
+    var faces = fam ? diceFaces(fam) : null;
+    if (!faces) return null;
+    var cur = ((sec.m.face || 0) % faces.length + faces.length) % faces.length;
+    var next = (cur + 1) % faces.length;
+    // what the CURRENT take would say untouched (tplEls is deterministic:
+    // pool picks are seeded by family name) -- anything that differs is
+    // the user's, and the user's work survives the roll
+    var pristine = diceByRole(tplEls(faces[cur]));
+    var live = diceByRole(sec.els);
+    var edits = {};
+    Object.keys(live).forEach(function (r) {
+      var pl = pristine[r] || [];
+      live[r].forEach(function (e, i) {
+        if (!pl[i]) return;
+        var d = {};
+        if (r === 'image') {
+          if (e.src && e.src !== pl[i].src) { d.src = e.src; if (e.srcId) d.srcId = e.srcId; }
+        } else {
+          if (e.text != null && e.text !== pl[i].text) d.text = e.text;
+          if (e.href && e.href !== pl[i].href) d.href = e.href;
+        }
+        if (Object.keys(d).length) (edits[r] = edits[r] || [])[i] = d;
+      });
+    });
+    // pieces ADDED on top of the take travel whole, positions and all
+    var extra = sec.els.length > faces[cur].els.length ? sec.els.slice(faces[cur].els.length) : [];
+    var els2 = tplEls(faces[next]);
+    var by2 = diceByRole(els2);
+    Object.keys(edits).forEach(function (r) {
+      (by2[r] || []).forEach(function (e, i) {
+        var d = edits[r][i];
+        if (!d) return;
+        if (d.src) { e.src = d.src; if (d.srcId) e.srcId = d.srcId; }
+        if (d.text != null) e.text = d.text;
+        if (d.href) e.href = d.href;
+      });
+    });
+    // a background photo the user chose outlives every take that can wear
+    // one; a take born imageless stashes it instead of losing it
+    var priBg = tplBgFor(faces[cur]);
+    var keep = sec.__diceBg || null;
+    if (sec.bgImage && sec.bgImage !== priBg) {
+      keep = { img: sec.bgImage, id: sec.bgId || null, pos: sec.bgPos || null };
+    }
+    var t2 = faces[next];
+    sec.els = els2.concat(extra);
+    sec.minH = t2.minH || null;
+    sec.bg = t2.bg || null;
+    sec.fill = !!t2.fill;
+    sec.fx = t2.fx ? JSON.parse(JSON.stringify(t2.fx)) : null;
+    var wants = tplBgFor(t2);
+    if (wants && keep) {
+      sec.bgImage = keep.img; sec.bgId = keep.id; sec.bgPos = keep.pos;
+      sec.__diceBg = null;
+    } else {
+      sec.bgImage = wants || null; sec.bgId = null; sec.bgPos = null;
+      sec.__diceBg = keep;
+    }
+    sec.bgA = t2.bgA != null ? t2.bgA : null;
+    sec.m = Object.assign({}, sec.m, { face: next });
+    renderSection(sec);
+    pushState();
+    contrastSentinel(sec);
+    return { face: next, of: faces.length, take: t2.take || null };
+  }
+
   var picker = document.createElement('div');
   picker.className = 'gogh-picker';
   picker.hidden = true;
@@ -6288,6 +6481,10 @@
     sec.bgA = tpl.bgA != null ? tpl.bgA : null;
     sec.fill = !!tpl.fill;
     sec.fx = tpl.fx ? JSON.parse(JSON.stringify(tpl.fx)) : null;
+    // a starter with hidden takes remembers its family -- the die must
+    // know which drawer to reach into, today and after a reload (m rides
+    // in the saved model, so the memory survives publish)
+    if (diceFaces(tpl.name)) sec.m = Object.assign({}, sec.m || {}, { tpl: tpl.name, face: 0 });
     var nextContent = null;
     for (var ni = idx; ni < S.length; ni++) { if (!S[ni].chrome) { nextContent = S[ni]; break; } }
     // the DOM anchor wins when given: it can place the section above a
@@ -6551,6 +6748,8 @@
     // housekeeping verbs (move, duplicate, rearrange, save, delete) live
     // in the ⋯ menu as WORDS. Rare actions don't earn permanent icons
     // (James: "lots of options... a little ungogh")
+    // the die appears only where a drawer of takes exists (see VARIANTS)
+    '<button type="button" class="gogh-sb gogh-sb-dice" data-sec="dice" title="Roll another take of this design" hidden><svg width="15" height="15" viewBox="0 0 16 16" fill="none" aria-hidden="true"><rect x="1.5" y="1.5" width="13" height="13" rx="3.2" stroke="currentColor" stroke-width="1.6"/><circle cx="5.4" cy="5.4" r="1.25" fill="currentColor"/><circle cx="10.6" cy="5.4" r="1.25" fill="currentColor"/><circle cx="8" cy="8" r="1.25" fill="currentColor"/><circle cx="5.4" cy="10.6" r="1.25" fill="currentColor"/><circle cx="10.6" cy="10.6" r="1.25" fill="currentColor"/></svg></button>' +
     '<button type="button" class="gogh-sb" data-sec="bgimg" title="Background &amp; look">' + CTX_ICONS.image + '</button>' +
     '<button type="button" class="gogh-sb gogh-sb-more" data-sec="more" title="Move, duplicate, save, delete…">⋯</button>';
   secBar.hidden = true;
@@ -6566,6 +6765,8 @@
     // or be deleted, so the section toolbar has nothing to offer it
     if (S[idx] && S[idx].chrome) { hideSecBar(); return; }
     secBarIdx = idx;
+    var diceB = secBar.querySelector('.gogh-sb-dice');
+    if (diceB) diceB.hidden = !(S[idx].m && S[idx].m.tpl && diceFaces(S[idx].m.tpl));
     var r = S[idx].wrapEl.getBoundingClientRect();
     secBar.style.left = (r.left + window.scrollX + 16) + 'px';
     // the bar DOCKS: it sits at the section's top edge, and for a section
@@ -6604,6 +6805,19 @@
     if (!b || secBarIdx === null) return;
     if (b.dataset.sec === 'ask') { openAskPanel(secBarIdx, b); return; }
     if (b.dataset.sec === 'add') { openSecAddPanel(secBarIdx); return; }
+    if (b.dataset.sec === 'dice') {
+      var rolled = rollSection(secBarIdx);
+      if (rolled) {
+        b.classList.remove('is-rolling');
+        void b.offsetWidth;
+        b.classList.add('is-rolling');
+        showSecBar(secBarIdx);
+        toast(rolled.take
+          ? 'Take ' + (rolled.face + 1) + ' of ' + rolled.of + ' \u2014 ' + rolled.take
+          : 'Home again \u2014 take 1 of ' + rolled.of, { ttl: 2600 });
+      }
+      return;
+    }
     if (b.dataset.sec === 'bgimg') { openSecBgPanel(secBarIdx, b); return; }
     if (b.dataset.sec === 'more') { openSecMore(secBarIdx, b); return; }
   });
@@ -11593,6 +11807,8 @@
     deleteSection: deleteSection,
     moveSection: moveSection,
     duplicateSection: duplicateSection,
+    rollSection: rollSection,
+    diceFaces: diceFaces,
     openSide: openSide,
     closeSide: closeSide,
     fontSizes: fontSizes,

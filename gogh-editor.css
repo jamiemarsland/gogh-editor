@@ -1408,6 +1408,17 @@ body.gogh-painting, body.gogh-painting .gogh-section * { cursor: url('data:image
 }
 .gogh-sb:hover { background: #e8f0ff; }
 .gogh-sb svg { width: 15px; height: 15px; display: block; }
+/* the die tumbles on a roll — transform only, the bar never shifts */
+.gogh-sb-dice.is-rolling svg { animation: gogh-diceroll 0.5s ease; }
+@keyframes gogh-diceroll {
+  0% { transform: rotate(0) scale(1); }
+  30% { transform: rotate(-24deg) scale(1.15); }
+  70% { transform: rotate(20deg) scale(1.06); }
+  100% { transform: rotate(0) scale(1); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .gogh-sb-dice.is-rolling svg { animation: none; }
+}
 .gogh-sb-del:hover { background: #ffe3db; }
 .gogh-sb:disabled { opacity: 0.25; cursor: default; }
 
