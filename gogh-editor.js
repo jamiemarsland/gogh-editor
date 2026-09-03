@@ -5112,9 +5112,26 @@
       });
       input.click();
     };
-    // the gallery law: calm walls, wild frames. Without the imagination
-    // tier the old upload door stands alone, unchanged.
-    if (!cfg.askAI) { uploadPick(); return; }
+    // the gallery law: calm walls, wild frames. Experiences ride their own
+    // flag now (the section-level ask tier is parked, this door is not):
+    // keyless admins get the paste door RIGHT HERE — the key lives where
+    // it's used — and everyone else the plain upload, unchanged.
+    if (!cfg.expAI && !cfg.canKey) { uploadPick(); return; }
+    if (!cfg.expAI) {
+      panel.innerHTML =
+        '<div class="gogh-panel-head"><span class="gogh-panel-title">Add an experience</span>' +
+        '<button type="button" class="gogh-sbtn gogh-panel-close" title="Close">\u2715</button></div>' +
+        '<div class="gogh-panel-hint">Full creative mode, in its own frame \u2014 describe it and gogh writes the code into your media library. That takes a key.</div>' +
+        askKeyDoorHTML() +
+        '<div class="gogh-panel-row gogh-chrome-foot">' +
+        '<button type="button" class="gogh-btn gogh-btn-small gogh-expupload">Upload an .html file instead</button></div>';
+      placePanelNear(typeof targetIdx === 'number' && S[targetIdx] ? S[targetIdx].wrapEl : side);
+      panelOpen = true;
+      panel.querySelector('.gogh-panel-close').addEventListener('click', closePanel);
+      panel.querySelector('.gogh-expupload').addEventListener('click', function () { closePanel(); uploadPick(); });
+      bindKeyDoor(panel, function () { closePanel(); addExperience(targetIdx); });
+      return;
+    }
     panel.innerHTML =
       '<div class="gogh-panel-head"><span class="gogh-panel-title">Add an experience</span>' +
       '<button type="button" class="gogh-sbtn gogh-panel-close" title="Close">\u2715</button></div>' +
@@ -8663,8 +8680,9 @@
       }).then(function (r) { return r.ok ? r.json() : r.json().then(function (j) { return Promise.reject(j); }); })
         .then(function (j) {
           cfg.askAI = !!(j && j.on);
+          cfg.expAI = !!(j && (j.exp != null ? j.exp : j.on));
           kin.value = ''; // out of the DOM the moment it's stored
-          if (cfg.askAI && onReady) onReady();
+          if ((cfg.askAI || cfg.expAI) && onReady) onReady();
         })
         .catch(function (j) {
           go.disabled = false;
@@ -8702,7 +8720,7 @@
       headers: { 'Content-Type': 'application/json', 'X-WP-Nonce': cfg.nonce },
       credentials: 'same-origin',
       body: JSON.stringify({ key: '' }),
-    }).then(function (r) { return r.json(); }).then(function (j) { cfg.askAI = !!(j && j.on); });
+    }).then(function (r) { return r.json(); }).then(function (j) { cfg.askAI = !!(j && j.on); cfg.expAI = !!(j && (j.exp != null ? j.exp : j.on)); });
   }
   var ASK_EXAMPLES = [
     'Make this more premium…',
@@ -8887,7 +8905,7 @@
         if (input.value.trim()) askLog(input.value, 'miss');
         missRow.innerHTML = (input.value.trim() ? 'Gogh didn’t catch that — try one of these:' :
           'Tell Gogh what you’d like — for example:') + chipify(ASK_EXAMPLES.slice(0, 4)) +
-          (input.value.trim() && !cfg.askAI ? askKeyDoorHTML() : '');
+          (input.value.trim() && !cfg.askAI && cfg.labsAsk ? askKeyDoorHTML() : '');
         bindChips();
         bindKeyDoor(missRow, function () { submit(); });
         return;
@@ -9091,7 +9109,7 @@
     var out = pool.filter(function (c) { return !c.re.test(pageText); }).slice(0, 7);
     // the wild door shows at the seam too ("i dont see experience?") —
     // saying it inserts a fresh section and opens the Experience chooser
-    if (cfg.canExp && cfg.askAI) out.push({ label: 'Experience', say: 'an interactive experience' });
+    if (cfg.canExp && cfg.expAI) out.push({ label: 'Experience', say: 'an interactive experience' });
     return out;
   }
   function openSeamAsk(idx, before) {

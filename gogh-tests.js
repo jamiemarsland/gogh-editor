@@ -4941,6 +4941,27 @@
       return 'ghost words re-inked as ' + kid.color;
     });
 
+    test('ask gogh: the model tier is parked — misses stay honest, no key door', function () {
+      // the dice showed choice-within-guidelines beats ask-and-hope
+      // (James: "we might not need ai here") — the vocabulary and the seam
+      // stay, the model-backed rewriter waits behind the labs door
+      var C = window.GOGH || {};
+      expect(C.labsAsk || !C.askAI, 'the ask tier runs without the labs door being open');
+      G.openAskPanel(G.sections().indexOf(sec()), null);
+      var input = q('.gogh-panel .gogh-askin');
+      expect(input, 'the ask panel did not open');
+      input.value = 'paint me a fresco of unicorns';
+      q('.gogh-panel .gogh-askgo').click();
+      if (!C.askAI) {
+        var miss = q('.gogh-panel .gogh-askmiss');
+        expect(miss && !miss.hidden, 'the miss row did not show');
+        expect(!q('.gogh-panel .gogh-askkeyin'), 'the parked tier still advertises the key door');
+      }
+      G.closePanel();
+      return C.askAI ? 'labs door open on this site — tier live by choice' :
+        'a miss lands on chips, never on a key invitation';
+    });
+
     // ---- report ----
     function finishReport() {
     var passed = results.filter(function (r) { return r.pass; }).length;
