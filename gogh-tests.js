@@ -2811,10 +2811,14 @@
         expect(logo, 'the Logo doorway must ride in the Your-header row, up top');
         var box = panel.querySelector('.gogh-hmorebox');
         expect(box, 'the More fold is missing');
-        expect(box.hasAttribute('hidden'), 'styling must be folded away by default (compact)');
-        // Look/Spacing live INSIDE the fold, not loose in the panel
-        expect(box.querySelector('.gogh-hlooks'), 'Look belongs inside the fold');
-        expect(!panel.querySelector('.gogh-hcontent .gogh-hlooks'), 'Look must not sit in the content row');
+        expect(box.hasAttribute('hidden'), 'fine-tuning must be folded away by default (compact)');
+        // the HIGH-TRAFFIC settings live in daylight now (James: "really
+        // hidden... making sticky is soo common"): Sticky is a top-level
+        // switch, Colour a top-level row; the fold keeps only fine-tuning
+        expect(panel.querySelector('.gogh-hstickyrow .gogh-hswitch'), 'Sticky must be a switch in daylight');
+        expect(!box.querySelector('.gogh-hsticky'), 'Sticky must not hide in the fold');
+        expect(panel.querySelector('.gogh-hlooks') && !box.querySelector('.gogh-hlooks'), 'Colour belongs in daylight, not the fold');
+        expect(box.querySelector('.gogh-dial-pad'), 'the spacing dials stay folded');
         // the toggle opens the fold
         var more = panel.querySelector('.gogh-hmore');
         expect(more, 'the More toggle is missing');

@@ -15489,11 +15489,13 @@
       '<button type="button" class="gogh-hdoor gogh-hlogo"><span class="gogh-hdoor-ic">🏷️</span><span>' + (usingLogo ? 'Logo &amp; size' : 'Logo &amp; name') + '</span><span class="gogh-hdoor-chev">\u203a</span></button>' +
       (d0 && d0.hasNav ? '<button type="button" class="gogh-hdoor gogh-hmenu"><span class="gogh-hdoor-ic">☰</span><span>Edit menu items</span><span class="gogh-hdoor-chev">\u203a</span></button>' : '') +
       '</div>' +
-      // everything below is fine-tuning — folded away so the panel stays short
-      // by default and Done is always in reach (no crop at the bottom)
-      '<button type="button" class="gogh-hmore" aria-expanded="false">Style &amp; spacing <span class="gogh-hmore-chev">▾</span></button>' +
-      '<div class="gogh-hmorebox" hidden>' +
-      (looks.length ? '<div class="gogh-swlab">Look</div><div class="gogh-swrow gogh-hlooks">' +
+      // the high-traffic settings live in daylight (James: "styles and
+      // spacing are pretty important, but really hidden - and making sticky
+      // is soo common"): Sticky is a top-level SWITCH, Colour a top-level
+      // row — the fold keeps only true fine-tuning
+      '<div class="gogh-hstickyrow"><span>📌 Stick to the top</span>' +
+      '<button type="button" class="gogh-hswitch gogh-hsticky' + (st.sticky ? ' is-on' : '') + '" role="switch" aria-checked="' + (st.sticky ? 'true' : 'false') + '" title="The header rides along as visitors scroll"><span class="gogh-hswitch-knob"></span></button></div>' +
+      (looks.length ? '<div class="gogh-swlab">Colour</div><div class="gogh-swrow gogh-hlooks">' +
         looks.map(function (l, k) {
           return '<button type="button" class="gogh-sw' + (l.bg ? '' : ' gogh-sw-none') + '" data-k="' + k + '"' +
             (l.bg ? ' style="background: var(--wp--preset--color--' + l.bg + ')"' : '') +
@@ -15503,10 +15505,12 @@
         '</div>' +
         '<div class="gogh-panel-row gogh-logosize gogh-halpha-row" hidden><span>Transparency</span>' +
         '<input type="range" class="gogh-halpha" min="0" max="90" step="5" value="0" />' +
-        '<span class="gogh-logosize-val gogh-halpha-val">0</span></div>' +
-        // the words get their own say: Auto keeps the look's judgement,
-        // Light/Dark force the theme's poles, the picker goes anywhere
-        '<div class="gogh-panel-row gogh-logosize gogh-hink-row"><span>Menu text</span>' +
+        '<span class="gogh-logosize-val gogh-halpha-val">0</span></div>' : '') +
+      '<button type="button" class="gogh-hmore" aria-expanded="false">Fine-tune <span class="gogh-hmore-chev">▾</span></button>' +
+      '<div class="gogh-hmorebox" hidden>' +
+      // the words get their own say: Auto keeps the look's judgement,
+      // Light/Dark force the theme's poles, the picker goes anywhere
+      (looks.length ? '<div class="gogh-panel-row gogh-logosize gogh-hink-row"><span>Menu text</span>' +
         '<button type="button" class="gogh-btn gogh-btn-small gogh-hink is-active" data-ink="auto">Auto</button>' +
         '<button type="button" class="gogh-btn gogh-btn-small gogh-hink" data-ink="light">Light</button>' +
         '<button type="button" class="gogh-btn gogh-btn-small gogh-hink" data-ink="dark">Dark</button>' +
@@ -15524,8 +15528,7 @@
         (d0.hasNav ? dial('Menu items', 'gogh-dial-link', 8, 64, d0.linkGap) : '') +
         dial('Text size', 'gogh-dial-fsz', 12, 30, d0.fsz) : '') +
       '<div class="gogh-panel-row gogh-chrome-rows gogh-hpills">' +
-      '<button type="button" class="gogh-btn gogh-btn-small gogh-hsticky' + (st.sticky ? ' is-active' : '') + '">\ud83d\udccc ' + (st.sticky ? 'Sticky \u2014 on' : 'Stick to the top') + '</button>' +
-      '<button type="button" class="gogh-btn gogh-btn-small gogh-hfreeform">\u2728 Make it freeform</button>' +
+      '<button type="button" class="gogh-btn gogh-btn-small gogh-hfreeform">✨ Make it freeform</button>' +
       '</div>' +
       '</div>' + // end .gogh-hmorebox
       '<div class="gogh-panel-row gogh-chrome-foot">' +
@@ -15736,8 +15739,8 @@
     var stickyBtn = panel.querySelector('.gogh-hsticky');
     stickyBtn.addEventListener('click', function () {
       st.sticky = !st.sticky;
-      stickyBtn.classList.toggle('is-active', st.sticky);
-      stickyBtn.innerHTML = '\ud83d\udccc ' + (st.sticky ? 'Sticky \u2014 on' : 'Stick to the top');
+      stickyBtn.classList.toggle('is-on', st.sticky);
+      stickyBtn.setAttribute('aria-checked', st.sticky ? 'true' : 'false');
       // live audition: the marker class pins the header right now — scroll
       // and SEE it stick before ever applying
       var mg = chromeMountedGroup(partEl);
