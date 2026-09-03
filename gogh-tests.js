@@ -4849,16 +4849,20 @@
       G.addSection(cover, G.sections().length);
       var s2 = lastSec();
       expect(s2.m && s2.m.tpl === 'Cover' && s2.m.face === 0, 'the cover forgot its family');
-      var faces = G.diceFaces('Cover');
-      expect(faces && faces.length === 4, 'the Cover drawer is not four takes');
-      expect(!G.diceFaces('Numbers'), 'Numbers grew takes nobody authored');
+      // EVERY starter carries a drawer now (James: "it should appear on
+      // every new section") — a die that comes and goes reads as broken
+      G.templates().forEach(function (t) {
+        if (!t.starter || !t.els.length || t.retired) return;
+        var f = G.diceFaces(t.name);
+        expect(f && f.length === 4, t.name + ' has ' + (f ? f.length : 'no') + ' takes, wanted 4');
+      });
       // take previews must stay nestable — the form shelf-eater lesson
       G.diceFaces('Get in touch').slice(1).forEach(function (f) {
         f.els.forEach(function (e) {
           if (e.whtml) expect(e.whtml.indexOf('<button') === -1, 'a take preview carries a nested button');
         });
       });
-      return 'Cover + Get in touch + Hero each hide three more takes';
+      return 'every starter hides three more takes behind the die';
     });
     test('the dice: a roll changes the take and four rolls come home', function () {
       var cover = G.templates().filter(function (t) { return t.name === 'Cover'; })[0];
