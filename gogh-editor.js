@@ -2278,9 +2278,17 @@
     var cs = getComputedStyle(t);
     var probe = document.createElement('span');
     probe.textContent = (t.textContent || '').trim() || 'Aa';
+    // TRACKING counts: a letter-spaced eyebrow (THE STUDIO at 0.22em) is
+    // far wider than its untracked twin, and a probe that ignored it fitted
+    // the words too big and spilled them past the box (James: "still seeing
+    // this weird issue"). Carry the spacing over as an em ratio so it
+    // scales with the 100px probe.
+    var lsPx = parseFloat(cs.letterSpacing);
+    var fsPx = parseFloat(cs.fontSize) || 16;
+    var lsEm = isFinite(lsPx) && lsPx ? (lsPx / fsPx) : 0;
     probe.style.cssText = 'position:absolute;left:-99999px;top:0;visibility:hidden;white-space:nowrap;' +
       'font-family:' + cs.fontFamily + ';font-weight:' + cs.fontWeight + ';font-style:' + cs.fontStyle +
-      ';text-transform:' + cs.textTransform + ';font-size:100px';
+      ';text-transform:' + cs.textTransform + ';letter-spacing:' + lsEm + 'em;font-size:100px';
     document.body.appendChild(probe);
     var w100 = probe.getBoundingClientRect().width;
     probe.remove();
