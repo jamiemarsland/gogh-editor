@@ -10167,10 +10167,20 @@
         if (ok === kid || !SETTLE_TYPES[ok.type]) return;
         var ox = Math.min(kid.x + kid.w, ok.x + ok.w) - Math.max(kid.x, ok.x);
         var oy = Math.min(kid.y + kid.h, ok.y + ok.h) - Math.max(kid.y, ok.y);
-        if (ox > 12 && oy > 12) { kid.y = ok.y + ok.h + 12; moved = true; }
+        if (ox > 12 && oy > 12) {
+          // the stack REORDERS: a kid dragged above another goes above it
+          // and the other steps down — always tucking the dragged kid
+          // below meant a drag upward could never land, so it looked like
+          // a revert (James: "it just reverts to where i dragged it from")
+          if (kid.y + kid.h / 2 < ok.y + ok.h / 2) ok.y = kid.y + kid.h + 12;
+          else kid.y = ok.y + ok.h + 12;
+          moved = true;
+        }
       });
     }
-    if (kid.y + kid.h > host.h) host.h = kid.y + kid.h + 16;
+    var bottom = 0;
+    (host.kids || []).forEach(function (k2) { bottom = Math.max(bottom, k2.y + k2.h); });
+    if (bottom > host.h) host.h = bottom + 16;
   }
   function cardJoinTarget(sec, i) {
     var e = sec.els[i];
@@ -10754,6 +10764,9 @@
     kidDrag.moved = true;
     kid.x = Math.round(Math.max(0, Math.min(hostEl.w - kid.w, kidDrag.x0 + dx)));
     kid.y = Math.round(Math.max(0, Math.min(Math.max(0, hostEl.h - kid.h), kidDrag.y0 + dy)));
+    // the stack settles LIVE — what you see mid-drag is where it lands;
+    // settling only at release made the drop jump (a broken promise)
+    settleKid(hostEl, kid);
     // leaving intent: pointer beyond the card's box. The kid itself is
     // clamped inside the card's grid, so a GHOST follows the pointer out —
     // without it, the kid pinning at the wall reads as "can't leave"
