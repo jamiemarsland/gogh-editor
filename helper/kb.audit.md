@@ -1,4 +1,4 @@
-# Knowledge-base audit — plugin v0.99.323
+# Knowledge-base audit — plugin v0.99.324
 
 _13 finding(s) suppressed by `kb.audit-ignore.txt`._
 
@@ -63,4 +63,4 @@ Quoted copy not found verbatim in the source. Paraphrases are fine; changed UI c
 
 Use this as the checklist for updating the prose — and as a sanity check on the release itself.
 
-- version: 0.99.322 → 0.99.323
+- version: 0.99.323 → 0.99.324
