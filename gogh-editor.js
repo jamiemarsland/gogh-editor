@@ -14928,51 +14928,10 @@
     hideHandles();
     toast('\u2728 \u201c' + entry.title + '\u201d is freeform now \u2014 drag anything.', { ttl: 4500 });
   }
-  // "+ New page" in the admin bar: ask for a NAME first (the no-JS
-  // fallback still creates "Untitled page" via admin-post)
-  // the button moved into the Gogh menu (id -menu) — the naming panel
-  // must follow it, or the menu copy silently creates "Untitled page"
-  var npLinks = [].slice.call(document.querySelectorAll('#wp-admin-bar-gogh-new-page a, #wp-admin-bar-gogh-new-page-menu a'));
-  npLinks.forEach(function (npLink) { npLink.addEventListener('click', function (ev) {
-    ev.preventDefault();
-    panel.innerHTML =
-      '<div class="gogh-panel-title">New page</div>' +
-      '<div class="gogh-panel-row">' +
-      '<input type="text" class="gogh-input gogh-npname" placeholder="Page name\u2026" />' +
-      '<button type="button" class="gogh-btn gogh-btn-small gogh-npgo">Create</button>' +
-      '</div>' +
-      '<em class="gogh-panel-hint">It opens in gogh, ready to design.</em>';
-    placePanelNear(npLink);
-    panelOpen = true;
-    var inp = panel.querySelector('.gogh-npname');
-    var go = panel.querySelector('.gogh-npgo');
-    setTimeout(function () { inp.focus(); }, 50);
-    var create = function () {
-      var name = inp.value.trim();
-      if (!name) { inp.focus(); return; }
-      go.disabled = true;
-      go.textContent = 'Creating\u2026';
-      fetch(GSROOT + 'pages', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'X-WP-Nonce': cfg.nonce },
-        credentials: 'same-origin',
-        body: JSON.stringify({ title: name, status: 'publish' }),
-      }).then(function (r) { return r.ok ? r.json() : Promise.reject(new Error('HTTP ' + r.status)); })
-        .then(function (pg) {
-          discarding = true;
-          location.href = pg.link + (pg.link.indexOf('?') === -1 ? '?' : '&') + 'gogh-edit=1';
-        }).catch(function () {
-          go.disabled = false;
-          go.textContent = 'Create';
-          toast('gogh could not create the page \u2014 try again.', { error: true });
-        });
-    };
-    go.addEventListener('click', create);
-    inp.addEventListener('keydown', function (ev2) {
-      if (ev2.key === 'Enter') create();
-      if (ev2.key === 'Escape') closePanel();
-    });
-  }); });
+  // ("+ New page" in the admin bar walks through the FRONT DOOR now —
+  // blank draft, canvas, first minute; the nameplate and the publish
+  // gate own naming, so the old name-first modal retired. James: "we
+  // should probs remove this modal step now right?")
   window.__goghAddPattern = function (name, idx) {
     return fetchSectionPatterns().then(function (pats) {
       var p = pats.filter(function (x) { return x.name === name; })[0];
