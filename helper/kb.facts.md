@@ -4,11 +4,11 @@ Everything in this section is extracted mechanically from the Gogh source on eve
 
 ## Current release
 
-- Plugin version: **0.99.338**
+- Plugin version: **0.99.339**
 - Requires WordPress **6.5+**, PHP **7.4+**
 - Text domain: `gogh-editor`
 - readme.txt Stable tag: `0.26.0` · Tested up to: `7.0`
-- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.338`). Quote the plugin header version.
+- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.339`). Quote the plugin header version.
 
 ## Design constants
 
@@ -200,6 +200,7 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "Fill screen"
 - "Fill the screen"
 - "Fill the width — size the text to its box"
+- "Folded behind the ☰ everywhere"
 - "Forget the key"
 - "Form"
 - "Go"
@@ -217,6 +218,8 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "Light"
 - "Link"
 - "Link text (⌘K)"
+- "Links"
+- "Links in a row; folds on phones"
 - "Make it freeform"
 - "Manage this menu — reorder, nest, swap menus"
 - "Move down"
@@ -293,6 +296,7 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "← All layouts"
 - "↕ Spacing…"
 - "▶ Auto-play"
+- "☰ Hamburger"
 - "⛶ Click to enlarge"
 - "✦ Remix"
 - "✨ Make freeform"

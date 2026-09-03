@@ -1,4 +1,4 @@
-# Knowledge-base audit — plugin v0.99.338
+# Knowledge-base audit — plugin v0.99.339
 
 _13 finding(s) suppressed by `kb.audit-ignore.txt`._
 
@@ -74,5 +74,8 @@ Quoted copy not found verbatim in the source. Paraphrases are fine; changed UI c
 
 Use this as the checklist for updating the prose — and as a sanity check on the release itself.
 
-- version: 0.99.337 → 0.99.338
-- removed UI label: "☰ Edit menu items"
+- version: 0.99.338 → 0.99.339
+- added UI label: "Folded behind the ☰ everywhere"
+- added UI label: "Links"
+- added UI label: "Links in a row; folds on phones"
+- added UI label: "☰ Hamburger"
