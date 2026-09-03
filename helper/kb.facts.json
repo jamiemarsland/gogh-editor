@@ -1,12 +1,12 @@
 {
   "meta": {
-    "plugin_version": "0.99.330",
+    "plugin_version": "0.99.331",
     "requires_wp": "6.5",
     "requires_php": "7.4",
     "text_domain": "gogh-editor",
     "readme_stable_tag": "0.26.0",
     "readme_tested_up_to": "7.0",
-    "asset_version": "0.99.330-chrome"
+    "asset_version": "0.99.331-chrome"
   },
   "constants": {
     "TOL": 8,
@@ -406,6 +406,7 @@
     "Image",
     "Imagine",
     "Italic",
+    "I’ll find my own way",
     "Keep editing",
     "Keep this layout (updates every page)",
     "Keeps your changes on every page",
@@ -543,6 +544,7 @@
     "Text title restored — click it to rename your site.",
     "That saved section can’t be read.",
     "That section can’t move past other stored content yet.",
+    "That’s gogh. Everything else is just more of this.",
     "The backup could not be read.",
     "The description could not be saved — try again.",
     "Theme style applied: ",
@@ -888,6 +890,7 @@
       "gogh/v1/ask",
       "gogh/v1/imagine-exp",
       "gogh/v1/ask-key",
+      "gogh/v1/first-minute",
       "gogh/v1/ask-log",
       "gogh/v1/active-style",
       "wp/v2/gogh-product/(?P<id>\\d+)",
@@ -971,5 +974,5 @@
     "has_deprecation": true,
     "block_title": "gogh Section"
   },
-  "test_count": 196
+  "test_count": 199
 }
