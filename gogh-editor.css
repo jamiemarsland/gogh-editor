@@ -1595,6 +1595,15 @@ body.gogh-painting, body.gogh-painting .gogh-section * { cursor: url('data:image
 
 /* the site design's TYPE reads first — the answer to "what kind of site?" */
 .gogh-sp-type { font-size: 11px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: #4a63d8; margin-bottom: 2px; }
+/* a TRANSPARENT header floats over the hero — while editing the page, the
+   header band must not swallow the hero's top (James: "if i choose
+   transparent header then i can't edit the top section anymore"). The part
+   and its veil let pointer events fall through to the canvas; only the
+   Edit-site-header pill stays solid, and it stays visible (no hover to
+   reveal it). The header room (live / spotlight) restores the part. */
+html.gogh-editing header.wp-block-template-part:has(.gogh-header-overlay):not(.gogh-chrome-live):not(.gogh-chrome-spotlight) { pointer-events: none; }
+html.gogh-editing header.wp-block-template-part:has(.gogh-header-overlay):not(.gogh-chrome-live):not(.gogh-chrome-spotlight) > .gogh-chromeveil { pointer-events: none; background: transparent; }
+html.gogh-editing header.wp-block-template-part:has(.gogh-header-overlay):not(.gogh-chrome-live):not(.gogh-chrome-spotlight) .gogh-chromeveil-pill { pointer-events: auto; opacity: 1; transform: none; }
 /* the seam's More chip is a DOOR among things — a quiet tint and an
    arrow set it apart from the content chips around it */
 .gogh-askchip.gogh-askmore {

@@ -1206,9 +1206,14 @@
       s.sectionEl.style.backgroundImage = 'linear-gradient(180deg, rgb(250,244,225), rgb(236,228,205))';
       s.sectionEl.style.backgroundColor = 'transparent';
       G.contrastSentinel(s);
-      expect(s.els[0].color === darker, 'pale ink on a pale gradient should flip to ' + darker + ' (got ' + s.els[0].color + ')');
+      // names lie, measurements don't: the flip must land on a DARK ink,
+      // whatever the theme calls it — on Ollie the darkest ink is 'main',
+      // on Twenty Twenty-Five 'contrast' (the old test hard-coded the name)
+      var flipped = s.els[0].color;
+      expect(flipped && flipped !== lighter, 'pale ink on a pale gradient did not flip (still ' + flipped + ')');
+      expect(probe(flipped) < 150, 'the flip landed on a pale ink: ' + flipped + ' (' + Math.round(probe(flipped)) + ')');
       G.deleteSection(G.sections().indexOf(s));
-      return 'gradient stops are the ground: ' + lighter + '→' + darker + ' on cream mesh';
+      return 'gradient stops are the ground: ' + lighter + ' \u2192 ' + flipped + ' on cream mesh';
     });
 
     test('sentinel reaches inside cards: kids judged on the card ground', function () {
