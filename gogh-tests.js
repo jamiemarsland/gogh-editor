@@ -4924,6 +4924,23 @@
       return 'the die appears exactly where a drawer exists';
     });
 
+    test('the sentinel: a translucent card is mostly its ground', function () {
+      // a 10%-ink card over a pale section IS pale — judging its boxBg as
+      // opaque ink let ghost-pale words pass, and dice takes shipped with
+      // light text on light cards (James's screenshot)
+      G.addSection({ name: 'PALE', minH: 300, bg: '#f2e9d8', els: [
+        { type: 'box', x: 100, y: 40, w: 400, h: 200, radius: 18,
+          boxBg: 'color-mix(in srgb, #1a1a1a 10%, transparent)', kids: [
+          { type: 'heading', x: 20, y: 30, w: 300, h: 40, text: 'Ghost words', tf: { col: '#f8f4ec' } },
+        ] },
+      ] }, G.sections().length);
+      var s2 = lastSec();
+      var kid = s2.els[0].kids[0];
+      expect(kid.color, 'pale words on a pale card were never flipped');
+      expect(!(kid.tf && kid.tf.col), 'the captured tf colour still outranks the flip');
+      return 'ghost words re-inked as ' + kid.color;
+    });
+
     // ---- report ----
     function finishReport() {
     var passed = results.filter(function (r) { return r.pass; }).length;

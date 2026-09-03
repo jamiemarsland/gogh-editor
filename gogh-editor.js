@@ -4633,6 +4633,65 @@
     var m = str.match(/[\d.]+/g);
     return m && m.length >= 3 ? m.slice(0, 3).map(Number) : null;
   }
+  // like cssToRgb but honest about TRANSPARENCY — a card painted
+  // color-mix(ink 10%, transparent) is 90% whatever sits behind it, and
+  // judging it as opaque ink made the sentinel paint pale cards white
+  // (James's dice testing: light words on light cards)
+  // luminance back to the grey channel that would produce it — alpha
+  // compositing happens in CHANNEL space, and blending luminances instead
+  // calls a readable 60% eyebrow unreadable (and vice versa)
+  function sentinelGrey(l) {
+    var v = l <= 0.00304 ? l * 12.92 : 1.055 * Math.pow(l, 1 / 2.4) - 0.055;
+    return Math.max(0, Math.min(255, Math.round(v * 255)));
+  }
+  function sentinelOver(rgba, groundL) {
+    var g = sentinelGrey(groundL);
+    var a = rgba.a != null ? rgba.a : 1;
+    return sentinelLum([
+      rgba.rgb[0] * a + g * (1 - a),
+      rgba.rgb[1] * a + g * (1 - a),
+      rgba.rgb[2] * a + g * (1 - a),
+    ]);
+  }
+  function cssToRgba(css) {
+    if (!css) return null;
+    var d = document.createElement('div');
+    d.style.color = css;
+    d.style.display = 'none';
+    document.body.appendChild(d);
+    var str = getComputedStyle(d).color;
+    d.remove();
+    var cm = str.match(/^color\(srgb[ -]([\d.]+)\s+([\d.]+)\s+([\d.]+)(?:\s*\/\s*([\d.]+%?))?/);
+    if (cm) {
+      var ca = cm[4] != null ? (String(cm[4]).indexOf('%') !== -1 ? parseFloat(cm[4]) / 100 : +cm[4]) : 1;
+      return { rgb: [+cm[1] * 255, +cm[2] * 255, +cm[3] * 255].map(Math.round), a: ca };
+    }
+    if (str.indexOf('color-mix') !== -1) {
+      var parts = [];
+      var re = /rgba?\(([\d.]+),\s*([\d.]+),\s*([\d.]+)(?:,\s*([\d.]+))?\)(?:\s+([\d.]+)%)?/g, pm;
+      while ((pm = re.exec(str))) {
+        parts.push({ rgb: [+pm[1], +pm[2], +pm[3]], a: pm[4] != null ? +pm[4] : 1, w: pm[5] != null ? +pm[5] / 100 : null });
+      }
+      if (parts.length === 2) {
+        if (parts[0].w == null && parts[1].w == null) { parts[0].w = 0.5; parts[1].w = 0.5; }
+        else if (parts[0].w == null) parts[0].w = 1 - parts[1].w;
+        else if (parts[1].w == null) parts[1].w = 1 - parts[0].w;
+        var e0 = parts[0].w * parts[0].a, e1 = parts[1].w * parts[1].a;
+        var tot = e0 + e1;
+        if (tot > 0) {
+          return { rgb: [0, 1, 2].map(function (i) {
+            return Math.round((parts[0].rgb[i] * e0 + parts[1].rgb[i] * e1) / tot);
+          }), a: Math.min(1, tot) };
+        }
+        return { rgb: [0, 0, 0], a: 0 };
+      }
+      return null;
+    }
+    var m2 = str.match(/rgba?\(([\d.]+),\s*([\d.]+),\s*([\d.]+)(?:,\s*([\d.]+))?\)/);
+    if (m2) return { rgb: [+m2[1], +m2[2], +m2[3]], a: m2[4] != null ? +m2[4] : 1 };
+    var rgb0 = cssToRgb(css);
+    return rgb0 ? { rgb: rgb0, a: 1 } : null;
+  }
   // sample the image UNDER a text element, not the whole picture: a sky
   // that is pale up top and dark in the bushes averages to "fine" while
   // the words drown in the bushes (James's wheatfield). done(sampler) —
@@ -4711,10 +4770,16 @@
   }
   function contrastSentinel(sec, onlyIdx) {
     if (!editing || sec.chrome) return;
+    // the image judges arrive ASYNC — a verdict computed for the take the
+    // section wore BEFORE a dice roll must not repaint the take it wears
+    // now ("a cache made before a rule changes is a witness from before
+    // the law was passed")
+    var sentinelGen = (sec.__sentinelGen = (sec.__sentinelGen || 0) + 1);
     var tint = (sec.bg && !/gradient\(/.test(sec.bg)) ? cssToRgb(sec.bg) : null;
     var secHpx = sec.sectionEl.offsetHeight || 1;
     var secWpx = sec.sectionEl.offsetWidth || 1;
     var judge = function (sampler) {
+      if (sec.__sentinelGen !== sentinelGen) return; // a newer take is being judged
       var mixA = (sec.bgA != null ? sec.bgA : 62) / 100; // the dial, or the old default
       // the ground under ONE element: local image luminance when there is a
       // picture (a pale sky averages away the dark bushes the words sit in)
@@ -4771,10 +4836,11 @@
         var node = sec.nodes[i];
         if (!node) return;
         var host = node.matches('p,h1,h2,h3,h4,h5,h6') ? node : (node.querySelector('p,h1,h2,h3,h4,h5,h6') || node);
-        var txt = cssToRgb(getComputedStyle(host).color);
+        var txt = cssToRgba(getComputedStyle(host).color);
         if (!txt) return;
         var bgL = groundFor(e);
-        var curC = sentinelContrast(sentinelLum(txt), bgL);
+        // a 60%-ink eyebrow really paints as its composite over the ground
+        var curC = sentinelContrast(sentinelOver(txt, bgL), bgL);
         if (curC >= CONTRAST_FLOOR) return;
         var best = null, bestC = 0;
         var consider = function (list) {
@@ -4817,23 +4883,46 @@
       if (onlyIdx != null && bi !== onlyIdx) return;
       if (box.type !== 'box' || !box.kids || !box.kids.length) return;
       var judgeKids = function (sampler) {
+        if (sec.__sentinelGen !== sentinelGen) return; // stale witness — the take changed
         // imgRegionLum hands over a region SAMPLER — treating it as a number
         // made every photo-card ground NaN, and NaN comparisons silently
         // skipped ALL judgement ("cant read text on photo cards"). Kids are
         // judged on their OWN patch of the picture now, like section text.
         var bv = box.boxBg || '';
         if (bv && /^[a-z0-9-]+$/.test(bv)) bv = 'var(--wp--preset--color--' + bv + ')';
-        var bvRgb = bv ? cssToRgb(bv) : null;
+        // a translucent card is MOSTLY the ground behind it — read its real
+        // alpha and blend, or a 10%-ink card judges as solid ink and the
+        // sentinel paints pale cards white
+        var bvA = bv ? cssToRgba(bv) : null;
+        var bvRgb = bvA && bvA.a > 0 ? bvA.rgb : null;
         var baseRgb = cssToRgb('var(--wp--preset--color--base, #fff)');
+        var underL = (function () {
+          // what sits BEHIND the card: the section's tint, or its painted
+          // background, or the theme's page colour (image detail is judged
+          // through the sampler branch)
+          if (tint && sec.bgA != null && sec.bgA < 100) {
+            var ur = cssToRgb('var(--wp--preset--color--base, #fff)');
+            return sentinelLum(tint) * (sec.bgA / 100) + (ur ? sentinelLum(ur) : 1) * (1 - sec.bgA / 100);
+          }
+          if (tint) return sentinelLum(tint);
+          var sr = cssToRgb(getComputedStyle(sec.sectionEl).backgroundColor);
+          if (!sr || getComputedStyle(sec.sectionEl).backgroundColor === 'rgba(0, 0, 0, 0)') {
+            sr = cssToRgb('var(--wp--preset--color--base, #fff)');
+          }
+          return sr ? sentinelLum(sr) : 1;
+        })();
+        var cardOver = function (behind) {
+          return sentinelOver(bvA, behind);
+        };
         var groundFor = function (k) {
           var kidL = typeof sampler === 'function'
             ? sampler(
                 Math.max(0, k.x / Math.max(1, box.w)), Math.max(0, k.y / Math.max(1, box.h)),
                 Math.min(1, k.w / Math.max(1, box.w)), Math.min(1, k.h / Math.max(1, box.h)))
             : null;
-          if (kidL != null && bvRgb) return sentinelLum(bvRgb) * 0.45 + kidL * 0.55; // the tint mix
+          if (kidL != null && bvRgb) return cardOver(kidL);
           if (kidL != null) return kidL * 0.6 + (baseRgb ? sentinelLum(baseRgb) : 1) * 0.4; // the guardrail scrim
-          if (bvRgb) return sentinelLum(bvRgb);
+          if (bvRgb) return cardOver(underL);
           return null; // transparent card: the section pass already judged this ground
         };
         var cardNode = sec.nodes[bi];
@@ -4844,11 +4933,11 @@
           var kn = cardNode.querySelector('.gogh-k-' + (j + 1));
           if (!kn) return;
           var host = kn.matches('p,h1,h2,h3,h4,h5,h6') ? kn : (kn.querySelector('p,h1,h2,h3,h4,h5,h6') || kn);
-          var txt = cssToRgb(getComputedStyle(host).color);
+          var txt = cssToRgba(getComputedStyle(host).color);
           if (!txt) return;
           var ground = groundFor(k);
           if (ground == null) return;
-          if (sentinelContrast(sentinelLum(txt), ground) >= CONTRAST_FLOOR) return;
+          if (sentinelContrast(sentinelOver(txt, ground), ground) >= CONTRAST_FLOOR) return;
           var pick = sentinelBestInk(ground);
           if (pick.best && k.color !== pick.best) kidFlips.push({ j: j, to: pick.best });
         });
