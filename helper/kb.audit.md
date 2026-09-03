@@ -1,4 +1,4 @@
-# Knowledge-base audit — plugin v0.99.328
+# Knowledge-base audit — plugin v0.99.329
 
 _13 finding(s) suppressed by `kb.audit-ignore.txt`._
 
@@ -70,10 +70,4 @@ Quoted copy not found verbatim in the source. Paraphrases are fine; changed UI c
 
 Use this as the checklist for updating the prose — and as a sanity check on the release itself.
 
-- version: 0.99.327 → 0.99.328
-- added exposed filter: "gogh_claims_post"
-- added exposed filter: "gogh_default_editor"
-- added WP hook: "get_edit_post_link"
-- added WP hook: "load-post-new.php"
-- added WP hook: "page_row_actions"
-- added WP hook: "post_row_actions"
+- version: 0.99.328 → 0.99.329
