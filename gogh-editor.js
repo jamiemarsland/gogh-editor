@@ -11426,8 +11426,10 @@
     ov.innerHTML =
       '<div class="gogh-sp-sheet">' +
       '<div class="gogh-sp-head"><div>' +
-      '<div class="gogh-sp-title">Site designs</div>' +
-      '<div class="gogh-sp-sub">A whole site, ready to tweak. Your posts, name, logo and brand colours stay.</div>' +
+      // type-first (design note: Site Designs by Type) — nobody starts from a
+      // look, they start from what they are
+      '<div class="gogh-sp-title">What kind of site is this?</div>' +
+      '<div class="gogh-sp-sub">Pick the closest. Your name, logo, posts and colours stay \u2014 you can change anything after.</div>' +
       '</div><button type="button" class="gogh-sbtn gogh-sp-close" title="Close">\u2715</button></div>' +
       '<div class="gogh-sp-grid"></div></div>';
     document.body.appendChild(ov);
@@ -11453,6 +11455,12 @@
         '</div></div>';
       card.querySelector('.gogh-sp-name').textContent = st.name;
       card.querySelector('.gogh-sp-desc').textContent = st.description || '';
+      if (st.type) {
+        var ty = document.createElement('div');
+        ty.className = 'gogh-sp-type';
+        ty.textContent = st.type;
+        card.querySelector('.gogh-sp-body').insertBefore(ty, card.querySelector('.gogh-sp-name'));
+      }
       card.querySelector('.gogh-sp-chips').textContent = st.pages.map(function (p) { return p.title; }).join(' \u00b7 ');
       var prev = card.querySelector('.gogh-sp-prev');
       var stage = card.querySelector('.gogh-sp-stage');

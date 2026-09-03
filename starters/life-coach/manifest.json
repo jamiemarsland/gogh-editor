@@ -1,0 +1,42 @@
+{
+  "name": "Life coach",
+  "type": "Life coach",
+  "description": "Packages, client stories and a free first call",
+  "pages": [
+    {
+      "slug": "home",
+      "title": "Home",
+      "file": "home.html",
+      "front": true,
+      "template": "page-no-title"
+    },
+    {
+      "slug": "work-with-me",
+      "title": "Work with me",
+      "file": "work-with-me.html"
+    },
+    {
+      "slug": "stories",
+      "title": "Stories",
+      "file": "stories.html"
+    },
+    {
+      "slug": "about",
+      "title": "About",
+      "file": "about.html"
+    },
+    {
+      "slug": "book-a-call",
+      "title": "Book a call",
+      "file": "book-a-call.html"
+    }
+  ],
+  "variation": "Noon",
+  "preview": {
+    "base": "#F4EFE6",
+    "contrast": "#1F2A2A",
+    "accent-1": "#FFFFFF",
+    "accent-2": "#2F6F6A",
+    "accent-3": "#E6DDCB"
+  }
+}

@@ -1,5 +1,5 @@
 {
-  "name": "Caf\u00e9",
+  "name": "Café",
   "description": "Warm, hungry and open every day",
   "pages": [
     {
@@ -33,5 +33,6 @@
     "accent-1": "#FFFFFF",
     "accent-2": "#F5B684",
     "accent-3": "#EFE1CE"
-  }
+  },
+  "type": "Café & food"
 }

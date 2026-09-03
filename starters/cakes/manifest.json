@@ -1,0 +1,37 @@
+{
+  "name": "Cakes & baking",
+  "type": "Cakes & baking",
+  "description": "Celebration cakes, a priced gallery and an order sheet",
+  "pages": [
+    {
+      "slug": "home",
+      "title": "Home",
+      "file": "home.html",
+      "front": true,
+      "template": "page-no-title"
+    },
+    {
+      "slug": "cakes",
+      "title": "Cakes",
+      "file": "cakes.html"
+    },
+    {
+      "slug": "order",
+      "title": "Order",
+      "file": "order.html"
+    },
+    {
+      "slug": "about",
+      "title": "About",
+      "file": "about.html"
+    }
+  ],
+  "variation": "Noon",
+  "preview": {
+    "base": "#FBF4EE",
+    "contrast": "#2A1F1C",
+    "accent-1": "#FFFFFF",
+    "accent-2": "#E8A27A",
+    "accent-3": "#F6D9C9"
+  }
+}

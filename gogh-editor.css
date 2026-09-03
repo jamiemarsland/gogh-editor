@@ -1593,6 +1593,8 @@ body.gogh-painting, body.gogh-painting .gogh-section * { cursor: url('data:image
 .gogh-hlayhint { margin: 4px 2px 8px; }
 .gogh-hlaybox .gogh-hoptlist { margin: 0; max-height: 296px; overflow-y: auto; }
 
+/* the site design's TYPE reads first — the answer to "what kind of site?" */
+.gogh-sp-type { font-size: 11px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: #4a63d8; margin-bottom: 2px; }
 /* the seam's More chip is a DOOR among things — a quiet tint and an
    arrow set it apart from the content chips around it */
 .gogh-askchip.gogh-askmore {
