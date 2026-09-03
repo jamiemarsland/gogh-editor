@@ -15453,7 +15453,6 @@
       inkPick: null,            // Menu text override: null = Auto
       dials: null,
       caseTT: null,             // Menu case override: null = untouched
-      menuStyle: null,          // hamburger override: null = untouched
       sticky: chromeIsSticky(active),
       sticky0: chromeIsSticky(active),
     };
@@ -15490,10 +15489,6 @@
       '<button type="button" class="gogh-hdoor gogh-hlogo"><span class="gogh-hdoor-ic">🏷️</span><span>' + (usingLogo ? 'Logo &amp; size' : 'Logo &amp; name') + '</span><span class="gogh-hdoor-chev">\u203a</span></button>' +
       (d0 && d0.hasNav ? '<button type="button" class="gogh-hdoor gogh-hmenu"><span class="gogh-hdoor-ic">☰</span><span>Edit menu items</span><span class="gogh-hdoor-chev">\u203a</span></button>' : '') +
       '</div>' +
-      (d0 && d0.hasNav ? '<div class="gogh-panel-row gogh-logosize gogh-hburger-row"><span>Menu style</span>' +
-        '<button type="button" class="gogh-btn gogh-btn-small gogh-hburger" data-mb="mobile" title="Links across the top; they fold behind ☰ on phones by themselves">Links (☰ on phones)</button>' +
-        '<button type="button" class="gogh-btn gogh-btn-small gogh-hburger" data-mb="always" title="The whole menu folds behind ☰ on every screen, desktop too">☰ Everywhere</button>' +
-        '</div>' : '') +
       // everything below is fine-tuning — folded away so the panel stays short
       // by default and Done is always in reach (no crop at the bottom)
       '<button type="button" class="gogh-hmore" aria-expanded="false">Style &amp; spacing <span class="gogh-hmore-chev">▾</span></button>' +
@@ -15809,24 +15804,6 @@
         });
       });
     }
-    var mbBtns = panel.querySelectorAll('.gogh-hburger');
-    if (mbBtns.length) {
-      var mb0 = /wp:navigation[^>]*"overlayMenu"\s*:\s*"always"/.test(raw0) ? 'always' : 'mobile';
-      mbBtns.forEach(function (bb) {
-        if (bb.dataset.mb === mb0) bb.classList.add('is-active');
-        bb.addEventListener('click', function () {
-          st.menuStyle = bb.dataset.mb;
-          mbBtns.forEach(function (o2) { o2.classList.toggle('is-active', o2 === bb); });
-          arm();
-          // an honest preview: the ☰ is server-rendered markup, so the room
-          // renders the rewritten nav live instead of pretending with CSS
-          var baseNow = (st.layoutId !== (activeOpt && activeOpt.id))
-            ? chromeLayoutContent(area, chosenOpt(), area === 'header' ? usingLogo : null)
-            : raw0;
-          previewChromeLayout(partEl, { id: '__mb', title: '', content: chromeMenuApply(baseNow, bb.dataset.mb) }, repaint);
-        });
-      });
-    }
     // ONE Apply: compose every touched change into a single save
     applyBtn.addEventListener('click', function () {
       // Done with nothing changed just leaves the room — no needless save,
@@ -15838,7 +15815,6 @@
       if (st.dials) base = chromeDialsApply(base, st.dials) || base;
       if (st.look !== undefined) base = chromeColorApply(base, st.look && (st.look.bg || st.look.custom || st.look.ink || st.look.inkHex) ? st.look : null) || base;
       if (st.caseTT != null) base = chromeCaseApply(base, st.caseTT) || base;
-      if (st.menuStyle != null) base = chromeMenuApply(base, st.menuStyle) || base;
       if (st.sticky !== st.sticky0) base = stickyRawToggle(base, st.sticky) || base;
       applyBtn.disabled = true;
       applyBtn.textContent = 'Applying\u2026';
@@ -16433,17 +16409,6 @@
       na.style = na.style || {};
       na.style.typography = na.style.typography || {};
       na.style.typography.textTransform = tt; // 'none' | 'uppercase' | 'lowercase'
-      return '<!-- wp:navigation ' + JSON.stringify(na) + ' /-->';
-    });
-  }
-  // the hamburger (James: "we should have a hamburger option"): the nav's
-  // overlayMenu attribute decides whether links spread out or fold behind
-  // ☰ — 'always' is the hamburger, 'mobile' (WP's default) folds on phones
-  function chromeMenuApply(raw, style) {
-    return raw.replace(/<!--\s*wp:navigation(\s+({[\s\S]*?}))?\s*\/-->/, function (m0, sp, json) {
-      var na = {};
-      if (json) { try { na = JSON.parse(json); } catch (e) { return m0; } }
-      na.overlayMenu = style;
       return '<!-- wp:navigation ' + JSON.stringify(na) + ' /-->';
     });
   }
