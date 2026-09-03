@@ -1,12 +1,12 @@
 {
   "meta": {
-    "plugin_version": "0.99.336",
+    "plugin_version": "0.99.337",
     "requires_wp": "6.5",
     "requires_php": "7.4",
     "text_domain": "gogh-editor",
     "readme_stable_tag": "0.26.0",
     "readme_tested_up_to": "7.0",
-    "asset_version": "0.99.336-chrome"
+    "asset_version": "0.99.337-chrome"
   },
   "constants": {
     "TOL": 8,
@@ -560,7 +560,6 @@
     "gogh can’t safely swap this image.",
     "gogh could not change the page style — ",
     "gogh could not create that page.",
-    "gogh could not create the page — try again.",
     "gogh could not rename the site — that needs an admin login.",
     "gogh could not save the menu — ",
     "gogh could not save your brand — ",
@@ -854,11 +853,6 @@
       {
         "kind": "action",
         "hook": "admin_bar_menu",
-        "priority": 10
-      },
-      {
-        "kind": "action",
-        "hook": "admin_post_gogh_new_page",
         "priority": 10
       },
       {
