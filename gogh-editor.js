@@ -13446,11 +13446,71 @@
     });
   }
 
+  // an untitled page cannot go out into the world — Publish pauses for a
+  // name (James: "otherwise folks cant name pages"), prefilled with the
+  // headline they already typed, so beat one pays off twice. The name
+  // rides the same save that takes the draft LIVE.
+  var pageNamed = false;
+  var pendingPageTitle = '';
+  function pageNeedsName() {
+    return cfg.postType === 'page' && !pageNamed && !String(cfg.postTitle || '').trim();
+  }
+  function firstHeadlineText() {
+    var best = '';
+    S.some(function (s2) {
+      if (s2.chrome) return false;
+      diceFlatten(s2.els).some(function (e) {
+        if (e.type === 'heading' && String(e.text || '').trim()) {
+          best = String(e.text).trim();
+          return true;
+        }
+        return false;
+      });
+      return !!best;
+    });
+    return best.slice(0, 60);
+  }
+  function openPageNamePanel() {
+    placePanelNear(chip);
+    panel.innerHTML =
+      '<div class="gogh-panel-title">Name this page</div>' +
+      '<div class="gogh-panel-hint">Its name in menus \u2014 and its web address.</div>' +
+      '<div class="gogh-panel-row">' +
+      '<input type="text" class="gogh-input gogh-pagename" placeholder="Home, About, Say hello\u2026" />' +
+      '<button type="button" class="gogh-btn gogh-btn-small gogh-pagego">Publish page</button>' +
+      '</div>';
+    panel.hidden = false;
+    panelOpen = true;
+    var input = panel.querySelector('.gogh-pagename');
+    input.value = firstHeadlineText();
+    input.focus();
+    input.select();
+    var go = function () {
+      var name = input.value.trim();
+      if (!name) { input.focus(); return; }
+      pageNamed = true;
+      pendingPageTitle = name;
+      closePanel();
+      publish();
+    };
+    panel.querySelector('.gogh-pagego').addEventListener('click', go);
+    input.addEventListener('keydown', function (ev) {
+      if (ev.key === 'Enter') { ev.preventDefault(); go(); }
+    });
+  }
   function publish() {
     if (chipBusy) return Promise.resolve(false);
+    if (pageNeedsName()) {
+      openPageNamePanel();
+      return Promise.resolve(false);
+    }
     chipBusy = true;
     S.forEach(measureTextHeights);
     setChip('saving', 'Publishing\u2026');
+    var extra = {};
+    // a door draft goes LIVE on Publish — the chip keeps its promise
+    if (cfg.postStatus && cfg.postStatus !== 'publish') extra.status = 'publish';
+    if (pendingPageTitle) extra.title = pendingPageTitle;
     return fetchRaw().then(function (raw) {
       // when EVERY top-level block is accounted for, the DOM order IS the
       // page: what you see is what saves. Deletions stick because the
@@ -13460,16 +13520,24 @@
       var units = gatherRawUnits(raw);
       var content = units ? units.join('\n\n')
         : resequenceToDom(mergeContent(raw), gatherRawUnits(raw));
+      var body = { content: content };
+      if (extra.status) body.status = extra.status;
+      if (extra.title) body.title = extra.title;
       return fetch(cfg.restUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'X-WP-Nonce': cfg.nonce },
         credentials: 'same-origin',
-        body: JSON.stringify({ content: content }),
+        body: JSON.stringify(body),
       });
     }).then(function (res) {
       if (!res.ok) throw new Error('HTTP ' + res.status);
       return res.json();
     }).then(function (post) {
+      if (extra.status) cfg.postStatus = 'publish';
+      if (extra.title) {
+        cfg.postTitle = extra.title;
+        pendingPageTitle = '';
+      }
       if (post.content && post.content.raw) rawCache = post.content.raw;
       // published deletions are REAL now — the staged flags have done
       // their work and must not haunt the next re-bind

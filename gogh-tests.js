@@ -5052,6 +5052,25 @@
       return 'no confirmation, no guilt, no residue';
     });
 
+    test('publishing an untitled page pauses for its name', function () {
+      var C = window.GOGH || {};
+      var was = { t: C.postTitle, ty: C.postType };
+      C.postTitle = '';
+      C.postType = 'page';
+      try {
+        G.publish(); // the gate fires BEFORE any network — nothing saves
+        var input = q('.gogh-panel .gogh-pagename');
+        expect(input, 'no name panel appeared for the untitled page');
+        expect(input.value.trim().length > 0, 'the name is not prefilled from a headline');
+        expect(q('.gogh-panel .gogh-pagego'), 'the Publish page button is missing');
+      } finally {
+        G.closePanel();
+        C.postTitle = was.t;
+        C.postType = was.ty;
+      }
+      return 'the draft cannot go out into the world nameless';
+    });
+
     // ---- report ----
     function finishReport() {
     var passed = results.filter(function (r) { return r.pass; }).length;
