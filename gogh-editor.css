@@ -2165,7 +2165,9 @@ body.gogh-painting, body.gogh-painting .gogh-section * { cursor: url('data:image
   border-top: 1px solid var(--gogh-ui-border);
 }
 .gogh-hmore:hover { opacity: 0.95; }
-.gogh-hmore-chev { font-size: 10px; opacity: 0.8; }
+.gogh-hmore-chev { display: flex; opacity: 0.8; transition: transform 0.15s ease; }
+.gogh-hmore-chev svg { display: block; }
+.gogh-hmore[aria-expanded="true"] .gogh-hmore-chev { transform: rotate(180deg); }
 .gogh-hmorebox[hidden] { display: none; }
 /* ZOOM OUT while auditioning a whole-page style: the birds-eye fills the frame,
    so lock the scroll (the empty space below the shrunk canvas isn't a place to

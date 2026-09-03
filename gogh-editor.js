@@ -15531,7 +15531,9 @@
         '<div class="gogh-panel-row gogh-logosize gogh-halpha-row" hidden><span>Transparency</span>' +
         '<input type="range" class="gogh-halpha" min="0" max="90" step="5" value="0" />' +
         '<span class="gogh-logosize-val gogh-halpha-val">0</span></div>' : '') +
-      '<button type="button" class="gogh-hmore" aria-expanded="false">Fine-tune <span class="gogh-hmore-chev">▾</span></button>' +
+      // a DRAWN chevron, the doors' own dialect — the ▾ glyph was tiny and
+      // typeface-dependent (James: "the fine tune arrow looks a little weird")
+      '<button type="button" class="gogh-hmore" aria-expanded="false">Fine-tune <span class="gogh-hmore-chev"><svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true"><path d="M2.5 4.5 6 8l3.5-3.5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg></span></button>' +
       '<div class="gogh-hmorebox" hidden>' +
       // the words get their own say: Auto keeps the look's judgement,
       // Light/Dark force the theme's poles, the picker goes anywhere
@@ -15835,8 +15837,6 @@
       var opening = box.hasAttribute('hidden');
       if (opening) box.removeAttribute('hidden'); else box.setAttribute('hidden', '');
       moreBtn.setAttribute('aria-expanded', opening ? 'true' : 'false');
-      var chev = moreBtn.querySelector('.gogh-hmore-chev');
-      if (chev) chev.textContent = opening ? '▴' : '▾';
       reclampPanel();
     });
     // MENU CASE: UPPER / lower / as-typed for the nav. Mark the button that
