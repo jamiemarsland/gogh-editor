@@ -9376,10 +9376,14 @@
       { label: 'FAQ', say: 'questions and answers', re: /faq|questions, answered/ },
       { label: 'Our story', say: 'our story', re: /our story/ },
     ];
-    // suggest what the page is MISSING — the chips read as gogh
-    // understanding the page, not as a menu ("we could probs have a few
-    // more things here" — the panel has the room)
-    var out = pool.filter(function (c) { return !c.re.test(pageText); }).slice(0, 7);
+    // ORDER by what the page is missing, never hide: hiding what the page
+    // already had left a fuller page with three leftovers that read as
+    // random (James: "seems random which ones appear"). A stable eight,
+    // the missing ideas first, the present ones after — a page can want
+    // two galleries.
+    var missing = pool.filter(function (c) { return !c.re.test(pageText); });
+    var present = pool.filter(function (c) { return c.re.test(pageText); });
+    var out = missing.concat(present).slice(0, 8);
     // the wild door shows at the seam too ("i dont see experience?") —
     // saying it inserts a fresh section and opens the Experience chooser
     if (cfg.canExp && cfg.expAI) out.push({ label: 'Experience', say: 'an interactive experience' });
@@ -12545,7 +12549,12 @@
     // panels were document-anchored popovers)
     inserter.hidden = true;
     hideHbar();
-    hideSecBar();
+    // the section bar lives and dies with the SELECTION, not the scroll —
+    // a fresh section arrives selected and scrolls itself into view, and
+    // hiding here folded its bar mid-scroll (James: "scrolls up and then
+    // the section menu vanishes in an instant"). Selected: re-dock. Not
+    // selected: nothing to hide.
+    if (selSecIdx === null) hideSecBar();
     hideGuides();
     hideDists();
     if (scrollRaf) return;
