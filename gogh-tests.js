@@ -4963,6 +4963,24 @@
         'a miss lands on chips, never on a key invitation';
     });
 
+    testAsync('the front door: Add Page lands on the canvas, Add New Post in the write room', function () {
+      // gogh IS the default experience now — the admin doors create a
+      // blank draft and land straight on gogh's surfaces; an abandoned
+      // blank is reused, never multiplied (the Trash (212) lesson)
+      return fetch('/wp-admin/post-new.php?post_type=page', { credentials: 'same-origin' }).then(function (res) {
+        expect(/gogh-edit=1/.test(res.url), 'Add Page did not land on the canvas: ' + res.url);
+        expect(/preview=true/.test(res.url), 'the draft door skipped the preview gate');
+        var first = res.url;
+        return fetch('/wp-admin/post-new.php?post_type=page', { credentials: 'same-origin' }).then(function (res2) {
+          expect(res2.url === first, 'a second knock minted a second draft: ' + res2.url);
+          return fetch('/wp-admin/post-new.php', { credentials: 'same-origin' });
+        }).then(function (res3) {
+          expect(/gogh-write=1/.test(res3.url), 'Add New Post did not land in the write room: ' + res3.url);
+          return 'both doors land on gogh, and blanks are reused';
+        });
+      });
+    });
+
     // ---- report ----
     function finishReport() {
     var passed = results.filter(function (r) { return r.pass; }).length;
