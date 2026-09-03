@@ -1406,6 +1406,9 @@ body.gogh-painting, body.gogh-painting .gogh-section * { cursor: url('data:image
   border-radius: 999px;
   color: #141519;
 }
+/* all:unset above erases the browser's own [hidden] rule — restate it,
+   or the die shows on sections with no drawer and clicks into silence */
+.gogh-sb[hidden] { display: none; }
 .gogh-sb:hover { background: #e8f0ff; }
 .gogh-sb svg { width: 15px; height: 15px; display: block; }
 /* the die tumbles on a roll — transform only, the bar never shifts */

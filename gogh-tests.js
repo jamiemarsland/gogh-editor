@@ -4909,6 +4909,9 @@
       var die = q('.gogh-sb-dice');
       expect(die, 'the die is not on the section bar');
       expect(die.hidden, 'the die shows on a family-less section');
+      // the attribute is not the truth — all:unset once erased [hidden]
+      // and the die showed everywhere, clicking into silence
+      expect(getComputedStyle(die).display === 'none', 'hidden in name only — the die still paints');
       var cover = G.templates().filter(function (t) { return t.name === 'Cover'; })[0];
       G.addSection(cover, G.sections().length);
       G.selectSection(G.sections().indexOf(lastSec()));
