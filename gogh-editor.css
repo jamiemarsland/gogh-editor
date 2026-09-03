@@ -3240,7 +3240,9 @@ html.gogh-textediting .gogh-convertbtn {
 /* ---------- the header room: a clear place you enter and leave ----------
    dim the page, spotlight the header, so "am I editing the header?" is
    never a question (James: "no clean way to stop editing the header") */
+.gogh-chrome-scrim.is-lifted { opacity: 0; }
 .gogh-chrome-scrim {
+  transition: opacity 0.25s ease;
   position: fixed;
   left: 0;
   right: 0;

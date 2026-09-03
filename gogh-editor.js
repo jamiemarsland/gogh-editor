@@ -2847,6 +2847,17 @@
         chromeScrim.style.top = Math.max(0, r.bottom) + 'px';
         chromeScrim.style.height = '';
       }
+      // a TRANSPARENT header is about what shows through it — dimming the
+      // page grey defeats the very thing being auditioned (James: "should
+      // we remove the overlay for the transparent header?"). The scrim
+      // goes invisible but keeps catching stray clicks. While previewing,
+      // only the preview box speaks for the part (the hidden original
+      // still wears its overlay class).
+      var pv = partEl.querySelector('.gogh-chrome-preview');
+      var seeThrough = area === 'header' &&
+        !!((pv || partEl).querySelector('.gogh-header-overlay') ||
+          (!pv && partEl.classList.contains('gogh-header-overlay')));
+      chromeScrim.classList.toggle('is-lifted', seeThrough);
     };
     chromeScrim.__place = place;
     document.body.appendChild(chromeScrim);
@@ -15479,6 +15490,10 @@
       '<button type="button" class="gogh-hdoor gogh-hlogo"><span class="gogh-hdoor-ic">🏷️</span><span>' + (usingLogo ? 'Logo &amp; size' : 'Logo &amp; name') + '</span><span class="gogh-hdoor-chev">\u203a</span></button>' +
       (d0 && d0.hasNav ? '<button type="button" class="gogh-hdoor gogh-hmenu"><span class="gogh-hdoor-ic">☰</span><span>Edit menu items</span><span class="gogh-hdoor-chev">\u203a</span></button>' : '') +
       '</div>' +
+      (d0 && d0.hasNav ? '<div class="gogh-panel-row gogh-logosize gogh-hburger-row"><span>Menu style</span>' +
+        '<button type="button" class="gogh-btn gogh-btn-small gogh-hburger" data-mb="mobile" title="Links across the top; they fold behind ☰ on phones by themselves">Links (☰ on phones)</button>' +
+        '<button type="button" class="gogh-btn gogh-btn-small gogh-hburger" data-mb="always" title="The whole menu folds behind ☰ on every screen, desktop too">☰ Everywhere</button>' +
+        '</div>' : '') +
       // everything below is fine-tuning — folded away so the panel stays short
       // by default and Done is always in reach (no crop at the bottom)
       '<button type="button" class="gogh-hmore" aria-expanded="false">Style &amp; spacing <span class="gogh-hmore-chev">▾</span></button>' +
@@ -15504,10 +15519,6 @@
         '</div>' : '') +
       // Menu case: change the nav's letter case ("need for folks to change
       // case — upper/lower"). Aa = as typed, AG = UPPERCASE, ag = lowercase
-      (d0 && d0.hasNav ? '<div class="gogh-panel-row gogh-logosize gogh-hburger-row"><span>Menu style</span>' +
-        '<button type="button" class="gogh-btn gogh-btn-small gogh-hburger" data-mb="mobile" title="Links in a row; folds on phones">Links</button>' +
-        '<button type="button" class="gogh-btn gogh-btn-small gogh-hburger" data-mb="always" title="Folded behind the ☰ everywhere">☰ Hamburger</button>' +
-        '</div>' : '') +
       (d0 && d0.hasNav ? '<div class="gogh-panel-row gogh-logosize gogh-hcase-row"><span>Menu case</span>' +
         '<button type="button" class="gogh-btn gogh-btn-small gogh-hcase" data-case="none" title="As typed">Aa</button>' +
         '<button type="button" class="gogh-btn gogh-btn-small gogh-hcase" data-case="uppercase" title="UPPERCASE">AG</button>' +
