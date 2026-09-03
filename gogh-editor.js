@@ -15492,7 +15492,7 @@
     panel.innerHTML =
       '<div class="gogh-panel-head"><span class="gogh-panel-title">Site ' + area + '</span>' +
       '<button type="button" class="gogh-sbtn gogh-panel-close" title="Cancel">\u2715</button></div>' +
-      '<div class="gogh-panel-hint">Hover a layout to try it on \u2014 the header above is the preview.</div>' +
+
       // ONE GRAMMAR PER ROLE (James: "it kinda hurts my eyes"): choices
       // are a radio LIST — the ragged pill cloud retired — doors are rows
       // with a chevron, verbs stay in the footer. The real header is the
@@ -15508,7 +15508,9 @@
       // the header above already shows which one is on)
       '<button type="button" class="gogh-hdoor gogh-hlaydoor" aria-expanded="false"><span>Layout</span>' +
       '<span class="gogh-hdoor-chev">\u203a</span></button>' +
-      '<div class="gogh-hlaybox" hidden><div class="gogh-hoptlist gogh-hlayouts">' +
+      // the hover hint lives WITH the list it describes — on the first
+      // screen it was a leftover (James), the list being behind a door now
+      '<div class="gogh-hlaybox" hidden><div class="gogh-panel-hint gogh-hlayhint">Hover a layout to try it on \u2014 the header above is the preview.</div><div class="gogh-hoptlist gogh-hlayouts">' +
       options.map(function (o, k) {
         var short = String(o.title || '').split(' \u2014 ')[0];
         // no title tooltip: the row auditions live on hover, so a hover

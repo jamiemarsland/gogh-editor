@@ -1577,6 +1577,7 @@ body.gogh-painting, body.gogh-painting .gogh-section * { cursor: url('data:image
    inside the fold it never had to */
 .gogh-halpha-row[hidden] { display: none; }
 .gogh-hlaybox { margin: -2px 0 2px; }
+.gogh-hlayhint { margin: 4px 2px 8px; }
 .gogh-hlaybox .gogh-hoptlist { margin: 0; max-height: 296px; overflow-y: auto; }
 
 /* the seam's More chip is a DOOR among things — a quiet tint and an
