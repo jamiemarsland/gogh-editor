@@ -1,4 +1,4 @@
-# Knowledge-base audit — plugin v0.99.330
+# Knowledge-base audit — plugin v0.99.331
 
 _13 finding(s) suppressed by `kb.audit-ignore.txt`._
 
@@ -75,7 +75,7 @@ Quoted copy not found verbatim in the source. Paraphrases are fine; changed UI c
 
 Use this as the checklist for updating the prose — and as a sanity check on the release itself.
 
-- version: 0.99.329 → 0.99.330
-- added WP hook: "admin_menu"
-- added WP hook: "admin_post_gogh_messages_csv"
-- added WP hook: "views_edit-gogh_message"
+- version: 0.99.330 → 0.99.331
+- added REST route: "gogh/v1/first-minute"
+- added UI label: "I’ll find my own way"
+- added toast: "That’s gogh. Everything else is just more of this."

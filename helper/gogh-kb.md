@@ -15,7 +15,7 @@ about something where they conflict, rather than picking one silently. Quote UI
 labels and message copy from the appendix, verbatim — those are the current
 strings, and a paraphrased button label is the fastest way to lose a user's trust.
 
-Generated for plugin version 0.99.330 · knowledge base 025db96.
+Generated for plugin version 0.99.331 · knowledge base b91d534.
 
 ---
 
@@ -782,11 +782,11 @@ Everything in this section is extracted mechanically from the Gogh source on eve
 
 ## Current release
 
-- Plugin version: **0.99.330**
+- Plugin version: **0.99.331**
 - Requires WordPress **6.5+**, PHP **7.4+**
 - Text domain: `gogh-editor`
 - readme.txt Stable tag: `0.26.0` · Tested up to: `7.0`
-- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.330`). Quote the plugin header version.
+- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.331`). Quote the plugin header version.
 
 ## Design constants
 
@@ -915,7 +915,7 @@ Block: `gogh/section` · v3 attributes: `css`, `model`, `scope`, `v`, `cssT`.
 
 Filters exposed for third parties: `gogh_default_editor`, `gogh_claims_post`, `gogh_labs_ask`, `gogh_rebake_enabled`, `gogh_schema`, `gogh_schema_enabled`, `gogh_webmcp_enabled`, `gogh_convert_enabled`, `gogh_helper_url`.
 
-REST routes registered: `gogh/v1/version`, `gogh/v1/starter`, `gogh/v1/type-scale`, `gogh/v1/blog-style`, `gogh/v1/motion`, `gogh/v1/ask`, `gogh/v1/imagine-exp`, `gogh/v1/ask-key`, `gogh/v1/ask-log`, `gogh/v1/active-style`, `wp/v2/gogh-product/(?P<id>\d+)`, `wp/v2/gogh-product/(?P<id>\d+)/autosaves`, `gogh/v1/pattern`, `gogh/v1/render`.
+REST routes registered: `gogh/v1/version`, `gogh/v1/starter`, `gogh/v1/type-scale`, `gogh/v1/blog-style`, `gogh/v1/motion`, `gogh/v1/ask`, `gogh/v1/imagine-exp`, `gogh/v1/ask-key`, `gogh/v1/first-minute`, `gogh/v1/ask-log`, `gogh/v1/active-style`, `wp/v2/gogh-product/(?P<id>\d+)`, `wp/v2/gogh-product/(?P<id>\d+)/autosaves`, `gogh/v1/pattern`, `gogh/v1/render`.
 
 Core REST endpoints used by the editor: `wp/v2/blocks`, `wp/v2/posts`, `wp/v2/template-parts`.
 
@@ -987,6 +987,7 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "Image"
 - "Imagine"
 - "Italic"
+- "I’ll find my own way"
 - "Keep editing"
 - "Keep this layout (updates every page)"
 - "Keeps your changes on every page"
@@ -1125,6 +1126,7 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "Text title restored — click it to rename your site."
 - "That saved section can’t be read."
 - "That section can’t move past other stored content yet."
+- "That’s gogh. Everything else is just more of this."
 - "The backup could not be read."
 - "The description could not be saved — try again."
 - "Theme style applied: "
@@ -1159,4 +1161,4 @@ These are the real strings in the current build. Use them verbatim; never paraph
 
 ## Test suite
 
-`196` tests, run by appending `?gogh-test` to any Gogh page URL while logged in with edit rights on that page.
+`199` tests, run by appending `?gogh-test` to any Gogh page URL while logged in with edit rights on that page.
