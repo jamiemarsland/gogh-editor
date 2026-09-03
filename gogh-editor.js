@@ -15449,7 +15449,7 @@
   // the old flow was pills + cycles + a commit-and-reload per feature.
   // This is one docked inspector: layout, look, spacing and sticky all
   // audition live, and a single Apply writes one composed save.
-  function openHeaderPanel(partEl, area, options, activeOpt, active) {
+  function openHeaderPanel(partEl, area, options, activeOpt, active, resume) {
     var raw0 = (active && active.content && active.content.raw) || '';
     var d0 = chromeDialsRead(raw0);
     var looks = headerLooks();
@@ -15477,6 +15477,10 @@
       sticky: chromeIsSticky(active),
       sticky0: chromeIsSticky(active),
     };
+    // coming back from a page of this modal (Logo & name, Menu): the
+    // unapplied choices ride along and land before the markup paints, so
+    // every row already wears them (James: "feels like the flow broke")
+    if (resume && resume.st) Object.assign(st, resume.st);
     var chosenOpt = function () {
       return options.filter(function (o) { return o.id === st.layoutId; })[0] || activeOpt;
     };
@@ -15500,7 +15504,7 @@
       '<div class="gogh-swlab">Your ' + area + '</div>' +
       '<div class="gogh-hdoors gogh-hcontent">' +
       '<button type="button" class="gogh-hdoor gogh-hlaydoor" aria-expanded="false"><span class="gogh-hdoor-ic">\u25a6</span><span>Layout</span>' +
-      '<span class="gogh-hdoor-now">' + esc(String((activeOpt && activeOpt.title) || '').split(' \u2014 ')[0]) + '</span>' +
+      '<span class="gogh-hdoor-now">' + esc(String((chosenOpt() && chosenOpt().title) || '').split(' \u2014 ')[0]) + '</span>' +
       '<span class="gogh-hdoor-chev">\u203a</span></button>' +
       '<div class="gogh-hlaybox" hidden><div class="gogh-hoptlist gogh-hlayouts">' +
       options.map(function (o, k) {
@@ -15810,23 +15814,15 @@
     var doorway = function (btn, go) {
       if (!btn) return;
       btn.addEventListener('click', function () {
-        if (!armed || btn.dataset.armed) {
-          closePanel(); // cleanup ends any audition before the next room opens
-          go();
-          return;
-        }
-        btn.dataset.armed = '1';
-        var prev = btn.innerHTML;
-        btn.textContent = 'Unapplied changes will be lost — tap again';
-        setTimeout(function () {
-          delete btn.dataset.armed;
-          btn.innerHTML = prev;
-        }, 2800);
+        // a page of this modal keeps the room's unapplied choices (they
+        // ride roomOpt.back) — so no 'tap again' threat, ever
+        closePanel(); // cleanup ends any audition before the page opens
+        go();
       });
     };
     // the way back reopens THIS room with the same furniture
     var roomOpt = { room: partEl, area: area, back: function () {
-      openHeaderPanel(partEl, area, options, activeOpt, active);
+      openHeaderPanel(partEl, area, options, activeOpt, active, { st: st, armed: armed });
     } };
     doorway(panel.querySelector('.gogh-hmenu'), function () {
       openMenuManager(partEl, chromeMountedGroup(partEl) || partEl, roomOpt);
@@ -15859,6 +15855,23 @@
           arm();
         });
       });
+    }
+    if (resume) {
+      // re-stage the auditions the page interrupted: layout, dials, look,
+      // case (repaint) and the sticky pin; mark the look's swatch
+      armed = !!resume.armed;
+      if (st.layoutId !== (activeOpt && activeOpt.id)) previewChromeLayout(partEl, chosenOpt(), repaint);
+      else repaint();
+      var mgR = chromeMountedGroup(partEl);
+      if (mgR) mgR.classList.toggle('gogh-sticky', !!st.sticky);
+      if (st.base) {
+        panel.querySelectorAll('.gogh-hlooks .gogh-sw').forEach(function (o2) {
+          var k2 = +o2.dataset.k;
+          o2.classList.toggle('is-active', st.base.custom ? o2.classList.contains('gogh-sw-pick')
+            : (!isNaN(k2) && looks[k2] && looks[k2].bg === st.base.bg && looks[k2].name === st.base.name));
+        });
+      }
+      syncAlpha();
     }
     // ONE Apply: compose every touched change into a single save
     applyBtn.addEventListener('click', function () {
