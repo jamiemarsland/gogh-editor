@@ -15,7 +15,7 @@ about something where they conflict, rather than picking one silently. Quote UI
 labels and message copy from the appendix, verbatim — those are the current
 strings, and a paraphrased button label is the fastest way to lose a user's trust.
 
-Generated for plugin version 0.99.329 · knowledge base ed25663.
+Generated for plugin version 0.99.330 · knowledge base 025db96.
 
 ---
 
@@ -782,11 +782,11 @@ Everything in this section is extracted mechanically from the Gogh source on eve
 
 ## Current release
 
-- Plugin version: **0.99.329**
+- Plugin version: **0.99.330**
 - Requires WordPress **6.5+**, PHP **7.4+**
 - Text domain: `gogh-editor`
 - readme.txt Stable tag: `0.26.0` · Tested up to: `7.0`
-- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.329`). Quote the plugin header version.
+- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.330`). Quote the plugin header version.
 
 ## Design constants
 
@@ -872,6 +872,11 @@ Block: `gogh/section` · v3 attributes: `css`, `model`, `scope`, `v`, `cssT`.
 | `init` | action | 10 |
 | `manage_gogh_message_posts_columns` | filter | 10 |
 | `manage_gogh_message_posts_custom_column` | action | 10 |
+| `get_edit_post_link` | filter | 10 |
+| `post_row_actions` | filter | 10 |
+| `admin_menu` | action | 10 |
+| `views_edit-gogh_message` | filter | 10 |
+| `admin_post_gogh_messages_csv` | action | 10 |
 | `admin_post_gogh_form_message` | action | 10 |
 | `admin_post_nopriv_gogh_form_message` | action | 10 |
 | `wp_enqueue_scripts` | action | 10 |
@@ -914,7 +919,7 @@ REST routes registered: `gogh/v1/version`, `gogh/v1/starter`, `gogh/v1/type-scal
 
 Core REST endpoints used by the editor: `wp/v2/blocks`, `wp/v2/posts`, `wp/v2/template-parts`.
 
-Capability checks in PHP: `edit_posts`, `edit_post`, `edit_theme_options`, `manage_options`, `upload_files`, `unfiltered_html`, `edit_others_posts`, `publish_pages`.
+Capability checks in PHP: `edit_posts`, `edit_post`, `edit_theme_options`, `edit_others_posts`, `manage_options`, `upload_files`, `unfiltered_html`, `publish_pages`.
 
 Query-string switches: `?gogh-edit`, `?gogh-ps`, `?gogh-test`.
 
