@@ -17389,23 +17389,39 @@
     panel.innerHTML =
       '<div class="gogh-panel-head"><span class="gogh-panel-title">Logo &amp; name</span>' +
       '<button type="button" class="gogh-sbtn gogh-panel-close" title="Close">\u2715</button></div>' +
-      '<em class="gogh-panel-hint">' + (logoImgs.length
-        ? 'Resize your logo, swap the image below, or switch back to a text name.'
-        : 'Type your site name \u2014 or add a logo image below to lead the header instead.') + '</em>' +
-      // TEXT identity: rename right here, no more hunting the tiny title
+      // the room's grammar (James: "this is a bit weird" — italic hint,
+      // a Name label in the theme's display face, and a wall of every
+      // photo in the library offered as a logo): one plain line, a
+      // proper row for the name, doors for the logo, the library behind
+      // a fold with likely logos first
+      '<div class="gogh-panel-hint">' + (logoImgs.length
+        ? 'Your header wears the logo. Resize it, swap it, or go back to a name.'
+        : 'Your header wears a name or a logo \u2014 never both.') + '</div>' +
       (!logoImgs.length ?
         '<div class="gogh-panel-row gogh-logoname"><span>Name</span>' +
-        '<input type="text" class="gogh-logoname-in" value="' + escAttr(curName) + '" placeholder="Your site name" /></div>' : '') +
-      // IMAGE identity: size + a way back to text
+        '<input type="text" class="gogh-input gogh-logoname-in" value="' + escAttr(curName) + '" placeholder="Your site name" /></div>' : '') +
       (logoImgs.length ?
         '<div class="gogh-panel-row gogh-logosize"><span>Size</span>' +
         '<input type="range" min="48" max="280" step="4" />' +
-        '<span class="gogh-logosize-val"></span></div>' +
-        '<button type="button" class="gogh-btn gogh-btn-small gogh-logo-totext">Use a text name instead</button>' : '') +
-      '<label class="gogh-btn gogh-btn-small gogh-upload">' + (logoImgs.length ? 'Upload a different image' : 'Upload a logo image') + '<input type="file" accept="image/*" hidden /></label>' +
-      '<div class="gogh-media"><span class="gogh-media-loading">Loading media\u2026</span></div>';
+        '<span class="gogh-logosize-val"></span></div>' : '') +
+      '<div class="gogh-swlab">' + (logoImgs.length ? 'Logo' : 'Or a logo') + '</div>' +
+      '<div class="gogh-hdoors gogh-lgdoors">' +
+      '<label class="gogh-hdoor gogh-upload"><span>' + (logoImgs.length ? 'Upload a different image' : 'Upload a logo image') + '</span><span class="gogh-hdoor-chev">\u2191</span><input type="file" accept="image/*" hidden /></label>' +
+      '<button type="button" class="gogh-hdoor gogh-lgdoor" aria-expanded="false"><span>Choose from your library</span><span class="gogh-hdoor-chev">\u203a</span></button>' +
+      '<div class="gogh-lgbox" hidden><div class="gogh-media"><span class="gogh-media-loading">Loading media\u2026</span></div></div>' +
+      (logoImgs.length ? '<button type="button" class="gogh-hdoor gogh-logo-totext"><span>Use a text name instead</span><span class="gogh-hdoor-chev">\u203a</span></button>' : '') +
+      '</div>';
     var closeX = panel.querySelector('.gogh-panel-close');
     if (closeX) closeX.addEventListener('click', function () { closePanel(); });
+    var lgDoor = panel.querySelector('.gogh-lgdoor');
+    var lgBox = panel.querySelector('.gogh-lgbox');
+    if (lgDoor) lgDoor.addEventListener('click', function () {
+      var opening = lgBox.hasAttribute('hidden');
+      if (opening) lgBox.removeAttribute('hidden'); else lgBox.setAttribute('hidden', '');
+      lgDoor.setAttribute('aria-expanded', opening ? 'true' : 'false');
+      lgDoor.classList.toggle('is-open', opening);
+      reclampPanel();
+    });
     // rename saves the global title setting and mirrors it into every
     // site-title on the page \u2014 same contract as clicking the title inline
     var nameIn = panel.querySelector('.gogh-logoname-in');
@@ -17533,6 +17549,20 @@
       var box = panel.querySelector('.gogh-media');
       if (!box || panel.hidden) return;
       box.innerHTML = '';
+      // likely logos first: small, transparent-capable, or named like one —
+      // the portraits and hero shots follow, never lead
+      var logoish = function (it) {
+        var d = it.media_details || {};
+        var mime = String(it.mime_type || '');
+        var name = String((it.slug || '') + ' ' + ((it.title && it.title.rendered) || ''));
+        var score = 0;
+        if (/svg|png|webp/.test(mime)) score += 2;
+        if (d.width && d.width <= 800) score += 2;
+        if (/logo|icon|brand|mark|badge/i.test(name)) score += 4;
+        if (d.width && d.height && d.width / d.height > 1.6) score += 1; // wordmark-shaped
+        return score;
+      };
+      items = items.slice().sort(function (a, b) { return logoish(b) - logoish(a); }).slice(0, 24);
       items.forEach(function (item) {
         var thumb = (item.media_details && item.media_details.sizes &&
           (item.media_details.sizes.thumbnail || item.media_details.sizes.medium));

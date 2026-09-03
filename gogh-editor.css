@@ -1510,6 +1510,15 @@ body.gogh-painting, body.gogh-painting .gogh-section * { cursor: url('data:image
 }
 .gogh-room-back:hover, .gogh-room-back:focus-visible { background: #dbe7ff; }
 .gogh-panel-head:has(.gogh-room-back) .gogh-panel-title { margin-left: 8px; }
+/* Logo & name in the room's grammar */
+.gogh-logoname { margin: 2px 0 12px; }
+.gogh-logoname > span, .gogh-logosize > span { font: 600 13px/1.2 -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, sans-serif; color: var(--gogh-ui-fg, #141519); min-width: 44px; }
+.gogh-lgdoors { margin-top: 4px; }
+.gogh-lgdoors .gogh-upload { display: flex; }
+.gogh-lgdoor.is-open { border-color: #4a63d8; }
+.gogh-lgdoor.is-open .gogh-hdoor-chev { transform: rotate(90deg); }
+.gogh-lgbox[hidden] { display: none; }
+.gogh-lgbox .gogh-media { margin-top: 0; }
 /* a drill-down swaps content in place — no scene change */
 .gogh-panel.gogh-room-swap { animation: gogh-roomswap 0.22s ease; }
 @keyframes gogh-roomswap {
