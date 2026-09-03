@@ -5003,6 +5003,10 @@
       G.pushState();
       chip = q('.gogh-fm-chip');
       expect(chip && /Roll the die/.test(chip.textContent), 'beat three did not follow the drag');
+      // the die must be VISIBLE to be invited — beat three summons the bar
+      var bar = q('.gogh-secbar');
+      var die = q('.gogh-sb-dice');
+      expect(bar && !bar.hidden && die && !die.hidden, 'beat three did not summon the die');
       G.rollSection(idx);
       expect(!fm.active, 'the minute did not retire after the roll');
       expect(!q('.gogh-fm-chip'), 'the chip outlived the minute');

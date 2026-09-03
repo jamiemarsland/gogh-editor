@@ -6810,6 +6810,13 @@
           : 'Roll the die — four rolls always lead home';
     // the invited piece wears the pulse — one at a time, never two
     [].forEach.call(document.querySelectorAll('.gogh-fm-mark'), function (n) { n.classList.remove('gogh-fm-mark'); });
+    // beat three points at the die, and the die lives on the section bar —
+    // summon the selection once so there is something to point AT (James:
+    // "the section is not selected so we see nothing to do")
+    if (beat === 3 && fm.chipBeat !== 3) {
+      var si = S.indexOf(fm.sec);
+      if (si !== -1) selectSection(si);
+    }
     fm.chipBeat = beat;
     var mark = beat === 1 ? fmNode(fm.snap.headIdx) : beat === 2 ? fmNode(fm.snap.moveIdx) : null;
     if (mark) mark.classList.add('gogh-fm-mark');
@@ -6833,9 +6840,13 @@
   function fmPlace() {
     if (!fm.active || !fmChip) return;
     var anchor = null;
+    var dieless = false;
     if (fm.chipBeat === 3) {
       var die = (typeof secBar !== 'undefined' && secBar && !secBar.hidden) ? secBar.querySelector('.gogh-sb-dice') : null;
       anchor = (die && !die.hidden) ? die : (fm.sec && fm.sec.wrapEl);
+      // they deselected mid-beat: the chip still speaks, but an arrow
+      // pointing at an empty edge is worse than no arrow
+      dieless = !(die && !die.hidden);
     } else {
       anchor = fmNode(fm.chipBeat === 1 ? fm.snap.headIdx : fm.snap.moveIdx) || (fm.sec && fm.sec.wrapEl);
     }
@@ -6845,7 +6856,8 @@
     var ty = r.top + window.scrollY;
     // the chip floats up and left of the piece, leaving air for the swoop
     var cx = Math.max(12, tx - 30);
-    var cy = Math.max(12, ty - 104);
+    // never tuck under the fixed admin bar when the piece sits at the top
+    var cy = Math.max(12, window.scrollY + 44, ty - 104);
     fmChip.style.left = cx + 'px';
     fmChip.style.top = cy + 'px';
     fmChip.hidden = false;
@@ -6855,7 +6867,7 @@
     var x2 = tx + Math.min(70, Math.max(24, r.width * 0.22));
     var y2 = ty - 10;
     var host = fmArrowEl();
-    if (y2 - y1 < 18) {
+    if (dieless || y2 - y1 < 18) {
       // no air to draw in — the chip alone carries the invitation
       host.hidden = true;
       return;
@@ -9332,7 +9344,7 @@
       chips.map(function (c) {
         return '<button type="button" class="gogh-askchip" data-say="' + escAttr(c.say) + '">' + esc(c.label) + '</button>';
       }).join('') +
-      '<button type="button" class="gogh-askchip gogh-askmore">More…</button></div>' +
+      '<button type="button" class="gogh-askchip gogh-askmore">Browse them all →</button></div>' +
       '<div class="gogh-askmiss" hidden></div>';
     var anchorRect = inserter.getBoundingClientRect();
     placePanelNear({ getBoundingClientRect: function () { return anchorRect; } });
