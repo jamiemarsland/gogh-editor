@@ -1495,16 +1495,20 @@ body.gogh-painting, body.gogh-painting .gogh-section * { cursor: url('data:image
 .gogh-hswitch:focus-visible { outline: 2px solid var(--gogh-ui-accent, #4a63d8); outline-offset: 2px; }
 
 /* the way back from a drill-down: a page of the same modal */
+/* generous: a real pill with room to land on (James: "a little ungenerous") */
 .gogh-room-back {
   all: unset;
   cursor: pointer;
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 650;
-  color: #4a63d8;
+  color: #2f4bb3;
   margin-right: auto;
-  padding: 4px 6px 4px 0;
+  padding: 8px 14px 8px 10px;
+  border-radius: 999px;
+  background: #e8f0ff;
+  transition: background 0.12s ease;
 }
-.gogh-room-back:hover, .gogh-room-back:focus-visible { text-decoration: underline; text-underline-offset: 3px; }
+.gogh-room-back:hover, .gogh-room-back:focus-visible { background: #dbe7ff; }
 .gogh-panel-head:has(.gogh-room-back) .gogh-panel-title { margin-left: 8px; }
 /* a drill-down swaps content in place — no scene change */
 .gogh-panel.gogh-room-swap { animation: gogh-roomswap 0.22s ease; }

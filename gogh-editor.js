@@ -17369,7 +17369,7 @@
           var back = document.createElement('button');
           back.type = 'button';
           back.className = 'gogh-room-back';
-          back.textContent = '\u2039 ' + (roomOpt.area === 'footer' ? 'Footer' : 'Header');
+          back.textContent = '\u2039 Back to ' + (roomOpt.area === 'footer' ? 'footer' : 'header');
           back.addEventListener('click', function () {
             closePanel();
             roomOpt.back();
