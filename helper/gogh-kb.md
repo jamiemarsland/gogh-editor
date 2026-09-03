@@ -15,7 +15,7 @@ about something where they conflict, rather than picking one silently. Quote UI
 labels and message copy from the appendix, verbatim — those are the current
 strings, and a paraphrased button label is the fastest way to lose a user's trust.
 
-Generated for plugin version 0.99.341 · knowledge base b0980c4.
+Generated for plugin version 0.99.342 · knowledge base c4c4cd7.
 
 ---
 
@@ -782,11 +782,11 @@ Everything in this section is extracted mechanically from the Gogh source on eve
 
 ## Current release
 
-- Plugin version: **0.99.341**
+- Plugin version: **0.99.342**
 - Requires WordPress **6.5+**, PHP **7.4+**
 - Text domain: `gogh-editor`
 - readme.txt Stable tag: `0.26.0` · Tested up to: `7.0`
-- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.341`). Quote the plugin header version.
+- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.342`). Quote the plugin header version.
 
 ## Design constants
 
@@ -1047,6 +1047,7 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "Text alignment"
 - "Text colour"
 - "The gogh build this tab is running"
+- "The header rides along as visitors scroll"
 - "Theme default"
 - "Try another"
 - "UPPERCASE"
