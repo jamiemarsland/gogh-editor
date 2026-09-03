@@ -1,12 +1,12 @@
 {
   "meta": {
-    "plugin_version": "0.99.338",
+    "plugin_version": "0.99.339",
     "requires_wp": "6.5",
     "requires_php": "7.4",
     "text_domain": "gogh-editor",
     "readme_stable_tag": "0.26.0",
     "readme_tested_up_to": "7.0",
-    "asset_version": "0.99.338-chrome"
+    "asset_version": "0.99.339-chrome"
   },
   "constants": {
     "TOL": 8,
@@ -398,6 +398,7 @@
     "Fill screen",
     "Fill the screen",
     "Fill the width — size the text to its box",
+    "Folded behind the ☰ everywhere",
     "Forget the key",
     "Form",
     "Go",
@@ -415,6 +416,8 @@
     "Light",
     "Link",
     "Link text (⌘K)",
+    "Links",
+    "Links in a row; folds on phones",
     "Make it freeform",
     "Manage this menu — reorder, nest, swap menus",
     "Move down",
@@ -491,6 +494,7 @@
     "← All layouts",
     "↕ Spacing…",
     "▶ Auto-play",
+    "☰ Hamburger",
     "⛶ Click to enlarge",
     "✦ Remix",
     "✨ Make freeform",
