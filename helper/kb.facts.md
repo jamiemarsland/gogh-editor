@@ -4,11 +4,11 @@ Everything in this section is extracted mechanically from the Gogh source on eve
 
 ## Current release
 
-- Plugin version: **0.99.325**
+- Plugin version: **0.99.326**
 - Requires WordPress **6.5+**, PHP **7.4+**
 - Text domain: `gogh-editor`
 - readme.txt Stable tag: `0.26.0` · Tested up to: `7.0`
-- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.325`). Quote the plugin header version.
+- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.326`). Quote the plugin header version.
 
 ## Design constants
 
@@ -182,7 +182,6 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "Dark"
 - "Delete (Del)"
 - "Delete saved section"
-- "Describe a change — Gogh makes it"
 - "Desktop"
 - "Discard changes"
 - "Done"
@@ -287,7 +286,6 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "▶ Auto-play"
 - "☰ Edit menu items"
 - "⛶ Click to enlarge"
-- "✦ Ask Gogh"
 - "✦ Remix"
 - "✨ Make freeform"
 - "✨ Make it freeform"

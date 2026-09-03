@@ -1,12 +1,12 @@
 {
   "meta": {
-    "plugin_version": "0.99.325",
+    "plugin_version": "0.99.326",
     "requires_wp": "6.5",
     "requires_php": "7.4",
     "text_domain": "gogh-editor",
     "readme_stable_tag": "0.26.0",
     "readme_tested_up_to": "7.0",
-    "asset_version": "0.99.325-chrome"
+    "asset_version": "0.99.326-chrome"
   },
   "constants": {
     "TOL": 8,
@@ -388,7 +388,6 @@
     "Dark",
     "Delete (Del)",
     "Delete saved section",
-    "Describe a change — Gogh makes it",
     "Desktop",
     "Discard changes",
     "Done",
@@ -493,7 +492,6 @@
     "▶ Auto-play",
     "☰ Edit menu items",
     "⛶ Click to enlarge",
-    "✦ Ask Gogh",
     "✦ Remix",
     "✨ Make freeform",
     "✨ Make it freeform"
