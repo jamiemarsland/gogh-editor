@@ -1631,6 +1631,14 @@ body.gogh-painting, body.gogh-painting .gogh-section * { cursor: url('data:image
   .gogh-fm-chip { animation: none; }
   .gogh-fm-mark { animation: none; }
 }
+/* the die says hello when a section arrives — one full turn, transform only */
+.gogh-sb-dice.is-hello svg { animation: gogh-dicehello 0.7s cubic-bezier(.3,.7,.2,1); }
+@keyframes gogh-dicehello {
+  0% { transform: rotate(0) scale(1); }
+  60% { transform: rotate(300deg) scale(1.18); }
+  100% { transform: rotate(360deg) scale(1); }
+}
+@media (prefers-reduced-motion: reduce) { .gogh-sb-dice.is-hello svg { animation: none; } }
 /* the die tumbles on a roll — transform only, the bar never shifts */
 .gogh-sb-dice.is-rolling svg { animation: gogh-diceroll 0.5s ease; }
 @keyframes gogh-diceroll {

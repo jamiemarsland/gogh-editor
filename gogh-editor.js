@@ -1779,6 +1779,10 @@
     '<span class="gogh-scard-ic is-accent"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M12 3a9 9 0 1 0 0 18h1.5a2.5 2.5 0 0 0 1.8-4.2 2.5 2.5 0 0 1 1.8-4.3H20a9 9 0 0 0-8-9.5Z"/><circle cx="7.5" cy="11" r="1.2" fill="currentColor" stroke="none"/><circle cx="10.5" cy="7.5" r="1.2" fill="currentColor" stroke="none"/><circle cx="15" cy="7.5" r="1.2" fill="currentColor" stroke="none"/></svg></span>' +
     '<span class="gogh-scard-tx"><span class="gogh-scard-t">Site style</span><span class="gogh-scard-s">Colours, type, brand</span></span>' +
     '<svg class="gogh-scard-chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg></button>' +
+    '<button type="button" class="gogh-sitem gogh-scard gogh-sitedesigns">' +
+    '<span class="gogh-scard-ic"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><rect x="3" y="6" width="13" height="15" rx="1.6"/><path d="M7 3h13v15"/></svg></span>' +
+    '<span class="gogh-scard-tx"><span class="gogh-scard-t">Site designs</span><span class="gogh-scard-s">A whole site, ready to tweak</span></span>' +
+    '<svg class="gogh-scard-chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg></button>' +
     '<button type="button" class="gogh-sitem gogh-scard gogh-motionbtn">' +
     '<span class="gogh-scard-ic"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12c3-6 6-6 9 0s6 6 9 0"/></svg></span>' +
     '<span class="gogh-scard-tx"><span class="gogh-scard-t">Motion</span><span class="gogh-scard-s">How the site moves as visitors scroll</span></span>' +
@@ -1809,8 +1813,6 @@
     // are its standing surfaces now.)
     '<div class="gogh-side-gap"></div>' +
     '<div class="gogh-side-foot">' +
-    '<button type="button" class="gogh-sbtn gogh-sd-designs" title="Site designs — swap the whole look">' +
-    '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><rect x="3" y="6" width="13" height="15" rx="1.6"/><path d="M7 3h13v15"/></svg></button>' +
     '<button type="button" class="gogh-sbtn gogh-gridbtn" data-act="gridsnap" title="Grid: show and snap">' +
     '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 9h18M3 15h18M9 3v18M15 3v18"/></svg></button>' +
     '<button type="button" class="gogh-sbtn gogh-undo" title="Undo (⌘Z)">' +
@@ -5246,7 +5248,10 @@
       });
     });
   }
-  side.querySelector('.gogh-sd-designs').addEventListener('click', openStarterPicker);
+  // Site designs is a card in the Site drawer now (James: 'do we still have
+  // the furniture for the different style of site?' — it hid as an
+  // unlabelled icon in the foot)
+  side.querySelector('.gogh-sitedesigns').addEventListener('click', openStarterPicker);
   // Edit header / Edit footer: leave the design surface and open that part's
   // editing room (dim the page, spotlight the chrome) — the existing flow
   function editChromeFromDesign(area) {
@@ -7623,6 +7628,15 @@
     // section bar docks at once, so the doors are seen the moment there
     // is something to open them on (James: "would that be helpful?")
     selectSection(S.indexOf(sec));
+    // the die says hello: one full turn as the bar docks, so the drawer of
+    // takes announces itself the moment there is one (James: "a little
+    // 360 animation when the section is added?")
+    var hiDie = secBar.querySelector('.gogh-sb-dice');
+    if (hiDie && !hiDie.hidden) {
+      hiDie.classList.remove('is-hello');
+      void hiDie.offsetWidth;
+      hiDie.classList.add('is-hello');
+    }
     fmSectionLanded(sec);
   }
 
@@ -8125,6 +8139,15 @@
     // section bar docks at once, so the doors are seen the moment there
     // is something to open them on (James: "would that be helpful?")
     selectSection(S.indexOf(sec));
+    // the die says hello: one full turn as the bar docks, so the drawer of
+    // takes announces itself the moment there is one (James: "a little
+    // 360 animation when the section is added?")
+    var hiDie = secBar.querySelector('.gogh-sb-dice');
+    if (hiDie && !hiDie.hidden) {
+      hiDie.classList.remove('is-hello');
+      void hiDie.offsetWidth;
+      hiDie.classList.add('is-hello');
+    }
     fmSectionLanded(sec);
   }
   // ---------- rearrange: the solver proposes, the hover auditions ----------
