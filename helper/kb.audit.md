@@ -1,8 +1,8 @@
-# Knowledge-base audit — plugin v0.99.336
+# Knowledge-base audit — plugin v0.99.337
 
 _13 finding(s) suppressed by `kb.audit-ignore.txt`._
 
-## MISSING (52)
+## MISSING (51)
 
 The source has something the prose never explains. The bot knows the name from the appendix but cannot say what it is for.
 
@@ -42,7 +42,6 @@ The source has something the prose never explains. The bot knows the name from t
 - WP hook `rest_pre_insert_wp_navigation` exists in source but is never mentioned in the prose
 - WP hook `save_post` exists in source but is never mentioned in the prose
 - WP hook `wp_head` exists in source but is never mentioned in the prose
-- WP hook `admin_post_gogh_new_page` exists in source but is never mentioned in the prose
 - WP hook `wp_insert_post` exists in source but is never mentioned in the prose
 - template `Story` exists in source but is never mentioned in the prose
 - template `Numbers` exists in source but is never mentioned in the prose
@@ -75,7 +74,6 @@ Quoted copy not found verbatim in the source. Paraphrases are fine; changed UI c
 
 Use this as the checklist for updating the prose — and as a sanity check on the release itself.
 
-- version: 0.99.335 → 0.99.336
-- removed UI label: "Publish page"
-- added toast: "The name didn’t save — try again."
-- added toast: "This page is “"
+- version: 0.99.336 → 0.99.337
+- removed WP hook: "admin_post_gogh_new_page"
+- removed toast: "gogh could not create the page — try again."
