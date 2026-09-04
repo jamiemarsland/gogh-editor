@@ -1,8 +1,8 @@
-# Knowledge-base audit — plugin v0.99.381
+# Knowledge-base audit — plugin v0.99.382
 
 _13 finding(s) suppressed by `kb.audit-ignore.txt`._
 
-## MISSING (60)
+## MISSING (65)
 
 The source has something the prose never explains. The bot knows the name from the appendix but cannot say what it is for.
 
@@ -37,6 +37,11 @@ The source has something the prose never explains. The bot knows the name from t
 - WP hook `body_class` exists in source but is never mentioned in the prose
 - WP hook `body_class` exists in source but is never mentioned in the prose
 - WP hook `trashed_post` exists in source but is never mentioned in the prose
+- WP hook `get_block_templates` exists in source but is never mentioned in the prose
+- WP hook `body_class` exists in source but is never mentioned in the prose
+- WP hook `admin_post_gogh_shop_layout` exists in source but is never mentioned in the prose
+- WP hook `render_block_core/group` exists in source but is never mentioned in the prose
+- WP hook `admin_post_gogh_product_related` exists in source but is never mentioned in the prose
 - WP hook `admin_post_gogh_product_layout_all` exists in source but is never mentioned in the prose
 - WP hook `admin_post_gogh_blog_layout` exists in source but is never mentioned in the prose
 - WP hook `admin_post_gogh_post_layout` exists in source but is never mentioned in the prose
@@ -83,4 +88,7 @@ Quoted copy not found verbatim in the source. Paraphrases are fine; changed UI c
 
 Use this as the checklist for updating the prose — and as a sanity check on the release itself.
 
-- version: 0.99.380 → 0.99.381
+- version: 0.99.381 → 0.99.382
+- added WP hook: "admin_post_gogh_product_related"
+- added WP hook: "admin_post_gogh_shop_layout"
+- added WP hook: "render_block_core/group"

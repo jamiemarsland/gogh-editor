@@ -4,11 +4,11 @@ Everything in this section is extracted mechanically from the Gogh source on eve
 
 ## Current release
 
-- Plugin version: **0.99.381**
+- Plugin version: **0.99.382**
 - Requires WordPress **6.5+**, PHP **7.4+**
 - Text domain: `gogh-editor`
 - readme.txt Stable tag: `0.26.0` · Tested up to: `7.0`
-- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.381`). Quote the plugin header version.
+- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.382`). Quote the plugin header version.
 
 ## Design constants
 
@@ -117,6 +117,11 @@ Block: `gogh/section` · v3 attributes: `css`, `model`, `scope`, `v`, `cssT`.
 | `rest_api_init` | action | 10 |
 | `init` | action | 10 |
 | `init` | action | 10 |
+| `get_block_templates` | filter | 10 |
+| `body_class` | filter | 10 |
+| `admin_post_gogh_shop_layout` | action | 10 |
+| `render_block_core/group` | filter | 10 |
+| `admin_post_gogh_product_related` | action | 10 |
 | `admin_post_gogh_product_layout_all` | action | 10 |
 | `admin_post_gogh_blog_layout` | action | 10 |
 | `admin_post_gogh_post_layout` | action | 10 |
