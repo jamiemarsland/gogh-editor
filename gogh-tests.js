@@ -583,6 +583,37 @@
       expect(e.x >= 0 && e.x + e.w <= 1200, 'out of bounds x=' + e.x);
     });
 
+    // ---- 8b. the group travels together (multi-select drag) ----
+    test('group drag: every member ghosts, and lands by the same delta', function () {
+      // James: "when i multi-select items and drag, only one appears to
+      // drag, and then the other one snaps into place after the drop"
+      var i = findIdx('heading'), j = findIdx('badge');
+      expect(i !== -1 && j !== -1, 'fixture lacks heading+badge');
+      var s0 = sec();
+      var ex0 = s0.els[i].x, ey0 = s0.els[i].y, bx0 = s0.els[j].x, by0 = s0.els[j].y;
+      G.multi.set(s0, [i, j]);
+      var node = s0.nodes[i], r = node.getBoundingClientRect();
+      var x = r.x + r.width / 2, y = r.y + r.height / 2;
+      pev('pointerdown', node, x, y, 17);
+      pev('pointermove', node, x + 30, y + 20, 17);
+      pev('pointermove', node, x + 60, y + 40, 17);
+      var ghosts = document.querySelectorAll('.gogh-ghostel');
+      expect(ghosts.length === 2, 'expected a ghost per member, got ' + ghosts.length);
+      expect(getComputedStyle(s0.nodes[j]).display === 'none', 'the mate stayed in the flow during the drag');
+      expect(document.querySelectorAll('.gogh-dropbox:not([hidden])').length === 2, 'expected a socket per member');
+      expect(s0.els[j].y === by0 && s0.els[j].x === bx0, 'the mate moved in the model mid-drag');
+      pev('pointerup', node, x + 60, y + 40, 17);
+      expect(!q('.gogh-ghostel'), 'ghosts not cleaned up');
+      expect(document.querySelectorAll('.gogh-dropbox').length === 1, 'mate sockets not removed');
+      expect(getComputedStyle(s0.nodes[j]).display !== 'none', 'mate still hidden after drop');
+      var dx = s0.els[i].x - ex0, dy = s0.els[i].y - ey0;
+      expect(dx !== 0 || dy !== 0, 'the grabbed piece did not move');
+      expect(s0.els[j].x - bx0 === dx && s0.els[j].y - by0 === dy,
+        'mate delta ' + (s0.els[j].x - bx0) + ',' + (s0.els[j].y - by0) + ' vs ' + dx + ',' + dy);
+      G.multi.clear();
+      return 'two ghosts, two sockets, one delta ' + dx + ',' + dy;
+    });
+
     // ---- 9. undo / redo ----
     test('undo and redo restore model state', function () {
       // two moves, then walk history back and forward — self-contained so the
@@ -2897,6 +2928,25 @@
       }
     });
 
+    test('chrome veils never outgrow their part', function () {
+      // a transparent header computes absolute at veil time, so the old
+      // anchor check skipped it; when an audition or restore took the
+      // float away the veil (inset: 0) sized itself to the PAGE and every
+      // canvas click died — caught here as a geometry invariant
+      var veils = document.querySelectorAll('.gogh-chromeveil');
+      expect(veils.length, 'no chrome veils on the page');
+      var seen = [];
+      [].forEach.call(veils, function (v) {
+        var pe = v.parentElement;
+        var vr = v.getBoundingClientRect(), pr = pe.getBoundingClientRect();
+        expect(getComputedStyle(pe).position !== 'static', pe.tagName + ' holding a veil is position: static');
+        expect(vr.height <= pr.height + 2 && vr.width <= pr.width + 2,
+          pe.tagName + ' veil ' + Math.round(vr.width) + 'x' + Math.round(vr.height) + ' outgrew its part ' + Math.round(pr.width) + 'x' + Math.round(pr.height));
+        seen.push(pe.tagName.toLowerCase() + ' ' + Math.round(pr.height) + 'px');
+      });
+      return 'every veil fits its part: ' + seen.join(', ');
+    });
+
     test('header looks: colour writes attrs and classes in lockstep, and back', function () {
       var raw = '<!-- wp:group {"layout":{"type":"flex"}} --><div class="wp-block-group"><!-- wp:site-title /--></div><!-- /wp:group -->';
       var looks = G.headerLooks();
@@ -3529,15 +3579,21 @@
       secW.els[ii].y = 160;
       var host = secW.nodes[0];
       if (host.tagName !== 'P') host = host.querySelector('p') || host;
-      host.scrollIntoView({ block: 'center' });
+      host.scrollIntoView({ block: 'center', behavior: 'instant' });
       var hr = host.getBoundingClientRect();
       // drop three-quarters of the way down the text — the wrap should
       // begin there, leaving the opening lines full width
-      G.wrapImageIntoText(secW, ii, 0, hr.left + hr.width / 2, hr.top + hr.height * 0.75);
+      var dpx = hr.left + hr.width / 2, dpy = hr.top + hr.height * 0.75;
+      var dhit = document.elementFromPoint(dpx, dpy);
+      var dcr = document.caretRangeFromPoint ? document.caretRangeFromPoint(dpx, dpy) : null;
+      G.wrapImageIntoText(secW, ii, 0, dpx, dpy);
       var t = secW.els[0];
       var pos = t.text.indexOf('<img');
       expect(pos !== -1, 'wrapped img in text model');
-      expect(pos > 40, 'img inserted at the drop point, not prepended');
+      expect(pos > 40, 'img inserted at the drop point, not prepended (pos ' + pos + ', point ' +
+        Math.round(dpx) + ',' + Math.round(dpy) + ', host ' + [hr.left, hr.top, hr.width, hr.height].map(Math.round).join('/') +
+        ', hit ' + (dhit ? (dhit.className || dhit.tagName).toString().slice(0, 40) : 'none') +
+        ', caret ' + (dcr ? dcr.startOffset : 'none') + ', scrollY ' + Math.round(window.scrollY) + ', vh ' + window.innerHeight + ')');
       G.deleteSection(G.sections().indexOf(secW));
       return 'drop low in the text → wrap starts there, opening lines stay full width';
     });
@@ -4687,6 +4743,8 @@
       return frames(20).then(function (ok) {
         var done = function (msg) { pev('pointerdown', document.body, 4, 4); return msg; };
         if (!ok || stalled) return done('rAF frozen (background tab) — front the tab for the scroll check');
+        // a hidden tab pauses smooth scrolling mid-flight — nothing to judge there
+        if (document.visibilityState !== 'visible' && pnl.scrollTop <= 20) return done('hidden tab \u2014 smooth scroll paused; front the tab for the scroll check');
         if (pnl.scrollHeight <= pnl.clientHeight + 4) return done('panel fits without scrolling here — nothing to reveal');
         expect(pnl.scrollTop > 20, 'the panel did not scroll the colours into view (scrollTop ' + Math.round(pnl.scrollTop) + ')');
         // the target clamps at the panel's bottom, so assert what matters:

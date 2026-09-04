@@ -641,6 +641,10 @@ body.gogh-help-open .gogh-toasts { right: 416px; }
 .gogh-chromeveil:hover .gogh-chromeveil-pill { opacity: 1; transform: none; }
 /* awake chrome wears its editing ring — you can SEE what has focus */
 .gogh-chrome-anchor { position: relative; }
+/* belt for the anchor: a part holding a veil is that veil's containing block
+   even if its class list was rewritten (the transparent float rule, being
+   more specific, still wins while the header floats) */
+.wp-block-template-part:has(> .gogh-chromeveil) { position: relative; }
 .gogh-chrome-live {
   outline: 2px solid rgba(74, 99, 216, 0.85);
   outline-offset: -2px;
@@ -2002,10 +2006,10 @@ html.gogh-editing header.wp-block-template-part:has(.gogh-header-overlay):not(.g
   /* two-tone hairlines: each major line is a light stroke with a dark twin
      1px over, so the grid reads on photos, tints and plain paper alike */
   background-image:
-    linear-gradient(to right, rgba(255, 255, 255, 0.65) 1px, transparent 1px),
-    linear-gradient(to bottom, rgba(255, 255, 255, 0.65) 1px, transparent 1px),
-    linear-gradient(to right, rgba(15, 23, 42, 0.4) 1px, transparent 1px),
-    linear-gradient(to bottom, rgba(15, 23, 42, 0.4) 1px, transparent 1px),
+    linear-gradient(to right, rgba(255, 255, 255, 0.42) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(255, 255, 255, 0.42) 1px, transparent 1px),
+    linear-gradient(to right, rgba(15, 23, 42, 0.26) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(15, 23, 42, 0.26) 1px, transparent 1px),
     linear-gradient(to right, color-mix(in srgb, currentColor 9%, transparent) 1px, transparent 1px),
     linear-gradient(to bottom, color-mix(in srgb, currentColor 9%, transparent) 1px, transparent 1px);
   background-size:
@@ -2023,10 +2027,10 @@ html.gogh-editing header.wp-block-template-part:has(.gogh-header-overlay):not(.g
 /* mid-drag the active section shows its grid — majors only, the calm version */
 .gogh-editing .gogh-section.gogh-grid-live::before {
   background-image:
-    linear-gradient(to right, rgba(255, 255, 255, 0.65) 1px, transparent 1px),
-    linear-gradient(to bottom, rgba(255, 255, 255, 0.65) 1px, transparent 1px),
-    linear-gradient(to right, rgba(15, 23, 42, 0.4) 1px, transparent 1px),
-    linear-gradient(to bottom, rgba(15, 23, 42, 0.4) 1px, transparent 1px);
+    linear-gradient(to right, rgba(255, 255, 255, 0.42) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(255, 255, 255, 0.42) 1px, transparent 1px),
+    linear-gradient(to right, rgba(15, 23, 42, 0.26) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(15, 23, 42, 0.26) 1px, transparent 1px);
   /* exactly W/30 = 40 model units — the snap grid and the painted grid
      must be the SAME grid, to the pixel */
   background-size: calc(100cqw / 30) calc(100cqw / 30);

@@ -773,10 +773,10 @@
       // (majors only — calm over photos). Published pages never carry
       // .gogh-editing, so this costs them nothing.
       var gridCoats = [
-        'linear-gradient(to right, rgba(255,255,255,0.65) 1px, transparent 1px) 0 0 / 3.3333cqw 3.3333cqw',
-        'linear-gradient(to bottom, rgba(255,255,255,0.65) 1px, transparent 1px) 0 0 / 3.3333cqw 3.3333cqw',
-        'linear-gradient(to right, rgba(15,23,42,0.4) 1px, transparent 1px) 1px 1px / 3.3333cqw 3.3333cqw',
-        'linear-gradient(to bottom, rgba(15,23,42,0.4) 1px, transparent 1px) 1px 1px / 3.3333cqw 3.3333cqw'
+        'linear-gradient(to right, rgba(255,255,255,0.42) 1px, transparent 1px) 0 0 / 3.3333cqw 3.3333cqw',
+        'linear-gradient(to bottom, rgba(255,255,255,0.42) 1px, transparent 1px) 0 0 / 3.3333cqw 3.3333cqw',
+        'linear-gradient(to right, rgba(15,23,42,0.26) 1px, transparent 1px) 1px 1px / 3.3333cqw 3.3333cqw',
+        'linear-gradient(to bottom, rgba(15,23,42,0.26) 1px, transparent 1px) 1px 1px / 3.3333cqw 3.3333cqw'
       ].join(', ');
       // opacity: 1 declared, not assumed — the editing grid shares this
       // pseudo at opacity 0, which blanked every effect section's backdrop
@@ -2803,8 +2803,12 @@
       });
     });
     // a CLASS, never an inline style: the transparent-header float rule
-    // (:has on the template part) must be able to win while editing
-    if (getComputedStyle(pe).position === 'static') pe.classList.add('gogh-chrome-anchor');
+    // (:has on the template part) outranks it while the header floats.
+    // ALWAYS added — a transparent header computes absolute at veil time,
+    // and when a later audition or restore takes the float away the veil
+    // (inset: 0) would otherwise size itself to the PAGE and swallow every
+    // click on the canvas ("i can't edit the top section anymore")
+    pe.classList.add('gogh-chrome-anchor');
     pe.appendChild(v);
     chromeVeils.push(v);
   }
@@ -10399,6 +10403,38 @@
     joinGlowNode = node;
     if (node) node.classList.add('gogh-card-glow');
   }
+  // one ghost per travelling piece. The clone rides inside a wrapper
+  // carrying the section's scope classes so the scoped element styles
+  // (colours, fonts) apply outside the section.
+  function makeGhost(sec, j) {
+    var e = sec.els[j];
+    var node = sec.nodes[j];
+    var r = node.getBoundingClientRect();
+    // a rotated element's client rect is its INFLATED bounding box — sizing
+    // the ghost to it stretches the clone, and the scoped rotate then spins
+    // that inflated copy into the 'two badges' weirdness. Use the true
+    // unrotated size, centred where the element's centre is (rotation-safe).
+    var gL = r.left, gT = r.top, gW = r.width, gH = r.height;
+    if (e.rot) {
+      var gs = scaleOf(sec);
+      gW = e.w * gs;
+      gH = e.h * gs;
+      gL = r.left + (r.width - gW) / 2;
+      gT = r.top + (r.height - gH) / 2;
+    }
+    var inner = node.cloneNode(true);
+    inner.classList.remove('gogh-selected', 'gogh-multisel');
+    inner.removeAttribute('contenteditable');
+    inner.querySelectorAll('[contenteditable]').forEach(function (n) { n.removeAttribute('contenteditable'); });
+    inner.style.width = '100%';
+    inner.style.height = '100%';
+    var el = document.createElement('div');
+    el.className = 'gogh-wrap gogh-section ' + sec.scope + ' gogh-ghostel';
+    el.style.cssText = 'position:fixed;display:block;background:transparent;container-type:normal;left:' + gL + 'px;top:' + gT + 'px;width:' + gW + 'px;height:' + gH + 'px;';
+    el.appendChild(inner);
+    document.body.appendChild(el);
+    return { el: el, left: gL, top: gT };
+  }
   function beginDrag(ev) {
     if (!editing || !sel) return;
     keepZoomThroughClose = !!zoomState; // dragging in birds-eye keeps the zoom
@@ -10417,32 +10453,9 @@
     var sec = sel.sec, i = sel.i;
     var e = sec.els[i];
     var node = sec.nodes[i];
-    var r = node.getBoundingClientRect();
-    // a rotated element's client rect is its INFLATED bounding box — sizing
-    // the ghost to it stretches the clone, and the scoped rotate then spins
-    // that inflated copy into the 'two badges' weirdness. Use the true
-    // unrotated size, centred where the element's centre is (rotation-safe).
-    var gL = r.left, gT = r.top, gW = r.width, gH = r.height;
-    if (e.rot) {
-      var gs = scaleOf(sec);
-      gW = e.w * gs;
-      gH = e.h * gs;
-      gL = r.left + (r.width - gW) / 2;
-      gT = r.top + (r.height - gH) / 2;
-    }
-    // ghost rides inside a wrapper carrying the section's scope classes so
-    // the scoped element styles (colours, fonts) apply outside the section
-    var inner = node.cloneNode(true);
-    inner.classList.remove('gogh-selected');
-    inner.removeAttribute('contenteditable');
-    inner.querySelectorAll('[contenteditable]').forEach(function (n) { n.removeAttribute('contenteditable'); });
-    inner.style.width = '100%';
-    inner.style.height = '100%';
-    ghost = document.createElement('div');
-    ghost.className = 'gogh-wrap gogh-section ' + sec.scope + ' gogh-ghostel';
-    ghost.style.cssText = 'position:fixed;display:block;background:transparent;container-type:normal;left:' + gL + 'px;top:' + gT + 'px;width:' + gW + 'px;height:' + gH + 'px;';
-    ghost.appendChild(inner);
-    document.body.appendChild(ghost);
+    var g0 = makeGhost(sec, i);
+    ghost = g0.el;
+    var gL = g0.left, gT = g0.top;
     dropBox.hidden = false;
     drag = { sec: sec, i: i, px: ev.clientX, py: ev.clientY, x: e.x, y: e.y, gx: gL, gy: gT,
       secH0: designH(sec.els, sec.minH) }; // the edge the user SEES — release there means flush
@@ -10464,13 +10477,23 @@
     }
     // only NOW does the node leave the flow (display:none) — the ink
     // measurement above needs it laid out, and the ghost already exists
+    if (multiSel && multiSel.sec === sec && multiSel.idxs.indexOf(i) !== -1) {
+      // the whole group travels: every member gets its own ghost and its
+      // own landing socket, and every member leaves the flow. What you
+      // see mid-drag is where it lands (James: "only one appears to drag,
+      // and then the other one snaps into place after the drop"). Models
+      // stay put until release — mid-drag the group is pure promise.
+      drag.multi = multiSel.idxs.filter(function (j) { return j !== i; }).map(function (j) {
+        var mg = makeGhost(sec, j);
+        var mb = document.createElement('div');
+        mb.className = 'gogh-dropbox gogh-dropbox-mate';
+        document.body.appendChild(mb);
+        return { j: j, x: sec.els[j].x, y: sec.els[j].y, ghost: mg.el, box: mb };
+      });
+      drag.multi.forEach(function (mm) { sec.nodes[mm.j].classList.add('gogh-dragsrc'); });
+    }
     node.classList.add('gogh-dragsrc');
     sec.sectionEl.classList.add('gogh-grid-live');
-    if (multiSel && multiSel.sec === sec && multiSel.idxs.indexOf(i) !== -1) {
-      drag.multi = multiSel.idxs.filter(function (j) { return j !== i; }).map(function (j) {
-        return { j: j, x: sec.els[j].x, y: sec.els[j].y };
-      });
-    }
     document.documentElement.classList.add('gogh-dragging');
     hideBoundaryUI();
     hideHandles();
@@ -10541,12 +10564,8 @@
     // (headings) move slightly right after i drop").
     if (ghost) ghost.style.transform = 'translate(' + ((e.x - drag.x) * s) + 'px,' + ((e.y - drag.y) * s) + 'px)';
     if (drag.multi) {
-      var mdx = e.x - drag.x, mdy = e.y - drag.y;
-      drag.multi.forEach(function (mm) {
-        var o = sec.els[mm.j];
-        o.x = Math.max(0, Math.min(W - o.w, mm.x + mdx));
-        o.y = Math.max(0, mm.y + mdy);
-      });
+      var mtr = 'translate(' + ((e.x - drag.x) * s) + 'px,' + ((e.y - drag.y) * s) + 'px)';
+      drag.multi.forEach(function (mm) { if (mm.ghost) mm.ghost.style.transform = mtr; });
     }
     if (!dragRaf) {
       dragRaf = true;
@@ -10573,6 +10592,18 @@
         dropBox.style.top = (r3.top + window.scrollY + e2.y * s3) + 'px';
         dropBox.style.width = (e2.w * s3) + 'px';
         dropBox.style.height = (e2.h * s3) + 'px';
+        if (drag.multi) {
+          // one socket per member, drawn where the member WILL land
+          var mdx2 = e2.x - drag.x, mdy2 = e2.y - drag.y;
+          drag.multi.forEach(function (mm) {
+            var o = sec.els[mm.j];
+            var ox = Math.max(0, Math.min(W - o.w, mm.x + mdx2)), oy = Math.max(0, mm.y + mdy2);
+            mm.box.style.left = (r3.left + window.scrollX + ox * s3) + 'px';
+            mm.box.style.top = (r3.top + window.scrollY + oy * s3) + 'px';
+            mm.box.style.width = (o.w * s3) + 'px';
+            mm.box.style.height = (o.h * s3) + 'px';
+          });
+        }
 
         if (!drag.multi) {
           var jt = cardJoinTarget(sec, drag.i);
@@ -10606,7 +10637,15 @@
     dropBox.hidden = true;
     hideDists();
     sec.nodes[i].classList.remove('gogh-dragsrc');
+    if (multiD) {
+      multiD.forEach(function (mm) {
+        if (mm.ghost) mm.ghost.remove();
+        if (mm.box) mm.box.remove();
+        if (sec.nodes[mm.j]) sec.nodes[mm.j].classList.remove('gogh-dragsrc');
+      });
+    }
     var secH0D = drag.secH0;
+    var x0D = drag.x, y0D = drag.y;
     drag = null;
     document.documentElement.classList.remove('gogh-dragging');
     hideGuides();
@@ -10635,13 +10674,6 @@
         totalCorr += dDesign;
         resolveAndApply(sec);
       }
-      if (multiD && totalCorr) {
-        multiD.forEach(function (mm) {
-          var o = sec.els[mm.j];
-          o.y = Math.max(0, o.y + totalCorr);
-        });
-        resolveAndApply(sec);
-      }
     }
     // the visible grid is a promise: axes the grid governed at release must
     // land ON it (alignment/equal-spacing/shift-locked axes keep their own
@@ -10651,6 +10683,18 @@
       var eDrop = sec.els[i];
       if (!gxCapD && !eqHD && !lockedXD && movedXD) eDrop.x = Math.max(0, Math.min(W - eDrop.w, Math.round(eDrop.x / BASE) * BASE));
       if (!gyCapD && !eqVD && !lockedYD && movedYD) eDrop.y = Math.max(0, Math.round(eDrop.y / BASE) * BASE);
+      resolveAndApply(sec);
+    }
+    if (multiD) {
+      // the group lands by the grabbed piece's FINAL delta — after the
+      // ghost-top correction and the grid's promise — so the sockets they
+      // showed are the spots they take
+      var fdx = sec.els[i].x - x0D, fdy = sec.els[i].y - y0D;
+      multiD.forEach(function (mm) {
+        var o = sec.els[mm.j];
+        o.x = Math.max(0, Math.min(W - o.w, mm.x + fdx));
+        o.y = Math.max(0, mm.y + fdy);
+      });
       resolveAndApply(sec);
     }
     setJoinGlow(null);
@@ -12213,12 +12257,20 @@
     openMotionPanel();
   });
 
+  // a piece travelling WITH the grabbed one (multi-drag) sits at its old
+  // spot in the model until release — it must not act as a magnet or a
+  // neighbour for the piece it is riding alongside
+  function dragMate(o) {
+    if (!drag || !drag.multi) return false;
+    var els = drag.sec.els;
+    return drag.multi.some(function (mm) { return els[mm.j] === o; });
+  }
   function snapPos(sec, exclude, x, y, w, h, free, textCXOff) {
     if (free) return { x: Math.round(x), y: Math.round(y), gx: null, gy: null };
     var H = designH(sec.els, sec.minH);
     var candX = [0, W, W / 2], candY = [0, H, H / 2];
     sec.els.forEach(function (o) {
-      if (o === exclude) return;
+      if (o === exclude || dragMate(o)) return;
       candX.push(o.x, o.x + o.w, o.x + o.w / 2);
       candY.push(o.y, o.y + o.h, o.y + o.h / 2);
     });
@@ -12275,7 +12327,7 @@
   function neighbors(sec, e) {
     var L = null, R = null, T = null, B = null;
     sec.els.forEach(function (o) {
-      if (o === e) return;
+      if (o === e || dragMate(o)) return;
       var vOv = o.y < e.y + e.h && o.y + o.h > e.y;
       var hOv = o.x < e.x + e.w && o.x + o.w > e.x;
       if (vOv) {
