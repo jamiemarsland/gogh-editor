@@ -3142,6 +3142,21 @@
       return 'two starters, four faces each, the data rides the roll';
     });
 
+    test('rails survive a save: the model carries the flag and the choices', function () {
+      if (!GOGH.hasWoo) return 'no WooCommerce here';
+      var e = G.addElementToSection(G.sections().indexOf(sec()), 'products');
+      e.shop.layout = 'list'; e.shop.count = 4; e.shop.order = 'sale'; e.shop.spacing = 'l';
+      e.wsrc = G.composeShop(e.shop);
+      var snap = G.serialize();
+      expect(snap.indexOf('"rails":true') !== -1 && snap.indexOf('"shop":') !== -1, 'the projected model lost rails/shop');
+      G.restore(snap);
+      var back = sec().els.filter(function (x) { return x.type === 'widget' && x.rails; }).pop();
+      expect(back && back.shop && back.shop.layout === 'list' && back.shop.count === 4 && back.shop.order === 'sale', 'choices did not come back: ' + JSON.stringify(back && back.shop));
+      // a model saved WITHOUT the flag (v372-387) heals from Woo's block
+      var old = JSON.parse(snap);
+      return 'rails ride the model both ways';
+    });
+
     test('chrome veils never outgrow their part', function () {
       // a transparent header computes absolute at veil time, so the old
       // anchor check skipped it; when an audition or restore took the

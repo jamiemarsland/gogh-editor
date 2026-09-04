@@ -1,0 +1,41 @@
+{
+  "name": "Shop",
+  "type": "Shop",
+  "requires": "woo",
+  "description": "A small maker's shop: a featured product, bestsellers, your story and a sale row — the shop itself is WooCommerce's, dressed by gogh",
+  "pages": [
+    {
+      "slug": "home",
+      "title": "Home",
+      "file": "home.html",
+      "front": true,
+      "template": "page-no-title"
+    },
+    {
+      "slug": "shop",
+      "woo": "shop",
+      "title": "Shop"
+    },
+    {
+      "slug": "about",
+      "title": "About",
+      "file": "about.html"
+    },
+    {
+      "slug": "contact",
+      "title": "Contact",
+      "file": "contact.html"
+    }
+  ],
+  "shop": {
+    "layout": "editorial",
+    "category": "editorial"
+  },
+  "preview": {
+    "base": "#F4F5F2",
+    "contrast": "#16201B",
+    "accent-1": "#FFFFFF",
+    "accent-2": "#1F5A3F",
+    "accent-3": "#E9ECE7"
+  }
+}

@@ -949,6 +949,8 @@
       align: e.align || null, color: e.color || null, tf: e.tf || null,
       btnBg: e.btnBg || null, btnText: e.btnText || null, btnHover: e.btnHover || null,
       wsrc: e.wsrc || null, whtml: e.whtml || null, wcol: e.wcol || null,
+      // the rails element: its flag and its few choices travel with the model
+      rails: e.rails ? true : undefined, shop: e.shop || undefined,
       boxBg: e.boxBg || null, radius: e.radius || 0, shape: e.shape || null,
       boxImg: e.boxImg || null, boxImgId: e.boxImgId || null,
       mood: e.mood || null,
@@ -1528,6 +1530,9 @@
     // roles core 6.9 added). One-way and idempotent; publish then stores the
     // valid form and Gutenberg stops offering 'Attempt recovery'.
     sec.els.forEach(function (e) {
+      // a rails element saved before the model carried its flag (v0.99.372-387)
+      // reads its few choices back out of Woo's block it composed
+      if (e.type === 'widget' && !e.shop && /wp:woocommerce\/product-collection/.test(e.wsrc || '')) healRails(e);
       if (e.faq && e.faq.length && e.wsrc && e.wsrc.indexOf('role="group"') === -1) composeWidgetData(e);
       if (e.tabs && e.tabs.length && e.wsrc && e.wsrc.indexOf('role="tabpanel"') === -1) composeWidgetData(e);
     });
@@ -4675,6 +4680,27 @@
   }
   // Products can aim at one category: same widget, shortcode narrowed, and
   // the ＋ flow asks "which products?" when the store has categories
+  function healRails(e) {
+    var shop = shopDefaults();
+    try {
+      var m = /wp:woocommerce\/product-collection (\{[\s\S]*?\}) -->/.exec(e.wsrc || '');
+      var attrs = m ? JSON.parse(m[1]) : {};
+      var q = attrs.query || {};
+      if (q.perPage) shop.count = +q.perPage;
+      if (q.woocommerceOnSale) shop.order = 'sale';
+      else if (q.orderBy === 'popularity' || q.orderBy === 'rand' || q.orderBy === 'title') shop.order = q.orderBy;
+      if (q.taxQuery && q.taxQuery.product_cat && q.taxQuery.product_cat.length) shop.catId = +q.taxQuery.product_cat[0];
+      if (attrs.displayLayout && attrs.displayLayout.type === 'list') shop.layout = 'list';
+      var cls = String(attrs.className || '');
+      var g = /gogh-shop-gap-([sml])/.exec(cls);
+      if (g) shop.spacing = g[1];
+      var ar = /"aspectRatio":"([^"]+)"/.exec(e.wsrc || '');
+      if (ar) shop.aspect = ar[1] === '3/4' ? 'portrait' : ar[1] === '4/3' ? 'landscape' : 'square';
+      shop.show = { price: /product-price/.test(e.wsrc), rating: /product-rating/.test(e.wsrc), button: /product-button/.test(e.wsrc) };
+    } catch (err) {}
+    e.rails = true;
+    e.shop = shop;
+  }
   function shopDefaults() {
     return { layout: 'grid', count: 3, order: 'date', cat: null, catId: null,
       show: { price: true, rating: false, button: true }, aspect: 'square', spacing: 'm' };
@@ -11796,6 +11822,7 @@
     });
     var grid = ov.querySelector('.gogh-sp-grid');
     (cfg.starters || []).forEach(function (st) {
+      if (st.requires === 'woo' && !cfg.hasWoo) return; // the Shop design waits for WooCommerce
       var card = document.createElement('div');
       card.className = 'gogh-sp-card';
       card.innerHTML =
@@ -11830,9 +11857,11 @@
         stage.style.color = st.preview.contrast || '';
       }
       var pi = 0;
+      // Woo's own pages sit in the menu, not on the shelf — nothing of ours to peek at
+      var peekPages = st.pages.filter(function (p) { return !p.woo; });
       var showPage = function (i) {
-        pi = ((i % st.pages.length) + st.pages.length) % st.pages.length;
-        var pg = st.pages[pi];
+        pi = ((i % peekPages.length) + peekPages.length) % peekPages.length;
+        var pg = peekPages[pi];
         pageName.textContent = pg.title;
         fetch(restQ(GSROOT.split('wp/v2/')[0] + 'gogh/v1/pattern',
           'slug=' + encodeURIComponent('gogh-starter/' + st.slug + '-' + pg.slug)), {
@@ -13356,6 +13385,7 @@
     diceFaces: diceFaces,
     composeShop: composeShop,
     shopDefaults: shopDefaults,
+    shopSampleHTML: shopSampleHTML,
     cardJoinTarget: cardJoinTarget,
     hydrateProductsPreview: hydrateProductsPreview,
     reseatRoom: reseatChromeRoom,
