@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Gogh Editor
  * Description: A freeform canvas for WordPress — drag anything anywhere on your live page; Gogh publishes it back as clean, responsive core blocks that keep working even if the plugin is deactivated.
- * Version: 0.99.382
+ * Version: 0.99.383
  * Author: Jamie Marsland
  * Author URI: https://pootlepress.com
  * License: GPLv2 or later
@@ -23,7 +23,7 @@ add_action( 'init', function () {
 		'gogh-block',
 		plugins_url( 'gogh-block.js', __FILE__ ),
 		array( 'wp-blocks', 'wp-element', 'wp-block-editor' ),
-		'0.99.382-chrome',
+		'0.99.383-chrome',
 		true
 	);
 	register_block_type( 'gogh/section', array(
@@ -472,9 +472,9 @@ add_action( 'wp_enqueue_scripts', function () {
 	if ( ! $post || ! current_user_can( 'edit_post', $post->ID ) ) {
 		return;
 	}
-	wp_register_script( 'gogh-compose', plugins_url( 'gogh-compose.js', __FILE__ ), array(), '0.99.382-chrome', true );
-	wp_enqueue_script( 'gogh-write', plugins_url( 'gogh-write.js', __FILE__ ), array( 'gogh-compose' ), '0.99.382-chrome', true );
-	wp_enqueue_style( 'gogh-write', plugins_url( 'gogh-write.css', __FILE__ ), array(), '0.99.382-chrome' );
+	wp_register_script( 'gogh-compose', plugins_url( 'gogh-compose.js', __FILE__ ), array(), '0.99.383-chrome', true );
+	wp_enqueue_script( 'gogh-write', plugins_url( 'gogh-write.js', __FILE__ ), array( 'gogh-compose' ), '0.99.383-chrome', true );
+	wp_enqueue_style( 'gogh-write', plugins_url( 'gogh-write.css', __FILE__ ), array(), '0.99.383-chrome' );
 	wp_localize_script( 'gogh-write', 'GOGHWRITE', array(
 		'postId'  => $post->ID,
 		'restUrl' => esc_url_raw( rest_url() ),
@@ -1927,7 +1927,7 @@ add_action( 'rest_api_init', function () {
 			return current_user_can( 'edit_posts' );
 		},
 		'callback'            => function () {
-			return array( 'build' => '0.99.382-chrome' );
+			return array( 'build' => '0.99.383-chrome' );
 		},
 	) );
 	register_rest_route( 'gogh/v1', '/starter', array(
@@ -2437,8 +2437,10 @@ add_action( 'rest_api_init', function () {
  * the admin bar, one click, per product.
  */
 function gogh_product_layouts() {
+	// no 'Classic' any more: a layout where gogh cannot edit confused people
+	// (James: 'why cant we let folks use gogh on every product layout?').
+	// Story IS Woo's buy box — with gogh's canvas beneath it.
 	return array(
-		''                     => __( 'Classic — WooCommerce\'s own', 'gogh-editor' ),
 		'gogh-product-story'   => __( 'Story — buy box, then your sections', 'gogh-editor' ),
 		'gogh-product-showcase' => __( 'Showcase — image-led and centred', 'gogh-editor' ),
 		'gogh-product-hero'    => __( 'Hero — the product picture fills the screen', 'gogh-editor' ),
@@ -2467,7 +2469,7 @@ add_action( 'init', function () {
 			// the story's SLOT exists even while the description is empty (an empty
 			// post-content block renders nothing, and the editor mounted the first
 			// section after the related row — James: 'it does not appear there in the editor')
-			'<!-- wp:group {"className":"gogh-story-slot","layout":{"type":"default"}} --><div class="wp-block-group gogh-story-slot"><!-- wp:post-content /--></div><!-- /wp:group -->' .
+			'<!-- wp:group {"align":"full","className":"gogh-story-slot","layout":{"type":"constrained"},"style":{"spacing":{"margin":{"top":"0","bottom":"0"}}}} --><div class="wp-block-group alignfull gogh-story-slot" style="margin-top:0;margin-bottom:0"><!-- wp:post-content {"align":"full","layout":{"type":"constrained"}} /--></div><!-- /wp:group -->' .
 			'<!-- wp:group {"align":"wide","className":"gogh-related","style":{"spacing":{"padding":{"top":"3rem","bottom":"3rem"},"blockGap":"1.25rem"}},"layout":{"type":"constrained"}} --><div class="wp-block-group alignwide gogh-related" style="padding-top:3rem;padding-bottom:3rem">' .
 			'<!-- wp:heading {"level":2,"align":"wide"} --><h2 class="wp-block-heading alignwide">' . esc_html__( 'You might also like', 'gogh-editor' ) . '</h2><!-- /wp:heading -->' .
 			'<!-- wp:woocommerce/product-collection {"collection":"woocommerce/product-collection/related","query":{"perPage":3,"pages":1,"offset":0,"postType":"product","order":"asc","orderBy":"title","search":"","exclude":[],"inherit":false,"taxQuery":{},"isProductCollectionBlock":true,"woocommerceOnSale":false,"woocommerceStockStatus":["instock","outofstock","onbackorder"],"woocommerceAttributes":[],"woocommerceHandPickedProducts":[],"relatedBy":{"categories":true,"tags":true}},"tagName":"div","displayLayout":{"type":"flex","columns":3},"align":"wide","className":"gogh-shop gogh-shop-grid"} --><div class="wp-block-woocommerce-product-collection alignwide gogh-shop gogh-shop-grid">' .
@@ -2504,7 +2506,7 @@ add_action( 'init', function () {
 			// the story's SLOT exists even while the description is empty (an empty
 			// post-content block renders nothing, and the editor mounted the first
 			// section after the related row — James: 'it does not appear there in the editor')
-			'<!-- wp:group {"className":"gogh-story-slot","layout":{"type":"default"}} --><div class="wp-block-group gogh-story-slot"><!-- wp:post-content /--></div><!-- /wp:group -->' .
+			'<!-- wp:group {"align":"full","className":"gogh-story-slot","layout":{"type":"constrained"},"style":{"spacing":{"margin":{"top":"0","bottom":"0"}}}} --><div class="wp-block-group alignfull gogh-story-slot" style="margin-top:0;margin-bottom:0"><!-- wp:post-content {"align":"full","layout":{"type":"constrained"}} /--></div><!-- /wp:group -->' .
 			'<!-- wp:group {"align":"wide","className":"gogh-related","style":{"spacing":{"padding":{"top":"3rem","bottom":"3rem"},"blockGap":"1.25rem"}},"layout":{"type":"constrained"}} --><div class="wp-block-group alignwide gogh-related" style="padding-top:3rem;padding-bottom:3rem">' .
 			'<!-- wp:heading {"level":2,"align":"wide"} --><h2 class="wp-block-heading alignwide">' . esc_html__( 'You might also like', 'gogh-editor' ) . '</h2><!-- /wp:heading -->' .
 			'<!-- wp:woocommerce/product-collection {"collection":"woocommerce/product-collection/related","query":{"perPage":3,"pages":1,"offset":0,"postType":"product","order":"asc","orderBy":"title","search":"","exclude":[],"inherit":false,"taxQuery":{},"isProductCollectionBlock":true,"woocommerceOnSale":false,"woocommerceStockStatus":["instock","outofstock","onbackorder"],"woocommerceAttributes":[],"woocommerceHandPickedProducts":[],"relatedBy":{"categories":true,"tags":true}},"tagName":"div","displayLayout":{"type":"flex","columns":3},"align":"wide","className":"gogh-shop gogh-shop-grid"} --><div class="wp-block-woocommerce-product-collection alignwide gogh-shop gogh-shop-grid">' .
@@ -2547,7 +2549,7 @@ add_action( 'init', function () {
 			// the story's SLOT exists even while the description is empty (an empty
 			// post-content block renders nothing, and the editor mounted the first
 			// section after the related row — James: 'it does not appear there in the editor')
-			'<!-- wp:group {"className":"gogh-story-slot","layout":{"type":"default"}} --><div class="wp-block-group gogh-story-slot"><!-- wp:post-content /--></div><!-- /wp:group -->' .
+			'<!-- wp:group {"align":"full","className":"gogh-story-slot","layout":{"type":"constrained"},"style":{"spacing":{"margin":{"top":"0","bottom":"0"}}}} --><div class="wp-block-group alignfull gogh-story-slot" style="margin-top:0;margin-bottom:0"><!-- wp:post-content {"align":"full","layout":{"type":"constrained"}} /--></div><!-- /wp:group -->' .
 			'<!-- wp:group {"align":"wide","className":"gogh-related","style":{"spacing":{"padding":{"top":"3rem","bottom":"3rem"},"blockGap":"1.25rem"}},"layout":{"type":"constrained"}} --><div class="wp-block-group alignwide gogh-related" style="padding-top:3rem;padding-bottom:3rem">' .
 			'<!-- wp:heading {"level":2,"align":"wide"} --><h2 class="wp-block-heading alignwide">' . esc_html__( 'You might also like', 'gogh-editor' ) . '</h2><!-- /wp:heading -->' .
 			'<!-- wp:woocommerce/product-collection {"collection":"woocommerce/product-collection/related","query":{"perPage":3,"pages":1,"offset":0,"postType":"product","order":"asc","orderBy":"title","search":"","exclude":[],"inherit":false,"taxQuery":{},"isProductCollectionBlock":true,"woocommerceOnSale":false,"woocommerceStockStatus":["instock","outofstock","onbackorder"],"woocommerceAttributes":[],"woocommerceHandPickedProducts":[],"relatedBy":{"categories":true,"tags":true}},"tagName":"div","displayLayout":{"type":"flex","columns":3},"align":"wide","className":"gogh-shop gogh-shop-grid"} --><div class="wp-block-woocommerce-product-collection alignwide gogh-shop gogh-shop-grid">' .
@@ -2817,6 +2819,27 @@ add_action( 'admin_post_gogh_post_layout_all', function () {
 	wp_safe_redirect( $id ? get_permalink( $id ) : home_url( '/' ) );
 	exit;
 } );
+// a product that never chose a layout wears Story — so gogh works on every
+// product page from the first one, and 'Edit with gogh' is never a dead door
+add_filter( 'get_post_metadata', function ( $value, $object_id, $meta_key, $single ) {
+	if ( '_wp_page_template' !== $meta_key || is_admin() || ! class_exists( 'WooCommerce' ) ) {
+		return $value;
+	}
+	if ( 'product' !== get_post_type( $object_id ) ) {
+		return $value;
+	}
+	static $guard = false;
+	if ( $guard ) {
+		return $value;
+	}
+	$guard = true;
+	$real  = get_post_meta( $object_id, '_wp_page_template', true );
+	$guard = false;
+	if ( $real && 'default' !== $real ) {
+		return $value;
+	}
+	return $single ? 'gogh-product-story' : array( 'gogh-product-story' );
+}, 10, 4 );
 add_action( 'admin_post_gogh_product_layout', function () {
 	$id     = isset( $_GET['id'] ) ? (int) $_GET['id'] : 0;
 	$layout = isset( $_GET['layout'] ) ? sanitize_text_field( wp_unslash( $_GET['layout'] ) ) : '';
@@ -3335,7 +3358,7 @@ function gogh_splash_css() {
 // wearing Magazine must read as Magazine logged-out, and the site's gait
 // is site-wide; both packs are a few KB of pure CSS.
 add_action( 'wp_enqueue_scripts', function () {
-	wp_register_style( 'gogh-looks', false, array(), '0.99.382-chrome' );
+	wp_register_style( 'gogh-looks', false, array(), '0.99.383-chrome' );
 	wp_enqueue_style( 'gogh-looks' );
 	wp_add_inline_style( 'gogh-looks', gogh_reading_style_css() . gogh_motion_css() . gogh_blog_style_css() );
 
@@ -3375,10 +3398,10 @@ add_action( 'wp_enqueue_scripts', function () {
 
 	// for every visitor: neutralise theme spacing around gogh sections, even
 	// on pages whose stored stylesheets predate this rule
-	wp_register_style( 'gogh-base', false, array(), '0.99.382-chrome' );
+	wp_register_style( 'gogh-base', false, array(), '0.99.383-chrome' );
 	// (the splash presentation itself lives in gogh_splash_css(), shared with
 	// the block editor — a wall in Gutenberg must look like a wall)
-	wp_register_script( 'gogh-view', false, array(), '0.99.382-chrome', true );
+	wp_register_script( 'gogh-view', false, array(), '0.99.383-chrome', true );
 	wp_enqueue_script( 'gogh-view' );
 	wp_add_inline_script( 'gogh-view',
 		// carousel arrows + autoplay are VIEW-TIME: never stored, so saved
@@ -3576,9 +3599,9 @@ add_action( 'wp_enqueue_scripts', function () {
 
 	// compose must be REGISTERED here too — a dependency on an
 	// unregistered handle silently drops the whole editor script
-	wp_register_script( 'gogh-compose', plugins_url( 'gogh-compose.js', __FILE__ ), array(), '0.99.382-chrome', true );
-	wp_enqueue_script( 'gogh-editor', plugins_url( 'gogh-editor.js', __FILE__ ), array( 'gogh-compose' ), '0.99.382-chrome', true );
-	wp_enqueue_style( 'gogh-editor', plugins_url( 'gogh-editor.css', __FILE__ ), array(), '0.99.382-chrome' );
+	wp_register_script( 'gogh-compose', plugins_url( 'gogh-compose.js', __FILE__ ), array(), '0.99.383-chrome', true );
+	wp_enqueue_script( 'gogh-editor', plugins_url( 'gogh-editor.js', __FILE__ ), array( 'gogh-compose' ), '0.99.383-chrome', true );
+	wp_enqueue_style( 'gogh-editor', plugins_url( 'gogh-editor.css', __FILE__ ), array(), '0.99.383-chrome' );
 
 	// WebMCP bridge: the page registers its editing verbs as agent tools.
 	// OPT-IN only — add ?gogh-mcp=1 for a demo session (or enable sitewide
@@ -3590,13 +3613,13 @@ add_action( 'wp_enqueue_scripts', function () {
 	// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only labs toggle
 	$gogh_exp = isset( $_GET['gogh-test'] ) || ( isset( $_GET['gogh-experiments'] ) && '0' !== $_GET['gogh-experiments'] );
 	if ( isset( $_GET['gogh-mcp'] ) || $gogh_exp || apply_filters( 'gogh_webmcp_enabled', false ) ) {
-		wp_enqueue_script( 'gogh-webmcp', plugins_url( 'gogh-webmcp.js', __FILE__ ), array( 'gogh-editor' ), '0.99.382-chrome', true );
+		wp_enqueue_script( 'gogh-webmcp', plugins_url( 'gogh-webmcp.js', __FILE__ ), array( 'gogh-editor' ), '0.99.383-chrome', true );
 	}
 
 	// regression suite: /page/?gogh-test (editors only, never saves)
 	// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only toggle enqueuing a test script for capability-checked editors.
 	if ( isset( $_GET['gogh-test'] ) ) {
-		wp_enqueue_script( 'gogh-tests', plugins_url( 'gogh-tests.js', __FILE__ ), array( 'gogh-editor' ), '0.99.382-chrome', true );
+		wp_enqueue_script( 'gogh-tests', plugins_url( 'gogh-tests.js', __FILE__ ), array( 'gogh-editor' ), '0.99.383-chrome', true );
 	}
 
 	// products live outside wp/v2, so gogh carries its own save route for
@@ -3611,7 +3634,7 @@ add_action( 'wp_enqueue_scripts', function () {
 		'postTitle'  => get_the_title( $post ),
 		'permalink'  => esc_url_raw( get_permalink( $post->ID ) ),
 		'excerpt'    => (string) $post->post_excerpt,
-		'build'    => '0.99.382-chrome',
+		'build'    => '0.99.383-chrome',
 		// two rooms, one landmark (same contract as the admin bar): on a POST
 		// the corner pill opens the WRITING surface, not the freeform canvas
 		'writeUrl' => is_singular( 'post' ) ? add_query_arg( 'gogh-write', '1', get_permalink( $post ) ) : null,
@@ -3748,7 +3771,7 @@ add_action( 'enqueue_block_assets', function () {
 	if ( ! is_admin() ) {
 		return;
 	}
-	wp_register_style( 'gogh-editor-base', false, array(), '0.99.382-chrome' );
+	wp_register_style( 'gogh-editor-base', false, array(), '0.99.383-chrome' );
 	wp_enqueue_style( 'gogh-editor-base' );
 	wp_add_inline_style( 'gogh-editor-base',
 		'.gogh-wrap { min-width: 100%; margin-block: 0 !important; }' .
@@ -3845,17 +3868,26 @@ add_action( 'admin_bar_menu', function ( $bar ) {
 			// one more click stamps the catalogue — individual products can
 			// still be changed afterwards, one at a time
 			$current_label = preg_replace( '/\s+—.*$/u', '', $layouts[ $current ] );
+			// the layouts are one kind of thing; what follows is another — a
+			// secondary group sets them apart (James: 'any elegant way of
+			// differentiating the show option here? its kinda a different thing')
+			$bar->add_group( array(
+				'id'     => 'gogh-product-layout-extras',
+				'parent' => 'gogh-product-layout',
+				'meta'   => array( 'class' => 'ab-sub-secondary' ),
+			) );
 			$bar->add_node( array(
 				'id'     => 'gogh-product-layout-all',
-				'parent' => 'gogh-product-layout',
+				'parent' => 'gogh-product-layout-extras',
 				'title'  => sprintf( __( 'Apply “%s” to all products', 'gogh-editor' ), $current_label ),
 				'href'   => wp_nonce_url( admin_url( 'admin-post.php?action=gogh_product_layout_all&id=' . $pid ), 'gogh_product_layout_all' ),
 			) );
 			$related_on = '0' !== (string) get_option( 'gogh_product_related', '1' );
 			$bar->add_node( array(
 				'id'     => 'gogh-product-related',
-				'parent' => 'gogh-product-layout',
-				'title'  => ( $related_on ? '✓ ' : '' ) . __( 'Show “You might also like”', 'gogh-editor' ),
+				'parent' => 'gogh-product-layout-extras',
+				// a verb, not a tick: it says what the click will do
+				'title'  => $related_on ? __( 'Hide “You might also like”', 'gogh-editor' ) : __( 'Show “You might also like”', 'gogh-editor' ),
 				'href'   => wp_nonce_url( admin_url( 'admin-post.php?action=gogh_product_related&back=' . rawurlencode( get_permalink( $pid ) ) ), 'gogh_product_related' ),
 			) );
 		}
@@ -3884,9 +3916,14 @@ add_action( 'admin_bar_menu', function ( $bar ) {
 				) );
 			}
 			$cur_label = preg_replace( '/\s+—.*$/u', '', $looks[ $cur_look ] );
+			$bar->add_group( array(
+				'id'     => 'gogh-post-layout-extras',
+				'parent' => 'gogh-post-layout',
+				'meta'   => array( 'class' => 'ab-sub-secondary' ),
+			) );
 			$bar->add_node( array(
 				'id'     => 'gogh-post-layout-all',
-				'parent' => 'gogh-post-layout',
+				'parent' => 'gogh-post-layout-extras',
 				'title'  => sprintf( __( 'Apply “%s” to all posts', 'gogh-editor' ), $cur_label ),
 				'href'   => wp_nonce_url( admin_url( 'admin-post.php?action=gogh_post_layout_all&id=' . $post_id ), 'gogh_post_layout_all' ),
 			) );
