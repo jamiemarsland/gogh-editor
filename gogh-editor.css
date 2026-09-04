@@ -3837,3 +3837,7 @@ html[data-gogh-scope="site"] .gogh-panel-back::after { content: "Site"; }
 body:has(.wc-block-components-drawer__screen-overlay:not(.wc-block-components-drawer__screen-overlay--is-hidden)) .gogh-bar,
 body:has(.wc-block-components-modal__screen-overlay) .gogh-bar,
 body:has(.wp-block-navigation__responsive-container.is-menu-open) .gogh-bar { opacity: 0; pointer-events: none; transition: opacity 0.15s ease; }
+
+/* a product's story canvas sits under Woo's buy box: a short, honest
+   invitation, not a screen of empty space */
+.gogh-editing .gogh-section.gogh-boot-product { min-height: 260px !important; }

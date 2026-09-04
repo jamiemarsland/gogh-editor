@@ -1544,7 +1544,15 @@
       var inv = document.createElement('button');
       inv.type = 'button';
       inv.className = 'gogh-bootinvite';
-      inv.innerHTML = '<span class="gogh-bootinvite-plus">＋</span><span>Add your first section</span><span class="gogh-bootinvite-hint">pick a layout, or start from a blank canvas</span>';
+      // on a product this canvas is the STORY below Woo's buy box — say so
+      // (James: 'is this intentional on the product page?')
+      var isProductCanvas = cfg.postType === 'product';
+      inv.innerHTML = '<span class="gogh-bootinvite-plus">＋</span><span>' +
+        (isProductCanvas ? 'Tell this product\u2019s story' : 'Add your first section') + '</span>' +
+        '<span class="gogh-bootinvite-hint">' + (isProductCanvas
+          ? 'a section below the buy box \u2014 the details, the maker, the pictures'
+          : 'pick a layout, or start from a blank canvas') + '</span>';
+      if (isProductCanvas) sec.sectionEl.classList.add('gogh-boot-product');
       inv.addEventListener('click', function () { openPicker(S.indexOf(sec)); });
       sec.sectionEl.appendChild(inv);
     }
