@@ -1,12 +1,12 @@
 {
   "meta": {
-    "plugin_version": "0.99.377",
+    "plugin_version": "0.99.378",
     "requires_wp": "6.5",
     "requires_php": "7.4",
     "text_domain": "gogh-editor",
     "readme_stable_tag": "0.26.0",
     "readme_tested_up_to": "7.0",
-    "asset_version": "0.99.377-chrome"
+    "asset_version": "0.99.378-chrome"
   },
   "constants": {
     "TOL": 8,
@@ -800,7 +800,22 @@
       },
       {
         "kind": "action",
+        "hook": "init",
+        "priority": 10
+      },
+      {
+        "kind": "action",
         "hook": "admin_post_gogh_product_layout_all",
+        "priority": 10
+      },
+      {
+        "kind": "action",
+        "hook": "admin_post_gogh_post_layout",
+        "priority": 10
+      },
+      {
+        "kind": "action",
+        "hook": "admin_post_gogh_post_layout_all",
         "priority": 10
       },
       {
