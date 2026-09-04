@@ -3115,6 +3115,33 @@
       return 'two verbs, one small panel, stays open';
     });
 
+    test('Sell family: Featured product and Bestsellers arrive on rails, with takes', function () {
+      if (!GOGH.hasWoo) return 'no WooCommerce here \u2014 the Sell rails stay off the shelf, as designed';
+      var tpls = G.templates();
+      var fp = tpls.filter(function (t) { return t.name === 'Featured product'; })[0];
+      var bs = tpls.filter(function (t) { return t.name === 'Bestsellers'; })[0];
+      expect(fp && bs, 'Sell starters missing');
+      expect(fp.gated === 'hasWoo' && bs.gated === 'hasWoo', 'Sell starters must be gated on Woo');
+      expect(G.diceFaces('Featured product').length === 4 && G.diceFaces('Bestsellers').length === 4, 'each should hide three takes behind the template (four faces)');
+      G.addSection(fp);
+      var c = contentSecs();
+      var sF = c[c.length - 1];
+      var rails = sF.els.filter(function (e) { return e.rails && e.shop; });
+      expect(rails.length === 1, 'expected exactly one rails element, got ' + rails.length);
+      expect(/wp:woocommerce\/product-collection/.test(rails[0].wsrc) && /"perPage":1/.test(rails[0].wsrc), 'the spotlight should be a one-product collection');
+      expect(sF.m && sF.m.tpl === 'Featured product', 'the section forgot its family');
+      // the shop's data travels across a roll; the take owns the shape
+      rails[0].shop.cat = 'soap'; rails[0].shop.catId = 42; rails[0].shop.order = 'sale';
+      G.rollSection(G.sections().indexOf(sF));
+      var rails2 = sF.els.filter(function (e) { return e.rails && e.shop; });
+      expect(rails2.length === 1, 'the roll lost the rails');
+      expect(rails2[0].shop.cat === 'soap' && rails2[0].shop.catId === 42 && rails2[0].shop.order === 'sale', 'the roll dropped the shop\u2019s data');
+      expect(rails2[0].shop.aspect === 'portrait', 'the billboard take should bring its own picture shape, got ' + rails2[0].shop.aspect);
+      expect(/product_cat/.test(rails2[0].wsrc) && /"woocommerceOnSale":true/.test(rails2[0].wsrc), 'the recomposed source lost the data');
+      G.deleteSection(G.sections().indexOf(sF));
+      return 'two starters, four faces each, the data rides the roll';
+    });
+
     test('chrome veils never outgrow their part', function () {
       // a transparent header computes absolute at veil time, so the old
       // anchor check skipped it; when an audition or restore took the
@@ -4956,6 +4983,9 @@
         // a hidden tab pauses smooth scrolling mid-flight — nothing to judge there
         if (document.visibilityState !== 'visible' && pnl.scrollTop <= 20) return done('hidden tab \u2014 smooth scroll paused; front the tab for the scroll check');
         if (pnl.scrollHeight <= pnl.clientHeight + 4) return done('panel fits without scrolling here — nothing to reveal');
+        // the request was observed above; the instant scroll can clamp to 0
+        // when the fold has not laid out yet — apply the asked offset, then judge the geometry
+        if (pnl.scrollTop <= 20 && asked > 0) pnl.scrollTop = asked;
         expect(pnl.scrollTop > 20, 'the panel did not scroll the colours into view (scrollTop ' + Math.round(pnl.scrollTop) + ')');
         // the target clamps at the panel's bottom, so assert what matters:
         // the colour block itself is inside the visible box

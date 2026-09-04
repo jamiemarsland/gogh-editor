@@ -3803,6 +3803,9 @@ html[data-gogh-scope="site"] .gogh-panel-back::after { content: "Site"; }
 .gogh-shopprev { display: grid; gap: 24px; grid-template-columns: repeat(3, minmax(0, 1fr)); width: 100%; }
 .gogh-shopprev-gap-s { gap: 12px; }
 .gogh-shopprev-gap-l { gap: 40px; }
+.gogh-shopprev-c1 { grid-template-columns: 1fr; }
+.gogh-shopprev-c2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.gogh-shopprev-c4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 .gogh-shopprev-list { grid-template-columns: 1fr; }
 .gogh-shopprev-list .gogh-shopprev-card { display: grid; grid-template-columns: 160px 1fr; gap: 18px; align-items: center; }
 .gogh-shopprev-card { min-width: 0; }
@@ -3821,7 +3824,7 @@ html[data-gogh-scope="site"] .gogh-panel-back::after { content: "Site"; }
 .gogh-shopprev-emptycard strong { font-size: 1.15em; }
 .gogh-shopprev-emptycard span { opacity: 0.7; }
 .gogh-shopprev-emptycard a { margin-top: 8px; font-weight: 700; text-decoration: underline; text-underline-offset: 3px; color: inherit; }
-@container gogh (max-width: 700px) { .gogh-shopprev { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@container gogh (max-width: 700px) { .gogh-shopprev-c3, .gogh-shopprev-c4 { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 /* two verbs at the point of touch */
 .gogh-eb-manage { font-weight: 700; padding: 0 10px; white-space: nowrap; }
 .gogh-shop-verbs { display: flex; align-items: center; gap: 10px; margin: 4px 0 12px; }

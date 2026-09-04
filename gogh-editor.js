@@ -4696,7 +4696,9 @@
   }
   function shopPreviewHTML(e, prods) {
     var shop = e.shop || shopDefaults();
-    var cls = 'gogh-shopprev gogh-shopprev-' + (shop.layout === 'list' ? 'list' : 'grid') + ' gogh-shopprev-' + (shop.aspect || 'square') + ' gogh-shopprev-gap-' + (shop.spacing || 'm');
+    var n = Math.max(1, Math.min(12, +shop.count || 3));
+    var cols = shop.layout === 'list' ? 1 : (n >= 4 ? (n % 4 === 0 ? 4 : 3) : n);
+    var cls = 'gogh-shopprev gogh-shopprev-' + (shop.layout === 'list' ? 'list' : 'grid') + ' gogh-shopprev-c' + cols + ' gogh-shopprev-' + (shop.aspect || 'square') + ' gogh-shopprev-gap-' + (shop.spacing || 'm');
     if (!prods.length) {
       // the designed empty store: the owner sees the next verb, never a search error
       return '<div class="' + cls + ' gogh-shopprev-empty"><div class="gogh-shopprev-emptycard">' +
@@ -4719,6 +4721,21 @@
         (shop.show.button ? '<span class="gogh-postsprev-btn">Add to cart</span>' : '') + '</div>' +
         '</div>';
     }).join('') + '</div>';
+  }
+  // sample products for the picker's cards (a real shop answers the moment
+  // the section lands): one small world, so the cards read as a real shop
+  function shopSampleHTML(shop) {
+    var samples = [
+      { name: 'Lavender bar', prices: { currency_symbol: '\u00a3', price: '750', currency_minor_unit: 2 }, average_rating: '5' },
+      { name: 'Oat & honey', prices: { currency_symbol: '\u00a3', price: '750', currency_minor_unit: 2 }, average_rating: '4' },
+      { name: 'Gift box of three', prices: { currency_symbol: '\u00a3', price: '2100', currency_minor_unit: 2 }, average_rating: '5', on_sale: true },
+      { name: 'Rosemary & salt', prices: { currency_symbol: '\u00a3', price: '800', currency_minor_unit: 2 }, average_rating: '4' },
+      { name: 'The Tuesday batch', prices: { currency_symbol: '\u00a3', price: '1200', currency_minor_unit: 2 }, average_rating: '5' },
+      { name: 'Soap dish, oak', prices: { currency_symbol: '\u00a3', price: '1400', currency_minor_unit: 2 }, average_rating: '5' },
+      { name: 'Travel tin', prices: { currency_symbol: '\u00a3', price: '600', currency_minor_unit: 2 }, average_rating: '4' },
+      { name: 'Bath salts', prices: { currency_symbol: '\u00a3', price: '900', currency_minor_unit: 2 }, average_rating: '5' },
+    ];
+    return shopPreviewHTML({ shop: shop }, samples.slice(0, Math.max(1, Math.min(8, +shop.count || 3))));
   }
   function productsElFor(cat) {
     var e = DEFAULTS.products();
@@ -5608,6 +5625,23 @@
       { type: 'para', x: 280, y: 376, w: 640, h: 66, text: 'And the moment an article needs something bolder \u2014 a full-width image, a card, a big number \u2014 you can simply place it.' },
       { type: 'button', x: 280, y: 482, w: 200, h: 54, text: 'Keep reading', ghost: true },
     ] },
+    // ---- Sell, with rails (design note: Gogh Shop): freeform story pieces
+    // around ONE rails element — the products are Woo's, the layout is ours.
+    // Only shown when WooCommerce is present (gated) ----
+    { starter: true, gated: 'hasWoo', intent: 'sell', name: 'Featured product', minH: 560, els: [
+      { type: 'para', x: 72, y: 110, w: 340, h: 24, text: 'This week', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
+      { type: 'heading', x: 72, y: 150, w: 470, h: 160, text: 'The one everyone asks about', fs: '__max' },
+      { type: 'para', x: 72, y: 340, w: 420, h: 72, text: 'Made in small batches and gone by Friday. If you only try one thing, try this.' },
+      { type: 'button', x: 72, y: 440, w: 200, h: 54, text: 'See everything', href: '/shop/', ghost: true },
+      { type: 'widget', rails: true, x: 640, y: 80, w: 460, h: 440, shop: { count: 1, order: 'popularity', layout: 'grid', aspect: 'square', spacing: 'm' } },
+    ] },
+    { starter: true, gated: 'hasWoo', intent: 'sell', name: 'Bestsellers', minH: 700, els: [
+      { type: 'para', x: 72, y: 84, w: 340, h: 24, text: 'Most loved', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
+      { type: 'heading', x: 72, y: 124, w: 600, h: 90, text: 'Bestsellers', fs: 'x-large' },
+      { type: 'para', x: 72, y: 220, w: 520, h: 48, text: 'What people come back for. Ordered by what sells, so it looks after itself.' },
+      { type: 'button', x: 900, y: 214, w: 200, h: 54, text: 'See everything', href: '/shop/', ghost: true },
+      { type: 'widget', rails: true, x: 47, y: 300, w: 1106, h: 360, shop: { count: 3, order: 'popularity', layout: 'grid', aspect: 'square', spacing: 'm' } },
+    ] },
     { starter: true, intent: 'sell', name: 'Feature cards', minH: 560, els: [
       { type: 'heading', x: 100, y: 56, w: 1000, h: 60, text: 'What we do', fs: 'x-large', align: 'center' },
       { type: 'box', x: 100, y: 170, w: 320, h: 330, radius: 18,
@@ -6026,6 +6060,13 @@
           }
         });
       });
+      if (e.rails && e.shop) {
+        // a template declares only the choices; the rails compose themselves
+        var show = Object.assign({ price: true, rating: false, button: true }, e.shop.show || {});
+        e.shop = Object.assign(shopDefaults(), e.shop, { show: show });
+        if (!e.wsrc) e.wsrc = composeShop(e.shop);
+        if (!e.whtml) e.whtml = shopSampleHTML(e.shop);
+      }
       composeWidgetData(e);
     });
     return els;
@@ -6044,6 +6085,51 @@
   var DICE_FORM_WSRC = '<!-- wp:gogh/form /-->';
   var DICE_FORM_WHTML = '<div class="gogh-form"><div class="gogh-form-row"><input type="text" placeholder="Your name" disabled /><input type="email" placeholder="Your email" disabled /></div><textarea rows="5" placeholder="Your message…" disabled></textarea><div class="gogh-form-foot"><span class="gogh-form-fbtn">Send</span><span class="gogh-form-note">Goes straight to this site — nowhere else.</span></div></div>';
   var VARIANTS = {
+    'Featured product': [
+      { name: 'Featured product', take: 'The billboard', minH: 640, els: [
+        { type: 'para', x: 680, y: 150, w: 340, h: 24, text: 'This week', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
+        { type: 'heading', x: 680, y: 190, w: 440, h: 160, text: 'The one everyone asks about', fs: '__max' },
+        { type: 'para', x: 680, y: 380, w: 400, h: 72, text: 'Made in small batches and gone by Friday. If you only try one thing, try this.' },
+        { type: 'button', x: 680, y: 480, w: 200, h: 54, text: 'See everything', href: '/shop/', ghost: true },
+        { type: 'widget', rails: true, x: 72, y: 70, w: 540, h: 520, shop: { count: 1, order: 'popularity', layout: 'grid', aspect: 'portrait', spacing: 'm' } },
+      ] },
+      { name: 'Featured product', take: 'The centre', minH: 820, els: [
+        { type: 'para', x: 400, y: 80, w: 400, h: 24, align: 'center', text: 'This week', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
+        { type: 'heading', x: 200, y: 120, w: 800, h: 100, align: 'center', text: 'The one everyone asks about', fs: 'x-large' },
+        { type: 'para', x: 330, y: 236, w: 540, h: 48, align: 'center', text: 'Made in small batches and gone by Friday. If you only try one thing, try this.' },
+        { type: 'widget', rails: true, x: 380, y: 320, w: 440, h: 420, shop: { count: 1, order: 'popularity', layout: 'grid', aspect: 'square', spacing: 'm' } },
+        { type: 'button', x: 500, y: 760, w: 200, h: 54, align: 'center', text: 'See everything', href: '/shop/', ghost: true },
+      ] },
+      { name: 'Featured product', take: 'The strip', minH: 440, els: [
+        { type: 'widget', rails: true, x: 72, y: 60, w: 380, h: 320, shop: { count: 1, order: 'popularity', layout: 'grid', aspect: 'landscape', spacing: 's' } },
+        { type: 'para', x: 520, y: 96, w: 340, h: 24, text: 'This week', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
+        { type: 'heading', x: 520, y: 136, w: 580, h: 100, text: 'The one everyone asks about', fs: 'x-large' },
+        { type: 'para', x: 520, y: 256, w: 520, h: 48, text: 'Made in small batches and gone by Friday. If you only try one thing, try this.' },
+        { type: 'button', x: 520, y: 326, w: 200, h: 54, text: 'See everything', href: '/shop/', ghost: true },
+      ] },
+    ],
+    'Bestsellers': [
+      { name: 'Bestsellers', take: 'Headline centred', minH: 760, els: [
+        { type: 'para', x: 400, y: 80, w: 400, h: 24, align: 'center', text: 'Most loved', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
+        { type: 'heading', x: 200, y: 120, w: 800, h: 100, align: 'center', text: 'Bestsellers', fs: '__max' },
+        { type: 'para', x: 330, y: 236, w: 540, h: 48, align: 'center', text: 'What people come back for. Ordered by what sells, so it looks after itself.' },
+        { type: 'widget', rails: true, x: 47, y: 320, w: 1106, h: 340, shop: { count: 3, order: 'popularity', layout: 'grid', aspect: 'portrait', spacing: 'l' } },
+        { type: 'button', x: 500, y: 690, w: 200, h: 54, text: 'See everything', href: '/shop/', ghost: true },
+      ] },
+      { name: 'Bestsellers', take: 'The ledger', minH: 700, els: [
+        { type: 'para', x: 72, y: 90, w: 340, h: 24, text: 'Most loved', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
+        { type: 'heading', x: 72, y: 130, w: 400, h: 150, text: 'Bestsellers', fs: '__max' },
+        { type: 'para', x: 72, y: 300, w: 380, h: 72, text: 'What people come back for. Ordered by what sells, so it looks after itself.' },
+        { type: 'button', x: 72, y: 400, w: 200, h: 54, text: 'See everything', href: '/shop/', ghost: true },
+        { type: 'widget', rails: true, x: 540, y: 84, w: 590, h: 560, shop: { count: 4, order: 'popularity', layout: 'list', aspect: 'square', spacing: 's' } },
+      ] },
+      { name: 'Bestsellers', take: 'Four up', minH: 640, els: [
+        { type: 'para', x: 72, y: 84, w: 340, h: 24, text: 'Most loved', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
+        { type: 'heading', x: 72, y: 124, w: 600, h: 90, text: 'Bestsellers', fs: 'x-large' },
+        { type: 'button', x: 900, y: 140, w: 200, h: 54, text: 'See everything', href: '/shop/', ghost: true },
+        { type: 'widget', rails: true, x: 47, y: 250, w: 1106, h: 360, shop: { count: 4, order: 'popularity', layout: 'grid', aspect: 'landscape', spacing: 'm' } },
+      ] },
+    ],
     'Cover': [
       { name: 'Cover', take: 'The anchor', minH: 700,
         bg: 'var(--wp--preset--color--contrast, #16181c)', bgA: 55, bgImage: '/wp-content/plugins/gogh/demo-assets/wheat-field.jpg',
@@ -6931,6 +7017,13 @@
           if (d.wdata.tabs && e.tabs) e.tabs = d.wdata.tabs;
           if (d.wdata.pics && e.slides) e.slides = d.wdata.pics;
           else if (d.wdata.pics && e.wall) e.wall = d.wdata.pics;
+          if (d.wdata.shop && e.shop) {
+            // the shop's data is the shop's: category, order, count and
+            // what to show travel; layout, picture and spacing belong to the take
+            ['cat', 'catId', 'order', 'count', 'show'].forEach(function (k) { if (d.wdata.shop[k] !== undefined) e.shop[k] = d.wdata.shop[k]; });
+            e.wsrc = composeShop(e.shop);
+            e.whtml = shopSampleHTML(e.shop);
+          }
           composeWidgetData(e);
         }
       });
@@ -6959,6 +7052,7 @@
     sec.bgA = t2.bgA != null ? t2.bgA : null;
     sec.m = Object.assign({}, sec.m, { face: next });
     renderSection(sec);
+    sec.els.forEach(function (ex) { if (ex.rails && ex.shop) hydrateProductsPreview(sec, ex); });
     pushState();
     contrastSentinel(sec);
     return { face: next, of: faces.length, take: t2.take || null };
@@ -7235,7 +7329,7 @@
   ];
   var STARTER_CATS = {
     'Hero': 'hero', 'Cover': 'hero banner', 'Big statement': 'hero', 'Story': 'text', 'Numbers': 'text',
-    'Article': 'text', 'Feature cards': 'cards', 'Pricing': 'cards',
+    'Article': 'text', 'Feature cards': 'cards', 'Pricing': 'cards', 'Featured product': 'cards featured', 'Bestsellers': 'cards featured',
     'Quote': 'text', 'Call to action': 'hero', 'Get in touch': 'contact',
     'FAQ': 'text cards', 'Tabs': 'text cards', 'Gallery': 'photos', 'Photo cards': 'photos cards', 'Portfolio': 'photos',
     'Menu': 'text', 'Team': 'contact photos',
@@ -7803,6 +7897,7 @@
       }
     }
     renderSection(sec);
+    sec.els.forEach(function (ex) { if (ex.rails && ex.shop) hydrateProductsPreview(sec, ex); });
     sel = null;
     hideHandles();
     sec.wrapEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
