@@ -1,8 +1,8 @@
-# Knowledge-base audit — plugin v0.99.369
+# Knowledge-base audit — plugin v0.99.370
 
 _13 finding(s) suppressed by `kb.audit-ignore.txt`._
 
-## MISSING (52)
+## MISSING (53)
 
 The source has something the prose never explains. The bot knows the name from the appendix but cannot say what it is for.
 
@@ -31,6 +31,7 @@ The source has something the prose never explains. The bot knows the name from t
 - WP hook `admin_post_gogh_messages_csv` exists in source but is never mentioned in the prose
 - WP hook `admin_post_gogh_form_message` exists in source but is never mentioned in the prose
 - WP hook `admin_post_nopriv_gogh_form_message` exists in source but is never mentioned in the prose
+- WP hook `body_class` exists in source but is never mentioned in the prose
 - WP hook `body_class` exists in source but is never mentioned in the prose
 - WP hook `body_class` exists in source but is never mentioned in the prose
 - WP hook `trashed_post` exists in source but is never mentioned in the prose
@@ -75,4 +76,9 @@ Quoted copy not found verbatim in the source. Paraphrases are fine; changed UI c
 
 Use this as the checklist for updating the prose — and as a sanity check on the release itself.
 
-- version: 0.99.368 → 0.99.369
+- version: 0.99.369 → 0.99.370
+- added REST route: "gogh/v1/menu-style"
+- added UI label: "' + escAttr(o[2]) + '"
+- added toast: "Mobile menu: "
+- added toast: "This header has no menu button to open."
+- added toast: "gogh could not keep the menu style — "

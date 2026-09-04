@@ -15,7 +15,7 @@ about something where they conflict, rather than picking one silently. Quote UI
 labels and message copy from the appendix, verbatim — those are the current
 strings, and a paraphrased button label is the fastest way to lose a user's trust.
 
-Generated for plugin version 0.99.369 · knowledge base 1649051.
+Generated for plugin version 0.99.370 · knowledge base c48c051.
 
 ---
 
@@ -782,11 +782,11 @@ Everything in this section is extracted mechanically from the Gogh source on eve
 
 ## Current release
 
-- Plugin version: **0.99.369**
+- Plugin version: **0.99.370**
 - Requires WordPress **6.5+**, PHP **7.4+**
 - Text domain: `gogh-editor`
 - readme.txt Stable tag: `0.26.0` · Tested up to: `7.0`
-- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.369`). Quote the plugin header version.
+- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.370`). Quote the plugin header version.
 
 ## Design constants
 
@@ -882,6 +882,7 @@ Block: `gogh/section` · v3 attributes: `css`, `model`, `scope`, `v`, `cssT`.
 | `admin_post_gogh_form_message` | action | 10 |
 | `admin_post_nopriv_gogh_form_message` | action | 10 |
 | `wp_enqueue_scripts` | action | 10 |
+| `body_class` | filter | 10 |
 | `wp_enqueue_scripts` | action | 10 |
 | `init` | action | 10 |
 | `body_class` | filter | 10 |
@@ -917,7 +918,7 @@ Block: `gogh/section` · v3 attributes: `css`, `model`, `scope`, `v`, `cssT`.
 
 Filters exposed for third parties: `gogh_default_editor`, `gogh_claims_post`, `gogh_labs_ask`, `gogh_rebake_enabled`, `gogh_schema`, `gogh_schema_enabled`, `gogh_webmcp_enabled`, `gogh_convert_enabled`, `gogh_helper_url`.
 
-REST routes registered: `gogh/v1/version`, `gogh/v1/starter`, `gogh/v1/type-scale`, `gogh/v1/blog-style`, `gogh/v1/motion`, `gogh/v1/ask`, `gogh/v1/imagine-exp`, `gogh/v1/ask-key`, `gogh/v1/first-minute`, `gogh/v1/ask-log`, `gogh/v1/active-style`, `wp/v2/gogh-product/(?P<id>\d+)`, `wp/v2/gogh-product/(?P<id>\d+)/autosaves`, `gogh/v1/pattern`, `gogh/v1/render`.
+REST routes registered: `gogh/v1/version`, `gogh/v1/starter`, `gogh/v1/type-scale`, `gogh/v1/blog-style`, `gogh/v1/motion`, `gogh/v1/ask`, `gogh/v1/imagine-exp`, `gogh/v1/ask-key`, `gogh/v1/menu-style`, `gogh/v1/first-minute`, `gogh/v1/ask-log`, `gogh/v1/active-style`, `wp/v2/gogh-product/(?P<id>\d+)`, `wp/v2/gogh-product/(?P<id>\d+)/autosaves`, `gogh/v1/pattern`, `gogh/v1/render`.
 
 Core REST endpoints used by the editor: `wp/v2/blocks`, `wp/v2/posts`, `wp/v2/template-parts`.
 
@@ -932,6 +933,7 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "' + d.label + '"
 - "' + d.title.replace(/"
 - "' + escAttr(l.name) + '"
+- "' + escAttr(o[2]) + '"
 - "' + escAttr(t.name) + '"
 - "' + hp[1] + ' — ' + hp[2] + ' units"
 - "' + p.slug + '"
@@ -1111,6 +1113,7 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "Made the card’s words readable on its background."
 - "Menu order updated — every page gets it."
 - "Menu switched — every page shows it."
+- "Mobile menu: "
 - "Nothing to rearrange yet — add a couple of pieces first."
 - "Out of the card — it’s its own piece again."
 - "Publish failed: "
@@ -1132,6 +1135,7 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "The name didn’t save — try again."
 - "Theme style applied: "
 - "This "
+- "This header has no menu button to open."
 - "This page is “"
 - "Unpublished page changes will be lost when the "
 - "Upload failed — .html uploads need admin rights."
@@ -1142,6 +1146,7 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "gogh can’t safely swap this image."
 - "gogh could not change the page style — "
 - "gogh could not create that page."
+- "gogh could not keep the menu style — "
 - "gogh could not rename the site — that needs an admin login."
 - "gogh could not save the menu — "
 - "gogh could not save your brand — "
@@ -1162,4 +1167,4 @@ These are the real strings in the current build. Use them verbatim; never paraph
 
 ## Test suite
 
-`203` tests, run by appending `?gogh-test` to any Gogh page URL while logged in with edit rights on that page.
+`206` tests, run by appending `?gogh-test` to any Gogh page URL while logged in with edit rights on that page.

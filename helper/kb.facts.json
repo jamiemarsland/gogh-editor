@@ -1,12 +1,12 @@
 {
   "meta": {
-    "plugin_version": "0.99.369",
+    "plugin_version": "0.99.370",
     "requires_wp": "6.5",
     "requires_php": "7.4",
     "text_domain": "gogh-editor",
     "readme_stable_tag": "0.26.0",
     "readme_tested_up_to": "7.0",
-    "asset_version": "0.99.369-chrome"
+    "asset_version": "0.99.370-chrome"
   },
   "constants": {
     "TOL": 8,
@@ -349,6 +349,7 @@
     "' + d.label + '",
     "' + d.title.replace(/",
     "' + escAttr(l.name) + '",
+    "' + escAttr(o[2]) + '",
     "' + escAttr(t.name) + '",
     "' + hp[1] + ' — ' + hp[2] + ' units",
     "' + p.slug + '",
@@ -527,6 +528,7 @@
     "Made the card’s words readable on its background.",
     "Menu order updated — every page gets it.",
     "Menu switched — every page shows it.",
+    "Mobile menu: ",
     "Nothing to rearrange yet — add a couple of pieces first.",
     "Out of the card — it’s its own piece again.",
     "Publish failed: ",
@@ -548,6 +550,7 @@
     "The name didn’t save — try again.",
     "Theme style applied: ",
     "This ",
+    "This header has no menu button to open.",
     "This page is “",
     "Unpublished page changes will be lost when the ",
     "Upload failed — .html uploads need admin rights.",
@@ -558,6 +561,7 @@
     "gogh can’t safely swap this image.",
     "gogh could not change the page style — ",
     "gogh could not create that page.",
+    "gogh could not keep the menu style — ",
     "gogh could not rename the site — that needs an admin login.",
     "gogh could not save the menu — ",
     "gogh could not save your brand — ",
@@ -716,6 +720,11 @@
       {
         "kind": "action",
         "hook": "wp_enqueue_scripts",
+        "priority": 10
+      },
+      {
+        "kind": "filter",
+        "hook": "body_class",
         "priority": 10
       },
       {
@@ -899,6 +908,7 @@
       "gogh/v1/ask",
       "gogh/v1/imagine-exp",
       "gogh/v1/ask-key",
+      "gogh/v1/menu-style",
       "gogh/v1/first-minute",
       "gogh/v1/ask-log",
       "gogh/v1/active-style",
@@ -983,5 +993,5 @@
     "has_deprecation": true,
     "block_title": "gogh Section"
   },
-  "test_count": 203
+  "test_count": 206
 }
