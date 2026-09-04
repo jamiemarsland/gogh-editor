@@ -1,8 +1,8 @@
-# Knowledge-base audit — plugin v0.99.372
+# Knowledge-base audit — plugin v0.99.373
 
 _13 finding(s) suppressed by `kb.audit-ignore.txt`._
 
-## MISSING (54)
+## MISSING (56)
 
 The source has something the prose never explains. The bot knows the name from the appendix but cannot say what it is for.
 
@@ -48,6 +48,8 @@ The source has something the prose never explains. The bot knows the name from t
 - WP hook `wp_insert_post` exists in source but is never mentioned in the prose
 - template `Story` exists in source but is never mentioned in the prose
 - template `Numbers` exists in source but is never mentioned in the prose
+- template `Featured product` exists in source but is never mentioned in the prose
+- template `Bestsellers` exists in source but is never mentioned in the prose
 - template `Pricing` exists in source but is never mentioned in the prose
 - template `Testimonials` exists in source but is never mentioned in the prose
 - template `Profile card` exists in source but is never mentioned in the prose
@@ -77,9 +79,6 @@ Quoted copy not found verbatim in the source. Paraphrases are fine; changed UI c
 
 Use this as the checklist for updating the prose — and as a sanity check on the release itself.
 
-- version: 0.99.371 → 0.99.372
-- added WP hook: "render_block_woocommerce/product-collection"
-- added UI label: "Add a product ↗"
-- added UI label: "Manage products"
-- added UI label: "Manage products ↗"
-- added UI label: "Open your products in WordPress"
+- version: 0.99.372 → 0.99.373
+- added template: "Bestsellers"
+- added template: "Featured product"

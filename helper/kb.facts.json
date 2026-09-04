@@ -1,12 +1,12 @@
 {
   "meta": {
-    "plugin_version": "0.99.372",
+    "plugin_version": "0.99.373",
     "requires_wp": "6.5",
     "requires_php": "7.4",
     "text_domain": "gogh-editor",
     "readme_stable_tag": "0.26.0",
     "readme_tested_up_to": "7.0",
-    "asset_version": "0.99.372-chrome"
+    "asset_version": "0.99.373-chrome"
   },
   "constants": {
     "TOL": 8,
@@ -70,6 +70,18 @@
       "starter": true,
       "retired": false,
       "minH": 620
+    },
+    {
+      "name": "Featured product",
+      "starter": true,
+      "retired": false,
+      "minH": 560
+    },
+    {
+      "name": "Bestsellers",
+      "starter": true,
+      "retired": false,
+      "minH": 700
     },
     {
       "name": "Feature cards",
@@ -1002,5 +1014,5 @@
     "has_deprecation": true,
     "block_title": "gogh Section"
   },
-  "test_count": 210
+  "test_count": 211
 }
