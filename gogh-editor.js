@@ -17611,9 +17611,15 @@
         });
       }).then(function (r) {
         if (r && !r.ok) throw new Error('the header did not save');
-        closePanel();
+        // the logo is one choice inside the room, not the way out of it
+        // (James: "when i choose a logo for my header, it automatically
+        // exits me out of the header builder") — refresh the header, then
+        // come straight back to this page, now wearing the new state
         var pe = partElForArea('header');
-        return pe ? refreshChromePart(pe) : null;
+        return (pe ? refreshChromePart(pe) : Promise.resolve()).then(function () {
+          if (roomOpt && pe) openLogoPicker(chromeMountedGroup(pe) || pe, roomOpt);
+          else closePanel();
+        });
       }).then(function () {
         toast('Text title restored \u2014 click it to rename your site.');
       }).catch(function (err) {
@@ -17667,9 +17673,15 @@
           if (!r2.ok) throw new Error('the header did not save');
         });
       }).then(function () {
-        closePanel();
+        // the logo is one choice inside the room, not the way out of it
+        // (James: "when i choose a logo for my header, it automatically
+        // exits me out of the header builder") — refresh the header, then
+        // come straight back to this page, now wearing the new state
         var pe = partElForArea('header');
-        return pe ? refreshChromePart(pe) : null;
+        return (pe ? refreshChromePart(pe) : Promise.resolve()).then(function () {
+          if (roomOpt && pe) openLogoPicker(chromeMountedGroup(pe) || pe, roomOpt);
+          else closePanel();
+        });
       }).then(function () {
         toast('Logo set \u2014 your image now leads the header.');
       }).catch(function (err) {

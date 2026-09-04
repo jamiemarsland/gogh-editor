@@ -2945,8 +2945,10 @@
       var t0 = Date.now(); // a time budget, not a count — hidden tabs throttle timers
       return new Promise(function (resolve) {
         var poll = function () {
-          var th = pnl.querySelector('.gogh-boximg-media .gogh-thumb');
-          if (th || Date.now() - t0 > 12000) resolve(th);
+          // a late timer from an earlier test can shut the panel under us
+          // (throttled tabs fire timers late) — then there is nothing to judge
+          var th = pnl.hidden ? null : pnl.querySelector('.gogh-boximg-media .gogh-thumb');
+          if (th || pnl.hidden || Date.now() - t0 > 12000) resolve(th);
           else setTimeout(poll, 150);
         };
         poll();
