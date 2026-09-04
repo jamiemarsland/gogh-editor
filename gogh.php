@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Gogh Editor
  * Description: A freeform canvas for WordPress — drag anything anywhere on your live page; Gogh publishes it back as clean, responsive core blocks that keep working even if the plugin is deactivated.
- * Version: 0.99.393
+ * Version: 0.99.394
  * Author: Jamie Marsland
  * Author URI: https://pootlepress.com
  * License: GPLv2 or later
@@ -23,7 +23,7 @@ add_action( 'init', function () {
 		'gogh-block',
 		plugins_url( 'gogh-block.js', __FILE__ ),
 		array( 'wp-blocks', 'wp-element', 'wp-block-editor' ),
-		'0.99.393-chrome',
+		'0.99.394-chrome',
 		true
 	);
 	register_block_type( 'gogh/section', array(
@@ -475,9 +475,9 @@ add_action( 'wp_enqueue_scripts', function () {
 	if ( ! $post || ! current_user_can( 'edit_post', $post->ID ) ) {
 		return;
 	}
-	wp_register_script( 'gogh-compose', plugins_url( 'gogh-compose.js', __FILE__ ), array(), '0.99.393-chrome', true );
-	wp_enqueue_script( 'gogh-write', plugins_url( 'gogh-write.js', __FILE__ ), array( 'gogh-compose' ), '0.99.393-chrome', true );
-	wp_enqueue_style( 'gogh-write', plugins_url( 'gogh-write.css', __FILE__ ), array(), '0.99.393-chrome' );
+	wp_register_script( 'gogh-compose', plugins_url( 'gogh-compose.js', __FILE__ ), array(), '0.99.394-chrome', true );
+	wp_enqueue_script( 'gogh-write', plugins_url( 'gogh-write.js', __FILE__ ), array( 'gogh-compose' ), '0.99.394-chrome', true );
+	wp_enqueue_style( 'gogh-write', plugins_url( 'gogh-write.css', __FILE__ ), array(), '0.99.394-chrome' );
 	wp_localize_script( 'gogh-write', 'GOGHWRITE', array(
 		'postId'  => $post->ID,
 		'restUrl' => esc_url_raw( rest_url() ),
@@ -2060,7 +2060,7 @@ add_action( 'rest_api_init', function () {
 			return current_user_can( 'edit_posts' );
 		},
 		'callback'            => function () {
-			return array( 'build' => '0.99.393-chrome' );
+			return array( 'build' => '0.99.394-chrome' );
 		},
 	) );
 	register_rest_route( 'gogh/v1', '/starter', array(
@@ -3055,6 +3055,14 @@ add_filter( 'wp_kses_allowed_html', function ( $tags, $context ) {
 	if ( 'post' === $context && isset( $tags['img'] ) ) {
 		$tags['img']['style'] = true;
 	}
+	if ( 'post' === $context ) {
+		// video elements and backgrounds: a silent, looping, inline-playing
+		// <video> must survive KSES for authors without unfiltered_html
+		$tags['video'] = array_merge( isset( $tags['video'] ) ? $tags['video'] : array(), array(
+			'class' => true, 'src' => true, 'poster' => true, 'autoplay' => true, 'muted' => true, 'loop' => true,
+			'playsinline' => true, 'controls' => true, 'preload' => true, 'aria-hidden' => true, 'tabindex' => true,
+		) );
+	}
 	return $tags;
 }, 10, 2 );
 
@@ -3429,6 +3437,20 @@ function gogh_leavebehind_css() {
 		'.entry-content:has(> .gogh-wrap) { margin-block: 0 !important; }' .
 		'.gogh-section > .wp-block-group { padding: 0 !important; box-sizing: border-box; }' .
 		'.gogh-section > * { box-sizing: border-box; }' .
+		// video backgrounds: the loop sits under everything; its poster (the
+		// section image) shows until it plays, and whenever motion is off
+		'.gogh-section > .gogh-bgvideo { position: absolute; inset: 0; z-index: -1; margin: 0 !important; padding: 0 !important; pointer-events: none; overflow: hidden; }' .
+		'.gogh-section > .gogh-bgvideo video { width: 100%; height: 100%; object-fit: cover; display: block; }' .
+		'.gogh-bgvideo-btn { position: absolute; right: 14px; bottom: 14px; z-index: 60; width: 36px; height: 36px; border-radius: 50%; border: 0; padding: 0; cursor: pointer; background: rgba(15,23,42,0.55); color: #fff; display: grid; place-items: center; opacity: 0.72; transition: opacity 0.2s; }' .
+		'.gogh-bgvideo-btn:hover, .gogh-bgvideo-btn:focus-visible { opacity: 1; }' .
+		'.gogh-bgvideo-btn svg { width: 14px; height: 14px; display: block; }' .
+		'@media (prefers-reduced-motion: reduce) { .gogh-section > .gogh-bgvideo, .gogh-bgvideo-btn { display: none; } }' .
+		// the video element: the frame is the design's, the player fills it
+		'.gogh-section > .gogh-vid { overflow: hidden; overflow: clip; }' .
+		'.gogh-section > .gogh-vid video, .gogh-section > .gogh-vid iframe { width: 100%; height: 100%; object-fit: cover; display: block; border: 0; border-radius: inherit; }' .
+		'.gogh-section > .gogh-vid .wp-block-embed__wrapper { position: relative; height: 100%; }' .
+		'.gogh-section > .gogh-vid .wp-block-embed__wrapper::before { content: none !important; padding: 0 !important; }' .
+		'.gogh-section > .gogh-vid .wp-block-embed__wrapper iframe { position: absolute; inset: 0; }' .
 		'.gogh-section-html { box-sizing: border-box !important; width: 100vw !important; max-width: 100vw !important; margin-inline: calc(50% - 50vw) !important; margin-block: 0 !important; }' .
 		'html { overflow-x: clip; }' .
 		'.entry-content > .gogh-wrap + .alignfull, .entry-content > .alignfull + .gogh-wrap, .entry-content > .alignfull + .alignfull { margin-block-start: 0; }';
@@ -3541,7 +3563,7 @@ function gogh_splash_css() {
 // wearing Magazine must read as Magazine logged-out, and the site's gait
 // is site-wide; both packs are a few KB of pure CSS.
 add_action( 'wp_enqueue_scripts', function () {
-	wp_register_style( 'gogh-looks', false, array(), '0.99.393-chrome' );
+	wp_register_style( 'gogh-looks', false, array(), '0.99.394-chrome' );
 	wp_enqueue_style( 'gogh-looks' );
 	wp_add_inline_style( 'gogh-looks', gogh_reading_style_css() . gogh_motion_css() . gogh_blog_style_css() );
 
@@ -3581,11 +3603,27 @@ add_action( 'wp_enqueue_scripts', function () {
 
 	// for every visitor: neutralise theme spacing around gogh sections, even
 	// on pages whose stored stylesheets predate this rule
-	wp_register_style( 'gogh-base', false, array(), '0.99.393-chrome' );
+	wp_register_style( 'gogh-base', false, array(), '0.99.394-chrome' );
 	// (the splash presentation itself lives in gogh_splash_css(), shared with
 	// the block editor — a wall in Gutenberg must look like a wall)
-	wp_register_script( 'gogh-view', false, array(), '0.99.393-chrome', true );
+	wp_register_script( 'gogh-view', false, array(), '0.99.394-chrome', true );
 	wp_enqueue_script( 'gogh-view' );
+	wp_add_inline_script( 'gogh-view',
+		// video backgrounds: a pause control per section (moving content that
+		// starts on its own must be stoppable), and no autoplay at all for
+		// people who asked their system for less motion
+		'(function(){var rm=window.matchMedia&&window.matchMedia("(prefers-reduced-motion: reduce)").matches;' .
+		'document.querySelectorAll(".gogh-section > .gogh-bgvideo video").forEach(function(v){' .
+		'var sec=v.closest(".gogh-section");if(!sec)return;' .
+		'if(rm){v.removeAttribute("autoplay");try{v.pause();}catch(e){}return;}' .
+		'var b=document.createElement("button");b.type="button";b.className="gogh-bgvideo-btn";' .
+		'var paint=function(){var on=!v.paused;b.setAttribute("aria-label",on?"Pause background video":"Play background video");' .
+		'b.innerHTML=on?\'<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><rect x="6" y="5" width="4" height="14" rx="1"/><rect x="14" y="5" width="4" height="14" rx="1"/></svg>\'' .
+		':\'<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5l11 7-11 7z"/></svg>\';};' .
+		'b.addEventListener("click",function(){if(v.paused){var p=v.play();if(p&&p.catch)p.catch(function(){});}else{v.pause();}paint();});' .
+		'v.addEventListener("play",paint);v.addEventListener("pause",paint);paint();sec.appendChild(b);' .
+		'var p0=v.play&&v.play();if(p0&&p0.catch)p0.catch(function(){paint();});});})();'
+	);
 	wp_add_inline_script( 'gogh-view',
 		// carousel arrows + autoplay are VIEW-TIME: never stored, so saved
 		// content stays pure core blocks (plugin off = clean snap strip)
@@ -3704,6 +3742,20 @@ add_action( 'wp_enqueue_scripts', function () {
 		// inherit theme Group padding
 		'.gogh-section > .wp-block-group { padding: 0 !important; box-sizing: border-box; }' .
 		'.gogh-section > * { box-sizing: border-box; }' .
+		// video backgrounds: the loop sits under everything; its poster (the
+		// section image) shows until it plays, and whenever motion is off
+		'.gogh-section > .gogh-bgvideo { position: absolute; inset: 0; z-index: -1; margin: 0 !important; padding: 0 !important; pointer-events: none; overflow: hidden; }' .
+		'.gogh-section > .gogh-bgvideo video { width: 100%; height: 100%; object-fit: cover; display: block; }' .
+		'.gogh-bgvideo-btn { position: absolute; right: 14px; bottom: 14px; z-index: 60; width: 36px; height: 36px; border-radius: 50%; border: 0; padding: 0; cursor: pointer; background: rgba(15,23,42,0.55); color: #fff; display: grid; place-items: center; opacity: 0.72; transition: opacity 0.2s; }' .
+		'.gogh-bgvideo-btn:hover, .gogh-bgvideo-btn:focus-visible { opacity: 1; }' .
+		'.gogh-bgvideo-btn svg { width: 14px; height: 14px; display: block; }' .
+		'@media (prefers-reduced-motion: reduce) { .gogh-section > .gogh-bgvideo, .gogh-bgvideo-btn { display: none; } }' .
+		// the video element: the frame is the design's, the player fills it
+		'.gogh-section > .gogh-vid { overflow: hidden; overflow: clip; }' .
+		'.gogh-section > .gogh-vid video, .gogh-section > .gogh-vid iframe { width: 100%; height: 100%; object-fit: cover; display: block; border: 0; border-radius: inherit; }' .
+		'.gogh-section > .gogh-vid .wp-block-embed__wrapper { position: relative; height: 100%; }' .
+		'.gogh-section > .gogh-vid .wp-block-embed__wrapper::before { content: none !important; padding: 0 !important; }' .
+		'.gogh-section > .gogh-vid .wp-block-embed__wrapper iframe { position: absolute; inset: 0; }' .
 		// pasted-HTML sections: full bleed with zero vertical margins for
 		// every visitor — the theme's block-gap must not band between them
 		'.gogh-section-html { box-sizing: border-box !important; width: 100vw !important; max-width: 100vw !important; margin-inline: calc(50% - 50vw) !important; margin-block: 0 !important; }' .
@@ -3782,9 +3834,9 @@ add_action( 'wp_enqueue_scripts', function () {
 
 	// compose must be REGISTERED here too — a dependency on an
 	// unregistered handle silently drops the whole editor script
-	wp_register_script( 'gogh-compose', plugins_url( 'gogh-compose.js', __FILE__ ), array(), '0.99.393-chrome', true );
-	wp_enqueue_script( 'gogh-editor', plugins_url( 'gogh-editor.js', __FILE__ ), array( 'gogh-compose' ), '0.99.393-chrome', true );
-	wp_enqueue_style( 'gogh-editor', plugins_url( 'gogh-editor.css', __FILE__ ), array(), '0.99.393-chrome' );
+	wp_register_script( 'gogh-compose', plugins_url( 'gogh-compose.js', __FILE__ ), array(), '0.99.394-chrome', true );
+	wp_enqueue_script( 'gogh-editor', plugins_url( 'gogh-editor.js', __FILE__ ), array( 'gogh-compose' ), '0.99.394-chrome', true );
+	wp_enqueue_style( 'gogh-editor', plugins_url( 'gogh-editor.css', __FILE__ ), array(), '0.99.394-chrome' );
 
 	// WebMCP bridge: the page registers its editing verbs as agent tools.
 	// OPT-IN only — add ?gogh-mcp=1 for a demo session (or enable sitewide
@@ -3796,13 +3848,13 @@ add_action( 'wp_enqueue_scripts', function () {
 	// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only labs toggle
 	$gogh_exp = isset( $_GET['gogh-test'] ) || ( isset( $_GET['gogh-experiments'] ) && '0' !== $_GET['gogh-experiments'] );
 	if ( isset( $_GET['gogh-mcp'] ) || $gogh_exp || apply_filters( 'gogh_webmcp_enabled', false ) ) {
-		wp_enqueue_script( 'gogh-webmcp', plugins_url( 'gogh-webmcp.js', __FILE__ ), array( 'gogh-editor' ), '0.99.393-chrome', true );
+		wp_enqueue_script( 'gogh-webmcp', plugins_url( 'gogh-webmcp.js', __FILE__ ), array( 'gogh-editor' ), '0.99.394-chrome', true );
 	}
 
 	// regression suite: /page/?gogh-test (editors only, never saves)
 	// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only toggle enqueuing a test script for capability-checked editors.
 	if ( isset( $_GET['gogh-test'] ) ) {
-		wp_enqueue_script( 'gogh-tests', plugins_url( 'gogh-tests.js', __FILE__ ), array( 'gogh-editor' ), '0.99.393-chrome', true );
+		wp_enqueue_script( 'gogh-tests', plugins_url( 'gogh-tests.js', __FILE__ ), array( 'gogh-editor' ), '0.99.394-chrome', true );
 	}
 
 	// products live outside wp/v2, so gogh carries its own save route for
@@ -3817,7 +3869,7 @@ add_action( 'wp_enqueue_scripts', function () {
 		'postTitle'  => get_the_title( $post ),
 		'permalink'  => esc_url_raw( get_permalink( $post->ID ) ),
 		'excerpt'    => (string) $post->post_excerpt,
-		'build'    => '0.99.393-chrome',
+		'build'    => '0.99.394-chrome',
 		// two rooms, one landmark (same contract as the admin bar): on a POST
 		// the corner pill opens the WRITING surface, not the freeform canvas
 		'writeUrl' => is_singular( 'post' ) ? add_query_arg( 'gogh-write', '1', get_permalink( $post ) ) : null,
@@ -3955,12 +4007,26 @@ add_action( 'enqueue_block_assets', function () {
 	if ( ! is_admin() ) {
 		return;
 	}
-	wp_register_style( 'gogh-editor-base', false, array(), '0.99.393-chrome' );
+	wp_register_style( 'gogh-editor-base', false, array(), '0.99.394-chrome' );
 	wp_enqueue_style( 'gogh-editor-base' );
 	wp_add_inline_style( 'gogh-editor-base',
 		'.gogh-wrap { min-width: 100%; margin-block: 0 !important; }' .
 		'.gogh-section > .wp-block-group { padding: 0 !important; box-sizing: border-box; }' .
 		'.gogh-section > * { box-sizing: border-box; }' .
+		// video backgrounds: the loop sits under everything; its poster (the
+		// section image) shows until it plays, and whenever motion is off
+		'.gogh-section > .gogh-bgvideo { position: absolute; inset: 0; z-index: -1; margin: 0 !important; padding: 0 !important; pointer-events: none; overflow: hidden; }' .
+		'.gogh-section > .gogh-bgvideo video { width: 100%; height: 100%; object-fit: cover; display: block; }' .
+		'.gogh-bgvideo-btn { position: absolute; right: 14px; bottom: 14px; z-index: 60; width: 36px; height: 36px; border-radius: 50%; border: 0; padding: 0; cursor: pointer; background: rgba(15,23,42,0.55); color: #fff; display: grid; place-items: center; opacity: 0.72; transition: opacity 0.2s; }' .
+		'.gogh-bgvideo-btn:hover, .gogh-bgvideo-btn:focus-visible { opacity: 1; }' .
+		'.gogh-bgvideo-btn svg { width: 14px; height: 14px; display: block; }' .
+		'@media (prefers-reduced-motion: reduce) { .gogh-section > .gogh-bgvideo, .gogh-bgvideo-btn { display: none; } }' .
+		// the video element: the frame is the design's, the player fills it
+		'.gogh-section > .gogh-vid { overflow: hidden; overflow: clip; }' .
+		'.gogh-section > .gogh-vid video, .gogh-section > .gogh-vid iframe { width: 100%; height: 100%; object-fit: cover; display: block; border: 0; border-radius: inherit; }' .
+		'.gogh-section > .gogh-vid .wp-block-embed__wrapper { position: relative; height: 100%; }' .
+		'.gogh-section > .gogh-vid .wp-block-embed__wrapper::before { content: none !important; padding: 0 !important; }' .
+		'.gogh-section > .gogh-vid .wp-block-embed__wrapper iframe { position: absolute; inset: 0; }' .
 		// splashes are core blocks wearing gogh classes — without their
 		// presentation the editor shows a wall as a stack and a carousel as
 		// a pile ("kinda breaking in the gutenberg view"). Same CSS, both rooms.

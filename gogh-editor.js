@@ -78,6 +78,7 @@
     var y = 72;
     [].slice.call(sectionEl.children).forEach(function (child) {
       var e = null;
+      if (child.classList && child.classList.contains('gogh-bgvideo')) return; // the section's own backdrop, not an element
       var text = (child.textContent || '').trim();
       if (/^H[1-6]$/.test(child.tagName)) {
         e = { type: 'heading', w: 640, h: 80, text: text };
@@ -258,7 +259,7 @@
       minH: model.minH || (bootEls.length ? null : 480),
       bg: model.bg || null, divider: model.divider || null,
       fx: model.fx || null,
-      bgImage: model.bgImage || null, bgId: model.bgId || null, bgA: model.bgA != null ? model.bgA : null, theme: model.theme || null, fill: !!model.fill,
+      bgImage: model.bgImage || null, bgId: model.bgId || null, bgVideo: model.bgVideo || null, bgVideoId: model.bgVideoId || null, bgA: model.bgA != null ? model.bgA : null, theme: model.theme || null, fill: !!model.fill,
       m: model.m || null, // section-level mobile overrides (hidden, …)
       bgPos: model.bgPos || null,
       wrapEl: wrap, sectionEl: sectionEl, styleEl: styleEl, nodes: [] });
@@ -454,7 +455,7 @@
     return e.type === 'heading' || e.type === 'para' || e.type === 'badge' || e.type === 'button' ||
       (e.kids || []).some(function (k) { return textyEl(k); });
   };
-  var fixedHeight = function (e) { return e.type === 'button' || e.type === 'image' || e.type === 'badge' || e.type === 'widget' || e.type === 'box' || e.type === 'exp'; };
+  var fixedHeight = function (e) { return e.type === 'button' || e.type === 'image' || e.type === 'video' || e.type === 'badge' || e.type === 'widget' || e.type === 'box' || e.type === 'exp'; };
 
   function imageBackground(e) {
     if (e.src) {
@@ -463,6 +464,144 @@
     return e.cool
       ? 'background: linear-gradient(140deg, #2e5a4f 0%, #24405c 60%, #1a2437 100%);'
       : 'background: linear-gradient(140deg, #e8b04b 0%, #d9745a 55%, #7a3b52 100%);';
+  }
+
+  // the tint a section wears over its VIDEO — the same recipe as over a
+  // photo (a colour at bgA, else a soft base scrim behind words)
+  function videoTintLayers(opts, els) {
+    var bgA = opts.bgA != null ? Math.max(0, Math.min(100, opts.bgA)) : null;
+    var comp = !!(opts.bg && /gradient\(/.test(String(opts.bg)));
+    if (opts.bg && !comp) {
+      var t = 'color-mix(in srgb, ' + opts.bg + ' ' + (bgA != null ? bgA : 62) + '%, transparent)';
+      return ['linear-gradient(' + t + ', ' + t + ')'];
+    }
+    if (!opts.bg && els.some(textyEl)) {
+      var a = 'color-mix(in srgb, var(--wp--preset--color--base, #fff) 45%, transparent)';
+      return ['linear-gradient(' + a + ', ' + a + ')'];
+    }
+    return [];
+  }
+  // the editing grid's hairlines, as top coats over an effect/video layer
+  var GRID_COATS = [
+    'linear-gradient(to right, rgba(255,255,255,0.42) 1px, transparent 1px) 0 0 / 3.3333cqw 3.3333cqw',
+    'linear-gradient(to bottom, rgba(255,255,255,0.42) 1px, transparent 1px) 0 0 / 3.3333cqw 3.3333cqw',
+    'linear-gradient(to right, rgba(15,23,42,0.26) 1px, transparent 1px) 1px 1px / 3.3333cqw 3.3333cqw',
+    'linear-gradient(to bottom, rgba(15,23,42,0.26) 1px, transparent 1px) 1px 1px / 3.3333cqw 3.3333cqw'
+  ].join(', ');
+  // ---------- video: a file, or a YouTube / Vimeo link ----------
+  function videoEmbedInfo(url) {
+    var u = String(url || '').trim();
+    var m = u.match(/(?:youtube\.com\/(?:watch\?(?:.*&)?v=|shorts\/|embed\/|live\/)|youtu\.be\/)([A-Za-z0-9_-]{6,})/);
+    if (m) return { provider: 'youtube', id: m[1], embed: 'https://www.youtube-nocookie.com/embed/' + m[1] };
+    m = u.match(/vimeo\.com\/(?:video\/)?(\d+)/);
+    if (m) return { provider: 'vimeo', id: m[1], embed: 'https://player.vimeo.com/video/' + m[1] };
+    return null;
+  }
+  function videoEmbedSrc(info, auto) {
+    if (info.provider === 'youtube') {
+      return info.embed + (auto
+        ? '?autoplay=1&mute=1&loop=1&playlist=' + info.id + '&controls=0&rel=0&modestbranding=1&playsinline=1'
+        : '?rel=0');
+    }
+    return info.embed + (auto ? '?autoplay=1&muted=1&loop=1&background=1' : '?dnt=1');
+  }
+  function videoBlock(e, cls) {
+    var auto = (e.vplay || 'auto') === 'auto';
+    var info = e.vurl ? videoEmbedInfo(e.vurl) : null;
+    if (info) {
+      var figCls = 'wp-block-embed is-type-video is-provider-' + info.provider + ' wp-block-embed-' + info.provider +
+        ' wp-embed-aspect-16-9 wp-has-aspect-ratio ' + cls + ' gogh-vid gogh-vid-embed';
+      if (auto) {
+        // a silent loop is a background kind of thing: WordPress's oEmbed
+        // can't ask a player to start muted, so the iframe is written out
+        return '<!-- wp:html -->\n<figure class="' + figCls + '"><div class="wp-block-embed__wrapper">' +
+          '<iframe src="' + escAttr(videoEmbedSrc(info, true)) + '" title="' + escAttr(e.alt || 'Video') + '"' +
+          ' allow="autoplay; fullscreen; picture-in-picture" allowfullscreen loading="lazy"></iframe>' +
+          '</div></figure>\n<!-- /wp:html -->';
+      }
+      var eAttrs = { url: e.vurl, type: 'video', providerNameSlug: info.provider, responsive: true,
+        className: 'wp-embed-aspect-16-9 wp-has-aspect-ratio ' + cls + ' gogh-vid gogh-vid-embed' };
+      return '<!-- wp:embed ' + JSON.stringify(eAttrs) + ' -->\n<figure class="' + figCls + '">' +
+        '<div class="wp-block-embed__wrapper">\n' + esc(e.vurl) + '\n</div></figure>\n<!-- /wp:embed -->';
+    }
+    if (e.src) {
+      var vAttrs = { className: cls + ' gogh-vid' };
+      if (e.mediaId) vAttrs.id = e.mediaId;
+      if (auto) { vAttrs.autoplay = true; vAttrs.loop = true; vAttrs.muted = true; vAttrs.playsInline = true; }
+      else vAttrs.controls = true;
+      if (e.poster) vAttrs.poster = e.poster;
+      return '<!-- wp:video ' + JSON.stringify(vAttrs) + ' -->\n' +
+        '<figure class="wp-block-video ' + cls + ' gogh-vid"><video' +
+        (auto ? ' autoplay loop muted playsinline' : ' controls') +
+        (e.poster ? ' poster="' + escAttr(e.poster) + '"' : '') +
+        ' src="' + escAttr(e.src) + '"></video></figure>\n<!-- /wp:video -->';
+    }
+    return '<!-- wp:group {"className":"' + cls + ' gogh-vid","layout":{"type":"default"}} -->\n' +
+      '<div class="wp-block-group ' + cls + ' gogh-vid"></div>\n<!-- /wp:group -->';
+  }
+  function videoNode(e, cls) {
+    var auto = (e.vplay || 'auto') === 'auto';
+    var info = e.vurl ? videoEmbedInfo(e.vurl) : null;
+    var n;
+    if (info) {
+      n = document.createElement('figure');
+      n.className = 'wp-block-embed is-type-video is-provider-' + info.provider + ' wp-block-embed-' + info.provider +
+        ' wp-embed-aspect-16-9 wp-has-aspect-ratio ' + cls + ' gogh-vid gogh-vid-embed';
+      var wrap = document.createElement('div');
+      wrap.className = 'wp-block-embed__wrapper';
+      var fr = document.createElement('iframe');
+      fr.src = videoEmbedSrc(info, auto);
+      fr.title = e.alt || 'Video';
+      fr.setAttribute('allow', 'autoplay; fullscreen; picture-in-picture');
+      fr.setAttribute('allowfullscreen', '');
+      fr.setAttribute('loading', 'lazy');
+      wrap.appendChild(fr);
+      n.appendChild(wrap);
+    } else if (e.src) {
+      n = document.createElement('figure');
+      n.className = 'wp-block-video ' + cls + ' gogh-vid';
+      var v = document.createElement('video');
+      v.src = e.src;
+      if (e.poster) v.poster = e.poster;
+      v.muted = true; v.setAttribute('muted', '');
+      v.playsInline = true; v.setAttribute('playsinline', '');
+      if (auto) { v.autoplay = true; v.loop = true; v.setAttribute('autoplay', ''); v.setAttribute('loop', ''); }
+      else v.controls = true;
+      v.preload = 'metadata';
+      n.appendChild(v);
+    } else {
+      n = document.createElement('div');
+      n.className = 'wp-block-group ' + cls + ' gogh-vid gogh-vid-empty';
+      n.innerHTML = '<span class="gogh-vid-play"></span><span class="gogh-vid-hint">Video \u2014 upload one, or paste a YouTube or Vimeo link</span>';
+    }
+    return n;
+  }
+  // the section's background video, as a core Video block: it rides inside
+  // the section as inner content, so Gutenberg's save() agrees with what
+  // the page holds (raw markup here would fail block validation)
+  function bgVideoMarkup(sec) {
+    if (!sec.bgVideo) return '';
+    var a = { className: 'gogh-bgvideo', autoplay: true, loop: true, muted: true, playsInline: true };
+    if (sec.bgVideoId) a.id = sec.bgVideoId;
+    if (sec.bgImage) a.poster = sec.bgImage;
+    return '<!-- wp:video ' + JSON.stringify(a) + ' -->\n' +
+      '<figure class="wp-block-video gogh-bgvideo"><video autoplay loop muted playsinline' +
+      (sec.bgImage ? ' poster="' + escAttr(sec.bgImage) + '"' : '') +
+      ' src="' + escAttr(sec.bgVideo) + '"></video></figure>\n<!-- /wp:video -->\n';
+  }
+  function bgVideoNode(sec) {
+    var f = document.createElement('figure');
+    f.className = 'wp-block-video gogh-bgvideo';
+    f.setAttribute('aria-hidden', 'true');
+    var v = document.createElement('video');
+    v.src = sec.bgVideo;
+    if (sec.bgImage) v.poster = sec.bgImage;
+    v.muted = true; v.loop = true; v.autoplay = true; v.playsInline = true;
+    v.setAttribute('muted', ''); v.setAttribute('loop', ''); v.setAttribute('autoplay', ''); v.setAttribute('playsinline', '');
+    v.setAttribute('tabindex', '-1');
+    v.preload = 'auto';
+    f.appendChild(v);
+    return f;
   }
 
   // film grain, 160px tile, generated once — soft-light over any stack
@@ -511,7 +650,7 @@
           ' text-box: trim-both cap ' + tbEdge + ';';
       }
       if (e.type === 'widget' && e.wcol) extra += ' color: ' + e.wcol + ';';
-      if (e.type === 'image') {
+      if (e.type === 'image' || e.type === 'video') {
         // align-self: start stopped grid stretch poisoning measurements
         // (v0.99.188) but it also stopped the frame filling its rows — a
         // fresh placeholder (no <img> inside) collapsed to 0px and vanished
@@ -521,7 +660,10 @@
         // of what the neighbouring rows do — the placeholder shows, placed
         // photos keep their designed crop, and measurement reads the truth.
         if (e.w > 0 && e.h > 0) extra += ' aspect-ratio: ' + e.w + ' / ' + e.h + ';';
-        extra += e.src ? ' overflow: hidden;' : ' ' + imageBackground(e);
+        // a video frame wears a dark ground under the player: the first
+        // frame arrives late on slow lines and an empty frame reads as a hole
+        if (e.type === 'video') extra += ' overflow: hidden;' + ((e.src || e.vurl) ? ' background: #0f172a;' : ' ' + imageBackground(e));
+        else extra += e.src ? ' overflow: hidden;' : ' ' + imageBackground(e);
       }
       if (e.type === 'box') {
         var bv = e.boxBg || '';
@@ -623,6 +765,15 @@
       if (e.type === 'image' && e.src) {
         out.push(sec + clsSel + ' img { width: 100%; height: 100%; object-fit: cover; display: block; border-radius: inherit; }');
       }
+      if (e.type === 'video') {
+        // the frame is the design's; the player fills it. Core's embed
+        // wrapper pads itself to 16:9 — that padding stands down here
+        out.push(sec + clsSel + ' { overflow: hidden; overflow: clip; }');
+        out.push(sec + clsSel + ' video, ' + sec + clsSel + ' iframe { width: 100%; height: 100%; object-fit: cover; display: block; border: 0; border-radius: inherit; }');
+        out.push(sec + clsSel + ' .wp-block-embed__wrapper { position: relative; height: 100%; }');
+        out.push(sec + clsSel + ' .wp-block-embed__wrapper::before { content: none !important; padding: 0 !important; }');
+        out.push(sec + clsSel + ' .wp-block-embed__wrapper iframe { position: absolute; inset: 0; }');
+      }
   }
   function buildCSS(els, scope, minH, opts) {
     opts = opts || {};
@@ -645,8 +796,8 @@
         var bgA = opts.bgA != null ? Math.max(0, Math.min(100, opts.bgA)) : null;
         var layers = [];
         var bgIsComposition = !!(opts.bg && /gradient\(/.test(opts.bg));
-        if (opts.bgImage) {
-          var img = 'url("' + String(opts.bgImage).replace(/"/g, '%22') + '") ' + (opts.bgPos ? opts.bgPos.x + '% ' + opts.bgPos.y + '%' : 'center') + ' / cover no-repeat';
+        if (opts.bgImage || opts.bgVideo) {
+          var img = !opts.bgImage ? null : 'url(\"' + String(opts.bgImage).replace(/"/g, '%22') + '") ' + (opts.bgPos ? opts.bgPos.x + '% ' + opts.bgPos.y + '%' : 'center') + ' / cover no-repeat';
           if (opts.bg && !bgIsComposition) {
             // palette-aware tint over the image keeps text readable in any
             // style variation (the tint follows the theme's own colours)
@@ -659,7 +810,7 @@
             var auto = 'color-mix(in srgb, var(--wp--preset--color--base, #fff) 45%, transparent)';
             layers.push('linear-gradient(' + auto + ', ' + auto + ')');
           }
-          layers.push(img);
+          if (img) layers.push(img);
         } else if (opts.bg && bgA != null && bgA < 100 && !bgIsComposition) {
           layers.push('color-mix(in srgb, ' + opts.bg + ' ' + bgA + '%, transparent)');
         } else if (opts.bg) {
@@ -702,6 +853,25 @@
       // image placeholders, which must be exactly their grid cell
       sec + ' > .wp-block-group { padding: 0 !important; }',
     ];
+    if (opts.bgVideo) {
+      // A VIDEO BACKGROUND. The loop lives under everything: the section
+      // isolates its own stack so a negative layer stays inside it, above
+      // the section's own paint (the poster image, when there is one).
+      // The tint rides a pseudo ABOVE the video — words stay readable
+      // exactly as they do over a photo (same 62%, same auto scrim).
+      var secV = sec + '.' + scope + '.' + scope;
+      out.push(sec + ' { position: relative; isolation: isolate; }');
+      out.push(sec + ' > .gogh-bgvideo { position: absolute; inset: 0; z-index: -1; margin: 0 !important; padding: 0 !important; pointer-events: none; overflow: hidden; }');
+      out.push(sec + ' > .gogh-bgvideo video { width: 100%; height: 100%; object-fit: cover; object-position: ' + (opts.bgPos ? opts.bgPos.x + '% ' + opts.bgPos.y + '%' : 'center') + '; display: block; }');
+      var vfx = opts.fx && opts.fx.bg;
+      if (vfx !== 'parallax' && vfx !== 'drift' && vfx !== 'reveal') {
+        var tintLayers = videoTintLayers(opts, els);
+        if (tintLayers.length) {
+          out.push(secV + '::before { content: ""; position: absolute; inset: 0; z-index: 0; pointer-events: none; opacity: 1 !important; background: ' + tintLayers.join(', ') + '; }');
+          out.push('.gogh-editing ' + secV + '.gogh-grid-live::before, .gogh-grid-on.gogh-editing ' + secV + '::before { background: ' + GRID_COATS + ', ' + tintLayers.join(', ') + '; }');
+        }
+      }
+    }
     if (opts.topDivider) {
       // the transition carved into THIS section's top: layer one is the
       // divider shape (its filled side faces down, exactly the region that
@@ -746,8 +916,8 @@
       var bgA = opts.bgA != null ? Math.max(0, Math.min(100, opts.bgA)) : null;
       var bgIsComposition = !!(opts.bg && /gradient\(/.test(opts.bg));
       var layers = [];
-      if (opts.bgImage) {
-        var img = 'url("' + String(opts.bgImage).replace(/"/g, '%22') + '") ' + (opts.bgPos ? opts.bgPos.x + '% ' + opts.bgPos.y + '%' : 'center') + ' / cover no-repeat';
+      if (opts.bgImage || opts.bgVideo) {
+        var img = !opts.bgImage ? null : 'url(\"' + String(opts.bgImage).replace(/"/g, '%22') + '") ' + (opts.bgPos ? opts.bgPos.x + '% ' + opts.bgPos.y + '%' : 'center') + ' / cover no-repeat';
         if (opts.bg && !bgIsComposition) {
           var tint = 'color-mix(in srgb, ' + opts.bg + ' ' + (bgA != null ? bgA : 62) + '%, transparent)';
           layers.push('linear-gradient(' + tint + ', ' + tint + ')');
@@ -755,7 +925,7 @@
           var auto = 'color-mix(in srgb, var(--wp--preset--color--base, #fff) 45%, transparent)';
           layers.push('linear-gradient(' + auto + ', ' + auto + ')');
         }
-        layers.push(img);
+        if (img) layers.push(img);
       } else if (opts.bg && bgA != null && bgA < 100 && !bgIsComposition) {
         layers.push('color-mix(in srgb, ' + opts.bg + ' ' + bgA + '%, transparent)');
       } else if (opts.bg) {
@@ -865,7 +1035,7 @@
       // no `order:` here — the DOM itself is written in reading order, so
       // stacked mobile flow, tab order and screen-reader order all agree
       out.push('  ' + sec + ' .gogh-el-' + (i + 1) + ' { grid-area: auto; grid-column: 2;' +
-        (e.type === 'image' ? ' aspect-ratio: ' + e.w + ' / ' + e.h + ';' : '') +
+        (e.type === 'image' || e.type === 'video' ? ' aspect-ratio: ' + e.w + ' / ' + e.h + ';' : '') +
         // stacked mobile: decorative SHAPES step aside; plain boxes are
         // structural panels (photo-card scrims, feature mats) and keep
         // their proportions instead of collapsing to zero height. CARDS are
@@ -946,6 +1116,8 @@
       text: e.text || null, ghost: !!e.ghost, cool: !!e.cool,
       src: e.src || null, href: e.href || null, rot: e.rot || 0,
       alt: e.alt || null, mediaId: e.mediaId || null, fs: e.fs || null,
+      // the video element: a file (src) or a player link (vurl), how it plays, its poster
+      poster: e.poster || null, posterId: e.posterId || null, vurl: e.vurl || null, vplay: e.vplay || null,
       align: e.align || null, color: e.color || null, tf: e.tf || null,
       btnBg: e.btnBg || null, btnText: e.btnText || null, btnHover: e.btnHover || null,
       wsrc: e.wsrc || null, whtml: e.whtml || null, wcol: e.wcol || null,
@@ -1018,6 +1190,8 @@
           }
           return '<!-- wp:group {"className":"' + cls + '","layout":{"type":"default"}} -->\n' +
             '<div class="wp-block-group ' + cls + '"></div>\n<!-- /wp:group -->';
+        case 'video':
+          return videoBlock(e, cls);
         case 'badge':
           return '<!-- wp:paragraph {"className":"' + cls + ' gogh-badge"} -->\n' +
             '<p class="' + cls + ' gogh-badge">' + esc(e.text) + '</p>\n<!-- /wp:paragraph -->';
@@ -1067,7 +1241,7 @@
       version: version, designW: W, minH: sec.minH || null,
       bg: sec.bg || null, divider: sec.divider || null,
       fx: sec.fx || null,
-      bgImage: sec.bgImage || null, bgId: sec.bgId || null, bgA: sec.bgA != null ? sec.bgA : null, theme: sec.theme || null, fill: sec.fill || null,
+      bgImage: sec.bgImage || null, bgId: sec.bgId || null, bgVideo: sec.bgVideo || null, bgVideoId: sec.bgVideoId || null, bgA: sec.bgA != null ? sec.bgA : null, theme: sec.theme || null, fill: sec.fill || null,
       m: (sec.m && Object.keys(sec.m).length) ? sec.m : null, // sparse section-level mobile overrides
       bgPos: sec.bgPos || null, // background focal point
       elements: sec.els.map(projEl),
@@ -1083,7 +1257,7 @@
       '<style class="gogh-style">' + buildCSS(els, sec.scope, sec.minH, sectionOpts(sec)) + '</style>' +
       '<script type="application/json" class="gogh-model">' + json + '</scr' + 'ipt>' +
       '<div class="gogh-section ' + sec.scope + '" data-gogh-scope="' + sec.scope + '">\n' +
-      inner + '\n</div></div>\n' +
+      bgVideoMarkup(sec) + inner + '\n</div></div>\n' +
       '<!-- /wp:gogh/section -->';
   }
 
@@ -1122,14 +1296,14 @@
       '<div class="wp-block-gogh-section alignfull gogh-wrap">' +
       '<style class="gogh-style">' + css + '</style>' +
       '<div class="gogh-section ' + sec.scope + '" data-gogh-scope="' + sec.scope + '">\n' +
-      buildElBlocks(sec.els) + '\n</div></div>\n' +
+      bgVideoMarkup(sec) + buildElBlocks(sec.els) + '\n</div></div>\n' +
       '<!-- /wp:gogh/section -->';
   }
   // the blank-canvas placeholder is discardable only while it's TRULY blank:
   // a background (image or colour) is content — the section publishes, the
   // invite leaves, and nothing replaces it silently
   function isBlankBoot(s) {
-    return s.bootstrap && !s.els.length && !s.bg && !s.bgImage;
+    return s.bootstrap && !s.els.length && !s.bg && !s.bgImage && !s.bgVideo;
   }
   function realSections() {
     return S.filter(function (s) { return !isBlankBoot(s) && !s.chrome; });
@@ -1264,6 +1438,9 @@
           n.className = 'wp-block-group ' + cls;
         }
         break;
+      case 'video':
+        n = videoNode(e, cls);
+        break;
       case 'widget':
         n = document.createElement('div');
         n.className = 'wp-block-group ' + cls + ' gogh-widget';
@@ -1365,7 +1542,7 @@
   // be represented by a flat divider band — the transition must be carved
   // into the rich section's own top edge instead
   function richBg(sec2) {
-    return !!(sec2 && (sec2.bgImage || (sec2.fx && sec2.fx.bg) ||
+    return !!(sec2 && (sec2.bgImage || sec2.bgVideo || (sec2.fx && sec2.fx.bg) ||
       (sec2.bg && /gradient\(/.test(String(sec2.bg)))));
   }
   // a plain-block band paints its own background — the divider above it
@@ -1390,7 +1567,7 @@
     var prev = idx > 0 ? S[idx - 1] : null;
     var domNext = domSuccessor(sec);
     var nextIsRaw = !!(domNext && (!next || next.wrapEl !== domNext));
-    return { bg: sec.bg, bgA: sec.bgA != null ? sec.bgA : null, fill: !!sec.fill, divider: sec.divider, bgImage: sec.bgImage,
+    return { bg: sec.bg, bgA: sec.bgA != null ? sec.bgA : null, fill: !!sec.fill, divider: sec.divider, bgImage: sec.bgImage, bgVideo: sec.bgVideo || null,
       m: sec.m || null,
       bgPos: sec.bgPos || null,
       fx: sec.fx || null,
@@ -1538,6 +1715,14 @@
       if (e.tabs && e.tabs.length && e.wsrc && e.wsrc.indexOf('role="tabpanel"') === -1) composeWidgetData(e);
     });
     sec.sectionEl.innerHTML = '';
+    if (sec.bgVideo) {
+      // the backdrop is REUSED across renders — a fresh element would
+      // restart the loop on every drop and read as a stutter
+      if (!sec.__bgf || sec.__bgf.firstChild.getAttribute('src') !== sec.bgVideo) sec.__bgf = bgVideoNode(sec);
+      var bgv = sec.__bgf.firstChild;
+      if ((sec.bgImage || '') !== (bgv.getAttribute('poster') || '')) { if (sec.bgImage) bgv.poster = sec.bgImage; else bgv.removeAttribute('poster'); }
+      sec.sectionEl.appendChild(sec.__bgf);
+    } else sec.__bgf = null;
     sec.nodes = sec.els.map(function (e, i) { return makeNode(e, i); });
     // append in READING order (nodes[] stays indexed by element) — keyboard
     // tabbing through the canvas follows the visual flow
@@ -1579,13 +1764,13 @@
     sectionEl.className = 'gogh-section ' + scope;
     sectionEl.setAttribute('data-gogh-scope', scope);
     wrap.appendChild(sectionEl);
-    return { scope: scope, els: [], minH: null, bg: null, divider: null, fx: null, bgImage: null, bgId: null, wrapEl: wrap, sectionEl: sectionEl, styleEl: styleEl, nodes: [] };
+    return { scope: scope, els: [], minH: null, bg: null, divider: null, fx: null, bgImage: null, bgId: null, bgVideo: null, bgVideoId: null, wrapEl: wrap, sectionEl: sectionEl, styleEl: styleEl, nodes: [] };
   }
 
   // ---------- history (undo/redo) ----------
   var history = [], hIdx = -1, textTimer = null;
   function serialize() {
-    return JSON.stringify(S.map(function (sec) { return { scope: sec.scope, els: sec.els, minH: sec.minH || null, bg: sec.bg || null, divider: sec.divider || null, fx: sec.fx || null, bgImage: sec.bgImage || null, bgId: sec.bgId || null, bgA: sec.bgA != null ? sec.bgA : null, theme: sec.theme || null, fill: sec.fill || null, m: (sec.m && Object.keys(sec.m).length) ? sec.m : null, bgPos: sec.bgPos || null, src: sec.srcSig || null, boot: sec.bootstrap || false, chrome: sec.chrome || null }; }));
+    return JSON.stringify(S.map(function (sec) { return { scope: sec.scope, els: sec.els, minH: sec.minH || null, bg: sec.bg || null, divider: sec.divider || null, fx: sec.fx || null, bgImage: sec.bgImage || null, bgId: sec.bgId || null, bgVideo: sec.bgVideo || null, bgVideoId: sec.bgVideoId || null, bgA: sec.bgA != null ? sec.bgA : null, theme: sec.theme || null, fill: sec.fill || null, m: (sec.m && Object.keys(sec.m).length) ? sec.m : null, bgPos: sec.bgPos || null, src: sec.srcSig || null, boot: sec.bootstrap || false, chrome: sec.chrome || null }; }));
   }
   function pushState() {
     var snap = serialize();
@@ -1635,6 +1820,8 @@
       sec.fx = d.fx || null;
       sec.bgImage = d.bgImage || null;
       sec.bgId = d.bgId || null;
+      sec.bgVideo = d.bgVideo || null;
+      sec.bgVideoId = d.bgVideoId || null;
       sec.bgA = d.bgA != null ? d.bgA : null;
       sec.theme = d.theme || null;
       sec.fill = !!d.fill;
@@ -1780,6 +1967,7 @@
     '<button type="button" class="gogh-sitem" data-add="para"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M4 6h16M4 12h16M4 18h10"/></svg>Text</button>' +
     '<button type="button" class="gogh-sitem" data-add="button"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="8" width="18" height="8" rx="4"/></svg>Button</button>' +
     '<button type="button" class="gogh-sitem" data-add="image"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="8.5" cy="10" r="1.6"/><path d="M21 16l-5-5-9 8"/></svg>Image</button>' +
+    '<button type="button" class="gogh-sitem" data-add="video" title="A video — upload one, or paste a YouTube or Vimeo link"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M10 9l5 3-5 3z"/></svg>Video</button>' +
     '<button type="button" class="gogh-sitem" data-add="badge"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><circle cx="12" cy="9.5" r="5.5"/><path d="M9 14l-1.5 6 4.5-2.4 4.5 2.4L15 14"/></svg>Badge</button>' +
     '<button type="button" class="gogh-sitem" data-add="write" title="Start writing — a reading column, cursor ready"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>Write</button>' +
     '<button type="button" class="gogh-sitem" data-add="card" title="A card — drop pieces inside and they stay together, even on mobile"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2.5"/><path d="M7 12h6M7 15.5h4"/></svg>Card</button>' +
@@ -2553,12 +2741,12 @@
     var ar = node.getBoundingClientRect();
     elbar.style.left = (ar.left + window.scrollX + ar.width / 2) + 'px';
     elbar.style.top = (ar.top + window.scrollY - 14) + 'px';
-    if (e.type === 'button' || e.type === 'image' || e.type === 'box') {
+    if (e.type === 'button' || e.type === 'image' || e.type === 'video' || e.type === 'box') {
       // cards share the section's background icon — one glyph for one idea;
       // bare shapes keep the shape glyph (their panel really picks shapes)
       var isCardEl = e.type === 'box' && e.kids && e.kids.length;
       ctxBtn.innerHTML = CTX_ICONS[e.type === 'button' ? 'link' : e.type === 'box' ? (isCardEl ? 'image' : 'shape') : 'image'];
-      ctxBtn.title = (e.rails && e.shop) ? 'Edit design' : e.type === 'button' ? 'Button link' : e.type === 'box' ? ( isCardEl ? 'Background image & colour' : 'Shape, colour & image' ) : e.type === 'widget' ? (e.faq ? 'Edit the questions' : e.tabs ? 'Edit the tabs' : e.slides ? 'Edit the slides' : e.wall ? 'Edit the photos' : 'Block settings & link') : 'Choose image';
+      ctxBtn.title = (e.rails && e.shop) ? 'Edit design' : e.type === 'video' ? 'Video' : e.type === 'button' ? 'Button link' : e.type === 'box' ? ( isCardEl ? 'Background image & colour' : 'Shape, colour & image' ) : e.type === 'widget' ? (e.faq ? 'Edit the questions' : e.tabs ? 'Edit the tabs' : e.slides ? 'Edit the slides' : e.wall ? 'Edit the photos' : 'Block settings & link') : 'Choose image';
       ctxBtn.style.display = '';
     } else {
       ctxBtn.style.display = 'none';
@@ -3365,6 +3553,7 @@
     panel.__imgFor = null;
     if (e.type === 'button') buildLinkPanel(sec, i);
     else if (e.type === 'image') buildImagePanel(sec, i);
+    else if (e.type === 'video') buildVideoPanel(sec, i);
     else if (e.type === 'box') buildBoxPanel(sec, i);
     else if (e.type === 'widget') buildWidgetPanel(sec, i);
     // in the zoomed Design view, dock the panel into the sidebar with a
@@ -3372,7 +3561,7 @@
     // floating over the shrunk canvas reads as "lost", and closing it used
     // to drop the birds-eye. Back returns home with the zoom intact.
     if (zoomState && side.classList.contains('is-open')) {
-      var titles = { button: 'Link', image: 'Image', box: 'Box', widget: 'Widget' };
+      var titles = { button: 'Link', image: 'Image', video: 'Video', box: 'Box', widget: 'Widget' };
       panel.insertAdjacentHTML('afterbegin',
         '<div class="gogh-panel-head"><span class="gogh-panel-title">' + (titles[e.type] || 'Element') + '</span>' +
         '<button type="button" class="gogh-sbtn gogh-panel-back" title="Back"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"/></svg></button></div>');
@@ -4170,6 +4359,142 @@
     var label = panel.querySelector('.gogh-upload');
     if (label && label.firstChild) label.firstChild.textContent = 'Upload';
   }
+  function setVideo(sec, i, url, mediaId) {
+    var e = sec.els[i];
+    var u = url ? String(url).trim() : '';
+    var info = u ? videoEmbedInfo(u) : null;
+    if (info) { e.vurl = u; e.src = null; e.mediaId = null; }
+    else { e.src = u || null; e.mediaId = u ? (mediaId || null) : null; e.vurl = null; }
+    renderSection(sec);
+    placeHandles(sec, i);
+    pushState();
+    // the panel stays open and follows the pick (the panels-stay-open law)
+    if (!panel.hidden && panel.__vidFor && panel.__vidFor.sec === sec && panel.__vidFor.i === i) syncVideoPanel(sec, i);
+    else closePanel();
+  }
+  function syncVideoPanel(sec, i) {
+    var e = sec.els[i];
+    var input = panel.querySelector('.gogh-vid-url');
+    if (input) input.value = e.vurl || e.src || '';
+    var clear = panel.querySelector('.gogh-vid-clear');
+    if (clear) clear.hidden = !(e.src || e.vurl);
+    var prow = panel.querySelector('.gogh-vid-posterrow');
+    if (prow) prow.hidden = !e.src; // a poster belongs to a file; players bring their own
+    var pc = panel.querySelector('.gogh-vid-poster-clear');
+    if (pc) pc.hidden = !e.poster;
+    panel.querySelectorAll('.gogh-vid-mode').forEach(function (b) {
+      b.classList.toggle('is-active', (e.vplay || 'auto') === b.dataset.play);
+    });
+    panel.querySelectorAll('.gogh-vid-media .gogh-thumb').forEach(function (b) {
+      b.classList.toggle('is-active', !!e.src && b.dataset.src === e.src);
+    });
+    var up = panel.querySelector('.gogh-upload');
+    if (up && up.firstChild) up.firstChild.textContent = 'Upload video';
+    var pup = panel.querySelector('.gogh-vid-poster-up');
+    if (pup && pup.firstChild) pup.firstChild.textContent = 'Upload poster';
+  }
+  function buildVideoPanel(sec, i) {
+    var e = sec.els[i];
+    panel.__vidFor = { sec: sec, i: i };
+    var has = !!(e.src || e.vurl);
+    panel.innerHTML =
+      '<div class="gogh-panel-title">Video</div>' +
+      '<div class="gogh-panel-row">' +
+      '<input type="url" class="gogh-input gogh-vid-url" placeholder="Paste a YouTube, Vimeo or .mp4 link\u2026" />' +
+      '<button type="button" class="gogh-btn gogh-btn-small gogh-apply">Apply</button>' +
+      '</div>' +
+      '<div class="gogh-panel-row gogh-panel-actions">' +
+      (cfg.canUpload ? '<label class="gogh-btn gogh-btn-small gogh-upload">Upload video<input type="file" accept="video/mp4,video/webm,video/quicktime" hidden /></label>' : '') +
+      '<button type="button" class="gogh-btn gogh-btn-small gogh-vid-clear"' + (has ? '' : ' hidden') + '>Remove video</button>' +
+      '</div>' +
+      '<div class="gogh-swlab">Plays</div>' +
+      '<div class="gogh-hpresets gogh-vid-modes">' +
+      [['auto', 'On its own', 'Silent and looping \u2014 a moving picture'], ['click', 'When clicked', 'Controls and sound \u2014 a film to watch']].map(function (m) {
+        return '<button type="button" class="gogh-hpreset gogh-vid-mode' + ((e.vplay || 'auto') === m[0] ? ' is-active' : '') + '" data-play="' + m[0] + '" title="' + m[2] + '">' + m[1] + '</button>';
+      }).join('') + '</div>' +
+      '<div class="gogh-vid-posterrow"' + (e.src ? '' : ' hidden') + '>' +
+      '<div class="gogh-swlab">Poster \u2014 the still shown before it plays</div>' +
+      '<div class="gogh-panel-row gogh-panel-actions">' +
+      (cfg.canUpload ? '<label class="gogh-btn gogh-btn-small gogh-vid-poster-up">Upload poster<input type="file" accept="image/*" hidden /></label>' : '') +
+      '<button type="button" class="gogh-btn gogh-btn-small gogh-vid-poster-clear"' + (e.poster ? '' : ' hidden') + '>Remove poster</button>' +
+      '</div></div>' +
+      '<div class="gogh-swlab">Your videos</div>' +
+      '<div class="gogh-media gogh-vid-media"><span class="gogh-media-loading">Loading videos\u2026</span></div>';
+    var input = panel.querySelector('.gogh-vid-url');
+    input.value = e.vurl || e.src || '';
+    panel.querySelector('.gogh-apply').addEventListener('click', function () {
+      setVideo(sec, i, input.value.trim() || null);
+    });
+    input.addEventListener('keydown', function (ev) {
+      if (ev.key === 'Enter') setVideo(sec, i, input.value.trim() || null);
+      if (ev.key === 'Escape') closePanel();
+    });
+    panel.querySelector('.gogh-vid-clear').addEventListener('click', function () { setVideo(sec, i, null); });
+    panel.querySelectorAll('.gogh-vid-mode').forEach(function (b) {
+      b.addEventListener('click', function () {
+        e.vplay = b.dataset.play;
+        renderSection(sec);
+        placeHandles(sec, i);
+        pushState();
+        syncVideoPanel(sec, i);
+      });
+    });
+    var upload = function (fileInput, label, done) {
+      if (!fileInput.files.length) return;
+      var fd = new FormData();
+      fd.append('file', fileInput.files[0]);
+      label.firstChild.textContent = 'Uploading\u2026';
+      fetch(cfg.mediaUrl, { method: 'POST', headers: { 'X-WP-Nonce': cfg.nonce }, credentials: 'same-origin', body: fd })
+        .then(function (res) { if (!res.ok) throw new Error('HTTP ' + res.status); return res.json(); })
+        .then(done)
+        .catch(function (err) {
+          label.firstChild.textContent = 'Upload failed';
+          console.error('gogh upload failed:', err);
+        });
+    };
+    var vfile = panel.querySelector('.gogh-upload input[type="file"]');
+    if (vfile) vfile.addEventListener('change', function () {
+      upload(vfile, panel.querySelector('.gogh-upload'), function (item) { setVideo(sec, i, item.source_url, item.id); });
+    });
+    var pfile = panel.querySelector('.gogh-vid-poster-up input[type="file"]');
+    if (pfile) pfile.addEventListener('change', function () {
+      upload(pfile, panel.querySelector('.gogh-vid-poster-up'), function (item) {
+        e.poster = item.source_url; e.posterId = item.id;
+        renderSection(sec); placeHandles(sec, i); pushState(); syncVideoPanel(sec, i);
+      });
+    });
+    panel.querySelector('.gogh-vid-poster-clear').addEventListener('click', function () {
+      e.poster = null; e.posterId = null;
+      renderSection(sec); placeHandles(sec, i); pushState(); syncVideoPanel(sec, i);
+    });
+    fetch(restQ(cfg.mediaUrl, 'per_page=24&media_type=video&orderby=date&order=desc'), {
+      headers: { 'X-WP-Nonce': cfg.nonce },
+      credentials: 'same-origin',
+    }).then(function (res) { return res.ok ? res.json() : []; }).catch(function () { return []; })
+      .then(function (items) {
+        var box = panel.querySelector('.gogh-vid-media');
+        if (!box || panel.hidden) return;
+        box.innerHTML = '';
+        if (!items.length) {
+          box.innerHTML = '<span class="gogh-media-loading">No videos in the media library yet \u2014 upload one above.</span>';
+          reclampPanel();
+          return;
+        }
+        items.forEach(function (item) {
+          var b = document.createElement('button');
+          b.type = 'button';
+          b.className = 'gogh-thumb gogh-vidthumb';
+          b.dataset.src = item.source_url;
+          var name = (item.title && item.title.rendered) || (item.source_url || '').split('/').pop();
+          b.title = name;
+          b.innerHTML = '<span class="gogh-vid-play"></span><span class="gogh-vidthumb-name">' + esc(name) + '</span>';
+          if (sec.els[i].src === item.source_url) b.classList.add('is-active');
+          b.addEventListener('click', function () { setVideo(sec, i, item.source_url, item.id); });
+          box.appendChild(b);
+        });
+        reclampPanel();
+      });
+  }
   function buildImagePanel(sec, i) {
     var e = sec.els[i];
     panel.__imgFor = { sec: sec, i: i };
@@ -4583,6 +4908,7 @@
     para: function () { return { type: 'para', x: 80, y: 200, w: 380, h: 50, text: 'Some supporting copy. Drag me anywhere.', ghost: false, cool: false }; },
     button: function () { return { type: 'button', x: 80, y: 320, w: 170, h: 52, text: 'Click me', ghost: false, cool: false }; },
     image: function () { return { type: 'image', x: 520, y: 120, w: 360, h: 260, text: null, ghost: false, cool: true }; },
+    video: function () { return { type: 'video', x: 400, y: 100, w: 560, h: 315, text: null, ghost: false, cool: true, vplay: 'auto' }; },
     badge: function () { return { type: 'badge', x: 520, y: 420, w: 220, h: 52, text: 'New badge', ghost: false, cool: false }; },
     card: function () {
       return { type: 'box', x: 360, y: 80, w: 480, h: 360, radius: 16,
@@ -7164,7 +7490,7 @@
   // by role-position (an eyebrow is a para in uppercase clothes)
   function diceRole(e) {
     if (e.type === 'para') return (e.tf && e.tf.tt === 'uppercase') ? 'eyebrow' : 'para';
-    if (e.type === 'heading' || e.type === 'button' || e.type === 'badge' || e.type === 'image') return e.type;
+    if (e.type === 'heading' || e.type === 'button' || e.type === 'badge' || e.type === 'image' || e.type === 'video') return e.type;
     if (e.type === 'widget') return 'widget';
     return null;
   }
@@ -8149,6 +8475,7 @@
       { label: 'Text', kind: 'para' },
       { label: 'Button', kind: 'button' },
       { label: 'Image', kind: 'image' },
+      { label: 'Video', kind: 'video' },
       { label: 'Badge', kind: 'badge' },
       { label: 'Posts grid', kind: 'posts' },
     ];
@@ -8362,6 +8689,8 @@
     sec.fx = srcSec.fx ? JSON.parse(JSON.stringify(srcSec.fx)) : null;
     sec.bgImage = srcSec.bgImage || null;
     sec.bgId = srcSec.bgId || null;
+    sec.bgVideo = srcSec.bgVideo || null;
+    sec.bgVideoId = srcSec.bgVideoId || null;
     sec.bgA = srcSec.bgA != null ? srcSec.bgA : null;
     sec.theme = srcSec.theme || null;
     sec.fill = !!srcSec.fill;
@@ -8625,7 +8954,7 @@
     sec.bg = model.bg || null;
     sec.divider = model.divider || null;
     sec.fx = model.fx || null;
-    sec.bgImage = model.bgImage || null;
+    sec.bgImage = model.bgImage || null; sec.bgVideo = model.bgVideo || null; sec.bgVideoId = model.bgVideoId || null;
     sec.bgId = model.bgId || null;
     sec.bgA = model.bgA != null ? model.bgA : null;
     sec.theme = model.theme || null;
@@ -8682,7 +9011,7 @@
     var els = sec.els;
     if (els.length < 2) return [];
     var isMedia = function (e) {
-      return e.type === 'image' || e.type === 'box' || e.type === 'exp' || e.type === 'widget';
+      return e.type === 'image' || e.type === 'video' || e.type === 'box' || e.type === 'exp' || e.type === 'widget';
     };
     var inks = els.map(function (e, i) { return inkWidthOf(sec, i); });
     var reading = els.map(function (e, i) { return i; }).sort(function (a, b) {
@@ -10123,6 +10452,23 @@
     pushState();
     contrastSentinel(S[idx]);
   }
+  function setSecVideo(idx, src, id) {
+    var sx = S[idx];
+    sx.bgVideo = src || null;
+    sx.bgVideoId = src ? (id || null) : null;
+    syncBootInvite(sx);
+    renderSection(sx);
+    resolveAll();
+    pushState();
+    contrastSentinel(sx);
+    // the panel STAYS open; its video row follows the choice
+    var vl = panel.querySelector('.gogh-vid-upload');
+    if (vl && vl.firstChild) vl.firstChild.textContent = sx.bgVideo ? 'Change video' : 'Upload video';
+    var vc = panel.querySelector('.gogh-vid-clear');
+    if (vc) vc.hidden = !sx.bgVideo;
+    var vu = panel.querySelector('.gogh-vid-url');
+    if (vu) vu.value = sx.bgVideo || '';
+  }
   function openSecBgPanel(idx, anchorEl) {
     var secx = S[idx];
     // THE bug behind every "modal opens below the fold" report: this
@@ -10172,6 +10518,11 @@
       (cfg.canUpload ? '<label class="gogh-btn gogh-btn-small gogh-upload">Upload<input type="file" accept="image/*" hidden /></label>' : '') +
       (secx.bgImage ? '<button type="button" class="gogh-btn gogh-btn-small gogh-clear">Remove image</button>' : '') +
       '</div>' +
+      '<div class="gogh-panel-hint">Video \u2014 a silent loop behind the section' + (secx.bgVideo ? '' : '; the image becomes its poster') + '</div>' +
+      '<div class="gogh-panel-row gogh-panel-actions">' +
+      (cfg.canUpload ? '<label class="gogh-btn gogh-btn-small gogh-vid-upload">' + (secx.bgVideo ? 'Change video' : 'Upload video') + '<input type="file" accept="video/mp4,video/webm,video/quicktime" hidden /></label>' : '') +
+      '<button type="button" class="gogh-btn gogh-btn-small gogh-vid-clear"' + (secx.bgVideo ? '' : ' hidden') + '>Remove video</button>' +
+      '</div>' +
       bgRow('height', 'Height', hVal(),
         '<div class="gogh-hpresets">' +
         [['s','S',320],['m','M',560],['l','L',800]].map(function (hp) {
@@ -10201,10 +10552,14 @@
       }).join('') + '</div>' +
       '<div class="gogh-panel-row gogh-panel-actions"><label class="gogh-colorlab">Custom <input type="color" class="gogh-color gogh-secbg-custom" /></label></div>' +
       '<div class="gogh-panel-hint">Transparency</div>' +
-      '<div class="gogh-panel-row"><input type="range" class="gogh-secbg-alpha" min="8" max="100" step="1" value="' + (secx.bgA != null ? secx.bgA : (secx.bgImage && secx.bg ? 62 : 100)) + '" style="flex:1" /><span class="gogh-secbg-alpha-val">' + (secx.bgA != null ? secx.bgA : (secx.bgImage && secx.bg ? 62 : 100)) + '</span></div>' +
+      '<div class="gogh-panel-row"><input type="range" class="gogh-secbg-alpha" min="8" max="100" step="1" value="' + (secx.bgA != null ? secx.bgA : ((secx.bgImage || secx.bgVideo) && secx.bg ? 62 : 100)) + '" style="flex:1" /><span class="gogh-secbg-alpha-val">' + (secx.bgA != null ? secx.bgA : ((secx.bgImage || secx.bgVideo) && secx.bg ? 62 : 100)) + '</span></div>' +
       '<div class="gogh-panel-row">' +
       '<input type="url" class="gogh-input" placeholder="Paste image URL…" />' +
       '<button type="button" class="gogh-btn gogh-btn-small gogh-apply">Apply</button>' +
+      '</div>' +
+      '<div class="gogh-panel-row">' +
+      '<input type="url" class="gogh-input gogh-vid-url" placeholder="Paste a video (.mp4) URL…" />' +
+      '<button type="button" class="gogh-btn gogh-btn-small gogh-vid-apply">Apply</button>' +
       '</div>' +
       '</div>';
     dockPanel();
@@ -10432,6 +10787,29 @@
     });
     var clear = panel.querySelector('.gogh-clear');
     if (clear) clear.addEventListener('click', function () { setSecBg(idx, null); });
+    var vclear = panel.querySelector('.gogh-vid-clear');
+    if (vclear) vclear.addEventListener('click', function () { setSecVideo(idx, null); });
+    var vfile = panel.querySelector('.gogh-vid-upload input[type="file"]');
+    if (vfile) vfile.addEventListener('change', function () {
+      if (!vfile.files.length) return;
+      var fd2 = new FormData();
+      fd2.append('file', vfile.files[0]);
+      var vlabel = panel.querySelector('.gogh-vid-upload');
+      vlabel.firstChild.textContent = 'Uploading\u2026';
+      fetch(cfg.mediaUrl, { method: 'POST', headers: { 'X-WP-Nonce': cfg.nonce }, credentials: 'same-origin', body: fd2 })
+        .then(function (res) { if (!res.ok) throw new Error('HTTP ' + res.status); return res.json(); })
+        .then(function (item) { setSecVideo(idx, item.source_url, item.id); })
+        .catch(function (err) { vlabel.firstChild.textContent = 'Upload failed'; console.error('gogh video upload failed:', err); });
+    });
+    var vurl = panel.querySelector('.gogh-vid-url');
+    if (vurl) {
+      vurl.value = secx.bgVideo || '';
+      panel.querySelector('.gogh-vid-apply').addEventListener('click', function () { setSecVideo(idx, vurl.value.trim() || null); });
+      vurl.addEventListener('keydown', function (ev) {
+        if (ev.key === 'Enter') setSecVideo(idx, vurl.value.trim() || null);
+        if (ev.key === 'Escape') closePanel();
+      });
+    }
     var file = panel.querySelector('input[type="file"]');
     if (file) {
       file.addEventListener('change', function () {
@@ -13465,6 +13843,7 @@
     multi: { set: setMulti, clear: clearMulti, state: function () { return multiSel; } },
     zoom: { open: openZoom, close: closeZoom, el: zoomOv },
     reorderSection: reorderSection,
+    setVideo: setVideo, setSecVideo: setSecVideo, videoEmbedInfo: videoEmbedInfo,
     reorderNavRaw: reorderNavRaw,
     stickyRawToggle: stickyRawToggle,
     chromeDialsRead: chromeDialsRead,
@@ -19548,7 +19927,7 @@
         sec.bg = model.bg || null;
         sec.divider = model.divider || null;
         sec.fx = model.fx || null;
-        sec.bgImage = model.bgImage || null;
+        sec.bgImage = model.bgImage || null; sec.bgVideo = model.bgVideo || null; sec.bgVideoId = model.bgVideoId || null;
         sec.bgId = model.bgId || null;
         sec.bgA = model.bgA != null ? model.bgA : null;
         sec.theme = model.theme || null;

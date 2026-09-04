@@ -3072,6 +3072,73 @@
       return 'picked twice, still open';
     });
 
+    test('the video element: a file loops silently; a link becomes the player', function () {
+      var s0 = sec();
+      var e = G.addElementToSection(G.sections().indexOf(s0), 'video');
+      expect(e && e.type === 'video', 'no video element was added');
+      var i = s0.els.indexOf(e);
+      expect(s0.nodes[i].classList.contains('gogh-vid-empty'), 'a fresh video should show its invite');
+      G.setVideo(s0, i, 'https://example.com/clip.mp4', 12);
+      expect(e.src === 'https://example.com/clip.mp4' && e.mediaId === 12 && !e.vurl, 'the file did not land: ' + JSON.stringify([e.src, e.vurl]));
+      var v = s0.nodes[i].querySelector('video');
+      expect(v && v.hasAttribute('autoplay') && v.hasAttribute('loop') && v.muted, 'a file should loop silently on its own');
+      var out = G.buildV3();
+      expect(/<!-- wp:video \{[^}]*"autoplay":true[^}]*"muted":true/.test(out), 'the saved block is not a silent looping core video');
+      expect(/<video autoplay loop muted playsinline src="https:\/\/example\.com\/clip\.mp4"><\/video>/.test(out), 'the saved markup should be core\u2019s own video figure');
+      G.setVideo(s0, i, 'https://www.youtube.com/watch?v=dQw4w9WgXcQ');
+      expect(e.vurl && !e.src, 'a YouTube link should become a player, not a file');
+      var fr = s0.nodes[i].querySelector('iframe');
+      expect(fr && /youtube-nocookie\.com\/embed\/dQw4w9WgXcQ/.test(fr.src) && /autoplay=1&mute=1/.test(fr.src), 'the player should be the privacy embed, silent and looping: ' + (fr && fr.src));
+      e.vplay = 'click';
+      out = G.buildV3();
+      expect(/<!-- wp:embed \{[^}]*"providerNameSlug":"youtube"/.test(out), 'click-to-play should save as a core embed block');
+      expect(G.videoEmbedInfo('https://vimeo.com/76979871').provider === 'vimeo' && !G.videoEmbedInfo('https://example.com/a.mp4'), 'link reading is off');
+      return 'video: file \u2192 core video, link \u2192 embed, silent loop by default';
+    });
+
+    test('a video background sits under the words, tinted like a photo', function () {
+      var s0 = sec();
+      var idx = G.sections().indexOf(s0);
+      s0.bg = 'var(--wp--preset--color--contrast)';
+      G.setSecVideo(idx, 'https://example.com/loop.mp4', 40);
+      expect(s0.bgVideo === 'https://example.com/loop.mp4' && s0.bgVideoId === 40, 'the background video did not land');
+      var v = s0.sectionEl.querySelector(':scope > .gogh-bgvideo video');
+      expect(v && v.muted && v.hasAttribute('loop') && v.hasAttribute('playsinline'), 'the editor should carry a silent looping video in the section');
+      var css = s0.styleEl.textContent;
+      expect(/isolation: isolate/.test(css) && /> \.gogh-bgvideo \{[^}]*z-index: -1/.test(css), 'the video should sit under the section stack: ' + css.slice(0, 240));
+      expect(/::before \{[^}]*color-mix\(in srgb, var\(--wp--preset--color--contrast\) 62%/.test(css), 'the tint should ride above the video, 62% like a photo');
+      var out = G.buildV3();
+      expect(/<!-- wp:video \{"className":"gogh-bgvideo","autoplay":true,"loop":true,"muted":true,"playsInline":true,"id":40\} -->/.test(out), 'the saved section should carry its backdrop as a core Video block');
+      expect(/<figure class="wp-block-video gogh-bgvideo"><video autoplay loop muted playsinline src="https:\/\/example\.com\/loop\.mp4"><\/video><\/figure>/.test(out), 'the backdrop markup is off');
+      expect(/"bgVideo":"https:\/\/example\.com\/loop\.mp4"/.test(out), 'the model should remember the video');
+      var before = s0.__bgf;
+      G.renderSection(s0);
+      expect(s0.__bgf === before && s0.sectionEl.contains(before), 'a re-render should reuse the backdrop, not restart it');
+      G.restore(G.serialize());
+      expect(G.sections()[idx].bgVideo === 'https://example.com/loop.mp4', 'undo history should carry the video');
+      G.setSecVideo(idx, null);
+      expect(!G.sections()[idx].bgVideo && !G.sections()[idx].sectionEl.querySelector('.gogh-bgvideo'), 'removing the video should clear it');
+      return 'background video: under, tinted, saved as a block, remembered';
+    });
+
+    test('the video panel stays open across a pick (panels-stay-open law)', function () {
+      var s0 = sec();
+      var e = G.addElementToSection(G.sections().indexOf(s0), 'video');
+      var i = s0.els.indexOf(e);
+      select(i);
+      G.openPanel(s0, i);
+      var panel = q('.gogh-panel');
+      expect(panel && !panel.hidden && /Video/.test(panel.textContent), 'the video panel did not open');
+      var input = panel.querySelector('.gogh-vid-url');
+      input.value = 'https://vimeo.com/76979871';
+      panel.querySelector('.gogh-apply').click();
+      expect(!panel.hidden && panel.querySelector('.gogh-vid-url') && panel.querySelector('.gogh-vid-url').value === 'https://vimeo.com/76979871', 'the panel should stay open and follow the pick');
+      expect(!panel.querySelector('.gogh-vid-clear').hidden, 'Remove video should appear once there is one');
+      panel.querySelector('.gogh-vid-mode[data-play="click"]').click();
+      expect(e.vplay === 'click' && !panel.hidden, 'the Plays choice should apply without closing');
+      return 'panel held through link and mode';
+    });
+
     test('the rails element: Woo Product Collection, composed from few choices', function () {
       if (!GOGH.hasWoo) return 'no WooCommerce here \u2014 nothing to lay';
       var e = G.addElementToSection(G.sections().indexOf(sec()), 'products');
