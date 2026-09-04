@@ -11107,18 +11107,25 @@
         var e2 = sec.els[drag.i];
         var r3 = sec.sectionEl.getBoundingClientRect();
         var s3 = r3.width / W;
-        dropBox.style.left = (r3.left + window.scrollX + e2.x * s3) + 'px';
-        dropBox.style.top = (r3.top + window.scrollY + e2.y * s3) + 'px';
+        // the socket sits UNDER THE GHOST, not at the model's linear guess:
+        // rows can render taller than the model predicts (a product grid,
+        // theme fonts), and the guess floated 150px above the ghost in a
+        // shop section (James: 'weird ghosting'). The ghost is the promise;
+        // the drop already corrects the model to where the ghost was.
+        var gr = ghost ? ghost.getBoundingClientRect() : null;
+        dropBox.style.left = (gr ? gr.left + window.scrollX : r3.left + window.scrollX + e2.x * s3) + 'px';
+        dropBox.style.top = (gr ? gr.top + window.scrollY : r3.top + window.scrollY + e2.y * s3) + 'px';
         dropBox.style.width = (e2.w * s3) + 'px';
         dropBox.style.height = (e2.h * s3) + 'px';
         if (drag.multi) {
-          // one socket per member, drawn where the member WILL land
+          // one socket per member, under each member's own ghost
           var mdx2 = e2.x - drag.x, mdy2 = e2.y - drag.y;
           drag.multi.forEach(function (mm) {
             var o = sec.els[mm.j];
+            var mgr = mm.ghost ? mm.ghost.getBoundingClientRect() : null;
             var ox = Math.max(0, Math.min(W - o.w, mm.x + mdx2)), oy = Math.max(0, mm.y + mdy2);
-            mm.box.style.left = (r3.left + window.scrollX + ox * s3) + 'px';
-            mm.box.style.top = (r3.top + window.scrollY + oy * s3) + 'px';
+            mm.box.style.left = (mgr ? mgr.left + window.scrollX : r3.left + window.scrollX + ox * s3) + 'px';
+            mm.box.style.top = (mgr ? mgr.top + window.scrollY : r3.top + window.scrollY + oy * s3) + 'px';
             mm.box.style.width = (o.w * s3) + 'px';
             mm.box.style.height = (o.h * s3) + 'px';
           });
