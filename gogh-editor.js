@@ -56,7 +56,9 @@
     // never saved unless the user actually puts things in it. Pages made of
     // native blocks get no placeholder — it read as an undeletable empty
     // section at the bottom of every starter page.
-    var host = document.querySelector('.entry-content') || document.querySelector('main');
+    // a product template keeps a .gogh-story-slot for the story even while
+    // the description is empty — the canvas belongs there, above the related row
+    var host = document.querySelector('.entry-content') || document.querySelector('.gogh-story-slot') || document.querySelector('main');
     if (!host && !wrapTags.length) return;
     if (host) {
       var bWrap = document.createElement('div');
@@ -270,7 +272,7 @@
   } else {
     // only chrome sections exist: anchor page insertions in the page, not
     // inside the header/footer template part
-    var mainHost = document.querySelector('.entry-content') || document.querySelector('main') || document.body;
+    var mainHost = document.querySelector('.entry-content') || document.querySelector('.gogh-story-slot') || document.querySelector('main') || document.body;
     mainHost.appendChild(endMarker);
   }
   var pageParent = endMarker.parentNode;

@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Gogh Editor
  * Description: A freeform canvas for WordPress — drag anything anywhere on your live page; Gogh publishes it back as clean, responsive core blocks that keep working even if the plugin is deactivated.
- * Version: 0.99.381
+ * Version: 0.99.382
  * Author: Jamie Marsland
  * Author URI: https://pootlepress.com
  * License: GPLv2 or later
@@ -23,7 +23,7 @@ add_action( 'init', function () {
 		'gogh-block',
 		plugins_url( 'gogh-block.js', __FILE__ ),
 		array( 'wp-blocks', 'wp-element', 'wp-block-editor' ),
-		'0.99.381-chrome',
+		'0.99.382-chrome',
 		true
 	);
 	register_block_type( 'gogh/section', array(
@@ -472,9 +472,9 @@ add_action( 'wp_enqueue_scripts', function () {
 	if ( ! $post || ! current_user_can( 'edit_post', $post->ID ) ) {
 		return;
 	}
-	wp_register_script( 'gogh-compose', plugins_url( 'gogh-compose.js', __FILE__ ), array(), '0.99.381-chrome', true );
-	wp_enqueue_script( 'gogh-write', plugins_url( 'gogh-write.js', __FILE__ ), array( 'gogh-compose' ), '0.99.381-chrome', true );
-	wp_enqueue_style( 'gogh-write', plugins_url( 'gogh-write.css', __FILE__ ), array(), '0.99.381-chrome' );
+	wp_register_script( 'gogh-compose', plugins_url( 'gogh-compose.js', __FILE__ ), array(), '0.99.382-chrome', true );
+	wp_enqueue_script( 'gogh-write', plugins_url( 'gogh-write.js', __FILE__ ), array( 'gogh-compose' ), '0.99.382-chrome', true );
+	wp_enqueue_style( 'gogh-write', plugins_url( 'gogh-write.css', __FILE__ ), array(), '0.99.382-chrome' );
 	wp_localize_script( 'gogh-write', 'GOGHWRITE', array(
 		'postId'  => $post->ID,
 		'restUrl' => esc_url_raw( rest_url() ),
@@ -1611,6 +1611,25 @@ function gogh_shop_css() {
 		'.woocommerce-product-gallery__trigger { position: absolute; top: 14px; right: 14px; z-index: 9; width: 42px; height: 42px; border-radius: 999px; background: color-mix(in srgb, var(--wp--preset--color--base, #fff) 86%, transparent) no-repeat center / 18px 18px; background-image: url("data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 24 24%27 fill=%27none%27 stroke=%27%23141519%27 stroke-width=%272.2%27 stroke-linecap=%27round%27%3E%3Ccircle cx=%2711%27 cy=%2711%27 r=%277%27/%3E%3Cpath d=%27M20 20l-3.5-3.5M11 8v6M8 11h6%27/%3E%3C/svg%3E"); backdrop-filter: blur(8px); box-shadow: 0 6px 18px rgba(0,0,0,0.18); font-size: 0 !important; color: transparent !important; text-decoration: none; opacity: 0.9; transition: opacity 0.15s ease, transform 0.15s ease; }' .
 		'.woocommerce-product-gallery__trigger:hover { opacity: 1; transform: scale(1.05); }' .
 		'.woocommerce-product-gallery__trigger img, .woocommerce-product-gallery__trigger span { display: none; }' .
+		// shop looks
+		'.gogh-shop-title { text-wrap: balance; }' .
+		'.gogh-shop-head-editorial .gogh-shop-title { font-size: clamp(2.6rem, 6vw, 4.6rem); line-height: 1.02; letter-spacing: -0.02em; margin: 0 0 0.3em; }' .
+		'.gogh-shop-head-gallery .gogh-shop-title { font-size: clamp(2rem, 4vw, 3rem); margin: 0 0 0.3em; }' .
+		'.gogh-shop-desc { max-width: 62ch; opacity: 0.8; }' .
+		'.gogh-shop-head-gallery .gogh-shop-desc { margin-inline: auto; text-align: center; }' .
+		'.gogh-catchips ul.wc-block-product-categories-list { display: flex; flex-wrap: wrap; gap: 8px; list-style: none; padding: 0; margin: 1.2rem 0 0; }' .
+		'.gogh-shop-head-gallery .gogh-catchips ul.wc-block-product-categories-list { justify-content: center; }' .
+		'.gogh-catchips ul.wc-block-product-categories-list li { margin: 0; }' .
+		'.gogh-shop-head-editorial .gogh-catchips, .gogh-shop-head-editorial .gogh-catchips ul { margin-inline: 0 !important; }' .
+		'.gogh-catchips ul.wc-block-product-categories-list a { display: inline-block; padding: 7px 14px; border-radius: 999px; border: 1.5px solid color-mix(in srgb, currentColor 30%, transparent); text-decoration: none; font-size: 0.9em; font-weight: 600; }' .
+		'.gogh-catchips ul.wc-block-product-categories-list a:hover { border-color: currentColor; }' .
+		'.gogh-shop-toolbar { padding: 0.6rem 0 1rem; border-bottom: 1px solid color-mix(in srgb, currentColor 14%, transparent); margin-bottom: 1.5rem !important; }' .
+		'.gogh-shop-toolbar .woocommerce-result-count { margin: 0; opacity: 0.7; }' .
+		'.gogh-shoplook-gallery .wc-block-product-template.is-flex-container { gap: 0.9em; }' .
+		'.gogh-shoplook-gallery .wp-block-post-title { font-size: 0.98em; }' .
+		'.gogh-shoplook-editorial .wp-block-post-title { font-size: 1.15em; }' .
+		'.gogh-shop-side .wp-block-woocommerce-product-filters { position: sticky; top: 110px; }' .
+		'@media (max-width: 782px) { .gogh-shop-catalogue { flex-direction: column; } .gogh-shop-side { flex-basis: auto !important; } }' .
 		'.gogh-shop-empty { border: 1.5px dashed color-mix(in srgb, currentColor 30%, transparent); border-radius: 12px; padding: 40px 24px; text-align: center; }' .
 		'.gogh-shop-empty strong { display: block; font-size: 1.2em; margin-bottom: 4px; }' .
 		'.gogh-shop-empty span { opacity: 0.7; }';
@@ -1908,7 +1927,7 @@ add_action( 'rest_api_init', function () {
 			return current_user_can( 'edit_posts' );
 		},
 		'callback'            => function () {
-			return array( 'build' => '0.99.381-chrome' );
+			return array( 'build' => '0.99.382-chrome' );
 		},
 	) );
 	register_rest_route( 'gogh/v1', '/starter', array(
@@ -2445,8 +2464,11 @@ add_action( 'init', function () {
 			'<!-- wp:woocommerce/add-to-cart-form /-->' .
 			'</div><!-- /wp:group -->' .
 			'</div><!-- /wp:group -->' .
-			'<!-- wp:post-content /-->' .
-			'<!-- wp:group {"align":"wide","style":{"spacing":{"padding":{"top":"3rem","bottom":"3rem"},"blockGap":"1.25rem"}},"layout":{"type":"constrained"}} --><div class="wp-block-group alignwide" style="padding-top:3rem;padding-bottom:3rem">' .
+			// the story's SLOT exists even while the description is empty (an empty
+			// post-content block renders nothing, and the editor mounted the first
+			// section after the related row — James: 'it does not appear there in the editor')
+			'<!-- wp:group {"className":"gogh-story-slot","layout":{"type":"default"}} --><div class="wp-block-group gogh-story-slot"><!-- wp:post-content /--></div><!-- /wp:group -->' .
+			'<!-- wp:group {"align":"wide","className":"gogh-related","style":{"spacing":{"padding":{"top":"3rem","bottom":"3rem"},"blockGap":"1.25rem"}},"layout":{"type":"constrained"}} --><div class="wp-block-group alignwide gogh-related" style="padding-top:3rem;padding-bottom:3rem">' .
 			'<!-- wp:heading {"level":2,"align":"wide"} --><h2 class="wp-block-heading alignwide">' . esc_html__( 'You might also like', 'gogh-editor' ) . '</h2><!-- /wp:heading -->' .
 			'<!-- wp:woocommerce/product-collection {"collection":"woocommerce/product-collection/related","query":{"perPage":3,"pages":1,"offset":0,"postType":"product","order":"asc","orderBy":"title","search":"","exclude":[],"inherit":false,"taxQuery":{},"isProductCollectionBlock":true,"woocommerceOnSale":false,"woocommerceStockStatus":["instock","outofstock","onbackorder"],"woocommerceAttributes":[],"woocommerceHandPickedProducts":[],"relatedBy":{"categories":true,"tags":true}},"tagName":"div","displayLayout":{"type":"flex","columns":3},"align":"wide","className":"gogh-shop gogh-shop-grid"} --><div class="wp-block-woocommerce-product-collection alignwide gogh-shop gogh-shop-grid">' .
 			'<!-- wp:woocommerce/product-template --><!-- wp:woocommerce/product-image {"showSaleBadge":true,"isDescendentOfQueryLoop":true,"aspectRatio":"1"} --><!-- wp:woocommerce/product-sale-badge {"isDescendentOfQueryLoop":true,"align":"right"} /--><!-- /wp:woocommerce/product-image -->' .
@@ -2479,8 +2501,11 @@ add_action( 'init', function () {
 			'<!-- wp:woocommerce/product-meta {"isDescendentOfSingleProductTemplate":true} --><div class="wp-block-woocommerce-product-meta"><!-- wp:group {"layout":{"type":"flex","flexWrap":"wrap"},"style":{"typography":{"fontSize":"0.9rem"}}} --><div class="wp-block-group" style="font-size:0.9rem"><!-- wp:woocommerce/product-sku {"isDescendentOfSingleProductTemplate":true} /--><!-- wp:post-terms {"term":"product_cat","prefix":"' . esc_html__( 'In ', 'gogh-editor' ) . '"} /--></div><!-- /wp:group --></div><!-- /wp:woocommerce/product-meta -->' .
 			'</div><!-- /wp:column -->' .
 			'</div><!-- /wp:columns -->' .
-			'<!-- wp:post-content /-->' .
-			'<!-- wp:group {"align":"wide","style":{"spacing":{"padding":{"top":"3rem","bottom":"3rem"},"blockGap":"1.25rem"}},"layout":{"type":"constrained"}} --><div class="wp-block-group alignwide" style="padding-top:3rem;padding-bottom:3rem">' .
+			// the story's SLOT exists even while the description is empty (an empty
+			// post-content block renders nothing, and the editor mounted the first
+			// section after the related row — James: 'it does not appear there in the editor')
+			'<!-- wp:group {"className":"gogh-story-slot","layout":{"type":"default"}} --><div class="wp-block-group gogh-story-slot"><!-- wp:post-content /--></div><!-- /wp:group -->' .
+			'<!-- wp:group {"align":"wide","className":"gogh-related","style":{"spacing":{"padding":{"top":"3rem","bottom":"3rem"},"blockGap":"1.25rem"}},"layout":{"type":"constrained"}} --><div class="wp-block-group alignwide gogh-related" style="padding-top:3rem;padding-bottom:3rem">' .
 			'<!-- wp:heading {"level":2,"align":"wide"} --><h2 class="wp-block-heading alignwide">' . esc_html__( 'You might also like', 'gogh-editor' ) . '</h2><!-- /wp:heading -->' .
 			'<!-- wp:woocommerce/product-collection {"collection":"woocommerce/product-collection/related","query":{"perPage":3,"pages":1,"offset":0,"postType":"product","order":"asc","orderBy":"title","search":"","exclude":[],"inherit":false,"taxQuery":{},"isProductCollectionBlock":true,"woocommerceOnSale":false,"woocommerceStockStatus":["instock","outofstock","onbackorder"],"woocommerceAttributes":[],"woocommerceHandPickedProducts":[],"relatedBy":{"categories":true,"tags":true}},"tagName":"div","displayLayout":{"type":"flex","columns":3},"align":"wide","className":"gogh-shop gogh-shop-grid"} --><div class="wp-block-woocommerce-product-collection alignwide gogh-shop gogh-shop-grid">' .
 			'<!-- wp:woocommerce/product-template --><!-- wp:woocommerce/product-image {"showSaleBadge":true,"isDescendentOfQueryLoop":true,"aspectRatio":"1"} --><!-- wp:woocommerce/product-sale-badge {"isDescendentOfQueryLoop":true,"align":"right"} /--><!-- /wp:woocommerce/product-image -->' .
@@ -2519,8 +2544,11 @@ add_action( 'init', function () {
 			'<!-- wp:woocommerce/add-to-cart-form /-->' .
 			'</div><!-- /wp:group -->' .
 			'</div></div><!-- /wp:cover -->' .
-			'<!-- wp:post-content /-->' .
-			'<!-- wp:group {"align":"wide","style":{"spacing":{"padding":{"top":"3rem","bottom":"3rem"},"blockGap":"1.25rem"}},"layout":{"type":"constrained"}} --><div class="wp-block-group alignwide" style="padding-top:3rem;padding-bottom:3rem">' .
+			// the story's SLOT exists even while the description is empty (an empty
+			// post-content block renders nothing, and the editor mounted the first
+			// section after the related row — James: 'it does not appear there in the editor')
+			'<!-- wp:group {"className":"gogh-story-slot","layout":{"type":"default"}} --><div class="wp-block-group gogh-story-slot"><!-- wp:post-content /--></div><!-- /wp:group -->' .
+			'<!-- wp:group {"align":"wide","className":"gogh-related","style":{"spacing":{"padding":{"top":"3rem","bottom":"3rem"},"blockGap":"1.25rem"}},"layout":{"type":"constrained"}} --><div class="wp-block-group alignwide gogh-related" style="padding-top:3rem;padding-bottom:3rem">' .
 			'<!-- wp:heading {"level":2,"align":"wide"} --><h2 class="wp-block-heading alignwide">' . esc_html__( 'You might also like', 'gogh-editor' ) . '</h2><!-- /wp:heading -->' .
 			'<!-- wp:woocommerce/product-collection {"collection":"woocommerce/product-collection/related","query":{"perPage":3,"pages":1,"offset":0,"postType":"product","order":"asc","orderBy":"title","search":"","exclude":[],"inherit":false,"taxQuery":{},"isProductCollectionBlock":true,"woocommerceOnSale":false,"woocommerceStockStatus":["instock","outofstock","onbackorder"],"woocommerceAttributes":[],"woocommerceHandPickedProducts":[],"relatedBy":{"categories":true,"tags":true}},"tagName":"div","displayLayout":{"type":"flex","columns":3},"align":"wide","className":"gogh-shop gogh-shop-grid"} --><div class="wp-block-woocommerce-product-collection alignwide gogh-shop gogh-shop-grid">' .
 			'<!-- wp:woocommerce/product-template --><!-- wp:woocommerce/product-image {"showSaleBadge":true,"isDescendentOfQueryLoop":true,"aspectRatio":"1"} --><!-- wp:woocommerce/product-sale-badge {"isDescendentOfQueryLoop":true,"align":"right"} /--><!-- /wp:woocommerce/product-image -->' .
@@ -2531,6 +2559,166 @@ add_action( 'init', function () {
 			'</main><!-- /wp:group -->' .
 			'<!-- wp:template-part {"slug":"footer"} /-->',
 	) );
+} );
+
+/**
+ * Shop looks (James: 'give folks some options to change the design of the
+ * shop page and product category pages — these are the main things folks
+ * want to customize'). A FEW fixed looks for the shop page and for category
+ * pages, built from Woo's own blocks over the inherited archive query —
+ * filters, sorting, pagination and add-to-cart are all Woo's. One choice
+ * per kind, site-wide, from the admin bar. Classic leaves Woo's template
+ * untouched.
+ */
+function gogh_shop_looks() {
+	return array(
+		''          => __( 'Classic — WooCommerce\'s own', 'gogh-editor' ),
+		'editorial' => __( 'Editorial — big title, tall pictures, no buttons', 'gogh-editor' ),
+		'gallery'   => __( 'Gallery — four across, pictures first', 'gogh-editor' ),
+		'catalogue' => __( 'Catalogue — filters beside a three-up grid', 'gogh-editor' ),
+	);
+}
+function gogh_shop_look_kind() {
+	if ( ! function_exists( 'is_shop' ) ) {
+		return '';
+	}
+	if ( is_shop() ) {
+		return 'shop';
+	}
+	if ( is_product_category() || is_product_tag() ) {
+		return 'category';
+	}
+	return '';
+}
+function gogh_shop_look_active( $kind = null ) {
+	$kind = null === $kind ? gogh_shop_look_kind() : $kind;
+	if ( ! $kind ) {
+		return '';
+	}
+	$look = (string) get_option( 'shop' === $kind ? 'gogh_shop_layout' : 'gogh_category_layout', '' );
+	return array_key_exists( $look, gogh_shop_looks() ) ? $look : '';
+}
+function gogh_shop_archive_markup( $look, $kind ) {
+	$coll_query = '"query":{"woocommerceAttributes":[],"woocommerceStockStatus":["instock","outofstock","onbackorder"],"taxQuery":{},"isProductCollectionBlock":true,"perPage":12,"pages":0,"offset":0,"postType":"product","order":"asc","orderBy":"title","author":"","search":"","exclude":[],"sticky":"","inherit":true}';
+	$cols       = 'gallery' === $look ? 4 : 3;
+	$cls        = 'gogh-shop gogh-shop-grid gogh-shoplook-' . $look;
+	$ratio      = 'editorial' === $look ? '3/4' : '1';
+	$collection = '<!-- wp:woocommerce/product-collection {"queryId":0,' . $coll_query . ',"tagName":"div","dimensions":{"widthType":"fill","fixedWidth":""},"displayLayout":{"type":"flex","columns":' . $cols . ',"shrinkColumns":true},"convertedFromProducts":false,"queryContextIncludes":["collection"],"align":"wide","className":"' . $cls . '"} -->' .
+		'<div class="wp-block-woocommerce-product-collection alignwide ' . $cls . '">' .
+		'<!-- wp:woocommerce/product-template -->' .
+		'<!-- wp:woocommerce/product-image {"showSaleBadge":true,"imageSizing":"thumbnail","isDescendentOfQueryLoop":true,"aspectRatio":"' . $ratio . '"} --><!-- wp:woocommerce/product-sale-badge {"isDescendentOfQueryLoop":true,"align":"right"} /--><!-- /wp:woocommerce/product-image -->' .
+		'<!-- wp:post-title {"level":3,"isLink":true,"__woocommerceNamespace":"woocommerce/product-collection/product-title","style":{"spacing":{"margin":{"top":"12px","bottom":"6px"}}}} /-->' .
+		'<!-- wp:woocommerce/product-price {"isDescendentOfQueryLoop":true} /-->' .
+		( 'catalogue' === $look ? '<!-- wp:woocommerce/product-button {"isDescendentOfQueryLoop":true} /-->' : '' ) .
+		'<!-- /wp:woocommerce/product-template -->' .
+		'<!-- wp:query-pagination {"layout":{"type":"flex","justifyContent":"center"}} --><!-- wp:query-pagination-previous /--><!-- wp:query-pagination-numbers /--><!-- wp:query-pagination-next /--><!-- /wp:query-pagination -->' .
+		'<!-- wp:woocommerce/product-collection-no-results --><!-- wp:group {"layout":{"type":"flex","orientation":"vertical","justifyContent":"center","flexWrap":"wrap"}} --><div class="wp-block-group"><!-- wp:pattern {"slug":"woocommerce/no-products-found-clear-filters"} /--></div><!-- /wp:group --><!-- /wp:woocommerce/product-collection-no-results -->' .
+		'</div><!-- /wp:woocommerce/product-collection -->';
+	$toolbar = '<!-- wp:group {"align":"wide","layout":{"type":"flex","flexWrap":"nowrap","justifyContent":"space-between"},"className":"gogh-shop-toolbar"} --><div class="wp-block-group alignwide gogh-shop-toolbar"><!-- wp:woocommerce/product-results-count /--><!-- wp:woocommerce/catalog-sorting /--></div><!-- /wp:group -->';
+	$chips   = ( 'shop' === $kind )
+		? '<!-- wp:woocommerce/product-categories {"hasCount":false,"hasImage":false,"isDropdown":false,"className":"gogh-catchips"} /-->'
+		: '';
+	if ( 'editorial' === $look ) {
+		$head = '<!-- wp:group {"align":"wide","className":"gogh-shop-head gogh-shop-head-editorial","style":{"spacing":{"padding":{"top":"2.5rem","bottom":"1.5rem"}}},"layout":{"type":"constrained"}} --><div class="wp-block-group alignwide gogh-shop-head gogh-shop-head-editorial" style="padding-top:2.5rem;padding-bottom:1.5rem">' .
+			'<!-- wp:query-title {"type":"archive","showPrefix":false,"align":"wide","className":"gogh-shop-title"} /-->' .
+			'<!-- wp:term-description {"align":"wide","className":"gogh-shop-desc"} /-->' .
+			$chips . '</div><!-- /wp:group -->';
+		$body = $toolbar . $collection;
+	} elseif ( 'gallery' === $look ) {
+		$head = '<!-- wp:group {"align":"wide","className":"gogh-shop-head gogh-shop-head-gallery","style":{"spacing":{"padding":{"top":"2rem","bottom":"1rem"}}},"layout":{"type":"constrained"}} --><div class="wp-block-group alignwide gogh-shop-head gogh-shop-head-gallery" style="padding-top:2rem;padding-bottom:1rem">' .
+			'<!-- wp:query-title {"type":"archive","showPrefix":false,"textAlign":"center","className":"gogh-shop-title"} /-->' .
+			'<!-- wp:term-description {"align":"wide","className":"gogh-shop-desc"} /-->' .
+			$chips . '</div><!-- /wp:group -->';
+		$body = $toolbar . $collection;
+	} else { // catalogue
+		$filters = '<!-- wp:woocommerce/product-filters --><div class="wp-block-woocommerce-product-filters">' .
+			'<!-- wp:woocommerce/product-filter-active --><div class="wp-block-woocommerce-product-filter-active"></div><!-- /wp:woocommerce/product-filter-active -->' .
+			'<!-- wp:woocommerce/product-filter-price --><div class="wp-block-woocommerce-product-filter-price"><!-- wp:heading {"level":3,"fontSize":"medium"} --><h3 class="wp-block-heading has-medium-font-size">' . esc_html__( 'Price', 'gogh-editor' ) . '</h3><!-- /wp:heading --><!-- wp:woocommerce/product-filter-price-slider /--></div><!-- /wp:woocommerce/product-filter-price -->';
+		if ( function_exists( 'wc_get_attribute_taxonomies' ) ) {
+			foreach ( wc_get_attribute_taxonomies() as $attr ) {
+				$filters .= '<!-- wp:woocommerce/product-filter-attribute {"attributeId":' . (int) $attr->attribute_id . '} --><div class="wp-block-woocommerce-product-filter-attribute"><!-- wp:heading {"level":3,"fontSize":"medium"} --><h3 class="wp-block-heading has-medium-font-size">' . esc_html( $attr->attribute_label ) . '</h3><!-- /wp:heading --><!-- wp:woocommerce/product-filter-checkbox-list /--></div><!-- /wp:woocommerce/product-filter-attribute -->';
+			}
+		}
+		$filters .= '<!-- wp:woocommerce/product-filter-status --><div class="wp-block-woocommerce-product-filter-status"><!-- wp:heading {"level":3,"fontSize":"medium"} --><h3 class="wp-block-heading has-medium-font-size">' . esc_html__( 'Availability', 'gogh-editor' ) . '</h3><!-- /wp:heading --><!-- wp:woocommerce/product-filter-checkbox-list /--></div><!-- /wp:woocommerce/product-filter-status -->' .
+			'</div><!-- /wp:woocommerce/product-filters -->';
+		$head = '<!-- wp:woocommerce/breadcrumbs {"align":"wide"} /-->' .
+			'<!-- wp:group {"align":"wide","className":"gogh-shop-head gogh-shop-head-catalogue","style":{"spacing":{"padding":{"top":"1.5rem","bottom":"1rem"}}},"layout":{"type":"constrained"}} --><div class="wp-block-group alignwide gogh-shop-head gogh-shop-head-catalogue" style="padding-top:1.5rem;padding-bottom:1rem">' .
+			'<!-- wp:query-title {"type":"archive","showPrefix":false,"align":"wide","className":"gogh-shop-title"} /-->' .
+			'<!-- wp:term-description {"align":"wide","className":"gogh-shop-desc"} /--></div><!-- /wp:group -->';
+		$body = '<!-- wp:columns {"align":"wide","className":"gogh-shop-catalogue","style":{"spacing":{"blockGap":{"left":"3rem"}}}} --><div class="wp-block-columns alignwide gogh-shop-catalogue">' .
+			'<!-- wp:column {"width":"26%","className":"gogh-shop-side"} --><div class="wp-block-column gogh-shop-side" style="flex-basis:26%">' . $filters . '</div><!-- /wp:column -->' .
+			'<!-- wp:column {"width":"74%"} --><div class="wp-block-column" style="flex-basis:74%">' . $toolbar . $collection . '</div><!-- /wp:column -->' .
+			'</div><!-- /wp:columns -->';
+	}
+	return '<!-- wp:template-part {"slug":"header"} /-->' .
+		'<!-- wp:group {"tagName":"main","layout":{"inherit":true,"type":"constrained"},"style":{"spacing":{"margin":{"top":"0","bottom":"0"}}}} --><main class="wp-block-group" style="margin-top:0;margin-bottom:0">' .
+		$head . '<!-- wp:woocommerce/store-notices /-->' . $body .
+		'</main><!-- /wp:group -->' .
+		'<!-- wp:template-part {"slug":"footer"} /-->';
+}
+// the swap: when a look is chosen for this kind of page, the archive
+// template's CONTENT is gogh's — the template itself, its slug and Woo's
+// ownership stay exactly as they were (Classic = no swap at all)
+add_filter( 'get_block_templates', function ( $templates, $query, $template_type ) {
+	if ( 'wp_template' !== $template_type || is_admin() || ! is_array( $templates ) ) {
+		return $templates;
+	}
+	$kind = gogh_shop_look_kind();
+	$look = $kind ? gogh_shop_look_active( $kind ) : '';
+	if ( ! $look ) {
+		return $templates;
+	}
+	foreach ( $templates as $t ) {
+		if ( is_object( $t ) && isset( $t->slug ) && in_array( $t->slug, array( 'archive-product', 'taxonomy-product_cat', 'taxonomy-product_tag' ), true ) ) {
+			$t->content = gogh_shop_archive_markup( $look, $kind );
+			$t->description = 'gogh · ' . $look;
+		}
+	}
+	return $templates;
+}, 20, 3 );
+add_filter( 'body_class', function ( $classes ) {
+	$kind = gogh_shop_look_kind();
+	$look = $kind ? gogh_shop_look_active( $kind ) : '';
+	if ( $look ) {
+		$classes[] = 'gogh-shoplook-' . $look;
+		$classes[] = 'gogh-shoplook-kind-' . $kind;
+	}
+	return $classes;
+}, 20 );
+add_action( 'admin_post_gogh_shop_layout', function () {
+	if ( ! current_user_can( 'edit_theme_options' ) ) {
+		wp_die( esc_html__( 'You cannot change the shop layout.', 'gogh-editor' ) );
+	}
+	check_admin_referer( 'gogh_shop_layout' );
+	$kind   = isset( $_GET['kind'] ) && 'category' === $_GET['kind'] ? 'category' : 'shop';
+	$layout = isset( $_GET['layout'] ) ? sanitize_key( wp_unslash( $_GET['layout'] ) ) : '';
+	if ( ! array_key_exists( $layout, gogh_shop_looks() ) ) {
+		wp_die( esc_html__( 'Unknown layout.', 'gogh-editor' ) );
+	}
+	update_option( 'shop' === $kind ? 'gogh_shop_layout' : 'gogh_category_layout', $layout );
+	$back = isset( $_GET['back'] ) ? esc_url_raw( wp_unslash( $_GET['back'] ) ) : '';
+	wp_safe_redirect( $back ? $back : home_url( '/' ) );
+	exit;
+} );
+// 'You might also like' on product pages: on by default (it sells), one
+// click off for a maker with three products (James: 'folks might want
+// to hide the you might also like section')
+add_filter( 'render_block_core/group', function ( $html, $block ) {
+	$cls = isset( $block['attrs']['className'] ) ? (string) $block['attrs']['className'] : '';
+	if ( false !== strpos( $cls, 'gogh-related' ) && '0' === (string) get_option( 'gogh_product_related', '1' ) ) {
+		return '';
+	}
+	return $html;
+}, 10, 2 );
+add_action( 'admin_post_gogh_product_related', function () {
+	if ( ! current_user_can( 'edit_theme_options' ) ) {
+		wp_die( esc_html__( 'You cannot change this.', 'gogh-editor' ) );
+	}
+	check_admin_referer( 'gogh_product_related' );
+	update_option( 'gogh_product_related', '0' === (string) get_option( 'gogh_product_related', '1' ) ? '1' : '0' );
+	$back = isset( $_GET['back'] ) ? esc_url_raw( wp_unslash( $_GET['back'] ) ) : '';
+	wp_safe_redirect( $back ? $back : home_url( '/' ) );
+	exit;
 } );
 
 add_action( 'admin_post_gogh_product_layout_all', function () {
@@ -3147,7 +3335,7 @@ function gogh_splash_css() {
 // wearing Magazine must read as Magazine logged-out, and the site's gait
 // is site-wide; both packs are a few KB of pure CSS.
 add_action( 'wp_enqueue_scripts', function () {
-	wp_register_style( 'gogh-looks', false, array(), '0.99.381-chrome' );
+	wp_register_style( 'gogh-looks', false, array(), '0.99.382-chrome' );
 	wp_enqueue_style( 'gogh-looks' );
 	wp_add_inline_style( 'gogh-looks', gogh_reading_style_css() . gogh_motion_css() . gogh_blog_style_css() );
 
@@ -3187,10 +3375,10 @@ add_action( 'wp_enqueue_scripts', function () {
 
 	// for every visitor: neutralise theme spacing around gogh sections, even
 	// on pages whose stored stylesheets predate this rule
-	wp_register_style( 'gogh-base', false, array(), '0.99.381-chrome' );
+	wp_register_style( 'gogh-base', false, array(), '0.99.382-chrome' );
 	// (the splash presentation itself lives in gogh_splash_css(), shared with
 	// the block editor — a wall in Gutenberg must look like a wall)
-	wp_register_script( 'gogh-view', false, array(), '0.99.381-chrome', true );
+	wp_register_script( 'gogh-view', false, array(), '0.99.382-chrome', true );
 	wp_enqueue_script( 'gogh-view' );
 	wp_add_inline_script( 'gogh-view',
 		// carousel arrows + autoplay are VIEW-TIME: never stored, so saved
@@ -3388,9 +3576,9 @@ add_action( 'wp_enqueue_scripts', function () {
 
 	// compose must be REGISTERED here too — a dependency on an
 	// unregistered handle silently drops the whole editor script
-	wp_register_script( 'gogh-compose', plugins_url( 'gogh-compose.js', __FILE__ ), array(), '0.99.381-chrome', true );
-	wp_enqueue_script( 'gogh-editor', plugins_url( 'gogh-editor.js', __FILE__ ), array( 'gogh-compose' ), '0.99.381-chrome', true );
-	wp_enqueue_style( 'gogh-editor', plugins_url( 'gogh-editor.css', __FILE__ ), array(), '0.99.381-chrome' );
+	wp_register_script( 'gogh-compose', plugins_url( 'gogh-compose.js', __FILE__ ), array(), '0.99.382-chrome', true );
+	wp_enqueue_script( 'gogh-editor', plugins_url( 'gogh-editor.js', __FILE__ ), array( 'gogh-compose' ), '0.99.382-chrome', true );
+	wp_enqueue_style( 'gogh-editor', plugins_url( 'gogh-editor.css', __FILE__ ), array(), '0.99.382-chrome' );
 
 	// WebMCP bridge: the page registers its editing verbs as agent tools.
 	// OPT-IN only — add ?gogh-mcp=1 for a demo session (or enable sitewide
@@ -3402,13 +3590,13 @@ add_action( 'wp_enqueue_scripts', function () {
 	// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only labs toggle
 	$gogh_exp = isset( $_GET['gogh-test'] ) || ( isset( $_GET['gogh-experiments'] ) && '0' !== $_GET['gogh-experiments'] );
 	if ( isset( $_GET['gogh-mcp'] ) || $gogh_exp || apply_filters( 'gogh_webmcp_enabled', false ) ) {
-		wp_enqueue_script( 'gogh-webmcp', plugins_url( 'gogh-webmcp.js', __FILE__ ), array( 'gogh-editor' ), '0.99.381-chrome', true );
+		wp_enqueue_script( 'gogh-webmcp', plugins_url( 'gogh-webmcp.js', __FILE__ ), array( 'gogh-editor' ), '0.99.382-chrome', true );
 	}
 
 	// regression suite: /page/?gogh-test (editors only, never saves)
 	// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only toggle enqueuing a test script for capability-checked editors.
 	if ( isset( $_GET['gogh-test'] ) ) {
-		wp_enqueue_script( 'gogh-tests', plugins_url( 'gogh-tests.js', __FILE__ ), array( 'gogh-editor' ), '0.99.381-chrome', true );
+		wp_enqueue_script( 'gogh-tests', plugins_url( 'gogh-tests.js', __FILE__ ), array( 'gogh-editor' ), '0.99.382-chrome', true );
 	}
 
 	// products live outside wp/v2, so gogh carries its own save route for
@@ -3423,7 +3611,7 @@ add_action( 'wp_enqueue_scripts', function () {
 		'postTitle'  => get_the_title( $post ),
 		'permalink'  => esc_url_raw( get_permalink( $post->ID ) ),
 		'excerpt'    => (string) $post->post_excerpt,
-		'build'    => '0.99.381-chrome',
+		'build'    => '0.99.382-chrome',
 		// two rooms, one landmark (same contract as the admin bar): on a POST
 		// the corner pill opens the WRITING surface, not the freeform canvas
 		'writeUrl' => is_singular( 'post' ) ? add_query_arg( 'gogh-write', '1', get_permalink( $post ) ) : null,
@@ -3560,7 +3748,7 @@ add_action( 'enqueue_block_assets', function () {
 	if ( ! is_admin() ) {
 		return;
 	}
-	wp_register_style( 'gogh-editor-base', false, array(), '0.99.381-chrome' );
+	wp_register_style( 'gogh-editor-base', false, array(), '0.99.382-chrome' );
 	wp_enqueue_style( 'gogh-editor-base' );
 	wp_add_inline_style( 'gogh-editor-base',
 		'.gogh-wrap { min-width: 100%; margin-block: 0 !important; }' .
@@ -3663,6 +3851,13 @@ add_action( 'admin_bar_menu', function ( $bar ) {
 				'title'  => sprintf( __( 'Apply “%s” to all products', 'gogh-editor' ), $current_label ),
 				'href'   => wp_nonce_url( admin_url( 'admin-post.php?action=gogh_product_layout_all&id=' . $pid ), 'gogh_product_layout_all' ),
 			) );
+			$related_on = '0' !== (string) get_option( 'gogh_product_related', '1' );
+			$bar->add_node( array(
+				'id'     => 'gogh-product-related',
+				'parent' => 'gogh-product-layout',
+				'title'  => ( $related_on ? '✓ ' : '' ) . __( 'Show “You might also like”', 'gogh-editor' ),
+				'href'   => wp_nonce_url( admin_url( 'admin-post.php?action=gogh_product_related&back=' . rawurlencode( get_permalink( $pid ) ) ), 'gogh_product_related' ),
+			) );
 		}
 	}
 	// posts: the same tiny menu for the reading looks (James: 'i really
@@ -3721,6 +3916,25 @@ add_action( 'admin_bar_menu', function ( $bar ) {
 				'parent' => 'gogh-blog-layout',
 				'title'  => ( $slug === $blog_cur ? '✓ ' : '' ) . $label,
 				'href'   => wp_nonce_url( admin_url( 'admin-post.php?action=gogh_blog_layout&layout=' . rawurlencode( $slug ) . '&back=' . rawurlencode( home_url( add_query_arg( array() ) ) ) ), 'gogh_blog_layout' ),
+			) );
+		}
+	}
+	// the shop page and category pages: their looks, from the same door
+	$shop_kind = function_exists( 'gogh_shop_look_kind' ) ? gogh_shop_look_kind() : '';
+	if ( $shop_kind && current_user_can( 'edit_theme_options' ) ) {
+		$shop_cur   = gogh_shop_look_active( $shop_kind );
+		$shop_looks = gogh_shop_looks();
+		$shop_id    = 'gogh-' . $shop_kind . '-layout';
+		$bar->add_node( array(
+			'id'    => $shop_id,
+			'title' => 'shop' === $shop_kind ? '🎨 Shop layout' : '🎨 Category layout',
+		) );
+		foreach ( $shop_looks as $slug => $label ) {
+			$bar->add_node( array(
+				'id'     => $shop_id . '-' . ( $slug ? $slug : 'classic' ),
+				'parent' => $shop_id,
+				'title'  => ( $slug === $shop_cur ? '✓ ' : '' ) . $label,
+				'href'   => wp_nonce_url( admin_url( 'admin-post.php?action=gogh_shop_layout&kind=' . $shop_kind . '&layout=' . rawurlencode( $slug ) . '&back=' . rawurlencode( home_url( add_query_arg( array() ) ) ) ), 'gogh_shop_layout' ),
 			) );
 		}
 	}
