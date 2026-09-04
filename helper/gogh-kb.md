@@ -15,7 +15,7 @@ about something where they conflict, rather than picking one silently. Quote UI
 labels and message copy from the appendix, verbatim — those are the current
 strings, and a paraphrased button label is the fastest way to lose a user's trust.
 
-Generated for plugin version 0.99.371 · knowledge base e0e7ecd.
+Generated for plugin version 0.99.372 · knowledge base 04510eb.
 
 ---
 
@@ -782,11 +782,11 @@ Everything in this section is extracted mechanically from the Gogh source on eve
 
 ## Current release
 
-- Plugin version: **0.99.371**
+- Plugin version: **0.99.372**
 - Requires WordPress **6.5+**, PHP **7.4+**
 - Text domain: `gogh-editor`
 - readme.txt Stable tag: `0.26.0` · Tested up to: `7.0`
-- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.371`). Quote the plugin header version.
+- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.372`). Quote the plugin header version.
 
 ## Design constants
 
@@ -883,6 +883,7 @@ Block: `gogh/section` · v3 attributes: `css`, `model`, `scope`, `v`, `cssT`.
 | `admin_post_nopriv_gogh_form_message` | action | 10 |
 | `wp_enqueue_scripts` | action | 10 |
 | `body_class` | filter | 10 |
+| `render_block_woocommerce/product-collection` | filter | 10 |
 | `wp_enqueue_scripts` | action | 10 |
 | `init` | action | 10 |
 | `body_class` | filter | 10 |
@@ -945,6 +946,7 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "Aa"
 - "Add"
 - "Add a page to this menu"
+- "Add a product ↗"
 - "Add link"
 - "Add something to this section"
 - "Add to page"
@@ -1001,6 +1003,8 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "Link"
 - "Link text (⌘K)"
 - "Make it freeform"
+- "Manage products"
+- "Manage products ↗"
 - "Manage this menu — reorder, nest, swap menus"
 - "Move down"
 - "Move down in the phone stack"
@@ -1015,6 +1019,7 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "None"
 - "One product, hero-sized — a card with a real add-to-cart button"
 - "Open interactive experience"
+- "Open your products in WordPress"
 - "Original"
 - "Outline"
 - "Peek at pages"
@@ -1167,4 +1172,4 @@ These are the real strings in the current build. Use them verbatim; never paraph
 
 ## Test suite
 
-`208` tests, run by appending `?gogh-test` to any Gogh page URL while logged in with edit rights on that page.
+`210` tests, run by appending `?gogh-test` to any Gogh page URL while logged in with edit rights on that page.
