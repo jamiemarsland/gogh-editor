@@ -2928,6 +2928,47 @@
       }
     });
 
+    testAsync('card panel stays open after a picture pick', function () {
+      // the picture is one choice among several — mood, link and shape
+      // follow it (James: "when i select a background image for a card
+      // the modal automatically closes - but i kinda want to be able to
+      // choose other things e.g effect")
+      var s0 = sec();
+      var bi = s0.els.findIndex(function (e) { return e.type === 'box'; });
+      if (bi === -1) {
+        s0.els.push({ type: 'box', x: 60, y: 40, w: 400, h: 260, radius: 12 });
+        G.renderSection(s0);
+        bi = s0.els.length - 1;
+      }
+      G.openPanel(s0, bi);
+      var pnl = q('.gogh-panel');
+      var t0 = Date.now(); // a time budget, not a count — hidden tabs throttle timers
+      return new Promise(function (resolve) {
+        var poll = function () {
+          var th = pnl.querySelector('.gogh-boximg-media .gogh-thumb');
+          if (th || Date.now() - t0 > 12000) resolve(th);
+          else setTimeout(poll, 150);
+        };
+        poll();
+      }).then(function (th) {
+        if (!th) {
+          var mb = pnl.querySelector('.gogh-boximg-media');
+          var why = 'panel ' + (pnl.hidden ? 'hidden' : 'open') + ', media box ' + (mb ? mb.innerHTML.length + ' chars' : 'missing') +
+            ', waited ' + Math.round((Date.now() - t0) / 1000) + 's, tab ' + document.visibilityState;
+          G.closePanel();
+          return 'no media to pick from here \u2014 nothing to judge (' + why + ')';
+        }
+        th.click();
+        var e = s0.els[bi];
+        expect(!pnl.hidden, 'the panel closed on the picture pick');
+        expect(e.boxImg, 'the pick did not land on the card');
+        expect(th.classList.contains('is-active'), 'the chosen thumb is not marked');
+        expect(pnl.querySelector('.gogh-moodrow'), 'the mood row is gone after the pick');
+        G.closePanel();
+        return 'picked, applied, still open for mood/link/shape';
+      });
+    });
+
     test('chrome veils never outgrow their part', function () {
       // a transparent header computes absolute at veil time, so the old
       // anchor check skipped it; when an audition or restore took the

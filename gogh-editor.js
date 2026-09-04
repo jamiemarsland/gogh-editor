@@ -3911,13 +3911,6 @@
       });
     });
     // choosing an image completes the task — close instead of rebuilding
-    function applyAndClose() {
-      renderSection(sec);
-      placeHandles(sec, i);
-      pushState();
-      closePanel();
-      contrastSentinel(sec, i); // the card's new ground judges its words
-    }
     var chBtn = panel.querySelector('.gogh-cardhref-apply');
     if (chBtn) chBtn.addEventListener('click', function () {
       var u = panel.querySelector('.gogh-cardhref').value.trim();
@@ -3965,8 +3958,14 @@
             e.boxImg = boxCur.img; // undo lands on the true before
             e.boxImg = boxCur.img = item.source_url;
             e.boxImgId = item.id;
-            applyAndClose();
+            // the picture is one choice among several — the panel stays
+            // open so mood, link and shape can follow (James: "i kinda
+            // want to be able to choose other things e.g effect")
+            reapply();
+            contrastSentinel(sec, i); // the card's new ground judges its words
+            mbox.querySelectorAll('.gogh-thumb').forEach(function (t2) { t2.classList.toggle('is-active', t2 === tb); });
           });
+          if (e.boxImg && item.source_url === e.boxImg) tb.classList.add('is-active');
           mbox.appendChild(tb);
         });
         reclampPanel();
@@ -3989,7 +3988,9 @@
       }).then(function (item) {
         e.boxImg = item.source_url;
         e.boxImgId = item.id;
-        applyAndClose();
+        blabel.firstChild.textContent = 'Upload';
+        reapply(); // stays open — the upload is a choice, not the last word
+        contrastSentinel(sec, i);
       }).catch(function (err) {
         blabel.firstChild.textContent = 'Upload failed';
         console.error('gogh upload failed:', err);
