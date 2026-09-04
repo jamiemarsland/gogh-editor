@@ -1,8 +1,8 @@
-# Knowledge-base audit — plugin v0.99.371
+# Knowledge-base audit — plugin v0.99.372
 
 _13 finding(s) suppressed by `kb.audit-ignore.txt`._
 
-## MISSING (53)
+## MISSING (54)
 
 The source has something the prose never explains. The bot knows the name from the appendix but cannot say what it is for.
 
@@ -32,6 +32,7 @@ The source has something the prose never explains. The bot knows the name from t
 - WP hook `admin_post_gogh_form_message` exists in source but is never mentioned in the prose
 - WP hook `admin_post_nopriv_gogh_form_message` exists in source but is never mentioned in the prose
 - WP hook `body_class` exists in source but is never mentioned in the prose
+- WP hook `render_block_woocommerce/product-collection` exists in source but is never mentioned in the prose
 - WP hook `body_class` exists in source but is never mentioned in the prose
 - WP hook `body_class` exists in source but is never mentioned in the prose
 - WP hook `trashed_post` exists in source but is never mentioned in the prose
@@ -76,4 +77,9 @@ Quoted copy not found verbatim in the source. Paraphrases are fine; changed UI c
 
 Use this as the checklist for updating the prose — and as a sanity check on the release itself.
 
-- version: 0.99.370 → 0.99.371
+- version: 0.99.371 → 0.99.372
+- added WP hook: "render_block_woocommerce/product-collection"
+- added UI label: "Add a product ↗"
+- added UI label: "Manage products"
+- added UI label: "Manage products ↗"
+- added UI label: "Open your products in WordPress"
