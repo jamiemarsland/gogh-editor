@@ -3830,3 +3830,10 @@ html[data-gogh-scope="site"] .gogh-panel-back::after { content: "Site"; }
 .gogh-shop-verbs { display: flex; align-items: center; gap: 10px; margin: 4px 0 12px; }
 .gogh-shop-verb-on { font-size: 12.5px; font-weight: 700; color: #4a63d8; padding: 6px 12px; border-radius: 999px; background: rgba(74, 99, 216, 0.1); }
 .gogh-shop-cat { width: 100%; }
+
+/* the corner pill steps aside for Woo's drawers and modals (mini-cart,
+   quick view) and the open mobile menu — it was sitting on Go to checkout
+   (James). React keeps the drawer mounted when closed, hidden by a class. */
+body:has(.wc-block-components-drawer__screen-overlay:not(.wc-block-components-drawer__screen-overlay--is-hidden)) .gogh-bar,
+body:has(.wc-block-components-modal__screen-overlay) .gogh-bar,
+body:has(.wp-block-navigation__responsive-container.is-menu-open) .gogh-bar { opacity: 0; pointer-events: none; transition: opacity 0.15s ease; }

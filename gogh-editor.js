@@ -1684,6 +1684,9 @@
   editBtnWrap.innerHTML = '<button type="button" class="gogh-btn gogh-btn-edit">' +
     (cfg.writeUrl ? '✏️ Edit post' : '✏️ Edit with gogh') + '</button>';
   document.body.appendChild(editBtnWrap);
+  // Woo's cart, checkout and account pages are rails: nothing there is gogh's
+  // to edit, so the pill stays away and never covers a Place order button
+  if (/\bwoocommerce-(cart|checkout|account)\b/.test(document.body.className)) editBtnWrap.hidden = true;
   var editBtn = editBtnWrap.querySelector('.gogh-btn-edit');
 
   // ---------- the post's front end is for READING ----------

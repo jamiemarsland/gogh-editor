@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Gogh Editor
  * Description: A freeform canvas for WordPress — drag anything anywhere on your live page; Gogh publishes it back as clean, responsive core blocks that keep working even if the plugin is deactivated.
- * Version: 0.99.375
+ * Version: 0.99.376
  * Author: Jamie Marsland
  * Author URI: https://pootlepress.com
  * License: GPLv2 or later
@@ -23,7 +23,7 @@ add_action( 'init', function () {
 		'gogh-block',
 		plugins_url( 'gogh-block.js', __FILE__ ),
 		array( 'wp-blocks', 'wp-element', 'wp-block-editor' ),
-		'0.99.375-chrome',
+		'0.99.376-chrome',
 		true
 	);
 	register_block_type( 'gogh/section', array(
@@ -472,9 +472,9 @@ add_action( 'wp_enqueue_scripts', function () {
 	if ( ! $post || ! current_user_can( 'edit_post', $post->ID ) ) {
 		return;
 	}
-	wp_register_script( 'gogh-compose', plugins_url( 'gogh-compose.js', __FILE__ ), array(), '0.99.375-chrome', true );
-	wp_enqueue_script( 'gogh-write', plugins_url( 'gogh-write.js', __FILE__ ), array( 'gogh-compose' ), '0.99.375-chrome', true );
-	wp_enqueue_style( 'gogh-write', plugins_url( 'gogh-write.css', __FILE__ ), array(), '0.99.375-chrome' );
+	wp_register_script( 'gogh-compose', plugins_url( 'gogh-compose.js', __FILE__ ), array(), '0.99.376-chrome', true );
+	wp_enqueue_script( 'gogh-write', plugins_url( 'gogh-write.js', __FILE__ ), array( 'gogh-compose' ), '0.99.376-chrome', true );
+	wp_enqueue_style( 'gogh-write', plugins_url( 'gogh-write.css', __FILE__ ), array(), '0.99.376-chrome' );
 	wp_localize_script( 'gogh-write', 'GOGHWRITE', array(
 		'postId'  => $post->ID,
 		'restUrl' => esc_url_raw( rest_url() ),
@@ -1488,6 +1488,46 @@ function gogh_menu_style_css() {
 		'@keyframes gogh-menu-sheet { from { transform: translateY(100%); } to { transform: none; } }' .
 		'@media (prefers-reduced-motion: reduce) { body.gogh-mm-drawer ' . $open . ', body.gogh-mm-sheet ' . $open . ' { animation: none !important; } }';
 }
+// ---------- the header's dressing, on EVERY front-end page ----------
+// These rules lived in gogh-base, which only loads on singular gogh pages —
+// so the shop archive, cart, checkout and the blog index wore a broken
+// header (James: 'header broken on shop page'). A header is site-wide.
+function gogh_chrome_css() {
+	return
+		'header.wp-block-template-part:not(:has(.gogh-chrome-preview)):has(.gogh-header-overlay), header.wp-block-template-part:has(.gogh-chrome-preview .gogh-header-overlay) { position: absolute; top: var(--wp-admin--admin-bar--height, 0px); left: 0; right: 0; z-index: 40; background: transparent; }' .
+		// no automatic scrim: transparent means TRANSPARENT ("transparent not
+		// transparent" — over a pale hero the helpful gradient read as a grey
+		// smear). The Look row's custom colour + see-through dial is the
+		// scrim now, on demand, in the user's own colour.
+
+		// the row declares its text colour; links inherit it — element-level
+		// link CSS does not survive every render context (REST previews)
+		'.gogh-hrow.has-text-color a, .gogh-hrow.has-text-color .wp-block-navigation-item__content, .gogh-hrow.has-text-color .wp-block-navigation { color: inherit !important; }' .
+		'#wpadminbar .gogh-ab-ic { display: inline-block; vertical-align: -2px; margin-right: 7px; }' .
+		// when gogh sizes the nav, the links FOLLOW — theme rules on the
+		// anchors otherwise out-rank the container's size
+		'.wp-block-navigation[style*="font-size"] a { font-size: inherit; }' .
+		// a real logo makes the text title redundant — one identity, not two
+		// one identity, not two: a real logo image hides the redundant text
+		// title — scoped to the whole header part, because some layouts
+		// (Centred) don't wear .gogh-hrow and showed BOTH ("two logos")
+		'header.wp-block-template-part:has(.wp-block-site-logo img) .wp-block-site-title, .gogh-hrow:has(.wp-block-site-logo img) .wp-block-site-title { display: none; }' .
+		// sticky pins the HEADER ELEMENT (the inner group has zero travel);
+		// theme-independent, admin-bar aware
+		'header.wp-block-template-part:not(:has(.gogh-chrome-preview)):has(.gogh-sticky), header.wp-block-template-part:has(.gogh-chrome-preview .gogh-sticky) { position: sticky; top: var(--wp-admin--admin-bar--height, 0px); z-index: 90; }' .
+		// transparent AND sticky: sticky alone keeps its flow space (the
+		// grey band that hid the float through three bug reports) — fixed
+		// floats over the hero AND stays through the scroll
+		'header.wp-block-template-part:not(:has(.gogh-chrome-preview)):has(.gogh-header-overlay):has(.gogh-sticky), header.wp-block-template-part:has(.gogh-chrome-preview .gogh-header-overlay):has(.gogh-chrome-preview .gogh-sticky) { position: fixed; top: var(--wp-admin--admin-bar--height, 0px); left: 0; right: 0; z-index: 90; }' .
+		// WooCommerce block-hooks append cart/account icons after the nav in
+		// every header — give them a deliberate seat instead of a random one:
+		// nav pushes right, icons tuck in beside it, stacks stay centred
+		'.gogh-hrow { align-items: center; gap: 1.1rem; }' .
+		'.gogh-hrow > .wp-block-navigation { margin-left: auto; }' .
+		'.gogh-hrow > [class*="mini-cart"], .gogh-hrow > [class*="customer-account"] { flex: none; }' .
+		'.gogh-hstack > [class*="mini-cart"], .gogh-hstack > [class*="customer-account"] { align-self: center; }' .
+		'';
+}
 function gogh_menu_overlay_css() {
 	return '.wp-block-navigation__responsive-container.is-menu-open { background: var(--wp--preset--color--base, #fff) !important; color: var(--wp--preset--color--contrast, #141519); padding: clamp(24px, 6vw, 72px) !important; animation: gogh-menu-in 0.28s ease; }' .
 		'.wp-block-navigation__responsive-container.is-menu-open .wp-block-navigation__responsive-container-content { align-items: center; justify-content: center; }' .
@@ -1569,7 +1609,7 @@ add_filter( 'render_block_woocommerce/product-collection', function ( $html, $bl
 add_action( 'wp_enqueue_scripts', function () {
 	wp_register_style( 'gogh-menu', false, array(), null );
 	wp_enqueue_style( 'gogh-menu' );
-	wp_add_inline_style( 'gogh-menu', gogh_menu_overlay_css() . gogh_menu_style_css() );
+	wp_add_inline_style( 'gogh-menu', gogh_chrome_css() . gogh_menu_overlay_css() . gogh_menu_style_css() );
 	if ( class_exists( 'WooCommerce' ) ) {
 		wp_add_inline_style( 'gogh-menu', gogh_shop_css() );
 	}
@@ -1846,7 +1886,7 @@ add_action( 'rest_api_init', function () {
 			return current_user_can( 'edit_posts' );
 		},
 		'callback'            => function () {
-			return array( 'build' => '0.99.375-chrome' );
+			return array( 'build' => '0.99.376-chrome' );
 		},
 	) );
 	register_rest_route( 'gogh/v1', '/starter', array(
@@ -2955,7 +2995,7 @@ function gogh_splash_css() {
 // wearing Magazine must read as Magazine logged-out, and the site's gait
 // is site-wide; both packs are a few KB of pure CSS.
 add_action( 'wp_enqueue_scripts', function () {
-	wp_register_style( 'gogh-looks', false, array(), '0.99.375-chrome' );
+	wp_register_style( 'gogh-looks', false, array(), '0.99.376-chrome' );
 	wp_enqueue_style( 'gogh-looks' );
 	wp_add_inline_style( 'gogh-looks', gogh_reading_style_css() . gogh_motion_css() . gogh_blog_style_css() );
 
@@ -2976,7 +3016,7 @@ add_action( 'wp_enqueue_scripts', function () {
 	foreach ( $looks as $l ) {
 		$items .= '<button type="button" data-blog-look="' . esc_attr( $l[0] ) . '" class="' . ( $cur === $l[0] ? 'is-current' : '' ) . '"><b>' . esc_html( $l[1] ) . '</b><i>' . esc_html( $l[2] ) . '</i></button>';
 	}
-	wp_register_script( 'gogh-blogstyle', false, array(), '0.99.375-chrome', true );
+	wp_register_script( 'gogh-blogstyle', false, array(), '0.99.376-chrome', true );
 	wp_enqueue_script( 'gogh-blogstyle' );
 	wp_add_inline_style( 'gogh-looks',
 		'.gogh-bs-pillwrap { position: fixed; right: 22px; bottom: 20px; z-index: 99999; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, sans-serif; }' .
@@ -3047,10 +3087,10 @@ add_action( 'wp_enqueue_scripts', function () {
 
 	// for every visitor: neutralise theme spacing around gogh sections, even
 	// on pages whose stored stylesheets predate this rule
-	wp_register_style( 'gogh-base', false, array(), '0.99.375-chrome' );
+	wp_register_style( 'gogh-base', false, array(), '0.99.376-chrome' );
 	// (the splash presentation itself lives in gogh_splash_css(), shared with
 	// the block editor — a wall in Gutenberg must look like a wall)
-	wp_register_script( 'gogh-view', false, array(), '0.99.375-chrome', true );
+	wp_register_script( 'gogh-view', false, array(), '0.99.376-chrome', true );
 	wp_enqueue_script( 'gogh-view' );
 	wp_add_inline_script( 'gogh-view',
 		// carousel arrows + autoplay are VIEW-TIME: never stored, so saved
@@ -3231,38 +3271,7 @@ add_action( 'wp_enqueue_scripts', function () {
 		// audition lied and switching away "did nothing" (the stuck-header
 		// report). Rule: while previewing, ONLY the preview box governs;
 		// otherwise (and always on the published page) the part's own content.
-		'header.wp-block-template-part:not(:has(.gogh-chrome-preview)):has(.gogh-header-overlay), header.wp-block-template-part:has(.gogh-chrome-preview .gogh-header-overlay) { position: absolute; top: var(--wp-admin--admin-bar--height, 0px); left: 0; right: 0; z-index: 40; background: transparent; }' .
-		// no automatic scrim: transparent means TRANSPARENT ("transparent not
-		// transparent" — over a pale hero the helpful gradient read as a grey
-		// smear). The Look row's custom colour + see-through dial is the
-		// scrim now, on demand, in the user's own colour.
-
-		// the row declares its text colour; links inherit it — element-level
-		// link CSS does not survive every render context (REST previews)
-		'.gogh-hrow.has-text-color a, .gogh-hrow.has-text-color .wp-block-navigation-item__content, .gogh-hrow.has-text-color .wp-block-navigation { color: inherit !important; }' .
-		'#wpadminbar .gogh-ab-ic { display: inline-block; vertical-align: -2px; margin-right: 7px; }' .
-		// when gogh sizes the nav, the links FOLLOW — theme rules on the
-		// anchors otherwise out-rank the container's size
-		'.wp-block-navigation[style*="font-size"] a { font-size: inherit; }' .
-		// a real logo makes the text title redundant — one identity, not two
-		// one identity, not two: a real logo image hides the redundant text
-		// title — scoped to the whole header part, because some layouts
-		// (Centred) don't wear .gogh-hrow and showed BOTH ("two logos")
-		'header.wp-block-template-part:has(.wp-block-site-logo img) .wp-block-site-title, .gogh-hrow:has(.wp-block-site-logo img) .wp-block-site-title { display: none; }' .
-		// sticky pins the HEADER ELEMENT (the inner group has zero travel);
-		// theme-independent, admin-bar aware
-		'header.wp-block-template-part:not(:has(.gogh-chrome-preview)):has(.gogh-sticky), header.wp-block-template-part:has(.gogh-chrome-preview .gogh-sticky) { position: sticky; top: var(--wp-admin--admin-bar--height, 0px); z-index: 90; }' .
-		// transparent AND sticky: sticky alone keeps its flow space (the
-		// grey band that hid the float through three bug reports) — fixed
-		// floats over the hero AND stays through the scroll
-		'header.wp-block-template-part:not(:has(.gogh-chrome-preview)):has(.gogh-header-overlay):has(.gogh-sticky), header.wp-block-template-part:has(.gogh-chrome-preview .gogh-header-overlay):has(.gogh-chrome-preview .gogh-sticky) { position: fixed; top: var(--wp-admin--admin-bar--height, 0px); left: 0; right: 0; z-index: 90; }' .
-		// WooCommerce block-hooks append cart/account icons after the nav in
-		// every header — give them a deliberate seat instead of a random one:
-		// nav pushes right, icons tuck in beside it, stacks stay centred
-		'.gogh-hrow { align-items: center; gap: 1.1rem; }' .
-		'.gogh-hrow > .wp-block-navigation { margin-left: auto; }' .
-		'.gogh-hrow > [class*="mini-cart"], .gogh-hrow > [class*="customer-account"] { flex: none; }' .
-		'.gogh-hstack > [class*="mini-cart"], .gogh-hstack > [class*="customer-account"] { align-self: center; }' .
+		// (the header's dressing ships site-wide with gogh-menu — see gogh_chrome_css)
 		gogh_widget_css()
 	);
 
@@ -3279,9 +3288,9 @@ add_action( 'wp_enqueue_scripts', function () {
 
 	// compose must be REGISTERED here too — a dependency on an
 	// unregistered handle silently drops the whole editor script
-	wp_register_script( 'gogh-compose', plugins_url( 'gogh-compose.js', __FILE__ ), array(), '0.99.375-chrome', true );
-	wp_enqueue_script( 'gogh-editor', plugins_url( 'gogh-editor.js', __FILE__ ), array( 'gogh-compose' ), '0.99.375-chrome', true );
-	wp_enqueue_style( 'gogh-editor', plugins_url( 'gogh-editor.css', __FILE__ ), array(), '0.99.375-chrome' );
+	wp_register_script( 'gogh-compose', plugins_url( 'gogh-compose.js', __FILE__ ), array(), '0.99.376-chrome', true );
+	wp_enqueue_script( 'gogh-editor', plugins_url( 'gogh-editor.js', __FILE__ ), array( 'gogh-compose' ), '0.99.376-chrome', true );
+	wp_enqueue_style( 'gogh-editor', plugins_url( 'gogh-editor.css', __FILE__ ), array(), '0.99.376-chrome' );
 
 	// WebMCP bridge: the page registers its editing verbs as agent tools.
 	// OPT-IN only — add ?gogh-mcp=1 for a demo session (or enable sitewide
@@ -3293,13 +3302,13 @@ add_action( 'wp_enqueue_scripts', function () {
 	// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only labs toggle
 	$gogh_exp = isset( $_GET['gogh-test'] ) || ( isset( $_GET['gogh-experiments'] ) && '0' !== $_GET['gogh-experiments'] );
 	if ( isset( $_GET['gogh-mcp'] ) || $gogh_exp || apply_filters( 'gogh_webmcp_enabled', false ) ) {
-		wp_enqueue_script( 'gogh-webmcp', plugins_url( 'gogh-webmcp.js', __FILE__ ), array( 'gogh-editor' ), '0.99.375-chrome', true );
+		wp_enqueue_script( 'gogh-webmcp', plugins_url( 'gogh-webmcp.js', __FILE__ ), array( 'gogh-editor' ), '0.99.376-chrome', true );
 	}
 
 	// regression suite: /page/?gogh-test (editors only, never saves)
 	// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only toggle enqueuing a test script for capability-checked editors.
 	if ( isset( $_GET['gogh-test'] ) ) {
-		wp_enqueue_script( 'gogh-tests', plugins_url( 'gogh-tests.js', __FILE__ ), array( 'gogh-editor' ), '0.99.375-chrome', true );
+		wp_enqueue_script( 'gogh-tests', plugins_url( 'gogh-tests.js', __FILE__ ), array( 'gogh-editor' ), '0.99.376-chrome', true );
 	}
 
 	// products live outside wp/v2, so gogh carries its own save route for
@@ -3314,7 +3323,7 @@ add_action( 'wp_enqueue_scripts', function () {
 		'postTitle'  => get_the_title( $post ),
 		'permalink'  => esc_url_raw( get_permalink( $post->ID ) ),
 		'excerpt'    => (string) $post->post_excerpt,
-		'build'    => '0.99.375-chrome',
+		'build'    => '0.99.376-chrome',
 		// two rooms, one landmark (same contract as the admin bar): on a POST
 		// the corner pill opens the WRITING surface, not the freeform canvas
 		'writeUrl' => is_singular( 'post' ) ? add_query_arg( 'gogh-write', '1', get_permalink( $post ) ) : null,
@@ -3451,7 +3460,7 @@ add_action( 'enqueue_block_assets', function () {
 	if ( ! is_admin() ) {
 		return;
 	}
-	wp_register_style( 'gogh-editor-base', false, array(), '0.99.375-chrome' );
+	wp_register_style( 'gogh-editor-base', false, array(), '0.99.376-chrome' );
 	wp_enqueue_style( 'gogh-editor-base' );
 	wp_add_inline_style( 'gogh-editor-base',
 		'.gogh-wrap { min-width: 100%; margin-block: 0 !important; }' .
