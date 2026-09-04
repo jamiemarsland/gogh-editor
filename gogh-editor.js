@@ -3327,6 +3327,7 @@
     var e = sec.els[i];
     panel.classList.remove('gogh-panel-wide');
     panel.innerHTML = '';
+    panel.__imgFor = null;
     if (e.type === 'button') buildLinkPanel(sec, i);
     else if (e.type === 'image') buildImagePanel(sec, i);
     else if (e.type === 'box') buildBoxPanel(sec, i);
@@ -3926,8 +3927,7 @@
       renderSection(sec);
       placeHandles(sec, i);
       pushState();
-      closePanel();
-      toast(u ? 'The whole card links to ' + u : 'Card link removed.');
+      toast(u ? 'The whole card links to ' + u : 'Card link removed.'); // the panel stays — shape and mood may follow
     });
     var bclear = panel.querySelector('.gogh-boximg-clear');
     if (bclear) bclear.addEventListener('click', function () {
@@ -4011,11 +4011,30 @@
     if (alt !== undefined) e.alt = alt || null;
     renderSection(sec);
     placeHandles(sec, i);
-    closePanel();
     pushState();
+    // the picture is one choice among several (alt text, another
+    // picture, the URL) — the panel stays open and follows the pick;
+    // Esc or a click away closes it (the panels-stay-open law)
+    if (!panel.hidden && panel.__imgFor && panel.__imgFor.sec === sec && panel.__imgFor.i === i) syncImagePanel(sec, i);
+    else closePanel();
+  }
+  function syncImagePanel(sec, i) {
+    var e = sec.els[i];
+    var input = panel.querySelector('input[type="url"]');
+    if (input) input.value = e.src || '';
+    var altInput = panel.querySelector('.gogh-alt');
+    if (altInput) altInput.value = e.alt || '';
+    var clear = panel.querySelector('.gogh-clear');
+    if (clear) clear.hidden = !e.src;
+    panel.querySelectorAll('.gogh-media .gogh-thumb').forEach(function (b) {
+      b.classList.toggle('is-active', !!e.src && b.dataset.src === e.src);
+    });
+    var label = panel.querySelector('.gogh-upload');
+    if (label && label.firstChild) label.firstChild.textContent = 'Upload';
   }
   function buildImagePanel(sec, i) {
     var e = sec.els[i];
+    panel.__imgFor = { sec: sec, i: i };
     panel.innerHTML =
       '<div class="gogh-panel-title">Image</div>' +
       '<div class="gogh-panel-row">' +
@@ -4027,7 +4046,7 @@
       '</div>' +
       '<div class="gogh-panel-row gogh-panel-actions">' +
       (cfg.canUpload ? '<label class="gogh-btn gogh-btn-small gogh-upload">Upload<input type="file" accept="image/*" hidden /></label>' : '') +
-      (e.src ? '<button type="button" class="gogh-btn gogh-btn-small gogh-clear">Remove image</button>' : '') +
+      '<button type="button" class="gogh-btn gogh-btn-small gogh-clear"' + (e.src ? '' : ' hidden') + '>Remove image</button>' +
       '</div>' +
       '<div class="gogh-media"><span class="gogh-media-loading">Loading media…</span></div>';
     var input = panel.querySelector('input[type="url"]');
@@ -4095,6 +4114,8 @@
           b.className = 'gogh-thumb';
           b.style.backgroundImage = 'url("' + url + '")';
           b.title = (item.title && item.title.rendered) || '';
+          b.dataset.src = item.source_url;
+          if (sec.els[i].src === item.source_url) b.classList.add('is-active');
           auditionHover(b, function () {
             sec.els[i].src = item.source_url;
             renderSection(sec);

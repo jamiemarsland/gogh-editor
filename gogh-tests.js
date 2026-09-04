@@ -3033,6 +3033,44 @@
       return 'four layouts, three grounds, one option';
     });
 
+    test('card link Apply keeps the panel open', function () {
+      var s0 = sec();
+      // the link row belongs to a CARD (a box with kids)
+      s0.els.push({ type: 'box', x: 60, y: 40, w: 400, h: 260, radius: 12,
+        kids: [{ type: 'heading', x: 24, y: 24, w: 300, h: 60, text: 'A card' }] });
+      G.renderSection(s0);
+      var bi = s0.els.length - 1;
+      G.openPanel(s0, bi);
+      var pnl = q('.gogh-panel');
+      var inp = pnl.querySelector('.gogh-cardhref');
+      var btn = pnl.querySelector('.gogh-cardhref-apply');
+      expect(inp && btn, 'no card link row');
+      inp.value = 'example.com/shop';
+      btn.click();
+      expect(!pnl.hidden, 'the panel closed on Apply');
+      expect(s0.els[bi].href === 'https://example.com/shop', 'link not kept: ' + s0.els[bi].href);
+      G.closePanel();
+      return 'link kept, panel still open for shape and mood';
+    });
+
+    test('image URL Apply keeps the image panel open and in step', function () {
+      var s0 = sec();
+      var ii = findIdx('image');
+      expect(ii !== -1, 'fixture lacks an image');
+      G.openPanel(s0, ii);
+      var pnl = q('.gogh-panel');
+      var url = pnl.querySelector('input[type="url"]');
+      pnl.querySelector('.gogh-apply').click(); // same URL — still a pick
+      expect(!pnl.hidden, 'the panel closed on Apply');
+      url.value = '/wp-content/plugins/gogh/demo-assets/sunflowers.jpg';
+      pnl.querySelector('.gogh-apply').click();
+      expect(!pnl.hidden, 'the panel closed on a URL change');
+      expect(s0.els[ii].src === '/wp-content/plugins/gogh/demo-assets/sunflowers.jpg', 'src not applied');
+      expect(!pnl.querySelector('.gogh-clear').hidden, 'Remove image should show once there is a picture');
+      G.closePanel();
+      return 'picked twice, still open';
+    });
+
     test('chrome veils never outgrow their part', function () {
       // a transparent header computes absolute at veil time, so the old
       // anchor check skipped it; when an audition or restore took the
