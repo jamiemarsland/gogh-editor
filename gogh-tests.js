@@ -4371,11 +4371,23 @@
       G.openMotionPanel();
       var cards = document.querySelectorAll('.gogh-motioncard');
       expect(cards.length === 4, 'expected 4 motion cards, got ' + cards.length);
+      // the save is a REST round trip: wait for the VALUE, not a fixed timer
+      // (a busy, throttled tab made 1200ms a coin toss)
+      var until = function (want) {
+        var t0 = Date.now();
+        return new Promise(function (res) {
+          var look = function () {
+            if (window.GOGH.motion === want || Date.now() - t0 > 8000) res();
+            else setTimeout(look, 100);
+          };
+          look();
+        });
+      };
       cards[keys.indexOf(probeKey)].click();
-      return new Promise(function (res) { setTimeout(res, 1200); }).then(function () {
+      return until(probeKey).then(function () {
         expect(window.GOGH.motion === probeKey, 'cfg.motion not updated: ' + window.GOGH.motion);
         cards[keys.indexOf(had)].click(); // put the site's own gait back
-        return new Promise(function (res) { setTimeout(res, 1200); });
+        return until(had);
       }).then(function () {
         expect(window.GOGH.motion === had, 'gait not restored: ' + window.GOGH.motion + ' vs ' + had);
         return 'probed ' + probeKey + ' over REST, restored "' + (had || 'still') + '"';
@@ -4896,7 +4908,7 @@
       G.closeSide(true);
       ar.click();
       var wrap = q('.gogh-arwrap');
-      expect(wrap && /What machines see/.test(wrap.textContent), 'the SEO tab did not open the receipts');
+      expect(wrap && /How Google and AI read this page/.test(wrap.textContent), 'the SEO tab did not open the receipts');
       wrap.remove();
       return 'three scopes, three doors';
     });

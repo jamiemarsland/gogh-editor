@@ -2108,7 +2108,7 @@
   var arTab = document.createElement('button');
   arTab.type = 'button';
   arTab.className = 'gogh-side-tab gogh-ar-tab';
-  arTab.title = 'SEO & AI answers — how machines read this page';
+  arTab.title = 'SEO — how Google and AI read this page';
   arTab.innerHTML = '<span>SEO</span>'; // no dot: a dot beside Design's decorative one read as fake status
   railBox.appendChild(arTab);
   arTab.addEventListener('click', function () { openAnswerReadyPanel(); });
@@ -13859,7 +13859,7 @@
     // toast and the drawer badge teach the ✦; here it only needs to be
     // recognised (tooltip carries the words). Shown on the clean chip via
     // CSS, hidden while there's publishing to think about.
-    '<button type="button" class="gogh-chip-ar" title="Answer-ready — see what machines see">✦</button>';
+    '<button type="button" class="gogh-chip-ar" title="How Google and AI read this page">✦</button>';
   document.body.appendChild(chip);
   chip.querySelector('.gogh-chip-ar').addEventListener('click', function () {
     openAnswerReadyPanel();
@@ -13910,7 +13910,7 @@
     document.querySelectorAll('.gogh-ar-tab').forEach(function (t) {
       // the tick reads AFTER the word in the rail's vertical run — "SEO ✓"
       t.innerHTML = '<span>SEO</span>' + (done ? '<span class="gogh-ar-ticky">✓</span>' : '');
-      if (done) t.title = 'SEO & AI answers — complete: schema, description and structure all in place';
+      if (done) t.title = 'SEO — complete: schema, description and structure all in place';
     });
   }
 
@@ -13925,9 +13925,9 @@
     var wrap = document.createElement('div');
     wrap.className = 'gogh-arwrap';
     wrap.innerHTML = '<div class="gogh-arback"></div>' +
-      '<div class="gogh-arpanel" role="dialog" aria-label="What machines see">' +
-      '<h3>What machines see</h3>' +
-      '<p class="gogh-ar-sub">Search engines and AIs read your page as facts. These are yours, straight from the live page.</p>' +
+      '<div class="gogh-arpanel" role="dialog" aria-label="How Google and AI read this page">' +
+      '<h3>How Google and AI read this page</h3>' +
+      '<p class="gogh-ar-sub">Google and AI assistants read your page as a set of facts. These are yours, straight from the live page.</p>' +
       (snippable ?
         '<div class="gogh-ar-status"><span class="gogh-ar-statusdot"></span><span class="gogh-ar-statustext"></span></div>' +
         '<div class="gogh-ar-cap">How it looks in search</div>' +
