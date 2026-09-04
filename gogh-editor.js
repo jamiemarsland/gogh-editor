@@ -2183,6 +2183,7 @@
   elbar.className = 'gogh-elbar';
   elbar.innerHTML =
     '<button type="button" class="gogh-eb gogh-eb-ctx"></button>' +
+    '<button type="button" class="gogh-eb gogh-eb-manage" title="Open your products in WordPress">Manage products</button>' +
     '<button type="button" class="gogh-eb gogh-eb-fs" title="Cycle theme font sizes"></button>' +
     '<button type="button" class="gogh-eb gogh-eb-fit" title="Fill the width — size the text to its box">' +
     '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h18M3 12l4-4M3 12l4 4M21 12l-4-4M21 12l-4 4"/></svg></button>' +
@@ -2196,6 +2197,11 @@
     '<button type="button" class="gogh-eb gogh-eb-dup" title="Duplicate (or Alt-drag)">⧉</button>' +
     '<button type="button" class="gogh-eb gogh-eb-del" title="Delete (Del)">🗑</button>';
   var ctxBtn = elbar.querySelector('.gogh-eb-ctx');
+  elbar.querySelector('.gogh-eb-manage').addEventListener('click', function () {
+    if (!sel) return;
+    var e2 = sel.sec.els[sel.i];
+    if (e2 && e2.shop) window.open(manageProductsUrl(e2), '_blank', 'noopener');
+  });
   var fsBtn = elbar.querySelector('.gogh-eb-fs');
   var alBtn = elbar.querySelector('.gogh-eb-al');
   var colBtn = elbar.querySelector('.gogh-eb-col');
@@ -2530,10 +2536,17 @@
       // bare shapes keep the shape glyph (their panel really picks shapes)
       var isCardEl = e.type === 'box' && e.kids && e.kids.length;
       ctxBtn.innerHTML = CTX_ICONS[e.type === 'button' ? 'link' : e.type === 'box' ? (isCardEl ? 'image' : 'shape') : 'image'];
-      ctxBtn.title = e.type === 'button' ? 'Button link' : e.type === 'box' ? ( isCardEl ? 'Background image & colour' : 'Shape, colour & image' ) : e.type === 'widget' ? (e.faq ? 'Edit the questions' : e.tabs ? 'Edit the tabs' : e.slides ? 'Edit the slides' : e.wall ? 'Edit the photos' : 'Block settings & link') : 'Choose image';
+      ctxBtn.title = (e.rails && e.shop) ? 'Edit design' : e.type === 'button' ? 'Button link' : e.type === 'box' ? ( isCardEl ? 'Background image & colour' : 'Shape, colour & image' ) : e.type === 'widget' ? (e.faq ? 'Edit the questions' : e.tabs ? 'Edit the tabs' : e.slides ? 'Edit the slides' : e.wall ? 'Edit the photos' : 'Block settings & link') : 'Choose image';
       ctxBtn.style.display = '';
     } else {
       ctxBtn.style.display = 'none';
+    }
+    elbar.querySelector('.gogh-eb-manage').style.display = (e.rails && e.shop) ? '' : 'none';
+    if (e.rails && e.shop) {
+      // two verbs at the point of touch: Manage products · Edit design
+      ctxBtn.textContent = 'Edit design';
+      ctxBtn.title = 'Edit design';
+      ctxBtn.style.display = '';
     }
     if (isText(e)) {
       fsBtn.textContent = 'Aa' + (e.fs ? ' · ' + (DISPLAY_LABEL[e.fs] || e.fs) : '');
@@ -3732,8 +3745,86 @@
     };
     render();
   }
+  function buildShopPanel(sec, i) {
+    var e = sec.els[i];
+    var shop = e.shop = e.shop || shopDefaults();
+    shop.show = shop.show || { price: true, rating: false, button: true };
+    var radios = function (cls, opts, cur) {
+      return '<div class="gogh-hoptlist ' + cls + '">' + opts.map(function (o) {
+        return '<button type="button" class="gogh-hopt' + (o[0] === cur ? ' is-active' : '') + '" data-v="' + o[0] + '">' +
+          '<span class="gogh-hopt-dot"></span><span class="gogh-hopt-name">' + esc(o[1]) + '</span></button>';
+      }).join('') + '</div>';
+    };
+    var chips = function (cls, opts, isOn) {
+      return '<div class="gogh-hpresets ' + cls + '">' + opts.map(function (o) {
+        return '<button type="button" class="gogh-hpreset' + (isOn(o[0]) ? ' is-active' : '') + '" data-v="' + o[0] + '">' + esc(o[1]) + '</button>';
+      }).join('') + '</div>';
+    };
+    panel.innerHTML =
+      '<div class="gogh-panel-title">Shop</div>' +
+      // TWO VERBS at the point of touch: people know which of these they
+      // want; they do not know which tab it lives under
+      '<div class="gogh-shop-verbs">' +
+      '<a class="gogh-btn gogh-btn-small gogh-shop-manage" href="' + escAttr(manageProductsUrl(e)) + '" target="_blank" rel="noopener">Manage products \u2197</a>' +
+      '<span class="gogh-shop-verb-on">Edit design</span></div>' +
+      '<div class="gogh-swlab">Products</div>' +
+      chips('gogh-shop-count', [[3, '3'], [4, '4'], [6, '6'], [8, '8']], function (v) { return +v === +shop.count; }) +
+      '<div class="gogh-swlab">Order</div>' +
+      radios('gogh-shop-order', [['date', 'Newest first'], ['popularity', 'Bestselling'], ['sale', 'On sale'], ['rand', 'A different set each visit']], shop.order) +
+      '<div class="gogh-swlab">Category</div>' +
+      '<div class="gogh-panel-row"><select class="gogh-input gogh-shop-cat"><option value="">All products</option></select></div>' +
+      '<div class="gogh-swlab">Layout</div>' +
+      radios('gogh-shop-layout', [['grid', 'Grid'], ['list', 'List']], shop.layout) +
+      '<div class="gogh-swlab">Show</div>' +
+      chips('gogh-shop-show', [['price', 'Price'], ['rating', 'Rating'], ['button', 'Add to cart']], function (k) { return !!shop.show[k]; }) +
+      '<div class="gogh-swlab">Picture</div>' +
+      chips('gogh-shop-aspect', [['square', 'Square'], ['portrait', 'Portrait'], ['landscape', 'Landscape']], function (v) { return v === (shop.aspect || 'square'); }) +
+      '<div class="gogh-swlab">Spacing</div>' +
+      chips('gogh-shop-spacing', [['s', 'S'], ['m', 'M'], ['l', 'L']], function (v) { return v === (shop.spacing || 'm'); }) +
+      '<div class="gogh-panel-hint">The look comes from your theme: type, buttons and colours match the page it sits on.</div>';
+    var apply = function () {
+      e.wsrc = composeShop(shop);
+      renderSection(sec);
+      placeHandles(sec, i);
+      pushState();
+      hydrateProductsPreview(sec, e);
+      // marks update IN PLACE — the panel stays open (the panels-stay-open law)
+      panel.querySelectorAll('.gogh-shop-count .gogh-hpreset').forEach(function (b) { b.classList.toggle('is-active', +b.dataset.v === +shop.count); });
+      panel.querySelectorAll('.gogh-shop-order .gogh-hopt').forEach(function (b) { b.classList.toggle('is-active', b.dataset.v === shop.order); });
+      panel.querySelectorAll('.gogh-shop-layout .gogh-hopt').forEach(function (b) { b.classList.toggle('is-active', b.dataset.v === shop.layout); });
+      panel.querySelectorAll('.gogh-shop-show .gogh-hpreset').forEach(function (b) { b.classList.toggle('is-active', !!shop.show[b.dataset.v]); });
+      panel.querySelectorAll('.gogh-shop-aspect .gogh-hpreset').forEach(function (b) { b.classList.toggle('is-active', b.dataset.v === shop.aspect); });
+      panel.querySelectorAll('.gogh-shop-spacing .gogh-hpreset').forEach(function (b) { b.classList.toggle('is-active', b.dataset.v === shop.spacing); });
+      var m = panel.querySelector('.gogh-shop-manage');
+      if (m) m.href = manageProductsUrl(e);
+    };
+    panel.querySelectorAll('.gogh-shop-count .gogh-hpreset').forEach(function (b) { b.addEventListener('click', function () { shop.count = +b.dataset.v; apply(); }); });
+    panel.querySelectorAll('.gogh-shop-order .gogh-hopt').forEach(function (b) { b.addEventListener('click', function () { shop.order = b.dataset.v; apply(); }); });
+    panel.querySelectorAll('.gogh-shop-layout .gogh-hopt').forEach(function (b) { b.addEventListener('click', function () { shop.layout = b.dataset.v; apply(); }); });
+    panel.querySelectorAll('.gogh-shop-show .gogh-hpreset').forEach(function (b) { b.addEventListener('click', function () { shop.show[b.dataset.v] = !shop.show[b.dataset.v]; apply(); }); });
+    panel.querySelectorAll('.gogh-shop-aspect .gogh-hpreset').forEach(function (b) { b.addEventListener('click', function () { shop.aspect = b.dataset.v; apply(); }); });
+    panel.querySelectorAll('.gogh-shop-spacing .gogh-hpreset').forEach(function (b) { b.addEventListener('click', function () { shop.spacing = b.dataset.v; apply(); }); });
+    var catSel = panel.querySelector('.gogh-shop-cat');
+    catSel.addEventListener('change', function () {
+      var o = catSel.options[catSel.selectedIndex];
+      shop.cat = o.value || null;
+      shop.catId = o.value ? +o.dataset.id : null;
+      apply();
+    });
+    fetch(cfg.restUrl.split('wp/v2/')[0] + 'wc/store/v1/products/categories?per_page=40', { credentials: 'same-origin' })
+      .then(function (r) { return r.ok ? r.json() : []; }).catch(function () { return []; }).then(function (cats) {
+        if (panel.hidden || !panel.contains(catSel)) return;
+        (cats || []).filter(function (c) { return c.count > 0; }).forEach(function (c) {
+          var o = document.createElement('option');
+          o.value = c.slug; o.dataset.id = c.id; o.textContent = c.name + ' (' + c.count + ')';
+          if (shop.cat === c.slug) o.selected = true;
+          catSel.appendChild(o);
+        });
+      });
+  }
   function buildWidgetPanel(sec, i) {
     var e = sec.els[i];
+    if (e.rails && e.shop) return buildShopPanel(sec, i);
     if ((e.faq && e.faq.length) || (e.tabs && e.tabs.length)) return buildQnaPanel(sec, i);
     if (e.slides && e.slides.length) return buildCarouselPanel(sec, i);
     if (e.wall && e.wall.length) return buildWallPanel(sec, i);
@@ -4480,12 +4571,15 @@
         whtml: '<div class="gogh-postsprev gogh-postsprev-loading">Loading your latest posts\u2026</div>' };
     },
     products: function () {
-      // WooCommerce's own grid via its shortcode block \u2014 Woo renders it
-      // fresh on the published page (prices, add-to-cart, the lot), and it
-      // keeps working with gogh deactivated
-      var wsrc = '<!-- wp:shortcode -->[products limit="3" columns="3" orderby="date" order="DESC"]<!-- /wp:shortcode -->';
-      return { type: 'widget', x: 47, y: 60, w: 1106, h: 470, wsrc: wsrc,
-        whtml: '<div class="gogh-postsprev gogh-postsprev-loading">Loading your products\u2026</div>' };
+      // THE RAILS ELEMENT (design note: Gogh Shop — "the canvas is for your
+      // story, the rails are for your shop"): one piece on the canvas that
+      // moves, resizes and deletes as a whole and can never be pulled
+      // apart. Its source is Woo's own Product Collection block, so the
+      // published page is native markup Woo renders fresh (prices, add to
+      // cart, the lot) and keeps working with gogh deactivated.
+      var shop = shopDefaults();
+      return { type: 'widget', rails: true, shop: shop, x: 47, y: 60, w: 1106, h: 470, wsrc: composeShop(shop),
+        whtml: '<div class="gogh-shopprev gogh-postsprev-loading">Loading your products\u2026</div>' };
     },
   };
   function postsPreviewHTML(posts) {
@@ -4565,10 +4659,73 @@
   }
   // Products can aim at one category: same widget, shortcode narrowed, and
   // the ＋ flow asks "which products?" when the store has categories
+  function shopDefaults() {
+    return { layout: 'grid', count: 3, order: 'date', cat: null, catId: null,
+      show: { price: true, rating: false, button: true }, aspect: 'square', spacing: 'm' };
+  }
+  // Woo's Product Collection block, composed from the small set of choices
+  // the rails element offers. No columns, gutters or card padding — those
+  // are how a beginner makes a grid look wrong. Two layouts, then stop.
+  function composeShop(shop) {
+    var count = Math.max(1, Math.min(12, +shop.count || 3));
+    var orderBy = shop.order === 'popularity' ? 'popularity' : shop.order === 'rand' ? 'rand' : shop.order === 'title' ? 'title' : 'date';
+    var query = { perPage: count, pages: 0, offset: 0, postType: 'product', order: orderBy === 'title' ? 'asc' : 'desc', orderBy: orderBy,
+      search: '', exclude: [], inherit: false, taxQuery: shop.catId ? { product_cat: [shop.catId] } : {}, isProductCollectionBlock: true,
+      woocommerceOnSale: shop.order === 'sale', woocommerceStockStatus: ['instock', 'outofstock', 'onbackorder'],
+      woocommerceAttributes: [], woocommerceHandPickedProducts: [] };
+    var grid = shop.layout !== 'list';
+    var cols = grid ? (count >= 4 ? (count % 4 === 0 ? 4 : 3) : Math.max(1, count)) : 1;
+    var attrs = { query: query, tagName: 'div', dimensions: { widthType: 'fill', fixedWidth: '' },
+      displayLayout: grid ? { type: 'flex', columns: cols } : { type: 'list' },
+      className: 'gogh-shop gogh-shop-' + (grid ? 'grid' : 'list') + ' gogh-shop-gap-' + (shop.spacing || 'm') };
+    var ratio = shop.aspect === 'portrait' ? '3/4' : shop.aspect === 'landscape' ? '4/3' : '1';
+    var inner = '<!-- wp:woocommerce/product-image {"showSaleBadge":true,"isDescendentOfQueryLoop":true,"aspectRatio":"' + ratio + '"} -->' +
+      '<!-- wp:woocommerce/product-sale-badge {"isDescendentOfQueryLoop":true,"align":"right"} /-->' +
+      '<!-- /wp:woocommerce/product-image -->\n' +
+      '<!-- wp:post-title {"level":3,"isLink":true,"__woocommerceNamespace":"woocommerce/product-collection/product-title","style":{"spacing":{"margin":{"top":"12px","bottom":"6px"}}}} /-->\n' +
+      (shop.show.rating ? '<!-- wp:woocommerce/product-rating {"isDescendentOfQueryLoop":true} /-->\n' : '') +
+      (shop.show.price ? '<!-- wp:woocommerce/product-price {"isDescendentOfQueryLoop":true} /-->\n' : '') +
+      (shop.show.button ? '<!-- wp:woocommerce/product-button {"isDescendentOfQueryLoop":true} /-->\n' : '');
+    return '<!-- wp:woocommerce/product-collection ' + JSON.stringify(attrs) + ' -->\n' +
+      '<div class="wp-block-woocommerce-product-collection ' + attrs.className + '">\n' +
+      '<!-- wp:woocommerce/product-template -->\n' + inner + '<!-- /wp:woocommerce/product-template -->\n' +
+      '</div>\n<!-- /wp:woocommerce/product-collection -->';
+  }
+  function manageProductsUrl(e) {
+    return (cfg.adminUrl || '/wp-admin/') + 'edit.php?post_type=product' + (e.shop && e.shop.cat ? '&product_cat=' + encodeURIComponent(e.shop.cat) : '');
+  }
+  function shopPreviewHTML(e, prods) {
+    var shop = e.shop || shopDefaults();
+    var cls = 'gogh-shopprev gogh-shopprev-' + (shop.layout === 'list' ? 'list' : 'grid') + ' gogh-shopprev-' + (shop.aspect || 'square') + ' gogh-shopprev-gap-' + (shop.spacing || 'm');
+    if (!prods.length) {
+      // the designed empty store: the owner sees the next verb, never a search error
+      return '<div class="' + cls + ' gogh-shopprev-empty"><div class="gogh-shopprev-emptycard">' +
+        '<strong>Your shop is nearly ready.</strong><span>' + (shop.cat ? 'Nothing is in this category yet.' : 'Add your first product and it appears here.') + '</span>' +
+        '<a href="' + escAttr((cfg.adminUrl || '/wp-admin/') + 'post-new.php?post_type=product') + '" target="_blank" rel="noopener">Add a product \u2197</a></div></div>';
+    }
+    return '<div class="' + cls + '">' + prods.map(function (p) {
+      var img = p.images && p.images[0] && p.images[0].src;
+      var price = storePriceText(p);
+      var stars = '';
+      if (shop.show.rating) {
+        var r = Math.round(parseFloat(p.average_rating || 0));
+        stars = '<div class="gogh-shopprev-stars">' + '\u2605\u2605\u2605\u2605\u2605'.slice(0, r) + '<span>' + '\u2605\u2605\u2605\u2605\u2605'.slice(r) + '</span></div>';
+      }
+      return '<div class="gogh-shopprev-card">' +
+        '<div class="gogh-shopprev-pic">' + (img ? '<img src="' + escAttr(img) + '" alt="" />' : '<div class="gogh-postsprev-ph"></div>') +
+        (p.on_sale ? '<span class="gogh-shopprev-sale">Sale</span>' : '') + '</div>' +
+        '<div class="gogh-shopprev-body"><h3>' + esc(p.name || 'Product') + '</h3>' + stars +
+        (shop.show.price ? '<div class="gogh-shopprev-price">' + esc(price) + '</div>' : '') +
+        (shop.show.button ? '<span class="gogh-postsprev-btn">Add to cart</span>' : '') + '</div>' +
+        '</div>';
+    }).join('') + '</div>';
+  }
   function productsElFor(cat) {
     var e = DEFAULTS.products();
     if (cat && cat.slug) {
-      e.wsrc = '<!-- wp:shortcode -->[products limit="3" columns="3" category="' + cat.slug + '" orderby="date" order="DESC"]<!-- /wp:shortcode -->';
+      e.shop.cat = cat.slug;
+      e.shop.catId = cat.id || null;
+      e.wsrc = composeShop(e.shop);
     }
     return e;
   }
@@ -4607,25 +4764,21 @@
     });
   }
   function hydrateProductsPreview(sec, e, catId) {
-    // the Store API is public — same shape as the posts preview, plus price
-    fetch(cfg.restUrl.split('wp/v2/')[0] + 'wc/store/v1/products?per_page=3&orderby=date&order=desc' + (catId ? '&category=' + catId : ''), {
+    // the Store API is public \u2014 the preview is drawn from the same
+    // products Woo will render, in the shape the rails element chose
+    var shop = e.shop || shopDefaults();
+    if (catId && !shop.catId) shop.catId = catId;
+    var q = 'per_page=' + Math.max(1, Math.min(12, +shop.count || 3)) +
+      '&orderby=' + (shop.order === 'popularity' ? 'popularity' : shop.order === 'title' ? 'title' : 'date') +
+      '&order=' + (shop.order === 'title' ? 'asc' : 'desc') +
+      (shop.order === 'sale' ? '&on_sale=true' : '') +
+      (shop.catId ? '&category=' + shop.catId : '');
+    var gen = e.__shopGen = (e.__shopGen || 0) + 1;
+    fetch(cfg.restUrl.split('wp/v2/')[0] + 'wc/store/v1/products?' + q, {
       credentials: 'same-origin',
     }).then(function (r) { return r.ok ? r.json() : []; }).then(function (prods) {
-      if (!prods.length || sec.els.indexOf(e) === -1) return;
-      e.whtml = '<div class="gogh-postsprev">' + prods.map(function (p) {
-        var img = p.images && p.images[0] && p.images[0].src;
-        var price = '';
-        try {
-          var pr = p.prices;
-          price = pr.currency_symbol + (parseInt(pr.price, 10) / Math.pow(10, pr.currency_minor_unit)).toFixed(pr.currency_minor_unit);
-        } catch (err) {}
-        return '<div class="gogh-postsprev-card">' +
-          (img ? '<img src="' + escAttr(img) + '" alt="" />' : '<div class="gogh-postsprev-ph"></div>') +
-          '<h3>' + esc(p.name || 'Product') + '</h3>' +
-          '<div class="gogh-postsprev-date">' + esc(price) + '</div>' +
-          '<span class="gogh-postsprev-btn">Add to cart</span>' +
-          '</div>';
-      }).join('') + '</div>';
+      if (gen !== e.__shopGen || sec.els.indexOf(e) === -1) return; // a newer choice is on its way
+      e.whtml = shopPreviewHTML(e, prods || []);
       renderSection(sec);
       if (sel && sel.sec === sec) placeHandles(sec, sec.els.indexOf(e));
     }).catch(function () {});
@@ -6721,7 +6874,7 @@
   // a widget's SUBSTANCE (the questions, the pictures) — the part a roll
   // must never lose; copt/wopt are clothes and belong to each take
   function diceWidgetData(e) {
-    return JSON.stringify({ faq: e.faq || null, tabs: e.tabs || null, pics: e.slides || e.wall || null });
+    return JSON.stringify({ faq: e.faq || null, tabs: e.tabs || null, pics: e.slides || e.wall || null, shop: e.shop || null });
   }
   function diceByRole(els) {
     var map = {};
@@ -10277,7 +10430,7 @@
   }
   function cardJoinTarget(sec, i) {
     var e = sec.els[i];
-    if (!e || e.type === 'box') return -1;
+    if (!e || e.type === 'box' || e.rails) return -1; // rails never enter a card: cards stack by different rules on phones
     for (var b = sec.els.length - 1; b >= 0; b--) {
       if (b === i) continue;
       var o = sec.els[b];
@@ -13090,6 +13243,10 @@
     duplicateSection: duplicateSection,
     rollSection: rollSection,
     diceFaces: diceFaces,
+    composeShop: composeShop,
+    shopDefaults: shopDefaults,
+    cardJoinTarget: cardJoinTarget,
+    hydrateProductsPreview: hydrateProductsPreview,
     reseatRoom: reseatChromeRoom,
     fm: function () { return fm; },
     fmLand: fmSectionLanded,
@@ -13146,6 +13303,8 @@
   var verEl = side.querySelector('.gogh-side-ver');
   if (verEl) verEl.textContent = GOGH_BUILD.replace('-chrome', '');
   try { console.info('[gogh] ' + GOGH_BUILD); } catch (e0) {}
+  // rails elements draw a fresh preview from the live shop on every boot
+  try { S.forEach(function (sx) { (sx.els || []).forEach(function (ex) { if (ex.rails && ex.shop) hydrateProductsPreview(sx, ex); }); }); } catch (err) {}
   document.dispatchEvent(new CustomEvent('gogh:ready'));
 
   // ---------- keyboard ----------

@@ -1123,22 +1123,22 @@
       return 'blank invites; backgrounded publishes and persists';
     });
 
-    test('products element: Woo grid in the ＋ menu, shortcode in the blocks', function () {
+    test('products element: Woo grid in the ＋ menu, Product Collection in the blocks', function () {
       G.openSecAdd(G.sections().indexOf(sec()));
       var btn = q('.gogh-panel [data-add="products"]');
       var panelEl = q('.gogh-panel');
       if (panelEl) panelEl.hidden = true;
       if (!btn) return 'no WooCommerce here — Products stays out of the menu, as designed';
       var e = G.addElementToSection(G.sections().indexOf(sec()), 'products');
-      expect(e.type === 'widget', 'products should be a widget element');
-      expect((e.wsrc || '').indexOf('[products') !== -1, 'wsrc should carry the Woo shortcode');
-      expect((e.whtml || '').indexOf('gogh-postsprev') !== -1, 'preview placeholder missing');
+      expect(e.type === 'widget' && e.rails, 'products should be a rails widget element');
+      expect((e.wsrc || '').indexOf('wp:woocommerce/product-collection') !== -1, 'wsrc should carry the Product Collection block');
+      expect((e.whtml || '').indexOf('gogh-shopprev') !== -1, 'preview placeholder missing');
       var snap = G.serialize();
-      expect(snap.indexOf('[products') !== -1, 'products shortcode should survive serialization');
+      expect(snap.indexOf('product-collection') !== -1 && snap.indexOf('"shop"') !== -1, 'the rails and their choices should survive serialization');
       var i = sec().els.indexOf(e);
       sec().els.splice(i, 1);
       G.renderSection(sec());
-      return 'Products offered, added, shortcode round-trips';
+      return 'Products offered, added, the collection round-trips';
     });
 
     test('featured product composes a card of real gogh pieces', function () {
@@ -3029,7 +3029,8 @@
       expect(document.body.classList.contains('gogh-mm-drawer') && document.body.classList.contains('gogh-mmg-dark'), 'wear did not dress the body');
       expect(!document.body.classList.contains('gogh-mm-stack') && !document.body.classList.contains('gogh-mmg-light'), 'the old look was not taken off');
       G.menuStyleWear(GOGH.menuStyle || { layout: 'stack', ground: 'light' });
-      expect(document.body.className === before, 'wearing the kept style did not restore the body');
+      var setOf = function (c) { return c.split(/\s+/).filter(Boolean).sort().join(' '); };
+      expect(setOf(document.body.className) === setOf(before), 'wearing the kept style did not restore the body');
       return 'four layouts, three grounds, one option';
     });
 
@@ -3069,6 +3070,49 @@
       expect(!pnl.querySelector('.gogh-clear').hidden, 'Remove image should show once there is a picture');
       G.closePanel();
       return 'picked twice, still open';
+    });
+
+    test('the rails element: Woo Product Collection, composed from few choices', function () {
+      if (!GOGH.hasWoo) return 'no WooCommerce here \u2014 nothing to lay';
+      var e = G.addElementToSection(G.sections().indexOf(sec()), 'products');
+      expect(e && e.rails && e.shop, 'the products element is not a rails element');
+      expect(/wp:woocommerce\/product-collection/.test(e.wsrc), 'source is not a Product Collection block');
+      expect(/"perPage":3/.test(e.wsrc) && /"type":"flex","columns":3/.test(e.wsrc), 'default is a 3-up grid: ' + e.wsrc.slice(0, 200));
+      expect(/wp:woocommerce\/product-button/.test(e.wsrc) && /wp:woocommerce\/product-price/.test(e.wsrc), 'price and Add to cart should show by default');
+      expect(!/product-rating/.test(e.wsrc), 'rating should be off by default');
+      var listSrc = G.composeShop({ layout: 'list', count: 4, order: 'sale', cat: null, catId: null, show: { price: true, rating: true, button: false }, aspect: 'portrait', spacing: 'l' });
+      expect(/"displayLayout":\{"type":"list"\}/.test(listSrc), 'List layout not composed');
+      expect(/"woocommerceOnSale":true/.test(listSrc), 'On sale not composed');
+      expect(/product-rating/.test(listSrc) && !/product-button/.test(listSrc), 'Show chips not honoured');
+      expect(/"aspectRatio":"3\/4"/.test(listSrc) && /gogh-shop-gap-l/.test(listSrc), 'picture and spacing not composed');
+      var out = G.buildV3();
+      expect(out.indexOf('wp:woocommerce/product-collection') !== -1, 'the built page lacks the collection block');
+      return 'rails laid: native Woo markup, two layouts, then stop';
+    });
+
+    test('rails never enter a card, and the bar offers two verbs', function () {
+      if (!GOGH.hasWoo) return 'no WooCommerce here';
+      var s0 = sec();
+      s0.els.push({ type: 'box', x: 40, y: 40, w: 900, h: 500, radius: 12 });
+      var e = G.addElementToSection(G.sections().indexOf(s0), 'products');
+      e.x = 80; e.y = 80; e.w = 600; e.h = 300; // fully inside the box
+      G.renderSection(s0);
+      var i = s0.els.indexOf(e);
+      expect(G.cardJoinTarget(s0, i) === -1, 'a rails element was offered a card to join');
+      select(i);
+      var manage = q('.gogh-eb-manage');
+      expect(manage && manage.style.display !== 'none', 'Manage products verb missing from the bar');
+      expect(q('.gogh-eb-ctx').title === 'Edit design', 'the context verb should read Edit design, got ' + q('.gogh-eb-ctx').title);
+      G.openPanel(s0, i);
+      var pnl = q('.gogh-panel');
+      expect(pnl.querySelector('.gogh-shop-manage') && pnl.querySelector('.gogh-shop-layout'), 'shop panel missing verbs or layout');
+      var list = pnl.querySelector('.gogh-shop-layout .gogh-hopt[data-v="list"]');
+      list.click();
+      expect(!pnl.hidden, 'the panel closed on a layout pick');
+      expect(e.shop.layout === 'list' && /"type":"list"/.test(e.wsrc), 'List did not recompose the source');
+      expect(list.classList.contains('is-active'), 'List not marked active in place');
+      G.closePanel();
+      return 'two verbs, one small panel, stays open';
     });
 
     test('chrome veils never outgrow their part', function () {

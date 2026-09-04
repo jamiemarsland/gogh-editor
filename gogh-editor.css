@@ -3797,3 +3797,33 @@ html[data-gogh-scope="site"] .gogh-panel-back::after { content: "Site"; }
 
 /* the SEO segment needs no position of its own — the rail stacks it */
 .gogh-side-tab-dot.gogh-ar-dot { background: #f2a413; }
+
+/* the rails element's editor preview — drawn from the live shop in the
+   shape the element chose; the theme's type and buttons dress it */
+.gogh-shopprev { display: grid; gap: 24px; grid-template-columns: repeat(3, minmax(0, 1fr)); width: 100%; }
+.gogh-shopprev-gap-s { gap: 12px; }
+.gogh-shopprev-gap-l { gap: 40px; }
+.gogh-shopprev-list { grid-template-columns: 1fr; }
+.gogh-shopprev-list .gogh-shopprev-card { display: grid; grid-template-columns: 160px 1fr; gap: 18px; align-items: center; }
+.gogh-shopprev-card { min-width: 0; }
+.gogh-shopprev-pic { position: relative; aspect-ratio: 1 / 1; overflow: hidden; border-radius: 6px; background: color-mix(in srgb, currentColor 8%, transparent); }
+.gogh-shopprev-portrait .gogh-shopprev-pic { aspect-ratio: 3 / 4; }
+.gogh-shopprev-landscape .gogh-shopprev-pic { aspect-ratio: 4 / 3; }
+.gogh-shopprev-pic img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.gogh-shopprev-sale { position: absolute; top: 10px; right: 10px; font-size: 11px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; padding: 4px 8px; border-radius: 999px; background: var(--wp--preset--color--contrast, #141519); color: var(--wp--preset--color--base, #fff); }
+.gogh-shopprev-body h3 { margin: 0.6em 0 0.2em; font-size: 1.05em; line-height: 1.25; }
+.gogh-shopprev-list .gogh-shopprev-body h3 { margin-top: 0; }
+.gogh-shopprev-price { font-weight: 600; margin-bottom: 0.5em; }
+.gogh-shopprev-stars { font-size: 0.85em; letter-spacing: 0.06em; margin: 0.1em 0 0.3em; color: #d9a521; }
+.gogh-shopprev-stars span { opacity: 0.28; }
+.gogh-shopprev-empty { grid-template-columns: 1fr; }
+.gogh-shopprev-emptycard { border: 1.5px dashed color-mix(in srgb, currentColor 30%, transparent); border-radius: 12px; padding: 36px 24px; text-align: center; display: flex; flex-direction: column; gap: 6px; align-items: center; }
+.gogh-shopprev-emptycard strong { font-size: 1.15em; }
+.gogh-shopprev-emptycard span { opacity: 0.7; }
+.gogh-shopprev-emptycard a { margin-top: 8px; font-weight: 700; text-decoration: underline; text-underline-offset: 3px; color: inherit; }
+@container gogh (max-width: 700px) { .gogh-shopprev { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+/* two verbs at the point of touch */
+.gogh-eb-manage { font-weight: 700; padding: 0 10px; white-space: nowrap; }
+.gogh-shop-verbs { display: flex; align-items: center; gap: 10px; margin: 4px 0 12px; }
+.gogh-shop-verb-on { font-size: 12.5px; font-weight: 700; color: #4a63d8; padding: 6px 12px; border-radius: 999px; background: rgba(74, 99, 216, 0.1); }
+.gogh-shop-cat { width: 100%; }
