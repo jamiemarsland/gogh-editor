@@ -1,8 +1,8 @@
-# Knowledge-base audit — plugin v0.99.382
+# Knowledge-base audit — plugin v0.99.383
 
 _13 finding(s) suppressed by `kb.audit-ignore.txt`._
 
-## MISSING (65)
+## MISSING (66)
 
 The source has something the prose never explains. The bot knows the name from the appendix but cannot say what it is for.
 
@@ -46,6 +46,7 @@ The source has something the prose never explains. The bot knows the name from t
 - WP hook `admin_post_gogh_blog_layout` exists in source but is never mentioned in the prose
 - WP hook `admin_post_gogh_post_layout` exists in source but is never mentioned in the prose
 - WP hook `admin_post_gogh_post_layout_all` exists in source but is never mentioned in the prose
+- WP hook `get_post_metadata` exists in source but is never mentioned in the prose
 - WP hook `admin_post_gogh_product_layout` exists in source but is never mentioned in the prose
 - WP hook `safe_style_css` exists in source but is never mentioned in the prose
 - WP hook `wp_kses_allowed_html` exists in source but is never mentioned in the prose
@@ -88,7 +89,5 @@ Quoted copy not found verbatim in the source. Paraphrases are fine; changed UI c
 
 Use this as the checklist for updating the prose — and as a sanity check on the release itself.
 
-- version: 0.99.381 → 0.99.382
-- added WP hook: "admin_post_gogh_product_related"
-- added WP hook: "admin_post_gogh_shop_layout"
-- added WP hook: "render_block_core/group"
+- version: 0.99.382 → 0.99.383
+- added WP hook: "get_post_metadata"
