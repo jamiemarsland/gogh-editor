@@ -849,7 +849,10 @@
     });
     out.push(
       sec + ' .gogh-badge::before { content: "★"; width: 1.9em; height: 1.9em; flex: none; border-radius: 50%; background: #e8b04b; display: grid; place-items: center; color: #141519; }',
-      sec + ' .wp-block-button, ' + sec + ' .wp-block-button__link { width: 100%; height: 100%; }',
+      // gogh's OWN buttons fill their box; a button that Woo (or any widget)
+      // renders inside the rails keeps its natural size — a section-wide
+      // rule here blew Woo's Add to cart up into a 500px pill
+      sec + ' .wp-block-button:not(.gogh-widget *), ' + sec + ' .wp-block-button__link:not(.gogh-widget *) { width: 100%; height: 100%; }',
       sec + ' .wp-block-button__link { display: flex; align-items: center; justify-content: center; box-sizing: border-box; white-space: nowrap; }',
       sec + ' .gogh-ghost .wp-block-button__link { background: transparent; color: inherit; box-shadow: inset 0 0 0 1.5px currentColor; }',
       '',
