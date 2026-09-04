@@ -3157,6 +3157,27 @@
       return 'rails ride the model both ways';
     });
 
+    test('Sell family complete: four more starters, four faces each, tiles and a seam that sells', function () {
+      if (!GOGH.hasWoo) return 'no WooCommerce here';
+      ['Editorial split', 'New in', 'Sale', 'Categories'].forEach(function (n) {
+        var t = G.templates().filter(function (x) { return x.name === n; })[0];
+        expect(t && t.gated === 'hasWoo' && t.intent === 'sell', n + ' missing or not gated');
+        expect(G.diceFaces(n).length === 4, n + ' should have four faces, got ' + G.diceFaces(n).length);
+        expect(t.els.some(function (e) { return e.rails && e.shop; }), n + ' has no rails element');
+      });
+      var cats = G.composeShop({ kind: 'categories', count: 4, spacing: 's' });
+      expect(/wp:woocommerce\/product-categories/.test(cats) && /gogh-shop-cats-c4/.test(cats) && /gogh-shop-gap-s/.test(cats), 'category tiles not composed: ' + cats.slice(0, 120));
+      expect(/"hasImage":true/.test(cats) && /"hasCount":false/.test(cats), 'tiles should carry pictures, never counts');
+      var sale = G.templates().filter(function (x) { return x.name === 'Sale'; })[0];
+      var srails = sale.els.filter(function (e) { return e.rails; })[0];
+      expect(srails.shop.order === 'sale' && /"woocommerceOnSale":true/.test(G.composeShop(Object.assign(G.shopDefaults(), srails.shop))), 'Sale should ask for reduced products');
+      G.openSeamAsk(G.sections().indexOf(sec()) + 1);
+      var chips = [].map.call(document.querySelectorAll('.gogh-askchip'), function (b) { return b.textContent; });
+      G.closePanel();
+      expect(chips.indexOf('Bestsellers') !== -1 && chips.indexOf('Shop by category') !== -1, 'the seam does not offer the Sell family: ' + chips.join(', '));
+      return 'Editorial split · New in · Sale · Categories; the seam sells';
+    });
+
     test('chrome veils never outgrow their part', function () {
       // a transparent header computes absolute at veil time, so the old
       // anchor check skipped it; when an audition or restore took the

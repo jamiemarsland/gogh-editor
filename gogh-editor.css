@@ -3841,3 +3841,10 @@ body:has(.wp-block-navigation__responsive-container.is-menu-open) .gogh-bar { op
 /* a product's story canvas sits under Woo's buy box: a short, honest
    invitation, not a screen of empty space */
 .gogh-editing .gogh-section.gogh-boot-product { min-height: 260px !important; }
+
+/* category tiles in the editor preview: doors with the category's own picture */
+.gogh-shopprev-cats { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.gogh-shopprev-tile { position: relative; aspect-ratio: 4 / 3; border-radius: 12px; overflow: hidden; background: color-mix(in srgb, currentColor 8%, transparent); }
+.gogh-shopprev-tile img, .gogh-shopprev-tileph { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.gogh-shopprev-tileph { background: linear-gradient(135deg, color-mix(in srgb, currentColor 10%, transparent), color-mix(in srgb, currentColor 22%, transparent)); }
+.gogh-shopprev-tile span { position: absolute; left: 0; right: 0; bottom: 0; padding: 16px 18px; color: #fff; font-weight: 700; font-size: 1.15em; background: linear-gradient(to top, rgba(0, 0, 0, 0.6), transparent); }

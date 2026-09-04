@@ -1533,6 +1533,7 @@
       // a rails element saved before the model carried its flag (v0.99.372-387)
       // reads its few choices back out of Woo's block it composed
       if (e.type === 'widget' && !e.shop && /wp:woocommerce\/product-collection/.test(e.wsrc || '')) healRails(e);
+      if (e.type === 'widget' && !e.shop && /wp:woocommerce\/product-categories/.test(e.wsrc || '') && /gogh-shop-cats/.test(e.wsrc || '')) { e.rails = true; e.shop = Object.assign(shopDefaults(), { kind: 'categories', count: (/gogh-shop-cats-c(\d)/.exec(e.wsrc) || [0, 3])[1] * 1 }); }
       if (e.faq && e.faq.length && e.wsrc && e.wsrc.indexOf('role="group"') === -1) composeWidgetData(e);
       if (e.tabs && e.tabs.length && e.wsrc && e.wsrc.indexOf('role="tabpanel"') === -1) composeWidgetData(e);
     });
@@ -2221,7 +2222,7 @@
   elbar.querySelector('.gogh-eb-manage').addEventListener('click', function () {
     if (!sel) return;
     var e2 = sel.sec.els[sel.i];
-    if (e2 && e2.shop) window.open(manageProductsUrl(e2), '_blank', 'noopener');
+    if (e2 && e2.shop) window.open(e2.shop.kind === 'categories' ? (cfg.adminUrl || '/wp-admin/') + 'edit-tags.php?taxonomy=product_cat&post_type=product' : manageProductsUrl(e2), '_blank', 'noopener');
   });
   var fsBtn = elbar.querySelector('.gogh-eb-fs');
   var alBtn = elbar.querySelector('.gogh-eb-al');
@@ -3781,6 +3782,31 @@
         return '<button type="button" class="gogh-hpreset' + (isOn(o[0]) ? ' is-active' : '') + '" data-v="' + o[0] + '">' + esc(o[1]) + '</button>';
       }).join('') + '</div>';
     };
+    var isCats = shop.kind === 'categories';
+    if (isCats) {
+      panel.innerHTML =
+        '<div class="gogh-panel-title">Categories</div>' +
+        '<div class="gogh-shop-verbs">' +
+        '<a class="gogh-btn gogh-btn-small gogh-shop-manage" href="' + escAttr((cfg.adminUrl || '/wp-admin/') + 'edit-tags.php?taxonomy=product_cat&post_type=product') + '" target="_blank" rel="noopener">Manage categories \u2197</a>' +
+        '<span class="gogh-shop-verb-on">Edit design</span></div>' +
+        '<div class="gogh-swlab">Tiles</div>' +
+        chips('gogh-shop-count', [[2, '2'], [3, '3'], [4, '4'], [6, '6']], function (v) { return +v === +shop.count; }) +
+        '<div class="gogh-swlab">Spacing</div>' +
+        chips('gogh-shop-spacing', [['s', 'S'], ['m', 'M'], ['l', 'L']], function (v) { return v === (shop.spacing || 'm'); }) +
+        '<div class="gogh-panel-hint">Every category with products becomes a door, its own picture behind it. Set category pictures in WooCommerce.</div>';
+      var applyCats = function () {
+        e.wsrc = composeShop(shop);
+        renderSection(sec);
+        placeHandles(sec, i);
+        pushState();
+        hydrateProductsPreview(sec, e);
+        panel.querySelectorAll('.gogh-shop-count .gogh-hpreset').forEach(function (b) { b.classList.toggle('is-active', +b.dataset.v === +shop.count); });
+        panel.querySelectorAll('.gogh-shop-spacing .gogh-hpreset').forEach(function (b) { b.classList.toggle('is-active', b.dataset.v === shop.spacing); });
+      };
+      panel.querySelectorAll('.gogh-shop-count .gogh-hpreset').forEach(function (b) { b.addEventListener('click', function () { shop.count = +b.dataset.v; applyCats(); }); });
+      panel.querySelectorAll('.gogh-shop-spacing .gogh-hpreset').forEach(function (b) { b.addEventListener('click', function () { shop.spacing = b.dataset.v; applyCats(); }); });
+      return;
+    }
     panel.innerHTML =
       '<div class="gogh-panel-title">Shop</div>' +
       // TWO VERBS at the point of touch: people know which of these they
@@ -4709,6 +4735,12 @@
   // the rails element offers. No columns, gutters or card padding — those
   // are how a beginner makes a grid look wrong. Two layouts, then stop.
   function composeShop(shop) {
+    if (shop.kind === 'categories') {
+      // category tiles: Woo's own list of categories, dressed as doors
+      var cn = Math.max(2, Math.min(8, +shop.count || 3));
+      var ccols = cn >= 4 ? 4 : cn;
+      return '<!-- wp:woocommerce/product-categories {"hasImage":true,"hasCount":false,"hasEmpty":false,"isDropdown":false,"isHierarchical":false,"className":"gogh-shop gogh-shop-cats gogh-shop-cats-c' + ccols + ' gogh-shop-gap-' + (shop.spacing || 'm') + '"} /-->';
+    }
     var count = Math.max(1, Math.min(12, +shop.count || 3));
     var orderBy = shop.order === 'popularity' ? 'popularity' : shop.order === 'rand' ? 'rand' : shop.order === 'title' ? 'title' : 'date';
     var query = { perPage: count, pages: 0, offset: 0, postType: 'product', order: orderBy === 'title' ? 'asc' : 'desc', orderBy: orderBy,
@@ -4738,6 +4770,19 @@
   }
   function shopPreviewHTML(e, prods) {
     var shop = e.shop || shopDefaults();
+    if (shop.kind === 'categories') {
+      var cn2 = Math.max(2, Math.min(8, +shop.count || 3));
+      var ccls = 'gogh-shopprev gogh-shopprev-cats gogh-shopprev-c' + (cn2 >= 4 ? 4 : cn2) + ' gogh-shopprev-gap-' + (shop.spacing || 'm');
+      if (!prods.length) {
+        return '<div class="' + ccls + ' gogh-shopprev-empty"><div class="gogh-shopprev-emptycard"><strong>No categories yet.</strong><span>Give your products a category and the doors appear here.</span>' +
+          '<a href="' + escAttr((cfg.adminUrl || '/wp-admin/') + 'edit-tags.php?taxonomy=product_cat&post_type=product') + '" target="_blank" rel="noopener">Add a category \u2197</a></div></div>';
+      }
+      return '<div class="' + ccls + '">' + prods.slice(0, cn2).map(function (c) {
+        var img = c.image && c.image.src;
+        return '<div class="gogh-shopprev-tile">' + (img ? '<img src="' + escAttr(img) + '" alt="" />' : '<div class="gogh-shopprev-tileph"></div>') +
+          '<span>' + esc(c.name || 'Category') + '</span></div>';
+      }).join('') + '</div>';
+    }
     var n = Math.max(1, Math.min(12, +shop.count || 3));
     var cols = shop.layout === 'list' ? 1 : (n >= 4 ? (n % 4 === 0 ? 4 : 3) : n);
     var cls = 'gogh-shopprev gogh-shopprev-' + (shop.layout === 'list' ? 'list' : 'grid') + ' gogh-shopprev-c' + cols + ' gogh-shopprev-' + (shop.aspect || 'square') + ' gogh-shopprev-gap-' + (shop.spacing || 'm');
@@ -4777,6 +4822,9 @@
       { name: 'Travel tin', prices: { currency_symbol: '\u00a3', price: '600', currency_minor_unit: 2 }, average_rating: '4' },
       { name: 'Bath salts', prices: { currency_symbol: '\u00a3', price: '900', currency_minor_unit: 2 }, average_rating: '5' },
     ];
+    if (shop.kind === 'categories') {
+      return shopPreviewHTML({ shop: shop }, [{ name: 'Soap' }, { name: 'Home' }, { name: 'Gifts' }, { name: 'Bath' }, { name: 'Kitchen' }, { name: 'Garden' }, { name: 'Paper' }, { name: 'Sets' }]);
+    }
     return shopPreviewHTML({ shop: shop }, samples.slice(0, Math.max(1, Math.min(8, +shop.count || 3))));
   }
   function productsElFor(cat) {
@@ -4826,6 +4874,17 @@
     // the Store API is public \u2014 the preview is drawn from the same
     // products Woo will render, in the shape the rails element chose
     var shop = e.shop || shopDefaults();
+    if (shop.kind === 'categories') {
+      var genc = e.__shopGen = (e.__shopGen || 0) + 1;
+      fetch(cfg.restUrl.split('wp/v2/')[0] + 'wc/store/v1/products/categories?per_page=' + Math.max(2, Math.min(8, +shop.count || 3)) + '&hide_empty=true', { credentials: 'same-origin' })
+        .then(function (r) { return r.ok ? r.json() : []; }).then(function (cats) {
+          if (genc !== e.__shopGen || sec.els.indexOf(e) === -1) return;
+          e.whtml = shopPreviewHTML(e, cats || []);
+          renderSection(sec);
+          if (sel && sel.sec === sec) placeHandles(sec, sec.els.indexOf(e));
+        }).catch(function () {});
+      return;
+    }
     if (catId && !shop.catId) shop.catId = catId;
     var q = 'per_page=' + Math.max(1, Math.min(12, +shop.count || 3)) +
       '&orderby=' + (shop.order === 'popularity' ? 'popularity' : shop.order === 'title' ? 'title' : 'date') +
@@ -5684,6 +5743,33 @@
       { type: 'button', x: 900, y: 214, w: 200, h: 54, text: 'See everything', href: '/shop/', ghost: true },
       { type: 'widget', rails: true, x: 47, y: 300, w: 1106, h: 360, shop: { count: 3, order: 'popularity', layout: 'grid', aspect: 'square', spacing: 'm' } },
     ] },
+    { starter: true, gated: 'hasWoo', intent: 'sell', name: 'Editorial split', minH: 660, els: [
+      { type: 'para', x: 72, y: 110, w: 340, h: 24, text: 'From the workshop', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
+      { type: 'heading', x: 72, y: 150, w: 460, h: 160, text: 'Made slowly, sent this week', fs: '__max' },
+      { type: 'para', x: 72, y: 340, w: 420, h: 96, text: 'Two pieces we are proud of this month, and the story of how they came to be. Everything is made here, in small batches.' },
+      { type: 'button', x: 72, y: 470, w: 200, h: 54, text: 'See everything', href: '/shop/', ghost: true },
+      { type: 'widget', rails: true, x: 600, y: 80, w: 540, h: 520, shop: { count: 2, order: 'date', layout: 'grid', aspect: 'portrait', spacing: 'm' } },
+    ] },
+    { starter: true, gated: 'hasWoo', intent: 'sell', name: 'New in', minH: 640, els: [
+      { type: 'para', x: 72, y: 84, w: 340, h: 24, text: 'Just arrived', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
+      { type: 'heading', x: 72, y: 124, w: 600, h: 90, text: 'New in', fs: 'x-large' },
+      { type: 'para', x: 72, y: 220, w: 520, h: 48, text: 'The latest things on the shelf, newest first. Nothing to maintain.' },
+      { type: 'button', x: 900, y: 214, w: 200, h: 54, text: 'See everything', href: '/shop/', ghost: true },
+      { type: 'widget', rails: true, x: 47, y: 300, w: 1106, h: 300, shop: { count: 4, order: 'date', layout: 'grid', aspect: 'landscape', spacing: 's' } },
+    ] },
+    { starter: true, gated: 'hasWoo', intent: 'sell', name: 'Sale', minH: 700, els: [
+      { type: 'para', x: 72, y: 84, w: 340, h: 24, text: 'Right now', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
+      { type: 'heading', x: 72, y: 124, w: 600, h: 90, text: 'On sale', fs: 'x-large' },
+      { type: 'para', x: 72, y: 220, w: 520, h: 48, text: 'Only what is reduced, while it lasts. Prices as marked.' },
+      { type: 'button', x: 860, y: 214, w: 240, h: 54, text: 'Everything on sale', href: '/shop/', ghost: true },
+      { type: 'widget', rails: true, x: 47, y: 300, w: 1106, h: 360, shop: { count: 3, order: 'sale', layout: 'grid', aspect: 'square', spacing: 'm' } },
+    ] },
+    { starter: true, gated: 'hasWoo', intent: 'sell', name: 'Categories', minH: 640, els: [
+      { type: 'para', x: 72, y: 84, w: 340, h: 24, text: 'Shop by', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
+      { type: 'heading', x: 72, y: 124, w: 600, h: 90, text: 'Find your thing', fs: 'x-large' },
+      { type: 'para', x: 72, y: 220, w: 520, h: 48, text: 'Every door leads somewhere good.' },
+      { type: 'widget', rails: true, x: 47, y: 300, w: 1106, h: 300, shop: { kind: 'categories', count: 3, spacing: 'm' } },
+    ] },
     { starter: true, intent: 'sell', name: 'Feature cards', minH: 560, els: [
       { type: 'heading', x: 100, y: 56, w: 1000, h: 60, text: 'What we do', fs: 'x-large', align: 'center' },
       { type: 'box', x: 100, y: 170, w: 320, h: 330, radius: 18,
@@ -6127,6 +6213,89 @@
   var DICE_FORM_WSRC = '<!-- wp:gogh/form /-->';
   var DICE_FORM_WHTML = '<div class="gogh-form"><div class="gogh-form-row"><input type="text" placeholder="Your name" disabled /><input type="email" placeholder="Your email" disabled /></div><textarea rows="5" placeholder="Your message…" disabled></textarea><div class="gogh-form-foot"><span class="gogh-form-fbtn">Send</span><span class="gogh-form-note">Goes straight to this site — nowhere else.</span></div></div>';
   var VARIANTS = {
+    'Editorial split': [
+      { name: 'Editorial split', take: 'Words right', minH: 660, els: [
+        { type: 'widget', rails: true, x: 60, y: 80, w: 540, h: 520, shop: { count: 2, order: 'date', layout: 'grid', aspect: 'portrait', spacing: 'm' } },
+        { type: 'para', x: 680, y: 110, w: 340, h: 24, text: 'From the workshop', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
+        { type: 'heading', x: 680, y: 150, w: 440, h: 160, text: 'Made slowly, sent this week', fs: '__max' },
+        { type: 'para', x: 680, y: 340, w: 400, h: 96, text: 'Two pieces we are proud of this month, and the story of how they came to be. Everything is made here, in small batches.' },
+        { type: 'button', x: 680, y: 470, w: 200, h: 54, text: 'See everything', href: '/shop/', ghost: true },
+      ] },
+      { name: 'Editorial split', take: 'The stack', minH: 820, els: [
+        { type: 'para', x: 400, y: 80, w: 400, h: 24, align: 'center', text: 'From the workshop', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
+        { type: 'heading', x: 200, y: 120, w: 800, h: 100, align: 'center', text: 'Made slowly, sent this week', fs: 'x-large' },
+        { type: 'para', x: 300, y: 236, w: 600, h: 72, align: 'center', text: 'Two pieces we are proud of this month, and the story of how they came to be. Everything is made here, in small batches.' },
+        { type: 'widget', rails: true, x: 200, y: 340, w: 800, h: 400, shop: { count: 2, order: 'date', layout: 'grid', aspect: 'square', spacing: 'l' } },
+      ] },
+      { name: 'Editorial split', take: 'Ink', minH: 660, bg: 'var(--wp--preset--color--contrast, #16181c)', els: [
+        { type: 'para', x: 72, y: 110, w: 340, h: 24, text: 'From the workshop', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--base, #fff) 72%, transparent)' } },
+        { type: 'heading', x: 72, y: 150, w: 460, h: 160, text: 'Made slowly, sent this week', fs: '__max', color: 'base' },
+        { type: 'para', x: 72, y: 340, w: 420, h: 96, text: 'Two pieces we are proud of this month, and the story of how they came to be. Everything is made here, in small batches.', color: 'base' },
+        { type: 'button', x: 72, y: 470, w: 200, h: 54, text: 'See everything', href: '/shop/', tf: { bg: 'var(--wp--preset--color--base, #fff)', col: 'var(--wp--preset--color--contrast, #141519)' } },
+        { type: 'widget', rails: true, x: 600, y: 80, w: 540, h: 520, shop: { count: 2, order: 'date', layout: 'grid', aspect: 'portrait', spacing: 'm' } },
+      ] },
+    ],
+    'New in': [
+      { name: 'New in', take: 'Headline centred', minH: 700, els: [
+        { type: 'para', x: 400, y: 80, w: 400, h: 24, align: 'center', text: 'Just arrived', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
+        { type: 'heading', x: 200, y: 120, w: 800, h: 100, align: 'center', text: 'New in', fs: '__max' },
+        { type: 'widget', rails: true, x: 47, y: 260, w: 1106, h: 300, shop: { count: 4, order: 'date', layout: 'grid', aspect: 'landscape', spacing: 'm' } },
+        { type: 'button', x: 500, y: 600, w: 200, h: 54, text: 'See everything', href: '/shop/', ghost: true },
+      ] },
+      { name: 'New in', take: 'Three tall', minH: 760, els: [
+        { type: 'para', x: 72, y: 84, w: 340, h: 24, text: 'Just arrived', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
+        { type: 'heading', x: 72, y: 124, w: 600, h: 90, text: 'New in', fs: 'x-large' },
+        { type: 'button', x: 900, y: 140, w: 200, h: 54, text: 'See everything', href: '/shop/', ghost: true },
+        { type: 'widget', rails: true, x: 47, y: 250, w: 1106, h: 470, shop: { count: 3, order: 'date', layout: 'grid', aspect: 'portrait', spacing: 'l' } },
+      ] },
+      { name: 'New in', take: 'The ledger', minH: 700, els: [
+        { type: 'para', x: 72, y: 90, w: 340, h: 24, text: 'Just arrived', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
+        { type: 'heading', x: 72, y: 130, w: 400, h: 150, text: 'New in', fs: '__max' },
+        { type: 'para', x: 72, y: 300, w: 380, h: 72, text: 'The latest things on the shelf, newest first. Nothing to maintain.' },
+        { type: 'button', x: 72, y: 400, w: 200, h: 54, text: 'See everything', href: '/shop/', ghost: true },
+        { type: 'widget', rails: true, x: 540, y: 84, w: 590, h: 560, shop: { count: 4, order: 'date', layout: 'list', aspect: 'square', spacing: 's' } },
+      ] },
+    ],
+    'Sale': [
+      { name: 'Sale', take: 'Four up', minH: 640, els: [
+        { type: 'para', x: 72, y: 84, w: 340, h: 24, text: 'Right now', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
+        { type: 'heading', x: 72, y: 124, w: 600, h: 90, text: 'On sale', fs: 'x-large' },
+        { type: 'button', x: 860, y: 140, w: 240, h: 54, text: 'Everything on sale', href: '/shop/', ghost: true },
+        { type: 'widget', rails: true, x: 47, y: 250, w: 1106, h: 360, shop: { count: 4, order: 'sale', layout: 'grid', aspect: 'landscape', spacing: 'm' } },
+      ] },
+      { name: 'Sale', take: 'Ink band', minH: 700, bg: 'var(--wp--preset--color--contrast, #16181c)', els: [
+        { type: 'para', x: 72, y: 84, w: 340, h: 24, text: 'Right now', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--base, #fff) 72%, transparent)' } },
+        { type: 'heading', x: 72, y: 124, w: 600, h: 90, text: 'On sale', fs: 'x-large', color: 'base' },
+        { type: 'para', x: 72, y: 220, w: 520, h: 48, text: 'Only what is reduced, while it lasts. Prices as marked.', color: 'base' },
+        { type: 'button', x: 860, y: 214, w: 240, h: 54, text: 'Everything on sale', href: '/shop/', tf: { bg: 'var(--wp--preset--color--base, #fff)', col: 'var(--wp--preset--color--contrast, #141519)' } },
+        { type: 'widget', rails: true, x: 47, y: 300, w: 1106, h: 360, shop: { count: 3, order: 'sale', layout: 'grid', aspect: 'square', spacing: 'm' } },
+      ] },
+      { name: 'Sale', take: 'The spotlight', minH: 600, els: [
+        { type: 'widget', rails: true, x: 72, y: 70, w: 500, h: 460, shop: { count: 1, order: 'sale', layout: 'grid', aspect: 'square', spacing: 'm' } },
+        { type: 'para', x: 660, y: 130, w: 340, h: 24, text: 'Right now', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
+        { type: 'heading', x: 660, y: 170, w: 460, h: 160, text: 'One thing, properly reduced', fs: '__max' },
+        { type: 'para', x: 660, y: 360, w: 420, h: 72, text: 'Only what is reduced, while it lasts. Prices as marked.' },
+        { type: 'button', x: 660, y: 460, w: 240, h: 54, text: 'Everything on sale', href: '/shop/', ghost: true },
+      ] },
+    ],
+    'Categories': [
+      { name: 'Categories', take: 'Four across', minH: 600, els: [
+        { type: 'para', x: 400, y: 80, w: 400, h: 24, align: 'center', text: 'Shop by', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
+        { type: 'heading', x: 200, y: 120, w: 800, h: 100, align: 'center', text: 'Find your thing', fs: 'x-large' },
+        { type: 'widget', rails: true, x: 47, y: 260, w: 1106, h: 280, shop: { kind: 'categories', count: 4, spacing: 's' } },
+      ] },
+      { name: 'Categories', take: 'Two big', minH: 700, els: [
+        { type: 'para', x: 72, y: 90, w: 340, h: 24, text: 'Shop by', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
+        { type: 'heading', x: 72, y: 130, w: 400, h: 150, text: 'Find your thing', fs: '__max' },
+        { type: 'para', x: 72, y: 300, w: 380, h: 72, text: 'Every door leads somewhere good.' },
+        { type: 'widget', rails: true, x: 520, y: 84, w: 630, h: 560, shop: { kind: 'categories', count: 2, spacing: 'm' } },
+      ] },
+      { name: 'Categories', take: 'Ink', minH: 640, bg: 'var(--wp--preset--color--contrast, #16181c)', els: [
+        { type: 'para', x: 72, y: 84, w: 340, h: 24, text: 'Shop by', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--base, #fff) 72%, transparent)' } },
+        { type: 'heading', x: 72, y: 124, w: 600, h: 90, text: 'Find your thing', fs: 'x-large', color: 'base' },
+        { type: 'widget', rails: true, x: 47, y: 260, w: 1106, h: 320, shop: { kind: 'categories', count: 3, spacing: 'm' } },
+      ] },
+    ],
     'Featured product': [
       { name: 'Featured product', take: 'The billboard', minH: 640, els: [
         { type: 'para', x: 680, y: 150, w: 340, h: 24, text: 'This week', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
@@ -7371,7 +7540,7 @@
   ];
   var STARTER_CATS = {
     'Hero': 'hero', 'Cover': 'hero banner', 'Big statement': 'hero', 'Story': 'text', 'Numbers': 'text',
-    'Article': 'text', 'Feature cards': 'cards', 'Pricing': 'cards', 'Featured product': 'cards featured', 'Bestsellers': 'cards featured',
+    'Article': 'text', 'Feature cards': 'cards', 'Pricing': 'cards', 'Featured product': 'cards featured', 'Bestsellers': 'cards featured', 'Editorial split': 'cards featured', 'New in': 'cards featured', 'Sale': 'cards featured', 'Categories': 'cards photos',
     'Quote': 'text', 'Call to action': 'hero', 'Get in touch': 'contact',
     'FAQ': 'text cards', 'Tabs': 'text cards', 'Gallery': 'photos', 'Photo cards': 'photos cards', 'Portfolio': 'photos',
     'Menu': 'text', 'Team': 'contact photos',
@@ -9618,7 +9787,14 @@
   }
   // "Add a section here": the seam asks WHAT, not WHICH. Words become the
   // closest section from the shelf, with the heading rewritten to match.
-  var SEAM_READS = [
+  var SEAM_READS = (cfg.hasWoo ? [
+    { re: /featured product|one product|spotlight|hero product|product of the (week|month)/, name: 'Featured product' },
+    { re: /best.?seller|most loved|popular products|top sellers/, name: 'Bestsellers' },
+    { re: /new in|just arrived|latest products|new arrivals|newest/, name: 'New in' },
+    { re: /on sale|sale items|reduced|offers|discount/, name: 'Sale' },
+    { re: /categor|shop by|browse the shop|departments/, name: 'Categories' },
+    { re: /\bproducts?\b|\bshop\b|our range|things we (make|sell)/, name: 'Bestsellers' },
+  ] : []).concat([
     // a hero that mentions a picture is the Cover — the one template that
     // carries a background photo (auto-swapped for the site's own library)
     { re: /(hero|cover|banner|intro|top).{0,40}(image|photo|picture)|(image|photo|picture).{0,30}(hero|cover|banner)|full.?(screen|bleed) (photo|image)/, name: 'Cover' },
@@ -9644,7 +9820,7 @@
     { re: /story|about us|history|journey/, name: 'Story' },
     { re: /hero|welcome|intro/, name: 'Hero' },
     { re: /carousel|slider|slideshow/, name: 'Carousel' },
-  ];
+  ]);
   function askSeamMatch(raw) {
     var t = ' ' + String(raw || '').toLowerCase().replace(/[^a-z0-9 ]+/g, ' ').replace(/\s+/g, ' ').trim() + ' ';
     if (t === '  ') return null;
@@ -9725,7 +9901,14 @@
       return out;
     };
     var pageText = S.filter(function (s) { return !s.chrome; }).map(textOf).join(' ');
-    var pool = [
+    var pool = (cfg.hasWoo ? [
+      // a shop's seam leads with the Sell family
+      { label: 'Featured product', say: 'a featured product', re: /the one everyone asks about|featured product/ },
+      { label: 'Bestsellers', say: 'our bestsellers', re: /bestsellers|most loved/ },
+      { label: 'New in', say: 'what is new in the shop', re: /new in|just arrived/ },
+      { label: 'On sale', say: 'what is on sale', re: /on sale/ },
+      { label: 'Shop by category', say: 'shop by category', re: /shop by|find your thing/ },
+    ] : []).concat([
       { label: 'Testimonials', say: 'three customer testimonials', re: /kind words|testimonial/ },
       { label: 'Benefits', say: 'what we offer', re: /what we do|what we offer/ },
       { label: 'Contact form', say: 'a contact form', re: /say hello|let s talk|gogh-form/ },
@@ -9738,7 +9921,7 @@
       { label: 'Numbers', say: 'the numbers that matter', re: /by the numbers/ },
       { label: 'FAQ', say: 'questions and answers', re: /faq|questions, answered/ },
       { label: 'Our story', say: 'our story', re: /our story/ },
-    ];
+    ]);
     // ORDER by what the page is missing, never hide: hiding what the page
     // already had left a fuller page with three leftovers that read as
     // random (James: "seems random which ones appear"). A stable eight,
