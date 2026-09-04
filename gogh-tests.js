@@ -2971,6 +2971,68 @@
       });
     });
 
+    test('freeform widgets born from pasted HTML ride inside core/html', function () {
+      // a bare group around loose markup fails block validation in the
+      // WordPress editor (James's console: 'Block validation failed for
+      // core/group' x6 after pasting HTML and making it freeform)
+      G.addSection({ title: 'RAW', minH: 200, els: [
+        { type: 'widget', x: 60, y: 40, w: 300, h: 40, wsrc: '<span style="color:#d5b36d;">01</span>', whtml: '<span style="color:#d5b36d;">01</span>' },
+        { type: 'widget', x: 60, y: 100, w: 300, h: 40, wsrc: '<!-- wp:gogh/form /-->' },
+      ] });
+      var c = contentSecs();
+      var sW = c[c.length - 1];
+      var out = G.buildV3();
+      var at = out.indexOf('data-gogh-scope="' + sW.scope + '"');
+      var frag = out.slice(at, at + 3000);
+      expect(/gogh-widget">\s*<!-- wp:html -->\s*<span style="color:#d5b36d;">01<\/span>\s*<!-- \/wp:html -->/.test(frag), 'raw markup was not wrapped in core/html');
+      expect(/gogh-widget">\s*<!-- wp:gogh\/form \/-->/.test(frag), 'a real block widget was wrapped when it should pass through');
+      G.deleteSection(G.sections().indexOf(sW));
+      return 'raw → core/html, real blocks untouched';
+    });
+
+    test('move up/down steps over still-native blocks', function () {
+      // the page's neighbours are DOM neighbours — a native block (pasted
+      // HTML not yet freeform) between two sections used to make the verbs
+      // go dead ("if i make a html pasted freeform then i can't move up or down")
+      var before = contentSecs().length;
+      G.addHtmlSection('<section><h2>Native for now</h2><p>Waiting to go freeform.</p></section>');
+      var pend = document.querySelector('.gogh-pending');
+      expect(pend, 'no pending holder for the pasted HTML');
+      G.addSection({ title: 'AFTER', minH: 160, els: [{ type: 'heading', x: 60, y: 40, w: 400, h: 60, text: 'After the native block' }] });
+      var c = contentSecs();
+      var last = c[c.length - 1];
+      expect(c.length === before + 1, 'expected one new gogh section, got ' + (c.length - before));
+      expect(last.wrapEl.previousElementSibling === pend, 'the new section should sit right after the pending holder');
+      G.selectSection(G.sections().indexOf(last));
+      var more = document.querySelector('.gogh-secbar [data-sec="more"]');
+      expect(more, 'no ⋯ on the section bar');
+      more.click();
+      var up = document.querySelector('.gogh-secmore-it[data-act="up"]');
+      expect(up && !up.disabled, 'Move up is disabled although a native block sits above');
+      up.click();
+      expect(last.wrapEl.nextElementSibling === pend, 'the section did not step over the native block');
+      var idxNow = G.sections().indexOf(last);
+      expect(idxNow !== -1 && !G.sections()[idxNow].chrome, 'the moved section lost its seat in S');
+      G.deleteSection(idxNow);
+      pend.remove();
+      return 'stepped over the native block; S re-synced to the DOM';
+    });
+
+    test('mobile menu style: body classes are the state, the stylesheet knows every look', function () {
+      var css = document.getElementById('gogh-menu-inline-css');
+      expect(css, 'the menu stylesheet is not on the page');
+      ['gogh-mm-centred', 'gogh-mm-drawer', 'gogh-mm-sheet', 'gogh-mmg-dark', 'gogh-mmg-brand'].forEach(function (k) {
+        expect(css.textContent.indexOf('body.' + k) !== -1, 'no rules for ' + k);
+      });
+      var before = document.body.className;
+      G.menuStyleWear({ layout: 'drawer', ground: 'dark' });
+      expect(document.body.classList.contains('gogh-mm-drawer') && document.body.classList.contains('gogh-mmg-dark'), 'wear did not dress the body');
+      expect(!document.body.classList.contains('gogh-mm-stack') && !document.body.classList.contains('gogh-mmg-light'), 'the old look was not taken off');
+      G.menuStyleWear(GOGH.menuStyle || { layout: 'stack', ground: 'light' });
+      expect(document.body.className === before, 'wearing the kept style did not restore the body');
+      return 'four layouts, three grounds, one option';
+    });
+
     test('chrome veils never outgrow their part', function () {
       // a transparent header computes absolute at veil time, so the old
       // anchor check skipped it; when an audition or restore took the
@@ -4779,11 +4841,34 @@
       var more = q('.gogh-panel-more');
       var pnl = q('.gogh-panel');
       expect(t && more && more.hidden, 'the more block should arrive folded');
+      // smooth scrolling rides the compositor's clock (frozen in a hidden
+      // tab): observe the REQUEST and apply it instantly, so the assertion
+      // is about intent + geometry, not animation timing
+      var origScrollTo = pnl.scrollTo;
+      var asked = null;
+      pnl.scrollTo = function (o) {
+        asked = o && typeof o === 'object' ? o.top : o;
+        return origScrollTo.call(pnl, { top: asked, behavior: 'instant' });
+      };
       t.click();
+      pnl.scrollTo = origScrollTo;
+      expect(asked !== null && asked > 0, 'opening did not ask the panel to scroll');
       expect(!more.hidden, 'the toggle did not unfold the colours');
       expect(t.classList.contains('is-open'), 'the toggle did not mark itself open');
       expect(t.querySelector('.gogh-bgrow-caret svg'), 'the chevron should be drawn, not a font glyph');
-      return frames(20).then(function (ok) {
+      // smooth scrolling settles on its own clock — wait for the scrollTop
+      // to move (or a real budget to pass), not a fixed frame count
+      var settle = function () {
+        var t0 = Date.now();
+        return new Promise(function (r) {
+          var look = function () {
+            if (pnl.scrollTop > 20 || Date.now() - t0 > 2500) r(true);
+            else setTimeout(look, 60);
+          };
+          look();
+        });
+      };
+      return frames(20).then(function (ok) { return settle().then(function () { return ok; }); }).then(function (ok) {
         var done = function (msg) { pev('pointerdown', document.body, 4, 4); return msg; };
         if (!ok || stalled) return done('rAF frozen (background tab) — front the tab for the scroll check');
         // a hidden tab pauses smooth scrolling mid-flight — nothing to judge there

@@ -1036,8 +1036,15 @@
         case 'widget':
           // atomic block (navigation, site title…): source markup verbatim,
           // wrapped so the solver can place it
+          // a widget born from pasted HTML carries RAW markup, not a block —
+          // a bare group around loose markup fails block validation in the
+          // WordPress editor (its save() cannot regenerate children it
+          // never knew) and recovery would strip them. Raw markup rides
+          // inside a core/html block; real blocks pass through untouched.
+          var wsrcOut = e.wsrc || '';
+          if (wsrcOut && !/^\s*<!--\s*wp:/.test(wsrcOut)) wsrcOut = '<!-- wp:html -->\n' + wsrcOut + '\n<!-- /wp:html -->';
           return '<!-- wp:group {"className":"' + cls + ' gogh-widget","layout":{"type":"default"}} -->\n' +
-            '<div class="wp-block-group ' + cls + ' gogh-widget">\n' + (e.wsrc || '') + '\n</div>\n<!-- /wp:group -->';
+            '<div class="wp-block-group ' + cls + ' gogh-widget">\n' + wsrcOut + '\n</div>\n<!-- /wp:group -->';
         case 'exp':
           // stored markup carries ONLY a plain link (kses-safe, works with the
           // plugin off); gogh_render_section swaps it for the sandboxed iframe
@@ -7822,18 +7829,34 @@
     inserter.hidden = true;
     hideHbar();
   }
+  // the page's neighbours are DOM neighbours: freeform sections AND
+  // still-native blocks (pasted HTML waiting to go freeform, patterns).
+  // Move up/down used to know only gogh sections, so a freeform section
+  // between native blocks had "no neighbour" and the verbs went dead
+  // (James: "if i make a html pasted freeform then i can't move up or
+  // down"). A move now steps over whatever really sits beside it.
+  function pageNeighbour(el, dir) {
+    var n = el;
+    while ((n = dir < 0 ? n.previousElementSibling : n.nextElementSibling)) {
+      if (!n.classList) continue;
+      if (n.classList.contains('gogh-pending')) return n;
+      if (n.classList.contains('gogh-wrap')) {
+        var owner = S.filter(function (s2) { return s2.wrapEl === n; })[0];
+        if (!owner || !owner.chrome) return n;
+      }
+    }
+    return null;
+  }
   function moveSection(idx, dir) {
     hideBoundaryUI();
-    var j = idx + dir;
-    if (j < 0 || j >= S.length || !S[idx]) return;
     var a = S[idx];
-    if (dir < 0) S[j].wrapEl.before(a.wrapEl);
-    else S[j].wrapEl.after(a.wrapEl);
-    S.splice(idx, 1);
-    S.splice(j, 0, a);
-    resolveAll();
+    if (!a || a.chrome) return;
+    var nb = pageNeighbour(a.wrapEl, dir);
+    if (!nb) return;
+    if (dir < 0) nb.before(a.wrapEl);
+    else nb.after(a.wrapEl);
     hideSecBar();
-    pushState();
+    resyncContentOrder(); // S follows the DOM; resolves and records the state
   }
   function reorderSection(from, to) {
     if (from === to || !S[from]) return;
@@ -7964,8 +7987,8 @@
     var contentIdxs = [];
     S.forEach(function (s, k) { if (!s.chrome) contentIdxs.push(k); });
     secMore.innerHTML = [
-      ['up', 'Move up', idx === contentIdxs[0]],
-      ['down', 'Move down', idx === contentIdxs[contentIdxs.length - 1]],
+      ['up', 'Move up', !S[idx] || !pageNeighbour(S[idx].wrapEl, -1)],
+      ['down', 'Move down', !S[idx] || !pageNeighbour(S[idx].wrapEl, 1)],
       ['dup', 'Duplicate', false],
       ['rearrange', 'Rearrange', false],
       ['savepat', 'Save to reuse', false],
@@ -7983,8 +8006,9 @@
         var act = btn.dataset.act;
         closeSecMore();
         if (act === 'up' || act === 'down') {
-          var to = idx + (act === 'up' ? -1 : 1);
+          var movedSec = S[idx];
           moveSection(idx, act === 'up' ? -1 : 1);
+          var to = S.indexOf(movedSec); // S re-syncs to the DOM — find the seat, don't guess it
           // follow the section to its new seat — the next nudge is one
           // click away (desktop re-hover can't happen mid-scroll; thumbs
           // can't hover at all)
@@ -13002,6 +13026,8 @@
     sections: function () { return S; },
     showHbar: function (i) { placeHbar(S[i]); },
     openHeaderPanel: openHeaderPanel,
+    openMenuStylePage: openMenuStylePage,
+    menuStyleWear: menuStyleWear,
     chromeColorApply: chromeColorApply,
     headerLooks: headerLooks,
     partElForArea: partElForArea,
@@ -15635,6 +15661,7 @@
       }).join('') + '</div></div>' +
       '<button type="button" class="gogh-hdoor gogh-hlogo"><span>' + (usingLogo ? 'Logo &amp; size' : 'Logo &amp; name') + '</span><span class="gogh-hdoor-chev">\u203a</span></button>' +
       (d0 && d0.hasNav ? '<button type="button" class="gogh-hdoor gogh-hmenu"><span>Edit menu items</span><span class="gogh-hdoor-chev">\u203a</span></button>' : '') +
+      (d0 && d0.hasNav ? '<button type="button" class="gogh-hdoor gogh-hmobile"><span>Mobile menu</span><span class="gogh-hdoor-chev">\u203a</span></button>' : '') +
       '</div>' +
       // the high-traffic settings live in daylight (James: "styles and
       // spacing are pretty important, but really hidden - and making sticky
@@ -15948,6 +15975,9 @@
     });
     doorway(panel.querySelector('.gogh-hlogo'), function () {
       openLogoPicker(chromeMountedGroup(partEl) || partEl, roomOpt);
+    });
+    doorway(panel.querySelector('.gogh-hmobile'), function () {
+      openMenuStylePage(chromeMountedGroup(partEl) || partEl, roomOpt);
     });
     // MORE: styling & spacing fold away so the panel stays short by default
     var moreBtn = panel.querySelector('.gogh-hmore');
@@ -17515,6 +17545,96 @@
       return;
     }
     placePanelNear(anchorEl);
+  }
+  // ---------- mobile menu style: a page in the header room ----------
+  // One site-wide choice, two radio lists (how it opens, what it wears).
+  // Hover auditions on the REAL overlay — the page can open it for you —
+  // and a click keeps. Body classes are the state; gogh.php wears them.
+  var MENU_LAYOUTS = [
+    ['stack', 'Stack', 'Big type, left-aligned, the whole screen'],
+    ['centred', 'Centred', 'Every line centred, the whole screen'],
+    ['drawer', 'Drawer', 'Slides in from the right'],
+    ['sheet', 'Sheet', 'Rises from the bottom, page still showing'],
+  ];
+  var MENU_GROUNDS = [
+    ['light', 'Light', 'Your base colour'],
+    ['dark', 'Dark', 'Your contrast colour'],
+    ['brand', 'Brand', 'Your primary colour'],
+  ];
+  function menuStyleWear(st) {
+    var b = document.body;
+    MENU_LAYOUTS.forEach(function (o) { b.classList.toggle('gogh-mm-' + o[0], o[0] === st.layout); });
+    MENU_GROUNDS.forEach(function (o) { b.classList.toggle('gogh-mmg-' + o[0], o[0] === st.ground); });
+  }
+  function menuOverlayToggle(partEl, open) {
+    var box = partEl && partEl.querySelector('.wp-block-navigation__responsive-container');
+    if (!box) return false;
+    var isOpen = box.classList.contains('is-menu-open');
+    if (open === isOpen) return true;
+    var btn = partEl.querySelector(open ? '.wp-block-navigation__responsive-container-open' : '.wp-block-navigation__responsive-container-close');
+    if (btn) { btn.click(); return true; }
+    return false;
+  }
+  function openMenuStylePage(anchorEl, roomOpt) {
+    stayInRoom(roomOpt, anchorEl);
+    var kept = { layout: (cfg.menuStyle && cfg.menuStyle.layout) || 'stack', ground: (cfg.menuStyle && cfg.menuStyle.ground) || 'light' };
+    var st = { layout: kept.layout, ground: kept.ground };
+    var partEl = partElForArea('header');
+    var list = function (cls, opts, cur) {
+      return '<div class="gogh-hoptlist ' + cls + '">' + opts.map(function (o) {
+        return '<button type="button" class="gogh-hopt' + (o[0] === cur ? ' is-active' : '') + '" data-v="' + o[0] + '" title="' + escAttr(o[2]) + '">' +
+          '<span class="gogh-hopt-dot"></span><span class="gogh-hopt-name">' + esc(o[1]) + '</span></button>';
+      }).join('') + '</div>';
+    };
+    panel.innerHTML =
+      '<div class="gogh-panel-head"><span class="gogh-panel-title">Mobile menu</span>' +
+      '<button type="button" class="gogh-sbtn gogh-panel-close" title="Close">✕</button></div>' +
+      '<div class="gogh-panel-hint">How the menu opens on phones — and on desktop with the Hamburger layout. Hover to try, click to keep.</div>' +
+      '<div class="gogh-swlab">Opens as</div>' + list('gogh-mmlay', MENU_LAYOUTS, st.layout) +
+      '<div class="gogh-swlab">Wears</div>' + list('gogh-mmground', MENU_GROUNDS, st.ground) +
+      '<div class="gogh-hdoors"><button type="button" class="gogh-hdoor gogh-mmpreview"><span>' +
+      (partEl && partEl.querySelector('.is-menu-open') ? 'Close the menu' : 'Open the menu to preview') + '</span><span class="gogh-hdoor-chev">›</span></button></div>';
+    var closeX = panel.querySelector('.gogh-panel-close');
+    if (closeX) closeX.addEventListener('click', function () { menuOverlayToggle(partEl, false); menuStyleWear(kept); closePanel(); });
+    var prev = panel.querySelector('.gogh-mmpreview');
+    prev.addEventListener('click', function () {
+      var isOpen = !!(partEl && partEl.querySelector('.is-menu-open'));
+      if (!menuOverlayToggle(partEl, !isOpen)) { toast('This header has no menu button to open.', { error: true }); return; }
+      prev.firstChild.textContent = isOpen ? 'Open the menu to preview' : 'Close the menu';
+    });
+    var keep = function () {
+      kept = { layout: st.layout, ground: st.ground };
+      cfg.menuStyle = kept;
+      fetch(cfg.restUrl.split('wp/v2/')[0] + 'gogh/v1/menu-style', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-WP-Nonce': cfg.nonce },
+        credentials: 'same-origin',
+        body: JSON.stringify(kept),
+      }).then(function (r) {
+        if (!r.ok) throw new Error('saving needs an admin login');
+        toast('Mobile menu: ' + MENU_LAYOUTS.filter(function (o) { return o[0] === kept.layout; })[0][1] + ' · ' +
+          MENU_GROUNDS.filter(function (o) { return o[0] === kept.ground; })[0][1] + ' — kept for the whole site.');
+      }).catch(function (err) {
+        toast('gogh could not keep the menu style — ' + ((err && err.message) || 'try again.'), { error: true });
+      });
+    };
+    [['.gogh-mmlay', 'layout'], ['.gogh-mmground', 'ground']].forEach(function (pair) {
+      var box = panel.querySelector(pair[0]);
+      box.querySelectorAll('.gogh-hopt').forEach(function (b) {
+        // hover auditions on the real overlay, leaving takes it back; a click keeps
+        auditionHover(b, function () {
+          var t = {}; t.layout = st.layout; t.ground = st.ground; t[pair[1]] = b.dataset.v;
+          menuStyleWear(t);
+        }, function () { menuStyleWear(st); });
+        b.addEventListener('click', function () {
+          st[pair[1]] = b.dataset.v;
+          menuStyleWear(st);
+          box.querySelectorAll('.gogh-hopt').forEach(function (o) { o.classList.toggle('is-active', o === b); });
+          keep();
+        });
+      });
+    });
+    menuStyleWear(st);
   }
   function openLogoPicker(anchorEl, roomOpt) {
     stayInRoom(roomOpt, anchorEl);
