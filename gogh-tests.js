@@ -3139,6 +3139,96 @@
       return 'panel held through link and mode';
     });
 
+    test('the die carries a video into the next take\u2019s picture slot', function () {
+      var tpls = G.templates();
+      var fam = null, face1 = null;
+      for (var k = 0; k < tpls.length && !fam; k++) {
+        var t0 = tpls[k];
+        if (!t0.starter || t0.retired || t0.gated) continue;
+        var nImg = function (tt) { return tt.els.filter(function (x) { return x.type === 'image'; }).length; };
+        if (nImg(t0) !== 1) continue;
+        var faces = G.diceFaces(t0.name);
+        if (!faces || faces.length < 2) continue;
+        if (nImg(faces[1]) !== 1) continue;
+        fam = t0; face1 = faces[1];
+      }
+      expect(fam, 'no family with a picture in two takes');
+      G.addSection(fam);
+      var c = contentSecs();
+      var sV = c[c.length - 1];
+      var idx = G.sections().indexOf(sV);
+      var img = sV.els.filter(function (x) { return x.type === 'image'; })[0];
+      sV.els.splice(sV.els.indexOf(img), 1); // the picture goes...
+      var e = G.addElementToSection(idx, 'video'); // ...and a moving one arrives
+      G.setVideo(sV, sV.els.indexOf(e), 'https://example.com/loop.mp4', 77);
+      e.radius = 14;
+      G.rollSection(idx);
+      var vids = sV.els.filter(function (x) { return x.type === 'video'; });
+      expect(vids.length === 1, 'the roll should carry exactly one video, got ' + vids.length);
+      expect(vids[0].src === 'https://example.com/loop.mp4' && vids[0].mediaId === 77 && vids[0].radius === 14, 'the video lost its file or corners across the roll');
+      var slot = face1.els.filter(function (x) { return x.type === 'image'; })[0];
+      expect(vids[0].x === slot.x && vids[0].y === slot.y && vids[0].w === slot.w && vids[0].h === slot.h, 'the video should wear the next take\u2019s picture frame');
+      expect(!sV.els.some(function (x) { return x.type === 'image' && x === slot; }), 'the take\u2019s own picture should have stood aside');
+      G.deleteSection(idx);
+      return 'a video rides the die like a picture';
+    });
+
+    testAsync('video corners: chips audition on hover and keep on click', function () {
+      var s0 = sec();
+      var e = G.addElementToSection(G.sections().indexOf(s0), 'video');
+      var i = s0.els.indexOf(e);
+      G.setVideo(s0, i, 'https://example.com/clip.mp4', 12);
+      select(i);
+      G.openPanel(s0, i);
+      var panel = q('.gogh-panel');
+      var round = panel.querySelector('.gogh-vid-corner[data-radius="28"]');
+      expect(round, 'no Round chip');
+      var r0 = e.radius || 0;
+      expect(r0 === 14, 'a fresh video should start Soft, got ' + r0);
+      round.dispatchEvent(new MouseEvent('mouseenter', { bubbles: true }));
+      return new Promise(function (resolve) { setTimeout(resolve, 140); }).then(function () {
+        expect((e.radius || 0) === 28, 'hover should audition the corners, radius is ' + e.radius);
+        expect(/gogh-el-\d+ \{[^}]*border-radius: 2\.33cqw/.test(s0.styleEl.textContent), 'the audition should reach the stylesheet');
+        round.dispatchEvent(new MouseEvent('mouseleave', { bubbles: true }));
+        expect((e.radius || 0) === r0, 'leaving should restore the corners, radius is ' + e.radius);
+        round.click();
+        expect(e.radius === 28 && !panel.hidden && round.classList.contains('is-active'), 'click should keep Round with the panel open');
+        return 'corners audition, then keep';
+      });
+    });
+
+    testAsync('the section background offers the library\u2019s videos, auditioning on hover', function () {
+      var s0 = sec();
+      var idx = G.sections().indexOf(s0);
+      G.openSecBgPanel(idx);
+      var panel = q('.gogh-panel');
+      var until = function (pred, ms) {
+        return new Promise(function (resolve, reject) {
+          var t0 = Date.now();
+          (function tick() {
+            if (pred()) return resolve();
+            if (Date.now() - t0 > ms) return reject(new Error('timed out waiting'));
+            setTimeout(tick, 60);
+          })();
+        });
+      };
+      // both grids answer their own round-trip; the video one may land first or last
+      return until(function () { return panel.querySelector('.gogh-bgvid-media .gogh-thumb') || !panel.querySelector('.gogh-media .gogh-media-loading'); }, 12000).then(function () { return new Promise(function (r) { setTimeout(r, 400); }); }).then(function () {
+        var tile = panel.querySelector('.gogh-bgvid-media .gogh-thumb');
+        if (!tile) return 'no videos in this library \u2014 the grid stays hidden, nothing to audition';
+        expect(!s0.bgVideo, 'the fixture section should start without a background video');
+        tile.dispatchEvent(new MouseEvent('mouseenter', { bubbles: true }));
+        return new Promise(function (r) { setTimeout(r, 140); }).then(function () {
+          expect(s0.bgVideo === tile.dataset.src && s0.sectionEl.querySelector(':scope > .gogh-bgvideo'), 'hover should audition the loop behind the section');
+          tile.dispatchEvent(new MouseEvent('mouseleave', { bubbles: true }));
+          expect(!s0.bgVideo && !s0.sectionEl.querySelector(':scope > .gogh-bgvideo'), 'leaving should take it away again');
+          tile.click();
+          expect(s0.bgVideo === tile.dataset.src && !panel.hidden && tile.classList.contains('is-active'), 'click should keep the loop, panel open, tile ringed');
+          return 'library videos audition behind the section';
+        });
+      });
+    });
+
     test('the rails element: Woo Product Collection, composed from few choices', function () {
       if (!GOGH.hasWoo) return 'no WooCommerce here \u2014 nothing to lay';
       var e = G.addElementToSection(G.sections().indexOf(sec()), 'products');

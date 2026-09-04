@@ -450,6 +450,7 @@
     box: '',
     exp: 'position: relative; overflow: hidden; border-radius: clamp(8px, 1.5cqw, 20px); background: #101114;',
   };
+  TYPE_RULES.video = 'align-self: start;'; // sits like a picture; its corners are the panel's Corners chips
   var isText = function (e) { return e.type === 'heading' || e.type === 'para'; };
   var textyEl = function (e) {
     return e.type === 'heading' || e.type === 'para' || e.type === 'badge' || e.type === 'button' ||
@@ -663,6 +664,7 @@
         // a video frame wears a dark ground under the player: the first
         // frame arrives late on slow lines and an empty frame reads as a hole
         if (e.type === 'video') extra += ' overflow: hidden;' + ((e.src || e.vurl) ? ' background: #0f172a;' : ' ' + imageBackground(e));
+        if (e.type === 'video' && e.radius) extra += ' border-radius: ' + (Math.round(e.radius / 12 * 100) / 100) + 'cqw;';
         else extra += e.src ? ' overflow: hidden;' : ' ' + imageBackground(e);
       }
       if (e.type === 'box') {
@@ -4359,6 +4361,7 @@
     var label = panel.querySelector('.gogh-upload');
     if (label && label.firstChild) label.firstChild.textContent = 'Upload';
   }
+  var VIDEO_CORNERS = [[0, 'Square'], [14, 'Soft'], [28, 'Round']];
   function setVideo(sec, i, url, mediaId) {
     var e = sec.els[i];
     var u = url ? String(url).trim() : '';
@@ -4384,6 +4387,9 @@
     if (pc) pc.hidden = !e.poster;
     panel.querySelectorAll('.gogh-vid-mode').forEach(function (b) {
       b.classList.toggle('is-active', (e.vplay || 'auto') === b.dataset.play);
+    });
+    panel.querySelectorAll('.gogh-vid-corner').forEach(function (b) {
+      b.classList.toggle('is-active', (e.radius || 0) === +b.dataset.radius);
     });
     panel.querySelectorAll('.gogh-vid-media .gogh-thumb').forEach(function (b) {
       b.classList.toggle('is-active', !!e.src && b.dataset.src === e.src);
@@ -4412,6 +4418,11 @@
       [['auto', 'On its own', 'Silent and looping \u2014 a moving picture'], ['click', 'When clicked', 'Controls and sound \u2014 a film to watch']].map(function (m) {
         return '<button type="button" class="gogh-hpreset gogh-vid-mode' + ((e.vplay || 'auto') === m[0] ? ' is-active' : '') + '" data-play="' + m[0] + '" title="' + m[2] + '">' + m[1] + '</button>';
       }).join('') + '</div>' +
+      '<div class="gogh-swlab">Corners</div>' +
+      '<div class="gogh-hpresets gogh-vid-corners">' +
+      VIDEO_CORNERS.map(function (c) {
+        return '<button type="button" class="gogh-hpreset gogh-vid-corner' + ((e.radius || 0) === c[0] ? ' is-active' : '') + '" data-radius="' + c[0] + '">' + c[1] + '</button>';
+      }).join('') + '</div>' +
       '<div class="gogh-vid-posterrow"' + (e.src ? '' : ' hidden') + '>' +
       '<div class="gogh-swlab">Poster \u2014 the still shown before it plays</div>' +
       '<div class="gogh-panel-row gogh-panel-actions">' +
@@ -4430,11 +4441,27 @@
       if (ev.key === 'Escape') closePanel();
     });
     panel.querySelector('.gogh-vid-clear').addEventListener('click', function () { setVideo(sec, i, null); });
+    // a chip auditions on hover and commits on click — the canvas answers
+    // before the hand does (the audition law)
+    var showVid = function () { renderSection(sec); resolveAndApply(sec); placeHandles(sec, i); };
     panel.querySelectorAll('.gogh-vid-mode').forEach(function (b) {
+      var was = null;
+      auditionHover(b, function () { was = e.vplay || 'auto'; e.vplay = b.dataset.play; showVid(); },
+        function () { e.vplay = was; showVid(); });
       b.addEventListener('click', function () {
         e.vplay = b.dataset.play;
-        renderSection(sec);
-        placeHandles(sec, i);
+        showVid();
+        pushState();
+        syncVideoPanel(sec, i);
+      });
+    });
+    panel.querySelectorAll('.gogh-vid-corner').forEach(function (b) {
+      var wasR = 0;
+      auditionHover(b, function () { wasR = e.radius || 0; e.radius = +b.dataset.radius; showVid(); },
+        function () { e.radius = wasR; showVid(); });
+      b.addEventListener('click', function () {
+        e.radius = +b.dataset.radius;
+        showVid();
         pushState();
         syncVideoPanel(sec, i);
       });
@@ -4489,6 +4516,17 @@
           b.title = name;
           b.innerHTML = '<span class="gogh-vid-play"></span><span class="gogh-vidthumb-name">' + esc(name) + '</span>';
           if (sec.els[i].src === item.source_url) b.classList.add('is-active');
+          var wasV = null;
+          auditionHover(b, function () {
+            var ev = sec.els[i];
+            wasV = { src: ev.src, vurl: ev.vurl };
+            ev.src = item.source_url; ev.vurl = null;
+            renderSection(sec);
+          }, function () {
+            var ev = sec.els[i];
+            ev.src = wasV.src; ev.vurl = wasV.vurl;
+            renderSection(sec);
+          });
           b.addEventListener('click', function () { setVideo(sec, i, item.source_url, item.id); });
           box.appendChild(b);
         });
@@ -4908,7 +4946,7 @@
     para: function () { return { type: 'para', x: 80, y: 200, w: 380, h: 50, text: 'Some supporting copy. Drag me anywhere.', ghost: false, cool: false }; },
     button: function () { return { type: 'button', x: 80, y: 320, w: 170, h: 52, text: 'Click me', ghost: false, cool: false }; },
     image: function () { return { type: 'image', x: 520, y: 120, w: 360, h: 260, text: null, ghost: false, cool: true }; },
-    video: function () { return { type: 'video', x: 400, y: 100, w: 560, h: 315, text: null, ghost: false, cool: true, vplay: 'auto' }; },
+    video: function () { return { type: 'video', x: 400, y: 100, w: 560, h: 315, text: null, ghost: false, cool: true, vplay: 'auto', radius: 14 }; },
     badge: function () { return { type: 'badge', x: 520, y: 420, w: 220, h: 52, text: 'New badge', ghost: false, cool: false }; },
     card: function () {
       return { type: 'box', x: 360, y: 80, w: 480, h: 360, radius: 16,
@@ -7490,7 +7528,8 @@
   // by role-position (an eyebrow is a para in uppercase clothes)
   function diceRole(e) {
     if (e.type === 'para') return (e.tf && e.tf.tt === 'uppercase') ? 'eyebrow' : 'para';
-    if (e.type === 'heading' || e.type === 'button' || e.type === 'badge' || e.type === 'image' || e.type === 'video') return e.type;
+    if (e.type === 'video') return 'image'; // a moving picture fills a picture's slot
+    if (e.type === 'heading' || e.type === 'button' || e.type === 'badge' || e.type === 'image') return e.type;
     if (e.type === 'widget') return 'widget';
     return null;
   }
@@ -7526,7 +7565,12 @@
         if (!pl[i]) return;
         var d = {};
         if (r === 'image') {
-          if (e.src && e.src !== pl[i].src) { d.src = e.src; if (e.srcId) d.srcId = e.srcId; }
+          if (e.type === 'video' && (e.src || e.vurl)) {
+            // the user's video rides into the next take's picture slot,
+            // wearing that take's frame
+            d.video = { src: e.src || null, mediaId: e.mediaId || null, vurl: e.vurl || null, vplay: e.vplay || null,
+              poster: e.poster || null, posterId: e.posterId || null, radius: e.radius || 0 };
+          } else if (e.type !== 'video' && e.src && e.src !== pl[i].src) { d.src = e.src; if (e.srcId) d.srcId = e.srcId; }
         } else if (r === 'widget') {
           if (diceWidgetData(e) !== diceWidgetData(pl[i])) d.wdata = JSON.parse(diceWidgetData(e));
         } else {
@@ -7544,6 +7588,11 @@
       (by2[r] || []).forEach(function (e, i) {
         var d = edits[r][i];
         if (!d) return;
+        if (d.video && e.type === 'image') {
+          e.type = 'video';
+          Object.assign(e, d.video);
+          delete e.alt;
+        }
         if (d.src) { e.src = d.src; if (d.srcId) e.srcId = d.srcId; }
         if (d.text != null) e.text = d.text;
         if (d.href) e.href = d.href;
@@ -10468,6 +10517,7 @@
     if (vc) vc.hidden = !sx.bgVideo;
     var vu = panel.querySelector('.gogh-vid-url');
     if (vu) vu.value = sx.bgVideo || '';
+    panel.querySelectorAll('.gogh-bgvid-media .gogh-thumb').forEach(function (o) { o.classList.toggle('is-active', !!sx.bgVideo && o.dataset.src === sx.bgVideo); });
   }
   function openSecBgPanel(idx, anchorEl) {
     var secx = S[idx];
@@ -10523,6 +10573,7 @@
       (cfg.canUpload ? '<label class="gogh-btn gogh-btn-small gogh-vid-upload">' + (secx.bgVideo ? 'Change video' : 'Upload video') + '<input type="file" accept="video/mp4,video/webm,video/quicktime" hidden /></label>' : '') +
       '<button type="button" class="gogh-btn gogh-btn-small gogh-vid-clear"' + (secx.bgVideo ? '' : ' hidden') + '>Remove video</button>' +
       '</div>' +
+      '<div class="gogh-vidgrid gogh-bgvid-media" hidden></div>' +
       bgRow('height', 'Height', hVal(),
         '<div class="gogh-hpresets">' +
         [['s','S',320],['m','M',560],['l','L',800]].map(function (hp) {
@@ -10801,6 +10852,42 @@
         .then(function (item) { setSecVideo(idx, item.source_url, item.id); })
         .catch(function (err) { vlabel.firstChild.textContent = 'Upload failed'; console.error('gogh video upload failed:', err); });
     });
+    // the library's videos, as tiles — hover auditions the loop behind the
+    // section, a click keeps it (nothing shows when there are none)
+    fetch(restQ(cfg.mediaUrl, 'per_page=16&media_type=video&orderby=date&order=desc'), {
+      headers: { 'X-WP-Nonce': cfg.nonce },
+      credentials: 'same-origin',
+    }).then(function (res) { return res.ok ? res.json() : []; }).catch(function () { return []; })
+      .then(function (items) {
+        var grid = panel.querySelector('.gogh-bgvid-media');
+        if (!grid || panel.hidden || !items.length) return;
+        items.forEach(function (item) {
+          var b = document.createElement('button');
+          b.type = 'button';
+          b.className = 'gogh-thumb gogh-vidthumb';
+          b.dataset.src = item.source_url;
+          var name = (item.title && item.title.rendered) || (item.source_url || '').split('/').pop();
+          b.title = name;
+          b.innerHTML = '<span class="gogh-vid-play"></span><span class="gogh-vidthumb-name">' + esc(name) + '</span>';
+          if (secx.bgVideo === item.source_url) b.classList.add('is-active');
+          var wasB = null;
+          auditionHover(b, function () {
+            wasB = { v: secx.bgVideo, id: secx.bgVideoId };
+            secx.bgVideo = item.source_url; secx.bgVideoId = item.id;
+            renderSection(secx); resolveAndApply(secx);
+          }, function () {
+            secx.bgVideo = wasB.v; secx.bgVideoId = wasB.id;
+            renderSection(secx); resolveAndApply(secx);
+          });
+          b.addEventListener('click', function () {
+            setSecVideo(idx, item.source_url, item.id);
+            grid.querySelectorAll('.gogh-thumb').forEach(function (o) { o.classList.toggle('is-active', o === b); });
+          });
+          grid.appendChild(b);
+        });
+        grid.hidden = false;
+        reclampPanel();
+      });
     var vurl = panel.querySelector('.gogh-vid-url');
     if (vurl) {
       vurl.value = secx.bgVideo || '';
@@ -13843,7 +13930,7 @@
     multi: { set: setMulti, clear: clearMulti, state: function () { return multiSel; } },
     zoom: { open: openZoom, close: closeZoom, el: zoomOv },
     reorderSection: reorderSection,
-    setVideo: setVideo, setSecVideo: setSecVideo, videoEmbedInfo: videoEmbedInfo,
+    setVideo: setVideo, setSecVideo: setSecVideo, videoEmbedInfo: videoEmbedInfo, openSecBgPanel: openSecBgPanel,
     reorderNavRaw: reorderNavRaw,
     stickyRawToggle: stickyRawToggle,
     chromeDialsRead: chromeDialsRead,

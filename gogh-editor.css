@@ -3860,3 +3860,5 @@ body:has(.wp-block-navigation__responsive-container.is-menu-open) .gogh-bar { op
 .gogh-vidthumb-name { font: 500 9.5px/1.2 system-ui, sans-serif; text-align: center; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .gogh-editing .gogh-vid video, .gogh-editing .gogh-vid iframe, .gogh-editing .gogh-bgvideo video { pointer-events: none; }
 .gogh-editing .gogh-bgvideo-btn { display: none; }
+.gogh-vidgrid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin: 4px 0 10px; }
+.gogh-vidgrid .gogh-thumb.is-active, .gogh-vid-media .gogh-thumb.is-active { box-shadow: 0 0 0 2px #fff, 0 0 0 4px #2f6fed; }
