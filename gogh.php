@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Gogh Editor
  * Description: A freeform canvas for WordPress — drag anything anywhere on your live page; Gogh publishes it back as clean, responsive core blocks that keep working even if the plugin is deactivated.
- * Version: 0.99.398
+ * Version: 0.99.399
  * Author: Jamie Marsland
  * Author URI: https://pootlepress.com
  * License: GPLv2 or later
@@ -23,7 +23,7 @@ add_action( 'init', function () {
 		'gogh-block',
 		plugins_url( 'gogh-block.js', __FILE__ ),
 		array( 'wp-blocks', 'wp-element', 'wp-block-editor' ),
-		'0.99.398-chrome',
+		'0.99.399-chrome',
 		true
 	);
 	register_block_type( 'gogh/section', array(
@@ -475,9 +475,9 @@ add_action( 'wp_enqueue_scripts', function () {
 	if ( ! $post || ! current_user_can( 'edit_post', $post->ID ) ) {
 		return;
 	}
-	wp_register_script( 'gogh-compose', plugins_url( 'gogh-compose.js', __FILE__ ), array(), '0.99.398-chrome', true );
-	wp_enqueue_script( 'gogh-write', plugins_url( 'gogh-write.js', __FILE__ ), array( 'gogh-compose' ), '0.99.398-chrome', true );
-	wp_enqueue_style( 'gogh-write', plugins_url( 'gogh-write.css', __FILE__ ), array(), '0.99.398-chrome' );
+	wp_register_script( 'gogh-compose', plugins_url( 'gogh-compose.js', __FILE__ ), array(), '0.99.399-chrome', true );
+	wp_enqueue_script( 'gogh-write', plugins_url( 'gogh-write.js', __FILE__ ), array( 'gogh-compose' ), '0.99.399-chrome', true );
+	wp_enqueue_style( 'gogh-write', plugins_url( 'gogh-write.css', __FILE__ ), array(), '0.99.399-chrome' );
 	wp_localize_script( 'gogh-write', 'GOGHWRITE', array(
 		'postId'  => $post->ID,
 		'restUrl' => esc_url_raw( rest_url() ),
@@ -2147,7 +2147,7 @@ add_action( 'rest_api_init', function () {
 			return current_user_can( 'edit_posts' );
 		},
 		'callback'            => function () {
-			return array( 'build' => '0.99.398-chrome' );
+			return array( 'build' => '0.99.399-chrome' );
 		},
 	) );
 	register_rest_route( 'gogh/v1', '/starter', array(
@@ -3043,8 +3043,8 @@ add_action( 'admin_enqueue_scripts', function ( $hook ) {
 			$globals[] = $tax->attribute_label;
 		}
 	}
-	wp_enqueue_script( 'gogh-admin', plugins_url( 'gogh-admin.js', __FILE__ ), array(), '0.99.398-chrome', true );
-	wp_enqueue_style( 'gogh-admin', plugins_url( 'gogh-admin.css', __FILE__ ), array(), '0.99.398-chrome' );
+	wp_enqueue_script( 'gogh-admin', plugins_url( 'gogh-admin.js', __FILE__ ), array(), '0.99.399-chrome', true );
+	wp_enqueue_style( 'gogh-admin', plugins_url( 'gogh-admin.css', __FILE__ ), array(), '0.99.399-chrome' );
 	wp_localize_script( 'gogh-admin', 'GOGH_ADMIN', array(
 		'restUrl'   => esc_url_raw( rest_url( 'wc/v3/' ) ),
 		'nonce'     => wp_create_nonce( 'wp_rest' ),
@@ -3076,6 +3076,208 @@ add_action( 'admin_notices', function () {
 		echo '<div class="notice notice-success is-dismissible"><p>' . esc_html__( 'Variations created. They are in the Variations tab below, priced and ready to sell.', 'gogh-editor' ) . '</p></div>';
 	}
 } );
+// ---------- Launch: a goal-grouped checklist, not a wizard (phase two) ----------
+// Woo's onboarding stops when the settings are filled in. A shop that is set
+// up but looks like nothing is not launched — so this list runs on through
+// design, and it reads the site's real state every time (nothing to tick).
+function gogh_launch_groups() {
+	if ( ! function_exists( 'wc_get_products' ) ) {
+		return array();
+	}
+	$products = wc_get_products( array( 'status' => 'publish', 'limit' => -1 ) );
+	$no_pic   = 0;
+	$virtual  = count( $products ) > 0;
+	foreach ( $products as $pr ) {
+		if ( ! $pr->get_image_id() ) {
+			$no_pic++;
+		}
+		if ( ! $pr->is_virtual() ) {
+			$virtual = false;
+		}
+	}
+	$shipping = $virtual;
+	if ( ! $shipping && class_exists( 'WC_Shipping_Zones' ) ) {
+		foreach ( WC_Shipping_Zones::get_zones() as $z ) {
+			if ( ! empty( $z['shipping_methods'] ) ) {
+				$shipping = true;
+			}
+		}
+		if ( ! $shipping && count( ( new WC_Shipping_Zone( 0 ) )->get_shipping_methods( true ) ) ) {
+			$shipping = true;
+		}
+	}
+	$gateways = array();
+	if ( function_exists( 'WC' ) && WC()->payment_gateways() ) {
+		foreach ( WC()->payment_gateways()->payment_gateways() as $g ) {
+			if ( 'yes' === $g->enabled ) {
+				$gateways[] = $g->get_title();
+			}
+		}
+	}
+	$orders   = function_exists( 'wc_get_orders' ) ? count( wc_get_orders( array( 'limit' => 1, 'return' => 'ids' ) ) ) : 0;
+	$page_ok  = function ( $id ) { return $id && 'publish' === get_post_status( (int) $id ); };
+	$front    = (int) get_option( 'page_on_front' );
+	$front_ok = 'page' === get_option( 'show_on_front' ) && $front && false !== strpos( (string) get_post_field( 'post_content', $front ), 'wp:gogh/section' );
+	$name     = trim( (string) get_option( 'blogname' ) );
+	$soon     = 'yes' === get_option( 'woocommerce_coming_soon' );
+	$shop_url = function_exists( 'wc_get_page_permalink' ) ? wc_get_page_permalink( 'shop' ) : home_url( '/' );
+	$item     = function ( $title, $why, $done, $verb, $url ) {
+		return array( 'title' => $title, 'why' => $why, 'done' => (bool) $done, 'verb' => $verb, 'url' => $url );
+	};
+	return array(
+		array( 'title' => __( 'Set up your shop', 'gogh-editor' ), 'items' => array(
+			$item( __( 'Name your shop', 'gogh-editor' ), __( 'It heads every page, every email and every receipt.', 'gogh-editor' ), $name && ! in_array( strtolower( $name ), array( 'my wordpress', 'wordpress', 'my site', 'site title' ), true ), __( 'Name it', 'gogh-editor' ), admin_url( 'options-general.php' ) ),
+			$item( __( 'Add your first product', 'gogh-editor' ), __( 'A name and a price make it sellable.', 'gogh-editor' ), count( $products ) > 0, __( 'Add a product', 'gogh-editor' ), admin_url( 'post-new.php?post_type=product' ) ),
+			/* translators: %d: products without a picture */
+			$item( __( 'Give every product a picture', 'gogh-editor' ), $no_pic ? sprintf( _n( '%d product has no picture yet.', '%d products have no picture yet.', $no_pic, 'gogh-editor' ), $no_pic ) : __( 'People buy what they can see.', 'gogh-editor' ), count( $products ) > 0 && 0 === $no_pic, __( 'See products', 'gogh-editor' ), admin_url( 'edit.php?post_type=product' ) ),
+			$item( __( 'Country and currency', 'gogh-editor' ), __( 'Prices, tax and shipping all follow from these two.', 'gogh-editor' ), get_option( 'woocommerce_default_country' ) && get_option( 'woocommerce_currency' ), __( 'Check settings', 'gogh-editor' ), admin_url( 'admin.php?page=wc-settings' ) ),
+			$item( __( 'Your store address', 'gogh-editor' ), __( 'It appears on receipts, and shipping rates start from here.', 'gogh-editor' ), '' !== trim( (string) get_option( 'woocommerce_store_address' ) ), __( 'Add address', 'gogh-editor' ), admin_url( 'admin.php?page=wc-settings' ) ),
+			$item( __( 'A way to ship', 'gogh-editor' ), $virtual ? __( 'Everything you sell is digital — nothing to post.', 'gogh-editor' ) : __( 'One zone with one rate is enough to start: flat rate, or free.', 'gogh-editor' ), $shipping, __( 'Set up shipping', 'gogh-editor' ), admin_url( 'admin.php?page=wc-settings&tab=shipping' ) ),
+		) ),
+		array( 'title' => __( 'Get paid', 'gogh-editor' ), 'items' => array(
+			$item( __( 'A way to take payment', 'gogh-editor' ), $gateways ? sprintf( __( 'On: %s.', 'gogh-editor' ), implode( ', ', $gateways ) ) : __( 'Cards and wallets in one step, everything else behind a link.', 'gogh-editor' ), count( $gateways ) > 0, __( 'Get paid', 'gogh-editor' ), admin_url( 'admin.php?page=gogh-payments' ) ),
+			$item( __( 'Place a test order', 'gogh-editor' ), __( 'Buy something from yourself once — checkout, the email, the order screen.', 'gogh-editor' ), $orders > 0, __( 'Go to the shop', 'gogh-editor' ), $shop_url ),
+		) ),
+		array( 'title' => __( 'Legal pages', 'gogh-editor' ), 'items' => array(
+			$item( __( 'Privacy policy', 'gogh-editor' ), __( 'WordPress drafts one for you; publish it and point to it.', 'gogh-editor' ), $page_ok( get_option( 'wp_page_for_privacy_policy' ) ), __( 'Privacy settings', 'gogh-editor' ), admin_url( 'options-privacy.php' ) ),
+			$item( __( 'Terms and conditions', 'gogh-editor' ), __( 'Shown at checkout; a short, honest page beats a long copied one.', 'gogh-editor' ), $page_ok( get_option( 'woocommerce_terms_page_id' ) ), __( 'Choose the page', 'gogh-editor' ), admin_url( 'admin.php?page=wc-settings&tab=advanced' ) ),
+			$item( __( 'Refunds and returns', 'gogh-editor' ), __( 'Say what happens when something goes wrong, before it does.', 'gogh-editor' ), $page_ok( get_option( 'woocommerce_refund_returns_page_id' ) ), __( 'Choose the page', 'gogh-editor' ), admin_url( 'admin.php?page=wc-settings&tab=advanced' ) ),
+		) ),
+		array( 'title' => __( 'Ready to launch', 'gogh-editor' ), 'items' => array(
+			$item( __( 'A home page with a story', 'gogh-editor' ), __( 'The first thing anyone sees. Designed with gogh, it says who you are.', 'gogh-editor' ), $front_ok, __( 'Design the home page', 'gogh-editor' ), $front ? add_query_arg( 'gogh-edit', '1', get_permalink( $front ) ) : home_url( '/?gogh-edit=1' ) ),
+			$item( __( 'A look for the shop page', 'gogh-editor' ), __( 'Editorial, Gallery or Catalogue — pick it from the bar on the shop page.', 'gogh-editor' ), '' !== (string) get_option( 'gogh_shop_layout', '' ), __( 'Open the shop', 'gogh-editor' ), $shop_url ),
+			$item( __( 'Your logo in the header', 'gogh-editor' ), __( 'Click the header while editing any page to place it.', 'gogh-editor' ), (int) get_theme_mod( 'custom_logo' ) > 0, __( 'Edit the header', 'gogh-editor' ), home_url( '/?gogh-edit=1' ) ),
+			$item( __( 'Open the doors', 'gogh-editor' ), $soon ? __( 'The shop is behind Coming soon. When the rest is done, let people in.', 'gogh-editor' ) : __( 'The shop is live for everyone.', 'gogh-editor' ), ! $soon, __( 'Site visibility', 'gogh-editor' ), admin_url( 'admin.php?page=wc-settings&tab=site-visibility' ) ),
+		) ),
+	);
+}
+function gogh_launch_progress() {
+	$done = 0;
+	$all  = 0;
+	foreach ( gogh_launch_groups() as $g ) {
+		foreach ( $g['items'] as $it ) {
+			$all++;
+			if ( $it['done'] ) {
+				$done++;
+			}
+		}
+	}
+	return array( $done, $all );
+}
+add_action( 'admin_menu', function () {
+	if ( ! function_exists( 'wc_get_products' ) ) {
+		return;
+	}
+	add_submenu_page( 'woocommerce', __( 'Launch your shop', 'gogh-editor' ), __( 'Launch', 'gogh-editor' ), 'manage_woocommerce', 'gogh-launch', 'gogh_launch_page', 1 );
+	// off the menu (Launch is its door); a hidden page gets no title of its own, so admin_title supplies one below
+	add_submenu_page( '', __( 'Get paid', 'gogh-editor' ), '', 'manage_woocommerce', 'gogh-payments', 'gogh_payments_page' );
+}, 60 );
+add_filter( 'admin_title', function ( $title ) {
+	if ( isset( $_GET['page'] ) && 'gogh-payments' === $_GET['page'] ) { // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+		return __( 'Get paid', 'gogh-editor' ) . ' &lsaquo; ' . get_bloginfo( 'name' ) . ' &#8212; WordPress';
+	}
+	return $title;
+} );
+function gogh_launch_css() {
+	return '.gogh-launch{max-width:860px;margin:24px 0}.gogh-launch h1{font-size:28px;font-weight:600;letter-spacing:-.01em;margin:0 0 6px}.gogh-launch-lede{font-size:15px;color:#50575e;margin:0 0 18px;max-width:60ch}' .
+		'.gogh-launch-bar{height:8px;border-radius:999px;background:#e5e7eb;overflow:hidden;margin:0 0 6px}.gogh-launch-bar i{display:block;height:100%;background:#1f5a3f;border-radius:999px;transition:width .4s}' .
+		'.gogh-launch-count{font-size:13px;color:#646970;margin:0 0 26px}' .
+		'.gogh-launch-group{background:#fff;border:1px solid #dcdcde;border-radius:12px;margin:0 0 18px;overflow:hidden}.gogh-launch-group h2{display:flex;justify-content:space-between;align-items:baseline;margin:0;padding:14px 20px;font-size:16px;font-weight:600;border-bottom:1px solid #f0f0f1}.gogh-launch-group h2 span{font-size:12px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:#646970}.gogh-launch-group h2 span.is-done{color:#1e5631}' .
+		'.gogh-launch-item{display:grid;grid-template-columns:28px 1fr auto;gap:0 14px;align-items:center;padding:14px 20px;border-bottom:1px solid #f0f0f1}.gogh-launch-item:last-child{border-bottom:0}' .
+		'.gogh-launch-mark{width:22px;height:22px;border-radius:50%;border:2px solid #c3c4c7;display:grid;place-items:center;font-size:13px;color:#fff}.gogh-launch-item.is-done .gogh-launch-mark{background:#1f5a3f;border-color:#1f5a3f}' .
+		'.gogh-launch-item strong{display:block;font-size:14px;color:#1d2327}.gogh-launch-item.is-done strong{color:#646970;text-decoration:line-through;text-decoration-color:#c3c4c7}.gogh-launch-item small{display:block;font-size:13px;color:#646970;margin-top:2px}' .
+		'.gogh-launch-item .button{white-space:nowrap}.gogh-launch-item.is-done .button{visibility:hidden}' .
+		'.gogh-launch-foot{font-size:13px;color:#646970;margin:8px 0 0}' .
+		'.gogh-pay-card{background:#fff;border:1px solid #dcdcde;border-radius:12px;padding:22px 24px;margin:0 0 16px;max-width:640px}.gogh-pay-card h2{margin:0 0 6px;font-size:18px;font-weight:600}.gogh-pay-card p{margin:0 0 12px;font-size:14px;color:#50575e;max-width:56ch}.gogh-pay-badges{display:flex;gap:8px;flex-wrap:wrap;margin:0 0 14px}.gogh-pay-badges span{border:1px solid #dcdcde;border-radius:999px;padding:4px 10px;font-size:12px;color:#1d2327;background:#f6f7f7}' .
+		'.gogh-pay-on{display:inline-block;background:#e6f4ea;color:#1e5631;border-radius:999px;padding:4px 10px;font-size:12px;font-weight:600;margin:0 0 10px}' .
+		'.gogh-pay-more summary{cursor:pointer;font-size:14px;color:#1f5a3f;font-weight:600}.gogh-pay-more ul{margin:10px 0 0 0;padding:0;list-style:none}.gogh-pay-more li{display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid #f0f0f1;font-size:14px}.gogh-pay-more li em{font-style:normal;color:#646970}';
+}
+function gogh_launch_page() {
+	$groups = gogh_launch_groups();
+	list( $done, $all ) = gogh_launch_progress();
+	echo '<style>' . gogh_launch_css() . '</style><div class="wrap gogh-launch">'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+	echo '<h1>' . esc_html__( 'Launch your shop', 'gogh-editor' ) . '</h1>';
+	echo '<p class="gogh-launch-lede">' . esc_html__( 'Not a wizard — a list that reads your shop as it really is, and keeps going past the settings, through design, until people can buy.', 'gogh-editor' ) . '</p>';
+	$pct = $all ? round( $done / $all * 100 ) : 0;
+	echo '<div class="gogh-launch-bar"><i style="width:' . (int) $pct . '%"></i></div>';
+	/* translators: 1: done, 2: total */
+	echo '<p class="gogh-launch-count">' . esc_html( sprintf( __( '%1$d of %2$d done', 'gogh-editor' ), $done, $all ) ) . ( $done === $all ? ' — ' . esc_html__( 'the doors are open.', 'gogh-editor' ) : '' ) . '</p>';
+	foreach ( $groups as $g ) {
+		$gd = count( array_filter( $g['items'], function ( $i ) { return $i['done']; } ) );
+		$ga = count( $g['items'] );
+		echo '<section class="gogh-launch-group"><h2>' . esc_html( $g['title'] ) . '<span class="' . ( $gd === $ga ? 'is-done' : '' ) . '">' . (int) $gd . '/' . (int) $ga . '</span></h2>';
+		foreach ( $g['items'] as $it ) {
+			echo '<div class="gogh-launch-item' . ( $it['done'] ? ' is-done' : '' ) . '">' .
+				'<span class="gogh-launch-mark" aria-hidden="true">' . ( $it['done'] ? '&#10003;' : '' ) . '</span>' .
+				'<div><strong>' . esc_html( $it['title'] ) . '</strong><small>' . esc_html( $it['why'] ) . '</small></div>' .
+				'<a class="button" href="' . esc_url( $it['url'] ) . '">' . esc_html( $it['verb'] ) . '</a></div>';
+		}
+		echo '</section>';
+	}
+	echo '<p class="gogh-launch-foot">' . esc_html__( 'Nothing here is ticked by hand: fix the thing and the list notices.', 'gogh-editor' ) . '</p></div>';
+}
+// one path to getting paid: cards and wallets in a step, the rest behind a link
+function gogh_payments_page() {
+	$installed = file_exists( WP_PLUGIN_DIR . '/woocommerce-payments/woocommerce-payments.php' );
+	$active    = class_exists( 'WC_Payments' ) || is_plugin_active( 'woocommerce-payments/woocommerce-payments.php' );
+	$enabled   = false;
+	$others    = array();
+	if ( function_exists( 'WC' ) && WC()->payment_gateways() ) {
+		foreach ( WC()->payment_gateways()->payment_gateways() as $g ) {
+			if ( 'woocommerce_payments' === $g->id ) {
+				$enabled = 'yes' === $g->enabled;
+			} else {
+				$others[] = array( 'title' => $g->get_method_title(), 'on' => 'yes' === $g->enabled );
+			}
+		}
+	}
+	echo '<style>' . gogh_launch_css() . '</style><div class="wrap gogh-launch">'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+	echo '<h1>' . esc_html__( 'Get paid', 'gogh-editor' ) . '</h1>';
+	echo '<p class="gogh-launch-lede">' . esc_html__( 'One way to take cards and wallets, set up in a few minutes. Everything else lives behind a link, for the day you need it.', 'gogh-editor' ) . '</p>';
+	echo '<div class="gogh-pay-card">';
+	if ( $enabled ) {
+		echo '<span class="gogh-pay-on">' . esc_html__( 'On', 'gogh-editor' ) . '</span>';
+	}
+	echo '<h2>WooPayments</h2>';
+	echo '<div class="gogh-pay-badges"><span>Visa</span><span>Mastercard</span><span>Amex</span><span>Apple Pay</span><span>Google Pay</span></div>';
+	echo '<p>' . esc_html__( 'Built by the people who make WooCommerce. A small fee per sale and nothing monthly; the money lands in your bank account on a schedule you choose. Available in most countries — the setup tells you at once if yours is not.', 'gogh-editor' ) . '</p>';
+	if ( $enabled ) {
+		echo '<a class="button" href="' . esc_url( admin_url( 'admin.php?page=wc-admin&path=/payments/overview' ) ) . '">' . esc_html__( 'Open WooPayments', 'gogh-editor' ) . '</a>';
+	} elseif ( $active ) {
+		echo '<a class="button button-primary button-hero" href="' . esc_url( admin_url( 'admin.php?page=wc-admin&path=/payments/connect' ) ) . '">' . esc_html__( 'Finish setting up WooPayments', 'gogh-editor' ) . '</a>';
+	} elseif ( $installed && current_user_can( 'activate_plugins' ) ) {
+		echo '<a class="button button-primary button-hero" href="' . esc_url( wp_nonce_url( self_admin_url( 'plugins.php?action=activate&plugin=woocommerce-payments/woocommerce-payments.php' ), 'activate-plugin_woocommerce-payments/woocommerce-payments.php' ) ) . '">' . esc_html__( 'Turn on WooPayments', 'gogh-editor' ) . '</a>';
+	} elseif ( current_user_can( 'install_plugins' ) ) {
+		echo '<a class="button button-primary button-hero" href="' . esc_url( wp_nonce_url( self_admin_url( 'update.php?action=install-plugin&plugin=woocommerce-payments' ), 'install-plugin_woocommerce-payments' ) ) . '">' . esc_html__( 'Add WooPayments', 'gogh-editor' ) . '</a>';
+		echo '<p style="margin-top:10px">' . esc_html__( 'Installs the free WooPayments plugin from WordPress.org, then walks you through connecting a bank account.', 'gogh-editor' ) . '</p>';
+	} else {
+		echo '<p>' . esc_html__( 'Ask an administrator to add the WooPayments plugin.', 'gogh-editor' ) . '</p>';
+	}
+	echo '</div>';
+	echo '<details class="gogh-pay-more gogh-pay-card"><summary>' . esc_html__( 'More payment options', 'gogh-editor' ) . '</summary>';
+	echo '<p style="margin-top:10px">' . esc_html__( 'Bank transfer, cash on delivery, PayPal and the rest. Turn one on if that is how your customers already pay you.', 'gogh-editor' ) . '</p><ul>';
+	foreach ( $others as $o ) {
+		echo '<li>' . esc_html( $o['title'] ) . '<em>' . ( $o['on'] ? esc_html__( 'on', 'gogh-editor' ) : esc_html__( 'off', 'gogh-editor' ) ) . '</em></li>';
+	}
+	echo '</ul><p style="margin-top:12px"><a class="button" href="' . esc_url( admin_url( 'admin.php?page=wc-settings&tab=checkout' ) ) . '">' . esc_html__( 'All payment settings', 'gogh-editor' ) . '</a></p></details>';
+	echo '<p class="gogh-launch-foot"><a href="' . esc_url( admin_url( 'admin.php?page=gogh-launch' ) ) . '">&larr; ' . esc_html__( 'Back to Launch your shop', 'gogh-editor' ) . '</a></p></div>';
+}
+// the count rides the admin bar until the doors are open
+add_action( 'admin_bar_menu', function ( $bar ) {
+	if ( ! is_admin() || ! function_exists( 'wc_get_products' ) || ! current_user_can( 'manage_woocommerce' ) ) {
+		return;
+	}
+	list( $done, $all ) = gogh_launch_progress();
+	if ( ! $all || $done === $all ) {
+		return;
+	}
+	$bar->add_node( array(
+		'id'    => 'gogh-launch',
+		'title' => '🚀 ' . sprintf( __( 'Launch %1$d/%2$d', 'gogh-editor' ), $done, $all ),
+		'href'  => admin_url( 'admin.php?page=gogh-launch' ),
+		'meta'  => array( 'title' => __( 'Launch your shop — what is left', 'gogh-editor' ) ),
+	) );
+}, 90 );
 // 'You might also like' on product pages: on by default (it sells), one
 // click off for a maker with three products (James: 'folks might want
 // to hide the you might also like section')
@@ -3759,7 +3961,7 @@ function gogh_splash_css() {
 // wearing Magazine must read as Magazine logged-out, and the site's gait
 // is site-wide; both packs are a few KB of pure CSS.
 add_action( 'wp_enqueue_scripts', function () {
-	wp_register_style( 'gogh-looks', false, array(), '0.99.398-chrome' );
+	wp_register_style( 'gogh-looks', false, array(), '0.99.399-chrome' );
 	wp_enqueue_style( 'gogh-looks' );
 	wp_add_inline_style( 'gogh-looks', gogh_reading_style_css() . gogh_motion_css() . gogh_blog_style_css() );
 
@@ -3799,10 +4001,10 @@ add_action( 'wp_enqueue_scripts', function () {
 
 	// for every visitor: neutralise theme spacing around gogh sections, even
 	// on pages whose stored stylesheets predate this rule
-	wp_register_style( 'gogh-base', false, array(), '0.99.398-chrome' );
+	wp_register_style( 'gogh-base', false, array(), '0.99.399-chrome' );
 	// (the splash presentation itself lives in gogh_splash_css(), shared with
 	// the block editor — a wall in Gutenberg must look like a wall)
-	wp_register_script( 'gogh-view', false, array(), '0.99.398-chrome', true );
+	wp_register_script( 'gogh-view', false, array(), '0.99.399-chrome', true );
 	wp_enqueue_script( 'gogh-view' );
 	wp_add_inline_script( 'gogh-view',
 		// video backgrounds: a pause control per section (moving content that
@@ -4030,9 +4232,9 @@ add_action( 'wp_enqueue_scripts', function () {
 
 	// compose must be REGISTERED here too — a dependency on an
 	// unregistered handle silently drops the whole editor script
-	wp_register_script( 'gogh-compose', plugins_url( 'gogh-compose.js', __FILE__ ), array(), '0.99.398-chrome', true );
-	wp_enqueue_script( 'gogh-editor', plugins_url( 'gogh-editor.js', __FILE__ ), array( 'gogh-compose' ), '0.99.398-chrome', true );
-	wp_enqueue_style( 'gogh-editor', plugins_url( 'gogh-editor.css', __FILE__ ), array(), '0.99.398-chrome' );
+	wp_register_script( 'gogh-compose', plugins_url( 'gogh-compose.js', __FILE__ ), array(), '0.99.399-chrome', true );
+	wp_enqueue_script( 'gogh-editor', plugins_url( 'gogh-editor.js', __FILE__ ), array( 'gogh-compose' ), '0.99.399-chrome', true );
+	wp_enqueue_style( 'gogh-editor', plugins_url( 'gogh-editor.css', __FILE__ ), array(), '0.99.399-chrome' );
 
 	// WebMCP bridge: the page registers its editing verbs as agent tools.
 	// OPT-IN only — add ?gogh-mcp=1 for a demo session (or enable sitewide
@@ -4044,13 +4246,13 @@ add_action( 'wp_enqueue_scripts', function () {
 	// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only labs toggle
 	$gogh_exp = isset( $_GET['gogh-test'] ) || ( isset( $_GET['gogh-experiments'] ) && '0' !== $_GET['gogh-experiments'] );
 	if ( isset( $_GET['gogh-mcp'] ) || $gogh_exp || apply_filters( 'gogh_webmcp_enabled', false ) ) {
-		wp_enqueue_script( 'gogh-webmcp', plugins_url( 'gogh-webmcp.js', __FILE__ ), array( 'gogh-editor' ), '0.99.398-chrome', true );
+		wp_enqueue_script( 'gogh-webmcp', plugins_url( 'gogh-webmcp.js', __FILE__ ), array( 'gogh-editor' ), '0.99.399-chrome', true );
 	}
 
 	// regression suite: /page/?gogh-test (editors only, never saves)
 	// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only toggle enqueuing a test script for capability-checked editors.
 	if ( isset( $_GET['gogh-test'] ) ) {
-		wp_enqueue_script( 'gogh-tests', plugins_url( 'gogh-tests.js', __FILE__ ), array( 'gogh-editor' ), '0.99.398-chrome', true );
+		wp_enqueue_script( 'gogh-tests', plugins_url( 'gogh-tests.js', __FILE__ ), array( 'gogh-editor' ), '0.99.399-chrome', true );
 	}
 
 	// products live outside wp/v2, so gogh carries its own save route for
@@ -4065,7 +4267,7 @@ add_action( 'wp_enqueue_scripts', function () {
 		'postTitle'  => get_the_title( $post ),
 		'permalink'  => esc_url_raw( get_permalink( $post->ID ) ),
 		'excerpt'    => (string) $post->post_excerpt,
-		'build'    => '0.99.398-chrome',
+		'build'    => '0.99.399-chrome',
 		// two rooms, one landmark (same contract as the admin bar): on a POST
 		// the corner pill opens the WRITING surface, not the freeform canvas
 		'writeUrl' => is_singular( 'post' ) ? add_query_arg( 'gogh-write', '1', get_permalink( $post ) ) : null,
@@ -4203,7 +4405,7 @@ add_action( 'enqueue_block_assets', function () {
 	if ( ! is_admin() ) {
 		return;
 	}
-	wp_register_style( 'gogh-editor-base', false, array(), '0.99.398-chrome' );
+	wp_register_style( 'gogh-editor-base', false, array(), '0.99.399-chrome' );
 	wp_enqueue_style( 'gogh-editor-base' );
 	wp_add_inline_style( 'gogh-editor-base',
 		'.gogh-wrap { min-width: 100%; margin-block: 0 !important; }' .
