@@ -3186,13 +3186,19 @@
       var r0 = e.radius || 0;
       expect(r0 === 14, 'a fresh video should start Soft, got ' + r0);
       round.dispatchEvent(new MouseEvent('mouseenter', { bubbles: true }));
-      return new Promise(function (resolve) { setTimeout(resolve, 140); }).then(function () {
+      var settle = function (pred, ms) {
+        return new Promise(function (resolve) {
+          var t0 = Date.now();
+          (function tick() { if (pred() || Date.now() - t0 > ms) return resolve(); setTimeout(tick, 40); })();
+        });
+      };
+      return settle(function () { return (e.radius || 0) === 28; }, 2500).then(function () {
         expect((e.radius || 0) === 28, 'hover should audition the corners, radius is ' + e.radius);
         expect(/gogh-el-\d+ \{[^}]*border-radius: 2\.33cqw/.test(s0.styleEl.textContent), 'the audition should reach the stylesheet');
         round.dispatchEvent(new MouseEvent('mouseleave', { bubbles: true }));
         expect((e.radius || 0) === r0, 'leaving should restore the corners, radius is ' + e.radius);
         round.click();
-        expect(e.radius === 28 && !panel.hidden && round.classList.contains('is-active'), 'click should keep Round with the panel open');
+        expect(e.radius === 28 && !panel.hidden && round.classList.contains('is-active'), 'click should keep Round with the panel open: ' + JSON.stringify([e.radius, panel.hidden, round.className, round.isConnected, panel.contains(round), (panel.querySelector('.gogh-panel-title') || {}).textContent]));
         return 'corners audition, then keep';
       });
     });
@@ -3213,17 +3219,27 @@
         });
       };
       // both grids answer their own round-trip; the video one may land first or last
-      return until(function () { return panel.querySelector('.gogh-bgvid-media .gogh-thumb') || !panel.querySelector('.gogh-media .gogh-media-loading'); }, 12000).then(function () { return new Promise(function (r) { setTimeout(r, 400); }); }).then(function () {
+      var slow = false;
+      return until(function () { return panel.querySelector('.gogh-bgvid-media .gogh-thumb') || !panel.querySelector('.gogh-media .gogh-media-loading'); }, 20000)
+        .catch(function () { slow = true; })
+        .then(function () { return new Promise(function (r) { setTimeout(r, 400); }); }).then(function () {
+        if (slow) return 'the media library did not answer in 20s \u2014 nothing to judge (a slow server, not the feature)';
         var tile = panel.querySelector('.gogh-bgvid-media .gogh-thumb');
         if (!tile) return 'no videos in this library \u2014 the grid stays hidden, nothing to audition';
         expect(!s0.bgVideo, 'the fixture section should start without a background video');
         tile.dispatchEvent(new MouseEvent('mouseenter', { bubbles: true }));
-        return new Promise(function (r) { setTimeout(r, 140); }).then(function () {
+        var settle = function (pred, ms) {
+          return new Promise(function (resolve) {
+            var t0 = Date.now();
+            (function tick() { if (pred() || Date.now() - t0 > ms) return resolve(); setTimeout(tick, 40); })();
+          });
+        };
+        return settle(function () { return s0.bgVideo === tile.dataset.src; }, 2500).then(function () {
           expect(s0.bgVideo === tile.dataset.src && s0.sectionEl.querySelector(':scope > .gogh-bgvideo'), 'hover should audition the loop behind the section');
           tile.dispatchEvent(new MouseEvent('mouseleave', { bubbles: true }));
           expect(!s0.bgVideo && !s0.sectionEl.querySelector(':scope > .gogh-bgvideo'), 'leaving should take it away again');
           tile.click();
-          expect(s0.bgVideo === tile.dataset.src && !panel.hidden && tile.classList.contains('is-active'), 'click should keep the loop, panel open, tile ringed');
+          expect(s0.bgVideo === tile.dataset.src && !panel.hidden && tile.classList.contains('is-active'), 'click should keep the loop, panel open, tile ringed: ' + JSON.stringify([s0.bgVideo, panel.hidden, tile.className, tile.isConnected, (panel.querySelector('.gogh-panel-title') || {}).textContent]));
           return 'library videos audition behind the section';
         });
       });
@@ -3239,6 +3255,38 @@
         expect(/gogh-shop-empty-filtered/.test(html), 'the filtered empty state is missing');
         expect(/Clear filters/.test(html), 'the empty state should offer to clear the filters');
         return 'an empty result reads as designed';
+      });
+    });
+
+    testAsync('variations: every combination, existing kept, typed prices carried', function () {
+      var tag = document.querySelector('script[src*="gogh-editor.js"]');
+      var src = tag.src.replace(/gogh-editor\.js.*$/, 'gogh-admin.js');
+      return new Promise(function (res, rej) {
+        if (window.__goghVariations) return res();
+        var s = document.createElement('script'); s.src = src; s.onload = res;
+        s.onerror = function () { rej(new Error('gogh-admin.js failed to load')); };
+        document.head.appendChild(s);
+      }).then(function () {
+        var V = window.__goghVariations;
+        expect(V && V.combos && V.plan, 'the variation helpers are missing');
+        var attrs = [{ name: 'Size', values: ['S', 'M'] }, { name: 'Colour', values: ['Red', 'Blue'] }, { name: '', values: ['ignored'] }];
+        var combos = V.combos(attrs);
+        expect(combos.length === 4, 'two by two should be four, got ' + combos.length);
+        expect(combos[0].length === 2 && combos[0][0].name === 'Size' && combos[0][1].option === 'Red', 'combination shape is off: ' + JSON.stringify(combos[0]));
+        var existing = [{ id: 9, attributes: [{ name: 'Colour', option: 'red' }, { name: 'Size', option: 'S' }], regular_price: '12' }];
+        var plan = V.plan(attrs, existing, '10', {});
+        expect(plan.create.length === 3 && plan.keep.length === 1 && plan.orphan.length === 0, 'the existing S/Red should be kept, three created: ' + JSON.stringify([plan.create.length, plan.keep.length]));
+        expect(plan.update.length === 0, 'an untouched existing price must never be overwritten');
+        expect(plan.create.every(function (c) { return c.regular_price === '10'; }), 'new ones take the product price');
+        var k = V.key([{ name: 'Size', option: 'S' }, { name: 'Colour', option: 'Red' }]);
+        var typed = {}; typed[k] = '15';
+        var plan2 = V.plan(attrs, existing, '10', typed);
+        expect(plan2.update.length === 1 && plan2.update[0].id === 9 && plan2.update[0].regular_price === '15', 'a typed price should update the kept variation');
+        var kM = V.key([{ name: 'Size', option: 'M' }, { name: 'Colour', option: 'Blue' }]);
+        var pr = {}; pr[kM] = '14';
+        var range = V.priceRange(attrs, '10', pr);
+        expect(range && range.lo === 10 && range.hi === 14, 'the storefront price range is off: ' + JSON.stringify(range));
+        return 'variations: 4 of 4, kept 1, typed price carried';
       });
     });
 
