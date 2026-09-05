@@ -4005,12 +4005,19 @@
       '<div class="gogh-shop-verbs">' +
       '<a class="gogh-btn gogh-btn-small gogh-shop-manage" href="' + escAttr(manageProductsUrl(e)) + '" target="_blank" rel="noopener">Manage products \u2197</a>' +
       '<span class="gogh-shop-verb-on">Edit design</span></div>' +
+      '<div class="gogh-shop-auto">' +
       '<div class="gogh-swlab">Products</div>' +
       chips('gogh-shop-count', [[3, '3'], [4, '4'], [6, '6'], [8, '8']], function (v) { return +v === +shop.count; }) +
       '<div class="gogh-swlab">Order</div>' +
       radios('gogh-shop-order', [['date', 'Newest first'], ['popularity', 'Bestselling'], ['sale', 'On sale'], ['rand', 'A different set each visit']], shop.order) +
       '<div class="gogh-swlab">Category</div>' +
       '<div class="gogh-panel-row"><select class="gogh-input gogh-shop-cat"><option value="">All products</option></select></div>' +
+      '</div>' +
+      // hand-picking: the exact products, for a photo full of them
+      '<div class="gogh-swlab">Or hand-pick</div>' +
+      '<div class="gogh-shop-picked"></div>' +
+      '<div class="gogh-panel-row"><input type="text" class="gogh-input gogh-shop-find" placeholder="Find a product by name\u2026" /></div>' +
+      '<div class="gogh-shop-found"></div>' +
       '<div class="gogh-swlab">Layout</div>' +
       radios('gogh-shop-layout', [['grid', 'Grid'], ['list', 'List']], shop.layout) +
       '<div class="gogh-swlab">Show</div>' +
@@ -4042,6 +4049,54 @@
     panel.querySelectorAll('.gogh-shop-show .gogh-hpreset').forEach(function (b) { b.addEventListener('click', function () { shop.show[b.dataset.v] = !shop.show[b.dataset.v]; apply(); }); });
     panel.querySelectorAll('.gogh-shop-aspect .gogh-hpreset').forEach(function (b) { b.addEventListener('click', function () { shop.aspect = b.dataset.v; apply(); }); });
     panel.querySelectorAll('.gogh-shop-spacing .gogh-hpreset').forEach(function (b) { b.addEventListener('click', function () { shop.spacing = b.dataset.v; apply(); }); });
+    var picked = function () {
+      var box = panel.querySelector('.gogh-shop-picked');
+      var list = shop.pick || [];
+      box.innerHTML = list.length
+        ? list.map(function (p, k) {
+          return '<span class="gogh-shop-pickchip">' + esc(p.name) + '<button type="button" class="gogh-shop-unpick" data-k="' + k + '" aria-label="Remove ' + escAttr(p.name) + '">&times;</button></span>';
+        }).join('') + '<div class="gogh-panel-hint">These, in this order. Count, order and category stand aside while you hand-pick.</div>'
+        : '<div class="gogh-panel-hint">Type a name to add the exact products \u2014 the ones in the photo, say.</div>';
+      panel.querySelectorAll('.gogh-shop-auto').forEach(function (n) { n.hidden = list.length > 0; });
+      box.querySelectorAll('.gogh-shop-unpick').forEach(function (b) {
+        b.addEventListener('click', function () {
+          shop.pick.splice(+b.dataset.k, 1);
+          if (!shop.pick.length) delete shop.pick;
+          apply(); picked(); reclampPanel();
+        });
+      });
+    };
+    var find = panel.querySelector('.gogh-shop-find'), found = panel.querySelector('.gogh-shop-found'), findT = null;
+    find.addEventListener('input', function () {
+      clearTimeout(findT);
+      var qtext = find.value.trim();
+      if (qtext.length < 2) { found.innerHTML = ''; return; }
+      findT = setTimeout(function () {
+        fetch(cfg.restUrl.split('wp/v2/')[0] + 'wc/store/v1/products?search=' + encodeURIComponent(qtext) + '&per_page=6', { credentials: 'same-origin' })
+          .then(function (r) { return r.ok ? r.json() : []; }).catch(function () { return []; }).then(function (prods) {
+            if (panel.hidden || find.value.trim() !== qtext) return;
+            found.innerHTML = (prods || []).length ? prods.map(function (p) {
+              var on = (shop.pick || []).some(function (x) { return +x.id === +p.id; });
+              // the price tells twins apart (three mugs, one name)
+              var pr = p.prices || {};
+              var minor = Math.pow(10, +pr.currency_minor_unit || 2);
+              var money = pr.price ? (pr.currency_symbol || '') + (Math.round(+pr.price) / minor).toFixed(+pr.currency_minor_unit || 2).replace(/\.00$/, '') : '';
+              return '<button type="button" class="gogh-shop-foundrow' + (on ? ' is-on' : '') + '" data-id="' + p.id + '" data-name="' + escAttr(p.name) + '"><span>' + esc(p.name) + (money ? ' <small>' + esc(money) + '</small>' : '') + '</span><em>' + (on ? 'added' : '+ add') + '</em></button>';
+            }).join('') : '<div class="gogh-panel-hint">Nothing by that name.</div>';
+            found.querySelectorAll('.gogh-shop-foundrow').forEach(function (b) {
+              b.addEventListener('click', function () {
+                shop.pick = shop.pick || [];
+                if (shop.pick.some(function (x) { return +x.id === +b.dataset.id; })) return;
+                shop.pick.push({ id: +b.dataset.id, name: b.dataset.name });
+                find.value = ''; found.innerHTML = '';
+                apply(); picked(); reclampPanel();
+              });
+            });
+            reclampPanel();
+          });
+      }, 250);
+    });
+    picked();
     var catSel = panel.querySelector('.gogh-shop-cat');
     catSel.addEventListener('change', function () {
       var o = catSel.options[catSel.selectedIndex];
@@ -5106,11 +5161,14 @@
       return '<!-- wp:woocommerce/product-categories {"hasImage":true,"hasCount":false,"hasEmpty":false,"isDropdown":false,"isHierarchical":false,"className":"gogh-shop gogh-shop-cats gogh-shop-cats-c' + ccols + ' gogh-shop-gap-' + (shop.spacing || 'm') + '"} /-->';
     }
     var count = Math.max(1, Math.min(12, +shop.count || 3));
+    // hand-picked: the exact products, in this order — the ones in the photo
+    var picked = (shop.pick || []).map(function (p) { return String(p.id); });
+    if (picked.length) count = Math.max(1, Math.min(12, picked.length));
     var orderBy = shop.order === 'popularity' ? 'popularity' : shop.order === 'rand' ? 'rand' : shop.order === 'title' ? 'title' : 'date';
     var query = { perPage: count, pages: 0, offset: 0, postType: 'product', order: orderBy === 'title' ? 'asc' : 'desc', orderBy: orderBy,
       search: '', exclude: [], inherit: false, taxQuery: shop.catId ? { product_cat: [shop.catId] } : {}, isProductCollectionBlock: true,
       woocommerceOnSale: shop.order === 'sale', woocommerceStockStatus: ['instock', 'outofstock', 'onbackorder'],
-      woocommerceAttributes: [], woocommerceHandPickedProducts: [] };
+      woocommerceAttributes: [], woocommerceHandPickedProducts: picked };
     var grid = shop.layout !== 'list';
     var cols = grid ? (count >= 4 ? (count % 4 === 0 ? 4 : 3) : Math.max(1, count)) : 1;
     var attrs = { query: query, tagName: 'div', dimensions: { widthType: 'fill', fixedWidth: '' },
@@ -5255,6 +5313,8 @@
       '&order=' + (shop.order === 'title' ? 'asc' : 'desc') +
       (shop.order === 'sale' ? '&on_sale=true' : '') +
       (shop.catId ? '&category=' + shop.catId : '');
+    var pickIds = (shop.pick || []).map(function (p) { return +p.id; }).filter(Boolean);
+    if (pickIds.length) q = 'include=' + pickIds.join(',') + '&per_page=' + pickIds.length;
     var gen = e.__shopGen = (e.__shopGen || 0) + 1;
     fetch(cfg.restUrl.split('wp/v2/')[0] + 'wc/store/v1/products?' + q, {
       credentials: 'same-origin',
@@ -6114,6 +6174,15 @@
       { type: 'button', x: 72, y: 470, w: 200, h: 54, text: 'See everything', href: '/shop/', ghost: true },
       { type: 'widget', rails: true, x: 600, y: 80, w: 540, h: 520, shop: { count: 2, order: 'date', layout: 'grid', aspect: 'portrait', spacing: 'm' } },
     ] },
+    // Shop the look: a photo full of your things, the things beside it —
+    // hand-picked, so the rails show exactly what is in the picture
+    { starter: true, gated: 'hasWoo', intent: 'sell', name: 'Shop the look', minH: 640, els: [
+      { type: 'image', x: 60, y: 60, w: 620, h: 520, cool: true },
+      { type: 'para', x: 740, y: 90, w: 340, h: 24, text: 'Shop the look', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
+      { type: 'heading', x: 740, y: 130, w: 400, h: 100, text: 'Everything in this picture', fs: 'x-large' },
+      { type: 'para', x: 740, y: 240, w: 380, h: 48, text: 'Every piece here is ours. Tap one to see it up close.' },
+      { type: 'widget', rails: true, x: 740, y: 310, w: 400, h: 300, shop: { count: 3, order: 'date', layout: 'list', aspect: 'square', spacing: 's', show: { price: true, rating: false, button: true } } },
+    ] },
     { starter: true, gated: 'hasWoo', intent: 'sell', name: 'New in', minH: 640, els: [
       { type: 'para', x: 72, y: 84, w: 340, h: 24, text: 'Just arrived', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
       { type: 'heading', x: 72, y: 124, w: 600, h: 90, text: 'New in', fs: 'x-large' },
@@ -6577,6 +6646,27 @@
   var DICE_FORM_WSRC = '<!-- wp:gogh/form /-->';
   var DICE_FORM_WHTML = '<div class="gogh-form"><div class="gogh-form-row"><input type="text" placeholder="Your name" disabled /><input type="email" placeholder="Your email" disabled /></div><textarea rows="5" placeholder="Your message…" disabled></textarea><div class="gogh-form-foot"><span class="gogh-form-fbtn">Send</span><span class="gogh-form-note">Goes straight to this site — nowhere else.</span></div></div>';
   var VARIANTS = {
+    'Shop the look': [
+      { name: 'Shop the look', take: 'The photo right', minH: 640, els: [
+        { type: 'image', x: 520, y: 60, w: 620, h: 520, cool: true },
+        { type: 'para', x: 60, y: 90, w: 340, h: 24, text: 'Shop the look', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
+        { type: 'heading', x: 60, y: 130, w: 400, h: 100, text: 'Everything in this picture', fs: 'x-large' },
+        { type: 'para', x: 60, y: 240, w: 380, h: 48, text: 'Every piece here is ours. Tap one to see it up close.' },
+        { type: 'widget', rails: true, x: 60, y: 310, w: 400, h: 300, shop: { count: 3, order: 'date', layout: 'list', aspect: 'square', spacing: 's', show: { price: true, rating: false, button: true } } },
+      ] },
+      { name: 'Shop the look', take: 'The band', minH: 800, els: [
+        { type: 'image', x: 60, y: 60, w: 1080, h: 420, cool: true },
+        { type: 'para', x: 60, y: 510, w: 340, h: 24, text: 'Shop the look', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
+        { type: 'heading', x: 60, y: 548, w: 480, h: 70, text: 'Everything in this picture', fs: 'large' },
+        { type: 'para', x: 60, y: 630, w: 440, h: 48, text: 'Every piece here is ours. Tap one to see it up close.' },
+        { type: 'widget', rails: true, x: 600, y: 500, w: 540, h: 260, shop: { count: 3, order: 'date', layout: 'grid', aspect: 'square', spacing: 's', show: { price: true, rating: false, button: false } } },
+      ] },
+      { name: 'Shop the look', take: 'The margin', minH: 640, els: [
+        { type: 'image', x: 60, y: 60, w: 760, h: 520, cool: true },
+        { type: 'heading', x: 860, y: 60, w: 280, h: 70, text: 'In this picture', fs: 'medium' },
+        { type: 'widget', rails: true, x: 860, y: 150, w: 280, h: 430, shop: { count: 4, order: 'date', layout: 'list', aspect: 'square', spacing: 's', show: { price: true, rating: false, button: false } } },
+      ] },
+    ],
     'Editorial split': [
       { name: 'Editorial split', take: 'Words right', minH: 660, els: [
         { type: 'widget', rails: true, x: 60, y: 80, w: 540, h: 520, shop: { count: 2, order: 'date', layout: 'grid', aspect: 'portrait', spacing: 'm' } },
@@ -7606,7 +7696,7 @@
           if (d.wdata.shop && e.shop) {
             // the shop's data is the shop's: category, order, count and
             // what to show travel; layout, picture and spacing belong to the take
-            ['cat', 'catId', 'order', 'count', 'show'].forEach(function (k) { if (d.wdata.shop[k] !== undefined) e.shop[k] = d.wdata.shop[k]; });
+            ['cat', 'catId', 'order', 'count', 'show', 'pick'].forEach(function (k) { if (d.wdata.shop[k] !== undefined) e.shop[k] = d.wdata.shop[k]; });
             e.wsrc = composeShop(e.shop);
             e.whtml = shopSampleHTML(e.shop);
           }
@@ -7915,7 +8005,7 @@
   ];
   var STARTER_CATS = {
     'Hero': 'hero', 'Cover': 'hero banner', 'Big statement': 'hero', 'Story': 'text', 'Numbers': 'text',
-    'Article': 'text', 'Feature cards': 'cards', 'Pricing': 'cards', 'Featured product': 'cards featured', 'Bestsellers': 'cards featured', 'Editorial split': 'cards featured', 'New in': 'cards featured', 'Sale': 'cards featured', 'Categories': 'cards photos',
+    'Article': 'text', 'Feature cards': 'cards', 'Pricing': 'cards', 'Featured product': 'cards featured', 'Bestsellers': 'cards featured', 'Editorial split': 'cards featured', 'Shop the look': 'cards featured', 'New in': 'cards featured', 'Sale': 'cards featured', 'Categories': 'cards photos',
     'Quote': 'text', 'Call to action': 'hero', 'Get in touch': 'contact',
     'FAQ': 'text cards', 'Tabs': 'text cards', 'Gallery': 'photos', 'Photo cards': 'photos cards', 'Portfolio': 'photos',
     'Menu': 'text', 'Team': 'contact photos',
@@ -10168,6 +10258,7 @@
   var SEAM_READS = (cfg.hasWoo ? [
     { re: /featured product|one product|spotlight|hero product|product of the (week|month)/, name: 'Featured product' },
     { re: /best.?seller|most loved|popular products|top sellers/, name: 'Bestsellers' },
+    { re: /shop the look|in this (picture|photo)|as (seen|worn)|what (she|he|they).{0,4}wearing|the look\b/, name: 'Shop the look' },
     { re: /new in|just arrived|latest products|new arrivals|newest/, name: 'New in' },
     { re: /on sale|sale items|reduced|offers|discount/, name: 'Sale' },
     { re: /categor|shop by|browse the shop|departments/, name: 'Categories' },
@@ -10283,6 +10374,7 @@
       // a shop's seam leads with the Sell family
       { label: 'Featured product', say: 'a featured product', re: /the one everyone asks about|featured product/ },
       { label: 'Bestsellers', say: 'our bestsellers', re: /bestsellers|most loved/ },
+      { label: 'Shop the look', say: 'shop the look', re: /shop the look|in this picture/ },
       { label: 'New in', say: 'what is new in the shop', re: /new in|just arrived/ },
       { label: 'On sale', say: 'what is on sale', re: /on sale/ },
       { label: 'Shop by category', say: 'shop by category', re: /shop by|find your thing/ },

@@ -3304,6 +3304,21 @@
       });
     });
 
+    test('Shop the look: a photo, and the exact products in it, hand-picked', function () {
+      if (!GOGH.hasWoo) return 'no WooCommerce here';
+      var tpl = G.templates().filter(function (t) { return t.name === 'Shop the look'; })[0];
+      expect(tpl && tpl.gated === 'hasWoo', 'the Shop the look template is missing or ungated');
+      expect(tpl.els.some(function (x) { return x.type === 'image'; }) && tpl.els.some(function (x) { return x.rails && x.shop && x.shop.layout === 'list'; }), 'the template should carry a photo and a list of products');
+      expect(G.diceFaces('Shop the look').length === 4, 'four faces expected');
+      var src = G.composeShop({ layout: 'list', count: 3, order: 'date', cat: null, catId: null, show: { price: true, rating: false, button: true }, aspect: 'square', spacing: 's',
+        pick: [{ id: 14, name: 'Aurora Ceramic Mug' }, { id: 64, name: 'Candle' }] });
+      expect(/"woocommerceHandPickedProducts":\["14","64"\]/.test(src), 'hand-picked ids should ride the collection query: ' + src.slice(0, 260));
+      expect(/"perPage":2/.test(src), 'the count should follow the picks');
+      var plain = G.composeShop({ layout: 'grid', count: 3, order: 'date', cat: null, catId: null, show: { price: true, rating: false, button: true }, aspect: 'square', spacing: 'm' });
+      expect(/"woocommerceHandPickedProducts":\[\]/.test(plain), 'without picks the query stays open');
+      return 'shop the look: template, four faces, hand-picked rails';
+    });
+
     test('the rails element: Woo Product Collection, composed from few choices', function () {
       if (!GOGH.hasWoo) return 'no WooCommerce here \u2014 nothing to lay';
       var e = G.addElementToSection(G.sections().indexOf(sec()), 'products');

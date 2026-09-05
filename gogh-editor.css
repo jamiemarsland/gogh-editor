@@ -3862,3 +3862,15 @@ body:has(.wp-block-navigation__responsive-container.is-menu-open) .gogh-bar { op
 .gogh-editing .gogh-bgvideo-btn { display: none; }
 .gogh-vidgrid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin: 4px 0 10px; }
 .gogh-vidgrid .gogh-thumb.is-active, .gogh-vid-media .gogh-thumb.is-active { box-shadow: 0 0 0 2px #fff, 0 0 0 4px #2f6fed; }
+
+/* hand-picked products on the rails */
+.gogh-shop-picked { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0; }
+.gogh-shop-pickchip { display: inline-flex; align-items: center; gap: 6px; padding: 4px 6px 4px 10px; border-radius: 999px; border: 1px solid #d1d5db; font-size: 12px; background: #fff; color: #111; }
+.gogh-shop-unpick { all: unset; cursor: pointer; color: #888; font-size: 14px; line-height: 1; width: 16px; height: 16px; display: grid; place-items: center; border-radius: 50%; }
+.gogh-shop-unpick:hover { background: #fee2e2; color: #b91c1c; }
+.gogh-shop-found { margin: 2px 0 6px; }
+.gogh-shop-foundrow { all: unset; box-sizing: border-box; display: flex; justify-content: space-between; align-items: center; width: 100%; padding: 7px 8px; border-bottom: 1px solid #eee; cursor: pointer; font-size: 12.5px; color: #111; }
+.gogh-shop-foundrow:hover { background: #f5f7fa; }
+.gogh-shop-foundrow em { font-style: normal; color: #2f6fed; font-weight: 600; }
+.gogh-shop-foundrow.is-on em { color: #888; font-weight: 500; }
+.gogh-shop-foundrow small { color: #777; font-size: 11px; margin-left: 6px; }
