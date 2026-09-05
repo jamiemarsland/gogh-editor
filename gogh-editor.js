@@ -16170,7 +16170,11 @@
               if (partEl.classList.contains('gogh-chrome-live')) {
                 openHeaderPanel(partEl, area, kept, activeOpt, active);
               }
-            } else startChromeCycle(partEl, area, kept, activeOpt, active);
+            } else if (partEl.classList.contains('gogh-chrome-live')) {
+              // the same late-arrival check for the cycle: a screen that
+              // answers after the user has moved on must not close their panel
+              startChromeCycle(partEl, area, kept, activeOpt, active);
+            }
             return null;
           }
           return doConvertChrome(partEl, area, active);

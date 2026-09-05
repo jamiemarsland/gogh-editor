@@ -375,5 +375,256 @@
       });
   }
 
-  box.querySelector('.gogh-var-open').addEventListener('click', open);
+  // an unsaved product offers no button yet (the box says why) — the rest
+  // of this file must still run
+  var openBtn = box.querySelector('.gogh-var-open');
+  if (openBtn) openBtn.addEventListener('click', open);
+})();
+
+/* gogh · admin — the product form: one scrolling page with an anchored rail.
+ *
+ * Woo's classic screen keeps every node exactly where its own scripts expect
+ * it. Gogh only changes the ORDER (a CSS grid over display:contents — nothing
+ * that carries an editor is moved), shows every product-data panel at once
+ * under a heading instead of behind tabs, parks whatever other plugins
+ * inject under Extensions at the foot, and hangs a rail beside it all that
+ * knows where you are and whether the product can sell yet.
+ */
+(function () {
+  'use strict';
+  var body = document.getElementById('post-body');
+  if (!body || !document.body.classList.contains('gogh-productform')) return;
+  var $ = window.jQuery;
+
+  // ---------- the page's order (grid `order`, see gogh-admin.css) ----------
+  var ORDER = {
+    'titlediv': 10, 'postdivrich': 11, 'postexcerpt': 12,
+    'postimagediv': 21, 'woocommerce-product-images': 22,
+    'woocommerce-product-data': 31,
+    'product_catdiv': 41, 'tagsdiv-product_tag': 42, 'product_branddiv': 43,
+  };
+  var SIDE = { 'submitdiv': 1, 'gogh-variations': 2 };
+  var heading = function (id, text, order, cls) {
+    var h = document.createElement('h2');
+    h.className = 'gogh-pf-h' + (cls ? ' ' + cls : '');
+    h.id = id;
+    h.textContent = text;
+    h.style.order = String(order);
+    return h;
+  };
+  // the side column: Publish and Variations move (neither carries an
+  // editor), the rail joins them, the lot sticks
+  var side = document.createElement('div');
+  side.className = 'gogh-pf-side';
+  body.appendChild(side);
+  Object.keys(SIDE).forEach(function (id) {
+    var el = document.getElementById(id);
+    if (el) { el.style.order = String(SIDE[id]); side.appendChild(el); }
+  });
+  var rail = document.createElement('nav');
+  rail.className = 'gogh-pf-rail';
+  rail.setAttribute('aria-label', 'Product sections');
+  side.appendChild(rail);
+
+  // every box gets its place; strangers gather under Extensions
+  var extras = [];
+  [].slice.call(body.querySelectorAll('.postbox, #titlediv, #postdivrich')).forEach(function (el) {
+    if (side.contains(el)) return;
+    if (ORDER[el.id] != null) { el.style.order = String(ORDER[el.id]); return; }
+    el.style.order = '96';
+    extras.push(el);
+  });
+  body.appendChild(heading('gogh-pf-details', 'Details', 9));
+  body.appendChild(heading('gogh-pf-images', 'Images', 20));
+  body.appendChild(heading('gogh-pf-organise', 'Organise', 40));
+  var hasExtras = extras.some(function (el) { return el.offsetParent !== null || !/hide-if-js|closed/.test(el.className); });
+
+  // ---------- the product data box: every panel at once, under a name ----------
+  var box = document.getElementById('woocommerce-product-data');
+  var PANELS = {
+    general_product_data: { name: 'Price', section: 'price' },
+    inventory_product_data: { name: 'Stock', section: 'price' },
+    shipping_product_data: { name: 'Shipping', section: 'shipping' },
+    linked_product_data: { name: 'Related products', section: 'advanced' },
+    product_attributes: { name: 'Attributes', section: 'advanced' },
+    variable_product_options: { name: 'Variations', section: 'advanced' },
+    advanced_product_data: { name: 'Advanced', section: 'advanced' },
+    marketplace_suggestions: { hide: true }, // no upsells mid-form
+  };
+  var SECTIONS = [
+    { key: 'details', label: 'Details', anchor: 'gogh-pf-details' },
+    { key: 'images', label: 'Images', anchor: 'gogh-pf-images' },
+    { key: 'price', label: 'Price & stock', anchor: 'gogh-pf-price' },
+    { key: 'shipping', label: 'Shipping', anchor: 'gogh-pf-shipping' },
+    { key: 'advanced', label: 'Advanced', anchor: 'gogh-pf-advanced' },
+    { key: 'organise', label: 'Organise', anchor: 'gogh-pf-organise' },
+    { key: 'extensions', label: 'Extensions', anchor: 'gogh-pf-extensions' },
+  ];
+  var panelsWrap = box && box.querySelector('.panel-wrap');
+  var panels = panelsWrap ? [].slice.call(panelsWrap.querySelectorAll(':scope > .panel')) : [];
+  var tabFor = function (panel) { return document.querySelector('.product_data_tabs a[href="#' + panel.id + '"]'); };
+  var strangers = [];
+  if (panelsWrap) {
+    // headings inside the box, before the first panel of each section
+    var seen = {};
+    panels.forEach(function (p) {
+      var meta = PANELS[p.id];
+      if (meta && meta.hide) { p.classList.add('gogh-pf-hidden'); return; }
+      var section = meta ? meta.section : 'extensions';
+      var name = meta ? meta.name : ((tabFor(p) && tabFor(p).textContent.trim()) || p.id);
+      if (!seen[section]) {
+        seen[section] = true;
+        var def = SECTIONS.filter(function (s) { return s.key === section; })[0];
+        if (def) panelsWrap.insertBefore(heading(def.anchor, def.label, 0, 'gogh-pf-h-in'), p);
+      }
+      var sub = document.createElement('h3');
+      sub.className = 'gogh-pf-sub';
+      sub.textContent = name;
+      panelsWrap.insertBefore(sub, p);
+      p.__goghSub = sub;
+      if (!meta) strangers.push(p);
+    });
+    // strangers (other plugins' tabs) sit last, under Extensions
+    strangers.forEach(function (p) { panelsWrap.appendChild(p.__goghSub); panelsWrap.appendChild(p); });
+    var extH = panelsWrap.querySelector('#gogh-pf-extensions');
+    if (extH && strangers.length) panelsWrap.insertBefore(extH, strangers[0].__goghSub);
+  }
+  if (hasExtras && !document.getElementById('gogh-pf-extensions')) body.appendChild(heading('gogh-pf-extensions', 'Extensions', 95));
+  else if (hasExtras) body.appendChild(heading('gogh-pf-extensions-2', 'Extensions', 95));
+
+  // a panel shows exactly when Woo would offer its tab (product type,
+  // virtual, …) — Woo keeps flipping tabs, gogh keeps re-stacking
+  var variationsLoaded = false;
+  var stacking = false;
+  function stack() {
+    if (stacking || !panelsWrap) return;
+    stacking = true;
+    panels.forEach(function (p) {
+      var meta = PANELS[p.id];
+      if (meta && meta.hide) return;
+      var tab = tabFor(p);
+      var li = tab && tab.closest('li');
+      // the tab list itself is hidden by gogh, so ask the tab's OWN display —
+      // Woo shows and hides tabs inline, by product type
+      var show = li ? window.getComputedStyle(li).display !== 'none' : true;
+      if (show && p.id === 'variable_product_options' && !variationsLoaded && $) {
+        // Woo loads variations on the tab's first click — give it that click
+        variationsLoaded = true;
+        $(tab).trigger('click');
+      }
+      if (show) { p.classList.remove('hidden'); p.style.display = 'block'; }
+      else { p.style.display = 'none'; }
+      if (p.__goghSub) p.__goghSub.style.display = show ? '' : 'none';
+    });
+    // section headings with nothing visible under them step aside
+    ['gogh-pf-shipping', 'gogh-pf-advanced'].forEach(function (id) {
+      var h = document.getElementById(id);
+      if (!h) return;
+      var any = panels.some(function (p) { return PANELS[p.id] && PANELS[p.id].section === (id === 'gogh-pf-shipping' ? 'shipping' : 'advanced') && p.style.display !== 'none'; });
+      h.style.display = any ? '' : 'none';
+    });
+    stacking = false;
+    paintRail();
+  }
+  function afterWoo() {
+    stack();
+    if (panelsWrap && window.MutationObserver) {
+      var mo = new MutationObserver(function () { if (!stacking) stack(); });
+      panels.forEach(function (p) { mo.observe(p, { attributes: true, attributeFilter: ['style', 'class'] }); });
+      var tabs = document.querySelector('.product_data_tabs');
+      if (tabs) mo.observe(tabs, { attributes: true, subtree: true, attributeFilter: ['style', 'class'] });
+    }
+    if ($) $(document.body).on('woocommerce-product-type-change', function () { setTimeout(stack, 0); });
+  }
+
+  // ---------- placeholders that teach ----------
+  var price = document.getElementById('_regular_price');
+  if (price && !price.placeholder) price.placeholder = '7.50';
+  var sale = document.getElementById('_sale_price');
+  if (sale && !sale.placeholder) sale.placeholder = 'Only when it is';
+  var descHint = document.createElement('p');
+  descHint.className = 'gogh-pf-hint gogh-pf-deschint';
+  descHint.innerHTML = 'Say what it is, who it is for, and one detail that makes it yours. Forty words is plenty: ' +
+    '<em>“Poured on Tuesdays in a kitchen in Frome, this lavender bar is cut by hand and cured for four weeks. It lathers like cream and lasts a month. If you only try one, try this.”</em>';
+  var rich = document.getElementById('postdivrich');
+  if (rich) { rich.insertBefore(descHint, rich.firstChild); }
+  function descEmpty() {
+    var ed = window.tinymce && window.tinymce.get('content');
+    if (ed && !ed.isHidden()) return !ed.getContent({ format: 'text' }).trim();
+    var ta = document.getElementById('content');
+    return ta ? !ta.value.trim() : true;
+  }
+  function paintHint() { descHint.hidden = !descEmpty(); }
+
+  // ---------- the rail: where you are, and whether it can sell ----------
+  var links = {};
+  function buildRail() {
+    rail.innerHTML = '<p class="gogh-pf-status"></p><ol class="gogh-pf-links"></ol>';
+    var ol = rail.querySelector('.gogh-pf-links');
+    SECTIONS.forEach(function (s) {
+      var target = document.getElementById(s.anchor) || document.getElementById(s.anchor + '-2');
+      if (!target) return;
+      var li = document.createElement('li');
+      var a = document.createElement('a');
+      a.href = '#' + target.id;
+      a.textContent = s.label;
+      a.addEventListener('click', function (ev) {
+        ev.preventDefault();
+        window.scrollTo({ top: target.getBoundingClientRect().top + window.scrollY - 60, behavior: 'smooth' });
+      });
+      li.appendChild(a);
+      ol.appendChild(li);
+      links[target.id] = li;
+    });
+  }
+  function paintRail() {
+    var name = (document.getElementById('title') || {}).value || '';
+    var type = (document.getElementById('product-type') || {}).value || 'simple';
+    var p = price ? price.value : '';
+    var st = rail.querySelector('.gogh-pf-status');
+    if (!st) return;
+    var ok = name.trim() && (p.trim() || type === 'variable' || type === 'grouped' || type === 'external');
+    st.className = 'gogh-pf-status ' + (ok ? 'is-ready' : 'is-waiting');
+    st.textContent = ok ? 'Ready to sell — a name and a price is all it takes.'
+      : !name.trim() ? 'Needs a name.' : 'Needs a price. A name and a price is all it takes.';
+    Object.keys(links).forEach(function (id) {
+      var h = document.getElementById(id);
+      links[id].style.display = (h && h.style.display === 'none') ? 'none' : '';
+    });
+  }
+  function spy() {
+    var top = window.scrollY + 120;
+    var current = null;
+    Object.keys(links).forEach(function (id) {
+      var h = document.getElementById(id);
+      if (h && h.style.display !== 'none' && h.getBoundingClientRect().top + window.scrollY <= top) current = id;
+    });
+    Object.keys(links).forEach(function (id) { links[id].classList.toggle('is-here', id === current); });
+  }
+
+  window.__goghProductForm = { stack: stack, paintRail: paintRail, panels: panels, sections: SECTIONS };
+  buildRail();
+  paintRail();
+  ['input', 'change'].forEach(function (ev) {
+    document.addEventListener(ev, function (e) {
+      if (e.target && (e.target.id === 'title' || e.target.id === '_regular_price' || e.target.id === 'product-type')) paintRail();
+    });
+  });
+  window.addEventListener('scroll', spy, { passive: true });
+  var ready = function () {
+    afterWoo();
+    paintHint();
+    if (window.tinymce) {
+      var tryBind = function (n) {
+        var ed = window.tinymce.get('content');
+        if (ed) { ed.on('keyup change SetContent', paintHint); paintHint(); }
+        else if (n > 0) setTimeout(function () { tryBind(n - 1); }, 300);
+      };
+      tryBind(20);
+    }
+    var ta = document.getElementById('content');
+    if (ta) ta.addEventListener('input', paintHint);
+    spy();
+  };
+  if ($) $(ready); else document.addEventListener('DOMContentLoaded', ready);
 })();

@@ -3174,6 +3174,9 @@
     });
 
     testAsync('video corners: chips audition on hover and keep on click', function () {
+      return new Promise(function (r) { setTimeout(r, 700); }).then(function () { return cornersTest(); });
+    });
+    function cornersTest() {
       var s0 = sec();
       var e = G.addElementToSection(G.sections().indexOf(s0), 'video');
       var i = s0.els.indexOf(e);
@@ -3181,6 +3184,12 @@
       select(i);
       G.openPanel(s0, i);
       var panel = q('.gogh-panel');
+      // who closes the panel? trap the setter from the moment it opens
+      var hideStack = panel.hidden ? 'already hidden at open' : '';
+      var hSet = Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'hidden');
+      Object.defineProperty(panel, 'hidden', { configurable: true,
+        get: function () { return hSet.get.call(this); },
+        set: function (v) { if (v && !hideStack) hideStack = String(new Error().stack).split('\n').slice(1, 8).map(function (l) { return l.trim().replace(/^at /, '').split(' (')[0]; }).join(' > '); hSet.set.call(this, v); } });
       var round = panel.querySelector('.gogh-vid-corner[data-radius="28"]');
       expect(round, 'no Round chip');
       var r0 = e.radius || 0;
@@ -3198,12 +3207,17 @@
         round.dispatchEvent(new MouseEvent('mouseleave', { bubbles: true }));
         expect((e.radius || 0) === r0, 'leaving should restore the corners, radius is ' + e.radius);
         round.click();
-        expect(e.radius === 28 && !panel.hidden && round.classList.contains('is-active'), 'click should keep Round with the panel open: ' + JSON.stringify([e.radius, panel.hidden, round.className, round.isConnected, panel.contains(round), (panel.querySelector('.gogh-panel-title') || {}).textContent]));
+        var wasHidden = panel.hidden;
+        delete panel.hidden;
+        expect(e.radius === 28 && !wasHidden && round.classList.contains('is-active'), 'click should keep Round with the panel open: ' + JSON.stringify([e.radius, wasHidden, hideStack]));
         return 'corners audition, then keep';
       });
-    });
+    }
 
     testAsync('the section background offers the library\u2019s videos, auditioning on hover', function () {
+      return new Promise(function (r) { setTimeout(r, 700); }).then(function () { return bgVideoLibraryTest(); });
+    });
+    function bgVideoLibraryTest() {
       var s0 = sec();
       var idx = G.sections().indexOf(s0);
       G.openSecBgPanel(idx);
@@ -3243,7 +3257,7 @@
           return 'library videos audition behind the section';
         });
       });
-    });
+    }
 
     testAsync('the shop answers an empty result with a designed state, not "No results found"', function () {
       if (!GOGH.hasWoo) return 'no WooCommerce here';

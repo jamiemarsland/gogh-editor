@@ -60,3 +60,48 @@ body.gogh-varmodal-open { overflow: hidden; }
 .gogh-var-actions { display: flex; gap: 8px; }
 .gogh-varmodal.is-busy .gogh-var-form { opacity: 0.6; pointer-events: none; }
 @media (max-width: 900px) { .gogh-var-body { grid-template-columns: 1fr; } .gogh-var-preview { display: none; } }
+
+/* ---------- the product form: one scrolling page with an anchored rail ---------- */
+body.gogh-productform #post-body { display: grid; grid-template-columns: minmax(0, 1fr) 300px; column-gap: 28px; align-items: start; }
+body.gogh-productform #post-body-content,
+body.gogh-productform #postbox-container-1,
+body.gogh-productform #postbox-container-2,
+body.gogh-productform #postbox-container-1 > .meta-box-sortables,
+body.gogh-productform #postbox-container-2 > .meta-box-sortables { display: contents; }
+body.gogh-productform #post-body > .postbox,
+body.gogh-productform #post-body #titlediv,
+body.gogh-productform #post-body #postdivrich,
+body.gogh-productform #post-body .postbox { grid-column: 1; width: auto; float: none; }
+body.gogh-productform #titlediv { margin-bottom: 14px; }
+body.gogh-productform #postdivrich { margin-bottom: 20px; }
+body.gogh-productform .gogh-pf-h { grid-column: 1; margin: 22px 0 10px; padding-bottom: 8px; border-bottom: 1px solid #dcdcde; font-size: 18px; font-weight: 600; color: #1d2327; letter-spacing: -0.01em; }
+body.gogh-productform .gogh-pf-h-in { margin: 26px 0 8px; grid-column: auto; }
+body.gogh-productform #woocommerce-product-data .panel-wrap > .gogh-pf-h-in:first-child { margin-top: 6px; }
+body.gogh-productform .gogh-pf-sub { margin: 14px 0 0; padding: 0 12px; font-size: 13px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: #646970; }
+body.gogh-productform .product_data_tabs { display: none !important; }
+body.gogh-productform #woocommerce-product-data .panel-wrap { margin-left: 0 !important; }
+body.gogh-productform #woocommerce-product-data .panel { border-top: 0 !important; margin-left: 0 !important; }
+body.gogh-productform .gogh-pf-hidden { display: none !important; }
+body.gogh-productform .gogh-pf-side { grid-column: 2; grid-row: 1 / span 200; position: sticky; top: 46px; display: flex; flex-direction: column; align-self: start; }
+body.gogh-productform .gogh-pf-side .postbox { margin-bottom: 16px; }
+body.gogh-productform .gogh-pf-rail { order: 3; padding: 4px 2px; }
+body.gogh-productform .gogh-pf-status { margin: 0 0 12px; padding: 10px 12px; border-radius: 8px; font-size: 13px; line-height: 1.4; }
+body.gogh-productform .gogh-pf-status.is-ready { background: #e6f4ea; color: #1e5631; }
+body.gogh-productform .gogh-pf-status.is-waiting { background: #fdf3e0; color: #7a4a00; }
+body.gogh-productform .gogh-pf-links { list-style: none; margin: 0; padding: 0; border-left: 2px solid #dcdcde; }
+body.gogh-productform .gogh-pf-links li { margin: 0; }
+body.gogh-productform .gogh-pf-links a { display: block; padding: 6px 12px; margin-left: -2px; border-left: 2px solid transparent; color: #50575e; text-decoration: none; font-size: 13px; }
+body.gogh-productform .gogh-pf-links a:hover { color: #1d2327; }
+body.gogh-productform .gogh-pf-links li.is-here a { border-left-color: #1f5a3f; color: #1d2327; font-weight: 600; }
+body.gogh-productform .gogh-pf-hint { margin: 0 0 10px; padding: 10px 14px; border-left: 3px solid #c9962e; background: #fbf7ee; color: #50575e; font-size: 13px; line-height: 1.5; }
+body.gogh-productform .gogh-pf-hint em { color: #1d2327; }
+@media (max-width: 1100px) {
+  body.gogh-productform #post-body { grid-template-columns: minmax(0, 1fr); }
+  body.gogh-productform .gogh-pf-side { grid-column: 1; grid-row: auto; position: static; order: 0; }
+}
+/* Woo floats its panels beside the tab list; stacked, they stand in a column */
+body.gogh-productform #woocommerce-product-data .panel-wrap > .panel { float: none !important; width: auto !important; clear: both; }
+body.gogh-productform #woocommerce-product-data .panel-wrap > .gogh-pf-h-in,
+body.gogh-productform #woocommerce-product-data .panel-wrap > .gogh-pf-sub { clear: both; }
+body.gogh-productform #woocommerce-product-data .panel-wrap::after { content: ""; display: table; clear: both; }
+body.gogh-productform #woocommerce-product-data .panel-wrap > .gogh-pf-h-in { margin-left: 12px; margin-right: 12px; }
