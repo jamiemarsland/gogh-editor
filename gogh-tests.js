@@ -3229,6 +3229,19 @@
       });
     });
 
+    testAsync('the shop answers an empty result with a designed state, not "No results found"', function () {
+      if (!GOGH.hasWoo) return 'no WooCommerce here';
+      // a price nothing reaches: the archive renders its empty state for the
+      // person looking (owner here) — only when a gogh look dresses the shop
+      return fetch('/?post_type=product&min_price=99999999', { credentials: 'same-origin' }).then(function (r) { return r.text(); }).then(function (html) {
+        if (!/gogh-shoplook-/.test(html)) return 'shop wears Woo\u2019s own look (Classic) \u2014 nothing to dress';
+        expect(!/No results found/.test(html), 'Woo\u2019s "No results found" leaked through');
+        expect(/gogh-shop-empty-filtered/.test(html), 'the filtered empty state is missing');
+        expect(/Clear filters/.test(html), 'the empty state should offer to clear the filters');
+        return 'an empty result reads as designed';
+      });
+    });
+
     test('the rails element: Woo Product Collection, composed from few choices', function () {
       if (!GOGH.hasWoo) return 'no WooCommerce here \u2014 nothing to lay';
       var e = G.addElementToSection(G.sections().indexOf(sec()), 'products');

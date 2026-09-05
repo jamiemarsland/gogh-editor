@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Gogh Editor
  * Description: A freeform canvas for WordPress — drag anything anywhere on your live page; Gogh publishes it back as clean, responsive core blocks that keep working even if the plugin is deactivated.
- * Version: 0.99.395
+ * Version: 0.99.396
  * Author: Jamie Marsland
  * Author URI: https://pootlepress.com
  * License: GPLv2 or later
@@ -23,7 +23,7 @@ add_action( 'init', function () {
 		'gogh-block',
 		plugins_url( 'gogh-block.js', __FILE__ ),
 		array( 'wp-blocks', 'wp-element', 'wp-block-editor' ),
-		'0.99.395-chrome',
+		'0.99.396-chrome',
 		true
 	);
 	register_block_type( 'gogh/section', array(
@@ -475,9 +475,9 @@ add_action( 'wp_enqueue_scripts', function () {
 	if ( ! $post || ! current_user_can( 'edit_post', $post->ID ) ) {
 		return;
 	}
-	wp_register_script( 'gogh-compose', plugins_url( 'gogh-compose.js', __FILE__ ), array(), '0.99.395-chrome', true );
-	wp_enqueue_script( 'gogh-write', plugins_url( 'gogh-write.js', __FILE__ ), array( 'gogh-compose' ), '0.99.395-chrome', true );
-	wp_enqueue_style( 'gogh-write', plugins_url( 'gogh-write.css', __FILE__ ), array(), '0.99.395-chrome' );
+	wp_register_script( 'gogh-compose', plugins_url( 'gogh-compose.js', __FILE__ ), array(), '0.99.396-chrome', true );
+	wp_enqueue_script( 'gogh-write', plugins_url( 'gogh-write.js', __FILE__ ), array( 'gogh-compose' ), '0.99.396-chrome', true );
+	wp_enqueue_style( 'gogh-write', plugins_url( 'gogh-write.css', __FILE__ ), array(), '0.99.396-chrome' );
 	wp_localize_script( 'gogh-write', 'GOGHWRITE', array(
 		'postId'  => $post->ID,
 		'restUrl' => esc_url_raw( rest_url() ),
@@ -1743,20 +1743,107 @@ function gogh_shop_css() {
 		'.gogh-shop-cats .wc-block-product-categories-list-item__name { position: absolute; left: 0; right: 0; bottom: 0; padding: 18px 20px; color: #fff; font-weight: 700; font-size: 1.25em; line-height: 1.2; background: linear-gradient(to top, rgba(0, 0, 0, 0.62), transparent); }' .
 		'.gogh-shop-cats .wc-block-product-categories-list-item-count { display: none; }' .
 		'@media (max-width: 700px) { .gogh-shop-cats ul.wc-block-product-categories-list { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; } }' .
-		'.gogh-shop-empty { border: 1.5px dashed color-mix(in srgb, currentColor 30%, transparent); border-radius: 12px; padding: 40px 24px; text-align: center; }' .
-		'.gogh-shop-empty strong { display: block; font-size: 1.2em; margin-bottom: 4px; }' .
-		'.gogh-shop-empty span { opacity: 0.7; }';
+		'.gogh-shop-empty { border: 1.5px dashed color-mix(in srgb, currentColor 30%, transparent); border-radius: 14px; padding: 56px 24px; text-align: center; max-width: 560px; margin-inline: auto; }' .
+		'.gogh-shop-empty-owner { border-style: solid; border-color: color-mix(in srgb, currentColor 14%, transparent); background: color-mix(in srgb, currentColor 4%, transparent); }' .
+		'.gogh-shop-empty-eyebrow { display: block; font-style: normal; font-size: 0.72em; letter-spacing: 0.14em; text-transform: uppercase; opacity: 0.55; margin-bottom: 14px; }' .
+		'.gogh-shop-empty strong { display: block; font-size: 1.5em; line-height: 1.15; margin-bottom: 8px; }' .
+		'.gogh-shop-empty span { display: block; opacity: 0.7; max-width: 38ch; margin-inline: auto; }' .
+		'.gogh-shop-empty-cta { margin: 22px 0 0; }' .
+		// the category banner: the category's own picture, a Cover with its
+		// name and words at the foot (Editorial category look)
+		'.gogh-shop-banner { margin-bottom: 1.5rem; }' .
+		'.gogh-shop-banner .wp-block-cover__inner-container { padding: 2.5rem 0 2rem; }' .
+		'.gogh-shop-banner .gogh-shop-title, .gogh-shop-banner .gogh-shop-desc, .gogh-shop-banner .gogh-shop-desc p { color: #fff; }' .
+		'.gogh-shop-banner .gogh-shop-desc { max-width: 48ch; opacity: 0.88; }' .
+		'.gogh-shop-banner .gogh-shop-title { margin-top: 0; }';
+}
+/**
+ * The designed empty state. Squarespace shows "No results found" to
+ * everyone; gogh answers the person actually looking:
+ *   - the OWNER of an empty shop gets an invitation with the one button
+ *     that matters (Add a product) and the promise that it lands here;
+ *   - a visitor to a shop with nothing in it yet gets a graceful coming-soon;
+ *   - an empty CATEGORY names itself and points back to the whole shop;
+ *   - filters that match nothing say so and offer to clear.
+ */
+function gogh_shop_empty_state( $block ) {
+	$owner = current_user_can( 'edit_products' );
+	$attrs = isset( $block['attrs'] ) && is_array( $block['attrs'] ) ? $block['attrs'] : array();
+	$shop  = function_exists( 'wc_get_page_permalink' ) ? wc_get_page_permalink( 'shop' ) : home_url( '/' );
+	// which slice of the shop is empty?
+	$term = null;
+	if ( function_exists( 'is_product_category' ) && ( is_product_category() || is_product_tag() ) ) {
+		$term = get_queried_object();
+	} elseif ( ! empty( $attrs['query']['taxQuery']['product_cat'][0] ) ) {
+		$t = get_term( (int) $attrs['query']['taxQuery']['product_cat'][0], 'product_cat' );
+		if ( $t && ! is_wp_error( $t ) ) {
+			$term = $t;
+		}
+	}
+	$filtered = false;
+	foreach ( array_keys( $_GET ) as $k ) { // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+		if ( in_array( $k, array( 'min_price', 'max_price', 'rating_filter', 'filter_stock_status', 'stock_status' ), true ) || 0 === strpos( (string) $k, 'filter_' ) || 0 === strpos( (string) $k, 'query_type_' ) ) {
+			$filtered = true;
+		}
+	}
+	$eyebrow = '';
+	$title   = '';
+	$line    = '';
+	$cta     = '';
+	$cta_url = '';
+	$kind    = 'visitor';
+	if ( $filtered ) {
+		$title   = __( 'Nothing matches those filters.', 'gogh-editor' );
+		$line    = __( 'Loosen one and the shelves fill back up.', 'gogh-editor' );
+		$cta     = __( 'Clear filters', 'gogh-editor' );
+		$cta_url = strtok( (string) ( $_SERVER['REQUEST_URI'] ?? '' ), '?' ) ?: $shop; // phpcs:ignore
+		$cta_url = home_url( $cta_url );
+		$kind    = 'filtered';
+	} elseif ( $term ) {
+		if ( $owner ) {
+			$eyebrow = __( 'Only you can see this', 'gogh-editor' );
+			/* translators: %s: category name */
+			$title   = sprintf( __( 'Nothing in %s yet.', 'gogh-editor' ), $term->name );
+			$line    = __( 'Add a product and put it in this category — it shows up here, in this look, with nothing else to set up.', 'gogh-editor' );
+			$cta     = __( 'Add a product', 'gogh-editor' );
+			$cta_url = admin_url( 'post-new.php?post_type=product' );
+			$kind    = 'owner';
+		} else {
+			/* translators: %s: category name */
+			$title   = sprintf( __( 'Nothing in %s just yet.', 'gogh-editor' ), $term->name );
+			$line    = __( 'The rest of the shop is open.', 'gogh-editor' );
+			$cta     = __( 'Browse the whole shop', 'gogh-editor' );
+			$cta_url = $shop;
+		}
+	} elseif ( $owner ) {
+		$eyebrow = __( 'Only you can see this', 'gogh-editor' );
+		$title   = __( 'Your shop is ready for its first product.', 'gogh-editor' );
+		$line    = __( 'A name and a price make it sellable. Publish it and it appears right here.', 'gogh-editor' );
+		$cta     = __( 'Add a product', 'gogh-editor' );
+		$cta_url = admin_url( 'post-new.php?post_type=product' );
+		$kind    = 'owner';
+	} else {
+		$title = __( 'New things are on their way.', 'gogh-editor' );
+		$line  = __( 'The shop opens soon — check back shortly.', 'gogh-editor' );
+	}
+	$out = '<div class="gogh-shop-empty gogh-shop-empty-' . esc_attr( $kind ) . '">';
+	if ( $eyebrow ) {
+		$out .= '<em class="gogh-shop-empty-eyebrow">' . esc_html( $eyebrow ) . '</em>';
+	}
+	$out .= '<strong>' . esc_html( $title ) . '</strong><span>' . esc_html( $line ) . '</span>';
+	if ( $cta && $cta_url ) {
+		$out .= '<p class="gogh-shop-empty-cta"><a class="wp-element-button wp-block-button__link" href="' . esc_url( $cta_url ) . '">' . esc_html( $cta ) . '</a></p>';
+	}
+	return $out . '</div>';
 }
 add_filter( 'render_block_woocommerce/product-collection', function ( $html, $block ) {
 	$cls = isset( $block['attrs']['className'] ) ? (string) $block['attrs']['className'] : '';
 	if ( false === strpos( $cls, 'gogh-shop' ) ) {
 		return $html;
 	}
-	// no products rendered → the graceful coming-soon, in the theme's own ink
+	// no products rendered → the designed empty state, in the theme's own ink
 	if ( false === strpos( $html, 'wc-block-product' ) || false === strpos( $html, '<li' ) ) {
-		return '<div class="wp-block-woocommerce-product-collection ' . esc_attr( $cls ) . '"><div class="gogh-shop-empty">' .
-			'<strong>' . esc_html__( 'New things are on their way.', 'gogh-editor' ) . '</strong>' .
-			'<span>' . esc_html__( 'The shop opens soon — check back shortly.', 'gogh-editor' ) . '</span></div></div>';
+		return '<div class="wp-block-woocommerce-product-collection ' . esc_attr( $cls ) . '">' . gogh_shop_empty_state( $block ) . '</div>';
 	}
 	return $html;
 }, 10, 2 );
@@ -2060,7 +2147,7 @@ add_action( 'rest_api_init', function () {
 			return current_user_can( 'edit_posts' );
 		},
 		'callback'            => function () {
-			return array( 'build' => '0.99.395-chrome' );
+			return array( 'build' => '0.99.396-chrome' );
 		},
 	) );
 	register_rest_route( 'gogh/v1', '/starter', array(
@@ -2785,7 +2872,29 @@ function gogh_shop_archive_markup( $look, $kind ) {
 	$chips   = ( 'shop' === $kind )
 		? '<!-- wp:woocommerce/product-categories {"hasCount":false,"hasImage":false,"isDropdown":false,"className":"gogh-catchips"} /-->'
 		: '';
-	if ( 'editorial' === $look ) {
+	// Editorial, on a category with a picture: the picture becomes the
+	// banner — a Cover, the name and description at its foot
+	$banner_id = 0;
+	if ( 'editorial' === $look && 'category' === $kind && ( is_product_category() || is_product_tag() ) ) {
+		$banner_id = (int) get_term_meta( get_queried_object_id(), 'thumbnail_id', true );
+		if ( $banner_id && ! wp_get_attachment_image_url( $banner_id, 'full' ) ) {
+			$banner_id = 0;
+		}
+	}
+	if ( $banner_id ) {
+		$src  = wp_get_attachment_image_url( $banner_id, 'full' );
+		$head = '<!-- wp:cover {"url":"' . esc_url( $src ) . '","id":' . $banner_id . ',"dimRatio":50,"minHeight":380,"minHeightUnit":"px","contentPosition":"bottom left","align":"full","className":"gogh-shop-banner","layout":{"type":"constrained"}} -->' .
+			'<div class="wp-block-cover alignfull has-custom-content-position is-position-bottom-left gogh-shop-banner" style="min-height:380px">' .
+			'<span aria-hidden="true" class="wp-block-cover__background has-background-dim-50 has-background-dim"></span>' .
+			'<img class="wp-block-cover__image-background wp-image-' . $banner_id . '" alt="" src="' . esc_url( $src ) . '" data-object-fit="cover"/>' .
+			'<div class="wp-block-cover__inner-container">' .
+			'<!-- wp:group {"align":"wide","className":"gogh-shop-head gogh-shop-head-editorial gogh-shop-head-banner","layout":{"type":"constrained"}} --><div class="wp-block-group alignwide gogh-shop-head gogh-shop-head-editorial gogh-shop-head-banner">' .
+			'<!-- wp:query-title {"type":"archive","showPrefix":false,"align":"wide","className":"gogh-shop-title"} /-->' .
+			'<!-- wp:term-description {"align":"wide","className":"gogh-shop-desc"} /-->' .
+			'</div><!-- /wp:group -->' .
+			'</div></div><!-- /wp:cover -->';
+		$body = $toolbar . $collection;
+	} elseif ( 'editorial' === $look ) {
 		$head = '<!-- wp:group {"align":"wide","className":"gogh-shop-head gogh-shop-head-editorial","style":{"spacing":{"padding":{"top":"2.5rem","bottom":"1.5rem"}}},"layout":{"type":"constrained"}} --><div class="wp-block-group alignwide gogh-shop-head gogh-shop-head-editorial" style="padding-top:2.5rem;padding-bottom:1.5rem">' .
 			'<!-- wp:query-title {"type":"archive","showPrefix":false,"align":"wide","className":"gogh-shop-title"} /-->' .
 			'<!-- wp:term-description {"align":"wide","className":"gogh-shop-desc"} /-->' .
@@ -3563,7 +3672,7 @@ function gogh_splash_css() {
 // wearing Magazine must read as Magazine logged-out, and the site's gait
 // is site-wide; both packs are a few KB of pure CSS.
 add_action( 'wp_enqueue_scripts', function () {
-	wp_register_style( 'gogh-looks', false, array(), '0.99.395-chrome' );
+	wp_register_style( 'gogh-looks', false, array(), '0.99.396-chrome' );
 	wp_enqueue_style( 'gogh-looks' );
 	wp_add_inline_style( 'gogh-looks', gogh_reading_style_css() . gogh_motion_css() . gogh_blog_style_css() );
 
@@ -3603,10 +3712,10 @@ add_action( 'wp_enqueue_scripts', function () {
 
 	// for every visitor: neutralise theme spacing around gogh sections, even
 	// on pages whose stored stylesheets predate this rule
-	wp_register_style( 'gogh-base', false, array(), '0.99.395-chrome' );
+	wp_register_style( 'gogh-base', false, array(), '0.99.396-chrome' );
 	// (the splash presentation itself lives in gogh_splash_css(), shared with
 	// the block editor — a wall in Gutenberg must look like a wall)
-	wp_register_script( 'gogh-view', false, array(), '0.99.395-chrome', true );
+	wp_register_script( 'gogh-view', false, array(), '0.99.396-chrome', true );
 	wp_enqueue_script( 'gogh-view' );
 	wp_add_inline_script( 'gogh-view',
 		// video backgrounds: a pause control per section (moving content that
@@ -3834,9 +3943,9 @@ add_action( 'wp_enqueue_scripts', function () {
 
 	// compose must be REGISTERED here too — a dependency on an
 	// unregistered handle silently drops the whole editor script
-	wp_register_script( 'gogh-compose', plugins_url( 'gogh-compose.js', __FILE__ ), array(), '0.99.395-chrome', true );
-	wp_enqueue_script( 'gogh-editor', plugins_url( 'gogh-editor.js', __FILE__ ), array( 'gogh-compose' ), '0.99.395-chrome', true );
-	wp_enqueue_style( 'gogh-editor', plugins_url( 'gogh-editor.css', __FILE__ ), array(), '0.99.395-chrome' );
+	wp_register_script( 'gogh-compose', plugins_url( 'gogh-compose.js', __FILE__ ), array(), '0.99.396-chrome', true );
+	wp_enqueue_script( 'gogh-editor', plugins_url( 'gogh-editor.js', __FILE__ ), array( 'gogh-compose' ), '0.99.396-chrome', true );
+	wp_enqueue_style( 'gogh-editor', plugins_url( 'gogh-editor.css', __FILE__ ), array(), '0.99.396-chrome' );
 
 	// WebMCP bridge: the page registers its editing verbs as agent tools.
 	// OPT-IN only — add ?gogh-mcp=1 for a demo session (or enable sitewide
@@ -3848,13 +3957,13 @@ add_action( 'wp_enqueue_scripts', function () {
 	// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only labs toggle
 	$gogh_exp = isset( $_GET['gogh-test'] ) || ( isset( $_GET['gogh-experiments'] ) && '0' !== $_GET['gogh-experiments'] );
 	if ( isset( $_GET['gogh-mcp'] ) || $gogh_exp || apply_filters( 'gogh_webmcp_enabled', false ) ) {
-		wp_enqueue_script( 'gogh-webmcp', plugins_url( 'gogh-webmcp.js', __FILE__ ), array( 'gogh-editor' ), '0.99.395-chrome', true );
+		wp_enqueue_script( 'gogh-webmcp', plugins_url( 'gogh-webmcp.js', __FILE__ ), array( 'gogh-editor' ), '0.99.396-chrome', true );
 	}
 
 	// regression suite: /page/?gogh-test (editors only, never saves)
 	// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only toggle enqueuing a test script for capability-checked editors.
 	if ( isset( $_GET['gogh-test'] ) ) {
-		wp_enqueue_script( 'gogh-tests', plugins_url( 'gogh-tests.js', __FILE__ ), array( 'gogh-editor' ), '0.99.395-chrome', true );
+		wp_enqueue_script( 'gogh-tests', plugins_url( 'gogh-tests.js', __FILE__ ), array( 'gogh-editor' ), '0.99.396-chrome', true );
 	}
 
 	// products live outside wp/v2, so gogh carries its own save route for
@@ -3869,7 +3978,7 @@ add_action( 'wp_enqueue_scripts', function () {
 		'postTitle'  => get_the_title( $post ),
 		'permalink'  => esc_url_raw( get_permalink( $post->ID ) ),
 		'excerpt'    => (string) $post->post_excerpt,
-		'build'    => '0.99.395-chrome',
+		'build'    => '0.99.396-chrome',
 		// two rooms, one landmark (same contract as the admin bar): on a POST
 		// the corner pill opens the WRITING surface, not the freeform canvas
 		'writeUrl' => is_singular( 'post' ) ? add_query_arg( 'gogh-write', '1', get_permalink( $post ) ) : null,
@@ -4007,7 +4116,7 @@ add_action( 'enqueue_block_assets', function () {
 	if ( ! is_admin() ) {
 		return;
 	}
-	wp_register_style( 'gogh-editor-base', false, array(), '0.99.395-chrome' );
+	wp_register_style( 'gogh-editor-base', false, array(), '0.99.396-chrome' );
 	wp_enqueue_style( 'gogh-editor-base' );
 	wp_add_inline_style( 'gogh-editor-base',
 		'.gogh-wrap { min-width: 100%; margin-block: 0 !important; }' .
