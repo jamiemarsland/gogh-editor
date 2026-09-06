@@ -3337,6 +3337,21 @@
       return 'where travels as a class on the link block';
     });
 
+    test('a menu item can carry a panel: the id rides its class beside where it shows', function () {
+      var NM = G.navModel;
+      var items = NM.parse('<!-- wp:navigation-link {"label":"Shop","url":"/shop/","kind":"post-type","className":"gogh-panel-77 gogh-only-desktop"} /-->');
+      expect(items[0].panel === 77 && items[0].where === 'desktop', 'panel and where should both read from the class: ' + JSON.stringify([items[0].panel, items[0].where]));
+      items[0].panel = 91; items[0].dirty = true;
+      var out = NM.serialize(items);
+      expect(/"className":"gogh-only-desktop gogh-panel-91"/.test(out), 'a new panel id should replace the old one and keep where: ' + out);
+      items[0].panel = null; items[0].dirty = true;
+      expect(/"className":"gogh-only-desktop"/.test(NM.serialize(items)), 'removing the panel should drop only its class');
+      expect(NM.panelOf('foo gogh-panel-3') === 3 && NM.panelOf('gogh-panel-x') === null, 'panelOf reads a numeric id only');
+      var shelf = G.templates().filter(function (tp) { return tp.intent === 'panel'; });
+      expect(shelf.length >= 3 && shelf.every(function (tp) { return /^isPanel/.test(tp.gated || ''); }), 'the Menu panel shelf must be gated to a panel canvas');
+      return 'panel id travels as a class; the shelf stays behind its gate';
+    });
+
     test('the rails element: Woo Product Collection, composed from few choices', function () {
       if (!GOGH.hasWoo) return 'no WooCommerce here \u2014 nothing to lay';
       var e = G.addElementToSection(G.sections().indexOf(sec()), 'products');

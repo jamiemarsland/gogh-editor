@@ -3881,3 +3881,7 @@ body:has(.wp-block-navigation__responsive-container.is-menu-open) .gogh-bar { op
 .gogh-mm-w.is-on { color: #1d2327; background: #eef0f3; }
 .gogh-mm-w:hover { color: #111; }
 .gogh-mm-tabs { margin: 0 0 10px; }
+.gogh-mm-panel { all: unset; cursor: pointer; width: 22px; height: 22px; border-radius: 6px; display: grid; place-items: center; color: #9aa0a6; margin-right: 4px; }
+.gogh-mm-panel:hover { color: #111; background: #eef0f3; }
+.gogh-mm-panel.is-on { color: #1f5a3f; background: #e6f4ea; }
+.gogh-mm-panel:disabled { opacity: .5; cursor: default; }

@@ -1742,9 +1742,12 @@
       // on a product this canvas is the STORY below Woo's buy box — say so
       // (James: 'is this intentional on the product page?')
       var isProductCanvas = cfg.postType === 'product';
+      var isPanelCanvas = cfg.postType === 'gogh_panel';
       inv.innerHTML = '<span class="gogh-bootinvite-plus">＋</span><span>' +
-        (isProductCanvas ? 'Tell this product\u2019s story' : 'Add your first section') + '</span>' +
-        '<span class="gogh-bootinvite-hint">' + (isProductCanvas
+        (isPanelCanvas ? 'Design the menu panel' : isProductCanvas ? 'Tell this product\u2019s story' : 'Add your first section') + '</span>' +
+        '<span class="gogh-bootinvite-hint">' + (isPanelCanvas
+          ? 'links, a picture, a few products \u2014 it drops from \u201c' + esc(cfg.panelFor || cfg.postTitle || 'the menu') + '\u201d in the header'
+          : isProductCanvas
           ? 'a section below the buy box \u2014 the details, the maker, the pictures'
           : 'pick a layout, or start from a blank canvas') + '</span>';
       if (isProductCanvas) sec.sectionEl.classList.add('gogh-boot-product');
@@ -6174,6 +6177,44 @@
       { type: 'button', x: 72, y: 470, w: 200, h: 54, text: 'See everything', href: '/shop/', ghost: true },
       { type: 'widget', rails: true, x: 600, y: 80, w: 540, h: 520, shop: { count: 2, order: 'date', layout: 'grid', aspect: 'portrait', spacing: 'm' } },
     ] },
+    // ---- Menu panels (the mega menu): a page that drops from a menu item.
+    // Only on a panel's own canvas; links are plain words with links in them ----
+    { starter: true, gated: 'isPanel', intent: 'panel', name: 'Columns of links', minH: 360, els: [
+      { type: 'para', x: 80, y: 60, w: 300, h: 24, text: 'Explore', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
+      { type: 'para', x: 80, y: 100, w: 300, h: 180, text: '<a href="/">Home</a><br><a href="/about/">Our story</a><br><a href="/blog/">Journal</a><br><a href="/contact/">Get in touch</a>' },
+      { type: 'para', x: 460, y: 60, w: 300, h: 24, text: 'Shop', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
+      { type: 'para', x: 460, y: 100, w: 300, h: 180, text: '<a href="/shop/">Everything</a><br><a href="/shop/?orderby=date">New in</a><br><a href="/shop/?orderby=popularity">Most loved</a><br><a href="/shop/?on_sale=1">On sale</a>' },
+      { type: 'para', x: 840, y: 60, w: 300, h: 24, text: 'Help', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
+      { type: 'para', x: 840, y: 100, w: 300, h: 180, text: '<a href="/faq/">Questions</a><br><a href="/delivery/">Delivery &amp; returns</a><br><a href="/contact/">Find us</a>' },
+    ] },
+    { starter: true, gated: 'isPanel', intent: 'panel', name: 'Featured and links', minH: 400, els: [
+      { type: 'image', x: 60, y: 50, w: 420, h: 300, cool: true },
+      { type: 'para', x: 520, y: 60, w: 300, h: 24, text: 'This month', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
+      { type: 'heading', x: 520, y: 100, w: 320, h: 80, text: 'The one to see first', fs: 'medium' },
+      { type: 'para', x: 520, y: 190, w: 300, h: 72, text: 'A line on why it matters right now, and where it takes you.' },
+      { type: 'button', x: 520, y: 280, w: 160, h: 48, text: 'See it', href: '/shop/', ghost: true },
+      { type: 'para', x: 900, y: 60, w: 240, h: 24, text: 'Explore', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
+      { type: 'para', x: 900, y: 100, w: 240, h: 180, text: '<a href="/">Home</a><br><a href="/about/">Our story</a><br><a href="/blog/">Journal</a><br><a href="/contact/">Get in touch</a>' },
+    ] },
+    { starter: true, gated: 'isPanel', intent: 'panel', name: 'Picture doors', minH: 380, els: [
+      { type: 'image', x: 60, y: 50, w: 340, h: 220, cool: true },
+      { type: 'heading', x: 60, y: 286, w: 340, h: 40, text: 'Spring collection', fs: 'medium' },
+      { type: 'image', x: 430, y: 50, w: 340, h: 220, cool: false },
+      { type: 'heading', x: 430, y: 286, w: 340, h: 40, text: 'Gifts', fs: 'medium' },
+      { type: 'image', x: 800, y: 50, w: 340, h: 220, cool: true },
+      { type: 'heading', x: 800, y: 286, w: 340, h: 40, text: 'Our story', fs: 'medium' },
+    ] },
+    { starter: true, gated: 'isPanelWoo', intent: 'panel', name: 'Categories in the menu', minH: 400, els: [
+      { type: 'heading', x: 60, y: 50, w: 500, h: 50, text: 'Shop by category', fs: 'medium' },
+      { type: 'widget', rails: true, x: 60, y: 120, w: 1080, h: 240, shop: { kind: 'categories', count: 4, layout: 'grid', aspect: 'square', spacing: 's', show: { price: false, rating: false, button: false } } },
+    ] },
+    { starter: true, gated: 'isPanelWoo', intent: 'panel', name: 'Featured product in the menu', minH: 400, els: [
+      { type: 'widget', rails: true, x: 60, y: 50, w: 400, h: 300, shop: { count: 1, order: 'popularity', layout: 'grid', aspect: 'landscape', spacing: 's', show: { price: true, rating: false, button: true } } },
+      { type: 'para', x: 520, y: 60, w: 300, h: 24, text: 'Shop', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
+      { type: 'para', x: 520, y: 100, w: 300, h: 180, text: '<a href="/shop/">Everything</a><br><a href="/shop/?orderby=date">New in</a><br><a href="/shop/?orderby=popularity">Most loved</a><br><a href="/shop/?on_sale=1">On sale</a>' },
+      { type: 'para', x: 880, y: 60, w: 260, h: 24, text: 'Help', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
+      { type: 'para', x: 880, y: 100, w: 260, h: 180, text: '<a href="/faq/">Questions</a><br><a href="/delivery/">Delivery &amp; returns</a><br><a href="/contact/">Find us</a>' },
+    ] },
     // Shop the look: a photo full of your things, the things beside it —
     // hand-picked, so the rails show exactly what is in the picture
     { starter: true, gated: 'hasWoo', intent: 'sell', name: 'Shop the look', minH: 640, els: [
@@ -6646,6 +6687,122 @@
   var DICE_FORM_WSRC = '<!-- wp:gogh/form /-->';
   var DICE_FORM_WHTML = '<div class="gogh-form"><div class="gogh-form-row"><input type="text" placeholder="Your name" disabled /><input type="email" placeholder="Your email" disabled /></div><textarea rows="5" placeholder="Your message…" disabled></textarea><div class="gogh-form-foot"><span class="gogh-form-fbtn">Send</span><span class="gogh-form-note">Goes straight to this site — nowhere else.</span></div></div>';
   var VARIANTS = {
+    'Columns of links': [
+      { name: 'Columns of links', take: 'Four across', minH: 360, els: [
+        { type: 'para', x: 60, y: 60, w: 240, h: 24, text: 'Explore', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
+        { type: 'para', x: 60, y: 100, w: 240, h: 180, text: '<a href="/">Home</a><br><a href="/about/">Our story</a><br><a href="/blog/">Journal</a><br><a href="/contact/">Get in touch</a>' },
+        { type: 'para', x: 340, y: 60, w: 240, h: 24, text: 'Shop', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
+        { type: 'para', x: 340, y: 100, w: 240, h: 180, text: '<a href="/shop/">Everything</a><br><a href="/shop/?orderby=date">New in</a><br><a href="/shop/?orderby=popularity">Most loved</a><br><a href="/shop/?on_sale=1">On sale</a>' },
+        { type: 'para', x: 620, y: 60, w: 240, h: 24, text: 'Help', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
+        { type: 'para', x: 620, y: 100, w: 240, h: 180, text: '<a href="/faq/">Questions</a><br><a href="/delivery/">Delivery &amp; returns</a><br><a href="/contact/">Find us</a>' },
+        { type: 'para', x: 900, y: 60, w: 240, h: 24, text: 'Say hello', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
+        { type: 'para', x: 900, y: 100, w: 240, h: 120, text: 'We answer every message ourselves, usually the same day.' },
+      ] },
+      { name: 'Columns of links', take: 'Two and a note', minH: 340, els: [
+        { type: 'para', x: 80, y: 60, w: 300, h: 24, text: 'Explore', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
+        { type: 'para', x: 80, y: 100, w: 300, h: 180, text: '<a href="/">Home</a><br><a href="/about/">Our story</a><br><a href="/blog/">Journal</a><br><a href="/contact/">Get in touch</a>' },
+        { type: 'para', x: 440, y: 60, w: 300, h: 24, text: 'Shop', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
+        { type: 'para', x: 440, y: 100, w: 300, h: 180, text: '<a href="/shop/">Everything</a><br><a href="/shop/?orderby=date">New in</a><br><a href="/shop/?orderby=popularity">Most loved</a><br><a href="/shop/?on_sale=1">On sale</a>' },
+        { type: 'heading', x: 820, y: 60, w: 320, h: 70, text: 'Made here, sent this week', fs: 'medium' },
+        { type: 'para', x: 820, y: 140, w: 320, h: 72, text: 'Small batches from one workshop. If you only try one thing, try the lavender.' },
+      ] },
+      { name: 'Columns of links', take: 'Links and a picture', minH: 360, els: [
+        { type: 'para', x: 80, y: 60, w: 260, h: 24, text: 'Explore', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
+        { type: 'para', x: 80, y: 100, w: 260, h: 180, text: '<a href="/">Home</a><br><a href="/about/">Our story</a><br><a href="/blog/">Journal</a><br><a href="/contact/">Get in touch</a>' },
+        { type: 'para', x: 400, y: 60, w: 260, h: 24, text: 'Shop', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
+        { type: 'para', x: 400, y: 100, w: 260, h: 180, text: '<a href="/shop/">Everything</a><br><a href="/shop/?orderby=date">New in</a><br><a href="/shop/?orderby=popularity">Most loved</a><br><a href="/shop/?on_sale=1">On sale</a>' },
+        { type: 'image', x: 740, y: 50, w: 400, h: 260, cool: true },
+      ] },
+    ],
+    'Featured and links': [
+      { name: 'Featured and links', take: 'Picture right', minH: 400, els: [
+        { type: 'para', x: 60, y: 60, w: 240, h: 24, text: 'Explore', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
+        { type: 'para', x: 60, y: 100, w: 240, h: 180, text: '<a href="/">Home</a><br><a href="/about/">Our story</a><br><a href="/blog/">Journal</a><br><a href="/contact/">Get in touch</a>' },
+        { type: 'para', x: 340, y: 60, w: 240, h: 24, text: 'Shop', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
+        { type: 'para', x: 340, y: 100, w: 240, h: 180, text: '<a href="/shop/">Everything</a><br><a href="/shop/?orderby=date">New in</a><br><a href="/shop/?orderby=popularity">Most loved</a><br><a href="/shop/?on_sale=1">On sale</a>' },
+        { type: 'image', x: 700, y: 50, w: 440, h: 300, cool: true },
+      ] },
+      { name: 'Featured and links', take: 'The band', minH: 440, els: [
+        { type: 'image', x: 60, y: 50, w: 1080, h: 200, cool: true },
+        { type: 'para', x: 60, y: 280, w: 260, h: 24, text: 'Explore', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
+        { type: 'para', x: 60, y: 320, w: 260, h: 100, text: '<a href="/">Home</a><br><a href="/about/">Our story</a><br><a href="/blog/">Journal</a><br><a href="/contact/">Get in touch</a>' },
+        { type: 'para', x: 420, y: 280, w: 260, h: 24, text: 'Shop', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
+        { type: 'para', x: 420, y: 320, w: 260, h: 100, text: '<a href="/shop/">Everything</a><br><a href="/shop/?orderby=date">New in</a><br><a href="/shop/?orderby=popularity">Most loved</a><br><a href="/shop/?on_sale=1">On sale</a>' },
+        { type: 'para', x: 780, y: 280, w: 260, h: 24, text: 'Help', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
+        { type: 'para', x: 780, y: 320, w: 260, h: 100, text: '<a href="/faq/">Questions</a><br><a href="/delivery/">Delivery &amp; returns</a><br><a href="/contact/">Find us</a>' },
+      ] },
+      { name: 'Featured and links', take: 'Two pictures', minH: 400, els: [
+        { type: 'image', x: 60, y: 50, w: 320, h: 240, cool: true },
+        { type: 'heading', x: 60, y: 300, w: 320, h: 40, text: 'New this month', fs: 'medium' },
+        { type: 'image', x: 420, y: 50, w: 320, h: 240, cool: false },
+        { type: 'heading', x: 420, y: 300, w: 320, h: 40, text: 'Gifts under twenty', fs: 'medium' },
+        { type: 'para', x: 800, y: 60, w: 340, h: 24, text: 'Explore', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
+        { type: 'para', x: 800, y: 100, w: 340, h: 180, text: '<a href="/">Home</a><br><a href="/about/">Our story</a><br><a href="/blog/">Journal</a><br><a href="/contact/">Get in touch</a>' },
+      ] },
+    ],
+    'Picture doors': [
+      { name: 'Picture doors', take: 'Two wide', minH: 380, els: [
+        { type: 'image', x: 60, y: 50, w: 520, h: 240, cool: true },
+        { type: 'heading', x: 60, y: 300, w: 520, h: 40, text: 'Spring collection', fs: 'medium' },
+        { type: 'image', x: 620, y: 50, w: 520, h: 240, cool: false },
+        { type: 'heading', x: 620, y: 300, w: 520, h: 40, text: 'Gifts', fs: 'medium' },
+      ] },
+      { name: 'Picture doors', take: 'Four small', minH: 340, els: [
+        { type: 'image', x: 60, y: 50, w: 250, h: 180, cool: true },
+        { type: 'heading', x: 60, y: 244, w: 250, h: 36, text: 'Spring', fs: 'small' },
+        { type: 'image', x: 337, y: 50, w: 250, h: 180, cool: false },
+        { type: 'heading', x: 337, y: 244, w: 250, h: 36, text: 'Gifts', fs: 'small' },
+        { type: 'image', x: 614, y: 50, w: 250, h: 180, cool: true },
+        { type: 'heading', x: 614, y: 244, w: 250, h: 36, text: 'Home', fs: 'small' },
+        { type: 'image', x: 891, y: 50, w: 250, h: 180, cool: false },
+        { type: 'heading', x: 891, y: 244, w: 250, h: 36, text: 'Our story', fs: 'small' },
+      ] },
+      { name: 'Picture doors', take: 'Doors and links', minH: 380, els: [
+        { type: 'image', x: 60, y: 50, w: 340, h: 220, cool: true },
+        { type: 'heading', x: 60, y: 286, w: 340, h: 40, text: 'Spring collection', fs: 'medium' },
+        { type: 'image', x: 430, y: 50, w: 340, h: 220, cool: false },
+        { type: 'heading', x: 430, y: 286, w: 340, h: 40, text: 'Gifts', fs: 'medium' },
+        { type: 'para', x: 820, y: 60, w: 320, h: 24, text: 'Explore', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
+        { type: 'para', x: 820, y: 100, w: 320, h: 180, text: '<a href="/">Home</a><br><a href="/about/">Our story</a><br><a href="/blog/">Journal</a><br><a href="/contact/">Get in touch</a>' },
+      ] },
+    ],
+    'Categories in the menu': [
+      { name: 'Categories in the menu', take: 'Three and a note', minH: 400, els: [
+        { type: 'heading', x: 60, y: 50, w: 400, h: 50, text: 'Shop by category', fs: 'medium' },
+        { type: 'para', x: 60, y: 110, w: 320, h: 72, text: 'Everything we make, sorted the way you think about it.' },
+        { type: 'widget', rails: true, x: 420, y: 50, w: 720, h: 300, shop: { kind: 'categories', count: 3, layout: 'grid', aspect: 'square', spacing: 's', show: { price: false, rating: false, button: false } } },
+      ] },
+      { name: 'Categories in the menu', take: 'Six doors', minH: 420, els: [
+        { type: 'para', x: 60, y: 50, w: 400, h: 24, text: 'Shop by category', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
+        { type: 'widget', rails: true, x: 60, y: 90, w: 1080, h: 300, shop: { kind: 'categories', count: 6, layout: 'grid', aspect: 'square', spacing: 's', show: { price: false, rating: false, button: false } } },
+      ] },
+      { name: 'Categories in the menu', take: 'Doors and links', minH: 400, els: [
+        { type: 'widget', rails: true, x: 60, y: 50, w: 700, h: 300, shop: { kind: 'categories', count: 4, layout: 'grid', aspect: 'square', spacing: 's', show: { price: false, rating: false, button: false } } },
+        { type: 'para', x: 820, y: 60, w: 320, h: 24, text: 'Shop', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
+        { type: 'para', x: 820, y: 100, w: 320, h: 180, text: '<a href="/shop/">Everything</a><br><a href="/shop/?orderby=date">New in</a><br><a href="/shop/?orderby=popularity">Most loved</a><br><a href="/shop/?on_sale=1">On sale</a>' },
+      ] },
+    ],
+    'Featured product in the menu': [
+      { name: 'Featured product in the menu', take: 'Product right', minH: 400, els: [
+        { type: 'para', x: 60, y: 60, w: 300, h: 24, text: 'Shop', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
+        { type: 'para', x: 60, y: 100, w: 300, h: 180, text: '<a href="/shop/">Everything</a><br><a href="/shop/?orderby=date">New in</a><br><a href="/shop/?orderby=popularity">Most loved</a><br><a href="/shop/?on_sale=1">On sale</a>' },
+        { type: 'para', x: 400, y: 60, w: 260, h: 24, text: 'Help', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
+        { type: 'para', x: 400, y: 100, w: 260, h: 180, text: '<a href="/faq/">Questions</a><br><a href="/delivery/">Delivery &amp; returns</a><br><a href="/contact/">Find us</a>' },
+        { type: 'widget', rails: true, x: 740, y: 50, w: 400, h: 300, shop: { count: 1, order: 'popularity', layout: 'grid', aspect: 'landscape', spacing: 's', show: { price: true, rating: false, button: true } } },
+      ] },
+      { name: 'Featured product in the menu', take: 'Two bestsellers', minH: 400, els: [
+        { type: 'para', x: 60, y: 60, w: 300, h: 24, text: 'Most loved', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
+        { type: 'widget', rails: true, x: 60, y: 100, w: 620, h: 260, shop: { count: 2, order: 'popularity', layout: 'grid', aspect: 'square', spacing: 's', show: { price: true, rating: false, button: false } } },
+        { type: 'para', x: 760, y: 60, w: 380, h: 24, text: 'Shop', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
+        { type: 'para', x: 760, y: 100, w: 380, h: 180, text: '<a href="/shop/">Everything</a><br><a href="/shop/?orderby=date">New in</a><br><a href="/shop/?orderby=popularity">Most loved</a><br><a href="/shop/?on_sale=1">On sale</a>' },
+      ] },
+      { name: 'Featured product in the menu', take: 'The list', minH: 400, els: [
+        { type: 'heading', x: 60, y: 50, w: 400, h: 50, text: 'Three to try first', fs: 'medium' },
+        { type: 'widget', rails: true, x: 60, y: 110, w: 560, h: 260, shop: { count: 3, order: 'popularity', layout: 'list', aspect: 'square', spacing: 's', show: { price: true, rating: false, button: false } } },
+        { type: 'para', x: 700, y: 60, w: 440, h: 24, text: 'Explore', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
+        { type: 'para', x: 700, y: 100, w: 440, h: 180, text: '<a href="/">Home</a><br><a href="/about/">Our story</a><br><a href="/blog/">Journal</a><br><a href="/contact/">Get in touch</a>' },
+      ] },
+    ],
     'Shop the look': [
       { name: 'Shop the look', take: 'The photo right', minH: 640, els: [
         { type: 'image', x: 520, y: 60, w: 620, h: 520, cool: true },
@@ -8005,7 +8162,7 @@
   ];
   var STARTER_CATS = {
     'Hero': 'hero', 'Cover': 'hero banner', 'Big statement': 'hero', 'Story': 'text', 'Numbers': 'text',
-    'Article': 'text', 'Feature cards': 'cards', 'Pricing': 'cards', 'Featured product': 'cards featured', 'Bestsellers': 'cards featured', 'Editorial split': 'cards featured', 'Shop the look': 'cards featured', 'New in': 'cards featured', 'Sale': 'cards featured', 'Categories': 'cards photos',
+    'Article': 'text', 'Feature cards': 'cards', 'Pricing': 'cards', 'Featured product': 'cards featured', 'Bestsellers': 'cards featured', 'Editorial split': 'cards featured', 'Shop the look': 'cards featured', 'Columns of links': 'text', 'Featured and links': 'cards', 'Picture doors': 'cards', 'Categories in the menu': 'cards', 'Featured product in the menu': 'cards featured', 'New in': 'cards featured', 'Sale': 'cards featured', 'Categories': 'cards photos',
     'Quote': 'text', 'Call to action': 'hero', 'Get in touch': 'contact',
     'FAQ': 'text cards', 'Tabs': 'text cards', 'Gallery': 'photos', 'Photo cards': 'photos cards', 'Portfolio': 'photos',
     'Menu': 'text', 'Team': 'contact photos',
@@ -8032,11 +8189,11 @@
     // with (Squarespace lesson) — not by layout anatomy. Blank lives in
     // Quick start.
     var blankAt = TEMPLATES.findIndex(function (t) { return !t.retired && !t.starter; });
-    var INTENTS = [
+    var INTENTS = (cfg.isPanel ? [{ key: 'panel', label: 'Menu panel', sub: 'What drops from the menu' }] : []).concat([
       { key: 'introduce', label: 'Introduce', sub: 'Say who you are' },
       { key: 'sell', label: 'Sell', sub: 'Turn interest into action' },
       { key: 'showcase', label: 'Showcase', sub: 'Let the work speak' },
-    ];
+    ]);
     var cardsArr = [];
     var starterSeen = 0;
     INTENTS.forEach(function (g) {
@@ -14017,13 +14174,20 @@
     if (!member) clearMulti();
   }, true);
 
+  if (cfg.isPanel) {
+    // a panel page is a room with one door back
+    setTimeout(function () {
+      toast('This panel drops from \u201c' + (cfg.panelFor || cfg.postTitle || 'the menu') + '\u201d in the header. Publish when it looks right.', {
+        ttl: 12000, actions: [{ label: 'Back to the site', onClick: function () { window.location.href = cfg.homeUrl || '/'; } }] });
+    }, 900);
+  }
   window.__gogh = {
     explode: { enter: enterExplode, exit: exitExplode, state: function () { return explodeSt; } },
     multi: { set: setMulti, clear: clearMulti, state: function () { return multiSel; } },
     zoom: { open: openZoom, close: closeZoom, el: zoomOv },
     reorderSection: reorderSection,
     setVideo: setVideo, setSecVideo: setSecVideo, videoEmbedInfo: videoEmbedInfo, openSecBgPanel: openSecBgPanel,
-    navModel: { parse: parseNavModel, serialize: serializeNavModel, whereOf: navWhereOf },
+    navModel: { parse: parseNavModel, serialize: serializeNavModel, whereOf: navWhereOf, panelOf: navPanelOf },
     reorderNavRaw: reorderNavRaw,
     stickyRawToggle: stickyRawToggle,
     chromeDialsRead: chromeDialsRead,
@@ -18284,6 +18448,7 @@
         label: attrs.label || '', url: attrs.url || '',
         kind: attrs.kind || null, children: null,
         where: navWhereOf(attrs.className),
+        panel: navPanelOf(attrs.className),
       };
       if (name.indexOf('navigation-submenu') !== -1 && openEnd !== -1) {
         var closeAt = text.lastIndexOf('<!--');
@@ -18296,7 +18461,7 @@
           try { cat = cjm ? JSON.parse(cjm[0]) : {}; } catch (e2) {}
           return { name: cs.name || '', text: ct, attrsText: cjm ? cjm[0] : null,
             attrs: cat, label: cat.label || '', url: cat.url || '',
-            kind: cat.kind || null, children: null, where: navWhereOf(cat.className) };
+            kind: cat.kind || null, children: null, where: navWhereOf(cat.className), panel: navPanelOf(cat.className) };
         });
       }
       return it;
@@ -18308,6 +18473,12 @@
     var c = ' ' + String(className || '') + ' ';
     return c.indexOf(' gogh-only-phone ') !== -1 ? 'phone' : c.indexOf(' gogh-only-desktop ') !== -1 ? 'desktop' : 'both';
   }
+  // a mega menu panel is a gogh page that drops from the item; the item
+  // carries its id as a class (gogh-panel-12) — nothing else to look up
+  function navPanelOf(className) {
+    var m = String(className || '').match(/(?:^|\s)gogh-panel-(\d+)(?:\s|$)/);
+    return m ? +m[1] : null;
+  }
   function navAttrsText(it) {
     if (it.attrsText && !it.dirty) return it.attrsText;
     // rebuild from the stored attributes so ids, types and new-tab flags
@@ -18316,9 +18487,10 @@
     a.label = it.label || '';
     a.url = it.url || '#';
     if (it.kind) a.kind = it.kind;
-    var cls = String(a.className || '').split(/\s+/).filter(function (c) { return c && c !== 'gogh-only-phone' && c !== 'gogh-only-desktop'; });
+    var cls = String(a.className || '').split(/\s+/).filter(function (c) { return c && c !== 'gogh-only-phone' && c !== 'gogh-only-desktop' && !/^gogh-panel-\d+$/.test(c); });
     if (it.where === 'phone') cls.push('gogh-only-phone');
     else if (it.where === 'desktop') cls.push('gogh-only-desktop');
+    if (it.panel) cls.push('gogh-panel-' + it.panel);
     if (cls.length) a.className = cls.join(' '); else delete a.className;
     return JSON.stringify(a).replace(/</g, '\\u003c');
   }
@@ -19504,6 +19676,11 @@
         '<span class="gogh-mm-label"></span>' +
         (it.children && it.children.length ? '<span class="gogh-mm-count">' + it.children.length + ' inside</span>' : '') +
         (isExternal(it) ? '<span class="gogh-mm-link">link</span>' : '') +
+        // a panel: the mega menu, designed like any section (top-level links only)
+        (!parent && !(it.children && it.children.length)
+          ? '<button type="button" class="gogh-mm-panel' + (it.panel ? ' is-on' : '') + '" title="' + (it.panel ? 'This item has a panel \u2014 edit or remove it' : 'Give this a panel \u2014 a mega menu, designed like a section') + '">' +
+            '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M4 5h16M12 5v3"/><rect x="3" y="8" width="18" height="12" rx="2"/><path d="M3 14h18M9 8v12M15 8v12"/></svg></button>'
+          : '') +
         // where it shows: the bar (desktop) and/or the overlay (phones)
         '<span class="gogh-mm-where" title="Where this item shows">' +
         '<button type="button" class="gogh-mm-w' + (it.where === 'phone' ? '' : ' is-on') + '" data-w="desktop" title="On desktop" aria-pressed="' + (it.where === 'phone' ? 'false' : 'true') + '">' +
@@ -19512,6 +19689,39 @@
         '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><rect x="7" y="2" width="10" height="20" rx="2"/><path d="M11 18h2"/></svg></button></span>' +
         '<button type="button" class="gogh-mm-x" title="Remove from menu">\u2715</button>';
       r.querySelector('.gogh-mm-label').textContent = it.label || it.url || 'Untitled';
+      var pb = r.querySelector('.gogh-mm-panel');
+      if (pb) pb.addEventListener('click', function (ev) {
+        ev.stopPropagation();
+        var goEdit = function (id) {
+          window.location.href = (cfg.homeUrl || '/') + '?post_type=gogh_panel&p=' + id + '&gogh-edit=1';
+        };
+        if (it.panel) {
+          toast('\u201c' + (it.label || 'Item') + '\u201d has a panel that drops from the menu.', { ttl: 10000, actions: [
+            { label: 'Edit panel', onClick: function () { goEdit(it.panel); } },
+            { label: 'Remove panel', onClick: function () {
+              var old = it.panel;
+              it.panel = null; it.dirty = true;
+              renderList();
+              commit().then(function () {
+                fetch(GSROOT + 'gogh-panels/' + old, { method: 'DELETE', headers: hdrs, credentials: 'same-origin' }).catch(function () {});
+                toast('Panel removed \u2014 it is in the trash if you change your mind.');
+              });
+            } },
+          ] });
+          return;
+        }
+        pb.disabled = true;
+        fetch(GSROOT + 'gogh-panels', { method: 'POST', headers: hdrs, credentials: 'same-origin',
+          body: JSON.stringify({ title: it.label || 'Menu panel', status: 'publish', content: '' }) })
+          .then(function (res) { if (!res.ok) throw new Error('HTTP ' + res.status); return res.json(); })
+          .then(function (made) {
+            it.panel = +made.id; it.dirty = true;
+            return commit().then(function () { goEdit(made.id); });
+          }).catch(function (err) {
+            pb.disabled = false;
+            toast('gogh could not make a panel \u2014 ' + ((err && err.message) || 'try again.'), { error: true });
+          });
+      });
       r.querySelectorAll('.gogh-mm-w').forEach(function (wb) {
         wb.addEventListener('click', function (ev) {
           ev.stopPropagation();
