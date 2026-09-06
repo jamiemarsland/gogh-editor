@@ -14023,6 +14023,7 @@
     zoom: { open: openZoom, close: closeZoom, el: zoomOv },
     reorderSection: reorderSection,
     setVideo: setVideo, setSecVideo: setSecVideo, videoEmbedInfo: videoEmbedInfo, openSecBgPanel: openSecBgPanel,
+    navModel: { parse: parseNavModel, serialize: serializeNavModel, whereOf: navWhereOf },
     reorderNavRaw: reorderNavRaw,
     stickyRawToggle: stickyRawToggle,
     chromeDialsRead: chromeDialsRead,
@@ -18282,6 +18283,7 @@
         attrsText: attrsText, attrs: attrs,
         label: attrs.label || '', url: attrs.url || '',
         kind: attrs.kind || null, children: null,
+        where: navWhereOf(attrs.className),
       };
       if (name.indexOf('navigation-submenu') !== -1 && openEnd !== -1) {
         var closeAt = text.lastIndexOf('<!--');
@@ -18294,16 +18296,30 @@
           try { cat = cjm ? JSON.parse(cjm[0]) : {}; } catch (e2) {}
           return { name: cs.name || '', text: ct, attrsText: cjm ? cjm[0] : null,
             attrs: cat, label: cat.label || '', url: cat.url || '',
-            kind: cat.kind || null, children: null };
+            kind: cat.kind || null, children: null, where: navWhereOf(cat.className) };
         });
       }
       return it;
     });
   }
+  // one menu, two places: an item shows on both, on desktop only (the bar)
+  // or on phones only (the overlay) — a class on the link block carries it
+  function navWhereOf(className) {
+    var c = ' ' + String(className || '') + ' ';
+    return c.indexOf(' gogh-only-phone ') !== -1 ? 'phone' : c.indexOf(' gogh-only-desktop ') !== -1 ? 'desktop' : 'both';
+  }
   function navAttrsText(it) {
-    if (it.attrsText) return it.attrsText;
-    var a = { label: it.label || '', url: it.url || '#' };
+    if (it.attrsText && !it.dirty) return it.attrsText;
+    // rebuild from the stored attributes so ids, types and new-tab flags
+    // survive an edit — only label, url, kind and the where-class change
+    var a = Object.assign({}, it.attrs || {});
+    a.label = it.label || '';
+    a.url = it.url || '#';
     if (it.kind) a.kind = it.kind;
+    var cls = String(a.className || '').split(/\s+/).filter(function (c) { return c && c !== 'gogh-only-phone' && c !== 'gogh-only-desktop'; });
+    if (it.where === 'phone') cls.push('gogh-only-phone');
+    else if (it.where === 'desktop') cls.push('gogh-only-desktop');
+    if (cls.length) a.className = cls.join(' '); else delete a.className;
     return JSON.stringify(a).replace(/</g, '\\u003c');
   }
   function serializeNavModel(items) {
@@ -18650,7 +18666,8 @@
   }
   function openMenuStylePage(anchorEl, roomOpt) {
     stayInRoom(roomOpt, anchorEl);
-    var kept = { layout: (cfg.menuStyle && cfg.menuStyle.layout) || 'stack', ground: (cfg.menuStyle && cfg.menuStyle.ground) || 'light' };
+    var ms0 = cfg.menuStyle || {};
+    var kept = { layout: ms0.layout || 'stack', ground: ms0.ground || 'light', phone: ms0.phone || '', email: ms0.email || '', account: !!ms0.account, phoneMenu: +ms0.phoneMenu || 0 };
     var st = { layout: kept.layout, ground: kept.ground };
     var partEl = partElForArea('header');
     var list = function (cls, opts, cur) {
@@ -18665,6 +18682,15 @@
       '<div class="gogh-panel-hint">How the menu opens on phones — and on desktop with the Hamburger layout. Hover to try, click to keep.</div>' +
       '<div class="gogh-swlab">Opens as</div>' + list('gogh-mmlay', MENU_LAYOUTS, st.layout) +
       '<div class="gogh-swlab">Wears</div>' + list('gogh-mmground', MENU_GROUNDS, st.ground) +
+      // what phones want at the foot of the menu: a way to call, to write, to sign in
+      '<div class="gogh-swlab">Also on phones</div>' +
+      '<div class="gogh-panel-row"><input type="tel" class="gogh-input gogh-mm-phone" placeholder="Phone number \u2014 tap to call" value="' + escAttr(kept.phone) + '" /></div>' +
+      '<div class="gogh-panel-row"><input type="email" class="gogh-input gogh-mm-email" placeholder="Email address \u2014 tap to write" value="' + escAttr(kept.email) + '" /></div>' +
+      (cfg.hasWoo ? '<div class="gogh-hpresets"><button type="button" class="gogh-hpreset gogh-mm-account' + (kept.account ? ' is-active' : '') + '">My account</button></div>' : '') +
+      '<div class="gogh-panel-hint">These join the menu on phones only. Items in the menu itself can be set to desktop or phones with the \u22ef Manage menu.</div>' +
+      '<div class="gogh-swlab">On phones, show</div>' +
+      '<div class="gogh-panel-row"><select class="gogh-input gogh-mm-phonemenu"><option value="0">The same menu</option></select></div>' +
+      '<div class="gogh-panel-hint gogh-mm-phonemenu-hint">' + (kept.phoneMenu ? 'A separate phone menu \u2014 edit it under \u22ef Manage menu, Phone menu tab.' : 'Or a menu of its own \u2014 gogh copies this one to start you off.') + '</div>' +
       '<div class="gogh-hdoors"><button type="button" class="gogh-hdoor gogh-mmpreview"><span>' +
       (partEl && partEl.querySelector('.is-menu-open') ? 'Close the menu' : 'Open the menu to preview') + '</span><span class="gogh-hdoor-chev">›</span></button></div>';
     var closeX = panel.querySelector('.gogh-panel-close');
@@ -18675,22 +18701,100 @@
       if (!menuOverlayToggle(partEl, !isOpen)) { toast('This header has no menu button to open.', { error: true }); return; }
       prev.firstChild.textContent = isOpen ? 'Open the menu to preview' : 'Close the menu';
     });
-    var keep = function () {
-      kept = { layout: st.layout, ground: st.ground };
+    var keep = function (quiet) {
+      kept = Object.assign({}, kept, { layout: st.layout, ground: st.ground });
       cfg.menuStyle = kept;
-      fetch(cfg.restUrl.split('wp/v2/')[0] + 'gogh/v1/menu-style', {
+      return fetch(cfg.restUrl.split('wp/v2/')[0] + 'gogh/v1/menu-style', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'X-WP-Nonce': cfg.nonce },
         credentials: 'same-origin',
         body: JSON.stringify(kept),
       }).then(function (r) {
         if (!r.ok) throw new Error('saving needs an admin login');
-        toast('Mobile menu: ' + MENU_LAYOUTS.filter(function (o) { return o[0] === kept.layout; })[0][1] + ' · ' +
-          MENU_GROUNDS.filter(function (o) { return o[0] === kept.ground; })[0][1] + ' — kept for the whole site.');
+        if (!quiet) toast('Mobile menu: ' + MENU_LAYOUTS.filter(function (o) { return o[0] === kept.layout; })[0][1] + ' \u00b7 ' +
+          MENU_GROUNDS.filter(function (o) { return o[0] === kept.ground; })[0][1] + ' \u2014 kept for the whole site.');
       }).catch(function (err) {
-        toast('gogh could not keep the menu style — ' + ((err && err.message) || 'try again.'), { error: true });
+        toast('gogh could not keep the menu style \u2014 ' + ((err && err.message) || 'try again.'), { error: true });
       });
     };
+    // the extras and the phone menu save on change and re-render the header,
+    // so the overlay preview shows them at once
+    var keepExtras = function (msg) {
+      keep(true).then(function () { return refreshChromePart(partEl); }).then(function () { if (msg) toast(msg); });
+    };
+    var phoneIn = panel.querySelector('.gogh-mm-phone'), emailIn = panel.querySelector('.gogh-mm-email');
+    phoneIn.addEventListener('change', function () { kept.phone = phoneIn.value.trim(); keepExtras(kept.phone ? 'Phones get a Call link at the foot of the menu.' : 'Call link removed.'); });
+    emailIn.addEventListener('change', function () { kept.email = emailIn.value.trim(); keepExtras(kept.email ? 'Phones get an Email link at the foot of the menu.' : 'Email link removed.'); });
+    var accBtn = panel.querySelector('.gogh-mm-account');
+    if (accBtn) accBtn.addEventListener('click', function () {
+      kept.account = !kept.account;
+      accBtn.classList.toggle('is-active', kept.account);
+      keepExtras(kept.account ? 'My account joins the phone menu.' : 'My account left the phone menu.');
+    });
+    var pmSel = panel.querySelector('.gogh-mm-phonemenu');
+    var pmHint = panel.querySelector('.gogh-mm-phonemenu-hint');
+    var newOpt = document.createElement('option');
+    newOpt.value = 'new';
+    newOpt.textContent = 'A menu of its own (copy this one)';
+    pmSel.appendChild(newOpt);
+    // only menus that MATTER (the ones a header or footer points at, the one
+    // already chosen, and any made as a phone menu) — starters mint orphans
+    Promise.all([
+      fetch(restQ(GSROOT + 'navigation', 'per_page=100&_fields=id,title'), { headers: { 'X-WP-Nonce': cfg.nonce }, credentials: 'same-origin' })
+        .then(function (r) { return r.ok ? r.json() : []; }).catch(function () { return []; }),
+      activePartFor('header').catch(function () { return null; }),
+      activePartFor('footer').catch(function () { return null; }),
+    ]).then(function (res) {
+        var menus = res[0] || [];
+        var refs = {};
+        [res[1], res[2]].forEach(function (pt) {
+          var raw = String((pt && pt.content && (pt.content.raw || pt.content)) || '');
+          var re = /wp:navigation[^>]*"ref":(\d+)/g, m;
+          while ((m = re.exec(raw))) refs[+m[1]] = 1;
+        });
+        var decode = function (t) { var d = document.createElement('textarea'); d.innerHTML = t; return d.value; };
+        menus.forEach(function (m) {
+          var title = decode((m.title && (m.title.rendered || m.title.raw)) || ('Menu ' + m.id));
+          if (!refs[m.id] && m.id !== kept.phoneMenu && !/phone/i.test(title)) return;
+          var o = document.createElement('option');
+          o.value = m.id;
+          o.textContent = title;
+          pmSel.insertBefore(o, newOpt);
+        });
+        pmSel.value = kept.phoneMenu ? String(kept.phoneMenu) : '0';
+        if (kept.phoneMenu && pmSel.value !== String(kept.phoneMenu)) pmSel.value = '0';
+      });
+    pmSel.addEventListener('change', function () {
+      var v = pmSel.value;
+      if (v === 'new') {
+        // copy the header's menu into a new one, then point phones at it
+        pmSel.disabled = true;
+        resolveNavTarget(partEl).then(function (navId) {
+          return navId ? fetch(restQ(GSROOT + 'navigation/' + navId, 'context=edit'), { headers: { 'X-WP-Nonce': cfg.nonce }, credentials: 'same-origin' })
+            .then(function (r) { return r.ok ? r.json() : null; }) : null;
+        }).then(function (nav) {
+          var content = nav ? ((nav.content && nav.content.raw) || '') : '';
+          return fetch(GSROOT + 'navigation', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-WP-Nonce': cfg.nonce }, credentials: 'same-origin',
+            body: JSON.stringify({ title: 'Phone menu', status: 'publish', content: content }) });
+        }).then(function (r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); }).then(function (made) {
+          var o = document.createElement('option');
+          o.value = made.id; o.textContent = 'Phone menu';
+          pmSel.insertBefore(o, newOpt);
+          pmSel.value = String(made.id);
+          pmSel.disabled = false;
+          kept.phoneMenu = +made.id;
+          pmHint.textContent = 'A separate phone menu \u2014 edit it under \u22ef Manage menu, Phone menu tab.';
+          keepExtras('Phones now have their own menu \u2014 a copy of this one, to trim or grow.');
+        }).catch(function (err) {
+          pmSel.disabled = false; pmSel.value = kept.phoneMenu ? String(kept.phoneMenu) : '0';
+          toast('gogh could not make a phone menu \u2014 ' + ((err && err.message) || 'try again.'), { error: true });
+        });
+        return;
+      }
+      kept.phoneMenu = +v || 0;
+      pmHint.textContent = kept.phoneMenu ? 'A separate phone menu \u2014 edit it under \u22ef Manage menu, Phone menu tab.' : 'Or a menu of its own \u2014 gogh copies this one to start you off.';
+      keepExtras(kept.phoneMenu ? 'Phones show that menu.' : 'Phones show the same menu again.');
+    });
     [['.gogh-mmlay', 'layout'], ['.gogh-mmground', 'ground']].forEach(function (pair) {
       var box = panel.querySelector(pair[0]);
       box.querySelectorAll('.gogh-hopt').forEach(function (b) {
@@ -19400,8 +19504,28 @@
         '<span class="gogh-mm-label"></span>' +
         (it.children && it.children.length ? '<span class="gogh-mm-count">' + it.children.length + ' inside</span>' : '') +
         (isExternal(it) ? '<span class="gogh-mm-link">link</span>' : '') +
+        // where it shows: the bar (desktop) and/or the overlay (phones)
+        '<span class="gogh-mm-where" title="Where this item shows">' +
+        '<button type="button" class="gogh-mm-w' + (it.where === 'phone' ? '' : ' is-on') + '" data-w="desktop" title="On desktop" aria-pressed="' + (it.where === 'phone' ? 'false' : 'true') + '">' +
+        '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/></svg></button>' +
+        '<button type="button" class="gogh-mm-w' + (it.where === 'desktop' ? '' : ' is-on') + '" data-w="phone" title="On phones" aria-pressed="' + (it.where === 'desktop' ? 'false' : 'true') + '">' +
+        '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><rect x="7" y="2" width="10" height="20" rx="2"/><path d="M11 18h2"/></svg></button></span>' +
         '<button type="button" class="gogh-mm-x" title="Remove from menu">\u2715</button>';
       r.querySelector('.gogh-mm-label').textContent = it.label || it.url || 'Untitled';
+      r.querySelectorAll('.gogh-mm-w').forEach(function (wb) {
+        wb.addEventListener('click', function (ev) {
+          ev.stopPropagation();
+          var onDesk = it.where !== 'phone', onPhone = it.where !== 'desktop';
+          if (wb.dataset.w === 'desktop') onDesk = !onDesk; else onPhone = !onPhone;
+          if (!onDesk && !onPhone) { toast('It has to show somewhere \u2014 remove it instead if you don\u2019t want it.'); return; }
+          var snap = snapshot();
+          it.where = onDesk && onPhone ? 'both' : onDesk ? 'desktop' : 'phone';
+          it.dirty = true;
+          renderList();
+          commit();
+          undoToast('\u201c' + (it.label || 'Item') + '\u201d now shows ' + (it.where === 'both' ? 'everywhere' : it.where === 'desktop' ? 'on desktop only' : 'on phones only') + '.', snap);
+        });
+      });
       r.querySelector('.gogh-mm-x').addEventListener('click', function (ev) {
         ev.stopPropagation();
         var snap = snapshot();
@@ -19425,11 +19549,31 @@
       return r;
     }
     var listBox = null;
+    var mmDesktopId = null; // the header's own menu, kept while the Phone tab is open
+    var mmMode = 'desktop';
     function renderList() {
       body.innerHTML = '';
+      var phoneId = cfg.menuStyle && +cfg.menuStyle.phoneMenu;
+      if (phoneId && area === 'header') {
+        // a separate phone menu exists: two tabs, one manager
+        var tabs = document.createElement('div');
+        tabs.className = 'gogh-hpresets gogh-mm-tabs';
+        tabs.innerHTML = '<button type="button" class="gogh-hpreset' + (mmMode === 'desktop' ? ' is-active' : '') + '" data-m="desktop">Desktop menu</button>' +
+          '<button type="button" class="gogh-hpreset' + (mmMode === 'phone' ? ' is-active' : '') + '" data-m="phone">Phone menu</button>';
+        tabs.querySelectorAll('.gogh-hpreset').forEach(function (tb) {
+          tb.addEventListener('click', function () {
+            if (tb.dataset.m === mmMode) return;
+            if (mmMode === 'desktop') mmDesktopId = mmNavId;
+            mmMode = tb.dataset.m;
+            mmNavId = mmMode === 'phone' ? phoneId : mmDesktopId;
+            loadItems();
+          });
+        });
+        body.appendChild(tabs);
+      }
       // the Showing switcher appears only when there is a real choice —
       // one menu (the usual case) needs no switcher at all
-      if (mmMenus.length > 1) {
+      if (mmMenus.length > 1 && mmMode === 'desktop') {
         var sel = document.createElement('div');
         sel.className = 'gogh-mm-showing';
         sel.innerHTML = '<label>Showing</label><select class="gogh-input"></select>';

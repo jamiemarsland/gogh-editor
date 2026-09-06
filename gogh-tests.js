@@ -3319,6 +3319,24 @@
       return 'shop the look: template, four faces, hand-picked rails';
     });
 
+    test('one menu, two places: an item can show on desktop, on phones, or both', function () {
+      var NM = G.navModel;
+      expect(NM && NM.parse && NM.serialize, 'the nav model is not on the bridge');
+      var raw = '<!-- wp:navigation-link {"label":"Home","type":"page","id":12,"url":"/","kind":"post-type"} /-->\n' +
+        '<!-- wp:navigation-link {"label":"Call us","url":"tel:123","kind":"custom","className":"gogh-only-phone"} /-->';
+      var items = NM.parse(raw);
+      expect(items.length === 2 && items[0].where === 'both' && items[1].where === 'phone', 'where should read from the class: ' + JSON.stringify(items.map(function (i) { return i.where; })));
+      items[0].where = 'desktop'; items[0].dirty = true;
+      var out = NM.serialize(items);
+      expect(/"className":"gogh-only-desktop"/.test(out), 'desktop-only should write its class');
+      expect(/"id":12/.test(out) && /"type":"page"/.test(out), 'the rebuilt link must keep its page id and type');
+      expect(out.indexOf('{"label":"Call us","url":"tel:123","kind":"custom","className":"gogh-only-phone"}') !== -1, 'an untouched item keeps its exact bytes');
+      items[1].where = 'both'; items[1].dirty = true;
+      var out2 = NM.serialize(items);
+      expect(!/gogh-only-phone/.test(out2.split('\n')[1]), 'back to both should drop the class');
+      return 'where travels as a class on the link block';
+    });
+
     test('the rails element: Woo Product Collection, composed from few choices', function () {
       if (!GOGH.hasWoo) return 'no WooCommerce here \u2014 nothing to lay';
       var e = G.addElementToSection(G.sections().indexOf(sec()), 'products');

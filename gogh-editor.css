@@ -3874,3 +3874,10 @@ body:has(.wp-block-navigation__responsive-container.is-menu-open) .gogh-bar { op
 .gogh-shop-foundrow em { font-style: normal; color: #2f6fed; font-weight: 600; }
 .gogh-shop-foundrow.is-on em { color: #888; font-weight: 500; }
 .gogh-shop-foundrow small { color: #777; font-size: 11px; margin-left: 6px; }
+
+/* where a menu item shows: the bar, the overlay, or both */
+.gogh-mm-where { display: inline-flex; gap: 2px; margin-left: auto; margin-right: 6px; }
+.gogh-mm-w { all: unset; cursor: pointer; width: 22px; height: 22px; border-radius: 6px; display: grid; place-items: center; color: #b4b8c0; }
+.gogh-mm-w.is-on { color: #1d2327; background: #eef0f3; }
+.gogh-mm-w:hover { color: #111; }
+.gogh-mm-tabs { margin: 0 0 10px; }
