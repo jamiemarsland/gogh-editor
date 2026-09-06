@@ -1744,7 +1744,7 @@
       var isProductCanvas = cfg.postType === 'product';
       var isPanelCanvas = cfg.postType === 'gogh_panel';
       inv.innerHTML = '<span class="gogh-bootinvite-plus">＋</span><span>' +
-        (isPanelCanvas ? 'Design the menu panel' : isProductCanvas ? 'Tell this product\u2019s story' : 'Add your first section') + '</span>' +
+        (isPanelCanvas ? 'Design the mega menu' : isProductCanvas ? 'Tell this product\u2019s story' : 'Add your first section') + '</span>' +
         '<span class="gogh-bootinvite-hint">' + (isPanelCanvas
           ? 'links, a picture, a few products \u2014 it drops from \u201c' + esc(cfg.panelFor || cfg.postTitle || 'the menu') + '\u201d in the header'
           : isProductCanvas
@@ -8189,7 +8189,7 @@
     // with (Squarespace lesson) — not by layout anatomy. Blank lives in
     // Quick start.
     var blankAt = TEMPLATES.findIndex(function (t) { return !t.retired && !t.starter; });
-    var INTENTS = (cfg.isPanel ? [{ key: 'panel', label: 'Menu panel', sub: 'What drops from the menu' }] : []).concat([
+    var INTENTS = (cfg.isPanel ? [{ key: 'panel', label: 'Mega menu', sub: 'What drops down from the menu' }] : []).concat([
       { key: 'introduce', label: 'Introduce', sub: 'Say who you are' },
       { key: 'sell', label: 'Sell', sub: 'Turn interest into action' },
       { key: 'showcase', label: 'Showcase', sub: 'Let the work speak' },
@@ -14177,7 +14177,7 @@
   if (cfg.isPanel) {
     // a panel page is a room with one door back
     setTimeout(function () {
-      toast('This panel drops from \u201c' + (cfg.panelFor || cfg.postTitle || 'the menu') + '\u201d in the header. Publish when it looks right.', {
+      toast('This mega menu drops from \u201c' + (cfg.panelFor || cfg.postTitle || 'the menu') + '\u201d in the header. Publish when it looks right.', {
         ttl: 12000, actions: [{ label: 'Back to the site', onClick: function () { window.location.href = cfg.homeUrl || '/'; } }] });
     }, 900);
   }
@@ -19678,7 +19678,7 @@
         (isExternal(it) ? '<span class="gogh-mm-link">link</span>' : '') +
         // a panel: the mega menu, designed like any section (top-level links only)
         (!parent && !(it.children && it.children.length)
-          ? '<button type="button" class="gogh-mm-panel' + (it.panel ? ' is-on' : '') + '" title="' + (it.panel ? 'This item has a panel \u2014 edit or remove it' : 'Give this a panel \u2014 a mega menu, designed like a section') + '">' +
+          ? '<button type="button" class="gogh-mm-panel' + (it.panel ? ' is-on' : '') + '" title="' + (it.panel ? 'Mega menu on \u2014 click to edit or remove it' : 'Add a mega menu \u2014 a big dropdown you design like a section') + '">' +
             '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M4 5h16M12 5v3"/><rect x="3" y="8" width="18" height="12" rx="2"/><path d="M3 14h18M9 8v12M15 8v12"/></svg></button>'
           : '') +
         // where it shows: the bar (desktop) and/or the overlay (phones)
@@ -19696,15 +19696,15 @@
           window.location.href = (cfg.homeUrl || '/') + '?post_type=gogh_panel&p=' + id + '&gogh-edit=1';
         };
         if (it.panel) {
-          toast('\u201c' + (it.label || 'Item') + '\u201d has a panel that drops from the menu.', { ttl: 10000, actions: [
-            { label: 'Edit panel', onClick: function () { goEdit(it.panel); } },
-            { label: 'Remove panel', onClick: function () {
+          toast('\u201c' + (it.label || 'Item') + '\u201d has a mega menu.', { ttl: 10000, actions: [
+            { label: 'Edit mega menu', onClick: function () { goEdit(it.panel); } },
+            { label: 'Remove mega menu', onClick: function () {
               var old = it.panel;
               it.panel = null; it.dirty = true;
               renderList();
               commit().then(function () {
                 fetch(GSROOT + 'gogh-panels/' + old, { method: 'DELETE', headers: hdrs, credentials: 'same-origin' }).catch(function () {});
-                toast('Panel removed \u2014 it is in the trash if you change your mind.');
+                toast('Mega menu removed \u2014 it is in the trash if you change your mind.');
               });
             } },
           ] });
@@ -19712,14 +19712,14 @@
         }
         pb.disabled = true;
         fetch(GSROOT + 'gogh-panels', { method: 'POST', headers: hdrs, credentials: 'same-origin',
-          body: JSON.stringify({ title: it.label || 'Menu panel', status: 'publish', content: '' }) })
+          body: JSON.stringify({ title: it.label || 'Mega menu', status: 'publish', content: '' }) })
           .then(function (res) { if (!res.ok) throw new Error('HTTP ' + res.status); return res.json(); })
           .then(function (made) {
             it.panel = +made.id; it.dirty = true;
             return commit().then(function () { goEdit(made.id); });
           }).catch(function (err) {
             pb.disabled = false;
-            toast('gogh could not make a panel \u2014 ' + ((err && err.message) || 'try again.'), { error: true });
+            toast('gogh could not make a mega menu \u2014 ' + ((err && err.message) || 'try again.'), { error: true });
           });
       });
       r.querySelectorAll('.gogh-mm-w').forEach(function (wb) {
