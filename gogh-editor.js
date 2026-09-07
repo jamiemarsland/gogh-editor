@@ -5216,7 +5216,14 @@
     var cols = shop.layout === 'list' ? 1 : (n >= 4 ? (n % 4 === 0 ? 4 : 3) : n);
     var cls = 'gogh-shopprev gogh-shopprev-' + (shop.layout === 'list' ? 'list' : 'grid') + ' gogh-shopprev-c' + cols + ' gogh-shopprev-' + (shop.aspect || 'square') + ' gogh-shopprev-gap-' + (shop.spacing || 'm');
     if (!prods.length) {
-      // the designed empty store: the owner sees the next verb, never a search error
+      // the designed empty store: the owner sees the next verb, never a search error.
+      // A rail narrowed to what's ON SALE is not an empty shop — it says so
+      // (James, Playground: "there are products in the shop, just not on sale")
+      if (shop.order === 'sale') {
+        return '<div class="' + cls + ' gogh-shopprev-empty"><div class="gogh-shopprev-emptycard">' +
+          '<strong>Nothing is on sale right now.</strong><span>Put a sale price on a product and it shows up here' + (shop.cat ? ', from this category' : '') + '.</span>' +
+          '<a href="' + escAttr(manageProductsUrl(e)) + '" target="_blank" rel="noopener">Manage products \u2197</a></div></div>';
+      }
       return '<div class="' + cls + ' gogh-shopprev-empty"><div class="gogh-shopprev-emptycard">' +
         '<strong>Your shop is nearly ready.</strong><span>' + (shop.cat ? 'Nothing is in this category yet.' : 'Add your first product and it appears here.') + '</span>' +
         '<a href="' + escAttr((cfg.adminUrl || '/wp-admin/') + 'post-new.php?post_type=product') + '" target="_blank" rel="noopener">Add a product \u2197</a></div></div>';
@@ -14301,6 +14308,7 @@
     rollSection: rollSection,
     diceFaces: diceFaces,
     composeShop: composeShop,
+    shopPreviewHTML: shopPreviewHTML,
     shopDefaults: shopDefaults,
     shopSampleHTML: shopSampleHTML,
     cardJoinTarget: cardJoinTarget,

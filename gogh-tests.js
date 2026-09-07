@@ -5779,6 +5779,23 @@
       return 'h ' + before + ' kept at 12px wide, ' + s.els[i].h + ' at full width';
     });
 
+    // an on-sale rail with nothing on sale is not an empty shop — the card
+    // must not tell the owner to add their first product (James, Playground)
+    test('an on-sale rail with nothing on sale says so, not "add your first product"', function () {
+      if (!GOGH.hasWoo) return 'no WooCommerce here';
+      var e = G.addElementToSection(G.sections().indexOf(sec()), 'products');
+      if (!e || !e.shop) throw new Error('no products element');
+      e.shop.order = 'sale';
+      var html = G.shopPreviewHTML(e, []);
+      if (!/Nothing is on sale right now/.test(html)) throw new Error('the on-sale rail did not say so: ' + html.slice(0, 160));
+      if (/nearly ready|first product/.test(html)) throw new Error('the empty-shop card leaked into the on-sale rail');
+      if (!/Manage products/.test(html)) throw new Error('the on-sale rail should hand the owner Manage products');
+      e.shop.order = 'date';
+      var plain = G.shopPreviewHTML(e, []);
+      if (!/nearly ready/.test(plain)) throw new Error('a plain empty rail should still read as the empty shop');
+      return 'sale rail: "Nothing is on sale right now" · plain rail: "nearly ready"';
+    });
+
     // drain the async queue, then report — one at a time, restore between
     (function drain() {
       var t = asyncQueue.shift();
