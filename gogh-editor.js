@@ -7774,6 +7774,38 @@
     var vars = VARIANTS[famName];
     return (base && vars && vars.length) ? [base].concat(vars) : null;
   }
+  // a section that never named its family — a starter's hand-made section,
+  // a converted pattern — still has a shape: the family whose base take
+  // carries the same pieces by role is the one its die rolls within. Rails,
+  // widgets and cards keep their own machinery and stay out of it.
+  function diceInferFamily(sec) {
+    if (!sec || !sec.els || !sec.els.length) return null;
+    if (sec.els.some(function (e) { return e.rails || e.type === 'widget' || e.type === 'exp' || (e.type === 'box' && e.kids && e.kids.length); })) return null;
+    var want = diceByRole(sec.els);
+    var wantKeys = Object.keys(want);
+    if (!want.heading) return null;
+    var best = null, bestScore = 0;
+    Object.keys(VARIANTS).forEach(function (fam) {
+      var faces = diceFaces(fam);
+      if (!faces) return;
+      var have = diceByRole(tplEls(faces[0]));
+      // every role the section has must exist in the base take, or content would drop
+      if (wantKeys.some(function (r) { return !have[r]; })) return;
+      var hit = 0, total = 0;
+      Object.keys(have).forEach(function (r) {
+        var a = have[r].length, b = (want[r] || []).length;
+        hit += Math.min(a, b); total += Math.max(a, b);
+      });
+      var score = total ? hit / total : 0;
+      if (score > bestScore) { bestScore = score; best = fam; }
+    });
+    return bestScore >= 0.5 ? best : null;
+  }
+  function diceFamilyOf(sec) {
+    if (!sec || !sec.m) return null;
+    if (sec.m.tpl && diceFaces(sec.m.tpl)) return sec.m.tpl;
+    return diceInferFamily(sec);
+  }
   function diceFlatten(els) {
     var out = [];
     (els || []).forEach(function walk(e) {
@@ -7806,9 +7838,12 @@
   }
   function rollSection(idx) {
     var sec = S[idx];
-    var fam = sec && sec.m && sec.m.tpl;
+    var fam = diceFamilyOf(sec);
     var faces = fam ? diceFaces(fam) : null;
     if (!faces) return null;
+    // an inferred family is adopted on the first roll: from here the
+    // section knows its takes like any other
+    if (!sec.m.tpl || sec.m.tpl !== fam) sec.m = Object.assign({}, sec.m, { tpl: fam, face: 0 });
     var cur = ((sec.m.face || 0) % faces.length + faces.length) % faces.length;
     var next = (cur + 1) % faces.length;
     // what the CURRENT take would say untouched (tplEls is deterministic:
@@ -7933,7 +7968,7 @@
       return false;
     });
     return { headIdx: headIdx, moveIdx: moveIdx, moveWord: moveWord,
-      hasDie: !!(sec.m && sec.m.tpl && diceFaces(sec.m.tpl)) };
+      hasDie: !!diceFamilyOf(sec) };
   }
   function fmSectionLanded(sec) {
     if (!fm.armed || fm.active || !sec || sec.chrome) return;
@@ -9039,7 +9074,7 @@
     if (S[idx] && S[idx].chrome) { hideSecBar(); return; }
     secBarIdx = idx;
     var diceB = secBar.querySelector('.gogh-sb-dice');
-    if (diceB) diceB.hidden = !(S[idx].m && S[idx].m.tpl && diceFaces(S[idx].m.tpl));
+    if (diceB) diceB.hidden = !diceFamilyOf(S[idx]);
     var r = S[idx].wrapEl.getBoundingClientRect();
     secBar.style.left = (r.left + window.scrollX + 16) + 'px';
     // the bar DOCKS: it sits at the section's top edge, and for a section
@@ -14309,6 +14344,7 @@
     diceFaces: diceFaces,
     composeShop: composeShop,
     shopPreviewHTML: shopPreviewHTML,
+    diceFamilyOf: diceFamilyOf,
     shopDefaults: shopDefaults,
     shopSampleHTML: shopSampleHTML,
     cardJoinTarget: cardJoinTarget,

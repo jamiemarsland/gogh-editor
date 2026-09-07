@@ -5796,6 +5796,31 @@
       return 'sale rail: "Nothing is on sale right now" · plain rail: "nearly ready"';
     });
 
+    // a starter's hand-made section never named its family, so the die hid
+    // on every section of the Yellow House (James: "I can't see the die")
+    test('the die infers a family for a section that never named one', function () {
+      var hero = G.templates().filter(function (x) { return x.name === 'Hero'; })[0];
+      if (!hero) throw new Error('no Hero template');
+      G.addSection(hero);
+      var s = lastSec();
+      var idx = G.sections().indexOf(s);
+      s.m = Object.assign({}, s.m, { tpl: null, face: 0 });
+      var fam = G.diceFamilyOf(s);
+      if (!fam || !G.diceFaces(fam)) throw new Error('no family inferred for a hero-shaped section');
+      var h = s.els.filter(function (e) { return e.type === 'heading'; })[0];
+      if (!h) throw new Error('no heading to keep');
+      h.text = 'Kept words';
+      G.selectSection(idx);
+      var die = document.querySelector('.gogh-secbar .gogh-sb-dice');
+      if (!die || die.hidden) throw new Error('the die stayed hidden on a section without a named family');
+      var r = G.rollSection(idx);
+      if (!r || !r.of) throw new Error('the roll returned nothing');
+      if (!s.m.tpl) throw new Error('the roll did not adopt the family');
+      var kept = s.els.some(function (e) { return e.type === 'heading' && e.text === 'Kept words'; });
+      if (!kept) throw new Error('the heading text did not survive the roll');
+      return 'inferred ' + fam + ', rolled to face ' + (r.face + 1) + ' of ' + r.of + ', words kept';
+    });
+
     // drain the async queue, then report — one at a time, restore between
     (function drain() {
       var t = asyncQueue.shift();
