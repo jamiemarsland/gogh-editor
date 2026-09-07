@@ -1,8 +1,8 @@
-# Knowledge-base audit — plugin v0.99.387
+# Knowledge-base audit — plugin v0.99.403
 
 _13 finding(s) suppressed by `kb.audit-ignore.txt`._
 
-## MISSING (66)
+## MISSING (92)
 
 The source has something the prose never explains. The bot knows the name from the appendix but cannot say what it is for.
 
@@ -32,14 +32,30 @@ The source has something the prose never explains. The bot knows the name from t
 - WP hook `admin_post_gogh_form_message` exists in source but is never mentioned in the prose
 - WP hook `admin_post_nopriv_gogh_form_message` exists in source but is never mentioned in the prose
 - WP hook `body_class` exists in source but is never mentioned in the prose
+- WP hook `render_block_core/navigation` exists in source but is never mentioned in the prose
+- WP hook `template_redirect` exists in source but is never mentioned in the prose
+- WP hook `save_post_gogh_panel` exists in source but is never mentioned in the prose
+- WP hook `render_block_core/navigation-link` exists in source but is never mentioned in the prose
 - WP hook `wp_trim_words` exists in source but is never mentioned in the prose
+- WP hook `render_block_data` exists in source but is never mentioned in the prose
+- WP hook `render_block_core/group` exists in source but is never mentioned in the prose
+- WP hook `pre_render_block` exists in source but is never mentioned in the prose
+- WP hook `render_block_woocommerce/product-collection` exists in source but is never mentioned in the prose
 - WP hook `render_block_woocommerce/product-collection` exists in source but is never mentioned in the prose
 - WP hook `body_class` exists in source but is never mentioned in the prose
 - WP hook `body_class` exists in source but is never mentioned in the prose
+- WP hook `wp_insert_post_empty_content` exists in source but is never mentioned in the prose
 - WP hook `trashed_post` exists in source but is never mentioned in the prose
 - WP hook `get_block_templates` exists in source but is never mentioned in the prose
 - WP hook `body_class` exists in source but is never mentioned in the prose
 - WP hook `admin_post_gogh_shop_layout` exists in source but is never mentioned in the prose
+- WP hook `add_meta_boxes_product` exists in source but is never mentioned in the prose
+- WP hook `admin_enqueue_scripts` exists in source but is never mentioned in the prose
+- WP hook `admin_body_class` exists in source but is never mentioned in the prose
+- WP hook `enter_title_here` exists in source but is never mentioned in the prose
+- WP hook `admin_notices` exists in source but is never mentioned in the prose
+- WP hook `admin_menu` exists in source but is never mentioned in the prose
+- WP hook `admin_title` exists in source but is never mentioned in the prose
 - WP hook `render_block_core/group` exists in source but is never mentioned in the prose
 - WP hook `admin_post_gogh_product_related` exists in source but is never mentioned in the prose
 - WP hook `admin_post_gogh_product_layout_all` exists in source but is never mentioned in the prose
@@ -60,6 +76,15 @@ The source has something the prose never explains. The bot knows the name from t
 - template `Numbers` exists in source but is never mentioned in the prose
 - template `Featured product` exists in source but is never mentioned in the prose
 - template `Bestsellers` exists in source but is never mentioned in the prose
+- template `Editorial split` exists in source but is never mentioned in the prose
+- template `Columns of links` exists in source but is never mentioned in the prose
+- template `Featured and links` exists in source but is never mentioned in the prose
+- template `Picture doors` exists in source but is never mentioned in the prose
+- template `Categories in the menu` exists in source but is never mentioned in the prose
+- template `Featured product in the menu` exists in source but is never mentioned in the prose
+- template `Shop the look` exists in source but is never mentioned in the prose
+- template `New in` exists in source but is never mentioned in the prose
+- template `Sale` exists in source but is never mentioned in the prose
 - template `Pricing` exists in source but is never mentioned in the prose
 - template `Testimonials` exists in source but is never mentioned in the prose
 - template `Profile card` exists in source but is never mentioned in the prose
@@ -72,6 +97,7 @@ The source has something the prose never explains. The bot knows the name from t
 - template `Portfolio` exists in source but is never mentioned in the prose
 - divider `dunes` exists in source but is never mentioned in the prose
 - divider `mist` exists in source but is never mentioned in the prose
+- element type `video` exists in source but is never mentioned in the prose
 
 ## QUOTE (7)
 
@@ -89,4 +115,64 @@ Quoted copy not found verbatim in the source. Paraphrases are fine; changed UI c
 
 Use this as the checklist for updating the prose — and as a sanity check on the release itself.
 
-- version: 0.99.386 → 0.99.387
+- version: 0.99.387 → 0.99.403
+- added WP hook: "add_meta_boxes_product"
+- added WP hook: "admin_body_class"
+- added WP hook: "admin_enqueue_scripts"
+- added WP hook: "admin_notices"
+- added WP hook: "admin_title"
+- added WP hook: "enter_title_here"
+- added WP hook: "pre_render_block"
+- added WP hook: "render_block_core/navigation"
+- added WP hook: "render_block_core/navigation-link"
+- added WP hook: "render_block_data"
+- added WP hook: "save_post_gogh_panel"
+- added WP hook: "wp_insert_post_empty_content"
+- added capability: "activate_plugins"
+- added capability: "edit_products"
+- added capability: "install_plugins"
+- added capability: "manage_woocommerce"
+- added template: "Categories"
+- added template: "Categories in the menu"
+- added template: "Columns of links"
+- added template: "Editorial split"
+- added template: "Featured and links"
+- added template: "Featured product in the menu"
+- added template: "New in"
+- added template: "Picture doors"
+- added template: "Sale"
+- added template: "Shop the look"
+- added element type: "video"
+- removed UI label: "Answer-ready — see what machines see"
+- added UI label: "' + escAttr(e.alt || 'Video') + '"
+- added UI label: "' + m[2] + '"
+- added UI label: "A video — upload one, or paste a YouTube or Vimeo link"
+- added UI label: "Add a category ↗"
+- added UI label: "Delivery & returns"
+- added UI label: "Desktop menu"
+- added UI label: "Everything"
+- added UI label: "Find us"
+- added UI label: "Get in touch"
+- added UI label: "Home"
+- added UI label: "How Google and AI read this page"
+- added UI label: "Journal"
+- added UI label: "Manage categories ↗"
+- added UI label: "Most loved"
+- added UI label: "My account"
+- added UI label: "New in"
+- added UI label: "On desktop"
+- added UI label: "On phones"
+- added UI label: "On sale"
+- added UI label: "Our story"
+- added UI label: "Phone menu"
+- added UI label: "Questions"
+- added UI label: "Remove poster"
+- added UI label: "Remove video"
+- added UI label: "Video"
+- added UI label: "Where this item shows"
+- added UI label: "×"
+- added toast: "It has to show somewhere — remove it instead if you don’t want it."
+- added toast: "Mega menu removed — it is in the trash if you change your mind."
+- added toast: "This mega menu drops from “"
+- added toast: "gogh could not make a mega menu — "
+- added toast: "gogh could not make a phone menu — "

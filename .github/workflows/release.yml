@@ -97,7 +97,7 @@ jobs:
           ssh-keyscan github.com >> ~/.ssh/known_hosts 2>/dev/null
           gh release download "${GITHUB_REF_NAME}" --repo "${GITHUB_REPOSITORY}" --pattern gogh-playground.zip --dir /tmp
           git clone --depth 1 git@github.com:jamiemarsland/gogh-demo.git /tmp/demo
-          cp /tmp/gogh-playground.zip blueprint.json demo-boot.php helper/gogh-kb.md /tmp/demo/
+          cp /tmp/gogh-playground.zip blueprint.json blueprint-experiments.json demo-boot.php demo-boot-woo.php helper/gogh-kb.md /tmp/demo/
           cd /tmp/demo
           git config user.name "Jamie Marsland"
           git config user.email "jamiemarsland@pootlepress.co.uk"
