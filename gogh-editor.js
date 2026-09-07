@@ -7820,8 +7820,10 @@
     return bestScore >= 0.5 ? best : null;
   }
   function diceFamilyOf(sec) {
-    if (!sec || !sec.m) return null;
-    if (sec.m.tpl && diceFaces(sec.m.tpl)) return sec.m.tpl;
+    if (!sec) return null;
+    // a starter's section arrives with NO model marker at all (m is null) — that
+    // is exactly the section that needs inferring, so m's absence must not end it
+    if (sec.m && sec.m.tpl && diceFaces(sec.m.tpl)) return sec.m.tpl;
     return diceInferFamily(sec);
   }
   function diceFlatten(els) {
@@ -7861,7 +7863,7 @@
     if (!faces) return null;
     // an inferred family is adopted on the first roll: from here the
     // section knows its takes like any other
-    if (!sec.m.tpl || sec.m.tpl !== fam) sec.m = Object.assign({}, sec.m, { tpl: fam, face: 0 });
+    if (!sec.m || !sec.m.tpl || sec.m.tpl !== fam) sec.m = Object.assign({}, sec.m || {}, { tpl: fam, face: 0 });
     var cur = ((sec.m.face || 0) % faces.length + faces.length) % faces.length;
     var next = (cur + 1) % faces.length;
     // what the CURRENT take would say untouched (tplEls is deterministic:

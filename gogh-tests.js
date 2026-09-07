@@ -5142,12 +5142,16 @@
 
     test('section bar: three doors, housekeeping in words', function () {
       var bar = q('.gogh-secbar');
-      // the die only counts as a door where a drawer of takes exists — on
-      // a plain section it stays hidden and the bar reads three doors; the
+      // the die only counts as a door where a drawer of takes exists — a
+      // named family, or one inferred from the section's shape (v0.99.407+);
+      // without either it stays hidden and the bar reads three doors; the
       // ✦ Ask Gogh door retired with the parked model tier
       var doors = [].filter.call(bar.querySelectorAll('.gogh-sb'), function (b) { return !b.hidden; });
-      expect(doors.length === 3,
-        'expected 3 visible controls, got ' + doors.length);
+      var fam = G.diceFamilyOf(sec());
+      var want = 3 + (fam ? 1 : 0);
+      expect(doors.length === want,
+        'expected ' + want + ' visible controls (family: ' + (fam || 'none') + '), got ' + doors.length);
+      expect(!!fam === !bar.querySelector('.gogh-sb-dice').hidden, 'the die should show exactly when a family exists (' + (fam || 'none') + ')');
       expect(!bar.querySelector('.gogh-sb-ask'), 'the retired ✦ door is back on the bar');
       expect(bar.querySelector('[data-sec="more"]'), 'the ⋯ is missing');
       var i = G.sections().indexOf(sec());
@@ -5804,7 +5808,7 @@
       G.addSection(hero);
       var s = lastSec();
       var idx = G.sections().indexOf(s);
-      s.m = Object.assign({}, s.m, { tpl: null, face: 0 });
+      s.m = null; // a starter's section arrives with no model marker at all
       var fam = G.diceFamilyOf(s);
       if (!fam || !G.diceFaces(fam)) throw new Error('no family inferred for a hero-shaped section');
       var h = s.els.filter(function (e) { return e.type === 'heading'; })[0];
