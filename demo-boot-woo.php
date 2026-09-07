@@ -61,6 +61,7 @@ $catalogue = array(
 	array(
 		'name'  => 'Sunflowers — giclée print',
 		'price' => '25',
+		'sale'  => '19', // two prints on sale, so an "On sale" rail has something to show
 		'img'   => 'sunflowers',
 		'short' => 'Fifteen suns in a jar. The print that pays the rent, 40×30cm.',
 		'desc'  => 'Try this: open the home page, click Edit with gogh, and drag this painting anywhere. Then come back here — the shop keeps working. Two worlds, one site.',
@@ -68,6 +69,7 @@ $catalogue = array(
 	array(
 		'name'  => 'Wheat Field with Cypresses — giclée print',
 		'price' => '30',
+		'sale'  => '24',
 		'img'   => 'wheat-field',
 		'short' => 'Wind you can see. Painted from the asylum window, 50×40cm.',
 		'desc'  => 'The products in this shop were seeded by the demo — add your own from the WordPress admin, and build the pages that sell them with gogh.',
@@ -91,6 +93,9 @@ try {
 		$p->set_name( $item['name'] );
 		if ( '0' !== $item['price'] ) {
 			$p->set_regular_price( $item['price'] );
+		}
+		if ( ! empty( $item['sale'] ) ) {
+			$p->set_sale_price( $item['sale'] );
 		}
 		$p->set_short_description( $item['short'] );
 		$p->set_description( $item['desc'] );
