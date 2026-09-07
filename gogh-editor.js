@@ -1502,6 +1502,10 @@
   function measureTextHeights(sec) {
     if (!sec.nodes || sec.nodes.some(function (n) { return !n; })) return;
     var s = measureScaleOf(sec);
+    // a section narrower than a phone cannot be measured: Playground boots
+    // the site in an iframe a few pixels wide, the scale reads ~0.01 and
+    // every text height divides into thousands (then autosave keeps it)
+    if (!(s > 0.2)) return;
     sec.els.forEach(function (e, i) {
       if (isText(e)) {
         var h = sec.nodes[i].offsetHeight / s;
@@ -1645,7 +1649,7 @@
   function growReflow(sec, allowShrink) {
     if (!sec.nodes) return;
     var sMeasure = measureScaleOf(sec); // layout scale — the birds-eye zoom must not inflate the measure
-    if (sMeasure > 0) {
+    if (sMeasure > 0.2) { // narrower than a phone (a booting Playground iframe) cannot be measured
       sec.els.slice().sort(function (a, b) { return a.y - b.y; }).forEach(function (e) {
         if (!isText(e)) return;
         var i = sec.els.indexOf(e);
@@ -1686,7 +1690,7 @@
         var changed = S.some(function (s) {
           if (!s.nodes) return false;
           var sc = measureScaleOf(s);
-          return sc && s.els.some(function (e, i) {
+          return sc > 0.2 && s.els.some(function (e, i) {
             return isText(e) && s.nodes[i] && Math.abs(Math.round(s.nodes[i].offsetHeight / sc) - e.h) > 2;
           });
         });
@@ -14347,6 +14351,7 @@
     markSwatchLegibility: markSwatchLegibility,
     openBrandForm: openBrandForm,
     openMenuManager: openMenuManager,
+    measureTextHeights: measureTextHeights,
   };
   // the running build, visible at a glance: the drawer's foot and the
   // console — kills "is this tab stale?" debugging forever. (It rode the

@@ -5762,6 +5762,23 @@
     console.log('[gogh-tests] ' + summary, window.__goghTestResults);
     }
 
+    // Playground boots the site in an iframe a few pixels wide; a measure
+    // taken then divides one-line heights into thousands and autosave kept
+    // the poison (the Yellow House hero came up 15,000px tall)
+    test('text heights are not measured while the section is too narrow to trust', function () {
+      var s = sec();
+      var i = s.els.findIndex(function (e) { return e.type === 'heading' || e.type === 'para'; });
+      if (i < 0) throw new Error('no text element in the first section');
+      var before = s.els[i].h;
+      var el = s.sectionEl, prev = el.style.width;
+      el.style.width = '12px';
+      try { G.measureTextHeights(s); } finally { el.style.width = prev; }
+      if (s.els[i].h !== before) throw new Error('a 12px-wide measure changed h ' + before + ' \u2192 ' + s.els[i].h);
+      G.measureTextHeights(s);
+      if (s.els[i].h > before * 4 + 200) throw new Error('the full-width measure inflated h to ' + s.els[i].h);
+      return 'h ' + before + ' kept at 12px wide, ' + s.els[i].h + ' at full width';
+    });
+
     // drain the async queue, then report — one at a time, restore between
     (function drain() {
       var t = asyncQueue.shift();
