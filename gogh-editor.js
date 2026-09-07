@@ -7778,19 +7778,37 @@
   // a converted pattern — still has a shape: the family whose base take
   // carries the same pieces by role is the one its die rolls within. Rails,
   // widgets and cards keep their own machinery and stay out of it.
+  // what KIND of widget a piece is — a wall only ever rolls into a wall,
+  // a shop rail into a shop family; the substance must have a slot to land in
+  function diceWidgetKind(e) {
+    if (e.rails || e.shop) return 'shop';
+    if (e.faq) return 'faq';
+    if (e.tabs) return 'tabs';
+    if (e.slides) return 'carousel';
+    if (e.wall) return 'wall';
+    var m = String(e.wsrc || '').match(/gogh-(wall|carousel|slides|faq|tabs|shop|products|posts|form|map)/);
+    return m ? (m[1] === 'slides' ? 'carousel' : m[1] === 'products' ? 'shop' : m[1]) : 'other';
+  }
+  function diceWidgetKinds(els) {
+    return diceFlatten(els).filter(function (e) { return e.type === 'widget'; }).map(diceWidgetKind).sort();
+  }
   function diceInferFamily(sec) {
     if (!sec || !sec.els || !sec.els.length) return null;
-    if (sec.els.some(function (e) { return e.rails || e.type === 'widget' || e.type === 'exp' || (e.type === 'box' && e.kids && e.kids.length); })) return null;
+    if (sec.els.some(function (e) { return e.type === 'exp' || (e.type === 'box' && e.kids && e.kids.length); })) return null;
     var want = diceByRole(sec.els);
     var wantKeys = Object.keys(want);
     if (!want.heading) return null;
+    var wantKinds = diceWidgetKinds(sec.els).join(',');
     var best = null, bestScore = 0;
     Object.keys(VARIANTS).forEach(function (fam) {
       var faces = diceFaces(fam);
       if (!faces) return;
-      var have = diceByRole(tplEls(faces[0]));
+      var baseEls = tplEls(faces[0]);
+      var have = diceByRole(baseEls);
       // every role the section has must exist in the base take, or content would drop
       if (wantKeys.some(function (r) { return !have[r]; })) return;
+      // widgets must match kind for kind — the base's wall for a wall, never a form
+      if (wantKinds !== diceWidgetKinds(baseEls).join(',')) return;
       var hit = 0, total = 0;
       Object.keys(have).forEach(function (r) {
         var a = have[r].length, b = (want[r] || []).length;

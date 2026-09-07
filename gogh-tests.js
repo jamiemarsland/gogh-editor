@@ -5818,7 +5818,12 @@
       if (!s.m.tpl) throw new Error('the roll did not adopt the family');
       var kept = s.els.some(function (e) { return e.type === 'heading' && e.text === 'Kept words'; });
       if (!kept) throw new Error('the heading text did not survive the roll');
-      return 'inferred ' + fam + ', rolled to face ' + (r.face + 1) + ' of ' + r.of + ', words kept';
+      // widgets match kind for kind: a wall section finds the wall family and never a form
+      var wallFam = G.diceFamilyOf({ m: {}, els: [{ type: 'para', tf: { tt: 'uppercase' } }, { type: 'heading' }, { type: 'widget', wall: [] }] });
+      if (wallFam !== 'Photo wall') throw new Error('a wall section should roll within Photo wall, got ' + wallFam);
+      var formFam = G.diceFamilyOf({ m: {}, els: [{ type: 'para', tf: { tt: 'uppercase' } }, { type: 'heading' }, { type: 'widget', wsrc: '<!-- wp:group {"className":"gogh-form"} -->' }] });
+      if (formFam === 'Photo wall' || formFam === 'FAQ' || formFam === 'Carousel') throw new Error('a form widget must not roll into ' + formFam);
+      return 'inferred ' + fam + ', rolled to face ' + (r.face + 1) + ' of ' + r.of + ', words kept; wall → ' + wallFam + ', form → ' + formFam;
     });
 
     // drain the async queue, then report — one at a time, restore between
