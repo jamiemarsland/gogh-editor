@@ -1,12 +1,12 @@
 {
   "meta": {
-    "plugin_version": "0.99.403",
+    "plugin_version": "0.99.406",
     "requires_wp": "6.5",
     "requires_php": "7.4",
     "text_domain": "gogh-editor",
     "readme_stable_tag": "0.26.0",
     "readme_tested_up_to": "7.0",
-    "asset_version": "0.99.403-chrome"
+    "asset_version": "0.99.406-chrome"
   },
   "constants": {
     "TOL": 8,
@@ -780,6 +780,11 @@
         "priority": 10
       },
       {
+        "kind": "action",
+        "hook": "init",
+        "priority": 10
+      },
+      {
         "kind": "filter",
         "hook": "manage_gogh_message_posts_columns",
         "priority": 10
@@ -1257,5 +1262,5 @@
     "has_deprecation": true,
     "block_title": "gogh Section"
   },
-  "test_count": 220
+  "test_count": 222
 }
