@@ -3111,6 +3111,8 @@ html.gogh-editing .gogh-cardbox [class*="gogh-k-"] { cursor: grab; }
    a soft lift; past the card's edge it loosens to say "this can leave" */
 .gogh-kid-ghost.gogh-kid-ghost-in { transform: none; opacity: 0.96; box-shadow: 0 10px 30px -10px rgba(0,0,0,0.35); margin: 0; }
 .gogh-kid-ghost.gogh-kid-ghost-in.gogh-kid-ghost-out { opacity: 0.8; }
+/* a finger on a kid drags it; the page must not scroll instead */
+.gogh-cardbox [class*="gogh-k-"] { touch-action: none; }
 
 /* while the caret is live, the page belongs to the words — selection box,
    grip and kid outlines fade; the floating toolbar stays */

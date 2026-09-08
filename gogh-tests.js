@@ -6370,6 +6370,146 @@
       G.deleteSection(idx);
       return 'home drew slot two afresh (' + JSON.stringify(t0[1]) + '), not "Gone"';
     });
+    // ---- cards: order, typing, a cancelled hand, leaving, ink (audit batch 3) ----
+    var cardAt = function (s0, kids, extra) {
+      s0.els.push(Object.assign({ type: 'box', x: 600, y: 60, w: 480, h: 320, boxBg: '#101418', radius: 16, kids: kids }, extra || {}));
+      G.renderSection(s0);
+      var ci = s0.els.length - 1;
+      return { ci: ci, box: s0.els[ci], node: s0.nodes[ci] };
+    };
+    var pvk = function (type, el, x, y, id) {
+      el.dispatchEvent(new PointerEvent(type, { bubbles: true, cancelable: true, clientX: x, clientY: y, pointerId: id, button: 0,
+        buttons: (type === 'pointerup' || type === 'pointercancel') ? 0 : 1 }));
+    };
+    var lumOf = function (cssColor) {
+      var m = (cssColor || '').match(/[\d.]+/g) || [];
+      var f = function (c) { c = (+c) / 255; return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4); };
+      return m.length >= 3 ? 0.2126 * f(m[0]) + 0.7152 * f(m[1]) + 0.0722 * f(m[2]) : 1;
+    };
+    test('a piece joining a card takes its place in reading order, and the saved card agrees', function () {
+      var s0 = sec();
+      var f = cardAt(s0, [
+        { type: 'heading', x: 30, y: 120, w: 420, h: 40, text: 'Second line' },
+        { type: 'para', x: 30, y: 200, w: 420, h: 60, text: 'Third line' } ]);
+      // a badge dropped inside the card ABOVE its kids
+      s0.els.push({ type: 'badge', x: 630, y: 80, w: 160, h: 32, text: 'First line' });
+      G.renderSection(s0);
+      var bi = s0.els.length - 1;
+      select(bi);
+      var grip = q('.gogh-grip');
+      expect(grip, 'no grip for the badge');
+      var r = grip.getBoundingClientRect();
+      pev('pointerdown', grip, r.x + 12, r.y + 12, 61);
+      pev('pointermove', grip, r.x + 12, r.y + 12 + 6, 61);
+      pev('pointerup', grip, r.x + 12, r.y + 12 + 6, 61);
+      var box = f.box;
+      expect(box.kids && box.kids.length === 3, 'the badge did not join the card (' + (box.kids ? box.kids.length : 0) + ' kids)');
+      expect(box.kids[0].text === 'First line', 'the joiner was appended last instead of taking its place: ' + box.kids.map(function (k) { return k.text; }).join(' | '));
+      // the saved card writes its kids in the same order the editor holds them
+      var html = G.blocksV3(s0);
+      var at = html.indexOf('#101418');
+      expect(at !== -1, 'the card is missing from the saved markup');
+      var seg = html.slice(at);
+      var p1 = seg.indexOf('gogh-k-1'), p2 = seg.indexOf('gogh-k-2'), p3 = seg.indexOf('gogh-k-3');
+      expect(p1 !== -1 && p2 !== -1 && p3 !== -1 && p1 < p2 && p2 < p3, 'the saved card lists its kids out of editor order (' + [p1, p2, p3].join(',') + ')');
+      [].slice.call(document.querySelectorAll('.gogh-toast')).forEach(function (t) { t.remove(); });
+      return 'badge joined as kid 1 of 3; saved order 1 < 2 < 3';
+    });
+    test('typing in a kid re-measures it: the stack settles below and comes back when the words shrink', function () {
+      var s0 = sec();
+      var f = cardAt(s0, [
+        { type: 'heading', x: 30, y: 20, w: 420, h: 40, text: 'Short' },
+        { type: 'para', x: 30, y: 100, w: 420, h: 40, text: 'Below the heading' } ]);
+      var box = f.box, h0 = box.h;
+      var kn = f.node.querySelector('.gogh-k-1');
+      var r = kn.getBoundingClientRect();
+      pvk('pointerdown', kn, r.left + 10, r.top + 8, 71); pvk('pointerup', document, r.left + 10, r.top + 8, 71);
+      pvk('pointerdown', kn, r.left + 10, r.top + 8, 72); pvk('pointerup', document, r.left + 10, r.top + 8, 72);
+      var ed = G.kidState().ed;
+      expect(ed && ed.kid === box.kids[0], 'the second click did not start editing the heading kid');
+      var hBefore = box.kids[0].h;
+      ed.node.innerHTML = 'A heading that runs to several lines because the words keep coming and the card must make room for every one of them below';
+      ed.node.dispatchEvent(new Event('input', { bubbles: true }));
+      expect(box.kids[0].h > hBefore + 20, 'the kid did not grow with its words (' + hBefore + ' -> ' + box.kids[0].h + ')');
+      expect(box.kids[1].y > 100, 'the paragraph did not settle below the taller heading (y ' + box.kids[1].y + ')');
+      var grown = box.h, grownKid = box.kids[0].h;
+      ed.node.innerHTML = 'Short';
+      ed.node.dispatchEvent(new Event('input', { bubbles: true }));
+      // the model absorbs the rendered truth: one line is what one line measures,
+      // which may be less than the 40 the fixture declared
+      expect(box.kids[0].h < grownKid - 20 && box.kids[0].h <= hBefore + 4, 'the kid did not shrink back with its words (' + grownKid + ' -> ' + box.kids[0].h + ')');
+      expect(box.kids[1].y === 100, 'the paragraph did not come back up (y ' + box.kids[1].y + ')');
+      expect(box.h === h0, 'the card kept its grown height (' + h0 + ' -> ' + grown + ' -> ' + box.h + ')');
+      G.kidState().ed && document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+      return 'heading ' + hBefore + ' -> ' + box.kids[0].h + ' -> back; card ' + h0 + ' -> ' + grown + ' -> ' + box.h;
+    });
+    test('a cancelled pointer ends a kid drag cleanly: no ghost, nothing moved, the card at rest', function () {
+      var s0 = sec();
+      var f = cardAt(s0, [
+        { type: 'heading', x: 30, y: 20, w: 420, h: 40, text: 'Top' },
+        { type: 'para', x: 30, y: 100, w: 420, h: 40, text: 'Under' } ]);
+      var box = f.box, h0 = box.h;
+      var kn = f.node.querySelector('.gogh-k-1');
+      var r = kn.getBoundingClientRect();
+      var sc = s0.sectionEl.getBoundingClientRect().width / 1200;
+      pvk('pointerdown', kn, r.left + 10, r.top + 8, 73);
+      pvk('pointermove', document, r.left + 10, r.top + 8 + 90 * sc, 73);
+      expect(document.querySelector('.gogh-kid-ghost'), 'the kid drag never started');
+      expect(G.kidState().drag, 'no kid drag in flight');
+      pvk('pointercancel', document, r.left + 10, r.top + 8 + 90 * sc, 73);
+      expect(!G.kidState().drag, 'the drag outlived the cancel');
+      expect(!document.querySelector('.gogh-kid-ghost'), 'the ghost was left behind');
+      expect(kn.style.visibility !== 'hidden', 'the kid stayed hidden');
+      expect(box.kids[0].y === 20 && box.kids[1].y === 100, 'the kids did not go back to rest: ' + box.kids.map(function (k) { return k.y; }).join(','));
+      expect(box.h === h0, 'the card kept a drag-grown height (' + h0 + ' -> ' + box.h + ')');
+      pvk('pointerup', document, r.left + 10, r.top + 8 + 90 * sc, 73); // a late release changes nothing
+      expect(box.kids.length === 2 && box.kids[0].y === 20, 'a late pointerup moved the kids after the cancel');
+      return 'cancel restored both kids and the card height ' + h0;
+    });
+    test('a kid leaving its card lands at the grip it was picked up by, and the card goes back to rest', function () {
+      var s0 = sec();
+      var f = cardAt(s0, [
+        { type: 'heading', x: 30, y: 20, w: 300, h: 40, text: 'Leaver' },
+        { type: 'para', x: 30, y: 100, w: 420, h: 40, text: 'Stays' } ]);
+      var box = f.box, h0 = box.h, n0 = s0.els.length;
+      var kn = f.node.querySelector('.gogh-k-1');
+      var r = kn.getBoundingClientRect();
+      var secR = s0.sectionEl.getBoundingClientRect();
+      var sc = secR.width / 1200;
+      var gx = r.left + 10, gy = r.top + 8; // the grip: 10px in from the left edge, 8px down
+      var dx = -Math.round(220 * sc), dy = Math.round(120 * sc); // well outside the card, to the left
+      pvk('pointerdown', kn, gx, gy, 74);
+      pvk('pointermove', document, gx + dx / 2, gy + dy / 2, 74);
+      pvk('pointermove', document, gx + dx, gy + dy, 74);
+      pvk('pointerup', document, gx + dx, gy + dy, 74);
+      expect(s0.els.length === n0 + 1, 'the kid did not leave the card');
+      var left = s0.els[s0.els.length - 1];
+      expect(left.text === 'Leaver', 'the wrong piece left the card');
+      var wantX = Math.round((r.left + dx - secR.left) / sc), wantY = Math.round((r.top + dy - secR.top) / sc);
+      expect(Math.abs(left.x - wantX) <= 2 && Math.abs(left.y - wantY) <= 2,
+        'the leaver jumped: landed ' + left.x + ',' + left.y + ' wanted ' + wantX + ',' + wantY + ' (pointer-centred would be ' + Math.round((gx + dx - secR.left) / sc - left.w / 2) + ')');
+      expect(box.kids.length === 1 && box.kids[0].y === 100, 'the staying kid was left where the drag pushed it: y ' + (box.kids[0] && box.kids[0].y));
+      expect(box.h === h0, 'the card kept a drag-grown height (' + h0 + ' -> ' + box.h + ')');
+      [].slice.call(document.querySelectorAll('.gogh-toast')).forEach(function (t) { t.remove(); });
+      return 'landed at ' + left.x + ',' + left.y + ' (grip kept); card ' + h0 + ' at rest';
+    });
+    test('the ink sentinel judges the tint a card paints, not the colour it names', function () {
+      var s0 = sec();
+      // frosted glass paints 70% of #555 over what is behind it; judged solid,
+      // #555 is dark and the sentinel painted the words white on a mid ground
+      var f = cardAt(s0, [ { type: 'heading', x: 30, y: 20, w: 420, h: 40, text: 'Glass words' } ], { boxBg: '#555555', mood: 'glass' });
+      var bgL = lumOf(getComputedStyle(s0.sectionEl).backgroundColor);
+      if (getComputedStyle(s0.sectionEl).backgroundColor === 'rgba(0, 0, 0, 0)') bgL = 1;
+      var painted = 0.7 * lumOf('rgb(85, 85, 85)') + 0.3 * bgL;
+      var wantDark = (painted + 0.05) / 0.05 > 1.05 / (painted + 0.05);
+      G.contrastSentinel(s0, f.ci);
+      var kn = s0.nodes[f.ci].querySelector('.gogh-k-1');
+      var host = kn.matches('p,h1,h2,h3,h4,h5,h6') ? kn : (kn.querySelector('p,h1,h2,h3,h4,h5,h6') || kn);
+      var inkL = lumOf(getComputedStyle(host).color);
+      expect(wantDark ? inkL < 0.5 : inkL >= 0.5, 'on a painted ground of ' + painted.toFixed(2) + ' the words should be ' + (wantDark ? 'dark' : 'light') + ', ink luminance ' + inkL.toFixed(2));
+      [].slice.call(document.querySelectorAll('.gogh-toast')).forEach(function (t) { t.remove(); });
+      return 'painted ground ' + painted.toFixed(2) + ' -> ' + (wantDark ? 'dark' : 'light') + ' ink (' + inkL.toFixed(2) + ')';
+    });
     test('an extra button rides beside the take\'s button through every roll', function () {
       var hero = G.templates().filter(function (x) { return x.name === 'Hero'; })[0];
       if (!hero) throw new Error('no Hero template');

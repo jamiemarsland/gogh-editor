@@ -5712,6 +5712,15 @@
         // alpha and blend, or a 10%-ink card judges as solid ink and the
         // sentinel paints pale cards white
         var bvA = bv ? cssToRgba(bv) : null;
+        // the card PAINTS its colour thinner than it names it: a 45% tint over
+        // its photo, 70% frosted glass (see the box renderer) -- judge what is
+        // painted, or white ink is left on a mid-grey that never appears
+        var paintA = box.boxImg ? 0.45 : (box.mood === 'glass' ? 0.7 : 1);
+        if (bvA) bvA = { rgb: bvA.rgb, a: bvA.a * paintA };
+        else if (box.mood === 'glass' && !box.boxImg) {
+          var gb = cssToRgb('var(--wp--preset--color--base, #fff)');
+          if (gb) bvA = { rgb: gb, a: 0.7 };
+        }
         var bvRgb = bvA && bvA.a > 0 ? bvA.rgb : null;
         var baseRgb = cssToRgb('var(--wp--preset--color--base, #fff)');
         var underL = (function () {
@@ -8319,6 +8328,7 @@
         x.x = Math.max(0, Math.min(Math.max(0, c.w - x.w), tx - c.x));
         x.y = Math.max(0, ty - c.y);
         c.kids.push(x);
+        orderKids(c);
       } else {
         x.x = Math.max(0, Math.min(W - x.w, tx));
         x.y = Math.max(0, ty);
@@ -11997,12 +12007,10 @@
   function orderKids(host) {
     if (!host.kids || host.kids.length < 2) return false;
     var before = host.kids.slice();
-    host.kids.sort(function (a, b) {
-      var ac = a.y + a.h / 2, bc = b.y + b.h / 2;
-      // same row (centres within a line): left to right
-      if (Math.abs(ac - bc) <= 12) return a.x - b.x;
-      return ac - bc;
-    });
+    // the SAME reading order the published card is written in (buildElBlocks
+    // walks readingIndexOrder), so the editor's DOM, the phone stack and the
+    // saved markup all agree on what comes first
+    host.kids = readingIndexOrder(before).map(function (i) { return before[i]; });
     return before.some(function (k, i) { return host.kids[i] !== k; });
   }
   function cardJoinTarget(sec, i) {
@@ -12576,6 +12584,7 @@
           k2.y = Math.max(0, Math.round(k2.y - host.y));
           host.kids.push(k2);
         });
+        orderKids(host); // it takes its place in reading order, not the end of the list
         settleKid(host, kid);
         sel = null;
         hideHandles();
@@ -12611,7 +12620,21 @@
     if (kd.node && kd.node.style) kd.node.style.visibility = '';
     var cardNode = kd.sec && kd.sec.nodes && kd.sec.nodes[kd.ci];
     if (cardNode && cardNode.classList) cardNode.classList.remove('gogh-card-leaving');
+    // the moves pushed siblings and grew the card from the resting snapshot:
+    // everything goes back to where the hand found it
+    var hostA = kd.sec && kd.sec.els && kd.sec.els[kd.ci];
+    if (hostA && hostA.kids && kd.snap) {
+      kd.snap.forEach(function (sn) { sn.k.x = sn.x; sn.k.y = sn.y; });
+      hostA.h = kd.hostH;
+      if (kd.sec.sectionEl && kd.sec.nodes) resolveAndApply(kd.sec);
+    }
   }
+  // a touch the browser takes over (a scroll, a system gesture) cancels the
+  // pointer: without this the ghost stayed on the page and the kid stayed hidden
+  document.addEventListener('pointercancel', function (ev) {
+    if (!kidDrag || ev.pointerId !== kidDrag.id) return;
+    abortKidDrag();
+  });
   // quiet: restoreState ends an edit mid-step — a push there would cut the
   // redo stack and leave hIdx on the wrong snapshot
   function exitKidEd(quiet) {
@@ -12690,6 +12713,8 @@
       snap: hostEl.kids.map(function (k) { return { k: k, x: k.x, y: k.y }; }), hostH: hostEl.h,
       w0: kid.w, h0: kid.h,
       moved: false, already: !!already, id: ev.pointerId };
+    // the hand keeps the pointer even past the window's edge
+    try { if (kn.setPointerCapture) kn.setPointerCapture(ev.pointerId); } catch (err) {}
   }, true);
   document.addEventListener('pointermove', function (ev) {
     if (!kidDrag || ev.pointerId !== kidDrag.id) return;
@@ -12756,13 +12781,18 @@
       var outside = ev.clientX < cardR.left - 4 || ev.clientX > cardR.right + 4 ||
         ev.clientY < cardR.top - 4 || ev.clientY > cardR.bottom + 4;
       if (outside) {
-        // the kid leaves the card, landing under the pointer in page space
+        // the siblings the drag pushed and the height it grew go back to
+        // rest first: the kid leaves, the card stays as it was
+        kd.snap.forEach(function (sn) { sn.k.x = sn.x; sn.k.y = sn.y; });
+        hostEl.h = kd.hostH;
         var kid = hostEl.kids.splice(kd.j, 1)[0];
         if (!hostEl.kids.length) hostEl.kids = null;
         var secR = sec.sectionEl.getBoundingClientRect();
         var sc2 = scaleOf(sec);
-        kid.x = Math.round(Math.max(0, Math.min(W - kid.w, (ev.clientX - secR.left) / sc2 - kid.w / 2)));
-        kid.y = Math.round(Math.max(0, (ev.clientY - secR.top) / sc2 - kid.h / 2));
+        // it lands where the ghost is: under the hand at the grip it was
+        // picked up by, not re-centred on the pointer (that was a jump)
+        kid.x = Math.round(Math.max(0, Math.min(W - kid.w, (kd.gx + (ev.clientX - kd.px) - secR.left) / sc2)));
+        kid.y = Math.round(Math.max(0, (kd.gy + (ev.clientY - kd.py) - secR.top) / sc2));
         clearKidSel();
         sec.els.push(kid);
         renderSection(sec);
@@ -12802,7 +12832,10 @@
         var target = kid2.type === 'button' ? (kd.node.querySelector('.wp-block-button__link') || kd.node) : kd.node;
         target.setAttribute('contenteditable', kid2.type === 'heading' || kid2.type === 'para' ? 'true' : 'plaintext-only');
         document.documentElement.classList.add('gogh-textediting');
-        kidEd = { sec: sec, ci: kd.ci, j: kd.j, node: target, kid: kid2 };
+        // the resting stack and height: typing settles the siblings from
+        // HERE each time, so growing then shrinking the words leaves no ratchet
+        kidEd = { sec: sec, ci: kd.ci, j: kd.j, node: target, kid: kid2, hostH: hostEl.h,
+          snap: hostEl.kids.map(function (k) { return { k: k, x: k.x, y: k.y }; }) };
         target.focus();
         if (document.caretRangeFromPoint) {
           var cr = document.caretRangeFromPoint(ev.clientX, ev.clientY);
@@ -12819,6 +12852,23 @@
     if (!kidEd || ev.target !== kidEd.node) return;
     var k = kidEd.kid;
     k.text = (k.type === 'heading' || k.type === 'para') ? cleanInline(kidEd.node.innerHTML) : kidEd.node.textContent;
+    // the words grew or shrank: the kid's height follows (the section-level
+    // measure never looks inside cards), the stack below settles from the
+    // card's RESTING height so nothing ratchets up, and the grid re-solves in
+    // place -- the caret stays where it is
+    var secE = kidEd.sec, hostE = secE.els[kidEd.ci];
+    var knE = kidEd.node.closest('[class*="gogh-k-"]') || kidEd.node;
+    var sE = measureScaleOf(secE);
+    if (hostE && hostE.kids && sE > 0.2) {
+      var hE = knE.offsetHeight / sE;
+      if (hE > 0 && Math.abs(hE - k.h) > 2) {
+        k.h = Math.round(hE);
+        if (kidEd.snap) kidEd.snap.forEach(function (sn) { if (sn.k !== k) { sn.k.x = sn.x; sn.k.y = sn.y; } });
+        if (kidEd.hostH != null) hostE.h = kidEd.hostH;
+        if (SETTLE_TYPES[k.type]) settleStack(hostE);
+        resolveAndApply(secE);
+      }
+    }
   });
   document.addEventListener('keydown', function (ev) {
     if (kidEd && ev.key === 'Escape') { ev.stopPropagation(); exitKidEd(); return; }
