@@ -19224,7 +19224,7 @@
       '<label class="gogh-hdoor gogh-upload"><span>' + (logoImgs.length ? 'Upload a different image' : 'Upload a logo image') + '</span><span class="gogh-hdoor-chev">\u2191</span><input type="file" accept="image/*" hidden /></label>' +
       '<button type="button" class="gogh-hdoor gogh-lgdoor" aria-expanded="false"><span>Choose from your library</span><span class="gogh-hdoor-chev">\u203a</span></button>' +
       '<div class="gogh-lgbox" hidden><div class="gogh-media"><span class="gogh-media-loading">Loading media\u2026</span></div></div>' +
-      (logoImgs.length ? '<button type="button" class="gogh-hdoor gogh-logo-totext"><span>Use a text name instead</span><span class="gogh-hdoor-chev">\u203a</span></button>' : '') +
+      (logoImgs.length ? '<button type="button" class="gogh-hdoor gogh-logo-totext"><span>Use the site name instead</span><span class="gogh-hdoor-chev">\u203a</span></button>' : '') +
       '</div>';
     var closeX = panel.querySelector('.gogh-panel-close');
     if (closeX) closeX.addEventListener('click', function () { closePanel(); });
@@ -19293,7 +19293,7 @@
           else closePanel();
         });
       }).then(function () {
-        toast('Text title restored \u2014 click it to rename your site.');
+        toast('Site name restored \u2014 click it to rename.');
       }).catch(function (err) {
         toText.disabled = false;
         toast('gogh could not switch back \u2014 ' + ((err && err.message) || 'try again.'), { error: true });

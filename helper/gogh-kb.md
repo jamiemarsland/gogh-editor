@@ -1188,7 +1188,7 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "Site "
 - "Site name saved."
 - "Style copied — click other text to paint it. Esc finishes."
-- "Text title restored — click it to rename your site."
+- "Site name restored — click it to rename."
 - "That saved section can’t be read."
 - "That section can’t move past other stored content yet."
 - "That’s gogh. Everything else is just more of this."
