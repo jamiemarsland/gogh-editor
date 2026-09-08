@@ -7794,11 +7794,14 @@
   }
   function diceInferFamily(sec) {
     if (!sec || !sec.els || !sec.els.length) return null;
-    if (sec.els.some(function (e) { return e.type === 'exp' || (e.type === 'box' && e.kids && e.kids.length); })) return null;
+    if (sec.els.some(function (e) { return e.type === 'exp'; })) return null;
     var want = diceByRole(sec.els);
     var wantKeys = Object.keys(want);
     if (!want.heading) return null;
     var wantKinds = diceWidgetKinds(sec.els).join(',');
+    // cards match cards: a three-card paste rolls within a three-card family
+    var cardsOf = function (els) { return els.filter(function (e) { return e.type === 'box' && e.kids && e.kids.length; }).length; };
+    var wantCards = cardsOf(sec.els);
     var best = null, bestScore = 0;
     Object.keys(VARIANTS).forEach(function (fam) {
       var faces = diceFaces(fam);
@@ -7809,6 +7812,7 @@
       if (wantKeys.some(function (r) { return !have[r]; })) return;
       // widgets must match kind for kind — the base's wall for a wall, never a form
       if (wantKinds !== diceWidgetKinds(baseEls).join(',')) return;
+      if (wantCards !== cardsOf(baseEls)) return;
       var hit = 0, total = 0;
       Object.keys(have).forEach(function (r) {
         var a = have[r].length, b = (want[r] || []).length;

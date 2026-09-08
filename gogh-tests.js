@@ -5908,7 +5908,16 @@
       if (added.els.some(function (e) { return e.type === 'widget'; })) throw new Error('a text-only div became a widget: ' + types.join(' / '));
       var eyebrow = added.els.filter(function (e) { return e.type === 'para' && /Featured collection/.test(e.text); })[0];
       if (!eyebrow) throw new Error('the eyebrow div did not become a paragraph');
-      return types.join(' / ');
+      // three priced cards find the three-card family
+      G.addHtmlSection('<section style="background:#0f1115;color:#eef0f3;padding:80px"><p style="text-transform:uppercase;font-size:12px">Lessons</p><h2 style="font-size:48px">Three ways in.</h2><div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:24px">' +
+        ['Taster|£45|One evening.', 'Term|£240|Six evenings.', 'Studio|£90|Any day.'].map(function (r) { var q = r.split('|'); return '<div style="background:#171a21;border-radius:20px;padding:32px"><p style="text-transform:uppercase;font-size:12px">' + q[0] + '</p><h3 style="font-size:40px">' + q[1] + '</h3><p>' + q[2] + '</p><a href="#" style="display:inline-block;padding:12px 20px;border:1px solid #fff;color:#fff;text-decoration:none">Book</a></div>'; }).join('') +
+        '</div></section>', null);
+      var e2 = G.pending()[G.pending().length - 1];
+      e2.el.querySelector('.gogh-pend-ff').click();
+      var priced = lastSec();
+      var famP = G.diceFamilyOf(priced);
+      if (famP !== 'Pricing') throw new Error('three priced cards should roll within Pricing, got ' + famP + ' (' + priced.els.map(function (e) { return e.type + (e.kids ? '{' + e.kids.length + '}' : ''); }).join('/') + ')');
+      return types.join(' / ') + ' · three cards → ' + famP;
     });
 
     // drain the async queue, then report — one at a time, restore between
