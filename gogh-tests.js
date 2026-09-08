@@ -5866,14 +5866,55 @@
         // a take that keeps its button in a card: the extra joins the same card
         var cardOf = function (e) { return s.els.filter(function (b) { return b.type === 'box' && b.kids && b.kids.indexOf(e) !== -1; })[0] || null; };
         if (cardOf(own) !== cardOf(ex)) throw new Error('roll ' + (k + 1) + ': the extra and the take\'s button are not in the same card');
-        if (Math.abs(ex.y - own.y) > 2) throw new Error('roll ' + (k + 1) + ': the extra left the row (y ' + ex.y + ' vs ' + own.y + ')');
+        var below = ex.y >= own.y + own.h && ex.x + ex.w <= 1200;
+        if (Math.abs(ex.y - own.y) > 2 && !below) throw new Error('roll ' + (k + 1) + ': the extra left the row (y ' + ex.y + ' vs ' + own.y + ')');
         var gap = ex.x - (own.x + own.w);
-        var atEdge = ex.x + ex.w >= 1200; // no room to the right: clamped to the canvas edge, still on the row
-        if (!atEdge && (gap < 0 || gap > 40)) throw new Error('roll ' + (k + 1) + ': the extra lost its gap (' + gap + ')');
-        seen.push(atEdge ? 'edge' : gap);
+        var overlap = !(ex.x >= own.x + own.w || ex.x + ex.w <= own.x || ex.y >= own.y + own.h || ex.y + ex.h <= own.y);
+        if (overlap) throw new Error('roll ' + (k + 1) + ': the extra sits on top of the take\'s button');
+        if (gap >= 0 && gap <= 40) seen.push(gap);
+        else if (ex.x + ex.w <= own.x) seen.push('left'); // no room on the right: mirrored to the left
+        else if (ex.y >= own.y + own.h) seen.push('below'); // no room either side: the row below
+        else throw new Error('roll ' + (k + 1) + ': the extra lost its seat (gap ' + gap + ')');
       }
       G.deleteSection(idx);
       return faces.length + ' rolls, gaps ' + seen.join('/');
+    });
+
+    // THE YELLOW HOUSE SHAPE — one take button plus one of the user's own:
+    // the second button keeps its words through every take, including the
+    // one that draws a single button in a card, and never overlaps
+    test('a second button keeps its words through a one-button take', function () {
+      var hero = G.templates().filter(function (x) { return x.name === 'Hero'; })[0];
+      G.addSection(hero);
+      var s = lastSec();
+      var idx = G.sections().indexOf(s);
+      var btns = s.els.filter(function (e) { return e.type === 'button'; });
+      btns.slice(1).forEach(function (b) { s.els.splice(s.els.indexOf(b), 1); });
+      var b1 = s.els.filter(function (e) { return e.type === 'button'; })[0];
+      var b2 = JSON.parse(JSON.stringify(b1));
+      b2.text = 'And drag me'; b2.x = b1.x + b1.w + 16; b2.y = b1.y;
+      s.els.push(b2);
+      G.renderSection(s);
+      var faces = G.diceFaces(G.diceFamilyOf(s));
+      var abs = function (e) {
+        var c = s.els.filter(function (b) { return b.type === 'box' && b.kids && b.kids.indexOf(e) !== -1; })[0];
+        return { x: (c ? c.x : 0) + e.x, y: (c ? c.y : 0) + e.y, w: e.w, h: e.h };
+      };
+      var log = [];
+      for (var k = 0; k < faces.length; k++) {
+        G.rollSection(idx);
+        var all = G.diceFlatten(s.els).filter(function (e) { return e.type === 'button'; });
+        var mine = all.filter(function (e) { return e.text === 'And drag me'; })[0];
+        if (!mine) throw new Error('roll ' + (k + 1) + ': the second button lost its words or vanished');
+        all.forEach(function (o) {
+          if (o === mine) return;
+          var a = abs(mine), b = abs(o);
+          if (!(a.x >= b.x + b.w || a.x + a.w <= b.x || a.y >= b.y + b.h || a.y + a.h <= b.y)) throw new Error('roll ' + (k + 1) + ': the buttons overlap');
+        });
+        log.push(all.length);
+      }
+      G.deleteSection(idx);
+      return 'buttons per take ' + log.join('/') + ', words kept, no overlap';
     });
 
     // NAME SIZE — the site name's size rides its block as a typography

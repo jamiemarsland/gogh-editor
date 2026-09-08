@@ -7910,19 +7910,56 @@
     // second button keeps its gap from the take's button, below or to the
     // right, wherever that button lands next (James: "rolling the dice on
     // this section breaks the layout — the buttons are all over the place")
+    var els2 = tplEls(faces[next]);
+    var by2 = diceByRole(els2);
+    var noRole = function (e) { return !diceRole(e); };
+    var none2 = els2.filter(noRole);
+    // a piece is MATCHED only when the next take has a slot for it; a
+    // piece this take drew but the next does not (a second button through a
+    // one-button take) becomes a rider and keeps its words — it used to
+    // vanish, and come home wearing the template's text
     var matched = new Map();
     Object.keys(live).forEach(function (r) {
-      live[r].forEach(function (e, i) { if ((pristine[r] || [])[i]) matched.set(e, { r: r, i: i }); });
+      live[r].forEach(function (e, i) { if ((pristine[r] || [])[i] && (by2[r] || [])[i]) matched.set(e, { r: r, i: i }); });
     });
     // roleless pieces (shapes, boxes) pair up by order, as they always did
-    var noRole = function (e) { return !diceRole(e); };
     var liveNone = sec.els.filter(noRole), priNone = tplEls(faces[cur]).filter(noRole);
-    liveNone.forEach(function (e, i) { if (priNone[i]) matched.set(e, { r: '_', i: i }); });
+    liveNone.forEach(function (e, i) { if (priNone[i] && none2[i]) matched.set(e, { r: '_', i: i }); });
     // extras live on the page OR inside a card (a take like The panel keeps
     // its button in the card, and a second button joined it there)
     var isCard = function (e) { return e.type === 'box' && !!e.kids; };
     var extra = diceFlatten(sec.els).filter(function (e) {
       return !matched.has(e) && !isCard(e) && (diceRole(e) || sec.els.indexOf(e) !== -1);
+    });
+    // a rider takes a FREE slot of its kind first — the take's own second
+    // button, say — carrying its words, and only rides when no slot is left
+    // (otherwise it came home beside slot one while the take redrew slot two)
+    var taken = {};
+    matched.forEach(function (ri) { taken[ri.r + ':' + ri.i] = true; });
+    var adopted = [];
+    extra = extra.filter(function (x) {
+      var r = diceRole(x);
+      if (!r || r === 'widget') return true;
+      var list = by2[r] || [];
+      for (var j = 0; j < list.length; j++) {
+        if (taken[r + ':' + j]) continue;
+        taken[r + ':' + j] = true;
+        var slot = list[j];
+        if (r === 'image') {
+          if (x.type === 'video' && (x.src || x.vurl)) {
+            slot.type = 'video';
+            Object.assign(slot, { src: x.src || null, mediaId: x.mediaId || null, vurl: x.vurl || null, vplay: x.vplay || null,
+              poster: x.poster || null, posterId: x.posterId || null, radius: x.radius || 0 });
+            delete slot.alt;
+          } else if (x.src) { slot.src = x.src; if (x.srcId) slot.srcId = x.srcId; if (x.alt) slot.alt = x.alt; }
+        } else {
+          if (x.text != null) slot.text = x.text;
+          if (x.href) slot.href = x.href;
+        }
+        adopted.push(x);
+        return false;
+      }
+      return true;
     });
     // a card's kids sit relative to the card — seats are measured on the page
     var absIn = function (els, e) {
@@ -7958,10 +7995,7 @@
         fb: head ? { ri: head.ri, seat: seat(x, head.a) } : null, memo: memo };
     });
     // the extras leave wherever they sat; they re-seat below
-    sec.els.forEach(function (e) { if (isCard(e)) e.kids = e.kids.filter(function (k) { return extra.indexOf(k) === -1; }); });
-    var els2 = tplEls(faces[next]);
-    var by2 = diceByRole(els2);
-    var none2 = els2.filter(noRole);
+    sec.els.forEach(function (e) { if (isCard(e)) e.kids = e.kids.filter(function (k) { return extra.indexOf(k) === -1 && adopted.indexOf(k) === -1; }); });
     // the same slot in the next take — or, when the take draws fewer of
     // that kind, the last one it does draw (a take with one button still
     // seats the second beside it); roleless pieces pair exactly
@@ -7970,6 +8004,10 @@
       var list = by2[ri.r] || [];
       return list.length ? list[Math.min(ri.i, list.length - 1)] : null;
     };
+    // everything the next take draws, on the page, so a rider can avoid it
+    var placedRects = diceFlatten(els2).filter(function (e) { return !isCard(e); }).map(function (e) {
+      var r0 = absIn(els2, e); return { x: r0.x, y: r0.y, w: r0.w, h: r0.h };
+    });
     var extraTop = [];
     extra.forEach(function (x, k) {
       var ride = rides[k];
@@ -7982,9 +8020,31 @@
       var aa = absIn(els2, a2);
       var tx = Math.round(st.right ? aa.x + aa.w + st.dx : aa.x + st.dx);
       var ty = Math.round(st.below ? aa.y + aa.h + st.dy : aa.y + st.dy);
-      if (aa.card) {
+      // the room it has: the canvas, or the card it is joining
+      var c = aa.card || null;
+      var left0 = c ? c.x : 0, right0 = c ? c.x + c.w : W;
+      // never on top of another piece (James: "we still got major issues
+      // with buttons"): the seat it asked for, else the mirror on the left,
+      // else below the anchor — the first spot that is free and in bounds
+      var gap = Math.max(8, st.right ? st.dx : 16);
+      var spots = [[tx, ty], [aa.x - gap - x.w, aa.y], [Math.min(aa.x, right0 - x.w), aa.y + aa.h + 12]];
+      var pick = null;
+      for (var si = 0; si < spots.length && !pick; si++) {
+        var sx = spots[si][0], sy = spots[si][1];
+        if (sx < left0 || sx + x.w > right0 || sy < 0) continue;
+        if (!placedRects.some(function (o) { return !(sx >= o.x + o.w || sx + x.w <= o.x || sy >= o.y + o.h || sy + x.h <= o.y); })) pick = spots[si];
+      }
+      // still nothing free: keep stepping down from the anchor until a row is
+      // (two riders through a one-button take must not share the same spot)
+      for (var step = 1; !pick && step <= 8; step++) {
+        var by = aa.y + aa.h + 12 + step * (x.h + 12), bx = Math.min(aa.x, right0 - x.w);
+        if (!placedRects.some(function (o) { return !(bx >= o.x + o.w || bx + x.w <= o.x || by >= o.y + o.h || by + x.h <= o.y); })) pick = [bx, by];
+      }
+      if (!pick) pick = spots[2];
+      tx = pick[0]; ty = pick[1];
+      placedRects.push({ x: tx, y: ty, w: x.w, h: x.h });
+      if (c) {
         // the piece it follows lives in a card: join the card beside it
-        var c = aa.card;
         x.x = Math.max(0, Math.min(Math.max(0, c.w - x.w), tx - c.x));
         x.y = Math.max(0, ty - c.y);
         c.kids.push(x);
