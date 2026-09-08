@@ -4078,11 +4078,18 @@
       secW.els[ii].x = 200;
       secW.els[ii].y = 80;
       expect(G.wrapTargetIdx(secW, ii) === 0, 'image over text detects the wrap target');
+      // with a real pointer the hand must let go ON the words: the same
+      // geometry with the pointer off the paragraph is a plain move (James:
+      // "when i drag a photo block it's changing to weird sizes")
+      var pr = secW.nodes[0].getBoundingClientRect();
+      expect(G.wrapTargetIdx(secW, ii, pr.right + 200, pr.top - 200) === -1, 'pointer off the words must not wrap');
+      expect(G.wrapTargetIdx(secW, ii, pr.left + pr.width / 2, pr.top + pr.height / 2) === 0, 'pointer on the words wraps');
       G.wrapImageIntoText(secW, ii, 0);
       expect(secW.els.length === 1, 'image element consumed into the text');
       var t = secW.els[0];
       expect(t.text.indexOf('gogh-wrapped') !== -1, 'wrapped img in text model');
       expect(t.text.indexOf('shape-outside') !== -1, 'silhouette wrap in style');
+      expect(t.text.indexOf('aspect-ratio:280/180') !== -1, 'the wrapped photo keeps its canvas crop, not its natural shape');
       var node = secW.nodes[0];
       var img = node.querySelector('img.gogh-wrapped');
       expect(img, 'wrapped img renders inside the paragraph');

@@ -11563,14 +11563,29 @@
   }
   // ---------- wrap: an image dropped into flowing text floats there, and
   // the words pour around its silhouette (shape-outside on its own alpha) --
-  function wrapTargetIdx(sec, i) {
+  // the wrap door opens on INTENT, not on geometry alone: a photo dragged
+  // across a hero overlaps its copy all the time (James: "when i drag a
+  // photo block it's changing to weird sizes" — every such drop wrapped it
+  // into the paragraph at 40% width and its natural shape). With a real
+  // pointer, the hand must let go ON the words; the geometry rule below is
+  // the fallback for programmatic drops and the suite.
+  function wrapTargetIdx(sec, i, cx, cy) {
     var e = sec.els[i];
     if (!e || e.type !== 'image' || !e.src) return -1;
     var cx2 = e.x + e.w / 2;
+    var pointer = cx != null && cy != null;
     for (var t2 = 0; t2 < sec.els.length; t2++) {
       if (t2 === i) continue;
       var o = sec.els[t2];
       if (o.type !== 'para' || !(o.text || '').trim()) continue;
+      if (pointer) {
+        var pn = sec.nodes[t2];
+        var pr = pn && pn.getBoundingClientRect();
+        // (a photo wider than the column still wraps — it takes a share of
+        // the column's width, so its own width is no bar)
+        if (pr && cx >= pr.left && cx <= pr.right && cy >= pr.top && cy <= pr.bottom) return t2;
+        continue;
+      }
       // paragraphs auto-shrink to their text, so centre-inside is too
       // strict: intent is the image sitting ON the text — horizontally
       // centred over it with real vertical overlap
@@ -11587,7 +11602,10 @@
     var t = sec.els[ti];
     var side = (e.x + e.w / 2) < (t.x + t.w / 2) ? 'left' : 'right';
     var pct = Math.max(25, Math.min(60, Math.round(e.w / t.w * 100)));
-    var style = 'float:' + side + ';width:' + pct + '%;' +
+    // the photo keeps the SHAPE it had on the canvas (its crop), not its
+    // natural proportions — a landscape crop must not turn into a tall portrait
+    var shape = (e.w > 0 && e.h > 0) ? 'aspect-ratio:' + e.w + '/' + e.h + ';object-fit:cover;' : '';
+    var style = 'float:' + side + ';width:' + pct + '%;' + shape +
       (side === 'left' ? 'margin:4px 18px 8px 0;' : 'margin:4px 0 8px 18px;') +
       'shape-outside:url("' + String(e.src).replace(/"/g, '%22') + '");' +
       'shape-image-threshold:0.5;shape-margin:16px;';
@@ -12026,7 +12044,7 @@
     }
     setJoinGlow(null);
     if (!multiD) {
-      var wti = wrapTargetIdx(sec, i);
+      var wti = wrapTargetIdx(sec, i, dropCX, dropCY);
       if (wti !== -1) {
         wrapImageIntoText(sec, i, wti, dropCX, dropCY);
         sel = null;
