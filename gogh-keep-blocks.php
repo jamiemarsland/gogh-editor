@@ -1,16 +1,17 @@
 <?php
-/**
- * Plugin Name: Gogh — keep the blocks
- * Description: Left behind when Gogh is deactivated so its sections stay ordinary, editable blocks in the block editor. Removes itself when Gogh is active again.
- * Version: 1.0
- *
+/*GOGH_HELPER_HEADER*/
+/*
  * Gogh's "deactivation safety" promise: pages render the same and every
  * piece stays a real core block. This file keeps the WRAPPER known to the
  * editor too, so the block editor shows "gogh Section" with its inner blocks
  * instead of "Unsupported" and a Keep-as-HTML button that would flatten them.
  *
  * Copied into wp-content/mu-plugins by Gogh's deactivation hook; deleted by
- * its activation hook (and by itself, the moment it sees Gogh active).
+ * its activation hook (and by itself, the moment it sees Gogh active). The
+ * plugin header is written at copy time, on purpose: inside the plugin
+ * folder this file must NOT read as a plugin — WordPress would list it as a
+ * second plugin, and Playground activates the first headed file it finds
+ * (this one sorts before gogh.php), leaving Gogh itself off.
  */
 
 defined( 'ABSPATH' ) || exit;
