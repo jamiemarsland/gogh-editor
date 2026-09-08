@@ -5882,6 +5882,35 @@
       return 'buttons: ' + btns.map(function (b) { return b.text; }).join(', ') + ' · family: ' + fam;
     });
 
+    // styled pasted HTML (the kind an AI writes): a painted container that
+    // holds a picture and words converts to a CARD — a box with kids — and a
+    // text-only div is a paragraph, never an opaque widget (James's collection)
+    test('a painted container in pasted HTML converts to a card with kids', function () {
+      G.addHtmlSection('<div style="background:#171717;padding:60px;color:#f5f5f5">' +
+        '<div style="font-size:12px;letter-spacing:.16em;text-transform:uppercase;color:#9f9f9f;margin-bottom:20px">Featured collection</div>' +
+        '<h2 style="margin:0 0 30px;font-size:64px;line-height:1">Ideas made beautiful.</h2>' +
+        '<div style="display:grid;grid-template-columns:1fr 1fr;gap:32px">' +
+        '<div style="background:#202020;border:1px solid rgba(255,255,255,.08)"><img src="/wp-content/plugins/gogh/demo-assets/sunflowers.jpg" alt="One" style="display:block;width:100%;height:220px;object-fit:cover"><div style="padding:32px"><div style="font-size:11px;text-transform:uppercase;color:#969696">Editorial design</div><h3 style="margin:12px 0;font-size:36px">Crafted with care.</h3><p style="margin:0 0 24px;color:#a8a8a8">Thoughtful layouts and carefully selected details.</p><a href="#" style="border-bottom:1px solid #fff;color:#f5f5f5;text-decoration:none">Explore</a></div></div>' +
+        '<div style="background:#202020;border:1px solid rgba(255,255,255,.08)"><img src="/wp-content/plugins/gogh/demo-assets/wheat-field.jpg" alt="Two" style="display:block;width:100%;height:220px;object-fit:cover"><div style="padding:32px"><div style="font-size:11px;text-transform:uppercase;color:#969696">Creative direction</div><h3 style="margin:12px 0;font-size:36px">Designed to inspire.</h3><p style="margin:0 0 24px;color:#a8a8a8">Strong imagery and a restrained system.</p><a href="#" style="border-bottom:1px solid #fff;color:#f5f5f5;text-decoration:none">View work</a></div></div>' +
+        '</div></div>', null);
+      var entry = G.pending()[G.pending().length - 1];
+      entry.el.querySelector('.gogh-pend-ff').click();
+      var added = lastSec();
+      var types = added.els.map(function (e) { return e.type + (e.kids ? '{' + e.kids.map(function (k) { return k.type; }).join(',') + '}' : ''); });
+      var cards = added.els.filter(function (e) { return e.type === 'box' && e.kids && e.kids.length; });
+      if (cards.length !== 2) throw new Error('expected 2 cards, got ' + cards.length + ': ' + types.join(' / '));
+      cards.forEach(function (c, i) {
+        var kt = c.kids.map(function (k) { return k.type; });
+        if (kt.indexOf('image') === -1 || kt.indexOf('heading') === -1 || kt.indexOf('button') === -1) throw new Error('card ' + (i + 1) + ' is missing a piece: ' + kt.join(','));
+        if (c.kids.some(function (k) { return k.type === 'widget'; })) throw new Error('card ' + (i + 1) + ' kept a widget: ' + kt.join(','));
+        if (c.kids.some(function (k) { return k.x < 0 || k.y < 0 || k.x + k.w > c.w + 4; })) throw new Error('a kid sits outside card ' + (i + 1));
+      });
+      if (added.els.some(function (e) { return e.type === 'widget'; })) throw new Error('a text-only div became a widget: ' + types.join(' / '));
+      var eyebrow = added.els.filter(function (e) { return e.type === 'para' && /Featured collection/.test(e.text); })[0];
+      if (!eyebrow) throw new Error('the eyebrow div did not become a paragraph');
+      return types.join(' / ');
+    });
+
     // drain the async queue, then report — one at a time, restore between
     (function drain() {
       var t = asyncQueue.shift();

@@ -15619,6 +15619,16 @@
     pageParent.insertBefore(holder, (before && before.isConnected) ? before : (nextContent ? nextContent.wrapEl : endMarker));
     var entry = { el: holder, raw: raw || '', title: title || 'Section' };
     pendingBlocks.push(entry);
+    // a pasted block is real content too: the blank-canvas shell and its
+    // "Add your first section" invite retire, as they do for a section
+    // (James: "after I add an html section we still see add a new section")
+    for (var bi = S.length - 1; bi >= 0; bi--) {
+      if (isBlankBoot(S[bi])) {
+        S[bi].wrapEl.remove();
+        if (S[bi].styleEl && S[bi].styleEl.parentNode) S[bi].styleEl.parentNode.removeChild(S[bi].styleEl);
+        S.splice(bi, 1);
+      }
+    }
     var bar = document.createElement('div');
     bar.className = 'gogh-pendbar';
     bar.innerHTML =
@@ -18301,6 +18311,11 @@
         }
       }
       if (cl.contains('wp-block-spacer') || cl.contains('wp-block-separator') || tag === 'HR') return;
+      // pasted HTML writes text into divs and spans as happily as into <p>:
+      // a text-only one is a paragraph here, not an opaque widget
+      if (freeMode && !dom.children.length && (dom.textContent || '').trim() && /^(DIV|SPAN|SMALL|STRONG|EM|B|I|LABEL|DT|DD|LI)$/.test(tag)) {
+        return place(dom, textStyle(dom, { type: 'para', text: cleanInline(dom.innerHTML).trim() }));
+      }
       place(dom, { type: 'widget', whtml: dom.outerHTML,
         wsrc: markup != null ? markup : dom.outerHTML,
         // verbatim markup keeps its OWN styles but loses everything it
@@ -18489,6 +18504,30 @@
       // boxBg may be a palette slug — as a section bg it must be real CSS
       if (rootBg && /^[a-z0-9-]+$/.test(rootBg)) rootBg = 'var(--wp--preset--color--' + rootBg + ')';
       out.shift();
+    }
+    // CARDS: in pasted HTML a painted container that holds a picture and
+    // words is a card (James: "make mine proper cards"). The box adopts
+    // every piece that sits inside it as kids, coordinates relative to it —
+    // the same shape a drop-join makes — so the card moves and rolls as one.
+    // The section's own backdrop (nearly the whole canvas) stays a plain box.
+    if (freeMode || opts.freeHtml) {
+      var cardified = [];
+      var taken = {};
+      out.forEach(function (b, bi) {
+        if (b.type !== 'box' || taken[bi]) return;
+        var big = b.w >= W * 0.85 && b.h >= 300;
+        if (big) return;
+        var kids = [];
+        out.forEach(function (o, oi) {
+          if (oi === bi || taken[oi] || o.type === 'box') return;
+          if (o.x >= b.x - 2 && o.y >= b.y - 2 && o.x + o.w <= b.x + b.w + 2 && o.y + o.h <= b.y + b.h + 2) { kids.push(oi); }
+        });
+        if (kids.length < 2) return;
+        kids.forEach(function (oi) { taken[oi] = true; });
+        b.kids = kids.map(function (oi) { return out[oi]; }).sort(function (a2, b2) { return (a2.y - b2.y) || (a2.x - b2.x); });
+        b.kids.forEach(function (k) { k.x = Math.max(0, Math.round(k.x - b.x)); k.y = Math.max(0, Math.round(k.y - b.y)); });
+      });
+      out = out.filter(function (o, oi) { return !taken[oi]; });
     }
     return { els: out, minH: minH, rootBg: rootBg };
   }
