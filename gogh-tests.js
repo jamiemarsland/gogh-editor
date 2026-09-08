@@ -6020,6 +6020,92 @@
       return 'logo+name → name; logo-only → name (alignment kept); no logo → null';
     });
 
+    // STARTER SWEEP — every starter, every take, every piece: the invariants
+    // that today's bugs broke, checked on REAL shapes rather than hand-made
+    // fixtures. Roll four times: nothing lost, nothing on top of anything,
+    // home is home. Drag every top-level piece: it moves by the hand's
+    // delta (or to the edge) and never changes size.
+    test('starter sweep: rolls keep every piece apart and drags never resize', function () {
+      var starters = G.templates().filter(function (t) { return t.starter && !t.retired && t.els && t.els.length; });
+      var problems = [];
+      var rolled = 0, dragged = 0;
+      // badges sit on corners by design and a one-glyph heading (the big
+      // quotation mark) is decoration: neither counts as an overlap
+      var texty = function (e) {
+        if (e.type === 'badge') return false;
+        if (e.type === 'heading' && String(e.text || '').replace(/<[^>]+>/g, '').trim().length <= 2) return false;
+        return e.type === 'heading' || e.type === 'para' || e.type === 'button';
+      };
+      var absAll = function (s) {
+        var out = [];
+        s.els.forEach(function (e) {
+          out.push({ e: e, x: e.x, y: e.y, w: e.w, h: e.h, card: null });
+          (e.kids || []).forEach(function (k) { out.push({ e: k, x: e.x + k.x, y: e.y + k.y, w: k.w, h: k.h, card: e }); });
+        });
+        return out;
+      };
+      var overlaps = function (s, label) {
+        var A = absAll(s).filter(function (r) { return texty(r.e); });
+        for (var i = 0; i < A.length; i++) for (var j = i + 1; j < A.length; j++) {
+          var a = A[i], b = A[j];
+          if (a.card !== b.card) continue; // a card's kids and the page are different stacks
+          var ox = Math.min(a.x + a.w, b.x + b.w) - Math.max(a.x, b.x);
+          var oy = Math.min(a.y + a.h, b.y + b.h) - Math.max(a.y, b.y);
+          if (ox > 12 && oy > 12) return label + ': ' + a.e.type + ' "' + String(a.e.text || '').slice(0, 14) + '" on ' + b.e.type + ' "' + String(b.e.text || '').slice(0, 14) + '"';
+        }
+        return null;
+      };
+      var pv = function (type, el, x, y, id) {
+        el.dispatchEvent(new PointerEvent(type, { bubbles: true, cancelable: true, clientX: x, clientY: y, pointerId: id, button: 0, buttons: type === 'pointerup' ? 0 : 1 }));
+      };
+      starters.forEach(function (t, ti) {
+        G.addSection(t);
+        var s = lastSec();
+        var idx = G.sections().indexOf(s);
+        var fam = G.diceFamilyOf(s);
+        var faces = fam ? G.diceFaces(fam) : null;
+        var count0 = G.diceFlatten(s.els).filter(function (e) { return e.type !== 'box'; }).length;
+        var home = JSON.stringify(s.els.map(function (e) { return e.type + '@' + e.x + ',' + e.y; }));
+        if (faces) {
+          for (var k = 0; k < faces.length; k++) {
+            G.rollSection(idx);
+            rolled++;
+            var c = G.diceFlatten(s.els).filter(function (e) { return e.type !== 'box'; }).length;
+            if (c < count0) problems.push(t.name + ' take ' + (k + 1) + ': lost a piece (' + c + ' of ' + count0 + ')');
+            var ov = overlaps(s, t.name + ' take ' + (k + 1));
+            if (ov) problems.push(ov);
+          }
+          var back = JSON.stringify(s.els.map(function (e) { return e.type + '@' + e.x + ',' + e.y; }));
+          if (back !== home) problems.push(t.name + ': four rolls did not come home');
+        }
+        // drag each top-level piece by (+40, +24): position follows, size holds
+        var sc = s.sectionEl.getBoundingClientRect().width / 1200;
+        s.els.slice().forEach(function (e, i) {
+          if (e.type === 'box' && e.kids) return;
+          var node = s.nodes[s.els.indexOf(e)];
+          if (!node) return;
+          var w0 = e.w, h0 = e.h, x0 = e.x, y0 = e.y;
+          var r = node.getBoundingClientRect();
+          var id = 3000 + ti * 40 + i;
+          pv('pointerdown', node, r.left + 6, r.top + 6, id); pv('pointerup', document, r.left + 6, r.top + 6, id);
+          r = node.getBoundingClientRect();
+          pv('pointerdown', node, r.left + 6, r.top + 6, id + 1);
+          pv('pointermove', document, r.left + 6 + 20 * sc, r.top + 6 + 12 * sc, id + 1);
+          pv('pointermove', document, r.left + 6 + 40 * sc, r.top + 6 + 24 * sc, id + 1);
+          pv('pointerup', document, r.left + 6 + 40 * sc, r.top + 6 + 24 * sc, id + 1);
+          dragged++;
+          var still = s.els.indexOf(e) !== -1 || G.diceFlatten(s.els).indexOf(e) !== -1;
+          if (!still) return; // joined a card or wrapped: another test's contract
+          if (e.w !== w0 || e.h !== h0) problems.push(t.name + ' ' + e.type + ': drag changed its size ' + w0 + 'x' + h0 + ' → ' + e.w + 'x' + e.h);
+          if (e.x === x0 && e.y === y0 && x0 + e.w + 40 <= 1200) problems.push(t.name + ' ' + e.type + ': drag did not move it');
+        });
+        G.deleteSection(idx);
+        [].slice.call(document.querySelectorAll('.gogh-toast')).forEach(function (x) { x.remove(); });
+      });
+      if (problems.length) throw new Error(problems.length + ' problem(s): ' + problems.slice(0, 6).join(' | '));
+      return starters.length + ' starters, ' + rolled + ' rolls, ' + dragged + ' drags: no losses, no overlaps, no resizes';
+    });
+
     // NOTICES — one per kind, never a trail: status replaces status,
     // a receipt with Undo keeps its slot, and the take label lives in
     // the section bar rather than in a toast

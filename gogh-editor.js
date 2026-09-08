@@ -7894,7 +7894,10 @@
     // the user's, and the user's work survives the roll
     var pristine = diceByRole(tplEls(faces[cur]));
     var live = diceByRole(sec.els);
-    var edits = {};
+    // the user's edits, REMEMBERED on the model by role and slot: a take
+    // that does not draw the second button keeps its words for the take
+    // that does (they used to come home wearing the template's text)
+    var edits = (sec.m && sec.m.edits && typeof sec.m.edits === 'object') ? sec.m.edits : {};
     Object.keys(live).forEach(function (r) {
       var pl = pristine[r] || [];
       live[r].forEach(function (e, i) {
@@ -7913,7 +7916,8 @@
           if (e.text != null && e.text !== pl[i].text) d.text = e.text;
           if (e.href && e.href !== pl[i].href) d.href = e.href;
         }
-        if (Object.keys(d).length) (edits[r] = edits[r] || [])[i] = d;
+        if (Object.keys(d).length) (edits[r] = edits[r] || {})[i] = d;
+        else if (edits[r] && edits[r][i]) delete edits[r][i]; // put back to the template's words: forget
       });
     });
     // pieces ADDED on top of the take are the ones no role-slot claimed —
@@ -7923,20 +7927,38 @@
     // right, wherever that button lands next (James: "rolling the dice on
     // this section breaks the layout — the buttons are all over the place")
     var els2 = tplEls(faces[next]);
+    diceFlatten(els2).forEach(function (e) { e.tk = next; }); // drawn by this roll
     var by2 = diceByRole(els2);
     var noRole = function (e) { return !diceRole(e); };
     var none2 = els2.filter(noRole);
-    // a piece is MATCHED only when the next take has a slot for it; a
-    // piece this take drew but the next does not (a second button through a
-    // one-button take) becomes a rider and keeps its words — it used to
-    // vanish, and come home wearing the template's text
+    // three kinds of piece. One the take drew AND the next take draws too:
+    // it continues (re-drawn, edits applied). One a ROLL drew that the next
+    // take does not have (an image only take 2 has): it steps aside — the
+    // take's design decides, its words stay in the memory above. One that is
+    // ORIGINAL or the user's own (never drawn by a roll, or beyond what the
+    // take draws): it rides, seated by the piece it sat beside, and fills a
+    // free slot of its kind when one appears. (Rolled pieces riding into
+    // takes that never drew them piled up — the sweep caught it.)
     var matched = new Map();
     Object.keys(live).forEach(function (r) {
-      live[r].forEach(function (e, i) { if ((pristine[r] || [])[i] && (by2[r] || [])[i]) matched.set(e, { r: r, i: i }); });
+      live[r].forEach(function (e, i) {
+        var inTake = !!(pristine[r] || [])[i], slotNext = !!(by2[r] || [])[i];
+        if (inTake && slotNext) matched.set(e, { r: r, i: i });
+        else if (inTake && e.tk != null) matched.set(e, { r: r, i: i, dropped: true });
+      });
     });
-    // roleless pieces (shapes, boxes) pair up by order, as they always did
+    // roleless pieces (shapes, boxes) are the take's decoration: pair by
+    // order, and one the next take does not draw steps aside
     var liveNone = sec.els.filter(noRole), priNone = tplEls(faces[cur]).filter(noRole);
-    liveNone.forEach(function (e, i) { if (priNone[i] && none2[i]) matched.set(e, { r: '_', i: i }); });
+    liveNone.forEach(function (e, i) { matched.set(e, { r: '_', i: i, dropped: !(priNone[i] && none2[i]) }); });
+    // an original that continues stays an original: the piece the next take
+    // draws in its slot inherits that (so a starter's second button never
+    // becomes 'the take's' and vanishes on a later roll)
+    matched.forEach(function (ri, e) {
+      if (ri.dropped || ri.r === '_' || e.tk != null) return;
+      var slot = (by2[ri.r] || [])[ri.i];
+      if (slot) delete slot.tk;
+    });
     // extras live on the page OR inside a card (a take like The panel keeps
     // its button in the card, and a second button joined it there)
     var isCard = function (e) { return e.type === 'box' && !!e.kids; };
@@ -7947,7 +7969,7 @@
     // button, say — carrying its words, and only rides when no slot is left
     // (otherwise it came home beside slot one while the take redrew slot two)
     var taken = {};
-    matched.forEach(function (ri) { taken[ri.r + ':' + ri.i] = true; });
+    matched.forEach(function (ri) { if (!ri.dropped) taken[ri.r + ':' + ri.i] = true; });
     var adopted = [];
     extra = extra.filter(function (x) {
       var r = diceRole(x);
@@ -7957,6 +7979,7 @@
         if (taken[r + ':' + j]) continue;
         taken[r + ':' + j] = true;
         var slot = list[j];
+        delete slot.tk; // the user's piece now, whatever the take drew there
         if (r === 'image') {
           if (x.type === 'video' && (x.src || x.vurl)) {
             slot.type = 'video';
@@ -7990,7 +8013,7 @@
     var rides = extra.map(function (x) {
       var best = null, bd = Infinity, head = null;
       matched.forEach(function (ri, a) {
-        if (a.type === 'box' && a.kids) return;
+        if (ri.dropped || (a.type === 'box' && a.kids)) return;
         if (ri.r === 'heading' && ri.i === 0) head = { a: a, ri: ri };
         var pref = diceRole(a) === diceRole(x) ? 0 : 1e5; // its own kind first
         var d = Math.hypot((a.x + a.w / 2) - (x.x + x.w / 2), (a.y + a.h / 2) - (x.y + x.h / 2)) + pref;
@@ -8048,11 +8071,16 @@
       }
       // still nothing free: keep stepping down from the anchor until a row is
       // (two riders through a one-button take must not share the same spot)
-      for (var step = 1; !pick && step <= 8; step++) {
+      for (var step = 1; !pick && step <= 12; step++) {
         var by = aa.y + aa.h + 12 + step * (x.h + 12), bx = Math.min(aa.x, right0 - x.w);
         if (!placedRects.some(function (o) { return !(bx >= o.x + o.w || bx + x.w <= o.x || by >= o.y + o.h || by + x.h <= o.y); })) pick = [bx, by];
       }
-      if (!pick) pick = spots[2];
+      if (!pick) {
+        // the whole column is spoken for: under everything, never on top of it
+        var floor = 0;
+        placedRects.forEach(function (o) { floor = Math.max(floor, o.y + o.h); });
+        pick = [Math.min(aa.x, right0 - x.w), floor + 12];
+      }
       tx = pick[0]; ty = pick[1];
       placedRects.push({ x: tx, y: ty, w: x.w, h: x.h });
       if (c) {
@@ -8121,7 +8149,7 @@
       sec.__diceBg = keep;
     }
     sec.bgA = t2.bgA != null ? t2.bgA : null;
-    sec.m = Object.assign({}, sec.m, { face: next });
+    sec.m = Object.assign({}, sec.m, { face: next, edits: edits });
     renderSection(sec);
     sec.els.forEach(function (ex) { if (ex.rails && ex.shop) hydrateProductsPreview(sec, ex); });
     pushState();
