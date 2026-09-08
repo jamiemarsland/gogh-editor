@@ -5837,6 +5837,21 @@
       return 'inferred ' + fam + ', rolled to face ' + (r.face + 1) + ' of ' + r.of + ', words kept; wall → ' + wallFam + ', form → ' + formFam;
     });
 
+    // NAME SIZE — the site name's size rides its block as a typography
+    // style, merged over whatever the block already carried
+    test('the site name takes a size on its block', function () {
+      var raw = '<div><!-- wp:site-title {"level":0,"style":{"color":{"text":"#123"}}} /--><!-- wp:navigation /--></div>';
+      var out = G.titleRawWithSize(raw, 36);
+      var m = out.match(/wp:site-title (\{[^]*?\}) \/-->/);
+      if (!m) throw new Error('title block lost');
+      var a = JSON.parse(m[1]);
+      if (a.style.typography.fontSize !== '36px') throw new Error('size not set: ' + m[1]);
+      if (a.style.color.text !== '#123' || a.level !== 0) throw new Error('existing attributes must survive');
+      if (G.titleRawWithSize('<!-- wp:site-title /-->', 20).indexOf('"fontSize":"20px"') === -1) throw new Error('a bare block takes the size too');
+      if (G.titleRawWithSize('<!-- wp:navigation /-->', 20) !== '<!-- wp:navigation /-->') throw new Error('no title, no change');
+      return 'fontSize merged, colour and level kept';
+    });
+
     // LAYOUT SHAPE — a saved header built from a gogh pattern is that
     // pattern's chip, whatever menu ref, logo width or whitespace it carries
     test('a saved part collapses into the layout chip it was built from', function () {

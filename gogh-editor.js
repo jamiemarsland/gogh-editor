@@ -14391,6 +14391,7 @@
     toast: toast,
     textIdentityRaw: textIdentityRaw,
     chromeShape: chromeShape,
+    titleRawWithSize: titleRawWithSize,
     publish: publish,
     isDirty: isDirty,
     parseTopBlocks: parseTopBlocks,
@@ -19000,6 +19001,33 @@
     next = next.replace(/<!--\s*wp:site-title(\s+\{[^]*?\})?\s*\/-->\s*/, '');
     return next === praw ? '' : next;
   }
+  // the site name's size lives on its block, as a typography style the
+  // theme renders (font-size on the wrapper) — one attribute, no CSS of ours
+  function titleRawWithSize(praw, px) {
+    var re = /<!--\s*wp:site-title(\s+(\{[^]*?\}))?\s*\/-->/;
+    if (!re.test(praw)) return praw;
+    return praw.replace(re, function (m0, sp, json) {
+      var a = {};
+      if (json) { try { a = JSON.parse(json.trim()); } catch (e) { a = {}; } }
+      a.style = a.style || {};
+      a.style.typography = Object.assign({}, a.style.typography || {}, { fontSize: px + 'px' });
+      return '<!-- wp:site-title ' + JSON.stringify(a) + ' /-->';
+    });
+  }
+  function saveTitleSize(px) {
+    return activePartFor('header').then(function (active) {
+      if (!active) return;
+      var praw = String((active.content && (active.content.raw || active.content)) || '');
+      var next = titleRawWithSize(praw, px);
+      if (next === praw) return;
+      return fetch(tpUrl(active.id), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-WP-Nonce': cfg.nonce },
+        credentials: 'same-origin',
+        body: JSON.stringify({ content: next }),
+      });
+    }).catch(function () {});
+  }
   function saveLogoWidth(w) {
     return activePartFor('header').then(function (active) {
       if (!active) return;
@@ -19232,8 +19260,14 @@
   }
   function openLogoPicker(anchorEl, roomOpt) {
     stayInRoom(roomOpt, anchorEl);
-    var logoImgs = [].slice.call(document.querySelectorAll('header .wp-block-site-logo img, .wp-block-template-part .wp-block-site-logo img'));
-    var titleEl = document.querySelector('.wp-block-site-title a, .wp-block-site-title');
+    // the HEADER's own identity, nothing else's: a footer that carries the
+    // mark used to make this panel say "your header wears the logo" (with a
+    // logo-size slider) while the header plainly showed the name (James)
+    var hdrPart = partElForArea('header');
+    var idScope = hdrPart || document.querySelector('header') || document;
+    var logoImgs = [].slice.call(idScope.querySelectorAll('.wp-block-site-logo img'));
+    var titleEl = idScope.querySelector('.wp-block-site-title a, .wp-block-site-title') ||
+      document.querySelector('.wp-block-site-title a, .wp-block-site-title');
     var curName = ((titleEl && titleEl.textContent) || '').trim();
     panel.innerHTML =
       '<div class="gogh-panel-head"><span class="gogh-panel-title">Logo &amp; name</span>' +
@@ -19252,7 +19286,11 @@
       (logoImgs.length ?
         '<div class="gogh-panel-row gogh-logosize"><span>Size</span>' +
         '<input type="range" min="48" max="280" step="4" />' +
-        '<span class="gogh-logosize-val"></span></div>' : '') +
+        '<span class="gogh-logosize-val"></span></div>' :
+        // the name has a size too (James: "make it work for text")
+        '<div class="gogh-panel-row gogh-namesize"><span>Size</span>' +
+        '<input type="range" min="14" max="72" step="1" />' +
+        '<span class="gogh-namesize-val"></span></div>') +
       '<div class="gogh-swlab">' + (logoImgs.length ? 'Logo' : 'Or a logo') + '</div>' +
       '<div class="gogh-hdoors gogh-lgdoors">' +
       '<label class="gogh-hdoor gogh-upload"><span>' + (logoImgs.length ? 'Upload a different image' : 'Upload a logo image') + '</span><span class="gogh-hdoor-chev">\u2191</span><input type="file" accept="image/*" hidden /></label>' +
@@ -19333,6 +19371,26 @@
         toast('gogh could not switch back \u2014 ' + ((err && err.message) || 'try again.'), { error: true });
       });
     });
+    var nameSizeIn = panel.querySelector('.gogh-namesize input');
+    if (nameSizeIn && titleEl) {
+      var nameSizeVal = panel.querySelector('.gogh-namesize-val');
+      var titleNodes = [].slice.call(idScope.querySelectorAll('.wp-block-site-title'));
+      var curFs = Math.round(parseFloat(getComputedStyle(titleEl).fontSize)) || 24;
+      nameSizeIn.value = Math.max(14, Math.min(72, curFs));
+      nameSizeVal.textContent = nameSizeIn.value + 'px';
+      nameSizeIn.addEventListener('input', function () {
+        nameSizeVal.textContent = nameSizeIn.value + 'px';
+        titleNodes.forEach(function (tn) {
+          tn.style.fontSize = nameSizeIn.value + 'px';
+          var ln = tn.querySelector('a'); if (ln) ln.style.fontSize = 'inherit';
+        });
+      });
+      nameSizeIn.addEventListener('change', function () {
+        saveTitleSize(parseInt(nameSizeIn.value, 10)).then(function () {
+          toast('Name size saved.');
+        });
+      });
+    }
     var sizeIn = panel.querySelector('.gogh-logosize input');
     if (sizeIn) {
       var sizeVal = panel.querySelector('.gogh-logosize-val');

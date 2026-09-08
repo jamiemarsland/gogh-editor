@@ -1528,7 +1528,7 @@ body.gogh-painting, body.gogh-painting .gogh-section * { cursor: url('data:image
 .gogh-panel-head:has(.gogh-room-back) .gogh-panel-title { margin-left: 8px; }
 /* Logo & name in the room's grammar */
 .gogh-logoname { margin: 2px 0 12px; }
-.gogh-logoname > span, .gogh-logosize > span { font: 600 13px/1.2 -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, sans-serif; color: var(--gogh-ui-fg, #141519); min-width: 44px; }
+.gogh-logoname > span, .gogh-logosize > span, .gogh-namesize > span { font: 600 13px/1.2 -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, sans-serif; color: var(--gogh-ui-fg, #141519); min-width: 44px; }
 .gogh-lgdoors { margin-top: 4px; }
 .gogh-lgdoors .gogh-upload { display: flex; }
 .gogh-lgdoor.is-open { border-color: #4a63d8; }
@@ -3228,10 +3228,10 @@ html.gogh-textediting .gogh-convertbtn {
 
 
 /* logo size row in the Site logo panel */
-.gogh-logosize { display: flex; align-items: center; gap: 10px; margin: 8px 0 10px; }
-.gogh-logosize > span:first-child { font-size: 12px; color: #7a7b81; }
-.gogh-logosize input[type="range"] { flex: 1; accent-color: #4f5aee; }
-.gogh-logosize-val { font-size: 12px; min-width: 44px; text-align: right; color: #2c2d31; font-variant-numeric: tabular-nums; }
+.gogh-logosize, .gogh-namesize { display: flex; align-items: center; gap: 10px; margin: 8px 0 10px; }
+.gogh-logosize > span:first-child, .gogh-namesize > span:first-child { font-size: 12px; color: #7a7b81; }
+.gogh-logosize input[type="range"], .gogh-namesize input[type="range"] { flex: 1; accent-color: #4f5aee; }
+.gogh-logosize-val, .gogh-namesize-val { font-size: 12px; min-width: 44px; text-align: right; color: #2c2d31; font-variant-numeric: tabular-nums; }
 
 
 /* stored-block pills wait for their block to be hovered (JS-driven via
