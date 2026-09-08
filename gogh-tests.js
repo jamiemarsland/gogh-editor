@@ -5830,6 +5830,43 @@
       return 'inferred ' + fam + ', rolled to face ' + (r.face + 1) + ' of ' + r.of + ', words kept; wall → ' + wallFam + ', form → ' + formFam;
     });
 
+    // NOTICES — one per kind, never a trail: status replaces status,
+    // a receipt with Undo keeps its slot, and the take label lives in
+    // the section bar rather than in a toast
+    test('notices: one per kind, and the take reads from the section bar', function () {
+      [].slice.call(document.querySelectorAll('.gogh-toast')).forEach(function (t) { t.remove(); });
+      var mine = function () {
+        return [].slice.call(document.querySelectorAll('.gogh-toast')).filter(function (x) {
+          return /^ntc-/.test(x.textContent);
+        });
+      };
+      G.toast('ntc-status one', { sticky: true });
+      G.toast('ntc-status two', { sticky: true });
+      if (mine().length !== 1 || mine()[0].textContent.indexOf('two') === -1) throw new Error('a second status should replace the first, got ' + mine().length);
+      G.toast('ntc-receipt', { sticky: true, actions: [{ label: 'Undo', onClick: function () {} }] });
+      G.toast('ntc-status three', { sticky: true });
+      var left = mine().map(function (x) { return x.textContent.replace(/Undo$/, '').trim(); });
+      if (left.length !== 2 || left.indexOf('ntc-receipt') === -1 || left.indexOf('ntc-status three') === -1) throw new Error('a receipt must survive a later status: ' + left.join(' | '));
+      mine().forEach(function (t) { t.remove(); });
+      // the take label: in the bar, in place, and no toast on a roll
+      var hero = G.templates().filter(function (x) { return x.name === 'Hero'; })[0];
+      if (!hero) throw new Error('no Hero template');
+      G.addSection(hero);
+      var s = lastSec();
+      var idx = G.sections().indexOf(s);
+      G.selectSection(idx);
+      var lab = document.querySelector('.gogh-secbar .gogh-sb-take');
+      if (!lab || lab.hidden || !/^1\//.test(lab.textContent)) throw new Error('the take label should read 1/N on a fresh take, got ' + (lab && lab.textContent));
+      var before = document.querySelectorAll('.gogh-toast').length;
+      var die = document.querySelector('.gogh-secbar .gogh-sb-dice');
+      die.click();
+      if (!/^2\//.test(lab.textContent)) throw new Error('the label should follow the roll, got ' + lab.textContent);
+      var after = [].slice.call(document.querySelectorAll('.gogh-toast')).filter(function (t) { return /Take \d/.test(t.textContent); });
+      if (after.length) throw new Error('a roll must not toast its take');
+      G.deleteSection(idx);
+      return 'status replaces status, receipt keeps its slot; bar reads ' + lab.textContent + ', ' + (document.querySelectorAll('.gogh-toast').length - before) + ' new toasts on roll';
+    });
+
     // MANUAL — the reference look: contents built from the post's own
     // headings, ids minted where missing, the current section marked
     test('the Manual look builds its contents from the headings', function () {

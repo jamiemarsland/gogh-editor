@@ -1427,6 +1427,18 @@ body.gogh-painting, body.gogh-painting .gogh-section * { cursor: url('data:image
 .gogh-sb[hidden] { display: none; }
 .gogh-sb:hover { background: #e8f0ff; }
 .gogh-sb svg { width: 15px; height: 15px; display: block; }
+/* the take label: which face of the die is on the page — quiet, in place */
+.gogh-sb-take {
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+  color: rgba(20, 21, 25, 0.55);
+  margin: 0 6px 0 -2px;
+  max-width: 160px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.gogh-sb-take[hidden] { display: none; }
 /* ---- the first minute: chips, never modals ---- */
 .gogh-fm-chip {
   position: absolute;

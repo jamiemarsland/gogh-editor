@@ -9082,12 +9082,22 @@
     // "i dont think we need it") — the dice answers the same itch
     // the die appears only where a drawer of takes exists (see VARIANTS)
     '<button type="button" class="gogh-sb gogh-sb-dice" data-sec="dice" title="Roll another take of this design" hidden><svg width="15" height="15" viewBox="0 0 16 16" fill="none" aria-hidden="true"><rect x="1.5" y="1.5" width="13" height="13" rx="3.2" stroke="currentColor" stroke-width="1.6"/><circle cx="5.4" cy="5.4" r="1.25" fill="currentColor"/><circle cx="10.6" cy="5.4" r="1.25" fill="currentColor"/><circle cx="8" cy="8" r="1.25" fill="currentColor"/><circle cx="5.4" cy="10.6" r="1.25" fill="currentColor"/><circle cx="10.6" cy="10.6" r="1.25" fill="currentColor"/></svg></button>' +
+    '<span class="gogh-sb-take" title="Which take of this design is on the page" hidden></span>' +
     '<button type="button" class="gogh-sb" data-sec="bgimg" title="Background &amp; look">' + CTX_ICONS.image + '</button>' +
     '<button type="button" class="gogh-sb gogh-sb-more" data-sec="more" title="Move, duplicate, save, delete…">⋯</button>';
   secBar.hidden = true;
   document.body.appendChild(secBar);
   var secBarIdx = null;
 
+  function secTakeLabel(sec, fam) {
+    var faces = fam ? diceFaces(fam) : null;
+    if (!faces || !sec) return '';
+    var face = (sec.m && sec.m.tpl === fam) ? (sec.m.face || 0) : 0;
+    face = ((face % faces.length) + faces.length) % faces.length;
+    // the base take has no name of its own — it is the design as drawn
+    var name = (faces[face] && faces[face].take) || (face === 0 ? 'The original' : '');
+    return (face + 1) + '/' + faces.length + (name ? ' \u00b7 ' + name : '');
+  }
   function hideSecBar() { goghFadeOut(secBar); secBarIdx = null; closeSecMore(); }
   // (hideSecBarSoon and its travel-grace timer retired with hover
   // summoning — the bar now lives and dies with the SELECTION)
@@ -9098,7 +9108,17 @@
     if (S[idx] && S[idx].chrome) { hideSecBar(); return; }
     secBarIdx = idx;
     var diceB = secBar.querySelector('.gogh-sb-dice');
-    if (diceB) diceB.hidden = !diceFamilyOf(S[idx]);
+    var fam = diceFamilyOf(S[idx]);
+    if (diceB) diceB.hidden = !fam;
+    // where the die landed is STATE, not news: "2/4 · The anchor" sits by
+    // the die and updates in place — rolling four times leaves no trail of
+    // toasts (James: "should we only show the latest one?")
+    var takeL = secBar.querySelector('.gogh-sb-take');
+    if (takeL) {
+      var lab = secTakeLabel(S[idx], fam);
+      takeL.textContent = lab;
+      takeL.hidden = !lab;
+    }
     var r = S[idx].wrapEl.getBoundingClientRect();
     secBar.style.left = (r.left + window.scrollX + 16) + 'px';
     // the bar DOCKS: it sits at the section's top edge, and for a section
@@ -9142,10 +9162,7 @@
         b.classList.remove('is-rolling');
         void b.offsetWidth;
         b.classList.add('is-rolling');
-        showSecBar(secBarIdx);
-        toast(rolled.take
-          ? 'Take ' + (rolled.face + 1) + ' of ' + rolled.of + ' \u2014 ' + rolled.take
-          : 'Home again \u2014 take 1 of ' + rolled.of, { ttl: 2600 });
+        showSecBar(secBarIdx); // the take label beside the die updates in place
       }
       return;
     }
@@ -14942,10 +14959,19 @@
       });
   }
 
+  // one notice per KIND on screen, never a trail (James: "is having all
+  // these notices a little distracting?"): plain STATUS replaces itself and
+  // goes quickly; a RECEIPT (gogh changed something on its own, Undo on
+  // the side) keeps its own slot and its own six seconds, and a later
+  // status never pushes it around. Errors keep a slot of their own.
+  var TOAST_TTL = { status: 2000, receipt: 6000, error: 4500 };
   function toast(msg, opts) {
     opts = opts || {};
+    var kind = opts.kind || (opts.error ? 'error' : (opts.actions && opts.actions.length) ? 'receipt' : 'status');
+    [].slice.call(toastBox.querySelectorAll('.gogh-toast[data-kind="' + kind + '"]')).forEach(function (o) { o.remove(); });
     var t = document.createElement('div');
     t.className = 'gogh-toast' + (opts.error ? ' is-error' : '');
+    t.dataset.kind = kind;
     var span = document.createElement('span');
     span.textContent = msg;
     t.appendChild(span);
@@ -14957,7 +14983,7 @@
       t.appendChild(b);
     });
     toastBox.appendChild(t);
-    if (!opts.sticky) setTimeout(function () { if (t.parentNode) t.remove(); }, opts.ttl || 4500);
+    if (!opts.sticky) setTimeout(function () { if (t.parentNode) t.remove(); }, opts.ttl || TOAST_TTL[kind] || 4500);
     return t;
   }
 
