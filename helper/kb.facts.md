@@ -4,11 +4,11 @@ Everything in this section is extracted mechanically from the Gogh source on eve
 
 ## Current release
 
-- Plugin version: **0.99.422**
+- Plugin version: **0.99.432**
 - Requires WordPress **6.5+**, PHP **7.4+**
 - Text domain: `gogh-editor`
 - readme.txt Stable tag: `0.26.0` · Tested up to: `7.0`
-- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.422`). Quote the plugin header version.
+- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.432`). Quote the plugin header version.
 
 ## Design constants
 
@@ -192,6 +192,8 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "' + m[2] + '"
 - "' + p.slug + '"
 - "' + sh.label + '"
+- "' + whereTip(it.where !== 'desktop', 'phone') + '"
+- "' + whereTip(it.where !== 'phone', 'desktop') + '"
 - "+ Link"
 - "+ Page"
 - "A card — drop pieces inside and they stay together, even on mobile"
@@ -283,8 +285,6 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "Name, email and a message — straight into your own site, no plugin"
 - "New in"
 - "None"
-- "On desktop"
-- "On phones"
 - "On sale"
 - "One product, hero-sized — a card with a real add-to-cart button"
 - "Open interactive experience"
@@ -344,6 +344,7 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "Use this layout"
 - "Video"
 - "Where this item shows"
+- "Which take of this design is on the page"
 - "Write"
 - "Your latest posts, live"
 - "Your latest products, live — prices and add to cart included"
@@ -398,6 +399,7 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "Menu order updated — every page gets it."
 - "Menu switched — every page shows it."
 - "Mobile menu: "
+- "Name size saved."
 - "Nothing to rearrange yet — add a couple of pieces first."
 - "Out of the card — it’s its own piece again."
 - "Publish failed: "
@@ -408,9 +410,9 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "Section moved."
 - "Section removed — publish to make it real."
 - "Site "
+- "Site name restored — click it to rename."
 - "Site name saved."
 - "Style copied — click other text to paint it. Esc finishes."
-- "Text title restored — click it to rename your site."
 - "That saved section can’t be read."
 - "That section can’t move past other stored content yet."
 - "That’s gogh. Everything else is just more of this."
@@ -454,5 +456,5 @@ These are the real strings in the current build. Use them verbatim; never paraph
 
 ## Test suite
 
-`227` tests, run by appending `?gogh-test` to any Gogh page URL while logged in with edit rights on that page.
+`231` tests, run by appending `?gogh-test` to any Gogh page URL while logged in with edit rights on that page.
 

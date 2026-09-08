@@ -32,7 +32,11 @@
   // wrap). Wraps without a carrier — e.g. sections duplicated in the block
   // editor — are ADOPTED: a model is inferred from their blocks and they
   // become normal gogh sections on the next save.
-  var wrapTags = [].slice.call(document.querySelectorAll('.gogh-wrap'));
+  // a mega menu's sections are the PANEL's, dropped into the header at
+  // view time — never this page's: adopting them re-minted scopes and the
+  // hero and the panel ended up sharing a stylesheet for logged-in eyes
+  // (James: "a newly made mega menu looks quite broken")
+  var wrapTags = [].slice.call(document.querySelectorAll('.gogh-wrap')).filter(function (w) { return !w.closest('.gogh-mega'); });
   var wantEdit = /[?&]gogh-edit=1/.test(location.search);
   // a page whose content is native blocks (a starter site's page, a classic
   // page) is NOT an empty page — the blank-canvas machinery must leave it be
@@ -15309,7 +15313,7 @@
   function extractModels(html) {
     var doc = new DOMParser().parseFromString(html, 'text/html');
     var data = [];
-    [].slice.call(doc.querySelectorAll('.gogh-wrap')).forEach(function (w) {
+    [].slice.call(doc.querySelectorAll('.gogh-wrap')).filter(function (w) { return !w.closest('.gogh-mega'); }).forEach(function (w) {
       var ms = w.querySelector('script.gogh-model');
       var sEl = w.querySelector('.gogh-section');
       if (!ms || !sEl) return;

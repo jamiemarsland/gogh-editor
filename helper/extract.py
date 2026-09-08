@@ -161,7 +161,7 @@ def constants(js):
         ('drag_threshold_px',      r'pendingDrag\.x\)\s*\+\s*Math\.abs\([^)]*pendingDrag\.y\)\s*<\s*(\d+)'),
         ('rotation_snap_deg',      r'snap15\s*=\s*Math\.round\(deg\s*/\s*(\d+)\)'),
         ('rotation_magnet_deg',    r'Math\.abs\(deg\s*-\s*snap15\)\s*<\s*(\d+)'),
-        ('toast_ttl_ms',           r'ttl\s*\|\|\s*(\d{3,})'),
+        ('toast_ttl_ms',           r'ttl\s*\|\|\s*(?:TOAST_TTL\[kind\]\s*\|\|\s*)?(\d{3,})'),
     ]
     for label, rx in anchors:
         m = re.search(rx, js)

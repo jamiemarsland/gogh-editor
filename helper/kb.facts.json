@@ -1,12 +1,12 @@
 {
   "meta": {
-    "plugin_version": "0.99.422",
+    "plugin_version": "0.99.432",
     "requires_wp": "6.5",
     "requires_php": "7.4",
     "text_domain": "gogh-editor",
     "readme_stable_tag": "0.26.0",
     "readme_tested_up_to": "7.0",
-    "asset_version": "0.99.422-chrome"
+    "asset_version": "0.99.432-chrome"
   },
   "constants": {
     "TOL": 8,
@@ -428,6 +428,8 @@
     "' + m[2] + '",
     "' + p.slug + '",
     "' + sh.label + '",
+    "' + whereTip(it.where !== 'desktop', 'phone') + '",
+    "' + whereTip(it.where !== 'phone', 'desktop') + '",
     "+ Link",
     "+ Page",
     "A card — drop pieces inside and they stay together, even on mobile",
@@ -519,8 +521,6 @@
     "Name, email and a message — straight into your own site, no plugin",
     "New in",
     "None",
-    "On desktop",
-    "On phones",
     "On sale",
     "One product, hero-sized — a card with a real add-to-cart button",
     "Open interactive experience",
@@ -580,6 +580,7 @@
     "Use this layout",
     "Video",
     "Where this item shows",
+    "Which take of this design is on the page",
     "Write",
     "Your latest posts, live",
     "Your latest products, live — prices and add to cart included",
@@ -633,6 +634,7 @@
     "Menu order updated — every page gets it.",
     "Menu switched — every page shows it.",
     "Mobile menu: ",
+    "Name size saved.",
     "Nothing to rearrange yet — add a couple of pieces first.",
     "Out of the card — it’s its own piece again.",
     "Publish failed: ",
@@ -643,9 +645,9 @@
     "Section moved.",
     "Section removed — publish to make it real.",
     "Site ",
+    "Site name restored — click it to rename.",
     "Site name saved.",
     "Style copied — click other text to paint it. Esc finishes.",
-    "Text title restored — click it to rename your site.",
     "That saved section can’t be read.",
     "That section can’t move past other stored content yet.",
     "That’s gogh. Everything else is just more of this.",
@@ -1262,5 +1264,5 @@
     "has_deprecation": true,
     "block_title": "gogh Section"
   },
-  "test_count": 227
+  "test_count": 231
 }

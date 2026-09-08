@@ -1,4 +1,4 @@
-# Knowledge-base audit — plugin v0.99.422
+# Knowledge-base audit — plugin v0.99.432
 
 _13 finding(s) suppressed by `kb.audit-ignore.txt`._
 
@@ -99,20 +99,16 @@ The source has something the prose never explains. The bot knows the name from t
 - divider `mist` exists in source but is never mentioned in the prose
 - element type `video` exists in source but is never mentioned in the prose
 
-## QUOTE (7)
-
-Quoted copy not found verbatim in the source. Paraphrases are fine; changed UI copy is not.
-
-- Out of the card — it's a free element again.
-- A backdrop for other elements — send it backward once it's placed.
-- Overlap the section above
-- Save this section to reuse
-- Save this section to reuse
-- Out of the card — it's a free element again.
-- Experience added — it runs sandboxed; visitors can interact once published.
-
 ## What changed since the last knowledge-base build
 
 Use this as the checklist for updating the prose — and as a sanity check on the release itself.
 
-- version: 0.99.421 → 0.99.422
+- version: 0.99.422 → 0.99.432
+- removed UI label: "On desktop"
+- removed UI label: "On phones"
+- added UI label: "' + whereTip(it.where !== 'desktop', 'phone') + '"
+- added UI label: "' + whereTip(it.where !== 'phone', 'desktop') + '"
+- added UI label: "Which take of this design is on the page"
+- removed toast: "Text title restored — click it to rename your site."
+- added toast: "Name size saved."
+- added toast: "Site name restored — click it to rename."

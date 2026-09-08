@@ -135,7 +135,7 @@ A bar along the bottom edge with a centre pill. Drag to set section height, clam
 ### Cards (drop-to-join)
 Drop an element **fully inside** a plain box and it becomes a **child ("kid") of that card** — one level only; boxes never join boxes. The card glows as a drop target.
 - Toast on join: **"Added to the card — it moves and stacks with it now."** (+Undo)
-- Drag a kid outside the card bounds to free it: **"Out of the card — it's a free element again."** (+Undo)
+- Drag a kid outside the card bounds to free it: **"Out of the card — it's its own piece again."** (+Undo)
 - `Delete` on a kid: **"Removed from the card."** (+Undo)
 - Second click on a selected kid edits its text; first click on a button kid opens its link panel.
 
@@ -176,13 +176,13 @@ Collapsed, it's a slim edge tab labelled **gogh**. Opens on hover or click, auto
 If nothing overlaps, you get: "Nothing overlaps this — it's already in front." / "…already at the back."
 
 ### Section toolbar (on hover, labelled "Section")
-`↑ Move up` · `↓ Move down` · `Background image` · `Save this section to reuse` · `⧉ Duplicate section` · `🗑 Delete section`. Up/Down disable at the ends. Never shown for the site header or footer.
+`↑ Move up` · `↓ Move down` · `Background image` · `Save to reuse` · `⧉ Duplicate section` · `🗑 Delete section`. Up/Down disable at the ends. Never shown for the site header or footer.
 
 ### Panels
-Shape · Add a shape ("A backdrop for other elements — send it backward once it's placed.") · Button (Style: Solid / Outline; swatch rows Background, Text, Hover background) · Image (URL field, alt text, Upload, Remove image, media grid) · Replace image · Text colour · Link / Link text ("Apply", "Remove link (keep the text)") · Section background · Section transition · Save this section · Site style · Page style · Site header / Site footer · Menu / Add to menu · Imported block.
+Shape · Add a shape ("A backdrop for the rest — send it backward once it's placed.") · Button (Style: Solid / Outline; swatch rows Background, Text, Hover background) · Image (URL field, alt text, Upload, Remove image, media grid) · Replace image · Text colour · Link / Link text ("Apply", "Remove link (keep the text)") · Section background · Section transition · Save this section · Site style · Page style · Site header / Site footer · Menu / Add to menu · Imported block.
 
 ### Section transition panel
-Divider shapes: **None, Wave, Curve, Slant, Peaks, Brush, Torn, Melt**. Plus **Above** / **Below** colour pickers with theme palette swatches, and an **"Overlap the section above"** slider (0–180, step 12).
+Divider shapes: **None, Wave, Curve, Slant, Peaks, Brush, Torn, Melt**. Plus **Above** / **Below** colour pickers with theme palette swatches, and an overlap slider that pulls the divider up over the section above.
 
 Dividers are drawn with a `mask-image` (data-URI SVG) plus a background colour — deliberately not a background-image — so the colour can be a CSS variable and palette changes recolour dividers live. A divider is painted in the **next** section's colour. `melt` is a plain gradient fade instead.
 
@@ -225,7 +225,7 @@ Plus **Start from scratch** (empty). Categories: Heroes & banners · Text · Car
 
 Templates are tuned for **short copy** — headings of roughly 2–6 words.
 
-Saving a section: the Section toolbar's "Save this section to reuse" stores it via `wp/v2/blocks` as an **unsynced pattern** (`meta.wp_pattern_sync_status = 'unsynced'`), in the v2 section format. It then appears under **+ Section → Your sections**. Because it's unsynced, later edits to the saved section do *not* propagate to copies already placed on pages.
+Saving a section: the ⋯ menu's "Save to reuse" (panel title "Save this section") stores it via `wp/v2/blocks` as an **unsynced pattern** (`meta.wp_pattern_sync_status = 'unsynced'`), in the v2 section format. It then appears under **+ Section → Your sections**. Because it's unsynced, later edits to the saved section do *not* propagate to copies already placed on pages.
 
 ---
 
@@ -386,7 +386,7 @@ Why templated at all? Because it lets the scope class be reassigned (duplicated 
 
 ### The section wrapper: v2 vs v3
 
-**v2 (legacy — still used for chrome / template-part saves *and* for "Save this section to reuse"):**
+**v2 (legacy — still used for chrome / template-part saves *and* for "Save to reuse"):**
 ```html
 <!-- wp:gogh/section -->
 <div class="wp-block-gogh-section alignfull gogh-wrap">
@@ -681,7 +681,7 @@ Stated in the readme as beta limitations, and enforced in code:
 
 Toasts appear at the bottom, auto-dismiss after 4.5s (sticky for decisions), and can carry action buttons.
 
-**Confirmations**: "Section moved." · "Added to the card — it moves and stacks with it now." · "Out of the card — it's a free element again." · "Removed from the card." · "\"<name>\" saved — it's in + Section under Your sections." · "Backup restored — publish when ready." · "Theme style applied: <name>" · "Linked." / "Link updated." / "Link removed — the text stays." · "Image swapped." · "The whole card links to <url>" · "Site header/footer updated across every page." · "Menu order updated — every page gets it." · "Experience added — it runs sandboxed; visitors can interact once published." · "Nothing overlaps this — it's already in front."
+**Confirmations**: "Section moved." · "Added to the card — it moves and stacks with it now." · "Out of the card — it's its own piece again." · "Removed from the card." · "\"<name>\" saved — it's in + Section under Your sections." · "Backup restored — publish when ready." · "Theme style applied: <name>" · "Linked." / "Link updated." / "Link removed — the text stays." · "Image swapped." · "The whole card links to <url>" · "Site header/footer updated across every page." · "Menu order updated — every page gets it." · "Experience added —" followed by "sandboxed in its frame, saved in your media library." · "Nothing overlaps this — it's already in front."
 
 **Decisions (sticky)**: "gogh backed up unpublished work from an earlier session." (Restore it / Ignore) · "You have unpublished changes — switching the header reloads the page and discards them." (Switch anyway / Cancel — deliberately Gogh's own dialog, not `window.confirm`, because Chrome can suppress native dialogs)
 
