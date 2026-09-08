@@ -2285,6 +2285,14 @@
         headers: { 'X-WP-Nonce': cfg.nonce }, credentials: 'same-origin',
       }).then(function (r) { return r.ok ? r.json() : null; }).then(function (d) {
         if (!d || !d.build || d.build === cfg.build) return;
+        // nothing unsaved and nothing in hand: take the new build now — a
+        // tab that quietly ran yesterday's editor produced a day of "still
+        // broken" reports on fixes that had shipped (James, 2026-09-08)
+        if (!isDirty() && !drag && !resize && !kidDrag && !textEditing && !panelOpen) {
+          discarding = true;
+          location.reload();
+          return;
+        }
         chipEl = document.createElement('button');
         chipEl.type = 'button';
         chipEl.className = 'gogh-freshchip';
