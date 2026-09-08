@@ -3885,3 +3885,13 @@ body:has(.wp-block-navigation__responsive-container.is-menu-open) .gogh-bar { op
 .gogh-mm-panel:hover { color: #111; background: #eef0f3; }
 .gogh-mm-panel.is-on { color: #1f5a3f; background: #e6f4ea; }
 .gogh-mm-panel:disabled { opacity: .5; cursor: default; }
+
+/* a paste with no styling of its own: quiet defaults so it reads as a page
+   — a measure, pictures that stop at a sensible height, links with air */
+.gogh-paste-plain { padding-block: 2.5rem; }
+.gogh-paste-plain > :where(section, article, div, main, header, footer) { max-width: 46rem; margin-inline: auto; padding-inline: 1.25rem; }
+.gogh-paste-plain img { display: block; max-width: 100%; height: auto; max-height: min(55vh, 480px); object-fit: cover; margin-block: 1rem; border-radius: 6px; }
+.gogh-paste-plain :where(section, article, div) > a { display: inline-block; margin: 0.5rem 0.75rem 0.5rem 0; }
+.gogh-paste-plain h1 { font-size: 2.2em; line-height: 1.1; margin-block: 0.4em; }
+.gogh-paste-plain h2 { font-size: 1.6em; margin-block: 1.4em 0.4em; }
+.gogh-paste-plain h3 { font-size: 1.15em; margin-block: 1.2em 0.3em; }

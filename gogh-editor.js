@@ -8350,7 +8350,7 @@
       inner.innerHTML =
         '<div class="gogh-picker-head"><span class="gogh-picker-title">Paste HTML</span>' +
         '<button type="button" class="gogh-btn gogh-btn-small gogh-picker-close">Close</button></div>' +
-        '<div class="gogh-panel-hint">It lands as a real HTML block \u2014 click text to edit it, \u2728 makes it freeform. Great with AI-written HTML. Tip: you can also just press \u2318V anywhere on the page.</div>' +
+        '<div class="gogh-panel-hint">It lands as a real HTML block \u2014 click text to edit it, \u2728 makes every piece draggable. Great with AI-written HTML. Tip: you can also just press \u2318V anywhere on the page.</div>' +
         '<textarea class="gogh-htmlpaste" placeholder="&lt;section&gt;\u2026&lt;/section&gt;" spellcheck="false"></textarea>' +
         '<div class="gogh-panel-row gogh-chrome-foot">' +
         '<button type="button" class="gogh-btn gogh-btn-small gogh-html-back">Back</button>' +
@@ -15622,7 +15622,7 @@
     var bar = document.createElement('div');
     bar.className = 'gogh-pendbar';
     bar.innerHTML =
-      (cfg.canConvert ? '<button type="button" class="gogh-btn gogh-btn-small gogh-pend-ff">\u2728 Make freeform</button>' : '') +
+      (cfg.canConvert ? '<button type="button" class="gogh-btn gogh-btn-small gogh-pend-ff">\u2728 Make draggable</button>' : '') +
       '<button type="button" class="gogh-btn gogh-btn-small gogh-pend-rm" title="Remove">\u2715</button>';
     holder.appendChild(bar);
     var ffBtn = bar.querySelector('.gogh-pend-ff');
@@ -15753,11 +15753,17 @@
     // margins: pasted sections stay full-bleed and butt against their
     // neighbours everywhere — in the editor, after publish, after reload,
     // and for visitors (gogh.php ships the matching front-end CSS)
-    var raw = '<!-- wp:group {"align":"full","className":"gogh-section-html","style":{"spacing":{"margin":{"top":"0","bottom":"0"}}},"layout":{"type":"default"}} -->\n' +
-      '<div class="wp-block-group alignfull gogh-section-html" style="margin-top:0;margin-bottom:0">\n' +
+    // a paste with NO styling of its own (the kind an AI writes) wears a
+    // few quiet defaults — a readable measure, pictures that stop at a
+    // sensible height — so it reads as a page, not a dump, before and
+    // after it becomes draggable. Styled pastes are left to their own CSS.
+    var plain = !/<style[\s>]|\sstyle\s*=/i.test(html);
+    var wcls = 'gogh-section-html' + (plain ? ' gogh-paste-plain' : '');
+    var raw = '<!-- wp:group {"align":"full","className":"' + wcls + '","style":{"spacing":{"margin":{"top":"0","bottom":"0"}}},"layout":{"type":"default"}} -->\n' +
+      '<div class="wp-block-group alignfull ' + wcls + '" style="margin-top:0;margin-bottom:0">\n' +
       '<!-- wp:html -->\n' + html + '\n<!-- /wp:html -->\n' +
       '</div>\n<!-- /wp:group -->';
-    var entry = insertNative(raw, '<div class="wp-block-group alignfull gogh-section-html" style="margin-top:0;margin-bottom:0">' + html + '</div>', 'HTML', idx, before);
+    var entry = insertNative(raw, '<div class="wp-block-group alignfull ' + wcls + '" style="margin-top:0;margin-bottom:0">' + html + '</div>', 'HTML', idx, before);
     if (entry) entry.freeHtml = true;
   }
   // frictionless paste: Cmd+V anywhere in edit mode drops HTML straight onto
@@ -16433,7 +16439,7 @@
     resyncContentOrder();
     sel = null;
     hideHandles();
-    toast('\u2728 \u201c' + entry.title + '\u201d is freeform now \u2014 drag anything.', { ttl: 4500 });
+    toast('\u2728 \u201c' + entry.title + '\u201d is draggable now \u2014 move anything.', { ttl: 4500 });
   }
   // ("+ New page" in the admin bar walks through the FRONT DOOR now —
   // blank draft, canvas, first minute; the nameplate and the publish
@@ -20322,7 +20328,7 @@
       var b = document.createElement('button');
       b.type = 'button';
       b.className = 'gogh-convertbtn';
-      b.textContent = '\u2728 Make freeform';
+      b.textContent = '\u2728 Make draggable';
       b.style.left = (r.right + window.scrollX - 10) + 'px';
       b.style.top = (r.top + window.scrollY + 10) + 'px';
       b.__goghBlock = node;
@@ -20332,10 +20338,10 @@
         b.disabled = true;
         b.textContent = 'Converting\u2026';
         convertBlock(node).then(function (sec) {
-          if (!sec) { b.disabled = false; b.textContent = '\u2728 Make freeform'; }
+          if (!sec) { b.disabled = false; b.textContent = '\u2728 Make draggable'; }
         }).catch(function (err) {
           b.disabled = false;
-          b.textContent = '\u2728 Make freeform';
+          b.textContent = '\u2728 Make draggable';
           toast((err && err.message) || 'gogh could not convert this block.', { error: true });
         });
       });
