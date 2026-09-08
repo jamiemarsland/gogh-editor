@@ -1,12 +1,12 @@
 {
   "meta": {
-    "plugin_version": "0.99.441",
+    "plugin_version": "0.99.442",
     "requires_wp": "6.5",
     "requires_php": "7.4",
     "text_domain": "gogh-editor",
     "readme_stable_tag": "0.26.0",
     "readme_tested_up_to": "7.0",
-    "asset_version": "0.99.441-chrome"
+    "asset_version": "0.99.442-chrome"
   },
   "constants": {
     "TOL": 8,
@@ -1211,7 +1211,8 @@
       "page",
       "id",
       "gogh-experiments",
-      "gogh-mcp"
+      "gogh-mcp",
+      "gogh-walk"
     ],
     "block_name": "gogh/section"
   },
