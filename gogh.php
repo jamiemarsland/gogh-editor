@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Gogh Editor
  * Description: A freeform canvas for WordPress — drag anything anywhere on your live page; Gogh publishes it back as clean, responsive core blocks that keep working even if the plugin is deactivated.
- * Version: 0.99.420
+ * Version: 0.99.421
  * Author: Jamie Marsland
  * Author URI: https://pootlepress.com
  * License: GPLv2 or later
@@ -14,7 +14,7 @@
 
 defined( 'ABSPATH' ) || exit;
 
-define( 'GOGH_VERSION', '0.99.420' );
+define( 'GOGH_VERSION', '0.99.421' );
 
 /**
  * gogh/section — a first-class block. STATIC save (no render_callback), so
@@ -25,7 +25,7 @@ add_action( 'init', function () {
 		'gogh-block',
 		plugins_url( 'gogh-block.js', __FILE__ ),
 		array( 'wp-blocks', 'wp-element', 'wp-block-editor' ),
-		'0.99.420-chrome',
+		'0.99.421-chrome',
 		true
 	);
 	register_block_type( 'gogh/section', array(
@@ -477,9 +477,9 @@ add_action( 'wp_enqueue_scripts', function () {
 	if ( ! $post || ! current_user_can( 'edit_post', $post->ID ) ) {
 		return;
 	}
-	wp_register_script( 'gogh-compose', plugins_url( 'gogh-compose.js', __FILE__ ), array(), '0.99.420-chrome', true );
-	wp_enqueue_script( 'gogh-write', plugins_url( 'gogh-write.js', __FILE__ ), array( 'gogh-compose' ), '0.99.420-chrome', true );
-	wp_enqueue_style( 'gogh-write', plugins_url( 'gogh-write.css', __FILE__ ), array(), '0.99.420-chrome' );
+	wp_register_script( 'gogh-compose', plugins_url( 'gogh-compose.js', __FILE__ ), array(), '0.99.421-chrome', true );
+	wp_enqueue_script( 'gogh-write', plugins_url( 'gogh-write.js', __FILE__ ), array( 'gogh-compose' ), '0.99.421-chrome', true );
+	wp_enqueue_style( 'gogh-write', plugins_url( 'gogh-write.css', __FILE__ ), array(), '0.99.421-chrome' );
 	wp_localize_script( 'gogh-write', 'GOGHWRITE', array(
 		'postId'  => $post->ID,
 		'restUrl' => esc_url_raw( rest_url() ),
@@ -2413,7 +2413,7 @@ add_action( 'rest_api_init', function () {
 			return current_user_can( 'edit_posts' );
 		},
 		'callback'            => function () {
-			return array( 'build' => '0.99.420-chrome' );
+			return array( 'build' => '0.99.421-chrome' );
 		},
 	) );
 	register_rest_route( 'gogh/v1', '/starter', array(
@@ -3313,8 +3313,8 @@ add_action( 'admin_enqueue_scripts', function ( $hook ) {
 			$globals[] = $tax->attribute_label;
 		}
 	}
-	wp_enqueue_script( 'gogh-admin', plugins_url( 'gogh-admin.js', __FILE__ ), array(), '0.99.420-chrome', true );
-	wp_enqueue_style( 'gogh-admin', plugins_url( 'gogh-admin.css', __FILE__ ), array(), '0.99.420-chrome' );
+	wp_enqueue_script( 'gogh-admin', plugins_url( 'gogh-admin.js', __FILE__ ), array(), '0.99.421-chrome', true );
+	wp_enqueue_style( 'gogh-admin', plugins_url( 'gogh-admin.css', __FILE__ ), array(), '0.99.421-chrome' );
 	wp_localize_script( 'gogh-admin', 'GOGH_ADMIN', array(
 		'restUrl'   => esc_url_raw( rest_url( 'wc/v3/' ) ),
 		'nonce'     => wp_create_nonce( 'wp_rest' ),
@@ -4128,9 +4128,45 @@ function gogh_leavebehind_css() {
 function gogh_strip_leavebehind( $css ) {
 	return preg_replace( '/\n?\/\* gogh:keep-the-look start \*\/.*?\/\* gogh:keep-the-look end \*\/\n?/s', '', (string) $css );
 }
+// keep the BLOCKS too: a self-contained helper goes into mu-plugins so the
+// block editor still knows gogh/section (and gogh/form) with Gogh away —
+// "gogh Section" with its inner blocks, not "Unsupported" and a Keep-as-HTML
+// button that flattens them. The helper deletes itself once Gogh is back.
+function gogh_keep_blocks_target() {
+	return trailingslashit( defined( 'WPMU_PLUGIN_DIR' ) ? WPMU_PLUGIN_DIR : WP_CONTENT_DIR . '/mu-plugins' ) . 'gogh-keep-blocks.php';
+}
+function gogh_keep_blocks_leave() {
+	$src = __DIR__ . '/gogh-keep-blocks.php';
+	$dst = gogh_keep_blocks_target();
+	if ( ! is_readable( $src ) ) {
+		return false;
+	}
+	$dir = dirname( $dst );
+	if ( ! is_dir( $dir ) ) {
+		@wp_mkdir_p( $dir );
+	}
+	if ( ! is_dir( $dir ) || ! wp_is_writable( $dir ) ) {
+		return false; // nothing changes from today: pages still render, the wrapper reads as unsupported
+	}
+	// the helper carries the plugin's own editor canvas rules, as of now
+	$code = file_get_contents( $src );
+	if ( false === $code ) {
+		return false;
+	}
+	$code = str_replace( "'/*GOGH_EDITOR_CANVAS_CSS*/'", var_export( gogh_editor_canvas_css(), true ), $code );
+	$code = str_replace( "'/*GOGH_EDITOR_FLATTEN_CSS*/'", var_export( gogh_editor_flatten_css(), true ), $code );
+	return (bool) @file_put_contents( $dst, $code );
+}
+function gogh_keep_blocks_take_back() {
+	$dst = gogh_keep_blocks_target();
+	if ( file_exists( $dst ) ) {
+		@unlink( $dst );
+	}
+}
 register_deactivation_hook( __FILE__, function () {
 	$css = gogh_strip_leavebehind( wp_get_custom_css() );
 	wp_update_custom_css_post( $css . "\n/* gogh:keep-the-look start */\n" . gogh_leavebehind_css() . "\n/* gogh:keep-the-look end */\n" );
+	gogh_keep_blocks_leave();
 } );
 register_activation_hook( __FILE__, function () {
 	$css   = wp_get_custom_css();
@@ -4138,6 +4174,7 @@ register_activation_hook( __FILE__, function () {
 	if ( $clean !== $css ) {
 		wp_update_custom_css_post( $clean );
 	}
+	gogh_keep_blocks_take_back();
 } );
 
 /**
@@ -4233,7 +4270,7 @@ function gogh_splash_css() {
 // wearing Magazine must read as Magazine logged-out, and the site's gait
 // is site-wide; both packs are a few KB of pure CSS.
 add_action( 'wp_enqueue_scripts', function () {
-	wp_register_style( 'gogh-looks', false, array(), '0.99.420-chrome' );
+	wp_register_style( 'gogh-looks', false, array(), '0.99.421-chrome' );
 	wp_enqueue_style( 'gogh-looks' );
 	wp_add_inline_style( 'gogh-looks', gogh_reading_style_css() . gogh_motion_css() . gogh_blog_style_css() );
 
@@ -4273,10 +4310,10 @@ add_action( 'wp_enqueue_scripts', function () {
 
 	// for every visitor: neutralise theme spacing around gogh sections, even
 	// on pages whose stored stylesheets predate this rule
-	wp_register_style( 'gogh-base', false, array(), '0.99.420-chrome' );
+	wp_register_style( 'gogh-base', false, array(), '0.99.421-chrome' );
 	// (the splash presentation itself lives in gogh_splash_css(), shared with
 	// the block editor — a wall in Gutenberg must look like a wall)
-	wp_register_script( 'gogh-view', false, array(), '0.99.420-chrome', true );
+	wp_register_script( 'gogh-view', false, array(), '0.99.421-chrome', true );
 	wp_enqueue_script( 'gogh-view' );
 	wp_add_inline_script( 'gogh-view',
 		// mega menu panels: hover opens with intent on fine pointers; the chevron
@@ -4569,9 +4606,9 @@ add_action( 'wp_enqueue_scripts', function () {
 
 	// compose must be REGISTERED here too — a dependency on an
 	// unregistered handle silently drops the whole editor script
-	wp_register_script( 'gogh-compose', plugins_url( 'gogh-compose.js', __FILE__ ), array(), '0.99.420-chrome', true );
-	wp_enqueue_script( 'gogh-editor', plugins_url( 'gogh-editor.js', __FILE__ ), array( 'gogh-compose' ), '0.99.420-chrome', true );
-	wp_enqueue_style( 'gogh-editor', plugins_url( 'gogh-editor.css', __FILE__ ), array(), '0.99.420-chrome' );
+	wp_register_script( 'gogh-compose', plugins_url( 'gogh-compose.js', __FILE__ ), array(), '0.99.421-chrome', true );
+	wp_enqueue_script( 'gogh-editor', plugins_url( 'gogh-editor.js', __FILE__ ), array( 'gogh-compose' ), '0.99.421-chrome', true );
+	wp_enqueue_style( 'gogh-editor', plugins_url( 'gogh-editor.css', __FILE__ ), array(), '0.99.421-chrome' );
 
 	// WebMCP bridge: the page registers its editing verbs as agent tools.
 	// OPT-IN only — add ?gogh-mcp=1 for a demo session (or enable sitewide
@@ -4583,13 +4620,13 @@ add_action( 'wp_enqueue_scripts', function () {
 	// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only labs toggle
 	$gogh_exp = isset( $_GET['gogh-test'] ) || ( isset( $_GET['gogh-experiments'] ) && '0' !== $_GET['gogh-experiments'] );
 	if ( isset( $_GET['gogh-mcp'] ) || $gogh_exp || apply_filters( 'gogh_webmcp_enabled', false ) ) {
-		wp_enqueue_script( 'gogh-webmcp', plugins_url( 'gogh-webmcp.js', __FILE__ ), array( 'gogh-editor' ), '0.99.420-chrome', true );
+		wp_enqueue_script( 'gogh-webmcp', plugins_url( 'gogh-webmcp.js', __FILE__ ), array( 'gogh-editor' ), '0.99.421-chrome', true );
 	}
 
 	// regression suite: /page/?gogh-test (editors only, never saves)
 	// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only toggle enqueuing a test script for capability-checked editors.
 	if ( isset( $_GET['gogh-test'] ) ) {
-		wp_enqueue_script( 'gogh-tests', plugins_url( 'gogh-tests.js', __FILE__ ), array( 'gogh-editor' ), '0.99.420-chrome', true );
+		wp_enqueue_script( 'gogh-tests', plugins_url( 'gogh-tests.js', __FILE__ ), array( 'gogh-editor' ), '0.99.421-chrome', true );
 	}
 
 	// products live outside wp/v2, so gogh carries its own save route for
@@ -4609,7 +4646,7 @@ add_action( 'wp_enqueue_scripts', function () {
 		'postTitle'  => get_the_title( $post ),
 		'permalink'  => esc_url_raw( get_permalink( $post->ID ) ),
 		'excerpt'    => (string) $post->post_excerpt,
-		'build'    => '0.99.420-chrome',
+		'build'    => '0.99.421-chrome',
 		// two rooms, one landmark (same contract as the admin bar): on a POST
 		// the corner pill opens the WRITING surface, not the freeform canvas
 		'writeUrl' => is_singular( 'post' ) ? add_query_arg( 'gogh-write', '1', get_permalink( $post ) ) : null,
@@ -4743,13 +4780,12 @@ add_action( 'rest_api_init', function () {
  * shrink-to-fit preview wrappers, inline-size containment collapses the wrap
  * to width 0 — every saved section needs the same width floor there.
  */
-add_action( 'enqueue_block_assets', function () {
-	if ( ! is_admin() ) {
-		return;
-	}
-	wp_register_style( 'gogh-editor-base', false, array(), '0.99.420-chrome' );
-	wp_enqueue_style( 'gogh-editor-base' );
-	wp_add_inline_style( 'gogh-editor-base',
+/**
+ * The block editor's canvas rules for gogh sections — one source for the
+ * plugin and for the keep-the-blocks helper it leaves behind on deactivation.
+ */
+function gogh_editor_canvas_css() {
+	return
 		'.gogh-wrap { min-width: 100%; margin-block: 0 !important; }' .
 		'.gogh-section > .wp-block-group { padding: 0 !important; box-sizing: border-box; }' .
 		'.gogh-section > * { box-sizing: border-box; }' .
@@ -4781,8 +4817,15 @@ add_action( 'enqueue_block_assets', function () {
 		// resolve oddly (Playground especially), that fill balloons a button
 		// into a wrapping blob. Natural pill size in the editor is faithful
 		// AND unbreakable.
-		'.editor-styles-wrapper .gogh-section .wp-block-button, .editor-styles-wrapper .gogh-section .wp-block-button__link { width: auto !important; height: auto !important; min-height: 0 !important; white-space: nowrap; }'
-	);
+		'.editor-styles-wrapper .gogh-section .wp-block-button, .editor-styles-wrapper .gogh-section .wp-block-button__link { width: auto !important; height: auto !important; min-height: 0 !important; white-space: nowrap; }';
+}
+add_action( 'enqueue_block_assets', function () {
+	if ( ! is_admin() ) {
+		return;
+	}
+	wp_register_style( 'gogh-editor-base', false, array(), GOGH_VERSION . '-chrome' );
+	wp_enqueue_style( 'gogh-editor-base' );
+	wp_add_inline_style( 'gogh-editor-base', gogh_editor_canvas_css() );
 } );
 
 /**
@@ -5069,25 +5112,17 @@ add_action( 'wp_insert_post', function ( $post_id, $post, $update ) {
 }, 10, 3 );
 
 /**
- * Backend parity: inject the page's own generated gogh CSS into the block
- * editor iframe so the editor canvas renders the section like the front end.
+ * The editor-only rules a gogh section needs inside the block editor —
+ * the inner-blocks wrapper flattened into the grid, full canvas width, no
+ * appenders in decorative groups. One source for the plugin and for the
+ * keep-the-blocks helper it leaves behind on deactivation.
  */
-add_filter( 'block_editor_settings_all', function ( $settings, $context ) {
-	$post = isset( $context->post ) ? $context->post : null;
-	if ( ! $post || false === strpos( $post->post_content, 'gogh-section' ) ) {
-		return $settings;
-	}
-	if ( ! preg_match_all( '/<style class="gogh-style">(.*?)<\/style>/s', $post->post_content, $m ) ) {
-		return $settings;
-	}
-
-	$css = implode( "\n", $m[1] );
-
+function gogh_editor_flatten_css() {
 	// Editor-only adjustments:
 	// 1. The group block's inner-blocks wrappers would break the grid —
 	//    promote grandchildren into the grid with display:contents.
 	// 2. Hide the leading Custom HTML block that carries the style + model.
-	$css .= "\n"
+	return "\n"
 		. '.gogh-section > .block-editor-inner-blocks,'
 		. '.gogh-section > div:not([class]),'
 		// empty groups (gogh boxes/shapes) get an extra CLASS-LESS wrapper from
@@ -5110,7 +5145,23 @@ add_filter( 'block_editor_settings_all', function ( $settings, $context ) {
 		. '.gogh-section .block-editor-block-variation-picker,'
 		. '.gogh-section .wp-block-group__placeholder > .components-placeholder,'
 		. '.gogh-section .block-list-appender { display: none !important; }';
+}
+/**
+ * Backend parity: inject the page's own generated gogh CSS into the block
+ * editor iframe so the editor canvas renders the section like the front end.
+ */
+add_filter( 'block_editor_settings_all', function ( $settings, $context ) {
+	$post = isset( $context->post ) ? $context->post : null;
+	if ( ! $post || false === strpos( $post->post_content, 'gogh-section' ) ) {
+		return $settings;
+	}
+	if ( ! preg_match_all( '/<style class="gogh-style">(.*?)<\/style>/s', $post->post_content, $m ) ) {
+		return $settings;
+	}
 
+	$css = implode( "\n", $m[1] );
+
+	$css .= gogh_editor_flatten_css();
 	$settings['styles'][] = array( 'css' => $css );
 	return $settings;
 }, 10, 2 );
