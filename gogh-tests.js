@@ -3359,7 +3359,8 @@
       // a price nothing reaches: the archive renders its empty state for the
       // person looking (owner here) — only when a gogh look dresses the shop
       return fetch('/?post_type=product&min_price=99999999', { credentials: 'same-origin' }).then(function (r) { return r.text(); }).then(function (html) {
-        if (!/gogh-shoplook-/.test(html)) return 'shop wears Woo\u2019s own look (Classic) \u2014 nothing to dress';
+        // the CSS names every look on every page: the look WORN is the one on the collection's class
+        if (!/class="[^"]*gogh-shoplook-/.test(html)) return 'shop wears Woo\u2019s own look (Classic) \u2014 nothing to dress';
         expect(!/No results found/.test(html), 'Woo\u2019s "No results found" leaked through');
         expect(/gogh-shop-empty-filtered/.test(html), 'the filtered empty state is missing');
         expect(/Clear filters/.test(html), 'the empty state should offer to clear the filters');
@@ -6175,6 +6176,199 @@
       G.guardReset();
       expect(!guard.length, 'the guard spoke on the way round: ' + (guard.length ? guard[0].issues[0] : ''));
       return n + ' rolls round: home wears the drag, the resize and the words' + (deleted ? '; a deleted button stayed deleted' : '');
+    });
+    // ---- the die follows pieces by identity (audit batch 2) ----
+    // every piece carries an id and remembers its slot in the family's
+    // drawing; the memories (words, seats, the kept background) live on the
+    // model by those, so deleting or reordering a piece shifts nothing
+    var heroSec = function () {
+      var hero = G.templates().filter(function (x) { return x.name === 'Hero'; })[0];
+      if (!hero) throw new Error('no Hero template');
+      G.addSection(hero);
+      var s = lastSec();
+      return { s: s, idx: G.sections().indexOf(s) };
+    };
+    var texts = function (s, type) { return diceFlat(s.els).filter(function (e) { return e.type === type; }).map(function (e) { return e.text; }); };
+    test('the die follows a piece by identity: delete or reorder, and the words stay with their pieces', function () {
+      var h = heroSec(), s = h.s, idx = h.idx;
+      G.rollSection(idx); // take 2: two buttons, every piece now knows its slot
+      var btns = s.els.filter(function (e) { return e.type === 'button'; });
+      expect(btns.length === 2, 'take 2 should draw two buttons, drew ' + btns.length);
+      expect(diceFlat(s.els).every(function (e) { return e.id && e.sk; }), 'a drawn piece is missing its id or slot');
+      btns[1].text = 'Mine';
+      // reorder: the second button now sits first in the array
+      s.els.splice(s.els.indexOf(btns[1]), 1);
+      s.els.splice(s.els.indexOf(btns[0]), 0, btns[1]);
+      G.renderSection(s);
+      G.rollSection(idx); // take 3: two buttons
+      var t3 = texts(s, 'button');
+      expect(t3.length === 2 && t3.indexOf('Mine') !== -1, 'after a reorder the renamed button lost its words: ' + JSON.stringify(t3));
+      expect(t3[0] !== 'Mine', 'the words jumped to the other slot: ' + JSON.stringify(t3));
+      // delete the FIRST button: the survivor keeps its own words, and the
+      // slot the deleted one held is redrawn by the take, not with its words
+      var first = s.els.filter(function (e) { return e.type === 'button' && e.text !== 'Mine'; })[0];
+      s.els.splice(s.els.indexOf(first), 1);
+      G.renderSection(s);
+      G.rollSection(idx); // take 4: one button
+      var t4 = texts(s, 'button');
+      expect(t4.length === 1 && t4[0] === 'Mine', 'through the one-button take the survivor should be "Mine", got ' + JSON.stringify(t4));
+      G.rollSection(idx); // home: two slots again
+      var t0 = texts(s, 'button');
+      expect(t0.length === 2 && t0.indexOf('Mine') !== -1, 'home should draw two buttons with "Mine" among them: ' + JSON.stringify(t0));
+      expect(t0.filter(function (x) { return x === 'Mine'; }).length === 1, 'the survivor’s words were drawn twice: ' + JSON.stringify(t0));
+      G.deleteSection(idx);
+      return 'reorder kept the words in place; delete left one survivor "Mine" at home: ' + JSON.stringify(t0);
+    });
+    test('a rider’s words beat an older take’s memory for the slot it fills', function () {
+      var h = heroSec(), s = h.s, idx = h.idx;
+      G.rollSection(idx); // take 2
+      G.rollSection(idx); // take 3: two buttons
+      var b2 = s.els.filter(function (e) { return e.type === 'button'; })[1];
+      b2.text = 'Old words';
+      G.renderSection(s);
+      G.rollSection(idx); // take 4 draws one button: the second (an original) rides, and its words are remembered for slot two
+      expect(s.m.edits && s.m.edits.button && s.m.edits.button[1] && s.m.edits.button[1].text === 'Old words', 'the memory should hold "Old words" for slot two: ' + JSON.stringify(s.m.edits));
+      // the user deletes the rider while it rides (no take draws its slot here, so
+      // the memory keeps "Old words") and adds a button of their own
+      var rider = diceFlat(s.els).filter(function (e) { return e.type === 'button' && e.text === 'Old words'; })[0];
+      expect(rider, 'the renamed button should ride through the one-button take');
+      // it may have joined the take's card beside that card's button
+      if (s.els.indexOf(rider) !== -1) s.els.splice(s.els.indexOf(rider), 1);
+      else s.els.forEach(function (e) { if (e.kids && e.kids.indexOf(rider) !== -1) e.kids.splice(e.kids.indexOf(rider), 1); });
+      s.els.push({ type: 'button', x: 300, y: 548, w: 180, h: 54, text: 'New words' });
+      G.renderSection(s);
+      G.rollSection(idx); // home: slot two is free, the new button takes it -- with ITS words
+      var t0 = texts(s, 'button');
+      expect(t0.length === 2, 'home should have two buttons: ' + JSON.stringify(t0));
+      expect(t0.indexOf('New words') !== -1, 'the rider’s own words were overwritten by the older memory: ' + JSON.stringify(t0));
+      expect(t0.indexOf('Old words') === -1, 'the stale memory came back: ' + JSON.stringify(t0));
+      G.deleteSection(idx);
+      return 'the rider wore "New words", not the take’s stale "Old words"';
+    });
+    test('a box and a card of the user’s own ride through every take', function () {
+      var h = heroSec(), s = h.s, idx = h.idx;
+      G.rollSection(idx); // bind
+      var n0 = diceFlat(s.els).length;
+      s.els.push({ type: 'box', x: 1000, y: 40, w: 160, h: 160, boxBg: '#e0b01e', radius: 20 });
+      s.els.push({ type: 'box', x: 760, y: 420, w: 380, h: 180, boxBg: '#101418', radius: 16, kids: [
+        { type: 'heading', x: 24, y: 20, w: 320, h: 40, text: 'Card kid' },
+        { type: 'para', x: 24, y: 80, w: 320, h: 60, text: 'Rides inside the card' } ] });
+      G.renderSection(s);
+      G.guardReset();
+      var seen = [];
+      for (var k = 0; k < 4; k++) {
+        var r = G.rollSection(idx);
+        var boxes = s.els.filter(function (e) { return e.type === 'box' && !e.kids && e.boxBg === '#e0b01e'; });
+        var cards = s.els.filter(function (e) { return e.type === 'box' && e.kids && e.kids.some(function (kk) { return kk.text === 'Card kid'; }); });
+        seen.push('take ' + (r.face + 1) + ': ' + boxes.length + ' box, ' + cards.length + ' card');
+        expect(boxes.length === 1, 'the user’s box did not ride whole (' + seen.join('; ') + ')');
+        expect(cards.length === 1 && cards[0].kids.length === 2, 'the user’s card did not ride whole with its kids (' + seen.join('; ') + ')');
+      }
+      expect(diceFlat(s.els).length === n0 + 4, 'home should hold the take plus the box, the card and its two kids: ' + diceFlat(s.els).length + ' vs ' + (n0 + 4));
+      var guard = G.guardLog(); G.guardReset();
+      G.deleteSection(idx);
+      expect(!guard.length, 'the guard spoke: ' + (guard.length ? guard[0].issues[0] : ''));
+      return seen.join('; ');
+    });
+    test('the kept background lives on the model: undo and the saved page keep it', function () {
+      var cover = G.templates().filter(function (x) { return x.name === 'Cover'; })[0];
+      if (!cover) throw new Error('no Cover template');
+      G.addSection(cover);
+      var s = lastSec(), idx = G.sections().indexOf(s);
+      var photo = '/wp-content/plugins/gogh/demo-assets/sunflowers.jpg';
+      s.bgImage = photo; s.bgId = null;
+      G.renderSection(s);
+      var stashed = false, k;
+      for (k = 0; k < 4 && !stashed; k++) {
+        G.rollSection(idx);
+        if (!s.bgImage) stashed = true;
+      }
+      if (!stashed) { G.deleteSection(idx); return 'every Cover take wears a picture — nothing to stash'; }
+      expect(s.m.keepBg && s.m.keepBg.img === photo, 'an imageless take should stash the photo on the model: ' + JSON.stringify(s.m.keepBg));
+      var am = G.blocksV3(s).match(/<!-- wp:gogh\/section (\{[\s\S]*?\}) -->/);
+      var model = am ? JSON.parse(am[1]).model : null;
+      expect(model && model.m && model.m.keepBg && model.m.keepBg.img === photo, 'the saved model lost the kept background');
+      // undo one roll, redo it: still stashed
+      q('.gogh-undo').click(); q('.gogh-redo').click();
+      var s2 = lastSec();
+      expect(s2.m && s2.m.keepBg && s2.m.keepBg.img === photo, 'undo/redo lost the kept background');
+      var idx2 = G.sections().indexOf(s2), back = false;
+      for (k = 0; k < 4 && !back; k++) { G.rollSection(idx2); if (s2.bgImage) back = true; }
+      expect(back && s2.bgImage === photo, 'the next picture-wearing take should wear the user’s photo, wore ' + s2.bgImage);
+      G.deleteSection(idx2);
+      return 'stashed on m.keepBg, saved, survived undo, came back on the next picture take';
+    });
+    test('headings beyond what the family draws keep their words all the way round', function () {
+      var h = heroSec(), s = h.s, idx = h.idx;
+      s.els.push({ type: 'heading', x: 72, y: 620, w: 470, h: 60, text: 'Second' });
+      s.els.push({ type: 'heading', x: 600, y: 620, w: 470, h: 60, text: 'Third' });
+      G.renderSection(s);
+      for (var k = 0; k < 4; k++) {
+        var r = G.rollSection(idx);
+        var t = texts(s, 'heading');
+        expect(t.indexOf('Second') !== -1 && t.indexOf('Third') !== -1, 'take ' + (r.face + 1) + ' lost an extra heading’s words: ' + JSON.stringify(t));
+      }
+      expect(texts(s, 'heading').length === 3, 'home should hold all three headings');
+      G.deleteSection(idx);
+      return '"Second" and "Third" rode every take and came home';
+    });
+    test('the original snapshot leaves a widget’s composed HTML behind and composes it again at home', function () {
+      var tpl = G.templates().filter(function (x) { return (x.els || []).some(function (e) { return e.type === 'widget' && (e.faq || e.slides || e.wall); }); })[0];
+      if (!tpl) return 'no widget family to test with';
+      G.addSection(tpl);
+      var s = lastSec(), idx = G.sections().indexOf(s);
+      s.m = null; // never named its family: the die infers one and snapshots the original
+      var faces = G.diceFaces(G.diceFamilyOf(s));
+      if (!faces) { G.deleteSection(idx); return 'no family inferred for ' + tpl.name; }
+      var liveW = diceFlat(s.els).filter(function (e) { return e.type === 'widget'; })[0];
+      expect(liveW && liveW.whtml, 'setup: the live widget should carry composed HTML');
+      G.rollSection(idx); // adopt
+      var origW = G.diceFlatten(s.m.orig.els).filter(function (e) { return e.type === 'widget'; })[0];
+      expect(origW && !origW.whtml && (origW.faq || origW.slides || origW.wall), 'the snapshot should keep the data and drop the HTML: ' + (origW ? Object.keys(origW).join(',') : 'no widget'));
+      for (var k = 1; k < faces.length; k++) G.rollSection(idx); // home
+      var homeW = diceFlat(s.els).filter(function (e) { return e.type === 'widget'; })[0];
+      expect(homeW && homeW.whtml && homeW.whtml.length > 20, 'the widget came home without its HTML');
+      G.deleteSection(idx);
+      return tpl.name + ': snapshot ' + JSON.stringify(s.m.orig).length + ' chars, HTML composed again at home';
+    });
+    test('a copy of a section is new to the die: fresh ids, its own homecomings', function () {
+      var h = heroSec(), s = h.s, idx = h.idx;
+      G.rollSection(idx);
+      var ids = diceFlat(s.els).map(function (e) { return e.id; });
+      expect(ids.every(Boolean) && new Set(ids).size === ids.length, 'ids should be present and unique after a roll');
+      G.duplicateSection(idx);
+      var c = G.sections()[idx + 1];
+      expect(c && c !== s && c.els.length === s.els.length, 'the copy did not land after the source');
+      var cids = diceFlat(c.els).map(function (e) { return e.id; });
+      expect(cids.every(function (id) { return id && ids.indexOf(id) === -1; }), 'the copy shares ids with its source');
+      // the saved model carries id and slot
+      var am = G.blocksV3(s).match(/<!-- wp:gogh\/section (\{[\s\S]*?\}) -->/);
+      var model = am ? JSON.parse(am[1]).model : null;
+      expect(model && model.elements.every(function (e) { return e.id && e.sk; }), 'the saved model should carry every piece’s id and slot');
+      var cidx = G.sections().indexOf(c);
+      G.deleteSection(cidx);
+      G.deleteSection(G.sections().indexOf(s));
+      return ids.length + ' pieces, ' + cids.length + ' fresh ids on the copy; id + slot saved';
+    });
+    test('a piece deleted on a take that draws it takes its words with it', function () {
+      var h = heroSec(), s = h.s, idx = h.idx;
+      G.rollSection(idx); // take 2
+      var b2 = s.els.filter(function (e) { return e.type === 'button'; })[1];
+      var tplText = b2.text;
+      b2.text = 'Gone';
+      G.renderSection(s);
+      G.rollSection(idx); // take 3: "Gone" remembered and applied
+      expect(texts(s, 'button').indexOf('Gone') !== -1, 'the rename did not travel to take 3');
+      var gone = s.els.filter(function (e) { return e.type === 'button' && e.text === 'Gone'; })[0];
+      s.els.splice(s.els.indexOf(gone), 1);
+      G.renderSection(s);
+      G.rollSection(idx); // take 4: the slot was drawn and left empty by the user — forget its words
+      expect(!(s.m.edits && s.m.edits.button && s.m.edits.button[1]), 'the deleted button’s words are still remembered: ' + JSON.stringify(s.m.edits));
+      G.rollSection(idx); // home
+      var t0 = texts(s, 'button');
+      expect(t0.length === 2 && t0.indexOf('Gone') === -1, 'the deleted button came back wearing its words: ' + JSON.stringify(t0));
+      G.deleteSection(idx);
+      return 'home drew slot two afresh (' + JSON.stringify(t0[1]) + '), not "Gone"';
     });
     test('an extra button rides beside the take\'s button through every roll', function () {
       var hero = G.templates().filter(function (x) { return x.name === 'Hero'; })[0];

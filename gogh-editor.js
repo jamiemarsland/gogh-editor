@@ -1144,6 +1144,8 @@
       // back from a reload as an original and the next roll piled the
       // riders up (the v435 leak, back one reload later)
       tk: e.tk != null ? e.tk : undefined,
+      // its identity and its slot in the family's drawing (see diceEnsureIds)
+      id: e.id || undefined, sk: e.sk || undefined,
       kids: e.kids && e.kids.length ? e.kids.map(projEl) : null };
   }
   function buildElBlocks(els, clsBase) {
@@ -4956,7 +4958,7 @@
   elbar.querySelector('.gogh-eb-dup').addEventListener('click', function () {
     if (!sel) return;
     var sec = sel.sec;
-    var copy = JSON.parse(JSON.stringify(sec.els[sel.i]));
+    var copy = diceFreshIds([JSON.parse(JSON.stringify(sec.els[sel.i]))])[0]; // a copy is a new piece to the die
     copy.x = Math.min(W - copy.w, copy.x + 24);
     copy.y = copy.y + 24;
     sec.els.push(copy);
@@ -7899,9 +7901,6 @@
     });
     return map;
   }
-  // where an extra piece sits relative to the take's own — kept off the
-  // model (never saved), per element, for as long as the roll placed it
-  var diceRideMemo = new WeakMap();
   // ---------- the runtime guard ----------
   // Bugs should announce themselves the moment they happen, not a week
   // later in a screenshot (James). After every drop and every roll the
@@ -7947,10 +7946,59 @@
   // looks like at HOME, kept on the model so four rolls bring its own pieces
   // back. ownOnly leaves out the pieces a roll drew (tk) -- a take's rider
   // that came home beside the user's own is the take's, not the original's
+  // ---------- identity: what the die follows through the takes ----------
+  // every piece carries an id. A rider keeps its object; a piece that
+  // continues hands its id to the slot that stands in for it; the saved
+  // model keeps the id (projEl), so a reload changes nothing. Its SLOT
+  // (sk, 'role:index' in the family's drawing order) is remembered too:
+  // deleting or reordering a piece used to shift every other piece's slot
+  // along by one, and the words memory with it
+  function diceId() { return Math.random().toString(36).slice(2, 9); }
+  function diceEnsureIds(els) {
+    diceFlatten(els).forEach(function (e) { if (!e.id) e.id = diceId(); });
+    return els;
+  }
+  // a copy is a new piece: it must not share an id with what it was copied
+  // from (the die would take the two for one). A section copy remaps its
+  // original snapshot and its seats the same way, so its own homecomings
+  // still find their pieces
+  function diceFreshIds(els, sec) {
+    var map = {};
+    diceFlatten(els).forEach(function (e) { var n = diceId(); if (e.id) map[e.id] = n; e.id = n; });
+    if (sec && sec.m) {
+      if (sec.m.orig && sec.m.orig.els) diceFlatten(sec.m.orig.els).forEach(function (e) { e.id = (e.id && map[e.id]) || diceId(); });
+      if (sec.m.seats) {
+        var seats = {};
+        Object.keys(sec.m.seats).forEach(function (id) { if (map[id]) seats[map[id]] = sec.m.seats[id]; });
+        sec.m.seats = seats;
+      }
+    }
+    return els;
+  }
+  // a widget whose HTML is composed from its data (questions, tabs, pictures,
+  // a shop) need not carry that HTML twice: the original snapshot drops it
+  // and the homecoming composes it again
+  function diceRecomposable(e) {
+    return e.type === 'widget' && !!((e.rails && e.shop) || (e.faq && e.faq.length) || (e.tabs && e.tabs.length) ||
+      (e.slides && e.slides.length) || (e.wall && e.wall.length));
+  }
+  function diceRecompose(els) {
+    diceFlatten(els).forEach(function (e) {
+      if (!diceRecomposable(e) || e.whtml) return;
+      if (e.rails && e.shop) { e.wsrc = composeShop(e.shop); e.whtml = shopSampleHTML(e.shop); }
+      else composeWidgetData(e);
+    });
+    return els;
+  }
+  // 'The original' take of a section that never named its family: what it
+  // looks like at HOME, kept on the model so four rolls bring its own pieces
+  // back. ownOnly leaves out the pieces a roll drew (tk) -- a take's rider
+  // that came home beside the user's own is the take's, not the original's
   function diceOrigSnap(sec, ownOnly) {
     var own = function (list) {
       return list.filter(function (e) { return !ownOnly || e.tk == null; }).map(function (e) {
         if (e.kids) e.kids = own(e.kids);
+        if (diceRecomposable(e)) delete e.whtml;
         return e;
       });
     };
@@ -7963,18 +8011,20 @@
     var fam = diceFamilyOf(sec);
     var faces = fam ? diceFaces(fam) : null;
     if (!faces) return null;
+    diceEnsureIds(sec.els);
+    var m = sec.m || {};
     // an inferred family is adopted on the first roll: from here the
     // section knows its takes like any other
-    var adopt = !sec.m || !sec.m.tpl || sec.m.tpl !== fam;
+    var adopt = !m.tpl || m.tpl !== fam;
     if (adopt) {
       // a section that never named its family keeps what it WAS: its own
       // pieces are 'The original' take, and four rolls bring THEM home — not
       // the family's base drawing with pieces it never had (the walk caught
       // the Yellow House hero coming home with a box, a photo and a badge)
-      sec.m = Object.assign({}, sec.m || {}, { tpl: fam, face: 0, orig: diceOrigSnap(sec, false) });
+      sec.m = m = Object.assign({}, m, { tpl: fam, face: 0, orig: diceOrigSnap(sec, false) });
     }
-    var orig = sec.m.orig && sec.m.orig.els ? sec.m.orig : null;
-    var cur = ((sec.m.face || 0) % faces.length + faces.length) % faces.length;
+    var orig = m.orig && m.orig.els ? m.orig : null;
+    var cur = ((m.face || 0) % faces.length + faces.length) % faces.length;
     var next = (cur + 1) % faces.length;
     if (orig && cur === 0 && !adopt) {
       // home is editable too: a heading dragged or a photo resized on the
@@ -7982,145 +8032,194 @@
       // so the snapshot is retaken every time the section leaves home (it
       // used to be taken once, and rolling around put the pre-edit layout back)
       orig = diceOrigSnap(sec, true);
-      sec.m = Object.assign({}, sec.m, { orig: orig });
+      sec.m = m = Object.assign({}, m, { orig: orig });
     }
-    var takeEls = function (face) { return (face === 0 && orig) ? JSON.parse(JSON.stringify(orig.els)) : tplEls(faces[face]); };
+    var home = next === 0 && !!orig;
+    var takeEls = function (face) {
+      return (face === 0 && orig) ? diceRecompose(JSON.parse(JSON.stringify(orig.els))) : tplEls(faces[face]);
+    };
+    var key = function (r, i) { return r + ':' + i; };
+    var roleOf = function (k) { return k.slice(0, k.indexOf(':')); };
+    var indexOf = function (k) { return +k.slice(k.indexOf(':') + 1); };
+    var isNone = function (k) { return k.indexOf('_:') === 0; };
+    var noRole = function (e) { return !diceRole(e); };
+    var isCard = function (e) { return e.type === 'box' && !!e.kids; };
+    // a drawing's SLOTS: 'role:index' over the flattened pieces of a kind,
+    // '_:index' for the roleless decoration (shapes, boxes, cards) by order
+    var slotsOf = function (els) {
+      var by = diceByRole(els), map = {};
+      Object.keys(by).forEach(function (r) { by[r].forEach(function (e, i) { map[key(r, i)] = e; }); });
+      els.filter(noRole).forEach(function (e, i) { map[key('_', i)] = e; });
+      return map;
+    };
     // what the CURRENT take would say untouched (tplEls is deterministic:
     // pool picks are seeded by family name) -- anything that differs is
     // the user's, and the user's work survives the roll
-    var pristine = diceByRole(takeEls(cur));
+    var priEls = takeEls(cur);
+    var pristine = slotsOf(priEls);
     // WORDS are measured against the family's own drawing of this take:
     // an original section's words differ from the template's, and that
     // difference is what must travel into the next take
-    var words = (cur === 0 && orig) ? diceByRole(tplEls(faces[0])) : pristine;
-    var live = diceByRole(sec.els);
-    // the user's edits, REMEMBERED on the model by role and slot: a take
-    // that does not draw the second button keeps its words for the take
-    // that does (they used to come home wearing the template's text)
-    var edits = (sec.m && sec.m.edits && typeof sec.m.edits === 'object') ? sec.m.edits : {};
-    Object.keys(live).forEach(function (r) {
-      var pl = words[r] || [];
-      live[r].forEach(function (e, i) {
-        if (!pl[i]) return;
-        var d = {};
-        if (r === 'image') {
-          if (e.type === 'video' && (e.src || e.vurl)) {
-            // the user's video rides into the next take's picture slot,
-            // wearing that take's frame
-            d.video = { src: e.src || null, mediaId: e.mediaId || null, vurl: e.vurl || null, vplay: e.vplay || null,
-              poster: e.poster || null, posterId: e.posterId || null, radius: e.radius || 0 };
-          } else if (e.type !== 'video' && e.src && e.src !== pl[i].src) { d.src = e.src; if (e.srcId) d.srcId = e.srcId; }
-        } else if (r === 'widget') {
-          if (diceWidgetData(e) !== diceWidgetData(pl[i])) d.wdata = JSON.parse(diceWidgetData(e));
-        } else {
-          if (e.text != null && e.text !== pl[i].text) d.text = e.text;
-          if (e.href && e.href !== pl[i].href) d.href = e.href;
-        }
-        if (Object.keys(d).length) (edits[r] = edits[r] || {})[i] = d;
-        else if (edits[r] && edits[r][i]) delete edits[r][i]; // put back to the template's words: forget
+    var words = (cur === 0 && orig) ? slotsOf(tplEls(faces[0])) : pristine;
+    var flatAll = diceFlatten(sec.els);
+    // BINDING. A piece that never learned its slot (a page saved before the
+    // die kept slots; a section on its first roll) pairs by kind and order
+    // with what this take draws -- the rule the die always used -- and keeps
+    // that slot from here on. Only a section with no slots at all binds this
+    // way: once bound, a piece without a slot is one the user added
+    if (!flatAll.some(function (e) { return e.sk; })) {
+      var liveSlots = slotsOf(sec.els);
+      Object.keys(liveSlots).forEach(function (k) {
+        var e = liveSlots[k];
+        if (!pristine[k] || (!isNone(k) && !words[k])) return; // beyond what the take draws: the user's own
+        e.sk = k;
+        // saved mid-family without marks (a starter shipped on take 3): what
+        // sits in the take's slots is the take's drawing, not an original
+        if (cur !== 0 && e.tk == null) e.tk = cur;
       });
-    });
-    // pieces ADDED on top of the take are the ones no role-slot claimed —
-    // not "whatever sits past the take's count" (an inferred section's
-    // order is its own). They travel with the piece they sat beside: a
-    // second button keeps its gap from the take's button, below or to the
-    // right, wherever that button lands next (James: "rolling the dice on
-    // this section breaks the layout — the buttons are all over the place")
-    var els2 = takeEls(next);
-    if (!(next === 0 && orig)) diceFlatten(els2).forEach(function (e) { e.tk = next; }); // drawn by this roll (the original's pieces stay originals)
-    var by2 = diceByRole(els2);
-    var noRole = function (e) { return !diceRole(e); };
-    var none2 = els2.filter(noRole);
+    }
+    // a card of the user's own rides whole, kids inside; a take's card is
+    // decoration (its kids are pieces in their own right)
+    var userCards = sec.els.filter(function (e) { return isCard(e) && !e.sk; });
+    var inUserCard = function (e) { return userCards.some(function (c) { return c.kids.indexOf(e) !== -1; }); };
     // three kinds of piece. One the take drew AND the next take draws too:
-    // it continues (re-drawn, edits applied). One a ROLL drew that the next
-    // take does not have (an image only take 2 has): it steps aside — the
-    // take's design decides, its words stay in the memory above. One that is
-    // ORIGINAL or the user's own (never drawn by a roll, or beyond what the
-    // take draws): it rides, seated by the piece it sat beside, and fills a
-    // free slot of its kind when one appears. (Rolled pieces riding into
-    // takes that never drew them piled up — the sweep caught it.)
-    var matched = new Map();
-    Object.keys(live).forEach(function (r) {
-      live[r].forEach(function (e, i) {
-        // an original's pieces beyond what the family's base take draws (a
-        // second heading added at home) are the user's own: they ride or take
-        // a free slot carrying their words like any extra -- matched into a
-        // slot they would wear the take's words, since the words memory only
-        // knows the slots the base draws (for a named family words IS pristine)
-        var inTake = !!(pristine[r] || [])[i] && !!(words[r] || [])[i], slotNext = !!(by2[r] || [])[i];
-        if (inTake && slotNext) matched.set(e, { r: r, i: i });
-        else if (inTake && e.tk != null) matched.set(e, { r: r, i: i, dropped: true });
-      });
+    // it continues (re-drawn in the next take's clothes, its words applied).
+    // One a ROLL drew that the next take does not have (an image only take 2
+    // has): it steps aside — the take's design decides, its words stay in
+    // the memory. One that is ORIGINAL or the user's own (never drawn by a
+    // roll, or beyond what the take draws): it rides, seated by the piece it
+    // sat beside, and fills a free slot of its kind when one appears
+    var els2 = takeEls(next);
+    if (!home) diceFlatten(els2).forEach(function (e) { e.tk = next; }); // drawn by this roll (the original's pieces stay originals)
+    diceEnsureIds(els2);
+    var by2 = slotsOf(els2);
+    Object.keys(by2).forEach(function (k) { by2[k].sk = k; }); // a drawn piece knows its slot
+    var inTake = function (e) { return !!e.sk && !!pristine[e.sk] && (isNone(e.sk) || !!words[e.sk]); };
+    var matched = new Map(); // live piece -> { k, dropped }
+    var claimed = {};        // slot key -> a live piece continues into it
+    flatAll.forEach(function (e) {
+      if (!inTake(e) || inUserCard(e)) return;
+      if (by2[e.sk]) { matched.set(e, { k: e.sk }); claimed[e.sk] = true; }
+      else if (e.tk != null || isNone(e.sk)) matched.set(e, { k: e.sk, dropped: true });
+      // else an original whose slot the next take lacks: it rides
     });
-    // roleless pieces (shapes, boxes) are the take's decoration: pair by
-    // order, and one the next take does not draw steps aside
-    var liveNone = sec.els.filter(noRole), priNone = takeEls(cur).filter(noRole);
-    liveNone.forEach(function (e, i) { matched.set(e, { r: '_', i: i, dropped: !(priNone[i] && none2[i]) }); });
-    // an original that continues stays an original: the piece the next take
-    // draws in its slot inherits that (so a starter's second button never
-    // becomes 'the take's' and vanishes on a later roll)
+    // the user's edits, REMEMBERED on the model by slot: a take that does
+    // not draw the second button keeps its words for the take that does
+    // (they used to come home wearing the template's text)
+    var edits = (m.edits && typeof m.edits === 'object') ? m.edits : {};
+    var seen = {};
+    flatAll.forEach(function (e) {
+      if (!inTake(e) || inUserCard(e) || isNone(e.sk)) return;
+      var k = e.sk, r = roleOf(k), i = indexOf(k), pl = words[k], d = {};
+      seen[k] = true;
+      if (r === 'image') {
+        if (e.type === 'video' && (e.src || e.vurl)) {
+          // the user's video rides into the next take's picture slot,
+          // wearing that take's frame
+          d.video = { src: e.src || null, mediaId: e.mediaId || null, vurl: e.vurl || null, vplay: e.vplay || null,
+            poster: e.poster || null, posterId: e.posterId || null, radius: e.radius || 0 };
+        } else if (e.type !== 'video' && e.src && e.src !== pl.src) { d.src = e.src; if (e.srcId) d.srcId = e.srcId; }
+      } else if (r === 'widget') {
+        if (diceWidgetData(e) !== diceWidgetData(pl)) d.wdata = JSON.parse(diceWidgetData(e));
+      } else {
+        if (e.text != null && e.text !== pl.text) d.text = e.text;
+        if (e.href && e.href !== pl.href) d.href = e.href;
+      }
+      if (Object.keys(d).length) (edits[r] = edits[r] || {})[i] = d;
+      else if (edits[r] && edits[r][i]) delete edits[r][i]; // put back to the template's words: forget
+    });
+    // a slot this take draws with no piece left in it was deleted by the
+    // user: its words go too, or the deleted piece would come back wearing
+    // them the next time a take draws that slot. And words for slots no take
+    // of the family draws are noise: forget those as well
+    var famKeys = {};
+    faces.forEach(function (f, fi) { Object.keys(slotsOf(fi === 0 && orig ? orig.els : tplEls(f))).forEach(function (k) { famKeys[k] = true; }); });
+    Object.keys(edits).forEach(function (r) {
+      if (!edits[r] || typeof edits[r] !== 'object') { delete edits[r]; return; }
+      Object.keys(edits[r]).forEach(function (i) {
+        var k = key(r, i);
+        if (!famKeys[k] || (pristine[k] && words[k] && !seen[k])) delete edits[r][i];
+      });
+      if (!Object.keys(edits[r]).length) delete edits[r];
+    });
+    // a piece that continues keeps its identity; an original that continues
+    // stays an original (so a starter's second button never becomes 'the
+    // take's' and vanishes on a later roll)
     matched.forEach(function (ri, e) {
-      if (ri.dropped || ri.r === '_' || e.tk != null) return;
-      var slot = (by2[ri.r] || [])[ri.i];
-      if (slot) delete slot.tk;
+      if (ri.dropped) return;
+      var slot = by2[ri.k];
+      if (e.tk == null || !slot.id) slot.id = e.id;
+      if (e.tk == null) delete slot.tk;
     });
     // extras live on the page OR inside a card (a take like The panel keeps
-    // its button in the card, and a second button joined it there)
-    var isCard = function (e) { return e.type === 'box' && !!e.kids; };
-    var extra = diceFlatten(sec.els).filter(function (e) {
-      return !matched.has(e) && !isCard(e) && (diceRole(e) || sec.els.indexOf(e) !== -1);
+    // its button in the card, and a second button joined it there); a card
+    // of the user's own rides whole; a take's card never rides (its kids do)
+    var extra = flatAll.filter(function (e) {
+      if (matched.has(e) || inUserCard(e)) return false;
+      return !isCard(e) || !e.sk;
     });
-    // a rider takes a FREE slot of its kind first — the take's own second
-    // button, say — carrying its words, and only rides when no slot is left
-    // (otherwise it came home beside slot one while the take redrew slot two)
-    var taken = {};
-    matched.forEach(function (ri) { if (!ri.dropped) taken[ri.r + ':' + ri.i] = true; });
+    var none2 = els2.filter(noRole);
+    // HOMECOMING: the original snapshot already holds every piece that was at
+    // home, riders included (it is retaken on every leave-home). A rider
+    // whose piece is in the snapshot takes that copy's place -- at the copy's
+    // spot, with whatever the user did to it on the way round -- instead of
+    // landing beside a copy of itself (two widgets became three, then five)
+    if (home) {
+      var byId = {};
+      extra.forEach(function (x) { byId[x.id] = x; });
+      var swapIn = function (list) {
+        list.forEach(function (c, at) {
+          var x = byId[c.id] || null;
+          if (!x && c.type === 'widget') {
+            // a snapshot from before pieces had ids: a widget is its substance
+            x = extra.filter(function (y) { return y.type === 'widget' && y.wsrc === c.wsrc && diceWidgetData(y) === diceWidgetData(c); })[0] || null;
+          }
+          if (!x) { if (c.kids) swapIn(c.kids); return; }
+          x.x = c.x; x.y = c.y; x.w = c.w; x.h = c.h;
+          x.sk = c.sk || x.sk;
+          list[at] = x;
+          extra.splice(extra.indexOf(x), 1);
+          delete byId[x.id];
+          if (c.sk) { by2[c.sk] = x; claimed[c.sk] = true; }
+          var ni = none2.indexOf(c);
+          if (ni !== -1) none2[ni] = x;
+        });
+      };
+      swapIn(els2);
+    }
+    // a rider takes a FREE slot of its kind first — its own slot when the
+    // take draws it, else the take's own second button, say — carrying its
+    // words, and only rides when no slot is left (otherwise it came home
+    // beside slot one while the take redrew slot two)
     var adopted = [];
     extra = extra.filter(function (x) {
       var r = diceRole(x);
-      if (!r) return true;
-      // a widget rides through the takes as itself (its substance is too
-      // varied to copy onto a take's slot). Coming HOME it must not ride in
-      // beside its own copy in the refreshed original -- it takes that copy's
-      // place, at that copy's spot (the snapshot is retaken on every leave-
-      // home, so a widget added at home is in it: riding home beside itself
-      // made two widgets three, then five)
-      if (r === 'widget') {
-        if (!(next === 0 && orig)) return true;
-        var wl = by2.widget || [];
-        for (var q = 0; q < wl.length; q++) {
-          if (taken['widget:' + q]) continue;
-          var ws = wl[q], at = els2.indexOf(ws);
-          if (at === -1) continue;
-          taken['widget:' + q] = true;
-          x.x = ws.x; x.y = ws.y; x.w = ws.w; x.h = ws.h;
-          els2[at] = x; wl[q] = x;
-          adopted.push(x);
-          return false;
-        }
-        return true;
+      if (!r || r === 'widget') return true; // decoration and widgets ride as themselves
+      var keys = [];
+      if (x.sk && roleOf(x.sk) === r && by2[x.sk] && !claimed[x.sk]) keys.push(x.sk);
+      Object.keys(by2).forEach(function (k) { if (roleOf(k) === r && !claimed[k] && keys.indexOf(k) === -1) keys.push(k); });
+      if (!keys.length) return true;
+      var k2 = keys[0], slot = by2[k2];
+      claimed[k2] = true;
+      delete slot.tk; // the user's piece now, whatever the take drew there
+      slot.id = x.id;
+      // moving to another slot takes the words along: the memory for the
+      // slot it leaves would otherwise draw them a second time
+      if (x.sk && x.sk !== k2 && edits[roleOf(x.sk)] && edits[roleOf(x.sk)][indexOf(x.sk)]) delete edits[roleOf(x.sk)][indexOf(x.sk)];
+      x.sk = k2;
+      if (r === 'image') {
+        if (x.type === 'video' && (x.src || x.vurl)) {
+          slot.type = 'video';
+          Object.assign(slot, { src: x.src || null, mediaId: x.mediaId || null, vurl: x.vurl || null, vplay: x.vplay || null,
+            poster: x.poster || null, posterId: x.posterId || null, radius: x.radius || 0 });
+          delete slot.alt;
+        } else if (x.src) { slot.src = x.src; if (x.srcId) slot.srcId = x.srcId; if (x.alt) slot.alt = x.alt; }
+      } else {
+        if (x.text != null) slot.text = x.text;
+        if (x.href) slot.href = x.href;
       }
-      var list = by2[r] || [];
-      for (var j = 0; j < list.length; j++) {
-        if (taken[r + ':' + j]) continue;
-        taken[r + ':' + j] = true;
-        var slot = list[j];
-        delete slot.tk; // the user's piece now, whatever the take drew there
-        if (r === 'image') {
-          if (x.type === 'video' && (x.src || x.vurl)) {
-            slot.type = 'video';
-            Object.assign(slot, { src: x.src || null, mediaId: x.mediaId || null, vurl: x.vurl || null, vplay: x.vplay || null,
-              poster: x.poster || null, posterId: x.posterId || null, radius: x.radius || 0 });
-            delete slot.alt;
-          } else if (x.src) { slot.src = x.src; if (x.srcId) slot.srcId = x.srcId; if (x.alt) slot.alt = x.alt; }
-        } else {
-          if (x.text != null) slot.text = x.text;
-          if (x.href) slot.href = x.href;
-        }
-        adopted.push(x);
-        return false;
-      }
-      return true;
+      adopted.push(slot);
+      return false;
     });
     // a card's kids sit relative to the card — seats are measured on the page
     var absIn = function (els, e) {
@@ -8136,34 +8235,40 @@
       return { right: right, below: below,
         dx: right ? xa.x - (aa.x + aa.w) : xa.x - aa.x, dy: below ? xa.y - (aa.y + aa.h) : xa.y - aa.y };
     };
+    // seats are remembered on the model by the rider's id (they used to live
+    // in a WeakMap that undo and a reload emptied)
+    var seats = (m.seats && typeof m.seats === 'object') ? Object.assign({}, m.seats) : {};
     var rides = extra.map(function (x) {
+      if (!diceRole(x)) return null; // a shape or a card of the user's own stays where it is
       var best = null, bd = Infinity, head = null;
+      var xa = absIn(sec.els, x);
       matched.forEach(function (ri, a) {
-        if (ri.dropped || (a.type === 'box' && a.kids)) return;
-        if (ri.r === 'heading' && ri.i === 0) head = { a: a, ri: ri };
+        if (ri.dropped || isCard(a)) return;
+        if (ri.k === 'heading:0') head = { a: a, k: ri.k };
         var pref = diceRole(a) === diceRole(x) ? 0 : 1e5; // its own kind first
-        var d = Math.hypot((a.x + a.w / 2) - (x.x + x.w / 2), (a.y + a.h / 2) - (x.y + x.h / 2)) + pref;
-        if (d < bd) { bd = d; best = { a: a, ri: ri }; }
+        var aa = absIn(sec.els, a); // both on the page: a kid's numbers are its card's
+        var d = Math.hypot((aa.x + aa.w / 2) - (xa.x + xa.w / 2), (aa.y + aa.h / 2) - (xa.y + xa.h / 2)) + pref;
+        if (d < bd) { bd = d; best = { a: a, k: ri.k }; }
       });
       if (!best) return null;
       // a seat remembered from an earlier roll still holds while the piece
       // sits where that roll put it — through a take with no button, the
       // second button keeps knowing it belongs beside the first
-      var m0 = diceRideMemo.get(x);
-      var xa0 = absIn(sec.els, x);
-      var memo = (m0 && m0.at[0] === xa0.x && m0.at[1] === xa0.y) ? m0 : null;
-      return { ri: best.ri, seat: seat(x, best.a), own: diceRole(best.a) === diceRole(x),
-        fb: head ? { ri: head.ri, seat: seat(x, head.a) } : null, memo: memo };
+      var m0 = seats[x.id];
+      var memo = (m0 && m0.at && m0.at[0] === xa.x && m0.at[1] === xa.y && m0.k) ? m0 : null;
+      return { k: best.k, seat: seat(x, best.a), own: diceRole(best.a) === diceRole(x),
+        fb: head ? { k: head.k, seat: seat(x, head.a) } : null, memo: memo };
     });
     // the extras leave wherever they sat; they re-seat below
-    sec.els.forEach(function (e) { if (isCard(e)) e.kids = e.kids.filter(function (k) { return extra.indexOf(k) === -1 && adopted.indexOf(k) === -1; }); });
+    sec.els.forEach(function (e) { if (isCard(e)) e.kids = e.kids.filter(function (k) { return extra.indexOf(k) === -1; }); });
     // the same slot in the next take — or, when the take draws fewer of
     // that kind, the last one it does draw (a take with one button still
     // seats the second beside it); roleless pieces pair exactly
-    var slot2 = function (ri) {
-      if (ri.r === '_') return none2[ri.i];
-      var list = by2[ri.r] || [];
-      return list.length ? list[Math.min(ri.i, list.length - 1)] : null;
+    var slot2 = function (k) {
+      if (isNone(k)) return none2[indexOf(k)] || null;
+      var r = roleOf(k), n = 0;
+      Object.keys(by2).forEach(function (k3) { if (roleOf(k3) === r) n++; });
+      return n ? by2[key(r, Math.min(indexOf(k), n - 1))] : null;
     };
     // everything the next take draws, on the page, so a rider can avoid it
     var placedRects = diceFlatten(els2).filter(function (e) { return !isCard(e); }).map(function (e) {
@@ -8174,9 +8279,9 @@
       var ride = rides[k];
       if (!ride) { extraTop.push(x); return; }
       var a2 = null, st = null, keep = null;
-      if (ride.memo && slot2(ride.memo.ri)) { a2 = slot2(ride.memo.ri); st = ride.memo.seat; keep = ride.memo; }
-      else if (slot2(ride.ri)) { a2 = slot2(ride.ri); st = ride.seat; keep = ride.own ? { ri: ride.ri, seat: ride.seat } : ride.memo; }
-      else if (ride.fb && slot2(ride.fb.ri)) { a2 = slot2(ride.fb.ri); st = ride.fb.seat; keep = ride.memo; }
+      if (ride.memo && slot2(ride.memo.k)) { a2 = slot2(ride.memo.k); st = ride.memo.seat; keep = ride.memo; }
+      else if (slot2(ride.k)) { a2 = slot2(ride.k); st = ride.seat; keep = ride.own ? { k: ride.k, seat: ride.seat } : ride.memo; }
+      else if (ride.fb && slot2(ride.fb.k)) { a2 = slot2(ride.fb.k); st = ride.fb.seat; keep = ride.memo; }
       if (!a2) { extraTop.push(x); return; }
       var aa = absIn(els2, a2);
       var tx = Math.round(st.right ? aa.x + aa.w + st.dx : aa.x + st.dx);
@@ -8220,13 +8325,15 @@
         extraTop.push(x);
       }
       var placed = absIn(els2, x);
-      diceRideMemo.set(x, Object.assign({}, keep || { ri: ride.ri, seat: ride.seat }, { at: [placed.x, placed.y] }));
+      seats[x.id] = Object.assign({}, keep || { k: ride.k, seat: ride.seat }, { at: [placed.x, placed.y] });
     });
     extra = extraTop;
+    // the remembered words go onto the slots the take draws -- except a slot
+    // a rider just filled: its words are the rider's own, not an older take's
     Object.keys(edits).forEach(function (r) {
-      (by2[r] || []).forEach(function (e, i) {
-        var d = edits[r][i];
-        if (!d) return;
+      Object.keys(edits[r]).forEach(function (i) {
+        var e = by2[key(r, i)], d = edits[r][i];
+        if (!e || !d || adopted.indexOf(e) !== -1) return;
         if (d.video && e.type === 'image') {
           e.type = 'video';
           Object.assign(e, d.video);
@@ -8254,28 +8361,37 @@
       });
     });
     // a background photo the user chose outlives every take that can wear
-    // one; a take born imageless stashes it instead of losing it
+    // one; a take born imageless stashes it instead of losing it (on the
+    // model, so undo and a reload keep it)
     var priBg = tplBgFor(faces[cur]);
-    var keep = sec.__diceBg || null;
+    var keepBg = m.keepBg || null;
     if (sec.bgImage && sec.bgImage !== priBg) {
-      keep = { img: sec.bgImage, id: sec.bgId || null, pos: sec.bgPos || null };
+      keepBg = { img: sec.bgImage, id: sec.bgId || null, pos: sec.bgPos || null };
     }
-    var t2 = (next === 0 && orig) ? Object.assign({}, faces[0], orig, { take: faces[0].take }) : faces[next];
+    var t2 = home ? Object.assign({}, faces[0], orig, { take: faces[0].take }) : faces[next];
     sec.els = els2.concat(extra);
     sec.minH = t2.minH || null;
     sec.bg = t2.bg || null;
     sec.fill = !!t2.fill;
     sec.fx = t2.fx ? JSON.parse(JSON.stringify(t2.fx)) : null;
-    var wants = (next === 0 && orig) ? (orig.bgImage || null) : tplBgFor(t2);
-    if (wants && keep) {
-      sec.bgImage = keep.img; sec.bgId = keep.id; sec.bgPos = keep.pos;
-      sec.__diceBg = null;
+    var wants = home ? (orig.bgImage || null) : tplBgFor(t2);
+    if (wants && keepBg) {
+      sec.bgImage = keepBg.img; sec.bgId = keepBg.id; sec.bgPos = keepBg.pos;
+      keepBg = null;
     } else {
       sec.bgImage = wants || null; sec.bgId = null; sec.bgPos = null;
-      sec.__diceBg = keep;
     }
     sec.bgA = t2.bgA != null ? t2.bgA : null;
-    sec.m = Object.assign({}, sec.m, { face: next, edits: edits });
+    // seats of pieces that are gone are noise; a hand-tuned phone order
+    // indexed the pieces of the take that was, so it lifts
+    var finalIds = {};
+    diceFlatten(sec.els).forEach(function (e) { finalIds[e.id] = true; });
+    Object.keys(seats).forEach(function (id) { if (!finalIds[id]) delete seats[id]; });
+    var m2 = Object.assign({}, m, { face: next, edits: edits, seats: seats, keepBg: keepBg });
+    if (!Object.keys(seats).length) delete m2.seats;
+    if (!keepBg) delete m2.keepBg;
+    if (m2.order) delete m2.order;
+    sec.m = m2;
     renderSection(sec);
     guardCheck(sec, 'roll to take ' + (next + 1));
     sec.els.forEach(function (ex) { if (ex.rails && ex.shop) hydrateProductsPreview(sec, ex); });
@@ -9385,6 +9501,7 @@
     sec.fill = !!srcSec.fill;
     sec.m = srcSec.m ? JSON.parse(JSON.stringify(srcSec.m)) : null;
     sec.bgPos = srcSec.bgPos ? { x: srcSec.bgPos.x, y: srcSec.bgPos.y } : null;
+    diceFreshIds(sec.els, sec); // new pieces, and the die's memory remapped to them
     srcSec.wrapEl.after(sec.wrapEl);
     S.splice(idx + 1, 0, sec);
     renderSection(sec);
@@ -12123,7 +12240,7 @@
     if (ev.altKey) {
       // alt-drag: duplicate in place, then drag the copy
       var dsec = sel.sec;
-      var dcopy = JSON.parse(JSON.stringify(dsec.els[sel.i]));
+      var dcopy = diceFreshIds([JSON.parse(JSON.stringify(dsec.els[sel.i]))])[0];
       dsec.els.push(dcopy);
       renderSection(dsec);
       placeHandles(dsec, dsec.els.length - 1);
@@ -15744,7 +15861,8 @@
         var m = JSON.parse(ms.textContent);
         data.push({ scope: sEl.getAttribute('data-gogh-scope') || ('gogh-sec-' + (scopeSeq++)),
           els: m.elements || [], minH: m.minH || null, bg: m.bg || null,
-          divider: m.divider || null, bgImage: m.bgImage || null, bgId: m.bgId || null });
+          divider: m.divider || null, bgImage: m.bgImage || null, bgId: m.bgId || null,
+          m: (m.m && typeof m.m === 'object') ? m.m : null }); // the die's memory travels with the backup
       } catch (e2) {}
     });
     return data;
