@@ -288,23 +288,37 @@
     var groups = [];
     sorted.forEach(function (v) {
       var g = groups[groups.length - 1];
-      if (g && v - g[g.length - 1] <= TOL) g.push(v);
+      // a group spans at most TOL from its FIRST member: chaining 300, 307,
+      // 314, 321 into one line at 310 moved every edge in it by up to ten
+      if (g && v - g[0] <= TOL) g.push(v);
       else groups.push([v]);
     });
     return groups.map(function (g) {
       return g.reduce(function (a, b) { return a + b; }, 0) / g.length;
     });
   }
+  // the frame's own edges are fixed lines, not votes: an edge within TOL of
+  // them joins the boundary instead of pulling it inward (a full-bleed photo
+  // six units short used to shift every column by three)
+  function pinLines(lines, lo, hi) {
+    var inner = lines.filter(function (l) { return l - lo > TOL && hi - l > TOL; });
+    return [lo].concat(inner, [hi]);
+  }
   function nearest(v, lines) {
     var best = 0;
     lines.forEach(function (l, i) { if (Math.abs(l - v) < Math.abs(lines[best] - v)) best = i; });
     return best;
   }
-  function designH(els, minH) {
+  function designH(els, minH, flat) {
     var bottom = els.length
       ? Math.max.apply(null, els.map(function (e) { return e.y + e.h; }))
       : (minH || MIN_H) - PAD;
     var floor = minH || MIN_H;
+    // flat: a card's inner grid. The card IS its height; the breathing pad
+    // belongs to sections (a kid one unit past the bottom used to add the
+    // 72-unit pad to the height every row was a share of, squeezing every
+    // kid by about a seventh)
+    if (flat) return Math.max(floor, bottom);
     // Three truths at once:
     // 1. content within minH never gets a phantom pad — flush at a fixed
     //    hero's edge just works;
@@ -319,8 +333,8 @@
     var padTerm = maxPad > floor ? maxPad + PAD : floor;
     return Math.max(floor, bottom, padTerm);
   }
-  function solve(els, minH, dw, skip) {
-    var H = designH(els, minH);
+  function solve(els, minH, dw, skip, flat) {
+    var H = designH(els, minH, flat);
     // skip: elements whose edges must NOT shape the grid lines — the
     // element being dragged. Cluster averaging makes every line a blend
     // of every nearby edge, so a streaming drag position bent the lines
@@ -332,8 +346,8 @@
     var lineEls = (skip && skip.length)
       ? els.filter(function (_, i2) { return skip.indexOf(i2) === -1; })
       : els;
-    var xs = cluster([0, dw || W].concat(lineEls.reduce(function (a, e) { return a.concat([e.x, e.x + e.w]); }, [])));
-    var ys = cluster([0, H].concat(lineEls.reduce(function (a, e) { return a.concat([e.y, e.y + e.h]); }, [])));
+    var xs = pinLines(cluster(lineEls.reduce(function (a, e) { return a.concat([e.x, e.x + e.w]); }, [])), 0, dw || W);
+    var ys = pinLines(cluster(lineEls.reduce(function (a, e) { return a.concat([e.y, e.y + e.h]); }, [])), 0, H);
     var pct = function (v) { return +(v / W * 100).toFixed(2); };
     return {
       cols: xs.slice(1).map(function (x, i) { return pct(x - xs[i]) + 'cqw'; }),
@@ -1001,8 +1015,8 @@
     els.forEach(function (e, i) {
       if (e.type !== 'box' || !e.kids || !e.kids.length) return;
       var cardSel = sec + ' .gogh-el-' + (i + 1);
-      var kg = solve(e.kids, e.h, e.w, (opts.kidSkip && opts.kidSkip.ci === i) ? [opts.kidSkip.j] : null);
-      var kidH = designH(e.kids, e.h);
+      var kg = solve(e.kids, e.h, e.w, (opts.kidSkip && opts.kidSkip.ci === i) ? [opts.kidSkip.j] : null, true);
+      var kidH = designH(e.kids, e.h, true);
       var cardRows = kg.rows.map(function (r) {
         // solve emits section-cqw (1cqw = W/100 design units); the card's
         // rows must be % of the CARD's height so they scale with it
@@ -2733,10 +2747,20 @@
   }
 
   function nodeBox(node) {
+    // the layout size (offsetWidth) is pre-transform; the rect is what the
+    // eye sees. Under the birds-eye zoom the two differ by the zoom factor,
+    // and mixing them landed every drop low by h(1-s)/2 and drew the ring
+    // at the wrong size. The factor comes from the node's unrotated parent,
+    // so a rotated node's true (uninflated) size still comes from its layout
+    // numbers, scaled into the visual frame
     var w = node.offsetWidth, h = node.offsetHeight;
     var r = node.getBoundingClientRect();
-    return { x: r.left + window.scrollX + r.width / 2 - w / 2,
-             y: r.top + window.scrollY + r.height / 2 - h / 2, w: w, h: h };
+    var p = node.offsetParent || node.parentElement;
+    var zf = (p && p.offsetWidth) ? p.getBoundingClientRect().width / p.offsetWidth : 1;
+    if (!(zf > 0)) zf = 1;
+    var vw = w * zf, vh = h * zf;
+    return { x: r.left + window.scrollX + r.width / 2 - vw / 2,
+             y: r.top + window.scrollY + r.height / 2 - vh / 2, w: vw, h: vh };
   }
   function goghFadeOut(el) {
     if (el.hidden || el.classList.contains('gogh-byebye')) return;
@@ -12617,7 +12641,7 @@
     var kd = kidDrag;
     kidDrag = null;
     if (kd.ghost) kd.ghost.remove();
-    if (kd.node && kd.node.style) kd.node.style.visibility = '';
+    if (kd.node && kd.node.style) { kd.node.style.visibility = ''; kd.node.style.display = ''; }
     var cardNode = kd.sec && kd.sec.nodes && kd.sec.nodes[kd.ci];
     if (cardNode && cardNode.classList) cardNode.classList.remove('gogh-card-leaving');
     // the moves pushed siblings and grew the card from the resting snapshot:
@@ -12735,15 +12759,29 @@
       var kr0 = kidDrag.node.getBoundingClientRect();
       var kg = kidDrag.node.cloneNode(true);
       kg.classList.remove('gogh-kid-selected');
-      kg.className += ' gogh-kid-ghost gogh-kid-ghost-in';
-      kg.style.width = kr0.width + 'px';
-      kg.style.height = kr0.height + 'px';
-      kg.style.left = kr0.left + 'px';
-      kg.style.top = kr0.top + 'px';
-      document.body.appendChild(kg);
-      kidDrag.ghost = kg;
+      kg.removeAttribute('contenteditable');
+      kg.style.width = '100%';
+      kg.style.height = '100%';
+      // the kid's dress (size, ink, weight) is written in the section's scoped
+      // stylesheet as `.gogh-section.<scope> .gogh-el-<card> > .gogh-k-<j>`;
+      // a bare clone on the body wore the theme's defaults under the hand.
+      // Give it the same ancestry, with the card's and section's own paint
+      // switched off
+      var gcard = document.createElement('div');
+      gcard.className = 'gogh-el-' + (kidDrag.ci + 1);
+      gcard.style.cssText = 'display:block !important;position:static !important;width:100%;height:100%;background:none !important;border:0 !important;' +
+        'box-shadow:none !important;border-radius:0 !important;padding:0 !important;margin:0 !important;overflow:visible !important;' +
+        'backdrop-filter:none !important;-webkit-backdrop-filter:none !important;min-height:0 !important;';
+      gcard.appendChild(kg);
+      var gwrap = document.createElement('div');
+      gwrap.className = 'gogh-section ' + sec.scope + ' gogh-kid-ghost gogh-kid-ghost-in';
+      gwrap.style.cssText = 'position:fixed !important;display:block !important;background:none !important;container-type:normal;min-height:0 !important;' +
+        'padding:0 !important;margin:0 !important;gap:0 !important;left:' + kr0.left + 'px;top:' + kr0.top + 'px;width:' + kr0.width + 'px;height:' + kr0.height + 'px;';
+      gwrap.appendChild(gcard);
+      document.body.appendChild(gwrap);
+      kidDrag.ghost = gwrap;
       kidDrag.gx = kr0.left; kidDrag.gy = kr0.top;
-      kidDrag.node.style.visibility = 'hidden';
+      kidDrag.node.style.display = 'none'; // out of the grid too: hidden, it still sized its row by its words
     }
     kidDrag.ghost.style.left = (kidDrag.gx + (ev.clientX - kidDrag.px)) + 'px';
     kidDrag.ghost.style.top = (kidDrag.gy + (ev.clientY - kidDrag.py)) + 'px';
@@ -12773,7 +12811,7 @@
     var sec = kd.sec;
     var cardNode = sec.nodes[kd.ci];
     if (cardNode) cardNode.classList.remove('gogh-card-leaving');
-    if (kd.ghost) { kd.ghost.remove(); kd.node.style.visibility = ''; }
+    if (kd.ghost) { kd.ghost.remove(); kd.node.style.visibility = ''; kd.node.style.display = ''; }
     var hostEl = sec.els[kd.ci];
     if (!hostEl || !hostEl.kids) return;
     if (kd.moved) {

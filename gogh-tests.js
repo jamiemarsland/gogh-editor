@@ -4091,7 +4091,7 @@
       // mid-drag: a ghost under the hand, the real kid hidden
       var ghost = document.querySelector('.gogh-kid-ghost.gogh-kid-ghost-in');
       expect(ghost, 'no in-card ghost while dragging a kid');
-      expect(an.style.visibility === 'hidden', 'the real kid should hide behind its ghost');
+      expect(an.style.display === 'none' || an.style.visibility === 'hidden', 'the real kid should hide behind its ghost (out of the grid, so its words size no row)');
       pv('pointermove', document, ar.left + 10, ar.top + 8 + 70 * sc, 81);
       pv('pointerup', document, ar.left + 10, ar.top + 8 + 70 * sc, 81);
       expect(!document.querySelector('.gogh-kid-ghost'), 'ghost left behind after the drop');
@@ -6509,6 +6509,88 @@
       expect(wantDark ? inkL < 0.5 : inkL >= 0.5, 'on a painted ground of ' + painted.toFixed(2) + ' the words should be ' + (wantDark ? 'dark' : 'light') + ', ink luminance ' + inkL.toFixed(2));
       [].slice.call(document.querySelectorAll('.gogh-toast')).forEach(function (t) { t.remove(); });
       return 'painted ground ' + painted.toFixed(2) + ' -> ' + (wantDark ? 'dark' : 'light') + ' ink (' + inkL.toFixed(2) + ')';
+    });
+    // ---- zoom and the solver (audit batch 4) ----
+    test('the frame’s edges are fixed lines: a near-full-bleed photo does not shift the columns', function () {
+      // an image six units short of the left edge, a heading at 72
+      var g = G.solve([
+        { type: 'image', x: 6, y: 0, w: 600, h: 400 },
+        { type: 'heading', x: 72, y: 420, w: 470, h: 60, text: 'Here' },
+        { type: 'para', x: 72, y: 500, w: 410, h: 40, text: 'And here' } ], 600, null, null);
+      var lines = [0];
+      g.cols.forEach(function (c) { lines.push(lines[lines.length - 1] + parseFloat(c) * 12); });
+      var total = lines[lines.length - 1];
+      expect(Math.abs(total - 1200) < 0.6, 'the columns should span the whole frame, span ' + total.toFixed(1));
+      expect(lines[0] === 0 && Math.abs(lines[1] - 72) < 0.6, 'the first inner line should sit at 72, not be pulled by the photo edge: ' + lines.map(function (l) { return l.toFixed(1); }).join(', '));
+      expect(g.areas[0].c1 === 1, 'the photo should start on the frame’s edge');
+      // chained edges: 300, 307, 314, 321 are two lines (each group spans at most TOL), not one at 310
+      var g2 = G.solve([
+        { type: 'heading', x: 100, y: 0, w: 200, h: 40, text: 'a' },
+        { type: 'heading', x: 307, y: 60, w: 200, h: 40, text: 'b' },
+        { type: 'heading', x: 314, y: 120, w: 100, h: 40, text: 'c' },
+        { type: 'heading', x: 321, y: 180, w: 100, h: 40, text: 'd' } ], 600, null, null);
+      var l2 = [0];
+      g2.cols.forEach(function (c) { l2.push(l2[l2.length - 1] + parseFloat(c) * 12); });
+      var near = l2.filter(function (l) { return l > 290 && l < 330; });
+      expect(near.length === 2, 'edges 300/307/314/321 should make two lines, made ' + near.length + ' (' + near.map(function (l) { return l.toFixed(1); }).join(', ') + ')');
+      return 'span ' + total.toFixed(1) + '; inner line at ' + lines[1].toFixed(1) + '; chain -> ' + near.length + ' lines';
+    });
+    test('a card’s rows are a share of the card: a kid a unit past the bottom squeezes nothing', function () {
+      var s0 = sec();
+      var f = cardAt(s0, [
+        { type: 'heading', x: 30, y: 20, w: 420, h: 40, text: 'Top of the card' },
+        { type: 'para', x: 30, y: 240, w: 420, h: 81, text: 'One unit past the bottom' } ]); // 240 + 81 = 321 > 320
+      var sc = s0.sectionEl.getBoundingClientRect().width / 1200;
+      var cardR = f.node.getBoundingClientRect();
+      var kn = f.node.querySelector('.gogh-k-1');
+      var top = (kn.getBoundingClientRect().top - cardR.top) / sc;
+      expect(Math.abs(top - 20) <= 3, 'the first kid should sit at its model y (20), sits at ' + top.toFixed(1));
+      return 'first kid at ' + top.toFixed(1) + ' for a model y of 20';
+    });
+    test('the kid ghost wears the kid’s own dress, and the kid leaves the grid while it rides', function () {
+      var s0 = sec();
+      var f = cardAt(s0, [
+        { type: 'heading', x: 30, y: 20, w: 420, h: 40, text: 'Dressed', color: 'base', tf: { fs: 34, fw: 700 } },
+        { type: 'para', x: 30, y: 100, w: 420, h: 40, text: 'Under' } ]);
+      var kn = f.node.querySelector('.gogh-k-1');
+      var host = kn.matches('h1,h2,h3,h4,h5,h6,p') ? kn : (kn.querySelector('h1,h2,h3,h4,h5,h6,p') || kn);
+      var want = { fs: getComputedStyle(host).fontSize, fw: getComputedStyle(host).fontWeight, col: getComputedStyle(host).color };
+      var r = kn.getBoundingClientRect();
+      var sc = s0.sectionEl.getBoundingClientRect().width / 1200;
+      pvk('pointerdown', kn, r.left + 10, r.top + 8, 75);
+      pvk('pointermove', document, r.left + 10, r.top + 8 + 60 * sc, 75);
+      var ghost = document.querySelector('.gogh-kid-ghost');
+      expect(ghost, 'no kid ghost');
+      var gh = ghost.querySelector('h1,h2,h3,h4,h5,h6,p') || ghost;
+      var got = { fs: getComputedStyle(gh).fontSize, fw: getComputedStyle(gh).fontWeight, col: getComputedStyle(gh).color };
+      expect(getComputedStyle(kn).display === 'none', 'the riding kid should leave the grid (display none), has ' + getComputedStyle(kn).display);
+      pvk('pointercancel', document, r.left + 10, r.top + 8 + 60 * sc, 75);
+      expect(getComputedStyle(kn).display !== 'none', 'the kid did not come back after the cancel');
+      expect(got.fs === want.fs && got.fw === want.fw && got.col === want.col,
+        'the ghost wore ' + JSON.stringify(got) + ', the kid wears ' + JSON.stringify(want));
+      return 'ghost ' + got.fs + ' / ' + got.fw + ' / ' + got.col + ' = kid';
+    });
+    test('under the birds-eye zoom a sideways drag keeps its height', function () {
+      var i = findIdx('badge');
+      var e0 = sec().els[i], y0 = e0.y, h0 = e0.h;
+      G.canvasZoom.out();
+      var zoomed = document.querySelector('.gogh-zoomed, [style*="scale("]');
+      try {
+        select(i);
+        var grip = q('.gogh-grip');
+        expect(grip, 'no grip under the zoom');
+        var r = grip.getBoundingClientRect();
+        pev('pointerdown', grip, r.x + 12, r.y + 12, 52);
+        pev('pointermove', grip, r.x + 12 + 40, r.y + 12, 52);
+        pev('pointermove', grip, r.x + 12 + 80, r.y + 12, 52);
+        pev('pointerup', grip, r.x + 12 + 80, r.y + 12, 52);
+      } finally {
+        G.canvasZoom.back();
+      }
+      var e1 = sec().els[i];
+      expect(Math.abs(e1.y - y0) <= 2, 'a sideways drag under the zoom moved the piece down: y ' + y0 + ' -> ' + e1.y);
+      expect(e1.h === h0, 'the piece changed height under the zoom: ' + h0 + ' -> ' + e1.h);
+      return 'y ' + y0 + ' -> ' + e1.y + (zoomed ? ' (zoom wrapper found)' : '');
     });
     test('an extra button rides beside the take\'s button through every roll', function () {
       var hero = G.templates().filter(function (x) { return x.name === 'Hero'; })[0];
