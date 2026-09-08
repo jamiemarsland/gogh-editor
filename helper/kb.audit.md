@@ -1,4 +1,4 @@
-# Knowledge-base audit — plugin v0.99.432
+# Knowledge-base audit — plugin v0.99.433
 
 _13 finding(s) suppressed by `kb.audit-ignore.txt`._
 
@@ -103,12 +103,4 @@ The source has something the prose never explains. The bot knows the name from t
 
 Use this as the checklist for updating the prose — and as a sanity check on the release itself.
 
-- version: 0.99.422 → 0.99.432
-- removed UI label: "On desktop"
-- removed UI label: "On phones"
-- added UI label: "' + whereTip(it.where !== 'desktop', 'phone') + '"
-- added UI label: "' + whereTip(it.where !== 'phone', 'desktop') + '"
-- added UI label: "Which take of this design is on the page"
-- removed toast: "Text title restored — click it to rename your site."
-- added toast: "Name size saved."
-- added toast: "Site name restored — click it to rename."
+- version: 0.99.432 → 0.99.433
