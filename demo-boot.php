@@ -82,3 +82,24 @@ if ( $guide && ! is_wp_error( $guide ) ) {
 	update_post_meta( $guide, '_gogh_post_style', 'manual' ); // opens in the Manual look
 }
 update_option( 'blogname', 'The Yellow House' );
+// a blueprint may ask for one of gogh's other headers (blueprint-classic
+// defines GOGH_DEMO_HEADER before fetching this boot): the pattern goes in
+// wearing the same menu the starter just built
+if ( defined( 'GOGH_DEMO_HEADER' ) ) {
+	$pfile = WP_PLUGIN_DIR . '/gogh/patterns/' . sanitize_file_name( GOGH_DEMO_HEADER ) . '.html';
+	$part  = get_block_template( get_stylesheet() . '//header', 'wp_template_part' );
+	if ( $part && ! empty( $part->wp_id ) && is_readable( $pfile ) && preg_match( '/"ref":(\d+)/', (string) $part->content, $mm ) ) {
+		$praw = file_get_contents( $pfile );
+		$ref  = (int) $mm[1];
+		if ( preg_match( '/wp:navigation[^>]*"ref":\d+/', $praw ) ) {
+			$next = preg_replace( '/("ref":)\d+/', '${1}' . $ref, $praw, 1 );
+		} elseif ( preg_match( '/<!--\s+wp:navigation\s+\{/', $praw ) ) {
+			$next = preg_replace( '/(<!--\s+wp:navigation\s+\{)/', '${1}"ref":' . $ref . ',', $praw, 1 );
+		} else {
+			$next = preg_replace( '/(<!--\s+wp:navigation)(\s+-->)/', '${1} {"ref":' . $ref . '}${2}', $praw, 1 );
+		}
+		if ( $next ) {
+			wp_update_post( array( 'ID' => $part->wp_id, 'post_content' => $next ) );
+		}
+	}
+}
