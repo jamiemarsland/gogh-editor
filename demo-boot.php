@@ -52,4 +52,33 @@ wp_insert_post( array(
 	'post_title'   => 'The wheatfield arrived on a Tuesday',
 	'post_content' => '<!-- wp:paragraph --><p>Crated, insured, and heavier than any sky has a right to be. It took four of us to hang it and one long evening to stop staring. Room two, straight ahead.</p><!-- /wp:paragraph -->',
 ) );
+// a reference post with real sections, so the Manual look has contents
+// to build: how to care for a print, the way a gallery would tell you
+$guide = wp_insert_post( array(
+	'post_type'    => 'post',
+	'post_status'  => 'publish',
+	'post_title'   => 'Caring for a print',
+	'post_content' =>
+		'<!-- wp:paragraph --><p>A giclée print will outlive you if you let it. Most of what shortens its life happens in the first week: the wrong frame, the wrong wall, a damp hallway. This is everything we tell people at the counter, written down.</p><!-- /wp:paragraph -->' .
+		'<!-- wp:heading --><h2 class="wp-block-heading">Unpacking</h2><!-- /wp:heading -->' .
+		'<!-- wp:paragraph --><p>Prints travel flat between two boards. Open the parcel on a clean table, not the floor, and lift the print by its edges. The margins are there to be handled; the image is not.</p><!-- /wp:paragraph -->' .
+		'<!-- wp:list --><ul class="wp-block-list"><!-- wp:list-item --><li>Wash and dry your hands, or wear cotton gloves.</li><!-- /wp:list-item --><!-- wp:list-item --><li>Keep the boards. They are the best storage the print will ever have.</li><!-- /wp:list-item --><!-- wp:list-item --><li>Leave the tissue on until the frame is ready.</li><!-- /wp:list-item --></ul><!-- /wp:list -->' .
+		'<!-- wp:heading --><h2 class="wp-block-heading">Framing</h2><!-- /wp:heading -->' .
+		'<!-- wp:paragraph --><p>A frame does two jobs: it keeps the glass off the paper and it keeps the air out. Ask for a mount (a window of card between print and glass) and for acid-free backing.</p><!-- /wp:paragraph -->' .
+		'<!-- wp:heading {"level":3} --><h3 class="wp-block-heading">Glass or acrylic</h3><!-- /wp:heading -->' .
+		'<!-- wp:paragraph --><p>Glass is cheaper and scratches less. Acrylic is lighter, safer over a bed, and the UV-filtering kind is worth it in a bright room. Either way, the print must not touch it.</p><!-- /wp:paragraph -->' .
+		'<!-- wp:heading {"level":3} --><h3 class="wp-block-heading">Sizes we print</h3><!-- /wp:heading -->' .
+		'<!-- wp:table --><figure class="wp-block-table"><table><thead><tr><th>Print</th><th>Image</th><th>Paper</th><th>Standard frame</th></tr></thead><tbody><tr><td>Small</td><td>30 × 24 cm</td><td>40 × 30 cm</td><td>40 × 30 cm</td></tr><tr><td>Medium</td><td>40 × 30 cm</td><td>50 × 40 cm</td><td>50 × 40 cm</td></tr><tr><td>Large</td><td>60 × 45 cm</td><td>70 × 50 cm</td><td>70 × 50 cm</td></tr></tbody></table></figure><!-- /wp:table -->' .
+		'<!-- wp:paragraph --><p>Paper sizes include a margin on every side. Frame to the paper size and let the mount do the cropping.</p><!-- /wp:paragraph -->' .
+		'<!-- wp:heading --><h2 class="wp-block-heading">Hanging</h2><!-- /wp:heading -->' .
+		'<!-- wp:paragraph --><p>Out of direct sun, away from radiators, never in a bathroom. The centre of the image at about 145 cm from the floor is where most eyes land.</p><!-- /wp:paragraph -->' .
+		'<!-- wp:quote --><blockquote class="wp-block-quote"><!-- wp:paragraph --><p>If you can feel the wall is cold or damp with your palm, the print will feel it too. Pick another wall.</p><!-- /wp:paragraph --></blockquote><!-- /wp:quote -->' .
+		'<!-- wp:heading --><h2 class="wp-block-heading">Cleaning</h2><!-- /wp:heading -->' .
+		'<!-- wp:paragraph --><p>Dust the glass with a dry microfibre cloth. Nothing wet near the frame, and never spray anything at it. If the print itself needs attention, bring it back to us.</p><!-- /wp:paragraph -->' .
+		'<!-- wp:heading --><h2 class="wp-block-heading">If something goes wrong</h2><!-- /wp:heading -->' .
+		'<!-- wp:paragraph --><p>A ripple in the paper is usually damp and usually recoverable if caught early. A fade is not. Write to us with a photo and the print number from the back, and we will tell you honestly what can be done.</p><!-- /wp:paragraph -->',
+) );
+if ( $guide && ! is_wp_error( $guide ) ) {
+	update_post_meta( $guide, '_gogh_post_style', 'manual' ); // opens in the Manual look
+}
 update_option( 'blogname', 'The Yellow House' );
