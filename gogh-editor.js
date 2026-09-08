@@ -14390,6 +14390,7 @@
     },
     toast: toast,
     textIdentityRaw: textIdentityRaw,
+    chromeShape: chromeShape,
     publish: publish,
     isDirty: isDirty,
     parseTopBlocks: parseTopBlocks,
@@ -16565,6 +16566,20 @@
           activeOpt = overlayPatt; // the chip that's really applied
         }
       }
+      // the same truth for EVERY gogh layout: a saved part built from one
+      // of gogh's patterns (a starter, a blueprint, an earlier pick) IS that
+      // chip — not a second "header" beside it (James: "looks like we are
+      // missing options?" — the list opened with 'header' AND 'Classic header')
+      if (activeOpt && activeOpt.kind === 'part') {
+        var shapeA = chromeShape(activeOpt.content);
+        var twin = shapeA && options.filter(function (o) {
+          return o.kind === 'pattern' && chromeShape(o.content) === shapeA;
+        })[0];
+        if (twin) {
+          options = options.filter(function (o) { return o !== activeOpt; });
+          activeOpt = twin;
+        }
+      }
       if (activeOpt && activeOpt.content.indexOf('wp:gogh/section') !== -1) {
         activeOpt.title += ' \u00b7 freeform';
       }
@@ -17669,6 +17684,25 @@
   // identical to another option, or indistinguishable from the CURRENT
   // part get dropped — flicking through lookalikes feels broken. The kept
   // renders make every subsequent flick instant.
+  // a layout's SHAPE: its blocks in order, each with the attributes that
+  // make it that layout (className, layout, level, align) — never the
+  // menu's ref, a logo's width or whitespace, which a saved copy is free
+  // to carry
+  function chromeShape(raw) {
+    var out = [];
+    var re = /<!--\s*wp:([a-z0-9\/-]+)(\s+(\{[^]*?\}))?\s*\/?-->/g;
+    var m;
+    while ((m = re.exec(String(raw || '')))) {
+      var a = {};
+      if (m[3]) { try { a = JSON.parse(m[3]); } catch (e) { a = {}; } }
+      var keep = {};
+      ['className', 'layout', 'level', 'align', 'textAlign', 'overlayMenu', 'icon', 'orientation'].forEach(function (k) {
+        if (a[k] !== undefined) keep[k] = a[k];
+      });
+      out.push(m[1] + JSON.stringify(keep));
+    }
+    return out.length ? out.join('|') : '';
+  }
   function screenChromeOptions(options, activeOpt) {
     return Promise.all(options.map(renderChromeOption)).then(function () {
       var seen = {};

@@ -5837,6 +5837,18 @@
       return 'inferred ' + fam + ', rolled to face ' + (r.face + 1) + ' of ' + r.of + ', words kept; wall → ' + wallFam + ', form → ' + formFam;
     });
 
+    // LAYOUT SHAPE — a saved header built from a gogh pattern is that
+    // pattern's chip, whatever menu ref, logo width or whitespace it carries
+    test('a saved part collapses into the layout chip it was built from', function () {
+      var patt = '<!-- wp:group {"className":"gogh-hrow","layout":{"type":"flex","justifyContent":"space-between"}} -->\n<div><!-- wp:site-logo {"width":44} /-->\n<!-- wp:site-title {"level":0} /-->\n<!-- wp:navigation {"overlayMenu":"mobile","icon":"menu"} /--></div>\n<!-- /wp:group -->';
+      var saved = '<!-- wp:group {"className":"gogh-hrow","layout":{"type":"flex","justifyContent":"space-between"}} --><div><!-- wp:site-logo {"width":160} /--><!-- wp:site-title {"level":0} /--><!-- wp:navigation {"ref":42,"overlayMenu":"mobile","icon":"menu"} /--></div><!-- /wp:group -->';
+      var other = patt.replace('"justifyContent":"space-between"', '"justifyContent":"center"');
+      if (G.chromeShape(saved) !== G.chromeShape(patt)) throw new Error('a saved copy with a menu ref and a logo width must match its pattern');
+      if (G.chromeShape(other) === G.chromeShape(patt)) throw new Error('a different layout must not match');
+      if (G.chromeShape('') !== '') throw new Error('no blocks, no shape');
+      return 'ref + width + whitespace ignored; layout attrs decide';
+    });
+
     // IDENTITY — back to a name: a logo-only layout's logo BECOMES the
     // title; a layout that already shows the name beside its mark just
     // loses the mark (two titles otherwise)
