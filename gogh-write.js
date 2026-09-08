@@ -1841,6 +1841,7 @@
       { key: 'photostory', name: 'Photo story', hint: 'pictures lead, words breathe' },
       { key: 'feature', name: 'Feature', hint: 'huge left title, offset images' },
       { key: 'cover', name: 'Cover', hint: 'your photo as the front page' },
+      { key: 'manual', name: 'Manual', hint: 'side contents, tables and code' },
     ];
     var current = cfg.postStyle || '';
     var CLASSES = LOOKS.map(function (l) { return 'gogh-read-' + l.key; }).filter(function (c) { return c !== 'gogh-read-'; });

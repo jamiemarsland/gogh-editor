@@ -5830,6 +5830,28 @@
       return 'inferred ' + fam + ', rolled to face ' + (r.face + 1) + ' of ' + r.of + ', words kept; wall → ' + wallFam + ', form → ' + formFam;
     });
 
+    // MANUAL — the reference look: contents built from the post's own
+    // headings, ids minted where missing, the current section marked
+    test('the Manual look builds its contents from the headings', function () {
+      if (typeof window.goghManualToc !== 'function') throw new Error('goghManualToc is not on the page');
+      var root = document.createElement('div');
+      root.className = 'entry-content';
+      root.innerHTML = '<p>Intro</p><h2>Install it</h2><p>a</p><h3>On a Mac</h3><p>b</p><h2 id="kept">Configure</h2><p>c</p><h2>Install it</h2><p>d</p>';
+      document.body.appendChild(root);
+      try {
+        var nav = window.goghManualToc(root);
+        if (!nav || !root.classList.contains('gogh-has-toc')) throw new Error('no contents were built');
+        var links = [].map.call(nav.querySelectorAll('a'), function (a) { return a.getAttribute('href'); });
+        if (links.length !== 4) throw new Error('expected 4 entries, got ' + links.length + ': ' + links.join(' '));
+        if (links[0] !== '#install-it' || links[1] !== '#on-a-mac' || links[2] !== '#kept' || links[3] !== '#install-it-2') throw new Error('ids were not minted as expected: ' + links.join(' '));
+        if (!nav.querySelector('li.gogh-toc-h3')) throw new Error('the h3 lost its level');
+        if (root.firstChild !== nav) throw new Error('the contents should sit first in the content');
+        var tiny = document.createElement('div'); tiny.innerHTML = '<h2>Only one</h2><p>x</p>';
+        if (window.goghManualToc(tiny) !== null) throw new Error('one heading should build no contents');
+        return links.join(' ') + ' · one heading builds nothing';
+      } finally { root.remove(); }
+    });
+
     // drain the async queue, then report — one at a time, restore between
     (function drain() {
       var t = asyncQueue.shift();
