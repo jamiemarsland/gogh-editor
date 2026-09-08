@@ -124,3 +124,26 @@ add_filter( 'block_editor_settings_all', function ( $settings ) {
 	$settings['styles'][] = array( 'css' => $css );
 	return $settings;
 } );
+
+// say so, once: a helper nobody asked for by name must not be a surprise.
+// One note on the Plugins screen while Gogh is off, gone when noted, gone
+// for good when Gogh is back or deleted (uninstall.php removes this file).
+add_action( 'admin_notices', function () {
+	if ( defined( 'GOGH_VERSION' ) || ! current_user_can( 'activate_plugins' ) ) {
+		return;
+	}
+	$screen = function_exists( 'get_current_screen' ) ? get_current_screen() : null;
+	if ( ! $screen || 'plugins' !== $screen->id ) {
+		return;
+	}
+	if ( isset( $_GET['gogh-helper-noted'] ) ) {
+		update_option( 'gogh_keep_blocks_noted', 1 );
+	}
+	if ( get_option( 'gogh_keep_blocks_noted' ) ) {
+		return;
+	}
+	$noted = esc_url( add_query_arg( 'gogh-helper-noted', '1', admin_url( 'plugins.php' ) ) );
+	echo '<div class="notice notice-info"><p>' .
+		esc_html__( 'Gogh left a small helper in must-use plugins so your designed sections stay editable while it is off. Reactivate Gogh to remove it, or delete Gogh to remove both.', 'gogh-editor' ) .
+		' <a href="' . $noted . '">' . esc_html__( 'Got it', 'gogh-editor' ) . '</a></p></div>';
+} );
