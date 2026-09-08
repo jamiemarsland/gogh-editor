@@ -7918,11 +7918,25 @@
     var noRole = function (e) { return !diceRole(e); };
     var liveNone = sec.els.filter(noRole), priNone = tplEls(faces[cur]).filter(noRole);
     liveNone.forEach(function (e, i) { if (priNone[i]) matched.set(e, { r: '_', i: i }); });
-    var extra = sec.els.filter(function (e) { return !matched.has(e); });
+    // extras live on the page OR inside a card (a take like The panel keeps
+    // its button in the card, and a second button joined it there)
+    var isCard = function (e) { return e.type === 'box' && !!e.kids; };
+    var extra = diceFlatten(sec.els).filter(function (e) {
+      return !matched.has(e) && !isCard(e) && (diceRole(e) || sec.els.indexOf(e) !== -1);
+    });
+    // a card's kids sit relative to the card — seats are measured on the page
+    var absIn = function (els, e) {
+      if (els.indexOf(e) !== -1) return { x: e.x, y: e.y, w: e.w, h: e.h, card: null };
+      for (var b = 0; b < els.length; b++) {
+        if (isCard(els[b]) && els[b].kids.indexOf(e) !== -1) return { x: els[b].x + e.x, y: els[b].y + e.y, w: e.w, h: e.h, card: els[b] };
+      }
+      return { x: e.x, y: e.y, w: e.w, h: e.h, card: null };
+    };
     var seat = function (x, a) {
-      var right = x.x >= a.x + a.w - 4, below = x.y >= a.y + a.h - 4;
+      var xa = absIn(sec.els, x), aa = absIn(sec.els, a);
+      var right = xa.x >= aa.x + aa.w - 4, below = xa.y >= aa.y + aa.h - 4;
       return { right: right, below: below,
-        dx: right ? x.x - (a.x + a.w) : x.x - a.x, dy: below ? x.y - (a.y + a.h) : x.y - a.y };
+        dx: right ? xa.x - (aa.x + aa.w) : xa.x - aa.x, dy: below ? xa.y - (aa.y + aa.h) : xa.y - aa.y };
     };
     var rides = extra.map(function (x) {
       var best = null, bd = Infinity, head = null;
@@ -7938,26 +7952,51 @@
       // sits where that roll put it — through a take with no button, the
       // second button keeps knowing it belongs beside the first
       var m0 = diceRideMemo.get(x);
-      var memo = (m0 && m0.at[0] === x.x && m0.at[1] === x.y) ? m0 : null;
+      var xa0 = absIn(sec.els, x);
+      var memo = (m0 && m0.at[0] === xa0.x && m0.at[1] === xa0.y) ? m0 : null;
       return { ri: best.ri, seat: seat(x, best.a), own: diceRole(best.a) === diceRole(x),
         fb: head ? { ri: head.ri, seat: seat(x, head.a) } : null, memo: memo };
     });
+    // the extras leave wherever they sat; they re-seat below
+    sec.els.forEach(function (e) { if (isCard(e)) e.kids = e.kids.filter(function (k) { return extra.indexOf(k) === -1; }); });
     var els2 = tplEls(faces[next]);
     var by2 = diceByRole(els2);
     var none2 = els2.filter(noRole);
-    var slot2 = function (ri) { return ri.r === '_' ? none2[ri.i] : (by2[ri.r] || [])[ri.i]; };
+    // the same slot in the next take — or, when the take draws fewer of
+    // that kind, the last one it does draw (a take with one button still
+    // seats the second beside it); roleless pieces pair exactly
+    var slot2 = function (ri) {
+      if (ri.r === '_') return none2[ri.i];
+      var list = by2[ri.r] || [];
+      return list.length ? list[Math.min(ri.i, list.length - 1)] : null;
+    };
+    var extraTop = [];
     extra.forEach(function (x, k) {
       var ride = rides[k];
-      if (!ride) return;
+      if (!ride) { extraTop.push(x); return; }
       var a2 = null, st = null, keep = null;
       if (ride.memo && slot2(ride.memo.ri)) { a2 = slot2(ride.memo.ri); st = ride.memo.seat; keep = ride.memo; }
       else if (slot2(ride.ri)) { a2 = slot2(ride.ri); st = ride.seat; keep = ride.own ? { ri: ride.ri, seat: ride.seat } : ride.memo; }
       else if (ride.fb && slot2(ride.fb.ri)) { a2 = slot2(ride.fb.ri); st = ride.fb.seat; keep = ride.memo; }
-      if (!a2) return;
-      x.x = Math.max(0, Math.min(W - x.w, Math.round(st.right ? a2.x + a2.w + st.dx : a2.x + st.dx)));
-      x.y = Math.max(0, Math.round(st.below ? a2.y + a2.h + st.dy : a2.y + st.dy));
-      diceRideMemo.set(x, Object.assign({}, keep || { ri: ride.ri, seat: ride.seat }, { at: [x.x, x.y] }));
+      if (!a2) { extraTop.push(x); return; }
+      var aa = absIn(els2, a2);
+      var tx = Math.round(st.right ? aa.x + aa.w + st.dx : aa.x + st.dx);
+      var ty = Math.round(st.below ? aa.y + aa.h + st.dy : aa.y + st.dy);
+      if (aa.card) {
+        // the piece it follows lives in a card: join the card beside it
+        var c = aa.card;
+        x.x = Math.max(0, Math.min(Math.max(0, c.w - x.w), tx - c.x));
+        x.y = Math.max(0, ty - c.y);
+        c.kids.push(x);
+      } else {
+        x.x = Math.max(0, Math.min(W - x.w, tx));
+        x.y = Math.max(0, ty);
+        extraTop.push(x);
+      }
+      var placed = absIn(els2, x);
+      diceRideMemo.set(x, Object.assign({}, keep || { ri: ride.ri, seat: ride.seat }, { at: [placed.x, placed.y] }));
     });
+    extra = extraTop;
     Object.keys(edits).forEach(function (r) {
       (by2[r] || []).forEach(function (e, i) {
         var d = edits[r][i];
@@ -14448,6 +14487,8 @@
     toast: toast,
     textIdentityRaw: textIdentityRaw,
     chromeShape: chromeShape,
+    diceFlatten: diceFlatten,
+    blocksV3: buildSectionBlocksV3,
     titleRawWithSize: titleRawWithSize,
     publish: publish,
     isDirty: isDirty,

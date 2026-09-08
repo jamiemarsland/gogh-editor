@@ -5845,7 +5845,8 @@
       G.addSection(hero);
       var s = lastSec();
       var idx = G.sections().indexOf(s);
-      var b1 = s.els.filter(function (e) { return e.type === 'button'; })[0];
+      var heroBtns = s.els.filter(function (e) { return e.type === 'button'; });
+      var b1 = heroBtns[heroBtns.length - 1]; // after the LAST button the take draws
       if (!b1) throw new Error('the Hero has no button');
       var b2 = JSON.parse(JSON.stringify(b1));
       b2.text = 'Second'; b2.x = b1.x + b1.w + 16; b2.y = b1.y;
@@ -5855,16 +5856,21 @@
       var seen = [];
       for (var k = 0; k < faces.length; k++) {
         G.rollSection(idx);
-        var btns = s.els.filter(function (e) { return e.type === 'button'; });
+        var btns = G.diceFlatten(s.els).filter(function (e) { return e.type === 'button'; });
         var ex = btns.filter(function (e) { return e.text === 'Second'; })[0];
-        var own = btns.filter(function (e) { return e.text !== 'Second'; })[0];
+        var owns = btns.filter(function (e) { return e.text !== 'Second'; });
+        var own = owns[owns.length - 1]; // the extra follows the take's last button
         if (!ex) throw new Error('lost the extra button on roll ' + (k + 1));
         if (ex.x < 0 || ex.x + ex.w > 1200) throw new Error('roll ' + (k + 1) + ': the extra left the canvas');
         if (!own) { seen.push('no-button-take'); continue; } // a take drawn without a button: the extra rides the headline
+        // a take that keeps its button in a card: the extra joins the same card
+        var cardOf = function (e) { return s.els.filter(function (b) { return b.type === 'box' && b.kids && b.kids.indexOf(e) !== -1; })[0] || null; };
+        if (cardOf(own) !== cardOf(ex)) throw new Error('roll ' + (k + 1) + ': the extra and the take\'s button are not in the same card');
         if (Math.abs(ex.y - own.y) > 2) throw new Error('roll ' + (k + 1) + ': the extra left the row (y ' + ex.y + ' vs ' + own.y + ')');
         var gap = ex.x - (own.x + own.w);
-        if (gap < 0 || gap > 40) throw new Error('roll ' + (k + 1) + ': the extra lost its gap (' + gap + ')');
-        seen.push(gap);
+        var atEdge = ex.x + ex.w >= 1200; // no room to the right: clamped to the canvas edge, still on the row
+        if (!atEdge && (gap < 0 || gap > 40)) throw new Error('roll ' + (k + 1) + ': the extra lost its gap (' + gap + ')');
+        seen.push(atEdge ? 'edge' : gap);
       }
       G.deleteSection(idx);
       return faces.length + ' rolls, gaps ' + seen.join('/');
