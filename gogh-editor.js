@@ -7927,20 +7927,35 @@
     if (!faces) return null;
     // an inferred family is adopted on the first roll: from here the
     // section knows its takes like any other
-    if (!sec.m || !sec.m.tpl || sec.m.tpl !== fam) sec.m = Object.assign({}, sec.m || {}, { tpl: fam, face: 0 });
+    if (!sec.m || !sec.m.tpl || sec.m.tpl !== fam) {
+      // a section that never named its family keeps what it WAS: its own
+      // pieces are 'The original' take, and four rolls bring THEM home — not
+      // the family's base drawing with pieces it never had (the walk caught
+      // the Yellow House hero coming home with a box, a photo and a badge)
+      sec.m = Object.assign({}, sec.m || {}, { tpl: fam, face: 0, orig: {
+        els: JSON.parse(JSON.stringify(sec.els)), minH: sec.minH || null, bg: sec.bg || null,
+        bgImage: sec.bgImage || null, bgId: sec.bgId || null, bgPos: sec.bgPos || null,
+        bgA: sec.bgA != null ? sec.bgA : null, fill: !!sec.fill, fx: sec.fx || null } });
+    }
+    var orig = sec.m.orig && sec.m.orig.els ? sec.m.orig : null;
     var cur = ((sec.m.face || 0) % faces.length + faces.length) % faces.length;
     var next = (cur + 1) % faces.length;
+    var takeEls = function (face) { return (face === 0 && orig) ? JSON.parse(JSON.stringify(orig.els)) : tplEls(faces[face]); };
     // what the CURRENT take would say untouched (tplEls is deterministic:
     // pool picks are seeded by family name) -- anything that differs is
     // the user's, and the user's work survives the roll
-    var pristine = diceByRole(tplEls(faces[cur]));
+    var pristine = diceByRole(takeEls(cur));
+    // WORDS are measured against the family's own drawing of this take:
+    // an original section's words differ from the template's, and that
+    // difference is what must travel into the next take
+    var words = (cur === 0 && orig) ? diceByRole(tplEls(faces[0])) : pristine;
     var live = diceByRole(sec.els);
     // the user's edits, REMEMBERED on the model by role and slot: a take
     // that does not draw the second button keeps its words for the take
     // that does (they used to come home wearing the template's text)
     var edits = (sec.m && sec.m.edits && typeof sec.m.edits === 'object') ? sec.m.edits : {};
     Object.keys(live).forEach(function (r) {
-      var pl = pristine[r] || [];
+      var pl = words[r] || [];
       live[r].forEach(function (e, i) {
         if (!pl[i]) return;
         var d = {};
@@ -7967,8 +7982,8 @@
     // second button keeps its gap from the take's button, below or to the
     // right, wherever that button lands next (James: "rolling the dice on
     // this section breaks the layout — the buttons are all over the place")
-    var els2 = tplEls(faces[next]);
-    diceFlatten(els2).forEach(function (e) { e.tk = next; }); // drawn by this roll
+    var els2 = takeEls(next);
+    if (!(next === 0 && orig)) diceFlatten(els2).forEach(function (e) { e.tk = next; }); // drawn by this roll (the original's pieces stay originals)
     var by2 = diceByRole(els2);
     var noRole = function (e) { return !diceRole(e); };
     var none2 = els2.filter(noRole);
@@ -7990,7 +8005,7 @@
     });
     // roleless pieces (shapes, boxes) are the take's decoration: pair by
     // order, and one the next take does not draw steps aside
-    var liveNone = sec.els.filter(noRole), priNone = tplEls(faces[cur]).filter(noRole);
+    var liveNone = sec.els.filter(noRole), priNone = takeEls(cur).filter(noRole);
     liveNone.forEach(function (e, i) { matched.set(e, { r: '_', i: i, dropped: !(priNone[i] && none2[i]) }); });
     // an original that continues stays an original: the piece the next take
     // draws in its slot inherits that (so a starter's second button never
@@ -8175,13 +8190,13 @@
     if (sec.bgImage && sec.bgImage !== priBg) {
       keep = { img: sec.bgImage, id: sec.bgId || null, pos: sec.bgPos || null };
     }
-    var t2 = faces[next];
+    var t2 = (next === 0 && orig) ? Object.assign({}, faces[0], orig, { take: faces[0].take }) : faces[next];
     sec.els = els2.concat(extra);
     sec.minH = t2.minH || null;
     sec.bg = t2.bg || null;
     sec.fill = !!t2.fill;
     sec.fx = t2.fx ? JSON.parse(JSON.stringify(t2.fx)) : null;
-    var wants = tplBgFor(t2);
+    var wants = (next === 0 && orig) ? (orig.bgImage || null) : tplBgFor(t2);
     if (wants && keep) {
       sec.bgImage = keep.img; sec.bgId = keep.id; sec.bgPos = keep.pos;
       sec.__diceBg = null;
@@ -14580,6 +14595,7 @@
     explode: { enter: enterExplode, exit: exitExplode, state: function () { return explodeSt; } },
     multi: { set: setMulti, clear: clearMulti, state: function () { return multiSel; } },
     zoom: { open: openZoom, close: closeZoom, el: zoomOv },
+    canvasZoom: { out: zoomOutCanvas, back: unzoomCanvas, setDevice: setDevice },
     reorderSection: reorderSection,
     setVideo: setVideo, setSecVideo: setSecVideo, videoEmbedInfo: videoEmbedInfo, openSecBgPanel: openSecBgPanel,
     navModel: { parse: parseNavModel, serialize: serializeNavModel, whereOf: navWhereOf, panelOf: navPanelOf },
