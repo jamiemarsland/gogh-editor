@@ -14389,6 +14389,7 @@
       return order;
     },
     toast: toast,
+    textIdentityRaw: textIdentityRaw,
     publish: publish,
     isDirty: isDirty,
     parseTopBlocks: parseTopBlocks,
@@ -18916,6 +18917,26 @@
       }).catch(function () {});
     });
   }
+  // back to a NAME: the logo block becomes the title block — unless the
+  // layout already carries a title beside its logo (the classic header:
+  // small mark + name), in which case the logo simply goes (James: "why do
+  // we have duplicate site titles when i change to text logo?")
+  function textIdentityRaw(praw) {
+    var logoRe = /<!--\s*wp:site-logo(\s+\{[^]*?\})?\s*\/-->/;
+    if (!logoRe.test(praw)) return null;
+    if (praw.indexOf('wp:site-title') !== -1) {
+      return praw.replace(/<!--\s*wp:site-logo(\s+\{[^]*?\})?\s*\/-->\s*/, '');
+    }
+    return praw.replace(logoRe, function (m0, json) {
+      // alignment belongs to the layout — a centred logo begets a
+      // centred title on the way back too
+      var lg = {};
+      if (json) { try { lg = JSON.parse(json.trim()); } catch (e) { lg = {}; } }
+      var attrs = { level: 0 };
+      if (lg.align === 'center') attrs.textAlign = 'center';
+      return '<!-- wp:site-title ' + JSON.stringify(attrs) + ' /-->';
+    });
+  }
   function logoRawWithWidth(praw, w) {
     return praw.replace(/<!--\s*wp:site-logo(\s+\{[^]*?\})?\s*\/-->/, function (m0, json) {
       var attrs = {};
@@ -19252,16 +19273,8 @@
       activePartFor('header').then(function (active) {
         if (!active) throw new Error('no header found');
         var praw = String((active.content && (active.content.raw || active.content)) || '');
-        var next = praw.replace(/<!--\s*wp:site-logo(\s+\{[^]*?\})?\s*\/-->/, function (m0, json) {
-          // alignment belongs to the layout — a centred logo begets a
-          // centred title on the way back too
-          var lg = {};
-          if (json) { try { lg = JSON.parse(json.trim()); } catch (e) { lg = {}; } }
-          var attrs = { level: 0 };
-          if (lg.align === 'center') attrs.textAlign = 'center';
-          return '<!-- wp:site-title ' + JSON.stringify(attrs) + ' /-->';
-        });
-        if (next === praw) throw new Error('no logo block to swap');
+        var next = textIdentityRaw(praw);
+        if (next == null) throw new Error('no logo block to swap');
         return fetch(tpUrl(active.id), {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', 'X-WP-Nonce': cfg.nonce },

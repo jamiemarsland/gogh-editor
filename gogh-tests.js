@@ -5837,6 +5837,22 @@
       return 'inferred ' + fam + ', rolled to face ' + (r.face + 1) + ' of ' + r.of + ', words kept; wall → ' + wallFam + ', form → ' + formFam;
     });
 
+    // IDENTITY — back to a name: a logo-only layout's logo BECOMES the
+    // title; a layout that already shows the name beside its mark just
+    // loses the mark (two titles otherwise)
+    test('use a text name: never two site titles', function () {
+      var both = '<div><!-- wp:site-logo {"width":44} /-->\n\n<!-- wp:site-title {"level":0} /--></div><!-- wp:navigation /-->';
+      var r1 = G.textIdentityRaw(both);
+      if ((r1.match(/wp:site-title/g) || []).length !== 1) throw new Error('a logo+name layout should keep ONE title, got ' + r1);
+      if (/wp:site-logo/.test(r1)) throw new Error('the logo should go');
+      var only = '<div><!-- wp:site-logo {"width":120,"align":"center"} /--></div><!-- wp:navigation /-->';
+      var r2 = G.textIdentityRaw(only);
+      if ((r2.match(/wp:site-title/g) || []).length !== 1 || /wp:site-logo/.test(r2)) throw new Error('a logo-only layout should turn its logo into the title, got ' + r2);
+      if (r2.indexOf('"textAlign":"center"') === -1) throw new Error('a centred logo should beget a centred title');
+      if (G.textIdentityRaw('<!-- wp:site-title /-->') !== null) throw new Error('no logo → nothing to swap');
+      return 'logo+name → name; logo-only → name (alignment kept); no logo → null';
+    });
+
     // NOTICES — one per kind, never a trail: status replaces status,
     // a receipt with Undo keeps its slot, and the take label lives in
     // the section bar rather than in a toast
