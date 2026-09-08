@@ -5862,6 +5862,26 @@
       return 'picker open on Paste HTML, then closed';
     });
 
+    // the kind of HTML an AI writes: no styling at all, bare links between
+    // paragraphs. Those links are the page's buttons, and the converted
+    // section must land in a design family so the die has somewhere to go
+    test('bare links in unstyled pasted HTML become buttons, and the page finds a family', function () {
+      G.addHtmlSection('<section><p>Saltmarsh · Hastings</p><h1>Bowls you will reach for</h1>' +
+        '<p>We throw stoneware in a shed by the sea.</p><a href="/shop/">See the shelves</a><a href="/visit/">Book a lesson</a>' +
+        '<img src="/wp-content/plugins/gogh/demo-assets/sunflowers.jpg" alt="Bowls"></section>', null);
+      var entry = G.pending()[G.pending().length - 1];
+      entry.el.querySelector('.gogh-pend-ff').click();
+      var added = lastSec();
+      var byType = function (t) { return added.els.filter(function (e) { return e.type === t; }); };
+      var btns = byType('button');
+      if (btns.length !== 2) throw new Error('expected 2 buttons from the bare links, got ' + btns.length + ' (' + added.els.map(function (e) { return e.type; }).join('/') + ')');
+      if (btns[0].text !== 'See the shelves' || btns[0].href !== '/shop/') throw new Error('the first button lost its words or its link');
+      if (byType('widget').length) throw new Error('something was left as a widget: ' + byType('widget').map(function (e) { return (e.whtml || '').slice(0, 40); }).join(' | '));
+      var fam = G.diceFamilyOf(added);
+      if (!fam) throw new Error('the converted page found no design family');
+      return 'buttons: ' + btns.map(function (b) { return b.text; }).join(', ') + ' · family: ' + fam;
+    });
+
     // drain the async queue, then report — one at a time, restore between
     (function drain() {
       var t = asyncQueue.shift();

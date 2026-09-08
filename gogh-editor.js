@@ -18222,7 +18222,12 @@
       // CARD — squashing it into a button label mangles its content
       if (dom.querySelector('h1,h2,h3,h4,h5,h6,p')) return false;
       if (dom.getBoundingClientRect().height > 120) return false;
-      return (hasBg || hasBorder) && (dom.textContent || '').trim().length < 60 && !dom.querySelector('img');
+      var short = (dom.textContent || '').trim().length < 60 && !dom.querySelector('img');
+      // pasted HTML with no styling at all (the kind an AI writes) has bare
+      // links standing on their own between paragraphs — those are the
+      // page's buttons, not inline links; they arrive as ghost buttons
+      if (freeMode && short && !dom.closest('p, h1, h2, h3, h4, h5, h6, li, td, th, figcaption')) return true;
+      return (hasBg || hasBorder) && short;
     }
     function leafFrom(dom, markup) {
       var cl = dom.classList, tag = dom.tagName;
