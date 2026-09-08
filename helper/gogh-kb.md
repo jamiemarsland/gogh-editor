@@ -15,7 +15,7 @@ about something where they conflict, rather than picking one silently. Quote UI
 labels and message copy from the appendix, verbatim — those are the current
 strings, and a paraphrased button label is the fastest way to lose a user's trust.
 
-Generated for plugin version 0.99.422 · knowledge base 3e62e5f.
+Generated for plugin version 0.99.433 · knowledge base fb8c74a.
 
 ---
 
@@ -154,7 +154,7 @@ A bar along the bottom edge with a centre pill. Drag to set section height, clam
 ### Cards (drop-to-join)
 Drop an element **fully inside** a plain box and it becomes a **child ("kid") of that card** — one level only; boxes never join boxes. The card glows as a drop target.
 - Toast on join: **"Added to the card — it moves and stacks with it now."** (+Undo)
-- Drag a kid outside the card bounds to free it: **"Out of the card — it's a free element again."** (+Undo)
+- Drag a kid outside the card bounds to free it: **"Out of the card — it's its own piece again."** (+Undo)
 - `Delete` on a kid: **"Removed from the card."** (+Undo)
 - Second click on a selected kid edits its text; first click on a button kid opens its link panel.
 
@@ -195,13 +195,13 @@ Collapsed, it's a slim edge tab labelled **gogh**. Opens on hover or click, auto
 If nothing overlaps, you get: "Nothing overlaps this — it's already in front." / "…already at the back."
 
 ### Section toolbar (on hover, labelled "Section")
-`↑ Move up` · `↓ Move down` · `Background image` · `Save this section to reuse` · `⧉ Duplicate section` · `🗑 Delete section`. Up/Down disable at the ends. Never shown for the site header or footer.
+`↑ Move up` · `↓ Move down` · `Background image` · `Save to reuse` · `⧉ Duplicate section` · `🗑 Delete section`. Up/Down disable at the ends. Never shown for the site header or footer.
 
 ### Panels
-Shape · Add a shape ("A backdrop for other elements — send it backward once it's placed.") · Button (Style: Solid / Outline; swatch rows Background, Text, Hover background) · Image (URL field, alt text, Upload, Remove image, media grid) · Replace image · Text colour · Link / Link text ("Apply", "Remove link (keep the text)") · Section background · Section transition · Save this section · Site style · Page style · Site header / Site footer · Menu / Add to menu · Imported block.
+Shape · Add a shape ("A backdrop for the rest — send it backward once it's placed.") · Button (Style: Solid / Outline; swatch rows Background, Text, Hover background) · Image (URL field, alt text, Upload, Remove image, media grid) · Replace image · Text colour · Link / Link text ("Apply", "Remove link (keep the text)") · Section background · Section transition · Save this section · Site style · Page style · Site header / Site footer · Menu / Add to menu · Imported block.
 
 ### Section transition panel
-Divider shapes: **None, Wave, Curve, Slant, Peaks, Brush, Torn, Melt**. Plus **Above** / **Below** colour pickers with theme palette swatches, and an **"Overlap the section above"** slider (0–180, step 12).
+Divider shapes: **None, Wave, Curve, Slant, Peaks, Brush, Torn, Melt**. Plus **Above** / **Below** colour pickers with theme palette swatches, and an overlap slider that pulls the divider up over the section above.
 
 Dividers are drawn with a `mask-image` (data-URI SVG) plus a background colour — deliberately not a background-image — so the colour can be a CSS variable and palette changes recolour dividers live. A divider is painted in the **next** section's colour. `melt` is a plain gradient fade instead.
 
@@ -244,7 +244,7 @@ Plus **Start from scratch** (empty). Categories: Heroes & banners · Text · Car
 
 Templates are tuned for **short copy** — headings of roughly 2–6 words.
 
-Saving a section: the Section toolbar's "Save this section to reuse" stores it via `wp/v2/blocks` as an **unsynced pattern** (`meta.wp_pattern_sync_status = 'unsynced'`), in the v2 section format. It then appears under **+ Section → Your sections**. Because it's unsynced, later edits to the saved section do *not* propagate to copies already placed on pages.
+Saving a section: the ⋯ menu's "Save to reuse" (panel title "Save this section") stores it via `wp/v2/blocks` as an **unsynced pattern** (`meta.wp_pattern_sync_status = 'unsynced'`), in the v2 section format. It then appears under **+ Section → Your sections**. Because it's unsynced, later edits to the saved section do *not* propagate to copies already placed on pages.
 
 ---
 
@@ -405,7 +405,7 @@ Why templated at all? Because it lets the scope class be reassigned (duplicated 
 
 ### The section wrapper: v2 vs v3
 
-**v2 (legacy — still used for chrome / template-part saves *and* for "Save this section to reuse"):**
+**v2 (legacy — still used for chrome / template-part saves *and* for "Save to reuse"):**
 ```html
 <!-- wp:gogh/section -->
 <div class="wp-block-gogh-section alignfull gogh-wrap">
@@ -700,7 +700,7 @@ Stated in the readme as beta limitations, and enforced in code:
 
 Toasts appear at the bottom, auto-dismiss after 4.5s (sticky for decisions), and can carry action buttons.
 
-**Confirmations**: "Section moved." · "Added to the card — it moves and stacks with it now." · "Out of the card — it's a free element again." · "Removed from the card." · "\"<name>\" saved — it's in + Section under Your sections." · "Backup restored — publish when ready." · "Theme style applied: <name>" · "Linked." / "Link updated." / "Link removed — the text stays." · "Image swapped." · "The whole card links to <url>" · "Site header/footer updated across every page." · "Menu order updated — every page gets it." · "Experience added — it runs sandboxed; visitors can interact once published." · "Nothing overlaps this — it's already in front."
+**Confirmations**: "Section moved." · "Added to the card — it moves and stacks with it now." · "Out of the card — it's its own piece again." · "Removed from the card." · "\"<name>\" saved — it's in + Section under Your sections." · "Backup restored — publish when ready." · "Theme style applied: <name>" · "Linked." / "Link updated." / "Link removed — the text stays." · "Image swapped." · "The whole card links to <url>" · "Site header/footer updated across every page." · "Menu order updated — every page gets it." · "Experience added —" followed by "sandboxed in its frame, saved in your media library." · "Nothing overlaps this — it's already in front."
 
 **Decisions (sticky)**: "gogh backed up unpublished work from an earlier session." (Restore it / Ignore) · "You have unpublished changes — switching the header reloads the page and discards them." (Switch anyway / Cancel — deliberately Gogh's own dialog, not `window.confirm`, because Chrome can suppress native dialogs)
 
@@ -782,11 +782,11 @@ Everything in this section is extracted mechanically from the Gogh source on eve
 
 ## Current release
 
-- Plugin version: **0.99.422**
+- Plugin version: **0.99.433**
 - Requires WordPress **6.5+**, PHP **7.4+**
 - Text domain: `gogh-editor`
 - readme.txt Stable tag: `0.26.0` · Tested up to: `7.0`
-- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.422`). Quote the plugin header version.
+- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.433`). Quote the plugin header version.
 
 ## Design constants
 
@@ -970,6 +970,8 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "' + m[2] + '"
 - "' + p.slug + '"
 - "' + sh.label + '"
+- "' + whereTip(it.where !== 'desktop', 'phone') + '"
+- "' + whereTip(it.where !== 'phone', 'desktop') + '"
 - "+ Link"
 - "+ Page"
 - "A card — drop pieces inside and they stay together, even on mobile"
@@ -1061,8 +1063,6 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "Name, email and a message — straight into your own site, no plugin"
 - "New in"
 - "None"
-- "On desktop"
-- "On phones"
 - "On sale"
 - "One product, hero-sized — a card with a real add-to-cart button"
 - "Open interactive experience"
@@ -1122,6 +1122,7 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "Use this layout"
 - "Video"
 - "Where this item shows"
+- "Which take of this design is on the page"
 - "Write"
 - "Your latest posts, live"
 - "Your latest products, live — prices and add to cart included"
@@ -1176,6 +1177,7 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "Menu order updated — every page gets it."
 - "Menu switched — every page shows it."
 - "Mobile menu: "
+- "Name size saved."
 - "Nothing to rearrange yet — add a couple of pieces first."
 - "Out of the card — it’s its own piece again."
 - "Publish failed: "
@@ -1186,9 +1188,9 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "Section moved."
 - "Section removed — publish to make it real."
 - "Site "
+- "Site name restored — click it to rename."
 - "Site name saved."
 - "Style copied — click other text to paint it. Esc finishes."
-- "Site name restored — click it to rename."
 - "That saved section can’t be read."
 - "That section can’t move past other stored content yet."
 - "That’s gogh. Everything else is just more of this."
@@ -1232,4 +1234,4 @@ These are the real strings in the current build. Use them verbatim; never paraph
 
 ## Test suite
 
-`227` tests, run by appending `?gogh-test` to any Gogh page URL while logged in with edit rights on that page.
+`231` tests, run by appending `?gogh-test` to any Gogh page URL while logged in with edit rights on that page.
