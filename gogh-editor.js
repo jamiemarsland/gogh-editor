@@ -14428,6 +14428,19 @@
   try { console.info('[gogh] ' + GOGH_BUILD); } catch (e0) {}
   // rails elements draw a fresh preview from the live shop on every boot
   try { S.forEach(function (sx) { (sx.els || []).forEach(function (ex) { if (ex.rails && ex.shop) hydrateProductsPreview(sx, ex); }); }); } catch (err) {}
+  // ?gogh-paste=1 lands with the Paste HTML door already open — the
+  // paste-a-page demo boots a blank site straight into it
+  function openPasteDoor() {
+    var content = S.filter(function (sx) { return !sx.chrome; });
+    var blank = content.filter(function (sx) { return isBlankBoot(sx); })[0];
+    var idx = blank ? S.indexOf(blank) : (content.length ? S.indexOf(content[content.length - 1]) : 0);
+    openPicker(idx);
+    var door = picker.querySelector('.gogh-card-htmladd');
+    if (door) door.click();
+    return !!door;
+  }
+  window.__gogh.openPasteDoor = openPasteDoor;
+  if (/[?&]gogh-paste=1/.test(location.search)) setTimeout(openPasteDoor, 400);
   document.dispatchEvent(new CustomEvent('gogh:ready'));
 
   // ---------- keyboard ----------

@@ -5852,6 +5852,16 @@
       } finally { root.remove(); }
     });
 
+    // the paste-a-page demo lands with the Paste HTML door open (?gogh-paste=1)
+    test('the paste door opens the picker on its Paste HTML pane', function () {
+      if (!G.openPasteDoor()) throw new Error('the picker has no Paste HTML card');
+      var ta = document.querySelector('.gogh-picker .gogh-htmlpaste');
+      if (!ta) throw new Error('the paste pane did not open');
+      if (!document.querySelector('.gogh-picker .gogh-html-add')) throw new Error('no Add to page button');
+      document.querySelector('.gogh-picker .gogh-picker-close').click();
+      return 'picker open on Paste HTML, then closed';
+    });
+
     // drain the async queue, then report — one at a time, restore between
     (function drain() {
       var t = asyncQueue.shift();
