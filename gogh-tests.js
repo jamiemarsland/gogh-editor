@@ -614,6 +614,62 @@
       return 'two ghosts, two sockets, one delta ' + dx + ',' + dy;
     });
 
+    // ---- 8c. the drop measures on the pieces' OWN lines ----
+    test('group drop: heights are measured on the pieces\' own lines, not in the skip cell', function () {
+      // mid-drag the solver skips the moving pieces, so each of their cells
+      // is bounded by OTHER pieces' lines; the drop used to measure there
+      // and absorb a paragraph wrapped to a foreign width (a photo once grew
+      // 313 → 462). An own room: one narrow badge is the only resting piece,
+      // so every skipped text can only borrow ITS 120-wide column. The
+      // heading rides as a MATE (no pick-up size restore covers mates), the
+      // image as a mate that must simply stay put
+      G.addSection({ name: 'SKIP', minH: 600, els: [
+        { type: 'badge', x: 72, y: 72, w: 120, h: 40, text: 'New' },
+        { type: 'para', x: 72, y: 200, w: 560, h: 120, text: 'The words wrap to whatever width the grid hands them, so a cell borrowed from a narrower neighbour turns three lines into twelve, and the model must never learn that height from a drop.' },
+        { type: 'image', x: 700, y: 200, w: 300, h: 200, src: '/wp-content/plugins/gogh/demo-assets/sunflowers.jpg' },
+        { type: 'heading', x: 72, y: 400, w: 560, h: 60, text: 'A heading mate keeps its height too' },
+      ] }, G.sections().length);
+      var s = lastSec();
+      var pi = 1, ii = 2, hi = 3;
+      G.resolve(s); G.measure(s); G.resolve(s);
+      var sizeOf = function (k) { return s.els[k].w + 'x' + s.els[k].h; };
+      var before = [pi, ii, hi].map(sizeOf);
+      var hP = s.els[pi].h, hH = s.els[hi].h;
+      expect(hP > 0 && hH > 0, 'text did not measure');
+      G.multi.set(s, [pi, ii, hi]);
+      var node = s.nodes[pi], r = node.getBoundingClientRect();
+      var x = r.x + r.width / 2, y = r.y + r.height / 2;
+      // straight down: x stays pinned, so the texts' own edges (72..632) are
+      // exactly the lines the skip grid leaves out
+      pev('pointerdown', node, x, y, 18);
+      pev('pointermove', node, x, y + 30, 18);
+      pev('pointermove', node, x, y + 60, 18);
+      var live = G.state.drag;
+      // the frame body a real drag runs between moves: the grid re-solves
+      // with the group skipped, and THAT is the stylesheet the drop sees
+      G.resolve(s);
+      var g = G.solve(s.els, s.minH, null, [pi, ii, hi]);
+      var cellOf = function (k) {
+        var a = g.areas[k], cw = 0;
+        for (var c = a.c1 - 1; c < a.c2 - 1 && c < g.cols.length; c++) cw += parseFloat(g.cols[c]) * 12;
+        return Math.round(cw);
+      };
+      var skipP = cellOf(pi), skipH = cellOf(hi);
+      pev('pointerup', node, x, y + 60, 18);
+      // every check runs with the hand open: a throw mid-drag would leave
+      // ghosts on the body and every later pointerdown bailing on the drag
+      expect(live, 'group drag did not begin');
+      expect(!G.state.drag, 'drag did not end');
+      expect(skipP < 360 && skipH < 360, 'the skip grid should hand the texts a foreign cell, got ' + skipP + ' / ' + skipH + ' of 560');
+      expect(s.els[pi].y > 200, 'the group did not move');
+      var after = [pi, ii, hi].map(sizeOf);
+      expect(after[0] === before[0], 'paragraph resized on the drop: ' + before[0] + ' → ' + after[0]);
+      expect(after[2] === before[2], 'heading mate resized on the drop: ' + before[2] + ' → ' + after[2]);
+      expect(after[1] === before[1], 'image mate resized on the drop: ' + before[1] + ' → ' + after[1]);
+      G.multi.clear();
+      G.deleteSection(G.sections().indexOf(s));
+      return 'skip cells ' + skipP + '/' + skipH + ' wide; paragraph kept h ' + hP + ', heading kept h ' + hH;
+    });
     // ---- 9. undo / redo ----
     test('undo and redo restore model state', function () {
       // two moves, then walk history back and forward — self-contained so the
@@ -1694,6 +1750,45 @@
       return 'image pinned start: ' + block.replace(/\s+/g, ' ').trim().slice(0, 60);
     });
 
+    // regression: photos are cover-fitted, so a declared w/h that differs
+    // from the natural aspect is a deliberate crop, not an error. The grid-
+    // stretch clamp (v0.99.188) used to run BEFORE the draws-at-its-own-
+    // aspect check (v0.99.438): a 300x300 crop of a 16:9 photo was reset to
+    // the natural 169 on every image load and every resize frame — the
+    // square flickered under the handle and committed flat
+    test('a deliberate crop survives measurement (square cut of a 16:9 photo)', function () {
+      var s = sec();
+      var crop = { type: 'image', x: 520, y: 120, w: 300, h: 300, text: null, ghost: false, cool: true,
+        src: 'data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==' };
+      s.els.push(crop);
+      G.renderSection(s);
+      var i = s.els.indexOf(crop);
+      var img = s.nodes[i].querySelector('img');
+      expect(img, 'no img inside the cropped figure');
+      // stand in for a LOADED 16:9 photo: the pixel gif may not have decoded
+      // yet and a real photo would need the network — own properties shadow
+      // the prototype getters the measure reads
+      Object.defineProperty(img, 'naturalWidth', { configurable: true, value: 1600 });
+      Object.defineProperty(img, 'naturalHeight', { configurable: true, value: 900 });
+      var r = s.nodes[i].getBoundingClientRect();
+      var drawn = r.width > 0 ? r.height / r.width : 0;
+      G.measureTextHeights(s);
+      var after = s.els[i].h;
+      // and the clamp it was reordered around still holds: a frame forced
+      // taller than BOTH its declared aspect and the photo's natural aspect
+      // (the v0.99.188 grid stretch) must not be absorbed into the model
+      s.els[i].h = 300;
+      s.nodes[i].style.height = '900px';
+      G.measureTextHeights(s);
+      var stretched = s.els[i].h;
+      s.nodes[i].style.height = '';
+      s.els.splice(i, 1);
+      G.renderSection(s);
+      expect(Math.abs(drawn - 1) < 0.08, 'frame did not draw at its square crop: ' + drawn.toFixed(2));
+      expect(after === 300, 'square crop flattened to h ' + after + ' (natural 16:9 at 300 wide is 169)');
+      expect(stretched < 320, 'a stretched frame was absorbed: h ' + stretched);
+      return 'crop kept h ' + after + '; a 900px stretch left h at ' + stretched;
+    });
     // ---- 15. divider + section backgrounds (v0.10) ----
     test('divider CSS generated with next-section colour', function () {
       G.addSection(G.templates()[3], G.sections().length);
@@ -4021,6 +4116,127 @@
       return 'ghost · swap · cascade · reading order';
     });
 
+    // ---- undo/redo rebuilds every section object: kid selection, edit and drag must not outlive it ----
+    test('card: undo/redo clears a stale kid selection, edit and drag', function () {
+      var s0 = sec();
+      s0.els.push({ type: 'box', x: 600, y: 60, w: 480, h: 300, boxBg: '#101418', radius: 16, kids: [
+        { type: 'heading', x: 30, y: 20, w: 420, h: 40, text: 'Alpha' },
+        { type: 'para', x: 30, y: 80, w: 420, h: 40, text: 'Bravo' },
+      ] });
+      G.renderSection(s0);
+      var ci = s0.els.length - 1;
+      var box = s0.els[ci];
+      G.pushState(); // A: the card with two kids
+      box.kids[1].text = 'Bravo, edited';
+      G.pushState(); // B: one step on, so undo has A to go back to
+      var pv = function (type, el, x, y, id) {
+        el.dispatchEvent(new PointerEvent(type, { bubbles: true, cancelable: true, clientX: x, clientY: y, pointerId: id, button: 0, buttons: type === 'pointerup' ? 0 : 1 }));
+      };
+      var liveCard = function () {
+        var s = sec();
+        var c = s.els.filter(function (e) { return e.type === 'box' && e.kids; }).pop();
+        return { sec: s, el: c, node: c && s.nodes[s.els.indexOf(c)] };
+      };
+      var receipts = function (re) {
+        return [].slice.call(document.querySelectorAll('.gogh-toast')).filter(function (t) { return re.test(t.textContent); }).length;
+      };
+      // 1. a selected kid, then undo: Backspace must not splice the dead model
+      var kn = s0.nodes[ci].querySelector('.gogh-k-1');
+      var r = kn.getBoundingClientRect();
+      pv('pointerdown', kn, r.left + 10, r.top + 8, 91);
+      pv('pointerup', document, r.left + 10, r.top + 8, 91);
+      expect(G.kidState().sel && G.kidState().sel.sec === s0, 'the kid did not select');
+      var removed0 = receipts(/Removed from the card/);
+      q('.gogh-undo').click();
+      expect(!G.kidState().sel, 'the kid selection outlived the undo');
+      document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Backspace', bubbles: true, cancelable: true }));
+      var c1 = liveCard();
+      expect(c1.el && c1.el.kids.length === 2, 'the restored card lost a kid');
+      expect(box.kids.length === 2, 'Backspace spliced the dead (pre-undo) model');
+      expect(receipts(/Removed from the card/) === removed0, 'a "Removed from the card" receipt showed after undo');
+      // 2. a kid text edit in flight, then redo: the edit ends without pushing a history step
+      var kn1 = c1.node.querySelector('.gogh-k-1');
+      var r1 = kn1.getBoundingClientRect();
+      pv('pointerdown', kn1, r1.left + 10, r1.top + 8, 92);
+      pv('pointerup', document, r1.left + 10, r1.top + 8, 92);
+      pv('pointerdown', kn1, r1.left + 10, r1.top + 8, 93); // second click on a selected kid edits it
+      pv('pointerup', document, r1.left + 10, r1.top + 8, 93);
+      expect(G.kidState().ed, 'the second click did not start a kid edit');
+      var st0 = G.state;
+      q('.gogh-redo').click();
+      expect(!G.kidState().ed, 'the kid edit outlived the redo');
+      expect(!document.documentElement.classList.contains('gogh-textediting'), 'gogh-textediting stuck on <html>');
+      expect(G.state.history === st0.history && G.state.hIdx === st0.hIdx + 1,
+        'ending the kid edit disturbed history: ' + st0.history + '/' + st0.hIdx + ' -> ' + G.state.history + '/' + G.state.hIdx);
+      // 3. a kid drag mid-flight, then undo: no ghost left behind, the late pointerup writes nothing
+      var c2 = liveCard();
+      var kn2 = c2.node.querySelector('.gogh-k-1');
+      var r2 = kn2.getBoundingClientRect();
+      var sc = c2.sec.sectionEl.getBoundingClientRect().width / 1200;
+      pv('pointerdown', kn2, r2.left + 10, r2.top + 8, 94);
+      pv('pointermove', document, r2.left + 10, r2.top + 8 + 40 * sc, 94);
+      expect(document.querySelector('.gogh-kid-ghost'), 'no ghost — the kid drag never started');
+      var out0 = receipts(/Out of the card/);
+      q('.gogh-undo').click();
+      expect(!G.kidState().drag, 'the kid drag outlived the undo');
+      expect(!document.querySelector('.gogh-kid-ghost'), 'the kid ghost was left behind by the undo');
+      pv('pointerup', document, r2.left - 400, r2.top + 8 + 40 * sc, 94);
+      var c3 = liveCard();
+      expect(c3.el && c3.el.kids.length === 2, 'the late pointerup changed the restored card');
+      expect(receipts(/Out of the card/) === out0, 'the late pointerup freed a kid from a dead drag');
+      [].slice.call(document.querySelectorAll('.gogh-toast')).forEach(function (t) { t.remove(); });
+      return 'selection, edit and drag all end on restore; history untouched';
+    });
+    // ---- a button kid's URL box: Backspace edits the URL, never the card ----
+    test('kid link panel: Backspace in the URL box edits the field, not the card', function () {
+      var s0 = sec();
+      s0.els.push({ type: 'box', x: 600, y: 60, w: 480, h: 300, boxBg: '#101418', radius: 16, kids: [
+        { type: 'heading', x: 30, y: 20, w: 420, h: 40, text: 'Keeper' },
+        { type: 'button', x: 30, y: 100, w: 200, h: 50, text: 'Buy now', href: 'https://shop.test/buy' },
+      ] });
+      G.renderSection(s0);
+      var ci = s0.els.length - 1;
+      var box = s0.els[ci];
+      var kn = s0.nodes[ci].querySelector('.gogh-k-2');
+      expect(kn, 'button kid node missing');
+      var removedToast = function () {
+        return [].slice.call(document.querySelectorAll('.gogh-toast')).some(function (t) { return /Removed from the card/.test(t.textContent); });
+      };
+      [].slice.call(document.querySelectorAll('.gogh-toast')).forEach(function (t) { t.remove(); });
+      // one click on a button kid: it is selected and its link panel opens
+      var r = kn.getBoundingClientRect();
+      pev('pointerdown', kn, r.left + 8, r.top + 6, 84);
+      pev('pointerup', document, r.left + 8, r.top + 6, 84);
+      expect(kn.classList.contains('gogh-kid-selected'), 'click did not select the button kid');
+      var panel = q('.gogh-panel');
+      expect(panel && !panel.hidden && panel.querySelector('input[type="url"]'), 'link panel did not open for the button kid');
+      // the route to the bug: a restyle (Outline here) re-renders the card,
+      // re-selects the kid and rebuilds the panel while it is visible, so the
+      // URL box takes focus — the next Backspace is aimed at the field
+      panel.querySelector('.gogh-style-outline').click();
+      expect(box.kids[1].ghost === true, 'Outline did not restyle the kid');
+      var kn2 = s0.nodes[ci].querySelector('.gogh-k-2');
+      expect(kn2 && kn2.classList.contains('gogh-kid-selected'), 'kid not re-selected after the restyle');
+      var input = panel.querySelector('input[type="url"]');
+      expect(input && !panel.hidden, 'link panel did not come back after the restyle');
+      expect(input.value === 'https://shop.test/buy', 'URL box does not show the kid href: ' + input.value);
+      var focused = document.activeElement === input;
+      // correcting the URL: Backspace lands in the input, so the kid must stay put
+      input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Backspace', bubbles: true, cancelable: true }));
+      expect(box.kids && box.kids.length === 2, 'Backspace in the URL box removed the kid');
+      expect(s0.nodes[ci].contains(kn2), 'Backspace in the URL box re-rendered the card');
+      expect(!removedToast(), 'a "Removed from the card" receipt fired for a URL edit');
+      // the same key aimed at the canvas still removes the selected kid
+      document.body.dispatchEvent(new KeyboardEvent('keydown', { key: 'Backspace', bubbles: true, cancelable: true }));
+      expect(box.kids && box.kids.length === 1 && box.kids[0].text === 'Keeper', 'Backspace on the canvas did not remove the selected kid');
+      expect(removedToast(), 'no receipt toast after removing the kid');
+      // cleanup
+      G.closePanel();
+      s0.els.splice(ci, 1);
+      G.renderSection(s0);
+      [].slice.call(document.querySelectorAll('.gogh-toast')).forEach(function (t) { t.remove(); });
+      return 'URL-box Backspace keeps the kid · canvas Backspace removes it' + (focused ? ' · restyle focused the URL box' : ' · (URL box not focused here)');
+    });
     // ---- pasted cards: never squashed into buttons, text editable in place ----
     test('card-shaped anchors scan as widgets and their text edits in place', function () {
       G.addHtmlSection('<div style="padding:40px;background:#eee">' +
@@ -5899,6 +6115,67 @@
 
     // EXTRAS RIDE ALONG — a piece the take never drew (a second button)
     // keeps its seat beside the take's own button through every roll
+    // HOME IS EDITABLE — an inferred section's original take is a snapshot,
+    // and the snapshot has to follow the edits made at home: drag the heading,
+    // shrink the photo and retitle on face 0, roll around, and they are all
+    // still there (the snapshot used to be taken once, on the first roll, so
+    // rolling around put the pre-edit layout back and the edits were gone)
+    test('the original take keeps the edits made at home through a roll around', function () {
+      var hero = G.templates().filter(function (x) { return x.name === 'Hero'; })[0];
+      if (!hero) throw new Error('no Hero template');
+      G.addSection(hero);
+      var s = lastSec();
+      var idx = G.sections().indexOf(s);
+      s.m = null; // never named its family: the die infers one on the first roll
+      var faces = G.diceFaces(G.diceFamilyOf(s));
+      if (!faces) throw new Error('no family inferred for a hero-shaped section');
+      var n = faces.length;
+      var around = function () { for (var k = 0; k < n; k++) G.rollSection(idx); };
+      var pick = function (type) { return diceFlat(s.els).filter(function (e) { return e.type === type; })[0]; };
+      G.guardReset();
+      around(); // adopt the family and come home once
+      expect(s.m && s.m.face === 0 && s.m.orig && s.m.orig.els, 'the section did not come home with an original');
+      // a piece added at home is part of the original from now on: it comes
+      // home ONCE, in its place -- not beside a copy of itself (widgets ride
+      // as themselves, and used to double every time round: two, three, five)
+      s.els.push({ type: 'widget', x: 72, y: 560, w: 300, h: 40, wsrc: '<!-- wp:gogh/form /-->' });
+      G.renderSection(s);
+      var count0 = diceFlat(s.els).length;
+      var widgets = function () { return s.els.filter(function (e) { return e.type === 'widget'; }).length; };
+      expect(widgets() === 1, 'setup: expected one widget at home');
+      // edit at home: move the heading, shrink the photo, retitle
+      var h = pick('heading'), img = pick('image');
+      if (!h || !img) throw new Error('no heading or image at home');
+      h.x += 40; h.y += 24; h.text = 'Moved at home';
+      img.w -= 60; img.h -= 40;
+      G.renderSection(s);
+      var hx = h.x, hy = h.y, iw = img.w, ih = img.h;
+      around();
+      expect(s.m.face === 0, n + ' rolls did not come home');
+      var h2 = pick('heading'), img2 = pick('image');
+      expect(h2 && h2.x === hx && h2.y === hy, 'the heading came home where it sat BEFORE the drag (' + (h2 ? h2.x + ',' + h2.y : 'gone') + ' vs ' + hx + ',' + hy + ')');
+      expect(h2 && h2.text === 'Moved at home', 'the heading came home without its words');
+      expect(img2 && img2.w === iw && img2.h === ih, 'the photo came home at its old size (' + (img2 ? img2.w + 'x' + img2.h : 'gone') + ' vs ' + iw + 'x' + ih + ')');
+      expect(diceFlat(s.els).length === count0, 'coming home changed the piece count (' + diceFlat(s.els).length + ' vs ' + count0 + ')');
+      expect(widgets() === 1, 'the widget came home beside a copy of itself (' + widgets() + ')');
+      around();
+      expect(widgets() === 1 && diceFlat(s.els).length === count0, 'a second time round changed the count (' + diceFlat(s.els).length + ' vs ' + count0 + ', ' + widgets() + ' widgets)');
+      // a piece deleted at home stays deleted, and the original never keeps a piece a roll drew
+      var btns = s.els.filter(function (e) { return e.type === 'button'; });
+      var deleted = btns.length > 1;
+      if (deleted) {
+        s.els.splice(s.els.indexOf(btns[btns.length - 1]), 1);
+        G.renderSection(s);
+        around();
+        var left = s.els.filter(function (e) { return e.type === 'button'; }).length;
+        expect(left === btns.length - 1, 'a button deleted at home came back with the roll (' + left + ' of ' + btns.length + ')');
+      }
+      expect(!G.diceFlatten(s.m.orig.els).some(function (e) { return e.tk != null; }), 'the original carries a piece a roll drew');
+      var guard = G.guardLog();
+      G.guardReset();
+      expect(!guard.length, 'the guard spoke on the way round: ' + (guard.length ? guard[0].issues[0] : ''));
+      return n + ' rolls round: home wears the drag, the resize and the words' + (deleted ? '; a deleted button stayed deleted' : '');
+    });
     test('an extra button rides beside the take\'s button through every roll', function () {
       var hero = G.templates().filter(function (x) { return x.name === 'Hero'; })[0];
       if (!hero) throw new Error('no Hero template');
@@ -5979,6 +6256,45 @@
 
     // NAME SIZE — the site name's size rides its block as a typography
     // style, merged over whatever the block already carried
+    // THE TAKE MARK RIDES THE SAVE — the die marks the pieces it drew (tk)
+    // and the drop rule reads that mark on the next roll; a saved model
+    // without it turns every take-drawn piece into an original after a
+    // reload, and the roll after that piles the riders up (the v435 leak)
+    test('the dice: the take mark survives the saved model, so a reload does not leak riders', function () {
+      var hero = G.templates().filter(function (x) { return x.name === 'Hero'; })[0];
+      G.addSection(hero);
+      var s = lastSec();
+      var idx = G.sections().indexOf(s);
+      // the Yellow House shape: one button of the user's own
+      var btns = s.els.filter(function (e) { return e.type === 'button'; });
+      btns.slice(1).forEach(function (b) { s.els.splice(s.els.indexOf(b), 1); });
+      G.renderSection(s);
+      // take 2 draws two buttons: the second is the die's, and wears its mark
+      G.rollSection(idx);
+      var marked = G.diceFlatten(s.els).filter(function (e) { return e.type === 'button' && e.tk != null; });
+      if (marked.length !== 1) throw new Error('expected one take-drawn button after the roll, found ' + marked.length);
+      // publish + reload: the block attrs are the stored truth
+      var am = G.blocksV3(s).match(/<!-- wp:gogh\/section (\{[\s\S]*?\}) -->/);
+      if (!am) throw new Error('no attrs on the section block');
+      var model = JSON.parse(am[1]).model;
+      var saved = G.diceFlatten(model.elements).filter(function (e) { return e.type === 'button'; });
+      var savedMarked = saved.filter(function (e) { return e.tk != null; });
+      if (saved.length !== 2) throw new Error('the saved model holds ' + saved.length + ' buttons, wanted 2');
+      if (savedMarked.length !== 1 || savedMarked[0].tk !== marked[0].tk) throw new Error('the take mark did not reach the saved model (tk ' + JSON.stringify(saved.map(function (e) { return e.tk; })) + ')');
+      // the page reads back exactly what was saved
+      s.els = model.elements;
+      s.m = model.m || null;
+      G.renderSection(s);
+      // two more rolls land on the one-button take: the die's button steps
+      // aside, the user's own continues — one button, never two
+      G.rollSection(idx);
+      var r = G.rollSection(idx);
+      var after = G.diceFlatten(s.els).filter(function (e) { return e.type === 'button'; });
+      if (after.length !== 1) throw new Error('take ' + (r.face + 1) + ' after the reload carries ' + after.length + ' buttons, wanted 1 (the die’s button rode along)');
+      if (G.diceFlatten(s.els).some(function (e) { return e.tk != null && e.tk !== r.face; })) throw new Error('a piece from an earlier take is still on the section');
+      G.deleteSection(idx);
+      return 'tk saved and read back; ' + G.diceFlatten(s.els).length + ' pieces on take ' + (r.face + 1) + ', one button';
+    });
     test('the site name takes a size on its block', function () {
       var raw = '<div><!-- wp:site-title {"level":0,"style":{"color":{"text":"#123"}}} /--><!-- wp:navigation /--></div>';
       var out = G.titleRawWithSize(raw, 36);

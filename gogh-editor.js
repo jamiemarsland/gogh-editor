@@ -1139,6 +1139,11 @@
       m: (e.m && Object.keys(e.m).length) ? e.m : null, // sparse mobile overrides (hidden, …)
       fitW: e.fitW ? true : null, fitFs: e.fitW && e.fitFs ? e.fitFs : null, // fill-the-width text
       flushB: e.flushB ? true : null, // dragged flush to the section bottom
+      // the die's take mark: which roll drew this piece (face 0 counts, so
+      // no truthy test). Left off the model, every take-drawn piece came
+      // back from a reload as an original and the next roll piled the
+      // riders up (the v435 leak, back one reload later)
+      tk: e.tk != null ? e.tk : undefined,
       kids: e.kids && e.kids.length ? e.kids.map(projEl) : null };
   }
   function buildElBlocks(els, clsBase) {
@@ -1521,19 +1526,6 @@
         // from one world and drop into the other ("drag and drop
         // struggles ... especially if its a high image")
         var ih = sec.nodes[i].offsetHeight / s;
-        // ...BUT never absorb a grid STRETCH: when a style change grows the
-        // text column beside it, the image's row gets taller and (without
-        // align-self:start) the cell stretches, so offsetHeight reads that
-        // stretched height and the aspect goes tall-and-thin. align-self:
-        // start stops it going forward; here we clamp a runaway reading back
-        // to the photo's own height (natural aspect at width e.w), which
-        // also heals any model already poisoned. Ordinary crops sit close to
-        // natural and pass straight through.
-        var img = sec.nodes[i].querySelector('img');
-        if (img && img.naturalWidth && img.naturalHeight) {
-          var natH = e.w * (img.naturalHeight / img.naturalWidth);
-          if (natH > 0 && ih > natH * 1.5) ih = natH;
-        }
         // the frame draws at its OWN aspect (aspect-ratio: w / h) on whatever
         // width its tracks give it — a track that moved a few units under it
         // changes the height it draws at without inflating anything. Only a
@@ -1543,6 +1535,22 @@
         var rw = sec.nodes[i].offsetWidth / s;
         var aspectH = (e.w > 0 && rw > 0) ? rw * (e.h / e.w) : ih;
         if (Math.abs(ih - aspectH) <= 12) return;
+        // ...BUT never absorb a grid STRETCH: when a style change grows the
+        // text column beside it, the image's row gets taller and (without
+        // align-self:start) the cell stretches, so offsetHeight reads that
+        // stretched height and the aspect goes tall-and-thin. align-self:
+        // start stops it going forward; here we clamp a runaway reading back
+        // to the photo's own height (natural aspect at width e.w). This sits
+        // AFTER the aspect check on purpose: photos are cover-fitted, so a
+        // declared w/h that differs from the natural aspect is a deliberate
+        // crop (a square cut from a 16:9 photo), not an error — clamping
+        // first made the aspect check compare natural against declared and
+        // flattened the crop on every image load and every resize frame.
+        var img = sec.nodes[i].querySelector('img');
+        if (img && img.naturalWidth && img.naturalHeight) {
+          var natH = e.w * (img.naturalHeight / img.naturalWidth);
+          if (natH > 0 && ih > natH * 1.5) ih = natH;
+        }
         // deadband 12: real inflation is hundreds of units, solver
         // re-quantization wiggles by single digits — absorb only truth
         if (ih > 0 && Math.abs(ih - e.h) > 12) e.h = Math.round(ih);
@@ -1821,6 +1829,13 @@
   function restoreState(snap) {
     clearMulti();
     deselectSection(); // the rebuild replaces every sectionEl — a stale ring would orphan
+    // the section OBJECTS go too — a kid selection, kid edit or kid drag
+    // left pointing at the old ones would splice a dead model (Backspace
+    // after Cmd+Z showed "Removed from the card" and its Undo reverted
+    // something else). End them now, while their nodes are still attached
+    exitKidEd(true); // quiet — this is a history step, it must not push one
+    clearKidSel();
+    abortKidDrag();
     var data = JSON.parse(snap);
     // full rebuild, but each section goes back to its own DOM position so
     // non-gogh blocks interleaved with sections stay where they are
@@ -7928,6 +7943,21 @@
     }
     return issues;
   }
+  // 'The original' take of a section that never named its family: what it
+  // looks like at HOME, kept on the model so four rolls bring its own pieces
+  // back. ownOnly leaves out the pieces a roll drew (tk) -- a take's rider
+  // that came home beside the user's own is the take's, not the original's
+  function diceOrigSnap(sec, ownOnly) {
+    var own = function (list) {
+      return list.filter(function (e) { return !ownOnly || e.tk == null; }).map(function (e) {
+        if (e.kids) e.kids = own(e.kids);
+        return e;
+      });
+    };
+    return { els: own(JSON.parse(JSON.stringify(sec.els))), minH: sec.minH || null, bg: sec.bg || null,
+      bgImage: sec.bgImage || null, bgId: sec.bgId || null, bgPos: sec.bgPos || null,
+      bgA: sec.bgA != null ? sec.bgA : null, fill: !!sec.fill, fx: sec.fx || null };
+  }
   function rollSection(idx) {
     var sec = S[idx];
     var fam = diceFamilyOf(sec);
@@ -7935,19 +7965,25 @@
     if (!faces) return null;
     // an inferred family is adopted on the first roll: from here the
     // section knows its takes like any other
-    if (!sec.m || !sec.m.tpl || sec.m.tpl !== fam) {
+    var adopt = !sec.m || !sec.m.tpl || sec.m.tpl !== fam;
+    if (adopt) {
       // a section that never named its family keeps what it WAS: its own
       // pieces are 'The original' take, and four rolls bring THEM home — not
       // the family's base drawing with pieces it never had (the walk caught
       // the Yellow House hero coming home with a box, a photo and a badge)
-      sec.m = Object.assign({}, sec.m || {}, { tpl: fam, face: 0, orig: {
-        els: JSON.parse(JSON.stringify(sec.els)), minH: sec.minH || null, bg: sec.bg || null,
-        bgImage: sec.bgImage || null, bgId: sec.bgId || null, bgPos: sec.bgPos || null,
-        bgA: sec.bgA != null ? sec.bgA : null, fill: !!sec.fill, fx: sec.fx || null } });
+      sec.m = Object.assign({}, sec.m || {}, { tpl: fam, face: 0, orig: diceOrigSnap(sec, false) });
     }
     var orig = sec.m.orig && sec.m.orig.els ? sec.m.orig : null;
     var cur = ((sec.m.face || 0) % faces.length + faces.length) % faces.length;
     var next = (cur + 1) % faces.length;
+    if (orig && cur === 0 && !adopt) {
+      // home is editable too: a heading dragged or a photo resized on the
+      // original take has to be there when four rolls bring it round again,
+      // so the snapshot is retaken every time the section leaves home (it
+      // used to be taken once, and rolling around put the pre-edit layout back)
+      orig = diceOrigSnap(sec, true);
+      sec.m = Object.assign({}, sec.m, { orig: orig });
+    }
     var takeEls = function (face) { return (face === 0 && orig) ? JSON.parse(JSON.stringify(orig.els)) : tplEls(faces[face]); };
     // what the CURRENT take would say untouched (tplEls is deterministic:
     // pool picks are seeded by family name) -- anything that differs is
@@ -8006,7 +8042,12 @@
     var matched = new Map();
     Object.keys(live).forEach(function (r) {
       live[r].forEach(function (e, i) {
-        var inTake = !!(pristine[r] || [])[i], slotNext = !!(by2[r] || [])[i];
+        // an original's pieces beyond what the family's base take draws (a
+        // second heading added at home) are the user's own: they ride or take
+        // a free slot carrying their words like any extra -- matched into a
+        // slot they would wear the take's words, since the words memory only
+        // knows the slots the base draws (for a named family words IS pristine)
+        var inTake = !!(pristine[r] || [])[i] && !!(words[r] || [])[i], slotNext = !!(by2[r] || [])[i];
         if (inTake && slotNext) matched.set(e, { r: r, i: i });
         else if (inTake && e.tk != null) matched.set(e, { r: r, i: i, dropped: true });
       });
@@ -8037,7 +8078,28 @@
     var adopted = [];
     extra = extra.filter(function (x) {
       var r = diceRole(x);
-      if (!r || r === 'widget') return true;
+      if (!r) return true;
+      // a widget rides through the takes as itself (its substance is too
+      // varied to copy onto a take's slot). Coming HOME it must not ride in
+      // beside its own copy in the refreshed original -- it takes that copy's
+      // place, at that copy's spot (the snapshot is retaken on every leave-
+      // home, so a widget added at home is in it: riding home beside itself
+      // made two widgets three, then five)
+      if (r === 'widget') {
+        if (!(next === 0 && orig)) return true;
+        var wl = by2.widget || [];
+        for (var q = 0; q < wl.length; q++) {
+          if (taken['widget:' + q]) continue;
+          var ws = wl[q], at = els2.indexOf(ws);
+          if (at === -1) continue;
+          taken['widget:' + q] = true;
+          x.x = ws.x; x.y = ws.y; x.w = ws.w; x.h = ws.h;
+          els2[at] = x; wl[q] = x;
+          adopted.push(x);
+          return false;
+        }
+        return true;
+      }
       var list = by2[r] || [];
       for (var j = 0; j < list.length; j++) {
         if (taken[r + ':' + j]) continue;
@@ -12281,6 +12343,26 @@
       if (eD.y + eD.h >= secH0D - 12) eD.flushB = true;
       else if (eD.flushB && eD.y + eD.h < secH0D - 24) eD.flushB = null;
     }
+    // the stylesheet on screen is still the mid-drag one, solved with the
+    // moving pieces SKIPPED, so each of their cells sits between OTHER
+    // pieces' lines. Measured there, a paragraph reads the height it wraps
+    // to in a foreign width (a photo, the height of foreign tracks) and the
+    // model absorbed it — a photo grew 313 → 462 this way. Put every piece
+    // back on its own lines first, then measure what it really renders at
+    // (the order a resize already settles in)
+    if (multiD) {
+      // the mates still sit where the hand found them: park them at the
+      // landing their sockets showed, so the grid they are measured in is
+      // the group's own shape and not a blend of old edges with the grabbed
+      // piece's new ones (the final delta re-places them below)
+      var pdx = eD.x - x0D, pdy = eD.y - y0D;
+      multiD.forEach(function (mm) {
+        var o = sec.els[mm.j];
+        o.x = Math.max(0, Math.min(W - o.w, mm.x + pdx));
+        o.y = Math.max(0, mm.y + pdy);
+      });
+    }
+    resolveAndApply(sec);
     measureTextHeights(sec);
     resolveAndApply(sec);
     // the grid can render rows taller than the model predicts (theme fonts,
@@ -12401,13 +12483,27 @@
     if (kidSel.node && kidSel.node.classList) kidSel.node.classList.remove('gogh-kid-selected');
     kidSel = null;
   }
-  function exitKidEd() {
+  // a drag cut short (undo/redo rebuilt the page under the hand): the ghost
+  // goes, the hidden kid shows again, nothing is written. The kidSkip the
+  // solver honours is derived from kidDrag, so nulling it clears that too
+  function abortKidDrag() {
+    if (!kidDrag) return;
+    var kd = kidDrag;
+    kidDrag = null;
+    if (kd.ghost) kd.ghost.remove();
+    if (kd.node && kd.node.style) kd.node.style.visibility = '';
+    var cardNode = kd.sec && kd.sec.nodes && kd.sec.nodes[kd.ci];
+    if (cardNode && cardNode.classList) cardNode.classList.remove('gogh-card-leaving');
+  }
+  // quiet: restoreState ends an edit mid-step — a push there would cut the
+  // redo stack and leave hIdx on the wrong snapshot
+  function exitKidEd(quiet) {
     if (!kidEd) return;
     document.documentElement.classList.remove('gogh-textediting');
     kidEd.node.removeAttribute('contenteditable');
     if (document.activeElement === kidEd.node) kidEd.node.blur();
     kidEd = null;
-    pushState();
+    if (!quiet) pushState();
   }
   function openKidLinkPanel(sec, ci, j) {
     var hostEl = sec.els[ci];
@@ -12611,6 +12707,12 @@
     if (kidEd && ev.key === 'Escape') { ev.stopPropagation(); exitKidEd(); return; }
     if (!kidSel || kidEd) return;
     if (ev.key === 'Escape') { clearKidSel(); return; }
+    // a key aimed at a field edits the field: restyling a button kid (Solid,
+    // Outline, a swatch) re-opens its link panel with the URL box focused and
+    // the kid re-selected, and a Backspace there used to remove the button
+    // from the card. Only a key aimed at the canvas removes the kid
+    var kt = ev.target;
+    if (kt && (kt.isContentEditable || kt.tagName === 'INPUT' || kt.tagName === 'TEXTAREA' || kt.tagName === 'SELECT')) return;
     if (ev.key === 'Backspace' || ev.key === 'Delete') {
       var sec = kidSel.sec;
       var hostEl = sec.els[kidSel.ci];
@@ -14722,6 +14824,7 @@
     convertBlock: convertBlock,
     convertChrome: convertChrome,
     restore: restoreState,
+    kidState: function () { return { sel: kidSel, ed: kidEd, drag: kidDrag }; },
     setEditing: setEditing,
     deleteSection: deleteSection,
     moveSection: moveSection,
