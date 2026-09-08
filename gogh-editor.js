@@ -14440,7 +14440,17 @@
     return !!door;
   }
   window.__gogh.openPasteDoor = openPasteDoor;
-  if (/[?&]gogh-paste=1/.test(location.search)) setTimeout(openPasteDoor, 400);
+  if (/[?&]gogh-paste=1/.test(location.search)) {
+    // the picker can redraw itself just after it opens (My sections
+    // arriving) — keep knocking for a moment until the pane is really there
+    var knocks = 0;
+    var knock = function () {
+      if (picker.querySelector('.gogh-htmlpaste')) return;
+      openPasteDoor();
+      if (++knocks < 6) setTimeout(knock, 500);
+    };
+    setTimeout(knock, 400);
+  }
   document.dispatchEvent(new CustomEvent('gogh:ready'));
 
   // ---------- keyboard ----------
