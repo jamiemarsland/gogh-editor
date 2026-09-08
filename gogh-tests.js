@@ -6020,6 +6020,28 @@
       return 'logo+name → name; logo-only → name (alignment kept); no logo → null';
     });
 
+    // THE RUNTIME GUARD — a break announces itself: a piece that changed
+    // size on a move, two texty pieces on one another; badges and the big
+    // quotation mark are design, not breaks
+    test('runtime guard: speaks on a resize or an overlap, silent on design', function () {
+      G.guardReset();
+      var s = { scope: 'gogh-sec-guard', els: [
+        { type: 'heading', x: 72, y: 100, w: 400, h: 60, text: 'Alpha' },
+        { type: 'para', x: 72, y: 140, w: 400, h: 60, text: 'Bravo sits on Alpha' },
+        { type: 'badge', x: 72, y: 100, w: 120, h: 40, text: 'Loved' },
+        { type: 'heading', x: 72, y: 100, w: 80, h: 80, text: '\u201c' },
+      ] };
+      var issues = G.guardCheck(s, 'test');
+      if (issues.length !== 1 || !/Alpha/.test(issues[0])) throw new Error('expected the one real overlap, got ' + JSON.stringify(issues));
+      var moved = { e: s.els[0], w: 380, h: 60 };
+      var issues2 = G.guardCheck({ scope: 'x', els: [s.els[0]] }, 'test', moved);
+      if (issues2.length !== 1 || !/changed size/.test(issues2[0])) throw new Error('a size change must be called out: ' + JSON.stringify(issues2));
+      if (G.guardCheck({ scope: 'x', els: [s.els[0], s.els[2], s.els[3]] }, 'test').length) throw new Error('a badge or a glyph over a heading is design, not a break');
+      var n = G.guardLog().length;
+      G.guardReset();
+      return 'overlap + resize spoke (' + n + ' entries), design stayed silent';
+    });
+
     // STARTER SWEEP — every starter, every take, every piece: the invariants
     // that today's bugs broke, checked on REAL shapes rather than hand-made
     // fixtures. Roll four times: nothing lost, nothing on top of anything,
@@ -6028,6 +6050,7 @@
     test('starter sweep: rolls keep every piece apart and drags never resize', function () {
       var starters = G.templates().filter(function (t) { return t.starter && !t.retired && t.els && t.els.length; });
       var problems = [];
+      G.guardReset(); // the runtime guard must stay silent through the whole sweep
       var rolled = 0, dragged = 0;
       // badges sit on corners by design and a one-glyph heading (the big
       // quotation mark) is decoration: neither counts as an overlap
@@ -6078,6 +6101,11 @@
           var back = JSON.stringify(s.els.map(function (e) { return e.type + '@' + e.x + ',' + e.y; }));
           if (back !== home) problems.push(t.name + ': four rolls did not come home');
         }
+        // the guard must have stayed silent through the rolls (a roll is
+        // gogh's own doing; a drag below may park a button on its neighbour
+        // on purpose, so only a size change counts there)
+        G.guardLog().forEach(function (g) { problems.push(t.name + ': guard on ' + g.why + ' \u2014 ' + g.issues[0]); });
+        G.guardReset();
         // drag each top-level piece by (+40, +24): position follows, size holds
         var sc = s.sectionEl.getBoundingClientRect().width / 1200;
         s.els.slice().forEach(function (e, i) {
@@ -6099,11 +6127,15 @@
           if (e.w !== w0 || e.h !== h0) problems.push(t.name + ' ' + e.type + ': drag changed its size ' + w0 + 'x' + h0 + ' → ' + e.w + 'x' + e.h);
           if (e.x === x0 && e.y === y0 && x0 + e.w + 40 <= 1200) problems.push(t.name + ' ' + e.type + ': drag did not move it');
         });
+        G.guardLog().forEach(function (g) {
+          g.issues.forEach(function (msg) { if (/changed size/.test(msg)) problems.push(t.name + ': guard on ' + g.why + ' \u2014 ' + msg); });
+        });
+        G.guardReset();
         G.deleteSection(idx);
         [].slice.call(document.querySelectorAll('.gogh-toast')).forEach(function (x) { x.remove(); });
       });
       if (problems.length) throw new Error(problems.length + ' problem(s): ' + problems.slice(0, 6).join(' | '));
-      return starters.length + ' starters, ' + rolled + ' rolls, ' + dragged + ' drags: no losses, no overlaps, no resizes';
+      return starters.length + ' starters, ' + rolled + ' rolls, ' + dragged + ' drags: no losses, no overlaps, no resizes, guard silent';
     });
 
     // NOTICES — one per kind, never a trail: status replaces status,

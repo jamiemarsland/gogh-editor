@@ -7879,6 +7879,47 @@
   // where an extra piece sits relative to the take's own — kept off the
   // model (never saved), per element, for as long as the roll placed it
   var diceRideMemo = new WeakMap();
+  // ---------- the runtime guard ----------
+  // Bugs should announce themselves the moment they happen, not a week
+  // later in a screenshot (James). After every drop and every roll the
+  // section is checked against two invariants — a moved piece keeps its
+  // size, and no two texty pieces of one stack sit on each other — and a
+  // break is logged to the console (and toasted in test mode). The suite
+  // reads the log through the bridge and fails on anything in it.
+  var guardLog = [];
+  var guardTexty = function (e) {
+    if (e.type === 'badge') return false;
+    if (e.type === 'heading' && String(e.text || '').replace(/<[^>]+>/g, '').trim().length <= 2) return false;
+    return e.type === 'heading' || e.type === 'para' || e.type === 'button';
+  };
+  function guardCheck(sec, why, moved) {
+    if (!sec || !sec.els) return [];
+    var issues = [];
+    if (moved && moved.e && (moved.e.w !== moved.w || moved.e.h !== moved.h)) {
+      issues.push(moved.e.type + ' changed size ' + moved.w + 'x' + moved.h + ' \u2192 ' + moved.e.w + 'x' + moved.e.h);
+    }
+    var rects = [];
+    sec.els.forEach(function (e) {
+      if (guardTexty(e)) rects.push({ e: e, x: e.x, y: e.y, w: e.w, h: e.h, card: null });
+      (e.kids || []).forEach(function (k) { if (guardTexty(k)) rects.push({ e: k, x: k.x, y: k.y, w: k.w, h: k.h, card: e }); });
+    });
+    for (var i = 0; i < rects.length; i++) for (var j = i + 1; j < rects.length; j++) {
+      var a = rects[i], b = rects[j];
+      if (a.card !== b.card) continue;
+      var ox = Math.min(a.x + a.w, b.x + b.w) - Math.max(a.x, b.x);
+      var oy = Math.min(a.y + a.h, b.y + b.h) - Math.max(a.y, b.y);
+      if (ox > 12 && oy > 12) {
+        issues.push(a.e.type + ' \u201c' + String(a.e.text || '').replace(/<[^>]+>/g, '').slice(0, 18) + '\u201d on ' + b.e.type + ' \u201c' + String(b.e.text || '').replace(/<[^>]+>/g, '').slice(0, 18) + '\u201d' + (a.card ? ' (in a card)' : ''));
+      }
+    }
+    if (issues.length) {
+      var line = 'gogh guard \u2014 ' + why + ': ' + issues.join(' | ');
+      guardLog.push({ why: why, issues: issues, scope: sec.scope, at: Date.now() });
+      if (window.console && console.warn) console.warn(line);
+      if (cfg.experiments) toast('Guard: ' + issues[0], { error: true, ttl: 6000 });
+    }
+    return issues;
+  }
   function rollSection(idx) {
     var sec = S[idx];
     var fam = diceFamilyOf(sec);
@@ -8151,6 +8192,7 @@
     sec.bgA = t2.bgA != null ? t2.bgA : null;
     sec.m = Object.assign({}, sec.m, { face: next, edits: edits });
     renderSection(sec);
+    guardCheck(sec, 'roll to take ' + (next + 1));
     sec.els.forEach(function (ex) { if (ex.rails && ex.shop) hydrateProductsPreview(sec, ex); });
     pushState();
     contrastSentinel(sec);
@@ -11985,8 +12027,10 @@
     document.body.appendChild(el);
     return { el: el, left: gL, top: gT };
   }
+  var guardPick = null; // the piece and its size when the hand closed
   function beginDrag(ev) {
     if (!editing || !sel) return;
+    guardPick = sel && sel.sec && sel.sec.els[sel.i] ? { e: sel.sec.els[sel.i], w: sel.sec.els[sel.i].w, h: sel.sec.els[sel.i].h } : null;
     keepZoomThroughClose = !!zoomState; // dragging in birds-eye keeps the zoom
     closePanel();
     keepZoomThroughClose = false;
@@ -12255,6 +12299,12 @@
       resolveAndApply(sec);
     }
     setJoinGlow(null);
+    // a plain move must not change the piece: the guard says so if it did
+    // (a wrap or a card-join below reshapes on purpose and checks nothing)
+    var gp = guardPick; guardPick = null;
+    if (!multiD && gp && gp.e === sec.els[i] && wrapTargetIdx(sec, i, dropCX, dropCY) === -1 && cardJoinTarget(sec, i) === -1) {
+      guardCheck(sec, 'drop', gp);
+    }
     if (!multiD) {
       var wti = wrapTargetIdx(sec, i, dropCX, dropCY);
       if (wti !== -1) {
@@ -12397,6 +12447,7 @@
       // the stack from HERE, never from the last move's pushes — so drifting
       // around does not pile pushes up, and what you see is where it lands
       snap: hostEl.kids.map(function (k) { return { k: k, x: k.x, y: k.y }; }), hostH: hostEl.h,
+      w0: kid.w, h0: kid.h,
       moved: false, already: !!already, id: ev.pointerId };
   }, true);
   document.addEventListener('pointermove', function (ev) {
@@ -12487,6 +12538,7 @@
       kd.snap.forEach(function (sn) { if (sn.k !== landed) { sn.k.x = sn.x; sn.k.y = sn.y; } });
       hostEl.h = kd.hostH;
       settleKid(hostEl, landed); // the same settle the preview showed
+      guardCheck(sec, 'card drop', { e: landed, w: kd.w0, h: kd.h0 });
       var reordered = orderKids(hostEl);
       if (reordered) {
         clearKidSel();
@@ -14630,6 +14682,9 @@
     textIdentityRaw: textIdentityRaw,
     chromeShape: chromeShape,
     diceFlatten: diceFlatten,
+    guardLog: function () { return guardLog.slice(); },
+    guardReset: function () { guardLog.length = 0; },
+    guardCheck: guardCheck,
     blocksV3: buildSectionBlocksV3,
     titleRawWithSize: titleRawWithSize,
     publish: publish,
