@@ -19962,6 +19962,10 @@
       try { return it.url && new URL(it.url, location.href).origin !== location.origin; } catch (err) { return false; }
     }
 
+    function whereTip(on, dev) {
+      var place = dev === 'desktop' ? 'the desktop menu' : 'the phone menu';
+      return on ? 'Shown in ' + place + ' \u2014 click to hide it there' : 'Hidden from ' + place + ' \u2014 click to show it there';
+    }
     function rowEl(it, parent) {
       var r = document.createElement('div');
       r.className = 'gogh-mm-row' + (parent ? ' gogh-mm-sub' : '');
@@ -19977,10 +19981,12 @@
             '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M4 5h16M12 5v3"/><rect x="3" y="8" width="18" height="12" rx="2"/><path d="M3 14h18M9 8v12M15 8v12"/></svg></button>'
           : '') +
         // where it shows: the bar (desktop) and/or the overlay (phones)
+        // the tip says the STATE and the click (James: "what does on
+        // desktop mean?") — "Shown in the desktop menu — click to hide"
         '<span class="gogh-mm-where" title="Where this item shows">' +
-        '<button type="button" class="gogh-mm-w' + (it.where === 'phone' ? '' : ' is-on') + '" data-w="desktop" title="On desktop" aria-pressed="' + (it.where === 'phone' ? 'false' : 'true') + '">' +
+        '<button type="button" class="gogh-mm-w' + (it.where === 'phone' ? '' : ' is-on') + '" data-w="desktop" title="' + whereTip(it.where !== 'phone', 'desktop') + '" aria-label="' + whereTip(it.where !== 'phone', 'desktop') + '" aria-pressed="' + (it.where === 'phone' ? 'false' : 'true') + '">' +
         '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/></svg></button>' +
-        '<button type="button" class="gogh-mm-w' + (it.where === 'desktop' ? '' : ' is-on') + '" data-w="phone" title="On phones" aria-pressed="' + (it.where === 'desktop' ? 'false' : 'true') + '">' +
+        '<button type="button" class="gogh-mm-w' + (it.where === 'desktop' ? '' : ' is-on') + '" data-w="phone" title="' + whereTip(it.where !== 'desktop', 'phone') + '" aria-label="' + whereTip(it.where !== 'desktop', 'phone') + '" aria-pressed="' + (it.where === 'desktop' ? 'false' : 'true') + '">' +
         '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><rect x="7" y="2" width="10" height="20" rx="2"/><path d="M11 18h2"/></svg></button></span>' +
         '<button type="button" class="gogh-mm-x" title="Remove from menu">\u2715</button>';
       r.querySelector('.gogh-mm-label').textContent = it.label || it.url || 'Untitled';
