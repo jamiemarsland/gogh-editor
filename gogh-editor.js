@@ -12318,7 +12318,12 @@
     // (a wrap or a card-join below reshapes on purpose and checks nothing)
     var gp = guardPick; guardPick = null;
     if (!multiD && gp && gp.e === sec.els[i] && wrapTargetIdx(sec, i, dropCX, dropCY) === -1 && cardJoinTarget(sec, i) === -1) {
+      // and a plain move never changes the piece's size — whatever measured
+      // or re-quantised on the way, the size it was picked up with is the
+      // size it lands with (the guard still says something went wrong)
+      var grew = gp.e.w !== gp.w || gp.e.h !== gp.h;
       guardCheck(sec, 'drop', gp);
+      if (grew) { gp.e.w = gp.w; gp.e.h = gp.h; resolveAndApply(sec); }
     }
     if (!multiD) {
       var wti = wrapTargetIdx(sec, i, dropCX, dropCY);
