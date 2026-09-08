@@ -3107,6 +3107,10 @@ html.gogh-editing .gogh-cardbox [class*="gogh-k-"] { cursor: grab; }
 
 /* the kid's ghost while it is being carried out of a card */
 .gogh-kid-ghost { position: fixed; z-index: 100010; pointer-events: none; opacity: 0.85; transform: translate(-30%, -30%); box-shadow: 0 18px 44px -12px rgba(0,0,0,0.4); }
+/* the in-card ghost is the piece itself under the hand: exact size, no offset,
+   a soft lift; past the card's edge it loosens to say "this can leave" */
+.gogh-kid-ghost.gogh-kid-ghost-in { transform: none; opacity: 0.96; box-shadow: 0 10px 30px -10px rgba(0,0,0,0.35); margin: 0; }
+.gogh-kid-ghost.gogh-kid-ghost-in.gogh-kid-ghost-out { opacity: 0.8; }
 
 /* while the caret is live, the page belongs to the words — selection box,
    grip and kid outlines fade; the floating toolbar stays */

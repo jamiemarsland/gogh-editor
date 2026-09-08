@@ -3961,6 +3961,66 @@
       return 'join on drop · move inside · drag out to free';
     });
 
+    // ---- a card's text stack: ghost under the hand, sortable swaps, cascade, reading order ----
+    test('card stack: kids swap past a centre, pushes cascade, DOM follows reading order', function () {
+      var s0 = sec();
+      s0.els.push({ type: 'box', x: 600, y: 60, w: 480, h: 300, boxBg: '#101418', radius: 16, kids: [
+        { type: 'heading', x: 30, y: 20, w: 420, h: 40, text: 'Alpha' },
+        { type: 'para', x: 30, y: 80, w: 420, h: 40, text: 'Bravo' },
+        { type: 'para', x: 30, y: 140, w: 420, h: 40, text: 'Charlie' },
+      ] });
+      G.renderSection(s0);
+      var ci = s0.els.length - 1;
+      var box = s0.els[ci];
+      var sc = s0.sectionEl.getBoundingClientRect().width / 1200;
+      var pv = function (type, el, x, y, id) {
+        el.dispatchEvent(new PointerEvent(type, { bubbles: true, cancelable: true, clientX: x, clientY: y, pointerId: id, button: 0, buttons: type === 'pointerup' ? 0 : 1 }));
+      };
+      var kidNode = function (text) {
+        var j = box.kids.map(function (k) { return k.text; }).indexOf(text);
+        return s0.nodes[ci].querySelector('.gogh-k-' + (j + 1));
+      };
+      var byText = function (text) { return box.kids.filter(function (k) { return k.text === text; })[0]; };
+      var noOverlap = function () {
+        var ks = box.kids;
+        for (var a = 0; a < ks.length; a++) for (var b = a + 1; b < ks.length; b++) {
+          var oy = Math.min(ks[a].y + ks[a].h, ks[b].y + ks[b].h) - Math.max(ks[a].y, ks[b].y);
+          if (oy > 4) throw new Error(ks[a].text + ' and ' + ks[b].text + ' overlap by ' + oy);
+        }
+      };
+      // 1. drag Alpha down past Bravo's centre (to y≈90): they swap, Charlie holds
+      var an = kidNode('Alpha'), ar = an.getBoundingClientRect();
+      pv('pointerdown', an, ar.left + 10, ar.top + 8, 81);
+      pv('pointermove', document, ar.left + 10, ar.top + 8 + 35 * sc, 81);
+      // mid-drag: a ghost under the hand, the real kid hidden
+      var ghost = document.querySelector('.gogh-kid-ghost.gogh-kid-ghost-in');
+      expect(ghost, 'no in-card ghost while dragging a kid');
+      expect(an.style.visibility === 'hidden', 'the real kid should hide behind its ghost');
+      pv('pointermove', document, ar.left + 10, ar.top + 8 + 70 * sc, 81);
+      pv('pointerup', document, ar.left + 10, ar.top + 8 + 70 * sc, 81);
+      expect(!document.querySelector('.gogh-kid-ghost'), 'ghost left behind after the drop');
+      expect(box.kids.map(function (k) { return k.text; }).join(',') === 'Bravo,Alpha,Charlie', 'swap did not reorder the kids: ' + box.kids.map(function (k) { return k.text; }).join(','));
+      expect(byText('Bravo').y < byText('Alpha').y && byText('Alpha').y + byText('Alpha').h <= byText('Charlie').y + 4, 'Alpha did not land between Bravo and Charlie');
+      noOverlap();
+      var k1 = s0.nodes[ci].querySelector('.gogh-k-1');
+      expect(k1 && /Bravo/.test(k1.textContent), 'DOM order does not follow the reading order');
+      // 2. drag Alpha onto Charlie's centre: a push must cascade, nothing hides behind anything
+      var an2 = kidNode('Alpha'), ar2 = an2.getBoundingClientRect();
+      var toY = (byText('Charlie').y + 6 - byText('Alpha').y) * sc;
+      pv('pointerdown', an2, ar2.left + 10, ar2.top + 8, 82);
+      pv('pointermove', document, ar2.left + 10, ar2.top + 8 + toY / 2, 82);
+      pv('pointermove', document, ar2.left + 10, ar2.top + 8 + toY, 82);
+      pv('pointerup', document, ar2.left + 10, ar2.top + 8 + toY, 82);
+      noOverlap();
+      expect(box.kids.length === 3, 'a kid went missing');
+      var bottom = Math.max.apply(null, box.kids.map(function (k) { return k.y + k.h; }));
+      expect(box.h >= bottom, 'the card did not grow to hold its stack');
+      // cleanup
+      s0.els.splice(ci, 1);
+      G.renderSection(s0);
+      return 'ghost · swap · cascade · reading order';
+    });
+
     // ---- pasted cards: never squashed into buttons, text editable in place ----
     test('card-shaped anchors scan as widgets and their text edits in place', function () {
       G.addHtmlSection('<div style="padding:40px;background:#eee">' +

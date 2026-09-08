@@ -1001,7 +1001,7 @@
     els.forEach(function (e, i) {
       if (e.type !== 'box' || !e.kids || !e.kids.length) return;
       var cardSel = sec + ' .gogh-el-' + (i + 1);
-      var kg = solve(e.kids, e.h, e.w);
+      var kg = solve(e.kids, e.h, e.w, (opts.kidSkip && opts.kidSkip.ci === i) ? [opts.kidSkip.j] : null);
       var kidH = designH(e.kids, e.h);
       var cardRows = kg.rows.map(function (r) {
         // solve emits section-cqw (1cqw = W/100 design units); the card's
@@ -1534,6 +1534,15 @@
           var natH = e.w * (img.naturalHeight / img.naturalWidth);
           if (natH > 0 && ih > natH * 1.5) ih = natH;
         }
+        // the frame draws at its OWN aspect (aspect-ratio: w / h) on whatever
+        // width its tracks give it — a track that moved a few units under it
+        // changes the height it draws at without inflating anything. Only a
+        // height beyond that aspect is a real inflation worth absorbing;
+        // absorbing the aspect wobble re-shaped the frame a little on every
+        // drop (James: "when i drag an image, it's resizing")
+        var rw = sec.nodes[i].offsetWidth / s;
+        var aspectH = (e.w > 0 && rw > 0) ? rw * (e.h / e.w) : ih;
+        if (Math.abs(ih - aspectH) <= 12) return;
         // deadband 12: real inflation is hundreds of units, solver
         // re-quantization wiggles by single digits — absorb only truth
         if (ih > 0 && Math.abs(ih - e.h) > 12) e.h = Math.round(ih);
@@ -1595,7 +1604,10 @@
       // neighbours rest on (the multi-drag group rides along too)
       solveSkip: (drag && drag.sec === sec && sec.els[drag.i])
         ? [drag.i].concat((drag.multi || []).map(function (m2) { return m2.j; }))
-        : null };
+        : null,
+      // the same for a kid on the move inside its card: its ghost is under
+      // the hand, its edges must not wobble the lines its siblings rest on
+      kidSkip: (kidDrag && kidDrag.sec === sec && kidDrag.moved) ? { ci: kidDrag.ci, j: kidDrag.j } : null };
   }
   function resolveAndApply(sec) {
     sec.styleEl.textContent = buildCSS(sec.els, sec.scope, sec.minH, sectionOpts(sec));
@@ -11677,33 +11689,49 @@
   // dropping an element FULLY inside a plain box makes it a kid of that
   // card (one level only; boxes never join boxes)
   var SETTLE_TYPES = { heading: 1, para: 1, button: 1, badge: 1 };
-  function settleKid(host, kid) {
-    // a card reads as a stack: TEXTY kids dropped roughly onto other texty
-    // kids tuck below them instead of sharing grid cells (which renders as
-    // genuine overlap). Images and boxes are exempt — text over a photo is
-    // a design, not an accident.
-    if (!SETTLE_TYPES[kid.type]) return;
-    var moved = true, guard = 0;
-    while (moved && guard++ < 8) {
-      moved = false;
-      (host.kids || []).forEach(function (ok) {
-        if (ok === kid || !SETTLE_TYPES[ok.type]) return;
-        var ox = Math.min(kid.x + kid.w, ok.x + ok.w) - Math.max(kid.x, ok.x);
-        var oy = Math.min(kid.y + kid.h, ok.y + ok.h) - Math.max(kid.y, ok.y);
-        if (ox > 12 && oy > 12) {
-          // the stack REORDERS: a kid dragged above another goes above it
-          // and the other steps down — always tucking the dragged kid
-          // below meant a drag upward could never land, so it looked like
-          // a revert (James: "it just reverts to where i dragged it from")
-          if (kid.y + kid.h / 2 < ok.y + ok.h / 2) ok.y = kid.y + kid.h + 12;
-          else kid.y = ok.y + ok.h + 12;
-          moved = true;
-        }
-      });
-    }
+  // a card reads as a STACK: texty kids never share a cell. The stack is
+  // settled in reading order (by centre), each kid pushed below whatever it
+  // overlaps that came before it — so a push cascades (the meta line that
+  // is pushed onto the button pushes the button too; it used to slide under
+  // it: "dragging elements (text) within cards is really really buggy").
+  // Images and boxes are exempt — text over a photo is a design, not an
+  // accident. `frozen` (the kid under the hand) is an obstacle that never
+  // moves; at release nothing is frozen and the kid may tuck.
+  function settleStack(host) {
+    var kids = (host.kids || []).filter(function (k) { return SETTLE_TYPES[k.type]; });
+    var order = kids.slice().sort(function (a, b) { return (a.y + a.h / 2) - (b.y + b.h / 2) || a.y - b.y; });
+    order.forEach(function (k, i) {
+      for (var j = 0; j < i; j++) {
+        var o = order[j];
+        var ox = Math.min(k.x + k.w, o.x + o.w) - Math.max(k.x, o.x);
+        var oy = Math.min(k.y + k.h, o.y + o.h) - Math.max(k.y, o.y);
+        // any real overlap in the same column steps below, with the stack's
+        // gap (a 12-unit overlap used to slip through and the meta line
+        // hid behind the button)
+        if (ox > 12 && oy > 4) k.y = o.y + o.h + 12;
+      }
+    });
     var bottom = 0;
     (host.kids || []).forEach(function (k2) { bottom = Math.max(bottom, k2.y + k2.h); });
     if (bottom > host.h) host.h = bottom + 16;
+  }
+  function settleKid(host, kid) {
+    if (!SETTLE_TYPES[kid.type]) return;
+    settleStack(host);
+  }
+  // the card's kids are written in READING order: what the eye meets first
+  // on the page is first in the DOM — so phones stack them the same way
+  // and the tab order agrees
+  function orderKids(host) {
+    if (!host.kids || host.kids.length < 2) return false;
+    var before = host.kids.slice();
+    host.kids.sort(function (a, b) {
+      var ac = a.y + a.h / 2, bc = b.y + b.h / 2;
+      // same row (centres within a line): left to right
+      if (Math.abs(ac - bc) <= 12) return a.x - b.x;
+      return ac - bc;
+    });
+    return before.some(function (k, i) { return host.kids[i] !== k; });
   }
   function cardJoinTarget(sec, i) {
     var e = sec.els[i];
@@ -12337,6 +12365,10 @@
     var kid = hostEl.kids[j];
     kidDrag = { sec: sec, ci: ci, j: j, node: kn,
       px: ev.clientX, py: ev.clientY, x0: kid.x, y0: kid.y,
+      // where every sibling rested when the hand closed: each move settles
+      // the stack from HERE, never from the last move's pushes — so drifting
+      // around does not pile pushes up, and what you see is where it lands
+      snap: hostEl.kids.map(function (k) { return { k: k, x: k.x, y: k.y }; }), hostH: hostEl.h,
       moved: false, already: !!already, id: ev.pointerId };
   }, true);
   document.addEventListener('pointermove', function (ev) {
@@ -12349,38 +12381,44 @@
     var dx = (ev.clientX - kidDrag.px) / sc;
     var dy = (ev.clientY - kidDrag.py) / sc;
     if (!kidDrag.moved && Math.abs(dx) + Math.abs(dy) < 3) return;
-    kidDrag.moved = true;
+    if (!kidDrag.moved) {
+      // the hand holds a GHOST — the exact piece, following the pointer
+      // 1:1 — while the real kid hides and shows nothing until it lands.
+      // Re-laying the real kid through the grid on every move made it
+      // snap between lines and flip under the hand
+      kidDrag.moved = true;
+      var kr0 = kidDrag.node.getBoundingClientRect();
+      var kg = kidDrag.node.cloneNode(true);
+      kg.classList.remove('gogh-kid-selected');
+      kg.className += ' gogh-kid-ghost gogh-kid-ghost-in';
+      kg.style.width = kr0.width + 'px';
+      kg.style.height = kr0.height + 'px';
+      kg.style.left = kr0.left + 'px';
+      kg.style.top = kr0.top + 'px';
+      document.body.appendChild(kg);
+      kidDrag.ghost = kg;
+      kidDrag.gx = kr0.left; kidDrag.gy = kr0.top;
+      kidDrag.node.style.visibility = 'hidden';
+    }
+    kidDrag.ghost.style.left = (kidDrag.gx + (ev.clientX - kidDrag.px)) + 'px';
+    kidDrag.ghost.style.top = (kidDrag.gy + (ev.clientY - kidDrag.py)) + 'px';
+    // the landing: siblings return to where they rested, the kid takes the
+    // pointer's spot, the stack settles around it (the kid itself is the
+    // one thing that never moves under the hand)
+    kidDrag.snap.forEach(function (sn) { if (sn.k !== kid) { sn.k.x = sn.x; sn.k.y = sn.y; } });
+    hostEl.h = kidDrag.hostH;
     kid.x = Math.round(Math.max(0, Math.min(hostEl.w - kid.w, kidDrag.x0 + dx)));
     kid.y = Math.round(Math.max(0, Math.min(Math.max(0, hostEl.h - kid.h), kidDrag.y0 + dy)));
-    // the stack settles LIVE — what you see mid-drag is where it lands;
-    // settling only at release made the drop jump (a broken promise)
-    settleKid(hostEl, kid);
-    // leaving intent: pointer beyond the card's box. The kid itself is
-    // clamped inside the card's grid, so a GHOST follows the pointer out —
-    // without it, the kid pinning at the wall reads as "can't leave"
+    // the stack settles like a sortable list: cross a sibling's centre and
+    // you swap; the kid's own hidden cell IS the landing gap you see open,
+    // and the drop lands exactly there — no tuck after the fact
+    if (SETTLE_TYPES[kid.type]) settleStack(hostEl);
+    // leaving intent: the pointer beyond the card's box — the card shows it
     var cardR = sec.nodes[kidDrag.ci].getBoundingClientRect();
     var outside = ev.clientX < cardR.left - 4 || ev.clientX > cardR.right + 4 ||
       ev.clientY < cardR.top - 4 || ev.clientY > cardR.bottom + 4;
     sec.nodes[kidDrag.ci].classList.toggle('gogh-card-leaving', outside);
-    if (outside && !kidDrag.ghost) {
-      var kg = kidDrag.node.cloneNode(true);
-      kg.classList.remove('gogh-kid-selected');
-      kg.className += ' gogh-kid-ghost';
-      var kr = kidDrag.node.getBoundingClientRect();
-      kg.style.width = kr.width + 'px';
-      kg.style.height = kr.height + 'px';
-      document.body.appendChild(kg);
-      kidDrag.ghost = kg;
-      kidDrag.node.style.visibility = 'hidden';
-    } else if (!outside && kidDrag.ghost) {
-      kidDrag.ghost.remove();
-      kidDrag.ghost = null;
-      kidDrag.node.style.visibility = '';
-    }
-    if (kidDrag.ghost) {
-      kidDrag.ghost.style.left = ev.clientX + 'px';
-      kidDrag.ghost.style.top = ev.clientY + 'px';
-    }
+    kidDrag.ghost.classList.toggle('gogh-kid-ghost-out', outside);
     resolveAndApply(sec);
   });
   document.addEventListener('pointerup', function (ev) {
@@ -12414,8 +12452,24 @@
           { actions: [{ label: 'Undo', onClick: function () { undo(); } }] });
         return;
       }
-      settleKid(hostEl, hostEl.kids[kd.j]);
-      resolveAndApply(sec);
+      // the drop: settle from the resting snapshot once more, this time with
+      // nothing frozen (the kid may tuck under what it landed on), then
+      // write the kids in reading order and re-render so the DOM agrees
+      var landed = hostEl.kids[kd.j];
+      kd.snap.forEach(function (sn) { if (sn.k !== landed) { sn.k.x = sn.x; sn.k.y = sn.y; } });
+      hostEl.h = kd.hostH;
+      settleKid(hostEl, landed); // the same settle the preview showed
+      var reordered = orderKids(hostEl);
+      if (reordered) {
+        clearKidSel();
+        renderSection(sec);
+        var nj = hostEl.kids.indexOf(landed);
+        var card2 = sec.nodes[kd.ci];
+        var kn3 = card2 && card2.querySelector('.gogh-k-' + (nj + 1));
+        if (kn3) { kidSel = { sec: sec, ci: kd.ci, j: nj, node: kn3 }; kn3.classList.add('gogh-kid-selected'); }
+      } else {
+        resolveAndApply(sec);
+      }
       pushState();
     } else if (!kd.already) {
       var kb = hostEl.kids[kd.j];
