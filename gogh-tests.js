@@ -5837,6 +5837,39 @@
       return 'inferred ' + fam + ', rolled to face ' + (r.face + 1) + ' of ' + r.of + ', words kept; wall → ' + wallFam + ', form → ' + formFam;
     });
 
+    // EXTRAS RIDE ALONG — a piece the take never drew (a second button)
+    // keeps its seat beside the take's own button through every roll
+    test('an extra button rides beside the take\'s button through every roll', function () {
+      var hero = G.templates().filter(function (x) { return x.name === 'Hero'; })[0];
+      if (!hero) throw new Error('no Hero template');
+      G.addSection(hero);
+      var s = lastSec();
+      var idx = G.sections().indexOf(s);
+      var b1 = s.els.filter(function (e) { return e.type === 'button'; })[0];
+      if (!b1) throw new Error('the Hero has no button');
+      var b2 = JSON.parse(JSON.stringify(b1));
+      b2.text = 'Second'; b2.x = b1.x + b1.w + 16; b2.y = b1.y;
+      s.els.push(b2);
+      G.renderSection(s);
+      var faces = G.diceFaces(G.diceFamilyOf(s));
+      var seen = [];
+      for (var k = 0; k < faces.length; k++) {
+        G.rollSection(idx);
+        var btns = s.els.filter(function (e) { return e.type === 'button'; });
+        var ex = btns.filter(function (e) { return e.text === 'Second'; })[0];
+        var own = btns.filter(function (e) { return e.text !== 'Second'; })[0];
+        if (!ex) throw new Error('lost the extra button on roll ' + (k + 1));
+        if (ex.x < 0 || ex.x + ex.w > 1200) throw new Error('roll ' + (k + 1) + ': the extra left the canvas');
+        if (!own) { seen.push('no-button-take'); continue; } // a take drawn without a button: the extra rides the headline
+        if (Math.abs(ex.y - own.y) > 2) throw new Error('roll ' + (k + 1) + ': the extra left the row (y ' + ex.y + ' vs ' + own.y + ')');
+        var gap = ex.x - (own.x + own.w);
+        if (gap < 0 || gap > 40) throw new Error('roll ' + (k + 1) + ': the extra lost its gap (' + gap + ')');
+        seen.push(gap);
+      }
+      G.deleteSection(idx);
+      return faces.length + ' rolls, gaps ' + seen.join('/');
+    });
+
     // NAME SIZE — the site name's size rides its block as a typography
     // style, merged over whatever the block already carried
     test('the site name takes a size on its block', function () {

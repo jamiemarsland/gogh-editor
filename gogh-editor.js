@@ -7864,6 +7864,9 @@
     });
     return map;
   }
+  // where an extra piece sits relative to the take's own — kept off the
+  // model (never saved), per element, for as long as the roll placed it
+  var diceRideMemo = new WeakMap();
   function rollSection(idx) {
     var sec = S[idx];
     var fam = diceFamilyOf(sec);
@@ -7901,10 +7904,60 @@
         if (Object.keys(d).length) (edits[r] = edits[r] || [])[i] = d;
       });
     });
-    // pieces ADDED on top of the take travel whole, positions and all
-    var extra = sec.els.length > faces[cur].els.length ? sec.els.slice(faces[cur].els.length) : [];
+    // pieces ADDED on top of the take are the ones no role-slot claimed —
+    // not "whatever sits past the take's count" (an inferred section's
+    // order is its own). They travel with the piece they sat beside: a
+    // second button keeps its gap from the take's button, below or to the
+    // right, wherever that button lands next (James: "rolling the dice on
+    // this section breaks the layout — the buttons are all over the place")
+    var matched = new Map();
+    Object.keys(live).forEach(function (r) {
+      live[r].forEach(function (e, i) { if ((pristine[r] || [])[i]) matched.set(e, { r: r, i: i }); });
+    });
+    // roleless pieces (shapes, boxes) pair up by order, as they always did
+    var noRole = function (e) { return !diceRole(e); };
+    var liveNone = sec.els.filter(noRole), priNone = tplEls(faces[cur]).filter(noRole);
+    liveNone.forEach(function (e, i) { if (priNone[i]) matched.set(e, { r: '_', i: i }); });
+    var extra = sec.els.filter(function (e) { return !matched.has(e); });
+    var seat = function (x, a) {
+      var right = x.x >= a.x + a.w - 4, below = x.y >= a.y + a.h - 4;
+      return { right: right, below: below,
+        dx: right ? x.x - (a.x + a.w) : x.x - a.x, dy: below ? x.y - (a.y + a.h) : x.y - a.y };
+    };
+    var rides = extra.map(function (x) {
+      var best = null, bd = Infinity, head = null;
+      matched.forEach(function (ri, a) {
+        if (a.type === 'box' && a.kids) return;
+        if (ri.r === 'heading' && ri.i === 0) head = { a: a, ri: ri };
+        var pref = diceRole(a) === diceRole(x) ? 0 : 1e5; // its own kind first
+        var d = Math.hypot((a.x + a.w / 2) - (x.x + x.w / 2), (a.y + a.h / 2) - (x.y + x.h / 2)) + pref;
+        if (d < bd) { bd = d; best = { a: a, ri: ri }; }
+      });
+      if (!best) return null;
+      // a seat remembered from an earlier roll still holds while the piece
+      // sits where that roll put it — through a take with no button, the
+      // second button keeps knowing it belongs beside the first
+      var m0 = diceRideMemo.get(x);
+      var memo = (m0 && m0.at[0] === x.x && m0.at[1] === x.y) ? m0 : null;
+      return { ri: best.ri, seat: seat(x, best.a), own: diceRole(best.a) === diceRole(x),
+        fb: head ? { ri: head.ri, seat: seat(x, head.a) } : null, memo: memo };
+    });
     var els2 = tplEls(faces[next]);
     var by2 = diceByRole(els2);
+    var none2 = els2.filter(noRole);
+    var slot2 = function (ri) { return ri.r === '_' ? none2[ri.i] : (by2[ri.r] || [])[ri.i]; };
+    extra.forEach(function (x, k) {
+      var ride = rides[k];
+      if (!ride) return;
+      var a2 = null, st = null, keep = null;
+      if (ride.memo && slot2(ride.memo.ri)) { a2 = slot2(ride.memo.ri); st = ride.memo.seat; keep = ride.memo; }
+      else if (slot2(ride.ri)) { a2 = slot2(ride.ri); st = ride.seat; keep = ride.own ? { ri: ride.ri, seat: ride.seat } : ride.memo; }
+      else if (ride.fb && slot2(ride.fb.ri)) { a2 = slot2(ride.fb.ri); st = ride.fb.seat; keep = ride.memo; }
+      if (!a2) return;
+      x.x = Math.max(0, Math.min(W - x.w, Math.round(st.right ? a2.x + a2.w + st.dx : a2.x + st.dx)));
+      x.y = Math.max(0, Math.round(st.below ? a2.y + a2.h + st.dy : a2.y + st.dy));
+      diceRideMemo.set(x, Object.assign({}, keep || { ri: ride.ri, seat: ride.seat }, { at: [x.x, x.y] }));
+    });
     Object.keys(edits).forEach(function (r) {
       (by2[r] || []).forEach(function (e, i) {
         var d = edits[r][i];
