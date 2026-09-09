@@ -3654,6 +3654,25 @@
       h.remove();
     });
 
+    test('a layout change keeps the NAME when the logo block has no picture behind it', function () {
+      // a starter's classic header ships a logo block with no logo set: the
+      // name is the identity, and every other layout must keep showing it
+      var classic = '<!-- wp:group --><div class="wp-block-group"><!-- wp:site-logo {"width":44} /--><!-- wp:site-title {"level":0} /--><!-- wp:navigation /--></div><!-- /wp:group -->';
+      var hadLogo = !!(window.GOGH && window.GOGH.hasLogo);
+      var pageHasImg = !!document.querySelector('.wp-block-site-logo img');
+      if (hadLogo || pageHasImg) return 'this site wears a logo picture — the name case cannot be staged here';
+      expect(G.headerWearsLogo(classic) === false, 'a logo block with no picture must not count as a logo identity');
+      expect(G.headerWearsLogo('<!-- wp:site-title {"level":0} /-->') === false, 'no logo block, no logo identity');
+      var h = document.createElement('header');
+      h.className = 'wp-block-template-part';
+      h.innerHTML = '<span class="wp-block-site-logo"><img src="data:," alt=""></span><span class="wp-block-site-title">My Site</span>';
+      document.body.appendChild(h);
+      var withPic = G.headerWearsLogo(classic);
+      h.remove();
+      expect(withPic === true, 'a logo block WITH a picture on the page is the logo identity');
+      return 'no picture → name; picture → logo';
+    });
+
     test('the edit-header pill appears on the site header part', function () {
       var pe = G.partElForArea('header');
       expect(pe, 'no header template part found');

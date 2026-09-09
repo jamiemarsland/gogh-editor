@@ -15044,6 +15044,7 @@
     toast: toast,
     textIdentityRaw: textIdentityRaw,
     chromeShape: chromeShape,
+    headerWearsLogo: headerWearsLogo,
     diceFlatten: diceFlatten,
     guardLog: function () { return guardLog.slice(); },
     guardReset: function () { guardLog.length = 0; },
@@ -17663,7 +17664,7 @@
     // the header wears ONE identity: an image logo OR the text name. The
     // doorway label follows whichever is live, so folks aren't hunting the
     // tiny logo + a floating chip to change it
-    var usingLogo = raw0.indexOf('wp:site-logo') !== -1; // from the SAVE, not the auditioning DOM
+    var usingLogo = headerWearsLogo(raw0); // from the SAVE (block + a real picture), not the auditioning DOM
     if (area === 'header') {
       // every option is dressed in the saved identity BEFORE anything
       // previews — auditions and the final save then agree by construction
@@ -18787,6 +18788,16 @@
       });
     });
   }
+  // does the header wear a LOGO identity? Only when its saved markup carries
+  // the logo block AND the site has a logo image behind it. A starter's
+  // classic header ships the block with no picture (the name is the
+  // identity), and reading the block alone made every other layout keep an
+  // empty logo and drop the name (James: "the text logo vanishes")
+  function headerWearsLogo(raw) {
+    if (String(raw || '').indexOf('wp:site-logo') === -1) return false;
+    if (cfg.hasLogo) return true;
+    return !!document.querySelector('.wp-block-site-logo img');
+  }
   function chromeLayoutContent(area, chosen, wantLogo) {
     var content = chosen.content || '';
     if (area === 'header') {
@@ -18798,7 +18809,7 @@
       var usingLogo = wantLogo;
       if (usingLogo == null) {
         var pe = partElForArea('header');
-        usingLogo = !!(pe && pe.querySelector('.wp-block-site-logo'));
+        usingLogo = !!(pe && pe.querySelector('.wp-block-site-logo img'));
       }
       if (usingLogo) {
         var lg = logoizeHeaderRaw(content);
@@ -20081,6 +20092,7 @@
         body: JSON.stringify({ site_logo: id }),
       }).then(function (r) {
         if (!r.ok) throw new Error('saving needs an admin login');
+        cfg.hasLogo = true; // from here the header's logo block has a picture behind it
         return activePartFor('header');
       }).then(function (active) {
         if (!active) return null;
