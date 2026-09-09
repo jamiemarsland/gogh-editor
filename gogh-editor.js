@@ -17731,7 +17731,7 @@
           (o.id === st.layoutId ? ' is-active' : '') + '" data-k="' + k + '">' +
           '<span class="gogh-hopt-dot"></span><span class="gogh-hopt-name">' + esc(short) + '</span></button>';
       }).join('') + '</div></div>' +
-      '<button type="button" class="gogh-hdoor gogh-hlogo"><span>' + (usingLogo ? 'Logo &amp; size' : 'Logo &amp; name') + '</span><span class="gogh-hdoor-chev">\u203a</span></button>' +
+      '<button type="button" class="gogh-hdoor gogh-hlogo"><span>' + (usingLogo ? 'Logo' : 'Logo &amp; name') + '</span><span class="gogh-hdoor-chev">\u203a</span></button>' +
       (d0 && d0.hasNav ? '<button type="button" class="gogh-hdoor gogh-hmenu"><span>Edit menu items</span><span class="gogh-hdoor-chev">\u203a</span></button>' : '') +
       (d0 && d0.hasNav ? '<button type="button" class="gogh-hdoor gogh-hmobile"><span>Mobile menu</span><span class="gogh-hdoor-chev">\u203a</span></button>' : '') +
       '</div>' +

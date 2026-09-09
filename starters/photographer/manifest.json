@@ -73,5 +73,47 @@
       "file": "post-3.html",
       "category": "Journal"
     }
+  ],
+  "media": [
+    {
+      "file": "eg-monogram.png",
+      "title": "EG monogram"
+    },
+    {
+      "file": "bw-portrait-dusk.jpg",
+      "title": "Portrait at dusk, black and white"
+    },
+    {
+      "file": "bw-portrait-studio.jpg",
+      "title": "Portrait, studio, black and white"
+    },
+    {
+      "file": "bw-laughing.jpg",
+      "title": "Laughing, black and white"
+    },
+    {
+      "file": "bw-cinque-terre.jpg",
+      "title": "Cinque Terre, black and white"
+    },
+    {
+      "file": "bw-salt-water.jpg",
+      "title": "Salt water, black and white"
+    },
+    {
+      "file": "bw-first-light.jpg",
+      "title": "First light on the beach, black and white"
+    },
+    {
+      "file": "bw-curves.jpg",
+      "title": "Curves, black and white"
+    },
+    {
+      "file": "bw-white-house.jpg",
+      "title": "White house in sun, black and white"
+    },
+    {
+      "file": "bw-the-villa.jpg",
+      "title": "The villa, black and white"
+    }
   ]
 }
