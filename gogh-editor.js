@@ -12003,14 +12003,41 @@
   // Images and boxes are exempt — text over a photo is a design, not an
   // accident. `frozen` (the kid under the hand) is an obstacle that never
   // moves; at release nothing is frozen and the kid may tuck.
-  function settleStack(host) {
+  // what a kid actually OCCUPIES: its rendered ink for words (a heading's
+  // box runs the card's width while its words stop a third of the way
+  // across), its box for everything else. Measured relative to the kid's own
+  // node and anchored on the MODEL position, so a mid-drag settle never mixes
+  // this frame's model with the last frame's DOM
+  function kidInkOf(sec, ci) {
+    return function (kid) {
+      var host = sec.els[ci];
+      var card = sec.nodes && sec.nodes[ci];
+      if (!host || !host.kids || !card || !isText(kid)) return null;
+      var j = host.kids.indexOf(kid);
+      var kn = j === -1 ? null : card.querySelector('.gogh-k-' + (j + 1));
+      if (!kn || getComputedStyle(kn).display === 'none') return null;
+      var tn = kn.matches('p,h1,h2,h3,h4,h5,h6') ? kn : (kn.querySelector('p,h1,h2,h3,h4,h5,h6') || kn);
+      var rng = document.createRange();
+      rng.selectNodeContents(tn);
+      var ir = rng.getBoundingClientRect(), kr = kn.getBoundingClientRect();
+      var sc = scaleOf(sec);
+      if (!(ir.width > 0) || !(ir.height > 0) || !(sc > 0.2)) return null;
+      return { x: kid.x + (ir.left - kr.left) / sc, y: kid.y + (ir.top - kr.top) / sc, w: ir.width / sc, h: ir.height / sc };
+    };
+  }
+  function settleStack(host, inkOf) {
     var kids = (host.kids || []).filter(function (k) { return SETTLE_TYPES[k.type]; });
     var order = kids.slice().sort(function (a, b) { return (a.y + a.h / 2) - (b.y + b.h / 2) || a.y - b.y; });
+    var occ = function (k) { return (inkOf && inkOf(k)) || { x: k.x, y: k.y, w: k.w, h: k.h }; };
     order.forEach(function (k, i) {
       for (var j = 0; j < i; j++) {
         var o = order[j];
-        var ox = Math.min(k.x + k.w, o.x + o.w) - Math.max(k.x, o.x);
-        var oy = Math.min(k.y + k.h, o.y + o.h) - Math.max(k.y, o.y);
+        // overlap of what each kid OCCUPIES (ink for words): a button dropped
+        // beside a short heading sits beside it, not under it (James: "when
+        // i drop, they dont stay where i drop")
+        var kb = occ(k), ob = occ(o);
+        var ox = Math.min(kb.x + kb.w, ob.x + ob.w) - Math.max(kb.x, ob.x);
+        var oy = Math.min(kb.y + kb.h, ob.y + ob.h) - Math.max(kb.y, ob.y);
         // any real overlap in the same column steps below, with the stack's
         // gap (a 12-unit overlap used to slip through and the meta line
         // hid behind the button)
@@ -12021,9 +12048,9 @@
     (host.kids || []).forEach(function (k2) { bottom = Math.max(bottom, k2.y + k2.h); });
     if (bottom > host.h) host.h = bottom + 16;
   }
-  function settleKid(host, kid) {
+  function settleKid(host, kid, inkOf) {
     if (!SETTLE_TYPES[kid.type]) return;
-    settleStack(host);
+    settleStack(host, inkOf);
   }
   // the card's kids are written in READING order: what the eye meets first
   // on the page is first in the DOM — so phones stack them the same way
@@ -12609,7 +12636,7 @@
           host.kids.push(k2);
         });
         orderKids(host); // it takes its place in reading order, not the end of the list
-        settleKid(host, kid);
+        settleKid(host, kid, kidInkOf(sec, sec.els.indexOf(host)));
         sel = null;
         hideHandles();
         closePanel();
@@ -12795,7 +12822,7 @@
     // the stack settles like a sortable list: cross a sibling's centre and
     // you swap; the kid's own hidden cell IS the landing gap you see open,
     // and the drop lands exactly there — no tuck after the fact
-    if (SETTLE_TYPES[kid.type]) settleStack(hostEl);
+    if (SETTLE_TYPES[kid.type]) settleStack(hostEl, kidInkOf(sec, kidDrag.ci));
     // leaving intent: the pointer beyond the card's box — the card shows it
     var cardR = sec.nodes[kidDrag.ci].getBoundingClientRect();
     var outside = ev.clientX < cardR.left - 4 || ev.clientX > cardR.right + 4 ||
@@ -12846,7 +12873,7 @@
       var landed = hostEl.kids[kd.j];
       kd.snap.forEach(function (sn) { if (sn.k !== landed) { sn.k.x = sn.x; sn.k.y = sn.y; } });
       hostEl.h = kd.hostH;
-      settleKid(hostEl, landed); // the same settle the preview showed
+      settleKid(hostEl, landed, kidInkOf(sec, kd.ci)); // the same settle the preview showed
       guardCheck(sec, 'card drop', { e: landed, w: kd.w0, h: kd.h0 });
       var reordered = orderKids(hostEl);
       if (reordered) {
@@ -12903,7 +12930,7 @@
         k.h = Math.round(hE);
         if (kidEd.snap) kidEd.snap.forEach(function (sn) { if (sn.k !== k) { sn.k.x = sn.x; sn.k.y = sn.y; } });
         if (kidEd.hostH != null) hostE.h = kidEd.hostH;
-        if (SETTLE_TYPES[k.type]) settleStack(hostE);
+        if (SETTLE_TYPES[k.type]) settleStack(hostE, kidInkOf(secE, kidEd.ci));
         resolveAndApply(secE);
       }
     }

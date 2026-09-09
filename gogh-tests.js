@@ -6592,6 +6592,35 @@
       expect(e1.h === h0, 'the piece changed height under the zoom: ' + h0 + ' -> ' + e1.h);
       return 'y ' + y0 + ' -> ' + e1.y + (zoomed ? ' (zoom wrapper found)' : '');
     });
+    test('a card stacks by ink: a button dropped beside a short heading stays beside it, one dropped on the words steps below', function () {
+      var s0 = sec();
+      var f = cardAt(s0, [
+        { type: 'heading', x: 30, y: 40, w: 440, h: 60, text: 'Short' },
+        { type: 'button', x: 30, y: 200, w: 160, h: 50, text: 'Drag me' } ], { w: 480, h: 320 });
+      var box = f.box, kn = f.node.querySelector('.gogh-k-2');
+      var sc = s0.sectionEl.getBoundingClientRect().width / 1200;
+      var r = kn.getBoundingClientRect();
+      // 1. beside the heading's words (the box runs the card's width, the ink does not)
+      pvk('pointerdown', kn, r.left + 10, r.top + 8, 76);
+      pvk('pointermove', document, r.left + 10 + 150 * sc, r.top + 8 - 80 * sc, 76);
+      pvk('pointermove', document, r.left + 10 + 260 * sc, r.top + 8 - 155 * sc, 76);
+      pvk('pointerup', document, r.left + 10 + 260 * sc, r.top + 8 - 155 * sc, 76);
+      var b = box.kids.filter(function (k) { return k.type === 'button'; })[0];
+      expect(b, 'the button left the card');
+      expect(Math.abs(b.y - 45) <= 3 && b.x >= 250, 'beside the words it should stay at y 45, x 290: landed ' + b.x + ',' + b.y);
+      var beside = b.x + ',' + b.y; // the same object moves again below
+      // 2. onto the words themselves: it steps below the heading
+      var kn2 = f.node.querySelector('.gogh-k-' + (box.kids.indexOf(b) + 1));
+      var r2 = kn2.getBoundingClientRect();
+      pvk('pointerdown', kn2, r2.left + 10, r2.top + 8, 77);
+      pvk('pointermove', document, r2.left + 10 - 130 * sc, r2.top + 8, 77);
+      pvk('pointermove', document, r2.left + 10 - 250 * sc, r2.top + 8, 77);
+      pvk('pointerup', document, r2.left + 10 - 250 * sc, r2.top + 8, 77);
+      var b2 = box.kids.filter(function (k) { return k.type === 'button'; })[0];
+      expect(b2.y >= 100, 'on the words it should step below the heading (y >= 100): landed ' + b2.x + ',' + b2.y);
+      [].slice.call(document.querySelectorAll('.gogh-toast')).forEach(function (t) { t.remove(); });
+      return 'beside the words: ' + beside + '; on the words: ' + b2.x + ',' + b2.y;
+    });
     test('an extra button rides beside the take\'s button through every roll', function () {
       var hero = G.templates().filter(function (x) { return x.name === 'Hero'; })[0];
       if (!hero) throw new Error('no Hero template');
