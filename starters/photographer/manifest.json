@@ -41,6 +41,20 @@
       "title": "Contact",
       "file": "contact.html",
       "template": "page-no-title"
+    },
+    {
+      "slug": "team",
+      "title": "Team",
+      "file": "team.html",
+      "template": "page-no-title",
+      "menu": false
+    },
+    {
+      "slug": "history",
+      "title": "History",
+      "file": "history.html",
+      "template": "page-no-title",
+      "menu": false
     }
   ],
   "preview": {
