@@ -73,19 +73,23 @@
       "slug": "the-hour-before-dinner",
       "title": "The hour before dinner",
       "file": "post-1.html",
-      "category": "Journal"
+      "category": "Journal",
+      "image": "bw-cinque-terre.jpg"
     },
     {
       "slug": "why-i-shoot-portraits-outdoors",
       "title": "Why I shoot portraits outdoors",
       "file": "post-2.html",
-      "category": "Journal"
+      "category": "Journal",
+      "image": "bw-portrait-dusk.jpg"
     },
     {
       "slug": "a-note-on-waiting",
       "title": "A note on waiting",
       "file": "post-3.html",
-      "category": "Journal"
+      "category": "Journal",
+      "image": "bw-white-house.jpg",
+      "style": "manual"
     }
   ],
   "media": [
