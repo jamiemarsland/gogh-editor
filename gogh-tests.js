@@ -6140,6 +6140,28 @@
     // shrink the photo and retitle on face 0, roll around, and they are all
     // still there (the snapshot used to be taken once, on the first roll, so
     // rolling around put the pre-edit layout back and the edits were gone)
+    test('the die weighs the words: a display headline never rolls within a glyph-headed family', function () {
+      // the photographer's hero — eyebrow, a 28-character display headline in a
+      // wide box, two lines — counted as a Quote by roles alone, and every take
+      // poured the headline into the 180-wide slot the Quote keeps for its “
+      var hero = { m: {}, els: [
+        { type: 'para', x: 82, y: 96, w: 600, h: 20, text: 'People · Places · Quiet moments', tf: { tt: 'uppercase' } },
+        { type: 'heading', x: 82, y: 132, w: 820, h: 210, text: 'The art of <em>paying attention.</em>' },
+        { type: 'para', x: 840, y: 150, w: 300, h: 64, text: 'Photography for the moments that deserve to stay.' },
+        { type: 'para', x: 840, y: 230, w: 300, h: 24, text: '<a href="/portfolio/">Explore portfolio ↗</a>' } ] };
+      var fam = G.diceFamilyOf(hero);
+      expect(fam && fam !== 'Quote', 'a wordy hero should not roll as a Quote, got ' + fam);
+      var base = G.tplEls(G.diceFaces(fam)[0]);
+      var slot = base.filter(function (e) { return e.type === 'heading'; })[0];
+      expect(slot && slot.w * slot.h >= 0.5 * 820 * 210, fam + '’s headline slot (' + (slot ? slot.w + 'x' + slot.h : 'none') + ') cannot hold the words');
+      // a real quote still finds its family: a glyph heading, the words, a name
+      var quote = { m: {}, els: [
+        { type: 'heading', x: 76, y: 44, w: 180, h: 160, text: '“' },
+        { type: 'para', x: 200, y: 168, w: 800, h: 160, text: 'The best pictures are the ones you nearly did not take.' },
+        { type: 'para', x: 204, y: 368, w: 500, h: 24, text: 'Hanna Lindqvist · Hanna & Co', tf: { tt: 'uppercase' } } ] };
+      expect(G.diceFamilyOf(quote) === 'Quote', 'a quote-shaped section should still roll as a Quote, got ' + G.diceFamilyOf(quote));
+      return 'hero → ' + fam + '; quote → Quote';
+    });
     test('the original take keeps the edits made at home through a roll around', function () {
       var hero = G.templates().filter(function (x) { return x.name === 'Hero'; })[0];
       if (!hero) throw new Error('no Hero template');

@@ -7893,6 +7893,21 @@
         hit += Math.min(a, b); total += Math.max(a, b);
       });
       var score = total ? hit / total : 0;
+      // the words must FIT the family's drawing, not just its roles: a
+      // photographer's hero (eyebrow, big headline, two lines) counted as a
+      // Quote by roles alone, and every take poured a 28-character display
+      // headline into the 180-wide slot the Quote keeps for its “ glyph
+      // (James: "hit the die on that top section creates 3 broken layouts").
+      // A glyph heading never hosts words; otherwise the base's headline slot
+      // is weighed against the section's own
+      var wh = want.heading[0], hh = have.heading[0];
+      var wantWords = String(wh.text || '').replace(/<[^>]+>/g, '').trim().length;
+      var haveWords = String(hh.text || '').replace(/<[^>]+>/g, '').trim().length;
+      if (wantWords > 8 && haveWords <= 2) return;
+      // a wordy headline in a slot under half its size is a bad fit: the
+      // score falls with the shortfall (a short heading fits anywhere)
+      var fit = Math.min(1, (hh.w * hh.h) / Math.max(1, wh.w * wh.h));
+      if (wantWords > 20 && fit < 0.5) score = score * (fit / 0.5);
       if (score > bestScore) { bestScore = score; best = fam; }
     });
     return bestScore >= 0.5 ? best : null;
@@ -7953,10 +7968,33 @@
     if (moved && moved.e && (moved.e.w !== moved.w || moved.e.h !== moved.h)) {
       issues.push(moved.e.type + ' changed size ' + moved.w + 'x' + moved.h + ' \u2192 ' + moved.e.w + 'x' + moved.e.h);
     }
+    // what a texty piece OCCUPIES is its ink, not its box: a headline's box
+    // may run the width of the section while its words stop a third of the
+    // way across, and a paragraph tucked beside it is no overlap anyone can
+    // see (the same rule the card stack settles by). Buttons are their box
+    var sc = sec.sectionEl ? scaleOf(sec) : 0;
+    var inkOf = function (e, node) {
+      if (!node || e.type === 'button' || !(sc > 0.2)) return null;
+      var tn = node.matches('p,h1,h2,h3,h4,h5,h6') ? node : (node.querySelector('p,h1,h2,h3,h4,h5,h6') || node);
+      var rng = document.createRange();
+      rng.selectNodeContents(tn);
+      var ir = rng.getBoundingClientRect(), nr = node.getBoundingClientRect();
+      if (!(ir.width > 0) || !(ir.height > 0) || !(nr.width > 0)) return null;
+      return { x: e.x + (ir.left - nr.left) / sc, y: e.y + (ir.top - nr.top) / sc, w: ir.width / sc, h: ir.height / sc };
+    };
     var rects = [];
-    sec.els.forEach(function (e) {
-      if (guardTexty(e)) rects.push({ e: e, x: e.x, y: e.y, w: e.w, h: e.h, card: null });
-      (e.kids || []).forEach(function (k) { if (guardTexty(k)) rects.push({ e: k, x: k.x, y: k.y, w: k.w, h: k.h, card: e }); });
+    sec.els.forEach(function (e, i) {
+      var node = sec.nodes && sec.nodes[i];
+      if (guardTexty(e)) {
+        var ink = inkOf(e, node);
+        rects.push(Object.assign({ e: e, card: null }, ink || { x: e.x, y: e.y, w: e.w, h: e.h }));
+      }
+      (e.kids || []).forEach(function (k, j) {
+        if (!guardTexty(k)) return;
+        var kn = node && node.querySelector('.gogh-k-' + (j + 1));
+        var kink = inkOf(k, kn);
+        rects.push(Object.assign({ e: k, card: e }, kink || { x: k.x, y: k.y, w: k.w, h: k.h }));
+      });
     });
     for (var i = 0; i < rects.length; i++) for (var j = i + 1; j < rects.length; j++) {
       var a = rects[i], b = rects[j];
