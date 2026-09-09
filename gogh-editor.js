@@ -8013,10 +8013,6 @@
     }
     return issues;
   }
-  // 'The original' take of a section that never named its family: what it
-  // looks like at HOME, kept on the model so four rolls bring its own pieces
-  // back. ownOnly leaves out the pieces a roll drew (tk) -- a take's rider
-  // that came home beside the user's own is the take's, not the original's
   // ---------- identity: what the die follows through the takes ----------
   // every piece carries an id. A rider keeps its object; a piece that
   // continues hands its id to the slot that stands in for it; the saved
@@ -8065,6 +8061,56 @@
   // looks like at HOME, kept on the model so four rolls bring its own pieces
   // back. ownOnly leaves out the pieces a roll drew (tk) -- a take's rider
   // that came home beside the user's own is the take's, not the original's
+  // a take draws its headline at a DISPLAY size chosen for its own two
+  // words; the user's headline may be five. Step the size down until the
+  // longest word fits the slot's width, then let a headline that still
+  // stands taller than its slot push the pieces below it down (James: "this
+  // 4/4 layout for the contact form is a little broken?" -- 'something' at
+  // Display M ran straight into the form)
+  var DISPLAY_PX = { '__disp-s': [6, 30], '__disp-m': [9, 36], '__disp-l': [13, 42] }; // max(Xcqw, Ypx)
+  function diceFitWords(sec) {
+    if (!sec.nodes || !sec.sectionEl) return;
+    var secW = sec.sectionEl.offsetWidth;
+    if (!(secW > 200)) return;
+    var pxOf = function (slug) { var d = DISPLAY_PX[slug]; return d ? Math.max(d[0] * secW / 100, d[1]) : 0; };
+    var changed = false;
+    sec.els.forEach(function (e, i) {
+      if (e.type !== 'heading' || !DISPLAY_PX[e.fs] || !sec.nodes[i]) return;
+      var n = sec.nodes[i];
+      var t = n.matches('h1,h2,h3,h4,h5,h6') ? n : (n.querySelector('h1,h2,h3,h4,h5,h6') || n);
+      var words = (t.textContent || '').trim().split(/\s+/).filter(Boolean);
+      if (!words.length) return;
+      var cs = getComputedStyle(t);
+      var probe = document.createElement('span');
+      probe.style.cssText = 'position:absolute;left:-99999px;top:0;visibility:hidden;white-space:nowrap;font-family:' + cs.fontFamily +
+        ';font-weight:' + cs.fontWeight + ';font-style:' + cs.fontStyle + ';text-transform:' + cs.textTransform +
+        ';letter-spacing:' + cs.letterSpacing + ';font-size:' + cs.fontSize;
+      document.body.appendChild(probe);
+      var widest = 0;
+      words.forEach(function (w) { probe.textContent = w; widest = Math.max(widest, probe.getBoundingClientRect().width); });
+      probe.remove();
+      var boxW = n.offsetWidth, fsPx = parseFloat(cs.fontSize) || pxOf(e.fs) || 1;
+      var k = DISPLAY_ORDER.indexOf(e.fs);
+      while (k > 0 && widest > boxW * 0.98) {
+        k--;
+        var nextPx = pxOf(DISPLAY_ORDER[k]);
+        widest = widest * nextPx / fsPx;
+        fsPx = nextPx;
+        e.fs = DISPLAY_ORDER[k];
+        changed = true;
+      }
+    });
+    if (changed) renderSection(sec);
+    // taller than the slot the take drew? the pieces below make room
+    var slotH = sec.els.map(function (e) { return e.h; });
+    measureTextHeights(sec);
+    var pushed = false;
+    sec.els.forEach(function (e, i) {
+      if (e.type !== 'heading' || !DISPLAY_PX[e.fs]) return;
+      if (e.h > slotH[i] + 8 && reflowPush(sec, e, slotH[i])) pushed = true;
+    });
+    if (pushed || changed) resolveAndApply(sec);
+  }
   function diceOrigSnap(sec, ownOnly) {
     var own = function (list) {
       return list.filter(function (e) { return !ownOnly || e.tk == null; }).map(function (e) {
@@ -8465,6 +8511,7 @@
     if (m2.order) delete m2.order;
     sec.m = m2;
     renderSection(sec);
+    diceFitWords(sec); // the take's display sizes were set for its own words: the user's must fit
     guardCheck(sec, 'roll to take ' + (next + 1));
     sec.els.forEach(function (ex) { if (ex.rails && ex.shop) hydrateProductsPreview(sec, ex); });
     pushState();

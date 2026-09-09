@@ -6162,6 +6162,33 @@
       expect(G.diceFamilyOf(quote) === 'Quote', 'a quote-shaped section should still roll as a Quote, got ' + G.diceFamilyOf(quote));
       return 'hero → ' + fam + '; quote → Quote';
     });
+    test('a take’s display headline steps down until the longest word fits its slot', function () {
+      // the contact page's 'The statement' take draws its headline at Display M
+      // for its own two words; five words at that size ran into the form
+      var git = G.templates().filter(function (x) { return x.name === 'Get in touch'; })[0];
+      if (!git) throw new Error('no Get in touch template');
+      G.addSection(git);
+      var s = lastSec(), idx = G.sections().indexOf(s);
+      var h = s.els.filter(function (e) { return e.type === 'heading'; })[0];
+      h.text = 'Let’s make something worth keeping.';
+      G.renderSection(s);
+      var faces = G.diceFaces('Get in touch');
+      var seen = [];
+      G.guardReset();
+      for (var k = 0; k < faces.length; k++) {
+        var r = G.rollSection(idx);
+        var hh = s.els.filter(function (e) { return e.type === 'heading'; })[0];
+        var n = s.nodes[s.els.indexOf(hh)];
+        var over = n ? n.scrollWidth - n.clientWidth : 0;
+        seen.push((r.take || 'home') + ':' + hh.fs + (over > 2 ? ' OVERFLOWS ' + over : ''));
+        expect(over <= 2, 'take ' + (r.take || 'home') + ' lets the headline overflow its box by ' + over + 'px (' + hh.fs + ')');
+        expect(hh.text === 'Let’s make something worth keeping.', 'the words changed on take ' + r.take);
+      }
+      var guard = G.guardLog(); G.guardReset();
+      G.deleteSection(idx);
+      expect(!guard.length, 'the guard spoke: ' + (guard.length ? guard[0].issues[0] : ''));
+      return seen.join(' · ');
+    });
     test('the original take keeps the edits made at home through a roll around', function () {
       var hero = G.templates().filter(function (x) { return x.name === 'Hero'; })[0];
       if (!hero) throw new Error('no Hero template');

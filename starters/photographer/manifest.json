@@ -90,6 +90,13 @@
       "category": "Journal",
       "image": "bw-white-house.jpg",
       "style": "manual"
+    },
+    {
+      "slug": "print-it-small",
+      "title": "Print it small",
+      "file": "post-4.html",
+      "category": "Journal",
+      "image": "bw-salt-water.jpg"
     }
   ],
   "media": [
