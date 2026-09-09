@@ -1,4 +1,4 @@
-# Knowledge-base audit — plugin v0.99.453
+# Knowledge-base audit — plugin v0.99.454
 
 _13 finding(s) suppressed by `kb.audit-ignore.txt`._
 
@@ -103,4 +103,4 @@ The source has something the prose never explains. The bot knows the name from t
 
 Use this as the checklist for updating the prose — and as a sanity check on the release itself.
 
-- version: 0.99.452 → 0.99.453
+- version: 0.99.453 → 0.99.454
