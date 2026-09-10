@@ -21575,6 +21575,13 @@
     if (renderCanvasOnce.done || !renderCanvasOnce.hydrated) return;
     renderCanvasOnce.done = true;
     S.forEach(renderSection);
+    // rails elements draw a fresh preview from the live shop the moment the
+    // canvas is real: the boot pass further up ran before the model's
+    // elements (and their shop choices) had arrived, so a saved page opened
+    // in the editor kept whatever cards it was saved with — the picker's
+    // sample soap shop, on Hollowell's shelf (James: 'are these meant to
+    // have images?')
+    try { S.forEach(function (sx) { (sx.els || []).forEach(function (ex) { if (ex.rails && ex.shop) hydrateProductsPreview(sx, ex); }); }); } catch (err) {}
   }
   window.__goghRenderCanvasOnce = renderCanvasOnce;
   hydrateV3Sections().then(function () {
