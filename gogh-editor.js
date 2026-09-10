@@ -22,6 +22,9 @@
   if (!cfg) return;
 
   var TOL = 8, MIN_H = 560, PAD = 72, SNAP = 6, BASE = 8, W = 1200;
+  // the page's own content margin (80..1120): where new pieces are born, and
+  // a NAMED magnet — Canva's solid margin line, the one guide we lacked
+  var MARGIN = 80;
   // the PAINTED grid (3.333cqw of the 1200 canvas = 40 units). It must be
   // a real snap target: edges that nearly kiss a line the user can see
   // must land exactly ON it ("this needs to be, and feel, perfect")
@@ -2734,6 +2737,9 @@
   var sel = null; // {sec, i}
   var multiSel = null; // {sec, idxs} — a group selection within one section
   function clearMulti() {
+    mbar.hidden = true;
+    var moreRow = mbar.querySelector('.gogh-mbar-more');
+    if (moreRow) moreRow.hidden = true;
     if (!multiSel) return;
     var m = multiSel;
     multiSel = null;
@@ -2749,7 +2755,197 @@
     hideHandles();
     multiSel = { sec: secM, idxs: idxs.slice().sort(function (a, b) { return a - b; }) };
     multiSel.idxs.forEach(function (j) { if (secM.nodes[j]) secM.nodes[j].classList.add('gogh-multisel'); });
+    placeMbar();
+    refreshMbar();
   }
+  // ---------- the group bar ----------
+  // A multi-selection used to have three verbs and no bar: drag, nudge,
+  // delete. Canva names what a beginner most likely wants next (Group)
+  // first on a small floating bar and keeps the rest behind dots. Gogh's
+  // group is the Card — it holds pieces together on phones — so Make a
+  // card leads; Duplicate and Delete follow; Align, Space evenly and Tidy up
+  // sit behind the dots. What would do nothing is greyed, with the reason
+  // in its title, so the bar teaches what is already right.
+  var mbar = document.createElement('div');
+  mbar.className = 'gogh-elbar gogh-mbar';
+  mbar.hidden = true;
+  mbar.innerHTML =
+    '<button type="button" class="gogh-eb gogh-mb gogh-mb-card" title="Make these one card — it holds together on phones">Make a card</button>' +
+    '<button type="button" class="gogh-eb gogh-mb gogh-mb-dup" title="Duplicate the selection">Duplicate</button>' +
+    '<button type="button" class="gogh-eb gogh-mb gogh-mb-del" title="Delete the selection">Delete</button>' +
+    '<button type="button" class="gogh-eb gogh-mb gogh-mb-more" title="Align, space evenly, tidy up">⋯</button>' +
+    '<div class="gogh-mbar-more" hidden>' +
+    [['left', 'Left'], ['center', 'Centre'], ['right', 'Right'], ['top', 'Top'], ['middle', 'Middle'], ['bottom', 'Bottom']].map(function (a) {
+      return '<button type="button" class="gogh-eb gogh-mb gogh-mb-align" data-how="' + a[0] + '" title="Align ' + a[1].toLowerCase() + '">' + a[1] + '</button>';
+    }).join('') +
+    '<span class="gogh-mbar-sep"></span>' +
+    '<button type="button" class="gogh-eb gogh-mb gogh-mb-space" title="Equal gaps between the pieces">Space evenly</button>' +
+    '<button type="button" class="gogh-eb gogh-mb gogh-mb-tidy" title="Line the row up and even the gaps">Tidy up</button>' +
+    '</div>';
+  document.body.appendChild(mbar);
+  function multiEls() {
+    return multiSel ? multiSel.idxs.map(function (j) { return multiSel.sec.els[j]; }).filter(Boolean) : [];
+  }
+  function bboxOf(els) {
+    var x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+    els.forEach(function (e) { x0 = Math.min(x0, e.x); y0 = Math.min(y0, e.y); x1 = Math.max(x1, e.x + e.w); y1 = Math.max(y1, e.y + e.h); });
+    return { x: x0, y: y0, w: x1 - x0, h: y1 - y0 };
+  }
+  function placeMbar() {
+    if (!multiSel || !editing || drag) { mbar.hidden = true; return; }
+    var sec = multiSel.sec, x0 = Infinity, y0 = Infinity, x1 = -Infinity;
+    var ok = true;
+    multiSel.idxs.forEach(function (j) {
+      var node = sec.nodes[j];
+      if (!node || !document.contains(node)) { ok = false; return; }
+      var b = nodeBox(node);
+      x0 = Math.min(x0, b.x); y0 = Math.min(y0, b.y); x1 = Math.max(x1, b.x + b.w);
+    });
+    if (!ok || x0 === Infinity) { mbar.hidden = true; return; }
+    mbar.style.left = Math.round((x0 + x1) / 2) + 'px';
+    mbar.style.top = Math.round(y0 - 14) + 'px';
+    mbar.hidden = false;
+  }
+  // the plan a Tidy up would make: rows by vertical overlap, each row's top
+  // squared, three or more in a row spaced evenly, three or more rows spaced
+  // evenly. Dry-run it to grey the button when the answer is "nothing"
+  function tidyPlan(els) {
+    var rows = [];
+    els.slice().sort(function (a, b) { return a.y - b.y; }).forEach(function (e) {
+      var row = null;
+      rows.forEach(function (r) {
+        var ov = Math.min(r.y1, e.y + e.h) - Math.max(r.y0, e.y);
+        if (!row && ov >= 0.3 * Math.min(e.h, r.y1 - r.y0)) row = r;
+      });
+      if (!row) { row = { y0: e.y, y1: e.y + e.h, els: [] }; rows.push(row); }
+      row.els.push(e); row.y0 = Math.min(row.y0, e.y); row.y1 = Math.max(row.y1, e.y + e.h);
+    });
+    var moves = {};
+    var at = function (e) { var k = els.indexOf(e); if (!moves[k]) moves[k] = { e: e, x: e.x, y: e.y }; return moves[k]; };
+    rows.forEach(function (r) {
+      var top = Math.min.apply(null, r.els.map(function (e) { return e.y; }));
+      r.els.forEach(function (e) { at(e).y = top; });
+      r.top = top; r.h = Math.max.apply(null, r.els.map(function (e) { return e.h; }));
+      if (r.els.length >= 3) evenRow(r.els.map(at), 'x');
+    });
+    if (rows.length >= 3) {
+      rows.sort(function (a, b) { return a.top - b.top; });
+      var span = rows[rows.length - 1].top + rows[rows.length - 1].h - rows[0].top;
+      var used = rows.reduce(function (t, r) { return t + r.h; }, 0);
+      var gap = (span - used) / (rows.length - 1);
+      var cur = rows[0].top + rows[0].h + gap;
+      rows.slice(1, -1).forEach(function (r) {
+        var shift = Math.round(cur) - r.top;
+        r.els.forEach(function (e) { at(e).y += shift; });
+        cur += r.h + gap;
+      });
+    }
+    return Object.keys(moves).map(function (k) { return moves[k]; });
+  }
+  // equal gaps along one axis: the first and last stay, the rest share the room
+  function evenRow(items, axis) {
+    var size = axis === 'x' ? 'w' : 'h';
+    items.sort(function (a, b) { return a[axis] - b[axis]; });
+    var first = items[0], last = items[items.length - 1];
+    var span = last[axis] + last.e[size] - first[axis];
+    var used = items.reduce(function (t, it) { return t + it.e[size]; }, 0);
+    var gap = (span - used) / (items.length - 1);
+    var cur = first[axis] + first.e[size] + gap;
+    items.slice(1, -1).forEach(function (it) { it[axis] = Math.round(cur); cur += it.e[size] + gap; });
+  }
+  function planChanges(plan) {
+    return plan.some(function (m) { return Math.abs(m.x - m.e.x) > 1 || Math.abs(m.y - m.e.y) > 1; });
+  }
+  function applyPlan(plan) { plan.forEach(function (m) { m.e.x = Math.round(m.x); m.e.y = Math.round(m.y); }); }
+  function spacePlan(els) {
+    var bb = bboxOf(els);
+    var items = els.map(function (e) { return { e: e, x: e.x, y: e.y }; });
+    evenRow(items, bb.w >= bb.h ? 'x' : 'y');
+    return items;
+  }
+  function alignPlan(els, how) {
+    var bb = bboxOf(els);
+    return els.map(function (e) {
+      var m = { e: e, x: e.x, y: e.y };
+      if (how === 'left') m.x = bb.x; else if (how === 'center') m.x = Math.round(bb.x + bb.w / 2 - e.w / 2); else if (how === 'right') m.x = bb.x + bb.w - e.w;
+      else if (how === 'top') m.y = bb.y; else if (how === 'middle') m.y = Math.round(bb.y + bb.h / 2 - e.h / 2); else if (how === 'bottom') m.y = bb.y + bb.h - e.h;
+      return m;
+    });
+  }
+  function refreshMbar() {
+    if (mbar.hidden || !multiSel) return;
+    var els = multiEls();
+    var grey = function (btn, off, why, on) { btn.disabled = !!off; btn.title = off ? why : on; };
+    grey(mbar.querySelector('.gogh-mb-card'),
+      els.some(function (e) { return e.type === 'box' || e.rails || e.type === 'exp'; }),
+      'Cards, shapes and shelves can’t go inside a card', 'Make these one card — it holds together on phones');
+    mbar.querySelectorAll('.gogh-mb-align').forEach(function (b) {
+      grey(b, !planChanges(alignPlan(els, b.dataset.how)), 'Already aligned', 'Align ' + b.textContent.toLowerCase());
+    });
+    grey(mbar.querySelector('.gogh-mb-space'),
+      els.length < 3 ? 'few' : (!planChanges(spacePlan(els)) ? 'even' : ''),
+      els.length < 3 ? 'Needs three or more pieces' : 'Already evenly spaced', 'Equal gaps between the pieces');
+    grey(mbar.querySelector('.gogh-mb-tidy'), !planChanges(tidyPlan(els)), 'Already tidy', 'Line the row up and even the gaps');
+  }
+  function afterArrange() {
+    var sec = multiSel.sec, idxs = multiSel.idxs.slice();
+    resolveAndApply(sec);
+    pushState();
+    setMulti(sec, idxs); // the outlines, the bar and its greys follow the new places
+  }
+  function makeCardFromSelection() {
+    if (!multiSel) return;
+    var sec = multiSel.sec, idxs = multiSel.idxs.slice();
+    var members = idxs.map(function (j) { return sec.els[j]; });
+    if (members.length < 2 || members.some(function (e) { return e.type === 'box' || e.rails || e.type === 'exp'; })) return;
+    var bb = bboxOf(members), pad = 24;
+    var box = { type: 'box', x: Math.max(0, bb.x - pad), y: Math.max(0, bb.y - pad), radius: 12, kids: [] };
+    box.w = Math.min(W - box.x, bb.x + bb.w + pad - box.x);
+    box.h = bb.y + bb.h + pad - box.y;
+    members.forEach(function (e) {
+      var k = JSON.parse(JSON.stringify(e));
+      k.x = Math.round(e.x - box.x); k.y = Math.round(e.y - box.y);
+      box.kids.push(k);
+    });
+    orderKids(box); // reading order, the way a card stacks on phones
+    clearMulti();
+    idxs.slice().sort(function (a, b) { return b - a; }).forEach(function (j) { sec.els.splice(j, 1); });
+    sec.els.push(box);
+    renderSection(sec);
+    placeHandles(sec, sec.els.length - 1);
+    pushState();
+    toast('One card now — it holds together on phones. Click it for a background.',
+      { actions: [{ label: 'Undo', onClick: function () { undo(); } }] });
+  }
+  function duplicateSelection() {
+    if (!multiSel) return;
+    var sec = multiSel.sec, idxs = multiSel.idxs.slice();
+    var copies = diceFreshIds(idxs.map(function (j) { return JSON.parse(JSON.stringify(sec.els[j])); }));
+    copies.forEach(function (c) { c.x = Math.min(W - c.w, c.x + 24); c.y = c.y + 24; });
+    var start = sec.els.length;
+    copies.forEach(function (c) { sec.els.push(c); });
+    renderSection(sec);
+    setMulti(sec, copies.map(function (c, k) { return start + k; }));
+    pushState();
+  }
+  mbar.querySelector('.gogh-mb-card').addEventListener('click', makeCardFromSelection);
+  mbar.querySelector('.gogh-mb-dup').addEventListener('click', duplicateSelection);
+  mbar.querySelector('.gogh-mb-del').addEventListener('click', function () { deleteSelected(); });
+  mbar.querySelector('.gogh-mb-more').addEventListener('click', function () {
+    var more = mbar.querySelector('.gogh-mbar-more');
+    more.hidden = !more.hidden;
+    placeMbar();
+  });
+  mbar.querySelectorAll('.gogh-mb-align').forEach(function (b) {
+    b.addEventListener('click', function () { if (!multiSel) return; applyPlan(alignPlan(multiEls(), b.dataset.how)); afterArrange(); });
+  });
+  mbar.querySelector('.gogh-mb-space').addEventListener('click', function () { if (!multiSel) return; applyPlan(spacePlan(multiEls())); afterArrange(); });
+  mbar.querySelector('.gogh-mb-tidy').addEventListener('click', function () { if (!multiSel) return; applyPlan(tidyPlan(multiEls())); afterArrange(); });
+  // after any gesture ends (a group drag, a nudge), the bar finds the group again
+  document.addEventListener('pointerup', function () {
+    if (!multiSel) return;
+    requestAnimationFrame(function () { if (multiSel && !drag) { placeMbar(); refreshMbar(); } });
+  }, true);
 
   function nodeBox(node) {
     // the layout size (offsetWidth) is pre-transform; the rect is what the
@@ -2883,7 +3079,8 @@
       guideV.style.top = (r.top + window.scrollY) + 'px';
       guideV.style.height = r.height + 'px';
       // the centre earns a name: pink says aligned, the tag says WHERE
-      guideV.dataset.tag = (Math.round(gx) === Math.round(W / 2) ? 'centre' : '');
+      guideV.dataset.tag = Math.round(gx) === Math.round(W / 2) ? 'centre'
+        : (Math.round(gx) === MARGIN || Math.round(gx) === W - MARGIN) ? 'margin' : '';
       guideV.hidden = false;
     } else guideV.hidden = true;
     if (gy !== null) {
@@ -5005,7 +5202,7 @@
     if (!editing) return;
     var t = ev.target;
     if (!t || !t.closest) return;
-    var inUI = selBox.contains(t) || elbar.contains(t) || grip.contains(t) ||
+    var inUI = selBox.contains(t) || elbar.contains(t) || mbar.contains(t) || grip.contains(t) ||
       side.contains(t) || panel.contains(t) || picker.contains(t) ||
       secBar.contains(t) || secMore.contains(t) ||
       t === inserter || t === hbar;
@@ -12708,6 +12905,7 @@
     sec.sectionEl.classList.add('gogh-grid-live');
     document.documentElement.classList.add('gogh-dragging');
     hideBoundaryUI();
+    mbar.hidden = true; // the group bar goes while the hand is closed
     hideHandles();
   }
   grip.addEventListener('pointerdown', function (ev) {
@@ -14740,7 +14938,7 @@
   function snapPos(sec, exclude, x, y, w, h, free, textCXOff) {
     if (free) return { x: Math.round(x), y: Math.round(y), gx: null, gy: null };
     var H = designH(sec.els, sec.minH);
-    var candX = [0, W, W / 2], candY = [0, H, H / 2];
+    var candX = [0, W, W / 2, MARGIN, W - MARGIN], candY = [0, H, H / 2];
     sec.els.forEach(function (o) {
       if (o === exclude || dragMate(o)) return;
       candX.push(o.x, o.x + o.w, o.x + o.w / 2);
@@ -14913,7 +15111,7 @@
       var sec = sel.sec;
       var e = sec.els[sel.i];
       var dir = DIRS.filter(function (d) { return d.d === hBtn.dataset.d; })[0];
-      var candX = [0, W, W / 2], candY = [0];
+      var candX = [0, W, W / 2, MARGIN, W - MARGIN], candY = [0];
       sec.els.forEach(function (o) {
         if (o === e) return;
         candX.push(o.x, o.x + o.w, o.x + o.w / 2);
@@ -15118,6 +15316,7 @@
       scrollRaf = false;
       if (sel && !drag && !resize) placeHandles(sel.sec, sel.i);
       if (kidSel && !kidDrag && !kidResize) placeKidBox();
+      if (multiSel && !drag) placeMbar();
     });
   }, { passive: true });
 
@@ -15395,7 +15594,7 @@
   }, true);
   document.addEventListener('pointerdown', function (ev) {
     if (!multiSel || ev.shiftKey) return;
-    if (ev.target.closest && ev.target.closest('.gogh-side, .gogh-panel, .gogh-secbar, .gogh-elbar, .gogh-marquee')) return;
+    if (ev.target.closest && ev.target.closest('.gogh-side, .gogh-panel, .gogh-secbar, .gogh-elbar, .gogh-mbar, .gogh-marquee')) return;
     var member = false;
     multiSel.idxs.forEach(function (j) {
       var n = multiSel.sec.nodes[j];
@@ -15414,6 +15613,7 @@
   window.__gogh = {
     explode: { enter: enterExplode, exit: exitExplode, state: function () { return explodeSt; } },
     multi: { set: setMulti, clear: clearMulti, state: function () { return multiSel; } },
+    showGuides: showGuides, hideGuides: hideGuides,
     zoom: { open: openZoom, close: closeZoom, el: zoomOv },
     canvasZoom: { out: zoomOutCanvas, back: unzoomCanvas, setDevice: setDevice },
     reorderSection: reorderSection,
@@ -15671,6 +15871,14 @@
       return;
     }
     if (typing) return;
+    if ((ev.metaKey || ev.ctrlKey) && ev.key.toLowerCase() === 'a') {
+      // select all, within the section that has the eye
+      var secA = sel ? sel.sec : (multiSel ? multiSel.sec : (selSecIdx !== null ? S[selSecIdx] : null));
+      if (!secA || !secA.els.length) return;
+      ev.preventDefault();
+      setMulti(secA, secA.els.map(function (_, j) { return j; }));
+      return;
+    }
     if ((ev.key === 'Delete' || ev.key === 'Backspace') && (sel || multiSel)) {
       ev.preventDefault();
       deleteSelected();
@@ -15689,6 +15897,8 @@
       });
       ev.preventDefault();
       resolveAndApply(msec2);
+      placeMbar();
+      refreshMbar();
       clearTimeout(textTimer);
       textTimer = setTimeout(pushState, 500);
       refreshChip();

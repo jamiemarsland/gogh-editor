@@ -1004,6 +1004,9 @@ body.gogh-painting, body.gogh-painting .gogh-section * { cursor: url('data:image
   background: #f2a413;
   color: #231a05;
 }
+/* the MARGIN is a named guide too: solid, a touch wider than an edge match,
+   in the accent — Canva's solid margin line */
+.gogh-guide-v[data-tag="margin"] { width: 2px; background: #4a63d8; }
 
 /* ---------- section template picker ---------- */
 .gogh-picker {
@@ -2811,6 +2814,13 @@ html.gogh-chrome-mode .gogh-hgrip { display: none !important; }
   outline-offset: 3px;
   border-radius: 3px;
 }
+/* the group bar: named verbs for a multi-selection, the arrange row behind the dots */
+.gogh-mbar { border-radius: 14px; flex-wrap: wrap; justify-content: center; max-width: 600px; }
+.gogh-mbar .gogh-mb { font: 600 12px/1 -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, sans-serif; padding: 7px 10px; white-space: nowrap; }
+.gogh-mbar .gogh-mb:disabled { opacity: 0.38; cursor: default; }
+.gogh-mbar-more { flex-basis: 100%; display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 2px; margin-top: 4px; padding-top: 4px; border-top: 1px solid rgba(0, 0, 0, 0.08); }
+.gogh-mbar-more[hidden] { display: none; }
+.gogh-mbar-sep { width: 1px; height: 18px; background: rgba(0, 0, 0, 0.12); margin: 0 4px; }
 .gogh-marquee {
   position: fixed;
   z-index: 99996;

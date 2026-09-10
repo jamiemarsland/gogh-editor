@@ -4260,6 +4260,130 @@
       return 'two grips on a chosen kid: width and place, ink height, full width on phones';
     });
 
+    test('the group bar: Make a card wraps a selection, Duplicate copies it, a card greys the verb', function () {
+      // Canva puts Group first on a small floating bar; gogh's group is the Card
+      var s0 = sec();
+      var n0 = s0.els.length;
+      s0.els.push({ type: 'heading', x: 100, y: 40, w: 400, h: 60, text: 'Group me' });
+      s0.els.push({ type: 'para', x: 100, y: 120, w: 400, h: 60, text: 'And me.' });
+      G.renderSection(s0);
+      G.multi.set(s0, [n0, n0 + 1]);
+      var bar = q('.gogh-mbar');
+      expect(bar && !bar.hidden, 'the group bar should show for a multi-selection');
+      var cardBtn = bar.querySelector('.gogh-mb-card');
+      expect(cardBtn && !cardBtn.disabled && /Make a card/.test(cardBtn.textContent), 'Make a card should lead the bar for two loose pieces');
+      cardBtn.click();
+      var box = s0.els[s0.els.length - 1];
+      expect(box.type === 'box' && box.kids && box.kids.length === 2 && s0.els.length === n0 + 1, 'Make a card should wrap both pieces into one box');
+      expect(box.x === 76 && box.y === 16 && box.kids[0].type === 'heading' && box.kids[0].x === 24 && box.kids[0].y === 24, 'kids should be re-based inside the card in reading order: ' + JSON.stringify([box.x, box.y, box.kids[0].type, box.kids[0].x, box.kids[0].y]));
+      expect(!G.multi.state() && bar.hidden && q('.gogh-selbox') && !q('.gogh-selbox').hidden, 'the new card should be the selection, the group bar gone');
+      // a card cannot go into a card: the verb greys with its reason
+      s0.els.push({ type: 'para', x: 600, y: 40, w: 300, h: 60, text: 'Loose' });
+      G.renderSection(s0);
+      G.multi.set(s0, [n0, n0 + 1]);
+      expect(bar.querySelector('.gogh-mb-card').disabled && /inside a card/.test(bar.querySelector('.gogh-mb-card').title), 'Make a card should grey out, with a reason, when a card is in the selection');
+      // Duplicate: copies 24 units down and right, and the copies become the selection
+      bar.querySelector('.gogh-mb-dup').click();
+      var m = G.multi.state();
+      expect(s0.els.length === n0 + 4 && m && m.idxs.length === 2 && m.idxs[0] === n0 + 2 && m.idxs[1] === n0 + 3, 'Duplicate should add two copies and select them');
+      expect(s0.els[n0 + 3].x === 624 && s0.els[n0 + 3].y === 64 && s0.els[n0 + 2].kids && s0.els[n0 + 2].kids.length === 2, 'copies should keep their shape and sit 24 units down and right');
+      G.multi.clear();
+      s0.els.splice(n0);
+      G.renderSection(s0);
+      return 'Make a card leads, Duplicate copies, a card greys the verb';
+    });
+
+    test('align, space evenly and tidy up act on the selection as one; the bar greys what would do nothing', function () {
+      var s0 = sec();
+      var n0 = s0.els.length;
+      [[100, 60], [380, 80], [800, 100]].forEach(function (p, k) {
+        s0.els.push({ type: 'para', x: p[0], y: p[1], w: 200, h: 60, text: 'Item ' + (k + 1) });
+      });
+      G.renderSection(s0);
+      var a = s0.els[n0], b = s0.els[n0 + 1], c = s0.els[n0 + 2];
+      G.multi.set(s0, [n0, n0 + 1, n0 + 2]);
+      var bar = q('.gogh-mbar');
+      bar.querySelector('.gogh-mb-more').click();
+      expect(!bar.querySelector('.gogh-mbar-more').hidden, 'the dots should open the arrange row');
+      var top = bar.querySelector('.gogh-mb-align[data-how="top"]');
+      expect(!top.disabled, 'Align top should be offered for a ragged row');
+      top.click();
+      expect(a.y === 60 && b.y === 60 && c.y === 60, 'Align top should bring every piece to the topmost: ' + [a.y, b.y, c.y]);
+      expect(bar.querySelector('.gogh-mb-align[data-how="top"]').disabled && bar.querySelector('.gogh-mb-align[data-how="top"]').title === 'Already aligned', 'Align top should grey out once aligned');
+      expect(G.multi.state() && G.multi.state().idxs.length === 3 && !bar.hidden, 'the selection and the bar should survive an arrange');
+      var space = bar.querySelector('.gogh-mb-space');
+      expect(!space.disabled, 'Space evenly should be offered for uneven gaps');
+      space.click();
+      // 100..300 and 800..1000 stay; 900 of span, 600 of pieces, two gaps of 150: the middle lands at 450
+      expect(a.x === 100 && b.x === 450 && c.x === 800, 'Space evenly should equalise the gaps: ' + [a.x, b.x, c.x]);
+      expect(bar.querySelector('.gogh-mb-space').disabled && bar.querySelector('.gogh-mb-tidy').disabled, 'Space evenly and Tidy up should grey out once the row is even and square');
+      // ragged: a third of its own height down (the render re-measures text
+      // heights, so a fixed offset could read as a second row), and off its gap
+      var sag = Math.max(4, Math.round(b.h / 3));
+      b.y = 60 + sag; b.x = 420;
+      G.renderSection(s0);
+      G.multi.set(s0, [n0, n0 + 1, n0 + 2]);
+      var tidy = bar.querySelector('.gogh-mb-tidy');
+      expect(!tidy.disabled, 'Tidy up should be offered for a ragged row (sag ' + sag + ' of h ' + b.h + ')');
+      tidy.click();
+      expect(b.y === 60 && b.x === 450 && a.x === 100 && c.x === 800, 'Tidy up should square the row and even the gaps: ' + [b.x, b.y]);
+      G.multi.set(s0, [n0, n0 + 1]);
+      expect(bar.querySelector('.gogh-mb-space').disabled && /three/.test(bar.querySelector('.gogh-mb-space').title), 'Space evenly needs three or more, and says so');
+      G.multi.clear();
+      s0.els.splice(n0);
+      G.renderSection(s0);
+      return 'align, space evenly, tidy up: one click each, greyed when already right';
+    });
+
+    testAsync('select all picks the section’s pieces; the margin is a named magnet and guide', function () {
+      var s0 = sec();
+      select(0);
+      document.dispatchEvent(new KeyboardEvent('keydown', { key: 'a', metaKey: true, bubbles: true, cancelable: true }));
+      var m = G.multi.state();
+      expect(m && m.sec === s0 && m.idxs.length === s0.els.length, 'Cmd+A should select every piece in the section: ' + (m ? m.idxs.length : 'none') + ' of ' + s0.els.length);
+      G.multi.clear();
+      // a piece dragged so its left edge sits 3 units off the margin lands ON it,
+      // and the guide names the margin while the hand is closed
+      var n0 = s0.els.length;
+      var below = Math.max.apply(null, s0.els.map(function (e) { return e.y + e.h; })) + 40;
+      var e = { type: 'para', x: 300, y: below, w: 300, h: 60, text: 'To the margin' };
+      var cands = [0, 1200, 600];
+      s0.els.forEach(function (o) { cands.push(o.x, o.x + o.w, o.x + o.w / 2); });
+      var crowded = function (left) {
+        return [left, left + 300, left + 150].some(function (v) { return cands.some(function (cd) { return Math.abs(cd - v) < 3; }); });
+      };
+      var target = !crowded(83) ? 83 : (!crowded(1117 - 300) ? 1117 - 300 : null);
+      if (target === null) return 'select all works; the margin drag skipped — other magnets crowd both margins here';
+      var want = target === 83 ? 80 : 820;
+      s0.els.push(e);
+      G.renderSection(s0);
+      select(n0);
+      var grip = q('.gogh-grip');
+      var r = grip.getBoundingClientRect();
+      var sc = s0.sectionEl.getBoundingClientRect().width / 1200;
+      var x = r.x + 12, y = r.y + 12, dx = (target - 300) * sc;
+      pev('pointerdown', grip, x, y, 83);
+      pev('pointermove', grip, x + dx / 2, y, 83);
+      pev('pointermove', grip, x + dx, y, 83);
+      // a hidden tab never fires requestAnimationFrame; a short timer does
+      return new Promise(function (res) { setTimeout(res, 80); }).then(function () {
+        pev('pointerup', grip, x + dx, y, 83);
+        expect(e.x === want, 'the piece should land on the margin: ' + e.x + ' wanted ' + want);
+        // the guide paints on an animation frame, which a hidden tab never gets:
+        // ask the guide directly what it would say at the margin, and at an edge
+        G.showGuides(s0, want, null);
+        var gv = q('.gogh-guide-v');
+        var tag = gv && !gv.hidden ? gv.dataset.tag : null;
+        G.showGuides(s0, want + 40, null);
+        var plain = gv && !gv.hidden ? gv.dataset.tag : null;
+        G.hideGuides();
+        expect(tag === 'margin' && plain === '', 'the guide should be named margin at the margin and unnamed elsewhere, got ' + JSON.stringify([tag, plain]));
+        var idx = s0.els.indexOf(e);
+        if (idx !== -1) { s0.els.splice(idx, 1); G.renderSection(s0); }
+        return 'Cmd+A selects the section; the margin is a named magnet';
+      });
+    });
+
     test('card interactions: drop joins, kid drags inside, drag-out frees', function () {
       var s0 = sec();
       s0.els.push({ type: 'box', x: 600, y: 80, w: 480, h: 380, boxBg: '#101418', radius: 16 });
