@@ -4401,6 +4401,48 @@
       });
     });
 
+    test('a card colour pick re-judges its words, and any colour is one well away', function () {
+      // James made a card, chose black, and the words stayed black
+      var probe = function (slug) {
+        var d = document.createElement('div');
+        d.style.color = 'var(--wp--preset--color--' + slug + ')';
+        d.style.display = 'none';
+        document.body.appendChild(d);
+        var m = (getComputedStyle(d).color.match(/[\d.]+/g) || []).slice(0, 3).map(Number);
+        d.remove();
+        return (m[0] + m[1] + m[2]) / 3;
+      };
+      var roles = G.paletteRoles();
+      var darker = probe(roles.bgSlug) < probe(roles.textSlug) ? roles.bgSlug : roles.textSlug;
+      var s0 = sec();
+      var n0 = s0.els.length;
+      var below = Math.max.apply(null, s0.els.map(function (e) { return e.y + e.h; })) + 40;
+      s0.els.push({ type: 'box', x: 80, y: below, w: 400, h: 200, radius: 12, kids: [
+        { type: 'heading', x: 24, y: 24, w: 340, h: 44, text: 'Words on a card' },
+      ] });
+      G.renderSection(s0);
+      var box = s0.els[n0], kid = box.kids[0];
+      G.openPanel(s0, n0);
+      var pnl = q('.gogh-panel');
+      var sw = pnl.querySelector('.gogh-boxsw .gogh-sw[data-col="' + darker + '"]');
+      expect(sw, 'the darker palette swatch should be offered');
+      sw.click();
+      expect(box.boxBg === darker, 'the swatch should colour the card');
+      expect(kid.color && kid.color !== darker, 'the card’s words should flip to a readable ink on the dark ground, got ' + kid.color);
+      var well = pnl.querySelector('.gogh-boxcustom');
+      expect(well && well.type === 'color', 'a custom colour well should sit beside the palette');
+      well.value = '#101014';
+      well.dispatchEvent(new Event('change', { bubbles: true }));
+      expect(box.boxBg === '#101014', 'the well should set any colour: ' + box.boxBg);
+      var bg = getComputedStyle(s0.nodes[n0]).backgroundColor;
+      expect(/rgb\(16, 16, 20\)/.test(bg), 'the card should paint the custom colour: ' + bg);
+      expect(pnl.querySelector('.gogh-sw-pick').classList.contains('is-active'), 'the well should light when the colour is its own');
+      G.closePanel();
+      s0.els.splice(n0, 1);
+      G.renderSection(s0);
+      return 'a colour pick judges the words; any colour is one well away';
+    });
+
     test('card interactions: drop joins, kid drags inside, drag-out frees', function () {
       var s0 = sec();
       s0.els.push({ type: 'box', x: 600, y: 80, w: 480, h: 380, boxBg: '#101418', radius: 16 });

@@ -4580,7 +4580,11 @@
       pickerPalette().map(function (p) {
         return '<button type="button" class="gogh-sw' + (e.boxBg === p.slug ? ' is-active' : '') + '" data-col="' + p.slug + '"' +
           ' style="background: var(--wp--preset--color--' + p.slug + ')" title="' + p.slug + '"></button>';
-      }).join('') + '</div>' +
+      }).join('') +
+      // any colour at all, beside the palette (James: "i dont see an option
+      // to choose a custom color for cards")
+      '<label class="gogh-sw gogh-sw-pick' + (/^#/.test(e.boxBg || '') ? ' is-active' : '') + '" title="Any colour"><input type="color" class="gogh-boxcustom" value="' + escAttr(/^#[0-9a-fA-F]{6}$/.test(e.boxBg || '') ? e.boxBg : '#1c1c22') + '"></label>' +
+      '</div>' +
       '<div class="gogh-swlab">Image</div>' +
       '<div class="gogh-panel-row">' +
       (cfg.canUpload ? '<label class="gogh-btn gogh-btn-small gogh-upload">Upload<input type="file" accept="image/*" hidden /></label>' : '') +
@@ -4613,9 +4617,11 @@
       pushState();
       // update the active marks IN PLACE — a full rebuild refetches the
       // media grid and reads as the panel closing and reopening
-      panel.querySelectorAll('.gogh-boxsw .gogh-sw').forEach(function (b2) {
+      panel.querySelectorAll('.gogh-boxsw .gogh-sw:not(.gogh-sw-pick)').forEach(function (b2) {
         b2.classList.toggle('is-active', (b2.dataset.col || '') === (e.boxBg || ''));
       });
+      var pickLab = panel.querySelector('.gogh-boxsw .gogh-sw-pick');
+      if (pickLab) pickLab.classList.toggle('is-active', /^#/.test(e.boxBg || ''));
       panel.querySelectorAll('.gogh-shapecell').forEach(function (b2) {
         var d2 = SHAPE_DEFS[+b2.dataset.k];
         b2.classList.toggle('is-active', (d2.key || null) === (e.shape || null));
@@ -4632,12 +4638,27 @@
         reapply();
       });
     });
-    panel.querySelectorAll('.gogh-boxsw .gogh-sw').forEach(function (swBtn) {
+    panel.querySelectorAll('.gogh-boxsw .gogh-sw:not(.gogh-sw-pick)').forEach(function (swBtn) {
       swBtn.addEventListener('click', function () {
         e.boxBg = swBtn.dataset.col || null;
         reapply();
+        contrastSentinel(sec, i); // the card's new ground judges its words (a black card, black words: v0.99.476)
       });
     });
+    var anyCol = panel.querySelector('.gogh-boxcustom');
+    if (anyCol) {
+      // live while the picker is open, one undo step when it closes
+      anyCol.addEventListener('input', function () {
+        e.boxBg = anyCol.value;
+        renderSection(sec);
+        placeHandles(sec, i);
+      });
+      anyCol.addEventListener('change', function () {
+        e.boxBg = anyCol.value;
+        reapply();
+        contrastSentinel(sec, i);
+      });
+    }
     panel.querySelectorAll('.gogh-moodrow .gogh-hpreset').forEach(function (mb) {
       mb.addEventListener('click', function () {
         e.mood = mb.dataset.mood || null;
