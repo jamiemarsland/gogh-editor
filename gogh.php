@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Gogh Editor
  * Description: A freeform canvas for WordPress — drag anything anywhere on your live page; Gogh publishes it back as clean, responsive core blocks that keep working even if the plugin is deactivated.
- * Version: 0.99.470
+ * Version: 0.99.471
  * Author: Jamie Marsland
  * Author URI: https://pootlepress.com
  * License: GPLv2 or later
@@ -14,7 +14,7 @@
 
 defined( 'ABSPATH' ) || exit;
 
-define( 'GOGH_VERSION', '0.99.470' );
+define( 'GOGH_VERSION', '0.99.471' );
 
 /**
  * gogh/section — a first-class block. STATIC save (no render_callback), so
@@ -25,7 +25,7 @@ add_action( 'init', function () {
 		'gogh-block',
 		plugins_url( 'gogh-block.js', __FILE__ ),
 		array( 'wp-blocks', 'wp-element', 'wp-block-editor' ),
-		'0.99.470-chrome',
+		'0.99.471-chrome',
 		true
 	);
 	register_block_type( 'gogh/section', array(
@@ -477,9 +477,9 @@ add_action( 'wp_enqueue_scripts', function () {
 	if ( ! $post || ! current_user_can( 'edit_post', $post->ID ) ) {
 		return;
 	}
-	wp_register_script( 'gogh-compose', plugins_url( 'gogh-compose.js', __FILE__ ), array(), '0.99.470-chrome', true );
-	wp_enqueue_script( 'gogh-write', plugins_url( 'gogh-write.js', __FILE__ ), array( 'gogh-compose' ), '0.99.470-chrome', true );
-	wp_enqueue_style( 'gogh-write', plugins_url( 'gogh-write.css', __FILE__ ), array(), '0.99.470-chrome' );
+	wp_register_script( 'gogh-compose', plugins_url( 'gogh-compose.js', __FILE__ ), array(), '0.99.471-chrome', true );
+	wp_enqueue_script( 'gogh-write', plugins_url( 'gogh-write.js', __FILE__ ), array( 'gogh-compose' ), '0.99.471-chrome', true );
+	wp_enqueue_style( 'gogh-write', plugins_url( 'gogh-write.css', __FILE__ ), array(), '0.99.471-chrome' );
 	wp_localize_script( 'gogh-write', 'GOGHWRITE', array(
 		'postId'  => $post->ID,
 		'restUrl' => esc_url_raw( rest_url() ),
@@ -2444,6 +2444,68 @@ function gogh_starter_page_content( $slug, $pg ) {
 	);
 }
 /**
+ * A starter's pictures become the site's own. A file under
+ * starters/<slug>/ is sideloaded into the media library once — the
+ * attachment remembers which file it came from — and any page or post
+ * markup that reached for it under the plugin folder is rewritten to the
+ * upload. The page keeps its pictures if the plugin ever goes, and the
+ * site exports like any other, attachments and all (Ben loaded the
+ * photographer's export without gogh: the Team page's portraits 404ed).
+ */
+function gogh_starter_sideload_file( $slug, $file, $title = '', $parent = 0 ) {
+	$file = basename( $file );
+	$src  = __DIR__ . '/starters/' . sanitize_key( $slug ) . '/' . $file;
+	if ( ! file_exists( $src ) ) {
+		return 0;
+	}
+	$key  = sanitize_key( $slug ) . '/' . $file;
+	$have = get_posts( array( 'post_type' => 'attachment', 'post_status' => 'inherit', 'numberposts' => 1, 'fields' => 'ids', 'meta_key' => '_gogh_starter_file', 'meta_value' => $key ) );
+	if ( $have ) {
+		// a picture adopted from a page arrived untitled; the manifest's media
+		// list or a product may name it later
+		if ( '' !== $title && get_the_title( (int) $have[0] ) === pathinfo( $file, PATHINFO_FILENAME ) ) {
+			wp_update_post( array( 'ID' => (int) $have[0], 'post_title' => $title ) );
+			update_post_meta( (int) $have[0], '_wp_attachment_image_alt', $title );
+		}
+		return (int) $have[0];
+	}
+	require_once ABSPATH . 'wp-admin/includes/media.php';
+	require_once ABSPATH . 'wp-admin/includes/file.php';
+	require_once ABSPATH . 'wp-admin/includes/image.php';
+	try {
+		$tmp = wp_tempnam( $file );
+		if ( ! @copy( $src, $tmp ) ) {
+			return 0;
+		}
+		$aid = media_handle_sideload( array( 'name' => $file, 'tmp_name' => $tmp ), (int) $parent, '' !== $title ? $title : null );
+		if ( $aid && ! is_wp_error( $aid ) ) {
+			update_post_meta( $aid, '_gogh_starter_file', $key );
+			if ( '' !== $title ) {
+				update_post_meta( $aid, '_wp_attachment_image_alt', $title );
+			}
+			return (int) $aid;
+		}
+	} catch ( \Throwable $e ) {}
+	return 0;
+}
+function gogh_starter_adopt_pictures( $slug, $content ) {
+	$base = untrailingslashit( plugins_url( '', __FILE__ ) ) . '/starters/' . sanitize_key( $slug ) . '/';
+	if ( '' === $content || false === strpos( $content, $base ) ) {
+		return $content;
+	}
+	if ( ! preg_match_all( '#' . preg_quote( $base, '#' ) . '([A-Za-z0-9._-]+\.(?:jpe?g|png|gif|webp|avif|svg))#i', $content, $m ) ) {
+		return $content;
+	}
+	foreach ( array_unique( $m[1] ) as $file ) {
+		$aid = gogh_starter_sideload_file( $slug, $file );
+		$url = $aid ? wp_get_attachment_url( $aid ) : '';
+		if ( $url ) {
+			$content = str_replace( $base . $file, $url, $content );
+		}
+	}
+	return $content;
+}
+/**
  * Stock a shop from a starter manifest: product categories (with a
  * picture each), global attributes with their terms, and products —
  * simple ones priced outright, variable ones with one variation per
@@ -2458,38 +2520,11 @@ function gogh_starter_apply_shop( $slug, $m ) {
 	require_once ABSPATH . 'wp-admin/includes/media.php';
 	require_once ABSPATH . 'wp-admin/includes/file.php';
 	require_once ABSPATH . 'wp-admin/includes/image.php';
-	$dir      = __DIR__ . '/starters/' . $slug . '/';
 	$log      = array(); // what each picture did, kept in an option for support
-	$sideload = function ( $file, $title, $parent = 0 ) use ( $dir, &$log ) {
-		$src = $dir . basename( $file );
-		// file_exists, not is_readable: inside Playground's mounted plugin
-		// folder is_readable() said no to every product picture during the
-		// boot request while the same files copied fine — trust the copy
-		if ( ! file_exists( $src ) ) {
-			$log[] = basename( $file ) . ': missing at ' . $src;
-			return 0;
-		}
-		$have = get_posts( array( 'post_type' => 'attachment', 'post_status' => 'inherit', 'title' => $title, 'numberposts' => 1, 'fields' => 'ids' ) );
-		if ( $have ) {
-			return (int) $have[0];
-		}
-		try {
-			$tmp = wp_tempnam( basename( $src ) );
-			if ( ! @copy( $src, $tmp ) ) {
-				$log[] = basename( $file ) . ': copy failed (readable ' . ( is_readable( $src ) ? 'yes' : 'no' ) . ', size ' . (int) @filesize( $src ) . ')';
-				return 0;
-			}
-			$aid = media_handle_sideload( array( 'name' => basename( $src ), 'tmp_name' => $tmp ), $parent, $title );
-			if ( $aid && ! is_wp_error( $aid ) ) {
-				update_post_meta( $aid, '_wp_attachment_image_alt', $title );
-				$log[] = basename( $file ) . ': #' . (int) $aid;
-				return (int) $aid;
-			}
-			$log[] = basename( $file ) . ': ' . ( is_wp_error( $aid ) ? $aid->get_error_message() : 'no id' );
-		} catch ( \Throwable $e ) {
-			$log[] = basename( $file ) . ': ' . $e->getMessage();
-		}
-		return 0;
+	$sideload = function ( $file, $title, $parent = 0 ) use ( $slug, &$log ) {
+		$aid = gogh_starter_sideload_file( $slug, $file, $title, $parent );
+		$log[] = basename( $file ) . ( $aid ? ': #' . $aid : ': failed' );
+		return $aid;
 	};
 	// categories
 	$cats = array();
@@ -2694,7 +2729,7 @@ add_action( 'rest_api_init', function () {
 			return current_user_can( 'edit_posts' );
 		},
 		'callback'            => function () {
-			return array( 'build' => '0.99.470-chrome' );
+			return array( 'build' => '0.99.471-chrome' );
 		},
 	) );
 	register_rest_route( 'gogh/v1', '/starter', array(
@@ -2759,7 +2794,7 @@ add_action( 'rest_api_init', function () {
 					// the backslashes from the JSON < / " / - escapes in
 					// the gogh/section model, so a widget's whtml became literal
 					// "u003cdiv…" text in the editor ("issues with the blueprint")
-					'post_content' => wp_slash( gogh_starter_page_content( $slug, $pg ) ),
+					'post_content' => wp_slash( gogh_starter_adopt_pictures( $slug, gogh_starter_page_content( $slug, $pg ) ) ),
 					'meta_input'   => empty( $pg['template'] ) ? array()
 						: array( '_wp_page_template' => sanitize_key( $pg['template'] ) ),
 				) );
@@ -2799,7 +2834,7 @@ add_action( 'rest_api_init', function () {
 						'post_status'  => 'publish',
 						'post_title'   => $ps['title'],
 						'post_name'    => $ps['slug'],
-						'post_content' => wp_slash( gogh_starter_page_content( $slug, $ps ) ), // see the page insert above
+						'post_content' => wp_slash( gogh_starter_adopt_pictures( $slug, gogh_starter_page_content( $slug, $ps ) ) ), // see the page insert above
 					) );
 					// a post may open in one of gogh's reading looks from day one (the
 					// Manual look builds its contents from the headings), and carry a
@@ -2808,19 +2843,10 @@ add_action( 'rest_api_init', function () {
 						update_post_meta( $pid, '_gogh_post_style', sanitize_key( $ps['style'] ) );
 					}
 					if ( $pid && ! is_wp_error( $pid ) && ! empty( $ps['image'] ) ) {
-						$pimg = __DIR__ . '/starters/' . $slug . '/' . basename( $ps['image'] );
-						if ( is_readable( $pimg ) ) {
-							require_once ABSPATH . 'wp-admin/includes/media.php';
-							require_once ABSPATH . 'wp-admin/includes/file.php';
-							require_once ABSPATH . 'wp-admin/includes/image.php';
-							try {
-								$ptmp = wp_tempnam( basename( $pimg ) );
-								copy( $pimg, $ptmp );
-								$paid = media_handle_sideload( array( 'name' => basename( $pimg ), 'tmp_name' => $ptmp ), $pid, $ps['title'] );
-								if ( $paid && ! is_wp_error( $paid ) ) {
-									set_post_thumbnail( $pid, $paid );
-								}
-							} catch ( \Throwable $e ) {}
+						// one attachment per starter file, shared with pages that show it
+						$paid = gogh_starter_sideload_file( $slug, $ps['image'], $ps['title'], $pid );
+						if ( $paid ) {
+							set_post_thumbnail( $pid, $paid );
 						}
 					}
 					if ( $pid && ! is_wp_error( $pid ) && ! empty( $ps['category'] ) ) {
@@ -2854,11 +2880,10 @@ add_action( 'rest_api_init', function () {
 					$aid = null;
 					try {
 						if ( ! empty( $md['file'] ) ) {
-							$src = __DIR__ . '/starters/' . $slug . '/' . basename( $md['file'] );
-							if ( is_readable( $src ) ) {
-								$tmp = wp_tempnam( basename( $src ) );
-								copy( $src, $tmp );
-								$aid = media_handle_sideload( array( 'name' => basename( $src ), 'tmp_name' => $tmp ), 0, $title );
+							// one attachment per starter file, however many pages show it
+							$aid = gogh_starter_sideload_file( $slug, $md['file'], $title );
+							if ( ! $aid ) {
+								$aid = null;
 							}
 						} elseif ( ! empty( $md['url'] ) ) {
 							$aid = media_sideload_image( esc_url_raw( $md['url'] ), 0, $title, 'id' );
@@ -3754,8 +3779,8 @@ add_action( 'admin_enqueue_scripts', function ( $hook ) {
 			$globals[] = $tax->attribute_label;
 		}
 	}
-	wp_enqueue_script( 'gogh-admin', plugins_url( 'gogh-admin.js', __FILE__ ), array(), '0.99.470-chrome', true );
-	wp_enqueue_style( 'gogh-admin', plugins_url( 'gogh-admin.css', __FILE__ ), array(), '0.99.470-chrome' );
+	wp_enqueue_script( 'gogh-admin', plugins_url( 'gogh-admin.js', __FILE__ ), array(), '0.99.471-chrome', true );
+	wp_enqueue_style( 'gogh-admin', plugins_url( 'gogh-admin.css', __FILE__ ), array(), '0.99.471-chrome' );
 	wp_localize_script( 'gogh-admin', 'GOGH_ADMIN', array(
 		'restUrl'   => esc_url_raw( rest_url( 'wc/v3/' ) ),
 		'nonce'     => wp_create_nonce( 'wp_rest' ),
@@ -4834,7 +4859,7 @@ function gogh_splash_css() {
 // wearing Magazine must read as Magazine logged-out, and the site's gait
 // is site-wide; both packs are a few KB of pure CSS.
 add_action( 'wp_enqueue_scripts', function () {
-	wp_register_style( 'gogh-looks', false, array(), '0.99.470-chrome' );
+	wp_register_style( 'gogh-looks', false, array(), '0.99.471-chrome' );
 	wp_enqueue_style( 'gogh-looks' );
 	wp_add_inline_style( 'gogh-looks', gogh_reading_style_css() . gogh_motion_css() . gogh_blog_style_css() );
 
@@ -4874,10 +4899,10 @@ add_action( 'wp_enqueue_scripts', function () {
 
 	// for every visitor: neutralise theme spacing around gogh sections, even
 	// on pages whose stored stylesheets predate this rule
-	wp_register_style( 'gogh-base', false, array(), '0.99.470-chrome' );
+	wp_register_style( 'gogh-base', false, array(), '0.99.471-chrome' );
 	// (the splash presentation itself lives in gogh_splash_css(), shared with
 	// the block editor — a wall in Gutenberg must look like a wall)
-	wp_register_script( 'gogh-view', false, array(), '0.99.470-chrome', true );
+	wp_register_script( 'gogh-view', false, array(), '0.99.471-chrome', true );
 	wp_enqueue_script( 'gogh-view' );
 	wp_add_inline_script( 'gogh-view',
 		// mega menu panels: hover opens with intent on fine pointers; the chevron
@@ -5170,9 +5195,9 @@ add_action( 'wp_enqueue_scripts', function () {
 
 	// compose must be REGISTERED here too — a dependency on an
 	// unregistered handle silently drops the whole editor script
-	wp_register_script( 'gogh-compose', plugins_url( 'gogh-compose.js', __FILE__ ), array(), '0.99.470-chrome', true );
-	wp_enqueue_script( 'gogh-editor', plugins_url( 'gogh-editor.js', __FILE__ ), array( 'gogh-compose' ), '0.99.470-chrome', true );
-	wp_enqueue_style( 'gogh-editor', plugins_url( 'gogh-editor.css', __FILE__ ), array(), '0.99.470-chrome' );
+	wp_register_script( 'gogh-compose', plugins_url( 'gogh-compose.js', __FILE__ ), array(), '0.99.471-chrome', true );
+	wp_enqueue_script( 'gogh-editor', plugins_url( 'gogh-editor.js', __FILE__ ), array( 'gogh-compose' ), '0.99.471-chrome', true );
+	wp_enqueue_style( 'gogh-editor', plugins_url( 'gogh-editor.css', __FILE__ ), array(), '0.99.471-chrome' );
 
 	// WebMCP bridge: the page registers its editing verbs as agent tools.
 	// OPT-IN only — add ?gogh-mcp=1 for a demo session (or enable sitewide
@@ -5184,19 +5209,19 @@ add_action( 'wp_enqueue_scripts', function () {
 	// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only labs toggle
 	$gogh_exp = isset( $_GET['gogh-test'] ) || ( isset( $_GET['gogh-experiments'] ) && '0' !== $_GET['gogh-experiments'] );
 	if ( isset( $_GET['gogh-mcp'] ) || $gogh_exp || apply_filters( 'gogh_webmcp_enabled', false ) ) {
-		wp_enqueue_script( 'gogh-webmcp', plugins_url( 'gogh-webmcp.js', __FILE__ ), array( 'gogh-editor' ), '0.99.470-chrome', true );
+		wp_enqueue_script( 'gogh-webmcp', plugins_url( 'gogh-webmcp.js', __FILE__ ), array( 'gogh-editor' ), '0.99.471-chrome', true );
 	}
 
 	// regression suite: /page/?gogh-test (editors only, never saves)
 	// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only toggle enqueuing a test script for capability-checked editors.
 	if ( isset( $_GET['gogh-test'] ) ) {
-		wp_enqueue_script( 'gogh-tests', plugins_url( 'gogh-tests.js', __FILE__ ), array( 'gogh-editor' ), '0.99.470-chrome', true );
+		wp_enqueue_script( 'gogh-tests', plugins_url( 'gogh-tests.js', __FILE__ ), array( 'gogh-editor' ), '0.99.471-chrome', true );
 	}
 	// the user-test walk: /?gogh-edit=1&gogh-walk=1 on a DISPOSABLE Yellow
 	// House (it publishes) — editors only, never shipped in the zip
 	// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only toggle for capability-checked editors.
 	if ( isset( $_GET['gogh-walk'] ) ) {
-		wp_enqueue_script( 'gogh-walk', plugins_url( 'gogh-walk.js', __FILE__ ), array( 'gogh-editor' ), '0.99.470-chrome', true );
+		wp_enqueue_script( 'gogh-walk', plugins_url( 'gogh-walk.js', __FILE__ ), array( 'gogh-editor' ), '0.99.471-chrome', true );
 	}
 
 	// products live outside wp/v2, so gogh carries its own save route for
@@ -5216,7 +5241,7 @@ add_action( 'wp_enqueue_scripts', function () {
 		'postTitle'  => get_the_title( $post ),
 		'permalink'  => esc_url_raw( get_permalink( $post->ID ) ),
 		'excerpt'    => (string) $post->post_excerpt,
-		'build'    => '0.99.470-chrome',
+		'build'    => '0.99.471-chrome',
 		// two rooms, one landmark (same contract as the admin bar): on a POST
 		// the corner pill opens the WRITING surface, not the freeform canvas
 		'writeUrl' => is_singular( 'post' ) ? add_query_arg( 'gogh-write', '1', get_permalink( $post ) ) : null,
