@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Gogh Editor
  * Description: A freeform canvas for WordPress — drag anything anywhere on your live page; Gogh publishes it back as clean, responsive core blocks that keep working even if the plugin is deactivated.
- * Version: 0.99.465
+ * Version: 0.99.466
  * Author: Jamie Marsland
  * Author URI: https://pootlepress.com
  * License: GPLv2 or later
@@ -14,7 +14,7 @@
 
 defined( 'ABSPATH' ) || exit;
 
-define( 'GOGH_VERSION', '0.99.465' );
+define( 'GOGH_VERSION', '0.99.466' );
 
 /**
  * gogh/section — a first-class block. STATIC save (no render_callback), so
@@ -25,7 +25,7 @@ add_action( 'init', function () {
 		'gogh-block',
 		plugins_url( 'gogh-block.js', __FILE__ ),
 		array( 'wp-blocks', 'wp-element', 'wp-block-editor' ),
-		'0.99.465-chrome',
+		'0.99.466-chrome',
 		true
 	);
 	register_block_type( 'gogh/section', array(
@@ -477,9 +477,9 @@ add_action( 'wp_enqueue_scripts', function () {
 	if ( ! $post || ! current_user_can( 'edit_post', $post->ID ) ) {
 		return;
 	}
-	wp_register_script( 'gogh-compose', plugins_url( 'gogh-compose.js', __FILE__ ), array(), '0.99.465-chrome', true );
-	wp_enqueue_script( 'gogh-write', plugins_url( 'gogh-write.js', __FILE__ ), array( 'gogh-compose' ), '0.99.465-chrome', true );
-	wp_enqueue_style( 'gogh-write', plugins_url( 'gogh-write.css', __FILE__ ), array(), '0.99.465-chrome' );
+	wp_register_script( 'gogh-compose', plugins_url( 'gogh-compose.js', __FILE__ ), array(), '0.99.466-chrome', true );
+	wp_enqueue_script( 'gogh-write', plugins_url( 'gogh-write.js', __FILE__ ), array( 'gogh-compose' ), '0.99.466-chrome', true );
+	wp_enqueue_style( 'gogh-write', plugins_url( 'gogh-write.css', __FILE__ ), array(), '0.99.466-chrome' );
 	wp_localize_script( 'gogh-write', 'GOGHWRITE', array(
 		'postId'  => $post->ID,
 		'restUrl' => esc_url_raw( rest_url() ),
@@ -2443,6 +2443,229 @@ function gogh_starter_page_content( $slug, $pg ) {
 		file_get_contents( $file )
 	);
 }
+/**
+ * Stock a shop from a starter manifest: product categories (with a
+ * picture each), global attributes with their terms, and products —
+ * simple ones priced outright, variable ones with one variation per
+ * term. Idempotent: a category, term or product that already exists
+ * by slug or name is left alone, so re-applying a design never
+ * doubles the shelves. Pictures come from files in the starter folder.
+ */
+function gogh_starter_apply_shop( $slug, $m ) {
+	if ( ! class_exists( 'WooCommerce' ) || ! class_exists( 'WC_Product_Simple' ) ) {
+		return;
+	}
+	require_once ABSPATH . 'wp-admin/includes/media.php';
+	require_once ABSPATH . 'wp-admin/includes/file.php';
+	require_once ABSPATH . 'wp-admin/includes/image.php';
+	$dir      = __DIR__ . '/starters/' . $slug . '/';
+	$log      = array(); // what each picture did, kept in an option for support
+	$sideload = function ( $file, $title, $parent = 0 ) use ( $dir, &$log ) {
+		$src = $dir . basename( $file );
+		// file_exists, not is_readable: inside Playground's mounted plugin
+		// folder is_readable() said no to every product picture during the
+		// boot request while the same files copied fine — trust the copy
+		if ( ! file_exists( $src ) ) {
+			$log[] = basename( $file ) . ': missing at ' . $src;
+			return 0;
+		}
+		$have = get_posts( array( 'post_type' => 'attachment', 'post_status' => 'inherit', 'title' => $title, 'numberposts' => 1, 'fields' => 'ids' ) );
+		if ( $have ) {
+			return (int) $have[0];
+		}
+		try {
+			$tmp = wp_tempnam( basename( $src ) );
+			if ( ! @copy( $src, $tmp ) ) {
+				$log[] = basename( $file ) . ': copy failed (readable ' . ( is_readable( $src ) ? 'yes' : 'no' ) . ', size ' . (int) @filesize( $src ) . ')';
+				return 0;
+			}
+			$aid = media_handle_sideload( array( 'name' => basename( $src ), 'tmp_name' => $tmp ), $parent, $title );
+			if ( $aid && ! is_wp_error( $aid ) ) {
+				update_post_meta( $aid, '_wp_attachment_image_alt', $title );
+				$log[] = basename( $file ) . ': #' . (int) $aid;
+				return (int) $aid;
+			}
+			$log[] = basename( $file ) . ': ' . ( is_wp_error( $aid ) ? $aid->get_error_message() : 'no id' );
+		} catch ( \Throwable $e ) {
+			$log[] = basename( $file ) . ': ' . $e->getMessage();
+		}
+		return 0;
+	};
+	// categories
+	$cats = array();
+	foreach ( (array) ( isset( $m['categories'] ) ? $m['categories'] : array() ) as $c ) {
+		if ( empty( $c['name'] ) ) {
+			continue;
+		}
+		$cslug = ! empty( $c['slug'] ) ? sanitize_title( $c['slug'] ) : sanitize_title( $c['name'] );
+		$t     = term_exists( $cslug, 'product_cat' );
+		if ( ! $t ) {
+			$t = wp_insert_term( $c['name'], 'product_cat', array( 'slug' => $cslug, 'description' => isset( $c['description'] ) ? $c['description'] : '' ) );
+		}
+		if ( ! $t || is_wp_error( $t ) ) {
+			continue;
+		}
+		$tid            = (int) ( is_array( $t ) ? $t['term_id'] : $t );
+		$cats[ $cslug ] = $tid;
+		if ( ! empty( $c['image'] ) && ! get_term_meta( $tid, 'thumbnail_id', true ) ) {
+			$aid = $sideload( $c['image'], $c['name'] );
+			if ( $aid ) {
+				update_term_meta( $tid, 'thumbnail_id', $aid );
+			}
+		}
+	}
+	// global attributes and their terms (a taxonomy created this request
+	// is registered by hand so its terms can be added right away)
+	$attrs = array();
+	foreach ( (array) ( isset( $m['attributes'] ) ? $m['attributes'] : array() ) as $a ) {
+		if ( empty( $a['name'] ) || ! function_exists( 'wc_create_attribute' ) ) {
+			continue;
+		}
+		$aslug = sanitize_title( ! empty( $a['slug'] ) ? $a['slug'] : $a['name'] );
+		$tax   = wc_attribute_taxonomy_name( $aslug );
+		$aid   = (int) wc_attribute_taxonomy_id_by_name( $aslug );
+		if ( ! $aid ) {
+			$res = wc_create_attribute( array( 'name' => $a['name'], 'slug' => $aslug, 'type' => 'select', 'order_by' => 'menu_order', 'has_archives' => false ) );
+			if ( is_wp_error( $res ) ) {
+				continue;
+			}
+			$aid = (int) $res;
+			delete_transient( 'wc_attribute_taxonomies' );
+			if ( class_exists( 'WC_Cache_Helper' ) ) {
+				WC_Cache_Helper::invalidate_cache_group( 'woocommerce-attributes' );
+			}
+		}
+		if ( ! taxonomy_exists( $tax ) ) {
+			register_taxonomy( $tax, array( 'product' ), array( 'hierarchical' => false, 'show_ui' => false, 'query_var' => true, 'rewrite' => false ) );
+		}
+		$terms = array();
+		foreach ( (array) ( isset( $a['terms'] ) ? $a['terms'] : array() ) as $tn ) {
+			$name  = is_array( $tn ) ? $tn['name'] : $tn;
+			$tslug = sanitize_title( is_array( $tn ) && ! empty( $tn['slug'] ) ? $tn['slug'] : $name );
+			$t     = term_exists( $tslug, $tax );
+			if ( ! $t ) {
+				$t = wp_insert_term( $name, $tax, array( 'slug' => $tslug ) );
+			}
+			if ( $t && ! is_wp_error( $t ) ) {
+				$terms[ $tslug ] = (int) ( is_array( $t ) ? $t['term_id'] : $t );
+			}
+		}
+		$attrs[ $aslug ] = array( 'id' => $aid, 'tax' => $tax, 'terms' => $terms );
+	}
+	// products
+	$layout = ! empty( $m['shop']['product'] ) ? sanitize_key( $m['shop']['product'] ) : '';
+	$plist  = (array) ( isset( $m['products'] ) ? $m['products'] : array() );
+	$pn     = count( $plist );
+	foreach ( $plist as $pi => $pd ) {
+		if ( empty( $pd['name'] ) ) {
+			continue;
+		}
+		$have = get_posts( array( 'post_type' => 'product', 'post_status' => 'any', 'title' => $pd['name'], 'numberposts' => 1, 'fields' => 'ids' ) );
+		if ( $have ) {
+			continue;
+		}
+		$variable = ! empty( $pd['variations'] ) && is_array( $pd['variations'] ) && class_exists( 'WC_Product_Variable' );
+		$p        = $variable ? new WC_Product_Variable() : new WC_Product_Simple();
+		$p->set_name( $pd['name'] );
+		if ( ! empty( $pd['slug'] ) ) {
+			$p->set_slug( sanitize_title( $pd['slug'] ) );
+		}
+		// manifest order is age: the last product listed is the newest, so a
+		// 'newest first' rail shows the design's chosen four in its chosen order
+		$p->set_date_created( time() - ( $pn - (int) $pi ) * HOUR_IN_SECONDS );
+		if ( ! $variable && isset( $pd['price'] ) ) {
+			$p->set_regular_price( (string) $pd['price'] );
+			if ( ! empty( $pd['sale'] ) ) {
+				$p->set_sale_price( (string) $pd['sale'] );
+			}
+		}
+		$p->set_short_description( isset( $pd['short'] ) ? $pd['short'] : '' );
+		$p->set_description( isset( $pd['description'] ) ? $pd['description'] : '' );
+		$p->set_stock_status( ! empty( $pd['stock'] ) ? $pd['stock'] : 'instock' );
+		if ( ! empty( $pd['sku'] ) ) {
+			$p->set_sku( $pd['sku'] );
+		}
+		if ( ! empty( $pd['weight'] ) ) {
+			$p->set_weight( $pd['weight'] );
+		}
+		if ( ! empty( $pd['category'] ) ) {
+			$ids = array();
+			foreach ( (array) $pd['category'] as $cs ) {
+				if ( isset( $cats[ $cs ] ) ) {
+					$ids[] = $cats[ $cs ];
+				}
+			}
+			if ( $ids ) {
+				$p->set_category_ids( $ids );
+			}
+		}
+		$pattrs = array();
+		foreach ( (array) ( isset( $pd['attributes'] ) ? $pd['attributes'] : array() ) as $aslug => $vals ) {
+			if ( empty( $attrs[ $aslug ] ) || ! class_exists( 'WC_Product_Attribute' ) ) {
+				continue;
+			}
+			$tids = array();
+			foreach ( (array) $vals as $v ) {
+				if ( isset( $attrs[ $aslug ]['terms'][ $v ] ) ) {
+					$tids[] = $attrs[ $aslug ]['terms'][ $v ];
+				}
+			}
+			if ( ! $tids ) {
+				continue;
+			}
+			$wa = new WC_Product_Attribute();
+			$wa->set_id( $attrs[ $aslug ]['id'] );
+			$wa->set_name( $attrs[ $aslug ]['tax'] );
+			$wa->set_options( $tids );
+			$wa->set_position( count( $pattrs ) );
+			$wa->set_visible( true );
+			$wa->set_variation( $variable );
+			$pattrs[] = $wa;
+		}
+		if ( $pattrs ) {
+			$p->set_attributes( $pattrs );
+		}
+		$pid = $p->save();
+		if ( ! $pid ) {
+			continue;
+		}
+		if ( ! empty( $pd['image'] ) ) {
+			$aid = $sideload( $pd['image'], $pd['name'], $pid );
+			if ( $aid ) {
+				$p->set_image_id( $aid );
+				$p->save();
+			}
+		}
+		$pl = ! empty( $pd['layout'] ) ? sanitize_key( $pd['layout'] ) : $layout;
+		if ( $pl && function_exists( 'gogh_product_layouts' ) && array_key_exists( $pl, gogh_product_layouts() ) ) {
+			update_post_meta( $pid, '_wp_page_template', $pl );
+		}
+		if ( $variable ) {
+			foreach ( (array) $pd['variations'] as $var ) {
+				if ( ! class_exists( 'WC_Product_Variation' ) ) {
+					break;
+				}
+				$v  = new WC_Product_Variation();
+				$va = array();
+				foreach ( (array) ( isset( $var['attributes'] ) ? $var['attributes'] : array() ) as $aslug => $tslug ) {
+					if ( isset( $attrs[ $aslug ] ) ) {
+						$va[ $attrs[ $aslug ]['tax'] ] = sanitize_title( $tslug );
+					}
+				}
+				$v->set_parent_id( $pid );
+				$v->set_attributes( $va );
+				$v->set_regular_price( (string) ( isset( $var['price'] ) ? $var['price'] : ( isset( $pd['price'] ) ? $pd['price'] : '' ) ) );
+				if ( ! empty( $var['sale'] ) ) {
+					$v->set_sale_price( (string) $var['sale'] );
+				}
+				$v->set_stock_status( 'instock' );
+				$v->save();
+			}
+			WC_Product_Variable::sync( $pid );
+		}
+	}
+	update_option( 'gogh_starter_shop_log', array_slice( $log, 0, 60 ), false );
+}
 add_action( 'init', function () {
 	foreach ( gogh_starters() as $slug => $m ) {
 		foreach ( $m['pages'] as $pg ) {
@@ -2471,7 +2694,7 @@ add_action( 'rest_api_init', function () {
 			return current_user_can( 'edit_posts' );
 		},
 		'callback'            => function () {
-			return array( 'build' => '0.99.465-chrome' );
+			return array( 'build' => '0.99.466-chrome' );
 		},
 	) );
 	register_rest_route( 'gogh/v1', '/starter', array(
@@ -2763,12 +2986,16 @@ add_action( 'rest_api_init', function () {
 						if ( $gs_id ) {
 							wp_update_post( array(
 								'ID'           => $gs_id,
-								'post_content' => wp_json_encode( array(
+								// slashed: wp_update_post unslashes its input, and a variation whose
+								// font names carry \"quotes\" (Morning's Ysabeau Office) came back as
+								// broken JSON that the palette merge below could not read — the site
+								// kept the colours and lost the type
+								'post_content' => wp_slash( wp_json_encode( array(
 									'version'                     => class_exists( 'WP_Theme_JSON' ) ? WP_Theme_JSON::LATEST_SCHEMA : 3,
 									'isGlobalStylesUserThemeJSON' => true,
 									'settings'                    => isset( $v['settings'] ) ? $v['settings'] : new stdClass(),
 									'styles'                      => isset( $v['styles'] ) ? $v['styles'] : new stdClass(),
-								) ),
+								) ) ),
 							) );
 						}
 						break;
@@ -2794,13 +3021,16 @@ add_action( 'rest_api_init', function () {
 					$accents = isset( $pal['accents'] ) && is_array( $pal['accents'] ) ? array_values( $pal['accents'] ) : array();
 					$ai      = 0;
 					$out_pal = array();
+					// $pslug, not $slug: this loop used to reuse the starter's own
+					// $slug and left it reading 'accent-6', so everything after the
+					// palette looked for its files in starters/accent-6/
 					foreach ( $theme_pal as $entry ) {
-						$slug = isset( $entry['slug'] ) ? $entry['slug'] : '';
-						if ( ( 'base' === $slug || 'background' === $slug ) && ! empty( $pal['base'] ) ) {
+						$pslug = isset( $entry['slug'] ) ? $entry['slug'] : '';
+						if ( ( 'base' === $pslug || 'background' === $pslug ) && ! empty( $pal['base'] ) ) {
 							$entry['color'] = $pal['base'];
-						} elseif ( ( 'contrast' === $slug || 'text' === $slug || 'foreground' === $slug ) && ! empty( $pal['contrast'] ) ) {
+						} elseif ( ( 'contrast' === $pslug || 'text' === $pslug || 'foreground' === $pslug ) && ! empty( $pal['contrast'] ) ) {
 							$entry['color'] = $pal['contrast'];
-						} elseif ( $accents && 0 === strpos( $slug, 'accent' ) ) {
+						} elseif ( $accents && 0 === strpos( $pslug, 'accent' ) ) {
 							$entry['color'] = $accents[ $ai % count( $accents ) ];
 							$ai++;
 						}
@@ -2831,10 +3061,43 @@ add_action( 'rest_api_init', function () {
 						}
 						wp_update_post( array(
 							'ID'           => $gs_id,
-							'post_content' => wp_json_encode( $gs ),
+							'post_content' => wp_slash( wp_json_encode( $gs ) ), // wp_update_post unslashes: a variation's \"quoted\" font names would break the JSON
 						) );
 					}
 				}
+			}
+			// a starter may also bring a few STYLE decisions the variation
+			// leaves wrong for it (Morning paints button words in the contrast
+			// colour, which on a cobalt button is ink on blue): merged into
+			// the same user global styles, after the variation and palette
+			if ( ! empty( $m['styles'] ) && is_array( $m['styles'] ) && class_exists( 'WP_Theme_JSON_Resolver' ) ) {
+				$gs_id = WP_Theme_JSON_Resolver::get_user_global_styles_post_id();
+				if ( $gs_id ) {
+					$gs_post = get_post( $gs_id );
+					$gs      = $gs_post ? json_decode( (string) $gs_post->post_content, true ) : null;
+					if ( ! is_array( $gs ) ) {
+						$gs = array();
+					}
+					$gs['version']                     = class_exists( 'WP_Theme_JSON' ) ? WP_Theme_JSON::LATEST_SCHEMA : 3;
+					$gs['isGlobalStylesUserThemeJSON'] = true;
+					$cur                               = ( ! empty( $gs['styles'] ) && is_array( $gs['styles'] ) ) ? $gs['styles'] : array();
+					$gs['styles']                      = array_replace_recursive( $cur, $m['styles'] );
+					if ( empty( $gs['settings'] ) ) {
+						$gs['settings'] = new stdClass();
+					}
+					wp_update_post( array(
+						'ID'           => $gs_id,
+						'post_content' => wp_slash( wp_json_encode( $gs ) ), // wp_update_post unslashes: a variation's \"quoted\" font names would break the JSON
+					) );
+				}
+			}
+			// a shop design brings its shelves stocked: categories, an
+			// attribute or two, and the products themselves (rails data,
+			// so the canvas has something to sell from day one)
+			if ( class_exists( 'WooCommerce' ) && ( ! empty( $m['products'] ) || ! empty( $m['categories'] ) ) ) {
+				try {
+					gogh_starter_apply_shop( $slug, $m );
+				} catch ( \Throwable $e ) {}
 			}
 			update_option( 'show_on_front', 'page' );
 			update_option( 'page_on_front', $front ? $front : $made[0]['id'] );
@@ -3479,8 +3742,8 @@ add_action( 'admin_enqueue_scripts', function ( $hook ) {
 			$globals[] = $tax->attribute_label;
 		}
 	}
-	wp_enqueue_script( 'gogh-admin', plugins_url( 'gogh-admin.js', __FILE__ ), array(), '0.99.465-chrome', true );
-	wp_enqueue_style( 'gogh-admin', plugins_url( 'gogh-admin.css', __FILE__ ), array(), '0.99.465-chrome' );
+	wp_enqueue_script( 'gogh-admin', plugins_url( 'gogh-admin.js', __FILE__ ), array(), '0.99.466-chrome', true );
+	wp_enqueue_style( 'gogh-admin', plugins_url( 'gogh-admin.css', __FILE__ ), array(), '0.99.466-chrome' );
 	wp_localize_script( 'gogh-admin', 'GOGH_ADMIN', array(
 		'restUrl'   => esc_url_raw( rest_url( 'wc/v3/' ) ),
 		'nonce'     => wp_create_nonce( 'wp_rest' ),
@@ -4442,7 +4705,7 @@ function gogh_splash_css() {
 // wearing Magazine must read as Magazine logged-out, and the site's gait
 // is site-wide; both packs are a few KB of pure CSS.
 add_action( 'wp_enqueue_scripts', function () {
-	wp_register_style( 'gogh-looks', false, array(), '0.99.465-chrome' );
+	wp_register_style( 'gogh-looks', false, array(), '0.99.466-chrome' );
 	wp_enqueue_style( 'gogh-looks' );
 	wp_add_inline_style( 'gogh-looks', gogh_reading_style_css() . gogh_motion_css() . gogh_blog_style_css() );
 
@@ -4482,10 +4745,10 @@ add_action( 'wp_enqueue_scripts', function () {
 
 	// for every visitor: neutralise theme spacing around gogh sections, even
 	// on pages whose stored stylesheets predate this rule
-	wp_register_style( 'gogh-base', false, array(), '0.99.465-chrome' );
+	wp_register_style( 'gogh-base', false, array(), '0.99.466-chrome' );
 	// (the splash presentation itself lives in gogh_splash_css(), shared with
 	// the block editor — a wall in Gutenberg must look like a wall)
-	wp_register_script( 'gogh-view', false, array(), '0.99.465-chrome', true );
+	wp_register_script( 'gogh-view', false, array(), '0.99.466-chrome', true );
 	wp_enqueue_script( 'gogh-view' );
 	wp_add_inline_script( 'gogh-view',
 		// mega menu panels: hover opens with intent on fine pointers; the chevron
@@ -4778,9 +5041,9 @@ add_action( 'wp_enqueue_scripts', function () {
 
 	// compose must be REGISTERED here too — a dependency on an
 	// unregistered handle silently drops the whole editor script
-	wp_register_script( 'gogh-compose', plugins_url( 'gogh-compose.js', __FILE__ ), array(), '0.99.465-chrome', true );
-	wp_enqueue_script( 'gogh-editor', plugins_url( 'gogh-editor.js', __FILE__ ), array( 'gogh-compose' ), '0.99.465-chrome', true );
-	wp_enqueue_style( 'gogh-editor', plugins_url( 'gogh-editor.css', __FILE__ ), array(), '0.99.465-chrome' );
+	wp_register_script( 'gogh-compose', plugins_url( 'gogh-compose.js', __FILE__ ), array(), '0.99.466-chrome', true );
+	wp_enqueue_script( 'gogh-editor', plugins_url( 'gogh-editor.js', __FILE__ ), array( 'gogh-compose' ), '0.99.466-chrome', true );
+	wp_enqueue_style( 'gogh-editor', plugins_url( 'gogh-editor.css', __FILE__ ), array(), '0.99.466-chrome' );
 
 	// WebMCP bridge: the page registers its editing verbs as agent tools.
 	// OPT-IN only — add ?gogh-mcp=1 for a demo session (or enable sitewide
@@ -4792,19 +5055,19 @@ add_action( 'wp_enqueue_scripts', function () {
 	// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only labs toggle
 	$gogh_exp = isset( $_GET['gogh-test'] ) || ( isset( $_GET['gogh-experiments'] ) && '0' !== $_GET['gogh-experiments'] );
 	if ( isset( $_GET['gogh-mcp'] ) || $gogh_exp || apply_filters( 'gogh_webmcp_enabled', false ) ) {
-		wp_enqueue_script( 'gogh-webmcp', plugins_url( 'gogh-webmcp.js', __FILE__ ), array( 'gogh-editor' ), '0.99.465-chrome', true );
+		wp_enqueue_script( 'gogh-webmcp', plugins_url( 'gogh-webmcp.js', __FILE__ ), array( 'gogh-editor' ), '0.99.466-chrome', true );
 	}
 
 	// regression suite: /page/?gogh-test (editors only, never saves)
 	// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only toggle enqueuing a test script for capability-checked editors.
 	if ( isset( $_GET['gogh-test'] ) ) {
-		wp_enqueue_script( 'gogh-tests', plugins_url( 'gogh-tests.js', __FILE__ ), array( 'gogh-editor' ), '0.99.465-chrome', true );
+		wp_enqueue_script( 'gogh-tests', plugins_url( 'gogh-tests.js', __FILE__ ), array( 'gogh-editor' ), '0.99.466-chrome', true );
 	}
 	// the user-test walk: /?gogh-edit=1&gogh-walk=1 on a DISPOSABLE Yellow
 	// House (it publishes) — editors only, never shipped in the zip
 	// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only toggle for capability-checked editors.
 	if ( isset( $_GET['gogh-walk'] ) ) {
-		wp_enqueue_script( 'gogh-walk', plugins_url( 'gogh-walk.js', __FILE__ ), array( 'gogh-editor' ), '0.99.465-chrome', true );
+		wp_enqueue_script( 'gogh-walk', plugins_url( 'gogh-walk.js', __FILE__ ), array( 'gogh-editor' ), '0.99.466-chrome', true );
 	}
 
 	// products live outside wp/v2, so gogh carries its own save route for
@@ -4824,7 +5087,7 @@ add_action( 'wp_enqueue_scripts', function () {
 		'postTitle'  => get_the_title( $post ),
 		'permalink'  => esc_url_raw( get_permalink( $post->ID ) ),
 		'excerpt'    => (string) $post->post_excerpt,
-		'build'    => '0.99.465-chrome',
+		'build'    => '0.99.466-chrome',
 		// two rooms, one landmark (same contract as the admin bar): on a POST
 		// the corner pill opens the WRITING surface, not the freeform canvas
 		'writeUrl' => is_singular( 'post' ) ? add_query_arg( 'gogh-write', '1', get_permalink( $post ) ) : null,

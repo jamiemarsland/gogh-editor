@@ -12,6 +12,10 @@ Every link below builds a fresh, throwaway WordPress site in your browser with g
   https://playground.wordpress.net/?blueprint-url=https://raw.githubusercontent.com/jamiemarsland/gogh-demo/main/blueprint-classic.json&storage=temp
 - **The Yellow House with a shop** — WooCommerce, four prints, gogh's shop looks.
   https://playground.wordpress.net/?blueprint-url=https://raw.githubusercontent.com/jamiemarsland/gogh-demo/main/blueprint-experiments.json&storage=temp
+- **Halcyon — a film studio.** Dark, cinematic, parallax hero and veiled portfolio cards.
+  https://playground.wordpress.net/?blueprint-url=https://raw.githubusercontent.com/jamiemarsland/gogh-demo/main/blueprint-film-studio.json&storage=temp
+- **Hollowell — a ceramics studio's shop.** WooCommerce with twelve pots in four glazes: gogh's canvas around Woo's rails.
+  https://playground.wordpress.net/?blueprint-url=https://raw.githubusercontent.com/jamiemarsland/gogh-demo/main/blueprint-ceramics.json&storage=temp
 
 Things to try once you're in: drag the headline somewhere else, roll the die on a section (the ⚄ in the section pill) to see three more takes on the same words, open the header from the page, and publish. The site lives only in that tab — closing or refreshing it starts over. Swap `storage=temp` for `storage=browser` at the end of a link if you'd rather it survived a refresh.
 

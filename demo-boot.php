@@ -20,6 +20,22 @@ $dir = WP_PLUGIN_DIR . '/gogh/demo-assets/';
 $starter = defined( 'GOGH_DEMO_STARTER' ) ? sanitize_key( GOGH_DEMO_STARTER ) : 'yellow-house';
 if ( 'yellow-house' !== $starter ) {
 	try { wp_trash_post( 1 ); } catch ( \Throwable $e ) {}
+	// a shop design boots with WooCommerce already active: its own pages
+	// must exist before the design seats them in the menu, and a demo
+	// never shows the setup wizard, the task list or a coming-soon veil
+	if ( class_exists( 'WooCommerce' ) ) {
+		try {
+			if ( class_exists( 'WC_Install' ) ) {
+				WC_Install::create_pages();
+			}
+			delete_transient( '_wc_activation_redirect' );
+			update_option( 'woocommerce_onboarding_profile', array( 'skipped' => true ) );
+			update_option( 'woocommerce_task_list_hidden', 'yes' );
+			update_option( 'woocommerce_coming_soon', 'no' );
+			update_option( 'woocommerce_currency', defined( 'GOGH_DEMO_CURRENCY' ) ? sanitize_text_field( GOGH_DEMO_CURRENCY ) : 'GBP' );
+			update_option( 'woocommerce_default_country', 'GB' );
+		} catch ( \Throwable $e ) {}
+	}
 	try {
 		$req = new WP_REST_Request( 'POST', '/gogh/v1/starter' );
 		$req->set_param( 'slug', $starter );
