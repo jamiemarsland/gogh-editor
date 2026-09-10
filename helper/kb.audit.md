@@ -1,8 +1,8 @@
-# Knowledge-base audit — plugin v0.99.468
+# Knowledge-base audit — plugin v0.99.469
 
 _13 finding(s) suppressed by `kb.audit-ignore.txt`._
 
-## MISSING (93)
+## MISSING (94)
 
 The source has something the prose never explains. The bot knows the name from the appendix but cannot say what it is for.
 
@@ -64,6 +64,7 @@ The source has something the prose never explains. The bot knows the name from t
 - WP hook `admin_post_gogh_post_layout` exists in source but is never mentioned in the prose
 - WP hook `admin_post_gogh_post_layout_all` exists in source but is never mentioned in the prose
 - WP hook `get_post_metadata` exists in source but is never mentioned in the prose
+- WP hook `wp_footer` exists in source but is never mentioned in the prose
 - WP hook `admin_post_gogh_product_layout` exists in source but is never mentioned in the prose
 - WP hook `safe_style_css` exists in source but is never mentioned in the prose
 - WP hook `wp_kses_allowed_html` exists in source but is never mentioned in the prose
@@ -104,4 +105,5 @@ The source has something the prose never explains. The bot knows the name from t
 
 Use this as the checklist for updating the prose — and as a sanity check on the release itself.
 
-- version: 0.99.467 → 0.99.468
+- version: 0.99.468 → 0.99.469
+- added WP hook: "wp_footer"
