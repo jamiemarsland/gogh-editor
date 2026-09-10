@@ -1,4 +1,4 @@
-# Knowledge-base audit — plugin v0.99.475
+# Knowledge-base audit — plugin v0.99.476
 
 _13 finding(s) suppressed by `kb.audit-ignore.txt`._
 
@@ -107,17 +107,9 @@ The source has something the prose never explains. The bot knows the name from t
 
 Use this as the checklist for updating the prose — and as a sanity check on the release itself.
 
-- version: 0.99.474 → 0.99.475
-- added UI label: "Align ' + a[1].toLowerCase() + '"
-- added UI label: "Align, space evenly, tidy up"
-- added UI label: "Delete"
-- added UI label: "Delete the selection"
-- added UI label: "Duplicate"
-- added UI label: "Duplicate the selection"
-- added UI label: "Equal gaps between the pieces"
-- added UI label: "Line the row up and even the gaps"
-- added UI label: "Make a card"
-- added UI label: "Make these one card — it holds together on phones"
-- added UI label: "Space evenly"
-- added UI label: "Tidy up"
-- added toast: "One card now — it holds together on phones. Click it for a background."
+- version: 0.99.475 → 0.99.476
+- removed UI label: "Align ' + a[1].toLowerCase() + '"
+- removed UI label: "Align, space evenly, tidy up"
+- added UI label: "Line the pieces up, or even out the gaps"
+- added UI label: "Line up ' + a[1].toLowerCase() + '"
+- added UI label: "Line up ▾"
