@@ -1142,7 +1142,7 @@
       btnBg: e.btnBg || null, btnText: e.btnText || null, btnHover: e.btnHover || null,
       wsrc: e.wsrc || null, whtml: e.whtml || null, wcol: e.wcol || null,
       // the rails element: its flag and its few choices travel with the model
-      rails: e.rails ? true : undefined, shop: e.shop || undefined,
+      rails: e.rails ? true : undefined, shop: e.shop || undefined, posts: e.posts || undefined,
       boxBg: e.boxBg || null, radius: e.radius || 0, shape: e.shape || null,
       boxImg: e.boxImg || null, boxImgId: e.boxImgId || null,
       mood: e.mood || null,
@@ -1756,6 +1756,9 @@
       // a rails element saved before the model carried its flag (v0.99.372-387)
       // reads its few choices back out of Woo's block it composed
       if (e.type === 'widget' && !e.shop && /wp:woocommerce\/product-collection/.test(e.wsrc || '')) healRails(e);
+      // a posts grid saved before it rode the rails (a fixed three-up loop)
+      // reads its few choices back out of the query it composed
+      if (e.type === 'widget' && !e.posts && !e.shop && /wp:query\b/.test(e.wsrc || '') && /"postType":"post"/.test(e.wsrc || '')) healPosts(e);
       if (e.type === 'widget' && !e.shop && /wp:woocommerce\/product-categories/.test(e.wsrc || '') && /gogh-shop-cats/.test(e.wsrc || '')) { e.rails = true; e.shop = Object.assign(shopDefaults(), { kind: 'categories', count: (/gogh-shop-cats-c(\d)/.exec(e.wsrc) || [0, 3])[1] * 1 }); }
       if (e.faq && e.faq.length && e.wsrc && e.wsrc.indexOf('role="group"') === -1) composeWidgetData(e);
       if (e.tabs && e.tabs.length && e.wsrc && e.wsrc.indexOf('role="tabpanel"') === -1) composeWidgetData(e);
@@ -2474,6 +2477,7 @@
   elbar.querySelector('.gogh-eb-manage').addEventListener('click', function () {
     if (!sel) return;
     var e2 = sel.sec.els[sel.i];
+    if (e2 && e2.posts) { window.open(managePostsUrl(e2), '_blank', 'noopener'); return; }
     if (e2 && e2.shop) window.open(e2.shop.kind === 'categories' ? (cfg.adminUrl || '/wp-admin/') + 'edit-tags.php?taxonomy=product_cat&post_type=product' : manageProductsUrl(e2), '_blank', 'noopener');
   });
   var fsBtn = elbar.querySelector('.gogh-eb-fs');
@@ -2820,14 +2824,18 @@
       // bare shapes keep the shape glyph (their panel really picks shapes)
       var isCardEl = e.type === 'box' && e.kids && e.kids.length;
       ctxBtn.innerHTML = CTX_ICONS[e.type === 'button' ? 'link' : e.type === 'box' ? (isCardEl ? 'image' : 'shape') : 'image'];
-      ctxBtn.title = (e.rails && e.shop) ? 'Edit design' : e.type === 'video' ? 'Video' : e.type === 'button' ? 'Button link' : e.type === 'box' ? ( isCardEl ? 'Background image & colour' : 'Shape, colour & image' ) : e.type === 'widget' ? (e.faq ? 'Edit the questions' : e.tabs ? 'Edit the tabs' : e.slides ? 'Edit the slides' : e.wall ? 'Edit the photos' : 'Block settings & link') : 'Choose image';
+      ctxBtn.title = (e.rails && (e.shop || e.posts)) ? 'Edit design' : e.type === 'video' ? 'Video' : e.type === 'button' ? 'Button link' : e.type === 'box' ? ( isCardEl ? 'Background image & colour' : 'Shape, colour & image' ) : e.type === 'widget' ? (e.faq ? 'Edit the questions' : e.tabs ? 'Edit the tabs' : e.slides ? 'Edit the slides' : e.wall ? 'Edit the photos' : 'Block settings & link') : 'Choose image';
       ctxBtn.style.display = '';
     } else {
       ctxBtn.style.display = 'none';
     }
-    elbar.querySelector('.gogh-eb-manage').style.display = (e.rails && e.shop) ? '' : 'none';
-    if (e.rails && e.shop) {
-      // two verbs at the point of touch: Manage products · Edit design
+    var railsEl = !!(e.rails && (e.shop || e.posts));
+    var manageBtn = elbar.querySelector('.gogh-eb-manage');
+    manageBtn.style.display = railsEl ? '' : 'none';
+    manageBtn.textContent = e.posts ? 'Manage posts' : 'Manage products';
+    manageBtn.title = e.posts ? 'Open your posts in WordPress' : 'Open your products in WordPress';
+    if (railsEl) {
+      // two verbs at the point of touch: Manage products (or posts) · Edit design
       ctxBtn.textContent = 'Edit design';
       ctxBtn.title = 'Edit design';
       ctxBtn.style.display = '';
@@ -4190,6 +4198,7 @@
   function buildWidgetPanel(sec, i) {
     var e = sec.els[i];
     if (e.rails && e.shop) return buildShopPanel(sec, i);
+    if (e.rails && e.posts) return buildPostsPanel(sec, i);
     if ((e.faq && e.faq.length) || (e.tabs && e.tabs.length)) return buildQnaPanel(sec, i);
     if (e.slides && e.slides.length) return buildCarouselPanel(sec, i);
     if (e.wall && e.wall.length) return buildWallPanel(sec, i);
@@ -5095,17 +5104,14 @@
           '</div>' };
     },
     posts: function () {
-      // a real core query loop: WordPress renders it fresh on the published
-      // page (and it keeps working with the plugin deactivated)
-      var wsrc = '<!-- wp:query {"queryId":0,"query":{"perPage":3,"pages":0,"offset":0,"postType":"post","order":"desc","orderBy":"date","author":"","search":"","exclude":[],"sticky":"","inherit":false}} -->\n' +
-        '<div class="wp-block-query">' +
-        '<!-- wp:post-template {"layout":{"type":"grid","columnCount":3}} -->\n' +
-        '<!-- wp:post-featured-image {"isLink":true,"aspectRatio":"4/3"} /-->\n' +
-        '<!-- wp:post-title {"level":3,"isLink":true} /-->\n' +
-        '<!-- wp:post-date /-->\n' +
-        '<!-- /wp:post-template -->' +
-        '</div>\n<!-- /wp:query -->';
-      return { type: 'widget', x: 47, y: 60, w: 1106, h: 430, wsrc: wsrc,
+      // THE OTHER RAILS ELEMENT: a real core query loop composed from a few
+      // choices (how many, which, a look), so WordPress renders the posts
+      // fresh on the published page and the grid keeps working with gogh
+      // deactivated. The blog page's four looks are the grid's looks too
+      var posts = postsDefaults();
+      // the content width a heading uses (100..1100), so on the published page
+      // the rail shares the heading's column and the grid sits centred
+      return { type: 'widget', rails: true, posts: posts, x: 100, y: 60, w: 1000, h: 430, wsrc: composePosts(posts),
         whtml: '<div class="gogh-postsprev gogh-postsprev-loading">Loading your latest posts\u2026</div>' };
     },
     products: function () {
@@ -5120,19 +5126,268 @@
         whtml: '<div class="gogh-shopprev gogh-postsprev-loading">Loading your products\u2026</div>' };
     },
   };
-  function postsPreviewHTML(posts) {
-    return '<div class="gogh-postsprev">' + posts.map(function (p) {
-      var media = p._embedded && p._embedded['wp:featuredmedia'] && p._embedded['wp:featuredmedia'][0];
+  // ---------- the posts grid on rails ----------
+  function postsDefaults() {
+    return { look: '', count: 3, order: 'date', cat: null, catId: null,
+      show: { date: true, excerpt: false, category: false }, aspect: 'landscape', spacing: 'm' };
+  }
+  // the four looks the blog page can wear are the grid's looks: one family
+  // of CSS, so the home page teaser and the journal read as one
+  var POSTS_LOOKS = ['cards', 'list', 'cover', 'ledger'];
+  function composePosts(posts) {
+    posts = posts || postsDefaults();
+    var show = posts.show || { date: true, excerpt: false, category: false };
+    var count = Math.max(1, Math.min(12, +posts.count || 3));
+    // hand-picked: the exact posts, in this order (the server reads the
+    // marker from the template's class and narrows the query to them)
+    var picked = (posts.pick || []).map(function (p) { return +p.id; }).filter(Boolean);
+    if (picked.length) count = picked.length;
+    var orderBy = posts.order === 'title' ? 'title' : posts.order === 'rand' ? 'rand' : 'date';
+    var order = posts.order === 'title' || posts.order === 'oldest' ? 'asc' : 'desc';
+    var look = POSTS_LOOKS.indexOf(posts.look) !== -1 ? posts.look : '';
+    var cols = count >= 4 ? (count % 4 === 0 ? 4 : 3) : Math.max(1, count);
+    var ratio = posts.aspect === 'square' ? '1' : posts.aspect === 'portrait' ? '3/4' : '4/3';
+    var cls = 'gogh-posts gogh-posts-' + (look ? 'look' : 'grid') + ' gogh-posts-gap-' + (posts.spacing || 'm') + (look ? ' gogh-blog-' + look : '');
+    var query = { perPage: count, pages: 0, offset: 0, postType: 'post', order: order, orderBy: orderBy, author: '', search: '', exclude: [], sticky: '', inherit: false };
+    if (posts.catId) query.taxQuery = { category: [+posts.catId] };
+    // a look lays the list out itself; the plain grid leans on core's grid
+    var tplAttrs = { className: 'gogh-posts-tpl' + (picked.length ? ' gogh-pick-' + picked.join(',') : ''),
+      layout: look ? { type: 'default' } : { type: 'grid', columnCount: cols } };
+    var inner = '<!-- wp:post-featured-image {"isLink":true,"aspectRatio":"' + ratio + '"} /-->\n' +
+      '<!-- wp:post-title {"level":3,"isLink":true} /-->\n' +
+      (show.category ? '<!-- wp:post-terms {"term":"category"} /-->\n' : '') +
+      (show.date ? '<!-- wp:post-date /-->\n' : '') +
+      (show.excerpt ? '<!-- wp:post-excerpt {"moreText":""} /-->\n' : '');
+    return '<!-- wp:query ' + JSON.stringify({ queryId: 0, query: query, className: cls }) + ' -->\n' +
+      '<div class="wp-block-query ' + cls + '">\n' +
+      '<!-- wp:post-template ' + JSON.stringify(tplAttrs) + ' -->\n' + inner + '<!-- /wp:post-template -->\n' +
+      '</div>\n<!-- /wp:query -->';
+  }
+  // what a posts rail shows before (or without) a fetch: the posts it last
+  // drew, redrawn in its current clothes, or the loading card
+  function postsSampleHTML(e) {
+    return e.__postsData ? postsPreviewHTML(e, e.__postsData) : '<div class="gogh-postsprev gogh-postsprev-loading">Loading your latest posts\u2026</div>';
+  }
+  function managePostsUrl(e) {
+    return (cfg.adminUrl || '/wp-admin/') + 'edit.php' + (e.posts && e.posts.catId ? '?cat=' + (+e.posts.catId) : '');
+  }
+  // a posts grid saved before it rode the rails: its choices, read back
+  function healPosts(e) {
+    var posts = postsDefaults();
+    try {
+      var m = /wp:query (\{[\s\S]*?\}) -->/.exec(e.wsrc || '');
+      var attrs = m ? JSON.parse(m[1]) : {};
+      var q = attrs.query || {};
+      if (q.perPage) posts.count = +q.perPage;
+      if (q.orderBy === 'title') posts.order = 'title';
+      else if (q.orderBy === 'rand') posts.order = 'rand';
+      else if (q.order === 'asc') posts.order = 'oldest';
+      if (q.taxQuery && q.taxQuery.category && q.taxQuery.category.length) posts.catId = +q.taxQuery.category[0];
+      var lk = /gogh-blog-(cards|list|cover|ledger)/.exec(String(attrs.className || ''));
+      if (lk) posts.look = lk[1];
+      var g = /gogh-posts-gap-([sml])/.exec(String(attrs.className || ''));
+      if (g) posts.spacing = g[1];
+      var ar = /"aspectRatio":"([^"]+)"/.exec(e.wsrc || '');
+      if (ar) posts.aspect = ar[1] === '3/4' ? 'portrait' : ar[1] === '1' ? 'square' : 'landscape';
+      posts.show = { date: /wp:post-date/.test(e.wsrc), excerpt: /wp:post-excerpt/.test(e.wsrc), category: /wp:post-terms/.test(e.wsrc) };
+      var pk = /gogh-pick-([\d,]+)/.exec(e.wsrc || '');
+      if (pk) posts.pick = pk[1].split(',').map(function (id) { return { id: +id, name: 'Post ' + id }; });
+    } catch (err) {}
+    e.rails = true;
+    e.posts = posts;
+  }
+  function postsPreviewHTML(e, posts) {
+    var p = (e && e.posts) || postsDefaults();
+    var show = p.show || { date: true, excerpt: false, category: false };
+    var n = Math.max(1, Math.min(12, (p.pick && p.pick.length) || +p.count || 3));
+    var look = POSTS_LOOKS.indexOf(p.look) !== -1 ? p.look : '';
+    var cols = look === 'list' || look === 'ledger' ? 1 : look === 'cover' ? 3 : (n >= 4 ? (n % 4 === 0 ? 4 : 3) : n);
+    var cls = 'gogh-postsprev gogh-postsprev-c' + cols + ' gogh-postsprev-' + (p.aspect || 'landscape') + ' gogh-postsprev-gap-' + (p.spacing || 'm') + (look ? ' gogh-postsprev-look-' + look : '');
+    if (!posts || !posts.length) {
+      // the designed empty grid: the owner sees the next verb, never a hole
+      return '<div class="' + cls + ' gogh-postsprev-empty"><div class="gogh-shopprev-emptycard">' +
+        '<strong>' + (p.catId ? 'Nothing in this category yet.' : 'No posts yet.') + '</strong>' +
+        '<span>' + (p.catId ? 'Posts filed under it appear here.' : 'Write your first post and it appears here.') + '</span>' +
+        '<a href="' + escAttr((cfg.adminUrl || '/wp-admin/') + 'post-new.php') + '" target="_blank" rel="noopener">Write a post ↗</a></div></div>';
+    }
+    return '<div class="' + cls + '">' + posts.map(function (post) {
+      var media = post._embedded && post._embedded['wp:featuredmedia'] && post._embedded['wp:featuredmedia'][0];
       var sizes = media && media.media_details && media.media_details.sizes;
       var src = sizes && ((sizes.medium_large || sizes.large || sizes.full || {}).source_url) || (media && media.source_url) || null;
       var when = '';
-      try { when = new Date(p.date).toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' }); } catch (err) {}
+      try { when = new Date(post.date).toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' }); } catch (err) {}
+      var cat = '';
+      try { var terms = post._embedded && post._embedded['wp:term']; cat = terms && terms[0] && terms[0][0] ? terms[0][0].name : ''; } catch (err2) {}
+      var ex = String((post.excerpt && post.excerpt.rendered) || '').replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim();
+      // no picture: a brand-tinted stand-in, hue seeded by the post so
+      // neighbours never match (the blog's own trick)
+      var hue = ((+post.id || 1) * 47) % 360;
       return '<div class="gogh-postsprev-card">' +
-        (src ? '<img src="' + escAttr(src) + '" alt="" />' : '<div class="gogh-postsprev-ph"></div>') +
-        '<h3>' + esc((p.title && p.title.rendered) || 'Untitled') + '</h3>' +
-        '<div class="gogh-postsprev-date">' + when + '</div>' +
-        '</div>';
+        (src ? '<img src="' + escAttr(src) + '" alt="" />' : '<div class="gogh-postsprev-ph" style="background: linear-gradient(130deg, oklch(0.72 0.09 ' + hue + '), oklch(0.35 0.08 ' + ((hue + 40) % 360) + '))"></div>') +
+        '<div class="gogh-postsprev-body">' +
+        (show.category && cat ? '<div class="gogh-postsprev-cat">' + esc(cat) + '</div>' : '') +
+        '<h3>' + esc((post.title && post.title.rendered) || 'Untitled') + '</h3>' +
+        (show.date ? '<div class="gogh-postsprev-date">' + when + '</div>' : '') +
+        (show.excerpt && ex ? '<div class="gogh-postsprev-ex">' + esc(ex.split(' ').slice(0, 22).join(' ')) + '</div>' : '') +
+        '</div></div>';
     }).join('') + '</div>';
+  }
+  function buildPostsPanel(sec, i) {
+    var e = sec.els[i];
+    var p = e.posts = e.posts || postsDefaults();
+    p.show = p.show || { date: true, excerpt: false, category: false };
+    var radios = function (cls, opts, cur) {
+      return '<div class="gogh-hoptlist ' + cls + '">' + opts.map(function (o) {
+        return '<button type="button" class="gogh-hopt' + (o[0] === cur ? ' is-active' : '') + '" data-v="' + o[0] + '">' +
+          '<span class="gogh-hopt-dot"></span><span class="gogh-hopt-name">' + esc(o[1]) + '</span></button>';
+      }).join('') + '</div>';
+    };
+    var chips = function (cls, opts, isOn) {
+      return '<div class="gogh-hpresets ' + cls + '">' + opts.map(function (o) {
+        return '<button type="button" class="gogh-hpreset' + (isOn(o[0]) ? ' is-active' : '') + '" data-v="' + o[0] + '">' + esc(o[1]) + '</button>';
+      }).join('') + '</div>';
+    };
+    panel.innerHTML =
+      '<div class="gogh-panel-title">Posts</div>' +
+      '<div class="gogh-shop-verbs">' +
+      '<a class="gogh-btn gogh-btn-small gogh-shop-manage" href="' + escAttr(managePostsUrl(e)) + '" target="_blank" rel="noopener">Manage posts ↗</a>' +
+      '<span class="gogh-shop-verb-on">Edit design</span></div>' +
+      '<div class="gogh-shop-auto">' +
+      '<div class="gogh-swlab">Posts</div>' +
+      chips('gogh-posts-count', [[3, '3'], [4, '4'], [6, '6'], [8, '8']], function (v) { return +v === +p.count; }) +
+      '<div class="gogh-swlab">Order</div>' +
+      radios('gogh-posts-order', [['date', 'Newest first'], ['oldest', 'Oldest first'], ['title', 'A to Z'], ['rand', 'A different set each visit']], p.order) +
+      '<div class="gogh-swlab">Category</div>' +
+      '<div class="gogh-panel-row"><select class="gogh-input gogh-posts-cat"><option value="">All posts</option></select></div>' +
+      '</div>' +
+      '<div class="gogh-swlab">Or hand-pick</div>' +
+      '<div class="gogh-shop-picked gogh-posts-picked"></div>' +
+      '<div class="gogh-panel-row"><input type="text" class="gogh-input gogh-posts-find" placeholder="Find a post by title…" /></div>' +
+      '<div class="gogh-shop-found gogh-posts-found"></div>' +
+      '<div class="gogh-swlab">Look</div>' +
+      radios('gogh-posts-look', [['', 'Grid — the theme’s own cards'], ['cards', 'Cards — pictures first'], ['list', 'List — hairlines, dates right'], ['cover', 'Cover — newest post huge'], ['ledger', 'Ledger — dense index']], p.look || '') +
+      '<div class="gogh-swlab">Show</div>' +
+      chips('gogh-posts-show', [['date', 'Date'], ['excerpt', 'Excerpt'], ['category', 'Category']], function (k) { return !!p.show[k]; }) +
+      '<div class="gogh-swlab">Picture</div>' +
+      chips('gogh-posts-aspect', [['landscape', 'Landscape'], ['square', 'Square'], ['portrait', 'Portrait']], function (v) { return v === (p.aspect || 'landscape'); }) +
+      '<div class="gogh-swlab">Spacing</div>' +
+      chips('gogh-posts-spacing', [['s', 'S'], ['m', 'M'], ['l', 'L']], function (v) { return v === (p.spacing || 'm'); }) +
+      '<div class="gogh-panel-hint">The looks are the four your blog page can wear, so the home page and the journal read as one.</div>';
+    var apply = function () {
+      e.wsrc = composePosts(p);
+      renderSection(sec);
+      placeHandles(sec, i);
+      pushState();
+      hydratePostsPreview(sec, e);
+      panel.querySelectorAll('.gogh-posts-count .gogh-hpreset').forEach(function (b) { b.classList.toggle('is-active', +b.dataset.v === +p.count); });
+      panel.querySelectorAll('.gogh-posts-order .gogh-hopt').forEach(function (b) { b.classList.toggle('is-active', b.dataset.v === p.order); });
+      panel.querySelectorAll('.gogh-posts-look .gogh-hopt').forEach(function (b) { b.classList.toggle('is-active', b.dataset.v === (p.look || '')); });
+      panel.querySelectorAll('.gogh-posts-show .gogh-hpreset').forEach(function (b) { b.classList.toggle('is-active', !!p.show[b.dataset.v]); });
+      panel.querySelectorAll('.gogh-posts-aspect .gogh-hpreset').forEach(function (b) { b.classList.toggle('is-active', b.dataset.v === (p.aspect || 'landscape')); });
+      panel.querySelectorAll('.gogh-posts-spacing .gogh-hpreset').forEach(function (b) { b.classList.toggle('is-active', b.dataset.v === (p.spacing || 'm')); });
+      var m = panel.querySelector('.gogh-shop-manage');
+      if (m) m.href = managePostsUrl(e);
+    };
+    panel.querySelectorAll('.gogh-posts-count .gogh-hpreset').forEach(function (b) { b.addEventListener('click', function () { p.count = +b.dataset.v; apply(); }); });
+    panel.querySelectorAll('.gogh-posts-order .gogh-hopt').forEach(function (b) { b.addEventListener('click', function () { p.order = b.dataset.v; apply(); }); });
+    panel.querySelectorAll('.gogh-posts-show .gogh-hpreset').forEach(function (b) { b.addEventListener('click', function () { p.show[b.dataset.v] = !p.show[b.dataset.v]; apply(); }); });
+    panel.querySelectorAll('.gogh-posts-aspect .gogh-hpreset').forEach(function (b) { b.addEventListener('click', function () { p.aspect = b.dataset.v; apply(); }); });
+    panel.querySelectorAll('.gogh-posts-spacing .gogh-hpreset').forEach(function (b) { b.addEventListener('click', function () { p.spacing = b.dataset.v; apply(); }); });
+    // looks AUDITION on hover and keep on click: the preview's last posts
+    // are redrawn in the hovered look, the kept look comes back on leave
+    var lookList = panel.querySelector('.gogh-posts-look');
+    var wearLook = function (look) {
+      if (!e.__postsData) return;
+      e.whtml = postsPreviewHTML({ posts: Object.assign({}, p, { look: look }) }, e.__postsData);
+      renderSection(sec);
+      placeHandles(sec, i);
+    };
+    lookList.querySelectorAll('.gogh-hopt').forEach(function (b) {
+      b.addEventListener('mouseenter', function () { wearLook(b.dataset.v); });
+      b.addEventListener('click', function () { p.look = b.dataset.v; apply(); });
+    });
+    lookList.addEventListener('mouseleave', function () { wearLook(p.look || ''); });
+    // categories: the site's own, with posts in them
+    fetch(cfg.restUrl.split('wp/v2/')[0] + 'wp/v2/categories?per_page=40&hide_empty=true&_fields=id,name,count', { headers: { 'X-WP-Nonce': cfg.nonce }, credentials: 'same-origin' })
+      .then(function (r) { return r.ok ? r.json() : []; }).catch(function () { return []; }).then(function (cats) {
+        var sel2 = panel.querySelector('.gogh-posts-cat');
+        if (!sel2 || panel.hidden) return;
+        (cats || []).forEach(function (c) {
+          var o = document.createElement('option');
+          o.value = c.id; o.textContent = c.name + ' (' + c.count + ')';
+          if (+c.id === +p.catId) o.selected = true;
+          sel2.appendChild(o);
+        });
+        sel2.addEventListener('change', function () {
+          var c = (cats || []).filter(function (x) { return +x.id === +sel2.value; })[0];
+          p.catId = c ? +c.id : null; p.cat = c ? c.name : null;
+          apply();
+        });
+      });
+    var picked = function () {
+      var box = panel.querySelector('.gogh-posts-picked');
+      var list = p.pick || [];
+      box.innerHTML = list.length
+        ? list.map(function (x, k) {
+          return '<span class="gogh-shop-pickchip">' + esc(x.name) + '<button type="button" class="gogh-shop-unpick" data-k="' + k + '" aria-label="Remove ' + escAttr(x.name) + '">&times;</button></span>';
+        }).join('') + '<div class="gogh-panel-hint">These, in this order. Count, order and category stand aside while you hand-pick.</div>'
+        : '<div class="gogh-panel-hint">Type a title to add the exact posts — the three you are proudest of, say.</div>';
+      panel.querySelectorAll('.gogh-shop-auto').forEach(function (nd) { nd.hidden = list.length > 0; });
+      box.querySelectorAll('.gogh-shop-unpick').forEach(function (b) {
+        b.addEventListener('click', function () {
+          p.pick.splice(+b.dataset.k, 1);
+          if (!p.pick.length) delete p.pick;
+          apply(); picked(); reclampPanel();
+        });
+      });
+    };
+    var find = panel.querySelector('.gogh-posts-find'), found = panel.querySelector('.gogh-posts-found'), findT = null;
+    find.addEventListener('input', function () {
+      clearTimeout(findT);
+      var qtext = find.value.trim();
+      if (qtext.length < 2) { found.innerHTML = ''; return; }
+      findT = setTimeout(function () {
+        fetch(cfg.restUrl.split('wp/v2/')[0] + 'wp/v2/posts?search=' + encodeURIComponent(qtext) + '&per_page=6&_fields=id,title,date', { headers: { 'X-WP-Nonce': cfg.nonce }, credentials: 'same-origin' })
+          .then(function (r) { return r.ok ? r.json() : []; }).catch(function () { return []; }).then(function (hits) {
+            if (panel.hidden || find.value.trim() !== qtext) return;
+            found.innerHTML = (hits || []).length ? hits.map(function (h) {
+              var on = (p.pick || []).some(function (x) { return +x.id === +h.id; });
+              var when = ''; try { when = new Date(h.date).toLocaleDateString(undefined, { year: 'numeric', month: 'short' }); } catch (err) {}
+              return '<button type="button" class="gogh-featrow gogh-shop-hit' + (on ? ' is-on' : '') + '" data-id="' + h.id + '" data-name="' + escAttr((h.title && h.title.rendered) || 'Untitled') + '">' +
+                '<span class="gogh-featname">' + esc((h.title && h.title.rendered) || 'Untitled') + '</span><span class="gogh-featprice">' + esc(when) + '</span></button>';
+            }).join('') : '<div class="gogh-panel-hint">No post by that title.</div>';
+            found.querySelectorAll('.gogh-shop-hit').forEach(function (b) {
+              b.addEventListener('click', function () {
+                p.pick = p.pick || [];
+                if (p.pick.some(function (x) { return +x.id === +b.dataset.id; })) return;
+                p.pick.push({ id: +b.dataset.id, name: b.dataset.name });
+                find.value = ''; found.innerHTML = '';
+                apply(); picked(); reclampPanel();
+              });
+            });
+          });
+      }, 220);
+    });
+    picked();
+  }
+  function hydratePostsPreview(sec, e) {
+    var p = e.posts || postsDefaults();
+    var picked = (p.pick || []).map(function (x) { return +x.id; }).filter(Boolean);
+    var q = picked.length
+      ? 'include=' + picked.join(',') + '&per_page=' + picked.length + '&orderby=include'
+      : 'per_page=' + Math.max(1, Math.min(12, +p.count || 3)) + '&orderby=' + (p.order === 'title' ? 'title' : 'date') +
+        '&order=' + (p.order === 'title' || p.order === 'oldest' ? 'asc' : 'desc') + (p.catId ? '&categories=' + (+p.catId) : '');
+    var gen = e.__postsGen = (e.__postsGen || 0) + 1;
+    fetch(cfg.restUrl.split('wp/v2/')[0] + 'wp/v2/posts?' + q + '&_embed=wp:featuredmedia,wp:term&status=publish', {
+      headers: { 'X-WP-Nonce': cfg.nonce },
+      credentials: 'same-origin',
+    }).then(function (r) { return r.ok ? r.json() : []; }).then(function (posts) {
+      if (gen !== e.__postsGen || sec.els.indexOf(e) === -1) return; // a newer choice is on its way
+      e.__postsData = Array.isArray(posts) ? posts : [];
+      e.whtml = postsPreviewHTML(e, e.__postsData);
+      renderSection(sec);
+      if (sel && sel.sec === sec) placeHandles(sec, sec.els.indexOf(e));
+    }).catch(function () {});
   }
   // a featured product is not an embed — it's a real gogh card composed of
   // real gogh elements (image, name, price badge, add-to-cart button), so
@@ -5400,17 +5655,6 @@
     }).then(function (r) { return r.ok ? r.json() : []; }).then(function (prods) {
       if (gen !== e.__shopGen || sec.els.indexOf(e) === -1) return; // a newer choice is on its way
       e.whtml = shopPreviewHTML(e, prods || []);
-      renderSection(sec);
-      if (sel && sel.sec === sec) placeHandles(sec, sec.els.indexOf(e));
-    }).catch(function () {});
-  }
-  function hydratePostsPreview(sec, e) {
-    fetch(cfg.restUrl.split('wp/v2/')[0] + 'wp/v2/posts?per_page=3&_embed=wp:featuredmedia&status=publish', {
-      headers: { 'X-WP-Nonce': cfg.nonce },
-      credentials: 'same-origin',
-    }).then(function (r) { return r.ok ? r.json() : []; }).then(function (posts) {
-      if (!posts.length || sec.els.indexOf(e) === -1) return;
-      e.whtml = postsPreviewHTML(posts);
       renderSection(sec);
       if (sel && sel.sec === sec) placeHandles(sec, sec.els.indexOf(e));
     }).catch(function () {});
@@ -6754,6 +6998,11 @@
         if (!e.wsrc) e.wsrc = composeShop(e.shop);
         if (!e.whtml) e.whtml = shopSampleHTML(e.shop);
       }
+      if (e.rails && e.posts) {
+        e.posts = Object.assign(postsDefaults(), e.posts, { show: Object.assign({ date: true, excerpt: false, category: false }, e.posts.show || {}) });
+        if (!e.wsrc) e.wsrc = composePosts(e.posts);
+        if (!e.whtml) e.whtml = postsSampleHTML(e);
+      }
       composeWidgetData(e);
     });
     return els;
@@ -7855,6 +8104,7 @@
   // what KIND of widget a piece is — a wall only ever rolls into a wall,
   // a shop rail into a shop family; the substance must have a slot to land in
   function diceWidgetKind(e) {
+    if (e.posts) return 'posts';
     if (e.rails || e.shop) return 'shop';
     if (e.faq) return 'faq';
     if (e.tabs) return 'tabs';
@@ -7952,7 +8202,7 @@
   // a widget's SUBSTANCE (the questions, the pictures) — the part a roll
   // must never lose; copt/wopt are clothes and belong to each take
   function diceWidgetData(e) {
-    return JSON.stringify({ faq: e.faq || null, tabs: e.tabs || null, pics: e.slides || e.wall || null, shop: e.shop || null });
+    return JSON.stringify({ faq: e.faq || null, tabs: e.tabs || null, pics: e.slides || e.wall || null, shop: e.shop || null, posts: e.posts || null });
   }
   function diceByRole(els) {
     var map = {};
@@ -8059,13 +8309,14 @@
   // a shop) need not carry that HTML twice: the original snapshot drops it
   // and the homecoming composes it again
   function diceRecomposable(e) {
-    return e.type === 'widget' && !!((e.rails && e.shop) || (e.faq && e.faq.length) || (e.tabs && e.tabs.length) ||
+    return e.type === 'widget' && !!((e.rails && e.shop) || (e.rails && e.posts) || (e.faq && e.faq.length) || (e.tabs && e.tabs.length) ||
       (e.slides && e.slides.length) || (e.wall && e.wall.length));
   }
   function diceRecompose(els) {
     diceFlatten(els).forEach(function (e) {
       if (!diceRecomposable(e) || e.whtml) return;
       if (e.rails && e.shop) { e.wsrc = composeShop(e.shop); e.whtml = shopSampleHTML(e.shop); }
+      else if (e.rails && e.posts) { e.wsrc = composePosts(e.posts); e.whtml = postsSampleHTML(e); }
       else composeWidgetData(e);
     });
     return els;
@@ -8487,6 +8738,13 @@
             e.wsrc = composeShop(e.shop);
             e.whtml = shopSampleHTML(e.shop);
           }
+          if (d.wdata.posts && e.posts) {
+            // likewise the posts: which, how many, what to show travel;
+            // the look, picture and spacing are the take's own
+            ['cat', 'catId', 'order', 'count', 'show', 'pick'].forEach(function (k) { if (d.wdata.posts[k] !== undefined) e.posts[k] = d.wdata.posts[k]; });
+            e.wsrc = composePosts(e.posts);
+            e.whtml = postsSampleHTML(e);
+          }
           composeWidgetData(e);
         }
       });
@@ -8526,7 +8784,7 @@
     renderSection(sec);
     diceFitWords(sec); // the take's display sizes were set for its own words: the user's must fit
     guardCheck(sec, 'roll to take ' + (next + 1));
-    sec.els.forEach(function (ex) { if (ex.rails && ex.shop) hydrateProductsPreview(sec, ex); });
+    sec.els.forEach(function (ex) { if (ex.rails && ex.shop) hydrateProductsPreview(sec, ex); if (ex.rails && ex.posts) hydratePostsPreview(sec, ex); });
     pushState();
     contrastSentinel(sec);
     return { face: next, of: faces.length, take: t2.take || null };
@@ -9371,7 +9629,7 @@
       }
     }
     renderSection(sec);
-    sec.els.forEach(function (ex) { if (ex.rails && ex.shop) hydrateProductsPreview(sec, ex); });
+    sec.els.forEach(function (ex) { if (ex.rails && ex.shop) hydrateProductsPreview(sec, ex); if (ex.rails && ex.posts) hydratePostsPreview(sec, ex); });
     sel = null;
     hideHandles();
     sec.wrapEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -15163,6 +15421,11 @@
     rollSection: rollSection,
     diceFaces: diceFaces,
     composeShop: composeShop,
+    composePosts: composePosts,
+    postsDefaults: postsDefaults,
+    postsPreviewHTML: postsPreviewHTML,
+    healPosts: healPosts,
+    hydratePostsPreview: hydratePostsPreview,
     shopPreviewHTML: shopPreviewHTML,
     diceFamilyOf: diceFamilyOf,
     shopDefaults: shopDefaults,
@@ -15227,7 +15490,7 @@
   if (verEl) verEl.textContent = GOGH_BUILD.replace('-chrome', '');
   try { console.info('[gogh] ' + GOGH_BUILD); } catch (e0) {}
   // rails elements draw a fresh preview from the live shop on every boot
-  try { S.forEach(function (sx) { (sx.els || []).forEach(function (ex) { if (ex.rails && ex.shop) hydrateProductsPreview(sx, ex); }); }); } catch (err) {}
+  try { S.forEach(function (sx) { (sx.els || []).forEach(function (ex) { if (ex.rails && ex.shop) hydrateProductsPreview(sx, ex); if (ex.rails && ex.posts) hydratePostsPreview(sx, ex); }); }); } catch (err) {}
   // ?gogh-paste=1 lands with the Paste HTML door already open — the
   // paste-a-page demo boots a blank site straight into it
   function openPasteDoor() {
@@ -21594,7 +21857,7 @@
     // in the editor kept whatever cards it was saved with — the picker's
     // sample soap shop, on Hollowell's shelf (James: 'are these meant to
     // have images?')
-    try { S.forEach(function (sx) { (sx.els || []).forEach(function (ex) { if (ex.rails && ex.shop) hydrateProductsPreview(sx, ex); }); }); } catch (err) {}
+    try { S.forEach(function (sx) { (sx.els || []).forEach(function (ex) { if (ex.rails && ex.shop) hydrateProductsPreview(sx, ex); if (ex.rails && ex.posts) hydratePostsPreview(sx, ex); }); }); } catch (err) {}
   }
   window.__goghRenderCanvasOnce = renderCanvasOnce;
   hydrateV3Sections().then(function () {

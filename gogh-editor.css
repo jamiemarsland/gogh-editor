@@ -2472,6 +2472,37 @@ html.gogh-chrome-mode .gogh-hgrip { display: none !important; }
 @container (max-width: 700px) {
   .gogh-postsprev { grid-template-columns: 1fr; }
 }
+/* the posts rail's preview: count, picture, spacing and the four looks */
+.gogh-postsprev-c1 { grid-template-columns: 1fr; }
+.gogh-postsprev-c2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.gogh-postsprev-c4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.gogh-postsprev-gap-s { gap: 12px; }
+.gogh-postsprev-gap-l { gap: 40px; }
+.gogh-postsprev-card { min-width: 0; }
+.gogh-postsprev-square .gogh-postsprev-card img, .gogh-postsprev-square .gogh-postsprev-ph { aspect-ratio: 1 / 1; }
+.gogh-postsprev-portrait .gogh-postsprev-card img, .gogh-postsprev-portrait .gogh-postsprev-ph { aspect-ratio: 3 / 4; }
+.gogh-postsprev-cat { font-size: 0.72em; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; opacity: 0.65; margin-top: 0.7em; }
+.gogh-postsprev-ex { font-size: 0.86em; line-height: 1.45; opacity: 0.8; margin-top: 0.35em; }
+.gogh-postsprev-empty { grid-template-columns: 1fr; }
+.gogh-postsprev-look-cards .gogh-postsprev-card { background: color-mix(in srgb, currentColor 7%, transparent); border-radius: 12px; overflow: hidden; }
+.gogh-postsprev-look-cards .gogh-postsprev-card img, .gogh-postsprev-look-cards .gogh-postsprev-ph { border-radius: 0; }
+.gogh-postsprev-look-cards .gogh-postsprev-body { padding: 0 16px 16px; }
+.gogh-postsprev-look-list, .gogh-postsprev-look-ledger { gap: 0; }
+.gogh-postsprev-look-list .gogh-postsprev-card, .gogh-postsprev-look-ledger .gogh-postsprev-card { border-top: 1px solid color-mix(in srgb, currentColor 25%, transparent); padding: 14px 0; }
+.gogh-postsprev-look-list .gogh-postsprev-card img, .gogh-postsprev-look-list .gogh-postsprev-ph, .gogh-postsprev-look-ledger .gogh-postsprev-card img, .gogh-postsprev-look-ledger .gogh-postsprev-ph { display: none; }
+.gogh-postsprev-look-list .gogh-postsprev-body { display: grid; grid-template-columns: 1fr auto; gap: 18px; align-items: baseline; }
+.gogh-postsprev-look-list .gogh-postsprev-body h3 { margin: 0; font-size: 1.2em; }
+.gogh-postsprev-look-list .gogh-postsprev-ex { grid-column: 1 / -1; margin-top: 0.2em; }
+.gogh-postsprev-look-ledger .gogh-postsprev-card { padding: 8px 0; }
+.gogh-postsprev-look-ledger .gogh-postsprev-body { display: grid; grid-template-columns: auto 1fr auto; gap: 14px; align-items: baseline; }
+.gogh-postsprev-look-ledger .gogh-postsprev-body h3 { margin: 0; font-size: 0.98em; font-weight: 500; }
+.gogh-postsprev-look-ledger .gogh-postsprev-cat { margin: 0; }
+.gogh-postsprev-look-ledger .gogh-postsprev-ex { display: none; }
+.gogh-postsprev-look-cover .gogh-postsprev-card:first-child { grid-column: 1 / -1; display: grid; grid-template-columns: 3fr 2fr; gap: 24px; align-items: end; }
+.gogh-postsprev-look-cover .gogh-postsprev-card:first-child img, .gogh-postsprev-look-cover .gogh-postsprev-card:first-child .gogh-postsprev-ph { aspect-ratio: 16 / 9; }
+.gogh-postsprev-look-cover .gogh-postsprev-card:first-child h3 { font-size: 1.8em; line-height: 1.1; }
+.gogh-postsprev-look-cover .gogh-postsprev-card:not(:first-child) img, .gogh-postsprev-look-cover .gogh-postsprev-card:not(:first-child) .gogh-postsprev-ph { display: none; }
+.gogh-postsprev-look-cover .gogh-postsprev-card:not(:first-child) { border-top: 1px solid color-mix(in srgb, currentColor 25%, transparent); padding-top: 12px; }
 
 /* pattern previews sit on the page's real background, not the card chrome —
    dark-on-dark themes stay readable */

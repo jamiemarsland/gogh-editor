@@ -3551,6 +3551,93 @@
       return 'two verbs, one small panel, stays open';
     });
 
+    test('the posts rail: a core query loop composed from few choices', function () {
+      var e = G.addElementToSection(G.sections().indexOf(sec()), 'posts');
+      expect(e && e.rails && e.posts, 'the posts element is not a rails element');
+      expect(/<!-- wp:query /.test(e.wsrc) && /"postType":"post"/.test(e.wsrc), 'source is not a core query loop');
+      expect(/"perPage":3/.test(e.wsrc) && /"columnCount":3/.test(e.wsrc), 'default is a 3-up grid: ' + e.wsrc.slice(0, 220));
+      expect(/wp:post-date/.test(e.wsrc) && !/wp:post-excerpt/.test(e.wsrc) && !/wp:post-terms/.test(e.wsrc), 'date shows by default; excerpt and category stay off');
+      expect(/gogh-posts-tpl/.test(e.wsrc) && !/gogh-blog-/.test(e.wsrc), 'the plain grid must not wear a look');
+      var dressed = G.composePosts({ look: 'cards', count: 4, order: 'oldest', cat: 'Notes', catId: 7, show: { date: false, excerpt: true, category: true }, aspect: 'portrait', spacing: 'l' });
+      expect(/gogh-blog-cards/.test(dressed) && /"layout":\{"type":"default"\}/.test(dressed), 'a look should dress the list and drop the column grid');
+      expect(/"order":"asc"/.test(dressed) && /"orderBy":"date"/.test(dressed), 'Oldest first not composed');
+      expect(/"taxQuery":\{"category":\[7\]\}/.test(dressed), 'the category did not narrow the query');
+      expect(/wp:post-excerpt/.test(dressed) && /wp:post-terms/.test(dressed) && !/wp:post-date/.test(dressed), 'Show chips not honoured');
+      expect(/"aspectRatio":"3\/4"/.test(dressed) && /gogh-posts-gap-l/.test(dressed), 'picture and spacing not composed');
+      var picked = G.composePosts(Object.assign(G.postsDefaults(), { pick: [{ id: 5, name: 'Five' }, { id: 9, name: 'Nine' }] }));
+      expect(/gogh-pick-5,9/.test(picked) && /"perPage":2/.test(picked), 'hand-picked posts should name themselves in the template and set the count');
+      expect(G.buildV3().indexOf('wp:query') !== -1, 'the built page lacks the query loop');
+      return 'a query loop from a few choices: grid, looks, category, hand-picks';
+    });
+
+    test('an old posts grid heals onto the rails; the empty grid names the next verb', function () {
+      var s0 = sec();
+      var old = { type: 'widget', x: 47, y: 60, w: 1106, h: 430,
+        wsrc: '<!-- wp:query {"queryId":0,"query":{"perPage":3,"pages":0,"offset":0,"postType":"post","order":"desc","orderBy":"date","author":"","search":"","exclude":[],"sticky":"","inherit":false},"className":"gogh-posts"} -->\n<div class="wp-block-query gogh-posts"><!-- wp:post-template {"layout":{"type":"grid","columnCount":3}} -->\n<!-- wp:post-featured-image {"isLink":true,"aspectRatio":"4/3"} /-->\n<!-- wp:post-title {"level":3,"isLink":true} /-->\n<!-- wp:post-date /-->\n<!-- /wp:post-template --></div>\n<!-- /wp:query -->',
+        whtml: '<div class="gogh-postsprev"></div>' };
+      s0.els.push(old);
+      G.renderSection(s0);
+      expect(old.rails && old.posts, 'the old grid did not heal onto the rails');
+      expect(old.posts.count === 3 && old.posts.order === 'date' && old.posts.look === '' && old.posts.show.date && !old.posts.show.excerpt, 'the heal misread the old choices: ' + JSON.stringify(old.posts));
+      s0.els.pop();
+      G.renderSection(s0);
+      var empty = G.postsPreviewHTML({ posts: G.postsDefaults() }, []);
+      expect(/No posts yet/.test(empty) && /Write a post/.test(empty) && /post-new\.php/.test(empty), 'the empty grid should say so and offer the next verb');
+      var fake = [1, 2, 3, 4].map(function (k) { return { id: k, date: '2026-09-0' + k + 'T10:00:00', title: { rendered: 'Post ' + k }, excerpt: { rendered: '<p>Words about post ' + k + '.</p>' } }; });
+      var four = G.postsPreviewHTML({ posts: Object.assign(G.postsDefaults(), { count: 4, look: 'cards', show: { date: true, excerpt: true, category: false } }) }, fake);
+      expect(/gogh-postsprev-c4/.test(four) && /gogh-postsprev-look-cards/.test(four), 'the preview should wear the count and the look: ' + four.slice(0, 160));
+      expect((four.match(/gogh-postsprev-ph/g) || []).length === 4 && /gogh-postsprev-ex/.test(four), 'pictureless posts get a tinted stand-in each; the excerpt shows when asked');
+      return 'old grids heal; the empty state and the looks draw';
+    });
+
+    test('the posts rail: two verbs, a small panel, looks audition and keep', function () {
+      var s0 = sec();
+      var e = G.addElementToSection(G.sections().indexOf(s0), 'posts');
+      var i = s0.els.indexOf(e);
+      expect(G.cardJoinTarget(s0, i) === -1, 'a posts rail was offered a card to join');
+      select(i);
+      var manage = q('.gogh-eb-manage');
+      expect(manage && manage.style.display !== 'none' && /Manage posts/.test(manage.textContent), 'Manage posts verb missing from the bar');
+      expect(q('.gogh-eb-ctx').title === 'Edit design', 'the context verb should read Edit design, got ' + q('.gogh-eb-ctx').title);
+      G.openPanel(s0, i);
+      var pnl = q('.gogh-panel');
+      expect(pnl.querySelector('.gogh-shop-manage') && /edit\.php/.test(pnl.querySelector('.gogh-shop-manage').getAttribute('href')), 'the panel should link to the posts list');
+      expect(pnl.querySelector('.gogh-posts-look') && pnl.querySelectorAll('.gogh-posts-look .gogh-hopt').length === 5, 'five looks: the grid and the blog’s four');
+      var cards = pnl.querySelector('.gogh-posts-look .gogh-hopt[data-v="cards"]');
+      cards.click();
+      expect(!pnl.hidden, 'the panel closed on a look pick');
+      expect(e.posts.look === 'cards' && /gogh-blog-cards/.test(e.wsrc), 'Cards did not recompose the source');
+      expect(cards.classList.contains('is-active'), 'Cards not marked active in place');
+      pnl.querySelector('.gogh-posts-count .gogh-hpreset[data-v="6"]').click();
+      expect(e.posts.count === 6 && /"perPage":6/.test(e.wsrc), 'the count chip did not recompose');
+      pnl.querySelector('.gogh-posts-show .gogh-hpreset[data-v="excerpt"]').click();
+      expect(e.posts.show.excerpt && /wp:post-excerpt/.test(e.wsrc), 'the excerpt chip did not recompose');
+      var snap = G.serialize();
+      expect(snap.indexOf('"posts":') !== -1 && snap.indexOf('"look":"cards"') !== -1, 'the projected model lost the posts choices');
+      G.closePanel();
+      return 'two verbs, one small panel, the choices ride the model';
+    });
+
+    testAsync('the posts rail draws the site’s own posts', function () {
+      var s0 = sec();
+      var e = G.addElementToSection(G.sections().indexOf(s0), 'posts');
+      var t0 = Date.now();
+      return new Promise(function (resolve) {
+        var poll = function () {
+          var drawn = /gogh-postsprev-card|gogh-postsprev-empty/.test(e.whtml || '');
+          if (drawn || Date.now() - t0 > 12000) resolve(drawn);
+          else setTimeout(poll, 150);
+        };
+        poll();
+      }).then(function (drawn) {
+        expect(drawn, 'the preview never drew posts or the empty grid: ' + String(e.whtml).slice(0, 120));
+        expect(!/Loading your latest posts/.test(e.whtml), 'the loading card should give way');
+        var idx = s0.els.indexOf(e);
+        if (idx !== -1) { s0.els.splice(idx, 1); G.renderSection(s0); }
+        return 'real posts on the shelf, or an honest empty grid';
+      });
+    });
+
     test('Sell family: Featured product and Bestsellers arrive on rails, with takes', function () {
       if (!GOGH.hasWoo) return 'no WooCommerce here \u2014 the Sell rails stay off the shelf, as designed';
       var tpls = G.templates();
