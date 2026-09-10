@@ -1,4 +1,4 @@
-# Knowledge-base audit — plugin v0.99.476
+# Knowledge-base audit — plugin v0.99.477
 
 _13 finding(s) suppressed by `kb.audit-ignore.txt`._
 
@@ -107,9 +107,5 @@ The source has something the prose never explains. The bot knows the name from t
 
 Use this as the checklist for updating the prose — and as a sanity check on the release itself.
 
-- version: 0.99.475 → 0.99.476
-- removed UI label: "Align ' + a[1].toLowerCase() + '"
-- removed UI label: "Align, space evenly, tidy up"
-- added UI label: "Line the pieces up, or even out the gaps"
-- added UI label: "Line up ' + a[1].toLowerCase() + '"
-- added UI label: "Line up ▾"
+- version: 0.99.476 → 0.99.477
+- added UI label: "Any colour"
