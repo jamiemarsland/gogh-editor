@@ -1763,6 +1763,7 @@
       if (e.faq && e.faq.length && e.wsrc && e.wsrc.indexOf('role="group"') === -1) composeWidgetData(e);
       if (e.tabs && e.tabs.length && e.wsrc && e.wsrc.indexOf('role="tabpanel"') === -1) composeWidgetData(e);
     });
+    if (kidSel && kidSel.sec === sec && !kidDrag) kidBox.hidden = true; // the nodes are about to be rebuilt
     sec.sectionEl.innerHTML = '';
     if (sec.bgVideo) {
       // the backdrop is REUSED across renders — a fresh element would
@@ -13011,7 +13012,118 @@
   var kidSel = null; // {sec, ci, j, node}
   var kidDrag = null;
   var kidEd = null; // text editing inside a kid
+  // ---------- a kid's side handles ----------
+  // A piece inside a card keeps its own width in the card's grid, but until
+  // now nothing on the screen could take hold of it (James: "text boxes
+  // cannot be resized within cards, is this by design?"). A chosen kid gets
+  // two side grips: width is the measure and where the words sit; height
+  // stays the ink's, as everywhere. On phones the card runs one column and
+  // every kid takes the full width, so a narrow measure is a desktop choice.
+  var kidBox = document.createElement('div');
+  kidBox.className = 'gogh-selbox gogh-kidbox';
+  kidBox.hidden = true;
+  ['e', 'w'].forEach(function (d) {
+    var h = document.createElement('button');
+    h.type = 'button';
+    h.className = 'gogh-h gogh-h-' + d;
+    h.dataset.d = d;
+    h.title = 'Drag to change the width';
+    kidBox.appendChild(h);
+  });
+  document.body.appendChild(kidBox);
+  var kidResize = null, kidResizeRaf = false;
+  function placeKidBox() {
+    if (!kidSel || !kidSel.node || !document.contains(kidSel.node) || kidDrag || kidEd || !editing) { kidBox.hidden = true; return; }
+    var b = nodeBox(kidSel.node);
+    kidBox.style.left = b.x + 'px';
+    kidBox.style.top = b.y + 'px';
+    kidBox.style.width = b.w + 'px';
+    kidBox.style.height = b.h + 'px';
+    kidBox.hidden = false;
+  }
+  // the words re-wrap at the new width: the kid's height follows its ink, the
+  // stack below settles from the card's RESTING height (the routine typing
+  // uses, so nothing ratchets), and the card's grid re-solves in place
+  function kidResizeSettle(r) {
+    var sec = r.sec, host = sec.els[r.ci], kid = r.kid;
+    if (!host || !host.kids || host.kids.indexOf(kid) === -1) return;
+    resolveAndApply(sec);
+    var card = sec.nodes[r.ci];
+    var kn = card && card.querySelector('.gogh-k-' + (host.kids.indexOf(kid) + 1));
+    var sE = measureScaleOf(sec);
+    if (kn && isText(kid) && sE > 0.2) {
+      var hE = kn.offsetHeight / sE;
+      if (hE > 0 && Math.abs(hE - kid.h) > 2) kid.h = Math.round(hE);
+    }
+    r.snap.forEach(function (sn) { if (sn.k !== kid) { sn.k.x = sn.x; sn.k.y = sn.y; } });
+    host.h = r.hostH;
+    if (SETTLE_TYPES[kid.type]) settleStack(host, kidInkOf(sec, r.ci));
+    resolveAndApply(sec);
+  }
+  function endKidResize() {
+    if (!kidResize) return;
+    var r = kidResize;
+    kidResize = null;
+    document.documentElement.classList.remove('gogh-dragging');
+    kidResizeSettle(r);
+    if (r.kid.w !== r.w0 || r.kid.x !== r.x0) {
+      guardCheck(r.sec, 'kid resize');
+      pushState();
+    }
+    placeKidBox();
+  }
+  kidBox.querySelectorAll('.gogh-h').forEach(function (hBtn) {
+    hBtn.addEventListener('pointerdown', function (ev) {
+      if (!editing || !kidSel) return;
+      var sec = kidSel.sec, ci = kidSel.ci, j = kidSel.j;
+      var host = sec.els[ci];
+      var kid = host && host.kids && host.kids[j];
+      if (!kid) return;
+      ev.preventDefault();
+      ev.stopPropagation();
+      closePanel();
+      try { hBtn.setPointerCapture(ev.pointerId); } catch (err) {}
+      // magnets: the card's edges and middle, the siblings' edges
+      var cand = [0, host.w, host.w / 2];
+      host.kids.forEach(function (o) { if (o !== kid) cand.push(o.x, o.x + o.w); });
+      kidResize = { sec: sec, ci: ci, j: j, kid: kid, dx: hBtn.dataset.d === 'w' ? -1 : 1, px: ev.clientX,
+        x0: kid.x, w0: kid.w, cand: cand, hostH: host.h,
+        snap: host.kids.map(function (k) { return { k: k, x: k.x, y: k.y }; }), id: ev.pointerId };
+      document.documentElement.classList.add('gogh-dragging');
+    });
+    hBtn.addEventListener('pointermove', function (ev) {
+      if (!kidResize || ev.pointerId !== kidResize.id) return;
+      var r = kidResize, sec = r.sec, host = sec.els[r.ci], kid = r.kid;
+      if (!host || !host.kids || host.kids.indexOf(kid) === -1) return;
+      var d = (ev.clientX - r.px) / scaleOf(sec);
+      var snapK = function (v) {
+        var best = null, bd = SNAP + 1;
+        r.cand.forEach(function (c) { var dd = Math.abs(c - v); if (dd < bd) { bd = dd; best = c; } });
+        return best !== null ? best : Math.round(v / BASE) * BASE;
+      };
+      var minW = 60, nx = r.x0, nw = r.w0;
+      if (r.dx === 1) nw = snapK(r.x0 + r.w0 + d) - r.x0;
+      else { nx = snapK(r.x0 + d); nw = r.x0 + r.w0 - nx; }
+      if (nw < minW) { if (r.dx === -1) nx = r.x0 + r.w0 - minW; nw = minW; }
+      nx = Math.max(0, Math.min(host.w - minW, nx));
+      nw = Math.max(minW, Math.min(host.w - nx, nw));
+      kid.x = Math.round(nx);
+      kid.w = Math.round(nw);
+      if (!kidResizeRaf) {
+        kidResizeRaf = true;
+        requestAnimationFrame(function () {
+          kidResizeRaf = false;
+          if (!kidResize) return;
+          kidResizeSettle(kidResize);
+          placeKidBox();
+        });
+      }
+    });
+    hBtn.addEventListener('pointerup', endKidResize);
+    hBtn.addEventListener('pointercancel', endKidResize);
+  });
   function clearKidSel() {
+    kidBox.hidden = true;
     if (!kidSel) return;
     if (kidSel.node && kidSel.node.classList) kidSel.node.classList.remove('gogh-kid-selected');
     kidSel = null;
@@ -13051,6 +13163,7 @@
     if (document.activeElement === kidEd.node) kidEd.node.blur();
     kidEd = null;
     if (!quiet) pushState();
+    placeKidBox();
   }
   function openKidLinkPanel(sec, ci, j) {
     var hostEl = sec.els[ci];
@@ -13086,6 +13199,7 @@
     if (!editing || drag || resize) return;
     if (!(ev.target instanceof Element)) return;
     if (kidEd && kidEd.node.contains(ev.target)) return; // caret work
+    if (ev.target.closest('.gogh-kidbox')) return; // a side grip: the kid stays chosen
     var kn = ev.target.closest('[class*="gogh-k-"]');
     var card = kn && kn.closest('.gogh-cardbox');
     if (!kn || !card) {
@@ -13111,6 +13225,7 @@
     closePanel();
     kidSel = { sec: sec, ci: ci, j: j, node: kn };
     kn.classList.add('gogh-kid-selected');
+    kidBox.hidden = true; // the grips return when the hand opens
     var kid = hostEl.kids[j];
     kidDrag = { sec: sec, ci: ci, j: j, node: kn,
       px: ev.clientX, py: ev.clientY, x0: kid.x, y0: kid.y,
@@ -13268,6 +13383,7 @@
         }
       }
     }
+    placeKidBox();
   });
   document.addEventListener('input', function (ev) {
     if (!kidEd || ev.target !== kidEd.node) return;
@@ -15001,6 +15117,7 @@
     requestAnimationFrame(function () {
       scrollRaf = false;
       if (sel && !drag && !resize) placeHandles(sel.sec, sel.i);
+      if (kidSel && !kidDrag && !kidResize) placeKidBox();
     });
   }, { passive: true });
 

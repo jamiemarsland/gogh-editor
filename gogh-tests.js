@@ -4197,6 +4197,69 @@
       return 'nested render + nested publish + mobile integrity';
     });
 
+    test('a kid resizes by its side grips: width and place change, the ink follows, phones run full width', function () {
+      // James: "text boxes cannot be resized within cards, is this by design?"
+      var s0 = sec();
+      var box = { type: 'box', x: 80, y: 40, w: 640, h: 360, radius: 12, kids: [
+        { type: 'heading', x: 32, y: 32, w: 576, h: 48, text: 'Card headline', fs: 'large' },
+        { type: 'para', x: 32, y: 100, w: 576, h: 120, text: 'Houses, studios, shops and coastlines: the rooms people love and the things they keep in them, photographed slowly, over many visits.' } ] };
+      s0.els.push(box);
+      G.renderSection(s0);
+      var ci = s0.els.indexOf(box);
+      var card = s0.nodes[ci];
+      var kn = card.querySelector('.gogh-k-2');
+      var kid = box.kids[1];
+      var sc = s0.sectionEl.getBoundingClientRect().width / 1200;
+      var pv = function (type, el, x, y, id) {
+        el.dispatchEvent(new PointerEvent(type, { bubbles: true, cancelable: true, clientX: x, clientY: y, pointerId: id, button: 0, buttons: type === 'pointerup' ? 0 : 1 }));
+      };
+      var r = kn.getBoundingClientRect();
+      pv('pointerdown', kn, r.left + 8, r.top + 6, 71);
+      pv('pointerup', document, r.left + 8, r.top + 6, 71);
+      var kb = q('.gogh-kidbox');
+      expect(kb && !kb.hidden && G.kidState().sel && G.kidState().sel.j === 1, 'a chosen kid should show its side grips');
+      var kr0 = kn.getBoundingClientRect();
+      expect(Math.abs(parseFloat(kb.style.width) - kr0.width) < 3, 'the grips should sit on the kid: ' + kb.style.width + ' vs ' + kr0.width);
+      // east grip: 200 units in — the right edge lands on the 8-unit base, x holds
+      var he = kb.querySelector('.gogh-h-e');
+      var hr = he.getBoundingClientRect();
+      var x0 = kid.x, w0 = kid.w, hWide = kn.offsetHeight / sc; // the ink at full width (the design h is not measured yet)
+      pv('pointerdown', he, hr.left + 4, hr.top + 10, 72);
+      pv('pointermove', he, hr.left + 4 - 200 * sc, hr.top + 10, 72);
+      pv('pointerup', he, hr.left + 4 - 200 * sc, hr.top + 10, 72);
+      expect(kid.x === x0 && kid.w === w0 - 200, 'east grip should narrow the kid in place: ' + kid.x + 'x' + kid.w + ' from ' + x0 + 'x' + w0);
+      expect(kid.h >= Math.round(hWide) - 2 && Math.abs(kid.h - kn.offsetHeight / sc) <= 3, 'the height should follow the ink at the new width: model ' + kid.h + ', ink ' + Math.round(kn.offsetHeight / sc) + ', was ' + Math.round(hWide));
+      expect(Math.abs(kn.getBoundingClientRect().width - kid.w * sc) < 4, 'the card grid did not re-solve to the new width: ' + kn.getBoundingClientRect().width + ' vs ' + kid.w * sc);
+      expect(getComputedStyle(card).gridTemplateColumns.split(' ').length >= 2, 'the card should now have more than one column');
+      expect(!kb.hidden && G.kidState().sel && G.kidState().sel.j === 1, 'the kid should stay chosen after a resize');
+      // west grip: 100 units in — the left edge snaps to the base, the right edge holds
+      var hw = kb.querySelector('.gogh-h-w');
+      var wr = hw.getBoundingClientRect();
+      var right = kid.x + kid.w;
+      pv('pointerdown', hw, wr.left + 4, wr.top + 10, 73);
+      pv('pointermove', hw, wr.left + 4 + 100 * sc, wr.top + 10, 73);
+      pv('pointerup', hw, wr.left + 4 + 100 * sc, wr.top + 10, 73);
+      var wantX = Math.round((x0 + 100) / 8) * 8;
+      expect(kid.x === wantX && kid.x + kid.w === right, 'west grip should move the left edge only: ' + kid.x + '..' + (kid.x + kid.w) + ' wanted ' + wantX + '..' + right);
+      // it publishes: the kid's width rides the model
+      var v3 = G.buildV3();
+      expect(v3.indexOf('"w":' + kid.w) !== -1, 'the published model lost the kid width');
+      // phones: the card runs one column and the kid takes the full width
+      var wrap = s0.sectionEl.closest('.gogh-wrap');
+      wrap.style.width = '375px'; wrap.style.minWidth = '0';
+      void wrap.offsetWidth;
+      var cr = card.getBoundingClientRect(), krm = kn.getBoundingClientRect();
+      expect(cr.width < 380 && krm.width > cr.width * 0.8, 'on a phone the narrowed kid should run the full width: ' + krm.width + ' of ' + cr.width);
+      wrap.style.width = ''; wrap.style.minWidth = '';
+      void wrap.offsetWidth;
+      pv('pointerdown', document.body, 2, 2, 74);
+      pv('pointerup', document.body, 2, 2, 74);
+      expect(!G.kidState().sel && kb.hidden, 'a click away should drop the kid and its grips');
+      s0.els.pop();
+      G.renderSection(s0);
+      return 'two grips on a chosen kid: width and place, ink height, full width on phones';
+    });
+
     test('card interactions: drop joins, kid drags inside, drag-out frees', function () {
       var s0 = sec();
       s0.els.push({ type: 'box', x: 600, y: 80, w: 480, h: 380, boxBg: '#101418', radius: 16 });

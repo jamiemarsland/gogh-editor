@@ -3119,6 +3119,9 @@ html.gogh-editing .gogh-helpsheet iframe { pointer-events: auto; }
 .gogh-card-leaving { outline: 3px dashed #d98a2b; outline-offset: 3px; }
 html.gogh-editing .gogh-cardbox [class*="gogh-k-"] { cursor: grab; }
 .gogh-kid-selected { outline: 2px solid #3858e9; outline-offset: 2px; border-radius: 4px; }
+/* a chosen kid's side grips: the kid's own outline draws the box, the overlay
+   only carries the handles (width is the measure; height stays the ink's) */
+.gogh-kidbox { border-color: transparent; }
 .gogh-kid-selected[contenteditable], .gogh-cardbox [contenteditable="true"] { cursor: text; }
 
 /* a selected card announces itself */
