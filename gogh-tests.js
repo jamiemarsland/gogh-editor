@@ -3391,6 +3391,28 @@
         });
     });
 
+    testAsync('a shop look auditions by address: ?gogh-shoplook dresses the grid for one request and stores nothing', function () {
+      if (!GOGH.hasWoo) return 'no WooCommerce here';
+      var get = function (u) { return fetch(u, { credentials: 'same-origin' }).then(function (r) { return r.text(); }); };
+      // the CSS names every look on every page, and the body also carries
+      // gogh-shoplook-kind-<kind>: the look WORN is the other class in a class attribute
+      var worn = function (html) { var m = /class="[^"]*?gogh-shoplook-(?!kind-)([a-z]+)/.exec(html); return m ? m[1] : ''; };
+      return get('/?post_type=product').then(function (plain) {
+        var now = worn(plain);
+        var other = now === 'gallery' ? 'editorial' : 'gallery';
+        return get('/?post_type=product&gogh-shoplook=' + other).then(function (tried) {
+          expect(worn(tried) === other, 'the preview request should dress the shop as ' + other + ', wears ' + (worn(tried) || 'Classic'));
+          return get('/?post_type=product&gogh-shoplook=classic').then(function (classic) {
+            expect(worn(classic) === '', 'a classic preview should undress the shop, wears ' + worn(classic));
+            return get('/?post_type=product').then(function (again) {
+              expect(worn(again) === now, 'the audition stuck: the shop now wears ' + (worn(again) || 'Classic') + ' instead of ' + (now || 'Classic'));
+              return (now || 'Classic') + ' \u2192 tried ' + other + ' and Classic \u2192 still ' + (now || 'Classic');
+            });
+          });
+        });
+      });
+    });
+
     test('hovering a look in the admin bar tries it on, and leaving the menu takes it off', function () {
       var A = window.goghAudition;
       expect(A && A.preview && A.restore, 'the audition script is missing from the page');
