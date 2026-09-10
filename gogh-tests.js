@@ -3369,6 +3369,43 @@
       });
     });
 
+    testAsync('a product layout auditions by address: ?gogh-layout wears the look for one request and stores nothing', function () {
+      var cls = function (html) { var m = /<body[^>]*class="([^"]*)"/.exec(html); return m ? m[1] : ''; };
+      var tpl = function (c) { var m = /product-template-([a-z0-9-]+)/.exec(c); return m ? m[1] : ''; };
+      var get = function (u) { return fetch(u, { credentials: 'same-origin' }).then(function (r) { return r.text(); }); };
+      return fetch('/wp-json/wc/store/v1/products?per_page=1&_fields=id,permalink', { credentials: 'same-origin' })
+        .then(function (r) { return r.ok ? r.json() : []; }).then(function (list) {
+          if (!list.length) return 'no product to try a layout on';
+          var link = list[0].permalink, join = link.indexOf('?') === -1 ? '?' : '&';
+          return get(link).then(function (plain) {
+            var worn = tpl(cls(plain));
+            var other = worn === 'gogh-product-hero' ? 'gogh-product-showcase' : 'gogh-product-hero';
+            return get(link + join + 'gogh-layout=' + other).then(function (tried) {
+              expect(tpl(cls(tried)) === other, 'the preview request should wear ' + other + ', wears ' + (tpl(cls(tried)) || 'nothing'));
+              return get(link).then(function (again) {
+                expect(tpl(cls(again)) === worn, 'the audition stuck: the product now wears ' + tpl(cls(again)) + ' instead of ' + worn);
+                return worn + ' → tried ' + other + ' → still ' + worn;
+              });
+            });
+          });
+        });
+    });
+
+    test('hovering a look in the admin bar tries it on, and leaving the menu takes it off', function () {
+      var A = window.goghAudition;
+      expect(A && A.preview && A.restore, 'the audition script is missing from the page');
+      var before = document.body.className;
+      A.preview('gogh-blog-layout', 'cards');
+      expect(document.body.classList.contains('gogh-blog-cards') && document.body.classList.contains('gogh-auditioning'), 'the blog look was not worn: ' + document.body.className);
+      A.preview('gogh-blog-layout', 'ledger');
+      expect(document.body.classList.contains('gogh-blog-ledger') && !document.body.classList.contains('gogh-blog-cards'), 'moving to a second look kept the first: ' + document.body.className);
+      A.preview('gogh-post-layout', 'essay');
+      expect(document.body.classList.contains('gogh-read-essay'), 'a reading look was not worn: ' + document.body.className);
+      A.restore();
+      expect(document.body.className === before, 'leaving the menu did not put the page back: ' + document.body.className);
+      return 'cards → ledger → essay → home';
+    });
+
     testAsync('variations: every combination, existing kept, typed prices carried', function () {
       var tag = document.querySelector('script[src*="gogh-editor.js"]');
       var src = tag.src.replace(/gogh-editor\.js.*$/, 'gogh-admin.js');
