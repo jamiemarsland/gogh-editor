@@ -1,3 +1,4 @@
 gogh-canvas.zip
 *.bak
 .DS_Store
+.wrangler/
