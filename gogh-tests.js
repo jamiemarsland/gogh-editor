@@ -3684,6 +3684,29 @@
       expect(before >= 1, 'no edit-header pill was mounted');
     });
 
+    testAsync('Make it freeform on the site header yields its pieces, not one opaque widget', function () {
+      // the scan pairs blocks with rendered elements; gogh's own pill inside
+      // the part, and a logo block that renders nothing, used to break the
+      // count and the whole header became a single widget (James: "the
+      // formatting broke")
+      var pe = G.partElForArea('header');
+      expect(pe, 'no header part on the page');
+      var base = (window.GOGH && GOGH.restUrl) ? GOGH.restUrl.split('wp/v2/')[0] + 'wp/v2/' : '/wp-json/wp/v2/';
+      return fetch(base + 'template-parts?per_page=20', { credentials: 'same-origin', headers: { 'X-WP-Nonce': GOGH.nonce } })
+        .then(function (r) { return r.json(); })
+        .then(function (parts) {
+          var hp = (parts || []).filter(function (p) { return p.area === 'header' || /header/.test(p.slug || ''); })[0];
+          if (!hp) return 'no header part found through the API';
+          var raw = (hp.content && (hp.content.raw || hp.content.rendered)) || '';
+          if (!raw) return 'header part carries no raw markup';
+          var scan = G.scan(pe, raw);
+          var els = scan.els || [];
+          var oneWidget = els.length === 1 && els[0].type === 'widget' && /wp:group/.test(els[0].wsrc || '');
+          expect(!oneWidget, 'the header converted as one opaque group widget');
+          expect(els.length >= 2, 'expected at least the name and the menu as separate pieces, got ' + els.length);
+          return els.length + ' pieces: ' + els.map(function (e) { return e.type; }).join(', ');
+        });
+    });
     test('copy styles: the roller paints size, colour, align onto other text', function () {
       G.addSection({ name: 'PaintA', minH: 300, els: [
         { type: 'heading', x: 40, y: 40, w: 500, h: 60, text: 'Source', fs: 'xx-large', align: 'center', color: 'contrast' },

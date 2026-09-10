@@ -19222,11 +19222,33 @@
       var spans = parseTopBlocks(rawText);
       var kids = [].slice.call(containerDom.children).filter(function (c) {
         if (c.classList && c.classList.contains('gogh-pendbar')) return false;
+        // gogh's own furniture inside a part (the "Edit site header" pill,
+        // menu adders) is never block output either: counted against the
+        // markup it made every header convert as ONE opaque widget (James:
+        // "i just clicked make freeform for the header and the formatting broke")
+        var cn = String(c.className || '');
+        if (/(^|\s)gogh-/.test(cn) && !/(^|\s)wp-block-/.test(cn)) return false;
         // metadata children are never block output — counting them against
         // the markup spans breaks pairing (a preview box carries a <style>)
         var tg = c.tagName;
         return tg !== 'STYLE' && tg !== 'SCRIPT' && tg !== 'LINK' && tg !== 'TEMPLATE';
       });
+      // counts differ? pair by NAME before giving up: each block takes the
+      // next element wearing its class, and a block that rendered nothing
+      // (a site logo with no picture set) simply drops out
+      if (spans.length && spans.length !== kids.length && !(spans.length === 1 && String(spans[0].name || '').replace(/^core\//, '') === 'html')) {
+        var pool = kids.slice(), paired = [], pairedKids = [], ok = true;
+        spans.forEach(function (sp) {
+          var nm2 = String(sp.name || '').replace(/^core\//, '');
+          var cls = 'wp-block-' + nm2.replace(/\//g, '-');
+          var at = -1;
+          for (var q = 0; q < pool.length; q++) { if (pool[q].classList && pool[q].classList.contains(cls)) { at = q; break; } }
+          if (at === -1) return; // rendered nothing
+          paired.push(sp); pairedKids.push(pool[at]); pool.splice(at, 1);
+        });
+        if (pool.length) ok = false; // an element no block claims: not our pairing to make
+        if (ok && paired.length) { spans = paired; kids = pairedKids; }
+      }
       // a lone html block renders ALL these children (a paste's <style> +
       // content roots) — span↔child pairing is meaningless, free-walk them
       if (spans.length === 1 && kids.length &&
@@ -19383,6 +19405,12 @@
       var chromeScan = scanDomWithRaw(scanEl, raw);
       var out = chromeScan.els;
       if (!out.length) throw new Error('Nothing to edit in this ' + area + '.');
+      // a scanned piece is exactly as wide as it rendered; the canvas grid
+      // can settle its cell a few units narrower, and a name that just fit
+      // wraps onto two lines. Words get a little slack
+      out.forEach(function (e) {
+        if (e.type === 'widget' || e.type === 'heading' || e.type === 'para' || e.type === 'button') e.w = Math.min(W - e.x, e.w + 16);
+      });
       var sec = newSectionShell('gogh-sec-' + (scopeSeq++));
       sec.els = out;
       sec.minH = Math.round(rr.height * sx);
