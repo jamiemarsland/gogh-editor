@@ -5429,7 +5429,12 @@
     var look = POSTS_LOOKS.indexOf(posts.look) !== -1 ? posts.look : '';
     var cols = count >= 4 ? (count % 4 === 0 ? 4 : 3) : Math.max(1, count);
     var ratio = posts.aspect === 'square' ? '1' : posts.aspect === 'portrait' ? '3/4' : '4/3';
-    var cls = 'gogh-posts gogh-posts-' + (look ? 'look' : 'grid') + ' gogh-posts-gap-' + (posts.spacing || 'm') + (look ? ' gogh-blog-' + look : '');
+    // the count and the picture shape ride as classes too, so a look that
+    // lays its own grid (Cards) keeps the columns and the crop the preview
+    // showed — three wide cards, not three narrow ones and an empty fourth
+    var cls = 'gogh-posts gogh-posts-' + (look ? 'look' : 'grid') + ' gogh-posts-gap-' + (posts.spacing || 'm') +
+      ' gogh-posts-c' + cols + ' gogh-posts-pic-' + (posts.aspect === 'square' ? 'square' : posts.aspect === 'portrait' ? 'portrait' : 'landscape') +
+      (look ? ' gogh-blog-' + look : '');
     var query = { perPage: count, pages: 0, offset: 0, postType: 'post', order: order, orderBy: orderBy, author: '', search: '', exclude: [], sticky: '', inherit: false };
     if (posts.catId) query.taxQuery = { category: [+posts.catId] };
     // a look lays the list out itself; the plain grid leans on core's grid

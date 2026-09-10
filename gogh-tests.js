@@ -3558,8 +3558,10 @@
       expect(/"perPage":3/.test(e.wsrc) && /"columnCount":3/.test(e.wsrc), 'default is a 3-up grid: ' + e.wsrc.slice(0, 220));
       expect(/wp:post-date/.test(e.wsrc) && !/wp:post-excerpt/.test(e.wsrc) && !/wp:post-terms/.test(e.wsrc), 'date shows by default; excerpt and category stay off');
       expect(/gogh-posts-tpl/.test(e.wsrc) && !/gogh-blog-/.test(e.wsrc), 'the plain grid must not wear a look');
+      expect(/gogh-posts-c3 gogh-posts-pic-landscape/.test(e.wsrc), 'the count and picture shape should ride as classes for the looks');
       var dressed = G.composePosts({ look: 'cards', count: 4, order: 'oldest', cat: 'Notes', catId: 7, show: { date: false, excerpt: true, category: true }, aspect: 'portrait', spacing: 'l' });
       expect(/gogh-blog-cards/.test(dressed) && /"layout":\{"type":"default"\}/.test(dressed), 'a look should dress the list and drop the column grid');
+      expect(/gogh-posts-c4 gogh-posts-pic-portrait gogh-blog-cards/.test(dressed), 'a look should keep the count and the crop: ' + (dressed.match(/className":"[^"]+/) || [''])[0]);
       expect(/"order":"asc"/.test(dressed) && /"orderBy":"date"/.test(dressed), 'Oldest first not composed');
       expect(/"taxQuery":\{"category":\[7\]\}/.test(dressed), 'the category did not narrow the query');
       expect(/wp:post-excerpt/.test(dressed) && /wp:post-terms/.test(dressed) && !/wp:post-date/.test(dressed), 'Show chips not honoured');
