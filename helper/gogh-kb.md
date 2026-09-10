@@ -15,7 +15,7 @@ about something where they conflict, rather than picking one silently. Quote UI
 labels and message copy from the appendix, verbatim — those are the current
 strings, and a paraphrased button label is the fastest way to lose a user's trust.
 
-Generated for plugin version 0.99.474 · knowledge base 351a371.
+Generated for plugin version 0.99.475 · knowledge base 47964ca.
 
 ---
 
@@ -782,11 +782,11 @@ Everything in this section is extracted mechanically from the Gogh source on eve
 
 ## Current release
 
-- Plugin version: **0.99.474**
+- Plugin version: **0.99.475**
 - Requires WordPress **6.5+**, PHP **7.4+**
 - Text domain: `gogh-editor`
 - readme.txt Stable tag: `0.26.0` · Tested up to: `7.0`
-- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.474`). Quote the plugin header version.
+- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.475`). Quote the plugin header version.
 
 ## Design constants
 
@@ -990,6 +990,8 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "Add something to this section"
 - "Add to page"
 - "Adjust spacing"
+- "Align ' + a[1].toLowerCase() + '"
+- "Align, space evenly, tidy up"
 - "All options"
 - "Apply"
 - "As typed"
@@ -1012,14 +1014,19 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "Custom text colour"
 - "Cycle theme font sizes"
 - "Dark"
+- "Delete"
 - "Delete (Del)"
 - "Delete saved section"
+- "Delete the selection"
 - "Delivery & returns"
 - "Desktop"
 - "Desktop menu"
 - "Discard changes"
 - "Done"
+- "Duplicate"
 - "Duplicate (or Alt-drag)"
+- "Duplicate the selection"
+- "Equal gaps between the pieces"
 - "Everything"
 - "Experience"
 - "Featured product"
@@ -1046,9 +1053,12 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "Keeps your changes on every page"
 - "Left"
 - "Light"
+- "Line the row up and even the gaps"
 - "Link"
 - "Link text (⌘K)"
+- "Make a card"
 - "Make it freeform"
+- "Make these one card — it holds together on phones"
 - "Manage categories ↗"
 - "Manage posts ↗"
 - "Manage products"
@@ -1106,6 +1116,7 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "Show the next layout"
 - "Six looks derived from your brand — hover to wear one, tap Remix again for six more"
 - "Solid"
+- "Space evenly"
 - "Start writing — a reading column, cursor ready"
 - "Switch design"
 - "Switch it on"
@@ -1115,6 +1126,7 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "The gogh build this tab is running"
 - "The header rides along as visitors scroll"
 - "Theme default"
+- "Tidy up"
 - "Try another"
 - "UPPERCASE"
 - "Undo"
@@ -1186,6 +1198,7 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "Mobile menu: "
 - "Name size saved."
 - "Nothing to rearrange yet — add a couple of pieces first."
+- "One card now — it holds together on phones. Click it for a background."
 - "Out of the card — it’s its own piece again."
 - "Publish failed: "
 - "Publish your changes first — changing the page style reloads the page."
@@ -1241,4 +1254,4 @@ These are the real strings in the current build. Use them verbatim; never paraph
 
 ## Test suite
 
-`269` tests, run by appending `?gogh-test` to any Gogh page URL while logged in with edit rights on that page.
+`271` tests, run by appending `?gogh-test` to any Gogh page URL while logged in with edit rights on that page.
