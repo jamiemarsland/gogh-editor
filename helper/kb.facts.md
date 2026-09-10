@@ -4,11 +4,11 @@ Everything in this section is extracted mechanically from the Gogh source on eve
 
 ## Current release
 
-- Plugin version: **0.99.472**
+- Plugin version: **0.99.473**
 - Requires WordPress **6.5+**, PHP **7.4+**
 - Text domain: `gogh-editor`
 - readme.txt Stable tag: `0.26.0` · Tested up to: `7.0`
-- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.472`). Quote the plugin header version.
+- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.473`). Quote the plugin header version.
 
 ## Design constants
 
@@ -92,6 +92,7 @@ Block: `gogh/section` · v3 attributes: `css`, `model`, `scope`, `v`, `cssT`.
 | `render_block_core/heading` | filter | 10 |
 | `body_class` | filter | 10 |
 | `render_block_core/post-template` | filter | 10 |
+| `query_loop_block_query_vars` | filter | 10 |
 | `body_class` | filter | 10 |
 | `body_class` | filter | 10 |
 | `init` | action | 10 |
@@ -175,7 +176,7 @@ Filters exposed for third parties: `gogh_default_editor`, `gogh_claims_post`, `g
 
 REST routes registered: `gogh/v1/version`, `gogh/v1/starter`, `gogh/v1/type-scale`, `gogh/v1/blog-style`, `gogh/v1/motion`, `gogh/v1/ask`, `gogh/v1/imagine-exp`, `gogh/v1/ask-key`, `gogh/v1/menu-style`, `gogh/v1/first-minute`, `gogh/v1/ask-log`, `gogh/v1/active-style`, `wp/v2/gogh-product/(?P<id>\d+)`, `wp/v2/gogh-product/(?P<id>\d+)/autosaves`, `gogh/v1/pattern`, `gogh/v1/render`.
 
-Core REST endpoints used by the editor: `wp/v2/blocks`, `wp/v2/posts`, `wp/v2/template-parts`.
+Core REST endpoints used by the editor: `wp/v2/blocks`, `wp/v2/categories`, `wp/v2/posts`, `wp/v2/template-parts`.
 
 Capability checks in PHP: `edit_posts`, `edit_post`, `edit_theme_options`, `edit_others_posts`, `edit_products`, `manage_options`, `upload_files`, `unfiltered_html`, `activate_plugins`, `install_plugins`, `manage_woocommerce`, `publish_pages`.
 
@@ -271,6 +272,7 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "Link text (⌘K)"
 - "Make it freeform"
 - "Manage categories ↗"
+- "Manage posts ↗"
 - "Manage products"
 - "Manage products ↗"
 - "Manage this menu — reorder, nest, swap menus"
@@ -349,6 +351,7 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "Where this item shows"
 - "Which take of this design is on the page"
 - "Write"
+- "Write a post ↗"
 - "Your latest posts, live"
 - "Your latest products, live — prices and add to cart included"
 - "ag"
@@ -460,5 +463,5 @@ These are the real strings in the current build. Use them verbatim; never paraph
 
 ## Test suite
 
-`265` tests, run by appending `?gogh-test` to any Gogh page URL while logged in with edit rights on that page.
+`268` tests, run by appending `?gogh-test` to any Gogh page URL while logged in with edit rights on that page.
 

@@ -1,12 +1,12 @@
 {
   "meta": {
-    "plugin_version": "0.99.472",
+    "plugin_version": "0.99.473",
     "requires_wp": "6.5",
     "requires_php": "7.4",
     "text_domain": "gogh-editor",
     "readme_stable_tag": "0.26.0",
     "readme_tested_up_to": "7.0",
-    "asset_version": "0.99.472-chrome"
+    "asset_version": "0.99.473-chrome"
   },
   "constants": {
     "TOL": 8,
@@ -504,6 +504,7 @@
     "Link text (⌘K)",
     "Make it freeform",
     "Manage categories ↗",
+    "Manage posts ↗",
     "Manage products",
     "Manage products ↗",
     "Manage this menu — reorder, nest, swap menus",
@@ -582,6 +583,7 @@
     "Where this item shows",
     "Which take of this design is on the page",
     "Write",
+    "Write a post ↗",
     "Your latest posts, live",
     "Your latest products, live — prices and add to cart included",
     "ag",
@@ -770,6 +772,11 @@
       {
         "kind": "filter",
         "hook": "render_block_core/post-template",
+        "priority": 10
+      },
+      {
+        "kind": "filter",
+        "hook": "query_loop_block_query_vars",
         "priority": 10
       },
       {
@@ -1261,6 +1268,7 @@
     ],
     "rest_endpoints": [
       "blocks",
+      "categories",
       "posts",
       "template-parts"
     ],
@@ -1283,5 +1291,5 @@
     "has_deprecation": true,
     "block_title": "gogh Section"
   },
-  "test_count": 265
+  "test_count": 268
 }

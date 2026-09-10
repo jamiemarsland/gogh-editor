@@ -1,8 +1,8 @@
-# Knowledge-base audit — plugin v0.99.472
+# Knowledge-base audit — plugin v0.99.473
 
 _13 finding(s) suppressed by `kb.audit-ignore.txt`._
 
-## MISSING (95)
+## MISSING (96)
 
 The source has something the prose never explains. The bot knows the name from the appendix but cannot say what it is for.
 
@@ -21,6 +21,7 @@ The source has something the prose never explains. The bot knows the name from t
 - WP hook `render_block_core/heading` exists in source but is never mentioned in the prose
 - WP hook `body_class` exists in source but is never mentioned in the prose
 - WP hook `render_block_core/post-template` exists in source but is never mentioned in the prose
+- WP hook `query_loop_block_query_vars` exists in source but is never mentioned in the prose
 - WP hook `body_class` exists in source but is never mentioned in the prose
 - WP hook `body_class` exists in source but is never mentioned in the prose
 - WP hook `manage_gogh_message_posts_columns` exists in source but is never mentioned in the prose
@@ -106,4 +107,7 @@ The source has something the prose never explains. The bot knows the name from t
 
 Use this as the checklist for updating the prose — and as a sanity check on the release itself.
 
-- version: 0.99.471 → 0.99.472
+- version: 0.99.472 → 0.99.473
+- added WP hook: "query_loop_block_query_vars"
+- added UI label: "Manage posts ↗"
+- added UI label: "Write a post ↗"
