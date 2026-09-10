@@ -5492,6 +5492,39 @@
       return items.join(', ');
     });
 
+    test('the die leaves a one-of-a-kind section alone: a glaze chart of four swatches has no family', function () {
+      // the Hollowell glaze band: an intro (eyebrow, heading, para) beside four
+      // columns of swatch box, name, note and a small uppercase label. The
+      // base take of any family it scored against had no slot for most of
+      // them, so they rode over every take (v0.99.468)
+      var els = [
+        { type: 'para', x: 82, y: 64, w: 400, h: 17, text: 'Glazes', tf: { fs: 12, tt: 'uppercase' } },
+        { type: 'heading', x: 82, y: 96, w: 360, h: 88, text: 'Four glazes, one kiln.', tf: { fs: 34 } },
+        { type: 'para', x: 82, y: 200, w: 360, h: 110, text: 'Every piece is fired to cone 8, about 1260 degrees, in a gas kiln in reduction. That is why the same glaze never comes out quite the same twice.' } ];
+      ['Salt', 'Ash', 'Cobalt', 'Tenmoku'].forEach(function (name, i) {
+        var x = [480, 642, 804, 966][i];
+        els.push({ type: 'box', x: x, y: 64, w: 148, h: 148, radius: 4, boxBg: '#B9C2B4', kids: [] });
+        els.push({ type: 'heading', x: x, y: 226, w: 148, h: 20, text: name, tf: { fs: 15 } });
+        els.push({ type: 'para', x: x, y: 252, w: 148, h: 58, text: 'A soft white that breaks warm over rims and edges.', tf: { fs: 13 } });
+        els.push({ type: 'para', x: x, y: 318, w: 148, h: 16, text: 'Cone 8 reduction', tf: { fs: 11, tt: 'uppercase' } });
+      });
+      var n0 = G.sections().length;
+      G.addSection({ name: 'glazes', minH: 380, els: els }, n0);
+      var fam = G.diceFamilyOf(G.sections()[n0]);
+      // a plain hero keeps its die: the rule only bites where pieces would ride
+      G.addSection({ name: 'plain', minH: 520, els: [
+        { type: 'para', x: 82, y: 80, w: 400, h: 17, text: 'Stoneware from Bristol', tf: { fs: 12, tt: 'uppercase' } },
+        { type: 'heading', x: 82, y: 116, w: 540, h: 124, text: 'Thrown by hand. Fired to cone 8.', tf: { fs: 56 } },
+        { type: 'para', x: 82, y: 262, w: 470, h: 84, text: 'Mugs, bowls and bottles made in small batches in a railway-arch studio.' },
+        { type: 'button', x: 82, y: 376, w: 220, h: 50, text: 'Shop the collection' } ] }, n0 + 1);
+      var fam2 = G.diceFamilyOf(G.sections()[n0 + 1]);
+      G.deleteSectionRaw(n0 + 1);
+      G.deleteSectionRaw(n0);
+      expect(fam === null, 'the glaze chart found a family (' + fam + '): its swatches and labels would ride over every take');
+      expect(!!fam2, 'a plain hero lost its die');
+      return 'glaze chart: no family; plain hero: ' + fam2;
+    });
+
     test('the rail: Page · Site · SEO, each door honest about its scope', function () {
       var pg = q('.gogh-local-tab');
       var st = q('.gogh-site-tab');

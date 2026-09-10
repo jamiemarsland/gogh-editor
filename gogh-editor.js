@@ -7887,6 +7887,19 @@
       // widgets must match kind for kind — the base's wall for a wall, never a form
       if (wantKinds !== diceWidgetKinds(baseEls).join(',')) return;
       if (wantCards !== cardsOf(baseEls)) return;
+      // pieces the base take has no slot for RIDE the roll at their own
+      // coordinates, over whatever the take draws there: a glaze chart's
+      // four colour swatches and its fourth and fifth 'Cone 8' labels sat
+      // on top of every take (James: 'kinda broken on 2nd 3rd and 4th dice
+      // roll'). One stray is a rider the eye forgives; more makes a section
+      // of its own kind, and the die leaves it be
+      var decoOf = function (els) { return els.filter(function (e) { return !diceRole(e) && !(e.type === 'box' && e.kids && e.kids.length); }).length; };
+      if (decoOf(sec.els) > decoOf(baseEls) + 1) return;
+      // ...counted at the top level only: a card's kids ride with their
+      // card, so three priced cards with a label each are still three cards
+      var topCount = function (els) { var m = {}; els.forEach(function (e) { var r = diceRole(e); if (r) m[r] = (m[r] || 0) + 1; }); return m; };
+      var tw = topCount(sec.els), th = topCount(baseEls);
+      if (Object.keys(tw).some(function (r) { return tw[r] > (th[r] || 0) + 1; })) return;
       var hit = 0, total = 0;
       Object.keys(have).forEach(function (r) {
         var a = have[r].length, b = (want[r] || []).length;
