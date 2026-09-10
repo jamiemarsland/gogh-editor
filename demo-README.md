@@ -28,4 +28,4 @@ Install the plugin on your own site by uploading `gogh-playground.zip` through P
 
 ## Licence
 
-GPLv2 or later. Made by [PootlePress](https://pootlepress.com).
+GPLv2 or later. Made by [Jamie Marsland](https://github.com/jamiemarsland).

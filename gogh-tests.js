@@ -2868,7 +2868,8 @@
       bar.querySelector('.gogh-cyc-more').click();
       expect(bar.hidden, 'strip still open after ⋯');
       expect(document.querySelectorAll('.gogh-chrome-opt').length === 2, 'full panel options missing');
-      expect(q('.gogh-chrome-edit'), 'full panel lost Make freeform');
+      // the freeform door is an experiments-only escape hatch now (James: 'a can of worms, not very gogh')
+      expect(!!q('.gogh-chrome-edit') === !!(window.GOGH && GOGH.experiments), 'full panel: the freeform door should show only in experiments');
       q('.gogh-panel-close').click();
       expect(document.querySelector('.gogh-panel').hidden, 'panel did not close');
       // cycle again, then click-off (outside header + strip) collapses
@@ -2906,7 +2907,7 @@
           'one swatch per look plus the custom picker expected (' + looks.length + '+1)');
         expect(panel.querySelector('.gogh-sw-pick input[type="color"]'), 'custom colour picker missing');
         expect(panel.querySelector('.gogh-hsticky'), 'sticky toggle missing');
-        expect(panel.querySelector('.gogh-hfreeform'), 'freeform door missing');
+        expect(!!panel.querySelector('.gogh-hfreeform') === !!(window.GOGH && GOGH.experiments), 'the freeform door should show only in experiments');
         expect(panel.querySelector('.gogh-panel-close'), 'sticky panel must show its own door');
         var apply = panel.querySelector('.gogh-happly');
         expect(apply, 'the single Done button is missing');

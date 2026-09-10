@@ -17861,7 +17861,7 @@
         (d0.hasNav ? dial('Menu items', 'gogh-dial-link', 8, 64, d0.linkGap) : '') +
         dial('Text size', 'gogh-dial-fsz', 12, 30, d0.fsz) : '') +
       '<div class="gogh-panel-row gogh-chrome-rows gogh-hpills">' +
-      '<button type="button" class="gogh-btn gogh-btn-small gogh-hfreeform">✨ Make it freeform</button>' +
+      (cfg.experiments ? '<button type="button" class="gogh-btn gogh-btn-small gogh-hfreeform">✨ Make it freeform</button>' : '') +
       '</div>' +
       '</div>' + // end .gogh-hmorebox
       '<div class="gogh-panel-row gogh-chrome-foot">' +
@@ -18105,7 +18105,10 @@
       if (mg) mg.classList.toggle('gogh-sticky', st.sticky);
       arm();
     });
-    panel.querySelector('.gogh-hfreeform').addEventListener('click', function () {
+    // freeform chrome is a can of worms and not very gogh (James): the room
+    // is the way to change a header; the door stays in experiments only
+    var hfDoor = panel.querySelector('.gogh-hfreeform');
+    if (hfDoor) hfDoor.addEventListener('click', function () {
       bail();
       editChromeFreeform(partEl, area, active);
     });
@@ -18227,7 +18230,7 @@
         '</div>' +
         '<div class="gogh-panel-hint">Or make it yours</div>' +
         '<div class="gogh-panel-row gogh-chrome-rows">' +
-        '<button type="button" class="gogh-btn gogh-btn-small gogh-chrome-edit">\u2728 ' + (isFreeform || mounted ? 'Edit freeform' : 'Make freeform') + '</button>' +
+        ((cfg.experiments || isFreeform || mounted) ? '<button type="button" class="gogh-btn gogh-btn-small gogh-chrome-edit">\u2728 ' + (isFreeform || mounted ? 'Edit freeform' : 'Make freeform') + '</button>' : '') +
         '</div>' +
         (activeOpt ? '<div class="gogh-panel-row gogh-chrome-rows">' +
           '<button type="button" class="gogh-btn gogh-btn-small gogh-chrome-sticky' + (chromeIsSticky(active) ? ' is-active' : '') + '">\ud83d\udccc ' +
@@ -18271,7 +18274,8 @@
           });
         });
       });
-      panel.querySelector('.gogh-chrome-edit').addEventListener('click', function () {
+      var ceDoor = panel.querySelector('.gogh-chrome-edit');
+      if (ceDoor) ceDoor.addEventListener('click', function () {
         editChromeFreeform(partEl, area, active);
       });
       panel.querySelector('.gogh-chrome-cancel').addEventListener('click', function () {
