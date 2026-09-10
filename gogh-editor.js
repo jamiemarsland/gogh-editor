@@ -2773,14 +2773,17 @@
     '<button type="button" class="gogh-eb gogh-mb gogh-mb-card" title="Make these one card — it holds together on phones">Make a card</button>' +
     '<button type="button" class="gogh-eb gogh-mb gogh-mb-dup" title="Duplicate the selection">Duplicate</button>' +
     '<button type="button" class="gogh-eb gogh-mb gogh-mb-del" title="Delete the selection">Delete</button>' +
-    '<button type="button" class="gogh-eb gogh-mb gogh-mb-more" title="Align, space evenly, tidy up">⋯</button>' +
+    '<button type="button" class="gogh-eb gogh-mb gogh-mb-more" title="Line the pieces up, or even out the gaps">Line up \u25BE</button>' +
     '<div class="gogh-mbar-more" hidden>' +
+    '<span class="gogh-mbar-lab">Line up</span>' +
     [['left', 'Left'], ['center', 'Centre'], ['right', 'Right'], ['top', 'Top'], ['middle', 'Middle'], ['bottom', 'Bottom']].map(function (a) {
-      return '<button type="button" class="gogh-eb gogh-mb gogh-mb-align" data-how="' + a[0] + '" title="Align ' + a[1].toLowerCase() + '">' + a[1] + '</button>';
+      return '<button type="button" class="gogh-eb gogh-mb gogh-mb-align" data-how="' + a[0] + '" title="Line up ' + a[1].toLowerCase() + '">' + a[1] + '</button>';
     }).join('') +
     '<span class="gogh-mbar-sep"></span>' +
+    '<span class="gogh-mbar-lab">Spacing</span>' +
     '<button type="button" class="gogh-eb gogh-mb gogh-mb-space" title="Equal gaps between the pieces">Space evenly</button>' +
     '<button type="button" class="gogh-eb gogh-mb gogh-mb-tidy" title="Line the row up and even the gaps">Tidy up</button>' +
+    '<div class="gogh-mbar-hint" hidden>Faded ones would put pieces on top of each other, or change nothing.</div>' +
     '</div>';
   document.body.appendChild(mbar);
   function multiEls() {
@@ -2856,6 +2859,40 @@
   function planChanges(plan) {
     return plan.some(function (m) { return Math.abs(m.x - m.e.x) > 1 || Math.abs(m.y - m.e.y) > 1; });
   }
+  // the words a piece actually shows (its ink), in design units — a text box
+  // is often wider than its words, and boxes touching is not words touching
+  function inkRectOf(sec, j) {
+    var e = sec.els[j], node = sec.nodes && sec.nodes[j];
+    var box = { x: e.x, y: e.y, w: e.w, h: e.h };
+    if (!node || e.type === 'button' || !isText(e)) return box;
+    var sc = scaleOf(sec);
+    if (!(sc > 0.2)) return box;
+    var tn = node.matches('p,h1,h2,h3,h4,h5,h6') ? node : (node.querySelector('p,h1,h2,h3,h4,h5,h6') || node);
+    var rng = document.createRange();
+    rng.selectNodeContents(tn);
+    var ir = rng.getBoundingClientRect(), nr = node.getBoundingClientRect();
+    if (!(ir.width > 0) || !(ir.height > 0) || !(nr.width > 0)) return box;
+    return { x: e.x + (ir.left - nr.left) / sc, y: e.y + (ir.top - nr.top) / sc, w: ir.width / sc, h: ir.height / sc };
+  }
+  // would this plan land two texty pieces on each other that were apart
+  // before? Words never sit on words — the runtime guard's law, so no verb
+  // on the bar may break it (James: "they seem just to cause text to overlap")
+  function planOverlaps(sec, idxs, plan) {
+    var rects = idxs.map(function (j) {
+      var e = sec.els[j], r = inkRectOf(sec, j);
+      var m = null;
+      plan.forEach(function (pm) { if (pm.e === e) m = pm; });
+      return { e: e, x0: r.x, y0: r.y, x1: r.x + (m ? m.x - e.x : 0), y1: r.y + (m ? m.y - e.y : 0), w: r.w, h: r.h };
+    }).filter(function (r) { return guardTexty(r.e); });
+    var touch = function (a, ax, ay, b, bx, by) {
+      return Math.min(ax + a.w, bx + b.w) - Math.max(ax, bx) > 4 && Math.min(ay + a.h, by + b.h) - Math.max(ay, by) > 4;
+    };
+    for (var i = 0; i < rects.length; i++) for (var k = i + 1; k < rects.length; k++) {
+      var a = rects[i], b = rects[k];
+      if (touch(a, a.x1, a.y1, b, b.x1, b.y1) && !touch(a, a.x0, a.y0, b, b.x0, b.y0)) return true;
+    }
+    return false;
+  }
   function applyPlan(plan) { plan.forEach(function (m) { m.e.x = Math.round(m.x); m.e.y = Math.round(m.y); }); }
   function spacePlan(els) {
     var bb = bboxOf(els);
@@ -2874,25 +2911,39 @@
   }
   function refreshMbar() {
     if (mbar.hidden || !multiSel) return;
+    var sec = multiSel.sec, idxs = multiSel.idxs.slice();
     var els = multiEls();
-    var grey = function (btn, off, why, on) { btn.disabled = !!off; btn.title = off ? why : on; };
+    var grey = function (btn, why, on) { btn.disabled = !!why; btn.title = why || on; };
+    // the reason a verb is faded, in the order a beginner would want to hear it:
+    // it changes nothing; it would put words on words
+    var judge = function (plan, same) {
+      if (!planChanges(plan)) return same;
+      if (planOverlaps(sec, idxs, plan)) return 'Would put words on words';
+      return '';
+    };
     grey(mbar.querySelector('.gogh-mb-card'),
-      els.some(function (e) { return e.type === 'box' || e.rails || e.type === 'exp'; }),
-      'Cards, shapes and shelves can’t go inside a card', 'Make these one card — it holds together on phones');
+      els.some(function (e) { return e.type === 'box' || e.rails || e.type === 'exp'; }) ? 'Cards, shapes and shelves can’t go inside a card' : '',
+      'Make these one card — it holds together on phones');
     mbar.querySelectorAll('.gogh-mb-align').forEach(function (b) {
-      grey(b, !planChanges(alignPlan(els, b.dataset.how)), 'Already aligned', 'Align ' + b.textContent.toLowerCase());
+      grey(b, judge(alignPlan(els, b.dataset.how), 'Already lined up'), 'Line up ' + b.textContent.toLowerCase());
     });
     grey(mbar.querySelector('.gogh-mb-space'),
-      els.length < 3 ? 'few' : (!planChanges(spacePlan(els)) ? 'even' : ''),
-      els.length < 3 ? 'Needs three or more pieces' : 'Already evenly spaced', 'Equal gaps between the pieces');
-    grey(mbar.querySelector('.gogh-mb-tidy'), !planChanges(tidyPlan(els)), 'Already tidy', 'Line the row up and even the gaps');
+      els.length < 3 ? 'Needs three or more pieces' : judge(spacePlan(els), 'Already evenly spaced'),
+      'Equal gaps between the pieces');
+    grey(mbar.querySelector('.gogh-mb-tidy'), judge(tidyPlan(els), 'Already tidy'), 'Line the row up and even the gaps');
+    var hint = mbar.querySelector('.gogh-mbar-hint');
+    var row = mbar.querySelector('.gogh-mbar-more');
+    if (hint && row) hint.hidden = ![].slice.call(row.querySelectorAll('.gogh-mb')).some(function (b) { return b.disabled; });
   }
-  function afterArrange() {
+  function afterArrange(said) {
     var sec = multiSel.sec, idxs = multiSel.idxs.slice();
     resolveAndApply(sec);
     pushState();
     setMulti(sec, idxs); // the outlines, the bar and its greys follow the new places
+    if (said) toast(said, { ttl: 3500, actions: [{ label: 'Undo', onClick: function () { undo(); } }] });
   }
+  var ARRANGE_SAID = { left: 'Lined up on the left.', center: 'Centred.', right: 'Lined up on the right.',
+    top: 'Tops lined up.', middle: 'Middles lined up.', bottom: 'Bottoms lined up.' };
   function makeCardFromSelection() {
     if (!multiSel) return;
     var sec = multiSel.sec, idxs = multiSel.idxs.slice();
@@ -2937,10 +2988,22 @@
     placeMbar();
   });
   mbar.querySelectorAll('.gogh-mb-align').forEach(function (b) {
-    b.addEventListener('click', function () { if (!multiSel) return; applyPlan(alignPlan(multiEls(), b.dataset.how)); afterArrange(); });
+    b.addEventListener('click', function () {
+      if (!multiSel || b.disabled) return;
+      applyPlan(alignPlan(multiEls(), b.dataset.how));
+      afterArrange(ARRANGE_SAID[b.dataset.how]);
+    });
   });
-  mbar.querySelector('.gogh-mb-space').addEventListener('click', function () { if (!multiSel) return; applyPlan(spacePlan(multiEls())); afterArrange(); });
-  mbar.querySelector('.gogh-mb-tidy').addEventListener('click', function () { if (!multiSel) return; applyPlan(tidyPlan(multiEls())); afterArrange(); });
+  mbar.querySelector('.gogh-mb-space').addEventListener('click', function () {
+    if (!multiSel || this.disabled) return;
+    applyPlan(spacePlan(multiEls()));
+    afterArrange('Spaced evenly.');
+  });
+  mbar.querySelector('.gogh-mb-tidy').addEventListener('click', function () {
+    if (!multiSel || this.disabled) return;
+    applyPlan(tidyPlan(multiEls()));
+    afterArrange('Tidied up.');
+  });
   // after any gesture ends (a group drag, a nudge), the bar finds the group again
   document.addEventListener('pointerup', function () {
     if (!multiSel) return;

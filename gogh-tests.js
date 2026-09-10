@@ -4309,7 +4309,8 @@
       expect(!top.disabled, 'Align top should be offered for a ragged row');
       top.click();
       expect(a.y === 60 && b.y === 60 && c.y === 60, 'Align top should bring every piece to the topmost: ' + [a.y, b.y, c.y]);
-      expect(bar.querySelector('.gogh-mb-align[data-how="top"]').disabled && bar.querySelector('.gogh-mb-align[data-how="top"]').title === 'Already aligned', 'Align top should grey out once aligned');
+      expect(bar.querySelector('.gogh-mb-align[data-how="top"]').disabled && bar.querySelector('.gogh-mb-align[data-how="top"]').title === 'Already lined up', 'Align top should grey out once aligned');
+      expect(bar.querySelectorAll('.gogh-mbar-lab').length === 2 && /Line up/.test(bar.querySelector('.gogh-mb-more').textContent), 'the row should be labelled and the dots should say Line up');
       expect(G.multi.state() && G.multi.state().idxs.length === 3 && !bar.hidden, 'the selection and the bar should survive an arrange');
       var space = bar.querySelector('.gogh-mb-space');
       expect(!space.disabled, 'Space evenly should be offered for uneven gaps');
@@ -4331,8 +4332,24 @@
       expect(bar.querySelector('.gogh-mb-space').disabled && /three/.test(bar.querySelector('.gogh-mb-space').title), 'Space evenly needs three or more, and says so');
       G.multi.clear();
       s0.els.splice(n0);
+      // words never sit on words: a heading above a paragraph refuses Top,
+      // Middle and Bottom (James: "they seem just to cause text to overlap")
+      s0.els.push({ type: 'heading', x: 100, y: 40, w: 400, h: 60, text: 'A new heading' });
+      s0.els.push({ type: 'para', x: 100, y: 120, w: 300, h: 60, text: 'Some supporting copy. Drag me anywhere.' });
       G.renderSection(s0);
-      return 'align, space evenly, tidy up: one click each, greyed when already right';
+      G.multi.set(s0, [n0, n0 + 1]);
+      bar.querySelector('.gogh-mb-more').click();
+      var why = function (how) { var b2 = bar.querySelector('.gogh-mb-align[data-how="' + how + '"]'); return b2.disabled ? b2.title : 'offered'; };
+      expect(why('middle') === 'Would put words on words' && why('top') === 'Would put words on words' && why('bottom') === 'Would put words on words', 'stacked words should refuse Top, Middle and Bottom: ' + [why('top'), why('middle'), why('bottom')]);
+      expect(why('left') === 'Already lined up' && why('right') === 'offered' && why('center') === 'offered', 'sideways verbs should stay honest: ' + [why('left'), why('center'), why('right')]);
+      expect(!bar.querySelector('.gogh-mbar-hint').hidden, 'the hint should explain the faded verbs');
+      var hy = s0.els[n0].y, py = s0.els[n0 + 1].y;
+      bar.querySelector('.gogh-mb-align[data-how="middle"]').click();
+      expect(s0.els[n0].y === hy && s0.els[n0 + 1].y === py, 'a faded verb must do nothing');
+      G.multi.clear();
+      s0.els.splice(n0);
+      G.renderSection(s0);
+      return 'align, space evenly, tidy up: one click each; faded when already right or when words would land on words';
     });
 
     testAsync('select all picks the section’s pieces; the margin is a named magnet and guide', function () {
