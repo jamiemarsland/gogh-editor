@@ -4490,6 +4490,64 @@
       });
     });
 
+    test('a card lines up its own pieces: left, centre, right, evenly; faded when nothing would change', function () {
+      // James: "would it also be nice to have a line up option once the card has been made?"
+      var s0 = sec();
+      var n0 = s0.els.length;
+      var below = Math.max.apply(null, s0.els.map(function (e) { return e.y + e.h; })) + 40;
+      var box = { type: 'box', x: 80, y: below, w: 640, h: 420, radius: 12, boxBg: '#B4523A', kids: [
+        { type: 'heading', x: 120, y: 30, w: 400, h: 50, text: 'A new heading' },
+        { type: 'para', x: 40, y: 150, w: 480, h: 40, text: 'Some supporting copy.' },
+        { type: 'button', x: 220, y: 300, w: 170, h: 52, text: 'Click me' } ] };
+      s0.els.push(box);
+      G.renderSection(s0);
+      select(n0);
+      var lineup = q('.gogh-eb-lineup');
+      expect(lineup && lineup.style.display !== 'none', 'a card should offer Line up on its bar');
+      select(0);
+      expect(q('.gogh-eb-lineup').style.display === 'none', 'a plain piece should not');
+      select(n0);
+      lineup.click();
+      var row = q('.gogh-elbar-more');
+      expect(!row.hidden && row.querySelectorAll('.gogh-cl-align').length === 3 && row.querySelector('.gogh-cl-space'), 'the row should open with Left, Centre, Right and Space evenly');
+      row.querySelector('.gogh-cl-align[data-how="left"]').click();
+      expect(box.kids.every(function (k) { return k.x === 40; }), 'Left should line the pieces up with the leftmost: ' + box.kids.map(function (k) { return k.x; }));
+      expect(row.querySelector('.gogh-cl-align[data-how="left"]').disabled && row.querySelector('.gogh-cl-align[data-how="left"]').title === 'Already lined up', 'Left should fade once lined up');
+      row.querySelector('.gogh-cl-align[data-how="center"]').click();
+      expect(box.kids[0].x === 120 && box.kids[1].x === 80 && box.kids[2].x === 235, 'Centre should centre each piece on the card: ' + box.kids.map(function (k) { return k.x; }));
+      var space = row.querySelector('.gogh-cl-space');
+      expect(!space.disabled, 'Space evenly should be offered for three uneven pieces');
+      space.click();
+      // 30..80, gap, 150..190, gap, 300..352: span 322, pieces 142, two gaps of 90 → the middle lands at 170
+      expect(box.kids[0].y === 30 && box.kids[1].y === 170 && box.kids[2].y === 300, 'Space evenly should even the gaps down the card: ' + box.kids.map(function (k) { return k.y; }));
+      expect(space.disabled && space.title === 'Already evenly spaced', 'Space evenly should fade once even');
+      expect(!G.multi.state() && q('.gogh-selbox') && !q('.gogh-selbox').hidden, 'the card should stay the selection');
+      G.closePanel();
+      select(0);
+      s0.els.splice(n0, 1);
+      G.renderSection(s0);
+      return 'a card lines up its pieces; the verbs fade when there is nothing to do';
+    });
+
+    test('the sentinel gives a solid card one verdict: its words flip together', function () {
+      // James's terracotta card: the thin paragraph flipped light, the bold heading stayed dark
+      var s0 = sec();
+      var n0 = s0.els.length;
+      var below = Math.max.apply(null, s0.els.map(function (e) { return e.y + e.h; })) + 40;
+      s0.els.push({ type: 'box', x: 80, y: below, w: 500, h: 260, radius: 12, boxBg: '#B4523A', kids: [
+        { type: 'heading', x: 24, y: 24, w: 440, h: 50, text: 'Bold and dark', tf: { col: '#22201c' } },
+        { type: 'para', x: 24, y: 120, w: 440, h: 40, text: 'Thin and grey.', tf: { col: '#7a7a7a' } } ] });
+      G.renderSection(s0);
+      var card = s0.els[n0];
+      G.contrastSentinel(s0, n0);
+      var h = card.kids[0], p = card.kids[1];
+      expect(p.color && !(p.tf && p.tf.col), 'the grey paragraph should flip to a readable ink, got ' + JSON.stringify([p.color, p.tf]));
+      expect(h.color === p.color && !(h.tf && h.tf.col), 'the heading should wear the same verdict as the paragraph: ' + JSON.stringify([h.color, p.color]));
+      s0.els.splice(n0, 1);
+      G.renderSection(s0);
+      return 'one card, one ink';
+    });
+
     test('card interactions: drop joins, kid drags inside, drag-out frees', function () {
       var s0 = sec();
       s0.els.push({ type: 'box', x: 600, y: 80, w: 480, h: 380, boxBg: '#101418', radius: 16 });

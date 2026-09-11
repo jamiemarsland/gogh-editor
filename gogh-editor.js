@@ -2476,7 +2476,21 @@
     '<button type="button" class="gogh-eb gogh-eb-bck" title="Send backward">▼</button>' +
     '<button type="button" class="gogh-eb gogh-eb-fwd" title="Bring forward">▲</button>' +
     '<button type="button" class="gogh-eb gogh-eb-dup" title="Duplicate (or Alt-drag)">⧉</button>' +
-    '<button type="button" class="gogh-eb gogh-eb-del" title="Delete (Del)">🗑</button>';
+    '<button type="button" class="gogh-eb gogh-eb-del" title="Delete (Del)">🗑</button>' +
+    // a card's own Line up: its pieces, lined up with each other or centred
+    // on the card, and spaced evenly down it — the group bar's verbs, one
+    // level in (James: "a line up option once the card has been made")
+    '<button type="button" class="gogh-eb gogh-eb-lineup" title="Line up the pieces inside this card">Line up \u25BE</button>' +
+    '<div class="gogh-mbar-more gogh-elbar-more" hidden>' +
+    '<span class="gogh-mbar-lab">Line up</span>' +
+    [['left', 'Left'], ['center', 'Centre'], ['right', 'Right']].map(function (a) {
+      return '<button type="button" class="gogh-eb gogh-mb gogh-cl-align" data-how="' + a[0] + '" title="Line up ' + a[1].toLowerCase() + '">' + a[1] + '</button>';
+    }).join('') +
+    '<span class="gogh-mbar-sep"></span>' +
+    '<span class="gogh-mbar-lab">Spacing</span>' +
+    '<button type="button" class="gogh-eb gogh-mb gogh-cl-space" title="Equal gaps down the card">Space evenly</button>' +
+    '<div class="gogh-mbar-hint" hidden>Faded ones would put pieces on top of each other, or change nothing.</div>' +
+    '</div>';
   var ctxBtn = elbar.querySelector('.gogh-eb-ctx');
   elbar.querySelector('.gogh-eb-manage').addEventListener('click', function () {
     if (!sel) return;
@@ -2884,6 +2898,10 @@
       plan.forEach(function (pm) { if (pm.e === e) m = pm; });
       return { e: e, x0: r.x, y0: r.y, x1: r.x + (m ? m.x - e.x : 0), y1: r.y + (m ? m.y - e.y : 0), w: r.w, h: r.h };
     }).filter(function (r) { return guardTexty(r.e); });
+    return anyNewOverlap(rects);
+  }
+  // two texty rects that were apart before (x0,y0) and touch after (x1,y1)
+  function anyNewOverlap(rects) {
     var touch = function (a, ax, ay, b, bx, by) {
       return Math.min(ax + a.w, bx + b.w) - Math.max(ax, bx) > 4 && Math.min(ay + a.h, by + b.h) - Math.max(ay, by) > 4;
     };
@@ -2909,6 +2927,68 @@
       return m;
     });
   }
+  // ---- the same verbs one level in: a card's pieces ----
+  function cardLineupPlan(box, how) {
+    var kids = box.kids || [];
+    if (how === 'space') {
+      var items = kids.map(function (k) { return { e: k, x: k.x, y: k.y }; });
+      if (items.length >= 3) evenRow(items, 'y');
+      return items;
+    }
+    // centre means the card's centre; left and right line the pieces up with each other
+    if (how === 'center') return kids.map(function (k) { return { e: k, x: Math.max(0, Math.round(box.w / 2 - k.w / 2)), y: k.y }; });
+    return alignPlan(kids, how);
+  }
+  function cardPlanOverlaps(sec, ci, plan) {
+    var box = sec.els[ci], inkOf = kidInkOf(sec, ci);
+    var rects = (box.kids || []).map(function (k) {
+      var r = inkOf(k) || { x: k.x, y: k.y, w: k.w, h: k.h };
+      var m = null;
+      plan.forEach(function (pm) { if (pm.e === k) m = pm; });
+      return { e: k, x0: r.x, y0: r.y, x1: r.x + (m ? m.x - k.x : 0), y1: r.y + (m ? m.y - k.y : 0), w: r.w, h: r.h };
+    }).filter(function (r) { return guardTexty(r.e); });
+    return anyNewOverlap(rects);
+  }
+  function refreshCardLineup(sec, i) {
+    var box = sec.els[i];
+    if (!box || box.type !== 'box' || !box.kids || !box.kids.length) return;
+    var grey = function (btn, why, on) { btn.disabled = !!why; btn.title = why || on; };
+    var judge = function (plan, same) {
+      if (!planChanges(plan)) return same;
+      if (cardPlanOverlaps(sec, i, plan)) return 'Would put words on words';
+      return '';
+    };
+    elbar.querySelectorAll('.gogh-cl-align').forEach(function (b) {
+      grey(b, judge(cardLineupPlan(box, b.dataset.how), 'Already lined up'), 'Line up ' + b.textContent.toLowerCase());
+    });
+    grey(elbar.querySelector('.gogh-cl-space'),
+      box.kids.length < 3 ? 'Needs three or more pieces' : judge(cardLineupPlan(box, 'space'), 'Already evenly spaced'),
+      'Equal gaps down the card');
+    var row = elbar.querySelector('.gogh-elbar-more'), hint = elbar.querySelector('.gogh-elbar-more .gogh-mbar-hint');
+    if (hint && row) hint.hidden = ![].slice.call(row.querySelectorAll('.gogh-mb')).some(function (b) { return b.disabled; });
+  }
+  function cardLineup(how, said) {
+    if (!sel) return;
+    var sec = sel.sec, i = sel.i, box = sec.els[i];
+    if (!box || box.type !== 'box' || !box.kids) return;
+    var plan = cardLineupPlan(box, how);
+    if (!planChanges(plan) || cardPlanOverlaps(sec, i, plan)) return;
+    applyPlan(plan);
+    resolveAndApply(sec);
+    pushState();
+    placeHandles(sec, i);
+    toast(said, { ttl: 3500, actions: [{ label: 'Undo', onClick: function () { undo(); } }] });
+  }
+  elbar.querySelector('.gogh-eb-lineup').addEventListener('click', function () {
+    var row = elbar.querySelector('.gogh-elbar-more');
+    row.hidden = !row.hidden;
+    elbar.classList.toggle('gogh-elbar-open', !row.hidden);
+    if (!row.hidden && sel) refreshCardLineup(sel.sec, sel.i);
+  });
+  elbar.querySelectorAll('.gogh-cl-align').forEach(function (b) {
+    b.addEventListener('click', function () { if (!b.disabled) cardLineup(b.dataset.how, ARRANGE_SAID[b.dataset.how]); });
+  });
+  elbar.querySelector('.gogh-cl-space').addEventListener('click', function () { if (!this.disabled) cardLineup('space', 'Spaced evenly.'); });
   function refreshMbar() {
     if (mbar.hidden || !multiSel) return;
     var sec = multiSel.sec, idxs = multiSel.idxs.slice();
@@ -3089,6 +3169,10 @@
     } else {
       ctxBtn.style.display = 'none';
     }
+    var isCardSel = e.type === 'box' && e.kids && e.kids.length;
+    elbar.querySelector('.gogh-eb-lineup').style.display = isCardSel ? '' : 'none';
+    if (!isCardSel) { elbar.querySelector('.gogh-elbar-more').hidden = true; elbar.classList.remove('gogh-elbar-open'); }
+    else refreshCardLineup(sec, i);
     var railsEl = !!(e.rails && (e.shop || e.posts));
     var manageBtn = elbar.querySelector('.gogh-eb-manage');
     manageBtn.style.display = railsEl ? '' : 'none';
@@ -6310,6 +6394,7 @@
         var cardNode = sec.nodes[bi];
         if (!cardNode) return;
         var kidFlips = [];
+        var judged = [];
         box.kids.forEach(function (k, j) {
           if (!isText(k)) return;
           var kn = cardNode.querySelector('.gogh-k-' + (j + 1));
@@ -6319,9 +6404,18 @@
           if (!txt) return;
           var ground = groundFor(k);
           if (ground == null) return;
-          if (sentinelContrast(sentinelOver(txt, ground), ground) >= CONTRAST_FLOOR) return;
-          var pick = sentinelBestInk(ground);
-          if (pick.best && k.color !== pick.best) kidFlips.push({ j: j, to: pick.best });
+          judged.push({ j: j, k: k, ground: ground, fails: sentinelContrast(sentinelOver(txt, ground), ground) < CONTRAST_FLOOR });
+        });
+        // one verdict per solid card: a bold heading can clear the floor where
+        // the thin words beside it fail, and a card half dark, half light reads
+        // as a mistake (James's terracotta card). A photo card keeps judging
+        // each piece on its own patch of the picture.
+        var solid = !!bvRgb && !box.boxImg;
+        var anyFail = judged.some(function (d) { return d.fails; });
+        judged.forEach(function (d) {
+          if (!d.fails && !(solid && anyFail)) return;
+          var pick = sentinelBestInk(d.ground);
+          if (pick.best && d.k.color !== pick.best) kidFlips.push({ j: d.j, to: pick.best });
         });
         if (!kidFlips.length) return;
         pushState();

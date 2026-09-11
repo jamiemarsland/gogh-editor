@@ -2816,8 +2816,11 @@ html.gogh-chrome-mode .gogh-hgrip { display: none !important; }
 }
 /* the group bar: named verbs for a multi-selection, the arrange row behind the dots */
 .gogh-mbar { border-radius: 14px; flex-wrap: wrap; justify-content: center; max-width: 600px; }
-.gogh-mbar .gogh-mb { font: 600 12px/1 -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, sans-serif; padding: 7px 10px; white-space: nowrap; }
-.gogh-mbar .gogh-mb:disabled { opacity: 0.38; cursor: default; }
+.gogh-mbar .gogh-mb, .gogh-elbar .gogh-mb { font: 600 12px/1 -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, sans-serif; padding: 7px 10px; white-space: nowrap; }
+.gogh-mbar .gogh-mb:disabled, .gogh-elbar .gogh-mb:disabled { opacity: 0.38; cursor: default; }
+/* a card's bar opens the same row one level in */
+.gogh-elbar .gogh-eb-lineup { font: 600 12px/1 -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, sans-serif; white-space: nowrap; }
+.gogh-elbar.gogh-elbar-open { border-radius: 14px; flex-wrap: wrap; justify-content: center; max-width: 560px; }
 .gogh-mbar-more { flex-basis: 100%; display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 2px; margin-top: 4px; padding-top: 4px; border-top: 1px solid rgba(0, 0, 0, 0.08); }
 .gogh-mbar-more[hidden] { display: none; }
 .gogh-mbar-sep { width: 1px; height: 18px; background: rgba(0, 0, 0, 0.12); margin: 0 4px; }
