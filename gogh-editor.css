@@ -2826,7 +2826,8 @@ html.gogh-chrome-mode .gogh-hgrip { display: none !important; }
 .gogh-mbar-sep { width: 1px; height: 18px; background: rgba(0, 0, 0, 0.12); margin: 0 4px; }
 .gogh-mbar-lab { font: 600 11px/1 -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, sans-serif; letter-spacing: 0.06em; text-transform: uppercase; opacity: 0.5; padding: 0 4px 0 8px; }
 /* spacing sits on its own line: two axes and Tidy up need the room */
-.gogh-mbar-row { flex-basis: 100%; display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 2px; margin-top: 3px; }
+.gogh-mbar-row { flex-basis: 100%; display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 2px; margin-top: 2px; }
+.gogh-mbar-row .gogh-mbar-lab { min-width: 104px; text-align: right; }
 .gogh-mbar-hint { flex-basis: 100%; text-align: center; font: 500 11px/1.3 -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, sans-serif; opacity: 0.6; padding: 4px 8px 2px; }
 .gogh-mbar-hint[hidden] { display: none; }
 .gogh-marquee {
