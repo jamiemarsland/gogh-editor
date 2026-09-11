@@ -959,8 +959,12 @@ const ROW_GAPS = { s: 18, m: 30, l: 52 };
 const RULE_H = 12;
 const RULE_INK = 'color-mix(in srgb, var(--wp--preset--color--contrast, #000) 18%, transparent)';
 function ruleEl(y) {
+  // The box itself stretches: grid rows share out whatever height the section
+  // has left over, so a line measured as a PERCENTAGE of the box grew with it
+  // and every rule came out a different, fatter bar. Paint one pixel, centred,
+  // and the box may be any height it likes.
   return { type: 'box', x: MARGIN, y, w: CONTENT, h: RULE_H,
-    boxBg: `linear-gradient(to bottom, transparent 46%, ${RULE_INK} 46%, ${RULE_INK} 54%, transparent 54%)` };
+    boxBg: `linear-gradient(${RULE_INK}, ${RULE_INK}) center / 100% 1px no-repeat` };
 }
 function layColumns(columns, align, gap, valign, top) {
   const cols = (columns || []).filter((c) => c && Array.isArray(c.items) && c.items.length);
@@ -1024,7 +1028,7 @@ function compileBand(band) {
     y += laid.height;
   }
 
-  const out = { name: String(band.name || 'Band').slice(0, 60), els, minH: y + 96 };
+  const out = { name: String(band.name || 'Band').slice(0, 60), els, minH: y + 88 };
   if (band.background) out.background = String(band.background);
   if (band.image) { out.image = String(band.image); if (band.tint != null) out.tint = Math.max(0, Math.min(100, +band.tint)); }
   return out;
