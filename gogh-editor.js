@@ -10112,9 +10112,12 @@
   }
   // the first load after a definition boot: draw, save every page, clear
   // the definition, and go and look at the site
+  var siteBuilding = false; // scratch drawing in progress: no backups, no leave-site guard, no canvas in view
   function buildSiteFromDef(pending) {
     var def = pending && pending.def, ids = (pending && pending.pages) || {};
     if (!def) return Promise.resolve(false);
+    siteBuilding = true;
+    document.documentElement.classList.add('gogh-building');
     var veil = document.createElement('div');
     veil.className = 'gogh-buildveil';
     veil.innerHTML = '<div class="gogh-buildcard"><div class="gogh-buildtitle">Building ' + esc(def.name || 'your site') + '…</div><div class="gogh-buildstep">Warming up</div></div>';
@@ -10142,12 +10145,15 @@
         return fetch(root + 'gogh/v1/site-def', { method: 'DELETE', credentials: 'same-origin', headers: { 'X-WP-Nonce': cfg.nonce } }).catch(function () {});
       })
       .then(function () {
-        step.textContent = 'Done — opening your site';
-        setTimeout(function () { window.location.href = cfg.homeUrl || '/'; }, 600);
+        step.textContent = 'Opening your site';
+        discarding = true; // the scratch on this canvas was never meant to be kept
+        setTimeout(function () { window.location.href = cfg.homeUrl || '/'; }, 400);
         return true;
       })
       .catch(function (err) {
         step.textContent = 'Something went wrong: ' + (err && err.message ? err.message : err);
+        siteBuilding = false;
+        document.documentElement.classList.remove('gogh-building');
         return false;
       });
   }
@@ -16910,6 +16916,7 @@
       : cfg.restUrl.replace('?', '/autosaves?');
   }
   setInterval(function () {
+    if (siteBuilding) return; // a site being drawn from a definition is scratch, never a backup
     if (!editing || chipBusy || !isDirty()) return;
     // the suite wrecks the page BY DESIGN (delete-everything tests) — backing
     // that up would shadow the real fixture on every next boot
