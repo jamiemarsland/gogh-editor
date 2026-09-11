@@ -322,34 +322,53 @@ async function handleChat(req, env) {
 // the takes a definition may use, and what each one takes. Mirrors
 // fillTake() in gogh-editor.js — keep the two together.
 const TAKES = {
-  'Cover': { for: 'the front door: one headline over one full-bleed picture', fields: ['eyebrow', 'heading', 'text', 'button', 'image'] },
-  'Hero': { for: 'a headline and a photo side by side, two buttons, a badge', fields: ['eyebrow', 'heading', 'text', 'button', 'button2', 'badge', 'image'] },
-  'Big statement': { for: 'one big line, nothing else', fields: ['eyebrow', 'heading', 'button'] },
-  'Story': { for: 'a picture beside two paragraphs — about pages, origins', fields: ['eyebrow', 'heading', 'text', 'text2', 'button', 'badge', 'image'] },
-  'Article': { for: 'a comfortable reading column', fields: ['eyebrow', 'heading', 'text', 'text2', 'text3', 'button'] },
+  'Cover': { for: 'the front door: one headline over one full-bleed picture', fields: ['eyebrow', 'heading', 'text', 'button', 'link', 'image'] },
+  'Hero': { for: 'a headline and a photo side by side, two buttons, a badge', fields: ['eyebrow', 'heading', 'text', 'button', 'link', 'button2', 'badge', 'image'] },
+  'Big statement': { for: 'one big line, nothing else', fields: ['eyebrow', 'heading', 'button', 'link'] },
+  'Story': { for: 'a picture beside two paragraphs — about pages, origins', fields: ['eyebrow', 'heading', 'text', 'text2', 'button', 'link', 'badge', 'image'] },
+  'Article': { for: 'a comfortable reading column', fields: ['eyebrow', 'heading', 'text', 'text2', 'text3', 'button', 'link'] },
   'Numbers': { for: 'three figures with labels', fields: ['eyebrow'], items: { value: 'the figure, e.g. "312"', label: 'what it counts' }, count: 3 },
   'Feature cards': { for: 'three things you do, offer or believe', fields: ['heading', 'mood'], items: { title: '', text: 'one or two sentences' }, count: 3, max: 3 },
   'Pricing': { for: 'three plans', fields: ['eyebrow', 'heading'], items: { title: '', text: '', price: 'e.g. "£40/mo"', button: '', badge: 'optional, e.g. "Most popular"' }, count: 3, max: 3 },
   'Quote': { for: 'one big quotation', fields: ['text', 'name'] },
   'Testimonials': { for: 'three short quotes from customers', fields: ['heading'], items: { quote: '', name: 'who, e.g. "Ella · Bath"' }, count: 3, max: 3 },
-  'Call to action': { for: 'the ask, on a coloured band', fields: ['eyebrow', 'heading', 'text', 'button'] },
+  'Call to action': { for: 'the ask, on a coloured band', fields: ['eyebrow', 'heading', 'text', 'button', 'link'] },
   'Get in touch': { for: 'a contact form with a short invitation', fields: ['eyebrow', 'heading', 'text'] },
   'Team': { for: 'people with a picture, a name and a role', fields: ['eyebrow', 'heading'], items: { name: '', role: '', image: 'optional' }, count: 3, max: 3 },
-  'Gallery': { for: 'three pictures and a button', fields: ['eyebrow', 'heading', 'button'], items: { image: 'a picture URL' }, count: 3, max: 3 },
+  'Gallery': { for: 'three pictures and a button', fields: ['eyebrow', 'heading', 'button', 'link'], items: { image: 'a picture URL' }, count: 3, max: 3 },
   'Photo wall': { for: 'a wall of pictures', fields: ['eyebrow', 'heading'], items: { image: 'a picture URL', caption: 'optional' }, count: 6, max: 12 },
   'Carousel': { for: 'pictures that slide', fields: ['eyebrow', 'heading'], items: { image: 'a picture URL', caption: 'optional' }, count: 4, max: 10 },
   'FAQ': { for: 'questions and answers', fields: ['eyebrow', 'heading'], items: { q: 'the question', a: 'the answer' }, count: 4, max: 8 },
   'Menu': { for: 'dishes and prices', fields: ['eyebrow', 'heading', 'text'], items: { name: '', price: 'e.g. "£9"' }, count: 4, max: 4 },
-  'Portfolio': { for: 'one case study with a picture and two results', fields: ['eyebrow', 'heading', 'text', 'badge', 'badge2', 'button', 'image'] },
-  'Profile card': { for: 'one person on a card over a picture', fields: ['eyebrow', 'heading', 'text', 'text2', 'button', 'badge'] },
-  'Place card': { for: 'one place on a card over a picture', fields: ['eyebrow', 'heading', 'text', 'text2', 'button', 'badge'] },
-  'Job card': { for: 'one job on a card', fields: ['heading', 'text', 'text2', 'button', 'badge'] },
+  'Portfolio': { for: 'one case study with a picture and two results', fields: ['eyebrow', 'heading', 'text', 'badge', 'badge2', 'button', 'link', 'image'] },
+  'Profile card': { for: 'one person on a card over a picture', fields: ['eyebrow', 'heading', 'text', 'text2', 'button', 'link', 'badge'] },
+  'Place card': { for: 'one place on a card over a picture', fields: ['eyebrow', 'heading', 'text', 'text2', 'button', 'link', 'badge'] },
+  'Job card': { for: 'one job on a card', fields: ['heading', 'text', 'text2', 'button', 'link', 'badge'] },
   'Latest posts': { for: 'the newest posts, live', fields: ['heading', 'posts'] },
 };
 const VARIATIONS = ['Morning', 'Evening', 'Noon', 'Afternoon', 'Dusk', 'Twilight', 'Sunrise', 'Midnight'];
-const HEADERS = ['gogh-header-classic', 'gogh-header-bold', 'gogh-header-centred', 'gogh-header-hamburger', 'gogh-header-minimal', 'gogh-header-overlay', 'gogh-header-split'];
+const HEADERS = ['gogh-header-classic', 'gogh-header-bold', 'gogh-header-centred', 'gogh-header-hamburger', 'gogh-header-minimal', 'gogh-header-onepage', 'gogh-header-overlay', 'gogh-header-split'];
 const FOOTERS = ['gogh-footer-columns', 'gogh-footer-simple', 'gogh-footer-bold'];
-const OWN_PICTURES = ['/wp-content/plugins/gogh/demo-assets/almond-blossom.jpg', '/wp-content/plugins/gogh/demo-assets/sunflowers.jpg', '/wp-content/plugins/gogh/demo-assets/wheat-field.jpg', '/wp-content/plugins/gogh/demo-assets/starry-night.jpg'];
+// The pictures gogh itself ships, with what they ARE — a path alone tells
+// the writer nothing, and a site of four Van Goghs was the only picture-led
+// site the connector could build. The black-and-white set rides in every
+// build (starters/ is in the zip); the paintings ride in the playground one.
+const OWN_PICTURES = {
+  '/wp-content/plugins/gogh/demo-assets/almond-blossom.jpg': 'Van Gogh — almond blossom, pale blue and white',
+  '/wp-content/plugins/gogh/demo-assets/sunflowers.jpg': 'Van Gogh — sunflowers, yellow on yellow',
+  '/wp-content/plugins/gogh/demo-assets/wheat-field.jpg': 'Van Gogh — a wheat field under a wide sky',
+  '/wp-content/plugins/gogh/demo-assets/starry-night.jpg': 'Van Gogh — the starry night, deep blue',
+  '/wp-content/plugins/gogh/starters/photographer/bw-the-villa.jpg': 'black and white — a modern villa, glass and flat roofs (wide)',
+  '/wp-content/plugins/gogh/starters/photographer/bw-white-house.jpg': 'black and white — a white modernist house in hard sun (square)',
+  '/wp-content/plugins/gogh/starters/photographer/bw-curves.jpg': 'black and white — a curved facade seen from below, nearly abstract (tall)',
+  '/wp-content/plugins/gogh/starters/photographer/bw-cinque-terre.jpg': 'black and white — an old cliff town above a harbour (tall)',
+  '/wp-content/plugins/gogh/starters/photographer/bw-first-light.jpg': 'black and white — first light on an empty beach (wide)',
+  '/wp-content/plugins/gogh/starters/photographer/bw-salt-water.jpg': 'black and white — a small wave breaking, close up (tall)',
+  '/wp-content/plugins/gogh/starters/photographer/bw-portrait-studio.jpg': 'black and white portrait — a man against a dark ground',
+  '/wp-content/plugins/gogh/starters/photographer/bw-laughing.jpg': 'black and white portrait — a woman laughing',
+  '/wp-content/plugins/gogh/starters/photographer/bw-portrait-dusk.jpg': 'black and white portrait — a woman at dusk, striped shirt',
+};
+const PICTURE_PATHS = Object.keys(OWN_PICTURES);
 const MAX_DEF_BYTES = 64 * 1024;
 
 const EXAMPLE = {
@@ -390,16 +409,32 @@ You write a **site definition**: content and choices, never layout. Gogh draws i
 { name, tagline,
   variation: one of ${VARIATIONS.join(' | ')}   (the typography and mood; Morning is warm and bookish, Evening is dark, Sunrise is bright),
   palette: { base: '#hex' (page colour), contrast: '#hex' (ink), accents: ['#hex', ...] (2 to 4) },
-  chrome: { header: ${HEADERS.join(' | ')}, footer: ${FOOTERS.join(' | ')} },
-  pages: [ { title, front: true (exactly one), blog: true (the posts page, no sections), sections: [ { take, ...fields } ] } ],
+  chrome: { header: ${HEADERS.join(' | ')}, footer: ${FOOTERS.join(' | ')}, sticky: true (pins the header as you scroll) },
+  nav: [ { label, url } ]   (optional: a menu of your own. url is '#anchor' or an http(s) link. Without it the menu is one link per page)
+  pages: [ { title, front: true (exactly one), blog: true (the posts page, no sections), sections: [ { take, anchor, ...fields } ] } ],
   posts: [ { title, text (plain paragraphs separated by blank lines), image } ] }
 \`\`\`
-Rules: 1 to 8 pages, up to 10 sections a page, the front page first. Headings are short (2 to 7 words). Texts are one to three plain sentences. Buttons are two or three words. An eyebrow is a tiny label above the heading ("Bath · since 2014"). \`mood\` on card takes is one of still, lift, zoom, veil, glass. Pictures are optional: use URLs the person gave you; otherwise leave \`image\` out, or use gogh's own: ${OWN_PICTURES.join(', ')}. Never invent picture URLs. Write in the person's own voice and facts; never lorem ipsum.
+Rules: 1 to 8 pages, up to 10 sections a page, the front page first. Headings are short (2 to 7 words). Texts are one to three plain sentences. Buttons are two or three words. An eyebrow is a tiny label above the heading ("Bath · since 2014"). \`mood\` on card takes is one of still, lift, zoom, veil, glass. Pictures are optional: use URLs the person gave you; otherwise leave \`image\` out, or use one of gogh's own, below. Never invent picture URLs.
+
+## Gogh's own pictures
+${PICTURE_PATHS.map((k) => `- \`${k}\` — ${OWN_PICTURES[k]}`).join('\n')} Write in the person's own voice and facts; never lorem ipsum.
 
 ## The takes
 ${takes}
 
 A good home page is four to six sections: a Cover or Hero, Feature cards, something human (Testimonials, Team, Story or Numbers), Latest posts if there are posts, and a Call to action or Get in touch at the end. An about page: Story, Numbers, Team. A contact page: Get in touch. Give a Journal page \`blog: true\` and two or three posts so it is not empty. Shops need WooCommerce and are not yet part of a definition.
+
+## A one-page site
+When the whole site belongs on one page — a small practice, an event, a product, anyone with more to say than a card and less than five pages — build it this way instead:
+
+- **One page**, \`front: true\`, with six to nine sections. It is a whole site's worth of content in one scroll, so give it more sections than a home page would carry.
+- **Give an \`anchor\`** to each section the menu will name: a lowercase word like \`work\` or \`services\`. It becomes the section's id. Leave it off the sections that are a breath between the named ones (a Quote, a Numbers strip) — a menu of nine is not a menu.
+- **Write the \`nav\`** to match: \`[{ label: 'Work', url: '#work' }, …]\`, up to seven. Every \`#anchor\` must be a section on the front page, because an anchor link always lands there.
+- **Pin the header**: \`chrome: { header: 'gogh-header-onepage', footer: 'gogh-footer-simple', sticky: true }\`. The menu has to still be there at the bottom of a long page. Gogh does the rest — the page glides to a section rather than jumping, and stops clear of the pinned header.
+
+Example shape: \`{ take: 'Cover', anchor: 'top', … }\`, \`{ take: 'Big statement', anchor: 'about', … }\`, \`{ take: 'Numbers', … }\`, \`{ take: 'Gallery', anchor: 'work', … }\`, \`{ take: 'Feature cards', anchor: 'services', … }\`, \`{ take: 'Quote', … }\`, \`{ take: 'Team', anchor: 'studio', … }\`, \`{ take: 'Get in touch', anchor: 'contact', … }\` — with \`nav\` naming about, work, services, studio and contact.
+
+A button inside a section can point at an anchor too: give the section a \`link\` of \`'#contact'\` and its button scrolls there.
 
 ## A complete example
 \`\`\`json
@@ -408,7 +443,11 @@ ${JSON.stringify(EXAMPLE, null, 1)}
 }
 
 const isHex = (v) => typeof v === 'string' && /^#[0-9a-fA-F]{6}$/.test(v);
-const isPic = (v) => typeof v === 'string' && (/^https?:\/\/\S+$/.test(v) || OWN_PICTURES.includes(v));
+const isPic = (v) => typeof v === 'string' && (/^https?:\/\/\S+$/.test(v) || PICTURE_PATHS.includes(v));
+// a section's anchor becomes an id in the page: lowercase, starts with a letter
+const isAnchor = (v) => typeof v === 'string' && /^[a-z][a-z0-9-]*$/.test(v);
+// where a button goes: a section on this page, or off the site entirely
+const isLink = (v) => typeof v === 'string' && (/^#[a-z][a-z0-9-]*$/.test(v) || /^https?:\/\/\S+$/.test(v) || /^(mailto:|tel:)\S+$/.test(v));
 const str = (v, max) => v == null || (typeof v === 'string' && v.length <= max);
 
 function checkDefinition(def) {
@@ -432,6 +471,8 @@ function checkDefinition(def) {
   if (def.chrome != null) {
     if (def.chrome.header != null && !HEADERS.includes(def.chrome.header)) bad(`chrome.header must be one of ${HEADERS.join(', ')}.`);
     if (def.chrome.footer != null && !FOOTERS.includes(def.chrome.footer)) bad(`chrome.footer must be one of ${FOOTERS.join(', ')}.`);
+    if (def.chrome.sticky != null && typeof def.chrome.sticky !== 'boolean') bad('chrome.sticky must be true or false.');
+    Object.keys(def.chrome).forEach((k) => { if (!['header', 'footer', 'sticky'].includes(k)) bad(`chrome: "${k}" is not a chrome choice (header, footer, sticky).`); });
   }
   const pages = Array.isArray(def.pages) ? def.pages : [];
   if (!pages.length) bad('pages must have at least one page.');
@@ -439,6 +480,7 @@ function checkDefinition(def) {
   const fronts = pages.filter((pg) => pg && pg.front).length;
   if (pages.length && fronts !== 1) bad('Exactly one page must have front: true.');
   const lines = [];
+  const anchors = {}; // anchor -> the page it lives on, so nav can be checked against reality
   pages.forEach((pg, pi) => {
     if (!pg || typeof pg !== 'object') { bad(`pages[${pi}] must be an object.`); return; }
     if (!pg.title || !str(pg.title, 60)) bad(`pages[${pi}] needs a title (up to 60 characters).`);
@@ -455,8 +497,15 @@ function checkDefinition(def) {
       names.push(sc.take + (Array.isArray(sc.items) ? ` ×${sc.items.length}` : ''));
       Object.keys(sc).forEach((k) => {
         if (['take', 'items', 'posts', 'mood', 'look'].includes(k)) return;
+        if (k === 'anchor') {
+          if (!isAnchor(sc[k])) bad(`${where}: anchor must be a lowercase name starting with a letter, like "work".`);
+          else if (anchors[sc[k]] != null) bad(`${where}: two sections both carry the anchor "${sc[k]}" — an anchor names one section.`);
+          else anchors[sc[k]] = pi;
+          return;
+        }
         if (!t.fields.includes(k)) bad(`${where} (${sc.take}): "${k}" is not a field of this take (fields: ${t.fields.join(', ')}).`);
         else if (k === 'image') { if (!isPic(sc[k])) bad(`${where}: image must be an http(s) URL or one of gogh's own pictures.`); }
+        else if (k === 'link') { if (!isLink(sc[k])) bad(`${where}: link must be "#anchor" for a section on this site, or an http(s) URL — it is where the button goes.`); }
         else if (!str(sc[k], 600)) bad(`${where}: ${k} is too long (600 characters).`);
       });
       if (sc.items != null) {
@@ -484,6 +533,32 @@ function checkDefinition(def) {
     });
     lines.push(`${pg.title}${pg.front ? ' (front)' : ''}${pg.blog ? ' (blog)' : ''}: ${names.join(', ') || '—'}`);
   });
+  // a menu of anchors, for a one-page site. An anchor link always lands on
+  // the FRONT page, so only the front page's sections can be named.
+  const frontIdx = pages.findIndex((pg) => pg && pg.front);
+  if (def.nav != null) {
+    if (!Array.isArray(def.nav)) bad('nav must be a list of { label, url }.');
+    else {
+      if (!def.nav.length) bad('nav is empty — leave it out, or name some sections.');
+      if (def.nav.length > 7) bad('nav takes at most 7 items.');
+      def.nav.forEach((it, i) => {
+        if (!it || typeof it !== 'object' || Array.isArray(it)) { bad(`nav[${i}] must be an object with a label and a url.`); return; }
+        const who = it.label ? `"${it.label}"` : `nav[${i}]`;
+        if (!it.label || !str(it.label, 40)) bad(`nav[${i}] needs a label (up to 40 characters).`);
+        Object.keys(it).forEach((k) => { if (!['label', 'url'].includes(k)) bad(`nav[${i}] (${who}): "${k}" is not part of a menu item (label, url).`); });
+        const u = typeof it.url === 'string' ? it.url.trim() : '';
+        if (/^#[a-z][a-z0-9-]*$/.test(u)) {
+          const at = anchors[u.slice(1)];
+          if (at == null) bad(`nav[${i}] (${who}) points at ${u}, but no section carries that anchor.`);
+          else if (frontIdx !== -1 && at !== frontIdx) bad(`nav[${i}] (${who}) points at ${u}, which is on "${pages[at].title}" — an anchor link always lands on the front page, so only front-page sections can be named.`);
+        } else if (!/^https?:\/\/\S+$/.test(u)) {
+          bad(`nav[${i}] (${who}) needs a url: "#anchor" for a section on this site, or an http(s) link.`);
+        }
+      });
+    }
+  } else if (Object.keys(anchors).length) {
+    problems.push('Note: sections carry anchors but there is no nav — add one so the menu can scroll to them.');
+  }
   const posts = Array.isArray(def.posts) ? def.posts : [];
   if (posts.length > 8) bad('At most 8 posts.');
   posts.forEach((ps, i) => {
@@ -494,6 +569,9 @@ function checkDefinition(def) {
   const hasBlog = pages.some((pg) => pg && pg.blog);
   const usesPosts = pages.some((pg) => (pg && pg.sections || []).some((sc) => sc && sc.take === 'Latest posts'));
   if ((hasBlog || usesPosts) && !posts.length) problems.push('Note: there is a Journal page or a Latest posts section but no posts — add two or three so it is not empty.');
+  if (Array.isArray(def.nav) && def.nav.length) {
+    lines.push(`Menu: ${def.nav.map((it) => `${(it && it.label) || '?'} → ${(it && it.url) || '?'}`).join(', ')}`);
+  }
   const summary = `${def.name || 'Site'}${def.tagline ? ' — ' + def.tagline : ''} · ${pages.length} page${pages.length === 1 ? '' : 's'}, ${posts.length} post${posts.length === 1 ? '' : 's'}${def.variation ? ', ' + def.variation : ''}\n` + lines.join('\n');
   const hard = problems.filter((m) => !/^Note:/.test(m));
   return { ok: hard.length === 0, problems, summary };
