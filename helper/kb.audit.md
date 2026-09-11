@@ -1,4 +1,4 @@
-# Knowledge-base audit — plugin v0.99.481
+# Knowledge-base audit — plugin v0.99.482
 
 _13 finding(s) suppressed by `kb.audit-ignore.txt`._
 
@@ -107,6 +107,4 @@ The source has something the prose never explains. The bot knows the name from t
 
 Use this as the checklist for updating the prose — and as a sanity check on the release itself.
 
-- version: 0.99.480 → 0.99.481
-- added UI label: "Equal gaps down the card"
-- added UI label: "Line up the pieces inside this card"
+- version: 0.99.481 → 0.99.482
