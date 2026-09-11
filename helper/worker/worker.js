@@ -55,6 +55,11 @@ const DEFAULTS = {
   // UNSPLASH_ACCESS_KEY is a secret; without it pictures are simply skipped.
   UNSPLASH_APP_NAME: 'gogh',
   PICTURES_PER_SEARCH: '6',
+  // the endpoint is open, so the picture allowance needs its own guard: one
+  // address cannot spend the day's, and everyone together cannot outrun the
+  // hourly allowance Unsplash gives a new application
+  PICTURES_DAILY_LIMIT: '60',
+  PICTURES_HOURLY_LIMIT: '40',
   PLUGIN_ZIP_URL: 'https://raw.githubusercontent.com/jamiemarsland/gogh-demo/main/gogh-playground.zip',
 };
 
@@ -775,7 +780,7 @@ async function mcpCall(env, req, name, args) {
   const text = (t, extra) => Object.assign({ content: [{ type: 'text', text: t }] }, extra || {});
   if (name === 'gogh_rules') return text(rulesText());
   if (name === 'gogh_pictures') {
-    const r = await findPictures(env, args && args.query, args && args.count, args && args.orientation);
+    const r = await findPictures(env, req, args && args.query, args && args.count, args && args.orientation);
     return text(r.note + (r.pictures.length ? '\n\n' + JSON.stringify(r.pictures, null, 1) : ''), { structuredContent: r });
   }
   if (name === 'gogh_check') {
@@ -1030,10 +1035,34 @@ function unsplashUrl(env, path, params) {
 
 const utm = (env) => `utm_source=${encodeURIComponent(cfg(env, 'UNSPLASH_APP_NAME'))}&utm_medium=referral`;
 
-async function findPictures(env, query, count, orientation) {
+async function pictureLimit(env, req) {
+  if (!env.RATE) return null;
+  const now = new Date().toISOString();
+  const day = now.slice(0, 10), hour = now.slice(0, 13);
+  const perHour = parseInt(cfg(env, 'PICTURES_HOURLY_LIMIT'), 10);
+  if (perHour) {
+    const key = `ph:${hour}`;
+    const n = parseInt((await env.RATE.get(key)) || '0', 10);
+    if (n >= perHour) return 'The picture library has had its hour’s worth — carry on without pictures, or try again shortly.';
+    await bump(env, key, { next: n + 1 });
+  }
+  const perIp = parseInt(cfg(env, 'PICTURES_DAILY_LIMIT'), 10);
+  if (perIp) {
+    const ip = req && req.headers ? (req.headers.get('cf-connecting-ip') || 'unknown') : 'unknown';
+    const key = `pd:${day}:${ip}`;
+    const n = parseInt((await env.RATE.get(key)) || '0', 10);
+    if (n >= perIp) return 'That is today’s picture searching for this address — carry on without pictures.';
+    await bump(env, key, { next: n + 1 });
+  }
+  return null;
+}
+
+async function findPictures(env, req, query, count, orientation) {
   if (!env.UNSPLASH_ACCESS_KEY) {
     return { ok: false, pictures: [], note: 'No picture library is connected, so build the site without pictures — leave image out rather than inventing a URL.' };
   }
+  const capped = await pictureLimit(env, req);
+  if (capped) return { ok: false, pictures: [], note: capped };
   const want = Math.max(1, Math.min(10, +count || parseInt(cfg(env, 'PICTURES_PER_SEARCH'), 10)));
   const params = { query: String(query || '').slice(0, 120), per_page: String(want), content_filter: 'high' };
   if (['landscape', 'portrait', 'squarish'].includes(orientation)) params.orientation = orientation;
@@ -1296,7 +1325,7 @@ async function handleBuildChat(req, env, ctx) {
           let out;
           if (c.name === 'find_pictures') {
             await send({ type: 'step', text: 'Looking for pictures' });
-            out = await findPictures(env, c.input && c.input.query, c.input && c.input.count, c.input && c.input.orientation);
+            out = await findPictures(env, req, c.input && c.input.query, c.input && c.input.count, c.input && c.input.orientation);
           } else if (c.name === 'check_site') {
             await send({ type: 'step', text: 'Checking it over' });
             out = checkDefinition(c.input && c.input.definition);

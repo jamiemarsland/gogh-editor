@@ -197,6 +197,13 @@ check(res.status === 400, 'an empty message is refused before any model is calle
   globalThis.fetch = realFetch;
   const noKey = await rpcWith(env, { jsonrpc: '2.0', id: 72, method: 'tools/call', params: { name: 'gogh_pictures', arguments: { query: 'flowers' } } });
   check(noKey.body.result.structuredContent.ok === false && /without pictures/.test(noKey.body.result.content[0].text), 'with no key it says to carry on without pictures rather than failing');
+  // the endpoint is open, so nobody may spend the whole picture allowance
+  {
+    const capped = { ...env, RATE: kv(), UNSPLASH_ACCESS_KEY: 'test-key', PICTURES_HOURLY_LIMIT: '2' };
+    let last = null;
+    for (let i = 0; i < 4; i++) last = await rpcWith(capped, { jsonrpc: '2.0', id: 73 + i, method: 'tools/call', params: { name: 'gogh_pictures', arguments: { query: 'flowers' } } });
+    check(last.body.result.structuredContent.ok === false && /hour/.test(last.body.result.content[0].text), 'past the hourly allowance it stops searching and says so: ' + last.body.result.content[0].text.slice(0, 60));
+  }
 }
 
 // a screenshot: it reaches the model, and it does not ride home in the history

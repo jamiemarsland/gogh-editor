@@ -43,6 +43,9 @@
     "BUILD_DAILY_LIMIT": "30",
     // every built site carries the Move to WordPress.com helper so what
     // someone makes here need not stay in a browser tab ("" drops it)
+    // the picture allowance: one address a day, and everyone together an hour
+    "PICTURES_DAILY_LIMIT": "60",
+    "PICTURES_HOURLY_LIMIT": "40",
     "MOVE_PLUGIN_URL": "https://github.com/jamiemarsland/playground-to-wordpress-com/archive/refs/heads/main.zip",
     "PLUGIN_ZIP_URL": "https://raw.githubusercontent.com/jamiemarsland/gogh-demo/main/gogh-playground.zip"
   },
