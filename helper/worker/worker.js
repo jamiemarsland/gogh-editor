@@ -441,6 +441,25 @@ ${PICTURE_PATHS.map((k) => `- \`${k}\` — ${OWN_PICTURES[k]}`).join('\n')} Writ
 ## The takes
 ${takes}
 
+## When no take fits: describe a band
+A take is a design someone already made, so reach for one whenever it suits — they are quicker and they carry taste. But you are not limited to them. Instead of \`take\`, a section may carry a \`band\`: columns across the page, each holding a few pieces in order. gogh works out every position and size from it, so you never write coordinates.
+
+\`\`\`
+{ band: {
+    eyebrow, heading, text,        // optional, across the full width above the columns
+    size: display | large | normal, // how big that heading is
+    align: left | center | right,   // default left
+    valign: top | middle | bottom,  // how columns of different lengths sit against each other
+    gap: s | m | l,
+    background: '#rrggbb' | base | contrast | accent-1..6,
+    image, tint,                    // a picture behind the whole band, 0-100
+    columns: [ { span: 1, align, items: [ ... ] } ]   // up to 6 columns, span sets the share of the width
+} }
+\`\`\`
+An item is one of: \`{type:'eyebrow', text}\`, \`{type:'heading', text, size}\`, \`{type:'text', text}\`, \`{type:'button', text, link}\`, \`{type:'badge', text}\`, \`{type:'picture', url, shape}\` where shape is landscape, portrait, square or wide. Up to 8 items a column.
+
+Four projects across, each a tall picture with a name under it, is four columns of \`[picture(portrait), heading(normal), text]\`. A hero with the words on the left and one picture on the right is two columns with \`valign: middle\` and a \`span\` of 3 and 2. Use a band when the arrangement itself matters — when someone shows you a design and asks for something like it — and a take the rest of the time.
+
 A good home page is four to six sections: a Cover or Hero, Feature cards, something human (Testimonials, Team, Story or Numbers), Latest posts if there are posts, and a Call to action or Get in touch at the end. An about page: Story, Numbers, Team. A contact page: Get in touch. Give a Journal page \`blog: true\` and two or three posts so it is not empty. Shops need WooCommerce and are not yet part of a definition.
 
 ## A one-page site
@@ -462,6 +481,37 @@ ${JSON.stringify(EXAMPLE, null, 1)}
 }
 
 const isHex = (v) => typeof v === 'string' && /^#[0-9a-fA-F]{6}$/.test(v);
+const BAND_ITEMS = { eyebrow: 1, heading: 1, text: 1, button: 1, badge: 1, picture: 1 };
+function checkBand(band, where, bad) {
+  if (!band || typeof band !== 'object' || Array.isArray(band)) { bad(`${where}: band must be an object.`); return; }
+  if (band.align != null && !['left', 'center', 'right'].includes(band.align)) bad(`${where}: band.align must be left, center or right.`);
+  if (band.valign != null && !['top', 'middle', 'bottom'].includes(band.valign)) bad(`${where}: band.valign must be top, middle or bottom.`);
+  if (band.gap != null && !['s', 'm', 'l'].includes(band.gap)) bad(`${where}: band.gap must be s, m or l.`);
+  if (band.background != null && !(isHex(band.background) || /^(base|contrast|accent-[1-6])$/.test(String(band.background)))) bad(`${where}: band.background must be a #rrggbb colour, or base, contrast or accent-1 to accent-6.`);
+  if (band.image != null && !isPic(band.image)) bad(`${where}: band.image must be a picture web address.`);
+  ['eyebrow', 'heading', 'text', 'name'].forEach((k) => { if (band[k] != null && !str(band[k], 600)) bad(`${where}: band.${k} is too long.`); });
+  const cols = band.columns;
+  if (!Array.isArray(cols) || !cols.length) { bad(`${where}: a band needs at least one column.`); return; }
+  if (cols.length > 6) bad(`${where}: at most 6 columns.`);
+  cols.forEach((c, ci) => {
+    if (!c || typeof c !== 'object') { bad(`${where}.columns[${ci}] must be an object.`); return; }
+    if (c.span != null && !(c.span >= 1 && c.span <= 6)) bad(`${where}.columns[${ci}].span must be 1 to 6.`);
+    if (!Array.isArray(c.items) || !c.items.length) { bad(`${where}.columns[${ci}] needs items.`); return; }
+    if (c.items.length > 8) bad(`${where}.columns[${ci}] has more than 8 items.`);
+    c.items.forEach((it, ii) => {
+      const at = `${where}.columns[${ci}].items[${ii}]`;
+      if (!it || typeof it !== 'object') { bad(`${at} must be an object.`); return; }
+      if (!BAND_ITEMS[it.type]) { bad(`${at}: type must be one of ${Object.keys(BAND_ITEMS).join(', ')}.`); return; }
+      if (it.type === 'picture') {
+        if (it.url != null && !isPic(it.url)) bad(`${at}: url must be a picture web address.`);
+        if (it.shape != null && !['landscape', 'portrait', 'square', 'wide'].includes(it.shape)) bad(`${at}: shape must be landscape, portrait, square or wide.`);
+      } else if (!str(it.text, 600) || !it.text) {
+        bad(`${at}: ${it.type} needs text.`);
+      }
+      if (it.size != null && !['display', 'large', 'normal'].includes(it.size)) bad(`${at}: size must be display, large or normal.`);
+    });
+  });
+}
 const isPic = (v) => typeof v === 'string' && (/^https?:\/\/\S+$/.test(v) || PICTURE_PATHS.includes(v));
 // a section's anchor becomes an id in the page: lowercase, starts with a letter
 const isAnchor = (v) => typeof v === 'string' && /^[a-z][a-z0-9-]*$/.test(v);
@@ -511,8 +561,9 @@ function checkDefinition(def) {
     secs.forEach((sc, si) => {
       const where = `pages[${pi}].sections[${si}]`;
       if (!sc || typeof sc !== 'object') { bad(`${where} must be an object.`); return; }
+      if (sc.band && !sc.take) { checkBand(sc.band, where, bad); names.push('a band of ' + ((sc.band.columns || []).length || 1)); return; }
       const t = TAKES[sc.take];
-      if (!t) { bad(`${where}: unknown take "${sc.take}". Use one of: ${Object.keys(TAKES).join(', ')}.`); return; }
+      if (!t) { bad(`${where}: unknown take "${sc.take}", and no band either. Use one of: ${Object.keys(TAKES).join(', ')} — or describe a band.`); return; }
       names.push(sc.take + (Array.isArray(sc.items) ? ` ×${sc.items.length}` : ''));
       Object.keys(sc).forEach((k) => {
         if (['take', 'items', 'posts', 'mood', 'look'].includes(k)) return;
@@ -629,6 +680,10 @@ async function publishSite(env, req, def) {
   const limited = await publishLimit(env, req);
   if (limited) return { ok: false, problems: [limited] };
   try { await pingPictureUse(env, def); } catch (e) {}
+  // bands become pieces here, so what is stored is what gogh draws
+  try { def = compileDefinition(def); } catch (e) {
+    return { ok: false, problems: ['That band could not be laid out: ' + (e.message || e)] };
+  }
   const id = newId();
   const days = parseInt(cfg(env, 'SITE_TTL_DAYS'), 10) || 30;
   await env.SITES.put(`def:${id}`, JSON.stringify(def), { expirationTtl: days * 86400 });
@@ -794,6 +849,161 @@ async function handleSiteFile(req, env, kind, id) {
   return new Response(JSON.stringify(blueprintFor(env, id, def, new URL(req.url).origin), null, 1), { headers });
 }
 
+/* ------------------------------------------------------- bands */
+/*
+ * A catalogue of designs can never cover what people draw (James: "folks
+ * might have a million designs — we can't create layouts for every
+ * possibility"). So a section can also be described rather than named: a
+ * band of columns, each holding a few pieces in order. This compiles that
+ * description into gogh's own geometry — the model never writes a
+ * coordinate, and gogh's solver, guard and contrast sentinel judge the
+ * result exactly as they judge a person's own work.
+ *
+ * There is no browser here, so type cannot be measured. Every estimate
+ * below leans tall: a loose band looks considered, a tight one collides.
+ */
+const W = 1200, MARGIN = 80, CONTENT = W - MARGIN * 2;
+const GAPS = { s: 20, m: 32, l: 56 };
+const PIC_RATIO = { portrait: 1.32, square: 1, landscape: 0.72, wide: 0.56 };
+// '__max' is gogh's own sentinel for "the theme's largest size", resolved when
+// the section is drawn — a literal slug came out at body size instead
+// calibrated against what the canvas actually rendered, then rounded up:
+// too tall is whitespace, too short is a collision
+const HEAD = { display: { line: 66, per: 32, fs: '__max' }, large: { line: 46, per: 22, fs: 'x-large' }, normal: { line: 32, per: 14, fs: null } };
+const AFTER = { eyebrow: 16, heading: 20, text: 22, button: 18, badge: 16, picture: 22 };
+
+const lines = (text, width, per) => Math.max(1, Math.ceil(String(text || '').length / Math.max(4, width / per)));
+
+function itemBox(it, width) {
+  const kind = it.type;
+  if (kind === 'picture') return { w: width, h: Math.round(width * (PIC_RATIO[it.shape] || PIC_RATIO.landscape)) };
+  if (kind === 'eyebrow') return { w: width, h: 24 };
+  if (kind === 'button') return { w: Math.max(150, Math.min(width, String(it.text || 'Go').length * 11 + 56)), h: 54 };
+  if (kind === 'badge') return { w: Math.min(width, String(it.text || '').length * 11 + 46), h: 46 };
+  if (kind === 'heading') {
+    const size = HEAD[it.size] || HEAD.large;
+    return { w: width, h: lines(it.text, width, size.per) * size.line + 6 };
+  }
+  return { w: width, h: lines(it.text, width, 12) * 27 + 4 }; // text
+}
+
+function itemEl(it, x, y, box, align) {
+  const kind = it.type;
+  if (kind === 'picture') {
+    const e = { type: 'image', x, y, w: box.w, h: box.h, radius: it.radius != null ? +it.radius : 6 };
+    if (it.url) e.src = String(it.url);
+    if (it.alt) e.alt = String(it.alt).slice(0, 160);
+    return e;
+  }
+  if (kind === 'button') return { type: 'button', x: align === 'center' ? Math.round(x + (CONTENT && 0)) : x, y, w: box.w, h: box.h, text: String(it.text || 'Go'), href: it.link ? String(it.link) : undefined };
+  if (kind === 'badge') return { type: 'badge', x, y, w: box.w, h: box.h, text: String(it.text || '') };
+  if (kind === 'eyebrow') {
+    return { type: 'para', x, y, w: box.w, h: box.h, text: String(it.text || ''), align,
+      tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase' } };
+  }
+  if (kind === 'heading') {
+    const size = HEAD[it.size] || HEAD.large;
+    const e = { type: 'heading', x, y, w: box.w, h: box.h, text: String(it.text || ''), align };
+    if (size.fs) e.fs = size.fs;
+    return e;
+  }
+  return { type: 'para', x, y, w: box.w, h: box.h, text: String(it.text || ''), align };
+}
+
+function stack(items, x, width, top, align) {
+  let y = top;
+  const els = [];
+  items.forEach((it, i) => {
+    const box = itemBox(it, width);
+    let ix = x;
+    if (align === 'center' && box.w < width) ix = Math.round(x + (width - box.w) / 2);
+    if (align === 'right' && box.w < width) ix = Math.round(x + width - box.w);
+    els.push(itemEl(it, ix, y, box, align));
+    y += box.h + (i === items.length - 1 ? 0 : (AFTER[it.type] || 20));
+  });
+  return { els, height: y - top };
+}
+
+function compileBand(band) {
+  const align = ['left', 'center', 'right'].includes(band.align) ? band.align : 'left';
+  const gap = GAPS[band.gap] || GAPS.m;
+  const padTop = 96;
+  const els = [];
+  let y = padTop;
+
+  // the band's own words, across the full width, above the columns
+  const head = [];
+  if (band.eyebrow) head.push({ type: 'eyebrow', text: band.eyebrow });
+  if (band.heading) head.push({ type: 'heading', text: band.heading, size: band.size || 'large' });
+  if (band.text) head.push({ type: 'text', text: band.text });
+  if (head.length) {
+    const width = align === 'center' ? Math.min(CONTENT, 820) : CONTENT;
+    const hx = align === 'center' ? Math.round((W - width) / 2) : MARGIN;
+    const done = stack(head, hx, width, y, align);
+    done.els.forEach((e) => els.push(e));
+    y += done.height + 54;
+  }
+
+  const cols = (band.columns || []).filter((c) => c && Array.isArray(c.items) && c.items.length);
+  if (cols.length) {
+    const spans = cols.map((c) => Math.max(1, Math.min(6, +c.span || 1)));
+    const total = spans.reduce((a, b) => a + b, 0);
+    const room = CONTENT - gap * (cols.length - 1);
+    let x = MARGIN;
+    const laid = cols.map((c, i) => {
+      const width = Math.round(room * (spans[i] / total));
+      const done = stack(c.items, x, width, 0, c.align || align);
+      x += width + gap;
+      return done;
+    });
+    const tall = Math.max(...laid.map((l) => l.height));
+    laid.forEach((l) => {
+      // columns of different lengths sit against the top by default; middle
+      // is what a hero wants, where a short column rides beside a tall one
+      const off = band.valign === 'middle' ? Math.round((tall - l.height) / 2) : band.valign === 'bottom' ? tall - l.height : 0;
+      l.els.forEach((e) => { e.y += y + off; els.push(e); });
+    });
+    y += tall;
+  }
+
+  const out = { name: String(band.name || 'Band').slice(0, 60), els, minH: y + 96 };
+  if (band.background) out.background = String(band.background);
+  if (band.image) { out.image = String(band.image); if (band.tint != null) out.tint = Math.max(0, Math.min(100, +band.tint)); }
+  return out;
+}
+
+// The theme keeps six accent slots and a style variation paints body text with
+// the fourth of them. A palette of three was being cycled to fill six, so the
+// fourth slot came back round to the brand colour and every word on the site
+// turned terracotta. Pad deliberately instead: the pop first, then inks.
+const hex2rgb = (h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16));
+const rgb2hex = (c) => '#' + c.map((v) => Math.max(0, Math.min(255, Math.round(v))).toString(16).padStart(2, '0')).join('');
+const mix = (a, b, t) => rgb2hex(hex2rgb(a).map((v, i) => v + (hex2rgb(b)[i] - v) * t));
+
+function padPalette(pal) {
+  if (!pal || !Array.isArray(pal.accents) || pal.accents.length >= 6) return pal;
+  const base = isHex(pal.base) ? pal.base : '#FFFFFF';
+  const ink = isHex(pal.contrast) ? pal.contrast : '#111111';
+  const out = pal.accents.slice();
+  // slot 4 is the body ink for several variations, so it must be readable
+  const filler = [ink, mix(ink, base, 0.35), mix(base, ink, 0.12), mix(ink, base, 0.6), mix(base, ink, 0.06)];
+  let k = 0;
+  while (out.length < 6) out.push(filler[Math.min(k++, filler.length - 1)]);
+  return Object.assign({}, pal, { accents: out });
+}
+
+// bands become pieces on the way out; takes are left for gogh to fill
+function compileDefinition(def) {
+  const out = JSON.parse(JSON.stringify(def));
+  if (out.palette) out.palette = padPalette(out.palette);
+  (out.pages || []).forEach((pg) => {
+    (pg.sections || []).forEach((sc, i) => {
+      if (sc && sc.band && !sc.take) pg.sections[i] = compileBand(sc.band);
+    });
+  });
+  return out;
+}
+
 /* ------------------------------------------------------------ pictures */
 /*
  * A site with no photographs looks like every other site with no
@@ -944,7 +1154,7 @@ function buildPrompt() {
 How to behave:
 - Warm, plain and brief. Two or three sentences a turn. No jargon, no marketing voice, no lists of options unless you are asking a question.
 - Ask at most three short questions before you build: what the site is for, what it is called, and what they want people to do when they arrive. If they have already said enough, ask nothing and build.
-- If they share a screenshot or a mockup, look at it properly and rebuild what it shows: the order of the parts, the shape of the page, the mood, the colours. Use the nearest gogh designs — you are matching the arrangement, not tracing it — and say in a sentence what you took from it. Use words from the picture only when they are plainly the person's own; otherwise write fresh words for their site. Never copy a logo or a brand mark.
+- If they share a screenshot or a mockup, look at it properly and rebuild what it shows: the order of the parts, the shape of the page, the mood, the colours. Describe a band when the arrangement matters — four columns across, a picture beside the words — and use the nearest ready-made design — you are matching the arrangement, not tracing it — and say in a sentence what you took from it. Use words from the picture only when they are plainly the person's own; otherwise write fresh words for their site. Never copy a logo or a brand mark.
 - Vary the shape. Not every site is a cover, three cards and a call to action: a restaurant wants its menu, a photographer a wall of pictures, a studio a piece of work shown properly, a shop the numbers that prove it. Use the card moods where they suit.
 - Never show JSON, field names, take names or code to the person. They should never see the machinery. Say "your home page" and "the part about what you do", not "the Cover take".
 - Write the site's words yourself, in their voice, using the facts they gave you. Never lorem ipsum, never invented prices, never invented testimonials attributed to named strangers — if you need a quote, keep it plainly generic or leave that part out.

@@ -10161,7 +10161,42 @@
     if (Array.isArray(box.els)) box.els = prune(box.els);
     else if (Array.isArray(box.kids)) box.kids = prune(box.kids);
   }
+  // Every element type the canvas knows, and the fields a generated section may
+  // set on one. A definition that arrives with its own pieces is checked
+  // against this and nothing else is copied through — the door is open, not
+  // unlatched.
+  var GEN_TYPES = { heading: 1, para: 1, button: 1, badge: 1, image: 1, box: 1 };
+  var GEN_FIELDS = ['x', 'y', 'w', 'h', 'text', 'src', 'href', 'fs', 'align', 'color', 'radius', 'rot', 'tf', 'mood', 'boxBg', 'shape', 'alt'];
+  function genEl(e) {
+    if (!e || !GEN_TYPES[e.type]) return null;
+    var out = { type: e.type };
+    GEN_FIELDS.forEach(function (k) { if (e[k] !== undefined && e[k] !== null) out[k] = e[k]; });
+    ['x', 'y', 'w', 'h'].forEach(function (k) { out[k] = Math.round(+out[k] || 0); });
+    out.w = Math.max(8, Math.min(W, out.w));
+    out.h = Math.max(8, out.h);
+    out.x = Math.max(0, Math.min(W - out.w, out.x));
+    out.y = Math.max(0, out.y);
+    if (e.kids && e.kids.length) {
+      out.kids = e.kids.map(genEl).filter(Boolean);
+      if (!out.kids.length) delete out.kids;
+    }
+    return out;
+  }
   function fillTake(sc) {
+    // THE DOOR: a section may arrive with its own pieces instead of the name of
+    // a design. gogh draws them the way it draws anything dragged onto a
+    // canvas, so new arrangements need no new code here — whoever wrote the
+    // definition worked out the geometry, and the solver, the guard and the
+    // sentinel judge the result exactly as they judge a person's own work.
+    if (sc && Array.isArray(sc.els) && sc.els.length) {
+      var els = sc.els.map(genEl).filter(Boolean);
+      if (!els.length) return null;
+      var made = { name: String(sc.name || 'Section'), els: els };
+      if (sc.minH) made.minH = Math.max(160, Math.min(1600, Math.round(+sc.minH)));
+      if (sc.background) made.bg = String(sc.background);
+      if (sc.image) { made.bgImage = String(sc.image); made.bgA = sc.tint != null ? +sc.tint : 45; }
+      return made;
+    }
     if (!sc || !sc.take) return null;
     var name = String(sc.take);
     var items = Array.isArray(sc.items) ? sc.items : null;

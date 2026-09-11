@@ -107,6 +107,67 @@ check(res.status === 500 && /not set up/.test((await res.json()).error), 'with n
 res = await worker.fetch(new Request('https://gogh.test/api/build', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ text: '' }) }), { ...env, ANTHROPIC_API_KEY: 'sk-test' });
 check(res.status === 400, 'an empty message is refused before any model is called');
 
+// bands: an arrangement nobody authored, compiled into gogh's own geometry
+{
+  const band = {
+    eyebrow: 'Selected work', heading: 'Recent projects', align: 'left', gap: 'm',
+    columns: [1, 2, 3, 4].map((k) => ({ items: [
+      { type: 'picture', url: 'https://images.unsplash.com/p' + k, shape: 'portrait' },
+      { type: 'heading', text: 'Project ' + k, size: 'normal' },
+      { type: 'text', text: 'Extension · 2025' } ] })),
+  };
+  const withBand = JSON.parse(JSON.stringify(florist));
+  withBand.pages[0].sections = [withBand.pages[0].sections[0], { band }];
+  let r = await rpc({ jsonrpc: '2.0', id: 80, method: 'tools/call', params: { name: 'gogh_check', arguments: { definition: withBand } } });
+  check(r.body.result.structuredContent.ok, 'a described band passes: ' + JSON.stringify(r.body.result.structuredContent.problems));
+  r = await rpc({ jsonrpc: '2.0', id: 81, method: 'tools/call', params: { name: 'gogh_publish', arguments: { definition: withBand } } });
+  const made = r.body.result.structuredContent;
+  const stored = JSON.parse(await env.SITES.get('def:' + made.id));
+  const sec = stored.pages[0].sections[1];
+  check(!sec.band && Array.isArray(sec.els), 'publishing turns the band into pieces');
+  const pics = sec.els.filter((e) => e.type === 'image');
+  const heads = sec.els.filter((e) => e.type === 'heading');
+  check(pics.length === 4 && heads.length === 5, 'four pictures and four titles under one band heading: ' + pics.length + '/' + heads.length);
+  const xs = pics.map((p) => p.x);
+  check(xs[0] === 80 && xs.every((x, i) => i === 0 || x > xs[i - 1]) && pics[3].x + pics[3].w === 1120, 'the columns run left to right and fill the page margins: ' + xs.join(','));
+  check(pics.every((p) => p.h > p.w), 'portrait was asked for, so the pictures are taller than they are wide');
+  // nothing sits on anything else
+  const boxes = sec.els.map((e) => [e.x, e.y, e.x + e.w, e.y + e.h]);
+  let clash = false;
+  for (let i = 0; i < boxes.length; i++) for (let k = i + 1; k < boxes.length; k++) {
+    const a = boxes[i], b = boxes[k];
+    if (Math.min(a[2], b[2]) - Math.max(a[0], b[0]) > 4 && Math.min(a[3], b[3]) - Math.max(a[1], b[1]) > 4) clash = true;
+  }
+  check(!clash, 'no two pieces overlap');
+  check(sec.minH > Math.max(...boxes.map((b) => b[3])), 'the band is tall enough for what is in it');
+  // a hero: words beside a picture, the short column riding middle
+  const heroBand = { valign: 'middle', gap: 'l', columns: [
+    { span: 3, items: [{ type: 'eyebrow', text: 'Architecture · Bristol' }, { type: 'heading', text: 'Buildings that keep their quiet', size: 'display' }, { type: 'button', text: 'See the work' }] },
+    { span: 2, items: [{ type: 'text', text: 'A small practice working on houses, workplaces and one stubborn barn.' }] } ] };
+  const heroDef = JSON.parse(JSON.stringify(florist));
+  heroDef.pages[0].sections = [{ band: heroBand }];
+  r = await rpc({ jsonrpc: '2.0', id: 83, method: 'tools/call', params: { name: 'gogh_publish', arguments: { definition: heroDef } } });
+  const heroEls = JSON.parse(await env.SITES.get('def:' + r.body.result.structuredContent.id)).pages[0].sections[0].els;
+  const bigHead = heroEls.filter((e) => e.type === 'heading')[0];
+  const para = heroEls.filter((e) => e.type === 'para' && !(e.tf && e.tf.tt))[0];
+  check(bigHead.w > para.w, 'span sets the share of the width: ' + bigHead.w + ' vs ' + para.w);
+  const colTop = Math.min(...heroEls.filter((e) => e.x < 600).map((e) => e.y));
+  check(para.y > colTop, 'a short column beside a tall one rides lower than the top of the tall one');
+  const bad = await rpc({ jsonrpc: '2.0', id: 82, method: 'tools/call', params: { name: 'gogh_check', arguments: { definition: (() => { const d = JSON.parse(JSON.stringify(withBand)); d.pages[0].sections[1].band.columns[0].items[1].type = 'marquee'; return d; })() } } });
+  check(bad.body.result.structuredContent.problems.some((m) => /type must be one of/.test(m)), 'an item type nobody has is caught by name');
+}
+
+// the palette's fourth slot is body ink for some variations, so it is never
+// a wrapped-around brand colour
+{
+  const three = JSON.parse(JSON.stringify(florist));
+  three.palette = { base: '#14161A', contrast: '#ECE7DE', accents: ['#D97757', '#2A2E35', '#8D8981'] };
+  const r = await rpc({ jsonrpc: '2.0', id: 90, method: 'tools/call', params: { name: 'gogh_publish', arguments: { definition: three } } });
+  const kept = JSON.parse(await env.SITES.get('def:' + r.body.result.structuredContent.id)).palette.accents;
+  check(kept.length === 6 && kept[0] === '#D97757' && kept[3] !== '#D97757', 'three accents are padded to six, and the fourth is not the brand colour again: ' + kept.join(' '));
+  check(kept[3].toLowerCase() === '#ece7de', 'the fourth slot is the ink, so body text stays readable: ' + kept[3]);
+}
+
 // pictures: a search with the library connected, and an honest answer without
 {
   const realFetch = globalThis.fetch;
