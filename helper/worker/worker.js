@@ -860,7 +860,7 @@ async function askModel(env, messages) {
   return res.json();
 }
 
-async function handleBuildChat(req, env) {
+async function handleBuildChat(req, env, ctx) {
   if (req.method === 'OPTIONS') return new Response(null, { status: 204, headers: CORS });
   if (req.method !== 'POST') return json({ error: 'POST only' }, 405);
   if (!env.ANTHROPIC_API_KEY) return json({ error: 'This gogh is not set up to build sites yet (no API key).' }, 500);
@@ -879,36 +879,61 @@ async function handleBuildChat(req, env) {
   }
   messages = trimBuildHistory(messages).concat([{ role: 'user', content: said }]);
 
-  let published = null;
-  try {
-    for (let turn = 0; turn < 6; turn++) {
-      const r = await askModel(env, messages);
-      const calls = (r.content || []).filter((c) => c.type === 'tool_use');
-      if (!calls.length) {
-        const text = (r.content || []).filter((c) => c.type === 'text').map((c) => c.text).join('').trim();
+  // Writing a whole site takes the best part of a minute, and a page that
+  // says nothing for that long reads as broken (James: "could we have some
+  // feedback whilst the playground is being built"). So the turn streams
+  // what it is actually doing — not a guess, the real step.
+  const { readable, writable } = new TransformStream();
+  const writer = writable.getWriter();
+  const enc = new TextEncoder();
+  const send = (obj) => writer.write(enc.encode('data: ' + JSON.stringify(obj) + '\n\n'));
+
+  const run = (async () => {
+    let published = null;
+    try {
+      for (let turn = 0; turn < 6; turn++) {
+        await send({ type: 'step', text: turn === 0 ? 'Thinking' : 'Nearly there' });
+        const r = await askModel(env, messages);
+        const calls = (r.content || []).filter((c) => c.type === 'tool_use');
         messages = messages.concat([{ role: 'assistant', content: r.content }]);
-        return json({ reply: text || 'I am not sure what to make of that — tell me a little more?', messages, published });
-      }
-      messages = messages.concat([{ role: 'assistant', content: r.content }]);
-      const results = [];
-      for (const c of calls) {
-        let out;
-        if (c.name === 'check_site') {
-          out = checkDefinition(c.input && c.input.definition);
-        } else if (c.name === 'publish_site') {
-          out = await publishSite(env, req, c.input && c.input.definition);
-          if (out.ok) published = { url: out.playground_url, id: out.id, summary: out.summary, days: out.expires_in_days };
-        } else {
-          out = { ok: false, problems: ['Unknown tool.'] };
+        if (!calls.length) {
+          const text = (r.content || []).filter((c) => c.type === 'text').map((c) => c.text).join('').trim();
+          await send({ type: 'reply', text: text || 'I am not sure what to make of that — tell me a little more?', messages, published });
+          return;
         }
-        results.push({ type: 'tool_result', tool_use_id: c.id, content: JSON.stringify(out).slice(0, 8000) });
+        const results = [];
+        for (const c of calls) {
+          let out;
+          if (c.name === 'check_site') {
+            await send({ type: 'step', text: 'Checking it over' });
+            out = checkDefinition(c.input && c.input.definition);
+          } else if (c.name === 'publish_site') {
+            await send({ type: 'step', text: 'Publishing your site' });
+            out = await publishSite(env, req, c.input && c.input.definition);
+            if (out.ok) published = { url: out.playground_url, id: out.id, summary: out.summary, days: out.expires_in_days };
+          } else {
+            out = { ok: false, problems: ['Unknown tool.'] };
+          }
+          results.push({ type: 'tool_result', tool_use_id: c.id, content: JSON.stringify(out).slice(0, 8000) });
+        }
+        messages = messages.concat([{ role: 'user', content: results }]);
       }
-      messages = messages.concat([{ role: 'user', content: results }]);
+      await send({ type: 'reply', text: 'That took more steps than I expected. Tell me the site again in a sentence and I will go straight at it.', messages, published });
+    } catch (e) {
+      await send({ type: 'error', error: e.message || 'Something went wrong talking to the model.' });
+    } finally {
+      try { await writer.close(); } catch (e) {}
     }
-    return json({ reply: 'That took more steps than I expected. Tell me the site again in a sentence and I will go straight at it.', messages, published });
-  } catch (e) {
-    return json({ error: e.message || 'Something went wrong talking to the model.' }, e.status === 429 ? 429 : 502);
-  }
+  })();
+  if (ctx && ctx.waitUntil) ctx.waitUntil(run);
+
+  return new Response(readable, {
+    headers: Object.assign({
+      'content-type': 'text/event-stream; charset=utf-8',
+      'cache-control': 'no-cache, no-transform',
+      connection: 'keep-alive',
+    }, CORS),
+  });
 }
 
 const BUILD_UI = `<!doctype html>
@@ -998,21 +1023,61 @@ const BUILD_UI = `<!doctype html>
     say('you', text);
     input.value = '';
     var waiting = el('msg gogh'); var w = document.createElement('span');
-    w.className = 'dots'; w.textContent = 'thinking…'; waiting.appendChild(w);
-    thread.appendChild(waiting); scroll();
+    w.className = 'dots'; waiting.appendChild(w); thread.appendChild(waiting); scroll();
+
+    // the step comes from the Worker; the seconds are ours, so the line keeps
+    // moving even while one long step runs
+    var step = 'Thinking', began = Date.now(), done = false;
+    var paint = function () {
+      var secs = Math.round((Date.now() - began) / 1000);
+      w.textContent = step + '…' + (secs > 2 ? ' ' + secs + 's' : '');
+    };
+    paint();
+    var tick = setInterval(paint, 1000);
+    var stop = function () { done = true; clearInterval(tick); waiting.remove(); busy = false; go.disabled = false; input.focus(); };
+    var fail = function (msg) { if (done) return; stop(); var e = el('msg gogh', msg); e.firstChild.className = 'err'; thread.appendChild(e); scroll(); };
+
+    var seen = false;
+    var handle = function (ev) {
+      // the count runs for the whole turn, not per step: what someone wants to
+      // know is how long they have been waiting altogether
+      if (ev.type === 'step') { step = ev.text; paint(); scroll(); return; }
+      if (ev.type === 'error') { fail(ev.error || 'Something went wrong. Try again?'); return; }
+      if (ev.type === 'reply') {
+        seen = true; stop();
+        if (Array.isArray(ev.messages)) state = ev.messages;
+        if (ev.text) say('gogh', ev.text);
+        if (ev.published) site(ev.published);
+      }
+    };
+
     fetch('/api/build', {
       method: 'POST', headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ text: text, messages: state }),
-    }).then(function (r) { return r.json().then(function (d) { return { ok: r.ok, d: d }; }); })
-      .then(function (res) {
-        waiting.remove();
-        if (!res.ok || res.d.error) { var e = el('msg gogh', res.d.error || 'Something went wrong. Try again?'); e.firstChild.className = 'err'; thread.appendChild(e); scroll(); return; }
-        if (Array.isArray(res.d.messages)) state = res.d.messages;
-        if (res.d.reply) say('gogh', res.d.reply);
-        if (res.d.published) site(res.d.published);
-      })
-      .catch(function () { waiting.remove(); var e = el('msg gogh', 'I could not reach gogh just then. Try again?'); e.firstChild.className = 'err'; thread.appendChild(e); scroll(); })
-      .then(function () { busy = false; go.disabled = false; input.focus(); });
+    }).then(function (r) {
+      var kind = r.headers.get('content-type') || '';
+      if (kind.indexOf('text/event-stream') === -1 || !r.body) {
+        return r.json().then(function (d) { fail(d.error || 'Something went wrong. Try again?'); });
+      }
+      var reader = r.body.getReader(), dec = new TextDecoder(), buf = '';
+      var pump = function () {
+        return reader.read().then(function (res) {
+          if (res.done) { if (!seen && !done) fail('That did not finish. Try again?'); return; }
+          buf += dec.decode(res.value, { stream: true });
+          var blocks = buf.split('\n\n');
+          buf = blocks.pop();
+          blocks.forEach(function (block) {
+            var line = block.split('\n').filter(function (l) { return l.indexOf('data: ') === 0; }).map(function (l) { return l.slice(6); }).join('');
+            if (!line) return;
+            var ev = null;
+            try { ev = JSON.parse(line); } catch (e) {}
+            if (ev) handle(ev);
+          });
+          return pump();
+        });
+      };
+      return pump();
+    }).catch(function () { fail('I could not reach gogh just then. Try again?'); });
   }
 
   form.addEventListener('submit', function (ev) { ev.preventDefault(); send(input.value.trim()); });
@@ -1023,11 +1088,11 @@ const BUILD_UI = `<!doctype html>
 </body></html>`;
 
 export default {
-  async fetch(req, env) {
+  async fetch(req, env, ctx) {
     const url = new URL(req.url);
 
     if (url.pathname === '/mcp') return handleMcp(req, env);
-    if (url.pathname === '/api/build') return handleBuildChat(req, env);
+    if (url.pathname === '/api/build') return handleBuildChat(req, env, ctx);
     if (url.pathname === '/build' || url.pathname === '/build/') {
       return new Response(BUILD_UI, { headers: { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'public, max-age=300', 'x-content-type-options': 'nosniff', 'referrer-policy': 'no-referrer' } });
     }

@@ -94,5 +94,39 @@ check(res.status === 500 && /not set up/.test((await res.json()).error), 'with n
 res = await worker.fetch(new Request('https://gogh.test/api/build', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ text: '' }) }), { ...env, ANTHROPIC_API_KEY: 'sk-test' });
 check(res.status === 400, 'an empty message is refused before any model is called');
 
+// the progress stream: a turn says what it is doing before it says anything else
+{
+  const calls = [];
+  const realFetch = globalThis.fetch;
+  globalThis.fetch = async (u, init) => {
+    const url = typeof u === 'string' ? u : u.url;
+    if (url.startsWith('https://api.anthropic.com')) {
+      calls.push(1);
+      const body = calls.length === 1
+        ? { content: [{ type: 'tool_use', id: 't1', name: 'check_site', input: { definition: florist } }] }
+        : calls.length === 2
+          ? { content: [{ type: 'tool_use', id: 't2', name: 'publish_site', input: { definition: florist } }] }
+          : { content: [{ type: 'text', text: 'Here is your site.' }] };
+      return new Response(JSON.stringify(body), { status: 200, headers: { 'content-type': 'application/json' } });
+    }
+    return realFetch(u, init);
+  };
+  const waits = [];
+  const res = await worker.fetch(
+    new Request('https://gogh.test/api/build', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ text: 'a florist in Bath' }) }),
+    { ...env, ANTHROPIC_API_KEY: 'sk-test' },
+    { waitUntil: (p) => waits.push(p) }
+  );
+  check(res.status === 200 && /text\/event-stream/.test(res.headers.get('content-type')), 'a build turn answers as a stream');
+  const text = await new Response(res.body).text();
+  await Promise.all(waits);
+  const events = text.split('\n\n').filter(Boolean).map((b) => JSON.parse(b.replace(/^data: /, '')));
+  const steps = events.filter((e) => e.type === 'step').map((e) => e.text);
+  const reply = events.find((e) => e.type === 'reply');
+  check(steps[0] === 'Thinking' && steps.includes('Checking it over') && steps.includes('Publishing your site'), 'it names each real step as it reaches it: ' + steps.join(' · '));
+  check(reply && reply.text === 'Here is your site.' && reply.published && /playground\.wordpress\.net/.test(reply.published.url), 'the last event carries the words and the link');
+  globalThis.fetch = realFetch;
+}
+
 console.log(failures ? `${failures} failure(s)` : 'all passed');
 process.exit(failures ? 1 : 0);

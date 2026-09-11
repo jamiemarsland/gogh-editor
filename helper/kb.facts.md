@@ -247,8 +247,8 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "Duplicate"
 - "Duplicate (or Alt-drag)"
 - "Duplicate the selection"
-- "Equal gaps between the pieces"
-- "Equal gaps down the card"
+- "Equal gaps left to right"
+- "Equal gaps top to bottom"
 - "Everything"
 - "Experience"
 - "Featured product"
@@ -342,7 +342,8 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "Show the next layout"
 - "Six looks derived from your brand — hover to wear one, tap Remix again for six more"
 - "Solid"
-- "Space evenly"
+- "Space across"
+- "Space down"
 - "Start writing — a reading column, cursor ready"
 - "Switch design"
 - "Switch it on"
@@ -480,5 +481,5 @@ These are the real strings in the current build. Use them verbatim; never paraph
 
 ## Test suite
 
-`275` tests, run by appending `?gogh-test` to any Gogh page URL while logged in with edit rights on that page.
+`276` tests, run by appending `?gogh-test` to any Gogh page URL while logged in with edit rights on that page.
 

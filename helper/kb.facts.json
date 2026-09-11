@@ -479,8 +479,8 @@
     "Duplicate",
     "Duplicate (or Alt-drag)",
     "Duplicate the selection",
-    "Equal gaps between the pieces",
-    "Equal gaps down the card",
+    "Equal gaps left to right",
+    "Equal gaps top to bottom",
     "Everything",
     "Experience",
     "Featured product",
@@ -574,7 +574,8 @@
     "Show the next layout",
     "Six looks derived from your brand — hover to wear one, tap Remix again for six more",
     "Solid",
-    "Space evenly",
+    "Space across",
+    "Space down",
     "Start writing — a reading column, cursor ready",
     "Switch design",
     "Switch it on",
@@ -1311,5 +1312,5 @@
     "has_deprecation": true,
     "block_title": "gogh Section"
   },
-  "test_count": 275
+  "test_count": 276
 }
