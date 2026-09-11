@@ -2497,13 +2497,14 @@
     // level in (James: "a line up option once the card has been made")
     '<button type="button" class="gogh-eb gogh-eb-lineup" title="Line up the pieces inside this card">Line up \u25BE</button>' +
     '<div class="gogh-mbar-more gogh-elbar-more" hidden>' +
-    '<span class="gogh-mbar-lab">Line up</span>' +
+    '<span class="gogh-mbar-lab">Side to side</span>' +
     [['left', 'Left'], ['center', 'Centre'], ['right', 'Right']].map(function (a) {
       return '<button type="button" class="gogh-eb gogh-mb gogh-cl-align" data-how="' + a[0] + '" title="Line up ' + a[1].toLowerCase() + '">' + a[1] + '</button>';
     }).join('') +
     '<span class="gogh-mbar-sep"></span>' +
     '<span class="gogh-mbar-lab">Spacing</span>' +
-    '<button type="button" class="gogh-eb gogh-mb gogh-cl-space" title="Equal gaps down the card">Space evenly</button>' +
+    // a card stacks its pieces, so its one spacing verb says so on the face
+    '<button type="button" class="gogh-eb gogh-mb gogh-cl-space" title="Equal gaps top to bottom">Space down</button>' +
     '<div class="gogh-mbar-hint" hidden>Faded ones would put pieces on top of each other, or change nothing.</div>' +
     '</div>';
   var ctxBtn = elbar.querySelector('.gogh-eb-ctx');
@@ -2804,14 +2805,27 @@
     '<button type="button" class="gogh-eb gogh-mb gogh-mb-del" title="Delete the selection">Delete</button>' +
     '<button type="button" class="gogh-eb gogh-mb gogh-mb-more" title="Line the pieces up, or even out the gaps">Line up \u25BE</button>' +
     '<div class="gogh-mbar-more" hidden>' +
-    '<span class="gogh-mbar-lab">Line up</span>' +
-    [['left', 'Left'], ['center', 'Centre'], ['right', 'Right'], ['top', 'Top'], ['middle', 'Middle'], ['bottom', 'Bottom']].map(function (a) {
+    // the six words used to sit in one row, and "Centre" and "Middle" are the
+    // same word to anyone who has not done this before (James: "do you think
+    // we should have a horizontal alignment option?" — it was there, unlabelled)
+    '<span class="gogh-mbar-lab">Side to side</span>' +
+    [['left', 'Left'], ['center', 'Centre'], ['right', 'Right']].map(function (a) {
       return '<button type="button" class="gogh-eb gogh-mb gogh-mb-align" data-how="' + a[0] + '" title="Line up ' + a[1].toLowerCase() + '">' + a[1] + '</button>';
     }).join('') +
     '<span class="gogh-mbar-sep"></span>' +
+    '<span class="gogh-mbar-lab">Top to bottom</span>' +
+    [['top', 'Top'], ['middle', 'Middle'], ['bottom', 'Bottom']].map(function (a) {
+      return '<button type="button" class="gogh-eb gogh-mb gogh-mb-align" data-how="' + a[0] + '" title="Line up ' + a[1].toLowerCase() + '">' + a[1] + '</button>';
+    }).join('') +
+    '<div class="gogh-mbar-row">' +
     '<span class="gogh-mbar-lab">Spacing</span>' +
-    '<button type="button" class="gogh-eb gogh-mb gogh-mb-space" title="Equal gaps between the pieces">Space evenly</button>' +
+    // the axis was guessed from the shape of the selection, so a row of cards
+    // was told its gaps were even while the thing you could see wrong — the
+    // tops at different heights — had no button at all
+    '<button type="button" class="gogh-eb gogh-mb gogh-mb-space" data-axis="x" title="Equal gaps left to right">Space across</button>' +
+    '<button type="button" class="gogh-eb gogh-mb gogh-mb-space" data-axis="y" title="Equal gaps top to bottom">Space down</button>' +
     '<button type="button" class="gogh-eb gogh-mb gogh-mb-tidy" title="Line the row up and even the gaps">Tidy up</button>' +
+    '</div>' +
     '<div class="gogh-mbar-hint" hidden>Faded ones would put pieces on top of each other, or change nothing.</div>' +
     '</div>';
   document.body.appendChild(mbar);
@@ -2935,10 +2949,10 @@
       if (m.align !== undefined) { if (m.align === 'left') delete m.e.align; else m.e.align = m.align; }
     });
   }
-  function spacePlan(els) {
-    var bb = bboxOf(els);
+  function spacePlan(els, axis) {
     var items = els.map(function (e) { return { e: e, x: e.x, y: e.y }; });
-    evenRow(items, bb.w >= bb.h ? 'x' : 'y');
+    if (!axis) { var bb = bboxOf(els); axis = bb.w >= bb.h ? 'x' : 'y'; }
+    evenRow(items, axis);
     return items;
   }
   function alignPlan(els, how) {
@@ -2989,7 +3003,7 @@
     });
     grey(elbar.querySelector('.gogh-cl-space'),
       box.kids.length < 3 ? 'Needs three or more pieces' : judge(cardLineupPlan(box, 'space'), 'Already evenly spaced'),
-      'Equal gaps down the card');
+      'Equal gaps top to bottom');
     var row = elbar.querySelector('.gogh-elbar-more'), hint = elbar.querySelector('.gogh-elbar-more .gogh-mbar-hint');
     if (hint && row) hint.hidden = ![].slice.call(row.querySelectorAll('.gogh-mb')).some(function (b) { return b.disabled; });
   }
@@ -3014,7 +3028,7 @@
   elbar.querySelectorAll('.gogh-cl-align').forEach(function (b) {
     b.addEventListener('click', function () { if (!b.disabled) cardLineup(b.dataset.how, ARRANGE_SAID[b.dataset.how]); });
   });
-  elbar.querySelector('.gogh-cl-space').addEventListener('click', function () { if (!this.disabled) cardLineup('space', 'Spaced evenly.'); });
+  elbar.querySelector('.gogh-cl-space').addEventListener('click', function () { if (!this.disabled) cardLineup('space', 'Spaced evenly down.'); });
   function refreshMbar() {
     if (mbar.hidden || !multiSel) return;
     var sec = multiSel.sec, idxs = multiSel.idxs.slice();
@@ -3033,9 +3047,11 @@
     mbar.querySelectorAll('.gogh-mb-align').forEach(function (b) {
       grey(b, judge(alignPlan(els, b.dataset.how), 'Already lined up'), 'Line up ' + b.textContent.toLowerCase());
     });
-    grey(mbar.querySelector('.gogh-mb-space'),
-      els.length < 3 ? 'Needs three or more pieces' : judge(spacePlan(els), 'Already evenly spaced'),
-      'Equal gaps between the pieces');
+    mbar.querySelectorAll('.gogh-mb-space').forEach(function (b) {
+      var axis = b.dataset.axis;
+      grey(b, els.length < 3 ? 'Needs three or more pieces' : judge(spacePlan(els, axis), 'Already evenly spaced'),
+        axis === 'x' ? 'Equal gaps left to right' : 'Equal gaps top to bottom');
+    });
     grey(mbar.querySelector('.gogh-mb-tidy'), judge(tidyPlan(els), 'Already tidy'), 'Line the row up and even the gaps');
     var hint = mbar.querySelector('.gogh-mbar-hint');
     var row = mbar.querySelector('.gogh-mbar-more');
@@ -3100,10 +3116,12 @@
       afterArrange(ARRANGE_SAID[b.dataset.how]);
     });
   });
-  mbar.querySelector('.gogh-mb-space').addEventListener('click', function () {
-    if (!multiSel || this.disabled) return;
-    applyPlan(spacePlan(multiEls()));
-    afterArrange('Spaced evenly.');
+  mbar.querySelectorAll('.gogh-mb-space').forEach(function (b) {
+    b.addEventListener('click', function () {
+      if (!multiSel || b.disabled) return;
+      applyPlan(spacePlan(multiEls(), b.dataset.axis));
+      afterArrange(b.dataset.axis === 'x' ? 'Spaced evenly across.' : 'Spaced evenly down.');
+    });
   });
   mbar.querySelector('.gogh-mb-tidy').addEventListener('click', function () {
     if (!multiSel || this.disabled) return;

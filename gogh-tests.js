@@ -4306,20 +4306,21 @@
       G.multi.set(s0, [n0, n0 + 1, n0 + 2]);
       var bar = q('.gogh-mbar');
       bar.querySelector('.gogh-mb-more').click();
-      expect(!bar.querySelector('.gogh-mbar-more').hidden, 'the dots should open the arrange row');
+      var row = bar.querySelector('.gogh-mbar-more');
+      expect(!row.hidden, 'the dots should open the arrange row');
       var top = bar.querySelector('.gogh-mb-align[data-how="top"]');
       expect(!top.disabled, 'Align top should be offered for a ragged row');
       top.click();
       expect(a.y === 60 && b.y === 60 && c.y === 60, 'Align top should bring every piece to the topmost: ' + [a.y, b.y, c.y]);
       expect(bar.querySelector('.gogh-mb-align[data-how="top"]').disabled && bar.querySelector('.gogh-mb-align[data-how="top"]').title === 'Already lined up', 'Align top should grey out once aligned');
-      expect(bar.querySelectorAll('.gogh-mbar-lab').length === 2 && /Line up/.test(bar.querySelector('.gogh-mb-more').textContent), 'the row should be labelled and the dots should say Line up');
+      expect(/Side to side/.test(row.textContent) && /Top to bottom/.test(row.textContent) && /Line up/.test(bar.querySelector('.gogh-mb-more').textContent), 'the row should name both directions, since Centre and Middle are the same word to a beginner');
       expect(G.multi.state() && G.multi.state().idxs.length === 3 && !bar.hidden, 'the selection and the bar should survive an arrange');
-      var space = bar.querySelector('.gogh-mb-space');
-      expect(!space.disabled, 'Space evenly should be offered for uneven gaps');
+      var space = bar.querySelector('.gogh-mb-space[data-axis="x"]');
+      expect(!space.disabled, 'Space across should be offered for uneven gaps');
       space.click();
       // 100..300 and 800..1000 stay; 900 of span, 600 of pieces, two gaps of 150: the middle lands at 450
       expect(a.x === 100 && b.x === 450 && c.x === 800, 'Space evenly should equalise the gaps: ' + [a.x, b.x, c.x]);
-      expect(bar.querySelector('.gogh-mb-space').disabled && bar.querySelector('.gogh-mb-tidy').disabled, 'Space evenly and Tidy up should grey out once the row is even and square');
+      expect(bar.querySelector('.gogh-mb-space[data-axis="x"]').disabled && bar.querySelector('.gogh-mb-tidy').disabled, 'Space across and Tidy up should grey out once the row is even and square');
       // ragged: a third of its own height down (the render re-measures text
       // heights, so a fixed offset could read as a second row), and off its gap
       var sag = Math.max(4, Math.round(b.h / 3));
@@ -4331,7 +4332,7 @@
       tidy.click();
       expect(b.y === 60 && b.x === 450 && a.x === 100 && c.x === 800, 'Tidy up should square the row and even the gaps: ' + [b.x, b.y]);
       G.multi.set(s0, [n0, n0 + 1]);
-      expect(bar.querySelector('.gogh-mb-space').disabled && /three/.test(bar.querySelector('.gogh-mb-space').title), 'Space evenly needs three or more, and says so');
+      expect(bar.querySelector('.gogh-mb-space[data-axis="x"]').disabled && /three/.test(bar.querySelector('.gogh-mb-space[data-axis="x"]').title), 'Space across needs three or more, and says so');
       G.multi.clear();
       s0.els.splice(n0);
       // words never sit on words: a heading above a paragraph refuses Top,
@@ -4510,6 +4511,7 @@
       lineup.click();
       var row = q('.gogh-elbar-more');
       expect(!row.hidden && row.querySelectorAll('.gogh-cl-align').length === 3 && row.querySelector('.gogh-cl-space'), 'the row should open with Left, Centre, Right and Space evenly');
+      expect(/Side to side/.test(row.textContent) && /Space down/.test(row.textContent), 'the card row should name its direction too');
       row.querySelector('.gogh-cl-align[data-how="left"]').click();
       expect(box.kids.every(function (k) { return k.x === 40; }), 'Left should line the pieces up with the leftmost: ' + box.kids.map(function (k) { return k.x; }));
       expect(row.querySelector('.gogh-cl-align[data-how="left"]').disabled && row.querySelector('.gogh-cl-align[data-how="left"]').title === 'Already lined up', 'Left should fade once lined up');
@@ -4562,6 +4564,43 @@
       s0.els.splice(n0, 1);
       G.renderSection(s0);
       return 'one card, one ink';
+    });
+
+    test('spacing has two axes: a row of cards can be evened across or down', function () {
+      // James's three feature cards: side by side with even gaps, sitting at
+      // different heights. The old one-button Space evenly guessed the axis
+      // from the shape, said "already evenly spaced", and left the visible
+      // problem with no button at all.
+      var s0 = sec();
+      var n0 = s0.els.length;
+      var below = Math.max.apply(null, s0.els.map(function (e) { return e.y + e.h; })) + 40;
+      [[80, 0], [440, 60], [800, 20]].forEach(function (p, k) {
+        s0.els.push({ type: 'box', x: p[0], y: below + p[1], w: 280, h: 200, radius: 12,
+          kids: [{ type: 'heading', x: 24, y: 24, w: 230, h: 40, text: 'Card ' + (k + 1) }] });
+      });
+      G.renderSection(s0);
+      var a = s0.els[n0], b = s0.els[n0 + 1], c = s0.els[n0 + 2];
+      G.multi.set(s0, [n0, n0 + 1, n0 + 2]);
+      var bar = q('.gogh-mbar');
+      bar.querySelector('.gogh-mb-more').click();
+      var across = bar.querySelector('.gogh-mb-space[data-axis="x"]');
+      var down = bar.querySelector('.gogh-mb-space[data-axis="y"]');
+      expect(across && down, 'spacing should offer both axes by name');
+      expect(across.disabled && across.title === 'Already evenly spaced', 'the gaps left to right are already even, and the bar should say so');
+      expect(!down.disabled, 'the axis the person can see wrong should be reachable, got ' + down.title);
+      down.click();
+      // sorted by position the run is a(0) · c(20) · b(60): the ends hold and
+      // the one in the middle of the run is the one that moves
+      expect(a.y === below && b.y === below + 60 && c.y === below + 30, 'Space down should even the vertical gaps, keeping the topmost and the lowest: ' + [a.y - below, b.y - below, c.y - below]);
+      // and Top is still the verb that squares a row
+      G.multi.set(s0, [n0, n0 + 1, n0 + 2]);
+      bar.querySelector('.gogh-mb-more').click();
+      bar.querySelector('.gogh-mb-align[data-how="top"]').click();
+      expect(a.y === below && b.y === below && c.y === below, 'Top should bring every card to the topmost');
+      G.multi.clear();
+      s0.els.splice(n0);
+      G.renderSection(s0);
+      return 'two axes, each greyed on its own evidence';
     });
 
     test('card interactions: drop joins, kid drags inside, drag-out frees', function () {
