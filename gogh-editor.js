@@ -9941,6 +9941,221 @@
   }
 
   // ---------- "/" quick add: type to filter, Enter to insert ----------
+  // ---------- a site from a definition ----------
+  // Stage one of "chat to an AI, get a blueprint" (James: "I just want them
+  // to be able to chat to AI like Claude desktop"). A definition is content
+  // and choices — takes from the shelf, filled by role — never geometry. The
+  // editor draws it with the tested takes, so what an AI writes is small and
+  // safe, and a beginner's site looks designed the first time.
+  function roleOf(e) {
+    if (e.type === 'para') return (e.tf && e.tf.tt === 'uppercase') ? 'eyebrow' : 'para';
+    return e.type;
+  }
+  function roleLists(els) {
+    var L = { heading: [], eyebrow: [], para: [], button: [], image: [], badge: [], card: [], widget: [] };
+    els.forEach(function (e) {
+      if (e.type === 'box') { if (e.kids && e.kids.length) L.card.push(e); return; }
+      var r = roleOf(e);
+      if (L[r]) L[r].push(e);
+    });
+    return L;
+  }
+  // the same few names everywhere, at section level and inside a card:
+  // heading (or title), eyebrow (or name, role), text (or quote), price,
+  // button, badge, image, link
+  function fillWords(L, c) {
+    if (!c) return;
+    var put = function (list, k, v) { if (v != null && list[k]) list[k].text = String(v); };
+    put(L.heading, 0, c.heading != null ? c.heading : c.title);
+    put(L.heading, 1, c.price);
+    put(L.eyebrow, 0, c.eyebrow != null ? c.eyebrow : (c.name != null ? c.name : c.role));
+    put(L.para, 0, c.text != null ? c.text : c.quote);
+    put(L.para, 1, c.text2);
+    put(L.button, 0, c.button);
+    put(L.button, 1, c.button2);
+    put(L.badge, 0, c.badge);
+    put(L.badge, 1, c.badge2);
+    if (c.image && L.image[0]) L.image[0].src = String(c.image);
+    if (c.link && L.button[0]) L.button[0].href = String(c.link);
+  }
+  // takes whose items are not cards but repeated pieces in a row
+  var FLAT_TAKES = {
+    'Numbers': { unit: { heading: 'value', para: 'label' }, head: {} },
+    'Team': { unit: { image: 'image', heading: 'name', eyebrow: 'role' }, head: { eyebrow: 1, heading: 1 } },
+    'Menu': { unit: { heading: 'name', para: 'price' }, head: { eyebrow: 1, heading: 1 }, tail: { para: 1 } },
+    'Gallery': { unit: { image: 'image' }, head: { eyebrow: 1, heading: 1 }, tail: { button: 1 } },
+    'Photo cards': { unit: { image: 'image', heading: 'title', para: 'text', badge: ['badge', 'badge2'], button: 'button' }, head: {} },
+  };
+  function templateByName(name) {
+    var found = null;
+    TEMPLATES.forEach(function (t) { if (!found && t.name === name) found = t; });
+    return found;
+  }
+  // a take from the shelf, filled with a definition's words: returns a
+  // template clone ready for addSection, or null when the take is unknown
+  function fillTake(sc) {
+    if (!sc || !sc.take) return null;
+    var name = String(sc.take);
+    var items = Array.isArray(sc.items) ? sc.items : null;
+    if (name === 'Latest posts') {
+      var pw = DEFAULTS.posts();
+      pw.y = 170;
+      var po = sc.posts || {};
+      pw.posts.look = po.look || sc.look || '';
+      if (po.count) pw.posts.count = +po.count;
+      if (po.show) pw.posts.show = Object.assign(pw.posts.show, po.show);
+      pw.wsrc = composePosts(pw.posts);
+      return { name: 'Latest posts', minH: 660, els: [
+        { type: 'heading', x: 100, y: 56, w: 1000, h: 60, text: sc.heading || 'From the blog', fs: 'x-large', align: 'center' },
+        pw,
+      ] };
+    }
+    var tpl = templateByName(name);
+    // a gated take (FAQ needs the accordion block) becomes cards of the
+    // same words rather than failing the site
+    if (tpl && tpl.gated && !cfg[tpl.gated]) {
+      if (items && (name === 'FAQ' || name === 'Tabs')) {
+        return fillTake({ take: 'Feature cards', heading: sc.heading, items: items.map(function (it) {
+          return { title: it.q || it.question || it.label || it.title, text: it.a || it.answer || it.text };
+        }) });
+      }
+      return null;
+    }
+    if (!tpl) return null;
+    var clone = JSON.parse(JSON.stringify(tpl));
+    var L = roleLists(clone.els);
+    // pictures: a take with a background picture takes the section's image there
+    if (sc.image && clone.bgImage) { clone.bgImage = String(sc.image); if (clone.bgA == null) clone.bgA = 45; }
+    var flat = FLAT_TAKES[name];
+    if (flat) {
+      var head = flat.head || {}, tail = flat.tail || {};
+      var edge = {};
+      Object.keys(L).forEach(function (r) {
+        var h = head[r] || 0, t = tail[r] || 0;
+        edge[r] = L[r].slice(0, h).concat(t ? L[r].slice(L[r].length - t) : []);
+      });
+      fillWords(edge, sc);
+      if (items) {
+        var drop = [];
+        Object.keys(flat.unit).forEach(function (r) {
+          var per = Array.isArray(flat.unit[r]) ? flat.unit[r].length : 1;
+          var keys = Array.isArray(flat.unit[r]) ? flat.unit[r] : [flat.unit[r]];
+          var slots = L[r].slice(head[r] || 0, L[r].length - (tail[r] || 0));
+          slots.forEach(function (e, k) {
+            var i = Math.floor(k / per), it = items[i];
+            if (!it) { drop.push(e); return; }
+            var v = it[keys[k % per]];
+            if (r === 'image') { if (v) e.src = String(v); }
+            else if (v != null) e.text = String(v);
+          });
+        });
+        clone.els = clone.els.filter(function (e) { return drop.indexOf(e) === -1; });
+      }
+    } else {
+      fillWords(L, sc);
+      if (items && L.card.length) {
+        L.card.forEach(function (card, i) {
+          var it = items[i];
+          if (!it) return;
+          fillWords(roleLists(card.kids), it);
+          if (it.mood) card.mood = it.mood;
+        });
+        // surplus cards go: a site with two services shows two, not a placeholder third
+        var keep = L.card.slice(0, items.length);
+        clone.els = clone.els.filter(function (e) { return e.type !== 'box' || !e.kids || !e.kids.length || keep.indexOf(e) !== -1; });
+      } else if (L.card.length === 1 && !items) {
+        // one card (Profile, Job, Place): the section's words are the card's
+        fillWords(roleLists(L.card[0].kids), sc);
+      }
+      if (items && L.widget[0]) {
+        var w = L.widget[0];
+        if (w.faq) w.faq = items.map(function (it) { return { q: String(it.q || it.question || it.title || ''), a: String(it.a || it.answer || it.text || '') }; });
+        else if (w.tabs) w.tabs = items.map(function (it, k) { return Object.assign({}, w.tabs[k] || w.tabs[0] || {}, { label: String(it.label || it.title || ''), body: String(it.body || it.text || '') }); });
+        else if (w.wall) w.wall = items.map(function (it) { return { img: String(it.image || it.img || ''), cap: String(it.caption || it.cap || '') }; });
+        else if (w.slides) w.slides = items.map(function (it) { return { img: String(it.image || it.img || ''), cap: String(it.caption || it.cap || '') }; });
+      }
+    }
+    if (sc.mood) clone.els.forEach(function (e) { if (e.type === 'box' && e.kids && e.kids.length) e.mood = sc.mood; });
+    return clone;
+  }
+  // draw every page of a definition in this editor — each section rendered
+  // on the canvas for real (fonts, measurement, the solver), its blocks
+  // taken, then removed — and return the blocks per page. Nothing is saved.
+  function composeSiteDef(def, onStep) {
+    var pages = (def && Array.isArray(def.pages)) ? def.pages : [];
+    var total = 0;
+    pages.forEach(function (pg) { total += (pg.sections || []).length; });
+    var done = 0, out = [];
+    var chain = Promise.resolve();
+    pages.forEach(function (pg, pi) {
+      var blocks = [];
+      (pg.sections || []).forEach(function (sc) {
+        chain = chain.then(function () {
+          var tpl = fillTake(sc);
+          if (!tpl) { done++; return; }
+          addSection(tpl, S.length);
+          var sec = S[S.length - 1];
+          return new Promise(function (r) { setTimeout(r, 280); }).then(function () {
+            measureTextHeights(sec);
+            resolveAndApply(sec);
+            blocks.push(buildSectionBlocksV3(sec));
+            var at = S.indexOf(sec);
+            if (at !== -1) deleteSection(at);
+            done++;
+            if (onStep) onStep(done, total, sc.take);
+          });
+        });
+      });
+      chain = chain.then(function () { out.push({ i: pi, title: pg.title || '', blocks: blocks.join('\n\n') }); });
+    });
+    return chain.then(function () { return out; });
+  }
+  // the first load after a definition boot: draw, save every page, clear
+  // the definition, and go and look at the site
+  function buildSiteFromDef(pending) {
+    var def = pending && pending.def, ids = (pending && pending.pages) || {};
+    if (!def) return Promise.resolve(false);
+    var veil = document.createElement('div');
+    veil.className = 'gogh-buildveil';
+    veil.innerHTML = '<div class="gogh-buildcard"><div class="gogh-buildtitle">Building ' + esc(def.name || 'your site') + '…</div><div class="gogh-buildstep">Warming up</div></div>';
+    document.body.appendChild(veil);
+    var step = veil.querySelector('.gogh-buildstep');
+    var root = cfg.restUrl.split('wp/v2/')[0];
+    return composeSiteDef(def, function (d, t, take) { step.textContent = take + ' — ' + d + ' of ' + t; })
+      .then(function (pages) {
+        var chain = Promise.resolve();
+        pages.forEach(function (pg) {
+          var id = ids[pg.i] != null ? ids[pg.i] : ids[String(pg.i)];
+          if (!id || !pg.blocks) return;
+          chain = chain.then(function () {
+            step.textContent = 'Saving ' + (pg.title || 'page');
+            return fetch(root + 'wp/v2/pages/' + id, {
+              method: 'POST', credentials: 'same-origin',
+              headers: { 'X-WP-Nonce': cfg.nonce, 'Content-Type': 'application/json' },
+              body: JSON.stringify({ content: pg.blocks, status: 'publish' }),
+            });
+          });
+        });
+        return chain;
+      })
+      .then(function () {
+        return fetch(root + 'gogh/v1/site-def', { method: 'DELETE', credentials: 'same-origin', headers: { 'X-WP-Nonce': cfg.nonce } }).catch(function () {});
+      })
+      .then(function () {
+        step.textContent = 'Done — opening your site';
+        setTimeout(function () { window.location.href = cfg.homeUrl || '/'; }, 600);
+        return true;
+      })
+      .catch(function (err) {
+        step.textContent = 'Something went wrong: ' + (err && err.message ? err.message : err);
+        return false;
+      });
+  }
+  function scheduleSiteBuild() {
+    var go = function () { setTimeout(function () { buildSiteFromDef(cfg.siteDef); }, 900); };
+    if (document.fonts && document.fonts.ready) document.fonts.ready.then(go); else go();
+  }
+
   var cmd = document.createElement('div');
   cmd.className = 'gogh-cmd';
   cmd.hidden = true;
@@ -15703,6 +15918,7 @@
     explode: { enter: enterExplode, exit: exitExplode, state: function () { return explodeSt; } },
     multi: { set: setMulti, clear: clearMulti, state: function () { return multiSel; } },
     showGuides: showGuides, hideGuides: hideGuides,
+    fillTake: fillTake, composeSiteDef: composeSiteDef,
     zoom: { open: openZoom, close: closeZoom, el: zoomOv },
     canvasZoom: { out: zoomOutCanvas, back: unzoomCanvas, setDevice: setDevice },
     reorderSection: reorderSection,
@@ -22283,6 +22499,7 @@
     }
     if (wantEdit) {
       setEditing(true);
+      if (cfg.siteDef && /[?&]gogh-build=1/.test(location.search)) scheduleSiteBuild();
       var bootContent = S.filter(function (s) { return !s.chrome; });
       // the blank-canvas greeting is for genuinely EMPTY pages — a page
       // full of native blocks (a starter site's home) is not one

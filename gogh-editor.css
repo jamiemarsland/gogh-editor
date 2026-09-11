@@ -3965,3 +3965,9 @@ body:has(.wp-block-navigation__responsive-container.is-menu-open) .gogh-bar { op
 .gogh-paste-plain h1 { font-size: 2.2em; line-height: 1.1; margin-block: 0.4em; }
 .gogh-paste-plain h2 { font-size: 1.6em; margin-block: 1.4em 0.4em; }
 .gogh-paste-plain h3 { font-size: 1.15em; margin-block: 1.2em 0.3em; }
+
+/* a site being built from a definition: the canvas draws behind a veil */
+.gogh-buildveil { position: fixed; inset: 0; z-index: 100020; display: grid; place-items: center; background: rgba(250, 249, 246, 0.72); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); }
+.gogh-buildcard { background: #fff; border-radius: 18px; padding: 26px 32px; min-width: 320px; box-shadow: 0 30px 60px -22px rgba(0,0,0,0.35); text-align: center; font: 500 14px/1.4 -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, sans-serif; color: #141519; }
+.gogh-buildtitle { font-size: 18px; font-weight: 700; margin-bottom: 6px; }
+.gogh-buildstep { opacity: 0.65; }

@@ -18,7 +18,15 @@ $dir = WP_PLUGIN_DIR . '/gogh/demo-assets/';
 // GOGH_DEMO_STARTER, and GOGH_DEMO_MEDIA for the pictures its media library
 // should hold): that design's own pages and posts, none of the Yellow House's
 $starter = defined( 'GOGH_DEMO_STARTER' ) ? sanitize_key( GOGH_DEMO_STARTER ) : 'yellow-house';
-if ( 'yellow-house' !== $starter ) {
+if ( defined( 'GOGH_SITE_DEF_JSON' ) ) {
+	// a site from a definition (see gogh_site_def_boot): pages, posts, menu,
+	// chrome and palette now; the editor draws the sections on first load
+	try { wp_trash_post( 1 ); } catch ( \Throwable $e ) {}
+	$def = json_decode( (string) GOGH_SITE_DEF_JSON, true );
+	if ( is_array( $def ) && function_exists( 'gogh_site_def_boot' ) ) {
+		try { gogh_site_def_boot( $def ); } catch ( \Throwable $e ) {}
+	}
+} elseif ( 'yellow-house' !== $starter ) {
 	try { wp_trash_post( 1 ); } catch ( \Throwable $e ) {}
 	// a shop design boots with WooCommerce already active: its own pages
 	// must exist before the design seats them in the menu, and a demo

@@ -4445,6 +4445,51 @@
       return 'a colour pick judges the words; any colour is one well away';
     });
 
+    test('a site definition fills takes by role: cards, flat rows, covers, posts, the odd one out', function () {
+      // content and choices in, a take from the shelf out — never geometry
+      var fc = G.fillTake({ take: 'Feature cards', heading: 'What we grow', items: [{ title: 'Peonies', text: 'In May.' }, { title: 'Dahlias', text: 'Late summer.' }] });
+      expect(fc && fc.name === 'Feature cards', 'Feature cards should come off the shelf');
+      var cards = fc.els.filter(function (e) { return e.type === 'box' && e.kids; });
+      expect(fc.els[0].text === 'What we grow' && cards.length === 2, 'two items should leave two cards under the heading, got ' + cards.length);
+      expect(cards[1].kids[0].text === 'Dahlias' && cards[1].kids[1].text === 'Late summer.', 'card words should land by role');
+      var tm = G.fillTake({ take: 'Testimonials', items: [{ quote: 'Lovely people.', name: 'Ann · Bath' }] });
+      var tcard = tm.els.filter(function (e) { return e.type === 'box' && e.kids; })[0];
+      expect(tcard.kids[0].text === 'Lovely people.' && tcard.kids[1].text === 'Ann · Bath', 'a quote and a name should fill a testimonial');
+      var cv = G.fillTake({ take: 'Cover', heading: 'Flowers that mean it', image: '/x/peonies.jpg', button: 'See the shop' });
+      expect(cv.bgImage === '/x/peonies.jpg' && cv.els.some(function (e) { return e.type === 'heading' && e.text === 'Flowers that mean it'; }) && cv.els.some(function (e) { return e.type === 'button' && e.text === 'See the shop'; }), 'a cover should take the picture behind and the words in front');
+      var team = G.fillTake({ take: 'Team', heading: 'Four people', items: [{ name: 'Nell', role: 'Founder', image: '/x/nell.jpg' }] });
+      var th = team.els.filter(function (e) { return e.type === 'heading'; }), ti = team.els.filter(function (e) { return e.type === 'image'; });
+      expect(th[0].text === 'Four people' && th.length === 2 && th[1].text === 'Nell' && ti.length === 1 && ti[0].src === '/x/nell.jpg', 'a flat take should keep its heading, fill one unit and drop the rest: ' + th.map(function (h) { return h.text; }));
+      var nums = G.fillTake({ take: 'Numbers', items: [{ value: '312', label: 'Weddings' }, { value: '14', label: 'Growers' }] });
+      var nh = nums.els.filter(function (e) { return e.type === 'heading'; });
+      expect(nh.length === 2 && nh[0].text === '312' && nh[1].text === '14', 'numbers should fill by unit: ' + nh.map(function (h) { return h.text; }));
+      var lp = G.fillTake({ take: 'Latest posts', heading: 'From the journal', posts: { look: 'cards', count: 4 } });
+      var rail = lp.els.filter(function (e) { return e.rails && e.posts; })[0];
+      expect(lp.els[0].text === 'From the journal' && rail && rail.posts.look === 'cards' && /"perPage":4/.test(rail.wsrc), 'Latest posts should become a rail wearing the look');
+      expect(G.fillTake({ take: 'No such take' }) === null, 'an unknown take should return nothing');
+      if (!GOGH.hasAccordion) {
+        var faq = G.fillTake({ take: 'FAQ', heading: 'Questions', items: [{ q: 'Do you deliver?', a: 'Within Bath, yes.' }] });
+        expect(faq && faq.name === 'Feature cards' && faq.els.some(function (e) { return e.kids && e.kids[0].text === 'Do you deliver?'; }), 'without the accordion block, FAQ words should become cards');
+      }
+      return 'takes filled by role; surplus dropped; the odd one out says so';
+    });
+
+    testAsync('a site definition composes on the canvas and leaves it as it was', function () {
+      var s0 = sec();
+      var before = G.sections().length;
+      return G.composeSiteDef({ pages: [{ title: 'Home', sections: [
+        { take: 'Big statement', eyebrow: 'What we believe', heading: 'Nothing flown in while something grows here' },
+        { take: 'Feature cards', heading: 'Three things', items: [{ title: 'One', text: 'First.' }, { title: 'Two', text: 'Second.' }, { title: 'Three', text: 'Third.' }] },
+      ] }, { title: 'Contact', sections: [{ take: 'Get in touch', heading: 'Write to us' }] }] }).then(function (pages) {
+        expect(pages.length === 2, 'two pages should compose, got ' + pages.length);
+        var opens = (pages[0].blocks.match(/<!-- wp:gogh\/section /g) || []).length;
+        expect(opens === 2 && pages[0].blocks.indexOf('Nothing flown in') !== -1 && pages[0].blocks.indexOf('Second.') !== -1, 'the home page should carry both sections with their words: ' + opens + ' sections');
+        expect(/wp:gogh\/form/.test(pages[1].blocks) && pages[1].blocks.indexOf('Write to us') !== -1, 'the contact page should carry the form and its heading');
+        expect(G.sections().length === before && G.sections()[0] === s0, 'the scratch sections should be gone and the page as it was');
+        return 'a definition drawn, its blocks taken, the canvas untouched';
+      });
+    });
+
     test('card interactions: drop joins, kid drags inside, drag-out frees', function () {
       var s0 = sec();
       s0.els.push({ type: 'box', x: 600, y: 80, w: 480, h: 380, boxBg: '#101418', radius: 16 });

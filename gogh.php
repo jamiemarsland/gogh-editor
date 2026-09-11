@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Gogh Editor
  * Description: A freeform canvas for WordPress — drag anything anywhere on your live page; Gogh publishes it back as clean, responsive core blocks that keep working even if the plugin is deactivated.
- * Version: 0.99.478
+ * Version: 0.99.479
  * Author: Jamie Marsland
  * Author URI: https://pootlepress.com
  * License: GPLv2 or later
@@ -14,7 +14,7 @@
 
 defined( 'ABSPATH' ) || exit;
 
-define( 'GOGH_VERSION', '0.99.478' );
+define( 'GOGH_VERSION', '0.99.479' );
 
 /**
  * gogh/section — a first-class block. STATIC save (no render_callback), so
@@ -25,7 +25,7 @@ add_action( 'init', function () {
 		'gogh-block',
 		plugins_url( 'gogh-block.js', __FILE__ ),
 		array( 'wp-blocks', 'wp-element', 'wp-block-editor' ),
-		'0.99.478-chrome',
+		'0.99.479-chrome',
 		true
 	);
 	register_block_type( 'gogh/section', array(
@@ -477,9 +477,9 @@ add_action( 'wp_enqueue_scripts', function () {
 	if ( ! $post || ! current_user_can( 'edit_post', $post->ID ) ) {
 		return;
 	}
-	wp_register_script( 'gogh-compose', plugins_url( 'gogh-compose.js', __FILE__ ), array(), '0.99.478-chrome', true );
-	wp_enqueue_script( 'gogh-write', plugins_url( 'gogh-write.js', __FILE__ ), array( 'gogh-compose' ), '0.99.478-chrome', true );
-	wp_enqueue_style( 'gogh-write', plugins_url( 'gogh-write.css', __FILE__ ), array(), '0.99.478-chrome' );
+	wp_register_script( 'gogh-compose', plugins_url( 'gogh-compose.js', __FILE__ ), array(), '0.99.479-chrome', true );
+	wp_enqueue_script( 'gogh-write', plugins_url( 'gogh-write.js', __FILE__ ), array( 'gogh-compose' ), '0.99.479-chrome', true );
+	wp_enqueue_style( 'gogh-write', plugins_url( 'gogh-write.css', __FILE__ ), array(), '0.99.479-chrome' );
 	wp_localize_script( 'gogh-write', 'GOGHWRITE', array(
 		'postId'  => $post->ID,
 		'restUrl' => esc_url_raw( rest_url() ),
@@ -2509,6 +2509,352 @@ function gogh_starters() {
 	}
 	return $out;
 }
+// ---- the parts of a starter that are not its pages: shared by the starter
+// route (a starter on disk) and a site definition (a site from a chat) ----
+// the menu from the pages made, the header and footer patterns wearing it
+function gogh_starter_apply_chrome( $m, $made ) {
+			$links = '';
+			foreach ( $made as $c ) {
+				if ( ! empty( $c['no_menu'] ) ) {
+					continue;
+				}
+				$links .= '<!-- wp:navigation-link {"label":"' . esc_attr( $c['title'] ) . '","type":"page","id":' . $c['id'] .
+					',"url":"' . esc_url( get_permalink( $c['id'] ) ) . '","kind":"post-type"} /-->';
+			}
+			// re-use a same-named menu rather than minting a new wp_navigation
+			// post on every apply — otherwise re-running a starter litters the
+			// "swap menus" list with a fresh "Café menu" each time
+			$nav_title = $m['name'] . ' menu';
+			$found = new WP_Query( array(
+				'post_type'      => 'wp_navigation',
+				'post_status'    => 'publish',
+				'title'          => $nav_title,
+				'posts_per_page' => 1,
+				'fields'         => 'ids',
+				'no_found_rows'  => true,
+			) );
+			$nav_id = $found->posts ? (int) $found->posts[0] : 0;
+			if ( $nav_id ) {
+				wp_update_post( array( 'ID' => $nav_id, 'post_content' => $links ) );
+			} else {
+				$nav_id = wp_insert_post( array(
+					'post_type'    => 'wp_navigation',
+					'post_status'  => 'publish',
+					'post_title'   => $nav_title,
+					'post_content' => $links,
+				) );
+			}
+			// point the live header's menu at the new navigation
+			$part = get_block_template( get_stylesheet() . '//header', 'wp_template_part' );
+			if ( $part && $nav_id && ! is_wp_error( $nav_id ) ) {
+				$praw = (string) $part->content;
+				// a starter may choose one of gogh's own headers — the Yellow
+				// House floats the transparent overlay over its hero
+				if ( ! empty( $m['chrome']['header'] ) ) {
+					$pfile = __DIR__ . '/patterns/' . sanitize_file_name( $m['chrome']['header'] ) . '.html';
+					if ( is_readable( $pfile ) ) {
+						$praw = file_get_contents( $pfile );
+					}
+				}
+				$next = '';
+				if ( preg_match( '/wp:navigation[^>]*"ref":\d+/', $praw ) ) {
+					$next = preg_replace( '/("ref":)\d+/', '${1}' . $nav_id, $praw, 1 );
+				} elseif ( preg_match( '/<!--\s+wp:navigation\s+\{/', $praw ) ) {
+					$next = preg_replace( '/(<!--\s+wp:navigation\s+\{)/', '${1}"ref":' . $nav_id . ',', $praw, 1 );
+				} else {
+					$next = preg_replace( '/(<!--\s+wp:navigation)(\s+-->)/', '${1} {"ref":' . $nav_id . '}${2}', $praw, 1 );
+				}
+				if ( $next && $next !== $praw ) {
+					if ( ! empty( $part->wp_id ) ) {
+						wp_update_post( array( 'ID' => $part->wp_id, 'post_content' => $next ) );
+					} else {
+						$pid = wp_insert_post( array(
+							'post_type'    => 'wp_template_part',
+							'post_status'  => 'publish',
+							'post_title'   => 'header',
+							'post_name'    => 'header',
+							'post_content' => $next,
+						) );
+						if ( $pid && ! is_wp_error( $pid ) ) {
+							wp_set_post_terms( $pid, array( get_stylesheet() ), 'wp_theme' );
+							wp_set_post_terms( $pid, array( 'header' ), 'wp_template_part_area' );
+						}
+					}
+				}
+			}
+			// and one of gogh's own footers, the same way (a theme's default
+			// footer is a sampler of dummy links no real site wants)
+			if ( ! empty( $m['chrome']['footer'] ) && $nav_id && ! is_wp_error( $nav_id ) ) {
+				$ffile = __DIR__ . '/patterns/' . sanitize_file_name( $m['chrome']['footer'] ) . '.html';
+				if ( is_readable( $ffile ) ) {
+					$fraw = file_get_contents( $ffile );
+					if ( preg_match( '/wp:navigation[^>]*"ref":\d+/', $fraw ) ) {
+						$fnext = preg_replace( '/("ref":)\d+/', '${1}' . $nav_id, $fraw, 1 );
+					} elseif ( preg_match( '/<!--\s+wp:navigation\s+\{/', $fraw ) ) {
+						$fnext = preg_replace( '/(<!--\s+wp:navigation\s+\{)/', '${1}"ref":' . $nav_id . ',', $fraw, 1 );
+					} else {
+						$fnext = preg_replace( '/(<!--\s+wp:navigation)(\s+-->)/', '${1} {"ref":' . $nav_id . '}${2}', $fraw, 1 );
+					}
+					$fpart = get_block_template( get_stylesheet() . '//footer', 'wp_template_part' );
+					if ( $fpart && ! empty( $fpart->wp_id ) ) {
+						wp_update_post( array( 'ID' => $fpart->wp_id, 'post_content' => $fnext ) );
+					} else {
+						$fpid = wp_insert_post( array(
+							'post_type'    => 'wp_template_part',
+							'post_status'  => 'publish',
+							'post_title'   => 'footer',
+							'post_name'    => 'footer',
+							'post_content' => $fnext,
+						) );
+						if ( $fpid && ! is_wp_error( $fpid ) ) {
+							wp_set_post_terms( $fpid, array( get_stylesheet() ), 'wp_theme' );
+							wp_set_post_terms( $fpid, array( 'footer' ), 'wp_template_part_area' );
+						}
+					}
+				}
+			}
+			// the design brings its own look: apply the named theme style
+			// variation to user global styles. The user's saved gogh brand is
+			// untouched and can be re-applied from Your brand at any time.
+}
+// the theme variation, the palette over it, then the styles on top
+function gogh_starter_apply_styles( $m ) {
+			$applied_variation = '';
+			if ( ! empty( $m['variation'] ) && class_exists( 'WP_Theme_JSON_Resolver' ) ) {
+				foreach ( WP_Theme_JSON_Resolver::get_style_variations() as $v ) {
+					if ( isset( $v['title'] ) && 0 === strcasecmp( $v['title'], $m['variation'] ) ) {
+						$applied_variation = $m['variation'];
+						$gs_id = WP_Theme_JSON_Resolver::get_user_global_styles_post_id();
+						if ( $gs_id ) {
+							wp_update_post( array(
+								'ID'           => $gs_id,
+								// slashed: wp_update_post unslashes its input, and a variation whose
+								// font names carry \"quotes\" (Morning's Ysabeau Office) came back as
+								// broken JSON that the palette merge below could not read — the site
+								// kept the colours and lost the type
+								'post_content' => wp_slash( wp_json_encode( array(
+									'version'                     => class_exists( 'WP_Theme_JSON' ) ? WP_Theme_JSON::LATEST_SCHEMA : 3,
+									'isGlobalStylesUserThemeJSON' => true,
+									'settings'                    => isset( $v['settings'] ) ? $v['settings'] : new stdClass(),
+									'styles'                      => isset( $v['styles'] ) ? $v['styles'] : new stdClass(),
+								) ) ),
+							) );
+						}
+						break;
+					}
+				}
+			}
+			// remember which style the site now wears — WP itself forgets the
+			// variation's name the moment it's copied into user global styles.
+			// Only when it truly applied: a design's variation is a Twenty
+			// Twenty-Five name, and on another theme (James switched to Ollie)
+			// nothing matched — recording it anyway would have the Site style
+			// panel claim a look the site never put on.
+			if ( '' !== $applied_variation ) {
+				update_option( 'gogh_active_style', $applied_variation );
+			}
+			// a starter may carry a bespoke PALETTE: theme palette slugs are
+			// re-coloured (base/contrast keep roles, accents cycle), applied
+			// as user global styles — same mechanism as Your brand
+			if ( ! empty( $m['palette'] ) && class_exists( 'WP_Theme_JSON_Resolver' ) ) {
+				$theme_pal = wp_get_global_settings( array( 'color', 'palette', 'theme' ) );
+				if ( is_array( $theme_pal ) && $theme_pal ) {
+					$pal     = $m['palette'];
+					$accents = isset( $pal['accents'] ) && is_array( $pal['accents'] ) ? array_values( $pal['accents'] ) : array();
+					$ai      = 0;
+					$out_pal = array();
+					// $pslug, not $slug: this loop used to reuse the starter's own
+					// $slug and left it reading 'accent-6', so everything after the
+					// palette looked for its files in starters/accent-6/
+					foreach ( $theme_pal as $entry ) {
+						$pslug = isset( $entry['slug'] ) ? $entry['slug'] : '';
+						if ( ( 'base' === $pslug || 'background' === $pslug ) && ! empty( $pal['base'] ) ) {
+							$entry['color'] = $pal['base'];
+						} elseif ( ( 'contrast' === $pslug || 'text' === $pslug || 'foreground' === $pslug ) && ! empty( $pal['contrast'] ) ) {
+							$entry['color'] = $pal['contrast'];
+						} elseif ( $accents && 0 === strpos( $pslug, 'accent' ) ) {
+							$entry['color'] = $accents[ $ai % count( $accents ) ];
+							$ai++;
+						}
+						$out_pal[] = $entry;
+					}
+					$gs_id = WP_Theme_JSON_Resolver::get_user_global_styles_post_id();
+					if ( $gs_id ) {
+						// merged into what the variation (above) just wrote: a design
+						// can bring both its type and its own colours (the palette
+						// used to be written alone, and a variation applied after it
+						// replaced the whole user styles post, palette included)
+						$gs_post = get_post( $gs_id );
+						$gs      = $gs_post ? json_decode( (string) $gs_post->post_content, true ) : null;
+						if ( ! is_array( $gs ) ) {
+							$gs = array();
+						}
+						$gs['version']                     = class_exists( 'WP_Theme_JSON' ) ? WP_Theme_JSON::LATEST_SCHEMA : 3;
+						$gs['isGlobalStylesUserThemeJSON'] = true;
+						if ( empty( $gs['settings'] ) || ! is_array( $gs['settings'] ) ) {
+							$gs['settings'] = array();
+						}
+						if ( empty( $gs['settings']['color'] ) || ! is_array( $gs['settings']['color'] ) ) {
+							$gs['settings']['color'] = array();
+						}
+						$gs['settings']['color']['palette'] = array( 'theme' => $out_pal );
+						if ( empty( $gs['styles'] ) ) {
+							$gs['styles'] = new stdClass();
+						}
+						wp_update_post( array(
+							'ID'           => $gs_id,
+							'post_content' => wp_slash( wp_json_encode( $gs ) ), // wp_update_post unslashes: a variation's \"quoted\" font names would break the JSON
+						) );
+					}
+				}
+			}
+			// a starter may also bring a few STYLE decisions the variation
+			// leaves wrong for it (Morning paints button words in the contrast
+			// colour, which on a cobalt button is ink on blue): merged into
+			// the same user global styles, after the variation and palette
+			if ( ! empty( $m['styles'] ) && is_array( $m['styles'] ) && class_exists( 'WP_Theme_JSON_Resolver' ) ) {
+				$gs_id = WP_Theme_JSON_Resolver::get_user_global_styles_post_id();
+				if ( $gs_id ) {
+					$gs_post = get_post( $gs_id );
+					$gs      = $gs_post ? json_decode( (string) $gs_post->post_content, true ) : null;
+					if ( ! is_array( $gs ) ) {
+						$gs = array();
+					}
+					$gs['version']                     = class_exists( 'WP_Theme_JSON' ) ? WP_Theme_JSON::LATEST_SCHEMA : 3;
+					$gs['isGlobalStylesUserThemeJSON'] = true;
+					$cur                               = ( ! empty( $gs['styles'] ) && is_array( $gs['styles'] ) ) ? $gs['styles'] : array();
+					$gs['styles']                      = array_replace_recursive( $cur, $m['styles'] );
+					if ( empty( $gs['settings'] ) ) {
+						$gs['settings'] = new stdClass();
+					}
+					wp_update_post( array(
+						'ID'           => $gs_id,
+						'post_content' => wp_slash( wp_json_encode( $gs ) ), // wp_update_post unslashes: a variation's \"quoted\" font names would break the JSON
+					) );
+				}
+			}
+			// a shop design brings its shelves stocked: categories, an
+			// attribute or two, and the products themselves (rails data,
+			// so the canvas has something to sell from day one)
+}
+// ---------- a site from a definition ----------
+// Stage one of "chat to an AI, get a blueprint". A definition is content and
+// choices — pages of takes from the shelf, filled by role — never geometry.
+// PHP makes the pages, posts, menu, chrome and palette; the editor draws the
+// sections on first load (?gogh-build=1) through its own bridge, so the
+// server needs no browser and the takes carry the taste.
+function gogh_site_def_boot( $def ) {
+	if ( ! is_array( $def ) || empty( $def['pages'] ) || ! is_array( $def['pages'] ) ) {
+		return new WP_Error( 'gogh_bad_def', __( 'The site definition needs at least one page.', 'gogh-editor' ), array( 'status' => 400 ) );
+	}
+	$made  = array();
+	$ids   = array();
+	$front = 0;
+	$blog  = 0;
+	foreach ( array_values( $def['pages'] ) as $i => $pg ) {
+		if ( ! is_array( $pg ) ) {
+			continue;
+		}
+		$title = sanitize_text_field( isset( $pg['title'] ) ? $pg['title'] : 'Page' );
+		$id    = wp_insert_post( array(
+			'post_type'    => 'page',
+			'post_status'  => 'publish',
+			'post_title'   => $title,
+			'post_name'    => sanitize_title( ! empty( $pg['slug'] ) ? $pg['slug'] : $title ),
+			'post_content' => '',
+		) );
+		if ( ! $id || is_wp_error( $id ) ) {
+			continue;
+		}
+		$ids[ $i ] = (int) $id;
+		$made[]    = array( 'id' => (int) $id, 'title' => $title, 'no_menu' => isset( $pg['menu'] ) && false === $pg['menu'] );
+		if ( ! empty( $pg['front'] ) ) {
+			$front = (int) $id;
+		}
+		if ( ! empty( $pg['blog'] ) ) {
+			$blog = (int) $id;
+		}
+	}
+	if ( ! $made ) {
+		return new WP_Error( 'gogh_bad_def', __( 'No page could be made.', 'gogh-editor' ), array( 'status' => 500 ) );
+	}
+	// posts: plain text becomes paragraphs; block markup passes through
+	foreach ( (array) ( isset( $def['posts'] ) ? $def['posts'] : array() ) as $ps ) {
+		if ( ! is_array( $ps ) || empty( $ps['title'] ) ) {
+			continue;
+		}
+		$body = isset( $ps['content'] ) ? (string) $ps['content'] : (string) ( isset( $ps['text'] ) ? $ps['text'] : '' );
+		if ( false === strpos( $body, '<!-- wp:' ) ) {
+			$paras = preg_split( '/\n\s*\n/', trim( $body ) );
+			$body  = implode( "\n", array_map( function ( $pp ) {
+				return '<!-- wp:paragraph --><p>' . wp_kses_post( trim( $pp ) ) . '</p><!-- /wp:paragraph -->';
+			}, array_filter( $paras ) ) );
+		}
+		$pid = wp_insert_post( array(
+			'post_type'    => 'post',
+			'post_status'  => 'publish',
+			'post_title'   => sanitize_text_field( $ps['title'] ),
+			'post_content' => wp_slash( $body ),
+		) );
+		if ( ! $pid || is_wp_error( $pid ) ) {
+			continue;
+		}
+		if ( ! empty( $ps['image'] ) ) {
+			$aid = gogh_site_def_picture( (string) $ps['image'], (int) $pid, sanitize_text_field( $ps['title'] ) );
+			if ( $aid ) {
+				set_post_thumbnail( $pid, $aid );
+			}
+		}
+	}
+	$m = array(
+		'name'      => sanitize_text_field( ! empty( $def['name'] ) ? $def['name'] : 'Site' ),
+		'chrome'    => ( isset( $def['chrome'] ) && is_array( $def['chrome'] ) ) ? $def['chrome'] : array(),
+		'variation' => isset( $def['variation'] ) ? sanitize_text_field( $def['variation'] ) : '',
+		'palette'   => ( isset( $def['palette'] ) && is_array( $def['palette'] ) ) ? $def['palette'] : null,
+		'styles'    => ( isset( $def['styles'] ) && is_array( $def['styles'] ) ) ? $def['styles'] : null,
+	);
+	try {
+		gogh_starter_apply_chrome( $m, $made );
+	} catch ( \Throwable $e ) {}
+	try {
+		gogh_starter_apply_styles( $m );
+	} catch ( \Throwable $e ) {}
+	update_option( 'show_on_front', 'page' );
+	update_option( 'page_on_front', $front ? $front : $made[0]['id'] );
+	update_option( 'page_for_posts', $blog ? $blog : 0 );
+	if ( ! empty( $def['name'] ) ) {
+		update_option( 'blogname', sanitize_text_field( $def['name'] ) );
+	}
+	if ( isset( $def['tagline'] ) ) {
+		update_option( 'blogdescription', sanitize_text_field( $def['tagline'] ) );
+	}
+	// the editor reads this on ?gogh-build=1, draws every page, then deletes it
+	update_option( 'gogh_site_def', array( 'def' => $def, 'pages' => $ids ), false );
+	return array( 'pages' => $ids, 'home' => get_permalink( $front ? $front : $made[0]['id'] ) );
+}
+// a picture for a definition: a URL is sideloaded, a plugin path is copied
+function gogh_site_def_picture( $src, $parent, $title ) {
+	require_once ABSPATH . 'wp-admin/includes/media.php';
+	require_once ABSPATH . 'wp-admin/includes/file.php';
+	require_once ABSPATH . 'wp-admin/includes/image.php';
+	try {
+		if ( preg_match( '#^https?://#', $src ) ) {
+			$aid = media_sideload_image( esc_url_raw( $src ), $parent, $title, 'id' );
+			return ( $aid && ! is_wp_error( $aid ) ) ? (int) $aid : 0;
+		}
+		if ( 0 === strpos( $src, '/wp-content/plugins/gogh/' ) ) {
+			$file = WP_PLUGIN_DIR . '/gogh/' . substr( $src, strlen( '/wp-content/plugins/gogh/' ) );
+			$file = realpath( $file );
+			if ( $file && 0 === strpos( $file, realpath( WP_PLUGIN_DIR . '/gogh' ) ) && is_readable( $file ) ) {
+				$tmp = wp_tempnam( basename( $file ) );
+				copy( $file, $tmp );
+				$aid = media_handle_sideload( array( 'name' => basename( $file ), 'tmp_name' => $tmp ), $parent, $title );
+				return ( $aid && ! is_wp_error( $aid ) ) ? (int) $aid : 0;
+			}
+		}
+	} catch ( \Throwable $e ) {}
+	return 0;
+}
 function gogh_starter_page_content( $slug, $pg ) {
 	$file = __DIR__ . '/starters/' . $slug . '/' . basename( $pg['file'] );
 	if ( ! is_readable( $file ) ) {
@@ -2806,7 +3152,7 @@ add_action( 'rest_api_init', function () {
 			return current_user_can( 'edit_posts' );
 		},
 		'callback'            => function () {
-			return array( 'build' => '0.99.478-chrome' );
+			return array( 'build' => '0.99.479-chrome' );
 		},
 	) );
 	register_rest_route( 'gogh/v1', '/starter', array(
@@ -2976,226 +3322,8 @@ add_action( 'rest_api_init', function () {
 					}
 				}
 			}
-			$links = '';
-			foreach ( $made as $c ) {
-				if ( ! empty( $c['no_menu'] ) ) {
-					continue;
-				}
-				$links .= '<!-- wp:navigation-link {"label":"' . esc_attr( $c['title'] ) . '","type":"page","id":' . $c['id'] .
-					',"url":"' . esc_url( get_permalink( $c['id'] ) ) . '","kind":"post-type"} /-->';
-			}
-			// re-use a same-named menu rather than minting a new wp_navigation
-			// post on every apply — otherwise re-running a starter litters the
-			// "swap menus" list with a fresh "Café menu" each time
-			$nav_title = $m['name'] . ' menu';
-			$found = new WP_Query( array(
-				'post_type'      => 'wp_navigation',
-				'post_status'    => 'publish',
-				'title'          => $nav_title,
-				'posts_per_page' => 1,
-				'fields'         => 'ids',
-				'no_found_rows'  => true,
-			) );
-			$nav_id = $found->posts ? (int) $found->posts[0] : 0;
-			if ( $nav_id ) {
-				wp_update_post( array( 'ID' => $nav_id, 'post_content' => $links ) );
-			} else {
-				$nav_id = wp_insert_post( array(
-					'post_type'    => 'wp_navigation',
-					'post_status'  => 'publish',
-					'post_title'   => $nav_title,
-					'post_content' => $links,
-				) );
-			}
-			// point the live header's menu at the new navigation
-			$part = get_block_template( get_stylesheet() . '//header', 'wp_template_part' );
-			if ( $part && $nav_id && ! is_wp_error( $nav_id ) ) {
-				$praw = (string) $part->content;
-				// a starter may choose one of gogh's own headers — the Yellow
-				// House floats the transparent overlay over its hero
-				if ( ! empty( $m['chrome']['header'] ) ) {
-					$pfile = __DIR__ . '/patterns/' . sanitize_file_name( $m['chrome']['header'] ) . '.html';
-					if ( is_readable( $pfile ) ) {
-						$praw = file_get_contents( $pfile );
-					}
-				}
-				$next = '';
-				if ( preg_match( '/wp:navigation[^>]*"ref":\d+/', $praw ) ) {
-					$next = preg_replace( '/("ref":)\d+/', '${1}' . $nav_id, $praw, 1 );
-				} elseif ( preg_match( '/<!--\s+wp:navigation\s+\{/', $praw ) ) {
-					$next = preg_replace( '/(<!--\s+wp:navigation\s+\{)/', '${1}"ref":' . $nav_id . ',', $praw, 1 );
-				} else {
-					$next = preg_replace( '/(<!--\s+wp:navigation)(\s+-->)/', '${1} {"ref":' . $nav_id . '}${2}', $praw, 1 );
-				}
-				if ( $next && $next !== $praw ) {
-					if ( ! empty( $part->wp_id ) ) {
-						wp_update_post( array( 'ID' => $part->wp_id, 'post_content' => $next ) );
-					} else {
-						$pid = wp_insert_post( array(
-							'post_type'    => 'wp_template_part',
-							'post_status'  => 'publish',
-							'post_title'   => 'header',
-							'post_name'    => 'header',
-							'post_content' => $next,
-						) );
-						if ( $pid && ! is_wp_error( $pid ) ) {
-							wp_set_post_terms( $pid, array( get_stylesheet() ), 'wp_theme' );
-							wp_set_post_terms( $pid, array( 'header' ), 'wp_template_part_area' );
-						}
-					}
-				}
-			}
-			// and one of gogh's own footers, the same way (a theme's default
-			// footer is a sampler of dummy links no real site wants)
-			if ( ! empty( $m['chrome']['footer'] ) && $nav_id && ! is_wp_error( $nav_id ) ) {
-				$ffile = __DIR__ . '/patterns/' . sanitize_file_name( $m['chrome']['footer'] ) . '.html';
-				if ( is_readable( $ffile ) ) {
-					$fraw = file_get_contents( $ffile );
-					if ( preg_match( '/wp:navigation[^>]*"ref":\d+/', $fraw ) ) {
-						$fnext = preg_replace( '/("ref":)\d+/', '${1}' . $nav_id, $fraw, 1 );
-					} elseif ( preg_match( '/<!--\s+wp:navigation\s+\{/', $fraw ) ) {
-						$fnext = preg_replace( '/(<!--\s+wp:navigation\s+\{)/', '${1}"ref":' . $nav_id . ',', $fraw, 1 );
-					} else {
-						$fnext = preg_replace( '/(<!--\s+wp:navigation)(\s+-->)/', '${1} {"ref":' . $nav_id . '}${2}', $fraw, 1 );
-					}
-					$fpart = get_block_template( get_stylesheet() . '//footer', 'wp_template_part' );
-					if ( $fpart && ! empty( $fpart->wp_id ) ) {
-						wp_update_post( array( 'ID' => $fpart->wp_id, 'post_content' => $fnext ) );
-					} else {
-						$fpid = wp_insert_post( array(
-							'post_type'    => 'wp_template_part',
-							'post_status'  => 'publish',
-							'post_title'   => 'footer',
-							'post_name'    => 'footer',
-							'post_content' => $fnext,
-						) );
-						if ( $fpid && ! is_wp_error( $fpid ) ) {
-							wp_set_post_terms( $fpid, array( get_stylesheet() ), 'wp_theme' );
-							wp_set_post_terms( $fpid, array( 'footer' ), 'wp_template_part_area' );
-						}
-					}
-				}
-			}
-			// the design brings its own look: apply the named theme style
-			// variation to user global styles. The user's saved gogh brand is
-			// untouched and can be re-applied from Your brand at any time.
-			$applied_variation = '';
-			if ( ! empty( $m['variation'] ) && class_exists( 'WP_Theme_JSON_Resolver' ) ) {
-				foreach ( WP_Theme_JSON_Resolver::get_style_variations() as $v ) {
-					if ( isset( $v['title'] ) && 0 === strcasecmp( $v['title'], $m['variation'] ) ) {
-						$applied_variation = $m['variation'];
-						$gs_id = WP_Theme_JSON_Resolver::get_user_global_styles_post_id();
-						if ( $gs_id ) {
-							wp_update_post( array(
-								'ID'           => $gs_id,
-								// slashed: wp_update_post unslashes its input, and a variation whose
-								// font names carry \"quotes\" (Morning's Ysabeau Office) came back as
-								// broken JSON that the palette merge below could not read — the site
-								// kept the colours and lost the type
-								'post_content' => wp_slash( wp_json_encode( array(
-									'version'                     => class_exists( 'WP_Theme_JSON' ) ? WP_Theme_JSON::LATEST_SCHEMA : 3,
-									'isGlobalStylesUserThemeJSON' => true,
-									'settings'                    => isset( $v['settings'] ) ? $v['settings'] : new stdClass(),
-									'styles'                      => isset( $v['styles'] ) ? $v['styles'] : new stdClass(),
-								) ) ),
-							) );
-						}
-						break;
-					}
-				}
-			}
-			// remember which style the site now wears — WP itself forgets the
-			// variation's name the moment it's copied into user global styles.
-			// Only when it truly applied: a design's variation is a Twenty
-			// Twenty-Five name, and on another theme (James switched to Ollie)
-			// nothing matched — recording it anyway would have the Site style
-			// panel claim a look the site never put on.
-			if ( '' !== $applied_variation ) {
-				update_option( 'gogh_active_style', $applied_variation );
-			}
-			// a starter may carry a bespoke PALETTE: theme palette slugs are
-			// re-coloured (base/contrast keep roles, accents cycle), applied
-			// as user global styles — same mechanism as Your brand
-			if ( ! empty( $m['palette'] ) && class_exists( 'WP_Theme_JSON_Resolver' ) ) {
-				$theme_pal = wp_get_global_settings( array( 'color', 'palette', 'theme' ) );
-				if ( is_array( $theme_pal ) && $theme_pal ) {
-					$pal     = $m['palette'];
-					$accents = isset( $pal['accents'] ) && is_array( $pal['accents'] ) ? array_values( $pal['accents'] ) : array();
-					$ai      = 0;
-					$out_pal = array();
-					// $pslug, not $slug: this loop used to reuse the starter's own
-					// $slug and left it reading 'accent-6', so everything after the
-					// palette looked for its files in starters/accent-6/
-					foreach ( $theme_pal as $entry ) {
-						$pslug = isset( $entry['slug'] ) ? $entry['slug'] : '';
-						if ( ( 'base' === $pslug || 'background' === $pslug ) && ! empty( $pal['base'] ) ) {
-							$entry['color'] = $pal['base'];
-						} elseif ( ( 'contrast' === $pslug || 'text' === $pslug || 'foreground' === $pslug ) && ! empty( $pal['contrast'] ) ) {
-							$entry['color'] = $pal['contrast'];
-						} elseif ( $accents && 0 === strpos( $pslug, 'accent' ) ) {
-							$entry['color'] = $accents[ $ai % count( $accents ) ];
-							$ai++;
-						}
-						$out_pal[] = $entry;
-					}
-					$gs_id = WP_Theme_JSON_Resolver::get_user_global_styles_post_id();
-					if ( $gs_id ) {
-						// merged into what the variation (above) just wrote: a design
-						// can bring both its type and its own colours (the palette
-						// used to be written alone, and a variation applied after it
-						// replaced the whole user styles post, palette included)
-						$gs_post = get_post( $gs_id );
-						$gs      = $gs_post ? json_decode( (string) $gs_post->post_content, true ) : null;
-						if ( ! is_array( $gs ) ) {
-							$gs = array();
-						}
-						$gs['version']                     = class_exists( 'WP_Theme_JSON' ) ? WP_Theme_JSON::LATEST_SCHEMA : 3;
-						$gs['isGlobalStylesUserThemeJSON'] = true;
-						if ( empty( $gs['settings'] ) || ! is_array( $gs['settings'] ) ) {
-							$gs['settings'] = array();
-						}
-						if ( empty( $gs['settings']['color'] ) || ! is_array( $gs['settings']['color'] ) ) {
-							$gs['settings']['color'] = array();
-						}
-						$gs['settings']['color']['palette'] = array( 'theme' => $out_pal );
-						if ( empty( $gs['styles'] ) ) {
-							$gs['styles'] = new stdClass();
-						}
-						wp_update_post( array(
-							'ID'           => $gs_id,
-							'post_content' => wp_slash( wp_json_encode( $gs ) ), // wp_update_post unslashes: a variation's \"quoted\" font names would break the JSON
-						) );
-					}
-				}
-			}
-			// a starter may also bring a few STYLE decisions the variation
-			// leaves wrong for it (Morning paints button words in the contrast
-			// colour, which on a cobalt button is ink on blue): merged into
-			// the same user global styles, after the variation and palette
-			if ( ! empty( $m['styles'] ) && is_array( $m['styles'] ) && class_exists( 'WP_Theme_JSON_Resolver' ) ) {
-				$gs_id = WP_Theme_JSON_Resolver::get_user_global_styles_post_id();
-				if ( $gs_id ) {
-					$gs_post = get_post( $gs_id );
-					$gs      = $gs_post ? json_decode( (string) $gs_post->post_content, true ) : null;
-					if ( ! is_array( $gs ) ) {
-						$gs = array();
-					}
-					$gs['version']                     = class_exists( 'WP_Theme_JSON' ) ? WP_Theme_JSON::LATEST_SCHEMA : 3;
-					$gs['isGlobalStylesUserThemeJSON'] = true;
-					$cur                               = ( ! empty( $gs['styles'] ) && is_array( $gs['styles'] ) ) ? $gs['styles'] : array();
-					$gs['styles']                      = array_replace_recursive( $cur, $m['styles'] );
-					if ( empty( $gs['settings'] ) ) {
-						$gs['settings'] = new stdClass();
-					}
-					wp_update_post( array(
-						'ID'           => $gs_id,
-						'post_content' => wp_slash( wp_json_encode( $gs ) ), // wp_update_post unslashes: a variation's \"quoted\" font names would break the JSON
-					) );
-				}
-			}
-			// a shop design brings its shelves stocked: categories, an
-			// attribute or two, and the products themselves (rails data,
-			// so the canvas has something to sell from day one)
+			gogh_starter_apply_chrome( $m, $made );
+			gogh_starter_apply_styles( $m );
 			if ( class_exists( 'WooCommerce' ) && ( ! empty( $m['products'] ) || ! empty( $m['categories'] ) ) ) {
 				try {
 					gogh_starter_apply_shop( $slug, $m );
@@ -3206,6 +3334,29 @@ add_action( 'rest_api_init', function () {
 			update_option( 'page_for_posts', $blog ? $blog : 0 );
 			return array( 'home' => get_permalink( $front ? $front : $made[0]['id'] ) );
 		},
+	) );
+
+	register_rest_route( 'gogh/v1', '/site-def', array(
+		array(
+			'methods'             => 'POST',
+			'permission_callback' => function () {
+				return current_user_can( 'manage_options' );
+			},
+			'callback'            => function ( $req ) {
+				$def = $req->get_json_params();
+				return gogh_site_def_boot( is_array( $def ) ? $def : array() );
+			},
+		),
+		array(
+			'methods'             => 'DELETE',
+			'permission_callback' => function () {
+				return current_user_can( 'manage_options' );
+			},
+			'callback'            => function () {
+				delete_option( 'gogh_site_def' );
+				return array( 'cleared' => true );
+			},
+		),
 	) );
 
 	register_rest_route( 'gogh/v1', '/type-scale', array(
@@ -3856,8 +4007,8 @@ add_action( 'admin_enqueue_scripts', function ( $hook ) {
 			$globals[] = $tax->attribute_label;
 		}
 	}
-	wp_enqueue_script( 'gogh-admin', plugins_url( 'gogh-admin.js', __FILE__ ), array(), '0.99.478-chrome', true );
-	wp_enqueue_style( 'gogh-admin', plugins_url( 'gogh-admin.css', __FILE__ ), array(), '0.99.478-chrome' );
+	wp_enqueue_script( 'gogh-admin', plugins_url( 'gogh-admin.js', __FILE__ ), array(), '0.99.479-chrome', true );
+	wp_enqueue_style( 'gogh-admin', plugins_url( 'gogh-admin.css', __FILE__ ), array(), '0.99.479-chrome' );
 	wp_localize_script( 'gogh-admin', 'GOGH_ADMIN', array(
 		'restUrl'   => esc_url_raw( rest_url( 'wc/v3/' ) ),
 		'nonce'     => wp_create_nonce( 'wp_rest' ),
@@ -4936,7 +5087,7 @@ function gogh_splash_css() {
 // wearing Magazine must read as Magazine logged-out, and the site's gait
 // is site-wide; both packs are a few KB of pure CSS.
 add_action( 'wp_enqueue_scripts', function () {
-	wp_register_style( 'gogh-looks', false, array(), '0.99.478-chrome' );
+	wp_register_style( 'gogh-looks', false, array(), '0.99.479-chrome' );
 	wp_enqueue_style( 'gogh-looks' );
 	wp_add_inline_style( 'gogh-looks', gogh_reading_style_css() . gogh_motion_css() . gogh_blog_style_css() );
 
@@ -4976,10 +5127,10 @@ add_action( 'wp_enqueue_scripts', function () {
 
 	// for every visitor: neutralise theme spacing around gogh sections, even
 	// on pages whose stored stylesheets predate this rule
-	wp_register_style( 'gogh-base', false, array(), '0.99.478-chrome' );
+	wp_register_style( 'gogh-base', false, array(), '0.99.479-chrome' );
 	// (the splash presentation itself lives in gogh_splash_css(), shared with
 	// the block editor — a wall in Gutenberg must look like a wall)
-	wp_register_script( 'gogh-view', false, array(), '0.99.478-chrome', true );
+	wp_register_script( 'gogh-view', false, array(), '0.99.479-chrome', true );
 	wp_enqueue_script( 'gogh-view' );
 	wp_add_inline_script( 'gogh-view',
 		// mega menu panels: hover opens with intent on fine pointers; the chevron
@@ -5272,9 +5423,9 @@ add_action( 'wp_enqueue_scripts', function () {
 
 	// compose must be REGISTERED here too — a dependency on an
 	// unregistered handle silently drops the whole editor script
-	wp_register_script( 'gogh-compose', plugins_url( 'gogh-compose.js', __FILE__ ), array(), '0.99.478-chrome', true );
-	wp_enqueue_script( 'gogh-editor', plugins_url( 'gogh-editor.js', __FILE__ ), array( 'gogh-compose' ), '0.99.478-chrome', true );
-	wp_enqueue_style( 'gogh-editor', plugins_url( 'gogh-editor.css', __FILE__ ), array(), '0.99.478-chrome' );
+	wp_register_script( 'gogh-compose', plugins_url( 'gogh-compose.js', __FILE__ ), array(), '0.99.479-chrome', true );
+	wp_enqueue_script( 'gogh-editor', plugins_url( 'gogh-editor.js', __FILE__ ), array( 'gogh-compose' ), '0.99.479-chrome', true );
+	wp_enqueue_style( 'gogh-editor', plugins_url( 'gogh-editor.css', __FILE__ ), array(), '0.99.479-chrome' );
 
 	// WebMCP bridge: the page registers its editing verbs as agent tools.
 	// OPT-IN only — add ?gogh-mcp=1 for a demo session (or enable sitewide
@@ -5286,19 +5437,19 @@ add_action( 'wp_enqueue_scripts', function () {
 	// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only labs toggle
 	$gogh_exp = isset( $_GET['gogh-test'] ) || ( isset( $_GET['gogh-experiments'] ) && '0' !== $_GET['gogh-experiments'] );
 	if ( isset( $_GET['gogh-mcp'] ) || $gogh_exp || apply_filters( 'gogh_webmcp_enabled', false ) ) {
-		wp_enqueue_script( 'gogh-webmcp', plugins_url( 'gogh-webmcp.js', __FILE__ ), array( 'gogh-editor' ), '0.99.478-chrome', true );
+		wp_enqueue_script( 'gogh-webmcp', plugins_url( 'gogh-webmcp.js', __FILE__ ), array( 'gogh-editor' ), '0.99.479-chrome', true );
 	}
 
 	// regression suite: /page/?gogh-test (editors only, never saves)
 	// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only toggle enqueuing a test script for capability-checked editors.
 	if ( isset( $_GET['gogh-test'] ) ) {
-		wp_enqueue_script( 'gogh-tests', plugins_url( 'gogh-tests.js', __FILE__ ), array( 'gogh-editor' ), '0.99.478-chrome', true );
+		wp_enqueue_script( 'gogh-tests', plugins_url( 'gogh-tests.js', __FILE__ ), array( 'gogh-editor' ), '0.99.479-chrome', true );
 	}
 	// the user-test walk: /?gogh-edit=1&gogh-walk=1 on a DISPOSABLE Yellow
 	// House (it publishes) — editors only, never shipped in the zip
 	// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only toggle for capability-checked editors.
 	if ( isset( $_GET['gogh-walk'] ) ) {
-		wp_enqueue_script( 'gogh-walk', plugins_url( 'gogh-walk.js', __FILE__ ), array( 'gogh-editor' ), '0.99.478-chrome', true );
+		wp_enqueue_script( 'gogh-walk', plugins_url( 'gogh-walk.js', __FILE__ ), array( 'gogh-editor' ), '0.99.479-chrome', true );
 	}
 
 	// products live outside wp/v2, so gogh carries its own save route for
@@ -5318,7 +5469,7 @@ add_action( 'wp_enqueue_scripts', function () {
 		'postTitle'  => get_the_title( $post ),
 		'permalink'  => esc_url_raw( get_permalink( $post->ID ) ),
 		'excerpt'    => (string) $post->post_excerpt,
-		'build'    => '0.99.478-chrome',
+		'build'    => '0.99.479-chrome',
 		// two rooms, one landmark (same contract as the admin bar): on a POST
 		// the corner pill opens the WRITING surface, not the freeform canvas
 		'writeUrl' => is_singular( 'post' ) ? add_query_arg( 'gogh-write', '1', get_permalink( $post ) ) : null,
@@ -5350,6 +5501,8 @@ add_action( 'wp_enqueue_scripts', function () {
 		'hasWoo'   => class_exists( 'WooCommerce' ),
 		'hasLogo' => (bool) get_theme_mod( 'custom_logo' ), // the header's identity: a logo only when a picture exists
 		'adminUrl' => admin_url(),
+		// a site definition waiting to be drawn (?gogh-build=1): the editor builds every page, then deletes it
+		'siteDef'  => ( isset( $_GET['gogh-build'] ) && current_user_can( 'manage_options' ) ) ? get_option( 'gogh_site_def', null ) : null,
 		// block-gated pieces light up the day the block exists (7.1 brings tabs)
 		'hasAccordion' => WP_Block_Type_Registry::get_instance()->is_registered( 'core/accordion' ),
 		'hasTabs'  => WP_Block_Type_Registry::get_instance()->is_registered( 'core/tabs' ),

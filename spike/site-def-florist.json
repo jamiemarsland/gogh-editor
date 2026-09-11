@@ -1,0 +1,173 @@
+{
+  "name": "Bloom & Bough",
+  "tagline": "Flowers from Bath, tied by hand",
+  "variation": "Morning",
+  "palette": {
+    "base": "#FBF7F1",
+    "contrast": "#22201C",
+    "accents": [
+      "#B4523A",
+      "#E9D6BD",
+      "#7C8C6A",
+      "#3F3A33"
+    ]
+  },
+  "chrome": {
+    "header": "gogh-header-classic",
+    "footer": "gogh-footer-columns"
+  },
+  "pages": [
+    {
+      "title": "Home",
+      "front": true,
+      "sections": [
+        {
+          "take": "Cover",
+          "eyebrow": "Bath · since 2014",
+          "heading": "Flowers that mean it",
+          "text": "Seasonal stems from growers we know, tied the morning you order.",
+          "button": "See this week’s flowers",
+          "image": "/wp-content/plugins/gogh/demo-assets/almond-blossom.jpg"
+        },
+        {
+          "take": "Feature cards",
+          "heading": "What we do",
+          "mood": "lift",
+          "items": [
+            {
+              "title": "Weddings",
+              "text": "From a single buttonhole to a whole barn. We visit the venue and plan around the light."
+            },
+            {
+              "title": "Weekly bunches",
+              "text": "A bunch on your doorstep every Friday. Pause any week, no questions."
+            },
+            {
+              "title": "Workshops",
+              "text": "Two hours, a table of stems, and you leave with something you made."
+            }
+          ]
+        },
+        {
+          "take": "Testimonials",
+          "heading": "Kind words",
+          "items": [
+            {
+              "quote": "The wedding flowers were better than the pictures I sent them.",
+              "name": "Ella · Widcombe"
+            },
+            {
+              "quote": "My Friday bunch is the best thing I pay for.",
+              "name": "Tom · Larkhall"
+            },
+            {
+              "quote": "They taught my daughter to tie a posy and she has not stopped.",
+              "name": "Priya · Oldfield Park"
+            }
+          ]
+        },
+        {
+          "take": "Latest posts",
+          "heading": "From the journal",
+          "posts": {
+            "look": "cards",
+            "count": 3
+          }
+        },
+        {
+          "take": "Call to action",
+          "eyebrow": "Say hello",
+          "heading": "Come and see the shop",
+          "text": "12 Walcot Street, open Tuesday to Saturday, nine till six.",
+          "button": "Get in touch"
+        }
+      ]
+    },
+    {
+      "title": "About",
+      "sections": [
+        {
+          "take": "Story",
+          "eyebrow": "Our story",
+          "heading": "It started with a market stall",
+          "text": "One table on Green Park on Saturdays, and a van that smelled of eucalyptus all week.",
+          "text2": "Ten years on we have a shop, a walled cutting garden outside the city, and the same rule: nothing flown in when something is growing here.",
+          "button": "Meet the team",
+          "image": "/wp-content/plugins/gogh/demo-assets/sunflowers.jpg"
+        },
+        {
+          "take": "Numbers",
+          "eyebrow": "By the numbers",
+          "items": [
+            {
+              "value": "312",
+              "label": "Weddings, so far"
+            },
+            {
+              "value": "14",
+              "label": "Growers we buy from"
+            },
+            {
+              "value": "0",
+              "label": "Air miles on a Friday bunch"
+            }
+          ]
+        },
+        {
+          "take": "Team",
+          "eyebrow": "The shop",
+          "heading": "Four people, one van",
+          "items": [
+            {
+              "name": "Nell Hartley",
+              "role": "Founder",
+              "image": "/wp-content/plugins/gogh/demo-assets/wheat-field.jpg"
+            },
+            {
+              "name": "Sam Okafor",
+              "role": "Weddings",
+              "image": "/wp-content/plugins/gogh/demo-assets/starry-night.jpg"
+            },
+            {
+              "name": "Ruth Adair",
+              "role": "The garden",
+              "image": "/wp-content/plugins/gogh/demo-assets/almond-blossom.jpg"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Journal",
+      "blog": true
+    },
+    {
+      "title": "Contact",
+      "sections": [
+        {
+          "take": "Get in touch",
+          "eyebrow": "Say hello",
+          "heading": "Let’s talk flowers",
+          "text": "A wedding, a Friday bunch, a question about a plant that is sulking — write and we will answer the same day."
+        }
+      ]
+    }
+  ],
+  "posts": [
+    {
+      "title": "What is in season in September",
+      "text": "Dahlias, still. Late roses. The first berried stems.\n\nWe cut on Mondays and Thursdays, so a Friday bunch has been out of the ground for a day.",
+      "image": "/wp-content/plugins/gogh/demo-assets/sunflowers.jpg"
+    },
+    {
+      "title": "How to make a bunch last",
+      "text": "Cut the stems, change the water every two days, and keep it away from the fruit bowl. Ripening fruit gives off a gas that ages flowers.",
+      "image": "/wp-content/plugins/gogh/demo-assets/almond-blossom.jpg"
+    },
+    {
+      "title": "A wedding in a walled garden",
+      "text": "Two hundred stems of garden roses, all from one grower in Somerset, and a bride who wanted it to look as if nobody had tried.",
+      "image": "/wp-content/plugins/gogh/demo-assets/wheat-field.jpg"
+    }
+  ]
+}
