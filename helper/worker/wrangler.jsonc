@@ -39,6 +39,11 @@
     // one address may publish a day, and which gogh build the link installs
     "SITE_TTL_DAYS": "30",
     "PUBLISH_DAILY_LIMIT": "12",
+    // the front door at /build: chat turns one address may spend a day
+    "BUILD_DAILY_LIMIT": "30",
+    // every built site carries the Move to WordPress.com helper so what
+    // someone makes here need not stay in a browser tab ("" drops it)
+    "MOVE_PLUGIN_URL": "https://github.com/jamiemarsland/playground-to-wordpress-com/archive/refs/heads/main.zip",
     "PLUGIN_ZIP_URL": "https://raw.githubusercontent.com/jamiemarsland/gogh-demo/main/gogh-playground.zip"
   },
 

@@ -60,7 +60,9 @@ const one = r.body.result.structuredContent;
 check(one.ok, 'the one-pager publishes');
 {
   const bp1 = await (await worker.fetch(new Request(one.blueprint_url), env)).json();
-  const emb = JSON.parse(Buffer.from((bp1.steps[2].code.match(/base64_decode\( '([^']+)' \)/) || [])[1], 'base64').toString('utf8'));
+  // find the boot step rather than counting: the blueprint gained the Move to
+  // WordPress.com install, and a positional index moves whenever a step is added
+  const emb = JSON.parse(Buffer.from((bp1.steps.find((x) => x.step === 'runPHP').code.match(/base64_decode\( '([^']+)' \)/) || [])[1], 'base64').toString('utf8'));
   check(emb.nav.length === 5 && emb.pages[0].sections[3].anchor === 'work', 'the published blueprint carries the nav and the anchors');
 }
 r = await rpc({ jsonrpc: '2.0', id: 6, method: 'tools/call', params: { name: 'gogh_publish', arguments: { definition: florist } } });
@@ -70,8 +72,10 @@ let res = await worker.fetch(new Request(pub.definition_url), env);
 check(res.status === 200 && (await res.json()).name === 'Bloom & Bough' && res.headers.get('access-control-allow-origin') === '*', 'the definition is served with CORS');
 res = await worker.fetch(new Request(pub.blueprint_url), env);
 const bp = await res.json();
-const embedded = (bp.steps[2].code.match(/base64_decode\( '([^']+)' \)/) || [])[1];
-check(bp.landingPage === '/?gogh-edit=1&gogh-build=1' && bp.steps[1].pluginData.url.endsWith('gogh-playground.zip') && bp.steps[2].code.includes('gogh_site_def_boot') && embedded && JSON.parse(Buffer.from(embedded, 'base64').toString('utf8')).name === 'Bloom & Bough' && !bp.steps[2].code.includes('demo-boot') && bp.steps[3].options.blogname === 'Bloom & Bough', 'the blueprint installs gogh and boots from the embedded definition, no fetch and no demo-boot');
+const embedded = (bp.steps.find((x) => x.step === 'runPHP').code.match(/base64_decode\( '([^']+)' \)/) || [])[1];
+check(bp.steps.filter((x) => x.step === 'installPlugin').length === 2 && bp.steps[2].pluginData.url.includes('playground-to-wordpress-com'), 'every built site carries the Move to WordPress.com helper');
+const boot = bp.steps.find((x) => x.step === 'runPHP');
+check(bp.landingPage === '/?gogh-edit=1&gogh-build=1' && bp.steps[1].pluginData.url.endsWith('gogh-playground.zip') && boot.code.includes('gogh_site_def_boot') && embedded && JSON.parse(Buffer.from(embedded, 'base64').toString('utf8')).name === 'Bloom & Bough' && !boot.code.includes('demo-boot') && bp.steps[bp.steps.length - 1].options.blogname === 'Bloom & Bough', 'the blueprint installs gogh and boots from the embedded definition, no fetch and no demo-boot');
 res = await worker.fetch(new Request('https://gogh.test/d/nope.json'), env);
 check(res.status === 404, 'an unknown site is 404');
 r = await rpc({ jsonrpc: '2.0', id: 7, method: 'nope' });

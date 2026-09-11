@@ -28,6 +28,10 @@
  *   GET  /b/<id>.json  the Playground blueprint that builds it
  *   SITES (KV namespace) holds definitions for SITE_TTL_DAYS;
  *   PLUGIN_ZIP_URL is the gogh build the blueprint installs
+ *
+ * The front door (no install, no AI app, no account)
+ *   GET  /build        a page where anyone describes a site and gets a link
+ *   POST /api/build    one turn of that conversation, tools run in-process
  */
 
 const UI = __UI__;
@@ -43,6 +47,10 @@ const DEFAULTS = {
   GLOBAL_DAILY_LIMIT: '400',
   SITE_TTL_DAYS: '30',
   PUBLISH_DAILY_LIMIT: '12',
+  BUILD_DAILY_LIMIT: '30',
+  // a way out: every built site carries the Move to WordPress.com helper, so
+  // what someone makes here need not stay in a browser tab. Set '' to drop it.
+  MOVE_PLUGIN_URL: 'https://github.com/jamiemarsland/playground-to-wordpress-com/archive/refs/heads/main.zip',
   PLUGIN_ZIP_URL: 'https://raw.githubusercontent.com/jamiemarsland/gogh-demo/main/gogh-playground.zip',
 };
 
@@ -634,18 +642,23 @@ function blueprintFor(env, id, def, origin) {
     '\ttry { gogh_site_def_boot( $def ); } catch ( \\Throwable $e ) {}',
     '}',
   ].join('\n');
+  const steps = [
+    { step: 'installTheme', themeData: { resource: 'wordpress.org/themes', slug: 'twentytwentyfive' }, options: { activate: true } },
+    { step: 'installPlugin', pluginData: { resource: 'url', url: cfg(env, 'PLUGIN_ZIP_URL') }, options: { activate: true } },
+  ];
+  // a site made in a browser tab is a sketch until it has somewhere to live:
+  // Move to WordPress.com rides along so there is a way out of the Playground
+  const move = cfg(env, 'MOVE_PLUGIN_URL');
+  if (move) steps.push({ step: 'installPlugin', pluginData: { resource: 'url', url: move }, options: { activate: true } });
+  steps.push({ step: 'runPHP', code: php });
+  steps.push({ step: 'setSiteOptions', options: { blogname: String(def.name || 'My site'), blogdescription: String(def.tagline || '') } });
   return {
     $schema: 'https://playground.wordpress.net/blueprint-schema.json',
     landingPage: '/?gogh-edit=1&gogh-build=1',
     preferredVersions: { php: '8.2', wp: 'latest' },
     features: { networking: true },
     login: true,
-    steps: [
-      { step: 'installTheme', themeData: { resource: 'wordpress.org/themes', slug: 'twentytwentyfive' }, options: { activate: true } },
-      { step: 'installPlugin', pluginData: { resource: 'url', url: cfg(env, 'PLUGIN_ZIP_URL') }, options: { activate: true } },
-      { step: 'runPHP', code: php },
-      { step: 'setSiteOptions', options: { blogname: String(def.name || 'My site'), blogdescription: String(def.tagline || '') } },
-    ],
+    steps: steps,
   };
 }
 
@@ -749,11 +762,275 @@ async function handleSiteFile(req, env, kind, id) {
   return new Response(JSON.stringify(blueprintFor(env, id, def, new URL(req.url).origin), null, 1), { headers });
 }
 
+/* --------------------------------------------------- the front door */
+/*
+ * The connector needs an AI app and a paid plan. The people this is for
+ * are starting out (James: "will users have to do this?"), so the same
+ * three tools are wired to a page anyone can open: describe a site, get
+ * a link. The key stays here, the caps stay here, and the model's tool
+ * calls run in this process — no second hop.
+ */
+
+const BUILD_TOOLS = [
+  {
+    name: 'check_site',
+    description: 'Check a draft site definition. Returns ok, the problems to fix, and a short summary. Always check before publishing.',
+    input_schema: { type: 'object', properties: { definition: { type: 'object', description: 'The site definition.' } }, required: ['definition'] },
+  },
+  {
+    name: 'publish_site',
+    description: 'Publish a checked definition and get the link that builds the site in the person’s browser.',
+    input_schema: { type: 'object', properties: { definition: { type: 'object', description: 'The site definition.' } }, required: ['definition'] },
+  },
+];
+
+function buildPrompt() {
+  return `You are gogh, and you make someone a real WordPress website while they chat with you. Many of the people you talk to have never made a website. Some are nervous about it.
+
+How to behave:
+- Warm, plain and brief. Two or three sentences a turn. No jargon, no marketing voice, no lists of options unless you are asking a question.
+- Ask at most three short questions before you build: what the site is for, what it is called, and what they want people to do when they arrive. If they have already said enough, ask nothing and build.
+- Never show JSON, field names, take names or code to the person. They should never see the machinery. Say "your home page" and "the part about what you do", not "the Cover take".
+- Write the site's words yourself, in their voice, using the facts they gave you. Never lorem ipsum, never invented prices, never invented testimonials attributed to named strangers — if you need a quote, keep it plainly generic or leave that part out.
+- Only use pictures the person gives you as web links, or gogh's own pictures listed below. Never invent an image URL.
+- Build a small, complete site: usually a home page, an about page, a contact page, and a journal with two or three short posts if it suits them.
+- Call check_site, fix anything it names, then call publish_site. Then give them the link on its own line and say it takes about a minute to build itself and that nothing is installed.
+- After that, offer one or two concrete changes you could make ("I can make it warmer, or add your opening hours"). When they ask for a change, edit the site and publish again, then give the new link.
+- If they ask what happens to the site, or how to keep it: it lives in their browser for 30 days at that link, and the site itself has a "Move to WordPress.com" item in its WordPress menu that walks them through taking it somewhere permanent. Say that plainly, and do not promise that the move will work on a free plan.
+- If something fails, say so plainly in one sentence and suggest what to try.
+
+${rulesText()}`;
+}
+
+function trimBuildHistory(messages) {
+  // the whole conversation, tool calls and all, rides with each turn; drop
+  // the oldest turns when it gets heavy so a long chat cannot run away
+  let out = messages.slice();
+  const size = () => new TextEncoder().encode(JSON.stringify(out)).length;
+  while (out.length > 4 && size() > 120 * 1024) out = out.slice(2);
+  return out;
+}
+
+async function buildLimit(env, req) {
+  if (!env.RATE) return null;
+  const day = new Date().toISOString().slice(0, 10);
+  const perIp = parseInt(cfg(env, 'BUILD_DAILY_LIMIT'), 10);
+  const global = parseInt(cfg(env, 'GLOBAL_DAILY_LIMIT'), 10);
+  if (global) {
+    const gKey = `g:${day}`;
+    const g = parseInt((await env.RATE.get(gKey)) || '0', 10);
+    if (g >= global) return 'gogh has hit its daily limit for everyone — it resets tomorrow.';
+    await bump(env, gKey, { next: g + 1 });
+  }
+  if (perIp) {
+    const ip = req.headers.get('cf-connecting-ip') || 'unknown';
+    const key = `b:${day}:${ip}`;
+    const n = parseInt((await env.RATE.get(key)) || '0', 10);
+    if (n >= perIp) return 'That is today’s limit for this address. Come back tomorrow, or open the link you already have.';
+    await bump(env, key, { next: n + 1 });
+  }
+  return null;
+}
+
+async function askModel(env, messages) {
+  const res = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: {
+      'content-type': 'application/json',
+      'x-api-key': env.ANTHROPIC_API_KEY,
+      'anthropic-version': '2023-06-01',
+    },
+    body: JSON.stringify({
+      model: cfg(env, 'MODEL'),
+      max_tokens: 8000,
+      system: buildPrompt(),
+      tools: BUILD_TOOLS,
+      messages,
+    }),
+  });
+  if (!res.ok) {
+    const detail = await res.text();
+    let msg = detail.slice(0, 300);
+    try { msg = JSON.parse(detail).error.message; } catch (e) {}
+    if (res.status === 401 || res.status === 403) msg = 'the Worker’s API key was rejected';
+    const err = new Error(msg);
+    err.status = res.status;
+    throw err;
+  }
+  return res.json();
+}
+
+async function handleBuildChat(req, env) {
+  if (req.method === 'OPTIONS') return new Response(null, { status: 204, headers: CORS });
+  if (req.method !== 'POST') return json({ error: 'POST only' }, 405);
+  if (!env.ANTHROPIC_API_KEY) return json({ error: 'This gogh is not set up to build sites yet (no API key).' }, 500);
+
+  let body;
+  try { body = await req.json(); } catch (e) { return json({ error: 'invalid JSON' }, 400); }
+  const said = typeof body.text === 'string' ? body.text.trim() : '';
+  if (!said || said.length > 4000) return json({ error: 'Say a little about the site you want (up to 4000 characters).' }, 400);
+
+  const limited = await buildLimit(env, req);
+  if (limited) return json({ error: limited }, 429);
+
+  let messages = Array.isArray(body.messages) ? body.messages : [];
+  if (new TextEncoder().encode(JSON.stringify(messages)).length > 200 * 1024) {
+    return json({ error: 'This conversation has grown too long — start a new one and I will be quicker.' }, 400);
+  }
+  messages = trimBuildHistory(messages).concat([{ role: 'user', content: said }]);
+
+  let published = null;
+  try {
+    for (let turn = 0; turn < 6; turn++) {
+      const r = await askModel(env, messages);
+      const calls = (r.content || []).filter((c) => c.type === 'tool_use');
+      if (!calls.length) {
+        const text = (r.content || []).filter((c) => c.type === 'text').map((c) => c.text).join('').trim();
+        messages = messages.concat([{ role: 'assistant', content: r.content }]);
+        return json({ reply: text || 'I am not sure what to make of that — tell me a little more?', messages, published });
+      }
+      messages = messages.concat([{ role: 'assistant', content: r.content }]);
+      const results = [];
+      for (const c of calls) {
+        let out;
+        if (c.name === 'check_site') {
+          out = checkDefinition(c.input && c.input.definition);
+        } else if (c.name === 'publish_site') {
+          out = await publishSite(env, req, c.input && c.input.definition);
+          if (out.ok) published = { url: out.playground_url, id: out.id, summary: out.summary, days: out.expires_in_days };
+        } else {
+          out = { ok: false, problems: ['Unknown tool.'] };
+        }
+        results.push({ type: 'tool_result', tool_use_id: c.id, content: JSON.stringify(out).slice(0, 8000) });
+      }
+      messages = messages.concat([{ role: 'user', content: results }]);
+    }
+    return json({ reply: 'That took more steps than I expected. Tell me the site again in a sentence and I will go straight at it.', messages, published });
+  } catch (e) {
+    return json({ error: e.message || 'Something went wrong talking to the model.' }, e.status === 429 ? 429 : 502);
+  }
+}
+
+const BUILD_UI = `<!doctype html>
+<html lang="en"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Make a website — gogh</title>
+<style>
+  :root { --paper: #faf9f6; --ink: #1a1916; --soft: #6d6a63; --line: #e6e2da; --accent: #b4523a; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--paper); color: var(--ink);
+    font: 16px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, sans-serif; }
+  .wrap { max-width: 720px; margin: 0 auto; padding: 28px 20px 140px; }
+  header h1 { font: 700 30px/1.15 Georgia, "Iowan Old Style", serif; margin: 0 0 6px; letter-spacing: -0.01em; }
+  header p { margin: 0 0 26px; color: var(--soft); }
+  .msg { margin: 0 0 16px; white-space: pre-wrap; }
+  .msg.you { text-align: right; }
+  .msg.you span { display: inline-block; background: #ece7dd; padding: 10px 14px; border-radius: 16px 16px 4px 16px; text-align: left; max-width: 85%; }
+  .msg.gogh span { display: inline-block; max-width: 92%; }
+  .site { border: 1px solid var(--line); background: #fff; border-radius: 16px; padding: 20px; margin: 4px 0 18px; }
+  .site b { display: block; font: 700 17px/1.3 Georgia, serif; margin-bottom: 4px; }
+  .site small { color: var(--soft); display: block; margin-bottom: 14px; }
+  .site a { display: inline-block; background: var(--ink); color: #fff; text-decoration: none;
+    padding: 12px 20px; border-radius: 999px; font-weight: 600; }
+  .site a:hover { background: var(--accent); }
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 20px; }
+  .chips button { background: #fff; border: 1px solid var(--line); border-radius: 999px;
+    padding: 9px 15px; font: inherit; font-size: 14px; cursor: pointer; color: var(--ink); }
+  .chips button:hover { border-color: var(--ink); }
+  .dots { color: var(--soft); font-style: italic; }
+  .err { color: var(--accent); }
+  .bar { position: fixed; left: 0; right: 0; bottom: 0; background: linear-gradient(to top, var(--paper) 72%, transparent); padding: 18px 20px 22px; }
+  .bar form { max-width: 720px; margin: 0 auto; display: flex; gap: 10px; }
+  .bar input { flex: 1; font: inherit; padding: 14px 18px; border: 1px solid var(--line);
+    border-radius: 999px; background: #fff; color: var(--ink); min-width: 0; }
+  .bar input:focus { outline: 2px solid var(--ink); outline-offset: -1px; }
+  .bar button { font: inherit; font-weight: 600; padding: 14px 22px; border: 0; border-radius: 999px;
+    background: var(--ink); color: #fff; cursor: pointer; }
+  .bar button:disabled { opacity: 0.4; cursor: default; }
+  footer { color: var(--soft); font-size: 13px; margin-top: 30px; }
+  footer a { color: var(--soft); }
+</style>
+</head><body>
+<div class="wrap">
+  <header>
+    <h1>Make a website</h1>
+    <p>Tell me what it is for. I will build it and give you a link — nothing to install.</p>
+  </header>
+  <div class="chips" id="chips">
+    <button>A florist in Bath</button>
+    <button>A photographer's portfolio</button>
+    <button>A cafe with a menu</button>
+    <button>A plumber taking bookings</button>
+  </div>
+  <div id="thread"></div>
+  <footer>Your site is built in your own browser and kept for 30 days. It comes with a <b>Move to WordPress.com</b> option for taking it somewhere permanent. <a href="/">Questions about gogh?</a></footer>
+</div>
+<div class="bar"><form id="f">
+  <input id="q" autocomplete="off" placeholder="A florist in Bath, warm and simple…" aria-label="Describe your site">
+  <button id="go" type="submit">Send</button>
+</form></div>
+<script>
+(function () {
+  var thread = document.getElementById('thread');
+  var chips = document.getElementById('chips');
+  var form = document.getElementById('f');
+  var input = document.getElementById('q');
+  var go = document.getElementById('go');
+  var state = [];
+  var busy = false;
+
+  function el(cls, text) { var d = document.createElement('div'); d.className = cls; if (text != null) { var s = document.createElement('span'); s.textContent = text; d.appendChild(s); } return d; }
+  function scroll() { window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' }); }
+  function say(who, text) { thread.appendChild(el('msg ' + who, text)); scroll(); }
+  function site(pub) {
+    var box = document.createElement('div');
+    box.className = 'site';
+    var b = document.createElement('b'); b.textContent = 'Your site is ready';
+    var s = document.createElement('small'); s.textContent = 'It builds itself in your browser in about a minute. The link works for ' + pub.days + ' days.';
+    var a = document.createElement('a'); a.href = pub.url; a.target = '_blank'; a.rel = 'noopener'; a.textContent = 'Open my site';
+    box.appendChild(b); box.appendChild(s); box.appendChild(a);
+    thread.appendChild(box); scroll();
+  }
+
+  function send(text) {
+    if (busy || !text) return;
+    busy = true; go.disabled = true; chips.style.display = 'none';
+    say('you', text);
+    input.value = '';
+    var waiting = el('msg gogh'); var w = document.createElement('span');
+    w.className = 'dots'; w.textContent = 'thinking…'; waiting.appendChild(w);
+    thread.appendChild(waiting); scroll();
+    fetch('/api/build', {
+      method: 'POST', headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ text: text, messages: state }),
+    }).then(function (r) { return r.json().then(function (d) { return { ok: r.ok, d: d }; }); })
+      .then(function (res) {
+        waiting.remove();
+        if (!res.ok || res.d.error) { var e = el('msg gogh', res.d.error || 'Something went wrong. Try again?'); e.firstChild.className = 'err'; thread.appendChild(e); scroll(); return; }
+        if (Array.isArray(res.d.messages)) state = res.d.messages;
+        if (res.d.reply) say('gogh', res.d.reply);
+        if (res.d.published) site(res.d.published);
+      })
+      .catch(function () { waiting.remove(); var e = el('msg gogh', 'I could not reach gogh just then. Try again?'); e.firstChild.className = 'err'; thread.appendChild(e); scroll(); })
+      .then(function () { busy = false; go.disabled = false; input.focus(); });
+  }
+
+  form.addEventListener('submit', function (ev) { ev.preventDefault(); send(input.value.trim()); });
+  chips.addEventListener('click', function (ev) { if (ev.target.tagName === 'BUTTON') send(ev.target.textContent); });
+  input.focus();
+})();
+</script>
+</body></html>`;
+
 export default {
   async fetch(req, env) {
     const url = new URL(req.url);
 
     if (url.pathname === '/mcp') return handleMcp(req, env);
+    if (url.pathname === '/api/build') return handleBuildChat(req, env);
+    if (url.pathname === '/build' || url.pathname === '/build/') {
+      return new Response(BUILD_UI, { headers: { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'public, max-age=300', 'x-content-type-options': 'nosniff', 'referrer-policy': 'no-referrer' } });
+    }
     const site = url.pathname.match(/^\/(d|b)\/([a-z0-9]+)\.json$/);
     if (site) {
       if (req.method === 'OPTIONS') return new Response(null, { status: 204, headers: CORS });
