@@ -541,15 +541,19 @@ async function publishSite(env, req, def) {
 }
 
 function blueprintFor(env, id, def, origin) {
+  // the definition rides INSIDE the blueprint, base64, and the boot calls
+  // the plugin's own gogh_site_def_boot() straight from gogh.php: no
+  // second fetch from PHP (Cloudflare's bot check refuses some server-side
+  // clients) and no demo-boot.php (the public zip leaves it out on purpose)
+  const b64 = btoa(unescape(encodeURIComponent(JSON.stringify(def))));
   const php = [
     '<?php',
     "require '/wordpress/wp-load.php';",
-    '// the site definition lives on the helper; the plugin boots from it',
-    '$def = false;',
-    `try { $def = file_get_contents( '${origin}/d/${id}.json' ); } catch ( \\Throwable $e ) {}`,
-    "if ( $def && false !== strpos( $def, '\"pages\"' ) ) {",
-    "\tdefine( 'GOGH_SITE_DEF_JSON', $def );",
-    "\trequire '/wordpress/wp-content/plugins/gogh/demo-boot.php';",
+    'wp_set_current_user( 1 );',
+    'try { wp_trash_post( 1 ); } catch ( \\Throwable $e ) {}',
+    `$def = json_decode( base64_decode( '${b64}' ), true );`,
+    "if ( is_array( $def ) && function_exists( 'gogh_site_def_boot' ) ) {",
+    '\ttry { gogh_site_def_boot( $def ); } catch ( \\Throwable $e ) {}',
     '}',
   ].join('\n');
   return {
