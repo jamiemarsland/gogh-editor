@@ -14,6 +14,8 @@ Every link below builds a fresh, throwaway WordPress site in your browser with g
   https://playground.wordpress.net/?blueprint-url=https://raw.githubusercontent.com/jamiemarsland/gogh-demo/main/blueprint-experiments.json&storage=temp
 - **Halcyon — a film studio.** Dark, cinematic, parallax hero and veiled portfolio cards.
   https://playground.wordpress.net/?blueprint-url=https://raw.githubusercontent.com/jamiemarsland/gogh-demo/main/blueprint-film-studio.json&storage=temp
+- **Fenwick & Lowe — a one-page site.** An architecture practice on a single page: the menu is anchors, not pages, so every link glides to its section.
+  https://playground.wordpress.net/?blueprint-url=https://raw.githubusercontent.com/jamiemarsland/gogh-demo/main/blueprint-onepage.json&storage=temp
 - **Hollowell — a ceramics studio's shop.** WooCommerce with twelve pots in four glazes: gogh's canvas around Woo's rails.
   https://playground.wordpress.net/?blueprint-url=https://raw.githubusercontent.com/jamiemarsland/gogh-demo/main/blueprint-ceramics.json&storage=temp
 

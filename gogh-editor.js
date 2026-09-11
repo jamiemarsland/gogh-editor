@@ -258,7 +258,11 @@
     var chromeInfo = chromeHost ? { area: chromeHost.tagName === 'FOOTER' ? 'footer' : 'header' } : null;
     var bootEls = model.elements || [];
     if (hadModel && !v3wrap) bootEls = syncModelFromMarkup(sectionEl, bootEls);
-    S.push({ scope: scope, els: bootEls,
+    // a one-page site: the section's own anchor (#work) rides in the model
+    // and is put back on the element, so the menu still has somewhere to go
+    var bootAnchor = cleanAnchor(model.anchor || sectionEl.id);
+    if (bootAnchor) sectionEl.id = bootAnchor;
+    S.push({ scope: scope, els: bootEls, anchor: bootAnchor || null,
       v3: v3wrap,
       srcScope: v3wrap ? sectionEl.getAttribute('data-gogh-scope') : null,
       chrome: chromeInfo,
@@ -1269,6 +1273,7 @@
   function sectionModelJSON(sec, version) {
     return {
       version: version, designW: W, minH: sec.minH || null,
+      anchor: sec.anchor || null, // a name the menu of a one-page site can scroll to
       bg: sec.bg || null, divider: sec.divider || null,
       fx: sec.fx || null,
       bgImage: sec.bgImage || null, bgId: sec.bgId || null, bgVideo: sec.bgVideo || null, bgVideoId: sec.bgVideoId || null, bgA: sec.bgA != null ? sec.bgA : null, theme: sec.theme || null, fill: sec.fill || null,
@@ -1316,6 +1321,14 @@
       cssT: buildCSS(sec.els, 'GOGHSCOPE', sec.minH, sectionOpts(sec)),
     };
   }
+  // an anchor is an id in the page's namespace: lowercase, no spaces, and
+  // never empty. Declared (not assigned) so the boot-time collector, which
+  // runs before the mid-file vars, can already call it.
+  function cleanAnchor(a) {
+    if (!a) return '';
+    var c = String(a).toLowerCase().replace(/[^a-z0-9-]+/g, '-').replace(/^-+|-+$/g, '');
+    return /^[a-z]/.test(c) ? c : '';
+  }
   function buildSectionBlocksV3(sec) {
     var attrs = buildSectionAttrsV3(sec);
     // the baked stylesheet is a PROJECTION of the attrs (matches the block's
@@ -1325,7 +1338,7 @@
     return '<!-- wp:gogh/section ' + serializeBlockAttrs(attrs) + ' -->\n' +
       '<div class="wp-block-gogh-section alignfull gogh-wrap">' +
       '<style class="gogh-style">' + css + '</style>' +
-      '<div class="gogh-section ' + sec.scope + '" data-gogh-scope="' + sec.scope + '">\n' +
+      '<div' + (sec.anchor ? ' id="' + sec.anchor + '"' : '') + ' class="gogh-section ' + sec.scope + '" data-gogh-scope="' + sec.scope + '">\n' +
       bgVideoMarkup(sec) + buildElBlocks(sec.els) + '\n</div></div>\n' +
       '<!-- /wp:gogh/section -->';
   }
@@ -1820,13 +1833,13 @@
     sectionEl.className = 'gogh-section ' + scope;
     sectionEl.setAttribute('data-gogh-scope', scope);
     wrap.appendChild(sectionEl);
-    return { scope: scope, els: [], minH: null, bg: null, divider: null, fx: null, bgImage: null, bgId: null, bgVideo: null, bgVideoId: null, wrapEl: wrap, sectionEl: sectionEl, styleEl: styleEl, nodes: [] };
+    return { scope: scope, els: [], anchor: null, minH: null, bg: null, divider: null, fx: null, bgImage: null, bgId: null, bgVideo: null, bgVideoId: null, wrapEl: wrap, sectionEl: sectionEl, styleEl: styleEl, nodes: [] };
   }
 
   // ---------- history (undo/redo) ----------
   var history = [], hIdx = -1, textTimer = null;
   function serialize() {
-    return JSON.stringify(S.map(function (sec) { return { scope: sec.scope, els: sec.els, minH: sec.minH || null, bg: sec.bg || null, divider: sec.divider || null, fx: sec.fx || null, bgImage: sec.bgImage || null, bgId: sec.bgId || null, bgVideo: sec.bgVideo || null, bgVideoId: sec.bgVideoId || null, bgA: sec.bgA != null ? sec.bgA : null, theme: sec.theme || null, fill: sec.fill || null, m: (sec.m && Object.keys(sec.m).length) ? sec.m : null, bgPos: sec.bgPos || null, src: sec.srcSig || null, boot: sec.bootstrap || false, chrome: sec.chrome || null }; }));
+    return JSON.stringify(S.map(function (sec) { return { scope: sec.scope, els: sec.els, anchor: sec.anchor || null, minH: sec.minH || null, bg: sec.bg || null, divider: sec.divider || null, fx: sec.fx || null, bgImage: sec.bgImage || null, bgId: sec.bgId || null, bgVideo: sec.bgVideo || null, bgVideoId: sec.bgVideoId || null, bgA: sec.bgA != null ? sec.bgA : null, theme: sec.theme || null, fill: sec.fill || null, m: (sec.m && Object.keys(sec.m).length) ? sec.m : null, bgPos: sec.bgPos || null, src: sec.srcSig || null, boot: sec.bootstrap || false, chrome: sec.chrome || null }; }));
   }
   function pushState() {
     var snap = serialize();
@@ -1890,6 +1903,8 @@
       sec.fill = !!d.fill;
       sec.m = d.m || null;
       sec.bgPos = d.bgPos || null;
+      sec.anchor = d.anchor || null;
+      if (sec.anchor) sec.sectionEl.id = sec.anchor;
       sec.srcSig = d.src || null;
       sec.bootstrap = !!d.boot;
       sec.chrome = d.chrome || null;
@@ -2871,7 +2886,10 @@
     items.slice(1, -1).forEach(function (it) { it[axis] = Math.round(cur); cur += it.e[size] + gap; });
   }
   function planChanges(plan) {
-    return plan.some(function (m) { return Math.abs(m.x - m.e.x) > 1 || Math.abs(m.y - m.e.y) > 1; });
+    return plan.some(function (m) {
+      return Math.abs(m.x - m.e.x) > 1 || Math.abs(m.y - m.e.y) > 1 ||
+        (m.align !== undefined && m.align !== (m.e.align || 'left'));
+    });
   }
   // the words a piece actually shows (its ink), in design units — a text box
   // is often wider than its words, and boxes touching is not words touching
@@ -2911,7 +2929,12 @@
     }
     return false;
   }
-  function applyPlan(plan) { plan.forEach(function (m) { m.e.x = Math.round(m.x); m.e.y = Math.round(m.y); }); }
+  function applyPlan(plan) {
+    plan.forEach(function (m) {
+      m.e.x = Math.round(m.x); m.e.y = Math.round(m.y);
+      if (m.align !== undefined) { if (m.align === 'left') delete m.e.align; else m.e.align = m.align; }
+    });
+  }
   function spacePlan(els) {
     var bb = bboxOf(els);
     var items = els.map(function (e) { return { e: e, x: e.x, y: e.y }; });
@@ -2924,6 +2947,9 @@
       var m = { e: e, x: e.x, y: e.y };
       if (how === 'left') m.x = bb.x; else if (how === 'center') m.x = Math.round(bb.x + bb.w / 2 - e.w / 2); else if (how === 'right') m.x = bb.x + bb.w - e.w;
       else if (how === 'top') m.y = bb.y; else if (how === 'middle') m.y = Math.round(bb.y + bb.h / 2 - e.h / 2); else if (how === 'bottom') m.y = bb.y + bb.h - e.h;
+      // words line up as words: a text box wider than its ink takes the
+      // alignment too, or a full-width paragraph "centres" and nothing moves
+      if (isText(e) && (how === 'left' || how === 'center' || how === 'right')) m.align = how;
       return m;
     });
   }
@@ -2936,7 +2962,7 @@
       return items;
     }
     // centre means the card's centre; left and right line the pieces up with each other
-    if (how === 'center') return kids.map(function (k) { return { e: k, x: Math.max(0, Math.round(box.w / 2 - k.w / 2)), y: k.y }; });
+    if (how === 'center') return kids.map(function (k) { var m = { e: k, x: Math.max(0, Math.round(box.w / 2 - k.w / 2)), y: k.y }; if (isText(k)) m.align = 'center'; return m; });
     return alignPlan(kids, how);
   }
   function cardPlanOverlaps(sec, ci, plan) {
@@ -9989,6 +10015,10 @@
     sec.bgImage = tplBgFor(tpl);
     sec.bgA = tpl.bgA != null ? tpl.bgA : null;
     sec.fill = !!tpl.fill;
+    // a section can be a DESTINATION: its anchor becomes the element's id,
+    // which is the whole trick behind a one-page site's menu
+    sec.anchor = cleanAnchor(tpl.anchor);
+    if (sec.anchor) sec.sectionEl.id = sec.anchor;
     sec.fx = tpl.fx ? JSON.parse(JSON.stringify(tpl.fx)) : null;
     // a starter with hidden takes remembers its family -- the die must
     // know which drawer to reach into, today and after a reload (m rides
@@ -10187,6 +10217,7 @@
         chain = chain.then(function () {
           var tpl = fillTake(sc);
           if (!tpl) { done++; return; }
+          if (sc.anchor) tpl.anchor = sc.anchor;
           addSection(tpl, S.length);
           var sec = S[S.length - 1];
           return new Promise(function (r) { setTimeout(r, 280); }).then(function () {

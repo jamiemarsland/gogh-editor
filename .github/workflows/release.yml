@@ -97,7 +97,7 @@ jobs:
           ssh-keyscan github.com >> ~/.ssh/known_hosts 2>/dev/null
           gh release download "${GITHUB_REF_NAME}" --repo "${GITHUB_REPOSITORY}" --pattern gogh-playground.zip --dir /tmp
           git clone --depth 1 git@github.com:jamiemarsland/gogh-demo.git /tmp/demo
-          cp /tmp/gogh-playground.zip blueprint.json blueprint-experiments.json blueprint-paste.json blueprint-classic.json blueprint-photographer.json blueprint-film-studio.json blueprint-ceramics.json demo-boot.php demo-boot-woo.php demo-boot-paste.php helper/gogh-kb.md /tmp/demo/
+          cp /tmp/gogh-playground.zip blueprint.json blueprint-experiments.json blueprint-paste.json blueprint-classic.json blueprint-photographer.json blueprint-film-studio.json blueprint-ceramics.json blueprint-onepage.json demo-boot.php demo-boot-woo.php demo-boot-paste.php helper/gogh-kb.md /tmp/demo/
           # the demo's front page: the README, with this release's version stamped in
           sed "s/{{version}}/${GITHUB_REF_NAME}/g" demo-README.md > /tmp/demo/README.md
           cd /tmp/demo
