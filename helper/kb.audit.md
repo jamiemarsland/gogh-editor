@@ -1,4 +1,4 @@
-# Knowledge-base audit — plugin v0.99.479
+# Knowledge-base audit — plugin v0.99.480
 
 _13 finding(s) suppressed by `kb.audit-ignore.txt`._
 
@@ -102,3 +102,9 @@ The source has something the prose never explains. The bot knows the name from t
 - divider `dunes` exists in source but is never mentioned in the prose
 - divider `mist` exists in source but is never mentioned in the prose
 - element type `video` exists in source but is never mentioned in the prose
+
+## What changed since the last knowledge-base build
+
+Use this as the checklist for updating the prose — and as a sanity check on the release itself.
+
+- version: 0.99.479 → 0.99.480
