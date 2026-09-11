@@ -831,9 +831,24 @@ async function findPictures(env, query, count, orientation) {
       headers: { Authorization: 'Client-ID ' + env.UNSPLASH_ACCESS_KEY, 'accept-version': 'v1' },
     });
     if (!res.ok) {
-      return { ok: false, pictures: [], note: res.status === 403
-        ? 'The picture library is rate limited just now — carry on without pictures.'
-        : 'The picture library did not answer — carry on without pictures.' };
+      // say WHICH refusal: a rejected key and a spent hourly allowance look
+      // identical from the outside and need opposite fixes
+      let why = '';
+      try {
+        const body = await res.text();
+        const parsed = JSON.parse(body);
+        why = Array.isArray(parsed.errors) ? parsed.errors.join('; ') : body.slice(0, 120);
+      } catch (e) {}
+      const limited = res.status === 403 && /rate limit/i.test(why);
+      return {
+        ok: false,
+        pictures: [],
+        status: res.status,
+        why: why || null,
+        note: limited
+          ? 'The picture library is rate limited just now — carry on without pictures.'
+          : `The picture library refused the request (${res.status}${why ? ': ' + why : ''}) — carry on without pictures.`,
+      };
     }
     data = await res.json();
   } catch (e) {
