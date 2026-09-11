@@ -141,3 +141,7 @@ Worth doing if you also want a no-infrastructure copy for yourself, or if you'd 
 Add `.github/workflows/pages.yml` (included in the kit), then Settings → Pages → Source: **GitHub Actions**. On each `v*` tag it publishes `gogh-helper.html` to `https://jamiemarsland.github.io/gogh-editor/`.
 
 It auto-updates with every release, same as the Worker. The difference is that each visitor pastes their own Anthropic key — fine for you and a few collaborators, not something to link from the plugin.
+
+## The connector (MCP)
+
+Nothing extra to deploy: `/mcp`, `/d/` and `/b/` ship with the Worker. `wrangler.jsonc` declares a second KV namespace, `SITES`, which Cloudflare creates on deploy the same way it creates `RATE`. After deploying, add the connector in Claude Desktop (Settings → Connectors → Add custom connector) with the URL `https://<your-worker>/mcp` and ask for a site.
