@@ -431,6 +431,8 @@ Rules: 1 to 8 pages, up to 10 sections a page, the front page first. Headings ar
 
 **Pictures.** A site with photographs looks a world better than one without, so use them. Search by what should be in the shot, not by the trade: "hands tying flowers", "a bright cafe counter at dawn", "an empty theatre from the wings". Take the url exactly as given. One search of six often covers a whole site; two is plenty. A picture earns its place most on a Cover, a Story, a Portfolio or a Team. Use a URL the person gave you where they gave one, and gogh's own only as a last resort. Never invent a picture URL.
 
+**Working from a picture.** If the person shares a screenshot, a mockup or a photograph of a design, read it and rebuild what it shows: which parts come in which order, how many across, where the pictures sit, the palette. Match it with the nearest takes rather than trying to trace it, and tell them plainly what you took and what you changed. Take the words from the image only when they are clearly the person's own; otherwise write fresh ones. Never reproduce a logo or a brand mark.
+
 **Credit and colour.** Every photographer whose picture you use goes in \`credits\` as { name, link }, from the search result's \`by\` and \`by_link\`. The finished site prints them. Each result also carries \`colour\`, the photo's own dominant colour — building the palette around the hero photo's colour is the quickest way to make a site look designed rather than assembled.
 
 ## Gogh's own pictures
@@ -942,6 +944,7 @@ function buildPrompt() {
 How to behave:
 - Warm, plain and brief. Two or three sentences a turn. No jargon, no marketing voice, no lists of options unless you are asking a question.
 - Ask at most three short questions before you build: what the site is for, what it is called, and what they want people to do when they arrive. If they have already said enough, ask nothing and build.
+- If they share a screenshot or a mockup, look at it properly and rebuild what it shows: the order of the parts, the shape of the page, the mood, the colours. Use the nearest gogh designs — you are matching the arrangement, not tracing it — and say in a sentence what you took from it. Use words from the picture only when they are plainly the person's own; otherwise write fresh words for their site. Never copy a logo or a brand mark.
 - Vary the shape. Not every site is a cover, three cards and a call to action: a restaurant wants its menu, a photographer a wall of pictures, a studio a piece of work shown properly, a shop the numbers that prove it. Use the card moods where they suit.
 - Never show JSON, field names, take names or code to the person. They should never see the machinery. Say "your home page" and "the part about what you do", not "the Cover take".
 - Write the site's words yourself, in their voice, using the facts they gave you. Never lorem ipsum, never invented prices, never invented testimonials attributed to named strangers — if you need a quote, keep it plainly generic or leave that part out.
@@ -953,6 +956,20 @@ How to behave:
 - If something fails, say so plainly in one sentence and suggest what to try.
 
 ${rulesText()}`;
+}
+
+// a screenshot is heavy, and only the newest one is worth carrying: older
+// ones become a note, so a long conversation cannot drag megabytes behind it
+function stripImages(messages) {
+  return messages.map((m) => {
+    if (!m || !Array.isArray(m.content)) return m;
+    let hit = false;
+    const content = m.content.map((c) => {
+      if (c && c.type === 'image') { hit = true; return { type: 'text', text: '[a screenshot they shared earlier]' }; }
+      return c;
+    });
+    return hit ? Object.assign({}, m, { content }) : m;
+  });
 }
 
 function trimBuildHistory(messages) {
@@ -1026,11 +1043,21 @@ async function handleBuildChat(req, env, ctx) {
   const limited = await buildLimit(env, req);
   if (limited) return json({ error: limited }, 429);
 
+  const pic = body.image && typeof body.image === 'object' ? body.image : null;
+  if (pic && (!/^image\/(png|jpeg|webp|gif)$/.test(String(pic.media_type || '')) || typeof pic.data !== 'string' || !pic.data.length || pic.data.length > 1600 * 1024)) {
+    return json({ error: 'I could not read that picture. A screenshot under about a megabyte works best.' }, 400);
+  }
+
   let messages = Array.isArray(body.messages) ? body.messages : [];
   if (new TextEncoder().encode(JSON.stringify(messages)).length > 200 * 1024) {
     return json({ error: 'This conversation has grown too long — start a new one and I will be quicker.' }, 400);
   }
-  messages = trimBuildHistory(messages).concat([{ role: 'user', content: said }]);
+  messages = trimBuildHistory(stripImages(messages)).concat([{
+    role: 'user',
+    content: pic
+      ? [{ type: 'image', source: { type: 'base64', media_type: pic.media_type, data: pic.data } }, { type: 'text', text: said }]
+      : said,
+  }]);
 
   // Writing a whole site takes the best part of a minute, and a page that
   // says nothing for that long reads as broken (James: "could we have some
@@ -1045,13 +1072,13 @@ async function handleBuildChat(req, env, ctx) {
     let published = null;
     try {
       for (let turn = 0; turn < 6; turn++) {
-        await send({ type: 'step', text: turn === 0 ? 'Thinking' : 'Nearly there' });
+        await send({ type: 'step', text: turn === 0 ? (pic ? 'Looking at your screenshot' : 'Thinking') : 'Nearly there' });
         const r = await askModel(env, messages);
         const calls = (r.content || []).filter((c) => c.type === 'tool_use');
         messages = messages.concat([{ role: 'assistant', content: r.content }]);
         if (!calls.length) {
           const text = (r.content || []).filter((c) => c.type === 'text').map((c) => c.text).join('').trim();
-          await send({ type: 'reply', text: text || 'I am not sure what to make of that — tell me a little more?', messages, published });
+          await send({ type: 'reply', text: text || 'I am not sure what to make of that — tell me a little more?', messages: stripImages(messages), published });
           return;
         }
         const results = [];
@@ -1074,7 +1101,7 @@ async function handleBuildChat(req, env, ctx) {
         }
         messages = messages.concat([{ role: 'user', content: results }]);
       }
-      await send({ type: 'reply', text: 'That took more steps than I expected. Tell me the site again in a sentence and I will go straight at it.', messages, published });
+      await send({ type: 'reply', text: 'That took more steps than I expected. Tell me the site again in a sentence and I will go straight at it.', messages: stripImages(messages), published });
     } catch (e) {
       await send({ type: 'error', error: e.message || 'Something went wrong talking to the model.' });
     } finally {
@@ -1121,7 +1148,15 @@ const BUILD_UI = `<!doctype html>
   .dots { color: var(--soft); font-style: italic; }
   .err { color: var(--accent); }
   .bar { position: fixed; left: 0; right: 0; bottom: 0; background: linear-gradient(to top, var(--paper) 72%, transparent); padding: 18px 20px 22px; }
-  .bar form { max-width: 720px; margin: 0 auto; display: flex; gap: 10px; }
+  .bar form { max-width: 720px; margin: 0 auto; display: flex; gap: 10px; align-items: center; }
+  .clip { flex: none; width: 46px; height: 46px; border: 1px solid var(--line); border-radius: 50%;
+    background: #fff; display: grid; place-items: center; cursor: pointer; font-size: 19px; color: var(--soft); }
+  .clip:hover { border-color: var(--ink); color: var(--ink); }
+  .shot { max-width: 720px; margin: 0 auto 8px; display: none; align-items: center; gap: 10px; font-size: 13px; color: var(--soft); }
+  .shot img { width: 44px; height: 44px; object-fit: cover; border-radius: 8px; border: 1px solid var(--line); }
+  .shot button { border: 0; background: none; color: var(--soft); cursor: pointer; font: inherit; text-decoration: underline; padding: 0; }
+  .msg.you img { max-width: 220px; border-radius: 12px; display: block; margin: 0 0 6px auto; border: 1px solid var(--line); }
+  .dropping { outline: 2px dashed var(--accent); outline-offset: -8px; }
   .bar input { flex: 1; font: inherit; padding: 14px 18px; border: 1px solid var(--line);
     border-radius: 999px; background: #fff; color: var(--ink); min-width: 0; }
   .bar input:focus { outline: 2px solid var(--ink); outline-offset: -1px; }
@@ -1143,13 +1178,18 @@ const BUILD_UI = `<!doctype html>
     <button>A cafe with a menu</button>
     <button>A plumber taking bookings</button>
   </div>
+  <p id="hint" style="color:var(--soft);font-size:14px;margin:-10px 0 22px">Or drop in a screenshot of a design you like, and I will build something like it.</p>
   <div id="thread"></div>
   <footer>Your site is built in your own browser and kept for 30 days. It comes with a <b>Move to WordPress.com</b> option for taking it somewhere permanent. <a href="/">Questions about gogh?</a></footer>
 </div>
-<div class="bar"><form id="f">
-  <input id="q" autocomplete="off" placeholder="A florist in Bath, warm and simple…" aria-label="Describe your site">
-  <button id="go" type="submit">Send</button>
-</form></div>
+<div class="bar">
+  <div class="shot" id="shot"><img id="shot-img" alt=""><span>Screenshot attached — I will build from it.</span><button type="button" id="shot-drop">Remove</button></div>
+  <form id="f">
+    <label class="clip" title="Attach a screenshot or mockup">＋<input type="file" id="file" accept="image/*" hidden></label>
+    <input id="q" autocomplete="off" placeholder="A florist in Bath, warm and simple…" aria-label="Describe your site">
+    <button id="go" type="submit">Send</button>
+  </form>
+</div>
 <script>
 (function () {
   var thread = document.getElementById('thread');
@@ -1159,6 +1199,52 @@ const BUILD_UI = `<!doctype html>
   var go = document.getElementById('go');
   var state = [];
   var busy = false;
+  var shot = null; // the screenshot waiting to go with the next message
+  var fileIn = document.getElementById('file');
+  var shotBox = document.getElementById('shot');
+  var shotImg = document.getElementById('shot-img');
+
+  // shrink before sending: a screenshot off a big display is many megabytes,
+  // and the long edge is all the detail that is needed to read a layout
+  function shrink(file) {
+    return new Promise(function (ok, no) {
+      var img = new Image(), url = URL.createObjectURL(file);
+      img.onload = function () {
+        var max = 1400, s = Math.min(1, max / Math.max(img.width, img.height));
+        var c = document.createElement('canvas');
+        c.width = Math.max(1, Math.round(img.width * s));
+        c.height = Math.max(1, Math.round(img.height * s));
+        c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+        URL.revokeObjectURL(url);
+        var out = c.toDataURL('image/jpeg', 0.78);
+        ok({ media_type: 'image/jpeg', data: out.slice(out.indexOf(',') + 1), preview: out });
+      };
+      img.onerror = function () { URL.revokeObjectURL(url); no(new Error('not a picture')); };
+      img.src = url;
+    });
+  }
+  function takeShot(file) {
+    if (!file || file.type.indexOf('image/') !== 0) return;
+    shrink(file).then(function (s) {
+      shot = s;
+      shotImg.src = s.preview;
+      shotBox.style.display = 'flex';
+      document.getElementById('q').focus();
+    }).catch(function () {});
+  }
+  function clearShot() { shot = null; shotBox.style.display = 'none'; shotImg.removeAttribute('src'); }
+  fileIn.addEventListener('change', function () { if (fileIn.files[0]) takeShot(fileIn.files[0]); fileIn.value = ''; });
+  document.getElementById('shot-drop').addEventListener('click', clearShot);
+  document.addEventListener('paste', function (ev) {
+    var items = (ev.clipboardData && ev.clipboardData.items) || [];
+    for (var i = 0; i < items.length; i++) if (items[i].type.indexOf('image/') === 0) { takeShot(items[i].getAsFile()); return; }
+  });
+  ['dragenter', 'dragover'].forEach(function (t) {
+    document.addEventListener(t, function (ev) { ev.preventDefault(); document.body.classList.add('dropping'); });
+  });
+  ['dragleave', 'drop'].forEach(function (t) {
+    document.addEventListener(t, function (ev) { ev.preventDefault(); if (t === 'drop' && ev.dataTransfer && ev.dataTransfer.files[0]) takeShot(ev.dataTransfer.files[0]); document.body.classList.remove('dropping'); });
+  });
 
   function el(cls, text) { var d = document.createElement('div'); d.className = cls; if (text != null) { var s = document.createElement('span'); s.textContent = text; d.appendChild(s); } return d; }
   function scroll() { window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' }); }
@@ -1174,16 +1260,23 @@ const BUILD_UI = `<!doctype html>
   }
 
   function send(text) {
-    if (busy || !text) return;
+    if (busy || (!text && !shot)) return;
+    if (!text) text = 'Build me something like this.';
     busy = true; go.disabled = true; chips.style.display = 'none';
-    say('you', text);
+    var hint = document.getElementById('hint');
+    if (hint) hint.style.display = 'none';
+    var mine = el('msg you', text);
+    if (shot) { var t = document.createElement('img'); t.src = shot.preview; mine.firstChild.parentNode.insertBefore(t, mine.firstChild); }
+    thread.appendChild(mine); scroll();
+    var sending = shot ? { media_type: shot.media_type, data: shot.data } : null;
+    clearShot();
     input.value = '';
     var waiting = el('msg gogh'); var w = document.createElement('span');
     w.className = 'dots'; waiting.appendChild(w); thread.appendChild(waiting); scroll();
 
     // the step comes from the Worker; the seconds are ours, so the line keeps
     // moving even while one long step runs
-    var step = 'Thinking', began = Date.now(), done = false;
+    var step = sending ? 'Looking at your screenshot' : 'Thinking', began = Date.now(), done = false;
     var paint = function () {
       var secs = Math.round((Date.now() - began) / 1000);
       w.textContent = step + '…' + (secs > 2 ? ' ' + secs + 's' : '');
@@ -1209,7 +1302,7 @@ const BUILD_UI = `<!doctype html>
 
     fetch('/api/build', {
       method: 'POST', headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ text: text, messages: state }),
+      body: JSON.stringify({ text: text, messages: state, image: sending }),
     }).then(function (r) {
       var kind = r.headers.get('content-type') || '';
       if (kind.indexOf('text/event-stream') === -1 || !r.body) {

@@ -108,4 +108,6 @@ The source has something the prose never explains. The bot knows the name from t
 
 Use this as the checklist for updating the prose — and as a sanity check on the release itself.
 
-- version: 0.99.484 → 0.99.485
+- removed UI label: "Space across"
+- removed UI label: "Space down"
+- added UI label: "Even gaps"

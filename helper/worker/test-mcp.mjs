@@ -138,6 +138,49 @@ check(res.status === 400, 'an empty message is refused before any model is calle
   check(noKey.body.result.structuredContent.ok === false && /without pictures/.test(noKey.body.result.content[0].text), 'with no key it says to carry on without pictures rather than failing');
 }
 
+// a screenshot: it reaches the model, and it does not ride home in the history
+{
+  const realFetch = globalThis.fetch;
+  let sent = null;
+  globalThis.fetch = async (u, init) => {
+    const url = typeof u === 'string' ? u : u.url;
+    if (url.startsWith('https://api.anthropic.com')) {
+      sent = JSON.parse(init.body);
+      return new Response(JSON.stringify({ content: [{ type: 'text', text: 'I can see it — a cover, then three cards.' }] }), { status: 200, headers: { 'content-type': 'application/json' } });
+    }
+    return realFetch(u, init);
+  };
+  const waits = [];
+  const shot = { media_type: 'image/jpeg', data: 'AAAABBBBCCCC' };
+  let res = await worker.fetch(
+    new Request('https://gogh.test/api/build', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ text: 'build me this', image: shot }) }),
+    { ...env, ANTHROPIC_API_KEY: 'sk-test' },
+    { waitUntil: (p) => waits.push(p) }
+  );
+  const body = await new Response(res.body).text();
+  await Promise.all(waits);
+  const events = body.split('\n\n').filter(Boolean).map((b) => JSON.parse(b.replace(/^data: /, '')));
+  const first = sent.messages[0].content;
+  check(Array.isArray(first) && first[0].type === 'image' && first[0].source.data === 'AAAABBBBCCCC' && first[1].text === 'build me this', 'the screenshot reaches the model beside the words');
+  check(events.find((e) => e.type === 'step').text === 'Looking at your screenshot', 'the page is told it is being looked at');
+  const home = events.find((e) => e.type === 'reply').messages;
+  const anyImage = JSON.stringify(home).indexOf('"image"') !== -1;
+  check(!anyImage && /shared earlier/.test(JSON.stringify(home)), 'the picture does not ride home in the history, only a note of it');
+  // and a second turn carrying that history is accepted
+  res = await worker.fetch(
+    new Request('https://gogh.test/api/build', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ text: 'warmer please', messages: home }) }),
+    { ...env, ANTHROPIC_API_KEY: 'sk-test' }, { waitUntil: (p) => waits.push(p) }
+  );
+  check(res.status === 200, 'the next turn carries on from that history');
+  await new Response(res.body).text();
+  res = await worker.fetch(
+    new Request('https://gogh.test/api/build', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ text: 'this', image: { media_type: 'application/pdf', data: 'x' } }) }),
+    { ...env, ANTHROPIC_API_KEY: 'sk-test' }
+  );
+  check(res.status === 400 && /could not read that picture/.test((await res.json()).error), 'something that is not a picture is refused kindly');
+  globalThis.fetch = realFetch;
+}
+
 // the progress stream: a turn says what it is doing before it says anything else
 {
   const calls = [];
