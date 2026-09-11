@@ -89,6 +89,15 @@ check(r.result.isError === true && /not set up/.test(r.result.content[0].text), 
 res = await worker.fetch(new Request('https://gogh.test/build'), env);
 const page = await res.text();
 check(res.status === 200 && /text\/html/.test(res.headers.get('content-type')) && /Make a website/.test(page) && /\/api\/build/.test(page), 'the front door serves a page that talks to /api/build');
+// the page's script lives inside a template literal in worker.js, so an
+// escape meant for the browser can be eaten on the way out and leave a
+// string split across real newlines. Parse what we actually serve.
+{
+  const src = (page.match(/<script>([\s\S]*?)<\/script>/) || [])[1] || '';
+  let parsed = true, why = '';
+  try { new Function(src); } catch (e) { parsed = false; why = e.message; }
+  check(src.length > 500 && parsed, 'the page we serve is valid JavaScript: ' + why);
+}
 res = await worker.fetch(new Request('https://gogh.test/api/build', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ text: 'a florist in Bath' }) }), env);
 check(res.status === 500 && /not set up/.test((await res.json()).error), 'with no API key the front door says so plainly');
 res = await worker.fetch(new Request('https://gogh.test/api/build', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ text: '' }) }), { ...env, ANTHROPIC_API_KEY: 'sk-test' });

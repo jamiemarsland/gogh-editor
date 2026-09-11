@@ -1064,10 +1064,10 @@ const BUILD_UI = `<!doctype html>
         return reader.read().then(function (res) {
           if (res.done) { if (!seen && !done) fail('That did not finish. Try again?'); return; }
           buf += dec.decode(res.value, { stream: true });
-          var blocks = buf.split('\n\n');
+          var blocks = buf.split('\\n\\n');
           buf = blocks.pop();
           blocks.forEach(function (block) {
-            var line = block.split('\n').filter(function (l) { return l.indexOf('data: ') === 0; }).map(function (l) { return l.slice(6); }).join('');
+            var line = block.split('\\n').filter(function (l) { return l.indexOf('data: ') === 0; }).map(function (l) { return l.slice(6); }).join('');
             if (!line) return;
             var ev = null;
             try { ev = JSON.parse(line); } catch (e) {}

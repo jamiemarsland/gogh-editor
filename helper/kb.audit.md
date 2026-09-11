@@ -1,4 +1,4 @@
-# Knowledge-base audit — plugin v0.99.483
+# Knowledge-base audit — plugin v0.99.484
 
 _13 finding(s) suppressed by `kb.audit-ignore.txt`._
 
@@ -107,10 +107,7 @@ The source has something the prose never explains. The bot knows the name from t
 
 Use this as the checklist for updating the prose — and as a sanity check on the release itself.
 
-- removed UI label: "Equal gaps between the pieces"
-- removed UI label: "Equal gaps down the card"
-- removed UI label: "Space evenly"
-- added UI label: "Equal gaps left to right"
-- added UI label: "Equal gaps top to bottom"
-- added UI label: "Space across"
-- added UI label: "Space down"
+- version: 0.99.483 → 0.99.484
+- removed UI label: "Space across"
+- removed UI label: "Space down"
+- added UI label: "Even gaps"
