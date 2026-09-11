@@ -153,6 +153,29 @@ check(res.status === 400, 'an empty message is refused before any model is calle
   check(bigHead.w > para.w, 'span sets the share of the width: ' + bigHead.w + ' vs ' + para.w);
   const colTop = Math.min(...heroEls.filter((e) => e.x < 600).map((e) => e.y));
   check(para.y > colTop, 'a short column beside a tall one rides lower than the top of the tall one');
+  // a list is rows in ONE band, with lines between and its padding paid once
+  const ev = (when, what, who, price) => ({ columns: [
+    { span: 1, items: [{ type: 'text', text: when }] },
+    { span: 5, items: [{ type: 'heading', text: what, size: 'normal' }, { type: 'text', text: who }] },
+    { span: 1, align: 'right', items: [{ type: 'text', text: price }] } ] });
+  const listDef = JSON.parse(JSON.stringify(florist));
+  listDef.pages[0].sections = [{ band: { heading: "What's on", rule: true, rowGap: 's', rows: [
+    ev('Tue 16', 'Nature writing, out loud', 'With Amara Fenn', 'Free'),
+    ev('Wed 17', "Children's hour", 'Ages 3 to 7', 'Free'),
+    ev('Fri 19', 'Crime night', 'Signing from seven', '£6') ] } }];
+  r = await rpc({ jsonrpc: '2.0', id: 84, method: 'tools/call', params: { name: 'gogh_publish', arguments: { definition: listDef } } });
+  check(r.body.result.structuredContent.ok, 'a list of rows passes: ' + JSON.stringify(r.body.result.structuredContent.problems || []));
+  const list = JSON.parse(await env.SITES.get('def:' + r.body.result.structuredContent.id)).pages[0].sections[0];
+  const rules = list.els.filter((e) => e.type === 'box' && e.h <= 3);
+  check(rules.length === 4 && rules.every((e) => e.x === 80 && e.w === 1040), 'four hairlines for three rows, edge to edge: ' + rules.length);
+  const dates = list.els.filter((e) => e.type === 'para' && /^(Tue|Wed|Fri)/.test(e.text || ''));
+  check(dates.length === 3 && dates.every((d) => d.x === 80), 'the dates line up in the left column');
+  const prices = list.els.filter((e) => e.type === 'para' && /Free|£6/.test(e.text || ''));
+  check(prices.every((p) => p.align === 'right' && p.x > 900), 'the prices sit hard right: ' + prices.map((p) => p.x).join(','));
+  // the whole list costs one band's padding, not one per entry
+  check(list.minH < 700, 'three entries do not become a page of white space: ' + list.minH);
+  const rowTops = dates.map((d) => d.y).sort((a, b) => a - b);
+  check(rowTops[1] - rowTops[0] < 130 && rowTops[2] - rowTops[1] < 130, 'the rows sit close together: ' + rowTops.join(','));
   const bad = await rpc({ jsonrpc: '2.0', id: 82, method: 'tools/call', params: { name: 'gogh_check', arguments: { definition: (() => { const d = JSON.parse(JSON.stringify(withBand)); d.pages[0].sections[1].band.columns[0].items[1].type = 'marquee'; return d; })() } } });
   check(bad.body.result.structuredContent.problems.some((m) => /type must be one of/.test(m)), 'an item type nobody has is caught by name');
 }

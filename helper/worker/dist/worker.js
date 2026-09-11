@@ -463,6 +463,15 @@ A take is a design someone already made, so reach for one whenever it suits — 
 \`\`\`
 An item is one of: \`{type:'eyebrow', text}\`, \`{type:'heading', text, size}\`, \`{type:'text', text}\`, \`{type:'button', text, link}\`, \`{type:'badge', text}\`, \`{type:'picture', url, shape}\` where shape is landscape, portrait, square or wide. Up to 8 items a column.
 
+**A list is rows, and it is ONE band.** For anything that reads down the page — events with dates, a menu with prices, opening hours, a programme — give the band \`rows\` instead of \`columns\`, each row holding its own columns, with \`rule: true\` for hairlines between them and \`rowGap: s|m|l\`. Never make a band per entry: each band carries its own generous padding, so four of them is a page of white space and no lines. Row titles are \`size: normal\`; a whole list of large headings reads as four separate sections rather than one list.
+
+\`\`\`
+{ band: { heading: "What's on", rule: true, rowGap: 's', rows: [
+  { columns: [ {span:1, items:[{type:'text', text:'Tue 16'}]},
+               {span:5, items:[{type:'heading', text:'Nature writing, out loud', size:'normal'}, {type:'text', text:'With Amara Fenn · upstairs room'}]},
+               {span:1, align:'right', items:[{type:'text', text:'Free'}]} ] } ] } }
+\`\`\`
+
 Four projects across, each a tall picture with a name under it, is four columns of \`[picture(portrait), heading(normal), text]\`. A hero with the words on the left and one picture on the right is two columns with \`valign: middle\` and a \`span\` of 3 and 2. Use a band when the arrangement itself matters — when someone shows you a design and asks for something like it — and a take the rest of the time.
 
 A good home page is four to six sections: a Cover or Hero, Feature cards, something human (Testimonials, Team, Story or Numbers), Latest posts if there are posts, and a Call to action or Get in touch at the end. An about page: Story, Numbers, Team. A contact page: Get in touch. Give a Journal page \`blog: true\` and two or three posts so it is not empty. Shops need WooCommerce and are not yet part of a definition.
@@ -495,8 +504,20 @@ function checkBand(band, where, bad) {
   if (band.background != null && !(isHex(band.background) || /^(base|contrast|accent-[1-6])$/.test(String(band.background)))) bad(`${where}: band.background must be a #rrggbb colour, or base, contrast or accent-1 to accent-6.`);
   if (band.image != null && !isPic(band.image)) bad(`${where}: band.image must be a picture web address.`);
   ['eyebrow', 'heading', 'text', 'name'].forEach((k) => { if (band[k] != null && !str(band[k], 600)) bad(`${where}: band.${k} is too long.`); });
-  const cols = band.columns;
-  if (!Array.isArray(cols) || !cols.length) { bad(`${where}: a band needs at least one column.`); return; }
+  if (band.rowGap != null && !['s', 'm', 'l'].includes(band.rowGap)) bad(`${where}: band.rowGap must be s, m or l.`);
+  if (Array.isArray(band.rows)) {
+    if (!band.rows.length) bad(`${where}: band.rows is empty.`);
+    if (band.rows.length > 12) bad(`${where}: at most 12 rows.`);
+    band.rows.forEach((row, ri) => {
+      if (!row || typeof row !== 'object') { bad(`${where}.rows[${ri}] must be an object.`); return; }
+      checkColumns(row.columns, `${where}.rows[${ri}]`, bad);
+    });
+    return;
+  }
+  checkColumns(band.columns, where, bad);
+}
+function checkColumns(cols, where, bad) {
+  if (!Array.isArray(cols) || !cols.length) { bad(`${where}: needs at least one column.`); return; }
   if (cols.length > 6) bad(`${where}: at most 6 columns.`);
   cols.forEach((c, ci) => {
     if (!c || typeof c !== 'object') { bad(`${where}.columns[${ci}] must be an object.`); return; }
@@ -929,6 +950,34 @@ function stack(items, x, width, top, align) {
   return { els, height: y - top };
 }
 
+const ROW_GAPS = { s: 18, m: 30, l: 52 };
+function ruleEl(y) {
+  // a hairline that works on any ground, the way gogh's own cards tint
+  return { type: 'box', x: MARGIN, y, w: CONTENT, h: 2,
+    boxBg: 'color-mix(in srgb, var(--wp--preset--color--contrast, #000) 16%, transparent)' };
+}
+function layColumns(columns, align, gap, valign, top) {
+  const cols = (columns || []).filter((c) => c && Array.isArray(c.items) && c.items.length);
+  if (!cols.length) return { els: [], height: 0 };
+  const spans = cols.map((c) => Math.max(1, Math.min(6, +c.span || 1)));
+  const total = spans.reduce((a, b) => a + b, 0);
+  const room = CONTENT - gap * (cols.length - 1);
+  let x = MARGIN;
+  const laid = cols.map((c, i) => {
+    const width = Math.round(room * (spans[i] / total));
+    const done = stack(c.items, x, width, 0, c.align || align);
+    x += width + gap;
+    return done;
+  });
+  const tall = Math.max(...laid.map((l) => l.height));
+  const els = [];
+  laid.forEach((l) => {
+    const off = valign === 'middle' ? Math.round((tall - l.height) / 2) : valign === 'bottom' ? tall - l.height : 0;
+    l.els.forEach((e) => { e.y += top + off; els.push(e); });
+  });
+  return { els, height: tall };
+}
+
 function compileBand(band) {
   const align = ['left', 'center', 'right'].includes(band.align) ? band.align : 'left';
   const gap = GAPS[band.gap] || GAPS.m;
@@ -949,26 +998,24 @@ function compileBand(band) {
     y += done.height + 54;
   }
 
-  const cols = (band.columns || []).filter((c) => c && Array.isArray(c.items) && c.items.length);
-  if (cols.length) {
-    const spans = cols.map((c) => Math.max(1, Math.min(6, +c.span || 1)));
-    const total = spans.reduce((a, b) => a + b, 0);
-    const room = CONTENT - gap * (cols.length - 1);
-    let x = MARGIN;
-    const laid = cols.map((c, i) => {
-      const width = Math.round(room * (spans[i] / total));
-      const done = stack(c.items, x, width, 0, c.align || align);
-      x += width + gap;
-      return done;
+  // rows: a list lives in ONE band, so its padding is paid once and the lines
+  // between entries are part of the design (a band per row was four lots of
+  // padding and no rules at all — "the dates look a bit weird, big spaces")
+  const rows = Array.isArray(band.rows) ? band.rows.filter((r) => r && Array.isArray(r.columns) && r.columns.length) : [];
+  if (rows.length) {
+    const rowGap = ROW_GAPS[band.rowGap] || ROW_GAPS.m;
+    rows.forEach((row) => {
+      if (band.rule) { els.push(ruleEl(y)); y += 2 + Math.round(rowGap / 2); }
+      const laid = layColumns(row.columns, row.align || align, GAPS[row.gap] || gap, row.valign || band.valign, y);
+      laid.els.forEach((e) => els.push(e));
+      y += laid.height + (band.rule ? Math.round(rowGap / 2) : rowGap);
     });
-    const tall = Math.max(...laid.map((l) => l.height));
-    laid.forEach((l) => {
-      // columns of different lengths sit against the top by default; middle
-      // is what a hero wants, where a short column rides beside a tall one
-      const off = band.valign === 'middle' ? Math.round((tall - l.height) / 2) : band.valign === 'bottom' ? tall - l.height : 0;
-      l.els.forEach((e) => { e.y += y + off; els.push(e); });
-    });
-    y += tall;
+    if (band.rule) { els.push(ruleEl(y)); y += 2; }
+    else y -= rowGap;
+  } else if (band.columns) {
+    const laid = layColumns(band.columns, align, gap, band.valign, y);
+    laid.els.forEach((e) => els.push(e));
+    y += laid.height;
   }
 
   const out = { name: String(band.name || 'Band').slice(0, 60), els, minH: y + 96 };
