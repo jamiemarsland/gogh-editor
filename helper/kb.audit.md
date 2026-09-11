@@ -1,4 +1,4 @@
-# Knowledge-base audit — plugin v0.99.485
+# Knowledge-base audit — plugin v0.99.486
 
 _13 finding(s) suppressed by `kb.audit-ignore.txt`._
 
@@ -108,6 +108,4 @@ The source has something the prose never explains. The bot knows the name from t
 
 Use this as the checklist for updating the prose — and as a sanity check on the release itself.
 
-- removed UI label: "Space across"
-- removed UI label: "Space down"
-- added UI label: "Even gaps"
+- version: 0.99.485 → 0.99.486
