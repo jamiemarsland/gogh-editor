@@ -51,6 +51,10 @@ const DEFAULTS = {
   // a way out: every built site carries the Move to WordPress.com helper, so
   // what someone makes here need not stay in a browser tab. Set '' to drop it.
   MOVE_PLUGIN_URL: 'https://github.com/jamiemarsland/playground-to-wordpress-com/archive/refs/heads/main.zip',
+  // real photographs, so a built site is not the same cream every time.
+  // UNSPLASH_ACCESS_KEY is a secret; without it pictures are simply skipped.
+  UNSPLASH_APP_NAME: 'gogh',
+  PICTURES_PER_SEARCH: '6',
   PLUGIN_ZIP_URL: 'https://raw.githubusercontent.com/jamiemarsland/gogh-demo/main/gogh-playground.zip',
 };
 
@@ -420,9 +424,14 @@ You write a **site definition**: content and choices, never layout. Gogh draws i
   chrome: { header: ${HEADERS.join(' | ')}, footer: ${FOOTERS.join(' | ')}, sticky: true (pins the header as you scroll) },
   nav: [ { label, url } ]   (optional: a menu of your own. url is '#anchor' or an http(s) link. Without it the menu is one link per page)
   pages: [ { title, front: true (exactly one), blog: true (the posts page, no sections), sections: [ { take, anchor, ...fields } ] } ],
-  posts: [ { title, text (plain paragraphs separated by blank lines), image } ] }
+  posts: [ { title, text (plain paragraphs separated by blank lines), image } ],
+  credits: [ { name, link } ]   (the photographers whose pictures you used) }
 \`\`\`
-Rules: 1 to 8 pages, up to 10 sections a page, the front page first. Headings are short (2 to 7 words). Texts are one to three plain sentences. Buttons are two or three words. An eyebrow is a tiny label above the heading ("Bath · since 2014"). \`mood\` on card takes is one of still, lift, zoom, veil, glass. Pictures are optional: use URLs the person gave you; otherwise leave \`image\` out, or use one of gogh's own, below. Never invent picture URLs.
+Rules: 1 to 8 pages, up to 10 sections a page, the front page first. Headings are short (2 to 7 words). Texts are one to three plain sentences. Buttons are two or three words. An eyebrow is a tiny label above the heading ("Bath · since 2014"). \`mood\` on card takes is one of still, lift, zoom, veil, glass. Write in the person's own voice and facts; never lorem ipsum.
+
+**Pictures.** A site with photographs looks a world better than one without, so use them. Search by what should be in the shot, not by the trade: "hands tying flowers", "a bright cafe counter at dawn", "an empty theatre from the wings". Take the url exactly as given. One search of six often covers a whole site; two is plenty. A picture earns its place most on a Cover, a Story, a Portfolio or a Team. Use a URL the person gave you where they gave one, and gogh's own only as a last resort. Never invent a picture URL.
+
+**Credit and colour.** Every photographer whose picture you use goes in \`credits\` as { name, link }, from the search result's \`by\` and \`by_link\`. The finished site prints them. Each result also carries \`colour\`, the photo's own dominant colour — building the palette around the hero photo's colour is the quickest way to make a site look designed rather than assembled.
 
 ## Gogh's own pictures
 ${PICTURE_PATHS.map((k) => `- \`${k}\` — ${OWN_PICTURES[k]}`).join('\n')} Write in the person's own voice and facts; never lorem ipsum.
@@ -567,6 +576,13 @@ function checkDefinition(def) {
   } else if (Object.keys(anchors).length) {
     problems.push('Note: sections carry anchors but there is no nav — add one so the menu can scroll to them.');
   }
+  if (def.credits != null) {
+    if (!Array.isArray(def.credits) || def.credits.length > 20) bad('credits must be a list of up to 20 { name, link }.');
+    else def.credits.forEach((c, i) => {
+      if (!c || typeof c !== 'object' || !str(c.name, 120) || !c.name) bad(`credits[${i}] needs a name.`);
+      if (c.link != null && !/^https?:\/\/\S+$/.test(String(c.link))) bad(`credits[${i}].link must be a web address.`);
+    });
+  }
   const posts = Array.isArray(def.posts) ? def.posts : [];
   if (posts.length > 8) bad('At most 8 posts.');
   posts.forEach((ps, i) => {
@@ -610,6 +626,7 @@ async function publishSite(env, req, def) {
   if (!env.SITES) return { ok: false, problems: ['Publishing is not set up on this helper (no SITES storage).'] };
   const limited = await publishLimit(env, req);
   if (limited) return { ok: false, problems: [limited] };
+  try { await pingPictureUse(env, def); } catch (e) {}
   const id = newId();
   const days = parseInt(cfg(env, 'SITE_TTL_DAYS'), 10) || 30;
   await env.SITES.put(`def:${id}`, JSON.stringify(def), { expirationTtl: days * 86400 });
@@ -677,6 +694,15 @@ const TOOLS = [
     inputSchema: { type: 'object', properties: {}, additionalProperties: false },
   },
   {
+    name: 'gogh_pictures',
+    description: 'Search real photographs to use in a site. Call it once or twice while drafting, with plain words for what should be in the picture ("hands tying flowers", "a bright cafe counter"). Returns picture urls to use as-is, the photographer to credit, and each photo’s own dominant colour.',
+    inputSchema: { type: 'object', properties: {
+      query: { type: 'string', description: 'What should be in the picture, in plain words.' },
+      count: { type: 'number', description: 'How many to return, 1 to 10. Default 6.' },
+      orientation: { type: 'string', enum: ['landscape', 'portrait', 'squarish'], description: 'Shape of the picture.' },
+    }, required: ['query'] },
+  },
+  {
     name: 'gogh_check',
     description: 'Check a draft site definition before publishing. Returns ok, a list of problems to fix (each names the page and section), and a one-line-per-page summary you can read back to the person.',
     inputSchema: { type: 'object', properties: { definition: { type: 'object', description: 'The site definition, as described by gogh_rules.' } }, required: ['definition'] },
@@ -691,6 +717,10 @@ const TOOLS = [
 async function mcpCall(env, req, name, args) {
   const text = (t, extra) => Object.assign({ content: [{ type: 'text', text: t }] }, extra || {});
   if (name === 'gogh_rules') return text(rulesText());
+  if (name === 'gogh_pictures') {
+    const r = await findPictures(env, args && args.query, args && args.count, args && args.orientation);
+    return text(r.note + (r.pictures.length ? '\n\n' + JSON.stringify(r.pictures, null, 1) : ''), { structuredContent: r });
+  }
   if (name === 'gogh_check') {
     const r = checkDefinition(args && args.definition);
     return text((r.ok ? 'OK — this definition can be published.\n' : 'Not yet — fix these:\n') + (r.problems.length ? r.problems.map((p) => '- ' + p).join('\n') + '\n' : '') + (r.summary ? '\n' + r.summary : ''), { structuredContent: r });
@@ -762,6 +792,104 @@ async function handleSiteFile(req, env, kind, id) {
   return new Response(JSON.stringify(blueprintFor(env, id, def, new URL(req.url).origin), null, 1), { headers });
 }
 
+/* ------------------------------------------------------------ pictures */
+/*
+ * A site with no photographs looks like every other site with no
+ * photographs. Unsplash is the source (James pointed at their developer
+ * page); the key lives here as a secret and is never seen by the page or
+ * the assistant. Their terms ask two things of us and we do both: the
+ * photographer is credited on the finished site, and a photo's download
+ * endpoint is pinged when it is actually used — at publish, for the
+ * pictures that really made it in, not for everything a search returned.
+ */
+
+// a short, stable key for a picture url
+function picKey(url) {
+  let h = 5381;
+  for (let i = 0; i < url.length; i++) h = ((h * 33) ^ url.charCodeAt(i)) >>> 0;
+  return 'pic:' + h.toString(36);
+}
+
+function unsplashUrl(env, path, params) {
+  const u = new URL('https://api.unsplash.com' + path);
+  Object.keys(params || {}).forEach((k) => u.searchParams.set(k, params[k]));
+  return u.toString();
+}
+
+const utm = (env) => `utm_source=${encodeURIComponent(cfg(env, 'UNSPLASH_APP_NAME'))}&utm_medium=referral`;
+
+async function findPictures(env, query, count, orientation) {
+  if (!env.UNSPLASH_ACCESS_KEY) {
+    return { ok: false, pictures: [], note: 'No picture library is connected, so build the site without pictures — leave image out rather than inventing a URL.' };
+  }
+  const want = Math.max(1, Math.min(10, +count || parseInt(cfg(env, 'PICTURES_PER_SEARCH'), 10)));
+  const params = { query: String(query || '').slice(0, 120), per_page: String(want), content_filter: 'high' };
+  if (['landscape', 'portrait', 'squarish'].includes(orientation)) params.orientation = orientation;
+  let data;
+  try {
+    const res = await fetch(unsplashUrl(env, '/search/photos', params), {
+      headers: { Authorization: 'Client-ID ' + env.UNSPLASH_ACCESS_KEY, 'accept-version': 'v1' },
+    });
+    if (!res.ok) {
+      return { ok: false, pictures: [], note: res.status === 403
+        ? 'The picture library is rate limited just now — carry on without pictures.'
+        : 'The picture library did not answer — carry on without pictures.' };
+    }
+    data = await res.json();
+  } catch (e) {
+    return { ok: false, pictures: [], note: 'The picture library could not be reached — carry on without pictures.' };
+  }
+  const results = (data && data.results) || [];
+  const pictures = results.map((p) => ({
+    // a fixed width keeps the page light and the URL stable
+    url: p.urls && p.urls.raw ? p.urls.raw + '&w=1600&q=80&fm=jpg&fit=max' : (p.urls && p.urls.regular),
+    alt: (p.alt_description || p.description || String(query)).slice(0, 140),
+    colour: p.color || null,
+    by: (p.user && p.user.name) || 'Unknown',
+    by_link: (p.user && p.user.links && p.user.links.html) || 'https://unsplash.com',
+  })).filter((p) => p.url);
+  // remember where each picture's download ping goes, keyed by the very url we
+  // hand out, so publishing can look it up directly instead of scanning
+  if (env.SITES) {
+    await Promise.all(pictures.map(async (pic, i) => {
+      const loc = results[i] && results[i].links && results[i].links.download_location;
+      if (!loc) return;
+      try { await env.SITES.put(picKey(pic.url), JSON.stringify({ url: pic.url, loc }), { expirationTtl: 86400 }); } catch (e) {}
+    }));
+  }
+  return {
+    ok: pictures.length > 0,
+    pictures,
+    note: pictures.length
+      ? 'Use the url as-is. Put every photographer you use in the definition’s credits, as { name, link } from by and by_link. colour is the photo’s own dominant colour — a good accent, or a base to build the palette from.'
+      : 'Nothing matched that search — try plainer words, or carry on without pictures.',
+  };
+}
+
+// the pictures a definition really uses, told to Unsplash as their terms ask
+async function pingPictureUse(env, def) {
+  if (!env.UNSPLASH_ACCESS_KEY || !env.SITES) return;
+  const used = new Set();
+  const walk = (v) => {
+    if (!v) return;
+    if (typeof v === 'string') { if (/^https:\/\/images\.unsplash\.com\//.test(v)) used.add(v); return; }
+    if (Array.isArray(v)) { v.forEach(walk); return; }
+    if (typeof v === 'object') Object.keys(v).forEach((k) => walk(v[k]));
+  };
+  walk(def);
+  if (!used.size) return;
+  await Promise.all([...used].slice(0, 40).map(async (url) => {
+    let row = null;
+    try { row = JSON.parse(await env.SITES.get(picKey(url))); } catch (e) {}
+    if (!row || !row.loc) return;
+    try {
+      await fetch(row.loc + (row.loc.indexOf('?') === -1 ? '?' : '&') + utm(env), {
+        headers: { Authorization: 'Client-ID ' + env.UNSPLASH_ACCESS_KEY },
+      });
+    } catch (e) {}
+  }));
+}
+
 /* --------------------------------------------------- the front door */
 /*
  * The connector needs an AI app and a paid plan. The people this is for
@@ -772,6 +900,15 @@ async function handleSiteFile(req, env, kind, id) {
  */
 
 const BUILD_TOOLS = [
+  {
+    name: 'find_pictures',
+    description: 'Search real photographs to use in the site. Call it while drafting, with plain words for what should be in the picture. Returns urls to use as-is, the photographer to credit, and each photo’s dominant colour.',
+    input_schema: { type: 'object', properties: {
+      query: { type: 'string', description: 'What should be in the picture, in plain words.' },
+      count: { type: 'number', description: '1 to 10. Default 6.' },
+      orientation: { type: 'string', enum: ['landscape', 'portrait', 'squarish'] },
+    }, required: ['query'] },
+  },
   {
     name: 'check_site',
     description: 'Check a draft site definition. Returns ok, the problems to fix, and a short summary. Always check before publishing.',
@@ -790,9 +927,10 @@ function buildPrompt() {
 How to behave:
 - Warm, plain and brief. Two or three sentences a turn. No jargon, no marketing voice, no lists of options unless you are asking a question.
 - Ask at most three short questions before you build: what the site is for, what it is called, and what they want people to do when they arrive. If they have already said enough, ask nothing and build.
+- Vary the shape. Not every site is a cover, three cards and a call to action: a restaurant wants its menu, a photographer a wall of pictures, a studio a piece of work shown properly, a shop the numbers that prove it. Use the card moods where they suit.
 - Never show JSON, field names, take names or code to the person. They should never see the machinery. Say "your home page" and "the part about what you do", not "the Cover take".
 - Write the site's words yourself, in their voice, using the facts they gave you. Never lorem ipsum, never invented prices, never invented testimonials attributed to named strangers — if you need a quote, keep it plainly generic or leave that part out.
-- Only use pictures the person gives you as web links, or gogh's own pictures listed below. Never invent an image URL.
+- Find real photographs with find_pictures and use them — a site with pictures looks a world better than one without. Search by what should be in the shot, in plain words. One search of six usually covers a site. Put every photographer you use in credits, and build the palette around the hero photo's own colour.
 - Build a small, complete site: usually a home page, an about page, a contact page, and a journal with two or three short posts if it suits them.
 - Call check_site, fix anything it names, then call publish_site. Then give them the link on its own line and say it takes about a minute to build itself and that nothing is installed.
 - After that, offer one or two concrete changes you could make ("I can make it warmer, or add your opening hours"). When they ask for a change, edit the site and publish again, then give the new link.
@@ -904,7 +1042,10 @@ async function handleBuildChat(req, env, ctx) {
         const results = [];
         for (const c of calls) {
           let out;
-          if (c.name === 'check_site') {
+          if (c.name === 'find_pictures') {
+            await send({ type: 'step', text: 'Looking for pictures' });
+            out = await findPictures(env, c.input && c.input.query, c.input && c.input.count, c.input && c.input.orientation);
+          } else if (c.name === 'check_site') {
             await send({ type: 'step', text: 'Checking it over' });
             out = checkDefinition(c.input && c.input.definition);
           } else if (c.name === 'publish_site') {

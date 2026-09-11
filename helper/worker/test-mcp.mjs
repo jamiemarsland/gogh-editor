@@ -15,6 +15,10 @@ const kv = () => { const m = new Map(); return { async get(k) { return m.has(k) 
 const env = { RATE: kv(), SITES: kv() };
 let failures = 0;
 const check = (cond, msg) => { if (!cond) { failures++; console.error('FAIL', msg); } else console.log('ok  ', msg); };
+const rpcWith = async (e, msg) => {
+  const res = await worker.fetch(new Request('https://gogh.test/mcp', { method: 'POST', headers: { 'content-type': 'application/json', 'cf-connecting-ip': '203.0.113.9' }, body: JSON.stringify(msg) }), e);
+  return { status: res.status, body: res.status === 202 ? null : await res.json() };
+};
 const rpc = async (msg) => {
   const res = await worker.fetch(new Request('https://gogh.test/mcp', { method: 'POST', headers: { 'content-type': 'application/json', 'cf-connecting-ip': '203.0.113.9' }, body: JSON.stringify(msg) }), env);
   return { status: res.status, body: res.status === 202 ? null : await res.json() };
@@ -25,7 +29,7 @@ check(r.status === 200 && r.body.result.protocolVersion === '2025-06-18' && r.bo
 r = await rpc({ jsonrpc: '2.0', method: 'notifications/initialized' });
 check(r.status === 202, 'a notification gets 202 and no body');
 r = await rpc({ jsonrpc: '2.0', id: 2, method: 'tools/list' });
-check(r.body.result.tools.map((t) => t.name).join() === 'gogh_rules,gogh_check,gogh_publish', 'three tools, rules first');
+check(r.body.result.tools.map((t) => t.name).join() === 'gogh_rules,gogh_pictures,gogh_check,gogh_publish', 'four tools: rules first, then pictures, check, publish');
 r = await rpc({ jsonrpc: '2.0', id: 3, method: 'tools/call', params: { name: 'gogh_rules', arguments: {} } });
 const rules = r.body.result.content[0].text;
 check(/\*\*Cover\*\*/.test(rules) && /gogh_publish/.test(rules) && /Bloom & Bough/.test(rules), 'the rules carry the takes, the workflow and the example');
@@ -102,6 +106,37 @@ res = await worker.fetch(new Request('https://gogh.test/api/build', { method: 'P
 check(res.status === 500 && /not set up/.test((await res.json()).error), 'with no API key the front door says so plainly');
 res = await worker.fetch(new Request('https://gogh.test/api/build', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ text: '' }) }), { ...env, ANTHROPIC_API_KEY: 'sk-test' });
 check(res.status === 400, 'an empty message is refused before any model is called');
+
+// pictures: a search with the library connected, and an honest answer without
+{
+  const realFetch = globalThis.fetch;
+  globalThis.fetch = async (u, init) => {
+    const url = typeof u === 'string' ? u : u.url;
+    if (url.startsWith('https://api.unsplash.com/search/photos')) {
+      check(/query=hands\+tying\+flowers|query=hands%20tying%20flowers/.test(url) && /orientation=landscape/.test(url), 'the search passes the words and the shape: ' + url.slice(38, 130));
+      return new Response(JSON.stringify({ results: [{ id: 'p1', color: '#B4523A', alt_description: 'hands tying stems',
+        urls: { raw: 'https://images.unsplash.com/photo-1', regular: 'https://images.unsplash.com/photo-1?w=1080' },
+        links: { download_location: 'https://api.unsplash.com/photos/p1/download' },
+        user: { name: 'Ada Reed', links: { html: 'https://unsplash.com/@ada' } } }] }), { status: 200, headers: { 'content-type': 'application/json' } });
+    }
+    if (url.startsWith('https://api.unsplash.com/photos/p1/download')) { pinged.push(url); return new Response('{}', { status: 200 }); }
+    return realFetch(u, init);
+  };
+  const pinged = [];
+  const withKey = { ...env, UNSPLASH_ACCESS_KEY: 'test-key' };
+  let rp = await rpcWith(withKey, { jsonrpc: '2.0', id: 70, method: 'tools/call', params: { name: 'gogh_pictures', arguments: { query: 'hands tying flowers', orientation: 'landscape' } } });
+  const pics = rp.body.result.structuredContent;
+  check(pics.ok && pics.pictures[0].url === 'https://images.unsplash.com/photo-1&w=1600&q=80&fm=jpg&fit=max' && pics.pictures[0].by === 'Ada Reed' && pics.pictures[0].colour === '#B4523A', 'a picture comes back ready to use, credited, with its colour: ' + JSON.stringify(pics.pictures[0] || {}).slice(0, 140));
+  // publishing a definition that uses it tells Unsplash, as their terms ask
+  const withPic = JSON.parse(JSON.stringify(florist));
+  withPic.pages[0].sections[0].image = pics.pictures[0].url;
+  withPic.credits = [{ name: 'Ada Reed', link: 'https://unsplash.com/@ada' }];
+  rp = await rpcWith(withKey, { jsonrpc: '2.0', id: 71, method: 'tools/call', params: { name: 'gogh_publish', arguments: { definition: withPic } } });
+  check(rp.body.result.structuredContent.ok && pinged.length === 1, 'publishing pings the download endpoint for the picture actually used: ' + pinged.length);
+  globalThis.fetch = realFetch;
+  const noKey = await rpcWith(env, { jsonrpc: '2.0', id: 72, method: 'tools/call', params: { name: 'gogh_pictures', arguments: { query: 'flowers' } } });
+  check(noKey.body.result.structuredContent.ok === false && /without pictures/.test(noKey.body.result.content[0].text), 'with no key it says to carry on without pictures rather than failing');
+}
 
 // the progress stream: a turn says what it is doing before it says anything else
 {

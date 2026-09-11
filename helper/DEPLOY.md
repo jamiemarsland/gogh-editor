@@ -145,3 +145,21 @@ It auto-updates with every release, same as the Worker. The difference is that e
 ## The connector (MCP)
 
 Nothing extra to deploy: `/mcp`, `/d/` and `/b/` ship with the Worker. `wrangler.jsonc` declares a second KV namespace, `SITES`, which Cloudflare creates on deploy the same way it creates `RATE`. After deploying, add the connector in Claude Desktop (Settings → Connectors → Add custom connector) with the URL `https://<your-worker>/mcp` and ask for a site.
+
+## Pictures (Unsplash)
+
+The builder writes better sites when it can find real photographs. That needs a free Unsplash key, which lives on the Worker as a secret and is never seen by the page, the assistant or anyone using it.
+
+1. Go to https://unsplash.com/developers, sign in, and choose **Your apps → New Application**. Accept the API terms and give it a name and a description (for example "gogh — builds WordPress sites from a chat").
+2. Copy the **Access Key** from the application page. Ignore the Secret key; it is only for logging people in, which this does not do.
+3. From `helper/worker`, hand it to the Worker:
+
+```
+npx wrangler secret put UNSPLASH_ACCESS_KEY
+```
+
+Paste the key when prompted, then `npx wrangler deploy`.
+
+A new application is in **Demo** mode: 50 searches an hour, which is roughly 50 sites, and plenty for testing. When you want more, apply for production on the application page. Without the key nothing breaks — the builder says so to itself and makes sites without pictures.
+
+Both of Unsplash's requirements are handled in code: every photographer whose picture is used is credited at the foot of the built site, and a photo's download endpoint is pinged at publish time for the pictures that were actually used.

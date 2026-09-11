@@ -169,5 +169,11 @@
       "text": "Two hundred stems of garden roses, all from one grower in Somerset, and a bride who wanted it to look as if nobody had tried.",
       "image": "/wp-content/plugins/gogh/demo-assets/wheat-field.jpg"
     }
+  ],
+  "credits": [
+    {
+      "name": "Ada Reed",
+      "link": "https://unsplash.com/@ada"
+    }
   ]
 }

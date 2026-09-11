@@ -36,6 +36,7 @@ The Worker is also a remote MCP server at `/mcp`, so anyone can add it to Claude
 | | |
 |---|---|
 | `gogh_rules` | how a site definition works: the takes, their fields, the writing rules, a complete example |
+| `gogh_pictures` | searches Unsplash for real photographs: urls to use as-is, the photographer to credit, each photo's dominant colour |
 | `gogh_check` | validates a draft and returns the problems by page and section, plus a summary |
 | `gogh_publish` | stores the definition and returns a Playground link that builds the site in the browser in about a minute |
 
