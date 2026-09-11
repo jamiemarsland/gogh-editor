@@ -166,8 +166,9 @@ check(res.status === 400, 'an empty message is refused before any model is calle
   r = await rpc({ jsonrpc: '2.0', id: 84, method: 'tools/call', params: { name: 'gogh_publish', arguments: { definition: listDef } } });
   check(r.body.result.structuredContent.ok, 'a list of rows passes: ' + JSON.stringify(r.body.result.structuredContent.problems || []));
   const list = JSON.parse(await env.SITES.get('def:' + r.body.result.structuredContent.id)).pages[0].sections[0];
-  const rules = list.els.filter((e) => e.type === 'box' && e.h <= 3);
+  const rules = list.els.filter((e) => e.type === 'box' && /linear-gradient/.test(e.boxBg || ''));
   check(rules.length === 4 && rules.every((e) => e.x === 80 && e.w === 1040), 'four hairlines for three rows, edge to edge: ' + rules.length);
+  check(rules.every((e) => e.h >= 8) && /46%/.test(rules[0].boxBg), 'the line is painted inside a box tall enough to survive the solver, not a box thin enough to be eaten by it');
   const dates = list.els.filter((e) => e.type === 'para' && /^(Tue|Wed|Fri)/.test(e.text || ''));
   check(dates.length === 3 && dates.every((d) => d.x === 80), 'the dates line up in the left column');
   const prices = list.els.filter((e) => e.type === 'para' && /Free|£6/.test(e.text || ''));

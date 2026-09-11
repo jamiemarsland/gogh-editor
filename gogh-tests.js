@@ -4468,6 +4468,15 @@
       var rail = lp.els.filter(function (e) { return e.rails && e.posts; })[0];
       expect(lp.els[0].text === 'From the journal' && rail && rail.posts.look === 'cards' && /"perPage":4/.test(rail.wsrc), 'Latest posts should become a rail wearing the look');
       expect(G.fillTake({ take: 'No such take' }) === null, 'an unknown take should return nothing');
+      // the door: a section may arrive with its own pieces, and a 2-unit box is
+      // a hairline — the floor that keeps other pieces usable must not fatten it
+      var own = G.fillTake({ name: 'A band', minH: 400, background: '#14161A', els: [
+        { type: 'box', x: 80, y: 100, w: 1040, h: 2, boxBg: 'rgba(0,0,0,0.16)' },
+        { type: 'heading', x: 80, y: 130, w: 500, h: 60, text: 'Made elsewhere' },
+        { type: 'nonsense', x: 0, y: 0, w: 10, h: 10 } ] });
+      expect(own && own.els.length === 2 && own.bg === '#14161A' && own.minH === 400, 'a section of its own pieces should come through, minus anything gogh does not know');
+      expect(own.els[0].h === 2 && own.els[0].w === 1040, 'a hairline stays a hairline: ' + own.els[0].h);
+      expect(own.els[1].type === 'heading' && own.els[1].text === 'Made elsewhere', 'the words come through');
       // scaffolding goes: a take arrives with the demo studio's badge and second
       // button, and a definition that never mentioned them must not ship them
       var hero = G.fillTake({ take: 'Hero', eyebrow: 'Architecture · Bristol', heading: 'Buildings that keep their quiet', text: 'A small practice in Bristol.', button: 'See the work' });

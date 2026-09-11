@@ -951,10 +951,16 @@ function stack(items, x, width, top, align) {
 }
 
 const ROW_GAPS = { s: 18, m: 30, l: 52 };
+// gogh's solver treats edges within 8 units of each other as the same grid
+// line, so a 2-unit box collapses and comes back a fat bar. The rule is
+// therefore a normal-height box that paints a line across its own middle —
+// in percentages, so it stays one hair thick at any width, and in a tint of
+// the theme's own ink, so it works on a light ground or a dark one.
+const RULE_H = 12;
+const RULE_INK = 'color-mix(in srgb, var(--wp--preset--color--contrast, #000) 18%, transparent)';
 function ruleEl(y) {
-  // a hairline that works on any ground, the way gogh's own cards tint
-  return { type: 'box', x: MARGIN, y, w: CONTENT, h: 2,
-    boxBg: 'color-mix(in srgb, var(--wp--preset--color--contrast, #000) 16%, transparent)' };
+  return { type: 'box', x: MARGIN, y, w: CONTENT, h: RULE_H,
+    boxBg: `linear-gradient(to bottom, transparent 46%, ${RULE_INK} 46%, ${RULE_INK} 54%, transparent 54%)` };
 }
 function layColumns(columns, align, gap, valign, top) {
   const cols = (columns || []).filter((c) => c && Array.isArray(c.items) && c.items.length);
@@ -1005,12 +1011,12 @@ function compileBand(band) {
   if (rows.length) {
     const rowGap = ROW_GAPS[band.rowGap] || ROW_GAPS.m;
     rows.forEach((row) => {
-      if (band.rule) { els.push(ruleEl(y)); y += 2 + Math.round(rowGap / 2); }
+      if (band.rule) { els.push(ruleEl(y)); y += RULE_H + Math.round(rowGap / 2); }
       const laid = layColumns(row.columns, row.align || align, GAPS[row.gap] || gap, row.valign || band.valign, y);
       laid.els.forEach((e) => els.push(e));
       y += laid.height + (band.rule ? Math.round(rowGap / 2) : rowGap);
     });
-    if (band.rule) { els.push(ruleEl(y)); y += 2; }
+    if (band.rule) { els.push(ruleEl(y)); y += RULE_H; }
     else y -= rowGap;
   } else if (band.columns) {
     const laid = layColumns(band.columns, align, gap, band.valign, y);

@@ -10173,7 +10173,9 @@
     GEN_FIELDS.forEach(function (k) { if (e[k] !== undefined && e[k] !== null) out[k] = e[k]; });
     ['x', 'y', 'w', 'h'].forEach(function (k) { out[k] = Math.round(+out[k] || 0); });
     out.w = Math.max(8, Math.min(W, out.w));
-    out.h = Math.max(8, out.h);
+    // a box is a rectangle of colour, so a 2-unit one is a rule across the
+    // page — the floor that keeps other pieces usable would fatten it to a bar
+    out.h = Math.max(e.type === 'box' ? 1 : 8, out.h);
     out.x = Math.max(0, Math.min(W - out.w, out.x));
     out.y = Math.max(0, out.y);
     if (e.kids && e.kids.length) {
