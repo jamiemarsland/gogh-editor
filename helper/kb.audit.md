@@ -1,8 +1,8 @@
-# Knowledge-base audit — plugin v0.99.484
+# Knowledge-base audit — plugin v0.99.485
 
 _13 finding(s) suppressed by `kb.audit-ignore.txt`._
 
-## MISSING (96)
+## MISSING (97)
 
 The source has something the prose never explains. The bot knows the name from the appendix but cannot say what it is for.
 
@@ -49,6 +49,7 @@ The source has something the prose never explains. The bot knows the name from t
 - WP hook `body_class` exists in source but is never mentioned in the prose
 - WP hook `wp_insert_post_empty_content` exists in source but is never mentioned in the prose
 - WP hook `trashed_post` exists in source but is never mentioned in the prose
+- WP hook `wp_footer` exists in source but is never mentioned in the prose
 - WP hook `get_block_templates` exists in source but is never mentioned in the prose
 - WP hook `body_class` exists in source but is never mentioned in the prose
 - WP hook `admin_post_gogh_shop_layout` exists in source but is never mentioned in the prose
@@ -102,3 +103,12 @@ The source has something the prose never explains. The bot knows the name from t
 - divider `dunes` exists in source but is never mentioned in the prose
 - divider `mist` exists in source but is never mentioned in the prose
 - element type `video` exists in source but is never mentioned in the prose
+
+## What changed since the last knowledge-base build
+
+Use this as the checklist for updating the prose — and as a sanity check on the release itself.
+
+- version: 0.99.484 → 0.99.485
+- removed UI label: "Even gaps"
+- added UI label: "Space across"
+- added UI label: "Space down"

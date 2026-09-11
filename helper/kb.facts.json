@@ -1,12 +1,12 @@
 {
   "meta": {
-    "plugin_version": "0.99.484",
+    "plugin_version": "0.99.485",
     "requires_wp": "6.5",
     "requires_php": "7.4",
     "text_domain": "gogh-editor",
     "readme_stable_tag": "0.26.0",
     "readme_tested_up_to": "7.0",
-    "asset_version": "0.99.484-chrome"
+    "asset_version": "0.99.485-chrome"
   },
   "constants": {
     "TOL": 8,
@@ -481,7 +481,6 @@
     "Duplicate the selection",
     "Equal gaps left to right",
     "Equal gaps top to bottom",
-    "Even gaps",
     "Everything",
     "Experience",
     "Featured product",
@@ -575,6 +574,8 @@
     "Show the next layout",
     "Six looks derived from your brand — hover to wear one, tap Remix again for six more",
     "Solid",
+    "Space across",
+    "Space down",
     "Start writing — a reading column, cursor ready",
     "Switch design",
     "Switch it on",
@@ -959,6 +960,11 @@
       {
         "kind": "action",
         "hook": "trashed_post",
+        "priority": 10
+      },
+      {
+        "kind": "action",
+        "hook": "wp_footer",
         "priority": 10
       },
       {
