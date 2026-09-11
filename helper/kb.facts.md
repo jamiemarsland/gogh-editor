@@ -4,11 +4,11 @@ Everything in this section is extracted mechanically from the Gogh source on eve
 
 ## Current release
 
-- Plugin version: **0.99.480**
+- Plugin version: **0.99.481**
 - Requires WordPress **6.5+**, PHP **7.4+**
 - Text domain: `gogh-editor`
 - readme.txt Stable tag: `0.26.0` · Tested up to: `7.0`
-- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.480`). Quote the plugin header version.
+- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.481`). Quote the plugin header version.
 
 ## Design constants
 
@@ -248,6 +248,7 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "Duplicate (or Alt-drag)"
 - "Duplicate the selection"
 - "Equal gaps between the pieces"
+- "Equal gaps down the card"
 - "Everything"
 - "Experience"
 - "Featured product"
@@ -277,6 +278,7 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "Line the pieces up, or even out the gaps"
 - "Line the row up and even the gaps"
 - "Line up ' + a[1].toLowerCase() + '"
+- "Line up the pieces inside this card"
 - "Line up ▾"
 - "Link"
 - "Link text (⌘K)"
@@ -478,5 +480,5 @@ These are the real strings in the current build. Use them verbatim; never paraph
 
 ## Test suite
 
-`273` tests, run by appending `?gogh-test` to any Gogh page URL while logged in with edit rights on that page.
+`275` tests, run by appending `?gogh-test` to any Gogh page URL while logged in with edit rights on that page.
 
