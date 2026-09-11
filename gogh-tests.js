@@ -4515,6 +4515,9 @@
       expect(row.querySelector('.gogh-cl-align[data-how="left"]').disabled && row.querySelector('.gogh-cl-align[data-how="left"]').title === 'Already lined up', 'Left should fade once lined up');
       row.querySelector('.gogh-cl-align[data-how="center"]').click();
       expect(box.kids[0].x === 120 && box.kids[1].x === 80 && box.kids[2].x === 235, 'Centre should centre each piece on the card: ' + box.kids.map(function (k) { return k.x; }));
+      expect(box.kids[0].align === 'center' && box.kids[1].align === 'center' && !box.kids[2].align, 'Centre should centre the WORDS too: text pieces take the alignment, a button keeps its own');
+      row.querySelector('.gogh-cl-align[data-how="left"]').click();
+      expect(!box.kids[0].align && !box.kids[1].align, 'Left should bring the words back to the left');
       var space = row.querySelector('.gogh-cl-space');
       expect(!space.disabled, 'Space evenly should be offered for three uneven pieces');
       space.click();
@@ -4522,11 +4525,24 @@
       expect(box.kids[0].y === 30 && box.kids[1].y === 170 && box.kids[2].y === 300, 'Space evenly should even the gaps down the card: ' + box.kids.map(function (k) { return k.y; }));
       expect(space.disabled && space.title === 'Already evenly spaced', 'Space evenly should fade once even');
       expect(!G.multi.state() && q('.gogh-selbox') && !q('.gogh-selbox').hidden, 'the card should stay the selection');
+      // James's testimonial: two full-width text pieces — the boxes are
+      // already centred on the card, the words are not, so Centre is offered
+      box.kids = [
+        { type: 'para', x: 24, y: 30, w: 592, h: 60, text: 'My Friday bunch is the best thing I pay for.' },
+        { type: 'para', x: 24, y: 300, w: 592, h: 24, text: 'Tom · Larkhall', tf: { tt: 'uppercase' } } ];
+      G.renderSection(s0);
+      select(n0);
+      lineup.click();
+      var centre = q('.gogh-elbar-more .gogh-cl-align[data-how="center"]');
+      expect(!centre.disabled, 'Centre should be offered when only the words are off-centre, got ' + centre.title);
+      centre.click();
+      expect(box.kids[0].align === 'center' && box.kids[1].align === 'center' && box.kids[0].x === 24, 'Centre should align the words in their full-width boxes');
+      expect(q('.gogh-elbar-more .gogh-cl-align[data-how="center"]').disabled, 'Centre should fade once the words are centred');
       G.closePanel();
       select(0);
       s0.els.splice(n0, 1);
       G.renderSection(s0);
-      return 'a card lines up its pieces; the verbs fade when there is nothing to do';
+      return 'a card lines up its pieces — the words, not just the boxes; the verbs fade when there is nothing to do';
     });
 
     test('the sentinel gives a solid card one verdict: its words flip together', function () {
