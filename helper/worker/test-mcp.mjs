@@ -85,5 +85,14 @@ check(res.status === 405, 'GET /mcp explains itself with 405');
 const noStore = { RATE: kv() };
 r = await (async () => { const rs = await worker.fetch(new Request('https://gogh.test/mcp', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ jsonrpc: '2.0', id: 8, method: 'tools/call', params: { name: 'gogh_publish', arguments: { definition: florist } } }) }), noStore); return rs.json(); })();
 check(r.result.isError === true && /not set up/.test(r.result.content[0].text), 'without SITES storage, publish says so instead of pretending');
+// the front door
+res = await worker.fetch(new Request('https://gogh.test/build'), env);
+const page = await res.text();
+check(res.status === 200 && /text\/html/.test(res.headers.get('content-type')) && /Make a website/.test(page) && /\/api\/build/.test(page), 'the front door serves a page that talks to /api/build');
+res = await worker.fetch(new Request('https://gogh.test/api/build', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ text: 'a florist in Bath' }) }), env);
+check(res.status === 500 && /not set up/.test((await res.json()).error), 'with no API key the front door says so plainly');
+res = await worker.fetch(new Request('https://gogh.test/api/build', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ text: '' }) }), { ...env, ANTHROPIC_API_KEY: 'sk-test' });
+check(res.status === 400, 'an empty message is refused before any model is called');
+
 console.log(failures ? `${failures} failure(s)` : 'all passed');
 process.exit(failures ? 1 : 0);
