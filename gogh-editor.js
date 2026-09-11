@@ -10238,16 +10238,23 @@
   // the first load after a definition boot: draw, save every page, clear
   // the definition, and go and look at the site
   var siteBuilding = false; // scratch drawing in progress: no backups, no leave-site guard, no canvas in view
-  function buildSiteFromDef(pending) {
-    var def = pending && pending.def, ids = (pending && pending.pages) || {};
-    if (!def) return Promise.resolve(false);
+  // the veil is raised SYNCHRONOUSLY, the instant we know a build is coming:
+  // the pages are empty until it runs, and an empty page greets you with the
+  // section shelf (James: "when the site first loads users see this screen")
+  function raiseBuildVeil(name) {
+    if (siteBuilding) return document.querySelector('.gogh-buildstep');
     siteBuilding = true;
     document.documentElement.classList.add('gogh-building');
     var veil = document.createElement('div');
     veil.className = 'gogh-buildveil';
-    veil.innerHTML = '<div class="gogh-buildcard"><div class="gogh-buildtitle">Building ' + esc(def.name || 'your site') + '…</div><div class="gogh-buildstep">Warming up</div></div>';
+    veil.innerHTML = '<div class="gogh-buildcard"><div class="gogh-buildtitle">Building ' + esc(name || 'your site') + '…</div><div class="gogh-buildstep">Warming up</div></div>';
     document.body.appendChild(veil);
-    var step = veil.querySelector('.gogh-buildstep');
+    return veil.querySelector('.gogh-buildstep');
+  }
+  function buildSiteFromDef(pending) {
+    var def = pending && pending.def, ids = (pending && pending.pages) || {};
+    if (!def) return Promise.resolve(false);
+    var step = raiseBuildVeil(def.name);
     var root = cfg.restUrl.split('wp/v2/')[0];
     return composeSiteDef(def, function (d, t, take) { step.textContent = take + ' — ' + d + ' of ' + t; })
       .then(function (pages) {
@@ -10283,6 +10290,7 @@
       });
   }
   function scheduleSiteBuild() {
+    raiseBuildVeil(cfg.siteDef && cfg.siteDef.def && cfg.siteDef.def.name);
     var go = function () { setTimeout(function () { buildSiteFromDef(cfg.siteDef); }, 900); };
     if (document.fonts && document.fonts.ready) document.fonts.ready.then(go); else go();
   }
@@ -22631,11 +22639,13 @@
     }
     if (wantEdit) {
       setEditing(true);
-      if (cfg.siteDef && /[?&]gogh-build=1/.test(location.search)) scheduleSiteBuild();
+      var willBuild = !!(cfg.siteDef && /[?&]gogh-build=1/.test(location.search));
+      if (willBuild) scheduleSiteBuild();
       var bootContent = S.filter(function (s) { return !s.chrome; });
       // the blank-canvas greeting is for genuinely EMPTY pages — a page
-      // full of native blocks (a starter site's home) is not one
-      if (bootContent.length === 1 && isBlankBoot(bootContent[0]) &&
+      // full of native blocks (a starter site's home) is not one, and
+      // neither is a page a site build is about to fill
+      if (!willBuild && bootContent.length === 1 && isBlankBoot(bootContent[0]) &&
           !topBlockNodes().length) {
         openPicker(S.indexOf(bootContent[0]));
       }

@@ -3974,7 +3974,11 @@ body:has(.wp-block-navigation__responsive-container.is-menu-open) .gogh-bar { op
    (James: "lots of pages kinda flash up") */
 .gogh-buildveil { position: fixed; inset: 0; z-index: 100020; display: grid; place-items: center; background: #faf9f6; }
 html.gogh-building { overflow: hidden; }
-html.gogh-building .gogh-chip, html.gogh-building .gogh-toasts { display: none !important; }
+html.gogh-building .gogh-chip, html.gogh-building .gogh-toasts,
+html.gogh-building .gogh-picker, html.gogh-building .gogh-panel,
+html.gogh-building .gogh-elbar, html.gogh-building .gogh-secbar,
+html.gogh-building .gogh-selbox, html.gogh-building .gogh-grip,
+html.gogh-building .gogh-inserter, html.gogh-building .gogh-side { display: none !important; }
 .gogh-buildstep::after { content: '…'; }
 .gogh-buildcard { background: #fff; border-radius: 18px; padding: 26px 32px; min-width: 320px; box-shadow: 0 30px 60px -22px rgba(0,0,0,0.35); text-align: center; font: 500 14px/1.4 -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, sans-serif; color: #141519; }
 .gogh-buildtitle { font-size: 18px; font-weight: 700; margin-bottom: 6px; }
