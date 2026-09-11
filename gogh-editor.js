@@ -2497,14 +2497,14 @@
     // level in (James: "a line up option once the card has been made")
     '<button type="button" class="gogh-eb gogh-eb-lineup" title="Line up the pieces inside this card">Line up \u25BE</button>' +
     '<div class="gogh-mbar-more gogh-elbar-more" hidden>' +
-    '<span class="gogh-mbar-lab">Side to side</span>' +
+    '<div class="gogh-mbar-row"><span class="gogh-mbar-lab">Side to side</span>' +
     [['left', 'Left'], ['center', 'Centre'], ['right', 'Right']].map(function (a) {
       return '<button type="button" class="gogh-eb gogh-mb gogh-cl-align" data-how="' + a[0] + '" title="Line up ' + a[1].toLowerCase() + '">' + a[1] + '</button>';
-    }).join('') +
-    '<span class="gogh-mbar-sep"></span>' +
-    '<span class="gogh-mbar-lab">Spacing</span>' +
-    // a card stacks its pieces, so its one spacing verb says so on the face
-    '<button type="button" class="gogh-eb gogh-mb gogh-cl-space" title="Equal gaps top to bottom">Space down</button>' +
+    }).join('') + '</div>' +
+    // a card stacks its pieces, so its one gap verb sits under the direction
+    // it works in rather than carrying the direction in its name
+    '<div class="gogh-mbar-row"><span class="gogh-mbar-lab">Top to bottom</span>' +
+    '<button type="button" class="gogh-eb gogh-mb gogh-cl-space" title="Equal gaps top to bottom">Even gaps</button></div>' +
     '<div class="gogh-mbar-hint" hidden>Faded ones would put pieces on top of each other, or change nothing.</div>' +
     '</div>';
   var ctxBtn = elbar.querySelector('.gogh-eb-ctx');
@@ -2808,22 +2808,20 @@
     // the six words used to sit in one row, and "Centre" and "Middle" are the
     // same word to anyone who has not done this before (James: "do you think
     // we should have a horizontal alignment option?" — it was there, unlabelled)
-    '<span class="gogh-mbar-lab">Side to side</span>' +
+    // one line per direction, with that direction's own gap verb on it: the
+    // heading says which way, so the buttons need no invented words of their
+    // own (James, on a lone "Space down": "its not clear to me what this means")
+    '<div class="gogh-mbar-row"><span class="gogh-mbar-lab">Side to side</span>' +
     [['left', 'Left'], ['center', 'Centre'], ['right', 'Right']].map(function (a) {
       return '<button type="button" class="gogh-eb gogh-mb gogh-mb-align" data-how="' + a[0] + '" title="Line up ' + a[1].toLowerCase() + '">' + a[1] + '</button>';
     }).join('') +
-    '<span class="gogh-mbar-sep"></span>' +
-    '<span class="gogh-mbar-lab">Top to bottom</span>' +
+    '<button type="button" class="gogh-eb gogh-mb gogh-mb-space" data-axis="x" title="Equal gaps left to right">Even gaps</button></div>' +
+    '<div class="gogh-mbar-row"><span class="gogh-mbar-lab">Top to bottom</span>' +
     [['top', 'Top'], ['middle', 'Middle'], ['bottom', 'Bottom']].map(function (a) {
       return '<button type="button" class="gogh-eb gogh-mb gogh-mb-align" data-how="' + a[0] + '" title="Line up ' + a[1].toLowerCase() + '">' + a[1] + '</button>';
     }).join('') +
+    '<button type="button" class="gogh-eb gogh-mb gogh-mb-space" data-axis="y" title="Equal gaps top to bottom">Even gaps</button></div>' +
     '<div class="gogh-mbar-row">' +
-    '<span class="gogh-mbar-lab">Spacing</span>' +
-    // the axis was guessed from the shape of the selection, so a row of cards
-    // was told its gaps were even while the thing you could see wrong — the
-    // tops at different heights — had no button at all
-    '<button type="button" class="gogh-eb gogh-mb gogh-mb-space" data-axis="x" title="Equal gaps left to right">Space across</button>' +
-    '<button type="button" class="gogh-eb gogh-mb gogh-mb-space" data-axis="y" title="Equal gaps top to bottom">Space down</button>' +
     '<button type="button" class="gogh-eb gogh-mb gogh-mb-tidy" title="Line the row up and even the gaps">Tidy up</button>' +
     '</div>' +
     '<div class="gogh-mbar-hint" hidden>Faded ones would put pieces on top of each other, or change nothing.</div>' +
@@ -3028,7 +3026,7 @@
   elbar.querySelectorAll('.gogh-cl-align').forEach(function (b) {
     b.addEventListener('click', function () { if (!b.disabled) cardLineup(b.dataset.how, ARRANGE_SAID[b.dataset.how]); });
   });
-  elbar.querySelector('.gogh-cl-space').addEventListener('click', function () { if (!this.disabled) cardLineup('space', 'Spaced evenly down.'); });
+  elbar.querySelector('.gogh-cl-space').addEventListener('click', function () { if (!this.disabled) cardLineup('space', 'Gaps evened out, top to bottom.'); });
   function refreshMbar() {
     if (mbar.hidden || !multiSel) return;
     var sec = multiSel.sec, idxs = multiSel.idxs.slice();
@@ -3120,7 +3118,7 @@
     b.addEventListener('click', function () {
       if (!multiSel || b.disabled) return;
       applyPlan(spacePlan(multiEls(), b.dataset.axis));
-      afterArrange(b.dataset.axis === 'x' ? 'Spaced evenly across.' : 'Spaced evenly down.');
+      afterArrange(b.dataset.axis === 'x' ? 'Gaps evened out, side to side.' : 'Gaps evened out, top to bottom.');
     });
   });
   mbar.querySelector('.gogh-mb-tidy').addEventListener('click', function () {
@@ -10135,6 +10133,34 @@
   }
   // a take from the shelf, filled with a definition's words: returns a
   // template clone ready for addSection, or null when the take is unknown
+  // A take arrives carrying the demo studio's words — "★ Est. 2019", "Start a
+  // project", "Six years on we…". Anything the definition did not fill is not
+  // content, it is scaffolding, and it goes (James, on a site built from a
+  // mockup: "didn't really get close" — half of what it said was Brighton's).
+  // Headings stay: some are the design itself, like the Quote's opening mark.
+  var FILL_COUNT = {
+    eyebrow: function (c) { return [c.eyebrow, c.name, c.role].filter(function (v) { return v != null; }).length ? 1 : 0; },
+    para: function (c) { return [c.text != null ? c.text : c.quote, c.text2, c.text3].filter(function (v) { return v != null; }).length; },
+    button: function (c) { return [c.button, c.button2].filter(function (v) { return v != null; }).length; },
+    badge: function (c) { return [c.badge, c.badge2].filter(function (v) { return v != null; }).length; },
+  };
+  // `box` is a section template or a card: one keeps its pieces in els, the
+  // other in kids, and the pruner has to put them back where it found them
+  function dropUnfilled(box, L, c) {
+    var go = [];
+    Object.keys(FILL_COUNT).forEach(function (role) {
+      (L[role] || []).slice(FILL_COUNT[role](c || {})).forEach(function (e) { go.push(e); });
+    });
+    if (!go.length) return;
+    var prune = function (list) {
+      return list.filter(function (e) { return go.indexOf(e) === -1; }).map(function (e) {
+        if (e.kids && e.kids.length) e.kids = prune(e.kids);
+        return e;
+      });
+    };
+    if (Array.isArray(box.els)) box.els = prune(box.els);
+    else if (Array.isArray(box.kids)) box.kids = prune(box.kids);
+  }
   function fillTake(sc) {
     if (!sc || !sc.take) return null;
     var name = String(sc.take);
@@ -10195,11 +10221,14 @@
       }
     } else {
       fillWords(L, sc);
+      dropUnfilled(clone, L, sc);
       if (items && L.card.length) {
         L.card.forEach(function (card, i) {
           var it = items[i];
           if (!it) return;
-          fillWords(roleLists(card.kids), it);
+          var kl = roleLists(card.kids);
+          fillWords(kl, it);
+          dropUnfilled(card, kl, it);
           if (it.mood) card.mood = it.mood;
         });
         // surplus cards go: a site with two services shows two, not a placeholder third
@@ -10207,7 +10236,9 @@
         clone.els = clone.els.filter(function (e) { return e.type !== 'box' || !e.kids || !e.kids.length || keep.indexOf(e) !== -1; });
       } else if (L.card.length === 1 && !items) {
         // one card (Profile, Job, Place): the section's words are the card's
-        fillWords(roleLists(L.card[0].kids), sc);
+        var only = roleLists(L.card[0].kids);
+        fillWords(only, sc);
+        dropUnfilled(L.card[0], only, sc);
       }
       if (items && L.widget[0]) {
         var w = L.widget[0];

@@ -4468,6 +4468,20 @@
       var rail = lp.els.filter(function (e) { return e.rails && e.posts; })[0];
       expect(lp.els[0].text === 'From the journal' && rail && rail.posts.look === 'cards' && /"perPage":4/.test(rail.wsrc), 'Latest posts should become a rail wearing the look');
       expect(G.fillTake({ take: 'No such take' }) === null, 'an unknown take should return nothing');
+      // scaffolding goes: a take arrives with the demo studio's badge and second
+      // button, and a definition that never mentioned them must not ship them
+      var hero = G.fillTake({ take: 'Hero', eyebrow: 'Architecture · Bristol', heading: 'Buildings that keep their quiet', text: 'A small practice in Bristol.', button: 'See the work' });
+      var words = hero.els.map(function (e) { return String(e.text || ''); }).join(' | ');
+      expect(!/Est\. 2019/.test(words) && !/Start a project/.test(words) && !/Brighton/.test(words), 'nothing of the demo studio should survive: ' + words.slice(0, 150));
+      expect(hero.els.filter(function (e) { return e.type === 'button'; }).length === 1 && hero.els.filter(function (e) { return e.type === 'badge'; }).length === 0, 'one button was asked for, so one button; no badge was asked for, so none');
+      expect(/Architecture · Bristol/.test(words) && /Buildings that keep/.test(words) && /small practice/.test(words), 'what WAS asked for stays');
+      var two = G.fillTake({ take: 'Hero', heading: 'Two doors', text: 'Words.', button: 'One', button2: 'Two', badge: 'New' });
+      expect(two.els.filter(function (e) { return e.type === 'button'; }).length === 2 && two.els.filter(function (e) { return e.type === 'badge'; }).length === 1, 'ask for two buttons and a badge and you get them');
+      var story = G.fillTake({ take: 'Story', heading: 'One paragraph only', text: 'Just the one.' });
+      expect(story.els.filter(function (e) { return e.type === 'para' && !(e.tf && e.tf.tt === 'uppercase'); }).length === 1, 'a second paragraph nobody wrote should not appear');
+      var card = G.fillTake({ take: 'Pricing', heading: 'Plans', items: [{ title: 'Simple', text: 'One rate.', price: '£40' }] });
+      var chosen = card.els.filter(function (e) { return e.type === 'box' && e.kids; })[0];
+      expect(!chosen.kids.some(function (k) { return /Most popular|Book a sprint/.test(String(k.text || '')); }), 'a card keeps no stranger’s badge or button either');
       if (!GOGH.hasAccordion) {
         var faq = G.fillTake({ take: 'FAQ', heading: 'Questions', items: [{ q: 'Do you deliver?', a: 'Within Bath, yes.' }] });
         expect(faq && faq.name === 'Feature cards' && faq.els.some(function (e) { return e.kids && e.kids[0].text === 'Do you deliver?'; }), 'without the accordion block, FAQ words should become cards');
@@ -4511,7 +4525,7 @@
       lineup.click();
       var row = q('.gogh-elbar-more');
       expect(!row.hidden && row.querySelectorAll('.gogh-cl-align').length === 3 && row.querySelector('.gogh-cl-space'), 'the row should open with Left, Centre, Right and Space evenly');
-      expect(/Side to side/.test(row.textContent) && /Space down/.test(row.textContent), 'the card row should name its direction too');
+      expect(/Side to side/.test(row.textContent) && /Top to bottom/.test(row.textContent) && /Even gaps/.test(row.textContent), 'the card row should put its gap verb under the direction it works in, not name a direction on the button');
       row.querySelector('.gogh-cl-align[data-how="left"]').click();
       expect(box.kids.every(function (k) { return k.x === 40; }), 'Left should line the pieces up with the leftmost: ' + box.kids.map(function (k) { return k.x; }));
       expect(row.querySelector('.gogh-cl-align[data-how="left"]').disabled && row.querySelector('.gogh-cl-align[data-how="left"]').title === 'Already lined up', 'Left should fade once lined up');
