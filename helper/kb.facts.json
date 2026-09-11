@@ -1,12 +1,12 @@
 {
   "meta": {
-    "plugin_version": "0.99.480",
+    "plugin_version": "0.99.481",
     "requires_wp": "6.5",
     "requires_php": "7.4",
     "text_domain": "gogh-editor",
     "readme_stable_tag": "0.26.0",
     "readme_tested_up_to": "7.0",
-    "asset_version": "0.99.480-chrome"
+    "asset_version": "0.99.481-chrome"
   },
   "constants": {
     "TOL": 8,
@@ -480,6 +480,7 @@
     "Duplicate (or Alt-drag)",
     "Duplicate the selection",
     "Equal gaps between the pieces",
+    "Equal gaps down the card",
     "Everything",
     "Experience",
     "Featured product",
@@ -509,6 +510,7 @@
     "Line the pieces up, or even out the gaps",
     "Line the row up and even the gaps",
     "Line up ' + a[1].toLowerCase() + '",
+    "Line up the pieces inside this card",
     "Line up ▾",
     "Link",
     "Link text (⌘K)",
@@ -1309,5 +1311,5 @@
     "has_deprecation": true,
     "block_title": "gogh Section"
   },
-  "test_count": 273
+  "test_count": 275
 }
