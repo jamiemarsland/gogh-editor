@@ -2468,6 +2468,15 @@
   ];
   var selBox = document.createElement('div');
   selBox.className = 'gogh-selbox';
+  // A card announces itself with a badge in its own top-left corner
+  // (.gogh-cardbox.gogh-selected::after). On a rectangle that corner is
+  // inside the card. On a circle, a pill, a blob, it is exactly the part the
+  // silhouette clips away — so the badge exists and cannot be seen. Those
+  // shapes get the name on the selection box instead, which nothing clips.
+  var selTag = document.createElement('span');
+  selTag.className = 'gogh-selbox-tag';
+  selTag.hidden = true;
+  selBox.appendChild(selTag);
   DIRS.forEach(function (dir) {
     var h = document.createElement('button');
     h.type = 'button';
@@ -3201,6 +3210,9 @@
     selBox.style.height = bh + 'px';
     selBox.style.transform = e.rot ? 'rotate(' + e.rot + 'deg)' : '';
     selBox.classList.toggle('gogh-selbox-text', isText(e));
+    var clippedCard = e.type === 'box' && e.kids && e.kids.length && e.shape && SHAPE_CSS[e.shape];
+    selTag.textContent = clippedCard ? 'Card' : '';
+    selTag.hidden = !clippedCard;
     selBox.hidden = false;
     grip.style.left = (bx - 26) + 'px';
     grip.style.top = (byy - 26) + 'px';

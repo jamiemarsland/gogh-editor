@@ -6340,6 +6340,30 @@
       return 'three opens, one pick, one upload';
     });
 
+    test('a shaped card is named on the selection box; a rectangle keeps its own badge', function () {
+      // the corner badge (.gogh-cardbox::after) is clipped by a silhouette, so
+      // a blob holding a heading showed no label at all; a plain card must
+      // NOT get a second one on top of the badge it already has
+      var sx = sec(); var keep = sx.els.length;
+      var room = G.shapeRoom({ type: 'box', x: 0, y: 0, w: 360, h: 360, shape: 'blob' });
+      sx.els.push({ type: 'box', x: 120, y: 1560, w: 360, h: 360, shape: 'blob', boxBg: 'var(--wp--preset--color--contrast)',
+        kids: [{ type: 'heading', x: room.x, y: room.y, w: room.w, h: 60, text: 'Held' }] });
+      var blob = sx.els.length - 1;
+      sx.els.push({ type: 'box', x: 600, y: 1560, w: 360, h: 200, boxBg: 'var(--wp--preset--color--contrast)',
+        kids: [{ type: 'heading', x: 20, y: 20, w: 320, h: 60, text: 'Plain' }] });
+      var plain = sx.els.length - 1;
+      G.renderSection(sx); G.resolveAll();
+      var tag = q('.gogh-selbox .gogh-selbox-tag');
+      expect(tag, 'no tag on the selection box');
+      pev('pointerdown', sx.nodes[blob]);
+      expect(!tag.hidden && tag.textContent === 'Card', 'a blob card should be named on the selection box');
+      pev('pointerdown', sx.nodes[plain]);
+      expect(tag.hidden, 'a rectangle already has its corner badge — no second label');
+      pev('pointerdown', document.body, 4, 4);
+      sx.els.length = keep; G.renderSection(sx); G.resolveAll();
+      return 'blob named on the box, rectangle left to its badge';
+    });
+
     test('transitions live on the section: chips in the design panel, seam keeps one job', function () {
       // build a real boundary: a section below the first
       G.openSeamAsk(null, null);
