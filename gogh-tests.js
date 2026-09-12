@@ -6173,11 +6173,12 @@
       return 'card present, drafted “' + desc.textContent.trim().slice(0, 40) + '…”';
     });
 
-    test('background panel: first paint is Theme + Image, one row open at a time', function () {
+    test('background panel: first paint is Colour + the shelf, one row open at a time', function () {
       var i = G.sections().indexOf(sec());
       G.openSecBgPanel(i);
-      expect(q('.gogh-panel .gogh-themerow'), 'Theme row missing from first paint');
-      expect(q('.gogh-panel .gogh-media'), 'Image area missing from first paint');
+      expect(q('.gogh-panel .gogh-themerow'), 'Colour row missing from first paint');
+      expect(q('.gogh-panel .gogh-media'), 'Picture shelf missing from first paint');
+      expect(q('.gogh-panel .gogh-media .gogh-thumb-add'), 'the shelf should lead with the upload tile');
       var rows = document.querySelectorAll('.gogh-panel .gogh-bgrow');
       expect(rows.length >= 2, 'expected folded rows, got ' + rows.length);
       rows.forEach(function (r2) {
@@ -6190,77 +6191,46 @@
       expect(rows[0].querySelector('.gogh-bgrow-body').hidden, 'opening the second row left the first open');
       expect(!rows[1].querySelector('.gogh-bgrow-body').hidden, 'second row did not open');
       var hv = rows[0].querySelector('.gogh-bgrow-val').textContent;
-      expect(hv.length > 0, 'the height summary is empty');
+      expect(hv.length > 0, 'the first row summary is empty');
       pev('pointerdown', document.body, 4, 4);
       return rows.length + ' folded rows, exclusive open, summary "' + hv + '"';
     });
 
-    testAsync('Colour & more: opening scrolls the colours into view', function () {
-      // the toggle lives at the panel's fold — without the scroll, the
-      // block unfolded below the visible edge and the button read as
-      // dead ("colour and more does nothing atm")
-      var stalled = false;
-      var frames = function (n) {
-        return new Promise(function (r) {
-          var fired = false;
-          var step = function (k) {
-            if (k <= 0) { fired = true; r(true); return; }
-            requestAnimationFrame(function () { step(k - 1); });
-          };
-          step(n);
-          setTimeout(function () { if (!fired) { stalled = true; r(false); } }, 900);
-        });
-      };
+    test('any colour mints a theme: the words follow the ground', function () {
+      // "Colour & more" is gone. Colour used to live in TWO places — paired
+      // on the chips, raw under a toggle — and the raw one set the ground
+      // and left the words behind for the sentinel to complain about.
       var i = G.sections().indexOf(sec());
       G.openSecBgPanel(i);
-      var t = q('.gogh-panel-more-toggle');
-      var more = q('.gogh-panel-more');
-      var pnl = q('.gogh-panel');
-      expect(t && more && more.hidden, 'the more block should arrive folded');
-      // smooth scrolling rides the compositor's clock (frozen in a hidden
-      // tab): observe the REQUEST and apply it instantly, so the assertion
-      // is about intent + geometry, not animation timing
-      var origScrollTo = pnl.scrollTo;
-      var asked = null;
-      pnl.scrollTo = function (o) {
-        asked = o && typeof o === 'object' ? o.top : o;
-        return origScrollTo.call(pnl, { top: asked, behavior: 'instant' });
-      };
-      t.click();
-      pnl.scrollTo = origScrollTo;
-      expect(asked !== null && asked > 0, 'opening did not ask the panel to scroll');
-      expect(!more.hidden, 'the toggle did not unfold the colours');
-      expect(t.classList.contains('is-open'), 'the toggle did not mark itself open');
-      expect(t.querySelector('.gogh-bgrow-caret svg'), 'the chevron should be drawn, not a font glyph');
-      // smooth scrolling settles on its own clock — wait for the scrollTop
-      // to move (or a real budget to pass), not a fixed frame count
-      var settle = function () {
-        var t0 = Date.now();
-        return new Promise(function (r) {
-          var look = function () {
-            if (pnl.scrollTop > 20 || Date.now() - t0 > 2500) r(true);
-            else setTimeout(look, 60);
-          };
-          look();
-        });
-      };
-      return frames(20).then(function (ok) { return settle().then(function () { return ok; }); }).then(function (ok) {
-        var done = function (msg) { pev('pointerdown', document.body, 4, 4); return msg; };
-        if (!ok || stalled) return done('rAF frozen (background tab) — front the tab for the scroll check');
-        // a hidden tab pauses smooth scrolling mid-flight — nothing to judge there
-        if (document.visibilityState !== 'visible' && pnl.scrollTop <= 20) return done('hidden tab \u2014 smooth scroll paused; front the tab for the scroll check');
-        if (pnl.scrollHeight <= pnl.clientHeight + 4) return done('panel fits without scrolling here — nothing to reveal');
-        // the request was observed above; the instant scroll can clamp to 0
-        // when the fold has not laid out yet — apply the asked offset, then judge the geometry
-        if (pnl.scrollTop <= 20 && asked > 0) pnl.scrollTop = asked;
-        expect(pnl.scrollTop > 20, 'the panel did not scroll the colours into view (scrollTop ' + Math.round(pnl.scrollTop) + ')');
-        // the target clamps at the panel's bottom, so assert what matters:
-        // the colour block itself is inside the visible box
-        var mr = more.getBoundingClientRect();
-        var pr = pnl.getBoundingClientRect();
-        expect(mr.top < pr.bottom - 40, 'the colours are still below the fold (+' + Math.round(mr.top - pr.bottom) + ')');
-        return done('unfolds AND shows it: scrolled ' + Math.round(pnl.scrollTop) + 'px');
-      });
+      var sx = G.sections()[i];
+      expect(!q('.gogh-panel-more-toggle'), 'the Colour & more toggle should be gone');
+      var chip = q('.gogh-panel .gogh-themechip-any');
+      expect(chip, 'no "any colour" chip at the end of the colour row');
+      expect(chip.querySelector('.gogh-themechip-plus'), 'the unused chip should read as a +');
+      var inp = chip.querySelector('input[type="color"]');
+      expect(inp, 'the any-colour chip carries no colour input');
+
+      var textIdx = sx.els.findIndex(function (e) { return e.type === 'heading' || e.type === 'para'; });
+      expect(textIdx >= 0, 'fixture section has no words to re-ink');
+      var inkBefore = sx.els[textIdx].color || null;
+      // put the section back exactly as found — the fixture runs on
+      var was = { theme: sx.theme, bg: sx.bg, bgA: sx.bgA,
+        colors: sx.els.map(function (e) { return e.color || null; }) };
+
+      inp.value = '#2f5d50';
+      inp.dispatchEvent(new Event('change', { bubbles: true }));
+
+      expect(sx.bg === '#2f5d50', 'the chosen colour did not land on the section (' + sx.bg + ')');
+      expect(sx.theme === 'any', 'a custom colour should be a theme, got ' + sx.theme);
+      var inkAfter = sx.els[textIdx].color || null;
+      expect(inkAfter && inkAfter !== inkBefore, 'the words kept their old ink — that is the bug this replaces');
+      expect(chip.classList.contains('is-active'), 'the any chip did not mark itself chosen');
+      expect(!chip.querySelector('.gogh-themechip-plus'), 'the chip should show its colour once used');
+      sx.theme = was.theme; sx.bg = was.bg; sx.bgA = was.bgA;
+      sx.els.forEach(function (e, k) { e.color = was.colors[k]; });
+      G.renderSection(sx); G.resolveAll();
+      pev('pointerdown', document.body, 4, 4);
+      return 'ink ' + String(inkBefore) + ' \u2192 ' + String(inkAfter) + ' on #2f5d50';
     });
 
     test('transitions live on the section: chips in the design panel, seam keeps one job', function () {

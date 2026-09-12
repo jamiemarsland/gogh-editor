@@ -12404,8 +12404,6 @@
     pushState();
     contrastSentinel(sx);
     // the panel STAYS open; its video row follows the choice
-    var vl = panel.querySelector('.gogh-vid-upload');
-    if (vl && vl.firstChild) vl.firstChild.textContent = sx.bgVideo ? 'Change video' : 'Upload video';
     var vc = panel.querySelector('.gogh-vid-clear');
     if (vc) vc.hidden = !sx.bgVideo;
     var vu = panel.querySelector('.gogh-vid-url');
@@ -12420,7 +12418,6 @@
     // that became viewport-FIXED. Scrolled page, coordinates below the
     // fold, three rounds of wrong fixes elsewhere. It DOCKS now: a
     // design inspector top-right of the viewport, placed after build.
-    var pal = pickerPalette();
     // summary values for the folded rows — recomputed after every click
     var hVal = function () {
       if (secx.fill) return 'Fill screen';
@@ -12433,6 +12430,14 @@
       var names = { curve: 'Curve', sweep: 'Sweep', dunes: 'Dunes', arch: 'Arch', sheet: 'Sheet', melt: 'Melt', mist: 'Mist', wave: 'Wave', slant: 'Slant', peaks: 'Peaks', brush: 'Brush', torn: 'Torn' };
       return (secx.divider && names[secx.divider.shape]) || 'None';
     };
+    // the dial that used to hide behind "Colour & more" — it reads as a
+    // percentage because that is what it is, and 100 means "no tint"
+    var alphaOf = function () {
+      return secx.bgA != null ? secx.bgA : ((secx.bgImage || secx.bgVideo) && secx.bg ? 62 : 100);
+    };
+    var tintVal = function () {
+      return alphaOf() >= 100 ? 'Solid' : alphaOf() + '%';
+    };
     var bgRow = function (key, label, val, body) {
       return '<div class="gogh-bgrow" data-row="' + key + '">' +
         '<button type="button" class="gogh-bgrow-head"><span>' + label + '</span>' +
@@ -12443,34 +12448,51 @@
         '</span></button>' +
         '<div class="gogh-bgrow-body" hidden>' + body + '</div></div>';
     };
+    // the one door to the one backdrop. It is painted with the shelf's
+    // first paint AND re-made when the library answers, so there is never
+    // a moment where the panel offers no way to add anything.
+    var addTile = '<label class="gogh-thumb gogh-thumb-add gogh-upload" title="Add a picture or video">' +
+      '<input type="file" accept="image/*,video/mp4,video/webm,video/quicktime" hidden /></label>';
     panel.innerHTML =
       '<div class="gogh-panel-title">Section background</div>' +
-      '<div class="gogh-panel-hint">Theme \u2014 a look for the section and its words</div>' +
+      // ONE colour surface. The chips were always the colour control; they
+      // just said "Theme", so people hunted for colour and found a second,
+      // worse one buried under a toggle.
+      '<div class="gogh-panel-hint">Colour \u2014 the section and its words together</div>' +
       '<div class="gogh-themerow">' +
       sectionThemes().map(function (t) {
         return '<button type="button" class="gogh-themechip' + (secx.theme === t.slug ? ' is-active' : '') + '" data-theme="' + t.slug + '" title="' + escAttr(t.name) + '">' +
           '<span class="gogh-themechip-swatch" style="background:' + escAttr(t.bg) + ';color:var(--wp--preset--color--' + t.ink + ')">Aa</span>' +
           '</button>';
-      }).join('') + '</div>' +
-      // ---- the diet: Theme and Image answer first; Height, Effect and
-      // How-it-ends fold into quiet summary rows that open ONE at a time
-      // ("there's too much cognitive load atm") ----
-      '<div class="gogh-panel-hint">Image</div>' +
-      (secx.bgImage ? '<div class="gogh-panel-hint gogh-focal-hint">✋ Drag the section itself to reframe the photo' + (secx.bgPos ? ' · <button type="button" class="gogh-focal-reset">re-centre</button>' : '') + '</div>' : '') +
-      '<div class="gogh-panel-row gogh-panel-actions">' +
-      (cfg.canUpload ? '<label class="gogh-btn gogh-btn-small gogh-upload">Upload<input type="file" accept="image/*" hidden /></label>' : '') +
-      (secx.bgImage ? '<button type="button" class="gogh-btn gogh-btn-small gogh-clear">Remove image</button>' : '') +
+      }).join('') +
+      // the last chip is ANY colour, and it mints a THEME: a background and
+      // an ink chosen to read on it. The old custom field set the ground and
+      // left the words behind, so the sentinel told you off afterwards.
+      '<label class="gogh-themechip gogh-themechip-any' + (secx.theme === 'any' ? ' is-active' : '') + '" title="Any colour">' +
+      (secx.theme === 'any' && secx.bg
+        ? '<span class="gogh-themechip-swatch" style="background:' + escAttr(secx.bg) + ';color:var(--wp--preset--color--' + bestInkFor(secx.bg) + ')">Aa</span>'
+        : '<span class="gogh-themechip-swatch gogh-themechip-plus">+</span>') +
+      '<input type="color" class="gogh-secbg-custom" hidden /></label>' +
       '</div>' +
-      '<div class="gogh-panel-hint">Video \u2014 a silent loop behind the section' + (secx.bgVideo ? '' : '; the image becomes its poster') + '</div>' +
+      // a section has ONE backdrop: a video already treats the picture as
+      // its poster, so two upload buttons were two doors to one room. The
+      // shelf sits under its own label now — it used to be stranded below
+      // Height and Effect, three rows from the control it belongs to.
+      '<div class="gogh-panel-hint">Picture or video</div>' +
+      (secx.bgImage ? '<div class="gogh-panel-hint gogh-focal-hint">\u270B Drag the section itself to reframe the photo' + (secx.bgPos ? ' \u00b7 <button type="button" class="gogh-focal-reset">re-centre</button>' : '') + '</div>' : '') +
+      '<div class="gogh-media">' + addTile + '<span class="gogh-media-loading">Loading media\u2026</span></div>' +
+      '<div class="gogh-vidgrid gogh-bgvid-media" hidden></div>' +
       '<div class="gogh-panel-row gogh-panel-actions">' +
-      (cfg.canUpload ? '<label class="gogh-btn gogh-btn-small gogh-vid-upload">' + (secx.bgVideo ? 'Change video' : 'Upload video') + '<input type="file" accept="video/mp4,video/webm,video/quicktime" hidden /></label>' : '') +
+      '<button type="button" class="gogh-btn gogh-btn-small gogh-clear"' + (secx.bgImage ? '' : ' hidden') + '>Remove image</button>' +
       '<button type="button" class="gogh-btn gogh-btn-small gogh-vid-clear"' + (secx.bgVideo ? '' : ' hidden') + '>Remove video</button>' +
       '</div>' +
-      '<div class="gogh-vidgrid gogh-bgvid-media" hidden></div>' +
+      bgRow('tint', 'Tint', tintVal(),
+        '<div class="gogh-panel-hint">How much of the colour sits over the picture</div>' +
+        '<div class="gogh-panel-row"><input type="range" class="gogh-secbg-alpha" min="8" max="100" step="1" value="' + alphaOf() + '" style="flex:1" /><span class="gogh-secbg-alpha-val">' + alphaOf() + '</span></div>') +
       bgRow('height', 'Height', hVal(),
         '<div class="gogh-hpresets">' +
         [['s','S',320],['m','M',560],['l','L',800]].map(function (hp) {
-          return '<button type="button" class="gogh-hpreset' + (!secx.fill && secx.minH === hp[2] ? ' is-active' : '') + '" data-minh="' + hp[2] + '" title="' + hp[1] + ' — ' + hp[2] + ' units">' + hp[1] + '</button>';
+          return '<button type="button" class="gogh-hpreset' + (!secx.fill && secx.minH === hp[2] ? ' is-active' : '') + '" data-minh="' + hp[2] + '" title="' + hp[1] + ' \u2014 ' + hp[2] + ' units">' + hp[1] + '</button>';
         }).join('') +
         '<button type="button" class="gogh-hpreset gogh-hpreset-fill' + (secx.fill ? ' is-active' : '') + '" title="Fill the screen">Fill screen</button>' +
         '</div>') +
@@ -12481,30 +12503,17 @@
             ' data-fx="' + fx[0] + '"' + (fx[2] === 'img' ? ' data-needs-img="1"' : '') + '>' + fx[1] + '</button>';
         }).join('') + '</div>') +
       (transitionRowHTML(secx) ? bgRow('ends', 'How it ends', endVal(), transitionRowHTML(secx)) : '') +
-      '<div class="gogh-media"><span class="gogh-media-loading">Loading media…</span></div>' +
-      '<button type="button" class="gogh-panel-more-toggle">Colour &amp; more <span class="gogh-bgrow-caret">' +
-      '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>' +
-      '</span></button>' +
-      '<div class="gogh-panel-more" hidden>' +
-      '<div class="gogh-panel-hint">Colour \u2014 with an image, it becomes the tint</div>' +
-      '<div class="gogh-swrow gogh-secbg-sw">' +
-      '<button type="button" class="gogh-sw gogh-sw-none" data-val="" title="None"></button>' +
-      pal.map(function (p) {
-        var val = 'var(--wp--preset--color--' + p.slug + ')';
-        return '<button type="button" class="gogh-sw' + (secx.bg === val ? ' is-active' : '') + '" data-val="' + val + '"' +
-          ' style="background: ' + val + '" title="' + p.slug + '"></button>';
-      }).join('') + '</div>' +
-      '<div class="gogh-panel-row gogh-panel-actions"><label class="gogh-colorlab">Custom <input type="color" class="gogh-color gogh-secbg-custom" /></label></div>' +
-      '<div class="gogh-panel-hint">Transparency</div>' +
-      '<div class="gogh-panel-row"><input type="range" class="gogh-secbg-alpha" min="8" max="100" step="1" value="' + (secx.bgA != null ? secx.bgA : ((secx.bgImage || secx.bgVideo) && secx.bg ? 62 : 100)) + '" style="flex:1" /><span class="gogh-secbg-alpha-val">' + (secx.bgA != null ? secx.bgA : ((secx.bgImage || secx.bgVideo) && secx.bg ? 62 : 100)) + '</span></div>' +
-      '<div class="gogh-panel-row">' +
-      '<input type="url" class="gogh-input" placeholder="Paste image URL…" />' +
-      '<button type="button" class="gogh-btn gogh-btn-small gogh-apply">Apply</button>' +
-      '</div>' +
-      '<div class="gogh-panel-row">' +
-      '<input type="url" class="gogh-input gogh-vid-url" placeholder="Paste a video (.mp4) URL…" />' +
-      '<button type="button" class="gogh-btn gogh-btn-small gogh-vid-apply">Apply</button>' +
-      '</div>' +
+      // the two paste fields were the rest of "Colour & more"; they keep a
+      // row of their own rather than a toggle over a pile of unlike things
+      bgRow('links', 'Paste a link', '',
+        '<div class="gogh-panel-row">' +
+        '<input type="url" class="gogh-input" placeholder="Paste image URL\u2026" />' +
+        '<button type="button" class="gogh-btn gogh-btn-small gogh-apply">Apply</button>' +
+        '</div>' +
+        '<div class="gogh-panel-row">' +
+        '<input type="url" class="gogh-input gogh-vid-url" placeholder="Paste a video (.mp4) URL\u2026" />' +
+        '<button type="button" class="gogh-btn gogh-btn-small gogh-vid-apply">Apply</button>' +
+        '</div>');
       '</div>';
     dockPanel();
     bindTransitionRow(secx);
@@ -12590,22 +12599,6 @@
         document.removeEventListener('pointerup', up, true);
       };
     })();
-    var moreT = panel.querySelector('.gogh-panel-more-toggle');
-    if (moreT) moreT.addEventListener('click', function () {
-      var more = panel.querySelector('.gogh-panel-more');
-      more.hidden = !more.hidden;
-      moreT.classList.toggle('is-open', !more.hidden); // the chevron turns, the words stay
-      if (!more.hidden) {
-        // the reveal must be SEEN: the toggle lives at the panel's fold,
-        // so the colours were unfolding below the visible edge and the
-        // button read as dead ("colour and more does nothing atm") \u2014
-        // opening scrolls the toggle to the top, colours in full view
-        panel.scrollTo({
-          top: panel.scrollTop + moreT.getBoundingClientRect().top - panel.getBoundingClientRect().top - 12,
-          behavior: 'smooth',
-        });
-      }
-    });
     panel.querySelectorAll('.gogh-hpreset[data-minh], .gogh-hpreset-fill').forEach(function (hb) {
       hb.addEventListener('click', function () {
         pushState();
@@ -12685,29 +12678,31 @@
         });
       });
     });
-    panel.querySelectorAll('.gogh-secbg-sw .gogh-sw').forEach(function (swb) {
-      swb.addEventListener('click', function () {
-        secx.bg = swb.dataset.val || null;
-        secx.theme = null;
-        syncBootInvite(secx);
-        resolveAll();
-        pushState();
-        contrastSentinel(secx);
-        panel.querySelectorAll('.gogh-secbg-sw .gogh-sw').forEach(function (b2) {
-          b2.classList.toggle('is-active', b2 === swb && !!swb.dataset.val);
-        });
-      });
-    });
+    // ANY COLOUR is a theme, not a raw background. bestInkFor picks the
+    // canvas-or-ink role that reads on the chosen colour — the same call
+    // every accent chip already makes — so the words follow the ground
+    // instead of being reported afterwards by the sentinel.
     var custom = panel.querySelector('.gogh-secbg-custom');
+    var anyChip = panel.querySelector('.gogh-themechip-any');
+    var anyTheme = function (hex) { return { slug: 'any', name: 'Any colour', bg: hex, ink: bestInkFor(hex) }; };
+    var anySnap = null;
     if (secx.bg && secx.bg.charAt(0) === '#') custom.value = secx.bg;
     custom.addEventListener('input', function () {
-      secx.bg = this.value;
-      syncBootInvite(secx);
-      resolveAll();
+      // dragging the picker auditions, exactly like hovering a chip
+      if (!anySnap) anySnap = snapSectionLook(secx);
+      paintSectionTheme(secx, anyTheme(this.value));
     });
     custom.addEventListener('change', function () {
-      pushState();
-      contrastSentinel(secx);
+      var hex = this.value;
+      if (anySnap) { restoreSectionLook(secx, anySnap); anySnap = null; }
+      applySectionTheme(idx, anyTheme(hex));
+      var sw = anyChip.querySelector('.gogh-themechip-swatch');
+      sw.classList.remove('gogh-themechip-plus');
+      sw.textContent = 'Aa';
+      sw.setAttribute('style', 'background:' + hex + ';color:var(--wp--preset--color--' + bestInkFor(hex) + ')');
+      panel.querySelectorAll('.gogh-themechip').forEach(function (o) {
+        o.classList.toggle('is-active', o === anyChip);
+      });
     });
     var alpha = panel.querySelector('.gogh-secbg-alpha');
     var alphaVal = panel.querySelector('.gogh-secbg-alpha-val');
@@ -12733,18 +12728,6 @@
     if (clear) clear.addEventListener('click', function () { setSecBg(idx, null); });
     var vclear = panel.querySelector('.gogh-vid-clear');
     if (vclear) vclear.addEventListener('click', function () { setSecVideo(idx, null); });
-    var vfile = panel.querySelector('.gogh-vid-upload input[type="file"]');
-    if (vfile) vfile.addEventListener('change', function () {
-      if (!vfile.files.length) return;
-      var fd2 = new FormData();
-      fd2.append('file', vfile.files[0]);
-      var vlabel = panel.querySelector('.gogh-vid-upload');
-      vlabel.firstChild.textContent = 'Uploading\u2026';
-      fetch(cfg.mediaUrl, { method: 'POST', headers: { 'X-WP-Nonce': cfg.nonce }, credentials: 'same-origin', body: fd2 })
-        .then(function (res) { if (!res.ok) throw new Error('HTTP ' + res.status); return res.json(); })
-        .then(function (item) { setSecVideo(idx, item.source_url, item.id); })
-        .catch(function (err) { vlabel.firstChild.textContent = 'Upload failed'; console.error('gogh video upload failed:', err); });
-    });
     // the library's videos, as tiles — hover auditions the loop behind the
     // section, a click keeps it (nothing shows when there are none)
     fetch(restQ(cfg.mediaUrl, 'per_page=16&media_type=video&orderby=date&order=desc'), {
@@ -12790,30 +12773,39 @@
         if (ev.key === 'Escape') closePanel();
       });
     }
-    var file = panel.querySelector('input[type="file"]');
-    if (file) {
-      file.addEventListener('change', function () {
-        if (!file.files.length) return;
-        var fd = new FormData();
-        fd.append('file', file.files[0]);
-        var label = panel.querySelector('.gogh-upload');
-        label.firstChild.textContent = 'Uploading…';
-        fetch(cfg.mediaUrl, {
-          method: 'POST',
-          headers: { 'X-WP-Nonce': cfg.nonce },
-          credentials: 'same-origin',
-          body: fd,
-        }).then(function (res) {
-          if (!res.ok) throw new Error('HTTP ' + res.status);
-          return res.json();
-        }).then(function (item) {
-          setSecBg(idx, item.source_url, item.id);
-        }).catch(function (err) {
-          label.firstChild.textContent = 'Upload failed';
-          console.error('gogh upload failed:', err);
-        });
+    // ONE upload for the one backdrop. The tile lives inside the shelf,
+    // which is rebuilt when the library answers, so the listener is
+    // delegated — a direct one would be thrown away with the old tile.
+    panel.addEventListener('change', function (ev) {
+      var inp = ev.target;
+      if (!inp || !inp.matches || !inp.matches('.gogh-upload input[type="file"]')) return;
+      if (!inp.files.length) return;
+      var f = inp.files[0];
+      var isVideo = /^video\//.test(f.type || '');
+      var tile = inp.parentElement;
+      tile.classList.add('is-busy');
+      var fd = new FormData();
+      fd.append('file', f);
+      fetch(cfg.mediaUrl, {
+        method: 'POST',
+        headers: { 'X-WP-Nonce': cfg.nonce },
+        credentials: 'same-origin',
+        body: fd,
+      }).then(function (res) {
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        return res.json();
+      }).then(function (item) {
+        tile.classList.remove('is-busy');
+        if (isVideo) setSecVideo(idx, item.source_url, item.id);
+        else setSecBg(idx, item.source_url, item.id);
+      }).catch(function (err) {
+        tile.classList.remove('is-busy');
+        tile.classList.add('is-failed');
+        toast('That upload failed \u2014 try again, or paste a link.');
+        console.error('gogh upload failed:', err);
       });
-    }
+      inp.value = ''; // the same file twice in a row still fires
+    });
     fetch(restQ(cfg.mediaUrl, 'per_page=32&media_type=image&orderby=date&order=desc'), {
       headers: { 'X-WP-Nonce': cfg.nonce },
       credentials: 'same-origin',
@@ -12821,7 +12813,7 @@
       .then(function (items) {
         var box = panel.querySelector('.gogh-media');
         if (!box || panel.hidden) return;
-        box.innerHTML = '';
+        box.innerHTML = addTile;
         // a section BACKGROUND wants big, wide-ish images — logos, cutouts
         // and portraits are noise on this shelf (Upload and the URL row
         // still take anything); an over-strict filter falls back to recency

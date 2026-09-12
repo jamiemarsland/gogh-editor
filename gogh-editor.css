@@ -391,17 +391,6 @@ html.gogh-phone-preview .gogh-section.gogh-msec-hidden {
 .gogh-addmenu { display: grid; grid-template-columns: 1fr 1fr; gap: 2px; min-width: 250px; margin-top: 6px; }
 
 /* the section panel's quiet drawer: colour & more */
-.gogh-panel-more-toggle {
-  all: unset;
-  cursor: pointer;
-  display: block;
-  margin-top: 10px;
-  padding: 6px 0;
-  font-size: 12px;
-  font-weight: 650;
-  opacity: 0.65;
-}
-.gogh-panel-more-toggle:hover { opacity: 1; }
 
 /* panels drag by their title */
 .gogh-panel-title, .gogh-panel-head { cursor: move; user-select: none; }
@@ -967,6 +956,38 @@ body.gogh-painting, body.gogh-painting .gogh-section * { cursor: url('data:image
 .gogh-thumb:hover { outline: 2px solid #4a63d8; }
 .gogh-thumb.is-active { outline: 2.5px solid #4a63d8; box-shadow: 0 0 0 4px rgba(74, 99, 216, 0.18); }
 
+/* the shelf's first tile IS the upload: one door to the one backdrop,
+   taking a picture or a video and telling them apart by type. It used to
+   be two buttons and two labels above the shelf, which spent a quarter of
+   the panel on its rarest action. */
+.gogh-thumb-add {
+  display: grid;
+  place-items: center;
+  background: none;
+  outline: none;
+  border: 1.5px dashed rgba(22, 24, 28, 0.22);
+  color: var(--gogh-ui-muted);
+  font-size: 20px;
+  line-height: 1;
+}
+.gogh-thumb-add::before { content: "+"; }
+.gogh-thumb-add:hover { outline: none; border-color: #4a63d8; color: #4a63d8; }
+.gogh-thumb-add.is-busy { border-style: solid; opacity: 0.6; }
+.gogh-thumb-add.is-busy::before { content: "\2026"; }
+.gogh-thumb-add.is-failed { border-color: #b3261e; color: #b3261e; }
+
+/* ANY COLOUR closes the row: colour lived in two places, paired on these
+   chips and raw under a toggle, so neither read as "the colour control" */
+.gogh-themechip-any { cursor: pointer; }
+.gogh-themechip-plus {
+  border-style: dashed;
+  border-color: rgba(22, 24, 28, 0.24);
+  background: none;
+  color: var(--gogh-ui-muted);
+  font-size: 17px;
+}
+.gogh-themechip-any:hover .gogh-themechip-plus { border-color: #4a63d8; color: #4a63d8; }
+
 /* alignment guides */
 .gogh-guide {
   position: absolute;
@@ -1366,16 +1387,6 @@ body.gogh-painting, body.gogh-painting .gogh-section * { cursor: url('data:image
   .gogh-shape { animation: none; transition: none; }
 }
 
-.gogh-colorlab {
-  display: flex;
-  align-items: center;
-  gap: 7px;
-  font-size: 12px;
-  font-weight: 600;
-  /* the panel is themed via vars — a hardcoded light grey vanished on the
-     light UI ("can't read the custom label") */
-  color: color-mix(in srgb, var(--gogh-ui-fg, #e8eaf0) 78%, transparent);
-}
 .gogh-color {
   width: 40px;
   height: 26px;
@@ -3605,8 +3616,21 @@ html.gogh-textediting .gogh-convertbtn {
 }
 
 /* ---------- Remix: the candidate cards ---------- */
-.gogh-remixrow { margin: 10px 0 4px; }
+.gogh-remixrow { margin: 16px 0 4px; }
 .gogh-remixbtn { width: 100%; }
+
+/* Site style's two full-width doors are primary actions wearing a SMALL
+   button's padding: 7px top and bottom reads as squashed the moment the
+   pill runs the whole width ("could do with a little more breathing
+   space"). Both states of the brand slot move together so the row keeps
+   its height whether or not a brand is set. */
+.gogh-brandsetup,
+.gogh-brandbtn,
+.gogh-remixbtn {
+  padding-top: 13px;
+  padding-bottom: 13px;
+}
+.gogh-brandsetup, .gogh-remixbtn { font-size: 12.5px; }
 .gogh-remixcards { display: flex; flex-direction: column; gap: 6px; margin-top: 8px; }
 .gogh-remixcard { display: flex; align-items: center; gap: 6px; }
 
@@ -3639,7 +3663,7 @@ html[data-gogh-scope="site"] .gogh-panel-back::after { content: "Site"; }
 .gogh-panel-head { margin-bottom: 14px; }
 .gogh-panel-hint { margin: 14px 0 8px; line-height: 1.5; }
 .gogh-panel-head + .gogh-panel-hint { margin-top: 0; }
-.gogh-brandrow { margin: 6px 0 10px; }
+.gogh-brandrow { margin: 14px 0 10px; }
 .gogh-panel.gogh-panel-sidebar .gogh-varlist { gap: 5px; }
 .gogh-hpresets { margin-bottom: 4px; }
 
@@ -3866,8 +3890,6 @@ html[data-gogh-scope="site"] .gogh-panel-back::after { content: "Site"; }
   transition: transform 0.18s ease;
 }
 .gogh-bgrow.is-open .gogh-bgrow-caret,
-.gogh-panel-more-toggle.is-open .gogh-bgrow-caret { transform: rotate(180deg); }
-.gogh-panel-more-toggle .gogh-bgrow-caret { vertical-align: -1px; margin-left: 3px; }
 .gogh-bgrow-body { padding: 2px 0 8px; }
 .gogh-bgrow-body[hidden] { display: none; }
 
