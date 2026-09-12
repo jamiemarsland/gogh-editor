@@ -47,7 +47,7 @@
        "x": 80,
        "y": 108,
        "w": 1040,
-       "h": 150,
+       "h": 72,
        "text": "Plinth",
        "fs": "__max",
        "align": "center"
@@ -55,7 +55,7 @@
       {
        "type": "para",
        "x": 80,
-       "y": 270,
+       "y": 190,
        "w": 1040,
        "h": 26,
        "text": "Buildings, and the cities that happen around them.",
@@ -67,7 +67,7 @@
       {
        "type": "box",
        "x": 80,
-       "y": 320,
+       "y": 240,
        "w": 1040,
        "h": 12,
        "boxBg": "linear-gradient(color-mix(in srgb, var(--wp--preset--color--contrast, #000) 18%, transparent), color-mix(in srgb, var(--wp--preset--color--contrast, #000) 18%, transparent)) center / 100% 1px no-repeat"
@@ -75,7 +75,7 @@
       {
        "type": "para",
        "x": 80,
-       "y": 340,
+       "y": 260,
        "w": 340,
        "h": 20,
        "text": "Quarterly · in print and here",
@@ -89,7 +89,7 @@
       {
        "type": "para",
        "x": 430,
-       "y": 340,
+       "y": 260,
        "w": 340,
        "h": 20,
        "text": "Eight stories an issue",
@@ -104,7 +104,7 @@
       {
        "type": "para",
        "x": 780,
-       "y": 340,
+       "y": 260,
        "w": 340,
        "h": 20,
        "text": "Edited in Bristol",
@@ -119,13 +119,13 @@
       {
        "type": "box",
        "x": 80,
-       "y": 374,
+       "y": 294,
        "w": 1040,
        "h": 12,
        "boxBg": "linear-gradient(color-mix(in srgb, var(--wp--preset--color--contrast, #000) 18%, transparent), color-mix(in srgb, var(--wp--preset--color--contrast, #000) 18%, transparent)) center / 100% 1px no-repeat"
       }
      ],
-     "minH": 420
+     "minH": 340
     },
     {
      "name": "Cover story",
@@ -159,7 +159,7 @@
        "x": 740,
        "y": 136,
        "w": 380,
-       "h": 150,
+       "h": 110,
        "text": "The villa as an argument",
        "fs": "x-large",
        "align": "left"
@@ -167,7 +167,7 @@
       {
        "type": "para",
        "x": 740,
-       "y": 300,
+       "y": 258,
        "w": 380,
        "h": 100,
        "text": "Every glass wall is a claim about who gets to look at whom. We spent a week in one and came out arguing with it.",
@@ -178,7 +178,7 @@
       {
        "type": "button",
        "x": 740,
-       "y": 420,
+       "y": 372,
        "w": 220,
        "h": 48,
        "text": "Read the story",
