@@ -6359,6 +6359,29 @@
         });
     });
 
+    test('the sticky switch tells the truth about a header pinned by its pattern', function () {
+      // two routes to pinned: core's position support (the switch writes it)
+      // and the gogh-sticky marker (a pattern or a definition carries it).
+      // Reading only the first made the switch report OFF on a stuck header.
+      var byAttr = '<!-- wp:group {"style":{"position":{"type":"sticky","top":"0px"}}} -->' +
+        '<div class="wp-block-group"></div><!-- /wp:group -->';
+      var byClass = '<!-- wp:group {"className":"gogh-hrow gogh-sticky gogh-hsolid"} -->' +
+        '<div class="wp-block-group gogh-hrow gogh-sticky gogh-hsolid"></div><!-- /wp:group -->';
+      var plain = '<!-- wp:group {"className":"gogh-hrow"} -->' +
+        '<div class="wp-block-group gogh-hrow"></div><!-- /wp:group -->';
+      var seen = function (raw) { return G.chromeIsSticky({ content: { raw: raw } }); };
+      expect(seen(byAttr), 'core position support not recognised');
+      expect(seen(byClass), 'a header pinned by the gogh-sticky marker read as not sticky');
+      expect(!seen(plain), 'a plain header should not read as sticky');
+
+      // and the switch can still take it off, both markers together
+      var off = G.stickyRawToggle(byClass, false);
+      expect(off !== null, 'the toggle refused the pattern markup');
+      expect(!/gogh-sticky/.test(off), 'the marker survived being switched off');
+      expect(!seen(off), 'it still reads sticky after being switched off');
+      return 'both routes seen, both cleared';
+    });
+
     test('transitions live on the section: chips in the design panel, seam keeps one job', function () {
       // build a real boundary: a section below the first
       G.openSeamAsk(null, null);

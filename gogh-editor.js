@@ -16339,6 +16339,7 @@
     navModel: { parse: parseNavModel, serialize: serializeNavModel, whereOf: navWhereOf, panelOf: navPanelOf },
     reorderNavRaw: reorderNavRaw,
     stickyRawToggle: stickyRawToggle,
+    chromeIsSticky: chromeIsSticky,
     chromeDialsRead: chromeDialsRead,
     inkWidthOf: inkWidthOf,
     themeFontSizeList: themeFontSizeList,
@@ -19826,7 +19827,11 @@
   }
   function chromeIsSticky(active) {
     var raw = (active && active.content && active.content.raw) || '';
-    return /"position":\s*{[^}]*"type":"sticky"/.test(raw);
+    // TWO ways a header ends up pinned: core's position support, which the
+    // switch writes, and the gogh-sticky marker, which a pattern or a site
+    // definition can carry. Reading only the first made the switch report
+    // OFF on a header that was plainly stuck — a lie until you touched it.
+    return /"position":\s*{[^}]*"type":"sticky"/.test(raw) || /\bgogh-sticky\b/.test(raw);
   }
   function stickyRawToggle(raw, on) {
     var spans = parseTopBlocks(raw);
