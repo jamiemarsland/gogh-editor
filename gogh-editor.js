@@ -12297,6 +12297,124 @@
     });
     return best;
   }
+
+  // ---------- a colour surface that belongs to gogh ----------
+  // The native <input type="color"> opens an OS window in the corner of the
+  // SCREEN, over the canvas — it hides the very thing it is asking about
+  // ("a bit weird that the custom color opens in a separate modal"). Worse,
+  // the pairing this panel exists to show — which ink was chosen, and how
+  // well it reads — cannot live inside a window the OS owns.
+  //
+  // So: a hue and a shade, in gogh's own chrome, inside the panel's box.
+  // Saturation and lightness are the two a beginner gets wrong, so the
+  // shades are chosen per role; the hex field is there for anyone who
+  // already owns a brand colour. Built as a component — six other native
+  // pickers can take it next.
+  var COLORPOP_SHADES = [
+    { name: 'Pale', s: 0.16, l: 0.94 },
+    { name: 'Soft', s: 0.30, l: 0.82 },
+    { name: 'Mid',  s: 0.52, l: 0.58 },
+    { name: 'Deep', s: 0.62, l: 0.40 },
+    { name: 'Dark', s: 0.45, l: 0.22 },
+    { name: 'Ink',  s: 0.35, l: 0.11 },
+  ];
+  function inkPairFor(hex) {
+    var slug = bestInkFor(hex);
+    var pal = themePalette().filter(function (x) { return x.slug === slug; })[0];
+    var col = pal && pal.value;
+    var a = cssToRgb(col), b = cssToRgb(hex);
+    var ratio = (a && b) ? sentinelContrast(sentinelLum(a), sentinelLum(b)) : null;
+    return { slug: slug, color: col || '#000',
+      name: slug.charAt(0).toUpperCase() + slug.slice(1).replace(/-/g, ' '),
+      ratio: ratio };
+  }
+  // opts: { value, onAudition(hex), onKeep(hex), onCancel() }
+  function openColorPop(box, opts) {
+    var start = /^#[0-9a-fA-F]{6}$/.test(opts.value || '') ? opts.value : '#3f6ea8';
+    var hsl = hexToHsl(start) || { h: 210, s: 0.45, l: 0.45 };
+    var st = { h: Math.round(hsl.h), shade: 2, hex: start };
+    box.hidden = false;
+    box.innerHTML =
+      '<div class="gogh-cp-prev"><span class="gogh-cp-aa">Aa</span></div>' +
+      '<div class="gogh-cp-ink"></div>' +
+      '<input type="range" class="gogh-cp-hue" min="0" max="359" value="' + st.h + '" aria-label="Hue" />' +
+      '<div class="gogh-cp-shades"></div>' +
+      '<div class="gogh-cp-row">' +
+      '<input type="text" class="gogh-input gogh-cp-hex" spellcheck="false" maxlength="7" aria-label="Colour code" />' +
+      '</div>' +
+      '<div class="gogh-cp-btns">' +
+      '<button type="button" class="gogh-btn gogh-btn-small gogh-cp-cancel">Cancel</button>' +
+      '<button type="button" class="gogh-btn gogh-btn-small gogh-cp-keep">Use it</button>' +
+      '</div>';
+    var prev = box.querySelector('.gogh-cp-prev');
+    var aa = box.querySelector('.gogh-cp-aa');
+    var inkEl = box.querySelector('.gogh-cp-ink');
+    var hue = box.querySelector('.gogh-cp-hue');
+    var shadesEl = box.querySelector('.gogh-cp-shades');
+    var hexEl = box.querySelector('.gogh-cp-hex');
+    // the reading is the point of showing it: below the sentinel's floor
+    // the line says so, rather than letting the words go out quietly poor
+    var showInk = function () {
+      var ink = inkPairFor(st.hex);
+      var low = ink.ratio != null && ink.ratio < CONTRAST_FLOOR;
+      prev.style.background = st.hex;
+      aa.style.color = ink.color;
+      inkEl.classList.toggle('is-low', !!low);
+      inkEl.innerHTML = '<span class="gogh-cp-inkdot" style="background:' + escAttr(ink.color) + '"></span>' +
+        (low ? 'Hard to read on this colour \u00b7 ' : 'Words will use <b>' + esc(ink.name) + '</b> \u00b7 ') +
+        'contrast ' + (ink.ratio != null ? ink.ratio.toFixed(1) : '\u2014');
+    };
+    var paint = function (audition) {
+      showInk();
+      hexEl.value = st.hex.toUpperCase();
+      shadesEl.querySelectorAll('.gogh-cp-shade').forEach(function (b2, k) {
+        b2.style.background = hslToHex(st.h, COLORPOP_SHADES[k].s, COLORPOP_SHADES[k].l);
+        b2.classList.toggle('is-active', k === st.shade);
+      });
+      if (audition !== false && opts.onAudition) opts.onAudition(st.hex);
+    };
+    COLORPOP_SHADES.forEach(function (sh, k) {
+      var b2 = document.createElement('button');
+      b2.type = 'button';
+      b2.className = 'gogh-cp-shade';
+      b2.title = sh.name;
+      b2.addEventListener('click', function () {
+        st.shade = k; st.hex = hslToHex(st.h, sh.s, sh.l); paint();
+      });
+      shadesEl.appendChild(b2);
+    });
+    hue.addEventListener('input', function () {
+      st.h = +this.value;
+      var sh = COLORPOP_SHADES[st.shade];
+      st.hex = hslToHex(st.h, sh.s, sh.l);
+      paint();
+    });
+    hexEl.addEventListener('input', function () {
+      var v = this.value.trim();
+      if (!/^#[0-9a-fA-F]{6}$/.test(v)) return;
+      st.hex = v.toLowerCase();
+      var h2 = hexToHsl(st.hex);
+      if (h2) st.h = Math.round(h2.h);
+      hue.value = st.h;
+      if (opts.onAudition) opts.onAudition(st.hex);
+      showInk();
+    });
+    var shut = function () { box.hidden = true; box.innerHTML = ''; };
+    box.querySelector('.gogh-cp-cancel').addEventListener('click', function () {
+      shut(); if (opts.onCancel) opts.onCancel();
+    });
+    box.querySelector('.gogh-cp-keep').addEventListener('click', function () {
+      var hex = st.hex; shut(); if (opts.onKeep) opts.onKeep(hex);
+    });
+    box.addEventListener('keydown', function (ev) {
+      if (ev.key === 'Escape') { ev.stopPropagation(); shut(); if (opts.onCancel) opts.onCancel(); }
+    });
+    paint(false);
+    if (opts.onAudition) opts.onAudition(st.hex);
+    setTimeout(function () { hue.focus(); }, 0);
+    return { close: shut };
+  }
+
   function sectionThemes() {
     var v = function (slug) { return 'var(--wp--preset--color--' + slug + ')'; };
     var pal = themePalette();
@@ -12468,12 +12586,15 @@
       // the last chip is ANY colour, and it mints a THEME: a background and
       // an ink chosen to read on it. The old custom field set the ground and
       // left the words behind, so the sentinel told you off afterwards.
-      '<label class="gogh-themechip gogh-themechip-any' + (secx.theme === 'any' ? ' is-active' : '') + '" title="Any colour">' +
+      '<button type="button" class="gogh-themechip gogh-themechip-any' + (secx.theme === 'any' ? ' is-active' : '') + '" title="Any colour">' +
       (secx.theme === 'any' && secx.bg
         ? '<span class="gogh-themechip-swatch" style="background:' + escAttr(secx.bg) + ';color:var(--wp--preset--color--' + bestInkFor(secx.bg) + ')">Aa</span>'
         : '<span class="gogh-themechip-swatch gogh-themechip-plus">+</span>') +
-      '<input type="color" class="gogh-secbg-custom" hidden /></label>' +
+      '</button>' +
       '</div>' +
+      // the colour surface opens HERE, in the panel's own box, so it can
+      // never sit on top of the section it is recolouring
+      '<div class="gogh-colorpop" hidden></div>' +
       // a section has ONE backdrop: a video already treats the picture as
       // its poster, so two upload buttons were two doors to one room. The
       // shelf sits under its own label now — it used to be stranded below
@@ -12682,27 +12803,31 @@
     // canvas-or-ink role that reads on the chosen colour — the same call
     // every accent chip already makes — so the words follow the ground
     // instead of being reported afterwards by the sentinel.
-    var custom = panel.querySelector('.gogh-secbg-custom');
     var anyChip = panel.querySelector('.gogh-themechip-any');
+    var popBox = panel.querySelector('.gogh-colorpop');
     var anyTheme = function (hex) { return { slug: 'any', name: 'Any colour', bg: hex, ink: bestInkFor(hex) }; };
-    var anySnap = null;
-    if (secx.bg && secx.bg.charAt(0) === '#') custom.value = secx.bg;
-    custom.addEventListener('input', function () {
-      // dragging the picker auditions, exactly like hovering a chip
-      if (!anySnap) anySnap = snapSectionLook(secx);
-      paintSectionTheme(secx, anyTheme(this.value));
-    });
-    custom.addEventListener('change', function () {
-      var hex = this.value;
-      if (anySnap) { restoreSectionLook(secx, anySnap); anySnap = null; }
-      applySectionTheme(idx, anyTheme(hex));
-      var sw = anyChip.querySelector('.gogh-themechip-swatch');
-      sw.classList.remove('gogh-themechip-plus');
-      sw.textContent = 'Aa';
-      sw.setAttribute('style', 'background:' + hex + ';color:var(--wp--preset--color--' + bestInkFor(hex) + ')');
-      panel.querySelectorAll('.gogh-themechip').forEach(function (o) {
-        o.classList.toggle('is-active', o === anyChip);
+    if (anyChip && popBox) anyChip.addEventListener('click', function () {
+      if (!popBox.hidden) { popBox.hidden = true; popBox.innerHTML = ''; return; }
+      var snap = snapSectionLook(secx);
+      openColorPop(popBox, {
+        value: (secx.bg && secx.bg.charAt(0) === '#') ? secx.bg : null,
+        // every move is an audition on the real section, like a chip hover
+        onAudition: function (hex) { paintSectionTheme(secx, anyTheme(hex)); },
+        onCancel: function () { restoreSectionLook(secx, snap); reclampPanel(); },
+        onKeep: function (hex) {
+          restoreSectionLook(secx, snap);
+          applySectionTheme(idx, anyTheme(hex));
+          var sw = anyChip.querySelector('.gogh-themechip-swatch');
+          sw.classList.remove('gogh-themechip-plus');
+          sw.textContent = 'Aa';
+          sw.setAttribute('style', 'background:' + hex + ';color:var(--wp--preset--color--' + bestInkFor(hex) + ')');
+          panel.querySelectorAll('.gogh-themechip').forEach(function (o) {
+            o.classList.toggle('is-active', o === anyChip);
+          });
+          reclampPanel();
+        },
       });
+      reclampPanel();
     });
     var alpha = panel.querySelector('.gogh-secbg-alpha');
     var alphaVal = panel.querySelector('.gogh-secbg-alpha-val');

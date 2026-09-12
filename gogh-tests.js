@@ -6196,41 +6196,59 @@
       return rows.length + ' folded rows, exclusive open, summary "' + hv + '"';
     });
 
-    test('any colour mints a theme: the words follow the ground', function () {
-      // "Colour & more" is gone. Colour used to live in TWO places — paired
-      // on the chips, raw under a toggle — and the raw one set the ground
-      // and left the words behind for the sentinel to complain about.
+    test('any colour: a surface of our own, and the words follow the ground', function () {
+      // Two things used to be wrong here. Colour lived in TWO places —
+      // paired on the chips, raw under a toggle — and the raw one set the
+      // ground and left the words behind. And it opened the OS colour
+      // window, in the corner of the SCREEN, on top of the section it was
+      // recolouring ("a bit weird that the custom color opens in a
+      // separate modal").
       var i = G.sections().indexOf(sec());
       G.openSecBgPanel(i);
       var sx = G.sections()[i];
+      var panel = q('.gogh-panel');
       expect(!q('.gogh-panel-more-toggle'), 'the Colour & more toggle should be gone');
+      expect(!panel.querySelector('input[type="color"]'),
+        'the panel still reaches for the OS colour window');
+
       var chip = q('.gogh-panel .gogh-themechip-any');
       expect(chip, 'no "any colour" chip at the end of the colour row');
       expect(chip.querySelector('.gogh-themechip-plus'), 'the unused chip should read as a +');
-      var inp = chip.querySelector('input[type="color"]');
-      expect(inp, 'the any-colour chip carries no colour input');
 
       var textIdx = sx.els.findIndex(function (e) { return e.type === 'heading' || e.type === 'para'; });
       expect(textIdx >= 0, 'fixture section has no words to re-ink');
-      var inkBefore = sx.els[textIdx].color || null;
-      // put the section back exactly as found — the fixture runs on
       var was = { theme: sx.theme, bg: sx.bg, bgA: sx.bgA,
         colors: sx.els.map(function (e) { return e.color || null; }) };
+      var inkBefore = sx.els[textIdx].color || null;
 
-      inp.value = '#2f5d50';
-      inp.dispatchEvent(new Event('change', { bubbles: true }));
+      chip.click();
+      var pop = q('.gogh-panel .gogh-colorpop');
+      expect(pop && !pop.hidden, 'the colour surface did not open');
+      expect(panel.contains(pop), 'the surface must live inside the panel, not over the canvas');
+      expect(pop.querySelector('.gogh-cp-hue'), 'no hue control');
+      expect(pop.querySelectorAll('.gogh-cp-shade').length === 6, 'expected six shades');
+      expect(/contrast/.test(pop.querySelector('.gogh-cp-ink').textContent),
+        'the surface should say which ink it picked and how well it reads');
 
-      expect(sx.bg === '#2f5d50', 'the chosen colour did not land on the section (' + sx.bg + ')');
+      var hex = pop.querySelector('.gogh-cp-hex');
+      hex.value = '#2f5d50';
+      hex.dispatchEvent(new Event('input', { bubbles: true }));
+      expect(sx.bg === '#2f5d50', 'typing a colour did not audition on the section (' + sx.bg + ')');
+
+      pop.querySelector('.gogh-cp-keep').click();
+      expect(q('.gogh-panel .gogh-colorpop').hidden, 'keeping did not close the surface');
+      expect(sx.bg === '#2f5d50', 'the kept colour did not land (' + sx.bg + ')');
       expect(sx.theme === 'any', 'a custom colour should be a theme, got ' + sx.theme);
       var inkAfter = sx.els[textIdx].color || null;
       expect(inkAfter && inkAfter !== inkBefore, 'the words kept their old ink — that is the bug this replaces');
       expect(chip.classList.contains('is-active'), 'the any chip did not mark itself chosen');
       expect(!chip.querySelector('.gogh-themechip-plus'), 'the chip should show its colour once used');
+
       sx.theme = was.theme; sx.bg = was.bg; sx.bgA = was.bgA;
       sx.els.forEach(function (e, k) { e.color = was.colors[k]; });
       G.renderSection(sx); G.resolveAll();
       pev('pointerdown', document.body, 4, 4);
-      return 'ink ' + String(inkBefore) + ' \u2192 ' + String(inkAfter) + ' on #2f5d50';
+      return 'ink ' + String(inkBefore) + ' \u2192 ' + String(inkAfter) + ', in-panel surface';
     });
 
     test('transitions live on the section: chips in the design panel, seam keeps one job', function () {
