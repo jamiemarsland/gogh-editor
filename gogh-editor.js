@@ -733,6 +733,9 @@
         }
         if (e.radius) extra += ' border-radius: ' + (Math.round(e.radius / 12 * 100) / 100) + 'cqw;';
         if (e.shape && SHAPE_CSS[e.shape]) extra += SHAPE_CSS[e.shape];
+        // a rounded silhouette only clips what it holds when told to: clip-path
+        // shapes cut their children already, border-radius ones do not
+        if (e.shape && e.kids && e.kids.length) extra += ' overflow: hidden;';
         var moodBase = e.rot ? ' rotate(' + e.rot + 'deg)' : '';
         if (e.mood === 'lift') {
           extra += ' transition: transform 0.25s ease, box-shadow 0.25s ease;';
@@ -1069,9 +1072,14 @@
         // the exception — narrow width makes their text TALLER, so locking
         // the design aspect squeezes kids into overlap; they size to
         // content, with a gap standing in for the collapsed design spacers
-        (e.type === 'box' ? (e.shape ? ' display: none;' :
-          (e.kids && e.kids.length ? ' aspect-ratio: auto; height: auto; display: flex; flex-direction: column; gap: 3cqw; padding: 6cqw 5cqw !important; align-items: flex-start;' :
-            ' aspect-ratio: ' + e.w + ' / ' + e.h + ';')) : '') +
+        // a shape that HOLDS things is not decoration: hiding it on a phone
+        // would delete real content. It keeps the card's stacking and lets
+        // the silhouette go, because a circle told to be as tall as its
+        // words is an ellipse, and the inset maths stops holding
+        (e.type === 'box' ? ((e.kids && e.kids.length)
+          ? ' aspect-ratio: auto; height: auto; display: flex; flex-direction: column; gap: 3cqw; padding: 6cqw 5cqw !important; align-items: flex-start;' +
+            (e.shape ? ' border-radius: 4cqw; clip-path: none;' : '')
+          : (e.shape ? ' display: none;' : ' aspect-ratio: ' + e.w + ' / ' + e.h + ';')) : '') +
         (e.type === 'exp' ? ' aspect-ratio: ' + e.w + ' / ' + e.h + ';' : '') +
         (e.type === 'badge' ? ' width: max-content; height: 44px;' : '') + ' }');
       // mobile override — hidden on phones. Gate on :not(.gogh-phone-preview)
@@ -5477,6 +5485,46 @@
     { key: 'diamond', label: 'Diamond', w: 320, h: 320 },
     { key: 'blob', label: 'Blob', w: 340, h: 320 },
   ];
+  // A SHAPE CAN HOLD THINGS. A card has always been a box with kids, and a
+  // shape has always been a field on a box — the same object in different
+  // clothes. What was missing is that a circle has far less usable room than
+  // its bounding box, so without this the words spill past the silhouette.
+  // Fractions of the box, except the pill whose caps are a real radius.
+  var SHAPE_INSET = {
+    circle:  { l: 0.146, t: 0.146, r: 0.146, b: 0.146 }, // the inscribed square: side = d / root two
+    blob:    { l: 0.10,  t: 0.10,  r: 0.10,  b: 0.10 },
+    arch:    { l: 0.06,  t: 0.18,  r: 0.06,  b: 0.04 },  // the roof eats the top
+    diamond: { l: 0.25,  t: 0.25,  r: 0.25,  b: 0.25 },  // half the width, half the height, centred
+    tri:     { l: 0.25,  t: 0.45,  r: 0.25,  b: 0.05 },  // the room is the lower middle
+  };
+  var SHAPE_GUTTER = 0.04; // a plain card still wants a gutter
+  // the rectangle a kid may occupy, in the card's own coordinates
+  function shapeRoom(e) {
+    var f = SHAPE_INSET[e.shape];
+    var l, t, r, b;
+    if (e.shape === 'pill') {
+      // the caps are semicircles of radius h/2 — that is a width, not a ratio
+      var cap = Math.min(e.h / 2, e.w * 0.4);
+      l = r = cap; t = b = e.h * 0.08;
+    } else if (f) {
+      l = e.w * f.l; r = e.w * f.r; t = e.h * f.t; b = e.h * f.b;
+    } else {
+      l = r = e.w * SHAPE_GUTTER; t = b = e.h * SHAPE_GUTTER;
+    }
+    var room = { x: Math.round(l), y: Math.round(t),
+      w: Math.round(e.w - l - r), h: Math.round(e.h - t - b) };
+    if (room.w < 24) { room.x = 0; room.w = e.w; }
+    if (room.h < 16) { room.y = 0; room.h = e.h; }
+    return room;
+  }
+  // move a kid inside the room, shrinking it only if it cannot otherwise fit
+  function fitKidToRoom(host, kid) {
+    var room = shapeRoom(host);
+    kid.w = Math.min(kid.w, room.w);
+    kid.h = Math.min(kid.h, room.h);
+    kid.x = Math.max(room.x, Math.min(room.x + room.w - kid.w, kid.x));
+    kid.y = Math.max(room.y, Math.min(room.y + room.h - kid.h, kid.y));
+  }
   var SHAPE_DEFAULT_BG = 'color-mix(in srgb, var(--wp--preset--color--contrast, #000) 12%, var(--wp--preset--color--base, transparent))';
   function shapePreviewCss(def) {
     var css = 'background: currentColor;';
@@ -13270,7 +13318,7 @@
     for (var b = sec.els.length - 1; b >= 0; b--) {
       if (b === i) continue;
       var o = sec.els[b];
-      if (o.type !== 'box' || o.shape) continue;
+      if (o.type !== 'box') continue; // a SHAPED box hosts too — shapeRoom keeps its kids inside the silhouette
       if (e.x >= o.x - 2 && e.y >= o.y - 2 &&
           e.x + e.w <= o.x + o.w + 2 && e.y + e.h <= o.y + o.h + 2) return b;
     }
@@ -13834,6 +13882,7 @@
         adopt.forEach(function (k2) {
           k2.x = Math.max(0, Math.round(k2.x - host.x));
           k2.y = Math.max(0, Math.round(k2.y - host.y));
+          fitKidToRoom(host, k2); // a circle's corners are not room
           host.kids.push(k2);
         });
         orderKids(host); // it takes its place in reading order, not the end of the list
@@ -16395,6 +16444,7 @@
     shopDefaults: shopDefaults,
     shopSampleHTML: shopSampleHTML,
     cardJoinTarget: cardJoinTarget,
+    shapeRoom: shapeRoom,
     hydrateProductsPreview: hydrateProductsPreview,
     reseatRoom: reseatChromeRoom,
     fm: function () { return fm; },

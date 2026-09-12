@@ -6251,6 +6251,42 @@
       return 'ink ' + String(inkBefore) + ' \u2192 ' + String(inkAfter) + ', in-panel surface';
     });
 
+    test('a shape can hold things: it joins as a card, and the room is not the bounding box', function () {
+      // a card has always been a box with kids and a shape has always been a
+      // field on a box — the same object in different clothes. What was
+      // missing is that a circle's corners are not room.
+      var sx = sec();
+      var i0 = sx.els.length;
+      sx.els.push({ type: 'box', x: 200, y: 1400, w: 400, h: 400, shape: 'circle',
+        boxBg: 'var(--wp--preset--color--contrast)' });
+      var hostIdx = sx.els.length - 1;
+      var host = sx.els[hostIdx];
+
+      var room = G.shapeRoom(host);
+      // the inscribed square of a circle is the diameter over root two
+      var want = Math.round(400 / Math.SQRT2);
+      expect(Math.abs(room.w - want) <= 12, 'circle room should be about ' + want + ' wide, got ' + room.w);
+      expect(room.x > 40, 'the room should be inset from the bounding box, x=' + room.x);
+      var plain = G.shapeRoom({ type: 'box', x: 0, y: 0, w: 400, h: 400 });
+      expect(plain.w > room.w, 'a plain box should offer more room than a circle');
+
+      // a piece dropped fully inside it finds the shape as its host
+      sx.els.push({ type: 'heading', x: 210, y: 1410, w: 380, h: 60, text: 'Held' });
+      var kidIdx = sx.els.length - 1;
+      expect(G.cardJoinTarget(sx, kidIdx) === hostIdx,
+        'a shaped box should be a join target, got ' + G.cardJoinTarget(sx, kidIdx));
+
+      // and a plain box still is — nothing regressed
+      sx.els.push({ type: 'box', x: 700, y: 1400, w: 300, h: 200 });
+      var plainIdx = sx.els.length - 1;
+      sx.els.push({ type: 'para', x: 720, y: 1420, w: 200, h: 40, text: 'Also held' });
+      expect(G.cardJoinTarget(sx, sx.els.length - 1) === plainIdx, 'a plain box stopped hosting');
+
+      sx.els.length = i0; // put the fixture back
+      G.renderSection(sx); G.resolveAll();
+      return 'circle room ' + room.w + 'x' + room.h + ' inside 400x400';
+    });
+
     test('transitions live on the section: chips in the design panel, seam keeps one job', function () {
       // build a real boundary: a section below the first
       G.openSeamAsk(null, null);
