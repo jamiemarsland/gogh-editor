@@ -28,6 +28,10 @@
   color: var(--gogh-ui-fg);
   background: var(--gogh-ui-bg);
   border: 1px solid var(--gogh-ui-border);
+  /* width:100% used to mean 100% PLUS the padding, so every full-width
+     button hung over the panel's right edge ("cramped against the sides").
+     .gogh-brandbtn carried a local fix; the base is the right place. */
+  box-sizing: border-box;
   border-radius: 999px;
   padding: 10px 18px;
   box-shadow: 0 12px 32px -10px rgba(0, 0, 0, 0.5);
@@ -391,17 +395,6 @@ html.gogh-phone-preview .gogh-section.gogh-msec-hidden {
 .gogh-addmenu { display: grid; grid-template-columns: 1fr 1fr; gap: 2px; min-width: 250px; margin-top: 6px; }
 
 /* the section panel's quiet drawer: colour & more */
-.gogh-panel-more-toggle {
-  all: unset;
-  cursor: pointer;
-  display: block;
-  margin-top: 10px;
-  padding: 6px 0;
-  font-size: 12px;
-  font-weight: 650;
-  opacity: 0.65;
-}
-.gogh-panel-more-toggle:hover { opacity: 1; }
 
 /* panels drag by their title */
 .gogh-panel-title, .gogh-panel-head { cursor: move; user-select: none; }
@@ -739,6 +732,17 @@ body.gogh-help-open .gogh-toasts { right: 416px; }
   transform-origin: 50% 50%;
 }
 .gogh-selbox[hidden] { display: none; }
+/* the card badge lives in the card's own corner; a clipping silhouette
+   (circle, pill, arch, blob, triangle, diamond) cuts that corner off, so
+   those cards are named on the selection box instead */
+.gogh-selbox-tag {
+  position: absolute; left: -1px; bottom: 100%; margin-bottom: 5px;
+  padding: 3px 9px; border-radius: 999px; background: #4a63d8; color: #fff;
+  font: 700 11px/1.4 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  letter-spacing: 0.01em; white-space: nowrap; pointer-events: none;
+  box-shadow: 0 2px 6px -1px rgba(20, 22, 28, 0.35);
+}
+.gogh-selbox-tag[hidden] { display: none; }
 .gogh-h {
   all: unset;
   position: absolute;
@@ -967,6 +971,104 @@ body.gogh-painting, body.gogh-painting .gogh-section * { cursor: url('data:image
 .gogh-thumb:hover { outline: 2px solid #4a63d8; }
 .gogh-thumb.is-active { outline: 2.5px solid #4a63d8; box-shadow: 0 0 0 4px rgba(74, 99, 216, 0.18); }
 
+/* the shelf's first tile IS the upload: one door to the one backdrop,
+   taking a picture or a video and telling them apart by type. It used to
+   be two buttons and two labels above the shelf, which spent a quarter of
+   the panel on its rarest action. */
+.gogh-thumb-add {
+  display: grid;
+  place-items: center;
+  background: none;
+  outline: none;
+  border: 1.5px dashed rgba(22, 24, 28, 0.22);
+  color: var(--gogh-ui-muted);
+  font-size: 20px;
+  line-height: 1;
+}
+.gogh-thumb-add::before { content: "+"; }
+.gogh-thumb-add:hover { outline: none; border-color: #4a63d8; color: #4a63d8; }
+.gogh-thumb-add.is-busy { border-style: solid; opacity: 0.6; }
+.gogh-thumb-add.is-busy::before { content: "\2026"; }
+.gogh-thumb-add.is-failed { border-color: #b3261e; color: #b3261e; }
+
+/* ANY COLOUR closes the row: colour lived in two places, paired on these
+   chips and raw under a toggle, so neither read as "the colour control" */
+.gogh-themechip-any { cursor: pointer; }
+.gogh-themechip-plus {
+  border-style: dashed;
+  border-color: rgba(22, 24, 28, 0.24);
+  background: none;
+  color: var(--gogh-ui-muted);
+  font-size: 17px;
+}
+.gogh-themechip-any:hover .gogh-themechip-plus { border-color: #4a63d8; color: #4a63d8; }
+
+/* ---------- the colour surface ----------
+   It opens INSIDE the panel, never as an OS window over the canvas: the
+   whole point of this control is watching the words pair themselves to
+   the ground, and the native picker parks itself on top of exactly that. */
+.gogh-colorpop {
+  margin: 8px 0 14px;
+  padding: 12px;
+  border: 1px solid var(--gogh-ui-border);
+  border-radius: 11px;
+  background: var(--gogh-ui-well);
+}
+.gogh-cp-prev {
+  height: 60px;
+  border-radius: 8px;
+  display: grid;
+  place-items: center;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  margin-bottom: 9px;
+}
+.gogh-cp-aa { font: 600 22px/1 Georgia, "Times New Roman", serif; }
+.gogh-cp-ink {
+  display: flex; align-items: center; gap: 7px;
+  font-size: 11.5px; color: var(--gogh-ui-muted); margin-bottom: 11px;
+}
+.gogh-cp-ink b { color: var(--gogh-ui-fg); font-weight: 600; }
+.gogh-cp-ink.is-low { color: #b3261e; font-weight: 600; }
+.gogh-cp-inkdot {
+  width: 12px; height: 12px; border-radius: 4px; flex: none;
+  border: 1px solid rgba(0, 0, 0, 0.18);
+}
+/* one dimension, because saturation and lightness are the two a beginner
+   gets wrong — the shades below choose those for the role */
+.gogh-cp-hue {
+  -webkit-appearance: none; appearance: none;
+  width: 100%; height: 14px; border-radius: 99px; margin: 0 0 10px;
+  border: 1px solid var(--gogh-ui-border);
+  background: linear-gradient(90deg, #f00 0%, #ff0 17%, #0f0 33%, #0ff 50%, #00f 67%, #f0f 83%, #f00 100%);
+  cursor: pointer;
+}
+.gogh-cp-hue::-webkit-slider-thumb {
+  -webkit-appearance: none; appearance: none;
+  width: 18px; height: 18px; border-radius: 99px;
+  background: #fff; border: 2.5px solid #2b2f3a; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+  cursor: grab;
+}
+.gogh-cp-hue::-moz-range-thumb {
+  width: 18px; height: 18px; border-radius: 99px;
+  background: #fff; border: 2.5px solid #2b2f3a; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+}
+.gogh-cp-shades { display: grid; grid-template-columns: repeat(6, 1fr); gap: 5px; margin-bottom: 10px; }
+.gogh-cp-shade {
+  all: unset;
+  cursor: pointer;
+  height: 28px;
+  border-radius: 7px;
+  border: 1px solid rgba(0, 0, 0, 0.12);
+}
+.gogh-cp-shade:hover { outline: 2px solid #4a63d8; outline-offset: 1px; }
+.gogh-cp-shade.is-active { outline: 2.5px solid #4a63d8; outline-offset: 1px; }
+.gogh-cp-row { display: flex; gap: 6px; margin-bottom: 11px; }
+.gogh-cp-hex { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: 0.03em; }
+.gogh-cp-btns { display: flex; gap: 6px; justify-content: flex-end; }
+.gogh-cp-btns .gogh-btn { margin: 0; }
+.gogh-cp-keep { background: #4a63d8; border-color: #4a63d8; color: #fff; }
+.gogh-cp-keep:hover { background: #3d55c8; border-color: #3d55c8; }
+
 /* alignment guides */
 .gogh-guide {
   position: absolute;
@@ -1004,6 +1106,9 @@ body.gogh-painting, body.gogh-painting .gogh-section * { cursor: url('data:image
   background: #f2a413;
   color: #231a05;
 }
+/* the MARGIN is a named guide too: solid, a touch wider than an edge match,
+   in the accent — Canva's solid margin line */
+.gogh-guide-v[data-tag="margin"] { width: 2px; background: #4a63d8; }
 
 /* ---------- section template picker ---------- */
 .gogh-picker {
@@ -1363,16 +1468,6 @@ body.gogh-painting, body.gogh-painting .gogh-section * { cursor: url('data:image
   .gogh-shape { animation: none; transition: none; }
 }
 
-.gogh-colorlab {
-  display: flex;
-  align-items: center;
-  gap: 7px;
-  font-size: 12px;
-  font-weight: 600;
-  /* the panel is themed via vars — a hardcoded light grey vanished on the
-     light UI ("can't read the custom label") */
-  color: color-mix(in srgb, var(--gogh-ui-fg, #e8eaf0) 78%, transparent);
-}
 .gogh-color {
   width: 40px;
   height: 26px;
@@ -2472,6 +2567,37 @@ html.gogh-chrome-mode .gogh-hgrip { display: none !important; }
 @container (max-width: 700px) {
   .gogh-postsprev { grid-template-columns: 1fr; }
 }
+/* the posts rail's preview: count, picture, spacing and the four looks */
+.gogh-postsprev-c1 { grid-template-columns: 1fr; }
+.gogh-postsprev-c2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.gogh-postsprev-c4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.gogh-postsprev-gap-s { gap: 12px; }
+.gogh-postsprev-gap-l { gap: 40px; }
+.gogh-postsprev-card { min-width: 0; }
+.gogh-postsprev-square .gogh-postsprev-card img, .gogh-postsprev-square .gogh-postsprev-ph { aspect-ratio: 1 / 1; }
+.gogh-postsprev-portrait .gogh-postsprev-card img, .gogh-postsprev-portrait .gogh-postsprev-ph { aspect-ratio: 3 / 4; }
+.gogh-postsprev-cat { font-size: 0.72em; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; opacity: 0.65; margin-top: 0.7em; }
+.gogh-postsprev-ex { font-size: 0.86em; line-height: 1.45; opacity: 0.8; margin-top: 0.35em; }
+.gogh-postsprev-empty { grid-template-columns: 1fr; }
+.gogh-postsprev-look-cards .gogh-postsprev-card { background: color-mix(in srgb, currentColor 7%, transparent); border-radius: 12px; overflow: hidden; }
+.gogh-postsprev-look-cards .gogh-postsprev-card img, .gogh-postsprev-look-cards .gogh-postsprev-ph { border-radius: 0; }
+.gogh-postsprev-look-cards .gogh-postsprev-body { padding: 0 16px 16px; }
+.gogh-postsprev-look-list, .gogh-postsprev-look-ledger { gap: 0; }
+.gogh-postsprev-look-list .gogh-postsprev-card, .gogh-postsprev-look-ledger .gogh-postsprev-card { border-top: 1px solid color-mix(in srgb, currentColor 25%, transparent); padding: 14px 0; }
+.gogh-postsprev-look-list .gogh-postsprev-card img, .gogh-postsprev-look-list .gogh-postsprev-ph, .gogh-postsprev-look-ledger .gogh-postsprev-card img, .gogh-postsprev-look-ledger .gogh-postsprev-ph { display: none; }
+.gogh-postsprev-look-list .gogh-postsprev-body { display: grid; grid-template-columns: 1fr auto; gap: 18px; align-items: baseline; }
+.gogh-postsprev-look-list .gogh-postsprev-body h3 { margin: 0; font-size: 1.2em; }
+.gogh-postsprev-look-list .gogh-postsprev-ex { grid-column: 1 / -1; margin-top: 0.2em; }
+.gogh-postsprev-look-ledger .gogh-postsprev-card { padding: 8px 0; }
+.gogh-postsprev-look-ledger .gogh-postsprev-body { display: grid; grid-template-columns: auto 1fr auto; gap: 14px; align-items: baseline; }
+.gogh-postsprev-look-ledger .gogh-postsprev-body h3 { margin: 0; font-size: 0.98em; font-weight: 500; }
+.gogh-postsprev-look-ledger .gogh-postsprev-cat { margin: 0; }
+.gogh-postsprev-look-ledger .gogh-postsprev-ex { display: none; }
+.gogh-postsprev-look-cover .gogh-postsprev-card:first-child { grid-column: 1 / -1; display: grid; grid-template-columns: 3fr 2fr; gap: 24px; align-items: end; }
+.gogh-postsprev-look-cover .gogh-postsprev-card:first-child img, .gogh-postsprev-look-cover .gogh-postsprev-card:first-child .gogh-postsprev-ph { aspect-ratio: 16 / 9; }
+.gogh-postsprev-look-cover .gogh-postsprev-card:first-child h3 { font-size: 1.8em; line-height: 1.1; }
+.gogh-postsprev-look-cover .gogh-postsprev-card:not(:first-child) img, .gogh-postsprev-look-cover .gogh-postsprev-card:not(:first-child) .gogh-postsprev-ph { display: none; }
+.gogh-postsprev-look-cover .gogh-postsprev-card:not(:first-child) { border-top: 1px solid color-mix(in srgb, currentColor 25%, transparent); padding-top: 12px; }
 
 /* pattern previews sit on the page's real background, not the card chrome —
    dark-on-dark themes stay readable */
@@ -2780,6 +2906,22 @@ html.gogh-chrome-mode .gogh-hgrip { display: none !important; }
   outline-offset: 3px;
   border-radius: 3px;
 }
+/* the group bar: named verbs for a multi-selection, the arrange row behind the dots */
+.gogh-mbar { border-radius: 14px; flex-wrap: wrap; justify-content: center; max-width: 600px; }
+.gogh-mbar .gogh-mb, .gogh-elbar .gogh-mb { font: 600 12px/1 -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, sans-serif; padding: 7px 10px; white-space: nowrap; }
+.gogh-mbar .gogh-mb:disabled, .gogh-elbar .gogh-mb:disabled { opacity: 0.38; cursor: default; }
+/* a card's bar opens the same row one level in */
+.gogh-elbar .gogh-eb-lineup { font: 600 12px/1 -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, sans-serif; white-space: nowrap; }
+.gogh-elbar.gogh-elbar-open { border-radius: 14px; flex-wrap: wrap; justify-content: center; max-width: 560px; }
+.gogh-mbar-more { flex-basis: 100%; display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 2px; margin-top: 4px; padding-top: 4px; border-top: 1px solid rgba(0, 0, 0, 0.08); }
+.gogh-mbar-more[hidden] { display: none; }
+.gogh-mbar-sep { width: 1px; height: 18px; background: rgba(0, 0, 0, 0.12); margin: 0 4px; }
+.gogh-mbar-lab { font: 600 11px/1 -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, sans-serif; letter-spacing: 0.06em; text-transform: uppercase; opacity: 0.5; padding: 0 4px 0 8px; }
+/* spacing sits on its own line: two axes and Tidy up need the room */
+.gogh-mbar-row { flex-basis: 100%; display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 2px; margin-top: 2px; }
+.gogh-mbar-row .gogh-mbar-lab { min-width: 104px; text-align: right; }
+.gogh-mbar-hint { flex-basis: 100%; text-align: center; font: 500 11px/1.3 -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, sans-serif; opacity: 0.6; padding: 4px 8px 2px; }
+.gogh-mbar-hint[hidden] { display: none; }
 .gogh-marquee {
   position: fixed;
   z-index: 99996;
@@ -3088,6 +3230,9 @@ html.gogh-editing .gogh-helpsheet iframe { pointer-events: auto; }
 .gogh-card-leaving { outline: 3px dashed #d98a2b; outline-offset: 3px; }
 html.gogh-editing .gogh-cardbox [class*="gogh-k-"] { cursor: grab; }
 .gogh-kid-selected { outline: 2px solid #3858e9; outline-offset: 2px; border-radius: 4px; }
+/* a chosen kid's side grips: the kid's own outline draws the box, the overlay
+   only carries the handles (width is the measure; height stays the ink's) */
+.gogh-kidbox { border-color: transparent; }
 .gogh-kid-selected[contenteditable], .gogh-cardbox [contenteditable="true"] { cursor: text; }
 
 /* a selected card announces itself */
@@ -3111,6 +3256,11 @@ html.gogh-editing .gogh-cardbox [class*="gogh-k-"] { cursor: grab; }
    a soft lift; past the card's edge it loosens to say "this can leave" */
 .gogh-kid-ghost.gogh-kid-ghost-in { transform: none; opacity: 0.96; box-shadow: 0 10px 30px -10px rgba(0,0,0,0.35); margin: 0; }
 .gogh-kid-ghost.gogh-kid-ghost-in.gogh-kid-ghost-out { opacity: 0.8; }
+/* the ghost borrows the section's scope for the kid's dress, never its frame */
+.gogh-kid-ghost.gogh-section { min-height: 0 !important; padding: 0 !important; gap: 0 !important; grid-template-columns: none !important; grid-template-rows: none !important; }
+.gogh-kid-ghost.gogh-section::before, .gogh-kid-ghost.gogh-section::after { content: none !important; }
+/* a finger on a kid drags it; the page must not scroll instead */
+.gogh-cardbox [class*="gogh-k-"] { touch-action: none; }
 
 /* while the caret is live, the page belongs to the words — selection box,
    grip and kid outlines fade; the floating toolbar stays */
@@ -3547,8 +3697,21 @@ html.gogh-textediting .gogh-convertbtn {
 }
 
 /* ---------- Remix: the candidate cards ---------- */
-.gogh-remixrow { margin: 10px 0 4px; }
+.gogh-remixrow { margin: 16px 0 4px; }
 .gogh-remixbtn { width: 100%; }
+
+/* Site style's two full-width doors are primary actions wearing a SMALL
+   button's padding: 7px top and bottom reads as squashed the moment the
+   pill runs the whole width ("could do with a little more breathing
+   space"). Both states of the brand slot move together so the row keeps
+   its height whether or not a brand is set. */
+.gogh-brandsetup,
+.gogh-brandbtn,
+.gogh-remixbtn {
+  padding-top: 13px;
+  padding-bottom: 13px;
+}
+.gogh-brandsetup, .gogh-remixbtn { font-size: 12.5px; }
 .gogh-remixcards { display: flex; flex-direction: column; gap: 6px; margin-top: 8px; }
 .gogh-remixcard { display: flex; align-items: center; gap: 6px; }
 
@@ -3581,7 +3744,7 @@ html[data-gogh-scope="site"] .gogh-panel-back::after { content: "Site"; }
 .gogh-panel-head { margin-bottom: 14px; }
 .gogh-panel-hint { margin: 14px 0 8px; line-height: 1.5; }
 .gogh-panel-head + .gogh-panel-hint { margin-top: 0; }
-.gogh-brandrow { margin: 6px 0 10px; }
+.gogh-brandrow { margin: 14px 0 10px; }
 .gogh-panel.gogh-panel-sidebar .gogh-varlist { gap: 5px; }
 .gogh-hpresets { margin-bottom: 4px; }
 
@@ -3808,8 +3971,6 @@ html[data-gogh-scope="site"] .gogh-panel-back::after { content: "Site"; }
   transition: transform 0.18s ease;
 }
 .gogh-bgrow.is-open .gogh-bgrow-caret,
-.gogh-panel-more-toggle.is-open .gogh-bgrow-caret { transform: rotate(180deg); }
-.gogh-panel-more-toggle .gogh-bgrow-caret { vertical-align: -1px; margin-left: 3px; }
 .gogh-bgrow-body { padding: 2px 0 8px; }
 .gogh-bgrow-body[hidden] { display: none; }
 
@@ -3913,3 +4074,18 @@ body:has(.wp-block-navigation__responsive-container.is-menu-open) .gogh-bar { op
 .gogh-paste-plain h1 { font-size: 2.2em; line-height: 1.1; margin-block: 0.4em; }
 .gogh-paste-plain h2 { font-size: 1.6em; margin-block: 1.4em 0.4em; }
 .gogh-paste-plain h3 { font-size: 1.15em; margin-block: 1.2em 0.3em; }
+
+/* a site being built from a definition: the canvas draws behind a veil */
+/* opaque on purpose: the scratch drawing behind it is not for watching
+   (James: "lots of pages kinda flash up") */
+.gogh-buildveil { position: fixed; inset: 0; z-index: 100020; display: grid; place-items: center; background: #faf9f6; }
+html.gogh-building { overflow: hidden; }
+html.gogh-building .gogh-chip, html.gogh-building .gogh-toasts,
+html.gogh-building .gogh-picker, html.gogh-building .gogh-panel,
+html.gogh-building .gogh-elbar, html.gogh-building .gogh-secbar,
+html.gogh-building .gogh-selbox, html.gogh-building .gogh-grip,
+html.gogh-building .gogh-inserter, html.gogh-building .gogh-side { display: none !important; }
+.gogh-buildstep::after { content: '…'; }
+.gogh-buildcard { background: #fff; border-radius: 18px; padding: 26px 32px; min-width: 320px; box-shadow: 0 30px 60px -22px rgba(0,0,0,0.35); text-align: center; font: 500 14px/1.4 -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, sans-serif; color: #141519; }
+.gogh-buildtitle { font-size: 18px; font-weight: 700; margin-bottom: 6px; }
+.gogh-buildstep { opacity: 0.65; }

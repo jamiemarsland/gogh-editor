@@ -1,0 +1,144 @@
+{
+  "name": "Photographer",
+  "description": "A quiet portfolio for a photographer — people, places and the moments between",
+  "palette": {
+    "base": "#F6F4EE",
+    "contrast": "#171614",
+    "accents": [
+      "#8C7A5B",
+      "#171614"
+    ]
+  },
+  "variation": "Sunrise",
+  "pages": [
+    {
+      "slug": "home",
+      "title": "Home",
+      "file": "home.html",
+      "front": true,
+      "template": "page-no-title"
+    },
+    {
+      "slug": "about",
+      "title": "About",
+      "file": "about.html",
+      "template": "page-no-title"
+    },
+    {
+      "slug": "portfolio",
+      "title": "Portfolio",
+      "file": "portfolio.html",
+      "template": "page-no-title"
+    },
+    {
+      "slug": "journal",
+      "title": "Journal",
+      "file": "journal.html",
+      "blog": true
+    },
+    {
+      "slug": "contact",
+      "title": "Contact",
+      "file": "contact.html",
+      "template": "page-no-title"
+    },
+    {
+      "slug": "team",
+      "title": "Team",
+      "file": "team.html",
+      "template": "page-no-title",
+      "menu": false
+    },
+    {
+      "slug": "history",
+      "title": "History",
+      "file": "history.html",
+      "template": "page-no-title",
+      "menu": false
+    }
+  ],
+  "preview": {
+    "base": "#F6F4EE",
+    "contrast": "#171614",
+    "accent-1": "#8C7A5B",
+    "accent-2": "#171614"
+  },
+  "chrome": {
+    "header": "gogh-header-classic",
+    "footer": "gogh-footer-simple"
+  },
+  "type": "Photographer & portfolio",
+  "posts": [
+    {
+      "slug": "the-hour-before-dinner",
+      "title": "The hour before dinner",
+      "file": "post-1.html",
+      "category": "Journal",
+      "image": "bw-cinque-terre.jpg"
+    },
+    {
+      "slug": "why-i-shoot-portraits-outdoors",
+      "title": "Why I shoot portraits outdoors",
+      "file": "post-2.html",
+      "category": "Journal",
+      "image": "bw-portrait-dusk.jpg"
+    },
+    {
+      "slug": "a-note-on-waiting",
+      "title": "A note on waiting",
+      "file": "post-3.html",
+      "category": "Journal",
+      "image": "bw-white-house.jpg",
+      "style": "manual"
+    },
+    {
+      "slug": "print-it-small",
+      "title": "Print it small",
+      "file": "post-4.html",
+      "category": "Journal",
+      "image": "bw-salt-water.jpg"
+    }
+  ],
+  "media": [
+    {
+      "file": "eg-monogram.png",
+      "title": "EG monogram"
+    },
+    {
+      "file": "bw-portrait-dusk.jpg",
+      "title": "Portrait at dusk, black and white"
+    },
+    {
+      "file": "bw-portrait-studio.jpg",
+      "title": "Portrait, studio, black and white"
+    },
+    {
+      "file": "bw-laughing.jpg",
+      "title": "Laughing, black and white"
+    },
+    {
+      "file": "bw-cinque-terre.jpg",
+      "title": "Cinque Terre, black and white"
+    },
+    {
+      "file": "bw-salt-water.jpg",
+      "title": "Salt water, black and white"
+    },
+    {
+      "file": "bw-first-light.jpg",
+      "title": "First light on the beach, black and white"
+    },
+    {
+      "file": "bw-curves.jpg",
+      "title": "Curves, black and white"
+    },
+    {
+      "file": "bw-white-house.jpg",
+      "title": "White house in sun, black and white"
+    },
+    {
+      "file": "bw-the-villa.jpg",
+      "title": "The villa, black and white"
+    }
+  ]
+}

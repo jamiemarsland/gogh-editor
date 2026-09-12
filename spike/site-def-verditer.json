@@ -1,0 +1,1057 @@
+{
+ "name": "Verditer",
+ "tagline": "A pigment house · Hackney Wick",
+ "variation": "Evening",
+ "palette": {
+  "base": "#131216",
+  "contrast": "#ECE6D9",
+  "accents": [
+   "#4A9B8E",
+   "#F0CD7E",
+   "#C8442A",
+   "#ECE6D9",
+   "#8D8579",
+   "#24222A"
+  ]
+ },
+ "chrome": {
+  "header": "gogh-header-classic",
+  "footer": "gogh-footer-simple"
+ },
+ "pages": [
+  {
+   "title": "Home",
+   "front": true,
+   "sections": [
+    {
+     "name": "Hero",
+     "els": [
+      {
+       "type": "para",
+       "x": 80,
+       "y": 88,
+       "w": 560,
+       "h": 20,
+       "text": "A pigment house · Hackney Wick, est. 1974",
+       "tf": {
+        "fs": 12,
+        "fw": 400,
+        "ls2": 0.26,
+        "tt": "uppercase"
+       }
+      },
+      {
+       "type": "heading",
+       "x": 80,
+       "y": 124,
+       "w": 560,
+       "h": 186,
+       "text": "Colour, dug and ground.",
+       "fs": "__max",
+       "align": "left"
+      },
+      {
+       "type": "para",
+       "x": 80,
+       "y": 326,
+       "w": 450,
+       "h": 74,
+       "text": "Nine mineral pigments, quarried in small lots and milled by stone in a railway arch beside the Lea.",
+       "tf": {
+        "fs": 18
+       }
+      },
+      {
+       "type": "para",
+       "x": 80,
+       "y": 424,
+       "w": 160,
+       "h": 20,
+       "text": "Milled Tuesdays",
+       "tf": {
+        "fs": 12,
+        "fw": 400,
+        "ls2": 0.08,
+        "tt": "uppercase"
+       }
+      },
+      {
+       "type": "para",
+       "x": 250,
+       "y": 424,
+       "w": 160,
+       "h": 20,
+       "text": "Lots of 40kg",
+       "tf": {
+        "fs": 12,
+        "fw": 400,
+        "ls2": 0.08,
+        "tt": "uppercase"
+       }
+      },
+      {
+       "type": "para",
+       "x": 420,
+       "y": 424,
+       "w": 160,
+       "h": 20,
+       "text": "Ships worldwide",
+       "tf": {
+        "fs": 12,
+        "fw": 400,
+        "ls2": 0.08,
+        "tt": "uppercase"
+       }
+      },
+      {
+       "type": "box",
+       "x": 680,
+       "y": 124,
+       "w": 107,
+       "h": 107,
+       "boxBg": "#F2EDE2"
+      },
+      {
+       "type": "box",
+       "x": 791,
+       "y": 124,
+       "w": 107,
+       "h": 107,
+       "boxBg": "#F0CD7E"
+      },
+      {
+       "type": "box",
+       "x": 902,
+       "y": 124,
+       "w": 107,
+       "h": 107,
+       "boxBg": "#E8A317"
+      },
+      {
+       "type": "box",
+       "x": 1013,
+       "y": 124,
+       "w": 107,
+       "h": 107,
+       "boxBg": "#C8442A"
+      },
+      {
+       "type": "box",
+       "x": 680,
+       "y": 235,
+       "w": 107,
+       "h": 107,
+       "boxBg": "#9C3A4E"
+      },
+      {
+       "type": "box",
+       "x": 791,
+       "y": 235,
+       "w": 107,
+       "h": 107,
+       "boxBg": "#4A9B8E"
+      },
+      {
+       "type": "box",
+       "x": 902,
+       "y": 235,
+       "w": 107,
+       "h": 107,
+       "boxBg": "#2F7D5F"
+      },
+      {
+       "type": "box",
+       "x": 1013,
+       "y": 235,
+       "w": 107,
+       "h": 107,
+       "boxBg": "#3B52B8"
+      },
+      {
+       "type": "para",
+       "x": 680,
+       "y": 360,
+       "w": 440,
+       "h": 34,
+       "text": "Lead white · Naples · Orpiment · Cinnabar · Madder · Verditer · Malachite · Ultramarine",
+       "tf": {
+        "fs": 10.5,
+        "fw": 400,
+        "ls2": 0.1,
+        "tt": "uppercase"
+       }
+      }
+     ],
+     "minH": 530
+    },
+    {
+     "name": "Milled this week",
+     "els": [
+      {
+       "type": "box",
+       "x": 80,
+       "y": 30,
+       "w": 1040,
+       "h": 12,
+       "boxBg": "linear-gradient(color-mix(in srgb, var(--wp--preset--color--contrast, #000) 18%, transparent), color-mix(in srgb, var(--wp--preset--color--contrast, #000) 18%, transparent)) center / 100% 1px no-repeat"
+      },
+      {
+       "type": "para",
+       "x": 80,
+       "y": 52,
+       "w": 1040,
+       "h": 22,
+       "text": "Milled this week — Orpiment, Kütahya · Madder lake, Provence · Bone black, Whitby · Verditer, Derbyshire",
+       "tf": {
+        "fs": 12,
+        "fw": 400,
+        "ls2": 0.2,
+        "tt": "uppercase"
+       }
+      },
+      {
+       "type": "box",
+       "x": 80,
+       "y": 88,
+       "w": 1040,
+       "h": 12,
+       "boxBg": "linear-gradient(color-mix(in srgb, var(--wp--preset--color--contrast, #000) 18%, transparent), color-mix(in srgb, var(--wp--preset--color--contrast, #000) 18%, transparent)) center / 100% 1px no-repeat"
+      }
+     ],
+     "minH": 130
+    },
+    {
+     "name": "The index",
+     "els": [
+      {
+       "type": "heading",
+       "x": 80,
+       "y": 88,
+       "w": 520,
+       "h": 56,
+       "text": "The index",
+       "fs": "x-large",
+       "align": "left"
+      },
+      {
+       "type": "para",
+       "x": 620,
+       "y": 106,
+       "w": 500,
+       "h": 22,
+       "text": "Nine pigments · priced per 100g",
+       "align": "right",
+       "tf": {
+        "fs": 12,
+        "fw": 400,
+        "ls2": 0.18,
+        "tt": "uppercase"
+       }
+      },
+      {
+       "type": "box",
+       "x": 80,
+       "y": 150,
+       "w": 1040,
+       "h": 12,
+       "boxBg": "linear-gradient(color-mix(in srgb, var(--wp--preset--color--contrast, #000) 18%, transparent), color-mix(in srgb, var(--wp--preset--color--contrast, #000) 18%, transparent)) center / 100% 1px no-repeat"
+      },
+      {
+       "type": "para",
+       "x": 120,
+       "y": 162,
+       "w": 300,
+       "h": 20,
+       "text": "Pigment",
+       "tf": {
+        "fs": 10.5,
+        "fw": 400,
+        "ls2": 0.2,
+        "tt": "uppercase"
+       }
+      },
+      {
+       "type": "para",
+       "x": 620,
+       "y": 162,
+       "w": 260,
+       "h": 20,
+       "text": "Where it comes from",
+       "tf": {
+        "fs": 10.5,
+        "fw": 400,
+        "ls2": 0.2,
+        "tt": "uppercase"
+       }
+      },
+      {
+       "type": "para",
+       "x": 900,
+       "y": 162,
+       "w": 100,
+       "h": 20,
+       "text": "Grind",
+       "tf": {
+        "fs": 10.5,
+        "fw": 400,
+        "ls2": 0.2,
+        "tt": "uppercase"
+       }
+      },
+      {
+       "type": "para",
+       "x": 1010,
+       "y": 162,
+       "w": 110,
+       "h": 20,
+       "text": "Per 100g",
+       "align": "right",
+       "tf": {
+        "fs": 10.5,
+        "fw": 400,
+        "ls2": 0.2,
+        "tt": "uppercase"
+       }
+      },
+      {
+       "type": "box",
+       "x": 80,
+       "y": 192,
+       "w": 1040,
+       "h": 12,
+       "boxBg": "linear-gradient(color-mix(in srgb, var(--wp--preset--color--contrast, #000) 18%, transparent), color-mix(in srgb, var(--wp--preset--color--contrast, #000) 18%, transparent)) center / 100% 1px no-repeat"
+      },
+      {
+       "type": "box",
+       "x": 80,
+       "y": 219,
+       "w": 22,
+       "h": 22,
+       "boxBg": "#F2EDE2",
+       "radius": 11
+      },
+      {
+       "type": "heading",
+       "x": 120,
+       "y": 208,
+       "w": 300,
+       "h": 34,
+       "text": "Lead white",
+       "align": "left"
+      },
+      {
+       "type": "para",
+       "x": 620,
+       "y": 216,
+       "w": 260,
+       "h": 22,
+       "text": "St Austell, Cornwall",
+       "tf": {
+        "fs": 14
+       }
+      },
+      {
+       "type": "para",
+       "x": 900,
+       "y": 216,
+       "w": 100,
+       "h": 22,
+       "text": "Fine",
+       "tf": {
+        "fs": 11.5,
+        "fw": 400,
+        "ls2": 0.1,
+        "tt": "uppercase"
+       }
+      },
+      {
+       "type": "para",
+       "x": 1010,
+       "y": 213,
+       "w": 110,
+       "h": 26,
+       "text": "£18",
+       "align": "right",
+       "tf": {
+        "fs": 16,
+        "fw": 600
+       }
+      },
+      {
+       "type": "box",
+       "x": 80,
+       "y": 260,
+       "w": 1040,
+       "h": 12,
+       "boxBg": "linear-gradient(color-mix(in srgb, var(--wp--preset--color--contrast, #000) 18%, transparent), color-mix(in srgb, var(--wp--preset--color--contrast, #000) 18%, transparent)) center / 100% 1px no-repeat"
+      },
+      {
+       "type": "box",
+       "x": 80,
+       "y": 281,
+       "w": 22,
+       "h": 22,
+       "boxBg": "#F0CD7E",
+       "radius": 11
+      },
+      {
+       "type": "heading",
+       "x": 120,
+       "y": 270,
+       "w": 300,
+       "h": 34,
+       "text": "Naples yellow",
+       "align": "left"
+      },
+      {
+       "type": "para",
+       "x": 620,
+       "y": 278,
+       "w": 260,
+       "h": 22,
+       "text": "Vesuvius, Campania",
+       "tf": {
+        "fs": 14
+       }
+      },
+      {
+       "type": "para",
+       "x": 900,
+       "y": 278,
+       "w": 100,
+       "h": 22,
+       "text": "Coarse",
+       "tf": {
+        "fs": 11.5,
+        "fw": 400,
+        "ls2": 0.1,
+        "tt": "uppercase"
+       }
+      },
+      {
+       "type": "para",
+       "x": 1010,
+       "y": 275,
+       "w": 110,
+       "h": 26,
+       "text": "£26",
+       "align": "right",
+       "tf": {
+        "fs": 16,
+        "fw": 600
+       }
+      },
+      {
+       "type": "box",
+       "x": 80,
+       "y": 322,
+       "w": 1040,
+       "h": 12,
+       "boxBg": "linear-gradient(color-mix(in srgb, var(--wp--preset--color--contrast, #000) 18%, transparent), color-mix(in srgb, var(--wp--preset--color--contrast, #000) 18%, transparent)) center / 100% 1px no-repeat"
+      },
+      {
+       "type": "box",
+       "x": 80,
+       "y": 343,
+       "w": 22,
+       "h": 22,
+       "boxBg": "#E8A317",
+       "radius": 11
+      },
+      {
+       "type": "heading",
+       "x": 120,
+       "y": 332,
+       "w": 300,
+       "h": 34,
+       "text": "Orpiment",
+       "align": "left"
+      },
+      {
+       "type": "para",
+       "x": 620,
+       "y": 340,
+       "w": 260,
+       "h": 22,
+       "text": "Kütahya, Anatolia",
+       "tf": {
+        "fs": 14
+       }
+      },
+      {
+       "type": "para",
+       "x": 900,
+       "y": 340,
+       "w": 100,
+       "h": 22,
+       "text": "Fine",
+       "tf": {
+        "fs": 11.5,
+        "fw": 400,
+        "ls2": 0.1,
+        "tt": "uppercase"
+       }
+      },
+      {
+       "type": "para",
+       "x": 1010,
+       "y": 337,
+       "w": 110,
+       "h": 26,
+       "text": "£41",
+       "align": "right",
+       "tf": {
+        "fs": 16,
+        "fw": 600
+       }
+      },
+      {
+       "type": "box",
+       "x": 80,
+       "y": 384,
+       "w": 1040,
+       "h": 12,
+       "boxBg": "linear-gradient(color-mix(in srgb, var(--wp--preset--color--contrast, #000) 18%, transparent), color-mix(in srgb, var(--wp--preset--color--contrast, #000) 18%, transparent)) center / 100% 1px no-repeat"
+      },
+      {
+       "type": "box",
+       "x": 80,
+       "y": 405,
+       "w": 22,
+       "h": 22,
+       "boxBg": "#C8442A",
+       "radius": 11
+      },
+      {
+       "type": "heading",
+       "x": 120,
+       "y": 394,
+       "w": 300,
+       "h": 34,
+       "text": "Cinnabar",
+       "align": "left"
+      },
+      {
+       "type": "para",
+       "x": 620,
+       "y": 402,
+       "w": 260,
+       "h": 22,
+       "text": "Almadén, Castile",
+       "tf": {
+        "fs": 14
+       }
+      },
+      {
+       "type": "para",
+       "x": 900,
+       "y": 402,
+       "w": 100,
+       "h": 22,
+       "text": "Fine",
+       "tf": {
+        "fs": 11.5,
+        "fw": 400,
+        "ls2": 0.1,
+        "tt": "uppercase"
+       }
+      },
+      {
+       "type": "para",
+       "x": 1010,
+       "y": 399,
+       "w": 110,
+       "h": 26,
+       "text": "£54",
+       "align": "right",
+       "tf": {
+        "fs": 16,
+        "fw": 600
+       }
+      },
+      {
+       "type": "box",
+       "x": 80,
+       "y": 446,
+       "w": 1040,
+       "h": 12,
+       "boxBg": "linear-gradient(color-mix(in srgb, var(--wp--preset--color--contrast, #000) 18%, transparent), color-mix(in srgb, var(--wp--preset--color--contrast, #000) 18%, transparent)) center / 100% 1px no-repeat"
+      },
+      {
+       "type": "box",
+       "x": 80,
+       "y": 467,
+       "w": 22,
+       "h": 22,
+       "boxBg": "#9C3A4E",
+       "radius": 11
+      },
+      {
+       "type": "heading",
+       "x": 120,
+       "y": 456,
+       "w": 300,
+       "h": 34,
+       "text": "Madder lake",
+       "align": "left"
+      },
+      {
+       "type": "para",
+       "x": 620,
+       "y": 464,
+       "w": 260,
+       "h": 22,
+       "text": "Vaucluse, Provence",
+       "tf": {
+        "fs": 14
+       }
+      },
+      {
+       "type": "para",
+       "x": 900,
+       "y": 464,
+       "w": 100,
+       "h": 22,
+       "text": "Fine",
+       "tf": {
+        "fs": 11.5,
+        "fw": 400,
+        "ls2": 0.1,
+        "tt": "uppercase"
+       }
+      },
+      {
+       "type": "para",
+       "x": 1010,
+       "y": 461,
+       "w": 110,
+       "h": 26,
+       "text": "£29",
+       "align": "right",
+       "tf": {
+        "fs": 16,
+        "fw": 600
+       }
+      },
+      {
+       "type": "box",
+       "x": 80,
+       "y": 508,
+       "w": 1040,
+       "h": 12,
+       "boxBg": "linear-gradient(color-mix(in srgb, var(--wp--preset--color--contrast, #000) 18%, transparent), color-mix(in srgb, var(--wp--preset--color--contrast, #000) 18%, transparent)) center / 100% 1px no-repeat"
+      },
+      {
+       "type": "box",
+       "x": 80,
+       "y": 529,
+       "w": 22,
+       "h": 22,
+       "boxBg": "#4A9B8E",
+       "radius": 11
+      },
+      {
+       "type": "heading",
+       "x": 120,
+       "y": 518,
+       "w": 300,
+       "h": 34,
+       "text": "Verditer",
+       "align": "left"
+      },
+      {
+       "type": "para",
+       "x": 620,
+       "y": 526,
+       "w": 260,
+       "h": 22,
+       "text": "Matlock, Derbyshire",
+       "tf": {
+        "fs": 14
+       }
+      },
+      {
+       "type": "para",
+       "x": 900,
+       "y": 526,
+       "w": 100,
+       "h": 22,
+       "text": "Coarse",
+       "tf": {
+        "fs": 11.5,
+        "fw": 400,
+        "ls2": 0.1,
+        "tt": "uppercase"
+       }
+      },
+      {
+       "type": "para",
+       "x": 1010,
+       "y": 523,
+       "w": 110,
+       "h": 26,
+       "text": "£22",
+       "align": "right",
+       "tf": {
+        "fs": 16,
+        "fw": 600
+       }
+      },
+      {
+       "type": "box",
+       "x": 80,
+       "y": 570,
+       "w": 1040,
+       "h": 12,
+       "boxBg": "linear-gradient(color-mix(in srgb, var(--wp--preset--color--contrast, #000) 18%, transparent), color-mix(in srgb, var(--wp--preset--color--contrast, #000) 18%, transparent)) center / 100% 1px no-repeat"
+      },
+      {
+       "type": "box",
+       "x": 80,
+       "y": 591,
+       "w": 22,
+       "h": 22,
+       "boxBg": "#3B52B8",
+       "radius": 11
+      },
+      {
+       "type": "heading",
+       "x": 120,
+       "y": 580,
+       "w": 300,
+       "h": 34,
+       "text": "Ultramarine",
+       "align": "left"
+      },
+      {
+       "type": "para",
+       "x": 620,
+       "y": 588,
+       "w": 260,
+       "h": 22,
+       "text": "Sar-e-Sang, Badakhshan",
+       "tf": {
+        "fs": 14
+       }
+      },
+      {
+       "type": "para",
+       "x": 900,
+       "y": 588,
+       "w": 100,
+       "h": 22,
+       "text": "Fine",
+       "tf": {
+        "fs": 11.5,
+        "fw": 400,
+        "ls2": 0.1,
+        "tt": "uppercase"
+       }
+      },
+      {
+       "type": "para",
+       "x": 1010,
+       "y": 585,
+       "w": 110,
+       "h": 26,
+       "text": "£96",
+       "align": "right",
+       "tf": {
+        "fs": 16,
+        "fw": 600
+       }
+      },
+      {
+       "type": "box",
+       "x": 80,
+       "y": 632,
+       "w": 1040,
+       "h": 12,
+       "boxBg": "linear-gradient(color-mix(in srgb, var(--wp--preset--color--contrast, #000) 18%, transparent), color-mix(in srgb, var(--wp--preset--color--contrast, #000) 18%, transparent)) center / 100% 1px no-repeat"
+      },
+      {
+       "type": "box",
+       "x": 80,
+       "y": 653,
+       "w": 22,
+       "h": 22,
+       "boxBg": "#2F7D5F",
+       "radius": 11
+      },
+      {
+       "type": "heading",
+       "x": 120,
+       "y": 642,
+       "w": 300,
+       "h": 34,
+       "text": "Malachite",
+       "align": "left"
+      },
+      {
+       "type": "para",
+       "x": 620,
+       "y": 650,
+       "w": 260,
+       "h": 22,
+       "text": "Katanga, Haut-Katanga",
+       "tf": {
+        "fs": 14
+       }
+      },
+      {
+       "type": "para",
+       "x": 900,
+       "y": 650,
+       "w": 100,
+       "h": 22,
+       "text": "Coarse",
+       "tf": {
+        "fs": 11.5,
+        "fw": 400,
+        "ls2": 0.1,
+        "tt": "uppercase"
+       }
+      },
+      {
+       "type": "para",
+       "x": 1010,
+       "y": 647,
+       "w": 110,
+       "h": 26,
+       "text": "£37",
+       "align": "right",
+       "tf": {
+        "fs": 16,
+        "fw": 600
+       }
+      },
+      {
+       "type": "box",
+       "x": 80,
+       "y": 694,
+       "w": 1040,
+       "h": 12,
+       "boxBg": "linear-gradient(color-mix(in srgb, var(--wp--preset--color--contrast, #000) 18%, transparent), color-mix(in srgb, var(--wp--preset--color--contrast, #000) 18%, transparent)) center / 100% 1px no-repeat"
+      },
+      {
+       "type": "box",
+       "x": 80,
+       "y": 715,
+       "w": 22,
+       "h": 22,
+       "boxBg": "#26242C",
+       "radius": 11
+      },
+      {
+       "type": "heading",
+       "x": 120,
+       "y": 704,
+       "w": 300,
+       "h": 34,
+       "text": "Bone black",
+       "align": "left"
+      },
+      {
+       "type": "para",
+       "x": 620,
+       "y": 712,
+       "w": 260,
+       "h": 22,
+       "text": "Whitby, North Yorkshire",
+       "tf": {
+        "fs": 14
+       }
+      },
+      {
+       "type": "para",
+       "x": 900,
+       "y": 712,
+       "w": 100,
+       "h": 22,
+       "text": "Fine",
+       "tf": {
+        "fs": 11.5,
+        "fw": 400,
+        "ls2": 0.1,
+        "tt": "uppercase"
+       }
+      },
+      {
+       "type": "para",
+       "x": 1010,
+       "y": 709,
+       "w": 110,
+       "h": 26,
+       "text": "£14",
+       "align": "right",
+       "tf": {
+        "fs": 16,
+        "fw": 600
+       }
+      },
+      {
+       "type": "box",
+       "x": 80,
+       "y": 756,
+       "w": 1040,
+       "h": 12,
+       "boxBg": "linear-gradient(color-mix(in srgb, var(--wp--preset--color--contrast, #000) 18%, transparent), color-mix(in srgb, var(--wp--preset--color--contrast, #000) 18%, transparent)) center / 100% 1px no-repeat"
+      }
+     ],
+     "minH": 782
+    },
+    {
+     "name": "How it's made",
+     "els": [
+      {
+       "type": "box",
+       "x": 80,
+       "y": 88,
+       "w": 320,
+       "h": 190,
+       "boxBg": "linear-gradient(160deg, #3C3A44, #22212A)",
+       "radius": 4
+      },
+      {
+       "type": "heading",
+       "x": 80,
+       "y": 298,
+       "w": 320,
+       "h": 36,
+       "text": "Quarried",
+       "align": "left"
+      },
+      {
+       "type": "para",
+       "x": 80,
+       "y": 344,
+       "w": 320,
+       "h": 76,
+       "text": "We buy in lots of forty kilos, never more, from eleven small workings we have used for decades.",
+       "tf": {
+        "fs": 14
+       }
+      },
+      {
+       "type": "box",
+       "x": 440,
+       "y": 88,
+       "w": 320,
+       "h": 190,
+       "boxBg": "linear-gradient(160deg, #4A9B8E, #22574F)",
+       "radius": 4
+      },
+      {
+       "type": "heading",
+       "x": 440,
+       "y": 298,
+       "w": 320,
+       "h": 36,
+       "text": "Washed and levigated",
+       "align": "left"
+      },
+      {
+       "type": "para",
+       "x": 440,
+       "y": 344,
+       "w": 320,
+       "h": 76,
+       "text": "Rock is crushed, then settled through water four times. The float is the pigment; the sink is the road.",
+       "tf": {
+        "fs": 14
+       }
+      },
+      {
+       "type": "box",
+       "x": 800,
+       "y": 88,
+       "w": 320,
+       "h": 190,
+       "boxBg": "linear-gradient(160deg, #F0CD7E, #8A6A21)",
+       "radius": 4
+      },
+      {
+       "type": "heading",
+       "x": 800,
+       "y": 298,
+       "w": 320,
+       "h": 36,
+       "text": "Stone-milled",
+       "align": "left"
+      },
+      {
+       "type": "para",
+       "x": 800,
+       "y": 344,
+       "w": 320,
+       "h": 76,
+       "text": "Ground between granite for as long as it takes. Coarse keeps the sparkle, fine keeps the flow.",
+       "tf": {
+        "fs": 14
+       }
+      }
+     ],
+     "minH": 460
+    },
+    {
+     "name": "A word",
+     "els": [
+      {
+       "type": "heading",
+       "x": 80,
+       "y": 100,
+       "w": 620,
+       "h": 124,
+       "text": "A pigment is a rock that has agreed to become a colour.",
+       "fs": "x-large",
+       "align": "left"
+      },
+      {
+       "type": "para",
+       "x": 800,
+       "y": 108,
+       "w": 320,
+       "h": 20,
+       "text": "Nell Ashgrove",
+       "tf": {
+        "fs": 12,
+        "fw": 600,
+        "ls2": 0.14,
+        "tt": "uppercase"
+       }
+      },
+      {
+       "type": "para",
+       "x": 800,
+       "y": 132,
+       "w": 320,
+       "h": 20,
+       "text": "Second miller",
+       "tf": {
+        "fs": 12,
+        "fw": 400,
+        "ls2": 0.14,
+        "tt": "uppercase"
+       }
+      },
+      {
+       "type": "para",
+       "x": 800,
+       "y": 154,
+       "w": 320,
+       "h": 20,
+       "text": "With us since 1998",
+       "tf": {
+        "fs": 12,
+        "fw": 400,
+        "ls2": 0.14,
+        "tt": "uppercase"
+       }
+      }
+     ],
+     "minH": 320
+    }
+   ]
+  }
+ ]
+}

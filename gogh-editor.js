@@ -22,6 +22,9 @@
   if (!cfg) return;
 
   var TOL = 8, MIN_H = 560, PAD = 72, SNAP = 6, BASE = 8, W = 1200;
+  // the page's own content margin (80..1120): where new pieces are born, and
+  // a NAMED magnet — Canva's solid margin line, the one guide we lacked
+  var MARGIN = 80;
   // the PAINTED grid (3.333cqw of the 1200 canvas = 40 units). It must be
   // a real snap target: edges that nearly kiss a line the user can see
   // must land exactly ON it ("this needs to be, and feel, perfect")
@@ -255,7 +258,11 @@
     var chromeInfo = chromeHost ? { area: chromeHost.tagName === 'FOOTER' ? 'footer' : 'header' } : null;
     var bootEls = model.elements || [];
     if (hadModel && !v3wrap) bootEls = syncModelFromMarkup(sectionEl, bootEls);
-    S.push({ scope: scope, els: bootEls,
+    // a one-page site: the section's own anchor (#work) rides in the model
+    // and is put back on the element, so the menu still has somewhere to go
+    var bootAnchor = cleanAnchor(model.anchor || sectionEl.id);
+    if (bootAnchor) sectionEl.id = bootAnchor;
+    S.push({ scope: scope, els: bootEls, anchor: bootAnchor || null,
       v3: v3wrap,
       srcScope: v3wrap ? sectionEl.getAttribute('data-gogh-scope') : null,
       chrome: chromeInfo,
@@ -288,23 +295,37 @@
     var groups = [];
     sorted.forEach(function (v) {
       var g = groups[groups.length - 1];
-      if (g && v - g[g.length - 1] <= TOL) g.push(v);
+      // a group spans at most TOL from its FIRST member: chaining 300, 307,
+      // 314, 321 into one line at 310 moved every edge in it by up to ten
+      if (g && v - g[0] <= TOL) g.push(v);
       else groups.push([v]);
     });
     return groups.map(function (g) {
       return g.reduce(function (a, b) { return a + b; }, 0) / g.length;
     });
   }
+  // the frame's own edges are fixed lines, not votes: an edge within TOL of
+  // them joins the boundary instead of pulling it inward (a full-bleed photo
+  // six units short used to shift every column by three)
+  function pinLines(lines, lo, hi) {
+    var inner = lines.filter(function (l) { return l - lo > TOL && hi - l > TOL; });
+    return [lo].concat(inner, [hi]);
+  }
   function nearest(v, lines) {
     var best = 0;
     lines.forEach(function (l, i) { if (Math.abs(l - v) < Math.abs(lines[best] - v)) best = i; });
     return best;
   }
-  function designH(els, minH) {
+  function designH(els, minH, flat) {
     var bottom = els.length
       ? Math.max.apply(null, els.map(function (e) { return e.y + e.h; }))
       : (minH || MIN_H) - PAD;
     var floor = minH || MIN_H;
+    // flat: a card's inner grid. The card IS its height; the breathing pad
+    // belongs to sections (a kid one unit past the bottom used to add the
+    // 72-unit pad to the height every row was a share of, squeezing every
+    // kid by about a seventh)
+    if (flat) return Math.max(floor, bottom);
     // Three truths at once:
     // 1. content within minH never gets a phantom pad — flush at a fixed
     //    hero's edge just works;
@@ -319,8 +340,8 @@
     var padTerm = maxPad > floor ? maxPad + PAD : floor;
     return Math.max(floor, bottom, padTerm);
   }
-  function solve(els, minH, dw, skip) {
-    var H = designH(els, minH);
+  function solve(els, minH, dw, skip, flat) {
+    var H = designH(els, minH, flat);
     // skip: elements whose edges must NOT shape the grid lines — the
     // element being dragged. Cluster averaging makes every line a blend
     // of every nearby edge, so a streaming drag position bent the lines
@@ -332,8 +353,8 @@
     var lineEls = (skip && skip.length)
       ? els.filter(function (_, i2) { return skip.indexOf(i2) === -1; })
       : els;
-    var xs = cluster([0, dw || W].concat(lineEls.reduce(function (a, e) { return a.concat([e.x, e.x + e.w]); }, [])));
-    var ys = cluster([0, H].concat(lineEls.reduce(function (a, e) { return a.concat([e.y, e.y + e.h]); }, [])));
+    var xs = pinLines(cluster(lineEls.reduce(function (a, e) { return a.concat([e.x, e.x + e.w]); }, [])), 0, dw || W);
+    var ys = pinLines(cluster(lineEls.reduce(function (a, e) { return a.concat([e.y, e.y + e.h]); }, [])), 0, H);
     var pct = function (v) { return +(v / W * 100).toFixed(2); };
     return {
       cols: xs.slice(1).map(function (x, i) { return pct(x - xs[i]) + 'cqw'; }),
@@ -712,6 +733,9 @@
         }
         if (e.radius) extra += ' border-radius: ' + (Math.round(e.radius / 12 * 100) / 100) + 'cqw;';
         if (e.shape && SHAPE_CSS[e.shape]) extra += SHAPE_CSS[e.shape];
+        // a rounded silhouette only clips what it holds when told to: clip-path
+        // shapes cut their children already, border-radius ones do not
+        if (e.shape && e.kids && e.kids.length) extra += ' overflow: hidden;';
         var moodBase = e.rot ? ' rotate(' + e.rot + 'deg)' : '';
         if (e.mood === 'lift') {
           extra += ' transition: transform 0.25s ease, box-shadow 0.25s ease;';
@@ -1001,8 +1025,8 @@
     els.forEach(function (e, i) {
       if (e.type !== 'box' || !e.kids || !e.kids.length) return;
       var cardSel = sec + ' .gogh-el-' + (i + 1);
-      var kg = solve(e.kids, e.h, e.w, (opts.kidSkip && opts.kidSkip.ci === i) ? [opts.kidSkip.j] : null);
-      var kidH = designH(e.kids, e.h);
+      var kg = solve(e.kids, e.h, e.w, (opts.kidSkip && opts.kidSkip.ci === i) ? [opts.kidSkip.j] : null, true);
+      var kidH = designH(e.kids, e.h, true);
       var cardRows = kg.rows.map(function (r) {
         // solve emits section-cqw (1cqw = W/100 design units); the card's
         // rows must be % of the CARD's height so they scale with it
@@ -1048,9 +1072,14 @@
         // the exception — narrow width makes their text TALLER, so locking
         // the design aspect squeezes kids into overlap; they size to
         // content, with a gap standing in for the collapsed design spacers
-        (e.type === 'box' ? (e.shape ? ' display: none;' :
-          (e.kids && e.kids.length ? ' aspect-ratio: auto; height: auto; display: flex; flex-direction: column; gap: 3cqw; padding: 6cqw 5cqw !important; align-items: flex-start;' :
-            ' aspect-ratio: ' + e.w + ' / ' + e.h + ';')) : '') +
+        // a shape that HOLDS things is not decoration: hiding it on a phone
+        // would delete real content. It keeps the card's stacking and lets
+        // the silhouette go, because a circle told to be as tall as its
+        // words is an ellipse, and the inset maths stops holding
+        (e.type === 'box' ? ((e.kids && e.kids.length)
+          ? ' aspect-ratio: auto; height: auto; display: flex; flex-direction: column; gap: 3cqw; padding: 6cqw 5cqw !important; align-items: flex-start;' +
+            (e.shape ? ' border-radius: 4cqw; clip-path: none;' : '')
+          : (e.shape ? ' display: none;' : ' aspect-ratio: ' + e.w + ' / ' + e.h + ';')) : '') +
         (e.type === 'exp' ? ' aspect-ratio: ' + e.w + ' / ' + e.h + ';' : '') +
         (e.type === 'badge' ? ' width: max-content; height: 44px;' : '') + ' }');
       // mobile override — hidden on phones. Gate on :not(.gogh-phone-preview)
@@ -1128,7 +1157,7 @@
       btnBg: e.btnBg || null, btnText: e.btnText || null, btnHover: e.btnHover || null,
       wsrc: e.wsrc || null, whtml: e.whtml || null, wcol: e.wcol || null,
       // the rails element: its flag and its few choices travel with the model
-      rails: e.rails ? true : undefined, shop: e.shop || undefined,
+      rails: e.rails ? true : undefined, shop: e.shop || undefined, posts: e.posts || undefined,
       boxBg: e.boxBg || null, radius: e.radius || 0, shape: e.shape || null,
       boxImg: e.boxImg || null, boxImgId: e.boxImgId || null,
       mood: e.mood || null,
@@ -1139,6 +1168,13 @@
       m: (e.m && Object.keys(e.m).length) ? e.m : null, // sparse mobile overrides (hidden, …)
       fitW: e.fitW ? true : null, fitFs: e.fitW && e.fitFs ? e.fitFs : null, // fill-the-width text
       flushB: e.flushB ? true : null, // dragged flush to the section bottom
+      // the die's take mark: which roll drew this piece (face 0 counts, so
+      // no truthy test). Left off the model, every take-drawn piece came
+      // back from a reload as an original and the next roll piled the
+      // riders up (the v435 leak, back one reload later)
+      tk: e.tk != null ? e.tk : undefined,
+      // its identity and its slot in the family's drawing (see diceEnsureIds)
+      id: e.id || undefined, sk: e.sk || undefined,
       kids: e.kids && e.kids.length ? e.kids.map(projEl) : null };
   }
   function buildElBlocks(els, clsBase) {
@@ -1245,6 +1281,7 @@
   function sectionModelJSON(sec, version) {
     return {
       version: version, designW: W, minH: sec.minH || null,
+      anchor: sec.anchor || null, // a name the menu of a one-page site can scroll to
       bg: sec.bg || null, divider: sec.divider || null,
       fx: sec.fx || null,
       bgImage: sec.bgImage || null, bgId: sec.bgId || null, bgVideo: sec.bgVideo || null, bgVideoId: sec.bgVideoId || null, bgA: sec.bgA != null ? sec.bgA : null, theme: sec.theme || null, fill: sec.fill || null,
@@ -1292,6 +1329,14 @@
       cssT: buildCSS(sec.els, 'GOGHSCOPE', sec.minH, sectionOpts(sec)),
     };
   }
+  // an anchor is an id in the page's namespace: lowercase, no spaces, and
+  // never empty. Declared (not assigned) so the boot-time collector, which
+  // runs before the mid-file vars, can already call it.
+  function cleanAnchor(a) {
+    if (!a) return '';
+    var c = String(a).toLowerCase().replace(/[^a-z0-9-]+/g, '-').replace(/^-+|-+$/g, '');
+    return /^[a-z]/.test(c) ? c : '';
+  }
   function buildSectionBlocksV3(sec) {
     var attrs = buildSectionAttrsV3(sec);
     // the baked stylesheet is a PROJECTION of the attrs (matches the block's
@@ -1301,7 +1346,7 @@
     return '<!-- wp:gogh/section ' + serializeBlockAttrs(attrs) + ' -->\n' +
       '<div class="wp-block-gogh-section alignfull gogh-wrap">' +
       '<style class="gogh-style">' + css + '</style>' +
-      '<div class="gogh-section ' + sec.scope + '" data-gogh-scope="' + sec.scope + '">\n' +
+      '<div' + (sec.anchor ? ' id="' + sec.anchor + '"' : '') + ' class="gogh-section ' + sec.scope + '" data-gogh-scope="' + sec.scope + '">\n' +
       bgVideoMarkup(sec) + buildElBlocks(sec.els) + '\n</div></div>\n' +
       '<!-- /wp:gogh/section -->';
   }
@@ -1521,19 +1566,6 @@
         // from one world and drop into the other ("drag and drop
         // struggles ... especially if its a high image")
         var ih = sec.nodes[i].offsetHeight / s;
-        // ...BUT never absorb a grid STRETCH: when a style change grows the
-        // text column beside it, the image's row gets taller and (without
-        // align-self:start) the cell stretches, so offsetHeight reads that
-        // stretched height and the aspect goes tall-and-thin. align-self:
-        // start stops it going forward; here we clamp a runaway reading back
-        // to the photo's own height (natural aspect at width e.w), which
-        // also heals any model already poisoned. Ordinary crops sit close to
-        // natural and pass straight through.
-        var img = sec.nodes[i].querySelector('img');
-        if (img && img.naturalWidth && img.naturalHeight) {
-          var natH = e.w * (img.naturalHeight / img.naturalWidth);
-          if (natH > 0 && ih > natH * 1.5) ih = natH;
-        }
         // the frame draws at its OWN aspect (aspect-ratio: w / h) on whatever
         // width its tracks give it — a track that moved a few units under it
         // changes the height it draws at without inflating anything. Only a
@@ -1543,6 +1575,22 @@
         var rw = sec.nodes[i].offsetWidth / s;
         var aspectH = (e.w > 0 && rw > 0) ? rw * (e.h / e.w) : ih;
         if (Math.abs(ih - aspectH) <= 12) return;
+        // ...BUT never absorb a grid STRETCH: when a style change grows the
+        // text column beside it, the image's row gets taller and (without
+        // align-self:start) the cell stretches, so offsetHeight reads that
+        // stretched height and the aspect goes tall-and-thin. align-self:
+        // start stops it going forward; here we clamp a runaway reading back
+        // to the photo's own height (natural aspect at width e.w). This sits
+        // AFTER the aspect check on purpose: photos are cover-fitted, so a
+        // declared w/h that differs from the natural aspect is a deliberate
+        // crop (a square cut from a 16:9 photo), not an error — clamping
+        // first made the aspect check compare natural against declared and
+        // flattened the crop on every image load and every resize frame.
+        var img = sec.nodes[i].querySelector('img');
+        if (img && img.naturalWidth && img.naturalHeight) {
+          var natH = e.w * (img.naturalHeight / img.naturalWidth);
+          if (natH > 0 && ih > natH * 1.5) ih = natH;
+        }
         // deadband 12: real inflation is hundreds of units, solver
         // re-quantization wiggles by single digits — absorb only truth
         if (ih > 0 && Math.abs(ih - e.h) > 12) e.h = Math.round(ih);
@@ -1732,10 +1780,14 @@
       // a rails element saved before the model carried its flag (v0.99.372-387)
       // reads its few choices back out of Woo's block it composed
       if (e.type === 'widget' && !e.shop && /wp:woocommerce\/product-collection/.test(e.wsrc || '')) healRails(e);
+      // a posts grid saved before it rode the rails (a fixed three-up loop)
+      // reads its few choices back out of the query it composed
+      if (e.type === 'widget' && !e.posts && !e.shop && /wp:query\b/.test(e.wsrc || '') && /"postType":"post"/.test(e.wsrc || '')) healPosts(e);
       if (e.type === 'widget' && !e.shop && /wp:woocommerce\/product-categories/.test(e.wsrc || '') && /gogh-shop-cats/.test(e.wsrc || '')) { e.rails = true; e.shop = Object.assign(shopDefaults(), { kind: 'categories', count: (/gogh-shop-cats-c(\d)/.exec(e.wsrc) || [0, 3])[1] * 1 }); }
       if (e.faq && e.faq.length && e.wsrc && e.wsrc.indexOf('role="group"') === -1) composeWidgetData(e);
       if (e.tabs && e.tabs.length && e.wsrc && e.wsrc.indexOf('role="tabpanel"') === -1) composeWidgetData(e);
     });
+    if (kidSel && kidSel.sec === sec && !kidDrag) kidBox.hidden = true; // the nodes are about to be rebuilt
     sec.sectionEl.innerHTML = '';
     if (sec.bgVideo) {
       // the backdrop is REUSED across renders — a fresh element would
@@ -1789,13 +1841,13 @@
     sectionEl.className = 'gogh-section ' + scope;
     sectionEl.setAttribute('data-gogh-scope', scope);
     wrap.appendChild(sectionEl);
-    return { scope: scope, els: [], minH: null, bg: null, divider: null, fx: null, bgImage: null, bgId: null, bgVideo: null, bgVideoId: null, wrapEl: wrap, sectionEl: sectionEl, styleEl: styleEl, nodes: [] };
+    return { scope: scope, els: [], anchor: null, minH: null, bg: null, divider: null, fx: null, bgImage: null, bgId: null, bgVideo: null, bgVideoId: null, wrapEl: wrap, sectionEl: sectionEl, styleEl: styleEl, nodes: [] };
   }
 
   // ---------- history (undo/redo) ----------
   var history = [], hIdx = -1, textTimer = null;
   function serialize() {
-    return JSON.stringify(S.map(function (sec) { return { scope: sec.scope, els: sec.els, minH: sec.minH || null, bg: sec.bg || null, divider: sec.divider || null, fx: sec.fx || null, bgImage: sec.bgImage || null, bgId: sec.bgId || null, bgVideo: sec.bgVideo || null, bgVideoId: sec.bgVideoId || null, bgA: sec.bgA != null ? sec.bgA : null, theme: sec.theme || null, fill: sec.fill || null, m: (sec.m && Object.keys(sec.m).length) ? sec.m : null, bgPos: sec.bgPos || null, src: sec.srcSig || null, boot: sec.bootstrap || false, chrome: sec.chrome || null }; }));
+    return JSON.stringify(S.map(function (sec) { return { scope: sec.scope, els: sec.els, anchor: sec.anchor || null, minH: sec.minH || null, bg: sec.bg || null, divider: sec.divider || null, fx: sec.fx || null, bgImage: sec.bgImage || null, bgId: sec.bgId || null, bgVideo: sec.bgVideo || null, bgVideoId: sec.bgVideoId || null, bgA: sec.bgA != null ? sec.bgA : null, theme: sec.theme || null, fill: sec.fill || null, m: (sec.m && Object.keys(sec.m).length) ? sec.m : null, bgPos: sec.bgPos || null, src: sec.srcSig || null, boot: sec.bootstrap || false, chrome: sec.chrome || null }; }));
   }
   function pushState() {
     var snap = serialize();
@@ -1821,6 +1873,13 @@
   function restoreState(snap) {
     clearMulti();
     deselectSection(); // the rebuild replaces every sectionEl — a stale ring would orphan
+    // the section OBJECTS go too — a kid selection, kid edit or kid drag
+    // left pointing at the old ones would splice a dead model (Backspace
+    // after Cmd+Z showed "Removed from the card" and its Undo reverted
+    // something else). End them now, while their nodes are still attached
+    exitKidEd(true); // quiet — this is a history step, it must not push one
+    clearKidSel();
+    abortKidDrag();
     var data = JSON.parse(snap);
     // full rebuild, but each section goes back to its own DOM position so
     // non-gogh blocks interleaved with sections stay where they are
@@ -1852,6 +1911,8 @@
       sec.fill = !!d.fill;
       sec.m = d.m || null;
       sec.bgPos = d.bgPos || null;
+      sec.anchor = d.anchor || null;
+      if (sec.anchor) sec.sectionEl.id = sec.anchor;
       sec.srcSig = d.src || null;
       sec.bootstrap = !!d.boot;
       sec.chrome = d.chrome || null;
@@ -2407,6 +2468,15 @@
   ];
   var selBox = document.createElement('div');
   selBox.className = 'gogh-selbox';
+  // A card announces itself with a badge in its own top-left corner
+  // (.gogh-cardbox.gogh-selected::after). On a rectangle that corner is
+  // inside the card. On a circle, a pill, a blob, it is exactly the part the
+  // silhouette clips away — so the badge exists and cannot be seen. Those
+  // shapes get the name on the selection box instead, which nothing clips.
+  var selTag = document.createElement('span');
+  selTag.className = 'gogh-selbox-tag';
+  selTag.hidden = true;
+  selBox.appendChild(selTag);
   DIRS.forEach(function (dir) {
     var h = document.createElement('button');
     h.type = 'button';
@@ -2438,11 +2508,27 @@
     '<button type="button" class="gogh-eb gogh-eb-bck" title="Send backward">▼</button>' +
     '<button type="button" class="gogh-eb gogh-eb-fwd" title="Bring forward">▲</button>' +
     '<button type="button" class="gogh-eb gogh-eb-dup" title="Duplicate (or Alt-drag)">⧉</button>' +
-    '<button type="button" class="gogh-eb gogh-eb-del" title="Delete (Del)">🗑</button>';
+    '<button type="button" class="gogh-eb gogh-eb-del" title="Delete (Del)">🗑</button>' +
+    // a card's own Line up: its pieces, lined up with each other or centred
+    // on the card, and spaced evenly down it — the group bar's verbs, one
+    // level in (James: "a line up option once the card has been made")
+    '<button type="button" class="gogh-eb gogh-eb-lineup" title="Line up the pieces inside this card">Line up \u25BE</button>' +
+    '<div class="gogh-mbar-more gogh-elbar-more" hidden>' +
+    '<div class="gogh-mbar-row"><span class="gogh-mbar-lab">Side to side</span>' +
+    [['left', 'Left'], ['center', 'Centre'], ['right', 'Right']].map(function (a) {
+      return '<button type="button" class="gogh-eb gogh-mb gogh-cl-align" data-how="' + a[0] + '" title="Line up ' + a[1].toLowerCase() + '">' + a[1] + '</button>';
+    }).join('') + '</div>' +
+    // a card stacks its pieces, so its one gap verb sits under the direction
+    // it works in rather than carrying the direction in its name
+    '<div class="gogh-mbar-row"><span class="gogh-mbar-lab">Top to bottom</span>' +
+    '<button type="button" class="gogh-eb gogh-mb gogh-cl-space" title="Equal gaps top to bottom">Even gaps</button></div>' +
+    '<div class="gogh-mbar-hint" hidden>Faded ones would put pieces on top of each other, or change nothing.</div>' +
+    '</div>';
   var ctxBtn = elbar.querySelector('.gogh-eb-ctx');
   elbar.querySelector('.gogh-eb-manage').addEventListener('click', function () {
     if (!sel) return;
     var e2 = sel.sec.els[sel.i];
+    if (e2 && e2.posts) { window.open(managePostsUrl(e2), '_blank', 'noopener'); return; }
     if (e2 && e2.shop) window.open(e2.shop.kind === 'categories' ? (cfg.adminUrl || '/wp-admin/') + 'edit-tags.php?taxonomy=product_cat&post_type=product' : manageProductsUrl(e2), '_blank', 'noopener');
   });
   var fsBtn = elbar.querySelector('.gogh-eb-fs');
@@ -2698,6 +2784,9 @@
   var sel = null; // {sec, i}
   var multiSel = null; // {sec, idxs} — a group selection within one section
   function clearMulti() {
+    mbar.hidden = true;
+    var moreRow = mbar.querySelector('.gogh-mbar-more');
+    if (moreRow) moreRow.hidden = true;
     if (!multiSel) return;
     var m = multiSel;
     multiSel = null;
@@ -2713,13 +2802,368 @@
     hideHandles();
     multiSel = { sec: secM, idxs: idxs.slice().sort(function (a, b) { return a - b; }) };
     multiSel.idxs.forEach(function (j) { if (secM.nodes[j]) secM.nodes[j].classList.add('gogh-multisel'); });
+    placeMbar();
+    refreshMbar();
   }
+  // ---------- the group bar ----------
+  // A multi-selection used to have three verbs and no bar: drag, nudge,
+  // delete. Canva names what a beginner most likely wants next (Group)
+  // first on a small floating bar and keeps the rest behind dots. Gogh's
+  // group is the Card — it holds pieces together on phones — so Make a
+  // card leads; Duplicate and Delete follow; Align, Space evenly and Tidy up
+  // sit behind the dots. What would do nothing is greyed, with the reason
+  // in its title, so the bar teaches what is already right.
+  var mbar = document.createElement('div');
+  mbar.className = 'gogh-elbar gogh-mbar';
+  mbar.hidden = true;
+  mbar.innerHTML =
+    '<button type="button" class="gogh-eb gogh-mb gogh-mb-card" title="Make these one card — it holds together on phones">Make a card</button>' +
+    '<button type="button" class="gogh-eb gogh-mb gogh-mb-dup" title="Duplicate the selection">Duplicate</button>' +
+    '<button type="button" class="gogh-eb gogh-mb gogh-mb-del" title="Delete the selection">Delete</button>' +
+    '<button type="button" class="gogh-eb gogh-mb gogh-mb-more" title="Line the pieces up, or even out the gaps">Line up \u25BE</button>' +
+    '<div class="gogh-mbar-more" hidden>' +
+    // the six words used to sit in one row, and "Centre" and "Middle" are the
+    // same word to anyone who has not done this before (James: "do you think
+    // we should have a horizontal alignment option?" — it was there, unlabelled)
+    // one line per direction, with that direction's own gap verb on it: the
+    // heading says which way, so the buttons need no invented words of their
+    // own (James, on a lone "Space down": "its not clear to me what this means")
+    '<div class="gogh-mbar-row"><span class="gogh-mbar-lab">Side to side</span>' +
+    [['left', 'Left'], ['center', 'Centre'], ['right', 'Right']].map(function (a) {
+      return '<button type="button" class="gogh-eb gogh-mb gogh-mb-align" data-how="' + a[0] + '" title="Line up ' + a[1].toLowerCase() + '">' + a[1] + '</button>';
+    }).join('') +
+    '<button type="button" class="gogh-eb gogh-mb gogh-mb-space" data-axis="x" title="Equal gaps left to right">Even gaps</button></div>' +
+    '<div class="gogh-mbar-row"><span class="gogh-mbar-lab">Top to bottom</span>' +
+    [['top', 'Top'], ['middle', 'Middle'], ['bottom', 'Bottom']].map(function (a) {
+      return '<button type="button" class="gogh-eb gogh-mb gogh-mb-align" data-how="' + a[0] + '" title="Line up ' + a[1].toLowerCase() + '">' + a[1] + '</button>';
+    }).join('') +
+    '<button type="button" class="gogh-eb gogh-mb gogh-mb-space" data-axis="y" title="Equal gaps top to bottom">Even gaps</button></div>' +
+    '<div class="gogh-mbar-row">' +
+    '<button type="button" class="gogh-eb gogh-mb gogh-mb-tidy" title="Line the row up and even the gaps">Tidy up</button>' +
+    '</div>' +
+    '<div class="gogh-mbar-hint" hidden>Faded ones would put pieces on top of each other, or change nothing.</div>' +
+    '</div>';
+  document.body.appendChild(mbar);
+  function multiEls() {
+    return multiSel ? multiSel.idxs.map(function (j) { return multiSel.sec.els[j]; }).filter(Boolean) : [];
+  }
+  function bboxOf(els) {
+    var x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+    els.forEach(function (e) { x0 = Math.min(x0, e.x); y0 = Math.min(y0, e.y); x1 = Math.max(x1, e.x + e.w); y1 = Math.max(y1, e.y + e.h); });
+    return { x: x0, y: y0, w: x1 - x0, h: y1 - y0 };
+  }
+  function placeMbar() {
+    if (!multiSel || !editing || drag) { mbar.hidden = true; return; }
+    var sec = multiSel.sec, x0 = Infinity, y0 = Infinity, x1 = -Infinity;
+    var ok = true;
+    multiSel.idxs.forEach(function (j) {
+      var node = sec.nodes[j];
+      if (!node || !document.contains(node)) { ok = false; return; }
+      var b = nodeBox(node);
+      x0 = Math.min(x0, b.x); y0 = Math.min(y0, b.y); x1 = Math.max(x1, b.x + b.w);
+    });
+    if (!ok || x0 === Infinity) { mbar.hidden = true; return; }
+    mbar.style.left = Math.round((x0 + x1) / 2) + 'px';
+    mbar.style.top = Math.round(y0 - 14) + 'px';
+    mbar.hidden = false;
+  }
+  // the plan a Tidy up would make: rows by vertical overlap, each row's top
+  // squared, three or more in a row spaced evenly, three or more rows spaced
+  // evenly. Dry-run it to grey the button when the answer is "nothing"
+  function tidyPlan(els) {
+    var rows = [];
+    els.slice().sort(function (a, b) { return a.y - b.y; }).forEach(function (e) {
+      var row = null;
+      rows.forEach(function (r) {
+        var ov = Math.min(r.y1, e.y + e.h) - Math.max(r.y0, e.y);
+        if (!row && ov >= 0.3 * Math.min(e.h, r.y1 - r.y0)) row = r;
+      });
+      if (!row) { row = { y0: e.y, y1: e.y + e.h, els: [] }; rows.push(row); }
+      row.els.push(e); row.y0 = Math.min(row.y0, e.y); row.y1 = Math.max(row.y1, e.y + e.h);
+    });
+    var moves = {};
+    var at = function (e) { var k = els.indexOf(e); if (!moves[k]) moves[k] = { e: e, x: e.x, y: e.y }; return moves[k]; };
+    rows.forEach(function (r) {
+      var top = Math.min.apply(null, r.els.map(function (e) { return e.y; }));
+      r.els.forEach(function (e) { at(e).y = top; });
+      r.top = top; r.h = Math.max.apply(null, r.els.map(function (e) { return e.h; }));
+      if (r.els.length >= 3) evenRow(r.els.map(at), 'x');
+    });
+    if (rows.length >= 3) {
+      rows.sort(function (a, b) { return a.top - b.top; });
+      var span = rows[rows.length - 1].top + rows[rows.length - 1].h - rows[0].top;
+      var used = rows.reduce(function (t, r) { return t + r.h; }, 0);
+      var gap = (span - used) / (rows.length - 1);
+      var cur = rows[0].top + rows[0].h + gap;
+      rows.slice(1, -1).forEach(function (r) {
+        var shift = Math.round(cur) - r.top;
+        r.els.forEach(function (e) { at(e).y += shift; });
+        cur += r.h + gap;
+      });
+    }
+    return Object.keys(moves).map(function (k) { return moves[k]; });
+  }
+  // equal gaps along one axis: the first and last stay, the rest share the room
+  function evenRow(items, axis) {
+    var size = axis === 'x' ? 'w' : 'h';
+    items.sort(function (a, b) { return a[axis] - b[axis]; });
+    var first = items[0], last = items[items.length - 1];
+    var span = last[axis] + last.e[size] - first[axis];
+    var used = items.reduce(function (t, it) { return t + it.e[size]; }, 0);
+    var gap = (span - used) / (items.length - 1);
+    var cur = first[axis] + first.e[size] + gap;
+    items.slice(1, -1).forEach(function (it) { it[axis] = Math.round(cur); cur += it.e[size] + gap; });
+  }
+  function planChanges(plan) {
+    return plan.some(function (m) {
+      return Math.abs(m.x - m.e.x) > 1 || Math.abs(m.y - m.e.y) > 1 ||
+        (m.align !== undefined && m.align !== (m.e.align || 'left'));
+    });
+  }
+  // the words a piece actually shows (its ink), in design units — a text box
+  // is often wider than its words, and boxes touching is not words touching
+  function inkRectOf(sec, j) {
+    var e = sec.els[j], node = sec.nodes && sec.nodes[j];
+    var box = { x: e.x, y: e.y, w: e.w, h: e.h };
+    if (!node || e.type === 'button' || !isText(e)) return box;
+    var sc = scaleOf(sec);
+    if (!(sc > 0.2)) return box;
+    var tn = node.matches('p,h1,h2,h3,h4,h5,h6') ? node : (node.querySelector('p,h1,h2,h3,h4,h5,h6') || node);
+    var rng = document.createRange();
+    rng.selectNodeContents(tn);
+    var ir = rng.getBoundingClientRect(), nr = node.getBoundingClientRect();
+    if (!(ir.width > 0) || !(ir.height > 0) || !(nr.width > 0)) return box;
+    return { x: e.x + (ir.left - nr.left) / sc, y: e.y + (ir.top - nr.top) / sc, w: ir.width / sc, h: ir.height / sc };
+  }
+  // would this plan land two texty pieces on each other that were apart
+  // before? Words never sit on words — the runtime guard's law, so no verb
+  // on the bar may break it (James: "they seem just to cause text to overlap")
+  function planOverlaps(sec, idxs, plan) {
+    var rects = idxs.map(function (j) {
+      var e = sec.els[j], r = inkRectOf(sec, j);
+      var m = null;
+      plan.forEach(function (pm) { if (pm.e === e) m = pm; });
+      return { e: e, x0: r.x, y0: r.y, x1: r.x + (m ? m.x - e.x : 0), y1: r.y + (m ? m.y - e.y : 0), w: r.w, h: r.h };
+    }).filter(function (r) { return guardTexty(r.e); });
+    return anyNewOverlap(rects);
+  }
+  // two texty rects that were apart before (x0,y0) and touch after (x1,y1)
+  function anyNewOverlap(rects) {
+    var touch = function (a, ax, ay, b, bx, by) {
+      return Math.min(ax + a.w, bx + b.w) - Math.max(ax, bx) > 4 && Math.min(ay + a.h, by + b.h) - Math.max(ay, by) > 4;
+    };
+    for (var i = 0; i < rects.length; i++) for (var k = i + 1; k < rects.length; k++) {
+      var a = rects[i], b = rects[k];
+      if (touch(a, a.x1, a.y1, b, b.x1, b.y1) && !touch(a, a.x0, a.y0, b, b.x0, b.y0)) return true;
+    }
+    return false;
+  }
+  function applyPlan(plan) {
+    plan.forEach(function (m) {
+      m.e.x = Math.round(m.x); m.e.y = Math.round(m.y);
+      if (m.align !== undefined) { if (m.align === 'left') delete m.e.align; else m.e.align = m.align; }
+    });
+  }
+  function spacePlan(els, axis) {
+    var items = els.map(function (e) { return { e: e, x: e.x, y: e.y }; });
+    if (!axis) { var bb = bboxOf(els); axis = bb.w >= bb.h ? 'x' : 'y'; }
+    evenRow(items, axis);
+    return items;
+  }
+  function alignPlan(els, how) {
+    var bb = bboxOf(els);
+    return els.map(function (e) {
+      var m = { e: e, x: e.x, y: e.y };
+      if (how === 'left') m.x = bb.x; else if (how === 'center') m.x = Math.round(bb.x + bb.w / 2 - e.w / 2); else if (how === 'right') m.x = bb.x + bb.w - e.w;
+      else if (how === 'top') m.y = bb.y; else if (how === 'middle') m.y = Math.round(bb.y + bb.h / 2 - e.h / 2); else if (how === 'bottom') m.y = bb.y + bb.h - e.h;
+      // words line up as words: a text box wider than its ink takes the
+      // alignment too, or a full-width paragraph "centres" and nothing moves
+      if (isText(e) && (how === 'left' || how === 'center' || how === 'right')) m.align = how;
+      return m;
+    });
+  }
+  // ---- the same verbs one level in: a card's pieces ----
+  function cardLineupPlan(box, how) {
+    var kids = box.kids || [];
+    if (how === 'space') {
+      var items = kids.map(function (k) { return { e: k, x: k.x, y: k.y }; });
+      if (items.length >= 3) evenRow(items, 'y');
+      return items;
+    }
+    // centre means the card's centre; left and right line the pieces up with each other
+    if (how === 'center') return kids.map(function (k) { var m = { e: k, x: Math.max(0, Math.round(box.w / 2 - k.w / 2)), y: k.y }; if (isText(k)) m.align = 'center'; return m; });
+    return alignPlan(kids, how);
+  }
+  function cardPlanOverlaps(sec, ci, plan) {
+    var box = sec.els[ci], inkOf = kidInkOf(sec, ci);
+    var rects = (box.kids || []).map(function (k) {
+      var r = inkOf(k) || { x: k.x, y: k.y, w: k.w, h: k.h };
+      var m = null;
+      plan.forEach(function (pm) { if (pm.e === k) m = pm; });
+      return { e: k, x0: r.x, y0: r.y, x1: r.x + (m ? m.x - k.x : 0), y1: r.y + (m ? m.y - k.y : 0), w: r.w, h: r.h };
+    }).filter(function (r) { return guardTexty(r.e); });
+    return anyNewOverlap(rects);
+  }
+  function refreshCardLineup(sec, i) {
+    var box = sec.els[i];
+    if (!box || box.type !== 'box' || !box.kids || !box.kids.length) return;
+    var grey = function (btn, why, on) { btn.disabled = !!why; btn.title = why || on; };
+    var judge = function (plan, same) {
+      if (!planChanges(plan)) return same;
+      if (cardPlanOverlaps(sec, i, plan)) return 'Would put words on words';
+      return '';
+    };
+    elbar.querySelectorAll('.gogh-cl-align').forEach(function (b) {
+      grey(b, judge(cardLineupPlan(box, b.dataset.how), 'Already lined up'), 'Line up ' + b.textContent.toLowerCase());
+    });
+    grey(elbar.querySelector('.gogh-cl-space'),
+      box.kids.length < 3 ? 'Needs three or more pieces' : judge(cardLineupPlan(box, 'space'), 'Already evenly spaced'),
+      'Equal gaps top to bottom');
+    var row = elbar.querySelector('.gogh-elbar-more'), hint = elbar.querySelector('.gogh-elbar-more .gogh-mbar-hint');
+    if (hint && row) hint.hidden = ![].slice.call(row.querySelectorAll('.gogh-mb')).some(function (b) { return b.disabled; });
+  }
+  function cardLineup(how, said) {
+    if (!sel) return;
+    var sec = sel.sec, i = sel.i, box = sec.els[i];
+    if (!box || box.type !== 'box' || !box.kids) return;
+    var plan = cardLineupPlan(box, how);
+    if (!planChanges(plan) || cardPlanOverlaps(sec, i, plan)) return;
+    applyPlan(plan);
+    resolveAndApply(sec);
+    pushState();
+    placeHandles(sec, i);
+    toast(said, { ttl: 3500, actions: [{ label: 'Undo', onClick: function () { undo(); } }] });
+  }
+  elbar.querySelector('.gogh-eb-lineup').addEventListener('click', function () {
+    var row = elbar.querySelector('.gogh-elbar-more');
+    row.hidden = !row.hidden;
+    elbar.classList.toggle('gogh-elbar-open', !row.hidden);
+    if (!row.hidden && sel) refreshCardLineup(sel.sec, sel.i);
+  });
+  elbar.querySelectorAll('.gogh-cl-align').forEach(function (b) {
+    b.addEventListener('click', function () { if (!b.disabled) cardLineup(b.dataset.how, ARRANGE_SAID[b.dataset.how]); });
+  });
+  elbar.querySelector('.gogh-cl-space').addEventListener('click', function () { if (!this.disabled) cardLineup('space', 'Gaps evened out, top to bottom.'); });
+  function refreshMbar() {
+    if (mbar.hidden || !multiSel) return;
+    var sec = multiSel.sec, idxs = multiSel.idxs.slice();
+    var els = multiEls();
+    var grey = function (btn, why, on) { btn.disabled = !!why; btn.title = why || on; };
+    // the reason a verb is faded, in the order a beginner would want to hear it:
+    // it changes nothing; it would put words on words
+    var judge = function (plan, same) {
+      if (!planChanges(plan)) return same;
+      if (planOverlaps(sec, idxs, plan)) return 'Would put words on words';
+      return '';
+    };
+    grey(mbar.querySelector('.gogh-mb-card'),
+      els.some(function (e) { return e.type === 'box' || e.rails || e.type === 'exp'; }) ? 'Cards, shapes and shelves can’t go inside a card' : '',
+      'Make these one card — it holds together on phones');
+    mbar.querySelectorAll('.gogh-mb-align').forEach(function (b) {
+      grey(b, judge(alignPlan(els, b.dataset.how), 'Already lined up'), 'Line up ' + b.textContent.toLowerCase());
+    });
+    mbar.querySelectorAll('.gogh-mb-space').forEach(function (b) {
+      var axis = b.dataset.axis;
+      grey(b, els.length < 3 ? 'Needs three or more pieces' : judge(spacePlan(els, axis), 'Already evenly spaced'),
+        axis === 'x' ? 'Equal gaps left to right' : 'Equal gaps top to bottom');
+    });
+    grey(mbar.querySelector('.gogh-mb-tidy'), judge(tidyPlan(els), 'Already tidy'), 'Line the row up and even the gaps');
+    var hint = mbar.querySelector('.gogh-mbar-hint');
+    var row = mbar.querySelector('.gogh-mbar-more');
+    if (hint && row) hint.hidden = ![].slice.call(row.querySelectorAll('.gogh-mb')).some(function (b) { return b.disabled; });
+  }
+  function afterArrange(said) {
+    var sec = multiSel.sec, idxs = multiSel.idxs.slice();
+    resolveAndApply(sec);
+    pushState();
+    setMulti(sec, idxs); // the outlines, the bar and its greys follow the new places
+    if (said) toast(said, { ttl: 3500, actions: [{ label: 'Undo', onClick: function () { undo(); } }] });
+  }
+  var ARRANGE_SAID = { left: 'Lined up on the left.', center: 'Centred.', right: 'Lined up on the right.',
+    top: 'Tops lined up.', middle: 'Middles lined up.', bottom: 'Bottoms lined up.' };
+  function makeCardFromSelection() {
+    if (!multiSel) return;
+    var sec = multiSel.sec, idxs = multiSel.idxs.slice();
+    var members = idxs.map(function (j) { return sec.els[j]; });
+    if (members.length < 2 || members.some(function (e) { return e.type === 'box' || e.rails || e.type === 'exp'; })) return;
+    var bb = bboxOf(members), pad = 24;
+    var box = { type: 'box', x: Math.max(0, bb.x - pad), y: Math.max(0, bb.y - pad), radius: 12, kids: [] };
+    box.w = Math.min(W - box.x, bb.x + bb.w + pad - box.x);
+    box.h = bb.y + bb.h + pad - box.y;
+    members.forEach(function (e) {
+      var k = JSON.parse(JSON.stringify(e));
+      k.x = Math.round(e.x - box.x); k.y = Math.round(e.y - box.y);
+      box.kids.push(k);
+    });
+    orderKids(box); // reading order, the way a card stacks on phones
+    clearMulti();
+    idxs.slice().sort(function (a, b) { return b - a; }).forEach(function (j) { sec.els.splice(j, 1); });
+    sec.els.push(box);
+    renderSection(sec);
+    placeHandles(sec, sec.els.length - 1);
+    pushState();
+    toast('One card now — it holds together on phones. Click it for a background.',
+      { actions: [{ label: 'Undo', onClick: function () { undo(); } }] });
+  }
+  function duplicateSelection() {
+    if (!multiSel) return;
+    var sec = multiSel.sec, idxs = multiSel.idxs.slice();
+    var copies = diceFreshIds(idxs.map(function (j) { return JSON.parse(JSON.stringify(sec.els[j])); }));
+    copies.forEach(function (c) { c.x = Math.min(W - c.w, c.x + 24); c.y = c.y + 24; });
+    var start = sec.els.length;
+    copies.forEach(function (c) { sec.els.push(c); });
+    renderSection(sec);
+    setMulti(sec, copies.map(function (c, k) { return start + k; }));
+    pushState();
+  }
+  mbar.querySelector('.gogh-mb-card').addEventListener('click', makeCardFromSelection);
+  mbar.querySelector('.gogh-mb-dup').addEventListener('click', duplicateSelection);
+  mbar.querySelector('.gogh-mb-del').addEventListener('click', function () { deleteSelected(); });
+  mbar.querySelector('.gogh-mb-more').addEventListener('click', function () {
+    var more = mbar.querySelector('.gogh-mbar-more');
+    more.hidden = !more.hidden;
+    placeMbar();
+  });
+  mbar.querySelectorAll('.gogh-mb-align').forEach(function (b) {
+    b.addEventListener('click', function () {
+      if (!multiSel || b.disabled) return;
+      applyPlan(alignPlan(multiEls(), b.dataset.how));
+      afterArrange(ARRANGE_SAID[b.dataset.how]);
+    });
+  });
+  mbar.querySelectorAll('.gogh-mb-space').forEach(function (b) {
+    b.addEventListener('click', function () {
+      if (!multiSel || b.disabled) return;
+      applyPlan(spacePlan(multiEls(), b.dataset.axis));
+      afterArrange(b.dataset.axis === 'x' ? 'Gaps evened out, side to side.' : 'Gaps evened out, top to bottom.');
+    });
+  });
+  mbar.querySelector('.gogh-mb-tidy').addEventListener('click', function () {
+    if (!multiSel || this.disabled) return;
+    applyPlan(tidyPlan(multiEls()));
+    afterArrange('Tidied up.');
+  });
+  // after any gesture ends (a group drag, a nudge), the bar finds the group again
+  document.addEventListener('pointerup', function () {
+    if (!multiSel) return;
+    requestAnimationFrame(function () { if (multiSel && !drag) { placeMbar(); refreshMbar(); } });
+  }, true);
 
   function nodeBox(node) {
+    // the layout size (offsetWidth) is pre-transform; the rect is what the
+    // eye sees. Under the birds-eye zoom the two differ by the zoom factor,
+    // and mixing them landed every drop low by h(1-s)/2 and drew the ring
+    // at the wrong size. The factor comes from the node's unrotated parent,
+    // so a rotated node's true (uninflated) size still comes from its layout
+    // numbers, scaled into the visual frame
     var w = node.offsetWidth, h = node.offsetHeight;
     var r = node.getBoundingClientRect();
-    return { x: r.left + window.scrollX + r.width / 2 - w / 2,
-             y: r.top + window.scrollY + r.height / 2 - h / 2, w: w, h: h };
+    var p = node.offsetParent || node.parentElement;
+    var zf = (p && p.offsetWidth) ? p.getBoundingClientRect().width / p.offsetWidth : 1;
+    if (!(zf > 0)) zf = 1;
+    var vw = w * zf, vh = h * zf;
+    return { x: r.left + window.scrollX + r.width / 2 - vw / 2,
+             y: r.top + window.scrollY + r.height / 2 - vh / 2, w: vw, h: vh };
   }
   function goghFadeOut(el) {
     if (el.hidden || el.classList.contains('gogh-byebye')) return;
@@ -2766,6 +3210,9 @@
     selBox.style.height = bh + 'px';
     selBox.style.transform = e.rot ? 'rotate(' + e.rot + 'deg)' : '';
     selBox.classList.toggle('gogh-selbox-text', isText(e));
+    var clippedCard = e.type === 'box' && e.kids && e.kids.length && e.shape && SHAPE_CSS[e.shape];
+    selTag.textContent = clippedCard ? 'Card' : '';
+    selTag.hidden = !clippedCard;
     selBox.hidden = false;
     grip.style.left = (bx - 26) + 'px';
     grip.style.top = (byy - 26) + 'px';
@@ -2779,14 +3226,22 @@
       // bare shapes keep the shape glyph (their panel really picks shapes)
       var isCardEl = e.type === 'box' && e.kids && e.kids.length;
       ctxBtn.innerHTML = CTX_ICONS[e.type === 'button' ? 'link' : e.type === 'box' ? (isCardEl ? 'image' : 'shape') : 'image'];
-      ctxBtn.title = (e.rails && e.shop) ? 'Edit design' : e.type === 'video' ? 'Video' : e.type === 'button' ? 'Button link' : e.type === 'box' ? ( isCardEl ? 'Background image & colour' : 'Shape, colour & image' ) : e.type === 'widget' ? (e.faq ? 'Edit the questions' : e.tabs ? 'Edit the tabs' : e.slides ? 'Edit the slides' : e.wall ? 'Edit the photos' : 'Block settings & link') : 'Choose image';
+      ctxBtn.title = (e.rails && (e.shop || e.posts)) ? 'Edit design' : e.type === 'video' ? 'Video' : e.type === 'button' ? 'Button link' : e.type === 'box' ? ( isCardEl ? 'Background image & colour' : 'Shape, colour & image' ) : e.type === 'widget' ? (e.faq ? 'Edit the questions' : e.tabs ? 'Edit the tabs' : e.slides ? 'Edit the slides' : e.wall ? 'Edit the photos' : 'Block settings & link') : 'Choose image';
       ctxBtn.style.display = '';
     } else {
       ctxBtn.style.display = 'none';
     }
-    elbar.querySelector('.gogh-eb-manage').style.display = (e.rails && e.shop) ? '' : 'none';
-    if (e.rails && e.shop) {
-      // two verbs at the point of touch: Manage products · Edit design
+    var isCardSel = e.type === 'box' && e.kids && e.kids.length;
+    elbar.querySelector('.gogh-eb-lineup').style.display = isCardSel ? '' : 'none';
+    if (!isCardSel) { elbar.querySelector('.gogh-elbar-more').hidden = true; elbar.classList.remove('gogh-elbar-open'); }
+    else refreshCardLineup(sec, i);
+    var railsEl = !!(e.rails && (e.shop || e.posts));
+    var manageBtn = elbar.querySelector('.gogh-eb-manage');
+    manageBtn.style.display = railsEl ? '' : 'none';
+    manageBtn.textContent = e.posts ? 'Manage posts' : 'Manage products';
+    manageBtn.title = e.posts ? 'Open your posts in WordPress' : 'Open your products in WordPress';
+    if (railsEl) {
+      // two verbs at the point of touch: Manage products (or posts) · Edit design
       ctxBtn.textContent = 'Edit design';
       ctxBtn.title = 'Edit design';
       ctxBtn.style.display = '';
@@ -2833,7 +3288,8 @@
       guideV.style.top = (r.top + window.scrollY) + 'px';
       guideV.style.height = r.height + 'px';
       // the centre earns a name: pink says aligned, the tag says WHERE
-      guideV.dataset.tag = (Math.round(gx) === Math.round(W / 2) ? 'centre' : '');
+      guideV.dataset.tag = Math.round(gx) === Math.round(W / 2) ? 'centre'
+        : (Math.round(gx) === MARGIN || Math.round(gx) === W - MARGIN) ? 'margin' : '';
       guideV.hidden = false;
     } else guideV.hidden = true;
     if (gy !== null) {
@@ -4149,6 +4605,7 @@
   function buildWidgetPanel(sec, i) {
     var e = sec.els[i];
     if (e.rails && e.shop) return buildShopPanel(sec, i);
+    if (e.rails && e.posts) return buildPostsPanel(sec, i);
     if ((e.faq && e.faq.length) || (e.tabs && e.tabs.length)) return buildQnaPanel(sec, i);
     if (e.slides && e.slides.length) return buildCarouselPanel(sec, i);
     if (e.wall && e.wall.length) return buildWallPanel(sec, i);
@@ -4269,7 +4726,11 @@
       pickerPalette().map(function (p) {
         return '<button type="button" class="gogh-sw' + (e.boxBg === p.slug ? ' is-active' : '') + '" data-col="' + p.slug + '"' +
           ' style="background: var(--wp--preset--color--' + p.slug + ')" title="' + p.slug + '"></button>';
-      }).join('') + '</div>' +
+      }).join('') +
+      // any colour at all, beside the palette (James: "i dont see an option
+      // to choose a custom color for cards")
+      '<label class="gogh-sw gogh-sw-pick' + (/^#/.test(e.boxBg || '') ? ' is-active' : '') + '" title="Any colour"><input type="color" class="gogh-boxcustom" value="' + escAttr(/^#[0-9a-fA-F]{6}$/.test(e.boxBg || '') ? e.boxBg : '#1c1c22') + '"></label>' +
+      '</div>' +
       '<div class="gogh-swlab">Image</div>' +
       '<div class="gogh-panel-row">' +
       (cfg.canUpload ? '<label class="gogh-btn gogh-btn-small gogh-upload">Upload<input type="file" accept="image/*" hidden /></label>' : '') +
@@ -4302,9 +4763,11 @@
       pushState();
       // update the active marks IN PLACE — a full rebuild refetches the
       // media grid and reads as the panel closing and reopening
-      panel.querySelectorAll('.gogh-boxsw .gogh-sw').forEach(function (b2) {
+      panel.querySelectorAll('.gogh-boxsw .gogh-sw:not(.gogh-sw-pick)').forEach(function (b2) {
         b2.classList.toggle('is-active', (b2.dataset.col || '') === (e.boxBg || ''));
       });
+      var pickLab = panel.querySelector('.gogh-boxsw .gogh-sw-pick');
+      if (pickLab) pickLab.classList.toggle('is-active', /^#/.test(e.boxBg || ''));
       panel.querySelectorAll('.gogh-shapecell').forEach(function (b2) {
         var d2 = SHAPE_DEFS[+b2.dataset.k];
         b2.classList.toggle('is-active', (d2.key || null) === (e.shape || null));
@@ -4321,12 +4784,27 @@
         reapply();
       });
     });
-    panel.querySelectorAll('.gogh-boxsw .gogh-sw').forEach(function (swBtn) {
+    panel.querySelectorAll('.gogh-boxsw .gogh-sw:not(.gogh-sw-pick)').forEach(function (swBtn) {
       swBtn.addEventListener('click', function () {
         e.boxBg = swBtn.dataset.col || null;
         reapply();
+        contrastSentinel(sec, i); // the card's new ground judges its words (a black card, black words: v0.99.476)
       });
     });
+    var anyCol = panel.querySelector('.gogh-boxcustom');
+    if (anyCol) {
+      // live while the picker is open, one undo step when it closes
+      anyCol.addEventListener('input', function () {
+        e.boxBg = anyCol.value;
+        renderSection(sec);
+        placeHandles(sec, i);
+      });
+      anyCol.addEventListener('change', function () {
+        e.boxBg = anyCol.value;
+        reapply();
+        contrastSentinel(sec, i);
+      });
+    }
     panel.querySelectorAll('.gogh-moodrow .gogh-hpreset').forEach(function (mb) {
       mb.addEventListener('click', function () {
         e.mood = mb.dataset.mood || null;
@@ -4941,7 +5419,7 @@
   elbar.querySelector('.gogh-eb-dup').addEventListener('click', function () {
     if (!sel) return;
     var sec = sel.sec;
-    var copy = JSON.parse(JSON.stringify(sec.els[sel.i]));
+    var copy = diceFreshIds([JSON.parse(JSON.stringify(sec.els[sel.i]))])[0]; // a copy is a new piece to the die
     copy.x = Math.min(W - copy.w, copy.x + 24);
     copy.y = copy.y + 24;
     sec.els.push(copy);
@@ -4954,7 +5432,7 @@
     if (!editing) return;
     var t = ev.target;
     if (!t || !t.closest) return;
-    var inUI = selBox.contains(t) || elbar.contains(t) || grip.contains(t) ||
+    var inUI = selBox.contains(t) || elbar.contains(t) || mbar.contains(t) || grip.contains(t) ||
       side.contains(t) || panel.contains(t) || picker.contains(t) ||
       secBar.contains(t) || secMore.contains(t) ||
       t === inserter || t === hbar;
@@ -5019,6 +5497,46 @@
     { key: 'diamond', label: 'Diamond', w: 320, h: 320 },
     { key: 'blob', label: 'Blob', w: 340, h: 320 },
   ];
+  // A SHAPE CAN HOLD THINGS. A card has always been a box with kids, and a
+  // shape has always been a field on a box — the same object in different
+  // clothes. What was missing is that a circle has far less usable room than
+  // its bounding box, so without this the words spill past the silhouette.
+  // Fractions of the box, except the pill whose caps are a real radius.
+  var SHAPE_INSET = {
+    circle:  { l: 0.146, t: 0.146, r: 0.146, b: 0.146 }, // the inscribed square: side = d / root two
+    blob:    { l: 0.10,  t: 0.10,  r: 0.10,  b: 0.10 },
+    arch:    { l: 0.06,  t: 0.18,  r: 0.06,  b: 0.04 },  // the roof eats the top
+    diamond: { l: 0.25,  t: 0.25,  r: 0.25,  b: 0.25 },  // half the width, half the height, centred
+    tri:     { l: 0.25,  t: 0.45,  r: 0.25,  b: 0.05 },  // the room is the lower middle
+  };
+  var SHAPE_GUTTER = 0.04; // a plain card still wants a gutter
+  // the rectangle a kid may occupy, in the card's own coordinates
+  function shapeRoom(e) {
+    var f = SHAPE_INSET[e.shape];
+    var l, t, r, b;
+    if (e.shape === 'pill') {
+      // the caps are semicircles of radius h/2 — that is a width, not a ratio
+      var cap = Math.min(e.h / 2, e.w * 0.4);
+      l = r = cap; t = b = e.h * 0.08;
+    } else if (f) {
+      l = e.w * f.l; r = e.w * f.r; t = e.h * f.t; b = e.h * f.b;
+    } else {
+      l = r = e.w * SHAPE_GUTTER; t = b = e.h * SHAPE_GUTTER;
+    }
+    var room = { x: Math.round(l), y: Math.round(t),
+      w: Math.round(e.w - l - r), h: Math.round(e.h - t - b) };
+    if (room.w < 24) { room.x = 0; room.w = e.w; }
+    if (room.h < 16) { room.y = 0; room.h = e.h; }
+    return room;
+  }
+  // move a kid inside the room, shrinking it only if it cannot otherwise fit
+  function fitKidToRoom(host, kid) {
+    var room = shapeRoom(host);
+    kid.w = Math.min(kid.w, room.w);
+    kid.h = Math.min(kid.h, room.h);
+    kid.x = Math.max(room.x, Math.min(room.x + room.w - kid.w, kid.x));
+    kid.y = Math.max(room.y, Math.min(room.y + room.h - kid.h, kid.y));
+  }
   var SHAPE_DEFAULT_BG = 'color-mix(in srgb, var(--wp--preset--color--contrast, #000) 12%, var(--wp--preset--color--base, transparent))';
   function shapePreviewCss(def) {
     var css = 'background: currentColor;';
@@ -5054,17 +5572,14 @@
           '</div>' };
     },
     posts: function () {
-      // a real core query loop: WordPress renders it fresh on the published
-      // page (and it keeps working with the plugin deactivated)
-      var wsrc = '<!-- wp:query {"queryId":0,"query":{"perPage":3,"pages":0,"offset":0,"postType":"post","order":"desc","orderBy":"date","author":"","search":"","exclude":[],"sticky":"","inherit":false}} -->\n' +
-        '<div class="wp-block-query">' +
-        '<!-- wp:post-template {"layout":{"type":"grid","columnCount":3}} -->\n' +
-        '<!-- wp:post-featured-image {"isLink":true,"aspectRatio":"4/3"} /-->\n' +
-        '<!-- wp:post-title {"level":3,"isLink":true} /-->\n' +
-        '<!-- wp:post-date /-->\n' +
-        '<!-- /wp:post-template -->' +
-        '</div>\n<!-- /wp:query -->';
-      return { type: 'widget', x: 47, y: 60, w: 1106, h: 430, wsrc: wsrc,
+      // THE OTHER RAILS ELEMENT: a real core query loop composed from a few
+      // choices (how many, which, a look), so WordPress renders the posts
+      // fresh on the published page and the grid keeps working with gogh
+      // deactivated. The blog page's four looks are the grid's looks too
+      var posts = postsDefaults();
+      // the content width a heading uses (100..1100), so on the published page
+      // the rail shares the heading's column and the grid sits centred
+      return { type: 'widget', rails: true, posts: posts, x: 100, y: 60, w: 1000, h: 430, wsrc: composePosts(posts),
         whtml: '<div class="gogh-postsprev gogh-postsprev-loading">Loading your latest posts\u2026</div>' };
     },
     products: function () {
@@ -5079,19 +5594,273 @@
         whtml: '<div class="gogh-shopprev gogh-postsprev-loading">Loading your products\u2026</div>' };
     },
   };
-  function postsPreviewHTML(posts) {
-    return '<div class="gogh-postsprev">' + posts.map(function (p) {
-      var media = p._embedded && p._embedded['wp:featuredmedia'] && p._embedded['wp:featuredmedia'][0];
+  // ---------- the posts grid on rails ----------
+  function postsDefaults() {
+    return { look: '', count: 3, order: 'date', cat: null, catId: null,
+      show: { date: true, excerpt: false, category: false }, aspect: 'landscape', spacing: 'm' };
+  }
+  // the four looks the blog page can wear are the grid's looks: one family
+  // of CSS, so the home page teaser and the journal read as one
+  var POSTS_LOOKS = ['cards', 'list', 'cover', 'ledger'];
+  function composePosts(posts) {
+    posts = posts || postsDefaults();
+    var show = posts.show || { date: true, excerpt: false, category: false };
+    var count = Math.max(1, Math.min(12, +posts.count || 3));
+    // hand-picked: the exact posts, in this order (the server reads the
+    // marker from the template's class and narrows the query to them)
+    var picked = (posts.pick || []).map(function (p) { return +p.id; }).filter(Boolean);
+    if (picked.length) count = picked.length;
+    var orderBy = posts.order === 'title' ? 'title' : posts.order === 'rand' ? 'rand' : 'date';
+    var order = posts.order === 'title' || posts.order === 'oldest' ? 'asc' : 'desc';
+    var look = POSTS_LOOKS.indexOf(posts.look) !== -1 ? posts.look : '';
+    var cols = count >= 4 ? (count % 4 === 0 ? 4 : 3) : Math.max(1, count);
+    var ratio = posts.aspect === 'square' ? '1' : posts.aspect === 'portrait' ? '3/4' : '4/3';
+    // the count and the picture shape ride as classes too, so a look that
+    // lays its own grid (Cards) keeps the columns and the crop the preview
+    // showed — three wide cards, not three narrow ones and an empty fourth
+    var cls = 'gogh-posts gogh-posts-' + (look ? 'look' : 'grid') + ' gogh-posts-gap-' + (posts.spacing || 'm') +
+      ' gogh-posts-c' + cols + ' gogh-posts-pic-' + (posts.aspect === 'square' ? 'square' : posts.aspect === 'portrait' ? 'portrait' : 'landscape') +
+      (look ? ' gogh-blog-' + look : '');
+    var query = { perPage: count, pages: 0, offset: 0, postType: 'post', order: order, orderBy: orderBy, author: '', search: '', exclude: [], sticky: '', inherit: false };
+    if (posts.catId) query.taxQuery = { category: [+posts.catId] };
+    // a look lays the list out itself; the plain grid leans on core's grid
+    var tplAttrs = { className: 'gogh-posts-tpl' + (picked.length ? ' gogh-pick-' + picked.join(',') : ''),
+      layout: look ? { type: 'default' } : { type: 'grid', columnCount: cols } };
+    var inner = '<!-- wp:post-featured-image {"isLink":true,"aspectRatio":"' + ratio + '"} /-->\n' +
+      '<!-- wp:post-title {"level":3,"isLink":true} /-->\n' +
+      (show.category ? '<!-- wp:post-terms {"term":"category"} /-->\n' : '') +
+      (show.date ? '<!-- wp:post-date /-->\n' : '') +
+      (show.excerpt ? '<!-- wp:post-excerpt {"moreText":""} /-->\n' : '');
+    return '<!-- wp:query ' + JSON.stringify({ queryId: 0, query: query, className: cls }) + ' -->\n' +
+      '<div class="wp-block-query ' + cls + '">\n' +
+      '<!-- wp:post-template ' + JSON.stringify(tplAttrs) + ' -->\n' + inner + '<!-- /wp:post-template -->\n' +
+      '</div>\n<!-- /wp:query -->';
+  }
+  // what a posts rail shows before (or without) a fetch: the posts it last
+  // drew, redrawn in its current clothes, or the loading card
+  function postsSampleHTML(e) {
+    return e.__postsData ? postsPreviewHTML(e, e.__postsData) : '<div class="gogh-postsprev gogh-postsprev-loading">Loading your latest posts\u2026</div>';
+  }
+  function managePostsUrl(e) {
+    return (cfg.adminUrl || '/wp-admin/') + 'edit.php' + (e.posts && e.posts.catId ? '?cat=' + (+e.posts.catId) : '');
+  }
+  // a posts grid saved before it rode the rails: its choices, read back
+  function healPosts(e) {
+    var posts = postsDefaults();
+    try {
+      var m = /wp:query (\{[\s\S]*?\}) -->/.exec(e.wsrc || '');
+      var attrs = m ? JSON.parse(m[1]) : {};
+      var q = attrs.query || {};
+      if (q.perPage) posts.count = +q.perPage;
+      if (q.orderBy === 'title') posts.order = 'title';
+      else if (q.orderBy === 'rand') posts.order = 'rand';
+      else if (q.order === 'asc') posts.order = 'oldest';
+      if (q.taxQuery && q.taxQuery.category && q.taxQuery.category.length) posts.catId = +q.taxQuery.category[0];
+      var lk = /gogh-blog-(cards|list|cover|ledger)/.exec(String(attrs.className || ''));
+      if (lk) posts.look = lk[1];
+      var g = /gogh-posts-gap-([sml])/.exec(String(attrs.className || ''));
+      if (g) posts.spacing = g[1];
+      var ar = /"aspectRatio":"([^"]+)"/.exec(e.wsrc || '');
+      if (ar) posts.aspect = ar[1] === '3/4' ? 'portrait' : ar[1] === '1' ? 'square' : 'landscape';
+      posts.show = { date: /wp:post-date/.test(e.wsrc), excerpt: /wp:post-excerpt/.test(e.wsrc), category: /wp:post-terms/.test(e.wsrc) };
+      var pk = /gogh-pick-([\d,]+)/.exec(e.wsrc || '');
+      if (pk) posts.pick = pk[1].split(',').map(function (id) { return { id: +id, name: 'Post ' + id }; });
+    } catch (err) {}
+    e.rails = true;
+    e.posts = posts;
+  }
+  function postsPreviewHTML(e, posts) {
+    var p = (e && e.posts) || postsDefaults();
+    var show = p.show || { date: true, excerpt: false, category: false };
+    var n = Math.max(1, Math.min(12, (p.pick && p.pick.length) || +p.count || 3));
+    var look = POSTS_LOOKS.indexOf(p.look) !== -1 ? p.look : '';
+    var cols = look === 'list' || look === 'ledger' ? 1 : look === 'cover' ? 3 : (n >= 4 ? (n % 4 === 0 ? 4 : 3) : n);
+    var cls = 'gogh-postsprev gogh-postsprev-c' + cols + ' gogh-postsprev-' + (p.aspect || 'landscape') + ' gogh-postsprev-gap-' + (p.spacing || 'm') + (look ? ' gogh-postsprev-look-' + look : '');
+    if (!posts || !posts.length) {
+      // the designed empty grid: the owner sees the next verb, never a hole
+      return '<div class="' + cls + ' gogh-postsprev-empty"><div class="gogh-shopprev-emptycard">' +
+        '<strong>' + (p.catId ? 'Nothing in this category yet.' : 'No posts yet.') + '</strong>' +
+        '<span>' + (p.catId ? 'Posts filed under it appear here.' : 'Write your first post and it appears here.') + '</span>' +
+        '<a href="' + escAttr((cfg.adminUrl || '/wp-admin/') + 'post-new.php') + '" target="_blank" rel="noopener">Write a post ↗</a></div></div>';
+    }
+    return '<div class="' + cls + '">' + posts.map(function (post) {
+      var media = post._embedded && post._embedded['wp:featuredmedia'] && post._embedded['wp:featuredmedia'][0];
       var sizes = media && media.media_details && media.media_details.sizes;
       var src = sizes && ((sizes.medium_large || sizes.large || sizes.full || {}).source_url) || (media && media.source_url) || null;
       var when = '';
-      try { when = new Date(p.date).toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' }); } catch (err) {}
+      try { when = new Date(post.date).toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' }); } catch (err) {}
+      var cat = '';
+      try { var terms = post._embedded && post._embedded['wp:term']; cat = terms && terms[0] && terms[0][0] ? terms[0][0].name : ''; } catch (err2) {}
+      var ex = String((post.excerpt && post.excerpt.rendered) || '').replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim();
+      // no picture: a brand-tinted stand-in, hue seeded by the post so
+      // neighbours never match (the blog's own trick)
+      var hue = ((+post.id || 1) * 47) % 360;
       return '<div class="gogh-postsprev-card">' +
-        (src ? '<img src="' + escAttr(src) + '" alt="" />' : '<div class="gogh-postsprev-ph"></div>') +
-        '<h3>' + esc((p.title && p.title.rendered) || 'Untitled') + '</h3>' +
-        '<div class="gogh-postsprev-date">' + when + '</div>' +
-        '</div>';
+        (src ? '<img src="' + escAttr(src) + '" alt="" />' : '<div class="gogh-postsprev-ph" style="background: linear-gradient(130deg, oklch(0.72 0.09 ' + hue + '), oklch(0.35 0.08 ' + ((hue + 40) % 360) + '))"></div>') +
+        '<div class="gogh-postsprev-body">' +
+        (show.category && cat ? '<div class="gogh-postsprev-cat">' + esc(cat) + '</div>' : '') +
+        '<h3>' + esc((post.title && post.title.rendered) || 'Untitled') + '</h3>' +
+        (show.date ? '<div class="gogh-postsprev-date">' + when + '</div>' : '') +
+        (show.excerpt && ex ? '<div class="gogh-postsprev-ex">' + esc(ex.split(' ').slice(0, 22).join(' ')) + '</div>' : '') +
+        '</div></div>';
     }).join('') + '</div>';
+  }
+  function buildPostsPanel(sec, i) {
+    var e = sec.els[i];
+    var p = e.posts = e.posts || postsDefaults();
+    p.show = p.show || { date: true, excerpt: false, category: false };
+    var radios = function (cls, opts, cur) {
+      return '<div class="gogh-hoptlist ' + cls + '">' + opts.map(function (o) {
+        return '<button type="button" class="gogh-hopt' + (o[0] === cur ? ' is-active' : '') + '" data-v="' + o[0] + '">' +
+          '<span class="gogh-hopt-dot"></span><span class="gogh-hopt-name">' + esc(o[1]) + '</span></button>';
+      }).join('') + '</div>';
+    };
+    var chips = function (cls, opts, isOn) {
+      return '<div class="gogh-hpresets ' + cls + '">' + opts.map(function (o) {
+        return '<button type="button" class="gogh-hpreset' + (isOn(o[0]) ? ' is-active' : '') + '" data-v="' + o[0] + '">' + esc(o[1]) + '</button>';
+      }).join('') + '</div>';
+    };
+    panel.innerHTML =
+      '<div class="gogh-panel-title">Posts</div>' +
+      '<div class="gogh-shop-verbs">' +
+      '<a class="gogh-btn gogh-btn-small gogh-shop-manage" href="' + escAttr(managePostsUrl(e)) + '" target="_blank" rel="noopener">Manage posts ↗</a>' +
+      '<span class="gogh-shop-verb-on">Edit design</span></div>' +
+      '<div class="gogh-shop-auto">' +
+      '<div class="gogh-swlab">Posts</div>' +
+      chips('gogh-posts-count', [[3, '3'], [4, '4'], [6, '6'], [8, '8']], function (v) { return +v === +p.count; }) +
+      '<div class="gogh-swlab">Order</div>' +
+      radios('gogh-posts-order', [['date', 'Newest first'], ['oldest', 'Oldest first'], ['title', 'A to Z'], ['rand', 'A different set each visit']], p.order) +
+      '<div class="gogh-swlab">Category</div>' +
+      '<div class="gogh-panel-row"><select class="gogh-input gogh-posts-cat"><option value="">All posts</option></select></div>' +
+      '</div>' +
+      '<div class="gogh-swlab">Or hand-pick</div>' +
+      '<div class="gogh-shop-picked gogh-posts-picked"></div>' +
+      '<div class="gogh-panel-row"><input type="text" class="gogh-input gogh-posts-find" placeholder="Find a post by title…" /></div>' +
+      '<div class="gogh-shop-found gogh-posts-found"></div>' +
+      '<div class="gogh-swlab">Look</div>' +
+      radios('gogh-posts-look', [['', 'Grid — the theme’s own cards'], ['cards', 'Cards — pictures first'], ['list', 'List — hairlines, dates right'], ['cover', 'Cover — newest post huge'], ['ledger', 'Ledger — dense index']], p.look || '') +
+      '<div class="gogh-swlab">Show</div>' +
+      chips('gogh-posts-show', [['date', 'Date'], ['excerpt', 'Excerpt'], ['category', 'Category']], function (k) { return !!p.show[k]; }) +
+      '<div class="gogh-swlab">Picture</div>' +
+      chips('gogh-posts-aspect', [['landscape', 'Landscape'], ['square', 'Square'], ['portrait', 'Portrait']], function (v) { return v === (p.aspect || 'landscape'); }) +
+      '<div class="gogh-swlab">Spacing</div>' +
+      chips('gogh-posts-spacing', [['s', 'S'], ['m', 'M'], ['l', 'L']], function (v) { return v === (p.spacing || 'm'); }) +
+      '<div class="gogh-panel-hint">The looks are the four your blog page can wear, so the home page and the journal read as one.</div>';
+    var apply = function () {
+      e.wsrc = composePosts(p);
+      renderSection(sec);
+      placeHandles(sec, i);
+      pushState();
+      hydratePostsPreview(sec, e);
+      panel.querySelectorAll('.gogh-posts-count .gogh-hpreset').forEach(function (b) { b.classList.toggle('is-active', +b.dataset.v === +p.count); });
+      panel.querySelectorAll('.gogh-posts-order .gogh-hopt').forEach(function (b) { b.classList.toggle('is-active', b.dataset.v === p.order); });
+      panel.querySelectorAll('.gogh-posts-look .gogh-hopt').forEach(function (b) { b.classList.toggle('is-active', b.dataset.v === (p.look || '')); });
+      panel.querySelectorAll('.gogh-posts-show .gogh-hpreset').forEach(function (b) { b.classList.toggle('is-active', !!p.show[b.dataset.v]); });
+      panel.querySelectorAll('.gogh-posts-aspect .gogh-hpreset').forEach(function (b) { b.classList.toggle('is-active', b.dataset.v === (p.aspect || 'landscape')); });
+      panel.querySelectorAll('.gogh-posts-spacing .gogh-hpreset').forEach(function (b) { b.classList.toggle('is-active', b.dataset.v === (p.spacing || 'm')); });
+      var m = panel.querySelector('.gogh-shop-manage');
+      if (m) m.href = managePostsUrl(e);
+    };
+    panel.querySelectorAll('.gogh-posts-count .gogh-hpreset').forEach(function (b) { b.addEventListener('click', function () { p.count = +b.dataset.v; apply(); }); });
+    panel.querySelectorAll('.gogh-posts-order .gogh-hopt').forEach(function (b) { b.addEventListener('click', function () { p.order = b.dataset.v; apply(); }); });
+    panel.querySelectorAll('.gogh-posts-show .gogh-hpreset').forEach(function (b) { b.addEventListener('click', function () { p.show[b.dataset.v] = !p.show[b.dataset.v]; apply(); }); });
+    panel.querySelectorAll('.gogh-posts-aspect .gogh-hpreset').forEach(function (b) { b.addEventListener('click', function () { p.aspect = b.dataset.v; apply(); }); });
+    panel.querySelectorAll('.gogh-posts-spacing .gogh-hpreset').forEach(function (b) { b.addEventListener('click', function () { p.spacing = b.dataset.v; apply(); }); });
+    // looks AUDITION on hover and keep on click: the preview's last posts
+    // are redrawn in the hovered look, the kept look comes back on leave
+    var lookList = panel.querySelector('.gogh-posts-look');
+    var wearLook = function (look) {
+      if (!e.__postsData) return;
+      e.whtml = postsPreviewHTML({ posts: Object.assign({}, p, { look: look }) }, e.__postsData);
+      renderSection(sec);
+      placeHandles(sec, i);
+    };
+    lookList.querySelectorAll('.gogh-hopt').forEach(function (b) {
+      b.addEventListener('mouseenter', function () { wearLook(b.dataset.v); });
+      b.addEventListener('click', function () { p.look = b.dataset.v; apply(); });
+    });
+    lookList.addEventListener('mouseleave', function () { wearLook(p.look || ''); });
+    // categories: the site's own, with posts in them
+    fetch(cfg.restUrl.split('wp/v2/')[0] + 'wp/v2/categories?per_page=40&hide_empty=true&_fields=id,name,count', { headers: { 'X-WP-Nonce': cfg.nonce }, credentials: 'same-origin' })
+      .then(function (r) { return r.ok ? r.json() : []; }).catch(function () { return []; }).then(function (cats) {
+        var sel2 = panel.querySelector('.gogh-posts-cat');
+        if (!sel2 || panel.hidden) return;
+        (cats || []).forEach(function (c) {
+          var o = document.createElement('option');
+          o.value = c.id; o.textContent = c.name + ' (' + c.count + ')';
+          if (+c.id === +p.catId) o.selected = true;
+          sel2.appendChild(o);
+        });
+        sel2.addEventListener('change', function () {
+          var c = (cats || []).filter(function (x) { return +x.id === +sel2.value; })[0];
+          p.catId = c ? +c.id : null; p.cat = c ? c.name : null;
+          apply();
+        });
+      });
+    var picked = function () {
+      var box = panel.querySelector('.gogh-posts-picked');
+      var list = p.pick || [];
+      box.innerHTML = list.length
+        ? list.map(function (x, k) {
+          return '<span class="gogh-shop-pickchip">' + esc(x.name) + '<button type="button" class="gogh-shop-unpick" data-k="' + k + '" aria-label="Remove ' + escAttr(x.name) + '">&times;</button></span>';
+        }).join('') + '<div class="gogh-panel-hint">These, in this order. Count, order and category stand aside while you hand-pick.</div>'
+        : '<div class="gogh-panel-hint">Type a title to add the exact posts — the three you are proudest of, say.</div>';
+      panel.querySelectorAll('.gogh-shop-auto').forEach(function (nd) { nd.hidden = list.length > 0; });
+      box.querySelectorAll('.gogh-shop-unpick').forEach(function (b) {
+        b.addEventListener('click', function () {
+          p.pick.splice(+b.dataset.k, 1);
+          if (!p.pick.length) delete p.pick;
+          apply(); picked(); reclampPanel();
+        });
+      });
+    };
+    var find = panel.querySelector('.gogh-posts-find'), found = panel.querySelector('.gogh-posts-found'), findT = null;
+    find.addEventListener('input', function () {
+      clearTimeout(findT);
+      var qtext = find.value.trim();
+      if (qtext.length < 2) { found.innerHTML = ''; return; }
+      findT = setTimeout(function () {
+        fetch(cfg.restUrl.split('wp/v2/')[0] + 'wp/v2/posts?search=' + encodeURIComponent(qtext) + '&per_page=6&_fields=id,title,date', { headers: { 'X-WP-Nonce': cfg.nonce }, credentials: 'same-origin' })
+          .then(function (r) { return r.ok ? r.json() : []; }).catch(function () { return []; }).then(function (hits) {
+            if (panel.hidden || find.value.trim() !== qtext) return;
+            found.innerHTML = (hits || []).length ? hits.map(function (h) {
+              var on = (p.pick || []).some(function (x) { return +x.id === +h.id; });
+              var when = ''; try { when = new Date(h.date).toLocaleDateString(undefined, { year: 'numeric', month: 'short' }); } catch (err) {}
+              return '<button type="button" class="gogh-featrow gogh-shop-hit' + (on ? ' is-on' : '') + '" data-id="' + h.id + '" data-name="' + escAttr((h.title && h.title.rendered) || 'Untitled') + '">' +
+                '<span class="gogh-featname">' + esc((h.title && h.title.rendered) || 'Untitled') + '</span><span class="gogh-featprice">' + esc(when) + '</span></button>';
+            }).join('') : '<div class="gogh-panel-hint">No post by that title.</div>';
+            found.querySelectorAll('.gogh-shop-hit').forEach(function (b) {
+              b.addEventListener('click', function () {
+                p.pick = p.pick || [];
+                if (p.pick.some(function (x) { return +x.id === +b.dataset.id; })) return;
+                p.pick.push({ id: +b.dataset.id, name: b.dataset.name });
+                find.value = ''; found.innerHTML = '';
+                apply(); picked(); reclampPanel();
+              });
+            });
+          });
+      }, 220);
+    });
+    picked();
+  }
+  function hydratePostsPreview(sec, e) {
+    var p = e.posts || postsDefaults();
+    var picked = (p.pick || []).map(function (x) { return +x.id; }).filter(Boolean);
+    var q = picked.length
+      ? 'include=' + picked.join(',') + '&per_page=' + picked.length + '&orderby=include'
+      : 'per_page=' + Math.max(1, Math.min(12, +p.count || 3)) + '&orderby=' + (p.order === 'title' ? 'title' : 'date') +
+        '&order=' + (p.order === 'title' || p.order === 'oldest' ? 'asc' : 'desc') + (p.catId ? '&categories=' + (+p.catId) : '');
+    var gen = e.__postsGen = (e.__postsGen || 0) + 1;
+    fetch(cfg.restUrl.split('wp/v2/')[0] + 'wp/v2/posts?' + q + '&_embed=wp:featuredmedia,wp:term&status=publish', {
+      headers: { 'X-WP-Nonce': cfg.nonce },
+      credentials: 'same-origin',
+    }).then(function (r) { return r.ok ? r.json() : []; }).then(function (posts) {
+      if (gen !== e.__postsGen || sec.els.indexOf(e) === -1) return; // a newer choice is on its way
+      e.__postsData = Array.isArray(posts) ? posts : [];
+      e.whtml = postsPreviewHTML(e, e.__postsData);
+      renderSection(sec);
+      if (sel && sel.sec === sec) placeHandles(sec, sec.els.indexOf(e));
+    }).catch(function () {});
   }
   // a featured product is not an embed — it's a real gogh card composed of
   // real gogh elements (image, name, price badge, add-to-cart button), so
@@ -5359,17 +6128,6 @@
     }).then(function (r) { return r.ok ? r.json() : []; }).then(function (prods) {
       if (gen !== e.__shopGen || sec.els.indexOf(e) === -1) return; // a newer choice is on its way
       e.whtml = shopPreviewHTML(e, prods || []);
-      renderSection(sec);
-      if (sel && sel.sec === sec) placeHandles(sec, sec.els.indexOf(e));
-    }).catch(function () {});
-  }
-  function hydratePostsPreview(sec, e) {
-    fetch(cfg.restUrl.split('wp/v2/')[0] + 'wp/v2/posts?per_page=3&_embed=wp:featuredmedia&status=publish', {
-      headers: { 'X-WP-Nonce': cfg.nonce },
-      credentials: 'same-origin',
-    }).then(function (r) { return r.ok ? r.json() : []; }).then(function (posts) {
-      if (!posts.length || sec.els.indexOf(e) === -1) return;
-      e.whtml = postsPreviewHTML(posts);
       renderSection(sec);
       if (sel && sel.sec === sec) placeHandles(sec, sec.els.indexOf(e));
     }).catch(function () {});
@@ -5695,6 +6453,15 @@
         // alpha and blend, or a 10%-ink card judges as solid ink and the
         // sentinel paints pale cards white
         var bvA = bv ? cssToRgba(bv) : null;
+        // the card PAINTS its colour thinner than it names it: a 45% tint over
+        // its photo, 70% frosted glass (see the box renderer) -- judge what is
+        // painted, or white ink is left on a mid-grey that never appears
+        var paintA = box.boxImg ? 0.45 : (box.mood === 'glass' ? 0.7 : 1);
+        if (bvA) bvA = { rgb: bvA.rgb, a: bvA.a * paintA };
+        else if (box.mood === 'glass' && !box.boxImg) {
+          var gb = cssToRgb('var(--wp--preset--color--base, #fff)');
+          if (gb) bvA = { rgb: gb, a: 0.7 };
+        }
         var bvRgb = bvA && bvA.a > 0 ? bvA.rgb : null;
         var baseRgb = cssToRgb('var(--wp--preset--color--base, #fff)');
         var underL = (function () {
@@ -5729,6 +6496,7 @@
         var cardNode = sec.nodes[bi];
         if (!cardNode) return;
         var kidFlips = [];
+        var judged = [];
         box.kids.forEach(function (k, j) {
           if (!isText(k)) return;
           var kn = cardNode.querySelector('.gogh-k-' + (j + 1));
@@ -5738,9 +6506,18 @@
           if (!txt) return;
           var ground = groundFor(k);
           if (ground == null) return;
-          if (sentinelContrast(sentinelOver(txt, ground), ground) >= CONTRAST_FLOOR) return;
-          var pick = sentinelBestInk(ground);
-          if (pick.best && k.color !== pick.best) kidFlips.push({ j: j, to: pick.best });
+          judged.push({ j: j, k: k, ground: ground, fails: sentinelContrast(sentinelOver(txt, ground), ground) < CONTRAST_FLOOR });
+        });
+        // one verdict per solid card: a bold heading can clear the floor where
+        // the thin words beside it fail, and a card half dark, half light reads
+        // as a mistake (James's terracotta card). A photo card keeps judging
+        // each piece on its own patch of the picture.
+        var solid = !!bvRgb && !box.boxImg;
+        var anyFail = judged.some(function (d) { return d.fails; });
+        judged.forEach(function (d) {
+          if (!d.fails && !(solid && anyFail)) return;
+          var pick = sentinelBestInk(d.ground);
+          if (pick.best && d.k.color !== pick.best) kidFlips.push({ j: d.j, to: pick.best });
         });
         if (!kidFlips.length) return;
         pushState();
@@ -6703,6 +7480,11 @@
         e.shop = Object.assign(shopDefaults(), e.shop, { show: show });
         if (!e.wsrc) e.wsrc = composeShop(e.shop);
         if (!e.whtml) e.whtml = shopSampleHTML(e.shop);
+      }
+      if (e.rails && e.posts) {
+        e.posts = Object.assign(postsDefaults(), e.posts, { show: Object.assign({ date: true, excerpt: false, category: false }, e.posts.show || {}) });
+        if (!e.wsrc) e.wsrc = composePosts(e.posts);
+        if (!e.whtml) e.whtml = postsSampleHTML(e);
       }
       composeWidgetData(e);
     });
@@ -7805,6 +8587,7 @@
   // what KIND of widget a piece is — a wall only ever rolls into a wall,
   // a shop rail into a shop family; the substance must have a slot to land in
   function diceWidgetKind(e) {
+    if (e.posts) return 'posts';
     if (e.rails || e.shop) return 'shop';
     if (e.faq) return 'faq';
     if (e.tabs) return 'tabs';
@@ -7837,12 +8620,40 @@
       // widgets must match kind for kind — the base's wall for a wall, never a form
       if (wantKinds !== diceWidgetKinds(baseEls).join(',')) return;
       if (wantCards !== cardsOf(baseEls)) return;
+      // pieces the base take has no slot for RIDE the roll at their own
+      // coordinates, over whatever the take draws there: a glaze chart's
+      // four colour swatches and its fourth and fifth 'Cone 8' labels sat
+      // on top of every take (James: 'kinda broken on 2nd 3rd and 4th dice
+      // roll'). One stray is a rider the eye forgives; more makes a section
+      // of its own kind, and the die leaves it be
+      var decoOf = function (els) { return els.filter(function (e) { return !diceRole(e) && !(e.type === 'box' && e.kids && e.kids.length); }).length; };
+      if (decoOf(sec.els) > decoOf(baseEls) + 1) return;
+      // ...counted at the top level only: a card's kids ride with their
+      // card, so three priced cards with a label each are still three cards
+      var topCount = function (els) { var m = {}; els.forEach(function (e) { var r = diceRole(e); if (r) m[r] = (m[r] || 0) + 1; }); return m; };
+      var tw = topCount(sec.els), th = topCount(baseEls);
+      if (Object.keys(tw).some(function (r) { return tw[r] > (th[r] || 0) + 1; })) return;
       var hit = 0, total = 0;
       Object.keys(have).forEach(function (r) {
         var a = have[r].length, b = (want[r] || []).length;
         hit += Math.min(a, b); total += Math.max(a, b);
       });
       var score = total ? hit / total : 0;
+      // the words must FIT the family's drawing, not just its roles: a
+      // photographer's hero (eyebrow, big headline, two lines) counted as a
+      // Quote by roles alone, and every take poured a 28-character display
+      // headline into the 180-wide slot the Quote keeps for its “ glyph
+      // (James: "hit the die on that top section creates 3 broken layouts").
+      // A glyph heading never hosts words; otherwise the base's headline slot
+      // is weighed against the section's own
+      var wh = want.heading[0], hh = have.heading[0];
+      var wantWords = String(wh.text || '').replace(/<[^>]+>/g, '').trim().length;
+      var haveWords = String(hh.text || '').replace(/<[^>]+>/g, '').trim().length;
+      if (wantWords > 8 && haveWords <= 2) return;
+      // a wordy headline in a slot under half its size is a bad fit: the
+      // score falls with the shortfall (a short heading fits anywhere)
+      var fit = Math.min(1, (hh.w * hh.h) / Math.max(1, wh.w * wh.h));
+      if (wantWords > 20 && fit < 0.5) score = score * (fit / 0.5);
       if (score > bestScore) { bestScore = score; best = fam; }
     });
     return bestScore >= 0.5 ? best : null;
@@ -7874,7 +8685,7 @@
   // a widget's SUBSTANCE (the questions, the pictures) — the part a roll
   // must never lose; copt/wopt are clothes and belong to each take
   function diceWidgetData(e) {
-    return JSON.stringify({ faq: e.faq || null, tabs: e.tabs || null, pics: e.slides || e.wall || null, shop: e.shop || null });
+    return JSON.stringify({ faq: e.faq || null, tabs: e.tabs || null, pics: e.slides || e.wall || null, shop: e.shop || null, posts: e.posts || null });
   }
   function diceByRole(els) {
     var map = {};
@@ -7884,9 +8695,6 @@
     });
     return map;
   }
-  // where an extra piece sits relative to the take's own — kept off the
-  // model (never saved), per element, for as long as the roll placed it
-  var diceRideMemo = new WeakMap();
   // ---------- the runtime guard ----------
   // Bugs should announce themselves the moment they happen, not a week
   // later in a screenshot (James). After every drop and every roll the
@@ -7906,10 +8714,33 @@
     if (moved && moved.e && (moved.e.w !== moved.w || moved.e.h !== moved.h)) {
       issues.push(moved.e.type + ' changed size ' + moved.w + 'x' + moved.h + ' \u2192 ' + moved.e.w + 'x' + moved.e.h);
     }
+    // what a texty piece OCCUPIES is its ink, not its box: a headline's box
+    // may run the width of the section while its words stop a third of the
+    // way across, and a paragraph tucked beside it is no overlap anyone can
+    // see (the same rule the card stack settles by). Buttons are their box
+    var sc = sec.sectionEl ? scaleOf(sec) : 0;
+    var inkOf = function (e, node) {
+      if (!node || e.type === 'button' || !(sc > 0.2)) return null;
+      var tn = node.matches('p,h1,h2,h3,h4,h5,h6') ? node : (node.querySelector('p,h1,h2,h3,h4,h5,h6') || node);
+      var rng = document.createRange();
+      rng.selectNodeContents(tn);
+      var ir = rng.getBoundingClientRect(), nr = node.getBoundingClientRect();
+      if (!(ir.width > 0) || !(ir.height > 0) || !(nr.width > 0)) return null;
+      return { x: e.x + (ir.left - nr.left) / sc, y: e.y + (ir.top - nr.top) / sc, w: ir.width / sc, h: ir.height / sc };
+    };
     var rects = [];
-    sec.els.forEach(function (e) {
-      if (guardTexty(e)) rects.push({ e: e, x: e.x, y: e.y, w: e.w, h: e.h, card: null });
-      (e.kids || []).forEach(function (k) { if (guardTexty(k)) rects.push({ e: k, x: k.x, y: k.y, w: k.w, h: k.h, card: e }); });
+    sec.els.forEach(function (e, i) {
+      var node = sec.nodes && sec.nodes[i];
+      if (guardTexty(e)) {
+        var ink = inkOf(e, node);
+        rects.push(Object.assign({ e: e, card: null }, ink || { x: e.x, y: e.y, w: e.w, h: e.h }));
+      }
+      (e.kids || []).forEach(function (k, j) {
+        if (!guardTexty(k)) return;
+        var kn = node && node.querySelector('.gogh-k-' + (j + 1));
+        var kink = inkOf(k, kn);
+        rects.push(Object.assign({ e: k, card: e }, kink || { x: k.x, y: k.y, w: k.w, h: k.h }));
+      });
     });
     for (var i = 0; i < rects.length; i++) for (var j = i + 1; j < rects.length; j++) {
       var a = rects[i], b = rects[j];
@@ -7928,137 +8759,331 @@
     }
     return issues;
   }
+  // ---------- identity: what the die follows through the takes ----------
+  // every piece carries an id. A rider keeps its object; a piece that
+  // continues hands its id to the slot that stands in for it; the saved
+  // model keeps the id (projEl), so a reload changes nothing. Its SLOT
+  // (sk, 'role:index' in the family's drawing order) is remembered too:
+  // deleting or reordering a piece used to shift every other piece's slot
+  // along by one, and the words memory with it
+  function diceId() { return Math.random().toString(36).slice(2, 9); }
+  function diceEnsureIds(els) {
+    diceFlatten(els).forEach(function (e) { if (!e.id) e.id = diceId(); });
+    return els;
+  }
+  // a copy is a new piece: it must not share an id with what it was copied
+  // from (the die would take the two for one). A section copy remaps its
+  // original snapshot and its seats the same way, so its own homecomings
+  // still find their pieces
+  function diceFreshIds(els, sec) {
+    var map = {};
+    diceFlatten(els).forEach(function (e) { var n = diceId(); if (e.id) map[e.id] = n; e.id = n; });
+    if (sec && sec.m) {
+      if (sec.m.orig && sec.m.orig.els) diceFlatten(sec.m.orig.els).forEach(function (e) { e.id = (e.id && map[e.id]) || diceId(); });
+      if (sec.m.seats) {
+        var seats = {};
+        Object.keys(sec.m.seats).forEach(function (id) { if (map[id]) seats[map[id]] = sec.m.seats[id]; });
+        sec.m.seats = seats;
+      }
+    }
+    return els;
+  }
+  // a widget whose HTML is composed from its data (questions, tabs, pictures,
+  // a shop) need not carry that HTML twice: the original snapshot drops it
+  // and the homecoming composes it again
+  function diceRecomposable(e) {
+    return e.type === 'widget' && !!((e.rails && e.shop) || (e.rails && e.posts) || (e.faq && e.faq.length) || (e.tabs && e.tabs.length) ||
+      (e.slides && e.slides.length) || (e.wall && e.wall.length));
+  }
+  function diceRecompose(els) {
+    diceFlatten(els).forEach(function (e) {
+      if (!diceRecomposable(e) || e.whtml) return;
+      if (e.rails && e.shop) { e.wsrc = composeShop(e.shop); e.whtml = shopSampleHTML(e.shop); }
+      else if (e.rails && e.posts) { e.wsrc = composePosts(e.posts); e.whtml = postsSampleHTML(e); }
+      else composeWidgetData(e);
+    });
+    return els;
+  }
+  // 'The original' take of a section that never named its family: what it
+  // looks like at HOME, kept on the model so four rolls bring its own pieces
+  // back. ownOnly leaves out the pieces a roll drew (tk) -- a take's rider
+  // that came home beside the user's own is the take's, not the original's
+  // a take draws its headline at a DISPLAY size chosen for its own two
+  // words; the user's headline may be five. Step the size down until the
+  // longest word fits the slot's width, then let a headline that still
+  // stands taller than its slot push the pieces below it down (James: "this
+  // 4/4 layout for the contact form is a little broken?" -- 'something' at
+  // Display M ran straight into the form)
+  var DISPLAY_PX = { '__disp-s': [6, 30], '__disp-m': [9, 36], '__disp-l': [13, 42] }; // max(Xcqw, Ypx)
+  function diceFitWords(sec) {
+    if (!sec.nodes || !sec.sectionEl) return;
+    var secW = sec.sectionEl.offsetWidth;
+    if (!(secW > 200)) return;
+    var pxOf = function (slug) { var d = DISPLAY_PX[slug]; return d ? Math.max(d[0] * secW / 100, d[1]) : 0; };
+    var changed = false;
+    sec.els.forEach(function (e, i) {
+      if (e.type !== 'heading' || !DISPLAY_PX[e.fs] || !sec.nodes[i]) return;
+      var n = sec.nodes[i];
+      var t = n.matches('h1,h2,h3,h4,h5,h6') ? n : (n.querySelector('h1,h2,h3,h4,h5,h6') || n);
+      var words = (t.textContent || '').trim().split(/\s+/).filter(Boolean);
+      if (!words.length) return;
+      var cs = getComputedStyle(t);
+      var probe = document.createElement('span');
+      probe.style.cssText = 'position:absolute;left:-99999px;top:0;visibility:hidden;white-space:nowrap;font-family:' + cs.fontFamily +
+        ';font-weight:' + cs.fontWeight + ';font-style:' + cs.fontStyle + ';text-transform:' + cs.textTransform +
+        ';letter-spacing:' + cs.letterSpacing + ';font-size:' + cs.fontSize;
+      document.body.appendChild(probe);
+      var widest = 0;
+      words.forEach(function (w) { probe.textContent = w; widest = Math.max(widest, probe.getBoundingClientRect().width); });
+      probe.remove();
+      var boxW = n.offsetWidth, fsPx = parseFloat(cs.fontSize) || pxOf(e.fs) || 1;
+      var k = DISPLAY_ORDER.indexOf(e.fs);
+      while (k > 0 && widest > boxW * 0.98) {
+        k--;
+        var nextPx = pxOf(DISPLAY_ORDER[k]);
+        widest = widest * nextPx / fsPx;
+        fsPx = nextPx;
+        e.fs = DISPLAY_ORDER[k];
+        changed = true;
+      }
+    });
+    if (changed) renderSection(sec);
+    // taller than the slot the take drew? the pieces below make room
+    var slotH = sec.els.map(function (e) { return e.h; });
+    measureTextHeights(sec);
+    var pushed = false;
+    sec.els.forEach(function (e, i) {
+      if (e.type !== 'heading' || !DISPLAY_PX[e.fs]) return;
+      if (e.h > slotH[i] + 8 && reflowPush(sec, e, slotH[i])) pushed = true;
+    });
+    if (pushed || changed) resolveAndApply(sec);
+  }
+  function diceOrigSnap(sec, ownOnly) {
+    var own = function (list) {
+      return list.filter(function (e) { return !ownOnly || e.tk == null; }).map(function (e) {
+        if (e.kids) e.kids = own(e.kids);
+        if (diceRecomposable(e)) delete e.whtml;
+        return e;
+      });
+    };
+    return { els: own(JSON.parse(JSON.stringify(sec.els))), minH: sec.minH || null, bg: sec.bg || null,
+      bgImage: sec.bgImage || null, bgId: sec.bgId || null, bgPos: sec.bgPos || null,
+      bgA: sec.bgA != null ? sec.bgA : null, fill: !!sec.fill, fx: sec.fx || null };
+  }
   function rollSection(idx) {
     var sec = S[idx];
     var fam = diceFamilyOf(sec);
     var faces = fam ? diceFaces(fam) : null;
     if (!faces) return null;
+    diceEnsureIds(sec.els);
+    var m = sec.m || {};
     // an inferred family is adopted on the first roll: from here the
     // section knows its takes like any other
-    if (!sec.m || !sec.m.tpl || sec.m.tpl !== fam) {
+    var adopt = !m.tpl || m.tpl !== fam;
+    if (adopt) {
       // a section that never named its family keeps what it WAS: its own
       // pieces are 'The original' take, and four rolls bring THEM home — not
       // the family's base drawing with pieces it never had (the walk caught
       // the Yellow House hero coming home with a box, a photo and a badge)
-      sec.m = Object.assign({}, sec.m || {}, { tpl: fam, face: 0, orig: {
-        els: JSON.parse(JSON.stringify(sec.els)), minH: sec.minH || null, bg: sec.bg || null,
-        bgImage: sec.bgImage || null, bgId: sec.bgId || null, bgPos: sec.bgPos || null,
-        bgA: sec.bgA != null ? sec.bgA : null, fill: !!sec.fill, fx: sec.fx || null } });
+      sec.m = m = Object.assign({}, m, { tpl: fam, face: 0, orig: diceOrigSnap(sec, false) });
     }
-    var orig = sec.m.orig && sec.m.orig.els ? sec.m.orig : null;
-    var cur = ((sec.m.face || 0) % faces.length + faces.length) % faces.length;
+    var orig = m.orig && m.orig.els ? m.orig : null;
+    var cur = ((m.face || 0) % faces.length + faces.length) % faces.length;
     var next = (cur + 1) % faces.length;
-    var takeEls = function (face) { return (face === 0 && orig) ? JSON.parse(JSON.stringify(orig.els)) : tplEls(faces[face]); };
+    if (orig && cur === 0 && !adopt) {
+      // home is editable too: a heading dragged or a photo resized on the
+      // original take has to be there when four rolls bring it round again,
+      // so the snapshot is retaken every time the section leaves home (it
+      // used to be taken once, and rolling around put the pre-edit layout back)
+      orig = diceOrigSnap(sec, true);
+      sec.m = m = Object.assign({}, m, { orig: orig });
+    }
+    var home = next === 0 && !!orig;
+    var takeEls = function (face) {
+      return (face === 0 && orig) ? diceRecompose(JSON.parse(JSON.stringify(orig.els))) : tplEls(faces[face]);
+    };
+    var key = function (r, i) { return r + ':' + i; };
+    var roleOf = function (k) { return k.slice(0, k.indexOf(':')); };
+    var indexOf = function (k) { return +k.slice(k.indexOf(':') + 1); };
+    var isNone = function (k) { return k.indexOf('_:') === 0; };
+    var noRole = function (e) { return !diceRole(e); };
+    var isCard = function (e) { return e.type === 'box' && !!e.kids; };
+    // a drawing's SLOTS: 'role:index' over the flattened pieces of a kind,
+    // '_:index' for the roleless decoration (shapes, boxes, cards) by order
+    var slotsOf = function (els) {
+      var by = diceByRole(els), map = {};
+      Object.keys(by).forEach(function (r) { by[r].forEach(function (e, i) { map[key(r, i)] = e; }); });
+      els.filter(noRole).forEach(function (e, i) { map[key('_', i)] = e; });
+      return map;
+    };
     // what the CURRENT take would say untouched (tplEls is deterministic:
     // pool picks are seeded by family name) -- anything that differs is
     // the user's, and the user's work survives the roll
-    var pristine = diceByRole(takeEls(cur));
+    var priEls = takeEls(cur);
+    var pristine = slotsOf(priEls);
     // WORDS are measured against the family's own drawing of this take:
     // an original section's words differ from the template's, and that
     // difference is what must travel into the next take
-    var words = (cur === 0 && orig) ? diceByRole(tplEls(faces[0])) : pristine;
-    var live = diceByRole(sec.els);
-    // the user's edits, REMEMBERED on the model by role and slot: a take
-    // that does not draw the second button keeps its words for the take
-    // that does (they used to come home wearing the template's text)
-    var edits = (sec.m && sec.m.edits && typeof sec.m.edits === 'object') ? sec.m.edits : {};
-    Object.keys(live).forEach(function (r) {
-      var pl = words[r] || [];
-      live[r].forEach(function (e, i) {
-        if (!pl[i]) return;
-        var d = {};
-        if (r === 'image') {
-          if (e.type === 'video' && (e.src || e.vurl)) {
-            // the user's video rides into the next take's picture slot,
-            // wearing that take's frame
-            d.video = { src: e.src || null, mediaId: e.mediaId || null, vurl: e.vurl || null, vplay: e.vplay || null,
-              poster: e.poster || null, posterId: e.posterId || null, radius: e.radius || 0 };
-          } else if (e.type !== 'video' && e.src && e.src !== pl[i].src) { d.src = e.src; if (e.srcId) d.srcId = e.srcId; }
-        } else if (r === 'widget') {
-          if (diceWidgetData(e) !== diceWidgetData(pl[i])) d.wdata = JSON.parse(diceWidgetData(e));
-        } else {
-          if (e.text != null && e.text !== pl[i].text) d.text = e.text;
-          if (e.href && e.href !== pl[i].href) d.href = e.href;
-        }
-        if (Object.keys(d).length) (edits[r] = edits[r] || {})[i] = d;
-        else if (edits[r] && edits[r][i]) delete edits[r][i]; // put back to the template's words: forget
+    var words = (cur === 0 && orig) ? slotsOf(tplEls(faces[0])) : pristine;
+    var flatAll = diceFlatten(sec.els);
+    // BINDING. A piece that never learned its slot (a page saved before the
+    // die kept slots; a section on its first roll) pairs by kind and order
+    // with what this take draws -- the rule the die always used -- and keeps
+    // that slot from here on. Only a section with no slots at all binds this
+    // way: once bound, a piece without a slot is one the user added
+    if (!flatAll.some(function (e) { return e.sk; })) {
+      var liveSlots = slotsOf(sec.els);
+      Object.keys(liveSlots).forEach(function (k) {
+        var e = liveSlots[k];
+        if (!pristine[k] || (!isNone(k) && !words[k])) return; // beyond what the take draws: the user's own
+        e.sk = k;
+        // saved mid-family without marks (a starter shipped on take 3): what
+        // sits in the take's slots is the take's drawing, not an original
+        if (cur !== 0 && e.tk == null) e.tk = cur;
       });
-    });
-    // pieces ADDED on top of the take are the ones no role-slot claimed —
-    // not "whatever sits past the take's count" (an inferred section's
-    // order is its own). They travel with the piece they sat beside: a
-    // second button keeps its gap from the take's button, below or to the
-    // right, wherever that button lands next (James: "rolling the dice on
-    // this section breaks the layout — the buttons are all over the place")
-    var els2 = takeEls(next);
-    if (!(next === 0 && orig)) diceFlatten(els2).forEach(function (e) { e.tk = next; }); // drawn by this roll (the original's pieces stay originals)
-    var by2 = diceByRole(els2);
-    var noRole = function (e) { return !diceRole(e); };
-    var none2 = els2.filter(noRole);
+    }
+    // a card of the user's own rides whole, kids inside; a take's card is
+    // decoration (its kids are pieces in their own right)
+    var userCards = sec.els.filter(function (e) { return isCard(e) && !e.sk; });
+    var inUserCard = function (e) { return userCards.some(function (c) { return c.kids.indexOf(e) !== -1; }); };
     // three kinds of piece. One the take drew AND the next take draws too:
-    // it continues (re-drawn, edits applied). One a ROLL drew that the next
-    // take does not have (an image only take 2 has): it steps aside — the
-    // take's design decides, its words stay in the memory above. One that is
-    // ORIGINAL or the user's own (never drawn by a roll, or beyond what the
-    // take draws): it rides, seated by the piece it sat beside, and fills a
-    // free slot of its kind when one appears. (Rolled pieces riding into
-    // takes that never drew them piled up — the sweep caught it.)
-    var matched = new Map();
-    Object.keys(live).forEach(function (r) {
-      live[r].forEach(function (e, i) {
-        var inTake = !!(pristine[r] || [])[i], slotNext = !!(by2[r] || [])[i];
-        if (inTake && slotNext) matched.set(e, { r: r, i: i });
-        else if (inTake && e.tk != null) matched.set(e, { r: r, i: i, dropped: true });
-      });
+    // it continues (re-drawn in the next take's clothes, its words applied).
+    // One a ROLL drew that the next take does not have (an image only take 2
+    // has): it steps aside — the take's design decides, its words stay in
+    // the memory. One that is ORIGINAL or the user's own (never drawn by a
+    // roll, or beyond what the take draws): it rides, seated by the piece it
+    // sat beside, and fills a free slot of its kind when one appears
+    var els2 = takeEls(next);
+    if (!home) diceFlatten(els2).forEach(function (e) { e.tk = next; }); // drawn by this roll (the original's pieces stay originals)
+    diceEnsureIds(els2);
+    var by2 = slotsOf(els2);
+    Object.keys(by2).forEach(function (k) { by2[k].sk = k; }); // a drawn piece knows its slot
+    var inTake = function (e) { return !!e.sk && !!pristine[e.sk] && (isNone(e.sk) || !!words[e.sk]); };
+    var matched = new Map(); // live piece -> { k, dropped }
+    var claimed = {};        // slot key -> a live piece continues into it
+    flatAll.forEach(function (e) {
+      if (!inTake(e) || inUserCard(e)) return;
+      if (by2[e.sk]) { matched.set(e, { k: e.sk }); claimed[e.sk] = true; }
+      else if (e.tk != null || isNone(e.sk)) matched.set(e, { k: e.sk, dropped: true });
+      // else an original whose slot the next take lacks: it rides
     });
-    // roleless pieces (shapes, boxes) are the take's decoration: pair by
-    // order, and one the next take does not draw steps aside
-    var liveNone = sec.els.filter(noRole), priNone = takeEls(cur).filter(noRole);
-    liveNone.forEach(function (e, i) { matched.set(e, { r: '_', i: i, dropped: !(priNone[i] && none2[i]) }); });
-    // an original that continues stays an original: the piece the next take
-    // draws in its slot inherits that (so a starter's second button never
-    // becomes 'the take's' and vanishes on a later roll)
+    // the user's edits, REMEMBERED on the model by slot: a take that does
+    // not draw the second button keeps its words for the take that does
+    // (they used to come home wearing the template's text)
+    var edits = (m.edits && typeof m.edits === 'object') ? m.edits : {};
+    var seen = {};
+    flatAll.forEach(function (e) {
+      if (!inTake(e) || inUserCard(e) || isNone(e.sk)) return;
+      var k = e.sk, r = roleOf(k), i = indexOf(k), pl = words[k], d = {};
+      seen[k] = true;
+      if (r === 'image') {
+        if (e.type === 'video' && (e.src || e.vurl)) {
+          // the user's video rides into the next take's picture slot,
+          // wearing that take's frame
+          d.video = { src: e.src || null, mediaId: e.mediaId || null, vurl: e.vurl || null, vplay: e.vplay || null,
+            poster: e.poster || null, posterId: e.posterId || null, radius: e.radius || 0 };
+        } else if (e.type !== 'video' && e.src && e.src !== pl.src) { d.src = e.src; if (e.srcId) d.srcId = e.srcId; }
+      } else if (r === 'widget') {
+        if (diceWidgetData(e) !== diceWidgetData(pl)) d.wdata = JSON.parse(diceWidgetData(e));
+      } else {
+        if (e.text != null && e.text !== pl.text) d.text = e.text;
+        if (e.href && e.href !== pl.href) d.href = e.href;
+      }
+      if (Object.keys(d).length) (edits[r] = edits[r] || {})[i] = d;
+      else if (edits[r] && edits[r][i]) delete edits[r][i]; // put back to the template's words: forget
+    });
+    // a slot this take draws with no piece left in it was deleted by the
+    // user: its words go too, or the deleted piece would come back wearing
+    // them the next time a take draws that slot. And words for slots no take
+    // of the family draws are noise: forget those as well
+    var famKeys = {};
+    faces.forEach(function (f, fi) { Object.keys(slotsOf(fi === 0 && orig ? orig.els : tplEls(f))).forEach(function (k) { famKeys[k] = true; }); });
+    Object.keys(edits).forEach(function (r) {
+      if (!edits[r] || typeof edits[r] !== 'object') { delete edits[r]; return; }
+      Object.keys(edits[r]).forEach(function (i) {
+        var k = key(r, i);
+        if (!famKeys[k] || (pristine[k] && words[k] && !seen[k])) delete edits[r][i];
+      });
+      if (!Object.keys(edits[r]).length) delete edits[r];
+    });
+    // a piece that continues keeps its identity; an original that continues
+    // stays an original (so a starter's second button never becomes 'the
+    // take's' and vanishes on a later roll)
     matched.forEach(function (ri, e) {
-      if (ri.dropped || ri.r === '_' || e.tk != null) return;
-      var slot = (by2[ri.r] || [])[ri.i];
-      if (slot) delete slot.tk;
+      if (ri.dropped) return;
+      var slot = by2[ri.k];
+      if (e.tk == null || !slot.id) slot.id = e.id;
+      if (e.tk == null) delete slot.tk;
     });
     // extras live on the page OR inside a card (a take like The panel keeps
-    // its button in the card, and a second button joined it there)
-    var isCard = function (e) { return e.type === 'box' && !!e.kids; };
-    var extra = diceFlatten(sec.els).filter(function (e) {
-      return !matched.has(e) && !isCard(e) && (diceRole(e) || sec.els.indexOf(e) !== -1);
+    // its button in the card, and a second button joined it there); a card
+    // of the user's own rides whole; a take's card never rides (its kids do)
+    var extra = flatAll.filter(function (e) {
+      if (matched.has(e) || inUserCard(e)) return false;
+      return !isCard(e) || !e.sk;
     });
-    // a rider takes a FREE slot of its kind first — the take's own second
-    // button, say — carrying its words, and only rides when no slot is left
-    // (otherwise it came home beside slot one while the take redrew slot two)
-    var taken = {};
-    matched.forEach(function (ri) { if (!ri.dropped) taken[ri.r + ':' + ri.i] = true; });
+    var none2 = els2.filter(noRole);
+    // HOMECOMING: the original snapshot already holds every piece that was at
+    // home, riders included (it is retaken on every leave-home). A rider
+    // whose piece is in the snapshot takes that copy's place -- at the copy's
+    // spot, with whatever the user did to it on the way round -- instead of
+    // landing beside a copy of itself (two widgets became three, then five)
+    if (home) {
+      var byId = {};
+      extra.forEach(function (x) { byId[x.id] = x; });
+      var swapIn = function (list) {
+        list.forEach(function (c, at) {
+          var x = byId[c.id] || null;
+          if (!x && c.type === 'widget') {
+            // a snapshot from before pieces had ids: a widget is its substance
+            x = extra.filter(function (y) { return y.type === 'widget' && y.wsrc === c.wsrc && diceWidgetData(y) === diceWidgetData(c); })[0] || null;
+          }
+          if (!x) { if (c.kids) swapIn(c.kids); return; }
+          x.x = c.x; x.y = c.y; x.w = c.w; x.h = c.h;
+          x.sk = c.sk || x.sk;
+          list[at] = x;
+          extra.splice(extra.indexOf(x), 1);
+          delete byId[x.id];
+          if (c.sk) { by2[c.sk] = x; claimed[c.sk] = true; }
+          var ni = none2.indexOf(c);
+          if (ni !== -1) none2[ni] = x;
+        });
+      };
+      swapIn(els2);
+    }
+    // a rider takes a FREE slot of its kind first — its own slot when the
+    // take draws it, else the take's own second button, say — carrying its
+    // words, and only rides when no slot is left (otherwise it came home
+    // beside slot one while the take redrew slot two)
     var adopted = [];
     extra = extra.filter(function (x) {
       var r = diceRole(x);
-      if (!r || r === 'widget') return true;
-      var list = by2[r] || [];
-      for (var j = 0; j < list.length; j++) {
-        if (taken[r + ':' + j]) continue;
-        taken[r + ':' + j] = true;
-        var slot = list[j];
-        delete slot.tk; // the user's piece now, whatever the take drew there
-        if (r === 'image') {
-          if (x.type === 'video' && (x.src || x.vurl)) {
-            slot.type = 'video';
-            Object.assign(slot, { src: x.src || null, mediaId: x.mediaId || null, vurl: x.vurl || null, vplay: x.vplay || null,
-              poster: x.poster || null, posterId: x.posterId || null, radius: x.radius || 0 });
-            delete slot.alt;
-          } else if (x.src) { slot.src = x.src; if (x.srcId) slot.srcId = x.srcId; if (x.alt) slot.alt = x.alt; }
-        } else {
-          if (x.text != null) slot.text = x.text;
-          if (x.href) slot.href = x.href;
-        }
-        adopted.push(x);
-        return false;
+      if (!r || r === 'widget') return true; // decoration and widgets ride as themselves
+      var keys = [];
+      if (x.sk && roleOf(x.sk) === r && by2[x.sk] && !claimed[x.sk]) keys.push(x.sk);
+      Object.keys(by2).forEach(function (k) { if (roleOf(k) === r && !claimed[k] && keys.indexOf(k) === -1) keys.push(k); });
+      if (!keys.length) return true;
+      var k2 = keys[0], slot = by2[k2];
+      claimed[k2] = true;
+      delete slot.tk; // the user's piece now, whatever the take drew there
+      slot.id = x.id;
+      // moving to another slot takes the words along: the memory for the
+      // slot it leaves would otherwise draw them a second time
+      if (x.sk && x.sk !== k2 && edits[roleOf(x.sk)] && edits[roleOf(x.sk)][indexOf(x.sk)]) delete edits[roleOf(x.sk)][indexOf(x.sk)];
+      x.sk = k2;
+      if (r === 'image') {
+        if (x.type === 'video' && (x.src || x.vurl)) {
+          slot.type = 'video';
+          Object.assign(slot, { src: x.src || null, mediaId: x.mediaId || null, vurl: x.vurl || null, vplay: x.vplay || null,
+            poster: x.poster || null, posterId: x.posterId || null, radius: x.radius || 0 });
+          delete slot.alt;
+        } else if (x.src) { slot.src = x.src; if (x.srcId) slot.srcId = x.srcId; if (x.alt) slot.alt = x.alt; }
+      } else {
+        if (x.text != null) slot.text = x.text;
+        if (x.href) slot.href = x.href;
       }
-      return true;
+      adopted.push(slot);
+      return false;
     });
     // a card's kids sit relative to the card — seats are measured on the page
     var absIn = function (els, e) {
@@ -8074,34 +9099,40 @@
       return { right: right, below: below,
         dx: right ? xa.x - (aa.x + aa.w) : xa.x - aa.x, dy: below ? xa.y - (aa.y + aa.h) : xa.y - aa.y };
     };
+    // seats are remembered on the model by the rider's id (they used to live
+    // in a WeakMap that undo and a reload emptied)
+    var seats = (m.seats && typeof m.seats === 'object') ? Object.assign({}, m.seats) : {};
     var rides = extra.map(function (x) {
+      if (!diceRole(x)) return null; // a shape or a card of the user's own stays where it is
       var best = null, bd = Infinity, head = null;
+      var xa = absIn(sec.els, x);
       matched.forEach(function (ri, a) {
-        if (ri.dropped || (a.type === 'box' && a.kids)) return;
-        if (ri.r === 'heading' && ri.i === 0) head = { a: a, ri: ri };
+        if (ri.dropped || isCard(a)) return;
+        if (ri.k === 'heading:0') head = { a: a, k: ri.k };
         var pref = diceRole(a) === diceRole(x) ? 0 : 1e5; // its own kind first
-        var d = Math.hypot((a.x + a.w / 2) - (x.x + x.w / 2), (a.y + a.h / 2) - (x.y + x.h / 2)) + pref;
-        if (d < bd) { bd = d; best = { a: a, ri: ri }; }
+        var aa = absIn(sec.els, a); // both on the page: a kid's numbers are its card's
+        var d = Math.hypot((aa.x + aa.w / 2) - (xa.x + xa.w / 2), (aa.y + aa.h / 2) - (xa.y + xa.h / 2)) + pref;
+        if (d < bd) { bd = d; best = { a: a, k: ri.k }; }
       });
       if (!best) return null;
       // a seat remembered from an earlier roll still holds while the piece
       // sits where that roll put it — through a take with no button, the
       // second button keeps knowing it belongs beside the first
-      var m0 = diceRideMemo.get(x);
-      var xa0 = absIn(sec.els, x);
-      var memo = (m0 && m0.at[0] === xa0.x && m0.at[1] === xa0.y) ? m0 : null;
-      return { ri: best.ri, seat: seat(x, best.a), own: diceRole(best.a) === diceRole(x),
-        fb: head ? { ri: head.ri, seat: seat(x, head.a) } : null, memo: memo };
+      var m0 = seats[x.id];
+      var memo = (m0 && m0.at && m0.at[0] === xa.x && m0.at[1] === xa.y && m0.k) ? m0 : null;
+      return { k: best.k, seat: seat(x, best.a), own: diceRole(best.a) === diceRole(x),
+        fb: head ? { k: head.k, seat: seat(x, head.a) } : null, memo: memo };
     });
     // the extras leave wherever they sat; they re-seat below
-    sec.els.forEach(function (e) { if (isCard(e)) e.kids = e.kids.filter(function (k) { return extra.indexOf(k) === -1 && adopted.indexOf(k) === -1; }); });
+    sec.els.forEach(function (e) { if (isCard(e)) e.kids = e.kids.filter(function (k) { return extra.indexOf(k) === -1; }); });
     // the same slot in the next take — or, when the take draws fewer of
     // that kind, the last one it does draw (a take with one button still
     // seats the second beside it); roleless pieces pair exactly
-    var slot2 = function (ri) {
-      if (ri.r === '_') return none2[ri.i];
-      var list = by2[ri.r] || [];
-      return list.length ? list[Math.min(ri.i, list.length - 1)] : null;
+    var slot2 = function (k) {
+      if (isNone(k)) return none2[indexOf(k)] || null;
+      var r = roleOf(k), n = 0;
+      Object.keys(by2).forEach(function (k3) { if (roleOf(k3) === r) n++; });
+      return n ? by2[key(r, Math.min(indexOf(k), n - 1))] : null;
     };
     // everything the next take draws, on the page, so a rider can avoid it
     var placedRects = diceFlatten(els2).filter(function (e) { return !isCard(e); }).map(function (e) {
@@ -8112,9 +9143,9 @@
       var ride = rides[k];
       if (!ride) { extraTop.push(x); return; }
       var a2 = null, st = null, keep = null;
-      if (ride.memo && slot2(ride.memo.ri)) { a2 = slot2(ride.memo.ri); st = ride.memo.seat; keep = ride.memo; }
-      else if (slot2(ride.ri)) { a2 = slot2(ride.ri); st = ride.seat; keep = ride.own ? { ri: ride.ri, seat: ride.seat } : ride.memo; }
-      else if (ride.fb && slot2(ride.fb.ri)) { a2 = slot2(ride.fb.ri); st = ride.fb.seat; keep = ride.memo; }
+      if (ride.memo && slot2(ride.memo.k)) { a2 = slot2(ride.memo.k); st = ride.memo.seat; keep = ride.memo; }
+      else if (slot2(ride.k)) { a2 = slot2(ride.k); st = ride.seat; keep = ride.own ? { k: ride.k, seat: ride.seat } : ride.memo; }
+      else if (ride.fb && slot2(ride.fb.k)) { a2 = slot2(ride.fb.k); st = ride.fb.seat; keep = ride.memo; }
       if (!a2) { extraTop.push(x); return; }
       var aa = absIn(els2, a2);
       var tx = Math.round(st.right ? aa.x + aa.w + st.dx : aa.x + st.dx);
@@ -8152,19 +9183,22 @@
         x.x = Math.max(0, Math.min(Math.max(0, c.w - x.w), tx - c.x));
         x.y = Math.max(0, ty - c.y);
         c.kids.push(x);
+        orderKids(c);
       } else {
         x.x = Math.max(0, Math.min(W - x.w, tx));
         x.y = Math.max(0, ty);
         extraTop.push(x);
       }
       var placed = absIn(els2, x);
-      diceRideMemo.set(x, Object.assign({}, keep || { ri: ride.ri, seat: ride.seat }, { at: [placed.x, placed.y] }));
+      seats[x.id] = Object.assign({}, keep || { k: ride.k, seat: ride.seat }, { at: [placed.x, placed.y] });
     });
     extra = extraTop;
+    // the remembered words go onto the slots the take draws -- except a slot
+    // a rider just filled: its words are the rider's own, not an older take's
     Object.keys(edits).forEach(function (r) {
-      (by2[r] || []).forEach(function (e, i) {
-        var d = edits[r][i];
-        if (!d) return;
+      Object.keys(edits[r]).forEach(function (i) {
+        var e = by2[key(r, i)], d = edits[r][i];
+        if (!e || !d || adopted.indexOf(e) !== -1) return;
         if (d.video && e.type === 'image') {
           e.type = 'video';
           Object.assign(e, d.video);
@@ -8187,36 +9221,53 @@
             e.wsrc = composeShop(e.shop);
             e.whtml = shopSampleHTML(e.shop);
           }
+          if (d.wdata.posts && e.posts) {
+            // likewise the posts: which, how many, what to show travel;
+            // the look, picture and spacing are the take's own
+            ['cat', 'catId', 'order', 'count', 'show', 'pick'].forEach(function (k) { if (d.wdata.posts[k] !== undefined) e.posts[k] = d.wdata.posts[k]; });
+            e.wsrc = composePosts(e.posts);
+            e.whtml = postsSampleHTML(e);
+          }
           composeWidgetData(e);
         }
       });
     });
     // a background photo the user chose outlives every take that can wear
-    // one; a take born imageless stashes it instead of losing it
+    // one; a take born imageless stashes it instead of losing it (on the
+    // model, so undo and a reload keep it)
     var priBg = tplBgFor(faces[cur]);
-    var keep = sec.__diceBg || null;
+    var keepBg = m.keepBg || null;
     if (sec.bgImage && sec.bgImage !== priBg) {
-      keep = { img: sec.bgImage, id: sec.bgId || null, pos: sec.bgPos || null };
+      keepBg = { img: sec.bgImage, id: sec.bgId || null, pos: sec.bgPos || null };
     }
-    var t2 = (next === 0 && orig) ? Object.assign({}, faces[0], orig, { take: faces[0].take }) : faces[next];
+    var t2 = home ? Object.assign({}, faces[0], orig, { take: faces[0].take }) : faces[next];
     sec.els = els2.concat(extra);
     sec.minH = t2.minH || null;
     sec.bg = t2.bg || null;
     sec.fill = !!t2.fill;
     sec.fx = t2.fx ? JSON.parse(JSON.stringify(t2.fx)) : null;
-    var wants = (next === 0 && orig) ? (orig.bgImage || null) : tplBgFor(t2);
-    if (wants && keep) {
-      sec.bgImage = keep.img; sec.bgId = keep.id; sec.bgPos = keep.pos;
-      sec.__diceBg = null;
+    var wants = home ? (orig.bgImage || null) : tplBgFor(t2);
+    if (wants && keepBg) {
+      sec.bgImage = keepBg.img; sec.bgId = keepBg.id; sec.bgPos = keepBg.pos;
+      keepBg = null;
     } else {
       sec.bgImage = wants || null; sec.bgId = null; sec.bgPos = null;
-      sec.__diceBg = keep;
     }
     sec.bgA = t2.bgA != null ? t2.bgA : null;
-    sec.m = Object.assign({}, sec.m, { face: next, edits: edits });
+    // seats of pieces that are gone are noise; a hand-tuned phone order
+    // indexed the pieces of the take that was, so it lifts
+    var finalIds = {};
+    diceFlatten(sec.els).forEach(function (e) { finalIds[e.id] = true; });
+    Object.keys(seats).forEach(function (id) { if (!finalIds[id]) delete seats[id]; });
+    var m2 = Object.assign({}, m, { face: next, edits: edits, seats: seats, keepBg: keepBg });
+    if (!Object.keys(seats).length) delete m2.seats;
+    if (!keepBg) delete m2.keepBg;
+    if (m2.order) delete m2.order;
+    sec.m = m2;
     renderSection(sec);
+    diceFitWords(sec); // the take's display sizes were set for its own words: the user's must fit
     guardCheck(sec, 'roll to take ' + (next + 1));
-    sec.els.forEach(function (ex) { if (ex.rails && ex.shop) hydrateProductsPreview(sec, ex); });
+    sec.els.forEach(function (ex) { if (ex.rails && ex.shop) hydrateProductsPreview(sec, ex); if (ex.rails && ex.posts) hydratePostsPreview(sec, ex); });
     pushState();
     contrastSentinel(sec);
     return { face: next, of: faces.length, take: t2.take || null };
@@ -9040,6 +10091,10 @@
     sec.bgImage = tplBgFor(tpl);
     sec.bgA = tpl.bgA != null ? tpl.bgA : null;
     sec.fill = !!tpl.fill;
+    // a section can be a DESTINATION: its anchor becomes the element's id,
+    // which is the whole trick behind a one-page site's menu
+    sec.anchor = cleanAnchor(tpl.anchor);
+    if (sec.anchor) sec.sectionEl.id = sec.anchor;
     sec.fx = tpl.fx ? JSON.parse(JSON.stringify(tpl.fx)) : null;
     // a starter with hidden takes remembers its family -- the die must
     // know which drawer to reach into, today and after a reload (m rides
@@ -9061,7 +10116,7 @@
       }
     }
     renderSection(sec);
-    sec.els.forEach(function (ex) { if (ex.rails && ex.shop) hydrateProductsPreview(sec, ex); });
+    sec.els.forEach(function (ex) { if (ex.rails && ex.shop) hydrateProductsPreview(sec, ex); if (ex.rails && ex.posts) hydratePostsPreview(sec, ex); });
     sel = null;
     hideHandles();
     sec.wrapEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -9086,6 +10141,306 @@
   }
 
   // ---------- "/" quick add: type to filter, Enter to insert ----------
+  // ---------- a site from a definition ----------
+  // Stage one of "chat to an AI, get a blueprint" (James: "I just want them
+  // to be able to chat to AI like Claude desktop"). A definition is content
+  // and choices — takes from the shelf, filled by role — never geometry. The
+  // editor draws it with the tested takes, so what an AI writes is small and
+  // safe, and a beginner's site looks designed the first time.
+  function roleOf(e) {
+    if (e.type === 'para') return (e.tf && e.tf.tt === 'uppercase') ? 'eyebrow' : 'para';
+    return e.type;
+  }
+  function roleLists(els) {
+    var L = { heading: [], eyebrow: [], para: [], button: [], image: [], badge: [], card: [], widget: [] };
+    els.forEach(function (e) {
+      if (e.type === 'box') { if (e.kids && e.kids.length) L.card.push(e); return; }
+      var r = roleOf(e);
+      if (L[r]) L[r].push(e);
+    });
+    return L;
+  }
+  // the same few names everywhere, at section level and inside a card:
+  // heading (or title), eyebrow (or name, role), text (or quote), price,
+  // button, badge, image, link
+  function fillWords(L, c) {
+    if (!c) return;
+    var put = function (list, k, v) { if (v != null && list[k]) list[k].text = String(v); };
+    put(L.heading, 0, c.heading != null ? c.heading : c.title);
+    put(L.heading, 1, c.price);
+    put(L.eyebrow, 0, c.eyebrow != null ? c.eyebrow : (c.name != null ? c.name : c.role));
+    put(L.para, 0, c.text != null ? c.text : c.quote);
+    put(L.para, 1, c.text2);
+    put(L.button, 0, c.button);
+    put(L.button, 1, c.button2);
+    put(L.badge, 0, c.badge);
+    put(L.badge, 1, c.badge2);
+    if (c.image && L.image[0]) L.image[0].src = String(c.image);
+    if (c.link && L.button[0]) L.button[0].href = String(c.link);
+  }
+  // takes whose items are not cards but repeated pieces in a row
+  var FLAT_TAKES = {
+    'Numbers': { unit: { heading: 'value', para: 'label' }, head: {} },
+    'Team': { unit: { image: 'image', heading: 'name', eyebrow: 'role' }, head: { eyebrow: 1, heading: 1 } },
+    'Menu': { unit: { heading: 'name', para: 'price' }, head: { eyebrow: 1, heading: 1 }, tail: { para: 1 } },
+    'Gallery': { unit: { image: 'image' }, head: { eyebrow: 1, heading: 1 }, tail: { button: 1 } },
+    'Photo cards': { unit: { image: 'image', heading: 'title', para: 'text', badge: ['badge', 'badge2'], button: 'button' }, head: {} },
+  };
+  function templateByName(name) {
+    var found = null;
+    TEMPLATES.forEach(function (t) { if (!found && t.name === name) found = t; });
+    return found;
+  }
+  // a take from the shelf, filled with a definition's words: returns a
+  // template clone ready for addSection, or null when the take is unknown
+  // A take arrives carrying the demo studio's words — "★ Est. 2019", "Start a
+  // project", "Six years on we…". Anything the definition did not fill is not
+  // content, it is scaffolding, and it goes (James, on a site built from a
+  // mockup: "didn't really get close" — half of what it said was Brighton's).
+  // Headings stay: some are the design itself, like the Quote's opening mark.
+  var FILL_COUNT = {
+    eyebrow: function (c) { return [c.eyebrow, c.name, c.role].filter(function (v) { return v != null; }).length ? 1 : 0; },
+    para: function (c) { return [c.text != null ? c.text : c.quote, c.text2, c.text3].filter(function (v) { return v != null; }).length; },
+    button: function (c) { return [c.button, c.button2].filter(function (v) { return v != null; }).length; },
+    badge: function (c) { return [c.badge, c.badge2].filter(function (v) { return v != null; }).length; },
+  };
+  // `box` is a section template or a card: one keeps its pieces in els, the
+  // other in kids, and the pruner has to put them back where it found them
+  function dropUnfilled(box, L, c) {
+    var go = [];
+    Object.keys(FILL_COUNT).forEach(function (role) {
+      (L[role] || []).slice(FILL_COUNT[role](c || {})).forEach(function (e) { go.push(e); });
+    });
+    if (!go.length) return;
+    var prune = function (list) {
+      return list.filter(function (e) { return go.indexOf(e) === -1; }).map(function (e) {
+        if (e.kids && e.kids.length) e.kids = prune(e.kids);
+        return e;
+      });
+    };
+    if (Array.isArray(box.els)) box.els = prune(box.els);
+    else if (Array.isArray(box.kids)) box.kids = prune(box.kids);
+  }
+  // Every element type the canvas knows, and the fields a generated section may
+  // set on one. A definition that arrives with its own pieces is checked
+  // against this and nothing else is copied through — the door is open, not
+  // unlatched.
+  var GEN_TYPES = { heading: 1, para: 1, button: 1, badge: 1, image: 1, box: 1 };
+  var GEN_FIELDS = ['x', 'y', 'w', 'h', 'text', 'src', 'href', 'fs', 'align', 'color', 'radius', 'rot', 'tf', 'mood', 'boxBg', 'shape', 'alt'];
+  function genEl(e) {
+    if (!e || !GEN_TYPES[e.type]) return null;
+    var out = { type: e.type };
+    GEN_FIELDS.forEach(function (k) { if (e[k] !== undefined && e[k] !== null) out[k] = e[k]; });
+    ['x', 'y', 'w', 'h'].forEach(function (k) { out[k] = Math.round(+out[k] || 0); });
+    out.w = Math.max(8, Math.min(W, out.w));
+    // a box is a rectangle of colour, so a 2-unit one is a rule across the
+    // page — the floor that keeps other pieces usable would fatten it to a bar
+    out.h = Math.max(e.type === 'box' ? 1 : 8, out.h);
+    out.x = Math.max(0, Math.min(W - out.w, out.x));
+    out.y = Math.max(0, out.y);
+    if (e.kids && e.kids.length) {
+      out.kids = e.kids.map(genEl).filter(Boolean);
+      if (!out.kids.length) delete out.kids;
+    }
+    return out;
+  }
+  function fillTake(sc) {
+    // THE DOOR: a section may arrive with its own pieces instead of the name of
+    // a design. gogh draws them the way it draws anything dragged onto a
+    // canvas, so new arrangements need no new code here — whoever wrote the
+    // definition worked out the geometry, and the solver, the guard and the
+    // sentinel judge the result exactly as they judge a person's own work.
+    if (sc && Array.isArray(sc.els) && sc.els.length) {
+      var els = sc.els.map(genEl).filter(Boolean);
+      if (!els.length) return null;
+      var made = { name: String(sc.name || 'Section'), els: els };
+      if (sc.minH) made.minH = Math.max(160, Math.min(1600, Math.round(+sc.minH)));
+      if (sc.background) made.bg = String(sc.background);
+      if (sc.image) { made.bgImage = String(sc.image); made.bgA = sc.tint != null ? +sc.tint : 45; }
+      return made;
+    }
+    if (!sc || !sc.take) return null;
+    var name = String(sc.take);
+    var items = Array.isArray(sc.items) ? sc.items : null;
+    if (name === 'Latest posts') {
+      var pw = DEFAULTS.posts();
+      pw.y = 170;
+      var po = sc.posts || {};
+      pw.posts.look = po.look || sc.look || '';
+      if (po.count) pw.posts.count = +po.count;
+      if (po.show) pw.posts.show = Object.assign(pw.posts.show, po.show);
+      pw.wsrc = composePosts(pw.posts);
+      return { name: 'Latest posts', minH: 660, els: [
+        { type: 'heading', x: 100, y: 56, w: 1000, h: 60, text: sc.heading || 'From the blog', fs: 'x-large', align: 'center' },
+        pw,
+      ] };
+    }
+    var tpl = templateByName(name);
+    // a gated take (FAQ needs the accordion block) becomes cards of the
+    // same words rather than failing the site
+    if (tpl && tpl.gated && !cfg[tpl.gated]) {
+      if (items && (name === 'FAQ' || name === 'Tabs')) {
+        return fillTake({ take: 'Feature cards', heading: sc.heading, items: items.map(function (it) {
+          return { title: it.q || it.question || it.label || it.title, text: it.a || it.answer || it.text };
+        }) });
+      }
+      return null;
+    }
+    if (!tpl) return null;
+    var clone = JSON.parse(JSON.stringify(tpl));
+    var L = roleLists(clone.els);
+    // pictures: a take with a background picture takes the section's image there
+    if (sc.image && clone.bgImage) { clone.bgImage = String(sc.image); if (clone.bgA == null) clone.bgA = 45; }
+    var flat = FLAT_TAKES[name];
+    if (flat) {
+      var head = flat.head || {}, tail = flat.tail || {};
+      var edge = {};
+      Object.keys(L).forEach(function (r) {
+        var h = head[r] || 0, t = tail[r] || 0;
+        edge[r] = L[r].slice(0, h).concat(t ? L[r].slice(L[r].length - t) : []);
+      });
+      fillWords(edge, sc);
+      if (items) {
+        var drop = [];
+        Object.keys(flat.unit).forEach(function (r) {
+          var per = Array.isArray(flat.unit[r]) ? flat.unit[r].length : 1;
+          var keys = Array.isArray(flat.unit[r]) ? flat.unit[r] : [flat.unit[r]];
+          var slots = L[r].slice(head[r] || 0, L[r].length - (tail[r] || 0));
+          slots.forEach(function (e, k) {
+            var i = Math.floor(k / per), it = items[i];
+            if (!it) { drop.push(e); return; }
+            var v = it[keys[k % per]];
+            if (r === 'image') { if (v) e.src = String(v); }
+            else if (v != null) e.text = String(v);
+          });
+        });
+        clone.els = clone.els.filter(function (e) { return drop.indexOf(e) === -1; });
+      }
+    } else {
+      fillWords(L, sc);
+      dropUnfilled(clone, L, sc);
+      if (items && L.card.length) {
+        L.card.forEach(function (card, i) {
+          var it = items[i];
+          if (!it) return;
+          var kl = roleLists(card.kids);
+          fillWords(kl, it);
+          dropUnfilled(card, kl, it);
+          if (it.mood) card.mood = it.mood;
+        });
+        // surplus cards go: a site with two services shows two, not a placeholder third
+        var keep = L.card.slice(0, items.length);
+        clone.els = clone.els.filter(function (e) { return e.type !== 'box' || !e.kids || !e.kids.length || keep.indexOf(e) !== -1; });
+      } else if (L.card.length === 1 && !items) {
+        // one card (Profile, Job, Place): the section's words are the card's
+        var only = roleLists(L.card[0].kids);
+        fillWords(only, sc);
+        dropUnfilled(L.card[0], only, sc);
+      }
+      if (items && L.widget[0]) {
+        var w = L.widget[0];
+        if (w.faq) w.faq = items.map(function (it) { return { q: String(it.q || it.question || it.title || ''), a: String(it.a || it.answer || it.text || '') }; });
+        else if (w.tabs) w.tabs = items.map(function (it, k) { return Object.assign({}, w.tabs[k] || w.tabs[0] || {}, { label: String(it.label || it.title || ''), body: String(it.body || it.text || '') }); });
+        else if (w.wall) w.wall = items.map(function (it) { return { img: String(it.image || it.img || ''), cap: String(it.caption || it.cap || '') }; });
+        else if (w.slides) w.slides = items.map(function (it) { return { img: String(it.image || it.img || ''), cap: String(it.caption || it.cap || '') }; });
+      }
+    }
+    if (sc.mood) clone.els.forEach(function (e) { if (e.type === 'box' && e.kids && e.kids.length) e.mood = sc.mood; });
+    return clone;
+  }
+  // draw every page of a definition in this editor — each section rendered
+  // on the canvas for real (fonts, measurement, the solver), its blocks
+  // taken, then removed — and return the blocks per page. Nothing is saved.
+  function composeSiteDef(def, onStep) {
+    var pages = (def && Array.isArray(def.pages)) ? def.pages : [];
+    var total = 0;
+    pages.forEach(function (pg) { total += (pg.sections || []).length; });
+    var done = 0, out = [];
+    var chain = Promise.resolve();
+    pages.forEach(function (pg, pi) {
+      var blocks = [];
+      (pg.sections || []).forEach(function (sc) {
+        chain = chain.then(function () {
+          var tpl = fillTake(sc);
+          if (!tpl) { done++; return; }
+          if (sc.anchor) tpl.anchor = sc.anchor;
+          addSection(tpl, S.length);
+          var sec = S[S.length - 1];
+          return new Promise(function (r) { setTimeout(r, 280); }).then(function () {
+            measureTextHeights(sec);
+            resolveAndApply(sec);
+            blocks.push(buildSectionBlocksV3(sec));
+            var at = S.indexOf(sec);
+            if (at !== -1) deleteSection(at);
+            done++;
+            if (onStep) onStep(done, total, sc.take);
+          });
+        });
+      });
+      chain = chain.then(function () { out.push({ i: pi, title: pg.title || '', blocks: blocks.join('\n\n') }); });
+    });
+    return chain.then(function () { return out; });
+  }
+  // the first load after a definition boot: draw, save every page, clear
+  // the definition, and go and look at the site
+  var siteBuilding = false; // scratch drawing in progress: no backups, no leave-site guard, no canvas in view
+  // the veil is raised SYNCHRONOUSLY, the instant we know a build is coming:
+  // the pages are empty until it runs, and an empty page greets you with the
+  // section shelf (James: "when the site first loads users see this screen")
+  function raiseBuildVeil(name) {
+    if (siteBuilding) return document.querySelector('.gogh-buildstep');
+    siteBuilding = true;
+    document.documentElement.classList.add('gogh-building');
+    var veil = document.createElement('div');
+    veil.className = 'gogh-buildveil';
+    veil.innerHTML = '<div class="gogh-buildcard"><div class="gogh-buildtitle">Building ' + esc(name || 'your site') + '…</div><div class="gogh-buildstep">Warming up</div></div>';
+    document.body.appendChild(veil);
+    return veil.querySelector('.gogh-buildstep');
+  }
+  function buildSiteFromDef(pending) {
+    var def = pending && pending.def, ids = (pending && pending.pages) || {};
+    if (!def) return Promise.resolve(false);
+    var step = raiseBuildVeil(def.name);
+    var root = cfg.restUrl.split('wp/v2/')[0];
+    return composeSiteDef(def, function (d, t, take) { step.textContent = take + ' — ' + d + ' of ' + t; })
+      .then(function (pages) {
+        var chain = Promise.resolve();
+        pages.forEach(function (pg) {
+          var id = ids[pg.i] != null ? ids[pg.i] : ids[String(pg.i)];
+          if (!id || !pg.blocks) return;
+          chain = chain.then(function () {
+            step.textContent = 'Saving ' + (pg.title || 'page');
+            return fetch(root + 'wp/v2/pages/' + id, {
+              method: 'POST', credentials: 'same-origin',
+              headers: { 'X-WP-Nonce': cfg.nonce, 'Content-Type': 'application/json' },
+              body: JSON.stringify({ content: pg.blocks, status: 'publish' }),
+            });
+          });
+        });
+        return chain;
+      })
+      .then(function () {
+        return fetch(root + 'gogh/v1/site-def', { method: 'DELETE', credentials: 'same-origin', headers: { 'X-WP-Nonce': cfg.nonce } }).catch(function () {});
+      })
+      .then(function () {
+        step.textContent = 'Opening your site';
+        discarding = true; // the scratch on this canvas was never meant to be kept
+        setTimeout(function () { window.location.href = cfg.homeUrl || '/'; }, 400);
+        return true;
+      })
+      .catch(function (err) {
+        step.textContent = 'Something went wrong: ' + (err && err.message ? err.message : err);
+        siteBuilding = false;
+        document.documentElement.classList.remove('gogh-building');
+        return false;
+      });
+  }
+  function scheduleSiteBuild() {
+    raiseBuildVeil(cfg.siteDef && cfg.siteDef.def && cfg.siteDef.def.name);
+    var go = function () { setTimeout(function () { buildSiteFromDef(cfg.siteDef); }, 900); };
+    if (document.fonts && document.fonts.ready) document.fonts.ready.then(go); else go();
+  }
+
   var cmd = document.createElement('div');
   cmd.className = 'gogh-cmd';
   cmd.hidden = true;
@@ -9323,6 +10678,7 @@
     sec.fill = !!srcSec.fill;
     sec.m = srcSec.m ? JSON.parse(JSON.stringify(srcSec.m)) : null;
     sec.bgPos = srcSec.bgPos ? { x: srcSec.bgPos.x, y: srcSec.bgPos.y } : null;
+    diceFreshIds(sec.els, sec); // new pieces, and the die's memory remapped to them
     srcSec.wrapEl.after(sec.wrapEl);
     S.splice(idx + 1, 0, sec);
     renderSection(sec);
@@ -11001,6 +12357,124 @@
     });
     return best;
   }
+
+  // ---------- a colour surface that belongs to gogh ----------
+  // The native <input type="color"> opens an OS window in the corner of the
+  // SCREEN, over the canvas — it hides the very thing it is asking about
+  // ("a bit weird that the custom color opens in a separate modal"). Worse,
+  // the pairing this panel exists to show — which ink was chosen, and how
+  // well it reads — cannot live inside a window the OS owns.
+  //
+  // So: a hue and a shade, in gogh's own chrome, inside the panel's box.
+  // Saturation and lightness are the two a beginner gets wrong, so the
+  // shades are chosen per role; the hex field is there for anyone who
+  // already owns a brand colour. Built as a component — six other native
+  // pickers can take it next.
+  var COLORPOP_SHADES = [
+    { name: 'Pale', s: 0.16, l: 0.94 },
+    { name: 'Soft', s: 0.30, l: 0.82 },
+    { name: 'Mid',  s: 0.52, l: 0.58 },
+    { name: 'Deep', s: 0.62, l: 0.40 },
+    { name: 'Dark', s: 0.45, l: 0.22 },
+    { name: 'Ink',  s: 0.35, l: 0.11 },
+  ];
+  function inkPairFor(hex) {
+    var slug = bestInkFor(hex);
+    var pal = themePalette().filter(function (x) { return x.slug === slug; })[0];
+    var col = pal && pal.value;
+    var a = cssToRgb(col), b = cssToRgb(hex);
+    var ratio = (a && b) ? sentinelContrast(sentinelLum(a), sentinelLum(b)) : null;
+    return { slug: slug, color: col || '#000',
+      name: slug.charAt(0).toUpperCase() + slug.slice(1).replace(/-/g, ' '),
+      ratio: ratio };
+  }
+  // opts: { value, onAudition(hex), onKeep(hex), onCancel() }
+  function openColorPop(box, opts) {
+    var start = /^#[0-9a-fA-F]{6}$/.test(opts.value || '') ? opts.value : '#3f6ea8';
+    var hsl = hexToHsl(start) || { h: 210, s: 0.45, l: 0.45 };
+    var st = { h: Math.round(hsl.h), shade: 2, hex: start };
+    box.hidden = false;
+    box.innerHTML =
+      '<div class="gogh-cp-prev"><span class="gogh-cp-aa">Aa</span></div>' +
+      '<div class="gogh-cp-ink"></div>' +
+      '<input type="range" class="gogh-cp-hue" min="0" max="359" value="' + st.h + '" aria-label="Hue" />' +
+      '<div class="gogh-cp-shades"></div>' +
+      '<div class="gogh-cp-row">' +
+      '<input type="text" class="gogh-input gogh-cp-hex" spellcheck="false" maxlength="7" aria-label="Colour code" />' +
+      '</div>' +
+      '<div class="gogh-cp-btns">' +
+      '<button type="button" class="gogh-btn gogh-btn-small gogh-cp-cancel">Cancel</button>' +
+      '<button type="button" class="gogh-btn gogh-btn-small gogh-cp-keep">Use it</button>' +
+      '</div>';
+    var prev = box.querySelector('.gogh-cp-prev');
+    var aa = box.querySelector('.gogh-cp-aa');
+    var inkEl = box.querySelector('.gogh-cp-ink');
+    var hue = box.querySelector('.gogh-cp-hue');
+    var shadesEl = box.querySelector('.gogh-cp-shades');
+    var hexEl = box.querySelector('.gogh-cp-hex');
+    // the reading is the point of showing it: below the sentinel's floor
+    // the line says so, rather than letting the words go out quietly poor
+    var showInk = function () {
+      var ink = inkPairFor(st.hex);
+      var low = ink.ratio != null && ink.ratio < CONTRAST_FLOOR;
+      prev.style.background = st.hex;
+      aa.style.color = ink.color;
+      inkEl.classList.toggle('is-low', !!low);
+      inkEl.innerHTML = '<span class="gogh-cp-inkdot" style="background:' + escAttr(ink.color) + '"></span>' +
+        (low ? 'Hard to read on this colour \u00b7 ' : 'Words will use <b>' + esc(ink.name) + '</b> \u00b7 ') +
+        'contrast ' + (ink.ratio != null ? ink.ratio.toFixed(1) : '\u2014');
+    };
+    var paint = function (audition) {
+      showInk();
+      hexEl.value = st.hex.toUpperCase();
+      shadesEl.querySelectorAll('.gogh-cp-shade').forEach(function (b2, k) {
+        b2.style.background = hslToHex(st.h, COLORPOP_SHADES[k].s, COLORPOP_SHADES[k].l);
+        b2.classList.toggle('is-active', k === st.shade);
+      });
+      if (audition !== false && opts.onAudition) opts.onAudition(st.hex);
+    };
+    COLORPOP_SHADES.forEach(function (sh, k) {
+      var b2 = document.createElement('button');
+      b2.type = 'button';
+      b2.className = 'gogh-cp-shade';
+      b2.title = sh.name;
+      b2.addEventListener('click', function () {
+        st.shade = k; st.hex = hslToHex(st.h, sh.s, sh.l); paint();
+      });
+      shadesEl.appendChild(b2);
+    });
+    hue.addEventListener('input', function () {
+      st.h = +this.value;
+      var sh = COLORPOP_SHADES[st.shade];
+      st.hex = hslToHex(st.h, sh.s, sh.l);
+      paint();
+    });
+    hexEl.addEventListener('input', function () {
+      var v = this.value.trim();
+      if (!/^#[0-9a-fA-F]{6}$/.test(v)) return;
+      st.hex = v.toLowerCase();
+      var h2 = hexToHsl(st.hex);
+      if (h2) st.h = Math.round(h2.h);
+      hue.value = st.h;
+      if (opts.onAudition) opts.onAudition(st.hex);
+      showInk();
+    });
+    var shut = function () { box.hidden = true; box.innerHTML = ''; };
+    box.querySelector('.gogh-cp-cancel').addEventListener('click', function () {
+      shut(); if (opts.onCancel) opts.onCancel();
+    });
+    box.querySelector('.gogh-cp-keep').addEventListener('click', function () {
+      var hex = st.hex; shut(); if (opts.onKeep) opts.onKeep(hex);
+    });
+    box.addEventListener('keydown', function (ev) {
+      if (ev.key === 'Escape') { ev.stopPropagation(); shut(); if (opts.onCancel) opts.onCancel(); }
+    });
+    paint(false);
+    if (opts.onAudition) opts.onAudition(st.hex);
+    setTimeout(function () { hue.focus(); }, 0);
+    return { close: shut };
+  }
+
   function sectionThemes() {
     var v = function (slug) { return 'var(--wp--preset--color--' + slug + ')'; };
     var pal = themePalette();
@@ -11094,7 +12568,17 @@
     syncBootInvite(S[idx]);
     resolveAll();
     // the panel STAYS open — picking an image is an audition, not a
-    // dismissal; people flick between backgrounds while deciding
+    // dismissal; people flick between backgrounds while deciding.
+    // Which is exactly why the panel has to follow: it is built before a
+    // picture exists, so Remove shipped hidden and never came back
+    // ("i cant see a way to deselect, or have no image, after selecting one")
+    var cl = panel.querySelector('.gogh-clear');
+    if (cl) cl.hidden = !S[idx].bgImage;
+    panel.querySelectorAll('.gogh-media .gogh-thumb').forEach(function (o) {
+      if (!o.classList.contains('gogh-thumb-add')) {
+        o.classList.toggle('is-active', !!S[idx].bgImage && o.dataset.src === S[idx].bgImage);
+      }
+    });
     pushState();
     contrastSentinel(S[idx]);
   }
@@ -11108,8 +12592,6 @@
     pushState();
     contrastSentinel(sx);
     // the panel STAYS open; its video row follows the choice
-    var vl = panel.querySelector('.gogh-vid-upload');
-    if (vl && vl.firstChild) vl.firstChild.textContent = sx.bgVideo ? 'Change video' : 'Upload video';
     var vc = panel.querySelector('.gogh-vid-clear');
     if (vc) vc.hidden = !sx.bgVideo;
     var vu = panel.querySelector('.gogh-vid-url');
@@ -11124,7 +12606,6 @@
     // that became viewport-FIXED. Scrolled page, coordinates below the
     // fold, three rounds of wrong fixes elsewhere. It DOCKS now: a
     // design inspector top-right of the viewport, placed after build.
-    var pal = pickerPalette();
     // summary values for the folded rows — recomputed after every click
     var hVal = function () {
       if (secx.fill) return 'Fill screen';
@@ -11137,6 +12618,14 @@
       var names = { curve: 'Curve', sweep: 'Sweep', dunes: 'Dunes', arch: 'Arch', sheet: 'Sheet', melt: 'Melt', mist: 'Mist', wave: 'Wave', slant: 'Slant', peaks: 'Peaks', brush: 'Brush', torn: 'Torn' };
       return (secx.divider && names[secx.divider.shape]) || 'None';
     };
+    // the dial that used to hide behind "Colour & more" — it reads as a
+    // percentage because that is what it is, and 100 means "no tint"
+    var alphaOf = function () {
+      return secx.bgA != null ? secx.bgA : ((secx.bgImage || secx.bgVideo) && secx.bg ? 62 : 100);
+    };
+    var tintVal = function () {
+      return alphaOf() >= 100 ? 'Solid' : alphaOf() + '%';
+    };
     var bgRow = function (key, label, val, body) {
       return '<div class="gogh-bgrow" data-row="' + key + '">' +
         '<button type="button" class="gogh-bgrow-head"><span>' + label + '</span>' +
@@ -11147,34 +12636,54 @@
         '</span></button>' +
         '<div class="gogh-bgrow-body" hidden>' + body + '</div></div>';
     };
+    // the one door to the one backdrop. It is painted with the shelf's
+    // first paint AND re-made when the library answers, so there is never
+    // a moment where the panel offers no way to add anything.
+    var addTile = '<label class="gogh-thumb gogh-thumb-add gogh-upload" title="Add a picture or video">' +
+      '<input type="file" accept="image/*,video/mp4,video/webm,video/quicktime" hidden /></label>';
     panel.innerHTML =
       '<div class="gogh-panel-title">Section background</div>' +
-      '<div class="gogh-panel-hint">Theme \u2014 a look for the section and its words</div>' +
+      // ONE colour surface. The chips were always the colour control; they
+      // just said "Theme", so people hunted for colour and found a second,
+      // worse one buried under a toggle.
+      '<div class="gogh-panel-hint">Colour \u2014 the section and its words together</div>' +
       '<div class="gogh-themerow">' +
       sectionThemes().map(function (t) {
         return '<button type="button" class="gogh-themechip' + (secx.theme === t.slug ? ' is-active' : '') + '" data-theme="' + t.slug + '" title="' + escAttr(t.name) + '">' +
           '<span class="gogh-themechip-swatch" style="background:' + escAttr(t.bg) + ';color:var(--wp--preset--color--' + t.ink + ')">Aa</span>' +
           '</button>';
-      }).join('') + '</div>' +
-      // ---- the diet: Theme and Image answer first; Height, Effect and
-      // How-it-ends fold into quiet summary rows that open ONE at a time
-      // ("there's too much cognitive load atm") ----
-      '<div class="gogh-panel-hint">Image</div>' +
-      (secx.bgImage ? '<div class="gogh-panel-hint gogh-focal-hint">✋ Drag the section itself to reframe the photo' + (secx.bgPos ? ' · <button type="button" class="gogh-focal-reset">re-centre</button>' : '') + '</div>' : '') +
-      '<div class="gogh-panel-row gogh-panel-actions">' +
-      (cfg.canUpload ? '<label class="gogh-btn gogh-btn-small gogh-upload">Upload<input type="file" accept="image/*" hidden /></label>' : '') +
-      (secx.bgImage ? '<button type="button" class="gogh-btn gogh-btn-small gogh-clear">Remove image</button>' : '') +
+      }).join('') +
+      // the last chip is ANY colour, and it mints a THEME: a background and
+      // an ink chosen to read on it. The old custom field set the ground and
+      // left the words behind, so the sentinel told you off afterwards.
+      '<button type="button" class="gogh-themechip gogh-themechip-any' + (secx.theme === 'any' ? ' is-active' : '') + '" title="Any colour">' +
+      (secx.theme === 'any' && secx.bg
+        ? '<span class="gogh-themechip-swatch" style="background:' + escAttr(secx.bg) + ';color:var(--wp--preset--color--' + bestInkFor(secx.bg) + ')">Aa</span>'
+        : '<span class="gogh-themechip-swatch gogh-themechip-plus">+</span>') +
+      '</button>' +
       '</div>' +
-      '<div class="gogh-panel-hint">Video \u2014 a silent loop behind the section' + (secx.bgVideo ? '' : '; the image becomes its poster') + '</div>' +
+      // the colour surface opens HERE, in the panel's own box, so it can
+      // never sit on top of the section it is recolouring
+      '<div class="gogh-colorpop" hidden></div>' +
+      // a section has ONE backdrop: a video already treats the picture as
+      // its poster, so two upload buttons were two doors to one room. The
+      // shelf sits under its own label now — it used to be stranded below
+      // Height and Effect, three rows from the control it belongs to.
+      '<div class="gogh-panel-hint">Picture or video</div>' +
+      (secx.bgImage ? '<div class="gogh-panel-hint gogh-focal-hint">\u270B Drag the section itself to reframe the photo' + (secx.bgPos ? ' \u00b7 <button type="button" class="gogh-focal-reset">re-centre</button>' : '') + '</div>' : '') +
+      '<div class="gogh-media">' + addTile + '<span class="gogh-media-loading">Loading media\u2026</span></div>' +
+      '<div class="gogh-vidgrid gogh-bgvid-media" hidden></div>' +
       '<div class="gogh-panel-row gogh-panel-actions">' +
-      (cfg.canUpload ? '<label class="gogh-btn gogh-btn-small gogh-vid-upload">' + (secx.bgVideo ? 'Change video' : 'Upload video') + '<input type="file" accept="video/mp4,video/webm,video/quicktime" hidden /></label>' : '') +
+      '<button type="button" class="gogh-btn gogh-btn-small gogh-clear"' + (secx.bgImage ? '' : ' hidden') + '>Remove image</button>' +
       '<button type="button" class="gogh-btn gogh-btn-small gogh-vid-clear"' + (secx.bgVideo ? '' : ' hidden') + '>Remove video</button>' +
       '</div>' +
-      '<div class="gogh-vidgrid gogh-bgvid-media" hidden></div>' +
+      bgRow('tint', 'Tint', tintVal(),
+        '<div class="gogh-panel-hint">How much of the colour sits over the picture</div>' +
+        '<div class="gogh-panel-row"><input type="range" class="gogh-secbg-alpha" min="8" max="100" step="1" value="' + alphaOf() + '" style="flex:1" /><span class="gogh-secbg-alpha-val">' + alphaOf() + '</span></div>') +
       bgRow('height', 'Height', hVal(),
         '<div class="gogh-hpresets">' +
         [['s','S',320],['m','M',560],['l','L',800]].map(function (hp) {
-          return '<button type="button" class="gogh-hpreset' + (!secx.fill && secx.minH === hp[2] ? ' is-active' : '') + '" data-minh="' + hp[2] + '" title="' + hp[1] + ' — ' + hp[2] + ' units">' + hp[1] + '</button>';
+          return '<button type="button" class="gogh-hpreset' + (!secx.fill && secx.minH === hp[2] ? ' is-active' : '') + '" data-minh="' + hp[2] + '" title="' + hp[1] + ' \u2014 ' + hp[2] + ' units">' + hp[1] + '</button>';
         }).join('') +
         '<button type="button" class="gogh-hpreset gogh-hpreset-fill' + (secx.fill ? ' is-active' : '') + '" title="Fill the screen">Fill screen</button>' +
         '</div>') +
@@ -11185,30 +12694,17 @@
             ' data-fx="' + fx[0] + '"' + (fx[2] === 'img' ? ' data-needs-img="1"' : '') + '>' + fx[1] + '</button>';
         }).join('') + '</div>') +
       (transitionRowHTML(secx) ? bgRow('ends', 'How it ends', endVal(), transitionRowHTML(secx)) : '') +
-      '<div class="gogh-media"><span class="gogh-media-loading">Loading media…</span></div>' +
-      '<button type="button" class="gogh-panel-more-toggle">Colour &amp; more <span class="gogh-bgrow-caret">' +
-      '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>' +
-      '</span></button>' +
-      '<div class="gogh-panel-more" hidden>' +
-      '<div class="gogh-panel-hint">Colour \u2014 with an image, it becomes the tint</div>' +
-      '<div class="gogh-swrow gogh-secbg-sw">' +
-      '<button type="button" class="gogh-sw gogh-sw-none" data-val="" title="None"></button>' +
-      pal.map(function (p) {
-        var val = 'var(--wp--preset--color--' + p.slug + ')';
-        return '<button type="button" class="gogh-sw' + (secx.bg === val ? ' is-active' : '') + '" data-val="' + val + '"' +
-          ' style="background: ' + val + '" title="' + p.slug + '"></button>';
-      }).join('') + '</div>' +
-      '<div class="gogh-panel-row gogh-panel-actions"><label class="gogh-colorlab">Custom <input type="color" class="gogh-color gogh-secbg-custom" /></label></div>' +
-      '<div class="gogh-panel-hint">Transparency</div>' +
-      '<div class="gogh-panel-row"><input type="range" class="gogh-secbg-alpha" min="8" max="100" step="1" value="' + (secx.bgA != null ? secx.bgA : ((secx.bgImage || secx.bgVideo) && secx.bg ? 62 : 100)) + '" style="flex:1" /><span class="gogh-secbg-alpha-val">' + (secx.bgA != null ? secx.bgA : ((secx.bgImage || secx.bgVideo) && secx.bg ? 62 : 100)) + '</span></div>' +
-      '<div class="gogh-panel-row">' +
-      '<input type="url" class="gogh-input" placeholder="Paste image URL…" />' +
-      '<button type="button" class="gogh-btn gogh-btn-small gogh-apply">Apply</button>' +
-      '</div>' +
-      '<div class="gogh-panel-row">' +
-      '<input type="url" class="gogh-input gogh-vid-url" placeholder="Paste a video (.mp4) URL…" />' +
-      '<button type="button" class="gogh-btn gogh-btn-small gogh-vid-apply">Apply</button>' +
-      '</div>' +
+      // the two paste fields were the rest of "Colour & more"; they keep a
+      // row of their own rather than a toggle over a pile of unlike things
+      bgRow('links', 'Paste a link', '',
+        '<div class="gogh-panel-row">' +
+        '<input type="url" class="gogh-input" placeholder="Paste image URL\u2026" />' +
+        '<button type="button" class="gogh-btn gogh-btn-small gogh-apply">Apply</button>' +
+        '</div>' +
+        '<div class="gogh-panel-row">' +
+        '<input type="url" class="gogh-input gogh-vid-url" placeholder="Paste a video (.mp4) URL\u2026" />' +
+        '<button type="button" class="gogh-btn gogh-btn-small gogh-vid-apply">Apply</button>' +
+        '</div>');
       '</div>';
     dockPanel();
     bindTransitionRow(secx);
@@ -11294,22 +12790,6 @@
         document.removeEventListener('pointerup', up, true);
       };
     })();
-    var moreT = panel.querySelector('.gogh-panel-more-toggle');
-    if (moreT) moreT.addEventListener('click', function () {
-      var more = panel.querySelector('.gogh-panel-more');
-      more.hidden = !more.hidden;
-      moreT.classList.toggle('is-open', !more.hidden); // the chevron turns, the words stay
-      if (!more.hidden) {
-        // the reveal must be SEEN: the toggle lives at the panel's fold,
-        // so the colours were unfolding below the visible edge and the
-        // button read as dead ("colour and more does nothing atm") \u2014
-        // opening scrolls the toggle to the top, colours in full view
-        panel.scrollTo({
-          top: panel.scrollTop + moreT.getBoundingClientRect().top - panel.getBoundingClientRect().top - 12,
-          behavior: 'smooth',
-        });
-      }
-    });
     panel.querySelectorAll('.gogh-hpreset[data-minh], .gogh-hpreset-fill').forEach(function (hb) {
       hb.addEventListener('click', function () {
         pushState();
@@ -11389,29 +12869,35 @@
         });
       });
     });
-    panel.querySelectorAll('.gogh-secbg-sw .gogh-sw').forEach(function (swb) {
-      swb.addEventListener('click', function () {
-        secx.bg = swb.dataset.val || null;
-        secx.theme = null;
-        syncBootInvite(secx);
-        resolveAll();
-        pushState();
-        contrastSentinel(secx);
-        panel.querySelectorAll('.gogh-secbg-sw .gogh-sw').forEach(function (b2) {
-          b2.classList.toggle('is-active', b2 === swb && !!swb.dataset.val);
-        });
+    // ANY COLOUR is a theme, not a raw background. bestInkFor picks the
+    // canvas-or-ink role that reads on the chosen colour — the same call
+    // every accent chip already makes — so the words follow the ground
+    // instead of being reported afterwards by the sentinel.
+    var anyChip = panel.querySelector('.gogh-themechip-any');
+    var popBox = panel.querySelector('.gogh-colorpop');
+    var anyTheme = function (hex) { return { slug: 'any', name: 'Any colour', bg: hex, ink: bestInkFor(hex) }; };
+    if (anyChip && popBox) anyChip.addEventListener('click', function () {
+      if (!popBox.hidden) { popBox.hidden = true; popBox.innerHTML = ''; return; }
+      var snap = snapSectionLook(secx);
+      openColorPop(popBox, {
+        value: (secx.bg && secx.bg.charAt(0) === '#') ? secx.bg : null,
+        // every move is an audition on the real section, like a chip hover
+        onAudition: function (hex) { paintSectionTheme(secx, anyTheme(hex)); },
+        onCancel: function () { restoreSectionLook(secx, snap); reclampPanel(); },
+        onKeep: function (hex) {
+          restoreSectionLook(secx, snap);
+          applySectionTheme(idx, anyTheme(hex));
+          var sw = anyChip.querySelector('.gogh-themechip-swatch');
+          sw.classList.remove('gogh-themechip-plus');
+          sw.textContent = 'Aa';
+          sw.setAttribute('style', 'background:' + hex + ';color:var(--wp--preset--color--' + bestInkFor(hex) + ')');
+          panel.querySelectorAll('.gogh-themechip').forEach(function (o) {
+            o.classList.toggle('is-active', o === anyChip);
+          });
+          reclampPanel();
+        },
       });
-    });
-    var custom = panel.querySelector('.gogh-secbg-custom');
-    if (secx.bg && secx.bg.charAt(0) === '#') custom.value = secx.bg;
-    custom.addEventListener('input', function () {
-      secx.bg = this.value;
-      syncBootInvite(secx);
-      resolveAll();
-    });
-    custom.addEventListener('change', function () {
-      pushState();
-      contrastSentinel(secx);
+      reclampPanel();
     });
     var alpha = panel.querySelector('.gogh-secbg-alpha');
     var alphaVal = panel.querySelector('.gogh-secbg-alpha-val');
@@ -11437,18 +12923,6 @@
     if (clear) clear.addEventListener('click', function () { setSecBg(idx, null); });
     var vclear = panel.querySelector('.gogh-vid-clear');
     if (vclear) vclear.addEventListener('click', function () { setSecVideo(idx, null); });
-    var vfile = panel.querySelector('.gogh-vid-upload input[type="file"]');
-    if (vfile) vfile.addEventListener('change', function () {
-      if (!vfile.files.length) return;
-      var fd2 = new FormData();
-      fd2.append('file', vfile.files[0]);
-      var vlabel = panel.querySelector('.gogh-vid-upload');
-      vlabel.firstChild.textContent = 'Uploading\u2026';
-      fetch(cfg.mediaUrl, { method: 'POST', headers: { 'X-WP-Nonce': cfg.nonce }, credentials: 'same-origin', body: fd2 })
-        .then(function (res) { if (!res.ok) throw new Error('HTTP ' + res.status); return res.json(); })
-        .then(function (item) { setSecVideo(idx, item.source_url, item.id); })
-        .catch(function (err) { vlabel.firstChild.textContent = 'Upload failed'; console.error('gogh video upload failed:', err); });
-    });
     // the library's videos, as tiles — hover auditions the loop behind the
     // section, a click keeps it (nothing shows when there are none)
     fetch(restQ(cfg.mediaUrl, 'per_page=16&media_type=video&orderby=date&order=desc'), {
@@ -11494,30 +12968,42 @@
         if (ev.key === 'Escape') closePanel();
       });
     }
-    var file = panel.querySelector('input[type="file"]');
-    if (file) {
-      file.addEventListener('change', function () {
-        if (!file.files.length) return;
-        var fd = new FormData();
-        fd.append('file', file.files[0]);
-        var label = panel.querySelector('.gogh-upload');
-        label.firstChild.textContent = 'Uploading…';
-        fetch(cfg.mediaUrl, {
-          method: 'POST',
-          headers: { 'X-WP-Nonce': cfg.nonce },
-          credentials: 'same-origin',
-          body: fd,
-        }).then(function (res) {
-          if (!res.ok) throw new Error('HTTP ' + res.status);
-          return res.json();
-        }).then(function (item) {
-          setSecBg(idx, item.source_url, item.id);
-        }).catch(function (err) {
-          label.firstChild.textContent = 'Upload failed';
-          console.error('gogh upload failed:', err);
-        });
+    // ONE upload for the one backdrop. The tile lives inside the shelf,
+    // which is refilled when the library answers, so the listener is
+    // delegated to the shelf ITSELF — a direct one would be thrown away
+    // with the old tile. And it is the shelf, not `panel`: panel lives for
+    // the whole session and is only ever refilled, so a listener put on it
+    // here would stack up once per open until one file pick uploaded N times.
+    panel.querySelector('.gogh-media').addEventListener('change', function (ev) {
+      var inp = ev.target;
+      if (!inp || !inp.matches || !inp.matches('.gogh-upload input[type="file"]')) return;
+      if (!inp.files.length) return;
+      var f = inp.files[0];
+      var isVideo = /^video\//.test(f.type || '');
+      var tile = inp.parentElement;
+      tile.classList.add('is-busy');
+      var fd = new FormData();
+      fd.append('file', f);
+      fetch(cfg.mediaUrl, {
+        method: 'POST',
+        headers: { 'X-WP-Nonce': cfg.nonce },
+        credentials: 'same-origin',
+        body: fd,
+      }).then(function (res) {
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        return res.json();
+      }).then(function (item) {
+        tile.classList.remove('is-busy');
+        if (isVideo) setSecVideo(idx, item.source_url, item.id);
+        else setSecBg(idx, item.source_url, item.id);
+      }).catch(function (err) {
+        tile.classList.remove('is-busy');
+        tile.classList.add('is-failed');
+        toast('That upload failed \u2014 try again, or paste a link.');
+        console.error('gogh upload failed:', err);
       });
-    }
+      inp.value = ''; // the same file twice in a row still fires
+    });
     fetch(restQ(cfg.mediaUrl, 'per_page=32&media_type=image&orderby=date&order=desc'), {
       headers: { 'X-WP-Nonce': cfg.nonce },
       credentials: 'same-origin',
@@ -11525,7 +13011,7 @@
       .then(function (items) {
         var box = panel.querySelector('.gogh-media');
         if (!box || panel.hidden) return;
-        box.innerHTML = '';
+        box.innerHTML = addTile;
         // a section BACKGROUND wants big, wide-ish images — logos, cutouts
         // and portraits are noise on this shelf (Upload and the URL row
         // still take anything); an over-strict filter falls back to recency
@@ -11541,6 +13027,7 @@
           var b = document.createElement('button');
           b.type = 'button';
           b.className = 'gogh-thumb' + (S[idx].bgImage === item.source_url ? ' is-active' : '');
+          b.title = 'Use this picture \u2014 click it again to take it off';
           b.style.backgroundImage = 'url("' + (thumb ? thumb.source_url : item.source_url) + '")';
           // hover auditions the whole backdrop; leaving takes it back
           auditionHover(b, function () {
@@ -11550,13 +13037,14 @@
             S[idx].bgImage = bgCur.img;
             resolveAndApply(S[idx]);
           });
+          b.dataset.src = item.source_url;
           b.addEventListener('click', function () {
             S[idx].bgImage = bgCur.img; // undo lands on the true before
-            bgCur.img = item.source_url;
-            setSecBg(idx, item.source_url, item.id);
-            box.querySelectorAll('.gogh-thumb').forEach(function (o) {
-              o.classList.toggle('is-active', o === b);
-            });
+            // clicking the one you already chose takes it off again — the
+            // gesture people reach for before they look for a button
+            var off = bgCur.img === item.source_url;
+            bgCur.img = off ? null : item.source_url;
+            setSecBg(idx, off ? null : item.source_url, off ? null : item.id);
           });
           box.appendChild(b);
         });
@@ -11790,14 +13278,41 @@
   // Images and boxes are exempt — text over a photo is a design, not an
   // accident. `frozen` (the kid under the hand) is an obstacle that never
   // moves; at release nothing is frozen and the kid may tuck.
-  function settleStack(host) {
+  // what a kid actually OCCUPIES: its rendered ink for words (a heading's
+  // box runs the card's width while its words stop a third of the way
+  // across), its box for everything else. Measured relative to the kid's own
+  // node and anchored on the MODEL position, so a mid-drag settle never mixes
+  // this frame's model with the last frame's DOM
+  function kidInkOf(sec, ci) {
+    return function (kid) {
+      var host = sec.els[ci];
+      var card = sec.nodes && sec.nodes[ci];
+      if (!host || !host.kids || !card || !isText(kid)) return null;
+      var j = host.kids.indexOf(kid);
+      var kn = j === -1 ? null : card.querySelector('.gogh-k-' + (j + 1));
+      if (!kn || getComputedStyle(kn).display === 'none') return null;
+      var tn = kn.matches('p,h1,h2,h3,h4,h5,h6') ? kn : (kn.querySelector('p,h1,h2,h3,h4,h5,h6') || kn);
+      var rng = document.createRange();
+      rng.selectNodeContents(tn);
+      var ir = rng.getBoundingClientRect(), kr = kn.getBoundingClientRect();
+      var sc = scaleOf(sec);
+      if (!(ir.width > 0) || !(ir.height > 0) || !(sc > 0.2)) return null;
+      return { x: kid.x + (ir.left - kr.left) / sc, y: kid.y + (ir.top - kr.top) / sc, w: ir.width / sc, h: ir.height / sc };
+    };
+  }
+  function settleStack(host, inkOf) {
     var kids = (host.kids || []).filter(function (k) { return SETTLE_TYPES[k.type]; });
     var order = kids.slice().sort(function (a, b) { return (a.y + a.h / 2) - (b.y + b.h / 2) || a.y - b.y; });
+    var occ = function (k) { return (inkOf && inkOf(k)) || { x: k.x, y: k.y, w: k.w, h: k.h }; };
     order.forEach(function (k, i) {
       for (var j = 0; j < i; j++) {
         var o = order[j];
-        var ox = Math.min(k.x + k.w, o.x + o.w) - Math.max(k.x, o.x);
-        var oy = Math.min(k.y + k.h, o.y + o.h) - Math.max(k.y, o.y);
+        // overlap of what each kid OCCUPIES (ink for words): a button dropped
+        // beside a short heading sits beside it, not under it (James: "when
+        // i drop, they dont stay where i drop")
+        var kb = occ(k), ob = occ(o);
+        var ox = Math.min(kb.x + kb.w, ob.x + ob.w) - Math.max(kb.x, ob.x);
+        var oy = Math.min(kb.y + kb.h, ob.y + ob.h) - Math.max(kb.y, ob.y);
         // any real overlap in the same column steps below, with the stack's
         // gap (a 12-unit overlap used to slip through and the meta line
         // hid behind the button)
@@ -11808,9 +13323,9 @@
     (host.kids || []).forEach(function (k2) { bottom = Math.max(bottom, k2.y + k2.h); });
     if (bottom > host.h) host.h = bottom + 16;
   }
-  function settleKid(host, kid) {
+  function settleKid(host, kid, inkOf) {
     if (!SETTLE_TYPES[kid.type]) return;
-    settleStack(host);
+    settleStack(host, inkOf);
   }
   // the card's kids are written in READING order: what the eye meets first
   // on the page is first in the DOM — so phones stack them the same way
@@ -11818,12 +13333,10 @@
   function orderKids(host) {
     if (!host.kids || host.kids.length < 2) return false;
     var before = host.kids.slice();
-    host.kids.sort(function (a, b) {
-      var ac = a.y + a.h / 2, bc = b.y + b.h / 2;
-      // same row (centres within a line): left to right
-      if (Math.abs(ac - bc) <= 12) return a.x - b.x;
-      return ac - bc;
-    });
+    // the SAME reading order the published card is written in (buildElBlocks
+    // walks readingIndexOrder), so the editor's DOM, the phone stack and the
+    // saved markup all agree on what comes first
+    host.kids = readingIndexOrder(before).map(function (i) { return before[i]; });
     return before.some(function (k, i) { return host.kids[i] !== k; });
   }
   function cardJoinTarget(sec, i) {
@@ -11832,7 +13345,7 @@
     for (var b = sec.els.length - 1; b >= 0; b--) {
       if (b === i) continue;
       var o = sec.els[b];
-      if (o.type !== 'box' || o.shape) continue;
+      if (o.type !== 'box') continue; // a SHAPED box hosts too — shapeRoom keeps its kids inside the silhouette
       if (e.x >= o.x - 2 && e.y >= o.y - 2 &&
           e.x + e.w <= o.x + o.w + 2 && e.y + e.h <= o.y + o.h + 2) return b;
     }
@@ -12061,7 +13574,7 @@
     if (ev.altKey) {
       // alt-drag: duplicate in place, then drag the copy
       var dsec = sel.sec;
-      var dcopy = JSON.parse(JSON.stringify(dsec.els[sel.i]));
+      var dcopy = diceFreshIds([JSON.parse(JSON.stringify(dsec.els[sel.i]))])[0];
       dsec.els.push(dcopy);
       renderSection(dsec);
       placeHandles(dsec, dsec.els.length - 1);
@@ -12113,6 +13626,7 @@
     sec.sectionEl.classList.add('gogh-grid-live');
     document.documentElement.classList.add('gogh-dragging');
     hideBoundaryUI();
+    mbar.hidden = true; // the group bar goes while the hand is closed
     hideHandles();
   }
   grip.addEventListener('pointerdown', function (ev) {
@@ -12281,6 +13795,26 @@
       if (eD.y + eD.h >= secH0D - 12) eD.flushB = true;
       else if (eD.flushB && eD.y + eD.h < secH0D - 24) eD.flushB = null;
     }
+    // the stylesheet on screen is still the mid-drag one, solved with the
+    // moving pieces SKIPPED, so each of their cells sits between OTHER
+    // pieces' lines. Measured there, a paragraph reads the height it wraps
+    // to in a foreign width (a photo, the height of foreign tracks) and the
+    // model absorbed it — a photo grew 313 → 462 this way. Put every piece
+    // back on its own lines first, then measure what it really renders at
+    // (the order a resize already settles in)
+    if (multiD) {
+      // the mates still sit where the hand found them: park them at the
+      // landing their sockets showed, so the grid they are measured in is
+      // the group's own shape and not a blend of old edges with the grabbed
+      // piece's new ones (the final delta re-places them below)
+      var pdx = eD.x - x0D, pdy = eD.y - y0D;
+      multiD.forEach(function (mm) {
+        var o = sec.els[mm.j];
+        o.x = Math.max(0, Math.min(W - o.w, mm.x + pdx));
+        o.y = Math.max(0, mm.y + pdy);
+      });
+    }
+    resolveAndApply(sec);
     measureTextHeights(sec);
     resolveAndApply(sec);
     // the grid can render rows taller than the model predicts (theme fonts,
@@ -12375,9 +13909,11 @@
         adopt.forEach(function (k2) {
           k2.x = Math.max(0, Math.round(k2.x - host.x));
           k2.y = Math.max(0, Math.round(k2.y - host.y));
+          fitKidToRoom(host, k2); // a circle's corners are not room
           host.kids.push(k2);
         });
-        settleKid(host, kid);
+        orderKids(host); // it takes its place in reading order, not the end of the list
+        settleKid(host, kid, kidInkOf(sec, sec.els.indexOf(host)));
         sel = null;
         hideHandles();
         closePanel();
@@ -12396,18 +13932,158 @@
   var kidSel = null; // {sec, ci, j, node}
   var kidDrag = null;
   var kidEd = null; // text editing inside a kid
+  // ---------- a kid's side handles ----------
+  // A piece inside a card keeps its own width in the card's grid, but until
+  // now nothing on the screen could take hold of it (James: "text boxes
+  // cannot be resized within cards, is this by design?"). A chosen kid gets
+  // two side grips: width is the measure and where the words sit; height
+  // stays the ink's, as everywhere. On phones the card runs one column and
+  // every kid takes the full width, so a narrow measure is a desktop choice.
+  var kidBox = document.createElement('div');
+  kidBox.className = 'gogh-selbox gogh-kidbox';
+  kidBox.hidden = true;
+  ['e', 'w'].forEach(function (d) {
+    var h = document.createElement('button');
+    h.type = 'button';
+    h.className = 'gogh-h gogh-h-' + d;
+    h.dataset.d = d;
+    h.title = 'Drag to change the width';
+    kidBox.appendChild(h);
+  });
+  document.body.appendChild(kidBox);
+  var kidResize = null, kidResizeRaf = false;
+  function placeKidBox() {
+    if (!kidSel || !kidSel.node || !document.contains(kidSel.node) || kidDrag || kidEd || !editing) { kidBox.hidden = true; return; }
+    var b = nodeBox(kidSel.node);
+    kidBox.style.left = b.x + 'px';
+    kidBox.style.top = b.y + 'px';
+    kidBox.style.width = b.w + 'px';
+    kidBox.style.height = b.h + 'px';
+    kidBox.hidden = false;
+  }
+  // the words re-wrap at the new width: the kid's height follows its ink, the
+  // stack below settles from the card's RESTING height (the routine typing
+  // uses, so nothing ratchets), and the card's grid re-solves in place
+  function kidResizeSettle(r) {
+    var sec = r.sec, host = sec.els[r.ci], kid = r.kid;
+    if (!host || !host.kids || host.kids.indexOf(kid) === -1) return;
+    resolveAndApply(sec);
+    var card = sec.nodes[r.ci];
+    var kn = card && card.querySelector('.gogh-k-' + (host.kids.indexOf(kid) + 1));
+    var sE = measureScaleOf(sec);
+    if (kn && isText(kid) && sE > 0.2) {
+      var hE = kn.offsetHeight / sE;
+      if (hE > 0 && Math.abs(hE - kid.h) > 2) kid.h = Math.round(hE);
+    }
+    r.snap.forEach(function (sn) { if (sn.k !== kid) { sn.k.x = sn.x; sn.k.y = sn.y; } });
+    host.h = r.hostH;
+    if (SETTLE_TYPES[kid.type]) settleStack(host, kidInkOf(sec, r.ci));
+    resolveAndApply(sec);
+  }
+  function endKidResize() {
+    if (!kidResize) return;
+    var r = kidResize;
+    kidResize = null;
+    document.documentElement.classList.remove('gogh-dragging');
+    kidResizeSettle(r);
+    if (r.kid.w !== r.w0 || r.kid.x !== r.x0) {
+      guardCheck(r.sec, 'kid resize');
+      pushState();
+    }
+    placeKidBox();
+  }
+  kidBox.querySelectorAll('.gogh-h').forEach(function (hBtn) {
+    hBtn.addEventListener('pointerdown', function (ev) {
+      if (!editing || !kidSel) return;
+      var sec = kidSel.sec, ci = kidSel.ci, j = kidSel.j;
+      var host = sec.els[ci];
+      var kid = host && host.kids && host.kids[j];
+      if (!kid) return;
+      ev.preventDefault();
+      ev.stopPropagation();
+      closePanel();
+      try { hBtn.setPointerCapture(ev.pointerId); } catch (err) {}
+      // magnets: the card's edges and middle, the siblings' edges
+      var cand = [0, host.w, host.w / 2];
+      host.kids.forEach(function (o) { if (o !== kid) cand.push(o.x, o.x + o.w); });
+      kidResize = { sec: sec, ci: ci, j: j, kid: kid, dx: hBtn.dataset.d === 'w' ? -1 : 1, px: ev.clientX,
+        x0: kid.x, w0: kid.w, cand: cand, hostH: host.h,
+        snap: host.kids.map(function (k) { return { k: k, x: k.x, y: k.y }; }), id: ev.pointerId };
+      document.documentElement.classList.add('gogh-dragging');
+    });
+    hBtn.addEventListener('pointermove', function (ev) {
+      if (!kidResize || ev.pointerId !== kidResize.id) return;
+      var r = kidResize, sec = r.sec, host = sec.els[r.ci], kid = r.kid;
+      if (!host || !host.kids || host.kids.indexOf(kid) === -1) return;
+      var d = (ev.clientX - r.px) / scaleOf(sec);
+      var snapK = function (v) {
+        var best = null, bd = SNAP + 1;
+        r.cand.forEach(function (c) { var dd = Math.abs(c - v); if (dd < bd) { bd = dd; best = c; } });
+        return best !== null ? best : Math.round(v / BASE) * BASE;
+      };
+      var minW = 60, nx = r.x0, nw = r.w0;
+      if (r.dx === 1) nw = snapK(r.x0 + r.w0 + d) - r.x0;
+      else { nx = snapK(r.x0 + d); nw = r.x0 + r.w0 - nx; }
+      if (nw < minW) { if (r.dx === -1) nx = r.x0 + r.w0 - minW; nw = minW; }
+      nx = Math.max(0, Math.min(host.w - minW, nx));
+      nw = Math.max(minW, Math.min(host.w - nx, nw));
+      kid.x = Math.round(nx);
+      kid.w = Math.round(nw);
+      if (!kidResizeRaf) {
+        kidResizeRaf = true;
+        requestAnimationFrame(function () {
+          kidResizeRaf = false;
+          if (!kidResize) return;
+          kidResizeSettle(kidResize);
+          placeKidBox();
+        });
+      }
+    });
+    hBtn.addEventListener('pointerup', endKidResize);
+    hBtn.addEventListener('pointercancel', endKidResize);
+  });
   function clearKidSel() {
+    kidBox.hidden = true;
     if (!kidSel) return;
     if (kidSel.node && kidSel.node.classList) kidSel.node.classList.remove('gogh-kid-selected');
     kidSel = null;
   }
-  function exitKidEd() {
+  // a drag cut short (undo/redo rebuilt the page under the hand): the ghost
+  // goes, the hidden kid shows again, nothing is written. The kidSkip the
+  // solver honours is derived from kidDrag, so nulling it clears that too
+  function abortKidDrag() {
+    if (!kidDrag) return;
+    var kd = kidDrag;
+    kidDrag = null;
+    if (kd.ghost) kd.ghost.remove();
+    if (kd.node && kd.node.style) { kd.node.style.visibility = ''; kd.node.style.display = ''; }
+    var cardNode = kd.sec && kd.sec.nodes && kd.sec.nodes[kd.ci];
+    if (cardNode && cardNode.classList) cardNode.classList.remove('gogh-card-leaving');
+    // the moves pushed siblings and grew the card from the resting snapshot:
+    // everything goes back to where the hand found it
+    var hostA = kd.sec && kd.sec.els && kd.sec.els[kd.ci];
+    if (hostA && hostA.kids && kd.snap) {
+      kd.snap.forEach(function (sn) { sn.k.x = sn.x; sn.k.y = sn.y; });
+      hostA.h = kd.hostH;
+      if (kd.sec.sectionEl && kd.sec.nodes) resolveAndApply(kd.sec);
+    }
+  }
+  // a touch the browser takes over (a scroll, a system gesture) cancels the
+  // pointer: without this the ghost stayed on the page and the kid stayed hidden
+  document.addEventListener('pointercancel', function (ev) {
+    if (!kidDrag || ev.pointerId !== kidDrag.id) return;
+    abortKidDrag();
+  });
+  // quiet: restoreState ends an edit mid-step — a push there would cut the
+  // redo stack and leave hIdx on the wrong snapshot
+  function exitKidEd(quiet) {
     if (!kidEd) return;
     document.documentElement.classList.remove('gogh-textediting');
     kidEd.node.removeAttribute('contenteditable');
     if (document.activeElement === kidEd.node) kidEd.node.blur();
     kidEd = null;
-    pushState();
+    if (!quiet) pushState();
+    placeKidBox();
   }
   function openKidLinkPanel(sec, ci, j) {
     var hostEl = sec.els[ci];
@@ -12443,6 +14119,7 @@
     if (!editing || drag || resize) return;
     if (!(ev.target instanceof Element)) return;
     if (kidEd && kidEd.node.contains(ev.target)) return; // caret work
+    if (ev.target.closest('.gogh-kidbox')) return; // a side grip: the kid stays chosen
     var kn = ev.target.closest('[class*="gogh-k-"]');
     var card = kn && kn.closest('.gogh-cardbox');
     if (!kn || !card) {
@@ -12468,6 +14145,7 @@
     closePanel();
     kidSel = { sec: sec, ci: ci, j: j, node: kn };
     kn.classList.add('gogh-kid-selected');
+    kidBox.hidden = true; // the grips return when the hand opens
     var kid = hostEl.kids[j];
     kidDrag = { sec: sec, ci: ci, j: j, node: kn,
       px: ev.clientX, py: ev.clientY, x0: kid.x, y0: kid.y,
@@ -12477,6 +14155,8 @@
       snap: hostEl.kids.map(function (k) { return { k: k, x: k.x, y: k.y }; }), hostH: hostEl.h,
       w0: kid.w, h0: kid.h,
       moved: false, already: !!already, id: ev.pointerId };
+    // the hand keeps the pointer even past the window's edge
+    try { if (kn.setPointerCapture) kn.setPointerCapture(ev.pointerId); } catch (err) {}
   }, true);
   document.addEventListener('pointermove', function (ev) {
     if (!kidDrag || ev.pointerId !== kidDrag.id) return;
@@ -12497,15 +14177,29 @@
       var kr0 = kidDrag.node.getBoundingClientRect();
       var kg = kidDrag.node.cloneNode(true);
       kg.classList.remove('gogh-kid-selected');
-      kg.className += ' gogh-kid-ghost gogh-kid-ghost-in';
-      kg.style.width = kr0.width + 'px';
-      kg.style.height = kr0.height + 'px';
-      kg.style.left = kr0.left + 'px';
-      kg.style.top = kr0.top + 'px';
-      document.body.appendChild(kg);
-      kidDrag.ghost = kg;
+      kg.removeAttribute('contenteditable');
+      kg.style.width = '100%';
+      kg.style.height = '100%';
+      // the kid's dress (size, ink, weight) is written in the section's scoped
+      // stylesheet as `.gogh-section.<scope> .gogh-el-<card> > .gogh-k-<j>`;
+      // a bare clone on the body wore the theme's defaults under the hand.
+      // Give it the same ancestry, with the card's and section's own paint
+      // switched off
+      var gcard = document.createElement('div');
+      gcard.className = 'gogh-el-' + (kidDrag.ci + 1);
+      gcard.style.cssText = 'display:block !important;position:static !important;width:100%;height:100%;background:none !important;border:0 !important;' +
+        'box-shadow:none !important;border-radius:0 !important;padding:0 !important;margin:0 !important;overflow:visible !important;' +
+        'backdrop-filter:none !important;-webkit-backdrop-filter:none !important;min-height:0 !important;';
+      gcard.appendChild(kg);
+      var gwrap = document.createElement('div');
+      gwrap.className = 'gogh-section ' + sec.scope + ' gogh-kid-ghost gogh-kid-ghost-in';
+      gwrap.style.cssText = 'position:fixed !important;display:block !important;background:none !important;container-type:normal;min-height:0 !important;' +
+        'padding:0 !important;margin:0 !important;gap:0 !important;left:' + kr0.left + 'px;top:' + kr0.top + 'px;width:' + kr0.width + 'px;height:' + kr0.height + 'px;';
+      gwrap.appendChild(gcard);
+      document.body.appendChild(gwrap);
+      kidDrag.ghost = gwrap;
       kidDrag.gx = kr0.left; kidDrag.gy = kr0.top;
-      kidDrag.node.style.visibility = 'hidden';
+      kidDrag.node.style.display = 'none'; // out of the grid too: hidden, it still sized its row by its words
     }
     kidDrag.ghost.style.left = (kidDrag.gx + (ev.clientX - kidDrag.px)) + 'px';
     kidDrag.ghost.style.top = (kidDrag.gy + (ev.clientY - kidDrag.py)) + 'px';
@@ -12519,7 +14213,7 @@
     // the stack settles like a sortable list: cross a sibling's centre and
     // you swap; the kid's own hidden cell IS the landing gap you see open,
     // and the drop lands exactly there — no tuck after the fact
-    if (SETTLE_TYPES[kid.type]) settleStack(hostEl);
+    if (SETTLE_TYPES[kid.type]) settleStack(hostEl, kidInkOf(sec, kidDrag.ci));
     // leaving intent: the pointer beyond the card's box — the card shows it
     var cardR = sec.nodes[kidDrag.ci].getBoundingClientRect();
     var outside = ev.clientX < cardR.left - 4 || ev.clientX > cardR.right + 4 ||
@@ -12535,7 +14229,7 @@
     var sec = kd.sec;
     var cardNode = sec.nodes[kd.ci];
     if (cardNode) cardNode.classList.remove('gogh-card-leaving');
-    if (kd.ghost) { kd.ghost.remove(); kd.node.style.visibility = ''; }
+    if (kd.ghost) { kd.ghost.remove(); kd.node.style.visibility = ''; kd.node.style.display = ''; }
     var hostEl = sec.els[kd.ci];
     if (!hostEl || !hostEl.kids) return;
     if (kd.moved) {
@@ -12543,13 +14237,18 @@
       var outside = ev.clientX < cardR.left - 4 || ev.clientX > cardR.right + 4 ||
         ev.clientY < cardR.top - 4 || ev.clientY > cardR.bottom + 4;
       if (outside) {
-        // the kid leaves the card, landing under the pointer in page space
+        // the siblings the drag pushed and the height it grew go back to
+        // rest first: the kid leaves, the card stays as it was
+        kd.snap.forEach(function (sn) { sn.k.x = sn.x; sn.k.y = sn.y; });
+        hostEl.h = kd.hostH;
         var kid = hostEl.kids.splice(kd.j, 1)[0];
         if (!hostEl.kids.length) hostEl.kids = null;
         var secR = sec.sectionEl.getBoundingClientRect();
         var sc2 = scaleOf(sec);
-        kid.x = Math.round(Math.max(0, Math.min(W - kid.w, (ev.clientX - secR.left) / sc2 - kid.w / 2)));
-        kid.y = Math.round(Math.max(0, (ev.clientY - secR.top) / sc2 - kid.h / 2));
+        // it lands where the ghost is: under the hand at the grip it was
+        // picked up by, not re-centred on the pointer (that was a jump)
+        kid.x = Math.round(Math.max(0, Math.min(W - kid.w, (kd.gx + (ev.clientX - kd.px) - secR.left) / sc2)));
+        kid.y = Math.round(Math.max(0, (kd.gy + (ev.clientY - kd.py) - secR.top) / sc2));
         clearKidSel();
         sec.els.push(kid);
         renderSection(sec);
@@ -12565,7 +14264,7 @@
       var landed = hostEl.kids[kd.j];
       kd.snap.forEach(function (sn) { if (sn.k !== landed) { sn.k.x = sn.x; sn.k.y = sn.y; } });
       hostEl.h = kd.hostH;
-      settleKid(hostEl, landed); // the same settle the preview showed
+      settleKid(hostEl, landed, kidInkOf(sec, kd.ci)); // the same settle the preview showed
       guardCheck(sec, 'card drop', { e: landed, w: kd.w0, h: kd.h0 });
       var reordered = orderKids(hostEl);
       if (reordered) {
@@ -12589,7 +14288,10 @@
         var target = kid2.type === 'button' ? (kd.node.querySelector('.wp-block-button__link') || kd.node) : kd.node;
         target.setAttribute('contenteditable', kid2.type === 'heading' || kid2.type === 'para' ? 'true' : 'plaintext-only');
         document.documentElement.classList.add('gogh-textediting');
-        kidEd = { sec: sec, ci: kd.ci, j: kd.j, node: target, kid: kid2 };
+        // the resting stack and height: typing settles the siblings from
+        // HERE each time, so growing then shrinking the words leaves no ratchet
+        kidEd = { sec: sec, ci: kd.ci, j: kd.j, node: target, kid: kid2, hostH: hostEl.h,
+          snap: hostEl.kids.map(function (k) { return { k: k, x: k.x, y: k.y }; }) };
         target.focus();
         if (document.caretRangeFromPoint) {
           var cr = document.caretRangeFromPoint(ev.clientX, ev.clientY);
@@ -12601,16 +14303,40 @@
         }
       }
     }
+    placeKidBox();
   });
   document.addEventListener('input', function (ev) {
     if (!kidEd || ev.target !== kidEd.node) return;
     var k = kidEd.kid;
     k.text = (k.type === 'heading' || k.type === 'para') ? cleanInline(kidEd.node.innerHTML) : kidEd.node.textContent;
+    // the words grew or shrank: the kid's height follows (the section-level
+    // measure never looks inside cards), the stack below settles from the
+    // card's RESTING height so nothing ratchets up, and the grid re-solves in
+    // place -- the caret stays where it is
+    var secE = kidEd.sec, hostE = secE.els[kidEd.ci];
+    var knE = kidEd.node.closest('[class*="gogh-k-"]') || kidEd.node;
+    var sE = measureScaleOf(secE);
+    if (hostE && hostE.kids && sE > 0.2) {
+      var hE = knE.offsetHeight / sE;
+      if (hE > 0 && Math.abs(hE - k.h) > 2) {
+        k.h = Math.round(hE);
+        if (kidEd.snap) kidEd.snap.forEach(function (sn) { if (sn.k !== k) { sn.k.x = sn.x; sn.k.y = sn.y; } });
+        if (kidEd.hostH != null) hostE.h = kidEd.hostH;
+        if (SETTLE_TYPES[k.type]) settleStack(hostE, kidInkOf(secE, kidEd.ci));
+        resolveAndApply(secE);
+      }
+    }
   });
   document.addEventListener('keydown', function (ev) {
     if (kidEd && ev.key === 'Escape') { ev.stopPropagation(); exitKidEd(); return; }
     if (!kidSel || kidEd) return;
     if (ev.key === 'Escape') { clearKidSel(); return; }
+    // a key aimed at a field edits the field: restyling a button kid (Solid,
+    // Outline, a swatch) re-opens its link panel with the URL box focused and
+    // the kid re-selected, and a Backspace there used to remove the button
+    // from the card. Only a key aimed at the canvas removes the kid
+    var kt = ev.target;
+    if (kt && (kt.isContentEditable || kt.tagName === 'INPUT' || kt.tagName === 'TEXTAREA' || kt.tagName === 'SELECT')) return;
     if (ev.key === 'Backspace' || ev.key === 'Delete') {
       var sec = kidSel.sec;
       var hostEl = sec.els[kidSel.ci];
@@ -13934,7 +15660,7 @@
   function snapPos(sec, exclude, x, y, w, h, free, textCXOff) {
     if (free) return { x: Math.round(x), y: Math.round(y), gx: null, gy: null };
     var H = designH(sec.els, sec.minH);
-    var candX = [0, W, W / 2], candY = [0, H, H / 2];
+    var candX = [0, W, W / 2, MARGIN, W - MARGIN], candY = [0, H, H / 2];
     sec.els.forEach(function (o) {
       if (o === exclude || dragMate(o)) return;
       candX.push(o.x, o.x + o.w, o.x + o.w / 2);
@@ -14107,7 +15833,7 @@
       var sec = sel.sec;
       var e = sec.els[sel.i];
       var dir = DIRS.filter(function (d) { return d.d === hBtn.dataset.d; })[0];
-      var candX = [0, W, W / 2], candY = [0];
+      var candX = [0, W, W / 2, MARGIN, W - MARGIN], candY = [0];
       sec.els.forEach(function (o) {
         if (o === e) return;
         candX.push(o.x, o.x + o.w, o.x + o.w / 2);
@@ -14311,6 +16037,8 @@
     requestAnimationFrame(function () {
       scrollRaf = false;
       if (sel && !drag && !resize) placeHandles(sel.sec, sel.i);
+      if (kidSel && !kidDrag && !kidResize) placeKidBox();
+      if (multiSel && !drag) placeMbar();
     });
   }, { passive: true });
 
@@ -14588,7 +16316,7 @@
   }, true);
   document.addEventListener('pointerdown', function (ev) {
     if (!multiSel || ev.shiftKey) return;
-    if (ev.target.closest && ev.target.closest('.gogh-side, .gogh-panel, .gogh-secbar, .gogh-elbar, .gogh-marquee')) return;
+    if (ev.target.closest && ev.target.closest('.gogh-side, .gogh-panel, .gogh-secbar, .gogh-elbar, .gogh-mbar, .gogh-marquee')) return;
     var member = false;
     multiSel.idxs.forEach(function (j) {
       var n = multiSel.sec.nodes[j];
@@ -14607,6 +16335,8 @@
   window.__gogh = {
     explode: { enter: enterExplode, exit: exitExplode, state: function () { return explodeSt; } },
     multi: { set: setMulti, clear: clearMulti, state: function () { return multiSel; } },
+    showGuides: showGuides, hideGuides: hideGuides,
+    fillTake: fillTake, composeSiteDef: composeSiteDef,
     zoom: { open: openZoom, close: closeZoom, el: zoomOv },
     canvasZoom: { out: zoomOutCanvas, back: unzoomCanvas, setDevice: setDevice },
     reorderSection: reorderSection,
@@ -14614,6 +16344,7 @@
     navModel: { parse: parseNavModel, serialize: serializeNavModel, whereOf: navWhereOf, panelOf: navPanelOf },
     reorderNavRaw: reorderNavRaw,
     stickyRawToggle: stickyRawToggle,
+    chromeIsSticky: chromeIsSticky,
     chromeDialsRead: chromeDialsRead,
     inkWidthOf: inkWidthOf,
     themeFontSizeList: themeFontSizeList,
@@ -14710,6 +16441,7 @@
     toast: toast,
     textIdentityRaw: textIdentityRaw,
     chromeShape: chromeShape,
+    headerWearsLogo: headerWearsLogo,
     diceFlatten: diceFlatten,
     guardLog: function () { return guardLog.slice(); },
     guardReset: function () { guardLog.length = 0; },
@@ -14722,6 +16454,7 @@
     convertBlock: convertBlock,
     convertChrome: convertChrome,
     restore: restoreState,
+    kidState: function () { return { sel: kidSel, ed: kidEd, drag: kidDrag }; },
     setEditing: setEditing,
     deleteSection: deleteSection,
     moveSection: moveSection,
@@ -14729,11 +16462,17 @@
     rollSection: rollSection,
     diceFaces: diceFaces,
     composeShop: composeShop,
+    composePosts: composePosts,
+    postsDefaults: postsDefaults,
+    postsPreviewHTML: postsPreviewHTML,
+    healPosts: healPosts,
+    hydratePostsPreview: hydratePostsPreview,
     shopPreviewHTML: shopPreviewHTML,
     diceFamilyOf: diceFamilyOf,
     shopDefaults: shopDefaults,
     shopSampleHTML: shopSampleHTML,
     cardJoinTarget: cardJoinTarget,
+    shapeRoom: shapeRoom,
     hydrateProductsPreview: hydrateProductsPreview,
     reseatRoom: reseatChromeRoom,
     fm: function () { return fm; },
@@ -14793,7 +16532,7 @@
   if (verEl) verEl.textContent = GOGH_BUILD.replace('-chrome', '');
   try { console.info('[gogh] ' + GOGH_BUILD); } catch (e0) {}
   // rails elements draw a fresh preview from the live shop on every boot
-  try { S.forEach(function (sx) { (sx.els || []).forEach(function (ex) { if (ex.rails && ex.shop) hydrateProductsPreview(sx, ex); }); }); } catch (err) {}
+  try { S.forEach(function (sx) { (sx.els || []).forEach(function (ex) { if (ex.rails && ex.shop) hydrateProductsPreview(sx, ex); if (ex.rails && ex.posts) hydratePostsPreview(sx, ex); }); }); } catch (err) {}
   // ?gogh-paste=1 lands with the Paste HTML door already open — the
   // paste-a-page demo boots a blank site straight into it
   function openPasteDoor() {
@@ -14857,6 +16596,14 @@
       return;
     }
     if (typing) return;
+    if ((ev.metaKey || ev.ctrlKey) && ev.key.toLowerCase() === 'a') {
+      // select all, within the section that has the eye
+      var secA = sel ? sel.sec : (multiSel ? multiSel.sec : (selSecIdx !== null ? S[selSecIdx] : null));
+      if (!secA || !secA.els.length) return;
+      ev.preventDefault();
+      setMulti(secA, secA.els.map(function (_, j) { return j; }));
+      return;
+    }
     if ((ev.key === 'Delete' || ev.key === 'Backspace') && (sel || multiSel)) {
       ev.preventDefault();
       deleteSelected();
@@ -14875,6 +16622,8 @@
       });
       ev.preventDefault();
       resolveAndApply(msec2);
+      placeMbar();
+      refreshMbar();
       clearTimeout(textTimer);
       textTimer = setTimeout(pushState, 500);
       refreshChip();
@@ -15581,6 +17330,7 @@
       : cfg.restUrl.replace('?', '/autosaves?');
   }
   setInterval(function () {
+    if (siteBuilding) return; // a site being drawn from a definition is scratch, never a backup
     if (!editing || chipBusy || !isDirty()) return;
     // the suite wrecks the page BY DESIGN (delete-everything tests) — backing
     // that up would shadow the real fixture on every next boot
@@ -15641,7 +17391,8 @@
         var m = JSON.parse(ms.textContent);
         data.push({ scope: sEl.getAttribute('data-gogh-scope') || ('gogh-sec-' + (scopeSeq++)),
           els: m.elements || [], minH: m.minH || null, bg: m.bg || null,
-          divider: m.divider || null, bgImage: m.bgImage || null, bgId: m.bgId || null });
+          divider: m.divider || null, bgImage: m.bgImage || null, bgId: m.bgId || null,
+          m: (m.m && typeof m.m === 'object') ? m.m : null }); // the die's memory travels with the backup
       } catch (e2) {}
     });
     return data;
@@ -17327,7 +19078,7 @@
     // the header wears ONE identity: an image logo OR the text name. The
     // doorway label follows whichever is live, so folks aren't hunting the
     // tiny logo + a floating chip to change it
-    var usingLogo = raw0.indexOf('wp:site-logo') !== -1; // from the SAVE, not the auditioning DOM
+    var usingLogo = headerWearsLogo(raw0); // from the SAVE (block + a real picture), not the auditioning DOM
     if (area === 'header') {
       // every option is dressed in the saved identity BEFORE anything
       // previews — auditions and the final save then agree by construction
@@ -17394,7 +19145,7 @@
           (o.id === st.layoutId ? ' is-active' : '') + '" data-k="' + k + '">' +
           '<span class="gogh-hopt-dot"></span><span class="gogh-hopt-name">' + esc(short) + '</span></button>';
       }).join('') + '</div></div>' +
-      '<button type="button" class="gogh-hdoor gogh-hlogo"><span>' + (usingLogo ? 'Logo &amp; size' : 'Logo &amp; name') + '</span><span class="gogh-hdoor-chev">\u203a</span></button>' +
+      '<button type="button" class="gogh-hdoor gogh-hlogo"><span>' + (usingLogo ? 'Logo' : 'Logo &amp; name') + '</span><span class="gogh-hdoor-chev">\u203a</span></button>' +
       (d0 && d0.hasNav ? '<button type="button" class="gogh-hdoor gogh-hmenu"><span>Edit menu items</span><span class="gogh-hdoor-chev">\u203a</span></button>' : '') +
       (d0 && d0.hasNav ? '<button type="button" class="gogh-hdoor gogh-hmobile"><span>Mobile menu</span><span class="gogh-hdoor-chev">\u203a</span></button>' : '') +
       '</div>' +
@@ -17439,7 +19190,7 @@
         (d0.hasNav ? dial('Menu items', 'gogh-dial-link', 8, 64, d0.linkGap) : '') +
         dial('Text size', 'gogh-dial-fsz', 12, 30, d0.fsz) : '') +
       '<div class="gogh-panel-row gogh-chrome-rows gogh-hpills">' +
-      '<button type="button" class="gogh-btn gogh-btn-small gogh-hfreeform">✨ Make it freeform</button>' +
+      (cfg.experiments ? '<button type="button" class="gogh-btn gogh-btn-small gogh-hfreeform">✨ Make it freeform</button>' : '') +
       '</div>' +
       '</div>' + // end .gogh-hmorebox
       '<div class="gogh-panel-row gogh-chrome-foot">' +
@@ -17683,7 +19434,10 @@
       if (mg) mg.classList.toggle('gogh-sticky', st.sticky);
       arm();
     });
-    panel.querySelector('.gogh-hfreeform').addEventListener('click', function () {
+    // freeform chrome is a can of worms and not very gogh (James): the room
+    // is the way to change a header; the door stays in experiments only
+    var hfDoor = panel.querySelector('.gogh-hfreeform');
+    if (hfDoor) hfDoor.addEventListener('click', function () {
       bail();
       editChromeFreeform(partEl, area, active);
     });
@@ -17805,7 +19559,7 @@
         '</div>' +
         '<div class="gogh-panel-hint">Or make it yours</div>' +
         '<div class="gogh-panel-row gogh-chrome-rows">' +
-        '<button type="button" class="gogh-btn gogh-btn-small gogh-chrome-edit">\u2728 ' + (isFreeform || mounted ? 'Edit freeform' : 'Make freeform') + '</button>' +
+        ((cfg.experiments || isFreeform || mounted) ? '<button type="button" class="gogh-btn gogh-btn-small gogh-chrome-edit">\u2728 ' + (isFreeform || mounted ? 'Edit freeform' : 'Make freeform') + '</button>' : '') +
         '</div>' +
         (activeOpt ? '<div class="gogh-panel-row gogh-chrome-rows">' +
           '<button type="button" class="gogh-btn gogh-btn-small gogh-chrome-sticky' + (chromeIsSticky(active) ? ' is-active' : '') + '">\ud83d\udccc ' +
@@ -17849,7 +19603,8 @@
           });
         });
       });
-      panel.querySelector('.gogh-chrome-edit').addEventListener('click', function () {
+      var ceDoor = panel.querySelector('.gogh-chrome-edit');
+      if (ceDoor) ceDoor.addEventListener('click', function () {
         editChromeFreeform(partEl, area, active);
       });
       panel.querySelector('.gogh-chrome-cancel').addEventListener('click', function () {
@@ -18077,7 +19832,11 @@
   }
   function chromeIsSticky(active) {
     var raw = (active && active.content && active.content.raw) || '';
-    return /"position":\s*{[^}]*"type":"sticky"/.test(raw);
+    // TWO ways a header ends up pinned: core's position support, which the
+    // switch writes, and the gogh-sticky marker, which a pattern or a site
+    // definition can carry. Reading only the first made the switch report
+    // OFF on a header that was plainly stuck — a lie until you touched it.
+    return /"position":\s*{[^}]*"type":"sticky"/.test(raw) || /\bgogh-sticky\b/.test(raw);
   }
   function stickyRawToggle(raw, on) {
     var spans = parseTopBlocks(raw);
@@ -18451,6 +20210,16 @@
       });
     });
   }
+  // does the header wear a LOGO identity? Only when its saved markup carries
+  // the logo block AND the site has a logo image behind it. A starter's
+  // classic header ships the block with no picture (the name is the
+  // identity), and reading the block alone made every other layout keep an
+  // empty logo and drop the name (James: "the text logo vanishes")
+  function headerWearsLogo(raw) {
+    if (String(raw || '').indexOf('wp:site-logo') === -1) return false;
+    if (cfg.hasLogo) return true;
+    return !!document.querySelector('.wp-block-site-logo img');
+  }
   function chromeLayoutContent(area, chosen, wantLogo) {
     var content = chosen.content || '';
     if (area === 'header') {
@@ -18462,7 +20231,7 @@
       var usingLogo = wantLogo;
       if (usingLogo == null) {
         var pe = partElForArea('header');
-        usingLogo = !!(pe && pe.querySelector('.wp-block-site-logo'));
+        usingLogo = !!(pe && pe.querySelector('.wp-block-site-logo img'));
       }
       if (usingLogo) {
         var lg = logoizeHeaderRaw(content);
@@ -18790,11 +20559,33 @@
       var spans = parseTopBlocks(rawText);
       var kids = [].slice.call(containerDom.children).filter(function (c) {
         if (c.classList && c.classList.contains('gogh-pendbar')) return false;
+        // gogh's own furniture inside a part (the "Edit site header" pill,
+        // menu adders) is never block output either: counted against the
+        // markup it made every header convert as ONE opaque widget (James:
+        // "i just clicked make freeform for the header and the formatting broke")
+        var cn = String(c.className || '');
+        if (/(^|\s)gogh-/.test(cn) && !/(^|\s)wp-block-/.test(cn)) return false;
         // metadata children are never block output — counting them against
         // the markup spans breaks pairing (a preview box carries a <style>)
         var tg = c.tagName;
         return tg !== 'STYLE' && tg !== 'SCRIPT' && tg !== 'LINK' && tg !== 'TEMPLATE';
       });
+      // counts differ? pair by NAME before giving up: each block takes the
+      // next element wearing its class, and a block that rendered nothing
+      // (a site logo with no picture set) simply drops out
+      if (spans.length && spans.length !== kids.length && !(spans.length === 1 && String(spans[0].name || '').replace(/^core\//, '') === 'html')) {
+        var pool = kids.slice(), paired = [], pairedKids = [], ok = true;
+        spans.forEach(function (sp) {
+          var nm2 = String(sp.name || '').replace(/^core\//, '');
+          var cls = 'wp-block-' + nm2.replace(/\//g, '-');
+          var at = -1;
+          for (var q = 0; q < pool.length; q++) { if (pool[q].classList && pool[q].classList.contains(cls)) { at = q; break; } }
+          if (at === -1) return; // rendered nothing
+          paired.push(sp); pairedKids.push(pool[at]); pool.splice(at, 1);
+        });
+        if (pool.length) ok = false; // an element no block claims: not our pairing to make
+        if (ok && paired.length) { spans = paired; kids = pairedKids; }
+      }
       // a lone html block renders ALL these children (a paste's <style> +
       // content roots) — span↔child pairing is meaningless, free-walk them
       if (spans.length === 1 && kids.length &&
@@ -18951,6 +20742,12 @@
       var chromeScan = scanDomWithRaw(scanEl, raw);
       var out = chromeScan.els;
       if (!out.length) throw new Error('Nothing to edit in this ' + area + '.');
+      // a scanned piece is exactly as wide as it rendered; the canvas grid
+      // can settle its cell a few units narrower, and a name that just fit
+      // wraps onto two lines. Words get a little slack
+      out.forEach(function (e) {
+        if (e.type === 'widget' || e.type === 'heading' || e.type === 'para' || e.type === 'button') e.w = Math.min(W - e.x, e.w + 16);
+      });
       var sec = newSectionShell('gogh-sec-' + (scopeSeq++));
       sec.els = out;
       sec.minH = Math.round(rr.height * sx);
@@ -19745,6 +21542,7 @@
         body: JSON.stringify({ site_logo: id }),
       }).then(function (r) {
         if (!r.ok) throw new Error('saving needs an admin login');
+        cfg.hasLogo = true; // from here the header's logo block has a picture behind it
         return activePartFor('header');
       }).then(function (active) {
         if (!active) return null;
@@ -21110,6 +22908,13 @@
     if (renderCanvasOnce.done || !renderCanvasOnce.hydrated) return;
     renderCanvasOnce.done = true;
     S.forEach(renderSection);
+    // rails elements draw a fresh preview from the live shop the moment the
+    // canvas is real: the boot pass further up ran before the model's
+    // elements (and their shop choices) had arrived, so a saved page opened
+    // in the editor kept whatever cards it was saved with — the picker's
+    // sample soap shop, on Hollowell's shelf (James: 'are these meant to
+    // have images?')
+    try { S.forEach(function (sx) { (sx.els || []).forEach(function (ex) { if (ex.rails && ex.shop) hydrateProductsPreview(sx, ex); if (ex.rails && ex.posts) hydratePostsPreview(sx, ex); }); }); } catch (err) {}
   }
   window.__goghRenderCanvasOnce = renderCanvasOnce;
   hydrateV3Sections().then(function () {
@@ -21119,10 +22924,13 @@
     }
     if (wantEdit) {
       setEditing(true);
+      var willBuild = !!(cfg.siteDef && /[?&]gogh-build=1/.test(location.search));
+      if (willBuild) scheduleSiteBuild();
       var bootContent = S.filter(function (s) { return !s.chrome; });
       // the blank-canvas greeting is for genuinely EMPTY pages — a page
-      // full of native blocks (a starter site's home) is not one
-      if (bootContent.length === 1 && isBlankBoot(bootContent[0]) &&
+      // full of native blocks (a starter site's home) is not one, and
+      // neither is a page a site build is about to fill
+      if (!willBuild && bootContent.length === 1 && isBlankBoot(bootContent[0]) &&
           !topBlockNodes().length) {
         openPicker(S.indexOf(bootContent[0]));
       }

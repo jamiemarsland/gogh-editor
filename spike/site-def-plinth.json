@@ -1,0 +1,492 @@
+{
+ "name": "Plinth",
+ "tagline": "Buildings, and the cities that happen around them",
+ "variation": "Morning",
+ "palette": {
+  "base": "#F2F2EE",
+  "contrast": "#141416",
+  "accents": [
+   "#F14C22",
+   "#5B5E66",
+   "#D9D5CB",
+   "#141416",
+   "#8A8D95",
+   "#E8E6DF"
+  ]
+ },
+ "chrome": {
+  "header": "gogh-header-split",
+  "footer": "gogh-footer-columns",
+  "sticky": true
+ },
+ "pages": [
+  {
+   "title": "Home",
+   "front": true,
+   "sections": [
+    {
+     "name": "Masthead",
+     "els": [
+      {
+       "type": "para",
+       "x": 80,
+       "y": 76,
+       "w": 1040,
+       "h": 20,
+       "text": "Issue 14 · Autumn 2026",
+       "align": "center",
+       "tf": {
+        "fs": 12,
+        "fw": 400,
+        "ls2": 0.28,
+        "tt": "uppercase"
+       }
+      },
+      {
+       "type": "heading",
+       "x": 80,
+       "y": 108,
+       "w": 1040,
+       "h": 72,
+       "text": "Plinth",
+       "fs": "__max",
+       "align": "center"
+      },
+      {
+       "type": "para",
+       "x": 80,
+       "y": 190,
+       "w": 1040,
+       "h": 26,
+       "text": "Buildings, and the cities that happen around them.",
+       "align": "center",
+       "tf": {
+        "fs": 19
+       }
+      },
+      {
+       "type": "box",
+       "x": 80,
+       "y": 240,
+       "w": 1040,
+       "h": 12,
+       "boxBg": "linear-gradient(color-mix(in srgb, var(--wp--preset--color--contrast, #000) 18%, transparent), color-mix(in srgb, var(--wp--preset--color--contrast, #000) 18%, transparent)) center / 100% 1px no-repeat"
+      },
+      {
+       "type": "para",
+       "x": 80,
+       "y": 260,
+       "w": 340,
+       "h": 20,
+       "text": "Quarterly · in print and here",
+       "tf": {
+        "fs": 11.5,
+        "fw": 400,
+        "ls2": 0.12,
+        "tt": "uppercase"
+       }
+      },
+      {
+       "type": "para",
+       "x": 430,
+       "y": 260,
+       "w": 340,
+       "h": 20,
+       "text": "Eight stories an issue",
+       "align": "center",
+       "tf": {
+        "fs": 11.5,
+        "fw": 400,
+        "ls2": 0.12,
+        "tt": "uppercase"
+       }
+      },
+      {
+       "type": "para",
+       "x": 780,
+       "y": 260,
+       "w": 340,
+       "h": 20,
+       "text": "Edited in Bristol",
+       "align": "right",
+       "tf": {
+        "fs": 11.5,
+        "fw": 400,
+        "ls2": 0.12,
+        "tt": "uppercase"
+       }
+      },
+      {
+       "type": "box",
+       "x": 80,
+       "y": 294,
+       "w": 1040,
+       "h": 12,
+       "boxBg": "linear-gradient(color-mix(in srgb, var(--wp--preset--color--contrast, #000) 18%, transparent), color-mix(in srgb, var(--wp--preset--color--contrast, #000) 18%, transparent)) center / 100% 1px no-repeat"
+      }
+     ],
+     "minH": 340
+    },
+    {
+     "name": "Cover story",
+     "els": [
+      {
+       "type": "image",
+       "x": 80,
+       "y": 80,
+       "w": 620,
+       "h": 440,
+       "src": "/wp-content/plugins/gogh/starters/photographer/bw-the-villa.jpg",
+       "radius": 4,
+       "alt": "A modern villa, glass and flat roofs"
+      },
+      {
+       "type": "para",
+       "x": 740,
+       "y": 104,
+       "w": 380,
+       "h": 20,
+       "text": "Cover story",
+       "tf": {
+        "fs": 12,
+        "fw": 400,
+        "ls2": 0.26,
+        "tt": "uppercase"
+       }
+      },
+      {
+       "type": "heading",
+       "x": 740,
+       "y": 136,
+       "w": 380,
+       "h": 110,
+       "text": "The villa as an argument",
+       "fs": "x-large",
+       "align": "left"
+      },
+      {
+       "type": "para",
+       "x": 740,
+       "y": 258,
+       "w": 380,
+       "h": 100,
+       "text": "Every glass wall is a claim about who gets to look at whom. We spent a week in one and came out arguing with it.",
+       "tf": {
+        "fs": 16
+       }
+      },
+      {
+       "type": "button",
+       "x": 740,
+       "y": 372,
+       "w": 220,
+       "h": 48,
+       "text": "Read the story",
+       "href": "/stories/"
+      }
+     ],
+     "minH": 600
+    },
+    {
+     "take": "Latest posts",
+     "heading": "In this issue",
+     "posts": {
+      "look": "ledger",
+      "count": 6,
+      "show": {
+       "date": true,
+       "excerpt": false
+      }
+     }
+    },
+    {
+     "name": "The interview",
+     "els": [
+      {
+       "type": "image",
+       "x": 80,
+       "y": 80,
+       "w": 360,
+       "h": 420,
+       "src": "/wp-content/plugins/gogh/starters/photographer/bw-portrait-studio.jpg",
+       "radius": 4,
+       "alt": "An architect against a dark ground"
+      },
+      {
+       "type": "para",
+       "x": 500,
+       "y": 104,
+       "w": 620,
+       "h": 20,
+       "text": "The interview",
+       "tf": {
+        "fs": 12,
+        "fw": 400,
+        "ls2": 0.26,
+        "tt": "uppercase"
+       }
+      },
+      {
+       "type": "heading",
+       "x": 500,
+       "y": 136,
+       "w": 620,
+       "h": 170,
+       "text": "“I stopped drawing when I noticed the drawings were winning.”",
+       "fs": "x-large",
+       "align": "left"
+      },
+      {
+       "type": "para",
+       "x": 500,
+       "y": 322,
+       "w": 620,
+       "h": 22,
+       "text": "Mara Voss",
+       "tf": {
+        "fs": 12.5,
+        "fw": 600,
+        "ls2": 0.14,
+        "tt": "uppercase"
+       }
+      },
+      {
+       "type": "para",
+       "x": 500,
+       "y": 346,
+       "w": 620,
+       "h": 22,
+       "text": "Architect · Rotterdam",
+       "tf": {
+        "fs": 12,
+        "fw": 400,
+        "ls2": 0.14,
+        "tt": "uppercase"
+       }
+      },
+      {
+       "type": "button",
+       "x": 500,
+       "y": 392,
+       "w": 240,
+       "h": 48,
+       "text": "Read the interview",
+       "href": "/stories/"
+      }
+     ],
+     "minH": 580
+    },
+    {
+     "take": "Latest posts",
+     "heading": "Features",
+     "posts": {
+      "look": "cover",
+      "count": 3
+     }
+    },
+    {
+     "name": "Contributors",
+     "els": [
+      {
+       "type": "para",
+       "x": 80,
+       "y": 76,
+       "w": 1040,
+       "h": 20,
+       "text": "This issue’s contributors",
+       "tf": {
+        "fs": 12,
+        "fw": 400,
+        "ls2": 0.26,
+        "tt": "uppercase"
+       }
+      },
+      {
+       "type": "box",
+       "x": 80,
+       "y": 108,
+       "w": 1040,
+       "h": 12,
+       "boxBg": "linear-gradient(color-mix(in srgb, var(--wp--preset--color--contrast, #000) 18%, transparent), color-mix(in srgb, var(--wp--preset--color--contrast, #000) 18%, transparent)) center / 100% 1px no-repeat"
+      },
+      {
+       "type": "image",
+       "x": 80,
+       "y": 132,
+       "w": 120,
+       "h": 120,
+       "src": "/wp-content/plugins/gogh/starters/photographer/bw-laughing.jpg",
+       "radius": 60,
+       "alt": "Ines Halloran"
+      },
+      {
+       "type": "para",
+       "x": 220,
+       "y": 152,
+       "w": 200,
+       "h": 24,
+       "text": "Ines Halloran",
+       "tf": {
+        "fs": 15,
+        "fw": 600
+       }
+      },
+      {
+       "type": "para",
+       "x": 220,
+       "y": 180,
+       "w": 200,
+       "h": 22,
+       "text": "Writes about housing",
+       "tf": {
+        "fs": 13.5
+       }
+      },
+      {
+       "type": "image",
+       "x": 440,
+       "y": 132,
+       "w": 120,
+       "h": 120,
+       "src": "/wp-content/plugins/gogh/starters/photographer/bw-portrait-dusk.jpg",
+       "radius": 60,
+       "alt": "Tamsin Reid"
+      },
+      {
+       "type": "para",
+       "x": 580,
+       "y": 152,
+       "w": 200,
+       "h": 24,
+       "text": "Tamsin Reid",
+       "tf": {
+        "fs": 15,
+        "fw": 600
+       }
+      },
+      {
+       "type": "para",
+       "x": 580,
+       "y": 180,
+       "w": 200,
+       "h": 22,
+       "text": "Photographs at dusk",
+       "tf": {
+        "fs": 13.5
+       }
+      },
+      {
+       "type": "image",
+       "x": 800,
+       "y": 132,
+       "w": 120,
+       "h": 120,
+       "src": "/wp-content/plugins/gogh/starters/photographer/bw-portrait-studio.jpg",
+       "radius": 60,
+       "alt": "Ole Brandt"
+      },
+      {
+       "type": "para",
+       "x": 940,
+       "y": 152,
+       "w": 200,
+       "h": 24,
+       "text": "Ole Brandt",
+       "tf": {
+        "fs": 15,
+        "fw": 600
+       }
+      },
+      {
+       "type": "para",
+       "x": 940,
+       "y": 180,
+       "w": 200,
+       "h": 22,
+       "text": "Draws, occasionally",
+       "tf": {
+        "fs": 13.5
+       }
+      },
+      {
+       "type": "box",
+       "x": 80,
+       "y": 280,
+       "w": 1040,
+       "h": 12,
+       "boxBg": "linear-gradient(color-mix(in srgb, var(--wp--preset--color--contrast, #000) 18%, transparent), color-mix(in srgb, var(--wp--preset--color--contrast, #000) 18%, transparent)) center / 100% 1px no-repeat"
+      }
+     ],
+     "minH": 330
+    },
+    {
+     "take": "Call to action",
+     "eyebrow": "Four issues a year",
+     "heading": "Have Plinth posted to you",
+     "text": "Print and web, forty pounds a year. Cancel whenever you like.",
+     "button": "Subscribe"
+    }
+   ]
+  },
+  {
+   "title": "Stories",
+   "slug": "stories",
+   "blog": true
+  },
+  {
+   "title": "About",
+   "sections": [
+    {
+     "take": "Story",
+     "eyebrow": "About Plinth",
+     "heading": "A magazine about buildings, for the people who live near them",
+     "text": "We started in 2019 with one question: why do the buildings we love and the buildings we get feel like different subjects?",
+     "text2": "Fourteen issues on, we still do not know. But we have got better at asking the people who might.",
+     "button": "Get in touch"
+    }
+   ]
+  }
+ ],
+ "posts": [
+  {
+   "title": "The house that refused a front door",
+   "image": "/wp-content/plugins/gogh/starters/photographer/bw-white-house.jpg",
+   "text": "On a hill above the harbour there is a white house with no front door. There is a side door, and a back door, and a hatch for the coal that has not been used since 1971.\n\nThe owner says a front door is a promise to the street that she never wanted to make. We walked around it three times and found we agreed."
+  },
+  {
+   "title": "What the curve knows",
+   "image": "/wp-content/plugins/gogh/starters/photographer/bw-curves.jpg",
+   "text": "Stand under the facade at ten in the morning and the curve does something a flat wall cannot: it shows you where the light is going next.\n\nThe engineer who built it says the curve was cheaper than the argument about not having one."
+  },
+  {
+   "title": "A harbour town, from above",
+   "image": "/wp-content/plugins/gogh/starters/photographer/bw-cinque-terre.jpg",
+   "text": "The town was built by people who did not expect to be looked at from the cliff. That is why it works from the cliff.\n\nNothing lines up. Everything fits."
+  },
+  {
+   "title": "First light, empty beach, no plan",
+   "image": "/wp-content/plugins/gogh/starters/photographer/bw-first-light.jpg",
+   "text": "We went to photograph a pier and the pier had gone. What was left was the beach, the light and a plan that no longer applied.\n\nThis is a story about the second plan."
+  },
+  {
+   "title": "The villa as an argument",
+   "image": "/wp-content/plugins/gogh/starters/photographer/bw-the-villa.jpg",
+   "text": "Every glass wall is a claim about who gets to look at whom. We spent a week in one and came out arguing with it.\n\nThe villa won most of the arguments. This is the one it lost."
+  },
+  {
+   "title": "Salt water, close up",
+   "image": "/wp-content/plugins/gogh/starters/photographer/bw-salt-water.jpg",
+   "text": "A wave is a building that lasts a second. We asked a structural engineer to explain one and she asked for a week.\n\nShe came back with a drawing and an apology."
+  },
+  {
+   "title": "The architect who stopped drawing",
+   "image": "/wp-content/plugins/gogh/starters/photographer/bw-portrait-studio.jpg",
+   "text": "Mara Voss has not drawn a building since 2019. Her practice has built eleven.\n\n“I stopped when I noticed the drawings were winning,” she says. We asked what that meant. It took the whole afternoon."
+  },
+  {
+   "title": "A laugh in the atrium",
+   "image": "/wp-content/plugins/gogh/starters/photographer/bw-laughing.jpg",
+   "text": "Acousticians measure atriums by clapping. We measured one by laughing, which turns out to be the more honest instrument.\n\nIt held the laugh for four seconds. The clap, for two."
+  }
+ ]
+}

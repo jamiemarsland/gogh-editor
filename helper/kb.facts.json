@@ -1,12 +1,12 @@
 {
   "meta": {
-    "plugin_version": "0.99.443",
+    "plugin_version": "0.99.498",
     "requires_wp": "6.5",
     "requires_php": "7.4",
     "text_domain": "gogh-editor",
     "readme_stable_tag": "0.26.0",
     "readme_tested_up_to": "7.0",
-    "asset_version": "0.99.443-chrome"
+    "asset_version": "0.99.498-chrome"
   },
   "constants": {
     "TOL": 8,
@@ -439,12 +439,14 @@
     "Add",
     "Add a category ↗",
     "Add a page to this menu",
+    "Add a picture or video",
     "Add a product ↗",
     "Add link",
     "Add something to this section",
     "Add to page",
     "Adjust spacing",
     "All options",
+    "Any colour",
     "Apply",
     "As typed",
     "Auto",
@@ -466,14 +468,21 @@
     "Custom text colour",
     "Cycle theme font sizes",
     "Dark",
+    "Delete",
     "Delete (Del)",
     "Delete saved section",
+    "Delete the selection",
     "Delivery & returns",
     "Desktop",
     "Desktop menu",
     "Discard changes",
     "Done",
+    "Duplicate",
     "Duplicate (or Alt-drag)",
+    "Duplicate the selection",
+    "Equal gaps left to right",
+    "Equal gaps top to bottom",
+    "Even gaps",
     "Everything",
     "Experience",
     "Featured product",
@@ -500,10 +509,18 @@
     "Keeps your changes on every page",
     "Left",
     "Light",
+    "Line the pieces up, or even out the gaps",
+    "Line the row up and even the gaps",
+    "Line up ' + a[1].toLowerCase() + '",
+    "Line up the pieces inside this card",
+    "Line up ▾",
     "Link",
     "Link text (⌘K)",
+    "Make a card",
     "Make it freeform",
+    "Make these one card — it holds together on phones",
     "Manage categories ↗",
+    "Manage posts ↗",
     "Manage products",
     "Manage products ↗",
     "Manage this menu — reorder, nest, swap menus",
@@ -568,6 +585,7 @@
     "The gogh build this tab is running",
     "The header rides along as visitors scroll",
     "Theme default",
+    "Tidy up",
     "Try another",
     "UPPERCASE",
     "Undo",
@@ -576,12 +594,14 @@
     "Updates every page",
     "Upload a self-contained HTML experience — it runs sandboxed",
     "Upload an .html file instead",
+    "Use it",
     "Use this design",
     "Use this layout",
     "Video",
     "Where this item shows",
     "Which take of this design is on the page",
     "Write",
+    "Write a post ↗",
     "Your latest posts, live",
     "Your latest products, live — prices and add to cart included",
     "ag",
@@ -637,6 +657,7 @@
     "Mobile menu: ",
     "Name size saved.",
     "Nothing to rearrange yet — add a couple of pieces first.",
+    "One card now — it holds together on phones. Click it for a background.",
     "Out of the card — it’s its own piece again.",
     "Publish failed: ",
     "Publish your changes first — changing the page style reloads the page.",
@@ -651,6 +672,7 @@
     "Style copied — click other text to paint it. Esc finishes.",
     "That saved section can’t be read.",
     "That section can’t move past other stored content yet.",
+    "That upload failed — try again, or paste a link.",
     "That’s gogh. Everything else is just more of this.",
     "The backup could not be read.",
     "The description could not be saved — try again.",
@@ -759,12 +781,22 @@
       },
       {
         "kind": "filter",
+        "hook": "render_block_core/heading",
+        "priority": 10
+      },
+      {
+        "kind": "filter",
         "hook": "body_class",
         "priority": 10
       },
       {
         "kind": "filter",
         "hook": "render_block_core/post-template",
+        "priority": 10
+      },
+      {
+        "kind": "filter",
+        "hook": "query_loop_block_query_vars",
         "priority": 10
       },
       {
@@ -835,6 +867,11 @@
       {
         "kind": "action",
         "hook": "wp_enqueue_scripts",
+        "priority": 10
+      },
+      {
+        "kind": "filter",
+        "hook": "render_block_data",
         "priority": 10
       },
       {
@@ -925,6 +962,11 @@
       {
         "kind": "action",
         "hook": "trashed_post",
+        "priority": 10
+      },
+      {
+        "kind": "action",
+        "hook": "wp_footer",
         "priority": 10
       },
       {
@@ -1035,6 +1077,11 @@
       {
         "kind": "filter",
         "hook": "get_post_metadata",
+        "priority": 10
+      },
+      {
+        "kind": "action",
+        "hook": "wp_footer",
         "priority": 10
       },
       {
@@ -1162,6 +1209,7 @@
     "rest_routes": [
       "gogh/v1/version",
       "gogh/v1/starter",
+      "gogh/v1/site-def",
       "gogh/v1/type-scale",
       "gogh/v1/blog-style",
       "gogh/v1/motion",
@@ -1202,6 +1250,7 @@
       "_wpnonce",
       "gogh-thanks",
       "gogh-edit",
+      "gogh-shoplook",
       "kind",
       "layout",
       "term",
@@ -1210,9 +1259,11 @@
       "gogh-variations",
       "page",
       "id",
+      "gogh-layout",
       "gogh-experiments",
       "gogh-mcp",
-      "gogh-walk"
+      "gogh-walk",
+      "gogh-build"
     ],
     "block_name": "gogh/section"
   },
@@ -1244,6 +1295,8 @@
     ],
     "rest_endpoints": [
       "blocks",
+      "categories",
+      "pages",
       "posts",
       "template-parts"
     ],
@@ -1266,5 +1319,5 @@
     "has_deprecation": true,
     "block_title": "gogh Section"
   },
-  "test_count": 236
+  "test_count": 281
 }

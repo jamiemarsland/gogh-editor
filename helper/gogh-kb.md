@@ -15,7 +15,7 @@ about something where they conflict, rather than picking one silently. Quote UI
 labels and message copy from the appendix, verbatim — those are the current
 strings, and a paraphrased button label is the fastest way to lose a user's trust.
 
-Generated for plugin version 0.99.443 · knowledge base a206956.
+Generated for plugin version 0.99.498 · knowledge base 702fb84.
 
 ---
 
@@ -782,11 +782,11 @@ Everything in this section is extracted mechanically from the Gogh source on eve
 
 ## Current release
 
-- Plugin version: **0.99.443**
+- Plugin version: **0.99.498**
 - Requires WordPress **6.5+**, PHP **7.4+**
 - Text domain: `gogh-editor`
 - readme.txt Stable tag: `0.26.0` · Tested up to: `7.0`
-- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.443`). Quote the plugin header version.
+- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.498`). Quote the plugin header version.
 
 ## Design constants
 
@@ -867,8 +867,10 @@ Block: `gogh/section` · v3 attributes: `css`, `model`, `scope`, `v`, `cssT`.
 | `template_redirect` | action | 10 |
 | `wp_enqueue_scripts` | action | 10 |
 | `init` | action | 10 |
+| `render_block_core/heading` | filter | 10 |
 | `body_class` | filter | 10 |
 | `render_block_core/post-template` | filter | 10 |
+| `query_loop_block_query_vars` | filter | 10 |
 | `body_class` | filter | 10 |
 | `body_class` | filter | 10 |
 | `init` | action | 10 |
@@ -883,6 +885,7 @@ Block: `gogh/section` · v3 attributes: `css`, `model`, `scope`, `v`, `cssT`.
 | `admin_post_gogh_form_message` | action | 10 |
 | `admin_post_nopriv_gogh_form_message` | action | 10 |
 | `wp_enqueue_scripts` | action | 10 |
+| `render_block_data` | filter | 10 |
 | `body_class` | filter | 10 |
 | `render_block_core/navigation` | filter | 10 |
 | `template_redirect` | action | 302 |
@@ -901,6 +904,7 @@ Block: `gogh/section` · v3 attributes: `css`, `model`, `scope`, `v`, `cssT`.
 | `body_class` | filter | 10 |
 | `wp_insert_post_empty_content` | filter | 10 |
 | `trashed_post` | action | 10 |
+| `wp_footer` | action | 10 |
 | `init` | action | 10 |
 | `rest_api_init` | action | 10 |
 | `init` | action | 10 |
@@ -923,6 +927,7 @@ Block: `gogh/section` · v3 attributes: `css`, `model`, `scope`, `v`, `cssT`.
 | `admin_post_gogh_post_layout` | action | 10 |
 | `admin_post_gogh_post_layout_all` | action | 10 |
 | `get_post_metadata` | filter | 10 |
+| `wp_footer` | action | 10 |
 | `admin_post_gogh_product_layout` | action | 10 |
 | `safe_style_css` | filter | 10 |
 | `wp_kses_allowed_html` | filter | 10 |
@@ -948,9 +953,9 @@ Block: `gogh/section` · v3 attributes: `css`, `model`, `scope`, `v`, `cssT`.
 
 Filters exposed for third parties: `gogh_default_editor`, `gogh_claims_post`, `gogh_labs_ask`, `gogh_rebake_enabled`, `gogh_schema`, `gogh_schema_enabled`, `gogh_webmcp_enabled`, `gogh_convert_enabled`, `gogh_helper_url`.
 
-REST routes registered: `gogh/v1/version`, `gogh/v1/starter`, `gogh/v1/type-scale`, `gogh/v1/blog-style`, `gogh/v1/motion`, `gogh/v1/ask`, `gogh/v1/imagine-exp`, `gogh/v1/ask-key`, `gogh/v1/menu-style`, `gogh/v1/first-minute`, `gogh/v1/ask-log`, `gogh/v1/active-style`, `wp/v2/gogh-product/(?P<id>\d+)`, `wp/v2/gogh-product/(?P<id>\d+)/autosaves`, `gogh/v1/pattern`, `gogh/v1/render`.
+REST routes registered: `gogh/v1/version`, `gogh/v1/starter`, `gogh/v1/site-def`, `gogh/v1/type-scale`, `gogh/v1/blog-style`, `gogh/v1/motion`, `gogh/v1/ask`, `gogh/v1/imagine-exp`, `gogh/v1/ask-key`, `gogh/v1/menu-style`, `gogh/v1/first-minute`, `gogh/v1/ask-log`, `gogh/v1/active-style`, `wp/v2/gogh-product/(?P<id>\d+)`, `wp/v2/gogh-product/(?P<id>\d+)/autosaves`, `gogh/v1/pattern`, `gogh/v1/render`.
 
-Core REST endpoints used by the editor: `wp/v2/blocks`, `wp/v2/posts`, `wp/v2/template-parts`.
+Core REST endpoints used by the editor: `wp/v2/blocks`, `wp/v2/categories`, `wp/v2/pages`, `wp/v2/posts`, `wp/v2/template-parts`.
 
 Capability checks in PHP: `edit_posts`, `edit_post`, `edit_theme_options`, `edit_others_posts`, `edit_products`, `manage_options`, `upload_files`, `unfiltered_html`, `activate_plugins`, `install_plugins`, `manage_woocommerce`, `publish_pages`.
 
@@ -981,12 +986,14 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "Add"
 - "Add a category ↗"
 - "Add a page to this menu"
+- "Add a picture or video"
 - "Add a product ↗"
 - "Add link"
 - "Add something to this section"
 - "Add to page"
 - "Adjust spacing"
 - "All options"
+- "Any colour"
 - "Apply"
 - "As typed"
 - "Auto"
@@ -1008,14 +1015,21 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "Custom text colour"
 - "Cycle theme font sizes"
 - "Dark"
+- "Delete"
 - "Delete (Del)"
 - "Delete saved section"
+- "Delete the selection"
 - "Delivery & returns"
 - "Desktop"
 - "Desktop menu"
 - "Discard changes"
 - "Done"
+- "Duplicate"
 - "Duplicate (or Alt-drag)"
+- "Duplicate the selection"
+- "Equal gaps left to right"
+- "Equal gaps top to bottom"
+- "Even gaps"
 - "Everything"
 - "Experience"
 - "Featured product"
@@ -1042,10 +1056,18 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "Keeps your changes on every page"
 - "Left"
 - "Light"
+- "Line the pieces up, or even out the gaps"
+- "Line the row up and even the gaps"
+- "Line up ' + a[1].toLowerCase() + '"
+- "Line up the pieces inside this card"
+- "Line up ▾"
 - "Link"
 - "Link text (⌘K)"
+- "Make a card"
 - "Make it freeform"
+- "Make these one card — it holds together on phones"
 - "Manage categories ↗"
+- "Manage posts ↗"
 - "Manage products"
 - "Manage products ↗"
 - "Manage this menu — reorder, nest, swap menus"
@@ -1110,6 +1132,7 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "The gogh build this tab is running"
 - "The header rides along as visitors scroll"
 - "Theme default"
+- "Tidy up"
 - "Try another"
 - "UPPERCASE"
 - "Undo"
@@ -1118,12 +1141,14 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "Updates every page"
 - "Upload a self-contained HTML experience — it runs sandboxed"
 - "Upload an .html file instead"
+- "Use it"
 - "Use this design"
 - "Use this layout"
 - "Video"
 - "Where this item shows"
 - "Which take of this design is on the page"
 - "Write"
+- "Write a post ↗"
 - "Your latest posts, live"
 - "Your latest products, live — prices and add to cart included"
 - "ag"
@@ -1180,6 +1205,7 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "Mobile menu: "
 - "Name size saved."
 - "Nothing to rearrange yet — add a couple of pieces first."
+- "One card now — it holds together on phones. Click it for a background."
 - "Out of the card — it’s its own piece again."
 - "Publish failed: "
 - "Publish your changes first — changing the page style reloads the page."
@@ -1194,6 +1220,7 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "Style copied — click other text to paint it. Esc finishes."
 - "That saved section can’t be read."
 - "That section can’t move past other stored content yet."
+- "That upload failed — try again, or paste a link."
 - "That’s gogh. Everything else is just more of this."
 - "The backup could not be read."
 - "The description could not be saved — try again."
@@ -1235,4 +1262,4 @@ These are the real strings in the current build. Use them verbatim; never paraph
 
 ## Test suite
 
-`236` tests, run by appending `?gogh-test` to any Gogh page URL while logged in with edit rights on that page.
+`281` tests, run by appending `?gogh-test` to any Gogh page URL while logged in with edit rights on that page.
