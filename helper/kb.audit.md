@@ -1,4 +1,4 @@
-# Knowledge-base audit — plugin v0.99.489
+# Knowledge-base audit — plugin v0.99.490
 
 _13 finding(s) suppressed by `kb.audit-ignore.txt`._
 
@@ -108,4 +108,6 @@ The source has something the prose never explains. The bot knows the name from t
 
 Use this as the checklist for updating the prose — and as a sanity check on the release itself.
 
-- version: 0.99.488 → 0.99.489
+- version: 0.99.489 → 0.99.490
+- added UI label: "Add a picture or video"
+- added toast: "That upload failed — try again, or paste a link."

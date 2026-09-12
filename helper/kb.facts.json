@@ -1,12 +1,12 @@
 {
   "meta": {
-    "plugin_version": "0.99.489",
+    "plugin_version": "0.99.490",
     "requires_wp": "6.5",
     "requires_php": "7.4",
     "text_domain": "gogh-editor",
     "readme_stable_tag": "0.26.0",
     "readme_tested_up_to": "7.0",
-    "asset_version": "0.99.489-chrome"
+    "asset_version": "0.99.490-chrome"
   },
   "constants": {
     "TOL": 8,
@@ -439,6 +439,7 @@
     "Add",
     "Add a category ↗",
     "Add a page to this menu",
+    "Add a picture or video",
     "Add a product ↗",
     "Add link",
     "Add something to this section",
@@ -670,6 +671,7 @@
     "Style copied — click other text to paint it. Esc finishes.",
     "That saved section can’t be read.",
     "That section can’t move past other stored content yet.",
+    "That upload failed — try again, or paste a link.",
     "That’s gogh. Everything else is just more of this.",
     "The backup could not be read.",
     "The description could not be saved — try again.",
@@ -1316,5 +1318,5 @@
     "has_deprecation": true,
     "block_title": "gogh Section"
   },
-  "test_count": 276
+  "test_count": 277
 }
