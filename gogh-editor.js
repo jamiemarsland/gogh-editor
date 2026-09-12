@@ -2468,13 +2468,6 @@
   ];
   var selBox = document.createElement('div');
   selBox.className = 'gogh-selbox';
-  // A rectangle full of pieces reads as a card on sight. A circle does not,
-  // so once a shape holds things nothing tells you it became one. The tag
-  // names the selection, and it earns its keep most on the shapes.
-  var selTag = document.createElement('span');
-  selTag.className = 'gogh-selbox-tag';
-  selTag.hidden = true;
-  selBox.appendChild(selTag);
   DIRS.forEach(function (dir) {
     var h = document.createElement('button');
     h.type = 'button';
@@ -3208,9 +3201,6 @@
     selBox.style.height = bh + 'px';
     selBox.style.transform = e.rot ? 'rotate(' + e.rot + 'deg)' : '';
     selBox.classList.toggle('gogh-selbox-text', isText(e));
-    var cardSel = e.type === 'box' && e.kids && e.kids.length;
-    selTag.textContent = cardSel ? 'Card' : '';
-    selTag.hidden = !cardSel;
     selBox.hidden = false;
     grip.style.left = (bx - 26) + 'px';
     grip.style.top = (byy - 26) + 'px';
@@ -12967,9 +12957,12 @@
       });
     }
     // ONE upload for the one backdrop. The tile lives inside the shelf,
-    // which is rebuilt when the library answers, so the listener is
-    // delegated — a direct one would be thrown away with the old tile.
-    panel.addEventListener('change', function (ev) {
+    // which is refilled when the library answers, so the listener is
+    // delegated to the shelf ITSELF — a direct one would be thrown away
+    // with the old tile. And it is the shelf, not `panel`: panel lives for
+    // the whole session and is only ever refilled, so a listener put on it
+    // here would stack up once per open until one file pick uploaded N times.
+    panel.querySelector('.gogh-media').addEventListener('change', function (ev) {
       var inp = ev.target;
       if (!inp || !inp.matches || !inp.matches('.gogh-upload input[type="file"]')) return;
       if (!inp.files.length) return;

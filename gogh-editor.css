@@ -732,24 +732,6 @@ body.gogh-help-open .gogh-toasts { right: 416px; }
   transform-origin: 50% 50%;
 }
 .gogh-selbox[hidden] { display: none; }
-/* names the selection when it is a card — a circle holding things gives no
-   other sign that it became one */
-.gogh-selbox-tag {
-  position: absolute;
-  left: -1px;
-  bottom: 100%;
-  margin-bottom: 5px;
-  padding: 3px 9px;
-  border-radius: 999px;
-  background: #4a63d8;
-  color: #fff;
-  font: 700 11px/1.4 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  letter-spacing: 0.01em;
-  white-space: nowrap;
-  pointer-events: none;
-  box-shadow: 0 2px 6px -1px rgba(20, 22, 28, 0.35);
-}
-.gogh-selbox-tag[hidden] { display: none; }
 .gogh-h {
   all: unset;
   position: absolute;

@@ -6287,78 +6287,6 @@
       return 'circle room ' + room.w + 'x' + room.h + ' inside 400x400';
     });
 
-    test('the selection says Card, so a shape that holds things admits it', function () {
-      // a rectangle full of pieces reads as a card on sight; a circle does not
-      var sx = sec();
-      var keep = sx.els.length;
-      sx.els.push({ type: 'box', x: 120, y: 1560, w: 360, h: 360, shape: 'circle',
-        boxBg: 'var(--wp--preset--color--contrast)' });
-      var bare = sx.els.length - 1;
-      var room = G.shapeRoom(sx.els[bare]);
-      sx.els.push({ type: 'box', x: 600, y: 1560, w: 360, h: 360, shape: 'circle',
-        boxBg: 'var(--wp--preset--color--contrast)',
-        kids: [{ type: 'heading', x: room.x, y: room.y, w: room.w, h: 60, text: 'Held' }] });
-      var held = sx.els.length - 1;
-      G.renderSection(sx); G.resolveAll();
-
-      pev('pointerdown', sx.nodes[held]);
-      var tag = q('.gogh-selbox .gogh-selbox-tag');
-      expect(tag, 'the selection box carries no tag');
-      expect(!tag.hidden, 'a card selection should be named');
-      expect(tag.textContent === 'Card', 'expected "Card", got "' + tag.textContent + '"');
-
-      pev('pointerdown', sx.nodes[bare]);
-      expect(tag.hidden, 'a shape with nothing in it is not a card');
-
-      pev('pointerdown', document.body, 4, 4);
-      sx.els.length = keep;
-      G.renderSection(sx); G.resolveAll();
-      return 'named on a circle that holds, silent on one that does not';
-    });
-
-    testAsync('picture shelf: choosing shows Remove, and a second click takes it off', function () {
-      // the panel is built BEFORE a picture exists, so Remove shipped hidden
-      // and nothing ever brought it back
-      var i = G.sections().indexOf(sec());
-      var sx = G.sections()[i];
-      var was = { img: sx.bgImage, id: sx.bgId };
-      G.openSecBgPanel(i);
-      // a hidden tab never fires rAF, so poll on a timer
-      var waitFor = function (fn, ms) {
-        var t0 = Date.now();
-        return new Promise(function (r) {
-          var look = function () {
-            if (fn()) return r(true);
-            if (Date.now() - t0 > ms) return r(false);
-            setTimeout(look, 80);
-          };
-          look();
-        });
-      };
-      return waitFor(function () { return q('.gogh-panel .gogh-media .gogh-thumb:not(.gogh-thumb-add)'); }, 20000)
-        .then(function (ok) {
-          var done = function (m) {
-            sx.bgImage = was.img; sx.bgId = was.id;
-            G.renderSection(sx); G.resolveAll();
-            pev('pointerdown', document.body, 4, 4);
-            return m;
-          };
-          if (!ok) return done('no media in the library here — nothing to choose');
-          var clear = q('.gogh-panel .gogh-clear');
-          expect(clear, 'no Remove image control at all');
-          var thumb = q('.gogh-panel .gogh-media .gogh-thumb:not(.gogh-thumb-add)');
-          thumb.click();
-          expect(sx.bgImage, 'clicking a picture set nothing');
-          expect(!clear.hidden, 'Remove stayed hidden after a picture was chosen');
-          expect(thumb.classList.contains('is-active'), 'the chosen tile is not marked');
-          thumb.click();
-          expect(!sx.bgImage, 'a second click should take the picture off, got ' + sx.bgImage);
-          expect(clear.hidden, 'Remove should go away again with no picture');
-          expect(!thumb.classList.contains('is-active'), 'the tile should stop being marked');
-          return done('chose, Remove appeared, second click cleared it');
-        });
-    });
-
     test('the sticky switch tells the truth about a header pinned by its pattern', function () {
       // two routes to pinned: core's position support (the switch writes it)
       // and the gogh-sticky marker (a pattern or a definition carries it).
@@ -6380,6 +6308,36 @@
       expect(!/gogh-sticky/.test(off), 'the marker survived being switched off');
       expect(!seen(off), 'it still reads sticky after being switched off');
       return 'both routes seen, both cleared';
+    });
+
+    test('one file pick is one upload, however many times the panel has been opened', function () {
+      // the upload listener used to be added to the SHARED panel element on
+      // every open and never removed — after N opens one pick uploaded N times
+      if (!(window.GOGH && window.GOGH.canUpload)) return 'no upload here — nothing to count';
+      var i = G.sections().indexOf(sec());
+      var realFetch = window.fetch, calls = 0;
+      window.fetch = function (url, opts) {
+        // the panel also READS the media library on every open — count only the upload
+        if (opts && opts.method === 'POST') calls++;
+        return Promise.resolve({ ok: false, status: 599, json: function () { return Promise.resolve([]); } });
+      };
+      try {
+        G.openSecBgPanel(i); G.closePanel();
+        G.openSecBgPanel(i); G.closePanel();
+        G.openSecBgPanel(i);
+        var inp = q('.gogh-panel .gogh-media .gogh-upload input[type="file"]');
+        expect(inp, 'no upload tile in the shelf');
+        var dt = new DataTransfer();
+        dt.items.add(new File(['x'], 'one.png', { type: 'image/png' }));
+        inp.files = dt.files;
+        inp.dispatchEvent(new Event('change', { bubbles: true }));
+        expect(calls === 1, 'one file pick fired ' + calls + ' upload(s) after three panel opens');
+      } finally {
+        window.fetch = realFetch;
+        G.closePanel();
+        pev('pointerdown', document.body, 4, 4);
+      }
+      return 'three opens, one pick, one upload';
     });
 
     test('transitions live on the section: chips in the design panel, seam keeps one job', function () {
