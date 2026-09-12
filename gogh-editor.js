@@ -2468,6 +2468,13 @@
   ];
   var selBox = document.createElement('div');
   selBox.className = 'gogh-selbox';
+  // A rectangle full of pieces reads as a card on sight. A circle does not,
+  // so once a shape holds things nothing tells you it became one. The tag
+  // names the selection, and it earns its keep most on the shapes.
+  var selTag = document.createElement('span');
+  selTag.className = 'gogh-selbox-tag';
+  selTag.hidden = true;
+  selBox.appendChild(selTag);
   DIRS.forEach(function (dir) {
     var h = document.createElement('button');
     h.type = 'button';
@@ -3201,6 +3208,9 @@
     selBox.style.height = bh + 'px';
     selBox.style.transform = e.rot ? 'rotate(' + e.rot + 'deg)' : '';
     selBox.classList.toggle('gogh-selbox-text', isText(e));
+    var cardSel = e.type === 'box' && e.kids && e.kids.length;
+    selTag.textContent = cardSel ? 'Card' : '';
+    selTag.hidden = !cardSel;
     selBox.hidden = false;
     grip.style.left = (bx - 26) + 'px';
     grip.style.top = (byy - 26) + 'px';
@@ -12556,7 +12566,17 @@
     syncBootInvite(S[idx]);
     resolveAll();
     // the panel STAYS open — picking an image is an audition, not a
-    // dismissal; people flick between backgrounds while deciding
+    // dismissal; people flick between backgrounds while deciding.
+    // Which is exactly why the panel has to follow: it is built before a
+    // picture exists, so Remove shipped hidden and never came back
+    // ("i cant see a way to deselect, or have no image, after selecting one")
+    var cl = panel.querySelector('.gogh-clear');
+    if (cl) cl.hidden = !S[idx].bgImage;
+    panel.querySelectorAll('.gogh-media .gogh-thumb').forEach(function (o) {
+      if (!o.classList.contains('gogh-thumb-add')) {
+        o.classList.toggle('is-active', !!S[idx].bgImage && o.dataset.src === S[idx].bgImage);
+      }
+    });
     pushState();
     contrastSentinel(S[idx]);
   }
@@ -13002,6 +13022,7 @@
           var b = document.createElement('button');
           b.type = 'button';
           b.className = 'gogh-thumb' + (S[idx].bgImage === item.source_url ? ' is-active' : '');
+          b.title = 'Use this picture \u2014 click it again to take it off';
           b.style.backgroundImage = 'url("' + (thumb ? thumb.source_url : item.source_url) + '")';
           // hover auditions the whole backdrop; leaving takes it back
           auditionHover(b, function () {
@@ -13011,13 +13032,14 @@
             S[idx].bgImage = bgCur.img;
             resolveAndApply(S[idx]);
           });
+          b.dataset.src = item.source_url;
           b.addEventListener('click', function () {
             S[idx].bgImage = bgCur.img; // undo lands on the true before
-            bgCur.img = item.source_url;
-            setSecBg(idx, item.source_url, item.id);
-            box.querySelectorAll('.gogh-thumb').forEach(function (o) {
-              o.classList.toggle('is-active', o === b);
-            });
+            // clicking the one you already chose takes it off again — the
+            // gesture people reach for before they look for a button
+            var off = bgCur.img === item.source_url;
+            bgCur.img = off ? null : item.source_url;
+            setSecBg(idx, off ? null : item.source_url, off ? null : item.id);
           });
           box.appendChild(b);
         });
