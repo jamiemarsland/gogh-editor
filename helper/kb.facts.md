@@ -4,11 +4,11 @@ Everything in this section is extracted mechanically from the Gogh source on eve
 
 ## Current release
 
-- Plugin version: **0.99.489**
+- Plugin version: **0.99.490**
 - Requires WordPress **6.5+**, PHP **7.4+**
 - Text domain: `gogh-editor`
 - readme.txt Stable tag: `0.26.0` · Tested up to: `7.0`
-- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.489`). Quote the plugin header version.
+- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.490`). Quote the plugin header version.
 
 ## Design constants
 
@@ -208,6 +208,7 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "Add"
 - "Add a category ↗"
 - "Add a page to this menu"
+- "Add a picture or video"
 - "Add a product ↗"
 - "Add link"
 - "Add something to this section"
@@ -440,6 +441,7 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "Style copied — click other text to paint it. Esc finishes."
 - "That saved section can’t be read."
 - "That section can’t move past other stored content yet."
+- "That upload failed — try again, or paste a link."
 - "That’s gogh. Everything else is just more of this."
 - "The backup could not be read."
 - "The description could not be saved — try again."
@@ -481,5 +483,5 @@ These are the real strings in the current build. Use them verbatim; never paraph
 
 ## Test suite
 
-`276` tests, run by appending `?gogh-test` to any Gogh page URL while logged in with edit rights on that page.
+`277` tests, run by appending `?gogh-test` to any Gogh page URL while logged in with edit rights on that page.
 
