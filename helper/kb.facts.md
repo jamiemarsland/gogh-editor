@@ -4,11 +4,11 @@ Everything in this section is extracted mechanically from the Gogh source on eve
 
 ## Current release
 
-- Plugin version: **0.99.500**
+- Plugin version: **0.99.501**
 - Requires WordPress **6.5+**, PHP **7.4+**
 - Text domain: `gogh-editor`
 - readme.txt Stable tag: `0.26.0` · Tested up to: `7.0`
-- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.500`). Quote the plugin header version.
+- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.501`). Quote the plugin header version.
 
 ## Design constants
 
@@ -47,9 +47,9 @@ Divider shapes (plus "None"): `curve` (Curve), `sweep` (Sweep), `dunes` (Dunes),
 
 ## Elements
 
-Element types that survive a publish: `heading`, `para`, `button`, `image`, `video`, `badge`, `box`, `widget`, `exp`. Anything else added from the block editor is lost on the next Gogh publish.
+Element types that survive a publish: `heading`, `para`, `button`, `image`, `video`, `embed`, `icon`, `rule`, `badge`, `box`, `widget`, `exp`. Anything else added from the block editor is lost on the next Gogh publish.
 
-"Add element" palette items: `badge`, `button`, `card`, `exp`, `form`, `heading`, `image`, `para`, `posts`, `products`, `video`, `write`.
+"Add element" palette items: `badge`, `button`, `card`, `embed`, `exp`, `form`, `heading`, `icon`, `image`, `list`, `para`, `posts`, `products`, `rule`, `video`, `write`.
 
 ## WebMCP tools
 
@@ -195,6 +195,7 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "' + escAttr(t.name) + '"
 - "' + hp[1] + ' — ' + hp[2] + ' units"
 - "' + m[2] + '"
+- "' + nm.replace(/-/g, ' ') + '"
 - "' + p.slug + '"
 - "' + sh.label + '"
 - "' + whereTip(it.where !== 'desktop', 'phone') + '"
@@ -202,6 +203,7 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "+ Link"
 - "+ Page"
 - "A card — drop pieces inside and they stay together, even on mobile"
+- "A line — a thin rule between things"
 - "A video — upload one, or paste a YouTube or Vimeo link"
 - "AG"
 - "Aa"
@@ -215,6 +217,7 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "Add to page"
 - "Adjust spacing"
 - "All options"
+- "An icon — a simple line drawing in your text colour"
 - "Any colour"
 - "Apply"
 - "As typed"
@@ -225,6 +228,8 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "Bold"
 - "Bring forward"
 - "Browse them all →"
+- "Bullet points — a text piece wearing bullets"
+- "Bullets"
 - "Button"
 - "Cancel"
 - "Card"
@@ -249,6 +254,8 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "Duplicate"
 - "Duplicate (or Alt-drag)"
 - "Duplicate the selection"
+- "Embed"
+- "Embed a link — a map, a post, a playlist, anything WordPress can show"
 - "Equal gaps left to right"
 - "Equal gaps top to bottom"
 - "Even gaps"
@@ -268,6 +275,7 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "Help — ask gogh anything"
 - "Home"
 - "How Google and AI read this page"
+- "Icon"
 - "Image"
 - "Imagine"
 - "Italic"
@@ -278,6 +286,7 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "Keeps your changes on every page"
 - "Left"
 - "Light"
+- "Line"
 - "Line the pieces up, or even out the gaps"
 - "Line the row up and even the gaps"
 - "Line up ' + a[1].toLowerCase() + '"
@@ -285,6 +294,7 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "Line up ▾"
 - "Link"
 - "Link text (⌘K)"
+- "List"
 - "Make a card"
 - "Make it freeform"
 - "Make these one card — it holds together on phones"
@@ -310,6 +320,7 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "On sale"
 - "One product, hero-sized — a card with a real add-to-cart button"
 - "Open interactive experience"
+- "Open the map"
 - "Open your products in WordPress"
 - "Our story"
 - "Outline"
@@ -341,6 +352,7 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "See all →"
 - "Send backward"
 - "Shape"
+- "Show"
 - "Show the next layout"
 - "Six looks derived from your brand — hover to wear one, tap Remix again for six more"
 - "Solid"
@@ -485,5 +497,5 @@ These are the real strings in the current build. Use them verbatim; never paraph
 
 ## Test suite
 
-`283` tests, run by appending `?gogh-test` to any Gogh page URL while logged in with edit rights on that page.
+`287` tests, run by appending `?gogh-test` to any Gogh page URL while logged in with edit rights on that page.
 
