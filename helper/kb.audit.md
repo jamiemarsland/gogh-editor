@@ -1,8 +1,8 @@
-# Knowledge-base audit — plugin v0.99.500
+# Knowledge-base audit — plugin v0.99.501
 
 _13 finding(s) suppressed by `kb.audit-ignore.txt`._
 
-## MISSING (97)
+## MISSING (98)
 
 The source has something the prose never explains. The bot knows the name from the appendix but cannot say what it is for.
 
@@ -103,12 +103,25 @@ The source has something the prose never explains. The bot knows the name from t
 - divider `dunes` exists in source but is never mentioned in the prose
 - divider `mist` exists in source but is never mentioned in the prose
 - element type `video` exists in source but is never mentioned in the prose
+- element type `embed` exists in source but is never mentioned in the prose
 
 ## What changed since the last knowledge-base build
 
 Use this as the checklist for updating the prose — and as a sanity check on the release itself.
 
-- version: 0.99.499 → 0.99.500
-- added toast: "Section deleted."
-- added toast: "That is the only section on the page. Add another before deleting it."
-- added toast: "The header and footer stay — edit them instead."
+- version: 0.99.500 → 0.99.501
+- added element type: "embed"
+- added element type: "icon"
+- added element type: "rule"
+- added UI label: "' + nm.replace(/-/g, ' ') + '"
+- added UI label: "A line — a thin rule between things"
+- added UI label: "An icon — a simple line drawing in your text colour"
+- added UI label: "Bullet points — a text piece wearing bullets"
+- added UI label: "Bullets"
+- added UI label: "Embed"
+- added UI label: "Embed a link — a map, a post, a playlist, anything WordPress can show"
+- added UI label: "Icon"
+- added UI label: "Line"
+- added UI label: "List"
+- added UI label: "Open the map"
+- added UI label: "Show"
