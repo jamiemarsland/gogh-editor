@@ -5805,6 +5805,34 @@
       expect(free.some(function (c) { return c.colors.background.toLowerCase() !== now.background.toLowerCase(); }), 'with the locks off the ground should spin again');
     });
 
+    test('remix: a look is whole — size, section rhythm, hero edge — and the rhythm can be worn and taken off', function () {
+      var cands = G.remixCandidates();
+      cands.forEach(function (c) {
+        expect([90, 100, 110, 120].indexOf(c.scale) !== -1, c.name + ' has no type size: ' + c.scale);
+        expect(/^(plain|dark-hero|bookends|alternate|accent-hero)$/.test(c.rhythm), c.name + ' has no rhythm: ' + c.rhythm);
+        expect(c.divider === null || /^(sweep|dunes|arch|sheet)$/.test(c.divider), c.name + ' has an unknown edge: ' + c.divider);
+        expect(typeof c.detail === 'string' && / type, /.test(c.detail), c.name + ' should describe the rest of the look: ' + c.detail);
+      });
+      expect(G.remixRhythmPlan('dark-hero', 3).join(',') === 'ink,paper,paper', 'dark-hero plan wrong');
+      expect(G.remixRhythmPlan('bookends', 4).join(',') === 'ink,paper,paper,ink', 'bookends plan wrong');
+      expect(G.remixRhythmPlan('alternate', 4).join(',') === 'paper,mist,paper,mist', 'alternate plan wrong');
+      expect(G.remixRhythmPlan('accent-hero', 2).join(',') === 'accent-soft,paper', 'accent-hero plan wrong');
+      // wear a dark opening on this page, then put the page back exactly
+      var first = G.sections().filter(function (x) { return !x.chrome; })[0];
+      var before = { theme: first.theme || null, bg: first.bg || null, divider: JSON.stringify(first.divider || null), colors: first.els.map(function (e) { return e.color || null; }).join(',') };
+      var snaps = G.remixPaintRhythm({ rhythm: 'dark-hero', divider: 'sweep', fx: null, colors: {}, scale: 100 });
+      expect(first.theme === 'ink', 'the opening did not go dark: ' + first.theme);
+      expect(first.divider && first.divider.shape === 'sweep', 'the hero did not take the edge');
+      G.remixRestoreRhythm(snaps);
+      var after = { theme: first.theme || null, bg: first.bg || null, divider: JSON.stringify(first.divider || null), colors: first.els.map(function (e) { return e.color || null; }).join(',') };
+      expect(JSON.stringify(after) === JSON.stringify(before), 'restore did not put the page back: ' + JSON.stringify(after) + ' vs ' + JSON.stringify(before));
+      var now = G.currentLook();
+      G.remixLocks({ scale: true, rhythm: true });
+      var locked = G.remixCandidates();
+      expect(locked.every(function (c) { return c.scale === now.scale && c.rhythm === now.rhythm; }), 'locked size or sections moved');
+      G.remixLocks({});
+    });
+
     testAsync('remix: keep puts a look on the shelf, keep again takes it off', function () {
       var cand = G.remixCandidates()[0];
       var n0 = G.remixKept().length;

@@ -4094,3 +4094,14 @@ html.gogh-building .gogh-inserter, html.gogh-building .gogh-side { display: none
 .gogh-remixpin.is-on { opacity: 1; color: #e0a020; }
 .gogh-remixcard.is-kept .gogh-remixpin { font-size: 11px; }
 .gogh-remixkept:not(:empty) { margin-top: 10px; padding-top: 8px; border-top: 1px solid var(--gogh-ui-border); display: flex; flex-direction: column; gap: 4px; }
+
+/* Remix cards: the page's own opening, worn in the look */
+.gogh-remixcard .gogh-remixwear { flex-direction: column; align-items: stretch; gap: 6px; padding: 6px; }
+.gogh-remixmini { display: block; position: relative; border-radius: 7px; padding: 10px 10px 12px; min-height: 58px; border: 1px solid rgba(0, 0, 0, 0.08); overflow: hidden; }
+.gogh-remixmini-h { display: block; font-weight: 600; line-height: 1.15; letter-spacing: -0.01em; margin-bottom: 7px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding-right: 22px; }
+.gogh-remixmini-b { display: inline-block; font: 600 8.5px/1 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; padding: 4px 8px; border-radius: 999px; }
+.gogh-remixmini-rhythm { position: absolute; right: 7px; top: 7px; display: grid; grid-template-columns: 1fr; gap: 1px; width: 10px; }
+.gogh-remixmini-rhythm i { display: block; height: 6px; border-radius: 1px; border: 1px solid rgba(0, 0, 0, 0.12); }
+.gogh-remixwords { display: block; padding: 0 2px; }
+.gogh-remixwords .gogh-varname { margin-left: 0; display: block; }
+.gogh-remixdetail { display: block; font-weight: 500; font-size: 11px; opacity: 0.6; margin-top: 1px; }

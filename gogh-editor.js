@@ -15128,6 +15128,17 @@
     { key: 'neutral', mult: 0.5 },
     { key: 'tinted', mult: 1.6 },
   ];
+  // the other dials a look turns: how big the type runs, which sections wear
+  // the dark or tinted theme, the edge under the hero, a texture on it
+  var REMIX_SCALES = [[90, 'snug'], [100, 'regular'], [110, 'airy'], [120, 'grand']];
+  var REMIX_RHYTHMS = [
+    { key: 'plain', say: 'all on one ground' },
+    { key: 'dark-hero', say: 'a dark opening' },
+    { key: 'bookends', say: 'dark at both ends' },
+    { key: 'alternate', say: 'every other section tinted' },
+    { key: 'accent-hero', say: 'an accent-washed opening' },
+  ];
+  var REMIX_DIVIDERS = [null, null, 'sweep', 'dunes', 'arch', 'sheet'];
   var remixShown = {};   // keys shown this session — a fresh tap draws from the rest
   var remixLocks = {};   // { ground, ink, accent, fonts } → true pins the slot
   // the look being worn now: the brand when one is set, else the theme's own
@@ -15137,13 +15148,118 @@
     var cur = themePalette();
     var val = function (slug) { var p = cur.filter(function (x) { return x.slug === slug; })[0]; return p && p.value; };
     var acc = cur.filter(function (p) { return /accent|primary|secondary/.test(p.slug); }).map(function (p) { return p.value; });
+    var content = S.filter(function (x) { return !x.chrome; });
+    var first = content[0], last = content[content.length - 1];
+    var rhythm = 'plain';
+    if (first && first.theme === 'ink' && last && last !== first && last.theme === 'ink') rhythm = 'bookends';
+    else if (first && first.theme === 'ink') rhythm = 'dark-hero';
+    else if (first && /-soft$/.test(first.theme || '')) rhythm = 'accent-hero';
+    else if (content.some(function (x, k) { return k % 2 === 1 && x.theme === 'mist'; })) rhythm = 'alternate';
     return {
       background: (b && b.background) || val(roles.bgSlug) || '#ffffff',
       text: (b && b.text) || val(roles.textSlug) || '#111111',
       accent: (b && b.accent) || acc[0] || val(roles.textSlug) || '#3355ff',
       accent2: (b && b.accent2) || acc[1] || null,
       fonts: (cfg.brand && cfg.brand.fonts) || null,
+      scale: cfg.typeScale || 100,
+      rhythm: rhythm,
+      divider: first && first.divider && first.divider.shape ? first.divider.shape : null,
+      fx: first && first.fx && first.fx.bg === 'grain' ? 'grain' : null,
     };
+  }
+  // which theme each content section wears under a rhythm
+  function remixRhythmPlan(rhythm, n) {
+    var out = [];
+    for (var k = 0; k < n; k++) {
+      var t = 'paper';
+      if (rhythm === 'dark-hero') t = k === 0 ? 'ink' : 'paper';
+      else if (rhythm === 'bookends') t = (k === 0 || (k === n - 1 && n > 1)) ? 'ink' : 'paper';
+      else if (rhythm === 'alternate') t = k % 2 === 1 ? 'mist' : 'paper';
+      else if (rhythm === 'accent-hero') t = k === 0 ? 'accent-soft' : 'paper';
+      out.push(t);
+    }
+    return out;
+  }
+  // paint a look's sections; returns what they wore so a hover can put it back
+  function remixPaintRhythm(cand) {
+    var themes = sectionThemes();
+    var by = {};
+    themes.forEach(function (t) { by[t.slug] = t; });
+    var soft = themes.filter(function (t) { return /-soft$/.test(t.slug); })[0] || by.mist || by.paper;
+    var content = S.filter(function (x) { return !x.chrome; });
+    var plan = remixRhythmPlan(cand.rhythm || 'plain', content.length);
+    var snaps = content.map(function (secx, k) {
+      var snap = snapSectionLook(secx);
+      snap.divider = secx.divider ? JSON.parse(JSON.stringify(secx.divider)) : null;
+      snap.fx = secx.fx ? JSON.parse(JSON.stringify(secx.fx)) : null;
+      var want = plan[k] === 'accent-soft' ? soft : by[plan[k]];
+      // a section wearing a picture keeps it: the theme only re-inks the words
+      if (want && secx.theme !== want.slug) paintSectionTheme(secx, want);
+      if (k === 0) {
+        secx.divider = cand.divider ? { shape: cand.divider } : null;
+        if (cand.fx === 'grain') { secx.fx = secx.fx || {}; secx.fx.bg = 'grain'; }
+        else if (secx.fx && secx.fx.bg === 'grain') { delete secx.fx.bg; if (!Object.keys(secx.fx).length) secx.fx = null; }
+      }
+      return snap;
+    });
+    resolveAll();
+    return snaps;
+  }
+  function remixRestoreRhythm(snaps) {
+    var content = S.filter(function (x) { return !x.chrome; });
+    snaps.forEach(function (snap, k) {
+      var secx = content[k];
+      if (!secx) return;
+      restoreSectionLook(secx, snap);
+      secx.divider = snap.divider;
+      secx.fx = snap.fx;
+    });
+    resolveAll();
+  }
+  // the type scale, previewed the way the Site style dial does it: preset
+  // sizes in px relative to the theme's own scale, gone on leave
+  var remixScaleStyle = null;
+  function remixScalePreview(factor) {
+    if (remixScaleStyle) { remixScaleStyle.remove(); remixScaleStyle = null; }
+    if (!factor || factor === (cfg.typeScale || 100)) return;
+    var baseline = (cfg.typeScale || 100) / 100;
+    var rules = fontSizes().map(function (f) {
+      var px = f.px / baseline * (factor / 100);
+      return '--wp--preset--font-size--' + f.slug + ': ' + (Math.round(px * 100) / 100) + 'px;';
+    });
+    if (!rules.length) return;
+    remixScaleStyle = document.createElement('style');
+    remixScaleStyle.textContent = ':root, body { ' + rules.join(' ') + ' }';
+    document.head.appendChild(remixScaleStyle);
+  }
+  // hover: wear the whole look; leave: everything back
+  var remixAudition = null;
+  function remixAuditionOn(cand) {
+    remixAuditionOff();
+    var v = brandToVariation({ colors: cand.colors, fonts: cand.fonts || null });
+    auditionVariation(v);
+    remixScalePreview(cand.scale);
+    remixAudition = { snaps: remixPaintRhythm(cand) };
+  }
+  function remixAuditionOff() {
+    clearVariationPreview();
+    remixScalePreview(null);
+    if (remixAudition) { remixRestoreRhythm(remixAudition.snaps); remixAudition = null; }
+  }
+  // keep: the palette and fonts as a style, the scale as the site's, the
+  // sections as this page's (one undo step)
+  function remixWear(cand, btn) {
+    remixAuditionOff();
+    var v = brandToVariation({ colors: cand.colors, fonts: cand.fonts || null });
+    v.title = 'Remix \u00b7 ' + cand.name;
+    return applyVariation(v, btn).then(function () {
+      if (cand.scale && cand.scale !== (cfg.typeScale || 100)) return applyTypeScale(cand.scale);
+    }).then(function () {
+      pushState();
+      remixPaintRhythm(cand);
+      S.forEach(function (secx) { if (!secx.chrome) contrastSentinel(secx); });
+      pushState();
+    });
   }
   function remixFontPairs() {
     var fams = fontCatalogue().map(function (f2) { return f2.slug; });
@@ -15164,6 +15280,10 @@
     var build = function () {
       var g = pick(REMIX_GROUNDS), r = pick(REMIX_RELATIONS), v = pick(REMIX_VOLUMES), ink = pick(REMIX_INKS);
       var pair = pairs.length ? pick(pairs) : null;
+      var scale = remixLocks.scale ? (now.scale || 100) : pick(REMIX_SCALES)[0];
+      var rhythm = remixLocks.rhythm ? now.rhythm : pick(REMIX_RHYTHMS).key;
+      var divider = remixLocks.rhythm ? now.divider : pick(REMIX_DIVIDERS);
+      var fx = remixLocks.rhythm ? now.fx : (Math.random() < 0.25 ? 'grain' : null);
       var bg, tx, ac;
       if (remixLocks.ground) { bg = now.background; g = { key: 'kept', say: 'your ground', dark: nowGround ? nowGround.l < 0.5 : false, ink: nowGround && nowGround.l < 0.5 ? [0.08, 0.93] : [0.3, 0.13] }; }
       else bg = hslToHex(A.h + j(10), g.s, g.l);
@@ -15175,12 +15295,19 @@
       // the gate: only what is not locked may move to become legible
       if (!remixLocks.ink) tx = ensureContrast(tx, bg, 7);
       if (!remixLocks.accent) ac = ensureContrast(ac, bg, 3);
-      var key = [g.key, ink.key, r.key, v.key, pair ? pair.heading + '/' + pair.body : '-'].join('|');
+      var key = [g.key, ink.key, r.key, v.key, pair ? pair.heading + '/' + pair.body : '-', scale, rhythm, divider || '-', fx || '-'].join('|');
+      var rhythmSay = (REMIX_RHYTHMS.filter(function (x) { return x.key === rhythm; })[0] || REMIX_RHYTHMS[0]).say;
+      var scaleSay = (REMIX_SCALES.filter(function (x) { return x[0] === scale; })[0] || [100, 'regular'])[1];
       return {
         key: key,
         name: r.say + v.say + ' on ' + g.say,
+        detail: scaleSay + ' type, ' + rhythmSay + (divider ? ', a ' + divider + ' edge' : '') + (fx === 'grain' ? ', grain' : ''),
         colors: { background: bg, text: tx, accent: ac, accent2: ac },
         fonts: pair,
+        scale: scale,
+        rhythm: rhythm,
+        divider: divider,
+        fx: fx,
         parts: { ground: g.key, relation: r.key, volume: v.key },
       };
     };
@@ -15218,7 +15345,7 @@
     list.forEach(function (x, n) { if (remixKeyOf(x) === k) at = n; });
     if (at !== -1) list.splice(at, 1);
     else {
-      list.unshift({ name: c.name, colors: c.colors, fonts: c.fonts || null });
+      list.unshift({ name: c.name, detail: c.detail || '', colors: c.colors, fonts: c.fonts || null, scale: c.scale || 100, rhythm: c.rhythm || 'plain', divider: c.divider || null, fx: c.fx || null });
       if (list.length > 8) list.length = 8; // a shelf, not an archive
     }
     return remixSaveKept(persist).then(function () { return at === -1; });
@@ -15713,22 +15840,43 @@
         var locksBox = wrap.querySelector('.gogh-remixlocks');
         var keptBox = wrap.querySelector('.gogh-remixkept');
         var LOCK = '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>';
+        // the words of the page's own opening, worn in the look
+        var heroWords = function () {
+          var first = S.filter(function (x) { return !x.chrome; })[0];
+          var h = first && first.els.filter(function (e) { return e.type === 'heading' && String(e.text || '').trim(); })[0];
+          var b = first && first.els.filter(function (e) { return e.type === 'button' && String(e.text || '').trim(); })[0];
+          var strip = function (t) { var d = document.createElement('div'); d.innerHTML = String(t || ''); return (d.textContent || '').trim(); };
+          return { heading: (h ? strip(h.text) : 'Your heading').slice(0, 34), button: (b ? strip(b.text) : 'Button').slice(0, 16) };
+        };
         var cardFor = function (cand, opts) {
-          var v = brandToVariation({ colors: cand.colors, fonts: cand.fonts || null });
-          v.title = 'Remix · ' + cand.name;
           var cb = document.createElement('div');
           cb.className = 'gogh-remixcard' + (opts && opts.kept ? ' is-kept' : '');
+          var w = heroWords();
+          var plan = remixRhythmPlan(cand.rhythm || 'plain', 4);
+          var headPx = { 90: 12, 100: 13.5, 110: 15, 120: 17 }[cand.scale || 100] || 13.5;
+          var headFont = cand.fonts && cand.fonts.heading ? 'var(--wp--preset--font-family--' + cand.fonts.heading + ')' : 'inherit';
           cb.innerHTML = '<button type="button" class="gogh-varbtn gogh-remixwear" title="Wear this look">' +
-            ['background', 'text', 'accent'].map(function (k) {
-              return '<span class="gogh-vardot" style="background:' + escAttr(cand.colors[k]) + '"></span>';
-            }).join('') + '<span class="gogh-varname">' + esc(cand.name) + '</span></button>' +
+            '<span class="gogh-remixmini" style="background:' + escAttr(cand.colors.background) + ';color:' + escAttr(cand.colors.text) + '">' +
+              '<span class="gogh-remixmini-h" style="font-family:' + headFont + ';font-size:' + headPx + 'px">' + esc(w.heading) + '</span>' +
+              '<span class="gogh-remixmini-b" style="background:' + escAttr(cand.colors.accent) + ';color:' + escAttr(cand.colors.background) + '">' + esc(w.button) + '</span>' +
+              '<span class="gogh-remixmini-rhythm">' + plan.map(function (t) {
+                var col = t === 'ink' ? cand.colors.text : t === 'paper' ? cand.colors.background : 'color-mix(in srgb, ' + (t === 'accent-soft' ? cand.colors.accent : cand.colors.text) + ' 14%, ' + cand.colors.background + ')';
+                return '<i style="background:' + escAttr(col) + '"></i>';
+              }).join('') + '</span>' +
+            '</span>' +
+            '<span class="gogh-remixwords"><span class="gogh-varname">' + esc(cand.name) + '</span>' +
+            (cand.detail ? '<span class="gogh-remixdetail">' + esc(cand.detail) + '</span>' : '') + '</span></button>' +
             '<button type="button" class="gogh-remixpin' + (remixIsKept(cand) ? ' is-on' : '') + '" title="' + (opts && opts.kept ? 'Take it off the shelf' : 'Keep this look') + '">' + (opts && opts.kept ? '✕' : '★') + '</button>';
           var wear = cb.querySelector('.gogh-remixwear');
           wear.addEventListener('mouseenter', function () {
             clearTimeout(previewHoverT);
-            previewHoverT = setTimeout(function () { auditionVariation(v); }, 120);
+            previewHoverT = setTimeout(function () { remixAuditionOn(cand); }, 120);
           });
-          wear.addEventListener('click', function () { applyVariation(v, wear); });
+          wear.addEventListener('mouseleave', function () {
+            clearTimeout(previewHoverT);
+            remixAuditionOff();
+          });
+          wear.addEventListener('click', function () { remixWear(cand, wear); });
           cb.querySelector('.gogh-remixpin').addEventListener('click', function (ev) {
             ev.stopPropagation();
             remixKeep(cand).then(function () { drawKept(); syncPins(); });
@@ -15752,8 +15900,9 @@
           list.forEach(function (k) { keptBox.appendChild(cardFor(k, { kept: true })); });
         };
         var drawLocks = function () {
-          locksBox.innerHTML = [['ground', 'Ground'], ['ink', 'Ink'], ['accent', 'Accent'], ['fonts', 'Fonts']].map(function (l) {
-            return '<button type="button" class="gogh-remixlock' + (remixLocks[l[0]] ? ' is-on' : '') + '" data-lock="' + l[0] + '" aria-pressed="' + (remixLocks[l[0]] ? 'true' : 'false') + '" title="Keep the ' + l[1].toLowerCase() + ' you have; spin the rest">' + LOCK + l[1] + '</button>';
+          // the words the rest of gogh uses: Background and Text, not ground and ink
+          locksBox.innerHTML = [['ground', 'Background', 'background colour'], ['ink', 'Text', 'text colour'], ['accent', 'Accent', 'accent colour'], ['fonts', 'Fonts', 'fonts'], ['scale', 'Size', 'type size'], ['rhythm', 'Sections', 'section colours and edges']].map(function (l) {
+            return '<button type="button" class="gogh-remixlock' + (remixLocks[l[0]] ? ' is-on' : '') + '" data-lock="' + l[0] + '" aria-pressed="' + (remixLocks[l[0]] ? 'true' : 'false') + '" title="Keep the ' + l[2] + ' you have; spin the rest">' + LOCK + l[1] + '</button>';
           }).join('');
           locksBox.querySelectorAll('.gogh-remixlock').forEach(function (b) {
             b.addEventListener('click', function () {
@@ -16955,6 +17104,9 @@
     remixKeep: remixKeep,
     remixKept: remixKept,
     currentLook: currentLook,
+    remixRhythmPlan: remixRhythmPlan,
+    remixPaintRhythm: remixPaintRhythm,
+    remixRestoreRhythm: remixRestoreRhythm,
     embedInfo: embedInfo,
     setEmbed: setEmbed,
     scaleFontSizes: scaleFontSizes,
