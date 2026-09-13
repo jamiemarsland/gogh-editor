@@ -1,12 +1,12 @@
 {
   "meta": {
-    "plugin_version": "0.99.498",
+    "plugin_version": "0.99.499",
     "requires_wp": "6.5",
     "requires_php": "7.4",
     "text_domain": "gogh-editor",
     "readme_stable_tag": "0.26.0",
     "readme_tested_up_to": "7.0",
-    "asset_version": "0.99.498-chrome"
+    "asset_version": "0.99.499-chrome"
   },
   "constants": {
     "TOL": 8,
@@ -542,7 +542,6 @@
     "One product, hero-sized — a card with a real add-to-cart button",
     "Open interactive experience",
     "Open your products in WordPress",
-    "Original",
     "Our story",
     "Outline",
     "Peek at pages",
@@ -656,7 +655,6 @@
     "Menu switched — every page shows it.",
     "Mobile menu: ",
     "Name size saved.",
-    "Nothing to rearrange yet — add a couple of pieces first.",
     "One card now — it holds together on phones. Click it for a background.",
     "Out of the card — it’s its own piece again.",
     "Publish failed: ",
