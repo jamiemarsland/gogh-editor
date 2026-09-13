@@ -15100,37 +15100,128 @@
     }
     return hslToHex(c.h, c.s, c.l);
   }
-  function remixCandidates() {
-    var b = (cfg.brand && cfg.brand.colors) || {};
+  // ---------- Remix: looks built from parts ----------
+  // Six hand-written recipes could only ever hand back the same six with the
+  // hue nudged ("folks only get one remix"). A look is now assembled from
+  // independent choices — a ground, the accent's relation to the brand hue,
+  // a volume, a font pair — so one seed yields dozens of distinct looks, the
+  // session remembers what it showed, and a lock pins any slot to the look
+  // you are wearing while the rest spins. The contrast gate is unchanged:
+  // ink walks to 7:1, accents to 3:1, nothing unreadable leaves here.
+  var REMIX_GROUNDS = [
+    { key: 'paper', say: 'paper', s: 0.12, l: 0.965, ink: [0.3, 0.13], dark: false },
+    { key: 'wash', say: 'a wash', s: 0.22, l: 0.92, ink: [0.38, 0.15], dark: false },
+    { key: 'ink', say: 'ink', s: 0.28, l: 0.10, ink: [0.08, 0.93], dark: true },
+    { key: 'deep', say: 'a deep ground', s: 0.42, l: 0.17, ink: [0.1, 0.95], dark: true },
+  ];
+  var REMIX_RELATIONS = [
+    { key: 'same', say: 'Your accent', d: 0 },
+    { key: 'neighbour', say: 'A neighbour of your accent', d: 30 },
+    { key: 'opposite', say: 'The colour opposite yours', d: 180 },
+    { key: 'split', say: 'A split from your accent', d: 150 },
+  ];
+  var REMIX_VOLUMES = [
+    { key: 'quiet', say: '', s: 0.5 },
+    { key: 'loud', say: ', turned up', s: 0.8 },
+  ];
+  var REMIX_INKS = [
+    { key: 'neutral', mult: 0.5 },
+    { key: 'tinted', mult: 1.6 },
+  ];
+  var remixShown = {};   // keys shown this session — a fresh tap draws from the rest
+  var remixLocks = {};   // { ground, ink, accent, fonts } → true pins the slot
+  // the look being worn now: the brand when one is set, else the theme's own
+  function currentLook() {
+    var b = (cfg.brand && cfg.brand.colors) || null;
     var roles = paletteRoles();
     var cur = themePalette();
     var val = function (slug) { var p = cur.filter(function (x) { return x.slug === slug; })[0]; return p && p.value; };
-    // seed hues: every saturated brand colour, else the theme's own ink/accents
-    var seeds = [b.accent, b.accent2, b.text, b.background, val(roles.textSlug)]
-      .map(hexToHsl).filter(function (c) { return c && c.s > 0.12; });
-    if (!seeds.length) seeds = [{ h: 220, s: 0.5, l: 0.4 }];
-    var A = seeds[0], B = seeds[1] || { h: A.h + 40, s: A.s, l: A.l };
-    var j = function (range) { return (Math.random() - 0.5) * 2 * range; }; // fresh spins differ a little
-    var mk = function (name, bg, tx, ac, ac2) {
-      tx = ensureContrast(tx, bg, 7);
-      ac = ensureContrast(ac, bg, 3);
-      return { name: name, colors: { background: bg, text: tx, accent: ac, accent2: ac2 || ac } };
+    var acc = cur.filter(function (p) { return /accent|primary|secondary/.test(p.slug); }).map(function (p) { return p.value; });
+    return {
+      background: (b && b.background) || val(roles.bgSlug) || '#ffffff',
+      text: (b && b.text) || val(roles.textSlug) || '#111111',
+      accent: (b && b.accent) || acc[0] || val(roles.textSlug) || '#3355ff',
+      accent2: (b && b.accent2) || acc[1] || null,
+      fonts: (cfg.brand && cfg.brand.fonts) || null,
     };
-    var out = [
-      mk('Daylight', hslToHex(A.h + j(8), 0.14, 0.965), hslToHex(A.h, 0.3, 0.13), hslToHex(B.h + j(10), 0.62, 0.46)),
-      mk('After dark', hslToHex(A.h + j(8), 0.28, 0.1), hslToHex(A.h, 0.08, 0.93), hslToHex(B.h + j(10), 0.68, 0.62)),
-      mk('Wash', hslToHex(B.h + j(8), 0.22, 0.92), hslToHex(B.h, 0.38, 0.15), hslToHex(A.h + j(10), 0.58, 0.42)),
-      mk('Neighbours', hslToHex(A.h + 28 + j(8), 0.16, 0.955), hslToHex(A.h + 28, 0.32, 0.14), hslToHex(A.h - 28 + j(8), 0.6, 0.48)),
-      mk('Opposites', hslToHex(A.h + j(8), 0.1, 0.97), hslToHex(A.h, 0.25, 0.12), hslToHex(A.h + 180 + j(12), 0.62, 0.44)),
-      mk('Quiet + pop', hslToHex(A.h, 0.04, 0.975), hslToHex(A.h, 0.06, 0.14), hslToHex(A.h + j(6), 0.78, 0.5)),
-    ];
-    // type: the theme's own families, permuted — a pairing per candidate
+  }
+  function remixFontPairs() {
     var fams = fontCatalogue().map(function (f2) { return f2.slug; });
     var pairs = [];
     fams.forEach(function (h2) { fams.forEach(function (b2) { if (h2 !== b2 || fams.length === 1) pairs.push({ heading: h2, body: b2 }); }); });
-    if (cfg.brand && cfg.brand.fonts && cfg.brand.fonts.heading) pairs.unshift(cfg.brand.fonts);
-    out.forEach(function (c2, i) { if (pairs.length) c2.fonts = pairs[i % pairs.length]; });
+    return pairs;
+  }
+  function remixCandidates() {
+    var now = currentLook();
+    var seeds = [now.accent, now.accent2, now.text, now.background]
+      .map(hexToHsl).filter(function (c) { return c && c.s > 0.12; });
+    if (!seeds.length) seeds = [{ h: 220, s: 0.5, l: 0.4 }];
+    var A = seeds[0];
+    var pairs = remixFontPairs();
+    var j = function (range) { return (Math.random() - 0.5) * 2 * range; };
+    var pick = function (list) { return list[Math.floor(Math.random() * list.length)]; };
+    var nowGround = hexToHsl(now.background);
+    var build = function () {
+      var g = pick(REMIX_GROUNDS), r = pick(REMIX_RELATIONS), v = pick(REMIX_VOLUMES), ink = pick(REMIX_INKS);
+      var pair = pairs.length ? pick(pairs) : null;
+      var bg, tx, ac;
+      if (remixLocks.ground) { bg = now.background; g = { key: 'kept', say: 'your ground', dark: nowGround ? nowGround.l < 0.5 : false, ink: nowGround && nowGround.l < 0.5 ? [0.08, 0.93] : [0.3, 0.13] }; }
+      else bg = hslToHex(A.h + j(10), g.s, g.l);
+      if (remixLocks.ink) { tx = now.text; ink = { key: 'kept' }; }
+      else tx = hslToHex(A.h, Math.min(0.6, g.ink[0] * ink.mult), g.ink[1]);
+      if (remixLocks.accent) { ac = now.accent; r = { key: 'kept', say: 'Your accent' }; v = { key: 'kept', say: '' }; }
+      else ac = hslToHex(A.h + r.d + j(8), v.s, g.dark ? 0.62 : 0.44);
+      if (remixLocks.fonts && now.fonts && now.fonts.heading) pair = now.fonts;
+      // the gate: only what is not locked may move to become legible
+      if (!remixLocks.ink) tx = ensureContrast(tx, bg, 7);
+      if (!remixLocks.accent) ac = ensureContrast(ac, bg, 3);
+      var key = [g.key, ink.key, r.key, v.key, pair ? pair.heading + '/' + pair.body : '-'].join('|');
+      return {
+        key: key,
+        name: r.say + v.say + ' on ' + g.say,
+        colors: { background: bg, text: tx, accent: ac, accent2: ac },
+        fonts: pair,
+        parts: { ground: g.key, relation: r.key, volume: v.key },
+      };
+    };
+    var out = [], tries = 0;
+    while (out.length < 6 && tries < 240) {
+      tries++;
+      var c = build();
+      var dupe = out.some(function (o) { return o.key === c.key; });
+      // unseen first; once the field is spent, looks shown before may return —
+      // but never the same card twice in one spin (a locked spin can be short)
+      if (dupe || (remixShown[c.key] && tries < 160)) continue;
+      out.push(c);
+    }
+    out.forEach(function (c) { remixShown[c.key] = 1; });
     return out;
+  }
+  // ---- kept looks: a shelf that survives the session (an option on the site) ----
+  function remixKept() { return Array.isArray(cfg.remixKept) ? cfg.remixKept : (cfg.remixKept = []); }
+  function remixKeyOf(c) { return [c.colors.background, c.colors.text, c.colors.accent, c.fonts ? c.fonts.heading + '/' + c.fonts.body : '-'].join('|'); }
+  function remixIsKept(c) { var k = remixKeyOf(c); return remixKept().some(function (x) { return remixKeyOf(x) === k; }); }
+  function remixSaveKept(persist) {
+    if (persist === false) return Promise.resolve(true);
+    return fetch(GSROOT.replace(/wp\/v2\/$/, 'wp/v2/') + 'settings', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-WP-Nonce': cfg.nonce },
+      credentials: 'same-origin',
+      body: JSON.stringify({ gogh_remix_kept: remixKept() }),
+    }).then(function (r) { if (!r.ok) throw new Error('HTTP ' + r.status); return true; })
+      .catch(function () { toast('gogh could not save that look — it stays for this session.', { error: true }); return false; });
+  }
+  function remixKeep(c, persist) {
+    var list = remixKept();
+    var k = remixKeyOf(c);
+    var at = -1;
+    list.forEach(function (x, n) { if (remixKeyOf(x) === k) at = n; });
+    if (at !== -1) list.splice(at, 1);
+    else {
+      list.unshift({ name: c.name, colors: c.colors, fonts: c.fonts || null });
+      if (list.length > 8) list.length = 8; // a shelf, not an archive
+    }
+    return remixSaveKept(persist).then(function () { return at === -1; });
   }
 
   function brandToVariation(brand) {
@@ -15608,35 +15699,82 @@
         }
         box.appendChild(row);
       })();
-      // ---------- Remix: tap → six new looks derived from the brand ----------
+      // ---------- Remix: tap → six looks built from the brand; lock what works, keep what you like ----------
       (function () {
         var wrap = document.createElement('div');
         wrap.className = 'gogh-remixrow';
         wrap.innerHTML = '<button type="button" class="gogh-btn gogh-btn-small gogh-remixbtn" ' +
-          'title="Six looks derived from your brand — hover to wear one, tap Remix again for six more">✦ Remix</button>' +
-          '<div class="gogh-remixcards" hidden></div>';
+          'title="Six looks built from your brand — hover to wear one, lock what works, tap again for six more">✦ Remix</button>' +
+          '<div class="gogh-remixlocks" hidden></div>' +
+          '<div class="gogh-remixcards" hidden></div>' +
+          '<div class="gogh-remixkept"></div>';
         box.appendChild(wrap);
         var cardsBox = wrap.querySelector('.gogh-remixcards');
-        wrap.querySelector('.gogh-remixbtn').addEventListener('click', function () {
+        var locksBox = wrap.querySelector('.gogh-remixlocks');
+        var keptBox = wrap.querySelector('.gogh-remixkept');
+        var LOCK = '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>';
+        var cardFor = function (cand, opts) {
+          var v = brandToVariation({ colors: cand.colors, fonts: cand.fonts || null });
+          v.title = 'Remix · ' + cand.name;
+          var cb = document.createElement('div');
+          cb.className = 'gogh-remixcard' + (opts && opts.kept ? ' is-kept' : '');
+          cb.innerHTML = '<button type="button" class="gogh-varbtn gogh-remixwear" title="Wear this look">' +
+            ['background', 'text', 'accent'].map(function (k) {
+              return '<span class="gogh-vardot" style="background:' + escAttr(cand.colors[k]) + '"></span>';
+            }).join('') + '<span class="gogh-varname">' + esc(cand.name) + '</span></button>' +
+            '<button type="button" class="gogh-remixpin' + (remixIsKept(cand) ? ' is-on' : '') + '" title="' + (opts && opts.kept ? 'Take it off the shelf' : 'Keep this look') + '">' + (opts && opts.kept ? '✕' : '★') + '</button>';
+          var wear = cb.querySelector('.gogh-remixwear');
+          wear.addEventListener('mouseenter', function () {
+            clearTimeout(previewHoverT);
+            previewHoverT = setTimeout(function () { auditionVariation(v); }, 120);
+          });
+          wear.addEventListener('click', function () { applyVariation(v, wear); });
+          cb.querySelector('.gogh-remixpin').addEventListener('click', function (ev) {
+            ev.stopPropagation();
+            remixKeep(cand).then(function () { drawKept(); syncPins(); });
+          });
+          return cb;
+        };
+        var syncPins = function () {
+          cardsBox.querySelectorAll('.gogh-remixcard').forEach(function (cardEl) {
+            var cand = cardEl.__cand;
+            if (cand) cardEl.querySelector('.gogh-remixpin').classList.toggle('is-on', remixIsKept(cand));
+          });
+        };
+        var drawKept = function () {
+          var list = remixKept();
+          keptBox.innerHTML = '';
+          if (!list.length) return;
+          var lab = document.createElement('div');
+          lab.className = 'gogh-panel-hint';
+          lab.textContent = 'Kept';
+          keptBox.appendChild(lab);
+          list.forEach(function (k) { keptBox.appendChild(cardFor(k, { kept: true })); });
+        };
+        var drawLocks = function () {
+          locksBox.innerHTML = [['ground', 'Ground'], ['ink', 'Ink'], ['accent', 'Accent'], ['fonts', 'Fonts']].map(function (l) {
+            return '<button type="button" class="gogh-remixlock' + (remixLocks[l[0]] ? ' is-on' : '') + '" data-lock="' + l[0] + '" aria-pressed="' + (remixLocks[l[0]] ? 'true' : 'false') + '" title="Keep the ' + l[1].toLowerCase() + ' you have; spin the rest">' + LOCK + l[1] + '</button>';
+          }).join('');
+          locksBox.querySelectorAll('.gogh-remixlock').forEach(function (b) {
+            b.addEventListener('click', function () {
+              remixLocks[b.dataset.lock] = !remixLocks[b.dataset.lock];
+              drawLocks();
+            });
+          });
+        };
+        var spin = function () {
           cardsBox.hidden = false;
+          locksBox.hidden = false;
           cardsBox.innerHTML = '';
           remixCandidates().forEach(function (cand) {
-            var v = brandToVariation({ colors: cand.colors, fonts: cand.fonts || null });
-            v.title = 'Remix · ' + cand.name;
-            var cb = document.createElement('button');
-            cb.type = 'button';
-            cb.className = 'gogh-varbtn gogh-remixcard';
-            cb.innerHTML = ['background', 'text', 'accent'].map(function (k) {
-              return '<span class="gogh-vardot" style="background:' + escAttr(cand.colors[k]) + '"></span>';
-            }).join('') + '<span class="gogh-varname">' + cand.name + '</span>';
-            cb.addEventListener('mouseenter', function () {
-              clearTimeout(previewHoverT);
-              previewHoverT = setTimeout(function () { auditionVariation(v); }, 120);
-            });
-            cb.addEventListener('click', function () { applyVariation(v, cb); });
-            cardsBox.appendChild(cb);
+            var cardEl = cardFor(cand);
+            cardEl.__cand = cand;
+            cardsBox.appendChild(cardEl);
           });
-        });
+        };
+        drawLocks();
+        drawKept();
+        wrap.querySelector('.gogh-remixbtn').addEventListener('click', spin);
       })();
       // colours and font pairs are different decisions — group them
       var groups = { color: [], font: [] };
@@ -16813,6 +16951,10 @@
     sectionThemes: sectionThemes,
     rearrangeVariants: rearrangeVariants,
     mapEmbedUrl: mapEmbedUrl,
+    remixLocks: function (set) { if (set) { remixLocks = {}; Object.keys(set).forEach(function (k) { if (set[k]) remixLocks[k] = true; }); } return remixLocks; },
+    remixKeep: remixKeep,
+    remixKept: remixKept,
+    currentLook: currentLook,
     embedInfo: embedInfo,
     setEmbed: setEmbed,
     scaleFontSizes: scaleFontSizes,

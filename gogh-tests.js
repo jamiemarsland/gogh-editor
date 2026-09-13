@@ -5787,6 +5787,36 @@
       return '30 candidates over 5 spins, worst text contrast ' + worst.toFixed(1) + ':1';
     });
 
+    test('remix: a second tap is six different looks, and a lock pins a slot', function () {
+      var keys = {};
+      var a = G.remixCandidates(), b = G.remixCandidates();
+      a.concat(b).forEach(function (c) { keys[c.key] = (keys[c.key] || 0) + 1; });
+      expect(Object.keys(keys).length === 12, 'two taps should give twelve distinct looks, got ' + Object.keys(keys).length);
+      expect(a.every(function (c) { return /on (paper|a wash|ink|a deep ground)$/.test(c.name); }), 'a name should say what the ground is: ' + a.map(function (c) { return c.name; }).join(' \u00b7 '));
+      var now = G.currentLook();
+      G.remixLocks({ accent: true, ground: true });
+      var locked = G.remixCandidates();
+      // two locks leave a small field: however many distinct looks it holds, never none
+      expect(locked.length >= 1 && locked.length <= 6, 'locks should still give some looks, got ' + locked.length);
+      expect(locked.every(function (c) { return c.colors.accent.toLowerCase() === now.accent.toLowerCase(); }), 'a locked accent moved: ' + locked.map(function (c) { return c.colors.accent; }).join(','));
+      expect(locked.every(function (c) { return c.colors.background.toLowerCase() === now.background.toLowerCase(); }), 'a locked ground moved');
+      G.remixLocks({});
+      var free = G.remixCandidates();
+      expect(free.some(function (c) { return c.colors.background.toLowerCase() !== now.background.toLowerCase(); }), 'with the locks off the ground should spin again');
+    });
+
+    testAsync('remix: keep puts a look on the shelf, keep again takes it off', function () {
+      var cand = G.remixCandidates()[0];
+      var n0 = G.remixKept().length;
+      return G.remixKeep(cand, false).then(function (added) {
+        expect(added === true && G.remixKept().length === n0 + 1, 'keep did not add the look');
+        expect(G.remixKept()[0].colors.background === cand.colors.background, 'the kept look is not the one kept');
+        return G.remixKeep(cand, false);
+      }).then(function (added) {
+        expect(added === false && G.remixKept().length === n0, 'keep again did not take it off');
+      });
+    });
+
     test('ask gogh: the vocabulary reads plain instructions', function () {
       var reads = [
         ['Give this more breathing room', 'breathing'],
