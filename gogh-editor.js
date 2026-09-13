@@ -10460,7 +10460,13 @@
       { label: 'Video', kind: 'video' },
       { label: 'Badge', kind: 'badge' },
       { label: 'Posts grid', kind: 'posts' },
+      // the shelf's other doors, so / offers the same menu as +
+      { label: 'Card', kind: 'card' },
+      { label: 'Shape', act: 'shapes' },
+      { label: 'Form', kind: 'form' },
+      { label: 'Write', kind: 'write' },
     ];
+    if (cfg.canExp) items.push({ label: 'Experience', kind: 'exp' });
     if (cfg.hasWoo) items.push({ label: 'Products grid', kind: 'products' });
     TEMPLATES.forEach(function (t, ti) {
       if (t.els.length && !t.retired) items.push({ label: t.name + ' \u00b7 section', tpl: ti });
@@ -10495,6 +10501,7 @@
   }
   function runCmd(it) {
     closeCmd();
+    if (it.act === 'shapes') return openShapeInsertPanel();
     if (it.kind) addElementAtViewport(it.kind);
     else addSection(TEMPLATES[it.tpl], S.indexOf(viewportSection()) + 1);
   }
@@ -16550,6 +16557,27 @@
     if ((ev.key === 'Delete' || ev.key === 'Backspace') && (sel || multiSel)) {
       ev.preventDefault();
       deleteSelected();
+      return;
+    }
+    // a selected SECTION with no piece chosen: the same key takes the
+    // section. Typing and open panels already returned above, so a
+    // Backspace meant for a word never lands here; the last section on
+    // the page refuses rather than leaving a blank page behind a key
+    // nobody meant to press; and the toast carries Undo like the group
+    // bar's Delete does (James: "if i select a section, should i be able
+    // to delete using backspace/delete?")
+    if ((ev.key === 'Delete' || ev.key === 'Backspace') && selSecIdx !== null && S[selSecIdx]) {
+      ev.preventDefault();
+      var dsec = S[selSecIdx];
+      if (dsec.chrome) { toast('The header and footer stay \u2014 edit them instead.'); return; }
+      if (S.filter(function (s) { return !s.chrome; }).length < 2) {
+        toast('That is the only section on the page. Add another before deleting it.');
+        return;
+      }
+      var di = selSecIdx;
+      deselectSection();
+      deleteSection(di);
+      toast('Section deleted.', { ttl: 3500, actions: [{ label: 'Undo', onClick: function () { undo(); } }] });
       return;
     }
     if ((!sel && !multiSel) || !/^Arrow/.test(ev.key)) return;

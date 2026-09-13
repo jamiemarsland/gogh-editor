@@ -1067,6 +1067,58 @@
       expect(els.length === n0 + 1 && els[els.length - 1].type === 'badge', 'badge not inserted');
     });
 
+    test('slash lists the shelf doors too: Card, Shape, Form, Write', function () {
+      if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
+      window.dispatchEvent(new KeyboardEvent('keydown', { key: '/', bubbles: true }));
+      var menu = document.querySelector('.gogh-cmd');
+      expect(menu && !menu.hidden, 'slash did not open the menu');
+      var labels = [].map.call(document.querySelectorAll('.gogh-cmd-item'), function (b) { return b.textContent; });
+      ['Card', 'Shape', 'Form', 'Write'].forEach(function (want) {
+        expect(labels.indexOf(want) !== -1, '/ is missing ' + want + ' (the + shelf offers it)');
+      });
+      var input = document.querySelector('.gogh-cmd-in');
+      var n0 = sec().els.length;
+      input.value = 'card';
+      input.dispatchEvent(new Event('input', { bubbles: true }));
+      input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+      expect(menu.hidden, 'menu did not close after Enter');
+      var els = sec().els;
+      expect(els.length === n0 + 1 && els[els.length - 1].type === 'box', 'card not inserted from /');
+      els.splice(els.length - 1, 1);
+      G.renderSection(sec());
+    });
+
+    test('Backspace takes a selected section, and Undo brings it back', function () {
+      var c0 = G.sections().filter(function (s2) { return !s2.chrome; }).length;
+      G.addSection({ name: 'DOOMED', minH: 300, els: [
+        { type: 'heading', x: 80, y: 60, w: 600, h: 60, text: 'Doomed section' },
+      ] }, G.sections().length);
+      var all = G.sections();
+      var idx = -1;
+      all.forEach(function (s2, k) { if (s2.els.length && s2.els[0].text === 'Doomed section') idx = k; });
+      expect(idx !== -1, 'the doomed section was not added');
+      if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
+      G.deselectSection();
+      G.selectSection(idx);
+      expect(G.selSec() === idx, 'section not selected');
+      window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Backspace', bubbles: true }));
+      var c1 = G.sections().filter(function (s2) { return !s2.chrome; }).length;
+      expect(c1 === c0, 'Backspace did not delete the selected section (' + c1 + ' vs ' + c0 + ')');
+      expect(G.selSec() === null, 'a deleted section is still selected');
+      // toasts stack — look for ours among them, not at the oldest
+      var undoBtn = null;
+      [].forEach.call(document.querySelectorAll('.gogh-toast'), function (t) {
+        if (/Section deleted/.test(t.textContent) && t.querySelector('button')) undoBtn = t.querySelector('button');
+      });
+      expect(undoBtn, 'no undoable toast after the delete');
+      if (undoBtn) undoBtn.click(); // the toast's own Undo, the way a person would
+      var c2 = G.sections().filter(function (s2) { return !s2.chrome; }).length;
+      expect(c2 === c0 + 1, 'Undo did not bring the section back');
+      var back = G.sections().filter(function (s2) { return s2.els.length && s2.els[0].text === 'Doomed section'; })[0];
+      expect(!!back, 'the restored section lost its words');
+      if (back) G.deleteSection(G.sections().indexOf(back));
+    });
+
     test('grid toggle shows the grid it snaps to', function () {
       var btn = q('.gogh-side [data-act="gridsnap"]');
       expect(btn.querySelector('svg'), 'grid toggle has no icon');
