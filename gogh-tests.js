@@ -5274,8 +5274,12 @@
       var accentSlugs = Object.keys(by).filter(function (k) {
         return /accent/.test(k) && k !== roleTx && k !== baseSlug && k !== contrastSlug;
       });
-      expect(accentSlugs.every(function (k) { return by[k] === '#c96f4a' || by[k] === '#7a9e7e'; }) || accentSlugs.length === 0,
-        'accent slugs not cycled through brand accents');
+      // the first two accent slots carry the brand's accents; later slots keep
+      // the ROLE their colour plays (an ink, a tint of the ground) rather than
+      // being swept — TT5 Morning's body copy is accent-4
+      var lead = accentSlugs.slice(0, 2);
+      expect(lead.every(function (k) { return by[k] === '#c96f4a' || by[k] === '#7a9e7e'; }) || accentSlugs.length === 0,
+        'the first accent slots should carry the brand accents: ' + lead.map(function (k) { return k + '=' + by[k]; }).join(','));
       return 'ratios exact · palette mapped onto theme slugs';
     });
 
@@ -5780,8 +5784,12 @@
           var r = ratio(c.colors.text, c.colors.background);
           worst = Math.min(worst, r);
           expect(r >= 6.5, c.name + ' text/ground contrast only ' + r.toFixed(1));
-          expect(ratio(c.colors.accent, c.colors.background) >= 2.7,
-            c.name + ' accent barely visible on its ground');
+          // the accent is a button wearing the text colour (TT5 Morning): the
+          // words on it must read; it should still stand off the ground
+          expect(ratio(c.colors.text, c.colors.accent) >= 3,
+            c.name + ' the words on the button only ' + ratio(c.colors.text, c.colors.accent).toFixed(1) + ':1');
+          expect(ratio(c.colors.accent, c.colors.background) >= 2,
+            c.name + ' accent barely visible on its ground (' + ratio(c.colors.accent, c.colors.background).toFixed(1) + ')');
         });
       }
       return '30 candidates over 5 spins, worst text contrast ' + worst.toFixed(1) + ':1';
@@ -5808,7 +5816,7 @@
     test('remix: a look is whole — size, section rhythm, hero edge — and the rhythm can be worn and taken off', function () {
       var cands = G.remixCandidates();
       cands.forEach(function (c) {
-        expect([90, 100, 110, 120].indexOf(c.scale) !== -1, c.name + ' has no type size: ' + c.scale);
+        expect([100, 110, 120].indexOf(c.scale) !== -1, c.name + ' has no type size, or shrinks it: ' + c.scale);
         expect(/^(plain|dark-hero|bookends|alternate|accent-hero)$/.test(c.rhythm), c.name + ' has no rhythm: ' + c.rhythm);
         expect(c.divider === null || /^(sweep|dunes|arch|sheet)$/.test(c.divider), c.name + ' has an unknown edge: ' + c.divider);
         expect(typeof c.detail === 'string' && / type, /.test(c.detail), c.name + ' should describe the rest of the look: ' + c.detail);
@@ -5820,9 +5828,12 @@
       // wear a dark opening on this page, then put the page back exactly
       var first = G.sections().filter(function (x) { return !x.chrome; })[0];
       var before = { theme: first.theme || null, bg: first.bg || null, divider: JSON.stringify(first.divider || null), colors: first.els.map(function (e) { return e.color || null; }).join(',') };
+      // an edge only where the hero leaves 140 units under its lowest piece
+      var lowest = first.els.reduce(function (m, e) { return Math.max(m, e.y + e.h); }, 0);
+      var room = (first.minH || 600) - lowest >= 140;
       var snaps = G.remixPaintRhythm({ rhythm: 'dark-hero', divider: 'sweep', fx: null, colors: {}, scale: 100 });
       expect(first.theme === 'ink', 'the opening did not go dark: ' + first.theme);
-      expect(first.divider && first.divider.shape === 'sweep', 'the hero did not take the edge');
+      expect(room ? (first.divider && first.divider.shape === 'sweep') : !first.divider, room ? 'the hero did not take the edge' : 'an edge was drawn over the hero\u2019s lowest piece');
       G.remixRestoreRhythm(snaps);
       var after = { theme: first.theme || null, bg: first.bg || null, divider: JSON.stringify(first.divider || null), colors: first.els.map(function (e) { return e.color || null; }).join(',') };
       expect(JSON.stringify(after) === JSON.stringify(before), 'restore did not put the page back: ' + JSON.stringify(after) + ' vs ' + JSON.stringify(before));
@@ -5844,7 +5855,7 @@
       var light = G.remixCandidates('lighter');
       expect(light.every(function (c) { return lum(c.colors.background) > 0.6; }), 'lighter should give light grounds');
       var calm = G.remixCandidates('calmer');
-      expect(calm.every(function (c) { return c.parts.volume === 'quiet' && c.scale <= 100 && !c.divider && /^(plain|alternate)$/.test(c.rhythm); }), 'calmer should be quiet, small and plain: ' + JSON.stringify(calm.map(function (c) { return [c.parts.volume, c.scale, c.divider, c.rhythm]; })));
+      expect(calm.every(function (c) { return c.parts.volume === 'quiet' && c.scale === 100 && !c.divider && /^(plain|alternate)$/.test(c.rhythm); }), 'calmer should be quiet, small and plain: ' + JSON.stringify(calm.map(function (c) { return [c.parts.volume, c.scale, c.divider, c.rhythm]; })));
       var dn = dark.map(function (c) { return c.name; });
       expect(dn.filter(function (n, k) { return dn.indexOf(n) === k; }).length === dn.length, 'six cards should read as six: ' + dn.join(' | '));
       var bold = G.remixCandidates('bolder');
@@ -5883,6 +5894,20 @@
         expect(pnl.querySelectorAll('.gogh-remixcards .gogh-remixcard').length === 6, 'the front door should show six looks');
         G.closePanel();
       });
+    });
+
+    test('a brand palette keeps the theme\u2019s roles: inks stay inks, tints stay tints, two accents are accents', function () {
+      var v = G.brandToVariation({ colors: { background: '#f4f1ea', text: '#1a1a1a', accent: '#c0392b', accent2: '#2980b9' } });
+      var pal = {};
+      v.settings.color.palette.theme.forEach(function (p) { pal[p.slug] = p.color.toLowerCase(); });
+      var roles = G.paletteRoles();
+      expect(pal[roles.bgSlug] === '#f4f1ea' && pal[roles.textSlug] === '#1a1a1a', 'ground and text should be the brand\u2019s');
+      var accents = Object.keys(pal).filter(function (k) { return /accent|primary|secondary/.test(k); });
+      if (accents.length >= 4) {
+        expect(pal[accents[0]] === '#c0392b' && pal[accents[1]] === '#2980b9', 'the first two accent slots should carry the brand accents');
+        var swept = accents.slice(2).filter(function (k) { return pal[k] === '#c0392b' || pal[k] === '#2980b9'; });
+        expect(!swept.length, 'later accent slots should not be swept with the brand accents (body copy turns blue): ' + swept.join(','));
+      }
     });
 
     testAsync('remix: keep puts a look on the shelf, keep again takes it off', function () {

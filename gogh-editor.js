@@ -15168,7 +15168,7 @@
   ];
   // the other dials a look turns: how big the type runs, which sections wear
   // the dark or tinted theme, the edge under the hero, a texture on it
-  var REMIX_SCALES = [[90, 'snug'], [100, 'regular'], [110, 'airy'], [120, 'grand']];
+  var REMIX_SCALES = [[100, 'regular'], [110, 'airy'], [120, 'grand']];
   var REMIX_RHYTHMS = [
     { key: 'plain', say: 'all on one ground' },
     { key: 'dark-hero', say: 'a dark opening' },
@@ -15183,7 +15183,7 @@
   var REMIX_DIRECTIONS = {
     warmer:  { say: 'warmer', hueTo: 28, grounds: null, relations: null, volumes: null, scales: null, rhythms: null, dividers: null },
     cooler:  { say: 'cooler', hueTo: 212, grounds: null, relations: null, volumes: null, scales: null, rhythms: null, dividers: null },
-    calmer:  { say: 'calmer', sat: 0.7, grounds: ['paper', 'wash'], relations: ['same', 'neighbour'], volumes: ['quiet'], scales: [90, 100], rhythms: ['plain', 'alternate'], dividers: [null], fx: 0 },
+    calmer:  { say: 'calmer', sat: 0.7, grounds: ['paper', 'wash'], relations: ['same', 'neighbour'], volumes: ['quiet'], scales: [100], rhythms: ['plain', 'alternate'], dividers: [null], fx: 0 },
     bolder:  { say: 'bolder', sat: 1.15, grounds: null, relations: ['opposite', 'split', 'neighbour'], volumes: ['loud'], scales: [110, 120], rhythms: ['dark-hero', 'bookends', 'accent-hero'], dividers: ['sweep', 'dunes', 'arch', 'sheet'], fx: 0.5 },
     darker:  { say: 'darker', grounds: ['ink', 'deep'], relations: null, volumes: null, scales: null, rhythms: ['dark-hero', 'bookends', 'plain'], dividers: null },
     lighter: { say: 'lighter', grounds: ['paper', 'wash'], relations: null, volumes: null, scales: null, rhythms: ['plain', 'alternate', 'accent-hero'], dividers: null },
@@ -15249,8 +15249,16 @@
       var want = plan[k] === 'accent-soft' ? soft : by[plan[k]];
       // a section wearing a picture keeps it: the theme only re-inks the words
       if (want && secx.theme !== want.slug) paintSectionTheme(secx, want);
+      if (k === 0 && secx.bgImage && cand.colors && cand.colors.background && cand.colors.text) {
+        var roles2 = paletteRoles();
+        var lightSlug = relLum(cand.colors.background) > relLum(cand.colors.text) ? roles2.bgSlug : roles2.textSlug;
+        if (lightSlug) secx.els.forEach(function (e) { if (isText(e) || e.type === 'badge') e.color = lightSlug; });
+        renderSection(secx);
+      }
       if (k === 0) {
-        secx.divider = cand.divider ? { shape: cand.divider } : null;
+        var lowest = secx.els.reduce(function (m, e) { return Math.max(m, e.y + e.h); }, 0);
+        var room = (secx.minH || designH(secx.els, secx.minH)) - lowest >= 140;
+        secx.divider = cand.divider && room ? { shape: cand.divider } : null;
         if (cand.fx === 'grain') { secx.fx = secx.fx || {}; secx.fx.bg = 'grain'; }
         else if (secx.fx && secx.fx.bg === 'grain') { delete secx.fx.bg; if (!Object.keys(secx.fx).length) secx.fx = null; }
       }
@@ -15321,6 +15329,25 @@
     fams.forEach(function (h2) { fams.forEach(function (b2) { if (h2 !== b2 || fams.length === 1) pairs.push({ heading: h2, body: b2 }); }); });
     return pairs;
   }
+  // walk the accent's lightness to where the text reads on it AND it still
+  // stands off the ground — the nearest such lightness to its own; if no
+  // lightness holds both, the words on the button win over the edge
+  function fitAccent(ac, bg, tx) {
+    var h = hexToHsl(ac);
+    if (!h) return ac;
+    // tiers: the words first, then the edge — each relaxed a step at a time
+    var tiers = [[4.5, 3], [4.5, 2.5], [3.5, 2.5], [3, 2.2], [3, 0]];
+    for (var t = 0; t < tiers.length; t++) {
+      var best = null, bestD = 9;
+      for (var l = 0.04; l <= 0.96; l += 0.01) {
+        var hex = hslToHex(h.h, h.s, l);
+        var d = Math.abs(l - h.l);
+        if (remixRatio(hex, tx) >= tiers[t][0] && remixRatio(hex, bg) >= tiers[t][1] && d < bestD) { best = hex; bestD = d; }
+      }
+      if (best) return best;
+    }
+    return ac;
+  }
   function remixCandidates(direction) {
     var now = currentLook();
     var dir = (direction && REMIX_DIRECTIONS[direction]) || null;
@@ -15351,7 +15378,8 @@
       if (dir && dir.sat) v = { key: v.key, say: v.say, s: Math.max(0.2, Math.min(0.95, v.s * dir.sat)) };
       var pair = pairs.length ? pick(pairs) : null;
       var scale = remixLocks.scale ? (now.scale || 100) : pick(scales)[0];
-      var rhythm = remixLocks.rhythm ? now.rhythm : pick(rhythms).key;
+      var rhythmPool = g.dark ? rhythms.filter(function (x) { return x.key !== 'dark-hero' && x.key !== 'bookends'; }) : rhythms;
+      var rhythm = remixLocks.rhythm ? now.rhythm : pick(rhythmPool.length ? rhythmPool : rhythms).key;
       var divider = remixLocks.rhythm ? now.divider : pick(dividers);
       var fx = remixLocks.rhythm ? now.fx : (Math.random() < grainOdds ? 'grain' : null);
       var bg, tx, ac;
@@ -15364,7 +15392,7 @@
       if (remixLocks.fonts && now.fonts && now.fonts.heading) pair = now.fonts;
       // the gate: only what is not locked may move to become legible
       if (!remixLocks.ink) tx = ensureContrast(tx, bg, 7);
-      if (!remixLocks.accent) ac = ensureContrast(ac, bg, 3);
+      if (!remixLocks.accent) ac = fitAccent(ac, bg, tx);
       var key = [g.key, ink.key, r.key, v.key, pair ? pair.heading + '/' + pair.body : '-', scale, rhythm, divider || '-', fx || '-', dir ? dir.say : '-'].join('|');
       var rhythmSay = (REMIX_RHYTHMS.filter(function (x) { return x.key === rhythm; })[0] || REMIX_RHYTHMS[0]).say;
       var scaleSay = (REMIX_SCALES.filter(function (x) { return x[0] === scale; })[0] || [100, 'regular'])[1];
@@ -15433,15 +15461,35 @@
     var ai = 0;
     var pal = [];
     var roles = paletteRoles();
+    var curBg = cur.filter(function (p) { return p.slug === roles.bgSlug; })[0];
+    var curTx = cur.filter(function (p) { return p.slug === roles.textSlug; })[0];
+    var lumOfVal = function (val) { var h = hexToHsl(val); return h ? relLum(hslToHex(h.h, h.s, h.l)) : null; };
+    var bgL = curBg ? lumOfVal(curBg.value) : null, txL = curTx ? lumOfVal(curTx.value) : null;
     slugs.forEach(function (slug) {
       var v = null;
+      var keep = cur.filter(function (p) { return p.slug === slug; })[0];
       if (slug === roles.bgSlug || /^(base|background)$/.test(slug)) v = c.background;
       else if (slug === roles.textSlug || /^(contrast|foreground|text|main)$/.test(slug)) v = c.text;
-      else if (/accent|primary|secondary/.test(slug) && accents.length) { v = accents[ai % accents.length]; ai++; }
-      if (!v) {
-        var keep = cur.filter(function (p) { return p.slug === slug; })[0];
-        v = keep && keep.value;
+      else if (/accent|primary|secondary/.test(slug) && accents.length) {
+        // the first two accent slots are the brand's accents; every later
+        // slot follows the ROLE its current colour plays — an ink stays an
+        // ink (the new text colour), a tint of the ground stays a tint
+        // (TT5 Morning sets body copy to accent-4; sweeping it with the
+        // accent turned every paragraph blue)
+        if (ai < 2) { v = accents[ai % accents.length]; ai++; }
+        else {
+          var kl = keep ? lumOfVal(keep.value) : null;
+          if (kl != null && txL != null && bgL != null) {
+            var toTx = Math.abs(kl - txL), toBg = Math.abs(kl - bgL);
+            if (toTx <= toBg && toTx < 0.25) v = c.text;
+            else if (toBg < 0.12) {
+              var gh = hexToHsl(c.background), th = hexToHsl(c.text);
+              if (gh && th) v = hslToHex(gh.h, gh.s, gh.l + (th.l > gh.l ? 0.05 : -0.05));
+            }
+          }
+        }
       }
+      if (!v) v = keep && keep.value;
       if (v) pal.push({ slug: slug, color: v, name: slug });
     });
     var out = { title: 'Your brand', settings: { color: { palette: { theme: pal } } }, styles: {} };
