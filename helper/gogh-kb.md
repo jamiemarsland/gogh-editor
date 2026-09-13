@@ -15,7 +15,7 @@ about something where they conflict, rather than picking one silently. Quote UI
 labels and message copy from the appendix, verbatim — those are the current
 strings, and a paraphrased button label is the fastest way to lose a user's trust.
 
-Generated for plugin version 0.99.499 · knowledge base 7aa5765.
+Generated for plugin version 0.99.500 · knowledge base 3d5f76c.
 
 ---
 
@@ -782,11 +782,11 @@ Everything in this section is extracted mechanically from the Gogh source on eve
 
 ## Current release
 
-- Plugin version: **0.99.499**
+- Plugin version: **0.99.500**
 - Requires WordPress **6.5+**, PHP **7.4+**
 - Text domain: `gogh-editor`
 - readme.txt Stable tag: `0.26.0` · Tested up to: `7.0`
-- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.499`). Quote the plugin header version.
+- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.500`). Quote the plugin header version.
 
 ## Design constants
 
@@ -1210,18 +1210,21 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "Removed from the card."
 - "Saved — search results and AI answers now quote your words ✓"
 - "Saving your page changes, then updating the "
+- "Section deleted."
 - "Section moved."
 - "Section removed — publish to make it real."
 - "Site "
 - "Site name restored — click it to rename."
 - "Site name saved."
 - "Style copied — click other text to paint it. Esc finishes."
+- "That is the only section on the page. Add another before deleting it."
 - "That saved section can’t be read."
 - "That section can’t move past other stored content yet."
 - "That upload failed — try again, or paste a link."
 - "That’s gogh. Everything else is just more of this."
 - "The backup could not be read."
 - "The description could not be saved — try again."
+- "The header and footer stay — edit them instead."
 - "The name didn’t save — try again."
 - "Theme style applied: "
 - "This "
@@ -1260,4 +1263,4 @@ These are the real strings in the current build. Use them verbatim; never paraph
 
 ## Test suite
 
-`281` tests, run by appending `?gogh-test` to any Gogh page URL while logged in with edit rights on that page.
+`283` tests, run by appending `?gogh-test` to any Gogh page URL while logged in with edit rights on that page.
