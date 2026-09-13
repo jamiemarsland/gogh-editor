@@ -5866,6 +5866,25 @@
       expect(Math.round(G.hueToward(200, 28, 0.5)) === 114 && Math.round(G.hueToward(350, 28, 0.5)) === 9, 'hueToward should take the short way round');
     });
 
+    testAsync('site style: Remix and the brand share the top row, above the type scale; the front door spins it', function () {
+      // the front door does what a built site's first minute does: opens the
+      // panel and spins Remix — so one call exercises both
+      return G.openFrontDoor().then(function (ok) {
+        expect(ok, 'the front door did not open on six looks');
+        var pnl = q('.gogh-panel');
+        var top = pnl.querySelector('.gogh-toprow');
+        expect(top, 'the panel has no top row');
+        var remix = top.querySelector('.gogh-remixbtn'), brand = top.querySelector('.gogh-brandrow');
+        expect(remix && brand, 'Remix and the brand should both sit in the top row');
+        expect(+getComputedStyle(remix).order < +getComputedStyle(brand).order, 'Remix should come first');
+        var rr = remix.getBoundingClientRect(), br = brand.getBoundingClientRect(), ts = pnl.querySelector('.gogh-typescale').getBoundingClientRect();
+        expect(Math.abs(rr.top - br.top) < 4 && rr.right <= br.left + 2, 'Remix and the brand should share one row, Remix on the left');
+        expect(rr.bottom <= ts.top, 'the top row should sit above the type scale');
+        expect(pnl.querySelectorAll('.gogh-remixcards .gogh-remixcard').length === 6, 'the front door should show six looks');
+        G.closePanel();
+      });
+    });
+
     testAsync('remix: keep puts a look on the shelf, keep again takes it off', function () {
       var cand = G.remixCandidates()[0];
       var n0 = G.remixKept().length;

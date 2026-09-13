@@ -10787,7 +10787,12 @@
       .then(function () {
         step.textContent = 'Opening your site';
         discarding = true; // the scratch on this canvas was never meant to be kept
-        setTimeout(function () { window.location.href = cfg.homeUrl || '/'; }, 400);
+        // the front door: a build asked for it opens the new site on six looks
+        var frontDoor = /[?&]gogh-front-door=1/.test(location.search);
+        var home = cfg.homeUrl || '/';
+        setTimeout(function () {
+          window.location.href = frontDoor ? home + (home.indexOf('?') >= 0 ? '&' : '?') + 'gogh-edit=1&gogh-front-door=1' : home;
+        }, 400);
         return true;
       })
       .catch(function (err) {
@@ -10796,6 +10801,39 @@
         document.documentElement.classList.remove('gogh-building');
         return false;
       });
+  }
+  // the first minute of a built site: not a blank canvas but six whole
+  // looks to choose between — the Site style panel, Remix already spun
+  function openFrontDoor() {
+    var tab = [].filter.call(document.querySelectorAll('.gogh-side-tab'), function (b) { return /^site$/i.test((b.textContent || '').trim()); })[0];
+    if (tab) tab.click();
+    var t0 = Date.now();
+    return new Promise(function (resolve) {
+      var open = function () {
+        var btn = document.querySelector('.gogh-stylebtn');
+        if (btn) { btn.click(); return true; }
+        if (Date.now() - t0 > 4000) { openStylePanel(document.querySelector('.gogh-side') || document.body); return true; }
+        return false;
+      };
+      var spin = function () {
+        var rb = document.querySelector('.gogh-remixbtn');
+        if (rb) {
+          rb.click();
+          toast('Your site is built. Pick a look \u2014 hover to try one, click to keep it, \u2726 Remix for six more.', { ttl: 9000 });
+          resolve(true);
+          return true;
+        }
+        if (Date.now() - t0 > 9000) { resolve(false); return true; }
+        return false;
+      };
+      var phase = 0;
+      var tick = function () {
+        if (phase === 0) { if (open()) phase = 1; }
+        else if (spin()) return;
+        setTimeout(tick, 150);
+      };
+      tick();
+    });
   }
   function scheduleSiteBuild() {
     raiseBuildVeil(cfg.siteDef && cfg.siteDef.def && cfg.siteDef.def.name);
@@ -15777,6 +15815,9 @@
         '<div class="gogh-panel-head"><span class="gogh-panel-title">Site style</span>' +
         '<button type="button" class="gogh-sbtn gogh-panel-close gogh-panel-back" title="Back"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"/></svg></button></div>' +
         '<div class="gogh-panel-hint">Hover to preview \u2014 click to keep it</div>' +
+        // the two doors people come for share the top row: Remix first and
+        // emphasised, the brand beside it; the dials follow
+        '<div class="gogh-toprow"></div>' +
         '<div class="gogh-panel-hint" style="margin-top:6px">Type scale</div>' +
         '<div class="gogh-hpresets gogh-typescale">' +
         [['Snug', 90], ['Regular', 100], ['Airy', 110], ['Grand', 120]].map(function (ts) {
@@ -15824,6 +15865,7 @@
         backToDesign();
       });
       var box = panel.querySelector('.gogh-varlist');
+      var top = panel.querySelector('.gogh-toprow');
       // Site designs lives in the Design drawer alone — this panel is styles
       // your brand sits ABOVE the theme's styles — the most important option
       (function () {
@@ -15860,7 +15902,7 @@
           mk.addEventListener('click', function () { openBrandForm(anchorEl); });
           row.appendChild(mk);
         }
-        box.appendChild(row);
+        top.appendChild(row);
       })();
       // ---------- Remix: tap → six looks built from the brand; lock what works, keep what you like ----------
       (function () {
@@ -15875,7 +15917,7 @@
             return '<button type="button" class="gogh-remixdir" data-dir="' + d + '">' + d.charAt(0).toUpperCase() + d.slice(1) + '</button>';
           }).join('') + '</div>' +
           '<div class="gogh-remixkept"></div>';
-        box.appendChild(wrap);
+        top.appendChild(wrap);
         var cardsBox = wrap.querySelector('.gogh-remixcards');
         var dirsBox = wrap.querySelector('.gogh-remixdirs');
         var locksBox = wrap.querySelector('.gogh-remixlocks');
@@ -16034,6 +16076,7 @@
         });
       });
       box.addEventListener('mouseleave', function () { clearVariationPreview(); remixAuditionOff(); });
+      top.addEventListener('mouseleave', function () { clearVariationPreview(); remixAuditionOff(); });
       dockSidebar();
       panelSticky = true; // hover-audition panel: outside clicks pass through
       zoomOutCanvas(); // pull the whole page into view to audition the style
@@ -17154,6 +17197,7 @@
     currentLook: currentLook,
     remixRhythmPlan: remixRhythmPlan,
     hueToward: hueToward,
+    openFrontDoor: openFrontDoor,
     remixPaintRhythm: remixPaintRhythm,
     remixRestoreRhythm: remixRestoreRhythm,
     embedInfo: embedInfo,
@@ -23610,6 +23654,7 @@
       setEditing(true);
       var willBuild = !!(cfg.siteDef && /[?&]gogh-build=1/.test(location.search));
       if (willBuild) scheduleSiteBuild();
+      if (!willBuild && /[?&]gogh-front-door=1/.test(location.search)) setTimeout(openFrontDoor, 700);
       var bootContent = S.filter(function (s) { return !s.chrome; });
       // the blank-canvas greeting is for genuinely EMPTY pages — a page
       // full of native blocks (a starter site's home) is not one, and
