@@ -93,13 +93,23 @@
         e = { type: 'badge', w: 226, h: 52, text: text };
       } else if (child.tagName === 'P') {
         e = { type: 'para', w: 520, h: 60, text: text };
+      } else if (child.tagName === 'HR') {
+        e = { type: 'rule', w: 1040, h: 16, thick: 1 };
+      } else if (child.classList.contains('gogh-embed')) {
+        var ea = child.querySelector('a.gogh-embed-link'), ew = child.querySelector('.wp-block-embed__wrapper');
+        e = { type: 'embed', w: 720, h: 405, url: ea ? ea.getAttribute('href') : (ew ? (ew.textContent || '').trim() : null) || null };
+      } else if (child.classList.contains('gogh-icon')) {
+        var im2 = (child.className || '').match(/gogh-icon-([a-z0-9-]+)/);
+        e = { type: 'icon', w: 56, h: 56, icon: im2 && ICONS[im2[1]] ? im2[1] : 'star' };
+      } else if (child.tagName === 'UL' || child.tagName === 'OL') {
+        e = { type: 'para', w: 520, h: 90, list: child.tagName.toLowerCase(), text: listText(child) };
       } else if (child.classList.contains('wp-block-buttons')) {
         var a = child.querySelector('a');
         e = { type: 'button', w: 178, h: 52,
           text: (a || child).textContent.trim(),
           ghost: !!child.querySelector('.gogh-ghost'),
           href: (a && a.getAttribute('href') && a.getAttribute('href') !== '#') ? a.getAttribute('href') : null };
-      } else if (child.tagName === 'FIGURE' || child.classList.contains('wp-block-group')) {
+      } else if ((child.tagName === 'FIGURE' || child.classList.contains('wp-block-group')) && !child.classList.contains('gogh-embed') && !child.classList.contains('gogh-icon')) {
         var img = child.querySelector('img');
         e = { type: 'image', w: 460, h: 300 };
         if (img) {
@@ -139,7 +149,8 @@
       found++;
       var cls = node.className || '';
       if (e.type === 'heading' || e.type === 'para') {
-        if ((node.textContent || '').trim()) e.text = cleanInline(node.innerHTML);
+        if (e.list && /^(UL|OL)$/.test(node.tagName)) { if ((node.textContent || '').trim()) e.text = listText(node); }
+        else if ((node.textContent || '').trim()) e.text = cleanInline(node.innerHTML);
         var fm = cls.match(/has-([a-z0-9-]+)-font-size/);
         // display sizes carry no preset class by design — the DOM can't
         // testify about them, so the model's word stands
@@ -474,6 +485,13 @@
     widget: 'display: flex; align-items: center;',
     box: '',
     exp: 'position: relative; overflow: hidden; border-radius: clamp(8px, 1.5cqw, 20px); background: #101114;',
+    // the stroke is a border, so it follows the text colour like words do;
+    // the theme's own separator paint (borders, backgrounds) stands down
+    rule: 'align-self: stretch; width: 100%; height: auto; margin: 0; border-width: 0; background: linear-gradient(currentColor, currentColor) center / 100% 1px no-repeat; opacity: 0.28;',
+    // an icon is a square of currentColor seen through its mask
+    icon: 'align-self: start; aspect-ratio: 1 / 1; background-color: currentColor; margin: 0;',
+    // a window onto somewhere else: a map, a post, a player
+    embed: 'align-self: start; position: relative; overflow: hidden; margin: 0; border-radius: clamp(8px, 1.5cqw, 20px); background: color-mix(in srgb, currentColor 6%, transparent);',
   };
   TYPE_RULES.video = 'align-self: start;'; // sits like a picture; its corners are the panel's Corners chips
   var isText = function (e) { return e.type === 'heading' || e.type === 'para'; };
@@ -481,7 +499,7 @@
     return e.type === 'heading' || e.type === 'para' || e.type === 'badge' || e.type === 'button' ||
       (e.kids || []).some(function (k) { return textyEl(k); });
   };
-  var fixedHeight = function (e) { return e.type === 'button' || e.type === 'image' || e.type === 'video' || e.type === 'badge' || e.type === 'widget' || e.type === 'box' || e.type === 'exp'; };
+  var fixedHeight = function (e) { return e.type === 'button' || e.type === 'image' || e.type === 'video' || e.type === 'badge' || e.type === 'widget' || e.type === 'box' || e.type === 'exp' || e.type === 'rule' || e.type === 'icon' || e.type === 'embed'; };
 
   function imageBackground(e) {
     if (e.src) {
@@ -676,6 +694,11 @@
           ' text-box: trim-both cap ' + tbEdge + ';';
       }
       if (e.type === 'widget' && e.wcol) extra += ' color: ' + e.wcol + ';';
+      if (e.type === 'icon') extra += iconMaskCss(e.icon);
+      if (e.type === 'embed' && e.w > 0 && e.h > 0) extra += ' aspect-ratio: ' + e.w + ' / ' + e.h + ';';
+      if (e.type === 'rule') extra += ' background-size: 100% ' + (Math.max(1, Math.min(8, Math.round(+e.thick || 1)))) + 'px;';
+      // a list keeps its bullets outside the words and its own indent
+      if (e.type === 'para' && e.list) extra += ' margin: 0; padding-inline-start: 1.25em; list-style-position: outside;';
       if (e.type === 'image' || e.type === 'video') {
         // align-self: start stopped grid stretch poisoning measurements
         // (v0.99.188) but it also stopped the frame filling its rows — a
@@ -1057,6 +1080,8 @@
       sec + ' .wp-block-button:not(.gogh-widget *), ' + sec + ' .wp-block-button__link:not(.gogh-widget *) { width: 100%; height: 100%; }',
       sec + ' .wp-block-button__link { display: flex; align-items: center; justify-content: center; box-sizing: border-box; white-space: nowrap; }',
       sec + ' .gogh-ghost .wp-block-button__link { background: transparent; color: inherit; box-shadow: inset 0 0 0 1.5px currentColor; }',
+      sec + ' .gogh-embed iframe { width: 100%; height: 100%; border-width: 0; display: block; position: absolute; inset: 0; }',
+      sec + ' .gogh-embed .wp-block-embed__wrapper { height: 100%; }',
       '',
       '@container (max-width: 700px) {',
       '  ' + sec + ' { grid-template-columns: 7cqw 1fr 7cqw; grid-template-rows: none; grid-auto-rows: auto; row-gap: 6cqw; padding: 9cqw 0; }'
@@ -1065,7 +1090,8 @@
       // no `order:` here — the DOM itself is written in reading order, so
       // stacked mobile flow, tab order and screen-reader order all agree
       out.push('  ' + sec + ' .gogh-el-' + (i + 1) + ' { grid-area: auto; grid-column: 2;' +
-        (e.type === 'image' || e.type === 'video' ? ' aspect-ratio: ' + e.w + ' / ' + e.h + ';' : '') +
+        (e.type === 'image' || e.type === 'video' || e.type === 'embed' ? ' aspect-ratio: ' + e.w + ' / ' + e.h + ';' : '') +
+        (e.type === 'icon' ? ' width: ' + (Math.round(e.w / 12 * 10) / 10) + 'cqw; justify-self: ' + ((e.x + e.w / 2) > W * 0.62 ? 'end' : (e.x + e.w / 2) > W * 0.38 ? 'center' : 'start') + ';' : '') +
         // stacked mobile: decorative SHAPES step aside; plain boxes are
         // structural panels (photo-card scrims, feature mats) and keep
         // their proportions instead of collapsing to zero height. CARDS are
@@ -1194,6 +1220,17 @@
             cleanInline(e.text) + '</h2>\n<!-- /wp:heading -->';
         }
         case 'para': {
+          if (e.list) {
+            var lTag = e.list === 'ol' ? 'ol' : 'ul';
+            var lAttrs = { className: cls };
+            if (lTag === 'ol') lAttrs.ordered = true;
+            if (e.fs && !DISPLAY_FS[e.fs]) lAttrs.fontSize = e.fs;
+            if (e.color) lAttrs.textColor = e.color;
+            return '<!-- wp:list ' + JSON.stringify(lAttrs) + ' -->\n' +
+              '<' + lTag + ' class="wp-block-list ' + cls + (e.fs && !DISPLAY_FS[e.fs] ? ' has-' + e.fs + '-font-size' : '') + (e.color ? ' has-text-color has-' + e.color + '-color' : '') + '">' +
+              listLines(e.text).map(function (l) { return '<!-- wp:list-item -->\n<li>' + cleanInline(l) + '</li>\n<!-- /wp:list-item -->'; }).join('\n') +
+              '</' + lTag + '>\n<!-- /wp:list -->';
+          }
           var pAttrs = { className: cls };
           if (e.align === 'center' || e.align === 'right') pAttrs.align = e.align;
           if (e.fs && !DISPLAY_FS[e.fs]) pAttrs.fontSize = e.fs;
@@ -1234,6 +1271,42 @@
             '<div class="wp-block-group ' + cls + '"></div>\n<!-- /wp:group -->';
         case 'video':
           return videoBlock(e, cls);
+        case 'embed': {
+          var ei = e.url ? embedInfo(e.url) : null;
+          if (ei && ei.kind === 'map') {
+            // a plain link in the stored markup; gogh_render_section frames it
+            return '<!-- wp:group ' + JSON.stringify({ className: cls + ' gogh-embed gogh-embed-map', layout: { type: 'default' } }) + ' -->\n' +
+              '<div class="wp-block-group ' + cls + ' gogh-embed gogh-embed-map">' +
+              '<a class="gogh-embed-link" href="' + escAttr(ei.url) + '" rel="noopener">Open the map</a></div>\n<!-- /wp:group -->';
+          }
+          if (ei) {
+            // the URL on its own line: WordPress swaps it for the provider's player
+            var eAttrs2 = { url: ei.url, type: 'rich', providerNameSlug: ei.slug, responsive: true, className: cls + ' gogh-embed' };
+            return '<!-- wp:embed ' + JSON.stringify(eAttrs2) + ' -->\n' +
+              '<figure class="wp-block-embed is-type-rich is-provider-' + ei.slug + ' wp-block-embed-' + ei.slug + ' ' + cls + ' gogh-embed">' +
+              '<div class="wp-block-embed__wrapper">\n' + esc(ei.url) + '\n</div></figure>\n<!-- /wp:embed -->';
+          }
+          return '<!-- wp:group ' + JSON.stringify({ className: cls + ' gogh-embed', layout: { type: 'default' } }) + ' -->\n' +
+            '<div class="wp-block-group ' + cls + ' gogh-embed"></div>\n<!-- /wp:group -->';
+        }
+        case 'icon': {
+          // an empty group: the picture is the element's own CSS mask
+          var iName = ICONS[e.icon] ? e.icon : 'star';
+          var iCls = cls + ' gogh-icon gogh-icon-' + iName + (e.color ? ' has-text-color has-' + e.color + '-color' : '');
+          var iAttrs = { className: cls + ' gogh-icon gogh-icon-' + iName, layout: { type: 'default' } };
+          if (e.color) iAttrs.textColor = e.color;
+          return '<!-- wp:group ' + JSON.stringify(iAttrs) + ' -->\n' +
+            '<div class="wp-block-group ' + iCls + '" role="img" aria-label="' + escAttr(e.alt || iName.replace(/-/g, ' ')) + '"></div>\n<!-- /wp:group -->';
+        }
+        case 'rule': {
+          // a core separator; the stroke's weight and colour ride in the
+          // element's CSS (border-top) so the block stays a plain <hr>
+          var rAttrs = { className: cls + ' gogh-rule' };
+          if (e.color) rAttrs.backgroundColor = e.color;
+          return '<!-- wp:separator ' + JSON.stringify(rAttrs) + ' -->\n' +
+            '<hr class="wp-block-separator has-alpha-channel-opacity ' + cls + ' gogh-rule' +
+            (e.color ? ' has-text-color has-' + e.color + '-color has-' + e.color + '-background-color has-background' : '') + '"/>\n<!-- /wp:separator -->';
+        }
         case 'badge':
           return '<!-- wp:paragraph {"className":"' + cls + ' gogh-badge"} -->\n' +
             '<p class="' + cls + ' gogh-badge">' + esc(e.text) + '</p>\n<!-- /wp:paragraph -->';
@@ -1381,6 +1454,164 @@
   // ---------- element factory & rendering ----------
   // sanitize inline rich text to a safe subset: links, bold, italic, br.
   // Uses <template> so nothing in untrusted markup loads or executes.
+  // the icon shelf: one 24-grid stroke path each. Drawn as a CSS mask on the
+  // published page so the colour is currentColor like words, and the block
+  // stays an empty group (no inline SVG for kses to strip)
+  var ICONS = {
+    'arrow-right': 'M5 12h14M12 5l7 7-7 7',
+    'arrow-up-right': 'M7 17L17 7M7 7h10v10',
+    'check': 'M20 6L9 17l-5-5',
+    'check-circle': 'M22 11.08V12a10 10 0 1 1-5.93-9.14M22 4L12 14.01l-3-3',
+    'plus': 'M12 5v14M5 12h14',
+    'x': 'M18 6L6 18M6 6l12 12',
+    'star': 'M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z',
+    'heart': 'M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z',
+    'zap': 'M13 2L3 14h9l-1 8 10-12h-9l1-8z',
+    'award': 'M12 15a7 7 0 1 0 0-14 7 7 0 0 0 0 14zM8.21 13.89L7 23l5-3 5 3-1.21-9.12',
+    'thumbs-up': 'M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.28a2 2 0 0 0 2-1.7l1.38-9a2 2 0 0 0-2-2.3zM7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3',
+    'smile': 'M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20zM8 14s1.5 2 4 2 4-2 4-2M9 9h.01M15 9h.01',
+    'mail': 'M4 4h16a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2zM22 6l-10 7L2 6',
+    'phone': 'M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.96.36 1.9.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.91.34 1.85.57 2.81.7A2 2 0 0 1 22 16.92z',
+    'message': 'M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z',
+    'send': 'M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z',
+    'map-pin': 'M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0zM12 13a3 3 0 1 0 0-6 3 3 0 0 0 0 6z',
+    'compass': 'M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20zM16.24 7.76l-2.12 6.36-6.36 2.12 2.12-6.36 6.36-2.12z',
+    'globe': 'M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20zM2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z',
+    'home': 'M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2zM9 22V12h6v10',
+    'tent': 'M12 4L2 20h20L12 4zM12 20l-3.5-8M12 20l3.5-8',
+    'clock': 'M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20zM12 6v6l4 2',
+    'calendar': 'M5 4h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2zM16 2v4M8 2v4M3 10h18',
+    'user': 'M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2M12 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8z',
+    'users': 'M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75',
+    'search': 'M21 21l-4.35-4.35M11 19a8 8 0 1 0 0-16 8 8 0 0 0 0 16z',
+    'eye': 'M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8zM12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6z',
+    'camera': 'M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2zM12 17a4 4 0 1 0 0-8 4 4 0 0 0 0 8z',
+    'image': 'M5 3h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2zM8.5 10a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3zM21 15l-5-5L5 21',
+    'play': 'M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20zM10 8l6 4-6 4V8z',
+    'music': 'M9 18V5l12-2v13M6 21a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM18 19a3 3 0 1 0 0-6 3 3 0 0 0 0 6z',
+    'headphones': 'M3 18v-6a9 9 0 0 1 18 0v6M21 19a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3zM3 19a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3z',
+    'book': 'M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2zM22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z',
+    'pen': 'M12 20h9M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z',
+    'scissors': 'M6 9a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM6 21a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM20 4L8.12 15.88M14.47 14.48L20 20M8.12 9.12L12 13',
+    'bag': 'M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4zM3 6h18M16 10a4 4 0 0 1-8 0',
+    'tag': 'M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82zM7 7h.01',
+    'gift': 'M20 12v10H4V12M2 7h20v5H2zM12 22V7M12 7H7.5a2.5 2.5 0 0 1 0-5C11 2 12 7 12 7zM12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7z',
+    'card': 'M3 4h18a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2zM1 10h22',
+    'percent': 'M19 5L5 19M6.5 9a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5zM17.5 20a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5z',
+    'trending-up': 'M23 6l-9.5 9.5-5-5L1 18M17 6h6v6',
+    'truck': 'M1 3h15v13H1zM16 8h4l3 3v5h-7V8zM5.5 21a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5zM18.5 21a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5z',
+    'coffee': 'M18 8h1a4 4 0 0 1 0 8h-1M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8zM6 1v3M10 1v3M14 1v3',
+    'sun': 'M12 17a5 5 0 1 0 0-10 5 5 0 0 0 0 10zM12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42',
+    'moon': 'M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z',
+    'droplet': 'M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z',
+    'umbrella': 'M23 12a11.05 11.05 0 0 0-22 0zM18 19a3 3 0 0 1-6 0v-7',
+    'feather': 'M20.24 12.24a6 6 0 0 0-8.49-8.49L5 10.5V19h8.5zM16 8L2 22M17.5 15H9',
+    'anchor': 'M12 8a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM12 22V8M5 12H2a10 10 0 0 0 20 0h-3',
+    'shield': 'M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z',
+    'lock': 'M5 11h14a2 2 0 0 1 2 2v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2zM7 11V7a5 5 0 0 1 10 0v4',
+    'key': 'M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4',
+    'wifi': 'M5 12.55a11 11 0 0 1 14.08 0M1.42 9a16 16 0 0 1 21.16 0M8.53 16.11a6 6 0 0 1 6.95 0M12 20h.01',
+    'monitor': 'M4 3h16a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2zM8 21h8M12 17v4',
+    'smartphone': 'M7 2h10a2 2 0 0 1 2 2v16a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2zM12 18h.01',
+    'sliders': 'M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M1 14h6M9 8h6M17 16h6',
+    'info': 'M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20zM12 16v-4M12 8h.01',
+    'link': 'M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71',
+    'external': 'M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6M15 3h6v6M10 14L21 3',
+    'download': 'M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3',
+    'bookmark': 'M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z',
+    'flag': 'M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1zM4 22v-7',
+  };
+  // a Google Maps or OpenStreetMap link becomes a frame we can show; anything
+  // else is left to WordPress's own embedding on the live page
+  function mapEmbedUrl(url) {
+    var u = String(url || '').trim();
+    if (!u) return null;
+    var m;
+    if (/^https?:\/\/(www\.)?google\.[a-z.]+\/maps\/embed/i.test(u) || /[?&]output=embed/i.test(u)) return u;
+    if (/^https?:\/\/(www\.)?openstreetmap\.org\/export\/embed/i.test(u)) return u;
+    m = u.match(/^https?:\/\/(www\.)?openstreetmap\.org\/.*#map=(\d+)\/(-?[\d.]+)\/(-?[\d.]+)/i);
+    if (m) {
+      var lat = +m[3], lng = +m[4], span = 0.02 * Math.pow(2, 14 - Math.min(19, +m[2]));
+      return 'https://www.openstreetmap.org/export/embed.html?bbox=' + (lng - span) + ',' + (lat - span / 2) + ',' + (lng + span) + ',' + (lat + span / 2) + '&layer=mapnik&marker=' + lat + ',' + lng;
+    }
+    if (!/^https?:\/\/((www|maps)\.)?google\.[a-z.]+\/maps/i.test(u) && !/^https?:\/\/maps\.app\.goo\.gl\//i.test(u)) return null;
+    m = u.match(/\/maps\/place\/([^/?#]+)/i);
+    if (m) return 'https://www.google.com/maps?q=' + encodeURIComponent(decodeURIComponent(m[1].replace(/\+/g, ' '))) + '&output=embed';
+    m = u.match(/\/maps\/search\/([^/?#]+)/i);
+    if (m) return 'https://www.google.com/maps?q=' + encodeURIComponent(decodeURIComponent(m[1].replace(/\+/g, ' '))) + '&output=embed';
+    m = u.match(/[?&]q=([^&#]+)/i);
+    if (m) return 'https://www.google.com/maps?q=' + m[1] + '&output=embed';
+    m = u.match(/\/maps\/@(-?[\d.]+),(-?[\d.]+),(\d+)z/i);
+    if (m) return 'https://www.google.com/maps?q=' + m[1] + ',' + m[2] + '&z=' + m[3] + '&output=embed';
+    return null; // a short link (maps.app.goo.gl): the server resolves it on the live page
+  }
+  function embedInfo(url) {
+    var u = String(url || '').trim();
+    if (!/^https?:\/\//i.test(u)) return null;
+    var map = mapEmbedUrl(u);
+    if (map) return { kind: 'map', src: map, url: u };
+    if (/^https?:\/\/maps\.app\.goo\.gl\//i.test(u)) return { kind: 'map', src: null, url: u };
+    var host = (u.match(/^https?:\/\/([^/]+)/i) || ['', ''])[1].replace(/^www\./, '');
+    return { kind: 'oembed', url: u, host: host, slug: host.replace(/\.[a-z]+$/i, '').replace(/[^a-z0-9]+/gi, '-').toLowerCase() || 'embed' };
+  }
+  var embedPreviewCache = {};
+  function embedNode(e, cls) {
+    var n = document.createElement('div');
+    var info = e.url ? embedInfo(e.url) : null;
+    n.className = 'wp-block-group ' + cls + ' gogh-embed' + (info && info.kind === 'map' ? ' gogh-embed-map' : '');
+    if (!info) {
+      n.innerHTML = '<div class="gogh-embed-empty">' + iconSvg('globe', { size: 22 }) + '<span>Paste a link \u2014 a map, a post, a playlist, a video</span></div>';
+      return n;
+    }
+    if (info.kind === 'map') {
+      if (info.src) {
+        var fr = document.createElement('iframe');
+        fr.src = info.src;
+        fr.title = 'Map';
+        fr.setAttribute('loading', 'lazy');
+        fr.setAttribute('referrerpolicy', 'no-referrer-when-downgrade');
+        n.appendChild(fr);
+      } else {
+        n.innerHTML = '<div class="gogh-embed-empty">' + iconSvg('map-pin', { size: 22 }) + '<span>Map link \u2014 the map shows on the live page</span></div>';
+      }
+      return n;
+    }
+    var cached = embedPreviewCache[info.url];
+    if (cached && cached.html) { n.innerHTML = cached.html; return n; }
+    n.innerHTML = '<div class="gogh-embed-empty">' + iconSvg('external', { size: 22 }) + '<span>' + esc(info.host) + (cached === false ? ' \u2014 shows on the live page' : ' \u2014 fetching a preview\u2026') + '</span></div>';
+    if (cached === undefined) {
+      embedPreviewCache[info.url] = { pending: true };
+      fetch(cfg.restUrl.split('wp/v2/')[0] + 'oembed/1.0/proxy?url=' + encodeURIComponent(info.url), {
+        headers: { 'X-WP-Nonce': cfg.nonce }, credentials: 'same-origin',
+      }).then(function (r) { return r.ok ? r.json() : null; }).then(function (j) {
+        // only a frame previews here (a script-driven card cannot run in innerHTML)
+        var html = j && j.html && /<iframe/i.test(j.html) ? j.html : null;
+        embedPreviewCache[info.url] = html ? { html: html } : false;
+        S.forEach(function (sec) { if (sec.els.some(function (x) { return x.type === 'embed' && x.url === info.url; })) renderSection(sec); });
+      }).catch(function () { embedPreviewCache[info.url] = false; });
+    }
+    return n;
+  }
+  function iconSvg(name, attrs) {
+    var d = ICONS[name] || ICONS.star;
+    return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="' + (attrs && attrs.stroke || 'currentColor') + '" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"' +
+      (attrs && attrs.size ? ' width="' + attrs.size + '" height="' + attrs.size + '"' : '') + '><path d="' + d + '"/></svg>';
+  }
+  // the mask URL: percent-encoded so the stored CSS never carries < or >
+  function iconMaskCss(name) {
+    var uri = 'data:image/svg+xml,' + encodeURIComponent(iconSvg(name, { stroke: '#000' }));
+    return ' -webkit-mask: url("' + uri + '") center / contain no-repeat; mask: url("' + uri + '") center / contain no-repeat;';
+  }
+  // a list's words live as lines split by <br>; the DOM holds them as <li>s
+  function listLines(text) {
+    var lines = String(text == null ? '' : text).split(/<br\s*\/?>/i);
+    return lines.length ? lines : [''];
+  }
+  function listText(node) {
+    var lis = [].slice.call(node.querySelectorAll('li'));
+    if (!lis.length) return cleanInline(node.innerHTML);
+    return lis.map(function (li) { return cleanInline(li.innerHTML); }).join('<br>');
+  }
   function cleanInline(html) {
     // self-contained: the boot-time collector calls this before mid-file
     // var assignments have run, so the allow-list must live inside
@@ -1460,10 +1691,30 @@
         if (e.ph && !(e.text && String(e.text).trim())) n.setAttribute('data-gogh-ph', e.ph);
         break;
       case 'para':
+        if (e.list) {
+          // bullets: one <li> per line — the words are still one text piece
+          n = document.createElement(e.list === 'ol' ? 'ol' : 'ul');
+          n.className = 'wp-block-list ' + cls + (e.fs && !DISPLAY_FS[e.fs] ? ' has-' + e.fs + '-font-size' : '') + (e.color ? ' has-text-color has-' + e.color + '-color' : '');
+          n.innerHTML = listLines(e.text).map(function (l) { return '<li>' + cleanInline(l) + '</li>'; }).join('');
+          break;
+        }
         n = document.createElement('p');
         n.className = cls + (e.fs && !DISPLAY_FS[e.fs] ? ' has-' + e.fs + '-font-size' : '') + (e.color ? ' has-text-color has-' + e.color + '-color' : '');
         n.innerHTML = cleanInline(e.text);
         if (e.ph && !(e.text && String(e.text).trim())) n.setAttribute('data-gogh-ph', e.ph);
+        break;
+      case 'embed':
+        n = embedNode(e, cls);
+        break;
+      case 'icon':
+        n = document.createElement('div');
+        n.className = 'wp-block-group gogh-icon gogh-icon-' + (ICONS[e.icon] ? e.icon : 'star') + ' ' + cls + (e.color ? ' has-text-color has-' + e.color + '-color' : '');
+        n.setAttribute('role', 'img');
+        n.setAttribute('aria-label', e.alt || (e.icon || 'star').replace(/-/g, ' '));
+        break;
+      case 'rule':
+        n = document.createElement('hr');
+        n.className = 'wp-block-separator has-alpha-channel-opacity gogh-rule ' + cls + (e.color ? ' has-text-color has-' + e.color + '-color' : '');
         break;
       case 'button':
         n = document.createElement('div');
@@ -2055,6 +2306,10 @@
     '<button type="button" class="gogh-sitem" data-add="image"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="8.5" cy="10" r="1.6"/><path d="M21 16l-5-5-9 8"/></svg>Image</button>' +
     '<button type="button" class="gogh-sitem" data-add="video" title="A video — upload one, or paste a YouTube or Vimeo link"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M10 9l5 3-5 3z"/></svg>Video</button>' +
     '<button type="button" class="gogh-sitem" data-add="badge"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><circle cx="12" cy="9.5" r="5.5"/><path d="M9 14l-1.5 6 4.5-2.4 4.5 2.4L15 14"/></svg>Badge</button>' +
+    '<button type="button" class="gogh-sitem" data-add="embed" title="Embed a link — a map, a post, a playlist, anything WordPress can show"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 18l6-6-6-6M8 6l-6 6 6 6"/></svg>Embed</button>' +
+    '<button type="button" class="gogh-sitem" data-add="icon" title="An icon — a simple line drawing in your text colour"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M12 3l2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 16.4 6.8 19.1l1-5.8-4.3-4.1 5.9-.9z"/></svg>Icon</button>' +
+    '<button type="button" class="gogh-sitem" data-add="list" title="Bullet points — a text piece wearing bullets"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M9 6h11M9 12h11M9 18h11"/><circle cx="4.5" cy="6" r="1.2" fill="currentColor"/><circle cx="4.5" cy="12" r="1.2" fill="currentColor"/><circle cx="4.5" cy="18" r="1.2" fill="currentColor"/></svg>List</button>' +
+    '<button type="button" class="gogh-sitem" data-add="rule" title="A line — a thin rule between things"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M3 12h18"/></svg>Line</button>' +
     '<button type="button" class="gogh-sitem" data-add="write" title="Start writing — a reading column, cursor ready"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>Write</button>' +
     '<button type="button" class="gogh-sitem" data-add="card" title="A card — drop pieces inside and they stay together, even on mobile"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2.5"/><path d="M7 12h6M7 15.5h4"/></svg>Card</button>' +
     '<button type="button" class="gogh-sitem" data-act="shapes"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><circle cx="8.5" cy="8.5" r="5.5"/><rect x="11" y="11" width="10" height="10" rx="2"/></svg>Shape</button>' +
@@ -2501,6 +2756,7 @@
     '<button type="button" class="gogh-eb gogh-eb-fit" title="Fill the width — size the text to its box">' +
     '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h18M3 12l4-4M3 12l4 4M21 12l-4-4M21 12l-4 4"/></svg></button>' +
     '<button type="button" class="gogh-eb gogh-eb-al" title="Text alignment"></button>' +
+    '<button type="button" class="gogh-eb gogh-eb-lst" title="Bullets"></button>' +
     '<button type="button" class="gogh-eb gogh-eb-lnk" title="Link text (\u2318K)"></button>' +
     '<button type="button" class="gogh-eb gogh-eb-col" title="Text colour"><span class="gogh-eb-colchip"></span></button>' +
     '<button type="button" class="gogh-eb gogh-eb-paint" title="Copy style \u2014 then click other text to paint it">' +
@@ -2525,6 +2781,9 @@
     '<div class="gogh-mbar-hint" hidden>Faded ones would put pieces on top of each other, or change nothing.</div>' +
     '</div>';
   var ctxBtn = elbar.querySelector('.gogh-eb-ctx');
+  var lstBtn = elbar.querySelector('.gogh-eb-lst');
+  var LIST_ICON = '<svg width="13" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M9 6h12M9 12h12M9 18h12"/><circle cx="4" cy="6" r="1.4" fill="currentColor" stroke="none"/><circle cx="4" cy="12" r="1.4" fill="currentColor" stroke="none"/><circle cx="4" cy="18" r="1.4" fill="currentColor" stroke="none"/></svg>';
+  var LIST_ICON_OL = '<svg width="13" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M10 6h11M10 12h11M10 18h11"/><path d="M3 5.5l1.5-1v4M3 11.5c0-1 2-1.4 2 0 0 .8-2 1.6-2 2.5h2.2M3 16.5h2c1 0 1 2-.4 2 1.4 0 1.4 2 0 2H3" stroke-width="1.8"/></svg>';
   elbar.querySelector('.gogh-eb-manage').addEventListener('click', function () {
     if (!sel) return;
     var e2 = sel.sec.els[sel.i];
@@ -2538,6 +2797,9 @@
   var paintBtn = elbar.querySelector('.gogh-eb-paint');
   var colChip = colBtn.querySelector('.gogh-eb-colchip');
   var CTX_ICONS = {
+    embed: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M16 18l6-6-6-6M8 6l-6 6 6 6"/></svg>',
+    icon: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round"><path d="M12 3l2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 16.4 6.8 19.1l1-5.8-4.3-4.1 5.9-.9z"/></svg>',
+    rule: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M3 12h18"/><path d="M7 7h10M7 17h10" opacity=".35"/></svg>',
     link: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M10 14a5 5 0 0 0 7.5.5l3-3a5 5 0 0 0-7-7l-1.7 1.7"/><path d="M14 10a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7 7l1.7-1.7"/></svg>',
     image: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="3"/><circle cx="9" cy="10" r="1.6" fill="currentColor" stroke="none"/><path d="M3 17l5-4.5 4 3.5 4-4 5 4.5"/></svg>',
     shape: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round"><circle cx="8.5" cy="8.5" r="5.5"/><rect x="11" y="11" width="10" height="10" rx="2"/></svg>',
@@ -3057,7 +3319,7 @@
       return '';
     };
     grey(mbar.querySelector('.gogh-mb-card'),
-      els.some(function (e) { return e.type === 'box' || e.rails || e.type === 'exp'; }) ? 'Cards, shapes and shelves can’t go inside a card' : '',
+      els.some(function (e) { return e.type === 'box' || e.rails || e.type === 'exp' || e.type === 'embed'; }) ? 'Cards, shapes and shelves can’t go inside a card' : '',
       'Make these one card — it holds together on phones');
     mbar.querySelectorAll('.gogh-mb-align').forEach(function (b) {
       grey(b, judge(alignPlan(els, b.dataset.how), 'Already lined up'), 'Line up ' + b.textContent.toLowerCase());
@@ -3085,7 +3347,7 @@
     if (!multiSel) return;
     var sec = multiSel.sec, idxs = multiSel.idxs.slice();
     var members = idxs.map(function (j) { return sec.els[j]; });
-    if (members.length < 2 || members.some(function (e) { return e.type === 'box' || e.rails || e.type === 'exp'; })) return;
+    if (members.length < 2 || members.some(function (e) { return e.type === 'box' || e.rails || e.type === 'exp' || e.type === 'embed'; })) return;
     var bb = bboxOf(members), pad = 24;
     var box = { type: 'box', x: Math.max(0, bb.x - pad), y: Math.max(0, bb.y - pad), radius: 12, kids: [] };
     box.w = Math.min(W - box.x, bb.x + bb.w + pad - box.x);
@@ -3221,11 +3483,11 @@
     var ar = node.getBoundingClientRect();
     elbar.style.left = (ar.left + window.scrollX + ar.width / 2) + 'px';
     elbar.style.top = (ar.top + window.scrollY - 14) + 'px';
-    if (e.type === 'button' || e.type === 'image' || e.type === 'video' || e.type === 'box') {
+    if (e.type === 'button' || e.type === 'image' || e.type === 'video' || e.type === 'box' || e.type === 'rule' || e.type === 'icon' || e.type === 'embed') {
       // cards share the section's background icon — one glyph for one idea;
       // bare shapes keep the shape glyph (their panel really picks shapes)
       var isCardEl = e.type === 'box' && e.kids && e.kids.length;
-      ctxBtn.innerHTML = CTX_ICONS[e.type === 'button' ? 'link' : e.type === 'box' ? (isCardEl ? 'image' : 'shape') : 'image'];
+      ctxBtn.innerHTML = CTX_ICONS[e.type === 'button' ? 'link' : e.type === 'box' ? (isCardEl ? 'image' : 'shape') : e.type === 'rule' ? 'rule' : e.type === 'icon' ? 'icon' : e.type === 'embed' ? 'embed' : 'image'];
       ctxBtn.title = (e.rails && (e.shop || e.posts)) ? 'Edit design' : e.type === 'video' ? 'Video' : e.type === 'button' ? 'Button link' : e.type === 'box' ? ( isCardEl ? 'Background image & colour' : 'Shape, colour & image' ) : e.type === 'widget' ? (e.faq ? 'Edit the questions' : e.tabs ? 'Edit the tabs' : e.slides ? 'Edit the slides' : e.wall ? 'Edit the photos' : 'Block settings & link') : 'Choose image';
       ctxBtn.style.display = '';
     } else {
@@ -3271,9 +3533,23 @@
       colChip.style.background = e.color ? 'var(--wp--preset--color--' + e.color + ')' : 'transparent';
       colChip.classList.toggle('is-default', !e.color);
       colBtn.style.display = '';
+      // bullets are a paragraph's choice, not a heading's
+      lstBtn.style.display = e.type === 'para' ? '' : 'none';
+      lstBtn.innerHTML = e.list === 'ol' ? LIST_ICON_OL : LIST_ICON;
+      lstBtn.classList.toggle('is-on', !!e.list);
+      lstBtn.title = e.list === 'ol' ? 'Numbered \u2014 tap for plain text' : e.list ? 'Bullets \u2014 tap for numbers' : 'Bullets';
+    } else if (e.type === 'rule' || e.type === 'icon') {
+      // a line or an icon has a colour like words do, nothing else from this row
+      alBtn.style.display = 'none';
+      lnkBtn.style.display = 'none';
+      lstBtn.style.display = 'none';
+      colChip.style.background = e.color ? 'var(--wp--preset--color--' + e.color + ')' : 'transparent';
+      colChip.classList.toggle('is-default', !e.color);
+      colBtn.style.display = '';
     } else {
       alBtn.style.display = 'none';
       lnkBtn.style.display = 'none';
+      lstBtn.style.display = 'none';
       colBtn.style.display = 'none';
     }
     elbar.hidden = false;
@@ -3474,7 +3750,8 @@
     S.forEach(function (sec) {
       sec.els.forEach(function (e, i) {
         if (editableTarget(sec, i) !== t) return;
-        e.text = (e.type === 'heading' || e.type === 'para') ? cleanInline(t.innerHTML) : t.textContent;
+        e.text = (e.type === 'para' && e.list) ? listText(t)
+          : (e.type === 'heading' || e.type === 'para') ? cleanInline(t.innerHTML) : t.textContent;
         if (e.fitW) refitText(sec, i); // fitted text follows the words as they change
         var oldH = e.h;
         measureTextHeights(sec);
@@ -4045,12 +4322,15 @@
     else if (e.type === 'video') buildVideoPanel(sec, i);
     else if (e.type === 'box') buildBoxPanel(sec, i);
     else if (e.type === 'widget') buildWidgetPanel(sec, i);
+    else if (e.type === 'rule') buildRulePanel(sec, i);
+    else if (e.type === 'icon') buildIconPanel(sec, i);
+    else if (e.type === 'embed') buildEmbedPanel(sec, i);
     // in the zoomed Design view, dock the panel into the sidebar with a
     // Back-to-Design header (as the style/page auditions do) — a panel
     // floating over the shrunk canvas reads as "lost", and closing it used
     // to drop the birds-eye. Back returns home with the zoom intact.
     if (zoomState && side.classList.contains('is-open')) {
-      var titles = { button: 'Link', image: 'Image', video: 'Video', box: 'Box', widget: 'Widget' };
+      var titles = { button: 'Link', image: 'Image', video: 'Video', box: 'Box', widget: 'Widget', rule: 'Line', icon: 'Icon', embed: 'Embed' };
       panel.insertAdjacentHTML('afterbegin',
         '<div class="gogh-panel-head"><span class="gogh-panel-title">' + (titles[e.type] || 'Element') + '</span>' +
         '<button type="button" class="gogh-sbtn gogh-panel-back" title="Back"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"/></svg></button></div>');
@@ -4963,6 +5243,69 @@
     var pup = panel.querySelector('.gogh-vid-poster-up');
     if (pup && pup.firstChild) pup.firstChild.textContent = 'Upload poster';
   }
+  function setEmbed(sec, i, url) {
+    var e = sec.els[i];
+    e.url = url ? String(url).trim() : null;
+    renderSection(sec);
+    placeHandles(sec, i);
+    pushState();
+  }
+  function buildEmbedPanel(sec, i) {
+    var e = sec.els[i];
+    panel.innerHTML = '<div class="gogh-panel-row">' +
+      '<input type="url" class="gogh-input gogh-embed-url" placeholder="Paste a link\u2026" />' +
+      '<button type="button" class="gogh-btn gogh-btn-small gogh-embed-go">Show</button></div>' +
+      '<div class="gogh-panel-hint">A Google Maps or OpenStreetMap link, a YouTube, Vimeo, Spotify, SoundCloud or TikTok link, a post on X, a WordPress post \u2014 anything WordPress can embed.</div>';
+    var input = panel.querySelector('.gogh-embed-url');
+    input.value = e.url || '';
+    var go = function () { setEmbed(sec, i, input.value.trim() || null); };
+    panel.querySelector('.gogh-embed-go').addEventListener('click', go);
+    input.addEventListener('keydown', function (ev) { if (ev.key === 'Enter') { ev.preventDefault(); go(); } });
+    setTimeout(function () { input.focus(); }, 0);
+  }
+  // the icon shelf: type to narrow it, tap to wear one
+  function buildIconPanel(sec, i) {
+    var e = sec.els[i];
+    var names = Object.keys(ICONS);
+    panel.innerHTML = '<div class="gogh-panel-row"><input type="search" class="gogh-input gogh-icon-q" placeholder="Find an icon\u2026" /></div>' +
+      '<div class="gogh-icongrid"></div>';
+    var grid = panel.querySelector('.gogh-icongrid');
+    var draw = function (q) {
+      var qq = (q || '').trim().toLowerCase();
+      grid.innerHTML = names.filter(function (nm) { return !qq || nm.indexOf(qq) !== -1; }).map(function (nm) {
+        return '<button type="button" class="gogh-iconpick' + (nm === e.icon ? ' is-active' : '') + '" data-icon="' + nm + '" title="' + nm.replace(/-/g, ' ') + '">' + iconSvg(nm, { size: 20 }) + '</button>';
+      }).join('') || '<div class="gogh-panel-hint">Nothing by that name.</div>';
+    };
+    draw('');
+    panel.querySelector('.gogh-icon-q').addEventListener('input', function (ev) { draw(ev.target.value); });
+    grid.addEventListener('click', function (ev) {
+      var b = ev.target.closest && ev.target.closest('.gogh-iconpick');
+      if (!b) return;
+      e.icon = b.dataset.icon;
+      grid.querySelectorAll('.gogh-iconpick').forEach(function (x) { x.classList.toggle('is-active', x === b); });
+      renderSection(sec);
+      placeHandles(sec, i);
+      pushState();
+    });
+  }
+  // a line has one dial: its weight. Colour rides the bar's swatch like words.
+  function buildRulePanel(sec, i) {
+    var e = sec.els[i];
+    var weights = [[1, 'Hairline'], [2, 'Fine'], [4, 'Bold']];
+    panel.innerHTML = '<div class="gogh-panel-hint">Weight</div>' +
+      '<div class="gogh-panel-row gogh-chrome-rows gogh-rule-weights">' + weights.map(function (w) {
+        return '<button type="button" class="gogh-btn gogh-btn-small' + ((+e.thick || 1) === w[0] ? ' is-active' : '') + '" data-thick="' + w[0] + '">' + w[1] + '</button>';
+      }).join('') + '</div>';
+    panel.querySelectorAll('[data-thick]').forEach(function (b) {
+      b.addEventListener('click', function () {
+        e.thick = +b.dataset.thick;
+        panel.querySelectorAll('[data-thick]').forEach(function (x) { x.classList.toggle('is-active', x === b); });
+        renderSection(sec);
+        placeHandles(sec, i);
+        pushState();
+      });
+    });
+  }
   function buildVideoPanel(sec, i) {
     var e = sec.els[i];
     panel.__vidFor = { sec: sec, i: i };
@@ -5234,7 +5577,7 @@
   colBtn.addEventListener('click', function () {
     if (!sel) return;
     var sec = sel.sec, i = sel.i, e = sec.els[i];
-    panel.innerHTML = '<div class="gogh-panel-title">Text colour</div>' +
+    panel.innerHTML = '<div class="gogh-panel-title">' + (e.type === 'rule' ? 'Line colour' : e.type === 'icon' ? 'Icon colour' : 'Text colour') + '</div>' +
       '<div class="gogh-swrow">' +
       '<button type="button" class="gogh-sw gogh-sw-none" data-col="" title="Theme default"></button>' +
       pickerPalette().map(function (p) {
@@ -5278,6 +5621,18 @@
       selObj.addRange(r);
     }
     openTextLinkPanel();
+  });
+  // plain → bullets → numbers → plain
+  lstBtn.addEventListener('click', function () {
+    if (!sel) return;
+    var e = sel.sec.els[sel.i];
+    if (e.type !== 'para') return;
+    if (textEditing && textEditing.sec === sel.sec && textEditing.i === sel.i) exitTextEdit();
+    e.list = e.list === 'ul' ? 'ol' : (e.list === 'ol' ? null : 'ul');
+    if (!e.list) delete e.list;
+    renderSection(sel.sec);
+    placeHandles(sel.sec, sel.i);
+    pushState();
   });
   alBtn.addEventListener('click', function () {
     if (!sel) return;
@@ -5552,6 +5907,13 @@
     image: function () { return { type: 'image', x: 520, y: 120, w: 360, h: 260, text: null, ghost: false, cool: true }; },
     video: function () { return { type: 'video', x: 400, y: 100, w: 560, h: 315, text: null, ghost: false, cool: true, vplay: 'auto', radius: 14 }; },
     badge: function () { return { type: 'badge', x: 520, y: 420, w: 220, h: 52, text: 'New badge', ghost: false, cool: false }; },
+    // a line: the row is 12 tall so the grid has something to hold; the
+    // stroke itself is 1px, centred in it
+    rule: function () { return { type: 'rule', x: 80, y: 200, w: 1040, h: 16, thick: 1 }; },
+    icon: function () { return { type: 'icon', x: 80, y: 80, w: 56, h: 56, icon: 'star' }; },
+    embed: function () { return { type: 'embed', x: 240, y: 80, w: 720, h: 405, url: null }; },
+    // a list is a paragraph wearing bullets: same words, same panel
+    list: function () { return { type: 'para', x: 80, y: 200, w: 420, h: 96, list: 'ul', text: 'The first point<br>The second point<br>The third point', ghost: false, cool: false }; },
     card: function () {
       return { type: 'box', x: 360, y: 80, w: 480, h: 360, radius: 16,
         boxBg: 'color-mix(in srgb, var(--wp--preset--color--contrast, #000) 7%, var(--wp--preset--color--base, transparent))' };
@@ -10460,6 +10822,10 @@
       { label: 'Video', kind: 'video' },
       { label: 'Badge', kind: 'badge' },
       { label: 'Posts grid', kind: 'posts' },
+      { label: 'Icon', kind: 'icon' },
+      { label: 'Embed', kind: 'embed' },
+      { label: 'List', kind: 'list' },
+      { label: 'Line', kind: 'rule' },
       // the shelf's other doors, so / offers the same menu as +
       { label: 'Card', kind: 'card' },
       { label: 'Shape', act: 'shapes' },
@@ -15865,6 +16231,7 @@
       // text height belongs to the measurer — writing it here re-arms the
       // reflow push every frame and compounds into runaway pushing
       if (fixedHeight(e)) e.h = Math.round(nh);
+      if (e.type === 'icon') { e.h = e.w; } // an icon is always square
       if (!resizeRaf) {
         resizeRaf = true;
         requestAnimationFrame(function () {
@@ -16445,6 +16812,9 @@
     contrastSentinel: contrastSentinel,
     sectionThemes: sectionThemes,
     rearrangeVariants: rearrangeVariants,
+    mapEmbedUrl: mapEmbedUrl,
+    embedInfo: embedInfo,
+    setEmbed: setEmbed,
     scaleFontSizes: scaleFontSizes,
     applySectionTheme: applySectionTheme,
     openSecAdd: openSecAddPanel,

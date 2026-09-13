@@ -1088,6 +1088,135 @@
       G.renderSection(sec());
     });
 
+    test('a line publishes as a core separator with its weight and colour in the CSS', function () {
+      var s0 = sec();
+      var n0 = s0.els.length;
+      window.dispatchEvent(new KeyboardEvent('keydown', { key: '/', bubbles: true }));
+      var input = document.querySelector('.gogh-cmd-in');
+      input.value = 'line';
+      input.dispatchEvent(new Event('input', { bubbles: true }));
+      input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+      var e = s0.els[s0.els.length - 1];
+      expect(s0.els.length === n0 + 1 && e.type === 'rule', 'the / palette did not add a line');
+      var idx = s0.els.length - 1;
+      var node = s0.nodes[idx];
+      expect(node && node.tagName === 'HR' && /gogh-rule/.test(node.className), 'the canvas does not draw the line as an <hr>: ' + (node && node.outerHTML.slice(0, 80)));
+      e.thick = 4;
+      e.color = 'contrast';
+      G.renderSection(s0);
+      var blocks = G.blocksV3(s0);
+      expect(/<!-- wp:separator \{[^}]*gogh-rule"/.test(blocks), 'the line is not a wp:separator block: ' + (blocks.match(/<!-- wp:[a-z\/-]+ \{[^}]*gogh-rule[^}]*\}/) || ['none'])[0]);
+      expect(/<hr class="wp-block-separator has-alpha-channel-opacity [^"]*gogh-rule has-text-color has-contrast-color/.test(blocks), 'the separator lost its colour class');
+      var css = G.blocksV3(s0).match(/"cssT":"((?:[^"\\]|\\.)*)"/);
+      expect(css && /background-size: 100% 4px/.test(css[1].replace(/\\"/g, '"')), 'the weight did not reach the CSS');
+      s0.els.splice(idx, 1);
+      G.renderSection(s0);
+    });
+
+    test('a paragraph can wear bullets: the bar toggles it, the canvas shows <li>s, it publishes as a list', function () {
+      var s0 = sec();
+      var pi = s0.els.findIndex(function (e) { return e.type === 'para' && !e.list; });
+      expect(pi !== -1, 'no paragraph to test with');
+      var e = s0.els[pi];
+      var keep = e.text;
+      e.text = 'One<br>Two<br>Three';
+      G.renderSection(s0);
+      select(pi);
+      var lst = q('.gogh-elbar .gogh-eb-lst');
+      expect(lst && lst.style.display !== 'none', 'the bullets toggle is not on the bar for a paragraph');
+      lst.click();
+      expect(e.list === 'ul', 'first tap should give bullets, got ' + e.list);
+      var node = s0.nodes[pi];
+      expect(node.tagName === 'UL' && node.querySelectorAll('li').length === 3, 'the canvas did not draw three bullets: ' + node.outerHTML.slice(0, 120));
+      var blocks = G.blocksV3(s0);
+      expect(/<!-- wp:list \{[^}]*\} -->\n<ul class="wp-block-list /.test(blocks), 'bullets did not publish as wp:list');
+      expect((blocks.match(/<!-- wp:list-item -->/g) || []).length >= 3, 'the list items did not publish');
+      // typing inside the list keeps the lines apart
+      node.innerHTML = '<li>Alpha</li><li>Beta</li>';
+      node.dispatchEvent(new Event('input', { bubbles: true }));
+      lst.click();
+      expect(e.list === 'ol', 'second tap should give numbers, got ' + e.list);
+      expect(s0.nodes[pi].tagName === 'OL', 'the canvas did not switch to <ol>');
+      expect(/<!-- wp:list \{[^}]*"ordered":true/.test(G.blocksV3(s0)), 'numbers did not publish as an ordered list');
+      lst.click();
+      expect(!e.list, 'third tap should return to plain text');
+      expect(s0.nodes[pi].tagName === 'P', 'the canvas did not return to a <p>');
+      e.text = keep;
+      G.renderSection(s0);
+      window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+    });
+
+    test('an icon is a masked square of currentColor: the shelf picks it, the block stays an empty group', function () {
+      var s0 = sec();
+      var n0 = s0.els.length;
+      window.dispatchEvent(new KeyboardEvent('keydown', { key: '/', bubbles: true }));
+      var input = document.querySelector('.gogh-cmd-in');
+      input.value = 'icon';
+      input.dispatchEvent(new Event('input', { bubbles: true }));
+      input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+      var idx = s0.els.length - 1, e = s0.els[idx];
+      expect(s0.els.length === n0 + 1 && e.type === 'icon' && e.icon === 'star', 'the / palette did not add a star icon');
+      var node = s0.nodes[idx];
+      expect(node && /gogh-icon-star/.test(node.className) && node.getAttribute('role') === 'img', 'the canvas icon is not an img-role group: ' + (node && node.outerHTML.slice(0, 100)));
+      var r = node.getBoundingClientRect();
+      expect(Math.abs(r.width - r.height) <= 2 && r.width > 30, 'the icon is not square on the canvas (' + Math.round(r.width) + 'x' + Math.round(r.height) + ')');
+      G.openPanel(s0, idx);
+      var pick = document.querySelector('.gogh-panel .gogh-iconpick[data-icon="heart"]');
+      expect(pick, 'the icon shelf has no heart');
+      pick.click();
+      expect(e.icon === 'heart', 'the pick did not land on the model');
+      e.color = 'contrast';
+      G.renderSection(s0);
+      var blocks = G.blocksV3(s0);
+      // the attrs carry a nested layout object, so match the comment by line, not by brace
+      expect(/<!-- wp:group \{[^\n]*gogh-icon gogh-icon-heart[^\n]* -->\n<div class="wp-block-group [^"]*gogh-icon gogh-icon-heart[^"]*has-contrast-color" role="img" aria-label="heart"><\/div>/.test(blocks), 'the icon did not publish as an empty group with its name and colour: ' + (blocks.match(/<!-- wp:group [^\n]*gogh-icon[^\n]*\n[^\n]*/) || ['none'])[0].slice(0, 300));
+      var css = blocks.match(/"cssT":"((?:[^"\\]|\\.)*)"/);
+      var cssT = css ? css[1].replace(/\\"/g, '"') : '';
+      // the attr serializer writes quotes as \u0022 — match past them
+      expect(/mask: url\(.{0,8}data:image\/svg\+xml,%3Csvg/.test(cssT), 'the mask did not reach the CSS');
+      expect(cssT.indexOf('<') === -1 && cssT.indexOf('>') === -1, 'the stored CSS carries < or > (the server strips them)');
+      G.closePanel();
+      s0.els.splice(idx, 1);
+      G.renderSection(s0);
+    });
+
+    test('map links become frames; other links are left to WordPress to embed', function () {
+      var m1 = G.mapEmbedUrl('https://www.google.com/maps/place/Cape+Town/@-33.92,18.42,12z/data=!3m1');
+      expect(m1 && /output=embed/.test(m1) && /q=Cape%20Town/.test(m1), 'a place link did not become an embed: ' + m1);
+      var m2 = G.mapEmbedUrl('https://www.google.com/maps/@-33.92,18.42,12z');
+      expect(m2 && /q=-33\.92,18\.42&z=12&output=embed/.test(m2), 'a coordinates link did not become an embed: ' + m2);
+      var m3 = G.mapEmbedUrl('https://www.openstreetmap.org/#map=15/51.5074/-0.1278');
+      expect(m3 && /export\/embed\.html\?bbox=/.test(m3) && /marker=51\.5074,-0\.1278/.test(m3), 'an OSM link did not become an embed: ' + m3);
+      expect(G.mapEmbedUrl('https://www.youtube.com/watch?v=abc123def') === null, 'a video link is not a map');
+      var yt = G.embedInfo('https://www.youtube.com/watch?v=abc123def');
+      expect(yt && yt.kind === 'oembed' && yt.host === 'youtube.com', 'a YouTube link should be an oEmbed: ' + JSON.stringify(yt));
+      expect(G.embedInfo('not a link') === null, 'plain words are not an embed');
+
+      var s0 = sec();
+      var n0 = s0.els.length;
+      window.dispatchEvent(new KeyboardEvent('keydown', { key: '/', bubbles: true }));
+      var input = document.querySelector('.gogh-cmd-in');
+      input.value = 'embed';
+      input.dispatchEvent(new Event('input', { bubbles: true }));
+      input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+      var idx = s0.els.length - 1, e = s0.els[idx];
+      expect(s0.els.length === n0 + 1 && e.type === 'embed', 'the / palette did not add an embed');
+      expect(s0.nodes[idx].querySelector('.gogh-embed-empty'), 'an empty embed should ask for a link');
+      G.setEmbed(s0, idx, 'https://www.google.com/maps/place/Cape+Town/@-33.92,18.42,12z');
+      var fr = s0.nodes[idx].querySelector('iframe');
+      expect(fr && /output=embed/.test(fr.getAttribute('src')), 'the canvas did not frame the map');
+      var blocks = G.blocksV3(s0);
+      expect(/gogh-embed gogh-embed-map"><a class="gogh-embed-link" href="https:\/\/www\.google\.com\/maps\/place\/Cape\+Town/.test(blocks), 'the map did not publish as a group with a plain link');
+      G.setEmbed(s0, idx, 'https://www.youtube.com/watch?v=abc123def');
+      blocks = G.blocksV3(s0);
+      expect(/<!-- wp:embed \{"url":"https:\/\/www\.youtube\.com\/watch\?v=abc123def","type":"rich","providerNameSlug":"youtube"/.test(blocks), 'the link did not publish as a wp:embed');
+      expect(/<div class="wp-block-embed__wrapper">\nhttps:\/\/www\.youtube\.com\/watch\?v=abc123def\n<\/div>/.test(blocks), 'the URL is not on its own line for WordPress to swap');
+      var css = blocks.match(/"cssT":"((?:[^"\\]|\\.)*)"/);
+      expect(css && /aspect-ratio: 720 \/ 405/.test(css[1].replace(/\\"/g, '"')), 'the window lost its aspect');
+      s0.els.splice(idx, 1);
+      G.renderSection(s0);
+    });
+
     test('Backspace takes a selected section, and Undo brings it back', function () {
       var c0 = G.sections().filter(function (s2) { return !s2.chrome; }).length;
       G.addSection({ name: 'DOOMED', minH: 300, els: [
