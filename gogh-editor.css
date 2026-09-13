@@ -4105,3 +4105,10 @@ html.gogh-building .gogh-inserter, html.gogh-building .gogh-side { display: none
 .gogh-remixwords { display: block; padding: 0 2px; }
 .gogh-remixwords .gogh-varname { margin-left: 0; display: block; }
 .gogh-remixdetail { display: block; font-weight: 500; font-size: 11px; opacity: 0.6; margin-top: 1px; }
+
+/* Remix: "not quite — more like this" */
+.gogh-remixdirs { display: flex; flex-wrap: wrap; gap: 5px; align-items: center; margin-top: 10px; }
+.gogh-remixdirs-lab { flex-basis: 100%; font: 500 11px/1.3 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; color: var(--gogh-ui-fg); opacity: 0.6; margin-bottom: 1px; }
+.gogh-remixdir { font: 600 11.5px/1 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; padding: 6px 10px; border-radius: 999px; border: 1px solid var(--gogh-ui-border); background: transparent; color: var(--gogh-ui-fg); cursor: pointer; }
+.gogh-remixdir:hover { background: var(--gogh-ui-hover); }
+.gogh-remixdir.is-on { background: var(--gogh-ui-fg); color: var(--gogh-ui-bg, #fff); border-color: transparent; }

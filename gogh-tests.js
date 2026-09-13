@@ -5833,6 +5833,37 @@
       G.remixLocks({});
     });
 
+    test('remix: a direction nudges from where you are — darker is dark, calmer is quiet, warmer leans warm', function () {
+      var lum = function (hex) {
+        var n = parseInt(hex.slice(1), 16);
+        var f = function (v) { v /= 255; return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); };
+        return 0.2126 * f(n >> 16 & 255) + 0.7152 * f(n >> 8 & 255) + 0.0722 * f(n & 255);
+      };
+      var dark = G.remixCandidates('darker');
+      expect(dark.length === 6 && dark.every(function (c) { return lum(c.colors.background) < 0.2; }), 'darker should give dark grounds: ' + dark.map(function (c) { return c.colors.background; }).join(','));
+      var light = G.remixCandidates('lighter');
+      expect(light.every(function (c) { return lum(c.colors.background) > 0.6; }), 'lighter should give light grounds');
+      var calm = G.remixCandidates('calmer');
+      expect(calm.every(function (c) { return c.parts.volume === 'quiet' && c.scale <= 100 && !c.divider && /^(plain|alternate)$/.test(c.rhythm); }), 'calmer should be quiet, small and plain: ' + JSON.stringify(calm.map(function (c) { return [c.parts.volume, c.scale, c.divider, c.rhythm]; })));
+      var bold = G.remixCandidates('bolder');
+      expect(bold.every(function (c) { return c.parts.volume === 'loud' && c.scale >= 110; }), 'bolder should be loud and large');
+      expect(bold.every(function (c) { return c.direction === 'bolder'; }), 'a directed look should say its direction');
+      // warmer: the accent's hue sits nearer orange than the current accent's does
+      var hueOf = function (hex) {
+        var n = parseInt(hex.slice(1), 16), r = (n >> 16 & 255) / 255, g = (n >> 8 & 255) / 255, b = (n & 255) / 255;
+        var mx = Math.max(r, g, b), mn = Math.min(r, g, b), d = mx - mn, h = 0;
+        if (d) { h = mx === r ? ((g - b) / d) % 6 : mx === g ? (b - r) / d + 2 : (r - g) / d + 4; h = (h * 60 + 360) % 360; }
+        return h;
+      };
+      var dist = function (h, to) { return Math.abs(((to - h + 540) % 360) - 180); };
+      var nowH = hueOf(G.currentLook().accent);
+      var warm = G.remixCandidates('warmer').filter(function (c) { return c.parts.relation === 'same'; });
+      if (warm.length && dist(nowH, 28) > 20) {
+        expect(warm.every(function (c) { return dist(hueOf(c.colors.accent), 28) < dist(nowH, 28); }), 'warmer did not lean the accent towards orange');
+      }
+      expect(Math.round(G.hueToward(200, 28, 0.5)) === 114 && Math.round(G.hueToward(350, 28, 0.5)) === 9, 'hueToward should take the short way round');
+    });
+
     testAsync('remix: keep puts a look on the shelf, keep again takes it off', function () {
       var cand = G.remixCandidates()[0];
       var n0 = G.remixKept().length;

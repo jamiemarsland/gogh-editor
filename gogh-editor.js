@@ -15139,6 +15139,22 @@
     { key: 'accent-hero', say: 'an accent-washed opening' },
   ];
   var REMIX_DIVIDERS = [null, null, 'sweep', 'dunes', 'arch', 'sheet'];
+  // a direction narrows the parts and leans the hue — "not quite, more like
+  // this" instead of another roll of the dice. Each is a bias, not a rule:
+  // the pools shrink to what fits, the hue moves part of the way
+  var REMIX_DIRECTIONS = {
+    warmer:  { say: 'warmer', hueTo: 28, grounds: null, relations: null, volumes: null, scales: null, rhythms: null, dividers: null },
+    cooler:  { say: 'cooler', hueTo: 212, grounds: null, relations: null, volumes: null, scales: null, rhythms: null, dividers: null },
+    calmer:  { say: 'calmer', sat: 0.7, grounds: ['paper', 'wash'], relations: ['same', 'neighbour'], volumes: ['quiet'], scales: [90, 100], rhythms: ['plain', 'alternate'], dividers: [null], fx: 0 },
+    bolder:  { say: 'bolder', sat: 1.15, grounds: null, relations: ['opposite', 'split', 'neighbour'], volumes: ['loud'], scales: [110, 120], rhythms: ['dark-hero', 'bookends', 'accent-hero'], dividers: ['sweep', 'dunes', 'arch', 'sheet'], fx: 0.5 },
+    darker:  { say: 'darker', grounds: ['ink', 'deep'], relations: null, volumes: null, scales: null, rhythms: ['dark-hero', 'bookends', 'plain'], dividers: null },
+    lighter: { say: 'lighter', grounds: ['paper', 'wash'], relations: null, volumes: null, scales: null, rhythms: ['plain', 'alternate', 'accent-hero'], dividers: null },
+  };
+  // move a hue part of the way towards another, the short way round
+  function hueToward(h, to, amount) {
+    var d = ((to - h + 540) % 360) - 180;
+    return (h + d * amount + 360) % 360;
+  }
   var remixShown = {};   // keys shown this session — a fresh tap draws from the rest
   var remixLocks = {};   // { ground, ink, accent, fonts } → true pins the slot
   // the look being worn now: the brand when one is set, else the theme's own
@@ -15267,23 +15283,39 @@
     fams.forEach(function (h2) { fams.forEach(function (b2) { if (h2 !== b2 || fams.length === 1) pairs.push({ heading: h2, body: b2 }); }); });
     return pairs;
   }
-  function remixCandidates() {
+  function remixCandidates(direction) {
     var now = currentLook();
+    var dir = (direction && REMIX_DIRECTIONS[direction]) || null;
     var seeds = [now.accent, now.accent2, now.text, now.background]
       .map(hexToHsl).filter(function (c) { return c && c.s > 0.12; });
     if (!seeds.length) seeds = [{ h: 220, s: 0.5, l: 0.4 }];
-    var A = seeds[0];
+    var A = { h: seeds[0].h, s: seeds[0].s, l: seeds[0].l };
+    // a direction with a hue leans the seed part of the way there
+    if (dir && dir.hueTo != null) A.h = hueToward(A.h, dir.hueTo, 0.55);
     var pairs = remixFontPairs();
     var j = function (range) { return (Math.random() - 0.5) * 2 * range; };
     var pick = function (list) { return list[Math.floor(Math.random() * list.length)]; };
+    var pool = function (all, keys, keyOf) {
+      if (!dir || !keys) return all;
+      var sub = all.filter(function (x) { return keys.indexOf(keyOf(x)) !== -1; });
+      return sub.length ? sub : all;
+    };
+    var grounds = pool(REMIX_GROUNDS, dir && dir.grounds, function (x) { return x.key; });
+    var relations = pool(REMIX_RELATIONS, dir && dir.relations, function (x) { return x.key; });
+    var volumes = pool(REMIX_VOLUMES, dir && dir.volumes, function (x) { return x.key; });
+    var scales = pool(REMIX_SCALES, dir && dir.scales, function (x) { return x[0]; });
+    var rhythms = pool(REMIX_RHYTHMS, dir && dir.rhythms, function (x) { return x.key; });
+    var dividers = pool(REMIX_DIVIDERS, dir && dir.dividers, function (x) { return x; });
+    var grainOdds = dir && dir.fx != null ? dir.fx : 0.25;
     var nowGround = hexToHsl(now.background);
     var build = function () {
-      var g = pick(REMIX_GROUNDS), r = pick(REMIX_RELATIONS), v = pick(REMIX_VOLUMES), ink = pick(REMIX_INKS);
+      var g = pick(grounds), r = pick(relations), v = pick(volumes), ink = pick(REMIX_INKS);
+      if (dir && dir.sat) v = { key: v.key, say: v.say, s: Math.max(0.2, Math.min(0.95, v.s * dir.sat)) };
       var pair = pairs.length ? pick(pairs) : null;
-      var scale = remixLocks.scale ? (now.scale || 100) : pick(REMIX_SCALES)[0];
-      var rhythm = remixLocks.rhythm ? now.rhythm : pick(REMIX_RHYTHMS).key;
-      var divider = remixLocks.rhythm ? now.divider : pick(REMIX_DIVIDERS);
-      var fx = remixLocks.rhythm ? now.fx : (Math.random() < 0.25 ? 'grain' : null);
+      var scale = remixLocks.scale ? (now.scale || 100) : pick(scales)[0];
+      var rhythm = remixLocks.rhythm ? now.rhythm : pick(rhythms).key;
+      var divider = remixLocks.rhythm ? now.divider : pick(dividers);
+      var fx = remixLocks.rhythm ? now.fx : (Math.random() < grainOdds ? 'grain' : null);
       var bg, tx, ac;
       if (remixLocks.ground) { bg = now.background; g = { key: 'kept', say: 'your ground', dark: nowGround ? nowGround.l < 0.5 : false, ink: nowGround && nowGround.l < 0.5 ? [0.08, 0.93] : [0.3, 0.13] }; }
       else bg = hslToHex(A.h + j(10), g.s, g.l);
@@ -15295,7 +15327,7 @@
       // the gate: only what is not locked may move to become legible
       if (!remixLocks.ink) tx = ensureContrast(tx, bg, 7);
       if (!remixLocks.accent) ac = ensureContrast(ac, bg, 3);
-      var key = [g.key, ink.key, r.key, v.key, pair ? pair.heading + '/' + pair.body : '-', scale, rhythm, divider || '-', fx || '-'].join('|');
+      var key = [g.key, ink.key, r.key, v.key, pair ? pair.heading + '/' + pair.body : '-', scale, rhythm, divider || '-', fx || '-', dir ? dir.say : '-'].join('|');
       var rhythmSay = (REMIX_RHYTHMS.filter(function (x) { return x.key === rhythm; })[0] || REMIX_RHYTHMS[0]).say;
       var scaleSay = (REMIX_SCALES.filter(function (x) { return x[0] === scale; })[0] || [100, 'regular'])[1];
       return {
@@ -15308,6 +15340,7 @@
         rhythm: rhythm,
         divider: divider,
         fx: fx,
+        direction: dir ? dir.say : null,
         parts: { ground: g.key, relation: r.key, volume: v.key },
       };
     };
@@ -15834,9 +15867,14 @@
           'title="Six looks built from your brand — hover to wear one, lock what works, tap again for six more">✦ Remix</button>' +
           '<div class="gogh-remixlocks" hidden></div>' +
           '<div class="gogh-remixcards" hidden></div>' +
+          '<div class="gogh-remixdirs" hidden><span class="gogh-remixdirs-lab">Not quite \u2014 more like this:</span>' +
+          ['warmer', 'cooler', 'calmer', 'bolder', 'darker', 'lighter'].map(function (d) {
+            return '<button type="button" class="gogh-remixdir" data-dir="' + d + '">' + d.charAt(0).toUpperCase() + d.slice(1) + '</button>';
+          }).join('') + '</div>' +
           '<div class="gogh-remixkept"></div>';
         box.appendChild(wrap);
         var cardsBox = wrap.querySelector('.gogh-remixcards');
+        var dirsBox = wrap.querySelector('.gogh-remixdirs');
         var locksBox = wrap.querySelector('.gogh-remixlocks');
         var keptBox = wrap.querySelector('.gogh-remixkept');
         var LOCK = '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>';
@@ -15911,19 +15949,24 @@
             });
           });
         };
-        var spin = function () {
+        var spin = function (direction) {
           cardsBox.hidden = false;
           locksBox.hidden = false;
+          dirsBox.hidden = false;
           cardsBox.innerHTML = '';
-          remixCandidates().forEach(function (cand) {
+          remixCandidates(direction).forEach(function (cand) {
             var cardEl = cardFor(cand);
             cardEl.__cand = cand;
             cardsBox.appendChild(cardEl);
           });
+          dirsBox.querySelectorAll('.gogh-remixdir').forEach(function (b) { b.classList.toggle('is-on', b.dataset.dir === direction); });
         };
         drawLocks();
         drawKept();
-        wrap.querySelector('.gogh-remixbtn').addEventListener('click', spin);
+        wrap.querySelector('.gogh-remixbtn').addEventListener('click', function () { spin(null); });
+        dirsBox.querySelectorAll('.gogh-remixdir').forEach(function (b) {
+          b.addEventListener('click', function () { spin(b.dataset.dir); });
+        });
       })();
       // colours and font pairs are different decisions — group them
       var groups = { color: [], font: [] };
@@ -17105,6 +17148,7 @@
     remixKept: remixKept,
     currentLook: currentLook,
     remixRhythmPlan: remixRhythmPlan,
+    hueToward: hueToward,
     remixPaintRhythm: remixPaintRhythm,
     remixRestoreRhythm: remixRestoreRhythm,
     embedInfo: embedInfo,
