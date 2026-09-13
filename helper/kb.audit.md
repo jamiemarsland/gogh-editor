@@ -1,4 +1,4 @@
-# Knowledge-base audit — plugin v0.99.501
+# Knowledge-base audit — plugin v0.99.502
 
 _13 finding(s) suppressed by `kb.audit-ignore.txt`._
 
@@ -109,19 +109,9 @@ The source has something the prose never explains. The bot knows the name from t
 
 Use this as the checklist for updating the prose — and as a sanity check on the release itself.
 
-- version: 0.99.500 → 0.99.501
-- added element type: "embed"
-- added element type: "icon"
-- added element type: "rule"
-- added UI label: "' + nm.replace(/-/g, ' ') + '"
-- added UI label: "A line — a thin rule between things"
-- added UI label: "An icon — a simple line drawing in your text colour"
-- added UI label: "Bullet points — a text piece wearing bullets"
-- added UI label: "Bullets"
-- added UI label: "Embed"
-- added UI label: "Embed a link — a map, a post, a playlist, anything WordPress can show"
-- added UI label: "Icon"
-- added UI label: "Line"
-- added UI label: "List"
-- added UI label: "Open the map"
-- added UI label: "Show"
+- version: 0.99.501 → 0.99.502
+- removed UI label: "Six looks derived from your brand — hover to wear one, tap Remix again for six more"
+- added UI label: "' + (opts && opts.kept ? 'Take it off the shelf' : 'Keep this look') + '"
+- added UI label: "Keep the ' + l[1].toLowerCase() + ' you have; spin the rest"
+- added UI label: "Wear this look"
+- added toast: "gogh could not save that look — it stays for this session."
