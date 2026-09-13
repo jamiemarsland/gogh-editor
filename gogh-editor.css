@@ -67,17 +67,9 @@
   /* contents arrive one beat behind their container — most of what
      makes sprung UI feel expensive */
   .gogh-panel .gogh-themechip, .gogh-panel .gogh-hpreset,
-  .gogh-panel .gogh-rearchip, .gogh-panel .gogh-shapecell {
-    animation: gogh-pop 0.34s var(--gogh-spring) both;
-  }
   @keyframes gogh-pop {
     from { opacity: 0; transform: translateY(4px) scale(0.96); }
   }
-  .gogh-panel .gogh-themechip:nth-child(2), .gogh-panel .gogh-hpreset:nth-child(2), .gogh-panel .gogh-shapecell:nth-child(2), .gogh-panel .gogh-rearchip:nth-child(2) { animation-delay: 0.02s; }
-  .gogh-panel .gogh-themechip:nth-child(3), .gogh-panel .gogh-hpreset:nth-child(3), .gogh-panel .gogh-shapecell:nth-child(3), .gogh-panel .gogh-rearchip:nth-child(3) { animation-delay: 0.04s; }
-  .gogh-panel .gogh-themechip:nth-child(4), .gogh-panel .gogh-hpreset:nth-child(4), .gogh-panel .gogh-shapecell:nth-child(4), .gogh-panel .gogh-rearchip:nth-child(4) { animation-delay: 0.06s; }
-  .gogh-panel .gogh-themechip:nth-child(5), .gogh-panel .gogh-hpreset:nth-child(5), .gogh-panel .gogh-shapecell:nth-child(5), .gogh-panel .gogh-rearchip:nth-child(5) { animation-delay: 0.08s; }
-  .gogh-panel .gogh-themechip:nth-child(n+6), .gogh-panel .gogh-hpreset:nth-child(n+6), .gogh-panel .gogh-shapecell:nth-child(n+6), .gogh-panel .gogh-rearchip:nth-child(n+6) { animation-delay: 0.1s; }
   .gogh-toast { animation: gogh-toast-in 0.32s var(--gogh-spring) both; }
   @keyframes gogh-toast-in {
     from { opacity: 0; transform: translateY(10px) scale(0.97); }
@@ -400,19 +392,6 @@ html.gogh-phone-preview .gogh-section.gogh-msec-hidden {
 .gogh-panel-title, .gogh-panel-head { cursor: move; user-select: none; }
 
 /* rearrange chips */
-.gogh-rearrow { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; min-width: 260px; }
-.gogh-rearchip {
-  all: unset;
-  cursor: pointer;
-  padding: 7px 13px;
-  border-radius: 9px;
-  border: 1.5px solid var(--gogh-ui-line, #e3e3e6);
-  font-size: 12.5px;
-  font-weight: 650;
-  transition: border-color 0.12s ease, background 0.12s ease;
-}
-.gogh-rearchip:hover { border-color: #4a63d8; background: rgba(74, 99, 216, 0.08); }
-.gogh-rearchip.is-active { border-color: #4a63d8; background: rgba(74, 99, 216, 0.14); font-weight: 600; }
 /* panels resize by their corner — folks asked for room */
 .gogh-panel { resize: both; min-width: 300px; max-width: 680px; }
 .gogh-panel-wide { width: 480px; }

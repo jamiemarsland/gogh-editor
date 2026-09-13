@@ -6060,7 +6060,9 @@
       G.openSecMore(i, bar.querySelector('[data-sec="more"]'));
       var items = [].map.call(document.querySelectorAll('.gogh-secmore .gogh-secmore-it'),
         function (b) { return b.textContent + (b.disabled ? '·off' : ''); });
-      expect(items.length === 6, 'expected 6 menu verbs, got ' + items.length);
+      // Rearrange left the menu in v0.99.499: the die already offers every
+      // arrangement a hand-built section can take
+      expect(items.length === 5, 'expected 5 menu verbs, got ' + items.length);
       expect(/Move up·off/.test(items[0]), 'the first section can somehow move up: ' + items[0]);
       expect(document.querySelector('.gogh-secmore-del'), 'Delete lost its red');
       document.querySelector('.gogh-secmore').hidden = true;

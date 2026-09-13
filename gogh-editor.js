@@ -10799,7 +10799,6 @@
       ['up', 'Move up', !S[idx] || !pageNeighbour(S[idx].wrapEl, -1)],
       ['down', 'Move down', !S[idx] || !pageNeighbour(S[idx].wrapEl, 1)],
       ['dup', 'Duplicate', false],
-      ['rearrange', 'Rearrange', false],
       ['savepat', 'Save to reuse', false],
       ['del', 'Delete', false],
     ].map(function (it) {
@@ -10825,7 +10824,6 @@
           return;
         }
         if (act === 'dup') { duplicateSection(idx); return; }
-        if (act === 'rearrange') { openRearrangePanel(idx, anchor); return; }
         if (act === 'savepat') { openSavePatternPanel(idx); return; }
         if (act === 'del') deleteSection(idx);
       });
@@ -11069,60 +11067,6 @@
     });
     renderSection(sec);
   }
-  function openRearrangePanel(idx, anchorEl) {
-    var secx = S[idx];
-    var variants = rearrangeVariants(secx);
-    if (!variants.length) { toast('Nothing to rearrange yet — add a couple of pieces first.'); return; }
-    var snap = secx.els.map(function (e) { return { x: e.x, y: e.y }; });
-    // the arrangement the panel OPENED on stays reachable forever — keeps
-    // rebase the working snapshot, but Original is the way home
-    var snap0 = snap.map(function (p) { return { x: p.x, y: p.y }; });
-    panel.innerHTML = '<div class="gogh-panel-head"><span class="gogh-panel-title">Rearrange this section</span>' +
-      '<button type="button" class="gogh-sbtn gogh-panel-close" title="Done">\u2715</button></div>' +
-      '<div class="gogh-panel-hint">Hover to audition — click to keep. Close with \u2715 when you\u2019re done.</div>' +
-      '<div class="gogh-rearrow">' +
-      '<button type="button" class="gogh-rearchip gogh-rear-orig is-active">Original</button>' +
-      variants.map(function (v, k) {
-        return '<button type="button" class="gogh-rearchip" data-k="' + k + '">' + esc(v.name) + '</button>';
-      }).join('') + '</div>';
-    // anchor to the BUTTON that asked, not the section: a tall section's
-    // bottom edge can be a screenful away from where James is looking
-    placePanelNear(anchorEl && anchorEl.isConnected ? anchorEl : secx.wrapEl);
-    panelOpen = true;
-    panelSticky = true; // auditioning must survive a glance at the canvas
-    panel.querySelector('.gogh-panel-close').addEventListener('click', function () { closePanel(); });
-    panel.querySelectorAll('.gogh-rearchip').forEach(function (chip) {
-      var posFor = function () {
-        return chip.classList.contains('gogh-rear-orig') ? snap0 : variants[+chip.dataset.k].pos;
-      };
-      chip.addEventListener('mouseenter', function () {
-        applyPositions(secx, posFor());
-      });
-      chip.addEventListener('mouseleave', function () {
-        applyPositions(secx, snap);
-      });
-      chip.addEventListener('click', function () {
-        applyPositions(secx, snap); // restore, so undo lands on the true before
-        pushState();
-        applyPositions(secx, posFor());
-        // keeping is not leaving: the kept shape becomes the new "before"
-        // and the panel stays open for the next audition
-        snap = secx.els.map(function (e) { return { x: e.x, y: e.y }; });
-        panel.querySelectorAll('.gogh-rearchip').forEach(function (o) {
-          o.classList.toggle('is-active', o === chip);
-        });
-        toast(chip.classList.contains('gogh-rear-orig')
-          ? 'Back to how it was.'
-          : 'Rearranged — same pieces, new shape.',
-          { actions: [{ label: 'Undo', onClick: function () { undo(); } }] });
-      });
-    });
-  }
-  // ---------- Ask Gogh: two doors, no chat ----------
-  // "Change this section": the clicked section IS the context, the changed
-  // section IS the response. A small local vocabulary answers instantly —
-  // every read returns CANDIDATES, so "Try another" cycles without waiting
-  // and Undo is the ordinary history. No sidebar, no transcript, no wait.
   function askSpread(sec, f) {
     if (!sec.els.length) return;
     var top = Math.min.apply(null, sec.els.map(function (e) { return e.y; }));
@@ -16494,7 +16438,6 @@
     contrastSentinel: contrastSentinel,
     sectionThemes: sectionThemes,
     rearrangeVariants: rearrangeVariants,
-    openRearrangePanel: openRearrangePanel,
     scaleFontSizes: scaleFontSizes,
     applySectionTheme: applySectionTheme,
     openSecAdd: openSecAddPanel,
