@@ -15,7 +15,7 @@ about something where they conflict, rather than picking one silently. Quote UI
 labels and message copy from the appendix, verbatim — those are the current
 strings, and a paraphrased button label is the fastest way to lose a user's trust.
 
-Generated for plugin version 0.99.501 · knowledge base 1ef8693.
+Generated for plugin version 0.99.502 · knowledge base e8fd062.
 
 ---
 
@@ -782,11 +782,11 @@ Everything in this section is extracted mechanically from the Gogh source on eve
 
 ## Current release
 
-- Plugin version: **0.99.501**
+- Plugin version: **0.99.502**
 - Requires WordPress **6.5+**, PHP **7.4+**
 - Text domain: `gogh-editor`
 - readme.txt Stable tag: `0.26.0` · Tested up to: `7.0`
-- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.501`). Quote the plugin header version.
+- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.502`). Quote the plugin header version.
 
 ## Design constants
 
@@ -965,6 +965,7 @@ Query-string switches: `?gogh-edit`, `?gogh-ps`, `?gogh-test`.
 
 These are the real strings in the current build. Use them verbatim; never paraphrase a label.
 
+- "' + (opts && opts.kept ? 'Take it off the shelf' : 'Keep this look') + '"
 - "' + d.label + '"
 - "' + d.title.replace(/"
 - "' + escAttr(e.alt || 'Video') + '"
@@ -1060,6 +1061,7 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "I’ll find my own way"
 - "Journal"
 - "Keep editing"
+- "Keep the ' + l[1].toLowerCase() + ' you have; spin the rest"
 - "Keep this layout (updates every page)"
 - "Keeps your changes on every page"
 - "Left"
@@ -1132,7 +1134,6 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "Shape"
 - "Show"
 - "Show the next layout"
-- "Six looks derived from your brand — hover to wear one, tap Remix again for six more"
 - "Solid"
 - "Start writing — a reading column, cursor ready"
 - "Switch design"
@@ -1156,6 +1157,7 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "Use this design"
 - "Use this layout"
 - "Video"
+- "Wear this look"
 - "Where this item shows"
 - "Which take of this design is on the page"
 - "Write"
@@ -1256,6 +1258,7 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "gogh could not make a mega menu — "
 - "gogh could not make a phone menu — "
 - "gogh could not rename the site — that needs an admin login."
+- "gogh could not save that look — it stays for this session."
 - "gogh could not save the menu — "
 - "gogh could not save your brand — "
 - "gogh could not set the logo — "
@@ -1275,4 +1278,4 @@ These are the real strings in the current build. Use them verbatim; never paraph
 
 ## Test suite
 
-`287` tests, run by appending `?gogh-test` to any Gogh page URL while logged in with edit rights on that page.
+`288` tests, run by appending `?gogh-test` to any Gogh page URL while logged in with edit rights on that page.
