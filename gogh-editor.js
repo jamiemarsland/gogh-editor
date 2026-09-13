@@ -15349,9 +15349,11 @@
       tries++;
       var c = build();
       var dupe = out.some(function (o) { return o.key === c.key; });
+      var sameName = out.some(function (o) { return o.name === c.name; });
       // unseen first; once the field is spent, looks shown before may return —
-      // but never the same card twice in one spin (a locked spin can be short)
-      if (dupe || (remixShown[c.key] && tries < 160)) continue;
+      // but never the same card twice in one spin (a locked spin can be short),
+      // and two cards with one name only when the direction leaves no other
+      if (dupe || (sameName && tries < 120) || (remixShown[c.key] && tries < 160)) continue;
       out.push(c);
     }
     out.forEach(function (c) { remixShown[c.key] = 1; });
@@ -15818,6 +15820,7 @@
       });
       panel.querySelector('.gogh-panel-close').addEventListener('click', function () {
         tsPreviewOff();
+        remixAuditionOff();
         backToDesign();
       });
       var box = panel.querySelector('.gogh-varlist');
@@ -15950,6 +15953,8 @@
           });
         };
         var spin = function (direction) {
+          clearTimeout(previewHoverT);
+          remixAuditionOff();
           cardsBox.hidden = false;
           locksBox.hidden = false;
           dirsBox.hidden = false;
@@ -16028,7 +16033,7 @@
           box.appendChild(b);
         });
       });
-      box.addEventListener('mouseleave', function () { clearVariationPreview(); });
+      box.addEventListener('mouseleave', function () { clearVariationPreview(); remixAuditionOff(); });
       dockSidebar();
       panelSticky = true; // hover-audition panel: outside clicks pass through
       zoomOutCanvas(); // pull the whole page into view to audition the style

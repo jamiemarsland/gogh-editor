@@ -5845,6 +5845,8 @@
       expect(light.every(function (c) { return lum(c.colors.background) > 0.6; }), 'lighter should give light grounds');
       var calm = G.remixCandidates('calmer');
       expect(calm.every(function (c) { return c.parts.volume === 'quiet' && c.scale <= 100 && !c.divider && /^(plain|alternate)$/.test(c.rhythm); }), 'calmer should be quiet, small and plain: ' + JSON.stringify(calm.map(function (c) { return [c.parts.volume, c.scale, c.divider, c.rhythm]; })));
+      var dn = dark.map(function (c) { return c.name; });
+      expect(dn.filter(function (n, k) { return dn.indexOf(n) === k; }).length === dn.length, 'six cards should read as six: ' + dn.join(' | '));
       var bold = G.remixCandidates('bolder');
       expect(bold.every(function (c) { return c.parts.volume === 'loud' && c.scale >= 110; }), 'bolder should be loud and large');
       expect(bold.every(function (c) { return c.direction === 'bolder'; }), 'a directed look should say its direction');
