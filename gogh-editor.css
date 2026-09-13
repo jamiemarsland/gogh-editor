@@ -4117,9 +4117,13 @@ html.gogh-building .gogh-inserter, html.gogh-building .gogh-side { display: none
    Remix extras (locks, cards, directions, the kept shelf) run full width under them */
 .gogh-toprow { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0 14px; }
 .gogh-toprow .gogh-remixrow { display: contents; }
-.gogh-toprow .gogh-remixbtn { order: 1; flex: 1.3 1 0; width: auto; min-width: 0; background: var(--gogh-ui-accent, #4a63d8); color: var(--gogh-ui-accent-fg, #fff); border-color: transparent; }
+.gogh-toprow .gogh-remixbtn { order: 1; flex: 1 1 0; width: auto; min-width: 0; background: var(--gogh-ui-accent, #4a63d8); color: var(--gogh-ui-accent-fg, #fff); border-color: transparent; }
 .gogh-toprow .gogh-remixbtn:hover { filter: brightness(1.06); }
 .gogh-toprow .gogh-brandrow { order: 2; flex: 1 1 0; min-width: 0; margin: 0; display: flex; }
 .gogh-toprow .gogh-brandrow > * { flex: 1; min-width: 0; }
 .gogh-toprow .gogh-brandbtn .gogh-varname { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .gogh-toprow .gogh-remixlocks, .gogh-toprow .gogh-remixcards, .gogh-toprow .gogh-remixdirs, .gogh-toprow .gogh-remixkept { order: 3; flex-basis: 100%; }
+/* on the shared row the brand shows two of its dots and its name; the panel is narrow */
+.gogh-toprow .gogh-brandbtn { padding-left: 9px; padding-right: 9px; gap: 3px; }
+.gogh-toprow .gogh-brandbtn .gogh-vardot:nth-of-type(n+3) { display: none; }
+.gogh-toprow .gogh-brandbtn .gogh-varname { margin-left: 3px; font-size: 12px; }
