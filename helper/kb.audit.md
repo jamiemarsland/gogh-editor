@@ -1,4 +1,4 @@
-# Knowledge-base audit — plugin v0.99.510
+# Knowledge-base audit — plugin v0.99.511
 
 _13 finding(s) suppressed by `kb.audit-ignore.txt`._
 
@@ -109,4 +109,5 @@ The source has something the prose never explains. The bot knows the name from t
 
 Use this as the checklist for updating the prose — and as a sanity check on the release itself.
 
-- version: 0.99.509 → 0.99.510
+- version: 0.99.510 → 0.99.511
+- added UI label: "Remix keeps these colours and rolls everything else"

@@ -4,11 +4,11 @@ Everything in this section is extracted mechanically from the Gogh source on eve
 
 ## Current release
 
-- Plugin version: **0.99.510**
+- Plugin version: **0.99.511**
 - Requires WordPress **6.5+**, PHP **7.4+**
 - Text domain: `gogh-editor`
 - readme.txt Stable tag: `0.26.0` · Tested up to: `7.0`
-- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.510`). Quote the plugin header version.
+- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.511`). Quote the plugin header version.
 
 ## Design constants
 
@@ -336,6 +336,7 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "Put it back"
 - "Questions"
 - "Redo (⇧⌘Z)"
+- "Remix keeps these colours and rolls everything else"
 - "Remove"
 - "Remove from Your sections"
 - "Remove from menu"
@@ -505,5 +506,5 @@ These are the real strings in the current build. Use them verbatim; never paraph
 
 ## Test suite
 
-`293` tests, run by appending `?gogh-test` to any Gogh page URL while logged in with edit rights on that page.
+`294` tests, run by appending `?gogh-test` to any Gogh page URL while logged in with edit rights on that page.
 
