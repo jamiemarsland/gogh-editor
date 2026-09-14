@@ -4,11 +4,11 @@ Everything in this section is extracted mechanically from the Gogh source on eve
 
 ## Current release
 
-- Plugin version: **0.99.512**
+- Plugin version: **0.99.513**
 - Requires WordPress **6.5+**, PHP **7.4+**
 - Text domain: `gogh-editor`
 - readme.txt Stable tag: `0.26.0` · Tested up to: `7.0`
-- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.512`). Quote the plugin header version.
+- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.513`). Quote the plugin header version.
 
 ## Design constants
 
@@ -187,7 +187,6 @@ Query-string switches: `?gogh-edit`, `?gogh-ps`, `?gogh-test`.
 
 These are the real strings in the current build. Use them verbatim; never paraphrase a label.
 
-- "' + (opts && opts.kept ? 'Take it off the shelf' : 'Keep this look') + '"
 - "' + d.label + '"
 - "' + d.title.replace(/"
 - "' + escAttr(e.alt || 'Video') + '"
@@ -284,7 +283,6 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "I’ll find my own way"
 - "Journal"
 - "Keep editing"
-- "Keep the ' + l[2] + ' you have; spin the rest"
 - "Keep this layout (updates every page)"
 - "Keeps your changes on every page"
 - "Left"
@@ -383,7 +381,6 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "Use this design"
 - "Use this layout"
 - "Video"
-- "Wear this look"
 - "Where this item shows"
 - "Which take of this design is on the page"
 - "Write"
@@ -487,7 +484,6 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "gogh could not make a phone menu — "
 - "gogh could not rename the site — that needs an admin login."
 - "gogh could not save that look — it stays for now."
-- "gogh could not save that look — it stays for this session."
 - "gogh could not save the menu — "
 - "gogh could not save your brand — "
 - "gogh could not set the logo — "
