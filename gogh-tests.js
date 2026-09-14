@@ -8030,6 +8030,43 @@
       return faces.length + ' rolls, gaps ' + seen.join('/');
     });
 
+    // A CENTRED PAIR — when a take draws its button centred, a second button
+    // seated beside it keeps the pair centred rather than hanging off one side
+    test('a second button beside a centred take button keeps the pair centred through the rolls', function () {
+      var story = G.templates().filter(function (t) { return t.name === 'Story' && !t.retired; })[0];
+      if (!story) throw new Error('no Story template');
+      G.addSection(story);
+      var s = lastSec();
+      var idx = G.sections().indexOf(s);
+      var b1 = s.els.filter(function (e) { return e.type === 'button'; })[0];
+      if (!b1) throw new Error('the Story has no button');
+      var b2 = JSON.parse(JSON.stringify(b1));
+      b2.text = 'Second'; b2.x = b1.x + b1.w + 16; b2.y = b1.y; delete b2.id;
+      s.els.push(b2);
+      G.renderSection(s);
+      var faces = G.diceFaces(G.diceFamilyOf(s));
+      var centredRows = 0, off = [];
+      for (var k = 0; k < faces.length; k++) {
+        G.rollSection(idx);
+        var btns = G.diceFlatten(s.els).filter(function (e) { return e.type === 'button'; });
+        var ex = btns.filter(function (e) { return e.text === 'Second'; })[0];
+        var own = btns.filter(function (e) { return e.text !== 'Second'; }).pop();
+        if (!ex || !own) continue;
+        var inCard = s.els.some(function (b) { return b.type === 'box' && b.kids && (b.kids.indexOf(own) !== -1 || b.kids.indexOf(ex) !== -1); });
+        if (inCard || Math.abs(ex.y - own.y) > 2) continue; // not a row on the page
+        var face = faces[(k + 1) % faces.length]; // roll k+1 lands on face k+1
+        var drawn = G.tplEls(face).filter(function (e) { return e.type === 'button'; }).pop();
+        if (!drawn || Math.abs(drawn.x + drawn.w / 2 - 600) > 12) continue; // the take did not centre its button
+        centredRows++;
+        var lo = Math.min(ex.x, own.x), hi = Math.max(ex.x + ex.w, own.x + own.w);
+        if (Math.abs((lo + hi) / 2 - 600) > 2) off.push('roll ' + (k + 1) + ': pair centred at ' + ((lo + hi) / 2) + ' (' + own.x + '+' + own.w + ', ' + ex.x + '+' + ex.w + ')');
+      }
+      G.deleteSection(idx);
+      expect(centredRows > 0, 'no take in the Story family drew a centred button on a shared row, so nothing was checked');
+      expect(!off.length, off.join('; '));
+      return centredRows + ' centred row(s) kept the pair centred';
+    });
+
     // THE YELLOW HOUSE SHAPE — one take button plus one of the user's own:
     // the second button keeps its words through every take, including the
     // one that draws a single button in a card, and never overlaps

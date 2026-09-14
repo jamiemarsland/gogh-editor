@@ -9613,6 +9613,29 @@
         placedRects.forEach(function (o) { floor = Math.max(floor, o.y + o.h); });
         pick = [Math.min(aa.x, right0 - x.w), floor + 12];
       }
+      // the take drew its button centred and the rider sits beside it: the
+      // PAIR stays centred, rather than the second button hanging off one
+      // side (James: "button alignment issues" — a Click me seated to the
+      // left of a centred The whole story)
+      var roomC = (left0 + right0) / 2;
+      var side = (pick === spots[0] && st.right && !st.below) ? 'right' : (pick === spots[1] ? 'left' : null);
+      if (side && Math.abs((aa.x + aa.w / 2) - roomC) <= 12 && Math.abs(pick[1] - aa.y) <= 2) {
+        var g2 = side === 'right' ? Math.max(8, st.dx) : gap;
+        var total = aa.w + g2 + x.w;
+        var leftEdge = Math.round(roomC - total / 2);
+        var ax = side === 'right' ? leftEdge : leftEdge + x.w + g2;
+        var rx = side === 'right' ? ax + aa.w + g2 : leftEdge;
+        var mine = placedRects.filter(function (o) { return o.x === aa.x && o.y === aa.y && o.w === aa.w && o.h === aa.h; });
+        var clear = function (px, pw) {
+          return !placedRects.some(function (o) { return mine.indexOf(o) === -1 && !(px >= o.x + o.w || px + pw <= o.x || aa.y >= o.y + o.h || aa.y + x.h <= o.y); });
+        };
+        if (leftEdge >= left0 && leftEdge + total <= right0 && clear(ax, aa.w) && clear(rx, x.w)) {
+          a2.x += ax - aa.x;
+          mine.forEach(function (o) { o.x = ax; });
+          aa.x = ax;
+          pick = [rx, aa.y];
+        }
+      }
       tx = pick[0]; ty = pick[1];
       placedRects.push({ x: tx, y: ty, w: x.w, h: x.h });
       if (c) {
