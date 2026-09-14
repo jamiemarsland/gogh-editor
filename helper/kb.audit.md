@@ -1,4 +1,4 @@
-# Knowledge-base audit — plugin v0.99.508
+# Knowledge-base audit — plugin v0.99.509
 
 _13 finding(s) suppressed by `kb.audit-ignore.txt`._
 
@@ -109,4 +109,10 @@ The source has something the prose never explains. The bot knows the name from t
 
 Use this as the checklist for updating the prose — and as a sanity check on the release itself.
 
-- version: 0.99.507 → 0.99.508
+- version: 0.99.508 → 0.99.509
+- added UI label: "Tap to try a new look. Tap again for another."
+- added UI label: "The look before this one"
+- added UI label: "↶ Back"
+- removed toast: "Your site is built. Pick a look — hover to try one, click to keep it, ✦ Remix for six more."
+- added toast: "Your site is built, wearing a look gogh chose. ✦ Remix for another, ↶ Back for the one before."
+- added toast: "gogh could not save that look — it stays for now."
