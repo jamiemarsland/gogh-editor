@@ -1,12 +1,12 @@
 {
   "meta": {
-    "plugin_version": "0.99.513",
+    "plugin_version": "0.99.514",
     "requires_wp": "6.5",
     "requires_php": "7.4",
     "text_domain": "gogh-editor",
     "readme_stable_tag": "0.26.0",
     "readme_tested_up_to": "7.0",
-    "asset_version": "0.99.513-chrome"
+    "asset_version": "0.99.514-chrome"
   },
   "constants": {
     "TOL": 8,
@@ -473,6 +473,7 @@
     "Custom text colour",
     "Cycle theme font sizes",
     "Dark",
+    "Dark page",
     "Delete",
     "Delete (Del)",
     "Delete saved section",
@@ -513,11 +514,13 @@
     "Italic",
     "I’ll find my own way",
     "Journal",
+    "Keep",
     "Keep editing",
     "Keep this layout (updates every page)",
     "Keeps your changes on every page",
     "Left",
     "Light",
+    "Light page",
     "Line",
     "Line the pieces up, or even out the gaps",
     "Line the row up and even the gaps",
@@ -580,7 +583,6 @@
     "Right",
     "Roll another take of this design",
     "Save",
-    "Save brand",
     "Save description",
     "See all →",
     "Send backward",
@@ -628,6 +630,7 @@
     "← All layouts",
     "↕ Spacing…",
     "↶ Back",
+    "↶ Not that",
     "▶ Auto-play",
     "⛶ Click to enlarge",
     "✦ Not this look?",
@@ -1345,5 +1348,5 @@
     "has_deprecation": true,
     "block_title": "gogh Section"
   },
-  "test_count": 294
+  "test_count": 297
 }
