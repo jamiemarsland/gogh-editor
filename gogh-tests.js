@@ -413,7 +413,7 @@
       // another piece may sit lower than the floor; then the section is
       // honestly that piece plus the pad, and still no more
       var others = Math.max.apply(null, s.els.filter(function (o) { return o !== e; }).map(function (o) { return o.y + o.h; }));
-      var want = Math.max(floor, others + 72);
+      var want = Math.max(floor, others > floor ? Math.ceil((others + 72) / 72) * 72 : floor);
       expect(Math.abs(designHNow - want) <= 12,
         'section ran past the flush element: ' + Math.round(designHNow) + ' vs ' + want + ' (minH ' + floor + ', lowest other ' + others + ')');
       e.x = x0; e.y = y0; e.w = w0; e.h = h0;

@@ -15,7 +15,7 @@ about something where they conflict, rather than picking one silently. Quote UI
 labels and message copy from the appendix, verbatim — those are the current
 strings, and a paraphrased button label is the fastest way to lose a user's trust.
 
-Generated for plugin version 0.99.539 · knowledge base af70df9.
+Generated for plugin version 0.99.540 · knowledge base 6669335.
 
 ---
 
@@ -294,7 +294,7 @@ hydrateV3Sections().then(function () {
 ```
 - `scope` — `'gogh-sec-<n>'`, the CSS scope class, also emitted as `data-gogh-scope`
 - `els` — elements in **stacking order** (index+1 → `z-index` and the `.gogh-el-N` class)
-- `minH` — design-unit minimum height (default 576, eight majors; 480 for an empty bootstrap)
+- `minH` — design-unit minimum height (default 576, eight majors; 504 for an empty bootstrap)
 - `bg` — CSS colour string (may be `var(--wp--preset--color--x)` or a `color-mix()`)
 - `bgImage` / `bgId` — background image URL + attachment id
 - `divider` — `{shape}`: `wave|brush|torn|curve|slant|peaks|melt`
@@ -339,7 +339,7 @@ Classification: `isText = heading|para`; `fixedHeight = button|image|badge|widge
 
 Three functions: `cluster`, `nearest`, `solve`.
 
-`designH(els, minH)` = `max(minH || 576, maxBottom + 72)`.
+`designH(els, minH)` = `max(minH || 576, maxBottom + 72 rounded up to the next 72)` — a section that outgrows its floor still lands on a major.
 
 **`solve(els, minH, dw)`**:
 1. Collect **every x edge** of every element (`e.x` and `e.x + e.w`) plus the frame edges 0 and 1200. Same for y edges plus 0 and H.
@@ -783,11 +783,11 @@ Everything in this section is extracted mechanically from the Gogh source on eve
 
 ## Current release
 
-- Plugin version: **0.99.539**
+- Plugin version: **0.99.540**
 - Requires WordPress **6.5+**, PHP **7.4+**
 - Text domain: `gogh-editor`
 - readme.txt Stable tag: `0.26.0` · Tested up to: `7.0`
-- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.539`). Quote the plugin header version.
+- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.540`). Quote the plugin header version.
 
 ## Design constants
 

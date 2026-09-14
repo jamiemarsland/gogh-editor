@@ -275,7 +275,7 @@ hydrateV3Sections().then(function () {
 ```
 - `scope` — `'gogh-sec-<n>'`, the CSS scope class, also emitted as `data-gogh-scope`
 - `els` — elements in **stacking order** (index+1 → `z-index` and the `.gogh-el-N` class)
-- `minH` — design-unit minimum height (default 576, eight majors; 480 for an empty bootstrap)
+- `minH` — design-unit minimum height (default 576, eight majors; 504 for an empty bootstrap)
 - `bg` — CSS colour string (may be `var(--wp--preset--color--x)` or a `color-mix()`)
 - `bgImage` / `bgId` — background image URL + attachment id
 - `divider` — `{shape}`: `wave|brush|torn|curve|slant|peaks|melt`
@@ -320,7 +320,7 @@ Classification: `isText = heading|para`; `fixedHeight = button|image|badge|widge
 
 Three functions: `cluster`, `nearest`, `solve`.
 
-`designH(els, minH)` = `max(minH || 576, maxBottom + 72)`.
+`designH(els, minH)` = `max(minH || 576, maxBottom + 72 rounded up to the next 72)` — a section that outgrows its floor still lands on a major.
 
 **`solve(els, minH, dw)`**:
 1. Collect **every x edge** of every element (`e.x` and `e.x + e.w`) plus the frame edges 0 and 1200. Same for y edges plus 0 and H.

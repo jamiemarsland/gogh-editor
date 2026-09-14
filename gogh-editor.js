@@ -286,7 +286,7 @@
       srcScope: v3wrap ? sectionEl.getAttribute('data-gogh-scope') : null,
       chrome: chromeInfo,
       bootstrap: !!wrap.__goghBootstrap,
-      minH: model.minH || (bootEls.length ? null : 480),
+      minH: model.minH || (bootEls.length ? null : 504), // the empty placeholder: seven majors
       bg: model.bg || null, divider: model.divider || null,
       fx: model.fx || null,
       bgImage: model.bgImage || null, bgId: model.bgId || null, bgVideo: model.bgVideo || null, bgVideoId: model.bgVideoId || null, bgA: model.bgA != null ? model.bgA : null, theme: model.theme || null, fill: !!model.fill,
@@ -356,7 +356,11 @@
     //    running away as you chase it.
     var maxPad = -1;
     els.forEach(function (e) { if (!e.flushB) maxPad = Math.max(maxPad, e.y + e.h); });
-    var padTerm = maxPad > floor ? maxPad + PAD : floor;
+    // a section that outgrows its floor still lands on a major: the air
+    // under the lowest piece is gogh's choice, so the height rounds up to
+    // the next 72 (a piece flush with the bottom, flushB, keeps its exact
+    // edge — that one is the person's)
+    var padTerm = maxPad > floor ? Math.ceil((maxPad + PAD) / MAJOR) * MAJOR : floor;
     return Math.max(floor, bottom, padTerm);
   }
   function solve(els, minH, dw, skip, flat) {
