@@ -15213,7 +15213,6 @@
     return (h + d * amount + 360) % 360;
   }
   var remixShown = {};   // keys shown this session — a fresh tap draws from the rest
-  var remixLocks = {};   // { ground, ink, accent, fonts } → true pins the slot
   // the look being worn now: the brand when one is set, else the theme's own
   function currentLook() {
     var b = (cfg.brand && cfg.brand.colors) || null;
@@ -15266,8 +15265,14 @@
       snap.divider = secx.divider ? JSON.parse(JSON.stringify(secx.divider)) : null;
       snap.fx = secx.fx ? JSON.parse(JSON.stringify(secx.fx)) : null;
       var want = plan[k] === 'accent-soft' ? soft : by[plan[k]];
-      // a section wearing a picture keeps it: the theme only re-inks the words
-      if (want && secx.theme !== want.slug) paintSectionTheme(secx, want);
+      // a section wearing a picture keeps it: the theme only re-inks the words.
+      // A dark theme over a photo tints deeper (78%): at the default 62% a
+      // bright picture still averages a mid ground where dark ink wins the
+      // sentinel's arithmetic and the words go dark on a dark section
+      if (want && secx.theme !== want.slug) {
+        paintSectionTheme(secx, want);
+        if (secx.bgImage && want.slug === 'ink') secx.bgA = 78;
+      }
       if (k === 0 && secx.bgImage && cand.colors && cand.colors.background && cand.colors.text) {
         var roles2 = paletteRoles();
         var lightSlug = relLum(cand.colors.background) > relLum(cand.colors.text) ? roles2.bgSlug : roles2.textSlug;
@@ -15404,6 +15409,7 @@
     var entry = remixWorn();
     if (!entry) return;
     remixCommitting = true;
+    quietToasts = true;
     var v, scale;
     if (entry.origin) {
       v = { title: entry.title, styles: (entry.gs && entry.gs.styles) || {}, settings: (entry.gs && entry.gs.settings) || {} };
@@ -15431,6 +15437,8 @@
       toast('gogh could not save that look \u2014 it stays for now.', { error: true });
     }).then(function () {
       remixCommitting = false;
+      // the sentinel's picture judgement lands a moment later: stay quiet for it
+      setTimeout(function () { if (!remixCommitting) quietToasts = false; }, 3000);
       if (remixWorn() !== entry) remixScheduleCommit(); // rolled on while saving
     });
   }
@@ -15439,21 +15447,6 @@
   var remixWatchers = {};
   function remixWatch(key, fn) { remixWatchers[key] = fn; }
   function remixSayWearing() { Object.keys(remixWatchers).forEach(function (k) { try { remixWatchers[k](); } catch (e) {} }); }
-  // keep: the palette and fonts as a style, the scale as the site's, the
-  // sections as this page's (one undo step)
-  function remixWear(cand, btn) {
-    remixAuditionOff();
-    var v = brandToVariation({ colors: cand.colors, fonts: cand.fonts || null });
-    v.title = 'Remix \u00b7 ' + cand.name;
-    return applyVariation(v, btn).then(function () {
-      if (cand.scale && cand.scale !== (cfg.typeScale || 100)) return applyTypeScale(cand.scale);
-    }).then(function () {
-      pushState();
-      remixPaintRhythm(cand);
-      S.forEach(function (secx) { if (!secx.chrome) contrastSentinel(secx); });
-      pushState();
-    });
-  }
   function remixFontPairs() {
     var fams = fontCatalogue().map(function (f2) { return f2.slug; });
     var pairs = [];
@@ -15503,7 +15496,6 @@
     var rhythms = pool(REMIX_RHYTHMS, dir && dir.rhythms, function (x) { return x.key; });
     var dividers = pool(REMIX_DIVIDERS, dir && dir.dividers, function (x) { return x; });
     var grainOdds = dir && dir.fx != null ? dir.fx : 0.25;
-    var nowGround = hexToHsl(now.background);
     // the brand is the only lock a roll respects: someone who set their
     // colours told gogh a fact, not a preference — the roll dresses
     // everything else (type, sections, edges, and fonts unless chosen)
@@ -15513,11 +15505,11 @@
       var g = pick(grounds), r = pick(relations), v = pick(volumes), ink = pick(REMIX_INKS);
       if (dir && dir.sat) v = { key: v.key, say: v.say, s: Math.max(0.2, Math.min(0.95, v.s * dir.sat)) };
       var pair = pairs.length ? pick(pairs) : null;
-      var scale = remixLocks.scale ? (now.scale || 100) : pick(scales)[0];
+      var scale = pick(scales)[0];
       var rhythmPool = g.dark ? rhythms.filter(function (x) { return x.key !== 'dark-hero' && x.key !== 'bookends'; }) : rhythms;
-      var rhythm = remixLocks.rhythm ? now.rhythm : pick(rhythmPool.length ? rhythmPool : rhythms).key;
-      var divider = remixLocks.rhythm ? now.divider : pick(dividers);
-      var fx = remixLocks.rhythm ? now.fx : (Math.random() < grainOdds ? 'grain' : null);
+      var rhythm = pick(rhythmPool.length ? rhythmPool : rhythms).key;
+      var divider = pick(dividers);
+      var fx = Math.random() < grainOdds ? 'grain' : null;
       var bg, tx, ac;
       if (brand) {
         bg = brand.background; tx = brand.text; ac = brand.accent || now.accent;
@@ -15525,19 +15517,15 @@
         g = { key: 'brand', say: 'your colours', dark: bl ? bl.l < 0.5 : false, ink: bl && bl.l < 0.5 ? [0.08, 0.93] : [0.3, 0.13] };
         r = { key: 'brand', say: 'Your brand' }; v = { key: 'brand', say: '' }; ink = { key: 'brand' };
         if (brandFonts) pair = brandFonts;
-      } else if (remixLocks.ground) { bg = now.background; g = { key: 'kept', say: 'your ground', dark: nowGround ? nowGround.l < 0.5 : false, ink: nowGround && nowGround.l < 0.5 ? [0.08, 0.93] : [0.3, 0.13] }; }
-      else bg = hslToHex(A.h + j(10), g.s, g.l);
-      if (brand) { /* pinned above */ }
-      else if (remixLocks.ink) { tx = now.text; ink = { key: 'kept' }; }
-      else tx = hslToHex(A.h, Math.min(0.6, g.ink[0] * ink.mult), g.ink[1]);
-      if (brand) { /* pinned above */ }
-      else if (remixLocks.accent) { ac = now.accent; r = { key: 'kept', say: 'Your accent' }; v = { key: 'kept', say: '' }; }
-      else ac = hslToHex(A.h + r.d + j(8), v.s, g.dark ? 0.62 : 0.44);
-      if (!brand && remixLocks.fonts && now.fonts && now.fonts.heading) pair = now.fonts;
-      // the gate: only what is not locked may move to become legible; a
-      // brand's own colours are never walked (the form already judged them)
-      if (!brand && !remixLocks.ink) tx = ensureContrast(tx, bg, 7);
-      if (!brand && !remixLocks.accent) ac = fitAccent(ac, bg, tx);
+      } else bg = hslToHex(A.h + j(10), g.s, g.l);
+      if (!brand) {
+        tx = hslToHex(A.h, Math.min(0.6, g.ink[0] * ink.mult), g.ink[1]);
+        ac = hslToHex(A.h + r.d + j(8), v.s, g.dark ? 0.62 : 0.44);
+        // the gate: ink walks to 7:1, the accent to where its words read; a
+        // brand's own colours are never walked (the form already judged them)
+        tx = ensureContrast(tx, bg, 7);
+        ac = fitAccent(ac, bg, tx);
+      }
       var key = [g.key, ink.key, r.key, v.key, pair ? pair.heading + '/' + pair.body : '-', scale, rhythm, divider || '-', fx || '-', dir ? dir.say : '-'].join('|');
       var rhythmSay = (REMIX_RHYTHMS.filter(function (x) { return x.key === rhythm; })[0] || REMIX_RHYTHMS[0]).say;
       var scaleSay = (REMIX_SCALES.filter(function (x) { return x[0] === scale; })[0] || [100, 'regular'])[1];
@@ -15571,33 +15559,6 @@
     out.forEach(function (c) { remixShown[c.key] = 1; });
     return out;
   }
-  // ---- kept looks: a shelf that survives the session (an option on the site) ----
-  function remixKept() { return Array.isArray(cfg.remixKept) ? cfg.remixKept : (cfg.remixKept = []); }
-  function remixKeyOf(c) { return [c.colors.background, c.colors.text, c.colors.accent, c.fonts ? c.fonts.heading + '/' + c.fonts.body : '-'].join('|'); }
-  function remixIsKept(c) { var k = remixKeyOf(c); return remixKept().some(function (x) { return remixKeyOf(x) === k; }); }
-  function remixSaveKept(persist) {
-    if (persist === false) return Promise.resolve(true);
-    return fetch(GSROOT.replace(/wp\/v2\/$/, 'wp/v2/') + 'settings', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'X-WP-Nonce': cfg.nonce },
-      credentials: 'same-origin',
-      body: JSON.stringify({ gogh_remix_kept: remixKept() }),
-    }).then(function (r) { if (!r.ok) throw new Error('HTTP ' + r.status); return true; })
-      .catch(function () { toast('gogh could not save that look — it stays for this session.', { error: true }); return false; });
-  }
-  function remixKeep(c, persist) {
-    var list = remixKept();
-    var k = remixKeyOf(c);
-    var at = -1;
-    list.forEach(function (x, n) { if (remixKeyOf(x) === k) at = n; });
-    if (at !== -1) list.splice(at, 1);
-    else {
-      list.unshift({ name: c.name, detail: c.detail || '', colors: c.colors, fonts: c.fonts || null, scale: c.scale || 100, rhythm: c.rhythm || 'plain', divider: c.divider || null, fx: c.fx || null });
-      if (list.length > 8) list.length = 8; // a shelf, not an archive
-    }
-    return remixSaveKept(persist).then(function () { return at === -1; });
-  }
-
   function brandToVariation(brand) {
     var c = (brand && brand.colors) || {};
     var cur = themePalette();
@@ -16102,7 +16063,7 @@
         }
         top.appendChild(row);
       })();
-      // ---------- Remix: tap → six looks built from the brand; lock what works, keep what you like ----------
+      // ---------- Remix: a die for the site's clothes ----------
       (function () {
         var wrap = document.createElement('div');
         wrap.className = 'gogh-remixrow';
@@ -16111,92 +16072,8 @@
           '<div class="gogh-remixwearing" hidden>' +
             '<span class="gogh-remixwearing-words"><span class="gogh-remixwearing-lab">Wearing</span>' +
             '<span class="gogh-remixwearing-name"></span><span class="gogh-remixwearing-detail"></span></span>' +
-            '<button type="button" class="gogh-remixback" title="The look before this one">\u21b6 Back</button></div>' +
-          '<div class="gogh-remixlocks" hidden></div>' +
-          '<div class="gogh-remixcards" hidden></div>' +
-          '<div class="gogh-remixdirs" hidden><span class="gogh-remixdirs-lab">Not quite \u2014 more like this:</span>' +
-          ['warmer', 'cooler', 'calmer', 'bolder', 'darker', 'lighter'].map(function (d) {
-            return '<button type="button" class="gogh-remixdir" data-dir="' + d + '">' + d.charAt(0).toUpperCase() + d.slice(1) + '</button>';
-          }).join('') + '</div>' +
-          '<div class="gogh-remixkept"></div>';
+            '<button type="button" class="gogh-remixback" title="The look before this one">↶ Back</button></div>';
         top.appendChild(wrap);
-        var cardsBox = wrap.querySelector('.gogh-remixcards');
-        var dirsBox = wrap.querySelector('.gogh-remixdirs');
-        var locksBox = wrap.querySelector('.gogh-remixlocks');
-        var keptBox = wrap.querySelector('.gogh-remixkept');
-        var LOCK = '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>';
-        // the words of the page's own opening, worn in the look
-        var heroWords = function () {
-          var first = S.filter(function (x) { return !x.chrome; })[0];
-          var h = first && first.els.filter(function (e) { return e.type === 'heading' && String(e.text || '').trim(); })[0];
-          var b = first && first.els.filter(function (e) { return e.type === 'button' && String(e.text || '').trim(); })[0];
-          var strip = function (t) { var d = document.createElement('div'); d.innerHTML = String(t || ''); return (d.textContent || '').trim(); };
-          return { heading: (h ? strip(h.text) : 'Your heading').slice(0, 34), button: (b ? strip(b.text) : 'Button').slice(0, 16) };
-        };
-        var cardFor = function (cand, opts) {
-          var cb = document.createElement('div');
-          cb.className = 'gogh-remixcard' + (opts && opts.kept ? ' is-kept' : '');
-          var w = heroWords();
-          var plan = remixRhythmPlan(cand.rhythm || 'plain', 4);
-          var headPx = { 90: 12, 100: 13.5, 110: 15, 120: 17 }[cand.scale || 100] || 13.5;
-          var headFont = cand.fonts && cand.fonts.heading ? 'var(--wp--preset--font-family--' + cand.fonts.heading + ')' : 'inherit';
-          cb.innerHTML = '<button type="button" class="gogh-varbtn gogh-remixwear" title="Wear this look">' +
-            '<span class="gogh-remixmini" style="background:' + escAttr(cand.colors.background) + ';color:' + escAttr(cand.colors.text) + '">' +
-              '<span class="gogh-remixmini-h" style="font-family:' + headFont + ';font-size:' + headPx + 'px">' + esc(w.heading) + '</span>' +
-              '<span class="gogh-remixmini-b" style="background:' + escAttr(cand.colors.accent) + ';color:' + escAttr(cand.colors.background) + '">' + esc(w.button) + '</span>' +
-              '<span class="gogh-remixmini-rhythm">' + plan.map(function (t) {
-                var col = t === 'ink' ? cand.colors.text : t === 'paper' ? cand.colors.background : 'color-mix(in srgb, ' + (t === 'accent-soft' ? cand.colors.accent : cand.colors.text) + ' 14%, ' + cand.colors.background + ')';
-                return '<i style="background:' + escAttr(col) + '"></i>';
-              }).join('') + '</span>' +
-            '</span>' +
-            '<span class="gogh-remixwords"><span class="gogh-varname">' + esc(cand.name) + '</span>' +
-            (cand.detail ? '<span class="gogh-remixdetail">' + esc(cand.detail) + '</span>' : '') + '</span></button>' +
-            '<button type="button" class="gogh-remixpin' + (remixIsKept(cand) ? ' is-on' : '') + '" title="' + (opts && opts.kept ? 'Take it off the shelf' : 'Keep this look') + '">' + (opts && opts.kept ? '✕' : '★') + '</button>';
-          var wear = cb.querySelector('.gogh-remixwear');
-          wear.addEventListener('mouseenter', function () {
-            clearTimeout(previewHoverT);
-            previewHoverT = setTimeout(function () { remixAuditionOn(cand); }, 120);
-          });
-          wear.addEventListener('mouseleave', function () {
-            clearTimeout(previewHoverT);
-            remixAuditionOff();
-          });
-          wear.addEventListener('click', function () { remixWear(cand, wear); });
-          cb.querySelector('.gogh-remixpin').addEventListener('click', function (ev) {
-            ev.stopPropagation();
-            remixKeep(cand).then(function () { drawKept(); syncPins(); });
-          });
-          return cb;
-        };
-        var syncPins = function () {
-          cardsBox.querySelectorAll('.gogh-remixcard').forEach(function (cardEl) {
-            var cand = cardEl.__cand;
-            if (cand) cardEl.querySelector('.gogh-remixpin').classList.toggle('is-on', remixIsKept(cand));
-          });
-        };
-        var drawKept = function () {
-          var list = remixKept();
-          keptBox.innerHTML = '';
-          if (!list.length) return;
-          var lab = document.createElement('div');
-          lab.className = 'gogh-panel-hint';
-          lab.textContent = 'Kept';
-          keptBox.appendChild(lab);
-          list.forEach(function (k) { keptBox.appendChild(cardFor(k, { kept: true })); });
-        };
-        var drawLocks = function () {
-          // the words the rest of gogh uses: Background and Text, not ground and ink
-          locksBox.innerHTML = [['ground', 'Background', 'background colour'], ['ink', 'Text', 'text colour'], ['accent', 'Accent', 'accent colour'], ['fonts', 'Fonts', 'fonts'], ['scale', 'Size', 'type size'], ['rhythm', 'Sections', 'section colours and edges']].map(function (l) {
-            return '<button type="button" class="gogh-remixlock' + (remixLocks[l[0]] ? ' is-on' : '') + '" data-lock="' + l[0] + '" aria-pressed="' + (remixLocks[l[0]] ? 'true' : 'false') + '" title="Keep the ' + l[2] + ' you have; spin the rest">' + LOCK + l[1] + '</button>';
-          }).join('');
-          locksBox.querySelectorAll('.gogh-remixlock').forEach(function (b) {
-            b.addEventListener('click', function () {
-              remixLocks[b.dataset.lock] = !remixLocks[b.dataset.lock];
-              drawLocks();
-            });
-          });
-        };
-        // the die's panel: what you are wearing, in words, and a way back
         var wearingBox = wrap.querySelector('.gogh-remixwearing');
         var backBtn = wrap.querySelector('.gogh-remixback');
         remixWatch('panel', function () {
@@ -16209,29 +16086,8 @@
           backBtn.disabled = remixAt <= 0;
         });
         backBtn.addEventListener('click', function () { remixBack(); });
+        wrap.querySelector('.gogh-remixbtn').addEventListener('click', function () { remixRoll(); });
         remixSayWearing();
-        var spin = function (direction) {
-          clearTimeout(previewHoverT);
-          remixAuditionOff();
-          cardsBox.hidden = false;
-          locksBox.hidden = false;
-          dirsBox.hidden = false;
-          cardsBox.innerHTML = '';
-          remixCandidates(direction).forEach(function (cand) {
-            var cardEl = cardFor(cand);
-            cardEl.__cand = cand;
-            cardsBox.appendChild(cardEl);
-          });
-          dirsBox.querySelectorAll('.gogh-remixdir').forEach(function (b) { b.classList.toggle('is-on', b.dataset.dir === direction); });
-        };
-        // the shop (cards, locks, directions, the shelf) is off the door:
-        // a tap is a roll. The code stays until we know nobody misses it.
-        var shop = false;
-        if (shop) { drawLocks(); drawKept(); }
-        wrap.querySelector('.gogh-remixbtn').addEventListener('click', function () { if (shop) spin(null); else remixRoll(); });
-        dirsBox.querySelectorAll('.gogh-remixdir').forEach(function (b) {
-          b.addEventListener('click', function () { spin(b.dataset.dir); });
-        });
       })();
       // colours and font pairs are different decisions — group them
       var groups = { color: [], font: [] };
@@ -17410,9 +17266,6 @@
     sectionThemes: sectionThemes,
     rearrangeVariants: rearrangeVariants,
     mapEmbedUrl: mapEmbedUrl,
-    remixLocks: function (set) { if (set) { remixLocks = {}; Object.keys(set).forEach(function (k) { if (set[k]) remixLocks[k] = true; }); } return remixLocks; },
-    remixKeep: remixKeep,
-    remixKept: remixKept,
     currentLook: currentLook,
     remixRhythmPlan: remixRhythmPlan,
     hueToward: hueToward,
@@ -18013,7 +17866,9 @@
   // the side) keeps its own slot and its own six seconds, and a later
   // status never pushes it around. Errors keep a slot of their own.
   var TOAST_TTL = { status: 2000, receipt: 6000, error: 4500 };
+  var quietToasts = false; // a roll's commit says nothing but its receipt line
   function toast(msg, opts) {
+    if (quietToasts && !(opts && opts.error)) return;
     opts = opts || {};
     var kind = opts.kind || (opts.error ? 'error' : (opts.actions && opts.actions.length) ? 'receipt' : 'status');
     [].slice.call(toastBox.querySelectorAll('.gogh-toast[data-kind="' + kind + '"]')).forEach(function (o) { o.remove(); });

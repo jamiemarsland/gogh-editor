@@ -5796,26 +5796,16 @@
       return '30 candidates over 5 spins, worst text contrast ' + worst.toFixed(1) + ':1';
     });
 
-    test('remix: a second tap is six different looks, and a lock pins a slot', function () {
+    test('remix: a second tap is six different looks', function () {
       var keys = {};
       var a = G.remixCandidates(), b = G.remixCandidates();
       a.concat(b).forEach(function (c) { keys[c.key] = (keys[c.key] || 0) + 1; });
       expect(Object.keys(keys).length === 12, 'two taps should give twelve distinct looks, got ' + Object.keys(keys).length);
       var pinnedB = !!(G.brand() && G.brand().colors && G.brand().colors.background);
       expect(a.every(function (c) { return pinnedB ? c.name === 'Your brand' : /on (paper|a wash|ink|a deep ground)$/.test(c.name); }), 'a name should say what the ground is (or that it is the brand): ' + a.map(function (c) { return c.name; }).join(' \u00b7 '));
-      var now = G.currentLook();
-      G.remixLocks({ accent: true, ground: true });
-      var locked = G.remixCandidates();
-      // two locks leave a small field: however many distinct looks it holds, never none
-      expect(locked.length >= 1 && locked.length <= 6, 'locks should still give some looks, got ' + locked.length);
-      expect(locked.every(function (c) { return c.colors.accent.toLowerCase() === now.accent.toLowerCase(); }), 'a locked accent moved: ' + locked.map(function (c) { return c.colors.accent; }).join(','));
-      expect(locked.every(function (c) { return c.colors.background.toLowerCase() === now.background.toLowerCase(); }), 'a locked ground moved');
-      G.remixLocks({});
-      var free = G.remixCandidates();
-      if (!pinnedB) expect(free.some(function (c) { return c.colors.background.toLowerCase() !== now.background.toLowerCase(); }), 'with the locks off the ground should spin again');
     });
 
-    test('remix: a look is whole — size, section rhythm, hero edge — and the rhythm can be worn and taken off', function () {
+    test('remix: a look is whole \u2014 size, section rhythm, hero edge \u2014 and the rhythm can be worn and taken off', function () {
       var cands = G.remixCandidates();
       cands.forEach(function (c) {
         expect([100, 110, 120].indexOf(c.scale) !== -1, c.name + ' has no type size, or shrinks it: ' + c.scale);
@@ -5839,11 +5829,6 @@
       G.remixRestoreRhythm(snaps);
       var after = { theme: first.theme || null, bg: first.bg || null, divider: JSON.stringify(first.divider || null), colors: first.els.map(function (e) { return e.color || null; }).join(',') };
       expect(JSON.stringify(after) === JSON.stringify(before), 'restore did not put the page back: ' + JSON.stringify(after) + ' vs ' + JSON.stringify(before));
-      var now = G.currentLook();
-      G.remixLocks({ scale: true, rhythm: true });
-      var locked = G.remixCandidates();
-      expect(locked.every(function (c) { return c.scale === now.scale && c.rhythm === now.rhythm; }), 'locked size or sections moved');
-      G.remixLocks({});
     });
 
     test('remix: a direction nudges from where you are — darker is dark, calmer is quiet, warmer leans warm', function () {
@@ -5923,11 +5908,8 @@
         expect(Math.abs(rr.top - br.top) < 4 && rr.right <= br.left + 2, 'Remix and the brand should share one row, Remix on the left');
         var more = pnl.querySelector('details.gogh-more');
         expect(more && !more.open && more.contains(pnl.querySelector('.gogh-typescale')) && more.contains(pnl.querySelector('.gogh-varlist')), 'type scale, looks and fonts should be folded under More');
-        var offDoor = ['.gogh-remixcards', '.gogh-remixlocks', '.gogh-remixdirs'].every(function (sel) {
-          var el = pnl.querySelector(sel);
-          return el && el.hidden && getComputedStyle(el).display === 'none';
-        });
-        expect(offDoor, 'the shop (cards, locks, directions) should be off the door');
+        expect(!pnl.querySelector('.gogh-remixcards, .gogh-remixlocks, .gogh-remixdirs, .gogh-remixkept, .gogh-remixpin'), 'the shop (cards, locks, directions, the shelf) should be gone, not hidden');
+        expect(!G.remixKeep && !G.remixLocks, 'the shop\u2019s functions should be gone from the editor');
         G.closePanel();
       });
     });
@@ -5985,18 +5967,6 @@
       rolls.forEach(function (c) { scales[c.scale] = 1; rhythms[c.rhythm] = 1; });
       expect(Object.keys(scales).length + Object.keys(rhythms).length > 2, 'type and sections should still roll: ' + JSON.stringify([scales, rhythms]));
       return 'brand ' + b.colors.background + '/' + b.colors.text + ' held through ' + rolls.length + ' rolls';
-    });
-
-    testAsync('remix: keep puts a look on the shelf, keep again takes it off', function () {
-      var cand = G.remixCandidates()[0];
-      var n0 = G.remixKept().length;
-      return G.remixKeep(cand, false).then(function (added) {
-        expect(added === true && G.remixKept().length === n0 + 1, 'keep did not add the look');
-        expect(G.remixKept()[0].colors.background === cand.colors.background, 'the kept look is not the one kept');
-        return G.remixKeep(cand, false);
-      }).then(function (added) {
-        expect(added === false && G.remixKept().length === n0, 'keep again did not take it off');
-      });
     });
 
     test('ask gogh: the vocabulary reads plain instructions', function () {

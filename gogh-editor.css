@@ -3691,8 +3691,6 @@ html.gogh-textediting .gogh-convertbtn {
   padding-bottom: 13px;
 }
 .gogh-brandsetup, .gogh-remixbtn { font-size: 12.5px; }
-.gogh-remixcards { display: flex; flex-direction: column; gap: 6px; margin-top: 8px; }
-.gogh-remixcard { display: flex; align-items: center; gap: 6px; }
 
 /* the way out of every panel deserves a real target ("is this back button
    a little small?") — 36px square, bigger chevron, same spot */
@@ -4082,36 +4080,8 @@ html.gogh-building .gogh-inserter, html.gogh-building .gogh-side { display: none
 /* an embed with nothing in it yet, or one that only shows on the live page */
 .gogh-embed-empty { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; padding: 12px; text-align: center; font: 500 13px/1.4 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; color: inherit; opacity: 0.7; }
 
-/* Remix: locks above the cards, a keep pin on each, a kept shelf below */
-.gogh-remixlocks { display: flex; gap: 5px; flex-wrap: wrap; margin-top: 8px; }
-.gogh-remixlock { display: inline-flex; align-items: center; gap: 5px; font: 600 11.5px/1 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; padding: 6px 9px; border-radius: 999px; border: 1px solid var(--gogh-ui-border); background: transparent; color: var(--gogh-ui-fg); cursor: pointer; opacity: 0.75; }
-.gogh-remixlock:hover { opacity: 1; background: var(--gogh-ui-hover); }
-.gogh-remixlock.is-on { opacity: 1; background: var(--gogh-ui-accent, #4a63d8); color: var(--gogh-ui-accent-fg, #fff); border-color: transparent; }
-.gogh-remixcard { display: flex; align-items: center; gap: 2px; }
-.gogh-remixcard .gogh-remixwear { flex: 1; min-width: 0; }
-.gogh-remixpin { all: unset; width: 28px; height: 28px; display: grid; place-items: center; border-radius: 8px; cursor: pointer; font-size: 13px; color: var(--gogh-ui-fg); opacity: 0.35; }
-.gogh-remixpin:hover { opacity: 1; background: var(--gogh-ui-hover); }
-.gogh-remixpin.is-on { opacity: 1; color: #e0a020; }
-.gogh-remixcard.is-kept .gogh-remixpin { font-size: 11px; }
-.gogh-remixkept:not(:empty) { margin-top: 10px; padding-top: 8px; border-top: 1px solid var(--gogh-ui-border); display: flex; flex-direction: column; gap: 4px; }
 
-/* Remix cards: the page's own opening, worn in the look */
-.gogh-remixcard .gogh-remixwear { flex-direction: column; align-items: stretch; gap: 6px; padding: 6px; }
-.gogh-remixmini { display: block; position: relative; border-radius: 7px; padding: 10px 10px 12px; min-height: 58px; border: 1px solid rgba(0, 0, 0, 0.08); overflow: hidden; }
-.gogh-remixmini-h { display: block; font-weight: 600; line-height: 1.15; letter-spacing: -0.01em; margin-bottom: 7px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding-right: 22px; }
-.gogh-remixmini-b { display: inline-block; font: 600 8.5px/1 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; padding: 4px 8px; border-radius: 999px; }
-.gogh-remixmini-rhythm { position: absolute; right: 7px; top: 7px; display: grid; grid-template-columns: 1fr; gap: 1px; width: 10px; }
-.gogh-remixmini-rhythm i { display: block; height: 6px; border-radius: 1px; border: 1px solid rgba(0, 0, 0, 0.12); }
-.gogh-remixwords { display: block; padding: 0 2px; }
-.gogh-remixwords .gogh-varname { margin-left: 0; display: block; }
-.gogh-remixdetail { display: block; font-weight: 500; font-size: 11px; opacity: 0.6; margin-top: 1px; }
 
-/* Remix: "not quite — more like this" */
-.gogh-remixdirs { display: flex; flex-wrap: wrap; gap: 5px; align-items: center; margin-top: 10px; }
-.gogh-remixdirs-lab { flex-basis: 100%; font: 500 11px/1.3 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; color: var(--gogh-ui-fg); opacity: 0.6; margin-bottom: 1px; }
-.gogh-remixdir { font: 600 11.5px/1 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; padding: 6px 10px; border-radius: 999px; border: 1px solid var(--gogh-ui-border); background: transparent; color: var(--gogh-ui-fg); cursor: pointer; }
-.gogh-remixdir:hover { background: var(--gogh-ui-hover); }
-.gogh-remixdir.is-on { background: var(--gogh-ui-fg); color: var(--gogh-ui-bg, #fff); border-color: transparent; }
 
 /* Site style's top row: Remix first and emphasised, the brand beside it; the
    Remix extras (locks, cards, directions, the kept shelf) run full width under them */
@@ -4122,7 +4092,6 @@ html.gogh-building .gogh-inserter, html.gogh-building .gogh-side { display: none
 .gogh-toprow .gogh-brandrow { order: 2; flex: 1 1 0; min-width: 0; margin: 0; display: flex; }
 .gogh-toprow .gogh-brandrow > * { flex: 1; min-width: 0; }
 .gogh-toprow .gogh-brandbtn .gogh-varname { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.gogh-toprow .gogh-remixlocks, .gogh-toprow .gogh-remixcards, .gogh-toprow .gogh-remixdirs, .gogh-toprow .gogh-remixkept { order: 3; flex-basis: 100%; }
 /* on the shared row the brand shows two of its dots and its name; the panel is narrow */
 .gogh-toprow .gogh-brandbtn { padding-left: 9px; padding-right: 9px; gap: 3px; }
 .gogh-toprow .gogh-brandbtn .gogh-vardot:nth-of-type(n+3) { display: none; }
@@ -4138,7 +4107,6 @@ html.gogh-building .gogh-inserter, html.gogh-building .gogh-side { display: none
 .gogh-remixback:hover { background: var(--gogh-ui-hover); }
 .gogh-remixback:disabled { opacity: .35; cursor: default; }
 /* hidden means hidden, even where a display rule would argue */
-.gogh-remixdirs[hidden], .gogh-remixlocks[hidden], .gogh-remixcards[hidden], .gogh-remixwearing[hidden] { display: none !important; }
 
 /* Site style: the dials fold under More */
 .gogh-more { margin-top: 6px; border-top: 1px solid var(--gogh-ui-border); padding-top: 4px; }
