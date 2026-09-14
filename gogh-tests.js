@@ -736,7 +736,7 @@
       card.click();
       expect(G.sections().length === s0 + 1, 'section not added');
       var added = lastSec();
-      expect(added.minH === 480, 'scratch minH not applied: ' + added.minH);
+      expect(added.minH === 504, 'scratch minH not applied (504 = seven majors on the 72 rhythm): ' + added.minH);
       expect(added.styleEl.textContent.indexOf(added.scope) !== -1, 'scoped CSS missing');
     });
 
