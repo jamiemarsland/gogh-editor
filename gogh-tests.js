@@ -5787,8 +5787,8 @@
           expect(r >= 6.5, c.name + ' text/ground contrast only ' + r.toFixed(1));
           // the accent is a button wearing the text colour (TT5 Morning): the
           // words on it must read; it should still stand off the ground
-          expect(ratio(c.colors.text, c.colors.accent) >= 3,
-            c.name + ' the words on the button only ' + ratio(c.colors.text, c.colors.accent).toFixed(1) + ':1');
+          var inkOnButton = Math.max(ratio(c.colors.text, c.colors.accent), ratio(c.colors.background, c.colors.accent));
+          expect(inkOnButton >= 3, c.name + ' nothing reads on the button: best ink ' + inkOnButton.toFixed(1) + ':1');
           expect(ratio(c.colors.accent, c.colors.background) >= 2,
             c.name + ' accent barely visible on its ground (' + ratio(c.colors.accent, c.colors.background).toFixed(1) + ')');
         });
@@ -5962,21 +5962,32 @@
       var lime = G.deriveBrand({ accent: '#53f00f' });
       expect(lime.word === 'loud' && /loud/.test(lime.say), 'lime should be called loud: ' + lime.word + ' / ' + lime.say);
       expect(lum(lime.colors.background) > 0.8 && ratio(lime.colors.text, lime.colors.background) >= 7, 'a light page with words at 7:1, got ' + ratio(lime.colors.text, lime.colors.background).toFixed(1));
-      expect(ratio(lime.colors.text, lime.colors.accent) >= 3, 'the words on the button should read: ' + ratio(lime.colors.text, lime.colors.accent).toFixed(1));
+      expect(Math.max(ratio(lime.colors.text, lime.colors.accent), ratio(lime.colors.background, lime.colors.accent)) >= 3, 'some ink should read on the button');
       expect(!lime.read.background && !lime.read.text && lime.read.accent, 'the receipt should say the page and words were gogh\u2019s choice');
       var dark = G.deriveBrand({ accent: '#1f3a5f' }, { dark: true });
       expect(lum(dark.colors.background) < 0.1 && lum(dark.colors.text) > 0.6, 'a dark page carries light words');
-      expect(ratio(dark.colors.text, dark.colors.accent) >= 3, 'on a dark page the button still holds its words: ' + ratio(dark.colors.text, dark.colors.accent).toFixed(1));
+      expect(Math.max(ratio(dark.colors.text, dark.colors.accent), ratio(dark.colors.background, dark.colors.accent)) >= 3, 'on a dark page some ink still reads on the button');
       var beige = G.deriveBrand({ accent: '#e8d5b7' });
-      expect(beige.word === 'pale' && beige.moved && beige.colors.accent2.toLowerCase() === '#e8d5b7', 'a pale colour should deepen the button and keep the badges: ' + JSON.stringify(beige.colors));
+      // beige on a derived near-white page cannot stand off it, so it may move a little; it wears dark words either way
+      expect(beige.word === 'pale' && beige.buttonInk === 'text', 'a pale colour wears dark words: ' + JSON.stringify([beige.word, beige.moved, beige.buttonInk]));
+      // black stays black, and its buttons wear the page colour
+      var black = G.deriveBrand({ accent: '#111111', background: '#f7f7f5', text: '#111111' });
+      expect(black.colors.accent === '#111111' && !black.moved && black.buttonInk === 'background', 'black should keep its colour and wear light words: ' + JSON.stringify([black.colors.accent, black.moved, black.buttonInk]));
+      // a monochrome brand derives neutrals, not a warm dark
+      var mono = G.deriveBrand({ accent: '#111111' });
+      var mh = (function (hex) { var n = parseInt(hex.slice(1), 16); var r = n >> 16 & 255, g = n >> 8 & 255, b = n & 255; return Math.max(r, g, b) - Math.min(r, g, b); })(mono.colors.text);
+      expect(mh <= 2, 'a neutral brand should derive neutral words, got ' + mono.colors.text);
+      var bv = G.brandToVariation({ colors: black.colors });
+      var bc = bv.styles && bv.styles.elements && bv.styles.elements.button && bv.styles.elements.button.color;
+      expect(bc && /accent/.test(bc.background) && /\|base$|\|background$/.test(bc.text) || (bc && bc.text.indexOf(G.paletteRoles().bgSlug) !== -1), 'the brand should style its buttons: accent behind, the page colour as ink: ' + JSON.stringify(bc));
       expect(G.colourWord('#111111') === 'deep' && G.colourWord('#9a9a9a') === 'muted' && G.colourWord('#c9a7e0') === 'pale', 'black is deep, grey is muted, lilac is pale: ' + [G.colourWord('#111111'), G.colourWord('#9a9a9a'), G.colourWord('#c9a7e0')].join(','));
       var lilac = G.deriveBrand({ accent: '#c9a7e0', accent2: '#f4a7b9', background: '#fbf7fc', text: '#3b2c48' });
-      expect(lilac.colors.accent2 === '#f4a7b9' && !/kept your colour for the badges/.test(lilac.say), 'a given secondary keeps the badges, and the sentence does not claim otherwise: ' + lilac.say);
+      expect(lilac.colors.accent2 === '#f4a7b9' && !lilac.moved && lilac.buttonInk === 'text', 'a given secondary keeps the badges, and the pale button stays exact with dark words: ' + JSON.stringify([lilac.moved, lilac.buttonInk]));
       var twice = G.readBrandGuide('Primary: #111111\nBackground: #F7F7F5\nText: #111111\n');
       expect(twice.colors.accent === '#111111' && twice.colors.text === '#111111', 'a code named twice takes both roles: ' + JSON.stringify(twice.colors));
       ['#c8102e', '#7a5c99', '#888888', '#0a0a0a'].forEach(function (hx) {
         var d = G.deriveBrand({ accent: hx });
-        expect(ratio(d.colors.text, d.colors.background) >= 7 && ratio(d.colors.text, d.colors.accent) >= 3, hx + ' should pass the gate: ' + JSON.stringify(d.colors));
+        expect(ratio(d.colors.text, d.colors.background) >= 7 && Math.max(ratio(d.colors.text, d.colors.accent), ratio(d.colors.background, d.colors.accent)) >= 3, hx + ' should pass the gate: ' + JSON.stringify(d.colors));
       });
     });
 

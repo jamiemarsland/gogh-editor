@@ -15457,9 +15457,23 @@
   // walk the accent's lightness to where the text reads on it AND it still
   // stands off the ground — the nearest such lightness to its own; if no
   // lightness holds both, the words on the button win over the edge
+  // which of the two brand colours reads on a button of this accent: the
+  // words, or the page (a black button wears white words). Returns the
+  // role and its ratio; the caller decides whether that is enough.
+  function buttonInkFor(ac, bg, tx) {
+    var onTx = remixRatio(ac, tx), onBg = remixRatio(ac, bg);
+    return onTx >= onBg ? { role: 'text', hex: tx, ratio: onTx } : { role: 'background', hex: bg, ratio: onBg };
+  }
   function fitAccent(ac, bg, tx) {
     var h = hexToHsl(ac);
     if (!h) return ac;
+    // the brand colour stays exact whenever SOME ink reads on it: words at
+    // 4.5:1 with the button still standing off the page, or the page
+    // colour itself at 4.5:1 (which also makes the button stand off the page)
+    // (4.0 rather than 4.5: button words are bold and large; and a button
+    // is a shape — the theme's own stand 1.9:1 off the page)
+    var ink = buttonInkFor(ac, bg, tx);
+    if (ink.ratio >= 4 && (ink.role === 'background' || remixRatio(ac, bg) >= 1.5)) return ac;
     // tiers: the words first, then the edge — each relaxed a step at a time
     var tiers = [[4.5, 3], [4.5, 2.5], [3.5, 2.5], [3, 2.2], [3, 0]];
     for (var t = 0; t < tiers.length; t++) {
@@ -15467,7 +15481,8 @@
       for (var l = 0.04; l <= 0.96; l += 0.01) {
         var hex = hslToHex(h.h, h.s, l);
         var d = Math.abs(l - h.l);
-        if (remixRatio(hex, tx) >= tiers[t][0] && remixRatio(hex, bg) >= tiers[t][1] && d < bestD) { best = hex; bestD = d; }
+        var best2 = Math.max(remixRatio(hex, tx), remixRatio(hex, bg));
+        if (best2 >= tiers[t][0] && remixRatio(hex, bg) >= tiers[t][1] && d < bestD) { best = hex; bestD = d; }
       }
       if (best) return best;
     }
@@ -15601,6 +15616,18 @@
       if (v) pal.push({ slug: slug, color: v, name: slug });
     });
     var out = { title: 'Your brand', settings: { color: { palette: { theme: pal } } }, styles: {} };
+    // buttons wear the brand's accent, with whichever of page or words reads
+    // on it — a theme variation may put buttons on contrast/base and never
+    // touch accent-1 (TT5's default), so the brand says so itself
+    var accentSlot = pal.filter(function (p) { return /accent|primary|secondary/.test(p.slug) && p.color === c.accent; })[0];
+    if (accentSlot && c.background && c.text && roles.bgSlug && roles.textSlug) {
+      var ink = buttonInkFor(c.accent, c.background, c.text);
+      out.styles.elements = out.styles.elements || {};
+      out.styles.elements.button = { color: {
+        background: 'var:preset|color|' + accentSlot.slug,
+        text: 'var:preset|color|' + (ink.role === 'background' ? roles.bgSlug : roles.textSlug),
+      } };
+    }
     var f = (brand && brand.fonts) || {};
     var byFam = {};
     fontCatalogue().forEach(function (x) { byFam[x.slug] = x; });
@@ -15611,7 +15638,8 @@
     if (used.length) out.settings.typography = { fontFamilies: { theme: used } };
     if (f.body && byFam[f.body]) out.styles.typography = { fontFamily: 'var:preset|font-family|' + f.body };
     if (f.heading && byFam[f.heading]) {
-      out.styles.elements = { heading: { typography: { fontFamily: 'var:preset|font-family|' + f.heading } } };
+      out.styles.elements = out.styles.elements || {};
+      out.styles.elements.heading = { typography: { fontFamily: 'var:preset|font-family|' + f.heading } };
     }
     return out;
   }
@@ -15774,7 +15802,7 @@
     loud: ['is loud, so gogh keeps it for the buttons', ' and gives the page a calm ground'],
     deep: ['is deep, so it carries your buttons', '; the page stays light so the words read'],
     deepDark: ['is deep, so it carries your buttons', '; the page is deep too, with the words in light'],
-    pale: ['is pale — too pale to hold words as a button — so gogh deepened the button', ''],
+    pale: ['is pale, so the buttons stay light and quiet', ' and the page stays lighter still'],
     soft: ['is soft, so the buttons wear it a shade deeper', ' and the page takes a whisper of it'],
     muted: ['is muted, so the buttons carry the rest', ' and gogh gives the page a hint of it'],
     clear: ['is a clear colour: buttons and links wear it', ', and the page stays quiet around it'],
@@ -15795,27 +15823,33 @@
     var h = hexToHsl(accent) || { h: 220, s: 0.5, l: 0.4 };
     var word = colourWord(accent);
     var read = { background: !!given.background, text: !!given.text, accent: !!given.accent, accent2: !!given.accent2 };
+    // a colour with no saturation (black, grey) hands no hue to the page or
+    // the words — a monochrome brand stays monochrome
+    var hueS = h.s < 0.12 ? 0 : h.s;
     var background = given.background || (dark
-      ? hslToHex(h.h, Math.min(0.35, h.s * 0.5), 0.11)
-      : hslToHex(h.h, Math.min(0.18, h.s * 0.3), 0.965));
-    var text = given.text || (dark ? hslToHex(h.h, 0.08, 0.93) : hslToHex(h.h, 0.3, 0.12));
+      ? hslToHex(h.h, Math.min(0.35, hueS * 0.5), 0.11)
+      : hslToHex(h.h, Math.min(0.18, hueS * 0.3), 0.965));
+    var text = given.text || (dark ? hslToHex(h.h, Math.min(0.08, hueS), 0.93) : hslToHex(h.h, Math.min(0.3, hueS), 0.12));
     if (!given.text) text = ensureContrast(text, background, 7);
     // the accent is a button: its words must read; when the colour is too
     // pale to hold them, the button deepens and the colour keeps the badges
     var button = fitAccent(accent, background, text);
     var moved = button.toLowerCase() !== accent.toLowerCase();
     var movedHow = moved ? (relLum(button) > relLum(accent) ? 'lightened' : 'deepened') : null;
-    var accent2 = given.accent2 || (word === 'pale' && moved ? accent : hslToHex(h.h + 34, h.s, (hexToHsl(button) || h).l));
+    var buttonInk = buttonInkFor(button, background, text);
+    var accent2 = given.accent2 || hslToHex(h.h + 34, hueS, (hexToHsl(button) || h).l);
     var parts = word === 'deep' && dark ? BRAND_SAY.deepDark : BRAND_SAY[word];
-    var say = 'Your colour ' + parts[0] + (read.background ? '' : parts[1]);
-    if (word === 'pale' && moved && !given.accent2) say += ' and kept your colour for the badges';
-    say += '.';
-    if (word !== 'pale' && moved) say += ' gogh ' + movedHow + ' it a little so the words on the buttons read.';
+    var say = 'Your colour ' + parts[0] + (read.background ? '' : parts[1]) + '.';
+    // the button's words: the page colour or the text colour, whichever reads
+    say += buttonInk.role === 'background'
+      ? (dark ? ' The buttons wear dark words on it.' : ' The buttons wear light words on it.')
+      : '';
+    if (moved) say += ' gogh ' + movedHow + ' it a little so words could read on the buttons.';
     if (read.accent && (read.background || read.text)) say = say.replace(/^Your colour/, 'Your primary');
     return {
       colors: { background: background, text: text, accent: button, accent2: accent2 },
       fonts: given.fonts || {},
-      word: word, say: say, read: read, moved: moved, movedHow: movedHow, dark: dark,
+      word: word, say: say, read: read, moved: moved, movedHow: movedHow, dark: dark, buttonInk: buttonInk.role,
     };
   }
   // a guideline, read: codes with the role named beside them, fonts by name.
@@ -16022,9 +16056,12 @@
     // the one fork: a light page or a dark one
     panel.querySelectorAll('.gogh-brandpolbtn').forEach(function (b) {
       b.addEventListener('click', function () {
-        dark = b.dataset.dark === '1';
-        if (given.background) delete given.background; // the fork overrides a given page
-        if (given.text) delete given.text;
+        var want = b.dataset.dark === '1';
+        if (want === dark) return; // already that — a guideline's page is not thrown away for nothing
+        dark = want;
+        // a given page or words that already sit on the wanted side stay; the others go
+        if (given.background && (relLum(given.background) < 0.35) !== want) { delete given.background; if (given.placed) delete given.placed.background; }
+        if (given.text && (relLum(given.text) > 0.5) !== want) { delete given.text; if (given.placed) delete given.placed.text; }
         rederive();
       });
     });
@@ -16477,6 +16514,13 @@
     if (bodyFF) body += 'font-family:' + bodyFF + ';';
     body += typo(bBodyTy) + typo(vBodyTy);
     css += 'body{' + body + '}';
+    // a variation that styles its buttons (the brand does) previews them too
+    var vBtn = ((vs.elements || {}).button || {}).color || {};
+    if (vBtn.background || vBtn.text) {
+      css += '.wp-element-button,.wp-block-button__link{' +
+        (vBtn.background ? 'background-color:' + resolve(vBtn.background) + ';' : '') +
+        (vBtn.text ? 'color:' + resolve(vBtn.text) + ';' : '') + '}';
+    }
 
     // headings: own font/colour when set, else the base's, else follow the body
     var headFF = vHeadTy.fontFamily ? resolve(vHeadTy.fontFamily)
