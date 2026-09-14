@@ -3103,6 +3103,13 @@ html.gogh-chrome-mode .gogh-hgrip { display: none !important; }
    dead-looking input reads as broken ("i can't type anything into it").
    Editing surface only: the published page never wears it. */
 html.gogh-editing .gogh-section .gogh-widget:has(.gogh-form) { position: relative; }
+/* the preview's fields are disabled controls, and a click on a disabled
+   control never reaches the widget behind it — most of the form was dead
+   to selection ("i dont seem to be able to click into the form anymore").
+   The fields are a picture here: the pointer goes through to the widget. */
+html.gogh-editing .gogh-section .gogh-widget .gogh-form input,
+html.gogh-editing .gogh-section .gogh-widget .gogh-form textarea,
+html.gogh-editing .gogh-section .gogh-widget .gogh-form .gogh-form-fbtn { pointer-events: none; }
 html.gogh-editing .gogh-section .gogh-widget:has(.gogh-form)::after {
   content: 'Form — comes alive when published';
   position: absolute;
