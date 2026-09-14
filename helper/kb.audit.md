@@ -1,4 +1,4 @@
-# Knowledge-base audit — plugin v0.99.528
+# Knowledge-base audit — plugin v0.99.529
 
 _13 finding(s) suppressed by `kb.audit-ignore.txt`._
 
@@ -105,14 +105,9 @@ The source has something the prose never explains. The bot knows the name from t
 - element type `video` exists in source but is never mentioned in the prose
 - element type `embed` exists in source but is never mentioned in the prose
 
-## QUOTE (1)
-
-Quoted copy not found verbatim in the source. Paraphrases are fine; changed UI copy is not.
-
-- Gaps evened out, 48 apart.
-
 ## What changed since the last knowledge-base build
 
 Use this as the checklist for updating the prose — and as a sanity check on the release itself.
 
-- version: 0.99.527 → 0.99.528
+- version: 0.99.528 → 0.99.529
+- constant `MIN_H`: 560 → 576

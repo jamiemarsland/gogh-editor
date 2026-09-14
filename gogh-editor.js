@@ -21,7 +21,7 @@
   var DISPLAY_LABEL = { '__disp-s': 'Display S', '__disp-m': 'Display M', '__disp-l': 'Display L' };
   if (!cfg) return;
 
-  var TOL = 8, MIN_H = 560, PAD = 72, SNAP = 6, BASE = 8, W = 1200, RHYTHM = 24, MAJOR = 72;
+  var TOL = 8, MIN_H = 576, PAD = 72, SNAP = 6, BASE = 8, W = 1200, RHYTHM = 24, MAJOR = 72;
   // RHYTHM and MAJOR are the vertical rhythm gogh keeps for its OWN gaps: the
   // takes, the scratch section, the bands the connector compiles. Positions
   // and heights sit on 24, section heights on 72. It never rounds a person's
@@ -101,7 +101,7 @@
         e = { type: 'rule', w: 1040, h: 16, thick: 1 };
       } else if (child.classList.contains('gogh-embed')) {
         var ea = child.querySelector('a.gogh-embed-link'), ew = child.querySelector('.wp-block-embed__wrapper');
-        e = { type: 'embed', w: 720, h: 405, url: ea ? ea.getAttribute('href') : (ew ? (ew.textContent || '').trim() : null) || null };
+        e = { type: 'embed', w: 768, h: 432, url: ea ? ea.getAttribute('href') : (ew ? (ew.textContent || '').trim() : null) || null };
       } else if (child.classList.contains('gogh-icon')) {
         var im2 = (child.className || '').match(/gogh-icon-([a-z0-9-]+)/);
         e = { type: 'icon', w: 56, h: 56, icon: im2 && ICONS[im2[1]] ? im2[1] : 'star' };
@@ -5944,27 +5944,29 @@
     return css;
   }
   var DEFAULTS = {
-    heading: function () { return { type: 'heading', x: 80, y: 80, w: 420, h: 60, text: 'A new heading', ghost: false, cool: false }; },
-    para: function () { return { type: 'para', x: 80, y: 200, w: 380, h: 50, text: 'Some supporting copy. Drag me anywhere.', ghost: false, cool: false }; },
-    button: function () { return { type: 'button', x: 80, y: 320, w: 170, h: 52, text: 'Click me', ghost: false, cool: false }; },
-    image: function () { return { type: 'image', x: 520, y: 120, w: 360, h: 260, text: null, ghost: false, cool: true }; },
-    video: function () { return { type: 'video', x: 400, y: 100, w: 560, h: 315, text: null, ghost: false, cool: true, vplay: 'auto', radius: 14 }; },
-    badge: function () { return { type: 'badge', x: 520, y: 420, w: 220, h: 52, text: 'New badge', ghost: false, cool: false }; },
-    // a line: the row is 12 tall so the grid has something to hold; the
-    // stroke itself is 1px, centred in it
-    rule: function () { return { type: 'rule', x: 80, y: 200, w: 1040, h: 16, thick: 1 }; },
-    icon: function () { return { type: 'icon', x: 80, y: 80, w: 56, h: 56, icon: 'star' }; },
-    embed: function () { return { type: 'embed', x: 240, y: 80, w: 720, h: 405, url: null }; },
+    // every default height and resting y is a multiple of 24 (RHYTHM): a new
+    // piece is born on the rhythm and only a person's hand takes it off
+    heading: function () { return { type: 'heading', x: 80, y: 96, w: 420, h: 72, text: 'A new heading', ghost: false, cool: false }; },
+    para: function () { return { type: 'para', x: 80, y: 192, w: 380, h: 48, text: 'Some supporting copy. Drag me anywhere.', ghost: false, cool: false }; },
+    button: function () { return { type: 'button', x: 80, y: 312, w: 170, h: 48, text: 'Click me', ghost: false, cool: false }; },
+    image: function () { return { type: 'image', x: 520, y: 120, w: 360, h: 264, text: null, ghost: false, cool: true }; },
+    video: function () { return { type: 'video', x: 280, y: 96, w: 640, h: 360, text: null, ghost: false, cool: true, vplay: 'auto', radius: 14 }; },
+    badge: function () { return { type: 'badge', x: 520, y: 432, w: 220, h: 48, text: 'New badge', ghost: false, cool: false }; },
+    // a line: the row is one rhythm unit tall so the grid has something to
+    // hold; the stroke itself is 1px, centred in it
+    rule: function () { return { type: 'rule', x: 80, y: 192, w: 1040, h: 24, thick: 1 }; },
+    icon: function () { return { type: 'icon', x: 80, y: 96, w: 48, h: 48, icon: 'star' }; },
+    embed: function () { return { type: 'embed', x: 216, y: 96, w: 768, h: 432, url: null }; },
     // a list is a paragraph wearing bullets: same words, same panel
-    list: function () { return { type: 'para', x: 80, y: 200, w: 420, h: 96, list: 'ul', text: 'The first point<br>The second point<br>The third point', ghost: false, cool: false }; },
+    list: function () { return { type: 'para', x: 80, y: 192, w: 420, h: 96, list: 'ul', text: 'The first point<br>The second point<br>The third point', ghost: false, cool: false }; },
     card: function () {
-      return { type: 'box', x: 360, y: 80, w: 480, h: 360, radius: 16,
+      return { type: 'box', x: 360, y: 96, w: 480, h: 360, radius: 16,
         boxBg: 'color-mix(in srgb, var(--wp--preset--color--contrast, #000) 7%, var(--wp--preset--color--base, transparent))' };
     },
     form: function () {
       // gogh's own form: name, email, message — every submission lands in
       // the Messages book in wp-admin and in the site's email. No plugin.
-      return { type: 'widget', x: 240, y: 60, w: 720, h: 420,
+      return { type: 'widget', x: 240, y: 72, w: 720, h: 432,
         wsrc: '<!-- wp:gogh/form /-->',
         whtml: '<div class="gogh-form">' +
           '<div class="gogh-form-row">' +
@@ -5984,7 +5986,7 @@
       var posts = postsDefaults();
       // the content width a heading uses (100..1100), so on the published page
       // the rail shares the heading's column and the grid sits centred
-      return { type: 'widget', rails: true, posts: posts, x: 100, y: 60, w: 1000, h: 430, wsrc: composePosts(posts),
+      return { type: 'widget', rails: true, posts: posts, x: 100, y: 72, w: 1000, h: 432, wsrc: composePosts(posts),
         whtml: '<div class="gogh-postsprev gogh-postsprev-loading">Loading your latest posts\u2026</div>' };
     },
     products: function () {
@@ -5995,7 +5997,7 @@
       // published page is native markup Woo renders fresh (prices, add to
       // cart, the lot) and keeps working with gogh deactivated.
       var shop = shopDefaults();
-      return { type: 'widget', rails: true, shop: shop, x: 47, y: 60, w: 1106, h: 470, wsrc: composeShop(shop),
+      return { type: 'widget', rails: true, shop: shop, x: 47, y: 72, w: 1106, h: 480, wsrc: composeShop(shop),
         whtml: '<div class="gogh-shopprev gogh-postsprev-loading">Loading your products\u2026</div>' };
     },
   };
@@ -6279,13 +6281,13 @@
   }
   function composeFeaturedProduct(idx, p) {
     var card = {
-      type: 'box', x: 150, y: 60, w: 900, h: 400, radius: 16,
+      type: 'box', x: 150, y: 72, w: 900, h: 408, radius: 16,
       boxBg: 'color-mix(in srgb, var(--wp--preset--color--contrast, #000) 6%, var(--wp--preset--color--base, transparent))',
       kids: [
-        { type: 'image', x: 30, y: 30, w: 340, h: 340, src: p.img || null },
-        { type: 'heading', x: 420, y: 60, w: 440, h: 70, text: p.name || 'Product' },
-        { type: 'badge', x: 420, y: 170, w: 170, h: 48, text: p.priceText || '' },
-        { type: 'button', x: 420, y: 260, w: 250, h: 54, text: 'Add to cart', href: p.addUrl || p.permalink || null },
+        { type: 'image', x: 30, y: 30, w: 348, h: 348, src: p.img || null },
+        { type: 'heading', x: 420, y: 60, w: 440, h: 72, text: p.name || 'Product' },
+        { type: 'badge', x: 420, y: 168, w: 170, h: 48, text: p.priceText || '' },
+        { type: 'button', x: 420, y: 264, w: 250, h: 48, text: 'Add to cart', href: p.addUrl || p.permalink || null },
       ],
     };
     return addElementToSection(idx, card);
@@ -7000,6 +7002,29 @@
     var r = sec.wrapEl.getBoundingClientRect();
     return r.bottom > 60 && r.top < window.innerHeight - 60;
   }
+  // a new piece lands on the rhythm: its y is a multiple of 24, and if that
+  // would put it on words already there, or within a unit of them, it goes
+  // 24 under them instead (the
+  // paper: "a heading dropped from the shelf lands 24 under what's above
+  // it"). Backdrops are exempt — a shape is meant to sit behind things.
+  function landOnRhythm(sec, e, atBack) {
+    e.y = Math.max(RHYTHM, Math.round(e.y / RHYTHM) * RHYTHM);
+    if (atBack) return;
+    var words = sec.els.filter(function (o) { return guardTexty(o) && o !== e; })
+      .sort(function (a, b) { return a.y - b.y; });
+    for (var pass = 0; pass < 24; pass++) {
+      var hit = null;
+      words.forEach(function (o) {
+        if (hit) return;
+        var ox = Math.min(e.x + e.w, o.x + o.w) - Math.max(e.x, o.x);
+        // on the words, or closer to them than one rhythm unit
+        var near = e.y < o.y + o.h + RHYTHM && e.y + e.h + RHYTHM > o.y;
+        if (ox > 4 && near) hit = o;
+      });
+      if (!hit) return;
+      e.y = hit.y + hit.h + RHYTHM;
+    }
+  }
   function placeElAtViewport(e, atBack) {
     // land in what the user is looking at: the selected section if it's on
     // screen, else the most visible one — centred in the viewport
@@ -7013,6 +7038,7 @@
     e.x = Math.max(0, Math.min(W - e.w, e.x));
     e.y = Math.max(8, e.y);
     stagger++;
+    landOnRhythm(sec, e, atBack);
     addElement(sec, e, atBack);
     return e;
   }
@@ -7034,6 +7060,7 @@
     e.x = Math.max(0, Math.min(W - e.w, Math.round((W - e.w) / 2 + (stagger % 5) * 24 - 48)));
     e.y = Math.max(8, Math.round(Math.min(Math.max(8, (H - e.h) / 2), Math.max(8, H - e.h - 8)) + (stagger % 5) * 24 - 48));
     stagger++;
+    landOnRhythm(secx, e);
     addElement(secx, e);
     if (kindKey === 'posts') hydratePostsPreview(secx, e);
     if (kindKey === 'products') hydrateProductsPreview(secx, e);
@@ -11665,10 +11692,10 @@
       var e = DEFAULTS.image();
       e.w = w; e.h = h;
       e.x = n === 1 ? Math.round((W - w) / 2) : Math.round(pad + i * (w + gap));
-      e.y = Math.round(H + 32);
+      e.y = Math.round(H + RHYTHM);
       s.els.push(e);
     }
-    s.minH = Math.max(s.minH || 0, Math.round(H + 32 + h + 64));
+    s.minH = Math.max(s.minH || 0, Math.ceil((H + RHYTHM + h + PAD) / MAJOR) * MAJOR);
     renderSection(s);
   }
   function askAddOne(s, kind, tweak) {
@@ -17464,6 +17491,7 @@
     pushState: pushState,
     templates: function () { return TEMPLATES; },
     rhythm: function () { return { minor: RHYTHM, major: MAJOR }; },
+    defaults: function (kind) { return kind ? DEFAULTS[kind]() : Object.keys(DEFAULTS); },
     resolveAll: resolveAll,
     reflowPush: reflowPush,
     growReflow: growReflow,

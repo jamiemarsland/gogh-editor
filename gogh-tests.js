@@ -73,6 +73,7 @@
         addToSec(t);
       }
     });
+    G.renderSection(sec());
     SNAP = G.serialize();
 
     // ---- 1. boot ----
@@ -404,13 +405,17 @@
       var i = findIdx('heading');
       var e = s.els[i];
       var x0 = e.x, y0 = e.y, w0 = e.w, h0 = e.h;
-      var floor = s.minH || 560;
+      var floor = s.minH || 576;
       e.y = floor - e.h; // bottom exactly at the minH line
       G.resolve(s);
       var r = s.sectionEl.getBoundingClientRect();
       var designHNow = r.height / (r.width / 1200);
-      expect(Math.abs(designHNow - floor) <= 12,
-        'section ran past the flush element: ' + Math.round(designHNow) + ' vs minH ' + floor);
+      // another piece may sit lower than the floor; then the section is
+      // honestly that piece plus the pad, and still no more
+      var others = Math.max.apply(null, s.els.filter(function (o) { return o !== e; }).map(function (o) { return o.y + o.h; }));
+      var want = Math.max(floor, others + 72);
+      expect(Math.abs(designHNow - want) <= 12,
+        'section ran past the flush element: ' + Math.round(designHNow) + ' vs ' + want + ' (minH ' + floor + ', lowest other ' + others + ')');
       e.x = x0; e.y = y0; e.w = w0; e.h = h0;
       G.resolve(s);
       return 'bottom at ' + floor + ', section ' + Math.round(designHNow) + ' — flush';
@@ -1231,7 +1236,7 @@
       expect(/<!-- wp:embed \{"url":"https:\/\/www\.youtube\.com\/watch\?v=abc123def","type":"rich","providerNameSlug":"youtube"/.test(blocks), 'the link did not publish as a wp:embed');
       expect(/<div class="wp-block-embed__wrapper">\nhttps:\/\/www\.youtube\.com\/watch\?v=abc123def\n<\/div>/.test(blocks), 'the URL is not on its own line for WordPress to swap');
       var css = blocks.match(/"cssT":"((?:[^"\\]|\\.)*)"/);
-      expect(css && /aspect-ratio: 720 \/ 405/.test(css[1].replace(/\\"/g, '"')), 'the window lost its aspect');
+      expect(css && /aspect-ratio: 768 \/ 432/.test(css[1].replace(/\\"/g, '"')), 'the window lost its aspect');
       s0.els.splice(idx, 1);
       G.renderSection(s0);
     });
@@ -4598,6 +4603,52 @@
       s0.els.splice(n0);
       G.renderSection(s0);
       return 'vertical gaps gogh chooses sit on 24s; the piece a person placed first never moves';
+    });
+
+    test('a new piece is born on the rhythm and lands 24 under words it would have covered', function () {
+      var r = G.rhythm();
+      var off = [];
+      G.defaults().forEach(function (k) {
+        var d = G.defaults(k);
+        if (d.h % r.minor) off.push(k + ' h ' + d.h);
+        if (d.y % r.minor) off.push(k + ' y ' + d.y);
+      });
+      expect(!off.length, 'default sizes and resting places sit on 24: ' + off.join(', '));
+      var s0 = sec();
+      var n0 = s0.els.length;
+      var idx = G.sections().indexOf(s0);
+      var first = G.addElementToSection(idx, 'heading');
+      var texty = function (e) { return e.type === 'heading' || e.type === 'para' || e.type === 'button'; };
+      // on a 24 — or, when words were in its way, exactly 24 under them
+      // (a gap of one unit under a person's piece beats the grid line)
+      var under24 = function (e) {
+        return s0.els.some(function (o) {
+          return o !== e && texty(o) && e.y === o.y + o.h + r.minor && Math.min(e.x + e.w, o.x + o.w) - Math.max(e.x, o.x) > 4;
+        });
+      };
+      expect(first.y >= r.minor && (first.y % r.minor === 0 || under24(first)), 'a new heading lands on a 24, or 24 under words: ' + first.y);
+      var onWords = function (e) {
+        return s0.els.some(function (o) {
+          if (o === e || !texty(o)) return false;
+          return Math.min(e.x + e.w, o.x + o.w) - Math.max(e.x, o.x) > 4 && Math.min(e.y + e.h, o.y + o.h) - Math.max(e.y, o.y) > 4;
+        });
+      };
+      expect(!onWords(first), 'it does not land on words');
+      // (the words measure themselves a beat after the add; a person's next
+      // add comes long after, so settle them now)
+      G.measure(s0);
+      // the next heading would land in the same place; it goes 24 under the first instead
+      var second = G.addElementToSection(idx, 'heading');
+      second.x = first.x; // (the x stagger is not the point here)
+      expect(!onWords(second), 'a second heading does not land on the first');
+      var under = s0.els.filter(function (o) { return o !== second && texty(o) && o.y + o.h <= second.y && Math.min(second.x + second.w, o.x + o.w) - Math.max(second.x, o.x) > 4; })
+        .sort(function (a, b) { return (b.y + b.h) - (a.y + a.h); })[0];
+      expect(under && second.y - (under.y + under.h) === r.minor, 'it sits exactly 24 under the words above it: ' + (under ? second.y - (under.y + under.h) : 'nothing above'));
+      // a shape is a backdrop: it may sit behind words
+      G.multi.clear();
+      s0.els.splice(n0);
+      G.renderSection(s0);
+      return 'new pieces are born on the rhythm and never on words; the floor of a section is 576, eight majors';
     });
 
     testAsync('select all picks the section’s pieces; the margin is a named magnet and guide', function () {

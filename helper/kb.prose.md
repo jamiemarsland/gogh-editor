@@ -238,7 +238,7 @@ Saving a section: the ⋯ menu's "Save to reuse" (panel title "Save this section
 - **Equal-spacing snap**: when an element sits between two neighbours, the exact midpoint captures within 8px of the raw pointer and **overrides** edge snapping and grid parity — so equal gaps are always reachable.
 - **Spacing labels**: up to 4 live distance badges, measuring to the nearest neighbour on each side. With no neighbour on a side, it measures to the **section edge** (page margins are the distances people eyeball most). Gaps under 4 design px, or under 14 rendered px, aren't drawn. Equal gaps get a `=` prefix and turn blue.
 - **Shift** during drag pins the locked axis and suppresses its guide. **⌘/Ctrl** disables all of the above.
-- **The rhythm.** Everything gogh spaces on its own — the section templates, the scratch section, the bands the connector compiles — sits on one vertical rhythm: positions and heights on multiples of **24** (`RHYTHM`), section heights on multiples of **72** (`MAJOR`). It governs what gogh chooses, never what a person places: a hand-dragged 30 stays 30, and the read-back of a layout never rounds it. The group bar's **Even gaps** (top to bottom) and **Tidy up** choose their vertical gaps on it — the top piece stays where the person put it, the gap becomes 24, 48, 72…, and the toast names it ("Gaps evened out, 48 apart."); side-to-side gaps and a card's inner spacing are not on the rhythm. The idea comes from Josh Puckett's rule of one major and one minor spacing unit: an agent keeps a rule it can count, and a page whose gaps are all 24 or 72 reads as one design.
+- **The rhythm.** Everything gogh spaces on its own — the section templates, the scratch section, the bands the connector compiles — sits on one vertical rhythm: positions and heights on multiples of **24** (`RHYTHM`), section heights on multiples of **72** (`MAJOR`). It governs what gogh chooses, never what a person places: a hand-dragged 30 stays 30, and the read-back of a layout never rounds it. The group bar's **Even gaps** (top to bottom) and **Tidy up** choose their vertical gaps on it — the top piece stays where the person put it, the gap becomes 24, 48, 72…, and the toast names it; side-to-side gaps and a card's inner spacing are not on the rhythm. A new piece from the shelf is born on it too: every default height and resting y is a multiple of 24, it lands on a 24, and if that would put it on words already there it goes 24 under them instead (a shape, being a backdrop, may sit behind words). The section floor `MIN_H` is 576, eight majors. The idea comes from Josh Puckett's rule of one major and one minor spacing unit: an agent keeps a rule it can count, and a page whose gaps are all 24 or 72 reads as one design.
 
 ---
 
@@ -248,7 +248,7 @@ Single-file ES5 IIFE, no build step. `gogh-editor.js` is ~9,190 lines. It bails 
 
 ### Design constants
 ```js
-var TOL = 8, MIN_H = 560, PAD = 72, SNAP = 6, BASE = 8, W = 1200, RHYTHM = 24, MAJOR = 72;
+var TOL = 8, MIN_H = 576, PAD = 72, SNAP = 6, BASE = 8, W = 1200, RHYTHM = 24, MAJOR = 72;
 ```
 `W = 1200` is the **design width** — every model coordinate is in design units against a 1200-unit-wide section. `TOL` is the solver's line-clustering tolerance, `SNAP` the alignment tolerance, `BASE` the opt-in grid, `PAD` the bottom padding added to section height, `MIN_H` the section floor. `RHYTHM` (24) and `MAJOR` (72) are the vertical rhythm gogh keeps for its own gaps — see Part 7.
 
@@ -275,7 +275,7 @@ hydrateV3Sections().then(function () {
 ```
 - `scope` — `'gogh-sec-<n>'`, the CSS scope class, also emitted as `data-gogh-scope`
 - `els` — elements in **stacking order** (index+1 → `z-index` and the `.gogh-el-N` class)
-- `minH` — design-unit minimum height (default 560; 480 for an empty bootstrap)
+- `minH` — design-unit minimum height (default 576, eight majors; 480 for an empty bootstrap)
 - `bg` — CSS colour string (may be `var(--wp--preset--color--x)` or a `color-mix()`)
 - `bgImage` / `bgId` — background image URL + attachment id
 - `divider` — `{shape}`: `wave|brush|torn|curve|slant|peaks|melt`
@@ -320,7 +320,7 @@ Classification: `isText = heading|para`; `fixedHeight = button|image|badge|widge
 
 Three functions: `cluster`, `nearest`, `solve`.
 
-`designH(els, minH)` = `max(minH || 560, maxBottom + 72)`.
+`designH(els, minH)` = `max(minH || 576, maxBottom + 72)`.
 
 **`solve(els, minH, dw)`**:
 1. Collect **every x edge** of every element (`e.x` and `e.x + e.w`) plus the frame edges 0 and 1200. Same for y edges plus 0 and H.

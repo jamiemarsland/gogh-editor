@@ -1,16 +1,16 @@
 {
   "meta": {
-    "plugin_version": "0.99.528",
+    "plugin_version": "0.99.529",
     "requires_wp": "6.5",
     "requires_php": "7.4",
     "text_domain": "gogh-editor",
     "readme_stable_tag": "0.26.0",
     "readme_tested_up_to": "7.0",
-    "asset_version": "0.99.528-chrome"
+    "asset_version": "0.99.529-chrome"
   },
   "constants": {
     "TOL": 8,
-    "MIN_H": 560,
+    "MIN_H": 576,
     "PAD": 72,
     "SNAP": 6,
     "BASE": 8,
@@ -1350,5 +1350,5 @@
     "has_deprecation": true,
     "block_title": "gogh Section"
   },
-  "test_count": 300
+  "test_count": 301
 }
