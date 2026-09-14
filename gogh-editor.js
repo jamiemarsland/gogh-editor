@@ -15504,6 +15504,11 @@
     var dividers = pool(REMIX_DIVIDERS, dir && dir.dividers, function (x) { return x; });
     var grainOdds = dir && dir.fx != null ? dir.fx : 0.25;
     var nowGround = hexToHsl(now.background);
+    // the brand is the only lock a roll respects: someone who set their
+    // colours told gogh a fact, not a preference — the roll dresses
+    // everything else (type, sections, edges, and fonts unless chosen)
+    var brand = cfg.brand && cfg.brand.colors && cfg.brand.colors.background && cfg.brand.colors.text ? cfg.brand.colors : null;
+    var brandFonts = cfg.brand && cfg.brand.fonts && cfg.brand.fonts.heading ? cfg.brand.fonts : null;
     var build = function () {
       var g = pick(grounds), r = pick(relations), v = pick(volumes), ink = pick(REMIX_INKS);
       if (dir && dir.sat) v = { key: v.key, say: v.say, s: Math.max(0.2, Math.min(0.95, v.s * dir.sat)) };
@@ -15514,24 +15519,34 @@
       var divider = remixLocks.rhythm ? now.divider : pick(dividers);
       var fx = remixLocks.rhythm ? now.fx : (Math.random() < grainOdds ? 'grain' : null);
       var bg, tx, ac;
-      if (remixLocks.ground) { bg = now.background; g = { key: 'kept', say: 'your ground', dark: nowGround ? nowGround.l < 0.5 : false, ink: nowGround && nowGround.l < 0.5 ? [0.08, 0.93] : [0.3, 0.13] }; }
+      if (brand) {
+        bg = brand.background; tx = brand.text; ac = brand.accent || now.accent;
+        var bl = hexToHsl(bg);
+        g = { key: 'brand', say: 'your colours', dark: bl ? bl.l < 0.5 : false, ink: bl && bl.l < 0.5 ? [0.08, 0.93] : [0.3, 0.13] };
+        r = { key: 'brand', say: 'Your brand' }; v = { key: 'brand', say: '' }; ink = { key: 'brand' };
+        if (brandFonts) pair = brandFonts;
+      } else if (remixLocks.ground) { bg = now.background; g = { key: 'kept', say: 'your ground', dark: nowGround ? nowGround.l < 0.5 : false, ink: nowGround && nowGround.l < 0.5 ? [0.08, 0.93] : [0.3, 0.13] }; }
       else bg = hslToHex(A.h + j(10), g.s, g.l);
-      if (remixLocks.ink) { tx = now.text; ink = { key: 'kept' }; }
+      if (brand) { /* pinned above */ }
+      else if (remixLocks.ink) { tx = now.text; ink = { key: 'kept' }; }
       else tx = hslToHex(A.h, Math.min(0.6, g.ink[0] * ink.mult), g.ink[1]);
-      if (remixLocks.accent) { ac = now.accent; r = { key: 'kept', say: 'Your accent' }; v = { key: 'kept', say: '' }; }
+      if (brand) { /* pinned above */ }
+      else if (remixLocks.accent) { ac = now.accent; r = { key: 'kept', say: 'Your accent' }; v = { key: 'kept', say: '' }; }
       else ac = hslToHex(A.h + r.d + j(8), v.s, g.dark ? 0.62 : 0.44);
-      if (remixLocks.fonts && now.fonts && now.fonts.heading) pair = now.fonts;
-      // the gate: only what is not locked may move to become legible
-      if (!remixLocks.ink) tx = ensureContrast(tx, bg, 7);
-      if (!remixLocks.accent) ac = fitAccent(ac, bg, tx);
+      if (!brand && remixLocks.fonts && now.fonts && now.fonts.heading) pair = now.fonts;
+      // the gate: only what is not locked may move to become legible; a
+      // brand's own colours are never walked (the form already judged them)
+      if (!brand && !remixLocks.ink) tx = ensureContrast(tx, bg, 7);
+      if (!brand && !remixLocks.accent) ac = fitAccent(ac, bg, tx);
       var key = [g.key, ink.key, r.key, v.key, pair ? pair.heading + '/' + pair.body : '-', scale, rhythm, divider || '-', fx || '-', dir ? dir.say : '-'].join('|');
       var rhythmSay = (REMIX_RHYTHMS.filter(function (x) { return x.key === rhythm; })[0] || REMIX_RHYTHMS[0]).say;
       var scaleSay = (REMIX_SCALES.filter(function (x) { return x[0] === scale; })[0] || [100, 'regular'])[1];
       return {
         key: key,
-        name: r.say + v.say + ' on ' + g.say,
+        name: brand ? 'Your brand' : r.say + v.say + ' on ' + g.say,
+        brand: !!brand,
         detail: scaleSay + ' type, ' + rhythmSay + (divider ? ', a ' + divider + ' edge' : '') + (fx === 'grain' ? ', grain' : ''),
-        colors: { background: bg, text: tx, accent: ac, accent2: ac },
+        colors: { background: bg, text: tx, accent: ac, accent2: brand && brand.accent2 ? brand.accent2 : ac },
         fonts: pair,
         scale: scale,
         rhythm: rhythm,
@@ -15546,7 +15561,7 @@
       tries++;
       var c = build();
       var dupe = out.some(function (o) { return o.key === c.key; });
-      var sameName = out.some(function (o) { return o.name === c.name; });
+      var sameName = !c.brand && out.some(function (o) { return o.name === c.name; }); // a brand's rolls all say so
       // unseen first; once the field is spent, looks shown before may return —
       // but never the same card twice in one spin (a locked spin can be short),
       // and two cards with one name only when the direction leaves no other
@@ -15804,6 +15819,7 @@
           '</label>';
       }).join('') + '</div>' +
       '<div class="gogh-brandcontrast"></div>' +
+      '<div class="gogh-panel-hint gogh-brand-lockline">\u2726 Remix keeps these colours and rolls everything else \u2014 type, sections, edges.</div>' +
       '<div class="gogh-panel-hint gogh-brandpaste-hint">Already have brand colours? Paste them below \u2014 gogh finds the codes and fills the boxes above.</div>' +
       '<input type="text" class="gogh-input gogh-brandpaste" placeholder="Anything with codes like #1B2A4A works" />' +
       '<div class="gogh-swlab">Fonts</div>' +
@@ -15818,7 +15834,7 @@
       }).join('') +
       '<div class="gogh-panel-row gogh-brandacts">' +
       '<button type="button" class="gogh-btn gogh-btn-small gogh-brandcancel">Cancel</button>' +
-      '<button type="button" class="gogh-btn gogh-btn-small gogh-brandkeep">Save brand</button>' +
+      '<button type="button" class="gogh-btn gogh-btn-small gogh-brandkeep" title="Remix keeps these colours and rolls everything else">Save brand</button>' +
       '</div>';
     dockSidebar();
     zoomOutCanvas(); // keep the page in view beside the docked brand form
@@ -16058,7 +16074,7 @@
           b2.type = 'button';
           b2.className = 'gogh-varbtn gogh-brandbtn';
           if ((cfg.activeStyle || '') === 'Your brand') b2.classList.add('is-current');
-          b2.title = 'Your brand \u2014 click to edit it';
+          b2.title = 'Your brand \u2014 Remix keeps these colours and rolls everything else. Click to edit it.';
           var order = ['background', 'text', 'accent', 'accent2'];
           b2.innerHTML = order.map(function (k) {
             var col = cfg.brand.colors[k];
@@ -17404,6 +17420,7 @@
     remixBack: remixBack,
     remixForward: remixForward,
     remixWorn: remixWorn,
+    brand: function () { return cfg.brand || null; },
     remixDry: function (on) { remixDry = !!on; clearTimeout(remixCommitT); return remixDry; },
     remixPaintRhythm: remixPaintRhythm,
     remixRestoreRhythm: remixRestoreRhythm,

@@ -5801,7 +5801,8 @@
       var a = G.remixCandidates(), b = G.remixCandidates();
       a.concat(b).forEach(function (c) { keys[c.key] = (keys[c.key] || 0) + 1; });
       expect(Object.keys(keys).length === 12, 'two taps should give twelve distinct looks, got ' + Object.keys(keys).length);
-      expect(a.every(function (c) { return /on (paper|a wash|ink|a deep ground)$/.test(c.name); }), 'a name should say what the ground is: ' + a.map(function (c) { return c.name; }).join(' \u00b7 '));
+      var pinnedB = !!(G.brand() && G.brand().colors && G.brand().colors.background);
+      expect(a.every(function (c) { return pinnedB ? c.name === 'Your brand' : /on (paper|a wash|ink|a deep ground)$/.test(c.name); }), 'a name should say what the ground is (or that it is the brand): ' + a.map(function (c) { return c.name; }).join(' \u00b7 '));
       var now = G.currentLook();
       G.remixLocks({ accent: true, ground: true });
       var locked = G.remixCandidates();
@@ -5811,7 +5812,7 @@
       expect(locked.every(function (c) { return c.colors.background.toLowerCase() === now.background.toLowerCase(); }), 'a locked ground moved');
       G.remixLocks({});
       var free = G.remixCandidates();
-      expect(free.some(function (c) { return c.colors.background.toLowerCase() !== now.background.toLowerCase(); }), 'with the locks off the ground should spin again');
+      if (!pinnedB) expect(free.some(function (c) { return c.colors.background.toLowerCase() !== now.background.toLowerCase(); }), 'with the locks off the ground should spin again');
     });
 
     test('remix: a look is whole — size, section rhythm, hero edge — and the rhythm can be worn and taken off', function () {
@@ -5851,16 +5852,18 @@
         var f = function (v) { v /= 255; return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); };
         return 0.2126 * f(n >> 16 & 255) + 0.7152 * f(n >> 8 & 255) + 0.0722 * f(n & 255);
       };
+      var pinned = !!(G.brand() && G.brand().colors && G.brand().colors.background);
       var dark = G.remixCandidates('darker');
-      expect(dark.length === 6 && dark.every(function (c) { return lum(c.colors.background) < 0.2; }), 'darker should give dark grounds: ' + dark.map(function (c) { return c.colors.background; }).join(','));
+      expect(dark.length >= 1 && dark.length <= 6, 'darker should give looks, got ' + dark.length);
+      if (!pinned) expect(dark.every(function (c) { return lum(c.colors.background) < 0.2; }), 'darker should give dark grounds: ' + dark.map(function (c) { return c.colors.background; }).join(','));
       var light = G.remixCandidates('lighter');
-      expect(light.every(function (c) { return lum(c.colors.background) > 0.6; }), 'lighter should give light grounds');
+      if (!pinned) expect(light.every(function (c) { return lum(c.colors.background) > 0.6; }), 'lighter should give light grounds');
       var calm = G.remixCandidates('calmer');
-      expect(calm.every(function (c) { return c.parts.volume === 'quiet' && c.scale === 100 && !c.divider && /^(plain|alternate)$/.test(c.rhythm); }), 'calmer should be quiet, small and plain: ' + JSON.stringify(calm.map(function (c) { return [c.parts.volume, c.scale, c.divider, c.rhythm]; })));
+      expect(calm.every(function (c) { return (pinned || c.parts.volume === 'quiet') && c.scale === 100 && !c.divider && /^(plain|alternate)$/.test(c.rhythm); }), 'calmer should be quiet, small and plain: ' + JSON.stringify(calm.map(function (c) { return [c.parts.volume, c.scale, c.divider, c.rhythm]; })));
       var dn = dark.map(function (c) { return c.name; });
-      expect(dn.filter(function (n, k) { return dn.indexOf(n) === k; }).length === dn.length, 'six cards should read as six: ' + dn.join(' | '));
+      if (!pinned) expect(dn.filter(function (n, k) { return dn.indexOf(n) === k; }).length === dn.length, 'six cards should read as six: ' + dn.join(' | '));
       var bold = G.remixCandidates('bolder');
-      expect(bold.every(function (c) { return c.parts.volume === 'loud' && c.scale >= 110; }), 'bolder should be loud and large');
+      expect(bold.every(function (c) { return (pinned || c.parts.volume === 'loud') && c.scale >= 110; }), 'bolder should be loud and large');
       expect(bold.every(function (c) { return c.direction === 'bolder'; }), 'a directed look should say its direction');
       // warmer: the accent's hue sits nearer orange than the current accent's does
       var hueOf = function (hex) {
@@ -5872,7 +5875,7 @@
       var dist = function (h, to) { return Math.abs(((to - h + 540) % 360) - 180); };
       var nowH = hueOf(G.currentLook().accent);
       var warm = G.remixCandidates('warmer').filter(function (c) { return c.parts.relation === 'same'; });
-      if (warm.length && dist(nowH, 28) > 20) {
+      if (!pinned && warm.length && dist(nowH, 28) > 20) {
         expect(warm.every(function (c) { return dist(hueOf(c.colors.accent), 28) < dist(nowH, 28); }), 'warmer did not lean the accent towards orange');
       }
       expect(Math.round(G.hueToward(200, 28, 0.5)) === 114 && Math.round(G.hueToward(350, 28, 0.5)) === 9, 'hueToward should take the short way round');
@@ -5952,6 +5955,19 @@
       var r = G.paletteRoles();
       expect(r.bgSlug === d.bgSlug, 'roles should take the declared ground (' + d.bgSlug + '), got ' + r.bgSlug);
       if (d.textSlug) expect(r.textSlug === d.textSlug, 'roles should take the declared ink (' + d.textSlug + '), got ' + r.textSlug);
+    });
+
+    test('the brand is the lock: a set brand rides every roll, and the rest still rolls', function () {
+      var b = G.brand();
+      if (!(b && b.colors && b.colors.background && b.colors.text)) return 'no brand set on this site \u2014 nothing to pin';
+      var rolls = [G.remixCandidates(), G.remixCandidates(), G.remixCandidates()].reduce(function (a, x) { return a.concat(x); }, []);
+      expect(rolls.every(function (c) { return c.colors.background.toLowerCase() === b.colors.background.toLowerCase() && c.colors.text.toLowerCase() === b.colors.text.toLowerCase(); }), 'a roll moved the brand\u2019s ground or text');
+      if (b.colors.accent) expect(rolls.every(function (c) { return c.colors.accent.toLowerCase() === b.colors.accent.toLowerCase(); }), 'a roll moved the brand\u2019s accent');
+      expect(rolls.every(function (c) { return c.brand && c.name === 'Your brand'; }), 'a brand roll should say so');
+      var scales = {}, rhythms = {};
+      rolls.forEach(function (c) { scales[c.scale] = 1; rhythms[c.rhythm] = 1; });
+      expect(Object.keys(scales).length + Object.keys(rhythms).length > 2, 'type and sections should still roll: ' + JSON.stringify([scales, rhythms]));
+      return 'brand ' + b.colors.background + '/' + b.colors.text + ' held through ' + rolls.length + ' rolls';
     });
 
     testAsync('remix: keep puts a look on the shelf, keep again takes it off', function () {
