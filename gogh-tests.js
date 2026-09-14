@@ -740,6 +740,24 @@
       expect(added.styleEl.textContent.indexOf(added.scope) !== -1, 'scoped CSS missing');
     });
 
+    // ---- the rhythm: gogh's own gaps sit on 24, its section heights on 72 ----
+    test('the takes keep the rhythm: positions and heights on 24, section heights on 72', function () {
+      var r = G.rhythm();
+      expect(r.minor === 24 && r.major === 72, 'rhythm constants: ' + JSON.stringify(r));
+      var off = [];
+      G.templates().forEach(function (t) {
+        if (t.retired || !t.els || !t.els.length || /^__/.test(t.name)) return;
+        if (t.minH && t.minH % r.major) off.push(t.name + ' minH ' + t.minH);
+        t.els.forEach(function (e) {
+          // a card's kids keep their own inner spacing for now (rounding them
+          // on their own put words over a button); the card itself must sit
+          if (e.y % r.minor) off.push(t.name + ' ' + e.type + ' y ' + e.y);
+          if (e.h % r.minor) off.push(t.name + ' ' + e.type + ' h ' + e.h);
+        });
+      });
+      expect(!off.length, 'off the rhythm: ' + off.slice(0, 6).join('; ') + (off.length > 6 ? ' (+' + (off.length - 6) + ')' : ''));
+    });
+
     test('__max font sentinel resolves to the largest preset at insert', function () {
       var s0 = G.sections().length;
       // any template whose heading carries the __max sentinel (the starters do)

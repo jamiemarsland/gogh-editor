@@ -140,6 +140,10 @@ check(res.status === 400, 'an empty message is refused before any model is calle
   }
   check(!clash, 'no two pieces overlap');
   check(sec.minH > Math.max(...boxes.map((b) => b[3])), 'the band is tall enough for what is in it');
+  // the rhythm: every piece gogh places starts on a 24, every height is on 24, the section on 72
+  const onRhythm = (s) => s.els.every((e) => e.y % 24 === 0 && e.h % 24 === 0) && s.minH % 72 === 0;
+  const drift = (s) => s.els.filter((e) => e.y % 24 || e.h % 24).map((e) => e.type + '@' + e.y + 'x' + e.h).join(',') + ' minH ' + s.minH;
+  check(onRhythm(sec), 'a band of columns sits on the rhythm: ' + drift(sec));
   // a hero: words beside a picture, the short column riding middle
   const heroBand = { valign: 'middle', gap: 'l', columns: [
     { span: 3, items: [{ type: 'eyebrow', text: 'Architecture · Bristol' }, { type: 'heading', text: 'Buildings that keep their quiet', size: 'display' }, { type: 'button', text: 'See the work' }] },
@@ -153,6 +157,7 @@ check(res.status === 400, 'an empty message is refused before any model is calle
   check(bigHead.w > para.w, 'span sets the share of the width: ' + bigHead.w + ' vs ' + para.w);
   const colTop = Math.min(...heroEls.filter((e) => e.x < 600).map((e) => e.y));
   check(para.y > colTop, 'a short column beside a tall one rides lower than the top of the tall one');
+  check(onRhythm({ els: heroEls, minH: 72 }) && para.y % 24 === 0, 'a column riding middle still starts on the rhythm: ' + para.y);
   // a list is rows in ONE band, with lines between and its padding paid once
   const ev = (when, what, who, price) => ({ columns: [
     { span: 1, items: [{ type: 'text', text: when }] },
@@ -174,9 +179,27 @@ check(res.status === 400, 'an empty message is refused before any model is calle
   const prices = list.els.filter((e) => e.type === 'para' && /Free|£6/.test(e.text || ''));
   check(prices.every((p) => p.align === 'right' && p.x > 900), 'the prices sit hard right: ' + prices.map((p) => p.x).join(','));
   // the whole list costs one band's padding, not one per entry
-  check(list.minH < 700, 'three entries do not become a page of white space: ' + list.minH);
+  check(list.minH <= 720, 'three entries do not become a page of white space: ' + list.minH);
   const rowTops = dates.map((d) => d.y).sort((a, b) => a - b);
-  check(rowTops[1] - rowTops[0] < 130 && rowTops[2] - rowTops[1] < 130, 'the rows sit close together: ' + rowTops.join(','));
+  // (a row with rowGap s is the rule's 24 plus title and text, each on the rhythm: 120)
+  check(rowTops[1] - rowTops[0] <= 120 && rowTops[2] - rowTops[1] <= 120, 'the rows sit close together: ' + rowTops.join(','));
+  check(onRhythm(list), 'a list of rows sits on the rhythm: ' + drift(list));
+  // the lint: a section drawn by hand is accepted, and told when it drifts
+  const own = JSON.parse(JSON.stringify(florist));
+  own.pages[0].sections = [{ name: 'Quote', minH: 500, els: [{ type: 'heading', x: 80, y: 90, w: 1040, h: 120, text: 'A line' }, { type: 'para', x: 80, y: 240, w: 1040, h: 24, text: 'Who said it' }] }];
+  r = await rpc({ jsonrpc: '2.0', id: 85, method: 'tools/call', params: { name: 'gogh_check', arguments: { definition: own } } });
+  const ownOut = r.body.result.structuredContent;
+  check(ownOut.ok && ownOut.problems.some((m) => /^Note: .*rhythm.*minH 500, els\[0\] y 90/.test(m)), 'own pieces pass, with a note naming what is off the rhythm: ' + JSON.stringify(ownOut.problems));
+  own.pages[0].sections[0].minH = 504; own.pages[0].sections[0].els[0].y = 96;
+  r = await rpc({ jsonrpc: '2.0', id: 86, method: 'tools/call', params: { name: 'gogh_check', arguments: { definition: own } } });
+  check(!r.body.result.structuredContent.problems.some((m) => /rhythm/.test(m)), 'on the rhythm, the note goes away');
+  // James's own definitions stay on it
+  for (const f of fs.readdirSync(path.join(here, '..', '..', 'spike')).filter((n) => /^site-def-.*\.json$/.test(n))) {
+    const d = JSON.parse(fs.readFileSync(path.join(here, '..', '..', 'spike', f), 'utf8'));
+    const rr = await rpc({ jsonrpc: '2.0', id: 87, method: 'tools/call', params: { name: 'gogh_check', arguments: { definition: d } } });
+    const notes = (rr.body.result.structuredContent.problems || []).filter((m) => /rhythm/.test(m));
+    check(!notes.length, f + ' keeps the rhythm' + (notes.length ? ': ' + notes[0] : ''));
+  }
   const bad = await rpc({ jsonrpc: '2.0', id: 82, method: 'tools/call', params: { name: 'gogh_check', arguments: { definition: (() => { const d = JSON.parse(JSON.stringify(withBand)); d.pages[0].sections[1].band.columns[0].items[1].type = 'marquee'; return d; })() } } });
   check(bad.body.result.structuredContent.problems.some((m) => /type must be one of/.test(m)), 'an item type nobody has is caught by name');
 }

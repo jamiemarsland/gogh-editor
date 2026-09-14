@@ -21,7 +21,11 @@
   var DISPLAY_LABEL = { '__disp-s': 'Display S', '__disp-m': 'Display M', '__disp-l': 'Display L' };
   if (!cfg) return;
 
-  var TOL = 8, MIN_H = 560, PAD = 72, SNAP = 6, BASE = 8, W = 1200;
+  var TOL = 8, MIN_H = 560, PAD = 72, SNAP = 6, BASE = 8, W = 1200, RHYTHM = 24, MAJOR = 72;
+  // RHYTHM and MAJOR are the vertical rhythm gogh keeps for its OWN gaps: the
+  // takes, the scratch section, the bands the connector compiles. Positions
+  // and heights sit on 24, section heights on 72. It never rounds a person's
+  // placement — a hand-dragged 30 stays 30.
   // the page's own content margin (80..1120): where new pieces are born, and
   // a NAMED magnet — Canva's solid margin line, the one guide we lacked
   var MARGIN = 80;
@@ -17438,6 +17442,7 @@
     renderSection: renderSection,
     pushState: pushState,
     templates: function () { return TEMPLATES; },
+    rhythm: function () { return { minor: RHYTHM, major: MAJOR }; },
     resolveAll: resolveAll,
     reflowPush: reflowPush,
     growReflow: growReflow,

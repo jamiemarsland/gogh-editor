@@ -15,7 +15,7 @@ about something where they conflict, rather than picking one silently. Quote UI
 labels and message copy from the appendix, verbatim — those are the current
 strings, and a paraphrased button label is the fastest way to lose a user's trust.
 
-Generated for plugin version 0.99.525 · knowledge base 3648bac.
+Generated for plugin version 0.99.527 · knowledge base 5aad267.
 
 ---
 
@@ -257,6 +257,7 @@ Saving a section: the ⋯ menu's "Save to reuse" (panel title "Save this section
 - **Equal-spacing snap**: when an element sits between two neighbours, the exact midpoint captures within 8px of the raw pointer and **overrides** edge snapping and grid parity — so equal gaps are always reachable.
 - **Spacing labels**: up to 4 live distance badges, measuring to the nearest neighbour on each side. With no neighbour on a side, it measures to the **section edge** (page margins are the distances people eyeball most). Gaps under 4 design px, or under 14 rendered px, aren't drawn. Equal gaps get a `=` prefix and turn blue.
 - **Shift** during drag pins the locked axis and suppresses its guide. **⌘/Ctrl** disables all of the above.
+- **The rhythm.** Everything gogh spaces on its own — the section templates, the scratch section, the bands the connector compiles — sits on one vertical rhythm: positions and heights on multiples of **24** (`RHYTHM`), section heights on multiples of **72** (`MAJOR`). It governs what gogh chooses, never what a person places: a hand-dragged 30 stays 30, and the read-back of a layout never rounds it. The idea comes from Josh Puckett's rule of one major and one minor spacing unit: an agent keeps a rule it can count, and a page whose gaps are all 24 or 72 reads as one design.
 
 ---
 
@@ -266,9 +267,9 @@ Single-file ES5 IIFE, no build step. `gogh-editor.js` is ~9,190 lines. It bails 
 
 ### Design constants
 ```js
-var TOL = 8, MIN_H = 560, PAD = 72, SNAP = 6, BASE = 8, W = 1200;
+var TOL = 8, MIN_H = 560, PAD = 72, SNAP = 6, BASE = 8, W = 1200, RHYTHM = 24, MAJOR = 72;
 ```
-`W = 1200` is the **design width** — every model coordinate is in design units against a 1200-unit-wide section. `TOL` is the solver's line-clustering tolerance, `SNAP` the alignment tolerance, `BASE` the opt-in grid, `PAD` the bottom padding added to section height, `MIN_H` the section floor.
+`W = 1200` is the **design width** — every model coordinate is in design units against a 1200-unit-wide section. `TOL` is the solver's line-clustering tolerance, `SNAP` the alignment tolerance, `BASE` the opt-in grid, `PAD` the bottom padding added to section height, `MIN_H` the section floor. `RHYTHM` (24) and `MAJOR` (72) are the vertical rhythm gogh keeps for its own gaps — see Part 7.
 
 ### `window.GOGH` (localized config)
 `postId`, `restUrl`, `mediaUrl`, `canUpload`, `canExp`, `canConvert`, `pageTemplate`, `pageTemplates[]`, `modified`, `theme`, `themeName`, `gsId`, `palette[{slug}]`, `nonce`.
@@ -782,11 +783,11 @@ Everything in this section is extracted mechanically from the Gogh source on eve
 
 ## Current release
 
-- Plugin version: **0.99.525**
+- Plugin version: **0.99.527**
 - Requires WordPress **6.5+**, PHP **7.4+**
 - Text domain: `gogh-editor`
 - readme.txt Stable tag: `0.26.0` · Tested up to: `7.0`
-- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.525`). Quote the plugin header version.
+- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.527`). Quote the plugin header version.
 
 ## Design constants
 
@@ -798,6 +799,8 @@ Everything in this section is extracted mechanically from the Gogh source on eve
 | `SNAP` | 6 |
 | `BASE` | 8 |
 | `W` | 1200 |
+| `RHYTHM` | 24 |
+| `MAJOR` | 72 |
 | `autosave_interval_ms` | 15000 |
 | `history_cap` | 60 |
 | `mobile_breakpoint_px` | 700 |
@@ -1284,4 +1287,4 @@ These are the real strings in the current build. Use them verbatim; never paraph
 
 ## Test suite
 
-`298` tests, run by appending `?gogh-test` to any Gogh page URL while logged in with edit rights on that page.
+`299` tests, run by appending `?gogh-test` to any Gogh page URL while logged in with edit rights on that page.

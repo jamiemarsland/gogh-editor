@@ -463,6 +463,8 @@ A take is a design someone already made, so reach for one whenever it suits — 
 \`\`\`
 An item is one of: \`{type:'eyebrow', text}\`, \`{type:'heading', text, size}\`, \`{type:'text', text}\`, \`{type:'button', text, link}\`, \`{type:'badge', text}\`, \`{type:'picture', url, shape}\` where shape is landscape, portrait, square or wide. Up to 8 items a column.
 
+**The rhythm.** gogh spaces everything it draws on one vertical rhythm: pieces start on multiples of 24, section heights on multiples of 72. A band gets this for free, so never pad with blank items or empty text to make space — choose \`gap\`, \`rowGap\` and \`valign\` instead.
+
 **A list is rows, and it is ONE band.** For anything that reads down the page — events with dates, a menu with prices, opening hours, a programme — give the band \`rows\` instead of \`columns\`, each row holding its own columns, with \`rule: true\` for hairlines between them and \`rowGap: s|m|l\`. Never make a band per entry: each band carries its own generous padding, so four of them is a page of white space and no lines. Row titles are \`size: normal\`; a whole list of large headings reads as four separate sections rather than one list.
 
 \`\`\`
@@ -588,6 +590,15 @@ function checkDefinition(def) {
       const where = `pages[${pi}].sections[${si}]`;
       if (!sc || typeof sc !== 'object') { bad(`${where} must be an object.`); return; }
       if (sc.band && !sc.take) { checkBand(sc.band, where, bad); names.push('a band of ' + ((sc.band.columns || []).length || 1)); return; }
+      if (Array.isArray(sc.els) && sc.els.length && !sc.take) {
+        // gogh's own door: a section drawn piece by piece. Not offered to
+        // agents (they describe bands), but a definition written by hand may
+        // arrive with one, and the lint says when it drifts off the rhythm.
+        names.push('own pieces ×' + sc.els.length);
+        const off = rhythmDrift(sc);
+        if (off.length) problems.push(`Note: ${where} draws its own pieces off gogh's rhythm (${off.slice(0, 4).join(', ')}${off.length > 4 ? ', …' : ''}) — positions and heights sit on 24, minH on 72.`);
+        return;
+      }
       const t = TAKES[sc.take];
       if (!t) { bad(`${where}: unknown take "${sc.take}", and no band either. Use one of: ${Object.keys(TAKES).join(', ')} — or describe a band.`); return; }
       names.push(sc.take + (Array.isArray(sc.items) ? ` ×${sc.items.length}` : ''));
@@ -678,6 +689,19 @@ function checkDefinition(def) {
   const summary = `${def.name || 'Site'}${def.tagline ? ' — ' + def.tagline : ''} · ${pages.length} page${pages.length === 1 ? '' : 's'}, ${posts.length} post${posts.length === 1 ? '' : 's'}${def.variation ? ', ' + def.variation : ''}\n` + lines.join('\n');
   const hard = problems.filter((m) => !/^Note:/.test(m));
   return { ok: hard.length === 0, problems, summary };
+}
+
+// where a hand-drawn section leaves the rhythm: top-level y and h off 24,
+// minH off 72. A card's kids keep their own inner spacing and are not read.
+function rhythmDrift(sc) {
+  const off = [];
+  if (sc.minH != null && sc.minH % 72) off.push('minH ' + sc.minH);
+  (sc.els || []).forEach((e, i) => {
+    if (!e || typeof e !== 'object') return;
+    if (typeof e.y === 'number' && e.y % 24) off.push(`els[${i}] y ${e.y}`);
+    if (typeof e.h === 'number' && e.h % 24) off.push(`els[${i}] h ${e.h}`);
+  });
+  return off;
 }
 
 function newId() {
@@ -896,21 +920,28 @@ const PIC_RATIO = { portrait: 1.32, square: 1, landscape: 0.72, wide: 0.56 };
 // calibrated against what the canvas actually rendered, then rounded up:
 // too tall is whitespace, too short is a collision
 const HEAD = { display: { line: 66, per: 32, fs: '__max' }, large: { line: 46, per: 22, fs: 'x-large' }, normal: { line: 32, per: 14, fs: null } };
-const AFTER = { eyebrow: 16, heading: 20, text: 22, button: 18, badge: 16, picture: 22 };
+// gogh's rhythm: every gap gogh chooses sits on 24 and every section height on
+// 72 (the takes were brought onto it in v0.99.526; a band is laid the same
+// way). Heights round to the nearest 24 — the estimates already lean tall —
+// and each piece starts 24 below the last, so a column's height stays on the
+// rhythm and the section's does too.
+const RHYTHM = 24, MAJOR = 72;
+const r24 = (v) => Math.max(RHYTHM, Math.round(v / RHYTHM) * RHYTHM);
+const AFTER = RHYTHM;
 
 const lines = (text, width, per) => Math.max(1, Math.ceil(String(text || '').length / Math.max(4, width / per)));
 
 function itemBox(it, width) {
   const kind = it.type;
-  if (kind === 'picture') return { w: width, h: Math.round(width * (PIC_RATIO[it.shape] || PIC_RATIO.landscape)) };
+  if (kind === 'picture') return { w: width, h: r24(width * (PIC_RATIO[it.shape] || PIC_RATIO.landscape)) };
   if (kind === 'eyebrow') return { w: width, h: 24 };
-  if (kind === 'button') return { w: Math.max(150, Math.min(width, String(it.text || 'Go').length * 11 + 56)), h: 54 };
-  if (kind === 'badge') return { w: Math.min(width, String(it.text || '').length * 11 + 46), h: 46 };
+  if (kind === 'button') return { w: Math.max(150, Math.min(width, String(it.text || 'Go').length * 11 + 56)), h: 48 };
+  if (kind === 'badge') return { w: Math.min(width, String(it.text || '').length * 11 + 46), h: 48 };
   if (kind === 'heading') {
     const size = HEAD[it.size] || HEAD.large;
-    return { w: width, h: lines(it.text, width, size.per) * size.line + 6 };
+    return { w: width, h: r24(lines(it.text, width, size.per) * size.line + 6) };
   }
-  return { w: width, h: lines(it.text, width, 12) * 27 + 4 }; // text
+  return { w: width, h: r24(lines(it.text, width, 12) * 27 + 4) }; // text
 }
 
 function itemEl(it, x, y, box, align) {
@@ -945,18 +976,18 @@ function stack(items, x, width, top, align) {
     if (align === 'center' && box.w < width) ix = Math.round(x + (width - box.w) / 2);
     if (align === 'right' && box.w < width) ix = Math.round(x + width - box.w);
     els.push(itemEl(it, ix, y, box, align));
-    y += box.h + (i === items.length - 1 ? 0 : (AFTER[it.type] || 20));
+    y += box.h + (i === items.length - 1 ? 0 : AFTER);
   });
   return { els, height: y - top };
 }
 
-const ROW_GAPS = { s: 18, m: 30, l: 52 };
+const ROW_GAPS = { s: 24, m: 48, l: 72 };
 // gogh's solver treats edges within 8 units of each other as the same grid
 // line, so a 2-unit box collapses and comes back a fat bar. The rule is
 // therefore a normal-height box that paints a line across its own middle —
 // in percentages, so it stays one hair thick at any width, and in a tint of
 // the theme's own ink, so it works on a light ground or a dark one.
-const RULE_H = 12;
+const RULE_H = RHYTHM;
 const RULE_INK = 'color-mix(in srgb, var(--wp--preset--color--contrast, #000) 18%, transparent)';
 function ruleEl(y) {
   // The box itself stretches: grid rows share out whatever height the section
@@ -982,7 +1013,8 @@ function layColumns(columns, align, gap, valign, top) {
   const tall = Math.max(...laid.map((l) => l.height));
   const els = [];
   laid.forEach((l) => {
-    const off = valign === 'middle' ? Math.round((tall - l.height) / 2) : valign === 'bottom' ? tall - l.height : 0;
+    // a column riding middle still starts on the rhythm
+    const off = valign === 'middle' ? Math.round((tall - l.height) / 2 / RHYTHM) * RHYTHM : valign === 'bottom' ? tall - l.height : 0;
     l.els.forEach((e) => { e.y += top + off; els.push(e); });
   });
   return { els, height: tall };
@@ -1005,7 +1037,7 @@ function compileBand(band) {
     const hx = align === 'center' ? Math.round((W - width) / 2) : MARGIN;
     const done = stack(head, hx, width, y, align);
     done.els.forEach((e) => els.push(e));
-    y += done.height + 54;
+    y += done.height + 48;
   }
 
   // rows: a list lives in ONE band, so its padding is paid once and the lines
@@ -1014,11 +1046,15 @@ function compileBand(band) {
   const rows = Array.isArray(band.rows) ? band.rows.filter((r) => r && Array.isArray(r.columns) && r.columns.length) : [];
   if (rows.length) {
     const rowGap = ROW_GAPS[band.rowGap] || ROW_GAPS.m;
+    // with rules, the rule's own box (a 24 with the line through its middle)
+    // is the small gap; m and l add a rhythm unit either side of it, so every
+    // row still starts on a 24
+    const beside = band.rule ? rowGap - RHYTHM : 0;
     rows.forEach((row) => {
-      if (band.rule) { els.push(ruleEl(y)); y += RULE_H + Math.round(rowGap / 2); }
+      if (band.rule) { els.push(ruleEl(y)); y += RULE_H + beside; }
       const laid = layColumns(row.columns, row.align || align, GAPS[row.gap] || gap, row.valign || band.valign, y);
       laid.els.forEach((e) => els.push(e));
-      y += laid.height + (band.rule ? Math.round(rowGap / 2) : rowGap);
+      y += laid.height + (band.rule ? beside : rowGap);
     });
     if (band.rule) { els.push(ruleEl(y)); y += RULE_H; }
     else y -= rowGap;
@@ -1028,7 +1064,8 @@ function compileBand(band) {
     y += laid.height;
   }
 
-  const out = { name: String(band.name || 'Band').slice(0, 60), els, minH: y + 88 };
+  // the section height lands on a major (72) with at least 88 under the last piece
+  const out = { name: String(band.name || 'Band').slice(0, 60), els, minH: Math.ceil((y + 88) / MAJOR) * MAJOR };
   if (band.background) out.background = String(band.background);
   if (band.image) { out.image = String(band.image); if (band.tint != null) out.tint = Math.max(0, Math.min(100, +band.tint)); }
   return out;
