@@ -15,7 +15,7 @@ about something where they conflict, rather than picking one silently. Quote UI
 labels and message copy from the appendix, verbatim — those are the current
 strings, and a paraphrased button label is the fastest way to lose a user's trust.
 
-Generated for plugin version 0.99.508 · knowledge base 2f5b94e.
+Generated for plugin version 0.99.509 · knowledge base 7ec371e.
 
 ---
 
@@ -782,11 +782,11 @@ Everything in this section is extracted mechanically from the Gogh source on eve
 
 ## Current release
 
-- Plugin version: **0.99.508**
+- Plugin version: **0.99.509**
 - Requires WordPress **6.5+**, PHP **7.4+**
 - Text domain: `gogh-editor`
 - readme.txt Stable tag: `0.26.0` · Tested up to: `7.0`
-- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.508`). Quote the plugin header version.
+- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.509`). Quote the plugin header version.
 
 ## Design constants
 
@@ -1138,11 +1138,13 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "Start writing — a reading column, cursor ready"
 - "Switch design"
 - "Switch it on"
+- "Tap to try a new look. Tap again for another."
 - "Text"
 - "Text alignment"
 - "Text colour"
 - "The gogh build this tab is running"
 - "The header rides along as visitors scroll"
+- "The look before this one"
 - "Theme default"
 - "Tidy up"
 - "Try another"
@@ -1173,6 +1175,7 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "×"
 - "← All layouts"
 - "↕ Spacing…"
+- "↶ Back"
 - "▶ Auto-play"
 - "⛶ Click to enlarge"
 - "✦ Remix"
@@ -1249,7 +1252,7 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "Upload failed — .html uploads need admin rights."
 - "Uploading experience…"
 - "Wrapped — the words flow around it now. Click the image to adjust."
-- "Your site is built. Pick a look — hover to try one, click to keep it, ✦ Remix for six more."
+- "Your site is built, wearing a look gogh chose. ✦ Remix for another, ↶ Back for the one before."
 - "Your site is now called “"
 - "gogh backed up unpublished work from an earlier session."
 - "gogh can’t safely swap this image."
@@ -1259,6 +1262,7 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "gogh could not make a mega menu — "
 - "gogh could not make a phone menu — "
 - "gogh could not rename the site — that needs an admin login."
+- "gogh could not save that look — it stays for now."
 - "gogh could not save that look — it stays for this session."
 - "gogh could not save the menu — "
 - "gogh could not save your brand — "
@@ -1279,4 +1283,4 @@ These are the real strings in the current build. Use them verbatim; never paraph
 
 ## Test suite
 
-`291` tests, run by appending `?gogh-test` to any Gogh page URL while logged in with edit rights on that page.
+`293` tests, run by appending `?gogh-test` to any Gogh page URL while logged in with edit rights on that page.
