@@ -104,9 +104,3 @@ The source has something the prose never explains. The bot knows the name from t
 - divider `mist` exists in source but is never mentioned in the prose
 - element type `video` exists in source but is never mentioned in the prose
 - element type `embed` exists in source but is never mentioned in the prose
-
-## What changed since the last knowledge-base build
-
-Use this as the checklist for updating the prose — and as a sanity check on the release itself.
-
-- version: 0.99.536 → 0.99.537
