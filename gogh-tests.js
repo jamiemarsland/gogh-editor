@@ -5969,6 +5969,11 @@
       expect(ratio(dark.colors.text, dark.colors.accent) >= 3, 'on a dark page the button still holds its words: ' + ratio(dark.colors.text, dark.colors.accent).toFixed(1));
       var beige = G.deriveBrand({ accent: '#e8d5b7' });
       expect(beige.word === 'pale' && beige.moved && beige.colors.accent2.toLowerCase() === '#e8d5b7', 'a pale colour should deepen the button and keep the badges: ' + JSON.stringify(beige.colors));
+      expect(G.colourWord('#111111') === 'deep' && G.colourWord('#9a9a9a') === 'muted' && G.colourWord('#c9a7e0') === 'pale', 'black is deep, grey is muted, lilac is pale: ' + [G.colourWord('#111111'), G.colourWord('#9a9a9a'), G.colourWord('#c9a7e0')].join(','));
+      var lilac = G.deriveBrand({ accent: '#c9a7e0', accent2: '#f4a7b9', background: '#fbf7fc', text: '#3b2c48' });
+      expect(lilac.colors.accent2 === '#f4a7b9' && !/kept your colour for the badges/.test(lilac.say), 'a given secondary keeps the badges, and the sentence does not claim otherwise: ' + lilac.say);
+      var twice = G.readBrandGuide('Primary: #111111\nBackground: #F7F7F5\nText: #111111\n');
+      expect(twice.colors.accent === '#111111' && twice.colors.text === '#111111', 'a code named twice takes both roles: ' + JSON.stringify(twice.colors));
       ['#c8102e', '#7a5c99', '#888888', '#0a0a0a'].forEach(function (hx) {
         var d = G.deriveBrand({ accent: hx });
         expect(ratio(d.colors.text, d.colors.background) >= 7 && ratio(d.colors.text, d.colors.accent) >= 3, hx + ' should pass the gate: ' + JSON.stringify(d.colors));

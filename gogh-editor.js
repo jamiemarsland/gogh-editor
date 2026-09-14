@@ -15761,9 +15761,9 @@
   function colourWord(hex) {
     var c = hexToHsl(hex);
     if (!c) return 'clear';
-    if (c.s < 0.18) return 'muted';
-    if (c.l > 0.78) return 'pale';
     if (c.l < 0.28) return 'deep';
+    if (c.s < 0.18) return 'muted';
+    if (c.l > 0.74) return 'pale';
     if (c.s > 0.7 && c.l > 0.45) return 'loud';
     if (c.s < 0.4) return 'soft';
     return 'clear';
@@ -15774,7 +15774,7 @@
     loud: ['is loud, so gogh keeps it for the buttons', ' and gives the page a calm ground'],
     deep: ['is deep, so it carries your buttons', '; the page stays light so the words read'],
     deepDark: ['is deep, so it carries your buttons', '; the page is deep too, with the words in light'],
-    pale: ['is pale — too pale to hold words as a button — so gogh deepened the button and kept your colour for the badges', ''],
+    pale: ['is pale — too pale to hold words as a button — so gogh deepened the button', ''],
     soft: ['is soft, so the buttons wear it a shade deeper', ' and the page takes a whisper of it'],
     muted: ['is muted, so the buttons carry the rest', ' and gogh gives the page a hint of it'],
     clear: ['is a clear colour: buttons and links wear it', ', and the page stays quiet around it'],
@@ -15807,7 +15807,9 @@
     var movedHow = moved ? (relLum(button) > relLum(accent) ? 'lightened' : 'deepened') : null;
     var accent2 = given.accent2 || (word === 'pale' && moved ? accent : hslToHex(h.h + 34, h.s, (hexToHsl(button) || h).l));
     var parts = word === 'deep' && dark ? BRAND_SAY.deepDark : BRAND_SAY[word];
-    var say = 'Your colour ' + parts[0] + (read.background ? '' : parts[1]) + '.';
+    var say = 'Your colour ' + parts[0] + (read.background ? '' : parts[1]);
+    if (word === 'pale' && moved && !given.accent2) say += ' and kept your colour for the badges';
+    say += '.';
     if (word !== 'pale' && moved) say += ' gogh ' + movedHow + ' it a little so the words on the buttons read.';
     if (read.accent && (read.background || read.text)) say = say.replace(/^Your colour/, 'Your primary');
     return {
@@ -15840,16 +15842,17 @@
       var hex = toHex(m);
       var from = lastEnd;
       lastEnd = m.index + m[0].length;
-      if (out.codes.indexOf(hex) !== -1) continue;
-      out.codes.push(hex);
+      var seen = out.codes.indexOf(hex) !== -1;
+      if (!seen) out.codes.push(hex);
       // the role is the word beside THIS code: from the previous code (or
       // the start of the line) up to it — never the line before
       var ctx = t.slice(Math.max(from, m.index - 60), m.index);
       var nl = ctx.lastIndexOf('\n');
       if (nl !== -1) ctx = ctx.slice(nl + 1);
       var role = roleOf(ctx);
+      // a code named twice takes both roles (a black that is words AND buttons)
       if (role && !out.colors[role]) { out.colors[role] = hex; out.placed[role] = 'read'; }
-      else loose.push(hex);
+      else if (!seen) loose.push(hex);
     }
     // what was not named: place by look
     var byLum = loose.slice().sort(function (a, b) { return relLum(b) - relLum(a); });
