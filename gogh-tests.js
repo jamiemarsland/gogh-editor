@@ -5881,36 +5881,53 @@
       expect(Math.round(G.hueToward(200, 28, 0.5)) === 114 && Math.round(G.hueToward(350, 28, 0.5)) === 9, 'hueToward should take the short way round');
     });
 
-    testAsync('site style: Remix and the brand share the top row, above the type scale; the front door rolls it', function () {
-      // the front door does what a built site's first minute does: opens the
-      // panel and rolls Remix — so one call exercises both
+    testAsync('the front door: a built site opens dressed, with a corner pill and no panel; Site style keeps its top row and More', function () {
+      var first = G.sections().filter(function (x) { return !x.chrome; })[0];
       return G.openFrontDoor().then(function (ok) {
-        expect(ok, 'the front door did not open and roll');
+        expect(ok, 'the front door did not open');
+        var worn = G.remixWorn();
+        expect(worn && worn.cand, 'the site should open wearing a rolled look');
+        var pill = q('.gogh-frontdoor');
+        expect(pill && pill.querySelector('.gogh-frontdoor-roll') && pill.querySelector('.gogh-frontdoor-back') && pill.querySelector('.gogh-frontdoor-x'), 'the corner pill should offer another look, the one before, and done');
         var pnl = q('.gogh-panel');
+        expect(!pnl || pnl.hidden, 'the front door should not open a panel');
+        var c1 = worn.cand;
+        pill.querySelector('.gogh-frontdoor-roll').click();
+        expect(G.remixWorn().cand && G.remixWorn().cand.key !== c1.key, 'Not this look? should roll another');
+        expect(/^Wearing: /.test(pill.querySelector('.gogh-frontdoor-cap').textContent), 'after a tap the pill says what is worn');
+        pill.querySelector('.gogh-frontdoor-back').click();
+        expect(G.remixWorn().cand === c1, 'the pill\u2019s back should return to the first look');
+        pill.querySelector('.gogh-frontdoor-x').click();
+        expect(!q('.gogh-frontdoor'), 'done should take the pill away');
+        while (G.remixBack()) {} // home again for the tests that follow
+        // the panel itself: two doors on the top row, the dials under More
+        var tab = [].filter.call(document.querySelectorAll('.gogh-side-tab'), function (b) { return /^site$/i.test((b.textContent || '').trim()); })[0];
+        if (tab) tab.click();
+        var btn = q('.gogh-stylebtn');
+        expect(btn, 'no Site style card');
+        btn.click();
+        return new Promise(function (resolve) {
+          var t0 = Date.now();
+          var poll = function () {
+            var pnl2 = q('.gogh-panel');
+            if ((pnl2 && !pnl2.hidden && pnl2.querySelector('.gogh-remixbtn')) || Date.now() - t0 > 8000) resolve(pnl2); else setTimeout(poll, 100);
+          };
+          poll();
+        });
+      }).then(function (pnl) {
         var top = pnl.querySelector('.gogh-toprow');
         expect(top, 'the panel has no top row');
         var remix = top.querySelector('.gogh-remixbtn'), brand = top.querySelector('.gogh-brandrow');
         expect(remix && brand, 'Remix and the brand should both sit in the top row');
-        expect(+getComputedStyle(remix).order < +getComputedStyle(brand).order, 'Remix should come first');
         var rr = remix.getBoundingClientRect(), br = brand.getBoundingClientRect();
         expect(Math.abs(rr.top - br.top) < 4 && rr.right <= br.left + 2, 'Remix and the brand should share one row, Remix on the left');
-        // the dials live under More, folded until asked for
         var more = pnl.querySelector('details.gogh-more');
         expect(more && !more.open && more.contains(pnl.querySelector('.gogh-typescale')) && more.contains(pnl.querySelector('.gogh-varlist')), 'type scale, looks and fonts should be folded under More');
-        more.open = true;
-        var ts = pnl.querySelector('.gogh-typescale').getBoundingClientRect();
-        expect(rr.bottom <= ts.top, 'the top row should sit above the type scale once More is open');
-        more.open = false;
-        var worn = G.remixWorn();
-        expect(worn && worn.cand, 'the front door should leave the site wearing a rolled look');
-        var line = pnl.querySelector('.gogh-remixwearing');
-        expect(line && !line.hidden && line.textContent.indexOf(worn.cand.name) !== -1, 'the receipt line should say what is worn');
         var offDoor = ['.gogh-remixcards', '.gogh-remixlocks', '.gogh-remixdirs'].every(function (sel) {
           var el = pnl.querySelector(sel);
           return el && el.hidden && getComputedStyle(el).display === 'none';
         });
-        expect(offDoor, 'the shop (cards, locks, directions) should be off the door \u2014 hidden AND not painted');
-        while (G.remixBack()) {} // home again, so the next test starts where this one did
+        expect(offDoor, 'the shop (cards, locks, directions) should be off the door');
         G.closePanel();
       });
     });

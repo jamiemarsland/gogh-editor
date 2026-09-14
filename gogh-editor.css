@@ -4149,3 +4149,13 @@ html.gogh-building .gogh-inserter, html.gogh-building .gogh-side { display: none
 .gogh-more-what { font-weight: 500; font-size: 11.5px; opacity: .6; }
 .gogh-more-sum:hover { background: var(--gogh-ui-hover); border-radius: 8px; }
 .gogh-more > .gogh-panel-hint:first-of-type { margin-top: 4px; }
+
+/* the front door: a built site opens dressed; one pill in the corner */
+.gogh-frontdoor { position: fixed; left: 18px; bottom: 18px; z-index: 100000; display: flex; flex-direction: column; gap: 7px; max-width: 360px; padding: 12px 12px 12px 14px; border-radius: 16px; background: var(--gogh-ui-bg, #fff); color: var(--gogh-ui-fg, #16181c); box-shadow: 0 8px 30px rgba(0, 0, 0, 0.18), 0 0 0 1px rgba(0, 0, 0, 0.06); font: 13px/1.4 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+.gogh-frontdoor-cap { font-size: 12.5px; opacity: .8; }
+.gogh-frontdoor-row { display: flex; align-items: center; gap: 6px; }
+.gogh-frontdoor-roll { all: unset; cursor: pointer; font: 600 13.5px/1 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; padding: 11px 16px; border-radius: 999px; background: var(--gogh-ui-fg, #16181c); color: var(--gogh-ui-bg, #fff); }
+.gogh-frontdoor-roll:hover { filter: brightness(1.15); }
+.gogh-frontdoor-back, .gogh-frontdoor-x { all: unset; cursor: pointer; width: 36px; height: 36px; display: grid; place-items: center; border-radius: 999px; border: 1px solid var(--gogh-ui-border, #e2e2e6); font-size: 14px; color: var(--gogh-ui-fg, #16181c); }
+.gogh-frontdoor-back:hover, .gogh-frontdoor-x:hover { background: var(--gogh-ui-hover, #f2f2f4); }
+.gogh-frontdoor-back:disabled { opacity: .35; cursor: default; }

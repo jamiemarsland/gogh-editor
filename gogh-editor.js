@@ -10822,35 +10822,31 @@
   // the first minute of a built site: not a blank canvas but six whole
   // looks to choose between — the Site style panel, Remix already spun
   function openFrontDoor() {
-    var tab = [].filter.call(document.querySelectorAll('.gogh-side-tab'), function (b) { return /^site$/i.test((b.textContent || '').trim()); })[0];
-    if (tab) tab.click();
-    var t0 = Date.now();
-    return new Promise(function (resolve) {
-      var open = function () {
-        var btn = document.querySelector('.gogh-stylebtn');
-        if (btn) { btn.click(); return true; }
-        if (Date.now() - t0 > 4000) { openStylePanel(document.querySelector('.gogh-side') || document.body); return true; }
-        return false;
-      };
-      var spin = function () {
-        var rb = document.querySelector('.gogh-remixbtn');
-        if (rb) {
-          rb.click();
-          toast('Your site is built, wearing a look gogh chose. \u2726 Remix for another, \u21b6 Back for the one before.', { ttl: 9000 });
-          resolve(true);
-          return true;
-        }
-        if (Date.now() - t0 > 9000) { resolve(false); return true; }
-        return false;
-      };
-      var phase = 0;
-      var tick = function () {
-        if (phase === 0) { if (open()) phase = 1; }
-        else if (spin()) return;
-        setTimeout(tick, 150);
-      };
-      tick();
-    });
+    var old = document.querySelector('.gogh-frontdoor');
+    if (old) old.remove();
+    var cand = remixRoll();
+    if (!cand) return Promise.resolve(false);
+    var pill = document.createElement('div');
+    pill.className = 'gogh-frontdoor';
+    pill.innerHTML = '<span class="gogh-frontdoor-cap">Your site is built, wearing a look gogh chose.</span>' +
+      '<span class="gogh-frontdoor-row">' +
+      '<button type="button" class="gogh-frontdoor-roll">✦ Not this look?</button>' +
+      '<button type="button" class="gogh-frontdoor-back" title="The look before this one">↶</button>' +
+      '<button type="button" class="gogh-frontdoor-x" title="Done — keep this look">✕</button></span>';
+    document.body.appendChild(pill);
+    var tapped = false;
+    var say = function () {
+      if (!document.body.contains(pill)) return;
+      var w = remixWorn();
+      pill.querySelector('.gogh-frontdoor-back').disabled = remixAt <= 0;
+      if (tapped) pill.querySelector('.gogh-frontdoor-cap').textContent = w && w.cand ? 'Wearing: ' + w.cand.name + (w.cand.detail ? ' · ' + w.cand.detail : '') : 'Wearing: the look you started with';
+    };
+    remixWatch('frontdoor', say);
+    pill.querySelector('.gogh-frontdoor-roll').addEventListener('click', function () { tapped = true; remixRoll(); });
+    pill.querySelector('.gogh-frontdoor-back').addEventListener('click', function () { tapped = true; remixBack(); });
+    pill.querySelector('.gogh-frontdoor-x').addEventListener('click', function () { pill.remove(); delete remixWatchers.frontdoor; });
+    say();
+    return Promise.resolve(true);
   }
   function scheduleSiteBuild() {
     raiseBuildVeil(cfg.siteDef && cfg.siteDef.def && cfg.siteDef.def.name);
@@ -15438,7 +15434,11 @@
       if (remixWorn() !== entry) remixScheduleCommit(); // rolled on while saving
     });
   }
-  var remixSayWearing = function () {}; // the panel wires this when it opens
+  // whoever shows the worn look (the panel's receipt line, the front door's
+  // pill) registers here under a key, so reopening never doubles it up
+  var remixWatchers = {};
+  function remixWatch(key, fn) { remixWatchers[key] = fn; }
+  function remixSayWearing() { Object.keys(remixWatchers).forEach(function (k) { try { remixWatchers[k](); } catch (e) {} }); }
   // keep: the palette and fonts as a style, the scale as the site's, the
   // sections as this page's (one undo step)
   function remixWear(cand, btn) {
@@ -16199,14 +16199,15 @@
         // the die's panel: what you are wearing, in words, and a way back
         var wearingBox = wrap.querySelector('.gogh-remixwearing');
         var backBtn = wrap.querySelector('.gogh-remixback');
-        remixSayWearing = function () {
+        remixWatch('panel', function () {
+          if (!document.body.contains(wearingBox)) return; // the panel moved on
           var w = remixWorn();
           if (!w) { wearingBox.hidden = true; return; }
           wearingBox.hidden = false;
           wearingBox.querySelector('.gogh-remixwearing-name').textContent = w.origin ? (w.title || 'the look you started with') : w.cand.name;
           wearingBox.querySelector('.gogh-remixwearing-detail').textContent = w.origin ? '' : (w.cand.detail || '');
           backBtn.disabled = remixAt <= 0;
-        };
+        });
         backBtn.addEventListener('click', function () { remixBack(); });
         remixSayWearing();
         var spin = function (direction) {
@@ -17422,6 +17423,7 @@
     remixWorn: remixWorn,
     brand: function () { return cfg.brand || null; },
     remixDry: function (on) { remixDry = !!on; clearTimeout(remixCommitT); return remixDry; },
+    remixAt: function () { return remixAt; },
     remixPaintRhythm: remixPaintRhythm,
     remixRestoreRhythm: remixRestoreRhythm,
     embedInfo: embedInfo,
