@@ -2122,6 +2122,12 @@ html.gogh-editing header.wp-block-template-part:has(.gogh-header-overlay):not(.g
     url("data:image/svg+xml;utf8,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2024%2024'%3E%3Crect%20x='1.25'%20y='1.25'%20width='21.5'%20height='21.5'%20rx='1.6'%20fill='rgba(255,255,255,0.09)'%20stroke='rgba(255,255,255,0.08)'%20stroke-width='0.6'/%3E%3C/svg%3E"),
     linear-gradient(rgba(0, 0, 0, 0.14), rgba(0, 0, 0, 0.14));
 }
+
+/* mid-drag the active section shows the same tiles (James: "i was talking
+   about when folks drag and drop as well"); a pictured section still shows
+   only its majors, from the rule above — the snap grid and the painted grid
+   are the SAME grid, to the pixel */
+.gogh-editing .gogh-section.gogh-grid-live::before { opacity: 0.75; }
 /* a pictured section: tiles would fight the photo, so only the majors show */
 .gogh-editing .gogh-section.gogh-ground-pictured::before {
   background-image:
@@ -2131,19 +2137,6 @@ html.gogh-editing header.wp-block-template-part:has(.gogh-header-overlay):not(.g
     linear-gradient(to bottom, rgba(15, 23, 42, 0.26) 1px, transparent 1px);
   background-size: 6cqw 6cqw;
   background-position: 0 0, 0 0, 1px 1px, 1px 1px;
-}
-/* mid-drag the active section shows its grid — majors only, the calm version */
-.gogh-editing .gogh-section.gogh-grid-live::before {
-  background-image:
-    linear-gradient(to right, rgba(255, 255, 255, 0.42) 1px, transparent 1px),
-    linear-gradient(to bottom, rgba(255, 255, 255, 0.42) 1px, transparent 1px),
-    linear-gradient(to right, rgba(15, 23, 42, 0.26) 1px, transparent 1px),
-    linear-gradient(to bottom, rgba(15, 23, 42, 0.26) 1px, transparent 1px);
-  /* exactly 72 model units, the major — the snap grid and the painted grid
-     must be the SAME grid, to the pixel */
-  background-size: 6cqw 6cqw;
-  background-position: 0 0, 0 0, 1px 1px, 1px 1px;
-  opacity: 0.55;
 }
 
 
