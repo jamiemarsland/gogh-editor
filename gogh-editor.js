@@ -533,13 +533,11 @@
     }
     return [];
   }
-  // the editing grid's major lines (72 units = 6cqw), as top coats over an
-  // effect/video layer
+  // the editing grid's major lines (72 units = 6cqw, across only — the beat
+  // is about rows), as top coats over an effect/video layer
   var GRID_COATS = [
-    'linear-gradient(to right, rgba(255,255,255,0.42) 1px, transparent 1px) 0 0 / 6cqw 6cqw',
     'linear-gradient(to bottom, rgba(255,255,255,0.42) 1px, transparent 1px) 0 0 / 6cqw 6cqw',
-    'linear-gradient(to right, rgba(15,23,42,0.26) 1px, transparent 1px) 1px 1px / 6cqw 6cqw',
-    'linear-gradient(to bottom, rgba(15,23,42,0.26) 1px, transparent 1px) 1px 1px / 6cqw 6cqw'
+    'linear-gradient(to bottom, rgba(15,23,42,0.26) 1px, transparent 1px) 0 1px / 6cqw 6cqw'
   ].join(', ');
   // ---------- video: a file, or a YouTube / Vimeo link ----------
   function videoEmbedInfo(url) {
@@ -1007,10 +1005,8 @@
       // (majors only — calm over photos). Published pages never carry
       // .gogh-editing, so this costs them nothing.
       var gridCoats = [
-        'linear-gradient(to right, rgba(255,255,255,0.42) 1px, transparent 1px) 0 0 / 6cqw 6cqw',
         'linear-gradient(to bottom, rgba(255,255,255,0.42) 1px, transparent 1px) 0 0 / 6cqw 6cqw',
-        'linear-gradient(to right, rgba(15,23,42,0.26) 1px, transparent 1px) 1px 1px / 6cqw 6cqw',
-        'linear-gradient(to bottom, rgba(15,23,42,0.26) 1px, transparent 1px) 1px 1px / 6cqw 6cqw'
+        'linear-gradient(to bottom, rgba(15,23,42,0.26) 1px, transparent 1px) 0 1px / 6cqw 6cqw'
       ].join(', ');
       // opacity: 1 declared, not assumed — the editing grid shares this
       // pseudo at opacity 0, which blanked every effect section's backdrop
