@@ -2337,10 +2337,6 @@
     '<span class="gogh-scard-ic is-accent"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M12 3a9 9 0 1 0 0 18h1.5a2.5 2.5 0 0 0 1.8-4.2 2.5 2.5 0 0 1 1.8-4.3H20a9 9 0 0 0-8-9.5Z"/><circle cx="7.5" cy="11" r="1.2" fill="currentColor" stroke="none"/><circle cx="10.5" cy="7.5" r="1.2" fill="currentColor" stroke="none"/><circle cx="15" cy="7.5" r="1.2" fill="currentColor" stroke="none"/></svg></span>' +
     '<span class="gogh-scard-tx"><span class="gogh-scard-t">Site style</span><span class="gogh-scard-s">Colours, type, brand</span></span>' +
     '<svg class="gogh-scard-chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg></button>' +
-    '<button type="button" class="gogh-sitem gogh-scard gogh-sitedesigns">' +
-    '<span class="gogh-scard-ic"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><rect x="3" y="6" width="13" height="15" rx="1.6"/><path d="M7 3h13v15"/></svg></span>' +
-    '<span class="gogh-scard-tx"><span class="gogh-scard-t">Site designs</span><span class="gogh-scard-s">A whole site, ready to tweak</span></span>' +
-    '<svg class="gogh-scard-chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg></button>' +
     '<button type="button" class="gogh-sitem gogh-scard gogh-motionbtn">' +
     '<span class="gogh-scard-ic"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12c3-6 6-6 9 0s6 6 9 0"/></svg></span>' +
     '<span class="gogh-scard-tx"><span class="gogh-scard-t">Motion</span><span class="gogh-scard-s">How the site moves as visitors scroll</span></span>' +
@@ -2377,6 +2373,11 @@
     '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 14l-4-4 4-4"/><path d="M5 10h11a4 4 0 0 1 0 8h-1"/></svg></button>' +
     '<button type="button" class="gogh-sbtn gogh-redo" title="Redo (⇧⌘Z)">' +
     '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 14l4-4-4-4"/><path d="M19 10H8a4 4 0 0 0 0 8h1"/></svg></button>' +
+    // Site designs replaces the whole site — not a peer of Site style. It
+    // waits here as a small door until it has a better home (James: "it
+    // feels confusing here")
+    '<button type="button" class="gogh-sbtn gogh-sitedesigns" title="Site designs — a whole site, ready to tweak (replaces this one)">' +
+    '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><rect x="3" y="6" width="13" height="15" rx="1.6"/><path d="M7 3h13v15"/></svg></button>' +
     (cfg.helpUrl ? '<button type="button" class="gogh-sbtn gogh-help" title="Help — ask gogh anything">' +
     '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M9.5 9.5a2.5 2.5 0 1 1 3 2.5c-.8.3-1 .8-1 1.5"/><path d="M12 17h.01"/></svg></button>' : '') +
     '</div>' +
