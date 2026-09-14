@@ -1,12 +1,12 @@
 {
   "meta": {
-    "plugin_version": "0.99.524",
+    "plugin_version": "0.99.525",
     "requires_wp": "6.5",
     "requires_php": "7.4",
     "text_domain": "gogh-editor",
     "readme_stable_tag": "0.26.0",
     "readme_tested_up_to": "7.0",
-    "asset_version": "0.99.524-chrome"
+    "asset_version": "0.99.525-chrome"
   },
   "constants": {
     "TOL": 8,
@@ -33,61 +33,61 @@
       "name": "Start from scratch",
       "starter": false,
       "retired": false,
-      "minH": 480
+      "minH": 504
     },
     {
       "name": "Hero",
       "starter": true,
       "retired": false,
-      "minH": 640
+      "minH": 648
     },
     {
       "name": "Cover",
       "starter": true,
       "retired": false,
-      "minH": 640
+      "minH": 648
     },
     {
       "name": "Big statement",
       "starter": true,
       "retired": false,
-      "minH": 520
+      "minH": 504
     },
     {
       "name": "Story",
       "starter": true,
       "retired": false,
-      "minH": 600
+      "minH": 576
     },
     {
       "name": "Numbers",
       "starter": true,
       "retired": false,
-      "minH": 420
+      "minH": 432
     },
     {
       "name": "Article",
       "starter": true,
       "retired": false,
-      "minH": 620
+      "minH": 648
     },
     {
       "name": "Featured product",
       "starter": true,
       "retired": false,
-      "minH": 560
+      "minH": 576
     },
     {
       "name": "Bestsellers",
       "starter": true,
       "retired": false,
-      "minH": 700
+      "minH": 720
     },
     {
       "name": "Editorial split",
       "starter": true,
       "retired": false,
-      "minH": 660
+      "minH": 648
     },
     {
       "name": "Columns of links",
@@ -99,133 +99,133 @@
       "name": "Featured and links",
       "starter": true,
       "retired": false,
-      "minH": 400
+      "minH": 432
     },
     {
       "name": "Picture doors",
       "starter": true,
       "retired": false,
-      "minH": 380
+      "minH": 360
     },
     {
       "name": "Categories in the menu",
       "starter": true,
       "retired": false,
-      "minH": 400
+      "minH": 432
     },
     {
       "name": "Featured product in the menu",
       "starter": true,
       "retired": false,
-      "minH": 400
+      "minH": 432
     },
     {
       "name": "Shop the look",
       "starter": true,
       "retired": false,
-      "minH": 640
+      "minH": 648
     },
     {
       "name": "New in",
       "starter": true,
       "retired": false,
-      "minH": 640
+      "minH": 648
     },
     {
       "name": "Sale",
       "starter": true,
       "retired": false,
-      "minH": 700
+      "minH": 720
     },
     {
       "name": "Categories",
       "starter": true,
       "retired": false,
-      "minH": 640
+      "minH": 648
     },
     {
       "name": "Feature cards",
       "starter": true,
       "retired": false,
-      "minH": 560
+      "minH": 576
     },
     {
       "name": "Pricing",
       "starter": true,
       "retired": false,
-      "minH": 680
+      "minH": 648
     },
     {
       "name": "Quote",
       "starter": true,
       "retired": false,
-      "minH": 480
+      "minH": 504
     },
     {
       "name": "Testimonials",
       "starter": true,
       "retired": false,
-      "minH": 560
+      "minH": 576
     },
     {
       "name": "Call to action",
       "starter": true,
       "retired": false,
-      "minH": 380
+      "minH": 360
     },
     {
       "name": "Get in touch",
       "starter": true,
       "retired": false,
-      "minH": 700
+      "minH": 720
     },
     {
       "name": "Profile card",
       "starter": true,
       "retired": false,
-      "minH": 620
+      "minH": 648
     },
     {
       "name": "Job card",
       "starter": true,
       "retired": false,
-      "minH": 620
+      "minH": 648
     },
     {
       "name": "Place card",
       "starter": true,
       "retired": false,
-      "minH": 620
+      "minH": 648
     },
     {
       "name": "Photo wall",
       "starter": true,
       "retired": false,
-      "minH": 640
+      "minH": 648
     },
     {
       "name": "Carousel",
       "starter": true,
       "retired": false,
-      "minH": 520
+      "minH": 504
     },
     {
       "name": "FAQ",
       "starter": true,
       "retired": false,
-      "minH": 560
+      "minH": 576
     },
     {
       "name": "Tabs",
       "starter": true,
       "retired": false,
-      "minH": 520
+      "minH": 504
     },
     {
       "name": "Gallery",
       "starter": true,
       "retired": false,
-      "minH": 680
+      "minH": 720
     },
     {
       "name": "Photo cards",
@@ -237,19 +237,19 @@
       "name": "Portfolio",
       "starter": true,
       "retired": false,
-      "minH": 580
+      "minH": 576
     },
     {
       "name": "Menu",
       "starter": true,
       "retired": false,
-      "minH": 600
+      "minH": 576
     },
     {
       "name": "Team",
       "starter": true,
       "retired": false,
-      "minH": 620
+      "minH": 648
     }
   ],
   "shapes": [
