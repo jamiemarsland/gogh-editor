@@ -10686,7 +10686,8 @@
   // against this and nothing else is copied through — the door is open, not
   // unlatched.
   var GEN_TYPES = { heading: 1, para: 1, button: 1, badge: 1, image: 1, box: 1 };
-  var GEN_FIELDS = ['x', 'y', 'w', 'h', 'text', 'src', 'href', 'fs', 'align', 'color', 'radius', 'rot', 'tf', 'mood', 'boxBg', 'shape', 'alt'];
+  // ('m' carries the phone overrides — a hand-drawn ledger can hide its year column on phones)
+  var GEN_FIELDS = ['x', 'y', 'w', 'h', 'text', 'src', 'href', 'fs', 'align', 'color', 'radius', 'rot', 'tf', 'mood', 'boxBg', 'shape', 'alt', 'm'];
   function genEl(e) {
     if (!e || !GEN_TYPES[e.type]) return null;
     var out = { type: e.type };
