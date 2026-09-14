@@ -15768,14 +15768,16 @@
     if (c.s < 0.4) return 'soft';
     return 'clear';
   }
+  // each sentence is a clause about the colour and a clause about the page;
+  // the page clause is only said when gogh chose the page
   var BRAND_SAY = {
-    loud: 'is loud, so gogh keeps it for the buttons and gives the page a calm ground.',
-    deep: 'is deep, so it carries your buttons; the page stays light so the words read.',
-    deepDark: 'is deep, so it carries your buttons; the page is deep too, with the words in light.',
-    pale: 'is pale — too pale to hold words as a button — so gogh deepened the button and kept your colour for the badges.',
-    soft: 'is soft, so the page takes a whisper of it and the buttons wear it a shade deeper.',
-    muted: 'is muted, so gogh gives the page a hint of it and lets the buttons carry the rest.',
-    clear: 'is a clear colour: buttons and links wear it, the page stays quiet around it.',
+    loud: ['is loud, so gogh keeps it for the buttons', ' and gives the page a calm ground'],
+    deep: ['is deep, so it carries your buttons', '; the page stays light so the words read'],
+    deepDark: ['is deep, so it carries your buttons', '; the page is deep too, with the words in light'],
+    pale: ['is pale — too pale to hold words as a button — so gogh deepened the button and kept your colour for the badges', ''],
+    soft: ['is soft, so the buttons wear it a shade deeper', ' and the page takes a whisper of it'],
+    muted: ['is muted, so the buttons carry the rest', ' and gogh gives the page a hint of it'],
+    clear: ['is a clear colour: buttons and links wear it', ', and the page stays quiet around it'],
   };
   // given: any of { accent, background, text, accent2 } (hex) and fonts; the
   // rest is derived. opts.dark asks for a dark page; a given background
@@ -15804,7 +15806,8 @@
     var moved = button.toLowerCase() !== accent.toLowerCase();
     var movedHow = moved ? (relLum(button) > relLum(accent) ? 'lightened' : 'deepened') : null;
     var accent2 = given.accent2 || (word === 'pale' && moved ? accent : hslToHex(h.h + 34, h.s, (hexToHsl(button) || h).l));
-    var say = 'Your colour ' + (word === 'deep' && dark ? BRAND_SAY.deepDark : BRAND_SAY[word]);
+    var parts = word === 'deep' && dark ? BRAND_SAY.deepDark : BRAND_SAY[word];
+    var say = 'Your colour ' + parts[0] + (read.background ? '' : parts[1]) + '.';
     if (word !== 'pale' && moved) say += ' gogh ' + movedHow + ' it a little so the words on the buttons read.';
     if (read.accent && (read.background || read.text)) say = say.replace(/^Your colour/, 'Your primary');
     return {
