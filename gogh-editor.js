@@ -15993,16 +15993,20 @@
       panel.innerHTML =
         '<div class="gogh-panel-head"><span class="gogh-panel-title">Site style</span>' +
         '<button type="button" class="gogh-sbtn gogh-panel-close gogh-panel-back" title="Back"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"/></svg></button></div>' +
-        '<div class="gogh-panel-hint">Hover to preview \u2014 click to keep it</div>' +
+        '<div class="gogh-panel-hint">Tap Remix to try a new look. Tap again for another.</div>' +
         // the two doors people come for share the top row: Remix first and
-        // emphasised, the brand beside it; the dials follow
+        // emphasised, the brand beside it. The dials — the theme's own
+        // looks, its font pairs, the type size — live one door deeper,
+        // folded under More until asked for ("Remix Like the Die", rule 5)
         '<div class="gogh-toprow"></div>' +
+        '<details class="gogh-more"><summary class="gogh-more-sum">More <span class="gogh-more-what">the theme\u2019s looks, fonts and type size</span></summary>' +
+        '<div class="gogh-panel-hint">Hover to preview \u2014 click to keep it</div>' +
         '<div class="gogh-panel-hint" style="margin-top:6px">Type scale</div>' +
         '<div class="gogh-hpresets gogh-typescale">' +
         [['Snug', 90], ['Regular', 100], ['Airy', 110], ['Grand', 120]].map(function (ts) {
           return '<button type="button" class="gogh-hpreset' + ((cfg.typeScale || 100) === ts[1] ? ' is-active' : '') + '" data-scale="' + ts[1] + '">' + ts[0] + '</button>';
         }).join('') + '</div>' +
-        '<div class="gogh-varlist"></div>';
+        '<div class="gogh-varlist"></div></details>';
       // the hint says "Hover to preview" — the type chips must honour it
       // too. Local preview: override the font-size preset vars with scaled
       // px (measured once), zero server round-trips, gone on leave.

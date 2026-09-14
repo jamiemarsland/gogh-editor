@@ -5889,9 +5889,15 @@
         var remix = top.querySelector('.gogh-remixbtn'), brand = top.querySelector('.gogh-brandrow');
         expect(remix && brand, 'Remix and the brand should both sit in the top row');
         expect(+getComputedStyle(remix).order < +getComputedStyle(brand).order, 'Remix should come first');
-        var rr = remix.getBoundingClientRect(), br = brand.getBoundingClientRect(), ts = pnl.querySelector('.gogh-typescale').getBoundingClientRect();
+        var rr = remix.getBoundingClientRect(), br = brand.getBoundingClientRect();
         expect(Math.abs(rr.top - br.top) < 4 && rr.right <= br.left + 2, 'Remix and the brand should share one row, Remix on the left');
-        expect(rr.bottom <= ts.top, 'the top row should sit above the type scale');
+        // the dials live under More, folded until asked for
+        var more = pnl.querySelector('details.gogh-more');
+        expect(more && !more.open && more.contains(pnl.querySelector('.gogh-typescale')) && more.contains(pnl.querySelector('.gogh-varlist')), 'type scale, looks and fonts should be folded under More');
+        more.open = true;
+        var ts = pnl.querySelector('.gogh-typescale').getBoundingClientRect();
+        expect(rr.bottom <= ts.top, 'the top row should sit above the type scale once More is open');
+        more.open = false;
         var worn = G.remixWorn();
         expect(worn && worn.cand, 'the front door should leave the site wearing a rolled look');
         var line = pnl.querySelector('.gogh-remixwearing');
