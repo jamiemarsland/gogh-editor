@@ -25,6 +25,7 @@
 
   function run() {
     var G = window.__gogh;
+    if (G.remixDry) G.remixDry(true); // a roll in here never saves the site's styles
     var SNAP;
     var sec = function () {
       var all = G.sections();
@@ -5877,11 +5878,11 @@
       expect(Math.round(G.hueToward(200, 28, 0.5)) === 114 && Math.round(G.hueToward(350, 28, 0.5)) === 9, 'hueToward should take the short way round');
     });
 
-    testAsync('site style: Remix and the brand share the top row, above the type scale; the front door spins it', function () {
+    testAsync('site style: Remix and the brand share the top row, above the type scale; the front door rolls it', function () {
       // the front door does what a built site's first minute does: opens the
-      // panel and spins Remix — so one call exercises both
+      // panel and rolls Remix — so one call exercises both
       return G.openFrontDoor().then(function (ok) {
-        expect(ok, 'the front door did not open on six looks');
+        expect(ok, 'the front door did not open and roll');
         var pnl = q('.gogh-panel');
         var top = pnl.querySelector('.gogh-toprow');
         expect(top, 'the panel has no top row');
@@ -5891,9 +5892,38 @@
         var rr = remix.getBoundingClientRect(), br = brand.getBoundingClientRect(), ts = pnl.querySelector('.gogh-typescale').getBoundingClientRect();
         expect(Math.abs(rr.top - br.top) < 4 && rr.right <= br.left + 2, 'Remix and the brand should share one row, Remix on the left');
         expect(rr.bottom <= ts.top, 'the top row should sit above the type scale');
-        expect(pnl.querySelectorAll('.gogh-remixcards .gogh-remixcard').length === 6, 'the front door should show six looks');
+        var worn = G.remixWorn();
+        expect(worn && worn.cand, 'the front door should leave the site wearing a rolled look');
+        var line = pnl.querySelector('.gogh-remixwearing');
+        expect(line && !line.hidden && line.textContent.indexOf(worn.cand.name) !== -1, 'the receipt line should say what is worn');
+        var offDoor = ['.gogh-remixcards', '.gogh-remixlocks', '.gogh-remixdirs'].every(function (sel) {
+          var el = pnl.querySelector(sel);
+          return el && el.hidden && getComputedStyle(el).display === 'none';
+        });
+        expect(offDoor, 'the shop (cards, locks, directions) should be off the door \u2014 hidden AND not painted');
+        while (G.remixBack()) {} // home again, so the next test starts where this one did
         G.closePanel();
       });
+    });
+
+    test('remix is a die: a tap lands a whole look, another tap lands another, Back walks home', function () {
+      var first = G.sections().filter(function (x) { return !x.chrome; })[0];
+      var before = { theme: first.theme || null, colors: first.els.map(function (e) { return e.color || null; }).join(','), divider: JSON.stringify(first.divider || null) };
+      var c1 = G.remixRoll({ dry: true });
+      expect(c1 && c1.name, 'a roll should hand back the look it landed');
+      var w1 = G.remixWorn();
+      expect(w1 && w1.cand === c1, 'the worn look should be the rolled one');
+      var previewOn = [].some.call(document.querySelectorAll('head style'), function (st) { return /--wp--preset--color--/.test(st.textContent) && st !== document.getElementById('global-styles-inline-css'); });
+      expect(previewOn, 'the look should land through the audition path (a preview stylesheet)');
+      var c2 = G.remixRoll({ dry: true });
+      expect(c2 && c2.key !== c1.key, 'a second tap should land a different look');
+      expect(G.remixBack() && G.remixWorn().cand === c1, 'Back should return to the first roll');
+      expect(G.remixBack() && G.remixWorn().origin, 'Back again should reach the look the site started with');
+      var after = { theme: first.theme || null, colors: first.els.map(function (e) { return e.color || null; }).join(','), divider: JSON.stringify(first.divider || null) };
+      expect(JSON.stringify(after) === JSON.stringify(before), 'home should be exactly where we started: ' + JSON.stringify(after) + ' vs ' + JSON.stringify(before));
+      expect(!G.remixBack(), 'there is nothing before home');
+      expect(G.remixForward() && G.remixWorn().cand === c1, 'Forward should walk back out');
+      while (G.remixBack()) {}
     });
 
     test('a brand palette keeps the theme\u2019s roles: inks stay inks, tints stay tints, two accents are accents', function () {
@@ -5908,6 +5938,14 @@
         var swept = accents.slice(2).filter(function (k) { return pal[k] === '#c0392b' || pal[k] === '#2980b9'; });
         expect(!swept.length, 'later accent slots should not be swept with the brand accents (body copy turns blue): ' + swept.join(','));
       }
+    });
+
+    test('palette roles come from the theme\u2019s own stylesheet, not the editor\u2019s grey canvas', function () {
+      var d = G.declaredRoles();
+      expect(d && d.bgSlug, 'the theme declares a body background slug: ' + JSON.stringify(d));
+      var r = G.paletteRoles();
+      expect(r.bgSlug === d.bgSlug, 'roles should take the declared ground (' + d.bgSlug + '), got ' + r.bgSlug);
+      if (d.textSlug) expect(r.textSlug === d.textSlug, 'roles should take the declared ink (' + d.textSlug + '), got ' + r.textSlug);
     });
 
     testAsync('remix: keep puts a look on the shelf, keep again takes it off', function () {

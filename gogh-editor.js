@@ -2978,16 +2978,33 @@
   // page actually renders: the body's computed canvas and ink, matched
   // back to palette slugs (cached per palette signature).
   var paletteRolesCache = null;
+  // the theme names its roles in its own stylesheet: body { background-color:
+  // var(--wp--preset--color--base); color: var(--wp--preset--color--contrast) }
+  // (TT5 Morning inks the body with accent-4). Read the names when they are
+  // there — measuring the body's painted colour instead mistook the editor's
+  // grey canvas for the ground on any palette with a grey-ish swatch
+  function declaredRoles(pal) {
+    var el = document.getElementById('global-styles-inline-css');
+    var css = el ? el.textContent : '';
+    var m = css.match(/(?:^|[}\s,])(?::root\s*:where\()?body\)?\s*\{([^}]*)\}/);
+    if (!m) return null;
+    var body = m[1];
+    var bg = body.match(/background-color:\s*var\(--wp--preset--color--([a-z0-9-]+)\)/);
+    var tx = body.match(/(?:^|[;\s])color:\s*var\(--wp--preset--color--([a-z0-9-]+)\)/);
+    var has = function (slug) { return !!slug && pal.some(function (p) { return p.slug === slug; }); };
+    return { bgSlug: bg && has(bg[1]) ? bg[1] : null, textSlug: tx && has(tx[1]) ? tx[1] : null };
+  }
   function paletteRoles() {
     var pal = themePalette();
     var sig = pal.map(function (p) { return p.slug + ':' + p.value; }).join(',') + '|' + getComputedStyle(document.body).backgroundColor;
     if (paletteRolesCache && paletteRolesCache.sig === sig) return paletteRolesCache;
+    var declared = declaredRoles(pal) || {};
     var bodyBg = cssToRgb(getComputedStyle(document.body).backgroundColor) || [255, 255, 255];
     var bodyTx = cssToRgb(getComputedStyle(document.body).color) || [20, 21, 25];
     var dist = function (a, b) {
       return !a || !b ? 1e9 : Math.abs(a[0] - b[0]) + Math.abs(a[1] - b[1]) + Math.abs(a[2] - b[2]);
     };
-    var bgSlug = null, textSlug = null, bgBest = 90, txBest = 90;
+    var bgSlug = declared.bgSlug || null, textSlug = declared.textSlug || null, bgBest = bgSlug ? -1 : 90, txBest = textSlug ? -1 : 90;
     pal.forEach(function (p) {
       var rgb = cssToRgb(p.value);
       var db = dist(rgb, bodyBg), dt = dist(rgb, bodyTx);
@@ -10819,7 +10836,7 @@
         var rb = document.querySelector('.gogh-remixbtn');
         if (rb) {
           rb.click();
-          toast('Your site is built. Pick a look \u2014 hover to try one, click to keep it, \u2726 Remix for six more.', { ttl: 9000 });
+          toast('Your site is built, wearing a look gogh chose. \u2726 Remix for another, \u21b6 Back for the one before.', { ttl: 9000 });
           resolve(true);
           return true;
         }
@@ -12830,12 +12847,14 @@
     return { close: shut };
   }
 
-  function sectionThemes() {
+  function sectionThemes(rolesIn) {
     var v = function (slug) { return 'var(--wp--preset--color--' + slug + ')'; };
     var pal = themePalette();
     // canvas and ink by ROLE, not by name — TT5's base/contrast, Ollie's
-    // base/main, and every invented palette all resolve the same way
-    var roles = paletteRoles();
+    // base/main, and every invented palette all resolve the same way.
+    // A caller mid-way through changing the palette passes the roles it
+    // read before it started (a Remix roll), or the page misleads it.
+    var roles = rolesIn || paletteRoles();
     var bgS = roles.bgSlug, txS = roles.textSlug;
     if (!bgS || !txS) return [];
     var out = [
@@ -12845,8 +12864,12 @@
     ];
     // accents: the theme's own extra colours, in its declared order —
     // skipping the roles and structural entries (borders and the like)
+    // the theme's own extra colours: never the ground or the ink, and never
+    // the conventionally structural names either — on TT5 Morning the ink
+    // is accent-4, which left "contrast" looking like an accent
     var accents = pal.filter(function (p) {
-      return p.slug !== bgS && p.slug !== txS && !/^border|^shadow|gray$/.test(p.slug);
+      return p.slug !== bgS && p.slug !== txS && !/^border|^shadow|gray$/.test(p.slug) &&
+        !/^(base|contrast|background|foreground|main|text)$/.test(p.slug);
     }).slice(0, 2);
     accents.forEach(function (p, k) {
       out.push({ slug: p.slug, name: 'Accent ' + (k + 1), bg: v(p.slug), ink: bestInkFor(v(p.slug)) });
@@ -15236,7 +15259,7 @@
   }
   // paint a look's sections; returns what they wore so a hover can put it back
   function remixPaintRhythm(cand) {
-    var themes = sectionThemes();
+    var themes = sectionThemes(remixHistory[0] && remixHistory[0].roles);
     var by = {};
     themes.forEach(function (t) { by[t.slug] = t; });
     var soft = themes.filter(function (t) { return /-soft$/.test(t.slug); })[0] || by.mist || by.paper;
@@ -15308,6 +15331,114 @@
     remixScalePreview(null);
     if (remixAudition) { remixRestoreRhythm(remixAudition.snaps); remixAudition = null; }
   }
+  // ---- Remix is a die for the site's clothes: tap → a look lands, tap →
+  // another, ↶ → the one before. The look arrives through the audition path
+  // (instant, free to look at) and is committed quietly a moment later.
+  // History starts at the look the site wore before the first roll, so Back
+  // can always take you home. ("Remix Like the Die", 2026-09-14)
+  var remixHistory = [];   // [{origin, gs, scale, snaps} | {cand}]
+  var remixAt = -1;
+  var remixCommitT = null, remixCommitting = false, remixDry = false;
+  function remixOriginEntry() {
+    var content = S.filter(function (x) { return !x.chrome; });
+    return { origin: true, title: cfg.activeStyle || '', scale: cfg.typeScale || 100, roles: paletteRoles(),
+      snaps: content.map(function (secx) {
+        var snap = snapSectionLook(secx);
+        snap.divider = secx.divider ? JSON.parse(JSON.stringify(secx.divider)) : null;
+        snap.fx = secx.fx ? JSON.parse(JSON.stringify(secx.fx)) : null;
+        return snap;
+      }) };
+  }
+  // the site's own global styles, fetched once so Back can put them back
+  function remixFetchOrigin(entry) {
+    if (entry.gs || !cfg.gsId) return Promise.resolve(entry);
+    return fetch(GSROOT + 'global-styles/' + cfg.gsId + '?context=edit', { headers: { 'X-WP-Nonce': cfg.nonce }, credentials: 'same-origin' })
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (j) { entry.gs = { styles: (j && j.styles) || {}, settings: (j && j.settings) || {} }; return entry; })
+      .catch(function () { entry.gs = { styles: {}, settings: {} }; return entry; });
+  }
+  function remixWearEntry(entry) {
+    if (entry.origin) {
+      remixAuditionOff();
+      remixRestoreRhythm(entry.snaps);
+    } else {
+      remixAuditionOn(entry.cand);
+    }
+    remixScheduleCommit();
+    remixSayWearing();
+  }
+  function remixRoll(opts) {
+    if (remixAt === -1) {
+      var origin = remixOriginEntry();
+      remixHistory = [origin];
+      remixAt = 0;
+      remixFetchOrigin(origin);
+    }
+    var cand = remixCandidates()[0];
+    if (!cand) return null;
+    remixHistory = remixHistory.slice(0, remixAt + 1);
+    remixHistory.push({ cand: cand });
+    remixAt = remixHistory.length - 1;
+    if (opts && opts.dry) remixDry = true;
+    remixWearEntry(remixHistory[remixAt]);
+    return cand;
+  }
+  function remixBack() {
+    if (remixAt <= 0) return false;
+    remixAt--;
+    remixWearEntry(remixHistory[remixAt]);
+    return true;
+  }
+  function remixForward() {
+    if (remixAt < 0 || remixAt >= remixHistory.length - 1) return false;
+    remixAt++;
+    remixWearEntry(remixHistory[remixAt]);
+    return true;
+  }
+  function remixWorn() { return remixAt >= 0 ? remixHistory[remixAt] : null; }
+  // the commit: the audition's paint stays, the style and size are saved,
+  // one undo step covers the sections. A newer roll cancels an unsaved one.
+  function remixScheduleCommit() {
+    clearTimeout(remixCommitT);
+    if (remixDry) return;
+    remixCommitT = setTimeout(remixCommitNow, 1200);
+  }
+  function remixCommitNow() {
+    if (remixCommitting) { remixScheduleCommit(); return; }
+    var entry = remixWorn();
+    if (!entry) return;
+    remixCommitting = true;
+    var v, scale;
+    if (entry.origin) {
+      v = { title: entry.title, styles: (entry.gs && entry.gs.styles) || {}, settings: (entry.gs && entry.gs.settings) || {} };
+      scale = entry.scale;
+    } else {
+      v = brandToVariation({ colors: entry.cand.colors, fonts: entry.cand.fonts || null });
+      v.title = 'Remix \u00b7 ' + entry.cand.name;
+      scale = entry.cand.scale || 100;
+    }
+    var keepPaint = function () {
+      // the sections stay as the audition painted them: forget the snaps
+      // so nothing puts them back, and let undo cover the change
+      if (remixAudition) { remixAudition = null; }
+    };
+    var run = entry.origin ? remixFetchOrigin(entry).then(function () { return applyVariation(v); }) : applyVariation(v);
+    run.then(function () {
+      clearVariationPreview();
+      if (scale !== (cfg.typeScale || 100)) return applyTypeScale(scale);
+    }).then(function () {
+      remixScalePreview(null);
+      keepPaint();
+      pushState();
+      S.forEach(function (secx) { if (!secx.chrome) contrastSentinel(secx); });
+    }).catch(function () {
+      toast('gogh could not save that look \u2014 it stays for now.', { error: true });
+    }).then(function () {
+      remixCommitting = false;
+      if (remixWorn() !== entry) remixScheduleCommit(); // rolled on while saving
+    });
+  }
+  var remixSayWearing = function () {}; // the panel wires this when it opens
   // keep: the palette and fonts as a style, the scale as the site's, the
   // sections as this page's (one undo step)
   function remixWear(cand, btn) {
@@ -15909,7 +16040,6 @@
       });
       panel.querySelector('.gogh-panel-close').addEventListener('click', function () {
         tsPreviewOff();
-        remixAuditionOff();
         backToDesign();
       });
       var box = panel.querySelector('.gogh-varlist');
@@ -15957,7 +16087,11 @@
         var wrap = document.createElement('div');
         wrap.className = 'gogh-remixrow';
         wrap.innerHTML = '<button type="button" class="gogh-btn gogh-btn-small gogh-remixbtn" ' +
-          'title="Six looks built from your brand — hover to wear one, lock what works, tap again for six more">✦ Remix</button>' +
+          'title="Tap to try a new look. Tap again for another.">✦ Remix</button>' +
+          '<div class="gogh-remixwearing" hidden>' +
+            '<span class="gogh-remixwearing-words"><span class="gogh-remixwearing-lab">Wearing</span>' +
+            '<span class="gogh-remixwearing-name"></span><span class="gogh-remixwearing-detail"></span></span>' +
+            '<button type="button" class="gogh-remixback" title="The look before this one">\u21b6 Back</button></div>' +
           '<div class="gogh-remixlocks" hidden></div>' +
           '<div class="gogh-remixcards" hidden></div>' +
           '<div class="gogh-remixdirs" hidden><span class="gogh-remixdirs-lab">Not quite \u2014 more like this:</span>' +
@@ -16042,6 +16176,19 @@
             });
           });
         };
+        // the die's panel: what you are wearing, in words, and a way back
+        var wearingBox = wrap.querySelector('.gogh-remixwearing');
+        var backBtn = wrap.querySelector('.gogh-remixback');
+        remixSayWearing = function () {
+          var w = remixWorn();
+          if (!w) { wearingBox.hidden = true; return; }
+          wearingBox.hidden = false;
+          wearingBox.querySelector('.gogh-remixwearing-name').textContent = w.origin ? (w.title || 'the look you started with') : w.cand.name;
+          wearingBox.querySelector('.gogh-remixwearing-detail').textContent = w.origin ? '' : (w.cand.detail || '');
+          backBtn.disabled = remixAt <= 0;
+        };
+        backBtn.addEventListener('click', function () { remixBack(); });
+        remixSayWearing();
         var spin = function (direction) {
           clearTimeout(previewHoverT);
           remixAuditionOff();
@@ -16056,9 +16203,11 @@
           });
           dirsBox.querySelectorAll('.gogh-remixdir').forEach(function (b) { b.classList.toggle('is-on', b.dataset.dir === direction); });
         };
-        drawLocks();
-        drawKept();
-        wrap.querySelector('.gogh-remixbtn').addEventListener('click', function () { spin(null); });
+        // the shop (cards, locks, directions, the shelf) is off the door:
+        // a tap is a roll. The code stays until we know nobody misses it.
+        var shop = false;
+        if (shop) { drawLocks(); drawKept(); }
+        wrap.querySelector('.gogh-remixbtn').addEventListener('click', function () { if (shop) spin(null); else remixRoll(); });
         dirsBox.querySelectorAll('.gogh-remixdir').forEach(function (b) {
           b.addEventListener('click', function () { spin(b.dataset.dir); });
         });
@@ -16123,8 +16272,8 @@
           box.appendChild(b);
         });
       });
-      box.addEventListener('mouseleave', function () { clearVariationPreview(); remixAuditionOff(); });
-      top.addEventListener('mouseleave', function () { clearVariationPreview(); remixAuditionOff(); });
+      box.addEventListener('mouseleave', function () { clearVariationPreview(); });
+      top.addEventListener('mouseleave', function () { clearVariationPreview(); });
       dockSidebar();
       panelSticky = true; // hover-audition panel: outside clicks pass through
       zoomOutCanvas(); // pull the whole page into view to audition the style
@@ -17093,6 +17242,7 @@
     inkWidthOf: inkWidthOf,
     themeFontSizeList: themeFontSizeList,
     paletteRoles: paletteRoles,
+    declaredRoles: function () { return declaredRoles(themePalette()); },
     composeFaq: composeFaq,
     openPanel: openPanel,
     composeTabs: composeTabs,
@@ -17246,6 +17396,11 @@
     remixRhythmPlan: remixRhythmPlan,
     hueToward: hueToward,
     openFrontDoor: openFrontDoor,
+    remixRoll: remixRoll,
+    remixBack: remixBack,
+    remixForward: remixForward,
+    remixWorn: remixWorn,
+    remixDry: function (on) { remixDry = !!on; clearTimeout(remixCommitT); return remixDry; },
     remixPaintRhythm: remixPaintRhythm,
     remixRestoreRhythm: remixRestoreRhythm,
     embedInfo: embedInfo,
