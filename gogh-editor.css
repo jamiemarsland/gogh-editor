@@ -4127,3 +4127,22 @@ html.gogh-building .gogh-inserter, html.gogh-building .gogh-side { display: none
 .gogh-frontdoor-back, .gogh-frontdoor-x { all: unset; cursor: pointer; width: 36px; height: 36px; display: grid; place-items: center; border-radius: 999px; border: 1px solid var(--gogh-ui-border, #e2e2e6); font-size: 14px; color: var(--gogh-ui-fg, #16181c); }
 .gogh-frontdoor-back:hover, .gogh-frontdoor-x:hover { background: var(--gogh-ui-hover, #f2f2f4); }
 .gogh-frontdoor-back:disabled { opacity: .35; cursor: default; }
+
+/* Your brand: doors, the receipt, the sentence */
+.gogh-branddoor { margin: 10px 0 0; }
+.gogh-branddoor-lab { display: block; font: 600 12.5px/1.3 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; margin-bottom: 5px; }
+.gogh-brandguide { width: 100%; font-size: 12px; resize: vertical; min-height: 58px; }
+.gogh-brandone { display: flex; align-items: center; gap: 10px; font-size: 12.5px; color: var(--gogh-ui-dim, #777); cursor: pointer; }
+.gogh-brandonepick { width: 44px; height: 32px; border: 1px solid var(--gogh-ui-border); border-radius: 8px; padding: 2px; background: transparent; cursor: pointer; }
+.gogh-brandresult { margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--gogh-ui-border); }
+.gogh-brandresult[hidden] { display: none !important; }
+.gogh-brandreceipt { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.gogh-brandchip { display: flex; align-items: center; gap: 6px; font: 600 12px/1.2 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+.gogh-brandchip i { width: 16px; height: 16px; border-radius: 5px; flex: none; border: 1px solid rgba(0, 0, 0, 0.14); }
+.gogh-brandchip em { font-style: normal; font-weight: 500; font-size: 10.5px; opacity: .55; margin-left: auto; }
+.gogh-brandsay { margin: 10px 0 8px; font-size: 13px; line-height: 1.45; border-left: 2px solid var(--gogh-ui-accent, #4a63d8); padding-left: 10px; }
+.gogh-brandsay-fonts { display: block; font-size: 11.5px; opacity: .65; margin-top: 4px; }
+.gogh-brandpol { display: flex; gap: 5px; margin: 6px 0 10px; }
+.gogh-brandpolbtn { all: unset; cursor: pointer; font: 600 11.5px/1 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; padding: 7px 11px; border-radius: 999px; border: 1px solid var(--gogh-ui-border); color: var(--gogh-ui-fg); }
+.gogh-brandpolbtn.is-on { background: var(--gogh-ui-fg); color: var(--gogh-ui-bg, #fff); border-color: transparent; }
+.gogh-brandfine { margin-top: 8px; }

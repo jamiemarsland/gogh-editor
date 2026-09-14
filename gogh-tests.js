@@ -5956,6 +5956,60 @@
       if (d.textSlug) expect(r.textSlug === d.textSlug, 'roles should take the declared ink (' + d.textSlug + '), got ' + r.textSlug);
     });
 
+    test('one colour in: gogh derives a page, words and badges through the gate, and says what it did', function () {
+      var lum = function (hex) { var n = parseInt(hex.slice(1), 16); var f = function (v) { v /= 255; return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); }; return 0.2126 * f(n >> 16 & 255) + 0.7152 * f(n >> 8 & 255) + 0.0722 * f(n & 255); };
+      var ratio = function (a, b) { var x = lum(a), y = lum(b); return (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05); };
+      var lime = G.deriveBrand({ accent: '#53f00f' });
+      expect(lime.word === 'loud' && /loud/.test(lime.say), 'lime should be called loud: ' + lime.word + ' / ' + lime.say);
+      expect(lum(lime.colors.background) > 0.8 && ratio(lime.colors.text, lime.colors.background) >= 7, 'a light page with words at 7:1, got ' + ratio(lime.colors.text, lime.colors.background).toFixed(1));
+      expect(ratio(lime.colors.text, lime.colors.accent) >= 3, 'the words on the button should read: ' + ratio(lime.colors.text, lime.colors.accent).toFixed(1));
+      expect(!lime.read.background && !lime.read.text && lime.read.accent, 'the receipt should say the page and words were gogh\u2019s choice');
+      var dark = G.deriveBrand({ accent: '#1f3a5f' }, { dark: true });
+      expect(lum(dark.colors.background) < 0.1 && lum(dark.colors.text) > 0.6, 'a dark page carries light words');
+      expect(ratio(dark.colors.text, dark.colors.accent) >= 3, 'on a dark page the button still holds its words: ' + ratio(dark.colors.text, dark.colors.accent).toFixed(1));
+      var beige = G.deriveBrand({ accent: '#e8d5b7' });
+      expect(beige.word === 'pale' && beige.moved && beige.colors.accent2.toLowerCase() === '#e8d5b7', 'a pale colour should deepen the button and keep the badges: ' + JSON.stringify(beige.colors));
+      ['#c8102e', '#7a5c99', '#888888', '#0a0a0a'].forEach(function (hx) {
+        var d = G.deriveBrand({ accent: hx });
+        expect(ratio(d.colors.text, d.colors.background) >= 7 && ratio(d.colors.text, d.colors.accent) >= 3, hx + ' should pass the gate: ' + JSON.stringify(d.colors));
+      });
+    });
+
+    test('a guideline is read: roles by the word beside the code, the rest placed by look, fonts by name', function () {
+      var g = G.readBrandGuide('Brand guidelines\nPrimary: #1F3A5F\nSecondary — #C8102E\nBackground #FAF7F2\nText colour: #1A1A1A\nHeadings: Playfair Display\nBody font: Manrope\n');
+      expect(g.colors.accent === '#1f3a5f' && g.colors.accent2 === '#c8102e' && g.colors.background === '#faf7f2' && g.colors.text === '#1a1a1a', 'roles should follow the words beside the codes: ' + JSON.stringify(g.colors));
+      expect(g.placed.accent === 'read' && g.placed.background === 'read', 'named roles should be marked as read');
+      expect(g.names.heading === 'Playfair Display' && g.names.body === 'Manrope', 'font names should be read: ' + JSON.stringify(g.names));
+      var loose = G.readBrandGuide('our colours are #ffffff, #111111, #e63946 and #457b9d');
+      expect(loose.colors.background === '#ffffff' && loose.colors.text === '#111111', 'lightest → page, darkest → words: ' + JSON.stringify(loose.colors));
+      expect(loose.colors.accent === '#e63946', 'the most saturated should be the buttons: ' + loose.colors.accent);
+      expect(loose.placed.accent === 'placed', 'a placed role should say so');
+      var one = G.readBrandGuide('use #ff6600 everywhere');
+      expect(one.colors.accent === '#ff6600' && !one.colors.background, 'one code is the colour, nothing else is invented here');
+      var d = G.deriveBrand({ accent: g.colors.accent, accent2: g.colors.accent2, background: g.colors.background, text: g.colors.text });
+      expect(d.colors.background === '#faf7f2' && d.colors.text === '#1a1a1a' && d.colors.accent2 === '#c8102e', 'what a guide gives is honoured');
+      expect(/^Your primary/.test(d.say), 'a guide\u2019s colour is called the primary: ' + d.say);
+    });
+
+    test('the brand form: two doors, then the page wears it and gogh says why', function () {
+      G.openBrandForm();
+      var pnl = q('.gogh-panel');
+      expect(pnl.querySelector('.gogh-brandguide') && pnl.querySelector('.gogh-brandonepick'), 'the doors should be there');
+      expect(pnl.querySelectorAll('.gogh-brandwell').length === 4 && pnl.querySelector('details.gogh-brandfine') && !pnl.querySelector('details.gogh-brandfine').open, 'the wells should be folded under Fine-tune');
+      var pick = pnl.querySelector('.gogh-brandonepick');
+      pick.value = '#c8102e';
+      pick.dispatchEvent(new Event('input', { bubbles: true }));
+      var res = pnl.querySelector('.gogh-brandresult');
+      expect(!res.hidden, 'giving a colour should show the result');
+      expect(pnl.querySelectorAll('.gogh-brandchip').length === 4, 'the receipt should show four roles');
+      expect(/Your colour/.test(pnl.querySelector('.gogh-brandsay').textContent), 'gogh should say what it did');
+      pnl.querySelector('.gogh-brandpolbtn[data-dark="1"]').click();
+      expect(pnl.querySelector('.gogh-brandpolbtn[data-dark="1"]').classList.contains('is-on'), 'Dark page should take');
+      var pageChip = pnl.querySelector('.gogh-brandwell[data-k="background"] input[type="color"]').value;
+      expect(parseInt(pageChip.slice(1), 16) < 0x333333, 'a dark page should be dark: ' + pageChip);
+      pnl.querySelector('.gogh-brandcancel').click();
+    });
+
     test('the brand is the lock: a set brand rides every roll, and the rest still rolls', function () {
       var b = G.brand();
       if (!(b && b.colors && b.colors.background && b.colors.text)) return 'no brand set on this site \u2014 nothing to pin';

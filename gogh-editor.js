@@ -15752,150 +15752,327 @@
         });
     });
   }
+  // ---------- Your brand: one colour in, gogh derives the rest ----------
+  // A brand is at least one colour and a polarity, and at most everything a
+  // guideline says. gogh honours what it is given, derives what is missing
+  // through the gate, and says what it did — a sentence, not a tick
+  // ("One Colour In", 2026-09-14).
+  function colourWord(hex) {
+    var c = hexToHsl(hex);
+    if (!c) return 'clear';
+    if (c.s < 0.18) return 'muted';
+    if (c.l > 0.78) return 'pale';
+    if (c.l < 0.28) return 'deep';
+    if (c.s > 0.7 && c.l > 0.45) return 'loud';
+    if (c.s < 0.4) return 'soft';
+    return 'clear';
+  }
+  var BRAND_SAY = {
+    loud: 'is loud, so gogh keeps it for the buttons and gives the page a calm ground.',
+    deep: 'is deep, so it carries your buttons; the page stays light so the words read.',
+    deepDark: 'is deep, so it carries your buttons; the page is deep too, with the words in light.',
+    pale: 'is pale — too pale to hold words as a button — so gogh deepened the button and kept your colour for the badges.',
+    soft: 'is soft, so the page takes a whisper of it and the buttons wear it a shade deeper.',
+    muted: 'is muted, so gogh gives the page a hint of it and lets the buttons carry the rest.',
+    clear: 'is a clear colour: buttons and links wear it, the page stays quiet around it.',
+  };
+  // given: any of { accent, background, text, accent2 } (hex) and fonts; the
+  // rest is derived. opts.dark asks for a dark page; a given background
+  // decides the polarity itself.
+  function deriveBrand(given, opts) {
+    given = given || {};
+    opts = opts || {};
+    var accent = given.accent || given.accent2 || null;
+    var dark = opts.dark != null ? !!opts.dark : (given.background ? relLum(given.background) < 0.35 : false);
+    if (!accent) {
+      // no accent given at all: the text colour is the brand (a dark colour
+      // carries buttons); failing that a quiet blue
+      accent = given.text && relLum(given.text) < 0.5 ? given.text : '#2f5d8a';
+    }
+    var h = hexToHsl(accent) || { h: 220, s: 0.5, l: 0.4 };
+    var word = colourWord(accent);
+    var read = { background: !!given.background, text: !!given.text, accent: !!given.accent, accent2: !!given.accent2 };
+    var background = given.background || (dark
+      ? hslToHex(h.h, Math.min(0.35, h.s * 0.5), 0.11)
+      : hslToHex(h.h, Math.min(0.18, h.s * 0.3), 0.965));
+    var text = given.text || (dark ? hslToHex(h.h, 0.08, 0.93) : hslToHex(h.h, 0.3, 0.12));
+    if (!given.text) text = ensureContrast(text, background, 7);
+    // the accent is a button: its words must read; when the colour is too
+    // pale to hold them, the button deepens and the colour keeps the badges
+    var button = fitAccent(accent, background, text);
+    var moved = button.toLowerCase() !== accent.toLowerCase();
+    var movedHow = moved ? (relLum(button) > relLum(accent) ? 'lightened' : 'deepened') : null;
+    var accent2 = given.accent2 || (word === 'pale' && moved ? accent : hslToHex(h.h + 34, h.s, (hexToHsl(button) || h).l));
+    var say = 'Your colour ' + (word === 'deep' && dark ? BRAND_SAY.deepDark : BRAND_SAY[word]);
+    if (word !== 'pale' && moved) say += ' gogh ' + movedHow + ' it a little so the words on the buttons read.';
+    if (read.accent && (read.background || read.text)) say = say.replace(/^Your colour/, 'Your primary');
+    return {
+      colors: { background: background, text: text, accent: button, accent2: accent2 },
+      fonts: given.fonts || {},
+      word: word, say: say, read: read, moved: moved, movedHow: movedHow, dark: dark,
+    };
+  }
+  // a guideline, read: codes with the role named beside them, fonts by name.
+  // Codes without a role are placed by what they look like (lightest → page,
+  // darkest → words, most saturated → buttons); the receipt says which.
+  function readBrandGuide(text) {
+    var t = String(text || '');
+    var out = { colors: {}, fonts: {}, names: {}, codes: [], placed: {} };
+    var re = /#([0-9a-f]{6}|[0-9a-f]{3})\b|rgb\(\s*(\d{1,3})\s*,\s*(\d{1,3})\s*,\s*(\d{1,3})\s*\)/gi, m;
+    var toHex = function (mm) {
+      if (mm[1]) { var x = mm[1].toLowerCase(); return '#' + (x.length === 3 ? x[0] + x[0] + x[1] + x[1] + x[2] + x[2] : x); }
+      return '#' + [mm[2], mm[3], mm[4]].map(function (v) { return ('0' + Math.max(0, Math.min(255, +v)).toString(16)).slice(-2); }).join('');
+    };
+    var roleOf = function (ctx) {
+      ctx = ctx.toLowerCase();
+      if (/\b(background|page|paper|surface|canvas|bg)\b/.test(ctx)) return 'background';
+      if (/\b(text|ink|body|foreground|copy|charcoal|headline colou?r)\b/.test(ctx)) return 'text';
+      if (/\b(secondary|second|tertiary|highlight|badge)\b/.test(ctx)) return 'accent2';
+      if (/\b(primary|brand|main|accent|cta|button|link)\b/.test(ctx)) return 'accent';
+      return null;
+    };
+    var loose = [], lastEnd = 0;
+    while ((m = re.exec(t))) {
+      var hex = toHex(m);
+      var from = lastEnd;
+      lastEnd = m.index + m[0].length;
+      if (out.codes.indexOf(hex) !== -1) continue;
+      out.codes.push(hex);
+      // the role is the word beside THIS code: from the previous code (or
+      // the start of the line) up to it — never the line before
+      var ctx = t.slice(Math.max(from, m.index - 60), m.index);
+      var nl = ctx.lastIndexOf('\n');
+      if (nl !== -1) ctx = ctx.slice(nl + 1);
+      var role = roleOf(ctx);
+      if (role && !out.colors[role]) { out.colors[role] = hex; out.placed[role] = 'read'; }
+      else loose.push(hex);
+    }
+    // what was not named: place by look
+    var byLum = loose.slice().sort(function (a, b) { return relLum(b) - relLum(a); });
+    var sat = function (hx) { var c = hexToHsl(hx); return c ? c.s : 0; };
+    var bySat = loose.slice().sort(function (a, b) { return sat(b) - sat(a); });
+    var take = function (role, hex) {
+      if (!hex || out.colors[role]) return;
+      if (Object.keys(out.colors).some(function (k) { return out.colors[k] === hex; })) return;
+      out.colors[role] = hex; out.placed[role] = 'placed';
+    };
+    if (loose.length >= 3) {
+      if (relLum(byLum[0]) > 0.5) take('background', byLum[0]);
+      if (relLum(byLum[byLum.length - 1]) < 0.3) take('text', byLum[byLum.length - 1]);
+    }
+    bySat.forEach(function (hx) { take('accent', hx); });
+    bySat.forEach(function (hx) { take('accent2', hx); });
+    // fonts by name: "Headings: Playfair Display", "Body font — Inter"
+    var cat = fontCatalogue();
+    var findFont = function (name) {
+      var n = name.toLowerCase().replace(/[^a-z0-9 ]/g, '').trim();
+      var hit = cat.filter(function (f) { var fn = f.name.toLowerCase(); return fn === n || fn.indexOf(n) !== -1 || n.indexOf(fn) !== -1; })[0];
+      return hit ? hit.slug : null;
+    };
+    var fontRe = function (roleWords) {
+      return new RegExp('\\b(?:' + roleWords + ')s?(?:\\s+(?:font|typeface|face))?\\s*[:\\-\\u2013\\u2014=]\\s*["\\u201c]?([A-Z][A-Za-z0-9+\\-\\u2019 ]{1,40}?)["\\u201d]?(?=[,.;\\n)]|\\s+(?:for|\\(|\\u2014|-)|$)', 'im');
+    };
+    var hm = t.match(fontRe('heading|headings|headline|headlines|display|title|titles'));
+    var bm = t.match(fontRe('body|text|paragraph|paragraphs|copy'));
+    if (hm) { out.names.heading = hm[1].trim(); var hs = findFont(hm[1]); if (hs) out.fonts.heading = hs; }
+    if (bm) { out.names.body = bm[1].trim(); var bs = findFont(bm[1]); if (bs) out.fonts.body = bs; }
+    return out;
+  }
   function openBrandForm(anchorEl) {
-    var local = JSON.parse(JSON.stringify(cfg.brand || { colors: {
-      background: '#f6f2ea', text: '#1c2733', accent: '#c96f4a', accent2: '#7a9e7e',
-    }, fonts: {} }));
+    var had = !!(cfg.brand && cfg.brand.colors && cfg.brand.colors.background);
+    var local = JSON.parse(JSON.stringify(cfg.brand || { colors: {}, fonts: {} }));
     local.colors = local.colors || {};
     local.fonts = local.fonts || {};
+    var derived = null; // the last derivation: read/placed roles, the sentence
+    var dark = had ? relLum(local.colors.background) < 0.35 : false;
+    var given = { fonts: local.fonts }; // what the person handed over
     var WELLS = [
-      ['background', 'Background', 'The page behind everything'],
-      ['text', 'Text', 'Your words'],
-      ['accent', 'Accent', 'Buttons and links'],
-      ['accent2', 'Second accent', 'Badges and extra highlights'],
+      ['background', 'Page', 'The page behind everything'],
+      ['text', 'Words', 'Your words'],
+      ['accent', 'Buttons', 'Buttons and links'],
+      ['accent2', 'Badges', 'Badges and extra highlights'],
     ];
     var cat = fontCatalogue();
     panel.innerHTML =
       '<div class="gogh-panel-head"><span class="gogh-panel-title">Your brand</span>' +
-      '<button type="button" class="gogh-sbtn gogh-panel-close" title="Back">\u2715</button></div>' +
-      '<div class="gogh-swlab">Colours</div>' +
-      '<div class="gogh-brandwells">' +
-      WELLS.map(function (w) {
-        var val = local.colors[w[0]] || '#888888';
-        return '<label class="gogh-brandwell" data-k="' + w[0] + '">' +
-          '<input type="color" value="' + escAttr(val) + '" />' +
-          '<span class="gogh-brandwell-name">' + w[1] + '</span>' +
-          '<span class="gogh-brandwell-hint">' + w[2] + '</span>' +
-          '<input type="text" class="gogh-input gogh-brandhex" value="' + escAttr(val) + '" spellcheck="false" />' +
-          '</label>';
-      }).join('') + '</div>' +
-      '<div class="gogh-brandcontrast"></div>' +
-      '<div class="gogh-panel-hint gogh-brand-lockline">\u2726 Remix keeps these colours and rolls everything else \u2014 type, sections, edges.</div>' +
-      '<div class="gogh-panel-hint gogh-brandpaste-hint">Already have brand colours? Paste them below \u2014 gogh finds the codes and fills the boxes above.</div>' +
-      '<input type="text" class="gogh-input gogh-brandpaste" placeholder="Anything with codes like #1B2A4A works" />' +
-      '<div class="gogh-swlab">Fonts</div>' +
-      ['heading', 'body'].map(function (k) {
-        return '<div class="gogh-panel-row gogh-brandfontrow">' +
-          '<span class="gogh-brandfont-lab">' + (k === 'heading' ? 'Headings' : 'Body') + '</span>' +
-          '<select class="gogh-input gogh-brandfont" data-k="' + k + '">' +
-          '<option value="">Theme default</option>' +
-          cat.map(function (f2) {
-            return '<option value="' + escAttr(f2.slug) + '"' + (local.fonts[k] === f2.slug ? ' selected' : '') + '>' + escAttr(f2.name) + '</option>';
-          }).join('') + '</select></div>';
-      }).join('') +
-      '<div class="gogh-panel-row gogh-brandacts">' +
-      '<button type="button" class="gogh-btn gogh-btn-small gogh-brandcancel">Cancel</button>' +
-      '<button type="button" class="gogh-btn gogh-btn-small gogh-brandkeep" title="Remix keeps these colours and rolls everything else">Save brand</button>' +
+      '<button type="button" class="gogh-sbtn gogh-panel-close" title="Back">✕</button></div>' +
+      '<div class="gogh-panel-hint">Give gogh one colour, or paste your brand guidelines. It makes the rest — and Remix keeps it through every roll.</div>' +
+      '<div class="gogh-branddoor"><span class="gogh-branddoor-lab">I have brand guidelines</span>' +
+      '<textarea class="gogh-input gogh-brandguide" rows="3" placeholder="Paste anything with codes in it — a style guide, a designer’s email, a page an AI wrote"></textarea></div>' +
+      '<div class="gogh-branddoor gogh-branddoor-one"><span class="gogh-branddoor-lab">I have a colour in mind</span>' +
+      '<label class="gogh-brandone"><input type="color" class="gogh-brandonepick" value="' + escAttr(local.colors.accent || '#2f5d8a') + '" /><span>Pick one</span></label></div>' +
+      '<div class="gogh-brandresult" hidden>' +
+        '<div class="gogh-brandreceipt"></div>' +
+        '<div class="gogh-brandsay"></div>' +
+        '<div class="gogh-brandpol"><button type="button" class="gogh-brandpolbtn" data-dark="0">Light page</button><button type="button" class="gogh-brandpolbtn" data-dark="1">Dark page</button></div>' +
+        '<div class="gogh-panel-row gogh-brandacts">' +
+        '<button type="button" class="gogh-btn gogh-btn-small gogh-brandcancel">↶ Not that</button>' +
+        '<button type="button" class="gogh-btn gogh-btn-small gogh-brandkeep" title="Remix keeps these colours and rolls everything else">Keep</button></div>' +
+        '<details class="gogh-more gogh-brandfine"><summary class="gogh-more-sum">Fine-tune <span class="gogh-more-what">the four colours · fonts</span></summary>' +
+        '<div class="gogh-brandwells">' +
+        WELLS.map(function (w) {
+          return '<label class="gogh-brandwell" data-k="' + w[0] + '">' +
+            '<input type="color" value="#888888" />' +
+            '<span class="gogh-brandwell-name">' + w[1] + '</span>' +
+            '<span class="gogh-brandwell-hint">' + w[2] + '</span>' +
+            '<input type="text" class="gogh-input gogh-brandhex" value="" spellcheck="false" />' +
+            '</label>';
+        }).join('') + '</div>' +
+        '<div class="gogh-brandcontrast"></div>' +
+        ['heading', 'body'].map(function (k) {
+          return '<div class="gogh-panel-row gogh-brandfontrow">' +
+            '<span class="gogh-brandfont-lab">' + (k === 'heading' ? 'Headings' : 'Body') + '</span>' +
+            '<select class="gogh-input gogh-brandfont" data-k="' + k + '">' +
+            '<option value="">Theme default</option>' +
+            cat.map(function (f2) {
+              return '<option value="' + escAttr(f2.slug) + '"' + (local.fonts[k] === f2.slug ? ' selected' : '') + '>' + escAttr(f2.name) + '</option>';
+            }).join('') + '</select></div>';
+        }).join('') +
+        '</details>' +
       '</div>';
     dockSidebar();
     zoomOutCanvas(); // keep the page in view beside the docked brand form
+    var result = panel.querySelector('.gogh-brandresult');
+    var receiptEl = panel.querySelector('.gogh-brandreceipt');
+    var sayEl = panel.querySelector('.gogh-brandsay');
     var contrastEl = panel.querySelector('.gogh-brandcontrast');
+    var pvT = null;
+    function audition() {
+      clearTimeout(pvT);
+      pvT = setTimeout(function () { auditionVariation(brandToVariation(local)); }, 120);
+    }
     function refreshContrast() {
       var r = contrastRatio(local.colors.text, local.colors.background);
       if (r == null) { contrastEl.textContent = ''; return; }
       contrastEl.className = 'gogh-brandcontrast ' + (r >= 4.5 ? 'is-good' : r >= 3 ? 'is-mid' : 'is-bad');
-      contrastEl.textContent = r >= 4.5
-        ? '\u2713 Your Text colour is easy to read on your Background'
-        : r >= 3
-          ? 'Your Text and Background are close \u2014 big headlines will read, small words won\u2019t'
-          : 'Your Text colour can\u2019t be read on your Background \u2014 try a darker text or a lighter background';
+      contrastEl.textContent = r >= 4.5 ? '✓ Words read on the page (' + r.toFixed(1) + ':1)'
+        : r >= 3 ? 'Words and page are close (' + r.toFixed(1) + ':1) — big headlines will read, small words won’t'
+        : 'Words can’t be read on the page (' + r.toFixed(1) + ':1)';
     }
-    var pvT = null;
-    function livePreview() {
+    function syncWells() {
+      panel.querySelectorAll('.gogh-brandwell').forEach(function (well) {
+        var k = well.dataset.k, v = local.colors[k] || '#888888';
+        well.querySelector('input[type="color"]').value = v;
+        well.querySelector('.gogh-brandhex').value = v;
+      });
+      panel.querySelectorAll('.gogh-brandfont').forEach(function (sel2) { sel2.value = local.fonts[sel2.dataset.k] || ''; });
       refreshContrast();
-      clearTimeout(pvT);
-      pvT = setTimeout(function () { auditionVariation(brandToVariation(local)); }, 150);
     }
+    function showResult() {
+      result.hidden = false;
+      var reads = derived ? derived.read : {};
+      var placed = (given.placed || {});
+      receiptEl.innerHTML = WELLS.map(function (w) {
+        var how = reads[w[0]] ? (placed[w[0]] === 'placed' ? 'placed' : 'from you') : 'gogh chose';
+        if (w[0] === 'accent' && derived && derived.moved && reads.accent) how = 'adjusted';
+        return '<span class="gogh-brandchip"><i style="background:' + escAttr(local.colors[w[0]] || '#888') + '"></i>' + w[1] + '<em>' + how + '</em></span>';
+      }).join('');
+      var fontLine = '';
+      if (given.names && (given.names.heading || given.names.body)) {
+        fontLine = ['heading', 'body'].map(function (k) {
+          if (!given.names[k]) return '';
+          var f = cat.filter(function (x) { return x.slug === local.fonts[k]; })[0];
+          return f ? (k === 'heading' ? 'Headings' : 'Body') + ': ' + f.name + (f.name.toLowerCase() !== given.names[k].toLowerCase() ? ' (your guide says ' + given.names[k] + ')' : '')
+            : (k === 'heading' ? 'Headings' : 'Body') + ': your guide says ' + given.names[k] + ' — the theme has no match, so the theme’s own stays';
+        }).filter(Boolean).join(' · ');
+      }
+      sayEl.innerHTML = '<span>' + esc(derived ? derived.say : 'Your brand, as kept.') + '</span>' + (fontLine ? '<span class="gogh-brandsay-fonts">' + esc(fontLine) + '</span>' : '');
+      panel.querySelectorAll('.gogh-brandpolbtn').forEach(function (b) { b.classList.toggle('is-on', (b.dataset.dark === '1') === dark); });
+      syncWells();
+      audition();
+    }
+    function rederive() {
+      derived = deriveBrand(given, { dark: dark });
+      local.colors = derived.colors;
+      if (given.fonts && Object.keys(given.fonts).length) local.fonts = JSON.parse(JSON.stringify(given.fonts));
+      showResult();
+    }
+    // door two: the guideline
+    var guideT = null;
+    panel.querySelector('.gogh-brandguide').addEventListener('input', function () {
+      var txt = this.value;
+      clearTimeout(guideT);
+      guideT = setTimeout(function () {
+        var r = readBrandGuide(txt);
+        if (!r.codes.length && !r.fonts.heading && !r.fonts.body) return;
+        given = { accent: r.colors.accent, accent2: r.colors.accent2, background: r.colors.background, text: r.colors.text, fonts: r.fonts, names: r.names, placed: r.placed };
+        if (r.colors.background) dark = relLum(r.colors.background) < 0.35;
+        rederive();
+      }, 250);
+    });
+    // door three: one colour
+    panel.querySelector('.gogh-brandonepick').addEventListener('input', function () {
+      given = { accent: this.value, fonts: given.fonts || {} };
+      rederive();
+    });
+    // the one fork: a light page or a dark one
+    panel.querySelectorAll('.gogh-brandpolbtn').forEach(function (b) {
+      b.addEventListener('click', function () {
+        dark = b.dataset.dark === '1';
+        if (given.background) delete given.background; // the fork overrides a given page
+        if (given.text) delete given.text;
+        rederive();
+      });
+    });
+    // fine-tune: the wells and the fonts, prefilled with what gogh derived
     panel.querySelectorAll('.gogh-brandwell').forEach(function (well) {
       var k = well.dataset.k;
       var pick = well.querySelector('input[type="color"]');
       var hex = well.querySelector('.gogh-brandhex');
-      pick.addEventListener('input', function () {
-        local.colors[k] = pick.value;
-        hex.value = pick.value;
-        livePreview();
-      });
+      var set = function (v) {
+        local.colors[k] = v.toLowerCase();
+        given[k] = local.colors[k]; // a moved well is now the person's word
+        if (derived) derived.read[k] = true;
+        pick.value = local.colors[k]; hex.value = local.colors[k];
+        refreshContrast();
+        if (derived) { var placed2 = given.placed || (given.placed = {}); placed2[k] = 'read'; }
+        showResult();
+      };
+      pick.addEventListener('input', function () { set(pick.value); });
       hex.addEventListener('input', function () {
         var v = hex.value.trim();
-        if (/^#?[0-9a-f]{6}$/i.test(v)) {
-          if (v[0] !== '#') v = '#' + v;
-          local.colors[k] = v.toLowerCase();
-          pick.value = v;
-          livePreview();
-        }
+        if (/^#?[0-9a-f]{6}$/i.test(v)) set(v[0] === '#' ? v : '#' + v);
       });
-    });
-    panel.querySelector('.gogh-brandpaste').addEventListener('input', function () {
-      var found = (this.value.match(/#?[0-9a-f]{6}\b/gi) || []).map(function (h) {
-        return (h[0] === '#' ? h : '#' + h).toLowerCase();
-      });
-      if (!found.length) return;
-      WELLS.forEach(function (w, i2) {
-        if (found[i2]) local.colors[w[0]] = found[i2];
-      });
-      panel.querySelectorAll('.gogh-brandwell').forEach(function (well) {
-        var k = well.dataset.k;
-        well.querySelector('input[type="color"]').value = local.colors[k];
-        well.querySelector('.gogh-brandhex').value = local.colors[k];
-      });
-      livePreview();
     });
     panel.querySelectorAll('.gogh-brandfont').forEach(function (sel2) {
       sel2.addEventListener('change', function () {
         if (sel2.value) local.fonts[sel2.dataset.k] = sel2.value;
         else delete local.fonts[sel2.dataset.k];
-        livePreview();
+        given.fonts = JSON.parse(JSON.stringify(local.fonts));
+        audition();
       });
     });
-    panel.querySelector('.gogh-panel-close').addEventListener('click', function () {
-      clearVariationPreview();
-      openStylePanel(anchorEl);
-    });
-    panel.querySelector('.gogh-brandcancel').addEventListener('click', function () {
-      clearVariationPreview();
-      openStylePanel(anchorEl);
-    });
+    var leave = function () { clearVariationPreview(); openStylePanel(anchorEl); };
+    panel.querySelector('.gogh-panel-close').addEventListener('click', leave);
+    panel.querySelector('.gogh-brandcancel').addEventListener('click', leave);
     panel.querySelector('.gogh-brandkeep').addEventListener('click', function () {
       var keepBtn = panel.querySelector('.gogh-brandkeep');
       keepBtn.disabled = true;
+      var save = { colors: local.colors, fonts: local.fonts };
       fetch(GSROOT.replace(/wp\/v2\/$/, 'wp/v2/') + 'settings', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'X-WP-Nonce': cfg.nonce },
         credentials: 'same-origin',
-        body: JSON.stringify({ gogh_brand: local }),
+        body: JSON.stringify({ gogh_brand: save }),
       }).then(function (r) {
         if (!r.ok) throw new Error('HTTP ' + r.status);
-        cfg.brand = local;
+        cfg.brand = save;
         clearVariationPreview();
-        return applyVariation(brandToVariation(local));
+        return applyVariation(brandToVariation(save));
       }).then(function () {
         openStylePanel(anchorEl);
       }).catch(function (err) {
         keepBtn.disabled = false;
-        toast('gogh could not save your brand \u2014 ' + ((err && err.message) || 'try again.'), { error: true });
+        toast('gogh could not save your brand — ' + ((err && err.message) || 'try again.'), { error: true });
       });
     });
-    refreshContrast();
+    // a brand already kept opens on its receipt, as kept
+    if (had) {
+      given = { accent: local.colors.accent, accent2: local.colors.accent2, background: local.colors.background, text: local.colors.text, fonts: local.fonts };
+      derived = { colors: local.colors, read: { background: true, text: true, accent: true, accent2: true }, say: 'Your brand, as kept. Give gogh a new colour, or paste guidelines, to change it.' };
+      showResult();
+    }
   }
-  // ---------- type scale: one dial, every word ----------
-  // Scaled sizes are written as calc(original * factor) into user Global
-  // Styles, so px, rem and clamp() themes all scale uniformly — and always
-  // from the THEME's originals, so the dial can never compound itself.
-  // the global-styles REST endpoint serves fontSizes either FLAT or keyed
-  // by origin ({default, theme, custom}) depending on WP version and
-  // context — James's dial read .length on the object and declared the
-  // theme fontless. Unwrap: the theme's own sizes first, then custom,
-  // then core defaults.
   function themeFontSizeList(raw) {
     if (Array.isArray(raw)) return raw;
     if (raw && typeof raw === 'object') return raw.theme || raw.custom || raw.default || null;
@@ -17275,6 +17452,9 @@
     remixForward: remixForward,
     remixWorn: remixWorn,
     brand: function () { return cfg.brand || null; },
+    deriveBrand: deriveBrand,
+    readBrandGuide: readBrandGuide,
+    colourWord: colourWord,
     remixDry: function (on) { remixDry = !!on; clearTimeout(remixCommitT); return remixDry; },
     remixAt: function () { return remixAt; },
     remixPaintRhythm: remixPaintRhythm,
