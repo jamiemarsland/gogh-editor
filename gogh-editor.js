@@ -15906,7 +15906,7 @@
         '<div class="gogh-brandsay"></div>' +
         '<div class="gogh-brandpol"><button type="button" class="gogh-brandpolbtn" data-dark="0">Light page</button><button type="button" class="gogh-brandpolbtn" data-dark="1">Dark page</button></div>' +
         '<div class="gogh-panel-row gogh-brandacts">' +
-        '<button type="button" class="gogh-btn gogh-btn-small gogh-brandcancel">↶ Not that</button>' +
+        '<button type="button" class="gogh-btn gogh-btn-small gogh-brandcancel">Cancel</button>' +
         '<button type="button" class="gogh-btn gogh-btn-small gogh-brandkeep" title="Remix keeps these colours and rolls everything else">Keep</button></div>' +
         '<details class="gogh-more gogh-brandfine"><summary class="gogh-more-sum">Fine-tune <span class="gogh-more-what">the four colours · fonts</span></summary>' +
         '<div class="gogh-brandwells">' +
