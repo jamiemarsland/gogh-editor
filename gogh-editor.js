@@ -1079,7 +1079,7 @@
       // rule here blew Woo's Add to cart up into a 500px pill
       sec + ' .wp-block-button:not(.gogh-widget *), ' + sec + ' .wp-block-button__link:not(.gogh-widget *) { width: 100%; height: 100%; }',
       sec + ' .wp-block-button__link { display: flex; align-items: center; justify-content: center; box-sizing: border-box; white-space: nowrap; }',
-      sec + ' .gogh-ghost .wp-block-button__link { background: transparent; color: inherit; box-shadow: inset 0 0 0 1.5px currentColor; }',
+      sec + ' .gogh-ghost .wp-block-button__link { background: transparent; color: var(--gogh-ghost-ink, inherit); box-shadow: inset 0 0 0 1.5px currentColor; }',
       sec + ' .gogh-embed iframe { width: 100%; height: 100%; border-width: 0; display: block; position: absolute; inset: 0; }',
       sec + ' .gogh-embed .wp-block-embed__wrapper { height: 100%; }',
       '',
@@ -15616,6 +15616,9 @@
       if (v) pal.push({ slug: slug, color: v, name: slug });
     });
     var out = { title: 'Your brand', settings: { color: { palette: { theme: pal } } }, styles: {} };
+    // outline (ghost) buttons wear the accent for outline and words when it
+    // reads on the page as text; otherwise they keep the words colour
+    out.ghostInk = (c.accent && c.background && remixRatio(c.accent, c.background) >= 4.5) ? c.accent : null;
     // buttons wear the brand's accent, with whichever of page or words reads
     // on it — a theme variation may put buttons on contrast/base and never
     // touch accent-1 (TT5's default), so the brand says so itself
@@ -16514,6 +16517,7 @@
     if (bodyFF) body += 'font-family:' + bodyFF + ';';
     body += typo(bBodyTy) + typo(vBodyTy);
     css += 'body{' + body + '}';
+    if (v.ghostInk !== undefined) css += ':root{--gogh-ghost-ink:' + (v.ghostInk || 'initial') + ';}';
     // a variation that styles its buttons (the brand does) previews them too
     var vBtn = ((vs.elements || {}).button || {}).color || {};
     if (vBtn.background || vBtn.text) {
@@ -16588,6 +16592,12 @@
         if (fresh && cur) cur.textContent = fresh.textContent;
         else if (fresh && !cur) document.head.appendChild(fresh.cloneNode(true));
       });
+      // the ghost buttons' ink follows the applied look until the next load
+      // (then gogh_ghost_ink_css reads it from the saved palette)
+      if (v.ghostInk !== undefined) {
+        if (v.ghostInk) document.documentElement.style.setProperty('--gogh-ghost-ink', v.ghostInk);
+        else document.documentElement.style.removeProperty('--gogh-ghost-ink');
+      }
       fontSizesCache = null;
       // Re-flow AFTER the swapped-in fonts actually paint. A heading measured
       // mid-FOUT reads the FALLBACK font's height — often far taller than the

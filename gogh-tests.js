@@ -5789,7 +5789,8 @@
           // words on it must read; it should still stand off the ground
           var inkOnButton = Math.max(ratio(c.colors.text, c.colors.accent), ratio(c.colors.background, c.colors.accent));
           expect(inkOnButton >= 3, c.name + ' nothing reads on the button: best ink ' + inkOnButton.toFixed(1) + ':1');
-          expect(ratio(c.colors.accent, c.colors.background) >= 2,
+          // a pinned brand's accent is the person's own choice (its buttons wear the words ink); the floor is for gogh's picks
+          if (!c.brand) expect(ratio(c.colors.accent, c.colors.background) >= 2,
             c.name + ' accent barely visible on its ground (' + ratio(c.colors.accent, c.colors.background).toFixed(1) + ')');
         });
       }
@@ -5932,6 +5933,15 @@
       expect(!G.remixBack(), 'there is nothing before home');
       expect(G.remixForward() && G.remixWorn().cand === c1, 'Forward should walk back out');
       while (G.remixBack()) {}
+    });
+
+    test('ghost buttons wear the accent only where it reads on the page', function () {
+      var navy = G.brandToVariation({ colors: { background: '#ffffff', text: '#14213d', accent: '#1e3a5f', accent2: '#8a9bb0' } });
+      expect(navy.ghostInk === '#1e3a5f', 'navy reads on white, so ghosts wear it: ' + navy.ghostInk);
+      var lilac = G.brandToVariation({ colors: { background: '#fbf7fc', text: '#3b2c48', accent: '#c9a7e0', accent2: '#f4a7b9' } });
+      expect(lilac.ghostInk === null, 'lilac cannot read on a pale page, so ghosts keep the words colour: ' + lilac.ghostInk);
+      var s0 = sec();
+      expect(/--gogh-ghost-ink, inherit/.test(s0.styleEl.textContent), 'the section\u2019s ghost rule should defer to the site variable');
     });
 
     test('a brand palette keeps the theme\u2019s roles: inks stay inks, tints stay tints, two accents are accents', function () {
