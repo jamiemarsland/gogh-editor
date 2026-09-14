@@ -2125,13 +2125,20 @@ html.gogh-editing header.wp-block-template-part:has(.gogh-header-overlay):not(.g
    only its majors, from the rule above — the snap grid and the painted grid
    are the SAME grid, to the pixel */
 .gogh-editing .gogh-section.gogh-grid-live::before { opacity: 0.75; }
-/* a pictured section: tiles would fight the photo, so only the majors show */
+/* a pictured section: tiles would fight the photo, so the 24 lattice is
+   drawn as faint two-tone hairlines both ways (rows only felt like lined
+   paper — James: "kinda weird with no vertical lines"), with the 72 rows
+   heavier */
 .gogh-editing .gogh-section.gogh-ground-pictured::before {
   background-image:
     linear-gradient(to bottom, rgba(255, 255, 255, 0.42) 1px, transparent 1px),
-    linear-gradient(to bottom, rgba(15, 23, 42, 0.26) 1px, transparent 1px);
-  background-size: 6cqw 6cqw;
-  background-position: 0 0, 0 1px;
+    linear-gradient(to bottom, rgba(15, 23, 42, 0.26) 1px, transparent 1px),
+    linear-gradient(to right, rgba(255, 255, 255, 0.18) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(255, 255, 255, 0.18) 1px, transparent 1px),
+    linear-gradient(to right, rgba(15, 23, 42, 0.10) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(15, 23, 42, 0.10) 1px, transparent 1px);
+  background-size: 6cqw 6cqw, 6cqw 6cqw, 2cqw 2cqw, 2cqw 2cqw, 2cqw 2cqw, 2cqw 2cqw;
+  background-position: 0 0, 0 1px, 0 0, 0 0, 1px 1px, 1px 1px;
 }
 
 
