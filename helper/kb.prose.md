@@ -113,7 +113,7 @@ The pointer model is deliberately Canva-style: **click selects, drag-from-anywhe
 Press on empty canvas and drag (left button, no Shift, 6px threshold). On release, everything intersecting the rectangle is selected. Clicking outside a group without Shift clears it.
 
 ### Resize handles
-Eight handles: nw, n, ne, e, se, s, sw, w. Minimum size **60 wide × 32 tall**. Handles snap to other elements' edges/centres and section edges/centre; otherwise they round to the 8px grid.
+Eight handles: nw, n, ne, e, se, s, sw, w. Minimum size **60 wide × 32 tall**. Handles snap to other elements' edges/centres and section edges/centre; otherwise they round to the 8-unit base (24 with the grid on).
 
 Two important special cases:
 - **Corner-drag on TEXT does not free-scale.** It steps through the theme's font-size presets — one step per ~56px of diagonal drag — with a floating chip showing the current size ("theme default", "Display S", "Display M", "Display L", or the theme's preset name).
@@ -150,7 +150,7 @@ Icon buttons across the top. There is no exit control here — leaving edit mode
 is **🎨 Exit gogh editor** in the admin toolbar.
 - **Site style** — theme style-variation drawer (hover to preview, click to keep; grouped Colours / Fonts)
 - **Page style** — page template chooser
-- **Grid: show and snap** — toggles the 8px grid; tooltip becomes "Grid: on"/"Grid: off". **Off by default**, deliberately: "invisible magnets feel broken to beginners" — the grid you snap to is the grid you see.
+- **Grid: show and snap** — toggles the painted grid, which is the rhythm (24-unit minors, a heavier line every 72); tooltip becomes "Grid: on"/"Grid: off". **Off by default**, deliberately: "invisible magnets feel broken to beginners" — the grid you snap to is the grid you see.
 - **Whole page — reorder sections** — opens the zoom-out page map
 - **Phone preview** — a desktop/phone device toggle on the design view's zoom cluster. Phone mode pins the artboard to a phone's width so the page's own mobile layout renders live. In it you can tune the phone layout without touching desktop: tap an element for a toolbar with **Hide on phone** / **Show on phone** and ↑/↓ arrows that re-stack the mobile column; tap a section's background to **Hide section on phone** (hidden things stay visible in the preview, dimmed with a badge, so they're one tap from back). Overrides are stored as sparse `m` patches on the element/section and self-clear when they match the automatic layout again. (This replaced the old floating 250px mobile-mirror panel in v0.99.197.)
 
@@ -233,7 +233,7 @@ Saving a section: the ⋯ menu's "Save to reuse" (panel title "Save this section
 
 - **Snap threshold is 6 design px.**
 - Snap candidates: the section's left (0), right (1200) and horizontal centre (600); top, bottom and vertical centre; plus every other element's left, right, centre-x, top, bottom, centre-y. The dragged element's own left, right and centre edges are all tested.
-- **Grid snap is off by default** (opt-in via the Grid button). When on, non-snapped positions round to the **8px** grid and the grid is drawn.
+- **Grid snap is off by default** (opt-in via the Grid button). Mid-gesture the major lines (72) show and an edge near one lands on it; otherwise positions round to the **8-unit** base. With the grid on, the minors (24) show too and the mesh a drop rounds to is **24** — a person who asks for the grid gets the rhythm, not an 8-pixel mesh. Arrow-key nudges stay at 8.
 - **Alignment guides**: one vertical and one horizontal line, drawn across the full section, only while a snap is captured.
 - **Equal-spacing snap**: when an element sits between two neighbours, the exact midpoint captures within 8px of the raw pointer and **overrides** edge snapping and grid parity — so equal gaps are always reachable.
 - **Spacing labels**: up to 4 live distance badges, measuring to the nearest neighbour on each side. With no neighbour on a side, it measures to the **section edge** (page margins are the distances people eyeball most). Gaps under 4 design px, or under 14 rendered px, aren't drawn. Equal gaps get a `=` prefix and turn blue.
@@ -250,7 +250,7 @@ Single-file ES5 IIFE, no build step. `gogh-editor.js` is ~9,190 lines. It bails 
 ```js
 var TOL = 8, MIN_H = 576, PAD = 72, SNAP = 6, BASE = 8, W = 1200, RHYTHM = 24, MAJOR = 72;
 ```
-`W = 1200` is the **design width** — every model coordinate is in design units against a 1200-unit-wide section. `TOL` is the solver's line-clustering tolerance, `SNAP` the alignment tolerance, `BASE` the opt-in grid, `PAD` the bottom padding added to section height, `MIN_H` the section floor. `RHYTHM` (24) and `MAJOR` (72) are the vertical rhythm gogh keeps for its own gaps — see Part 7.
+`W = 1200` is the **design width** — every model coordinate is in design units against a 1200-unit-wide section. `TOL` is the solver's line-clustering tolerance, `SNAP` the alignment tolerance, `BASE` the mesh a drop rounds to with the grid off (and the Shift-nudge), `PAD` the bottom padding added to section height, `MIN_H` the section floor. `RHYTHM` (24) and `MAJOR` (72) are the vertical rhythm gogh keeps for its own gaps — see Part 7.
 
 ### `window.GOGH` (localized config)
 `postId`, `restUrl`, `mediaUrl`, `canUpload`, `canExp`, `canConvert`, `pageTemplate`, `pageTemplates[]`, `modified`, `theme`, `themeName`, `gsId`, `palette[{slug}]`, `nonce`.

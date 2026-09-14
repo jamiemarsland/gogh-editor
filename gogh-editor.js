@@ -29,10 +29,14 @@
   // the page's own content margin (80..1120): where new pieces are born, and
   // a NAMED magnet — Canva's solid margin line, the one guide we lacked
   var MARGIN = 80;
-  // the PAINTED grid (3.333cqw of the 1200 canvas = 40 units). It must be
-  // a real snap target: edges that nearly kiss a line the user can see
-  // must land exactly ON it ("this needs to be, and feel, perfect")
-  var GRID = 40;
+  // the PAINTED grid is the rhythm: 24-unit minors with a heavier line every
+  // 72. Mid-gesture only the majors show, and an edge that nearly kisses a
+  // line the user can see lands exactly ON it ("this needs to be, and feel,
+  // perfect"). With the Grid button on the minors show too, and the mesh a
+  // drop rounds to is 24 rather than 8 — a person who asks for the grid gets
+  // the rhythm, not an 8-pixel mesh. Nudges by arrow key stay at BASE.
+  function gridLine() { return gridSnapOn ? RHYTHM : MAJOR; }
+  function gridUnit() { return gridSnapOn ? RHYTHM : BASE; }
 
   // ---------- collect sections (resilient to Gutenberg-side edits) ----------
   // Carriers are paired by ADJACENCY (the style+model immediately before each
@@ -529,12 +533,13 @@
     }
     return [];
   }
-  // the editing grid's hairlines, as top coats over an effect/video layer
+  // the editing grid's major lines (72 units = 6cqw), as top coats over an
+  // effect/video layer
   var GRID_COATS = [
-    'linear-gradient(to right, rgba(255,255,255,0.42) 1px, transparent 1px) 0 0 / 3.3333cqw 3.3333cqw',
-    'linear-gradient(to bottom, rgba(255,255,255,0.42) 1px, transparent 1px) 0 0 / 3.3333cqw 3.3333cqw',
-    'linear-gradient(to right, rgba(15,23,42,0.26) 1px, transparent 1px) 1px 1px / 3.3333cqw 3.3333cqw',
-    'linear-gradient(to bottom, rgba(15,23,42,0.26) 1px, transparent 1px) 1px 1px / 3.3333cqw 3.3333cqw'
+    'linear-gradient(to right, rgba(255,255,255,0.42) 1px, transparent 1px) 0 0 / 6cqw 6cqw',
+    'linear-gradient(to bottom, rgba(255,255,255,0.42) 1px, transparent 1px) 0 0 / 6cqw 6cqw',
+    'linear-gradient(to right, rgba(15,23,42,0.26) 1px, transparent 1px) 1px 1px / 6cqw 6cqw',
+    'linear-gradient(to bottom, rgba(15,23,42,0.26) 1px, transparent 1px) 1px 1px / 6cqw 6cqw'
   ].join(', ');
   // ---------- video: a file, or a YouTube / Vimeo link ----------
   function videoEmbedInfo(url) {
@@ -1002,10 +1007,10 @@
       // (majors only — calm over photos). Published pages never carry
       // .gogh-editing, so this costs them nothing.
       var gridCoats = [
-        'linear-gradient(to right, rgba(255,255,255,0.42) 1px, transparent 1px) 0 0 / 3.3333cqw 3.3333cqw',
-        'linear-gradient(to bottom, rgba(255,255,255,0.42) 1px, transparent 1px) 0 0 / 3.3333cqw 3.3333cqw',
-        'linear-gradient(to right, rgba(15,23,42,0.26) 1px, transparent 1px) 1px 1px / 3.3333cqw 3.3333cqw',
-        'linear-gradient(to bottom, rgba(15,23,42,0.26) 1px, transparent 1px) 1px 1px / 3.3333cqw 3.3333cqw'
+        'linear-gradient(to right, rgba(255,255,255,0.42) 1px, transparent 1px) 0 0 / 6cqw 6cqw',
+        'linear-gradient(to bottom, rgba(255,255,255,0.42) 1px, transparent 1px) 0 0 / 6cqw 6cqw',
+        'linear-gradient(to right, rgba(15,23,42,0.26) 1px, transparent 1px) 1px 1px / 6cqw 6cqw',
+        'linear-gradient(to bottom, rgba(15,23,42,0.26) 1px, transparent 1px) 1px 1px / 6cqw 6cqw'
       ].join(', ');
       // opacity: 1 declared, not assumed — the editing grid shares this
       // pseudo at opacity 0, which blanked every effect section's backdrop
@@ -14266,8 +14271,9 @@
     // every drop keeps the promise unless ⌘ asked for full freedom
     if (!freeD) {
       var eDrop = sec.els[i];
-      if (!gxCapD && !eqHD && !lockedXD && movedXD) eDrop.x = Math.max(0, Math.min(W - eDrop.w, Math.round(eDrop.x / BASE) * BASE));
-      if (!gyCapD && !eqVD && !lockedYD && movedYD) eDrop.y = Math.max(0, Math.round(eDrop.y / BASE) * BASE);
+      var gu = gridUnit();
+      if (!gxCapD && !eqHD && !lockedXD && movedXD) eDrop.x = Math.max(0, Math.min(W - eDrop.w, Math.round(eDrop.x / gu) * gu));
+      if (!gyCapD && !eqVD && !lockedYD && movedYD) eDrop.y = Math.max(0, Math.round(eDrop.y / gu) * gu);
       resolveAndApply(sec);
     }
     if (multiD) {
@@ -14446,7 +14452,7 @@
       var snapK = function (v) {
         var best = null, bd = SNAP + 1;
         r.cand.forEach(function (c) { var dd = Math.abs(c - v); if (dd < bd) { bd = dd; best = c; } });
-        return best !== null ? best : Math.round(v / BASE) * BASE;
+        return best !== null ? best : Math.round(v / gridUnit()) * gridUnit();
       };
       var minW = 60, nx = r.x0, nw = r.w0;
       if (r.dx === 1) nw = snapK(r.x0 + r.w0 + d) - r.x0;
@@ -16765,7 +16771,7 @@
       var bestV = null, d = SNAP + 1;
       edges.forEach(function (edge) {
         if (edge.off !== 0 && edge.off !== span) return;
-        var gv = Math.round(edge.v / GRID) * GRID;
+        var gv = Math.round(edge.v / gridLine()) * gridLine();
         var dd = Math.abs(gv - edge.v);
         if (dd < d) { d = dd; bestV = gv - edge.off; }
       });
@@ -16774,8 +16780,8 @@
     var ggx = (!sx && gl) ? gridTier(xEdges, w) : null;
     var ggy = (!sy && gl) ? gridTier(yEdges, h) : null;
     return {
-      x: sx ? Math.round(sx.v) : (ggx !== null ? Math.round(ggx) : (gl ? Math.round(x / BASE) * BASE : Math.round(x))),
-      y: sy ? Math.round(sy.v) : (ggy !== null ? Math.round(ggy) : (gl ? Math.round(y / BASE) * BASE : Math.round(y))),
+      x: sx ? Math.round(sx.v) : (ggx !== null ? Math.round(ggx) : (gl ? Math.round(x / gridUnit()) * gridUnit() : Math.round(x))),
+      y: sy ? Math.round(sy.v) : (ggy !== null ? Math.round(ggy) : (gl ? Math.round(y / gridUnit()) * gridUnit() : Math.round(y))),
       gx: sx ? sx.g : null,
       gy: sy ? sy.g : null,
     };
@@ -16883,9 +16889,9 @@
     if (best !== null) return { v: best, g: best };
     // no alignment magnet: the painted grid line catches next — an edge
     // near a line the user can SEE lands exactly on it, never beside it
-    var gv = Math.round(v / GRID) * GRID;
+    var gv = Math.round(v / gridLine()) * gridLine();
     if (Math.abs(gv - v) <= SNAP) return { v: gv, g: null };
-    return { v: Math.round(v / BASE) * BASE, g: null };
+    return { v: Math.round(v / gridUnit()) * gridUnit(), g: null };
   }
   selBox.querySelectorAll('.gogh-h').forEach(function (hBtn) {
     hBtn.addEventListener('pointerdown', function (ev) {

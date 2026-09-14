@@ -1298,7 +1298,7 @@
           if (axis === 'x') cands.push(o.x, o.x + o.w, o.x + o.w / 2);
           else cands.push(o.y, o.y + o.h, o.y + o.h / 2);
         });
-        for (var t = lo; t <= hi; t += 8) {
+        for (var t = lo; t <= hi; t += 24) {
           var ok = cands.every(function (c) { return Math.abs(c - t) > 7; });
           if (ok) return t;
         }
@@ -1319,7 +1319,8 @@
       // the point is "off-grid drop snaps ONTO the grid near the target" — assert
       // grid-alignment within a cell, not an exact pixel (a real drag's sub-px
       // scale rounding can tip an exact === by one grid step)
-      expect(e.x % 8 === 0 && Math.abs(e.x - tx) <= 8 && e.y % 8 === 0, 'drop did not snap to grid: ' + e.x + ',' + e.y + ' (wanted x≈' + tx + ' on grid, y%8=0)');
+      // with the grid on, the mesh is the rhythm: 24, not 8
+      expect(e.x % 24 === 0 && Math.abs(e.x - tx) <= 24 && e.y % 24 === 0, 'drop did not snap to grid: ' + e.x + ',' + e.y + ' (wanted x≈' + tx + ' on the 24 grid, y%24=0)');
       if (document.documentElement.classList.contains('gogh-grid-on')) btn.click(); // restore default
       return 'landed on grid at ' + e.x + ',' + e.y;
     });
@@ -6573,21 +6574,28 @@
     });
 
     test('snapping: the painted grid is a real magnet', function () {
-      // resize: an edge near a painted 40-unit line lands ON it (44→40),
-      // not beside it on the free 8-grid (which would say 48); far from
-      // any line the free 8-grid still rules (22→24)
-      expect(G.snapAxis([], 44).v === 40, 'resize edge at 44 landed at ' + G.snapAxis([], 44).v + ', not 40');
+      // resize, grid off: mid-gesture the painted majors (72) are the magnet
+      // — an edge near one lands ON it (76→72), not beside it on the free
+      // 8-grid (which would say 80); far from any line the free 8-grid still
+      // rules (22→24)
+      expect(G.snapAxis([], 76).v === 72, 'resize edge at 76 landed at ' + G.snapAxis([], 76).v + ', not 72');
       expect(G.snapAxis([], 22).v === 24, 'free positioning broke: 22 landed at ' + G.snapAxis([], 22).v);
       // alignment magnets still outrank the grid
       expect(G.snapAxis([43], 44).v === 43, 'a neighbour magnet lost to the grid');
+      // grid on: the minors (24) catch too, and the free mesh is 24, not 8 —
+      // a person who asks for the grid gets the rhythm
+      G.setGridSnap(true);
+      expect(G.snapAxis([], 44).v === 48, 'with the grid on, 44 should land on the 24-line at 48, got ' + G.snapAxis([], 44).v);
+      expect(G.snapAxis([], 33).v === 24, 'with the grid on, the mesh is 24: 33 landed at ' + G.snapAxis([], 33).v);
+      G.setGridSnap(false);
       // drag: same tiering through snapPos — pick a grid line far from
       // every magnet the fixture offers so only the grid can catch
       var s = sec();
-      var cands = [0, 1200, 600];
+      var cands = [0, 1200, 600, 80]; // (80 is the named margin magnet)
       s.els.forEach(function (o) { cands.push(o.x, o.x + o.w, o.x + o.w / 2); });
       var X0 = null;
-      for (var k = 2; k < 28 && X0 === null; k++) {
-        var line = k * 40;
+      for (var k = 2; k < 16 && X0 === null; k++) {
+        var line = k * 72;
         var clear = cands.every(function (c) { return Math.abs(c - line) > 8 && Math.abs(c - (line + 4)) > 8; });
         if (clear) X0 = line;
       }
@@ -6596,7 +6604,7 @@
       var r = G.snapPos(s, s.els[0], X0 + 4, 9999, 0, 0, false, null);
       G.setGridSnap(false);
       expect(r.x === X0, 'drag edge at ' + (X0 + 4) + ' landed at ' + r.x + ', not on the painted line ' + X0);
-      return '44→40 on the line, 22→24 free, magnets still first, drag x' + (X0 + 4) + '→' + X0;
+      return '76→72 on the major, 22→24 free, 44→48 with the grid on, magnets still first, drag x' + (X0 + 4) + '→' + X0;
     });
 
     test('section bar: three doors, housekeeping in words', function () {

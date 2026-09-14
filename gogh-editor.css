@@ -2083,8 +2083,9 @@ html.gogh-editing header.wp-block-template-part:has(.gogh-header-overlay):not(.g
 .gogh-cmd-item:hover { background: var(--gogh-ui-hover); }
 .gogh-cmd-item.is-active { background: rgba(126, 168, 255, 0.2); }
 
-/* visible grid while grid snap is on (8-unit minor, 40-unit major, in cqw
-   so it scales with the section exactly like the layout itself) */
+/* visible grid while grid snap is on: the rhythm, 24-unit minors with a
+   heavier line every 72, in cqw so it scales with the section exactly like
+   the layout itself */
 .gogh-editing .gogh-section::before {
   content: "";
   position: absolute;
@@ -2101,12 +2102,12 @@ html.gogh-editing header.wp-block-template-part:has(.gogh-header-overlay):not(.g
     linear-gradient(to right, color-mix(in srgb, currentColor 9%, transparent) 1px, transparent 1px),
     linear-gradient(to bottom, color-mix(in srgb, currentColor 9%, transparent) 1px, transparent 1px);
   background-size:
-    3.3333cqw 3.3333cqw,
-    3.3333cqw 3.3333cqw,
-    3.3333cqw 3.3333cqw,
-    3.3333cqw 3.3333cqw,
-    0.6667cqw 0.6667cqw,
-    0.6667cqw 0.6667cqw;
+    6cqw 6cqw,
+    6cqw 6cqw,
+    6cqw 6cqw,
+    6cqw 6cqw,
+    2cqw 2cqw,
+    2cqw 2cqw;
   background-position: 0 0, 0 0, 1px 1px, 1px 1px, 0 0, 0 0;
   opacity: 0;
   transition: opacity 0.18s ease;
@@ -2119,9 +2120,9 @@ html.gogh-editing header.wp-block-template-part:has(.gogh-header-overlay):not(.g
     linear-gradient(to bottom, rgba(255, 255, 255, 0.42) 1px, transparent 1px),
     linear-gradient(to right, rgba(15, 23, 42, 0.26) 1px, transparent 1px),
     linear-gradient(to bottom, rgba(15, 23, 42, 0.26) 1px, transparent 1px);
-  /* exactly W/30 = 40 model units — the snap grid and the painted grid
+  /* exactly 72 model units, the major — the snap grid and the painted grid
      must be the SAME grid, to the pixel */
-  background-size: calc(100cqw / 30) calc(100cqw / 30);
+  background-size: 6cqw 6cqw;
   background-position: 0 0, 0 0, 1px 1px, 1px 1px;
   opacity: 0.55;
 }
