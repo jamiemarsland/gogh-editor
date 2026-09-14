@@ -6002,7 +6002,7 @@
       var res = pnl.querySelector('.gogh-brandresult');
       expect(!res.hidden, 'giving a colour should show the result');
       expect(pnl.querySelectorAll('.gogh-brandchip').length === 4, 'the receipt should show four roles');
-      expect(/Your colour/.test(pnl.querySelector('.gogh-brandsay').textContent), 'gogh should say what it did');
+      expect(/Your (colour|primary)/.test(pnl.querySelector('.gogh-brandsay').textContent), 'gogh should say what it did');
       pnl.querySelector('.gogh-brandpolbtn[data-dark="1"]').click();
       expect(pnl.querySelector('.gogh-brandpolbtn[data-dark="1"]').classList.contains('is-on'), 'Dark page should take');
       var pageChip = pnl.querySelector('.gogh-brandwell[data-k="background"] input[type="color"]').value;

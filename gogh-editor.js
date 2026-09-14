@@ -15900,11 +15900,11 @@
     panel.innerHTML =
       '<div class="gogh-panel-head"><span class="gogh-panel-title">Your brand</span>' +
       '<button type="button" class="gogh-sbtn gogh-panel-close" title="Back">✕</button></div>' +
-      '<div class="gogh-panel-hint">Give gogh one colour, or paste your brand guidelines. It makes the rest — and Remix keeps it through every roll.</div>' +
-      '<div class="gogh-branddoor"><span class="gogh-branddoor-lab">I have brand guidelines</span>' +
-      '<textarea class="gogh-input gogh-brandguide" rows="3" placeholder="Paste anything with codes in it — a style guide, a designer’s email, a page an AI wrote"></textarea></div>' +
-      '<div class="gogh-branddoor gogh-branddoor-one"><span class="gogh-branddoor-lab">I have a colour in mind</span>' +
-      '<label class="gogh-brandone"><input type="color" class="gogh-brandonepick" value="' + escAttr(local.colors.accent || '#2f5d8a') + '" /><span>Pick one</span></label></div>' +
+      '<div class="gogh-panel-hint">Give gogh your main colour — or paste your brand guidelines and it reads everything in them. Either way it makes the rest, and Remix keeps it through every roll.</div>' +
+      '<div class="gogh-branddoor gogh-branddoor-one"><span class="gogh-branddoor-lab">Your main colour</span>' +
+      '<label class="gogh-brandone"><input type="color" class="gogh-brandonepick" value="' + escAttr(local.colors.accent || '#2f5d8a') + '" /><span class="gogh-brandone-say">' + (had ? 'The colour your buttons wear — change it here' : 'Pick it, and gogh makes the rest') + '</span></label></div>' +
+      '<div class="gogh-branddoor"><span class="gogh-branddoor-lab">Or paste your brand guidelines</span>' +
+      '<textarea class="gogh-input gogh-brandguide" rows="3" placeholder="Anything with colour codes in it — a style guide, a designer’s email, a page an AI wrote. gogh reads the colours by their roles, and the fonts by name."></textarea></div>' +
       '<div class="gogh-brandresult" hidden>' +
         '<div class="gogh-brandreceipt"></div>' +
         '<div class="gogh-brandsay"></div>' +
@@ -16002,11 +16002,18 @@
         given = { accent: r.colors.accent, accent2: r.colors.accent2, background: r.colors.background, text: r.colors.text, fonts: r.fonts, names: r.names, placed: r.placed };
         if (r.colors.background) dark = relLum(r.colors.background) < 0.35;
         rederive();
+        // the well IS the main colour: it shows what the guideline said
+        var pk = panel.querySelector('.gogh-brandonepick');
+        if (r.colors.accent) pk.value = r.colors.accent;
+        panel.querySelector('.gogh-brandone-say').textContent = r.colors.accent
+          ? 'From your guidelines — change it here and the rest stays'
+          : 'Your guidelines named no main colour — pick it here';
       }, 250);
     });
     // door three: one colour
     panel.querySelector('.gogh-brandonepick').addEventListener('input', function () {
-      given = { accent: this.value, fonts: given.fonts || {} };
+      given.accent = this.value; // only the main colour moves; a pasted guideline keeps its other roles
+      if (given.placed) given.placed.accent = 'read';
       rederive();
     });
     // the one fork: a light page or a dark one
