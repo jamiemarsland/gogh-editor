@@ -1,12 +1,6 @@
-# Knowledge-base audit — plugin v0.99.516
+# Knowledge-base audit — plugin v0.99.517
 
 _13 finding(s) suppressed by `kb.audit-ignore.txt`._
-
-## STALE (1)
-
-The prose names something that no longer exists.
-
-- UI label "Keep" was removed in this release, but the prose still describes it
 
 ## MISSING (98)
 
@@ -115,6 +109,5 @@ The source has something the prose never explains. The bot knows the name from t
 
 Use this as the checklist for updating the prose — and as a sanity check on the release itself.
 
-- version: 0.99.515 → 0.99.516
-- removed UI label: "Keep"
-- added UI label: "Keep this brand"
+- version: 0.99.516 → 0.99.517
+- added UI label: "Site designs — a whole site, ready to tweak (replaces this one)"
