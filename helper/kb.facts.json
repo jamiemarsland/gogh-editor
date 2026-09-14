@@ -1,12 +1,12 @@
 {
   "meta": {
-    "plugin_version": "0.99.511",
+    "plugin_version": "0.99.512",
     "requires_wp": "6.5",
     "requires_php": "7.4",
     "text_domain": "gogh-editor",
     "readme_stable_tag": "0.26.0",
     "readme_tested_up_to": "7.0",
-    "asset_version": "0.99.511-chrome"
+    "asset_version": "0.99.512-chrome"
   },
   "constants": {
     "TOL": 8,
@@ -483,6 +483,7 @@
     "Desktop menu",
     "Discard changes",
     "Done",
+    "Done — keep this look",
     "Duplicate",
     "Duplicate (or Alt-drag)",
     "Duplicate the selection",
@@ -632,6 +633,7 @@
     "↶ Back",
     "▶ Auto-play",
     "⛶ Click to enlarge",
+    "✦ Not this look?",
     "✦ Remix",
     "✨ Make draggable",
     "✨ Make it freeform"
@@ -705,7 +707,6 @@
     "Upload failed — .html uploads need admin rights.",
     "Uploading experience…",
     "Wrapped — the words flow around it now. Click the image to adjust.",
-    "Your site is built, wearing a look gogh chose. ✦ Remix for another, ↶ Back for the one before.",
     "Your site is now called “",
     "gogh backed up unpublished work from an earlier session.",
     "gogh can’t safely swap this image.",

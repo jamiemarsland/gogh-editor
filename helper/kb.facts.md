@@ -4,11 +4,11 @@ Everything in this section is extracted mechanically from the Gogh source on eve
 
 ## Current release
 
-- Plugin version: **0.99.511**
+- Plugin version: **0.99.512**
 - Requires WordPress **6.5+**, PHP **7.4+**
 - Text domain: `gogh-editor`
 - readme.txt Stable tag: `0.26.0` · Tested up to: `7.0`
-- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.511`). Quote the plugin header version.
+- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.512`). Quote the plugin header version.
 
 ## Design constants
 
@@ -252,6 +252,7 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "Desktop menu"
 - "Discard changes"
 - "Done"
+- "Done — keep this look"
 - "Duplicate"
 - "Duplicate (or Alt-drag)"
 - "Duplicate the selection"
@@ -401,6 +402,7 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "↶ Back"
 - "▶ Auto-play"
 - "⛶ Click to enlarge"
+- "✦ Not this look?"
 - "✦ Remix"
 - "✨ Make draggable"
 - "✨ Make it freeform"
@@ -475,7 +477,6 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "Upload failed — .html uploads need admin rights."
 - "Uploading experience…"
 - "Wrapped — the words flow around it now. Click the image to adjust."
-- "Your site is built, wearing a look gogh chose. ✦ Remix for another, ↶ Back for the one before."
 - "Your site is now called “"
 - "gogh backed up unpublished work from an earlier session."
 - "gogh can’t safely swap this image."
