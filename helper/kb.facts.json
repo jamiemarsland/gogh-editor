@@ -1,12 +1,12 @@
 {
   "meta": {
-    "plugin_version": "0.99.516",
+    "plugin_version": "0.99.517",
     "requires_wp": "6.5",
     "requires_php": "7.4",
     "text_domain": "gogh-editor",
     "readme_stable_tag": "0.26.0",
     "readme_tested_up_to": "7.0",
-    "asset_version": "0.99.516-chrome"
+    "asset_version": "0.99.517-chrome"
   },
   "constants": {
     "TOL": 8,
@@ -589,6 +589,7 @@
     "Shape",
     "Show",
     "Show the next layout",
+    "Site designs — a whole site, ready to tweak (replaces this one)",
     "Solid",
     "Start writing — a reading column, cursor ready",
     "Switch design",
