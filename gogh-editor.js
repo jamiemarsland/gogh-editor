@@ -3173,13 +3173,17 @@
       r.top = top; r.h = Math.max.apply(null, r.els.map(function (e) { return e.h; }));
       if (r.els.length >= 3) evenRow(r.els.map(at), 'x');
     });
+    // three or more rows: the gap between rows is gogh's, so it sits on the
+    // rhythm; the top row stays and the rest follow it down
     if (rows.length >= 3) {
       rows.sort(function (a, b) { return a.top - b.top; });
       var span = rows[rows.length - 1].top + rows[rows.length - 1].h - rows[0].top;
       var used = rows.reduce(function (t, r) { return t + r.h; }, 0);
       var gap = (span - used) / (rows.length - 1);
+      var onRhythm = gap >= 0;
+      if (onRhythm) gap = Math.max(RHYTHM, Math.round(gap / RHYTHM) * RHYTHM);
       var cur = rows[0].top + rows[0].h + gap;
-      rows.slice(1, -1).forEach(function (r) {
+      rows.slice(1, onRhythm ? undefined : -1).forEach(function (r) {
         var shift = Math.round(cur) - r.top;
         r.els.forEach(function (e) { at(e).y += shift; });
         cur += r.h + gap;
@@ -3187,16 +3191,29 @@
     }
     return Object.keys(moves).map(function (k) { return moves[k]; });
   }
-  // equal gaps along one axis: the first and last stay, the rest share the room
-  function evenRow(items, axis) {
+  // equal gaps along one axis. Across, the first and last stay and the rest
+  // share the room. Down the page the gap is gogh's to choose, so it lands on
+  // the rhythm (24, 48, 72 …): the first piece stays where the person put it
+  // and the others follow, the last one moving a little if it must. Returns
+  // the gap, so the toast can name it.
+  function evenRow(items, axis, free) {
     var size = axis === 'x' ? 'w' : 'h';
     items.sort(function (a, b) { return a[axis] - b[axis]; });
     var first = items[0], last = items[items.length - 1];
     var span = last[axis] + last.e[size] - first[axis];
     var used = items.reduce(function (t, it) { return t + it.e[size]; }, 0);
     var gap = (span - used) / (items.length - 1);
+    // (pieces that overlap along the axis — cards side by side with
+    // staggered tops — are not a stack with gaps; the ends hold as before)
+    if (axis === 'y' && !free && gap >= 0) {
+      gap = Math.max(RHYTHM, Math.round(gap / RHYTHM) * RHYTHM);
+      var at = first[axis] + first.e[size] + gap;
+      items.slice(1).forEach(function (it) { it[axis] = Math.round(at); at += it.e[size] + gap; });
+      return gap;
+    }
     var cur = first[axis] + first.e[size] + gap;
     items.slice(1, -1).forEach(function (it) { it[axis] = Math.round(cur); cur += it.e[size] + gap; });
+    return Math.round(gap);
   }
   function planChanges(plan) {
     return plan.some(function (m) {
@@ -3251,7 +3268,7 @@
   function spacePlan(els, axis) {
     var items = els.map(function (e) { return { e: e, x: e.x, y: e.y }; });
     if (!axis) { var bb = bboxOf(els); axis = bb.w >= bb.h ? 'x' : 'y'; }
-    evenRow(items, axis);
+    items.gap = evenRow(items, axis);
     return items;
   }
   function alignPlan(els, how) {
@@ -3271,7 +3288,9 @@
     var kids = box.kids || [];
     if (how === 'space') {
       var items = kids.map(function (k) { return { e: k, x: k.x, y: k.y }; });
-      if (items.length >= 3) evenRow(items, 'y');
+      // inside a card the pieces keep their own spacing (a card's inner
+      // geometry is not on the rhythm yet), so the gap is free here
+      if (items.length >= 3) evenRow(items, 'y', true);
       return items;
     }
     // centre means the card's centre; left and right line the pieces up with each other
@@ -3418,8 +3437,10 @@
   mbar.querySelectorAll('.gogh-mb-space').forEach(function (b) {
     b.addEventListener('click', function () {
       if (!multiSel || b.disabled) return;
-      applyPlan(spacePlan(multiEls(), b.dataset.axis));
-      afterArrange(b.dataset.axis === 'x' ? 'Gaps evened out, side to side.' : 'Gaps evened out, top to bottom.');
+      var plan = spacePlan(multiEls(), b.dataset.axis);
+      applyPlan(plan);
+      // down the page the gap is gogh's, on the rhythm — say which one
+      afterArrange(b.dataset.axis === 'x' ? 'Gaps evened out, side to side.' : 'Gaps evened out, ' + plan.gap + ' apart.');
     });
   });
   mbar.querySelector('.gogh-mb-tidy').addEventListener('click', function () {

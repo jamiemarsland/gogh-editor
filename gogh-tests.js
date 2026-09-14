@@ -4555,6 +4555,51 @@
       return 'align, space evenly, tidy up: one click each; faded when already right or when words would land on words';
     });
 
+    test('even gaps down the page and tidy row gaps land on the rhythm; a person’s top piece stays', function () {
+      var s0 = sec();
+      var n0 = s0.els.length;
+      // three stacked buttons (a fixed height, unlike words, which re-measure)
+      // the person left at 60, 150 and 290: the even gap would be 67, and
+      // gogh's is 72 — the first stays, the others follow, the last moves 10
+      [[100, 60], [100, 150], [100, 290]].forEach(function (p, k) {
+        s0.els.push({ type: 'button', x: p[0], y: p[1], w: 300, h: 48, text: 'Button ' + (k + 1) });
+      });
+      G.renderSection(s0);
+      var a = s0.els[n0], b = s0.els[n0 + 1], c = s0.els[n0 + 2];
+      G.multi.set(s0, [n0, n0 + 1, n0 + 2]);
+      var bar = q('.gogh-mbar');
+      bar.querySelector('.gogh-mb-more').click();
+      var down = bar.querySelector('.gogh-mb-space[data-axis="y"]');
+      expect(!down.disabled, 'Even gaps down should be offered: ' + down.title);
+      down.click();
+      expect(a.y === 60 && b.y === 180 && c.y === 300, 'the gaps should be 72, the first piece where it was: ' + [a.y, b.y, c.y]);
+      var toasts = [].slice.call(document.querySelectorAll('.gogh-toast')).map(function (t) { return t.textContent; }).join(' | ');
+      expect(/72 apart/.test(toasts), 'the toast should name the gap: ' + toasts);
+      expect(bar.querySelector('.gogh-mb-space[data-axis="y"]').disabled, 'Even gaps down should fade once the gaps are on the rhythm');
+      // gaps already equal but off the rhythm still count as work to do
+      b.y = 150; c.y = 240;
+      G.renderSection(s0);
+      G.multi.set(s0, [n0, n0 + 1, n0 + 2]);
+      expect(!bar.querySelector('.gogh-mb-space[data-axis="y"]').disabled, 'equal gaps of 30 are not on the rhythm, so the verb stays live');
+      // tidy up with three rows: row tops stay squared where they are, the row gaps land on 24s
+      b.y = 154; c.y = 300;
+      G.renderSection(s0);
+      G.multi.set(s0, [n0, n0 + 1, n0 + 2]);
+      bar.querySelector('.gogh-mb-tidy').click();
+      var gap1 = b.y - (a.y + a.h), gap2 = c.y - (b.y + b.h);
+      expect(a.y === 60 && gap1 === gap2 && gap1 % 24 === 0 && gap1 >= 24, 'tidy up should give equal row gaps on the rhythm: ' + [a.y, b.y, c.y]);
+      // across the page the rhythm does not apply: first and last stay
+      a.x = 100; b.x = 380; c.x = 800; a.y = b.y = c.y = 60; b.w = c.w = a.w = 200;
+      G.renderSection(s0);
+      G.multi.set(s0, [n0, n0 + 1, n0 + 2]);
+      bar.querySelector('.gogh-mb-space[data-axis="x"]').click();
+      expect(a.x === 100 && b.x === 450 && c.x === 800, 'side to side keeps the ends and shares the room: ' + [a.x, b.x, c.x]);
+      G.multi.clear();
+      s0.els.splice(n0);
+      G.renderSection(s0);
+      return 'vertical gaps gogh chooses sit on 24s; the piece a person placed first never moves';
+    });
+
     testAsync('select all picks the section’s pieces; the margin is a named magnet and guide', function () {
       var s0 = sec();
       select(0);
