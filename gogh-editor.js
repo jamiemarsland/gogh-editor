@@ -15902,7 +15902,7 @@
       '<button type="button" class="gogh-sbtn gogh-panel-close" title="Back">✕</button></div>' +
       '<div class="gogh-panel-hint">Give gogh the one colour that’s yours — or paste your brand guidelines and it reads everything in them. Either way it builds the rest, and Remix keeps it through every roll.</div>' +
       '<div class="gogh-branddoor gogh-branddoor-one"><span class="gogh-branddoor-lab">Your brand colour</span>' +
-      '<label class="gogh-brandone"><input type="color" class="gogh-brandonepick" value="' + escAttr(local.colors.accent || '#2f5d8a') + '" /><span class="gogh-brandone-say">' + (had ? 'As kept — change it and gogh rebuilds the rest around it' : 'The colour that’s yours. gogh puts it on buttons and links and builds the page around it') + '</span></label></div>' +
+      '<label class="gogh-brandone"><input type="color" class="gogh-brandonepick" value="' + escAttr(local.colors.accent || '#2f5d8a') + '" /><span class="gogh-brandone-say">' + (had ? 'Change it and gogh updates everything else to match' : 'Pick the colour that’s yours. gogh uses it for buttons and links and chooses the rest to match') + '</span></label></div>' +
       '<div class="gogh-branddoor"><span class="gogh-branddoor-lab">Or paste your brand guidelines</span>' +
       '<textarea class="gogh-input gogh-brandguide" rows="3" placeholder="Anything with colour codes in it — a style guide, a designer’s email, a page an AI wrote. gogh reads the colours by their roles, and the fonts by name."></textarea></div>' +
       '<div class="gogh-brandresult" hidden>' +
@@ -16006,8 +16006,8 @@
         var pk = panel.querySelector('.gogh-brandonepick');
         if (r.colors.accent) pk.value = r.colors.accent;
         panel.querySelector('.gogh-brandone-say').textContent = r.colors.accent
-          ? 'Your primary, from your guidelines — change it and the rest stays'
-          : 'Your guidelines named no primary — pick it here';
+          ? 'Taken from your guidelines. Change it and the rest of your guidelines stay'
+          : 'Your guidelines didn’t name a main colour — pick it here';
       }, 250);
     });
     // door three: one colour
