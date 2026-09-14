@@ -2089,6 +2089,25 @@
     sec.sectionEl.classList.toggle('gogh-msec-hidden', !!(sec.m && sec.m.hidden));
     resolveAndApply(sec);
     growReflow(sec);
+    markGround(sec);
+  }
+  // the painted grid dresses for its ground: lighter tiles on paper, darker
+  // tiles on a dark section, and only the 72 majors over a picture, where
+  // tiles would fight the photo. Read the way the sentinel reads it.
+  function markGround(sec) {
+    if (!sec || !sec.sectionEl) return;
+    var pictured = !!(sec.bgImage || sec.bgVideo);
+    var dark = false;
+    if (!pictured) {
+      try {
+        var bg = getComputedStyle(sec.sectionEl).backgroundColor;
+        var rgb = cssToRgb(bg);
+        if (!rgb || bg === 'rgba(0, 0, 0, 0)') rgb = cssToRgb('var(--wp--preset--color--base, #fff)');
+        dark = !!rgb && sentinelLum(rgb) < 0.4;
+      } catch (err) {}
+    }
+    sec.sectionEl.classList.toggle('gogh-ground-dark', dark);
+    sec.sectionEl.classList.toggle('gogh-ground-pictured', pictured);
   }
 
   function newSectionShell(scope) {
