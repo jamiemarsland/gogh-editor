@@ -1,4 +1,4 @@
-# Knowledge-base audit — plugin v0.99.513
+# Knowledge-base audit — plugin v0.99.514
 
 _13 finding(s) suppressed by `kb.audit-ignore.txt`._
 
@@ -109,8 +109,9 @@ The source has something the prose never explains. The bot knows the name from t
 
 Use this as the checklist for updating the prose — and as a sanity check on the release itself.
 
-- version: 0.99.512 → 0.99.513
-- removed UI label: "' + (opts && opts.kept ? 'Take it off the shelf' : 'Keep this look') + '"
-- removed UI label: "Keep the ' + l[2] + ' you have; spin the rest"
-- removed UI label: "Wear this look"
-- removed toast: "gogh could not save that look — it stays for this session."
+- version: 0.99.513 → 0.99.514
+- removed UI label: "Save brand"
+- added UI label: "Dark page"
+- added UI label: "Keep"
+- added UI label: "Light page"
+- added UI label: "↶ Not that"
