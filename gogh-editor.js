@@ -2134,7 +2134,7 @@
   // ---------- history (undo/redo) ----------
   var history = [], hIdx = -1, textTimer = null;
   function serialize() {
-    return JSON.stringify(S.map(function (sec) { return { scope: sec.scope, els: sec.els, anchor: sec.anchor || null, minH: sec.minH || null, bg: sec.bg || null, divider: sec.divider || null, fx: sec.fx || null, bgImage: sec.bgImage || null, bgId: sec.bgId || null, bgVideo: sec.bgVideo || null, bgVideoId: sec.bgVideoId || null, bgA: sec.bgA != null ? sec.bgA : null, theme: sec.theme || null, fill: sec.fill || null, m: (sec.m && Object.keys(sec.m).length) ? sec.m : null, bgPos: sec.bgPos || null, src: sec.srcSig || null, boot: sec.bootstrap || false, chrome: sec.chrome || null }; }));
+    return JSON.stringify(S.filter(function (sec) { return !sec.ghost; }).map(function (sec) { return { scope: sec.scope, els: sec.els, anchor: sec.anchor || null, minH: sec.minH || null, bg: sec.bg || null, divider: sec.divider || null, fx: sec.fx || null, bgImage: sec.bgImage || null, bgId: sec.bgId || null, bgVideo: sec.bgVideo || null, bgVideoId: sec.bgVideoId || null, bgA: sec.bgA != null ? sec.bgA : null, theme: sec.theme || null, fill: sec.fill || null, m: (sec.m && Object.keys(sec.m).length) ? sec.m : null, bgPos: sec.bgPos || null, src: sec.srcSig || null, boot: sec.bootstrap || false, chrome: sec.chrome || null }; }));
   }
   function pushState() {
     var snap = serialize();
@@ -10040,7 +10040,166 @@
     'FAQ': 'text cards', 'Tabs': 'text cards', 'Gallery': 'photos', 'Photo cards': 'photos cards', 'Portfolio': 'photos',
     'Menu': 'text', 'Team': 'contact photos',
   };
+  // ---------- Layouts in the sidebar (experiment) ----------
+  // The same shelves as the modal, docked beside the page: hover a layout
+  // and it ghosts in where the + was pressed, in the site's colours; click
+  // and it stays; the panel stays open so three sections go in a row.
+  var layoutsGhost = null, layoutsIdx = null, layoutsBefore = null;
+  function layoutsGhostClear() {
+    if (!layoutsGhost) return;
+    var g = layoutsGhost;
+    layoutsGhost = null;
+    var i = S.indexOf(g);
+    if (i >= 0) S.splice(i, 1);
+    g.wrapEl.remove();
+    if (g.styleEl && g.styleEl.parentNode) g.styleEl.parentNode.removeChild(g.styleEl);
+  }
+  function layoutCardHTML(tpl, t) {
+    var els = tplEls(tpl);
+    var scope = 'gogh-tpl-' + t;
+    var css = els.length ? buildCSS(els, scope, tpl.minH || null, { bg: tpl.bg || null, bgImage: tplBgFor(tpl), bgA: tpl.bgA != null ? tpl.bgA : null }) : '';
+    var inner = els.map(function (e, i) { return makeNode(e, i).outerHTML; }).join('');
+    return '<button type="button" class="gogh-card" data-tpl="' + t + '" data-name="' + escAttr(tpl.name.toLowerCase()) + '" data-cats="' + (STARTER_CATS[tpl.name] || '') + '">' +
+      '<span class="gogh-card-prev"><style>' + css + '</style>' +
+      '<span class="gogh-card-stage gogh-wrap"><span class="gogh-card-sec gogh-section ' + scope + '">' + inner + '</span></span>' +
+      '</span><span class="gogh-card-name">' + esc(tpl.name) + '</span></button>';
+  }
+  function openLayoutsPanel(idx, before) {
+    layoutsIdx = idx == null ? S.length : idx;
+    layoutsBefore = (before && before.isConnected) ? before : null;
+    var wasSide = side.classList.contains('is-open');
+    var wasAway = side.classList.contains('gogh-side-away');
+    var wasDesign = document.documentElement.classList.contains('gogh-designmode');
+    var INTENTS = [
+      { key: 'introduce', label: 'Introduce', sub: 'Say who you are' },
+      { key: 'sell', label: 'Sell', sub: 'Turn interest into action' },
+      { key: 'showcase', label: 'Showcase', sub: 'Let the work speak' },
+    ];
+    var blankAt = TEMPLATES.findIndex(function (t) { return !t.retired && !t.starter; });
+    var shelves = INTENTS.map(function (g) {
+      var cards = [];
+      TEMPLATES.forEach(function (tpl, t) {
+        if (tpl.retired || !tpl.starter || tpl.intent !== g.key) return;
+        if (tpl.gated && !cfg[tpl.gated]) return;
+        cards.push(layoutCardHTML(tpl, t));
+      });
+      return cards.length ? '<div class="gogh-lay-shelf">' + g.label + '<i>' + g.sub + '</i></div><div class="gogh-cards gogh-lay-cards">' + cards.join('') + '</div>' : '';
+    }).join('');
+    try { panel.style.setProperty('--gogh-body-ff', getComputedStyle(document.body).fontFamily); } catch (err) {}
+    panel.innerHTML =
+      '<div class="gogh-panel-head"><span class="gogh-panel-title">Add a section</span>' +
+      '<button type="button" class="gogh-sbtn gogh-panel-close gogh-panel-back" title="Back"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"/></svg></button></div>' +
+      '<div class="gogh-panel-hint">Hover to see it on your page. Click to keep it.</div>' +
+      '<label class="gogh-lay-search"><input type="text" placeholder="Search layouts…" aria-label="Search layouts"></label>' +
+      '<div class="gogh-lay-quick"><button type="button" class="gogh-lay-blank">Blank section</button><button type="button" class="gogh-lay-more">Paste HTML or My sections</button></div>' +
+      '<div class="gogh-lay-list">' + shelves + '</div>' +
+      '<div class="gogh-pickempty gogh-lay-empty" hidden>Nothing here matches.</div>';
+    dockSidebar();
+    if (!zoomState) zoomOutCanvas();
+    var back = function () {
+      layoutsGhostClear();
+      if (wasSide) { backToDesign(); return; }
+      closePanel();
+      side.classList.toggle('gogh-side-away', wasAway);
+      if (wasDesign) document.documentElement.classList.add('gogh-designmode');
+    };
+    panelCleanup = function () { layoutsGhostClear(); };
+    panel.querySelector('.gogh-panel-back').addEventListener('click', back);
+    var list = panel.querySelector('.gogh-lay-list');
+    // previews are honest minis: fit each stage once the panel has a width
+    var fitAll = function () {
+      [].slice.call(panel.querySelectorAll('.gogh-card-prev')).forEach(function (pv) {
+        var st = pv.querySelector('.gogh-card-stage');
+        if (st) fitCardStage(pv, st);
+      });
+    };
+    requestAnimationFrame(fitAll);
+    setTimeout(fitAll, 260);
+    var hoverT = null;
+    var tryOn = function (tpl) {
+      clearTimeout(hoverT);
+      hoverT = setTimeout(function () {
+        if (layoutsGhost && layoutsGhost.tplName === tpl.name) return;
+        layoutsGhostClear();
+        layoutsGhost = addSection(tpl, layoutsIdx, layoutsBefore, { ghost: true });
+        layoutsGhost.tplName = tpl.name;
+      }, 90);
+    };
+    var keep = function (tpl) {
+      clearTimeout(hoverT);
+      var sec;
+      if (layoutsGhost && layoutsGhost.tplName === tpl.name) {
+        // the ghost becomes the section: same pieces, now with a history
+        sec = layoutsGhost;
+        layoutsGhost = null;
+        delete sec.ghost;
+        delete sec.tplName;
+        sec.wrapEl.classList.remove('gogh-ghost');
+        for (var bi = S.length - 1; bi >= 0; bi--) {
+          if (isBlankBoot(S[bi]) && S[bi] !== sec) {
+            S[bi].wrapEl.remove();
+            if (S[bi].styleEl && S[bi].styleEl.parentNode) S[bi].styleEl.parentNode.removeChild(S[bi].styleEl);
+            S.splice(bi, 1);
+          }
+        }
+        sel = null;
+        hideHandles();
+        pushState();
+        contrastSentinel(sec);
+        selectSection(S.indexOf(sec));
+        fmSectionLanded(sec);
+      } else {
+        layoutsGhostClear();
+        addSection(tpl, layoutsIdx, layoutsBefore);
+        sec = S.filter(function (x) { return !x.chrome; }).slice(-1)[0];
+        var at = clampInsertIdx(layoutsIdx);
+        if (S[at] && !S[at].chrome) sec = S[at];
+      }
+      // the next one goes below the one just kept
+      layoutsIdx = S.indexOf(sec) + 1;
+      layoutsBefore = null;
+      toast(tpl.name + ' added. Keep going, or press Back.', { ttl: 2600 });
+    };
+    [].slice.call(list.querySelectorAll('.gogh-card')).forEach(function (card) {
+      var tpl = TEMPLATES[+card.dataset.tpl];
+      card.addEventListener('mouseenter', function () { tryOn(tpl); });
+      card.addEventListener('focus', function () { tryOn(tpl); });
+      card.addEventListener('click', function () { keep(tpl); });
+    });
+    list.addEventListener('mouseleave', function () { clearTimeout(hoverT); layoutsGhostClear(); });
+    panel.querySelector('.gogh-lay-blank').addEventListener('click', function () { keep(TEMPLATES[blankAt]); });
+    panel.querySelector('.gogh-lay-more').addEventListener('click', function () {
+      var i2 = layoutsIdx, b2 = layoutsBefore;
+      back();
+      openPickerModal(i2, b2);
+    });
+    var input = panel.querySelector('.gogh-lay-search input');
+    var empty = panel.querySelector('.gogh-lay-empty');
+    input.addEventListener('input', function () {
+      var q = input.value.trim().toLowerCase();
+      var shown = 0;
+      [].slice.call(list.querySelectorAll('.gogh-card')).forEach(function (b) {
+        var ok = !q || b.dataset.name.indexOf(q) !== -1 || (b.dataset.cats || '').indexOf(q) !== -1;
+        b.hidden = !ok;
+        if (ok) shown++;
+      });
+      [].slice.call(list.querySelectorAll('.gogh-lay-shelf')).forEach(function (h) {
+        var grid = h.nextElementSibling;
+        h.hidden = !!q || !grid || ![].slice.call(grid.querySelectorAll('.gogh-card')).some(function (b) { return !b.hidden; });
+      });
+      empty.hidden = shown > 0;
+    });
+    if (zoomState) layoutZoom();
+  }
+  // EXPERIMENT (branch explore/sidebar-layouts): + opens the layouts in the
+  // docked sidebar instead of the modal; ?gogh-modal=1 brings the modal back
+  // for a side-by-side. Paste HTML and My sections still live in the modal.
+  var SIDEBAR_LAYOUTS = !/[?&]gogh-modal=1/.test(location.search);
   function openPicker(idx, before) {
+    if (SIDEBAR_LAYOUTS && !cfg.isPanel) return openLayoutsPanel(idx, before);
+    return openPickerModal(idx, before);
+  }
+  function openPickerModal(idx, before) {
     pickerIdx = idx;
     pickerBefore = (before && before.isConnected) ? before : null;
     try { picker.style.setProperty('--gogh-body-ff', getComputedStyle(document.body).fontFamily); } catch (err) {}
@@ -10164,7 +10323,7 @@
         '<button type="button" class="gogh-btn gogh-btn-save gogh-btn-small gogh-html-add">Add to page</button>' +
         '</div>';
       inner.querySelector('.gogh-picker-close').addEventListener('click', closePicker);
-      inner.querySelector('.gogh-html-back').addEventListener('click', function () { openPicker(pickerIdx, pickerBefore); });
+      inner.querySelector('.gogh-html-back').addEventListener('click', function () { openPickerModal(pickerIdx, pickerBefore); });
       var ta = inner.querySelector('.gogh-htmlpaste');
       ta.focus();
       inner.querySelector('.gogh-html-add').addEventListener('click', function () {
@@ -10571,7 +10730,8 @@
     });
   }
 
-  function addSection(tpl, idx, before) {
+  function addSection(tpl, idx, before, opts) {
+    var ghost = !!(opts && opts.ghost);
     if (idx == null) idx = S.length;
     idx = clampInsertIdx(idx);
     var sec = newSectionShell('gogh-sec-' + (scopeSeq++));
@@ -10598,6 +10758,17 @@
     var anchor = (before && before.isConnected) ? before : (nextContent ? nextContent.wrapEl : endMarker);
     pageParent.insertBefore(sec.wrapEl, anchor);
     S.splice(idx, 0, sec);
+    if (ghost) {
+      // a ghost is the layout tried on where the + was pressed: drawn for
+      // real, in the site's colours, but in no history and never saved;
+      // the Layouts panel keeps or clears it (design paper: Layouts in
+      // the sidebar)
+      sec.ghost = true;
+      sec.wrapEl.classList.add('gogh-ghost');
+      renderSection(sec);
+      try { sec.wrapEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); } catch (err) {}
+      return sec;
+    }
     // a real section replaces the ?gogh-edit bootstrap placeholder
     for (var bi = S.length - 1; bi >= 0; bi--) {
       if (isBlankBoot(S[bi]) && S[bi] !== sec) {
@@ -18266,6 +18437,8 @@
     remixCandidates: remixCandidates,
     fontsDry: function (on) { fontsDryRun = !!on; },
     fontFamiliesAfter: fontFamiliesAfter,
+    openLayoutsPanel: openLayoutsPanel,
+    layoutsGhost: function () { return layoutsGhost; },
     pairMood: pairMood,
     fontsLast: function () { return fontsLastKept; },
     openFontsPanel: openFontsPanel,
@@ -18404,7 +18577,7 @@
     var content = S.filter(function (sx) { return !sx.chrome; });
     var blank = content.filter(function (sx) { return isBlankBoot(sx); })[0];
     var idx = blank ? S.indexOf(blank) : (content.length ? S.indexOf(content[content.length - 1]) : 0);
-    openPicker(idx);
+    openPickerModal(idx);
     var door = picker.querySelector('.gogh-card-htmladd');
     if (door) door.click();
     return !!door;

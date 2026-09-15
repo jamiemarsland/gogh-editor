@@ -4724,6 +4724,36 @@
 
     // step four: the die draws on the Fonts door's pairs — a roll may land in
     // Fraunces & Inter, tried from Google and installed quietly on commit
+    testAsync('Layouts in the sidebar: hover ghosts a section in, click keeps it, Back brings the rail back', function () { return new Promise(function (done) {
+      var n0 = G.sections().length;
+      G.openLayoutsPanel(1);
+      var pnl = document.querySelector('.gogh-panel');
+      var card = pnl.querySelector('.gogh-lay-cards .gogh-card');
+      expect(!!card && pnl.classList.contains('gogh-panel-sidebar'), 'the panel docks with layout cards');
+      card.dispatchEvent(new Event('mouseenter'));
+      setTimeout(function () {
+        var g = G.layoutsGhost();
+        expect(!!g && document.querySelector('.gogh-ghost') === g.wrapEl, 'hovering a card draws a ghost section on the page');
+        expect(G.sections().length === n0 + 1, 'the ghost sits in the section list while it is tried on');
+        var list = pnl.querySelector('.gogh-lay-list');
+        list.dispatchEvent(new Event('mouseleave'));
+        expect(!G.layoutsGhost() && !document.querySelector('.gogh-ghost') && G.sections().length === n0, 'leaving the list clears the ghost');
+        card.dispatchEvent(new Event('mouseenter'));
+        setTimeout(function () {
+          card.click();
+          expect(!G.layoutsGhost() && !document.querySelector('.gogh-ghost'), 'clicking keeps the ghost as a real section');
+          expect(G.sections().length === n0 + 1, 'one section was added');
+          expect(!pnl.hidden, 'the panel stays open for the next one');
+          pnl.querySelector('.gogh-panel-back').click();
+          expect(pnl.hidden, 'Back closes the panel');
+          expect(!document.querySelector('.gogh-side').classList.contains('gogh-side-away'), 'and the side rail is back');
+          G.undo();
+          expect(G.sections().length === n0, 'undo removes the kept section');
+          done();
+        }, 160);
+      }, 160);
+    }); });
+
     test('every pair in the Fonts door ends in one plain word, the theme’s included', function () {
       expect(G.pairMood('Vollkorn', 'Vollkorn, serif', 'Fira Code', '"Fira Code", monospace') === 'nerdy', 'a known theme pair has its word');
       expect(G.pairMood('Some Serif', '"Some Serif", serif', 'Other Sans', '"Other Sans", sans-serif') === 'readable', 'an unknown serif + sans pair gets a word from what the faces are');
