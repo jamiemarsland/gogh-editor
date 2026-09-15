@@ -15,7 +15,7 @@ about something where they conflict, rather than picking one silently. Quote UI
 labels and message copy from the appendix, verbatim — those are the current
 strings, and a paraphrased button label is the fastest way to lose a user's trust.
 
-Generated for plugin version 0.99.561 · knowledge base 771ed46.
+Generated for plugin version 0.99.562 · knowledge base 46de3d9.
 
 ---
 
@@ -802,6 +802,9 @@ Select two or more pieces and the bar reads: Make a card · Duplicate · Delete 
 ### Centring a group on the page (v0.99.561)
 Two ways, both from James asking how to centre three cards. **Dragging several pieces together:** the group is one thing to the page — its own centre snaps to the page centre and its outer edges to the margins, within 6 units, with the same pink centre guide a single piece gets; the pieces keep their gaps. **Behind Align, a seventh icon, Centre on the page:** moves the whole selection as one so its centre sits on the page's, greyed "Already centred on the page" when it is. The six other icons still align pieces with each other, not with the page.
 
+### Align offers only what fits the shape (v0.99.562)
+Behind Align, the icons follow the shape of the selection (`selectionShape`): pieces beside each other are a row, so only top, middle, bottom and Centre on the page show (Align left would pile a row of cards on each other); pieces above each other are a stack, so only left, centre, right and the page show; a grid, or a scatter, shows all seven. Hidden, not faded — a verb that could never make sense here is not offered at all.
+
 ---
 
 # Generated facts appendix
@@ -810,11 +813,11 @@ Everything in this section is extracted mechanically from the Gogh source on eve
 
 ## Current release
 
-- Plugin version: **0.99.561**
+- Plugin version: **0.99.562**
 - Requires WordPress **6.5+**, PHP **7.4+**
 - Text domain: `gogh-editor`
 - readme.txt Stable tag: `0.26.0` · Tested up to: `7.0`
-- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.561`). Quote the plugin header version.
+- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.562`). Quote the plugin header version.
 
 ## Design constants
 
@@ -1323,4 +1326,4 @@ These are the real strings in the current build. Use them verbatim; never paraph
 
 ## Test suite
 
-`314` tests, run by appending `?gogh-test` to any Gogh page URL while logged in with edit rights on that page.
+`315` tests, run by appending `?gogh-test` to any Gogh page URL while logged in with edit rights on that page.

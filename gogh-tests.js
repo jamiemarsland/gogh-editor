@@ -2479,6 +2479,30 @@
       G.multi.clear();
       return 'group centre 600, gaps kept';
     });
+    test('Align offers only the directions that fit the shape: a row hides the sideways icons, a stack hides the vertical ones', function () {
+      addToSec('badge'); addToSec('badge'); addToSec('badge');
+      var n = sec().els.length;
+      var a = sec().els[n - 3], b = sec().els[n - 2], c = sec().els[n - 1];
+      var bar = document.querySelector('.gogh-mbar');
+      var shown = function (axis) { return !bar.querySelector('.gogh-mbar-axis[data-axis="' + axis + '"]').hidden; };
+      // a row: beside each other
+      a.x = 60; a.y = 4001; a.w = 200; a.h = 60; b.x = 360; b.y = 4011; b.w = 200; b.h = 60; c.x = 660; c.y = 4001; c.w = 200; c.h = 60;
+      G.resolve(sec()); G.measure(sec()); G.resolve(sec());
+      G.multi.set(sec(), [n - 3, n - 2, n - 1]);
+      expect(!shown('x') && shown('y') && !bar.querySelector('.gogh-mb-align[data-how="page"]').hidden, 'a row should offer top/middle/bottom and the page, not left/centre/right');
+      // a stack: above each other
+      a.x = 100; a.y = 4001; b.x = 120; b.y = 4101; c.x = 100; c.y = 4201;
+      G.resolve(sec()); G.measure(sec()); G.resolve(sec());
+      G.multi.set(sec(), [n - 3, n - 2, n - 1]);
+      expect(shown('x') && !shown('y'), 'a stack should offer left/centre/right, not top/middle/bottom');
+      // a grid: both
+      a.x = 100; a.y = 4001; b.x = 400; b.y = 4001; c.x = 100; c.y = 4101;
+      G.resolve(sec()); G.measure(sec()); G.resolve(sec());
+      G.multi.set(sec(), [n - 3, n - 2, n - 1]);
+      expect(shown('x') && shown('y'), 'a grid should offer every direction');
+      G.multi.clear();
+      return 'row → vertical icons; stack → sideways icons; grid → all';
+    });
     test('Centre on the page: the seventh icon moves the whole selection as one', function () {
       addToSec('badge'); addToSec('badge'); addToSec('badge');
       var n = sec().els.length;

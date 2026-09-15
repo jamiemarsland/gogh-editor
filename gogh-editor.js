@@ -3159,10 +3159,12 @@
     '<button type="button" class="gogh-eb gogh-mb gogh-mb-more" title="Align the pieces to each other">Align \u25BE</button>' +
     // behind Align: one row of six icons, a hairline between the two directions
     '<div class="gogh-mbar-more" hidden>' +
+    '<span class="gogh-mbar-axis" data-axis="x">' +
     ['left', 'center', 'right'].map(function (h) { return alignIconBtn('gogh-mb-align', h); }).join('') +
-    '<span class="gogh-mbar-sep"></span>' +
+    '<span class="gogh-mbar-sep"></span></span>' +
+    '<span class="gogh-mbar-axis" data-axis="y">' +
     ['top', 'middle', 'bottom'].map(function (h) { return alignIconBtn('gogh-mb-align', h); }).join('') +
-    '<span class="gogh-mbar-sep"></span>' +
+    '<span class="gogh-mbar-sep"></span></span>' +
     // the whole selection, centred on the page (James: 'how would i center these 3 cards?')
     alignIconBtn('gogh-mb-align', 'page') +
     '</div>';
@@ -3319,6 +3321,24 @@
       if (m.align !== undefined) { if (m.align === 'left') delete m.e.align; else m.e.align = m.align; }
     });
   }
+  // a row: every pair shares some height; a column: every pair shares some
+  // width; anything else is a grid, or a scatter, and gets every verb
+  function selectionShape(els) {
+    if (els.length < 2) return 'grid';
+    var row = true, col = true;
+    for (var i = 0; i < els.length && (row || col); i++) {
+      for (var j = i + 1; j < els.length; j++) {
+        var a = els[i], b = els[j];
+        var vOv = Math.min(a.y + a.h, b.y + b.h) - Math.max(a.y, b.y) > 0;
+        var hOv = Math.min(a.x + a.w, b.x + b.w) - Math.max(a.x, b.x) > 0;
+        if (!vOv) row = false;
+        if (!hOv) col = false;
+      }
+    }
+    if (row && !col) return 'row';
+    if (col && !row) return 'column';
+    return 'grid';
+  }
   function alignPlan(els, how) {
     var bb = bboxOf(els);
     if (how === 'page') {
@@ -3417,6 +3437,15 @@
     mbar.querySelectorAll('.gogh-mb-align').forEach(function (b) {
       grey(b, judge(alignPlan(els, b.dataset.how), b.dataset.how === 'page' ? 'Already centred on the page' : 'Already aligned'), ALIGN_WORD[b.dataset.how]);
     });
+    // only the directions that make sense for the shape: a row of pieces
+    // beside each other offers top, middle, bottom (Align left would pile
+    // the cards on each other); a stack offers left, centre, right; a grid
+    // offers all (James: 'a row of cards … im not sure it makes any sense
+    // to show these')
+    var shape = selectionShape(els);
+    var axX = mbar.querySelector('.gogh-mbar-axis[data-axis="x"]'), axY = mbar.querySelector('.gogh-mbar-axis[data-axis="y"]');
+    if (axX) axX.hidden = shape === 'row';
+    if (axY) axY.hidden = shape === 'column';
     grey(mbar.querySelector('.gogh-mb-tidy'), judge(tidyPlan(els), 'Already tidy'), 'Line the pieces up, even the gaps, match sizes that are nearly the same');
   }
   function afterArrange(said) {
