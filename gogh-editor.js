@@ -15441,7 +15441,20 @@
         '<div class="gogh-panel-hint">Hover to try a pair on your page. Click to keep it.</div>' +
         '<div class="gogh-fontswearing"><span class="gogh-remixwearing-lab">On your site now</span><span class="gogh-fontswearing-name"></span><span class="gogh-fontswearing-sub"></span></div>' +
         typeScaleHtml() +
-        (themePairs.length ? '<div class="gogh-panel-group">From your theme</div><div class="gogh-fontlist gogh-fontlist-theme">' + themePairs.map(function (v, i) {
+        // one list: the theme's own pairs first, then the twelve — nobody
+        // needs to know which is which (James: 'do they care?')
+        '<div class="gogh-fontlist">' + (function () {
+        var pairRow = function (pr, i) {
+          var hn = pr.theme ? own.heading.name : pr.heading.name, bn = pr.theme ? own.body.name : pr.body.name;
+          var hf = pr.theme ? (own.heading.fontFamily || fontStack(hn)) : fontStack(pr.heading.name);
+          var bf = pr.theme ? (own.body.fontFamily || fontStack(bn)) : fontStack(pr.body.name);
+          return '<button type="button" class="gogh-fontpair" data-i="' + i + '">' +
+            '<span class="gogh-fontpair-name"><span style="font-family:' + escAttr(hf) + ';font-weight:' + (pr.theme ? 600 : pr.heading.w) + '">' + esc(hn) + '</span>' +
+            '<span class="gogh-fontpair-amp"> &amp; </span><span style="font-family:' + escAttr(bf) + '">' + esc(bn) + '</span></span>' +
+            '<span class="gogh-fontpair-say">' + esc(pr.say) + '</span></button>';
+        };
+        // the theme's own pair leads, its variations' pairs follow, then the twelve
+        return FONT_PAIRS.map(function (pr, i) { return pr.theme ? pairRow(pr, i) : ''; }).join('') + (themePairs.length ? themePairs.map(function (v, i) {
           var fams = (((v.settings || {}).typography || {}).fontFamilies || {}).theme || [];
           var parts = (v.title || 'Pair').split(' & ');
           var faceOf = function (pt, k) {
@@ -15453,17 +15466,9 @@
           return '<button type="button" class="gogh-fontpair gogh-fontpair-theme" data-v="' + i + '">' +
             '<span class="gogh-fontpair-name"><span style="font-family:' + escAttr(faceOf(parts[0], 0)) + ';font-weight:600">' + esc(parts[0]) + '</span>' +
             (parts[1] ? '<span class="gogh-fontpair-amp"> &amp; </span><span style="font-family:' + escAttr(faceOf(parts[1], 1)) + '">' + esc(parts[1]) + '</span>' : '') + '</span>' +
-            '<span class="gogh-fontpair-say">comes with your theme</span></button>';
-        }).join('') + '</div><div class="gogh-panel-group">Pairs</div>' : '') +
-        '<div class="gogh-fontlist">' + FONT_PAIRS.map(function (pr, i) {
-          var hn = pr.theme ? own.heading.name : pr.heading.name, bn = pr.theme ? own.body.name : pr.body.name;
-          var hf = pr.theme ? (own.heading.fontFamily || fontStack(hn)) : fontStack(pr.heading.name);
-          var bf = pr.theme ? (own.body.fontFamily || fontStack(bn)) : fontStack(pr.body.name);
-          return '<button type="button" class="gogh-fontpair" data-i="' + i + '">' +
-            '<span class="gogh-fontpair-name"><span style="font-family:' + escAttr(hf) + ';font-weight:' + (pr.theme ? 600 : pr.heading.w) + '">' + esc(hn) + '</span>' +
-            '<span class="gogh-fontpair-amp"> &amp; </span><span style="font-family:' + escAttr(bf) + '">' + esc(bn) + '</span></span>' +
-            '<span class="gogh-fontpair-say">' + esc(pr.say) + '</span></button>';
-        }).join('') + '</div>' +
+            '</button>';
+        }).join('') : '') + FONT_PAIRS.map(function (pr, i) { return pr.theme ? '' : pairRow(pr, i); }).join('');
+        })() + '</div>' +
         '<div class="gogh-panel-hint gogh-fonts-note">Kept pairs are installed on your site and stay if gogh is ever removed. Two families a page, never a third.</div>' +
         // step two: any font by name, for the person who knows what they want
         '<details class="gogh-more gogh-fonts-morewrap"><summary class="gogh-more-sum">More fonts <span class="gogh-more-what">try any font by name</span></summary>' +

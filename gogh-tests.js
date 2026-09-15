@@ -4673,7 +4673,7 @@
         var rows = [].slice.call(pnl.querySelectorAll('.gogh-fontpair:not(.gogh-fontpair-theme)'));
         expect(rows.length === 12, 'the panel should list twelve pairs, got ' + rows.length);
         expect(pnl.querySelector('.gogh-typescale') && pnl.querySelectorAll('.gogh-typescale .gogh-hpreset').length === 4, 'the type size lives in the Fonts door');
-        expect(pnl.querySelectorAll('.gogh-fontpair-theme').length >= 1, 'the theme’s own pairs come first, without an install');
+        expect(pnl.querySelectorAll('.gogh-fontpair-theme').length >= 1, 'the theme’s own pairs sit in the same list, first');
         expect(/the theme’s own/.test(rows[0].textContent), 'the first row is the theme’s own pair');
         expect(rows[1].querySelector('.gogh-fontpair-name span').style.fontFamily.indexOf('Fraunces') !== -1, 'a row is set in its own heading face');
         rows[1].dispatchEvent(new MouseEvent('mouseenter', { bubbles: true }));
