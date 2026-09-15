@@ -1,15 +1,14 @@
-# Knowledge-base audit — plugin v0.99.565
+# Knowledge-base audit — plugin v0.99.566
 
 _13 finding(s) suppressed by `kb.audit-ignore.txt`._
 
-## MISSING (101)
+## MISSING (100)
 
 The source has something the prose never explains. The bot knows the name from the appendix but cannot say what it is for.
 
 - exposed filter `gogh_default_editor` exists in source but is never mentioned in the prose
 - exposed filter `gogh_claims_post` exists in source but is never mentioned in the prose
 - exposed filter `gogh_labs_ask` exists in source but is never mentioned in the prose
-- exposed filter `gogh_helper_url` exists in source but is never mentioned in the prose
 - exposed filter `gogh_schema` exists in source but is never mentioned in the prose
 - exposed filter `gogh_schema_enabled` exists in source but is never mentioned in the prose
 - WP hook `load-post-new.php` exists in source but is never mentioned in the prose
@@ -121,4 +120,4 @@ Quoted copy not found verbatim in the source. Paraphrases are fine; changed UI c
 
 Use this as the checklist for updating the prose — and as a sanity check on the release itself.
 
-- version: 0.99.564 → 0.99.565
+- version: 0.99.565 → 0.99.566

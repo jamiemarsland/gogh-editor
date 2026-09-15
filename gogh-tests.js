@@ -1681,7 +1681,15 @@
       expect(pe === 'auto', 'help iframe is inert (pointer-events: ' + pe + ') — the ask box cannot be focused');
       sheet.querySelector('.gogh-helpsheet-x').click();
       expect(!sheet.classList.contains('is-open'), 'close did not close');
-      return 'sheet opens, knows the build, closes';
+      // the same sheet from the admin bar's ?, just left of Howdy
+      var ab = document.querySelector('#wp-admin-bar-gogh-help > a');
+      expect(!!ab, 'the admin bar should carry a ? node');
+      var acct = document.getElementById('wp-admin-bar-my-account');
+      expect(acct && ab.getBoundingClientRect().right <= acct.getBoundingClientRect().left + 1, 'the ? should sit to the left of Howdy');
+      ab.click();
+      expect(sheet.classList.contains('is-open'), 'the admin bar ? did not open the sheet');
+      sheet.querySelector('.gogh-helpsheet-x').click();
+      return 'sheet opens from the rail and from the admin bar, knows the build, closes';
     });
 
     test('inserted templates: text taller than its box pushes, never overlaps', function () {

@@ -15,7 +15,7 @@ about something where they conflict, rather than picking one silently. Quote UI
 labels and message copy from the appendix, verbatim — those are the current
 strings, and a paraphrased button label is the fastest way to lose a user's trust.
 
-Generated for plugin version 0.99.565 · knowledge base 6328e97.
+Generated for plugin version 0.99.566 · knowledge base 98e8f2a.
 
 ---
 
@@ -808,6 +808,9 @@ Behind Align, the icons follow the shape of the selection (`selectionShape`): pi
 ### Fonts door: faces load on open (v0.99.564)
 Opening the Fonts door loads every listed pair's faces at once — Google's (`ensureGoogleFonts` per pair) and the theme's own from the theme folder (`ensureVariationFonts` per theme pair, via the FontFace API, every weight and style of each family, since the row's heading name is drawn in the bold) — so each row is drawn in its own face from the start. Note: `document.fonts.check()` answers true for a family with no face at all, so the loader looks for a loaded face by name, weight and style instead. Before, a row's faces loaded only when hovered, and the swap from the fallback face as the pointer passed looked like the other rows changing size.
 
+### Help in the admin bar (v0.99.566)
+A small ? sits in the admin bar just left of Howdy, on every screen where the bar shows, for any logged-in user when a helper URL is set. In the gogh editor it opens the help sheet (the same one the side rail's ? opens); on any other screen, wp-admin included, it opens the helper in a new tab. The node is `gogh-help` under `top-secondary`; the `gogh_helper_url` filter turning the URL off removes it.
+
 ---
 
 # Generated facts appendix
@@ -816,11 +819,11 @@ Everything in this section is extracted mechanically from the Gogh source on eve
 
 ## Current release
 
-- Plugin version: **0.99.565**
+- Plugin version: **0.99.566**
 - Requires WordPress **6.5+**, PHP **7.4+**
 - Text domain: `gogh-editor`
 - readme.txt Stable tag: `0.26.0` · Tested up to: `7.0`
-- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.565`). Quote the plugin header version.
+- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.566`). Quote the plugin header version.
 
 ## Design constants
 
@@ -985,6 +988,7 @@ Block: `gogh/section` · v3 attributes: `css`, `model`, `scope`, `v`, `cssT`.
 | `wp_enqueue_scripts` | action | 10 |
 | `rest_api_init` | action | 10 |
 | `enqueue_block_assets` | action | 10 |
+| `admin_bar_menu` | action | 10 |
 | `admin_bar_menu` | action | 10 |
 | `admin_bar_menu` | action | 10 |
 | `admin_bar_menu` | action | 10 |

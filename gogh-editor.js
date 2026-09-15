@@ -7373,7 +7373,14 @@
     });
   }
   var helpBtn = side.querySelector('.gogh-help');
-  if (helpBtn) helpBtn.addEventListener('click', function () {
+  // the same sheet answers the ? in the side rail and the ? in the admin
+  // bar (James: 'a little help icon in the admin toolbar, just to the
+  // left of howdy'); outside the editor that admin bar link opens the
+  // helper in a new tab instead
+  var abHelp = document.querySelector('#wp-admin-bar-gogh-help > a');
+  if (abHelp && cfg.helpUrl) abHelp.addEventListener('click', function (ev) { ev.preventDefault(); toggleHelpSheet(); });
+  if (helpBtn) helpBtn.addEventListener('click', function () { toggleHelpSheet(); });
+  function toggleHelpSheet() {
     if (!helpSheet) {
       helpSheet = document.createElement('div');
       helpSheet.className = 'gogh-helpsheet';
@@ -7397,7 +7404,7 @@
     // aside so nothing ever sits on the ask box
     document.body.classList.toggle('gogh-help-open', helpSheet.classList.contains('is-open'));
     closeSide(true);
-  });
+  }
 
   // ---------- section templates & picker ----------
   var TEMPLATES = [
