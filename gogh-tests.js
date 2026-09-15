@@ -2457,6 +2457,48 @@
       G.multi.clear();
       return 'three at 200×60, the small one left alone';
     });
+    test('three cards dragged together snap their own centre to the page centre', function () {
+      addToSec('badge'); addToSec('badge'); addToSec('badge');
+      var n = sec().els.length;
+      var a = sec().els[n - 3], b = sec().els[n - 2], c = sec().els[n - 1];
+      a.x = 60; a.y = 3601; a.w = 200; a.h = 60;
+      b.x = 360; b.y = 3601; b.w = 200; b.h = 60;
+      c.x = 660; c.y = 3601; c.w = 200; c.h = 60;   // the group spans 60..860, centre 460
+      G.resolve(sec()); G.measure(sec()); G.resolve(sec());
+      G.multi.set(sec(), [n - 3, n - 2, n - 1]);
+      var s = sec().sectionEl.getBoundingClientRect().width / 1200;
+      var node = sec().nodes[n - 2], r = node.getBoundingClientRect();
+      var x = r.x + r.width / 2, y = r.y + r.height / 2;
+      pev('pointerdown', node, x, y, 71);
+      pev('pointermove', node, x + 60 * s, y, 71);
+      pev('pointermove', node, x + 136 * s, y, 71); // group centre would be 596, four short of the page's 600
+      pev('pointerup', node, x + 136 * s, y, 71);
+      var centre = (a.x + c.x + c.w) / 2;
+      expect(centre === 600, 'the group should sit centred on the page, centre ' + centre + ' (' + [a.x, b.x, c.x] + ')');
+      expect(b.x - (a.x + a.w) === 100 && c.x - (b.x + b.w) === 100, 'the pieces keep their gaps: ' + [a.x, b.x, c.x]);
+      G.multi.clear();
+      return 'group centre 600, gaps kept';
+    });
+    test('Centre on the page: the seventh icon moves the whole selection as one', function () {
+      addToSec('badge'); addToSec('badge'); addToSec('badge');
+      var n = sec().els.length;
+      var a = sec().els[n - 3], b = sec().els[n - 2], c = sec().els[n - 1];
+      a.x = 60; a.y = 3801; a.w = 200; a.h = 60;
+      b.x = 360; b.y = 3801; b.w = 200; b.h = 60;
+      c.x = 660; c.y = 3801; c.w = 200; c.h = 60;
+      G.resolve(sec()); G.measure(sec()); G.resolve(sec());
+      G.multi.set(sec(), [n - 3, n - 2, n - 1]);
+      var bar = document.querySelector('.gogh-mbar');
+      bar.querySelector('.gogh-mb-more').click();
+      var pg = bar.querySelector('.gogh-mb-align[data-how="page"]');
+      expect(pg && !pg.disabled && pg.getAttribute('aria-label') === 'Centre on the page', 'the seventh icon should be offered for an off-centre group');
+      pg.click();
+      expect(a.x === 200 && b.x === 500 && c.x === 800, 'the group should move as one to centre 600: ' + [a.x, b.x, c.x]);
+      expect(bar.querySelector('.gogh-mb-align[data-how="page"]').disabled && bar.querySelector('.gogh-mb-align[data-how="page"]').title === 'Already centred on the page', 'then it greys, with its reason');
+      G.multi.clear();
+      return 'centred on the page in one click';
+    });
+
     test('Alt + arrow steps to the next magnet, where the mouse would snap', function () {
       addToSec('badge'); addToSec('badge');
       var n = sec().els.length;
@@ -4706,7 +4748,7 @@
       top.click();
       expect(a.y === 60 && b.y === 60 && c.y === 60, 'Align top should bring every piece to the topmost: ' + [a.y, b.y, c.y]);
       expect(bar.querySelector('.gogh-mb-align[data-how="top"]').disabled && bar.querySelector('.gogh-mb-align[data-how="top"]').title === 'Already aligned', 'Align top should grey out once aligned');
-      expect(row.querySelectorAll('.gogh-mb-align').length === 6 && row.querySelectorAll('.gogh-mb-align svg').length === 6 && /Align/.test(bar.querySelector('.gogh-mb-more').textContent) && !row.querySelector('.gogh-mbar-lab') && !row.querySelector('.gogh-mbar-hint'), 'behind Align: one row of six icons, no labels, no sentence');
+      expect(row.querySelectorAll('.gogh-mb-align').length === 7 && row.querySelectorAll('.gogh-mb-align svg').length === 7 && /Align/.test(bar.querySelector('.gogh-mb-more').textContent) && !row.querySelector('.gogh-mbar-lab') && !row.querySelector('.gogh-mbar-hint'), 'behind Align: one row of seven icons, no labels, no sentence');
       // the hover title turns into the reason when a verb is faded (Align left would stack these), so the word lives on the aria-label
       var words = ['left', 'center', 'right', 'top', 'middle', 'bottom'].map(function (h) { var b2 = bar.querySelector('.gogh-mb-align[data-how="' + h + '"]'); return b2.getAttribute('aria-label') + (b2.title ? '' : ' (no title)'); });
       expect(words.join() === 'Align left,Align centre,Align right,Align top,Align middle,Align bottom', 'each icon says its word to a screen reader and carries a hover title: ' + words.join(' · '));

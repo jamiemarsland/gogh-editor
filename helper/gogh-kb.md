@@ -15,7 +15,7 @@ about something where they conflict, rather than picking one silently. Quote UI
 labels and message copy from the appendix, verbatim — those are the current
 strings, and a paraphrased button label is the fastest way to lose a user's trust.
 
-Generated for plugin version 0.99.560 · knowledge base f9c51c3.
+Generated for plugin version 0.99.561 · knowledge base 771ed46.
 
 ---
 
@@ -799,6 +799,9 @@ The third gap magnet, below equalise and repeat: with a neighbour on a side and 
 ### The group bar, quieter (v0.99.560)
 Select two or more pieces and the bar reads: Make a card · Duplicate · Delete · Tidy up · Align ▾. **Tidy up** is the one-click fix and now carries everything: it squares each row to its topmost piece, evens the gaps (across, the ends hold; down the page the gap lands on the rhythm), and matches sizes that are nearly the same (within a tenth) to the first piece's — wildly different sizes are a design choice and stay. **Align ▾** opens one row of six icons: the word-processing trio (left, centre, right), a hairline, then top, middle, bottom; hover says the word ("Align top") and a faded icon says why ("Already aligned", "Would put words on words"). Even gaps and Match size are gone as separate verbs, and so is the sentence that explained the greys. A card's own bar has the same Align ▾ with the three sideways icons and its Even gaps for the stack inside it.
 
+### Centring a group on the page (v0.99.561)
+Two ways, both from James asking how to centre three cards. **Dragging several pieces together:** the group is one thing to the page — its own centre snaps to the page centre and its outer edges to the margins, within 6 units, with the same pink centre guide a single piece gets; the pieces keep their gaps. **Behind Align, a seventh icon, Centre on the page:** moves the whole selection as one so its centre sits on the page's, greyed "Already centred on the page" when it is. The six other icons still align pieces with each other, not with the page.
+
 ---
 
 # Generated facts appendix
@@ -807,11 +810,11 @@ Everything in this section is extracted mechanically from the Gogh source on eve
 
 ## Current release
 
-- Plugin version: **0.99.560**
+- Plugin version: **0.99.561**
 - Requires WordPress **6.5+**, PHP **7.4+**
 - Text domain: `gogh-editor`
 - readme.txt Stable tag: `0.26.0` · Tested up to: `7.0`
-- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.560`). Quote the plugin header version.
+- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.561`). Quote the plugin header version.
 
 ## Design constants
 
@@ -1320,4 +1323,4 @@ These are the real strings in the current build. Use them verbatim; never paraph
 
 ## Test suite
 
-`312` tests, run by appending `?gogh-test` to any Gogh page URL while logged in with edit rights on that page.
+`314` tests, run by appending `?gogh-test` to any Gogh page URL while logged in with edit rights on that page.

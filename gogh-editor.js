@@ -2797,8 +2797,10 @@
     top:    '<path d="M3 3h14"/><rect x="5" y="6" width="4" height="10" rx="1"/><rect x="11" y="6" width="4" height="6" rx="1"/>',
     middle: '<path d="M3 10h14"/><rect x="5" y="4" width="4" height="12" rx="1"/><rect x="11" y="6" width="4" height="8" rx="1"/>',
     bottom: '<path d="M3 17h14"/><rect x="5" y="4" width="4" height="10" rx="1"/><rect x="11" y="8" width="4" height="6" rx="1"/>',
+    // the page itself: a box centred on a dashed page line
+    page:   '<rect x="2" y="3" width="16" height="14" rx="1.5"/><path d="M10 1v2M10 17v2" stroke-dasharray="1.5 1.5"/><rect x="6" y="7" width="8" height="6" rx="1"/>',
   };
-  var ALIGN_WORD = { left: 'Align left', center: 'Align centre', right: 'Align right', top: 'Align top', middle: 'Align middle', bottom: 'Align bottom' };
+  var ALIGN_WORD = { left: 'Align left', center: 'Align centre', right: 'Align right', top: 'Align top', middle: 'Align middle', bottom: 'Align bottom', page: 'Centre on the page' };
   function alignIconBtn(cls, how) {
     return '<button type="button" class="gogh-eb gogh-mb gogh-mb-icon ' + cls + '" data-how="' + how + '" title="' + ALIGN_WORD[how] + '" aria-label="' + ALIGN_WORD[how] + '">' +
       '<svg width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">' + ALIGN_ICON[how] + '</svg></button>';
@@ -3160,6 +3162,9 @@
     ['left', 'center', 'right'].map(function (h) { return alignIconBtn('gogh-mb-align', h); }).join('') +
     '<span class="gogh-mbar-sep"></span>' +
     ['top', 'middle', 'bottom'].map(function (h) { return alignIconBtn('gogh-mb-align', h); }).join('') +
+    '<span class="gogh-mbar-sep"></span>' +
+    // the whole selection, centred on the page (James: 'how would i center these 3 cards?')
+    alignIconBtn('gogh-mb-align', 'page') +
     '</div>';
   document.body.appendChild(mbar);
   function multiEls() {
@@ -3316,6 +3321,10 @@
   }
   function alignPlan(els, how) {
     var bb = bboxOf(els);
+    if (how === 'page') {
+      var shift = Math.round(W / 2 - (bb.x + bb.w / 2));
+      return els.map(function (e) { return { e: e, x: e.x + shift, y: e.y }; });
+    }
     return els.map(function (e) {
       var m = { e: e, x: e.x, y: e.y };
       if (how === 'left') m.x = bb.x; else if (how === 'center') m.x = Math.round(bb.x + bb.w / 2 - e.w / 2); else if (how === 'right') m.x = bb.x + bb.w - e.w;
@@ -3406,7 +3415,7 @@
       els.some(function (e) { return e.type === 'box' || e.rails || e.type === 'exp' || e.type === 'embed'; }) ? 'Cards, shapes and shelves can’t go inside a card' : '',
       'Make these one card — it holds together on phones');
     mbar.querySelectorAll('.gogh-mb-align').forEach(function (b) {
-      grey(b, judge(alignPlan(els, b.dataset.how), 'Already aligned'), ALIGN_WORD[b.dataset.how]);
+      grey(b, judge(alignPlan(els, b.dataset.how), b.dataset.how === 'page' ? 'Already centred on the page' : 'Already aligned'), ALIGN_WORD[b.dataset.how]);
     });
     grey(mbar.querySelector('.gogh-mb-tidy'), judge(tidyPlan(els), 'Already tidy'), 'Line the pieces up, even the gaps, match sizes that are nearly the same');
   }
@@ -3418,7 +3427,7 @@
     if (said) toast(said, { ttl: 3500, actions: [{ label: 'Undo', onClick: function () { undo(); } }] });
   }
   var ARRANGE_SAID = { left: 'Lined up on the left.', center: 'Centred.', right: 'Lined up on the right.',
-    top: 'Tops lined up.', middle: 'Middles lined up.', bottom: 'Bottoms lined up.' };
+    top: 'Tops lined up.', middle: 'Middles lined up.', bottom: 'Bottoms lined up.', page: 'Centred on the page.' };
   function makeCardFromSelection() {
     if (!multiSel) return;
     var sec = multiSel.sec, idxs = multiSel.idxs.slice();
@@ -14159,6 +14168,25 @@
     e.y = Math.max(0, sn.y);
     if (lockX || !drag.movedX) { e.x = drag.x; sn.gx = null; }
     if (lockY || !drag.movedY) { e.y = drag.y; sn.gy = null; }
+    // a group dragged together is one thing to the page: ITS centre snaps
+    // to the page centre and its outer edges to the margins, with the same
+    // guide a single piece gets (James: 'how would i center these 3 cards?')
+    if (drag.multi && !free && !lockX && drag.movedX) {
+      var gx0 = e.x, gx1 = e.x + e.w, shiftM = e.x - drag.x;
+      drag.multi.forEach(function (mm) {
+        var o = sec.els[mm.j];
+        if (!o) return;
+        gx0 = Math.min(gx0, mm.x + shiftM);
+        gx1 = Math.max(gx1, mm.x + shiftM + o.w);
+      });
+      var gTargets = [[W / 2, (gx0 + gx1) / 2], [MARGIN, gx0], [W - MARGIN, gx1]];
+      var gBest = null;
+      gTargets.forEach(function (t) {
+        var d = Math.abs(t[0] - t[1]);
+        if (d <= SNAP && (!gBest || d < gBest.d)) gBest = { d: d, v: t[0], edge: t[1] };
+      });
+      if (gBest) { e.x = Math.round(e.x + (gBest.v - gBest.edge)); sn.gx = gBest.v; }
+    }
     drag.gxCap = sn.gx !== null;
     drag.gyCap = sn.gy !== null;
     drag.lockedX = lockX;
