@@ -14176,6 +14176,8 @@
     // unreachable
     drag.eqH = false;
     drag.eqV = false;
+    drag.repH = null;
+    drag.repV = null;
     if (!free) {
       var nb = neighbors(sec, e);
       if (!lockX && nb.L && nb.R) {
@@ -14188,6 +14190,24 @@
         var yEq = (nb.T.y + nb.T.h + nb.B.y - e.h) / 2;
         if (yEq >= nb.T.y + nb.T.h && Math.abs(ry - yEq) < 8) {
           e.y = yEq; sn.gy = null; drag.eqV = true;
+        }
+      }
+      // repeat-gap: at the END of a run the neighbour already keeps a gap
+      // to its own neighbour, and that gap is offered here, so a fourth
+      // card lands in step with three without anyone counting (the Canva
+      // teardown: alignment as placement, not repair)
+      if (!lockX && !drag.eqH) {
+        var rgx = runGap(sec, e, nb, 'x');
+        if (rgx) {
+          var xRep = rgx.side === 'L' ? nb.L.x + nb.L.w + rgx.gap : nb.R.x - rgx.gap - e.w;
+          if (xRep >= 0 && xRep + e.w <= W && Math.abs(rx - xRep) < 8) { e.x = xRep; sn.gx = null; drag.repH = rgx; }
+        }
+      }
+      if (!lockY && !drag.eqV) {
+        var rgy = runGap(sec, e, nb, 'y');
+        if (rgy) {
+          var yRep = rgy.side === 'T' ? nb.T.y + nb.T.h + rgy.gap : nb.B.y - rgy.gap - e.h;
+          if (yRep >= 0 && Math.abs(ry - yRep) < 8) { e.y = yRep; sn.gy = null; drag.repV = rgy; }
         }
       }
     }
@@ -14213,6 +14233,11 @@
         // says one thing — the solid ghost and the landing box (James's
         // Squarespace comparison: "theirs feels a little more solid")
         if (drag.altHeld) drawDists(sec, drag.i, drag.eqH, drag.eqV, sn.gx, sn.gy);
+        // a gap magnet holding is the one time a plain drag shows numbers:
+        // every gap in the run gets one, so two digits agree where two
+        // stretches of whitespace never could (nothing on screen until
+        // something is true)
+        else if (drag.eqH || drag.eqV || drag.repH || drag.repV) drawGapRun(sec, drag.i, drag.eqH, drag.eqV, drag.repH, drag.repV, sn.gx, sn.gy);
         else hideDists();
         // the landing box is drawn from MODEL coordinates — the same
         // promise the ghost makes. Reading the solved node's cell broke
@@ -14263,7 +14288,7 @@
     var sec = drag.sec, i = drag.i;
     var multiD = drag.multi || null;
     var gxCapD = !!drag.gxCap, gyCapD = !!drag.gyCap;
-    var eqHD = !!drag.eqH, eqVD = !!drag.eqV;
+    var eqHD = !!drag.eqH || !!drag.repH, eqVD = !!drag.eqV || !!drag.repV; // a gap magnet is exact: the grid does not get a second say
     var lockedXD = !!drag.lockedX, lockedYD = !!drag.lockedY;
     var movedXD = !!drag.movedX, movedYD = !!drag.movedY;
     var dropCX = drag.cx, dropCY = drag.cy;
@@ -17552,6 +17577,58 @@
   }
 
   // ---------- smart spacing: neighbours, live distances, equal-space snap ----------
+  // the gap a run already keeps: with a neighbour on ONE side of this axis,
+  // that neighbour's own gap to the next piece along is the run's gap
+  function runGap(sec, e, nb, axis) {
+    var near = axis === 'x' ? [nb.L, nb.R] : [nb.T, nb.B];
+    var side = near[0] && !near[1] ? 0 : (!near[0] && near[1] ? 1 : -1);
+    if (side < 0) return null;
+    var n1 = near[side];
+    var nn = neighbors(sec, n1);
+    var n2 = axis === 'x' ? (side === 0 ? nn.L : nn.R) : (side === 0 ? nn.T : nn.B);
+    if (!n2 || n2 === e) return null;
+    var gap = axis === 'x'
+      ? (side === 0 ? n1.x - (n2.x + n2.w) : n2.x - (n1.x + n1.w))
+      : (side === 0 ? n1.y - (n2.y + n2.h) : n2.y - (n1.y + n1.h));
+    if (!(gap > 0)) return null;
+    return { side: axis === 'x' ? (side === 0 ? 'L' : 'R') : (side === 0 ? 'T' : 'B'), gap: Math.round(gap), n1: n1, n2: n2 };
+  }
+  // the numbers on a run whose gaps agree: the dragged piece's gap(s) and,
+  // for a repeated gap, the one it copies — all marked equal
+  function drawGapRun(sec, i, eqH, eqV, repH, repV, gx, gy) {
+    hideDists();
+    var e = sec.els[i];
+    var nb = neighbors(sec, e);
+    var r = sec.sectionEl.getBoundingClientRect();
+    var s = r.width / W;
+    var px = function (v) { return r.left + window.scrollX + v * s; };
+    var py = function (v) { return r.top + window.scrollY + v * s; };
+    var di = 0;
+    var hGap = function (a, b) { // a left of b
+      var g = b.x - (a.x + a.w);
+      if (g <= 4 || di >= dists.length) return;
+      var c = (Math.max(a.y, b.y) + Math.min(a.y + a.h, b.y + b.h)) / 2;
+      if (gy != null && Math.abs(c - gy) <= 12) return;
+      showDist(di++, true, px(a.x + a.w), py(c), g * s, g, true);
+    };
+    var vGap = function (a, b) { // a above b
+      var g = b.y - (a.y + a.h);
+      if (g <= 4 || di >= dists.length) return;
+      var c = (Math.max(a.x, b.x) + Math.min(a.x + a.w, b.x + b.w)) / 2;
+      if (gx != null && Math.abs(c - gx) <= 12) return;
+      showDist(di++, false, px(c), py(a.y + a.h), g * s, g, true);
+    };
+    if (eqH) { if (nb.L) hGap(nb.L, e); if (nb.R) hGap(e, nb.R); }
+    else if (repH) {
+      if (repH.side === 'L') { hGap(repH.n2, repH.n1); hGap(repH.n1, e); }
+      else { hGap(e, repH.n1); hGap(repH.n1, repH.n2); }
+    }
+    if (eqV) { if (nb.T) vGap(nb.T, e); if (nb.B) vGap(e, nb.B); }
+    else if (repV) {
+      if (repV.side === 'T') { vGap(repV.n2, repV.n1); vGap(repV.n1, e); }
+      else { vGap(e, repV.n1); vGap(repV.n1, repV.n2); }
+    }
+  }
   function neighbors(sec, e) {
     var L = null, R = null, T = null, B = null;
     sec.els.forEach(function (o) {

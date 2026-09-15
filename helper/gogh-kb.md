@@ -15,7 +15,7 @@ about something where they conflict, rather than picking one silently. Quote UI
 labels and message copy from the appendix, verbatim — those are the current
 strings, and a paraphrased button label is the fastest way to lose a user's trust.
 
-Generated for plugin version 0.99.556 · knowledge base e73b079.
+Generated for plugin version 0.99.557 · knowledge base 0d46d85.
 
 ---
 
@@ -787,6 +787,9 @@ A **Fonts** card in the Site drawer owns everything about type: the type size (S
 ### User testing (v0.99.556)
 A site booted from `blueprint-usertest.json` (the tester is sent to the helper's `/test` page, which explains the persona — Elliot Grey, a photographer — and has the Start button) carries the option `gogh_user_test`. On such a site the plugin loads `gogh-usertest.js`: a small card, top right, with seven tasks (site name · headline · swap a photo · a different look · a way to get in touch · a Prices page in the menu · phone check then publish and view), each with Done, Couldn't do it, an optional note and a hint (opening the hint is recorded), then a four-question wrap-up (happy 1–5, could finish, how it felt, what confused) and an optional name. The card keeps its place in localStorage across reloads and the walk between editor and published site. Events go to the helper's `POST /api/test` under a random session id (`gogh_user_test_session`), batched and retried. Jamie reads them at `/tests` with the test token (`TEST_TOKEN`, or the refresh token): one row per tester, click for the tasks, times, notes and wrap-up. Tasks come from `gogh_user_test_tasks()`; the option may carry its own `tasks` array, and the `gogh_user_test_tasks` filter can change them. Nothing else is collected.
 
+### Gap magnets and the numbers (v0.99.557)
+While dragging, two gap magnets work alongside the edge and centre magnets. **Equalise** (older): between two neighbours, the midpoint that makes both gaps equal captures within 8 units. **Repeat** (new): at the end of a run, the gap the nearest neighbour already keeps to the next piece is offered, so a fourth card lands in step with three; captured within 8 units, never on a purely locked axis, beaten only by equalise. Both work on either axis. **The numbers**: a plain drag stays quiet; the moment a gap magnet holds, every gap in that run shows its number in a blue "= 40" badge (the dragged piece's gap and the one it copies), and they go on drop. Alt during a drag still shows every ruler as before. From the Canva teardown: alignment as placement, not repair — the beginner compares two digits instead of two stretches of whitespace.
+
 ---
 
 # Generated facts appendix
@@ -795,11 +798,11 @@ Everything in this section is extracted mechanically from the Gogh source on eve
 
 ## Current release
 
-- Plugin version: **0.99.556**
+- Plugin version: **0.99.557**
 - Requires WordPress **6.5+**, PHP **7.4+**
 - Text domain: `gogh-editor`
 - readme.txt Stable tag: `0.26.0` · Tested up to: `7.0`
-- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.556`). Quote the plugin header version.
+- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.557`). Quote the plugin header version.
 
 ## Design constants
 
@@ -1309,4 +1312,4 @@ These are the real strings in the current build. Use them verbatim; never paraph
 
 ## Test suite
 
-`305` tests, run by appending `?gogh-test` to any Gogh page URL while logged in with edit rights on that page.
+`306` tests, run by appending `?gogh-test` to any Gogh page URL while logged in with edit rights on that page.

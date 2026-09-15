@@ -2313,6 +2313,64 @@
       return 'settled at x=' + b.x + ', both gaps ' + gapL;
     });
 
+    // ---- 28a. repeat-gap: a fourth card lands in step with three ----
+    test('repeat-gap snap reproduces the row’s gap at the end of a run', function () {
+      addToSec('badge'); addToSec('badge'); addToSec('badge'); addToSec('badge');
+      var n = sec().els.length;
+      var a = sec().els[n - 4], b = sec().els[n - 3], c = sec().els[n - 2], d = sec().els[n - 1];
+      a.x = 100; a.y = 1800; a.w = 200; a.h = 60;
+      b.x = 340; b.y = 1800; b.w = 200; b.h = 60;   // gap 40
+      c.x = 580; c.y = 1800; c.w = 200; c.h = 60;   // gap 40
+      d.x = 900; d.y = 1800; d.w = 200; d.h = 60;   // the fourth, out of step
+      G.resolve(sec()); G.measure(sec()); G.resolve(sec());
+      select(n - 1);
+      var s = sec().sectionEl.getBoundingClientRect().width / 1200;
+      var grip = q('.gogh-grip');
+      var r = grip.getBoundingClientRect();
+      var dx = (826 - 900) * s; // 6 units past the gap of 40 — inside the magnet, off the 24 grid
+      grip.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, clientX: r.x + 12, clientY: r.y + 12, pointerId: 64 }));
+      grip.dispatchEvent(new PointerEvent('pointermove', { bubbles: true, clientX: r.x + 12 + dx, clientY: r.y + 12, pointerId: 64 }));
+      grip.dispatchEvent(new PointerEvent('pointerup', { bubbles: true, clientX: r.x + 12 + dx, clientY: r.y + 12, pointerId: 64 }));
+      var gap = d.x - (c.x + c.w);
+      expect(gap === 40, 'the fourth card should copy the run’s gap of 40, got ' + gap + ' (x=' + d.x + ')');
+      return 'x=' + d.x + ', gap ' + gap + ' like the others';
+    });
+
+    testAsync('gap numbers show while a gap magnet holds, and not on a plain drag', function () { return new Promise(function (done, fail) {
+      addToSec('badge'); addToSec('badge'); addToSec('badge'); addToSec('badge');
+      var n = sec().els.length;
+      var a = sec().els[n - 4], b = sec().els[n - 3], c = sec().els[n - 2], d = sec().els[n - 1];
+      a.x = 100; a.y = 2000; a.w = 200; a.h = 60;
+      b.x = 340; b.y = 2000; b.w = 200; b.h = 60;
+      c.x = 580; c.y = 2000; c.w = 200; c.h = 60;
+      d.x = 1000; d.y = 2000; d.w = 180; d.h = 60;
+      G.resolve(sec()); G.measure(sec()); G.resolve(sec());
+      select(n - 1);
+      var s = sec().sectionEl.getBoundingClientRect().width / 1200;
+      var grip = q('.gogh-grip');
+      var r = grip.getBoundingClientRect();
+      var shown = function () { return [].slice.call(document.querySelectorAll('.gogh-dist')).filter(function (x) { return !x.hidden; }); };
+      var frames = function (k) { return new Promise(function (res) { var f = function () { if (--k <= 0) res(); else requestAnimationFrame(f); }; requestAnimationFrame(f); }); };
+      grip.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, clientX: r.x + 12, clientY: r.y + 12, pointerId: 65 }));
+      // a plain move, nowhere near the run's gap: quiet
+      grip.dispatchEvent(new PointerEvent('pointermove', { bubbles: true, clientX: r.x + 12 + (960 - 1000) * s, clientY: r.y + 12, pointerId: 65 }));
+      frames(3).then(function () {
+        var quiet = shown().length;
+        // into the magnet: the gap of 40 is copied, and both gaps get their number
+        grip.dispatchEvent(new PointerEvent('pointermove', { bubbles: true, clientX: r.x + 12 + (825 - 1000) * s, clientY: r.y + 12, pointerId: 65 }));
+        return frames(3).then(function () {
+          var on = shown();
+          grip.dispatchEvent(new PointerEvent('pointerup', { bubbles: true, clientX: r.x + 12 + (825 - 1000) * s, clientY: r.y + 12, pointerId: 65 }));
+          if (quiet !== 0) throw new Error('a plain drag showed ' + quiet + ' number(s); it should stay quiet');
+          if (on.length < 2) throw new Error('the repeated gap should number both gaps, got ' + on.length);
+          var texts = on.map(function (x) { return x.textContent; });
+          if (!texts.every(function (t) { return /=\s*40/.test(t); })) throw new Error('both numbers should read = 40: ' + texts.join(' | '));
+          if (shown().length !== 0) throw new Error('the numbers should go on drop');
+          done('quiet on a plain drag; ' + texts.join(' and ') + ' while the gap held');
+        });
+      }).catch(fail);
+    }); });
+
     // ---- 28b. equal-spacing wins over a nearby edge-snap candidate ----
     test('equal-spacing beats edge snap and grid parity', function () {
       // James's report: on a real page, an alignment candidate near the
