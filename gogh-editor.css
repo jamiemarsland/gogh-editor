@@ -4233,5 +4233,5 @@ html.gogh-building .gogh-inserter, html.gogh-building .gogh-side { display: none
 .gogh-panel .gogh-lay-cards .gogh-card-name { font-size: 11.5px; padding: 6px 8px; }
 .gogh-panel .gogh-lay-cards .gogh-card.is-on { outline: 2px solid var(--gogh-ui-accent, #4a63d8); }
 .gogh-lay-empty { margin: 12px; }
-.gogh-ghost { outline: 2px dashed var(--gogh-ui-accent, #4a63d8); outline-offset: -2px; }
-.gogh-ghost .gogh-section { opacity: .94; }
+.gogh-tryon { outline: 2px dashed var(--gogh-ui-accent, #4a63d8); outline-offset: -2px; }
+.gogh-tryon .gogh-section { opacity: .94; }

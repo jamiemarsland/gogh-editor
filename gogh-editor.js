@@ -10134,7 +10134,7 @@
         layoutsGhost = null;
         delete sec.ghost;
         delete sec.tplName;
-        sec.wrapEl.classList.remove('gogh-ghost');
+        sec.wrapEl.classList.remove('gogh-tryon');
         for (var bi = S.length - 1; bi >= 0; bi--) {
           if (isBlankBoot(S[bi]) && S[bi] !== sec) {
             S[bi].wrapEl.remove();
@@ -10764,7 +10764,7 @@
       // the Layouts panel keeps or clears it (design paper: Layouts in
       // the sidebar)
       sec.ghost = true;
-      sec.wrapEl.classList.add('gogh-ghost');
+      sec.wrapEl.classList.add('gogh-tryon');
       renderSection(sec);
       try { sec.wrapEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); } catch (err) {}
       return sec;

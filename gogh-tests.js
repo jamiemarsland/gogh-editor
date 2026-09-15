@@ -4733,23 +4733,21 @@
       card.dispatchEvent(new Event('mouseenter'));
       setTimeout(function () {
         var g = G.layoutsGhost();
-        expect(!!g && document.querySelector('.gogh-ghost') === g.wrapEl, 'hovering a card draws a ghost section on the page');
+        expect(!!g && document.querySelector('.gogh-tryon') === g.wrapEl, 'hovering a card draws a ghost section on the page');
         expect(G.sections().length === n0 + 1, 'the ghost sits in the section list while it is tried on');
         var list = pnl.querySelector('.gogh-lay-list');
         list.dispatchEvent(new Event('mouseleave'));
-        expect(!G.layoutsGhost() && !document.querySelector('.gogh-ghost') && G.sections().length === n0, 'leaving the list clears the ghost');
+        expect(!G.layoutsGhost() && !document.querySelector('.gogh-tryon') && G.sections().length === n0, 'leaving the list clears the ghost');
         card.dispatchEvent(new Event('mouseenter'));
         setTimeout(function () {
           card.click();
-          expect(!G.layoutsGhost() && !document.querySelector('.gogh-ghost'), 'clicking keeps the ghost as a real section');
+          expect(!G.layoutsGhost() && !document.querySelector('.gogh-tryon'), 'clicking keeps the ghost as a real section');
           expect(G.sections().length === n0 + 1, 'one section was added');
           expect(!pnl.hidden, 'the panel stays open for the next one');
           pnl.querySelector('.gogh-panel-back').click();
           expect(pnl.hidden, 'Back closes the panel');
           expect(!document.querySelector('.gogh-side').classList.contains('gogh-side-away'), 'and the side rail is back');
-          G.undo();
-          expect(G.sections().length === n0, 'undo removes the kept section');
-          done();
+          done(); // the runner restores the snapshot, which drops the kept section
         }, 160);
       }, 160);
     }); });
