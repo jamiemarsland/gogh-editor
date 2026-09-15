@@ -4771,7 +4771,7 @@
       expect(!top.disabled, 'Align top should be offered for a ragged row');
       top.click();
       expect(a.y === 60 && b.y === 60 && c.y === 60, 'Align top should bring every piece to the topmost: ' + [a.y, b.y, c.y]);
-      expect(bar.querySelector('.gogh-mb-align[data-how="top"]').disabled && bar.querySelector('.gogh-mb-align[data-how="top"]').title === 'Already aligned', 'Align top should grey out once aligned');
+      expect(bar.querySelector('.gogh-mb-align[data-how="top"]').disabled && bar.querySelector('.gogh-mb-align[data-how="top"]').title === 'Tops already line up', 'Align top should grey out once aligned, saying what lines up');
       expect(row.querySelectorAll('.gogh-mb-align').length === 7 && row.querySelectorAll('.gogh-mb-align svg').length === 7 && /Align/.test(bar.querySelector('.gogh-mb-more').textContent) && !row.querySelector('.gogh-mbar-lab') && !row.querySelector('.gogh-mbar-hint'), 'behind Align: one row of seven icons, no labels, no sentence');
       // the hover title turns into the reason when a verb is faded (Align left would stack these), so the word lives on the aria-label
       var words = ['left', 'center', 'right', 'top', 'middle', 'bottom'].map(function (h) { var b2 = bar.querySelector('.gogh-mb-align[data-how="' + h + '"]'); return b2.getAttribute('aria-label') + (b2.title ? '' : ' (no title)'); });
@@ -4805,7 +4805,7 @@
       bar.querySelector('.gogh-mb-more').click();
       var why = function (how) { var b2 = bar.querySelector('.gogh-mb-align[data-how="' + how + '"]'); return b2.disabled ? b2.title : 'offered'; };
       expect(why('middle') === 'Would put words on words' && why('top') === 'Would put words on words' && why('bottom') === 'Would put words on words', 'stacked words should refuse Top, Middle and Bottom: ' + [why('top'), why('middle'), why('bottom')]);
-      expect(why('left') === 'Already aligned' && why('right') === 'offered' && why('center') === 'offered', 'sideways verbs should stay honest: ' + [why('left'), why('center'), why('right')]);
+      expect(why('left') === 'Left edges already line up' && why('right') === 'offered' && why('center') === 'offered', 'sideways verbs should stay honest: ' + [why('left'), why('center'), why('right')]);
       var hy = s0.els[n0].y, py = s0.els[n0 + 1].y;
       bar.querySelector('.gogh-mb-align[data-how="middle"]').click();
       expect(s0.els[n0].y === hy && s0.els[n0 + 1].y === py, 'a faded verb must do nothing');
@@ -5208,7 +5208,7 @@
       expect(/Even gaps/.test(row.textContent) && !row.querySelector('.gogh-mbar-lab') && row.querySelector('.gogh-cl-align[data-how="center"]').title === 'Align centre', 'the card row is icons with words on hover, its gap verb beside them');
       row.querySelector('.gogh-cl-align[data-how="left"]').click();
       expect(box.kids.every(function (k) { return k.x === 40; }), 'Left should line the pieces up with the leftmost: ' + box.kids.map(function (k) { return k.x; }));
-      expect(row.querySelector('.gogh-cl-align[data-how="left"]').disabled && row.querySelector('.gogh-cl-align[data-how="left"]').title === 'Already aligned', 'Left should fade once lined up');
+      expect(row.querySelector('.gogh-cl-align[data-how="left"]').disabled && row.querySelector('.gogh-cl-align[data-how="left"]').title === 'Left edges already line up', 'Left should fade once lined up');
       row.querySelector('.gogh-cl-align[data-how="center"]').click();
       expect(box.kids[0].x === 120 && box.kids[1].x === 80 && box.kids[2].x === 235, 'Centre should centre each piece on the card: ' + box.kids.map(function (k) { return k.x; }));
       expect(box.kids[0].align === 'center' && box.kids[1].align === 'center' && !box.kids[2].align, 'Centre should centre the WORDS too: text pieces take the alignment, a button keeps its own');

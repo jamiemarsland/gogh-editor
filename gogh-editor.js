@@ -2801,6 +2801,10 @@
     page:   '<rect x="2" y="3" width="16" height="14" rx="1.5"/><path d="M10 1v2M10 17v2" stroke-dasharray="1.5 1.5"/><rect x="6" y="7" width="8" height="6" rx="1"/>',
   };
   var ALIGN_WORD = { left: 'Align left', center: 'Align centre', right: 'Align right', top: 'Align top', middle: 'Align middle', bottom: 'Align bottom', page: 'Centre on the page' };
+  // a faded icon says WHAT is already right, not just that it is (James:
+  // 'it might be nice to explain what is already aligned')
+  var ALIGN_DONE = { left: 'Left edges already line up', center: 'Centres already line up', right: 'Right edges already line up',
+    top: 'Tops already line up', middle: 'Middles already line up', bottom: 'Bottoms already line up', page: 'Already centred on the page' };
   function alignIconBtn(cls, how) {
     return '<button type="button" class="gogh-eb gogh-mb gogh-mb-icon ' + cls + '" data-how="' + how + '" title="' + ALIGN_WORD[how] + '" aria-label="' + ALIGN_WORD[how] + '">' +
       '<svg width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">' + ALIGN_ICON[how] + '</svg></button>';
@@ -3389,7 +3393,7 @@
       return '';
     };
     elbar.querySelectorAll('.gogh-cl-align').forEach(function (b) {
-      grey(b, judge(cardLineupPlan(box, b.dataset.how), 'Already aligned'), ALIGN_WORD[b.dataset.how]);
+      grey(b, judge(cardLineupPlan(box, b.dataset.how), ALIGN_DONE[b.dataset.how]), ALIGN_WORD[b.dataset.how]);
     });
     grey(elbar.querySelector('.gogh-cl-space'),
       box.kids.length < 3 ? 'Needs three or more pieces' : judge(cardLineupPlan(box, 'space'), 'Already evenly spaced'),
@@ -3435,7 +3439,7 @@
       els.some(function (e) { return e.type === 'box' || e.rails || e.type === 'exp' || e.type === 'embed'; }) ? 'Cards, shapes and shelves can’t go inside a card' : '',
       'Make these one card — it holds together on phones');
     mbar.querySelectorAll('.gogh-mb-align').forEach(function (b) {
-      grey(b, judge(alignPlan(els, b.dataset.how), b.dataset.how === 'page' ? 'Already centred on the page' : 'Already aligned'), ALIGN_WORD[b.dataset.how]);
+      grey(b, judge(alignPlan(els, b.dataset.how), ALIGN_DONE[b.dataset.how]), ALIGN_WORD[b.dataset.how]);
     });
     // only the directions that make sense for the shape: a row of pieces
     // beside each other offers top, middle, bottom (Align left would pile
