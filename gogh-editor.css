@@ -4212,4 +4212,8 @@ html.gogh-building .gogh-inserter, html.gogh-building .gogh-side { display: none
 .gogh-fonthit-name { font-size: 17px; line-height: 1.15; min-width: 0; display: flex; align-items: center; }
 .gogh-fonthit-prev { height: 22px; width: auto; max-width: 220px; display: block; }
 .gogh-fonthit-meta { flex: none; font: 500 11px/1 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; letter-spacing: .02em; opacity: .55; }
+/* what the site wears now, in its own faces */
+.gogh-fontswearing { display: flex; flex-direction: column; gap: 3px; margin: 4px 0 12px; padding: 12px 14px; border-radius: 10px; background: rgba(74, 99, 216, 0.07); }
+.gogh-fontswearing-name { font-size: 20px; line-height: 1.15; }
+.gogh-fontswearing-sub { font: 500 11.5px/1.4 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; opacity: .6; }
 

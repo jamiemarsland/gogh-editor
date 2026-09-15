@@ -10952,7 +10952,7 @@
       if (!document.body.contains(pill)) return;
       var w = remixWorn();
       pill.querySelector('.gogh-frontdoor-back').disabled = remixAt <= 0;
-      if (tapped) pill.querySelector('.gogh-frontdoor-cap').textContent = w && w.cand ? 'Wearing: ' + w.cand.name + (w.cand.detail ? ' · ' + w.cand.detail : '') : 'Wearing: the look you started with';
+      if (tapped) pill.querySelector('.gogh-frontdoor-cap').textContent = w && w.cand ? 'On your site now: ' + w.cand.name + (w.cand.detail ? ' · ' + w.cand.detail : '') : 'Wearing: the look you started with';
     };
     remixWatch('frontdoor', say);
     pill.querySelector('.gogh-frontdoor-roll').addEventListener('click', function () { tapped = true; remixRoll(); });
@@ -15215,18 +15215,47 @@
         toast(e && e.message ? e.message : 'That pair did not install.', { error: true, ttl: 7000 });
       });
   }
+  // what the site wears now, read from the live theme CSS: the body family
+  // and the heading family (which falls back to the body's when the theme
+  // sets none), each with its name and stack from the catalogue
+  function currentFonts() {
+    var gs = document.getElementById('global-styles-inline-css');
+    var css = gs ? gs.textContent : '';
+    var slugIn = function (re) { var m = css.match(re); return m ? m[1] : null; };
+    var bodySlug = slugIn(/body\s*\{[^}]*font-family:\s*var\(--wp--preset--font-family--([a-z0-9-]+)\)/);
+    var headSlug = slugIn(/h1[^{]*\{[^}]*font-family:\s*var\(--wp--preset--font-family--([a-z0-9-]+)\)/) || bodySlug;
+    var cat = fontCatalogue();
+    var of = function (slug) { var c = cat.filter(function (x) { return x.slug === slug; })[0]; return c ? { slug: slug, name: c.name, fontFamily: c.fontFamily } : { slug: slug, name: slug || 'the theme’s own', fontFamily: null }; };
+    return { heading: of(headSlug), body: of(bodySlug) };
+  }
   function markCurrentFontPair() {
     var list = panel.querySelector('.gogh-fontlist');
     if (!list) return;
-    var gs = document.getElementById('global-styles-inline-css');
-    var css = gs ? gs.textContent : '';
-    var bodyM = css.match(/body\s*\{[^}]*font-family:\s*var\(--wp--preset--font-family--([a-z0-9-]+)\)/);
-    var bodySlug = bodyM ? bodyM[1] : null;
-    [].slice.call(list.querySelectorAll('.gogh-fontpair')).forEach(function (b) {
-      var pr = FONT_PAIRS[+b.dataset.i];
-      var mine = pr.theme ? !bodySlug || !FONT_PAIRS.some(function (x) { return !x.theme && fontSlug(x.body.name) === bodySlug; }) : fontSlug(pr.body.name) === bodySlug;
-      b.classList.toggle('is-current', !!mine);
+    var now = currentFonts();
+    var own = themeOwnPair();
+    var matches = function (pr) {
+      var h = pr.theme ? own.heading.slug : fontSlug(pr.heading.name), b = pr.theme ? own.body.slug : fontSlug(pr.body.name);
+      return h === now.heading.slug && b === now.body.slug;
+    };
+    var anyMatch = false;
+    [].slice.call(list.querySelectorAll('.gogh-fontpair')).forEach(function (btn) {
+      var pr = FONT_PAIRS[+btn.dataset.i];
+      var mine = matches(pr);
+      if (mine) anyMatch = true;
+      btn.classList.toggle('is-current', mine);
     });
+    // the wearing line says it in the faces themselves, pair or not
+    var wear = panel.querySelector('.gogh-fontswearing');
+    if (wear) {
+      var same = now.heading.slug === now.body.slug;
+      var pairRow = FONT_PAIRS.filter(matches)[0];
+      wear.querySelector('.gogh-fontswearing-name').innerHTML =
+        '<span style="font-family:' + escAttr(now.heading.fontFamily || 'inherit') + ';font-weight:600">' + esc(now.heading.name) + '</span>' +
+        (same ? '' : '<span class="gogh-fontpair-amp"> &amp; </span><span style="font-family:' + escAttr(now.body.fontFamily || 'inherit') + '">' + esc(now.body.name) + '</span>');
+      wear.querySelector('.gogh-fontswearing-sub').textContent = same
+        ? now.heading.name + ' on everything' + (pairRow && pairRow.theme ? ' · the theme’s own' : '')
+        : now.heading.name + ' on headings · ' + now.body.name + ' on body' + (pairRow ? ' · ' + pairRow.say : anyMatch ? '' : ' · your own mix');
+    }
   }
   // More fonts: a name typed, the theme's own families first, then Google's
   // list (WordPress's collection, fetched through the site), each hit shown
@@ -15313,6 +15342,7 @@
         '<div class="gogh-panel-head"><span class="gogh-panel-title">Fonts</span>' +
         '<button type="button" class="gogh-sbtn gogh-panel-close gogh-panel-back" title="Back"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"/></svg></button></div>' +
         '<div class="gogh-panel-hint">Hover to try a pair on your page. Click to keep it.</div>' +
+        '<div class="gogh-fontswearing"><span class="gogh-remixwearing-lab">On your site now</span><span class="gogh-fontswearing-name"></span><span class="gogh-fontswearing-sub"></span></div>' +
         '<div class="gogh-fontlist">' + FONT_PAIRS.map(function (pr, i) {
           var hn = pr.theme ? own.heading.name : pr.heading.name, bn = pr.theme ? own.body.name : pr.body.name;
           var hf = pr.theme ? (own.heading.fontFamily || fontStack(hn)) : fontStack(pr.heading.name);
@@ -16891,7 +16921,7 @@
         wrap.innerHTML = '<button type="button" class="gogh-btn gogh-btn-small gogh-remixbtn" ' +
           'title="Tap to try a new look. Tap again for another.">✦ Remix</button>' +
           '<div class="gogh-remixwearing" hidden>' +
-            '<span class="gogh-remixwearing-words"><span class="gogh-remixwearing-lab">Wearing</span>' +
+            '<span class="gogh-remixwearing-words"><span class="gogh-remixwearing-lab">On your site now</span>' +
             '<span class="gogh-remixwearing-name"></span><span class="gogh-remixwearing-detail"></span></span>' +
             // the count is context, not a ceiling (James: "not suggesting we limit, just give context")
             '<span class="gogh-remixwearing-foot"><span class="gogh-remixwearing-count"></span>' +
@@ -16919,7 +16949,7 @@
           var w = remixWorn();
           closePanel();
           var said = w && !w.origin && w.cand ? (w.cand.name === 'Your brand' ? 'your brand' + (w.cand.detail ? ', ' + w.cand.detail : '') : w.cand.name) : '';
-          toast(said ? 'Kept. Your site wears ' + said + '.' : 'Kept.', { ttl: 3500 });
+          toast(said ? 'Kept. Your site now uses ' + said + '.' : 'Kept.', { ttl: 3500 });
         });
         wrap.querySelector('.gogh-remixbtn').addEventListener('click', function () { remixRoll(); });
         remixSayWearing();

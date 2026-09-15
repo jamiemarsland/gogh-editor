@@ -6063,7 +6063,7 @@
         var c1 = worn.cand;
         pill.querySelector('.gogh-frontdoor-roll').click();
         expect(G.remixWorn().cand && G.remixWorn().cand.key !== c1.key, 'Not this look? should roll another');
-        expect(/^Wearing: /.test(pill.querySelector('.gogh-frontdoor-cap').textContent), 'after a tap the pill says what is worn');
+        expect(/^On your site now: /.test(pill.querySelector('.gogh-frontdoor-cap').textContent), 'after a tap the pill says what is on the site');
         pill.querySelector('.gogh-frontdoor-back').click();
         expect(G.remixWorn().cand === c1, 'the pill\u2019s back should return to the first look');
         pill.querySelector('.gogh-frontdoor-x').click();
