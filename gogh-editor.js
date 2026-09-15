@@ -4045,7 +4045,10 @@
     // floating pill enters editing without a reload
     var abLink = document.querySelector('#wp-admin-bar-gogh-edit a');
     if (abLink) {
-      abLink.textContent = on ? '\ud83c\udfa8 Exit gogh editor' : '\ud83c\udfa8 Edit with gogh';
+      // the same markup PHP rendered, so a boot never changes the label
+      var want = cfg.abEdit && cfg.abEdit[on ? 'on' : 'off'];
+      if (want) { if (abLink.innerHTML !== want) abLink.innerHTML = want; }
+      else abLink.textContent = on ? '\ud83c\udfa8 Exit gogh editor' : '\ud83c\udfa8 Edit with gogh';
       var abUrl = new URL(location.href);
       abUrl.searchParams[on ? 'delete' : 'set']('gogh-edit', '1');
       abLink.href = abUrl.toString();

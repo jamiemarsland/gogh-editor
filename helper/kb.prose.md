@@ -130,7 +130,6 @@ A bar along the bottom edge with a centre pill. Drag to set section height, clam
 ### Hover proximity
 - Within **28px of a section boundary**: three pills appear on that boundary — **`+ Section`** (left), the height pill (centre), **`◠ Transition`** (right).
 - Away from a boundary, hovering a section shows the **Section** toolbar.
-- Within **12px of the right edge of the window**: the side palette opens.
 
 ### Cards (drop-to-join)
 Drop an element **fully inside** a plain box and it becomes a **child ("kid") of that card** — one level only; boxes never join boxes. The card glows as a drop target.
@@ -145,20 +144,15 @@ Cards matter because they're what keeps an image + heading + button together whe
 
 ## PART 5 — THE UI, CONTROL BY CONTROL
 
-### Side palette (titled "gogh")
-Icon buttons across the top. There is no exit control here — leaving edit mode
-is **🎨 Exit gogh editor** in the admin toolbar.
-- **Site style** — theme style-variation drawer (hover to preview, click to keep; grouped Colours / Fonts)
-- **Page style** — page template chooser
-- **Grid: show and snap** — toggles the painted grid, which is the rhythm (24-unit minors, a heavier line every 72); tooltip becomes "Grid: on"/"Grid: off". **Off by default**, deliberately: "invisible magnets feel broken to beginners" — the grid you snap to is the grid you see.
-- **Whole page — reorder sections** — opens the zoom-out page map
-- **Phone preview** — a desktop/phone device toggle on the design view's zoom cluster. Phone mode pins the artboard to a phone's width so the page's own mobile layout renders live. In it you can tune the phone layout without touching desktop: tap an element for a toolbar with **Hide on phone** / **Show on phone** and ↑/↓ arrows that re-stack the mobile column; tap a section's background to **Hide section on phone** (hidden things stay visible in the preview, dimmed with a badge, so they're one tap from back). Overrides are stored as sparse `m` patches on the element/section and self-clear when they match the automatic layout again. (This replaced the old floating 250px mobile-mirror panel in v0.99.197.)
+### The side rail (left edge: Page · Site · SEO)
+Three tabs sit on the left edge of the window in edit mode. Click one and a drawer docks beside the page (the page shrinks to fit next to it; nothing opens on hover, and there is no palette on the right any more). There is no exit control here — leaving edit mode is **Exit gogh editor** in the admin toolbar.
+- **Page** — the pages of the site (add one, rename, choose the home page) and the page's own doors.
+- **Site** — the design of the whole site as cards: **Site style** (colours and looks, hover to try, click to keep, Remix), **Fonts** (pairs, tried on your page), **Motion**, **Edit header**, **Edit footer**, **Page style**, **Rearrange sections** (the zoom-out page map). Some doors dock as a panel in the same place; **Back** returns to the cards.
+- **SEO** — what the page says to search engines.
+The drawer's foot holds **Grid: show and snap** (the painted rhythm grid, 24-unit tiles and a heavier line every 72; off by default), **Undo (⌘Z)** and **Redo (⇧⌘Z)**.
 
-Then **Add element**: `Heading` · `Text` · `Button` · `Image` · `Badge` · `Write` (a reading column, cursor ready) · `Card` (drop elements inside and they stay together, even on mobile) · `Shape` · `Experience` (upload a self-contained HTML experience, runs sandboxed — only if you have the capability) · `Posts` (your latest posts, live).
-
-Footer: `↺ Undo (⌘Z)` · `↻ Redo (⇧⌘Z)`.
-
-Collapsed, it's a slim edge tab labelled **gogh**. Opens on hover or click, auto-closes 500ms after the pointer leaves.
+### Adding something to a section
+Hover a section and its toolbar appears; its **＋** ("Add something to this section") opens the **Add to this section** menu: `Heading` · `Text` · `Button` · `Image` · `Video` · `Badge` · `Embed` · `Icon` · `List` · `Line` · `Write` (a reading column, cursor ready) · `Card` (drop pieces inside and they stay together, even on phones) · `Experience` (a self-contained HTML experience) · `Form` (name, email, message), plus `Posts` and `Shop` when those add-ons are on. Or press **/** with nothing being edited for the quick-add search of the same list. Either way the piece lands centred in the section, on the rhythm, below anything it would have covered. A **+ Section** pill between sections adds a whole new section from the layouts.
 
 ### Floating element toolbar (above the selected element)
 | Button | What it does |
@@ -745,7 +739,7 @@ It also runs an **XSS probe** — injecting `"cssT":"</style><script>alert(1)</s
 
 **"Why can't I pick any colour?"** Also by design. Colours come from your theme palette only, so a style-variation switch re-skins the page correctly.
 
-**"Why is snapping not landing on the grid?"** Grid snap is **off by default** — turn it on with the Grid button in the side palette. Element-to-element and section-edge snapping (6px) is always on unless you hold ⌘/Ctrl.
+**"Why is snapping not landing on the grid?"** Grid snap is **off by default** — turn it on with the Grid button at the foot of the side rail's drawer. Element-to-element and section-edge snapping (6px) is always on unless you hold ⌘/Ctrl.
 
 **"I added a block inside a Gogh section in the block editor and it disappeared."** Known beta limitation. Only the eight Gogh element types are preserved through a Gogh publish; other block types added from the block editor are lost on the next publish. Text, colour and image edits made in Gutenberg *are* adopted.
 
@@ -791,3 +785,6 @@ Opening the Fonts door loads every listed pair's faces at once — Google's (`en
 
 ### Help in the admin bar (v0.99.566)
 A small ? sits in the admin bar just left of Howdy, on every screen where the bar shows, for any logged-in user when a helper URL is set. In the gogh editor it opens the help sheet (the same one the side rail's ? opens); on any other screen, wp-admin included, it opens the helper in a new tab. The node is `gogh-help` under `top-secondary`; the `gogh_helper_url` filter turning the URL off removes it.
+
+### The admin bar's edit label never flashes (v0.99.567)
+One function, `gogh_ab_edit_label( $editing, $is_post )`, renders the bar's gogh node — 'Edit with gogh' / 'Edit post' on a page, 'Exit gogh editor' in the editor — and the editor receives both variants (`cfg.abEdit`) so when the mode flips without a reload it writes the same markup the server would. Before, the server rendered a tick and 'Done' while the page loaded and the editor's script then wrote 'Exit gogh editor' over it, so 'Done' flashed for an instant on every open.
