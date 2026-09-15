@@ -4,11 +4,11 @@ Everything in this section is extracted mechanically from the Gogh source on eve
 
 ## Current release
 
-- Plugin version: **0.99.559**
+- Plugin version: **0.99.560**
 - Requires WordPress **6.5+**, PHP **7.4+**
 - Text domain: `gogh-editor`
 - readme.txt Stable tag: `0.26.0` · Tested up to: `7.0`
-- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.559`). Quote the plugin header version.
+- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.560`). Quote the plugin header version.
 
 ## Design constants
 
@@ -193,6 +193,7 @@ Query-string switches: `?gogh-edit`, `?gogh-ps`, `?gogh-test`.
 
 These are the real strings in the current build. Use them verbatim; never paraphrase a label.
 
+- "' + ALIGN_WORD[how] + '"
 - "' + d.label + '"
 - "' + d.title.replace(/"
 - "' + escAttr(e.alt || 'Video') + '"
@@ -222,6 +223,9 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "Add something to this section"
 - "Add to page"
 - "Adjust spacing"
+- "Align the pieces inside this card"
+- "Align the pieces to each other"
+- "Align ▾"
 - "All options"
 - "An icon — a simple line drawing in your text colour"
 - "Any colour"
@@ -266,7 +270,6 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "Duplicate the selection"
 - "Embed"
 - "Embed a link — a map, a post, a playlist, anything WordPress can show"
-- "Equal gaps left to right"
 - "Equal gaps top to bottom"
 - "Even gaps"
 - "Everything"
@@ -302,24 +305,18 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "Light"
 - "Light page"
 - "Line"
-- "Line the pieces up, or even out the gaps"
-- "Line the row up and even the gaps"
-- "Line up ' + a[1].toLowerCase() + '"
-- "Line up the pieces inside this card"
-- "Line up ▾"
+- "Line the pieces up, even the gaps, match sizes that are nearly the same"
 - "Link"
 - "Link text (⌘K)"
 - "List"
 - "Make a card"
 - "Make it freeform"
-- "Make them all the size of the first one you picked"
 - "Make these one card — it holds together on phones"
 - "Manage categories ↗"
 - "Manage posts ↗"
 - "Manage products"
 - "Manage products ↗"
 - "Manage this menu — reorder, nest, swap menus"
-- "Match size"
 - "Most loved"
 - "Move down"
 - "Move down in the phone stack"

@@ -2438,23 +2438,24 @@
         done('width 200, guide said ' + said);
       }).catch(fail);
     }); });
-    test('Match size makes the selection the size of the first piece picked', function () {
-      addToSec('badge'); addToSec('badge'); addToSec('badge');
+    test('Tidy up matches sizes that are nearly the same, and leaves a different one alone', function () {
+      addToSec('badge'); addToSec('badge'); addToSec('badge'); addToSec('badge');
       var n = sec().els.length;
-      var a = sec().els[n - 3], b = sec().els[n - 2], c = sec().els[n - 1];
-      a.x = 100; a.y = 3001; a.w = 180; a.h = 56;
-      b.x = 400; b.y = 3001; b.w = 230; b.h = 72;
-      c.x = 800; c.y = 3001; c.w = 120; c.h = 40;
+      var a = sec().els[n - 4], b = sec().els[n - 3], c = sec().els[n - 2], d = sec().els[n - 1];
+      a.x = 100; a.y = 3001; a.w = 200; a.h = 60;
+      b.x = 380; b.y = 3001; b.w = 212; b.h = 64;   // within a tenth
+      c.x = 660; c.y = 3001; c.w = 190; c.h = 57;   // within a tenth
+      d.x = 940; d.y = 3001; d.w = 120; d.h = 40;   // a different thing on purpose
       G.resolve(sec()); G.measure(sec()); G.resolve(sec());
-      G.multi.set(sec(), [n - 3, n - 2, n - 1]);
+      G.multi.set(sec(), [n - 4, n - 3, n - 2, n - 1]);
       var bar = document.querySelector('.gogh-mbar');
-      var btn = bar.querySelector('.gogh-mb-size');
-      expect(btn && !btn.disabled, 'Match size should be offered for three different sizes');
+      var btn = bar.querySelector('.gogh-mb-tidy');
+      expect(btn && !btn.disabled, 'Tidy up should be offered for nearly-equal sizes');
       btn.click();
-      expect(b.w === 180 && c.w === 180 && b.h === 56 && c.h === 56, 'all should take the first one’s 180×56: ' + [b.w, b.h, c.w, c.h]);
-      expect(bar.querySelector('.gogh-mb-size').disabled && bar.querySelector('.gogh-mb-size').title === 'Already the same size', 'once matched, the verb greys with its reason');
+      expect(b.w === 200 && c.w === 200 && b.h === 60 && c.h === 60, 'the near-equal ones should take the first one’s 200×60: ' + [b.w, b.h, c.w, c.h]);
+      expect(d.w === 120 && d.h === 40, 'the deliberately different one should keep its size: ' + [d.w, d.h]);
       G.multi.clear();
-      return 'three pieces at 180×56';
+      return 'three at 200×60, the small one left alone';
     });
     test('Alt + arrow steps to the next magnet, where the mouse would snap', function () {
       addToSec('badge'); addToSec('badge');
@@ -4704,15 +4705,19 @@
       expect(!top.disabled, 'Align top should be offered for a ragged row');
       top.click();
       expect(a.y === 60 && b.y === 60 && c.y === 60, 'Align top should bring every piece to the topmost: ' + [a.y, b.y, c.y]);
-      expect(bar.querySelector('.gogh-mb-align[data-how="top"]').disabled && bar.querySelector('.gogh-mb-align[data-how="top"]').title === 'Already lined up', 'Align top should grey out once aligned');
-      expect(/Side to side/.test(row.textContent) && /Top to bottom/.test(row.textContent) && /Line up/.test(bar.querySelector('.gogh-mb-more').textContent), 'the row should name both directions, since Centre and Middle are the same word to a beginner');
+      expect(bar.querySelector('.gogh-mb-align[data-how="top"]').disabled && bar.querySelector('.gogh-mb-align[data-how="top"]').title === 'Already aligned', 'Align top should grey out once aligned');
+      expect(row.querySelectorAll('.gogh-mb-align').length === 6 && row.querySelectorAll('.gogh-mb-align svg').length === 6 && /Align/.test(bar.querySelector('.gogh-mb-more').textContent) && !row.querySelector('.gogh-mbar-lab') && !row.querySelector('.gogh-mbar-hint'), 'behind Align: one row of six icons, no labels, no sentence');
+      // the hover title turns into the reason when a verb is faded (Align left would stack these), so the word lives on the aria-label
+      var words = ['left', 'center', 'right', 'top', 'middle', 'bottom'].map(function (h) { var b2 = bar.querySelector('.gogh-mb-align[data-how="' + h + '"]'); return b2.getAttribute('aria-label') + (b2.title ? '' : ' (no title)'); });
+      expect(words.join() === 'Align left,Align centre,Align right,Align top,Align middle,Align bottom', 'each icon says its word to a screen reader and carries a hover title: ' + words.join(' · '));
+      expect(!bar.querySelector('.gogh-mb-space') && !bar.querySelector('.gogh-mb-size'), 'Even gaps and Same size are gone: Tidy up carries them');
       expect(G.multi.state() && G.multi.state().idxs.length === 3 && !bar.hidden, 'the selection and the bar should survive an arrange');
-      var space = bar.querySelector('.gogh-mb-space[data-axis="x"]');
-      expect(!space.disabled, 'Space across should be offered for uneven gaps');
-      space.click();
+      var tidy0 = bar.querySelector('.gogh-mb-tidy');
+      expect(!tidy0.disabled && tidy0.parentNode === bar, 'Tidy up sits on the top row and is offered for uneven gaps');
+      tidy0.click();
       // 100..300 and 800..1000 stay; 900 of span, 600 of pieces, two gaps of 150: the middle lands at 450
-      expect(a.x === 100 && b.x === 450 && c.x === 800, 'Space evenly should equalise the gaps: ' + [a.x, b.x, c.x]);
-      expect(bar.querySelector('.gogh-mb-space[data-axis="x"]').disabled && bar.querySelector('.gogh-mb-tidy').disabled, 'Space across and Tidy up should grey out once the row is even and square');
+      expect(a.x === 100 && b.x === 450 && c.x === 800, 'Tidy up should equalise the gaps: ' + [a.x, b.x, c.x]);
+      expect(bar.querySelector('.gogh-mb-tidy').disabled && bar.querySelector('.gogh-mb-tidy').title === 'Already tidy', 'Tidy up should grey out once the row is even and square');
       // ragged: a third of its own height down (the render re-measures text
       // heights, so a fixed offset could read as a second row), and off its gap
       var sag = Math.max(4, Math.round(b.h / 3));
@@ -4723,8 +4728,6 @@
       expect(!tidy.disabled, 'Tidy up should be offered for a ragged row (sag ' + sag + ' of h ' + b.h + ')');
       tidy.click();
       expect(b.y === 60 && b.x === 450 && a.x === 100 && c.x === 800, 'Tidy up should square the row and even the gaps: ' + [b.x, b.y]);
-      G.multi.set(s0, [n0, n0 + 1]);
-      expect(bar.querySelector('.gogh-mb-space[data-axis="x"]').disabled && /three/.test(bar.querySelector('.gogh-mb-space[data-axis="x"]').title), 'Space across needs three or more, and says so');
       G.multi.clear();
       s0.els.splice(n0);
       // words never sit on words: a heading above a paragraph refuses Top,
@@ -4736,15 +4739,14 @@
       bar.querySelector('.gogh-mb-more').click();
       var why = function (how) { var b2 = bar.querySelector('.gogh-mb-align[data-how="' + how + '"]'); return b2.disabled ? b2.title : 'offered'; };
       expect(why('middle') === 'Would put words on words' && why('top') === 'Would put words on words' && why('bottom') === 'Would put words on words', 'stacked words should refuse Top, Middle and Bottom: ' + [why('top'), why('middle'), why('bottom')]);
-      expect(why('left') === 'Already lined up' && why('right') === 'offered' && why('center') === 'offered', 'sideways verbs should stay honest: ' + [why('left'), why('center'), why('right')]);
-      expect(!bar.querySelector('.gogh-mbar-hint').hidden, 'the hint should explain the faded verbs');
+      expect(why('left') === 'Already aligned' && why('right') === 'offered' && why('center') === 'offered', 'sideways verbs should stay honest: ' + [why('left'), why('center'), why('right')]);
       var hy = s0.els[n0].y, py = s0.els[n0 + 1].y;
       bar.querySelector('.gogh-mb-align[data-how="middle"]').click();
       expect(s0.els[n0].y === hy && s0.els[n0 + 1].y === py, 'a faded verb must do nothing');
       G.multi.clear();
       s0.els.splice(n0);
       G.renderSection(s0);
-      return 'align, space evenly, tidy up: one click each; faded when already right or when words would land on words';
+      return 'align and tidy up: one click each; faded when already right or when words would land on words';
     });
 
     test('even gaps down the page and tidy row gaps land on the rhythm; a person’s top piece stays', function () {
@@ -4761,18 +4763,16 @@
       G.multi.set(s0, [n0, n0 + 1, n0 + 2]);
       var bar = q('.gogh-mbar');
       bar.querySelector('.gogh-mb-more').click();
-      var down = bar.querySelector('.gogh-mb-space[data-axis="y"]');
-      expect(!down.disabled, 'Even gaps down should be offered: ' + down.title);
-      down.click();
+      var tidyD = bar.querySelector('.gogh-mb-tidy');
+      expect(!tidyD.disabled, 'Tidy up should be offered for uneven gaps down the page: ' + tidyD.title);
+      tidyD.click();
       expect(a.y === 60 && b.y === 180 && c.y === 300, 'the gaps should be 72, the first piece where it was: ' + [a.y, b.y, c.y]);
-      var toasts = [].slice.call(document.querySelectorAll('.gogh-toast')).map(function (t) { return t.textContent; }).join(' | ');
-      expect(/72 apart/.test(toasts), 'the toast should name the gap: ' + toasts);
-      expect(bar.querySelector('.gogh-mb-space[data-axis="y"]').disabled, 'Even gaps down should fade once the gaps are on the rhythm');
+      expect(bar.querySelector('.gogh-mb-tidy').disabled, 'Tidy up should fade once the gaps are on the rhythm');
       // gaps already equal but off the rhythm still count as work to do
       b.y = 150; c.y = 240;
       G.renderSection(s0);
       G.multi.set(s0, [n0, n0 + 1, n0 + 2]);
-      expect(!bar.querySelector('.gogh-mb-space[data-axis="y"]').disabled, 'equal gaps of 30 are not on the rhythm, so the verb stays live');
+      expect(!bar.querySelector('.gogh-mb-tidy').disabled, 'equal gaps of 30 are not on the rhythm, so Tidy up stays live');
       // tidy up with three rows: row tops stay squared where they are, the row gaps land on 24s
       b.y = 154; c.y = 300;
       G.renderSection(s0);
@@ -4784,7 +4784,7 @@
       a.x = 100; b.x = 380; c.x = 800; a.y = b.y = c.y = 60; b.w = c.w = a.w = 200;
       G.renderSection(s0);
       G.multi.set(s0, [n0, n0 + 1, n0 + 2]);
-      bar.querySelector('.gogh-mb-space[data-axis="x"]').click();
+      bar.querySelector('.gogh-mb-tidy').click();
       expect(a.x === 100 && b.x === 450 && c.x === 800, 'side to side keeps the ends and shares the room: ' + [a.x, b.x, c.x]);
       G.multi.clear();
       s0.els.splice(n0);
@@ -5138,11 +5138,11 @@
       select(n0);
       lineup.click();
       var row = q('.gogh-elbar-more');
-      expect(!row.hidden && row.querySelectorAll('.gogh-cl-align').length === 3 && row.querySelector('.gogh-cl-space'), 'the row should open with Left, Centre, Right and Space evenly');
-      expect(/Side to side/.test(row.textContent) && /Top to bottom/.test(row.textContent) && /Even gaps/.test(row.textContent), 'the card row should put its gap verb under the direction it works in, not name a direction on the button');
+      expect(!row.hidden && row.querySelectorAll('.gogh-cl-align').length === 3 && row.querySelector('.gogh-cl-space'), 'the row should open with three align icons and Even gaps');
+      expect(/Even gaps/.test(row.textContent) && !row.querySelector('.gogh-mbar-lab') && row.querySelector('.gogh-cl-align[data-how="center"]').title === 'Align centre', 'the card row is icons with words on hover, its gap verb beside them');
       row.querySelector('.gogh-cl-align[data-how="left"]').click();
       expect(box.kids.every(function (k) { return k.x === 40; }), 'Left should line the pieces up with the leftmost: ' + box.kids.map(function (k) { return k.x; }));
-      expect(row.querySelector('.gogh-cl-align[data-how="left"]').disabled && row.querySelector('.gogh-cl-align[data-how="left"]').title === 'Already lined up', 'Left should fade once lined up');
+      expect(row.querySelector('.gogh-cl-align[data-how="left"]').disabled && row.querySelector('.gogh-cl-align[data-how="left"]').title === 'Already aligned', 'Left should fade once lined up');
       row.querySelector('.gogh-cl-align[data-how="center"]').click();
       expect(box.kids[0].x === 120 && box.kids[1].x === 80 && box.kids[2].x === 235, 'Centre should centre each piece on the card: ' + box.kids.map(function (k) { return k.x; }));
       expect(box.kids[0].align === 'center' && box.kids[1].align === 'center' && !box.kids[2].align, 'Centre should centre the WORDS too: text pieces take the alignment, a button keeps its own');
@@ -5211,24 +5211,24 @@
       G.multi.set(s0, [n0, n0 + 1, n0 + 2]);
       var bar = q('.gogh-mbar');
       bar.querySelector('.gogh-mb-more').click();
-      var across = bar.querySelector('.gogh-mb-space[data-axis="x"]');
-      var down = bar.querySelector('.gogh-mb-space[data-axis="y"]');
-      expect(across && down, 'spacing should offer both axes by name');
-      expect(across.disabled && across.title === 'Already evenly spaced', 'the gaps left to right are already even, and the bar should say so');
-      expect(!down.disabled, 'the axis the person can see wrong should be reachable, got ' + down.title);
-      down.click();
-      // sorted by position the run is a(0) · c(20) · b(60): the ends hold and
-      // the one in the middle of the run is the one that moves
-      expect(a.y === below && b.y === below + 60 && c.y === below + 30, 'Space down should even the vertical gaps, keeping the topmost and the lowest: ' + [a.y - below, b.y - below, c.y - below]);
-      // and Top is still the verb that squares a row
+      var tidyC = bar.querySelector('.gogh-mb-tidy');
+      expect(!tidyC.disabled, 'a staggered row of cards is untidy, so Tidy up is offered, got ' + tidyC.title);
+      var xs = [a.x, b.x, c.x];
+      tidyC.click();
+      expect(a.y === below && b.y === below && c.y === below, 'Tidy up squares the row to the topmost card: ' + [a.y - below, b.y - below, c.y - below]);
+      expect(a.x === xs[0] && b.x === xs[1] && c.x === xs[2], 'the gaps left to right were already even, so nothing moves sideways');
+      expect(bar.querySelector('.gogh-mb-tidy').disabled && bar.querySelector('.gogh-mb-tidy').title === 'Already tidy', 'and then it greys, with its reason');
+      // Align top is still there for the deliberate choice
+      b.y = below + 40;
+      G.renderSection(s0);
       G.multi.set(s0, [n0, n0 + 1, n0 + 2]);
       bar.querySelector('.gogh-mb-more').click();
       bar.querySelector('.gogh-mb-align[data-how="top"]').click();
-      expect(a.y === below && b.y === below && c.y === below, 'Top should bring every card to the topmost');
+      expect(a.y === below && b.y === below && c.y === below, 'Align top should bring every card to the topmost');
       G.multi.clear();
       s0.els.splice(n0);
       G.renderSection(s0);
-      return 'two axes, each greyed on its own evidence';
+      return 'one verb for the mess, six icons for the deliberate choice';
     });
 
     test('card interactions: drop joins, kid drags inside, drag-out frees', function () {

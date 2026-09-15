@@ -2788,6 +2788,21 @@
   selBox.appendChild(rotGrip);
 
   // floating element toolbar (Canva-style)
+  // the six ways to align, as the icons every word processor taught, then the
+  // vertical trio the way Canva, Figma and Keynote draw it. Hover says the word.
+  var ALIGN_ICON = {
+    left:   '<path d="M3 5h14M3 9h9M3 13h14M3 17h9"/>',
+    center: '<path d="M3 5h14M6 9h8M3 13h14M6 17h8"/>',
+    right:  '<path d="M3 5h14M8 9h9M3 13h14M8 17h9"/>',
+    top:    '<path d="M3 3h14"/><rect x="5" y="6" width="4" height="10" rx="1"/><rect x="11" y="6" width="4" height="6" rx="1"/>',
+    middle: '<path d="M3 10h14"/><rect x="5" y="4" width="4" height="12" rx="1"/><rect x="11" y="6" width="4" height="8" rx="1"/>',
+    bottom: '<path d="M3 17h14"/><rect x="5" y="4" width="4" height="10" rx="1"/><rect x="11" y="8" width="4" height="6" rx="1"/>',
+  };
+  var ALIGN_WORD = { left: 'Align left', center: 'Align centre', right: 'Align right', top: 'Align top', middle: 'Align middle', bottom: 'Align bottom' };
+  function alignIconBtn(cls, how) {
+    return '<button type="button" class="gogh-eb gogh-mb gogh-mb-icon ' + cls + '" data-how="' + how + '" title="' + ALIGN_WORD[how] + '" aria-label="' + ALIGN_WORD[how] + '">' +
+      '<svg width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">' + ALIGN_ICON[how] + '</svg></button>';
+  }
   var elbar = document.createElement('div');
   elbar.className = 'gogh-elbar';
   elbar.innerHTML =
@@ -2809,17 +2824,12 @@
     // a card's own Line up: its pieces, lined up with each other or centred
     // on the card, and spaced evenly down it — the group bar's verbs, one
     // level in (James: "a line up option once the card has been made")
-    '<button type="button" class="gogh-eb gogh-eb-lineup" title="Line up the pieces inside this card">Line up \u25BE</button>' +
+    '<button type="button" class="gogh-eb gogh-eb-lineup" title="Align the pieces inside this card">Align \u25BE</button>' +
     '<div class="gogh-mbar-more gogh-elbar-more" hidden>' +
-    '<div class="gogh-mbar-row"><span class="gogh-mbar-lab">Side to side</span>' +
-    [['left', 'Left'], ['center', 'Centre'], ['right', 'Right']].map(function (a) {
-      return '<button type="button" class="gogh-eb gogh-mb gogh-cl-align" data-how="' + a[0] + '" title="Line up ' + a[1].toLowerCase() + '">' + a[1] + '</button>';
-    }).join('') + '</div>' +
-    // a card stacks its pieces, so its one gap verb sits under the direction
-    // it works in rather than carrying the direction in its name
-    '<div class="gogh-mbar-row"><span class="gogh-mbar-lab">Top to bottom</span>' +
-    '<button type="button" class="gogh-eb gogh-mb gogh-cl-space" title="Equal gaps top to bottom">Even gaps</button></div>' +
-    '<div class="gogh-mbar-hint" hidden>Faded ones would put pieces on top of each other, or change nothing.</div>' +
+    ['left', 'center', 'right'].map(function (h) { return alignIconBtn('gogh-cl-align', h); }).join('') +
+    '<span class="gogh-mbar-sep"></span>' +
+    // a card stacks its pieces, so its one gap verb works top to bottom
+    '<button type="button" class="gogh-eb gogh-mb gogh-cl-space" title="Equal gaps top to bottom">Even gaps</button>' +
     '</div>';
   var ctxBtn = elbar.querySelector('.gogh-eb-ctx');
   var lstBtn = elbar.querySelector('.gogh-eb-lst');
@@ -3140,29 +3150,16 @@
     '<button type="button" class="gogh-eb gogh-mb gogh-mb-card" title="Make these one card — it holds together on phones">Make a card</button>' +
     '<button type="button" class="gogh-eb gogh-mb gogh-mb-dup" title="Duplicate the selection">Duplicate</button>' +
     '<button type="button" class="gogh-eb gogh-mb gogh-mb-del" title="Delete the selection">Delete</button>' +
-    '<button type="button" class="gogh-eb gogh-mb gogh-mb-more" title="Line the pieces up, or even out the gaps">Line up \u25BE</button>' +
+    // the one-click fix sits where it can be seen: Tidy up lines the rows up,
+    // evens the gaps and matches sizes that are nearly the same (the group
+    // bar, quieter — James: 'there's a lot going on here')
+    '<button type="button" class="gogh-eb gogh-mb gogh-mb-tidy" title="Line the pieces up, even the gaps, match sizes that are nearly the same">Tidy up</button>' +
+    '<button type="button" class="gogh-eb gogh-mb gogh-mb-more" title="Align the pieces to each other">Align \u25BE</button>' +
+    // behind Align: one row of six icons, a hairline between the two directions
     '<div class="gogh-mbar-more" hidden>' +
-    // the six words used to sit in one row, and "Centre" and "Middle" are the
-    // same word to anyone who has not done this before (James: "do you think
-    // we should have a horizontal alignment option?" — it was there, unlabelled)
-    // one line per direction, with that direction's own gap verb on it: the
-    // heading says which way, so the buttons need no invented words of their
-    // own (James, on a lone "Space down": "its not clear to me what this means")
-    '<div class="gogh-mbar-row"><span class="gogh-mbar-lab">Side to side</span>' +
-    [['left', 'Left'], ['center', 'Centre'], ['right', 'Right']].map(function (a) {
-      return '<button type="button" class="gogh-eb gogh-mb gogh-mb-align" data-how="' + a[0] + '" title="Line up ' + a[1].toLowerCase() + '">' + a[1] + '</button>';
-    }).join('') +
-    '<button type="button" class="gogh-eb gogh-mb gogh-mb-space" data-axis="x" title="Equal gaps left to right">Even gaps</button></div>' +
-    '<div class="gogh-mbar-row"><span class="gogh-mbar-lab">Top to bottom</span>' +
-    [['top', 'Top'], ['middle', 'Middle'], ['bottom', 'Bottom']].map(function (a) {
-      return '<button type="button" class="gogh-eb gogh-mb gogh-mb-align" data-how="' + a[0] + '" title="Line up ' + a[1].toLowerCase() + '">' + a[1] + '</button>';
-    }).join('') +
-    '<button type="button" class="gogh-eb gogh-mb gogh-mb-space" data-axis="y" title="Equal gaps top to bottom">Even gaps</button></div>' +
-    '<div class="gogh-mbar-row">' +
-    '<button type="button" class="gogh-eb gogh-mb gogh-mb-tidy" title="Line the row up and even the gaps">Tidy up</button>' +
-    '<button type="button" class="gogh-eb gogh-mb gogh-mb-size" title="Make them all the size of the first one you picked">Match size</button>' +
-    '</div>' +
-    '<div class="gogh-mbar-hint" hidden>Faded ones would put pieces on top of each other, or change nothing.</div>' +
+    ['left', 'center', 'right'].map(function (h) { return alignIconBtn('gogh-mb-align', h); }).join('') +
+    '<span class="gogh-mbar-sep"></span>' +
+    ['top', 'middle', 'bottom'].map(function (h) { return alignIconBtn('gogh-mb-align', h); }).join('') +
     '</div>';
   document.body.appendChild(mbar);
   function multiEls() {
@@ -3204,6 +3201,15 @@
     });
     var moves = {};
     var at = function (e) { var k = els.indexOf(e); if (!moves[k]) moves[k] = { e: e, x: e.x, y: e.y }; return moves[k]; };
+    // sizes that are nearly the same become the same, taking the first
+    // piece's; wildly different sizes are a design choice and stay
+    var lead = els[0];
+    els.forEach(function (e) {
+      if (e === lead) return;
+      var near = function (a, b) { return a !== b && Math.abs(a - b) <= Math.max(2, 0.1 * b); };
+      if (near(e.w, lead.w)) at(e).w = Math.min(lead.w, W - e.x);
+      if (fixedHeight(e) && fixedHeight(lead) && e.type !== 'icon' && near(e.h, lead.h)) at(e).h = lead.h;
+    });
     rows.forEach(function (r) {
       var top = Math.min.apply(null, r.els.map(function (e) { return e.y; }));
       r.els.forEach(function (e) { at(e).y = top; });
@@ -3235,21 +3241,24 @@
   // the gap, so the toast can name it.
   function evenRow(items, axis, free) {
     var size = axis === 'x' ? 'w' : 'h';
+    // a plan may already have resized a piece (Tidy up matching near-equal
+    // sizes): the gaps are shared out over the sizes it will have
+    var sz = function (it) { return it[size] != null ? it[size] : it.e[size]; };
     items.sort(function (a, b) { return a[axis] - b[axis]; });
     var first = items[0], last = items[items.length - 1];
-    var span = last[axis] + last.e[size] - first[axis];
-    var used = items.reduce(function (t, it) { return t + it.e[size]; }, 0);
+    var span = last[axis] + sz(last) - first[axis];
+    var used = items.reduce(function (t, it) { return t + sz(it); }, 0);
     var gap = (span - used) / (items.length - 1);
     // (pieces that overlap along the axis — cards side by side with
     // staggered tops — are not a stack with gaps; the ends hold as before)
     if (axis === 'y' && !free && gap >= 0) {
       gap = Math.max(RHYTHM, Math.round(gap / RHYTHM) * RHYTHM);
-      var at = first[axis] + first.e[size] + gap;
-      items.slice(1).forEach(function (it) { it[axis] = Math.round(at); at += it.e[size] + gap; });
+      var at = first[axis] + sz(first) + gap;
+      items.slice(1).forEach(function (it) { it[axis] = Math.round(at); at += sz(it) + gap; });
       return gap;
     }
-    var cur = first[axis] + first.e[size] + gap;
-    items.slice(1, -1).forEach(function (it) { it[axis] = Math.round(cur); cur += it.e[size] + gap; });
+    var cur = first[axis] + sz(first) + gap;
+    items.slice(1, -1).forEach(function (it) { it[axis] = Math.round(cur); cur += sz(it) + gap; });
     return Math.round(gap);
   }
   function planChanges(plan) {
@@ -3305,22 +3314,6 @@
       if (m.align !== undefined) { if (m.align === 'left') delete m.e.align; else m.e.align = m.align; }
     });
   }
-  // Match size: everything takes the size of the first piece picked — width
-  // always, height only where a height is a real number (words hug theirs)
-  function sizePlan(els) {
-    var lead = els[0];
-    return els.map(function (e) {
-      var m = { e: e, x: e.x, y: e.y, w: Math.min(lead.w, W - e.x) };
-      if (fixedHeight(e) && fixedHeight(lead)) m.h = e.type === 'icon' ? m.w : lead.h;
-      return m;
-    });
-  }
-  function spacePlan(els, axis) {
-    var items = els.map(function (e) { return { e: e, x: e.x, y: e.y }; });
-    if (!axis) { var bb = bboxOf(els); axis = bb.w >= bb.h ? 'x' : 'y'; }
-    items.gap = evenRow(items, axis);
-    return items;
-  }
   function alignPlan(els, how) {
     var bb = bboxOf(els);
     return els.map(function (e) {
@@ -3367,7 +3360,7 @@
       return '';
     };
     elbar.querySelectorAll('.gogh-cl-align').forEach(function (b) {
-      grey(b, judge(cardLineupPlan(box, b.dataset.how), 'Already lined up'), 'Line up ' + b.textContent.toLowerCase());
+      grey(b, judge(cardLineupPlan(box, b.dataset.how), 'Already aligned'), ALIGN_WORD[b.dataset.how]);
     });
     grey(elbar.querySelector('.gogh-cl-space'),
       box.kids.length < 3 ? 'Needs three or more pieces' : judge(cardLineupPlan(box, 'space'), 'Already evenly spaced'),
@@ -3413,18 +3406,9 @@
       els.some(function (e) { return e.type === 'box' || e.rails || e.type === 'exp' || e.type === 'embed'; }) ? 'Cards, shapes and shelves can’t go inside a card' : '',
       'Make these one card — it holds together on phones');
     mbar.querySelectorAll('.gogh-mb-align').forEach(function (b) {
-      grey(b, judge(alignPlan(els, b.dataset.how), 'Already lined up'), 'Line up ' + b.textContent.toLowerCase());
+      grey(b, judge(alignPlan(els, b.dataset.how), 'Already aligned'), ALIGN_WORD[b.dataset.how]);
     });
-    mbar.querySelectorAll('.gogh-mb-space').forEach(function (b) {
-      var axis = b.dataset.axis;
-      grey(b, els.length < 3 ? 'Needs three or more pieces' : judge(spacePlan(els, axis), 'Already evenly spaced'),
-        axis === 'x' ? 'Equal gaps left to right' : 'Equal gaps top to bottom');
-    });
-    grey(mbar.querySelector('.gogh-mb-tidy'), judge(tidyPlan(els), 'Already tidy'), 'Line the row up and even the gaps');
-    grey(mbar.querySelector('.gogh-mb-size'), els.length < 2 ? 'Needs two or more pieces' : (planChanges(sizePlan(els)) ? '' : 'Already the same size'), 'Make them all the size of the first one you picked');
-    var hint = mbar.querySelector('.gogh-mbar-hint');
-    var row = mbar.querySelector('.gogh-mbar-more');
-    if (hint && row) hint.hidden = ![].slice.call(row.querySelectorAll('.gogh-mb')).some(function (b) { return b.disabled; });
+    grey(mbar.querySelector('.gogh-mb-tidy'), judge(tidyPlan(els), 'Already tidy'), 'Line the pieces up, even the gaps, match sizes that are nearly the same');
   }
   function afterArrange(said) {
     var sec = multiSel.sec, idxs = multiSel.idxs.slice();
@@ -3485,26 +3469,12 @@
       afterArrange(ARRANGE_SAID[b.dataset.how]);
     });
   });
-  mbar.querySelectorAll('.gogh-mb-space').forEach(function (b) {
-    b.addEventListener('click', function () {
-      if (!multiSel || b.disabled) return;
-      var plan = spacePlan(multiEls(), b.dataset.axis);
-      applyPlan(plan);
-      // down the page the gap is gogh's, on the rhythm — say which one
-      afterArrange(b.dataset.axis === 'x' ? 'Gaps evened out, side to side.' : 'Gaps evened out, ' + plan.gap + ' apart.');
-    });
-  });
   mbar.querySelector('.gogh-mb-tidy').addEventListener('click', function () {
     if (!multiSel || this.disabled) return;
-    applyPlan(tidyPlan(multiEls()));
-    afterArrange('Tidied up.');
-  });
-  mbar.querySelector('.gogh-mb-size').addEventListener('click', function () {
-    if (!multiSel || this.disabled) return;
     var sec0 = multiSel.sec;
-    applyPlan(sizePlan(multiEls()));
+    applyPlan(tidyPlan(multiEls()));
     measureTextHeights(sec0); // a narrower text box is a taller one
-    afterArrange('Same size now.');
+    afterArrange('Tidied up.');
   });
   // after any gesture ends (a group drag, a nudge), the bar finds the group again
   document.addEventListener('pointerup', function () {

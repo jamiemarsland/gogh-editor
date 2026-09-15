@@ -15,7 +15,7 @@ about something where they conflict, rather than picking one silently. Quote UI
 labels and message copy from the appendix, verbatim — those are the current
 strings, and a paraphrased button label is the fastest way to lose a user's trust.
 
-Generated for plugin version 0.99.559 · knowledge base 3c3a486.
+Generated for plugin version 0.99.560 · knowledge base f9c51c3.
 
 ---
 
@@ -796,6 +796,9 @@ While dragging, two gap magnets work alongside the edge and centre magnets. **Eq
 ### Rhythm gaps (v0.99.559)
 The third gap magnet, below equalise and repeat: with a neighbour on a side and nothing to copy, gaps of 24, 48 and 72 from that neighbour are offered within 6 units (`rhythmGap`), on either axis, so a hand-placed piece lands in gogh's own spacing without anyone knowing the rhythm exists. The drop keeps the gap exactly, and the number shows in the gap while it holds, like the other gap magnets. Nothing catches when the pointer is more than 6 from any of the three.
 
+### The group bar, quieter (v0.99.560)
+Select two or more pieces and the bar reads: Make a card · Duplicate · Delete · Tidy up · Align ▾. **Tidy up** is the one-click fix and now carries everything: it squares each row to its topmost piece, evens the gaps (across, the ends hold; down the page the gap lands on the rhythm), and matches sizes that are nearly the same (within a tenth) to the first piece's — wildly different sizes are a design choice and stay. **Align ▾** opens one row of six icons: the word-processing trio (left, centre, right), a hairline, then top, middle, bottom; hover says the word ("Align top") and a faded icon says why ("Already aligned", "Would put words on words"). Even gaps and Match size are gone as separate verbs, and so is the sentence that explained the greys. A card's own bar has the same Align ▾ with the three sideways icons and its Even gaps for the stack inside it.
+
 ---
 
 # Generated facts appendix
@@ -804,11 +807,11 @@ Everything in this section is extracted mechanically from the Gogh source on eve
 
 ## Current release
 
-- Plugin version: **0.99.559**
+- Plugin version: **0.99.560**
 - Requires WordPress **6.5+**, PHP **7.4+**
 - Text domain: `gogh-editor`
 - readme.txt Stable tag: `0.26.0` · Tested up to: `7.0`
-- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.559`). Quote the plugin header version.
+- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.560`). Quote the plugin header version.
 
 ## Design constants
 
@@ -993,6 +996,7 @@ Query-string switches: `?gogh-edit`, `?gogh-ps`, `?gogh-test`.
 
 These are the real strings in the current build. Use them verbatim; never paraphrase a label.
 
+- "' + ALIGN_WORD[how] + '"
 - "' + d.label + '"
 - "' + d.title.replace(/"
 - "' + escAttr(e.alt || 'Video') + '"
@@ -1022,6 +1026,9 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "Add something to this section"
 - "Add to page"
 - "Adjust spacing"
+- "Align the pieces inside this card"
+- "Align the pieces to each other"
+- "Align ▾"
 - "All options"
 - "An icon — a simple line drawing in your text colour"
 - "Any colour"
@@ -1066,7 +1073,6 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "Duplicate the selection"
 - "Embed"
 - "Embed a link — a map, a post, a playlist, anything WordPress can show"
-- "Equal gaps left to right"
 - "Equal gaps top to bottom"
 - "Even gaps"
 - "Everything"
@@ -1102,24 +1108,18 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "Light"
 - "Light page"
 - "Line"
-- "Line the pieces up, or even out the gaps"
-- "Line the row up and even the gaps"
-- "Line up ' + a[1].toLowerCase() + '"
-- "Line up the pieces inside this card"
-- "Line up ▾"
+- "Line the pieces up, even the gaps, match sizes that are nearly the same"
 - "Link"
 - "Link text (⌘K)"
 - "List"
 - "Make a card"
 - "Make it freeform"
-- "Make them all the size of the first one you picked"
 - "Make these one card — it holds together on phones"
 - "Manage categories ↗"
 - "Manage posts ↗"
 - "Manage products"
 - "Manage products ↗"
 - "Manage this menu — reorder, nest, swap menus"
-- "Match size"
 - "Most loved"
 - "Move down"
 - "Move down in the phone stack"
