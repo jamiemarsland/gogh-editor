@@ -114,9 +114,3 @@ Quoted copy not found verbatim in the source. Paraphrases are fine; changed UI c
 
 - Launched N times on Playground
 - Fraunces & Inter. Installed on your site, yours to keep.
-
-## What changed since the last knowledge-base build
-
-Use this as the checklist for updating the prose — and as a sanity check on the release itself.
-
-- version: 0.99.553 → 0.99.554
