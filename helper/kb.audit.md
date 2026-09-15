@@ -1,8 +1,8 @@
-# Knowledge-base audit — plugin v0.99.443
+# Knowledge-base audit — plugin v0.99.567
 
 _13 finding(s) suppressed by `kb.audit-ignore.txt`._
 
-## MISSING (92)
+## MISSING (100)
 
 The source has something the prose never explains. The bot knows the name from the appendix but cannot say what it is for.
 
@@ -11,15 +11,16 @@ The source has something the prose never explains. The bot knows the name from t
 - exposed filter `gogh_labs_ask` exists in source but is never mentioned in the prose
 - exposed filter `gogh_schema` exists in source but is never mentioned in the prose
 - exposed filter `gogh_schema_enabled` exists in source but is never mentioned in the prose
-- exposed filter `gogh_helper_url` exists in source but is never mentioned in the prose
 - WP hook `load-post-new.php` exists in source but is never mentioned in the prose
 - WP hook `admin_menu` exists in source but is never mentioned in the prose
 - WP hook `get_edit_post_link` exists in source but is never mentioned in the prose
 - WP hook `page_row_actions` exists in source but is never mentioned in the prose
 - WP hook `post_row_actions` exists in source but is never mentioned in the prose
 - WP hook `template_redirect` exists in source but is never mentioned in the prose
+- WP hook `render_block_core/heading` exists in source but is never mentioned in the prose
 - WP hook `body_class` exists in source but is never mentioned in the prose
 - WP hook `render_block_core/post-template` exists in source but is never mentioned in the prose
+- WP hook `query_loop_block_query_vars` exists in source but is never mentioned in the prose
 - WP hook `body_class` exists in source but is never mentioned in the prose
 - WP hook `body_class` exists in source but is never mentioned in the prose
 - WP hook `manage_gogh_message_posts_columns` exists in source but is never mentioned in the prose
@@ -31,6 +32,7 @@ The source has something the prose never explains. The bot knows the name from t
 - WP hook `admin_post_gogh_messages_csv` exists in source but is never mentioned in the prose
 - WP hook `admin_post_gogh_form_message` exists in source but is never mentioned in the prose
 - WP hook `admin_post_nopriv_gogh_form_message` exists in source but is never mentioned in the prose
+- WP hook `render_block_data` exists in source but is never mentioned in the prose
 - WP hook `body_class` exists in source but is never mentioned in the prose
 - WP hook `render_block_core/navigation` exists in source but is never mentioned in the prose
 - WP hook `template_redirect` exists in source but is never mentioned in the prose
@@ -46,6 +48,10 @@ The source has something the prose never explains. The bot knows the name from t
 - WP hook `body_class` exists in source but is never mentioned in the prose
 - WP hook `wp_insert_post_empty_content` exists in source but is never mentioned in the prose
 - WP hook `trashed_post` exists in source but is never mentioned in the prose
+- WP hook `wp_footer` exists in source but is never mentioned in the prose
+- WP hook `admin_footer` exists in source but is never mentioned in the prose
+- WP hook `plugin_row_meta` exists in source but is never mentioned in the prose
+- WP hook `wp_footer` exists in source but is never mentioned in the prose
 - WP hook `get_block_templates` exists in source but is never mentioned in the prose
 - WP hook `body_class` exists in source but is never mentioned in the prose
 - WP hook `admin_post_gogh_shop_layout` exists in source but is never mentioned in the prose
@@ -63,6 +69,7 @@ The source has something the prose never explains. The bot knows the name from t
 - WP hook `admin_post_gogh_post_layout` exists in source but is never mentioned in the prose
 - WP hook `admin_post_gogh_post_layout_all` exists in source but is never mentioned in the prose
 - WP hook `get_post_metadata` exists in source but is never mentioned in the prose
+- WP hook `wp_footer` exists in source but is never mentioned in the prose
 - WP hook `admin_post_gogh_product_layout` exists in source but is never mentioned in the prose
 - WP hook `safe_style_css` exists in source but is never mentioned in the prose
 - WP hook `wp_kses_allowed_html` exists in source but is never mentioned in the prose
@@ -98,9 +105,13 @@ The source has something the prose never explains. The bot knows the name from t
 - divider `dunes` exists in source but is never mentioned in the prose
 - divider `mist` exists in source but is never mentioned in the prose
 - element type `video` exists in source but is never mentioned in the prose
+- element type `embed` exists in source but is never mentioned in the prose
 
-## What changed since the last knowledge-base build
+## QUOTE (4)
 
-Use this as the checklist for updating the prose — and as a sanity check on the release itself.
+Quoted copy not found verbatim in the source. Paraphrases are fine; changed UI copy is not.
 
-- version: 0.99.442 → 0.99.443
+- Launched N times on Playground
+- Fraunces & Inter. Installed on your site, yours to keep.
+- Already the same size
+- Needs two or more pieces

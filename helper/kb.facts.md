@@ -4,22 +4,24 @@ Everything in this section is extracted mechanically from the Gogh source on eve
 
 ## Current release
 
-- Plugin version: **0.99.443**
+- Plugin version: **0.99.567**
 - Requires WordPress **6.5+**, PHP **7.4+**
 - Text domain: `gogh-editor`
 - readme.txt Stable tag: `0.26.0` · Tested up to: `7.0`
-- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.443`). Quote the plugin header version.
+- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.567`). Quote the plugin header version.
 
 ## Design constants
 
 | Constant | Value |
 |---|---|
 | `TOL` | 8 |
-| `MIN_H` | 560 |
+| `MIN_H` | 576 |
 | `PAD` | 72 |
 | `SNAP` | 6 |
 | `BASE` | 8 |
 | `W` | 1200 |
+| `RHYTHM` | 24 |
+| `MAJOR` | 72 |
 | `autosave_interval_ms` | 15000 |
 | `history_cap` | 60 |
 | `mobile_breakpoint_px` | 700 |
@@ -47,9 +49,9 @@ Divider shapes (plus "None"): `curve` (Curve), `sweep` (Sweep), `dunes` (Dunes),
 
 ## Elements
 
-Element types that survive a publish: `heading`, `para`, `button`, `image`, `video`, `badge`, `box`, `widget`, `exp`. Anything else added from the block editor is lost on the next Gogh publish.
+Element types that survive a publish: `heading`, `para`, `button`, `image`, `video`, `embed`, `icon`, `rule`, `badge`, `box`, `widget`, `exp`. Anything else added from the block editor is lost on the next Gogh publish.
 
-"Add element" palette items: `badge`, `button`, `card`, `exp`, `form`, `heading`, `image`, `para`, `posts`, `products`, `video`, `write`.
+"Add element" palette items: `badge`, `button`, `card`, `embed`, `exp`, `form`, `heading`, `icon`, `image`, `list`, `para`, `posts`, `products`, `rule`, `video`, `write`.
 
 ## WebMCP tools
 
@@ -89,8 +91,10 @@ Block: `gogh/section` · v3 attributes: `css`, `model`, `scope`, `v`, `cssT`.
 | `template_redirect` | action | 10 |
 | `wp_enqueue_scripts` | action | 10 |
 | `init` | action | 10 |
+| `render_block_core/heading` | filter | 10 |
 | `body_class` | filter | 10 |
 | `render_block_core/post-template` | filter | 10 |
+| `query_loop_block_query_vars` | filter | 10 |
 | `body_class` | filter | 10 |
 | `body_class` | filter | 10 |
 | `init` | action | 10 |
@@ -105,6 +109,7 @@ Block: `gogh/section` · v3 attributes: `css`, `model`, `scope`, `v`, `cssT`.
 | `admin_post_gogh_form_message` | action | 10 |
 | `admin_post_nopriv_gogh_form_message` | action | 10 |
 | `wp_enqueue_scripts` | action | 10 |
+| `render_block_data` | filter | 10 |
 | `body_class` | filter | 10 |
 | `render_block_core/navigation` | filter | 10 |
 | `template_redirect` | action | 302 |
@@ -123,6 +128,11 @@ Block: `gogh/section` · v3 attributes: `css`, `model`, `scope`, `v`, `cssT`.
 | `body_class` | filter | 10 |
 | `wp_insert_post_empty_content` | filter | 10 |
 | `trashed_post` | action | 10 |
+| `wp_footer` | action | 99 |
+| `admin_footer` | action | 99 |
+| `plugin_row_meta` | filter | 10 |
+| `wp_enqueue_scripts` | action | 20 |
+| `wp_footer` | action | 10 |
 | `init` | action | 10 |
 | `rest_api_init` | action | 10 |
 | `init` | action | 10 |
@@ -145,6 +155,7 @@ Block: `gogh/section` · v3 attributes: `css`, `model`, `scope`, `v`, `cssT`.
 | `admin_post_gogh_post_layout` | action | 10 |
 | `admin_post_gogh_post_layout_all` | action | 10 |
 | `get_post_metadata` | filter | 10 |
+| `wp_footer` | action | 10 |
 | `admin_post_gogh_product_layout` | action | 10 |
 | `safe_style_css` | filter | 10 |
 | `wp_kses_allowed_html` | filter | 10 |
@@ -165,16 +176,17 @@ Block: `gogh/section` · v3 attributes: `css`, `model`, `scope`, `v`, `cssT`.
 | `admin_bar_menu` | action | 10 |
 | `admin_bar_menu` | action | 10 |
 | `admin_bar_menu` | action | 10 |
+| `admin_bar_menu` | action | 10 |
 | `wp_insert_post` | action | 10 |
 | `block_editor_settings_all` | filter | 10 |
 
-Filters exposed for third parties: `gogh_default_editor`, `gogh_claims_post`, `gogh_labs_ask`, `gogh_rebake_enabled`, `gogh_schema`, `gogh_schema_enabled`, `gogh_webmcp_enabled`, `gogh_convert_enabled`, `gogh_helper_url`.
+Filters exposed for third parties: `gogh_default_editor`, `gogh_claims_post`, `gogh_labs_ask`, `gogh_helper_url`, `gogh_user_test_tasks`, `gogh_rebake_enabled`, `gogh_schema`, `gogh_schema_enabled`, `gogh_webmcp_enabled`, `gogh_convert_enabled`.
 
-REST routes registered: `gogh/v1/version`, `gogh/v1/starter`, `gogh/v1/type-scale`, `gogh/v1/blog-style`, `gogh/v1/motion`, `gogh/v1/ask`, `gogh/v1/imagine-exp`, `gogh/v1/ask-key`, `gogh/v1/menu-style`, `gogh/v1/first-minute`, `gogh/v1/ask-log`, `gogh/v1/active-style`, `wp/v2/gogh-product/(?P<id>\d+)`, `wp/v2/gogh-product/(?P<id>\d+)/autosaves`, `gogh/v1/pattern`, `gogh/v1/render`.
+REST routes registered: `gogh/v1/version`, `gogh/v1/starter`, `gogh/v1/site-def`, `gogh/v1/type-scale`, `gogh/v1/blog-style`, `gogh/v1/motion`, `gogh/v1/ask`, `gogh/v1/imagine-exp`, `gogh/v1/ask-key`, `gogh/v1/menu-style`, `gogh/v1/first-minute`, `gogh/v1/ask-log`, `gogh/v1/active-style`, `wp/v2/gogh-product/(?P<id>\d+)`, `wp/v2/gogh-product/(?P<id>\d+)/autosaves`, `gogh/v1/pattern`, `gogh/v1/render`.
 
-Core REST endpoints used by the editor: `wp/v2/blocks`, `wp/v2/posts`, `wp/v2/template-parts`.
+Core REST endpoints used by the editor: `wp/v2/blocks`, `wp/v2/categories`, `wp/v2/pages`, `wp/v2/posts`, `wp/v2/template-parts`.
 
-Capability checks in PHP: `edit_posts`, `edit_post`, `edit_theme_options`, `edit_others_posts`, `edit_products`, `manage_options`, `upload_files`, `unfiltered_html`, `activate_plugins`, `install_plugins`, `manage_woocommerce`, `publish_pages`.
+Capability checks in PHP: `edit_posts`, `edit_post`, `edit_theme_options`, `edit_others_posts`, `edit_products`, `edit_pages`, `manage_options`, `upload_files`, `unfiltered_html`, `activate_plugins`, `install_plugins`, `manage_woocommerce`, `publish_pages`.
 
 Query-string switches: `?gogh-edit`, `?gogh-ps`, `?gogh-test`.
 
@@ -182,6 +194,7 @@ Query-string switches: `?gogh-edit`, `?gogh-ps`, `?gogh-test`.
 
 These are the real strings in the current build. Use them verbatim; never paraphrase a label.
 
+- "' + ALIGN_WORD[how] + '"
 - "' + d.label + '"
 - "' + d.title.replace(/"
 - "' + escAttr(e.alt || 'Video') + '"
@@ -190,6 +203,7 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "' + escAttr(t.name) + '"
 - "' + hp[1] + ' — ' + hp[2] + ' units"
 - "' + m[2] + '"
+- "' + nm.replace(/-/g, ' ') + '"
 - "' + p.slug + '"
 - "' + sh.label + '"
 - "' + whereTip(it.where !== 'desktop', 'phone') + '"
@@ -197,27 +211,38 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "+ Link"
 - "+ Page"
 - "A card — drop pieces inside and they stay together, even on mobile"
+- "A line — a thin rule between things"
 - "A video — upload one, or paste a YouTube or Vimeo link"
 - "AG"
 - "Aa"
 - "Add"
 - "Add a category ↗"
 - "Add a page to this menu"
+- "Add a picture or video"
 - "Add a product ↗"
 - "Add link"
 - "Add something to this section"
 - "Add to page"
 - "Adjust spacing"
+- "Align the pieces inside this card"
+- "Align the pieces to each other"
+- "Align ▾"
 - "All options"
+- "An icon — a simple line drawing in your text colour"
+- "Any colour"
 - "Apply"
 - "As typed"
 - "Auto"
 - "Back"
 - "Background & look"
 - "Badge"
+- "Body"
 - "Bold"
+- "Both"
 - "Bring forward"
 - "Browse them all →"
+- "Bullet points — a text piece wearing bullets"
+- "Bullets"
 - "Button"
 - "Cancel"
 - "Card"
@@ -230,14 +255,24 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "Custom text colour"
 - "Cycle theme font sizes"
 - "Dark"
+- "Dark page"
+- "Delete"
 - "Delete (Del)"
 - "Delete saved section"
+- "Delete the selection"
 - "Delivery & returns"
 - "Desktop"
 - "Desktop menu"
 - "Discard changes"
 - "Done"
+- "Done — keep this look"
+- "Duplicate"
 - "Duplicate (or Alt-drag)"
+- "Duplicate the selection"
+- "Embed"
+- "Embed a link — a map, a post, a playlist, anything WordPress can show"
+- "Equal gaps top to bottom"
+- "Even gaps"
 - "Everything"
 - "Experience"
 - "Featured product"
@@ -251,23 +286,35 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "Go"
 - "Grid: show and snap"
 - "Heading"
+- "Headings"
 - "Help — ask gogh anything"
 - "Home"
 - "How Google and AI read this page"
+- "Icon"
 - "Image"
 - "Imagine"
+- "It is already on your site — this closes the panel"
 - "Italic"
 - "I’ll find my own way"
 - "Journal"
 - "Keep editing"
+- "Keep this"
+- "Keep this brand"
 - "Keep this layout (updates every page)"
 - "Keeps your changes on every page"
 - "Left"
 - "Light"
+- "Light page"
+- "Line"
+- "Line the pieces up, even the gaps, match sizes that are nearly the same"
 - "Link"
 - "Link text (⌘K)"
+- "List"
+- "Make a card"
 - "Make it freeform"
+- "Make these one card — it holds together on phones"
 - "Manage categories ↗"
+- "Manage posts ↗"
 - "Manage products"
 - "Manage products ↗"
 - "Manage this menu — reorder, nest, swap menus"
@@ -288,8 +335,8 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "On sale"
 - "One product, hero-sized — a card with a real add-to-cart button"
 - "Open interactive experience"
+- "Open the map"
 - "Open your products in WordPress"
-- "Original"
 - "Our story"
 - "Outline"
 - "Peek at pages"
@@ -302,6 +349,7 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "Put it back"
 - "Questions"
 - "Redo (⇧⌘Z)"
+- "Remix keeps these colours and rolls everything else"
 - "Remove"
 - "Remove from Your sections"
 - "Remove from menu"
@@ -315,23 +363,26 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "Right"
 - "Roll another take of this design"
 - "Save"
-- "Save brand"
 - "Save description"
 - "See all →"
 - "Send backward"
 - "Shape"
+- "Show"
 - "Show the next layout"
-- "Six looks derived from your brand — hover to wear one, tap Remix again for six more"
+- "Site designs — a whole site, ready to tweak (replaces this one)"
 - "Solid"
 - "Start writing — a reading column, cursor ready"
 - "Switch design"
 - "Switch it on"
+- "Tap to try a new look. Tap again for another."
 - "Text"
 - "Text alignment"
 - "Text colour"
 - "The gogh build this tab is running"
 - "The header rides along as visitors scroll"
+- "The look before this one"
 - "Theme default"
+- "Tidy up"
 - "Try another"
 - "UPPERCASE"
 - "Undo"
@@ -340,12 +391,14 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "Updates every page"
 - "Upload a self-contained HTML experience — it runs sandboxed"
 - "Upload an .html file instead"
+- "Use it"
 - "Use this design"
 - "Use this layout"
 - "Video"
 - "Where this item shows"
 - "Which take of this design is on the page"
 - "Write"
+- "Write a post ↗"
 - "Your latest posts, live"
 - "Your latest products, live — prices and add to cart included"
 - "ag"
@@ -359,6 +412,7 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "↕ Spacing…"
 - "▶ Auto-play"
 - "⛶ Click to enlarge"
+- "✦ Not this look?"
 - "✦ Remix"
 - "✨ Make draggable"
 - "✨ Make it freeform"
@@ -387,6 +441,7 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "Guard: "
 - "Icon link updated."
 - "Image swapped."
+- "Installing "
 - "It has to show somewhere — remove it instead if you don’t want it."
 - "Keep your changes with Done, or undo them with Cancel."
 - "Kept — "
@@ -401,25 +456,30 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "Menu switched — every page shows it."
 - "Mobile menu: "
 - "Name size saved."
-- "Nothing to rearrange yet — add a couple of pieces first."
+- "One card now — it holds together on phones. Click it for a background."
 - "Out of the card — it’s its own piece again."
 - "Publish failed: "
 - "Publish your changes first — changing the page style reloads the page."
 - "Removed from the card."
 - "Saved — search results and AI answers now quote your words ✓"
 - "Saving your page changes, then updating the "
+- "Section deleted."
 - "Section moved."
 - "Section removed — publish to make it real."
 - "Site "
 - "Site name restored — click it to rename."
 - "Site name saved."
 - "Style copied — click other text to paint it. Esc finishes."
+- "That is the only section on the page. Add another before deleting it."
 - "That saved section can’t be read."
 - "That section can’t move past other stored content yet."
+- "That upload failed — try again, or paste a link."
 - "That’s gogh. Everything else is just more of this."
 - "The backup could not be read."
 - "The description could not be saved — try again."
+- "The header and footer stay — edit them instead."
 - "The name didn’t save — try again."
+- "The type before is back."
 - "Theme style applied: "
 - "This "
 - "This header has no menu button to open."
@@ -438,6 +498,7 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "gogh could not make a mega menu — "
 - "gogh could not make a phone menu — "
 - "gogh could not rename the site — that needs an admin login."
+- "gogh could not save that look — it stays for now."
 - "gogh could not save the menu — "
 - "gogh could not save your brand — "
 - "gogh could not set the logo — "
@@ -457,5 +518,5 @@ These are the real strings in the current build. Use them verbatim; never paraph
 
 ## Test suite
 
-`236` tests, run by appending `?gogh-test` to any Gogh page URL while logged in with edit rights on that page.
+`315` tests, run by appending `?gogh-test` to any Gogh page URL while logged in with edit rights on that page.
 

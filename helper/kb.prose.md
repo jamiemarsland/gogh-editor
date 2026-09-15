@@ -113,7 +113,7 @@ The pointer model is deliberately Canva-style: **click selects, drag-from-anywhe
 Press on empty canvas and drag (left button, no Shift, 6px threshold). On release, everything intersecting the rectangle is selected. Clicking outside a group without Shift clears it.
 
 ### Resize handles
-Eight handles: nw, n, ne, e, se, s, sw, w. Minimum size **60 wide × 32 tall**. Handles snap to other elements' edges/centres and section edges/centre; otherwise they round to the 8px grid.
+Eight handles: nw, n, ne, e, se, s, sw, w. Minimum size **60 wide × 32 tall**. Handles snap to other elements' edges/centres and section edges/centre; otherwise they round to the 8-unit base (24 with the grid on).
 
 Two important special cases:
 - **Corner-drag on TEXT does not free-scale.** It steps through the theme's font-size presets — one step per ~56px of diagonal drag — with a floating chip showing the current size ("theme default", "Display S", "Display M", "Display L", or the theme's preset name).
@@ -130,7 +130,6 @@ A bar along the bottom edge with a centre pill. Drag to set section height, clam
 ### Hover proximity
 - Within **28px of a section boundary**: three pills appear on that boundary — **`+ Section`** (left), the height pill (centre), **`◠ Transition`** (right).
 - Away from a boundary, hovering a section shows the **Section** toolbar.
-- Within **12px of the right edge of the window**: the side palette opens.
 
 ### Cards (drop-to-join)
 Drop an element **fully inside** a plain box and it becomes a **child ("kid") of that card** — one level only; boxes never join boxes. The card glows as a drop target.
@@ -145,20 +144,15 @@ Cards matter because they're what keeps an image + heading + button together whe
 
 ## PART 5 — THE UI, CONTROL BY CONTROL
 
-### Side palette (titled "gogh")
-Icon buttons across the top. There is no exit control here — leaving edit mode
-is **🎨 Exit gogh editor** in the admin toolbar.
-- **Site style** — theme style-variation drawer (hover to preview, click to keep; grouped Colours / Fonts)
-- **Page style** — page template chooser
-- **Grid: show and snap** — toggles the 8px grid; tooltip becomes "Grid: on"/"Grid: off". **Off by default**, deliberately: "invisible magnets feel broken to beginners" — the grid you snap to is the grid you see.
-- **Whole page — reorder sections** — opens the zoom-out page map
-- **Phone preview** — a desktop/phone device toggle on the design view's zoom cluster. Phone mode pins the artboard to a phone's width so the page's own mobile layout renders live. In it you can tune the phone layout without touching desktop: tap an element for a toolbar with **Hide on phone** / **Show on phone** and ↑/↓ arrows that re-stack the mobile column; tap a section's background to **Hide section on phone** (hidden things stay visible in the preview, dimmed with a badge, so they're one tap from back). Overrides are stored as sparse `m` patches on the element/section and self-clear when they match the automatic layout again. (This replaced the old floating 250px mobile-mirror panel in v0.99.197.)
+### The side rail (left edge: Page · Site · SEO)
+Three tabs sit on the left edge of the window in edit mode. Click one and a drawer docks beside the page (the page shrinks to fit next to it; nothing opens on hover, and there is no palette on the right any more). There is no exit control here — leaving edit mode is **Exit gogh editor** in the admin toolbar.
+- **Page** — the pages of the site (add one, rename, choose the home page) and the page's own doors.
+- **Site** — the design of the whole site as cards: **Site style** (colours and looks, hover to try, click to keep, Remix), **Fonts** (pairs, tried on your page), **Motion**, **Edit header**, **Edit footer**, **Page style**, **Rearrange sections** (the zoom-out page map). Some doors dock as a panel in the same place; **Back** returns to the cards.
+- **SEO** — what the page says to search engines.
+The drawer's foot holds **Grid: show and snap** (the painted rhythm grid, 24-unit tiles and a heavier line every 72; off by default), **Undo (⌘Z)** and **Redo (⇧⌘Z)**.
 
-Then **Add element**: `Heading` · `Text` · `Button` · `Image` · `Badge` · `Write` (a reading column, cursor ready) · `Card` (drop elements inside and they stay together, even on mobile) · `Shape` · `Experience` (upload a self-contained HTML experience, runs sandboxed — only if you have the capability) · `Posts` (your latest posts, live).
-
-Footer: `↺ Undo (⌘Z)` · `↻ Redo (⇧⌘Z)`.
-
-Collapsed, it's a slim edge tab labelled **gogh**. Opens on hover or click, auto-closes 500ms after the pointer leaves.
+### Adding something to a section
+Hover a section and its toolbar appears; its **＋** ("Add something to this section") opens the **Add to this section** menu: `Heading` · `Text` · `Button` · `Image` · `Video` · `Badge` · `Embed` · `Icon` · `List` · `Line` · `Write` (a reading column, cursor ready) · `Card` (drop pieces inside and they stay together, even on phones) · `Experience` (a self-contained HTML experience) · `Form` (name, email, message), plus `Posts` and `Shop` when those add-ons are on. Or press **/** with nothing being edited for the quick-add search of the same list. Either way the piece lands centred in the section, on the rhythm, below anything it would have covered. A **+ Section** pill between sections adds a whole new section from the layouts.
 
 ### Floating element toolbar (above the selected element)
 | Button | What it does |
@@ -233,11 +227,12 @@ Saving a section: the ⋯ menu's "Save to reuse" (panel title "Save this section
 
 - **Snap threshold is 6 design px.**
 - Snap candidates: the section's left (0), right (1200) and horizontal centre (600); top, bottom and vertical centre; plus every other element's left, right, centre-x, top, bottom, centre-y. The dragged element's own left, right and centre edges are all tested.
-- **Grid snap is off by default** (opt-in via the Grid button). When on, non-snapped positions round to the **8px** grid and the grid is drawn.
+- **Grid snap is off by default** (opt-in via the Grid button). Mid-gesture the major lines (72) show and an edge near one lands on it; otherwise positions round to the **8-unit** base. With the grid on, the minors (24) show too and the mesh a drop rounds to is **24** — a person who asks for the grid gets the rhythm, not an 8-pixel mesh. Arrow-key nudges stay at 8.
 - **Alignment guides**: one vertical and one horizontal line, drawn across the full section, only while a snap is captured.
 - **Equal-spacing snap**: when an element sits between two neighbours, the exact midpoint captures within 8px of the raw pointer and **overrides** edge snapping and grid parity — so equal gaps are always reachable.
 - **Spacing labels**: up to 4 live distance badges, measuring to the nearest neighbour on each side. With no neighbour on a side, it measures to the **section edge** (page margins are the distances people eyeball most). Gaps under 4 design px, or under 14 rendered px, aren't drawn. Equal gaps get a `=` prefix and turn blue.
 - **Shift** during drag pins the locked axis and suppresses its guide. **⌘/Ctrl** disables all of the above.
+- **The rhythm.** Everything gogh spaces on its own — the section templates, the scratch section, the bands the connector compiles — sits on one vertical rhythm: positions and heights on multiples of **24** (`RHYTHM`), section heights on multiples of **72** (`MAJOR`). It governs what gogh chooses, never what a person places: a hand-dragged 30 stays 30, and the read-back of a layout never rounds it. The group bar's **Even gaps** (top to bottom) and **Tidy up** choose their vertical gaps on it — the top piece stays where the person put it, the gap becomes 24, 48, 72…, and the toast names it; side-to-side gaps and a card's inner spacing are not on the rhythm. A new piece from the shelf is born on it too: every default height and resting y is a multiple of 24, it lands on a 24, and if that would put it on words already there it goes 24 under them instead (a shape, being a backdrop, may sit behind words). The section floor `MIN_H` is 576, eight majors. The idea comes from Josh Puckett's rule of one major and one minor spacing unit: an agent keeps a rule it can count, and a page whose gaps are all 24 or 72 reads as one design.
 
 ---
 
@@ -247,9 +242,9 @@ Single-file ES5 IIFE, no build step. `gogh-editor.js` is ~9,190 lines. It bails 
 
 ### Design constants
 ```js
-var TOL = 8, MIN_H = 560, PAD = 72, SNAP = 6, BASE = 8, W = 1200;
+var TOL = 8, MIN_H = 576, PAD = 72, SNAP = 6, BASE = 8, W = 1200, RHYTHM = 24, MAJOR = 72;
 ```
-`W = 1200` is the **design width** — every model coordinate is in design units against a 1200-unit-wide section. `TOL` is the solver's line-clustering tolerance, `SNAP` the alignment tolerance, `BASE` the opt-in grid, `PAD` the bottom padding added to section height, `MIN_H` the section floor.
+`W = 1200` is the **design width** — every model coordinate is in design units against a 1200-unit-wide section. `TOL` is the solver's line-clustering tolerance, `SNAP` the alignment tolerance, `BASE` the mesh a drop rounds to with the grid off (and the Shift-nudge), `PAD` the bottom padding added to section height, `MIN_H` the section floor. `RHYTHM` (24) and `MAJOR` (72) are the vertical rhythm gogh keeps for its own gaps — see Part 7.
 
 ### `window.GOGH` (localized config)
 `postId`, `restUrl`, `mediaUrl`, `canUpload`, `canExp`, `canConvert`, `pageTemplate`, `pageTemplates[]`, `modified`, `theme`, `themeName`, `gsId`, `palette[{slug}]`, `nonce`.
@@ -274,7 +269,7 @@ hydrateV3Sections().then(function () {
 ```
 - `scope` — `'gogh-sec-<n>'`, the CSS scope class, also emitted as `data-gogh-scope`
 - `els` — elements in **stacking order** (index+1 → `z-index` and the `.gogh-el-N` class)
-- `minH` — design-unit minimum height (default 560; 480 for an empty bootstrap)
+- `minH` — design-unit minimum height (default 576, eight majors; 504 for an empty bootstrap)
 - `bg` — CSS colour string (may be `var(--wp--preset--color--x)` or a `color-mix()`)
 - `bgImage` / `bgId` — background image URL + attachment id
 - `divider` — `{shape}`: `wave|brush|torn|curve|slant|peaks|melt`
@@ -319,7 +314,7 @@ Classification: `isText = heading|para`; `fixedHeight = button|image|badge|widge
 
 Three functions: `cluster`, `nearest`, `solve`.
 
-`designH(els, minH)` = `max(minH || 560, maxBottom + 72)`.
+`designH(els, minH)` = `max(minH || 576, maxBottom + 72 rounded up to the next 72)` — a section that outgrows its floor still lands on a major.
 
 **`solve(els, minH, dw)`**:
 1. Collect **every x edge** of every element (`e.x` and `e.x + e.w`) plus the frame edges 0 and 1200. Same for y edges plus 0 and H.
@@ -714,6 +709,9 @@ Usage: `git tag v0.83.0 && git push origin v0.83.0`.
 
 Steps: install **Twenty Twenty-Five** → install the plugin from the latest release's `gogh-playground.zip` → run a PHP seeder that creates a Gogh front page (id 99, "Gogh Editor"), switches Global Styles to the theme's "evening" variation, creates three ordinary Gutenberg pages (About / Team / Contact — the About copy explicitly invites pressing "Make freeform"), builds a navigation menu with real permalinks, repoints the theme's header template part at it, and sideloads four demo images (wheat-field, starry-night, sunflowers, almond-blossom) → set the front page.
 
+### Launch counter (v0.99.549)
+Every blueprint's boot step writes `gogh_booted_as` with its own name (`default`, `halloran`, `built` for sites the helper publishes, and so on). The first page the site shows after that sends one beacon to the helper, `POST /api/boot` with `{ bp, v }`, and flips `gogh_boot_pinged` first so a lost ping is never retried. The helper ignores localhost and Studio by origin, caps one address at ten an hour, and keeps `boot:total` and `boot:bp:<name>` in KV without expiry. `GET /api/boot` returns `{ total, seed, counted, blueprints }`; the total starts at 776, the launches counted before the beacon (GitHub release downloads, 1–12 August 2026, and the weeks after that the raw zip could not count). The Plugins screen row says "Launched N times on Playground" (cached six hours) and the release workflow stamps the same number into the demo README.
+
 ### `spike/matrix.php`
 A standalone CLI harness answering: *does the attrs-as-truth format survive the real WordPress save pipeline, for every kind of user, in both fallback variants?* It's the experiment that decided the production `gogh_rebake_enabled` default — a comment in `gogh.php` notes "variant B won the matrix".
 
@@ -741,7 +739,7 @@ It also runs an **XSS probe** — injecting `"cssT":"</style><script>alert(1)</s
 
 **"Why can't I pick any colour?"** Also by design. Colours come from your theme palette only, so a style-variation switch re-skins the page correctly.
 
-**"Why is snapping not landing on the grid?"** Grid snap is **off by default** — turn it on with the Grid button in the side palette. Element-to-element and section-edge snapping (6px) is always on unless you hold ⌘/Ctrl.
+**"Why is snapping not landing on the grid?"** Grid snap is **off by default** — turn it on with the Grid button at the foot of the side rail's drawer. Element-to-element and section-edge snapping (6px) is always on unless you hold ⌘/Ctrl.
 
 **"I added a block inside a Gogh section in the block editor and it disappeared."** Known beta limitation. Only the eight Gogh element types are preserved through a Gogh publish; other block types added from the block editor are lost on the next publish. Text, colour and image edits made in Gutenberg *are* adopted.
 
@@ -754,3 +752,39 @@ It also runs an **XSS probe** — injecting `"cssT":"</style><script>alert(1)</s
 **"Why is my card falling apart on mobile?"** It probably isn't a card. Elements must be dropped *fully inside* a box to become its children. Look for the glow and the "Added to the card" toast. Free elements are linearised by the XY-cut algorithm, which keeps columns together but can't know that three loose elements were meant as one unit.
 
 **"Publish failed."** Check the browser console. Common causes: the REST nonce expired (reload), the safety gates refused an ambiguous mapping, or a template part couldn't be resolved for a header/footer edit. Nothing is silently corrupted — Gogh's failure modes bail rather than guess.
+
+### Fonts: pairs, not pickers (v0.99.543)
+
+A **Fonts** card in the Site drawer owns everything about type: the type size (Snug/Regular/Airy/Grand), the theme's own font pairs (first, in the same list, each with a mood word such as 'nerdy' or 'sturdy' worked out from the faces) and twelve heading-and-body pairings with plain names for their character (the theme's own first, then bookish, editorial, studio, modern, warm, elegant, bold, classic, quiet luxury, loud, technical), each row set in its own faces. Hover paints the page in the pair (the editor loads it from Google to try it; nothing is saved); click keeps it. Keeping installs the families through WordPress's own Font Library — the files are downloaded once into the site's font folder and registered as font family and font face posts — then writes the two families into the site's global styles (`styles.typography.fontFamily` and `styles.elements.heading.typography.fontFamily`) and activates them in `settings.typography.fontFamilies.custom`. The toast reads "Fraunces & Inter. Installed on your site, yours to keep." with Undo, which puts the previous families back (nothing is uninstalled). The published page serves the fonts from the site itself, never from Google, and the type survives gogh being deactivated. Two families a page, never a third. **More fonts** folds under the twelve: type a name, pick Headings, Body or Both, and the hits appear — the theme's own families first, then Google's list (WordPress's own font collection, fetched through the site), each shown as the collection's preview of the name. Hover tries it on the page in that role; click keeps it, installing only the family that changed. **Brand guidelines** that name a font the site lacks ("Headings: Cormorant Garamond") get it the same way: the brand door looks the name up in Google's list, tries it on the page while the form is open, and installs it when the brand is kept; the receipt line says "from your guide, installed when you keep". A kept pair from the Fonts door also becomes the brand's fonts when a brand exists, so Remix keeps them. **Remix draws on the same pairs**: without a brand pinning its fonts, a roll picks a font pair by a coin — the theme's own combinations or one of the twelve — tries it from Google, and installs it quietly when the look is kept (the receipt ends "in Fraunces & Inter"). **The AI door** may say `fonts: 'bookish'` or `fonts: { heading: 'Fraunces', body: 'Inter' }` in a site definition; the fonts are installed as the site is built. `__gogh.fontPairs()`, `__gogh.openFontsPanel()`, `__gogh.fontsDry(on)` for tests.
+
+**Two families a page (v0.99.553).** Every keep — a pair, one role from More fonts, a theme preset — trims the site's active family list (global styles `settings.typography.fontFamilies.custom`) to the families the body and heading refs point at. Dropped families stay in the Font Library, so choosing one again is instant with no download; the Undo on the toast puts the dropped ones back. Remix already wrote only the two in use, so the doors now agree.
+
+### User testing (v0.99.556)
+A site booted from `blueprint-usertest.json` (the tester is sent to the helper's `/test` page, which explains the persona — Elliot Grey, a photographer — and has the Start button) carries the option `gogh_user_test`. On such a site the plugin loads `gogh-usertest.js`: a small card, top right, with seven tasks (site name · headline · swap a photo · a different look · a way to get in touch · a Prices page in the menu · phone check then publish and view), each with Done, Couldn't do it, an optional note and a hint (opening the hint is recorded), then a four-question wrap-up (happy 1–5, could finish, how it felt, what confused) and an optional name. The card keeps its place in localStorage across reloads and the walk between editor and published site. Events go to the helper's `POST /api/test` under a random session id (`gogh_user_test_session`), batched and retried. Jamie reads them at `/tests` with the test token (`TEST_TOKEN`, or the refresh token): one row per tester, click for the tasks, times, notes and wrap-up. Tasks come from `gogh_user_test_tasks()`; the option may carry its own `tasks` array, and the `gogh_user_test_tasks` filter can change them. Nothing else is collected.
+
+### Gap magnets and the numbers (v0.99.557)
+While dragging, two gap magnets work alongside the edge and centre magnets. **Equalise** (older): between two neighbours, the midpoint that makes both gaps equal captures within 8 units. **Repeat** (new): at the end of a run, the gap the nearest neighbour already keeps to the next piece is offered, so a fourth card lands in step with three; captured within 8 units, never on a purely locked axis, beaten only by equalise. Both work on either axis. **The numbers**: a plain drag stays quiet; the moment a gap magnet holds, every gap in that run shows its number in a blue "= 40" badge (the dragged piece's gap and the one it copies), and they go on drop. Alt during a drag still shows every ruler as before. From the Canva teardown: alignment as placement, not repair — the beginner compares two digits instead of two stretches of whitespace.
+
+### The rest of the Canva teardown (v0.99.558)
+**Size matching on resize:** dragging a side or corner handle also snaps to a neighbour's width (and, for pieces with a real height, its height); the guide's chip says "same width" / "same height" so the person knows why the handle stopped. **Match size** on the group bar (in the Tidy up row): every selected piece takes the size of the first one picked — width always, height only where height is a number (words hug their own); greyed with "Already the same size" or "Needs two or more pieces". **Alt + arrow** moves the selected piece to the next magnet in that direction (sibling edges and centres, the section's edges, centre and margin), with the guide shown for a moment, so the keyboard reaches every position the mouse can; plain arrows still nudge 1, Shift 8. **Drag threshold:** a piece moves only after 4px of travel (10 for a finger), so a twitch on a click never nudges it; the marquee selects anything it touches, not only what it surrounds. **The parity set** from the teardown lives in the suite as six tests (edge at 5 snaps, 10 does not, equalise, repeat, width match says so, a 2px twitch is a click).
+
+### Rhythm gaps (v0.99.559)
+The third gap magnet, below equalise and repeat: with a neighbour on a side and nothing to copy, gaps of 24, 48 and 72 from that neighbour are offered within 6 units (`rhythmGap`), on either axis, so a hand-placed piece lands in gogh's own spacing without anyone knowing the rhythm exists. The drop keeps the gap exactly, and the number shows in the gap while it holds, like the other gap magnets. Nothing catches when the pointer is more than 6 from any of the three.
+
+### The group bar, quieter (v0.99.560)
+Select two or more pieces and the bar reads: Make a card · Duplicate · Delete · Tidy up · Align ▾. **Tidy up** is the one-click fix and now carries everything: it squares each row to its topmost piece, evens the gaps (across, the ends hold; down the page the gap lands on the rhythm), and matches sizes that are nearly the same (within a tenth) to the first piece's — wildly different sizes are a design choice and stay. **Align ▾** opens one row of six icons: the word-processing trio (left, centre, right), a hairline, then top, middle, bottom; hover says the word ("Align top") and a faded icon says what is already right ("Tops already line up", "Left edges already line up", "Already centred on the page") or why not ("Would put words on words"). Even gaps and Match size are gone as separate verbs, and so is the sentence that explained the greys. A card's own bar has the same Align ▾ with the three sideways icons and its Even gaps for the stack inside it.
+
+### Centring a group on the page (v0.99.561)
+Two ways, both from James asking how to centre three cards. **Dragging several pieces together:** the group is one thing to the page — its own centre snaps to the page centre and its outer edges to the margins, within 6 units, with the same pink centre guide a single piece gets; the pieces keep their gaps. **Behind Align, a seventh icon, Centre on the page:** moves the whole selection as one so its centre sits on the page's, greyed "Already centred on the page" when it is. The six other icons still align pieces with each other, not with the page.
+
+### Align offers only what fits the shape (v0.99.562)
+Behind Align, the icons follow the shape of the selection (`selectionShape`): pieces beside each other are a row, so only top, middle, bottom and Centre on the page show (Align left would pile a row of cards on each other); pieces above each other are a stack, so only left, centre, right and the page show; a grid, or a scatter, shows all seven. Hidden, not faded — a verb that could never make sense here is not offered at all.
+
+### Fonts door: faces load on open (v0.99.564)
+Opening the Fonts door loads every listed pair's faces at once — Google's (`ensureGoogleFonts` per pair) and the theme's own from the theme folder (`ensureVariationFonts` per theme pair, via the FontFace API, every weight and style of each family, since the row's heading name is drawn in the bold) — so each row is drawn in its own face from the start. Note: `document.fonts.check()` answers true for a family with no face at all, so the loader looks for a loaded face by name, weight and style instead. Before, a row's faces loaded only when hovered, and the swap from the fallback face as the pointer passed looked like the other rows changing size.
+
+### Help in the admin bar (v0.99.566)
+A small ? sits in the admin bar just left of Howdy, on every screen where the bar shows, for any logged-in user when a helper URL is set. In the gogh editor it opens the help sheet (the same one the side rail's ? opens); on any other screen, wp-admin included, it opens the helper in a new tab. The node is `gogh-help` under `top-secondary`; the `gogh_helper_url` filter turning the URL off removes it.
+
+### The admin bar's edit label never flashes (v0.99.567)
+One function, `gogh_ab_edit_label( $editing, $is_post )`, renders the bar's gogh node — 'Edit with gogh' / 'Edit post' on a page, 'Exit gogh editor' in the editor — and the editor receives both variants (`cfg.abEdit`) so when the mode flips without a reload it writes the same markup the server would. Before, the server rendered a tick and 'Done' while the page loaded and the editor's script then wrote 'Exit gogh editor' over it, so 'Done' flashed for an instant on every open.
