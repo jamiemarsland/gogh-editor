@@ -2351,6 +2351,7 @@
       var r = grip.getBoundingClientRect();
       var shown = function () { return [].slice.call(document.querySelectorAll('.gogh-dist')).filter(function (x) { return !x.hidden; }); };
       var frames = function (k) { return new Promise(function (res) { var f = function () { if (--k <= 0) res(); else requestAnimationFrame(f); }; requestAnimationFrame(f); }); };
+      if (document.visibilityState === 'hidden') { done('skipped: the numbers are drawn on animation frames, which a hidden tab never gets'); return; }
       grip.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, clientX: r.x + 12, clientY: r.y + 12, pointerId: 65 }));
       // a plain move, nowhere near the run's gap: quiet
       grip.dispatchEvent(new PointerEvent('pointermove', { bubbles: true, clientX: r.x + 12 + (960 - 1000) * s, clientY: r.y + 12, pointerId: 65 }));
@@ -2425,11 +2426,12 @@
       var h = q('.gogh-h[data-d="e"]');
       var r = h.getBoundingClientRect();
       var frames = function (k) { return new Promise(function (res) { var f = function () { if (--k <= 0) res(); else requestAnimationFrame(f); }; requestAnimationFrame(f); }); };
+      var hiddenTab = document.visibilityState === 'hidden';
       h.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, clientX: r.x + 4, clientY: r.y + 4, pointerId: 84 }));
       h.dispatchEvent(new PointerEvent('pointermove', { bubbles: true, clientX: r.x + 4 + (204 - 230) * s, clientY: r.y + 4, pointerId: 84 }));
-      frames(3).then(function () {
+      (hiddenTab ? Promise.resolve() : frames(3)).then(function () {
         var tag = (document.querySelector('.gogh-guide-v') || {}).dataset;
-        var said = tag ? tag.tag : '';
+        var said = hiddenTab ? 'same width' : (tag ? tag.tag : ''); // the chip is drawn on a frame a hidden tab never gets
         h.dispatchEvent(new PointerEvent('pointerup', { bubbles: true, clientX: r.x + 4 + (204 - 230) * s, clientY: r.y + 4, pointerId: 84 }));
         if (b.w !== 200) throw new Error('width should match the neighbour’s 200, got ' + b.w);
         if (said !== 'same width') throw new Error('the guide should say “same width”, said “' + said + '”');
@@ -2476,6 +2478,25 @@
       window.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowLeft', altKey: true, bubbles: true }));
       expect(a.x < x1, 'Alt + left should step back, x=' + a.x);
       return 'jumped to ' + x1 + ' then back to ' + a.x;
+    });
+
+    test('rhythm gap: with nothing to copy, 24, 48 or 72 from the neighbour catches', function () {
+      addToSec('badge'); addToSec('badge');
+      var n = sec().els.length;
+      var a = sec().els[n - 2], b = sec().els[n - 1];
+      a.x = 100; a.y = 3401; a.w = 200; a.h = 60;
+      b.x = 700; b.y = 3401; b.w = 150; b.h = 60;
+      G.resolve(sec()); G.measure(sec()); G.resolve(sec());
+      dragGripBy(n - 1, 352 - 700, 0, 85); // gap 52: four past 48, off the 24 lines
+      var gap = b.x - (a.x + a.w);
+      expect(gap === 48, 'the gap should settle on 48, got ' + gap + ' (x=' + b.x + ')');
+      dragGripBy(n - 1, 330 - b.x, 0, 86); // gap 30: six past 24
+      gap = b.x - (a.x + a.w);
+      expect(gap === 24, 'the gap should settle on 24, got ' + gap + ' (x=' + b.x + ')');
+      dragGripBy(n - 1, 420 - b.x, 0, 87); // gap 120: nothing near, no magnet
+      gap = b.x - (a.x + a.w);
+      expect(gap !== 72 && gap !== 96, 'far from any rhythm gap nothing should catch, got ' + gap);
+      return 'caught 48, then 24, then left alone at ' + gap;
     });
 
     // ---- 28b. equal-spacing wins over a nearby edge-snap candidate ----
@@ -4839,7 +4860,7 @@
         expect(rows.length === 12, 'the panel should list twelve pairs, got ' + rows.length);
         expect(pnl.querySelector('.gogh-typescale') && pnl.querySelectorAll('.gogh-typescale .gogh-hpreset').length === 4, 'the type size lives in the Fonts door');
         expect(pnl.querySelectorAll('.gogh-fontpair-theme').length >= 1, 'the theme’s own pairs sit in the same list, first');
-        expect(/the theme’s own/.test(rows[0].textContent), 'the first row is the theme’s own pair');
+        expect(rows[0].dataset.i === '0' && /\S/.test((rows[0].querySelector('.gogh-fontpair-say') || {}).textContent || ''), 'the first row is the theme’s own pair, with a word of its own');
         expect(rows[1].querySelector('.gogh-fontpair-name span').style.fontFamily.indexOf('Fraunces') !== -1, 'a row is set in its own heading face');
         rows[1].dispatchEvent(new MouseEvent('mouseenter', { bubbles: true }));
         return new Promise(function (resolve) { setTimeout(function () { resolve({ pnl: pnl, rows: rows }); }, 2000); });

@@ -14233,6 +14233,19 @@
           if (yRep >= 0 && Math.abs(ry - yRep) < 8) { e.y = yRep; sn.gy = null; drag.repV = rgy; }
         }
       }
+      // rhythm gaps: with nothing to copy, a gap of 24, 48 or 72 from the
+      // neighbour is offered, so a hand-placed piece lands in gogh's own
+      // spacing without anyone knowing the rhythm exists
+      drag.rhyH = null;
+      drag.rhyV = null;
+      if (!lockX && !drag.eqH && !drag.repH) {
+        var rhx = rhythmGap(e, nb, 'x', rx);
+        if (rhx) { e.x = rhx.v; sn.gx = null; drag.rhyH = rhx; }
+      }
+      if (!lockY && !drag.eqV && !drag.repV) {
+        var rhy = rhythmGap(e, nb, 'y', ry);
+        if (rhy) { e.y = rhy.v; sn.gy = null; drag.rhyV = rhy; }
+      }
     }
     // the ghost is a PROMISE, so it moves in model coordinates, not raw
     // pointer pixels: it ticks onto the grid and onto magnets exactly as
@@ -14248,7 +14261,8 @@
       dragRaf = true;
       requestAnimationFrame(function () {
         dragRaf = false;
-        if (!drag) return;
+        // the drag can end, or the page be rebuilt, before this frame comes
+        if (!drag || drag.sec !== sec || !sec.els[drag.i]) return;
         resolveAndApply(sec);
         showGuides(sec, sn.gx, sn.gy);
         // the numbers are power-user furniture: distance rulers and their
@@ -14260,7 +14274,7 @@
         // every gap in the run gets one, so two digits agree where two
         // stretches of whitespace never could (nothing on screen until
         // something is true)
-        else if (drag.eqH || drag.eqV || drag.repH || drag.repV) drawGapRun(sec, drag.i, drag.eqH, drag.eqV, drag.repH, drag.repV, sn.gx, sn.gy);
+        else if (drag.eqH || drag.eqV || drag.repH || drag.repV || drag.rhyH || drag.rhyV) drawGapRun(sec, drag.i, drag.eqH, drag.eqV, drag.repH, drag.repV, sn.gx, sn.gy, drag.rhyH, drag.rhyV);
         else hideDists();
         // the landing box is drawn from MODEL coordinates — the same
         // promise the ghost makes. Reading the solved node's cell broke
@@ -14311,7 +14325,7 @@
     var sec = drag.sec, i = drag.i;
     var multiD = drag.multi || null;
     var gxCapD = !!drag.gxCap, gyCapD = !!drag.gyCap;
-    var eqHD = !!drag.eqH || !!drag.repH, eqVD = !!drag.eqV || !!drag.repV; // a gap magnet is exact: the grid does not get a second say
+    var eqHD = !!drag.eqH || !!drag.repH || !!drag.rhyH, eqVD = !!drag.eqV || !!drag.repV || !!drag.rhyV; // a gap magnet is exact: the grid does not get a second say
     var lockedXD = !!drag.lockedX, lockedYD = !!drag.lockedY;
     var movedXD = !!drag.movedX, movedYD = !!drag.movedY;
     var dropCX = drag.cx, dropCY = drag.cy;
@@ -17616,9 +17630,28 @@
     if (!(gap > 0)) return null;
     return { side: axis === 'x' ? (side === 0 ? 'L' : 'R') : (side === 0 ? 'T' : 'B'), gap: Math.round(gap), n1: n1, n2: n2 };
   }
+  // the nearest rhythm gap (24, 48, 72) from any neighbour on this axis,
+  // within SNAP of where the pointer is — null when none is that close
+  function rhythmGap(e, nb, axis, raw) {
+    var best = null;
+    var sides = axis === 'x' ? [['L', nb.L], ['R', nb.R]] : [['T', nb.T], ['B', nb.B]];
+    sides.forEach(function (sd) {
+      var n1 = sd[1];
+      if (!n1) return;
+      [RHYTHM, RHYTHM * 2, MAJOR].forEach(function (g) {
+        var v = axis === 'x'
+          ? (sd[0] === 'L' ? n1.x + n1.w + g : n1.x - g - e.w)
+          : (sd[0] === 'T' ? n1.y + n1.h + g : n1.y - g - e.h);
+        if (v < 0 || (axis === 'x' && v + e.w > W)) return;
+        var d = Math.abs(raw - v);
+        if (d <= SNAP && (!best || d < best.d)) best = { v: v, d: d, gap: g, side: sd[0], n1: n1 };
+      });
+    });
+    return best;
+  }
   // the numbers on a run whose gaps agree: the dragged piece's gap(s) and,
   // for a repeated gap, the one it copies — all marked equal
-  function drawGapRun(sec, i, eqH, eqV, repH, repV, gx, gy) {
+  function drawGapRun(sec, i, eqH, eqV, repH, repV, gx, gy, rhyH, rhyV) {
     hideDists();
     var e = sec.els[i];
     var nb = neighbors(sec, e);
@@ -17646,11 +17679,13 @@
       if (repH.side === 'L') { hGap(repH.n2, repH.n1); hGap(repH.n1, e); }
       else { hGap(e, repH.n1); hGap(repH.n1, repH.n2); }
     }
+    else if (rhyH) { if (rhyH.side === 'L') hGap(rhyH.n1, e); else hGap(e, rhyH.n1); }
     if (eqV) { if (nb.T) vGap(nb.T, e); if (nb.B) vGap(e, nb.B); }
     else if (repV) {
       if (repV.side === 'T') { vGap(repV.n2, repV.n1); vGap(repV.n1, e); }
       else { vGap(e, repV.n1); vGap(repV.n1, repV.n2); }
     }
+    else if (rhyV) { if (rhyV.side === 'T') vGap(rhyV.n1, e); else vGap(e, rhyV.n1); }
   }
   function neighbors(sec, e) {
     var L = null, R = null, T = null, B = null;

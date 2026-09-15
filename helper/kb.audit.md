@@ -1,4 +1,4 @@
-# Knowledge-base audit — plugin v0.99.558
+# Knowledge-base audit — plugin v0.99.559
 
 _13 finding(s) suppressed by `kb.audit-ignore.txt`._
 
@@ -119,6 +119,4 @@ Quoted copy not found verbatim in the source. Paraphrases are fine; changed UI c
 
 Use this as the checklist for updating the prose — and as a sanity check on the release itself.
 
-- version: 0.99.557 → 0.99.558
-- added UI label: "Make them all the size of the first one you picked"
-- added UI label: "Match size"
+- version: 0.99.558 → 0.99.559
