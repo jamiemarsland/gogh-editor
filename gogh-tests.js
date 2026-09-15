@@ -4724,6 +4724,21 @@
 
     // step four: the die draws on the Fonts door's pairs — a roll may land in
     // Fraunces & Inter, tried from Google and installed quietly on commit
+    test('a kept pair trims the active families to the two in use; Undo gets the dropped ones back', function () {
+      var a = { slug: 'fraunces', name: 'Fraunces' }, b = { slug: 'inter', name: 'Inter' }, c = { slug: 'lora', name: 'Lora' };
+      var r = G.fontFamiliesAfter([a, b], [c], 'var:preset|font-family|inter', 'var:preset|font-family|lora');
+      expect(r.custom.map(function (f) { return f.slug; }).join() === 'inter,lora', 'inter stays (body still uses it), lora joins: ' + r.custom.map(function (f) { return f.slug; }).join());
+      expect(r.dropped.length === 1 && r.dropped[0].slug === 'fraunces', 'fraunces is dropped from the active list, not the library');
+      var back = G.fontFamiliesAfter(r.custom, r.dropped, 'var:preset|font-family|inter', 'var:preset|font-family|fraunces');
+      expect(back.custom.map(function (f) { return f.slug; }).sort().join() === 'fraunces,inter', 'undo puts fraunces back and lets lora go: ' + back.custom.map(function (f) { return f.slug; }).join());
+      expect(back.dropped.length === 1 && back.dropped[0].slug === 'lora', 'and remembers lora as the one it dropped');
+      var theme = G.fontFamiliesAfter([a, b], [], 'var:preset|font-family|manrope', 'var:preset|font-family|manrope');
+      expect(theme.custom.length === 0 && theme.dropped.length === 2, 'a theme preset leaves nothing active');
+      var arr = G.fontFamiliesAfter([], [c], null, 'var:preset|font-family|lora');
+      expect(arr.custom.length === 1 && arr.custom[0].slug === 'lora', 'PHP’s [] for an emptied object is treated as empty');
+      return 'two families a page, never a third';
+    });
+
     test('Remix draws on the Fonts door’s pairs', function () {
       var b = G.brand();
       if (b && b.fonts && b.fonts.heading) return 'skipped: this site’s brand pins its fonts, so every roll keeps them';

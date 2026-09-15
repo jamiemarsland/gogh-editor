@@ -15119,6 +15119,21 @@
       heading: (hd && !Array.isArray(hd) && hd.fontFamily) || null,
     };
   }
+  // Two families a page, never a third: the site's ACTIVE list is only the
+  // families the two refs point at (plus what is being installed now); every
+  // other family stays in the Font Library, so coming back is instant with
+  // no download. What was dropped is remembered so Undo can put it back.
+  var fontsDropped = [];
+  function fontFamiliesAfter(custom, fams, bodyRef, headRef) {
+    var slugOf = function (ref) { return (String(ref || '').match(/font-family[|-]+([a-z0-9-]+)/) || [])[1] || null; };
+    var used = [slugOf(bodyRef), slugOf(headRef)].filter(Boolean);
+    var had = Array.isArray(custom) ? custom : [];
+    var fresh = function (f) { return (fams || []).some(function (n) { return n.slug === f.slug; }); };
+    return {
+      custom: had.filter(function (f) { return used.indexOf(f.slug) !== -1 && !fresh(f); }).concat(fams || []),
+      dropped: had.filter(function (f) { return used.indexOf(f.slug) === -1 && !fresh(f); }),
+    };
+  }
   function writeFontFamilies(gs, fams, bodyRef, headRef) {
     // an emptied object comes back from PHP as [] — an Array, whose named
     // keys vanish in JSON — so every branch is coerced to a real object
@@ -15126,8 +15141,9 @@
     var settings = obj(gs.settings);
     settings.typography = obj(settings.typography);
     var ff = obj(settings.typography.fontFamilies);
-    var custom = (Array.isArray(ff.custom) ? ff.custom : []).filter(function (f) { return !fams.some(function (n) { return n.slug === f.slug; }); }).concat(fams);
-    ff.custom = custom;
+    var trimmed = fontFamiliesAfter(ff.custom, fams, bodyRef, headRef);
+    ff.custom = trimmed.custom;
+    fontsDropped = trimmed.dropped;
     settings.typography.fontFamilies = ff;
     var styles = obj(gs.styles);
     styles.typography = obj(styles.typography);
@@ -15171,7 +15187,7 @@
     }
     if (btn) btn.disabled = true;
     var busy = toast(pair.theme ? 'Putting the theme’s type back…' : 'Installing ' + label + '…', { ttl: 60000 });
-    var before = null, lastRefs = { heading: null, body: null }, lastInstalled = [];
+    var before = null, lastRefs = { heading: null, body: null }, lastInstalled = [], dropped = [];
     return fetch(GSROOT + 'global-styles/' + cfg.gsId + '?context=edit', { headers: H, credentials: 'same-origin' })
       .then(function (r) { return r.ok ? r.json() : Promise.reject(new Error('HTTP ' + r.status)); })
       .then(function (gs) {
@@ -15195,7 +15211,7 @@
           return writeFontFamilies(gs, uniq, refs[1], refs[0]);
         });
       })
-      .then(function () { clearFontsPreview(); return reskinType(); })
+      .then(function () { dropped = fontsDropped.slice(); clearFontsPreview(); return reskinType(); })
       .then(function () {
         if (wasClean) savedSnap = serialize();
         fontsLastKept = pair;
@@ -15219,7 +15235,7 @@
         toast(label + '. Installed on your site, yours to keep.', { ttl: 7000, actions: [{ label: 'Undo', onClick: function () {
           fetch(GSROOT + 'global-styles/' + cfg.gsId + '?context=edit', { headers: H, credentials: 'same-origin' })
             .then(function (r) { return r.json(); })
-            .then(function (gs) { return writeFontFamilies(gs, [], before.body, before.heading); })
+            .then(function (gs) { return writeFontFamilies(gs, dropped, before.body, before.heading); })
             .then(reskinType)
             .then(function () { toast('The type before is back.', { ttl: 3000 }); markCurrentFontPair(); })
             .catch(function (e) { toast(e.message || 'Could not undo.', { error: true, ttl: 6000 }); });
@@ -15420,6 +15436,11 @@
         styles.elements = obj(styles.elements); styles.elements.heading = obj(styles.elements.heading); styles.elements.heading.typography = obj(styles.elements.heading.typography);
         var head = obj(obj(obj(obj(vs.elements).heading)).typography).fontFamily;
         if (head) styles.elements.heading.typography.fontFamily = head; else delete styles.elements.heading.typography.fontFamily;
+        // the families the preset does not use go back to being library-only
+        var ffs = obj(settings.typography.fontFamilies);
+        var after = fontFamiliesAfter(ffs.custom, [], body || null, head || null);
+        if (after.custom.length) ffs.custom = after.custom; else delete ffs.custom;
+        settings.typography.fontFamilies = ffs;
         var merged = { title: v.title, settings: settings, styles: styles };
         return applyVariation(merged, btn);
       })
@@ -18211,6 +18232,7 @@
     fontPairs: function () { return FONT_PAIRS; },
     remixCandidates: remixCandidates,
     fontsDry: function (on) { fontsDryRun = !!on; },
+    fontFamiliesAfter: fontFamiliesAfter,
     fontsLast: function () { return fontsLastKept; },
     openFontsPanel: openFontsPanel,
     resolveAll: resolveAll,
