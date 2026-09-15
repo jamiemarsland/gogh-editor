@@ -1,4 +1,4 @@
-# Knowledge-base audit — plugin v0.99.542
+# Knowledge-base audit — plugin v0.99.543
 
 _13 finding(s) suppressed by `kb.audit-ignore.txt`._
 
@@ -105,10 +105,15 @@ The source has something the prose never explains. The bot knows the name from t
 - element type `video` exists in source but is never mentioned in the prose
 - element type `embed` exists in source but is never mentioned in the prose
 
+## QUOTE (1)
+
+Quoted copy not found verbatim in the source. Paraphrases are fine; changed UI copy is not.
+
+- Fraunces & Inter. Installed on your site, yours to keep.
+
 ## What changed since the last knowledge-base build
 
 Use this as the checklist for updating the prose — and as a sanity check on the release itself.
 
-- version: 0.99.541 → 0.99.542
-- added UI label: "It is already on your site — this closes the panel"
-- added UI label: "Keep this"
+- version: 0.99.542 → 0.99.543
+- added toast: "The type before is back."

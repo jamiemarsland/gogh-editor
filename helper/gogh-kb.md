@@ -15,7 +15,7 @@ about something where they conflict, rather than picking one silently. Quote UI
 labels and message copy from the appendix, verbatim — those are the current
 strings, and a paraphrased button label is the fastest way to lose a user's trust.
 
-Generated for plugin version 0.99.542 · knowledge base e434532.
+Generated for plugin version 0.99.543 · knowledge base 98d7f6a.
 
 ---
 
@@ -775,6 +775,10 @@ It also runs an **XSS probe** — injecting `"cssT":"</style><script>alert(1)</s
 
 **"Publish failed."** Check the browser console. Common causes: the REST nonce expired (reload), the safety gates refused an ambiguous mapping, or a template part couldn't be resolved for a header/footer edit. Nothing is silently corrupted — Gogh's failure modes bail rather than guess.
 
+### Fonts: pairs, not pickers (v0.99.543)
+
+A **Fonts** card in the Site drawer opens twelve heading-and-body pairings with plain names for their character (the theme's own first, then bookish, editorial, studio, modern, warm, elegant, bold, classic, quiet luxury, loud, technical), each row set in its own faces. Hover paints the page in the pair (the editor loads it from Google to try it; nothing is saved); click keeps it. Keeping installs the families through WordPress's own Font Library — the files are downloaded once into the site's font folder and registered as font family and font face posts — then writes the two families into the site's global styles (`styles.typography.fontFamily` and `styles.elements.heading.typography.fontFamily`) and activates them in `settings.typography.fontFamilies.custom`. The toast reads "Fraunces & Inter. Installed on your site, yours to keep." with Undo, which puts the previous families back (nothing is uninstalled). The published page serves the fonts from the site itself, never from Google, and the type survives gogh being deactivated. Two families a page, never a third. `__gogh.fontPairs()`, `__gogh.openFontsPanel()`, `__gogh.fontsDry(on)` for tests.
+
 ---
 
 # Generated facts appendix
@@ -783,11 +787,11 @@ Everything in this section is extracted mechanically from the Gogh source on eve
 
 ## Current release
 
-- Plugin version: **0.99.542**
+- Plugin version: **0.99.543**
 - Requires WordPress **6.5+**, PHP **7.4+**
 - Text domain: `gogh-editor`
 - readme.txt Stable tag: `0.26.0` · Tested up to: `7.0`
-- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.542`). Quote the plugin header version.
+- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.543`). Quote the plugin header version.
 
 ## Design constants
 
@@ -1250,6 +1254,7 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "The description could not be saved — try again."
 - "The header and footer stay — edit them instead."
 - "The name didn’t save — try again."
+- "The type before is back."
 - "Theme style applied: "
 - "This "
 - "This header has no menu button to open."

@@ -4652,6 +4652,45 @@
       return 'new pieces are born on the rhythm and never on words; the floor of a section is 576, eight majors';
     });
 
+    // FONTS: pairs, not pickers — a Fonts card in the Site drawer opens twelve
+    // pairs set in their own faces; hover paints the page, click keeps (dry here:
+    // a real keep installs through the Font Library and writes global styles)
+    testAsync('the Fonts door: twelve pairs, the theme’s own first, hover to try, click to keep', function () {
+      G.fontsDry(true);
+      var card = q('.gogh-side .gogh-fontsbtn');
+      expect(card, 'no Fonts card in the Site drawer');
+      var pairs = G.fontPairs();
+      expect(pairs.length === 12 && pairs[0].theme, 'twelve pairs with the theme’s own first, got ' + pairs.length);
+      expect(pairs.slice(1).every(function (p) { return p.heading && p.body && p.say; }), 'every pair names a heading face, a body face and its character');
+      card.click();
+      return new Promise(function (resolve) {
+        var t0 = Date.now();
+        (function poll() {
+          var pnl = q('.gogh-panel');
+          if ((pnl && !pnl.hidden && pnl.querySelector('.gogh-fontpair')) || Date.now() - t0 > 8000) resolve(pnl); else setTimeout(poll, 100);
+        })();
+      }).then(function (pnl) {
+        var rows = [].slice.call(pnl.querySelectorAll('.gogh-fontpair'));
+        expect(rows.length === 12, 'the panel should list twelve pairs, got ' + rows.length);
+        expect(/the theme’s own/.test(rows[0].textContent), 'the first row is the theme’s own pair');
+        expect(rows[1].querySelector('.gogh-fontpair-name span').style.fontFamily.indexOf('Fraunces') !== -1, 'a row is set in its own heading face');
+        rows[1].dispatchEvent(new MouseEvent('mouseenter', { bubbles: true }));
+        return new Promise(function (resolve) { setTimeout(function () { resolve({ pnl: pnl, rows: rows }); }, 2000); });
+      }).then(function (st) {
+        var pv = document.getElementById('gogh-font-preview');
+        expect(pv && /Fraunces/.test(pv.textContent) && /Inter/.test(pv.textContent), 'hovering a pair should paint the page in it');
+        st.rows[1].dispatchEvent(new MouseEvent('mouseleave', { bubbles: true }));
+        expect(!pv.textContent, 'leaving should take the pair off the page again');
+        st.rows[1].click();
+        expect(G.fontsLast() && G.fontsLast().key === 'bookish', 'clicking should keep the pair');
+        var toasts = [].slice.call(document.querySelectorAll('.gogh-toast')).map(function (t) { return t.textContent; }).join(' | ');
+        expect(/Fraunces & Inter\. Installed on your site, yours to keep/.test(toasts) && /Undo/.test(toasts), 'the toast says what happened, with Undo: ' + toasts);
+        G.closePanel();
+        G.fontsDry(false);
+        return 'twelve pairs, the theme’s own first; hover paints, leave clears, click keeps with Undo';
+      });
+    });
+
     testAsync('select all picks the section’s pieces; the margin is a named magnet and guide', function () {
       var s0 = sec();
       select(0);
