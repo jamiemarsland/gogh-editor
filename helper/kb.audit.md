@@ -110,9 +110,3 @@ The source has something the prose never explains. The bot knows the name from t
 Quoted copy not found verbatim in the source. Paraphrases are fine; changed UI copy is not.
 
 - Fraunces & Inter. Installed on your site, yours to keep.
-
-## What changed since the last knowledge-base build
-
-Use this as the checklist for updating the prose — and as a sanity check on the release itself.
-
-- version: 0.99.547 → 0.99.548
