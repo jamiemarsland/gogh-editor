@@ -193,6 +193,16 @@ check(res.status === 400, 'an empty message is refused before any model is calle
   own.pages[0].sections[0].minH = 504; own.pages[0].sections[0].els[0].y = 96;
   r = await rpc({ jsonrpc: '2.0', id: 86, method: 'tools/call', params: { name: 'gogh_check', arguments: { definition: own } } });
   check(!r.body.result.structuredContent.problems.some((m) => /rhythm/.test(m)), 'on the rhythm, the note goes away');
+  // the AI door names a pair, or two fonts
+  const fontsOk = JSON.parse(JSON.stringify(florist)); fontsOk.fonts = 'bookish';
+  r = await rpc({ jsonrpc: '2.0', id: 88, method: 'tools/call', params: { name: 'gogh_check', arguments: { definition: fontsOk } } });
+  check(r.body.result.structuredContent.ok, 'a definition may name a font pair: ' + JSON.stringify(r.body.result.structuredContent.problems));
+  const fontsOwn = JSON.parse(JSON.stringify(florist)); fontsOwn.fonts = { heading: 'Fraunces', body: 'Inter' };
+  r = await rpc({ jsonrpc: '2.0', id: 89, method: 'tools/call', params: { name: 'gogh_check', arguments: { definition: fontsOwn } } });
+  check(r.body.result.structuredContent.ok, 'or two families by name');
+  const fontsBad = JSON.parse(JSON.stringify(florist)); fontsBad.fonts = 'comic';
+  r = await rpc({ jsonrpc: '2.0', id: 90, method: 'tools/call', params: { name: 'gogh_check', arguments: { definition: fontsBad } } });
+  check(!r.body.result.structuredContent.ok && r.body.result.structuredContent.problems.some((m) => /fonts must be one of/.test(m)), 'an unknown pair name is refused with the list');
   // James's own definitions stay on it
   for (const f of fs.readdirSync(path.join(here, '..', '..', 'spike')).filter((n) => /^site-def-.*\.json$/.test(n))) {
     const d = JSON.parse(fs.readFileSync(path.join(here, '..', '..', 'spike', f), 'utf8'));

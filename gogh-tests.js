@@ -4722,6 +4722,23 @@
       });
     });
 
+    // step four: the die draws on the Fonts door's pairs — a roll may land in
+    // Fraunces & Inter, tried from Google and installed quietly on commit
+    test('Remix draws on the Fonts door’s pairs', function () {
+      var b = G.brand();
+      if (b && b.fonts && b.fonts.heading) return 'skipped: this site’s brand pins its fonts, so every roll keeps them';
+      var google = 0, theme = 0;
+      for (var k = 0; k < 40; k++) {
+        G.remixCandidates().slice(0, 6).forEach(function (c) { if (c.fonts && c.fonts.google) google++; else if (c.fonts) theme++; });
+      }
+      expect(google > 0, 'some rolls should wear a pair from the Fonts door');
+      expect(theme > 0, 'and some the theme’s own combinations');
+      var c = null;
+      for (var m = 0; m < 40 && !c; m++) c = G.remixCandidates().filter(function (x) { return x.fonts && x.fonts.google; })[0];
+      expect(c && /in [A-Z][^,]+ & [A-Z]/.test(c.detail), 'the receipt names the pair: ' + (c && c.detail));
+      return google + ' Google pairs and ' + theme + ' theme pairs across 240 candidates';
+    });
+
     testAsync('select all picks the section’s pieces; the margin is a named magnet and guide', function () {
       var s0 = sec();
       select(0);

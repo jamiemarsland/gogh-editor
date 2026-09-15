@@ -10915,6 +10915,22 @@
         return fetch(root + 'gogh/v1/site-def', { method: 'DELETE', credentials: 'same-origin', headers: { 'X-WP-Nonce': cfg.nonce } }).catch(function () {});
       })
       .then(function () {
+        // the definition may name a pair from the Fonts door ("bookish") or
+        // two fonts of its own — installed now, the way Keep does, so the
+        // site opens already wearing them
+        var want = def && def.fonts;
+        if (!want) return;
+        var pr = null;
+        if (typeof want === 'string') pr = FONT_PAIRS.filter(function (x) { return !x.theme && x.key === String(want).toLowerCase(); })[0] || null;
+        else if (want && typeof want === 'object' && (want.heading || want.body)) {
+          pr = { heading: want.heading ? { name: String(want.heading), w: 600 } : { keep: true }, body: want.body ? { name: String(want.body), w: 400 } : { keep: true },
+            label: [want.heading, want.body].filter(Boolean).join(' & ') };
+        }
+        if (!pr) return;
+        step.textContent = 'Installing the fonts';
+        return keepFontPair(pr).catch(function () {});
+      })
+      .then(function () {
         step.textContent = 'Opening your site';
         discarding = true; // the scratch on this canvas was never meant to be kept
         // the front door: a build asked for it opens the new site on six looks
@@ -15992,13 +16008,17 @@
   var remixAudition = null;
   function remixAuditionOn(cand) {
     remixAuditionOff();
-    var v = brandToVariation({ colors: cand.colors, fonts: cand.fonts || null });
+    var v = brandToVariation({ colors: cand.colors, fonts: cand.fonts || null, families: cand.families || null });
     auditionVariation(v);
+    // a pair from the Fonts door is not on the site yet: the editor tries
+    // it from Google, the way the door does
+    if (cand.fonts && cand.fonts.google && !cand.families) auditionFontPair({ heading: cand.fonts.google.heading, body: cand.fonts.google.body });
     remixScalePreview(cand.scale);
     remixAudition = { snaps: remixPaintRhythm(cand) };
   }
   function remixAuditionOff() {
     clearVariationPreview();
+    clearFontsPreview();
     remixScalePreview(null);
     if (remixAudition) { remixRestoreRhythm(remixAudition.snaps); remixAudition = null; }
   }
@@ -16085,8 +16105,6 @@
       v = { title: entry.title, styles: (entry.gs && entry.gs.styles) || {}, settings: (entry.gs && entry.gs.settings) || {} };
       scale = entry.scale;
     } else {
-      v = brandToVariation({ colors: entry.cand.colors, fonts: entry.cand.fonts || null });
-      v.title = 'Remix \u00b7 ' + entry.cand.name;
       scale = entry.cand.scale || 100;
     }
     var keepPaint = function () {
@@ -16094,7 +16112,29 @@
       // so nothing puts them back, and let undo cover the change
       if (remixAudition) { remixAudition = null; }
     };
-    var run = entry.origin ? remixFetchOrigin(entry).then(function () { return applyVariation(v); }) : applyVariation(v);
+    // a look in a pair from the Fonts door installs the pair first, the way
+    // Keep does; if Google will not hand it over the look lands in the
+    // theme's own type rather than not at all
+    var ready = entry.origin ? Promise.resolve() : (function () {
+      var c = entry.cand;
+      if (!c.fonts || !c.fonts.google || c.families) return Promise.resolve();
+      var pr = c.fonts.google;
+      return fetchGoogleCollection().then(function (families) {
+        var he = googleFamilyNamed(families, pr.heading.name), be = googleFamilyNamed(families, pr.body.name);
+        if (!he || !be) throw new Error('not on Google');
+        return Promise.all([installFamily(he, pr.heading.w || 600), installFamily(be, pr.body.w || 400)]);
+      }).then(function (fams) {
+        c.families = fams.filter(function (f, i) { return fams.findIndex(function (g) { return g.slug === f.slug; }) === i; });
+        c.fonts = { heading: fams[0].slug, body: fams[1].slug, google: pr };
+      }).catch(function () { c.fonts = null; c.families = null; });
+    })();
+    var run = ready.then(function () {
+      if (!entry.origin) {
+        v = brandToVariation({ colors: entry.cand.colors, fonts: entry.cand.fonts || null, families: entry.cand.families || null });
+        v.title = 'Remix \u00b7 ' + entry.cand.name;
+      }
+      return entry.origin ? remixFetchOrigin(entry).then(function () { return applyVariation(v); }) : applyVariation(v);
+    });
     run.then(function () {
       clearVariationPreview();
       if (scale !== (cfg.typeScale || 100)) return applyTypeScale(scale);
@@ -16122,6 +16162,13 @@
     var pairs = [];
     fams.forEach(function (h2) { fams.forEach(function (b2) { if (h2 !== b2 || fams.length === 1) pairs.push({ heading: h2, body: b2 }); }); });
     return pairs;
+  }
+  // the Fonts door's pairs, as a roll can wear them: the slugs they would
+  // install under, and the pair itself for the audition and the install
+  function remixGooglePairs() {
+    return FONT_PAIRS.filter(function (pr) { return !pr.theme; }).map(function (pr) {
+      return { heading: fontSlug(pr.heading.name), body: fontSlug(pr.body.name), google: pr };
+    });
   }
   // walk the accent's lightness to where the text reads on it AND it still
   // stands off the ground — the nearest such lightness to its own; if no
@@ -16166,7 +16213,7 @@
     var A = { h: seeds[0].h, s: seeds[0].s, l: seeds[0].l };
     // a direction with a hue leans the seed part of the way there
     if (dir && dir.hueTo != null) A.h = hueToward(A.h, dir.hueTo, 0.55);
-    var pairs = remixFontPairs();
+    var pairs = remixFontPairs(), googlePairs = remixGooglePairs();
     var j = function (range) { return (Math.random() - 0.5) * 2 * range; };
     var pick = function (list) { return list[Math.floor(Math.random() * list.length)]; };
     var pool = function (all, keys, keyOf) {
@@ -16189,7 +16236,9 @@
     var build = function () {
       var g = pick(grounds), r = pick(relations), v = pick(volumes), ink = pick(REMIX_INKS);
       if (dir && dir.sat) v = { key: v.key, say: v.say, s: Math.max(0.2, Math.min(0.95, v.s * dir.sat)) };
-      var pair = pairs.length ? pick(pairs) : null;
+      // the die draws on the same pairs the Fonts door shows: a coin decides
+      // between the theme's own combinations and the twelve
+      var pair = googlePairs.length && (!pairs.length || Math.random() < 0.5) ? pick(googlePairs) : (pairs.length ? pick(pairs) : null);
       var scale = pick(scales)[0];
       var rhythmPool = g.dark ? rhythms.filter(function (x) { return x.key !== 'dark-hero' && x.key !== 'bookends'; }) : rhythms;
       var rhythm = pick(rhythmPool.length ? rhythmPool : rhythms).key;
@@ -16218,7 +16267,7 @@
         key: key,
         name: brand ? 'Your brand' : r.say + v.say + ' on ' + g.say,
         brand: !!brand,
-        detail: scaleSay + ' type, ' + rhythmSay + (divider ? ', ' + (/^[aeiou]/i.test(divider) ? 'an ' : 'a ') + divider + ' edge' : '') + (fx === 'grain' ? ', grain' : ''),
+        detail: scaleSay + ' type, ' + rhythmSay + (divider ? ', ' + (/^[aeiou]/i.test(divider) ? 'an ' : 'a ') + divider + ' edge' : '') + (fx === 'grain' ? ', grain' : '') + (pair && pair.google ? ', in ' + pair.google.heading.name + ' & ' + pair.google.body.name : ''),
         colors: { background: bg, text: tx, accent: ac, accent2: brand && brand.accent2 ? brand.accent2 : ac },
         fonts: pair,
         scale: scale,
@@ -18140,6 +18189,7 @@
     rhythm: function () { return { minor: RHYTHM, major: MAJOR }; },
     defaults: function (kind) { return kind ? DEFAULTS[kind]() : Object.keys(DEFAULTS); },
     fontPairs: function () { return FONT_PAIRS; },
+    remixCandidates: remixCandidates,
     fontsDry: function (on) { fontsDryRun = !!on; },
     fontsLast: function () { return fontsLastKept; },
     openFontsPanel: openFontsPanel,

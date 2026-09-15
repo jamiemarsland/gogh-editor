@@ -364,6 +364,8 @@ const TAKES = {
   'Latest posts': { for: 'the newest posts, live', fields: ['heading', 'posts'] },
 };
 const VARIATIONS = ['Morning', 'Evening', 'Noon', 'Afternoon', 'Dusk', 'Twilight', 'Sunrise', 'Midnight'];
+// the Fonts door's pairs, by their plain names (mirrors FONT_PAIRS in gogh-editor.js)
+const FONT_PAIR_KEYS = ['bookish', 'editorial', 'studio', 'modern', 'warm', 'elegant', 'bold', 'classic', 'quiet', 'loud', 'technical'];
 const HEADERS = ['gogh-header-classic', 'gogh-header-bold', 'gogh-header-centred', 'gogh-header-hamburger', 'gogh-header-minimal', 'gogh-header-onepage', 'gogh-header-overlay', 'gogh-header-split'];
 const FOOTERS = ['gogh-footer-columns', 'gogh-footer-simple', 'gogh-footer-bold'];
 // The pictures gogh itself ships, with what they ARE — a path alone tells
@@ -430,6 +432,8 @@ You write a **site definition**: content and choices, never layout. Gogh draws i
   nav: [ { label, url } ]   (optional: a menu of your own. url is '#anchor' or an http(s) link. Without it the menu is one link per page)
   pages: [ { title, front: true (exactly one), blog: true (the posts page, no sections), sections: [ { take, anchor, ...fields } ] } ],
   posts: [ { title, text (plain paragraphs separated by blank lines), image } ],
+  fonts: one of ${FONT_PAIR_KEYS.join(' | ')}   (optional: a font pairing gogh installs — bookish is a bookish serif with a plain sans, loud is loud; leave it out for the theme's own type)
+         or { heading: 'Fraunces', body: 'Inter' }   (two families by name, from Google Fonts),
   credits: [ { name, link } ]   (the photographers whose pictures you used) }
 \`\`\`
 Rules: 1 to 8 pages, up to 10 sections a page, the front page first. Headings are short (2 to 7 words). Texts are one to three plain sentences. Buttons are two or three words. An eyebrow is a tiny label above the heading ("Bath · since 2014"). \`mood\` on card takes is one of still, lift, zoom, veil, glass. Write in the person's own voice and facts; never lorem ipsum.
@@ -557,6 +561,14 @@ function checkDefinition(def) {
   if (!str(def.name, 80) || !def.name) bad('name is required (up to 80 characters).');
   if (!str(def.tagline, 160)) bad('tagline is too long (160 characters).');
   if (def.variation != null && !VARIATIONS.some((v) => v.toLowerCase() === String(def.variation).toLowerCase())) bad(`variation must be one of ${VARIATIONS.join(', ')}.`);
+  if (def.fonts != null) {
+    if (typeof def.fonts === 'string') { if (!FONT_PAIR_KEYS.includes(def.fonts.toLowerCase())) bad(`fonts must be one of ${FONT_PAIR_KEYS.join(', ')}, or { heading, body } with family names.`); }
+    else if (typeof def.fonts === 'object' && !Array.isArray(def.fonts)) {
+      Object.keys(def.fonts).forEach((k) => { if (!['heading', 'body'].includes(k)) bad(`fonts: "${k}" is not part of a font choice (heading, body).`); });
+      if (!def.fonts.heading && !def.fonts.body) bad('fonts needs a heading or a body family, or a pair name.');
+      ['heading', 'body'].forEach((k) => { if (def.fonts[k] != null && !str(def.fonts[k], 60)) bad(`fonts.${k} must be a family name (up to 60 characters).`); });
+    } else bad('fonts must be a pair name or { heading, body }.');
+  }
   if (def.palette != null) {
     const p = def.palette;
     if (typeof p !== 'object') bad('palette must be an object.');
