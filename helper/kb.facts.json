@@ -1,12 +1,12 @@
 {
   "meta": {
-    "plugin_version": "0.99.555",
+    "plugin_version": "0.99.556",
     "requires_wp": "6.5",
     "requires_php": "7.4",
     "text_domain": "gogh-editor",
     "readme_stable_tag": "0.26.0",
     "readme_tested_up_to": "7.0",
-    "asset_version": "0.99.555-chrome"
+    "asset_version": "0.99.556-chrome"
   },
   "constants": {
     "TOL": 8,
@@ -1011,6 +1011,11 @@
       },
       {
         "kind": "action",
+        "hook": "wp_enqueue_scripts",
+        "priority": 20
+      },
+      {
+        "kind": "action",
         "hook": "wp_footer",
         "priority": 10
       },
@@ -1245,6 +1250,7 @@
       "gogh_claims_post",
       "gogh_labs_ask",
       "gogh_helper_url",
+      "gogh_user_test_tasks",
       "gogh_rebake_enabled",
       "gogh_schema",
       "gogh_schema_enabled",
@@ -1276,6 +1282,7 @@
       "edit_theme_options",
       "edit_others_posts",
       "edit_products",
+      "edit_pages",
       "manage_options",
       "upload_files",
       "unfiltered_html",

@@ -370,5 +370,40 @@ check(res.status === 400, 'an empty message is refused before any model is calle
   check(bpBuilt.steps.some((st) => st.step === 'runPHP' && st.code.includes("update_option( 'gogh_booted_as', 'halloran' )")), 'blueprint-halloran names itself');
 }
 
+
+// ---- user tests: a tester's card reports in; reading needs the token
+{
+  const e3 = { RATE: kv(), SITES: kv(), TEST_TOKEN: 'sesame' };
+  const post = (body) => worker.fetch(new Request('https://gogh.test/api/test', { method: 'POST', headers: { 'cf-connecting-ip': '203.0.113.5' }, body: JSON.stringify(body) }), e3);
+  let r = await post({ session: 'abc123def456', events: [
+    { t: 1, type: 'start', data: { version: '0.99.556', viewport: '1440x900', persona: 'photographer', junk: { nested: true } } },
+    { t: 2, type: 'task_start', task: 'name' },
+    { t: 3, type: 'task_done', task: 'name', note: 'easy', data: { secs: 40 } },
+    { t: 4, type: 'task_skip', task: 'words', note: 'could not find it' },
+    { t: 5, type: 'weird', task: 'x'.repeat(80), note: 'n'.repeat(3000) },
+  ] });
+  let j = await r.json();
+  check(r.status === 200 && j.n === 5, 'user test: events stored (' + j.n + ')');
+  r = await post({ session: 'Not Valid!', events: [{ type: 'start' }] });
+  check(r.status === 400, 'user test: a bad session id is refused');
+  r = await worker.fetch(new Request('https://gogh.test/api/test'), e3);
+  check(r.status === 401, 'user test: reading without the token is refused');
+  r = await worker.fetch(new Request('https://gogh.test/api/test', { headers: { 'x-test-token': 'sesame' } }), e3);
+  j = await r.json();
+  check(r.status === 200 && j.sessions.length === 1 && j.sessions[0].done === 1 && j.sessions[0].skipped === 1 && j.sessions[0].version === '0.99.556', 'user test: the index sums a session');
+  r = await worker.fetch(new Request('https://gogh.test/api/test?session=abc123def456&token=sesame'), e3);
+  j = await r.json();
+  const odd = j.events[4];
+  check(j.events.length === 5 && odd.type === 'note' && odd.task.length === 40 && odd.note.length === 2000 && !('junk' in (j.events[0].data || {})), 'user test: events are cleaned to known shapes');
+  await post({ session: 'abc123def456', events: [{ type: 'wrap', task: 'wrap', data: { happy: '4', confident: 'yes', feel: 'fine', confused: '', name: 'Sam', minutes: 22 } }] });
+  j = await (await worker.fetch(new Request('https://gogh.test/api/test?token=sesame'), e3)).json();
+  check(j.sessions[0].wrapped === true && j.sessions[0].name === 'Sam', 'user test: the wrap-up marks the session');
+  const intro = await worker.fetch(new Request('https://gogh.test/test'), e3);
+  const report = await worker.fetch(new Request('https://gogh.test/tests'), e3);
+  check(intro.status === 200 && (await intro.text()).includes('blueprint-usertest.json') && report.status === 200, 'user test: intro and report pages answer');
+  const bpUT = JSON.parse(fs.readFileSync(path.join(here, '..', '..', 'blueprint-usertest.json'), 'utf8'));
+  check(bpUT.steps.some((st) => st.step === 'runPHP' && st.code.includes("update_option( 'gogh_user_test'")), 'blueprint-usertest switches the card on');
+}
+
 console.log(failures ? `${failures} failure(s)` : 'all passed');
 process.exit(failures ? 1 : 0);

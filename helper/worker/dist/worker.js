@@ -14,6 +14,9 @@
  *   GET  /api/meta     { pluginVersion, kbId, kbBytes, model, fetchedAt, boots }
  *   GET  /api/boot     { total, seed, counted, blueprints } — launches so far
  *   POST /api/boot     { bp } — one beacon per booted blueprint site
+ *   POST /api/test     { session, events } — a tester's card reports in
+ *   GET  /api/test     sessions (token) — ?session=<id> for one tester's events
+ *   GET  /test         the tester's intro page; GET /tests the report (token)
  *   POST /api/chat     { messages, mode } → SSE stream passed straight through
  *   POST /api/refresh  force a KB re-fetch (needs REFRESH_TOKEN)
  *
@@ -254,6 +257,221 @@ async function bootStats(env) {
   }
   return out;
 }
+
+/* ----------------------------------------------------------- user tests */
+// A site booted from blueprint-usertest.json shows the tester a card of
+// tasks; the card posts what happens here under a random session id. KV
+// keeps ut:<session> (the events, newest last, capped) and ut:index (one
+// line per session). Reading needs the test token; posting needs nothing
+// but is capped per address so nobody can fill the store.
+const UT_SESSION_RE = /^[a-z0-9]{8,32}$/;
+const UT_TYPES = ['start', 'task_start', 'task_done', 'task_skip', 'hint', 'error', 'wrap', 'note'];
+
+function utClean(e) {
+  const out = {
+    t: Number(e && e.t) || Date.now(),
+    type: e && UT_TYPES.includes(e.type) ? e.type : 'note',
+    task: String((e && e.task) || '').slice(0, 40),
+    note: String((e && e.note) || '').slice(0, 2000),
+  };
+  if (e && e.data && typeof e.data === 'object' && !Array.isArray(e.data)) {
+    const d = {};
+    Object.keys(e.data).slice(0, 12).forEach((k) => {
+      const v = e.data[k];
+      if (typeof v === 'number' || typeof v === 'boolean') d[k.slice(0, 32)] = v;
+      else if (typeof v === 'string') d[k.slice(0, 32)] = v.slice(0, 500);
+    });
+    out.data = d;
+  }
+  return out;
+}
+
+function utAuthed(env, req, url) {
+  const want = env.TEST_TOKEN || env.REFRESH_TOKEN;
+  const got = req.headers.get('x-test-token') || url.searchParams.get('token') || '';
+  return !!want && got === want;
+}
+
+async function utAppend(env, req) {
+  if (!env.RATE) return json({ error: 'no store' }, 503, CORS);
+  let body = {};
+  try { body = JSON.parse(await req.text()) || {}; } catch (e) { body = {}; }
+  const session = String(body.session || '');
+  if (!UT_SESSION_RE.test(session)) return json({ error: 'session must be a short lowercase id' }, 400, CORS);
+  const events = (Array.isArray(body.events) ? body.events : []).slice(0, 50).map(utClean);
+  if (!events.length) return json({ ok: true, n: 0 }, 200, CORS);
+  const ip = req.headers.get('cf-connecting-ip') || 'unknown';
+  const ipKey = `utip:${new Date().toISOString().slice(0, 13)}:${ip}`;
+  const n = parseInt((await env.RATE.get(ipKey)) || '0', 10);
+  if (n >= 300) return json({ error: 'too many' }, 429, CORS);
+  await bump(env, ipKey, { next: n + 1 });
+  const key = `ut:${session}`;
+  let had = [];
+  try { had = JSON.parse((await env.RATE.get(key)) || '[]'); } catch (e) { had = []; }
+  const all = had.concat(events).slice(-600);
+  await env.RATE.put(key, JSON.stringify(all));
+  let idx = [];
+  try { idx = JSON.parse((await env.RATE.get('ut:index')) || '[]'); } catch (e) { idx = []; }
+  const now = Date.now();
+  const at = idx.findIndex((x) => x.id === session);
+  const start = all.filter((e) => e.type === 'start')[0];
+  const wrap = all.filter((e) => e.type === 'wrap').slice(-1)[0];
+  const row = {
+    id: session,
+    first: at < 0 ? now : idx[at].first,
+    last: now,
+    n: all.length,
+    version: start && start.data ? start.data.version || '' : '',
+    persona: start && start.data ? start.data.persona || '' : '',
+    done: all.filter((e) => e.type === 'task_done').length,
+    skipped: all.filter((e) => e.type === 'task_skip').length,
+    wrapped: !!wrap,
+    name: wrap && wrap.data ? wrap.data.name || '' : '',
+  };
+  if (at < 0) idx.unshift(row); else idx[at] = row;
+  await env.RATE.put('ut:index', JSON.stringify(idx.slice(0, 500)));
+  return json({ ok: true, n: all.length }, 200, CORS);
+}
+
+async function utRead(env, req, url) {
+  if (!utAuthed(env, req, url)) return json({ error: 'unauthorised' }, 401, { 'cache-control': 'no-store' });
+  if (!env.RATE) return json({ sessions: [] }, 200, { 'cache-control': 'no-store' });
+  const session = url.searchParams.get('session') || '';
+  if (session) {
+    if (!UT_SESSION_RE.test(session)) return json({ error: 'session' }, 400);
+    let events = [];
+    try { events = JSON.parse((await env.RATE.get(`ut:${session}`)) || '[]'); } catch (e) { events = []; }
+    return json({ session, events }, 200, { 'cache-control': 'no-store' });
+  }
+  let idx = [];
+  try { idx = JSON.parse((await env.RATE.get('ut:index')) || '[]'); } catch (e) { idx = []; }
+  return json({ sessions: idx }, 200, { 'cache-control': 'no-store' });
+}
+
+const UT_BLUEPRINT = 'https://playground.wordpress.net/?blueprint-url=https://raw.githubusercontent.com/jamiemarsland/gogh-demo/main/blueprint-usertest.json&storage=temp';
+
+// the page a tester is sent: who they are for the next half hour, and Start
+const UT_INTRO = `<!doctype html>
+<html lang="en"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Try gogh for half an hour</title>
+<style>
+  :root { --paper: #faf9f6; --ink: #1a1916; --soft: #6d6a63; --line: #e6e2da; --accent: #16181c; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--paper); color: var(--ink); font: 17px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, sans-serif; }
+  .wrap { max-width: 640px; margin: 0 auto; padding: 56px 20px 120px; }
+  h1 { font: 700 34px/1.15 Georgia, "Iowan Old Style", serif; margin: 0 0 14px; letter-spacing: -0.01em; }
+  p { margin: 0 0 16px; }
+  .soft { color: var(--soft); }
+  .card { margin: 26px 0; padding: 20px 22px; border: 1px solid var(--line); border-radius: 16px; background: #fff; }
+  .card h2 { font-size: 14px; letter-spacing: .08em; text-transform: uppercase; color: var(--soft); margin: 0 0 8px; }
+  ol { margin: 0; padding-left: 20px; } li { margin: 0 0 6px; }
+  .go { display: inline-block; margin: 8px 0 0; padding: 14px 24px; border-radius: 999px; background: var(--accent); color: #fff; font-weight: 600; text-decoration: none; }
+  .fine { font-size: 14px; color: var(--soft); margin-top: 28px; }
+</style></head><body><div class="wrap">
+<h1>Try gogh for half an hour</h1>
+<p>Thank you for helping. You are about to get a real WordPress website in your browser, already set up, with a small card of things to try. Nobody is watching. There are no wrong answers.</p>
+<div class="card"><h2>Who you are for the next half hour</h2>
+<p>You are Elliot Grey, a photographer a few months into running your own business. Customers keep asking whether you have a website. You want something simple: a bit about you, some of your work, and a way for people to get in touch. You are proud of your work, and the site should look like it.</p>
+<p class="soft" style="margin:0">The site you get is a start someone made for you. Make it yours.</p></div>
+<div class="card"><h2>How it goes</h2>
+<ol><li>Press Start. Give it a minute to build.</li><li>A card on the right lists seven things to try. Do each one your own way, then press Done. If you can’t, press Couldn’t do it. Both are useful.</li><li>At the end there are four quick questions.</li></ol></div>
+<a class="go" href="${UT_BLUEPRINT}" target="_blank" rel="noopener">Start</a>
+<p class="fine">Use a computer, not a phone, and Chrome, Edge or Firefox. The site is throwaway: close the tab and it is gone. The only thing kept is what the card learns: which tasks you did, how long they took, and anything you type into it. Your answers go to Jamie Marsland.</p>
+</div></body></html>`;
+
+// the page Jamie reads: sessions, tasks, notes — token asked for once
+const UT_REPORT = `<!doctype html>
+<html lang="en"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>gogh user tests</title>
+<style>
+  :root { --paper: #faf9f6; --ink: #1a1916; --soft: #6d6a63; --line: #e6e2da; --ok: #2f8f5b; --bad: #c2452d; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--paper); color: var(--ink); font: 15px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, sans-serif; }
+  .wrap { max-width: 980px; margin: 0 auto; padding: 32px 20px 120px; }
+  h1 { font: 700 26px/1.2 Georgia, serif; margin: 0 0 4px; } .soft { color: var(--soft); }
+  input { font: inherit; padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px; width: 320px; max-width: 100%; }
+  button { font: inherit; padding: 8px 14px; border-radius: 999px; border: 1px solid var(--line); background: #fff; cursor: pointer; }
+  table { width: 100%; border-collapse: collapse; margin: 18px 0; background: #fff; border: 1px solid var(--line); border-radius: 12px; overflow: hidden; }
+  th, td { text-align: left; padding: 9px 12px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { font-size: 12px; letter-spacing: .06em; text-transform: uppercase; color: var(--soft); }
+  tr.s { cursor: pointer; } tr.s:hover td { background: #f6f3ee; }
+  .ok { color: var(--ok); font-weight: 600; } .bad { color: var(--bad); font-weight: 600; }
+  .bar { display: inline-block; height: 8px; background: var(--ok); border-radius: 4px; vertical-align: middle; }
+  .bar.b { background: var(--bad); }
+  .detail { margin: 0 0 24px; padding: 16px 18px; border: 1px solid var(--line); border-radius: 12px; background: #fff; }
+  .detail h2 { font-size: 16px; margin: 0 0 8px; } .note { white-space: pre-wrap; }
+  .wrapq { display: grid; grid-template-columns: 160px 1fr; gap: 6px 14px; margin: 10px 0 0; }
+  .err { color: var(--bad); }
+</style></head><body><div class="wrap">
+<h1>gogh user tests</h1>
+<p class="soft">Each row is one tester. Click a row for the tasks and notes. <span id="sum"></span></p>
+<div id="auth"><input id="tok" type="password" placeholder="test token"> <button id="go">Show</button></div>
+<div id="out"></div>
+<script>
+(function () {
+  var tok = sessionStorage.getItem('goghTestToken') || '';
+  var out = document.getElementById('out'), auth = document.getElementById('auth'), sum = document.getElementById('sum');
+  var esc = function (s) { return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); };
+  var when = function (t) { return t ? new Date(t).toLocaleString() : ''; };
+  var get = function (q) { return fetch('/api/test?' + q, { headers: { 'x-test-token': tok } }).then(function (r) { if (r.status === 401) throw new Error('That token is not right.'); return r.json(); }); };
+  function tasksOf(events) {
+    var order = [], by = {};
+    events.forEach(function (e) {
+      if (!e.task || e.task === 'wrap') return;
+      if (!by[e.task]) { by[e.task] = { id: e.task, status: '', secs: null, note: '', hint: false, errors: 0 }; order.push(e.task); }
+      var t = by[e.task];
+      if (e.type === 'task_done' || e.type === 'task_skip') { t.status = e.type === 'task_done' ? 'done' : 'couldn’t'; t.secs = e.data && e.data.secs; if (e.note) t.note = e.note; }
+      if (e.type === 'hint') t.hint = true;
+      if (e.type === 'error') t.errors++;
+    });
+    return order.map(function (k) { return by[k]; });
+  }
+  function showSession(row, events) {
+    var start = events.filter(function (e) { return e.type === 'start'; })[0] || {};
+    var wrap = events.filter(function (e) { return e.type === 'wrap'; }).slice(-1)[0];
+    var tasks = tasksOf(events);
+    var errs = events.filter(function (e) { return e.type === 'error'; });
+    var html = '<div class="detail"><h2>' + esc(row.name || row.id) + ' <span class="soft">· ' + esc(when(row.first)) + ' · gogh ' + esc((start.data || {}).version || '?') + ' · ' + esc((start.data || {}).viewport || '') + '</span></h2>';
+    html += '<table><tr><th>Task</th><th>Result</th><th>Time</th><th>Hint</th><th>Note</th></tr>' + tasks.map(function (t) {
+      return '<tr><td>' + esc(t.id) + '</td><td class="' + (t.status === 'done' ? 'ok' : (t.status ? 'bad' : 'soft')) + '">' + esc(t.status || 'not reached') + '</td><td>' + (t.secs != null ? Math.round(t.secs / 60) + 'm ' + (t.secs % 60) + 's' : '') + '</td><td>' + (t.hint ? 'yes' : '') + '</td><td class="note">' + esc(t.note) + '</td></tr>';
+    }).join('') + '</table>';
+    if (wrap && wrap.data) {
+      var w = wrap.data;
+      html += '<div class="wrapq"><span class="soft">Happy with the site</span><span>' + esc(w.happy) + ' / 5</span><span class="soft">Could finish it</span><span>' + esc(w.confident) + '</span><span class="soft">How editing felt</span><span class="note">' + esc(w.feel) + '</span><span class="soft">What confused them</span><span class="note">' + esc(w.confused) + '</span><span class="soft">Minutes</span><span>' + esc(w.minutes) + '</span></div>';
+    } else html += '<p class="soft">No wrap-up yet.</p>';
+    if (errs.length) html += '<p class="err">' + errs.length + ' script error(s): ' + esc(errs.map(function (e) { return e.note; }).join(' · ').slice(0, 400)) + '</p>';
+    html += '</div>';
+    var holder = document.getElementById('d-' + row.id);
+    holder.innerHTML = html;
+  }
+  function load() {
+    get('list=1').then(function (d) {
+      auth.hidden = true;
+      var rows = d.sessions || [];
+      var done = 0, skipped = 0;
+      rows.forEach(function (r) { done += r.done || 0; skipped += r.skipped || 0; });
+      sum.textContent = rows.length + ' tester(s), ' + done + ' tasks done, ' + skipped + ' not managed.';
+      out.innerHTML = '<table><tr><th>When</th><th>Who</th><th>gogh</th><th>Done</th><th>Couldn’t</th><th>Wrap-up</th></tr>' + rows.map(function (r) {
+        return '<tr class="s" data-id="' + esc(r.id) + '"><td>' + esc(when(r.first)) + '</td><td>' + esc(r.name || r.id) + '</td><td>' + esc(r.version) + '</td><td><span class="bar" style="width:' + (r.done * 14) + 'px"></span> ' + r.done + '</td><td><span class="bar b" style="width:' + (r.skipped * 14) + 'px"></span> ' + r.skipped + '</td><td>' + (r.wrapped ? 'yes' : '') + '</td></tr><tr><td colspan="6" id="d-' + esc(r.id) + '"></td></tr>';
+      }).join('') + '</table>';
+      [].slice.call(out.querySelectorAll('tr.s')).forEach(function (tr) {
+        tr.addEventListener('click', function () {
+          var id = tr.dataset.id, row = rows.filter(function (r) { return r.id === id; })[0];
+          var holder = document.getElementById('d-' + id);
+          if (holder.innerHTML) { holder.innerHTML = ''; return; }
+          holder.innerHTML = '<span class="soft">Loading…</span>';
+          get('session=' + encodeURIComponent(id)).then(function (dd) { showSession(row, dd.events || []); });
+        });
+      });
+    }).catch(function (e) { auth.hidden = false; out.innerHTML = '<p class="err">' + esc(e.message) + '</p>'; });
+  }
+  document.getElementById('go').addEventListener('click', function () { tok = document.getElementById('tok').value.trim(); sessionStorage.setItem('goghTestToken', tok); load(); });
+  if (tok) load();
+})();
+</script>
+</div></body></html>`;
 
 /* ------------------------------------------------------------------ helpers */
 
@@ -1770,6 +1988,18 @@ export default {
     if (url.pathname === '/api/chat') {
       if (req.method !== 'POST') return json({ error: 'POST only' }, 405);
       return handleChat(req, env);
+    }
+
+    if (url.pathname === '/api/test') {
+      if (req.method === 'OPTIONS') return new Response(null, { status: 204, headers: CORS });
+      if (req.method === 'POST') return utAppend(env, req);
+      return utRead(env, req, url);
+    }
+    if (url.pathname === '/test' || url.pathname === '/test/') {
+      return new Response(UT_INTRO, { headers: { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'public, max-age=300', 'x-content-type-options': 'nosniff', 'referrer-policy': 'no-referrer' } });
+    }
+    if (url.pathname === '/tests' || url.pathname === '/tests/') {
+      return new Response(UT_REPORT, { headers: { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store', 'x-content-type-options': 'nosniff', 'referrer-policy': 'no-referrer' } });
     }
 
     if (url.pathname === '/api/boot') {
