@@ -116,9 +116,3 @@ Quoted copy not found verbatim in the source. Paraphrases are fine; changed UI c
 - Fraunces & Inter. Installed on your site, yours to keep.
 - Already the same size
 - Needs two or more pieces
-
-## What changed since the last knowledge-base build
-
-Use this as the checklist for updating the prose — and as a sanity check on the release itself.
-
-- version: 0.99.560 → 0.99.561
