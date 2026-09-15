@@ -15,7 +15,7 @@ about something where they conflict, rather than picking one silently. Quote UI
 labels and message copy from the appendix, verbatim — those are the current
 strings, and a paraphrased button label is the fastest way to lose a user's trust.
 
-Generated for plugin version 0.99.567 · knowledge base 625369d.
+Generated for plugin version 0.99.567 · knowledge base d4c08fb.
 
 ---
 
@@ -65,7 +65,7 @@ A chip shows current state:
 - **"Publish failed"** + a **Retry** button
 
 ### Getting out
-Click **🎨 Exit gogh editor** in the WordPress admin toolbar, at the top of the screen — not in the side palette. If clean it exits straight away. If dirty you get a dialog:
+Click **🎨 Exit gogh editor** in the WordPress admin toolbar, at the top of the screen — not in the side rail. If clean it exits straight away. If dirty you get a dialog:
 - Title: **"You have unpublished changes"**
 - Body: "Publish them now, keep editing, or discard them and restore the live page."
 - Buttons: **Publish & close** / **Keep editing** / **Discard changes**
