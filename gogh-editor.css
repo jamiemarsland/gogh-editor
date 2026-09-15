@@ -4198,4 +4198,18 @@ html.gogh-building .gogh-inserter, html.gogh-building .gogh-side { display: none
 .gogh-fontpair-amp { opacity: .45; font-size: 14px; }
 .gogh-fontpair-say { flex: none; font: 500 11.5px/1 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; letter-spacing: .02em; opacity: .6; }
 .gogh-fonts-note { margin-top: 8px; }
+/* More fonts: a name, a role, the hits set in themselves */
+.gogh-fonts-search { padding: 4px 0 6px; }
+.gogh-fonts-q { width: 100%; box-sizing: border-box; padding: 9px 11px; border: 1px solid var(--gogh-ui-border); border-radius: 9px; background: var(--gogh-ui-bg, #fff); color: var(--gogh-ui-fg); font: 14px/1.3 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+.gogh-fonts-q:focus { outline: 2px solid var(--gogh-ui-accent, #4a63d8); outline-offset: 1px; }
+.gogh-fonts-roles { display: flex; gap: 6px; margin: 8px 0 6px; }
+.gogh-fonts-role { all: unset; padding: 5px 10px; border-radius: 999px; border: 1px solid var(--gogh-ui-border); font: 500 12px/1 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; color: var(--gogh-ui-fg); opacity: .7; cursor: pointer; }
+.gogh-fonts-role.is-on { opacity: 1; border-color: var(--gogh-ui-accent, #4a63d8); background: var(--gogh-ui-hover); }
+.gogh-fonts-hits { display: flex; flex-direction: column; gap: 2px; }
+.gogh-fonthit { all: unset; display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 7px 10px; border-radius: 9px; cursor: pointer; color: var(--gogh-ui-fg); box-sizing: border-box; }
+.gogh-fonthit:hover { background: var(--gogh-ui-hover); }
+.gogh-fonthit:disabled { opacity: .5; cursor: default; }
+.gogh-fonthit-name { font-size: 17px; line-height: 1.15; min-width: 0; display: flex; align-items: center; }
+.gogh-fonthit-prev { height: 22px; width: auto; max-width: 220px; display: block; }
+.gogh-fonthit-meta { flex: none; font: 500 11px/1 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; letter-spacing: .02em; opacity: .55; }
 

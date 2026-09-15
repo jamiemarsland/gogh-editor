@@ -1,4 +1,4 @@
-# Knowledge-base audit — plugin v0.99.543
+# Knowledge-base audit — plugin v0.99.544
 
 _13 finding(s) suppressed by `kb.audit-ignore.txt`._
 
@@ -115,5 +115,7 @@ Quoted copy not found verbatim in the source. Paraphrases are fine; changed UI c
 
 Use this as the checklist for updating the prose — and as a sanity check on the release itself.
 
-- version: 0.99.542 → 0.99.543
-- added toast: "The type before is back."
+- version: 0.99.543 → 0.99.544
+- added UI label: "Body"
+- added UI label: "Both"
+- added UI label: "Headings"

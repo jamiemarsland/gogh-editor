@@ -4685,9 +4685,38 @@
         expect(G.fontsLast() && G.fontsLast().key === 'bookish', 'clicking should keep the pair');
         var toasts = [].slice.call(document.querySelectorAll('.gogh-toast')).map(function (t) { return t.textContent; }).join(' | ');
         expect(/Fraunces & Inter\. Installed on your site, yours to keep/.test(toasts) && /Undo/.test(toasts), 'the toast says what happened, with Undo: ' + toasts);
+        // More fonts: a name, a role, hits set in themselves; Google's list comes through the site
+        var more = st.pnl.querySelector('.gogh-fonts-morewrap');
+        expect(more && st.pnl.querySelector('.gogh-fonts-q') && st.pnl.querySelectorAll('.gogh-fonts-role').length === 3, 'More fonts should fold under the twelve with a search field and three roles');
+        more.open = true;
+        more.dispatchEvent(new Event('toggle'));
+        return new Promise(function (resolve) {
+          var t0 = Date.now();
+          (function poll() {
+            var stat = st.pnl.querySelector('.gogh-fonts-status');
+            var loaded = stat && stat.hidden;
+            if (loaded || Date.now() - t0 > 12000) resolve({ pnl: st.pnl, loaded: !!loaded }); else setTimeout(poll, 150);
+          })();
+        });
+      }).then(function (st) {
+        if (!st.loaded) { G.closePanel(); G.fontsDry(false); return 'twelve pairs; hover paints, click keeps; More fonts opened, but Google’s list did not load here'; }
+        var q = st.pnl.querySelector('.gogh-fonts-q');
+        q.value = 'Frau';
+        q.dispatchEvent(new Event('input', { bubbles: true }));
+        var hits = [].slice.call(st.pnl.querySelectorAll('.gogh-fonthit'));
+        var hitName = function (h) { var im = h.querySelector('img'); return im ? im.alt : h.textContent; };
+        expect(hits.length && /Fraunces/.test(hitName(hits[0])), 'typing Frau should find Fraunces first: ' + hits.length + ' ' + (hits[0] ? hitName(hits[0]) : ''));
+        hits[0].click();
+        var last = G.fontsLast();
+        expect(last && last.heading && last.heading.name === 'Fraunces' && last.body && last.body.keep, 'keeping a hit on Headings should change the heading face and leave the body as it is: ' + JSON.stringify(last));
+        st.pnl.querySelector('.gogh-fonts-role[data-role="both"]').click();
+        st.pnl.querySelectorAll('.gogh-fonthit')[0].click();
+        last = G.fontsLast();
+        expect(last && last.heading.name === 'Fraunces' && last.body.name === 'Fraunces', 'Both should put the family on headings and body: ' + JSON.stringify(last));
+        q.blur(); // the search field must not keep the keyboard (Cmd+A is the canvas's when nobody is typing)
         G.closePanel();
         G.fontsDry(false);
-        return 'twelve pairs, the theme’s own first; hover paints, leave clears, click keeps with Undo';
+        return 'twelve pairs, the theme’s own first; hover paints, leave clears, click keeps with Undo; More fonts finds a name and keeps it on a role';
       });
     });
 

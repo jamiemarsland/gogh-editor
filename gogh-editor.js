@@ -14978,7 +14978,8 @@
   // never does — Keep self-hosts the files
   function ensureGoogleFonts(pair) {
     if (pair.theme) return Promise.resolve();
-    var fams = [pair.heading, pair.body];
+    var fams = [pair.heading, pair.body].filter(function (f) { return f && f.name && !f.keep && !f.ref; });
+    if (!fams.length) return Promise.resolve();
     var key = fams.map(function (f) { return f.name + ':' + f.w; }).join('|');
     if (!googleLinks[key]) {
       var q = fams.map(function (f) {
@@ -15002,8 +15003,10 @@
   }
   function fontPairCss(pair) {
     if (pair.theme) return '';
-    return 'body, .gogh-section { font-family: ' + fontStack(pair.body.name) + ' !important; }' +
-      'h1, h2, h3, h4, h5, h6, .wp-block-heading, .wp-block-site-title { font-family: ' + fontStack(pair.heading.name) + ' !important; }';
+    var famOf = function (r) { return r && r.keep ? null : r && r.fontFamily ? r.fontFamily : r && r.name ? fontStack(r.name) : null; };
+    var b = famOf(pair.body), h = famOf(pair.heading);
+    return (b ? 'body, .gogh-section { font-family: ' + b + ' !important; }' : '') +
+      (h ? 'h1, h2, h3, h4, h5, h6, .wp-block-heading, .wp-block-site-title { font-family: ' + h + ' !important; }' : '');
   }
   function auditionFontPair(pair) {
     var seq = ++fontPreviewSeq;
@@ -15017,6 +15020,7 @@
   function clearFontsPreview() {
     fontPreviewSeq++;
     clearTimeout(fontHoverT);
+
     if (fontPreviewEl && fontPreviewEl.textContent) {
       fontPreviewEl.textContent = '';
       S.forEach(function (s2) { growReflow(s2, true); });
@@ -15140,7 +15144,7 @@
   function keepFontPair(pair, btn) {
     var H = { 'X-WP-Nonce': cfg.nonce };
     var wasClean = !isDirty();
-    var label = pair.theme ? 'The theme’s own type' : pair.heading.name + ' & ' + pair.body.name;
+    var label = pair.label || (pair.theme ? 'The theme’s own type' : pair.heading.name + ' & ' + pair.body.name);
     if (fontsDryRun) {
       fontsLastKept = pair;
       toast(label + '. Installed on your site, yours to keep.', { ttl: 5000, actions: [{ label: 'Undo', onClick: function () {} }] });
@@ -15154,14 +15158,21 @@
       .then(function (gs) {
         before = currentFontFamilies(gs);
         if (pair.theme) return writeFontFamilies(gs, [], null, null);
-        return fetchGoogleCollection().then(function (families) {
-          var find = function (name) { return families.filter(function (f) { return String((f.font_family_settings || {}).name).toLowerCase() === name.toLowerCase(); })[0]; };
-          var he = find(pair.heading.name), be = find(pair.body.name);
-          if (!he || !be) throw new Error('Google’s list does not carry ' + (he ? pair.body.name : pair.heading.name) + ' today.');
-          return Promise.all([installFamily(he, pair.heading.w), installFamily(be, pair.body.w)]).then(function (fams) {
-            var uniq = fams.filter(function (f, i) { return fams.findIndex(function (g) { return g.slug === f.slug; }) === i; });
-            return writeFontFamilies(gs, uniq, 'var:preset|font-family|' + fams[1].slug, 'var:preset|font-family|' + fams[0].slug);
-          });
+        var installed = [];
+        var needs = [pair.heading, pair.body].some(function (r) { return r && r.name && !r.keep && !r.ref; });
+        var resolveRole = function (families, role) {
+          var r = pair[role];
+          if (!r || r.keep) return Promise.resolve(before[role]);
+          if (r.ref) return Promise.resolve(r.ref);
+          var e = families.filter(function (f) { return String((f.font_family_settings || {}).name).toLowerCase() === r.name.toLowerCase(); })[0];
+          if (!e) throw new Error('Google’s list does not carry ' + r.name + ' today.');
+          return installFamily(e, r.w || 400).then(function (fam) { installed.push(fam); return 'var:preset|font-family|' + fam.slug; });
+        };
+        return (needs ? fetchGoogleCollection() : Promise.resolve([])).then(function (families) {
+          return Promise.all([resolveRole(families, 'heading'), resolveRole(families, 'body')]);
+        }).then(function (refs) {
+          var uniq = installed.filter(function (f, i) { return installed.findIndex(function (g) { return g.slug === f.slug; }) === i; });
+          return writeFontFamilies(gs, uniq, refs[1], refs[0]);
         });
       })
       .then(function () { clearFontsPreview(); return reskinType(); })
@@ -15200,6 +15211,74 @@
       b.classList.toggle('is-current', !!mine);
     });
   }
+  // More fonts: a name typed, the theme's own families first, then Google's
+  // list (WordPress's collection, fetched through the site), each hit shown
+  // as the collection's own preview of the name. Headings, Body or Both.
+  function wireMoreFonts(pnl) {
+    var wrap = pnl.querySelector('.gogh-fonts-morewrap');
+    var q = pnl.querySelector('.gogh-fonts-q'), hits = pnl.querySelector('.gogh-fonts-hits'), status = pnl.querySelector('.gogh-fonts-status');
+    var role = 'heading', families = null;
+    var say = function (m) { status.hidden = !m; status.textContent = m || ''; };
+    var weightFor = function (entry) {
+      var faces = ((entry.font_family_settings || {}).fontFace) || [];
+      var has = function (w) { return faces.some(function (f) { return /\s/.test(String(f.fontWeight || '')) || String(f.fontWeight) === String(w); }); };
+      return has(600) ? 600 : has(700) ? 700 : 400;
+    };
+    var pairFor = function (hit) {
+      // hit: { name, w, ref? , fontFamily? }
+      var mine = { name: hit.name, w: hit.w, ref: hit.ref || null, fontFamily: hit.fontFamily || null };
+      if (role === 'both') return { heading: mine, body: Object.assign({}, mine, { w: 400 }), label: hit.name + ' on everything' };
+      var pr = { heading: role === 'heading' ? mine : { keep: true }, body: role === 'body' ? Object.assign({}, mine, { w: 400 }) : { keep: true } };
+      pr.label = hit.name + (role === 'heading' ? ' on headings' : ' on body text');
+      return pr;
+    };
+    var render = function () {
+      var term = q.value.trim().toLowerCase();
+      hits.innerHTML = '';
+      if (!term) return;
+      var own = (_themeBaseFams || []).map(function (f) {
+        var name = String(f.fontFamily || f.name || '').split(',')[0].replace(/["']/g, '').trim();
+        return { name: name, slug: f.slug, ref: 'var:preset|font-family|' + f.slug, fontFamily: f.fontFamily, own: true, w: 600 };
+      }).filter(function (f) { return f.name.toLowerCase().indexOf(term) !== -1; }).slice(0, 3);
+      var google = (families || []).filter(function (e) { return String((e.font_family_settings || {}).name).toLowerCase().indexOf(term) !== -1; });
+      google.sort(function (a, b) {
+        var an = a.font_family_settings.name.toLowerCase(), bn = b.font_family_settings.name.toLowerCase();
+        return (an.indexOf(term) === 0 ? 0 : 1) - (bn.indexOf(term) === 0 ? 0 : 1) || an.localeCompare(bn);
+      });
+      var list = own.concat(google.slice(0, 8).map(function (e) {
+        var st = e.font_family_settings;
+        return { name: st.name, w: weightFor(e), preview: st.preview, cats: (e.categories || []).join(', ') };
+      }));
+      if (!list.length) { say(families ? 'Nothing by that name.' : 'Loading Google’s list…'); return; }
+      say('');
+      list.forEach(function (h) {
+        var b = document.createElement('button');
+        b.type = 'button'; b.className = 'gogh-fonthit';
+        b.innerHTML = (h.own
+          ? '<span class="gogh-fonthit-name" style="font-family:' + escAttr(h.fontFamily) + '">' + esc(h.name) + '</span>'
+          : '<span class="gogh-fonthit-name"><img class="gogh-fonthit-prev" src="' + escAttr(h.preview || '') + '" alt="' + escAttr(h.name) + '"></span>') +
+          '<span class="gogh-fonthit-meta">' + esc(h.own ? 'already on your site' : (h.cats || 'Google')) + '</span>';
+        b.addEventListener('mouseenter', function () { clearTimeout(fontHoverT); fontHoverT = setTimeout(function () { auditionFontPair(pairFor(h)); }, 120); });
+        b.addEventListener('mouseleave', function () { clearFontsPreview(); });
+        b.addEventListener('click', function () { keepFontPair(pairFor(h), b); });
+        hits.appendChild(b);
+      });
+    };
+    wrap.addEventListener('toggle', function () {
+      if (!wrap.open || families) return;
+      say('Loading Google’s list…');
+      fetchGoogleCollection().then(function (f) { families = f; say(''); render(); }).catch(function (e) { say(e.message || 'Google’s list did not load.'); });
+      setTimeout(function () { q.focus(); }, 50);
+    });
+    q.addEventListener('input', render);
+    [].slice.call(pnl.querySelectorAll('.gogh-fonts-role')).forEach(function (b) {
+      b.addEventListener('click', function () {
+        role = b.dataset.role;
+        [].slice.call(pnl.querySelectorAll('.gogh-fonts-role')).forEach(function (o) { o.classList.toggle('is-on', o === b); });
+        render();
+      });
+    });
+  }
   function openFontsPanel(anchorEl) {
     if (!cfg.gsId || !cfg.theme) return;
     ensureThemeBase().then(function () {
@@ -15217,8 +15296,15 @@
             '<span class="gogh-fontpair-amp"> &amp; </span><span style="font-family:' + escAttr(bf) + '">' + esc(bn) + '</span></span>' +
             '<span class="gogh-fontpair-say">' + esc(pr.say) + '</span></button>';
         }).join('') + '</div>' +
-        '<div class="gogh-panel-hint gogh-fonts-note">Kept pairs are installed on your site and stay if gogh is ever removed. Two families a page, never a third.</div>';
+        '<div class="gogh-panel-hint gogh-fonts-note">Kept pairs are installed on your site and stay if gogh is ever removed. Two families a page, never a third.</div>' +
+        // step two: any font by name, for the person who knows what they want
+        '<details class="gogh-more gogh-fonts-morewrap"><summary class="gogh-more-sum">More fonts <span class="gogh-more-what">try any font by name</span></summary>' +
+        '<div class="gogh-fonts-search">' +
+        '<input type="search" class="gogh-fonts-q" placeholder="Try a font by name" autocomplete="off" spellcheck="false">' +
+        '<div class="gogh-fonts-roles"><button type="button" class="gogh-fonts-role is-on" data-role="heading">Headings</button><button type="button" class="gogh-fonts-role" data-role="body">Body</button><button type="button" class="gogh-fonts-role" data-role="both">Both</button></div>' +
+        '<div class="gogh-fonts-hits"></div><div class="gogh-panel-hint gogh-fonts-status" hidden></div></div></details>';
       panel.querySelector('.gogh-panel-back').addEventListener('click', function () { clearFontsPreview(); closePanel(); });
+      wireMoreFonts(panel);
       [].slice.call(panel.querySelectorAll('.gogh-fontpair')).forEach(function (b) {
         var pr = FONT_PAIRS[+b.dataset.i];
         b.addEventListener('mouseenter', function () {
@@ -15228,7 +15314,12 @@
         b.addEventListener('mouseleave', function () { clearFontsPreview(); });
         b.addEventListener('click', function () { keepFontPair(pr, b); });
       });
-      panelCleanup = clearFontsPreview;
+      panelCleanup = function () {
+        clearFontsPreview();
+        // the search field gives the keyboard back when the panel goes
+        var a = document.activeElement;
+        if (a && panel.contains(a)) { try { a.blur(); } catch (err) {} }
+      };
       dockSidebar();
       markCurrentFontPair();
     });
