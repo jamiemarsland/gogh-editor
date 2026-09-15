@@ -15658,7 +15658,7 @@
         key: key,
         name: brand ? 'Your brand' : r.say + v.say + ' on ' + g.say,
         brand: !!brand,
-        detail: scaleSay + ' type, ' + rhythmSay + (divider ? ', a ' + divider + ' edge' : '') + (fx === 'grain' ? ', grain' : ''),
+        detail: scaleSay + ' type, ' + rhythmSay + (divider ? ', ' + (/^[aeiou]/i.test(divider) ? 'an ' : 'a ') + divider + ' edge' : '') + (fx === 'grain' ? ', grain' : ''),
         colors: { background: bg, text: tx, accent: ac, accent2: brand && brand.accent2 ? brand.accent2 : ac },
         fonts: pair,
         scale: scale,
@@ -16412,7 +16412,9 @@
           '<div class="gogh-remixwearing" hidden>' +
             '<span class="gogh-remixwearing-words"><span class="gogh-remixwearing-lab">Wearing</span>' +
             '<span class="gogh-remixwearing-name"></span><span class="gogh-remixwearing-detail"></span></span>' +
-            '<button type="button" class="gogh-remixback" title="The look before this one">↶ Back</button></div>';
+            // the count is context, not a ceiling (James: "not suggesting we limit, just give context")
+            '<span class="gogh-remixwearing-foot"><span class="gogh-remixwearing-count"></span>' +
+            '<button type="button" class="gogh-remixback" title="The look before this one">Back</button></span></div>';
         top.appendChild(wrap);
         var wearingBox = wrap.querySelector('.gogh-remixwearing');
         var backBtn = wrap.querySelector('.gogh-remixback');
@@ -16423,6 +16425,7 @@
           wearingBox.hidden = false;
           wearingBox.querySelector('.gogh-remixwearing-name').textContent = w.origin ? (w.title || 'the look you started with') : w.cand.name;
           wearingBox.querySelector('.gogh-remixwearing-detail').textContent = w.origin ? '' : (w.cand.detail || '');
+          wearingBox.querySelector('.gogh-remixwearing-count').textContent = w.origin ? 'Where you started' : 'Look ' + remixAt;
           backBtn.disabled = remixAt <= 0;
         });
         backBtn.addEventListener('click', function () { remixBack(); });

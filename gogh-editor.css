@@ -4120,13 +4120,22 @@ html.gogh-building .gogh-inserter, html.gogh-building .gogh-side { display: none
 .gogh-toprow .gogh-brandbtn .gogh-varname { margin-left: 3px; font-size: 12px; }
 
 /* Remix as a die: the receipt line under the button, and the way back */
-.gogh-toprow .gogh-remixwearing { order: 3; flex-basis: 100%; display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 9px 11px; border-radius: 9px; background: rgba(74, 99, 216, 0.07); }
-.gogh-remixwearing-words { min-width: 0; font-size: 12.5px; line-height: 1.35; }
+/* the chip breathes: a rhythm unit of air under the buttons, the words at
+   full width, and the count and the way back on a quiet line beneath
+   (James: "does this feel a little squashed to you?") */
+.gogh-toprow .gogh-remixwearing { order: 3; flex-basis: 100%; display: flex; flex-direction: column; align-items: stretch; gap: 8px; margin-top: 18px; padding: 12px 14px 10px; border-radius: 10px; background: rgba(74, 99, 216, 0.07); }
+.gogh-remixwearing-words { min-width: 0; font-size: 12.5px; line-height: 1.4; }
+.gogh-remixwearing-foot { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.gogh-remixwearing-count { font: 500 11px/1 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; letter-spacing: .04em; opacity: .55; }
+/* one primary on the row: Set up your brand is the once-a-site thing, so it reads as a quiet text button */
+.gogh-toprow .gogh-brandrow:has(.gogh-brandsetup) { flex: 0 0 auto; }
+.gogh-toprow .gogh-brandsetup { width: auto; white-space: nowrap; padding-left: 10px; padding-right: 10px; background: transparent; border-color: transparent; color: var(--gogh-ui-fg); text-decoration: underline; text-underline-offset: 3px; text-decoration-color: color-mix(in srgb, currentColor 35%, transparent); }
+.gogh-toprow .gogh-brandsetup:hover { background: var(--gogh-ui-hover); text-decoration-color: currentColor; }
 .gogh-remixwearing-lab { display: block; font: 500 10px/1 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; letter-spacing: .08em; text-transform: uppercase; opacity: .55; margin-bottom: 3px; }
 .gogh-remixwearing-name { display: block; font-weight: 600; }
 .gogh-remixwearing-detail { display: block; font-size: 11px; opacity: .6; }
-.gogh-remixback { all: unset; flex: none; font: 600 12px/1 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; padding: 7px 10px; border-radius: 999px; border: 1px solid var(--gogh-ui-border); cursor: pointer; color: var(--gogh-ui-fg); }
-.gogh-remixback:hover { background: var(--gogh-ui-hover); }
+.gogh-remixback { all: unset; flex: none; font: 600 12px/1 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; padding: 5px 8px; margin: -5px -8px -5px 0; border-radius: 6px; cursor: pointer; color: var(--gogh-ui-fg); text-decoration: underline; text-underline-offset: 3px; text-decoration-color: color-mix(in srgb, currentColor 35%, transparent); }
+.gogh-remixback:hover { background: var(--gogh-ui-hover); text-decoration-color: currentColor; }
 .gogh-remixback:disabled { opacity: .35; cursor: default; }
 /* hidden means hidden, even where a display rule would argue */
 
