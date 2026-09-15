@@ -15152,7 +15152,7 @@
     }
     if (btn) btn.disabled = true;
     var busy = toast(pair.theme ? 'Putting the theme’s type back…' : 'Installing ' + label + '…', { ttl: 60000 });
-    var before = null;
+    var before = null, lastRefs = { heading: null, body: null }, lastInstalled = [];
     return fetch(GSROOT + 'global-styles/' + cfg.gsId + '?context=edit', { headers: H, credentials: 'same-origin' })
       .then(function (r) { return r.ok ? r.json() : Promise.reject(new Error('HTTP ' + r.status)); })
       .then(function (gs) {
@@ -15172,6 +15172,7 @@
           return Promise.all([resolveRole(families, 'heading'), resolveRole(families, 'body')]);
         }).then(function (refs) {
           var uniq = installed.filter(function (f, i) { return installed.findIndex(function (g) { return g.slug === f.slug; }) === i; });
+          lastRefs = { heading: refs[0], body: refs[1] }; lastInstalled = uniq;
           return writeFontFamilies(gs, uniq, refs[1], refs[0]);
         });
       })
@@ -15180,6 +15181,22 @@
         if (wasClean) savedSnap = serialize();
         fontsLastKept = pair;
         if (busy && busy.remove) busy.remove();
+        // a brand pins its fonts for Remix: the kept pair becomes the brand's,
+        // or the brand's fonts are let go when the theme's own comes back
+        if (cfg.brand && cfg.brand.colors) {
+          var slugOf = function (ref) { return (String(ref || '').match(/font-family[|-]+([a-z0-9-]+)/) || [])[1] || null; };
+          var nb = JSON.parse(JSON.stringify(cfg.brand));
+          if (pair.theme) { delete nb.fonts; delete nb.families; }
+          else {
+            nb.fonts = {};
+            if (lastRefs.heading) nb.fonts.heading = slugOf(lastRefs.heading);
+            if (lastRefs.body) nb.fonts.body = slugOf(lastRefs.body);
+            var fams = (nb.families || []).filter(function (x) { return !lastInstalled.some(function (y) { return y.slug === x.slug; }); }).concat(lastInstalled);
+            if (fams.length) nb.families = fams; else delete nb.families;
+          }
+          fetch(GSROOT + 'settings', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-WP-Nonce': cfg.nonce }, credentials: 'same-origin', body: JSON.stringify({ gogh_brand: nb }) })
+            .then(function (r) { if (r.ok) cfg.brand = nb; }).catch(function () {});
+        }
         toast(label + '. Installed on your site, yours to keep.', { ttl: 7000, actions: [{ label: 'Undo', onClick: function () {
           fetch(GSROOT + 'global-styles/' + cfg.gsId + '?context=edit', { headers: H, credentials: 'same-origin' })
             .then(function (r) { return r.json(); })
@@ -15214,16 +15231,25 @@
   // More fonts: a name typed, the theme's own families first, then Google's
   // list (WordPress's collection, fetched through the site), each hit shown
   // as the collection's own preview of the name. Headings, Body or Both.
+  // the heading weight a Google family can offer: 600, else 700, else 400
+  function googleWeightFor(entry) {
+    var faces = ((entry.font_family_settings || {}).fontFace) || [];
+    var has = function (w) { return faces.some(function (f) { return /\s/.test(String(f.fontWeight || '')) || String(f.fontWeight) === String(w); }); };
+    return has(600) ? 600 : has(700) ? 700 : 400;
+  }
+  function googleFamilyNamed(families, name) {
+    var n = String(name || '').toLowerCase().replace(/[^a-z0-9 ]/g, '').trim();
+    if (!n) return null;
+    var exact = families.filter(function (f) { return String((f.font_family_settings || {}).name).toLowerCase() === n; })[0];
+    if (exact) return exact;
+    return families.filter(function (f) { return String((f.font_family_settings || {}).name).toLowerCase().indexOf(n) === 0; })[0] || null;
+  }
   function wireMoreFonts(pnl) {
     var wrap = pnl.querySelector('.gogh-fonts-morewrap');
     var q = pnl.querySelector('.gogh-fonts-q'), hits = pnl.querySelector('.gogh-fonts-hits'), status = pnl.querySelector('.gogh-fonts-status');
     var role = 'heading', families = null;
     var say = function (m) { status.hidden = !m; status.textContent = m || ''; };
-    var weightFor = function (entry) {
-      var faces = ((entry.font_family_settings || {}).fontFace) || [];
-      var has = function (w) { return faces.some(function (f) { return /\s/.test(String(f.fontWeight || '')) || String(f.fontWeight) === String(w); }); };
-      return has(600) ? 600 : has(700) ? 700 : 400;
-    };
+    var weightFor = googleWeightFor;
     var pairFor = function (hit) {
       // hit: { name, w, ref? , fontFamily? }
       var mine = { name: hit.name, w: hit.w, ref: hit.ref || null, fontFamily: hit.fontFamily || null };
@@ -16140,13 +16166,22 @@
       } };
     }
     var f = (brand && brand.fonts) || {};
-    var byFam = {};
+    var byFam = {}, installed = {};
     fontCatalogue().forEach(function (x) { byFam[x.slug] = x; });
-    var used = [];
+    // families the brand had installed through the Font Library ride along
+    // with their faces, so the styles can activate them
+    ((brand && brand.families) || (cfg.brand && cfg.brand.families) || []).forEach(function (x) { if (x && x.slug) { byFam[x.slug] = x; installed[x.slug] = x; } });
+    var used = [], usedCustom = [];
     ['heading', 'body'].forEach(function (k) {
-      if (f[k] && byFam[f[k]]) used.push({ slug: f[k], name: byFam[f[k]].name, fontFamily: byFam[f[k]].fontFamily });
+      if (!f[k] || !byFam[f[k]]) return;
+      if (installed[f[k]]) { if (!usedCustom.some(function (u) { return u.slug === f[k]; })) usedCustom.push(installed[f[k]]); }
+      else if (!used.some(function (u) { return u.slug === f[k]; })) used.push({ slug: f[k], name: byFam[f[k]].name, fontFamily: byFam[f[k]].fontFamily });
     });
-    if (used.length) out.settings.typography = { fontFamilies: { theme: used } };
+    if (used.length || usedCustom.length) {
+      out.settings.typography = { fontFamilies: {} };
+      if (used.length) out.settings.typography.fontFamilies.theme = used;
+      if (usedCustom.length) out.settings.typography.fontFamilies.custom = usedCustom;
+    }
     if (f.body && byFam[f.body]) out.styles.typography = { fontFamily: 'var:preset|font-family|' + f.body };
     if (f.heading && byFam[f.heading]) {
       out.styles.elements = out.styles.elements || {};
@@ -16433,6 +16468,9 @@
   function openBrandForm(anchorEl) {
     var had = !!(cfg.brand && cfg.brand.colors && cfg.brand.colors.background);
     var local = JSON.parse(JSON.stringify(cfg.brand || { colors: {}, fonts: {} }));
+    // an emptied object comes back from PHP as [] — named keys set on an Array
+    // vanish in JSON, so a kept brand would lose its fonts; coerce both
+    ['colors', 'fonts'].forEach(function (k) { if (!local[k] || typeof local[k] !== 'object' || Array.isArray(local[k])) local[k] = {}; });
     local.colors = local.colors || {};
     local.fonts = local.fonts || {};
     var derived = null; // the last derivation: read/placed roles, the sentence
@@ -16489,9 +16527,19 @@
     var sayEl = panel.querySelector('.gogh-brandsay');
     var contrastEl = panel.querySelector('.gogh-brandcontrast');
     var pvT = null;
+    // fonts a guideline named that the site lacks: found on Google, tried on
+    // the page while the form is open, installed when the brand is kept
+    var pending = {};
+    var pendingPair = function () {
+      var r = function (k) { return pending[k] ? { name: pending[k].name, w: pending[k].w } : { keep: true }; };
+      return { heading: r('heading'), body: r('body') };
+    };
     function audition() {
       clearTimeout(pvT);
-      pvT = setTimeout(function () { auditionVariation(brandToVariation(local)); }, 120);
+      pvT = setTimeout(function () {
+        auditionVariation(brandToVariation(local));
+        if (pending.heading || pending.body) auditionFontPair(pendingPair()); else clearFontsPreview();
+      }, 120);
     }
     function refreshContrast() {
       var r = contrastRatio(local.colors.text, local.colors.background);
@@ -16524,8 +16572,11 @@
         fontLine = ['heading', 'body'].map(function (k) {
           if (!given.names[k]) return '';
           var f = cat.filter(function (x) { return x.slug === local.fonts[k]; })[0];
-          return f ? (k === 'heading' ? 'Headings' : 'Body') + ': ' + f.name + (f.name.toLowerCase() !== given.names[k].toLowerCase() ? ' (your guide says ' + given.names[k] + ')' : '')
-            : (k === 'heading' ? 'Headings' : 'Body') + ': your guide says ' + given.names[k] + ' — the theme has no match, so the theme’s own stays';
+          var role = k === 'heading' ? 'Headings' : 'Body';
+          if (f) return role + ': ' + f.name + (f.name.toLowerCase() !== given.names[k].toLowerCase() ? ' (your guide says ' + given.names[k] + ')' : '');
+          if (pending[k]) return role + ': ' + pending[k].name + ' — from your guide, installed when you keep';
+          if (pending[k] === null) return role + ': your guide says ' + given.names[k] + ' — not on Google Fonts, so the theme’s own stays';
+          return role + ': your guide says ' + given.names[k] + ' — looking it up…';
         }).filter(Boolean).join(' · ');
       }
       sayEl.innerHTML = '<span>' + esc(derived ? derived.say : 'Your brand, as kept.') + '</span>' + (fontLine ? '<span class="gogh-brandsay-fonts">' + esc(fontLine) + '</span>' : '');
@@ -16546,8 +16597,22 @@
       clearTimeout(guideT);
       guideT = setTimeout(function () {
         var r = readBrandGuide(txt);
-        if (!r.codes.length && !r.fonts.heading && !r.fonts.body) return;
+        if (!r.codes.length && !r.fonts.heading && !r.fonts.body && !r.names.heading && !r.names.body) return;
         given = { accent: r.colors.accent, accent2: r.colors.accent2, background: r.colors.background, text: r.colors.text, fonts: r.fonts, names: r.names, placed: r.placed };
+        // a named font the site lacks: ask Google's list (through the site)
+        pending = {};
+        var lookups = ['heading', 'body'].filter(function (k) { return r.names[k] && !r.fonts[k]; });
+        if (lookups.length) {
+          lookups.forEach(function (k) { pending[k] = undefined; });
+          fetchGoogleCollection().then(function (families) {
+            lookups.forEach(function (k) {
+              var hit = googleFamilyNamed(families, r.names[k]);
+              pending[k] = hit ? { name: hit.font_family_settings.name, w: k === 'heading' ? googleWeightFor(hit) : 400, entry: hit } : null;
+              if (hit) delete local.fonts[k]; // the pending family stands in for the theme's
+            });
+            showResult();
+          }).catch(function () { lookups.forEach(function (k) { pending[k] = null; }); showResult(); });
+        }
         if (r.colors.background) dark = relLum(r.colors.background) < 0.35;
         rederive();
         // the well IS the main colour: it shows what the guideline said
@@ -16604,26 +16669,43 @@
         audition();
       });
     });
-    var leave = function () { clearVariationPreview(); openStylePanel(anchorEl); };
+    var leave = function () { clearVariationPreview(); clearFontsPreview(); openStylePanel(anchorEl); };
     panel.querySelector('.gogh-panel-close').addEventListener('click', leave);
     panel.querySelector('.gogh-brandcancel').addEventListener('click', leave);
     panel.querySelector('.gogh-brandkeep').addEventListener('click', function () {
       var keepBtn = panel.querySelector('.gogh-brandkeep');
       keepBtn.disabled = true;
       var save = { colors: local.colors, fonts: local.fonts };
-      fetch(GSROOT.replace(/wp\/v2\/$/, 'wp/v2/') + 'settings', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'X-WP-Nonce': cfg.nonce },
-        credentials: 'same-origin',
-        body: JSON.stringify({ gogh_brand: save }),
+      var toInstall = ['heading', 'body'].filter(function (k) { return pending[k] && pending[k].entry; });
+      var busy = toInstall.length ? toast('Installing ' + toInstall.map(function (k) { return pending[k].name; }).filter(function (n, i, a) { return a.indexOf(n) === i; }).join(' and ') + '…', { ttl: 60000 }) : null;
+      var installs = fontsDryRun ? Promise.resolve([]) : Promise.all(toInstall.map(function (k) { return installFamily(pending[k].entry, pending[k].w); }));
+      installs.then(function (fams) {
+        var families = ((cfg.brand && cfg.brand.families) || []).slice();
+        toInstall.forEach(function (k, i) {
+          var fam = fams[i];
+          if (!fam) { save.fonts[k] = 'gogh-' + fontSlug(pending[k].name); return; } // dry: a stand-in slug
+          save.fonts[k] = fam.slug;
+          families = families.filter(function (x) { return x.slug !== fam.slug; }).concat([fam]);
+        });
+        if (families.length) save.families = families;
+        if (busy && busy.remove) busy.remove();
+        clearFontsPreview();
+        return fetch(GSROOT.replace(/wp\/v2\/$/, 'wp/v2/') + 'settings', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'X-WP-Nonce': cfg.nonce },
+          credentials: 'same-origin',
+          body: JSON.stringify({ gogh_brand: save }),
+        });
       }).then(function (r) {
         if (!r.ok) throw new Error('HTTP ' + r.status);
         cfg.brand = save;
         clearVariationPreview();
         return applyVariation(brandToVariation(save));
       }).then(function () {
+        if (toInstall.length) toast(toInstall.map(function (k) { return pending[k].name; }).filter(function (n, i, a) { return a.indexOf(n) === i; }).join(' and ') + ' installed on your site, from your guidelines.', { ttl: 6000 });
         openStylePanel(anchorEl);
       }).catch(function (err) {
+        if (busy && busy.remove) busy.remove();
         keepBtn.disabled = false;
         toast('gogh could not save your brand — ' + ((err && err.message) || 'try again.'), { error: true });
       });

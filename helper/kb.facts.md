@@ -4,11 +4,11 @@ Everything in this section is extracted mechanically from the Gogh source on eve
 
 ## Current release
 
-- Plugin version: **0.99.544**
+- Plugin version: **0.99.545**
 - Requires WordPress **6.5+**, PHP **7.4+**
 - Text domain: `gogh-editor`
 - readme.txt Stable tag: `0.26.0` · Tested up to: `7.0`
-- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.544`). Quote the plugin header version.
+- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.545`). Quote the plugin header version.
 
 ## Design constants
 
@@ -437,6 +437,7 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "Guard: "
 - "Icon link updated."
 - "Image swapped."
+- "Installing "
 - "It has to show somewhere — remove it instead if you don’t want it."
 - "Keep your changes with Done, or undo them with Cancel."
 - "Kept — "

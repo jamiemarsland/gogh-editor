@@ -6200,6 +6200,38 @@
       expect(/^Your primary/.test(d.say), 'a guide\u2019s colour is called the primary: ' + d.say);
     });
 
+    // a guideline names a font the site lacks: gogh finds it on Google (through
+    // the site), tries it on the page, and says it will be installed on keep
+    testAsync('a guideline naming a font the site lacks: found on Google, tried, installed when kept', function () {
+      G.fontsDry(true);
+      G.openBrandForm();
+      var pnl = q('.gogh-panel');
+      var ta = pnl.querySelector('.gogh-brandguide');
+      ta.value = 'Primary: #1F3A5F\nBackground: #FAF7F2\nText: #1A1A1A\nHeadings: Cormorant Garamond\nBody font: Lato\n';
+      ta.dispatchEvent(new Event('input', { bubbles: true }));
+      return new Promise(function (resolve) {
+        var t0 = Date.now();
+        (function poll() {
+          var f = pnl.querySelector('.gogh-brandsay-fonts');
+          var done = f && /installed when you keep|not on Google|looking it up/.test(f.textContent) && !/looking it up/.test(f.textContent);
+          if (done || Date.now() - t0 > 15000) resolve(f ? f.textContent : ''); else setTimeout(poll, 200);
+        })();
+      }).then(function (line) {
+        if (!/installed when you keep/.test(line)) { G.closePanel(); G.fontsDry(false); return 'Google’s list did not answer here — the receipt read: ' + line; }
+        expect(/Headings: Cormorant Garamond — from your guide, installed when you keep/.test(line), 'the receipt should name the heading font and promise the install: ' + line);
+        expect(/Body: Lato — from your guide, installed when you keep/.test(line), 'and the body font: ' + line);
+        return new Promise(function (resolve) { setTimeout(resolve, 2500); }).then(function () {
+          var pv = document.getElementById('gogh-font-preview');
+          expect(pv && /Cormorant Garamond/.test(pv.textContent) && /Lato/.test(pv.textContent), 'the page should try the named fonts while the form is open');
+          pnl.querySelector('.gogh-brandcancel').click();
+          expect(!pv.textContent, 'Cancel should take the tried fonts off the page');
+          G.closePanel();
+          G.fontsDry(false);
+          return 'a named font the site lacks is found on Google, tried on the page, and promised on keep';
+        });
+      });
+    });
+
     test('the brand form: two doors, then the page wears it and gogh says why', function () {
       G.openBrandForm();
       var pnl = q('.gogh-panel');
