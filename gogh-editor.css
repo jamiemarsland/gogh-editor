@@ -4193,6 +4193,7 @@ html.gogh-building .gogh-inserter, html.gogh-building .gogh-side { display: none
 .gogh-fontpair { all: unset; display: flex; align-items: baseline; justify-content: space-between; gap: 10px; padding: 9px 10px; border-radius: 9px; cursor: pointer; color: var(--gogh-ui-fg); box-sizing: border-box; }
 .gogh-fontpair:hover { background: var(--gogh-ui-hover); }
 .gogh-fontpair.is-current { background: var(--gogh-ui-hover); outline: 1.5px solid var(--gogh-ui-accent, #4a63d8); outline-offset: -1.5px; }
+.gogh-fontpair.is-current .gogh-fontpair-say { opacity: 1; color: var(--gogh-ui-accent, #4a63d8); font-weight: 600; }
 .gogh-fontpair:disabled { opacity: .5; cursor: default; }
 .gogh-fontpair-name { min-width: 0; font-size: 17px; line-height: 1.15; }
 .gogh-fontpair-amp { opacity: .45; font-size: 14px; }

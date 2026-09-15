@@ -4733,8 +4733,11 @@
       var pnl = document.querySelector('.gogh-panel');
       var blank = [].slice.call(pnl.querySelectorAll('.gogh-fontpair')).filter(function (b) { var s2 = b.querySelector('.gogh-fontpair-say'); return !s2 || !s2.textContent.trim(); });
       var says = [].slice.call(pnl.querySelectorAll('.gogh-fontpair .gogh-fontpair-say')).map(function (x) { return x.textContent; });
+      var cur = pnl.querySelector('.gogh-fontpair.is-current');
+      var curSay = cur ? cur.querySelector('.gogh-fontpair-say').textContent : '';
       G.closePanel();
       expect(blank.length === 0, blank.length + ' rows without a word');
+      expect(!cur || /on your site now/.test(curSay), 'the current row says so in words: ' + curSay);
       expect(says.indexOf('the theme’s own') === -1, 'no row says “the theme’s own”');
       return says.length + ' rows, each with a word';
     });

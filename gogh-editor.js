@@ -15312,6 +15312,12 @@
       }
       if (mine) anyMatch = true;
       btn.classList.toggle('is-current', mine);
+      // the row says it in words too, not only in the box at the top
+      var sayEl = btn.querySelector('.gogh-fontpair-say');
+      if (sayEl) {
+        if (sayEl.dataset.say === undefined) sayEl.dataset.say = sayEl.textContent;
+        sayEl.textContent = mine ? '\u2713 on your site now' : sayEl.dataset.say;
+      }
     });
     // the wearing line says it in the faces themselves, pair or not
     var wear = panel.querySelector('.gogh-fontswearing');
