@@ -785,3 +785,6 @@ Two ways, both from James asking how to centre three cards. **Dragging several p
 
 ### Align offers only what fits the shape (v0.99.562)
 Behind Align, the icons follow the shape of the selection (`selectionShape`): pieces beside each other are a row, so only top, middle, bottom and Centre on the page show (Align left would pile a row of cards on each other); pieces above each other are a stack, so only left, centre, right and the page show; a grid, or a scatter, shows all seven. Hidden, not faded — a verb that could never make sense here is not offered at all.
+
+### Fonts door: faces load on open (v0.99.564)
+Opening the Fonts door asks Google for every listed pair's faces at once (`ensureGoogleFonts` for each non-theme pair), so each row is drawn in its own face from the start. Before, a row's faces loaded only when hovered, and the swap from the fallback face as the pointer passed looked like the other rows changing size.

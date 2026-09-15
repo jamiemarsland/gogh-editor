@@ -4927,6 +4927,8 @@
         expect(pnl.querySelector('.gogh-typescale') && pnl.querySelectorAll('.gogh-typescale .gogh-hpreset').length === 4, 'the type size lives in the Fonts door');
         expect(pnl.querySelectorAll('.gogh-fontpair-theme').length >= 1, 'the theme’s own pairs sit in the same list, first');
         expect(rows[0].dataset.i === '0' && /\S/.test((rows[0].querySelector('.gogh-fontpair-say') || {}).textContent || ''), 'the first row is the theme’s own pair, with a word of its own');
+        var googlePairs = G.fontPairs().filter(function (p2) { return !p2.theme; }).length;
+        expect(document.querySelectorAll('link[data-gogh-fontpreview]').length >= googlePairs, 'every pair’s faces are asked for when the door opens, so rows never swap under the pointer');
         expect(rows[1].querySelector('.gogh-fontpair-name span').style.fontFamily.indexOf('Fraunces') !== -1, 'a row is set in its own heading face');
         rows[1].dispatchEvent(new MouseEvent('mouseenter', { bubbles: true }));
         return new Promise(function (resolve) { setTimeout(function () { resolve({ pnl: pnl, rows: rows }); }, 2000); });

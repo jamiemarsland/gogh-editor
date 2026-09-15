@@ -15624,6 +15624,10 @@
         '<div class="gogh-fonts-roles"><button type="button" class="gogh-fonts-role is-on" data-role="heading">Headings</button><button type="button" class="gogh-fonts-role" data-role="body">Body</button><button type="button" class="gogh-fonts-role" data-role="both">Both</button></div>' +
         '<div class="gogh-fonts-hits"></div><div class="gogh-panel-hint gogh-fonts-status" hidden></div></div></details>';
       panel.querySelector('.gogh-panel-back').addEventListener('click', function () { clearFontsPreview(); backToDesign(); });
+      // every pair's faces load now, not on hover: a row that swapped from
+      // its fallback face as the pointer passed read as other rows growing
+      // (James: 'feels like other fonts are increasing size')
+      FONT_PAIRS.forEach(function (pr) { if (!pr.theme) ensureGoogleFonts(pr); });
       var tsOff = wireTypeScale(panel);
       [].slice.call(panel.querySelectorAll('.gogh-fontpair-theme')).forEach(function (b) {
         var v = themePairs[+b.dataset.v];
