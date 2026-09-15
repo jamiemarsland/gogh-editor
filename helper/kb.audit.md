@@ -2,12 +2,6 @@
 
 _13 finding(s) suppressed by `kb.audit-ignore.txt`._
 
-## STALE (1)
-
-The prose names something that no longer exists.
-
-- UI label "Match size" was removed in this release, but the prose still describes it
-
 ## MISSING (101)
 
 The source has something the prose never explains. The bot knows the name from the appendix but cannot say what it is for.
@@ -122,22 +116,3 @@ Quoted copy not found verbatim in the source. Paraphrases are fine; changed UI c
 - Fraunces & Inter. Installed on your site, yours to keep.
 - Already the same size
 - Needs two or more pieces
-
-## What changed since the last knowledge-base build
-
-Use this as the checklist for updating the prose — and as a sanity check on the release itself.
-
-- version: 0.99.559 → 0.99.560
-- removed UI label: "Equal gaps left to right"
-- removed UI label: "Line the pieces up, or even out the gaps"
-- removed UI label: "Line the row up and even the gaps"
-- removed UI label: "Line up ' + a[1].toLowerCase() + '"
-- removed UI label: "Line up the pieces inside this card"
-- removed UI label: "Line up ▾"
-- removed UI label: "Make them all the size of the first one you picked"
-- removed UI label: "Match size"
-- added UI label: "' + ALIGN_WORD[how] + '"
-- added UI label: "Align the pieces inside this card"
-- added UI label: "Align the pieces to each other"
-- added UI label: "Align ▾"
-- added UI label: "Line the pieces up, even the gaps, match sizes that are nearly the same"
