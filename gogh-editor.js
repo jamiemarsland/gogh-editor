@@ -15137,6 +15137,9 @@
       });
       fontSizesCache = null;
       S.forEach(function (s2) { growReflow(s2, true); });
+      // a wider face can push a take's headline off the page: step its
+      // display size down until the longest word fits, as a roll would
+      S.forEach(function (s2) { try { diceFitWords(s2); } catch (err) {} });
       settleReflowPasses();
       refreshChip();
     });
@@ -15238,9 +15241,17 @@
       return h === now.heading.slug && b === now.body.slug;
     };
     var anyMatch = false;
-    [].slice.call(list.querySelectorAll('.gogh-fontpair')).forEach(function (btn) {
-      var pr = FONT_PAIRS[+btn.dataset.i];
-      var mine = matches(pr);
+    [].slice.call(panel.querySelectorAll('.gogh-fontpair')).forEach(function (btn) {
+      var mine;
+      if (btn.classList.contains('gogh-fontpair-theme')) {
+        var famSlugs = [].slice.call(btn.querySelectorAll('.gogh-fontpair-name span')).map(function (sp) { return sp.style.fontFamily; });
+        var cat = fontCatalogue();
+        var slugOfFace = function (ff) { var c = cat.filter(function (x) { return x.fontFamily === ff; })[0]; return c ? c.slug : null; };
+        var hs = slugOfFace(famSlugs[0]), bs = slugOfFace(famSlugs[famSlugs.length - 1]);
+        mine = !!hs && hs === now.heading.slug && bs === now.body.slug;
+      } else {
+        mine = matches(FONT_PAIRS[+btn.dataset.i]);
+      }
       if (mine) anyMatch = true;
       btn.classList.toggle('is-current', mine);
     });
@@ -15334,15 +15345,100 @@
       });
     });
   }
+  // the type scale, as a row of four: hover previews locally (the font-size
+  // preset vars, scaled), click applies through applyTypeScale
+  function wireTypeScale(pnl) {
+    var tsPreview = null;
+    var off = function () { if (tsPreview) { tsPreview.remove(); tsPreview = null; } };
+    var on = function (factor) {
+      off();
+      if (factor === (cfg.typeScale || 100)) return;
+      var baseline = (cfg.typeScale || 100) / 100;
+      var rules = fontSizes().map(function (f) {
+        var px = f.px / baseline * (factor / 100);
+        return '--wp--preset--font-size--' + f.slug + ': ' + (Math.round(px * 100) / 100) + 'px;';
+      });
+      if (!rules.length) return;
+      tsPreview = document.createElement('style');
+      tsPreview.textContent = ':root, body { ' + rules.join(' ') + ' }';
+      document.head.appendChild(tsPreview);
+    };
+    pnl.querySelectorAll('.gogh-typescale .gogh-hpreset').forEach(function (tb) {
+      tb.addEventListener('mouseenter', function () { on(+tb.dataset.scale); });
+      tb.addEventListener('mouseleave', off);
+      tb.addEventListener('click', function () {
+        off();
+        applyTypeScale(+tb.dataset.scale, tb).then(function (ok) {
+          if (!ok) return;
+          pnl.querySelectorAll('.gogh-typescale .gogh-hpreset').forEach(function (o) { o.classList.toggle('is-active', o === tb); });
+        });
+      });
+    });
+    return off;
+  }
+  function typeScaleHtml() {
+    return '<div class="gogh-panel-hint gogh-fonts-sizehint">Type size</div>' +
+      '<div class="gogh-hpresets gogh-typescale">' +
+      [['Snug', 90], ['Regular', 100], ['Airy', 110], ['Grand', 120]].map(function (ts) {
+        return '<button type="button" class="gogh-hpreset' + ((cfg.typeScale || 100) === ts[1] ? ' is-active' : '') + '" data-scale="' + ts[1] + '">' + ts[0] + '</button>';
+      }).join('') + '</div>';
+  }
+  // a theme font pair kept from the Fonts door keeps the site's colours:
+  // the pair's typography is merged onto the current global styles rather
+  // than replacing them the way a whole variation does
+  function keepThemePair(v, btn) {
+    if (btn) btn.disabled = true;
+    var H = { 'X-WP-Nonce': cfg.nonce };
+    return fetch(GSROOT + 'global-styles/' + cfg.gsId + '?context=edit', { headers: H, credentials: 'same-origin' })
+      .then(function (r) { return r.ok ? r.json() : Promise.reject(new Error('HTTP ' + r.status)); })
+      .then(function (gs) {
+        var obj = function (x) { return (x && typeof x === 'object' && !Array.isArray(x)) ? x : {}; };
+        var settings = obj(gs.settings), styles = obj(gs.styles);
+        settings.typography = obj(settings.typography);
+        var vt = obj(obj(v.settings).typography);
+        if (vt.fontFamilies) settings.typography.fontFamilies = Object.assign(obj(settings.typography.fontFamilies), { theme: vt.fontFamilies.theme || vt.fontFamilies.default || [] });
+        styles.typography = obj(styles.typography);
+        var vs = obj(v.styles);
+        var body = obj(vs.typography).fontFamily || variationBodyFont(v);
+        if (body) styles.typography.fontFamily = body; else delete styles.typography.fontFamily;
+        styles.elements = obj(styles.elements); styles.elements.heading = obj(styles.elements.heading); styles.elements.heading.typography = obj(styles.elements.heading.typography);
+        var head = obj(obj(obj(obj(vs.elements).heading)).typography).fontFamily;
+        if (head) styles.elements.heading.typography.fontFamily = head; else delete styles.elements.heading.typography.fontFamily;
+        var merged = { title: v.title, settings: settings, styles: styles };
+        return applyVariation(merged, btn);
+      })
+      .then(function () { toast((v.title || 'The pair') + '. On your site now, from your theme.', { ttl: 5000 }); markCurrentFontPair(); })
+      .catch(function (e) { if (btn) btn.disabled = false; toast(e.message || 'That pair did not apply.', { error: true, ttl: 6000 }); });
+  }
   function openFontsPanel(anchorEl) {
     if (!cfg.gsId || !cfg.theme) return;
-    ensureThemeBase().then(function () {
+    Promise.all([ensureThemeBase(), fetchVariations().catch(function () { return []; })]).then(function (both) {
+      var vars = both[1] || [];
+      var themePairs = vars.filter(function (v) {
+        var pal = ((v.settings || {}).color || {}).palette || {};
+        return !(pal.theme || pal.default || []).length && (((v.settings || {}).typography || {}).fontFamilies);
+      });
       var own = themeOwnPair();
       panel.innerHTML =
         '<div class="gogh-panel-head"><span class="gogh-panel-title">Fonts</span>' +
         '<button type="button" class="gogh-sbtn gogh-panel-close gogh-panel-back" title="Back"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"/></svg></button></div>' +
         '<div class="gogh-panel-hint">Hover to try a pair on your page. Click to keep it.</div>' +
         '<div class="gogh-fontswearing"><span class="gogh-remixwearing-lab">On your site now</span><span class="gogh-fontswearing-name"></span><span class="gogh-fontswearing-sub"></span></div>' +
+        typeScaleHtml() +
+        (themePairs.length ? '<div class="gogh-panel-group">From your theme</div><div class="gogh-fontlist gogh-fontlist-theme">' + themePairs.map(function (v, i) {
+          var fams = (((v.settings || {}).typography || {}).fontFamilies || {}).theme || [];
+          var parts = (v.title || 'Pair').split(' & ');
+          var faceOf = function (pt, k) {
+            var m = null;
+            fams.forEach(function (f) { if (!m && String(f.name || f.slug || f.fontFamily || '').toLowerCase().indexOf(pt.trim().toLowerCase()) !== -1) m = f; });
+            m = m || fams[k] || fams[0];
+            return m && m.fontFamily ? m.fontFamily : 'inherit';
+          };
+          return '<button type="button" class="gogh-fontpair gogh-fontpair-theme" data-v="' + i + '">' +
+            '<span class="gogh-fontpair-name"><span style="font-family:' + escAttr(faceOf(parts[0], 0)) + ';font-weight:600">' + esc(parts[0]) + '</span>' +
+            (parts[1] ? '<span class="gogh-fontpair-amp"> &amp; </span><span style="font-family:' + escAttr(faceOf(parts[1], 1)) + '">' + esc(parts[1]) + '</span>' : '') + '</span>' +
+            '<span class="gogh-fontpair-say">no install</span></button>';
+        }).join('') + '</div><div class="gogh-panel-group">Pairs</div>' : '') +
         '<div class="gogh-fontlist">' + FONT_PAIRS.map(function (pr, i) {
           var hn = pr.theme ? own.heading.name : pr.heading.name, bn = pr.theme ? own.body.name : pr.body.name;
           var hf = pr.theme ? (own.heading.fontFamily || fontStack(hn)) : fontStack(pr.heading.name);
@@ -15359,7 +15455,14 @@
         '<input type="search" class="gogh-fonts-q" placeholder="Try a font by name" autocomplete="off" spellcheck="false">' +
         '<div class="gogh-fonts-roles"><button type="button" class="gogh-fonts-role is-on" data-role="heading">Headings</button><button type="button" class="gogh-fonts-role" data-role="body">Body</button><button type="button" class="gogh-fonts-role" data-role="both">Both</button></div>' +
         '<div class="gogh-fonts-hits"></div><div class="gogh-panel-hint gogh-fonts-status" hidden></div></div></details>';
-      panel.querySelector('.gogh-panel-back').addEventListener('click', function () { clearFontsPreview(); closePanel(); });
+      panel.querySelector('.gogh-panel-back').addEventListener('click', function () { clearFontsPreview(); backToDesign(); });
+      var tsOff = wireTypeScale(panel);
+      [].slice.call(panel.querySelectorAll('.gogh-fontpair-theme')).forEach(function (b) {
+        var v = themePairs[+b.dataset.v];
+        b.addEventListener('mouseenter', function () { clearTimeout(previewHoverT); previewHoverT = setTimeout(function () { auditionVariation(v); }, 120); });
+        b.addEventListener('mouseleave', function () { clearVariationPreview(); });
+        b.addEventListener('click', function () { clearVariationPreview(); keepThemePair(v, b); });
+      });
       wireMoreFonts(panel);
       [].slice.call(panel.querySelectorAll('.gogh-fontpair')).forEach(function (b) {
         var pr = FONT_PAIRS[+b.dataset.i];
@@ -15372,6 +15475,8 @@
       });
       panelCleanup = function () {
         clearFontsPreview();
+        clearVariationPreview();
+        tsOff();
         // the search field gives the keyboard back when the panel goes
         var a = document.activeElement;
         if (a && panel.contains(a)) { try { a.blur(); } catch (err) {} }
@@ -16827,51 +16932,13 @@
         // looks, its font pairs, the type size — live one door deeper,
         // folded under More until asked for ("Remix Like the Die", rule 5)
         '<div class="gogh-toprow"></div>' +
-        '<details class="gogh-more"><summary class="gogh-more-sum">More <span class="gogh-more-what">the theme\u2019s looks, fonts and type size</span></summary>' +
+        // colours here; type lives in the Fonts door (James: "its unclear
+        // what the relationship is between our new fonts and site style
+        // fonts" — one door for type, one for colour)
+        '<details class="gogh-more"><summary class="gogh-more-sum">More <span class="gogh-more-what">the theme\u2019s colour looks</span></summary>' +
         '<div class="gogh-panel-hint">Hover to preview \u2014 click to keep it</div>' +
-        '<div class="gogh-panel-hint" style="margin-top:6px">Type scale</div>' +
-        '<div class="gogh-hpresets gogh-typescale">' +
-        [['Snug', 90], ['Regular', 100], ['Airy', 110], ['Grand', 120]].map(function (ts) {
-          return '<button type="button" class="gogh-hpreset' + ((cfg.typeScale || 100) === ts[1] ? ' is-active' : '') + '" data-scale="' + ts[1] + '">' + ts[0] + '</button>';
-        }).join('') + '</div>' +
         '<div class="gogh-varlist"></div></details>';
-      // the hint says "Hover to preview" — the type chips must honour it
-      // too. Local preview: override the font-size preset vars with scaled
-      // px (measured once), zero server round-trips, gone on leave.
-      var tsPreview = null;
-      var tsPreviewOff = function () {
-        if (tsPreview) { tsPreview.remove(); tsPreview = null; }
-      };
-      var tsPreviewOn = function (factor) {
-        tsPreviewOff();
-        if (factor === (cfg.typeScale || 100)) return;
-        var baseline = (cfg.typeScale || 100) / 100;
-        var rules = fontSizes().map(function (f) {
-          // f.px is the CURRENT (already-scaled) size — preview relative
-          // to the theme's own scale, never compounding
-          var px = f.px / baseline * (factor / 100);
-          return '--wp--preset--font-size--' + f.slug + ': ' + (Math.round(px * 100) / 100) + 'px;';
-        });
-        if (!rules.length) return;
-        tsPreview = document.createElement('style');
-        tsPreview.textContent = ':root, body { ' + rules.join(' ') + ' }';
-        document.head.appendChild(tsPreview);
-      };
-      panel.querySelectorAll('.gogh-typescale .gogh-hpreset').forEach(function (tb) {
-        tb.addEventListener('mouseenter', function () { tsPreviewOn(+tb.dataset.scale); });
-        tb.addEventListener('mouseleave', tsPreviewOff);
-        tb.addEventListener('click', function () {
-          tsPreviewOff();
-          applyTypeScale(+tb.dataset.scale, tb).then(function (ok) {
-            if (!ok) return;
-            panel.querySelectorAll('.gogh-typescale .gogh-hpreset').forEach(function (o) {
-              o.classList.toggle('is-active', o === tb);
-            });
-          });
-        });
-      });
       panel.querySelector('.gogh-panel-close').addEventListener('click', function () {
-        tsPreviewOff();
         backToDesign();
       });
       var box = panel.querySelector('.gogh-varlist');
@@ -16939,8 +17006,8 @@
           wearingBox.hidden = false;
           // after the first roll the hint says the thing nobody said: it is already on
           if (hint) hint.textContent = w.origin ? 'Tap Remix to try a new look. Tap again for another.' : 'Like it? It\u2019s already on your site. Tap again for another, or go back.';
-          wearingBox.querySelector('.gogh-remixwearing-name').textContent = w.origin ? (w.title || 'the look you started with') : w.cand.name;
-          wearingBox.querySelector('.gogh-remixwearing-detail').textContent = w.origin ? '' : (w.cand.detail || '');
+          wearingBox.querySelector('.gogh-remixwearing-name').textContent = w.origin ? (w.title || 'the look you started with') : ((w.cand && w.cand.name) || 'a new look');
+          wearingBox.querySelector('.gogh-remixwearing-detail').textContent = w.origin ? '' : ((w.cand && w.cand.detail) || '');
           wearingBox.querySelector('.gogh-remixwearing-count').textContent = w.origin ? 'Where you started' : 'Look ' + remixAt;
           backBtn.disabled = remixAt <= 0;
         });
@@ -16954,21 +17021,15 @@
         wrap.querySelector('.gogh-remixbtn').addEventListener('click', function () { remixRoll(); });
         remixSayWearing();
       })();
-      // colours and font pairs are different decisions — group them
+      // colours only: the theme's font pairs live in the Fonts door now
       var groups = { color: [], font: [] };
       vars.forEach(function (v) {
         var pal = ((v.settings || {}).color || {}).palette || {};
         var colors = (pal.theme || pal.default || []).slice(0, 4);
         groups[colors.length ? 'color' : 'font'].push({ v: v, colors: colors });
       });
-      [['color', 'Colours'], ['font', 'Fonts']].forEach(function (g) {
+      [['color', 'Colours']].forEach(function (g) {
         if (!groups[g[0]].length) return;
-        if (groups.color.length && groups.font.length) {
-          var lab = document.createElement('div');
-          lab.className = 'gogh-panel-group';
-          lab.textContent = g[1];
-          box.appendChild(lab);
-        }
         groups[g[0]].forEach(function (item) {
           var v = item.v;
           var b = document.createElement('button');
@@ -17243,6 +17304,7 @@
       // wrapped height. (ensureVariationFonts above preloads the JS FontFaces;
       // this also covers the CSS @font-face the swap brings in.)
       S.forEach(function (s) { growReflow(s, true); }); // new type re-wraps headings — push/pull what's below to match
+      S.forEach(function (s) { try { diceFitWords(s); } catch (err) {} }); // a wider face steps a take's headline down until its longest word fits
       if (wasClean) savedSnap = serialize(); // re-measured heights are the new clean baseline
       if (sel) placeHandles(sel.sec, sel.i);
       refreshChip();

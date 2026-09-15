@@ -4670,8 +4670,10 @@
           if ((pnl && !pnl.hidden && pnl.querySelector('.gogh-fontpair')) || Date.now() - t0 > 8000) resolve(pnl); else setTimeout(poll, 100);
         })();
       }).then(function (pnl) {
-        var rows = [].slice.call(pnl.querySelectorAll('.gogh-fontpair'));
+        var rows = [].slice.call(pnl.querySelectorAll('.gogh-fontpair:not(.gogh-fontpair-theme)'));
         expect(rows.length === 12, 'the panel should list twelve pairs, got ' + rows.length);
+        expect(pnl.querySelector('.gogh-typescale') && pnl.querySelectorAll('.gogh-typescale .gogh-hpreset').length === 4, 'the type size lives in the Fonts door');
+        expect(pnl.querySelectorAll('.gogh-fontpair-theme').length >= 1, 'the theme’s own pairs come first, without an install');
         expect(/the theme’s own/.test(rows[0].textContent), 'the first row is the theme’s own pair');
         expect(rows[1].querySelector('.gogh-fontpair-name span').style.fontFamily.indexOf('Fraunces') !== -1, 'a row is set in its own heading face');
         rows[1].dispatchEvent(new MouseEvent('mouseenter', { bubbles: true }));
@@ -6091,7 +6093,7 @@
         var rr = remix.getBoundingClientRect(), br = brand.getBoundingClientRect();
         expect(Math.abs(rr.top - br.top) < 4 && rr.right <= br.left + 2, 'Remix and the brand should share one row, Remix on the left');
         var more = pnl.querySelector('details.gogh-more');
-        expect(more && !more.open && more.contains(pnl.querySelector('.gogh-typescale')) && more.contains(pnl.querySelector('.gogh-varlist')), 'type scale, looks and fonts should be folded under More');
+        expect(more && !more.open && more.contains(pnl.querySelector('.gogh-varlist')) && !pnl.querySelector('.gogh-typescale'), 'the theme’s colour looks should be folded under More; type lives in the Fonts door');
         expect(!pnl.querySelector('.gogh-remixcards, .gogh-remixlocks, .gogh-remixdirs, .gogh-remixkept, .gogh-remixpin'), 'the shop (cards, locks, directions, the shelf) should be gone, not hidden');
         expect(!G.remixKeep && !G.remixLocks, 'the shop\u2019s functions should be gone from the editor');
         G.closePanel();
