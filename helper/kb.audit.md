@@ -1,4 +1,4 @@
-# Knowledge-base audit — plugin v0.99.549
+# Knowledge-base audit — plugin v0.99.550
 
 _13 finding(s) suppressed by `kb.audit-ignore.txt`._
 
@@ -119,6 +119,4 @@ Quoted copy not found verbatim in the source. Paraphrases are fine; changed UI c
 
 Use this as the checklist for updating the prose — and as a sanity check on the release itself.
 
-- version: 0.99.548 → 0.99.549
-- added WP hook: "admin_footer"
-- added WP hook: "plugin_row_meta"
+- version: 0.99.549 → 0.99.550

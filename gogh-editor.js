@@ -17078,7 +17078,7 @@
         backBtn.addEventListener('click', function () { remixBack(); });
         wrap.querySelector('.gogh-remixkeep').addEventListener('click', function () {
           var w = remixWorn();
-          closePanel();
+          backToDesign(); // the same way out as Back: the side rail comes back
           var said = w && !w.origin && w.cand ? (w.cand.name === 'Your brand' ? 'your brand' + (w.cand.detail ? ', ' + w.cand.detail : '') : w.cand.name) : '';
           toast(said ? 'Kept. Your site now uses ' + said + '.' : 'Kept.', { ttl: 3500 });
         });
