@@ -15453,7 +15453,7 @@
           return '<button type="button" class="gogh-fontpair gogh-fontpair-theme" data-v="' + i + '">' +
             '<span class="gogh-fontpair-name"><span style="font-family:' + escAttr(faceOf(parts[0], 0)) + ';font-weight:600">' + esc(parts[0]) + '</span>' +
             (parts[1] ? '<span class="gogh-fontpair-amp"> &amp; </span><span style="font-family:' + escAttr(faceOf(parts[1], 1)) + '">' + esc(parts[1]) + '</span>' : '') + '</span>' +
-            '<span class="gogh-fontpair-say">no install</span></button>';
+            '<span class="gogh-fontpair-say">comes with your theme</span></button>';
         }).join('') + '</div><div class="gogh-panel-group">Pairs</div>' : '') +
         '<div class="gogh-fontlist">' + FONT_PAIRS.map(function (pr, i) {
           var hn = pr.theme ? own.heading.name : pr.heading.name, bn = pr.theme ? own.body.name : pr.body.name;
