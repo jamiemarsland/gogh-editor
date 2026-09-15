@@ -1,17 +1,17 @@
-# Knowledge-base audit — plugin v0.99.548
+# Knowledge-base audit — plugin v0.99.549
 
 _13 finding(s) suppressed by `kb.audit-ignore.txt`._
 
-## MISSING (98)
+## MISSING (101)
 
 The source has something the prose never explains. The bot knows the name from the appendix but cannot say what it is for.
 
 - exposed filter `gogh_default_editor` exists in source but is never mentioned in the prose
 - exposed filter `gogh_claims_post` exists in source but is never mentioned in the prose
 - exposed filter `gogh_labs_ask` exists in source but is never mentioned in the prose
+- exposed filter `gogh_helper_url` exists in source but is never mentioned in the prose
 - exposed filter `gogh_schema` exists in source but is never mentioned in the prose
 - exposed filter `gogh_schema_enabled` exists in source but is never mentioned in the prose
-- exposed filter `gogh_helper_url` exists in source but is never mentioned in the prose
 - WP hook `load-post-new.php` exists in source but is never mentioned in the prose
 - WP hook `admin_menu` exists in source but is never mentioned in the prose
 - WP hook `get_edit_post_link` exists in source but is never mentioned in the prose
@@ -49,6 +49,9 @@ The source has something the prose never explains. The bot knows the name from t
 - WP hook `body_class` exists in source but is never mentioned in the prose
 - WP hook `wp_insert_post_empty_content` exists in source but is never mentioned in the prose
 - WP hook `trashed_post` exists in source but is never mentioned in the prose
+- WP hook `wp_footer` exists in source but is never mentioned in the prose
+- WP hook `admin_footer` exists in source but is never mentioned in the prose
+- WP hook `plugin_row_meta` exists in source but is never mentioned in the prose
 - WP hook `wp_footer` exists in source but is never mentioned in the prose
 - WP hook `get_block_templates` exists in source but is never mentioned in the prose
 - WP hook `body_class` exists in source but is never mentioned in the prose
@@ -105,14 +108,17 @@ The source has something the prose never explains. The bot knows the name from t
 - element type `video` exists in source but is never mentioned in the prose
 - element type `embed` exists in source but is never mentioned in the prose
 
-## QUOTE (1)
+## QUOTE (2)
 
 Quoted copy not found verbatim in the source. Paraphrases are fine; changed UI copy is not.
 
+- Launched N times on Playground
 - Fraunces & Inter. Installed on your site, yours to keep.
 
 ## What changed since the last knowledge-base build
 
 Use this as the checklist for updating the prose — and as a sanity check on the release itself.
 
-- version: 0.99.547 → 0.99.548
+- version: 0.99.548 → 0.99.549
+- added WP hook: "admin_footer"
+- added WP hook: "plugin_row_meta"

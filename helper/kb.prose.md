@@ -715,6 +715,9 @@ Usage: `git tag v0.83.0 && git push origin v0.83.0`.
 
 Steps: install **Twenty Twenty-Five** → install the plugin from the latest release's `gogh-playground.zip` → run a PHP seeder that creates a Gogh front page (id 99, "Gogh Editor"), switches Global Styles to the theme's "evening" variation, creates three ordinary Gutenberg pages (About / Team / Contact — the About copy explicitly invites pressing "Make freeform"), builds a navigation menu with real permalinks, repoints the theme's header template part at it, and sideloads four demo images (wheat-field, starry-night, sunflowers, almond-blossom) → set the front page.
 
+### Launch counter (v0.99.549)
+Every blueprint's boot step writes `gogh_booted_as` with its own name (`default`, `halloran`, `built` for sites the helper publishes, and so on). The first page the site shows after that sends one beacon to the helper, `POST /api/boot` with `{ bp, v }`, and flips `gogh_boot_pinged` first so a lost ping is never retried. The helper ignores localhost and Studio by origin, caps one address at ten an hour, and keeps `boot:total` and `boot:bp:<name>` in KV without expiry. `GET /api/boot` returns `{ total, seed, counted, blueprints }`; the total starts at 776, the launches counted before the beacon (GitHub release downloads, 1–12 August 2026, and the weeks after that the raw zip could not count). The Plugins screen row says "Launched N times on Playground" (cached six hours) and the release workflow stamps the same number into the demo README.
+
 ### `spike/matrix.php`
 A standalone CLI harness answering: *does the attrs-as-truth format survive the real WordPress save pipeline, for every kind of user, in both fallback variants?* It's the experiment that decided the production `gogh_rebake_enabled` default — a comment in `gogh.php` notes "variant B won the matrix".
 

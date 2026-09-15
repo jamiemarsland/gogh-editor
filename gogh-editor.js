@@ -2371,7 +2371,7 @@
     '<div class="gogh-side-cards gogh-cards-site" hidden>' +
     '<button type="button" class="gogh-sitem gogh-scard gogh-stylebtn">' +
     '<span class="gogh-scard-ic is-accent"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M12 3a9 9 0 1 0 0 18h1.5a2.5 2.5 0 0 0 1.8-4.2 2.5 2.5 0 0 1 1.8-4.3H20a9 9 0 0 0-8-9.5Z"/><circle cx="7.5" cy="11" r="1.2" fill="currentColor" stroke="none"/><circle cx="10.5" cy="7.5" r="1.2" fill="currentColor" stroke="none"/><circle cx="15" cy="7.5" r="1.2" fill="currentColor" stroke="none"/></svg></span>' +
-    '<span class="gogh-scard-tx"><span class="gogh-scard-t">Site style</span><span class="gogh-scard-s">Colours, type, brand</span></span>' +
+    '<span class="gogh-scard-tx"><span class="gogh-scard-t">Site style</span><span class="gogh-scard-s">Colours, looks, brand</span></span>' +
     '<svg class="gogh-scard-chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg></button>' +
     '<button type="button" class="gogh-sitem gogh-scard gogh-fontsbtn">' +
     '<span class="gogh-scard-ic"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h4l5-13 5 13h4M8 15h8"/></svg></span>' +
@@ -16170,6 +16170,21 @@
       return { heading: fontSlug(pr.heading.name), body: fontSlug(pr.body.name), google: pr };
     });
   }
+  // the roll names its fonts in plain words: 'Fraunces & Inter', or one name
+  // when heading and body share a face; the theme's own pair when none rolled
+  function remixPairSay(pair) {
+    var h, b;
+    if (pair && pair.google) { h = pair.google.heading.name; b = pair.google.body.name; }
+    else {
+      var cat = fontCatalogue();
+      var nameOf = function (slug) { var c = cat.filter(function (x) { return x.slug === slug; })[0]; return c ? c.name : null; };
+      var own = themeOwnPair();
+      h = (pair && nameOf(pair.heading)) || own.heading.name;
+      b = (pair && nameOf(pair.body)) || own.body.name;
+    }
+    if (!h && !b) return '';
+    return h === b || !b ? h : (h || b) + ' & ' + b;
+  }
   // walk the accent's lightness to where the text reads on it AND it still
   // stands off the ground — the nearest such lightness to its own; if no
   // lightness holds both, the words on the button win over the edge
@@ -16267,7 +16282,7 @@
         key: key,
         name: brand ? 'Your brand' : r.say + v.say + ' on ' + g.say,
         brand: !!brand,
-        detail: scaleSay + ' type, ' + rhythmSay + (divider ? ', ' + (/^[aeiou]/i.test(divider) ? 'an ' : 'a ') + divider + ' edge' : '') + (fx === 'grain' ? ', grain' : '') + (pair && pair.google ? ', in ' + pair.google.heading.name + ' & ' + pair.google.body.name : ''),
+        detail: (remixPairSay(pair) ? remixPairSay(pair) + ', ' : '') + scaleSay + ' type, ' + rhythmSay + (divider ? ', ' + (/^[aeiou]/i.test(divider) ? 'an ' : 'a ') + divider + ' edge' : '') + (fx === 'grain' ? ', grain' : ''),
         colors: { background: bg, text: tx, accent: ac, accent2: brand && brand.accent2 ? brand.accent2 : ac },
         fonts: pair,
         scale: scale,

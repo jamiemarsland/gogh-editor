@@ -4735,7 +4735,9 @@
       expect(theme > 0, 'and some the theme’s own combinations');
       var c = null;
       for (var m = 0; m < 40 && !c; m++) c = G.remixCandidates().filter(function (x) { return x.fonts && x.fonts.google; })[0];
-      expect(c && /in [A-Z][^,]+ & [A-Z]/.test(c.detail), 'the receipt names the pair: ' + (c && c.detail));
+      expect(c && /^[A-Z][^,]+ & [A-Z][^,]+, /.test(c.detail), 'the receipt opens with the pair: ' + (c && c.detail));
+      var t = G.remixCandidates().filter(function (x) { return x.fonts && !x.fonts.google; })[0];
+      expect(!t || /^[A-Z][^,]*, /.test(t.detail), 'a theme roll names its fonts too: ' + (t && t.detail));
       return google + ' Google pairs and ' + theme + ' theme pairs across 240 candidates';
     });
 

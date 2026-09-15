@@ -11,7 +11,9 @@
  *
  * Routes
  *   GET  /             the chat UI
- *   GET  /api/meta     { pluginVersion, kbId, kbBytes, model, fetchedAt }
+ *   GET  /api/meta     { pluginVersion, kbId, kbBytes, model, fetchedAt, boots }
+ *   GET  /api/boot     { total, seed, counted, blueprints } — launches so far
+ *   POST /api/boot     { bp } — one beacon per booted blueprint site
  *   POST /api/chat     { messages, mode } → SSE stream passed straight through
  *   POST /api/refresh  force a KB re-fetch (needs REFRESH_TOKEN)
  *
@@ -48,6 +50,10 @@ const DEFAULTS = {
   SITE_TTL_DAYS: '30',
   PUBLISH_DAILY_LIMIT: '12',
   BUILD_DAILY_LIMIT: '30',
+  // launches counted before the beacon existed (GitHub release downloads,
+  // 2026-08-01 to 08-12, plus the raw-zip weeks nobody could count)
+  BOOT_SEED: '776',
+  BOOT_HOURLY_LIMIT: '10',
   // a way out: every built site carries the Move to WordPress.com helper, so
   // what someone makes here need not stay in a browser tab. Set '' to drop it.
   MOVE_PLUGIN_URL: 'https://github.com/jamiemarsland/playground-to-wordpress-com/archive/refs/heads/main.zip',
@@ -183,6 +189,70 @@ async function usageToday(env) {
   if (!env.RATE) return null;
   const day = new Date().toISOString().slice(0, 10);
   return parseInt((await env.RATE.get(`g:${day}`)) || '0', 10);
+}
+
+/* ------------------------------------------------------------- launches */
+// A blueprint writes gogh_booted_as when it boots; the first page after that
+// sends one beacon here with the blueprint's name and nothing else. Counters
+// live in KV without expiry: boot:total, and boot:bp:<name> per blueprint.
+// Studio and localhost boots are told apart by their origin and not counted.
+const BOOT_RE = /^[a-z0-9][a-z0-9-]{0,39}$/;
+
+function localOrigin(req) {
+  const o = req.headers.get('origin') || req.headers.get('referer') || '';
+  if (!o) return false;
+  try {
+    const h = new URL(o).hostname;
+    return h === 'localhost' || h === '127.0.0.1' || h === '[::1]' || h.endsWith('.localhost') || h.endsWith('.local');
+  } catch (e) {
+    return false;
+  }
+}
+
+async function inc(env, key) {
+  try {
+    const n = parseInt((await env.RATE.get(key)) || '0', 10);
+    await env.RATE.put(key, String(n + 1));
+  } catch (e) {
+    counterErrors++;
+  }
+}
+
+async function countBoot(env, req) {
+  let body = {};
+  try { body = JSON.parse(await req.text()) || {}; } catch (e) { body = {}; }
+  const bp = String(body.bp || '').toLowerCase();
+  if (!BOOT_RE.test(bp)) return json({ error: 'bp must be a short lowercase name' }, 400, CORS);
+  if (!env.RATE) return json({ ok: true, counted: false, why: 'no store' }, 200, CORS);
+  if (localOrigin(req)) return json({ ok: true, counted: false, why: 'local' }, 200, CORS);
+  const hourly = parseInt(cfg(env, 'BOOT_HOURLY_LIMIT'), 10);
+  if (hourly) {
+    const ip = req.headers.get('cf-connecting-ip') || 'unknown';
+    const key = `bootip:${new Date().toISOString().slice(0, 13)}:${ip}`;
+    const n = parseInt((await env.RATE.get(key)) || '0', 10);
+    if (n >= hourly) return json({ ok: true, counted: false, why: 'limit' }, 200, CORS);
+    await bump(env, key, { next: n + 1 });
+  }
+  await inc(env, 'boot:total');
+  await inc(env, `boot:bp:${bp}`);
+  return json({ ok: true, counted: true }, 200, CORS);
+}
+
+async function bootStats(env) {
+  const seed = parseInt(cfg(env, 'BOOT_SEED'), 10) || 0;
+  const out = { total: seed, seed, counted: 0, blueprints: {} };
+  if (!env.RATE) return out;
+  try {
+    out.counted = parseInt((await env.RATE.get('boot:total')) || '0', 10);
+    out.total = seed + out.counted;
+    const l = await env.RATE.list({ prefix: 'boot:bp:' });
+    for (const k of l.keys || []) {
+      out.blueprints[k.name.slice('boot:bp:'.length)] = parseInt((await env.RATE.get(k.name)) || '0', 10);
+    }
+  } catch (e) {
+    counterErrors++;
+  }
+  return out;
 }
 
 /* ------------------------------------------------------------------ helpers */
@@ -773,6 +843,7 @@ function blueprintFor(env, id, def, origin) {
     "require '/wordpress/wp-load.php';",
     'wp_set_current_user( 1 );',
     'try { wp_trash_post( 1 ); } catch ( \\Throwable $e ) {}',
+    "update_option( 'gogh_booted_as', 'built' );",
     `$def = json_decode( base64_decode( '${b64}' ), true );`,
     "if ( is_array( $def ) && function_exists( 'gogh_site_def_boot' ) ) {",
     '\ttry { gogh_site_def_boot( $def ); } catch ( \\Throwable $e ) {}',
@@ -1701,6 +1772,12 @@ export default {
       return handleChat(req, env);
     }
 
+    if (url.pathname === '/api/boot') {
+      if (req.method === 'OPTIONS') return new Response(null, { status: 204, headers: CORS });
+      if (req.method === 'POST') return countBoot(env, req);
+      return json(await bootStats(env), 200, Object.assign({ 'cache-control': 'public, max-age=300' }, CORS));
+    }
+
     if (url.pathname === '/api/meta') {
       try {
         const kb = await getKB(env);
@@ -1715,6 +1792,7 @@ export default {
             askedToday: await usageToday(env),
             globalDailyLimit: env.RATE ? parseInt(cfg(env, 'GLOBAL_DAILY_LIMIT'), 10) : null,
             counterErrors,
+            boots: await bootStats(env),
           },
           200,
           { 'cache-control': 'no-store' }

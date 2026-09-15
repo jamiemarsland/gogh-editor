@@ -2,6 +2,8 @@
 
 gogh is a freeform canvas for WordPress. Drag anything anywhere on the live page — the words, the pictures, the button, even the sky — and it publishes clean, responsive core blocks. Deactivation-safe, theme-native, no lock-in.
 
+These links have been launched **{{launches}}** times so far.
+
 Every link below builds a fresh, throwaway WordPress site in your browser with gogh already installed and you already logged in. Nothing to install. Give it a minute to boot, and use a desktop browser: Chrome, Edge or Firefox.
 
 ## Try it

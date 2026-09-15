@@ -11,7 +11,7 @@ const { default: worker } = await import(path.join(here, 'dist', 'worker.js'));
 const florist = JSON.parse(fs.readFileSync(path.join(here, '..', '..', 'spike', 'site-def-florist.json'), 'utf8'));
 const onepage = JSON.parse(fs.readFileSync(path.join(here, '..', '..', 'spike', 'site-def-onepage.json'), 'utf8'));
 
-const kv = () => { const m = new Map(); return { async get(k) { return m.has(k) ? m.get(k) : null; }, async put(k, v) { m.set(k, v); }, _m: m }; };
+const kv = () => { const m = new Map(); return { async get(k) { return m.has(k) ? m.get(k) : null; }, async put(k, v) { m.set(k, v); }, async list({ prefix = '' } = {}) { return { keys: [...m.keys()].filter((k) => k.startsWith(prefix)).map((name) => ({ name })) }; }, _m: m }; };
 const env = { RATE: kv(), SITES: kv() };
 let failures = 0;
 const check = (cond, msg) => { if (!cond) { failures++; console.error('FAIL', msg); } else console.log('ok  ', msg); };
@@ -338,6 +338,36 @@ check(res.status === 400, 'an empty message is refused before any model is calle
   check(steps[0] === 'Thinking' && steps.includes('Checking it over') && steps.includes('Publishing your site'), 'it names each real step as it reaches it: ' + steps.join(' · '));
   check(reply && reply.text === 'Here is your site.' && reply.published && /playground\.wordpress\.net/.test(reply.published.url), 'the last event carries the words and the link');
   globalThis.fetch = realFetch;
+}
+
+
+// ---- launches: one beacon per booted blueprint, seeded, locals ignored
+{
+  const e2 = { RATE: kv(), SITES: kv() };
+  const beacon = (bp, extra = {}) => worker.fetch(new Request('https://gogh.test/api/boot', { method: 'POST', headers: { 'content-type': 'text/plain', 'cf-connecting-ip': '203.0.113.7', ...extra }, body: JSON.stringify({ bp, v: '0.99.549' }) }), e2);
+  let r = await (await beacon('halloran')).json();
+  check(r.counted === true, 'boot beacon: halloran counted');
+  r = await (await beacon('halloran')).json();
+  r = await (await beacon('built')).json();
+  check(r.counted === true, 'boot beacon: a built site counted');
+  r = await (await beacon('halloran', { origin: 'http://localhost:8990' })).json();
+  check(r.counted === false && r.why === 'local', 'boot beacon: a Studio boot is not counted');
+  const bad = await beacon('Not A Name!');
+  check(bad.status === 400, 'boot beacon: a bad name is refused');
+  const stats = await (await worker.fetch(new Request('https://gogh.test/api/boot'), e2)).json();
+  check(stats.seed === 776 && stats.counted === 3 && stats.total === 779, 'boot stats: seed 776 + 3 counted = ' + stats.total);
+  check(stats.blueprints.halloran === 2 && stats.blueprints.built === 1, 'boot stats: per-blueprint counts');
+  const capped = { ...e2, RATE: kv(), BOOT_HOURLY_LIMIT: '1' };
+  await (await worker.fetch(new Request('https://gogh.test/api/boot', { method: 'POST', headers: { 'cf-connecting-ip': '203.0.113.8' }, body: JSON.stringify({ bp: 'plinth' }) }), capped)).json();
+  r = await (await worker.fetch(new Request('https://gogh.test/api/boot', { method: 'POST', headers: { 'cf-connecting-ip': '203.0.113.8' }, body: JSON.stringify({ bp: 'plinth' }) }), capped)).json();
+  check(r.counted === false && r.why === 'limit', 'boot beacon: one address cannot run the count up');
+  // /api/meta reads the KB over the network, which the tests do not have;
+  // it either answers with boots or explains that it could not read the KB
+  const metaRes = await worker.fetch(new Request('https://gogh.test/api/meta'), e2);
+  const meta = await metaRes.json();
+  check((meta.boots && meta.boots.total === 779) || (metaRes.status === 502 && meta.error), 'meta carries boots (or the KB is unreachable here): ' + metaRes.status);
+  const bpBuilt = JSON.parse(fs.readFileSync(path.join(here, '..', '..', 'blueprint-halloran.json'), 'utf8'));
+  check(bpBuilt.steps.some((st) => st.step === 'runPHP' && st.code.includes("update_option( 'gogh_booted_as', 'halloran' )")), 'blueprint-halloran names itself');
 }
 
 console.log(failures ? `${failures} failure(s)` : 'all passed');

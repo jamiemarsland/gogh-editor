@@ -1,12 +1,12 @@
 {
   "meta": {
-    "plugin_version": "0.99.548",
+    "plugin_version": "0.99.549",
     "requires_wp": "6.5",
     "requires_php": "7.4",
     "text_domain": "gogh-editor",
     "readme_stable_tag": "0.26.0",
     "readme_tested_up_to": "7.0",
-    "asset_version": "0.99.548-chrome"
+    "asset_version": "0.99.549-chrome"
   },
   "constants": {
     "TOL": 8,
@@ -997,6 +997,21 @@
       {
         "kind": "action",
         "hook": "wp_footer",
+        "priority": 99
+      },
+      {
+        "kind": "action",
+        "hook": "admin_footer",
+        "priority": 99
+      },
+      {
+        "kind": "filter",
+        "hook": "plugin_row_meta",
+        "priority": 10
+      },
+      {
+        "kind": "action",
+        "hook": "wp_footer",
         "priority": 10
       },
       {
@@ -1229,12 +1244,12 @@
       "gogh_default_editor",
       "gogh_claims_post",
       "gogh_labs_ask",
+      "gogh_helper_url",
       "gogh_rebake_enabled",
       "gogh_schema",
       "gogh_schema_enabled",
       "gogh_webmcp_enabled",
-      "gogh_convert_enabled",
-      "gogh_helper_url"
+      "gogh_convert_enabled"
     ],
     "rest_routes": [
       "gogh/v1/version",
