@@ -15015,23 +15015,30 @@
     all.forEach(function (f) {
       if (!f.fontFamily) return;
       var fam = f.fontFamily.split(',')[0].replace(/["']/g, '').trim();
-      if (document.fonts.check('16px "' + fam + '"')) return; // already available
-      if (fontLoads[fam]) { jobs.push(fontLoads[fam]); return; } // in flight — wait for it
-      var faces = f.fontFace || [];
-      var face = faces.filter(function (ff) { return String(ff.fontStyle || 'normal') === 'normal'; })[0] || faces[0];
-      var src = face && face.src ? [].concat(face.src)[0] : null;
-      if (!src) return;
-      if (src.indexOf('file:./') === 0) src = location.origin + '/wp-content/themes/' + cfg.theme + '/' + src.slice(7);
-      var p;
-      try {
-        var ff2 = new FontFace(fam, 'url("' + src + '")', {
-          weight: String(face.fontWeight || '400'),
-          style: face.fontStyle || 'normal',
-        });
-        p = ff2.load().then(function (loaded) { document.fonts.add(loaded); }).catch(function () {});
-      } catch (err) { p = Promise.resolve(); }
-      fontLoads[fam] = p;
-      jobs.push(p);
+      // every face of the family, not only the first: the Fonts door draws
+      // the heading name in the bold, and a bold synthesised from the
+      // regular is wider than the real one (the row 'jumped' on hover)
+      (f.fontFace || []).forEach(function (face) {
+        var src = face && face.src ? [].concat(face.src)[0] : null;
+        if (!src) return;
+        var weight = String(face.fontWeight || '400'), style = face.fontStyle || 'normal';
+        var key = fam + '|' + weight + '|' + style;
+        // document.fonts.check() answers true for a family with NO face at
+        // all (nothing to load), which is exactly the case that needs
+        // loading — so look for a loaded face by name, weight and style
+        var have = false;
+        try { document.fonts.forEach(function (ff) { if (String(ff.family).replace(/["']/g, '') === fam && String(ff.weight) === weight && ff.style === style && ff.status === 'loaded') have = true; }); } catch (err) {}
+        if (have) return;
+        if (fontLoads[key]) { jobs.push(fontLoads[key]); return; } // in flight — wait for it
+        if (src.indexOf('file:./') === 0) src = location.origin + '/wp-content/themes/' + cfg.theme + '/' + src.slice(7);
+        var p;
+        try {
+          var ff2 = new FontFace(fam, 'url("' + src + '")', { weight: weight, style: style });
+          p = ff2.load().then(function (loaded) { document.fonts.add(loaded); }).catch(function () {});
+        } catch (err) { p = Promise.resolve(); }
+        fontLoads[key] = p;
+        jobs.push(p);
+      });
     });
     if (!jobs.length) return Promise.resolve();
     return Promise.race([
@@ -15628,6 +15635,10 @@
       // its fallback face as the pointer passed read as other rows growing
       // (James: 'feels like other fonts are increasing size')
       FONT_PAIRS.forEach(function (pr) { if (!pr.theme) ensureGoogleFonts(pr); });
+      // and the theme's own pairs: their faces live in the theme folder and
+      // were only loaded when a row was hovered, so Beiruti, Platypi and
+      // Literata sat in fallbacks until the pointer reached them
+      themePairs.forEach(function (v) { ensureVariationFonts(v); });
       var tsOff = wireTypeScale(panel);
       [].slice.call(panel.querySelectorAll('.gogh-fontpair-theme')).forEach(function (b) {
         var v = themePairs[+b.dataset.v];
