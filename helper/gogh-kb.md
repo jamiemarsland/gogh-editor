@@ -15,7 +15,7 @@ about something where they conflict, rather than picking one silently. Quote UI
 labels and message copy from the appendix, verbatim — those are the current
 strings, and a paraphrased button label is the fastest way to lose a user's trust.
 
-Generated for plugin version 0.99.553 · knowledge base 183f447.
+Generated for plugin version 0.99.554 · knowledge base 9f81da7.
 
 ---
 
@@ -780,7 +780,7 @@ It also runs an **XSS probe** — injecting `"cssT":"</style><script>alert(1)</s
 
 ### Fonts: pairs, not pickers (v0.99.543)
 
-A **Fonts** card in the Site drawer owns everything about type: the type size (Snug/Regular/Airy/Grand), the theme's own font pairs (first, unlabelled, in the same list as) twelve heading-and-body pairings with plain names for their character (the theme's own first, then bookish, editorial, studio, modern, warm, elegant, bold, classic, quiet luxury, loud, technical), each row set in its own faces. Hover paints the page in the pair (the editor loads it from Google to try it; nothing is saved); click keeps it. Keeping installs the families through WordPress's own Font Library — the files are downloaded once into the site's font folder and registered as font family and font face posts — then writes the two families into the site's global styles (`styles.typography.fontFamily` and `styles.elements.heading.typography.fontFamily`) and activates them in `settings.typography.fontFamilies.custom`. The toast reads "Fraunces & Inter. Installed on your site, yours to keep." with Undo, which puts the previous families back (nothing is uninstalled). The published page serves the fonts from the site itself, never from Google, and the type survives gogh being deactivated. Two families a page, never a third. **More fonts** folds under the twelve: type a name, pick Headings, Body or Both, and the hits appear — the theme's own families first, then Google's list (WordPress's own font collection, fetched through the site), each shown as the collection's preview of the name. Hover tries it on the page in that role; click keeps it, installing only the family that changed. **Brand guidelines** that name a font the site lacks ("Headings: Cormorant Garamond") get it the same way: the brand door looks the name up in Google's list, tries it on the page while the form is open, and installs it when the brand is kept; the receipt line says "from your guide, installed when you keep". A kept pair from the Fonts door also becomes the brand's fonts when a brand exists, so Remix keeps them. **Remix draws on the same pairs**: without a brand pinning its fonts, a roll picks a font pair by a coin — the theme's own combinations or one of the twelve — tries it from Google, and installs it quietly when the look is kept (the receipt ends "in Fraunces & Inter"). **The AI door** may say `fonts: 'bookish'` or `fonts: { heading: 'Fraunces', body: 'Inter' }` in a site definition; the fonts are installed as the site is built. `__gogh.fontPairs()`, `__gogh.openFontsPanel()`, `__gogh.fontsDry(on)` for tests.
+A **Fonts** card in the Site drawer owns everything about type: the type size (Snug/Regular/Airy/Grand), the theme's own font pairs (first, in the same list, each with a mood word such as 'nerdy' or 'sturdy' worked out from the faces) and twelve heading-and-body pairings with plain names for their character (the theme's own first, then bookish, editorial, studio, modern, warm, elegant, bold, classic, quiet luxury, loud, technical), each row set in its own faces. Hover paints the page in the pair (the editor loads it from Google to try it; nothing is saved); click keeps it. Keeping installs the families through WordPress's own Font Library — the files are downloaded once into the site's font folder and registered as font family and font face posts — then writes the two families into the site's global styles (`styles.typography.fontFamily` and `styles.elements.heading.typography.fontFamily`) and activates them in `settings.typography.fontFamilies.custom`. The toast reads "Fraunces & Inter. Installed on your site, yours to keep." with Undo, which puts the previous families back (nothing is uninstalled). The published page serves the fonts from the site itself, never from Google, and the type survives gogh being deactivated. Two families a page, never a third. **More fonts** folds under the twelve: type a name, pick Headings, Body or Both, and the hits appear — the theme's own families first, then Google's list (WordPress's own font collection, fetched through the site), each shown as the collection's preview of the name. Hover tries it on the page in that role; click keeps it, installing only the family that changed. **Brand guidelines** that name a font the site lacks ("Headings: Cormorant Garamond") get it the same way: the brand door looks the name up in Google's list, tries it on the page while the form is open, and installs it when the brand is kept; the receipt line says "from your guide, installed when you keep". A kept pair from the Fonts door also becomes the brand's fonts when a brand exists, so Remix keeps them. **Remix draws on the same pairs**: without a brand pinning its fonts, a roll picks a font pair by a coin — the theme's own combinations or one of the twelve — tries it from Google, and installs it quietly when the look is kept (the receipt ends "in Fraunces & Inter"). **The AI door** may say `fonts: 'bookish'` or `fonts: { heading: 'Fraunces', body: 'Inter' }` in a site definition; the fonts are installed as the site is built. `__gogh.fontPairs()`, `__gogh.openFontsPanel()`, `__gogh.fontsDry(on)` for tests.
 
 **Two families a page (v0.99.553).** Every keep — a pair, one role from More fonts, a theme preset — trims the site's active family list (global styles `settings.typography.fontFamilies.custom`) to the families the body and heading refs point at. Dropped families stay in the Font Library, so choosing one again is instant with no download; the Undo on the toast puts the dropped ones back. Remix already wrote only the two in use, so the doors now agree.
 
@@ -792,11 +792,11 @@ Everything in this section is extracted mechanically from the Gogh source on eve
 
 ## Current release
 
-- Plugin version: **0.99.553**
+- Plugin version: **0.99.554**
 - Requires WordPress **6.5+**, PHP **7.4+**
 - Text domain: `gogh-editor`
 - readme.txt Stable tag: `0.26.0` · Tested up to: `7.0`
-- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.553`). Quote the plugin header version.
+- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.554`). Quote the plugin header version.
 
 ## Design constants
 
@@ -1305,4 +1305,4 @@ These are the real strings in the current build. Use them verbatim; never paraph
 
 ## Test suite
 
-`304` tests, run by appending `?gogh-test` to any Gogh page URL while logged in with edit rights on that page.
+`305` tests, run by appending `?gogh-test` to any Gogh page URL while logged in with edit rights on that page.

@@ -4724,6 +4724,21 @@
 
     // step four: the die draws on the Fonts door's pairs — a roll may land in
     // Fraunces & Inter, tried from Google and installed quietly on commit
+    test('every pair in the Fonts door ends in one plain word, the theme’s included', function () {
+      expect(G.pairMood('Vollkorn', 'Vollkorn, serif', 'Fira Code', '"Fira Code", monospace') === 'nerdy', 'a known theme pair has its word');
+      expect(G.pairMood('Some Serif', '"Some Serif", serif', 'Other Sans', '"Other Sans", sans-serif') === 'readable', 'an unknown serif + sans pair gets a word from what the faces are');
+      expect(G.pairMood('Bitter Slab', '"Bitter Slab", serif', 'Karla', 'Karla, sans-serif') === 'sturdy', 'a slab heading reads sturdy');
+      expect(G.pairMood('Manrope', 'Manrope, sans-serif', 'Manrope', 'Manrope, sans-serif') === 'clean', 'the theme’s own pair says clean, not “the theme’s own”');
+      G.openFontsPanel();
+      var pnl = document.querySelector('.gogh-panel');
+      var blank = [].slice.call(pnl.querySelectorAll('.gogh-fontpair')).filter(function (b) { var s2 = b.querySelector('.gogh-fontpair-say'); return !s2 || !s2.textContent.trim(); });
+      var says = [].slice.call(pnl.querySelectorAll('.gogh-fontpair .gogh-fontpair-say')).map(function (x) { return x.textContent; });
+      G.closePanel();
+      expect(blank.length === 0, blank.length + ' rows without a word');
+      expect(says.indexOf('the theme’s own') === -1, 'no row says “the theme’s own”');
+      return says.length + ' rows, each with a word';
+    });
+
     test('a kept pair trims the active families to the two in use; Undo gets the dropped ones back', function () {
       var a = { slug: 'fraunces', name: 'Fraunces' }, b = { slug: 'inter', name: 'Inter' }, c = { slug: 'lora', name: 'Lora' };
       var r = G.fontFamiliesAfter([a, b], [c], 'var:preset|font-family|inter', 'var:preset|font-family|lora');

@@ -14954,8 +14954,34 @@
   // type survives gogh being deactivated and never sends visitors to
   // Google. Two families a page, never a third. (Paper: "Pairs, Not
   // Pickers", 2026-09-15.)
+  // every row in the Fonts door ends in one plain word, the theme's pairs
+  // included (James: 'this is for beginners'): a name we know, else a word
+  // from what the two faces are — serif, sans, slab or mono
+  var PAIR_MOODS = {
+    'beiruti & literata': 'gentle', 'vollkorn & fira code': 'nerdy', 'platypi & ysabeau office': 'scholarly',
+    'roboto slab & manrope': 'sturdy', 'literata & ysabeau office': 'readable', 'platypi & literata': 'traditional',
+    'literata & fira sans': 'practical', 'manrope & manrope': 'clean',
+  };
+  function faceKind(name, stack) {
+    var n = String(name || '').toLowerCase(), st = String(stack || '').toLowerCase();
+    if (/mono|code/.test(n) || /monospace/.test(st)) return 'mono';
+    if (/slab/.test(n)) return 'slab';
+    if (/sans|grotesk|grotesque|manrope|inter|lato|figtree|work sans|nunito|beiruti|ysabeau|dm sans|roboto\b/.test(n)) return 'sans';
+    if (/serif|garamond|baskerville|literata|vollkorn|platypi|lora|fraunces|playfair|cormorant|instrument serif/.test(n)) return 'serif';
+    if (/serif/.test(st) && !/sans-serif/.test(st)) return 'serif';
+    return 'sans';
+  }
+  function pairMood(hName, hStack, bName, bStack) {
+    var known = PAIR_MOODS[(String(hName || '') + ' & ' + String(bName || '')).toLowerCase()];
+    if (known) return known;
+    var h = faceKind(hName, hStack), b = faceKind(bName, bStack);
+    if (h === 'mono' || b === 'mono') return 'nerdy';
+    if (h === 'slab') return 'sturdy';
+    if (h === 'serif') return b === 'serif' ? 'traditional' : 'readable';
+    return b === 'serif' ? 'gentle' : 'clean';
+  }
   var FONT_PAIRS = [
-    { key: 'theme', say: 'the theme’s own', theme: true },
+    { key: 'theme', say: '', theme: true },
     { key: 'bookish', say: 'bookish', heading: { name: 'Fraunces', w: 600 }, body: { name: 'Inter', w: 400 } },
     { key: 'editorial', say: 'editorial', heading: { name: 'Playfair Display', w: 600 }, body: { name: 'Source Sans 3', w: 400 } },
     { key: 'studio', say: 'studio', heading: { name: 'DM Serif Display', w: 400 }, body: { name: 'DM Sans', w: 400 } },
@@ -15469,10 +15495,11 @@
           var hn = pr.theme ? own.heading.name : pr.heading.name, bn = pr.theme ? own.body.name : pr.body.name;
           var hf = pr.theme ? (own.heading.fontFamily || fontStack(hn)) : fontStack(pr.heading.name);
           var bf = pr.theme ? (own.body.fontFamily || fontStack(bn)) : fontStack(pr.body.name);
+          var say = pr.theme ? pairMood(hn, hf, bn, bf) : pr.say;
           return '<button type="button" class="gogh-fontpair" data-i="' + i + '">' +
             '<span class="gogh-fontpair-name"><span style="font-family:' + escAttr(hf) + ';font-weight:' + (pr.theme ? 600 : pr.heading.w) + '">' + esc(hn) + '</span>' +
             '<span class="gogh-fontpair-amp"> &amp; </span><span style="font-family:' + escAttr(bf) + '">' + esc(bn) + '</span></span>' +
-            '<span class="gogh-fontpair-say">' + esc(pr.say) + '</span></button>';
+            '<span class="gogh-fontpair-say">' + esc(say) + '</span></button>';
         };
         // the theme's own pair leads, its variations' pairs follow, then the twelve
         return FONT_PAIRS.map(function (pr, i) { return pr.theme ? pairRow(pr, i) : ''; }).join('') + (themePairs.length ? themePairs.map(function (v, i) {
@@ -15487,7 +15514,7 @@
           return '<button type="button" class="gogh-fontpair gogh-fontpair-theme" data-v="' + i + '">' +
             '<span class="gogh-fontpair-name"><span style="font-family:' + escAttr(faceOf(parts[0], 0)) + ';font-weight:600">' + esc(parts[0]) + '</span>' +
             (parts[1] ? '<span class="gogh-fontpair-amp"> &amp; </span><span style="font-family:' + escAttr(faceOf(parts[1], 1)) + '">' + esc(parts[1]) + '</span>' : '') + '</span>' +
-            '</button>';
+            '<span class="gogh-fontpair-say">' + esc(pairMood(parts[0], faceOf(parts[0], 0), parts[1] || parts[0], faceOf(parts[1] || parts[0], 1))) + '</span></button>';
         }).join('') : '') + FONT_PAIRS.map(function (pr, i) { return pr.theme ? '' : pairRow(pr, i); }).join('');
         })() + '</div>' +
         '<div class="gogh-panel-hint gogh-fonts-note">Kept pairs are installed on your site and stay if gogh is ever removed. Two families a page, never a third.</div>' +
@@ -18233,6 +18260,7 @@
     remixCandidates: remixCandidates,
     fontsDry: function (on) { fontsDryRun = !!on; },
     fontFamiliesAfter: fontFamiliesAfter,
+    pairMood: pairMood,
     fontsLast: function () { return fontsLastKept; },
     openFontsPanel: openFontsPanel,
     resolveAll: resolveAll,
