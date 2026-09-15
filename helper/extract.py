@@ -158,7 +158,8 @@ def constants(js):
         # (the 250px live mobile mirror was removed in v0.99.197 — the phone
         # preview in the design view replaced it)
         ('phone_preview_w',        r'PHONE_W\s*=\s*(\d+)'),
-        ('drag_threshold_px',      r'pendingDrag\.x\)\s*\+\s*Math\.abs\([^)]*pendingDrag\.y\)\s*<\s*(\d+)'),
+        # mouse threshold; a finger gets its own larger number in the same expression
+        ('drag_threshold_px',      r'pendingDrag\.x\)\s*\+\s*Math\.abs\([^)]*pendingDrag\.y\)\s*<\s*(?:\(ev\.pointerType[^:]*:\s*)?(\d+)'),
         ('rotation_snap_deg',      r'snap15\s*=\s*Math\.round\(deg\s*/\s*(\d+)\)'),
         ('rotation_magnet_deg',    r'Math\.abs\(deg\s*-\s*snap15\)\s*<\s*(\d+)'),
         ('toast_ttl_ms',           r'ttl\s*\|\|\s*(?:TOAST_TTL\[kind\]\s*\|\|\s*)?(\d{3,})'),

@@ -15,7 +15,7 @@ about something where they conflict, rather than picking one silently. Quote UI
 labels and message copy from the appendix, verbatim — those are the current
 strings, and a paraphrased button label is the fastest way to lose a user's trust.
 
-Generated for plugin version 0.99.557 · knowledge base 0d46d85.
+Generated for plugin version 0.99.558 · knowledge base 4c36b53.
 
 ---
 
@@ -790,6 +790,9 @@ A site booted from `blueprint-usertest.json` (the tester is sent to the helper's
 ### Gap magnets and the numbers (v0.99.557)
 While dragging, two gap magnets work alongside the edge and centre magnets. **Equalise** (older): between two neighbours, the midpoint that makes both gaps equal captures within 8 units. **Repeat** (new): at the end of a run, the gap the nearest neighbour already keeps to the next piece is offered, so a fourth card lands in step with three; captured within 8 units, never on a purely locked axis, beaten only by equalise. Both work on either axis. **The numbers**: a plain drag stays quiet; the moment a gap magnet holds, every gap in that run shows its number in a blue "= 40" badge (the dragged piece's gap and the one it copies), and they go on drop. Alt during a drag still shows every ruler as before. From the Canva teardown: alignment as placement, not repair — the beginner compares two digits instead of two stretches of whitespace.
 
+### The rest of the Canva teardown (v0.99.558)
+**Size matching on resize:** dragging a side or corner handle also snaps to a neighbour's width (and, for pieces with a real height, its height); the guide's chip says "same width" / "same height" so the person knows why the handle stopped. **Match size** on the group bar (in the Tidy up row): every selected piece takes the size of the first one picked — width always, height only where height is a number (words hug their own); greyed with "Already the same size" or "Needs two or more pieces". **Alt + arrow** moves the selected piece to the next magnet in that direction (sibling edges and centres, the section's edges, centre and margin), with the guide shown for a moment, so the keyboard reaches every position the mouse can; plain arrows still nudge 1, Shift 8. **Drag threshold:** a piece moves only after 4px of travel (10 for a finger), so a twitch on a click never nudges it; the marquee selects anything it touches, not only what it surrounds. **The parity set** from the teardown lives in the suite as six tests (edge at 5 snaps, 10 does not, equalise, repeat, width match says so, a 2px twitch is a click).
+
 ---
 
 # Generated facts appendix
@@ -798,11 +801,11 @@ Everything in this section is extracted mechanically from the Gogh source on eve
 
 ## Current release
 
-- Plugin version: **0.99.557**
+- Plugin version: **0.99.558**
 - Requires WordPress **6.5+**, PHP **7.4+**
 - Text domain: `gogh-editor`
 - readme.txt Stable tag: `0.26.0` · Tested up to: `7.0`
-- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.557`). Quote the plugin header version.
+- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.558`). Quote the plugin header version.
 
 ## Design constants
 
@@ -1106,12 +1109,14 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "List"
 - "Make a card"
 - "Make it freeform"
+- "Make them all the size of the first one you picked"
 - "Make these one card — it holds together on phones"
 - "Manage categories ↗"
 - "Manage posts ↗"
 - "Manage products"
 - "Manage products ↗"
 - "Manage this menu — reorder, nest, swap menus"
+- "Match size"
 - "Most loved"
 - "Move down"
 - "Move down in the phone stack"
@@ -1312,4 +1317,4 @@ These are the real strings in the current build. Use them verbatim; never paraph
 
 ## Test suite
 
-`306` tests, run by appending `?gogh-test` to any Gogh page URL while logged in with edit rights on that page.
+`311` tests, run by appending `?gogh-test` to any Gogh page URL while logged in with edit rights on that page.

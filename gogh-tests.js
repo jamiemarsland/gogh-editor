@@ -2371,6 +2371,113 @@
       }).catch(fail);
     }); });
 
+    // ---- the Canva parity set: six drops, re-run after every change ----
+    var parityRow = function (y) {
+      addToSec('badge'); addToSec('badge');
+      var n = sec().els.length;
+      var a = sec().els[n - 2], b = sec().els[n - 1];
+      a.x = 100; a.y = y; a.w = 200; a.h = 60;
+      b.x = 500; b.y = y + 41; b.w = 200; b.h = 60; // off the grid on purpose
+      G.resolve(sec()); G.measure(sec()); G.resolve(sec());
+      return { a: a, b: b, i: n - 1 };
+    };
+    var dragGripBy = function (i, dxU, dyU, id) {
+      select(i);
+      var s = sec().sectionEl.getBoundingClientRect().width / 1200;
+      var grip = q('.gogh-grip');
+      var r = grip.getBoundingClientRect();
+      grip.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, clientX: r.x + 12, clientY: r.y + 12, pointerId: id }));
+      grip.dispatchEvent(new PointerEvent('pointermove', { bubbles: true, clientX: r.x + 12 + dxU * s, clientY: r.y + 12 + dyU * s, pointerId: id }));
+      grip.dispatchEvent(new PointerEvent('pointerup', { bubbles: true, clientX: r.x + 12 + dxU * s, clientY: r.y + 12 + dyU * s, pointerId: id }));
+    };
+    test('parity 1: an edge dropped 5 off a neighbour’s top lands exactly on it', function () {
+      var p = parityRow(2201);
+      dragGripBy(p.i, 0, -36, 81); // from 41 below to 5 below
+      expect(p.b.y === p.a.y, 'tops should agree: ' + p.b.y + ' vs ' + p.a.y);
+      return 'top ' + p.b.y;
+    });
+    test('parity 2: 10 off does not snap — a magnet that reaches too far is worse than none', function () {
+      var p = parityRow(2401);
+      dragGripBy(p.i, 0, -31, 82); // from 41 below to 10 below
+      expect(p.b.y !== p.a.y, 'should not have snapped to ' + p.a.y);
+      return 'landed at ' + p.b.y + ', neighbour at ' + p.a.y;
+    });
+    test('parity 6: a two-pixel twitch on a piece is a click, not a move', function () {
+      var p = parityRow(2601);
+      var node = sec().nodes[p.i];
+      var r = node.getBoundingClientRect();
+      var x0 = p.b.x, y0 = p.b.y;
+      node.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, clientX: r.x + 10, clientY: r.y + 10, pointerId: 83 }));
+      node.dispatchEvent(new PointerEvent('pointermove', { bubbles: true, clientX: r.x + 12, clientY: r.y + 11, pointerId: 83 }));
+      node.dispatchEvent(new PointerEvent('pointerup', { bubbles: true, clientX: r.x + 12, clientY: r.y + 11, pointerId: 83 }));
+      expect(p.b.x === x0 && p.b.y === y0, 'a twitch moved the piece to ' + p.b.x + ',' + p.b.y);
+      return 'stayed at ' + x0 + ',' + y0;
+    });
+    testAsync('parity 5: a resize near a neighbour’s width matches it and says so', function () { return new Promise(function (done, fail) {
+      addToSec('badge'); addToSec('badge');
+      var n = sec().els.length;
+      var a = sec().els[n - 2], b = sec().els[n - 1];
+      a.x = 100; a.y = 2801; a.w = 200; a.h = 60;
+      b.x = 500; b.y = 2801; b.w = 230; b.h = 60;
+      G.resolve(sec()); G.measure(sec()); G.resolve(sec());
+      select(n - 1);
+      var s = sec().sectionEl.getBoundingClientRect().width / 1200;
+      var h = q('.gogh-h[data-d="e"]');
+      var r = h.getBoundingClientRect();
+      var frames = function (k) { return new Promise(function (res) { var f = function () { if (--k <= 0) res(); else requestAnimationFrame(f); }; requestAnimationFrame(f); }); };
+      h.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, clientX: r.x + 4, clientY: r.y + 4, pointerId: 84 }));
+      h.dispatchEvent(new PointerEvent('pointermove', { bubbles: true, clientX: r.x + 4 + (204 - 230) * s, clientY: r.y + 4, pointerId: 84 }));
+      frames(3).then(function () {
+        var tag = (document.querySelector('.gogh-guide-v') || {}).dataset;
+        var said = tag ? tag.tag : '';
+        h.dispatchEvent(new PointerEvent('pointerup', { bubbles: true, clientX: r.x + 4 + (204 - 230) * s, clientY: r.y + 4, pointerId: 84 }));
+        if (b.w !== 200) throw new Error('width should match the neighbour’s 200, got ' + b.w);
+        if (said !== 'same width') throw new Error('the guide should say “same width”, said “' + said + '”');
+        done('width 200, guide said ' + said);
+      }).catch(fail);
+    }); });
+    test('Match size makes the selection the size of the first piece picked', function () {
+      addToSec('badge'); addToSec('badge'); addToSec('badge');
+      var n = sec().els.length;
+      var a = sec().els[n - 3], b = sec().els[n - 2], c = sec().els[n - 1];
+      a.x = 100; a.y = 3001; a.w = 180; a.h = 56;
+      b.x = 400; b.y = 3001; b.w = 230; b.h = 72;
+      c.x = 800; c.y = 3001; c.w = 120; c.h = 40;
+      G.resolve(sec()); G.measure(sec()); G.resolve(sec());
+      G.multi.set(sec(), [n - 3, n - 2, n - 1]);
+      var bar = document.querySelector('.gogh-mbar');
+      var btn = bar.querySelector('.gogh-mb-size');
+      expect(btn && !btn.disabled, 'Match size should be offered for three different sizes');
+      btn.click();
+      expect(b.w === 180 && c.w === 180 && b.h === 56 && c.h === 56, 'all should take the first one’s 180×56: ' + [b.w, b.h, c.w, c.h]);
+      expect(bar.querySelector('.gogh-mb-size').disabled && bar.querySelector('.gogh-mb-size').title === 'Already the same size', 'once matched, the verb greys with its reason');
+      G.multi.clear();
+      return 'three pieces at 180×56';
+    });
+    test('Alt + arrow steps to the next magnet, where the mouse would snap', function () {
+      addToSec('badge'); addToSec('badge');
+      var n = sec().els.length;
+      var a = sec().els[n - 2], b = sec().els[n - 1];
+      a.x = 100; a.y = 3201; a.w = 200; a.h = 60;
+      b.x = 700; b.y = 3201; b.w = 100; b.h = 60;
+      G.resolve(sec()); G.measure(sec()); G.resolve(sec());
+      select(n - 2);
+      if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
+      window.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', altKey: true, bubbles: true }));
+      var lands = function (v) { // v is one of a's edges after the jump: does a magnet sit there?
+        var ok = false;
+        sec().els.forEach(function (o) { if (o === a) return; [o.x, o.x + o.w, o.x + o.w / 2].forEach(function (c) { if (Math.abs(c - v) < 0.6) ok = true; }); });
+        [0, 1200, 600, 80, 1120].forEach(function (c) { if (Math.abs(c - v) < 0.6) ok = true; });
+        return ok;
+      };
+      expect(a.x > 100, 'should have moved right, x=' + a.x);
+      expect(lands(a.x) || lands(a.x + a.w / 2) || lands(a.x + a.w), 'should sit on a magnet: x=' + a.x);
+      var x1 = a.x;
+      window.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowLeft', altKey: true, bubbles: true }));
+      expect(a.x < x1, 'Alt + left should step back, x=' + a.x);
+      return 'jumped to ' + x1 + ' then back to ' + a.x;
+    });
+
     // ---- 28b. equal-spacing wins over a nearby edge-snap candidate ----
     test('equal-spacing beats edge snap and grid parity', function () {
       // James's report: on a real page, an alignment candidate near the

@@ -3160,6 +3160,7 @@
     '<button type="button" class="gogh-eb gogh-mb gogh-mb-space" data-axis="y" title="Equal gaps top to bottom">Even gaps</button></div>' +
     '<div class="gogh-mbar-row">' +
     '<button type="button" class="gogh-eb gogh-mb gogh-mb-tidy" title="Line the row up and even the gaps">Tidy up</button>' +
+    '<button type="button" class="gogh-eb gogh-mb gogh-mb-size" title="Make them all the size of the first one you picked">Match size</button>' +
     '</div>' +
     '<div class="gogh-mbar-hint" hidden>Faded ones would put pieces on top of each other, or change nothing.</div>' +
     '</div>';
@@ -3254,6 +3255,7 @@
   function planChanges(plan) {
     return plan.some(function (m) {
       return Math.abs(m.x - m.e.x) > 1 || Math.abs(m.y - m.e.y) > 1 ||
+        (m.w !== undefined && Math.abs(m.w - m.e.w) > 1) || (m.h !== undefined && Math.abs(m.h - m.e.h) > 1) ||
         (m.align !== undefined && m.align !== (m.e.align || 'left'));
     });
   }
@@ -3298,7 +3300,19 @@
   function applyPlan(plan) {
     plan.forEach(function (m) {
       m.e.x = Math.round(m.x); m.e.y = Math.round(m.y);
+      if (m.w !== undefined) m.e.w = Math.round(m.w);
+      if (m.h !== undefined) m.e.h = Math.round(m.h);
       if (m.align !== undefined) { if (m.align === 'left') delete m.e.align; else m.e.align = m.align; }
+    });
+  }
+  // Match size: everything takes the size of the first piece picked — width
+  // always, height only where a height is a real number (words hug theirs)
+  function sizePlan(els) {
+    var lead = els[0];
+    return els.map(function (e) {
+      var m = { e: e, x: e.x, y: e.y, w: Math.min(lead.w, W - e.x) };
+      if (fixedHeight(e) && fixedHeight(lead)) m.h = e.type === 'icon' ? m.w : lead.h;
+      return m;
     });
   }
   function spacePlan(els, axis) {
@@ -3407,6 +3421,7 @@
         axis === 'x' ? 'Equal gaps left to right' : 'Equal gaps top to bottom');
     });
     grey(mbar.querySelector('.gogh-mb-tidy'), judge(tidyPlan(els), 'Already tidy'), 'Line the row up and even the gaps');
+    grey(mbar.querySelector('.gogh-mb-size'), els.length < 2 ? 'Needs two or more pieces' : (planChanges(sizePlan(els)) ? '' : 'Already the same size'), 'Make them all the size of the first one you picked');
     var hint = mbar.querySelector('.gogh-mbar-hint');
     var row = mbar.querySelector('.gogh-mbar-more');
     if (hint && row) hint.hidden = ![].slice.call(row.querySelectorAll('.gogh-mb')).some(function (b) { return b.disabled; });
@@ -3483,6 +3498,13 @@
     if (!multiSel || this.disabled) return;
     applyPlan(tidyPlan(multiEls()));
     afterArrange('Tidied up.');
+  });
+  mbar.querySelector('.gogh-mb-size').addEventListener('click', function () {
+    if (!multiSel || this.disabled) return;
+    var sec0 = multiSel.sec;
+    applyPlan(sizePlan(multiEls()));
+    measureTextHeights(sec0); // a narrower text box is a taller one
+    afterArrange('Same size now.');
   });
   // after any gesture ends (a group drag, a nudge), the bar finds the group again
   document.addEventListener('pointerup', function () {
@@ -3634,7 +3656,7 @@
     elbar.hidden = false;
   }
 
-  function showGuides(sec, gx, gy) {
+  function showGuides(sec, gx, gy, tagX, tagY) {
     var r = sec.sectionEl.getBoundingClientRect();
     var s = r.width / W;
     var Hc = designH(sec.els, sec.minH);
@@ -3643,15 +3665,15 @@
       guideV.style.top = (r.top + window.scrollY) + 'px';
       guideV.style.height = r.height + 'px';
       // the centre earns a name: pink says aligned, the tag says WHERE
-      guideV.dataset.tag = Math.round(gx) === Math.round(W / 2) ? 'centre'
-        : (Math.round(gx) === MARGIN || Math.round(gx) === W - MARGIN) ? 'margin' : '';
+      guideV.dataset.tag = tagX || (Math.round(gx) === Math.round(W / 2) ? 'centre'
+        : (Math.round(gx) === MARGIN || Math.round(gx) === W - MARGIN) ? 'margin' : '');
       guideV.hidden = false;
     } else guideV.hidden = true;
     if (gy !== null) {
       guideH.style.top = (r.top + window.scrollY + gy * s) + 'px';
       guideH.style.left = (r.left + window.scrollX) + 'px';
       guideH.style.width = r.width + 'px';
-      guideH.dataset.tag = (Math.round(gy) === Math.round(Hc / 2) ? 'centre' : '');
+      guideH.dataset.tag = tagY || (Math.round(gy) === Math.round(Hc / 2) ? 'centre' : '');
       guideH.hidden = false;
     } else guideH.hidden = true;
   }
@@ -3794,7 +3816,8 @@
     if (!pendingDrag || drag) return;
     if (resize) { pendingDrag = null; return; } // a handle took over
     if (ev.pointerId !== pendingDrag.ev.pointerId) return;
-    if (Math.abs(ev.clientX - pendingDrag.x) + Math.abs(ev.clientY - pendingDrag.y) < 4) return;
+    // a twitch is a click: under 4px of travel nothing moves (10 for a finger)
+    if (Math.abs(ev.clientX - pendingDrag.x) + Math.abs(ev.clientY - pendingDrag.y) < (ev.pointerType === 'touch' ? 10 : 4)) return;
     var pd = pendingDrag;
     pendingDrag = null;
     beginDrag(pd.ev);
@@ -17747,13 +17770,23 @@
       var e = sec.els[sel.i];
       var dir = DIRS.filter(function (d) { return d.d === hBtn.dataset.d; })[0];
       var candX = [0, W, W / 2, MARGIN, W - MARGIN], candY = [0];
+      // size matching (the Canva teardown's one 'beats Canva'): a neighbour's
+      // width and height are magnets too, so 'make the cards even' is a
+      // resize that stops by itself — and the guide says why it stopped
+      var sizeTagX = {}, sizeTagY = {};
       sec.els.forEach(function (o) {
         if (o === e) return;
         candX.push(o.x, o.x + o.w, o.x + o.w / 2);
         candY.push(o.y, o.y + o.h, o.y + o.h / 2);
+        if (dir.dx === 1) { candX.push(e.x + o.w); sizeTagX[e.x + o.w] = 'same width'; }
+        if (dir.dx === -1) { candX.push(e.x + e.w - o.w); sizeTagX[e.x + e.w - o.w] = 'same width'; }
+        if (fixedHeight(e) && fixedHeight(o)) {
+          if (dir.dy === 1) { candY.push(e.y + o.h); sizeTagY[e.y + o.h] = 'same height'; }
+          if (dir.dy === -1) { candY.push(e.y + e.h - o.h); sizeTagY[e.y + e.h - o.h] = 'same height'; }
+        }
       });
       resize = { sec: sec, i: sel.i, dir: dir, px: ev.clientX, py: ev.clientY,
-        x: e.x, y: e.y, w: e.w, h: e.h, candX: candX, candY: candY };
+        x: e.x, y: e.y, w: e.w, h: e.h, candX: candX, candY: candY, sizeTagX: sizeTagX, sizeTagY: sizeTagY };
       sec.sectionEl.classList.add('gogh-grid-live');
       document.documentElement.classList.add('gogh-dragging');
       drag = null;
@@ -17838,7 +17871,7 @@
           if (e.fitW) refitText(sec, resize.i); // the words grow WITH the box, live
           measureTextHeights(sec);
           if (isText(e) && reflowPush(sec, e, oldH)) resolveAndApply(sec);
-          showGuides(sec, gx, gy);
+          showGuides(sec, gx, gy, gx != null ? resize.sizeTagX[gx] : null, gy != null ? resize.sizeTagY[gy] : null);
           placeHandles(sec, resize.i);
         });
       }
@@ -18595,13 +18628,21 @@
     var step = ev.shiftKey ? BASE : 1;
     var sec = sel.sec;
     var e = sec.els[sel.i];
-    if (ev.key === 'ArrowLeft') e.x = Math.max(0, e.x - step);
+    var jumped = null;
+    if (ev.altKey) {
+      // Alt + arrow: to the next magnet in that direction, so the keyboard
+      // reaches every position the mouse can (the mouse's own candidates:
+      // sibling edges and centres, the section's edges, centre and margin)
+      jumped = nextMagnet(sec, e, ev.key);
+      if (jumped) { e.x = jumped.x; e.y = jumped.y; }
+    } else if (ev.key === 'ArrowLeft') e.x = Math.max(0, e.x - step);
     else if (ev.key === 'ArrowRight') e.x = Math.min(W - e.w, e.x + step);
     else if (ev.key === 'ArrowUp') e.y = Math.max(0, e.y - step);
     else if (ev.key === 'ArrowDown') e.y = e.y + step;
     ev.preventDefault();
     resolveAndApply(sec);
     placeHandles(sel.sec, sel.i);
+    if (jumped) { showGuides(sec, jumped.gx, jumped.gy); clearTimeout(nudgeGuideTimer); nudgeGuideTimer = setTimeout(hideGuides, 900); }
     // same spacing feedback as dragging, fading after the last press —
     // badges go blue when a nudge lands on equal gaps
     var nbK = neighbors(sec, e);
@@ -18614,7 +18655,30 @@
     textTimer = setTimeout(pushState, 500);
     refreshChip(); // history push is debounced, the chip shouldn't be
   });
-  var nudgeDistTimer = null;
+  var nudgeDistTimer = null, nudgeGuideTimer = null;
+  function nextMagnet(sec, e, key) {
+    var horiz = key === 'ArrowLeft' || key === 'ArrowRight';
+    var fwd = key === 'ArrowRight' || key === 'ArrowDown';
+    var H = designH(sec.els, sec.minH);
+    var cands = horiz ? [0, W, W / 2, MARGIN, W - MARGIN] : [0, H, H / 2];
+    sec.els.forEach(function (o) {
+      if (o === e) return;
+      if (horiz) cands.push(o.x, o.x + o.w, o.x + o.w / 2);
+      else cands.push(o.y, o.y + o.h, o.y + o.h / 2);
+    });
+    var span = horiz ? e.w : e.h, cur = horiz ? e.x : e.y, max = horiz ? W - e.w : Infinity;
+    var best = null, bestG = null;
+    cands.forEach(function (c) {
+      [0, span / 2, span].forEach(function (off) {
+        var v = Math.round(c - off);
+        if (v < 0 || v > max) return;
+        if (fwd ? v <= cur + 0.5 : v >= cur - 0.5) return;
+        if (best === null || (fwd ? v < best : v > best)) { best = v; bestG = c; }
+      });
+    });
+    if (best === null) return null;
+    return horiz ? { x: best, y: e.y, gx: bestG, gy: null } : { x: e.x, y: best, gx: null, gy: bestG };
+  }
 
   // ---------- toolbar actions ----------
   editBtn.addEventListener('click', function () {
