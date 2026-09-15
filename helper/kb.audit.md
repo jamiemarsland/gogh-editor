@@ -1,4 +1,4 @@
-# Knowledge-base audit — plugin v0.99.541
+# Knowledge-base audit — plugin v0.99.542
 
 _13 finding(s) suppressed by `kb.audit-ignore.txt`._
 
@@ -109,5 +109,6 @@ The source has something the prose never explains. The bot knows the name from t
 
 Use this as the checklist for updating the prose — and as a sanity check on the release itself.
 
-- version: 0.99.540 → 0.99.541
-- removed UI label: "↶ Back"
+- version: 0.99.541 → 0.99.542
+- added UI label: "It is already on your site — this closes the panel"
+- added UI label: "Keep this"

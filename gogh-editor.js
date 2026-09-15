@@ -16414,21 +16414,32 @@
             '<span class="gogh-remixwearing-name"></span><span class="gogh-remixwearing-detail"></span></span>' +
             // the count is context, not a ceiling (James: "not suggesting we limit, just give context")
             '<span class="gogh-remixwearing-foot"><span class="gogh-remixwearing-count"></span>' +
-            '<button type="button" class="gogh-remixback" title="The look before this one">Back</button></span></div>';
+            '<span class="gogh-remixwearing-ways"><button type="button" class="gogh-remixback" title="The look before this one">Back</button>' +
+            // closure, not a decision: the look is already on; Keep just says so and closes the panel
+            '<button type="button" class="gogh-remixkeep" title="It is already on your site — this closes the panel">Keep this</button></span></span></div>';
         top.appendChild(wrap);
         var wearingBox = wrap.querySelector('.gogh-remixwearing');
         var backBtn = wrap.querySelector('.gogh-remixback');
+        var hint = panel.querySelector('.gogh-panel-hint');
         remixWatch('panel', function () {
           if (!document.body.contains(wearingBox)) return; // the panel moved on
           var w = remixWorn();
           if (!w) { wearingBox.hidden = true; return; }
           wearingBox.hidden = false;
+          // after the first roll the hint says the thing nobody said: it is already on
+          if (hint) hint.textContent = w.origin ? 'Tap Remix to try a new look. Tap again for another.' : 'Like it? It\u2019s already on your site. Tap again for another, or go back.';
           wearingBox.querySelector('.gogh-remixwearing-name').textContent = w.origin ? (w.title || 'the look you started with') : w.cand.name;
           wearingBox.querySelector('.gogh-remixwearing-detail').textContent = w.origin ? '' : (w.cand.detail || '');
           wearingBox.querySelector('.gogh-remixwearing-count').textContent = w.origin ? 'Where you started' : 'Look ' + remixAt;
           backBtn.disabled = remixAt <= 0;
         });
         backBtn.addEventListener('click', function () { remixBack(); });
+        wrap.querySelector('.gogh-remixkeep').addEventListener('click', function () {
+          var w = remixWorn();
+          closePanel();
+          var said = w && !w.origin && w.cand ? (w.cand.name === 'Your brand' ? 'your brand' + (w.cand.detail ? ', ' + w.cand.detail : '') : w.cand.name) : '';
+          toast(said ? 'Kept. Your site wears ' + said + '.' : 'Kept.', { ttl: 3500 });
+        });
         wrap.querySelector('.gogh-remixbtn').addEventListener('click', function () { remixRoll(); });
         remixSayWearing();
       })();
