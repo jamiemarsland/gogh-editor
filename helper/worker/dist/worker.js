@@ -441,7 +441,14 @@ const UT_REPORT = `<!doctype html>
       var w = wrap.data;
       html += '<div class="wrapq"><span class="soft">Happy with the site</span><span>' + esc(w.happy) + ' / 5</span><span class="soft">Could finish it</span><span>' + esc(w.confident) + '</span><span class="soft">How editing felt</span><span class="note">' + esc(w.feel) + '</span><span class="soft">What confused them</span><span class="note">' + esc(w.confused) + '</span><span class="soft">Minutes</span><span>' + esc(w.minutes) + '</span></div>';
     } else html += '<p class="soft">No wrap-up yet.</p>';
-    if (errs.length) html += '<p class="err">' + errs.length + ' script error(s): ' + esc(errs.map(function (e) { return e.note; }).join(' · ').slice(0, 400)) + '</p>';
+    if (errs.length) {
+      // the same error nine times is one line with a count, and each
+      // carries the task it happened during, so a WordPress script's
+      // error on an admin screen is not mistaken for gogh's
+      var seen = {}, order = [];
+      errs.forEach(function (e) { var k = e.note; if (!seen[k]) { seen[k] = { n: 0, tasks: [] }; order.push(k); } seen[k].n++; if (e.task && seen[k].tasks.indexOf(e.task) < 0) seen[k].tasks.push(e.task); });
+      html += '<p class="err">' + errs.length + ' script error(s):</p><ul class="err">' + order.map(function (k) { return '<li>' + esc(k) + (seen[k].n > 1 ? ' ×' + seen[k].n : '') + (seen[k].tasks.length ? ' <span class="soft">during ' + esc(seen[k].tasks.join(', ')) + '</span>' : '') + '</li>'; }).join('') + '</ul>';
+    }
     html += '</div>';
     var holder = document.getElementById('d-' + row.id);
     holder.innerHTML = html;

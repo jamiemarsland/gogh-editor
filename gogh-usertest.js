@@ -35,8 +35,11 @@
       .then(function () { sending = false; if (state.queue.length) setTimeout(flush, 4000); });
   }
   window.addEventListener('error', function (ev) {
-    var msg = ev && ev.message ? String(ev.message).slice(0, 300) : 'error';
-    send('error', currentId(), msg);
+    var msg = ev && ev.message ? String(ev.message).slice(0, 220) : 'error';
+    // where it came from matters more than the message: the first report
+    // said "reading 'theme'" nine times and nothing about whose script
+    var where = ev && ev.filename ? String(ev.filename).replace(/^.*\//, '').split('?')[0].slice(0, 60) + ':' + (ev.lineno || 0) : '';
+    send('error', currentId(), msg + (where ? ' @ ' + where : ''));
   });
 
   // ---- the card
