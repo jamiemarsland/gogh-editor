@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Gogh Editor
  * Description: A freeform canvas for WordPress — drag anything anywhere on your live page; Gogh publishes it back as clean, responsive core blocks that keep working even if the plugin is deactivated.
- * Version: 0.99.567
+ * Version: 0.99.568
  * Author: Jamie Marsland
  * Author URI: https://pootlepress.com
  * License: GPLv2 or later
@@ -14,7 +14,7 @@
 
 defined( 'ABSPATH' ) || exit;
 
-define( 'GOGH_VERSION', '0.99.567' );
+define( 'GOGH_VERSION', '0.99.568' );
 
 /**
  * gogh/section — a first-class block. STATIC save (no render_callback), so
@@ -25,7 +25,7 @@ add_action( 'init', function () {
 		'gogh-block',
 		plugins_url( 'gogh-block.js', __FILE__ ),
 		array( 'wp-blocks', 'wp-element', 'wp-block-editor' ),
-		'0.99.567-chrome',
+		'0.99.568-chrome',
 		true
 	);
 	register_block_type( 'gogh/section', array(
@@ -558,9 +558,9 @@ add_action( 'wp_enqueue_scripts', function () {
 	if ( ! $post || ! current_user_can( 'edit_post', $post->ID ) ) {
 		return;
 	}
-	wp_register_script( 'gogh-compose', plugins_url( 'gogh-compose.js', __FILE__ ), array(), '0.99.567-chrome', true );
-	wp_enqueue_script( 'gogh-write', plugins_url( 'gogh-write.js', __FILE__ ), array( 'gogh-compose' ), '0.99.567-chrome', true );
-	wp_enqueue_style( 'gogh-write', plugins_url( 'gogh-write.css', __FILE__ ), array(), '0.99.567-chrome' );
+	wp_register_script( 'gogh-compose', plugins_url( 'gogh-compose.js', __FILE__ ), array(), '0.99.568-chrome', true );
+	wp_enqueue_script( 'gogh-write', plugins_url( 'gogh-write.js', __FILE__ ), array( 'gogh-compose' ), '0.99.568-chrome', true );
+	wp_enqueue_style( 'gogh-write', plugins_url( 'gogh-write.css', __FILE__ ), array(), '0.99.568-chrome' );
 	wp_localize_script( 'gogh-write', 'GOGHWRITE', array(
 		'postId'  => $post->ID,
 		'restUrl' => esc_url_raw( rest_url() ),
@@ -3539,7 +3539,7 @@ add_action( 'rest_api_init', function () {
 			return current_user_can( 'edit_posts' );
 		},
 		'callback'            => function () {
-			return array( 'build' => '0.99.567-chrome' );
+			return array( 'build' => '0.99.568-chrome' );
 		},
 	) );
 	register_rest_route( 'gogh/v1', '/starter', array(
@@ -4394,8 +4394,8 @@ add_action( 'admin_enqueue_scripts', function ( $hook ) {
 			$globals[] = $tax->attribute_label;
 		}
 	}
-	wp_enqueue_script( 'gogh-admin', plugins_url( 'gogh-admin.js', __FILE__ ), array(), '0.99.567-chrome', true );
-	wp_enqueue_style( 'gogh-admin', plugins_url( 'gogh-admin.css', __FILE__ ), array(), '0.99.567-chrome' );
+	wp_enqueue_script( 'gogh-admin', plugins_url( 'gogh-admin.js', __FILE__ ), array(), '0.99.568-chrome', true );
+	wp_enqueue_style( 'gogh-admin', plugins_url( 'gogh-admin.css', __FILE__ ), array(), '0.99.568-chrome' );
 	wp_localize_script( 'gogh-admin', 'GOGH_ADMIN', array(
 		'restUrl'   => esc_url_raw( rest_url( 'wc/v3/' ) ),
 		'nonce'     => wp_create_nonce( 'wp_rest' ),
@@ -5496,13 +5496,164 @@ function gogh_splash_css() {
 		'.gogh-glass-kicker { font-size: 0.78rem; font-weight: 700; letter-spacing: 0.16em; text-transform: uppercase; opacity: 0.6; margin-bottom: 0.4rem; }';
 }
 
+// does this page carry a thing? singular pages answer from their own
+// content; lists of posts cannot know, so they say yes and load it
+function gogh_page_has( $needle ) {
+	if ( ! is_singular() ) {
+		return true;
+	}
+	$p = get_queried_object();
+	return ! $p || ! isset( $p->post_content ) || false !== strpos( (string) $p->post_content, $needle );
+}
+// ---------- pictures published light ----------------------------------------
+// gogh's pictures leave the editor as plain <img src> — a starter's photos,
+// a card's picture — with no attachment id and no size, so WordPress could
+// not give them srcset, sizes, lazy loading or a fetch priority: the 2560px
+// original went to every phone (the speed pass: a photographer's home was
+// 3MB, LCP 7.8s). This pass runs on the content just before core's own
+// (priority 12): it finds the attachment behind each upload URL, adds the
+// wp-image class and the intrinsic size, and core does the rest. A
+// section's background photo gets a phone-sized variant under a media
+// query, and the first section's is preloaded. Nothing to republish — it
+// reaches every page ever published.
+function gogh_media_id_for_url( $url ) {
+	static $seen = array();
+	$key = md5( $url );
+	if ( isset( $seen[ $key ] ) ) {
+		return $seen[ $key ];
+	}
+	$map = get_transient( 'gogh_img_ids' );
+	if ( ! is_array( $map ) ) {
+		$map = array();
+	}
+	if ( isset( $map[ $key ] ) ) {
+		$seen[ $key ] = (int) $map[ $key ];
+		return $seen[ $key ];
+	}
+	$base = preg_replace( '/-\d+x\d+(?=\.[a-z0-9]+$)/i', '', $url );
+	$id   = attachment_url_to_postid( $base );
+	if ( ! $id && $base !== $url ) {
+		$id = attachment_url_to_postid( $url );
+	}
+	$map[ $key ] = (int) $id;
+	if ( count( $map ) > 400 ) {
+		$map = array_slice( $map, -300, null, true );
+	}
+	set_transient( 'gogh_img_ids', $map, DAY_IN_SECONDS );
+	$seen[ $key ] = (int) $id;
+	return (int) $id;
+}
+function gogh_light_images( $html ) {
+	if ( is_admin() || ! is_string( $html ) || '' === $html ) {
+		return $html;
+	}
+	$up   = wp_get_upload_dir();
+	$base = $up['baseurl'];
+	if ( false !== strpos( $html, '<img' ) ) {
+		$html = preg_replace_callback( '/<img\b[^>]*>/i', function ( $m ) use ( $base ) {
+			$tag = $m[0];
+			$has_id  = (bool) preg_match( '/\bwp-image-\d+/', $tag );
+			$has_dim = preg_match( '/\swidth=/', $tag ) && preg_match( '/\sheight=/', $tag );
+			if ( $has_id && $has_dim ) {
+				return $tag;
+			}
+			if ( ! preg_match( '/\ssrc=["\']([^"\']+)["\']/', $tag, $sm ) || 0 !== strpos( $sm[1], $base ) ) {
+				return $tag;
+			}
+			$src = $sm[1];
+			$id  = preg_match( '/\bwp-image-(\d+)/', $tag, $im ) ? (int) $im[1] : gogh_media_id_for_url( $src );
+			if ( ! $id ) {
+				return $tag;
+			}
+			$meta = wp_get_attachment_metadata( $id );
+			if ( ! $has_id ) {
+				$tag = preg_match( '/\sclass=["\']/', $tag )
+					? preg_replace( '/\sclass=(["\'])/', ' class=$1wp-image-' . $id . ' ', $tag, 1 )
+					: preg_replace( '/^<img/i', '<img class="wp-image-' . $id . '"', $tag, 1 );
+			}
+			if ( ! $has_dim && is_array( $meta ) && ! empty( $meta['width'] ) && ! empty( $meta['height'] ) ) {
+				$w = (int) $meta['width'];
+				$h = (int) $meta['height'];
+				if ( preg_match( '/-(\d+)x(\d+)\.[a-z0-9]+$/i', $src, $dm ) ) {
+					$w = (int) $dm[1];
+					$h = (int) $dm[2];
+				}
+				$tag = preg_replace( '/\swidth=["\'][^"\']*["\']|\sheight=["\'][^"\']*["\']/', '', $tag );
+				$tag = preg_replace( '/^<img/i', '<img width="' . $w . '" height="' . $h . '"', $tag, 1 );
+			}
+			return $tag;
+		}, $html );
+	}
+	// a section's background photo: the same picture at 'large' on phones
+	if ( false !== strpos( $html, 'gogh-style' ) && false !== strpos( $html, 'url(' ) ) {
+		$html = preg_replace_callback( '/<style class="gogh-style">(.*?)<\/style>/s', function ( $m ) use ( $base ) {
+			$css   = $m[1];
+			$extra = '';
+			if ( preg_match_all( '/([^{}]+)\{([^{}]*url\(["\']?(' . preg_quote( $base, '/' ) . '[^"\')]+)["\']?\)[^{}]*)\}/', $css, $rules, PREG_SET_ORDER ) ) {
+				foreach ( $rules as $r ) {
+					$sel = trim( $r[1] ); // the section's rule, or its tint layer's ::before — both carry the url
+					if ( '' === $sel || '@' === $sel[0] ) {
+						continue;
+					}
+					$src = $r[3];
+					$id  = gogh_media_id_for_url( $src );
+					if ( ! $id ) {
+						continue;
+					}
+					$large = wp_get_attachment_image_src( $id, 'large' );
+					if ( ! $large || empty( $large[0] ) || $large[0] === $src || (int) $large[1] >= 1400 ) {
+						continue;
+					}
+					$extra .= '@media (max-width: 700px) { ' . $sel . ' { ' . str_replace( $src, $large[0], $r[2] ) . ' } }';
+				}
+			}
+			return $extra ? '<style class="gogh-style">' . $css . $extra . '</style>' : $m[0];
+		}, $html );
+	}
+	return $html;
+}
+add_filter( 'the_content', 'gogh_light_images', 11 );
+
+// the first section's background photo is the largest thing on most gogh
+// homes, and the browser only finds it after parsing the page's CSS: say
+// so up front, the phone size for phones and the full size for the rest
+add_action( 'wp_head', function () {
+	if ( ! is_singular() ) {
+		return;
+	}
+	$p = get_queried_object();
+	if ( ! $p || empty( $p->post_content ) || false === strpos( $p->post_content, 'gogh-style' ) ) {
+		return;
+	}
+	$up   = wp_get_upload_dir();
+	$base = $up['baseurl'];
+	if ( ! preg_match( '/<style class="gogh-style">.*?url\(["\']?(' . preg_quote( $base, '/' ) . '[^"\')]+\.(?:jpe?g|png|webp|avif|gif))["\']?\)/s', $p->post_content, $m ) ) {
+		return;
+	}
+	$src = esc_url( $m[1] );
+	$id  = gogh_media_id_for_url( $m[1] );
+	$large = $id ? wp_get_attachment_image_src( $id, 'large' ) : null;
+	if ( $large && ! empty( $large[0] ) && $large[0] !== $m[1] && (int) $large[1] < 1400 ) {
+		echo '<link rel="preload" as="image" href="' . esc_url( $large[0] ) . '" media="(max-width: 700px)" fetchpriority="high">' . "\n";
+		echo '<link rel="preload" as="image" href="' . $src . '" media="(min-width: 701px)" fetchpriority="high">' . "\n";
+	} else {
+		echo '<link rel="preload" as="image" href="' . $src . '" fetchpriority="high">' . "\n";
+	}
+}, 2 );
+
 // ✦ looks and motion serve EVERY visitor on every page — no gate. A post
 // wearing Magazine must read as Magazine logged-out, and the site's gait
 // is site-wide; both packs are a few KB of pure CSS.
 add_action( 'wp_enqueue_scripts', function () {
-	wp_register_style( 'gogh-looks', false, array(), '0.99.567-chrome' );
+	wp_register_style( 'gogh-looks', false, array(), '0.99.568-chrome' );
 	wp_enqueue_style( 'gogh-looks' );
-	wp_add_inline_style( 'gogh-looks', gogh_reading_style_css() . gogh_motion_css() . gogh_blog_style_css() );
+	// the reading looks dress single posts; the blog looks dress lists of
+	// posts (the posts page, archives, a page carrying a posts rail); motion
+	// is site-wide. Each pack loads only where it can apply (the speed pass:
+	// 30KB of look CSS rode on every page, a text page paid for it all)
+	$reading = is_singular( 'post' ) || ( is_singular() && isset( $_GET['gogh-look'] ) ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- presentation-only preview
+	$lists   = is_home() || is_archive() || is_search() || ( is_singular() && has_block( 'core/query' ) );
+	wp_add_inline_style( 'gogh-looks', ( $reading ? gogh_reading_style_css() : '' ) . gogh_motion_css() . ( $lists ? gogh_blog_style_css() : '' ) );
 
 	// the Blog style chooser pill retired (James: 'remove the pill for the
 	// posts page - lets have consistency') — the admin bar's Blog layout
@@ -5540,10 +5691,10 @@ add_action( 'wp_enqueue_scripts', function () {
 
 	// for every visitor: neutralise theme spacing around gogh sections, even
 	// on pages whose stored stylesheets predate this rule
-	wp_register_style( 'gogh-base', false, array(), '0.99.567-chrome' );
+	wp_register_style( 'gogh-base', false, array(), '0.99.568-chrome' );
 	// (the splash presentation itself lives in gogh_splash_css(), shared with
 	// the block editor — a wall in Gutenberg must look like a wall)
-	wp_register_script( 'gogh-view', false, array(), '0.99.567-chrome', true );
+	wp_register_script( 'gogh-view', false, array(), '0.99.568-chrome', true );
 	wp_enqueue_script( 'gogh-view' );
 	wp_add_inline_script( 'gogh-view',
 		// mega menu panels: hover opens with intent on fine pointers; the chevron
@@ -5566,163 +5717,171 @@ add_action( 'wp_enqueue_scripts', function () {
 		'document.addEventListener("keydown",function(ev){if(ev.key==="Escape"&&openLi)setOpen(openLi,false);});' .
 		'window.addEventListener("resize",function(){if(openLi)setOpen(openLi,false);},{passive:true});})();'
 	);
-	wp_add_inline_script( 'gogh-view',
-		// the Manual look's contents: built from the post's own h2/h3, ids
-		// minted where missing, the current section marked as you read.
-		// Exposed as window.goghManualToc(root) so the suite can drive it.
-		'(function(){function slug(t){return (t||"").toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/^-+|-+$/g,"").slice(0,60)||"section";}' .
-		'window.goghManualToc=function(root){if(!root)return null;var heads=[].slice.call(root.querySelectorAll(":scope > h2, :scope > h3, :scope > .wp-block-group h2, :scope > .wp-block-group h3")).filter(function(h){return (h.textContent||"").trim();});' .
-		'if(heads.length<2)return null;var old=root.querySelector(":scope > .gogh-toc");if(old)old.remove();var seen={};' .
-		'heads.forEach(function(h){if(!h.id){var b=slug(h.textContent),id=b,n=2;while(seen[id]||document.getElementById(id)){id=b+"-"+(n++);}h.id=id;}seen[h.id]=1;});' .
-		'var nav=document.createElement("nav");nav.className="gogh-toc";nav.setAttribute("aria-label","On this page");' .
-		'nav.innerHTML="<span class=\"gogh-toc-title\">On this page</span>";var ol=document.createElement("ol");' .
-		'var calm=window.matchMedia&&window.matchMedia("(prefers-reduced-motion: reduce)").matches;' .
-		'heads.forEach(function(h){var li=document.createElement("li");li.className="gogh-toc-"+h.tagName.toLowerCase();var a=document.createElement("a");a.href="#"+h.id;a.textContent=h.textContent.trim();' .
-		'a.addEventListener("click",function(ev){ev.preventDefault();h.scrollIntoView({block:"start",behavior:calm?"auto":"smooth"});try{history.replaceState(null,"","#"+h.id);}catch(e){}});li.appendChild(a);ol.appendChild(li);});' .
-		'nav.appendChild(ol);root.insertBefore(nav,root.firstChild);root.classList.add("gogh-has-toc");' .
-		'var place=function(){var first=[].slice.call(root.children).filter(function(c){return c!==nav;})[0];var left=first?first.getBoundingClientRect().left-252:0;' .
-		'if(left>=72){nav.classList.add("gogh-toc-side");nav.classList.remove("gogh-toc-boxed");nav.style.left=Math.round(left)+"px";}else{nav.classList.remove("gogh-toc-side");nav.classList.add("gogh-toc-boxed");nav.style.left="";}};' .
-		'place();window.addEventListener("resize",place,{passive:true});' .
-		'if(window.IntersectionObserver){var links={};[].slice.call(ol.querySelectorAll("a")).forEach(function(a){links[a.getAttribute("href").slice(1)]=a;});var here=null;' .
-		'var mark=function(id){if(here)here.classList.remove("is-here");here=links[id]||null;if(here)here.classList.add("is-here");};' .
-		'var io=new IntersectionObserver(function(es){es.forEach(function(e){if(e.isIntersecting)mark(e.target.id);});},{rootMargin:"-10% 0px -70% 0px",threshold:0});heads.forEach(function(h){io.observe(h);});mark(heads[0].id);}' .
-		'return nav;};' .
-		'var html=document.documentElement;if(html.classList.contains("gogh-editing"))return;' .
-		// the writing room: the same contents, read-only and OUTSIDE the content
-		// (no ids minted, nothing for the serializer to meet), placed beside
-		// the column and rebuilt as the words change or the look auditions
-		'if(document.body.classList.contains("gogh-writing")){var room=null,timer=null;' .
-		'var build=function(){var root=document.querySelector(".entry-content, .wp-block-post-content");if(room){room.remove();room=null;}' .
-		'if(!root||!document.body.classList.contains("gogh-read-manual"))return;' .
-		'var heads=[].slice.call(root.querySelectorAll("h2, h3")).filter(function(h){return (h.textContent||"").trim();});if(heads.length<2)return;' .
-		'var first=root.querySelector("p, h2, h3, ul, ol, figure");var colLeft=(first||root).getBoundingClientRect().left;var left=colLeft-252;' .
-		'var panel=document.querySelector(".gogh-w-stylepop");if(panel&&!panel.hidden){var pr=panel.getBoundingClientRect();if(pr.right>left-16)left=pr.right+24;}' .
-		'if(left<72||left+220>colLeft-16)return;' .
-		'room=document.createElement("nav");room.className="gogh-toc gogh-toc-room";room.setAttribute("aria-hidden","true");room.contentEditable="false";room.style.left=Math.round(left)+"px";' .
-		'room.innerHTML="<span class=\"gogh-toc-title\">On this page</span>";var ol=document.createElement("ol");' .
-		'heads.forEach(function(h){var li=document.createElement("li");li.className="gogh-toc-"+h.tagName.toLowerCase();var a=document.createElement("a");a.textContent=h.textContent.trim();' .
-		'a.addEventListener("mousedown",function(ev){ev.preventDefault();h.scrollIntoView({block:"start",behavior:(window.matchMedia&&window.matchMedia("(prefers-reduced-motion: reduce)").matches)?"auto":"smooth"});});li.appendChild(a);ol.appendChild(li);});' .
-		'room.appendChild(ol);document.body.appendChild(room);};' .
-		'var later=function(){clearTimeout(timer);timer=setTimeout(build,350);};' .
-		'new MutationObserver(later).observe(document.body,{attributes:true,attributeFilter:["class"]});' .
-		'document.addEventListener("input",later,true);window.addEventListener("resize",later,{passive:true});' .
-		'document.addEventListener("gogh:ready",later);setTimeout(build,600);return;}' .
-		'if(!document.body.classList.contains("gogh-read-manual"))return;' .
-		'window.goghManualToc(document.querySelector(".entry-content, .wp-block-post-content"));})();'
-	);
-	wp_add_inline_script( 'gogh-view',
-		// video backgrounds: a pause control per section (moving content that
-		// starts on its own must be stoppable), and no autoplay at all for
-		// people who asked their system for less motion
-		'(function(){var rm=window.matchMedia&&window.matchMedia("(prefers-reduced-motion: reduce)").matches;' .
-		'document.querySelectorAll(".gogh-section > .gogh-bgvideo video").forEach(function(v){' .
-		'var sec=v.closest(".gogh-section");if(!sec)return;' .
-		'if(rm){v.removeAttribute("autoplay");try{v.pause();}catch(e){}return;}' .
-		'var b=document.createElement("button");b.type="button";b.className="gogh-bgvideo-btn";' .
-		'var paint=function(){var on=!v.paused;b.setAttribute("aria-label",on?"Pause background video":"Play background video");' .
-		'b.innerHTML=on?\'<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><rect x="6" y="5" width="4" height="14" rx="1"/><rect x="14" y="5" width="4" height="14" rx="1"/></svg>\'' .
-		':\'<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5l11 7-11 7z"/></svg>\';};' .
-		'b.addEventListener("click",function(){if(v.paused){var p=v.play();if(p&&p.catch)p.catch(function(){});}else{v.pause();}paint();});' .
-		'v.addEventListener("play",paint);v.addEventListener("pause",paint);paint();sec.appendChild(b);' .
-		'var p0=v.play&&v.play();if(p0&&p0.catch)p0.catch(function(){paint();});});})();'
-	);
-	wp_add_inline_script( 'gogh-view',
-		// carousel arrows + autoplay are VIEW-TIME: never stored, so saved
-		// content stays pure core blocks (plugin off = clean snap strip)
-		'(function(){var bindLightbox=function(container,slides){' .
-		'var lbAt=-1;var lb=null;' .
-		'var lbShow=function(k){lbAt=(k+slides.length)%slides.length;var im=slides[lbAt].querySelector("img");var cp=slides[lbAt].querySelector("figcaption");' .
-		'lb.querySelector("img").src=im?im.src:"";lb.querySelector("figcaption").textContent=cp?cp.textContent:"";};' .
-		'var lbKeys;var lbClose=function(){if(lb){lb.remove();lb=null;document.removeEventListener("keydown",lbKeys);}};' .
-		'lbKeys=function(ev){if(ev.key==="Escape")lbClose();if(ev.key==="ArrowRight")lbShow(lbAt+1);if(ev.key==="ArrowLeft")lbShow(lbAt-1);};' .
-		'var lbOpen=function(k){lb=document.createElement("div");lb.className="gogh-lbx";lb.setAttribute("role","dialog");lb.setAttribute("aria-label","Image viewer");' .
-		'lb.innerHTML=\'<img alt=""/><figcaption></figcaption>\'+' .
-		'\'<button type="button" class="gogh-crsl-btn gogh-lbx-l" aria-label="Previous">\u2039</button>\'+' .
-		'\'<button type="button" class="gogh-crsl-btn gogh-lbx-r" aria-label="Next">\u203a</button>\'+' .
-		'\'<button type="button" class="gogh-crsl-btn gogh-lbx-x" aria-label="Close">\u2715</button>\';' .
-		'lb.addEventListener("click",function(ev){if(ev.target===lb)lbClose();});' .
-		'lb.querySelector(".gogh-lbx-l").addEventListener("click",function(){lbShow(lbAt-1);});' .
-		'lb.querySelector(".gogh-lbx-r").addEventListener("click",function(){lbShow(lbAt+1);});' .
-		'lb.querySelector(".gogh-lbx-x").addEventListener("click",lbClose);' .
-		'document.addEventListener("keydown",lbKeys);document.body.appendChild(lb);lbShow(k);};' .
-		'slides.forEach(function(sl,k){var im=sl.querySelector("img");if(!im)return;im.style.cursor="zoom-in";' .
-		'im.addEventListener("click",function(){lbOpen(k);});});};' .
-		'function init(){' .
-		'document.querySelectorAll(".gogh-wall.gogh-crsl-light").forEach(function(wall){' .
-		'if(wall.__gogh)return;wall.__gogh=1;' .
-		'bindLightbox(wall,[].slice.call(wall.querySelectorAll(".gogh-brick")));});' .
-		'document.querySelectorAll(".gogh-carousel").forEach(function(strip){' .
-		'if(strip.__gogh)return;strip.__gogh=1;' .
-		'var slides=[].slice.call(strip.querySelectorAll(".gogh-slide"));if(slides.length<2)return;' .
-		'var shell=strip.parentElement;' .
-		'if(!shell||!shell.classList.contains("gogh-crsl-shell")){shell=document.createElement("div");shell.className="gogh-crsl-shell";' .
-		// the shell must WEAR the strip's alignment or constrained layout
-		// squeezes a wide carousel back into the text column
-		'["alignwide","alignfull"].forEach(function(a){if(strip.classList.contains(a))shell.classList.add(a);});' .
-		'strip.parentNode.insertBefore(shell,strip);shell.appendChild(strip);}' .
-		'if(shell.querySelector(".gogh-crsl-nav"))return;' .
-		'var nav=document.createElement("div");nav.className="gogh-crsl-nav";' .
-		'var go=function(k){var s0=slides[Math.max(0,Math.min(slides.length-1,k))];if(s0)strip.scrollTo({left:s0.offsetLeft-strip.offsetLeft-(strip.clientWidth-s0.clientWidth)/2,behavior:"smooth"});};' .
-		'var current=function(){var mid=strip.scrollLeft+strip.clientWidth/2,best=0,bd=1e9;slides.forEach(function(sl,k){var c=sl.offsetLeft-strip.offsetLeft+sl.clientWidth/2,d=Math.abs(c-mid);if(d<bd){bd=d;best=k;}});return best;};' .
-		'var prev=document.createElement("button");prev.type="button";prev.className="gogh-crsl-btn";prev.setAttribute("aria-label","Previous slide");prev.textContent="\u2039";' .
-		'prev.addEventListener("click",function(){var c=current();go(c<=0?slides.length-1:c-1);});nav.appendChild(prev);' .
-		'var dots=document.createElement("div");dots.className="gogh-crsl-dots";' .
-		'slides.forEach(function(sl,k){var d=document.createElement("button");d.type="button";d.className="gogh-crsl-dot"+(k===0?" is-here":"");d.setAttribute("aria-label","Slide "+(k+1));' .
-		'd.addEventListener("click",function(){go(k);});dots.appendChild(d);});nav.appendChild(dots);' .
-		'var next=document.createElement("button");next.type="button";next.className="gogh-crsl-btn";next.setAttribute("aria-label","Next slide");next.textContent="\u203a";' .
-		'next.addEventListener("click",function(){var c=current();go(c>=slides.length-1?0:c+1);});nav.appendChild(next);' .
-		'shell.appendChild(nav);' .
-		'var navMode=strip.classList.contains("gogh-crsl-nav-sides")?"sides":strip.classList.contains("gogh-crsl-nav-both")?"both":"below";' .
-		'if(navMode!=="below"){["l","r"].forEach(function(sd){var b=document.createElement("button");b.type="button";' .
-		'b.className="gogh-crsl-btn gogh-crsl-side gogh-crsl-side-"+sd;b.setAttribute("aria-label",sd==="l"?"Previous slide":"Next slide");' .
-		'b.textContent=sd==="l"?"\u2039":"\u203a";' .
-		'b.addEventListener("click",function(){var c=current();go(sd==="l"?(c<=0?slides.length-1:c-1):(c>=slides.length-1?0:c+1));});' .
-		'shell.insertBefore(b,strip);' .
-		'var fit=function(){b.style.top=(strip.offsetTop+strip.clientHeight/2)+"px";b.style.transform="translateY(-50%)";};fit();' .
-		'if(window.ResizeObserver)new ResizeObserver(fit).observe(strip);});' .
-		'if(navMode==="sides")nav.querySelectorAll(".gogh-crsl-btn").forEach(function(b2){b2.remove();});}' .
-		'if(strip.classList.contains("gogh-crsl-light"))bindLightbox(strip,slides);' .
-		'var syncT=null;strip.addEventListener("scroll",function(){if(syncT)return;syncT=requestAnimationFrame(function(){syncT=null;var c=current();' .
-		'[].forEach.call(dots.children,function(d,k){d.classList.toggle("is-here",k===c);});});},{passive:true});' .
-		'if(strip.classList.contains("gogh-crsl-auto")&&!matchMedia("(prefers-reduced-motion: reduce)").matches){' .
-		'var hold=0;["pointerenter","pointerdown","focusin"].forEach(function(t){shell.addEventListener(t,function(){hold=Date.now();});});' .
-		'shell.addEventListener("pointerleave",function(){hold=0;});' .
-		'setInterval(function(){if(document.hidden||(hold&&Date.now()-hold<6000))return;' .
-		'var c=current();go(c>=slides.length-1?0:c+1);},4200);}' .
-		'});}' .
-		// exposed so the write room can wake splashes it inserts or rebuilds
-		// — auditioning a carousel should not require publishing first
-		'window.__goghViewInit=init;' .
-		// smooth accordion + tab reveals ("kinda harsh and janky"). WAAPI on
-		// the just-revealed panel, AFTER core's toggle flips the hidden attr —
-		// CSS transitions and animations both freeze inside the accordion's
-		// content-visibility-skipped panel, but element.animate on a visible
-		// element is immune. Open animates (height sweep for the accordion, a
-		// fade-rise for tabs); close stays instant, which reads as snappy.
-		'if(!matchMedia("(prefers-reduced-motion: reduce)").matches){' .
-		'var ease="cubic-bezier(0.4, 0, 0.2, 1)";' .
-		// bubble phase, so core has already flipped hidden; queueMicrotask (not
-		// rAF — paused in hidden tabs, and the flip is synchronous anyway)
-		'document.addEventListener("click",function(ev){' .
-		'var accBtn=ev.target.closest&&ev.target.closest(".wp-block-accordion-heading button");' .
-		'if(accBtn){queueMicrotask(function(){' .
-		'var item=accBtn.closest(".wp-block-accordion-item");' .
-		'var p=item&&item.querySelector(".wp-block-accordion-panel");' .
-		'if(!p||p.hidden||!p.animate)return;' .
-		'var h=p.getBoundingClientRect().height;if(!h)return;' .
-		'p.style.overflow="clip";' .
-		'var a=p.animate([{height:"0px",opacity:0.35},{height:h+"px",opacity:1}],{duration:300,easing:ease});' .
-		'a.onfinish=a.oncancel=function(){p.style.overflow="";};' .
-		'});return;}' .
-		'var tabBtn=ev.target.closest&&ev.target.closest(".wp-block-tab-list button, .wp-block-tab-list [role=\'tab\']");' .
-		'if(tabBtn){queueMicrotask(function(){' .
-		'var tabs=tabBtn.closest(".wp-block-tabs");' .
-		'var p2=tabs&&tabs.querySelector(".wp-block-tab-panel:not([hidden])");' .
-		'if(p2&&p2.animate)p2.animate([{opacity:0,translate:"0 8px"},{opacity:1,translate:"0 0"}],{duration:260,easing:ease});' .
-		'});}' .
-		'},false);}' .
-		'if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",init);else init();})();'
-	);
+	// (the Manual look dresses posts only; the suite's fixture is a page, so
+	// the test run carries it too)
+	if ( is_singular( 'post' ) || isset( $_GET['gogh-test'] ) ) { // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- test flag
+		wp_add_inline_script( 'gogh-view',
+			// the Manual look's contents: built from the post's own h2/h3, ids
+			// minted where missing, the current section marked as you read.
+			// Exposed as window.goghManualToc(root) so the suite can drive it.
+			'(function(){function slug(t){return (t||"").toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/^-+|-+$/g,"").slice(0,60)||"section";}' .
+			'window.goghManualToc=function(root){if(!root)return null;var heads=[].slice.call(root.querySelectorAll(":scope > h2, :scope > h3, :scope > .wp-block-group h2, :scope > .wp-block-group h3")).filter(function(h){return (h.textContent||"").trim();});' .
+			'if(heads.length<2)return null;var old=root.querySelector(":scope > .gogh-toc");if(old)old.remove();var seen={};' .
+			'heads.forEach(function(h){if(!h.id){var b=slug(h.textContent),id=b,n=2;while(seen[id]||document.getElementById(id)){id=b+"-"+(n++);}h.id=id;}seen[h.id]=1;});' .
+			'var nav=document.createElement("nav");nav.className="gogh-toc";nav.setAttribute("aria-label","On this page");' .
+			'nav.innerHTML="<span class=\"gogh-toc-title\">On this page</span>";var ol=document.createElement("ol");' .
+			'var calm=window.matchMedia&&window.matchMedia("(prefers-reduced-motion: reduce)").matches;' .
+			'heads.forEach(function(h){var li=document.createElement("li");li.className="gogh-toc-"+h.tagName.toLowerCase();var a=document.createElement("a");a.href="#"+h.id;a.textContent=h.textContent.trim();' .
+			'a.addEventListener("click",function(ev){ev.preventDefault();h.scrollIntoView({block:"start",behavior:calm?"auto":"smooth"});try{history.replaceState(null,"","#"+h.id);}catch(e){}});li.appendChild(a);ol.appendChild(li);});' .
+			'nav.appendChild(ol);root.insertBefore(nav,root.firstChild);root.classList.add("gogh-has-toc");' .
+			'var place=function(){var first=[].slice.call(root.children).filter(function(c){return c!==nav;})[0];var left=first?first.getBoundingClientRect().left-252:0;' .
+			'if(left>=72){nav.classList.add("gogh-toc-side");nav.classList.remove("gogh-toc-boxed");nav.style.left=Math.round(left)+"px";}else{nav.classList.remove("gogh-toc-side");nav.classList.add("gogh-toc-boxed");nav.style.left="";}};' .
+			'place();window.addEventListener("resize",place,{passive:true});' .
+			'if(window.IntersectionObserver){var links={};[].slice.call(ol.querySelectorAll("a")).forEach(function(a){links[a.getAttribute("href").slice(1)]=a;});var here=null;' .
+			'var mark=function(id){if(here)here.classList.remove("is-here");here=links[id]||null;if(here)here.classList.add("is-here");};' .
+			'var io=new IntersectionObserver(function(es){es.forEach(function(e){if(e.isIntersecting)mark(e.target.id);});},{rootMargin:"-10% 0px -70% 0px",threshold:0});heads.forEach(function(h){io.observe(h);});mark(heads[0].id);}' .
+			'return nav;};' .
+			'var html=document.documentElement;if(html.classList.contains("gogh-editing"))return;' .
+			// the writing room: the same contents, read-only and OUTSIDE the content
+			// (no ids minted, nothing for the serializer to meet), placed beside
+			// the column and rebuilt as the words change or the look auditions
+			'if(document.body.classList.contains("gogh-writing")){var room=null,timer=null;' .
+			'var build=function(){var root=document.querySelector(".entry-content, .wp-block-post-content");if(room){room.remove();room=null;}' .
+			'if(!root||!document.body.classList.contains("gogh-read-manual"))return;' .
+			'var heads=[].slice.call(root.querySelectorAll("h2, h3")).filter(function(h){return (h.textContent||"").trim();});if(heads.length<2)return;' .
+			'var first=root.querySelector("p, h2, h3, ul, ol, figure");var colLeft=(first||root).getBoundingClientRect().left;var left=colLeft-252;' .
+			'var panel=document.querySelector(".gogh-w-stylepop");if(panel&&!panel.hidden){var pr=panel.getBoundingClientRect();if(pr.right>left-16)left=pr.right+24;}' .
+			'if(left<72||left+220>colLeft-16)return;' .
+			'room=document.createElement("nav");room.className="gogh-toc gogh-toc-room";room.setAttribute("aria-hidden","true");room.contentEditable="false";room.style.left=Math.round(left)+"px";' .
+			'room.innerHTML="<span class=\"gogh-toc-title\">On this page</span>";var ol=document.createElement("ol");' .
+			'heads.forEach(function(h){var li=document.createElement("li");li.className="gogh-toc-"+h.tagName.toLowerCase();var a=document.createElement("a");a.textContent=h.textContent.trim();' .
+			'a.addEventListener("mousedown",function(ev){ev.preventDefault();h.scrollIntoView({block:"start",behavior:(window.matchMedia&&window.matchMedia("(prefers-reduced-motion: reduce)").matches)?"auto":"smooth"});});li.appendChild(a);ol.appendChild(li);});' .
+			'room.appendChild(ol);document.body.appendChild(room);};' .
+			'var later=function(){clearTimeout(timer);timer=setTimeout(build,350);};' .
+			'new MutationObserver(later).observe(document.body,{attributes:true,attributeFilter:["class"]});' .
+			'document.addEventListener("input",later,true);window.addEventListener("resize",later,{passive:true});' .
+			'document.addEventListener("gogh:ready",later);setTimeout(build,600);return;}' .
+			'if(!document.body.classList.contains("gogh-read-manual"))return;' .
+			'window.goghManualToc(document.querySelector(".entry-content, .wp-block-post-content"));})();'
+		);
+	}
+	if ( gogh_page_has( 'gogh-bgvideo' ) ) {
+		wp_add_inline_script( 'gogh-view',
+			// video backgrounds: a pause control per section (moving content that
+			// starts on its own must be stoppable), and no autoplay at all for
+			// people who asked their system for less motion
+			'(function(){var rm=window.matchMedia&&window.matchMedia("(prefers-reduced-motion: reduce)").matches;' .
+			'document.querySelectorAll(".gogh-section > .gogh-bgvideo video").forEach(function(v){' .
+			'var sec=v.closest(".gogh-section");if(!sec)return;' .
+			'if(rm){v.removeAttribute("autoplay");try{v.pause();}catch(e){}return;}' .
+			'var b=document.createElement("button");b.type="button";b.className="gogh-bgvideo-btn";' .
+			'var paint=function(){var on=!v.paused;b.setAttribute("aria-label",on?"Pause background video":"Play background video");' .
+			'b.innerHTML=on?\'<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><rect x="6" y="5" width="4" height="14" rx="1"/><rect x="14" y="5" width="4" height="14" rx="1"/></svg>\'' .
+			':\'<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5l11 7-11 7z"/></svg>\';};' .
+			'b.addEventListener("click",function(){if(v.paused){var p=v.play();if(p&&p.catch)p.catch(function(){});}else{v.pause();}paint();});' .
+			'v.addEventListener("play",paint);v.addEventListener("pause",paint);paint();sec.appendChild(b);' .
+			'var p0=v.play&&v.play();if(p0&&p0.catch)p0.catch(function(){paint();});});})();'
+		);
+	}
+	if ( gogh_page_has( 'gogh-crsl' ) || gogh_page_has( 'gogh-wall' ) ) {
+		wp_add_inline_script( 'gogh-view',
+			// carousel arrows + autoplay are VIEW-TIME: never stored, so saved
+			// content stays pure core blocks (plugin off = clean snap strip)
+			'(function(){var bindLightbox=function(container,slides){' .
+			'var lbAt=-1;var lb=null;' .
+			'var lbShow=function(k){lbAt=(k+slides.length)%slides.length;var im=slides[lbAt].querySelector("img");var cp=slides[lbAt].querySelector("figcaption");' .
+			'lb.querySelector("img").src=im?im.src:"";lb.querySelector("figcaption").textContent=cp?cp.textContent:"";};' .
+			'var lbKeys;var lbClose=function(){if(lb){lb.remove();lb=null;document.removeEventListener("keydown",lbKeys);}};' .
+			'lbKeys=function(ev){if(ev.key==="Escape")lbClose();if(ev.key==="ArrowRight")lbShow(lbAt+1);if(ev.key==="ArrowLeft")lbShow(lbAt-1);};' .
+			'var lbOpen=function(k){lb=document.createElement("div");lb.className="gogh-lbx";lb.setAttribute("role","dialog");lb.setAttribute("aria-label","Image viewer");' .
+			'lb.innerHTML=\'<img alt=""/><figcaption></figcaption>\'+' .
+			'\'<button type="button" class="gogh-crsl-btn gogh-lbx-l" aria-label="Previous">\u2039</button>\'+' .
+			'\'<button type="button" class="gogh-crsl-btn gogh-lbx-r" aria-label="Next">\u203a</button>\'+' .
+			'\'<button type="button" class="gogh-crsl-btn gogh-lbx-x" aria-label="Close">\u2715</button>\';' .
+			'lb.addEventListener("click",function(ev){if(ev.target===lb)lbClose();});' .
+			'lb.querySelector(".gogh-lbx-l").addEventListener("click",function(){lbShow(lbAt-1);});' .
+			'lb.querySelector(".gogh-lbx-r").addEventListener("click",function(){lbShow(lbAt+1);});' .
+			'lb.querySelector(".gogh-lbx-x").addEventListener("click",lbClose);' .
+			'document.addEventListener("keydown",lbKeys);document.body.appendChild(lb);lbShow(k);};' .
+			'slides.forEach(function(sl,k){var im=sl.querySelector("img");if(!im)return;im.style.cursor="zoom-in";' .
+			'im.addEventListener("click",function(){lbOpen(k);});});};' .
+			'function init(){' .
+			'document.querySelectorAll(".gogh-wall.gogh-crsl-light").forEach(function(wall){' .
+			'if(wall.__gogh)return;wall.__gogh=1;' .
+			'bindLightbox(wall,[].slice.call(wall.querySelectorAll(".gogh-brick")));});' .
+			'document.querySelectorAll(".gogh-carousel").forEach(function(strip){' .
+			'if(strip.__gogh)return;strip.__gogh=1;' .
+			'var slides=[].slice.call(strip.querySelectorAll(".gogh-slide"));if(slides.length<2)return;' .
+			'var shell=strip.parentElement;' .
+			'if(!shell||!shell.classList.contains("gogh-crsl-shell")){shell=document.createElement("div");shell.className="gogh-crsl-shell";' .
+			// the shell must WEAR the strip's alignment or constrained layout
+			// squeezes a wide carousel back into the text column
+			'["alignwide","alignfull"].forEach(function(a){if(strip.classList.contains(a))shell.classList.add(a);});' .
+			'strip.parentNode.insertBefore(shell,strip);shell.appendChild(strip);}' .
+			'if(shell.querySelector(".gogh-crsl-nav"))return;' .
+			'var nav=document.createElement("div");nav.className="gogh-crsl-nav";' .
+			'var go=function(k){var s0=slides[Math.max(0,Math.min(slides.length-1,k))];if(s0)strip.scrollTo({left:s0.offsetLeft-strip.offsetLeft-(strip.clientWidth-s0.clientWidth)/2,behavior:"smooth"});};' .
+			'var current=function(){var mid=strip.scrollLeft+strip.clientWidth/2,best=0,bd=1e9;slides.forEach(function(sl,k){var c=sl.offsetLeft-strip.offsetLeft+sl.clientWidth/2,d=Math.abs(c-mid);if(d<bd){bd=d;best=k;}});return best;};' .
+			'var prev=document.createElement("button");prev.type="button";prev.className="gogh-crsl-btn";prev.setAttribute("aria-label","Previous slide");prev.textContent="\u2039";' .
+			'prev.addEventListener("click",function(){var c=current();go(c<=0?slides.length-1:c-1);});nav.appendChild(prev);' .
+			'var dots=document.createElement("div");dots.className="gogh-crsl-dots";' .
+			'slides.forEach(function(sl,k){var d=document.createElement("button");d.type="button";d.className="gogh-crsl-dot"+(k===0?" is-here":"");d.setAttribute("aria-label","Slide "+(k+1));' .
+			'd.addEventListener("click",function(){go(k);});dots.appendChild(d);});nav.appendChild(dots);' .
+			'var next=document.createElement("button");next.type="button";next.className="gogh-crsl-btn";next.setAttribute("aria-label","Next slide");next.textContent="\u203a";' .
+			'next.addEventListener("click",function(){var c=current();go(c>=slides.length-1?0:c+1);});nav.appendChild(next);' .
+			'shell.appendChild(nav);' .
+			'var navMode=strip.classList.contains("gogh-crsl-nav-sides")?"sides":strip.classList.contains("gogh-crsl-nav-both")?"both":"below";' .
+			'if(navMode!=="below"){["l","r"].forEach(function(sd){var b=document.createElement("button");b.type="button";' .
+			'b.className="gogh-crsl-btn gogh-crsl-side gogh-crsl-side-"+sd;b.setAttribute("aria-label",sd==="l"?"Previous slide":"Next slide");' .
+			'b.textContent=sd==="l"?"\u2039":"\u203a";' .
+			'b.addEventListener("click",function(){var c=current();go(sd==="l"?(c<=0?slides.length-1:c-1):(c>=slides.length-1?0:c+1));});' .
+			'shell.insertBefore(b,strip);' .
+			'var fit=function(){b.style.top=(strip.offsetTop+strip.clientHeight/2)+"px";b.style.transform="translateY(-50%)";};fit();' .
+			'if(window.ResizeObserver)new ResizeObserver(fit).observe(strip);});' .
+			'if(navMode==="sides")nav.querySelectorAll(".gogh-crsl-btn").forEach(function(b2){b2.remove();});}' .
+			'if(strip.classList.contains("gogh-crsl-light"))bindLightbox(strip,slides);' .
+			'var syncT=null;strip.addEventListener("scroll",function(){if(syncT)return;syncT=requestAnimationFrame(function(){syncT=null;var c=current();' .
+			'[].forEach.call(dots.children,function(d,k){d.classList.toggle("is-here",k===c);});});},{passive:true});' .
+			'if(strip.classList.contains("gogh-crsl-auto")&&!matchMedia("(prefers-reduced-motion: reduce)").matches){' .
+			'var hold=0;["pointerenter","pointerdown","focusin"].forEach(function(t){shell.addEventListener(t,function(){hold=Date.now();});});' .
+			'shell.addEventListener("pointerleave",function(){hold=0;});' .
+			'setInterval(function(){if(document.hidden||(hold&&Date.now()-hold<6000))return;' .
+			'var c=current();go(c>=slides.length-1?0:c+1);},4200);}' .
+			'});}' .
+			// exposed so the write room can wake splashes it inserts or rebuilds
+			// — auditioning a carousel should not require publishing first
+			'window.__goghViewInit=init;' .
+			// smooth accordion + tab reveals ("kinda harsh and janky"). WAAPI on
+			// the just-revealed panel, AFTER core's toggle flips the hidden attr —
+			// CSS transitions and animations both freeze inside the accordion's
+			// content-visibility-skipped panel, but element.animate on a visible
+			// element is immune. Open animates (height sweep for the accordion, a
+			// fade-rise for tabs); close stays instant, which reads as snappy.
+			'if(!matchMedia("(prefers-reduced-motion: reduce)").matches){' .
+			'var ease="cubic-bezier(0.4, 0, 0.2, 1)";' .
+			// bubble phase, so core has already flipped hidden; queueMicrotask (not
+			// rAF — paused in hidden tabs, and the flip is synchronous anyway)
+			'document.addEventListener("click",function(ev){' .
+			'var accBtn=ev.target.closest&&ev.target.closest(".wp-block-accordion-heading button");' .
+			'if(accBtn){queueMicrotask(function(){' .
+			'var item=accBtn.closest(".wp-block-accordion-item");' .
+			'var p=item&&item.querySelector(".wp-block-accordion-panel");' .
+			'if(!p||p.hidden||!p.animate)return;' .
+			'var h=p.getBoundingClientRect().height;if(!h)return;' .
+			'p.style.overflow="clip";' .
+			'var a=p.animate([{height:"0px",opacity:0.35},{height:h+"px",opacity:1}],{duration:300,easing:ease});' .
+			'a.onfinish=a.oncancel=function(){p.style.overflow="";};' .
+			'});return;}' .
+			'var tabBtn=ev.target.closest&&ev.target.closest(".wp-block-tab-list button, .wp-block-tab-list [role=\'tab\']");' .
+			'if(tabBtn){queueMicrotask(function(){' .
+			'var tabs=tabBtn.closest(".wp-block-tabs");' .
+			'var p2=tabs&&tabs.querySelector(".wp-block-tab-panel:not([hidden])");' .
+			'if(p2&&p2.animate)p2.animate([{opacity:0,translate:"0 8px"},{opacity:1,translate:"0 0"}],{duration:260,easing:ease});' .
+			'});}' .
+			'},false);}' .
+			'if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",init);else init();})();'
+		);
+	}
 	wp_enqueue_style( 'gogh-base' );
 	// (reading looks + motion moved to the ungated 'gogh-looks' style — the
 	// gogh-base gate was hiding them from logged-out readers on splash-less
@@ -5849,9 +6008,9 @@ add_action( 'wp_enqueue_scripts', function () {
 
 	// compose must be REGISTERED here too — a dependency on an
 	// unregistered handle silently drops the whole editor script
-	wp_register_script( 'gogh-compose', plugins_url( 'gogh-compose.js', __FILE__ ), array(), '0.99.567-chrome', true );
-	wp_enqueue_script( 'gogh-editor', plugins_url( 'gogh-editor.js', __FILE__ ), array( 'gogh-compose' ), '0.99.567-chrome', true );
-	wp_enqueue_style( 'gogh-editor', plugins_url( 'gogh-editor.css', __FILE__ ), array(), '0.99.567-chrome' );
+	wp_register_script( 'gogh-compose', plugins_url( 'gogh-compose.js', __FILE__ ), array(), '0.99.568-chrome', true );
+	wp_enqueue_script( 'gogh-editor', plugins_url( 'gogh-editor.js', __FILE__ ), array( 'gogh-compose' ), '0.99.568-chrome', true );
+	wp_enqueue_style( 'gogh-editor', plugins_url( 'gogh-editor.css', __FILE__ ), array(), '0.99.568-chrome' );
 
 	// WebMCP bridge: the page registers its editing verbs as agent tools.
 	// OPT-IN only — add ?gogh-mcp=1 for a demo session (or enable sitewide
@@ -5863,19 +6022,19 @@ add_action( 'wp_enqueue_scripts', function () {
 	// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only labs toggle
 	$gogh_exp = isset( $_GET['gogh-test'] ) || ( isset( $_GET['gogh-experiments'] ) && '0' !== $_GET['gogh-experiments'] );
 	if ( isset( $_GET['gogh-mcp'] ) || $gogh_exp || apply_filters( 'gogh_webmcp_enabled', false ) ) {
-		wp_enqueue_script( 'gogh-webmcp', plugins_url( 'gogh-webmcp.js', __FILE__ ), array( 'gogh-editor' ), '0.99.567-chrome', true );
+		wp_enqueue_script( 'gogh-webmcp', plugins_url( 'gogh-webmcp.js', __FILE__ ), array( 'gogh-editor' ), '0.99.568-chrome', true );
 	}
 
 	// regression suite: /page/?gogh-test (editors only, never saves)
 	// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only toggle enqueuing a test script for capability-checked editors.
 	if ( isset( $_GET['gogh-test'] ) ) {
-		wp_enqueue_script( 'gogh-tests', plugins_url( 'gogh-tests.js', __FILE__ ), array( 'gogh-editor' ), '0.99.567-chrome', true );
+		wp_enqueue_script( 'gogh-tests', plugins_url( 'gogh-tests.js', __FILE__ ), array( 'gogh-editor' ), '0.99.568-chrome', true );
 	}
 	// the user-test walk: /?gogh-edit=1&gogh-walk=1 on a DISPOSABLE Yellow
 	// House (it publishes) — editors only, never shipped in the zip
 	// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only toggle for capability-checked editors.
 	if ( isset( $_GET['gogh-walk'] ) ) {
-		wp_enqueue_script( 'gogh-walk', plugins_url( 'gogh-walk.js', __FILE__ ), array( 'gogh-editor' ), '0.99.567-chrome', true );
+		wp_enqueue_script( 'gogh-walk', plugins_url( 'gogh-walk.js', __FILE__ ), array( 'gogh-editor' ), '0.99.568-chrome', true );
 	}
 
 	// products live outside wp/v2, so gogh carries its own save route for
@@ -5895,7 +6054,7 @@ add_action( 'wp_enqueue_scripts', function () {
 		'postTitle'  => get_the_title( $post ),
 		'permalink'  => esc_url_raw( get_permalink( $post->ID ) ),
 		'excerpt'    => (string) $post->post_excerpt,
-		'build'    => '0.99.567-chrome',
+		'build'    => '0.99.568-chrome',
 		// two rooms, one landmark (same contract as the admin bar): on a POST
 		// the corner pill opens the WRITING surface, not the freeform canvas
 		'writeUrl' => is_singular( 'post' ) ? add_query_arg( 'gogh-write', '1', get_permalink( $post ) ) : null,

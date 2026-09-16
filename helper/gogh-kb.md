@@ -15,7 +15,7 @@ about something where they conflict, rather than picking one silently. Quote UI
 labels and message copy from the appendix, verbatim — those are the current
 strings, and a paraphrased button label is the fastest way to lose a user's trust.
 
-Generated for plugin version 0.99.567 · knowledge base d4c08fb.
+Generated for plugin version 0.99.568 · knowledge base 23bf77b.
 
 ---
 
@@ -808,6 +808,9 @@ A small ? sits in the admin bar just left of Howdy, on every screen where the ba
 ### The admin bar's edit label never flashes (v0.99.567)
 One function, `gogh_ab_edit_label( $editing, $is_post )`, renders the bar's gogh node — 'Edit with gogh' / 'Edit post' on a page, 'Exit gogh editor' in the editor — and the editor receives both variants (`cfg.abEdit`) so when the mode flips without a reload it writes the same markup the server would. Before, the server rendered a tick and 'Done' while the page loaded and the editor's script then wrote 'Exit gogh editor' over it, so 'Done' flashed for an instant on every open.
 
+### Pictures published light (v0.99.568, the speed pass)
+gogh's pictures used to publish as plain `<img src>` with no attachment id or size, so WordPress could not give them srcset, sizes, lazy loading or a fetch priority — a photographer's home was 3MB with a 7.8s LCP on a phone. Now a content filter (`gogh_light_images`, priority 11, just before core's own) finds the attachment behind each upload URL (`gogh_media_id_for_url`, cached a day), adds the `wp-image-ID` class and the intrinsic width/height, and core adds srcset, sizes, `loading="lazy"` for pictures below the first, `fetchpriority="high"` for the first. A section's background photo gets a `large` (1024px) variant under `@media (max-width: 700px)`, and on a single page the first section's background is preloaded (phone size for phones, full for the rest). Nothing to republish: it reaches every page ever published. The same release gates the look CSS (reading looks only on single posts, blog looks only on lists of posts or pages with a posts rail) and the view script's chunks (the Manual contents on posts, the video-pause control and the carousel/lightbox only where the page carries them). Measured: that home 3009KB → 737KB, LCP 7.8s → 4.2s, score 73 → 85; a text-only page 366KB → 325KB, 90 → 93.
+
 ---
 
 # Generated facts appendix
@@ -816,11 +819,11 @@ Everything in this section is extracted mechanically from the Gogh source on eve
 
 ## Current release
 
-- Plugin version: **0.99.567**
+- Plugin version: **0.99.568**
 - Requires WordPress **6.5+**, PHP **7.4+**
 - Text domain: `gogh-editor`
 - readme.txt Stable tag: `0.26.0` · Tested up to: `7.0`
-- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.567`). Quote the plugin header version.
+- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.568`). Quote the plugin header version.
 
 ## Design constants
 
@@ -980,6 +983,8 @@ Block: `gogh/section` · v3 attributes: `css`, `model`, `scope`, `v`, `cssT`.
 | `upload_mimes` | filter | 10 |
 | `wp_insert_post_data` | filter | 20 |
 | `save_post` | action | 10 |
+| `wp_head` | action | 10 |
+| `the_content` | filter | 11 |
 | `wp_head` | action | 10 |
 | `wp_enqueue_scripts` | action | 10 |
 | `wp_enqueue_scripts` | action | 10 |

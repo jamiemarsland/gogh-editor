@@ -4,11 +4,11 @@ Everything in this section is extracted mechanically from the Gogh source on eve
 
 ## Current release
 
-- Plugin version: **0.99.567**
+- Plugin version: **0.99.568**
 - Requires WordPress **6.5+**, PHP **7.4+**
 - Text domain: `gogh-editor`
 - readme.txt Stable tag: `0.26.0` · Tested up to: `7.0`
-- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.567`). Quote the plugin header version.
+- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.568`). Quote the plugin header version.
 
 ## Design constants
 
@@ -168,6 +168,8 @@ Block: `gogh/section` · v3 attributes: `css`, `model`, `scope`, `v`, `cssT`.
 | `upload_mimes` | filter | 10 |
 | `wp_insert_post_data` | filter | 20 |
 | `save_post` | action | 10 |
+| `wp_head` | action | 10 |
+| `the_content` | filter | 11 |
 | `wp_head` | action | 10 |
 | `wp_enqueue_scripts` | action | 10 |
 | `wp_enqueue_scripts` | action | 10 |
