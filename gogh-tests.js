@@ -4986,6 +4986,31 @@
 
     // step four: the die draws on the Fonts door's pairs — a roll may land in
     // Fraunces & Inter, tried from Google and installed quietly on commit
+    test('what should go here: typing narrows the chips and Enter takes the top match', function () {
+      var n0 = G.sections().length;
+      G.openSeamAsk(G.sections().indexOf(sec()) + 1);
+      var pnl = q('.gogh-panel');
+      var input = pnl.querySelector('.gogh-askin');
+      var labels = function () { return [].slice.call(pnl.querySelectorAll('.gogh-askchips .gogh-askchip')).map(function (b) { return b.textContent.trim(); }); };
+      var before = labels();
+      expect(before.length >= 4 && before[before.length - 1].indexOf('Browse them all') === 0, 'the usual chips and Browse them all to begin with');
+      input.value = 'carou'; input.dispatchEvent(new Event('input', { bubbles: true }));
+      var now = labels();
+      expect(now[0] === 'Carousel', 'typing “carou” should surface Carousel first, got ' + now.join(' · '));
+      expect(now[now.length - 1].indexOf('Browse them all') === 0, 'Browse them all stays');
+      input.value = 'pric'; input.dispatchEvent(new Event('input', { bubbles: true }));
+      expect(labels()[0] === 'Pricing', 'typing “pric” should surface Pricing, got ' + labels().join(' · '));
+      input.value = 'zzqx'; input.dispatchEvent(new Event('input', { bubbles: true }));
+      expect(!!pnl.querySelector('.gogh-askempty') && labels().length === 1, 'nonsense leaves only Browse them all, with a word saying so');
+      input.value = ''; input.dispatchEvent(new Event('input', { bubbles: true }));
+      expect(labels().join() === before.join(), 'clearing the box brings the usual chips back');
+      input.value = 'carousel';
+      input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true }));
+      expect(G.sections().length === n0 + 1, 'Enter should add the top match as a section');
+      expect(pnl.hidden, 'and the panel closes');
+      return 'chips follow the typing; Enter adds Carousel';
+    });
+
     test('the page describes itself: a meta description from its own words', function () {
       var m = document.querySelector('meta[name="description"]');
       expect(!!m, 'the head should carry a meta description');

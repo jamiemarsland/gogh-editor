@@ -12837,7 +12837,57 @@
       input.placeholder = SEAM_EXAMPLES[k0];
     }, 2600);
     input.focus();
+    // typing narrows the chips to what matches — the panel's own ideas and
+    // every section design by name (Carousel, Photo wall, FAQ…) — and Enter
+    // takes the top one. A box that asks what should go here and then sits
+    // still while you type is a promise not kept (James: 'its not a great
+    // experience atm')
+    var chipsBox = panel.querySelector('.gogh-askchips');
+    var starters = TEMPLATES.filter(function (t) { return t.starter && !t.retired && !(t.gated && !cfg[t.gated]); });
+    var seamMatches = function (q) {
+      var words = String(q || '').toLowerCase().replace(/[^a-z0-9 ]+/g, ' ').trim().split(/\s+/).filter(Boolean);
+      if (!words.length) return null;
+      var score = function (hay) {
+        hay = ' ' + hay.toLowerCase() + ' ';
+        if (!words.every(function (w) { return hay.indexOf(w) !== -1; })) return 0;
+        var n = 1;
+        words.forEach(function (w) { if (hay.indexOf(' ' + w) !== -1) n += 2; else n += 1; });
+        return n;
+      };
+      var out = [];
+      chips.forEach(function (c) {
+        var sc = score(c.label + ' ' + c.say);
+        if (sc) out.push({ label: c.label, say: c.say, sc: sc + 1 });
+      });
+      starters.forEach(function (t) {
+        if (out.some(function (o) { return o.label.toLowerCase() === t.name.toLowerCase(); })) return;
+        var sc = score(t.name + ' ' + (STARTER_CATS[t.name] || '') + ' ' + (t.intent || ''));
+        if (sc) out.push({ label: t.name, tpl: TEMPLATES.indexOf(t), sc: sc });
+      });
+      out.sort(function (a, b) { return b.sc - a.sc || a.label.localeCompare(b.label); });
+      return out.slice(0, 8);
+    };
+    var chipHTML = function (c) {
+      return c.tpl != null
+        ? '<button type="button" class="gogh-askchip" data-tpl="' + c.tpl + '">' + esc(c.label) + '</button>'
+        : '<button type="button" class="gogh-askchip" data-say="' + escAttr(c.say) + '">' + esc(c.label) + '</button>';
+    };
+    var browseBtn = '<button type="button" class="gogh-askchip gogh-askmore">Browse them all \u2192</button>';
+    var renderChips = function (list) {
+      if (list === null) { chipsBox.innerHTML = chips.map(chipHTML).join('') + browseBtn; return; }
+      chipsBox.innerHTML = (list.length ? list.map(chipHTML).join('') : '<span class="gogh-askempty">Nothing here matches.</span>') + browseBtn;
+    };
+    input.addEventListener('input', function () { missRow.hidden = true; renderChips(seamMatches(input.value)); });
     var go = function (text) {
+      // typed words that match a chip or a design take the top match
+      var top = (seamMatches(text) || [])[0];
+      if (top && top.tpl != null) {
+        askLog(text, 'seam-filter');
+        closePanel();
+        addSection(TEMPLATES[top.tpl], idx == null ? S.length : idx, before);
+        return;
+      }
+      if (top && top.say && top.say !== text) { go(top.say); return; }
       // "an interactive experience" is an ELEMENT ask spoken at a section
       // door — cross-door delegation: a fresh band arrives and the
       // Experience chooser opens straight into it
@@ -12872,12 +12922,13 @@
     input.addEventListener('keydown', function (ev) {
       if (ev.key === 'Enter') { ev.preventDefault(); go(input.value); }
     });
-    panel.querySelectorAll('.gogh-askchip[data-say]').forEach(function (ch) {
-      ch.addEventListener('click', function () { go(ch.dataset.say); });
-    });
-    panel.querySelector('.gogh-askmore').addEventListener('click', function () {
-      closePanel();
-      openPicker(idx == null ? S.length : idx, before);
+    // one listener for every chip, since the row is redrawn as you type
+    chipsBox.addEventListener('click', function (ev) {
+      var ch = ev.target.closest ? ev.target.closest('.gogh-askchip') : null;
+      if (!ch) return;
+      if (ch.classList.contains('gogh-askmore')) { closePanel(); openPicker(idx == null ? S.length : idx, before); return; }
+      if (ch.dataset.tpl != null) { closePanel(); addSection(TEMPLATES[+ch.dataset.tpl], idx == null ? S.length : idx, before); return; }
+      if (ch.dataset.say) go(ch.dataset.say);
     });
   }
   // ---------- section themes: pick a look, never a hex ----------

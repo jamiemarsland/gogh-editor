@@ -1,8 +1,8 @@
-# Knowledge-base audit — plugin v0.99.570
+# Knowledge-base audit — plugin v0.99.571
 
 _13 finding(s) suppressed by `kb.audit-ignore.txt`._
 
-## MISSING (104)
+## MISSING (98)
 
 The source has something the prose never explains. The bot knows the name from the appendix but cannot say what it is for.
 
@@ -84,7 +84,6 @@ The source has something the prose never explains. The bot knows the name from t
 - WP hook `wp_head` exists in source but is never mentioned in the prose
 - WP hook `wp_insert_post` exists in source but is never mentioned in the prose
 - template `Story` exists in source but is never mentioned in the prose
-- template `Numbers` exists in source but is never mentioned in the prose
 - template `Featured product` exists in source but is never mentioned in the prose
 - template `Bestsellers` exists in source but is never mentioned in the prose
 - template `Editorial split` exists in source but is never mentioned in the prose
@@ -96,14 +95,9 @@ The source has something the prose never explains. The bot knows the name from t
 - template `Shop the look` exists in source but is never mentioned in the prose
 - template `New in` exists in source but is never mentioned in the prose
 - template `Sale` exists in source but is never mentioned in the prose
-- template `Pricing` exists in source but is never mentioned in the prose
-- template `Testimonials` exists in source but is never mentioned in the prose
 - template `Profile card` exists in source but is never mentioned in the prose
 - template `Job card` exists in source but is never mentioned in the prose
 - template `Place card` exists in source but is never mentioned in the prose
-- template `Photo wall` exists in source but is never mentioned in the prose
-- template `Carousel` exists in source but is never mentioned in the prose
-- template `FAQ` exists in source but is never mentioned in the prose
 - template `Tabs` exists in source but is never mentioned in the prose
 - template `Portfolio` exists in source but is never mentioned in the prose
 - divider `dunes` exists in source but is never mentioned in the prose
@@ -126,4 +120,4 @@ Quoted copy not found verbatim in the source. Paraphrases are fine; changed UI c
 
 Use this as the checklist for updating the prose — and as a sanity check on the release itself.
 
-- version: 0.99.569 → 0.99.570
+- version: 0.99.570 → 0.99.571

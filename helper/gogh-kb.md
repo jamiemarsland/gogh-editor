@@ -15,7 +15,7 @@ about something where they conflict, rather than picking one silently. Quote UI
 labels and message copy from the appendix, verbatim — those are the current
 strings, and a paraphrased button label is the fastest way to lose a user's trust.
 
-Generated for plugin version 0.99.570 · knowledge base 8f00de9.
+Generated for plugin version 0.99.571 · knowledge base 3cfe071.
 
 ---
 
@@ -817,6 +817,9 @@ The starters' photos come from Unsplash by URL with a `w=` width. As the content
 ### Honest sizes, a description, a preconnect (v0.99.570)
 **Honest sizes:** WordPress guesses every picture is as wide as the screen. gogh reads each picture's real share of its section from the stored CSS (the grid's cqw columns and the piece's grid-area, `gogh_piece_share`) and writes `sizes="(max-width: 700px) 100vw, 53vw"`-style values after core's own pass (priority 13); the first picture's preload speaks the same sizes so one download serves both. Desktop on the hosted photographer: 1,401KB → 914KB, the hero 640KB → 457KB. **A description for every page:** `gogh_page_description()` — the excerpt if written, else the first paragraph that reads as a sentence (40+ characters; eyebrow lines like 'People · Places · Quiet moments' are skipped), else the tagline — as `<meta name="description">` on singular pages and the front page, unless an SEO plugin (Yoast, Rank Math, AIOSEO, SEOPress, The SEO Framework, Slim SEO) is active. **Preconnect** to images.unsplash.com when the page's content uses Unsplash pictures. The InstaWP SEO score of 61 was the sandbox's own 'discourage search engines' setting (noindex) plus the missing description; gogh's part is fixed.
 
+### What should go here: typing filters (v0.99.571)
+The + between sections opens "What should go here?" with a box and eight chips. Typing now narrows the chips live to what matches — the panel's own ideas (Testimonials, Pricing, Contact form…) and every section design by name (Carousel, Photo wall, FAQ, Numbers…); a chip adds that section; Enter or Add takes the top match; nonsense leaves "Nothing here matches" and Browse them all, which always stays as the way to the full shelf. Clearing the box brings the usual chips back.
+
 ---
 
 # Generated facts appendix
@@ -825,11 +828,11 @@ Everything in this section is extracted mechanically from the Gogh source on eve
 
 ## Current release
 
-- Plugin version: **0.99.570**
+- Plugin version: **0.99.571**
 - Requires WordPress **6.5+**, PHP **7.4+**
 - Text domain: `gogh-editor`
 - readme.txt Stable tag: `0.26.0` · Tested up to: `7.0`
-- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.570`). Quote the plugin header version.
+- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.571`). Quote the plugin header version.
 
 ## Design constants
 
@@ -1343,4 +1346,4 @@ These are the real strings in the current build. Use them verbatim; never paraph
 
 ## Test suite
 
-`316` tests, run by appending `?gogh-test` to any Gogh page URL while logged in with edit rights on that page.
+`317` tests, run by appending `?gogh-test` to any Gogh page URL while logged in with edit rights on that page.
