@@ -15,8 +15,8 @@
  *   GET  /api/boot     { total, seed, counted, blueprints } — launches so far
  *   POST /api/boot     { bp } — one beacon per booted blueprint site
  *   POST /api/test     { session, events } — a tester's card reports in
- *   GET  /api/test     sessions (token) — ?session=<id> for one tester's events
- *   GET  /test         the tester's intro page; GET /tests the report (token)
+ *   GET  /api/test     sessions (password: TEST_TOKEN) — ?session=<id> for one tester's events
+ *   GET  /test         the tester's intro page; GET /tests the report (password)
  *   POST /api/chat     { messages, mode } → SSE stream passed straight through
  *   POST /api/refresh  force a KB re-fetch (needs REFRESH_TOKEN)
  *
@@ -380,7 +380,7 @@ const UT_INTRO = `<!doctype html>
 <p class="fine">Use a computer, not a phone, and Chrome, Edge or Firefox. The site is throwaway: close the tab and it is gone. The only thing kept is what the card learns: which tasks you did, how long they took, and anything you type into it. Your answers go to Jamie Marsland.</p>
 </div></body></html>`;
 
-// the page Jamie reads: sessions, tasks, notes — token asked for once
+// the page Jamie reads: sessions, tasks, notes — password asked for once per tab
 const UT_REPORT = `<!doctype html>
 <html lang="en"><head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
@@ -407,7 +407,7 @@ const UT_REPORT = `<!doctype html>
 </style></head><body><div class="wrap">
 <h1>gogh user tests</h1>
 <p class="soft">Each row is one tester. Click a row for the tasks and notes. <span id="sum"></span></p>
-<div id="auth"><input id="tok" type="password" placeholder="test token"> <button id="go">Show</button></div>
+<div id="auth"><input id="tok" type="password" placeholder="password"> <button id="go">Show</button></div>
 <div id="out"></div>
 <script>
 (function () {
@@ -415,7 +415,7 @@ const UT_REPORT = `<!doctype html>
   var out = document.getElementById('out'), auth = document.getElementById('auth'), sum = document.getElementById('sum');
   var esc = function (s) { return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); };
   var when = function (t) { return t ? new Date(t).toLocaleString() : ''; };
-  var get = function (q) { return fetch('/api/test?' + q, { headers: { 'x-test-token': tok } }).then(function (r) { if (r.status === 401) throw new Error('That token is not right.'); return r.json(); }); };
+  var get = function (q) { return fetch('/api/test?' + q, { headers: { 'x-test-token': tok } }).then(function (r) { if (r.status === 401) throw new Error('That password is not right.'); return r.json(); }); };
   function tasksOf(events) {
     var order = [], by = {};
     events.forEach(function (e) {
