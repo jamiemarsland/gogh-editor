@@ -118,9 +118,3 @@ Quoted copy not found verbatim in the source. Paraphrases are fine; changed UI c
 - Already the same size
 - Needs two or more pieces
 - (max-width: 700px) 100vw, min(100vw, Wpx)
-
-## What changed since the last knowledge-base build
-
-Use this as the checklist for updating the prose — and as a sanity check on the release itself.
-
-- version: 0.99.568 → 0.99.569
