@@ -136,7 +136,7 @@ Drop an element **fully inside** a plain box and it becomes a **child ("kid") of
 - Toast on join: **"Added to the card — it moves and stacks with it now."** (+Undo)
 - Drag a kid outside the card bounds to free it: **"Out of the card — it's its own piece again."** (+Undo)
 - `Delete` on a kid: **"Removed from the card."** (+Undo)
-- Second click on a selected kid edits its text; first click on a button kid opens its link panel.
+- **The first press always gets the card.** Click a piece inside a card that is not yet chosen and the card is selected, not the piece; click the piece again to reach it (a third click edits its text; on a button kid the second click opens its link panel). While the card rides in a group selection, its pieces cannot be grabbed at all — a drag from anywhere on it moves the group. A loaded paint roller is the one exception: it paints the piece it touches. (v0.99.575; James kept pulling numbers out of cards he meant to move as a row.)
 
 Cards matter because they're what keeps an image + heading + button together when the layout stacks on mobile.
 

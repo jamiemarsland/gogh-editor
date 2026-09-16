@@ -14793,6 +14793,20 @@
     var sec = host.sec, ci = host.ci;
     var hostEl = sec.els[ci];
     if (!hostEl || !hostEl.kids || !hostEl.kids[j]) return;
+    // The first press gets the card, never the piece inside it. A piece is
+    // reachable only once its card is the one chosen thing (or a sibling
+    // piece already is), and never while the card rides in a group — James
+    // kept pulling numbers out of cards he meant to move as a row.
+    var inGroup = multiSel && multiSel.sec === sec && multiSel.idxs.indexOf(ci) !== -1;
+    var entered = !inGroup && ((sel && sel.sec === sec && sel.i === ci) ||
+      (kidSel && kidSel.sec === sec && kidSel.ci === ci) ||
+      (kidEd && kidEd.sec === sec && kidEd.ci === ci) ||
+      document.body.classList.contains('gogh-painting')); // a loaded roller paints the piece it touches
+    if (!entered) {
+      if (kidEd) exitKidEd();
+      if (kidSel) clearKidSel();
+      return; // the card's own pointerdown selects it, or drags its group
+    }
     ev.preventDefault();
     ev.stopPropagation(); // the card's own select must not fire
     exitKidEd();

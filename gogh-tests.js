@@ -4361,7 +4361,7 @@
         q('.gogh-eb-paint').click();
         var kidNode = psec.nodes[psec.els.length - 1].querySelector('.gogh-k-1');
         expect(kidNode, 'card kid node missing');
-        pev('pointerdown', kidNode);
+        pev('pointerdown', kidNode); // a loaded roller reaches the piece without choosing the card first
         var kid = psec.els[psec.els.length - 1].kids[0];
         expect(kid.fs === 'xx-large' && kid.color === 'contrast', 'kid did not take the paint: ' + JSON.stringify({fs: kid.fs, color: kid.color}));
         document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
@@ -4683,6 +4683,8 @@
         el.dispatchEvent(new PointerEvent(type, { bubbles: true, cancelable: true, clientX: x, clientY: y, pointerId: id, button: 0, buttons: type === 'pointerup' ? 0 : 1 }));
       };
       var r = kn.getBoundingClientRect();
+      pv('pointerdown', card, r.left + 2, r.top + 2, 70); // the first press gets the card
+      pv('pointerup', document, r.left + 2, r.top + 2, 70);
       pv('pointerdown', kn, r.left + 8, r.top + 6, 71);
       pv('pointerup', document, r.left + 8, r.top + 6, 71);
       var kb = q('.gogh-kidbox');
@@ -5366,6 +5368,8 @@
       // kid drags WITHIN the card
       var kid = box.kids[0];
       var kx = kid.x, r2 = kn.getBoundingClientRect();
+      pv3('pointerdown', s0.nodes[ci], r2.left + 2, r2.top + 2, 162); // the first press gets the card
+      pv3('pointerup', document, r2.left + 2, r2.top + 2, 162);
       pv3('pointerdown', kn, r2.left + 8, r2.top + 6, 62);
       pv3('pointermove', document, r2.left + 8 + 30 * sc, r2.top + 6, 62);
       pv3('pointerup', document, r2.left + 8 + 30 * sc, r2.top + 6, 62);
@@ -5418,6 +5422,8 @@
       };
       // 1. drag Alpha down past Bravo's centre (to y≈90): they swap, Charlie holds
       var an = kidNode('Alpha'), ar = an.getBoundingClientRect();
+      pv('pointerdown', s0.nodes[ci], ar.left + 2, ar.top + 2, 181); // the first press gets the card
+      pv('pointerup', document, ar.left + 2, ar.top + 2, 181);
       pv('pointerdown', an, ar.left + 10, ar.top + 8, 81);
       pv('pointermove', document, ar.left + 10, ar.top + 8 + 35 * sc, 81);
       // mid-drag: a ghost under the hand, the real kid hidden
@@ -5476,6 +5482,8 @@
       // 1. a selected kid, then undo: Backspace must not splice the dead model
       var kn = s0.nodes[ci].querySelector('.gogh-k-1');
       var r = kn.getBoundingClientRect();
+      pv('pointerdown', s0.nodes[ci], r.left + 2, r.top + 2, 191); // the first press gets the card
+      pv('pointerup', document, r.left + 2, r.top + 2, 191);
       pv('pointerdown', kn, r.left + 10, r.top + 8, 91);
       pv('pointerup', document, r.left + 10, r.top + 8, 91);
       expect(G.kidState().sel && G.kidState().sel.sec === s0, 'the kid did not select');
@@ -5490,6 +5498,8 @@
       // 2. a kid text edit in flight, then redo: the edit ends without pushing a history step
       var kn1 = c1.node.querySelector('.gogh-k-1');
       var r1 = kn1.getBoundingClientRect();
+      pv('pointerdown', c1.node, r1.left + 2, r1.top + 2, 192); // the first press gets the card
+      pv('pointerup', document, r1.left + 2, r1.top + 2, 192);
       pv('pointerdown', kn1, r1.left + 10, r1.top + 8, 92);
       pv('pointerup', document, r1.left + 10, r1.top + 8, 92);
       pv('pointerdown', kn1, r1.left + 10, r1.top + 8, 93); // second click on a selected kid edits it
@@ -5506,6 +5516,8 @@
       var kn2 = c2.node.querySelector('.gogh-k-1');
       var r2 = kn2.getBoundingClientRect();
       var sc = c2.sec.sectionEl.getBoundingClientRect().width / 1200;
+      pv('pointerdown', c2.node, r2.left + 2, r2.top + 2, 194); // the first press gets the card
+      pv('pointerup', document, r2.left + 2, r2.top + 2, 194);
       pv('pointerdown', kn2, r2.left + 10, r2.top + 8, 94);
       pv('pointermove', document, r2.left + 10, r2.top + 8 + 40 * sc, 94);
       expect(document.querySelector('.gogh-kid-ghost'), 'no ghost — the kid drag never started');
@@ -5519,6 +5531,51 @@
       expect(receipts(/Out of the card/) === out0, 'the late pointerup freed a kid from a dead drag');
       [].slice.call(document.querySelectorAll('.gogh-toast')).forEach(function (t) { t.remove(); });
       return 'selection, edit and drag all end on restore; history untouched';
+    });
+    // ---- a card keeps its pieces: the first press gets the card, a group moves as one ----
+    test('card pieces: first press selects the card, second reaches the piece, a group drags whole', function () {
+      var s0 = sec();
+      var SNAP = G.serialize();
+      try {
+        var box = { type: 'box', x: 80, y: 40, w: 420, h: 300, boxBg: '#e8e4ec', radius: 16, kids: [
+          { type: 'heading', x: 30, y: 30, w: 360, h: 60, text: '184' },
+          { type: 'para', x: 30, y: 120, w: 360, h: 40, text: 'Projects shipped' },
+        ] };
+        var mate = { type: 'heading', x: 560, y: 60, w: 300, h: 60, text: 'Neighbour' };
+        s0.els.push(box, mate);
+        G.renderSection(s0);
+        var ci = s0.els.indexOf(box), mi = s0.els.indexOf(mate);
+        var card = s0.nodes[ci], kn = card.querySelector('.gogh-k-1');
+        var sc = s0.sectionEl.getBoundingClientRect().width / 1200;
+        var pv = function (type, el, x, y, id) {
+          el.dispatchEvent(new PointerEvent(type, { bubbles: true, cancelable: true, clientX: x, clientY: y, pointerId: id, button: 0, buttons: type === 'pointerup' ? 0 : 1, pointerType: 'mouse' }));
+        };
+        pv('pointerdown', s0.nodes[mi], 0, 0, 300); // something else is chosen; the card is not
+        pv('pointerup', document, 0, 0, 300);
+        // 1. a press on the number inside an unchosen card selects the card, not the number
+        var r = kn.getBoundingClientRect();
+        pv('pointerdown', kn, r.left + 10, r.top + 8, 301);
+        pv('pointerup', document, r.left + 10, r.top + 8, 301);
+        expect(!G.kidState().sel, 'the first press reached inside the card');
+        expect(G.state.sel && G.state.sel.i === ci, 'the first press did not select the card: ' + JSON.stringify(G.state.sel));
+        // 2. with the card chosen, the same press reaches the number
+        pv('pointerdown', kn, r.left + 10, r.top + 8, 302);
+        pv('pointerup', document, r.left + 10, r.top + 8, 302);
+        expect(G.kidState().sel && G.kidState().sel.ci === ci && G.kidState().sel.j === 0, 'the second press did not reach the piece');
+        // 3. the card in a group: a drag from the number moves the group, the number stays put in its card
+        G.multi.set(s0, [ci, mi]);
+        var kx = box.kids[0].x, bx = box.x, mx = mate.x;
+        r = kn.getBoundingClientRect();
+        pv('pointerdown', kn, r.left + 10, r.top + 8, 303);
+        pv('pointermove', document, r.left + 10 + 20 * sc, r.top + 8, 303);
+        pv('pointermove', document, r.left + 10 + 48 * sc, r.top + 8, 303);
+        pv('pointerup', document, r.left + 10 + 48 * sc, r.top + 8, 303);
+        expect(!G.kidState().drag && !G.kidState().sel, 'the group press grabbed the piece');
+        expect(box.kids[0].x === kx, 'the number moved inside its card: ' + box.kids[0].x + ' vs ' + kx);
+        expect(box.x > bx && mate.x > mx && (box.x - bx) === (mate.x - mx), 'the group did not move as one: card ' + (box.x - bx) + ', neighbour ' + (mate.x - mx));
+        G.multi.clear();
+        return 'card first, piece second, group whole';
+      } finally { G.restore(SNAP); }
     });
     // ---- a button kid's URL box: Backspace edits the URL, never the card ----
     test('kid link panel: Backspace in the URL box edits the field, not the card', function () {
@@ -5538,6 +5595,8 @@
       [].slice.call(document.querySelectorAll('.gogh-toast')).forEach(function (t) { t.remove(); });
       // one click on a button kid: it is selected and its link panel opens
       var r = kn.getBoundingClientRect();
+      pev('pointerdown', s0.nodes[ci], r.left + 2, r.top + 2, 184); // the first press gets the card
+      pev('pointerup', document, r.left + 2, r.top + 2, 184);
       pev('pointerdown', kn, r.left + 8, r.top + 6, 84);
       pev('pointerup', document, r.left + 8, r.top + 6, 84);
       expect(kn.classList.contains('gogh-kid-selected'), 'click did not select the button kid');
@@ -8240,6 +8299,7 @@
       var box = f.box, h0 = box.h;
       var kn = f.node.querySelector('.gogh-k-1');
       var r = kn.getBoundingClientRect();
+      pvk('pointerdown', f.node, r.left + 2, r.top + 2, 171); pvk('pointerup', document, r.left + 2, r.top + 2, 171); // the first press gets the card
       pvk('pointerdown', kn, r.left + 10, r.top + 8, 71); pvk('pointerup', document, r.left + 10, r.top + 8, 71);
       pvk('pointerdown', kn, r.left + 10, r.top + 8, 72); pvk('pointerup', document, r.left + 10, r.top + 8, 72);
       var ed = G.kidState().ed;
@@ -8269,6 +8329,7 @@
       var kn = f.node.querySelector('.gogh-k-1');
       var r = kn.getBoundingClientRect();
       var sc = s0.sectionEl.getBoundingClientRect().width / 1200;
+      pvk('pointerdown', f.node, r.left + 2, r.top + 2, 173); pvk('pointerup', document, r.left + 2, r.top + 2, 173); // the first press gets the card
       pvk('pointerdown', kn, r.left + 10, r.top + 8, 73);
       pvk('pointermove', document, r.left + 10, r.top + 8 + 90 * sc, 73);
       expect(document.querySelector('.gogh-kid-ghost'), 'the kid drag never started');
@@ -8295,6 +8356,7 @@
       var sc = secR.width / 1200;
       var gx = r.left + 10, gy = r.top + 8; // the grip: 10px in from the left edge, 8px down
       var dx = -Math.round(220 * sc), dy = Math.round(120 * sc); // well outside the card, to the left
+      pvk('pointerdown', f.node, gx, gy, 174); pvk('pointerup', document, gx, gy, 174); // the first press gets the card
       pvk('pointerdown', kn, gx, gy, 74);
       pvk('pointermove', document, gx + dx / 2, gy + dy / 2, 74);
       pvk('pointermove', document, gx + dx, gy + dy, 74);
@@ -8374,6 +8436,7 @@
       var want = { fs: getComputedStyle(host).fontSize, fw: getComputedStyle(host).fontWeight, col: getComputedStyle(host).color };
       var r = kn.getBoundingClientRect();
       var sc = s0.sectionEl.getBoundingClientRect().width / 1200;
+      pvk('pointerdown', f.node, r.left + 2, r.top + 2, 175); pvk('pointerup', document, r.left + 2, r.top + 2, 175); // the first press gets the card
       pvk('pointerdown', kn, r.left + 10, r.top + 8, 75);
       pvk('pointermove', document, r.left + 10, r.top + 8 + 60 * sc, 75);
       var ghost = document.querySelector('.gogh-kid-ghost');
@@ -8418,6 +8481,7 @@
       var sc = s0.sectionEl.getBoundingClientRect().width / 1200;
       var r = kn.getBoundingClientRect();
       // 1. beside the heading's words (the box runs the card's width, the ink does not)
+      pvk('pointerdown', f.node, r.left + 2, r.top + 2, 176); pvk('pointerup', document, r.left + 2, r.top + 2, 176); // the first press gets the card
       pvk('pointerdown', kn, r.left + 10, r.top + 8, 76);
       pvk('pointermove', document, r.left + 10 + 150 * sc, r.top + 8 - 80 * sc, 76);
       pvk('pointermove', document, r.left + 10 + 260 * sc, r.top + 8 - 155 * sc, 76);

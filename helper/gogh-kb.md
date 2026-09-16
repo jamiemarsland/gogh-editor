@@ -15,7 +15,7 @@ about something where they conflict, rather than picking one silently. Quote UI
 labels and message copy from the appendix, verbatim — those are the current
 strings, and a paraphrased button label is the fastest way to lose a user's trust.
 
-Generated for plugin version 0.99.574 · knowledge base 09ca7b5.
+Generated for plugin version 0.99.575 · knowledge base d6711c6.
 
 ---
 
@@ -155,7 +155,7 @@ Drop an element **fully inside** a plain box and it becomes a **child ("kid") of
 - Toast on join: **"Added to the card — it moves and stacks with it now."** (+Undo)
 - Drag a kid outside the card bounds to free it: **"Out of the card — it's its own piece again."** (+Undo)
 - `Delete` on a kid: **"Removed from the card."** (+Undo)
-- Second click on a selected kid edits its text; first click on a button kid opens its link panel.
+- **The first press always gets the card.** Click a piece inside a card that is not yet chosen and the card is selected, not the piece; click the piece again to reach it (a third click edits its text; on a button kid the second click opens its link panel). While the card rides in a group selection, its pieces cannot be grabbed at all — a drag from anywhere on it moves the group. A loaded paint roller is the one exception: it paints the piece it touches. (v0.99.575; James kept pulling numbers out of cards he meant to move as a row.)
 
 Cards matter because they're what keeps an image + heading + button together when the layout stacks on mobile.
 
@@ -828,11 +828,11 @@ Everything in this section is extracted mechanically from the Gogh source on eve
 
 ## Current release
 
-- Plugin version: **0.99.574**
+- Plugin version: **0.99.575**
 - Requires WordPress **6.5+**, PHP **7.4+**
 - Text domain: `gogh-editor`
 - readme.txt Stable tag: `0.26.0` · Tested up to: `7.0`
-- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.574`). Quote the plugin header version.
+- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.575`). Quote the plugin header version.
 
 ## Design constants
 
@@ -1346,4 +1346,4 @@ These are the real strings in the current build. Use them verbatim; never paraph
 
 ## Test suite
 
-`317` tests, run by appending `?gogh-test` to any Gogh page URL while logged in with edit rights on that page.
+`318` tests, run by appending `?gogh-test` to any Gogh page URL while logged in with edit rights on that page.
