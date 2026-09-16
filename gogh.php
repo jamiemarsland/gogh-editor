@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Gogh Editor
  * Description: A freeform canvas for WordPress — drag anything anywhere on your live page; Gogh publishes it back as clean, responsive core blocks that keep working even if the plugin is deactivated.
- * Version: 0.99.568
+ * Version: 0.99.569
  * Author: Jamie Marsland
  * Author URI: https://pootlepress.com
  * License: GPLv2 or later
@@ -14,7 +14,7 @@
 
 defined( 'ABSPATH' ) || exit;
 
-define( 'GOGH_VERSION', '0.99.568' );
+define( 'GOGH_VERSION', '0.99.569' );
 
 /**
  * gogh/section — a first-class block. STATIC save (no render_callback), so
@@ -25,7 +25,7 @@ add_action( 'init', function () {
 		'gogh-block',
 		plugins_url( 'gogh-block.js', __FILE__ ),
 		array( 'wp-blocks', 'wp-element', 'wp-block-editor' ),
-		'0.99.568-chrome',
+		'0.99.569-chrome',
 		true
 	);
 	register_block_type( 'gogh/section', array(
@@ -558,9 +558,9 @@ add_action( 'wp_enqueue_scripts', function () {
 	if ( ! $post || ! current_user_can( 'edit_post', $post->ID ) ) {
 		return;
 	}
-	wp_register_script( 'gogh-compose', plugins_url( 'gogh-compose.js', __FILE__ ), array(), '0.99.568-chrome', true );
-	wp_enqueue_script( 'gogh-write', plugins_url( 'gogh-write.js', __FILE__ ), array( 'gogh-compose' ), '0.99.568-chrome', true );
-	wp_enqueue_style( 'gogh-write', plugins_url( 'gogh-write.css', __FILE__ ), array(), '0.99.568-chrome' );
+	wp_register_script( 'gogh-compose', plugins_url( 'gogh-compose.js', __FILE__ ), array(), '0.99.569-chrome', true );
+	wp_enqueue_script( 'gogh-write', plugins_url( 'gogh-write.js', __FILE__ ), array( 'gogh-compose' ), '0.99.569-chrome', true );
+	wp_enqueue_style( 'gogh-write', plugins_url( 'gogh-write.css', __FILE__ ), array(), '0.99.569-chrome' );
 	wp_localize_script( 'gogh-write', 'GOGHWRITE', array(
 		'postId'  => $post->ID,
 		'restUrl' => esc_url_raw( rest_url() ),
@@ -3539,7 +3539,7 @@ add_action( 'rest_api_init', function () {
 			return current_user_can( 'edit_posts' );
 		},
 		'callback'            => function () {
-			return array( 'build' => '0.99.568-chrome' );
+			return array( 'build' => '0.99.569-chrome' );
 		},
 	) );
 	register_rest_route( 'gogh/v1', '/starter', array(
@@ -4394,8 +4394,8 @@ add_action( 'admin_enqueue_scripts', function ( $hook ) {
 			$globals[] = $tax->attribute_label;
 		}
 	}
-	wp_enqueue_script( 'gogh-admin', plugins_url( 'gogh-admin.js', __FILE__ ), array(), '0.99.568-chrome', true );
-	wp_enqueue_style( 'gogh-admin', plugins_url( 'gogh-admin.css', __FILE__ ), array(), '0.99.568-chrome' );
+	wp_enqueue_script( 'gogh-admin', plugins_url( 'gogh-admin.js', __FILE__ ), array(), '0.99.569-chrome', true );
+	wp_enqueue_style( 'gogh-admin', plugins_url( 'gogh-admin.css', __FILE__ ), array(), '0.99.569-chrome' );
 	wp_localize_script( 'gogh-admin', 'GOGH_ADMIN', array(
 		'restUrl'   => esc_url_raw( rest_url( 'wc/v3/' ) ),
 		'nonce'     => wp_create_nonce( 'wp_rest' ),
@@ -5543,6 +5543,23 @@ function gogh_media_id_for_url( $url ) {
 	$seen[ $key ] = (int) $id;
 	return (int) $id;
 }
+// this picture at a phone's width: an upload's 'large' size, or an Unsplash
+// URL asked for at w=900; null when there is nothing smaller to offer
+function gogh_phone_image_url( $src ) {
+	if ( 0 === strpos( $src, 'https://images.unsplash.com/' ) ) {
+		$w = preg_match( '/[?&]w=(\d+)/', $src, $wm ) ? (int) $wm[1] : 1800;
+		return $w > 900 ? preg_replace( '/([?&])w=\d+/', '${1}w=900', $src ) : null;
+	}
+	$id = gogh_media_id_for_url( $src );
+	if ( ! $id ) {
+		return null;
+	}
+	$large = wp_get_attachment_image_src( $id, 'large' );
+	if ( ! $large || empty( $large[0] ) || $large[0] === $src || (int) $large[1] >= 1400 ) {
+		return null;
+	}
+	return $large[0];
+}
 function gogh_light_images( $html ) {
 	if ( is_admin() || ! is_string( $html ) || '' === $html ) {
 		return $html;
@@ -5584,27 +5601,52 @@ function gogh_light_images( $html ) {
 			return $tag;
 		}, $html );
 	}
+	// the starters' photos come from Unsplash by URL, sized by a w= parameter:
+	// the same URL at smaller widths is a srcset, so a phone asks for a
+	// phone's worth (the InstaWP measure: a 640KB hero on a 412px screen)
+	if ( false !== strpos( $html, 'images.unsplash.com' ) ) {
+		$nth = 0;
+		$html = preg_replace_callback( '/<img\b[^>]*\ssrc=["\']https:\/\/images\.unsplash\.com\/[^"\']+["\'][^>]*>/i', function ( $m ) use ( &$nth ) {
+			$tag = $m[0];
+			$nth++;
+			if ( preg_match( '/\ssrcset=/', $tag ) ) {
+				return $tag;
+			}
+			preg_match( '/\ssrc=["\']([^"\']+)["\']/', $tag, $sm );
+			$src = html_entity_decode( $sm[1], ENT_QUOTES );
+			$w   = preg_match( '/[?&]w=(\d+)/', $src, $wm ) ? (int) $wm[1] : 1800;
+			$set = array();
+			foreach ( array( 480, 768, 1024, 1400, 1800, 2400 ) as $cw ) {
+				if ( $cw < $w ) {
+					$set[] = esc_url( preg_replace( '/([?&])w=\d+/', '${1}w=' . $cw, $src ) ) . ' ' . $cw . 'w';
+				}
+			}
+			$set[] = esc_url( $src ) . ' ' . $w . 'w';
+			$attrs = ' srcset="' . implode( ', ', $set ) . '" sizes="(max-width: 700px) 100vw, min(100vw, ' . $w . 'px)"';
+			// the first picture is likely the largest paint: fetch it first; the rest can wait
+			if ( ! preg_match( '/\sloading=|\sfetchpriority=/', $tag ) ) {
+				$attrs .= 1 === $nth ? ' fetchpriority="high"' : ' loading="lazy"';
+			}
+			return preg_replace( '/^<img/i', '<img' . $attrs, $tag, 1 );
+		}, $html );
+	}
 	// a section's background photo: the same picture at 'large' on phones
 	if ( false !== strpos( $html, 'gogh-style' ) && false !== strpos( $html, 'url(' ) ) {
 		$html = preg_replace_callback( '/<style class="gogh-style">(.*?)<\/style>/s', function ( $m ) use ( $base ) {
 			$css   = $m[1];
 			$extra = '';
-			if ( preg_match_all( '/([^{}]+)\{([^{}]*url\(["\']?(' . preg_quote( $base, '/' ) . '[^"\')]+)["\']?\)[^{}]*)\}/', $css, $rules, PREG_SET_ORDER ) ) {
+			if ( preg_match_all( '/([^{}]+)\{([^{}]*url\(["\']?((?:' . preg_quote( $base, '/' ) . '|https:\/\/images\.unsplash\.com\/)[^"\')]+)["\']?\)[^{}]*)\}/', $css, $rules, PREG_SET_ORDER ) ) {
 				foreach ( $rules as $r ) {
-					$sel = trim( $r[1] ); // the section's rule, or its tint layer's ::before — both carry the url
+					$sel = trim( $r[1] ); // the section's rule, or its tint layer's ::before: both carry the url
 					if ( '' === $sel || '@' === $sel[0] ) {
 						continue;
 					}
-					$src = $r[3];
-					$id  = gogh_media_id_for_url( $src );
-					if ( ! $id ) {
+					$src   = $r[3];
+					$phone = gogh_phone_image_url( $src );
+					if ( ! $phone ) {
 						continue;
 					}
-					$large = wp_get_attachment_image_src( $id, 'large' );
-					if ( ! $large || empty( $large[0] ) || $large[0] === $src || (int) $large[1] >= 1400 ) {
-						continue;
-					}
-					$extra .= '@media (max-width: 700px) { ' . $sel . ' { ' . str_replace( $src, $large[0], $r[2] ) . ' } }';
+					$extra .= '@media (max-width: 700px) { ' . $sel . ' { ' . str_replace( $src, $phone, $r[2] ) . ' } }';
 				}
 			}
 			return $extra ? '<style class="gogh-style">' . $css . $extra . '</style>' : $m[0];
@@ -5614,30 +5656,48 @@ function gogh_light_images( $html ) {
 }
 add_filter( 'the_content', 'gogh_light_images', 11 );
 
-// the first section's background photo is the largest thing on most gogh
-// homes, and the browser only finds it after parsing the page's CSS: say
-// so up front, the phone size for phones and the full size for the rest
+// the first picture on the page is the largest paint on most gogh homes,
+// and a background is only found after the page's CSS is parsed: say so up
+// front, the phone size for phones and the full size for the rest
 add_action( 'wp_head', function () {
 	if ( ! is_singular() ) {
 		return;
 	}
 	$p = get_queried_object();
-	if ( ! $p || empty( $p->post_content ) || false === strpos( $p->post_content, 'gogh-style' ) ) {
+	if ( ! $p || empty( $p->post_content ) || false === strpos( $p->post_content, 'gogh-' ) ) {
 		return;
 	}
-	$up   = wp_get_upload_dir();
-	$base = $up['baseurl'];
-	if ( ! preg_match( '/<style class="gogh-style">.*?url\(["\']?(' . preg_quote( $base, '/' ) . '[^"\')]+\.(?:jpe?g|png|webp|avif|gif))["\']?\)/s', $p->post_content, $m ) ) {
+	$c     = $p->post_content;
+	$up    = wp_get_upload_dir();
+	$hosts = '(?:' . preg_quote( $up['baseurl'], '/' ) . '|https:\/\/images\.unsplash\.com\/)';
+	$bg    = preg_match( '/<style class="gogh-style">.*?url\(["\']?(' . $hosts . '[^"\')]+)["\']?\)/s', $c, $bm, PREG_OFFSET_CAPTURE ) ? $bm : null;
+	$img   = preg_match( '/<img\b[^>]*\ssrc=["\'](' . $hosts . '[^"\']+)["\']/', $c, $im, PREG_OFFSET_CAPTURE ) ? $im : null;
+	if ( ! $bg && ! $img ) {
 		return;
 	}
-	$src = esc_url( $m[1] );
-	$id  = gogh_media_id_for_url( $m[1] );
-	$large = $id ? wp_get_attachment_image_src( $id, 'large' ) : null;
-	if ( $large && ! empty( $large[0] ) && $large[0] !== $m[1] && (int) $large[1] < 1400 ) {
-		echo '<link rel="preload" as="image" href="' . esc_url( $large[0] ) . '" media="(max-width: 700px)" fetchpriority="high">' . "\n";
-		echo '<link rel="preload" as="image" href="' . $src . '" media="(min-width: 701px)" fetchpriority="high">' . "\n";
+	$first = ( $bg && ( ! $img || $bg[0][1] < $img[0][1] ) ) ? $bg : $img;
+	$src   = html_entity_decode( $first[1][0], ENT_QUOTES );
+	// an Unsplash picture tag carries a srcset (added as the content is
+	// served): the preload must offer the SAME candidates, or the browser
+	// fetches the preload and then the picture's own pick — twice the hero
+	if ( $first === $img && 0 === strpos( $src, 'https://images.unsplash.com/' ) ) {
+		$w   = preg_match( '/[?&]w=(\d+)/', $src, $wm ) ? (int) $wm[1] : 1800;
+		$set = array();
+		foreach ( array( 480, 768, 1024, 1400, 1800, 2400 ) as $cw ) {
+			if ( $cw < $w ) {
+				$set[] = esc_url( preg_replace( '/([?&])w=\d+/', '${1}w=' . $cw, $src ) ) . ' ' . $cw . 'w';
+			}
+		}
+		$set[] = esc_url( $src ) . ' ' . $w . 'w';
+		echo '<link rel="preload" as="image" imagesrcset="' . implode( ', ', $set ) . '" imagesizes="(max-width: 700px) 100vw, min(100vw, ' . $w . 'px)" fetchpriority="high">' . "\n";
+		return;
+	}
+	$phone = gogh_phone_image_url( $src );
+	if ( $phone ) {
+		echo '<link rel="preload" as="image" href="' . esc_url( $phone ) . '" media="(max-width: 700px)" fetchpriority="high">' . "\n";
+		echo '<link rel="preload" as="image" href="' . esc_url( $src ) . '" media="(min-width: 701px)" fetchpriority="high">' . "\n";
 	} else {
-		echo '<link rel="preload" as="image" href="' . $src . '" fetchpriority="high">' . "\n";
+		echo '<link rel="preload" as="image" href="' . esc_url( $src ) . '" fetchpriority="high">' . "\n";
 	}
 }, 2 );
 
@@ -5645,7 +5705,7 @@ add_action( 'wp_head', function () {
 // wearing Magazine must read as Magazine logged-out, and the site's gait
 // is site-wide; both packs are a few KB of pure CSS.
 add_action( 'wp_enqueue_scripts', function () {
-	wp_register_style( 'gogh-looks', false, array(), '0.99.568-chrome' );
+	wp_register_style( 'gogh-looks', false, array(), '0.99.569-chrome' );
 	wp_enqueue_style( 'gogh-looks' );
 	// the reading looks dress single posts; the blog looks dress lists of
 	// posts (the posts page, archives, a page carrying a posts rail); motion
@@ -5691,10 +5751,10 @@ add_action( 'wp_enqueue_scripts', function () {
 
 	// for every visitor: neutralise theme spacing around gogh sections, even
 	// on pages whose stored stylesheets predate this rule
-	wp_register_style( 'gogh-base', false, array(), '0.99.568-chrome' );
+	wp_register_style( 'gogh-base', false, array(), '0.99.569-chrome' );
 	// (the splash presentation itself lives in gogh_splash_css(), shared with
 	// the block editor — a wall in Gutenberg must look like a wall)
-	wp_register_script( 'gogh-view', false, array(), '0.99.568-chrome', true );
+	wp_register_script( 'gogh-view', false, array(), '0.99.569-chrome', true );
 	wp_enqueue_script( 'gogh-view' );
 	wp_add_inline_script( 'gogh-view',
 		// mega menu panels: hover opens with intent on fine pointers; the chevron
@@ -6008,9 +6068,9 @@ add_action( 'wp_enqueue_scripts', function () {
 
 	// compose must be REGISTERED here too — a dependency on an
 	// unregistered handle silently drops the whole editor script
-	wp_register_script( 'gogh-compose', plugins_url( 'gogh-compose.js', __FILE__ ), array(), '0.99.568-chrome', true );
-	wp_enqueue_script( 'gogh-editor', plugins_url( 'gogh-editor.js', __FILE__ ), array( 'gogh-compose' ), '0.99.568-chrome', true );
-	wp_enqueue_style( 'gogh-editor', plugins_url( 'gogh-editor.css', __FILE__ ), array(), '0.99.568-chrome' );
+	wp_register_script( 'gogh-compose', plugins_url( 'gogh-compose.js', __FILE__ ), array(), '0.99.569-chrome', true );
+	wp_enqueue_script( 'gogh-editor', plugins_url( 'gogh-editor.js', __FILE__ ), array( 'gogh-compose' ), '0.99.569-chrome', true );
+	wp_enqueue_style( 'gogh-editor', plugins_url( 'gogh-editor.css', __FILE__ ), array(), '0.99.569-chrome' );
 
 	// WebMCP bridge: the page registers its editing verbs as agent tools.
 	// OPT-IN only — add ?gogh-mcp=1 for a demo session (or enable sitewide
@@ -6022,19 +6082,19 @@ add_action( 'wp_enqueue_scripts', function () {
 	// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only labs toggle
 	$gogh_exp = isset( $_GET['gogh-test'] ) || ( isset( $_GET['gogh-experiments'] ) && '0' !== $_GET['gogh-experiments'] );
 	if ( isset( $_GET['gogh-mcp'] ) || $gogh_exp || apply_filters( 'gogh_webmcp_enabled', false ) ) {
-		wp_enqueue_script( 'gogh-webmcp', plugins_url( 'gogh-webmcp.js', __FILE__ ), array( 'gogh-editor' ), '0.99.568-chrome', true );
+		wp_enqueue_script( 'gogh-webmcp', plugins_url( 'gogh-webmcp.js', __FILE__ ), array( 'gogh-editor' ), '0.99.569-chrome', true );
 	}
 
 	// regression suite: /page/?gogh-test (editors only, never saves)
 	// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only toggle enqueuing a test script for capability-checked editors.
 	if ( isset( $_GET['gogh-test'] ) ) {
-		wp_enqueue_script( 'gogh-tests', plugins_url( 'gogh-tests.js', __FILE__ ), array( 'gogh-editor' ), '0.99.568-chrome', true );
+		wp_enqueue_script( 'gogh-tests', plugins_url( 'gogh-tests.js', __FILE__ ), array( 'gogh-editor' ), '0.99.569-chrome', true );
 	}
 	// the user-test walk: /?gogh-edit=1&gogh-walk=1 on a DISPOSABLE Yellow
 	// House (it publishes) — editors only, never shipped in the zip
 	// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only toggle for capability-checked editors.
 	if ( isset( $_GET['gogh-walk'] ) ) {
-		wp_enqueue_script( 'gogh-walk', plugins_url( 'gogh-walk.js', __FILE__ ), array( 'gogh-editor' ), '0.99.568-chrome', true );
+		wp_enqueue_script( 'gogh-walk', plugins_url( 'gogh-walk.js', __FILE__ ), array( 'gogh-editor' ), '0.99.569-chrome', true );
 	}
 
 	// products live outside wp/v2, so gogh carries its own save route for
@@ -6054,7 +6114,7 @@ add_action( 'wp_enqueue_scripts', function () {
 		'postTitle'  => get_the_title( $post ),
 		'permalink'  => esc_url_raw( get_permalink( $post->ID ) ),
 		'excerpt'    => (string) $post->post_excerpt,
-		'build'    => '0.99.568-chrome',
+		'build'    => '0.99.569-chrome',
 		// two rooms, one landmark (same contract as the admin bar): on a POST
 		// the corner pill opens the WRITING surface, not the freeform canvas
 		'writeUrl' => is_singular( 'post' ) ? add_query_arg( 'gogh-write', '1', get_permalink( $post ) ) : null,
