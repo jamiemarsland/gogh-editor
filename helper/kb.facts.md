@@ -4,11 +4,11 @@ Everything in this section is extracted mechanically from the Gogh source on eve
 
 ## Current release
 
-- Plugin version: **0.99.569**
+- Plugin version: **0.99.570**
 - Requires WordPress **6.5+**, PHP **7.4+**
 - Text domain: `gogh-editor`
 - readme.txt Stable tag: `0.26.0` · Tested up to: `7.0`
-- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.569`). Quote the plugin header version.
+- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.570`). Quote the plugin header version.
 
 ## Design constants
 
@@ -170,6 +170,8 @@ Block: `gogh/section` · v3 attributes: `css`, `model`, `scope`, `v`, `cssT`.
 | `save_post` | action | 10 |
 | `wp_head` | action | 10 |
 | `the_content` | filter | 11 |
+| `wp_head` | action | 10 |
+| `the_content` | filter | 13 |
 | `wp_head` | action | 10 |
 | `wp_enqueue_scripts` | action | 10 |
 | `wp_enqueue_scripts` | action | 10 |
@@ -520,5 +522,5 @@ These are the real strings in the current build. Use them verbatim; never paraph
 
 ## Test suite
 
-`315` tests, run by appending `?gogh-test` to any Gogh page URL while logged in with edit rights on that page.
+`316` tests, run by appending `?gogh-test` to any Gogh page URL while logged in with edit rights on that page.
 

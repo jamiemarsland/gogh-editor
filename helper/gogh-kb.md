@@ -15,7 +15,7 @@ about something where they conflict, rather than picking one silently. Quote UI
 labels and message copy from the appendix, verbatim — those are the current
 strings, and a paraphrased button label is the fastest way to lose a user's trust.
 
-Generated for plugin version 0.99.569 · knowledge base 4245acc.
+Generated for plugin version 0.99.570 · knowledge base 8f00de9.
 
 ---
 
@@ -814,6 +814,9 @@ gogh's pictures used to publish as plain `<img src>` with no attachment id or si
 ### Pictures from Unsplash, published light (v0.99.569)
 The starters' photos come from Unsplash by URL with a `w=` width. As the content is served, each such picture gets a srcset of the same URL at 480, 768, 1024, 1400 and 1800 (up to its own width) with `sizes="(max-width: 700px) 100vw, min(100vw, Wpx)"`; the first picture on the page gets `fetchpriority="high"`, the rest `loading="lazy"`. A section's Unsplash background gets a `w=900` variant on phones. The page's first picture, tag or background, upload or Unsplash, is preloaded — for a tag with the same srcset, so the browser reuses one download. Measured on a hosted InstaWP site (the photographer design): mobile 75 → 83, LCP 7.0s → 4.5s, 1,584KB → 987KB; desktop 88 → 90.
 
+### Honest sizes, a description, a preconnect (v0.99.570)
+**Honest sizes:** WordPress guesses every picture is as wide as the screen. gogh reads each picture's real share of its section from the stored CSS (the grid's cqw columns and the piece's grid-area, `gogh_piece_share`) and writes `sizes="(max-width: 700px) 100vw, 53vw"`-style values after core's own pass (priority 13); the first picture's preload speaks the same sizes so one download serves both. Desktop on the hosted photographer: 1,401KB → 914KB, the hero 640KB → 457KB. **A description for every page:** `gogh_page_description()` — the excerpt if written, else the first paragraph that reads as a sentence (40+ characters; eyebrow lines like 'People · Places · Quiet moments' are skipped), else the tagline — as `<meta name="description">` on singular pages and the front page, unless an SEO plugin (Yoast, Rank Math, AIOSEO, SEOPress, The SEO Framework, Slim SEO) is active. **Preconnect** to images.unsplash.com when the page's content uses Unsplash pictures. The InstaWP SEO score of 61 was the sandbox's own 'discourage search engines' setting (noindex) plus the missing description; gogh's part is fixed.
+
 ---
 
 # Generated facts appendix
@@ -822,11 +825,11 @@ Everything in this section is extracted mechanically from the Gogh source on eve
 
 ## Current release
 
-- Plugin version: **0.99.569**
+- Plugin version: **0.99.570**
 - Requires WordPress **6.5+**, PHP **7.4+**
 - Text domain: `gogh-editor`
 - readme.txt Stable tag: `0.26.0` · Tested up to: `7.0`
-- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.569`). Quote the plugin header version.
+- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.570`). Quote the plugin header version.
 
 ## Design constants
 
@@ -988,6 +991,8 @@ Block: `gogh/section` · v3 attributes: `css`, `model`, `scope`, `v`, `cssT`.
 | `save_post` | action | 10 |
 | `wp_head` | action | 10 |
 | `the_content` | filter | 11 |
+| `wp_head` | action | 10 |
+| `the_content` | filter | 13 |
 | `wp_head` | action | 10 |
 | `wp_enqueue_scripts` | action | 10 |
 | `wp_enqueue_scripts` | action | 10 |
@@ -1338,4 +1343,4 @@ These are the real strings in the current build. Use them verbatim; never paraph
 
 ## Test suite
 
-`315` tests, run by appending `?gogh-test` to any Gogh page URL while logged in with edit rights on that page.
+`316` tests, run by appending `?gogh-test` to any Gogh page URL while logged in with edit rights on that page.

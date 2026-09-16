@@ -4986,6 +4986,14 @@
 
     // step four: the die draws on the Fonts door's pairs — a roll may land in
     // Fraunces & Inter, tried from Google and installed quietly on commit
+    test('the page describes itself: a meta description from its own words', function () {
+      var m = document.querySelector('meta[name="description"]');
+      expect(!!m, 'the head should carry a meta description');
+      var d = m.getAttribute('content') || '';
+      expect(d.length > 10 && d.length <= 160 && !/</.test(d), 'the description should be plain words of a sensible length, got ' + d.length + ' chars');
+      return d.slice(0, 60) + '…';
+    });
+
     test('every pair in the Fonts door ends in one plain word, the theme’s included', function () {
       expect(G.pairMood('Vollkorn', 'Vollkorn, serif', 'Fira Code', '"Fira Code", monospace') === 'nerdy', 'a known theme pair has its word');
       expect(G.pairMood('Some Serif', '"Some Serif", serif', 'Other Sans', '"Other Sans", sans-serif') === 'readable', 'an unknown serif + sans pair gets a word from what the faces are');
