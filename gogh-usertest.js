@@ -61,6 +61,7 @@
     '.gogh-ut-scale{display:flex;gap:6px}.gogh-ut-scale button{all:unset;cursor:pointer;flex:1;text-align:center;padding:8px 0;border-radius:8px;border:1px solid rgba(22,24,28,.16)}.gogh-ut-scale button.is-on{background:#16181c;color:#fff;border-color:#16181c}' +
     '.gogh-ut-pill{all:unset;position:fixed;top:48px;right:16px;z-index:2147483000;cursor:pointer;font:600 13px -apple-system,BlinkMacSystemFont,"Segoe UI",Inter,sans-serif;color:#fff;background:#16181c;padding:8px 14px;border-radius:999px;box-shadow:0 8px 24px rgba(22,24,28,.25)}' +
     '.gogh-ut-foot{padding:0 12px 10px;font-size:12px;color:rgba(22,24,28,.5)}' +
+    '.gogh-ut-pill[hidden],.gogh-ut[hidden]{display:none}' +
     '@media (max-width:700px){.gogh-ut{top:auto;bottom:12px;right:12px;left:12px;width:auto}.gogh-ut-pill{top:auto;bottom:12px}}';
   var style = document.createElement('style');
   style.textContent = css;
