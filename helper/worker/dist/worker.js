@@ -15,8 +15,8 @@
  *   GET  /api/boot     { total, seed, counted, blueprints } — launches so far
  *   POST /api/boot     { bp } — one beacon per booted blueprint site
  *   POST /api/test     { session, events } — a tester's card reports in
- *   GET  /api/test     sessions (token) — ?session=<id> for one tester's events
- *   GET  /test         the tester's intro page; GET /tests the report (token)
+ *   GET  /api/test     sessions (password: TEST_TOKEN) — ?session=<id> for one tester's events
+ *   GET  /test         the tester's intro page; GET /tests the report (password)
  *   POST /api/chat     { messages, mode } → SSE stream passed straight through
  *   POST /api/refresh  force a KB re-fetch (needs REFRESH_TOKEN)
  *
@@ -354,7 +354,7 @@ const UT_BLUEPRINT = 'https://playground.wordpress.net/?blueprint-url=https://ra
 const UT_INTRO = `<!doctype html>
 <html lang="en"><head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Try gogh for half an hour</title>
+<title>Thank you for helping make gogh better</title>
 <style>
   :root { --paper: #faf9f6; --ink: #1a1916; --soft: #6d6a63; --line: #e6e2da; --accent: #16181c; }
   * { box-sizing: border-box; }
@@ -369,10 +369,10 @@ const UT_INTRO = `<!doctype html>
   .go { display: inline-block; margin: 8px 0 0; padding: 14px 24px; border-radius: 999px; background: var(--accent); color: #fff; font-weight: 600; text-decoration: none; }
   .fine { font-size: 14px; color: var(--soft); margin-top: 28px; }
 </style></head><body><div class="wrap">
-<h1>Try gogh for half an hour</h1>
-<p>Thank you for helping. You are about to get a real WordPress website in your browser, already set up, with a small card of things to try. Nobody is watching. There are no wrong answers.</p>
-<div class="card"><h2>Who you are for the next half hour</h2>
-<p>You are Elliot Grey, a photographer a few months into running your own business. Customers keep asking whether you have a website. You want something simple: a bit about you, some of your work, and a way for people to get in touch. You are proud of your work, and the site should look like it.</p>
+<h1>Thank you for helping make gogh better</h1>
+<p>You are about to get a real WordPress website in your browser, already set up, with a small card of things to try. Nobody is watching. There are no wrong answers.</p>
+<div class="card"><h2>Who you are while you try it</h2>
+<p>You are Elliot Smith, a photographer a few months into running your own business. Customers keep asking whether you have a website. You want something simple: a bit about you, some of your work, and a way for people to get in touch. You are proud of your work, and the site should look like it.</p>
 <p class="soft" style="margin:0">The site you get is a start someone made for you. Make it yours.</p></div>
 <div class="card"><h2>How it goes</h2>
 <ol><li>Press Start. Give it a minute to build.</li><li>A card on the right lists seven things to try. Do each one your own way, then press Done. If you can’t, press Couldn’t do it. Both are useful.</li><li>At the end there are four quick questions.</li></ol></div>
@@ -380,7 +380,7 @@ const UT_INTRO = `<!doctype html>
 <p class="fine">Use a computer, not a phone, and Chrome, Edge or Firefox. The site is throwaway: close the tab and it is gone. The only thing kept is what the card learns: which tasks you did, how long they took, and anything you type into it. Your answers go to Jamie Marsland.</p>
 </div></body></html>`;
 
-// the page Jamie reads: sessions, tasks, notes — token asked for once
+// the page Jamie reads: sessions, tasks, notes — password asked for once per tab
 const UT_REPORT = `<!doctype html>
 <html lang="en"><head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
@@ -407,7 +407,7 @@ const UT_REPORT = `<!doctype html>
 </style></head><body><div class="wrap">
 <h1>gogh user tests</h1>
 <p class="soft">Each row is one tester. Click a row for the tasks and notes. <span id="sum"></span></p>
-<div id="auth"><input id="tok" type="password" placeholder="test token"> <button id="go">Show</button></div>
+<div id="auth"><input id="tok" type="password" placeholder="password"> <button id="go">Show</button></div>
 <div id="out"></div>
 <script>
 (function () {
@@ -415,7 +415,7 @@ const UT_REPORT = `<!doctype html>
   var out = document.getElementById('out'), auth = document.getElementById('auth'), sum = document.getElementById('sum');
   var esc = function (s) { return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); };
   var when = function (t) { return t ? new Date(t).toLocaleString() : ''; };
-  var get = function (q) { return fetch('/api/test?' + q, { headers: { 'x-test-token': tok } }).then(function (r) { if (r.status === 401) throw new Error('That token is not right.'); return r.json(); }); };
+  var get = function (q) { return fetch('/api/test?' + q, { headers: { 'x-test-token': tok } }).then(function (r) { if (r.status === 401) throw new Error('That password is not right.'); return r.json(); }); };
   function tasksOf(events) {
     var order = [], by = {};
     events.forEach(function (e) {
