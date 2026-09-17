@@ -1077,7 +1077,10 @@
       out.push(cardSel + ' { display: grid; position: relative; overflow: hidden;' +
         ' grid-template-columns: ' + kg.cols.map(function (c) { return parseFloat(c) + 'fr'; }).join(' ') + ';' +
         ' grid-template-rows: ' + cardRows.join(' ') + '; }');
-      out.push(cardSel + ' > * { margin: 0 !important; min-width: 0; box-sizing: border-box; }');
+      out.push(cardSel + ' > * { margin: 0 !important; min-width: 0; box-sizing: border-box; z-index: 1; }');
+      // a shape inside a card is decoration: it paints under the words
+      // whatever the reading order put it in the DOM
+      e.kids.forEach(function (k, j) { if (k.type === 'box') out.push(cardSel + ' > .gogh-k-' + (j + 1) + ' { z-index: 0; }'); });
       if (e.href) {
         // the stretched link rides ABOVE the kids: with it underneath, every
         // text block swallowed the hover and "that bit is not linked". While
@@ -1131,6 +1134,13 @@
       if (e.m && e.m.hidden) {
         out.push('  html:not(.gogh-phone-preview) ' + sec + ' .gogh-el-' + (i + 1) + ' { display: none; }');
       }
+      // stacked, a card is one column: a decorative shape inside it steps
+      // aside (as a section-level shape does), a plain box keeps its
+      // proportions as a band rather than collapsing to nothing
+      if (e.type === 'box' && e.kids && e.kids.length) e.kids.forEach(function (k, j) {
+        if (k.type !== 'box') return;
+        out.push('  ' + sec + ' .gogh-el-' + (i + 1) + ' > .gogh-k-' + (j + 1) + ' { ' + (k.shape ? 'display: none;' : 'aspect-ratio: ' + k.w + ' / ' + k.h + '; width: 100%;') + ' }');
+      });
     });
     // section-level mobile override — a hand-tuned stack order (m.order lists
     // element indices in their phone order). Emitted UN-gated: the phone
@@ -13940,11 +13950,19 @@
   }
   function cardJoinTarget(sec, i) {
     var e = sec.els[i];
-    if (!e || e.type === 'box' || e.rails) return -1; // rails never enter a card: cards stack by different rules on phones
+    if (!e || e.rails) return -1; // rails never enter a card: cards stack by different rules on phones
+    // a plain shape may join as decoration — a circle behind a number, a
+    // stripe along the top — but only as a LEAF: a box with kids of its own
+    // never joins (cards stay one level deep), and nothing can join a kid
+    // (kids are not in sec.els). A shape near the card's own size is a
+    // card landing on a card, not decoration, so it stays a sibling.
+    var isShape = e.type === 'box';
+    if (isShape && e.kids && e.kids.length) return -1;
     for (var b = sec.els.length - 1; b >= 0; b--) {
       if (b === i) continue;
       var o = sec.els[b];
       if (o.type !== 'box') continue; // a SHAPED box hosts too — shapeRoom keeps its kids inside the silhouette
+      if (isShape && e.w * e.h > o.w * o.h * 0.6) continue;
       if (e.x >= o.x - 2 && e.y >= o.y - 2 &&
           e.x + e.w <= o.x + o.w + 2 && e.y + e.h <= o.y + o.h + 2) return b;
     }
@@ -14577,7 +14595,9 @@
         closePanel();
         renderSection(sec);
         pushState();
-        toast('Added to the card \u2014 it moves and stacks with it now.',
+        toast(kid.type === 'box'
+          ? 'Added to the card \u2014 it sits behind the words and moves with them.'
+          : 'Added to the card \u2014 it moves and stacks with it now.',
           { actions: [{ label: 'Undo', onClick: function () { undo(); } }] });
         return;
       }

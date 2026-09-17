@@ -1,6 +1,12 @@
-# Knowledge-base audit — plugin v0.99.575
+# Knowledge-base audit — plugin v0.99.576
 
 _13 finding(s) suppressed by `kb.audit-ignore.txt`._
+
+## STALE (1)
+
+The prose names something that no longer exists.
+
+- toast "Added to the card — it moves and stacks with it now." was removed in this release, but the prose still describes it
 
 ## MISSING (98)
 
@@ -120,4 +126,5 @@ Quoted copy not found verbatim in the source. Paraphrases are fine; changed UI c
 
 Use this as the checklist for updating the prose — and as a sanity check on the release itself.
 
-- version: 0.99.574 → 0.99.575
+- version: 0.99.575 → 0.99.576
+- removed toast: "Added to the card — it moves and stacks with it now."

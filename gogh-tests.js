@@ -5532,6 +5532,52 @@
       [].slice.call(document.querySelectorAll('.gogh-toast')).forEach(function (t) { t.remove(); });
       return 'selection, edit and drag all end on restore; history untouched';
     });
+    // ---- a shape joins a card as decoration ----
+    test('a shape joins a card as decoration: behind the words, no pushing, gone on phones; a card never joins a card', function () {
+      var s0 = sec();
+      var SNAP = G.serialize();
+      try {
+        var box = { type: 'box', x: 80, y: 40, w: 480, h: 320, boxBg: '#e8e4ec', radius: 16, kids: [
+          { type: 'heading', x: 40, y: 40, w: 400, h: 60, text: '184' },
+          { type: 'para', x: 40, y: 130, w: 400, h: 40, text: 'Projects shipped' },
+        ] };
+        var disc = { type: 'box', x: 1000, y: 10, w: 100, h: 100, shape: 'circle', boxBg: '#f0c' };
+        var big = { type: 'box', x: 560, y: 120, w: 600, h: 480, boxBg: '#0cf' };
+        var mate = { type: 'box', x: 580, y: 140, w: 520, h: 400, boxBg: '#ccc' }; // near big's own size
+        s0.els.push(box, disc, big, mate);
+        G.renderSection(s0);
+        var sc = s0.sectionEl.getBoundingClientRect().width / 1200;
+        var pv = function (type, el, x, y, id) {
+          el.dispatchEvent(new PointerEvent(type, { bubbles: true, cancelable: true, clientX: x, clientY: y, pointerId: id, button: 0, buttons: type === 'pointerup' ? 0 : 1, pointerType: 'mouse' }));
+        };
+        var dragTo = function (el, tx, ty, id) {
+          var i = s0.els.indexOf(el), node = s0.nodes[i], r = node.getBoundingClientRect();
+          var dx = (tx - el.x) * sc, dy = (ty - el.y) * sc;
+          pv('pointerdown', node, r.left + 10, r.top + 10, id);
+          pv('pointermove', document, r.left + 10 + dx / 2, r.top + 10 + dy / 2, id);
+          pv('pointermove', document, r.left + 10 + dx, r.top + 10 + dy, id);
+          pv('pointerup', document, r.left + 10 + dx, r.top + 10 + dy, id);
+        };
+        var ky = box.kids.map(function (k) { return k.y; });
+        // 1. the disc dropped fully inside the card joins it, and the words do not move
+        dragTo(disc, 100, 60, 401);
+        expect(box.kids.length === 3 && box.kids.indexOf(disc) !== -1, 'the shape did not join the card: ' + box.kids.length + ' kids, in els ' + (s0.els.indexOf(disc) !== -1));
+        var texts = box.kids.filter(function (k) { return k !== disc; });
+        expect(texts[0].y === ky[0] && texts[1].y === ky[1], 'the shape pushed the words: ' + texts.map(function (k) { return k.y; }).join(',') + ' vs ' + ky.join(','));
+        var dj = box.kids.indexOf(disc) + 1, ci = s0.els.indexOf(box);
+        var css = s0.styleEl.textContent;
+        expect(new RegExp('\\.gogh-el-' + (ci + 1) + ' > \\.gogh-k-' + dj + ' \\{ z-index: 0; \\}').test(css), 'the shape does not sit behind the words in the CSS');
+        expect(new RegExp('\\.gogh-el-' + (ci + 1) + ' > \\.gogh-k-' + dj + ' \\{ display: none; \\}').test(css), 'the shape is not hidden on phones');
+        expect(/"shape":"circle"/.test(G.buildV3()), 'the shape kid did not publish inside the card');
+        // 2. a card dropped inside a bigger plain box stays a card (cards stay one level deep)
+        dragTo(box, 600, 200, 402);
+        expect(s0.els.indexOf(box) !== -1 && !(big.kids && big.kids.length), 'a card joined a box');
+        // 3. a shape near the box's own size is a box on a box, not decoration
+        dragTo(mate, 590, 150, 403);
+        expect(s0.els.indexOf(mate) !== -1 && !(big.kids && big.kids.length), 'a near-size shape joined the box');
+        return 'disc joined, words held, card and near-size shape stayed siblings';
+      } finally { G.restore(SNAP); }
+    });
     // ---- a card keeps its pieces: the first press gets the card, a group moves as one ----
     test('card pieces: first press selects the card, second reaches the piece, a group drags whole', function () {
       var s0 = sec();

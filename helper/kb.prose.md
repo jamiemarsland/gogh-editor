@@ -132,7 +132,7 @@ A bar along the bottom edge with a centre pill. Drag to set section height, clam
 - Away from a boundary, hovering a section shows the **Section** toolbar.
 
 ### Cards (drop-to-join)
-Drop an element **fully inside** a plain box and it becomes a **child ("kid") of that card** — one level only; boxes never join boxes. The card glows as a drop target.
+Drop an element **fully inside** a plain box and it becomes a **child ("kid") of that card** — one level only. The card glows as a drop target. A **plain shape can join too, as decoration** (v0.99.576): a circle behind a number, a stripe along the top. It sits behind the words, never pushes them and is never pushed, and on phones it steps aside like any decorative shape (a plain box kid keeps its proportions as a band). Limits: a box that has kids never joins (cards stay one level deep), nothing can join a kid, and a shape more than about 60% of the box's area is a box on a box, not decoration, so it stays a sibling. To recolour a shape kid, drag it out, use its panel, drop it back. Toast: **"Added to the card — it sits behind the words and moves with them."** (+Undo)
 - Toast on join: **"Added to the card — it moves and stacks with it now."** (+Undo)
 - Drag a kid outside the card bounds to free it: **"Out of the card — it's its own piece again."** (+Undo)
 - `Delete` on a kid: **"Removed from the card."** (+Undo)
