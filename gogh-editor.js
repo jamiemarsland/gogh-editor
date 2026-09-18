@@ -11391,9 +11391,16 @@
     if (!faces || !sec) return '';
     var face = (sec.m && sec.m.tpl === fam) ? (sec.m.face || 0) : 0;
     face = ((face % faces.length) + faces.length) % faces.length;
-    // the base take has no name of its own — it is the design as drawn
-    var name = (faces[face] && faces[face].take) || (face === 0 ? 'The original' : '');
-    return (face + 1) + '/' + faces.length + (name ? ' \u00b7 ' + name : '');
+    // the count only: a take's name ("The anchor") means nothing to a
+    // beginner and cost the pill its room (James) — it rides in the tooltip
+    return (face + 1) + '/' + faces.length;
+  }
+  function secTakeName(sec, fam) {
+    var faces = fam ? diceFaces(fam) : null;
+    if (!faces || !sec) return '';
+    var face = (sec.m && sec.m.tpl === fam) ? (sec.m.face || 0) : 0;
+    face = ((face % faces.length) + faces.length) % faces.length;
+    return (faces[face] && faces[face].take) || (face === 0 ? 'The original' : '');
   }
   function hideSecBar() { goghFadeOut(secBar); secBarIdx = null; closeSecMore(); clearTimeout(hoverSecT); }
   // The corners come when the pointer enters a section and go when it
@@ -11476,6 +11483,8 @@
       var lab = secTakeLabel(S[idx], fam);
       takeL.textContent = lab;
       takeL.hidden = !lab;
+      var nm = secTakeName(S[idx], fam);
+      takeL.title = nm ? 'Take ' + lab + ' of this design: ' + nm : 'Which take of this design is on the page';
     }
     var r = S[idx].wrapEl.getBoundingClientRect();
     // the bar DOCKS: it sits at the section's top edge, and for a section
