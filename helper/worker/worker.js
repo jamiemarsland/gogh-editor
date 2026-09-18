@@ -348,7 +348,11 @@ async function utRead(env, req, url) {
   return json({ sessions: idx }, 200, { 'cache-control': 'no-store' });
 }
 
-const UT_BLUEPRINT = 'https://playground.wordpress.net/?blueprint-url=https://raw.githubusercontent.com/jamiemarsland/gogh-demo/main/blueprint-usertest.json&storage=temp';
+// seamless: no Playground chrome around the site. The tester gets the whole
+// window for WordPress (about 60px of height back, which is the difference
+// between seeing a section's top and not on a laptop), and none of Export /
+// Dev Tools / Playgrounds to wander into. Boot still shows a progress bar.
+const UT_BLUEPRINT = 'https://playground.wordpress.net/?blueprint-url=https://raw.githubusercontent.com/jamiemarsland/gogh-demo/main/blueprint-usertest.json&storage=temp&mode=seamless';
 
 // the page a tester is sent: who they are for the next half hour, and Start
 const UT_INTRO = `<!doctype html>
