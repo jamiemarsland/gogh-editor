@@ -16061,37 +16061,58 @@
       return true;
     });
   }
-  function createPageInMenu(title) {
+  function createPage(title, navigate) {
+    // the page is created and OPENED in the editor; the menu is an offer
+    // on arrival, not a default (James: "it should not add itself to the
+    // menu by default" — thank-you pages and drafts are pages too)
     title = String(title || '').trim();
     if (!title) return Promise.resolve(null);
+    navigate = navigate || function (u) { location.href = u; };
     return fetch(GSROOT + 'pages', {
       method: 'POST', headers: NAV_HDRS(), credentials: 'same-origin',
       body: JSON.stringify({ title: title, status: 'publish', content: '' }),
     }).then(function (r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
       .then(function (pg) {
-        return siteMenuAppend(title, pg.link).then(function (inMenu) {
-          var editUrl = pg.link + (pg.link.indexOf('?') === -1 ? '?' : '&') + 'gogh-edit=1';
-          toast('\u201c' + title + '\u201d is a page now' + (inMenu ? ', and in your menu.' : '.'), {
-            ttl: 14000,
-            actions: [
-              { label: 'Open it', onClick: function () { location.href = editUrl; } },
-              { label: 'Undo', onClick: function () {
-                fetch(GSROOT + 'pages/' + pg.id, { method: 'DELETE', headers: NAV_HDRS(), credentials: 'same-origin' })
-                  .then(function () { return inMenu ? siteMenuRemoveUrl(pg.link) : false; })
-                  .then(function () { toast('\u201c' + title + '\u201d is gone again \u2014 it is in the bin under Pages if you change your mind.'); })
-                  .catch(function () { toast('gogh could not take that page back \u2014 it is under Pages in the dashboard.', { error: true }); });
-              } },
-            ],
-          });
-          return { page: pg, inMenu: inMenu, editUrl: editUrl };
-        });
+        var from = location.pathname + (location.search ? location.search.replace(/[?&]gogh-(new|from)=[^&]*/g, '') : '');
+        var editUrl = pg.link + (pg.link.indexOf('?') === -1 ? '?' : '&') + 'gogh-edit=1&gogh-new=1&gogh-from=' + encodeURIComponent(from);
+        navigate(editUrl);
+        return { page: pg, editUrl: editUrl };
       });
+  }
+  // on the new page: say it is new, offer the menu, keep Undo (bins the
+  // page and goes back to where Add was pressed)
+  function announceNewPage(title, fromUrl, navigate) {
+    navigate = navigate || function (u) { location.href = u; };
+    var pageUrl = location.origin + location.pathname;
+    var inMenu = false; // Undo takes the menu item out too, if it was put in
+    toast('\u201c' + title + '\u201d is a new page. Visitors find it through the menu \u2014 add it, or link to it.', {
+      ttl: 20000,
+      actions: [
+        { label: 'Put it in the menu', onClick: function () {
+          siteMenuAppend(title, pageUrl).then(function (ok) {
+            inMenu = inMenu || ok;
+            if (!ok) return toast('gogh could not find a menu to add it to \u2014 open the header and add it there.', { error: true });
+            toast('\u201c' + title + '\u201d is in your menu, at the end. The header shows it on every page.', {
+              actions: [{ label: 'Undo', onClick: function () {
+                siteMenuRemoveUrl(pageUrl).then(function () { inMenu = false; toast('\u201c' + title + '\u201d is out of the menu again. The page stays.'); });
+              } }],
+            });
+          });
+        } },
+        { label: 'Undo', onClick: function () {
+          fetch(GSROOT + 'pages/' + cfg.postId, { method: 'DELETE', headers: NAV_HDRS(), credentials: 'same-origin' })
+            .then(function () { return inMenu ? siteMenuRemoveUrl(pageUrl) : false; })
+            .then(function () { navigate((fromUrl || cfg.homeUrl || '/') + ((fromUrl || '').indexOf('?') === -1 ? '?' : '&') + 'gogh-edit=1'); })
+            .catch(function () { toast('gogh could not take that page back \u2014 it is under Pages in the dashboard.', { error: true }); });
+        } },
+      ],
+    });
   }
   function openAddPagePanel(anchorEl) {
     panel.innerHTML =
       '<div class="gogh-panel-head"><span class="gogh-panel-title">Add a page</span>' +
       '<button type="button" class="gogh-sbtn gogh-panel-close gogh-panel-back" title="Back"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"/></svg></button></div>' +
-      '<div class="gogh-panel-hint">It goes at the end of your menu by itself. Undo takes it out again.</div>' +
+      '<div class="gogh-panel-hint">It opens in the editor, ready to fill. Put it in the menu from there, or leave it out.</div>' +
       '<div class="gogh-addpage"><input type="text" class="gogh-input gogh-addpage-title" placeholder="Page title, e.g. Prices" maxlength="120" />' +
       '<button type="button" class="gogh-btn gogh-addpage-go">Add</button></div>';
     dockSidebar();
@@ -16107,10 +16128,10 @@
       if (!t || busy) return;
       busy = true;
       go.textContent = 'Adding\u2026';
-      createPageInMenu(t).then(function (res) {
+      createPage(t).then(function (res) {
         busy = false;
         if (!res) { go.textContent = 'Add'; return; }
-        backToDesign();
+        go.textContent = 'Opening\u2026'; // the page is about to open in the editor
       }).catch(function () {
         busy = false;
         go.textContent = 'Add';
@@ -18812,7 +18833,8 @@
     setEditing: setEditing,
     deleteSection: deleteSection,
     openAddPagePanel: openAddPagePanel,
-    createPageInMenu: createPageInMenu,
+    createPage: createPage,
+    announceNewPage: announceNewPage,
     moveSection: moveSection,
     duplicateSection: duplicateSection,
     rollSection: rollSection,
@@ -25345,6 +25367,26 @@
     try { S.forEach(function (sx) { (sx.els || []).forEach(function (ex) { if (ex.rails && ex.shop) hydrateProductsPreview(sx, ex); if (ex.rails && ex.posts) hydratePostsPreview(sx, ex); }); }); } catch (err) {}
   }
   window.__goghRenderCanvasOnce = renderCanvasOnce;
+  // a page that Add a page just made announces itself once the editor is
+  // up: the menu offer and the way back (own path, so nothing else in the
+  // boot can skip it)
+  if (wantEdit && /[?&]gogh-new=1/.test(location.search)) {
+    (function () {
+      var fromNew = '';
+      try {
+        var un = new URL(location.href);
+        fromNew = un.searchParams.get('gogh-from') || '';
+        un.searchParams.delete('gogh-new');
+        un.searchParams.delete('gogh-from');
+        window.history.replaceState(null, '', un); // "history" here is gogh's undo stack
+      } catch (e4) {}
+      var tries = 0;
+      (function waitEditor() {
+        if (editing) { setTimeout(function () { announceNewPage(String(cfg.postTitle || document.title || 'This').split(/\s+[\u2013\u2014|-]\s+/)[0].trim(), fromNew); }, 700); return; }
+        if (++tries < 120) setTimeout(waitEditor, 150);
+      })();
+    })();
+  }
   hydrateV3Sections().then(function () {
     renderCanvasOnce.hydrated = true;
     if (wantEdit || editing) {
@@ -25366,7 +25408,7 @@
       try {
         var u = new URL(location.href);
         u.searchParams.delete('gogh-edit');
-        history.replaceState(null, '', u);
+        window.history.replaceState(null, '', u); // "history" here is gogh's undo stack — this never ran
       } catch (e3) {}
     }
   });

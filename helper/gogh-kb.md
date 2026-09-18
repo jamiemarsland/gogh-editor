@@ -15,7 +15,7 @@ about something where they conflict, rather than picking one silently. Quote UI
 labels and message copy from the appendix, verbatim — those are the current
 strings, and a paraphrased button label is the fastest way to lose a user's trust.
 
-Generated for plugin version 0.99.584 · knowledge base 83fe0e3.
+Generated for plugin version 0.99.585 · knowledge base 320843e.
 
 ---
 
@@ -165,7 +165,7 @@ Cards matter because they're what keeps an image + heading + button together whe
 
 ### The side rail (left edge: Page · Site · SEO)
 Three tabs sit on the left edge of the window in edit mode. Click one and a drawer docks beside the page (the page shrinks to fit next to it; nothing opens on hover, and there is no palette on the right any more). There is no exit control here — leaving edit mode is **Exit gogh editor** in the admin toolbar.
-- **Page** — this page's doors, **Add a page** first (v0.99.584): type a title, press Add, and the page is created, put at the end of the site menu, and announced in a toast with **Open it** and **Undo** (Undo trashes the page and takes the menu item out again; the page waits in the bin under Pages). Then **Page style** and **Rearrange sections**.
+- **Page** — this page's doors, **Add a page** first (v0.99.585): type a title, press Add, and the page is created and opens in the editor straight away. On arrival a toast says it is a new page, with **Put it in the menu** (one click: the page goes to the end of the site menu, which the header shows on every page) and **Undo** (bins the page and goes back to the page Add was pressed on). Nothing joins the menu unless asked — thank-you pages and drafts are pages too. Then **Page style** and **Rearrange sections**.
 - **Site** — the design of the whole site as cards: **Site style** (colours and looks, hover to try, click to keep, Remix), **Fonts** (pairs, tried on your page), **Motion**, **Edit header**, **Edit footer**, **Page style**, **Rearrange sections** (the zoom-out page map). Some doors dock as a panel in the same place; **Back** returns to the cards.
 - **SEO** — what the page says to search engines.
 The drawer's foot holds **Grid: show and snap** (the painted rhythm grid, 24-unit tiles and a heavier line every 72; off by default), **Undo (⌘Z)** and **Redo (⇧⌘Z)**.
@@ -828,11 +828,11 @@ Everything in this section is extracted mechanically from the Gogh source on eve
 
 ## Current release
 
-- Plugin version: **0.99.584**
+- Plugin version: **0.99.585**
 - Requires WordPress **6.5+**, PHP **7.4+**
 - Text domain: `gogh-editor`
 - readme.txt Stable tag: `0.26.0` · Tested up to: `7.0`
-- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.584`). Quote the plugin header version.
+- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.585`). Quote the plugin header version.
 
 ## Design constants
 
@@ -1321,6 +1321,7 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "gogh can’t safely swap this image."
 - "gogh could not change the page style — "
 - "gogh could not create that page."
+- "gogh could not find a menu to add it to — open the header and add it there."
 - "gogh could not keep the menu style — "
 - "gogh could not make a mega menu — "
 - "gogh could not make a phone menu — "

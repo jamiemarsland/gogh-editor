@@ -5544,10 +5544,10 @@
       [].slice.call(document.querySelectorAll('.gogh-toast')).forEach(function (t) { t.remove(); });
       return 'selection, edit and drag all end on restore; history untouched';
     });
-    // ---- add a page: created, put in the menu, undone as one ----
-    testAsync('Add a page: one door creates the page, puts it in the menu, and Undo takes both back', function () {
+    // ---- add a page: created and opened; on arrival the menu is an offer, and Undo bins it ----
+    testAsync('Add a page: creates and opens the page; on the new page, Put it in the menu is one click and Undo bins it', function () {
       // no real writes on this site: every request the flow makes is answered here
-      var realFetch = window.fetch, log = [];
+      var realFetch = window.fetch, log = [], went = [];
       var origin = location.origin;
       var navRaw = '<!-- wp:navigation-link {"label":"Home","url":"/","kind":"custom"} /-->';
       var reply = function (obj, ok) { return Promise.resolve({ ok: ok !== false, status: ok === false ? 599 : 200, json: function () { return Promise.resolve(obj); } }); };
@@ -5555,33 +5555,48 @@
         var u = String(url), m = (opts && opts.method) || 'GET';
         log.push(m + ' ' + u.replace(origin, '') + (opts && opts.body ? ' ' + opts.body : ''));
         if (m === 'POST' && /\/pages(\?|$)/.test(u)) return reply({ id: 4242, link: origin + '/prices/' });
-        if (m === 'DELETE' && /\/pages\/4242/.test(u)) return reply({ id: 4242 });
+        if (m === 'DELETE' && /\/pages\//.test(u)) return reply({ id: 1 });
         if (/template-parts/.test(u) && m === 'GET') return reply([{ id: 'x//header', slug: 'header', theme: window.GOGH && window.GOGH.theme, content: { raw: '<!-- wp:navigation {"ref":77} /-->' } }]);
         if (/navigation\/77/.test(u) && m === 'GET') return reply({ id: 77, content: { raw: navRaw } });
         if (/navigation\/77/.test(u) && m === 'POST') { navRaw = JSON.parse(opts.body).content; return reply({ id: 77 }); }
         return reply(null, false); // the chrome re-render and anything else: quietly nothing
       };
       var done = function () { window.fetch = realFetch; G.closePanel(); };
+      var go = function (u) { went.push(u); };
       try {
         G.openAddPagePanel(q('.gogh-addpagebtn'));
-        var inp = q('.gogh-panel .gogh-addpage-title');
-        expect(inp && q('.gogh-panel .gogh-addpage-go'), 'the Add a page panel has no field or button');
-        inp.value = 'Prices';
-        q('.gogh-panel .gogh-addpage-go').click();
+        expect(q('.gogh-panel .gogh-addpage-title') && q('.gogh-panel .gogh-addpage-go'), 'the Add a page panel has no field or button');
       } catch (e) { done(); throw e; }
-      return new Promise(function (res) { setTimeout(res, 600); }).then(function () {
+      return G.createPage('Prices', go).then(function (res) {
         expect(log.some(function (l) { return /^POST \/.*pages/.test(l) && /"title":"Prices"/.test(l); }), 'the page was not created: ' + log.join(' | ').slice(0, 300));
-        expect(/"label":"Prices"/.test(navRaw) && /\/prices\//.test(navRaw) && /Home/.test(navRaw), 'the new page did not join the end of the menu: ' + navRaw.slice(0, 200));
-        var t = [].slice.call(document.querySelectorAll('.gogh-toast')).filter(function (x) { return /is a page now/.test(x.textContent); })[0];
-        expect(t && /in your menu/.test(t.textContent) && /Open it/.test(t.textContent) && /Undo/.test(t.textContent), 'the toast should say it is a page and in the menu, with Open it and Undo');
-        var undo = [].slice.call(t.querySelectorAll('button')).filter(function (b) { return /Undo/.test(b.textContent); })[0];
-        undo.click();
-        return new Promise(function (res) { setTimeout(res, 600); });
+        expect(went.length === 1 && /\/prices\/\?gogh-edit=1&gogh-new=1&gogh-from=/.test(went[0]), 'Add did not open the new page in the editor: ' + went.join(' | '));
+        expect(!/Prices/.test(navRaw), 'the page joined the menu without being asked');
+        // arrival: the offer and the way back
+        G.announceNewPage('Prices', '/about/', go);
+        var t = [].slice.call(document.querySelectorAll('.gogh-toast')).filter(function (x) { return /is a new page/.test(x.textContent); })[0];
+        expect(t && /Put it in the menu/.test(t.textContent) && /Undo/.test(t.textContent), 'the arrival toast should offer the menu and Undo');
+        [].slice.call(t.querySelectorAll('button')).filter(function (b) { return /Put it in the menu/.test(b.textContent); })[0].click();
+        return new Promise(function (r) { setTimeout(r, 600); });
       }).then(function () {
-        expect(log.some(function (l) { return /^DELETE \/.*pages\/4242/.test(l); }), 'Undo did not trash the page');
+        expect(/"label":"Prices"/.test(navRaw) && /Home/.test(navRaw), 'Put it in the menu did not add the page to the end of the menu: ' + navRaw.slice(0, 200));
+        // the confirmation carries its own Undo: the item comes out, the page stays
+        var t2 = [].slice.call(document.querySelectorAll('.gogh-toast')).filter(function (x) { return /is in your menu/.test(x.textContent); })[0];
+        expect(t2 && /Undo/.test(t2.textContent), 'the in-your-menu toast should offer Undo');
+        [].slice.call(t2.querySelectorAll('button')).filter(function (b) { return /Undo/.test(b.textContent); })[0].click();
+        return new Promise(function (r) { setTimeout(r, 800); });
+      }).then(function () {
         expect(!/Prices/.test(navRaw) && /Home/.test(navRaw), 'Undo did not take the page out of the menu: ' + navRaw.slice(0, 200));
+        expect(!log.some(function (l) { return /^DELETE/.test(l); }), 'taking it out of the menu must not bin the page');
+        // the arrival toast's own Undo: the page is binned and we go back
+        G.announceNewPage('Prices', '/about/', go);
+        var t3 = [].slice.call(document.querySelectorAll('.gogh-toast')).filter(function (x) { return /is a new page/.test(x.textContent); })[0];
+        [].slice.call(t3.querySelectorAll('button')).filter(function (b) { return /Undo/.test(b.textContent); })[0].click();
+        return new Promise(function (r) { setTimeout(r, 800); });
+      }).then(function () {
+        expect(log.some(function (l) { return /^DELETE \/.*pages\//.test(l); }), 'Undo did not bin the page');
+        expect(went.length === 2 && /^\/about\/\?gogh-edit=1$/.test(went[1]), 'Undo did not go back to where Add was pressed: ' + went.join(' | '));
         done();
-        return 'created, in the menu, toast with Open it and Undo, undone as one';
+        return 'created and opened; menu on request; Undo bins and goes back';
       }, function (e) { done(); throw e; });
     });
     // ---- a shape joins a card as decoration ----
