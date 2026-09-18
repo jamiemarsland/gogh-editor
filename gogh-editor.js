@@ -5916,7 +5916,7 @@
     if (!t || !t.closest) return;
     var inUI = selBox.contains(t) || elbar.contains(t) || mbar.contains(t) || grip.contains(t) ||
       side.contains(t) || panel.contains(t) || picker.contains(t) ||
-      secBar.contains(t) || secMore.contains(t) ||
+      secBar.contains(t) || secAdd.contains(t) || secMore.contains(t) ||
       t === inserter || t === hbar;
     var inElement = t.closest('.gogh-section') && t.closest('.gogh-section > *');
     if (!inUI && !inElement) {
@@ -11302,7 +11302,7 @@
   // the top-right. Both live and die with the selection, as the pill did.
   var secAdd = document.createElement('div');
   secAdd.className = 'gogh-secadd';
-  secAdd.innerHTML = '<button type="button" class="gogh-secadd-btn" data-sec="add" title="Add something to this section"><i aria-hidden="true">＋</i>Add to this section</button>';
+  secAdd.innerHTML = '<button type="button" class="gogh-secadd-btn" data-sec="add" title="Add something to this section"><i aria-hidden="true">+</i><span>Add to this section</span></button>';
   secAdd.hidden = true;
   document.body.appendChild(secAdd);
   var secBar = document.createElement('div');

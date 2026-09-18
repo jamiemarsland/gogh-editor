@@ -1493,25 +1493,35 @@ body.gogh-painting, body.gogh-painting .gogh-section * { cursor: url('data:image
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  padding: 6px 14px 6px 6px;
+  height: 34px;
+  box-sizing: border-box;
+  padding: 0 14px 0 6px;
   border-radius: 999px;
   font-size: 13px;
   font-weight: 600;
+  line-height: 1;
   color: #141519;
   white-space: nowrap;
 }
+/* the words and the disc share one centre line: no inherited line-height,
+   no theme button padding underneath (the words sat low on the photographer) */
+.gogh-secadd-btn span { display: block; line-height: 1; padding: 0; margin: 0; }
 .gogh-secadd-btn:hover { background: #e8f0ff; }
 .gogh-secadd-btn i {
-  display: inline-grid;
+  display: grid;
   place-items: center;
   width: 22px;
   height: 22px;
+  flex: none;
   border-radius: 50%;
   background: #141519;
   color: #fff;
   font-style: normal;
-  font-size: 15px;
+  font-weight: 700;
+  font-size: 17px;
   line-height: 1;
+  padding: 0 0 1px;
+  box-sizing: border-box;
 }
 .gogh-secbar-label {
   font-size: 10px;
