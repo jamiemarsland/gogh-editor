@@ -7175,6 +7175,28 @@
       return '76→72 on the major, 22→24 free, 44→48 with the grid on, magnets still first, drag x' + (X0 + 4) + '→' + X0;
     });
 
+    testAsync('section corners come on hover and go when the pointer leaves; a selection keeps them', function () {
+      var s = sec();
+      document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+      document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+      var r = s.sectionEl.getBoundingClientRect();
+      var mv = function (el, x, y) { el.dispatchEvent(new PointerEvent('pointermove', { bubbles: true, clientX: x, clientY: y, pointerId: 7, pointerType: 'mouse' })); };
+      mv(s.sectionEl, r.left + 20, r.top + 20);
+      var add = q('.gogh-secadd'), bar = q('.gogh-secbar');
+      expect(!add.hidden && !add.classList.contains('gogh-byebye') && !bar.hidden, 'hovering the section did not summon the corners');
+      expect(!s.sectionEl.classList.contains('gogh-selsec'), 'hovering must not select the section');
+      mv(document.body, 2, 2);
+      return new Promise(function (res) { setTimeout(res, 400); }).then(function () {
+        expect(add.hidden || add.classList.contains('gogh-byebye'), 'the corners stayed after the pointer left');
+        pev('pointerdown', s.sectionEl, 10, 10); // selected: the corners stay whatever the pointer does
+        mv(document.body, 2, 2);
+        return new Promise(function (res) { setTimeout(res, 400); });
+      }).then(function () {
+        expect(!add.hidden && !add.classList.contains('gogh-byebye'), 'a selected section lost its corners when the pointer left');
+        pev('pointerdown', document.body, 4, 4);
+        return 'hover summons, leaving folds, selection keeps';
+      });
+    });
     test('section bar: Add in words at one corner, the tools at the other, housekeeping in words', function () {
       var bar = q('.gogh-secbar');
       // the first three testers: "Where is the + button?" — adding is now a

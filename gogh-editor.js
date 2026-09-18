@@ -7155,6 +7155,14 @@
     panel.innerHTML = '<div class="gogh-panel-title">Add to this section</div>' +
       '<div class="gogh-addmenu">' + ELEM_ITEMS + addonItemsHTML() + '</div>';
     placePanelNear(secx.wrapEl);
+    // an open panel is an open panel: a click on the canvas closes it
+    // (James: "i dont seem to be able to click off after this has opened")
+    panelOpen = true;
+    panelSticky = false;
+    // the corners fold while the menu is up — the panel's ground is
+    // translucent and the Add pill showed through it
+    goghFadeOut(secAdd);
+    goghFadeOut(secBar);
     panel.querySelectorAll('.gogh-sitem').forEach(function (btn) {
       btn.addEventListener('click', function () {
         closePanel();
@@ -11330,9 +11338,36 @@
     var name = (faces[face] && faces[face].take) || (face === 0 ? 'The original' : '');
     return (face + 1) + '/' + faces.length + (name ? ' \u00b7 ' + name : '');
   }
-  function hideSecBar() { goghFadeOut(secBar); goghFadeOut(secAdd); secBarIdx = null; closeSecMore(); }
-  // (hideSecBarSoon and its travel-grace timer retired with hover
-  // summoning — the bar now lives and dies with the SELECTION)
+  function hideSecBar() { goghFadeOut(secBar); goghFadeOut(secAdd); secBarIdx = null; closeSecMore(); clearTimeout(hoverSecT); }
+  // The corners come when the pointer enters a section and go when it
+  // leaves (a short grace so the trip from the section to its own corner
+  // does not lose them), and a SELECTED section keeps them whatever the
+  // pointer does. James, after the first three testers: "lets bring back
+  // the hover". A chosen piece still stands them down (one editing surface).
+  var hoverSecT = null;
+  document.addEventListener('pointermove', function (ev) {
+    if (!editing || drag || resize || kidDrag || textEditing) return;
+    if (ev.pointerType === 'touch' || designMode() || panelOpen) return;
+    if (sel || multiSel || kidSel) return; // a chosen piece: one editing surface
+    if (selSecIdx !== null) {
+      // the selection owns the corners; if a panel folded them, the next
+      // move over the page brings them back
+      if (secBar.hidden || secBar.classList.contains('gogh-byebye')) showSecBar(selSecIdx);
+      return;
+    }
+    var t = ev.target;
+    if (!t || !t.closest) return;
+    if (t.closest('.gogh-secbar, .gogh-secadd, .gogh-secmore, .gogh-panel, .gogh-side, .gogh-side-tab')) { clearTimeout(hoverSecT); return; }
+    var wrap = t.closest('.gogh-wrap');
+    var idx = -1;
+    if (wrap) S.some(function (s2, i2) { if (s2.wrapEl === wrap) { idx = i2; return true; } return false; });
+    if (idx === -1 || S[idx].chrome) {
+      if (secBarIdx !== null && !hoverSecT) hoverSecT = setTimeout(function () { hoverSecT = null; if (selSecIdx === null) hideSecBar(); }, 260);
+      return;
+    }
+    clearTimeout(hoverSecT); hoverSecT = null;
+    if (secBarIdx !== idx || secBar.hidden || secBar.classList.contains('gogh-byebye')) showSecBar(idx);
+  }, { passive: true });
   function showSecBar(idx) {
     secBar.classList.remove('gogh-byebye'); // a fresh summon always lands visible
     secAdd.classList.remove('gogh-byebye');
@@ -11495,7 +11530,8 @@
   // the docked bar follows the scroll (the viewport pin lives in
   // showSecBar); selection survives scrolling by design
   window.addEventListener('scroll', function () {
-    if (selSecIdx !== null && !secBar.hidden && S[selSecIdx]) showSecBar(selSecIdx);
+    var at = selSecIdx !== null ? selSecIdx : secBarIdx;
+    if (at !== null && !secBar.hidden && S[at]) showSecBar(at);
   }, { passive: true });
 
   // plain-permalink safe: cfg URLs may already carry ?rest_route=…

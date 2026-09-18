@@ -1,12 +1,6 @@
-# Knowledge-base audit — plugin v0.99.579
+# Knowledge-base audit — plugin v0.99.580
 
 _13 finding(s) suppressed by `kb.audit-ignore.txt`._
-
-## STALE (1)
-
-The prose names something that no longer exists.
-
-- UI label "Add to this section" was removed in this release, but the prose still describes it
 
 ## MISSING (98)
 
@@ -126,5 +120,4 @@ Quoted copy not found verbatim in the source. Paraphrases are fine; changed UI c
 
 Use this as the checklist for updating the prose — and as a sanity check on the release itself.
 
-- version: 0.99.578 → 0.99.579
-- removed UI label: "Add to this section"
+- version: 0.99.579 → 0.99.580
