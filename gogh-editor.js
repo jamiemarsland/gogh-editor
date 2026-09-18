@@ -11356,16 +11356,10 @@
     if (!t || !t.closest) return;
     if (t.closest('.gogh-secbar, .gogh-secadd, .gogh-secmore, .gogh-panel, .gogh-side, .gogh-side-tab, .gogh-elbar, .gogh-mbar')) { clearTimeout(hoverSecT); hoverSecT = null; return; }
     var pieceChosen = !!(sel || multiSel || kidSel);
-    if (selSecIdx !== null && !pieceChosen) {
-      // a selected section owns its corners; if a panel folded them, the
-      // next move over the page brings them back
-      hoverHold = null;
-      if (secBar.hidden || secBar.classList.contains('gogh-byebye')) showSecBar(selSecIdx);
-      return;
-    }
     var wrap = t.closest('.gogh-wrap');
     var idx = -1;
     if (wrap) S.some(function (s2, i2) { if (s2.wrapEl === wrap) { idx = i2; return true; } return false; });
+    var shown = !(secBar.hidden || secBar.classList.contains('gogh-byebye'));
     // a chosen piece folded the corners of its section: they stay away
     // while the hand stays inside it (James: "when i click on something
     // else in that section they should fade"), and leaving the section
@@ -11373,12 +11367,23 @@
     // thing never ends the adding
     if (hoverHold !== null && idx !== hoverHold) hoverHold = null;
     if (hoverHold !== null && idx === hoverHold) return;
-    if (idx === -1 || S[idx].chrome) {
-      if (secBarIdx !== null && !hoverSecT) hoverSecT = setTimeout(function () { hoverSecT = null; if (selSecIdx === null) hideSecBar(); }, 260);
+    // the section under the hand always wins — a selected section higher
+    // up the page must not deaden the hover everywhere else (James: "after
+    // i've interacted with a section, then move on down the page, the
+    // hover has stopped working")
+    if (idx !== -1 && !S[idx].chrome) {
+      clearTimeout(hoverSecT); hoverSecT = null;
+      if (secBarIdx !== idx || !shown) showSecBar(idx);
       return;
     }
-    clearTimeout(hoverSecT); hoverSecT = null;
-    if (secBarIdx !== idx || secBar.hidden || secBar.classList.contains('gogh-byebye')) showSecBar(idx);
+    // over no section: a selected section keeps its corners, anything
+    // else fades after a short grace
+    if (selSecIdx !== null && !pieceChosen) {
+      clearTimeout(hoverSecT); hoverSecT = null;
+      if (secBarIdx !== selSecIdx || !shown) showSecBar(selSecIdx);
+      return;
+    }
+    if (secBarIdx !== null && !hoverSecT) hoverSecT = setTimeout(function () { hoverSecT = null; if (selSecIdx === null || sel || multiSel || kidSel) hideSecBar(); }, 260);
   }, { passive: true });
   function showSecBar(idx) {
     secBar.classList.remove('gogh-byebye'); // a fresh summon always lands visible
@@ -11543,8 +11548,9 @@
   // the docked bar follows the scroll (the viewport pin lives in
   // showSecBar); selection survives scrolling by design
   window.addEventListener('scroll', function () {
-    var at = selSecIdx !== null ? selSecIdx : secBarIdx;
-    if (at !== null && !secBar.hidden && S[at]) showSecBar(at);
+    // whichever section's corners are up rides the scroll (the pin lives in
+    // showSecBar) — not the selected one, which may be far up the page
+    if (secBarIdx !== null && !secBar.hidden && S[secBarIdx]) showSecBar(secBarIdx);
   }, { passive: true });
 
   // plain-permalink safe: cfg URLs may already carry ?rest_route=…

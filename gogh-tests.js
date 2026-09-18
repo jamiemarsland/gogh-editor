@@ -7193,6 +7193,17 @@
         return new Promise(function (res) { setTimeout(res, 400); });
       }).then(function () {
         expect(!add.hidden && !add.classList.contains('gogh-byebye'), 'a selected section lost its corners when the pointer left');
+        // a selected section must not deaden the hover elsewhere: another
+        // section under the hand takes the corners
+        var dupI = G.sections().indexOf(s) ;
+        G.duplicateSection(dupI);
+        var s2 = G.sections()[dupI + 1];
+        var r2 = s2.sectionEl.getBoundingClientRect();
+        mv(s2.sectionEl, r2.left + 20, r2.top + 20);
+        var addR = add.getBoundingClientRect();
+        expect(!add.hidden && Math.abs(addR.top - (r2.top + 14)) < 120, 'hovering another section while one is selected did not move the corners to it: add top ' + Math.round(addR.top) + ' vs section top ' + Math.round(r2.top));
+        G.deleteSection(dupI + 1);
+        pev('pointerdown', s.sectionEl, 10, 10); // back to: this section selected
         // a chosen piece folds them, and they stay away while the hand
         // works inside that section; a trip out and back re-arms them, so
         // adding one thing never ends the adding
