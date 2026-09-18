@@ -3951,7 +3951,7 @@
       if (pe.contains(ev.target)) return;
       // gogh's own surfaces (panels, drawer, toolbars, toasts) are part of
       // the editing conversation — they don't put the chrome to sleep
-      if (ev.target.closest && ev.target.closest('.gogh-panel, .gogh-side, .gogh-side-tab, .gogh-elbar, .gogh-hbar, .gogh-secbar, .gogh-secadd, .gogh-secmore, .gogh-toast, .gogh-chip, .gogh-convertbtn, .gogh-picker, .gogh-navadd, #wpadminbar')) return;
+      if (ev.target.closest && ev.target.closest('.gogh-panel, .gogh-side, .gogh-side-tab, .gogh-elbar, .gogh-hbar, .gogh-secbar, .gogh-secmore, .gogh-toast, .gogh-chip, .gogh-convertbtn, .gogh-picker, .gogh-navadd, #wpadminbar')) return;
       // an ARMED panel (something auditioned, Apply lit) holds focus —
       // a stray page click must not throw the audition away
       if (panelOpen && panel.dataset.goghArea === area) {
@@ -5922,7 +5922,7 @@
     if (!t || !t.closest) return;
     var inUI = selBox.contains(t) || elbar.contains(t) || mbar.contains(t) || grip.contains(t) ||
       side.contains(t) || panel.contains(t) || picker.contains(t) ||
-      secBar.contains(t) || secAdd.contains(t) || secMore.contains(t) ||
+      secBar.contains(t) || secMore.contains(t) ||
       t === inserter || t === hbar;
     var inElement = t.closest('.gogh-section') && t.closest('.gogh-section > *');
     if (!inUI && !inElement) {
@@ -7177,7 +7177,6 @@
     panelSticky = false;
     // the corners fold while the menu is up — the panel's ground is
     // translucent and the Add pill showed through it
-    goghFadeOut(secAdd);
     goghFadeOut(secBar);
     panel.querySelectorAll('.gogh-sitem').forEach(function (btn) {
       btn.addEventListener('click', function () {
@@ -11320,15 +11319,9 @@
   }
 
   // hover bar for section-level actions
-  // Two corners, not one pill (the first three testers: "Where is the +
-  // button?"). Adding is the one thing beginners want, so it gets words
-  // and the section's top-left on its own; the section's own tools sit at
-  // the top-right. Both live and die with the selection, as the pill did.
-  var secAdd = document.createElement('div');
-  secAdd.className = 'gogh-secadd';
-  secAdd.innerHTML = '<button type="button" class="gogh-secadd-btn" data-sec="add" title="Add something to this section"><i aria-hidden="true">+</i><span>Add to this section</span></button>';
-  secAdd.hidden = true;
-  document.body.appendChild(secAdd);
+  // One pill at the section's top-left, the verb first in words: Add ·
+  // Background · the die and its take · ⋯ (the first three testers: "Where
+  // is the + button?"; a two-corner split was tried and felt busy)
   var secBar = document.createElement('div');
   secBar.className = 'gogh-secbar';
   secBar.innerHTML =
@@ -11337,9 +11330,13 @@
     // and the ✦ Ask Gogh door retired with the parked model tier (James:
     // "i dont think we need it") — the dice answers the same itch
     // the die appears only where a drawer of takes exists (see VARIANTS)
+    '<button type="button" class="gogh-sb gogh-sb-add" data-sec="add" title="Add something to this section"><i class="gogh-sb-plus" aria-hidden="true"></i><span>Add</span></button>' +
+    '<i class="gogh-sb-div" aria-hidden="true"></i>' +
+    '<button type="button" class="gogh-sb gogh-sb-word" data-sec="bgimg" title="Background &amp; look">' + CTX_ICONS.image + '<span>Background</span></button>' +
+    '<i class="gogh-sb-div gogh-sb-div-dice" aria-hidden="true" hidden></i>' +
     '<button type="button" class="gogh-sb gogh-sb-dice" data-sec="dice" title="Roll another take of this design" hidden><svg width="15" height="15" viewBox="0 0 16 16" fill="none" aria-hidden="true"><rect x="1.5" y="1.5" width="13" height="13" rx="3.2" stroke="currentColor" stroke-width="1.6"/><circle cx="5.4" cy="5.4" r="1.25" fill="currentColor"/><circle cx="10.6" cy="5.4" r="1.25" fill="currentColor"/><circle cx="8" cy="8" r="1.25" fill="currentColor"/><circle cx="5.4" cy="10.6" r="1.25" fill="currentColor"/><circle cx="10.6" cy="10.6" r="1.25" fill="currentColor"/></svg></button>' +
     '<span class="gogh-sb-take" title="Which take of this design is on the page" hidden></span>' +
-    '<button type="button" class="gogh-sb" data-sec="bgimg" title="Background &amp; look">' + CTX_ICONS.image + '</button>' +
+    '<i class="gogh-sb-div" aria-hidden="true"></i>' +
     '<button type="button" class="gogh-sb gogh-sb-more" data-sec="more" title="Move, duplicate, save, delete…">⋯</button>';
   secBar.hidden = true;
   document.body.appendChild(secBar);
@@ -11354,7 +11351,7 @@
     var name = (faces[face] && faces[face].take) || (face === 0 ? 'The original' : '');
     return (face + 1) + '/' + faces.length + (name ? ' \u00b7 ' + name : '');
   }
-  function hideSecBar() { goghFadeOut(secBar); goghFadeOut(secAdd); secBarIdx = null; closeSecMore(); clearTimeout(hoverSecT); }
+  function hideSecBar() { goghFadeOut(secBar); secBarIdx = null; closeSecMore(); clearTimeout(hoverSecT); }
   // The corners come when the pointer enters a section and go when it
   // leaves (a short grace so the trip from the section to its own corner
   // does not lose them), and a SELECTED section keeps them whatever the
@@ -11372,7 +11369,7 @@
     if (ev.pointerType === 'touch' || designMode() || panelOpen) return;
     var t = ev.target;
     if (!t || !t.closest) return;
-    if (t.closest('.gogh-secbar, .gogh-secadd, .gogh-secmore, .gogh-panel, .gogh-side, .gogh-side-tab, .gogh-elbar, .gogh-mbar')) { clearTimeout(hoverSecT); hoverSecT = null; return; }
+    if (t.closest('.gogh-secbar, .gogh-secmore, .gogh-panel, .gogh-side, .gogh-side-tab, .gogh-elbar, .gogh-mbar')) { clearTimeout(hoverSecT); hoverSecT = null; return; }
     var pieceChosen = !!(sel || multiSel || kidSel);
     var wrap = t.closest('.gogh-wrap');
     var idx = -1;
@@ -11418,7 +11415,6 @@
   }, { passive: true });
   function showSecBar(idx) {
     secBar.classList.remove('gogh-byebye'); // a fresh summon always lands visible
-    secAdd.classList.remove('gogh-byebye');
     // the site header/footer isn't a page section: it can't move, duplicate
     // or be deleted, so the section toolbar has nothing to offer it
     if (S[idx] && S[idx].chrome) { hideSecBar(); return; }
@@ -11426,6 +11422,8 @@
     var diceB = secBar.querySelector('.gogh-sb-dice');
     var fam = diceFamilyOf(S[idx]);
     if (diceB) diceB.hidden = !fam;
+    var diceDiv = secBar.querySelector('.gogh-sb-div-dice');
+    if (diceDiv) diceDiv.hidden = !fam;
     // where the die landed is STATE, not news: "2/4 · The anchor" sits by
     // the die and updates in place — rolling four times leaves no trail of
     // toasts (James: "should we only show the latest one?")
@@ -11436,58 +11434,42 @@
       takeL.hidden = !lab;
     }
     var r = S[idx].wrapEl.getBoundingClientRect();
-    var phoneUI = window.innerWidth <= 700;
-    // the bars DOCK: they sit at the section's top edge, and for a section
-    // taller than the screen they pin to the viewport while any of the
+    // the bar DOCKS: it sits at the section's top edge, and for a section
+    // taller than the screen it pins to the viewport while any of the
     // section remains — the doors never scroll out of reach
     var topDoc = r.top + window.scrollY + 14;
     var maxTop = r.bottom + window.scrollY - 64;
     var t2 = Math.max(topDoc, window.scrollY + 76);
     if (t2 > maxTop) t2 = Math.max(topDoc, maxTop);
-    secAdd.style.left = (r.left + window.scrollX + 16) + 'px';
-    secAdd.style.top = Math.round(t2) + 'px';
-    secAdd.hidden = false;
+    secBar.style.left = (r.left + window.scrollX + 16) + 'px';
+    secBar.style.top = Math.round(t2) + 'px';
     secBar.hidden = false;
-    // the tools take the top-right corner; on a phone the two stack, Add
-    // first, full width each (the stylesheet spreads them)
-    if (phoneUI) {
-      secBar.style.left = '';
-      secBar.style.top = Math.round(t2 + secAdd.offsetHeight + 8) + 'px';
-    } else {
-      secBar.style.left = Math.max(r.left + window.scrollX + 16, r.right + window.scrollX - 16 - secBar.offsetWidth) + 'px';
-      secBar.style.top = Math.round(t2) + 'px';
-    }
     // don't sit on the Edit header/footer pill — duck below it; and a
-    // transparent/sticky header FLOATS over the first section — the bars
-    // must not dress themselves as header furniture ("the section pill
-    // appears in the header"). Each corner ducks on its own.
-    var hdrEl = document.querySelector('header');
-    var hr2 = hdrEl ? hdrEl.getBoundingClientRect() : null;
-    [secAdd, secBar].forEach(function (bar) {
-      var sr = bar.getBoundingClientRect();
-      chromeBtns.forEach(function (cb) {
-        var cr = cb.getBoundingClientRect();
-        var clear = sr.right < cr.left - 8 || sr.left > cr.right + 8 ||
-          sr.bottom < cr.top - 8 || sr.top > cr.bottom + 8;
-        if (!clear) {
-          bar.style.top = (cr.bottom + window.scrollY + 10) + 'px';
-          sr = bar.getBoundingClientRect();
-        }
-      });
-      if (hr2) {
-        var inHdr = hr2.height > 0 && !(sr.right < hr2.left || sr.left > hr2.right ||
-          sr.bottom < hr2.top || sr.top > hr2.bottom + 4);
-        if (inHdr) bar.style.top = (hr2.bottom + window.scrollY + 12) + 'px';
+    // transparent/sticky header FLOATS over the first section — the bar
+    // must not dress itself as header furniture ("the section pill
+    // appears in the header")
+    var sr = secBar.getBoundingClientRect();
+    chromeBtns.forEach(function (cb) {
+      var cr = cb.getBoundingClientRect();
+      var clear = sr.right < cr.left - 8 || sr.left > cr.right + 8 ||
+        sr.bottom < cr.top - 8 || sr.top > cr.bottom + 8;
+      if (!clear) {
+        secBar.style.top = (cr.bottom + window.scrollY + 10) + 'px';
+        sr = secBar.getBoundingClientRect();
       }
     });
+    var hdrEl = document.querySelector('header');
+    if (hdrEl) {
+      var hr2 = hdrEl.getBoundingClientRect();
+      var inHdr = hr2.height > 0 && !(sr.right < hr2.left || sr.left > hr2.right ||
+        sr.bottom < hr2.top || sr.top > hr2.bottom + 4);
+      if (inHdr) secBar.style.top = (hr2.bottom + window.scrollY + 12) + 'px';
+    }
   }
-  secAdd.addEventListener('click', function (ev) {
-    if (!ev.target.closest('.gogh-secadd-btn') || secBarIdx === null) return;
-    openSecAddPanel(secBarIdx);
-  });
   secBar.addEventListener('click', function (ev) {
     var b = ev.target.closest('.gogh-sb');
     if (!b || secBarIdx === null) return;
+    if (b.dataset.sec === 'add') { openSecAddPanel(secBarIdx); return; }
     if (b.dataset.sec === 'dice') {
       var rolled = rollSection(secBarIdx);
       if (rolled) {
@@ -13464,7 +13446,7 @@
       secx.sectionEl.classList.add('gogh-focal-live');
       var down = function (ev) {
         if (!secx.bgImage) return;
-        if (ev.target.closest('.gogh-panel, .gogh-elbar, .gogh-selbox, .gogh-grip, .gogh-handle, .gogh-secbar, .gogh-secadd, .gogh-zoomslider, .gogh-side')) return;
+        if (ev.target.closest('.gogh-panel, .gogh-elbar, .gogh-selbox, .gogh-grip, .gogh-handle, .gogh-secbar, .gogh-zoomslider, .gogh-side')) return;
         var elNode = ev.target.closest('.gogh-section > *');
         if (elNode && secx.nodes && secx.nodes.indexOf(elNode) >= 0) return; // an element drag, not a reframe
         if (!(ev.target === secx.sectionEl || secx.sectionEl.contains(ev.target))) return;
@@ -18696,7 +18678,7 @@
   }, true);
   document.addEventListener('pointerdown', function (ev) {
     if (!multiSel || ev.shiftKey) return;
-    if (ev.target.closest && ev.target.closest('.gogh-side, .gogh-panel, .gogh-secbar, .gogh-secadd, .gogh-elbar, .gogh-mbar, .gogh-marquee')) return;
+    if (ev.target.closest && ev.target.closest('.gogh-side, .gogh-panel, .gogh-secbar, .gogh-elbar, .gogh-mbar, .gogh-marquee')) return;
     var member = false;
     multiSel.idxs.forEach(function (j) {
       var n = multiSel.sec.nodes[j];

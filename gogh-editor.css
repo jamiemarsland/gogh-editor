@@ -1474,65 +1474,6 @@ body.gogh-painting, body.gogh-painting .gogh-section * { cursor: url('data:image
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, sans-serif;
 }
 .gogh-secbar[hidden] { display: none; }
-/* the other corner: one verb in words. The ＋ sits in an ink disc so the
-   eye finds it, the words say what it does (three testers never read the
-   old ＋ glyph as a button) */
-.gogh-secadd {
-  position: absolute;
-  z-index: 99998;
-  background: #fff;
-  border-radius: 999px;
-  padding: 4px;
-  box-shadow: 0 10px 30px -8px rgba(0, 0, 0, 0.5);
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, sans-serif;
-}
-.gogh-secadd[hidden] { display: none; }
-.gogh-secadd-btn {
-  all: unset;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  gap: 9px;
-  height: 34px;
-  box-sizing: border-box;
-  padding: 0 12px 0 6px;
-  border-radius: 999px;
-  font-size: 13px;
-  font-weight: 600;
-  color: #141519;
-  white-space: nowrap;
-}
-/* the words and the disc are the same 22px box, so they share one centre
-   line whatever the theme does to buttons (the words sat low on the
-   photographer) */
-.gogh-secadd-btn span { display: block; height: 22px; line-height: 22px; padding: 0; margin: 0; }
-.gogh-secadd-btn:hover { background: #e8f0ff; }
-/* the plus is drawn, not typed: two bars centred in the disc, so no
-   glyph's side bearing or baseline can push it off centre */
-.gogh-secadd-btn i {
-  position: relative;
-  display: block;
-  width: 22px;
-  height: 22px;
-  flex: none;
-  border-radius: 50%;
-  background: #141519;
-  color: transparent;
-  font-size: 0;
-  line-height: 0;
-  overflow: hidden;
-}
-.gogh-secadd-btn i::before, .gogh-secadd-btn i::after {
-  content: "";
-  position: absolute;
-  left: 50%;
-  top: 50%;
-  background: #fff;
-  border-radius: 1px;
-  transform: translate(-50%, -50%);
-}
-.gogh-secadd-btn i::before { width: 12px; height: 2px; }
-.gogh-secadd-btn i::after { width: 2px; height: 12px; }
 .gogh-secbar-label {
   font-size: 10px;
   font-weight: 700;
@@ -1558,6 +1499,35 @@ body.gogh-painting, body.gogh-painting .gogh-section * { cursor: url('data:image
 /* all:unset above erases the browser's own [hidden] rule — restate it,
    or the die shows on sections with no drawer and clicks into silence */
 .gogh-sb[hidden] { display: none; }
+/* the verb first, in words: an ink disc with a drawn plus and the word
+   Add; Background keeps its icon and gains its word; thin dividers group
+   the doors (three testers never read the old ＋ glyph as a button) */
+.gogh-sb.gogh-sb-add, .gogh-sb.gogh-sb-word { display: inline-flex; align-items: center; gap: 8px; padding: 6px 12px 6px 8px; font-size: 13px; font-weight: 600; }
+.gogh-sb.gogh-sb-add span, .gogh-sb.gogh-sb-word span { display: block; height: 22px; line-height: 22px; }
+.gogh-sb.gogh-sb-word svg { width: 17px; height: 17px; }
+.gogh-sb-plus {
+  position: relative;
+  display: block;
+  width: 22px;
+  height: 22px;
+  flex: none;
+  border-radius: 50%;
+  background: #141519;
+  overflow: hidden;
+}
+.gogh-sb-plus::before, .gogh-sb-plus::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  background: #fff;
+  border-radius: 1px;
+  transform: translate(-50%, -50%);
+}
+.gogh-sb-plus::before { width: 12px; height: 2px; }
+.gogh-sb-plus::after { width: 2px; height: 12px; }
+.gogh-sb-div { display: block; width: 1px; height: 22px; background: rgba(20, 21, 25, 0.12); margin: 0 4px; flex: none; }
+.gogh-sb-div[hidden] { display: none; }
 .gogh-sb:hover { background: #e8f0ff; }
 .gogh-sb svg { width: 15px; height: 15px; display: block; }
 /* the take label: which face of the die is on the page — quiet, in place */
@@ -2332,7 +2302,7 @@ html.gogh-editing header.wp-block-template-part:has(.gogh-header-overlay):not(.g
    affordance gets out of the way */
 .gogh-cycling .gogh-side, .gogh-cycling .gogh-side-tab,
 .gogh-cycling .gogh-bar, .gogh-cycling .gogh-inserter,
-.gogh-cycling .gogh-shapebtn, .gogh-cycling .gogh-secbar, .gogh-cycling .gogh-secadd,
+.gogh-cycling .gogh-shapebtn, .gogh-cycling .gogh-secbar,
 .gogh-cycling .gogh-elbar, .gogh-cycling .gogh-hbar,
 .gogh-cycling .gogh-chip, .gogh-cycling .gogh-convertbtn,
 .gogh-cycling .gogh-chromebtn { display: none !important; }
@@ -2409,7 +2379,6 @@ html.gogh-zoomed body { background: #dfe0e5 !important; }
    affordance out of the frame so folks see the DESIGN and arrange SECTIONS, not
    fiddle element by element (that's the zoomed-in edit mode) */
 html.gogh-zoomed .gogh-secbar,
-html.gogh-zoomed .gogh-secadd,
 html.gogh-zoomed .gogh-elbar,
 html.gogh-zoomed .gogh-hbar,
 html.gogh-zoomed .gogh-inserter,
@@ -2427,7 +2396,6 @@ html.gogh-zoomed .gogh-hgrip { display: none !important; }
    page section's toolbar/handles/inserter must not float over it (the cropped
    SECTION pill above the header) */
 html.gogh-chrome-mode .gogh-secbar,
-html.gogh-chrome-mode .gogh-secadd,
 html.gogh-chrome-mode .gogh-elbar,
 html.gogh-chrome-mode .gogh-hbar,
 html.gogh-chrome-mode .gogh-inserter,
@@ -3345,13 +3313,13 @@ html.gogh-editing [data-gogh-ph]:empty::before {
 
 /* while typing, the whole editing chrome steps back — toolbar, section
    pills, inserter, height handles, chrome buttons. Words only. */
-.gogh-elbar, .gogh-secbar, .gogh-secadd, .gogh-inserter, .gogh-hbar, .gogh-hgrip, .gogh-chromebtn, .gogh-convertbtn {
+.gogh-elbar, .gogh-secbar, .gogh-inserter, .gogh-hbar, .gogh-hgrip, .gogh-chromebtn, .gogh-convertbtn {
   transition: opacity 0.15s ease;
 }
-/* (the section corners are not on this list: while the words are being
-   typed they stay folded by the hold, and reaching for the top band brings
-   them — James: "if i type into a box and then move toward the pill it
-   doesn't show") */
+/* (the section bar is not on this list: while the words are being typed
+   it stays folded by the hold, and reaching for the top band brings it —
+   James: "if i type into a box and then move toward the pill it doesn't
+   show") */
 html.gogh-textediting .gogh-elbar,
 html.gogh-textediting .gogh-inserter,
 html.gogh-textediting .gogh-hbar,
@@ -3556,14 +3524,13 @@ html.gogh-textediting .gogh-convertbtn {
    tap and every verb owns a finger-sized target; the design drawer
    arrives tucked so the page keeps the room */
 @media (pointer: coarse) {
-  .gogh-secbar, .gogh-secadd {
+  .gogh-secbar {
     left: 12px !important;
     right: 12px;
     justify-content: space-between;
     padding: 8px 12px;
     border-radius: 16px;
   }
-  .gogh-secadd-btn { width: 100%; justify-content: center; min-height: 42px; box-sizing: border-box; font-size: 15px; }
   .gogh-sb {
     min-width: 42px;
     min-height: 42px;
@@ -4150,7 +4117,7 @@ body:has(.wp-block-navigation__responsive-container.is-menu-open) .gogh-bar { op
 html.gogh-building { overflow: hidden; }
 html.gogh-building .gogh-chip, html.gogh-building .gogh-toasts,
 html.gogh-building .gogh-picker, html.gogh-building .gogh-panel,
-html.gogh-building .gogh-elbar, html.gogh-building .gogh-secbar, html.gogh-building .gogh-secadd,
+html.gogh-building .gogh-elbar, html.gogh-building .gogh-secbar,
 html.gogh-building .gogh-selbox, html.gogh-building .gogh-grip,
 html.gogh-building .gogh-inserter, html.gogh-building .gogh-side { display: none !important; }
 .gogh-buildstep::after { content: '…'; }

@@ -15,7 +15,7 @@ about something where they conflict, rather than picking one silently. Quote UI
 labels and message copy from the appendix, verbatim — those are the current
 strings, and a paraphrased button label is the fastest way to lose a user's trust.
 
-Generated for plugin version 0.99.588 · knowledge base cc68b64.
+Generated for plugin version 0.99.589 · knowledge base 9be352a.
 
 ---
 
@@ -171,7 +171,7 @@ Three tabs sit on the left edge of the window in edit mode. Click one and a draw
 The drawer's foot holds **Grid: show and snap** (the painted rhythm grid, 24-unit tiles and a heavier line every 72; off by default), **Undo (⌘Z)** and **Redo (⇧⌘Z)**.
 
 ### Adding something to a section
-Hover a section and its toolbar appears; its **＋** ("Add something to this section") opens the **Add to this section** menu: `Heading` · `Text` · `Button` · `Image` · `Video` · `Badge` · `Embed` · `Icon` · `List` · `Line` · `Write` (a reading column, cursor ready) · `Card` (drop pieces inside and they stay together, even on phones) · `Experience` (a self-contained HTML experience) · `Form` (name, email, message), plus `Posts` and `Shop` when those add-ons are on. Or press **/** with nothing being edited for the quick-add search of the same list. Either way the piece lands centred in the section, on the rhythm, below anything it would have covered. A **+ Section** pill between sections adds a whole new section from the layouts.
+Hover a section and its pill appears; its **＋ Add** opens the **Add to this section** menu: `Heading` · `Text` · `Button` · `Image` · `Video` · `Badge` · `Embed` · `Icon` · `List` · `Line` · `Write` (a reading column, cursor ready) · `Card` (drop pieces inside and they stay together, even on phones) · `Experience` (a self-contained HTML experience) · `Form` (name, email, message), plus `Posts` and `Shop` when those add-ons are on. Or press **/** with nothing being edited for the quick-add search of the same list. Either way the piece lands centred in the section, on the rhythm, below anything it would have covered. A **+ Section** pill between sections adds a whole new section from the layouts.
 
 ### Floating element toolbar (above the selected element)
 | Button | What it does |
@@ -188,8 +188,8 @@ Hover a section and its toolbar appears; its **＋** ("Add something to this sec
 
 If nothing overlaps, you get: "Nothing overlaps this — it's already in front." / "…already at the back."
 
-### Section toolbar (two corners, on hover and while a section is selected)
-Move the pointer over a section, or click its empty ground, and two things dock at its top edge (v0.99.578–580; the first three testers asked "Where is the + button?"). They go when the pointer leaves, and a selected section keeps them: at the **top-left**, **＋ Add to this section** in words — the door to Heading, Text, Button, Image, Form, Contact and the rest; at the **top-right**, the section's own tools: the die (where the design has other takes), **Background & look**, and **⋯** which holds `Move up` · `Move down` · `Duplicate` · `Save to reuse` · `Delete` as words. Up/Down disable at the ends. Both corners pin to the top of the window while a tall section is on screen, so they never scroll out of reach. On phones they stack, Add first, full width. Choosing a piece inside the section folds both, and they stay away while the pointer works inside that section; move out of the section and back in (or click its empty ground) and they return. Any open panel keeps them away. Never shown for the site header or footer.
+### Section toolbar (one pill, on hover and while a section is selected)
+Move the pointer over a section, or click its empty ground, and one pill docks at its top-left (v0.99.578–589; the first three testers asked "Where is the + button?"): **＋ Add** in words with an ink disc — the door to Heading, Text, Button, Image, Form, Contact and the rest — then **Background** (background & look) in words, then the die and its take label where the design has other takes, then **⋯** which holds `Move up` · `Move down` · `Duplicate` · `Save to reuse` · `Delete` as words. Up/Down disable at the ends. The pill pins to the top of the window while a tall section is on screen. It goes when the pointer leaves; a selected section keeps it. Choosing a piece inside the section folds it, and it stays away while the pointer works mid-section (typing included); reaching for the top band of the section brings it, and so does letting the piece go. Any open panel keeps it away. Never shown for the site header or footer.
 
 ### Panels
 Shape · Add a shape ("A backdrop for the rest — send it backward once it's placed.") · Button (Style: Solid / Outline; swatch rows Background, Text, Hover background) · Image (URL field, alt text, Upload, Remove image, media grid) · Replace image · Text colour · Link / Link text ("Apply", "Remove link (keep the text)") · Section background · Section transition · Save this section · Site style · Page style · Site header / Site footer · Menu / Add to menu · Imported block.
@@ -828,11 +828,11 @@ Everything in this section is extracted mechanically from the Gogh source on eve
 
 ## Current release
 
-- Plugin version: **0.99.588**
+- Plugin version: **0.99.589**
 - Requires WordPress **6.5+**, PHP **7.4+**
 - Text domain: `gogh-editor`
 - readme.txt Stable tag: `0.26.0` · Tested up to: `7.0`
-- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.588`). Quote the plugin header version.
+- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.589`). Quote the plugin header version.
 
 ## Design constants
 
