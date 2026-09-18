@@ -7284,6 +7284,17 @@
         pev('pointerdown', document.body, 4, 4); // defocus without leaving the section
         mv(s.sectionEl, r.left + 220, r.top + 320);
         expect(!add.hidden && !add.classList.contains('gogh-byebye'), 'after defocusing, hovering inside the section did not bring the corners back');
+        // typing in a piece: quiet mid-section, but the top band still summons
+        select(0); select(0); // the second click on a chosen text piece starts editing
+        var typing = document.documentElement.classList.contains('gogh-textediting');
+        mv(s.sectionEl, r.left + 200, r.top + 300);
+        expect(add.hidden || add.classList.contains('gogh-byebye'), 'the corners came back mid-section while typing');
+        mv(s.sectionEl, r.left + 60, Math.max(r.top, 76) + 30);
+        expect(!add.hidden && !add.classList.contains('gogh-byebye') && getComputedStyle(add).opacity !== '0', 'reaching for the top band while typing did not bring the pill (typing: ' + typing + ')');
+        document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+        pev('pointerdown', document.body, 4, 4);
+        mv(s.sectionEl, r.left + 220, r.top + 320);
+        expect(!add.hidden && !add.classList.contains('gogh-byebye'), 'after defocusing, hovering inside the section did not bring the corners back');
         document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
         document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
         pev('pointerdown', document.body, 4, 4);

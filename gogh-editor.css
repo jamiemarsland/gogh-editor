@@ -3348,9 +3348,11 @@ html.gogh-editing [data-gogh-ph]:empty::before {
 .gogh-elbar, .gogh-secbar, .gogh-secadd, .gogh-inserter, .gogh-hbar, .gogh-hgrip, .gogh-chromebtn, .gogh-convertbtn {
   transition: opacity 0.15s ease;
 }
+/* (the section corners are not on this list: while the words are being
+   typed they stay folded by the hold, and reaching for the top band brings
+   them — James: "if i type into a box and then move toward the pill it
+   doesn't show") */
 html.gogh-textediting .gogh-elbar,
-html.gogh-textediting .gogh-secbar,
-html.gogh-textediting .gogh-secadd,
 html.gogh-textediting .gogh-inserter,
 html.gogh-textediting .gogh-hbar,
 html.gogh-textediting .gogh-hgrip,

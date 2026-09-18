@@ -11366,7 +11366,9 @@
   // section and back in, or a click on its ground) re-arms them
   var hoverHold = null;
   document.addEventListener('pointermove', function (ev) {
-    if (!editing || drag || resize || kidDrag || textEditing) return;
+    // (typing is not on this list: the hold keeps the corners quiet while
+    // the words are typed, and the top band still summons them)
+    if (!editing || drag || resize || kidDrag) return;
     if (ev.pointerType === 'touch' || designMode() || panelOpen) return;
     var t = ev.target;
     if (!t || !t.closest) return;
