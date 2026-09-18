@@ -15,7 +15,7 @@ about something where they conflict, rather than picking one silently. Quote UI
 labels and message copy from the appendix, verbatim — those are the current
 strings, and a paraphrased button label is the fastest way to lose a user's trust.
 
-Generated for plugin version 0.99.589 · knowledge base 9be352a.
+Generated for plugin version 0.99.590 · knowledge base 7cfa648.
 
 ---
 
@@ -192,6 +192,8 @@ If nothing overlaps, you get: "Nothing overlaps this — it's already in front."
 Move the pointer over a section, or click its empty ground, and one pill docks at its top-left (v0.99.578–589; the first three testers asked "Where is the + button?"): **＋ Add** in words with an ink disc — the door to Heading, Text, Button, Image, Form, Contact and the rest — then **Background** (background & look) in words, then the die and its take label where the design has other takes, then **⋯** which holds `Move up` · `Move down` · `Duplicate` · `Save to reuse` · `Delete` as words. Up/Down disable at the ends. The pill pins to the top of the window while a tall section is on screen. It goes when the pointer leaves; a selected section keeps it. Choosing a piece inside the section folds it, and it stays away while the pointer works mid-section (typing included); reaching for the top band of the section brings it, and so does letting the piece go. Any open panel keeps it away. Never shown for the site header or footer.
 
 ### Panels
+**Line** (the rule piece) has three dials (v0.99.590): **Weight** Hairline · Fine · Bold; **Style** Solid · Dotted · Dashed (dots and dashes are sized by the weight); **Width** As placed · Full width (edge to edge of the section, and As placed puts it back where it was). Its colour rides the bar's swatch like words.
+
 Shape · Add a shape ("A backdrop for the rest — send it backward once it's placed.") · Button (Style: Solid / Outline; swatch rows Background, Text, Hover background) · Image (URL field, alt text, Upload, Remove image, media grid) · Replace image · Text colour · Link / Link text ("Apply", "Remove link (keep the text)") · Section background · Section transition · Save this section · Site style · Page style · Site header / Site footer · Menu / Add to menu · Imported block.
 
 ### Section transition panel
@@ -828,11 +830,11 @@ Everything in this section is extracted mechanically from the Gogh source on eve
 
 ## Current release
 
-- Plugin version: **0.99.589**
+- Plugin version: **0.99.590**
 - Requires WordPress **6.5+**, PHP **7.4+**
 - Text domain: `gogh-editor`
 - readme.txt Stable tag: `0.26.0` · Tested up to: `7.0`
-- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.589`). Quote the plugin header version.
+- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.590`). Quote the plugin header version.
 
 ## Design constants
 
@@ -1059,6 +1061,7 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "An icon — a simple line drawing in your text colour"
 - "Any colour"
 - "Apply"
+- "As placed"
 - "As typed"
 - "Auto"
 - "Back"
@@ -1097,6 +1100,7 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "Duplicate"
 - "Duplicate (or Alt-drag)"
 - "Duplicate the selection"
+- "Edge to edge of the section"
 - "Embed"
 - "Embed a link — a map, a post, a playlist, anything WordPress can show"
 - "Equal gaps top to bottom"
@@ -1110,6 +1114,7 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "Find us"
 - "Forget the key"
 - "Form"
+- "Full width"
 - "Get in touch"
 - "Go"
 - "Grid: show and snap"
@@ -1347,4 +1352,4 @@ These are the real strings in the current build. Use them verbatim; never paraph
 
 ## Test suite
 
-`319` tests, run by appending `?gogh-test` to any Gogh page URL while logged in with edit rights on that page.
+`320` tests, run by appending `?gogh-test` to any Gogh page URL while logged in with edit rights on that page.

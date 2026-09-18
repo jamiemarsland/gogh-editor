@@ -5599,6 +5599,31 @@
         return 'created and opened; menu on request; Undo bins and goes back';
       }, function (e) { done(); throw e; });
     });
+    // ---- a line's dials: style and width ----
+    test('a line can be dotted or dashed, and run edge to edge, and back', function () {
+      var s0 = sec();
+      var SNAP = G.serialize();
+      try {
+        s0.els.push({ type: 'rule', x: 80, y: 40, w: 1040, h: 24, thick: 2 });
+        G.renderSection(s0);
+        var i = s0.els.length - 1, e = s0.els[i];
+        G.openPanel(s0, i);
+        var pnl = q('.gogh-panel');
+        expect(pnl.querySelector('[data-dash="dotted"]') && pnl.querySelector('[data-width="full"]'), 'the line panel lacks Style or Width');
+        pnl.querySelector('[data-dash="dotted"]').click();
+        expect(e.dash === 'dotted' && /gogh-el-(\d+)[^{]*\{[^}]*radial-gradient/.test(s0.styleEl.textContent), 'Dotted did not draw dots');
+        pnl.querySelector('[data-dash="dashed"]').click();
+        expect(e.dash === 'dashed' && /linear-gradient\(to right, currentColor 0 12px/.test(s0.styleEl.textContent), 'Dashed did not draw dashes sized by the weight');
+        pnl.querySelector('[data-dash=""]').click();
+        expect(!e.dash && !/radial-gradient/.test(s0.styleEl.textContent), 'Solid did not take the dots away');
+        pnl.querySelector('[data-width="full"]').click();
+        expect(e.x === 0 && e.w === 1200, 'Full width did not run edge to edge: ' + e.x + '/' + e.w);
+        pnl.querySelector('[data-width="content"]').click();
+        expect(e.x === 80 && e.w === 1040, 'As placed did not put the line back where it was: ' + e.x + '/' + e.w);
+        G.closePanel();
+        return 'dotted, dashed, solid; full width and back';
+      } finally { G.restore(SNAP); }
+    });
     // ---- a shape joins a card as decoration ----
     test('a shape joins a card as decoration: behind the words, no pushing, gone on phones; a card never joins a card', function () {
       var s0 = sec();

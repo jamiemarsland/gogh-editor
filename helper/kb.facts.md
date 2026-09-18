@@ -4,11 +4,11 @@ Everything in this section is extracted mechanically from the Gogh source on eve
 
 ## Current release
 
-- Plugin version: **0.99.589**
+- Plugin version: **0.99.590**
 - Requires WordPress **6.5+**, PHP **7.4+**
 - Text domain: `gogh-editor`
 - readme.txt Stable tag: `0.26.0` · Tested up to: `7.0`
-- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.589`). Quote the plugin header version.
+- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.590`). Quote the plugin header version.
 
 ## Design constants
 
@@ -235,6 +235,7 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "An icon — a simple line drawing in your text colour"
 - "Any colour"
 - "Apply"
+- "As placed"
 - "As typed"
 - "Auto"
 - "Back"
@@ -273,6 +274,7 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "Duplicate"
 - "Duplicate (or Alt-drag)"
 - "Duplicate the selection"
+- "Edge to edge of the section"
 - "Embed"
 - "Embed a link — a map, a post, a playlist, anything WordPress can show"
 - "Equal gaps top to bottom"
@@ -286,6 +288,7 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "Find us"
 - "Forget the key"
 - "Form"
+- "Full width"
 - "Get in touch"
 - "Go"
 - "Grid: show and snap"
@@ -523,5 +526,5 @@ These are the real strings in the current build. Use them verbatim; never paraph
 
 ## Test suite
 
-`319` tests, run by appending `?gogh-test` to any Gogh page URL while logged in with edit rights on that page.
+`320` tests, run by appending `?gogh-test` to any Gogh page URL while logged in with edit rights on that page.
 

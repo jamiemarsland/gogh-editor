@@ -711,7 +711,18 @@
       if (e.type === 'widget' && e.wcol) extra += ' color: ' + e.wcol + ';';
       if (e.type === 'icon') extra += iconMaskCss(e.icon);
       if (e.type === 'embed' && e.w > 0 && e.h > 0) extra += ' aspect-ratio: ' + e.w + ' / ' + e.h + ';';
-      if (e.type === 'rule') extra += ' background-size: 100% ' + (Math.max(1, Math.min(8, Math.round(+e.thick || 1)))) + 'px;';
+      if (e.type === 'rule') {
+        var rt = Math.max(1, Math.min(8, Math.round(+e.thick || 1)));
+        if (e.dash === 'dotted') {
+          // round dots the weight wide, a dot's width apart
+          extra += ' background-image: radial-gradient(circle, currentColor 0 ' + (rt / 2) + 'px, transparent ' + (rt / 2 + 0.5) + 'px); background-size: ' + (rt * 2.5) + 'px ' + rt + 'px; background-repeat: repeat-x; background-position: center;';
+        } else if (e.dash === 'dashed') {
+          // dashes six weights long with a gap of three
+          extra += ' background-image: linear-gradient(to right, currentColor 0 ' + (rt * 6) + 'px, transparent ' + (rt * 6) + 'px 100%); background-size: ' + (rt * 9) + 'px ' + rt + 'px; background-repeat: repeat-x; background-position: center;';
+        } else {
+          extra += ' background-size: 100% ' + rt + 'px;';
+        }
+      }
       // a list keeps its bullets outside the words and its own indent
       if (e.type === 'para' && e.list) extra += ' margin: 0; padding-inline-start: 1.25em; list-style-position: outside;';
       if (e.type === 'image' || e.type === 'video') {
@@ -5421,21 +5432,54 @@
       pushState();
     });
   }
-  // a line has one dial: its weight. Colour rides the bar's swatch like words.
+  // a line has three dials: weight, style (solid, dotted, dashed) and
+  // width (the content column, or edge to edge). Colour rides the bar's
+  // swatch like words. (James: "be cool to have dotted and maybe full width")
+  function ruleIsFull(e) { return e.x <= 2 && e.x + e.w >= W - 2; }
   function buildRulePanel(sec, i) {
     var e = sec.els[i];
     var weights = [[1, 'Hairline'], [2, 'Fine'], [4, 'Bold']];
+    var styles = [['', 'Solid'], ['dotted', 'Dotted'], ['dashed', 'Dashed']];
+    var full = ruleIsFull(e);
     panel.innerHTML = '<div class="gogh-panel-hint">Weight</div>' +
       '<div class="gogh-panel-row gogh-chrome-rows gogh-rule-weights">' + weights.map(function (w) {
         return '<button type="button" class="gogh-btn gogh-btn-small' + ((+e.thick || 1) === w[0] ? ' is-active' : '') + '" data-thick="' + w[0] + '">' + w[1] + '</button>';
-      }).join('') + '</div>';
+      }).join('') + '</div>' +
+      '<div class="gogh-panel-hint">Style</div>' +
+      '<div class="gogh-panel-row gogh-chrome-rows gogh-rule-styles">' + styles.map(function (st) {
+        return '<button type="button" class="gogh-btn gogh-btn-small' + ((e.dash || '') === st[0] ? ' is-active' : '') + '" data-dash="' + st[0] + '">' + st[1] + '</button>';
+      }).join('') + '</div>' +
+      '<div class="gogh-panel-hint">Width</div>' +
+      '<div class="gogh-panel-row gogh-chrome-rows gogh-rule-widths">' +
+      '<button type="button" class="gogh-btn gogh-btn-small' + (full ? '' : ' is-active') + '" data-width="content">As placed</button>' +
+      '<button type="button" class="gogh-btn gogh-btn-small' + (full ? ' is-active' : '') + '" data-width="full" title="Edge to edge of the section">Full width</button>' +
+      '</div>';
+    var redraw = function () { renderSection(sec); placeHandles(sec, i); pushState(); };
     panel.querySelectorAll('[data-thick]').forEach(function (b) {
       b.addEventListener('click', function () {
         e.thick = +b.dataset.thick;
         panel.querySelectorAll('[data-thick]').forEach(function (x) { x.classList.toggle('is-active', x === b); });
-        renderSection(sec);
-        placeHandles(sec, i);
-        pushState();
+        redraw();
+      });
+    });
+    panel.querySelectorAll('[data-dash]').forEach(function (b) {
+      b.addEventListener('click', function () {
+        if (b.dataset.dash) e.dash = b.dataset.dash; else delete e.dash;
+        panel.querySelectorAll('[data-dash]').forEach(function (x) { x.classList.toggle('is-active', x === b); });
+        redraw();
+      });
+    });
+    panel.querySelectorAll('[data-width]').forEach(function (b) {
+      b.addEventListener('click', function () {
+        if (b.dataset.width === 'full') {
+          if (!ruleIsFull(e)) e.wasX = e.x, e.wasW = e.w; // the way back
+          e.x = 0; e.w = W;
+        } else {
+          e.x = e.wasX != null ? e.wasX : 80; e.w = e.wasW != null ? e.wasW : W - 160;
+          delete e.wasX; delete e.wasW;
+        }
+        panel.querySelectorAll('[data-width]').forEach(function (x) { x.classList.toggle('is-active', x === b); });
+        redraw();
       });
     });
   }

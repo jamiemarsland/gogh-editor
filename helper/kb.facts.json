@@ -1,12 +1,12 @@
 {
   "meta": {
-    "plugin_version": "0.99.589",
+    "plugin_version": "0.99.590",
     "requires_wp": "6.5",
     "requires_php": "7.4",
     "text_domain": "gogh-editor",
     "readme_stable_tag": "0.26.0",
     "readme_tested_up_to": "7.0",
-    "asset_version": "0.99.589-chrome"
+    "asset_version": "0.99.590-chrome"
   },
   "constants": {
     "TOL": 8,
@@ -457,6 +457,7 @@
     "An icon — a simple line drawing in your text colour",
     "Any colour",
     "Apply",
+    "As placed",
     "As typed",
     "Auto",
     "Back",
@@ -495,6 +496,7 @@
     "Duplicate",
     "Duplicate (or Alt-drag)",
     "Duplicate the selection",
+    "Edge to edge of the section",
     "Embed",
     "Embed a link — a map, a post, a playlist, anything WordPress can show",
     "Equal gaps top to bottom",
@@ -508,6 +510,7 @@
     "Find us",
     "Forget the key",
     "Form",
+    "Full width",
     "Get in touch",
     "Go",
     "Grid: show and snap",
@@ -1403,5 +1406,5 @@
     "has_deprecation": true,
     "block_title": "gogh Section"
   },
-  "test_count": 319
+  "test_count": 320
 }
