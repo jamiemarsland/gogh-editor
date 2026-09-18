@@ -4919,6 +4919,8 @@
     // a real keep installs through the Font Library and writes global styles)
     testAsync('the Fonts door: twelve pairs, the theme’s own first, hover to try, click to keep', function () {
       G.fontsDry(true);
+      var fontsThrown = null;
+      var onFontsErr = function (ev) { fontsThrown = ev.message; ev.preventDefault(); };
       var card = q('.gogh-side .gogh-fontsbtn');
       expect(card, 'no Fonts card in the Site drawer');
       var pairs = G.fontPairs();
@@ -4940,9 +4942,19 @@
         var googlePairs = G.fontPairs().filter(function (p2) { return !p2.theme; }).length;
         expect(document.querySelectorAll('link[data-gogh-fontpreview]').length >= googlePairs, 'every pair’s faces are asked for when the door opens, so rows never swap under the pointer');
         expect(rows[1].querySelector('.gogh-fontpair-name span').style.fontFamily.indexOf('Fraunces') !== -1, 'a row is set in its own heading face');
+        // hovering the theme's own pair must not throw: its row used to get
+        // the Google-pair handler as well, with no pair behind it
+        fontsThrown = null;
+        window.addEventListener('error', onFontsErr);
+        var themeRow = pnl.querySelector('.gogh-fontpair-theme');
+        themeRow.dispatchEvent(new MouseEvent('mouseenter', { bubbles: true }));
+        themeRow.dispatchEvent(new MouseEvent('mouseleave', { bubbles: true }));
         rows[1].dispatchEvent(new MouseEvent('mouseenter', { bubbles: true }));
         return new Promise(function (resolve) { setTimeout(function () { resolve({ pnl: pnl, rows: rows }); }, 2000); });
       }).then(function (st) {
+        window.removeEventListener('error', onFontsErr);
+        G.clearVariationPreview();
+        expect(!fontsThrown, 'hovering the theme’s own pair threw: ' + fontsThrown);
         var pv = document.getElementById('gogh-font-preview');
         expect(pv && /Fraunces/.test(pv.textContent) && /Inter/.test(pv.textContent), 'hovering a pair should paint the page in it');
         st.rows[1].dispatchEvent(new MouseEvent('mouseleave', { bubbles: true }));

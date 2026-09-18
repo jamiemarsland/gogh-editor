@@ -15742,8 +15742,12 @@
         b.addEventListener('click', function () { clearVariationPreview(); keepThemePair(v, b); });
       });
       wireMoreFonts(panel);
-      [].slice.call(panel.querySelectorAll('.gogh-fontpair')).forEach(function (b) {
+      // the theme's own rows have their handlers above; binding this one to
+      // them too meant a pair of undefined behind every hover (Tony and
+      // Martijn's reports: "reading 'theme'" nine times during the look task)
+      [].slice.call(panel.querySelectorAll('.gogh-fontpair:not(.gogh-fontpair-theme)')).forEach(function (b) {
         var pr = FONT_PAIRS[+b.dataset.i];
+        if (!pr) return;
         b.addEventListener('mouseenter', function () {
           clearTimeout(fontHoverT);
           fontHoverT = setTimeout(function () { auditionFontPair(pr); }, 120);
