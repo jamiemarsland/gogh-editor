@@ -4,11 +4,11 @@ Everything in this section is extracted mechanically from the Gogh source on eve
 
 ## Current release
 
-- Plugin version: **0.99.583**
+- Plugin version: **0.99.584**
 - Requires WordPress **6.5+**, PHP **7.4+**
 - Text domain: `gogh-editor`
 - readme.txt Stable tag: `0.26.0` · Tested up to: `7.0`
-- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.583`). Quote the plugin header version.
+- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.584`). Quote the plugin header version.
 
 ## Design constants
 
@@ -508,6 +508,7 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "gogh could not switch back — "
 - "gogh could not switch the design — "
 - "gogh could not switch the menu — "
+- "gogh could not take that page back — it is under Pages in the dashboard."
 - "gogh couldn’t find that icon in the stored markup."
 - "gogh couldn’t identify that icon."
 - "gogh couldn’t restore it."

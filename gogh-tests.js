@@ -5544,6 +5544,46 @@
       [].slice.call(document.querySelectorAll('.gogh-toast')).forEach(function (t) { t.remove(); });
       return 'selection, edit and drag all end on restore; history untouched';
     });
+    // ---- add a page: created, put in the menu, undone as one ----
+    testAsync('Add a page: one door creates the page, puts it in the menu, and Undo takes both back', function () {
+      // no real writes on this site: every request the flow makes is answered here
+      var realFetch = window.fetch, log = [];
+      var origin = location.origin;
+      var navRaw = '<!-- wp:navigation-link {"label":"Home","url":"/","kind":"custom"} /-->';
+      var reply = function (obj, ok) { return Promise.resolve({ ok: ok !== false, status: ok === false ? 599 : 200, json: function () { return Promise.resolve(obj); } }); };
+      window.fetch = function (url, opts) {
+        var u = String(url), m = (opts && opts.method) || 'GET';
+        log.push(m + ' ' + u.replace(origin, '') + (opts && opts.body ? ' ' + opts.body : ''));
+        if (m === 'POST' && /\/pages(\?|$)/.test(u)) return reply({ id: 4242, link: origin + '/prices/' });
+        if (m === 'DELETE' && /\/pages\/4242/.test(u)) return reply({ id: 4242 });
+        if (/template-parts/.test(u) && m === 'GET') return reply([{ id: 'x//header', slug: 'header', theme: window.GOGH && window.GOGH.theme, content: { raw: '<!-- wp:navigation {"ref":77} /-->' } }]);
+        if (/navigation\/77/.test(u) && m === 'GET') return reply({ id: 77, content: { raw: navRaw } });
+        if (/navigation\/77/.test(u) && m === 'POST') { navRaw = JSON.parse(opts.body).content; return reply({ id: 77 }); }
+        return reply(null, false); // the chrome re-render and anything else: quietly nothing
+      };
+      var done = function () { window.fetch = realFetch; G.closePanel(); };
+      try {
+        G.openAddPagePanel(q('.gogh-addpagebtn'));
+        var inp = q('.gogh-panel .gogh-addpage-title');
+        expect(inp && q('.gogh-panel .gogh-addpage-go'), 'the Add a page panel has no field or button');
+        inp.value = 'Prices';
+        q('.gogh-panel .gogh-addpage-go').click();
+      } catch (e) { done(); throw e; }
+      return new Promise(function (res) { setTimeout(res, 600); }).then(function () {
+        expect(log.some(function (l) { return /^POST \/.*pages/.test(l) && /"title":"Prices"/.test(l); }), 'the page was not created: ' + log.join(' | ').slice(0, 300));
+        expect(/"label":"Prices"/.test(navRaw) && /\/prices\//.test(navRaw) && /Home/.test(navRaw), 'the new page did not join the end of the menu: ' + navRaw.slice(0, 200));
+        var t = [].slice.call(document.querySelectorAll('.gogh-toast')).filter(function (x) { return /is a page now/.test(x.textContent); })[0];
+        expect(t && /in your menu/.test(t.textContent) && /Open it/.test(t.textContent) && /Undo/.test(t.textContent), 'the toast should say it is a page and in the menu, with Open it and Undo');
+        var undo = [].slice.call(t.querySelectorAll('button')).filter(function (b) { return /Undo/.test(b.textContent); })[0];
+        undo.click();
+        return new Promise(function (res) { setTimeout(res, 600); });
+      }).then(function () {
+        expect(log.some(function (l) { return /^DELETE \/.*pages\/4242/.test(l); }), 'Undo did not trash the page');
+        expect(!/Prices/.test(navRaw) && /Home/.test(navRaw), 'Undo did not take the page out of the menu: ' + navRaw.slice(0, 200));
+        done();
+        return 'created, in the menu, toast with Open it and Undo, undone as one';
+      }, function (e) { done(); throw e; });
+    });
     // ---- a shape joins a card as decoration ----
     test('a shape joins a card as decoration: behind the words, no pushing, gone on phones; a card never joins a card', function () {
       var s0 = sec();
@@ -7312,6 +7352,8 @@
       expect(!side.querySelector('.gogh-cards-page').hidden, 'page cards missing in Page mode');
       expect(side.querySelector('.gogh-cards-site').hidden, 'site cards leaked into Page mode');
       expect(side.querySelector('.gogh-cards-page .gogh-pagestylebtn'), 'Page style lost its card');
+      var firstCard = side.querySelector('.gogh-cards-page .gogh-scard');
+      expect(firstCard && firstCard.classList.contains('gogh-addpagebtn') && /Add a page/.test(firstCard.textContent), 'Add a page is not the first door in the Page drawer');
       expect(side.querySelector('.gogh-cards-page .gogh-rearrange'), 'Rearrange lost its card');
       G.closeSide(true);
       ar.click();

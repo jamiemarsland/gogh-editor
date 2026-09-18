@@ -1,4 +1,4 @@
-# Knowledge-base audit — plugin v0.99.583
+# Knowledge-base audit — plugin v0.99.584
 
 _13 finding(s) suppressed by `kb.audit-ignore.txt`._
 
@@ -120,4 +120,5 @@ Quoted copy not found verbatim in the source. Paraphrases are fine; changed UI c
 
 Use this as the checklist for updating the prose — and as a sanity check on the release itself.
 
-- version: 0.99.582 → 0.99.583
+- version: 0.99.583 → 0.99.584
+- added toast: "gogh could not take that page back — it is under Pages in the dashboard."

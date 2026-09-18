@@ -2401,6 +2401,12 @@
     '<svg class="gogh-scard-chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg></button>' +
     '</div>' +
     '<div class="gogh-side-cards gogh-cards-page">' +
+    // the first door is the one three testers went looking for: a new
+    // page, put in the menu by itself (Tony gave up on "add a Prices page")
+    '<button type="button" class="gogh-sitem gogh-scard gogh-addpagebtn">' +
+    '<span class="gogh-scard-ic"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 8v8M8 12h8"/></svg></span>' +
+    '<span class="gogh-scard-tx"><span class="gogh-scard-t">Add a page</span><span class="gogh-scard-s">A new page, in your menu too</span></span>' +
+    '<svg class="gogh-scard-chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg></button>' +
     '<button type="button" class="gogh-sitem gogh-scard gogh-pagestylebtn">' +
     '<span class="gogh-scard-ic"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M14 3v6h6"/></svg></span>' +
     '<span class="gogh-scard-tx"><span class="gogh-scard-t">Page style</span><span class="gogh-scard-s">How this page is framed</span></span>' +
@@ -7146,6 +7152,16 @@
     stagger++;
     landOnRhythm(secx, e);
     addElement(secx, e);
+    // a new piece lands at the section's middle, which on a tall section
+    // can be below the fold — bring it into view so what was chosen is
+    // seen (James: "should we scroll to the element that's been added?")
+    requestAnimationFrame(function () {
+      var node = secx.nodes && secx.nodes[secx.els.indexOf(e)];
+      if (!node) return;
+      var r = node.getBoundingClientRect();
+      var top = window.innerHeight * 0.12, bottom = window.innerHeight * 0.88;
+      if (r.top < top || r.bottom > bottom) node.scrollIntoView({ block: 'center', behavior: 'smooth' });
+    });
     if (kindKey === 'posts') hydratePostsPreview(secx, e);
     if (kindKey === 'products') hydrateProductsPreview(secx, e);
     return e;
@@ -15986,6 +16002,125 @@
     panelOpen = true;
   }
 
+  // ---------- add a page: one door does the whole job ----------
+  // The page is created, put at the end of the site menu, and the toast
+  // says so, with Open it and Undo. Undo trashes the page and takes the
+  // menu item out again. Three testers wanted this and none found the two
+  // separate doors it used to take (create in the admin bar, add in the
+  // header's menu manager).
+  var NAV_HDRS = function () { return { 'X-WP-Nonce': cfg.nonce, 'Content-Type': 'application/json' }; };
+  function siteMenuEdit(change) {
+    // change(items) mutates the header menu's items and returns true if
+    // anything changed; resolves true when the menu was written
+    var partEl = partElForArea('header');
+    if (!partEl) return Promise.resolve(false);
+    return resolveNavTarget(partEl).then(function (navId) {
+      if (navId == null) return false;
+      return fetch(restQ(GSROOT + 'navigation/' + navId, 'context=edit'), {
+        headers: { 'X-WP-Nonce': cfg.nonce }, credentials: 'same-origin',
+      }).then(function (r) { return r.ok ? r.json() : null; }).then(function (nav) {
+        if (!nav) return false;
+        var items = parseNavModel(((nav.content && nav.content.raw) || '').trim());
+        if (!change(items)) return false;
+        var entry = partEl.__goghChromeEntry;
+        var pre = entry ? saveChromeEntry(entry) : Promise.resolve();
+        return pre.then(function () {
+          return fetch(GSROOT + 'navigation/' + navId, {
+            method: 'POST', headers: NAV_HDRS(), credentials: 'same-origin',
+            body: JSON.stringify({ content: serializeNavModel(items) }),
+          });
+        }).then(function (r) {
+          if (!r.ok) throw new Error('HTTP ' + r.status);
+          return refreshChromePart(partEl).then(function () { return true; }, function () { return true; });
+        });
+      });
+    }).catch(function () { return false; });
+  }
+  function samePath(a, b) {
+    var norm = function (u) { try { return new URL(u, location.href).pathname.replace(/\/$/, '') || '/'; } catch (err) { return String(u || ''); } };
+    return norm(a) === norm(b);
+  }
+  function siteMenuAppend(label, url) {
+    return siteMenuEdit(function (items) {
+      var there = items.some(function (it) { return samePath(it.url, url) || (it.children || []).some(function (c) { return samePath(c.url, url); }); });
+      if (there) return false;
+      items.push({ name: '', text: null, attrsText: null, attrs: {}, label: label, url: url, kind: 'post-type', children: null, dirty: true });
+      return true;
+    });
+  }
+  function siteMenuRemoveUrl(url) {
+    return siteMenuEdit(function (items) {
+      var n = items.length;
+      var keep = items.filter(function (it) { return !samePath(it.url, url); });
+      keep.forEach(function (it) {
+        if (it.children) { var k2 = it.children.filter(function (c) { return !samePath(c.url, url); }); if (k2.length !== it.children.length) { it.children = k2.length ? k2 : null; it.dirty = true; n++; } }
+      });
+      if (keep.length === n) return false;
+      items.length = 0;
+      keep.forEach(function (it) { items.push(it); });
+      return true;
+    });
+  }
+  function createPageInMenu(title) {
+    title = String(title || '').trim();
+    if (!title) return Promise.resolve(null);
+    return fetch(GSROOT + 'pages', {
+      method: 'POST', headers: NAV_HDRS(), credentials: 'same-origin',
+      body: JSON.stringify({ title: title, status: 'publish', content: '' }),
+    }).then(function (r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
+      .then(function (pg) {
+        return siteMenuAppend(title, pg.link).then(function (inMenu) {
+          var editUrl = pg.link + (pg.link.indexOf('?') === -1 ? '?' : '&') + 'gogh-edit=1';
+          toast('\u201c' + title + '\u201d is a page now' + (inMenu ? ', and in your menu.' : '.'), {
+            ttl: 14000,
+            actions: [
+              { label: 'Open it', onClick: function () { location.href = editUrl; } },
+              { label: 'Undo', onClick: function () {
+                fetch(GSROOT + 'pages/' + pg.id, { method: 'DELETE', headers: NAV_HDRS(), credentials: 'same-origin' })
+                  .then(function () { return inMenu ? siteMenuRemoveUrl(pg.link) : false; })
+                  .then(function () { toast('\u201c' + title + '\u201d is gone again \u2014 it is in the bin under Pages if you change your mind.'); })
+                  .catch(function () { toast('gogh could not take that page back \u2014 it is under Pages in the dashboard.', { error: true }); });
+              } },
+            ],
+          });
+          return { page: pg, inMenu: inMenu, editUrl: editUrl };
+        });
+      });
+  }
+  function openAddPagePanel(anchorEl) {
+    panel.innerHTML =
+      '<div class="gogh-panel-head"><span class="gogh-panel-title">Add a page</span>' +
+      '<button type="button" class="gogh-sbtn gogh-panel-close gogh-panel-back" title="Back"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"/></svg></button></div>' +
+      '<div class="gogh-panel-hint">It goes at the end of your menu by itself. Undo takes it out again.</div>' +
+      '<div class="gogh-addpage"><input type="text" class="gogh-input gogh-addpage-title" placeholder="Page title, e.g. Prices" maxlength="120" />' +
+      '<button type="button" class="gogh-btn gogh-addpage-go">Add</button></div>';
+    dockSidebar();
+    panel.hidden = false;
+    panelOpen = true;
+    panelSticky = false;
+    panel.querySelector('.gogh-panel-close').addEventListener('click', backToDesign);
+    var inp = panel.querySelector('.gogh-addpage-title');
+    var go = panel.querySelector('.gogh-addpage-go');
+    var busy = false;
+    var run = function () {
+      var t = inp.value.trim();
+      if (!t || busy) return;
+      busy = true;
+      go.textContent = 'Adding\u2026';
+      createPageInMenu(t).then(function (res) {
+        busy = false;
+        if (!res) { go.textContent = 'Add'; return; }
+        backToDesign();
+      }).catch(function () {
+        busy = false;
+        go.textContent = 'Add';
+        toast('gogh could not create that page.', { error: true });
+      });
+    };
+    go.addEventListener('click', run);
+    inp.addEventListener('keydown', function (ev) { if (ev.key === 'Enter') { ev.preventDefault(); run(); } });
+    setTimeout(function () { try { inp.focus(); } catch (err) {} }, 30);
+  }
   function openPageStylePanel(anchorEl) {
     var options = [{ slug: '', title: 'Standard' }].concat(cfg.pageTemplates || []);
     panel.innerHTML =
@@ -17764,6 +17899,9 @@
   side.querySelector('.gogh-pagestylebtn').addEventListener('click', function (ev) {
     openPageStylePanel(ev.currentTarget);
   });
+  side.querySelector('.gogh-addpagebtn').addEventListener('click', function (ev) {
+    openAddPagePanel(ev.currentTarget);
+  });
   side.querySelector('.gogh-fontsbtn').addEventListener('click', function (ev) {
     openFontsPanel(ev.currentTarget);
   });
@@ -18673,6 +18811,8 @@
     kidState: function () { return { sel: kidSel, ed: kidEd, drag: kidDrag }; },
     setEditing: setEditing,
     deleteSection: deleteSection,
+    openAddPagePanel: openAddPagePanel,
+    createPageInMenu: createPageInMenu,
     moveSection: moveSection,
     duplicateSection: duplicateSection,
     rollSection: rollSection,
