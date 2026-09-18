@@ -11381,6 +11381,10 @@
     // else in that section they should fade"), and leaving the section
     // lets the hold go so the next visit brings them back — so adding one
     // thing never ends the adding
+    // the hold is the chosen piece's: however it was let go (Escape, a click
+    // on the ground, a click off the page), no piece means no hold (James:
+    // "after i've edited something it sometimes hides even when i defocus")
+    if (hoverHold !== null && !pieceChosen) hoverHold = null;
     if (hoverHold !== null && idx !== hoverHold) hoverHold = null;
     if (hoverHold !== null && idx === hoverHold) return;
     // the section under the hand always wins — a selected section higher

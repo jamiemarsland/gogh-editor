@@ -7270,6 +7270,14 @@
         mv(document.body, 2, 2); // out…
         mv(s.sectionEl, r.left + 20, r.top + 20); // …and back in
         expect(!add.hidden && !add.classList.contains('gogh-byebye'), 'a fresh visit did not bring the corners back');
+        // let the piece go by a click OFF the page while the hand stays in the
+        // section: the hold ends with the piece, no trip out needed
+        select(0);
+        mv(s.sectionEl, r.left + 30, r.top + 30);
+        expect(add.hidden || add.classList.contains('gogh-byebye'), 'choosing a piece again did not fold the corners');
+        pev('pointerdown', document.body, 4, 4); // defocus without leaving the section
+        mv(s.sectionEl, r.left + 40, r.top + 40);
+        expect(!add.hidden && !add.classList.contains('gogh-byebye'), 'after defocusing, hovering inside the section did not bring the corners back');
         document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
         document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
         pev('pointerdown', document.body, 4, 4);
