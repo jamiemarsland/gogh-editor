@@ -7193,8 +7193,16 @@
         return new Promise(function (res) { setTimeout(res, 400); });
       }).then(function () {
         expect(!add.hidden && !add.classList.contains('gogh-byebye'), 'a selected section lost its corners when the pointer left');
+        // a chosen piece folds them at the click; the hand moving over the
+        // section brings them back (adding one thing must not end the adding)
+        select(0);
+        expect(add.hidden || add.classList.contains('gogh-byebye'), 'choosing a piece did not fold the corners');
+        mv(s.sectionEl, r.left + 20, r.top + 20);
+        expect(!add.hidden && !add.classList.contains('gogh-byebye'), 'with a piece chosen, hovering the section did not bring the corners back');
+        document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+        document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
         pev('pointerdown', document.body, 4, 4);
-        return 'hover summons, leaving folds, selection keeps';
+        return 'hover summons, leaving folds, selection keeps, a chosen piece does not end it';
       });
     });
     test('section bar: Add in words at one corner, the tools at the other, housekeeping in words', function () {

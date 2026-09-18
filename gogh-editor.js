@@ -11348,16 +11348,20 @@
   document.addEventListener('pointermove', function (ev) {
     if (!editing || drag || resize || kidDrag || textEditing) return;
     if (ev.pointerType === 'touch' || designMode() || panelOpen) return;
-    if (sel || multiSel || kidSel) return; // a chosen piece: one editing surface
-    if (selSecIdx !== null) {
-      // the selection owns the corners; if a panel folded them, the next
-      // move over the page brings them back
+    var t = ev.target;
+    if (!t || !t.closest) return;
+    if (t.closest('.gogh-secbar, .gogh-secadd, .gogh-secmore, .gogh-panel, .gogh-side, .gogh-side-tab, .gogh-elbar, .gogh-mbar')) { clearTimeout(hoverSecT); hoverSecT = null; return; }
+    var pieceChosen = !!(sel || multiSel || kidSel);
+    if (selSecIdx !== null && !pieceChosen) {
+      // a selected section owns its corners; if a panel folded them, the
+      // next move over the page brings them back
       if (secBar.hidden || secBar.classList.contains('gogh-byebye')) showSecBar(selSecIdx);
       return;
     }
-    var t = ev.target;
-    if (!t || !t.closest) return;
-    if (t.closest('.gogh-secbar, .gogh-secadd, .gogh-secmore, .gogh-panel, .gogh-side, .gogh-side-tab')) { clearTimeout(hoverSecT); return; }
+    // with a piece chosen the corners folded at the click (one editing
+    // surface at that moment) — but the hand moving over a section brings
+    // them back, or adding one thing would end the adding (James: "after
+    // I add something the hover stops working")
     var wrap = t.closest('.gogh-wrap');
     var idx = -1;
     if (wrap) S.some(function (s2, i2) { if (s2.wrapEl === wrap) { idx = i2; return true; } return false; });
