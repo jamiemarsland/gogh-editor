@@ -11345,6 +11345,10 @@
   // pointer does. James, after the first three testers: "lets bring back
   // the hover". A chosen piece still stands them down (one editing surface).
   var hoverSecT = null;
+  // the section whose corners folded when a piece was chosen: they stay
+  // away while the hand works inside it, and a fresh visit (out of the
+  // section and back in, or a click on its ground) re-arms them
+  var hoverHold = null;
   document.addEventListener('pointermove', function (ev) {
     if (!editing || drag || resize || kidDrag || textEditing) return;
     if (ev.pointerType === 'touch' || designMode() || panelOpen) return;
@@ -11355,16 +11359,20 @@
     if (selSecIdx !== null && !pieceChosen) {
       // a selected section owns its corners; if a panel folded them, the
       // next move over the page brings them back
+      hoverHold = null;
       if (secBar.hidden || secBar.classList.contains('gogh-byebye')) showSecBar(selSecIdx);
       return;
     }
-    // with a piece chosen the corners folded at the click (one editing
-    // surface at that moment) — but the hand moving over a section brings
-    // them back, or adding one thing would end the adding (James: "after
-    // I add something the hover stops working")
     var wrap = t.closest('.gogh-wrap');
     var idx = -1;
     if (wrap) S.some(function (s2, i2) { if (s2.wrapEl === wrap) { idx = i2; return true; } return false; });
+    // a chosen piece folded the corners of its section: they stay away
+    // while the hand stays inside it (James: "when i click on something
+    // else in that section they should fade"), and leaving the section
+    // lets the hold go so the next visit brings them back — so adding one
+    // thing never ends the adding
+    if (hoverHold !== null && idx !== hoverHold) hoverHold = null;
+    if (hoverHold !== null && idx === hoverHold) return;
     if (idx === -1 || S[idx].chrome) {
       if (secBarIdx !== null && !hoverSecT) hoverSecT = setTimeout(function () { hoverSecT = null; if (selSecIdx === null) hideSecBar(); }, 260);
       return;
@@ -11521,14 +11529,15 @@
     // ONE editing surface at a time: while a piece is the subject, the
     // faint ring alone says which section — the section bar stands down
     // and returns when the piece clears ("two editing surfaces?")
-    if (faint) hideSecBar();
-    else showSecBar(idx);
+    if (faint) { hideSecBar(); hoverHold = idx; } // the hold lifts when the hand leaves the section
+    else { hoverHold = null; showSecBar(idx); }
   }
   function deselectSection() {
     if (selSecIdx !== null && S[selSecIdx] && S[selSecIdx].sectionEl) {
       S[selSecIdx].sectionEl.classList.remove('gogh-selsec', 'gogh-selsec-faint');
     }
     selSecIdx = null;
+    hoverHold = null; // nothing chosen, nothing held: the next hover summons
     hideSecBar();
   }
   // the docked bar follows the scroll (the viewport pin lives in

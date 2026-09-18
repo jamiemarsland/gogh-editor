@@ -7193,16 +7193,21 @@
         return new Promise(function (res) { setTimeout(res, 400); });
       }).then(function () {
         expect(!add.hidden && !add.classList.contains('gogh-byebye'), 'a selected section lost its corners when the pointer left');
-        // a chosen piece folds them at the click; the hand moving over the
-        // section brings them back (adding one thing must not end the adding)
+        // a chosen piece folds them, and they stay away while the hand
+        // works inside that section; a trip out and back re-arms them, so
+        // adding one thing never ends the adding
         select(0);
         expect(add.hidden || add.classList.contains('gogh-byebye'), 'choosing a piece did not fold the corners');
         mv(s.sectionEl, r.left + 20, r.top + 20);
-        expect(!add.hidden && !add.classList.contains('gogh-byebye'), 'with a piece chosen, hovering the section did not bring the corners back');
+        mv(s.sectionEl, r.left + 60, r.top + 40);
+        expect(add.hidden || add.classList.contains('gogh-byebye'), 'the corners came back while the hand stayed in the section with a piece chosen');
+        mv(document.body, 2, 2); // out…
+        mv(s.sectionEl, r.left + 20, r.top + 20); // …and back in
+        expect(!add.hidden && !add.classList.contains('gogh-byebye'), 'a fresh visit did not bring the corners back');
         document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
         document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
         pev('pointerdown', document.body, 4, 4);
-        return 'hover summons, leaving folds, selection keeps, a chosen piece does not end it';
+        return 'hover summons, leaving folds, selection keeps, a chosen piece holds them off until a fresh visit';
       });
     });
     test('section bar: Add in words at one corner, the tools at the other, housekeeping in words', function () {
