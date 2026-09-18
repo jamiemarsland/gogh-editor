@@ -6991,7 +6991,7 @@
       pev('pointerdown', s.sectionEl, 10, 10);
       expect(s.sectionEl.classList.contains('gogh-selsec') &&
         !s.sectionEl.classList.contains('gogh-selsec-faint'), 'ground click did not select the section');
-      expect(!q('.gogh-secbar').hidden, 'the four-door bar did not dock');
+      expect(!q('.gogh-secbar').hidden && !q('.gogh-secadd').hidden, 'the two corners did not dock');
       select(0);
       expect(s.sectionEl.classList.contains('gogh-selsec-faint'), 'choosing a piece did not go faint');
       // ONE editing surface: with a piece chosen, the section bar stands down
@@ -7005,6 +7005,8 @@
       expect(!s.sectionEl.classList.contains('gogh-selsec'), 'second Esc did not deselect the section');
       var bar = q('.gogh-secbar');
       expect(bar.hidden || bar.classList.contains('gogh-byebye'), 'the bar overstayed the selection');
+      var add2 = q('.gogh-secadd');
+      expect(add2.hidden || add2.classList.contains('gogh-byebye'), 'the Add corner overstayed the selection');
       pev('pointerdown', s.sectionEl, 10, 10);
       pev('pointerdown', document.body, 4, 4);
       expect(!s.sectionEl.classList.contains('gogh-selsec'), 'clicking away did not deselect');
@@ -7173,15 +7175,23 @@
       return '76→72 on the major, 22→24 free, 44→48 with the grid on, magnets still first, drag x' + (X0 + 4) + '→' + X0;
     });
 
-    test('section bar: three doors, housekeeping in words', function () {
+    test('section bar: Add in words at one corner, the tools at the other, housekeeping in words', function () {
       var bar = q('.gogh-secbar');
+      // the first three testers: "Where is the + button?" — adding is now a
+      // sentence in its own corner, not a glyph in the tools pill
+      var add = q('.gogh-secadd');
+      expect(add && !add.hidden && /Add to this section/.test(add.textContent), 'the Add corner is missing or hidden');
+      expect(!bar.querySelector('[data-sec="add"]') && !bar.querySelector('.gogh-secbar-label'), 'the tools pill still carries the ＋ or the Section label');
+      var ar = add.getBoundingClientRect(), br = bar.getBoundingClientRect(), wr = sec().wrapEl.getBoundingClientRect();
+      expect(ar.left < br.left && ar.right <= br.left && br.right <= wr.right + 1, 'Add should sit left of the tools, the tools at the section’s right edge: add ' + Math.round(ar.left) + '–' + Math.round(ar.right) + ', tools ' + Math.round(br.left) + '–' + Math.round(br.right) + ', section right ' + Math.round(wr.right));
+      expect(Math.abs(ar.top - br.top) < 2, 'the two corners should share a top edge');
       // the die only counts as a door where a drawer of takes exists — a
       // named family, or one inferred from the section's shape (v0.99.407+);
       // without either it stays hidden and the bar reads three doors; the
       // ✦ Ask Gogh door retired with the parked model tier
       var doors = [].filter.call(bar.querySelectorAll('.gogh-sb'), function (b) { return !b.hidden; });
       var fam = G.diceFamilyOf(sec());
-      var want = 3 + (fam ? 1 : 0);
+      var want = 2 + (fam ? 1 : 0);
       expect(doors.length === want,
         'expected ' + want + ' visible controls (family: ' + (fam || 'none') + '), got ' + doors.length);
       expect(!!fam === !bar.querySelector('.gogh-sb-dice').hidden, 'the die should show exactly when a family exists (' + (fam || 'none') + ')');

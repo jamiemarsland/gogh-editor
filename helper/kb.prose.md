@@ -169,8 +169,8 @@ Hover a section and its toolbar appears; its **＋** ("Add something to this sec
 
 If nothing overlaps, you get: "Nothing overlaps this — it's already in front." / "…already at the back."
 
-### Section toolbar (on hover, labelled "Section")
-`↑ Move up` · `↓ Move down` · `Background image` · `Save to reuse` · `⧉ Duplicate section` · `🗑 Delete section`. Up/Down disable at the ends. Never shown for the site header or footer.
+### Section toolbar (two corners, while a section is selected)
+Click a section's empty ground and two things dock at its top edge (v0.99.578; the first three testers asked "Where is the + button?"): at the **top-left**, **＋ Add to this section** in words — the door to Heading, Text, Button, Image, Form, Contact and the rest; at the **top-right**, the section's own tools: the die (where the design has other takes), **Background & look**, and **⋯** which holds `Move up` · `Move down` · `Duplicate` · `Save to reuse` · `Delete` as words. Up/Down disable at the ends. Both corners pin to the top of the window while a tall section is on screen, so they never scroll out of reach. On phones they stack, Add first, full width. Choosing a piece inside the section stands both down (one editing surface at a time); Esc brings them back. Never shown for the site header or footer.
 
 ### Panels
 Shape · Add a shape ("A backdrop for the rest — send it backward once it's placed.") · Button (Style: Solid / Outline; swatch rows Background, Text, Hover background) · Image (URL field, alt text, Upload, Remove image, media grid) · Replace image · Text colour · Link / Link text ("Apply", "Remove link (keep the text)") · Section background · Section transition · Save this section · Site style · Page style · Site header / Site footer · Menu / Add to menu · Imported block.

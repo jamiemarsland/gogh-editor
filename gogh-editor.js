@@ -3945,7 +3945,7 @@
       if (pe.contains(ev.target)) return;
       // gogh's own surfaces (panels, drawer, toolbars, toasts) are part of
       // the editing conversation — they don't put the chrome to sleep
-      if (ev.target.closest && ev.target.closest('.gogh-panel, .gogh-side, .gogh-side-tab, .gogh-elbar, .gogh-hbar, .gogh-secbar, .gogh-secmore, .gogh-toast, .gogh-chip, .gogh-convertbtn, .gogh-picker, .gogh-navadd, #wpadminbar')) return;
+      if (ev.target.closest && ev.target.closest('.gogh-panel, .gogh-side, .gogh-side-tab, .gogh-elbar, .gogh-hbar, .gogh-secbar, .gogh-secadd, .gogh-secmore, .gogh-toast, .gogh-chip, .gogh-convertbtn, .gogh-picker, .gogh-navadd, #wpadminbar')) return;
       // an ARMED panel (something auditioned, Apply lit) holds focus —
       // a stray page click must not throw the audition away
       if (panelOpen && panel.dataset.goghArea === area) {
@@ -11296,11 +11296,18 @@
   }
 
   // hover bar for section-level actions
+  // Two corners, not one pill (the first three testers: "Where is the +
+  // button?"). Adding is the one thing beginners want, so it gets words
+  // and the section's top-left on its own; the section's own tools sit at
+  // the top-right. Both live and die with the selection, as the pill did.
+  var secAdd = document.createElement('div');
+  secAdd.className = 'gogh-secadd';
+  secAdd.innerHTML = '<button type="button" class="gogh-secadd-btn" data-sec="add" title="Add something to this section"><i aria-hidden="true">＋</i>Add to this section</button>';
+  secAdd.hidden = true;
+  document.body.appendChild(secAdd);
   var secBar = document.createElement('div');
   secBar.className = 'gogh-secbar';
   secBar.innerHTML =
-    '<span class="gogh-secbar-label">Section</span>' +
-    '<button type="button" class="gogh-sb" data-sec="add" title="Add something to this section">＋</button>' +
     // three doors, read at a glance: add, design, more (plus the die where
     // a drawer exists) — housekeeping verbs live in the ⋯ menu as WORDS,
     // and the ✦ Ask Gogh door retired with the parked model tier (James:
@@ -11323,11 +11330,12 @@
     var name = (faces[face] && faces[face].take) || (face === 0 ? 'The original' : '');
     return (face + 1) + '/' + faces.length + (name ? ' \u00b7 ' + name : '');
   }
-  function hideSecBar() { goghFadeOut(secBar); secBarIdx = null; closeSecMore(); }
+  function hideSecBar() { goghFadeOut(secBar); goghFadeOut(secAdd); secBarIdx = null; closeSecMore(); }
   // (hideSecBarSoon and its travel-grace timer retired with hover
   // summoning — the bar now lives and dies with the SELECTION)
   function showSecBar(idx) {
     secBar.classList.remove('gogh-byebye'); // a fresh summon always lands visible
+    secAdd.classList.remove('gogh-byebye');
     // the site header/footer isn't a page section: it can't move, duplicate
     // or be deleted, so the section toolbar has nothing to offer it
     if (S[idx] && S[idx].chrome) { hideSecBar(); return; }
@@ -11345,42 +11353,58 @@
       takeL.hidden = !lab;
     }
     var r = S[idx].wrapEl.getBoundingClientRect();
-    secBar.style.left = (r.left + window.scrollX + 16) + 'px';
-    // the bar DOCKS: it sits at the section's top edge, and for a section
-    // taller than the screen it pins to the viewport while any of the
+    var phoneUI = window.innerWidth <= 700;
+    // the bars DOCK: they sit at the section's top edge, and for a section
+    // taller than the screen they pin to the viewport while any of the
     // section remains — the doors never scroll out of reach
     var topDoc = r.top + window.scrollY + 14;
     var maxTop = r.bottom + window.scrollY - 64;
     var t2 = Math.max(topDoc, window.scrollY + 76);
     if (t2 > maxTop) t2 = Math.max(topDoc, maxTop);
-    secBar.style.top = Math.round(t2) + 'px';
+    secAdd.style.left = (r.left + window.scrollX + 16) + 'px';
+    secAdd.style.top = Math.round(t2) + 'px';
+    secAdd.hidden = false;
     secBar.hidden = false;
-    // don't sit on the Edit header/footer pill — duck below it
-    var sr = secBar.getBoundingClientRect();
-    chromeBtns.forEach(function (cb) {
-      var cr = cb.getBoundingClientRect();
-      var clear = sr.right < cr.left - 8 || sr.left > cr.right + 8 ||
-        sr.bottom < cr.top - 8 || sr.top > cr.bottom + 8;
-      if (!clear) {
-        secBar.style.top = (cr.bottom + window.scrollY + 10) + 'px';
-        sr = secBar.getBoundingClientRect();
+    // the tools take the top-right corner; on a phone the two stack, Add
+    // first, full width each (the stylesheet spreads them)
+    if (phoneUI) {
+      secBar.style.left = '';
+      secBar.style.top = Math.round(t2 + secAdd.offsetHeight + 8) + 'px';
+    } else {
+      secBar.style.left = Math.max(r.left + window.scrollX + 16, r.right + window.scrollX - 16 - secBar.offsetWidth) + 'px';
+      secBar.style.top = Math.round(t2) + 'px';
+    }
+    // don't sit on the Edit header/footer pill — duck below it; and a
+    // transparent/sticky header FLOATS over the first section — the bars
+    // must not dress themselves as header furniture ("the section pill
+    // appears in the header"). Each corner ducks on its own.
+    var hdrEl = document.querySelector('header');
+    var hr2 = hdrEl ? hdrEl.getBoundingClientRect() : null;
+    [secAdd, secBar].forEach(function (bar) {
+      var sr = bar.getBoundingClientRect();
+      chromeBtns.forEach(function (cb) {
+        var cr = cb.getBoundingClientRect();
+        var clear = sr.right < cr.left - 8 || sr.left > cr.right + 8 ||
+          sr.bottom < cr.top - 8 || sr.top > cr.bottom + 8;
+        if (!clear) {
+          bar.style.top = (cr.bottom + window.scrollY + 10) + 'px';
+          sr = bar.getBoundingClientRect();
+        }
+      });
+      if (hr2) {
+        var inHdr = hr2.height > 0 && !(sr.right < hr2.left || sr.left > hr2.right ||
+          sr.bottom < hr2.top || sr.top > hr2.bottom + 4);
+        if (inHdr) bar.style.top = (hr2.bottom + window.scrollY + 12) + 'px';
       }
     });
-    // a transparent/sticky header FLOATS over the first section — the
-    // section bar must not dress itself as header furniture ("the
-    // section pill appears in the header")
-    var hdrEl = document.querySelector('header');
-    if (hdrEl) {
-      var hr2 = hdrEl.getBoundingClientRect();
-      var inHdr = hr2.height > 0 && !(sr.right < hr2.left || sr.left > hr2.right ||
-        sr.bottom < hr2.top || sr.top > hr2.bottom + 4);
-      if (inHdr) secBar.style.top = (hr2.bottom + window.scrollY + 12) + 'px';
-    }
   }
+  secAdd.addEventListener('click', function (ev) {
+    if (!ev.target.closest('.gogh-secadd-btn') || secBarIdx === null) return;
+    openSecAddPanel(secBarIdx);
+  });
   secBar.addEventListener('click', function (ev) {
     var b = ev.target.closest('.gogh-sb');
     if (!b || secBarIdx === null) return;
-    if (b.dataset.sec === 'add') { openSecAddPanel(secBarIdx); return; }
     if (b.dataset.sec === 'dice') {
       var rolled = rollSection(secBarIdx);
       if (rolled) {
@@ -13354,7 +13378,7 @@
       secx.sectionEl.classList.add('gogh-focal-live');
       var down = function (ev) {
         if (!secx.bgImage) return;
-        if (ev.target.closest('.gogh-panel, .gogh-elbar, .gogh-selbox, .gogh-grip, .gogh-handle, .gogh-secbar, .gogh-zoomslider, .gogh-side')) return;
+        if (ev.target.closest('.gogh-panel, .gogh-elbar, .gogh-selbox, .gogh-grip, .gogh-handle, .gogh-secbar, .gogh-secadd, .gogh-zoomslider, .gogh-side')) return;
         var elNode = ev.target.closest('.gogh-section > *');
         if (elNode && secx.nodes && secx.nodes.indexOf(elNode) >= 0) return; // an element drag, not a reframe
         if (!(ev.target === secx.sectionEl || secx.sectionEl.contains(ev.target))) return;
@@ -18443,7 +18467,7 @@
   }, true);
   document.addEventListener('pointerdown', function (ev) {
     if (!multiSel || ev.shiftKey) return;
-    if (ev.target.closest && ev.target.closest('.gogh-side, .gogh-panel, .gogh-secbar, .gogh-elbar, .gogh-mbar, .gogh-marquee')) return;
+    if (ev.target.closest && ev.target.closest('.gogh-side, .gogh-panel, .gogh-secbar, .gogh-secadd, .gogh-elbar, .gogh-mbar, .gogh-marquee')) return;
     var member = false;
     multiSel.idxs.forEach(function (j) {
       var n = multiSel.sec.nodes[j];
