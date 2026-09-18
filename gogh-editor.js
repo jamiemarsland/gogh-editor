@@ -11386,7 +11386,16 @@
     // "after i've edited something it sometimes hides even when i defocus")
     if (hoverHold !== null && !pieceChosen) hoverHold = null;
     if (hoverHold !== null && idx !== hoverHold) hoverHold = null;
-    if (hoverHold !== null && idx === hoverHold) return;
+    if (hoverHold !== null && idx === hoverHold) {
+      // reaching for the corner is asking for it: the band where the pill
+      // docks (the section's top, or the viewport's top when it is pinned)
+      // summons the corners even while a piece is chosen (James: "if i move
+      // toward where the pill was it does not show")
+      var hr = S[idx].wrapEl.getBoundingClientRect();
+      var zoneTop = Math.max(hr.top, 76);
+      if (ev.clientY < zoneTop - 12 || ev.clientY > zoneTop + 96) return;
+      hoverHold = null;
+    }
     // the section under the hand always wins — a selected section higher
     // up the page must not deaden the hover everywhere else (James: "after
     // i've interacted with a section, then move on down the page, the

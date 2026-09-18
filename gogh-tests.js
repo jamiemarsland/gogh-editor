@@ -7264,19 +7264,25 @@
         // adding one thing never ends the adding
         select(0);
         expect(add.hidden || add.classList.contains('gogh-byebye'), 'choosing a piece did not fold the corners');
-        mv(s.sectionEl, r.left + 20, r.top + 20);
-        mv(s.sectionEl, r.left + 60, r.top + 40);
-        expect(add.hidden || add.classList.contains('gogh-byebye'), 'the corners came back while the hand stayed in the section with a piece chosen');
+        mv(s.sectionEl, r.left + 200, r.top + 300);
+        mv(s.sectionEl, r.left + 260, r.top + 340);
+        expect(add.hidden || add.classList.contains('gogh-byebye'), 'the corners came back while the hand worked mid-section with a piece chosen');
+        // reaching for the corner asks for it, piece or no piece
+        mv(s.sectionEl, r.left + 60, Math.max(r.top, 76) + 30);
+        expect(!add.hidden && !add.classList.contains('gogh-byebye'), 'reaching for the top band did not bring the corners back');
+        select(0);
+        mv(s.sectionEl, r.left + 200, r.top + 300);
+        expect(add.hidden || add.classList.contains('gogh-byebye'), 'choosing the piece again did not fold the corners');
         mv(document.body, 2, 2); // out…
-        mv(s.sectionEl, r.left + 20, r.top + 20); // …and back in
+        mv(s.sectionEl, r.left + 200, r.top + 300); // …and back in, mid-section
         expect(!add.hidden && !add.classList.contains('gogh-byebye'), 'a fresh visit did not bring the corners back');
         // let the piece go by a click OFF the page while the hand stays in the
         // section: the hold ends with the piece, no trip out needed
         select(0);
-        mv(s.sectionEl, r.left + 30, r.top + 30);
+        mv(s.sectionEl, r.left + 200, r.top + 300);
         expect(add.hidden || add.classList.contains('gogh-byebye'), 'choosing a piece again did not fold the corners');
         pev('pointerdown', document.body, 4, 4); // defocus without leaving the section
-        mv(s.sectionEl, r.left + 40, r.top + 40);
+        mv(s.sectionEl, r.left + 220, r.top + 320);
         expect(!add.hidden && !add.classList.contains('gogh-byebye'), 'after defocusing, hovering inside the section did not bring the corners back');
         document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
         document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
