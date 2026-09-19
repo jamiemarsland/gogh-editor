@@ -786,6 +786,8 @@ Behind Align, the icons follow the shape of the selection (`selectionShape`): pi
 Opening the Fonts door loads every listed pair's faces at once — Google's (`ensureGoogleFonts` per pair) and the theme's own from the theme folder (`ensureVariationFonts` per theme pair, via the FontFace API, every weight and style of each family, since the row's heading name is drawn in the bold) — so each row is drawn in its own face from the start. Note: `document.fonts.check()` answers true for a family with no face at all, so the loader looks for a loaded face by name, weight and style instead. Before, a row's faces loaded only when hovered, and the swap from the fallback face as the pointer passed looked like the other rows changing size.
 
 ### Help in the admin bar (v0.99.566)
+The helper's welcome panel opens with a 35-second film of gogh being used (v0.99.592): muted and looping, with a sound toggle and Full screen, and it stops the moment a question is asked. The file is served from the gogh-demo repo through jsDelivr, so neither the plugin nor the Worker carries its weight. The in-editor help sheet has a **⤡ widen** button beside its close, which takes it from 380px to 820px for reading a long answer or watching the film; the iframe allows fullscreen.
+
 A small ? sits in the admin bar just left of Howdy, on every screen where the bar shows, for any logged-in user when a helper URL is set. In the gogh editor it opens the help sheet (the same one the side rail's ? opens); on any other screen, wp-admin included, it opens the helper in a new tab. The node is `gogh-help` under `top-secondary`; the `gogh_helper_url` filter turning the URL off removes it.
 
 ### The admin bar's edit label never flashes (v0.99.567)

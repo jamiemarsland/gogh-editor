@@ -236,6 +236,7 @@ textarea::placeholder{color:var(--ink3)}
         <div class="filmrow">
           <span>gogh in 35 seconds</span>
           <button id="filmsound" type="button">🔈 Sound on</button>
+          <button id="filmbig" type="button">⤢ Full screen</button>
         </div>
       </div>
       <div class="chips" id="chips"></div>
@@ -419,6 +420,14 @@ const $ = s => document.querySelector(s);
 const chat = $('#chat'), inner = $('#inner'), input = $('#input'), sendBtn = $('#send');
 const dot = $('#dot'), statusText = $('#statustext'), welcome = $('#welcome');
 const film = $('#film'), filmSound = $('#filmsound');
+const filmBig = $('#filmbig');
+if (filmBig && film) {
+  filmBig.addEventListener('click', () => {
+    const go = film.requestFullscreen || film.webkitRequestFullscreen || film.webkitEnterFullscreen;
+    if (go) { try { go.call(film); } catch (e) { film.controls = true; } }
+    else { film.controls = true; }
+  });
+}
 if (filmSound && film) {
   filmSound.addEventListener('click', () => {
     film.muted = !film.muted;

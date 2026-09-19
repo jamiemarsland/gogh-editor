@@ -7464,13 +7464,23 @@
     if (!helpSheet) {
       helpSheet = document.createElement('div');
       helpSheet.className = 'gogh-helpsheet';
+      // a narrow column is right for a quick answer and wrong for reading a
+      // long one (or watching the film), so the sheet can be made bigger
       helpSheet.innerHTML = '<div class="gogh-helpsheet-bar"><span>gogh help</span>' +
-        '<button type="button" class="gogh-sbtn gogh-helpsheet-x" title="Close">✕</button></div>' +
-        '<iframe src="' + escAttr(helpSrc()) + '" title="gogh help"></iframe>';
+        '<span class="gogh-helpsheet-btns">' +
+        '<button type="button" class="gogh-sbtn gogh-helpsheet-wide" title="Make this bigger">\u2921</button>' +
+        '<button type="button" class="gogh-sbtn gogh-helpsheet-x" title="Close">✕</button></span></div>' +
+        '<iframe src="' + escAttr(helpSrc()) + '" title="gogh help" allow="fullscreen"></iframe>';
       document.body.appendChild(helpSheet);
       helpSheet.querySelector('.gogh-helpsheet-x').addEventListener('click', function () {
         helpSheet.classList.remove('is-open');
         document.body.classList.remove('gogh-help-open');
+      });
+      helpSheet.querySelector('.gogh-helpsheet-wide').addEventListener('click', function (ev) {
+        var wide = helpSheet.classList.toggle('is-wide');
+        document.body.classList.toggle('gogh-help-wide', wide);
+        ev.currentTarget.title = wide ? 'Make this smaller' : 'Make this bigger';
+        ev.currentTarget.textContent = wide ? '\u2922' : '\u2921';
       });
     } else if (!helpSheet.classList.contains('is-open')) {
       // reopening in a NEW situation refreshes the bot's context; the same

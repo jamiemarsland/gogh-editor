@@ -519,6 +519,13 @@ html.gogh-phone-preview .gogh-section.gogh-msec-hidden {
   overflow: hidden;
 }
 .gogh-helpsheet.is-open { display: flex; }
+/* bigger, for reading a long answer or watching the film */
+.gogh-helpsheet.is-wide {
+  width: min(820px, 92vw);
+  height: min(900px, 88vh);
+  bottom: 76px;
+}
+.gogh-helpsheet-btns { display: flex; align-items: center; gap: 2px; }
 .gogh-helpsheet-bar {
   display: flex;
   align-items: center;
@@ -533,6 +540,7 @@ html.gogh-phone-preview .gogh-section.gogh-msec-hidden {
 .gogh-helpsheet iframe { flex: 1; width: 100%; border: 0; }
 /* while the bot is open, toasts step left of its sheet */
 body.gogh-help-open .gogh-toasts { right: 416px; }
+body.gogh-help-open.gogh-help-wide .gogh-toasts { right: min(856px, calc(92vw + 36px)); }
 .gogh-helpsheet-x {
   all: unset;
   cursor: pointer;
