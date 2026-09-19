@@ -46,7 +46,7 @@ A chip shows current state:
 - **"Publish failed"** + a **Retry** button
 
 ### Getting out
-Click **🎨 Exit gogh editor** in the WordPress admin toolbar, at the top of the screen — not in the side rail. If clean it exits straight away. If dirty you get a dialog:
+Click **👁 View site** in the WordPress admin toolbar, at the top left of the screen — not in the side rail (it read *Exit gogh editor* before v0.99.598). If clean it goes straight to the site as visitors see it. If dirty you get a dialog:
 - Title: **"You have unpublished changes"**
 - Body: "Publish them now, keep editing, or discard them and restore the live page."
 - Buttons: **Publish & close** / **Keep editing** / **Discard changes**
@@ -145,7 +145,7 @@ Cards matter because they're what keeps an image + heading + button together whe
 ## PART 5 — THE UI, CONTROL BY CONTROL
 
 ### The side rail (left edge: Page · Site · SEO)
-Three tabs sit on the left edge of the window in edit mode. Click one and a drawer docks beside the page (the page shrinks to fit next to it; nothing opens on hover, and there is no palette on the right any more). There is no exit control here — leaving edit mode is **Exit gogh editor** in the admin toolbar.
+Three tabs sit on the left edge of the window in edit mode. Click one and a drawer docks beside the page (the page shrinks to fit next to it; nothing opens on hover, and there is no palette on the right any more). There is no exit control here — leaving edit mode is **View site (was Exit gogh editor)** in the admin toolbar.
 - **Page** — this page's doors, **Add a page** first (v0.99.585): type a title, press Add, and the page is created and opens in the editor straight away. On arrival a toast says it is a new page, with **Put it in the menu** (one click: the page goes to the end of the site menu, which the header shows on every page) and **Undo** (bins the page and goes back to the page Add was pressed on). Nothing joins the menu unless asked — thank-you pages and drafts are pages too. Then **Page style** and **Rearrange sections**.
 - **Site** — the design of the whole site as cards: **Site style** (colours and looks, hover to try, click to keep, Remix), **Fonts** (pairs, tried on your page), **Motion**, **Edit header**, **Edit footer**, **Page style**, **Rearrange sections** (the zoom-out page map). Some doors dock as a panel in the same place; **Back** returns to the cards.
 - **SEO** — what the page says to search engines.
@@ -797,7 +797,7 @@ The helper's welcome panel opens with a 35-second film of gogh being used (v0.99
 A small ? sits in the admin bar just left of Howdy, on every screen where the bar shows, for any logged-in user when a helper URL is set. In the gogh editor it opens the help sheet (the same one the side rail's ? opens); on any other screen, wp-admin included, it opens the helper in a new tab. The node is `gogh-help` under `top-secondary`; the `gogh_helper_url` filter turning the URL off removes it.
 
 ### The admin bar's edit label never flashes (v0.99.567)
-One function, `gogh_ab_edit_label( $editing, $is_post )`, renders the bar's gogh node — 'Edit with gogh' / 'Edit post' on a page, 'Exit gogh editor' in the editor — and the editor receives both variants (`cfg.abEdit`) so when the mode flips without a reload it writes the same markup the server would. Before, the server rendered a tick and 'Done' while the page loaded and the editor's script then wrote 'Exit gogh editor' over it, so 'Done' flashed for an instant on every open.
+One function, `gogh_ab_edit_label( $editing, $is_post )`, renders the bar's gogh node — 'Edit with gogh' / 'Edit post' on a page, 'View site' (before v0.99.598: 'Exit gogh editor') in the editor — and the editor receives both variants (`cfg.abEdit`) so when the mode flips without a reload it writes the same markup the server would. Before, the server rendered a tick and 'Done' while the page loaded and the editor's script then wrote 'Exit gogh editor' over it, so 'Done' flashed for an instant on every open.
 
 ### Pictures published light (v0.99.568, the speed pass)
 gogh's pictures used to publish as plain `<img src>` with no attachment id or size, so WordPress could not give them srcset, sizes, lazy loading or a fetch priority — a photographer's home was 3MB with a 7.8s LCP on a phone. Now a content filter (`gogh_light_images`, priority 11, just before core's own) finds the attachment behind each upload URL (`gogh_media_id_for_url`, cached a day), adds the `wp-image-ID` class and the intrinsic width/height, and core adds srcset, sizes, `loading="lazy"` for pictures below the first, `fetchpriority="high"` for the first. A section's background photo gets a `large` (1024px) variant under `@media (max-width: 700px)`, and on a single page the first section's background is preloaded (phone size for phones, full for the rest). Nothing to republish: it reaches every page ever published. The same release gates the look CSS (reading looks only on single posts, blog looks only on lists of posts or pages with a posts rail) and the view script's chunks (the Manual contents on posts, the video-pause control and the carousel/lightbox only where the page carries them). Measured: that home 3009KB → 737KB, LCP 7.8s → 4.2s, score 73 → 85; a text-only page 366KB → 325KB, 90 → 93.
