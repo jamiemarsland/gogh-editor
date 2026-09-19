@@ -2524,13 +2524,17 @@
   devHome.hidden = true;
   devHome.appendChild(devPill);
   function mountDevPill() {
-    // beside the editor's own landmark in the admin bar; a page with no admin
-    // bar (seamless playgrounds) gets the pill floated at the top instead.
+    // on the right of the admin bar, just left of the ? (James: 'move it over
+    // to the right - just to the left of help'): it is a way of LOOKING, so it
+    // sits with help and the account, not in the editing cluster. The right
+    // group is a right-floated list whose items float LEFT in DOM order, so
+    // the pill goes in just before the ? to land just left of it. A page with no
+    // admin bar (seamless playgrounds) gets the pill floated at the top instead.
     // Lazy: this script prints before the admin bar does, so the bar is only
     // there to be found once editing begins.
     if (devHome.parentNode && devHome.parentNode !== document.body) return;
-    var mark = document.getElementById('wp-admin-bar-gogh-edit');
-    if (mark && mark.parentNode) { devHome.className = ''; mark.parentNode.insertBefore(devHome, mark.nextSibling); }
+    var mark = document.getElementById('wp-admin-bar-gogh-help') || document.getElementById('wp-admin-bar-gogh-edit');
+    if (mark && mark.parentNode) { devHome.className = ''; mark.parentNode.insertBefore(devHome, mark.id === 'wp-admin-bar-gogh-help' ? mark : mark.nextSibling); }
     else if (!devHome.parentNode) { devHome.className = 'gogh-devpill-float'; document.body.appendChild(devHome); }
   }
   function seeOnPhone() {

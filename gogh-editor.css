@@ -149,7 +149,7 @@
 .gogh-zoomslider[hidden] { display: none; }
 /* Desktop | Phone: two words in the top bar, there the whole time you edit.
    The admin bar styles everything inside it by id, so these carry the id too */
-#wpadminbar #wp-admin-bar-gogh-device { display: flex; align-items: center; height: 32px; padding: 0 4px 0 8px; float: left; }
+#wpadminbar #wp-admin-bar-gogh-device { display: flex; align-items: center; height: 32px; padding: 0 6px 0 4px; float: left; }
 #wpadminbar #wp-admin-bar-gogh-device[hidden], .gogh-devpill-float[hidden] { display: none; }
 #wpadminbar .gogh-devpill, .gogh-devpill-float .gogh-devpill {
   display: inline-flex; gap: 2px; padding: 2px; margin: 0; height: 26px; box-sizing: border-box;

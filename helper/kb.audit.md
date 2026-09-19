@@ -1,4 +1,4 @@
-# Knowledge-base audit — plugin v0.99.594
+# Knowledge-base audit — plugin v0.99.595
 
 _13 finding(s) suppressed by `kb.audit-ignore.txt`._
 
@@ -121,7 +121,4 @@ Quoted copy not found verbatim in the source. Paraphrases are fine; changed UI c
 
 Use this as the checklist for updating the prose — and as a sanity check on the release itself.
 
-- version: 0.99.593 → 0.99.594
-- removed UI label: "Phone — see and tune the mobile layout"
-- added UI label: "Phone"
-- added UI label: "See and tune how the page looks on a phone"
+- version: 0.99.594 → 0.99.595
