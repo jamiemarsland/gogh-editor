@@ -137,6 +137,14 @@ header{
 .welcome{text-align:center;padding:36px 0 8px}
 .welcome h1{font-family:"Iowan Old Style",Georgia,"Times New Roman",serif;font-size:25px;margin:0 0 8px;font-weight:500;letter-spacing:.005em}
 .welcome p{color:var(--ink2);margin:0 auto 24px;max-width:460px;font-size:14px}
+/* the 35-second film: the first thing a beginner meets, and the first
+   thing to get out of the way once they ask something */
+.film{max-width:520px;margin:0 auto 22px}
+.film video{width:100%;height:auto;display:block;border-radius:12px;background:#1b1917;border:1px solid var(--line);box-shadow:0 14px 34px -14px rgba(0,0,0,.35)}
+.filmrow{display:flex;align-items:center;justify-content:center;gap:10px;margin-top:9px}
+.filmrow button{background:none;border:0;color:var(--ink2);font:inherit;font-size:12.5px;cursor:pointer;padding:4px 9px;border-radius:14px}
+.filmrow button:hover{background:var(--bg2);color:var(--ink)}
+.filmrow span{color:var(--ink2);font-size:12.5px;opacity:.75}
 .chips{display:flex;flex-wrap:wrap;gap:8px;justify-content:center}
 .chip{
   background:var(--bg2);border:1px solid var(--line);color:var(--ink2);
@@ -222,6 +230,14 @@ textarea::placeholder{color:var(--ink3)}
     <div class="welcome" id="welcome">
       <h1>Ask me about Gogh Editor</h1>
       <p>I know the plugin end to end — the canvas, the shortcuts, the grid solver, the block format, the PHP hooks and the known limitations.</p>
+      <div class="film">
+        <video id="film" src="https://cdn.jsdelivr.net/gh/jamiemarsland/gogh-demo@main/gogh-in-30.mp4"
+               autoplay muted loop playsinline preload="metadata"></video>
+        <div class="filmrow">
+          <span>gogh in 35 seconds</span>
+          <button id="filmsound" type="button">🔈 Sound on</button>
+        </div>
+      </div>
       <div class="chips" id="chips"></div>
     </div>
   </div>
@@ -402,6 +418,14 @@ const GoghBot = {
 const $ = s => document.querySelector(s);
 const chat = $('#chat'), inner = $('#inner'), input = $('#input'), sendBtn = $('#send');
 const dot = $('#dot'), statusText = $('#statustext'), welcome = $('#welcome');
+const film = $('#film'), filmSound = $('#filmsound');
+if (filmSound && film) {
+  filmSound.addEventListener('click', () => {
+    film.muted = !film.muted;
+    filmSound.textContent = film.muted ? '\u{1F508} Sound on' : '\u{1F50A} Sound off';
+    if (!film.muted) film.play();
+  });
+}
 
 let history = [];
 let busy = false;
@@ -507,6 +531,7 @@ async function send() {
   }
 
   welcome.style.display = 'none';
+  if (film) { try { film.pause(); } catch (e) {} }
   input.value = '';
   input.style.height = 'auto';
   addMsg('user', `<p>${esc(q)}</p>`);
