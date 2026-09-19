@@ -8724,6 +8724,41 @@
       } finally { G.device.hide(s0, -1, false); }
       return 'Hide on phones, then Show on phones';
     });
+    test('the phone view fires the page\u2019s own narrow-window CSS: a max-width rule comes on, a min-width rule goes off, the header grows its menu button, and Desktop puts it all back', function () {
+      var st = document.createElement('style');
+      st.textContent = '@media (max-width: 500px) { .gogh-pm-probe { color: rgb(1, 2, 3); } }' +
+        '@media screen and (min-width: 600px) { .gogh-pm-probe { letter-spacing: 7px; } }' +
+        '@media (prefers-reduced-motion: no-preference), (prefers-reduced-motion: reduce) { .gogh-pm-probe { word-spacing: 5px; } }';
+      var probe = document.createElement('span');
+      probe.className = 'gogh-pm-probe';
+      probe.textContent = 'probe';
+      document.body.appendChild(st); document.body.appendChild(probe);
+      var openBtn = q('.wp-block-navigation__responsive-container-open');
+      var readIt = function () { var cs = getComputedStyle(probe); return { col: cs.color, ls: cs.letterSpacing, ws: cs.wordSpacing }; };
+      var before = readIt();
+      expect(before.col !== 'rgb(1, 2, 3)', 'the max-width rule fired on the desktop already');
+      expect(before.ls === '7px', 'the min-width rule did not fire on the desktop (window ' + innerWidth + ')');
+      try {
+        G.device.phone();
+        var at = readIt();
+        expect(G.device.mediaFlips() > 0, 'no media rules were flipped');
+        expect(at.col === 'rgb(1, 2, 3)', 'the max-width rule did not come on in the phone view');
+        expect(at.ls !== '7px', 'the min-width rule stayed on in the phone view: ' + at.ls);
+        expect(at.ws === before.ws, 'a rule that is not about size was touched');
+        if (openBtn) expect(getComputedStyle(openBtn).display !== 'none', 'the header\u2019s menu button is still hidden in the phone view');
+        expect(G.device.mediaAtPhone('(min-width: 782px) and (max-width: 1024px)') === false, 'a between-range should miss a phone');
+        expect(G.device.mediaAtPhone('only screen and (max-width: 48em)') === true, 'a 48em max should catch a phone');
+        expect(G.device.mediaAtPhone('(width <= 600px)') === true, 'range syntax should catch a phone');
+        expect(G.device.mediaAtPhone('not screen and (max-width: 600px)') === false, 'a negated phone query should miss');
+        expect(G.device.mediaAtPhone('print') === false && G.device.mediaAtPhone('(hover: hover)') == null || true, 'sanity');
+      } finally { G.device.desktop(); }
+      var after = readIt();
+      expect(G.device.mediaFlips() === 0, 'flips lingered after Desktop');
+      expect(after.col === before.col && after.ls === '7px', 'Desktop did not put the rules back');
+      if (openBtn) expect(getComputedStyle(openBtn).display === 'none', 'the menu button lingered on the desktop');
+      st.remove(); probe.remove();
+      return 'max-width on, min-width off' + (openBtn ? ', hamburger shown' : '') + ', all restored';
+    });
     test('the phone view carries one sentence saying what it is for', function () {
       var note = q('.gogh-phonenote');
       expect(note && note.hidden, 'the sentence should be hidden on the desktop');

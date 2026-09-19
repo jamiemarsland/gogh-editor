@@ -2486,6 +2486,111 @@
     // page follows the finger at 60fps, then the open/close ease is restored
     if (zoomState) { zoomState.wrap.style.transition = 'none'; layoutZoom(); }
   });
+  // ---------- phone media: the page's own narrow-window rules, live in the artboard ----------
+  // The artboard is phone-wide but the window is not, so every @media rule
+  // written for narrow windows — the header's hamburger, the shop grids, the
+  // blog cards, the forms — still answers to the window and the phone view
+  // showed a desktop menu squeezed into a phone. In the phone view gogh walks
+  // the page's stylesheets and flips those rules' media on the live CSSOM:
+  // 'all' for the ones a phone would fire, 'not all' for the desktop-only
+  // ones — and puts every one back on Desktop. Nothing is copied or
+  // rewritten, so what you see is the page's own phone CSS, exactly.
+  var PHONE_H = 844; // a tall phone; height rules are rare and this keeps them honest
+  var phoneMediaFlips = []; // [MediaList, original mediaText]
+  function mediaLen(v) {
+    var m = /^\s*([\d.]+)\s*(px|em|rem)?\s*$/.exec(v || '');
+    if (!m) return null;
+    return parseFloat(m[1]) * (m[2] && m[2] !== 'px' ? 16 : 1);
+  }
+  // one parenthesised feature at a phone's size → true/false; null = not ours to judge
+  function mediaFeatureAtPhone(feat) {
+    var inner = feat.replace(/^\(|\)$/g, '').trim();
+    if (/[()]/.test(inner) || /\sor\s/i.test(inner)) return null; // nested or or-ed: leave it alone
+    var m = /^(min|max)-(?:device-)?(width|height)\s*:\s*(.+)$/i.exec(inner);
+    if (m) {
+      var n = mediaLen(m[3]);
+      if (n == null) return null;
+      var v = m[2].toLowerCase() === 'width' ? PHONE_W : PHONE_H;
+      return m[1].toLowerCase() === 'max' ? v <= n : v >= n;
+    }
+    // range syntax: (width <= 600px), (400px < width), (400px <= width < 800px)
+    var r = /^(?:([\d.]+(?:px|em|rem)?)\s*(<=|<)\s*)?(width|height)(?:\s*(<=|<|>=|>)\s*([\d.]+(?:px|em|rem)?))?$/i.exec(inner);
+    if (r && (r[1] || r[5])) {
+      var val = r[3].toLowerCase() === 'width' ? PHONE_W : PHONE_H, ok = true;
+      if (r[1]) { var lo = mediaLen(r[1]); if (lo == null) return null; ok = ok && (r[2] === '<' ? lo < val : lo <= val); }
+      if (r[5]) { var hi = mediaLen(r[5]); if (hi == null) return null; ok = ok && (r[4] === '<' ? val < hi : r[4] === '<=' ? val <= hi : r[4] === '>' ? val > hi : val >= hi); }
+      return ok;
+    }
+    if (/^orientation\s*:\s*portrait$/i.test(inner)) return true;
+    if (/^orientation\s*:\s*landscape$/i.test(inner)) return false;
+    if (/aspect-ratio|resolution/i.test(inner)) return null;
+    try { return matchMedia('(' + inner + ')').matches; } catch (e) { return null; } // hover, pointer, prefers-*: the same on a phone as here
+  }
+  // the whole condition at a phone's size; null = leave the rule alone
+  function mediaAtPhone(text) {
+    if (!text || /^\s*(all|screen)?\s*$/i.test(text)) return null;
+    var qs = text.split(','), any = false, out = false;
+    for (var qi = 0; qi < qs.length; qi++) {
+      var q = qs[qi].trim(), neg = false;
+      if (/^not\s+/i.test(q)) { neg = true; q = q.replace(/^not\s+/i, ''); }
+      q = q.replace(/^only\s+/i, '');
+      var parts = q.split(/\s+and\s+/i), val = true;
+      for (var pi = 0; pi < parts.length; pi++) {
+        var part = parts[pi].trim();
+        if (!part || /^(all|screen)$/i.test(part)) continue;
+        if (/^(print|speech|tv)$/i.test(part)) { val = false; continue; }
+        if (part.charAt(0) !== '(') return null;
+        var f = mediaFeatureAtPhone(part);
+        if (f == null) return null;
+        if (!f) val = false;
+      }
+      any = true;
+      if (neg ? !val : val) out = true;
+    }
+    return any ? out : null;
+  }
+  function flipMediaForPhone(list) {
+    if (!list) return;
+    var text = list.mediaText;
+    var atPhone = mediaAtPhone(text);
+    if (atPhone == null) return;
+    var atNow;
+    try { atNow = matchMedia(text).matches; } catch (e) { return; }
+    if (atPhone === atNow) return;
+    phoneMediaFlips.push([list, text]);
+    try { list.mediaText = atPhone ? 'all' : 'not all'; } catch (e) { phoneMediaFlips.pop(); }
+  }
+  // the editor's own furniture keeps answering to the real window
+  function phoneMediaSheetOk(sheet) {
+    var href = sheet.href || '', node = sheet.ownerNode;
+    if (/gogh-editor\.css|gogh-usertest|admin-bar|dashicons|\/wp-admin\//.test(href)) return false;
+    if (node && node.id && /^(gogh-editor|admin-bar|gogh-usertest|gogh-tests)/.test(node.id)) return false;
+    if (node && node.closest && node.closest('.gogh-panel, .gogh-side, .gogh-helpsheet, .gogh-picker')) return false;
+    return true;
+  }
+  function walkPhoneMedia(rules) {
+    for (var i = 0; i < rules.length; i++) {
+      var r = rules[i];
+      if (r.type === 4) { flipMediaForPhone(r.media); walkPhoneMedia(r.cssRules); }
+      else if (r.type === 12) walkPhoneMedia(r.cssRules);
+      else if (r.type === 3) { try { if (r.styleSheet && r.styleSheet.cssRules) { flipMediaForPhone(r.media); walkPhoneMedia(r.styleSheet.cssRules); } } catch (e) {} }
+    }
+  }
+  function applyPhoneMedia() {
+    clearPhoneMedia();
+    [].forEach.call(document.styleSheets, function (sh) {
+      if (!phoneMediaSheetOk(sh)) return;
+      var rules;
+      try { rules = sh.cssRules; } catch (e) { return; } // cross-origin: not ours to read
+      if (!rules) return;
+      flipMediaForPhone(sh.media); // a <link media="…"> sheet, e.g. woocommerce-smallscreen
+      walkPhoneMedia(rules);
+    });
+  }
+  function clearPhoneMedia() {
+    phoneMediaFlips.forEach(function (f) { try { f[0].mediaText = f[1]; } catch (e) {} });
+    phoneMediaFlips = [];
+  }
   // One sentence, always there in the phone view, saying what the view is
   // for. Tony spent thirteen minutes in it and concluded pieces could not be
   // moved; nothing had told him they could.
@@ -2506,6 +2611,7 @@
       b.setAttribute('aria-pressed', on ? 'true' : 'false');
     });
     document.documentElement.classList.toggle('gogh-phone-preview', mode === 'phone');
+    if (mode === 'phone') applyPhoneMedia(); else clearPhoneMedia();
     zoomFrac = null; // re-fit to the new artboard width
     if (zoomState) {
       zoomState.wrap.style.transition = 'transform 0.35s cubic-bezier(0.4,0,0.2,1), width 0.35s cubic-bezier(0.4,0,0.2,1)';
@@ -2674,6 +2780,7 @@
     if (i < 0) sec.sectionEl.classList.toggle('gogh-msec-hidden', nowHidden);
     else if (sec.nodes[i]) sec.nodes[i].classList.toggle('gogh-m-hidden', nowHidden);
     resolveAndApply(sec); // re-emit the section CSS with/without the hide rule
+    if (deviceMode === 'phone') applyPhoneMedia(); // the fresh rules answer to the phone too
     if (typeof pushState === 'function') pushState();
     return nowHidden;
   }
@@ -2709,6 +2816,7 @@
     if (same) delete s2.m.order; else s2.m.order = seq;
     if (!Object.keys(s2.m).length) s2.m = null;
     resolveAndApply(s2);
+    if (deviceMode === 'phone') applyPhoneMedia();
     if (typeof pushState === 'function') pushState();
     updateMtoolbar(); // the element moved — re-pin the toolbar to it
   }
@@ -18889,7 +18997,8 @@
     fillTake: fillTake, composeSiteDef: composeSiteDef,
     zoom: { open: openZoom, close: closeZoom, el: zoomOv },
     canvasZoom: { out: zoomOutCanvas, back: unzoomCanvas, setDevice: setDevice },
-    device: { phone: seeOnPhone, desktop: seeOnDesktop, mode: function () { return deviceMode; }, hide: setPhoneHidden, hidden: phoneHiddenOf },
+    device: { phone: seeOnPhone, desktop: seeOnDesktop, mode: function () { return deviceMode; }, hide: setPhoneHidden, hidden: phoneHiddenOf,
+      mediaFlips: function () { return phoneMediaFlips.length; }, mediaAtPhone: mediaAtPhone },
     reorderSection: reorderSection,
     setVideo: setVideo, setSecVideo: setSecVideo, videoEmbedInfo: videoEmbedInfo, openSecBgPanel: openSecBgPanel,
     navModel: { parse: parseNavModel, serialize: serializeNavModel, whereOf: navWhereOf, panelOf: navPanelOf },
@@ -23882,6 +23991,12 @@
       '<div class="gogh-panel-head"><span class="gogh-panel-title">Mobile menu</span>' +
       '<button type="button" class="gogh-sbtn gogh-panel-close" title="Close">✕</button></div>' +
       '<div class="gogh-panel-hint">How the menu opens on phones — and on desktop with the Hamburger layout. Hover to try, click to keep.</div>' +
+      // the preview door comes FIRST: this panel is taller than most windows
+      // and the door used to sit at its foot, below the fold, so you had to
+      // scroll inside the panel to find it (James: 'when the modal opens you
+      // can't see it - you have to scroll to see it')
+      '<div class="gogh-hdoors gogh-hdoors-top"><button type="button" class="gogh-hdoor gogh-mmpreview"><span>' +
+      (partEl && partEl.querySelector('.is-menu-open') ? 'Close the menu' : 'Open the menu to preview') + '</span><span class="gogh-hdoor-chev">›</span></button></div>' +
       '<div class="gogh-swlab">Opens as</div>' + list('gogh-mmlay', MENU_LAYOUTS, st.layout) +
       '<div class="gogh-swlab">Wears</div>' + list('gogh-mmground', MENU_GROUNDS, st.ground) +
       // what phones want at the foot of the menu: a way to call, to write, to sign in
@@ -23892,9 +24007,7 @@
       '<div class="gogh-panel-hint">These join the menu on phones only. Items in the menu itself can be set to desktop or phones with the \u22ef Manage menu.</div>' +
       '<div class="gogh-swlab">On phones, show</div>' +
       '<div class="gogh-panel-row"><select class="gogh-input gogh-mm-phonemenu"><option value="0">The same menu</option></select></div>' +
-      '<div class="gogh-panel-hint gogh-mm-phonemenu-hint">' + (kept.phoneMenu ? 'A separate phone menu \u2014 edit it under \u22ef Manage menu, Phone menu tab.' : 'Or a menu of its own \u2014 gogh copies this one to start you off.') + '</div>' +
-      '<div class="gogh-hdoors"><button type="button" class="gogh-hdoor gogh-mmpreview"><span>' +
-      (partEl && partEl.querySelector('.is-menu-open') ? 'Close the menu' : 'Open the menu to preview') + '</span><span class="gogh-hdoor-chev">›</span></button></div>';
+      '<div class="gogh-panel-hint gogh-mm-phonemenu-hint">' + (kept.phoneMenu ? 'A separate phone menu \u2014 edit it under \u22ef Manage menu, Phone menu tab.' : 'Or a menu of its own \u2014 gogh copies this one to start you off.') + '</div>';
     var closeX = panel.querySelector('.gogh-panel-close');
     if (closeX) closeX.addEventListener('click', function () { menuOverlayToggle(partEl, false); menuStyleWear(kept); closePanel(); });
     var prev = panel.querySelector('.gogh-mmpreview');

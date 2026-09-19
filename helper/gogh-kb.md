@@ -15,7 +15,7 @@ about something where they conflict, rather than picking one silently. Quote UI
 labels and message copy from the appendix, verbatim — those are the current
 strings, and a paraphrased button label is the fastest way to lose a user's trust.
 
-Generated for plugin version 0.99.596 · knowledge base 1639e4f.
+Generated for plugin version 0.99.597 · knowledge base e384370.
 
 ---
 
@@ -811,6 +811,8 @@ The helper's welcome panel opens with a 35-second film of gogh being used (v0.99
 
 **Hiding things on phones, from the desktop (v0.99.596).** You no longer have to be in the phone view to learn that pieces can be hidden or reordered for small screens. Every piece's bar has a **phone button** (a small phone; lit and slashed once the piece is hidden on phones) — press it to hide the piece on phones, press again to show it. Every piece that has a panel (button, image, video, box, widget, line, icon, embed) ends with an **On phones** row: **Shown | Hidden** and **See it on a phone**, which opens the phone view. A section's ⋯ menu has **Hide on phones** (then **Show on phones**). Hiding says so in a toast with a *See it on a phone* door, and on the desktop canvas a hidden piece wears a small **Hidden on phones** tag. Inside the phone view one sentence sits under the phone the whole time: *"Press anything to hide it on phones or move it up and down."* Reordering for phones (move up / move down) still lives in the phone view only.
 
+**The phone view is the page's own phone CSS (v0.99.597).** The artboard is phone-wide but the browser window is not, so rules written for narrow windows (`@media (max-width: …)`) — the header's hamburger menu, shop grids, blog cards, forms — used to keep answering to the window, and the phone view showed a desktop menu squeezed into a phone. Now, entering the phone view, gogh walks the page's stylesheets and flips each such rule's media condition on the live CSSOM: on for rules a 390px-wide phone would fire, off for desktop-only (`min-width`) ones, leaving rules that are not about size (hover, reduced motion) alone and the editor's own stylesheets untouched. Desktop puts every condition back. Nothing is copied or rewritten, so the phone view is exactly the page's mobile CSS, including the real hamburger, which opens inside the artboard.
+
 A small ? sits in the admin bar just left of Howdy, on every screen where the bar shows, for any logged-in user when a helper URL is set. In the gogh editor it opens the help sheet (the same one the side rail's ? opens); on any other screen, wp-admin included, it opens the helper in a new tab. The node is `gogh-help` under `top-secondary`; the `gogh_helper_url` filter turning the URL off removes it.
 
 ### The admin bar's edit label never flashes (v0.99.567)
@@ -836,11 +838,11 @@ Everything in this section is extracted mechanically from the Gogh source on eve
 
 ## Current release
 
-- Plugin version: **0.99.596**
+- Plugin version: **0.99.597**
 - Requires WordPress **6.5+**, PHP **7.4+**
 - Text domain: `gogh-editor`
 - readme.txt Stable tag: `0.26.0` · Tested up to: `7.0`
-- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.596`). Quote the plugin header version.
+- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.597`). Quote the plugin header version.
 
 ## Design constants
 
@@ -1365,4 +1367,4 @@ These are the real strings in the current build. Use them verbatim; never paraph
 
 ## Test suite
 
-`326` tests, run by appending `?gogh-test` to any Gogh page URL while logged in with edit rights on that page.
+`327` tests, run by appending `?gogh-test` to any Gogh page URL while logged in with edit rights on that page.
