@@ -1,12 +1,12 @@
 {
   "meta": {
-    "plugin_version": "0.99.593",
+    "plugin_version": "0.99.594",
     "requires_wp": "6.5",
     "requires_php": "7.4",
     "text_domain": "gogh-editor",
     "readme_stable_tag": "0.26.0",
     "readme_tested_up_to": "7.0",
-    "asset_version": "0.99.593-chrome"
+    "asset_version": "0.99.594-chrome"
   },
   "constants": {
     "TOL": 8,
@@ -570,8 +570,8 @@
     "Our story",
     "Outline",
     "Peek at pages",
+    "Phone",
     "Phone menu",
-    "Phone — see and tune the mobile layout",
     "Posts",
     "Products",
     "Publish",
@@ -595,6 +595,7 @@
     "Save",
     "Save description",
     "See all →",
+    "See and tune how the page looks on a phone",
     "Send backward",
     "Shape",
     "Show",
@@ -1407,5 +1408,5 @@
     "has_deprecation": true,
     "block_title": "gogh Section"
   },
-  "test_count": 320
+  "test_count": 322
 }

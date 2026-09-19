@@ -8669,6 +8669,44 @@
         'the ghost wore ' + JSON.stringify(got) + ', the kid wears ' + JSON.stringify(want));
       return 'ghost ' + got.fs + ' / ' + got.fw + ' / ' + got.col + ' = kid';
     });
+    test('Phone is a word in the top bar: it shows the phone artboard with no drawer open, and Desktop brings the page back', function () {
+      var pill = q('#wp-admin-bar-gogh-device .gogh-devpill, .gogh-devpill-float .gogh-devpill');
+      expect(pill, 'no Desktop | Phone pill in the top bar');
+      expect(!pill.closest('[hidden]'), 'the pill is hidden while editing');
+      expect(!q('.gogh-zoomslider .gogh-dev'), 'the zoom slider still carries device buttons');
+      var wrap = q('.wp-site-blocks');
+      var html = document.documentElement;
+      expect(!html.classList.contains('gogh-zoomed'), 'the test should start on the 1:1 canvas');
+      try {
+        pill.querySelector('[data-dev="phone"]').click();
+        expect(html.classList.contains('gogh-phone-preview'), 'Phone did not enter the phone view');
+        expect(html.classList.contains('gogh-zoomed'), 'the phone view did not zoom the desk out by itself');
+        expect(wrap.style.width === '390px', 'the artboard is not phone-wide: ' + wrap.style.width);
+        expect(pill.querySelector('[data-dev="phone"]').classList.contains('is-on'), 'Phone is not lit');
+        expect(G.device.mode() === 'phone', 'the api does not say phone');
+        pill.querySelector('[data-dev="desktop"]').click();
+        expect(!html.classList.contains('gogh-phone-preview'), 'Desktop did not leave the phone view');
+        expect(!html.classList.contains('gogh-zoomed'), 'Desktop left the desk zoomed out with no drawer open');
+        expect(wrap.style.width === '', 'the artboard kept its phone width: ' + wrap.style.width);
+      } finally { G.device.desktop(); }
+      return 'phone 390px on its own zoom, desktop back to 1:1';
+    });
+    test('the phone view outlives a drawer: open Page, press Phone, close the drawer, still on the phone', function () {
+      var html = document.documentElement;
+      try {
+        G.openSide('page');
+        var door = q('.gogh-side .gogh-phonebtn');
+        expect(door, 'no See it on a phone door in the Page drawer');
+        door.click();
+        expect(html.classList.contains('gogh-phone-preview'), 'the drawer door did not enter the phone view');
+        G.closeSide(true);
+        expect(html.classList.contains('gogh-phone-preview'), 'closing the drawer dropped the phone view');
+        expect(html.classList.contains('gogh-zoomed'), 'closing the drawer unzoomed under the phone');
+        G.device.desktop();
+        expect(!html.classList.contains('gogh-zoomed'), 'Desktop after the drawer left the desk zoomed');
+      } finally { G.device.desktop(); G.closeSide(true); }
+      return 'drawer closed, phone stayed; Desktop unzoomed';
+    });
     test('under the birds-eye zoom a sideways drag keeps its height', function () {
       var i = findIdx('badge');
       var e0 = sec().els[i], y0 = e0.y, h0 = e0.h;

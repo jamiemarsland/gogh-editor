@@ -2418,6 +2418,10 @@
     '<span class="gogh-scard-ic"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 8v8M8 12h8"/></svg></span>' +
     '<span class="gogh-scard-tx"><span class="gogh-scard-t">Add a page</span><span class="gogh-scard-s">A new page, in your menu too</span></span>' +
     '<svg class="gogh-scard-chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg></button>' +
+    '<button type="button" class="gogh-sitem gogh-scard gogh-phonebtn">' +
+    '<span class="gogh-scard-ic"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><rect x="7" y="3" width="10" height="18" rx="2.5"/><path d="M11 18h2"/></svg></span>' +
+    '<span class="gogh-scard-tx"><span class="gogh-scard-t">See it on a phone</span><span class="gogh-scard-s">How this page looks on a small screen</span></span>' +
+    '<svg class="gogh-scard-chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg></button>' +
     '<button type="button" class="gogh-sitem gogh-scard gogh-pagestylebtn">' +
     '<span class="gogh-scard-ic"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M14 3v6h6"/></svg></span>' +
     '<span class="gogh-scard-tx"><span class="gogh-scard-t">Page style</span><span class="gogh-scard-s">How this page is framed</span></span>' +
@@ -2472,12 +2476,6 @@
   zoomSlider.hidden = true;
   zoomSlider.title = 'Zoom — ⌥ scroll, or ⌥Z to toggle the design view'; // discover the shortcuts
   zoomSlider.innerHTML =
-    '<div class="gogh-devtoggle" role="group" aria-label="Preview device">' +
-    '<button type="button" class="gogh-dev is-on" data-dev="desktop" title="Desktop" aria-pressed="true">' +
-    '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><rect x="3" y="4" width="18" height="12" rx="1.5"/><path d="M8 20h8M12 16v4"/></svg></button>' +
-    '<button type="button" class="gogh-dev" data-dev="phone" title="Phone — see and tune the mobile layout" aria-pressed="false">' +
-    '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><rect x="7" y="3" width="10" height="18" rx="2.5"/><path d="M11 18h2"/></svg></button>' +
-    '</div>' +
     '<span class="gogh-zoomslider-val">100%</span>' +
     '<input type="range" min="20" max="100" step="1" value="100" aria-label="Zoom the page (Option-scroll, or Option-Z to toggle)">';
   document.body.appendChild(zoomSlider);
@@ -2493,7 +2491,7 @@
     if (mode === deviceMode) return;
     deviceMode = mode;
     clearMobileSel(); // a selection/toolbar never outlives a device switch
-    [].forEach.call(zoomSlider.querySelectorAll('.gogh-dev'), function (b) {
+    [].forEach.call(document.querySelectorAll('.gogh-dev'), function (b) {
       var on = b.getAttribute('data-dev') === mode;
       b.classList.toggle('is-on', on);
       b.setAttribute('aria-pressed', on ? 'true' : 'false');
@@ -2507,8 +2505,50 @@
       zi.value = 100; zoomSlider.querySelector('.gogh-zoomslider-val').textContent = '100%';
     }
   }
-  [].forEach.call(zoomSlider.querySelectorAll('.gogh-dev'), function (b) {
-    b.addEventListener('click', function () { setDevice(b.getAttribute('data-dev')); });
+  // The phone view used to live inside the zoom slider, and the slider only
+  // appears while a drawer is open — so with nothing open there was no phone
+  // button anywhere. Seven testers said so in their own words ("There is
+  // definitely no phone"). Now two plain words sit in the top bar the whole
+  // time you are editing: Desktop and Phone. Phone zooms the desk out by
+  // itself when no drawer has, and Desktop puts it back.
+  var zoomForPhone = false; // did Phone enter the zoom on its own?
+  var devPill = document.createElement('div');
+  devPill.className = 'gogh-devpill';
+  devPill.setAttribute('role', 'group');
+  devPill.setAttribute('aria-label', 'See the page as');
+  devPill.innerHTML =
+    '<button type="button" class="gogh-dev is-on" data-dev="desktop" aria-pressed="true">Desktop</button>' +
+    '<button type="button" class="gogh-dev" data-dev="phone" aria-pressed="false" title="See and tune how the page looks on a phone">Phone</button>';
+  var devHome = document.createElement('li');
+  devHome.id = 'wp-admin-bar-gogh-device';
+  devHome.hidden = true;
+  devHome.appendChild(devPill);
+  function mountDevPill() {
+    // beside the editor's own landmark in the admin bar; a page with no admin
+    // bar (seamless playgrounds) gets the pill floated at the top instead.
+    // Lazy: this script prints before the admin bar does, so the bar is only
+    // there to be found once editing begins.
+    if (devHome.parentNode && devHome.parentNode !== document.body) return;
+    var mark = document.getElementById('wp-admin-bar-gogh-edit');
+    if (mark && mark.parentNode) { devHome.className = ''; mark.parentNode.insertBefore(devHome, mark.nextSibling); }
+    else if (!devHome.parentNode) { devHome.className = 'gogh-devpill-float'; document.body.appendChild(devHome); }
+  }
+  function seeOnPhone() {
+    if (deviceMode === 'phone' || cfg.writeUrl) return;
+    if (!zoomState) { zoomOutCanvas(); zoomForPhone = true; }
+    setDevice('phone');
+  }
+  function seeOnDesktop() {
+    if (deviceMode !== 'phone') return;
+    setDevice('desktop');
+    // the zoom that Phone opened closes with it; a drawer's zoom is the drawer's
+    if (zoomForPhone && !panelOpen && !side.classList.contains('is-open')) unzoomCanvas();
+    zoomForPhone = false;
+  }
+  [].forEach.call(devPill.querySelectorAll('.gogh-dev'), function (b) {
+    b.addEventListener('click', function () {
+      if (b.getAttribute('data-dev') === 'phone') seeOnPhone(); else seeOnDesktop();
+    });
   });
 
   // ---------- mobile overrides: tune the phone layout from the desktop editor ----------
@@ -2754,7 +2794,9 @@
       railBox.classList.remove('is-away');
       document.querySelectorAll('.gogh-side-tab').forEach(function (t) { t.classList.remove('is-away'); });
       document.documentElement.classList.remove('gogh-designmode');
-      if (!panelOpen) unzoomCanvas(); // a section may still hold the zoom
+      if (panelOpen) return; // a section may still hold the zoom
+      if (deviceMode === 'phone') { zoomForPhone = true; layoutZoom(); } // the phone view outlives the drawer
+      else unzoomCanvas();
     };
     if (now) doIt(); else sideTimer = setTimeout(doIt, 500);
   }
@@ -4082,7 +4124,10 @@
     }
     side.hidden = !on;
     railBox.hidden = !on;
+    if (on) mountDevPill();
+    devHome.hidden = !on || !!cfg.writeUrl; // the write room has no canvas to preview
     if (!on) {
+      seeOnDesktop(); // leaving the editor leaves the phone view too
       closeSide(true);
     }
     // the palette waits to be invited — its pulsing tab is the greeting
@@ -4255,11 +4300,12 @@
     // page into the clear area to its RIGHT, centred. Comfortable scale,
     // independent of page LENGTH (scroll handles the rest). Measure whichever
     // surface is live — the section panel or the Design home.
-    var bar = (panelOpen && !panel.hidden) ? panel : side;
+    var bar = (panelOpen && !panel.hidden) ? panel : (side.classList.contains('is-open') ? side : null);
     // offsetWidth, not getBoundingClientRect: both surfaces dock at left:0, and
     // the rect is still MOVING during the slide-in (measuring it mid-animation
     // is what made the left/right gaps unequal). offsetWidth is the settled edge.
-    var barRight = bar.offsetWidth || 0;
+    // No drawer at all (the phone view from the top bar): just clear the rail.
+    var barRight = bar ? (bar.offsetWidth || 0) : 72;
     var sliderReserve = 64; // the zoom slider's footprint on the right edge
     // the clear span between the sidebar (left) and the slider (right); centring
     // the page in THIS gives equal gaps on both sides
@@ -4360,14 +4406,16 @@
     if (ev.code !== 'KeyZ') return; // ⌥Z — match the physical key ('⌥z' prints 'Ω' on macOS)
     if (zoomShortcutBlocked(ev.target)) return;
     ev.preventDefault();
-    if (side.classList.contains('is-open') || zoomState) closeSide(true);
+    if (deviceMode === 'phone') { closeSide(true); seeOnDesktop(); }
+    else if (side.classList.contains('is-open') || zoomState) closeSide(true);
     else openSide();
   });
 
   function closePanel() {
     if (panelCleanup) { var pc = panelCleanup; panelCleanup = null; pc(); }
     clearPageStylePreview(); // a page-style audition never outlives its panel
-    if (!keepZoomThroughClose) unzoomCanvas(); // a style audition's zoom-out never outlives its panel
+    if (deviceMode === 'phone') { zoomForPhone = true; requestAnimationFrame(layoutZoom); } // the phone view outlives the panel
+    else if (!keepZoomThroughClose) unzoomCanvas(); // a style audition's zoom-out never outlives its panel
     exitChromeMode(); // leave the header room cleanly — dim off, spotlight off
     delete panel.dataset.goghArea;
     panel.hidden = true;
@@ -17980,6 +18028,9 @@
   side.querySelector('.gogh-pagestylebtn').addEventListener('click', function (ev) {
     openPageStylePanel(ev.currentTarget);
   });
+  side.querySelector('.gogh-phonebtn').addEventListener('click', function () {
+    if (deviceMode === 'phone') seeOnDesktop(); else seeOnPhone();
+  });
   side.querySelector('.gogh-addpagebtn').addEventListener('click', function (ev) {
     openAddPagePanel(ev.currentTarget);
   });
@@ -18764,6 +18815,7 @@
     fillTake: fillTake, composeSiteDef: composeSiteDef,
     zoom: { open: openZoom, close: closeZoom, el: zoomOv },
     canvasZoom: { out: zoomOutCanvas, back: unzoomCanvas, setDevice: setDevice },
+    device: { phone: seeOnPhone, desktop: seeOnDesktop, mode: function () { return deviceMode; } },
     reorderSection: reorderSection,
     setVideo: setVideo, setSecVideo: setSecVideo, videoEmbedInfo: videoEmbedInfo, openSecBgPanel: openSecBgPanel,
     navModel: { parse: parseNavModel, serialize: serializeNavModel, whereOf: navWhereOf, panelOf: navPanelOf },

@@ -1,4 +1,4 @@
-# Knowledge-base audit — plugin v0.99.593
+# Knowledge-base audit — plugin v0.99.594
 
 _13 finding(s) suppressed by `kb.audit-ignore.txt`._
 
@@ -105,7 +105,7 @@ The source has something the prose never explains. The bot knows the name from t
 - element type `video` exists in source but is never mentioned in the prose
 - element type `embed` exists in source but is never mentioned in the prose
 
-## QUOTE (6)
+## QUOTE (7)
 
 Quoted copy not found verbatim in the source. Paraphrases are fine; changed UI copy is not.
 
@@ -113,6 +113,7 @@ Quoted copy not found verbatim in the source. Paraphrases are fine; changed UI c
 - Fraunces & Inter. Installed on your site, yours to keep.
 - Already the same size
 - Needs two or more pieces
+- there is no phone button
 - (max-width: 700px) 100vw, min(100vw, Wpx)
 - (max-width: 700px) 100vw, 53vw
 
@@ -120,5 +121,7 @@ Quoted copy not found verbatim in the source. Paraphrases are fine; changed UI c
 
 Use this as the checklist for updating the prose — and as a sanity check on the release itself.
 
-- version: 0.99.592 → 0.99.593
-- added UI label: "Make this bigger"
+- version: 0.99.593 → 0.99.594
+- removed UI label: "Phone — see and tune the mobile layout"
+- added UI label: "Phone"
+- added UI label: "See and tune how the page looks on a phone"

@@ -147,15 +147,32 @@
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, sans-serif;
 }
 .gogh-zoomslider[hidden] { display: none; }
-/* device toggle: desktop / phone preview, sitting atop the zoom cluster */
-.gogh-devtoggle { display: flex; flex-direction: column; gap: 2px; padding: 2px; background: var(--gogh-ui-hover); border-radius: 11px; }
-.gogh-dev {
-  all: unset; box-sizing: border-box; display: grid; place-items: center;
-  width: 30px; height: 27px; border-radius: 9px; color: var(--gogh-ui-muted); cursor: pointer;
+/* Desktop | Phone: two words in the top bar, there the whole time you edit.
+   The admin bar styles everything inside it by id, so these carry the id too */
+#wpadminbar #wp-admin-bar-gogh-device { display: flex; align-items: center; height: 32px; padding: 0 4px 0 8px; float: left; }
+#wpadminbar #wp-admin-bar-gogh-device[hidden], .gogh-devpill-float[hidden] { display: none; }
+#wpadminbar .gogh-devpill, .gogh-devpill-float .gogh-devpill {
+  display: inline-flex; gap: 2px; padding: 2px; margin: 0; height: 26px; box-sizing: border-box;
+  background: rgba(255, 255, 255, 0.12); border-radius: 999px;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, sans-serif;
+}
+#wpadminbar .gogh-devpill .gogh-dev, .gogh-devpill-float .gogh-dev {
+  all: unset; box-sizing: border-box; display: inline-grid; place-items: center;
+  height: 22px; padding: 0 11px; margin: 0; border-radius: 999px; cursor: pointer;
+  font: 600 12px/1 -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, sans-serif; letter-spacing: 0.01em;
+  color: rgba(255, 255, 255, 0.72); text-shadow: none;
   transition: color .12s, background .12s;
 }
-.gogh-dev:hover { color: var(--gogh-ui-fg); }
-.gogh-dev.is-on { background: #fff; color: #4f5aee; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.14); }
+#wpadminbar .gogh-devpill .gogh-dev:hover, .gogh-devpill-float .gogh-dev:hover { color: #fff; background: transparent; }
+#wpadminbar .gogh-devpill .gogh-dev:focus-visible, .gogh-devpill-float .gogh-dev:focus-visible { outline: 2px solid #fff; outline-offset: 1px; }
+#wpadminbar .gogh-devpill .gogh-dev.is-on, .gogh-devpill-float .gogh-dev.is-on,
+#wpadminbar .gogh-devpill .gogh-dev.is-on:hover, .gogh-devpill-float .gogh-dev.is-on:hover { background: #fff; color: #1d2327; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25); }
+/* no admin bar (a seamless playground): the pill floats at the top, centred */
+.gogh-devpill-float {
+  position: fixed; top: 10px; left: 50%; transform: translateX(-50%); z-index: 99999;
+  list-style: none; margin: 0; padding: 0;
+}
+.gogh-devpill-float .gogh-devpill { background: rgba(29, 35, 39, 0.92); box-shadow: 0 8px 24px -10px rgba(0, 0, 0, 0.5); }
 /* phone preview: the artboard is pinned narrow (JS); round its corners so it
    reads as a device rather than a cropped page */
 html.gogh-phone-preview .wp-site-blocks { border-radius: 30px; overflow: hidden; }
