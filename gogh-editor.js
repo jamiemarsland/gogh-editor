@@ -21,11 +21,22 @@
   var DISPLAY_LABEL = { '__disp-s': 'Display S', '__disp-m': 'Display M', '__disp-l': 'Display L' };
   if (!cfg) return;
 
-  var TOL = 8, MIN_H = 560, PAD = 72, SNAP = 6, BASE = 8, W = 1200;
-  // the PAINTED grid (3.333cqw of the 1200 canvas = 40 units). It must be
-  // a real snap target: edges that nearly kiss a line the user can see
-  // must land exactly ON it ("this needs to be, and feel, perfect")
-  var GRID = 40;
+  var TOL = 8, MIN_H = 576, PAD = 72, SNAP = 6, BASE = 8, W = 1200, RHYTHM = 24, MAJOR = 72;
+  // RHYTHM and MAJOR are the vertical rhythm gogh keeps for its OWN gaps: the
+  // takes, the scratch section, the bands the connector compiles. Positions
+  // and heights sit on 24, section heights on 72. It never rounds a person's
+  // placement — a hand-dragged 30 stays 30.
+  // the page's own content margin (80..1120): where new pieces are born, and
+  // a NAMED magnet — Canva's solid margin line, the one guide we lacked
+  var MARGIN = 80;
+  // the PAINTED grid is the rhythm: 24-unit minors with a heavier line every
+  // 72. Mid-gesture only the majors show, and an edge that nearly kisses a
+  // line the user can see lands exactly ON it ("this needs to be, and feel,
+  // perfect"). With the Grid button on the minors show too, and the mesh a
+  // drop rounds to is 24 rather than 8 — a person who asks for the grid gets
+  // the rhythm, not an 8-pixel mesh. Nudges by arrow key stay at BASE.
+  function gridLine() { return gridSnapOn ? RHYTHM : MAJOR; }
+  function gridUnit() { return gridSnapOn ? RHYTHM : BASE; }
 
   // ---------- collect sections (resilient to Gutenberg-side edits) ----------
   // Carriers are paired by ADJACENCY (the style+model immediately before each
@@ -90,13 +101,23 @@
         e = { type: 'badge', w: 226, h: 52, text: text };
       } else if (child.tagName === 'P') {
         e = { type: 'para', w: 520, h: 60, text: text };
+      } else if (child.tagName === 'HR') {
+        e = { type: 'rule', w: 1040, h: 16, thick: 1 };
+      } else if (child.classList.contains('gogh-embed')) {
+        var ea = child.querySelector('a.gogh-embed-link'), ew = child.querySelector('.wp-block-embed__wrapper');
+        e = { type: 'embed', w: 768, h: 432, url: ea ? ea.getAttribute('href') : (ew ? (ew.textContent || '').trim() : null) || null };
+      } else if (child.classList.contains('gogh-icon')) {
+        var im2 = (child.className || '').match(/gogh-icon-([a-z0-9-]+)/);
+        e = { type: 'icon', w: 56, h: 56, icon: im2 && ICONS[im2[1]] ? im2[1] : 'star' };
+      } else if (child.tagName === 'UL' || child.tagName === 'OL') {
+        e = { type: 'para', w: 520, h: 90, list: child.tagName.toLowerCase(), text: listText(child) };
       } else if (child.classList.contains('wp-block-buttons')) {
         var a = child.querySelector('a');
         e = { type: 'button', w: 178, h: 52,
           text: (a || child).textContent.trim(),
           ghost: !!child.querySelector('.gogh-ghost'),
           href: (a && a.getAttribute('href') && a.getAttribute('href') !== '#') ? a.getAttribute('href') : null };
-      } else if (child.tagName === 'FIGURE' || child.classList.contains('wp-block-group')) {
+      } else if ((child.tagName === 'FIGURE' || child.classList.contains('wp-block-group')) && !child.classList.contains('gogh-embed') && !child.classList.contains('gogh-icon')) {
         var img = child.querySelector('img');
         e = { type: 'image', w: 460, h: 300 };
         if (img) {
@@ -136,7 +157,8 @@
       found++;
       var cls = node.className || '';
       if (e.type === 'heading' || e.type === 'para') {
-        if ((node.textContent || '').trim()) e.text = cleanInline(node.innerHTML);
+        if (e.list && /^(UL|OL)$/.test(node.tagName)) { if ((node.textContent || '').trim()) e.text = listText(node); }
+        else if ((node.textContent || '').trim()) e.text = cleanInline(node.innerHTML);
         var fm = cls.match(/has-([a-z0-9-]+)-font-size/);
         // display sizes carry no preset class by design — the DOM can't
         // testify about them, so the model's word stands
@@ -255,12 +277,16 @@
     var chromeInfo = chromeHost ? { area: chromeHost.tagName === 'FOOTER' ? 'footer' : 'header' } : null;
     var bootEls = model.elements || [];
     if (hadModel && !v3wrap) bootEls = syncModelFromMarkup(sectionEl, bootEls);
-    S.push({ scope: scope, els: bootEls,
+    // a one-page site: the section's own anchor (#work) rides in the model
+    // and is put back on the element, so the menu still has somewhere to go
+    var bootAnchor = cleanAnchor(model.anchor || sectionEl.id);
+    if (bootAnchor) sectionEl.id = bootAnchor;
+    S.push({ scope: scope, els: bootEls, anchor: bootAnchor || null,
       v3: v3wrap,
       srcScope: v3wrap ? sectionEl.getAttribute('data-gogh-scope') : null,
       chrome: chromeInfo,
       bootstrap: !!wrap.__goghBootstrap,
-      minH: model.minH || (bootEls.length ? null : 480),
+      minH: model.minH || (bootEls.length ? null : 504), // the empty placeholder: seven majors
       bg: model.bg || null, divider: model.divider || null,
       fx: model.fx || null,
       bgImage: model.bgImage || null, bgId: model.bgId || null, bgVideo: model.bgVideo || null, bgVideoId: model.bgVideoId || null, bgA: model.bgA != null ? model.bgA : null, theme: model.theme || null, fill: !!model.fill,
@@ -288,23 +314,37 @@
     var groups = [];
     sorted.forEach(function (v) {
       var g = groups[groups.length - 1];
-      if (g && v - g[g.length - 1] <= TOL) g.push(v);
+      // a group spans at most TOL from its FIRST member: chaining 300, 307,
+      // 314, 321 into one line at 310 moved every edge in it by up to ten
+      if (g && v - g[0] <= TOL) g.push(v);
       else groups.push([v]);
     });
     return groups.map(function (g) {
       return g.reduce(function (a, b) { return a + b; }, 0) / g.length;
     });
   }
+  // the frame's own edges are fixed lines, not votes: an edge within TOL of
+  // them joins the boundary instead of pulling it inward (a full-bleed photo
+  // six units short used to shift every column by three)
+  function pinLines(lines, lo, hi) {
+    var inner = lines.filter(function (l) { return l - lo > TOL && hi - l > TOL; });
+    return [lo].concat(inner, [hi]);
+  }
   function nearest(v, lines) {
     var best = 0;
     lines.forEach(function (l, i) { if (Math.abs(l - v) < Math.abs(lines[best] - v)) best = i; });
     return best;
   }
-  function designH(els, minH) {
+  function designH(els, minH, flat) {
     var bottom = els.length
       ? Math.max.apply(null, els.map(function (e) { return e.y + e.h; }))
       : (minH || MIN_H) - PAD;
     var floor = minH || MIN_H;
+    // flat: a card's inner grid. The card IS its height; the breathing pad
+    // belongs to sections (a kid one unit past the bottom used to add the
+    // 72-unit pad to the height every row was a share of, squeezing every
+    // kid by about a seventh)
+    if (flat) return Math.max(floor, bottom);
     // Three truths at once:
     // 1. content within minH never gets a phantom pad — flush at a fixed
     //    hero's edge just works;
@@ -316,11 +356,15 @@
     //    running away as you chase it.
     var maxPad = -1;
     els.forEach(function (e) { if (!e.flushB) maxPad = Math.max(maxPad, e.y + e.h); });
-    var padTerm = maxPad > floor ? maxPad + PAD : floor;
+    // a section that outgrows its floor still lands on a major: the air
+    // under the lowest piece is gogh's choice, so the height rounds up to
+    // the next 72 (a piece flush with the bottom, flushB, keeps its exact
+    // edge — that one is the person's)
+    var padTerm = maxPad > floor ? Math.ceil((maxPad + PAD) / MAJOR) * MAJOR : floor;
     return Math.max(floor, bottom, padTerm);
   }
-  function solve(els, minH, dw, skip) {
-    var H = designH(els, minH);
+  function solve(els, minH, dw, skip, flat) {
+    var H = designH(els, minH, flat);
     // skip: elements whose edges must NOT shape the grid lines — the
     // element being dragged. Cluster averaging makes every line a blend
     // of every nearby edge, so a streaming drag position bent the lines
@@ -332,8 +376,8 @@
     var lineEls = (skip && skip.length)
       ? els.filter(function (_, i2) { return skip.indexOf(i2) === -1; })
       : els;
-    var xs = cluster([0, dw || W].concat(lineEls.reduce(function (a, e) { return a.concat([e.x, e.x + e.w]); }, [])));
-    var ys = cluster([0, H].concat(lineEls.reduce(function (a, e) { return a.concat([e.y, e.y + e.h]); }, [])));
+    var xs = pinLines(cluster(lineEls.reduce(function (a, e) { return a.concat([e.x, e.x + e.w]); }, [])), 0, dw || W);
+    var ys = pinLines(cluster(lineEls.reduce(function (a, e) { return a.concat([e.y, e.y + e.h]); }, [])), 0, H);
     var pct = function (v) { return +(v / W * 100).toFixed(2); };
     return {
       cols: xs.slice(1).map(function (x, i) { return pct(x - xs[i]) + 'cqw'; }),
@@ -453,6 +497,13 @@
     widget: 'display: flex; align-items: center;',
     box: '',
     exp: 'position: relative; overflow: hidden; border-radius: clamp(8px, 1.5cqw, 20px); background: #101114;',
+    // the stroke is a border, so it follows the text colour like words do;
+    // the theme's own separator paint (borders, backgrounds) stands down
+    rule: 'align-self: stretch; width: 100%; height: auto; margin: 0; border-width: 0; background: linear-gradient(currentColor, currentColor) center / 100% 1px no-repeat; opacity: 0.28;',
+    // an icon is a square of currentColor seen through its mask
+    icon: 'align-self: start; aspect-ratio: 1 / 1; background-color: currentColor; margin: 0;',
+    // a window onto somewhere else: a map, a post, a player
+    embed: 'align-self: start; position: relative; overflow: hidden; margin: 0; border-radius: clamp(8px, 1.5cqw, 20px); background: color-mix(in srgb, currentColor 6%, transparent);',
   };
   TYPE_RULES.video = 'align-self: start;'; // sits like a picture; its corners are the panel's Corners chips
   var isText = function (e) { return e.type === 'heading' || e.type === 'para'; };
@@ -460,7 +511,7 @@
     return e.type === 'heading' || e.type === 'para' || e.type === 'badge' || e.type === 'button' ||
       (e.kids || []).some(function (k) { return textyEl(k); });
   };
-  var fixedHeight = function (e) { return e.type === 'button' || e.type === 'image' || e.type === 'video' || e.type === 'badge' || e.type === 'widget' || e.type === 'box' || e.type === 'exp'; };
+  var fixedHeight = function (e) { return e.type === 'button' || e.type === 'image' || e.type === 'video' || e.type === 'badge' || e.type === 'widget' || e.type === 'box' || e.type === 'exp' || e.type === 'rule' || e.type === 'icon' || e.type === 'embed'; };
 
   function imageBackground(e) {
     if (e.src) {
@@ -486,12 +537,15 @@
     }
     return [];
   }
-  // the editing grid's hairlines, as top coats over an effect/video layer
+  // the editing grid's major lines (72 units = 6cqw, across only — the beat
+  // is about rows), as top coats over an effect/video layer
   var GRID_COATS = [
-    'linear-gradient(to right, rgba(255,255,255,0.42) 1px, transparent 1px) 0 0 / 3.3333cqw 3.3333cqw',
-    'linear-gradient(to bottom, rgba(255,255,255,0.42) 1px, transparent 1px) 0 0 / 3.3333cqw 3.3333cqw',
-    'linear-gradient(to right, rgba(15,23,42,0.26) 1px, transparent 1px) 1px 1px / 3.3333cqw 3.3333cqw',
-    'linear-gradient(to bottom, rgba(15,23,42,0.26) 1px, transparent 1px) 1px 1px / 3.3333cqw 3.3333cqw'
+    'linear-gradient(to bottom, rgba(255,255,255,0.42) 1px, transparent 1px) 0 0 / 6cqw 6cqw',
+    'linear-gradient(to bottom, rgba(15,23,42,0.26) 1px, transparent 1px) 0 1px / 6cqw 6cqw',
+    'linear-gradient(to right, rgba(255,255,255,0.18) 1px, transparent 1px) 0 0 / 2cqw 2cqw',
+    'linear-gradient(to bottom, rgba(255,255,255,0.18) 1px, transparent 1px) 0 0 / 2cqw 2cqw',
+    'linear-gradient(to right, rgba(15,23,42,0.10) 1px, transparent 1px) 1px 1px / 2cqw 2cqw',
+    'linear-gradient(to bottom, rgba(15,23,42,0.10) 1px, transparent 1px) 1px 1px / 2cqw 2cqw'
   ].join(', ');
   // ---------- video: a file, or a YouTube / Vimeo link ----------
   function videoEmbedInfo(url) {
@@ -655,6 +709,22 @@
           ' text-box: trim-both cap ' + tbEdge + ';';
       }
       if (e.type === 'widget' && e.wcol) extra += ' color: ' + e.wcol + ';';
+      if (e.type === 'icon') extra += iconMaskCss(e.icon);
+      if (e.type === 'embed' && e.w > 0 && e.h > 0) extra += ' aspect-ratio: ' + e.w + ' / ' + e.h + ';';
+      if (e.type === 'rule') {
+        var rt = Math.max(1, Math.min(8, Math.round(+e.thick || 1)));
+        if (e.dash === 'dotted') {
+          // round dots the weight wide, a dot's width apart
+          extra += ' background-image: radial-gradient(circle, currentColor 0 ' + (rt / 2) + 'px, transparent ' + (rt / 2 + 0.5) + 'px); background-size: ' + (rt * 2.5) + 'px ' + rt + 'px; background-repeat: repeat-x; background-position: center;';
+        } else if (e.dash === 'dashed') {
+          // dashes six weights long with a gap of three
+          extra += ' background-image: linear-gradient(to right, currentColor 0 ' + (rt * 6) + 'px, transparent ' + (rt * 6) + 'px 100%); background-size: ' + (rt * 9) + 'px ' + rt + 'px; background-repeat: repeat-x; background-position: center;';
+        } else {
+          extra += ' background-size: 100% ' + rt + 'px;';
+        }
+      }
+      // a list keeps its bullets outside the words and its own indent
+      if (e.type === 'para' && e.list) extra += ' margin: 0; padding-inline-start: 1.25em; list-style-position: outside;';
       if (e.type === 'image' || e.type === 'video') {
         // align-self: start stopped grid stretch poisoning measurements
         // (v0.99.188) but it also stopped the frame filling its rows — a
@@ -712,6 +782,9 @@
         }
         if (e.radius) extra += ' border-radius: ' + (Math.round(e.radius / 12 * 100) / 100) + 'cqw;';
         if (e.shape && SHAPE_CSS[e.shape]) extra += SHAPE_CSS[e.shape];
+        // a rounded silhouette only clips what it holds when told to: clip-path
+        // shapes cut their children already, border-radius ones do not
+        if (e.shape && e.kids && e.kids.length) extra += ' overflow: hidden;';
         var moodBase = e.rot ? ' rotate(' + e.rot + 'deg)' : '';
         if (e.mood === 'lift') {
           extra += ' transition: transform 0.25s ease, box-shadow 0.25s ease;';
@@ -951,10 +1024,12 @@
       // (majors only — calm over photos). Published pages never carry
       // .gogh-editing, so this costs them nothing.
       var gridCoats = [
-        'linear-gradient(to right, rgba(255,255,255,0.42) 1px, transparent 1px) 0 0 / 3.3333cqw 3.3333cqw',
-        'linear-gradient(to bottom, rgba(255,255,255,0.42) 1px, transparent 1px) 0 0 / 3.3333cqw 3.3333cqw',
-        'linear-gradient(to right, rgba(15,23,42,0.26) 1px, transparent 1px) 1px 1px / 3.3333cqw 3.3333cqw',
-        'linear-gradient(to bottom, rgba(15,23,42,0.26) 1px, transparent 1px) 1px 1px / 3.3333cqw 3.3333cqw'
+        'linear-gradient(to bottom, rgba(255,255,255,0.42) 1px, transparent 1px) 0 0 / 6cqw 6cqw',
+        'linear-gradient(to bottom, rgba(15,23,42,0.26) 1px, transparent 1px) 0 1px / 6cqw 6cqw',
+        'linear-gradient(to right, rgba(255,255,255,0.18) 1px, transparent 1px) 0 0 / 2cqw 2cqw',
+        'linear-gradient(to bottom, rgba(255,255,255,0.18) 1px, transparent 1px) 0 0 / 2cqw 2cqw',
+        'linear-gradient(to right, rgba(15,23,42,0.10) 1px, transparent 1px) 1px 1px / 2cqw 2cqw',
+        'linear-gradient(to bottom, rgba(15,23,42,0.10) 1px, transparent 1px) 1px 1px / 2cqw 2cqw'
       ].join(', ');
       // opacity: 1 declared, not assumed — the editing grid shares this
       // pseudo at opacity 0, which blanked every effect section's backdrop
@@ -1001,8 +1076,8 @@
     els.forEach(function (e, i) {
       if (e.type !== 'box' || !e.kids || !e.kids.length) return;
       var cardSel = sec + ' .gogh-el-' + (i + 1);
-      var kg = solve(e.kids, e.h, e.w, (opts.kidSkip && opts.kidSkip.ci === i) ? [opts.kidSkip.j] : null);
-      var kidH = designH(e.kids, e.h);
+      var kg = solve(e.kids, e.h, e.w, (opts.kidSkip && opts.kidSkip.ci === i) ? [opts.kidSkip.j] : null, true);
+      var kidH = designH(e.kids, e.h, true);
       var cardRows = kg.rows.map(function (r) {
         // solve emits section-cqw (1cqw = W/100 design units); the card's
         // rows must be % of the CARD's height so they scale with it
@@ -1013,7 +1088,10 @@
       out.push(cardSel + ' { display: grid; position: relative; overflow: hidden;' +
         ' grid-template-columns: ' + kg.cols.map(function (c) { return parseFloat(c) + 'fr'; }).join(' ') + ';' +
         ' grid-template-rows: ' + cardRows.join(' ') + '; }');
-      out.push(cardSel + ' > * { margin: 0 !important; min-width: 0; box-sizing: border-box; }');
+      out.push(cardSel + ' > * { margin: 0 !important; min-width: 0; box-sizing: border-box; z-index: 1; }');
+      // a shape inside a card is decoration: it paints under the words
+      // whatever the reading order put it in the DOM
+      e.kids.forEach(function (k, j) { if (k.type === 'box') out.push(cardSel + ' > .gogh-k-' + (j + 1) + ' { z-index: 0; }'); });
       if (e.href) {
         // the stretched link rides ABOVE the kids: with it underneath, every
         // text block swallowed the hover and "that bit is not linked". While
@@ -1032,7 +1110,9 @@
       // rule here blew Woo's Add to cart up into a 500px pill
       sec + ' .wp-block-button:not(.gogh-widget *), ' + sec + ' .wp-block-button__link:not(.gogh-widget *) { width: 100%; height: 100%; }',
       sec + ' .wp-block-button__link { display: flex; align-items: center; justify-content: center; box-sizing: border-box; white-space: nowrap; }',
-      sec + ' .gogh-ghost .wp-block-button__link { background: transparent; color: inherit; box-shadow: inset 0 0 0 1.5px currentColor; }',
+      sec + ' .gogh-ghost .wp-block-button__link { background: transparent; color: var(--gogh-ghost-ink, inherit); box-shadow: inset 0 0 0 1.5px currentColor; }',
+      sec + ' .gogh-embed iframe { width: 100%; height: 100%; border-width: 0; display: block; position: absolute; inset: 0; }',
+      sec + ' .gogh-embed .wp-block-embed__wrapper { height: 100%; }',
       '',
       '@container (max-width: 700px) {',
       '  ' + sec + ' { grid-template-columns: 7cqw 1fr 7cqw; grid-template-rows: none; grid-auto-rows: auto; row-gap: 6cqw; padding: 9cqw 0; }'
@@ -1041,16 +1121,22 @@
       // no `order:` here — the DOM itself is written in reading order, so
       // stacked mobile flow, tab order and screen-reader order all agree
       out.push('  ' + sec + ' .gogh-el-' + (i + 1) + ' { grid-area: auto; grid-column: 2;' +
-        (e.type === 'image' || e.type === 'video' ? ' aspect-ratio: ' + e.w + ' / ' + e.h + ';' : '') +
+        (e.type === 'image' || e.type === 'video' || e.type === 'embed' ? ' aspect-ratio: ' + e.w + ' / ' + e.h + ';' : '') +
+        (e.type === 'icon' ? ' width: ' + (Math.round(e.w / 12 * 10) / 10) + 'cqw; justify-self: ' + ((e.x + e.w / 2) > W * 0.62 ? 'end' : (e.x + e.w / 2) > W * 0.38 ? 'center' : 'start') + ';' : '') +
         // stacked mobile: decorative SHAPES step aside; plain boxes are
         // structural panels (photo-card scrims, feature mats) and keep
         // their proportions instead of collapsing to zero height. CARDS are
         // the exception — narrow width makes their text TALLER, so locking
         // the design aspect squeezes kids into overlap; they size to
         // content, with a gap standing in for the collapsed design spacers
-        (e.type === 'box' ? (e.shape ? ' display: none;' :
-          (e.kids && e.kids.length ? ' aspect-ratio: auto; height: auto; display: flex; flex-direction: column; gap: 3cqw; padding: 6cqw 5cqw !important; align-items: flex-start;' :
-            ' aspect-ratio: ' + e.w + ' / ' + e.h + ';')) : '') +
+        // a shape that HOLDS things is not decoration: hiding it on a phone
+        // would delete real content. It keeps the card's stacking and lets
+        // the silhouette go, because a circle told to be as tall as its
+        // words is an ellipse, and the inset maths stops holding
+        (e.type === 'box' ? ((e.kids && e.kids.length)
+          ? ' aspect-ratio: auto; height: auto; display: flex; flex-direction: column; gap: 3cqw; padding: 6cqw 5cqw !important; align-items: flex-start;' +
+            (e.shape ? ' border-radius: 4cqw; clip-path: none;' : '')
+          : (e.shape ? ' display: none;' : ' aspect-ratio: ' + e.w + ' / ' + e.h + ';')) : '') +
         (e.type === 'exp' ? ' aspect-ratio: ' + e.w + ' / ' + e.h + ';' : '') +
         (e.type === 'badge' ? ' width: max-content; height: 44px;' : '') + ' }');
       // mobile override — hidden on phones. Gate on :not(.gogh-phone-preview)
@@ -1059,6 +1145,13 @@
       if (e.m && e.m.hidden) {
         out.push('  html:not(.gogh-phone-preview) ' + sec + ' .gogh-el-' + (i + 1) + ' { display: none; }');
       }
+      // stacked, a card is one column: a decorative shape inside it steps
+      // aside (as a section-level shape does), a plain box keeps its
+      // proportions as a band rather than collapsing to nothing
+      if (e.type === 'box' && e.kids && e.kids.length) e.kids.forEach(function (k, j) {
+        if (k.type !== 'box') return;
+        out.push('  ' + sec + ' .gogh-el-' + (i + 1) + ' > .gogh-k-' + (j + 1) + ' { ' + (k.shape ? 'display: none;' : 'aspect-ratio: ' + k.w + ' / ' + k.h + '; width: 100%;') + ' }');
+      });
     });
     // section-level mobile override — a hand-tuned stack order (m.order lists
     // element indices in their phone order). Emitted UN-gated: the phone
@@ -1128,7 +1221,7 @@
       btnBg: e.btnBg || null, btnText: e.btnText || null, btnHover: e.btnHover || null,
       wsrc: e.wsrc || null, whtml: e.whtml || null, wcol: e.wcol || null,
       // the rails element: its flag and its few choices travel with the model
-      rails: e.rails ? true : undefined, shop: e.shop || undefined,
+      rails: e.rails ? true : undefined, shop: e.shop || undefined, posts: e.posts || undefined,
       boxBg: e.boxBg || null, radius: e.radius || 0, shape: e.shape || null,
       boxImg: e.boxImg || null, boxImgId: e.boxImgId || null,
       mood: e.mood || null,
@@ -1139,6 +1232,13 @@
       m: (e.m && Object.keys(e.m).length) ? e.m : null, // sparse mobile overrides (hidden, …)
       fitW: e.fitW ? true : null, fitFs: e.fitW && e.fitFs ? e.fitFs : null, // fill-the-width text
       flushB: e.flushB ? true : null, // dragged flush to the section bottom
+      // the die's take mark: which roll drew this piece (face 0 counts, so
+      // no truthy test). Left off the model, every take-drawn piece came
+      // back from a reload as an original and the next roll piled the
+      // riders up (the v435 leak, back one reload later)
+      tk: e.tk != null ? e.tk : undefined,
+      // its identity and its slot in the family's drawing (see diceEnsureIds)
+      id: e.id || undefined, sk: e.sk || undefined,
       kids: e.kids && e.kids.length ? e.kids.map(projEl) : null };
   }
   function buildElBlocks(els, clsBase) {
@@ -1158,6 +1258,17 @@
             cleanInline(e.text) + '</h2>\n<!-- /wp:heading -->';
         }
         case 'para': {
+          if (e.list) {
+            var lTag = e.list === 'ol' ? 'ol' : 'ul';
+            var lAttrs = { className: cls };
+            if (lTag === 'ol') lAttrs.ordered = true;
+            if (e.fs && !DISPLAY_FS[e.fs]) lAttrs.fontSize = e.fs;
+            if (e.color) lAttrs.textColor = e.color;
+            return '<!-- wp:list ' + JSON.stringify(lAttrs) + ' -->\n' +
+              '<' + lTag + ' class="wp-block-list ' + cls + (e.fs && !DISPLAY_FS[e.fs] ? ' has-' + e.fs + '-font-size' : '') + (e.color ? ' has-text-color has-' + e.color + '-color' : '') + '">' +
+              listLines(e.text).map(function (l) { return '<!-- wp:list-item -->\n<li>' + cleanInline(l) + '</li>\n<!-- /wp:list-item -->'; }).join('\n') +
+              '</' + lTag + '>\n<!-- /wp:list -->';
+          }
           var pAttrs = { className: cls };
           if (e.align === 'center' || e.align === 'right') pAttrs.align = e.align;
           if (e.fs && !DISPLAY_FS[e.fs]) pAttrs.fontSize = e.fs;
@@ -1198,6 +1309,42 @@
             '<div class="wp-block-group ' + cls + '"></div>\n<!-- /wp:group -->';
         case 'video':
           return videoBlock(e, cls);
+        case 'embed': {
+          var ei = e.url ? embedInfo(e.url) : null;
+          if (ei && ei.kind === 'map') {
+            // a plain link in the stored markup; gogh_render_section frames it
+            return '<!-- wp:group ' + JSON.stringify({ className: cls + ' gogh-embed gogh-embed-map', layout: { type: 'default' } }) + ' -->\n' +
+              '<div class="wp-block-group ' + cls + ' gogh-embed gogh-embed-map">' +
+              '<a class="gogh-embed-link" href="' + escAttr(ei.url) + '" rel="noopener">Open the map</a></div>\n<!-- /wp:group -->';
+          }
+          if (ei) {
+            // the URL on its own line: WordPress swaps it for the provider's player
+            var eAttrs2 = { url: ei.url, type: 'rich', providerNameSlug: ei.slug, responsive: true, className: cls + ' gogh-embed' };
+            return '<!-- wp:embed ' + JSON.stringify(eAttrs2) + ' -->\n' +
+              '<figure class="wp-block-embed is-type-rich is-provider-' + ei.slug + ' wp-block-embed-' + ei.slug + ' ' + cls + ' gogh-embed">' +
+              '<div class="wp-block-embed__wrapper">\n' + esc(ei.url) + '\n</div></figure>\n<!-- /wp:embed -->';
+          }
+          return '<!-- wp:group ' + JSON.stringify({ className: cls + ' gogh-embed', layout: { type: 'default' } }) + ' -->\n' +
+            '<div class="wp-block-group ' + cls + ' gogh-embed"></div>\n<!-- /wp:group -->';
+        }
+        case 'icon': {
+          // an empty group: the picture is the element's own CSS mask
+          var iName = ICONS[e.icon] ? e.icon : 'star';
+          var iCls = cls + ' gogh-icon gogh-icon-' + iName + (e.color ? ' has-text-color has-' + e.color + '-color' : '');
+          var iAttrs = { className: cls + ' gogh-icon gogh-icon-' + iName, layout: { type: 'default' } };
+          if (e.color) iAttrs.textColor = e.color;
+          return '<!-- wp:group ' + JSON.stringify(iAttrs) + ' -->\n' +
+            '<div class="wp-block-group ' + iCls + '" role="img" aria-label="' + escAttr(e.alt || iName.replace(/-/g, ' ')) + '"></div>\n<!-- /wp:group -->';
+        }
+        case 'rule': {
+          // a core separator; the stroke's weight and colour ride in the
+          // element's CSS (border-top) so the block stays a plain <hr>
+          var rAttrs = { className: cls + ' gogh-rule' };
+          if (e.color) rAttrs.backgroundColor = e.color;
+          return '<!-- wp:separator ' + JSON.stringify(rAttrs) + ' -->\n' +
+            '<hr class="wp-block-separator has-alpha-channel-opacity ' + cls + ' gogh-rule' +
+            (e.color ? ' has-text-color has-' + e.color + '-color has-' + e.color + '-background-color has-background' : '') + '"/>\n<!-- /wp:separator -->';
+        }
         case 'badge':
           return '<!-- wp:paragraph {"className":"' + cls + ' gogh-badge"} -->\n' +
             '<p class="' + cls + ' gogh-badge">' + esc(e.text) + '</p>\n<!-- /wp:paragraph -->';
@@ -1245,6 +1392,7 @@
   function sectionModelJSON(sec, version) {
     return {
       version: version, designW: W, minH: sec.minH || null,
+      anchor: sec.anchor || null, // a name the menu of a one-page site can scroll to
       bg: sec.bg || null, divider: sec.divider || null,
       fx: sec.fx || null,
       bgImage: sec.bgImage || null, bgId: sec.bgId || null, bgVideo: sec.bgVideo || null, bgVideoId: sec.bgVideoId || null, bgA: sec.bgA != null ? sec.bgA : null, theme: sec.theme || null, fill: sec.fill || null,
@@ -1292,6 +1440,14 @@
       cssT: buildCSS(sec.els, 'GOGHSCOPE', sec.minH, sectionOpts(sec)),
     };
   }
+  // an anchor is an id in the page's namespace: lowercase, no spaces, and
+  // never empty. Declared (not assigned) so the boot-time collector, which
+  // runs before the mid-file vars, can already call it.
+  function cleanAnchor(a) {
+    if (!a) return '';
+    var c = String(a).toLowerCase().replace(/[^a-z0-9-]+/g, '-').replace(/^-+|-+$/g, '');
+    return /^[a-z]/.test(c) ? c : '';
+  }
   function buildSectionBlocksV3(sec) {
     var attrs = buildSectionAttrsV3(sec);
     // the baked stylesheet is a PROJECTION of the attrs (matches the block's
@@ -1301,7 +1457,7 @@
     return '<!-- wp:gogh/section ' + serializeBlockAttrs(attrs) + ' -->\n' +
       '<div class="wp-block-gogh-section alignfull gogh-wrap">' +
       '<style class="gogh-style">' + css + '</style>' +
-      '<div class="gogh-section ' + sec.scope + '" data-gogh-scope="' + sec.scope + '">\n' +
+      '<div' + (sec.anchor ? ' id="' + sec.anchor + '"' : '') + ' class="gogh-section ' + sec.scope + '" data-gogh-scope="' + sec.scope + '">\n' +
       bgVideoMarkup(sec) + buildElBlocks(sec.els) + '\n</div></div>\n' +
       '<!-- /wp:gogh/section -->';
   }
@@ -1336,6 +1492,164 @@
   // ---------- element factory & rendering ----------
   // sanitize inline rich text to a safe subset: links, bold, italic, br.
   // Uses <template> so nothing in untrusted markup loads or executes.
+  // the icon shelf: one 24-grid stroke path each. Drawn as a CSS mask on the
+  // published page so the colour is currentColor like words, and the block
+  // stays an empty group (no inline SVG for kses to strip)
+  var ICONS = {
+    'arrow-right': 'M5 12h14M12 5l7 7-7 7',
+    'arrow-up-right': 'M7 17L17 7M7 7h10v10',
+    'check': 'M20 6L9 17l-5-5',
+    'check-circle': 'M22 11.08V12a10 10 0 1 1-5.93-9.14M22 4L12 14.01l-3-3',
+    'plus': 'M12 5v14M5 12h14',
+    'x': 'M18 6L6 18M6 6l12 12',
+    'star': 'M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z',
+    'heart': 'M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z',
+    'zap': 'M13 2L3 14h9l-1 8 10-12h-9l1-8z',
+    'award': 'M12 15a7 7 0 1 0 0-14 7 7 0 0 0 0 14zM8.21 13.89L7 23l5-3 5 3-1.21-9.12',
+    'thumbs-up': 'M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.28a2 2 0 0 0 2-1.7l1.38-9a2 2 0 0 0-2-2.3zM7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3',
+    'smile': 'M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20zM8 14s1.5 2 4 2 4-2 4-2M9 9h.01M15 9h.01',
+    'mail': 'M4 4h16a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2zM22 6l-10 7L2 6',
+    'phone': 'M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.96.36 1.9.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.91.34 1.85.57 2.81.7A2 2 0 0 1 22 16.92z',
+    'message': 'M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z',
+    'send': 'M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z',
+    'map-pin': 'M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0zM12 13a3 3 0 1 0 0-6 3 3 0 0 0 0 6z',
+    'compass': 'M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20zM16.24 7.76l-2.12 6.36-6.36 2.12 2.12-6.36 6.36-2.12z',
+    'globe': 'M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20zM2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z',
+    'home': 'M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2zM9 22V12h6v10',
+    'tent': 'M12 4L2 20h20L12 4zM12 20l-3.5-8M12 20l3.5-8',
+    'clock': 'M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20zM12 6v6l4 2',
+    'calendar': 'M5 4h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2zM16 2v4M8 2v4M3 10h18',
+    'user': 'M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2M12 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8z',
+    'users': 'M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75',
+    'search': 'M21 21l-4.35-4.35M11 19a8 8 0 1 0 0-16 8 8 0 0 0 0 16z',
+    'eye': 'M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8zM12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6z',
+    'camera': 'M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2zM12 17a4 4 0 1 0 0-8 4 4 0 0 0 0 8z',
+    'image': 'M5 3h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2zM8.5 10a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3zM21 15l-5-5L5 21',
+    'play': 'M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20zM10 8l6 4-6 4V8z',
+    'music': 'M9 18V5l12-2v13M6 21a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM18 19a3 3 0 1 0 0-6 3 3 0 0 0 0 6z',
+    'headphones': 'M3 18v-6a9 9 0 0 1 18 0v6M21 19a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3zM3 19a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3z',
+    'book': 'M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2zM22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z',
+    'pen': 'M12 20h9M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z',
+    'scissors': 'M6 9a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM6 21a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM20 4L8.12 15.88M14.47 14.48L20 20M8.12 9.12L12 13',
+    'bag': 'M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4zM3 6h18M16 10a4 4 0 0 1-8 0',
+    'tag': 'M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82zM7 7h.01',
+    'gift': 'M20 12v10H4V12M2 7h20v5H2zM12 22V7M12 7H7.5a2.5 2.5 0 0 1 0-5C11 2 12 7 12 7zM12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7z',
+    'card': 'M3 4h18a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2zM1 10h22',
+    'percent': 'M19 5L5 19M6.5 9a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5zM17.5 20a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5z',
+    'trending-up': 'M23 6l-9.5 9.5-5-5L1 18M17 6h6v6',
+    'truck': 'M1 3h15v13H1zM16 8h4l3 3v5h-7V8zM5.5 21a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5zM18.5 21a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5z',
+    'coffee': 'M18 8h1a4 4 0 0 1 0 8h-1M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8zM6 1v3M10 1v3M14 1v3',
+    'sun': 'M12 17a5 5 0 1 0 0-10 5 5 0 0 0 0 10zM12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42',
+    'moon': 'M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z',
+    'droplet': 'M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z',
+    'umbrella': 'M23 12a11.05 11.05 0 0 0-22 0zM18 19a3 3 0 0 1-6 0v-7',
+    'feather': 'M20.24 12.24a6 6 0 0 0-8.49-8.49L5 10.5V19h8.5zM16 8L2 22M17.5 15H9',
+    'anchor': 'M12 8a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM12 22V8M5 12H2a10 10 0 0 0 20 0h-3',
+    'shield': 'M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z',
+    'lock': 'M5 11h14a2 2 0 0 1 2 2v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2zM7 11V7a5 5 0 0 1 10 0v4',
+    'key': 'M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4',
+    'wifi': 'M5 12.55a11 11 0 0 1 14.08 0M1.42 9a16 16 0 0 1 21.16 0M8.53 16.11a6 6 0 0 1 6.95 0M12 20h.01',
+    'monitor': 'M4 3h16a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2zM8 21h8M12 17v4',
+    'smartphone': 'M7 2h10a2 2 0 0 1 2 2v16a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2zM12 18h.01',
+    'sliders': 'M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M1 14h6M9 8h6M17 16h6',
+    'info': 'M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20zM12 16v-4M12 8h.01',
+    'link': 'M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71',
+    'external': 'M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6M15 3h6v6M10 14L21 3',
+    'download': 'M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3',
+    'bookmark': 'M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z',
+    'flag': 'M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1zM4 22v-7',
+  };
+  // a Google Maps or OpenStreetMap link becomes a frame we can show; anything
+  // else is left to WordPress's own embedding on the live page
+  function mapEmbedUrl(url) {
+    var u = String(url || '').trim();
+    if (!u) return null;
+    var m;
+    if (/^https?:\/\/(www\.)?google\.[a-z.]+\/maps\/embed/i.test(u) || /[?&]output=embed/i.test(u)) return u;
+    if (/^https?:\/\/(www\.)?openstreetmap\.org\/export\/embed/i.test(u)) return u;
+    m = u.match(/^https?:\/\/(www\.)?openstreetmap\.org\/.*#map=(\d+)\/(-?[\d.]+)\/(-?[\d.]+)/i);
+    if (m) {
+      var lat = +m[3], lng = +m[4], span = 0.02 * Math.pow(2, 14 - Math.min(19, +m[2]));
+      return 'https://www.openstreetmap.org/export/embed.html?bbox=' + (lng - span) + ',' + (lat - span / 2) + ',' + (lng + span) + ',' + (lat + span / 2) + '&layer=mapnik&marker=' + lat + ',' + lng;
+    }
+    if (!/^https?:\/\/((www|maps)\.)?google\.[a-z.]+\/maps/i.test(u) && !/^https?:\/\/maps\.app\.goo\.gl\//i.test(u)) return null;
+    m = u.match(/\/maps\/place\/([^/?#]+)/i);
+    if (m) return 'https://www.google.com/maps?q=' + encodeURIComponent(decodeURIComponent(m[1].replace(/\+/g, ' '))) + '&output=embed';
+    m = u.match(/\/maps\/search\/([^/?#]+)/i);
+    if (m) return 'https://www.google.com/maps?q=' + encodeURIComponent(decodeURIComponent(m[1].replace(/\+/g, ' '))) + '&output=embed';
+    m = u.match(/[?&]q=([^&#]+)/i);
+    if (m) return 'https://www.google.com/maps?q=' + m[1] + '&output=embed';
+    m = u.match(/\/maps\/@(-?[\d.]+),(-?[\d.]+),(\d+)z/i);
+    if (m) return 'https://www.google.com/maps?q=' + m[1] + ',' + m[2] + '&z=' + m[3] + '&output=embed';
+    return null; // a short link (maps.app.goo.gl): the server resolves it on the live page
+  }
+  function embedInfo(url) {
+    var u = String(url || '').trim();
+    if (!/^https?:\/\//i.test(u)) return null;
+    var map = mapEmbedUrl(u);
+    if (map) return { kind: 'map', src: map, url: u };
+    if (/^https?:\/\/maps\.app\.goo\.gl\//i.test(u)) return { kind: 'map', src: null, url: u };
+    var host = (u.match(/^https?:\/\/([^/]+)/i) || ['', ''])[1].replace(/^www\./, '');
+    return { kind: 'oembed', url: u, host: host, slug: host.replace(/\.[a-z]+$/i, '').replace(/[^a-z0-9]+/gi, '-').toLowerCase() || 'embed' };
+  }
+  var embedPreviewCache = {};
+  function embedNode(e, cls) {
+    var n = document.createElement('div');
+    var info = e.url ? embedInfo(e.url) : null;
+    n.className = 'wp-block-group ' + cls + ' gogh-embed' + (info && info.kind === 'map' ? ' gogh-embed-map' : '');
+    if (!info) {
+      n.innerHTML = '<div class="gogh-embed-empty">' + iconSvg('globe', { size: 22 }) + '<span>Paste a link \u2014 a map, a post, a playlist, a video</span></div>';
+      return n;
+    }
+    if (info.kind === 'map') {
+      if (info.src) {
+        var fr = document.createElement('iframe');
+        fr.src = info.src;
+        fr.title = 'Map';
+        fr.setAttribute('loading', 'lazy');
+        fr.setAttribute('referrerpolicy', 'no-referrer-when-downgrade');
+        n.appendChild(fr);
+      } else {
+        n.innerHTML = '<div class="gogh-embed-empty">' + iconSvg('map-pin', { size: 22 }) + '<span>Map link \u2014 the map shows on the live page</span></div>';
+      }
+      return n;
+    }
+    var cached = embedPreviewCache[info.url];
+    if (cached && cached.html) { n.innerHTML = cached.html; return n; }
+    n.innerHTML = '<div class="gogh-embed-empty">' + iconSvg('external', { size: 22 }) + '<span>' + esc(info.host) + (cached === false ? ' \u2014 shows on the live page' : ' \u2014 fetching a preview\u2026') + '</span></div>';
+    if (cached === undefined) {
+      embedPreviewCache[info.url] = { pending: true };
+      fetch(cfg.restUrl.split('wp/v2/')[0] + 'oembed/1.0/proxy?url=' + encodeURIComponent(info.url), {
+        headers: { 'X-WP-Nonce': cfg.nonce }, credentials: 'same-origin',
+      }).then(function (r) { return r.ok ? r.json() : null; }).then(function (j) {
+        // only a frame previews here (a script-driven card cannot run in innerHTML)
+        var html = j && j.html && /<iframe/i.test(j.html) ? j.html : null;
+        embedPreviewCache[info.url] = html ? { html: html } : false;
+        S.forEach(function (sec) { if (sec.els.some(function (x) { return x.type === 'embed' && x.url === info.url; })) renderSection(sec); });
+      }).catch(function () { embedPreviewCache[info.url] = false; });
+    }
+    return n;
+  }
+  function iconSvg(name, attrs) {
+    var d = ICONS[name] || ICONS.star;
+    return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="' + (attrs && attrs.stroke || 'currentColor') + '" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"' +
+      (attrs && attrs.size ? ' width="' + attrs.size + '" height="' + attrs.size + '"' : '') + '><path d="' + d + '"/></svg>';
+  }
+  // the mask URL: percent-encoded so the stored CSS never carries < or >
+  function iconMaskCss(name) {
+    var uri = 'data:image/svg+xml,' + encodeURIComponent(iconSvg(name, { stroke: '#000' }));
+    return ' -webkit-mask: url("' + uri + '") center / contain no-repeat; mask: url("' + uri + '") center / contain no-repeat;';
+  }
+  // a list's words live as lines split by <br>; the DOM holds them as <li>s
+  function listLines(text) {
+    var lines = String(text == null ? '' : text).split(/<br\s*\/?>/i);
+    return lines.length ? lines : [''];
+  }
+  function listText(node) {
+    var lis = [].slice.call(node.querySelectorAll('li'));
+    if (!lis.length) return cleanInline(node.innerHTML);
+    return lis.map(function (li) { return cleanInline(li.innerHTML); }).join('<br>');
+  }
   function cleanInline(html) {
     // self-contained: the boot-time collector calls this before mid-file
     // var assignments have run, so the allow-list must live inside
@@ -1415,10 +1729,30 @@
         if (e.ph && !(e.text && String(e.text).trim())) n.setAttribute('data-gogh-ph', e.ph);
         break;
       case 'para':
+        if (e.list) {
+          // bullets: one <li> per line — the words are still one text piece
+          n = document.createElement(e.list === 'ol' ? 'ol' : 'ul');
+          n.className = 'wp-block-list ' + cls + (e.fs && !DISPLAY_FS[e.fs] ? ' has-' + e.fs + '-font-size' : '') + (e.color ? ' has-text-color has-' + e.color + '-color' : '');
+          n.innerHTML = listLines(e.text).map(function (l) { return '<li>' + cleanInline(l) + '</li>'; }).join('');
+          break;
+        }
         n = document.createElement('p');
         n.className = cls + (e.fs && !DISPLAY_FS[e.fs] ? ' has-' + e.fs + '-font-size' : '') + (e.color ? ' has-text-color has-' + e.color + '-color' : '');
         n.innerHTML = cleanInline(e.text);
         if (e.ph && !(e.text && String(e.text).trim())) n.setAttribute('data-gogh-ph', e.ph);
+        break;
+      case 'embed':
+        n = embedNode(e, cls);
+        break;
+      case 'icon':
+        n = document.createElement('div');
+        n.className = 'wp-block-group gogh-icon gogh-icon-' + (ICONS[e.icon] ? e.icon : 'star') + ' ' + cls + (e.color ? ' has-text-color has-' + e.color + '-color' : '');
+        n.setAttribute('role', 'img');
+        n.setAttribute('aria-label', e.alt || (e.icon || 'star').replace(/-/g, ' '));
+        break;
+      case 'rule':
+        n = document.createElement('hr');
+        n.className = 'wp-block-separator has-alpha-channel-opacity gogh-rule ' + cls + (e.color ? ' has-text-color has-' + e.color + '-color' : '');
         break;
       case 'button':
         n = document.createElement('div');
@@ -1521,19 +1855,6 @@
         // from one world and drop into the other ("drag and drop
         // struggles ... especially if its a high image")
         var ih = sec.nodes[i].offsetHeight / s;
-        // ...BUT never absorb a grid STRETCH: when a style change grows the
-        // text column beside it, the image's row gets taller and (without
-        // align-self:start) the cell stretches, so offsetHeight reads that
-        // stretched height and the aspect goes tall-and-thin. align-self:
-        // start stops it going forward; here we clamp a runaway reading back
-        // to the photo's own height (natural aspect at width e.w), which
-        // also heals any model already poisoned. Ordinary crops sit close to
-        // natural and pass straight through.
-        var img = sec.nodes[i].querySelector('img');
-        if (img && img.naturalWidth && img.naturalHeight) {
-          var natH = e.w * (img.naturalHeight / img.naturalWidth);
-          if (natH > 0 && ih > natH * 1.5) ih = natH;
-        }
         // the frame draws at its OWN aspect (aspect-ratio: w / h) on whatever
         // width its tracks give it — a track that moved a few units under it
         // changes the height it draws at without inflating anything. Only a
@@ -1543,6 +1864,22 @@
         var rw = sec.nodes[i].offsetWidth / s;
         var aspectH = (e.w > 0 && rw > 0) ? rw * (e.h / e.w) : ih;
         if (Math.abs(ih - aspectH) <= 12) return;
+        // ...BUT never absorb a grid STRETCH: when a style change grows the
+        // text column beside it, the image's row gets taller and (without
+        // align-self:start) the cell stretches, so offsetHeight reads that
+        // stretched height and the aspect goes tall-and-thin. align-self:
+        // start stops it going forward; here we clamp a runaway reading back
+        // to the photo's own height (natural aspect at width e.w). This sits
+        // AFTER the aspect check on purpose: photos are cover-fitted, so a
+        // declared w/h that differs from the natural aspect is a deliberate
+        // crop (a square cut from a 16:9 photo), not an error — clamping
+        // first made the aspect check compare natural against declared and
+        // flattened the crop on every image load and every resize frame.
+        var img = sec.nodes[i].querySelector('img');
+        if (img && img.naturalWidth && img.naturalHeight) {
+          var natH = e.w * (img.naturalHeight / img.naturalWidth);
+          if (natH > 0 && ih > natH * 1.5) ih = natH;
+        }
         // deadband 12: real inflation is hundreds of units, solver
         // re-quantization wiggles by single digits — absorb only truth
         if (ih > 0 && Math.abs(ih - e.h) > 12) e.h = Math.round(ih);
@@ -1732,10 +2069,14 @@
       // a rails element saved before the model carried its flag (v0.99.372-387)
       // reads its few choices back out of Woo's block it composed
       if (e.type === 'widget' && !e.shop && /wp:woocommerce\/product-collection/.test(e.wsrc || '')) healRails(e);
+      // a posts grid saved before it rode the rails (a fixed three-up loop)
+      // reads its few choices back out of the query it composed
+      if (e.type === 'widget' && !e.posts && !e.shop && /wp:query\b/.test(e.wsrc || '') && /"postType":"post"/.test(e.wsrc || '')) healPosts(e);
       if (e.type === 'widget' && !e.shop && /wp:woocommerce\/product-categories/.test(e.wsrc || '') && /gogh-shop-cats/.test(e.wsrc || '')) { e.rails = true; e.shop = Object.assign(shopDefaults(), { kind: 'categories', count: (/gogh-shop-cats-c(\d)/.exec(e.wsrc) || [0, 3])[1] * 1 }); }
       if (e.faq && e.faq.length && e.wsrc && e.wsrc.indexOf('role="group"') === -1) composeWidgetData(e);
       if (e.tabs && e.tabs.length && e.wsrc && e.wsrc.indexOf('role="tabpanel"') === -1) composeWidgetData(e);
     });
+    if (kidSel && kidSel.sec === sec && !kidDrag) kidBox.hidden = true; // the nodes are about to be rebuilt
     sec.sectionEl.innerHTML = '';
     if (sec.bgVideo) {
       // the backdrop is REUSED across renders — a fresh element would
@@ -1777,6 +2118,25 @@
     sec.sectionEl.classList.toggle('gogh-msec-hidden', !!(sec.m && sec.m.hidden));
     resolveAndApply(sec);
     growReflow(sec);
+    markGround(sec);
+  }
+  // the painted grid dresses for its ground: lighter tiles on paper, darker
+  // tiles on a dark section, and only the 72 majors over a picture, where
+  // tiles would fight the photo. Read the way the sentinel reads it.
+  function markGround(sec) {
+    if (!sec || !sec.sectionEl) return;
+    var pictured = !!(sec.bgImage || sec.bgVideo);
+    var dark = false;
+    if (!pictured) {
+      try {
+        var bg = getComputedStyle(sec.sectionEl).backgroundColor;
+        var rgb = cssToRgb(bg);
+        if (!rgb || bg === 'rgba(0, 0, 0, 0)') rgb = cssToRgb('var(--wp--preset--color--base, #fff)');
+        dark = !!rgb && sentinelLum(rgb) < 0.4;
+      } catch (err) {}
+    }
+    sec.sectionEl.classList.toggle('gogh-ground-dark', dark);
+    sec.sectionEl.classList.toggle('gogh-ground-pictured', pictured);
   }
 
   function newSectionShell(scope) {
@@ -1789,13 +2149,13 @@
     sectionEl.className = 'gogh-section ' + scope;
     sectionEl.setAttribute('data-gogh-scope', scope);
     wrap.appendChild(sectionEl);
-    return { scope: scope, els: [], minH: null, bg: null, divider: null, fx: null, bgImage: null, bgId: null, bgVideo: null, bgVideoId: null, wrapEl: wrap, sectionEl: sectionEl, styleEl: styleEl, nodes: [] };
+    return { scope: scope, els: [], anchor: null, minH: null, bg: null, divider: null, fx: null, bgImage: null, bgId: null, bgVideo: null, bgVideoId: null, wrapEl: wrap, sectionEl: sectionEl, styleEl: styleEl, nodes: [] };
   }
 
   // ---------- history (undo/redo) ----------
   var history = [], hIdx = -1, textTimer = null;
   function serialize() {
-    return JSON.stringify(S.map(function (sec) { return { scope: sec.scope, els: sec.els, minH: sec.minH || null, bg: sec.bg || null, divider: sec.divider || null, fx: sec.fx || null, bgImage: sec.bgImage || null, bgId: sec.bgId || null, bgVideo: sec.bgVideo || null, bgVideoId: sec.bgVideoId || null, bgA: sec.bgA != null ? sec.bgA : null, theme: sec.theme || null, fill: sec.fill || null, m: (sec.m && Object.keys(sec.m).length) ? sec.m : null, bgPos: sec.bgPos || null, src: sec.srcSig || null, boot: sec.bootstrap || false, chrome: sec.chrome || null }; }));
+    return JSON.stringify(S.map(function (sec) { return { scope: sec.scope, els: sec.els, anchor: sec.anchor || null, minH: sec.minH || null, bg: sec.bg || null, divider: sec.divider || null, fx: sec.fx || null, bgImage: sec.bgImage || null, bgId: sec.bgId || null, bgVideo: sec.bgVideo || null, bgVideoId: sec.bgVideoId || null, bgA: sec.bgA != null ? sec.bgA : null, theme: sec.theme || null, fill: sec.fill || null, m: (sec.m && Object.keys(sec.m).length) ? sec.m : null, bgPos: sec.bgPos || null, src: sec.srcSig || null, boot: sec.bootstrap || false, chrome: sec.chrome || null }; }));
   }
   function pushState() {
     var snap = serialize();
@@ -1821,6 +2181,13 @@
   function restoreState(snap) {
     clearMulti();
     deselectSection(); // the rebuild replaces every sectionEl — a stale ring would orphan
+    // the section OBJECTS go too — a kid selection, kid edit or kid drag
+    // left pointing at the old ones would splice a dead model (Backspace
+    // after Cmd+Z showed "Removed from the card" and its Undo reverted
+    // something else). End them now, while their nodes are still attached
+    exitKidEd(true); // quiet — this is a history step, it must not push one
+    clearKidSel();
+    abortKidDrag();
     var data = JSON.parse(snap);
     // full rebuild, but each section goes back to its own DOM position so
     // non-gogh blocks interleaved with sections stay where they are
@@ -1852,6 +2219,8 @@
       sec.fill = !!d.fill;
       sec.m = d.m || null;
       sec.bgPos = d.bgPos || null;
+      sec.anchor = d.anchor || null;
+      if (sec.anchor) sec.sectionEl.id = sec.anchor;
       sec.srcSig = d.src || null;
       sec.bootstrap = !!d.boot;
       sec.chrome = d.chrome || null;
@@ -1994,6 +2363,10 @@
     '<button type="button" class="gogh-sitem" data-add="image"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="8.5" cy="10" r="1.6"/><path d="M21 16l-5-5-9 8"/></svg>Image</button>' +
     '<button type="button" class="gogh-sitem" data-add="video" title="A video — upload one, or paste a YouTube or Vimeo link"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M10 9l5 3-5 3z"/></svg>Video</button>' +
     '<button type="button" class="gogh-sitem" data-add="badge"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><circle cx="12" cy="9.5" r="5.5"/><path d="M9 14l-1.5 6 4.5-2.4 4.5 2.4L15 14"/></svg>Badge</button>' +
+    '<button type="button" class="gogh-sitem" data-add="embed" title="Embed a link — a map, a post, a playlist, anything WordPress can show"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 18l6-6-6-6M8 6l-6 6 6 6"/></svg>Embed</button>' +
+    '<button type="button" class="gogh-sitem" data-add="icon" title="An icon — a simple line drawing in your text colour"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M12 3l2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 16.4 6.8 19.1l1-5.8-4.3-4.1 5.9-.9z"/></svg>Icon</button>' +
+    '<button type="button" class="gogh-sitem" data-add="list" title="Bullet points — a text piece wearing bullets"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M9 6h11M9 12h11M9 18h11"/><circle cx="4.5" cy="6" r="1.2" fill="currentColor"/><circle cx="4.5" cy="12" r="1.2" fill="currentColor"/><circle cx="4.5" cy="18" r="1.2" fill="currentColor"/></svg>List</button>' +
+    '<button type="button" class="gogh-sitem" data-add="rule" title="A line — a thin rule between things"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M3 12h18"/></svg>Line</button>' +
     '<button type="button" class="gogh-sitem" data-add="write" title="Start writing — a reading column, cursor ready"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>Write</button>' +
     '<button type="button" class="gogh-sitem" data-add="card" title="A card — drop pieces inside and they stay together, even on mobile"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2.5"/><path d="M7 12h6M7 15.5h4"/></svg>Card</button>' +
     '<button type="button" class="gogh-sitem" data-act="shapes"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><circle cx="8.5" cy="8.5" r="5.5"/><rect x="11" y="11" width="10" height="10" rx="2"/></svg>Shape</button>' +
@@ -2019,11 +2392,11 @@
     '<div class="gogh-side-cards gogh-cards-site" hidden>' +
     '<button type="button" class="gogh-sitem gogh-scard gogh-stylebtn">' +
     '<span class="gogh-scard-ic is-accent"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M12 3a9 9 0 1 0 0 18h1.5a2.5 2.5 0 0 0 1.8-4.2 2.5 2.5 0 0 1 1.8-4.3H20a9 9 0 0 0-8-9.5Z"/><circle cx="7.5" cy="11" r="1.2" fill="currentColor" stroke="none"/><circle cx="10.5" cy="7.5" r="1.2" fill="currentColor" stroke="none"/><circle cx="15" cy="7.5" r="1.2" fill="currentColor" stroke="none"/></svg></span>' +
-    '<span class="gogh-scard-tx"><span class="gogh-scard-t">Site style</span><span class="gogh-scard-s">Colours, type, brand</span></span>' +
+    '<span class="gogh-scard-tx"><span class="gogh-scard-t">Site style</span><span class="gogh-scard-s">Colours, looks, brand</span></span>' +
     '<svg class="gogh-scard-chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg></button>' +
-    '<button type="button" class="gogh-sitem gogh-scard gogh-sitedesigns">' +
-    '<span class="gogh-scard-ic"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><rect x="3" y="6" width="13" height="15" rx="1.6"/><path d="M7 3h13v15"/></svg></span>' +
-    '<span class="gogh-scard-tx"><span class="gogh-scard-t">Site designs</span><span class="gogh-scard-s">A whole site, ready to tweak</span></span>' +
+    '<button type="button" class="gogh-sitem gogh-scard gogh-fontsbtn">' +
+    '<span class="gogh-scard-ic"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h4l5-13 5 13h4M8 15h8"/></svg></span>' +
+    '<span class="gogh-scard-tx"><span class="gogh-scard-t">Fonts</span><span class="gogh-scard-s">Pairs, tried on your page</span></span>' +
     '<svg class="gogh-scard-chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg></button>' +
     '<button type="button" class="gogh-sitem gogh-scard gogh-motionbtn">' +
     '<span class="gogh-scard-ic"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12c3-6 6-6 9 0s6 6 9 0"/></svg></span>' +
@@ -2039,6 +2412,16 @@
     '<svg class="gogh-scard-chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg></button>' +
     '</div>' +
     '<div class="gogh-side-cards gogh-cards-page">' +
+    // the first door is the one three testers went looking for: a new
+    // page, put in the menu by itself (Tony gave up on "add a Prices page")
+    '<button type="button" class="gogh-sitem gogh-scard gogh-addpagebtn">' +
+    '<span class="gogh-scard-ic"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 8v8M8 12h8"/></svg></span>' +
+    '<span class="gogh-scard-tx"><span class="gogh-scard-t">Add a page</span><span class="gogh-scard-s">A new page, in your menu too</span></span>' +
+    '<svg class="gogh-scard-chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg></button>' +
+    '<button type="button" class="gogh-sitem gogh-scard gogh-phonebtn">' +
+    '<span class="gogh-scard-ic"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><rect x="7" y="3" width="10" height="18" rx="2.5"/><path d="M11 18h2"/></svg></span>' +
+    '<span class="gogh-scard-tx"><span class="gogh-scard-t">See it on a phone</span><span class="gogh-scard-s">How this page looks on a small screen</span></span>' +
+    '<svg class="gogh-scard-chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg></button>' +
     '<button type="button" class="gogh-sitem gogh-scard gogh-pagestylebtn">' +
     '<span class="gogh-scard-ic"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M14 3v6h6"/></svg></span>' +
     '<span class="gogh-scard-tx"><span class="gogh-scard-t">Page style</span><span class="gogh-scard-s">How this page is framed</span></span>' +
@@ -2061,6 +2444,11 @@
     '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 14l-4-4 4-4"/><path d="M5 10h11a4 4 0 0 1 0 8h-1"/></svg></button>' +
     '<button type="button" class="gogh-sbtn gogh-redo" title="Redo (⇧⌘Z)">' +
     '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 14l4-4-4-4"/><path d="M19 10H8a4 4 0 0 0 0 8h1"/></svg></button>' +
+    // Site designs replaces the whole site — not a peer of Site style. It
+    // waits here as a small door until it has a better home (James: "it
+    // feels confusing here")
+    '<button type="button" class="gogh-sbtn gogh-sitedesigns" title="Site designs — a whole site, ready to tweak (replaces this one)">' +
+    '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><rect x="3" y="6" width="13" height="15" rx="1.6"/><path d="M7 3h13v15"/></svg></button>' +
     (cfg.helpUrl ? '<button type="button" class="gogh-sbtn gogh-help" title="Help — ask gogh anything">' +
     '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M9.5 9.5a2.5 2.5 0 1 1 3 2.5c-.8.3-1 .8-1 1.5"/><path d="M12 17h.01"/></svg></button>' : '') +
     '</div>' +
@@ -2088,12 +2476,6 @@
   zoomSlider.hidden = true;
   zoomSlider.title = 'Zoom — ⌥ scroll, or ⌥Z to toggle the design view'; // discover the shortcuts
   zoomSlider.innerHTML =
-    '<div class="gogh-devtoggle" role="group" aria-label="Preview device">' +
-    '<button type="button" class="gogh-dev is-on" data-dev="desktop" title="Desktop" aria-pressed="true">' +
-    '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><rect x="3" y="4" width="18" height="12" rx="1.5"/><path d="M8 20h8M12 16v4"/></svg></button>' +
-    '<button type="button" class="gogh-dev" data-dev="phone" title="Phone — see and tune the mobile layout" aria-pressed="false">' +
-    '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><rect x="7" y="3" width="10" height="18" rx="2.5"/><path d="M11 18h2"/></svg></button>' +
-    '</div>' +
     '<span class="gogh-zoomslider-val">100%</span>' +
     '<input type="range" min="20" max="100" step="1" value="100" aria-label="Zoom the page (Option-scroll, or Option-Z to toggle)">';
   document.body.appendChild(zoomSlider);
@@ -2104,17 +2486,132 @@
     // page follows the finger at 60fps, then the open/close ease is restored
     if (zoomState) { zoomState.wrap.style.transition = 'none'; layoutZoom(); }
   });
+  // ---------- phone media: the page's own narrow-window rules, live in the artboard ----------
+  // The artboard is phone-wide but the window is not, so every @media rule
+  // written for narrow windows — the header's hamburger, the shop grids, the
+  // blog cards, the forms — still answers to the window and the phone view
+  // showed a desktop menu squeezed into a phone. In the phone view gogh walks
+  // the page's stylesheets and flips those rules' media on the live CSSOM:
+  // 'all' for the ones a phone would fire, 'not all' for the desktop-only
+  // ones — and puts every one back on Desktop. Nothing is copied or
+  // rewritten, so what you see is the page's own phone CSS, exactly.
+  var PHONE_H = 844; // a tall phone; height rules are rare and this keeps them honest
+  var phoneMediaFlips = []; // [MediaList, original mediaText]
+  function mediaLen(v) {
+    var m = /^\s*([\d.]+)\s*(px|em|rem)?\s*$/.exec(v || '');
+    if (!m) return null;
+    return parseFloat(m[1]) * (m[2] && m[2] !== 'px' ? 16 : 1);
+  }
+  // one parenthesised feature at a phone's size → true/false; null = not ours to judge
+  function mediaFeatureAtPhone(feat) {
+    var inner = feat.replace(/^\(|\)$/g, '').trim();
+    if (/[()]/.test(inner) || /\sor\s/i.test(inner)) return null; // nested or or-ed: leave it alone
+    var m = /^(min|max)-(?:device-)?(width|height)\s*:\s*(.+)$/i.exec(inner);
+    if (m) {
+      var n = mediaLen(m[3]);
+      if (n == null) return null;
+      var v = m[2].toLowerCase() === 'width' ? PHONE_W : PHONE_H;
+      return m[1].toLowerCase() === 'max' ? v <= n : v >= n;
+    }
+    // range syntax: (width <= 600px), (400px < width), (400px <= width < 800px)
+    var r = /^(?:([\d.]+(?:px|em|rem)?)\s*(<=|<)\s*)?(width|height)(?:\s*(<=|<|>=|>)\s*([\d.]+(?:px|em|rem)?))?$/i.exec(inner);
+    if (r && (r[1] || r[5])) {
+      var val = r[3].toLowerCase() === 'width' ? PHONE_W : PHONE_H, ok = true;
+      if (r[1]) { var lo = mediaLen(r[1]); if (lo == null) return null; ok = ok && (r[2] === '<' ? lo < val : lo <= val); }
+      if (r[5]) { var hi = mediaLen(r[5]); if (hi == null) return null; ok = ok && (r[4] === '<' ? val < hi : r[4] === '<=' ? val <= hi : r[4] === '>' ? val > hi : val >= hi); }
+      return ok;
+    }
+    if (/^orientation\s*:\s*portrait$/i.test(inner)) return true;
+    if (/^orientation\s*:\s*landscape$/i.test(inner)) return false;
+    if (/aspect-ratio|resolution/i.test(inner)) return null;
+    try { return matchMedia('(' + inner + ')').matches; } catch (e) { return null; } // hover, pointer, prefers-*: the same on a phone as here
+  }
+  // the whole condition at a phone's size; null = leave the rule alone
+  function mediaAtPhone(text) {
+    if (!text || /^\s*(all|screen)?\s*$/i.test(text)) return null;
+    var qs = text.split(','), any = false, out = false;
+    for (var qi = 0; qi < qs.length; qi++) {
+      var q = qs[qi].trim(), neg = false;
+      if (/^not\s+/i.test(q)) { neg = true; q = q.replace(/^not\s+/i, ''); }
+      q = q.replace(/^only\s+/i, '');
+      var parts = q.split(/\s+and\s+/i), val = true;
+      for (var pi = 0; pi < parts.length; pi++) {
+        var part = parts[pi].trim();
+        if (!part || /^(all|screen)$/i.test(part)) continue;
+        if (/^(print|speech|tv)$/i.test(part)) { val = false; continue; }
+        if (part.charAt(0) !== '(') return null;
+        var f = mediaFeatureAtPhone(part);
+        if (f == null) return null;
+        if (!f) val = false;
+      }
+      any = true;
+      if (neg ? !val : val) out = true;
+    }
+    return any ? out : null;
+  }
+  function flipMediaForPhone(list) {
+    if (!list) return;
+    var text = list.mediaText;
+    var atPhone = mediaAtPhone(text);
+    if (atPhone == null) return;
+    var atNow;
+    try { atNow = matchMedia(text).matches; } catch (e) { return; }
+    if (atPhone === atNow) return;
+    phoneMediaFlips.push([list, text]);
+    try { list.mediaText = atPhone ? 'all' : 'not all'; } catch (e) { phoneMediaFlips.pop(); }
+  }
+  // the editor's own furniture keeps answering to the real window
+  function phoneMediaSheetOk(sheet) {
+    var href = sheet.href || '', node = sheet.ownerNode;
+    if (/gogh-editor\.css|gogh-usertest|admin-bar|dashicons|\/wp-admin\//.test(href)) return false;
+    if (node && node.id && /^(gogh-editor|admin-bar|gogh-usertest|gogh-tests)/.test(node.id)) return false;
+    if (node && node.closest && node.closest('.gogh-panel, .gogh-side, .gogh-helpsheet, .gogh-picker')) return false;
+    return true;
+  }
+  function walkPhoneMedia(rules) {
+    for (var i = 0; i < rules.length; i++) {
+      var r = rules[i];
+      if (r.type === 4) { flipMediaForPhone(r.media); walkPhoneMedia(r.cssRules); }
+      else if (r.type === 12) walkPhoneMedia(r.cssRules);
+      else if (r.type === 3) { try { if (r.styleSheet && r.styleSheet.cssRules) { flipMediaForPhone(r.media); walkPhoneMedia(r.styleSheet.cssRules); } } catch (e) {} }
+    }
+  }
+  function applyPhoneMedia() {
+    clearPhoneMedia();
+    [].forEach.call(document.styleSheets, function (sh) {
+      if (!phoneMediaSheetOk(sh)) return;
+      var rules;
+      try { rules = sh.cssRules; } catch (e) { return; } // cross-origin: not ours to read
+      if (!rules) return;
+      flipMediaForPhone(sh.media); // a <link media="…"> sheet, e.g. woocommerce-smallscreen
+      walkPhoneMedia(rules);
+    });
+  }
+  function clearPhoneMedia() {
+    phoneMediaFlips.forEach(function (f) { try { f[0].mediaText = f[1]; } catch (e) {} });
+    phoneMediaFlips = [];
+  }
+  // One sentence, always there in the phone view, saying what the view is
+  // for. Tony spent thirteen minutes in it and concluded pieces could not be
+  // moved; nothing had told him they could.
+  var phoneNote = document.createElement('div');
+  phoneNote.className = 'gogh-phonenote';
+  phoneNote.hidden = true;
+  phoneNote.textContent = 'Press anything to hide it on phones or move it up and down.';
+  document.body.appendChild(phoneNote);
   function setDevice(mode) {
     if (mode !== 'phone' && mode !== 'desktop') return;
     if (mode === deviceMode) return;
     deviceMode = mode;
+    phoneNote.hidden = mode !== 'phone';
     clearMobileSel(); // a selection/toolbar never outlives a device switch
-    [].forEach.call(zoomSlider.querySelectorAll('.gogh-dev'), function (b) {
+    [].forEach.call(document.querySelectorAll('.gogh-dev'), function (b) {
       var on = b.getAttribute('data-dev') === mode;
       b.classList.toggle('is-on', on);
       b.setAttribute('aria-pressed', on ? 'true' : 'false');
     });
     document.documentElement.classList.toggle('gogh-phone-preview', mode === 'phone');
+    if (mode === 'phone') applyPhoneMedia(); else clearPhoneMedia();
     zoomFrac = null; // re-fit to the new artboard width
     if (zoomState) {
       zoomState.wrap.style.transition = 'transform 0.35s cubic-bezier(0.4,0,0.2,1), width 0.35s cubic-bezier(0.4,0,0.2,1)';
@@ -2123,8 +2620,54 @@
       zi.value = 100; zoomSlider.querySelector('.gogh-zoomslider-val').textContent = '100%';
     }
   }
-  [].forEach.call(zoomSlider.querySelectorAll('.gogh-dev'), function (b) {
-    b.addEventListener('click', function () { setDevice(b.getAttribute('data-dev')); });
+  // The phone view used to live inside the zoom slider, and the slider only
+  // appears while a drawer is open — so with nothing open there was no phone
+  // button anywhere. Seven testers said so in their own words ("There is
+  // definitely no phone"). Now two plain words sit in the top bar the whole
+  // time you are editing: Desktop and Phone. Phone zooms the desk out by
+  // itself when no drawer has, and Desktop puts it back.
+  var zoomForPhone = false; // did Phone enter the zoom on its own?
+  var devPill = document.createElement('div');
+  devPill.className = 'gogh-devpill';
+  devPill.setAttribute('role', 'group');
+  devPill.setAttribute('aria-label', 'See the page as');
+  devPill.innerHTML =
+    '<button type="button" class="gogh-dev is-on" data-dev="desktop" aria-pressed="true">Desktop</button>' +
+    '<button type="button" class="gogh-dev" data-dev="phone" aria-pressed="false" title="See and tune how the page looks on a phone">Phone</button>';
+  var devHome = document.createElement('li');
+  devHome.id = 'wp-admin-bar-gogh-device';
+  devHome.hidden = true;
+  devHome.appendChild(devPill);
+  function mountDevPill() {
+    // on the right of the admin bar, just left of the ? (James: 'move it over
+    // to the right - just to the left of help'): it is a way of LOOKING, so it
+    // sits with help and the account, not in the editing cluster. The right
+    // group is a right-floated list whose items float LEFT in DOM order, so
+    // the pill goes in just before the ? to land just left of it. A page with no
+    // admin bar (seamless playgrounds) gets the pill floated at the top instead.
+    // Lazy: this script prints before the admin bar does, so the bar is only
+    // there to be found once editing begins.
+    if (devHome.parentNode && devHome.parentNode !== document.body) return;
+    var mark = document.getElementById('wp-admin-bar-gogh-help') || document.getElementById('wp-admin-bar-gogh-edit');
+    if (mark && mark.parentNode) { devHome.className = ''; mark.parentNode.insertBefore(devHome, mark.id === 'wp-admin-bar-gogh-help' ? mark : mark.nextSibling); }
+    else if (!devHome.parentNode) { devHome.className = 'gogh-devpill-float'; document.body.appendChild(devHome); }
+  }
+  function seeOnPhone() {
+    if (deviceMode === 'phone' || cfg.writeUrl) return;
+    if (!zoomState) { zoomOutCanvas(); zoomForPhone = true; }
+    setDevice('phone');
+  }
+  function seeOnDesktop() {
+    if (deviceMode !== 'phone') return;
+    setDevice('desktop');
+    // the zoom that Phone opened closes with it; a drawer's zoom is the drawer's
+    if (zoomForPhone && !panelOpen && !side.classList.contains('is-open')) unzoomCanvas();
+    zoomForPhone = false;
+  }
+  [].forEach.call(devPill.querySelectorAll('.gogh-dev'), function (b) {
+    b.addEventListener('click', function () {
+      if (b.getAttribute('data-dev') === 'phone') seeOnPhone(); else seeOnDesktop();
+    });
   });
 
   // ---------- mobile overrides: tune the phone layout from the desktop editor ----------
@@ -2222,18 +2765,41 @@
     hit.node.classList.add('gogh-m-sel');
     updateMtoolbar();
   }
+  // hide (or show again) a piece — or, with i < 0, a whole section — on
+  // phones. The one routine behind the phone-view toolbar, the piece's own
+  // bar and panel on the desktop, and the section's ⋯ menu: the mobile
+  // options used to be reachable only from inside the phone view, so nobody
+  // learned they existed.
+  function setPhoneHidden(sec, i, hidden) {
+    var holder = i < 0 ? sec : sec.els[i];
+    if (!holder) return false;
+    holder.m = holder.m || {};
+    if (hidden) holder.m.hidden = true; else delete holder.m.hidden;
+    if (!Object.keys(holder.m).length) holder.m = null;
+    var nowHidden = !!(holder.m && holder.m.hidden);
+    if (i < 0) sec.sectionEl.classList.toggle('gogh-msec-hidden', nowHidden);
+    else if (sec.nodes[i]) sec.nodes[i].classList.toggle('gogh-m-hidden', nowHidden);
+    resolveAndApply(sec); // re-emit the section CSS with/without the hide rule
+    if (deviceMode === 'phone') applyPhoneMedia(); // the fresh rules answer to the phone too
+    if (typeof pushState === 'function') pushState();
+    return nowHidden;
+  }
+  function phoneHiddenOf(sec, i) {
+    var holder = i < 0 ? sec : sec.els[i];
+    return !!(holder && holder.m && holder.m.hidden);
+  }
+  // said once, from the desktop, when something is hidden: where to go and look
+  function phoneHiddenToast(what, hidden) {
+    toast(hidden ? what + ' hidden on phones.' : what + ' shown on phones again.', {
+      ttl: 5000,
+      actions: hidden ? [{ label: 'See it on a phone', onClick: function () { seeOnPhone(); } }] : [],
+    });
+  }
   mtoolbar.querySelector('.gogh-mt-hide').addEventListener('click', function (ev) {
     ev.preventDefault(); ev.stopPropagation();
     if (!mSel) return;
-    var holder = mSel.kind === 'sec' ? mSel.sec : mSel.sec.els[mSel.i];
-    holder.m = holder.m || {};
-    if (holder.m.hidden) delete holder.m.hidden; else holder.m.hidden = true;
-    if (!Object.keys(holder.m).length) holder.m = null;
-    var nowHidden = !!(holder.m && holder.m.hidden);
-    if (mSel.kind === 'sec') mSel.sec.sectionEl.classList.toggle('gogh-msec-hidden', nowHidden);
-    else mSel.node.classList.toggle('gogh-m-hidden', nowHidden);
-    resolveAndApply(mSel.sec); // re-emit the section CSS with/without the hide rule
-    if (typeof pushState === 'function') pushState();
+    var i = mSel.kind === 'sec' ? -1 : mSel.i;
+    setPhoneHidden(mSel.sec, i, !phoneHiddenOf(mSel.sec, i));
     updateMtoolbar();
   });
   function moveMobile(dir) {
@@ -2250,6 +2816,7 @@
     if (same) delete s2.m.order; else s2.m.order = seq;
     if (!Object.keys(s2.m).length) s2.m = null;
     resolveAndApply(s2);
+    if (deviceMode === 'phone') applyPhoneMedia();
     if (typeof pushState === 'function') pushState();
     updateMtoolbar(); // the element moved — re-pin the toolbar to it
   }
@@ -2370,7 +2937,9 @@
       railBox.classList.remove('is-away');
       document.querySelectorAll('.gogh-side-tab').forEach(function (t) { t.classList.remove('is-away'); });
       document.documentElement.classList.remove('gogh-designmode');
-      if (!panelOpen) unzoomCanvas(); // a section may still hold the zoom
+      if (panelOpen) return; // a section may still hold the zoom
+      if (deviceMode === 'phone') { zoomForPhone = true; layoutZoom(); } // the phone view outlives the drawer
+      else unzoomCanvas();
     };
     if (now) doIt(); else sideTimer = setTimeout(doIt, 500);
   }
@@ -2407,6 +2976,15 @@
   ];
   var selBox = document.createElement('div');
   selBox.className = 'gogh-selbox';
+  // A card announces itself with a badge in its own top-left corner
+  // (.gogh-cardbox.gogh-selected::after). On a rectangle that corner is
+  // inside the card. On a circle, a pill, a blob, it is exactly the part the
+  // silhouette clips away — so the badge exists and cannot be seen. Those
+  // shapes get the name on the selection box instead, which nothing clips.
+  var selTag = document.createElement('span');
+  selTag.className = 'gogh-selbox-tag';
+  selTag.hidden = true;
+  selBox.appendChild(selTag);
   DIRS.forEach(function (dir) {
     var h = document.createElement('button');
     h.type = 'button';
@@ -2422,6 +3000,27 @@
   selBox.appendChild(rotGrip);
 
   // floating element toolbar (Canva-style)
+  // the six ways to align, as the icons every word processor taught, then the
+  // vertical trio the way Canva, Figma and Keynote draw it. Hover says the word.
+  var ALIGN_ICON = {
+    left:   '<path d="M3 5h14M3 9h9M3 13h14M3 17h9"/>',
+    center: '<path d="M3 5h14M6 9h8M3 13h14M6 17h8"/>',
+    right:  '<path d="M3 5h14M8 9h9M3 13h14M8 17h9"/>',
+    top:    '<path d="M3 3h14"/><rect x="5" y="6" width="4" height="10" rx="1"/><rect x="11" y="6" width="4" height="6" rx="1"/>',
+    middle: '<path d="M3 10h14"/><rect x="5" y="4" width="4" height="12" rx="1"/><rect x="11" y="6" width="4" height="8" rx="1"/>',
+    bottom: '<path d="M3 17h14"/><rect x="5" y="4" width="4" height="10" rx="1"/><rect x="11" y="8" width="4" height="6" rx="1"/>',
+    // the page itself: a box centred on a dashed page line
+    page:   '<rect x="2" y="3" width="16" height="14" rx="1.5"/><path d="M10 1v2M10 17v2" stroke-dasharray="1.5 1.5"/><rect x="6" y="7" width="8" height="6" rx="1"/>',
+  };
+  var ALIGN_WORD = { left: 'Align left', center: 'Align centre', right: 'Align right', top: 'Align top', middle: 'Align middle', bottom: 'Align bottom', page: 'Centre on the page' };
+  // a faded icon says WHAT is already right, not just that it is (James:
+  // 'it might be nice to explain what is already aligned')
+  var ALIGN_DONE = { left: 'Left edges already line up', center: 'Centres already line up', right: 'Right edges already line up',
+    top: 'Tops already line up', middle: 'Middles already line up', bottom: 'Bottoms already line up', page: 'Already centred on the page' };
+  function alignIconBtn(cls, how) {
+    return '<button type="button" class="gogh-eb gogh-mb gogh-mb-icon ' + cls + '" data-how="' + how + '" title="' + ALIGN_WORD[how] + '" aria-label="' + ALIGN_WORD[how] + '">' +
+      '<svg width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">' + ALIGN_ICON[how] + '</svg></button>';
+  }
   var elbar = document.createElement('div');
   elbar.className = 'gogh-elbar';
   elbar.innerHTML =
@@ -2431,18 +3030,47 @@
     '<button type="button" class="gogh-eb gogh-eb-fit" title="Fill the width — size the text to its box">' +
     '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h18M3 12l4-4M3 12l4 4M21 12l-4-4M21 12l-4 4"/></svg></button>' +
     '<button type="button" class="gogh-eb gogh-eb-al" title="Text alignment"></button>' +
+    '<button type="button" class="gogh-eb gogh-eb-lst" title="Bullets"></button>' +
     '<button type="button" class="gogh-eb gogh-eb-lnk" title="Link text (\u2318K)"></button>' +
     '<button type="button" class="gogh-eb gogh-eb-col" title="Text colour"><span class="gogh-eb-colchip"></span></button>' +
     '<button type="button" class="gogh-eb gogh-eb-paint" title="Copy style \u2014 then click other text to paint it">' +
     '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 3h11a2 2 0 0 1 2 2v2a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/><path d="M18 6h2a1 1 0 0 1 1 1v3a2 2 0 0 1-2 2h-6a1 1 0 0 0-1 1v2"/><rect x="10.5" y="15" width="3" height="7" rx="1"/></svg></button>' +
     '<button type="button" class="gogh-eb gogh-eb-bck" title="Send backward">▼</button>' +
     '<button type="button" class="gogh-eb gogh-eb-fwd" title="Bring forward">▲</button>' +
+    '<button type="button" class="gogh-eb gogh-eb-phone" title="Hide on phones">' +
+    '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round"><rect x="7" y="3" width="10" height="18" rx="2.5"/><path d="M11 18h2"/><path class="gogh-eb-phone-slash" d="M4 20L20 4"/></svg></button>' +
     '<button type="button" class="gogh-eb gogh-eb-dup" title="Duplicate (or Alt-drag)">⧉</button>' +
-    '<button type="button" class="gogh-eb gogh-eb-del" title="Delete (Del)">🗑</button>';
+    '<button type="button" class="gogh-eb gogh-eb-del" title="Delete (Del)">🗑</button>' +
+    // a card's own Line up: its pieces, lined up with each other or centred
+    // on the card, and spaced evenly down it — the group bar's verbs, one
+    // level in (James: "a line up option once the card has been made")
+    '<button type="button" class="gogh-eb gogh-eb-lineup" title="Align the pieces inside this card">Align \u25BE</button>' +
+    '<div class="gogh-mbar-more gogh-elbar-more" hidden>' +
+    ['left', 'center', 'right'].map(function (h) { return alignIconBtn('gogh-cl-align', h); }).join('') +
+    '<span class="gogh-mbar-sep"></span>' +
+    // a card stacks its pieces, so its one gap verb works top to bottom
+    '<button type="button" class="gogh-eb gogh-mb gogh-cl-space" title="Equal gaps top to bottom">Even gaps</button>' +
+    '</div>';
   var ctxBtn = elbar.querySelector('.gogh-eb-ctx');
+  var phoneBtn = elbar.querySelector('.gogh-eb-phone');
+  phoneBtn.addEventListener('click', function () {
+    if (!sel) return;
+    var hidden = setPhoneHidden(sel.sec, sel.i, !phoneHiddenOf(sel.sec, sel.i));
+    dressPhoneBtn(sel.sec.els[sel.i]);
+    phoneHiddenToast('This piece is', hidden);
+  });
+  function dressPhoneBtn(e) {
+    var hidden = !!(e && e.m && e.m.hidden);
+    phoneBtn.classList.toggle('is-on', hidden);
+    phoneBtn.title = hidden ? 'Hidden on phones \u2014 press to show it again' : 'Hide on phones';
+  }
+  var lstBtn = elbar.querySelector('.gogh-eb-lst');
+  var LIST_ICON = '<svg width="13" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M9 6h12M9 12h12M9 18h12"/><circle cx="4" cy="6" r="1.4" fill="currentColor" stroke="none"/><circle cx="4" cy="12" r="1.4" fill="currentColor" stroke="none"/><circle cx="4" cy="18" r="1.4" fill="currentColor" stroke="none"/></svg>';
+  var LIST_ICON_OL = '<svg width="13" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M10 6h11M10 12h11M10 18h11"/><path d="M3 5.5l1.5-1v4M3 11.5c0-1 2-1.4 2 0 0 .8-2 1.6-2 2.5h2.2M3 16.5h2c1 0 1 2-.4 2 1.4 0 1.4 2 0 2H3" stroke-width="1.8"/></svg>';
   elbar.querySelector('.gogh-eb-manage').addEventListener('click', function () {
     if (!sel) return;
     var e2 = sel.sec.els[sel.i];
+    if (e2 && e2.posts) { window.open(managePostsUrl(e2), '_blank', 'noopener'); return; }
     if (e2 && e2.shop) window.open(e2.shop.kind === 'categories' ? (cfg.adminUrl || '/wp-admin/') + 'edit-tags.php?taxonomy=product_cat&post_type=product' : manageProductsUrl(e2), '_blank', 'noopener');
   });
   var fsBtn = elbar.querySelector('.gogh-eb-fs');
@@ -2452,6 +3080,9 @@
   var paintBtn = elbar.querySelector('.gogh-eb-paint');
   var colChip = colBtn.querySelector('.gogh-eb-colchip');
   var CTX_ICONS = {
+    embed: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M16 18l6-6-6-6M8 6l-6 6 6 6"/></svg>',
+    icon: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round"><path d="M12 3l2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 16.4 6.8 19.1l1-5.8-4.3-4.1 5.9-.9z"/></svg>',
+    rule: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M3 12h18"/><path d="M7 7h10M7 17h10" opacity=".35"/></svg>',
     link: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M10 14a5 5 0 0 0 7.5.5l3-3a5 5 0 0 0-7-7l-1.7 1.7"/><path d="M14 10a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7 7l1.7-1.7"/></svg>',
     image: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="3"/><circle cx="9" cy="10" r="1.6" fill="currentColor" stroke="none"/><path d="M3 17l5-4.5 4 3.5 4-4 5 4.5"/></svg>',
     shape: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round"><circle cx="8.5" cy="8.5" r="5.5"/><rect x="11" y="11" width="10" height="10" rx="2"/></svg>',
@@ -2630,16 +3261,33 @@
   // page actually renders: the body's computed canvas and ink, matched
   // back to palette slugs (cached per palette signature).
   var paletteRolesCache = null;
+  // the theme names its roles in its own stylesheet: body { background-color:
+  // var(--wp--preset--color--base); color: var(--wp--preset--color--contrast) }
+  // (TT5 Morning inks the body with accent-4). Read the names when they are
+  // there — measuring the body's painted colour instead mistook the editor's
+  // grey canvas for the ground on any palette with a grey-ish swatch
+  function declaredRoles(pal) {
+    var el = document.getElementById('global-styles-inline-css');
+    var css = el ? el.textContent : '';
+    var m = css.match(/(?:^|[}\s,])(?::root\s*:where\()?body\)?\s*\{([^}]*)\}/);
+    if (!m) return null;
+    var body = m[1];
+    var bg = body.match(/background-color:\s*var\(--wp--preset--color--([a-z0-9-]+)\)/);
+    var tx = body.match(/(?:^|[;\s])color:\s*var\(--wp--preset--color--([a-z0-9-]+)\)/);
+    var has = function (slug) { return !!slug && pal.some(function (p) { return p.slug === slug; }); };
+    return { bgSlug: bg && has(bg[1]) ? bg[1] : null, textSlug: tx && has(tx[1]) ? tx[1] : null };
+  }
   function paletteRoles() {
     var pal = themePalette();
     var sig = pal.map(function (p) { return p.slug + ':' + p.value; }).join(',') + '|' + getComputedStyle(document.body).backgroundColor;
     if (paletteRolesCache && paletteRolesCache.sig === sig) return paletteRolesCache;
+    var declared = declaredRoles(pal) || {};
     var bodyBg = cssToRgb(getComputedStyle(document.body).backgroundColor) || [255, 255, 255];
     var bodyTx = cssToRgb(getComputedStyle(document.body).color) || [20, 21, 25];
     var dist = function (a, b) {
       return !a || !b ? 1e9 : Math.abs(a[0] - b[0]) + Math.abs(a[1] - b[1]) + Math.abs(a[2] - b[2]);
     };
-    var bgSlug = null, textSlug = null, bgBest = 90, txBest = 90;
+    var bgSlug = declared.bgSlug || null, textSlug = declared.textSlug || null, bgBest = bgSlug ? -1 : 90, txBest = textSlug ? -1 : 90;
     pal.forEach(function (p) {
       var rgb = cssToRgb(p.value);
       var db = dist(rgb, bodyBg), dt = dist(rgb, bodyTx);
@@ -2698,6 +3346,9 @@
   var sel = null; // {sec, i}
   var multiSel = null; // {sec, idxs} — a group selection within one section
   function clearMulti() {
+    mbar.hidden = true;
+    var moreRow = mbar.querySelector('.gogh-mbar-more');
+    if (moreRow) moreRow.hidden = true;
     if (!multiSel) return;
     var m = multiSel;
     multiSel = null;
@@ -2713,13 +3364,407 @@
     hideHandles();
     multiSel = { sec: secM, idxs: idxs.slice().sort(function (a, b) { return a - b; }) };
     multiSel.idxs.forEach(function (j) { if (secM.nodes[j]) secM.nodes[j].classList.add('gogh-multisel'); });
+    placeMbar();
+    refreshMbar();
   }
+  // ---------- the group bar ----------
+  // A multi-selection used to have three verbs and no bar: drag, nudge,
+  // delete. Canva names what a beginner most likely wants next (Group)
+  // first on a small floating bar and keeps the rest behind dots. Gogh's
+  // group is the Card — it holds pieces together on phones — so Make a
+  // card leads; Duplicate and Delete follow; Align, Space evenly and Tidy up
+  // sit behind the dots. What would do nothing is greyed, with the reason
+  // in its title, so the bar teaches what is already right.
+  var mbar = document.createElement('div');
+  mbar.className = 'gogh-elbar gogh-mbar';
+  mbar.hidden = true;
+  mbar.innerHTML =
+    '<button type="button" class="gogh-eb gogh-mb gogh-mb-card" title="Make these one card — it holds together on phones">Make a card</button>' +
+    '<button type="button" class="gogh-eb gogh-mb gogh-mb-dup" title="Duplicate the selection">Duplicate</button>' +
+    '<button type="button" class="gogh-eb gogh-mb gogh-mb-del" title="Delete the selection">Delete</button>' +
+    // the one-click fix sits where it can be seen: Tidy up lines the rows up,
+    // evens the gaps and matches sizes that are nearly the same (the group
+    // bar, quieter — James: 'there's a lot going on here')
+    '<button type="button" class="gogh-eb gogh-mb gogh-mb-tidy" title="Line the pieces up, even the gaps, match sizes that are nearly the same">Tidy up</button>' +
+    '<button type="button" class="gogh-eb gogh-mb gogh-mb-more" title="Align the pieces to each other">Align \u25BE</button>' +
+    // behind Align: one row of six icons, a hairline between the two directions
+    '<div class="gogh-mbar-more" hidden>' +
+    '<span class="gogh-mbar-axis" data-axis="x">' +
+    ['left', 'center', 'right'].map(function (h) { return alignIconBtn('gogh-mb-align', h); }).join('') +
+    '<span class="gogh-mbar-sep"></span></span>' +
+    '<span class="gogh-mbar-axis" data-axis="y">' +
+    ['top', 'middle', 'bottom'].map(function (h) { return alignIconBtn('gogh-mb-align', h); }).join('') +
+    '<span class="gogh-mbar-sep"></span></span>' +
+    // the whole selection, centred on the page (James: 'how would i center these 3 cards?')
+    alignIconBtn('gogh-mb-align', 'page') +
+    '</div>';
+  document.body.appendChild(mbar);
+  function multiEls() {
+    return multiSel ? multiSel.idxs.map(function (j) { return multiSel.sec.els[j]; }).filter(Boolean) : [];
+  }
+  function bboxOf(els) {
+    var x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+    els.forEach(function (e) { x0 = Math.min(x0, e.x); y0 = Math.min(y0, e.y); x1 = Math.max(x1, e.x + e.w); y1 = Math.max(y1, e.y + e.h); });
+    return { x: x0, y: y0, w: x1 - x0, h: y1 - y0 };
+  }
+  function placeMbar() {
+    if (!multiSel || !editing || drag) { mbar.hidden = true; return; }
+    var sec = multiSel.sec, x0 = Infinity, y0 = Infinity, x1 = -Infinity;
+    var ok = true;
+    multiSel.idxs.forEach(function (j) {
+      var node = sec.nodes[j];
+      if (!node || !document.contains(node)) { ok = false; return; }
+      var b = nodeBox(node);
+      x0 = Math.min(x0, b.x); y0 = Math.min(y0, b.y); x1 = Math.max(x1, b.x + b.w);
+    });
+    if (!ok || x0 === Infinity) { mbar.hidden = true; return; }
+    mbar.style.left = Math.round((x0 + x1) / 2) + 'px';
+    mbar.style.top = Math.round(y0 - 14) + 'px';
+    mbar.hidden = false;
+  }
+  // the plan a Tidy up would make: rows by vertical overlap, each row's top
+  // squared, three or more in a row spaced evenly, three or more rows spaced
+  // evenly. Dry-run it to grey the button when the answer is "nothing"
+  function tidyPlan(els) {
+    var rows = [];
+    els.slice().sort(function (a, b) { return a.y - b.y; }).forEach(function (e) {
+      var row = null;
+      rows.forEach(function (r) {
+        var ov = Math.min(r.y1, e.y + e.h) - Math.max(r.y0, e.y);
+        if (!row && ov >= 0.3 * Math.min(e.h, r.y1 - r.y0)) row = r;
+      });
+      if (!row) { row = { y0: e.y, y1: e.y + e.h, els: [] }; rows.push(row); }
+      row.els.push(e); row.y0 = Math.min(row.y0, e.y); row.y1 = Math.max(row.y1, e.y + e.h);
+    });
+    var moves = {};
+    var at = function (e) { var k = els.indexOf(e); if (!moves[k]) moves[k] = { e: e, x: e.x, y: e.y }; return moves[k]; };
+    // sizes that are nearly the same become the same, taking the first
+    // piece's; wildly different sizes are a design choice and stay
+    var lead = els[0];
+    els.forEach(function (e) {
+      if (e === lead) return;
+      var near = function (a, b) { return a !== b && Math.abs(a - b) <= Math.max(2, 0.1 * b); };
+      if (near(e.w, lead.w)) at(e).w = Math.min(lead.w, W - e.x);
+      if (fixedHeight(e) && fixedHeight(lead) && e.type !== 'icon' && near(e.h, lead.h)) at(e).h = lead.h;
+    });
+    rows.forEach(function (r) {
+      var top = Math.min.apply(null, r.els.map(function (e) { return e.y; }));
+      r.els.forEach(function (e) { at(e).y = top; });
+      r.top = top; r.h = Math.max.apply(null, r.els.map(function (e) { return e.h; }));
+      if (r.els.length >= 3) evenRow(r.els.map(at), 'x');
+    });
+    // three or more rows: the gap between rows is gogh's, so it sits on the
+    // rhythm; the top row stays and the rest follow it down
+    if (rows.length >= 3) {
+      rows.sort(function (a, b) { return a.top - b.top; });
+      var span = rows[rows.length - 1].top + rows[rows.length - 1].h - rows[0].top;
+      var used = rows.reduce(function (t, r) { return t + r.h; }, 0);
+      var gap = (span - used) / (rows.length - 1);
+      var onRhythm = gap >= 0;
+      if (onRhythm) gap = Math.max(RHYTHM, Math.round(gap / RHYTHM) * RHYTHM);
+      var cur = rows[0].top + rows[0].h + gap;
+      rows.slice(1, onRhythm ? undefined : -1).forEach(function (r) {
+        var shift = Math.round(cur) - r.top;
+        r.els.forEach(function (e) { at(e).y += shift; });
+        cur += r.h + gap;
+      });
+    }
+    return Object.keys(moves).map(function (k) { return moves[k]; });
+  }
+  // equal gaps along one axis. Across, the first and last stay and the rest
+  // share the room. Down the page the gap is gogh's to choose, so it lands on
+  // the rhythm (24, 48, 72 …): the first piece stays where the person put it
+  // and the others follow, the last one moving a little if it must. Returns
+  // the gap, so the toast can name it.
+  function evenRow(items, axis, free) {
+    var size = axis === 'x' ? 'w' : 'h';
+    // a plan may already have resized a piece (Tidy up matching near-equal
+    // sizes): the gaps are shared out over the sizes it will have
+    var sz = function (it) { return it[size] != null ? it[size] : it.e[size]; };
+    items.sort(function (a, b) { return a[axis] - b[axis]; });
+    var first = items[0], last = items[items.length - 1];
+    var span = last[axis] + sz(last) - first[axis];
+    var used = items.reduce(function (t, it) { return t + sz(it); }, 0);
+    var gap = (span - used) / (items.length - 1);
+    // (pieces that overlap along the axis — cards side by side with
+    // staggered tops — are not a stack with gaps; the ends hold as before)
+    if (axis === 'y' && !free && gap >= 0) {
+      gap = Math.max(RHYTHM, Math.round(gap / RHYTHM) * RHYTHM);
+      var at = first[axis] + sz(first) + gap;
+      items.slice(1).forEach(function (it) { it[axis] = Math.round(at); at += sz(it) + gap; });
+      return gap;
+    }
+    var cur = first[axis] + sz(first) + gap;
+    items.slice(1, -1).forEach(function (it) { it[axis] = Math.round(cur); cur += sz(it) + gap; });
+    return Math.round(gap);
+  }
+  function planChanges(plan) {
+    return plan.some(function (m) {
+      return Math.abs(m.x - m.e.x) > 1 || Math.abs(m.y - m.e.y) > 1 ||
+        (m.w !== undefined && Math.abs(m.w - m.e.w) > 1) || (m.h !== undefined && Math.abs(m.h - m.e.h) > 1) ||
+        (m.align !== undefined && m.align !== (m.e.align || 'left'));
+    });
+  }
+  // the words a piece actually shows (its ink), in design units — a text box
+  // is often wider than its words, and boxes touching is not words touching
+  function inkRectOf(sec, j) {
+    var e = sec.els[j], node = sec.nodes && sec.nodes[j];
+    var box = { x: e.x, y: e.y, w: e.w, h: e.h };
+    if (!node || e.type === 'button' || !isText(e)) return box;
+    var sc = scaleOf(sec);
+    if (!(sc > 0.2)) return box;
+    var tn = node.matches('p,h1,h2,h3,h4,h5,h6') ? node : (node.querySelector('p,h1,h2,h3,h4,h5,h6') || node);
+    var rng = document.createRange();
+    rng.selectNodeContents(tn);
+    var ir = rng.getBoundingClientRect(), nr = node.getBoundingClientRect();
+    if (!(ir.width > 0) || !(ir.height > 0) || !(nr.width > 0)) return box;
+    return { x: e.x + (ir.left - nr.left) / sc, y: e.y + (ir.top - nr.top) / sc, w: ir.width / sc, h: ir.height / sc };
+  }
+  // would this plan land two texty pieces on each other that were apart
+  // before? Words never sit on words — the runtime guard's law, so no verb
+  // on the bar may break it (James: "they seem just to cause text to overlap")
+  function planOverlaps(sec, idxs, plan) {
+    var rects = idxs.map(function (j) {
+      var e = sec.els[j], r = inkRectOf(sec, j);
+      var m = null;
+      plan.forEach(function (pm) { if (pm.e === e) m = pm; });
+      return { e: e, x0: r.x, y0: r.y, x1: r.x + (m ? m.x - e.x : 0), y1: r.y + (m ? m.y - e.y : 0), w: r.w, h: r.h };
+    }).filter(function (r) { return guardTexty(r.e); });
+    return anyNewOverlap(rects);
+  }
+  // two texty rects that were apart before (x0,y0) and touch after (x1,y1)
+  function anyNewOverlap(rects) {
+    var touch = function (a, ax, ay, b, bx, by) {
+      return Math.min(ax + a.w, bx + b.w) - Math.max(ax, bx) > 4 && Math.min(ay + a.h, by + b.h) - Math.max(ay, by) > 4;
+    };
+    for (var i = 0; i < rects.length; i++) for (var k = i + 1; k < rects.length; k++) {
+      var a = rects[i], b = rects[k];
+      if (touch(a, a.x1, a.y1, b, b.x1, b.y1) && !touch(a, a.x0, a.y0, b, b.x0, b.y0)) return true;
+    }
+    return false;
+  }
+  function applyPlan(plan) {
+    plan.forEach(function (m) {
+      m.e.x = Math.round(m.x); m.e.y = Math.round(m.y);
+      if (m.w !== undefined) m.e.w = Math.round(m.w);
+      if (m.h !== undefined) m.e.h = Math.round(m.h);
+      if (m.align !== undefined) { if (m.align === 'left') delete m.e.align; else m.e.align = m.align; }
+    });
+  }
+  // a row: every pair shares some height; a column: every pair shares some
+  // width; anything else is a grid, or a scatter, and gets every verb
+  function selectionShape(els) {
+    if (els.length < 2) return 'grid';
+    var row = true, col = true;
+    for (var i = 0; i < els.length && (row || col); i++) {
+      for (var j = i + 1; j < els.length; j++) {
+        var a = els[i], b = els[j];
+        var vOv = Math.min(a.y + a.h, b.y + b.h) - Math.max(a.y, b.y) > 0;
+        var hOv = Math.min(a.x + a.w, b.x + b.w) - Math.max(a.x, b.x) > 0;
+        if (!vOv) row = false;
+        if (!hOv) col = false;
+      }
+    }
+    if (row && !col) return 'row';
+    if (col && !row) return 'column';
+    return 'grid';
+  }
+  function alignPlan(els, how) {
+    var bb = bboxOf(els);
+    if (how === 'page') {
+      var shift = Math.round(W / 2 - (bb.x + bb.w / 2));
+      return els.map(function (e) { return { e: e, x: e.x + shift, y: e.y }; });
+    }
+    return els.map(function (e) {
+      var m = { e: e, x: e.x, y: e.y };
+      if (how === 'left') m.x = bb.x; else if (how === 'center') m.x = Math.round(bb.x + bb.w / 2 - e.w / 2); else if (how === 'right') m.x = bb.x + bb.w - e.w;
+      else if (how === 'top') m.y = bb.y; else if (how === 'middle') m.y = Math.round(bb.y + bb.h / 2 - e.h / 2); else if (how === 'bottom') m.y = bb.y + bb.h - e.h;
+      // words line up as words: a text box wider than its ink takes the
+      // alignment too, or a full-width paragraph "centres" and nothing moves
+      if (isText(e) && (how === 'left' || how === 'center' || how === 'right')) m.align = how;
+      return m;
+    });
+  }
+  // ---- the same verbs one level in: a card's pieces ----
+  function cardLineupPlan(box, how) {
+    var kids = box.kids || [];
+    if (how === 'space') {
+      var items = kids.map(function (k) { return { e: k, x: k.x, y: k.y }; });
+      // inside a card the pieces keep their own spacing (a card's inner
+      // geometry is not on the rhythm yet), so the gap is free here
+      if (items.length >= 3) evenRow(items, 'y', true);
+      return items;
+    }
+    // centre means the card's centre; left and right line the pieces up with each other
+    if (how === 'center') return kids.map(function (k) { var m = { e: k, x: Math.max(0, Math.round(box.w / 2 - k.w / 2)), y: k.y }; if (isText(k)) m.align = 'center'; return m; });
+    return alignPlan(kids, how);
+  }
+  function cardPlanOverlaps(sec, ci, plan) {
+    var box = sec.els[ci], inkOf = kidInkOf(sec, ci);
+    var rects = (box.kids || []).map(function (k) {
+      var r = inkOf(k) || { x: k.x, y: k.y, w: k.w, h: k.h };
+      var m = null;
+      plan.forEach(function (pm) { if (pm.e === k) m = pm; });
+      return { e: k, x0: r.x, y0: r.y, x1: r.x + (m ? m.x - k.x : 0), y1: r.y + (m ? m.y - k.y : 0), w: r.w, h: r.h };
+    }).filter(function (r) { return guardTexty(r.e); });
+    return anyNewOverlap(rects);
+  }
+  function refreshCardLineup(sec, i) {
+    var box = sec.els[i];
+    if (!box || box.type !== 'box' || !box.kids || !box.kids.length) return;
+    var grey = function (btn, why, on) { btn.disabled = !!why; btn.title = why || on; };
+    var judge = function (plan, same) {
+      if (!planChanges(plan)) return same;
+      if (cardPlanOverlaps(sec, i, plan)) return 'Would put words on words';
+      return '';
+    };
+    elbar.querySelectorAll('.gogh-cl-align').forEach(function (b) {
+      grey(b, judge(cardLineupPlan(box, b.dataset.how), ALIGN_DONE[b.dataset.how]), ALIGN_WORD[b.dataset.how]);
+    });
+    grey(elbar.querySelector('.gogh-cl-space'),
+      box.kids.length < 3 ? 'Needs three or more pieces' : judge(cardLineupPlan(box, 'space'), 'Already evenly spaced'),
+      'Equal gaps top to bottom');
+    var row = elbar.querySelector('.gogh-elbar-more'), hint = elbar.querySelector('.gogh-elbar-more .gogh-mbar-hint');
+    if (hint && row) hint.hidden = ![].slice.call(row.querySelectorAll('.gogh-mb')).some(function (b) { return b.disabled; });
+  }
+  function cardLineup(how, said) {
+    if (!sel) return;
+    var sec = sel.sec, i = sel.i, box = sec.els[i];
+    if (!box || box.type !== 'box' || !box.kids) return;
+    var plan = cardLineupPlan(box, how);
+    if (!planChanges(plan) || cardPlanOverlaps(sec, i, plan)) return;
+    applyPlan(plan);
+    resolveAndApply(sec);
+    pushState();
+    placeHandles(sec, i);
+    toast(said, { ttl: 3500, actions: [{ label: 'Undo', onClick: function () { undo(); } }] });
+  }
+  elbar.querySelector('.gogh-eb-lineup').addEventListener('click', function () {
+    var row = elbar.querySelector('.gogh-elbar-more');
+    row.hidden = !row.hidden;
+    elbar.classList.toggle('gogh-elbar-open', !row.hidden);
+    if (!row.hidden && sel) refreshCardLineup(sel.sec, sel.i);
+  });
+  elbar.querySelectorAll('.gogh-cl-align').forEach(function (b) {
+    b.addEventListener('click', function () { if (!b.disabled) cardLineup(b.dataset.how, ARRANGE_SAID[b.dataset.how]); });
+  });
+  elbar.querySelector('.gogh-cl-space').addEventListener('click', function () { if (!this.disabled) cardLineup('space', 'Gaps evened out, top to bottom.'); });
+  function refreshMbar() {
+    if (mbar.hidden || !multiSel) return;
+    var sec = multiSel.sec, idxs = multiSel.idxs.slice();
+    var els = multiEls();
+    var grey = function (btn, why, on) { btn.disabled = !!why; btn.title = why || on; };
+    // the reason a verb is faded, in the order a beginner would want to hear it:
+    // it changes nothing; it would put words on words
+    var judge = function (plan, same) {
+      if (!planChanges(plan)) return same;
+      if (planOverlaps(sec, idxs, plan)) return 'Would put words on words';
+      return '';
+    };
+    grey(mbar.querySelector('.gogh-mb-card'),
+      els.some(function (e) { return e.type === 'box' || e.rails || e.type === 'exp' || e.type === 'embed'; }) ? 'Cards, shapes and shelves can’t go inside a card' : '',
+      'Make these one card — it holds together on phones');
+    mbar.querySelectorAll('.gogh-mb-align').forEach(function (b) {
+      grey(b, judge(alignPlan(els, b.dataset.how), ALIGN_DONE[b.dataset.how]), ALIGN_WORD[b.dataset.how]);
+    });
+    // only the directions that make sense for the shape: a row of pieces
+    // beside each other offers top, middle, bottom (Align left would pile
+    // the cards on each other); a stack offers left, centre, right; a grid
+    // offers all (James: 'a row of cards … im not sure it makes any sense
+    // to show these')
+    var shape = selectionShape(els);
+    var axX = mbar.querySelector('.gogh-mbar-axis[data-axis="x"]'), axY = mbar.querySelector('.gogh-mbar-axis[data-axis="y"]');
+    if (axX) axX.hidden = shape === 'row';
+    if (axY) axY.hidden = shape === 'column';
+    grey(mbar.querySelector('.gogh-mb-tidy'), judge(tidyPlan(els), 'Already tidy'), 'Line the pieces up, even the gaps, match sizes that are nearly the same');
+  }
+  function afterArrange(said) {
+    var sec = multiSel.sec, idxs = multiSel.idxs.slice();
+    resolveAndApply(sec);
+    pushState();
+    setMulti(sec, idxs); // the outlines, the bar and its greys follow the new places
+    if (said) toast(said, { ttl: 3500, actions: [{ label: 'Undo', onClick: function () { undo(); } }] });
+  }
+  var ARRANGE_SAID = { left: 'Lined up on the left.', center: 'Centred.', right: 'Lined up on the right.',
+    top: 'Tops lined up.', middle: 'Middles lined up.', bottom: 'Bottoms lined up.', page: 'Centred on the page.' };
+  function makeCardFromSelection() {
+    if (!multiSel) return;
+    var sec = multiSel.sec, idxs = multiSel.idxs.slice();
+    var members = idxs.map(function (j) { return sec.els[j]; });
+    if (members.length < 2 || members.some(function (e) { return e.type === 'box' || e.rails || e.type === 'exp' || e.type === 'embed'; })) return;
+    var bb = bboxOf(members), pad = 24;
+    var box = { type: 'box', x: Math.max(0, bb.x - pad), y: Math.max(0, bb.y - pad), radius: 12, kids: [] };
+    box.w = Math.min(W - box.x, bb.x + bb.w + pad - box.x);
+    box.h = bb.y + bb.h + pad - box.y;
+    members.forEach(function (e) {
+      var k = JSON.parse(JSON.stringify(e));
+      k.x = Math.round(e.x - box.x); k.y = Math.round(e.y - box.y);
+      box.kids.push(k);
+    });
+    orderKids(box); // reading order, the way a card stacks on phones
+    clearMulti();
+    idxs.slice().sort(function (a, b) { return b - a; }).forEach(function (j) { sec.els.splice(j, 1); });
+    sec.els.push(box);
+    renderSection(sec);
+    placeHandles(sec, sec.els.length - 1);
+    pushState();
+    toast('One card now — it holds together on phones. Click it for a background.',
+      { actions: [{ label: 'Undo', onClick: function () { undo(); } }] });
+  }
+  function duplicateSelection() {
+    if (!multiSel) return;
+    var sec = multiSel.sec, idxs = multiSel.idxs.slice();
+    var copies = diceFreshIds(idxs.map(function (j) { return JSON.parse(JSON.stringify(sec.els[j])); }));
+    copies.forEach(function (c) { c.x = Math.min(W - c.w, c.x + 24); c.y = c.y + 24; });
+    var start = sec.els.length;
+    copies.forEach(function (c) { sec.els.push(c); });
+    renderSection(sec);
+    setMulti(sec, copies.map(function (c, k) { return start + k; }));
+    pushState();
+  }
+  mbar.querySelector('.gogh-mb-card').addEventListener('click', makeCardFromSelection);
+  mbar.querySelector('.gogh-mb-dup').addEventListener('click', duplicateSelection);
+  mbar.querySelector('.gogh-mb-del').addEventListener('click', function () { deleteSelected(); });
+  mbar.querySelector('.gogh-mb-more').addEventListener('click', function () {
+    var more = mbar.querySelector('.gogh-mbar-more');
+    more.hidden = !more.hidden;
+    placeMbar();
+  });
+  mbar.querySelectorAll('.gogh-mb-align').forEach(function (b) {
+    b.addEventListener('click', function () {
+      if (!multiSel || b.disabled) return;
+      applyPlan(alignPlan(multiEls(), b.dataset.how));
+      afterArrange(ARRANGE_SAID[b.dataset.how]);
+    });
+  });
+  mbar.querySelector('.gogh-mb-tidy').addEventListener('click', function () {
+    if (!multiSel || this.disabled) return;
+    var sec0 = multiSel.sec;
+    applyPlan(tidyPlan(multiEls()));
+    measureTextHeights(sec0); // a narrower text box is a taller one
+    afterArrange('Tidied up.');
+  });
+  // after any gesture ends (a group drag, a nudge), the bar finds the group again
+  document.addEventListener('pointerup', function () {
+    if (!multiSel) return;
+    requestAnimationFrame(function () { if (multiSel && !drag) { placeMbar(); refreshMbar(); } });
+  }, true);
 
   function nodeBox(node) {
+    // the layout size (offsetWidth) is pre-transform; the rect is what the
+    // eye sees. Under the birds-eye zoom the two differ by the zoom factor,
+    // and mixing them landed every drop low by h(1-s)/2 and drew the ring
+    // at the wrong size. The factor comes from the node's unrotated parent,
+    // so a rotated node's true (uninflated) size still comes from its layout
+    // numbers, scaled into the visual frame
     var w = node.offsetWidth, h = node.offsetHeight;
     var r = node.getBoundingClientRect();
-    return { x: r.left + window.scrollX + r.width / 2 - w / 2,
-             y: r.top + window.scrollY + r.height / 2 - h / 2, w: w, h: h };
+    var p = node.offsetParent || node.parentElement;
+    var zf = (p && p.offsetWidth) ? p.getBoundingClientRect().width / p.offsetWidth : 1;
+    if (!(zf > 0)) zf = 1;
+    var vw = w * zf, vh = h * zf;
+    return { x: r.left + window.scrollX + r.width / 2 - vw / 2,
+             y: r.top + window.scrollY + r.height / 2 - vh / 2, w: vw, h: vh };
   }
   function goghFadeOut(el) {
     if (el.hidden || el.classList.contains('gogh-byebye')) return;
@@ -2766,6 +3811,9 @@
     selBox.style.height = bh + 'px';
     selBox.style.transform = e.rot ? 'rotate(' + e.rot + 'deg)' : '';
     selBox.classList.toggle('gogh-selbox-text', isText(e));
+    var clippedCard = e.type === 'box' && e.kids && e.kids.length && e.shape && SHAPE_CSS[e.shape];
+    selTag.textContent = clippedCard ? 'Card' : '';
+    selTag.hidden = !clippedCard;
     selBox.hidden = false;
     grip.style.left = (bx - 26) + 'px';
     grip.style.top = (byy - 26) + 'px';
@@ -2774,19 +3822,27 @@
     var ar = node.getBoundingClientRect();
     elbar.style.left = (ar.left + window.scrollX + ar.width / 2) + 'px';
     elbar.style.top = (ar.top + window.scrollY - 14) + 'px';
-    if (e.type === 'button' || e.type === 'image' || e.type === 'video' || e.type === 'box') {
+    if (e.type === 'button' || e.type === 'image' || e.type === 'video' || e.type === 'box' || e.type === 'rule' || e.type === 'icon' || e.type === 'embed') {
       // cards share the section's background icon — one glyph for one idea;
       // bare shapes keep the shape glyph (their panel really picks shapes)
       var isCardEl = e.type === 'box' && e.kids && e.kids.length;
-      ctxBtn.innerHTML = CTX_ICONS[e.type === 'button' ? 'link' : e.type === 'box' ? (isCardEl ? 'image' : 'shape') : 'image'];
-      ctxBtn.title = (e.rails && e.shop) ? 'Edit design' : e.type === 'video' ? 'Video' : e.type === 'button' ? 'Button link' : e.type === 'box' ? ( isCardEl ? 'Background image & colour' : 'Shape, colour & image' ) : e.type === 'widget' ? (e.faq ? 'Edit the questions' : e.tabs ? 'Edit the tabs' : e.slides ? 'Edit the slides' : e.wall ? 'Edit the photos' : 'Block settings & link') : 'Choose image';
+      ctxBtn.innerHTML = CTX_ICONS[e.type === 'button' ? 'link' : e.type === 'box' ? (isCardEl ? 'image' : 'shape') : e.type === 'rule' ? 'rule' : e.type === 'icon' ? 'icon' : e.type === 'embed' ? 'embed' : 'image'];
+      ctxBtn.title = (e.rails && (e.shop || e.posts)) ? 'Edit design' : e.type === 'video' ? 'Video' : e.type === 'button' ? 'Button link' : e.type === 'box' ? ( isCardEl ? 'Background image & colour' : 'Shape, colour & image' ) : e.type === 'widget' ? (e.faq ? 'Edit the questions' : e.tabs ? 'Edit the tabs' : e.slides ? 'Edit the slides' : e.wall ? 'Edit the photos' : 'Block settings & link') : 'Choose image';
       ctxBtn.style.display = '';
     } else {
       ctxBtn.style.display = 'none';
     }
-    elbar.querySelector('.gogh-eb-manage').style.display = (e.rails && e.shop) ? '' : 'none';
-    if (e.rails && e.shop) {
-      // two verbs at the point of touch: Manage products · Edit design
+    var isCardSel = e.type === 'box' && e.kids && e.kids.length;
+    elbar.querySelector('.gogh-eb-lineup').style.display = isCardSel ? '' : 'none';
+    if (!isCardSel) { elbar.querySelector('.gogh-elbar-more').hidden = true; elbar.classList.remove('gogh-elbar-open'); }
+    else refreshCardLineup(sec, i);
+    var railsEl = !!(e.rails && (e.shop || e.posts));
+    var manageBtn = elbar.querySelector('.gogh-eb-manage');
+    manageBtn.style.display = railsEl ? '' : 'none';
+    manageBtn.textContent = e.posts ? 'Manage posts' : 'Manage products';
+    manageBtn.title = e.posts ? 'Open your posts in WordPress' : 'Open your products in WordPress';
+    if (railsEl) {
+      // two verbs at the point of touch: Manage products (or posts) · Edit design
       ctxBtn.textContent = 'Edit design';
       ctxBtn.title = 'Edit design';
       ctxBtn.style.display = '';
@@ -2816,15 +3872,30 @@
       colChip.style.background = e.color ? 'var(--wp--preset--color--' + e.color + ')' : 'transparent';
       colChip.classList.toggle('is-default', !e.color);
       colBtn.style.display = '';
+      // bullets are a paragraph's choice, not a heading's
+      lstBtn.style.display = e.type === 'para' ? '' : 'none';
+      lstBtn.innerHTML = e.list === 'ol' ? LIST_ICON_OL : LIST_ICON;
+      lstBtn.classList.toggle('is-on', !!e.list);
+      lstBtn.title = e.list === 'ol' ? 'Numbered \u2014 tap for plain text' : e.list ? 'Bullets \u2014 tap for numbers' : 'Bullets';
+    } else if (e.type === 'rule' || e.type === 'icon') {
+      // a line or an icon has a colour like words do, nothing else from this row
+      alBtn.style.display = 'none';
+      lnkBtn.style.display = 'none';
+      lstBtn.style.display = 'none';
+      colChip.style.background = e.color ? 'var(--wp--preset--color--' + e.color + ')' : 'transparent';
+      colChip.classList.toggle('is-default', !e.color);
+      colBtn.style.display = '';
     } else {
       alBtn.style.display = 'none';
       lnkBtn.style.display = 'none';
+      lstBtn.style.display = 'none';
       colBtn.style.display = 'none';
     }
+    dressPhoneBtn(e);
     elbar.hidden = false;
   }
 
-  function showGuides(sec, gx, gy) {
+  function showGuides(sec, gx, gy, tagX, tagY) {
     var r = sec.sectionEl.getBoundingClientRect();
     var s = r.width / W;
     var Hc = designH(sec.els, sec.minH);
@@ -2833,14 +3904,15 @@
       guideV.style.top = (r.top + window.scrollY) + 'px';
       guideV.style.height = r.height + 'px';
       // the centre earns a name: pink says aligned, the tag says WHERE
-      guideV.dataset.tag = (Math.round(gx) === Math.round(W / 2) ? 'centre' : '');
+      guideV.dataset.tag = tagX || (Math.round(gx) === Math.round(W / 2) ? 'centre'
+        : (Math.round(gx) === MARGIN || Math.round(gx) === W - MARGIN) ? 'margin' : '');
       guideV.hidden = false;
     } else guideV.hidden = true;
     if (gy !== null) {
       guideH.style.top = (r.top + window.scrollY + gy * s) + 'px';
       guideH.style.left = (r.left + window.scrollX) + 'px';
       guideH.style.width = r.width + 'px';
-      guideH.dataset.tag = (Math.round(gy) === Math.round(Hc / 2) ? 'centre' : '');
+      guideH.dataset.tag = tagY || (Math.round(gy) === Math.round(Hc / 2) ? 'centre' : '');
       guideH.hidden = false;
     } else guideH.hidden = true;
   }
@@ -2983,7 +4055,8 @@
     if (!pendingDrag || drag) return;
     if (resize) { pendingDrag = null; return; } // a handle took over
     if (ev.pointerId !== pendingDrag.ev.pointerId) return;
-    if (Math.abs(ev.clientX - pendingDrag.x) + Math.abs(ev.clientY - pendingDrag.y) < 4) return;
+    // a twitch is a click: under 4px of travel nothing moves (10 for a finger)
+    if (Math.abs(ev.clientX - pendingDrag.x) + Math.abs(ev.clientY - pendingDrag.y) < (ev.pointerType === 'touch' ? 10 : 4)) return;
     var pd = pendingDrag;
     pendingDrag = null;
     beginDrag(pd.ev);
@@ -3018,7 +4091,8 @@
     S.forEach(function (sec) {
       sec.els.forEach(function (e, i) {
         if (editableTarget(sec, i) !== t) return;
-        e.text = (e.type === 'heading' || e.type === 'para') ? cleanInline(t.innerHTML) : t.textContent;
+        e.text = (e.type === 'para' && e.list) ? listText(t)
+          : (e.type === 'heading' || e.type === 'para') ? cleanInline(t.innerHTML) : t.textContent;
         if (e.fitW) refitText(sec, i); // fitted text follows the words as they change
         var oldH = e.h;
         measureTextHeights(sec);
@@ -3198,14 +4272,20 @@
     // floating pill enters editing without a reload
     var abLink = document.querySelector('#wp-admin-bar-gogh-edit a');
     if (abLink) {
-      abLink.textContent = on ? '\ud83c\udfa8 Exit gogh editor' : '\ud83c\udfa8 Edit with gogh';
+      // the same markup PHP rendered, so a boot never changes the label
+      var want = cfg.abEdit && cfg.abEdit[on ? 'on' : 'off'];
+      if (want) { if (abLink.innerHTML !== want) abLink.innerHTML = want; }
+      else abLink.textContent = on ? 'View site' : '\ud83c\udfa8 Edit with gogh';
       var abUrl = new URL(location.href);
       abUrl.searchParams[on ? 'delete' : 'set']('gogh-edit', '1');
       abLink.href = abUrl.toString();
     }
     side.hidden = !on;
     railBox.hidden = !on;
+    if (on) mountDevPill();
+    devHome.hidden = !on || !!cfg.writeUrl; // the write room has no canvas to preview
     if (!on) {
+      seeOnDesktop(); // leaving the editor leaves the phone view too
       closeSide(true);
     }
     // the palette waits to be invited — its pulsing tab is the greeting
@@ -3378,11 +4458,12 @@
     // page into the clear area to its RIGHT, centred. Comfortable scale,
     // independent of page LENGTH (scroll handles the rest). Measure whichever
     // surface is live — the section panel or the Design home.
-    var bar = (panelOpen && !panel.hidden) ? panel : side;
+    var bar = (panelOpen && !panel.hidden) ? panel : (side.classList.contains('is-open') ? side : null);
     // offsetWidth, not getBoundingClientRect: both surfaces dock at left:0, and
     // the rect is still MOVING during the slide-in (measuring it mid-animation
     // is what made the left/right gaps unequal). offsetWidth is the settled edge.
-    var barRight = bar.offsetWidth || 0;
+    // No drawer at all (the phone view from the top bar): just clear the rail.
+    var barRight = bar ? (bar.offsetWidth || 0) : 72;
     var sliderReserve = 64; // the zoom slider's footprint on the right edge
     // the clear span between the sidebar (left) and the slider (right); centring
     // the page in THIS gives equal gaps on both sides
@@ -3483,14 +4564,16 @@
     if (ev.code !== 'KeyZ') return; // ⌥Z — match the physical key ('⌥z' prints 'Ω' on macOS)
     if (zoomShortcutBlocked(ev.target)) return;
     ev.preventDefault();
-    if (side.classList.contains('is-open') || zoomState) closeSide(true);
+    if (deviceMode === 'phone') { closeSide(true); seeOnDesktop(); }
+    else if (side.classList.contains('is-open') || zoomState) closeSide(true);
     else openSide();
   });
 
   function closePanel() {
     if (panelCleanup) { var pc = panelCleanup; panelCleanup = null; pc(); }
     clearPageStylePreview(); // a page-style audition never outlives its panel
-    if (!keepZoomThroughClose) unzoomCanvas(); // a style audition's zoom-out never outlives its panel
+    if (deviceMode === 'phone') { zoomForPhone = true; requestAnimationFrame(layoutZoom); } // the phone view outlives the panel
+    else if (!keepZoomThroughClose) unzoomCanvas(); // a style audition's zoom-out never outlives its panel
     exitChromeMode(); // leave the header room cleanly — dim off, spotlight off
     delete panel.dataset.goghArea;
     panel.hidden = true;
@@ -3589,12 +4672,37 @@
     else if (e.type === 'video') buildVideoPanel(sec, i);
     else if (e.type === 'box') buildBoxPanel(sec, i);
     else if (e.type === 'widget') buildWidgetPanel(sec, i);
+    else if (e.type === 'rule') buildRulePanel(sec, i);
+    else if (e.type === 'icon') buildIconPanel(sec, i);
+    else if (e.type === 'embed') buildEmbedPanel(sec, i);
+    // every panel ends with the same row: what this piece does on phones, in
+    // words, with the door to go and look — discovery from where people
+    // already are, not from inside the phone view
+    var mh = phoneHiddenOf(sec, i);
+    panel.insertAdjacentHTML('beforeend',
+      '<div class="gogh-panel-hint">On phones</div>' +
+      '<div class="gogh-panel-row gogh-chrome-rows gogh-phone-rows">' +
+      '<button type="button" class="gogh-btn gogh-btn-small' + (mh ? '' : ' is-active') + '" data-mh="0">Shown</button>' +
+      '<button type="button" class="gogh-btn gogh-btn-small' + (mh ? ' is-active' : '') + '" data-mh="1">Hidden</button>' +
+      '<button type="button" class="gogh-btn gogh-btn-small gogh-phone-see" title="See the page as a phone">See it on a phone</button>' +
+      '</div>');
+    panel.querySelectorAll('[data-mh]').forEach(function (b) {
+      b.addEventListener('click', function () {
+        var want = b.dataset.mh === '1';
+        if (want === phoneHiddenOf(sec, i)) return;
+        setPhoneHidden(sec, i, want);
+        panel.querySelectorAll('[data-mh]').forEach(function (x) { x.classList.toggle('is-active', x === b); });
+        if (sel && sel.sec === sec && sel.i === i) dressPhoneBtn(sec.els[i]);
+        phoneHiddenToast('This piece is', want);
+      });
+    });
+    panel.querySelector('.gogh-phone-see').addEventListener('click', function () { seeOnPhone(); });
     // in the zoomed Design view, dock the panel into the sidebar with a
     // Back-to-Design header (as the style/page auditions do) — a panel
     // floating over the shrunk canvas reads as "lost", and closing it used
     // to drop the birds-eye. Back returns home with the zoom intact.
     if (zoomState && side.classList.contains('is-open')) {
-      var titles = { button: 'Link', image: 'Image', video: 'Video', box: 'Box', widget: 'Widget' };
+      var titles = { button: 'Link', image: 'Image', video: 'Video', box: 'Box', widget: 'Widget', rule: 'Line', icon: 'Icon', embed: 'Embed' };
       panel.insertAdjacentHTML('afterbegin',
         '<div class="gogh-panel-head"><span class="gogh-panel-title">' + (titles[e.type] || 'Element') + '</span>' +
         '<button type="button" class="gogh-sbtn gogh-panel-back" title="Back"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"/></svg></button></div>');
@@ -4149,6 +5257,7 @@
   function buildWidgetPanel(sec, i) {
     var e = sec.els[i];
     if (e.rails && e.shop) return buildShopPanel(sec, i);
+    if (e.rails && e.posts) return buildPostsPanel(sec, i);
     if ((e.faq && e.faq.length) || (e.tabs && e.tabs.length)) return buildQnaPanel(sec, i);
     if (e.slides && e.slides.length) return buildCarouselPanel(sec, i);
     if (e.wall && e.wall.length) return buildWallPanel(sec, i);
@@ -4269,7 +5378,11 @@
       pickerPalette().map(function (p) {
         return '<button type="button" class="gogh-sw' + (e.boxBg === p.slug ? ' is-active' : '') + '" data-col="' + p.slug + '"' +
           ' style="background: var(--wp--preset--color--' + p.slug + ')" title="' + p.slug + '"></button>';
-      }).join('') + '</div>' +
+      }).join('') +
+      // any colour at all, beside the palette (James: "i dont see an option
+      // to choose a custom color for cards")
+      '<label class="gogh-sw gogh-sw-pick' + (/^#/.test(e.boxBg || '') ? ' is-active' : '') + '" title="Any colour"><input type="color" class="gogh-boxcustom" value="' + escAttr(/^#[0-9a-fA-F]{6}$/.test(e.boxBg || '') ? e.boxBg : '#1c1c22') + '"></label>' +
+      '</div>' +
       '<div class="gogh-swlab">Image</div>' +
       '<div class="gogh-panel-row">' +
       (cfg.canUpload ? '<label class="gogh-btn gogh-btn-small gogh-upload">Upload<input type="file" accept="image/*" hidden /></label>' : '') +
@@ -4302,9 +5415,11 @@
       pushState();
       // update the active marks IN PLACE — a full rebuild refetches the
       // media grid and reads as the panel closing and reopening
-      panel.querySelectorAll('.gogh-boxsw .gogh-sw').forEach(function (b2) {
+      panel.querySelectorAll('.gogh-boxsw .gogh-sw:not(.gogh-sw-pick)').forEach(function (b2) {
         b2.classList.toggle('is-active', (b2.dataset.col || '') === (e.boxBg || ''));
       });
+      var pickLab = panel.querySelector('.gogh-boxsw .gogh-sw-pick');
+      if (pickLab) pickLab.classList.toggle('is-active', /^#/.test(e.boxBg || ''));
       panel.querySelectorAll('.gogh-shapecell').forEach(function (b2) {
         var d2 = SHAPE_DEFS[+b2.dataset.k];
         b2.classList.toggle('is-active', (d2.key || null) === (e.shape || null));
@@ -4321,12 +5436,27 @@
         reapply();
       });
     });
-    panel.querySelectorAll('.gogh-boxsw .gogh-sw').forEach(function (swBtn) {
+    panel.querySelectorAll('.gogh-boxsw .gogh-sw:not(.gogh-sw-pick)').forEach(function (swBtn) {
       swBtn.addEventListener('click', function () {
         e.boxBg = swBtn.dataset.col || null;
         reapply();
+        contrastSentinel(sec, i); // the card's new ground judges its words (a black card, black words: v0.99.476)
       });
     });
+    var anyCol = panel.querySelector('.gogh-boxcustom');
+    if (anyCol) {
+      // live while the picker is open, one undo step when it closes
+      anyCol.addEventListener('input', function () {
+        e.boxBg = anyCol.value;
+        renderSection(sec);
+        placeHandles(sec, i);
+      });
+      anyCol.addEventListener('change', function () {
+        e.boxBg = anyCol.value;
+        reapply();
+        contrastSentinel(sec, i);
+      });
+    }
     panel.querySelectorAll('.gogh-moodrow .gogh-hpreset').forEach(function (mb) {
       mb.addEventListener('click', function () {
         e.mood = mb.dataset.mood || null;
@@ -4484,6 +5614,102 @@
     if (up && up.firstChild) up.firstChild.textContent = 'Upload video';
     var pup = panel.querySelector('.gogh-vid-poster-up');
     if (pup && pup.firstChild) pup.firstChild.textContent = 'Upload poster';
+  }
+  function setEmbed(sec, i, url) {
+    var e = sec.els[i];
+    e.url = url ? String(url).trim() : null;
+    renderSection(sec);
+    placeHandles(sec, i);
+    pushState();
+  }
+  function buildEmbedPanel(sec, i) {
+    var e = sec.els[i];
+    panel.innerHTML = '<div class="gogh-panel-row">' +
+      '<input type="url" class="gogh-input gogh-embed-url" placeholder="Paste a link\u2026" />' +
+      '<button type="button" class="gogh-btn gogh-btn-small gogh-embed-go">Show</button></div>' +
+      '<div class="gogh-panel-hint">A Google Maps or OpenStreetMap link, a YouTube, Vimeo, Spotify, SoundCloud or TikTok link, a post on X, a WordPress post \u2014 anything WordPress can embed.</div>';
+    var input = panel.querySelector('.gogh-embed-url');
+    input.value = e.url || '';
+    var go = function () { setEmbed(sec, i, input.value.trim() || null); };
+    panel.querySelector('.gogh-embed-go').addEventListener('click', go);
+    input.addEventListener('keydown', function (ev) { if (ev.key === 'Enter') { ev.preventDefault(); go(); } });
+    setTimeout(function () { input.focus(); }, 0);
+  }
+  // the icon shelf: type to narrow it, tap to wear one
+  function buildIconPanel(sec, i) {
+    var e = sec.els[i];
+    var names = Object.keys(ICONS);
+    panel.innerHTML = '<div class="gogh-panel-row"><input type="search" class="gogh-input gogh-icon-q" placeholder="Find an icon\u2026" /></div>' +
+      '<div class="gogh-icongrid"></div>';
+    var grid = panel.querySelector('.gogh-icongrid');
+    var draw = function (q) {
+      var qq = (q || '').trim().toLowerCase();
+      grid.innerHTML = names.filter(function (nm) { return !qq || nm.indexOf(qq) !== -1; }).map(function (nm) {
+        return '<button type="button" class="gogh-iconpick' + (nm === e.icon ? ' is-active' : '') + '" data-icon="' + nm + '" title="' + nm.replace(/-/g, ' ') + '">' + iconSvg(nm, { size: 20 }) + '</button>';
+      }).join('') || '<div class="gogh-panel-hint">Nothing by that name.</div>';
+    };
+    draw('');
+    panel.querySelector('.gogh-icon-q').addEventListener('input', function (ev) { draw(ev.target.value); });
+    grid.addEventListener('click', function (ev) {
+      var b = ev.target.closest && ev.target.closest('.gogh-iconpick');
+      if (!b) return;
+      e.icon = b.dataset.icon;
+      grid.querySelectorAll('.gogh-iconpick').forEach(function (x) { x.classList.toggle('is-active', x === b); });
+      renderSection(sec);
+      placeHandles(sec, i);
+      pushState();
+    });
+  }
+  // a line has three dials: weight, style (solid, dotted, dashed) and
+  // width (the content column, or edge to edge). Colour rides the bar's
+  // swatch like words. (James: "be cool to have dotted and maybe full width")
+  function ruleIsFull(e) { return e.x <= 2 && e.x + e.w >= W - 2; }
+  function buildRulePanel(sec, i) {
+    var e = sec.els[i];
+    var weights = [[1, 'Hairline'], [2, 'Fine'], [4, 'Bold']];
+    var styles = [['', 'Solid'], ['dotted', 'Dotted'], ['dashed', 'Dashed']];
+    var full = ruleIsFull(e);
+    panel.innerHTML = '<div class="gogh-panel-hint">Weight</div>' +
+      '<div class="gogh-panel-row gogh-chrome-rows gogh-rule-weights">' + weights.map(function (w) {
+        return '<button type="button" class="gogh-btn gogh-btn-small' + ((+e.thick || 1) === w[0] ? ' is-active' : '') + '" data-thick="' + w[0] + '">' + w[1] + '</button>';
+      }).join('') + '</div>' +
+      '<div class="gogh-panel-hint">Style</div>' +
+      '<div class="gogh-panel-row gogh-chrome-rows gogh-rule-styles">' + styles.map(function (st) {
+        return '<button type="button" class="gogh-btn gogh-btn-small' + ((e.dash || '') === st[0] ? ' is-active' : '') + '" data-dash="' + st[0] + '">' + st[1] + '</button>';
+      }).join('') + '</div>' +
+      '<div class="gogh-panel-hint">Width</div>' +
+      '<div class="gogh-panel-row gogh-chrome-rows gogh-rule-widths">' +
+      '<button type="button" class="gogh-btn gogh-btn-small' + (full ? '' : ' is-active') + '" data-width="content">As placed</button>' +
+      '<button type="button" class="gogh-btn gogh-btn-small' + (full ? ' is-active' : '') + '" data-width="full" title="Edge to edge of the section">Full width</button>' +
+      '</div>';
+    var redraw = function () { renderSection(sec); placeHandles(sec, i); pushState(); };
+    panel.querySelectorAll('[data-thick]').forEach(function (b) {
+      b.addEventListener('click', function () {
+        e.thick = +b.dataset.thick;
+        panel.querySelectorAll('[data-thick]').forEach(function (x) { x.classList.toggle('is-active', x === b); });
+        redraw();
+      });
+    });
+    panel.querySelectorAll('[data-dash]').forEach(function (b) {
+      b.addEventListener('click', function () {
+        if (b.dataset.dash) e.dash = b.dataset.dash; else delete e.dash;
+        panel.querySelectorAll('[data-dash]').forEach(function (x) { x.classList.toggle('is-active', x === b); });
+        redraw();
+      });
+    });
+    panel.querySelectorAll('[data-width]').forEach(function (b) {
+      b.addEventListener('click', function () {
+        if (b.dataset.width === 'full') {
+          if (!ruleIsFull(e)) e.wasX = e.x, e.wasW = e.w; // the way back
+          e.x = 0; e.w = W;
+        } else {
+          e.x = e.wasX != null ? e.wasX : 80; e.w = e.wasW != null ? e.wasW : W - 160;
+          delete e.wasX; delete e.wasW;
+        }
+        panel.querySelectorAll('[data-width]').forEach(function (x) { x.classList.toggle('is-active', x === b); });
+        redraw();
+      });
+    });
   }
   function buildVideoPanel(sec, i) {
     var e = sec.els[i];
@@ -4756,7 +5982,7 @@
   colBtn.addEventListener('click', function () {
     if (!sel) return;
     var sec = sel.sec, i = sel.i, e = sec.els[i];
-    panel.innerHTML = '<div class="gogh-panel-title">Text colour</div>' +
+    panel.innerHTML = '<div class="gogh-panel-title">' + (e.type === 'rule' ? 'Line colour' : e.type === 'icon' ? 'Icon colour' : 'Text colour') + '</div>' +
       '<div class="gogh-swrow">' +
       '<button type="button" class="gogh-sw gogh-sw-none" data-col="" title="Theme default"></button>' +
       pickerPalette().map(function (p) {
@@ -4800,6 +6026,18 @@
       selObj.addRange(r);
     }
     openTextLinkPanel();
+  });
+  // plain → bullets → numbers → plain
+  lstBtn.addEventListener('click', function () {
+    if (!sel) return;
+    var e = sel.sec.els[sel.i];
+    if (e.type !== 'para') return;
+    if (textEditing && textEditing.sec === sel.sec && textEditing.i === sel.i) exitTextEdit();
+    e.list = e.list === 'ul' ? 'ol' : (e.list === 'ol' ? null : 'ul');
+    if (!e.list) delete e.list;
+    renderSection(sel.sec);
+    placeHandles(sel.sec, sel.i);
+    pushState();
   });
   alBtn.addEventListener('click', function () {
     if (!sel) return;
@@ -4941,7 +6179,7 @@
   elbar.querySelector('.gogh-eb-dup').addEventListener('click', function () {
     if (!sel) return;
     var sec = sel.sec;
-    var copy = JSON.parse(JSON.stringify(sec.els[sel.i]));
+    var copy = diceFreshIds([JSON.parse(JSON.stringify(sec.els[sel.i]))])[0]; // a copy is a new piece to the die
     copy.x = Math.min(W - copy.w, copy.x + 24);
     copy.y = copy.y + 24;
     sec.els.push(copy);
@@ -4954,7 +6192,7 @@
     if (!editing) return;
     var t = ev.target;
     if (!t || !t.closest) return;
-    var inUI = selBox.contains(t) || elbar.contains(t) || grip.contains(t) ||
+    var inUI = selBox.contains(t) || elbar.contains(t) || mbar.contains(t) || grip.contains(t) ||
       side.contains(t) || panel.contains(t) || picker.contains(t) ||
       secBar.contains(t) || secMore.contains(t) ||
       t === inserter || t === hbar;
@@ -5019,6 +6257,46 @@
     { key: 'diamond', label: 'Diamond', w: 320, h: 320 },
     { key: 'blob', label: 'Blob', w: 340, h: 320 },
   ];
+  // A SHAPE CAN HOLD THINGS. A card has always been a box with kids, and a
+  // shape has always been a field on a box — the same object in different
+  // clothes. What was missing is that a circle has far less usable room than
+  // its bounding box, so without this the words spill past the silhouette.
+  // Fractions of the box, except the pill whose caps are a real radius.
+  var SHAPE_INSET = {
+    circle:  { l: 0.146, t: 0.146, r: 0.146, b: 0.146 }, // the inscribed square: side = d / root two
+    blob:    { l: 0.10,  t: 0.10,  r: 0.10,  b: 0.10 },
+    arch:    { l: 0.06,  t: 0.18,  r: 0.06,  b: 0.04 },  // the roof eats the top
+    diamond: { l: 0.25,  t: 0.25,  r: 0.25,  b: 0.25 },  // half the width, half the height, centred
+    tri:     { l: 0.25,  t: 0.45,  r: 0.25,  b: 0.05 },  // the room is the lower middle
+  };
+  var SHAPE_GUTTER = 0.04; // a plain card still wants a gutter
+  // the rectangle a kid may occupy, in the card's own coordinates
+  function shapeRoom(e) {
+    var f = SHAPE_INSET[e.shape];
+    var l, t, r, b;
+    if (e.shape === 'pill') {
+      // the caps are semicircles of radius h/2 — that is a width, not a ratio
+      var cap = Math.min(e.h / 2, e.w * 0.4);
+      l = r = cap; t = b = e.h * 0.08;
+    } else if (f) {
+      l = e.w * f.l; r = e.w * f.r; t = e.h * f.t; b = e.h * f.b;
+    } else {
+      l = r = e.w * SHAPE_GUTTER; t = b = e.h * SHAPE_GUTTER;
+    }
+    var room = { x: Math.round(l), y: Math.round(t),
+      w: Math.round(e.w - l - r), h: Math.round(e.h - t - b) };
+    if (room.w < 24) { room.x = 0; room.w = e.w; }
+    if (room.h < 16) { room.y = 0; room.h = e.h; }
+    return room;
+  }
+  // move a kid inside the room, shrinking it only if it cannot otherwise fit
+  function fitKidToRoom(host, kid) {
+    var room = shapeRoom(host);
+    kid.w = Math.min(kid.w, room.w);
+    kid.h = Math.min(kid.h, room.h);
+    kid.x = Math.max(room.x, Math.min(room.x + room.w - kid.w, kid.x));
+    kid.y = Math.max(room.y, Math.min(room.y + room.h - kid.h, kid.y));
+  }
   var SHAPE_DEFAULT_BG = 'color-mix(in srgb, var(--wp--preset--color--contrast, #000) 12%, var(--wp--preset--color--base, transparent))';
   function shapePreviewCss(def) {
     var css = 'background: currentColor;';
@@ -5028,20 +6306,29 @@
     return css;
   }
   var DEFAULTS = {
-    heading: function () { return { type: 'heading', x: 80, y: 80, w: 420, h: 60, text: 'A new heading', ghost: false, cool: false }; },
-    para: function () { return { type: 'para', x: 80, y: 200, w: 380, h: 50, text: 'Some supporting copy. Drag me anywhere.', ghost: false, cool: false }; },
-    button: function () { return { type: 'button', x: 80, y: 320, w: 170, h: 52, text: 'Click me', ghost: false, cool: false }; },
-    image: function () { return { type: 'image', x: 520, y: 120, w: 360, h: 260, text: null, ghost: false, cool: true }; },
-    video: function () { return { type: 'video', x: 400, y: 100, w: 560, h: 315, text: null, ghost: false, cool: true, vplay: 'auto', radius: 14 }; },
-    badge: function () { return { type: 'badge', x: 520, y: 420, w: 220, h: 52, text: 'New badge', ghost: false, cool: false }; },
+    // every default height and resting y is a multiple of 24 (RHYTHM): a new
+    // piece is born on the rhythm and only a person's hand takes it off
+    heading: function () { return { type: 'heading', x: 80, y: 96, w: 420, h: 72, text: 'A new heading', ghost: false, cool: false }; },
+    para: function () { return { type: 'para', x: 80, y: 192, w: 380, h: 48, text: 'Some supporting copy. Drag me anywhere.', ghost: false, cool: false }; },
+    button: function () { return { type: 'button', x: 80, y: 312, w: 170, h: 48, text: 'Click me', ghost: false, cool: false }; },
+    image: function () { return { type: 'image', x: 520, y: 120, w: 360, h: 264, text: null, ghost: false, cool: true }; },
+    video: function () { return { type: 'video', x: 280, y: 96, w: 640, h: 360, text: null, ghost: false, cool: true, vplay: 'auto', radius: 14 }; },
+    badge: function () { return { type: 'badge', x: 520, y: 432, w: 220, h: 48, text: 'New badge', ghost: false, cool: false }; },
+    // a line: the row is one rhythm unit tall so the grid has something to
+    // hold; the stroke itself is 1px, centred in it
+    rule: function () { return { type: 'rule', x: 80, y: 192, w: 1040, h: 24, thick: 1 }; },
+    icon: function () { return { type: 'icon', x: 80, y: 96, w: 48, h: 48, icon: 'star' }; },
+    embed: function () { return { type: 'embed', x: 216, y: 96, w: 768, h: 432, url: null }; },
+    // a list is a paragraph wearing bullets: same words, same panel
+    list: function () { return { type: 'para', x: 80, y: 192, w: 420, h: 96, list: 'ul', text: 'The first point<br>The second point<br>The third point', ghost: false, cool: false }; },
     card: function () {
-      return { type: 'box', x: 360, y: 80, w: 480, h: 360, radius: 16,
+      return { type: 'box', x: 360, y: 96, w: 480, h: 360, radius: 16,
         boxBg: 'color-mix(in srgb, var(--wp--preset--color--contrast, #000) 7%, var(--wp--preset--color--base, transparent))' };
     },
     form: function () {
       // gogh's own form: name, email, message — every submission lands in
       // the Messages book in wp-admin and in the site's email. No plugin.
-      return { type: 'widget', x: 240, y: 60, w: 720, h: 420,
+      return { type: 'widget', x: 240, y: 72, w: 720, h: 432,
         wsrc: '<!-- wp:gogh/form /-->',
         whtml: '<div class="gogh-form">' +
           '<div class="gogh-form-row">' +
@@ -5054,17 +6341,14 @@
           '</div>' };
     },
     posts: function () {
-      // a real core query loop: WordPress renders it fresh on the published
-      // page (and it keeps working with the plugin deactivated)
-      var wsrc = '<!-- wp:query {"queryId":0,"query":{"perPage":3,"pages":0,"offset":0,"postType":"post","order":"desc","orderBy":"date","author":"","search":"","exclude":[],"sticky":"","inherit":false}} -->\n' +
-        '<div class="wp-block-query">' +
-        '<!-- wp:post-template {"layout":{"type":"grid","columnCount":3}} -->\n' +
-        '<!-- wp:post-featured-image {"isLink":true,"aspectRatio":"4/3"} /-->\n' +
-        '<!-- wp:post-title {"level":3,"isLink":true} /-->\n' +
-        '<!-- wp:post-date /-->\n' +
-        '<!-- /wp:post-template -->' +
-        '</div>\n<!-- /wp:query -->';
-      return { type: 'widget', x: 47, y: 60, w: 1106, h: 430, wsrc: wsrc,
+      // THE OTHER RAILS ELEMENT: a real core query loop composed from a few
+      // choices (how many, which, a look), so WordPress renders the posts
+      // fresh on the published page and the grid keeps working with gogh
+      // deactivated. The blog page's four looks are the grid's looks too
+      var posts = postsDefaults();
+      // the content width a heading uses (100..1100), so on the published page
+      // the rail shares the heading's column and the grid sits centred
+      return { type: 'widget', rails: true, posts: posts, x: 100, y: 72, w: 1000, h: 432, wsrc: composePosts(posts),
         whtml: '<div class="gogh-postsprev gogh-postsprev-loading">Loading your latest posts\u2026</div>' };
     },
     products: function () {
@@ -5075,23 +6359,277 @@
       // published page is native markup Woo renders fresh (prices, add to
       // cart, the lot) and keeps working with gogh deactivated.
       var shop = shopDefaults();
-      return { type: 'widget', rails: true, shop: shop, x: 47, y: 60, w: 1106, h: 470, wsrc: composeShop(shop),
+      return { type: 'widget', rails: true, shop: shop, x: 47, y: 72, w: 1106, h: 480, wsrc: composeShop(shop),
         whtml: '<div class="gogh-shopprev gogh-postsprev-loading">Loading your products\u2026</div>' };
     },
   };
-  function postsPreviewHTML(posts) {
-    return '<div class="gogh-postsprev">' + posts.map(function (p) {
-      var media = p._embedded && p._embedded['wp:featuredmedia'] && p._embedded['wp:featuredmedia'][0];
+  // ---------- the posts grid on rails ----------
+  function postsDefaults() {
+    return { look: '', count: 3, order: 'date', cat: null, catId: null,
+      show: { date: true, excerpt: false, category: false }, aspect: 'landscape', spacing: 'm' };
+  }
+  // the four looks the blog page can wear are the grid's looks: one family
+  // of CSS, so the home page teaser and the journal read as one
+  var POSTS_LOOKS = ['cards', 'list', 'cover', 'ledger'];
+  function composePosts(posts) {
+    posts = posts || postsDefaults();
+    var show = posts.show || { date: true, excerpt: false, category: false };
+    var count = Math.max(1, Math.min(12, +posts.count || 3));
+    // hand-picked: the exact posts, in this order (the server reads the
+    // marker from the template's class and narrows the query to them)
+    var picked = (posts.pick || []).map(function (p) { return +p.id; }).filter(Boolean);
+    if (picked.length) count = picked.length;
+    var orderBy = posts.order === 'title' ? 'title' : posts.order === 'rand' ? 'rand' : 'date';
+    var order = posts.order === 'title' || posts.order === 'oldest' ? 'asc' : 'desc';
+    var look = POSTS_LOOKS.indexOf(posts.look) !== -1 ? posts.look : '';
+    var cols = count >= 4 ? (count % 4 === 0 ? 4 : 3) : Math.max(1, count);
+    var ratio = posts.aspect === 'square' ? '1' : posts.aspect === 'portrait' ? '3/4' : '4/3';
+    // the count and the picture shape ride as classes too, so a look that
+    // lays its own grid (Cards) keeps the columns and the crop the preview
+    // showed — three wide cards, not three narrow ones and an empty fourth
+    var cls = 'gogh-posts gogh-posts-' + (look ? 'look' : 'grid') + ' gogh-posts-gap-' + (posts.spacing || 'm') +
+      ' gogh-posts-c' + cols + ' gogh-posts-pic-' + (posts.aspect === 'square' ? 'square' : posts.aspect === 'portrait' ? 'portrait' : 'landscape') +
+      (look ? ' gogh-blog-' + look : '');
+    var query = { perPage: count, pages: 0, offset: 0, postType: 'post', order: order, orderBy: orderBy, author: '', search: '', exclude: [], sticky: '', inherit: false };
+    if (posts.catId) query.taxQuery = { category: [+posts.catId] };
+    // a look lays the list out itself; the plain grid leans on core's grid
+    var tplAttrs = { className: 'gogh-posts-tpl' + (picked.length ? ' gogh-pick-' + picked.join(',') : ''),
+      layout: look ? { type: 'default' } : { type: 'grid', columnCount: cols } };
+    var inner = '<!-- wp:post-featured-image {"isLink":true,"aspectRatio":"' + ratio + '"} /-->\n' +
+      '<!-- wp:post-title {"level":3,"isLink":true} /-->\n' +
+      (show.category ? '<!-- wp:post-terms {"term":"category"} /-->\n' : '') +
+      (show.date ? '<!-- wp:post-date /-->\n' : '') +
+      (show.excerpt ? '<!-- wp:post-excerpt {"moreText":""} /-->\n' : '');
+    return '<!-- wp:query ' + JSON.stringify({ queryId: 0, query: query, className: cls }) + ' -->\n' +
+      '<div class="wp-block-query ' + cls + '">\n' +
+      '<!-- wp:post-template ' + JSON.stringify(tplAttrs) + ' -->\n' + inner + '<!-- /wp:post-template -->\n' +
+      '</div>\n<!-- /wp:query -->';
+  }
+  // what a posts rail shows before (or without) a fetch: the posts it last
+  // drew, redrawn in its current clothes, or the loading card
+  function postsSampleHTML(e) {
+    return e.__postsData ? postsPreviewHTML(e, e.__postsData) : '<div class="gogh-postsprev gogh-postsprev-loading">Loading your latest posts\u2026</div>';
+  }
+  function managePostsUrl(e) {
+    return (cfg.adminUrl || '/wp-admin/') + 'edit.php' + (e.posts && e.posts.catId ? '?cat=' + (+e.posts.catId) : '');
+  }
+  // a posts grid saved before it rode the rails: its choices, read back
+  function healPosts(e) {
+    var posts = postsDefaults();
+    try {
+      var m = /wp:query (\{[\s\S]*?\}) -->/.exec(e.wsrc || '');
+      var attrs = m ? JSON.parse(m[1]) : {};
+      var q = attrs.query || {};
+      if (q.perPage) posts.count = +q.perPage;
+      if (q.orderBy === 'title') posts.order = 'title';
+      else if (q.orderBy === 'rand') posts.order = 'rand';
+      else if (q.order === 'asc') posts.order = 'oldest';
+      if (q.taxQuery && q.taxQuery.category && q.taxQuery.category.length) posts.catId = +q.taxQuery.category[0];
+      var lk = /gogh-blog-(cards|list|cover|ledger)/.exec(String(attrs.className || ''));
+      if (lk) posts.look = lk[1];
+      var g = /gogh-posts-gap-([sml])/.exec(String(attrs.className || ''));
+      if (g) posts.spacing = g[1];
+      var ar = /"aspectRatio":"([^"]+)"/.exec(e.wsrc || '');
+      if (ar) posts.aspect = ar[1] === '3/4' ? 'portrait' : ar[1] === '1' ? 'square' : 'landscape';
+      posts.show = { date: /wp:post-date/.test(e.wsrc), excerpt: /wp:post-excerpt/.test(e.wsrc), category: /wp:post-terms/.test(e.wsrc) };
+      var pk = /gogh-pick-([\d,]+)/.exec(e.wsrc || '');
+      if (pk) posts.pick = pk[1].split(',').map(function (id) { return { id: +id, name: 'Post ' + id }; });
+    } catch (err) {}
+    e.rails = true;
+    e.posts = posts;
+  }
+  function postsPreviewHTML(e, posts) {
+    var p = (e && e.posts) || postsDefaults();
+    var show = p.show || { date: true, excerpt: false, category: false };
+    var n = Math.max(1, Math.min(12, (p.pick && p.pick.length) || +p.count || 3));
+    var look = POSTS_LOOKS.indexOf(p.look) !== -1 ? p.look : '';
+    var cols = look === 'list' || look === 'ledger' ? 1 : look === 'cover' ? 3 : (n >= 4 ? (n % 4 === 0 ? 4 : 3) : n);
+    var cls = 'gogh-postsprev gogh-postsprev-c' + cols + ' gogh-postsprev-' + (p.aspect || 'landscape') + ' gogh-postsprev-gap-' + (p.spacing || 'm') + (look ? ' gogh-postsprev-look-' + look : '');
+    if (!posts || !posts.length) {
+      // the designed empty grid: the owner sees the next verb, never a hole
+      return '<div class="' + cls + ' gogh-postsprev-empty"><div class="gogh-shopprev-emptycard">' +
+        '<strong>' + (p.catId ? 'Nothing in this category yet.' : 'No posts yet.') + '</strong>' +
+        '<span>' + (p.catId ? 'Posts filed under it appear here.' : 'Write your first post and it appears here.') + '</span>' +
+        '<a href="' + escAttr((cfg.adminUrl || '/wp-admin/') + 'post-new.php') + '" target="_blank" rel="noopener">Write a post ↗</a></div></div>';
+    }
+    return '<div class="' + cls + '">' + posts.map(function (post) {
+      var media = post._embedded && post._embedded['wp:featuredmedia'] && post._embedded['wp:featuredmedia'][0];
       var sizes = media && media.media_details && media.media_details.sizes;
       var src = sizes && ((sizes.medium_large || sizes.large || sizes.full || {}).source_url) || (media && media.source_url) || null;
       var when = '';
-      try { when = new Date(p.date).toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' }); } catch (err) {}
+      try { when = new Date(post.date).toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' }); } catch (err) {}
+      var cat = '';
+      try { var terms = post._embedded && post._embedded['wp:term']; cat = terms && terms[0] && terms[0][0] ? terms[0][0].name : ''; } catch (err2) {}
+      var ex = String((post.excerpt && post.excerpt.rendered) || '').replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim();
+      // no picture: a brand-tinted stand-in, hue seeded by the post so
+      // neighbours never match (the blog's own trick)
+      var hue = ((+post.id || 1) * 47) % 360;
       return '<div class="gogh-postsprev-card">' +
-        (src ? '<img src="' + escAttr(src) + '" alt="" />' : '<div class="gogh-postsprev-ph"></div>') +
-        '<h3>' + esc((p.title && p.title.rendered) || 'Untitled') + '</h3>' +
-        '<div class="gogh-postsprev-date">' + when + '</div>' +
-        '</div>';
+        (src ? '<img src="' + escAttr(src) + '" alt="" />' : '<div class="gogh-postsprev-ph" style="background: linear-gradient(130deg, oklch(0.72 0.09 ' + hue + '), oklch(0.35 0.08 ' + ((hue + 40) % 360) + '))"></div>') +
+        '<div class="gogh-postsprev-body">' +
+        (show.category && cat ? '<div class="gogh-postsprev-cat">' + esc(cat) + '</div>' : '') +
+        '<h3>' + esc((post.title && post.title.rendered) || 'Untitled') + '</h3>' +
+        (show.date ? '<div class="gogh-postsprev-date">' + when + '</div>' : '') +
+        (show.excerpt && ex ? '<div class="gogh-postsprev-ex">' + esc(ex.split(' ').slice(0, 22).join(' ')) + '</div>' : '') +
+        '</div></div>';
     }).join('') + '</div>';
+  }
+  function buildPostsPanel(sec, i) {
+    var e = sec.els[i];
+    var p = e.posts = e.posts || postsDefaults();
+    p.show = p.show || { date: true, excerpt: false, category: false };
+    var radios = function (cls, opts, cur) {
+      return '<div class="gogh-hoptlist ' + cls + '">' + opts.map(function (o) {
+        return '<button type="button" class="gogh-hopt' + (o[0] === cur ? ' is-active' : '') + '" data-v="' + o[0] + '">' +
+          '<span class="gogh-hopt-dot"></span><span class="gogh-hopt-name">' + esc(o[1]) + '</span></button>';
+      }).join('') + '</div>';
+    };
+    var chips = function (cls, opts, isOn) {
+      return '<div class="gogh-hpresets ' + cls + '">' + opts.map(function (o) {
+        return '<button type="button" class="gogh-hpreset' + (isOn(o[0]) ? ' is-active' : '') + '" data-v="' + o[0] + '">' + esc(o[1]) + '</button>';
+      }).join('') + '</div>';
+    };
+    panel.innerHTML =
+      '<div class="gogh-panel-title">Posts</div>' +
+      '<div class="gogh-shop-verbs">' +
+      '<a class="gogh-btn gogh-btn-small gogh-shop-manage" href="' + escAttr(managePostsUrl(e)) + '" target="_blank" rel="noopener">Manage posts ↗</a>' +
+      '<span class="gogh-shop-verb-on">Edit design</span></div>' +
+      '<div class="gogh-shop-auto">' +
+      '<div class="gogh-swlab">Posts</div>' +
+      chips('gogh-posts-count', [[3, '3'], [4, '4'], [6, '6'], [8, '8']], function (v) { return +v === +p.count; }) +
+      '<div class="gogh-swlab">Order</div>' +
+      radios('gogh-posts-order', [['date', 'Newest first'], ['oldest', 'Oldest first'], ['title', 'A to Z'], ['rand', 'A different set each visit']], p.order) +
+      '<div class="gogh-swlab">Category</div>' +
+      '<div class="gogh-panel-row"><select class="gogh-input gogh-posts-cat"><option value="">All posts</option></select></div>' +
+      '</div>' +
+      '<div class="gogh-swlab">Or hand-pick</div>' +
+      '<div class="gogh-shop-picked gogh-posts-picked"></div>' +
+      '<div class="gogh-panel-row"><input type="text" class="gogh-input gogh-posts-find" placeholder="Find a post by title…" /></div>' +
+      '<div class="gogh-shop-found gogh-posts-found"></div>' +
+      '<div class="gogh-swlab">Look</div>' +
+      radios('gogh-posts-look', [['', 'Grid — the theme’s own cards'], ['cards', 'Cards — pictures first'], ['list', 'List — hairlines, dates right'], ['cover', 'Cover — newest post huge'], ['ledger', 'Ledger — dense index']], p.look || '') +
+      '<div class="gogh-swlab">Show</div>' +
+      chips('gogh-posts-show', [['date', 'Date'], ['excerpt', 'Excerpt'], ['category', 'Category']], function (k) { return !!p.show[k]; }) +
+      '<div class="gogh-swlab">Picture</div>' +
+      chips('gogh-posts-aspect', [['landscape', 'Landscape'], ['square', 'Square'], ['portrait', 'Portrait']], function (v) { return v === (p.aspect || 'landscape'); }) +
+      '<div class="gogh-swlab">Spacing</div>' +
+      chips('gogh-posts-spacing', [['s', 'S'], ['m', 'M'], ['l', 'L']], function (v) { return v === (p.spacing || 'm'); }) +
+      '<div class="gogh-panel-hint">The looks are the four your blog page can wear, so the home page and the journal read as one.</div>';
+    var apply = function () {
+      e.wsrc = composePosts(p);
+      renderSection(sec);
+      placeHandles(sec, i);
+      pushState();
+      hydratePostsPreview(sec, e);
+      panel.querySelectorAll('.gogh-posts-count .gogh-hpreset').forEach(function (b) { b.classList.toggle('is-active', +b.dataset.v === +p.count); });
+      panel.querySelectorAll('.gogh-posts-order .gogh-hopt').forEach(function (b) { b.classList.toggle('is-active', b.dataset.v === p.order); });
+      panel.querySelectorAll('.gogh-posts-look .gogh-hopt').forEach(function (b) { b.classList.toggle('is-active', b.dataset.v === (p.look || '')); });
+      panel.querySelectorAll('.gogh-posts-show .gogh-hpreset').forEach(function (b) { b.classList.toggle('is-active', !!p.show[b.dataset.v]); });
+      panel.querySelectorAll('.gogh-posts-aspect .gogh-hpreset').forEach(function (b) { b.classList.toggle('is-active', b.dataset.v === (p.aspect || 'landscape')); });
+      panel.querySelectorAll('.gogh-posts-spacing .gogh-hpreset').forEach(function (b) { b.classList.toggle('is-active', b.dataset.v === (p.spacing || 'm')); });
+      var m = panel.querySelector('.gogh-shop-manage');
+      if (m) m.href = managePostsUrl(e);
+    };
+    panel.querySelectorAll('.gogh-posts-count .gogh-hpreset').forEach(function (b) { b.addEventListener('click', function () { p.count = +b.dataset.v; apply(); }); });
+    panel.querySelectorAll('.gogh-posts-order .gogh-hopt').forEach(function (b) { b.addEventListener('click', function () { p.order = b.dataset.v; apply(); }); });
+    panel.querySelectorAll('.gogh-posts-show .gogh-hpreset').forEach(function (b) { b.addEventListener('click', function () { p.show[b.dataset.v] = !p.show[b.dataset.v]; apply(); }); });
+    panel.querySelectorAll('.gogh-posts-aspect .gogh-hpreset').forEach(function (b) { b.addEventListener('click', function () { p.aspect = b.dataset.v; apply(); }); });
+    panel.querySelectorAll('.gogh-posts-spacing .gogh-hpreset').forEach(function (b) { b.addEventListener('click', function () { p.spacing = b.dataset.v; apply(); }); });
+    // looks AUDITION on hover and keep on click: the preview's last posts
+    // are redrawn in the hovered look, the kept look comes back on leave
+    var lookList = panel.querySelector('.gogh-posts-look');
+    var wearLook = function (look) {
+      if (!e.__postsData) return;
+      e.whtml = postsPreviewHTML({ posts: Object.assign({}, p, { look: look }) }, e.__postsData);
+      renderSection(sec);
+      placeHandles(sec, i);
+    };
+    lookList.querySelectorAll('.gogh-hopt').forEach(function (b) {
+      b.addEventListener('mouseenter', function () { wearLook(b.dataset.v); });
+      b.addEventListener('click', function () { p.look = b.dataset.v; apply(); });
+    });
+    lookList.addEventListener('mouseleave', function () { wearLook(p.look || ''); });
+    // categories: the site's own, with posts in them
+    fetch(cfg.restUrl.split('wp/v2/')[0] + 'wp/v2/categories?per_page=40&hide_empty=true&_fields=id,name,count', { headers: { 'X-WP-Nonce': cfg.nonce }, credentials: 'same-origin' })
+      .then(function (r) { return r.ok ? r.json() : []; }).catch(function () { return []; }).then(function (cats) {
+        var sel2 = panel.querySelector('.gogh-posts-cat');
+        if (!sel2 || panel.hidden) return;
+        (cats || []).forEach(function (c) {
+          var o = document.createElement('option');
+          o.value = c.id; o.textContent = c.name + ' (' + c.count + ')';
+          if (+c.id === +p.catId) o.selected = true;
+          sel2.appendChild(o);
+        });
+        sel2.addEventListener('change', function () {
+          var c = (cats || []).filter(function (x) { return +x.id === +sel2.value; })[0];
+          p.catId = c ? +c.id : null; p.cat = c ? c.name : null;
+          apply();
+        });
+      });
+    var picked = function () {
+      var box = panel.querySelector('.gogh-posts-picked');
+      var list = p.pick || [];
+      box.innerHTML = list.length
+        ? list.map(function (x, k) {
+          return '<span class="gogh-shop-pickchip">' + esc(x.name) + '<button type="button" class="gogh-shop-unpick" data-k="' + k + '" aria-label="Remove ' + escAttr(x.name) + '">&times;</button></span>';
+        }).join('') + '<div class="gogh-panel-hint">These, in this order. Count, order and category stand aside while you hand-pick.</div>'
+        : '<div class="gogh-panel-hint">Type a title to add the exact posts — the three you are proudest of, say.</div>';
+      panel.querySelectorAll('.gogh-shop-auto').forEach(function (nd) { nd.hidden = list.length > 0; });
+      box.querySelectorAll('.gogh-shop-unpick').forEach(function (b) {
+        b.addEventListener('click', function () {
+          p.pick.splice(+b.dataset.k, 1);
+          if (!p.pick.length) delete p.pick;
+          apply(); picked(); reclampPanel();
+        });
+      });
+    };
+    var find = panel.querySelector('.gogh-posts-find'), found = panel.querySelector('.gogh-posts-found'), findT = null;
+    find.addEventListener('input', function () {
+      clearTimeout(findT);
+      var qtext = find.value.trim();
+      if (qtext.length < 2) { found.innerHTML = ''; return; }
+      findT = setTimeout(function () {
+        fetch(cfg.restUrl.split('wp/v2/')[0] + 'wp/v2/posts?search=' + encodeURIComponent(qtext) + '&per_page=6&_fields=id,title,date', { headers: { 'X-WP-Nonce': cfg.nonce }, credentials: 'same-origin' })
+          .then(function (r) { return r.ok ? r.json() : []; }).catch(function () { return []; }).then(function (hits) {
+            if (panel.hidden || find.value.trim() !== qtext) return;
+            found.innerHTML = (hits || []).length ? hits.map(function (h) {
+              var on = (p.pick || []).some(function (x) { return +x.id === +h.id; });
+              var when = ''; try { when = new Date(h.date).toLocaleDateString(undefined, { year: 'numeric', month: 'short' }); } catch (err) {}
+              return '<button type="button" class="gogh-featrow gogh-shop-hit' + (on ? ' is-on' : '') + '" data-id="' + h.id + '" data-name="' + escAttr((h.title && h.title.rendered) || 'Untitled') + '">' +
+                '<span class="gogh-featname">' + esc((h.title && h.title.rendered) || 'Untitled') + '</span><span class="gogh-featprice">' + esc(when) + '</span></button>';
+            }).join('') : '<div class="gogh-panel-hint">No post by that title.</div>';
+            found.querySelectorAll('.gogh-shop-hit').forEach(function (b) {
+              b.addEventListener('click', function () {
+                p.pick = p.pick || [];
+                if (p.pick.some(function (x) { return +x.id === +b.dataset.id; })) return;
+                p.pick.push({ id: +b.dataset.id, name: b.dataset.name });
+                find.value = ''; found.innerHTML = '';
+                apply(); picked(); reclampPanel();
+              });
+            });
+          });
+      }, 220);
+    });
+    picked();
+  }
+  function hydratePostsPreview(sec, e) {
+    var p = e.posts || postsDefaults();
+    var picked = (p.pick || []).map(function (x) { return +x.id; }).filter(Boolean);
+    var q = picked.length
+      ? 'include=' + picked.join(',') + '&per_page=' + picked.length + '&orderby=include'
+      : 'per_page=' + Math.max(1, Math.min(12, +p.count || 3)) + '&orderby=' + (p.order === 'title' ? 'title' : 'date') +
+        '&order=' + (p.order === 'title' || p.order === 'oldest' ? 'asc' : 'desc') + (p.catId ? '&categories=' + (+p.catId) : '');
+    var gen = e.__postsGen = (e.__postsGen || 0) + 1;
+    fetch(cfg.restUrl.split('wp/v2/')[0] + 'wp/v2/posts?' + q + '&_embed=wp:featuredmedia,wp:term&status=publish', {
+      headers: { 'X-WP-Nonce': cfg.nonce },
+      credentials: 'same-origin',
+    }).then(function (r) { return r.ok ? r.json() : []; }).then(function (posts) {
+      if (gen !== e.__postsGen || sec.els.indexOf(e) === -1) return; // a newer choice is on its way
+      e.__postsData = Array.isArray(posts) ? posts : [];
+      e.whtml = postsPreviewHTML(e, e.__postsData);
+      renderSection(sec);
+      if (sel && sel.sec === sec) placeHandles(sec, sec.els.indexOf(e));
+    }).catch(function () {});
   }
   // a featured product is not an embed — it's a real gogh card composed of
   // real gogh elements (image, name, price badge, add-to-cart button), so
@@ -5105,13 +6643,13 @@
   }
   function composeFeaturedProduct(idx, p) {
     var card = {
-      type: 'box', x: 150, y: 60, w: 900, h: 400, radius: 16,
+      type: 'box', x: 150, y: 72, w: 900, h: 408, radius: 16,
       boxBg: 'color-mix(in srgb, var(--wp--preset--color--contrast, #000) 6%, var(--wp--preset--color--base, transparent))',
       kids: [
-        { type: 'image', x: 30, y: 30, w: 340, h: 340, src: p.img || null },
-        { type: 'heading', x: 420, y: 60, w: 440, h: 70, text: p.name || 'Product' },
-        { type: 'badge', x: 420, y: 170, w: 170, h: 48, text: p.priceText || '' },
-        { type: 'button', x: 420, y: 260, w: 250, h: 54, text: 'Add to cart', href: p.addUrl || p.permalink || null },
+        { type: 'image', x: 30, y: 30, w: 348, h: 348, src: p.img || null },
+        { type: 'heading', x: 420, y: 60, w: 440, h: 72, text: p.name || 'Product' },
+        { type: 'badge', x: 420, y: 168, w: 170, h: 48, text: p.priceText || '' },
+        { type: 'button', x: 420, y: 264, w: 250, h: 48, text: 'Add to cart', href: p.addUrl || p.permalink || null },
       ],
     };
     return addElementToSection(idx, card);
@@ -5359,17 +6897,6 @@
     }).then(function (r) { return r.ok ? r.json() : []; }).then(function (prods) {
       if (gen !== e.__shopGen || sec.els.indexOf(e) === -1) return; // a newer choice is on its way
       e.whtml = shopPreviewHTML(e, prods || []);
-      renderSection(sec);
-      if (sel && sel.sec === sec) placeHandles(sec, sec.els.indexOf(e));
-    }).catch(function () {});
-  }
-  function hydratePostsPreview(sec, e) {
-    fetch(cfg.restUrl.split('wp/v2/')[0] + 'wp/v2/posts?per_page=3&_embed=wp:featuredmedia&status=publish', {
-      headers: { 'X-WP-Nonce': cfg.nonce },
-      credentials: 'same-origin',
-    }).then(function (r) { return r.ok ? r.json() : []; }).then(function (posts) {
-      if (!posts.length || sec.els.indexOf(e) === -1) return;
-      e.whtml = postsPreviewHTML(posts);
       renderSection(sec);
       if (sel && sel.sec === sec) placeHandles(sec, sec.els.indexOf(e));
     }).catch(function () {});
@@ -5695,6 +7222,15 @@
         // alpha and blend, or a 10%-ink card judges as solid ink and the
         // sentinel paints pale cards white
         var bvA = bv ? cssToRgba(bv) : null;
+        // the card PAINTS its colour thinner than it names it: a 45% tint over
+        // its photo, 70% frosted glass (see the box renderer) -- judge what is
+        // painted, or white ink is left on a mid-grey that never appears
+        var paintA = box.boxImg ? 0.45 : (box.mood === 'glass' ? 0.7 : 1);
+        if (bvA) bvA = { rgb: bvA.rgb, a: bvA.a * paintA };
+        else if (box.mood === 'glass' && !box.boxImg) {
+          var gb = cssToRgb('var(--wp--preset--color--base, #fff)');
+          if (gb) bvA = { rgb: gb, a: 0.7 };
+        }
         var bvRgb = bvA && bvA.a > 0 ? bvA.rgb : null;
         var baseRgb = cssToRgb('var(--wp--preset--color--base, #fff)');
         var underL = (function () {
@@ -5729,6 +7265,7 @@
         var cardNode = sec.nodes[bi];
         if (!cardNode) return;
         var kidFlips = [];
+        var judged = [];
         box.kids.forEach(function (k, j) {
           if (!isText(k)) return;
           var kn = cardNode.querySelector('.gogh-k-' + (j + 1));
@@ -5738,9 +7275,18 @@
           if (!txt) return;
           var ground = groundFor(k);
           if (ground == null) return;
-          if (sentinelContrast(sentinelOver(txt, ground), ground) >= CONTRAST_FLOOR) return;
-          var pick = sentinelBestInk(ground);
-          if (pick.best && k.color !== pick.best) kidFlips.push({ j: j, to: pick.best });
+          judged.push({ j: j, k: k, ground: ground, fails: sentinelContrast(sentinelOver(txt, ground), ground) < CONTRAST_FLOOR });
+        });
+        // one verdict per solid card: a bold heading can clear the floor where
+        // the thin words beside it fail, and a card half dark, half light reads
+        // as a mistake (James's terracotta card). A photo card keeps judging
+        // each piece on its own patch of the picture.
+        var solid = !!bvRgb && !box.boxImg;
+        var anyFail = judged.some(function (d) { return d.fails; });
+        judged.forEach(function (d) {
+          if (!d.fails && !(solid && anyFail)) return;
+          var pick = sentinelBestInk(d.ground);
+          if (pick.best && d.k.color !== pick.best) kidFlips.push({ j: d.j, to: pick.best });
         });
         if (!kidFlips.length) return;
         pushState();
@@ -5818,6 +7364,29 @@
     var r = sec.wrapEl.getBoundingClientRect();
     return r.bottom > 60 && r.top < window.innerHeight - 60;
   }
+  // a new piece lands on the rhythm: its y is a multiple of 24, and if that
+  // would put it on words already there, or within a unit of them, it goes
+  // 24 under them instead (the
+  // paper: "a heading dropped from the shelf lands 24 under what's above
+  // it"). Backdrops are exempt — a shape is meant to sit behind things.
+  function landOnRhythm(sec, e, atBack) {
+    e.y = Math.max(RHYTHM, Math.round(e.y / RHYTHM) * RHYTHM);
+    if (atBack) return;
+    var words = sec.els.filter(function (o) { return guardTexty(o) && o !== e; })
+      .sort(function (a, b) { return a.y - b.y; });
+    for (var pass = 0; pass < 24; pass++) {
+      var hit = null;
+      words.forEach(function (o) {
+        if (hit) return;
+        var ox = Math.min(e.x + e.w, o.x + o.w) - Math.max(e.x, o.x);
+        // on the words, or closer to them than one rhythm unit
+        var near = e.y < o.y + o.h + RHYTHM && e.y + e.h + RHYTHM > o.y;
+        if (ox > 4 && near) hit = o;
+      });
+      if (!hit) return;
+      e.y = hit.y + hit.h + RHYTHM;
+    }
+  }
   function placeElAtViewport(e, atBack) {
     // land in what the user is looking at: the selected section if it's on
     // screen, else the most visible one — centred in the viewport
@@ -5831,6 +7400,7 @@
     e.x = Math.max(0, Math.min(W - e.w, e.x));
     e.y = Math.max(8, e.y);
     stagger++;
+    landOnRhythm(sec, e, atBack);
     addElement(sec, e, atBack);
     return e;
   }
@@ -5852,7 +7422,18 @@
     e.x = Math.max(0, Math.min(W - e.w, Math.round((W - e.w) / 2 + (stagger % 5) * 24 - 48)));
     e.y = Math.max(8, Math.round(Math.min(Math.max(8, (H - e.h) / 2), Math.max(8, H - e.h - 8)) + (stagger % 5) * 24 - 48));
     stagger++;
+    landOnRhythm(secx, e);
     addElement(secx, e);
+    // a new piece lands at the section's middle, which on a tall section
+    // can be below the fold — bring it into view so what was chosen is
+    // seen (James: "should we scroll to the element that's been added?")
+    requestAnimationFrame(function () {
+      var node = secx.nodes && secx.nodes[secx.els.indexOf(e)];
+      if (!node) return;
+      var r = node.getBoundingClientRect();
+      var top = window.innerHeight * 0.12, bottom = window.innerHeight * 0.88;
+      if (r.top < top || r.bottom > bottom) node.scrollIntoView({ block: 'center', behavior: 'smooth' });
+    });
     if (kindKey === 'posts') hydratePostsPreview(secx, e);
     if (kindKey === 'products') hydrateProductsPreview(secx, e);
     return e;
@@ -5862,6 +7443,13 @@
     panel.innerHTML = '<div class="gogh-panel-title">Add to this section</div>' +
       '<div class="gogh-addmenu">' + ELEM_ITEMS + addonItemsHTML() + '</div>';
     placePanelNear(secx.wrapEl);
+    // an open panel is an open panel: a click on the canvas closes it
+    // (James: "i dont seem to be able to click off after this has opened")
+    panelOpen = true;
+    panelSticky = false;
+    // the corners fold while the menu is up — the panel's ground is
+    // translucent and the Add pill showed through it
+    goghFadeOut(secBar);
     panel.querySelectorAll('.gogh-sitem').forEach(function (btn) {
       btn.addEventListener('click', function () {
         closePanel();
@@ -6093,17 +7681,34 @@
     });
   }
   var helpBtn = side.querySelector('.gogh-help');
-  if (helpBtn) helpBtn.addEventListener('click', function () {
+  // the same sheet answers the ? in the side rail and the ? in the admin
+  // bar (James: 'a little help icon in the admin toolbar, just to the
+  // left of howdy'); outside the editor that admin bar link opens the
+  // helper in a new tab instead
+  var abHelp = document.querySelector('#wp-admin-bar-gogh-help > a');
+  if (abHelp && cfg.helpUrl) abHelp.addEventListener('click', function (ev) { ev.preventDefault(); toggleHelpSheet(); });
+  if (helpBtn) helpBtn.addEventListener('click', function () { toggleHelpSheet(); });
+  function toggleHelpSheet() {
     if (!helpSheet) {
       helpSheet = document.createElement('div');
       helpSheet.className = 'gogh-helpsheet';
+      // a narrow column is right for a quick answer and wrong for reading a
+      // long one (or watching the film), so the sheet can be made bigger
       helpSheet.innerHTML = '<div class="gogh-helpsheet-bar"><span>gogh help</span>' +
-        '<button type="button" class="gogh-sbtn gogh-helpsheet-x" title="Close">✕</button></div>' +
-        '<iframe src="' + escAttr(helpSrc()) + '" title="gogh help"></iframe>';
+        '<span class="gogh-helpsheet-btns">' +
+        '<button type="button" class="gogh-sbtn gogh-helpsheet-wide" title="Make this bigger">\u2921</button>' +
+        '<button type="button" class="gogh-sbtn gogh-helpsheet-x" title="Close">✕</button></span></div>' +
+        '<iframe src="' + escAttr(helpSrc()) + '" title="gogh help" allow="fullscreen"></iframe>';
       document.body.appendChild(helpSheet);
       helpSheet.querySelector('.gogh-helpsheet-x').addEventListener('click', function () {
         helpSheet.classList.remove('is-open');
         document.body.classList.remove('gogh-help-open');
+      });
+      helpSheet.querySelector('.gogh-helpsheet-wide').addEventListener('click', function (ev) {
+        var wide = helpSheet.classList.toggle('is-wide');
+        document.body.classList.toggle('gogh-help-wide', wide);
+        ev.currentTarget.title = wide ? 'Make this smaller' : 'Make this bigger';
+        ev.currentTarget.textContent = wide ? '\u2922' : '\u2921';
       });
     } else if (!helpSheet.classList.contains('is-open')) {
       // reopening in a NEW situation refreshes the bot's context; the same
@@ -6117,28 +7722,28 @@
     // aside so nothing ever sits on the ask box
     document.body.classList.toggle('gogh-help-open', helpSheet.classList.contains('is-open'));
     closeSide(true);
-  });
+  }
 
   // ---------- section templates & picker ----------
   var TEMPLATES = [
     // fs '__max' resolves to the theme's largest font-size preset at insert
-    { name: 'Start from scratch', minH: 480, els: [] },
+    { name: 'Start from scratch', minH: 504, els: [] },
     // ---- starters: born freeform, theme-adaptive, art-directed ----
     // one coherent world (a small design studio) so the previews read as a
     // real site, not lorem; eyebrows are paras wearing tf, ink sections are
     // theme-contrast backgrounds so every style variation re-dresses them
-    { starter: true, intent: 'introduce', name: 'Hero', minH: 640, els: [
-      { type: 'box', x: 640, y: 150, w: 500, h: 430, boxBg: 'color-mix(in srgb, var(--wp--preset--color--contrast, #000) 8%, var(--wp--preset--color--base, transparent))', radius: 26 },
-      { type: 'image', x: 600, y: 110, w: 500, h: 430, cool: true },
-      { type: 'badge', x: 560, y: 486, w: 196, h: 50, text: '\u2605 Est. 2019', rot: -2 },
-      { type: 'para', x: 72, y: 118, w: 340, h: 24, text: 'Design studio \u00b7 Brighton',
+    { starter: true, intent: 'introduce', name: 'Hero', minH: 648, els: [
+      { type: 'box', x: 640, y: 144, w: 500, h: 432, boxBg: 'color-mix(in srgb, var(--wp--preset--color--contrast, #000) 8%, var(--wp--preset--color--base, transparent))', radius: 26 },
+      { type: 'image', x: 600, y: 120, w: 500, h: 432, cool: true },
+      { type: 'badge', x: 560, y: 480, w: 196, h: 48, text: '\u2605 Est. 2019', rot: -2 },
+      { type: 'para', x: 72, y: 120, w: 340, h: 24, text: 'Design studio \u00b7 Brighton',
         tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
-      { type: 'heading', x: 72, y: 162, w: 470, h: 200, text: 'We make brands people remember', fs: '__max' },
-      { type: 'para', x: 72, y: 396, w: 410, h: 72, text: 'Strategy, identity and websites for founders who care how things feel. Everything on this page is draggable \u2014 start here and make it yours.' },
-      { type: 'button', x: 72, y: 502, w: 180, h: 54, text: 'See the work' },
-      { type: 'button', x: 272, y: 502, w: 180, h: 54, text: 'Start a project', ghost: true },
+      { type: 'heading', x: 72, y: 168, w: 470, h: 192, text: 'We make brands people remember', fs: '__max' },
+      { type: 'para', x: 72, y: 384, w: 410, h: 72, text: 'Strategy, identity and websites for founders who care how things feel. Everything on this page is draggable \u2014 start here and make it yours.' },
+      { type: 'button', x: 72, y: 504, w: 180, h: 48, text: 'See the work' },
+      { type: 'button', x: 272, y: 504, w: 180, h: 48, text: 'Start a project', ghost: true },
     ] },
-    { starter: true, intent: 'introduce', name: 'Cover', minH: 640,
+    { starter: true, intent: 'introduce', name: 'Cover', minH: 648,
       // the canonical hero: full-bleed picture, theme tint, centred words,
       // parallax by default (James's call — the flagship wears the effect).
       // Ships on a wheat field from the plugin's own shelf — swap it from
@@ -6147,209 +7752,209 @@
       fx: { bg: 'parallax' },
       bgImage: '/wp-content/plugins/gogh/demo-assets/wheat-field.jpg',
       els: [
-      { type: 'para', x: 400, y: 150, w: 400, h: 24, align: 'center', text: 'Est. 2019 \u00b7 Brighton',
+      { type: 'para', x: 400, y: 144, w: 400, h: 24, align: 'center', text: 'Est. 2019 \u00b7 Brighton',
         tf: { fs: 13, fw: 600, ls2: 0.24, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--base, #fff) 78%, transparent)' } },
-      { type: 'heading', x: 150, y: 210, w: 900, h: 160, text: 'Make it feel like you', fs: '__max', align: 'center', color: 'base' },
-      { type: 'para', x: 320, y: 400, w: 560, h: 52, align: 'center', text: 'One clear promise over one strong picture \u2014 the front door most sites need.', color: 'base' },
-      { type: 'button', x: 505, y: 496, w: 190, h: 56, text: 'Come on in', tf: { bg: 'var(--wp--preset--color--base, #fff)', col: 'var(--wp--preset--color--contrast, #141519)' } },
+      { type: 'heading', x: 150, y: 216, w: 900, h: 144, text: 'Make it feel like you', fs: '__max', align: 'center', color: 'base' },
+      { type: 'para', x: 320, y: 408, w: 560, h: 48, align: 'center', text: 'One clear promise over one strong picture \u2014 the front door most sites need.', color: 'base' },
+      { type: 'button', x: 505, y: 504, w: 190, h: 48, text: 'Come on in', tf: { bg: 'var(--wp--preset--color--base, #fff)', col: 'var(--wp--preset--color--contrast, #141519)' } },
     ] },
-    { starter: true, intent: 'introduce', name: 'Big statement', minH: 520, els: [
-      { type: 'para', x: 400, y: 92, w: 400, h: 24, align: 'center', text: 'What we believe',
+    { starter: true, intent: 'introduce', name: 'Big statement', minH: 504, els: [
+      { type: 'para', x: 400, y: 96, w: 400, h: 24, align: 'center', text: 'What we believe',
         tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
-      { type: 'heading', x: 60, y: 150, w: 1080, h: 240, text: 'Good design is good business', fs: '__disp-l', align: 'center' },
-      { type: 'button', x: 516, y: 428, w: 168, h: 52, text: 'Our thinking', ghost: true },
+      { type: 'heading', x: 60, y: 144, w: 1080, h: 240, text: 'Good design is good business', fs: '__disp-l', align: 'center' },
+      { type: 'button', x: 516, y: 432, w: 168, h: 48, text: 'Our thinking', ghost: true },
     ] },
-    { starter: true, intent: 'introduce', name: 'Story', minH: 600, els: [
-      { type: 'image', x: 72, y: 84, w: 470, h: 452, cool: true },
-      { type: 'badge', x: 44, y: 58, w: 122, h: 48, text: 'N\u00ba 01', rot: -2 },
-      { type: 'para', x: 620, y: 122, w: 300, h: 24, text: 'Our story',
+    { starter: true, intent: 'introduce', name: 'Story', minH: 576, els: [
+      { type: 'image', x: 72, y: 96, w: 470, h: 456, cool: true },
+      { type: 'badge', x: 44, y: 48, w: 122, h: 48, text: 'N\u00ba 01', rot: -2 },
+      { type: 'para', x: 620, y: 120, w: 300, h: 24, text: 'Our story',
         tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
-      { type: 'heading', x: 620, y: 162, w: 480, h: 120, text: 'It started in a spare room', fs: 'x-large' },
-      { type: 'para', x: 620, y: 306, w: 460, h: 84, text: 'Two desks, one borrowed lamp, and a first client who paid in coffee. We said yes to everything and learned what we were good at.' },
-      { type: 'para', x: 620, y: 406, w: 460, h: 84, text: 'Six years on we are eleven people, still small on purpose, and still excited on Mondays.' },
-      { type: 'button', x: 620, y: 512, w: 220, h: 52, text: 'The whole story', ghost: true },
+      { type: 'heading', x: 620, y: 168, w: 480, h: 120, text: 'It started in a spare room', fs: 'x-large' },
+      { type: 'para', x: 620, y: 312, w: 460, h: 72, text: 'Two desks, one borrowed lamp, and a first client who paid in coffee. We said yes to everything and learned what we were good at.' },
+      { type: 'para', x: 620, y: 408, w: 460, h: 72, text: 'Six years on we are eleven people, still small on purpose, and still excited on Mondays.' },
+      { type: 'button', x: 620, y: 504, w: 220, h: 48, text: 'The whole story', ghost: true },
     ] },
-    { starter: true, intent: 'introduce', name: 'Numbers', minH: 420, els: [
-      { type: 'para', x: 72, y: 76, w: 300, h: 24, text: 'By the numbers',
+    { starter: true, intent: 'introduce', name: 'Numbers', minH: 432, els: [
+      { type: 'para', x: 72, y: 72, w: 300, h: 24, text: 'By the numbers',
         tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
-      { type: 'heading', x: 72, y: 140, w: 330, h: 120, text: '184', fs: '__disp-m' },
-      { type: 'para', x: 76, y: 276, w: 290, h: 44, text: 'Projects shipped since 2019' },
-      { type: 'heading', x: 435, y: 140, w: 330, h: 120, text: '12', fs: '__disp-m' },
-      { type: 'para', x: 439, y: 276, w: 290, h: 44, text: 'Design awards on two shelves' },
-      { type: 'heading', x: 798, y: 140, w: 330, h: 120, text: '98%', fs: '__disp-m' },
-      { type: 'para', x: 802, y: 276, w: 290, h: 44, text: 'Clients who came back for more' },
+      { type: 'heading', x: 72, y: 144, w: 330, h: 120, text: '184', fs: '__disp-m' },
+      { type: 'para', x: 76, y: 288, w: 290, h: 24, text: 'Projects shipped since 2019' },
+      { type: 'heading', x: 435, y: 144, w: 330, h: 120, text: '12', fs: '__disp-m' },
+      { type: 'para', x: 439, y: 288, w: 290, h: 24, text: 'Design awards on two shelves' },
+      { type: 'heading', x: 798, y: 144, w: 330, h: 120, text: '98%', fs: '__disp-m' },
+      { type: 'para', x: 802, y: 288, w: 290, h: 24, text: 'Clients who came back for more' },
     ] },
-    { starter: true, intent: 'introduce', name: 'Article', minH: 620, els: [
-      { type: 'para', x: 280, y: 58, w: 300, h: 24, text: 'From the journal',
+    { starter: true, intent: 'introduce', name: 'Article', minH: 648, els: [
+      { type: 'para', x: 280, y: 48, w: 300, h: 24, text: 'From the journal',
         tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
-      { type: 'heading', x: 280, y: 98, w: 640, h: 70, text: 'Notes on doing less, better', fs: 'x-large' },
-      { type: 'para', x: 280, y: 196, w: 640, h: 66, text: 'A comfortable reading column, the width your theme uses for posts. Gogh is not only for splashy pages \u2014 it is a pleasant place to just write.' },
-      { type: 'para', x: 280, y: 286, w: 640, h: 66, text: 'Add paragraphs, pull a quote out to the side when you need one, and drop an image between thoughts. Everything still publishes as clean WordPress blocks.' },
-      { type: 'para', x: 280, y: 376, w: 640, h: 66, text: 'And the moment an article needs something bolder \u2014 a full-width image, a card, a big number \u2014 you can simply place it.' },
-      { type: 'button', x: 280, y: 482, w: 200, h: 54, text: 'Keep reading', ghost: true },
+      { type: 'heading', x: 280, y: 96, w: 640, h: 48, text: 'Notes on doing less, better', fs: 'x-large' },
+      { type: 'para', x: 280, y: 192, w: 640, h: 48, text: 'A comfortable reading column, the width your theme uses for posts. Gogh is not only for splashy pages \u2014 it is a pleasant place to just write.' },
+      { type: 'para', x: 280, y: 288, w: 640, h: 48, text: 'Add paragraphs, pull a quote out to the side when you need one, and drop an image between thoughts. Everything still publishes as clean WordPress blocks.' },
+      { type: 'para', x: 280, y: 384, w: 640, h: 48, text: 'And the moment an article needs something bolder \u2014 a full-width image, a card, a big number \u2014 you can simply place it.' },
+      { type: 'button', x: 280, y: 480, w: 200, h: 48, text: 'Keep reading', ghost: true },
     ] },
     // ---- Sell, with rails (design note: Gogh Shop): freeform story pieces
     // around ONE rails element — the products are Woo's, the layout is ours.
     // Only shown when WooCommerce is present (gated) ----
-    { starter: true, gated: 'hasWoo', intent: 'sell', name: 'Featured product', minH: 560, els: [
-      { type: 'para', x: 72, y: 110, w: 340, h: 24, text: 'This week', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
-      { type: 'heading', x: 72, y: 150, w: 470, h: 160, text: 'The one everyone asks about', fs: '__max' },
-      { type: 'para', x: 72, y: 340, w: 420, h: 72, text: 'Made in small batches and gone by Friday. If you only try one thing, try this.' },
-      { type: 'button', x: 72, y: 440, w: 200, h: 54, text: 'See everything', href: '/shop/', ghost: true },
-      { type: 'widget', rails: true, x: 640, y: 80, w: 460, h: 440, shop: { count: 1, order: 'popularity', layout: 'grid', aspect: 'square', spacing: 'm' } },
+    { starter: true, gated: 'hasWoo', intent: 'sell', name: 'Featured product', minH: 576, els: [
+      { type: 'para', x: 72, y: 96, w: 340, h: 24, text: 'This week', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
+      { type: 'heading', x: 72, y: 144, w: 470, h: 144, text: 'The one everyone asks about', fs: '__max' },
+      { type: 'para', x: 72, y: 336, w: 420, h: 72, text: 'Made in small batches and gone by Friday. If you only try one thing, try this.' },
+      { type: 'button', x: 72, y: 432, w: 200, h: 48, text: 'See everything', href: '/shop/', ghost: true },
+      { type: 'widget', rails: true, x: 640, y: 72, w: 460, h: 432, shop: { count: 1, order: 'popularity', layout: 'grid', aspect: 'square', spacing: 'm' } },
     ] },
-    { starter: true, gated: 'hasWoo', intent: 'sell', name: 'Bestsellers', minH: 700, els: [
-      { type: 'para', x: 72, y: 84, w: 340, h: 24, text: 'Most loved', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
-      { type: 'heading', x: 72, y: 124, w: 600, h: 90, text: 'Bestsellers', fs: 'x-large' },
-      { type: 'para', x: 72, y: 220, w: 520, h: 48, text: 'What people come back for. Ordered by what sells, so it looks after itself.' },
-      { type: 'button', x: 900, y: 214, w: 200, h: 54, text: 'See everything', href: '/shop/', ghost: true },
-      { type: 'widget', rails: true, x: 47, y: 300, w: 1106, h: 360, shop: { count: 3, order: 'popularity', layout: 'grid', aspect: 'square', spacing: 'm' } },
+    { starter: true, gated: 'hasWoo', intent: 'sell', name: 'Bestsellers', minH: 720, els: [
+      { type: 'para', x: 72, y: 72, w: 340, h: 24, text: 'Most loved', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
+      { type: 'heading', x: 72, y: 120, w: 600, h: 72, text: 'Bestsellers', fs: 'x-large' },
+      { type: 'para', x: 72, y: 216, w: 520, h: 48, text: 'What people come back for. Ordered by what sells, so it looks after itself.' },
+      { type: 'button', x: 900, y: 216, w: 200, h: 48, text: 'See everything', href: '/shop/', ghost: true },
+      { type: 'widget', rails: true, x: 47, y: 288, w: 1106, h: 360, shop: { count: 3, order: 'popularity', layout: 'grid', aspect: 'square', spacing: 'm' } },
     ] },
-    { starter: true, gated: 'hasWoo', intent: 'sell', name: 'Editorial split', minH: 660, els: [
-      { type: 'para', x: 72, y: 110, w: 340, h: 24, text: 'From the workshop', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
-      { type: 'heading', x: 72, y: 150, w: 460, h: 160, text: 'Made slowly, sent this week', fs: '__max' },
-      { type: 'para', x: 72, y: 340, w: 420, h: 96, text: 'Two pieces we are proud of this month, and the story of how they came to be. Everything is made here, in small batches.' },
-      { type: 'button', x: 72, y: 470, w: 200, h: 54, text: 'See everything', href: '/shop/', ghost: true },
-      { type: 'widget', rails: true, x: 600, y: 80, w: 540, h: 520, shop: { count: 2, order: 'date', layout: 'grid', aspect: 'portrait', spacing: 'm' } },
+    { starter: true, gated: 'hasWoo', intent: 'sell', name: 'Editorial split', minH: 648, els: [
+      { type: 'para', x: 72, y: 96, w: 340, h: 24, text: 'From the workshop', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
+      { type: 'heading', x: 72, y: 144, w: 460, h: 144, text: 'Made slowly, sent this week', fs: '__max' },
+      { type: 'para', x: 72, y: 336, w: 420, h: 96, text: 'Two pieces we are proud of this month, and the story of how they came to be. Everything is made here, in small batches.' },
+      { type: 'button', x: 72, y: 480, w: 200, h: 48, text: 'See everything', href: '/shop/', ghost: true },
+      { type: 'widget', rails: true, x: 600, y: 72, w: 540, h: 528, shop: { count: 2, order: 'date', layout: 'grid', aspect: 'portrait', spacing: 'm' } },
     ] },
     // ---- Menu panels (the mega menu): a page that drops from a menu item.
     // Only on a panel's own canvas; links are plain words with links in them ----
     { starter: true, gated: 'isPanel', intent: 'panel', name: 'Columns of links', minH: 360, els: [
-      { type: 'para', x: 80, y: 60, w: 300, h: 24, text: 'Explore', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
-      { type: 'para', x: 80, y: 100, w: 300, h: 180, text: '<a href="/">Home</a><br><a href="/about/">Our story</a><br><a href="/blog/">Journal</a><br><a href="/contact/">Get in touch</a>' },
-      { type: 'para', x: 460, y: 60, w: 300, h: 24, text: 'Shop', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
-      { type: 'para', x: 460, y: 100, w: 300, h: 180, text: '<a href="/shop/">Everything</a><br><a href="/shop/?orderby=date">New in</a><br><a href="/shop/?orderby=popularity">Most loved</a><br><a href="/shop/?on_sale=1">On sale</a>' },
-      { type: 'para', x: 840, y: 60, w: 300, h: 24, text: 'Help', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
-      { type: 'para', x: 840, y: 100, w: 300, h: 180, text: '<a href="/faq/">Questions</a><br><a href="/delivery/">Delivery &amp; returns</a><br><a href="/contact/">Find us</a>' },
+      { type: 'para', x: 80, y: 48, w: 300, h: 24, text: 'Explore', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
+      { type: 'para', x: 80, y: 96, w: 300, h: 168, text: '<a href="/">Home</a><br><a href="/about/">Our story</a><br><a href="/blog/">Journal</a><br><a href="/contact/">Get in touch</a>' },
+      { type: 'para', x: 460, y: 48, w: 300, h: 24, text: 'Shop', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
+      { type: 'para', x: 460, y: 96, w: 300, h: 168, text: '<a href="/shop/">Everything</a><br><a href="/shop/?orderby=date">New in</a><br><a href="/shop/?orderby=popularity">Most loved</a><br><a href="/shop/?on_sale=1">On sale</a>' },
+      { type: 'para', x: 840, y: 48, w: 300, h: 24, text: 'Help', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
+      { type: 'para', x: 840, y: 96, w: 300, h: 168, text: '<a href="/faq/">Questions</a><br><a href="/delivery/">Delivery &amp; returns</a><br><a href="/contact/">Find us</a>' },
     ] },
-    { starter: true, gated: 'isPanel', intent: 'panel', name: 'Featured and links', minH: 400, els: [
-      { type: 'image', x: 60, y: 50, w: 420, h: 300, cool: true },
-      { type: 'para', x: 520, y: 60, w: 300, h: 24, text: 'This month', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
-      { type: 'heading', x: 520, y: 100, w: 320, h: 80, text: 'The one to see first', fs: 'medium' },
-      { type: 'para', x: 520, y: 190, w: 300, h: 72, text: 'A line on why it matters right now, and where it takes you.' },
-      { type: 'button', x: 520, y: 280, w: 160, h: 48, text: 'See it', href: '/shop/', ghost: true },
-      { type: 'para', x: 900, y: 60, w: 240, h: 24, text: 'Explore', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
-      { type: 'para', x: 900, y: 100, w: 240, h: 180, text: '<a href="/">Home</a><br><a href="/about/">Our story</a><br><a href="/blog/">Journal</a><br><a href="/contact/">Get in touch</a>' },
+    { starter: true, gated: 'isPanel', intent: 'panel', name: 'Featured and links', minH: 432, els: [
+      { type: 'image', x: 60, y: 48, w: 420, h: 288, cool: true },
+      { type: 'para', x: 520, y: 48, w: 300, h: 24, text: 'This month', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
+      { type: 'heading', x: 520, y: 96, w: 320, h: 72, text: 'The one to see first', fs: 'medium' },
+      { type: 'para', x: 520, y: 192, w: 300, h: 72, text: 'A line on why it matters right now, and where it takes you.' },
+      { type: 'button', x: 520, y: 288, w: 160, h: 48, text: 'See it', href: '/shop/', ghost: true },
+      { type: 'para', x: 900, y: 48, w: 240, h: 24, text: 'Explore', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
+      { type: 'para', x: 900, y: 96, w: 240, h: 168, text: '<a href="/">Home</a><br><a href="/about/">Our story</a><br><a href="/blog/">Journal</a><br><a href="/contact/">Get in touch</a>' },
     ] },
-    { starter: true, gated: 'isPanel', intent: 'panel', name: 'Picture doors', minH: 380, els: [
-      { type: 'image', x: 60, y: 50, w: 340, h: 220, cool: true },
-      { type: 'heading', x: 60, y: 286, w: 340, h: 40, text: 'Spring collection', fs: 'medium' },
-      { type: 'image', x: 430, y: 50, w: 340, h: 220, cool: false },
-      { type: 'heading', x: 430, y: 286, w: 340, h: 40, text: 'Gifts', fs: 'medium' },
-      { type: 'image', x: 800, y: 50, w: 340, h: 220, cool: true },
-      { type: 'heading', x: 800, y: 286, w: 340, h: 40, text: 'Our story', fs: 'medium' },
+    { starter: true, gated: 'isPanel', intent: 'panel', name: 'Picture doors', minH: 360, els: [
+      { type: 'image', x: 60, y: 48, w: 340, h: 216, cool: true },
+      { type: 'heading', x: 60, y: 288, w: 340, h: 24, text: 'Spring collection', fs: 'medium' },
+      { type: 'image', x: 430, y: 48, w: 340, h: 216, cool: false },
+      { type: 'heading', x: 430, y: 288, w: 340, h: 24, text: 'Gifts', fs: 'medium' },
+      { type: 'image', x: 800, y: 48, w: 340, h: 216, cool: true },
+      { type: 'heading', x: 800, y: 288, w: 340, h: 24, text: 'Our story', fs: 'medium' },
     ] },
-    { starter: true, gated: 'isPanelWoo', intent: 'panel', name: 'Categories in the menu', minH: 400, els: [
-      { type: 'heading', x: 60, y: 50, w: 500, h: 50, text: 'Shop by category', fs: 'medium' },
+    { starter: true, gated: 'isPanelWoo', intent: 'panel', name: 'Categories in the menu', minH: 432, els: [
+      { type: 'heading', x: 60, y: 48, w: 500, h: 48, text: 'Shop by category', fs: 'medium' },
       { type: 'widget', rails: true, x: 60, y: 120, w: 1080, h: 240, shop: { kind: 'categories', count: 4, layout: 'grid', aspect: 'square', spacing: 's', show: { price: false, rating: false, button: false } } },
     ] },
-    { starter: true, gated: 'isPanelWoo', intent: 'panel', name: 'Featured product in the menu', minH: 400, els: [
-      { type: 'widget', rails: true, x: 60, y: 50, w: 400, h: 300, shop: { count: 1, order: 'popularity', layout: 'grid', aspect: 'landscape', spacing: 's', show: { price: true, rating: false, button: true } } },
-      { type: 'para', x: 520, y: 60, w: 300, h: 24, text: 'Shop', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
-      { type: 'para', x: 520, y: 100, w: 300, h: 180, text: '<a href="/shop/">Everything</a><br><a href="/shop/?orderby=date">New in</a><br><a href="/shop/?orderby=popularity">Most loved</a><br><a href="/shop/?on_sale=1">On sale</a>' },
-      { type: 'para', x: 880, y: 60, w: 260, h: 24, text: 'Help', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
-      { type: 'para', x: 880, y: 100, w: 260, h: 180, text: '<a href="/faq/">Questions</a><br><a href="/delivery/">Delivery &amp; returns</a><br><a href="/contact/">Find us</a>' },
+    { starter: true, gated: 'isPanelWoo', intent: 'panel', name: 'Featured product in the menu', minH: 432, els: [
+      { type: 'widget', rails: true, x: 60, y: 48, w: 400, h: 288, shop: { count: 1, order: 'popularity', layout: 'grid', aspect: 'landscape', spacing: 's', show: { price: true, rating: false, button: true } } },
+      { type: 'para', x: 520, y: 48, w: 300, h: 24, text: 'Shop', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
+      { type: 'para', x: 520, y: 96, w: 300, h: 168, text: '<a href="/shop/">Everything</a><br><a href="/shop/?orderby=date">New in</a><br><a href="/shop/?orderby=popularity">Most loved</a><br><a href="/shop/?on_sale=1">On sale</a>' },
+      { type: 'para', x: 880, y: 48, w: 260, h: 24, text: 'Help', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
+      { type: 'para', x: 880, y: 96, w: 260, h: 168, text: '<a href="/faq/">Questions</a><br><a href="/delivery/">Delivery &amp; returns</a><br><a href="/contact/">Find us</a>' },
     ] },
     // Shop the look: a photo full of your things, the things beside it —
     // hand-picked, so the rails show exactly what is in the picture
-    { starter: true, gated: 'hasWoo', intent: 'sell', name: 'Shop the look', minH: 640, els: [
-      { type: 'image', x: 60, y: 60, w: 620, h: 520, cool: true },
-      { type: 'para', x: 740, y: 90, w: 340, h: 24, text: 'Shop the look', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
-      { type: 'heading', x: 740, y: 130, w: 400, h: 100, text: 'Everything in this picture', fs: 'x-large' },
+    { starter: true, gated: 'hasWoo', intent: 'sell', name: 'Shop the look', minH: 648, els: [
+      { type: 'image', x: 60, y: 48, w: 620, h: 528, cool: true },
+      { type: 'para', x: 740, y: 72, w: 340, h: 24, text: 'Shop the look', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
+      { type: 'heading', x: 740, y: 120, w: 400, h: 96, text: 'Everything in this picture', fs: 'x-large' },
       { type: 'para', x: 740, y: 240, w: 380, h: 48, text: 'Every piece here is ours. Tap one to see it up close.' },
-      { type: 'widget', rails: true, x: 740, y: 310, w: 400, h: 300, shop: { count: 3, order: 'date', layout: 'list', aspect: 'square', spacing: 's', show: { price: true, rating: false, button: true } } },
+      { type: 'widget', rails: true, x: 740, y: 312, w: 400, h: 288, shop: { count: 3, order: 'date', layout: 'list', aspect: 'square', spacing: 's', show: { price: true, rating: false, button: true } } },
     ] },
-    { starter: true, gated: 'hasWoo', intent: 'sell', name: 'New in', minH: 640, els: [
-      { type: 'para', x: 72, y: 84, w: 340, h: 24, text: 'Just arrived', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
-      { type: 'heading', x: 72, y: 124, w: 600, h: 90, text: 'New in', fs: 'x-large' },
-      { type: 'para', x: 72, y: 220, w: 520, h: 48, text: 'The latest things on the shelf, newest first. Nothing to maintain.' },
-      { type: 'button', x: 900, y: 214, w: 200, h: 54, text: 'See everything', href: '/shop/', ghost: true },
-      { type: 'widget', rails: true, x: 47, y: 300, w: 1106, h: 300, shop: { count: 4, order: 'date', layout: 'grid', aspect: 'landscape', spacing: 's' } },
+    { starter: true, gated: 'hasWoo', intent: 'sell', name: 'New in', minH: 648, els: [
+      { type: 'para', x: 72, y: 72, w: 340, h: 24, text: 'Just arrived', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
+      { type: 'heading', x: 72, y: 120, w: 600, h: 72, text: 'New in', fs: 'x-large' },
+      { type: 'para', x: 72, y: 216, w: 520, h: 48, text: 'The latest things on the shelf, newest first. Nothing to maintain.' },
+      { type: 'button', x: 900, y: 216, w: 200, h: 48, text: 'See everything', href: '/shop/', ghost: true },
+      { type: 'widget', rails: true, x: 47, y: 288, w: 1106, h: 288, shop: { count: 4, order: 'date', layout: 'grid', aspect: 'landscape', spacing: 's' } },
     ] },
-    { starter: true, gated: 'hasWoo', intent: 'sell', name: 'Sale', minH: 700, els: [
-      { type: 'para', x: 72, y: 84, w: 340, h: 24, text: 'Right now', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
-      { type: 'heading', x: 72, y: 124, w: 600, h: 90, text: 'On sale', fs: 'x-large' },
-      { type: 'para', x: 72, y: 220, w: 520, h: 48, text: 'Only what is reduced, while it lasts. Prices as marked.' },
-      { type: 'button', x: 860, y: 214, w: 240, h: 54, text: 'Everything on sale', href: '/shop/', ghost: true },
-      { type: 'widget', rails: true, x: 47, y: 300, w: 1106, h: 360, shop: { count: 3, order: 'sale', layout: 'grid', aspect: 'square', spacing: 'm' } },
+    { starter: true, gated: 'hasWoo', intent: 'sell', name: 'Sale', minH: 720, els: [
+      { type: 'para', x: 72, y: 72, w: 340, h: 24, text: 'Right now', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
+      { type: 'heading', x: 72, y: 120, w: 600, h: 72, text: 'On sale', fs: 'x-large' },
+      { type: 'para', x: 72, y: 216, w: 520, h: 48, text: 'Only what is reduced, while it lasts. Prices as marked.' },
+      { type: 'button', x: 860, y: 216, w: 240, h: 48, text: 'Everything on sale', href: '/shop/', ghost: true },
+      { type: 'widget', rails: true, x: 47, y: 288, w: 1106, h: 360, shop: { count: 3, order: 'sale', layout: 'grid', aspect: 'square', spacing: 'm' } },
     ] },
-    { starter: true, gated: 'hasWoo', intent: 'sell', name: 'Categories', minH: 640, els: [
-      { type: 'para', x: 72, y: 84, w: 340, h: 24, text: 'Shop by', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
-      { type: 'heading', x: 72, y: 124, w: 600, h: 90, text: 'Find your thing', fs: 'x-large' },
-      { type: 'para', x: 72, y: 220, w: 520, h: 48, text: 'Every door leads somewhere good.' },
-      { type: 'widget', rails: true, x: 47, y: 300, w: 1106, h: 300, shop: { kind: 'categories', count: 3, spacing: 'm' } },
+    { starter: true, gated: 'hasWoo', intent: 'sell', name: 'Categories', minH: 648, els: [
+      { type: 'para', x: 72, y: 72, w: 340, h: 24, text: 'Shop by', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
+      { type: 'heading', x: 72, y: 120, w: 600, h: 72, text: 'Find your thing', fs: 'x-large' },
+      { type: 'para', x: 72, y: 216, w: 520, h: 48, text: 'Every door leads somewhere good.' },
+      { type: 'widget', rails: true, x: 47, y: 288, w: 1106, h: 288, shop: { kind: 'categories', count: 3, spacing: 'm' } },
     ] },
-    { starter: true, intent: 'sell', name: 'Feature cards', minH: 560, els: [
-      { type: 'heading', x: 100, y: 56, w: 1000, h: 60, text: 'What we do', fs: 'x-large', align: 'center' },
-      { type: 'box', x: 100, y: 170, w: 320, h: 330, radius: 18,
+    { starter: true, intent: 'sell', name: 'Feature cards', minH: 576, els: [
+      { type: 'heading', x: 100, y: 48, w: 1000, h: 48, text: 'What we do', fs: 'x-large', align: 'center' },
+      { type: 'box', x: 100, y: 168, w: 320, h: 336, radius: 18,
         boxBg: 'color-mix(in srgb, var(--wp--preset--color--contrast, #000) 7%, var(--wp--preset--color--base, transparent))',
         kids: [
           { type: 'heading', x: 28, y: 32, w: 264, h: 44, text: 'Brand identity', fs: 'large' },
           { type: 'para', x: 28, y: 92, w: 264, h: 100, text: 'A name, a voice and a look that hold together everywhere \u2014 from the sign above the door to the invoice footer.' },
         ] },
-      { type: 'box', x: 440, y: 170, w: 320, h: 330, radius: 18,
+      { type: 'box', x: 440, y: 168, w: 320, h: 336, radius: 18,
         boxBg: 'color-mix(in srgb, var(--wp--preset--color--contrast, #000) 7%, var(--wp--preset--color--base, transparent))',
         kids: [
           { type: 'heading', x: 28, y: 32, w: 264, h: 44, text: 'Websites', fs: 'large' },
           { type: 'para', x: 28, y: 92, w: 264, h: 100, text: 'Fast, honest sites that read beautifully on a phone at a bus stop \u2014 which is where your customers are.' },
         ] },
-      { type: 'box', x: 780, y: 170, w: 320, h: 330, radius: 18,
+      { type: 'box', x: 780, y: 168, w: 320, h: 336, radius: 18,
         boxBg: 'color-mix(in srgb, var(--wp--preset--color--contrast, #000) 7%, var(--wp--preset--color--base, transparent))',
         kids: [
           { type: 'heading', x: 28, y: 32, w: 264, h: 44, text: 'Art direction', fs: 'large' },
           { type: 'para', x: 28, y: 92, w: 264, h: 100, text: 'Photography, illustration and the thousand small calls that make everything feel intentional.' },
         ] },
     ] },
-    { starter: true, intent: 'sell', name: 'Pricing', minH: 680, els: [
+    { starter: true, intent: 'sell', name: 'Pricing', minH: 648, els: [
       // three prices is the common shape (James), so it is the BASE face —
       // the middle card wears the ink and the Most-popular star; the old
       // two-card layout lives on in the drawer as The pair
-      { type: 'para', x: 400, y: 56, w: 400, h: 24, align: 'center', text: 'Simple pricing',
+      { type: 'para', x: 400, y: 48, w: 400, h: 24, align: 'center', text: 'Simple pricing',
         tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
-      { type: 'heading', x: 250, y: 96, w: 700, h: 64, text: 'Three ways to work with us', fs: 'x-large', align: 'center' },
-      { type: 'box', x: 72, y: 236, w: 340, h: 360, radius: 20, boxBg: 'color-mix(in srgb, var(--wp--preset--color--contrast, #000) 6%, var(--wp--preset--color--base, transparent))', kids: [
+      { type: 'heading', x: 250, y: 96, w: 700, h: 48, text: 'Three ways to work with us', fs: 'x-large', align: 'center' },
+      { type: 'box', x: 72, y: 240, w: 340, h: 360, radius: 20, boxBg: 'color-mix(in srgb, var(--wp--preset--color--contrast, #000) 6%, var(--wp--preset--color--base, transparent))', kids: [
         { type: 'heading', x: 28, y: 30, w: 284, h: 40, text: 'The Sprint', fs: 'large' },
         { type: 'para', x: 28, y: 82, w: 284, h: 66, text: 'One focused week. A sharp brief in, a finished thing out.' },
         { type: 'heading', x: 28, y: 168, w: 284, h: 56, text: '\u00a33,500', fs: 'x-large' },
         { type: 'button', x: 28, y: 252, w: 284, h: 52, text: 'Book a sprint', ghost: true },
       ] },
-      { type: 'box', x: 430, y: 200, w: 340, h: 420, radius: 20, boxBg: 'var(--wp--preset--color--contrast, #16181c)', kids: [
+      { type: 'box', x: 430, y: 192, w: 340, h: 432, radius: 20, boxBg: 'var(--wp--preset--color--contrast, #16181c)', kids: [
         { type: 'badge', x: 95, y: 28, w: 150, h: 40, text: '\u2605 Most popular' },
         { type: 'heading', x: 28, y: 86, w: 284, h: 40, text: 'The Partnership', fs: 'large', tf: { col: 'var(--wp--preset--color--base, #fff)' } },
         { type: 'para', x: 28, y: 138, w: 284, h: 66, text: 'A standing team beside yours \u2014 design, build and everything between.', tf: { col: 'color-mix(in srgb, var(--wp--preset--color--base, #fff) 78%, transparent)' } },
         { type: 'heading', x: 28, y: 222, w: 284, h: 56, text: '\u00a34,000/mo', fs: 'x-large', tf: { col: 'var(--wp--preset--color--base, #fff)' } },
         { type: 'button', x: 28, y: 306, w: 284, h: 54, text: 'Start together', tf: { bg: 'var(--wp--preset--color--base, #fff)', col: 'var(--wp--preset--color--contrast, #141519)' } },
       ] },
-      { type: 'box', x: 788, y: 236, w: 340, h: 360, radius: 20, boxBg: 'color-mix(in srgb, var(--wp--preset--color--contrast, #000) 6%, var(--wp--preset--color--base, transparent))', kids: [
+      { type: 'box', x: 788, y: 240, w: 340, h: 360, radius: 20, boxBg: 'color-mix(in srgb, var(--wp--preset--color--contrast, #000) 6%, var(--wp--preset--color--base, transparent))', kids: [
         { type: 'heading', x: 28, y: 30, w: 284, h: 40, text: 'Ongoing care', fs: 'large' },
         { type: 'para', x: 28, y: 82, w: 284, h: 66, text: 'Quiet upkeep after launch: updates, tweaks and a person who answers.' },
         { type: 'heading', x: 28, y: 168, w: 284, h: 56, text: '\u00a3600/mo', fs: 'x-large' },
         { type: 'button', x: 28, y: 252, w: 284, h: 52, text: 'Stay with us', ghost: true },
       ] },
     ] },
-    { starter: true, intent: 'sell', name: 'Quote', minH: 480, els: [
-      { type: 'heading', x: 76, y: 44, w: 180, h: 160, text: '\u201c', fs: '__disp-l' },
-      { type: 'para', x: 200, y: 168, w: 800, h: 160, text: 'They understood us in the first meeting. The site feels like walking into our shop \u2014 people say that, unprompted.', fs: 'x-large', tf: { lh: 1.25 } },
-      { type: 'para', x: 204, y: 368, w: 500, h: 24, text: 'Hanna Lindqvist \u00b7 Hanna & Co',
+    { starter: true, intent: 'sell', name: 'Quote', minH: 504, els: [
+      { type: 'heading', x: 76, y: 48, w: 180, h: 144, text: '\u201c', fs: '__disp-l' },
+      { type: 'para', x: 200, y: 168, w: 800, h: 144, text: 'They understood us in the first meeting. The site feels like walking into our shop \u2014 people say that, unprompted.', fs: 'x-large', tf: { lh: 1.25 } },
+      { type: 'para', x: 204, y: 360, w: 500, h: 24, text: 'Hanna Lindqvist \u00b7 Hanna & Co',
         tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
     ] },
-    { starter: true, intent: 'sell', name: 'Testimonials', minH: 560, els: [
-      { type: 'heading', x: 100, y: 56, w: 1000, h: 60, text: 'Kind words', fs: 'x-large', align: 'center' },
-      { type: 'box', x: 100, y: 170, w: 320, h: 330, radius: 18,
+    { starter: true, intent: 'sell', name: 'Testimonials', minH: 576, els: [
+      { type: 'heading', x: 100, y: 48, w: 1000, h: 48, text: 'Kind words', fs: 'x-large', align: 'center' },
+      { type: 'box', x: 100, y: 168, w: 320, h: 336, radius: 18,
         boxBg: 'color-mix(in srgb, var(--wp--preset--color--contrast, #000) 7%, var(--wp--preset--color--base, transparent))',
         kids: [
           { type: 'para', x: 28, y: 36, w: 264, h: 150, text: '“They understood us in the first meeting. The site feels like walking into our shop.”', tf: { lh: 1.45 } },
           { type: 'para', x: 28, y: 250, w: 264, h: 24, text: 'Hanna · Hanna & Co',
             tf: { fs: 13, fw: 600, ls2: 0.18, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
         ] },
-      { type: 'box', x: 440, y: 170, w: 320, h: 330, radius: 18,
+      { type: 'box', x: 440, y: 168, w: 320, h: 336, radius: 18,
         boxBg: 'color-mix(in srgb, var(--wp--preset--color--contrast, #000) 7%, var(--wp--preset--color--base, transparent))',
         kids: [
           { type: 'para', x: 28, y: 36, w: 264, h: 150, text: '“Every question got a straight answer. We launched two weeks early — nobody believes that.”', tf: { lh: 1.45 } },
           { type: 'para', x: 28, y: 250, w: 264, h: 24, text: 'Dev · Marlow Bikes',
             tf: { fs: 13, fw: 600, ls2: 0.18, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
         ] },
-      { type: 'box', x: 780, y: 170, w: 320, h: 330, radius: 18,
+      { type: 'box', x: 780, y: 168, w: 320, h: 336, radius: 18,
         boxBg: 'color-mix(in srgb, var(--wp--preset--color--contrast, #000) 7%, var(--wp--preset--color--base, transparent))',
         kids: [
           { type: 'para', x: 28, y: 36, w: 264, h: 150, text: '“People compliment the website like it’s a member of staff. Honestly, it works like one.”', tf: { lh: 1.45 } },
@@ -6357,30 +7962,30 @@
             tf: { fs: 13, fw: 600, ls2: 0.18, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
         ] },
     ] },
-    { starter: true, intent: 'sell', name: 'Call to action', minH: 380,
+    { starter: true, intent: 'sell', name: 'Call to action', minH: 360,
       bg: 'var(--wp--preset--color--contrast, #16181c)',
       els: [
-      { type: 'para', x: 96, y: 88, w: 300, h: 24, text: 'Next step',
+      { type: 'para', x: 96, y: 72, w: 300, h: 24, text: 'Next step',
         tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--base, #fff) 60%, transparent)' } },
-      { type: 'heading', x: 96, y: 130, w: 640, h: 130, text: 'Let\u2019s make yours', fs: '__max', tf: { col: 'var(--wp--preset--color--base, #fff)' } },
-      { type: 'para', x: 98, y: 286, w: 440, h: 44, text: 'No forms and no decks \u2014 just a conversation about what you are building.', tf: { col: 'color-mix(in srgb, var(--wp--preset--color--base, #fff) 75%, transparent)' } },
-      { type: 'button', x: 884, y: 186, w: 220, h: 60, text: 'Book a call', tf: { bg: 'var(--wp--preset--color--base, #fff)', col: 'var(--wp--preset--color--contrast, #141519)' } },
+      { type: 'heading', x: 96, y: 120, w: 640, h: 120, text: 'Let\u2019s make yours', fs: '__max', tf: { col: 'var(--wp--preset--color--base, #fff)' } },
+      { type: 'para', x: 98, y: 288, w: 440, h: 24, text: 'No forms and no decks \u2014 just a conversation about what you are building.', tf: { col: 'color-mix(in srgb, var(--wp--preset--color--base, #fff) 75%, transparent)' } },
+      { type: 'button', x: 884, y: 192, w: 220, h: 48, text: 'Book a call', tf: { bg: 'var(--wp--preset--color--base, #fff)', col: 'var(--wp--preset--color--contrast, #141519)' } },
     ] },
-    { starter: true, intent: 'sell', name: 'Get in touch', minH: 700, els: [
-      { type: 'para', x: 400, y: 66, w: 400, h: 24, align: 'center', text: 'Say hello',
+    { starter: true, intent: 'sell', name: 'Get in touch', minH: 720, els: [
+      { type: 'para', x: 400, y: 72, w: 400, h: 24, align: 'center', text: 'Say hello',
         tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
-      { type: 'heading', x: 300, y: 122, w: 600, h: 100, text: 'Let\u2019s talk', fs: '__max', align: 'center' },
-      { type: 'para', x: 340, y: 248, w: 520, h: 52, align: 'center', text: 'A question, an idea, or just to say hi \u2014 we read everything, usually the same day.' },
+      { type: 'heading', x: 300, y: 120, w: 600, h: 96, text: 'Let\u2019s talk', fs: '__max', align: 'center' },
+      { type: 'para', x: 340, y: 240, w: 520, h: 48, align: 'center', text: 'A question, an idea, or just to say hi \u2014 we read everything, usually the same day.' },
       // a REAL gogh form: messages land in the site's own Messages book
-      { type: 'widget', x: 240, y: 330, w: 720, h: 330,
+      { type: 'widget', x: 240, y: 336, w: 720, h: 336,
         wsrc: '<!-- wp:gogh/form /-->',
         whtml: '<div class="gogh-form"><div class="gogh-form-row"><input type="text" placeholder="Your name" disabled /><input type="email" placeholder="Your email" disabled /></div><textarea rows="5" placeholder="Your message\u2026" disabled></textarea><div class="gogh-form-foot"><span class="gogh-form-fbtn">Send</span><span class="gogh-form-note">Goes straight to this site \u2014 nowhere else.</span></div></div>' },
     ] },
-    { starter: true, intent: 'introduce', name: 'Profile card', minH: 620, els: [
+    { starter: true, intent: 'introduce', name: 'Profile card', minH: 648, els: [
       // full-bleed photo + one frosted card floating centre — the glass
       // recipe: radius 24, glass mood, tiny badge, meta row, one button
-      { type: 'badge', x: 84, y: 64, w: 150, h: 34, text: '\u25cf Available' },
-      { type: 'box', x: 400, y: 130, w: 400, h: 360, radius: 24, mood: 'glass', kids: [
+      { type: 'badge', x: 84, y: 72, w: 150, h: 24, text: '\u25cf Available' },
+      { type: 'box', x: 400, y: 120, w: 400, h: 360, radius: 24, mood: 'glass', kids: [
         { type: 'para', x: 32, y: 36, w: 336, h: 22, align: 'center', text: 'DESIGN \u00b7 DIRECTION',
           tf: { fs: 12, fw: 600, ls2: 0.24, tt: 'uppercase' } },
         { type: 'heading', x: 32, y: 70, w: 336, h: 48, align: 'center', text: 'Vincent van Gogh', fs: 'large' },
@@ -6390,8 +7995,8 @@
         { type: 'button', x: 116, y: 248, w: 168, h: 48, text: 'Say hello' },
       ] },
     ], bgImage: '/wp-content/plugins/gogh/demo-assets/wheat-field.jpg', bgA: 20, bg: 'var(--wp--preset--color--contrast)' },
-    { starter: true, intent: 'sell', name: 'Job card', minH: 620, els: [
-      { type: 'box', x: 380, y: 110, w: 440, h: 400, radius: 24, mood: 'glass', kids: [
+    { starter: true, intent: 'sell', name: 'Job card', minH: 648, els: [
+      { type: 'box', x: 380, y: 120, w: 440, h: 408, radius: 24, mood: 'glass', kids: [
         { type: 'badge', x: 32, y: 32, w: 110, h: 32, text: 'Hiring' },
         { type: 'heading', x: 32, y: 84, w: 376, h: 44, text: 'Senior designer', fs: 'large' },
         { type: 'para', x: 32, y: 140, w: 376, h: 66, text: 'Own the look of everything we ship \u2014 from the site to the side of the van.' },
@@ -6400,9 +8005,9 @@
         { type: 'button', x: 32, y: 268, w: 180, h: 52, text: 'Apply now' },
       ] },
     ], bgImage: '/wp-content/plugins/gogh/demo-assets/starry-night.jpg', bgA: 25, bg: 'var(--wp--preset--color--contrast)' },
-    { starter: true, intent: 'showcase', name: 'Place card', minH: 620, els: [
-      { type: 'badge', x: 84, y: 64, w: 130, h: 34, text: 'Est. 1888' },
-      { type: 'box', x: 400, y: 150, w: 400, h: 330, radius: 24, mood: 'glass', kids: [
+    { starter: true, intent: 'showcase', name: 'Place card', minH: 648, els: [
+      { type: 'badge', x: 84, y: 72, w: 130, h: 24, text: 'Est. 1888' },
+      { type: 'box', x: 400, y: 144, w: 400, h: 336, radius: 24, mood: 'glass', kids: [
         { type: 'para', x: 32, y: 34, w: 336, h: 22, align: 'center', text: 'THE YELLOW HOUSE',
           tf: { fs: 12, fw: 600, ls2: 0.24, tt: 'uppercase' } },
         { type: 'heading', x: 32, y: 66, w: 336, h: 44, align: 'center', text: 'Come see it in person', fs: 'large' },
@@ -6412,12 +8017,12 @@
         { type: 'button', x: 116, y: 228, w: 168, h: 48, text: 'Plan a visit' },
       ] },
     ], bgImage: '/wp-content/plugins/gogh/demo-assets/sunflowers.jpg', bgA: 20, bg: 'var(--wp--preset--color--contrast)' },
-    { starter: true, intent: 'showcase', name: 'Photo wall', minH: 640, els: [
-      { type: 'para', x: 400, y: 56, w: 400, h: 24, align: 'center', text: 'In pictures',
+    { starter: true, intent: 'showcase', name: 'Photo wall', minH: 648, els: [
+      { type: 'para', x: 400, y: 48, w: 400, h: 24, align: 'center', text: 'In pictures',
         tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
-      { type: 'heading', x: 250, y: 96, w: 700, h: 64, text: 'The wall', fs: 'x-large', align: 'center' },
+      { type: 'heading', x: 250, y: 96, w: 700, h: 48, text: 'The wall', fs: 'x-large', align: 'center' },
       // CSS columns do the masonry — tall and short photos pack themselves
-      { type: 'widget', x: 120, y: 200, w: 960, h: 400, wopt: { light: 1, cols: 3 }, wall: [
+      { type: 'widget', x: 120, y: 192, w: 960, h: 408, wopt: { light: 1, cols: 3 }, wall: [
         { img: '/wp-content/plugins/gogh/demo-assets/wheat-field.jpg', cap: '' },
         { img: '/wp-content/plugins/gogh/demo-assets/starry-night.jpg', cap: '' },
         { img: '/wp-content/plugins/gogh/demo-assets/sunflowers.jpg', cap: '' },
@@ -6426,109 +8031,109 @@
         { img: '/wp-content/plugins/gogh/demo-assets/sunflowers.jpg', cap: '' },
       ] },
     ] },
-    { starter: true, intent: 'showcase', name: 'Carousel', minH: 520, els: [
-      { type: 'para', x: 400, y: 56, w: 400, h: 24, align: 'center', text: 'A closer look',
+    { starter: true, intent: 'showcase', name: 'Carousel', minH: 504, els: [
+      { type: 'para', x: 400, y: 48, w: 400, h: 24, align: 'center', text: 'A closer look',
         tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
-      { type: 'heading', x: 250, y: 96, w: 700, h: 64, text: 'Slide through the work', fs: 'x-large', align: 'center' },
+      { type: 'heading', x: 250, y: 96, w: 700, h: 48, text: 'Slide through the work', fs: 'x-large', align: 'center' },
       // real core image blocks in a scroll-snap group — zero JS, works
       // with the plugin off, and Chrome's CSS carousel dots light up free
-      { type: 'widget', x: 120, y: 200, w: 960, h: 280, copt: { light: 1 }, slides: [
+      { type: 'widget', x: 120, y: 192, w: 960, h: 288, copt: { light: 1 }, slides: [
         { img: '/wp-content/plugins/gogh/demo-assets/wheat-field.jpg', cap: 'Wheat Field with Cypresses' },
         { img: '/wp-content/plugins/gogh/demo-assets/starry-night.jpg', cap: 'The Starry Night' },
         { img: '/wp-content/plugins/gogh/demo-assets/sunflowers.jpg', cap: 'Sunflowers' },
         { img: '/wp-content/plugins/gogh/demo-assets/almond-blossom.jpg', cap: 'Almond Blossom' },
       ] },
     ] },
-    { starter: true, intent: 'sell', name: 'FAQ', gated: 'hasAccordion', minH: 560, els: [
-      { type: 'para', x: 400, y: 56, w: 400, h: 24, align: 'center', text: 'Questions, answered',
+    { starter: true, intent: 'sell', name: 'FAQ', gated: 'hasAccordion', minH: 576, els: [
+      { type: 'para', x: 400, y: 48, w: 400, h: 24, align: 'center', text: 'Questions, answered',
         tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
-      { type: 'heading', x: 250, y: 96, w: 700, h: 64, text: 'Before you ask', fs: 'x-large', align: 'center' },
+      { type: 'heading', x: 250, y: 96, w: 700, h: 48, text: 'Before you ask', fs: 'x-large', align: 'center' },
       // a REAL core/accordion rides inside a widget — regenerated from
       // e.faq, which is what the selection panel edits
-      { type: 'widget', x: 240, y: 200, w: 720, h: 320, faq: [
+      { type: 'widget', x: 240, y: 192, w: 720, h: 312, faq: [
         { q: 'How long does a project take?', a: 'Six to ten weeks for most sites. The Sprint is one week, by design.' },
         { q: 'Do you work with small budgets?', a: 'Yes \u2014 that is exactly what the Sprint is for. One week, one focused thing, done well.' },
         { q: 'Who will we actually work with?', a: 'The people on the team page \u2014 no handoffs to a bench you never met.' },
       ] },
     ] },
-    { starter: true, intent: 'sell', name: 'Tabs', gated: 'hasTabs', minH: 520, els: [
-      { type: 'para', x: 400, y: 56, w: 400, h: 24, align: 'center', text: 'Ways to work with us',
+    { starter: true, intent: 'sell', name: 'Tabs', gated: 'hasTabs', minH: 504, els: [
+      { type: 'para', x: 400, y: 48, w: 400, h: 24, align: 'center', text: 'Ways to work with us',
         tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
-      { type: 'heading', x: 250, y: 96, w: 700, h: 64, text: 'Pick your pace', fs: 'x-large', align: 'center' },
+      { type: 'heading', x: 250, y: 96, w: 700, h: 48, text: 'Pick your pace', fs: 'x-large', align: 'center' },
       // a REAL core/tabs block (WP 7.1) — regenerated from e.tabs, gated
       // on the block existing
-      { type: 'widget', x: 240, y: 200, w: 720, h: 280, tabs: [
+      { type: 'widget', x: 240, y: 192, w: 720, h: 288, tabs: [
         { t: 'The Sprint', body: 'One focused week. A sharp brief in, a finished thing out \u2014 built for small budgets and quick decisions.' },
         { t: 'The Partnership', body: 'A standing team beside yours \u2014 design, build and everything between, month by month.' },
         { t: 'Ongoing care', body: 'Quiet upkeep after launch: updates, tweaks and a person who answers.' },
       ] },
     ] },
-    { starter: true, intent: 'showcase', name: 'Gallery', minH: 680, els: [
-      { type: 'para', x: 72, y: 60, w: 300, h: 24, text: 'Selected work',
+    { starter: true, intent: 'showcase', name: 'Gallery', minH: 720, els: [
+      { type: 'para', x: 72, y: 48, w: 300, h: 24, text: 'Selected work',
         tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
-      { type: 'heading', x: 72, y: 100, w: 520, h: 64, text: 'A few favourites', fs: 'x-large' },
-      { type: 'image', x: 72, y: 208, w: 330, h: 424, cool: true },
-      { type: 'image', x: 435, y: 260, w: 330, h: 372 },
-      { type: 'image', x: 798, y: 190, w: 330, h: 310, cool: true },
-      { type: 'button', x: 798, y: 546, w: 210, h: 54, text: 'See the archive', ghost: true },
+      { type: 'heading', x: 72, y: 96, w: 520, h: 48, text: 'A few favourites', fs: 'x-large' },
+      { type: 'image', x: 72, y: 216, w: 330, h: 432, cool: true },
+      { type: 'image', x: 435, y: 264, w: 330, h: 384 },
+      { type: 'image', x: 798, y: 192, w: 330, h: 312, cool: true },
+      { type: 'button', x: 798, y: 552, w: 210, h: 48, text: 'See the archive', ghost: true },
     ] },
     { starter: true, intent: 'showcase', name: 'Photo cards', minH: 720, els: [
-      { type: 'image', x: 100, y: 40, w: 470, h: 620, cool: true },
-      { type: 'box', x: 100, y: 340, w: 470, h: 320, boxBg: 'linear-gradient(180deg, rgba(0,0,0,0) 0%, rgba(0,0,0,0.18) 30%, rgba(0,0,0,0.78) 100%)', radius: 20 },
-      { type: 'heading', x: 136, y: 384, w: 340, h: 46, text: 'Quiet mountain cabin', fs: 'large', tf: { col: '#ffffff' } },
-      { type: 'para', x: 136, y: 442, w: 398, h: 84, text: 'Wake up above the clouds. Two rooms, one stove, zero notifications \u2014 the good kind of nowhere.', tf: { col: '#ffffff' } },
-      { type: 'badge', x: 136, y: 538, w: 130, h: 44, text: '\u2605 4.9' },
-      { type: 'badge', x: 282, y: 538, w: 168, h: 44, text: '3 night stay' },
-      { type: 'button', x: 136, y: 598, w: 398, h: 52, text: 'Reserve now', tf: { bg: '#ffffff', col: '#141519' } },
-      { type: 'image', x: 630, y: 40, w: 470, h: 620, cool: true },
-      { type: 'box', x: 630, y: 340, w: 470, h: 320, boxBg: 'linear-gradient(180deg, rgba(0,0,0,0) 0%, rgba(0,0,0,0.18) 30%, rgba(0,0,0,0.78) 100%)', radius: 20 },
-      { type: 'heading', x: 666, y: 384, w: 340, h: 46, text: 'Coastal hideaway', fs: 'large', tf: { col: '#ffffff' } },
-      { type: 'para', x: 666, y: 442, w: 398, h: 84, text: 'Salt air, slow mornings and a five-minute walk to the water. Bring a book you\u2019ve been meaning to finish.', tf: { col: '#ffffff' } },
-      { type: 'badge', x: 666, y: 538, w: 130, h: 44, text: '\u2605 4.8' },
-      { type: 'badge', x: 812, y: 538, w: 168, h: 44, text: 'Guest favourite' },
-      { type: 'button', x: 666, y: 598, w: 398, h: 52, text: 'Reserve now', tf: { bg: '#ffffff', col: '#141519' } },
+      { type: 'image', x: 100, y: 48, w: 470, h: 624, cool: true },
+      { type: 'box', x: 100, y: 336, w: 470, h: 312, boxBg: 'linear-gradient(180deg, rgba(0,0,0,0) 0%, rgba(0,0,0,0.18) 30%, rgba(0,0,0,0.78) 100%)', radius: 20 },
+      { type: 'heading', x: 136, y: 384, w: 340, h: 24, text: 'Quiet mountain cabin', fs: 'large', tf: { col: '#ffffff' } },
+      { type: 'para', x: 136, y: 432, w: 398, h: 72, text: 'Wake up above the clouds. Two rooms, one stove, zero notifications \u2014 the good kind of nowhere.', tf: { col: '#ffffff' } },
+      { type: 'badge', x: 136, y: 528, w: 130, h: 48, text: '\u2605 4.9' },
+      { type: 'badge', x: 282, y: 528, w: 168, h: 48, text: '3 night stay' },
+      { type: 'button', x: 136, y: 600, w: 398, h: 48, text: 'Reserve now', tf: { bg: '#ffffff', col: '#141519' } },
+      { type: 'image', x: 630, y: 48, w: 470, h: 624, cool: true },
+      { type: 'box', x: 630, y: 336, w: 470, h: 312, boxBg: 'linear-gradient(180deg, rgba(0,0,0,0) 0%, rgba(0,0,0,0.18) 30%, rgba(0,0,0,0.78) 100%)', radius: 20 },
+      { type: 'heading', x: 666, y: 384, w: 340, h: 24, text: 'Coastal hideaway', fs: 'large', tf: { col: '#ffffff' } },
+      { type: 'para', x: 666, y: 432, w: 398, h: 72, text: 'Salt air, slow mornings and a five-minute walk to the water. Bring a book you\u2019ve been meaning to finish.', tf: { col: '#ffffff' } },
+      { type: 'badge', x: 666, y: 528, w: 130, h: 48, text: '\u2605 4.8' },
+      { type: 'badge', x: 812, y: 528, w: 168, h: 48, text: 'Guest favourite' },
+      { type: 'button', x: 666, y: 600, w: 398, h: 48, text: 'Reserve now', tf: { bg: '#ffffff', col: '#141519' } },
     ] },
-    { starter: true, intent: 'showcase', name: 'Portfolio', minH: 580, els: [
-      { type: 'box', x: 40, y: 116, w: 560, h: 420, boxBg: 'color-mix(in srgb, var(--wp--preset--color--contrast, #000) 8%, var(--wp--preset--color--base, transparent))', radius: 24 },
-      { type: 'image', x: 72, y: 80, w: 560, h: 420, cool: true },
-      { type: 'badge', x: 104, y: 452, w: 190, h: 48, text: 'Hanna & Co' },
-      { type: 'para', x: 700, y: 130, w: 300, h: 24, text: 'Case study',
+    { starter: true, intent: 'showcase', name: 'Portfolio', minH: 576, els: [
+      { type: 'box', x: 40, y: 120, w: 560, h: 432, boxBg: 'color-mix(in srgb, var(--wp--preset--color--contrast, #000) 8%, var(--wp--preset--color--base, transparent))', radius: 24 },
+      { type: 'image', x: 72, y: 72, w: 560, h: 432, cool: true },
+      { type: 'badge', x: 104, y: 456, w: 190, h: 48, text: 'Hanna & Co' },
+      { type: 'para', x: 700, y: 120, w: 300, h: 24, text: 'Case study',
         tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
-      { type: 'heading', x: 700, y: 170, w: 420, h: 120, text: 'A bakery worth queueing for', fs: 'x-large' },
-      { type: 'para', x: 700, y: 310, w: 400, h: 84, text: 'New identity, new site, same sourdough. Online orders doubled in the first month \u2014 the queue moved to the website.' },
-      { type: 'badge', x: 700, y: 414, w: 170, h: 46, text: '+204% orders' },
-      { type: 'badge', x: 886, y: 414, w: 160, h: 46, text: '6 weeks' },
-      { type: 'button', x: 700, y: 486, w: 210, h: 52, text: 'Read the study', ghost: true },
+      { type: 'heading', x: 700, y: 168, w: 420, h: 120, text: 'A bakery worth queueing for', fs: 'x-large' },
+      { type: 'para', x: 700, y: 312, w: 400, h: 72, text: 'New identity, new site, same sourdough. Online orders doubled in the first month \u2014 the queue moved to the website.' },
+      { type: 'badge', x: 700, y: 408, w: 170, h: 48, text: '+204% orders' },
+      { type: 'badge', x: 886, y: 408, w: 160, h: 48, text: '6 weeks' },
+      { type: 'button', x: 700, y: 480, w: 210, h: 48, text: 'Read the study', ghost: true },
     ] },
-    { starter: true, intent: 'showcase', name: 'Menu', minH: 600, els: [
-      { type: 'para', x: 400, y: 60, w: 400, h: 24, align: 'center', text: 'Served all day',
+    { starter: true, intent: 'showcase', name: 'Menu', minH: 576, els: [
+      { type: 'para', x: 400, y: 48, w: 400, h: 24, align: 'center', text: 'Served all day',
         tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
-      { type: 'heading', x: 300, y: 100, w: 600, h: 70, text: 'Small plates', fs: 'x-large', align: 'center' },
-      { type: 'heading', x: 280, y: 212, w: 520, h: 40, text: 'Sourdough, cultured butter', fs: 'medium' },
-      { type: 'para', x: 850, y: 212, w: 70, h: 40, text: '\u00a36', align: 'right', fs: 'medium' },
-      { type: 'heading', x: 280, y: 288, w: 520, h: 40, text: 'Burrata, blood orange, mint', fs: 'medium' },
-      { type: 'para', x: 850, y: 288, w: 70, h: 40, text: '\u00a311', align: 'right', fs: 'medium' },
-      { type: 'heading', x: 280, y: 364, w: 520, h: 40, text: 'Wood-roast leeks, romesco', fs: 'medium' },
-      { type: 'para', x: 850, y: 364, w: 70, h: 40, text: '\u00a39', align: 'right', fs: 'medium' },
-      { type: 'heading', x: 280, y: 440, w: 520, h: 40, text: 'Anchovy toast, soft egg', fs: 'medium' },
-      { type: 'para', x: 850, y: 440, w: 70, h: 40, text: '\u00a38', align: 'right', fs: 'medium' },
-      { type: 'para', x: 280, y: 516, w: 640, h: 30, text: 'Everything changes with the seasons \u2014 ask what\u2019s good today.', tf: { fst: 'italic', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
+      { type: 'heading', x: 300, y: 96, w: 600, h: 48, text: 'Small plates', fs: 'x-large', align: 'center' },
+      { type: 'heading', x: 280, y: 216, w: 520, h: 24, text: 'Sourdough, cultured butter', fs: 'medium' },
+      { type: 'para', x: 850, y: 216, w: 70, h: 24, text: '\u00a36', align: 'right', fs: 'medium' },
+      { type: 'heading', x: 280, y: 288, w: 520, h: 24, text: 'Burrata, blood orange, mint', fs: 'medium' },
+      { type: 'para', x: 850, y: 288, w: 70, h: 24, text: '\u00a311', align: 'right', fs: 'medium' },
+      { type: 'heading', x: 280, y: 360, w: 520, h: 24, text: 'Wood-roast leeks, romesco', fs: 'medium' },
+      { type: 'para', x: 850, y: 360, w: 70, h: 24, text: '\u00a39', align: 'right', fs: 'medium' },
+      { type: 'heading', x: 280, y: 432, w: 520, h: 24, text: 'Anchovy toast, soft egg', fs: 'medium' },
+      { type: 'para', x: 850, y: 432, w: 70, h: 24, text: '\u00a38', align: 'right', fs: 'medium' },
+      { type: 'para', x: 280, y: 528, w: 640, h: 24, text: 'Everything changes with the seasons \u2014 ask what\u2019s good today.', tf: { fst: 'italic', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
     ] },
-    { starter: true, intent: 'showcase', name: 'Team', minH: 620, els: [
-      { type: 'para', x: 72, y: 60, w: 300, h: 24, text: 'The studio',
+    { starter: true, intent: 'showcase', name: 'Team', minH: 648, els: [
+      { type: 'para', x: 72, y: 48, w: 300, h: 24, text: 'The studio',
         tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
-      { type: 'heading', x: 72, y: 100, w: 600, h: 64, text: 'Eleven people, no egos', fs: 'x-large' },
-      { type: 'image', x: 72, y: 208, w: 330, h: 300, cool: true },
-      { type: 'heading', x: 74, y: 528, w: 320, h: 36, text: 'June Ashby', fs: 'medium' },
-      { type: 'para', x: 74, y: 570, w: 320, h: 24, text: 'Creative director',
+      { type: 'heading', x: 72, y: 96, w: 600, h: 48, text: 'Eleven people, no egos', fs: 'x-large' },
+      { type: 'image', x: 72, y: 216, w: 330, h: 288, cool: true },
+      { type: 'heading', x: 74, y: 528, w: 320, h: 24, text: 'June Ashby', fs: 'medium' },
+      { type: 'para', x: 74, y: 576, w: 320, h: 24, text: 'Creative director',
         tf: { fs: 13, fw: 600, ls2: 0.18, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
-      { type: 'image', x: 435, y: 208, w: 330, h: 300 },
-      { type: 'heading', x: 437, y: 528, w: 320, h: 36, text: 'Marco Reyes', fs: 'medium' },
-      { type: 'para', x: 437, y: 570, w: 320, h: 24, text: 'Lead engineer',
+      { type: 'image', x: 435, y: 216, w: 330, h: 288 },
+      { type: 'heading', x: 437, y: 528, w: 320, h: 24, text: 'Marco Reyes', fs: 'medium' },
+      { type: 'para', x: 437, y: 576, w: 320, h: 24, text: 'Lead engineer',
         tf: { fs: 13, fw: 600, ls2: 0.18, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
-      { type: 'image', x: 798, y: 208, w: 330, h: 300, cool: true },
-      { type: 'heading', x: 800, y: 528, w: 320, h: 36, text: 'Priya Chandra', fs: 'medium' },
-      { type: 'para', x: 800, y: 570, w: 320, h: 24, text: 'Strategy',
+      { type: 'image', x: 798, y: 216, w: 330, h: 288, cool: true },
+      { type: 'heading', x: 800, y: 528, w: 320, h: 24, text: 'Priya Chandra', fs: 'medium' },
+      { type: 'para', x: 800, y: 576, w: 320, h: 24, text: 'Strategy',
         tf: { fs: 13, fw: 600, ls2: 0.18, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
     ] },
   ];
@@ -6704,6 +8309,11 @@
         if (!e.wsrc) e.wsrc = composeShop(e.shop);
         if (!e.whtml) e.whtml = shopSampleHTML(e.shop);
       }
+      if (e.rails && e.posts) {
+        e.posts = Object.assign(postsDefaults(), e.posts, { show: Object.assign({ date: true, excerpt: false, category: false }, e.posts.show || {}) });
+        if (!e.wsrc) e.wsrc = composePosts(e.posts);
+        if (!e.whtml) e.whtml = postsSampleHTML(e);
+      }
       composeWidgetData(e);
     });
     return els;
@@ -6724,343 +8334,343 @@
   var VARIANTS = {
     'Columns of links': [
       { name: 'Columns of links', take: 'Four across', minH: 360, els: [
-        { type: 'para', x: 60, y: 60, w: 240, h: 24, text: 'Explore', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
-        { type: 'para', x: 60, y: 100, w: 240, h: 180, text: '<a href="/">Home</a><br><a href="/about/">Our story</a><br><a href="/blog/">Journal</a><br><a href="/contact/">Get in touch</a>' },
-        { type: 'para', x: 340, y: 60, w: 240, h: 24, text: 'Shop', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
-        { type: 'para', x: 340, y: 100, w: 240, h: 180, text: '<a href="/shop/">Everything</a><br><a href="/shop/?orderby=date">New in</a><br><a href="/shop/?orderby=popularity">Most loved</a><br><a href="/shop/?on_sale=1">On sale</a>' },
-        { type: 'para', x: 620, y: 60, w: 240, h: 24, text: 'Help', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
-        { type: 'para', x: 620, y: 100, w: 240, h: 180, text: '<a href="/faq/">Questions</a><br><a href="/delivery/">Delivery &amp; returns</a><br><a href="/contact/">Find us</a>' },
-        { type: 'para', x: 900, y: 60, w: 240, h: 24, text: 'Say hello', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
-        { type: 'para', x: 900, y: 100, w: 240, h: 120, text: 'We answer every message ourselves, usually the same day.' },
+        { type: 'para', x: 60, y: 48, w: 240, h: 24, text: 'Explore', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
+        { type: 'para', x: 60, y: 96, w: 240, h: 168, text: '<a href="/">Home</a><br><a href="/about/">Our story</a><br><a href="/blog/">Journal</a><br><a href="/contact/">Get in touch</a>' },
+        { type: 'para', x: 340, y: 48, w: 240, h: 24, text: 'Shop', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
+        { type: 'para', x: 340, y: 96, w: 240, h: 168, text: '<a href="/shop/">Everything</a><br><a href="/shop/?orderby=date">New in</a><br><a href="/shop/?orderby=popularity">Most loved</a><br><a href="/shop/?on_sale=1">On sale</a>' },
+        { type: 'para', x: 620, y: 48, w: 240, h: 24, text: 'Help', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
+        { type: 'para', x: 620, y: 96, w: 240, h: 168, text: '<a href="/faq/">Questions</a><br><a href="/delivery/">Delivery &amp; returns</a><br><a href="/contact/">Find us</a>' },
+        { type: 'para', x: 900, y: 48, w: 240, h: 24, text: 'Say hello', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
+        { type: 'para', x: 900, y: 96, w: 240, h: 120, text: 'We answer every message ourselves, usually the same day.' },
       ] },
-      { name: 'Columns of links', take: 'Two and a note', minH: 340, els: [
-        { type: 'para', x: 80, y: 60, w: 300, h: 24, text: 'Explore', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
-        { type: 'para', x: 80, y: 100, w: 300, h: 180, text: '<a href="/">Home</a><br><a href="/about/">Our story</a><br><a href="/blog/">Journal</a><br><a href="/contact/">Get in touch</a>' },
-        { type: 'para', x: 440, y: 60, w: 300, h: 24, text: 'Shop', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
-        { type: 'para', x: 440, y: 100, w: 300, h: 180, text: '<a href="/shop/">Everything</a><br><a href="/shop/?orderby=date">New in</a><br><a href="/shop/?orderby=popularity">Most loved</a><br><a href="/shop/?on_sale=1">On sale</a>' },
-        { type: 'heading', x: 820, y: 60, w: 320, h: 70, text: 'Made here, sent this week', fs: 'medium' },
-        { type: 'para', x: 820, y: 140, w: 320, h: 72, text: 'Small batches from one workshop. If you only try one thing, try the lavender.' },
+      { name: 'Columns of links', take: 'Two and a note', minH: 360, els: [
+        { type: 'para', x: 80, y: 48, w: 300, h: 24, text: 'Explore', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
+        { type: 'para', x: 80, y: 96, w: 300, h: 168, text: '<a href="/">Home</a><br><a href="/about/">Our story</a><br><a href="/blog/">Journal</a><br><a href="/contact/">Get in touch</a>' },
+        { type: 'para', x: 440, y: 48, w: 300, h: 24, text: 'Shop', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
+        { type: 'para', x: 440, y: 96, w: 300, h: 168, text: '<a href="/shop/">Everything</a><br><a href="/shop/?orderby=date">New in</a><br><a href="/shop/?orderby=popularity">Most loved</a><br><a href="/shop/?on_sale=1">On sale</a>' },
+        { type: 'heading', x: 820, y: 48, w: 320, h: 48, text: 'Made here, sent this week', fs: 'medium' },
+        { type: 'para', x: 820, y: 144, w: 320, h: 72, text: 'Small batches from one workshop. If you only try one thing, try the lavender.' },
       ] },
       { name: 'Columns of links', take: 'Links and a picture', minH: 360, els: [
-        { type: 'para', x: 80, y: 60, w: 260, h: 24, text: 'Explore', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
-        { type: 'para', x: 80, y: 100, w: 260, h: 180, text: '<a href="/">Home</a><br><a href="/about/">Our story</a><br><a href="/blog/">Journal</a><br><a href="/contact/">Get in touch</a>' },
-        { type: 'para', x: 400, y: 60, w: 260, h: 24, text: 'Shop', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
-        { type: 'para', x: 400, y: 100, w: 260, h: 180, text: '<a href="/shop/">Everything</a><br><a href="/shop/?orderby=date">New in</a><br><a href="/shop/?orderby=popularity">Most loved</a><br><a href="/shop/?on_sale=1">On sale</a>' },
-        { type: 'image', x: 740, y: 50, w: 400, h: 260, cool: true },
+        { type: 'para', x: 80, y: 48, w: 260, h: 24, text: 'Explore', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
+        { type: 'para', x: 80, y: 96, w: 260, h: 168, text: '<a href="/">Home</a><br><a href="/about/">Our story</a><br><a href="/blog/">Journal</a><br><a href="/contact/">Get in touch</a>' },
+        { type: 'para', x: 400, y: 48, w: 260, h: 24, text: 'Shop', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
+        { type: 'para', x: 400, y: 96, w: 260, h: 168, text: '<a href="/shop/">Everything</a><br><a href="/shop/?orderby=date">New in</a><br><a href="/shop/?orderby=popularity">Most loved</a><br><a href="/shop/?on_sale=1">On sale</a>' },
+        { type: 'image', x: 740, y: 48, w: 400, h: 264, cool: true },
       ] },
     ],
     'Featured and links': [
-      { name: 'Featured and links', take: 'Picture right', minH: 400, els: [
-        { type: 'para', x: 60, y: 60, w: 240, h: 24, text: 'Explore', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
-        { type: 'para', x: 60, y: 100, w: 240, h: 180, text: '<a href="/">Home</a><br><a href="/about/">Our story</a><br><a href="/blog/">Journal</a><br><a href="/contact/">Get in touch</a>' },
-        { type: 'para', x: 340, y: 60, w: 240, h: 24, text: 'Shop', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
-        { type: 'para', x: 340, y: 100, w: 240, h: 180, text: '<a href="/shop/">Everything</a><br><a href="/shop/?orderby=date">New in</a><br><a href="/shop/?orderby=popularity">Most loved</a><br><a href="/shop/?on_sale=1">On sale</a>' },
-        { type: 'image', x: 700, y: 50, w: 440, h: 300, cool: true },
+      { name: 'Featured and links', take: 'Picture right', minH: 432, els: [
+        { type: 'para', x: 60, y: 48, w: 240, h: 24, text: 'Explore', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
+        { type: 'para', x: 60, y: 96, w: 240, h: 168, text: '<a href="/">Home</a><br><a href="/about/">Our story</a><br><a href="/blog/">Journal</a><br><a href="/contact/">Get in touch</a>' },
+        { type: 'para', x: 340, y: 48, w: 240, h: 24, text: 'Shop', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
+        { type: 'para', x: 340, y: 96, w: 240, h: 168, text: '<a href="/shop/">Everything</a><br><a href="/shop/?orderby=date">New in</a><br><a href="/shop/?orderby=popularity">Most loved</a><br><a href="/shop/?on_sale=1">On sale</a>' },
+        { type: 'image', x: 700, y: 48, w: 440, h: 288, cool: true },
       ] },
-      { name: 'Featured and links', take: 'The band', minH: 440, els: [
-        { type: 'image', x: 60, y: 50, w: 1080, h: 200, cool: true },
-        { type: 'para', x: 60, y: 280, w: 260, h: 24, text: 'Explore', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
-        { type: 'para', x: 60, y: 320, w: 260, h: 100, text: '<a href="/">Home</a><br><a href="/about/">Our story</a><br><a href="/blog/">Journal</a><br><a href="/contact/">Get in touch</a>' },
-        { type: 'para', x: 420, y: 280, w: 260, h: 24, text: 'Shop', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
-        { type: 'para', x: 420, y: 320, w: 260, h: 100, text: '<a href="/shop/">Everything</a><br><a href="/shop/?orderby=date">New in</a><br><a href="/shop/?orderby=popularity">Most loved</a><br><a href="/shop/?on_sale=1">On sale</a>' },
-        { type: 'para', x: 780, y: 280, w: 260, h: 24, text: 'Help', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
-        { type: 'para', x: 780, y: 320, w: 260, h: 100, text: '<a href="/faq/">Questions</a><br><a href="/delivery/">Delivery &amp; returns</a><br><a href="/contact/">Find us</a>' },
+      { name: 'Featured and links', take: 'The band', minH: 432, els: [
+        { type: 'image', x: 60, y: 48, w: 1080, h: 192, cool: true },
+        { type: 'para', x: 60, y: 288, w: 260, h: 24, text: 'Explore', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
+        { type: 'para', x: 60, y: 312, w: 260, h: 96, text: '<a href="/">Home</a><br><a href="/about/">Our story</a><br><a href="/blog/">Journal</a><br><a href="/contact/">Get in touch</a>' },
+        { type: 'para', x: 420, y: 288, w: 260, h: 24, text: 'Shop', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
+        { type: 'para', x: 420, y: 312, w: 260, h: 96, text: '<a href="/shop/">Everything</a><br><a href="/shop/?orderby=date">New in</a><br><a href="/shop/?orderby=popularity">Most loved</a><br><a href="/shop/?on_sale=1">On sale</a>' },
+        { type: 'para', x: 780, y: 288, w: 260, h: 24, text: 'Help', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
+        { type: 'para', x: 780, y: 312, w: 260, h: 96, text: '<a href="/faq/">Questions</a><br><a href="/delivery/">Delivery &amp; returns</a><br><a href="/contact/">Find us</a>' },
       ] },
-      { name: 'Featured and links', take: 'Two pictures', minH: 400, els: [
-        { type: 'image', x: 60, y: 50, w: 320, h: 240, cool: true },
-        { type: 'heading', x: 60, y: 300, w: 320, h: 40, text: 'New this month', fs: 'medium' },
-        { type: 'image', x: 420, y: 50, w: 320, h: 240, cool: false },
-        { type: 'heading', x: 420, y: 300, w: 320, h: 40, text: 'Gifts under twenty', fs: 'medium' },
-        { type: 'para', x: 800, y: 60, w: 340, h: 24, text: 'Explore', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
-        { type: 'para', x: 800, y: 100, w: 340, h: 180, text: '<a href="/">Home</a><br><a href="/about/">Our story</a><br><a href="/blog/">Journal</a><br><a href="/contact/">Get in touch</a>' },
+      { name: 'Featured and links', take: 'Two pictures', minH: 432, els: [
+        { type: 'image', x: 60, y: 48, w: 320, h: 240, cool: true },
+        { type: 'heading', x: 60, y: 288, w: 320, h: 24, text: 'New this month', fs: 'medium' },
+        { type: 'image', x: 420, y: 48, w: 320, h: 240, cool: false },
+        { type: 'heading', x: 420, y: 288, w: 320, h: 24, text: 'Gifts under twenty', fs: 'medium' },
+        { type: 'para', x: 800, y: 48, w: 340, h: 24, text: 'Explore', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
+        { type: 'para', x: 800, y: 96, w: 340, h: 168, text: '<a href="/">Home</a><br><a href="/about/">Our story</a><br><a href="/blog/">Journal</a><br><a href="/contact/">Get in touch</a>' },
       ] },
     ],
     'Picture doors': [
-      { name: 'Picture doors', take: 'Two wide', minH: 380, els: [
-        { type: 'image', x: 60, y: 50, w: 520, h: 240, cool: true },
-        { type: 'heading', x: 60, y: 300, w: 520, h: 40, text: 'Spring collection', fs: 'medium' },
-        { type: 'image', x: 620, y: 50, w: 520, h: 240, cool: false },
-        { type: 'heading', x: 620, y: 300, w: 520, h: 40, text: 'Gifts', fs: 'medium' },
+      { name: 'Picture doors', take: 'Two wide', minH: 360, els: [
+        { type: 'image', x: 60, y: 48, w: 520, h: 240, cool: true },
+        { type: 'heading', x: 60, y: 288, w: 520, h: 24, text: 'Spring collection', fs: 'medium' },
+        { type: 'image', x: 620, y: 48, w: 520, h: 240, cool: false },
+        { type: 'heading', x: 620, y: 288, w: 520, h: 24, text: 'Gifts', fs: 'medium' },
       ] },
-      { name: 'Picture doors', take: 'Four small', minH: 340, els: [
-        { type: 'image', x: 60, y: 50, w: 250, h: 180, cool: true },
-        { type: 'heading', x: 60, y: 244, w: 250, h: 36, text: 'Spring', fs: 'small' },
-        { type: 'image', x: 337, y: 50, w: 250, h: 180, cool: false },
-        { type: 'heading', x: 337, y: 244, w: 250, h: 36, text: 'Gifts', fs: 'small' },
-        { type: 'image', x: 614, y: 50, w: 250, h: 180, cool: true },
-        { type: 'heading', x: 614, y: 244, w: 250, h: 36, text: 'Home', fs: 'small' },
-        { type: 'image', x: 891, y: 50, w: 250, h: 180, cool: false },
-        { type: 'heading', x: 891, y: 244, w: 250, h: 36, text: 'Our story', fs: 'small' },
+      { name: 'Picture doors', take: 'Four small', minH: 360, els: [
+        { type: 'image', x: 60, y: 48, w: 250, h: 192, cool: true },
+        { type: 'heading', x: 60, y: 240, w: 250, h: 24, text: 'Spring', fs: 'small' },
+        { type: 'image', x: 337, y: 48, w: 250, h: 192, cool: false },
+        { type: 'heading', x: 337, y: 240, w: 250, h: 24, text: 'Gifts', fs: 'small' },
+        { type: 'image', x: 614, y: 48, w: 250, h: 192, cool: true },
+        { type: 'heading', x: 614, y: 240, w: 250, h: 24, text: 'Home', fs: 'small' },
+        { type: 'image', x: 891, y: 48, w: 250, h: 192, cool: false },
+        { type: 'heading', x: 891, y: 240, w: 250, h: 24, text: 'Our story', fs: 'small' },
       ] },
-      { name: 'Picture doors', take: 'Doors and links', minH: 380, els: [
-        { type: 'image', x: 60, y: 50, w: 340, h: 220, cool: true },
-        { type: 'heading', x: 60, y: 286, w: 340, h: 40, text: 'Spring collection', fs: 'medium' },
-        { type: 'image', x: 430, y: 50, w: 340, h: 220, cool: false },
-        { type: 'heading', x: 430, y: 286, w: 340, h: 40, text: 'Gifts', fs: 'medium' },
-        { type: 'para', x: 820, y: 60, w: 320, h: 24, text: 'Explore', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
-        { type: 'para', x: 820, y: 100, w: 320, h: 180, text: '<a href="/">Home</a><br><a href="/about/">Our story</a><br><a href="/blog/">Journal</a><br><a href="/contact/">Get in touch</a>' },
+      { name: 'Picture doors', take: 'Doors and links', minH: 360, els: [
+        { type: 'image', x: 60, y: 48, w: 340, h: 216, cool: true },
+        { type: 'heading', x: 60, y: 288, w: 340, h: 24, text: 'Spring collection', fs: 'medium' },
+        { type: 'image', x: 430, y: 48, w: 340, h: 216, cool: false },
+        { type: 'heading', x: 430, y: 288, w: 340, h: 24, text: 'Gifts', fs: 'medium' },
+        { type: 'para', x: 820, y: 48, w: 320, h: 24, text: 'Explore', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
+        { type: 'para', x: 820, y: 96, w: 320, h: 168, text: '<a href="/">Home</a><br><a href="/about/">Our story</a><br><a href="/blog/">Journal</a><br><a href="/contact/">Get in touch</a>' },
       ] },
     ],
     'Categories in the menu': [
-      { name: 'Categories in the menu', take: 'Three and a note', minH: 400, els: [
-        { type: 'heading', x: 60, y: 50, w: 400, h: 50, text: 'Shop by category', fs: 'medium' },
-        { type: 'para', x: 60, y: 110, w: 320, h: 72, text: 'Everything we make, sorted the way you think about it.' },
-        { type: 'widget', rails: true, x: 420, y: 50, w: 720, h: 300, shop: { kind: 'categories', count: 3, layout: 'grid', aspect: 'square', spacing: 's', show: { price: false, rating: false, button: false } } },
+      { name: 'Categories in the menu', take: 'Three and a note', minH: 432, els: [
+        { type: 'heading', x: 60, y: 48, w: 400, h: 48, text: 'Shop by category', fs: 'medium' },
+        { type: 'para', x: 60, y: 120, w: 320, h: 72, text: 'Everything we make, sorted the way you think about it.' },
+        { type: 'widget', rails: true, x: 420, y: 48, w: 720, h: 288, shop: { kind: 'categories', count: 3, layout: 'grid', aspect: 'square', spacing: 's', show: { price: false, rating: false, button: false } } },
       ] },
-      { name: 'Categories in the menu', take: 'Six doors', minH: 420, els: [
-        { type: 'para', x: 60, y: 50, w: 400, h: 24, text: 'Shop by category', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
-        { type: 'widget', rails: true, x: 60, y: 90, w: 1080, h: 300, shop: { kind: 'categories', count: 6, layout: 'grid', aspect: 'square', spacing: 's', show: { price: false, rating: false, button: false } } },
+      { name: 'Categories in the menu', take: 'Six doors', minH: 432, els: [
+        { type: 'para', x: 60, y: 48, w: 400, h: 24, text: 'Shop by category', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
+        { type: 'widget', rails: true, x: 60, y: 96, w: 1080, h: 288, shop: { kind: 'categories', count: 6, layout: 'grid', aspect: 'square', spacing: 's', show: { price: false, rating: false, button: false } } },
       ] },
-      { name: 'Categories in the menu', take: 'Doors and links', minH: 400, els: [
-        { type: 'widget', rails: true, x: 60, y: 50, w: 700, h: 300, shop: { kind: 'categories', count: 4, layout: 'grid', aspect: 'square', spacing: 's', show: { price: false, rating: false, button: false } } },
-        { type: 'para', x: 820, y: 60, w: 320, h: 24, text: 'Shop', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
-        { type: 'para', x: 820, y: 100, w: 320, h: 180, text: '<a href="/shop/">Everything</a><br><a href="/shop/?orderby=date">New in</a><br><a href="/shop/?orderby=popularity">Most loved</a><br><a href="/shop/?on_sale=1">On sale</a>' },
+      { name: 'Categories in the menu', take: 'Doors and links', minH: 432, els: [
+        { type: 'widget', rails: true, x: 60, y: 48, w: 700, h: 288, shop: { kind: 'categories', count: 4, layout: 'grid', aspect: 'square', spacing: 's', show: { price: false, rating: false, button: false } } },
+        { type: 'para', x: 820, y: 48, w: 320, h: 24, text: 'Shop', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
+        { type: 'para', x: 820, y: 96, w: 320, h: 168, text: '<a href="/shop/">Everything</a><br><a href="/shop/?orderby=date">New in</a><br><a href="/shop/?orderby=popularity">Most loved</a><br><a href="/shop/?on_sale=1">On sale</a>' },
       ] },
     ],
     'Featured product in the menu': [
-      { name: 'Featured product in the menu', take: 'Product right', minH: 400, els: [
-        { type: 'para', x: 60, y: 60, w: 300, h: 24, text: 'Shop', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
-        { type: 'para', x: 60, y: 100, w: 300, h: 180, text: '<a href="/shop/">Everything</a><br><a href="/shop/?orderby=date">New in</a><br><a href="/shop/?orderby=popularity">Most loved</a><br><a href="/shop/?on_sale=1">On sale</a>' },
-        { type: 'para', x: 400, y: 60, w: 260, h: 24, text: 'Help', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
-        { type: 'para', x: 400, y: 100, w: 260, h: 180, text: '<a href="/faq/">Questions</a><br><a href="/delivery/">Delivery &amp; returns</a><br><a href="/contact/">Find us</a>' },
-        { type: 'widget', rails: true, x: 740, y: 50, w: 400, h: 300, shop: { count: 1, order: 'popularity', layout: 'grid', aspect: 'landscape', spacing: 's', show: { price: true, rating: false, button: true } } },
+      { name: 'Featured product in the menu', take: 'Product right', minH: 432, els: [
+        { type: 'para', x: 60, y: 48, w: 300, h: 24, text: 'Shop', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
+        { type: 'para', x: 60, y: 96, w: 300, h: 168, text: '<a href="/shop/">Everything</a><br><a href="/shop/?orderby=date">New in</a><br><a href="/shop/?orderby=popularity">Most loved</a><br><a href="/shop/?on_sale=1">On sale</a>' },
+        { type: 'para', x: 400, y: 48, w: 260, h: 24, text: 'Help', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
+        { type: 'para', x: 400, y: 96, w: 260, h: 168, text: '<a href="/faq/">Questions</a><br><a href="/delivery/">Delivery &amp; returns</a><br><a href="/contact/">Find us</a>' },
+        { type: 'widget', rails: true, x: 740, y: 48, w: 400, h: 288, shop: { count: 1, order: 'popularity', layout: 'grid', aspect: 'landscape', spacing: 's', show: { price: true, rating: false, button: true } } },
       ] },
-      { name: 'Featured product in the menu', take: 'Two bestsellers', minH: 400, els: [
-        { type: 'para', x: 60, y: 60, w: 300, h: 24, text: 'Most loved', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
-        { type: 'widget', rails: true, x: 60, y: 100, w: 620, h: 260, shop: { count: 2, order: 'popularity', layout: 'grid', aspect: 'square', spacing: 's', show: { price: true, rating: false, button: false } } },
-        { type: 'para', x: 760, y: 60, w: 380, h: 24, text: 'Shop', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
-        { type: 'para', x: 760, y: 100, w: 380, h: 180, text: '<a href="/shop/">Everything</a><br><a href="/shop/?orderby=date">New in</a><br><a href="/shop/?orderby=popularity">Most loved</a><br><a href="/shop/?on_sale=1">On sale</a>' },
+      { name: 'Featured product in the menu', take: 'Two bestsellers', minH: 432, els: [
+        { type: 'para', x: 60, y: 48, w: 300, h: 24, text: 'Most loved', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
+        { type: 'widget', rails: true, x: 60, y: 96, w: 620, h: 264, shop: { count: 2, order: 'popularity', layout: 'grid', aspect: 'square', spacing: 's', show: { price: true, rating: false, button: false } } },
+        { type: 'para', x: 760, y: 48, w: 380, h: 24, text: 'Shop', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
+        { type: 'para', x: 760, y: 96, w: 380, h: 168, text: '<a href="/shop/">Everything</a><br><a href="/shop/?orderby=date">New in</a><br><a href="/shop/?orderby=popularity">Most loved</a><br><a href="/shop/?on_sale=1">On sale</a>' },
       ] },
-      { name: 'Featured product in the menu', take: 'The list', minH: 400, els: [
-        { type: 'heading', x: 60, y: 50, w: 400, h: 50, text: 'Three to try first', fs: 'medium' },
-        { type: 'widget', rails: true, x: 60, y: 110, w: 560, h: 260, shop: { count: 3, order: 'popularity', layout: 'list', aspect: 'square', spacing: 's', show: { price: true, rating: false, button: false } } },
-        { type: 'para', x: 700, y: 60, w: 440, h: 24, text: 'Explore', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
-        { type: 'para', x: 700, y: 100, w: 440, h: 180, text: '<a href="/">Home</a><br><a href="/about/">Our story</a><br><a href="/blog/">Journal</a><br><a href="/contact/">Get in touch</a>' },
+      { name: 'Featured product in the menu', take: 'The list', minH: 432, els: [
+        { type: 'heading', x: 60, y: 48, w: 400, h: 48, text: 'Three to try first', fs: 'medium' },
+        { type: 'widget', rails: true, x: 60, y: 120, w: 560, h: 264, shop: { count: 3, order: 'popularity', layout: 'list', aspect: 'square', spacing: 's', show: { price: true, rating: false, button: false } } },
+        { type: 'para', x: 700, y: 48, w: 440, h: 24, text: 'Explore', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
+        { type: 'para', x: 700, y: 96, w: 440, h: 168, text: '<a href="/">Home</a><br><a href="/about/">Our story</a><br><a href="/blog/">Journal</a><br><a href="/contact/">Get in touch</a>' },
       ] },
     ],
     'Shop the look': [
-      { name: 'Shop the look', take: 'The photo right', minH: 640, els: [
-        { type: 'image', x: 520, y: 60, w: 620, h: 520, cool: true },
-        { type: 'para', x: 60, y: 90, w: 340, h: 24, text: 'Shop the look', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
-        { type: 'heading', x: 60, y: 130, w: 400, h: 100, text: 'Everything in this picture', fs: 'x-large' },
+      { name: 'Shop the look', take: 'The photo right', minH: 648, els: [
+        { type: 'image', x: 520, y: 48, w: 620, h: 528, cool: true },
+        { type: 'para', x: 60, y: 96, w: 340, h: 24, text: 'Shop the look', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
+        { type: 'heading', x: 60, y: 120, w: 400, h: 96, text: 'Everything in this picture', fs: 'x-large' },
         { type: 'para', x: 60, y: 240, w: 380, h: 48, text: 'Every piece here is ours. Tap one to see it up close.' },
-        { type: 'widget', rails: true, x: 60, y: 310, w: 400, h: 300, shop: { count: 3, order: 'date', layout: 'list', aspect: 'square', spacing: 's', show: { price: true, rating: false, button: true } } },
+        { type: 'widget', rails: true, x: 60, y: 312, w: 400, h: 288, shop: { count: 3, order: 'date', layout: 'list', aspect: 'square', spacing: 's', show: { price: true, rating: false, button: true } } },
       ] },
-      { name: 'Shop the look', take: 'The band', minH: 800, els: [
-        { type: 'image', x: 60, y: 60, w: 1080, h: 420, cool: true },
-        { type: 'para', x: 60, y: 510, w: 340, h: 24, text: 'Shop the look', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
-        { type: 'heading', x: 60, y: 548, w: 480, h: 70, text: 'Everything in this picture', fs: 'large' },
-        { type: 'para', x: 60, y: 630, w: 440, h: 48, text: 'Every piece here is ours. Tap one to see it up close.' },
-        { type: 'widget', rails: true, x: 600, y: 500, w: 540, h: 260, shop: { count: 3, order: 'date', layout: 'grid', aspect: 'square', spacing: 's', show: { price: true, rating: false, button: false } } },
+      { name: 'Shop the look', take: 'The band', minH: 792, els: [
+        { type: 'image', x: 60, y: 48, w: 1080, h: 432, cool: true },
+        { type: 'para', x: 60, y: 504, w: 340, h: 24, text: 'Shop the look', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
+        { type: 'heading', x: 60, y: 552, w: 480, h: 48, text: 'Everything in this picture', fs: 'large' },
+        { type: 'para', x: 60, y: 624, w: 440, h: 48, text: 'Every piece here is ours. Tap one to see it up close.' },
+        { type: 'widget', rails: true, x: 600, y: 504, w: 540, h: 264, shop: { count: 3, order: 'date', layout: 'grid', aspect: 'square', spacing: 's', show: { price: true, rating: false, button: false } } },
       ] },
-      { name: 'Shop the look', take: 'The margin', minH: 640, els: [
-        { type: 'image', x: 60, y: 60, w: 760, h: 520, cool: true },
-        { type: 'heading', x: 860, y: 60, w: 280, h: 70, text: 'In this picture', fs: 'medium' },
-        { type: 'widget', rails: true, x: 860, y: 150, w: 280, h: 430, shop: { count: 4, order: 'date', layout: 'list', aspect: 'square', spacing: 's', show: { price: true, rating: false, button: false } } },
+      { name: 'Shop the look', take: 'The margin', minH: 648, els: [
+        { type: 'image', x: 60, y: 48, w: 760, h: 528, cool: true },
+        { type: 'heading', x: 860, y: 48, w: 280, h: 48, text: 'In this picture', fs: 'medium' },
+        { type: 'widget', rails: true, x: 860, y: 144, w: 280, h: 432, shop: { count: 4, order: 'date', layout: 'list', aspect: 'square', spacing: 's', show: { price: true, rating: false, button: false } } },
       ] },
     ],
     'Editorial split': [
-      { name: 'Editorial split', take: 'Words right', minH: 660, els: [
-        { type: 'widget', rails: true, x: 60, y: 80, w: 540, h: 520, shop: { count: 2, order: 'date', layout: 'grid', aspect: 'portrait', spacing: 'm' } },
-        { type: 'para', x: 680, y: 110, w: 340, h: 24, text: 'From the workshop', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
-        { type: 'heading', x: 680, y: 150, w: 440, h: 160, text: 'Made slowly, sent this week', fs: '__max' },
-        { type: 'para', x: 680, y: 340, w: 400, h: 96, text: 'Two pieces we are proud of this month, and the story of how they came to be. Everything is made here, in small batches.' },
-        { type: 'button', x: 680, y: 470, w: 200, h: 54, text: 'See everything', href: '/shop/', ghost: true },
+      { name: 'Editorial split', take: 'Words right', minH: 648, els: [
+        { type: 'widget', rails: true, x: 60, y: 72, w: 540, h: 528, shop: { count: 2, order: 'date', layout: 'grid', aspect: 'portrait', spacing: 'm' } },
+        { type: 'para', x: 680, y: 120, w: 340, h: 24, text: 'From the workshop', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
+        { type: 'heading', x: 680, y: 144, w: 440, h: 144, text: 'Made slowly, sent this week', fs: '__max' },
+        { type: 'para', x: 680, y: 336, w: 400, h: 96, text: 'Two pieces we are proud of this month, and the story of how they came to be. Everything is made here, in small batches.' },
+        { type: 'button', x: 680, y: 480, w: 200, h: 48, text: 'See everything', href: '/shop/', ghost: true },
       ] },
-      { name: 'Editorial split', take: 'The stack', minH: 820, els: [
-        { type: 'para', x: 400, y: 80, w: 400, h: 24, align: 'center', text: 'From the workshop', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
-        { type: 'heading', x: 200, y: 120, w: 800, h: 100, align: 'center', text: 'Made slowly, sent this week', fs: 'x-large' },
-        { type: 'para', x: 300, y: 236, w: 600, h: 72, align: 'center', text: 'Two pieces we are proud of this month, and the story of how they came to be. Everything is made here, in small batches.' },
-        { type: 'widget', rails: true, x: 200, y: 340, w: 800, h: 400, shop: { count: 2, order: 'date', layout: 'grid', aspect: 'square', spacing: 'l' } },
+      { name: 'Editorial split', take: 'The stack', minH: 792, els: [
+        { type: 'para', x: 400, y: 72, w: 400, h: 24, align: 'center', text: 'From the workshop', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
+        { type: 'heading', x: 200, y: 120, w: 800, h: 96, align: 'center', text: 'Made slowly, sent this week', fs: 'x-large' },
+        { type: 'para', x: 300, y: 240, w: 600, h: 72, align: 'center', text: 'Two pieces we are proud of this month, and the story of how they came to be. Everything is made here, in small batches.' },
+        { type: 'widget', rails: true, x: 200, y: 336, w: 800, h: 408, shop: { count: 2, order: 'date', layout: 'grid', aspect: 'square', spacing: 'l' } },
       ] },
-      { name: 'Editorial split', take: 'Ink', minH: 660, bg: 'var(--wp--preset--color--contrast, #16181c)', els: [
-        { type: 'para', x: 72, y: 110, w: 340, h: 24, text: 'From the workshop', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--base, #fff) 72%, transparent)' } },
-        { type: 'heading', x: 72, y: 150, w: 460, h: 160, text: 'Made slowly, sent this week', fs: '__max', color: 'base' },
-        { type: 'para', x: 72, y: 340, w: 420, h: 96, text: 'Two pieces we are proud of this month, and the story of how they came to be. Everything is made here, in small batches.', color: 'base' },
-        { type: 'button', x: 72, y: 470, w: 200, h: 54, text: 'See everything', href: '/shop/', tf: { bg: 'var(--wp--preset--color--base, #fff)', col: 'var(--wp--preset--color--contrast, #141519)' } },
-        { type: 'widget', rails: true, x: 600, y: 80, w: 540, h: 520, shop: { count: 2, order: 'date', layout: 'grid', aspect: 'portrait', spacing: 'm' } },
+      { name: 'Editorial split', take: 'Ink', minH: 648, bg: 'var(--wp--preset--color--contrast, #16181c)', els: [
+        { type: 'para', x: 72, y: 120, w: 340, h: 24, text: 'From the workshop', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--base, #fff) 72%, transparent)' } },
+        { type: 'heading', x: 72, y: 144, w: 460, h: 144, text: 'Made slowly, sent this week', fs: '__max', color: 'base' },
+        { type: 'para', x: 72, y: 336, w: 420, h: 96, text: 'Two pieces we are proud of this month, and the story of how they came to be. Everything is made here, in small batches.', color: 'base' },
+        { type: 'button', x: 72, y: 480, w: 200, h: 48, text: 'See everything', href: '/shop/', tf: { bg: 'var(--wp--preset--color--base, #fff)', col: 'var(--wp--preset--color--contrast, #141519)' } },
+        { type: 'widget', rails: true, x: 600, y: 72, w: 540, h: 528, shop: { count: 2, order: 'date', layout: 'grid', aspect: 'portrait', spacing: 'm' } },
       ] },
     ],
     'New in': [
-      { name: 'New in', take: 'Headline centred', minH: 700, els: [
-        { type: 'para', x: 400, y: 80, w: 400, h: 24, align: 'center', text: 'Just arrived', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
-        { type: 'heading', x: 200, y: 120, w: 800, h: 100, align: 'center', text: 'New in', fs: '__max' },
-        { type: 'widget', rails: true, x: 47, y: 260, w: 1106, h: 300, shop: { count: 4, order: 'date', layout: 'grid', aspect: 'landscape', spacing: 'm' } },
-        { type: 'button', x: 500, y: 600, w: 200, h: 54, text: 'See everything', href: '/shop/', ghost: true },
+      { name: 'New in', take: 'Headline centred', minH: 720, els: [
+        { type: 'para', x: 400, y: 72, w: 400, h: 24, align: 'center', text: 'Just arrived', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
+        { type: 'heading', x: 200, y: 120, w: 800, h: 96, align: 'center', text: 'New in', fs: '__max' },
+        { type: 'widget', rails: true, x: 47, y: 264, w: 1106, h: 288, shop: { count: 4, order: 'date', layout: 'grid', aspect: 'landscape', spacing: 'm' } },
+        { type: 'button', x: 500, y: 600, w: 200, h: 48, text: 'See everything', href: '/shop/', ghost: true },
       ] },
-      { name: 'New in', take: 'Three tall', minH: 760, els: [
-        { type: 'para', x: 72, y: 84, w: 340, h: 24, text: 'Just arrived', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
-        { type: 'heading', x: 72, y: 124, w: 600, h: 90, text: 'New in', fs: 'x-large' },
-        { type: 'button', x: 900, y: 140, w: 200, h: 54, text: 'See everything', href: '/shop/', ghost: true },
-        { type: 'widget', rails: true, x: 47, y: 250, w: 1106, h: 470, shop: { count: 3, order: 'date', layout: 'grid', aspect: 'portrait', spacing: 'l' } },
+      { name: 'New in', take: 'Three tall', minH: 792, els: [
+        { type: 'para', x: 72, y: 96, w: 340, h: 24, text: 'Just arrived', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
+        { type: 'heading', x: 72, y: 120, w: 600, h: 72, text: 'New in', fs: 'x-large' },
+        { type: 'button', x: 900, y: 144, w: 200, h: 48, text: 'See everything', href: '/shop/', ghost: true },
+        { type: 'widget', rails: true, x: 47, y: 240, w: 1106, h: 480, shop: { count: 3, order: 'date', layout: 'grid', aspect: 'portrait', spacing: 'l' } },
       ] },
-      { name: 'New in', take: 'The ledger', minH: 700, els: [
-        { type: 'para', x: 72, y: 90, w: 340, h: 24, text: 'Just arrived', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
-        { type: 'heading', x: 72, y: 130, w: 400, h: 150, text: 'New in', fs: '__max' },
-        { type: 'para', x: 72, y: 300, w: 380, h: 72, text: 'The latest things on the shelf, newest first. Nothing to maintain.' },
-        { type: 'button', x: 72, y: 400, w: 200, h: 54, text: 'See everything', href: '/shop/', ghost: true },
-        { type: 'widget', rails: true, x: 540, y: 84, w: 590, h: 560, shop: { count: 4, order: 'date', layout: 'list', aspect: 'square', spacing: 's' } },
+      { name: 'New in', take: 'The ledger', minH: 720, els: [
+        { type: 'para', x: 72, y: 96, w: 340, h: 24, text: 'Just arrived', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
+        { type: 'heading', x: 72, y: 120, w: 400, h: 144, text: 'New in', fs: '__max' },
+        { type: 'para', x: 72, y: 288, w: 380, h: 72, text: 'The latest things on the shelf, newest first. Nothing to maintain.' },
+        { type: 'button', x: 72, y: 408, w: 200, h: 48, text: 'See everything', href: '/shop/', ghost: true },
+        { type: 'widget', rails: true, x: 540, y: 96, w: 590, h: 552, shop: { count: 4, order: 'date', layout: 'list', aspect: 'square', spacing: 's' } },
       ] },
     ],
     'Sale': [
-      { name: 'Sale', take: 'Four up', minH: 640, els: [
-        { type: 'para', x: 72, y: 84, w: 340, h: 24, text: 'Right now', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
-        { type: 'heading', x: 72, y: 124, w: 600, h: 90, text: 'On sale', fs: 'x-large' },
-        { type: 'button', x: 860, y: 140, w: 240, h: 54, text: 'Everything on sale', href: '/shop/', ghost: true },
-        { type: 'widget', rails: true, x: 47, y: 250, w: 1106, h: 360, shop: { count: 4, order: 'sale', layout: 'grid', aspect: 'landscape', spacing: 'm' } },
+      { name: 'Sale', take: 'Four up', minH: 648, els: [
+        { type: 'para', x: 72, y: 96, w: 340, h: 24, text: 'Right now', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
+        { type: 'heading', x: 72, y: 120, w: 600, h: 72, text: 'On sale', fs: 'x-large' },
+        { type: 'button', x: 860, y: 144, w: 240, h: 48, text: 'Everything on sale', href: '/shop/', ghost: true },
+        { type: 'widget', rails: true, x: 47, y: 240, w: 1106, h: 360, shop: { count: 4, order: 'sale', layout: 'grid', aspect: 'landscape', spacing: 'm' } },
       ] },
-      { name: 'Sale', take: 'Ink band', minH: 700, bg: 'var(--wp--preset--color--contrast, #16181c)', els: [
-        { type: 'para', x: 72, y: 84, w: 340, h: 24, text: 'Right now', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--base, #fff) 72%, transparent)' } },
-        { type: 'heading', x: 72, y: 124, w: 600, h: 90, text: 'On sale', fs: 'x-large', color: 'base' },
-        { type: 'para', x: 72, y: 220, w: 520, h: 48, text: 'Only what is reduced, while it lasts. Prices as marked.', color: 'base' },
-        { type: 'button', x: 860, y: 214, w: 240, h: 54, text: 'Everything on sale', href: '/shop/', tf: { bg: 'var(--wp--preset--color--base, #fff)', col: 'var(--wp--preset--color--contrast, #141519)' } },
-        { type: 'widget', rails: true, x: 47, y: 300, w: 1106, h: 360, shop: { count: 3, order: 'sale', layout: 'grid', aspect: 'square', spacing: 'm' } },
+      { name: 'Sale', take: 'Ink band', minH: 720, bg: 'var(--wp--preset--color--contrast, #16181c)', els: [
+        { type: 'para', x: 72, y: 96, w: 340, h: 24, text: 'Right now', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--base, #fff) 72%, transparent)' } },
+        { type: 'heading', x: 72, y: 120, w: 600, h: 72, text: 'On sale', fs: 'x-large', color: 'base' },
+        { type: 'para', x: 72, y: 216, w: 520, h: 48, text: 'Only what is reduced, while it lasts. Prices as marked.', color: 'base' },
+        { type: 'button', x: 860, y: 216, w: 240, h: 48, text: 'Everything on sale', href: '/shop/', tf: { bg: 'var(--wp--preset--color--base, #fff)', col: 'var(--wp--preset--color--contrast, #141519)' } },
+        { type: 'widget', rails: true, x: 47, y: 288, w: 1106, h: 360, shop: { count: 3, order: 'sale', layout: 'grid', aspect: 'square', spacing: 'm' } },
       ] },
-      { name: 'Sale', take: 'The spotlight', minH: 600, els: [
-        { type: 'widget', rails: true, x: 72, y: 70, w: 500, h: 460, shop: { count: 1, order: 'sale', layout: 'grid', aspect: 'square', spacing: 'm' } },
-        { type: 'para', x: 660, y: 130, w: 340, h: 24, text: 'Right now', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
-        { type: 'heading', x: 660, y: 170, w: 460, h: 160, text: 'One thing, properly reduced', fs: '__max' },
+      { name: 'Sale', take: 'The spotlight', minH: 576, els: [
+        { type: 'widget', rails: true, x: 72, y: 72, w: 500, h: 456, shop: { count: 1, order: 'sale', layout: 'grid', aspect: 'square', spacing: 'm' } },
+        { type: 'para', x: 660, y: 120, w: 340, h: 24, text: 'Right now', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
+        { type: 'heading', x: 660, y: 168, w: 460, h: 144, text: 'One thing, properly reduced', fs: '__max' },
         { type: 'para', x: 660, y: 360, w: 420, h: 72, text: 'Only what is reduced, while it lasts. Prices as marked.' },
-        { type: 'button', x: 660, y: 460, w: 240, h: 54, text: 'Everything on sale', href: '/shop/', ghost: true },
+        { type: 'button', x: 660, y: 456, w: 240, h: 48, text: 'Everything on sale', href: '/shop/', ghost: true },
       ] },
     ],
     'Categories': [
-      { name: 'Categories', take: 'Four across', minH: 600, els: [
-        { type: 'para', x: 400, y: 80, w: 400, h: 24, align: 'center', text: 'Shop by', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
-        { type: 'heading', x: 200, y: 120, w: 800, h: 100, align: 'center', text: 'Find your thing', fs: 'x-large' },
-        { type: 'widget', rails: true, x: 47, y: 260, w: 1106, h: 280, shop: { kind: 'categories', count: 4, spacing: 's' } },
+      { name: 'Categories', take: 'Four across', minH: 576, els: [
+        { type: 'para', x: 400, y: 72, w: 400, h: 24, align: 'center', text: 'Shop by', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
+        { type: 'heading', x: 200, y: 120, w: 800, h: 96, align: 'center', text: 'Find your thing', fs: 'x-large' },
+        { type: 'widget', rails: true, x: 47, y: 264, w: 1106, h: 288, shop: { kind: 'categories', count: 4, spacing: 's' } },
       ] },
-      { name: 'Categories', take: 'Two big', minH: 700, els: [
-        { type: 'para', x: 72, y: 90, w: 340, h: 24, text: 'Shop by', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
-        { type: 'heading', x: 72, y: 130, w: 400, h: 150, text: 'Find your thing', fs: '__max' },
-        { type: 'para', x: 72, y: 300, w: 380, h: 72, text: 'Every door leads somewhere good.' },
-        { type: 'widget', rails: true, x: 520, y: 84, w: 630, h: 560, shop: { kind: 'categories', count: 2, spacing: 'm' } },
+      { name: 'Categories', take: 'Two big', minH: 720, els: [
+        { type: 'para', x: 72, y: 96, w: 340, h: 24, text: 'Shop by', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
+        { type: 'heading', x: 72, y: 120, w: 400, h: 144, text: 'Find your thing', fs: '__max' },
+        { type: 'para', x: 72, y: 288, w: 380, h: 72, text: 'Every door leads somewhere good.' },
+        { type: 'widget', rails: true, x: 520, y: 96, w: 630, h: 552, shop: { kind: 'categories', count: 2, spacing: 'm' } },
       ] },
-      { name: 'Categories', take: 'Ink', minH: 640, bg: 'var(--wp--preset--color--contrast, #16181c)', els: [
-        { type: 'para', x: 72, y: 84, w: 340, h: 24, text: 'Shop by', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--base, #fff) 72%, transparent)' } },
-        { type: 'heading', x: 72, y: 124, w: 600, h: 90, text: 'Find your thing', fs: 'x-large', color: 'base' },
-        { type: 'widget', rails: true, x: 47, y: 260, w: 1106, h: 320, shop: { kind: 'categories', count: 3, spacing: 'm' } },
+      { name: 'Categories', take: 'Ink', minH: 648, bg: 'var(--wp--preset--color--contrast, #16181c)', els: [
+        { type: 'para', x: 72, y: 96, w: 340, h: 24, text: 'Shop by', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--base, #fff) 72%, transparent)' } },
+        { type: 'heading', x: 72, y: 120, w: 600, h: 72, text: 'Find your thing', fs: 'x-large', color: 'base' },
+        { type: 'widget', rails: true, x: 47, y: 264, w: 1106, h: 312, shop: { kind: 'categories', count: 3, spacing: 'm' } },
       ] },
     ],
     'Featured product': [
-      { name: 'Featured product', take: 'The billboard', minH: 640, els: [
-        { type: 'para', x: 680, y: 150, w: 340, h: 24, text: 'This week', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
-        { type: 'heading', x: 680, y: 190, w: 440, h: 160, text: 'The one everyone asks about', fs: '__max' },
-        { type: 'para', x: 680, y: 380, w: 400, h: 72, text: 'Made in small batches and gone by Friday. If you only try one thing, try this.' },
-        { type: 'button', x: 680, y: 480, w: 200, h: 54, text: 'See everything', href: '/shop/', ghost: true },
-        { type: 'widget', rails: true, x: 72, y: 70, w: 540, h: 520, shop: { count: 1, order: 'popularity', layout: 'grid', aspect: 'portrait', spacing: 'm' } },
+      { name: 'Featured product', take: 'The billboard', minH: 648, els: [
+        { type: 'para', x: 680, y: 144, w: 340, h: 24, text: 'This week', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
+        { type: 'heading', x: 680, y: 192, w: 440, h: 144, text: 'The one everyone asks about', fs: '__max' },
+        { type: 'para', x: 680, y: 384, w: 400, h: 72, text: 'Made in small batches and gone by Friday. If you only try one thing, try this.' },
+        { type: 'button', x: 680, y: 480, w: 200, h: 48, text: 'See everything', href: '/shop/', ghost: true },
+        { type: 'widget', rails: true, x: 72, y: 72, w: 540, h: 528, shop: { count: 1, order: 'popularity', layout: 'grid', aspect: 'portrait', spacing: 'm' } },
       ] },
-      { name: 'Featured product', take: 'The centre', minH: 820, els: [
-        { type: 'para', x: 400, y: 80, w: 400, h: 24, align: 'center', text: 'This week', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
-        { type: 'heading', x: 200, y: 120, w: 800, h: 100, align: 'center', text: 'The one everyone asks about', fs: 'x-large' },
-        { type: 'para', x: 330, y: 236, w: 540, h: 48, align: 'center', text: 'Made in small batches and gone by Friday. If you only try one thing, try this.' },
-        { type: 'widget', rails: true, x: 380, y: 320, w: 440, h: 420, shop: { count: 1, order: 'popularity', layout: 'grid', aspect: 'square', spacing: 'm' } },
-        { type: 'button', x: 500, y: 760, w: 200, h: 54, align: 'center', text: 'See everything', href: '/shop/', ghost: true },
+      { name: 'Featured product', take: 'The centre', minH: 792, els: [
+        { type: 'para', x: 400, y: 72, w: 400, h: 24, align: 'center', text: 'This week', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
+        { type: 'heading', x: 200, y: 120, w: 800, h: 96, align: 'center', text: 'The one everyone asks about', fs: 'x-large' },
+        { type: 'para', x: 330, y: 240, w: 540, h: 48, align: 'center', text: 'Made in small batches and gone by Friday. If you only try one thing, try this.' },
+        { type: 'widget', rails: true, x: 380, y: 312, w: 440, h: 432, shop: { count: 1, order: 'popularity', layout: 'grid', aspect: 'square', spacing: 'm' } },
+        { type: 'button', x: 500, y: 768, w: 200, h: 48, align: 'center', text: 'See everything', href: '/shop/', ghost: true },
       ] },
-      { name: 'Featured product', take: 'The strip', minH: 440, els: [
-        { type: 'widget', rails: true, x: 72, y: 60, w: 380, h: 320, shop: { count: 1, order: 'popularity', layout: 'grid', aspect: 'landscape', spacing: 's' } },
+      { name: 'Featured product', take: 'The strip', minH: 432, els: [
+        { type: 'widget', rails: true, x: 72, y: 48, w: 380, h: 312, shop: { count: 1, order: 'popularity', layout: 'grid', aspect: 'landscape', spacing: 's' } },
         { type: 'para', x: 520, y: 96, w: 340, h: 24, text: 'This week', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
-        { type: 'heading', x: 520, y: 136, w: 580, h: 100, text: 'The one everyone asks about', fs: 'x-large' },
-        { type: 'para', x: 520, y: 256, w: 520, h: 48, text: 'Made in small batches and gone by Friday. If you only try one thing, try this.' },
-        { type: 'button', x: 520, y: 326, w: 200, h: 54, text: 'See everything', href: '/shop/', ghost: true },
+        { type: 'heading', x: 520, y: 144, w: 580, h: 96, text: 'The one everyone asks about', fs: 'x-large' },
+        { type: 'para', x: 520, y: 264, w: 520, h: 48, text: 'Made in small batches and gone by Friday. If you only try one thing, try this.' },
+        { type: 'button', x: 520, y: 336, w: 200, h: 48, text: 'See everything', href: '/shop/', ghost: true },
       ] },
     ],
     'Bestsellers': [
-      { name: 'Bestsellers', take: 'Headline centred', minH: 760, els: [
-        { type: 'para', x: 400, y: 80, w: 400, h: 24, align: 'center', text: 'Most loved', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
-        { type: 'heading', x: 200, y: 120, w: 800, h: 100, align: 'center', text: 'Bestsellers', fs: '__max' },
-        { type: 'para', x: 330, y: 236, w: 540, h: 48, align: 'center', text: 'What people come back for. Ordered by what sells, so it looks after itself.' },
-        { type: 'widget', rails: true, x: 47, y: 320, w: 1106, h: 340, shop: { count: 3, order: 'popularity', layout: 'grid', aspect: 'portrait', spacing: 'l' } },
-        { type: 'button', x: 500, y: 690, w: 200, h: 54, text: 'See everything', href: '/shop/', ghost: true },
+      { name: 'Bestsellers', take: 'Headline centred', minH: 792, els: [
+        { type: 'para', x: 400, y: 72, w: 400, h: 24, align: 'center', text: 'Most loved', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
+        { type: 'heading', x: 200, y: 120, w: 800, h: 96, align: 'center', text: 'Bestsellers', fs: '__max' },
+        { type: 'para', x: 330, y: 240, w: 540, h: 48, align: 'center', text: 'What people come back for. Ordered by what sells, so it looks after itself.' },
+        { type: 'widget', rails: true, x: 47, y: 312, w: 1106, h: 336, shop: { count: 3, order: 'popularity', layout: 'grid', aspect: 'portrait', spacing: 'l' } },
+        { type: 'button', x: 500, y: 696, w: 200, h: 48, text: 'See everything', href: '/shop/', ghost: true },
       ] },
-      { name: 'Bestsellers', take: 'The ledger', minH: 700, els: [
-        { type: 'para', x: 72, y: 90, w: 340, h: 24, text: 'Most loved', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
-        { type: 'heading', x: 72, y: 130, w: 400, h: 150, text: 'Bestsellers', fs: '__max' },
-        { type: 'para', x: 72, y: 300, w: 380, h: 72, text: 'What people come back for. Ordered by what sells, so it looks after itself.' },
-        { type: 'button', x: 72, y: 400, w: 200, h: 54, text: 'See everything', href: '/shop/', ghost: true },
-        { type: 'widget', rails: true, x: 540, y: 84, w: 590, h: 560, shop: { count: 4, order: 'popularity', layout: 'list', aspect: 'square', spacing: 's' } },
+      { name: 'Bestsellers', take: 'The ledger', minH: 720, els: [
+        { type: 'para', x: 72, y: 96, w: 340, h: 24, text: 'Most loved', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
+        { type: 'heading', x: 72, y: 120, w: 400, h: 144, text: 'Bestsellers', fs: '__max' },
+        { type: 'para', x: 72, y: 288, w: 380, h: 72, text: 'What people come back for. Ordered by what sells, so it looks after itself.' },
+        { type: 'button', x: 72, y: 408, w: 200, h: 48, text: 'See everything', href: '/shop/', ghost: true },
+        { type: 'widget', rails: true, x: 540, y: 96, w: 590, h: 552, shop: { count: 4, order: 'popularity', layout: 'list', aspect: 'square', spacing: 's' } },
       ] },
-      { name: 'Bestsellers', take: 'Four up', minH: 640, els: [
-        { type: 'para', x: 72, y: 84, w: 340, h: 24, text: 'Most loved', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
-        { type: 'heading', x: 72, y: 124, w: 600, h: 90, text: 'Bestsellers', fs: 'x-large' },
-        { type: 'button', x: 900, y: 140, w: 200, h: 54, text: 'See everything', href: '/shop/', ghost: true },
-        { type: 'widget', rails: true, x: 47, y: 250, w: 1106, h: 360, shop: { count: 4, order: 'popularity', layout: 'grid', aspect: 'landscape', spacing: 'm' } },
+      { name: 'Bestsellers', take: 'Four up', minH: 648, els: [
+        { type: 'para', x: 72, y: 96, w: 340, h: 24, text: 'Most loved', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
+        { type: 'heading', x: 72, y: 120, w: 600, h: 72, text: 'Bestsellers', fs: 'x-large' },
+        { type: 'button', x: 900, y: 144, w: 200, h: 48, text: 'See everything', href: '/shop/', ghost: true },
+        { type: 'widget', rails: true, x: 47, y: 240, w: 1106, h: 360, shop: { count: 4, order: 'popularity', layout: 'grid', aspect: 'landscape', spacing: 'm' } },
       ] },
     ],
     'Cover': [
-      { name: 'Cover', take: 'The anchor', minH: 700,
+      { name: 'Cover', take: 'The anchor', minH: 720,
         bg: 'var(--wp--preset--color--contrast, #16181c)', bgA: 55, bgImage: '/wp-content/plugins/gogh/demo-assets/wheat-field.jpg',
         els: [
-        { type: 'para', x: 76, y: 380, w: 400, h: 24, text: 'Est. 2019 · Brighton', tf: { fs: 13, fw: 600, ls2: 0.24, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--base, #fff) 78%, transparent)' } },
-        { type: 'heading', x: 72, y: 420, w: 760, h: 150, text: 'Make it feel like you', fs: '__max', color: 'base' },
-        { type: 'para', x: 76, y: 590, w: 500, h: 48, text: 'One clear promise over one strong picture — the front door most sites need.', color: 'base' },
-        { type: 'button', x: 900, y: 584, w: 190, h: 56, text: 'Come on in', tf: { bg: 'var(--wp--preset--color--base, #fff)', col: 'var(--wp--preset--color--contrast, #141519)' } },
+        { type: 'para', x: 76, y: 384, w: 400, h: 24, text: 'Est. 2019 · Brighton', tf: { fs: 13, fw: 600, ls2: 0.24, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--base, #fff) 78%, transparent)' } },
+        { type: 'heading', x: 72, y: 432, w: 760, h: 144, text: 'Make it feel like you', fs: '__max', color: 'base' },
+        { type: 'para', x: 76, y: 600, w: 500, h: 48, text: 'One clear promise over one strong picture — the front door most sites need.', color: 'base' },
+        { type: 'button', x: 900, y: 576, w: 190, h: 48, text: 'Come on in', tf: { bg: 'var(--wp--preset--color--base, #fff)', col: 'var(--wp--preset--color--contrast, #141519)' } },
       ] },
-      { name: 'Cover', take: 'The panel', minH: 640,
+      { name: 'Cover', take: 'The panel', minH: 648,
         bg: 'var(--wp--preset--color--contrast, #16181c)', bgA: 25, bgImage: '/wp-content/plugins/gogh/demo-assets/wheat-field.jpg', fx: { bg: 'parallax' },
         els: [
-        { type: 'box', x: 620, y: 110, w: 470, h: 420, radius: 24, mood: 'glass', kids: [
+        { type: 'box', x: 620, y: 120, w: 470, h: 432, radius: 24, mood: 'glass', kids: [
           { type: 'para', x: 36, y: 40, w: 398, h: 22, text: 'Est. 2019 · Brighton', tf: { fs: 12, fw: 600, ls2: 0.24, tt: 'uppercase' } },
           { type: 'heading', x: 36, y: 84, w: 398, h: 120, text: 'Make it feel like you', fs: 'x-large' },
           { type: 'para', x: 36, y: 228, w: 398, h: 72, text: 'One clear promise over one strong picture — the front door most sites need.' },
           { type: 'button', x: 36, y: 322, w: 190, h: 54, text: 'Come on in' },
         ] },
       ] },
-      { name: 'Cover', take: 'The statement', minH: 620,
+      { name: 'Cover', take: 'The statement', minH: 648,
         bg: 'var(--wp--preset--color--contrast, #16181c)',
         els: [
         { type: 'para', x: 400, y: 120, w: 400, h: 24, align: 'center', text: 'Est. 2019 · Brighton', tf: { fs: 13, fw: 600, ls2: 0.24, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--base, #fff) 78%, transparent)' } },
-        { type: 'heading', x: 100, y: 170, w: 1000, h: 220, text: 'Make it feel like you', fs: '__disp-l', align: 'center', tf: { col: 'var(--wp--preset--color--base, #fff)' } },
-        { type: 'para', x: 350, y: 420, w: 500, h: 48, align: 'center', text: 'One clear promise over one strong picture — the front door most sites need.', tf: { col: 'color-mix(in srgb, var(--wp--preset--color--base, #fff) 75%, transparent)' } },
-        { type: 'button', x: 505, y: 500, w: 190, h: 56, text: 'Come on in', tf: { bg: 'var(--wp--preset--color--base, #fff)', col: 'var(--wp--preset--color--contrast, #141519)' } },
+        { type: 'heading', x: 100, y: 168, w: 1000, h: 216, text: 'Make it feel like you', fs: '__disp-l', align: 'center', tf: { col: 'var(--wp--preset--color--base, #fff)' } },
+        { type: 'para', x: 350, y: 432, w: 500, h: 48, align: 'center', text: 'One clear promise over one strong picture — the front door most sites need.', tf: { col: 'color-mix(in srgb, var(--wp--preset--color--base, #fff) 75%, transparent)' } },
+        { type: 'button', x: 505, y: 504, w: 190, h: 48, text: 'Come on in', tf: { bg: 'var(--wp--preset--color--base, #fff)', col: 'var(--wp--preset--color--contrast, #141519)' } },
       ] },
     ],
     'Get in touch': [
-      { name: 'Get in touch', take: 'Side by side', minH: 640, els: [
-        { type: 'para', x: 72, y: 90, w: 300, h: 24, text: 'Say hello', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
-        { type: 'heading', x: 72, y: 132, w: 420, h: 150, text: 'Let’s talk', fs: '__max' },
-        { type: 'para', x: 72, y: 310, w: 400, h: 72, text: 'A question, an idea, or just to say hi — we read everything, usually the same day.' },
-        { type: 'para', x: 72, y: 410, w: 400, h: 24, text: 'hello@yourstudio.com · Brighton', tf: { fs: 13, fw: 600, col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
-        { type: 'widget', x: 540, y: 90, w: 560, h: 460, wsrc: DICE_FORM_WSRC, whtml: DICE_FORM_WHTML },
+      { name: 'Get in touch', take: 'Side by side', minH: 648, els: [
+        { type: 'para', x: 72, y: 96, w: 300, h: 24, text: 'Say hello', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
+        { type: 'heading', x: 72, y: 144, w: 420, h: 144, text: 'Let’s talk', fs: '__max' },
+        { type: 'para', x: 72, y: 312, w: 400, h: 72, text: 'A question, an idea, or just to say hi — we read everything, usually the same day.' },
+        { type: 'para', x: 72, y: 408, w: 400, h: 24, text: 'hello@yourstudio.com · Brighton', tf: { fs: 13, fw: 600, col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
+        { type: 'widget', x: 540, y: 96, w: 560, h: 456, wsrc: DICE_FORM_WSRC, whtml: DICE_FORM_WHTML },
       ] },
-      { name: 'Get in touch', take: 'The note', minH: 780, els: [
-        { type: 'para', x: 400, y: 66, w: 400, h: 24, align: 'center', text: 'Say hello', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
-        { type: 'heading', x: 300, y: 108, w: 600, h: 80, text: 'Let’s talk', fs: 'x-large', align: 'center' },
-        { type: 'para', x: 340, y: 208, w: 520, h: 48, align: 'center', text: 'A question, an idea, or just to say hi — we read everything, usually the same day.' },
-        { type: 'box', x: 270, y: 290, w: 660, h: 440, radius: 22, boxBg: 'color-mix(in srgb, var(--wp--preset--color--contrast, #000) 6%, var(--wp--preset--color--base, transparent))' },
-        { type: 'widget', x: 310, y: 330, w: 580, h: 360, wsrc: DICE_FORM_WSRC, whtml: DICE_FORM_WHTML },
+      { name: 'Get in touch', take: 'The note', minH: 792, els: [
+        { type: 'para', x: 400, y: 72, w: 400, h: 24, align: 'center', text: 'Say hello', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
+        { type: 'heading', x: 300, y: 96, w: 600, h: 72, text: 'Let’s talk', fs: 'x-large', align: 'center' },
+        { type: 'para', x: 340, y: 216, w: 520, h: 48, align: 'center', text: 'A question, an idea, or just to say hi — we read everything, usually the same day.' },
+        { type: 'box', x: 270, y: 288, w: 660, h: 432, radius: 22, boxBg: 'color-mix(in srgb, var(--wp--preset--color--contrast, #000) 6%, var(--wp--preset--color--base, transparent))' },
+        { type: 'widget', x: 310, y: 336, w: 580, h: 360, wsrc: DICE_FORM_WSRC, whtml: DICE_FORM_WHTML },
       ] },
-      { name: 'Get in touch', take: 'The statement', minH: 700, els: [
-        { type: 'para', x: 72, y: 84, w: 300, h: 24, text: 'Say hello', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
-        { type: 'heading', x: 72, y: 126, w: 460, h: 220, text: 'Let’s talk', fs: '__disp-m' },
-        { type: 'para', x: 72, y: 390, w: 400, h: 72, text: 'A question, an idea, or just to say hi — we read everything, usually the same day.' },
-        { type: 'widget', x: 560, y: 110, w: 540, h: 460, wsrc: DICE_FORM_WSRC, whtml: DICE_FORM_WHTML },
+      { name: 'Get in touch', take: 'The statement', minH: 720, els: [
+        { type: 'para', x: 72, y: 96, w: 300, h: 24, text: 'Say hello', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
+        { type: 'heading', x: 72, y: 120, w: 460, h: 216, text: 'Let’s talk', fs: '__disp-m' },
+        { type: 'para', x: 72, y: 384, w: 400, h: 72, text: 'A question, an idea, or just to say hi — we read everything, usually the same day.' },
+        { type: 'widget', x: 560, y: 120, w: 540, h: 456, wsrc: DICE_FORM_WSRC, whtml: DICE_FORM_WHTML },
       ] },
     ],
     'Hero': [
-      { name: 'Hero', take: 'The mirror', minH: 640, els: [
-        { type: 'box', x: 60, y: 150, w: 500, h: 430, boxBg: 'color-mix(in srgb, var(--wp--preset--color--contrast, #000) 8%, var(--wp--preset--color--base, transparent))', radius: 26 },
-        { type: 'image', x: 100, y: 110, w: 500, h: 430, cool: true },
-        { type: 'badge', x: 444, y: 486, w: 196, h: 50, text: '★ Est. 2019', rot: 2 },
-        { type: 'para', x: 660, y: 118, w: 340, h: 24, text: 'Design studio · Brighton', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
-        { type: 'heading', x: 660, y: 162, w: 470, h: 200, text: 'We make brands people remember', fs: '__max' },
-        { type: 'para', x: 660, y: 396, w: 410, h: 72, text: 'Strategy, identity and websites for founders who care how things feel.' },
-        { type: 'button', x: 660, y: 502, w: 180, h: 54, text: 'See the work' },
-        { type: 'button', x: 860, y: 502, w: 180, h: 54, text: 'Start a project', ghost: true },
+      { name: 'Hero', take: 'The mirror', minH: 648, els: [
+        { type: 'box', x: 60, y: 144, w: 500, h: 432, boxBg: 'color-mix(in srgb, var(--wp--preset--color--contrast, #000) 8%, var(--wp--preset--color--base, transparent))', radius: 26 },
+        { type: 'image', x: 100, y: 120, w: 500, h: 432, cool: true },
+        { type: 'badge', x: 444, y: 480, w: 196, h: 48, text: '★ Est. 2019', rot: 2 },
+        { type: 'para', x: 660, y: 120, w: 340, h: 24, text: 'Design studio · Brighton', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
+        { type: 'heading', x: 660, y: 168, w: 470, h: 192, text: 'We make brands people remember', fs: '__max' },
+        { type: 'para', x: 660, y: 384, w: 410, h: 72, text: 'Strategy, identity and websites for founders who care how things feel.' },
+        { type: 'button', x: 660, y: 504, w: 180, h: 48, text: 'See the work' },
+        { type: 'button', x: 860, y: 504, w: 180, h: 48, text: 'Start a project', ghost: true },
       ] },
-      { name: 'Hero', take: 'The stage', minH: 840, els: [
-        { type: 'image', x: 150, y: 470, w: 900, h: 330, cool: true },
-        { type: 'badge', x: 920, y: 438, w: 196, h: 50, text: '★ Est. 2019', rot: 2 },
-        { type: 'para', x: 400, y: 84, w: 400, h: 24, align: 'center', text: 'Design studio · Brighton', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
-        { type: 'heading', x: 150, y: 128, w: 900, h: 150, text: 'We make brands people remember', fs: '__max', align: 'center' },
-        { type: 'para', x: 360, y: 300, w: 480, h: 52, align: 'center', text: 'Strategy, identity and websites for founders who care how things feel.' },
-        { type: 'button', x: 420, y: 376, w: 180, h: 54, text: 'See the work' },
-        { type: 'button', x: 620, y: 376, w: 180, h: 54, text: 'Start a project', ghost: true },
+      { name: 'Hero', take: 'The stage', minH: 864, els: [
+        { type: 'image', x: 150, y: 480, w: 900, h: 336, cool: true },
+        { type: 'badge', x: 920, y: 432, w: 196, h: 48, text: '★ Est. 2019', rot: 2 },
+        { type: 'para', x: 400, y: 96, w: 400, h: 24, align: 'center', text: 'Design studio · Brighton', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
+        { type: 'heading', x: 150, y: 120, w: 900, h: 144, text: 'We make brands people remember', fs: '__max', align: 'center' },
+        { type: 'para', x: 360, y: 288, w: 480, h: 48, align: 'center', text: 'Strategy, identity and websites for founders who care how things feel.' },
+        { type: 'button', x: 420, y: 384, w: 180, h: 48, text: 'See the work' },
+        { type: 'button', x: 620, y: 384, w: 180, h: 48, text: 'Start a project', ghost: true },
       ] },
-      { name: 'Hero', take: 'The overlap', minH: 640, els: [
-        { type: 'image', x: 460, y: 70, w: 640, h: 500, cool: true },
-        { type: 'badge', x: 1000, y: 46, w: 150, h: 44, text: '★ Est. 2019', rot: 2 },
-        { type: 'box', x: 100, y: 140, w: 470, h: 380, radius: 24, mood: 'glass', kids: [
+      { name: 'Hero', take: 'The overlap', minH: 648, els: [
+        { type: 'image', x: 460, y: 72, w: 640, h: 504, cool: true },
+        { type: 'badge', x: 1000, y: 48, w: 150, h: 48, text: '★ Est. 2019', rot: 2 },
+        { type: 'box', x: 100, y: 144, w: 470, h: 384, radius: 24, mood: 'glass', kids: [
           { type: 'para', x: 36, y: 36, w: 398, h: 22, text: 'Design studio · Brighton', tf: { fs: 12, fw: 600, ls2: 0.22, tt: 'uppercase' } },
           { type: 'heading', x: 36, y: 76, w: 398, h: 140, text: 'We make brands people remember', fs: 'x-large' },
           { type: 'para', x: 36, y: 236, w: 398, h: 66, text: 'Strategy, identity and websites for founders who care how things feel.' },
@@ -7070,97 +8680,97 @@
     ],
 
     'Big statement': [
-      { name: 'Big statement', take: 'The ledger', minH: 520, els: [
+      { name: 'Big statement', take: 'The ledger', minH: 504, els: [
         { type: 'para', x: 72, y: 96, w: 400, h: 24, text: 'What we believe', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
-        { type: 'heading', x: 72, y: 150, w: 1000, h: 240, text: 'Good design is good business', fs: '__disp-l' },
-        { type: 'button', x: 72, y: 430, w: 168, h: 52, text: 'Our thinking', ghost: true },
+        { type: 'heading', x: 72, y: 144, w: 1000, h: 240, text: 'Good design is good business', fs: '__disp-l' },
+        { type: 'button', x: 72, y: 432, w: 168, h: 48, text: 'Our thinking', ghost: true },
       ] },
-      { name: 'Big statement', take: 'The slab', minH: 520, bg: 'var(--wp--preset--color--contrast, #16181c)', els: [
-        { type: 'para', x: 400, y: 92, w: 400, h: 24, align: 'center', text: 'What we believe', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--base, #fff) 60%, transparent)' } },
-        { type: 'heading', x: 60, y: 150, w: 1080, h: 240, text: 'Good design is good business', fs: '__disp-l', align: 'center', tf: { col: 'var(--wp--preset--color--base, #fff)' } },
-        { type: 'button', x: 516, y: 428, w: 168, h: 52, text: 'Our thinking', tf: { bg: 'var(--wp--preset--color--base, #fff)', col: 'var(--wp--preset--color--contrast, #141519)' } },
+      { name: 'Big statement', take: 'The slab', minH: 504, bg: 'var(--wp--preset--color--contrast, #16181c)', els: [
+        { type: 'para', x: 400, y: 96, w: 400, h: 24, align: 'center', text: 'What we believe', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--base, #fff) 60%, transparent)' } },
+        { type: 'heading', x: 60, y: 144, w: 1080, h: 240, text: 'Good design is good business', fs: '__disp-l', align: 'center', tf: { col: 'var(--wp--preset--color--base, #fff)' } },
+        { type: 'button', x: 516, y: 432, w: 168, h: 48, text: 'Our thinking', tf: { bg: 'var(--wp--preset--color--base, #fff)', col: 'var(--wp--preset--color--contrast, #141519)' } },
       ] },
-      { name: 'Big statement', take: 'The aside', minH: 380, els: [
-        { type: 'para', x: 72, y: 84, w: 400, h: 24, text: 'What we believe', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
-        { type: 'heading', x: 72, y: 128, w: 760, h: 180, text: 'Good design is good business', fs: '__disp-m' },
-        { type: 'button', x: 900, y: 180, w: 200, h: 52, text: 'Our thinking', ghost: true },
+      { name: 'Big statement', take: 'The aside', minH: 360, els: [
+        { type: 'para', x: 72, y: 96, w: 400, h: 24, text: 'What we believe', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
+        { type: 'heading', x: 72, y: 120, w: 760, h: 168, text: 'Good design is good business', fs: '__disp-m' },
+        { type: 'button', x: 900, y: 192, w: 200, h: 48, text: 'Our thinking', ghost: true },
       ] },
     ],
     'Story': [
-      { name: 'Story', take: 'The mirror', minH: 600, els: [
-        { type: 'image', x: 658, y: 84, w: 470, h: 452, cool: true },
-        { type: 'badge', x: 1044, y: 58, w: 122, h: 48, text: 'N\u00ba 01', rot: 2 },
-        { type: 'para', x: 72, y: 122, w: 300, h: 24, text: 'Our story', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
-        { type: 'heading', x: 72, y: 162, w: 480, h: 120, text: 'It started in a spare room', fs: 'x-large' },
-        { type: 'para', x: 72, y: 306, w: 460, h: 84, text: 'Two desks, one borrowed lamp, and a first client who paid in coffee. We said yes to everything and learned what we were good at.' },
-        { type: 'para', x: 72, y: 406, w: 460, h: 84, text: 'Six years on we are eleven people, still small on purpose, and still excited on Mondays.' },
-        { type: 'button', x: 72, y: 512, w: 220, h: 52, text: 'The whole story', ghost: true },
+      { name: 'Story', take: 'The mirror', minH: 576, els: [
+        { type: 'image', x: 658, y: 96, w: 470, h: 456, cool: true },
+        { type: 'badge', x: 1044, y: 48, w: 122, h: 48, text: 'N\u00ba 01', rot: 2 },
+        { type: 'para', x: 72, y: 120, w: 300, h: 24, text: 'Our story', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
+        { type: 'heading', x: 72, y: 168, w: 480, h: 120, text: 'It started in a spare room', fs: 'x-large' },
+        { type: 'para', x: 72, y: 312, w: 460, h: 72, text: 'Two desks, one borrowed lamp, and a first client who paid in coffee. We said yes to everything and learned what we were good at.' },
+        { type: 'para', x: 72, y: 408, w: 460, h: 72, text: 'Six years on we are eleven people, still small on purpose, and still excited on Mondays.' },
+        { type: 'button', x: 72, y: 504, w: 220, h: 48, text: 'The whole story', ghost: true },
       ] },
-      { name: 'Story', take: 'The spread', minH: 800, els: [
-        { type: 'image', x: 150, y: 440, w: 900, h: 330, cool: true },
-        { type: 'badge', x: 980, y: 410, w: 122, h: 48, text: 'N\u00ba 01', rot: 2 },
-        { type: 'para', x: 400, y: 64, w: 400, h: 24, align: 'center', text: 'Our story', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
-        { type: 'heading', x: 250, y: 104, w: 700, h: 70, text: 'It started in a spare room', fs: 'x-large', align: 'center' },
-        { type: 'para', x: 150, y: 200, w: 430, h: 96, text: 'Two desks, one borrowed lamp, and a first client who paid in coffee. We said yes to everything and learned what we were good at.' },
-        { type: 'para', x: 620, y: 200, w: 430, h: 96, text: 'Six years on we are eleven people, still small on purpose, and still excited on Mondays.' },
-        { type: 'button', x: 500, y: 330, w: 200, h: 52, text: 'The whole story', ghost: true },
+      { name: 'Story', take: 'The spread', minH: 792, els: [
+        { type: 'image', x: 150, y: 432, w: 900, h: 336, cool: true },
+        { type: 'badge', x: 980, y: 408, w: 122, h: 48, text: 'N\u00ba 01', rot: 2 },
+        { type: 'para', x: 400, y: 72, w: 400, h: 24, align: 'center', text: 'Our story', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
+        { type: 'heading', x: 250, y: 96, w: 700, h: 48, text: 'It started in a spare room', fs: 'x-large', align: 'center' },
+        { type: 'para', x: 150, y: 192, w: 430, h: 96, text: 'Two desks, one borrowed lamp, and a first client who paid in coffee. We said yes to everything and learned what we were good at.' },
+        { type: 'para', x: 620, y: 192, w: 430, h: 96, text: 'Six years on we are eleven people, still small on purpose, and still excited on Mondays.' },
+        { type: 'button', x: 500, y: 336, w: 200, h: 48, text: 'The whole story', ghost: true },
       ] },
-      { name: 'Story', take: 'The chapter', minH: 620, bg: 'var(--wp--preset--color--contrast, #16181c)', els: [
-        { type: 'image', x: 620, y: 110, w: 480, h: 420, cool: true },
-        { type: 'badge', x: 580, y: 90, w: 122, h: 48, text: 'N\u00ba 01', rot: -2 },
-        { type: 'para', x: 72, y: 140, w: 300, h: 24, text: 'Our story', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--base, #fff) 60%, transparent)' } },
-        { type: 'heading', x: 72, y: 182, w: 480, h: 120, text: 'It started in a spare room', fs: 'x-large', tf: { col: 'var(--wp--preset--color--base, #fff)' } },
-        { type: 'para', x: 72, y: 326, w: 460, h: 84, text: 'Two desks, one borrowed lamp, and a first client who paid in coffee. We said yes to everything and learned what we were good at.', tf: { col: 'color-mix(in srgb, var(--wp--preset--color--base, #fff) 75%, transparent)' } },
-        { type: 'para', x: 72, y: 426, w: 460, h: 84, text: 'Six years on we are eleven people, still small on purpose, and still excited on Mondays.', tf: { col: 'color-mix(in srgb, var(--wp--preset--color--base, #fff) 75%, transparent)' } },
-        { type: 'button', x: 72, y: 528, w: 220, h: 52, text: 'The whole story', tf: { bg: 'var(--wp--preset--color--base, #fff)', col: 'var(--wp--preset--color--contrast, #141519)' } },
+      { name: 'Story', take: 'The chapter', minH: 648, bg: 'var(--wp--preset--color--contrast, #16181c)', els: [
+        { type: 'image', x: 620, y: 120, w: 480, h: 432, cool: true },
+        { type: 'badge', x: 580, y: 96, w: 122, h: 48, text: 'N\u00ba 01', rot: -2 },
+        { type: 'para', x: 72, y: 144, w: 300, h: 24, text: 'Our story', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--base, #fff) 60%, transparent)' } },
+        { type: 'heading', x: 72, y: 192, w: 480, h: 120, text: 'It started in a spare room', fs: 'x-large', tf: { col: 'var(--wp--preset--color--base, #fff)' } },
+        { type: 'para', x: 72, y: 336, w: 460, h: 72, text: 'Two desks, one borrowed lamp, and a first client who paid in coffee. We said yes to everything and learned what we were good at.', tf: { col: 'color-mix(in srgb, var(--wp--preset--color--base, #fff) 75%, transparent)' } },
+        { type: 'para', x: 72, y: 432, w: 460, h: 72, text: 'Six years on we are eleven people, still small on purpose, and still excited on Mondays.', tf: { col: 'color-mix(in srgb, var(--wp--preset--color--base, #fff) 75%, transparent)' } },
+        { type: 'button', x: 72, y: 528, w: 220, h: 48, text: 'The whole story', tf: { bg: 'var(--wp--preset--color--base, #fff)', col: 'var(--wp--preset--color--contrast, #141519)' } },
       ] },
     ],
     'Numbers': [
-      { name: 'Numbers', take: 'The ink strip', minH: 420, bg: 'var(--wp--preset--color--contrast, #16181c)', els: [
-        { type: 'para', x: 72, y: 76, w: 300, h: 24, text: 'By the numbers', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--base, #fff) 60%, transparent)' } },
-        { type: 'heading', x: 72, y: 140, w: 330, h: 120, text: '184', fs: '__disp-m', tf: { col: 'var(--wp--preset--color--base, #fff)' } },
-        { type: 'para', x: 76, y: 276, w: 290, h: 44, text: 'Projects shipped since 2019', tf: { col: 'color-mix(in srgb, var(--wp--preset--color--base, #fff) 75%, transparent)' } },
-        { type: 'heading', x: 435, y: 140, w: 330, h: 120, text: '12', fs: '__disp-m', tf: { col: 'var(--wp--preset--color--base, #fff)' } },
-        { type: 'para', x: 439, y: 276, w: 290, h: 44, text: 'Design awards on two shelves', tf: { col: 'color-mix(in srgb, var(--wp--preset--color--base, #fff) 75%, transparent)' } },
-        { type: 'heading', x: 798, y: 140, w: 330, h: 120, text: '98%', fs: '__disp-m', tf: { col: 'var(--wp--preset--color--base, #fff)' } },
-        { type: 'para', x: 802, y: 276, w: 290, h: 44, text: 'Clients who came back for more', tf: { col: 'color-mix(in srgb, var(--wp--preset--color--base, #fff) 75%, transparent)' } },
+      { name: 'Numbers', take: 'The ink strip', minH: 432, bg: 'var(--wp--preset--color--contrast, #16181c)', els: [
+        { type: 'para', x: 72, y: 72, w: 300, h: 24, text: 'By the numbers', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--base, #fff) 60%, transparent)' } },
+        { type: 'heading', x: 72, y: 144, w: 330, h: 120, text: '184', fs: '__disp-m', tf: { col: 'var(--wp--preset--color--base, #fff)' } },
+        { type: 'para', x: 76, y: 288, w: 290, h: 24, text: 'Projects shipped since 2019', tf: { col: 'color-mix(in srgb, var(--wp--preset--color--base, #fff) 75%, transparent)' } },
+        { type: 'heading', x: 435, y: 144, w: 330, h: 120, text: '12', fs: '__disp-m', tf: { col: 'var(--wp--preset--color--base, #fff)' } },
+        { type: 'para', x: 439, y: 288, w: 290, h: 24, text: 'Design awards on two shelves', tf: { col: 'color-mix(in srgb, var(--wp--preset--color--base, #fff) 75%, transparent)' } },
+        { type: 'heading', x: 798, y: 144, w: 330, h: 120, text: '98%', fs: '__disp-m', tf: { col: 'var(--wp--preset--color--base, #fff)' } },
+        { type: 'para', x: 802, y: 288, w: 290, h: 24, text: 'Clients who came back for more', tf: { col: 'color-mix(in srgb, var(--wp--preset--color--base, #fff) 75%, transparent)' } },
       ] },
-      { name: 'Numbers', take: 'The tally', minH: 540, els: [
-        { type: 'para', x: 72, y: 64, w: 300, h: 24, text: 'By the numbers', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
-        { type: 'heading', x: 72, y: 120, w: 320, h: 100, text: '184', fs: '__disp-m' },
-        { type: 'para', x: 420, y: 156, w: 400, h: 44, text: 'Projects shipped since 2019' },
-        { type: 'heading', x: 72, y: 250, w: 320, h: 100, text: '12', fs: '__disp-m' },
-        { type: 'para', x: 420, y: 286, w: 400, h: 44, text: 'Design awards on two shelves' },
-        { type: 'heading', x: 72, y: 380, w: 320, h: 100, text: '98%', fs: '__disp-m' },
-        { type: 'para', x: 420, y: 416, w: 400, h: 44, text: 'Clients who came back for more' },
+      { name: 'Numbers', take: 'The tally', minH: 576, els: [
+        { type: 'para', x: 72, y: 72, w: 300, h: 24, text: 'By the numbers', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
+        { type: 'heading', x: 72, y: 120, w: 320, h: 96, text: '184', fs: '__disp-m' },
+        { type: 'para', x: 420, y: 144, w: 400, h: 24, text: 'Projects shipped since 2019' },
+        { type: 'heading', x: 72, y: 240, w: 320, h: 96, text: '12', fs: '__disp-m' },
+        { type: 'para', x: 420, y: 288, w: 400, h: 24, text: 'Design awards on two shelves' },
+        { type: 'heading', x: 72, y: 384, w: 320, h: 96, text: '98%', fs: '__disp-m' },
+        { type: 'para', x: 420, y: 408, w: 400, h: 24, text: 'Clients who came back for more' },
       ] },
-      { name: 'Numbers', take: 'The cards', minH: 470, els: [
-        { type: 'para', x: 400, y: 56, w: 400, h: 24, align: 'center', text: 'By the numbers', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
-        { type: 'box', x: 100, y: 130, w: 320, h: 270, radius: 18, boxBg: 'color-mix(in srgb, var(--wp--preset--color--contrast, #000) 7%, var(--wp--preset--color--base, transparent))', kids: [
+      { name: 'Numbers', take: 'The cards', minH: 504, els: [
+        { type: 'para', x: 400, y: 48, w: 400, h: 24, align: 'center', text: 'By the numbers', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
+        { type: 'box', x: 100, y: 120, w: 320, h: 264, radius: 18, boxBg: 'color-mix(in srgb, var(--wp--preset--color--contrast, #000) 7%, var(--wp--preset--color--base, transparent))', kids: [
           { type: 'heading', x: 28, y: 40, w: 264, h: 100, text: '184', fs: '__disp-m' },
           { type: 'para', x: 28, y: 170, w: 264, h: 44, text: 'Projects shipped since 2019' },
         ] },
-        { type: 'box', x: 440, y: 130, w: 320, h: 270, radius: 18, boxBg: 'color-mix(in srgb, var(--wp--preset--color--contrast, #000) 7%, var(--wp--preset--color--base, transparent))', kids: [
+        { type: 'box', x: 440, y: 120, w: 320, h: 264, radius: 18, boxBg: 'color-mix(in srgb, var(--wp--preset--color--contrast, #000) 7%, var(--wp--preset--color--base, transparent))', kids: [
           { type: 'heading', x: 28, y: 40, w: 264, h: 100, text: '12', fs: '__disp-m' },
           { type: 'para', x: 28, y: 170, w: 264, h: 44, text: 'Design awards on two shelves' },
         ] },
-        { type: 'box', x: 780, y: 130, w: 320, h: 270, radius: 18, boxBg: 'color-mix(in srgb, var(--wp--preset--color--contrast, #000) 7%, var(--wp--preset--color--base, transparent))', kids: [
+        { type: 'box', x: 780, y: 120, w: 320, h: 264, radius: 18, boxBg: 'color-mix(in srgb, var(--wp--preset--color--contrast, #000) 7%, var(--wp--preset--color--base, transparent))', kids: [
           { type: 'heading', x: 28, y: 40, w: 264, h: 100, text: '98%', fs: '__disp-m' },
           { type: 'para', x: 28, y: 170, w: 264, h: 44, text: 'Clients who came back for more' },
         ] },
       ] },
     ],
     'Article': [
-      { name: 'Article', take: 'The split', minH: 480, els: [
-        { type: 'para', x: 72, y: 84, w: 300, h: 24, text: 'From the journal', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
-        { type: 'heading', x: 72, y: 126, w: 400, h: 150, text: 'Notes on doing less, better', fs: 'x-large' },
-        { type: 'para', x: 560, y: 92, w: 560, h: 84, text: 'A comfortable reading column, the width your theme uses for posts. Gogh is not only for splashy pages \u2014 it is a pleasant place to just write.' },
-        { type: 'para', x: 560, y: 192, w: 560, h: 84, text: 'Add paragraphs, pull a quote out to the side when you need one, and drop an image between thoughts. Everything still publishes as clean WordPress blocks.' },
-        { type: 'para', x: 560, y: 292, w: 560, h: 84, text: 'And the moment an article needs something bolder \u2014 a full-width image, a card, a big number \u2014 you can simply place it.' },
-        { type: 'button', x: 72, y: 310, w: 200, h: 54, text: 'Keep reading', ghost: true },
+      { name: 'Article', take: 'The split', minH: 504, els: [
+        { type: 'para', x: 72, y: 96, w: 300, h: 24, text: 'From the journal', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
+        { type: 'heading', x: 72, y: 120, w: 400, h: 144, text: 'Notes on doing less, better', fs: 'x-large' },
+        { type: 'para', x: 560, y: 96, w: 560, h: 72, text: 'A comfortable reading column, the width your theme uses for posts. Gogh is not only for splashy pages \u2014 it is a pleasant place to just write.' },
+        { type: 'para', x: 560, y: 192, w: 560, h: 72, text: 'Add paragraphs, pull a quote out to the side when you need one, and drop an image between thoughts. Everything still publishes as clean WordPress blocks.' },
+        { type: 'para', x: 560, y: 288, w: 560, h: 72, text: 'And the moment an article needs something bolder \u2014 a full-width image, a card, a big number \u2014 you can simply place it.' },
+        { type: 'button', x: 72, y: 312, w: 200, h: 48, text: 'Keep reading', ghost: true },
       ] },
-      { name: 'Article', take: 'The plate', minH: 660, els: [
-        { type: 'box', x: 150, y: 56, w: 900, h: 540, radius: 24, boxBg: 'color-mix(in srgb, var(--wp--preset--color--contrast, #000) 6%, var(--wp--preset--color--base, transparent))', kids: [
+      { name: 'Article', take: 'The plate', minH: 648, els: [
+        { type: 'box', x: 150, y: 48, w: 900, h: 528, radius: 24, boxBg: 'color-mix(in srgb, var(--wp--preset--color--contrast, #000) 6%, var(--wp--preset--color--base, transparent))', kids: [
           { type: 'para', x: 60, y: 54, w: 300, h: 24, text: 'From the journal', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase' } },
           { type: 'heading', x: 60, y: 96, w: 640, h: 70, text: 'Notes on doing less, better', fs: 'x-large' },
           { type: 'para', x: 60, y: 196, w: 640, h: 66, text: 'A comfortable reading column, the width your theme uses for posts. Gogh is not only for splashy pages \u2014 it is a pleasant place to just write.' },
@@ -7169,57 +8779,57 @@
           { type: 'button', x: 60, y: 460, w: 200, h: 54, text: 'Keep reading', ghost: true },
         ] },
       ] },
-      { name: 'Article', take: 'The broadsheet', minH: 500, els: [
-        { type: 'para', x: 400, y: 56, w: 400, h: 24, align: 'center', text: 'From the journal', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
-        { type: 'heading', x: 150, y: 100, w: 900, h: 70, text: 'Notes on doing less, better', fs: 'x-large', align: 'center' },
-        { type: 'para', x: 72, y: 210, w: 330, h: 150, text: 'A comfortable reading column, the width your theme uses for posts. Gogh is not only for splashy pages \u2014 it is a pleasant place to just write.' },
-        { type: 'para', x: 435, y: 210, w: 330, h: 150, text: 'Add paragraphs, pull a quote out to the side when you need one, and drop an image between thoughts. Everything still publishes as clean WordPress blocks.' },
-        { type: 'para', x: 798, y: 210, w: 330, h: 150, text: 'And the moment an article needs something bolder \u2014 a full-width image, a card, a big number \u2014 you can simply place it.' },
-        { type: 'button', x: 500, y: 400, w: 200, h: 54, text: 'Keep reading', ghost: true },
+      { name: 'Article', take: 'The broadsheet', minH: 504, els: [
+        { type: 'para', x: 400, y: 48, w: 400, h: 24, align: 'center', text: 'From the journal', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
+        { type: 'heading', x: 150, y: 96, w: 900, h: 48, text: 'Notes on doing less, better', fs: 'x-large', align: 'center' },
+        { type: 'para', x: 72, y: 216, w: 330, h: 144, text: 'A comfortable reading column, the width your theme uses for posts. Gogh is not only for splashy pages \u2014 it is a pleasant place to just write.' },
+        { type: 'para', x: 435, y: 216, w: 330, h: 144, text: 'Add paragraphs, pull a quote out to the side when you need one, and drop an image between thoughts. Everything still publishes as clean WordPress blocks.' },
+        { type: 'para', x: 798, y: 216, w: 330, h: 144, text: 'And the moment an article needs something bolder \u2014 a full-width image, a card, a big number \u2014 you can simply place it.' },
+        { type: 'button', x: 500, y: 408, w: 200, h: 48, text: 'Keep reading', ghost: true },
       ] },
     ],
     'Feature cards': [
-      { name: 'Feature cards', take: 'The ink deck', minH: 560, bg: 'var(--wp--preset--color--contrast, #16181c)', els: [
-        { type: 'heading', x: 100, y: 56, w: 1000, h: 60, text: 'What we do', fs: 'x-large', align: 'center', tf: { col: 'var(--wp--preset--color--base, #fff)' } },
-        { type: 'box', x: 100, y: 170, w: 320, h: 330, radius: 18, boxBg: 'color-mix(in srgb, var(--wp--preset--color--base, #fff) 10%, transparent)', kids: [
+      { name: 'Feature cards', take: 'The ink deck', minH: 576, bg: 'var(--wp--preset--color--contrast, #16181c)', els: [
+        { type: 'heading', x: 100, y: 48, w: 1000, h: 48, text: 'What we do', fs: 'x-large', align: 'center', tf: { col: 'var(--wp--preset--color--base, #fff)' } },
+        { type: 'box', x: 100, y: 168, w: 320, h: 336, radius: 18, boxBg: 'color-mix(in srgb, var(--wp--preset--color--base, #fff) 10%, transparent)', kids: [
           { type: 'heading', x: 28, y: 32, w: 264, h: 44, text: 'Brand identity', fs: 'large', tf: { col: 'var(--wp--preset--color--base, #fff)' } },
           { type: 'para', x: 28, y: 92, w: 264, h: 100, text: 'A name, a voice and a look that hold together everywhere \u2014 from the sign above the door to the invoice footer.', tf: { col: 'color-mix(in srgb, var(--wp--preset--color--base, #fff) 75%, transparent)' } },
         ] },
-        { type: 'box', x: 440, y: 170, w: 320, h: 330, radius: 18, boxBg: 'color-mix(in srgb, var(--wp--preset--color--base, #fff) 10%, transparent)', kids: [
+        { type: 'box', x: 440, y: 168, w: 320, h: 336, radius: 18, boxBg: 'color-mix(in srgb, var(--wp--preset--color--base, #fff) 10%, transparent)', kids: [
           { type: 'heading', x: 28, y: 32, w: 264, h: 44, text: 'Websites', fs: 'large', tf: { col: 'var(--wp--preset--color--base, #fff)' } },
           { type: 'para', x: 28, y: 92, w: 264, h: 100, text: 'Fast, honest sites that read beautifully on a phone at a bus stop \u2014 which is where your customers are.', tf: { col: 'color-mix(in srgb, var(--wp--preset--color--base, #fff) 75%, transparent)' } },
         ] },
-        { type: 'box', x: 780, y: 170, w: 320, h: 330, radius: 18, boxBg: 'color-mix(in srgb, var(--wp--preset--color--base, #fff) 10%, transparent)', kids: [
+        { type: 'box', x: 780, y: 168, w: 320, h: 336, radius: 18, boxBg: 'color-mix(in srgb, var(--wp--preset--color--base, #fff) 10%, transparent)', kids: [
           { type: 'heading', x: 28, y: 32, w: 264, h: 44, text: 'Art direction', fs: 'large', tf: { col: 'var(--wp--preset--color--base, #fff)' } },
           { type: 'para', x: 28, y: 92, w: 264, h: 100, text: 'Photography, illustration and the thousand small calls that make everything feel intentional.', tf: { col: 'color-mix(in srgb, var(--wp--preset--color--base, #fff) 75%, transparent)' } },
         ] },
       ] },
-      { name: 'Feature cards', take: 'The ladder', minH: 660, els: [
-        { type: 'heading', x: 72, y: 64, w: 700, h: 60, text: 'What we do', fs: 'x-large' },
-        { type: 'box', x: 100, y: 160, w: 320, h: 330, radius: 18, boxBg: 'color-mix(in srgb, var(--wp--preset--color--contrast, #000) 7%, var(--wp--preset--color--base, transparent))', kids: [
+      { name: 'Feature cards', take: 'The ladder', minH: 648, els: [
+        { type: 'heading', x: 72, y: 72, w: 700, h: 48, text: 'What we do', fs: 'x-large' },
+        { type: 'box', x: 100, y: 168, w: 320, h: 336, radius: 18, boxBg: 'color-mix(in srgb, var(--wp--preset--color--contrast, #000) 7%, var(--wp--preset--color--base, transparent))', kids: [
           { type: 'heading', x: 28, y: 32, w: 264, h: 44, text: 'Brand identity', fs: 'large' },
           { type: 'para', x: 28, y: 92, w: 264, h: 100, text: 'A name, a voice and a look that hold together everywhere \u2014 from the sign above the door to the invoice footer.' },
         ] },
-        { type: 'box', x: 440, y: 220, w: 320, h: 330, radius: 18, boxBg: 'color-mix(in srgb, var(--wp--preset--color--contrast, #000) 7%, var(--wp--preset--color--base, transparent))', kids: [
+        { type: 'box', x: 440, y: 216, w: 320, h: 336, radius: 18, boxBg: 'color-mix(in srgb, var(--wp--preset--color--contrast, #000) 7%, var(--wp--preset--color--base, transparent))', kids: [
           { type: 'heading', x: 28, y: 32, w: 264, h: 44, text: 'Websites', fs: 'large' },
           { type: 'para', x: 28, y: 92, w: 264, h: 100, text: 'Fast, honest sites that read beautifully on a phone at a bus stop \u2014 which is where your customers are.' },
         ] },
-        { type: 'box', x: 780, y: 280, w: 320, h: 330, radius: 18, boxBg: 'color-mix(in srgb, var(--wp--preset--color--contrast, #000) 7%, var(--wp--preset--color--base, transparent))', kids: [
+        { type: 'box', x: 780, y: 288, w: 320, h: 336, radius: 18, boxBg: 'color-mix(in srgb, var(--wp--preset--color--contrast, #000) 7%, var(--wp--preset--color--base, transparent))', kids: [
           { type: 'heading', x: 28, y: 32, w: 264, h: 44, text: 'Art direction', fs: 'large' },
           { type: 'para', x: 28, y: 92, w: 264, h: 100, text: 'Photography, illustration and the thousand small calls that make everything feel intentional.' },
         ] },
       ] },
-      { name: 'Feature cards', take: 'The rows', minH: 660, els: [
-        { type: 'heading', x: 72, y: 56, w: 700, h: 60, text: 'What we do', fs: 'x-large' },
-        { type: 'box', x: 72, y: 150, w: 1056, h: 140, radius: 18, boxBg: 'color-mix(in srgb, var(--wp--preset--color--contrast, #000) 7%, var(--wp--preset--color--base, transparent))', kids: [
+      { name: 'Feature cards', take: 'The rows', minH: 648, els: [
+        { type: 'heading', x: 72, y: 48, w: 700, h: 48, text: 'What we do', fs: 'x-large' },
+        { type: 'box', x: 72, y: 144, w: 1056, h: 144, radius: 18, boxBg: 'color-mix(in srgb, var(--wp--preset--color--contrast, #000) 7%, var(--wp--preset--color--base, transparent))', kids: [
           { type: 'heading', x: 28, y: 46, w: 300, h: 44, text: 'Brand identity', fs: 'large' },
           { type: 'para', x: 370, y: 28, w: 650, h: 84, text: 'A name, a voice and a look that hold together everywhere \u2014 from the sign above the door to the invoice footer.' },
         ] },
-        { type: 'box', x: 72, y: 310, w: 1056, h: 140, radius: 18, boxBg: 'color-mix(in srgb, var(--wp--preset--color--contrast, #000) 7%, var(--wp--preset--color--base, transparent))', kids: [
+        { type: 'box', x: 72, y: 312, w: 1056, h: 144, radius: 18, boxBg: 'color-mix(in srgb, var(--wp--preset--color--contrast, #000) 7%, var(--wp--preset--color--base, transparent))', kids: [
           { type: 'heading', x: 28, y: 46, w: 300, h: 44, text: 'Websites', fs: 'large' },
           { type: 'para', x: 370, y: 28, w: 650, h: 84, text: 'Fast, honest sites that read beautifully on a phone at a bus stop \u2014 which is where your customers are.' },
         ] },
-        { type: 'box', x: 72, y: 470, w: 1056, h: 140, radius: 18, boxBg: 'color-mix(in srgb, var(--wp--preset--color--contrast, #000) 7%, var(--wp--preset--color--base, transparent))', kids: [
+        { type: 'box', x: 72, y: 480, w: 1056, h: 144, radius: 18, boxBg: 'color-mix(in srgb, var(--wp--preset--color--contrast, #000) 7%, var(--wp--preset--color--base, transparent))', kids: [
           { type: 'heading', x: 28, y: 46, w: 300, h: 44, text: 'Art direction', fs: 'large' },
           { type: 'para', x: 370, y: 28, w: 650, h: 84, text: 'Photography, illustration and the thousand small calls that make everything feel intentional.' },
         ] },
@@ -7227,16 +8837,16 @@
     ],
 
     'Pricing': [
-      { name: 'Pricing', take: 'The pair', minH: 640, els: [
-        { type: 'para', x: 400, y: 56, w: 400, h: 24, align: 'center', text: 'Simple pricing', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
-        { type: 'heading', x: 250, y: 96, w: 700, h: 64, text: 'Two ways to work with us', fs: 'x-large', align: 'center' },
-        { type: 'box', x: 230, y: 216, w: 350, h: 380, radius: 20, boxBg: 'color-mix(in srgb, var(--wp--preset--color--contrast, #000) 6%, var(--wp--preset--color--base, transparent))', kids: [
+      { name: 'Pricing', take: 'The pair', minH: 648, els: [
+        { type: 'para', x: 400, y: 48, w: 400, h: 24, align: 'center', text: 'Simple pricing', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
+        { type: 'heading', x: 250, y: 96, w: 700, h: 48, text: 'Two ways to work with us', fs: 'x-large', align: 'center' },
+        { type: 'box', x: 230, y: 216, w: 350, h: 384, radius: 20, boxBg: 'color-mix(in srgb, var(--wp--preset--color--contrast, #000) 6%, var(--wp--preset--color--base, transparent))', kids: [
           { type: 'heading', x: 32, y: 34, w: 286, h: 44, text: 'The Sprint', fs: 'large' },
           { type: 'para', x: 32, y: 90, w: 286, h: 76, text: 'One focused week. A sharp brief in, a finished thing out.' },
           { type: 'heading', x: 32, y: 186, w: 286, h: 60, text: '\u00a33,500', fs: 'x-large' },
           { type: 'button', x: 32, y: 278, w: 286, h: 54, text: 'Book a sprint', ghost: true },
         ] },
-        { type: 'box', x: 620, y: 196, w: 350, h: 400, radius: 20, boxBg: 'var(--wp--preset--color--contrast, #16181c)', kids: [
+        { type: 'box', x: 620, y: 192, w: 350, h: 408, radius: 20, boxBg: 'var(--wp--preset--color--contrast, #16181c)', kids: [
           { type: 'badge', x: 210, y: 28, w: 116, h: 42, text: '\u2605 Loved' },
           { type: 'heading', x: 32, y: 34, w: 240, h: 44, text: 'The Partnership', fs: 'large', tf: { col: 'var(--wp--preset--color--base, #fff)' } },
           { type: 'para', x: 32, y: 98, w: 286, h: 76, text: 'A standing team beside yours \u2014 design, build and everything between.', tf: { col: 'color-mix(in srgb, var(--wp--preset--color--base, #fff) 78%, transparent)' } },
@@ -7244,16 +8854,16 @@
           { type: 'button', x: 32, y: 290, w: 286, h: 54, text: 'Start together', tf: { bg: 'var(--wp--preset--color--base, #fff)', col: 'var(--wp--preset--color--contrast, #141519)' } },
         ] },
       ] },
-      { name: 'Pricing', take: 'The shelves', minH: 700, els: [
-        { type: 'para', x: 400, y: 56, w: 400, h: 24, align: 'center', text: 'Simple pricing', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
-        { type: 'heading', x: 250, y: 96, w: 700, h: 64, text: 'Two ways to work with us', fs: 'x-large', align: 'center' },
-        { type: 'box', x: 150, y: 200, w: 900, h: 190, radius: 20, boxBg: 'color-mix(in srgb, var(--wp--preset--color--contrast, #000) 6%, var(--wp--preset--color--base, transparent))', kids: [
+      { name: 'Pricing', take: 'The shelves', minH: 720, els: [
+        { type: 'para', x: 400, y: 48, w: 400, h: 24, align: 'center', text: 'Simple pricing', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
+        { type: 'heading', x: 250, y: 96, w: 700, h: 48, text: 'Two ways to work with us', fs: 'x-large', align: 'center' },
+        { type: 'box', x: 150, y: 192, w: 900, h: 192, radius: 20, boxBg: 'color-mix(in srgb, var(--wp--preset--color--contrast, #000) 6%, var(--wp--preset--color--base, transparent))', kids: [
           { type: 'heading', x: 32, y: 32, w: 280, h: 44, text: 'The Sprint', fs: 'large' },
           { type: 'para', x: 32, y: 90, w: 380, h: 66, text: 'One focused week. A sharp brief in, a finished thing out.' },
           { type: 'heading', x: 470, y: 32, w: 190, h: 60, text: '\u00a33,500', fs: 'x-large' },
           { type: 'button', x: 668, y: 110, w: 200, h: 54, text: 'Book a sprint', ghost: true },
         ] },
-        { type: 'box', x: 150, y: 420, w: 900, h: 210, radius: 20, boxBg: 'var(--wp--preset--color--contrast, #16181c)', kids: [
+        { type: 'box', x: 150, y: 432, w: 900, h: 216, radius: 20, boxBg: 'var(--wp--preset--color--contrast, #16181c)', kids: [
           { type: 'badge', x: 760, y: 28, w: 116, h: 42, text: '\u2605 Loved' },
           { type: 'heading', x: 32, y: 32, w: 300, h: 44, text: 'The Partnership', fs: 'large', tf: { col: 'var(--wp--preset--color--base, #fff)' } },
           { type: 'para', x: 32, y: 92, w: 380, h: 76, text: 'A standing team beside yours \u2014 design, build and everything between.', tf: { col: 'color-mix(in srgb, var(--wp--preset--color--base, #fff) 78%, transparent)' } },
@@ -7261,16 +8871,16 @@
           { type: 'button', x: 668, y: 130, w: 200, h: 54, text: 'Start together', tf: { bg: 'var(--wp--preset--color--base, #fff)', col: 'var(--wp--preset--color--contrast, #141519)' } },
         ] },
       ] },
-      { name: 'Pricing', take: 'The ink stage', minH: 640, bg: 'var(--wp--preset--color--contrast, #16181c)', els: [
-        { type: 'para', x: 400, y: 56, w: 400, h: 24, align: 'center', text: 'Simple pricing', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--base, #fff) 60%, transparent)' } },
-        { type: 'heading', x: 250, y: 96, w: 700, h: 64, text: 'Two ways to work with us', fs: 'x-large', align: 'center', tf: { col: 'var(--wp--preset--color--base, #fff)' } },
-        { type: 'box', x: 230, y: 216, w: 350, h: 380, radius: 20, boxBg: 'color-mix(in srgb, var(--wp--preset--color--base, #fff) 10%, transparent)', kids: [
+      { name: 'Pricing', take: 'The ink stage', minH: 648, bg: 'var(--wp--preset--color--contrast, #16181c)', els: [
+        { type: 'para', x: 400, y: 48, w: 400, h: 24, align: 'center', text: 'Simple pricing', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--base, #fff) 60%, transparent)' } },
+        { type: 'heading', x: 250, y: 96, w: 700, h: 48, text: 'Two ways to work with us', fs: 'x-large', align: 'center', tf: { col: 'var(--wp--preset--color--base, #fff)' } },
+        { type: 'box', x: 230, y: 216, w: 350, h: 384, radius: 20, boxBg: 'color-mix(in srgb, var(--wp--preset--color--base, #fff) 10%, transparent)', kids: [
           { type: 'heading', x: 32, y: 34, w: 286, h: 44, text: 'The Sprint', fs: 'large', tf: { col: 'var(--wp--preset--color--base, #fff)' } },
           { type: 'para', x: 32, y: 90, w: 286, h: 76, text: 'One focused week. A sharp brief in, a finished thing out.', tf: { col: 'color-mix(in srgb, var(--wp--preset--color--base, #fff) 75%, transparent)' } },
           { type: 'heading', x: 32, y: 186, w: 286, h: 60, text: '\u00a33,500', fs: 'x-large', tf: { col: 'var(--wp--preset--color--base, #fff)' } },
           { type: 'button', x: 32, y: 278, w: 286, h: 54, text: 'Book a sprint', tf: { bg: 'var(--wp--preset--color--base, #fff)', col: 'var(--wp--preset--color--contrast, #141519)' } },
         ] },
-        { type: 'box', x: 620, y: 196, w: 350, h: 400, radius: 20, boxBg: 'color-mix(in srgb, var(--wp--preset--color--base, #fff) 16%, transparent)', kids: [
+        { type: 'box', x: 620, y: 192, w: 350, h: 408, radius: 20, boxBg: 'color-mix(in srgb, var(--wp--preset--color--base, #fff) 16%, transparent)', kids: [
           { type: 'badge', x: 210, y: 28, w: 116, h: 42, text: '\u2605 Loved' },
           { type: 'heading', x: 32, y: 34, w: 240, h: 44, text: 'The Partnership', fs: 'large', tf: { col: 'var(--wp--preset--color--base, #fff)' } },
           { type: 'para', x: 32, y: 98, w: 286, h: 76, text: 'A standing team beside yours \u2014 design, build and everything between.', tf: { col: 'color-mix(in srgb, var(--wp--preset--color--base, #fff) 78%, transparent)' } },
@@ -7280,18 +8890,18 @@
       ] },
     ],
     'Quote': [
-      { name: 'Quote', take: 'The centre', minH: 460, els: [
-        { type: 'heading', x: 516, y: 40, w: 168, h: 140, text: '\u201c', fs: '__disp-l', align: 'center' },
-        { type: 'para', x: 200, y: 170, w: 800, h: 160, align: 'center', text: 'They understood us in the first meeting. The site feels like walking into our shop \u2014 people say that, unprompted.', fs: 'x-large', tf: { lh: 1.25 } },
-        { type: 'para', x: 400, y: 380, w: 400, h: 24, align: 'center', text: 'Hanna Lindqvist \u00b7 Hanna & Co', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
+      { name: 'Quote', take: 'The centre', minH: 432, els: [
+        { type: 'heading', x: 516, y: 48, w: 168, h: 120, text: '\u201c', fs: '__disp-l', align: 'center' },
+        { type: 'para', x: 200, y: 168, w: 800, h: 144, align: 'center', text: 'They understood us in the first meeting. The site feels like walking into our shop \u2014 people say that, unprompted.', fs: 'x-large', tf: { lh: 1.25 } },
+        { type: 'para', x: 400, y: 384, w: 400, h: 24, align: 'center', text: 'Hanna Lindqvist \u00b7 Hanna & Co', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
       ] },
-      { name: 'Quote', take: 'The ink', minH: 480, bg: 'var(--wp--preset--color--contrast, #16181c)', els: [
-        { type: 'heading', x: 76, y: 44, w: 180, h: 160, text: '\u201c', fs: '__disp-l', tf: { col: 'var(--wp--preset--color--base, #fff)' } },
-        { type: 'para', x: 200, y: 168, w: 800, h: 160, text: 'They understood us in the first meeting. The site feels like walking into our shop \u2014 people say that, unprompted.', fs: 'x-large', tf: { lh: 1.25, col: 'var(--wp--preset--color--base, #fff)' } },
-        { type: 'para', x: 204, y: 368, w: 500, h: 24, text: 'Hanna Lindqvist \u00b7 Hanna & Co', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--base, #fff) 60%, transparent)' } },
+      { name: 'Quote', take: 'The ink', minH: 504, bg: 'var(--wp--preset--color--contrast, #16181c)', els: [
+        { type: 'heading', x: 76, y: 48, w: 180, h: 144, text: '\u201c', fs: '__disp-l', tf: { col: 'var(--wp--preset--color--base, #fff)' } },
+        { type: 'para', x: 200, y: 168, w: 800, h: 144, text: 'They understood us in the first meeting. The site feels like walking into our shop \u2014 people say that, unprompted.', fs: 'x-large', tf: { lh: 1.25, col: 'var(--wp--preset--color--base, #fff)' } },
+        { type: 'para', x: 204, y: 360, w: 500, h: 24, text: 'Hanna Lindqvist \u00b7 Hanna & Co', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--base, #fff) 60%, transparent)' } },
       ] },
-      { name: 'Quote', take: 'The card', minH: 480, els: [
-        { type: 'box', x: 150, y: 60, w: 900, h: 360, radius: 24, boxBg: 'color-mix(in srgb, var(--wp--preset--color--contrast, #000) 6%, var(--wp--preset--color--base, transparent))', kids: [
+      { name: 'Quote', take: 'The card', minH: 504, els: [
+        { type: 'box', x: 150, y: 48, w: 900, h: 360, radius: 24, boxBg: 'color-mix(in srgb, var(--wp--preset--color--contrast, #000) 6%, var(--wp--preset--color--base, transparent))', kids: [
           { type: 'heading', x: 48, y: 24, w: 140, h: 120, text: '\u201c', fs: '__disp-m' },
           { type: 'para', x: 160, y: 110, w: 660, h: 140, text: 'They understood us in the first meeting. The site feels like walking into our shop \u2014 people say that, unprompted.', fs: 'x-large', tf: { lh: 1.25 } },
           { type: 'para', x: 164, y: 280, w: 500, h: 24, text: 'Hanna Lindqvist \u00b7 Hanna & Co', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase' } },
@@ -7299,78 +8909,78 @@
       ] },
     ],
     'Testimonials': [
-      { name: 'Testimonials', take: 'The ink wall', minH: 560, bg: 'var(--wp--preset--color--contrast, #16181c)', els: [
-        { type: 'heading', x: 100, y: 56, w: 1000, h: 60, text: 'Kind words', fs: 'x-large', align: 'center', tf: { col: 'var(--wp--preset--color--base, #fff)' } },
-        { type: 'box', x: 100, y: 170, w: 320, h: 330, radius: 18, boxBg: 'color-mix(in srgb, var(--wp--preset--color--base, #fff) 10%, transparent)', kids: [
+      { name: 'Testimonials', take: 'The ink wall', minH: 576, bg: 'var(--wp--preset--color--contrast, #16181c)', els: [
+        { type: 'heading', x: 100, y: 48, w: 1000, h: 48, text: 'Kind words', fs: 'x-large', align: 'center', tf: { col: 'var(--wp--preset--color--base, #fff)' } },
+        { type: 'box', x: 100, y: 168, w: 320, h: 336, radius: 18, boxBg: 'color-mix(in srgb, var(--wp--preset--color--base, #fff) 10%, transparent)', kids: [
           { type: 'para', x: 28, y: 36, w: 264, h: 150, text: '\u201cThey understood us in the first meeting. The site feels like walking into our shop.\u201d', tf: { lh: 1.45, col: 'var(--wp--preset--color--base, #fff)' } },
           { type: 'para', x: 28, y: 250, w: 264, h: 24, text: 'Hanna \u00b7 Hanna & Co', tf: { fs: 13, fw: 600, ls2: 0.18, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--base, #fff) 60%, transparent)' } },
         ] },
-        { type: 'box', x: 440, y: 170, w: 320, h: 330, radius: 18, boxBg: 'color-mix(in srgb, var(--wp--preset--color--base, #fff) 10%, transparent)', kids: [
+        { type: 'box', x: 440, y: 168, w: 320, h: 336, radius: 18, boxBg: 'color-mix(in srgb, var(--wp--preset--color--base, #fff) 10%, transparent)', kids: [
           { type: 'para', x: 28, y: 36, w: 264, h: 150, text: '\u201cEvery question got a straight answer. We launched two weeks early \u2014 nobody believes that.\u201d', tf: { lh: 1.45, col: 'var(--wp--preset--color--base, #fff)' } },
           { type: 'para', x: 28, y: 250, w: 264, h: 24, text: 'Dev \u00b7 Marlow Bikes', tf: { fs: 13, fw: 600, ls2: 0.18, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--base, #fff) 60%, transparent)' } },
         ] },
-        { type: 'box', x: 780, y: 170, w: 320, h: 330, radius: 18, boxBg: 'color-mix(in srgb, var(--wp--preset--color--base, #fff) 10%, transparent)', kids: [
+        { type: 'box', x: 780, y: 168, w: 320, h: 336, radius: 18, boxBg: 'color-mix(in srgb, var(--wp--preset--color--base, #fff) 10%, transparent)', kids: [
           { type: 'para', x: 28, y: 36, w: 264, h: 150, text: '\u201cPeople compliment the website like it\u2019s a member of staff. Honestly, it works like one.\u201d', tf: { lh: 1.45, col: 'var(--wp--preset--color--base, #fff)' } },
           { type: 'para', x: 28, y: 250, w: 264, h: 24, text: 'Ruth \u00b7 The Corner Bakery', tf: { fs: 13, fw: 600, ls2: 0.18, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--base, #fff) 60%, transparent)' } },
         ] },
       ] },
-      { name: 'Testimonials', take: 'The ladder', minH: 640, els: [
-        { type: 'heading', x: 72, y: 60, w: 700, h: 60, text: 'Kind words', fs: 'x-large' },
-        { type: 'box', x: 100, y: 160, w: 320, h: 330, radius: 18, boxBg: 'color-mix(in srgb, var(--wp--preset--color--contrast, #000) 7%, var(--wp--preset--color--base, transparent))', kids: [
+      { name: 'Testimonials', take: 'The ladder', minH: 648, els: [
+        { type: 'heading', x: 72, y: 48, w: 700, h: 48, text: 'Kind words', fs: 'x-large' },
+        { type: 'box', x: 100, y: 168, w: 320, h: 336, radius: 18, boxBg: 'color-mix(in srgb, var(--wp--preset--color--contrast, #000) 7%, var(--wp--preset--color--base, transparent))', kids: [
           { type: 'para', x: 28, y: 36, w: 264, h: 150, text: '\u201cThey understood us in the first meeting. The site feels like walking into our shop.\u201d', tf: { lh: 1.45 } },
           { type: 'para', x: 28, y: 250, w: 264, h: 24, text: 'Hanna \u00b7 Hanna & Co', tf: { fs: 13, fw: 600, ls2: 0.18, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
         ] },
-        { type: 'box', x: 440, y: 220, w: 320, h: 330, radius: 18, boxBg: 'color-mix(in srgb, var(--wp--preset--color--contrast, #000) 7%, var(--wp--preset--color--base, transparent))', kids: [
+        { type: 'box', x: 440, y: 216, w: 320, h: 336, radius: 18, boxBg: 'color-mix(in srgb, var(--wp--preset--color--contrast, #000) 7%, var(--wp--preset--color--base, transparent))', kids: [
           { type: 'para', x: 28, y: 36, w: 264, h: 150, text: '\u201cEvery question got a straight answer. We launched two weeks early \u2014 nobody believes that.\u201d', tf: { lh: 1.45 } },
           { type: 'para', x: 28, y: 250, w: 264, h: 24, text: 'Dev \u00b7 Marlow Bikes', tf: { fs: 13, fw: 600, ls2: 0.18, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
         ] },
-        { type: 'box', x: 780, y: 280, w: 320, h: 330, radius: 18, boxBg: 'color-mix(in srgb, var(--wp--preset--color--contrast, #000) 7%, var(--wp--preset--color--base, transparent))', kids: [
+        { type: 'box', x: 780, y: 288, w: 320, h: 336, radius: 18, boxBg: 'color-mix(in srgb, var(--wp--preset--color--contrast, #000) 7%, var(--wp--preset--color--base, transparent))', kids: [
           { type: 'para', x: 28, y: 36, w: 264, h: 150, text: '\u201cPeople compliment the website like it\u2019s a member of staff. Honestly, it works like one.\u201d', tf: { lh: 1.45 } },
           { type: 'para', x: 28, y: 250, w: 264, h: 24, text: 'Ruth \u00b7 The Corner Bakery', tf: { fs: 13, fw: 600, ls2: 0.18, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
         ] },
       ] },
-      { name: 'Testimonials', take: 'The voices', minH: 640, els: [
-        { type: 'heading', x: 72, y: 56, w: 700, h: 60, text: 'Kind words', fs: 'x-large' },
-        { type: 'box', x: 72, y: 150, w: 1056, h: 130, radius: 18, boxBg: 'color-mix(in srgb, var(--wp--preset--color--contrast, #000) 7%, var(--wp--preset--color--base, transparent))', kids: [
+      { name: 'Testimonials', take: 'The voices', minH: 648, els: [
+        { type: 'heading', x: 72, y: 48, w: 700, h: 48, text: 'Kind words', fs: 'x-large' },
+        { type: 'box', x: 72, y: 144, w: 1056, h: 120, radius: 18, boxBg: 'color-mix(in srgb, var(--wp--preset--color--contrast, #000) 7%, var(--wp--preset--color--base, transparent))', kids: [
           { type: 'para', x: 28, y: 24, w: 680, h: 84, text: '\u201cThey understood us in the first meeting. The site feels like walking into our shop.\u201d', tf: { lh: 1.45 } },
           { type: 'para', x: 760, y: 52, w: 260, h: 24, text: 'Hanna \u00b7 Hanna & Co', tf: { fs: 13, fw: 600, ls2: 0.18, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
         ] },
-        { type: 'box', x: 72, y: 300, w: 1056, h: 130, radius: 18, boxBg: 'color-mix(in srgb, var(--wp--preset--color--contrast, #000) 7%, var(--wp--preset--color--base, transparent))', kids: [
+        { type: 'box', x: 72, y: 288, w: 1056, h: 120, radius: 18, boxBg: 'color-mix(in srgb, var(--wp--preset--color--contrast, #000) 7%, var(--wp--preset--color--base, transparent))', kids: [
           { type: 'para', x: 28, y: 24, w: 680, h: 84, text: '\u201cEvery question got a straight answer. We launched two weeks early \u2014 nobody believes that.\u201d', tf: { lh: 1.45 } },
           { type: 'para', x: 760, y: 52, w: 260, h: 24, text: 'Dev \u00b7 Marlow Bikes', tf: { fs: 13, fw: 600, ls2: 0.18, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
         ] },
-        { type: 'box', x: 72, y: 450, w: 1056, h: 130, radius: 18, boxBg: 'color-mix(in srgb, var(--wp--preset--color--contrast, #000) 7%, var(--wp--preset--color--base, transparent))', kids: [
+        { type: 'box', x: 72, y: 456, w: 1056, h: 120, radius: 18, boxBg: 'color-mix(in srgb, var(--wp--preset--color--contrast, #000) 7%, var(--wp--preset--color--base, transparent))', kids: [
           { type: 'para', x: 28, y: 24, w: 680, h: 84, text: '\u201cPeople compliment the website like it\u2019s a member of staff. Honestly, it works like one.\u201d', tf: { lh: 1.45 } },
           { type: 'para', x: 760, y: 52, w: 260, h: 24, text: 'Ruth \u00b7 The Corner Bakery', tf: { fs: 13, fw: 600, ls2: 0.18, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
         ] },
       ] },
     ],
     'Call to action': [
-      { name: 'Call to action', take: 'The centre', minH: 460, bg: 'var(--wp--preset--color--contrast, #16181c)', els: [
+      { name: 'Call to action', take: 'The centre', minH: 432, bg: 'var(--wp--preset--color--contrast, #16181c)', els: [
         { type: 'para', x: 400, y: 72, w: 400, h: 24, align: 'center', text: 'Next step', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--base, #fff) 60%, transparent)' } },
-        { type: 'heading', x: 150, y: 116, w: 900, h: 130, text: 'Let\u2019s make yours', fs: '__max', align: 'center', tf: { col: 'var(--wp--preset--color--base, #fff)' } },
-        { type: 'para', x: 380, y: 276, w: 440, h: 44, align: 'center', text: 'No forms and no decks \u2014 just a conversation about what you are building.', tf: { col: 'color-mix(in srgb, var(--wp--preset--color--base, #fff) 75%, transparent)' } },
-        { type: 'button', x: 490, y: 352, w: 220, h: 60, text: 'Book a call', tf: { bg: 'var(--wp--preset--color--base, #fff)', col: 'var(--wp--preset--color--contrast, #141519)' } },
+        { type: 'heading', x: 150, y: 120, w: 900, h: 120, text: 'Let\u2019s make yours', fs: '__max', align: 'center', tf: { col: 'var(--wp--preset--color--base, #fff)' } },
+        { type: 'para', x: 380, y: 288, w: 440, h: 24, align: 'center', text: 'No forms and no decks \u2014 just a conversation about what you are building.', tf: { col: 'color-mix(in srgb, var(--wp--preset--color--base, #fff) 75%, transparent)' } },
+        { type: 'button', x: 490, y: 360, w: 220, h: 48, text: 'Book a call', tf: { bg: 'var(--wp--preset--color--base, #fff)', col: 'var(--wp--preset--color--contrast, #141519)' } },
       ] },
-      { name: 'Call to action', take: 'The quiet word', minH: 380, els: [
-        { type: 'para', x: 96, y: 88, w: 300, h: 24, text: 'Next step', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
-        { type: 'heading', x: 96, y: 130, w: 640, h: 130, text: 'Let\u2019s make yours', fs: '__max' },
-        { type: 'para', x: 98, y: 286, w: 440, h: 44, text: 'No forms and no decks \u2014 just a conversation about what you are building.' },
-        { type: 'button', x: 884, y: 186, w: 220, h: 60, text: 'Book a call' },
+      { name: 'Call to action', take: 'The quiet word', minH: 360, els: [
+        { type: 'para', x: 96, y: 96, w: 300, h: 24, text: 'Next step', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
+        { type: 'heading', x: 96, y: 120, w: 640, h: 120, text: 'Let\u2019s make yours', fs: '__max' },
+        { type: 'para', x: 98, y: 288, w: 440, h: 24, text: 'No forms and no decks \u2014 just a conversation about what you are building.' },
+        { type: 'button', x: 884, y: 192, w: 220, h: 48, text: 'Book a call' },
       ] },
-      { name: 'Call to action', take: 'The banner', minH: 320, bg: 'var(--wp--preset--color--contrast, #16181c)', els: [
+      { name: 'Call to action', take: 'The banner', minH: 288, bg: 'var(--wp--preset--color--contrast, #16181c)', els: [
         { type: 'para', x: 72, y: 48, w: 300, h: 24, text: 'Next step', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--base, #fff) 60%, transparent)' } },
-        { type: 'heading', x: 72, y: 92, w: 760, h: 110, text: 'Let\u2019s make yours', fs: '__disp-m', tf: { col: 'var(--wp--preset--color--base, #fff)' } },
-        { type: 'para', x: 72, y: 226, w: 480, h: 44, text: 'No forms and no decks \u2014 just a conversation about what you are building.', tf: { col: 'color-mix(in srgb, var(--wp--preset--color--base, #fff) 75%, transparent)' } },
-        { type: 'button', x: 880, y: 120, w: 220, h: 60, text: 'Book a call', tf: { bg: 'var(--wp--preset--color--base, #fff)', col: 'var(--wp--preset--color--contrast, #141519)' } },
+        { type: 'heading', x: 72, y: 96, w: 760, h: 96, text: 'Let\u2019s make yours', fs: '__disp-m', tf: { col: 'var(--wp--preset--color--base, #fff)' } },
+        { type: 'para', x: 72, y: 216, w: 480, h: 24, text: 'No forms and no decks \u2014 just a conversation about what you are building.', tf: { col: 'color-mix(in srgb, var(--wp--preset--color--base, #fff) 75%, transparent)' } },
+        { type: 'button', x: 880, y: 120, w: 220, h: 48, text: 'Book a call', tf: { bg: 'var(--wp--preset--color--base, #fff)', col: 'var(--wp--preset--color--contrast, #141519)' } },
       ] },
     ],
 
     'Profile card': [
-      { name: 'Profile card', take: 'The left dock', minH: 620,
+      { name: 'Profile card', take: 'The left dock', minH: 648,
         bgImage: '/wp-content/plugins/gogh/demo-assets/wheat-field.jpg', bgA: 20, bg: 'var(--wp--preset--color--contrast)', els: [
-        { type: 'badge', x: 1000, y: 64, w: 150, h: 34, text: '\u25cf Available' },
-        { type: 'box', x: 84, y: 130, w: 400, h: 360, radius: 24, mood: 'glass', kids: [
+        { type: 'badge', x: 1000, y: 72, w: 150, h: 24, text: '\u25cf Available' },
+        { type: 'box', x: 84, y: 120, w: 400, h: 360, radius: 24, mood: 'glass', kids: [
           { type: 'para', x: 32, y: 36, w: 336, h: 22, align: 'center', text: 'DESIGN \u00b7 DIRECTION', tf: { fs: 12, fw: 600, ls2: 0.24, tt: 'uppercase' } },
           { type: 'heading', x: 32, y: 70, w: 336, h: 48, align: 'center', text: 'Vincent van Gogh', fs: 'large' },
           { type: 'para', x: 32, y: 130, w: 336, h: 48, align: 'center', text: 'Painter of light. 900 works, one sunflower obsession.' },
@@ -7378,9 +8988,9 @@
           { type: 'button', x: 116, y: 248, w: 168, h: 48, text: 'Say hello' },
         ] },
       ] },
-      { name: 'Profile card', take: 'The paper', minH: 600, els: [
-        { type: 'badge', x: 84, y: 64, w: 150, h: 34, text: '\u25cf Available' },
-        { type: 'box', x: 400, y: 120, w: 400, h: 380, radius: 24, boxBg: 'color-mix(in srgb, var(--wp--preset--color--contrast, #000) 7%, var(--wp--preset--color--base, transparent))', kids: [
+      { name: 'Profile card', take: 'The paper', minH: 576, els: [
+        { type: 'badge', x: 84, y: 72, w: 150, h: 24, text: '\u25cf Available' },
+        { type: 'box', x: 400, y: 120, w: 400, h: 384, radius: 24, boxBg: 'color-mix(in srgb, var(--wp--preset--color--contrast, #000) 7%, var(--wp--preset--color--base, transparent))', kids: [
           { type: 'para', x: 32, y: 40, w: 336, h: 22, align: 'center', text: 'DESIGN \u00b7 DIRECTION', tf: { fs: 12, fw: 600, ls2: 0.24, tt: 'uppercase' } },
           { type: 'heading', x: 32, y: 74, w: 336, h: 48, align: 'center', text: 'Vincent van Gogh', fs: 'large' },
           { type: 'para', x: 32, y: 134, w: 336, h: 48, align: 'center', text: 'Painter of light. 900 works, one sunflower obsession.' },
@@ -7388,10 +8998,10 @@
           { type: 'button', x: 116, y: 254, w: 168, h: 48, text: 'Say hello' },
         ] },
       ] },
-      { name: 'Profile card', take: 'The wide', minH: 620,
+      { name: 'Profile card', take: 'The wide', minH: 648,
         bgImage: '/wp-content/plugins/gogh/demo-assets/wheat-field.jpg', bgA: 20, bg: 'var(--wp--preset--color--contrast)', els: [
-        { type: 'badge', x: 84, y: 64, w: 150, h: 34, text: '\u25cf Available' },
-        { type: 'box', x: 200, y: 170, w: 800, h: 280, radius: 24, mood: 'glass', kids: [
+        { type: 'badge', x: 84, y: 72, w: 150, h: 24, text: '\u25cf Available' },
+        { type: 'box', x: 200, y: 168, w: 800, h: 288, radius: 24, mood: 'glass', kids: [
           { type: 'para', x: 40, y: 40, w: 300, h: 22, text: 'DESIGN \u00b7 DIRECTION', tf: { fs: 12, fw: 600, ls2: 0.24, tt: 'uppercase' } },
           { type: 'heading', x: 40, y: 74, w: 420, h: 48, text: 'Vincent van Gogh', fs: 'large' },
           { type: 'para', x: 40, y: 134, w: 420, h: 48, text: 'Painter of light. 900 works, one sunflower obsession.' },
@@ -7401,9 +9011,9 @@
       ] },
     ],
     'Job card': [
-      { name: 'Job card', take: 'The left dock', minH: 620,
+      { name: 'Job card', take: 'The left dock', minH: 648,
         bgImage: '/wp-content/plugins/gogh/demo-assets/starry-night.jpg', bgA: 25, bg: 'var(--wp--preset--color--contrast)', els: [
-        { type: 'box', x: 84, y: 110, w: 440, h: 400, radius: 24, mood: 'glass', kids: [
+        { type: 'box', x: 84, y: 120, w: 440, h: 408, radius: 24, mood: 'glass', kids: [
           { type: 'badge', x: 32, y: 32, w: 110, h: 32, text: 'Hiring' },
           { type: 'heading', x: 32, y: 84, w: 376, h: 44, text: 'Senior designer', fs: 'large' },
           { type: 'para', x: 32, y: 140, w: 376, h: 66, text: 'Own the look of everything we ship \u2014 from the site to the side of the van.' },
@@ -7411,8 +9021,8 @@
           { type: 'button', x: 32, y: 268, w: 180, h: 52, text: 'Apply now' },
         ] },
       ] },
-      { name: 'Job card', take: 'The paper', minH: 580, els: [
-        { type: 'box', x: 380, y: 100, w: 440, h: 400, radius: 24, boxBg: 'color-mix(in srgb, var(--wp--preset--color--contrast, #000) 7%, var(--wp--preset--color--base, transparent))', kids: [
+      { name: 'Job card', take: 'The paper', minH: 576, els: [
+        { type: 'box', x: 380, y: 96, w: 440, h: 408, radius: 24, boxBg: 'color-mix(in srgb, var(--wp--preset--color--contrast, #000) 7%, var(--wp--preset--color--base, transparent))', kids: [
           { type: 'badge', x: 32, y: 32, w: 110, h: 32, text: 'Hiring' },
           { type: 'heading', x: 32, y: 84, w: 376, h: 44, text: 'Senior designer', fs: 'large' },
           { type: 'para', x: 32, y: 140, w: 376, h: 66, text: 'Own the look of everything we ship \u2014 from the site to the side of the van.' },
@@ -7420,9 +9030,9 @@
           { type: 'button', x: 32, y: 268, w: 180, h: 52, text: 'Apply now' },
         ] },
       ] },
-      { name: 'Job card', take: 'The banner', minH: 560,
+      { name: 'Job card', take: 'The banner', minH: 576,
         bgImage: '/wp-content/plugins/gogh/demo-assets/starry-night.jpg', bgA: 25, bg: 'var(--wp--preset--color--contrast)', els: [
-        { type: 'box', x: 100, y: 150, w: 1000, h: 280, radius: 24, mood: 'glass', kids: [
+        { type: 'box', x: 100, y: 144, w: 1000, h: 288, radius: 24, mood: 'glass', kids: [
           { type: 'badge', x: 32, y: 32, w: 110, h: 32, text: 'Hiring' },
           { type: 'heading', x: 32, y: 88, w: 400, h: 44, text: 'Senior designer', fs: 'large' },
           { type: 'para', x: 460, y: 36, w: 360, h: 66, text: 'Own the look of everything we ship \u2014 from the site to the side of the van.' },
@@ -7432,10 +9042,10 @@
       ] },
     ],
     'Place card': [
-      { name: 'Place card', take: 'The right dock', minH: 620,
+      { name: 'Place card', take: 'The right dock', minH: 648,
         bgImage: '/wp-content/plugins/gogh/demo-assets/sunflowers.jpg', bgA: 20, bg: 'var(--wp--preset--color--contrast)', els: [
-        { type: 'badge', x: 84, y: 64, w: 130, h: 34, text: 'Est. 1888' },
-        { type: 'box', x: 716, y: 150, w: 400, h: 330, radius: 24, mood: 'glass', kids: [
+        { type: 'badge', x: 84, y: 72, w: 130, h: 24, text: 'Est. 1888' },
+        { type: 'box', x: 716, y: 144, w: 400, h: 336, radius: 24, mood: 'glass', kids: [
           { type: 'para', x: 32, y: 34, w: 336, h: 22, align: 'center', text: 'THE YELLOW HOUSE', tf: { fs: 12, fw: 600, ls2: 0.24, tt: 'uppercase' } },
           { type: 'heading', x: 32, y: 66, w: 336, h: 44, align: 'center', text: 'Come see it in person', fs: 'large' },
           { type: 'para', x: 32, y: 124, w: 336, h: 48, align: 'center', text: 'The little studio on the square \u2014 open Thursday to Sunday.' },
@@ -7443,9 +9053,9 @@
           { type: 'button', x: 116, y: 228, w: 168, h: 48, text: 'Plan a visit' },
         ] },
       ] },
-      { name: 'Place card', take: 'The paper', minH: 560, els: [
-        { type: 'badge', x: 84, y: 64, w: 130, h: 34, text: 'Est. 1888' },
-        { type: 'box', x: 400, y: 130, w: 400, h: 350, radius: 24, boxBg: 'color-mix(in srgb, var(--wp--preset--color--contrast, #000) 7%, var(--wp--preset--color--base, transparent))', kids: [
+      { name: 'Place card', take: 'The paper', minH: 576, els: [
+        { type: 'badge', x: 84, y: 72, w: 130, h: 24, text: 'Est. 1888' },
+        { type: 'box', x: 400, y: 120, w: 400, h: 360, radius: 24, boxBg: 'color-mix(in srgb, var(--wp--preset--color--contrast, #000) 7%, var(--wp--preset--color--base, transparent))', kids: [
           { type: 'para', x: 32, y: 38, w: 336, h: 22, align: 'center', text: 'THE YELLOW HOUSE', tf: { fs: 12, fw: 600, ls2: 0.24, tt: 'uppercase' } },
           { type: 'heading', x: 32, y: 70, w: 336, h: 44, align: 'center', text: 'Come see it in person', fs: 'large' },
           { type: 'para', x: 32, y: 128, w: 336, h: 48, align: 'center', text: 'The little studio on the square \u2014 open Thursday to Sunday.' },
@@ -7453,10 +9063,10 @@
           { type: 'button', x: 116, y: 232, w: 168, h: 48, text: 'Plan a visit' },
         ] },
       ] },
-      { name: 'Place card', take: 'The wide', minH: 560,
+      { name: 'Place card', take: 'The wide', minH: 576,
         bgImage: '/wp-content/plugins/gogh/demo-assets/sunflowers.jpg', bgA: 20, bg: 'var(--wp--preset--color--contrast)', els: [
-        { type: 'badge', x: 84, y: 64, w: 130, h: 34, text: 'Est. 1888' },
-        { type: 'box', x: 200, y: 160, w: 800, h: 260, radius: 24, mood: 'glass', kids: [
+        { type: 'badge', x: 84, y: 72, w: 130, h: 24, text: 'Est. 1888' },
+        { type: 'box', x: 200, y: 168, w: 800, h: 264, radius: 24, mood: 'glass', kids: [
           { type: 'para', x: 40, y: 40, w: 300, h: 22, text: 'THE YELLOW HOUSE', tf: { fs: 12, fw: 600, ls2: 0.24, tt: 'uppercase' } },
           { type: 'heading', x: 40, y: 74, w: 420, h: 44, text: 'Come see it in person', fs: 'large' },
           { type: 'para', x: 40, y: 132, w: 420, h: 48, text: 'The little studio on the square \u2014 open Thursday to Sunday.' },
@@ -7467,10 +9077,10 @@
     ],
 
     'Photo wall': [
-      { name: 'Photo wall', take: 'The pair', minH: 820, els: [
-        { type: 'para', x: 400, y: 56, w: 400, h: 24, align: 'center', text: 'In pictures', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
-        { type: 'heading', x: 250, y: 96, w: 700, h: 64, text: 'The wall', fs: 'x-large', align: 'center' },
-        { type: 'widget', x: 240, y: 200, w: 720, h: 560, wopt: { light: 1, cols: 2 }, wall: [
+      { name: 'Photo wall', take: 'The pair', minH: 792, els: [
+        { type: 'para', x: 400, y: 48, w: 400, h: 24, align: 'center', text: 'In pictures', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
+        { type: 'heading', x: 250, y: 96, w: 700, h: 48, text: 'The wall', fs: 'x-large', align: 'center' },
+        { type: 'widget', x: 240, y: 192, w: 720, h: 552, wopt: { light: 1, cols: 2 }, wall: [
           { img: '/wp-content/plugins/gogh/demo-assets/wheat-field.jpg', cap: '' },
           { img: '/wp-content/plugins/gogh/demo-assets/starry-night.jpg', cap: '' },
           { img: '/wp-content/plugins/gogh/demo-assets/sunflowers.jpg', cap: '' },
@@ -7479,10 +9089,10 @@
           { img: '/wp-content/plugins/gogh/demo-assets/sunflowers.jpg', cap: '' },
         ] },
       ] },
-      { name: 'Photo wall', take: 'The field', minH: 580, els: [
-        { type: 'para', x: 72, y: 56, w: 300, h: 24, text: 'In pictures', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
-        { type: 'heading', x: 72, y: 96, w: 520, h: 64, text: 'The wall', fs: 'x-large' },
-        { type: 'widget', x: 72, y: 190, w: 1056, h: 340, wopt: { light: 1, cols: 4 }, wall: [
+      { name: 'Photo wall', take: 'The field', minH: 576, els: [
+        { type: 'para', x: 72, y: 48, w: 300, h: 24, text: 'In pictures', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
+        { type: 'heading', x: 72, y: 96, w: 520, h: 48, text: 'The wall', fs: 'x-large' },
+        { type: 'widget', x: 72, y: 192, w: 1056, h: 336, wopt: { light: 1, cols: 4 }, wall: [
           { img: '/wp-content/plugins/gogh/demo-assets/wheat-field.jpg', cap: '' },
           { img: '/wp-content/plugins/gogh/demo-assets/starry-night.jpg', cap: '' },
           { img: '/wp-content/plugins/gogh/demo-assets/sunflowers.jpg', cap: '' },
@@ -7491,10 +9101,10 @@
           { img: '/wp-content/plugins/gogh/demo-assets/sunflowers.jpg', cap: '' },
         ] },
       ] },
-      { name: 'Photo wall', take: 'The reel', minH: 560, els: [
-        { type: 'para', x: 400, y: 56, w: 400, h: 24, align: 'center', text: 'In pictures', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
-        { type: 'heading', x: 250, y: 96, w: 700, h: 64, text: 'The wall', fs: 'x-large', align: 'center' },
-        { type: 'widget', x: 120, y: 200, w: 960, h: 300, copt: { light: 1 }, slides: [
+      { name: 'Photo wall', take: 'The reel', minH: 576, els: [
+        { type: 'para', x: 400, y: 48, w: 400, h: 24, align: 'center', text: 'In pictures', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
+        { type: 'heading', x: 250, y: 96, w: 700, h: 48, text: 'The wall', fs: 'x-large', align: 'center' },
+        { type: 'widget', x: 120, y: 192, w: 960, h: 288, copt: { light: 1 }, slides: [
           { img: '/wp-content/plugins/gogh/demo-assets/wheat-field.jpg', cap: '' },
           { img: '/wp-content/plugins/gogh/demo-assets/starry-night.jpg', cap: '' },
           { img: '/wp-content/plugins/gogh/demo-assets/sunflowers.jpg', cap: '' },
@@ -7505,30 +9115,30 @@
       ] },
     ],
     'Carousel': [
-      { name: 'Carousel', take: 'The wall', minH: 660, els: [
-        { type: 'para', x: 400, y: 56, w: 400, h: 24, align: 'center', text: 'A closer look', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
-        { type: 'heading', x: 250, y: 96, w: 700, h: 64, text: 'Slide through the work', fs: 'x-large', align: 'center' },
-        { type: 'widget', x: 120, y: 200, w: 960, h: 400, wopt: { light: 1, cols: 3 }, wall: [
+      { name: 'Carousel', take: 'The wall', minH: 648, els: [
+        { type: 'para', x: 400, y: 48, w: 400, h: 24, align: 'center', text: 'A closer look', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
+        { type: 'heading', x: 250, y: 96, w: 700, h: 48, text: 'Slide through the work', fs: 'x-large', align: 'center' },
+        { type: 'widget', x: 120, y: 192, w: 960, h: 408, wopt: { light: 1, cols: 3 }, wall: [
           { img: '/wp-content/plugins/gogh/demo-assets/wheat-field.jpg', cap: 'Wheat Field with Cypresses' },
           { img: '/wp-content/plugins/gogh/demo-assets/starry-night.jpg', cap: 'The Starry Night' },
           { img: '/wp-content/plugins/gogh/demo-assets/sunflowers.jpg', cap: 'Sunflowers' },
           { img: '/wp-content/plugins/gogh/demo-assets/almond-blossom.jpg', cap: 'Almond Blossom' },
         ] },
       ] },
-      { name: 'Carousel', take: 'The wide sides', minH: 580, els: [
-        { type: 'para', x: 400, y: 56, w: 400, h: 24, align: 'center', text: 'A closer look', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
-        { type: 'heading', x: 250, y: 96, w: 700, h: 64, text: 'Slide through the work', fs: 'x-large', align: 'center' },
-        { type: 'widget', x: 72, y: 200, w: 1056, h: 320, copt: { light: 1, nav: 'sides' }, slides: [
+      { name: 'Carousel', take: 'The wide sides', minH: 576, els: [
+        { type: 'para', x: 400, y: 48, w: 400, h: 24, align: 'center', text: 'A closer look', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
+        { type: 'heading', x: 250, y: 96, w: 700, h: 48, text: 'Slide through the work', fs: 'x-large', align: 'center' },
+        { type: 'widget', x: 72, y: 192, w: 1056, h: 312, copt: { light: 1, nav: 'sides' }, slides: [
           { img: '/wp-content/plugins/gogh/demo-assets/wheat-field.jpg', cap: 'Wheat Field with Cypresses' },
           { img: '/wp-content/plugins/gogh/demo-assets/starry-night.jpg', cap: 'The Starry Night' },
           { img: '/wp-content/plugins/gogh/demo-assets/sunflowers.jpg', cap: 'Sunflowers' },
           { img: '/wp-content/plugins/gogh/demo-assets/almond-blossom.jpg', cap: 'Almond Blossom' },
         ] },
       ] },
-      { name: 'Carousel', take: 'The auto reel', minH: 540, els: [
-        { type: 'para', x: 72, y: 56, w: 300, h: 24, text: 'A closer look', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
-        { type: 'heading', x: 72, y: 96, w: 620, h: 64, text: 'Slide through the work', fs: 'x-large' },
-        { type: 'widget', x: 72, y: 210, w: 1056, h: 280, copt: { light: 1, auto: 1 }, slides: [
+      { name: 'Carousel', take: 'The auto reel', minH: 576, els: [
+        { type: 'para', x: 72, y: 48, w: 300, h: 24, text: 'A closer look', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
+        { type: 'heading', x: 72, y: 96, w: 620, h: 48, text: 'Slide through the work', fs: 'x-large' },
+        { type: 'widget', x: 72, y: 216, w: 1056, h: 288, copt: { light: 1, auto: 1 }, slides: [
           { img: '/wp-content/plugins/gogh/demo-assets/wheat-field.jpg', cap: 'Wheat Field with Cypresses' },
           { img: '/wp-content/plugins/gogh/demo-assets/starry-night.jpg', cap: 'The Starry Night' },
           { img: '/wp-content/plugins/gogh/demo-assets/sunflowers.jpg', cap: 'Sunflowers' },
@@ -7537,29 +9147,29 @@
       ] },
     ],
     'FAQ': [
-      { name: 'FAQ', take: 'The brief', minH: 560, els: [
-        { type: 'para', x: 72, y: 84, w: 300, h: 24, text: 'Questions, answered', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
-        { type: 'heading', x: 72, y: 126, w: 380, h: 130, text: 'Before you ask', fs: 'x-large' },
-        { type: 'widget', x: 520, y: 84, w: 600, h: 420, faq: [
+      { name: 'FAQ', take: 'The brief', minH: 576, els: [
+        { type: 'para', x: 72, y: 96, w: 300, h: 24, text: 'Questions, answered', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
+        { type: 'heading', x: 72, y: 120, w: 380, h: 120, text: 'Before you ask', fs: 'x-large' },
+        { type: 'widget', x: 520, y: 96, w: 600, h: 432, faq: [
           { q: 'How long does a project take?', a: 'Six to ten weeks for most sites. The Sprint is one week, by design.' },
           { q: 'Do you work with small budgets?', a: 'Yes \u2014 that is exactly what the Sprint is for. One week, one focused thing, done well.' },
           { q: 'Who will we actually work with?', a: 'The people on the team page \u2014 no handoffs to a bench you never met.' },
         ] },
       ] },
-      { name: 'FAQ', take: 'The long read', minH: 560, els: [
-        { type: 'para', x: 400, y: 56, w: 400, h: 24, align: 'center', text: 'Questions, answered', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
-        { type: 'heading', x: 250, y: 96, w: 700, h: 64, text: 'Before you ask', fs: 'x-large', align: 'center' },
-        { type: 'widget', x: 150, y: 200, w: 900, h: 320, faq: [
+      { name: 'FAQ', take: 'The long read', minH: 576, els: [
+        { type: 'para', x: 400, y: 48, w: 400, h: 24, align: 'center', text: 'Questions, answered', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
+        { type: 'heading', x: 250, y: 96, w: 700, h: 48, text: 'Before you ask', fs: 'x-large', align: 'center' },
+        { type: 'widget', x: 150, y: 192, w: 900, h: 312, faq: [
           { q: 'How long does a project take?', a: 'Six to ten weeks for most sites. The Sprint is one week, by design.' },
           { q: 'Do you work with small budgets?', a: 'Yes \u2014 that is exactly what the Sprint is for. One week, one focused thing, done well.' },
           { q: 'Who will we actually work with?', a: 'The people on the team page \u2014 no handoffs to a bench you never met.' },
         ] },
       ] },
-      { name: 'FAQ', take: 'The counter', minH: 620, els: [
-        { type: 'para', x: 72, y: 64, w: 300, h: 24, text: 'Questions, answered', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
-        { type: 'heading', x: 72, y: 104, w: 520, h: 64, text: 'Before you ask', fs: 'x-large' },
-        { type: 'box', x: 40, y: 190, w: 1120, h: 380, radius: 24, boxBg: 'color-mix(in srgb, var(--wp--preset--color--contrast, #000) 6%, var(--wp--preset--color--base, transparent))' },
-        { type: 'widget', x: 100, y: 230, w: 1000, h: 300, faq: [
+      { name: 'FAQ', take: 'The counter', minH: 648, els: [
+        { type: 'para', x: 72, y: 72, w: 300, h: 24, text: 'Questions, answered', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
+        { type: 'heading', x: 72, y: 96, w: 520, h: 48, text: 'Before you ask', fs: 'x-large' },
+        { type: 'box', x: 40, y: 192, w: 1120, h: 384, radius: 24, boxBg: 'color-mix(in srgb, var(--wp--preset--color--contrast, #000) 6%, var(--wp--preset--color--base, transparent))' },
+        { type: 'widget', x: 100, y: 240, w: 1000, h: 288, faq: [
           { q: 'How long does a project take?', a: 'Six to ten weeks for most sites. The Sprint is one week, by design.' },
           { q: 'Do you work with small budgets?', a: 'Yes \u2014 that is exactly what the Sprint is for. One week, one focused thing, done well.' },
           { q: 'Who will we actually work with?', a: 'The people on the team page \u2014 no handoffs to a bench you never met.' },
@@ -7567,29 +9177,29 @@
       ] },
     ],
     'Tabs': [
-      { name: 'Tabs', take: 'The brief', minH: 520, els: [
-        { type: 'para', x: 72, y: 84, w: 300, h: 24, text: 'Ways to work with us', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
-        { type: 'heading', x: 72, y: 126, w: 380, h: 130, text: 'Pick your pace', fs: 'x-large' },
-        { type: 'widget', x: 520, y: 84, w: 600, h: 380, tabs: [
+      { name: 'Tabs', take: 'The brief', minH: 504, els: [
+        { type: 'para', x: 72, y: 96, w: 300, h: 24, text: 'Ways to work with us', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
+        { type: 'heading', x: 72, y: 120, w: 380, h: 120, text: 'Pick your pace', fs: 'x-large' },
+        { type: 'widget', x: 520, y: 96, w: 600, h: 384, tabs: [
           { t: 'The Sprint', body: 'One focused week. A sharp brief in, a finished thing out \u2014 built for small budgets and quick decisions.' },
           { t: 'The Partnership', body: 'A standing team beside yours \u2014 design, build and everything between, month by month.' },
           { t: 'Ongoing care', body: 'Quiet upkeep after launch: updates, tweaks and a person who answers.' },
         ] },
       ] },
-      { name: 'Tabs', take: 'The long read', minH: 520, els: [
-        { type: 'para', x: 400, y: 56, w: 400, h: 24, align: 'center', text: 'Ways to work with us', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
-        { type: 'heading', x: 250, y: 96, w: 700, h: 64, text: 'Pick your pace', fs: 'x-large', align: 'center' },
-        { type: 'widget', x: 150, y: 200, w: 900, h: 280, tabs: [
+      { name: 'Tabs', take: 'The long read', minH: 504, els: [
+        { type: 'para', x: 400, y: 48, w: 400, h: 24, align: 'center', text: 'Ways to work with us', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
+        { type: 'heading', x: 250, y: 96, w: 700, h: 48, text: 'Pick your pace', fs: 'x-large', align: 'center' },
+        { type: 'widget', x: 150, y: 192, w: 900, h: 288, tabs: [
           { t: 'The Sprint', body: 'One focused week. A sharp brief in, a finished thing out \u2014 built for small budgets and quick decisions.' },
           { t: 'The Partnership', body: 'A standing team beside yours \u2014 design, build and everything between, month by month.' },
           { t: 'Ongoing care', body: 'Quiet upkeep after launch: updates, tweaks and a person who answers.' },
         ] },
       ] },
-      { name: 'Tabs', take: 'The counter', minH: 580, els: [
-        { type: 'para', x: 72, y: 64, w: 300, h: 24, text: 'Ways to work with us', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
-        { type: 'heading', x: 72, y: 104, w: 520, h: 64, text: 'Pick your pace', fs: 'x-large' },
-        { type: 'box', x: 40, y: 190, w: 1120, h: 340, radius: 24, boxBg: 'color-mix(in srgb, var(--wp--preset--color--contrast, #000) 6%, var(--wp--preset--color--base, transparent))' },
-        { type: 'widget', x: 100, y: 230, w: 1000, h: 260, tabs: [
+      { name: 'Tabs', take: 'The counter', minH: 576, els: [
+        { type: 'para', x: 72, y: 72, w: 300, h: 24, text: 'Ways to work with us', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
+        { type: 'heading', x: 72, y: 96, w: 520, h: 48, text: 'Pick your pace', fs: 'x-large' },
+        { type: 'box', x: 40, y: 192, w: 1120, h: 336, radius: 24, boxBg: 'color-mix(in srgb, var(--wp--preset--color--contrast, #000) 6%, var(--wp--preset--color--base, transparent))' },
+        { type: 'widget', x: 100, y: 240, w: 1000, h: 264, tabs: [
           { t: 'The Sprint', body: 'One focused week. A sharp brief in, a finished thing out \u2014 built for small budgets and quick decisions.' },
           { t: 'The Partnership', body: 'A standing team beside yours \u2014 design, build and everything between, month by month.' },
           { t: 'Ongoing care', body: 'Quiet upkeep after launch: updates, tweaks and a person who answers.' },
@@ -7598,197 +9208,197 @@
     ],
 
     'Gallery': [
-      { name: 'Gallery', take: 'The row', minH: 700, els: [
-        { type: 'para', x: 72, y: 60, w: 300, h: 24, text: 'Selected work', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
-        { type: 'heading', x: 72, y: 100, w: 520, h: 64, text: 'A few favourites', fs: 'x-large' },
-        { type: 'image', x: 72, y: 208, w: 330, h: 380, cool: true },
-        { type: 'image', x: 435, y: 208, w: 330, h: 380 },
-        { type: 'image', x: 798, y: 208, w: 330, h: 380, cool: true },
-        { type: 'button', x: 918, y: 620, w: 210, h: 54, text: 'See the archive', ghost: true },
+      { name: 'Gallery', take: 'The row', minH: 720, els: [
+        { type: 'para', x: 72, y: 48, w: 300, h: 24, text: 'Selected work', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
+        { type: 'heading', x: 72, y: 96, w: 520, h: 48, text: 'A few favourites', fs: 'x-large' },
+        { type: 'image', x: 72, y: 216, w: 330, h: 384, cool: true },
+        { type: 'image', x: 435, y: 216, w: 330, h: 384 },
+        { type: 'image', x: 798, y: 216, w: 330, h: 384, cool: true },
+        { type: 'button', x: 918, y: 624, w: 210, h: 48, text: 'See the archive', ghost: true },
       ] },
-      { name: 'Gallery', take: 'The mosaic', minH: 700, els: [
-        { type: 'para', x: 72, y: 60, w: 300, h: 24, text: 'Selected work', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
-        { type: 'heading', x: 72, y: 100, w: 520, h: 64, text: 'A few favourites', fs: 'x-large' },
-        { type: 'image', x: 72, y: 190, w: 560, h: 450, cool: true },
-        { type: 'image', x: 668, y: 190, w: 460, h: 215 },
-        { type: 'image', x: 668, y: 425, w: 460, h: 215, cool: true },
-        { type: 'button', x: 918, y: 660, w: 210, h: 54, text: 'See the archive', ghost: true },
+      { name: 'Gallery', take: 'The mosaic', minH: 720, els: [
+        { type: 'para', x: 72, y: 48, w: 300, h: 24, text: 'Selected work', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
+        { type: 'heading', x: 72, y: 96, w: 520, h: 48, text: 'A few favourites', fs: 'x-large' },
+        { type: 'image', x: 72, y: 192, w: 560, h: 456, cool: true },
+        { type: 'image', x: 668, y: 192, w: 460, h: 216 },
+        { type: 'image', x: 668, y: 432, w: 460, h: 216, cool: true },
+        { type: 'button', x: 918, y: 672, w: 210, h: 48, text: 'See the archive', ghost: true },
       ] },
-      { name: 'Gallery', take: 'The lookbook', minH: 680, bg: 'var(--wp--preset--color--contrast, #16181c)', els: [
-        { type: 'para', x: 72, y: 60, w: 300, h: 24, text: 'Selected work', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--base, #fff) 60%, transparent)' } },
-        { type: 'heading', x: 72, y: 100, w: 520, h: 64, text: 'A few favourites', fs: 'x-large', tf: { col: 'var(--wp--preset--color--base, #fff)' } },
-        { type: 'image', x: 72, y: 200, w: 330, h: 360, cool: true },
-        { type: 'image', x: 435, y: 200, w: 330, h: 360 },
-        { type: 'image', x: 798, y: 200, w: 330, h: 360, cool: true },
-        { type: 'button', x: 798, y: 596, w: 210, h: 54, text: 'See the archive', tf: { bg: 'var(--wp--preset--color--base, #fff)', col: 'var(--wp--preset--color--contrast, #141519)' } },
+      { name: 'Gallery', take: 'The lookbook', minH: 648, bg: 'var(--wp--preset--color--contrast, #16181c)', els: [
+        { type: 'para', x: 72, y: 48, w: 300, h: 24, text: 'Selected work', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--base, #fff) 60%, transparent)' } },
+        { type: 'heading', x: 72, y: 96, w: 520, h: 48, text: 'A few favourites', fs: 'x-large', tf: { col: 'var(--wp--preset--color--base, #fff)' } },
+        { type: 'image', x: 72, y: 192, w: 330, h: 360, cool: true },
+        { type: 'image', x: 435, y: 192, w: 330, h: 360 },
+        { type: 'image', x: 798, y: 192, w: 330, h: 360, cool: true },
+        { type: 'button', x: 798, y: 600, w: 210, h: 48, text: 'See the archive', tf: { bg: 'var(--wp--preset--color--base, #fff)', col: 'var(--wp--preset--color--contrast, #141519)' } },
       ] },
     ],
     'Photo cards': [
-      { name: 'Photo cards', take: 'The stack', minH: 800, els: [
-        { type: 'image', x: 72, y: 40, w: 1056, h: 320, cool: true },
-        { type: 'box', x: 72, y: 40, w: 1056, h: 320, boxBg: 'linear-gradient(180deg, rgba(0,0,0,0) 0%, rgba(0,0,0,0.18) 30%, rgba(0,0,0,0.78) 100%)', radius: 20 },
-        { type: 'heading', x: 108, y: 196, w: 400, h: 46, text: 'Quiet mountain cabin', fs: 'large', tf: { col: '#ffffff' } },
-        { type: 'para', x: 108, y: 250, w: 560, h: 56, text: 'Wake up above the clouds. Two rooms, one stove, zero notifications \u2014 the good kind of nowhere.', tf: { col: '#ffffff' } },
-        { type: 'badge', x: 760, y: 254, w: 130, h: 44, text: '\u2605 4.9' },
-        { type: 'badge', x: 906, y: 254, w: 168, h: 44, text: '3 night stay' },
-        { type: 'button', x: 760, y: 196, w: 314, h: 48, text: 'Reserve now', tf: { bg: '#ffffff', col: '#141519' } },
-        { type: 'image', x: 72, y: 400, w: 1056, h: 320, cool: true },
-        { type: 'box', x: 72, y: 400, w: 1056, h: 320, boxBg: 'linear-gradient(180deg, rgba(0,0,0,0) 0%, rgba(0,0,0,0.18) 30%, rgba(0,0,0,0.78) 100%)', radius: 20 },
-        { type: 'heading', x: 108, y: 556, w: 400, h: 46, text: 'Coastal hideaway', fs: 'large', tf: { col: '#ffffff' } },
-        { type: 'para', x: 108, y: 610, w: 560, h: 56, text: 'Salt air, slow mornings and a five-minute walk to the water. Bring a book you\u2019ve been meaning to finish.', tf: { col: '#ffffff' } },
-        { type: 'badge', x: 760, y: 614, w: 130, h: 44, text: '\u2605 4.8' },
-        { type: 'badge', x: 906, y: 614, w: 168, h: 44, text: 'Guest favourite' },
-        { type: 'button', x: 760, y: 556, w: 314, h: 48, text: 'Reserve now', tf: { bg: '#ffffff', col: '#141519' } },
+      { name: 'Photo cards', take: 'The stack', minH: 792, els: [
+        { type: 'image', x: 72, y: 48, w: 1056, h: 312, cool: true },
+        { type: 'box', x: 72, y: 48, w: 1056, h: 312, boxBg: 'linear-gradient(180deg, rgba(0,0,0,0) 0%, rgba(0,0,0,0.18) 30%, rgba(0,0,0,0.78) 100%)', radius: 20 },
+        { type: 'heading', x: 108, y: 192, w: 400, h: 24, text: 'Quiet mountain cabin', fs: 'large', tf: { col: '#ffffff' } },
+        { type: 'para', x: 108, y: 240, w: 560, h: 48, text: 'Wake up above the clouds. Two rooms, one stove, zero notifications \u2014 the good kind of nowhere.', tf: { col: '#ffffff' } },
+        { type: 'badge', x: 760, y: 264, w: 130, h: 48, text: '\u2605 4.9' },
+        { type: 'badge', x: 906, y: 264, w: 168, h: 48, text: '3 night stay' },
+        { type: 'button', x: 760, y: 192, w: 314, h: 48, text: 'Reserve now', tf: { bg: '#ffffff', col: '#141519' } },
+        { type: 'image', x: 72, y: 408, w: 1056, h: 312, cool: true },
+        { type: 'box', x: 72, y: 408, w: 1056, h: 312, boxBg: 'linear-gradient(180deg, rgba(0,0,0,0) 0%, rgba(0,0,0,0.18) 30%, rgba(0,0,0,0.78) 100%)', radius: 20 },
+        { type: 'heading', x: 108, y: 552, w: 400, h: 24, text: 'Coastal hideaway', fs: 'large', tf: { col: '#ffffff' } },
+        { type: 'para', x: 108, y: 600, w: 560, h: 48, text: 'Salt air, slow mornings and a five-minute walk to the water. Bring a book you\u2019ve been meaning to finish.', tf: { col: '#ffffff' } },
+        { type: 'badge', x: 760, y: 624, w: 130, h: 48, text: '\u2605 4.8' },
+        { type: 'badge', x: 906, y: 624, w: 168, h: 48, text: 'Guest favourite' },
+        { type: 'button', x: 760, y: 552, w: 314, h: 48, text: 'Reserve now', tf: { bg: '#ffffff', col: '#141519' } },
       ] },
-      { name: 'Photo cards', take: 'The offset', minH: 800, els: [
-        { type: 'image', x: 100, y: 40, w: 470, h: 620, cool: true },
-        { type: 'box', x: 100, y: 340, w: 470, h: 320, boxBg: 'linear-gradient(180deg, rgba(0,0,0,0) 0%, rgba(0,0,0,0.18) 30%, rgba(0,0,0,0.78) 100%)', radius: 20 },
-        { type: 'heading', x: 136, y: 384, w: 340, h: 46, text: 'Quiet mountain cabin', fs: 'large', tf: { col: '#ffffff' } },
-        { type: 'para', x: 136, y: 442, w: 398, h: 84, text: 'Wake up above the clouds. Two rooms, one stove, zero notifications \u2014 the good kind of nowhere.', tf: { col: '#ffffff' } },
-        { type: 'badge', x: 136, y: 538, w: 130, h: 44, text: '\u2605 4.9' },
-        { type: 'badge', x: 282, y: 538, w: 168, h: 44, text: '3 night stay' },
-        { type: 'button', x: 136, y: 598, w: 398, h: 52, text: 'Reserve now', tf: { bg: '#ffffff', col: '#141519' } },
-        { type: 'image', x: 630, y: 120, w: 470, h: 620, cool: true },
-        { type: 'box', x: 630, y: 420, w: 470, h: 320, boxBg: 'linear-gradient(180deg, rgba(0,0,0,0) 0%, rgba(0,0,0,0.18) 30%, rgba(0,0,0,0.78) 100%)', radius: 20 },
-        { type: 'heading', x: 666, y: 464, w: 340, h: 46, text: 'Coastal hideaway', fs: 'large', tf: { col: '#ffffff' } },
-        { type: 'para', x: 666, y: 522, w: 398, h: 84, text: 'Salt air, slow mornings and a five-minute walk to the water. Bring a book you\u2019ve been meaning to finish.', tf: { col: '#ffffff' } },
-        { type: 'badge', x: 666, y: 618, w: 130, h: 44, text: '\u2605 4.8' },
-        { type: 'badge', x: 812, y: 618, w: 168, h: 44, text: 'Guest favourite' },
-        { type: 'button', x: 666, y: 678, w: 398, h: 52, text: 'Reserve now', tf: { bg: '#ffffff', col: '#141519' } },
+      { name: 'Photo cards', take: 'The offset', minH: 792, els: [
+        { type: 'image', x: 100, y: 48, w: 470, h: 624, cool: true },
+        { type: 'box', x: 100, y: 336, w: 470, h: 312, boxBg: 'linear-gradient(180deg, rgba(0,0,0,0) 0%, rgba(0,0,0,0.18) 30%, rgba(0,0,0,0.78) 100%)', radius: 20 },
+        { type: 'heading', x: 136, y: 384, w: 340, h: 24, text: 'Quiet mountain cabin', fs: 'large', tf: { col: '#ffffff' } },
+        { type: 'para', x: 136, y: 432, w: 398, h: 72, text: 'Wake up above the clouds. Two rooms, one stove, zero notifications \u2014 the good kind of nowhere.', tf: { col: '#ffffff' } },
+        { type: 'badge', x: 136, y: 528, w: 130, h: 48, text: '\u2605 4.9' },
+        { type: 'badge', x: 282, y: 528, w: 168, h: 48, text: '3 night stay' },
+        { type: 'button', x: 136, y: 600, w: 398, h: 48, text: 'Reserve now', tf: { bg: '#ffffff', col: '#141519' } },
+        { type: 'image', x: 630, y: 120, w: 470, h: 624, cool: true },
+        { type: 'box', x: 630, y: 432, w: 470, h: 312, boxBg: 'linear-gradient(180deg, rgba(0,0,0,0) 0%, rgba(0,0,0,0.18) 30%, rgba(0,0,0,0.78) 100%)', radius: 20 },
+        { type: 'heading', x: 666, y: 456, w: 340, h: 24, text: 'Coastal hideaway', fs: 'large', tf: { col: '#ffffff' } },
+        { type: 'para', x: 666, y: 528, w: 398, h: 72, text: 'Salt air, slow mornings and a five-minute walk to the water. Bring a book you\u2019ve been meaning to finish.', tf: { col: '#ffffff' } },
+        { type: 'badge', x: 666, y: 624, w: 130, h: 48, text: '\u2605 4.8' },
+        { type: 'badge', x: 812, y: 624, w: 168, h: 48, text: 'Guest favourite' },
+        { type: 'button', x: 666, y: 672, w: 398, h: 48, text: 'Reserve now', tf: { bg: '#ffffff', col: '#141519' } },
       ] },
-      { name: 'Photo cards', take: 'The ink shelf', minH: 760, bg: 'var(--wp--preset--color--contrast, #16181c)', els: [
-        { type: 'image', x: 100, y: 60, w: 470, h: 620, cool: true },
-        { type: 'box', x: 100, y: 360, w: 470, h: 320, boxBg: 'linear-gradient(180deg, rgba(0,0,0,0) 0%, rgba(0,0,0,0.18) 30%, rgba(0,0,0,0.78) 100%)', radius: 20 },
-        { type: 'heading', x: 136, y: 404, w: 340, h: 46, text: 'Quiet mountain cabin', fs: 'large', tf: { col: '#ffffff' } },
-        { type: 'para', x: 136, y: 462, w: 398, h: 84, text: 'Wake up above the clouds. Two rooms, one stove, zero notifications \u2014 the good kind of nowhere.', tf: { col: '#ffffff' } },
-        { type: 'badge', x: 136, y: 558, w: 130, h: 44, text: '\u2605 4.9' },
-        { type: 'badge', x: 282, y: 558, w: 168, h: 44, text: '3 night stay' },
-        { type: 'button', x: 136, y: 618, w: 398, h: 52, text: 'Reserve now', tf: { bg: '#ffffff', col: '#141519' } },
-        { type: 'image', x: 630, y: 60, w: 470, h: 620, cool: true },
-        { type: 'box', x: 630, y: 360, w: 470, h: 320, boxBg: 'linear-gradient(180deg, rgba(0,0,0,0) 0%, rgba(0,0,0,0.18) 30%, rgba(0,0,0,0.78) 100%)', radius: 20 },
-        { type: 'heading', x: 666, y: 404, w: 340, h: 46, text: 'Coastal hideaway', fs: 'large', tf: { col: '#ffffff' } },
-        { type: 'para', x: 666, y: 462, w: 398, h: 84, text: 'Salt air, slow mornings and a five-minute walk to the water. Bring a book you\u2019ve been meaning to finish.', tf: { col: '#ffffff' } },
-        { type: 'badge', x: 666, y: 558, w: 130, h: 44, text: '\u2605 4.8' },
-        { type: 'badge', x: 812, y: 558, w: 168, h: 44, text: 'Guest favourite' },
-        { type: 'button', x: 666, y: 618, w: 398, h: 52, text: 'Reserve now', tf: { bg: '#ffffff', col: '#141519' } },
+      { name: 'Photo cards', take: 'The ink shelf', minH: 792, bg: 'var(--wp--preset--color--contrast, #16181c)', els: [
+        { type: 'image', x: 100, y: 48, w: 470, h: 624, cool: true },
+        { type: 'box', x: 100, y: 360, w: 470, h: 312, boxBg: 'linear-gradient(180deg, rgba(0,0,0,0) 0%, rgba(0,0,0,0.18) 30%, rgba(0,0,0,0.78) 100%)', radius: 20 },
+        { type: 'heading', x: 136, y: 408, w: 340, h: 24, text: 'Quiet mountain cabin', fs: 'large', tf: { col: '#ffffff' } },
+        { type: 'para', x: 136, y: 456, w: 398, h: 72, text: 'Wake up above the clouds. Two rooms, one stove, zero notifications \u2014 the good kind of nowhere.', tf: { col: '#ffffff' } },
+        { type: 'badge', x: 136, y: 552, w: 130, h: 48, text: '\u2605 4.9' },
+        { type: 'badge', x: 282, y: 552, w: 168, h: 48, text: '3 night stay' },
+        { type: 'button', x: 136, y: 624, w: 398, h: 48, text: 'Reserve now', tf: { bg: '#ffffff', col: '#141519' } },
+        { type: 'image', x: 630, y: 48, w: 470, h: 624, cool: true },
+        { type: 'box', x: 630, y: 360, w: 470, h: 312, boxBg: 'linear-gradient(180deg, rgba(0,0,0,0) 0%, rgba(0,0,0,0.18) 30%, rgba(0,0,0,0.78) 100%)', radius: 20 },
+        { type: 'heading', x: 666, y: 408, w: 340, h: 24, text: 'Coastal hideaway', fs: 'large', tf: { col: '#ffffff' } },
+        { type: 'para', x: 666, y: 456, w: 398, h: 72, text: 'Salt air, slow mornings and a five-minute walk to the water. Bring a book you\u2019ve been meaning to finish.', tf: { col: '#ffffff' } },
+        { type: 'badge', x: 666, y: 552, w: 130, h: 48, text: '\u2605 4.8' },
+        { type: 'badge', x: 812, y: 552, w: 168, h: 48, text: 'Guest favourite' },
+        { type: 'button', x: 666, y: 624, w: 398, h: 48, text: 'Reserve now', tf: { bg: '#ffffff', col: '#141519' } },
       ] },
     ],
     'Portfolio': [
-      { name: 'Portfolio', take: 'The mirror', minH: 580, els: [
-        { type: 'box', x: 608, y: 116, w: 560, h: 420, boxBg: 'color-mix(in srgb, var(--wp--preset--color--contrast, #000) 8%, var(--wp--preset--color--base, transparent))', radius: 24 },
-        { type: 'image', x: 568, y: 80, w: 560, h: 420, cool: true },
-        { type: 'badge', x: 600, y: 452, w: 190, h: 48, text: 'Hanna & Co' },
-        { type: 'para', x: 72, y: 130, w: 300, h: 24, text: 'Case study', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
-        { type: 'heading', x: 72, y: 170, w: 420, h: 120, text: 'A bakery worth queueing for', fs: 'x-large' },
-        { type: 'para', x: 72, y: 310, w: 400, h: 84, text: 'New identity, new site, same sourdough. Online orders doubled in the first month \u2014 the queue moved to the website.' },
-        { type: 'badge', x: 72, y: 414, w: 170, h: 46, text: '+204% orders' },
-        { type: 'badge', x: 258, y: 414, w: 160, h: 46, text: '6 weeks' },
-        { type: 'button', x: 72, y: 486, w: 210, h: 52, text: 'Read the study', ghost: true },
+      { name: 'Portfolio', take: 'The mirror', minH: 576, els: [
+        { type: 'box', x: 608, y: 120, w: 560, h: 432, boxBg: 'color-mix(in srgb, var(--wp--preset--color--contrast, #000) 8%, var(--wp--preset--color--base, transparent))', radius: 24 },
+        { type: 'image', x: 568, y: 72, w: 560, h: 432, cool: true },
+        { type: 'badge', x: 600, y: 456, w: 190, h: 48, text: 'Hanna & Co' },
+        { type: 'para', x: 72, y: 120, w: 300, h: 24, text: 'Case study', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
+        { type: 'heading', x: 72, y: 168, w: 420, h: 120, text: 'A bakery worth queueing for', fs: 'x-large' },
+        { type: 'para', x: 72, y: 312, w: 400, h: 72, text: 'New identity, new site, same sourdough. Online orders doubled in the first month \u2014 the queue moved to the website.' },
+        { type: 'badge', x: 72, y: 408, w: 170, h: 48, text: '+204% orders' },
+        { type: 'badge', x: 258, y: 408, w: 160, h: 48, text: '6 weeks' },
+        { type: 'button', x: 72, y: 480, w: 210, h: 48, text: 'Read the study', ghost: true },
       ] },
-      { name: 'Portfolio', take: 'The banner', minH: 700, els: [
-        { type: 'box', x: 40, y: 112, w: 1056, h: 300, boxBg: 'color-mix(in srgb, var(--wp--preset--color--contrast, #000) 8%, var(--wp--preset--color--base, transparent))', radius: 24 },
-        { type: 'image', x: 72, y: 80, w: 1056, h: 300, cool: true },
-        { type: 'badge', x: 104, y: 332, w: 190, h: 48, text: 'Hanna & Co' },
-        { type: 'para', x: 72, y: 430, w: 300, h: 24, text: 'Case study', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
-        { type: 'heading', x: 72, y: 466, w: 620, h: 70, text: 'A bakery worth queueing for', fs: 'x-large' },
-        { type: 'para', x: 72, y: 556, w: 560, h: 66, text: 'New identity, new site, same sourdough. Online orders doubled in the first month \u2014 the queue moved to the website.' },
-        { type: 'badge', x: 760, y: 470, w: 170, h: 46, text: '+204% orders' },
-        { type: 'badge', x: 946, y: 470, w: 160, h: 46, text: '6 weeks' },
-        { type: 'button', x: 760, y: 546, w: 210, h: 52, text: 'Read the study', ghost: true },
+      { name: 'Portfolio', take: 'The banner', minH: 720, els: [
+        { type: 'box', x: 40, y: 120, w: 1056, h: 288, boxBg: 'color-mix(in srgb, var(--wp--preset--color--contrast, #000) 8%, var(--wp--preset--color--base, transparent))', radius: 24 },
+        { type: 'image', x: 72, y: 72, w: 1056, h: 288, cool: true },
+        { type: 'badge', x: 104, y: 336, w: 190, h: 48, text: 'Hanna & Co' },
+        { type: 'para', x: 72, y: 432, w: 300, h: 24, text: 'Case study', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
+        { type: 'heading', x: 72, y: 456, w: 620, h: 48, text: 'A bakery worth queueing for', fs: 'x-large' },
+        { type: 'para', x: 72, y: 552, w: 560, h: 48, text: 'New identity, new site, same sourdough. Online orders doubled in the first month \u2014 the queue moved to the website.' },
+        { type: 'badge', x: 760, y: 480, w: 170, h: 48, text: '+204% orders' },
+        { type: 'badge', x: 946, y: 480, w: 160, h: 48, text: '6 weeks' },
+        { type: 'button', x: 760, y: 552, w: 210, h: 48, text: 'Read the study', ghost: true },
       ] },
-      { name: 'Portfolio', take: 'The ink study', minH: 580, bg: 'var(--wp--preset--color--contrast, #16181c)', els: [
-        { type: 'box', x: 40, y: 116, w: 560, h: 420, boxBg: 'color-mix(in srgb, var(--wp--preset--color--base, #fff) 10%, transparent)', radius: 24 },
-        { type: 'image', x: 72, y: 80, w: 560, h: 420, cool: true },
-        { type: 'badge', x: 104, y: 452, w: 190, h: 48, text: 'Hanna & Co' },
-        { type: 'para', x: 700, y: 130, w: 300, h: 24, text: 'Case study', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--base, #fff) 60%, transparent)' } },
-        { type: 'heading', x: 700, y: 170, w: 420, h: 120, text: 'A bakery worth queueing for', fs: 'x-large', tf: { col: 'var(--wp--preset--color--base, #fff)' } },
-        { type: 'para', x: 700, y: 310, w: 400, h: 84, text: 'New identity, new site, same sourdough. Online orders doubled in the first month \u2014 the queue moved to the website.', tf: { col: 'color-mix(in srgb, var(--wp--preset--color--base, #fff) 75%, transparent)' } },
-        { type: 'badge', x: 700, y: 414, w: 170, h: 46, text: '+204% orders' },
-        { type: 'badge', x: 886, y: 414, w: 160, h: 46, text: '6 weeks' },
-        { type: 'button', x: 700, y: 486, w: 210, h: 52, text: 'Read the study', tf: { bg: 'var(--wp--preset--color--base, #fff)', col: 'var(--wp--preset--color--contrast, #141519)' } },
+      { name: 'Portfolio', take: 'The ink study', minH: 576, bg: 'var(--wp--preset--color--contrast, #16181c)', els: [
+        { type: 'box', x: 40, y: 120, w: 560, h: 432, boxBg: 'color-mix(in srgb, var(--wp--preset--color--base, #fff) 10%, transparent)', radius: 24 },
+        { type: 'image', x: 72, y: 72, w: 560, h: 432, cool: true },
+        { type: 'badge', x: 104, y: 456, w: 190, h: 48, text: 'Hanna & Co' },
+        { type: 'para', x: 700, y: 120, w: 300, h: 24, text: 'Case study', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--base, #fff) 60%, transparent)' } },
+        { type: 'heading', x: 700, y: 168, w: 420, h: 120, text: 'A bakery worth queueing for', fs: 'x-large', tf: { col: 'var(--wp--preset--color--base, #fff)' } },
+        { type: 'para', x: 700, y: 312, w: 400, h: 72, text: 'New identity, new site, same sourdough. Online orders doubled in the first month \u2014 the queue moved to the website.', tf: { col: 'color-mix(in srgb, var(--wp--preset--color--base, #fff) 75%, transparent)' } },
+        { type: 'badge', x: 700, y: 408, w: 170, h: 48, text: '+204% orders' },
+        { type: 'badge', x: 886, y: 408, w: 160, h: 48, text: '6 weeks' },
+        { type: 'button', x: 700, y: 480, w: 210, h: 48, text: 'Read the study', tf: { bg: 'var(--wp--preset--color--base, #fff)', col: 'var(--wp--preset--color--contrast, #141519)' } },
       ] },
     ],
     'Menu': [
-      { name: 'Menu', take: 'The two tops', minH: 480, els: [
-        { type: 'para', x: 400, y: 56, w: 400, h: 24, align: 'center', text: 'Served all day', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
-        { type: 'heading', x: 300, y: 96, w: 600, h: 70, text: 'Small plates', fs: 'x-large', align: 'center' },
-        { type: 'heading', x: 72, y: 212, w: 400, h: 40, text: 'Sourdough, cultured butter', fs: 'medium' },
-        { type: 'para', x: 500, y: 212, w: 70, h: 40, text: '\u00a36', align: 'right', fs: 'medium' },
-        { type: 'heading', x: 72, y: 288, w: 400, h: 40, text: 'Burrata, blood orange, mint', fs: 'medium' },
-        { type: 'para', x: 500, y: 288, w: 70, h: 40, text: '\u00a311', align: 'right', fs: 'medium' },
-        { type: 'heading', x: 640, y: 212, w: 400, h: 40, text: 'Wood-roast leeks, romesco', fs: 'medium' },
-        { type: 'para', x: 1058, y: 212, w: 70, h: 40, text: '\u00a39', align: 'right', fs: 'medium' },
-        { type: 'heading', x: 640, y: 288, w: 400, h: 40, text: 'Anchovy toast, soft egg', fs: 'medium' },
-        { type: 'para', x: 1058, y: 288, w: 70, h: 40, text: '\u00a38', align: 'right', fs: 'medium' },
-        { type: 'para', x: 280, y: 380, w: 640, h: 30, align: 'center', text: 'Everything changes with the seasons \u2014 ask what\u2019s good today.', tf: { fst: 'italic', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
+      { name: 'Menu', take: 'The two tops', minH: 504, els: [
+        { type: 'para', x: 400, y: 48, w: 400, h: 24, align: 'center', text: 'Served all day', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
+        { type: 'heading', x: 300, y: 96, w: 600, h: 48, text: 'Small plates', fs: 'x-large', align: 'center' },
+        { type: 'heading', x: 72, y: 216, w: 400, h: 24, text: 'Sourdough, cultured butter', fs: 'medium' },
+        { type: 'para', x: 500, y: 216, w: 70, h: 24, text: '\u00a36', align: 'right', fs: 'medium' },
+        { type: 'heading', x: 72, y: 288, w: 400, h: 24, text: 'Burrata, blood orange, mint', fs: 'medium' },
+        { type: 'para', x: 500, y: 288, w: 70, h: 24, text: '\u00a311', align: 'right', fs: 'medium' },
+        { type: 'heading', x: 640, y: 216, w: 400, h: 24, text: 'Wood-roast leeks, romesco', fs: 'medium' },
+        { type: 'para', x: 1058, y: 216, w: 70, h: 24, text: '\u00a39', align: 'right', fs: 'medium' },
+        { type: 'heading', x: 640, y: 288, w: 400, h: 24, text: 'Anchovy toast, soft egg', fs: 'medium' },
+        { type: 'para', x: 1058, y: 288, w: 70, h: 24, text: '\u00a38', align: 'right', fs: 'medium' },
+        { type: 'para', x: 280, y: 384, w: 640, h: 24, align: 'center', text: 'Everything changes with the seasons \u2014 ask what\u2019s good today.', tf: { fst: 'italic', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
       ] },
-      { name: 'Menu', take: 'The card', minH: 660, els: [
-        { type: 'box', x: 150, y: 40, w: 900, h: 560, radius: 24, boxBg: 'color-mix(in srgb, var(--wp--preset--color--contrast, #000) 6%, var(--wp--preset--color--base, transparent))' },
-        { type: 'para', x: 400, y: 76, w: 400, h: 24, align: 'center', text: 'Served all day', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
-        { type: 'heading', x: 300, y: 116, w: 600, h: 70, text: 'Small plates', fs: 'x-large', align: 'center' },
-        { type: 'heading', x: 300, y: 230, w: 420, h: 40, text: 'Sourdough, cultured butter', fs: 'medium' },
-        { type: 'para', x: 790, y: 230, w: 70, h: 40, text: '\u00a36', align: 'right', fs: 'medium' },
-        { type: 'heading', x: 300, y: 300, w: 420, h: 40, text: 'Burrata, blood orange, mint', fs: 'medium' },
-        { type: 'para', x: 790, y: 300, w: 70, h: 40, text: '\u00a311', align: 'right', fs: 'medium' },
-        { type: 'heading', x: 300, y: 370, w: 420, h: 40, text: 'Wood-roast leeks, romesco', fs: 'medium' },
-        { type: 'para', x: 790, y: 370, w: 70, h: 40, text: '\u00a39', align: 'right', fs: 'medium' },
-        { type: 'heading', x: 300, y: 440, w: 420, h: 40, text: 'Anchovy toast, soft egg', fs: 'medium' },
-        { type: 'para', x: 790, y: 440, w: 70, h: 40, text: '\u00a38', align: 'right', fs: 'medium' },
-        { type: 'para', x: 300, y: 516, w: 560, h: 30, text: 'Everything changes with the seasons \u2014 ask what\u2019s good today.', tf: { fst: 'italic', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
+      { name: 'Menu', take: 'The card', minH: 648, els: [
+        { type: 'box', x: 150, y: 48, w: 900, h: 552, radius: 24, boxBg: 'color-mix(in srgb, var(--wp--preset--color--contrast, #000) 6%, var(--wp--preset--color--base, transparent))' },
+        { type: 'para', x: 400, y: 72, w: 400, h: 24, align: 'center', text: 'Served all day', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
+        { type: 'heading', x: 300, y: 120, w: 600, h: 48, text: 'Small plates', fs: 'x-large', align: 'center' },
+        { type: 'heading', x: 300, y: 240, w: 420, h: 24, text: 'Sourdough, cultured butter', fs: 'medium' },
+        { type: 'para', x: 790, y: 240, w: 70, h: 24, text: '\u00a36', align: 'right', fs: 'medium' },
+        { type: 'heading', x: 300, y: 288, w: 420, h: 24, text: 'Burrata, blood orange, mint', fs: 'medium' },
+        { type: 'para', x: 790, y: 288, w: 70, h: 24, text: '\u00a311', align: 'right', fs: 'medium' },
+        { type: 'heading', x: 300, y: 360, w: 420, h: 24, text: 'Wood-roast leeks, romesco', fs: 'medium' },
+        { type: 'para', x: 790, y: 360, w: 70, h: 24, text: '\u00a39', align: 'right', fs: 'medium' },
+        { type: 'heading', x: 300, y: 432, w: 420, h: 24, text: 'Anchovy toast, soft egg', fs: 'medium' },
+        { type: 'para', x: 790, y: 432, w: 70, h: 24, text: '\u00a38', align: 'right', fs: 'medium' },
+        { type: 'para', x: 300, y: 528, w: 560, h: 24, text: 'Everything changes with the seasons \u2014 ask what\u2019s good today.', tf: { fst: 'italic', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
       ] },
-      { name: 'Menu', take: 'The board', minH: 600, bg: 'var(--wp--preset--color--contrast, #16181c)', els: [
-        { type: 'para', x: 400, y: 60, w: 400, h: 24, align: 'center', text: 'Served all day', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--base, #fff) 60%, transparent)' } },
-        { type: 'heading', x: 300, y: 100, w: 600, h: 70, text: 'Small plates', fs: 'x-large', align: 'center', tf: { col: 'var(--wp--preset--color--base, #fff)' } },
-        { type: 'heading', x: 280, y: 212, w: 520, h: 40, text: 'Sourdough, cultured butter', fs: 'medium', tf: { col: 'var(--wp--preset--color--base, #fff)' } },
-        { type: 'para', x: 850, y: 212, w: 70, h: 40, text: '\u00a36', align: 'right', fs: 'medium', tf: { col: 'var(--wp--preset--color--base, #fff)' } },
-        { type: 'heading', x: 280, y: 288, w: 520, h: 40, text: 'Burrata, blood orange, mint', fs: 'medium', tf: { col: 'var(--wp--preset--color--base, #fff)' } },
-        { type: 'para', x: 850, y: 288, w: 70, h: 40, text: '\u00a311', align: 'right', fs: 'medium', tf: { col: 'var(--wp--preset--color--base, #fff)' } },
-        { type: 'heading', x: 280, y: 364, w: 520, h: 40, text: 'Wood-roast leeks, romesco', fs: 'medium', tf: { col: 'var(--wp--preset--color--base, #fff)' } },
-        { type: 'para', x: 850, y: 364, w: 70, h: 40, text: '\u00a39', align: 'right', fs: 'medium', tf: { col: 'var(--wp--preset--color--base, #fff)' } },
-        { type: 'heading', x: 280, y: 440, w: 520, h: 40, text: 'Anchovy toast, soft egg', fs: 'medium', tf: { col: 'var(--wp--preset--color--base, #fff)' } },
-        { type: 'para', x: 850, y: 440, w: 70, h: 40, text: '\u00a38', align: 'right', fs: 'medium', tf: { col: 'var(--wp--preset--color--base, #fff)' } },
-        { type: 'para', x: 280, y: 516, w: 640, h: 30, text: 'Everything changes with the seasons \u2014 ask what\u2019s good today.', tf: { fst: 'italic', col: 'color-mix(in srgb, var(--wp--preset--color--base, #fff) 60%, transparent)' } },
+      { name: 'Menu', take: 'The board', minH: 576, bg: 'var(--wp--preset--color--contrast, #16181c)', els: [
+        { type: 'para', x: 400, y: 48, w: 400, h: 24, align: 'center', text: 'Served all day', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--base, #fff) 60%, transparent)' } },
+        { type: 'heading', x: 300, y: 96, w: 600, h: 48, text: 'Small plates', fs: 'x-large', align: 'center', tf: { col: 'var(--wp--preset--color--base, #fff)' } },
+        { type: 'heading', x: 280, y: 216, w: 520, h: 24, text: 'Sourdough, cultured butter', fs: 'medium', tf: { col: 'var(--wp--preset--color--base, #fff)' } },
+        { type: 'para', x: 850, y: 216, w: 70, h: 24, text: '\u00a36', align: 'right', fs: 'medium', tf: { col: 'var(--wp--preset--color--base, #fff)' } },
+        { type: 'heading', x: 280, y: 288, w: 520, h: 24, text: 'Burrata, blood orange, mint', fs: 'medium', tf: { col: 'var(--wp--preset--color--base, #fff)' } },
+        { type: 'para', x: 850, y: 288, w: 70, h: 24, text: '\u00a311', align: 'right', fs: 'medium', tf: { col: 'var(--wp--preset--color--base, #fff)' } },
+        { type: 'heading', x: 280, y: 360, w: 520, h: 24, text: 'Wood-roast leeks, romesco', fs: 'medium', tf: { col: 'var(--wp--preset--color--base, #fff)' } },
+        { type: 'para', x: 850, y: 360, w: 70, h: 24, text: '\u00a39', align: 'right', fs: 'medium', tf: { col: 'var(--wp--preset--color--base, #fff)' } },
+        { type: 'heading', x: 280, y: 432, w: 520, h: 24, text: 'Anchovy toast, soft egg', fs: 'medium', tf: { col: 'var(--wp--preset--color--base, #fff)' } },
+        { type: 'para', x: 850, y: 432, w: 70, h: 24, text: '\u00a38', align: 'right', fs: 'medium', tf: { col: 'var(--wp--preset--color--base, #fff)' } },
+        { type: 'para', x: 280, y: 528, w: 640, h: 24, text: 'Everything changes with the seasons \u2014 ask what\u2019s good today.', tf: { fst: 'italic', col: 'color-mix(in srgb, var(--wp--preset--color--base, #fff) 60%, transparent)' } },
       ] },
     ],
     'Team': [
-      { name: 'Team', take: 'The list', minH: 880, els: [
-        { type: 'para', x: 72, y: 56, w: 300, h: 24, text: 'The studio', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
-        { type: 'heading', x: 72, y: 96, w: 600, h: 64, text: 'Eleven people, no egos', fs: 'x-large' },
-        { type: 'image', x: 72, y: 200, w: 200, h: 200, cool: true },
-        { type: 'heading', x: 310, y: 250, w: 400, h: 36, text: 'June Ashby', fs: 'medium' },
-        { type: 'para', x: 310, y: 296, w: 400, h: 24, text: 'Creative director', tf: { fs: 13, fw: 600, ls2: 0.18, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
-        { type: 'image', x: 72, y: 430, w: 200, h: 200 },
-        { type: 'heading', x: 310, y: 480, w: 400, h: 36, text: 'Marco Reyes', fs: 'medium' },
-        { type: 'para', x: 310, y: 526, w: 400, h: 24, text: 'Lead engineer', tf: { fs: 13, fw: 600, ls2: 0.18, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
-        { type: 'image', x: 72, y: 660, w: 200, h: 200, cool: true },
-        { type: 'heading', x: 310, y: 710, w: 400, h: 36, text: 'Priya Chandra', fs: 'medium' },
-        { type: 'para', x: 310, y: 756, w: 400, h: 24, text: 'Strategy', tf: { fs: 13, fw: 600, ls2: 0.18, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
+      { name: 'Team', take: 'The list', minH: 864, els: [
+        { type: 'para', x: 72, y: 48, w: 300, h: 24, text: 'The studio', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
+        { type: 'heading', x: 72, y: 96, w: 600, h: 48, text: 'Eleven people, no egos', fs: 'x-large' },
+        { type: 'image', x: 72, y: 192, w: 200, h: 192, cool: true },
+        { type: 'heading', x: 310, y: 240, w: 400, h: 24, text: 'June Ashby', fs: 'medium' },
+        { type: 'para', x: 310, y: 288, w: 400, h: 24, text: 'Creative director', tf: { fs: 13, fw: 600, ls2: 0.18, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
+        { type: 'image', x: 72, y: 432, w: 200, h: 192 },
+        { type: 'heading', x: 310, y: 480, w: 400, h: 24, text: 'Marco Reyes', fs: 'medium' },
+        { type: 'para', x: 310, y: 528, w: 400, h: 24, text: 'Lead engineer', tf: { fs: 13, fw: 600, ls2: 0.18, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
+        { type: 'image', x: 72, y: 672, w: 200, h: 192, cool: true },
+        { type: 'heading', x: 310, y: 720, w: 400, h: 24, text: 'Priya Chandra', fs: 'medium' },
+        { type: 'para', x: 310, y: 768, w: 400, h: 24, text: 'Strategy', tf: { fs: 13, fw: 600, ls2: 0.18, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
       ] },
-      { name: 'Team', take: 'The ink studio', minH: 620, bg: 'var(--wp--preset--color--contrast, #16181c)', els: [
-        { type: 'para', x: 72, y: 60, w: 300, h: 24, text: 'The studio', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--base, #fff) 60%, transparent)' } },
-        { type: 'heading', x: 72, y: 100, w: 600, h: 64, text: 'Eleven people, no egos', fs: 'x-large', tf: { col: 'var(--wp--preset--color--base, #fff)' } },
-        { type: 'image', x: 72, y: 208, w: 330, h: 300, cool: true },
-        { type: 'heading', x: 74, y: 528, w: 320, h: 36, text: 'June Ashby', fs: 'medium', tf: { col: 'var(--wp--preset--color--base, #fff)' } },
-        { type: 'para', x: 74, y: 570, w: 320, h: 24, text: 'Creative director', tf: { fs: 13, fw: 600, ls2: 0.18, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--base, #fff) 60%, transparent)' } },
-        { type: 'image', x: 435, y: 208, w: 330, h: 300 },
-        { type: 'heading', x: 437, y: 528, w: 320, h: 36, text: 'Marco Reyes', fs: 'medium', tf: { col: 'var(--wp--preset--color--base, #fff)' } },
-        { type: 'para', x: 437, y: 570, w: 320, h: 24, text: 'Lead engineer', tf: { fs: 13, fw: 600, ls2: 0.18, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--base, #fff) 60%, transparent)' } },
-        { type: 'image', x: 798, y: 208, w: 330, h: 300, cool: true },
-        { type: 'heading', x: 800, y: 528, w: 320, h: 36, text: 'Priya Chandra', fs: 'medium', tf: { col: 'var(--wp--preset--color--base, #fff)' } },
-        { type: 'para', x: 800, y: 570, w: 320, h: 24, text: 'Strategy', tf: { fs: 13, fw: 600, ls2: 0.18, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--base, #fff) 60%, transparent)' } },
+      { name: 'Team', take: 'The ink studio', minH: 648, bg: 'var(--wp--preset--color--contrast, #16181c)', els: [
+        { type: 'para', x: 72, y: 48, w: 300, h: 24, text: 'The studio', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--base, #fff) 60%, transparent)' } },
+        { type: 'heading', x: 72, y: 96, w: 600, h: 48, text: 'Eleven people, no egos', fs: 'x-large', tf: { col: 'var(--wp--preset--color--base, #fff)' } },
+        { type: 'image', x: 72, y: 216, w: 330, h: 288, cool: true },
+        { type: 'heading', x: 74, y: 528, w: 320, h: 24, text: 'June Ashby', fs: 'medium', tf: { col: 'var(--wp--preset--color--base, #fff)' } },
+        { type: 'para', x: 74, y: 576, w: 320, h: 24, text: 'Creative director', tf: { fs: 13, fw: 600, ls2: 0.18, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--base, #fff) 60%, transparent)' } },
+        { type: 'image', x: 435, y: 216, w: 330, h: 288 },
+        { type: 'heading', x: 437, y: 528, w: 320, h: 24, text: 'Marco Reyes', fs: 'medium', tf: { col: 'var(--wp--preset--color--base, #fff)' } },
+        { type: 'para', x: 437, y: 576, w: 320, h: 24, text: 'Lead engineer', tf: { fs: 13, fw: 600, ls2: 0.18, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--base, #fff) 60%, transparent)' } },
+        { type: 'image', x: 798, y: 216, w: 330, h: 288, cool: true },
+        { type: 'heading', x: 800, y: 528, w: 320, h: 24, text: 'Priya Chandra', fs: 'medium', tf: { col: 'var(--wp--preset--color--base, #fff)' } },
+        { type: 'para', x: 800, y: 576, w: 320, h: 24, text: 'Strategy', tf: { fs: 13, fw: 600, ls2: 0.18, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--base, #fff) 60%, transparent)' } },
       ] },
-      { name: 'Team', take: 'The offset', minH: 680, els: [
-        { type: 'para', x: 72, y: 56, w: 300, h: 24, text: 'The studio', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
-        { type: 'heading', x: 72, y: 96, w: 600, h: 64, text: 'Eleven people, no egos', fs: 'x-large' },
-        { type: 'image', x: 72, y: 228, w: 330, h: 300, cool: true },
-        { type: 'heading', x: 74, y: 548, w: 320, h: 36, text: 'June Ashby', fs: 'medium' },
-        { type: 'para', x: 74, y: 590, w: 320, h: 24, text: 'Creative director', tf: { fs: 13, fw: 600, ls2: 0.18, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
-        { type: 'image', x: 435, y: 188, w: 330, h: 300 },
-        { type: 'heading', x: 437, y: 508, w: 320, h: 36, text: 'Marco Reyes', fs: 'medium' },
-        { type: 'para', x: 437, y: 550, w: 320, h: 24, text: 'Lead engineer', tf: { fs: 13, fw: 600, ls2: 0.18, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
-        { type: 'image', x: 798, y: 268, w: 330, h: 300, cool: true },
-        { type: 'heading', x: 800, y: 588, w: 320, h: 36, text: 'Priya Chandra', fs: 'medium' },
-        { type: 'para', x: 800, y: 630, w: 320, h: 24, text: 'Strategy', tf: { fs: 13, fw: 600, ls2: 0.18, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
+      { name: 'Team', take: 'The offset', minH: 648, els: [
+        { type: 'para', x: 72, y: 48, w: 300, h: 24, text: 'The studio', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
+        { type: 'heading', x: 72, y: 96, w: 600, h: 48, text: 'Eleven people, no egos', fs: 'x-large' },
+        { type: 'image', x: 72, y: 240, w: 330, h: 288, cool: true },
+        { type: 'heading', x: 74, y: 552, w: 320, h: 24, text: 'June Ashby', fs: 'medium' },
+        { type: 'para', x: 74, y: 600, w: 320, h: 24, text: 'Creative director', tf: { fs: 13, fw: 600, ls2: 0.18, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
+        { type: 'image', x: 435, y: 192, w: 330, h: 288 },
+        { type: 'heading', x: 437, y: 504, w: 320, h: 24, text: 'Marco Reyes', fs: 'medium' },
+        { type: 'para', x: 437, y: 552, w: 320, h: 24, text: 'Lead engineer', tf: { fs: 13, fw: 600, ls2: 0.18, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
+        { type: 'image', x: 798, y: 264, w: 330, h: 288, cool: true },
+        { type: 'heading', x: 800, y: 576, w: 320, h: 24, text: 'Priya Chandra', fs: 'medium' },
+        { type: 'para', x: 800, y: 624, w: 320, h: 24, text: 'Strategy', tf: { fs: 13, fw: 600, ls2: 0.18, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
       ] },
     ],
   };
@@ -7805,6 +9415,7 @@
   // what KIND of widget a piece is — a wall only ever rolls into a wall,
   // a shop rail into a shop family; the substance must have a slot to land in
   function diceWidgetKind(e) {
+    if (e.posts) return 'posts';
     if (e.rails || e.shop) return 'shop';
     if (e.faq) return 'faq';
     if (e.tabs) return 'tabs';
@@ -7837,12 +9448,40 @@
       // widgets must match kind for kind — the base's wall for a wall, never a form
       if (wantKinds !== diceWidgetKinds(baseEls).join(',')) return;
       if (wantCards !== cardsOf(baseEls)) return;
+      // pieces the base take has no slot for RIDE the roll at their own
+      // coordinates, over whatever the take draws there: a glaze chart's
+      // four colour swatches and its fourth and fifth 'Cone 8' labels sat
+      // on top of every take (James: 'kinda broken on 2nd 3rd and 4th dice
+      // roll'). One stray is a rider the eye forgives; more makes a section
+      // of its own kind, and the die leaves it be
+      var decoOf = function (els) { return els.filter(function (e) { return !diceRole(e) && !(e.type === 'box' && e.kids && e.kids.length); }).length; };
+      if (decoOf(sec.els) > decoOf(baseEls) + 1) return;
+      // ...counted at the top level only: a card's kids ride with their
+      // card, so three priced cards with a label each are still three cards
+      var topCount = function (els) { var m = {}; els.forEach(function (e) { var r = diceRole(e); if (r) m[r] = (m[r] || 0) + 1; }); return m; };
+      var tw = topCount(sec.els), th = topCount(baseEls);
+      if (Object.keys(tw).some(function (r) { return tw[r] > (th[r] || 0) + 1; })) return;
       var hit = 0, total = 0;
       Object.keys(have).forEach(function (r) {
         var a = have[r].length, b = (want[r] || []).length;
         hit += Math.min(a, b); total += Math.max(a, b);
       });
       var score = total ? hit / total : 0;
+      // the words must FIT the family's drawing, not just its roles: a
+      // photographer's hero (eyebrow, big headline, two lines) counted as a
+      // Quote by roles alone, and every take poured a 28-character display
+      // headline into the 180-wide slot the Quote keeps for its “ glyph
+      // (James: "hit the die on that top section creates 3 broken layouts").
+      // A glyph heading never hosts words; otherwise the base's headline slot
+      // is weighed against the section's own
+      var wh = want.heading[0], hh = have.heading[0];
+      var wantWords = String(wh.text || '').replace(/<[^>]+>/g, '').trim().length;
+      var haveWords = String(hh.text || '').replace(/<[^>]+>/g, '').trim().length;
+      if (wantWords > 8 && haveWords <= 2) return;
+      // a wordy headline in a slot under half its size is a bad fit: the
+      // score falls with the shortfall (a short heading fits anywhere)
+      var fit = Math.min(1, (hh.w * hh.h) / Math.max(1, wh.w * wh.h));
+      if (wantWords > 20 && fit < 0.5) score = score * (fit / 0.5);
       if (score > bestScore) { bestScore = score; best = fam; }
     });
     return bestScore >= 0.5 ? best : null;
@@ -7874,7 +9513,7 @@
   // a widget's SUBSTANCE (the questions, the pictures) — the part a roll
   // must never lose; copt/wopt are clothes and belong to each take
   function diceWidgetData(e) {
-    return JSON.stringify({ faq: e.faq || null, tabs: e.tabs || null, pics: e.slides || e.wall || null, shop: e.shop || null });
+    return JSON.stringify({ faq: e.faq || null, tabs: e.tabs || null, pics: e.slides || e.wall || null, shop: e.shop || null, posts: e.posts || null });
   }
   function diceByRole(els) {
     var map = {};
@@ -7884,9 +9523,6 @@
     });
     return map;
   }
-  // where an extra piece sits relative to the take's own — kept off the
-  // model (never saved), per element, for as long as the roll placed it
-  var diceRideMemo = new WeakMap();
   // ---------- the runtime guard ----------
   // Bugs should announce themselves the moment they happen, not a week
   // later in a screenshot (James). After every drop and every roll the
@@ -7906,10 +9542,33 @@
     if (moved && moved.e && (moved.e.w !== moved.w || moved.e.h !== moved.h)) {
       issues.push(moved.e.type + ' changed size ' + moved.w + 'x' + moved.h + ' \u2192 ' + moved.e.w + 'x' + moved.e.h);
     }
+    // what a texty piece OCCUPIES is its ink, not its box: a headline's box
+    // may run the width of the section while its words stop a third of the
+    // way across, and a paragraph tucked beside it is no overlap anyone can
+    // see (the same rule the card stack settles by). Buttons are their box
+    var sc = sec.sectionEl ? scaleOf(sec) : 0;
+    var inkOf = function (e, node) {
+      if (!node || e.type === 'button' || !(sc > 0.2)) return null;
+      var tn = node.matches('p,h1,h2,h3,h4,h5,h6') ? node : (node.querySelector('p,h1,h2,h3,h4,h5,h6') || node);
+      var rng = document.createRange();
+      rng.selectNodeContents(tn);
+      var ir = rng.getBoundingClientRect(), nr = node.getBoundingClientRect();
+      if (!(ir.width > 0) || !(ir.height > 0) || !(nr.width > 0)) return null;
+      return { x: e.x + (ir.left - nr.left) / sc, y: e.y + (ir.top - nr.top) / sc, w: ir.width / sc, h: ir.height / sc };
+    };
     var rects = [];
-    sec.els.forEach(function (e) {
-      if (guardTexty(e)) rects.push({ e: e, x: e.x, y: e.y, w: e.w, h: e.h, card: null });
-      (e.kids || []).forEach(function (k) { if (guardTexty(k)) rects.push({ e: k, x: k.x, y: k.y, w: k.w, h: k.h, card: e }); });
+    sec.els.forEach(function (e, i) {
+      var node = sec.nodes && sec.nodes[i];
+      if (guardTexty(e)) {
+        var ink = inkOf(e, node);
+        rects.push(Object.assign({ e: e, card: null }, ink || { x: e.x, y: e.y, w: e.w, h: e.h }));
+      }
+      (e.kids || []).forEach(function (k, j) {
+        if (!guardTexty(k)) return;
+        var kn = node && node.querySelector('.gogh-k-' + (j + 1));
+        var kink = inkOf(k, kn);
+        rects.push(Object.assign({ e: k, card: e }, kink || { x: k.x, y: k.y, w: k.w, h: k.h }));
+      });
     });
     for (var i = 0; i < rects.length; i++) for (var j = i + 1; j < rects.length; j++) {
       var a = rects[i], b = rects[j];
@@ -7928,137 +9587,331 @@
     }
     return issues;
   }
+  // ---------- identity: what the die follows through the takes ----------
+  // every piece carries an id. A rider keeps its object; a piece that
+  // continues hands its id to the slot that stands in for it; the saved
+  // model keeps the id (projEl), so a reload changes nothing. Its SLOT
+  // (sk, 'role:index' in the family's drawing order) is remembered too:
+  // deleting or reordering a piece used to shift every other piece's slot
+  // along by one, and the words memory with it
+  function diceId() { return Math.random().toString(36).slice(2, 9); }
+  function diceEnsureIds(els) {
+    diceFlatten(els).forEach(function (e) { if (!e.id) e.id = diceId(); });
+    return els;
+  }
+  // a copy is a new piece: it must not share an id with what it was copied
+  // from (the die would take the two for one). A section copy remaps its
+  // original snapshot and its seats the same way, so its own homecomings
+  // still find their pieces
+  function diceFreshIds(els, sec) {
+    var map = {};
+    diceFlatten(els).forEach(function (e) { var n = diceId(); if (e.id) map[e.id] = n; e.id = n; });
+    if (sec && sec.m) {
+      if (sec.m.orig && sec.m.orig.els) diceFlatten(sec.m.orig.els).forEach(function (e) { e.id = (e.id && map[e.id]) || diceId(); });
+      if (sec.m.seats) {
+        var seats = {};
+        Object.keys(sec.m.seats).forEach(function (id) { if (map[id]) seats[map[id]] = sec.m.seats[id]; });
+        sec.m.seats = seats;
+      }
+    }
+    return els;
+  }
+  // a widget whose HTML is composed from its data (questions, tabs, pictures,
+  // a shop) need not carry that HTML twice: the original snapshot drops it
+  // and the homecoming composes it again
+  function diceRecomposable(e) {
+    return e.type === 'widget' && !!((e.rails && e.shop) || (e.rails && e.posts) || (e.faq && e.faq.length) || (e.tabs && e.tabs.length) ||
+      (e.slides && e.slides.length) || (e.wall && e.wall.length));
+  }
+  function diceRecompose(els) {
+    diceFlatten(els).forEach(function (e) {
+      if (!diceRecomposable(e) || e.whtml) return;
+      if (e.rails && e.shop) { e.wsrc = composeShop(e.shop); e.whtml = shopSampleHTML(e.shop); }
+      else if (e.rails && e.posts) { e.wsrc = composePosts(e.posts); e.whtml = postsSampleHTML(e); }
+      else composeWidgetData(e);
+    });
+    return els;
+  }
+  // 'The original' take of a section that never named its family: what it
+  // looks like at HOME, kept on the model so four rolls bring its own pieces
+  // back. ownOnly leaves out the pieces a roll drew (tk) -- a take's rider
+  // that came home beside the user's own is the take's, not the original's
+  // a take draws its headline at a DISPLAY size chosen for its own two
+  // words; the user's headline may be five. Step the size down until the
+  // longest word fits the slot's width, then let a headline that still
+  // stands taller than its slot push the pieces below it down (James: "this
+  // 4/4 layout for the contact form is a little broken?" -- 'something' at
+  // Display M ran straight into the form)
+  var DISPLAY_PX = { '__disp-s': [6, 30], '__disp-m': [9, 36], '__disp-l': [13, 42] }; // max(Xcqw, Ypx)
+  function diceFitWords(sec) {
+    if (!sec.nodes || !sec.sectionEl) return;
+    var secW = sec.sectionEl.offsetWidth;
+    if (!(secW > 200)) return;
+    var pxOf = function (slug) { var d = DISPLAY_PX[slug]; return d ? Math.max(d[0] * secW / 100, d[1]) : 0; };
+    var changed = false;
+    sec.els.forEach(function (e, i) {
+      if (e.type !== 'heading' || !DISPLAY_PX[e.fs] || !sec.nodes[i]) return;
+      var n = sec.nodes[i];
+      var t = n.matches('h1,h2,h3,h4,h5,h6') ? n : (n.querySelector('h1,h2,h3,h4,h5,h6') || n);
+      var words = (t.textContent || '').trim().split(/\s+/).filter(Boolean);
+      if (!words.length) return;
+      var cs = getComputedStyle(t);
+      var probe = document.createElement('span');
+      probe.style.cssText = 'position:absolute;left:-99999px;top:0;visibility:hidden;white-space:nowrap;font-family:' + cs.fontFamily +
+        ';font-weight:' + cs.fontWeight + ';font-style:' + cs.fontStyle + ';text-transform:' + cs.textTransform +
+        ';letter-spacing:' + cs.letterSpacing + ';font-size:' + cs.fontSize;
+      document.body.appendChild(probe);
+      var widest = 0;
+      words.forEach(function (w) { probe.textContent = w; widest = Math.max(widest, probe.getBoundingClientRect().width); });
+      probe.remove();
+      var boxW = n.offsetWidth, fsPx = parseFloat(cs.fontSize) || pxOf(e.fs) || 1;
+      var k = DISPLAY_ORDER.indexOf(e.fs);
+      while (k > 0 && widest > boxW * 0.98) {
+        k--;
+        var nextPx = pxOf(DISPLAY_ORDER[k]);
+        widest = widest * nextPx / fsPx;
+        fsPx = nextPx;
+        e.fs = DISPLAY_ORDER[k];
+        changed = true;
+      }
+    });
+    if (changed) renderSection(sec);
+    // taller than the slot the take drew? the pieces below make room
+    var slotH = sec.els.map(function (e) { return e.h; });
+    measureTextHeights(sec);
+    var pushed = false;
+    sec.els.forEach(function (e, i) {
+      if (e.type !== 'heading' || !DISPLAY_PX[e.fs]) return;
+      if (e.h > slotH[i] + 8 && reflowPush(sec, e, slotH[i])) pushed = true;
+    });
+    if (pushed || changed) resolveAndApply(sec);
+  }
+  function diceOrigSnap(sec, ownOnly) {
+    var own = function (list) {
+      return list.filter(function (e) { return !ownOnly || e.tk == null; }).map(function (e) {
+        if (e.kids) e.kids = own(e.kids);
+        if (diceRecomposable(e)) delete e.whtml;
+        return e;
+      });
+    };
+    return { els: own(JSON.parse(JSON.stringify(sec.els))), minH: sec.minH || null, bg: sec.bg || null,
+      bgImage: sec.bgImage || null, bgId: sec.bgId || null, bgPos: sec.bgPos || null,
+      bgA: sec.bgA != null ? sec.bgA : null, fill: !!sec.fill, fx: sec.fx || null };
+  }
   function rollSection(idx) {
     var sec = S[idx];
     var fam = diceFamilyOf(sec);
     var faces = fam ? diceFaces(fam) : null;
     if (!faces) return null;
+    diceEnsureIds(sec.els);
+    var m = sec.m || {};
     // an inferred family is adopted on the first roll: from here the
     // section knows its takes like any other
-    if (!sec.m || !sec.m.tpl || sec.m.tpl !== fam) {
+    var adopt = !m.tpl || m.tpl !== fam;
+    if (adopt) {
       // a section that never named its family keeps what it WAS: its own
       // pieces are 'The original' take, and four rolls bring THEM home — not
       // the family's base drawing with pieces it never had (the walk caught
       // the Yellow House hero coming home with a box, a photo and a badge)
-      sec.m = Object.assign({}, sec.m || {}, { tpl: fam, face: 0, orig: {
-        els: JSON.parse(JSON.stringify(sec.els)), minH: sec.minH || null, bg: sec.bg || null,
-        bgImage: sec.bgImage || null, bgId: sec.bgId || null, bgPos: sec.bgPos || null,
-        bgA: sec.bgA != null ? sec.bgA : null, fill: !!sec.fill, fx: sec.fx || null } });
+      sec.m = m = Object.assign({}, m, { tpl: fam, face: 0, orig: diceOrigSnap(sec, false) });
     }
-    var orig = sec.m.orig && sec.m.orig.els ? sec.m.orig : null;
-    var cur = ((sec.m.face || 0) % faces.length + faces.length) % faces.length;
+    var orig = m.orig && m.orig.els ? m.orig : null;
+    var cur = ((m.face || 0) % faces.length + faces.length) % faces.length;
     var next = (cur + 1) % faces.length;
-    var takeEls = function (face) { return (face === 0 && orig) ? JSON.parse(JSON.stringify(orig.els)) : tplEls(faces[face]); };
+    if (orig && cur === 0 && !adopt) {
+      // home is editable too: a heading dragged or a photo resized on the
+      // original take has to be there when four rolls bring it round again,
+      // so the snapshot is retaken every time the section leaves home (it
+      // used to be taken once, and rolling around put the pre-edit layout back)
+      orig = diceOrigSnap(sec, true);
+      sec.m = m = Object.assign({}, m, { orig: orig });
+    }
+    var home = next === 0 && !!orig;
+    var takeEls = function (face) {
+      return (face === 0 && orig) ? diceRecompose(JSON.parse(JSON.stringify(orig.els))) : tplEls(faces[face]);
+    };
+    var key = function (r, i) { return r + ':' + i; };
+    var roleOf = function (k) { return k.slice(0, k.indexOf(':')); };
+    var indexOf = function (k) { return +k.slice(k.indexOf(':') + 1); };
+    var isNone = function (k) { return k.indexOf('_:') === 0; };
+    var noRole = function (e) { return !diceRole(e); };
+    var isCard = function (e) { return e.type === 'box' && !!e.kids; };
+    // a drawing's SLOTS: 'role:index' over the flattened pieces of a kind,
+    // '_:index' for the roleless decoration (shapes, boxes, cards) by order
+    var slotsOf = function (els) {
+      var by = diceByRole(els), map = {};
+      Object.keys(by).forEach(function (r) { by[r].forEach(function (e, i) { map[key(r, i)] = e; }); });
+      els.filter(noRole).forEach(function (e, i) { map[key('_', i)] = e; });
+      return map;
+    };
     // what the CURRENT take would say untouched (tplEls is deterministic:
     // pool picks are seeded by family name) -- anything that differs is
     // the user's, and the user's work survives the roll
-    var pristine = diceByRole(takeEls(cur));
+    var priEls = takeEls(cur);
+    var pristine = slotsOf(priEls);
     // WORDS are measured against the family's own drawing of this take:
     // an original section's words differ from the template's, and that
     // difference is what must travel into the next take
-    var words = (cur === 0 && orig) ? diceByRole(tplEls(faces[0])) : pristine;
-    var live = diceByRole(sec.els);
-    // the user's edits, REMEMBERED on the model by role and slot: a take
-    // that does not draw the second button keeps its words for the take
-    // that does (they used to come home wearing the template's text)
-    var edits = (sec.m && sec.m.edits && typeof sec.m.edits === 'object') ? sec.m.edits : {};
-    Object.keys(live).forEach(function (r) {
-      var pl = words[r] || [];
-      live[r].forEach(function (e, i) {
-        if (!pl[i]) return;
-        var d = {};
-        if (r === 'image') {
-          if (e.type === 'video' && (e.src || e.vurl)) {
-            // the user's video rides into the next take's picture slot,
-            // wearing that take's frame
-            d.video = { src: e.src || null, mediaId: e.mediaId || null, vurl: e.vurl || null, vplay: e.vplay || null,
-              poster: e.poster || null, posterId: e.posterId || null, radius: e.radius || 0 };
-          } else if (e.type !== 'video' && e.src && e.src !== pl[i].src) { d.src = e.src; if (e.srcId) d.srcId = e.srcId; }
-        } else if (r === 'widget') {
-          if (diceWidgetData(e) !== diceWidgetData(pl[i])) d.wdata = JSON.parse(diceWidgetData(e));
-        } else {
-          if (e.text != null && e.text !== pl[i].text) d.text = e.text;
-          if (e.href && e.href !== pl[i].href) d.href = e.href;
-        }
-        if (Object.keys(d).length) (edits[r] = edits[r] || {})[i] = d;
-        else if (edits[r] && edits[r][i]) delete edits[r][i]; // put back to the template's words: forget
+    var words = (cur === 0 && orig) ? slotsOf(tplEls(faces[0])) : pristine;
+    var flatAll = diceFlatten(sec.els);
+    // BINDING. A piece that never learned its slot (a page saved before the
+    // die kept slots; a section on its first roll) pairs by kind and order
+    // with what this take draws -- the rule the die always used -- and keeps
+    // that slot from here on. Only a section with no slots at all binds this
+    // way: once bound, a piece without a slot is one the user added
+    if (!flatAll.some(function (e) { return e.sk; })) {
+      var liveSlots = slotsOf(sec.els);
+      Object.keys(liveSlots).forEach(function (k) {
+        var e = liveSlots[k];
+        if (!pristine[k] || (!isNone(k) && !words[k])) return; // beyond what the take draws: the user's own
+        e.sk = k;
+        // saved mid-family without marks (a starter shipped on take 3): what
+        // sits in the take's slots is the take's drawing, not an original
+        if (cur !== 0 && e.tk == null) e.tk = cur;
       });
-    });
-    // pieces ADDED on top of the take are the ones no role-slot claimed —
-    // not "whatever sits past the take's count" (an inferred section's
-    // order is its own). They travel with the piece they sat beside: a
-    // second button keeps its gap from the take's button, below or to the
-    // right, wherever that button lands next (James: "rolling the dice on
-    // this section breaks the layout — the buttons are all over the place")
-    var els2 = takeEls(next);
-    if (!(next === 0 && orig)) diceFlatten(els2).forEach(function (e) { e.tk = next; }); // drawn by this roll (the original's pieces stay originals)
-    var by2 = diceByRole(els2);
-    var noRole = function (e) { return !diceRole(e); };
-    var none2 = els2.filter(noRole);
+    }
+    // a card of the user's own rides whole, kids inside; a take's card is
+    // decoration (its kids are pieces in their own right)
+    var userCards = sec.els.filter(function (e) { return isCard(e) && !e.sk; });
+    var inUserCard = function (e) { return userCards.some(function (c) { return c.kids.indexOf(e) !== -1; }); };
     // three kinds of piece. One the take drew AND the next take draws too:
-    // it continues (re-drawn, edits applied). One a ROLL drew that the next
-    // take does not have (an image only take 2 has): it steps aside — the
-    // take's design decides, its words stay in the memory above. One that is
-    // ORIGINAL or the user's own (never drawn by a roll, or beyond what the
-    // take draws): it rides, seated by the piece it sat beside, and fills a
-    // free slot of its kind when one appears. (Rolled pieces riding into
-    // takes that never drew them piled up — the sweep caught it.)
-    var matched = new Map();
-    Object.keys(live).forEach(function (r) {
-      live[r].forEach(function (e, i) {
-        var inTake = !!(pristine[r] || [])[i], slotNext = !!(by2[r] || [])[i];
-        if (inTake && slotNext) matched.set(e, { r: r, i: i });
-        else if (inTake && e.tk != null) matched.set(e, { r: r, i: i, dropped: true });
-      });
+    // it continues (re-drawn in the next take's clothes, its words applied).
+    // One a ROLL drew that the next take does not have (an image only take 2
+    // has): it steps aside — the take's design decides, its words stay in
+    // the memory. One that is ORIGINAL or the user's own (never drawn by a
+    // roll, or beyond what the take draws): it rides, seated by the piece it
+    // sat beside, and fills a free slot of its kind when one appears
+    var els2 = takeEls(next);
+    if (!home) diceFlatten(els2).forEach(function (e) { e.tk = next; }); // drawn by this roll (the original's pieces stay originals)
+    diceEnsureIds(els2);
+    var by2 = slotsOf(els2);
+    Object.keys(by2).forEach(function (k) { by2[k].sk = k; }); // a drawn piece knows its slot
+    var inTake = function (e) { return !!e.sk && !!pristine[e.sk] && (isNone(e.sk) || !!words[e.sk]); };
+    var matched = new Map(); // live piece -> { k, dropped }
+    var claimed = {};        // slot key -> a live piece continues into it
+    flatAll.forEach(function (e) {
+      if (!inTake(e) || inUserCard(e)) return;
+      if (by2[e.sk]) { matched.set(e, { k: e.sk }); claimed[e.sk] = true; }
+      else if (e.tk != null || isNone(e.sk)) matched.set(e, { k: e.sk, dropped: true });
+      // else an original whose slot the next take lacks: it rides
     });
-    // roleless pieces (shapes, boxes) are the take's decoration: pair by
-    // order, and one the next take does not draw steps aside
-    var liveNone = sec.els.filter(noRole), priNone = takeEls(cur).filter(noRole);
-    liveNone.forEach(function (e, i) { matched.set(e, { r: '_', i: i, dropped: !(priNone[i] && none2[i]) }); });
-    // an original that continues stays an original: the piece the next take
-    // draws in its slot inherits that (so a starter's second button never
-    // becomes 'the take's' and vanishes on a later roll)
+    // the user's edits, REMEMBERED on the model by slot: a take that does
+    // not draw the second button keeps its words for the take that does
+    // (they used to come home wearing the template's text)
+    var edits = (m.edits && typeof m.edits === 'object') ? m.edits : {};
+    var seen = {};
+    flatAll.forEach(function (e) {
+      if (!inTake(e) || inUserCard(e) || isNone(e.sk)) return;
+      var k = e.sk, r = roleOf(k), i = indexOf(k), pl = words[k], d = {};
+      seen[k] = true;
+      if (r === 'image') {
+        if (e.type === 'video' && (e.src || e.vurl)) {
+          // the user's video rides into the next take's picture slot,
+          // wearing that take's frame
+          d.video = { src: e.src || null, mediaId: e.mediaId || null, vurl: e.vurl || null, vplay: e.vplay || null,
+            poster: e.poster || null, posterId: e.posterId || null, radius: e.radius || 0 };
+        } else if (e.type !== 'video' && e.src && e.src !== pl.src) { d.src = e.src; if (e.srcId) d.srcId = e.srcId; }
+      } else if (r === 'widget') {
+        if (diceWidgetData(e) !== diceWidgetData(pl)) d.wdata = JSON.parse(diceWidgetData(e));
+      } else {
+        if (e.text != null && e.text !== pl.text) d.text = e.text;
+        if (e.href && e.href !== pl.href) d.href = e.href;
+      }
+      if (Object.keys(d).length) (edits[r] = edits[r] || {})[i] = d;
+      else if (edits[r] && edits[r][i]) delete edits[r][i]; // put back to the template's words: forget
+    });
+    // a slot this take draws with no piece left in it was deleted by the
+    // user: its words go too, or the deleted piece would come back wearing
+    // them the next time a take draws that slot. And words for slots no take
+    // of the family draws are noise: forget those as well
+    var famKeys = {};
+    faces.forEach(function (f, fi) { Object.keys(slotsOf(fi === 0 && orig ? orig.els : tplEls(f))).forEach(function (k) { famKeys[k] = true; }); });
+    Object.keys(edits).forEach(function (r) {
+      if (!edits[r] || typeof edits[r] !== 'object') { delete edits[r]; return; }
+      Object.keys(edits[r]).forEach(function (i) {
+        var k = key(r, i);
+        if (!famKeys[k] || (pristine[k] && words[k] && !seen[k])) delete edits[r][i];
+      });
+      if (!Object.keys(edits[r]).length) delete edits[r];
+    });
+    // a piece that continues keeps its identity; an original that continues
+    // stays an original (so a starter's second button never becomes 'the
+    // take's' and vanishes on a later roll)
     matched.forEach(function (ri, e) {
-      if (ri.dropped || ri.r === '_' || e.tk != null) return;
-      var slot = (by2[ri.r] || [])[ri.i];
-      if (slot) delete slot.tk;
+      if (ri.dropped) return;
+      var slot = by2[ri.k];
+      if (e.tk == null || !slot.id) slot.id = e.id;
+      if (e.tk == null) delete slot.tk;
     });
     // extras live on the page OR inside a card (a take like The panel keeps
-    // its button in the card, and a second button joined it there)
-    var isCard = function (e) { return e.type === 'box' && !!e.kids; };
-    var extra = diceFlatten(sec.els).filter(function (e) {
-      return !matched.has(e) && !isCard(e) && (diceRole(e) || sec.els.indexOf(e) !== -1);
+    // its button in the card, and a second button joined it there); a card
+    // of the user's own rides whole; a take's card never rides (its kids do)
+    var extra = flatAll.filter(function (e) {
+      if (matched.has(e) || inUserCard(e)) return false;
+      return !isCard(e) || !e.sk;
     });
-    // a rider takes a FREE slot of its kind first — the take's own second
-    // button, say — carrying its words, and only rides when no slot is left
-    // (otherwise it came home beside slot one while the take redrew slot two)
-    var taken = {};
-    matched.forEach(function (ri) { if (!ri.dropped) taken[ri.r + ':' + ri.i] = true; });
+    var none2 = els2.filter(noRole);
+    // HOMECOMING: the original snapshot already holds every piece that was at
+    // home, riders included (it is retaken on every leave-home). A rider
+    // whose piece is in the snapshot takes that copy's place -- at the copy's
+    // spot, with whatever the user did to it on the way round -- instead of
+    // landing beside a copy of itself (two widgets became three, then five)
+    if (home) {
+      var byId = {};
+      extra.forEach(function (x) { byId[x.id] = x; });
+      var swapIn = function (list) {
+        list.forEach(function (c, at) {
+          var x = byId[c.id] || null;
+          if (!x && c.type === 'widget') {
+            // a snapshot from before pieces had ids: a widget is its substance
+            x = extra.filter(function (y) { return y.type === 'widget' && y.wsrc === c.wsrc && diceWidgetData(y) === diceWidgetData(c); })[0] || null;
+          }
+          if (!x) { if (c.kids) swapIn(c.kids); return; }
+          x.x = c.x; x.y = c.y; x.w = c.w; x.h = c.h;
+          x.sk = c.sk || x.sk;
+          list[at] = x;
+          extra.splice(extra.indexOf(x), 1);
+          delete byId[x.id];
+          if (c.sk) { by2[c.sk] = x; claimed[c.sk] = true; }
+          var ni = none2.indexOf(c);
+          if (ni !== -1) none2[ni] = x;
+        });
+      };
+      swapIn(els2);
+    }
+    // a rider takes a FREE slot of its kind first — its own slot when the
+    // take draws it, else the take's own second button, say — carrying its
+    // words, and only rides when no slot is left (otherwise it came home
+    // beside slot one while the take redrew slot two)
     var adopted = [];
     extra = extra.filter(function (x) {
       var r = diceRole(x);
-      if (!r || r === 'widget') return true;
-      var list = by2[r] || [];
-      for (var j = 0; j < list.length; j++) {
-        if (taken[r + ':' + j]) continue;
-        taken[r + ':' + j] = true;
-        var slot = list[j];
-        delete slot.tk; // the user's piece now, whatever the take drew there
-        if (r === 'image') {
-          if (x.type === 'video' && (x.src || x.vurl)) {
-            slot.type = 'video';
-            Object.assign(slot, { src: x.src || null, mediaId: x.mediaId || null, vurl: x.vurl || null, vplay: x.vplay || null,
-              poster: x.poster || null, posterId: x.posterId || null, radius: x.radius || 0 });
-            delete slot.alt;
-          } else if (x.src) { slot.src = x.src; if (x.srcId) slot.srcId = x.srcId; if (x.alt) slot.alt = x.alt; }
-        } else {
-          if (x.text != null) slot.text = x.text;
-          if (x.href) slot.href = x.href;
-        }
-        adopted.push(x);
-        return false;
+      if (!r || r === 'widget') return true; // decoration and widgets ride as themselves
+      var keys = [];
+      if (x.sk && roleOf(x.sk) === r && by2[x.sk] && !claimed[x.sk]) keys.push(x.sk);
+      Object.keys(by2).forEach(function (k) { if (roleOf(k) === r && !claimed[k] && keys.indexOf(k) === -1) keys.push(k); });
+      if (!keys.length) return true;
+      var k2 = keys[0], slot = by2[k2];
+      claimed[k2] = true;
+      delete slot.tk; // the user's piece now, whatever the take drew there
+      slot.id = x.id;
+      // moving to another slot takes the words along: the memory for the
+      // slot it leaves would otherwise draw them a second time
+      if (x.sk && x.sk !== k2 && edits[roleOf(x.sk)] && edits[roleOf(x.sk)][indexOf(x.sk)]) delete edits[roleOf(x.sk)][indexOf(x.sk)];
+      x.sk = k2;
+      if (r === 'image') {
+        if (x.type === 'video' && (x.src || x.vurl)) {
+          slot.type = 'video';
+          Object.assign(slot, { src: x.src || null, mediaId: x.mediaId || null, vurl: x.vurl || null, vplay: x.vplay || null,
+            poster: x.poster || null, posterId: x.posterId || null, radius: x.radius || 0 });
+          delete slot.alt;
+        } else if (x.src) { slot.src = x.src; if (x.srcId) slot.srcId = x.srcId; if (x.alt) slot.alt = x.alt; }
+      } else {
+        if (x.text != null) slot.text = x.text;
+        if (x.href) slot.href = x.href;
       }
-      return true;
+      adopted.push(slot);
+      return false;
     });
     // a card's kids sit relative to the card — seats are measured on the page
     var absIn = function (els, e) {
@@ -8074,34 +9927,40 @@
       return { right: right, below: below,
         dx: right ? xa.x - (aa.x + aa.w) : xa.x - aa.x, dy: below ? xa.y - (aa.y + aa.h) : xa.y - aa.y };
     };
+    // seats are remembered on the model by the rider's id (they used to live
+    // in a WeakMap that undo and a reload emptied)
+    var seats = (m.seats && typeof m.seats === 'object') ? Object.assign({}, m.seats) : {};
     var rides = extra.map(function (x) {
+      if (!diceRole(x)) return null; // a shape or a card of the user's own stays where it is
       var best = null, bd = Infinity, head = null;
+      var xa = absIn(sec.els, x);
       matched.forEach(function (ri, a) {
-        if (ri.dropped || (a.type === 'box' && a.kids)) return;
-        if (ri.r === 'heading' && ri.i === 0) head = { a: a, ri: ri };
+        if (ri.dropped || isCard(a)) return;
+        if (ri.k === 'heading:0') head = { a: a, k: ri.k };
         var pref = diceRole(a) === diceRole(x) ? 0 : 1e5; // its own kind first
-        var d = Math.hypot((a.x + a.w / 2) - (x.x + x.w / 2), (a.y + a.h / 2) - (x.y + x.h / 2)) + pref;
-        if (d < bd) { bd = d; best = { a: a, ri: ri }; }
+        var aa = absIn(sec.els, a); // both on the page: a kid's numbers are its card's
+        var d = Math.hypot((aa.x + aa.w / 2) - (xa.x + xa.w / 2), (aa.y + aa.h / 2) - (xa.y + xa.h / 2)) + pref;
+        if (d < bd) { bd = d; best = { a: a, k: ri.k }; }
       });
       if (!best) return null;
       // a seat remembered from an earlier roll still holds while the piece
       // sits where that roll put it — through a take with no button, the
       // second button keeps knowing it belongs beside the first
-      var m0 = diceRideMemo.get(x);
-      var xa0 = absIn(sec.els, x);
-      var memo = (m0 && m0.at[0] === xa0.x && m0.at[1] === xa0.y) ? m0 : null;
-      return { ri: best.ri, seat: seat(x, best.a), own: diceRole(best.a) === diceRole(x),
-        fb: head ? { ri: head.ri, seat: seat(x, head.a) } : null, memo: memo };
+      var m0 = seats[x.id];
+      var memo = (m0 && m0.at && m0.at[0] === xa.x && m0.at[1] === xa.y && m0.k) ? m0 : null;
+      return { k: best.k, seat: seat(x, best.a), own: diceRole(best.a) === diceRole(x),
+        fb: head ? { k: head.k, seat: seat(x, head.a) } : null, memo: memo };
     });
     // the extras leave wherever they sat; they re-seat below
-    sec.els.forEach(function (e) { if (isCard(e)) e.kids = e.kids.filter(function (k) { return extra.indexOf(k) === -1 && adopted.indexOf(k) === -1; }); });
+    sec.els.forEach(function (e) { if (isCard(e)) e.kids = e.kids.filter(function (k) { return extra.indexOf(k) === -1; }); });
     // the same slot in the next take — or, when the take draws fewer of
     // that kind, the last one it does draw (a take with one button still
     // seats the second beside it); roleless pieces pair exactly
-    var slot2 = function (ri) {
-      if (ri.r === '_') return none2[ri.i];
-      var list = by2[ri.r] || [];
-      return list.length ? list[Math.min(ri.i, list.length - 1)] : null;
+    var slot2 = function (k) {
+      if (isNone(k)) return none2[indexOf(k)] || null;
+      var r = roleOf(k), n = 0;
+      Object.keys(by2).forEach(function (k3) { if (roleOf(k3) === r) n++; });
+      return n ? by2[key(r, Math.min(indexOf(k), n - 1))] : null;
     };
     // everything the next take draws, on the page, so a rider can avoid it
     var placedRects = diceFlatten(els2).filter(function (e) { return !isCard(e); }).map(function (e) {
@@ -8112,9 +9971,9 @@
       var ride = rides[k];
       if (!ride) { extraTop.push(x); return; }
       var a2 = null, st = null, keep = null;
-      if (ride.memo && slot2(ride.memo.ri)) { a2 = slot2(ride.memo.ri); st = ride.memo.seat; keep = ride.memo; }
-      else if (slot2(ride.ri)) { a2 = slot2(ride.ri); st = ride.seat; keep = ride.own ? { ri: ride.ri, seat: ride.seat } : ride.memo; }
-      else if (ride.fb && slot2(ride.fb.ri)) { a2 = slot2(ride.fb.ri); st = ride.fb.seat; keep = ride.memo; }
+      if (ride.memo && slot2(ride.memo.k)) { a2 = slot2(ride.memo.k); st = ride.memo.seat; keep = ride.memo; }
+      else if (slot2(ride.k)) { a2 = slot2(ride.k); st = ride.seat; keep = ride.own ? { k: ride.k, seat: ride.seat } : ride.memo; }
+      else if (ride.fb && slot2(ride.fb.k)) { a2 = slot2(ride.fb.k); st = ride.fb.seat; keep = ride.memo; }
       if (!a2) { extraTop.push(x); return; }
       var aa = absIn(els2, a2);
       var tx = Math.round(st.right ? aa.x + aa.w + st.dx : aa.x + st.dx);
@@ -8145,6 +10004,29 @@
         placedRects.forEach(function (o) { floor = Math.max(floor, o.y + o.h); });
         pick = [Math.min(aa.x, right0 - x.w), floor + 12];
       }
+      // the take drew its button centred and the rider sits beside it: the
+      // PAIR stays centred, rather than the second button hanging off one
+      // side (James: "button alignment issues" — a Click me seated to the
+      // left of a centred The whole story)
+      var roomC = (left0 + right0) / 2;
+      var side = (pick === spots[0] && st.right && !st.below) ? 'right' : (pick === spots[1] ? 'left' : null);
+      if (side && Math.abs((aa.x + aa.w / 2) - roomC) <= 12 && Math.abs(pick[1] - aa.y) <= 2) {
+        var g2 = side === 'right' ? Math.max(8, st.dx) : gap;
+        var total = aa.w + g2 + x.w;
+        var leftEdge = Math.round(roomC - total / 2);
+        var ax = side === 'right' ? leftEdge : leftEdge + x.w + g2;
+        var rx = side === 'right' ? ax + aa.w + g2 : leftEdge;
+        var mine = placedRects.filter(function (o) { return o.x === aa.x && o.y === aa.y && o.w === aa.w && o.h === aa.h; });
+        var clear = function (px, pw) {
+          return !placedRects.some(function (o) { return mine.indexOf(o) === -1 && !(px >= o.x + o.w || px + pw <= o.x || aa.y >= o.y + o.h || aa.y + x.h <= o.y); });
+        };
+        if (leftEdge >= left0 && leftEdge + total <= right0 && clear(ax, aa.w) && clear(rx, x.w)) {
+          a2.x += ax - aa.x;
+          mine.forEach(function (o) { o.x = ax; });
+          aa.x = ax;
+          pick = [rx, aa.y];
+        }
+      }
       tx = pick[0]; ty = pick[1];
       placedRects.push({ x: tx, y: ty, w: x.w, h: x.h });
       if (c) {
@@ -8152,19 +10034,22 @@
         x.x = Math.max(0, Math.min(Math.max(0, c.w - x.w), tx - c.x));
         x.y = Math.max(0, ty - c.y);
         c.kids.push(x);
+        orderKids(c);
       } else {
         x.x = Math.max(0, Math.min(W - x.w, tx));
         x.y = Math.max(0, ty);
         extraTop.push(x);
       }
       var placed = absIn(els2, x);
-      diceRideMemo.set(x, Object.assign({}, keep || { ri: ride.ri, seat: ride.seat }, { at: [placed.x, placed.y] }));
+      seats[x.id] = Object.assign({}, keep || { k: ride.k, seat: ride.seat }, { at: [placed.x, placed.y] });
     });
     extra = extraTop;
+    // the remembered words go onto the slots the take draws -- except a slot
+    // a rider just filled: its words are the rider's own, not an older take's
     Object.keys(edits).forEach(function (r) {
-      (by2[r] || []).forEach(function (e, i) {
-        var d = edits[r][i];
-        if (!d) return;
+      Object.keys(edits[r]).forEach(function (i) {
+        var e = by2[key(r, i)], d = edits[r][i];
+        if (!e || !d || adopted.indexOf(e) !== -1) return;
         if (d.video && e.type === 'image') {
           e.type = 'video';
           Object.assign(e, d.video);
@@ -8187,36 +10072,53 @@
             e.wsrc = composeShop(e.shop);
             e.whtml = shopSampleHTML(e.shop);
           }
+          if (d.wdata.posts && e.posts) {
+            // likewise the posts: which, how many, what to show travel;
+            // the look, picture and spacing are the take's own
+            ['cat', 'catId', 'order', 'count', 'show', 'pick'].forEach(function (k) { if (d.wdata.posts[k] !== undefined) e.posts[k] = d.wdata.posts[k]; });
+            e.wsrc = composePosts(e.posts);
+            e.whtml = postsSampleHTML(e);
+          }
           composeWidgetData(e);
         }
       });
     });
     // a background photo the user chose outlives every take that can wear
-    // one; a take born imageless stashes it instead of losing it
+    // one; a take born imageless stashes it instead of losing it (on the
+    // model, so undo and a reload keep it)
     var priBg = tplBgFor(faces[cur]);
-    var keep = sec.__diceBg || null;
+    var keepBg = m.keepBg || null;
     if (sec.bgImage && sec.bgImage !== priBg) {
-      keep = { img: sec.bgImage, id: sec.bgId || null, pos: sec.bgPos || null };
+      keepBg = { img: sec.bgImage, id: sec.bgId || null, pos: sec.bgPos || null };
     }
-    var t2 = (next === 0 && orig) ? Object.assign({}, faces[0], orig, { take: faces[0].take }) : faces[next];
+    var t2 = home ? Object.assign({}, faces[0], orig, { take: faces[0].take }) : faces[next];
     sec.els = els2.concat(extra);
     sec.minH = t2.minH || null;
     sec.bg = t2.bg || null;
     sec.fill = !!t2.fill;
     sec.fx = t2.fx ? JSON.parse(JSON.stringify(t2.fx)) : null;
-    var wants = (next === 0 && orig) ? (orig.bgImage || null) : tplBgFor(t2);
-    if (wants && keep) {
-      sec.bgImage = keep.img; sec.bgId = keep.id; sec.bgPos = keep.pos;
-      sec.__diceBg = null;
+    var wants = home ? (orig.bgImage || null) : tplBgFor(t2);
+    if (wants && keepBg) {
+      sec.bgImage = keepBg.img; sec.bgId = keepBg.id; sec.bgPos = keepBg.pos;
+      keepBg = null;
     } else {
       sec.bgImage = wants || null; sec.bgId = null; sec.bgPos = null;
-      sec.__diceBg = keep;
     }
     sec.bgA = t2.bgA != null ? t2.bgA : null;
-    sec.m = Object.assign({}, sec.m, { face: next, edits: edits });
+    // seats of pieces that are gone are noise; a hand-tuned phone order
+    // indexed the pieces of the take that was, so it lifts
+    var finalIds = {};
+    diceFlatten(sec.els).forEach(function (e) { finalIds[e.id] = true; });
+    Object.keys(seats).forEach(function (id) { if (!finalIds[id]) delete seats[id]; });
+    var m2 = Object.assign({}, m, { face: next, edits: edits, seats: seats, keepBg: keepBg });
+    if (!Object.keys(seats).length) delete m2.seats;
+    if (!keepBg) delete m2.keepBg;
+    if (m2.order) delete m2.order;
+    sec.m = m2;
     renderSection(sec);
+    diceFitWords(sec); // the take's display sizes were set for its own words: the user's must fit
     guardCheck(sec, 'roll to take ' + (next + 1));
-    sec.els.forEach(function (ex) { if (ex.rails && ex.shop) hydrateProductsPreview(sec, ex); });
+    sec.els.forEach(function (ex) { if (ex.rails && ex.shop) hydrateProductsPreview(sec, ex); if (ex.rails && ex.posts) hydratePostsPreview(sec, ex); });
     pushState();
     contrastSentinel(sec);
     return { face: next, of: faces.length, take: t2.take || null };
@@ -9040,6 +10942,10 @@
     sec.bgImage = tplBgFor(tpl);
     sec.bgA = tpl.bgA != null ? tpl.bgA : null;
     sec.fill = !!tpl.fill;
+    // a section can be a DESTINATION: its anchor becomes the element's id,
+    // which is the whole trick behind a one-page site's menu
+    sec.anchor = cleanAnchor(tpl.anchor);
+    if (sec.anchor) sec.sectionEl.id = sec.anchor;
     sec.fx = tpl.fx ? JSON.parse(JSON.stringify(tpl.fx)) : null;
     // a starter with hidden takes remembers its family -- the die must
     // know which drawer to reach into, today and after a reload (m rides
@@ -9061,7 +10967,7 @@
       }
     }
     renderSection(sec);
-    sec.els.forEach(function (ex) { if (ex.rails && ex.shop) hydrateProductsPreview(sec, ex); });
+    sec.els.forEach(function (ex) { if (ex.rails && ex.shop) hydrateProductsPreview(sec, ex); if (ex.rails && ex.posts) hydratePostsPreview(sec, ex); });
     sel = null;
     hideHandles();
     sec.wrapEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -9086,6 +10992,357 @@
   }
 
   // ---------- "/" quick add: type to filter, Enter to insert ----------
+  // ---------- a site from a definition ----------
+  // Stage one of "chat to an AI, get a blueprint" (James: "I just want them
+  // to be able to chat to AI like Claude desktop"). A definition is content
+  // and choices — takes from the shelf, filled by role — never geometry. The
+  // editor draws it with the tested takes, so what an AI writes is small and
+  // safe, and a beginner's site looks designed the first time.
+  function roleOf(e) {
+    if (e.type === 'para') return (e.tf && e.tf.tt === 'uppercase') ? 'eyebrow' : 'para';
+    return e.type;
+  }
+  function roleLists(els) {
+    var L = { heading: [], eyebrow: [], para: [], button: [], image: [], badge: [], card: [], widget: [] };
+    els.forEach(function (e) {
+      if (e.type === 'box') { if (e.kids && e.kids.length) L.card.push(e); return; }
+      var r = roleOf(e);
+      if (L[r]) L[r].push(e);
+    });
+    return L;
+  }
+  // the same few names everywhere, at section level and inside a card:
+  // heading (or title), eyebrow (or name, role), text (or quote), price,
+  // button, badge, image, link
+  function fillWords(L, c) {
+    if (!c) return;
+    var put = function (list, k, v) { if (v != null && list[k]) list[k].text = String(v); };
+    put(L.heading, 0, c.heading != null ? c.heading : c.title);
+    put(L.heading, 1, c.price);
+    put(L.eyebrow, 0, c.eyebrow != null ? c.eyebrow : (c.name != null ? c.name : c.role));
+    put(L.para, 0, c.text != null ? c.text : c.quote);
+    put(L.para, 1, c.text2);
+    put(L.button, 0, c.button);
+    put(L.button, 1, c.button2);
+    put(L.badge, 0, c.badge);
+    put(L.badge, 1, c.badge2);
+    if (c.image && L.image[0]) L.image[0].src = String(c.image);
+    if (c.link && L.button[0]) L.button[0].href = String(c.link);
+  }
+  // takes whose items are not cards but repeated pieces in a row
+  var FLAT_TAKES = {
+    'Numbers': { unit: { heading: 'value', para: 'label' }, head: {} },
+    'Team': { unit: { image: 'image', heading: 'name', eyebrow: 'role' }, head: { eyebrow: 1, heading: 1 } },
+    'Menu': { unit: { heading: 'name', para: 'price' }, head: { eyebrow: 1, heading: 1 }, tail: { para: 1 } },
+    'Gallery': { unit: { image: 'image' }, head: { eyebrow: 1, heading: 1 }, tail: { button: 1 } },
+    'Photo cards': { unit: { image: 'image', heading: 'title', para: 'text', badge: ['badge', 'badge2'], button: 'button' }, head: {} },
+  };
+  function templateByName(name) {
+    var found = null;
+    TEMPLATES.forEach(function (t) { if (!found && t.name === name) found = t; });
+    return found;
+  }
+  // a take from the shelf, filled with a definition's words: returns a
+  // template clone ready for addSection, or null when the take is unknown
+  // A take arrives carrying the demo studio's words — "★ Est. 2019", "Start a
+  // project", "Six years on we…". Anything the definition did not fill is not
+  // content, it is scaffolding, and it goes (James, on a site built from a
+  // mockup: "didn't really get close" — half of what it said was Brighton's).
+  // Headings stay: some are the design itself, like the Quote's opening mark.
+  var FILL_COUNT = {
+    eyebrow: function (c) { return [c.eyebrow, c.name, c.role].filter(function (v) { return v != null; }).length ? 1 : 0; },
+    para: function (c) { return [c.text != null ? c.text : c.quote, c.text2, c.text3].filter(function (v) { return v != null; }).length; },
+    button: function (c) { return [c.button, c.button2].filter(function (v) { return v != null; }).length; },
+    badge: function (c) { return [c.badge, c.badge2].filter(function (v) { return v != null; }).length; },
+  };
+  // `box` is a section template or a card: one keeps its pieces in els, the
+  // other in kids, and the pruner has to put them back where it found them
+  function dropUnfilled(box, L, c) {
+    var go = [];
+    Object.keys(FILL_COUNT).forEach(function (role) {
+      (L[role] || []).slice(FILL_COUNT[role](c || {})).forEach(function (e) { go.push(e); });
+    });
+    if (!go.length) return;
+    var prune = function (list) {
+      return list.filter(function (e) { return go.indexOf(e) === -1; }).map(function (e) {
+        if (e.kids && e.kids.length) e.kids = prune(e.kids);
+        return e;
+      });
+    };
+    if (Array.isArray(box.els)) box.els = prune(box.els);
+    else if (Array.isArray(box.kids)) box.kids = prune(box.kids);
+  }
+  // Every element type the canvas knows, and the fields a generated section may
+  // set on one. A definition that arrives with its own pieces is checked
+  // against this and nothing else is copied through — the door is open, not
+  // unlatched.
+  var GEN_TYPES = { heading: 1, para: 1, button: 1, badge: 1, image: 1, box: 1 };
+  // ('m' carries the phone overrides — a hand-drawn ledger can hide its year column on phones)
+  var GEN_FIELDS = ['x', 'y', 'w', 'h', 'text', 'src', 'href', 'fs', 'align', 'color', 'radius', 'rot', 'tf', 'mood', 'boxBg', 'shape', 'alt', 'm'];
+  function genEl(e) {
+    if (!e || !GEN_TYPES[e.type]) return null;
+    var out = { type: e.type };
+    GEN_FIELDS.forEach(function (k) { if (e[k] !== undefined && e[k] !== null) out[k] = e[k]; });
+    ['x', 'y', 'w', 'h'].forEach(function (k) { out[k] = Math.round(+out[k] || 0); });
+    out.w = Math.max(8, Math.min(W, out.w));
+    // a box is a rectangle of colour, so a 2-unit one is a rule across the
+    // page — the floor that keeps other pieces usable would fatten it to a bar
+    out.h = Math.max(e.type === 'box' ? 1 : 8, out.h);
+    out.x = Math.max(0, Math.min(W - out.w, out.x));
+    out.y = Math.max(0, out.y);
+    if (e.kids && e.kids.length) {
+      out.kids = e.kids.map(genEl).filter(Boolean);
+      if (!out.kids.length) delete out.kids;
+    }
+    return out;
+  }
+  function fillTake(sc) {
+    // THE DOOR: a section may arrive with its own pieces instead of the name of
+    // a design. gogh draws them the way it draws anything dragged onto a
+    // canvas, so new arrangements need no new code here — whoever wrote the
+    // definition worked out the geometry, and the solver, the guard and the
+    // sentinel judge the result exactly as they judge a person's own work.
+    if (sc && Array.isArray(sc.els) && sc.els.length) {
+      var els = sc.els.map(genEl).filter(Boolean);
+      if (!els.length) return null;
+      var made = { name: String(sc.name || 'Section'), els: els };
+      if (sc.minH) made.minH = Math.max(160, Math.min(1600, Math.round(+sc.minH)));
+      if (sc.background) made.bg = String(sc.background);
+      if (sc.image) { made.bgImage = String(sc.image); made.bgA = sc.tint != null ? +sc.tint : 45; }
+      return made;
+    }
+    if (!sc || !sc.take) return null;
+    var name = String(sc.take);
+    var items = Array.isArray(sc.items) ? sc.items : null;
+    if (name === 'Latest posts') {
+      var pw = DEFAULTS.posts();
+      pw.y = 170;
+      var po = sc.posts || {};
+      pw.posts.look = po.look || sc.look || '';
+      if (po.count) pw.posts.count = +po.count;
+      if (po.show) pw.posts.show = Object.assign(pw.posts.show, po.show);
+      pw.wsrc = composePosts(pw.posts);
+      return { name: 'Latest posts', minH: 660, els: [
+        { type: 'heading', x: 100, y: 56, w: 1000, h: 60, text: sc.heading || 'From the blog', fs: 'x-large', align: 'center' },
+        pw,
+      ] };
+    }
+    var tpl = templateByName(name);
+    // a gated take (FAQ needs the accordion block) becomes cards of the
+    // same words rather than failing the site
+    if (tpl && tpl.gated && !cfg[tpl.gated]) {
+      if (items && (name === 'FAQ' || name === 'Tabs')) {
+        return fillTake({ take: 'Feature cards', heading: sc.heading, items: items.map(function (it) {
+          return { title: it.q || it.question || it.label || it.title, text: it.a || it.answer || it.text };
+        }) });
+      }
+      return null;
+    }
+    if (!tpl) return null;
+    var clone = JSON.parse(JSON.stringify(tpl));
+    var L = roleLists(clone.els);
+    // pictures: a take with a background picture takes the section's image there
+    if (sc.image && clone.bgImage) { clone.bgImage = String(sc.image); if (clone.bgA == null) clone.bgA = 45; }
+    var flat = FLAT_TAKES[name];
+    if (flat) {
+      var head = flat.head || {}, tail = flat.tail || {};
+      var edge = {};
+      Object.keys(L).forEach(function (r) {
+        var h = head[r] || 0, t = tail[r] || 0;
+        edge[r] = L[r].slice(0, h).concat(t ? L[r].slice(L[r].length - t) : []);
+      });
+      fillWords(edge, sc);
+      if (items) {
+        var drop = [];
+        Object.keys(flat.unit).forEach(function (r) {
+          var per = Array.isArray(flat.unit[r]) ? flat.unit[r].length : 1;
+          var keys = Array.isArray(flat.unit[r]) ? flat.unit[r] : [flat.unit[r]];
+          var slots = L[r].slice(head[r] || 0, L[r].length - (tail[r] || 0));
+          slots.forEach(function (e, k) {
+            var i = Math.floor(k / per), it = items[i];
+            if (!it) { drop.push(e); return; }
+            var v = it[keys[k % per]];
+            if (r === 'image') { if (v) e.src = String(v); }
+            else if (v != null) e.text = String(v);
+          });
+        });
+        clone.els = clone.els.filter(function (e) { return drop.indexOf(e) === -1; });
+      }
+    } else {
+      fillWords(L, sc);
+      dropUnfilled(clone, L, sc);
+      if (items && L.card.length) {
+        L.card.forEach(function (card, i) {
+          var it = items[i];
+          if (!it) return;
+          var kl = roleLists(card.kids);
+          fillWords(kl, it);
+          dropUnfilled(card, kl, it);
+          if (it.mood) card.mood = it.mood;
+        });
+        // surplus cards go: a site with two services shows two, not a placeholder third
+        var keep = L.card.slice(0, items.length);
+        clone.els = clone.els.filter(function (e) { return e.type !== 'box' || !e.kids || !e.kids.length || keep.indexOf(e) !== -1; });
+      } else if (L.card.length === 1 && !items) {
+        // one card (Profile, Job, Place): the section's words are the card's
+        var only = roleLists(L.card[0].kids);
+        fillWords(only, sc);
+        dropUnfilled(L.card[0], only, sc);
+      }
+      if (items && L.widget[0]) {
+        var w = L.widget[0];
+        if (w.faq) w.faq = items.map(function (it) { return { q: String(it.q || it.question || it.title || ''), a: String(it.a || it.answer || it.text || '') }; });
+        else if (w.tabs) w.tabs = items.map(function (it, k) { return Object.assign({}, w.tabs[k] || w.tabs[0] || {}, { label: String(it.label || it.title || ''), body: String(it.body || it.text || '') }); });
+        else if (w.wall) w.wall = items.map(function (it) { return { img: String(it.image || it.img || ''), cap: String(it.caption || it.cap || '') }; });
+        else if (w.slides) w.slides = items.map(function (it) { return { img: String(it.image || it.img || ''), cap: String(it.caption || it.cap || '') }; });
+      }
+    }
+    if (sc.mood) clone.els.forEach(function (e) { if (e.type === 'box' && e.kids && e.kids.length) e.mood = sc.mood; });
+    return clone;
+  }
+  // draw every page of a definition in this editor — each section rendered
+  // on the canvas for real (fonts, measurement, the solver), its blocks
+  // taken, then removed — and return the blocks per page. Nothing is saved.
+  function composeSiteDef(def, onStep) {
+    var pages = (def && Array.isArray(def.pages)) ? def.pages : [];
+    var total = 0;
+    pages.forEach(function (pg) { total += (pg.sections || []).length; });
+    var done = 0, out = [];
+    var chain = Promise.resolve();
+    pages.forEach(function (pg, pi) {
+      var blocks = [];
+      (pg.sections || []).forEach(function (sc) {
+        chain = chain.then(function () {
+          var tpl = fillTake(sc);
+          if (!tpl) { done++; return; }
+          if (sc.anchor) tpl.anchor = sc.anchor;
+          addSection(tpl, S.length);
+          var sec = S[S.length - 1];
+          return new Promise(function (r) { setTimeout(r, 280); }).then(function () {
+            measureTextHeights(sec);
+            resolveAndApply(sec);
+            blocks.push(buildSectionBlocksV3(sec));
+            var at = S.indexOf(sec);
+            if (at !== -1) deleteSection(at);
+            done++;
+            if (onStep) onStep(done, total, sc.take);
+          });
+        });
+      });
+      chain = chain.then(function () { out.push({ i: pi, title: pg.title || '', blocks: blocks.join('\n\n') }); });
+    });
+    return chain.then(function () { return out; });
+  }
+  // the first load after a definition boot: draw, save every page, clear
+  // the definition, and go and look at the site
+  var siteBuilding = false; // scratch drawing in progress: no backups, no leave-site guard, no canvas in view
+  // the veil is raised SYNCHRONOUSLY, the instant we know a build is coming:
+  // the pages are empty until it runs, and an empty page greets you with the
+  // section shelf (James: "when the site first loads users see this screen")
+  function raiseBuildVeil(name) {
+    if (siteBuilding) return document.querySelector('.gogh-buildstep');
+    siteBuilding = true;
+    document.documentElement.classList.add('gogh-building');
+    var veil = document.createElement('div');
+    veil.className = 'gogh-buildveil';
+    veil.innerHTML = '<div class="gogh-buildcard"><div class="gogh-buildtitle">Building ' + esc(name || 'your site') + '…</div><div class="gogh-buildstep">Warming up</div></div>';
+    document.body.appendChild(veil);
+    return veil.querySelector('.gogh-buildstep');
+  }
+  function buildSiteFromDef(pending) {
+    var def = pending && pending.def, ids = (pending && pending.pages) || {};
+    if (!def) return Promise.resolve(false);
+    var step = raiseBuildVeil(def.name);
+    var root = cfg.restUrl.split('wp/v2/')[0];
+    return composeSiteDef(def, function (d, t, take) { step.textContent = take + ' — ' + d + ' of ' + t; })
+      .then(function (pages) {
+        var chain = Promise.resolve();
+        pages.forEach(function (pg) {
+          var id = ids[pg.i] != null ? ids[pg.i] : ids[String(pg.i)];
+          if (!id || !pg.blocks) return;
+          chain = chain.then(function () {
+            step.textContent = 'Saving ' + (pg.title || 'page');
+            return fetch(root + 'wp/v2/pages/' + id, {
+              method: 'POST', credentials: 'same-origin',
+              headers: { 'X-WP-Nonce': cfg.nonce, 'Content-Type': 'application/json' },
+              body: JSON.stringify({ content: pg.blocks, status: 'publish' }),
+            });
+          });
+        });
+        return chain;
+      })
+      .then(function () {
+        return fetch(root + 'gogh/v1/site-def', { method: 'DELETE', credentials: 'same-origin', headers: { 'X-WP-Nonce': cfg.nonce } }).catch(function () {});
+      })
+      .then(function () {
+        // the definition may name a pair from the Fonts door ("bookish") or
+        // two fonts of its own — installed now, the way Keep does, so the
+        // site opens already wearing them
+        var want = def && def.fonts;
+        if (!want) return;
+        var pr = null;
+        if (typeof want === 'string') pr = FONT_PAIRS.filter(function (x) { return !x.theme && x.key === String(want).toLowerCase(); })[0] || null;
+        else if (want && typeof want === 'object' && (want.heading || want.body)) {
+          pr = { heading: want.heading ? { name: String(want.heading), w: 600 } : { keep: true }, body: want.body ? { name: String(want.body), w: 400 } : { keep: true },
+            label: [want.heading, want.body].filter(Boolean).join(' & ') };
+        }
+        if (!pr) return;
+        step.textContent = 'Installing the fonts';
+        return keepFontPair(pr).catch(function () {});
+      })
+      .then(function () {
+        step.textContent = 'Opening your site';
+        discarding = true; // the scratch on this canvas was never meant to be kept
+        // the front door: a build asked for it opens the new site on six looks
+        var frontDoor = /[?&]gogh-front-door=1/.test(location.search);
+        var home = cfg.homeUrl || '/';
+        setTimeout(function () {
+          window.location.href = frontDoor ? home + (home.indexOf('?') >= 0 ? '&' : '?') + 'gogh-edit=1&gogh-front-door=1' : home;
+        }, 400);
+        return true;
+      })
+      .catch(function (err) {
+        step.textContent = 'Something went wrong: ' + (err && err.message ? err.message : err);
+        siteBuilding = false;
+        document.documentElement.classList.remove('gogh-building');
+        return false;
+      });
+  }
+  // the first minute of a built site: not a blank canvas but six whole
+  // looks to choose between — the Site style panel, Remix already spun
+  function openFrontDoor() {
+    var old = document.querySelector('.gogh-frontdoor');
+    if (old) old.remove();
+    var cand = remixRoll();
+    if (!cand) return Promise.resolve(false);
+    var pill = document.createElement('div');
+    pill.className = 'gogh-frontdoor';
+    pill.innerHTML = '<span class="gogh-frontdoor-cap">Your site is built, wearing a look gogh chose.</span>' +
+      '<span class="gogh-frontdoor-row">' +
+      '<button type="button" class="gogh-frontdoor-roll">✦ Not this look?</button>' +
+      '<button type="button" class="gogh-frontdoor-back" title="The look before this one">↶</button>' +
+      '<button type="button" class="gogh-frontdoor-x" title="Done — keep this look">✕</button></span>';
+    document.body.appendChild(pill);
+    var tapped = false;
+    var say = function () {
+      if (!document.body.contains(pill)) return;
+      var w = remixWorn();
+      pill.querySelector('.gogh-frontdoor-back').disabled = remixAt <= 0;
+      if (tapped) pill.querySelector('.gogh-frontdoor-cap').textContent = w && w.cand ? 'On your site now: ' + w.cand.name + (w.cand.detail ? ' · ' + w.cand.detail : '') : 'Wearing: the look you started with';
+    };
+    remixWatch('frontdoor', say);
+    pill.querySelector('.gogh-frontdoor-roll').addEventListener('click', function () { tapped = true; remixRoll(); });
+    pill.querySelector('.gogh-frontdoor-back').addEventListener('click', function () { tapped = true; remixBack(); });
+    pill.querySelector('.gogh-frontdoor-x').addEventListener('click', function () { pill.remove(); delete remixWatchers.frontdoor; });
+    say();
+    return Promise.resolve(true);
+  }
+  function scheduleSiteBuild() {
+    raiseBuildVeil(cfg.siteDef && cfg.siteDef.def && cfg.siteDef.def.name);
+    var go = function () { setTimeout(function () { buildSiteFromDef(cfg.siteDef); }, 900); };
+    if (document.fonts && document.fonts.ready) document.fonts.ready.then(go); else go();
+  }
+
   var cmd = document.createElement('div');
   cmd.className = 'gogh-cmd';
   cmd.hidden = true;
@@ -9105,7 +11362,17 @@
       { label: 'Video', kind: 'video' },
       { label: 'Badge', kind: 'badge' },
       { label: 'Posts grid', kind: 'posts' },
+      { label: 'Icon', kind: 'icon' },
+      { label: 'Embed', kind: 'embed' },
+      { label: 'List', kind: 'list' },
+      { label: 'Line', kind: 'rule' },
+      // the shelf's other doors, so / offers the same menu as +
+      { label: 'Card', kind: 'card' },
+      { label: 'Shape', act: 'shapes' },
+      { label: 'Form', kind: 'form' },
+      { label: 'Write', kind: 'write' },
     ];
+    if (cfg.canExp) items.push({ label: 'Experience', kind: 'exp' });
     if (cfg.hasWoo) items.push({ label: 'Products grid', kind: 'products' });
     TEMPLATES.forEach(function (t, ti) {
       if (t.els.length && !t.retired) items.push({ label: t.name + ' \u00b7 section', tpl: ti });
@@ -9140,6 +11407,7 @@
   }
   function runCmd(it) {
     closeCmd();
+    if (it.act === 'shapes') return openShapeInsertPanel();
     if (it.kind) addElementAtViewport(it.kind);
     else addSection(TEMPLATES[it.tpl], S.indexOf(viewportSection()) + 1);
   }
@@ -9323,6 +11591,7 @@
     sec.fill = !!srcSec.fill;
     sec.m = srcSec.m ? JSON.parse(JSON.stringify(srcSec.m)) : null;
     sec.bgPos = srcSec.bgPos ? { x: srcSec.bgPos.x, y: srcSec.bgPos.y } : null;
+    diceFreshIds(sec.els, sec); // new pieces, and the die's memory remapped to them
     srcSec.wrapEl.after(sec.wrapEl);
     S.splice(idx + 1, 0, sec);
     renderSection(sec);
@@ -9332,19 +11601,24 @@
   }
 
   // hover bar for section-level actions
+  // One pill at the section's top-left, the verb first in words: Add ·
+  // Background · the die and its take · ⋯ (the first three testers: "Where
+  // is the + button?"; a two-corner split was tried and felt busy)
   var secBar = document.createElement('div');
   secBar.className = 'gogh-secbar';
   secBar.innerHTML =
-    '<span class="gogh-secbar-label">Section</span>' +
-    '<button type="button" class="gogh-sb" data-sec="add" title="Add something to this section">＋</button>' +
     // three doors, read at a glance: add, design, more (plus the die where
     // a drawer exists) — housekeeping verbs live in the ⋯ menu as WORDS,
     // and the ✦ Ask Gogh door retired with the parked model tier (James:
     // "i dont think we need it") — the dice answers the same itch
     // the die appears only where a drawer of takes exists (see VARIANTS)
+    '<button type="button" class="gogh-sb gogh-sb-add" data-sec="add" title="Add something to this section"><i class="gogh-sb-plus" aria-hidden="true"></i><span>Add</span></button>' +
+    '<i class="gogh-sb-div" aria-hidden="true"></i>' +
+    '<button type="button" class="gogh-sb gogh-sb-word" data-sec="bgimg" title="Background &amp; look">' + CTX_ICONS.image + '<span>Background</span></button>' +
+    '<i class="gogh-sb-div gogh-sb-div-dice" aria-hidden="true" hidden></i>' +
     '<button type="button" class="gogh-sb gogh-sb-dice" data-sec="dice" title="Roll another take of this design" hidden><svg width="15" height="15" viewBox="0 0 16 16" fill="none" aria-hidden="true"><rect x="1.5" y="1.5" width="13" height="13" rx="3.2" stroke="currentColor" stroke-width="1.6"/><circle cx="5.4" cy="5.4" r="1.25" fill="currentColor"/><circle cx="10.6" cy="5.4" r="1.25" fill="currentColor"/><circle cx="8" cy="8" r="1.25" fill="currentColor"/><circle cx="5.4" cy="10.6" r="1.25" fill="currentColor"/><circle cx="10.6" cy="10.6" r="1.25" fill="currentColor"/></svg></button>' +
     '<span class="gogh-sb-take" title="Which take of this design is on the page" hidden></span>' +
-    '<button type="button" class="gogh-sb" data-sec="bgimg" title="Background &amp; look">' + CTX_ICONS.image + '</button>' +
+    '<i class="gogh-sb-div" aria-hidden="true"></i>' +
     '<button type="button" class="gogh-sb gogh-sb-more" data-sec="more" title="Move, duplicate, save, delete…">⋯</button>';
   secBar.hidden = true;
   document.body.appendChild(secBar);
@@ -9355,13 +11629,79 @@
     if (!faces || !sec) return '';
     var face = (sec.m && sec.m.tpl === fam) ? (sec.m.face || 0) : 0;
     face = ((face % faces.length) + faces.length) % faces.length;
-    // the base take has no name of its own — it is the design as drawn
-    var name = (faces[face] && faces[face].take) || (face === 0 ? 'The original' : '');
-    return (face + 1) + '/' + faces.length + (name ? ' \u00b7 ' + name : '');
+    // the count only: a take's name ("The anchor") means nothing to a
+    // beginner and cost the pill its room (James) — it rides in the tooltip
+    return (face + 1) + '/' + faces.length;
   }
-  function hideSecBar() { goghFadeOut(secBar); secBarIdx = null; closeSecMore(); }
-  // (hideSecBarSoon and its travel-grace timer retired with hover
-  // summoning — the bar now lives and dies with the SELECTION)
+  function secTakeName(sec, fam) {
+    var faces = fam ? diceFaces(fam) : null;
+    if (!faces || !sec) return '';
+    var face = (sec.m && sec.m.tpl === fam) ? (sec.m.face || 0) : 0;
+    face = ((face % faces.length) + faces.length) % faces.length;
+    return (faces[face] && faces[face].take) || (face === 0 ? 'The original' : '');
+  }
+  function hideSecBar() { goghFadeOut(secBar); secBarIdx = null; closeSecMore(); clearTimeout(hoverSecT); }
+  // The corners come when the pointer enters a section and go when it
+  // leaves (a short grace so the trip from the section to its own corner
+  // does not lose them), and a SELECTED section keeps them whatever the
+  // pointer does. James, after the first three testers: "lets bring back
+  // the hover". A chosen piece still stands them down (one editing surface).
+  var hoverSecT = null;
+  // the section whose corners folded when a piece was chosen: they stay
+  // away while the hand works inside it, and a fresh visit (out of the
+  // section and back in, or a click on its ground) re-arms them
+  var hoverHold = null;
+  document.addEventListener('pointermove', function (ev) {
+    // (typing is not on this list: the hold keeps the corners quiet while
+    // the words are typed, and the top band still summons them)
+    if (!editing || drag || resize || kidDrag) return;
+    if (ev.pointerType === 'touch' || designMode() || panelOpen) return;
+    var t = ev.target;
+    if (!t || !t.closest) return;
+    if (t.closest('.gogh-secbar, .gogh-secmore, .gogh-panel, .gogh-side, .gogh-side-tab, .gogh-elbar, .gogh-mbar')) { clearTimeout(hoverSecT); hoverSecT = null; return; }
+    var pieceChosen = !!(sel || multiSel || kidSel);
+    var wrap = t.closest('.gogh-wrap');
+    var idx = -1;
+    if (wrap) S.some(function (s2, i2) { if (s2.wrapEl === wrap) { idx = i2; return true; } return false; });
+    var shown = !(secBar.hidden || secBar.classList.contains('gogh-byebye'));
+    // a chosen piece folded the corners of its section: they stay away
+    // while the hand stays inside it (James: "when i click on something
+    // else in that section they should fade"), and leaving the section
+    // lets the hold go so the next visit brings them back — so adding one
+    // thing never ends the adding
+    // the hold is the chosen piece's: however it was let go (Escape, a click
+    // on the ground, a click off the page), no piece means no hold (James:
+    // "after i've edited something it sometimes hides even when i defocus")
+    if (hoverHold !== null && !pieceChosen) hoverHold = null;
+    if (hoverHold !== null && idx !== hoverHold) hoverHold = null;
+    if (hoverHold !== null && idx === hoverHold) {
+      // reaching for the corner is asking for it: the band where the pill
+      // docks (the section's top, or the viewport's top when it is pinned)
+      // summons the corners even while a piece is chosen (James: "if i move
+      // toward where the pill was it does not show")
+      var hr = S[idx].wrapEl.getBoundingClientRect();
+      var zoneTop = Math.max(hr.top, 76);
+      if (ev.clientY < zoneTop - 12 || ev.clientY > zoneTop + 96) return;
+      hoverHold = null;
+    }
+    // the section under the hand always wins — a selected section higher
+    // up the page must not deaden the hover everywhere else (James: "after
+    // i've interacted with a section, then move on down the page, the
+    // hover has stopped working")
+    if (idx !== -1 && !S[idx].chrome) {
+      clearTimeout(hoverSecT); hoverSecT = null;
+      if (secBarIdx !== idx || !shown) showSecBar(idx);
+      return;
+    }
+    // over no section: a selected section keeps its corners, anything
+    // else fades after a short grace
+    if (selSecIdx !== null && !pieceChosen) {
+      clearTimeout(hoverSecT); hoverSecT = null;
+      if (secBarIdx !== selSecIdx || !shown) showSecBar(selSecIdx);
+      return;
+    }
+    if (secBarIdx !== null && !hoverSecT) hoverSecT = setTimeout(function () { hoverSecT = null; if (selSecIdx === null || sel || multiSel || kidSel) hideSecBar(); }, 260);
+  }, { passive: true });
   function showSecBar(idx) {
     secBar.classList.remove('gogh-byebye'); // a fresh summon always lands visible
     // the site header/footer isn't a page section: it can't move, duplicate
@@ -9371,6 +11711,8 @@
     var diceB = secBar.querySelector('.gogh-sb-dice');
     var fam = diceFamilyOf(S[idx]);
     if (diceB) diceB.hidden = !fam;
+    var diceDiv = secBar.querySelector('.gogh-sb-div-dice');
+    if (diceDiv) diceDiv.hidden = !fam;
     // where the die landed is STATE, not news: "2/4 · The anchor" sits by
     // the die and updates in place — rolling four times leaves no trail of
     // toasts (James: "should we only show the latest one?")
@@ -9379,9 +11721,10 @@
       var lab = secTakeLabel(S[idx], fam);
       takeL.textContent = lab;
       takeL.hidden = !lab;
+      var nm = secTakeName(S[idx], fam);
+      takeL.title = nm ? 'Take ' + lab + ' of this design: ' + nm : 'Which take of this design is on the page';
     }
     var r = S[idx].wrapEl.getBoundingClientRect();
-    secBar.style.left = (r.left + window.scrollX + 16) + 'px';
     // the bar DOCKS: it sits at the section's top edge, and for a section
     // taller than the screen it pins to the viewport while any of the
     // section remains — the doors never scroll out of reach
@@ -9389,9 +11732,13 @@
     var maxTop = r.bottom + window.scrollY - 64;
     var t2 = Math.max(topDoc, window.scrollY + 76);
     if (t2 > maxTop) t2 = Math.max(topDoc, maxTop);
+    secBar.style.left = (r.left + window.scrollX + 16) + 'px';
     secBar.style.top = Math.round(t2) + 'px';
     secBar.hidden = false;
-    // don't sit on the Edit header/footer pill — duck below it
+    // don't sit on the Edit header/footer pill — duck below it; and a
+    // transparent/sticky header FLOATS over the first section — the bar
+    // must not dress itself as header furniture ("the section pill
+    // appears in the header")
     var sr = secBar.getBoundingClientRect();
     chromeBtns.forEach(function (cb) {
       var cr = cb.getBoundingClientRect();
@@ -9402,9 +11749,6 @@
         sr = secBar.getBoundingClientRect();
       }
     });
-    // a transparent/sticky header FLOATS over the first section — the
-    // section bar must not dress itself as header furniture ("the
-    // section pill appears in the header")
     var hdrEl = document.querySelector('header');
     if (hdrEl) {
       var hr2 = hdrEl.getBoundingClientRect();
@@ -9443,8 +11787,8 @@
       ['up', 'Move up', !S[idx] || !pageNeighbour(S[idx].wrapEl, -1)],
       ['down', 'Move down', !S[idx] || !pageNeighbour(S[idx].wrapEl, 1)],
       ['dup', 'Duplicate', false],
-      ['rearrange', 'Rearrange', false],
       ['savepat', 'Save to reuse', false],
+      ['mhide', phoneHiddenOf(S[idx], -1) ? 'Show on phones' : 'Hide on phones', false],
       ['del', 'Delete', false],
     ].map(function (it) {
       return '<button type="button" class="gogh-secmore-it' + (it[0] === 'del' ? ' gogh-secmore-del' : '') +
@@ -9469,8 +11813,8 @@
           return;
         }
         if (act === 'dup') { duplicateSection(idx); return; }
-        if (act === 'rearrange') { openRearrangePanel(idx, anchor); return; }
         if (act === 'savepat') { openSavePatternPanel(idx); return; }
+        if (act === 'mhide') { phoneHiddenToast('This section is', setPhoneHidden(S[idx], -1, !phoneHiddenOf(S[idx], -1))); return; }
         if (act === 'del') deleteSection(idx);
       });
     });
@@ -9496,20 +11840,23 @@
     // ONE editing surface at a time: while a piece is the subject, the
     // faint ring alone says which section — the section bar stands down
     // and returns when the piece clears ("two editing surfaces?")
-    if (faint) hideSecBar();
-    else showSecBar(idx);
+    if (faint) { hideSecBar(); hoverHold = idx; } // the hold lifts when the hand leaves the section
+    else { hoverHold = null; showSecBar(idx); }
   }
   function deselectSection() {
     if (selSecIdx !== null && S[selSecIdx] && S[selSecIdx].sectionEl) {
       S[selSecIdx].sectionEl.classList.remove('gogh-selsec', 'gogh-selsec-faint');
     }
     selSecIdx = null;
+    hoverHold = null; // nothing chosen, nothing held: the next hover summons
     hideSecBar();
   }
   // the docked bar follows the scroll (the viewport pin lives in
   // showSecBar); selection survives scrolling by design
   window.addEventListener('scroll', function () {
-    if (selSecIdx !== null && !secBar.hidden && S[selSecIdx]) showSecBar(selSecIdx);
+    // whichever section's corners are up rides the scroll (the pin lives in
+    // showSecBar) — not the selected one, which may be far up the page
+    if (secBarIdx !== null && !secBar.hidden && S[secBarIdx]) showSecBar(secBarIdx);
   }, { passive: true });
 
   // plain-permalink safe: cfg URLs may already carry ?rest_route=…
@@ -9713,60 +12060,6 @@
     });
     renderSection(sec);
   }
-  function openRearrangePanel(idx, anchorEl) {
-    var secx = S[idx];
-    var variants = rearrangeVariants(secx);
-    if (!variants.length) { toast('Nothing to rearrange yet — add a couple of pieces first.'); return; }
-    var snap = secx.els.map(function (e) { return { x: e.x, y: e.y }; });
-    // the arrangement the panel OPENED on stays reachable forever — keeps
-    // rebase the working snapshot, but Original is the way home
-    var snap0 = snap.map(function (p) { return { x: p.x, y: p.y }; });
-    panel.innerHTML = '<div class="gogh-panel-head"><span class="gogh-panel-title">Rearrange this section</span>' +
-      '<button type="button" class="gogh-sbtn gogh-panel-close" title="Done">\u2715</button></div>' +
-      '<div class="gogh-panel-hint">Hover to audition — click to keep. Close with \u2715 when you\u2019re done.</div>' +
-      '<div class="gogh-rearrow">' +
-      '<button type="button" class="gogh-rearchip gogh-rear-orig is-active">Original</button>' +
-      variants.map(function (v, k) {
-        return '<button type="button" class="gogh-rearchip" data-k="' + k + '">' + esc(v.name) + '</button>';
-      }).join('') + '</div>';
-    // anchor to the BUTTON that asked, not the section: a tall section's
-    // bottom edge can be a screenful away from where James is looking
-    placePanelNear(anchorEl && anchorEl.isConnected ? anchorEl : secx.wrapEl);
-    panelOpen = true;
-    panelSticky = true; // auditioning must survive a glance at the canvas
-    panel.querySelector('.gogh-panel-close').addEventListener('click', function () { closePanel(); });
-    panel.querySelectorAll('.gogh-rearchip').forEach(function (chip) {
-      var posFor = function () {
-        return chip.classList.contains('gogh-rear-orig') ? snap0 : variants[+chip.dataset.k].pos;
-      };
-      chip.addEventListener('mouseenter', function () {
-        applyPositions(secx, posFor());
-      });
-      chip.addEventListener('mouseleave', function () {
-        applyPositions(secx, snap);
-      });
-      chip.addEventListener('click', function () {
-        applyPositions(secx, snap); // restore, so undo lands on the true before
-        pushState();
-        applyPositions(secx, posFor());
-        // keeping is not leaving: the kept shape becomes the new "before"
-        // and the panel stays open for the next audition
-        snap = secx.els.map(function (e) { return { x: e.x, y: e.y }; });
-        panel.querySelectorAll('.gogh-rearchip').forEach(function (o) {
-          o.classList.toggle('is-active', o === chip);
-        });
-        toast(chip.classList.contains('gogh-rear-orig')
-          ? 'Back to how it was.'
-          : 'Rearranged — same pieces, new shape.',
-          { actions: [{ label: 'Undo', onClick: function () { undo(); } }] });
-      });
-    });
-  }
-  // ---------- Ask Gogh: two doors, no chat ----------
-  // "Change this section": the clicked section IS the context, the changed
-  // section IS the response. A small local vocabulary answers instantly —
-  // every read returns CANDIDATES, so "Try another" cycles without waiting
-  // and Undo is the ordinary history. No sidebar, no transcript, no wait.
   function askSpread(sec, f) {
     if (!sec.els.length) return;
     var top = Math.min.apply(null, sec.els.map(function (e) { return e.y; }));
@@ -9915,10 +12208,10 @@
       var e = DEFAULTS.image();
       e.w = w; e.h = h;
       e.x = n === 1 ? Math.round((W - w) / 2) : Math.round(pad + i * (w + gap));
-      e.y = Math.round(H + 32);
+      e.y = Math.round(H + RHYTHM);
       s.els.push(e);
     }
-    s.minH = Math.max(s.minH || 0, Math.round(H + 32 + h + 64));
+    s.minH = Math.max(s.minH || 0, Math.ceil((H + RHYTHM + h + PAD) / MAJOR) * MAJOR);
     renderSection(s);
   }
   function askAddOne(s, kind, tweak) {
@@ -10939,7 +13232,57 @@
       input.placeholder = SEAM_EXAMPLES[k0];
     }, 2600);
     input.focus();
+    // typing narrows the chips to what matches — the panel's own ideas and
+    // every section design by name (Carousel, Photo wall, FAQ…) — and Enter
+    // takes the top one. A box that asks what should go here and then sits
+    // still while you type is a promise not kept (James: 'its not a great
+    // experience atm')
+    var chipsBox = panel.querySelector('.gogh-askchips');
+    var starters = TEMPLATES.filter(function (t) { return t.starter && !t.retired && !(t.gated && !cfg[t.gated]); });
+    var seamMatches = function (q) {
+      var words = String(q || '').toLowerCase().replace(/[^a-z0-9 ]+/g, ' ').trim().split(/\s+/).filter(Boolean);
+      if (!words.length) return null;
+      var score = function (hay) {
+        hay = ' ' + hay.toLowerCase() + ' ';
+        if (!words.every(function (w) { return hay.indexOf(w) !== -1; })) return 0;
+        var n = 1;
+        words.forEach(function (w) { if (hay.indexOf(' ' + w) !== -1) n += 2; else n += 1; });
+        return n;
+      };
+      var out = [];
+      chips.forEach(function (c) {
+        var sc = score(c.label + ' ' + c.say);
+        if (sc) out.push({ label: c.label, say: c.say, sc: sc + 1 });
+      });
+      starters.forEach(function (t) {
+        if (out.some(function (o) { return o.label.toLowerCase() === t.name.toLowerCase(); })) return;
+        var sc = score(t.name + ' ' + (STARTER_CATS[t.name] || '') + ' ' + (t.intent || ''));
+        if (sc) out.push({ label: t.name, tpl: TEMPLATES.indexOf(t), sc: sc });
+      });
+      out.sort(function (a, b) { return b.sc - a.sc || a.label.localeCompare(b.label); });
+      return out.slice(0, 8);
+    };
+    var chipHTML = function (c) {
+      return c.tpl != null
+        ? '<button type="button" class="gogh-askchip" data-tpl="' + c.tpl + '">' + esc(c.label) + '</button>'
+        : '<button type="button" class="gogh-askchip" data-say="' + escAttr(c.say) + '">' + esc(c.label) + '</button>';
+    };
+    var browseBtn = '<button type="button" class="gogh-askchip gogh-askmore">Browse them all \u2192</button>';
+    var renderChips = function (list) {
+      if (list === null) { chipsBox.innerHTML = chips.map(chipHTML).join('') + browseBtn; return; }
+      chipsBox.innerHTML = (list.length ? list.map(chipHTML).join('') : '<span class="gogh-askempty">Nothing here matches.</span>') + browseBtn;
+    };
+    input.addEventListener('input', function () { missRow.hidden = true; renderChips(seamMatches(input.value)); });
     var go = function (text) {
+      // typed words that match a chip or a design take the top match
+      var top = (seamMatches(text) || [])[0];
+      if (top && top.tpl != null) {
+        askLog(text, 'seam-filter');
+        closePanel();
+        addSection(TEMPLATES[top.tpl], idx == null ? S.length : idx, before);
+        return;
+      }
+      if (top && top.say && top.say !== text) { go(top.say); return; }
       // "an interactive experience" is an ELEMENT ask spoken at a section
       // door — cross-door delegation: a fresh band arrives and the
       // Experience chooser opens straight into it
@@ -10974,12 +13317,13 @@
     input.addEventListener('keydown', function (ev) {
       if (ev.key === 'Enter') { ev.preventDefault(); go(input.value); }
     });
-    panel.querySelectorAll('.gogh-askchip[data-say]').forEach(function (ch) {
-      ch.addEventListener('click', function () { go(ch.dataset.say); });
-    });
-    panel.querySelector('.gogh-askmore').addEventListener('click', function () {
-      closePanel();
-      openPicker(idx == null ? S.length : idx, before);
+    // one listener for every chip, since the row is redrawn as you type
+    chipsBox.addEventListener('click', function (ev) {
+      var ch = ev.target.closest ? ev.target.closest('.gogh-askchip') : null;
+      if (!ch) return;
+      if (ch.classList.contains('gogh-askmore')) { closePanel(); openPicker(idx == null ? S.length : idx, before); return; }
+      if (ch.dataset.tpl != null) { closePanel(); addSection(TEMPLATES[+ch.dataset.tpl], idx == null ? S.length : idx, before); return; }
+      if (ch.dataset.say) go(ch.dataset.say);
     });
   }
   // ---------- section themes: pick a look, never a hex ----------
@@ -11001,12 +13345,132 @@
     });
     return best;
   }
-  function sectionThemes() {
+
+  // ---------- a colour surface that belongs to gogh ----------
+  // The native <input type="color"> opens an OS window in the corner of the
+  // SCREEN, over the canvas — it hides the very thing it is asking about
+  // ("a bit weird that the custom color opens in a separate modal"). Worse,
+  // the pairing this panel exists to show — which ink was chosen, and how
+  // well it reads — cannot live inside a window the OS owns.
+  //
+  // So: a hue and a shade, in gogh's own chrome, inside the panel's box.
+  // Saturation and lightness are the two a beginner gets wrong, so the
+  // shades are chosen per role; the hex field is there for anyone who
+  // already owns a brand colour. Built as a component — six other native
+  // pickers can take it next.
+  var COLORPOP_SHADES = [
+    { name: 'Pale', s: 0.16, l: 0.94 },
+    { name: 'Soft', s: 0.30, l: 0.82 },
+    { name: 'Mid',  s: 0.52, l: 0.58 },
+    { name: 'Deep', s: 0.62, l: 0.40 },
+    { name: 'Dark', s: 0.45, l: 0.22 },
+    { name: 'Ink',  s: 0.35, l: 0.11 },
+  ];
+  function inkPairFor(hex) {
+    var slug = bestInkFor(hex);
+    var pal = themePalette().filter(function (x) { return x.slug === slug; })[0];
+    var col = pal && pal.value;
+    var a = cssToRgb(col), b = cssToRgb(hex);
+    var ratio = (a && b) ? sentinelContrast(sentinelLum(a), sentinelLum(b)) : null;
+    return { slug: slug, color: col || '#000',
+      name: slug.charAt(0).toUpperCase() + slug.slice(1).replace(/-/g, ' '),
+      ratio: ratio };
+  }
+  // opts: { value, onAudition(hex), onKeep(hex), onCancel() }
+  function openColorPop(box, opts) {
+    var start = /^#[0-9a-fA-F]{6}$/.test(opts.value || '') ? opts.value : '#3f6ea8';
+    var hsl = hexToHsl(start) || { h: 210, s: 0.45, l: 0.45 };
+    var st = { h: Math.round(hsl.h), shade: 2, hex: start };
+    box.hidden = false;
+    box.innerHTML =
+      '<div class="gogh-cp-prev"><span class="gogh-cp-aa">Aa</span></div>' +
+      '<div class="gogh-cp-ink"></div>' +
+      '<input type="range" class="gogh-cp-hue" min="0" max="359" value="' + st.h + '" aria-label="Hue" />' +
+      '<div class="gogh-cp-shades"></div>' +
+      '<div class="gogh-cp-row">' +
+      '<input type="text" class="gogh-input gogh-cp-hex" spellcheck="false" maxlength="7" aria-label="Colour code" />' +
+      '</div>' +
+      '<div class="gogh-cp-btns">' +
+      '<button type="button" class="gogh-btn gogh-btn-small gogh-cp-cancel">Cancel</button>' +
+      '<button type="button" class="gogh-btn gogh-btn-small gogh-cp-keep">Use it</button>' +
+      '</div>';
+    var prev = box.querySelector('.gogh-cp-prev');
+    var aa = box.querySelector('.gogh-cp-aa');
+    var inkEl = box.querySelector('.gogh-cp-ink');
+    var hue = box.querySelector('.gogh-cp-hue');
+    var shadesEl = box.querySelector('.gogh-cp-shades');
+    var hexEl = box.querySelector('.gogh-cp-hex');
+    // the reading is the point of showing it: below the sentinel's floor
+    // the line says so, rather than letting the words go out quietly poor
+    var showInk = function () {
+      var ink = inkPairFor(st.hex);
+      var low = ink.ratio != null && ink.ratio < CONTRAST_FLOOR;
+      prev.style.background = st.hex;
+      aa.style.color = ink.color;
+      inkEl.classList.toggle('is-low', !!low);
+      inkEl.innerHTML = '<span class="gogh-cp-inkdot" style="background:' + escAttr(ink.color) + '"></span>' +
+        (low ? 'Hard to read on this colour \u00b7 ' : 'Words will use <b>' + esc(ink.name) + '</b> \u00b7 ') +
+        'contrast ' + (ink.ratio != null ? ink.ratio.toFixed(1) : '\u2014');
+    };
+    var paint = function (audition) {
+      showInk();
+      hexEl.value = st.hex.toUpperCase();
+      shadesEl.querySelectorAll('.gogh-cp-shade').forEach(function (b2, k) {
+        b2.style.background = hslToHex(st.h, COLORPOP_SHADES[k].s, COLORPOP_SHADES[k].l);
+        b2.classList.toggle('is-active', k === st.shade);
+      });
+      if (audition !== false && opts.onAudition) opts.onAudition(st.hex);
+    };
+    COLORPOP_SHADES.forEach(function (sh, k) {
+      var b2 = document.createElement('button');
+      b2.type = 'button';
+      b2.className = 'gogh-cp-shade';
+      b2.title = sh.name;
+      b2.addEventListener('click', function () {
+        st.shade = k; st.hex = hslToHex(st.h, sh.s, sh.l); paint();
+      });
+      shadesEl.appendChild(b2);
+    });
+    hue.addEventListener('input', function () {
+      st.h = +this.value;
+      var sh = COLORPOP_SHADES[st.shade];
+      st.hex = hslToHex(st.h, sh.s, sh.l);
+      paint();
+    });
+    hexEl.addEventListener('input', function () {
+      var v = this.value.trim();
+      if (!/^#[0-9a-fA-F]{6}$/.test(v)) return;
+      st.hex = v.toLowerCase();
+      var h2 = hexToHsl(st.hex);
+      if (h2) st.h = Math.round(h2.h);
+      hue.value = st.h;
+      if (opts.onAudition) opts.onAudition(st.hex);
+      showInk();
+    });
+    var shut = function () { box.hidden = true; box.innerHTML = ''; };
+    box.querySelector('.gogh-cp-cancel').addEventListener('click', function () {
+      shut(); if (opts.onCancel) opts.onCancel();
+    });
+    box.querySelector('.gogh-cp-keep').addEventListener('click', function () {
+      var hex = st.hex; shut(); if (opts.onKeep) opts.onKeep(hex);
+    });
+    box.addEventListener('keydown', function (ev) {
+      if (ev.key === 'Escape') { ev.stopPropagation(); shut(); if (opts.onCancel) opts.onCancel(); }
+    });
+    paint(false);
+    if (opts.onAudition) opts.onAudition(st.hex);
+    setTimeout(function () { hue.focus(); }, 0);
+    return { close: shut };
+  }
+
+  function sectionThemes(rolesIn) {
     var v = function (slug) { return 'var(--wp--preset--color--' + slug + ')'; };
     var pal = themePalette();
     // canvas and ink by ROLE, not by name — TT5's base/contrast, Ollie's
-    // base/main, and every invented palette all resolve the same way
-    var roles = paletteRoles();
+    // base/main, and every invented palette all resolve the same way.
+    // A caller mid-way through changing the palette passes the roles it
+    // read before it started (a Remix roll), or the page misleads it.
+    var roles = rolesIn || paletteRoles();
     var bgS = roles.bgSlug, txS = roles.textSlug;
     if (!bgS || !txS) return [];
     var out = [
@@ -11016,8 +13480,12 @@
     ];
     // accents: the theme's own extra colours, in its declared order —
     // skipping the roles and structural entries (borders and the like)
+    // the theme's own extra colours: never the ground or the ink, and never
+    // the conventionally structural names either — on TT5 Morning the ink
+    // is accent-4, which left "contrast" looking like an accent
     var accents = pal.filter(function (p) {
-      return p.slug !== bgS && p.slug !== txS && !/^border|^shadow|gray$/.test(p.slug);
+      return p.slug !== bgS && p.slug !== txS && !/^border|^shadow|gray$/.test(p.slug) &&
+        !/^(base|contrast|background|foreground|main|text)$/.test(p.slug);
     }).slice(0, 2);
     accents.forEach(function (p, k) {
       out.push({ slug: p.slug, name: 'Accent ' + (k + 1), bg: v(p.slug), ink: bestInkFor(v(p.slug)) });
@@ -11094,7 +13562,17 @@
     syncBootInvite(S[idx]);
     resolveAll();
     // the panel STAYS open — picking an image is an audition, not a
-    // dismissal; people flick between backgrounds while deciding
+    // dismissal; people flick between backgrounds while deciding.
+    // Which is exactly why the panel has to follow: it is built before a
+    // picture exists, so Remove shipped hidden and never came back
+    // ("i cant see a way to deselect, or have no image, after selecting one")
+    var cl = panel.querySelector('.gogh-clear');
+    if (cl) cl.hidden = !S[idx].bgImage;
+    panel.querySelectorAll('.gogh-media .gogh-thumb').forEach(function (o) {
+      if (!o.classList.contains('gogh-thumb-add')) {
+        o.classList.toggle('is-active', !!S[idx].bgImage && o.dataset.src === S[idx].bgImage);
+      }
+    });
     pushState();
     contrastSentinel(S[idx]);
   }
@@ -11108,8 +13586,6 @@
     pushState();
     contrastSentinel(sx);
     // the panel STAYS open; its video row follows the choice
-    var vl = panel.querySelector('.gogh-vid-upload');
-    if (vl && vl.firstChild) vl.firstChild.textContent = sx.bgVideo ? 'Change video' : 'Upload video';
     var vc = panel.querySelector('.gogh-vid-clear');
     if (vc) vc.hidden = !sx.bgVideo;
     var vu = panel.querySelector('.gogh-vid-url');
@@ -11124,7 +13600,6 @@
     // that became viewport-FIXED. Scrolled page, coordinates below the
     // fold, three rounds of wrong fixes elsewhere. It DOCKS now: a
     // design inspector top-right of the viewport, placed after build.
-    var pal = pickerPalette();
     // summary values for the folded rows — recomputed after every click
     var hVal = function () {
       if (secx.fill) return 'Fill screen';
@@ -11137,6 +13612,14 @@
       var names = { curve: 'Curve', sweep: 'Sweep', dunes: 'Dunes', arch: 'Arch', sheet: 'Sheet', melt: 'Melt', mist: 'Mist', wave: 'Wave', slant: 'Slant', peaks: 'Peaks', brush: 'Brush', torn: 'Torn' };
       return (secx.divider && names[secx.divider.shape]) || 'None';
     };
+    // the dial that used to hide behind "Colour & more" — it reads as a
+    // percentage because that is what it is, and 100 means "no tint"
+    var alphaOf = function () {
+      return secx.bgA != null ? secx.bgA : ((secx.bgImage || secx.bgVideo) && secx.bg ? 62 : 100);
+    };
+    var tintVal = function () {
+      return alphaOf() >= 100 ? 'Solid' : alphaOf() + '%';
+    };
     var bgRow = function (key, label, val, body) {
       return '<div class="gogh-bgrow" data-row="' + key + '">' +
         '<button type="button" class="gogh-bgrow-head"><span>' + label + '</span>' +
@@ -11147,34 +13630,54 @@
         '</span></button>' +
         '<div class="gogh-bgrow-body" hidden>' + body + '</div></div>';
     };
+    // the one door to the one backdrop. It is painted with the shelf's
+    // first paint AND re-made when the library answers, so there is never
+    // a moment where the panel offers no way to add anything.
+    var addTile = '<label class="gogh-thumb gogh-thumb-add gogh-upload" title="Add a picture or video">' +
+      '<input type="file" accept="image/*,video/mp4,video/webm,video/quicktime" hidden /></label>';
     panel.innerHTML =
       '<div class="gogh-panel-title">Section background</div>' +
-      '<div class="gogh-panel-hint">Theme \u2014 a look for the section and its words</div>' +
+      // ONE colour surface. The chips were always the colour control; they
+      // just said "Theme", so people hunted for colour and found a second,
+      // worse one buried under a toggle.
+      '<div class="gogh-panel-hint">Colour \u2014 the section and its words together</div>' +
       '<div class="gogh-themerow">' +
       sectionThemes().map(function (t) {
         return '<button type="button" class="gogh-themechip' + (secx.theme === t.slug ? ' is-active' : '') + '" data-theme="' + t.slug + '" title="' + escAttr(t.name) + '">' +
           '<span class="gogh-themechip-swatch" style="background:' + escAttr(t.bg) + ';color:var(--wp--preset--color--' + t.ink + ')">Aa</span>' +
           '</button>';
-      }).join('') + '</div>' +
-      // ---- the diet: Theme and Image answer first; Height, Effect and
-      // How-it-ends fold into quiet summary rows that open ONE at a time
-      // ("there's too much cognitive load atm") ----
-      '<div class="gogh-panel-hint">Image</div>' +
-      (secx.bgImage ? '<div class="gogh-panel-hint gogh-focal-hint">✋ Drag the section itself to reframe the photo' + (secx.bgPos ? ' · <button type="button" class="gogh-focal-reset">re-centre</button>' : '') + '</div>' : '') +
-      '<div class="gogh-panel-row gogh-panel-actions">' +
-      (cfg.canUpload ? '<label class="gogh-btn gogh-btn-small gogh-upload">Upload<input type="file" accept="image/*" hidden /></label>' : '') +
-      (secx.bgImage ? '<button type="button" class="gogh-btn gogh-btn-small gogh-clear">Remove image</button>' : '') +
+      }).join('') +
+      // the last chip is ANY colour, and it mints a THEME: a background and
+      // an ink chosen to read on it. The old custom field set the ground and
+      // left the words behind, so the sentinel told you off afterwards.
+      '<button type="button" class="gogh-themechip gogh-themechip-any' + (secx.theme === 'any' ? ' is-active' : '') + '" title="Any colour">' +
+      (secx.theme === 'any' && secx.bg
+        ? '<span class="gogh-themechip-swatch" style="background:' + escAttr(secx.bg) + ';color:var(--wp--preset--color--' + bestInkFor(secx.bg) + ')">Aa</span>'
+        : '<span class="gogh-themechip-swatch gogh-themechip-plus">+</span>') +
+      '</button>' +
       '</div>' +
-      '<div class="gogh-panel-hint">Video \u2014 a silent loop behind the section' + (secx.bgVideo ? '' : '; the image becomes its poster') + '</div>' +
+      // the colour surface opens HERE, in the panel's own box, so it can
+      // never sit on top of the section it is recolouring
+      '<div class="gogh-colorpop" hidden></div>' +
+      // a section has ONE backdrop: a video already treats the picture as
+      // its poster, so two upload buttons were two doors to one room. The
+      // shelf sits under its own label now — it used to be stranded below
+      // Height and Effect, three rows from the control it belongs to.
+      '<div class="gogh-panel-hint">Picture or video</div>' +
+      (secx.bgImage ? '<div class="gogh-panel-hint gogh-focal-hint">\u270B Drag the section itself to reframe the photo' + (secx.bgPos ? ' \u00b7 <button type="button" class="gogh-focal-reset">re-centre</button>' : '') + '</div>' : '') +
+      '<div class="gogh-media">' + addTile + '<span class="gogh-media-loading">Loading media\u2026</span></div>' +
+      '<div class="gogh-vidgrid gogh-bgvid-media" hidden></div>' +
       '<div class="gogh-panel-row gogh-panel-actions">' +
-      (cfg.canUpload ? '<label class="gogh-btn gogh-btn-small gogh-vid-upload">' + (secx.bgVideo ? 'Change video' : 'Upload video') + '<input type="file" accept="video/mp4,video/webm,video/quicktime" hidden /></label>' : '') +
+      '<button type="button" class="gogh-btn gogh-btn-small gogh-clear"' + (secx.bgImage ? '' : ' hidden') + '>Remove image</button>' +
       '<button type="button" class="gogh-btn gogh-btn-small gogh-vid-clear"' + (secx.bgVideo ? '' : ' hidden') + '>Remove video</button>' +
       '</div>' +
-      '<div class="gogh-vidgrid gogh-bgvid-media" hidden></div>' +
+      bgRow('tint', 'Tint', tintVal(),
+        '<div class="gogh-panel-hint">How much of the colour sits over the picture</div>' +
+        '<div class="gogh-panel-row"><input type="range" class="gogh-secbg-alpha" min="8" max="100" step="1" value="' + alphaOf() + '" style="flex:1" /><span class="gogh-secbg-alpha-val">' + alphaOf() + '</span></div>') +
       bgRow('height', 'Height', hVal(),
         '<div class="gogh-hpresets">' +
         [['s','S',320],['m','M',560],['l','L',800]].map(function (hp) {
-          return '<button type="button" class="gogh-hpreset' + (!secx.fill && secx.minH === hp[2] ? ' is-active' : '') + '" data-minh="' + hp[2] + '" title="' + hp[1] + ' — ' + hp[2] + ' units">' + hp[1] + '</button>';
+          return '<button type="button" class="gogh-hpreset' + (!secx.fill && secx.minH === hp[2] ? ' is-active' : '') + '" data-minh="' + hp[2] + '" title="' + hp[1] + ' \u2014 ' + hp[2] + ' units">' + hp[1] + '</button>';
         }).join('') +
         '<button type="button" class="gogh-hpreset gogh-hpreset-fill' + (secx.fill ? ' is-active' : '') + '" title="Fill the screen">Fill screen</button>' +
         '</div>') +
@@ -11185,30 +13688,17 @@
             ' data-fx="' + fx[0] + '"' + (fx[2] === 'img' ? ' data-needs-img="1"' : '') + '>' + fx[1] + '</button>';
         }).join('') + '</div>') +
       (transitionRowHTML(secx) ? bgRow('ends', 'How it ends', endVal(), transitionRowHTML(secx)) : '') +
-      '<div class="gogh-media"><span class="gogh-media-loading">Loading media…</span></div>' +
-      '<button type="button" class="gogh-panel-more-toggle">Colour &amp; more <span class="gogh-bgrow-caret">' +
-      '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>' +
-      '</span></button>' +
-      '<div class="gogh-panel-more" hidden>' +
-      '<div class="gogh-panel-hint">Colour \u2014 with an image, it becomes the tint</div>' +
-      '<div class="gogh-swrow gogh-secbg-sw">' +
-      '<button type="button" class="gogh-sw gogh-sw-none" data-val="" title="None"></button>' +
-      pal.map(function (p) {
-        var val = 'var(--wp--preset--color--' + p.slug + ')';
-        return '<button type="button" class="gogh-sw' + (secx.bg === val ? ' is-active' : '') + '" data-val="' + val + '"' +
-          ' style="background: ' + val + '" title="' + p.slug + '"></button>';
-      }).join('') + '</div>' +
-      '<div class="gogh-panel-row gogh-panel-actions"><label class="gogh-colorlab">Custom <input type="color" class="gogh-color gogh-secbg-custom" /></label></div>' +
-      '<div class="gogh-panel-hint">Transparency</div>' +
-      '<div class="gogh-panel-row"><input type="range" class="gogh-secbg-alpha" min="8" max="100" step="1" value="' + (secx.bgA != null ? secx.bgA : ((secx.bgImage || secx.bgVideo) && secx.bg ? 62 : 100)) + '" style="flex:1" /><span class="gogh-secbg-alpha-val">' + (secx.bgA != null ? secx.bgA : ((secx.bgImage || secx.bgVideo) && secx.bg ? 62 : 100)) + '</span></div>' +
-      '<div class="gogh-panel-row">' +
-      '<input type="url" class="gogh-input" placeholder="Paste image URL…" />' +
-      '<button type="button" class="gogh-btn gogh-btn-small gogh-apply">Apply</button>' +
-      '</div>' +
-      '<div class="gogh-panel-row">' +
-      '<input type="url" class="gogh-input gogh-vid-url" placeholder="Paste a video (.mp4) URL…" />' +
-      '<button type="button" class="gogh-btn gogh-btn-small gogh-vid-apply">Apply</button>' +
-      '</div>' +
+      // the two paste fields were the rest of "Colour & more"; they keep a
+      // row of their own rather than a toggle over a pile of unlike things
+      bgRow('links', 'Paste a link', '',
+        '<div class="gogh-panel-row">' +
+        '<input type="url" class="gogh-input" placeholder="Paste image URL\u2026" />' +
+        '<button type="button" class="gogh-btn gogh-btn-small gogh-apply">Apply</button>' +
+        '</div>' +
+        '<div class="gogh-panel-row">' +
+        '<input type="url" class="gogh-input gogh-vid-url" placeholder="Paste a video (.mp4) URL\u2026" />' +
+        '<button type="button" class="gogh-btn gogh-btn-small gogh-vid-apply">Apply</button>' +
+        '</div>');
       '</div>';
     dockPanel();
     bindTransitionRow(secx);
@@ -11294,22 +13784,6 @@
         document.removeEventListener('pointerup', up, true);
       };
     })();
-    var moreT = panel.querySelector('.gogh-panel-more-toggle');
-    if (moreT) moreT.addEventListener('click', function () {
-      var more = panel.querySelector('.gogh-panel-more');
-      more.hidden = !more.hidden;
-      moreT.classList.toggle('is-open', !more.hidden); // the chevron turns, the words stay
-      if (!more.hidden) {
-        // the reveal must be SEEN: the toggle lives at the panel's fold,
-        // so the colours were unfolding below the visible edge and the
-        // button read as dead ("colour and more does nothing atm") \u2014
-        // opening scrolls the toggle to the top, colours in full view
-        panel.scrollTo({
-          top: panel.scrollTop + moreT.getBoundingClientRect().top - panel.getBoundingClientRect().top - 12,
-          behavior: 'smooth',
-        });
-      }
-    });
     panel.querySelectorAll('.gogh-hpreset[data-minh], .gogh-hpreset-fill').forEach(function (hb) {
       hb.addEventListener('click', function () {
         pushState();
@@ -11389,29 +13863,35 @@
         });
       });
     });
-    panel.querySelectorAll('.gogh-secbg-sw .gogh-sw').forEach(function (swb) {
-      swb.addEventListener('click', function () {
-        secx.bg = swb.dataset.val || null;
-        secx.theme = null;
-        syncBootInvite(secx);
-        resolveAll();
-        pushState();
-        contrastSentinel(secx);
-        panel.querySelectorAll('.gogh-secbg-sw .gogh-sw').forEach(function (b2) {
-          b2.classList.toggle('is-active', b2 === swb && !!swb.dataset.val);
-        });
+    // ANY COLOUR is a theme, not a raw background. bestInkFor picks the
+    // canvas-or-ink role that reads on the chosen colour — the same call
+    // every accent chip already makes — so the words follow the ground
+    // instead of being reported afterwards by the sentinel.
+    var anyChip = panel.querySelector('.gogh-themechip-any');
+    var popBox = panel.querySelector('.gogh-colorpop');
+    var anyTheme = function (hex) { return { slug: 'any', name: 'Any colour', bg: hex, ink: bestInkFor(hex) }; };
+    if (anyChip && popBox) anyChip.addEventListener('click', function () {
+      if (!popBox.hidden) { popBox.hidden = true; popBox.innerHTML = ''; return; }
+      var snap = snapSectionLook(secx);
+      openColorPop(popBox, {
+        value: (secx.bg && secx.bg.charAt(0) === '#') ? secx.bg : null,
+        // every move is an audition on the real section, like a chip hover
+        onAudition: function (hex) { paintSectionTheme(secx, anyTheme(hex)); },
+        onCancel: function () { restoreSectionLook(secx, snap); reclampPanel(); },
+        onKeep: function (hex) {
+          restoreSectionLook(secx, snap);
+          applySectionTheme(idx, anyTheme(hex));
+          var sw = anyChip.querySelector('.gogh-themechip-swatch');
+          sw.classList.remove('gogh-themechip-plus');
+          sw.textContent = 'Aa';
+          sw.setAttribute('style', 'background:' + hex + ';color:var(--wp--preset--color--' + bestInkFor(hex) + ')');
+          panel.querySelectorAll('.gogh-themechip').forEach(function (o) {
+            o.classList.toggle('is-active', o === anyChip);
+          });
+          reclampPanel();
+        },
       });
-    });
-    var custom = panel.querySelector('.gogh-secbg-custom');
-    if (secx.bg && secx.bg.charAt(0) === '#') custom.value = secx.bg;
-    custom.addEventListener('input', function () {
-      secx.bg = this.value;
-      syncBootInvite(secx);
-      resolveAll();
-    });
-    custom.addEventListener('change', function () {
-      pushState();
-      contrastSentinel(secx);
+      reclampPanel();
     });
     var alpha = panel.querySelector('.gogh-secbg-alpha');
     var alphaVal = panel.querySelector('.gogh-secbg-alpha-val');
@@ -11437,18 +13917,6 @@
     if (clear) clear.addEventListener('click', function () { setSecBg(idx, null); });
     var vclear = panel.querySelector('.gogh-vid-clear');
     if (vclear) vclear.addEventListener('click', function () { setSecVideo(idx, null); });
-    var vfile = panel.querySelector('.gogh-vid-upload input[type="file"]');
-    if (vfile) vfile.addEventListener('change', function () {
-      if (!vfile.files.length) return;
-      var fd2 = new FormData();
-      fd2.append('file', vfile.files[0]);
-      var vlabel = panel.querySelector('.gogh-vid-upload');
-      vlabel.firstChild.textContent = 'Uploading\u2026';
-      fetch(cfg.mediaUrl, { method: 'POST', headers: { 'X-WP-Nonce': cfg.nonce }, credentials: 'same-origin', body: fd2 })
-        .then(function (res) { if (!res.ok) throw new Error('HTTP ' + res.status); return res.json(); })
-        .then(function (item) { setSecVideo(idx, item.source_url, item.id); })
-        .catch(function (err) { vlabel.firstChild.textContent = 'Upload failed'; console.error('gogh video upload failed:', err); });
-    });
     // the library's videos, as tiles — hover auditions the loop behind the
     // section, a click keeps it (nothing shows when there are none)
     fetch(restQ(cfg.mediaUrl, 'per_page=16&media_type=video&orderby=date&order=desc'), {
@@ -11494,30 +13962,42 @@
         if (ev.key === 'Escape') closePanel();
       });
     }
-    var file = panel.querySelector('input[type="file"]');
-    if (file) {
-      file.addEventListener('change', function () {
-        if (!file.files.length) return;
-        var fd = new FormData();
-        fd.append('file', file.files[0]);
-        var label = panel.querySelector('.gogh-upload');
-        label.firstChild.textContent = 'Uploading…';
-        fetch(cfg.mediaUrl, {
-          method: 'POST',
-          headers: { 'X-WP-Nonce': cfg.nonce },
-          credentials: 'same-origin',
-          body: fd,
-        }).then(function (res) {
-          if (!res.ok) throw new Error('HTTP ' + res.status);
-          return res.json();
-        }).then(function (item) {
-          setSecBg(idx, item.source_url, item.id);
-        }).catch(function (err) {
-          label.firstChild.textContent = 'Upload failed';
-          console.error('gogh upload failed:', err);
-        });
+    // ONE upload for the one backdrop. The tile lives inside the shelf,
+    // which is refilled when the library answers, so the listener is
+    // delegated to the shelf ITSELF — a direct one would be thrown away
+    // with the old tile. And it is the shelf, not `panel`: panel lives for
+    // the whole session and is only ever refilled, so a listener put on it
+    // here would stack up once per open until one file pick uploaded N times.
+    panel.querySelector('.gogh-media').addEventListener('change', function (ev) {
+      var inp = ev.target;
+      if (!inp || !inp.matches || !inp.matches('.gogh-upload input[type="file"]')) return;
+      if (!inp.files.length) return;
+      var f = inp.files[0];
+      var isVideo = /^video\//.test(f.type || '');
+      var tile = inp.parentElement;
+      tile.classList.add('is-busy');
+      var fd = new FormData();
+      fd.append('file', f);
+      fetch(cfg.mediaUrl, {
+        method: 'POST',
+        headers: { 'X-WP-Nonce': cfg.nonce },
+        credentials: 'same-origin',
+        body: fd,
+      }).then(function (res) {
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        return res.json();
+      }).then(function (item) {
+        tile.classList.remove('is-busy');
+        if (isVideo) setSecVideo(idx, item.source_url, item.id);
+        else setSecBg(idx, item.source_url, item.id);
+      }).catch(function (err) {
+        tile.classList.remove('is-busy');
+        tile.classList.add('is-failed');
+        toast('That upload failed \u2014 try again, or paste a link.');
+        console.error('gogh upload failed:', err);
       });
-    }
+      inp.value = ''; // the same file twice in a row still fires
+    });
     fetch(restQ(cfg.mediaUrl, 'per_page=32&media_type=image&orderby=date&order=desc'), {
       headers: { 'X-WP-Nonce': cfg.nonce },
       credentials: 'same-origin',
@@ -11525,7 +14005,7 @@
       .then(function (items) {
         var box = panel.querySelector('.gogh-media');
         if (!box || panel.hidden) return;
-        box.innerHTML = '';
+        box.innerHTML = addTile;
         // a section BACKGROUND wants big, wide-ish images — logos, cutouts
         // and portraits are noise on this shelf (Upload and the URL row
         // still take anything); an over-strict filter falls back to recency
@@ -11541,6 +14021,7 @@
           var b = document.createElement('button');
           b.type = 'button';
           b.className = 'gogh-thumb' + (S[idx].bgImage === item.source_url ? ' is-active' : '');
+          b.title = 'Use this picture \u2014 click it again to take it off';
           b.style.backgroundImage = 'url("' + (thumb ? thumb.source_url : item.source_url) + '")';
           // hover auditions the whole backdrop; leaving takes it back
           auditionHover(b, function () {
@@ -11550,13 +14031,14 @@
             S[idx].bgImage = bgCur.img;
             resolveAndApply(S[idx]);
           });
+          b.dataset.src = item.source_url;
           b.addEventListener('click', function () {
             S[idx].bgImage = bgCur.img; // undo lands on the true before
-            bgCur.img = item.source_url;
-            setSecBg(idx, item.source_url, item.id);
-            box.querySelectorAll('.gogh-thumb').forEach(function (o) {
-              o.classList.toggle('is-active', o === b);
-            });
+            // clicking the one you already chose takes it off again — the
+            // gesture people reach for before they look for a button
+            var off = bgCur.img === item.source_url;
+            bgCur.img = off ? null : item.source_url;
+            setSecBg(idx, off ? null : item.source_url, off ? null : item.id);
           });
           box.appendChild(b);
         });
@@ -11790,14 +14272,41 @@
   // Images and boxes are exempt — text over a photo is a design, not an
   // accident. `frozen` (the kid under the hand) is an obstacle that never
   // moves; at release nothing is frozen and the kid may tuck.
-  function settleStack(host) {
+  // what a kid actually OCCUPIES: its rendered ink for words (a heading's
+  // box runs the card's width while its words stop a third of the way
+  // across), its box for everything else. Measured relative to the kid's own
+  // node and anchored on the MODEL position, so a mid-drag settle never mixes
+  // this frame's model with the last frame's DOM
+  function kidInkOf(sec, ci) {
+    return function (kid) {
+      var host = sec.els[ci];
+      var card = sec.nodes && sec.nodes[ci];
+      if (!host || !host.kids || !card || !isText(kid)) return null;
+      var j = host.kids.indexOf(kid);
+      var kn = j === -1 ? null : card.querySelector('.gogh-k-' + (j + 1));
+      if (!kn || getComputedStyle(kn).display === 'none') return null;
+      var tn = kn.matches('p,h1,h2,h3,h4,h5,h6') ? kn : (kn.querySelector('p,h1,h2,h3,h4,h5,h6') || kn);
+      var rng = document.createRange();
+      rng.selectNodeContents(tn);
+      var ir = rng.getBoundingClientRect(), kr = kn.getBoundingClientRect();
+      var sc = scaleOf(sec);
+      if (!(ir.width > 0) || !(ir.height > 0) || !(sc > 0.2)) return null;
+      return { x: kid.x + (ir.left - kr.left) / sc, y: kid.y + (ir.top - kr.top) / sc, w: ir.width / sc, h: ir.height / sc };
+    };
+  }
+  function settleStack(host, inkOf) {
     var kids = (host.kids || []).filter(function (k) { return SETTLE_TYPES[k.type]; });
     var order = kids.slice().sort(function (a, b) { return (a.y + a.h / 2) - (b.y + b.h / 2) || a.y - b.y; });
+    var occ = function (k) { return (inkOf && inkOf(k)) || { x: k.x, y: k.y, w: k.w, h: k.h }; };
     order.forEach(function (k, i) {
       for (var j = 0; j < i; j++) {
         var o = order[j];
-        var ox = Math.min(k.x + k.w, o.x + o.w) - Math.max(k.x, o.x);
-        var oy = Math.min(k.y + k.h, o.y + o.h) - Math.max(k.y, o.y);
+        // overlap of what each kid OCCUPIES (ink for words): a button dropped
+        // beside a short heading sits beside it, not under it (James: "when
+        // i drop, they dont stay where i drop")
+        var kb = occ(k), ob = occ(o);
+        var ox = Math.min(kb.x + kb.w, ob.x + ob.w) - Math.max(kb.x, ob.x);
+        var oy = Math.min(kb.y + kb.h, ob.y + ob.h) - Math.max(kb.y, ob.y);
         // any real overlap in the same column steps below, with the stack's
         // gap (a 12-unit overlap used to slip through and the meta line
         // hid behind the button)
@@ -11808,9 +14317,9 @@
     (host.kids || []).forEach(function (k2) { bottom = Math.max(bottom, k2.y + k2.h); });
     if (bottom > host.h) host.h = bottom + 16;
   }
-  function settleKid(host, kid) {
+  function settleKid(host, kid, inkOf) {
     if (!SETTLE_TYPES[kid.type]) return;
-    settleStack(host);
+    settleStack(host, inkOf);
   }
   // the card's kids are written in READING order: what the eye meets first
   // on the page is first in the DOM — so phones stack them the same way
@@ -11818,21 +14327,27 @@
   function orderKids(host) {
     if (!host.kids || host.kids.length < 2) return false;
     var before = host.kids.slice();
-    host.kids.sort(function (a, b) {
-      var ac = a.y + a.h / 2, bc = b.y + b.h / 2;
-      // same row (centres within a line): left to right
-      if (Math.abs(ac - bc) <= 12) return a.x - b.x;
-      return ac - bc;
-    });
+    // the SAME reading order the published card is written in (buildElBlocks
+    // walks readingIndexOrder), so the editor's DOM, the phone stack and the
+    // saved markup all agree on what comes first
+    host.kids = readingIndexOrder(before).map(function (i) { return before[i]; });
     return before.some(function (k, i) { return host.kids[i] !== k; });
   }
   function cardJoinTarget(sec, i) {
     var e = sec.els[i];
-    if (!e || e.type === 'box' || e.rails) return -1; // rails never enter a card: cards stack by different rules on phones
+    if (!e || e.rails) return -1; // rails never enter a card: cards stack by different rules on phones
+    // a plain shape may join as decoration — a circle behind a number, a
+    // stripe along the top — but only as a LEAF: a box with kids of its own
+    // never joins (cards stay one level deep), and nothing can join a kid
+    // (kids are not in sec.els). A shape near the card's own size is a
+    // card landing on a card, not decoration, so it stays a sibling.
+    var isShape = e.type === 'box';
+    if (isShape && e.kids && e.kids.length) return -1;
     for (var b = sec.els.length - 1; b >= 0; b--) {
       if (b === i) continue;
       var o = sec.els[b];
-      if (o.type !== 'box' || o.shape) continue;
+      if (o.type !== 'box') continue; // a SHAPED box hosts too — shapeRoom keeps its kids inside the silhouette
+      if (isShape && e.w * e.h > o.w * o.h * 0.6) continue;
       if (e.x >= o.x - 2 && e.y >= o.y - 2 &&
           e.x + e.w <= o.x + o.w + 2 && e.y + e.h <= o.y + o.h + 2) return b;
     }
@@ -12061,7 +14576,7 @@
     if (ev.altKey) {
       // alt-drag: duplicate in place, then drag the copy
       var dsec = sel.sec;
-      var dcopy = JSON.parse(JSON.stringify(dsec.els[sel.i]));
+      var dcopy = diceFreshIds([JSON.parse(JSON.stringify(dsec.els[sel.i]))])[0];
       dsec.els.push(dcopy);
       renderSection(dsec);
       placeHandles(dsec, dsec.els.length - 1);
@@ -12113,6 +14628,7 @@
     sec.sectionEl.classList.add('gogh-grid-live');
     document.documentElement.classList.add('gogh-dragging');
     hideBoundaryUI();
+    mbar.hidden = true; // the group bar goes while the hand is closed
     hideHandles();
   }
   grip.addEventListener('pointerdown', function (ev) {
@@ -12149,6 +14665,25 @@
     e.y = Math.max(0, sn.y);
     if (lockX || !drag.movedX) { e.x = drag.x; sn.gx = null; }
     if (lockY || !drag.movedY) { e.y = drag.y; sn.gy = null; }
+    // a group dragged together is one thing to the page: ITS centre snaps
+    // to the page centre and its outer edges to the margins, with the same
+    // guide a single piece gets (James: 'how would i center these 3 cards?')
+    if (drag.multi && !free && !lockX && drag.movedX) {
+      var gx0 = e.x, gx1 = e.x + e.w, shiftM = e.x - drag.x;
+      drag.multi.forEach(function (mm) {
+        var o = sec.els[mm.j];
+        if (!o) return;
+        gx0 = Math.min(gx0, mm.x + shiftM);
+        gx1 = Math.max(gx1, mm.x + shiftM + o.w);
+      });
+      var gTargets = [[W / 2, (gx0 + gx1) / 2], [MARGIN, gx0], [W - MARGIN, gx1]];
+      var gBest = null;
+      gTargets.forEach(function (t) {
+        var d = Math.abs(t[0] - t[1]);
+        if (d <= SNAP && (!gBest || d < gBest.d)) gBest = { d: d, v: t[0], edge: t[1] };
+      });
+      if (gBest) { e.x = Math.round(e.x + (gBest.v - gBest.edge)); sn.gx = gBest.v; }
+    }
     drag.gxCap = sn.gx !== null;
     drag.gyCap = sn.gy !== null;
     drag.lockedX = lockX;
@@ -12159,6 +14694,8 @@
     // unreachable
     drag.eqH = false;
     drag.eqV = false;
+    drag.repH = null;
+    drag.repV = null;
     if (!free) {
       var nb = neighbors(sec, e);
       if (!lockX && nb.L && nb.R) {
@@ -12172,6 +14709,37 @@
         if (yEq >= nb.T.y + nb.T.h && Math.abs(ry - yEq) < 8) {
           e.y = yEq; sn.gy = null; drag.eqV = true;
         }
+      }
+      // repeat-gap: at the END of a run the neighbour already keeps a gap
+      // to its own neighbour, and that gap is offered here, so a fourth
+      // card lands in step with three without anyone counting (the Canva
+      // teardown: alignment as placement, not repair)
+      if (!lockX && !drag.eqH) {
+        var rgx = runGap(sec, e, nb, 'x');
+        if (rgx) {
+          var xRep = rgx.side === 'L' ? nb.L.x + nb.L.w + rgx.gap : nb.R.x - rgx.gap - e.w;
+          if (xRep >= 0 && xRep + e.w <= W && Math.abs(rx - xRep) < 8) { e.x = xRep; sn.gx = null; drag.repH = rgx; }
+        }
+      }
+      if (!lockY && !drag.eqV) {
+        var rgy = runGap(sec, e, nb, 'y');
+        if (rgy) {
+          var yRep = rgy.side === 'T' ? nb.T.y + nb.T.h + rgy.gap : nb.B.y - rgy.gap - e.h;
+          if (yRep >= 0 && Math.abs(ry - yRep) < 8) { e.y = yRep; sn.gy = null; drag.repV = rgy; }
+        }
+      }
+      // rhythm gaps: with nothing to copy, a gap of 24, 48 or 72 from the
+      // neighbour is offered, so a hand-placed piece lands in gogh's own
+      // spacing without anyone knowing the rhythm exists
+      drag.rhyH = null;
+      drag.rhyV = null;
+      if (!lockX && !drag.eqH && !drag.repH) {
+        var rhx = rhythmGap(e, nb, 'x', rx);
+        if (rhx) { e.x = rhx.v; sn.gx = null; drag.rhyH = rhx; }
+      }
+      if (!lockY && !drag.eqV && !drag.repV) {
+        var rhy = rhythmGap(e, nb, 'y', ry);
+        if (rhy) { e.y = rhy.v; sn.gy = null; drag.rhyV = rhy; }
       }
     }
     // the ghost is a PROMISE, so it moves in model coordinates, not raw
@@ -12188,7 +14756,8 @@
       dragRaf = true;
       requestAnimationFrame(function () {
         dragRaf = false;
-        if (!drag) return;
+        // the drag can end, or the page be rebuilt, before this frame comes
+        if (!drag || drag.sec !== sec || !sec.els[drag.i]) return;
         resolveAndApply(sec);
         showGuides(sec, sn.gx, sn.gy);
         // the numbers are power-user furniture: distance rulers and their
@@ -12196,6 +14765,11 @@
         // says one thing — the solid ghost and the landing box (James's
         // Squarespace comparison: "theirs feels a little more solid")
         if (drag.altHeld) drawDists(sec, drag.i, drag.eqH, drag.eqV, sn.gx, sn.gy);
+        // a gap magnet holding is the one time a plain drag shows numbers:
+        // every gap in the run gets one, so two digits agree where two
+        // stretches of whitespace never could (nothing on screen until
+        // something is true)
+        else if (drag.eqH || drag.eqV || drag.repH || drag.repV || drag.rhyH || drag.rhyV) drawGapRun(sec, drag.i, drag.eqH, drag.eqV, drag.repH, drag.repV, sn.gx, sn.gy, drag.rhyH, drag.rhyV);
         else hideDists();
         // the landing box is drawn from MODEL coordinates — the same
         // promise the ghost makes. Reading the solved node's cell broke
@@ -12246,7 +14820,7 @@
     var sec = drag.sec, i = drag.i;
     var multiD = drag.multi || null;
     var gxCapD = !!drag.gxCap, gyCapD = !!drag.gyCap;
-    var eqHD = !!drag.eqH, eqVD = !!drag.eqV;
+    var eqHD = !!drag.eqH || !!drag.repH || !!drag.rhyH, eqVD = !!drag.eqV || !!drag.repV || !!drag.rhyV; // a gap magnet is exact: the grid does not get a second say
     var lockedXD = !!drag.lockedX, lockedYD = !!drag.lockedY;
     var movedXD = !!drag.movedX, movedYD = !!drag.movedY;
     var dropCX = drag.cx, dropCY = drag.cy;
@@ -12281,6 +14855,26 @@
       if (eD.y + eD.h >= secH0D - 12) eD.flushB = true;
       else if (eD.flushB && eD.y + eD.h < secH0D - 24) eD.flushB = null;
     }
+    // the stylesheet on screen is still the mid-drag one, solved with the
+    // moving pieces SKIPPED, so each of their cells sits between OTHER
+    // pieces' lines. Measured there, a paragraph reads the height it wraps
+    // to in a foreign width (a photo, the height of foreign tracks) and the
+    // model absorbed it — a photo grew 313 → 462 this way. Put every piece
+    // back on its own lines first, then measure what it really renders at
+    // (the order a resize already settles in)
+    if (multiD) {
+      // the mates still sit where the hand found them: park them at the
+      // landing their sockets showed, so the grid they are measured in is
+      // the group's own shape and not a blend of old edges with the grabbed
+      // piece's new ones (the final delta re-places them below)
+      var pdx = eD.x - x0D, pdy = eD.y - y0D;
+      multiD.forEach(function (mm) {
+        var o = sec.els[mm.j];
+        o.x = Math.max(0, Math.min(W - o.w, mm.x + pdx));
+        o.y = Math.max(0, mm.y + pdy);
+      });
+    }
+    resolveAndApply(sec);
     measureTextHeights(sec);
     resolveAndApply(sec);
     // the grid can render rows taller than the model predicts (theme fonts,
@@ -12305,8 +14899,9 @@
     // every drop keeps the promise unless ⌘ asked for full freedom
     if (!freeD) {
       var eDrop = sec.els[i];
-      if (!gxCapD && !eqHD && !lockedXD && movedXD) eDrop.x = Math.max(0, Math.min(W - eDrop.w, Math.round(eDrop.x / BASE) * BASE));
-      if (!gyCapD && !eqVD && !lockedYD && movedYD) eDrop.y = Math.max(0, Math.round(eDrop.y / BASE) * BASE);
+      var gu = gridUnit();
+      if (!gxCapD && !eqHD && !lockedXD && movedXD) eDrop.x = Math.max(0, Math.min(W - eDrop.w, Math.round(eDrop.x / gu) * gu));
+      if (!gyCapD && !eqVD && !lockedYD && movedYD) eDrop.y = Math.max(0, Math.round(eDrop.y / gu) * gu);
       resolveAndApply(sec);
     }
     if (multiD) {
@@ -12375,15 +14970,19 @@
         adopt.forEach(function (k2) {
           k2.x = Math.max(0, Math.round(k2.x - host.x));
           k2.y = Math.max(0, Math.round(k2.y - host.y));
+          fitKidToRoom(host, k2); // a circle's corners are not room
           host.kids.push(k2);
         });
-        settleKid(host, kid);
+        orderKids(host); // it takes its place in reading order, not the end of the list
+        settleKid(host, kid, kidInkOf(sec, sec.els.indexOf(host)));
         sel = null;
         hideHandles();
         closePanel();
         renderSection(sec);
         pushState();
-        toast('Added to the card \u2014 it moves and stacks with it now.',
+        toast(kid.type === 'box'
+          ? 'Added to the card \u2014 it sits behind the words and moves with them.'
+          : 'Added to the card \u2014 it moves and stacks with it now.',
           { actions: [{ label: 'Undo', onClick: function () { undo(); } }] });
         return;
       }
@@ -12396,18 +14995,158 @@
   var kidSel = null; // {sec, ci, j, node}
   var kidDrag = null;
   var kidEd = null; // text editing inside a kid
+  // ---------- a kid's side handles ----------
+  // A piece inside a card keeps its own width in the card's grid, but until
+  // now nothing on the screen could take hold of it (James: "text boxes
+  // cannot be resized within cards, is this by design?"). A chosen kid gets
+  // two side grips: width is the measure and where the words sit; height
+  // stays the ink's, as everywhere. On phones the card runs one column and
+  // every kid takes the full width, so a narrow measure is a desktop choice.
+  var kidBox = document.createElement('div');
+  kidBox.className = 'gogh-selbox gogh-kidbox';
+  kidBox.hidden = true;
+  ['e', 'w'].forEach(function (d) {
+    var h = document.createElement('button');
+    h.type = 'button';
+    h.className = 'gogh-h gogh-h-' + d;
+    h.dataset.d = d;
+    h.title = 'Drag to change the width';
+    kidBox.appendChild(h);
+  });
+  document.body.appendChild(kidBox);
+  var kidResize = null, kidResizeRaf = false;
+  function placeKidBox() {
+    if (!kidSel || !kidSel.node || !document.contains(kidSel.node) || kidDrag || kidEd || !editing) { kidBox.hidden = true; return; }
+    var b = nodeBox(kidSel.node);
+    kidBox.style.left = b.x + 'px';
+    kidBox.style.top = b.y + 'px';
+    kidBox.style.width = b.w + 'px';
+    kidBox.style.height = b.h + 'px';
+    kidBox.hidden = false;
+  }
+  // the words re-wrap at the new width: the kid's height follows its ink, the
+  // stack below settles from the card's RESTING height (the routine typing
+  // uses, so nothing ratchets), and the card's grid re-solves in place
+  function kidResizeSettle(r) {
+    var sec = r.sec, host = sec.els[r.ci], kid = r.kid;
+    if (!host || !host.kids || host.kids.indexOf(kid) === -1) return;
+    resolveAndApply(sec);
+    var card = sec.nodes[r.ci];
+    var kn = card && card.querySelector('.gogh-k-' + (host.kids.indexOf(kid) + 1));
+    var sE = measureScaleOf(sec);
+    if (kn && isText(kid) && sE > 0.2) {
+      var hE = kn.offsetHeight / sE;
+      if (hE > 0 && Math.abs(hE - kid.h) > 2) kid.h = Math.round(hE);
+    }
+    r.snap.forEach(function (sn) { if (sn.k !== kid) { sn.k.x = sn.x; sn.k.y = sn.y; } });
+    host.h = r.hostH;
+    if (SETTLE_TYPES[kid.type]) settleStack(host, kidInkOf(sec, r.ci));
+    resolveAndApply(sec);
+  }
+  function endKidResize() {
+    if (!kidResize) return;
+    var r = kidResize;
+    kidResize = null;
+    document.documentElement.classList.remove('gogh-dragging');
+    kidResizeSettle(r);
+    if (r.kid.w !== r.w0 || r.kid.x !== r.x0) {
+      guardCheck(r.sec, 'kid resize');
+      pushState();
+    }
+    placeKidBox();
+  }
+  kidBox.querySelectorAll('.gogh-h').forEach(function (hBtn) {
+    hBtn.addEventListener('pointerdown', function (ev) {
+      if (!editing || !kidSel) return;
+      var sec = kidSel.sec, ci = kidSel.ci, j = kidSel.j;
+      var host = sec.els[ci];
+      var kid = host && host.kids && host.kids[j];
+      if (!kid) return;
+      ev.preventDefault();
+      ev.stopPropagation();
+      closePanel();
+      try { hBtn.setPointerCapture(ev.pointerId); } catch (err) {}
+      // magnets: the card's edges and middle, the siblings' edges
+      var cand = [0, host.w, host.w / 2];
+      host.kids.forEach(function (o) { if (o !== kid) cand.push(o.x, o.x + o.w); });
+      kidResize = { sec: sec, ci: ci, j: j, kid: kid, dx: hBtn.dataset.d === 'w' ? -1 : 1, px: ev.clientX,
+        x0: kid.x, w0: kid.w, cand: cand, hostH: host.h,
+        snap: host.kids.map(function (k) { return { k: k, x: k.x, y: k.y }; }), id: ev.pointerId };
+      document.documentElement.classList.add('gogh-dragging');
+    });
+    hBtn.addEventListener('pointermove', function (ev) {
+      if (!kidResize || ev.pointerId !== kidResize.id) return;
+      var r = kidResize, sec = r.sec, host = sec.els[r.ci], kid = r.kid;
+      if (!host || !host.kids || host.kids.indexOf(kid) === -1) return;
+      var d = (ev.clientX - r.px) / scaleOf(sec);
+      var snapK = function (v) {
+        var best = null, bd = SNAP + 1;
+        r.cand.forEach(function (c) { var dd = Math.abs(c - v); if (dd < bd) { bd = dd; best = c; } });
+        return best !== null ? best : Math.round(v / gridUnit()) * gridUnit();
+      };
+      var minW = 60, nx = r.x0, nw = r.w0;
+      if (r.dx === 1) nw = snapK(r.x0 + r.w0 + d) - r.x0;
+      else { nx = snapK(r.x0 + d); nw = r.x0 + r.w0 - nx; }
+      if (nw < minW) { if (r.dx === -1) nx = r.x0 + r.w0 - minW; nw = minW; }
+      nx = Math.max(0, Math.min(host.w - minW, nx));
+      nw = Math.max(minW, Math.min(host.w - nx, nw));
+      kid.x = Math.round(nx);
+      kid.w = Math.round(nw);
+      if (!kidResizeRaf) {
+        kidResizeRaf = true;
+        requestAnimationFrame(function () {
+          kidResizeRaf = false;
+          if (!kidResize) return;
+          kidResizeSettle(kidResize);
+          placeKidBox();
+        });
+      }
+    });
+    hBtn.addEventListener('pointerup', endKidResize);
+    hBtn.addEventListener('pointercancel', endKidResize);
+  });
   function clearKidSel() {
+    kidBox.hidden = true;
     if (!kidSel) return;
     if (kidSel.node && kidSel.node.classList) kidSel.node.classList.remove('gogh-kid-selected');
     kidSel = null;
   }
-  function exitKidEd() {
+  // a drag cut short (undo/redo rebuilt the page under the hand): the ghost
+  // goes, the hidden kid shows again, nothing is written. The kidSkip the
+  // solver honours is derived from kidDrag, so nulling it clears that too
+  function abortKidDrag() {
+    if (!kidDrag) return;
+    var kd = kidDrag;
+    kidDrag = null;
+    if (kd.ghost) kd.ghost.remove();
+    if (kd.node && kd.node.style) { kd.node.style.visibility = ''; kd.node.style.display = ''; }
+    var cardNode = kd.sec && kd.sec.nodes && kd.sec.nodes[kd.ci];
+    if (cardNode && cardNode.classList) cardNode.classList.remove('gogh-card-leaving');
+    // the moves pushed siblings and grew the card from the resting snapshot:
+    // everything goes back to where the hand found it
+    var hostA = kd.sec && kd.sec.els && kd.sec.els[kd.ci];
+    if (hostA && hostA.kids && kd.snap) {
+      kd.snap.forEach(function (sn) { sn.k.x = sn.x; sn.k.y = sn.y; });
+      hostA.h = kd.hostH;
+      if (kd.sec.sectionEl && kd.sec.nodes) resolveAndApply(kd.sec);
+    }
+  }
+  // a touch the browser takes over (a scroll, a system gesture) cancels the
+  // pointer: without this the ghost stayed on the page and the kid stayed hidden
+  document.addEventListener('pointercancel', function (ev) {
+    if (!kidDrag || ev.pointerId !== kidDrag.id) return;
+    abortKidDrag();
+  });
+  // quiet: restoreState ends an edit mid-step — a push there would cut the
+  // redo stack and leave hIdx on the wrong snapshot
+  function exitKidEd(quiet) {
     if (!kidEd) return;
     document.documentElement.classList.remove('gogh-textediting');
     kidEd.node.removeAttribute('contenteditable');
     if (document.activeElement === kidEd.node) kidEd.node.blur();
     kidEd = null;
-    pushState();
+    if (!quiet) pushState();
+    placeKidBox();
   }
   function openKidLinkPanel(sec, ci, j) {
     var hostEl = sec.els[ci];
@@ -12443,6 +15182,7 @@
     if (!editing || drag || resize) return;
     if (!(ev.target instanceof Element)) return;
     if (kidEd && kidEd.node.contains(ev.target)) return; // caret work
+    if (ev.target.closest('.gogh-kidbox')) return; // a side grip: the kid stays chosen
     var kn = ev.target.closest('[class*="gogh-k-"]');
     var card = kn && kn.closest('.gogh-cardbox');
     if (!kn || !card) {
@@ -12458,6 +15198,20 @@
     var sec = host.sec, ci = host.ci;
     var hostEl = sec.els[ci];
     if (!hostEl || !hostEl.kids || !hostEl.kids[j]) return;
+    // The first press gets the card, never the piece inside it. A piece is
+    // reachable only once its card is the one chosen thing (or a sibling
+    // piece already is), and never while the card rides in a group — James
+    // kept pulling numbers out of cards he meant to move as a row.
+    var inGroup = multiSel && multiSel.sec === sec && multiSel.idxs.indexOf(ci) !== -1;
+    var entered = !inGroup && ((sel && sel.sec === sec && sel.i === ci) ||
+      (kidSel && kidSel.sec === sec && kidSel.ci === ci) ||
+      (kidEd && kidEd.sec === sec && kidEd.ci === ci) ||
+      document.body.classList.contains('gogh-painting')); // a loaded roller paints the piece it touches
+    if (!entered) {
+      if (kidEd) exitKidEd();
+      if (kidSel) clearKidSel();
+      return; // the card's own pointerdown selects it, or drags its group
+    }
     ev.preventDefault();
     ev.stopPropagation(); // the card's own select must not fire
     exitKidEd();
@@ -12468,6 +15222,7 @@
     closePanel();
     kidSel = { sec: sec, ci: ci, j: j, node: kn };
     kn.classList.add('gogh-kid-selected');
+    kidBox.hidden = true; // the grips return when the hand opens
     var kid = hostEl.kids[j];
     kidDrag = { sec: sec, ci: ci, j: j, node: kn,
       px: ev.clientX, py: ev.clientY, x0: kid.x, y0: kid.y,
@@ -12477,6 +15232,8 @@
       snap: hostEl.kids.map(function (k) { return { k: k, x: k.x, y: k.y }; }), hostH: hostEl.h,
       w0: kid.w, h0: kid.h,
       moved: false, already: !!already, id: ev.pointerId };
+    // the hand keeps the pointer even past the window's edge
+    try { if (kn.setPointerCapture) kn.setPointerCapture(ev.pointerId); } catch (err) {}
   }, true);
   document.addEventListener('pointermove', function (ev) {
     if (!kidDrag || ev.pointerId !== kidDrag.id) return;
@@ -12497,15 +15254,29 @@
       var kr0 = kidDrag.node.getBoundingClientRect();
       var kg = kidDrag.node.cloneNode(true);
       kg.classList.remove('gogh-kid-selected');
-      kg.className += ' gogh-kid-ghost gogh-kid-ghost-in';
-      kg.style.width = kr0.width + 'px';
-      kg.style.height = kr0.height + 'px';
-      kg.style.left = kr0.left + 'px';
-      kg.style.top = kr0.top + 'px';
-      document.body.appendChild(kg);
-      kidDrag.ghost = kg;
+      kg.removeAttribute('contenteditable');
+      kg.style.width = '100%';
+      kg.style.height = '100%';
+      // the kid's dress (size, ink, weight) is written in the section's scoped
+      // stylesheet as `.gogh-section.<scope> .gogh-el-<card> > .gogh-k-<j>`;
+      // a bare clone on the body wore the theme's defaults under the hand.
+      // Give it the same ancestry, with the card's and section's own paint
+      // switched off
+      var gcard = document.createElement('div');
+      gcard.className = 'gogh-el-' + (kidDrag.ci + 1);
+      gcard.style.cssText = 'display:block !important;position:static !important;width:100%;height:100%;background:none !important;border:0 !important;' +
+        'box-shadow:none !important;border-radius:0 !important;padding:0 !important;margin:0 !important;overflow:visible !important;' +
+        'backdrop-filter:none !important;-webkit-backdrop-filter:none !important;min-height:0 !important;';
+      gcard.appendChild(kg);
+      var gwrap = document.createElement('div');
+      gwrap.className = 'gogh-section ' + sec.scope + ' gogh-kid-ghost gogh-kid-ghost-in';
+      gwrap.style.cssText = 'position:fixed !important;display:block !important;background:none !important;container-type:normal;min-height:0 !important;' +
+        'padding:0 !important;margin:0 !important;gap:0 !important;left:' + kr0.left + 'px;top:' + kr0.top + 'px;width:' + kr0.width + 'px;height:' + kr0.height + 'px;';
+      gwrap.appendChild(gcard);
+      document.body.appendChild(gwrap);
+      kidDrag.ghost = gwrap;
       kidDrag.gx = kr0.left; kidDrag.gy = kr0.top;
-      kidDrag.node.style.visibility = 'hidden';
+      kidDrag.node.style.display = 'none'; // out of the grid too: hidden, it still sized its row by its words
     }
     kidDrag.ghost.style.left = (kidDrag.gx + (ev.clientX - kidDrag.px)) + 'px';
     kidDrag.ghost.style.top = (kidDrag.gy + (ev.clientY - kidDrag.py)) + 'px';
@@ -12519,7 +15290,7 @@
     // the stack settles like a sortable list: cross a sibling's centre and
     // you swap; the kid's own hidden cell IS the landing gap you see open,
     // and the drop lands exactly there — no tuck after the fact
-    if (SETTLE_TYPES[kid.type]) settleStack(hostEl);
+    if (SETTLE_TYPES[kid.type]) settleStack(hostEl, kidInkOf(sec, kidDrag.ci));
     // leaving intent: the pointer beyond the card's box — the card shows it
     var cardR = sec.nodes[kidDrag.ci].getBoundingClientRect();
     var outside = ev.clientX < cardR.left - 4 || ev.clientX > cardR.right + 4 ||
@@ -12535,7 +15306,7 @@
     var sec = kd.sec;
     var cardNode = sec.nodes[kd.ci];
     if (cardNode) cardNode.classList.remove('gogh-card-leaving');
-    if (kd.ghost) { kd.ghost.remove(); kd.node.style.visibility = ''; }
+    if (kd.ghost) { kd.ghost.remove(); kd.node.style.visibility = ''; kd.node.style.display = ''; }
     var hostEl = sec.els[kd.ci];
     if (!hostEl || !hostEl.kids) return;
     if (kd.moved) {
@@ -12543,13 +15314,18 @@
       var outside = ev.clientX < cardR.left - 4 || ev.clientX > cardR.right + 4 ||
         ev.clientY < cardR.top - 4 || ev.clientY > cardR.bottom + 4;
       if (outside) {
-        // the kid leaves the card, landing under the pointer in page space
+        // the siblings the drag pushed and the height it grew go back to
+        // rest first: the kid leaves, the card stays as it was
+        kd.snap.forEach(function (sn) { sn.k.x = sn.x; sn.k.y = sn.y; });
+        hostEl.h = kd.hostH;
         var kid = hostEl.kids.splice(kd.j, 1)[0];
         if (!hostEl.kids.length) hostEl.kids = null;
         var secR = sec.sectionEl.getBoundingClientRect();
         var sc2 = scaleOf(sec);
-        kid.x = Math.round(Math.max(0, Math.min(W - kid.w, (ev.clientX - secR.left) / sc2 - kid.w / 2)));
-        kid.y = Math.round(Math.max(0, (ev.clientY - secR.top) / sc2 - kid.h / 2));
+        // it lands where the ghost is: under the hand at the grip it was
+        // picked up by, not re-centred on the pointer (that was a jump)
+        kid.x = Math.round(Math.max(0, Math.min(W - kid.w, (kd.gx + (ev.clientX - kd.px) - secR.left) / sc2)));
+        kid.y = Math.round(Math.max(0, (kd.gy + (ev.clientY - kd.py) - secR.top) / sc2));
         clearKidSel();
         sec.els.push(kid);
         renderSection(sec);
@@ -12565,7 +15341,7 @@
       var landed = hostEl.kids[kd.j];
       kd.snap.forEach(function (sn) { if (sn.k !== landed) { sn.k.x = sn.x; sn.k.y = sn.y; } });
       hostEl.h = kd.hostH;
-      settleKid(hostEl, landed); // the same settle the preview showed
+      settleKid(hostEl, landed, kidInkOf(sec, kd.ci)); // the same settle the preview showed
       guardCheck(sec, 'card drop', { e: landed, w: kd.w0, h: kd.h0 });
       var reordered = orderKids(hostEl);
       if (reordered) {
@@ -12589,7 +15365,10 @@
         var target = kid2.type === 'button' ? (kd.node.querySelector('.wp-block-button__link') || kd.node) : kd.node;
         target.setAttribute('contenteditable', kid2.type === 'heading' || kid2.type === 'para' ? 'true' : 'plaintext-only');
         document.documentElement.classList.add('gogh-textediting');
-        kidEd = { sec: sec, ci: kd.ci, j: kd.j, node: target, kid: kid2 };
+        // the resting stack and height: typing settles the siblings from
+        // HERE each time, so growing then shrinking the words leaves no ratchet
+        kidEd = { sec: sec, ci: kd.ci, j: kd.j, node: target, kid: kid2, hostH: hostEl.h,
+          snap: hostEl.kids.map(function (k) { return { k: k, x: k.x, y: k.y }; }) };
         target.focus();
         if (document.caretRangeFromPoint) {
           var cr = document.caretRangeFromPoint(ev.clientX, ev.clientY);
@@ -12601,16 +15380,40 @@
         }
       }
     }
+    placeKidBox();
   });
   document.addEventListener('input', function (ev) {
     if (!kidEd || ev.target !== kidEd.node) return;
     var k = kidEd.kid;
     k.text = (k.type === 'heading' || k.type === 'para') ? cleanInline(kidEd.node.innerHTML) : kidEd.node.textContent;
+    // the words grew or shrank: the kid's height follows (the section-level
+    // measure never looks inside cards), the stack below settles from the
+    // card's RESTING height so nothing ratchets up, and the grid re-solves in
+    // place -- the caret stays where it is
+    var secE = kidEd.sec, hostE = secE.els[kidEd.ci];
+    var knE = kidEd.node.closest('[class*="gogh-k-"]') || kidEd.node;
+    var sE = measureScaleOf(secE);
+    if (hostE && hostE.kids && sE > 0.2) {
+      var hE = knE.offsetHeight / sE;
+      if (hE > 0 && Math.abs(hE - k.h) > 2) {
+        k.h = Math.round(hE);
+        if (kidEd.snap) kidEd.snap.forEach(function (sn) { if (sn.k !== k) { sn.k.x = sn.x; sn.k.y = sn.y; } });
+        if (kidEd.hostH != null) hostE.h = kidEd.hostH;
+        if (SETTLE_TYPES[k.type]) settleStack(hostE, kidInkOf(secE, kidEd.ci));
+        resolveAndApply(secE);
+      }
+    }
   });
   document.addEventListener('keydown', function (ev) {
     if (kidEd && ev.key === 'Escape') { ev.stopPropagation(); exitKidEd(); return; }
     if (!kidSel || kidEd) return;
     if (ev.key === 'Escape') { clearKidSel(); return; }
+    // a key aimed at a field edits the field: restyling a button kid (Solid,
+    // Outline, a swatch) re-opens its link panel with the URL box focused and
+    // the kid re-selected, and a Backspace there used to remove the button
+    // from the card. Only a key aimed at the canvas removes the kid
+    var kt = ev.target;
+    if (kt && (kt.isContentEditable || kt.tagName === 'INPUT' || kt.tagName === 'TEXTAREA' || kt.tagName === 'SELECT')) return;
     if (ev.key === 'Backspace' || ev.key === 'Delete') {
       var sec = kidSel.sec;
       var hostEl = sec.els[kidSel.ci];
@@ -12692,23 +15495,30 @@
     all.forEach(function (f) {
       if (!f.fontFamily) return;
       var fam = f.fontFamily.split(',')[0].replace(/["']/g, '').trim();
-      if (document.fonts.check('16px "' + fam + '"')) return; // already available
-      if (fontLoads[fam]) { jobs.push(fontLoads[fam]); return; } // in flight — wait for it
-      var faces = f.fontFace || [];
-      var face = faces.filter(function (ff) { return String(ff.fontStyle || 'normal') === 'normal'; })[0] || faces[0];
-      var src = face && face.src ? [].concat(face.src)[0] : null;
-      if (!src) return;
-      if (src.indexOf('file:./') === 0) src = location.origin + '/wp-content/themes/' + cfg.theme + '/' + src.slice(7);
-      var p;
-      try {
-        var ff2 = new FontFace(fam, 'url("' + src + '")', {
-          weight: String(face.fontWeight || '400'),
-          style: face.fontStyle || 'normal',
-        });
-        p = ff2.load().then(function (loaded) { document.fonts.add(loaded); }).catch(function () {});
-      } catch (err) { p = Promise.resolve(); }
-      fontLoads[fam] = p;
-      jobs.push(p);
+      // every face of the family, not only the first: the Fonts door draws
+      // the heading name in the bold, and a bold synthesised from the
+      // regular is wider than the real one (the row 'jumped' on hover)
+      (f.fontFace || []).forEach(function (face) {
+        var src = face && face.src ? [].concat(face.src)[0] : null;
+        if (!src) return;
+        var weight = String(face.fontWeight || '400'), style = face.fontStyle || 'normal';
+        var key = fam + '|' + weight + '|' + style;
+        // document.fonts.check() answers true for a family with NO face at
+        // all (nothing to load), which is exactly the case that needs
+        // loading — so look for a loaded face by name, weight and style
+        var have = false;
+        try { document.fonts.forEach(function (ff) { if (String(ff.family).replace(/["']/g, '') === fam && String(ff.weight) === weight && ff.style === style && ff.status === 'loaded') have = true; }); } catch (err) {}
+        if (have) return;
+        if (fontLoads[key]) { jobs.push(fontLoads[key]); return; } // in flight — wait for it
+        if (src.indexOf('file:./') === 0) src = location.origin + '/wp-content/themes/' + cfg.theme + '/' + src.slice(7);
+        var p;
+        try {
+          var ff2 = new FontFace(fam, 'url("' + src + '")', { weight: weight, style: style });
+          p = ff2.load().then(function (loaded) { document.fonts.add(loaded); }).catch(function () {});
+        } catch (err) { p = Promise.resolve(); }
+        fontLoads[key] = p;
+        jobs.push(p);
+      });
     });
     if (!jobs.length) return Promise.resolve();
     return Promise.race([
@@ -12716,6 +15526,633 @@
       new Promise(function (res) { setTimeout(res, 1200); }),
     ]);
   }
+  // ---------- Fonts: pairs, not pickers ----------
+  // Twelve heading-and-body pairings with plain names, tried on the page by
+  // hovering and kept with one click. Nothing is installed until Keep; then
+  // the files land in the site's own font folder through WordPress's Font
+  // Library and the two families are written into global styles, so the
+  // type survives gogh being deactivated and never sends visitors to
+  // Google. Two families a page, never a third. (Paper: "Pairs, Not
+  // Pickers", 2026-09-15.)
+  // every row in the Fonts door ends in one plain word, the theme's pairs
+  // included (James: 'this is for beginners'): a name we know, else a word
+  // from what the two faces are — serif, sans, slab or mono
+  var PAIR_MOODS = {
+    'beiruti & literata': 'gentle', 'vollkorn & fira code': 'nerdy', 'platypi & ysabeau office': 'scholarly',
+    'roboto slab & manrope': 'sturdy', 'literata & ysabeau office': 'readable', 'platypi & literata': 'traditional',
+    'literata & fira sans': 'practical', 'manrope & manrope': 'clean',
+  };
+  function faceKind(name, stack) {
+    var n = String(name || '').toLowerCase(), st = String(stack || '').toLowerCase();
+    if (/mono|code/.test(n) || /monospace/.test(st)) return 'mono';
+    if (/slab/.test(n)) return 'slab';
+    if (/sans|grotesk|grotesque|manrope|inter|lato|figtree|work sans|nunito|beiruti|ysabeau|dm sans|roboto\b/.test(n)) return 'sans';
+    if (/serif|garamond|baskerville|literata|vollkorn|platypi|lora|fraunces|playfair|cormorant|instrument serif/.test(n)) return 'serif';
+    if (/serif/.test(st) && !/sans-serif/.test(st)) return 'serif';
+    return 'sans';
+  }
+  function pairMood(hName, hStack, bName, bStack) {
+    var known = PAIR_MOODS[(String(hName || '') + ' & ' + String(bName || '')).toLowerCase()];
+    if (known) return known;
+    var h = faceKind(hName, hStack), b = faceKind(bName, bStack);
+    if (h === 'mono' || b === 'mono') return 'nerdy';
+    if (h === 'slab') return 'sturdy';
+    if (h === 'serif') return b === 'serif' ? 'traditional' : 'readable';
+    return b === 'serif' ? 'gentle' : 'clean';
+  }
+  var FONT_PAIRS = [
+    { key: 'theme', say: '', theme: true },
+    { key: 'bookish', say: 'bookish', heading: { name: 'Fraunces', w: 600 }, body: { name: 'Inter', w: 400 } },
+    { key: 'editorial', say: 'editorial', heading: { name: 'Playfair Display', w: 600 }, body: { name: 'Source Sans 3', w: 400 } },
+    { key: 'studio', say: 'studio', heading: { name: 'DM Serif Display', w: 400 }, body: { name: 'DM Sans', w: 400 } },
+    { key: 'modern', say: 'modern', heading: { name: 'Space Grotesk', w: 600 }, body: { name: 'Work Sans', w: 400 } },
+    { key: 'warm', say: 'warm', heading: { name: 'Lora', w: 600 }, body: { name: 'Nunito Sans', w: 400 } },
+    { key: 'elegant', say: 'elegant', heading: { name: 'Cormorant Garamond', w: 600 }, body: { name: 'Lato', w: 400 } },
+    { key: 'bold', say: 'bold', heading: { name: 'Bricolage Grotesque', w: 700 }, body: { name: 'Figtree', w: 400 } },
+    { key: 'classic', say: 'classic', heading: { name: 'Libre Baskerville', w: 700 }, body: { name: 'Libre Franklin', w: 400 } },
+    { key: 'quiet', say: 'quiet luxury', heading: { name: 'Instrument Serif', w: 400 }, body: { name: 'Instrument Sans', w: 400 } },
+    { key: 'loud', say: 'loud', heading: { name: 'Syne', w: 700 }, body: { name: 'Inter', w: 400 } },
+    { key: 'technical', say: 'technical', heading: { name: 'IBM Plex Mono', w: 500 }, body: { name: 'IBM Plex Sans', w: 400 } },
+  ];
+  var fontsDryRun = false, fontsLastKept = null;
+  var fontPreviewEl = null, fontPreviewSeq = 0, fontHoverT = null;
+  var googleLinks = {};
+  function fontSlug(name) { return String(name).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, ''); }
+  function fontStack(name) {
+    return '"' + name + '", ' + (/serif|garamond|baskerville|lora|fraunces|playfair/i.test(name) && !/sans/i.test(name) ? 'serif' : /mono/i.test(name) ? 'monospace' : 'sans-serif');
+  }
+  // the theme's own pair, read from theme.json: body and heading families
+  function themeOwnPair() {
+    var base = _themeBase || {};
+    var cat = fontCatalogue();
+    var slugOf = function (v) { return (String(v || '').match(/font-family--([a-z0-9-]+)|font-family\|([a-z0-9-]+)/) || [])[1] || (String(v || '').match(/font-family\|([a-z0-9-]+)/) || [])[1] || null; };
+    var bodySlug = slugOf(((base.styles || {}).typography || {}).fontFamily);
+    var headSlug = slugOf(((((base.styles || {}).elements || {}).heading || {}).typography || {}).fontFamily) || bodySlug;
+    // the theme's OWN registered families first (the page may be wearing a
+    // variation whose families are what the live CSS declares)
+    var own = (_themeBaseFams || []).map(function (f) { return { slug: f.slug, name: String(f.fontFamily || f.name || '').split(',')[0].replace(/["']/g, '').trim(), fontFamily: f.fontFamily }; });
+    var byslug = function (sl) { return own.filter(function (c) { return c.slug === sl; })[0] || cat.filter(function (c) { return c.slug === sl; })[0]; };
+    var b = byslug(bodySlug) || own[0] || cat[0] || { name: 'the theme’s body face', slug: null };
+    var h = byslug(headSlug) || b;
+    return { heading: { name: h.name, slug: h.slug, fontFamily: h.fontFamily }, body: { name: b.name, slug: b.slug, fontFamily: b.fontFamily } };
+  }
+  // the editor loads a pair from Google to try it on; the published site
+  // never does — Keep self-hosts the files
+  function ensureGoogleFonts(pair) {
+    if (pair.theme) return Promise.resolve();
+    var fams = [pair.heading, pair.body].filter(function (f) { return f && f.name && !f.keep && !f.ref; });
+    if (!fams.length) return Promise.resolve();
+    var key = fams.map(function (f) { return f.name + ':' + f.w; }).join('|');
+    if (!googleLinks[key]) {
+      var q = fams.map(function (f) {
+        var ws = f.w === 400 ? '400' : '400;' + f.w;
+        return 'family=' + encodeURIComponent(f.name).replace(/%20/g, '+') + ':wght@' + ws;
+      }).join('&');
+      var link = document.createElement('link');
+      link.rel = 'stylesheet';
+      link.href = 'https://fonts.googleapis.com/css2?' + q + '&display=swap';
+      link.setAttribute('data-gogh-fontpreview', '1');
+      document.head.appendChild(link);
+      googleLinks[key] = new Promise(function (res) { link.onload = res; link.onerror = res; setTimeout(res, 1500); });
+    }
+    return googleLinks[key].then(function () {
+      if (!document.fonts || !document.fonts.load) return;
+      return Promise.race([
+        Promise.all(fams.map(function (f) { return document.fonts.load(f.w + ' 16px "' + f.name + '"').catch(function () {}); })),
+        new Promise(function (res) { setTimeout(res, 1200); }),
+      ]);
+    });
+  }
+  function fontPairCss(pair) {
+    if (pair.theme) return '';
+    var famOf = function (r) { return r && r.keep ? null : r && r.fontFamily ? r.fontFamily : r && r.name ? fontStack(r.name) : null; };
+    var b = famOf(pair.body), h = famOf(pair.heading);
+    return (b ? 'body, .gogh-section { font-family: ' + b + ' !important; }' : '') +
+      (h ? 'h1, h2, h3, h4, h5, h6, .wp-block-heading, .wp-block-site-title { font-family: ' + h + ' !important; }' : '');
+  }
+  function auditionFontPair(pair) {
+    var seq = ++fontPreviewSeq;
+    ensureGoogleFonts(pair).then(function () {
+      if (seq !== fontPreviewSeq) return;
+      if (!fontPreviewEl) { fontPreviewEl = document.createElement('style'); fontPreviewEl.id = 'gogh-font-preview'; document.head.appendChild(fontPreviewEl); }
+      fontPreviewEl.textContent = fontPairCss(pair);
+      S.forEach(function (s2) { growReflow(s2, true); });
+    });
+  }
+  function clearFontsPreview() {
+    fontPreviewSeq++;
+    clearTimeout(fontHoverT);
+
+    if (fontPreviewEl && fontPreviewEl.textContent) {
+      fontPreviewEl.textContent = '';
+      S.forEach(function (s2) { growReflow(s2, true); });
+    }
+  }
+  var googleCollection = null;
+  function fetchGoogleCollection() {
+    if (googleCollection) return googleCollection;
+    googleCollection = fetch(GSROOT + 'font-collections/google-fonts', { headers: { 'X-WP-Nonce': cfg.nonce }, credentials: 'same-origin' })
+      .then(function (r) { return r.ok ? r.json() : Promise.reject(new Error('The font collection did not answer (HTTP ' + r.status + ').')); })
+      .then(function (j) { return j.font_families || []; });
+    return googleCollection;
+  }
+  // the faces a pair needs: the body at 400 (and its italic), the heading at
+  // its weight; a variable font is one file that covers the lot
+  function facesFor(entry, want) {
+    var faces = ((entry.font_family_settings || {}).fontFace) || [];
+    var variable = faces.filter(function (f) { return /\s/.test(String(f.fontWeight || '')); });
+    if (variable.length) return variable.filter(function (f) { return f.fontStyle !== 'italic'; }).slice(0, 1).concat(want === 400 ? variable.filter(function (f) { return f.fontStyle === 'italic'; }).slice(0, 1) : []);
+    var at = function (w, st) { return faces.filter(function (f) { return String(f.fontWeight) === String(w) && (f.fontStyle || 'normal') === st; })[0]; };
+    var out = [];
+    var normal = at(want, 'normal') || at(want === 600 ? 700 : want === 700 ? 600 : 400, 'normal') || at(400, 'normal') || faces[0];
+    if (normal) out.push(normal);
+    if (want === 400) { var it = at(400, 'italic'); if (it) out.push(it); }
+    return out;
+  }
+  // install one family through the Font Library: the family post, then each
+  // face's file fetched from Google and uploaded, the way core's own library
+  // does it. Returns the family's settings for global styles.
+  function installFamily(entry, want) {
+    var settings = entry.font_family_settings || {};
+    var H = { 'X-WP-Nonce': cfg.nonce };
+    var fam = { name: settings.name, slug: settings.slug || fontSlug(settings.name), fontFamily: settings.fontFamily || fontStack(settings.name), fontFace: [] };
+    return fetch(GSROOT + 'font-families?slug=' + encodeURIComponent(fam.slug) + '&context=edit', { headers: H, credentials: 'same-origin' })
+      .then(function (r) { return r.ok ? r.json() : []; })
+      .then(function (list) {
+        if (list && list.length) return list[0];
+        var fd = new FormData();
+        fd.append('font_family_settings', JSON.stringify({ name: fam.name, slug: fam.slug, fontFamily: fam.fontFamily }));
+        return fetch(GSROOT + 'font-families', { method: 'POST', headers: H, credentials: 'same-origin', body: fd })
+          .then(function (r) { return r.json().then(function (j) { if (!r.ok) throw new Error(j && j.message ? j.message : 'Could not create the font family.'); return j; }); });
+      })
+      .then(function (family) {
+        return fetch(GSROOT + 'font-families/' + family.id + '/font-faces?context=edit', { headers: H, credentials: 'same-origin' })
+          .then(function (r) { return r.ok ? r.json() : []; })
+          .then(function (have) {
+            var had = function (f) {
+              return (have || []).filter(function (x) {
+                var st = x.font_face_settings || {};
+                return String(st.fontWeight) === String(f.fontWeight) && (st.fontStyle || 'normal') === (f.fontStyle || 'normal');
+              })[0];
+            };
+            var jobs = facesFor(entry, want).map(function (f) {
+              var existing = had(f);
+              if (existing) return Promise.resolve(existing.font_face_settings);
+              var src = [].concat(f.src)[0];
+              return fetch(src).then(function (r) { if (!r.ok) throw new Error('Google did not hand over ' + fam.name + '.'); return r.blob(); }).then(function (blob) {
+                var fd = new FormData();
+                fd.append('font_face_settings', JSON.stringify({ fontFamily: fam.fontFamily, fontStyle: f.fontStyle || 'normal', fontWeight: String(f.fontWeight), src: 'file-0' }));
+                fd.append('file-0', blob, fam.slug + '-' + String(f.fontWeight).replace(/\s+/g, '-') + (f.fontStyle === 'italic' ? '-italic' : '') + '.' + (src.split('.').pop().split('?')[0] || 'woff2'));
+                return fetch(GSROOT + 'font-families/' + family.id + '/font-faces', { method: 'POST', headers: H, credentials: 'same-origin', body: fd })
+                  .then(function (r) { return r.json().then(function (j) { if (!r.ok) throw new Error(j && j.message ? j.message : 'Could not save a font file.'); return j.font_face_settings; }); });
+              });
+            });
+            return Promise.all(jobs);
+          });
+      })
+      .then(function (faces) {
+        fam.fontFace = faces.map(function (st) { return { fontFamily: fam.fontFamily, fontStyle: st.fontStyle || 'normal', fontWeight: String(st.fontWeight || '400'), src: [].concat(st.src)[0] }; });
+        return fam;
+      });
+  }
+  // what the site wears now, read from user global styles (for the current mark and for Undo)
+  function currentFontFamilies(gs) {
+    var st = (gs && gs.styles && !Array.isArray(gs.styles)) ? gs.styles : {};
+    var ty = st.typography && !Array.isArray(st.typography) ? st.typography : {};
+    var hd = ((((st.elements || {}).heading || {}).typography));
+    return {
+      body: ty.fontFamily || null,
+      heading: (hd && !Array.isArray(hd) && hd.fontFamily) || null,
+    };
+  }
+  // Two families a page, never a third: the site's ACTIVE list is only the
+  // families the two refs point at (plus what is being installed now); every
+  // other family stays in the Font Library, so coming back is instant with
+  // no download. What was dropped is remembered so Undo can put it back.
+  var fontsDropped = [];
+  function fontFamiliesAfter(custom, fams, bodyRef, headRef) {
+    var slugOf = function (ref) { return (String(ref || '').match(/font-family[|-]+([a-z0-9-]+)/) || [])[1] || null; };
+    var used = [slugOf(bodyRef), slugOf(headRef)].filter(Boolean);
+    var had = Array.isArray(custom) ? custom : [];
+    var fresh = function (f) { return (fams || []).some(function (n) { return n.slug === f.slug; }); };
+    return {
+      custom: had.filter(function (f) { return used.indexOf(f.slug) !== -1 && !fresh(f); }).concat(fams || []),
+      dropped: had.filter(function (f) { return used.indexOf(f.slug) === -1 && !fresh(f); }),
+    };
+  }
+  function writeFontFamilies(gs, fams, bodyRef, headRef) {
+    // an emptied object comes back from PHP as [] — an Array, whose named
+    // keys vanish in JSON — so every branch is coerced to a real object
+    var obj = function (x) { return (x && typeof x === 'object' && !Array.isArray(x)) ? x : {}; };
+    var settings = obj(gs.settings);
+    settings.typography = obj(settings.typography);
+    var ff = obj(settings.typography.fontFamilies);
+    var trimmed = fontFamiliesAfter(ff.custom, fams, bodyRef, headRef);
+    ff.custom = trimmed.custom;
+    fontsDropped = trimmed.dropped;
+    settings.typography.fontFamilies = ff;
+    var styles = obj(gs.styles);
+    styles.typography = obj(styles.typography);
+    if (bodyRef) styles.typography.fontFamily = bodyRef; else delete styles.typography.fontFamily;
+    styles.elements = obj(styles.elements);
+    styles.elements.heading = obj(styles.elements.heading);
+    styles.elements.heading.typography = obj(styles.elements.heading.typography);
+    if (headRef) styles.elements.heading.typography.fontFamily = headRef; else delete styles.elements.heading.typography.fontFamily;
+    return fetch(GSROOT + 'global-styles/' + cfg.gsId, {
+      method: 'POST', headers: { 'Content-Type': 'application/json', 'X-WP-Nonce': cfg.nonce }, credentials: 'same-origin',
+      body: JSON.stringify({ settings: settings, styles: styles }),
+    }).then(function (r) { if (!r.ok) throw new Error('HTTP ' + r.status); });
+  }
+  // the page wears the new type without a reload: swap the theme CSS in, then re-flow
+  function reskinType() {
+    var bust = location.href + (location.href.indexOf('?') >= 0 ? '&' : '?') + 'goghcssbust=' + (+new Date());
+    return fetch(bust, { credentials: 'same-origin', cache: 'no-store' }).then(function (r) { return r.text(); }).then(function (html) {
+      var doc = new DOMParser().parseFromString(html, 'text/html');
+      ['global-styles-inline-css', 'wp-fonts-local'].forEach(function (id) {
+        var fresh = doc.getElementById(id), cur = document.getElementById(id);
+        if (fresh && cur) cur.textContent = fresh.textContent;
+        else if (fresh && !cur) document.head.appendChild(fresh.cloneNode(true));
+      });
+      fontSizesCache = null;
+      S.forEach(function (s2) { growReflow(s2, true); });
+      // a wider face can push a take's headline off the page: step its
+      // display size down until the longest word fits, as a roll would
+      S.forEach(function (s2) { try { diceFitWords(s2); } catch (err) {} });
+      settleReflowPasses();
+      refreshChip();
+    });
+  }
+  function keepFontPair(pair, btn) {
+    var H = { 'X-WP-Nonce': cfg.nonce };
+    var wasClean = !isDirty();
+    var label = pair.label || (pair.theme ? 'The theme’s own type' : pair.heading.name + ' & ' + pair.body.name);
+    if (fontsDryRun) {
+      fontsLastKept = pair;
+      toast(label + '. Installed on your site, yours to keep.', { ttl: 5000, actions: [{ label: 'Undo', onClick: function () {} }] });
+      return Promise.resolve();
+    }
+    if (btn) btn.disabled = true;
+    var busy = toast(pair.theme ? 'Putting the theme’s type back…' : 'Installing ' + label + '…', { ttl: 60000 });
+    var before = null, lastRefs = { heading: null, body: null }, lastInstalled = [], dropped = [];
+    return fetch(GSROOT + 'global-styles/' + cfg.gsId + '?context=edit', { headers: H, credentials: 'same-origin' })
+      .then(function (r) { return r.ok ? r.json() : Promise.reject(new Error('HTTP ' + r.status)); })
+      .then(function (gs) {
+        before = currentFontFamilies(gs);
+        if (pair.theme) return writeFontFamilies(gs, [], null, null);
+        var installed = [];
+        var needs = [pair.heading, pair.body].some(function (r) { return r && r.name && !r.keep && !r.ref; });
+        var resolveRole = function (families, role) {
+          var r = pair[role];
+          if (!r || r.keep) return Promise.resolve(before[role]);
+          if (r.ref) return Promise.resolve(r.ref);
+          var e = families.filter(function (f) { return String((f.font_family_settings || {}).name).toLowerCase() === r.name.toLowerCase(); })[0];
+          if (!e) throw new Error('Google’s list does not carry ' + r.name + ' today.');
+          return installFamily(e, r.w || 400).then(function (fam) { installed.push(fam); return 'var:preset|font-family|' + fam.slug; });
+        };
+        return (needs ? fetchGoogleCollection() : Promise.resolve([])).then(function (families) {
+          return Promise.all([resolveRole(families, 'heading'), resolveRole(families, 'body')]);
+        }).then(function (refs) {
+          var uniq = installed.filter(function (f, i) { return installed.findIndex(function (g) { return g.slug === f.slug; }) === i; });
+          lastRefs = { heading: refs[0], body: refs[1] }; lastInstalled = uniq;
+          return writeFontFamilies(gs, uniq, refs[1], refs[0]);
+        });
+      })
+      .then(function () { dropped = fontsDropped.slice(); clearFontsPreview(); return reskinType(); })
+      .then(function () {
+        if (wasClean) savedSnap = serialize();
+        fontsLastKept = pair;
+        if (busy && busy.remove) busy.remove();
+        // a brand pins its fonts for Remix: the kept pair becomes the brand's,
+        // or the brand's fonts are let go when the theme's own comes back
+        if (cfg.brand && cfg.brand.colors) {
+          var slugOf = function (ref) { return (String(ref || '').match(/font-family[|-]+([a-z0-9-]+)/) || [])[1] || null; };
+          var nb = JSON.parse(JSON.stringify(cfg.brand));
+          if (pair.theme) { delete nb.fonts; delete nb.families; }
+          else {
+            nb.fonts = {};
+            if (lastRefs.heading) nb.fonts.heading = slugOf(lastRefs.heading);
+            if (lastRefs.body) nb.fonts.body = slugOf(lastRefs.body);
+            var fams = (nb.families || []).filter(function (x) { return !lastInstalled.some(function (y) { return y.slug === x.slug; }); }).concat(lastInstalled);
+            if (fams.length) nb.families = fams; else delete nb.families;
+          }
+          fetch(GSROOT + 'settings', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-WP-Nonce': cfg.nonce }, credentials: 'same-origin', body: JSON.stringify({ gogh_brand: nb }) })
+            .then(function (r) { if (r.ok) cfg.brand = nb; }).catch(function () {});
+        }
+        toast(label + '. Installed on your site, yours to keep.', { ttl: 7000, actions: [{ label: 'Undo', onClick: function () {
+          fetch(GSROOT + 'global-styles/' + cfg.gsId + '?context=edit', { headers: H, credentials: 'same-origin' })
+            .then(function (r) { return r.json(); })
+            .then(function (gs) { return writeFontFamilies(gs, dropped, before.body, before.heading); })
+            .then(reskinType)
+            .then(function () { toast('The type before is back.', { ttl: 3000 }); markCurrentFontPair(); })
+            .catch(function (e) { toast(e.message || 'Could not undo.', { error: true, ttl: 6000 }); });
+        } }] });
+        if (btn) btn.disabled = false;
+        markCurrentFontPair();
+      })
+      .catch(function (e) {
+        if (busy && busy.remove) busy.remove();
+        if (btn) btn.disabled = false;
+        clearFontsPreview();
+        toast(e && e.message ? e.message : 'That pair did not install.', { error: true, ttl: 7000 });
+      });
+  }
+  // what the site wears now, read from the live theme CSS: the body family
+  // and the heading family (which falls back to the body's when the theme
+  // sets none), each with its name and stack from the catalogue
+  function currentFonts() {
+    var gs = document.getElementById('global-styles-inline-css');
+    var css = gs ? gs.textContent : '';
+    var slugIn = function (re) { var m = css.match(re); return m ? m[1] : null; };
+    var bodySlug = slugIn(/body\s*\{[^}]*font-family:\s*var\(--wp--preset--font-family--([a-z0-9-]+)\)/);
+    var headSlug = slugIn(/h1[^{]*\{[^}]*font-family:\s*var\(--wp--preset--font-family--([a-z0-9-]+)\)/) || bodySlug;
+    var cat = fontCatalogue();
+    var of = function (slug) { var c = cat.filter(function (x) { return x.slug === slug; })[0]; return c ? { slug: slug, name: c.name, fontFamily: c.fontFamily } : { slug: slug, name: slug || 'the theme’s own', fontFamily: null }; };
+    return { heading: of(headSlug), body: of(bodySlug) };
+  }
+  function markCurrentFontPair() {
+    var list = panel.querySelector('.gogh-fontlist');
+    if (!list) return;
+    var now = currentFonts();
+    var own = themeOwnPair();
+    var matches = function (pr) {
+      var h = pr.theme ? own.heading.slug : fontSlug(pr.heading.name), b = pr.theme ? own.body.slug : fontSlug(pr.body.name);
+      return h === now.heading.slug && b === now.body.slug;
+    };
+    var anyMatch = false;
+    [].slice.call(panel.querySelectorAll('.gogh-fontpair')).forEach(function (btn) {
+      var mine;
+      if (btn.classList.contains('gogh-fontpair-theme')) {
+        var famSlugs = [].slice.call(btn.querySelectorAll('.gogh-fontpair-name span')).map(function (sp) { return sp.style.fontFamily; });
+        var cat = fontCatalogue();
+        var slugOfFace = function (ff) { var c = cat.filter(function (x) { return x.fontFamily === ff; })[0]; return c ? c.slug : null; };
+        var hs = slugOfFace(famSlugs[0]), bs = slugOfFace(famSlugs[famSlugs.length - 1]);
+        mine = !!hs && hs === now.heading.slug && bs === now.body.slug;
+      } else {
+        mine = matches(FONT_PAIRS[+btn.dataset.i]);
+      }
+      if (mine) anyMatch = true;
+      btn.classList.toggle('is-current', mine);
+      // the row says it in words too, not only in the box at the top
+      var sayEl = btn.querySelector('.gogh-fontpair-say');
+      if (sayEl) {
+        if (sayEl.dataset.say === undefined) sayEl.dataset.say = sayEl.textContent;
+        sayEl.textContent = mine ? '\u2713 on your site now' : sayEl.dataset.say;
+      }
+    });
+    // the wearing line says it in the faces themselves, pair or not
+    var wear = panel.querySelector('.gogh-fontswearing');
+    if (wear) {
+      var same = now.heading.slug === now.body.slug;
+      var pairRow = FONT_PAIRS.filter(matches)[0];
+      wear.querySelector('.gogh-fontswearing-name').innerHTML =
+        '<span style="font-family:' + escAttr(now.heading.fontFamily || 'inherit') + ';font-weight:600">' + esc(now.heading.name) + '</span>' +
+        (same ? '' : '<span class="gogh-fontpair-amp"> &amp; </span><span style="font-family:' + escAttr(now.body.fontFamily || 'inherit') + '">' + esc(now.body.name) + '</span>');
+      wear.querySelector('.gogh-fontswearing-sub').textContent = same
+        ? now.heading.name + ' on everything' + (pairRow && pairRow.theme ? ' · the theme’s own' : '')
+        : now.heading.name + ' on headings · ' + now.body.name + ' on body' + (pairRow ? ' · ' + pairRow.say : anyMatch ? '' : ' · your own mix');
+    }
+  }
+  // More fonts: a name typed, the theme's own families first, then Google's
+  // list (WordPress's collection, fetched through the site), each hit shown
+  // as the collection's own preview of the name. Headings, Body or Both.
+  // the heading weight a Google family can offer: 600, else 700, else 400
+  function googleWeightFor(entry) {
+    var faces = ((entry.font_family_settings || {}).fontFace) || [];
+    var has = function (w) { return faces.some(function (f) { return /\s/.test(String(f.fontWeight || '')) || String(f.fontWeight) === String(w); }); };
+    return has(600) ? 600 : has(700) ? 700 : 400;
+  }
+  function googleFamilyNamed(families, name) {
+    var n = String(name || '').toLowerCase().replace(/[^a-z0-9 ]/g, '').trim();
+    if (!n) return null;
+    var exact = families.filter(function (f) { return String((f.font_family_settings || {}).name).toLowerCase() === n; })[0];
+    if (exact) return exact;
+    return families.filter(function (f) { return String((f.font_family_settings || {}).name).toLowerCase().indexOf(n) === 0; })[0] || null;
+  }
+  function wireMoreFonts(pnl) {
+    var wrap = pnl.querySelector('.gogh-fonts-morewrap');
+    var q = pnl.querySelector('.gogh-fonts-q'), hits = pnl.querySelector('.gogh-fonts-hits'), status = pnl.querySelector('.gogh-fonts-status');
+    var role = 'heading', families = null;
+    var say = function (m) { status.hidden = !m; status.textContent = m || ''; };
+    var weightFor = googleWeightFor;
+    var pairFor = function (hit) {
+      // hit: { name, w, ref? , fontFamily? }
+      var mine = { name: hit.name, w: hit.w, ref: hit.ref || null, fontFamily: hit.fontFamily || null };
+      if (role === 'both') return { heading: mine, body: Object.assign({}, mine, { w: 400 }), label: hit.name + ' on everything' };
+      var pr = { heading: role === 'heading' ? mine : { keep: true }, body: role === 'body' ? Object.assign({}, mine, { w: 400 }) : { keep: true } };
+      pr.label = hit.name + (role === 'heading' ? ' on headings' : ' on body text');
+      return pr;
+    };
+    var render = function () {
+      var term = q.value.trim().toLowerCase();
+      hits.innerHTML = '';
+      if (!term) return;
+      var own = (_themeBaseFams || []).map(function (f) {
+        var name = String(f.fontFamily || f.name || '').split(',')[0].replace(/["']/g, '').trim();
+        return { name: name, slug: f.slug, ref: 'var:preset|font-family|' + f.slug, fontFamily: f.fontFamily, own: true, w: 600 };
+      }).filter(function (f) { return f.name.toLowerCase().indexOf(term) !== -1; }).slice(0, 3);
+      var google = (families || []).filter(function (e) { return String((e.font_family_settings || {}).name).toLowerCase().indexOf(term) !== -1; });
+      google.sort(function (a, b) {
+        var an = a.font_family_settings.name.toLowerCase(), bn = b.font_family_settings.name.toLowerCase();
+        return (an.indexOf(term) === 0 ? 0 : 1) - (bn.indexOf(term) === 0 ? 0 : 1) || an.localeCompare(bn);
+      });
+      var list = own.concat(google.slice(0, 8).map(function (e) {
+        var st = e.font_family_settings;
+        return { name: st.name, w: weightFor(e), preview: st.preview, cats: (e.categories || []).join(', ') };
+      }));
+      if (!list.length) { say(families ? 'Nothing by that name.' : 'Loading Google’s list…'); return; }
+      say('');
+      list.forEach(function (h) {
+        var b = document.createElement('button');
+        b.type = 'button'; b.className = 'gogh-fonthit';
+        b.innerHTML = (h.own
+          ? '<span class="gogh-fonthit-name" style="font-family:' + escAttr(h.fontFamily) + '">' + esc(h.name) + '</span>'
+          : '<span class="gogh-fonthit-name"><img class="gogh-fonthit-prev" src="' + escAttr(h.preview || '') + '" alt="' + escAttr(h.name) + '"></span>') +
+          '<span class="gogh-fonthit-meta">' + esc(h.own ? 'already on your site' : (h.cats || 'Google')) + '</span>';
+        b.addEventListener('mouseenter', function () { clearTimeout(fontHoverT); fontHoverT = setTimeout(function () { auditionFontPair(pairFor(h)); }, 120); });
+        b.addEventListener('mouseleave', function () { clearFontsPreview(); });
+        b.addEventListener('click', function () { keepFontPair(pairFor(h), b); });
+        hits.appendChild(b);
+      });
+    };
+    wrap.addEventListener('toggle', function () {
+      if (!wrap.open || families) return;
+      say('Loading Google’s list…');
+      fetchGoogleCollection().then(function (f) { families = f; say(''); render(); }).catch(function (e) { say(e.message || 'Google’s list did not load.'); });
+      setTimeout(function () { q.focus(); }, 50);
+    });
+    q.addEventListener('input', render);
+    [].slice.call(pnl.querySelectorAll('.gogh-fonts-role')).forEach(function (b) {
+      b.addEventListener('click', function () {
+        role = b.dataset.role;
+        [].slice.call(pnl.querySelectorAll('.gogh-fonts-role')).forEach(function (o) { o.classList.toggle('is-on', o === b); });
+        render();
+      });
+    });
+  }
+  // the type scale, as a row of four: hover previews locally (the font-size
+  // preset vars, scaled), click applies through applyTypeScale
+  function wireTypeScale(pnl) {
+    var tsPreview = null;
+    var off = function () { if (tsPreview) { tsPreview.remove(); tsPreview = null; } };
+    var on = function (factor) {
+      off();
+      if (factor === (cfg.typeScale || 100)) return;
+      var baseline = (cfg.typeScale || 100) / 100;
+      var rules = fontSizes().map(function (f) {
+        var px = f.px / baseline * (factor / 100);
+        return '--wp--preset--font-size--' + f.slug + ': ' + (Math.round(px * 100) / 100) + 'px;';
+      });
+      if (!rules.length) return;
+      tsPreview = document.createElement('style');
+      tsPreview.textContent = ':root, body { ' + rules.join(' ') + ' }';
+      document.head.appendChild(tsPreview);
+    };
+    pnl.querySelectorAll('.gogh-typescale .gogh-hpreset').forEach(function (tb) {
+      tb.addEventListener('mouseenter', function () { on(+tb.dataset.scale); });
+      tb.addEventListener('mouseleave', off);
+      tb.addEventListener('click', function () {
+        off();
+        applyTypeScale(+tb.dataset.scale, tb).then(function (ok) {
+          if (!ok) return;
+          pnl.querySelectorAll('.gogh-typescale .gogh-hpreset').forEach(function (o) { o.classList.toggle('is-active', o === tb); });
+        });
+      });
+    });
+    return off;
+  }
+  function typeScaleHtml() {
+    return '<div class="gogh-panel-hint gogh-fonts-sizehint">Type size</div>' +
+      '<div class="gogh-hpresets gogh-typescale">' +
+      [['Snug', 90], ['Regular', 100], ['Airy', 110], ['Grand', 120]].map(function (ts) {
+        return '<button type="button" class="gogh-hpreset' + ((cfg.typeScale || 100) === ts[1] ? ' is-active' : '') + '" data-scale="' + ts[1] + '">' + ts[0] + '</button>';
+      }).join('') + '</div>';
+  }
+  // a theme font pair kept from the Fonts door keeps the site's colours:
+  // the pair's typography is merged onto the current global styles rather
+  // than replacing them the way a whole variation does
+  function keepThemePair(v, btn) {
+    if (btn) btn.disabled = true;
+    var H = { 'X-WP-Nonce': cfg.nonce };
+    return fetch(GSROOT + 'global-styles/' + cfg.gsId + '?context=edit', { headers: H, credentials: 'same-origin' })
+      .then(function (r) { return r.ok ? r.json() : Promise.reject(new Error('HTTP ' + r.status)); })
+      .then(function (gs) {
+        var obj = function (x) { return (x && typeof x === 'object' && !Array.isArray(x)) ? x : {}; };
+        var settings = obj(gs.settings), styles = obj(gs.styles);
+        settings.typography = obj(settings.typography);
+        var vt = obj(obj(v.settings).typography);
+        if (vt.fontFamilies) settings.typography.fontFamilies = Object.assign(obj(settings.typography.fontFamilies), { theme: vt.fontFamilies.theme || vt.fontFamilies.default || [] });
+        styles.typography = obj(styles.typography);
+        var vs = obj(v.styles);
+        var body = obj(vs.typography).fontFamily || variationBodyFont(v);
+        if (body) styles.typography.fontFamily = body; else delete styles.typography.fontFamily;
+        styles.elements = obj(styles.elements); styles.elements.heading = obj(styles.elements.heading); styles.elements.heading.typography = obj(styles.elements.heading.typography);
+        var head = obj(obj(obj(obj(vs.elements).heading)).typography).fontFamily;
+        if (head) styles.elements.heading.typography.fontFamily = head; else delete styles.elements.heading.typography.fontFamily;
+        // the families the preset does not use go back to being library-only
+        var ffs = obj(settings.typography.fontFamilies);
+        var after = fontFamiliesAfter(ffs.custom, [], body || null, head || null);
+        if (after.custom.length) ffs.custom = after.custom; else delete ffs.custom;
+        settings.typography.fontFamilies = ffs;
+        var merged = { title: v.title, settings: settings, styles: styles };
+        return applyVariation(merged, btn);
+      })
+      .then(function () { toast((v.title || 'The pair') + '. On your site now, from your theme.', { ttl: 5000 }); markCurrentFontPair(); })
+      .catch(function (e) { if (btn) btn.disabled = false; toast(e.message || 'That pair did not apply.', { error: true, ttl: 6000 }); });
+  }
+  function openFontsPanel(anchorEl) {
+    if (!cfg.gsId || !cfg.theme) return;
+    Promise.all([ensureThemeBase(), fetchVariations().catch(function () { return []; })]).then(function (both) {
+      var vars = both[1] || [];
+      var themePairs = vars.filter(function (v) {
+        var pal = ((v.settings || {}).color || {}).palette || {};
+        return !(pal.theme || pal.default || []).length && (((v.settings || {}).typography || {}).fontFamilies);
+      });
+      var own = themeOwnPair();
+      panel.innerHTML =
+        '<div class="gogh-panel-head"><span class="gogh-panel-title">Fonts</span>' +
+        '<button type="button" class="gogh-sbtn gogh-panel-close gogh-panel-back" title="Back"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"/></svg></button></div>' +
+        '<div class="gogh-panel-hint">Hover to try a pair on your page. Click to keep it.</div>' +
+        '<div class="gogh-fontswearing"><span class="gogh-remixwearing-lab">On your site now</span><span class="gogh-fontswearing-name"></span><span class="gogh-fontswearing-sub"></span></div>' +
+        typeScaleHtml() +
+        // one list: the theme's own pairs first, then the twelve — nobody
+        // needs to know which is which (James: 'do they care?')
+        '<div class="gogh-fontlist">' + (function () {
+        var pairRow = function (pr, i) {
+          var hn = pr.theme ? own.heading.name : pr.heading.name, bn = pr.theme ? own.body.name : pr.body.name;
+          var hf = pr.theme ? (own.heading.fontFamily || fontStack(hn)) : fontStack(pr.heading.name);
+          var bf = pr.theme ? (own.body.fontFamily || fontStack(bn)) : fontStack(pr.body.name);
+          var say = pr.theme ? pairMood(hn, hf, bn, bf) : pr.say;
+          return '<button type="button" class="gogh-fontpair" data-i="' + i + '">' +
+            '<span class="gogh-fontpair-name"><span style="font-family:' + escAttr(hf) + ';font-weight:' + (pr.theme ? 600 : pr.heading.w) + '">' + esc(hn) + '</span>' +
+            '<span class="gogh-fontpair-amp"> &amp; </span><span style="font-family:' + escAttr(bf) + '">' + esc(bn) + '</span></span>' +
+            '<span class="gogh-fontpair-say">' + esc(say) + '</span></button>';
+        };
+        // the theme's own pair leads, its variations' pairs follow, then the twelve
+        return FONT_PAIRS.map(function (pr, i) { return pr.theme ? pairRow(pr, i) : ''; }).join('') + (themePairs.length ? themePairs.map(function (v, i) {
+          var fams = (((v.settings || {}).typography || {}).fontFamilies || {}).theme || [];
+          var parts = (v.title || 'Pair').split(' & ');
+          var faceOf = function (pt, k) {
+            var m = null;
+            fams.forEach(function (f) { if (!m && String(f.name || f.slug || f.fontFamily || '').toLowerCase().indexOf(pt.trim().toLowerCase()) !== -1) m = f; });
+            m = m || fams[k] || fams[0];
+            return m && m.fontFamily ? m.fontFamily : 'inherit';
+          };
+          return '<button type="button" class="gogh-fontpair gogh-fontpair-theme" data-v="' + i + '">' +
+            '<span class="gogh-fontpair-name"><span style="font-family:' + escAttr(faceOf(parts[0], 0)) + ';font-weight:600">' + esc(parts[0]) + '</span>' +
+            (parts[1] ? '<span class="gogh-fontpair-amp"> &amp; </span><span style="font-family:' + escAttr(faceOf(parts[1], 1)) + '">' + esc(parts[1]) + '</span>' : '') + '</span>' +
+            '<span class="gogh-fontpair-say">' + esc(pairMood(parts[0], faceOf(parts[0], 0), parts[1] || parts[0], faceOf(parts[1] || parts[0], 1))) + '</span></button>';
+        }).join('') : '') + FONT_PAIRS.map(function (pr, i) { return pr.theme ? '' : pairRow(pr, i); }).join('');
+        })() + '</div>' +
+        '<div class="gogh-panel-hint gogh-fonts-note">Kept pairs are installed on your site and stay if gogh is ever removed. Two families a page, never a third.</div>' +
+        // step two: any font by name, for the person who knows what they want
+        '<details class="gogh-more gogh-fonts-morewrap"><summary class="gogh-more-sum">More fonts <span class="gogh-more-what">try any font by name</span></summary>' +
+        '<div class="gogh-fonts-search">' +
+        '<input type="search" class="gogh-fonts-q" placeholder="Try a font by name" autocomplete="off" spellcheck="false">' +
+        '<div class="gogh-fonts-roles"><button type="button" class="gogh-fonts-role is-on" data-role="heading">Headings</button><button type="button" class="gogh-fonts-role" data-role="body">Body</button><button type="button" class="gogh-fonts-role" data-role="both">Both</button></div>' +
+        '<div class="gogh-fonts-hits"></div><div class="gogh-panel-hint gogh-fonts-status" hidden></div></div></details>';
+      panel.querySelector('.gogh-panel-back').addEventListener('click', function () { clearFontsPreview(); backToDesign(); });
+      // every pair's faces load now, not on hover: a row that swapped from
+      // its fallback face as the pointer passed read as other rows growing
+      // (James: 'feels like other fonts are increasing size')
+      FONT_PAIRS.forEach(function (pr) { if (!pr.theme) ensureGoogleFonts(pr); });
+      // and the theme's own pairs: their faces live in the theme folder and
+      // were only loaded when a row was hovered, so Beiruti, Platypi and
+      // Literata sat in fallbacks until the pointer reached them
+      themePairs.forEach(function (v) { ensureVariationFonts(v); });
+      var tsOff = wireTypeScale(panel);
+      [].slice.call(panel.querySelectorAll('.gogh-fontpair-theme')).forEach(function (b) {
+        var v = themePairs[+b.dataset.v];
+        b.addEventListener('mouseenter', function () { clearTimeout(previewHoverT); previewHoverT = setTimeout(function () { auditionVariation(v); }, 120); });
+        b.addEventListener('mouseleave', function () { clearVariationPreview(); });
+        b.addEventListener('click', function () { clearVariationPreview(); keepThemePair(v, b); });
+      });
+      wireMoreFonts(panel);
+      // the theme's own rows have their handlers above; binding this one to
+      // them too meant a pair of undefined behind every hover (Tony and
+      // Martijn's reports: "reading 'theme'" nine times during the look task)
+      [].slice.call(panel.querySelectorAll('.gogh-fontpair:not(.gogh-fontpair-theme)')).forEach(function (b) {
+        var pr = FONT_PAIRS[+b.dataset.i];
+        if (!pr) return;
+        b.addEventListener('mouseenter', function () {
+          clearTimeout(fontHoverT);
+          fontHoverT = setTimeout(function () { auditionFontPair(pr); }, 120);
+        });
+        b.addEventListener('mouseleave', function () { clearFontsPreview(); });
+        b.addEventListener('click', function () { keepFontPair(pr, b); });
+      });
+      panelCleanup = function () {
+        clearFontsPreview();
+        clearVariationPreview();
+        tsOff();
+        // the search field gives the keyboard back when the panel goes
+        var a = document.activeElement;
+        if (a && panel.contains(a)) { try { a.blur(); } catch (err) {} }
+      };
+      dockSidebar();
+      markCurrentFontPair();
+    });
+  }
+
   // ---------- page style: which template this page renders with ----------
   // Curated friendly names over raw template slugs; applying is a one-field
   // save, then a reload (the page chrome itself changes).
@@ -12855,6 +16292,146 @@
     panelOpen = true;
   }
 
+  // ---------- add a page: one door does the whole job ----------
+  // The page is created, put at the end of the site menu, and the toast
+  // says so, with Open it and Undo. Undo trashes the page and takes the
+  // menu item out again. Three testers wanted this and none found the two
+  // separate doors it used to take (create in the admin bar, add in the
+  // header's menu manager).
+  var NAV_HDRS = function () { return { 'X-WP-Nonce': cfg.nonce, 'Content-Type': 'application/json' }; };
+  function siteMenuEdit(change) {
+    // change(items) mutates the header menu's items and returns true if
+    // anything changed; resolves true when the menu was written
+    var partEl = partElForArea('header');
+    if (!partEl) return Promise.resolve(false);
+    return resolveNavTarget(partEl).then(function (navId) {
+      if (navId == null) return false;
+      return fetch(restQ(GSROOT + 'navigation/' + navId, 'context=edit'), {
+        headers: { 'X-WP-Nonce': cfg.nonce }, credentials: 'same-origin',
+      }).then(function (r) { return r.ok ? r.json() : null; }).then(function (nav) {
+        if (!nav) return false;
+        var items = parseNavModel(((nav.content && nav.content.raw) || '').trim());
+        if (!change(items)) return false;
+        var entry = partEl.__goghChromeEntry;
+        var pre = entry ? saveChromeEntry(entry) : Promise.resolve();
+        return pre.then(function () {
+          return fetch(GSROOT + 'navigation/' + navId, {
+            method: 'POST', headers: NAV_HDRS(), credentials: 'same-origin',
+            body: JSON.stringify({ content: serializeNavModel(items) }),
+          });
+        }).then(function (r) {
+          if (!r.ok) throw new Error('HTTP ' + r.status);
+          return refreshChromePart(partEl).then(function () { return true; }, function () { return true; });
+        });
+      });
+    }).catch(function () { return false; });
+  }
+  function samePath(a, b) {
+    var norm = function (u) { try { return new URL(u, location.href).pathname.replace(/\/$/, '') || '/'; } catch (err) { return String(u || ''); } };
+    return norm(a) === norm(b);
+  }
+  function siteMenuAppend(label, url) {
+    return siteMenuEdit(function (items) {
+      var there = items.some(function (it) { return samePath(it.url, url) || (it.children || []).some(function (c) { return samePath(c.url, url); }); });
+      if (there) return false;
+      items.push({ name: '', text: null, attrsText: null, attrs: {}, label: label, url: url, kind: 'post-type', children: null, dirty: true });
+      return true;
+    });
+  }
+  function siteMenuRemoveUrl(url) {
+    return siteMenuEdit(function (items) {
+      var n = items.length;
+      var keep = items.filter(function (it) { return !samePath(it.url, url); });
+      keep.forEach(function (it) {
+        if (it.children) { var k2 = it.children.filter(function (c) { return !samePath(c.url, url); }); if (k2.length !== it.children.length) { it.children = k2.length ? k2 : null; it.dirty = true; n++; } }
+      });
+      if (keep.length === n) return false;
+      items.length = 0;
+      keep.forEach(function (it) { items.push(it); });
+      return true;
+    });
+  }
+  function createPage(title, navigate) {
+    // the page is created and OPENED in the editor; the menu is an offer
+    // on arrival, not a default (James: "it should not add itself to the
+    // menu by default" — thank-you pages and drafts are pages too)
+    title = String(title || '').trim();
+    if (!title) return Promise.resolve(null);
+    navigate = navigate || function (u) { location.href = u; };
+    return fetch(GSROOT + 'pages', {
+      method: 'POST', headers: NAV_HDRS(), credentials: 'same-origin',
+      body: JSON.stringify({ title: title, status: 'publish', content: '' }),
+    }).then(function (r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
+      .then(function (pg) {
+        var from = location.pathname + (location.search ? location.search.replace(/[?&]gogh-(new|from)=[^&]*/g, '') : '');
+        var editUrl = pg.link + (pg.link.indexOf('?') === -1 ? '?' : '&') + 'gogh-edit=1&gogh-new=1&gogh-from=' + encodeURIComponent(from);
+        navigate(editUrl);
+        return { page: pg, editUrl: editUrl };
+      });
+  }
+  // on the new page: say it is new, offer the menu, keep Undo (bins the
+  // page and goes back to where Add was pressed)
+  function announceNewPage(title, fromUrl, navigate) {
+    navigate = navigate || function (u) { location.href = u; };
+    var pageUrl = location.origin + location.pathname;
+    var inMenu = false; // Undo takes the menu item out too, if it was put in
+    toast('\u201c' + title + '\u201d is a new page. Visitors find it through the menu \u2014 add it, or link to it.', {
+      ttl: 20000,
+      actions: [
+        { label: 'Put it in the menu', onClick: function () {
+          siteMenuAppend(title, pageUrl).then(function (ok) {
+            inMenu = inMenu || ok;
+            if (!ok) return toast('gogh could not find a menu to add it to \u2014 open the header and add it there.', { error: true });
+            toast('\u201c' + title + '\u201d is in your menu, at the end. The header shows it on every page.', {
+              actions: [{ label: 'Undo', onClick: function () {
+                siteMenuRemoveUrl(pageUrl).then(function () { inMenu = false; toast('\u201c' + title + '\u201d is out of the menu again. The page stays.'); });
+              } }],
+            });
+          });
+        } },
+        { label: 'Undo', onClick: function () {
+          fetch(GSROOT + 'pages/' + cfg.postId, { method: 'DELETE', headers: NAV_HDRS(), credentials: 'same-origin' })
+            .then(function () { return inMenu ? siteMenuRemoveUrl(pageUrl) : false; })
+            .then(function () { navigate((fromUrl || cfg.homeUrl || '/') + ((fromUrl || '').indexOf('?') === -1 ? '?' : '&') + 'gogh-edit=1'); })
+            .catch(function () { toast('gogh could not take that page back \u2014 it is under Pages in the dashboard.', { error: true }); });
+        } },
+      ],
+    });
+  }
+  function openAddPagePanel(anchorEl) {
+    panel.innerHTML =
+      '<div class="gogh-panel-head"><span class="gogh-panel-title">Add a page</span>' +
+      '<button type="button" class="gogh-sbtn gogh-panel-close gogh-panel-back" title="Back"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"/></svg></button></div>' +
+      '<div class="gogh-panel-hint">It opens in the editor, ready to fill. Put it in the menu from there, or leave it out.</div>' +
+      '<div class="gogh-addpage"><input type="text" class="gogh-input gogh-addpage-title" placeholder="Page title, e.g. Prices" maxlength="120" />' +
+      '<button type="button" class="gogh-btn gogh-addpage-go">Add</button></div>';
+    dockSidebar();
+    panel.hidden = false;
+    panelOpen = true;
+    panelSticky = false;
+    panel.querySelector('.gogh-panel-close').addEventListener('click', backToDesign);
+    var inp = panel.querySelector('.gogh-addpage-title');
+    var go = panel.querySelector('.gogh-addpage-go');
+    var busy = false;
+    var run = function () {
+      var t = inp.value.trim();
+      if (!t || busy) return;
+      busy = true;
+      go.textContent = 'Adding\u2026';
+      createPage(t).then(function (res) {
+        busy = false;
+        if (!res) { go.textContent = 'Add'; return; }
+        go.textContent = 'Opening\u2026'; // the page is about to open in the editor
+      }).catch(function () {
+        busy = false;
+        go.textContent = 'Add';
+        toast('gogh could not create that page.', { error: true });
+      });
+    };
+    go.addEventListener('click', run);
+    inp.addEventListener('keydown', function (ev) { if (ev.key === 'Enter') { ev.preventDefault(); run(); } });
+    setTimeout(function () { try { inp.focus(); } catch (err) {} }, 30);
+  }
   function openPageStylePanel(anchorEl) {
     var options = [{ slug: '', title: 'Standard' }].concat(cfg.pageTemplates || []);
     panel.innerHTML =
@@ -13057,39 +16634,471 @@
     }
     return hslToHex(c.h, c.s, c.l);
   }
-  function remixCandidates() {
-    var b = (cfg.brand && cfg.brand.colors) || {};
+  // ---------- Remix: looks built from parts ----------
+  // Six hand-written recipes could only ever hand back the same six with the
+  // hue nudged ("folks only get one remix"). A look is now assembled from
+  // independent choices — a ground, the accent's relation to the brand hue,
+  // a volume, a font pair — so one seed yields dozens of distinct looks, the
+  // session remembers what it showed, and a lock pins any slot to the look
+  // you are wearing while the rest spins. The contrast gate is unchanged:
+  // ink walks to 7:1, accents to 3:1, nothing unreadable leaves here.
+  var REMIX_GROUNDS = [
+    { key: 'paper', say: 'paper', s: 0.12, l: 0.965, ink: [0.3, 0.13], dark: false },
+    { key: 'wash', say: 'a wash', s: 0.22, l: 0.92, ink: [0.38, 0.15], dark: false },
+    { key: 'ink', say: 'ink', s: 0.28, l: 0.10, ink: [0.08, 0.93], dark: true },
+    { key: 'deep', say: 'a deep ground', s: 0.42, l: 0.17, ink: [0.1, 0.95], dark: true },
+  ];
+  var REMIX_RELATIONS = [
+    { key: 'same', say: 'Your accent', d: 0 },
+    { key: 'neighbour', say: 'A neighbour of your accent', d: 30 },
+    { key: 'opposite', say: 'The colour opposite yours', d: 180 },
+    { key: 'split', say: 'A split from your accent', d: 150 },
+  ];
+  var REMIX_VOLUMES = [
+    { key: 'quiet', say: '', s: 0.5 },
+    { key: 'loud', say: ', turned up', s: 0.8 },
+  ];
+  var REMIX_INKS = [
+    { key: 'neutral', mult: 0.5 },
+    { key: 'tinted', mult: 1.6 },
+  ];
+  // the other dials a look turns: how big the type runs, which sections wear
+  // the dark or tinted theme, the edge under the hero, a texture on it
+  var REMIX_SCALES = [[100, 'regular'], [110, 'airy'], [120, 'grand']];
+  var REMIX_RHYTHMS = [
+    { key: 'plain', say: 'all on one ground' },
+    { key: 'dark-hero', say: 'a dark opening' },
+    { key: 'bookends', say: 'dark at both ends' },
+    { key: 'alternate', say: 'every other section tinted' },
+    { key: 'accent-hero', say: 'an accent-washed opening' },
+  ];
+  var REMIX_DIVIDERS = [null, null, 'sweep', 'dunes', 'arch', 'sheet'];
+  // a direction narrows the parts and leans the hue — "not quite, more like
+  // this" instead of another roll of the dice. Each is a bias, not a rule:
+  // the pools shrink to what fits, the hue moves part of the way
+  var REMIX_DIRECTIONS = {
+    warmer:  { say: 'warmer', hueTo: 28, grounds: null, relations: null, volumes: null, scales: null, rhythms: null, dividers: null },
+    cooler:  { say: 'cooler', hueTo: 212, grounds: null, relations: null, volumes: null, scales: null, rhythms: null, dividers: null },
+    calmer:  { say: 'calmer', sat: 0.7, grounds: ['paper', 'wash'], relations: ['same', 'neighbour'], volumes: ['quiet'], scales: [100], rhythms: ['plain', 'alternate'], dividers: [null], fx: 0 },
+    bolder:  { say: 'bolder', sat: 1.15, grounds: null, relations: ['opposite', 'split', 'neighbour'], volumes: ['loud'], scales: [110, 120], rhythms: ['dark-hero', 'bookends', 'accent-hero'], dividers: ['sweep', 'dunes', 'arch', 'sheet'], fx: 0.5 },
+    darker:  { say: 'darker', grounds: ['ink', 'deep'], relations: null, volumes: null, scales: null, rhythms: ['dark-hero', 'bookends', 'plain'], dividers: null },
+    lighter: { say: 'lighter', grounds: ['paper', 'wash'], relations: null, volumes: null, scales: null, rhythms: ['plain', 'alternate', 'accent-hero'], dividers: null },
+  };
+  // move a hue part of the way towards another, the short way round
+  function hueToward(h, to, amount) {
+    var d = ((to - h + 540) % 360) - 180;
+    return (h + d * amount + 360) % 360;
+  }
+  var remixShown = {};   // keys shown this session — a fresh tap draws from the rest
+  // the look being worn now: the brand when one is set, else the theme's own
+  function currentLook() {
+    var b = (cfg.brand && cfg.brand.colors) || null;
     var roles = paletteRoles();
     var cur = themePalette();
     var val = function (slug) { var p = cur.filter(function (x) { return x.slug === slug; })[0]; return p && p.value; };
-    // seed hues: every saturated brand colour, else the theme's own ink/accents
-    var seeds = [b.accent, b.accent2, b.text, b.background, val(roles.textSlug)]
-      .map(hexToHsl).filter(function (c) { return c && c.s > 0.12; });
-    if (!seeds.length) seeds = [{ h: 220, s: 0.5, l: 0.4 }];
-    var A = seeds[0], B = seeds[1] || { h: A.h + 40, s: A.s, l: A.l };
-    var j = function (range) { return (Math.random() - 0.5) * 2 * range; }; // fresh spins differ a little
-    var mk = function (name, bg, tx, ac, ac2) {
-      tx = ensureContrast(tx, bg, 7);
-      ac = ensureContrast(ac, bg, 3);
-      return { name: name, colors: { background: bg, text: tx, accent: ac, accent2: ac2 || ac } };
+    var acc = cur.filter(function (p) { return /accent|primary|secondary/.test(p.slug); }).map(function (p) { return p.value; });
+    var content = S.filter(function (x) { return !x.chrome; });
+    var first = content[0], last = content[content.length - 1];
+    var rhythm = 'plain';
+    if (first && first.theme === 'ink' && last && last !== first && last.theme === 'ink') rhythm = 'bookends';
+    else if (first && first.theme === 'ink') rhythm = 'dark-hero';
+    else if (first && /-soft$/.test(first.theme || '')) rhythm = 'accent-hero';
+    else if (content.some(function (x, k) { return k % 2 === 1 && x.theme === 'mist'; })) rhythm = 'alternate';
+    return {
+      background: (b && b.background) || val(roles.bgSlug) || '#ffffff',
+      text: (b && b.text) || val(roles.textSlug) || '#111111',
+      accent: (b && b.accent) || acc[0] || val(roles.textSlug) || '#3355ff',
+      accent2: (b && b.accent2) || acc[1] || null,
+      fonts: (cfg.brand && cfg.brand.fonts) || null,
+      scale: cfg.typeScale || 100,
+      rhythm: rhythm,
+      divider: first && first.divider && first.divider.shape ? first.divider.shape : null,
+      fx: first && first.fx && first.fx.bg === 'grain' ? 'grain' : null,
     };
-    var out = [
-      mk('Daylight', hslToHex(A.h + j(8), 0.14, 0.965), hslToHex(A.h, 0.3, 0.13), hslToHex(B.h + j(10), 0.62, 0.46)),
-      mk('After dark', hslToHex(A.h + j(8), 0.28, 0.1), hslToHex(A.h, 0.08, 0.93), hslToHex(B.h + j(10), 0.68, 0.62)),
-      mk('Wash', hslToHex(B.h + j(8), 0.22, 0.92), hslToHex(B.h, 0.38, 0.15), hslToHex(A.h + j(10), 0.58, 0.42)),
-      mk('Neighbours', hslToHex(A.h + 28 + j(8), 0.16, 0.955), hslToHex(A.h + 28, 0.32, 0.14), hslToHex(A.h - 28 + j(8), 0.6, 0.48)),
-      mk('Opposites', hslToHex(A.h + j(8), 0.1, 0.97), hslToHex(A.h, 0.25, 0.12), hslToHex(A.h + 180 + j(12), 0.62, 0.44)),
-      mk('Quiet + pop', hslToHex(A.h, 0.04, 0.975), hslToHex(A.h, 0.06, 0.14), hslToHex(A.h + j(6), 0.78, 0.5)),
-    ];
-    // type: the theme's own families, permuted — a pairing per candidate
+  }
+  // which theme each content section wears under a rhythm
+  function remixRhythmPlan(rhythm, n) {
+    var out = [];
+    for (var k = 0; k < n; k++) {
+      var t = 'paper';
+      if (rhythm === 'dark-hero') t = k === 0 ? 'ink' : 'paper';
+      else if (rhythm === 'bookends') t = (k === 0 || (k === n - 1 && n > 1)) ? 'ink' : 'paper';
+      else if (rhythm === 'alternate') t = k % 2 === 1 ? 'mist' : 'paper';
+      else if (rhythm === 'accent-hero') t = k === 0 ? 'accent-soft' : 'paper';
+      out.push(t);
+    }
+    return out;
+  }
+  // paint a look's sections; returns what they wore so a hover can put it back
+  function remixPaintRhythm(cand) {
+    var themes = sectionThemes(remixHistory[0] && remixHistory[0].roles);
+    var by = {};
+    themes.forEach(function (t) { by[t.slug] = t; });
+    var soft = themes.filter(function (t) { return /-soft$/.test(t.slug); })[0] || by.mist || by.paper;
+    var content = S.filter(function (x) { return !x.chrome; });
+    var plan = remixRhythmPlan(cand.rhythm || 'plain', content.length);
+    var snaps = content.map(function (secx, k) {
+      var snap = snapSectionLook(secx);
+      snap.divider = secx.divider ? JSON.parse(JSON.stringify(secx.divider)) : null;
+      snap.fx = secx.fx ? JSON.parse(JSON.stringify(secx.fx)) : null;
+      var want = plan[k] === 'accent-soft' ? soft : by[plan[k]];
+      // a section wearing a picture keeps it: the theme only re-inks the words.
+      // A dark theme over a photo tints deeper (78%): at the default 62% a
+      // bright picture still averages a mid ground where dark ink wins the
+      // sentinel's arithmetic and the words go dark on a dark section
+      if (want && secx.theme !== want.slug) {
+        paintSectionTheme(secx, want);
+        if (secx.bgImage && want.slug === 'ink') secx.bgA = 78;
+      }
+      if (k === 0 && secx.bgImage && cand.colors && cand.colors.background && cand.colors.text) {
+        var roles2 = paletteRoles();
+        var lightSlug = relLum(cand.colors.background) > relLum(cand.colors.text) ? roles2.bgSlug : roles2.textSlug;
+        if (lightSlug) secx.els.forEach(function (e) { if (isText(e) || e.type === 'badge') e.color = lightSlug; });
+        renderSection(secx);
+      }
+      if (k === 0) {
+        var lowest = secx.els.reduce(function (m, e) { return Math.max(m, e.y + e.h); }, 0);
+        var room = (secx.minH || designH(secx.els, secx.minH)) - lowest >= 140;
+        secx.divider = cand.divider && room ? { shape: cand.divider } : null;
+        if (cand.fx === 'grain') { secx.fx = secx.fx || {}; secx.fx.bg = 'grain'; }
+        else if (secx.fx && secx.fx.bg === 'grain') { delete secx.fx.bg; if (!Object.keys(secx.fx).length) secx.fx = null; }
+      }
+      return snap;
+    });
+    resolveAll();
+    return snaps;
+  }
+  function remixRestoreRhythm(snaps) {
+    var content = S.filter(function (x) { return !x.chrome; });
+    snaps.forEach(function (snap, k) {
+      var secx = content[k];
+      if (!secx) return;
+      restoreSectionLook(secx, snap);
+      secx.divider = snap.divider;
+      secx.fx = snap.fx;
+    });
+    resolveAll();
+  }
+  // the type scale, previewed the way the Site style dial does it: preset
+  // sizes in px relative to the theme's own scale, gone on leave
+  var remixScaleStyle = null;
+  function remixScalePreview(factor) {
+    if (remixScaleStyle) { remixScaleStyle.remove(); remixScaleStyle = null; }
+    if (!factor || factor === (cfg.typeScale || 100)) return;
+    var baseline = (cfg.typeScale || 100) / 100;
+    var rules = fontSizes().map(function (f) {
+      var px = f.px / baseline * (factor / 100);
+      return '--wp--preset--font-size--' + f.slug + ': ' + (Math.round(px * 100) / 100) + 'px;';
+    });
+    if (!rules.length) return;
+    remixScaleStyle = document.createElement('style');
+    remixScaleStyle.textContent = ':root, body { ' + rules.join(' ') + ' }';
+    document.head.appendChild(remixScaleStyle);
+  }
+  // hover: wear the whole look; leave: everything back
+  var remixAudition = null;
+  function remixAuditionOn(cand) {
+    remixAuditionOff();
+    var v = brandToVariation({ colors: cand.colors, fonts: cand.fonts || null, families: cand.families || null });
+    auditionVariation(v);
+    // a pair from the Fonts door is not on the site yet: the editor tries
+    // it from Google, the way the door does
+    if (cand.fonts && cand.fonts.google && !cand.families) auditionFontPair({ heading: cand.fonts.google.heading, body: cand.fonts.google.body });
+    remixScalePreview(cand.scale);
+    remixAudition = { snaps: remixPaintRhythm(cand) };
+  }
+  function remixAuditionOff() {
+    clearVariationPreview();
+    clearFontsPreview();
+    remixScalePreview(null);
+    if (remixAudition) { remixRestoreRhythm(remixAudition.snaps); remixAudition = null; }
+  }
+  // ---- Remix is a die for the site's clothes: tap → a look lands, tap →
+  // another, ↶ → the one before. The look arrives through the audition path
+  // (instant, free to look at) and is committed quietly a moment later.
+  // History starts at the look the site wore before the first roll, so Back
+  // can always take you home. ("Remix Like the Die", 2026-09-14)
+  var remixHistory = [];   // [{origin, gs, scale, snaps} | {cand}]
+  var remixAt = -1;
+  var remixCommitT = null, remixCommitting = false, remixDry = false;
+  function remixOriginEntry() {
+    var content = S.filter(function (x) { return !x.chrome; });
+    return { origin: true, title: cfg.activeStyle || '', scale: cfg.typeScale || 100, roles: paletteRoles(),
+      snaps: content.map(function (secx) {
+        var snap = snapSectionLook(secx);
+        snap.divider = secx.divider ? JSON.parse(JSON.stringify(secx.divider)) : null;
+        snap.fx = secx.fx ? JSON.parse(JSON.stringify(secx.fx)) : null;
+        return snap;
+      }) };
+  }
+  // the site's own global styles, fetched once so Back can put them back
+  function remixFetchOrigin(entry) {
+    if (entry.gs || !cfg.gsId) return Promise.resolve(entry);
+    return fetch(GSROOT + 'global-styles/' + cfg.gsId + '?context=edit', { headers: { 'X-WP-Nonce': cfg.nonce }, credentials: 'same-origin' })
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (j) { entry.gs = { styles: (j && j.styles) || {}, settings: (j && j.settings) || {} }; return entry; })
+      .catch(function () { entry.gs = { styles: {}, settings: {} }; return entry; });
+  }
+  function remixWearEntry(entry) {
+    if (entry.origin) {
+      remixAuditionOff();
+      remixRestoreRhythm(entry.snaps);
+    } else {
+      remixAuditionOn(entry.cand);
+    }
+    remixScheduleCommit();
+    remixSayWearing();
+  }
+  function remixRoll(opts) {
+    if (remixAt === -1) {
+      var origin = remixOriginEntry();
+      remixHistory = [origin];
+      remixAt = 0;
+      remixFetchOrigin(origin);
+    }
+    var cand = remixCandidates()[0];
+    if (!cand) return null;
+    remixHistory = remixHistory.slice(0, remixAt + 1);
+    remixHistory.push({ cand: cand });
+    remixAt = remixHistory.length - 1;
+    if (opts && opts.dry) remixDry = true;
+    remixWearEntry(remixHistory[remixAt]);
+    return cand;
+  }
+  function remixBack() {
+    if (remixAt <= 0) return false;
+    remixAt--;
+    remixWearEntry(remixHistory[remixAt]);
+    return true;
+  }
+  function remixForward() {
+    if (remixAt < 0 || remixAt >= remixHistory.length - 1) return false;
+    remixAt++;
+    remixWearEntry(remixHistory[remixAt]);
+    return true;
+  }
+  function remixWorn() { return remixAt >= 0 ? remixHistory[remixAt] : null; }
+  // the commit: the audition's paint stays, the style and size are saved,
+  // one undo step covers the sections. A newer roll cancels an unsaved one.
+  function remixScheduleCommit() {
+    clearTimeout(remixCommitT);
+    if (remixDry) return;
+    remixCommitT = setTimeout(remixCommitNow, 1200);
+  }
+  function remixCommitNow() {
+    if (remixCommitting) { remixScheduleCommit(); return; }
+    var entry = remixWorn();
+    if (!entry) return;
+    remixCommitting = true;
+    quietToasts = true;
+    var v, scale;
+    if (entry.origin) {
+      v = { title: entry.title, styles: (entry.gs && entry.gs.styles) || {}, settings: (entry.gs && entry.gs.settings) || {} };
+      scale = entry.scale;
+    } else {
+      scale = entry.cand.scale || 100;
+    }
+    var keepPaint = function () {
+      // the sections stay as the audition painted them: forget the snaps
+      // so nothing puts them back, and let undo cover the change
+      if (remixAudition) { remixAudition = null; }
+    };
+    // a look in a pair from the Fonts door installs the pair first, the way
+    // Keep does; if Google will not hand it over the look lands in the
+    // theme's own type rather than not at all
+    var ready = entry.origin ? Promise.resolve() : (function () {
+      var c = entry.cand;
+      if (!c.fonts || !c.fonts.google || c.families) return Promise.resolve();
+      var pr = c.fonts.google;
+      return fetchGoogleCollection().then(function (families) {
+        var he = googleFamilyNamed(families, pr.heading.name), be = googleFamilyNamed(families, pr.body.name);
+        if (!he || !be) throw new Error('not on Google');
+        return Promise.all([installFamily(he, pr.heading.w || 600), installFamily(be, pr.body.w || 400)]);
+      }).then(function (fams) {
+        c.families = fams.filter(function (f, i) { return fams.findIndex(function (g) { return g.slug === f.slug; }) === i; });
+        c.fonts = { heading: fams[0].slug, body: fams[1].slug, google: pr };
+      }).catch(function () { c.fonts = null; c.families = null; });
+    })();
+    var run = ready.then(function () {
+      if (!entry.origin) {
+        v = brandToVariation({ colors: entry.cand.colors, fonts: entry.cand.fonts || null, families: entry.cand.families || null });
+        v.title = 'Remix \u00b7 ' + entry.cand.name;
+      }
+      return entry.origin ? remixFetchOrigin(entry).then(function () { return applyVariation(v); }) : applyVariation(v);
+    });
+    run.then(function () {
+      clearVariationPreview();
+      if (scale !== (cfg.typeScale || 100)) return applyTypeScale(scale);
+    }).then(function () {
+      remixScalePreview(null);
+      keepPaint();
+      pushState();
+      S.forEach(function (secx) { if (!secx.chrome) contrastSentinel(secx); });
+    }).catch(function () {
+      toast('gogh could not save that look \u2014 it stays for now.', { error: true });
+    }).then(function () {
+      remixCommitting = false;
+      // the sentinel's picture judgement lands a moment later: stay quiet for it
+      setTimeout(function () { if (!remixCommitting) quietToasts = false; }, 3000);
+      if (remixWorn() !== entry) remixScheduleCommit(); // rolled on while saving
+    });
+  }
+  // whoever shows the worn look (the panel's receipt line, the front door's
+  // pill) registers here under a key, so reopening never doubles it up
+  var remixWatchers = {};
+  function remixWatch(key, fn) { remixWatchers[key] = fn; }
+  function remixSayWearing() { Object.keys(remixWatchers).forEach(function (k) { try { remixWatchers[k](); } catch (e) {} }); }
+  function remixFontPairs() {
     var fams = fontCatalogue().map(function (f2) { return f2.slug; });
     var pairs = [];
     fams.forEach(function (h2) { fams.forEach(function (b2) { if (h2 !== b2 || fams.length === 1) pairs.push({ heading: h2, body: b2 }); }); });
-    if (cfg.brand && cfg.brand.fonts && cfg.brand.fonts.heading) pairs.unshift(cfg.brand.fonts);
-    out.forEach(function (c2, i) { if (pairs.length) c2.fonts = pairs[i % pairs.length]; });
+    return pairs;
+  }
+  // the Fonts door's pairs, as a roll can wear them: the slugs they would
+  // install under, and the pair itself for the audition and the install
+  function remixGooglePairs() {
+    return FONT_PAIRS.filter(function (pr) { return !pr.theme; }).map(function (pr) {
+      return { heading: fontSlug(pr.heading.name), body: fontSlug(pr.body.name), google: pr };
+    });
+  }
+  // the roll names its fonts in plain words: 'Fraunces & Inter', or one name
+  // when heading and body share a face; the theme's own pair when none rolled
+  function remixPairSay(pair) {
+    var h, b;
+    if (pair && pair.google) { h = pair.google.heading.name; b = pair.google.body.name; }
+    else {
+      var cat = fontCatalogue();
+      var nameOf = function (slug) { var c = cat.filter(function (x) { return x.slug === slug; })[0]; return c ? c.name : null; };
+      var own = themeOwnPair();
+      h = (pair && nameOf(pair.heading)) || own.heading.name;
+      b = (pair && nameOf(pair.body)) || own.body.name;
+    }
+    if (!h && !b) return '';
+    return h === b || !b ? h : (h || b) + ' & ' + b;
+  }
+  // walk the accent's lightness to where the text reads on it AND it still
+  // stands off the ground — the nearest such lightness to its own; if no
+  // lightness holds both, the words on the button win over the edge
+  // which of the two brand colours reads on a button of this accent: the
+  // words, or the page (a black button wears white words). Returns the
+  // role and its ratio; the caller decides whether that is enough.
+  function buttonInkFor(ac, bg, tx) {
+    var onTx = remixRatio(ac, tx), onBg = remixRatio(ac, bg);
+    return onTx >= onBg ? { role: 'text', hex: tx, ratio: onTx } : { role: 'background', hex: bg, ratio: onBg };
+  }
+  function fitAccent(ac, bg, tx) {
+    var h = hexToHsl(ac);
+    if (!h) return ac;
+    // the brand colour stays exact whenever SOME ink reads on it: words at
+    // 4.5:1 with the button still standing off the page, or the page
+    // colour itself at 4.5:1 (which also makes the button stand off the page)
+    // (4.0 rather than 4.5: button words are bold and large; and a button
+    // is a shape — the theme's own stand 1.9:1 off the page)
+    var ink = buttonInkFor(ac, bg, tx);
+    if (ink.ratio >= 4 && (ink.role === 'background' || remixRatio(ac, bg) >= 1.5)) return ac;
+    // tiers: the words first, then the edge — each relaxed a step at a time
+    var tiers = [[4.5, 3], [4.5, 2.5], [3.5, 2.5], [3, 2.2], [3, 0]];
+    for (var t = 0; t < tiers.length; t++) {
+      var best = null, bestD = 9;
+      for (var l = 0.04; l <= 0.96; l += 0.01) {
+        var hex = hslToHex(h.h, h.s, l);
+        var d = Math.abs(l - h.l);
+        var best2 = Math.max(remixRatio(hex, tx), remixRatio(hex, bg));
+        if (best2 >= tiers[t][0] && remixRatio(hex, bg) >= tiers[t][1] && d < bestD) { best = hex; bestD = d; }
+      }
+      if (best) return best;
+    }
+    return ac;
+  }
+  function remixCandidates(direction) {
+    var now = currentLook();
+    var dir = (direction && REMIX_DIRECTIONS[direction]) || null;
+    var seeds = [now.accent, now.accent2, now.text, now.background]
+      .map(hexToHsl).filter(function (c) { return c && c.s > 0.12; });
+    if (!seeds.length) seeds = [{ h: 220, s: 0.5, l: 0.4 }];
+    var A = { h: seeds[0].h, s: seeds[0].s, l: seeds[0].l };
+    // a direction with a hue leans the seed part of the way there
+    if (dir && dir.hueTo != null) A.h = hueToward(A.h, dir.hueTo, 0.55);
+    var pairs = remixFontPairs(), googlePairs = remixGooglePairs();
+    var j = function (range) { return (Math.random() - 0.5) * 2 * range; };
+    var pick = function (list) { return list[Math.floor(Math.random() * list.length)]; };
+    var pool = function (all, keys, keyOf) {
+      if (!dir || !keys) return all;
+      var sub = all.filter(function (x) { return keys.indexOf(keyOf(x)) !== -1; });
+      return sub.length ? sub : all;
+    };
+    var grounds = pool(REMIX_GROUNDS, dir && dir.grounds, function (x) { return x.key; });
+    var relations = pool(REMIX_RELATIONS, dir && dir.relations, function (x) { return x.key; });
+    var volumes = pool(REMIX_VOLUMES, dir && dir.volumes, function (x) { return x.key; });
+    var scales = pool(REMIX_SCALES, dir && dir.scales, function (x) { return x[0]; });
+    var rhythms = pool(REMIX_RHYTHMS, dir && dir.rhythms, function (x) { return x.key; });
+    var dividers = pool(REMIX_DIVIDERS, dir && dir.dividers, function (x) { return x; });
+    var grainOdds = dir && dir.fx != null ? dir.fx : 0.25;
+    // the brand is the only lock a roll respects: someone who set their
+    // colours told gogh a fact, not a preference — the roll dresses
+    // everything else (type, sections, edges, and fonts unless chosen)
+    var brand = cfg.brand && cfg.brand.colors && cfg.brand.colors.background && cfg.brand.colors.text ? cfg.brand.colors : null;
+    var brandFonts = cfg.brand && cfg.brand.fonts && cfg.brand.fonts.heading ? cfg.brand.fonts : null;
+    var build = function () {
+      var g = pick(grounds), r = pick(relations), v = pick(volumes), ink = pick(REMIX_INKS);
+      if (dir && dir.sat) v = { key: v.key, say: v.say, s: Math.max(0.2, Math.min(0.95, v.s * dir.sat)) };
+      // the die draws on the same pairs the Fonts door shows: a coin decides
+      // between the theme's own combinations and the twelve
+      var pair = googlePairs.length && (!pairs.length || Math.random() < 0.5) ? pick(googlePairs) : (pairs.length ? pick(pairs) : null);
+      var scale = pick(scales)[0];
+      var rhythmPool = g.dark ? rhythms.filter(function (x) { return x.key !== 'dark-hero' && x.key !== 'bookends'; }) : rhythms;
+      var rhythm = pick(rhythmPool.length ? rhythmPool : rhythms).key;
+      var divider = pick(dividers);
+      var fx = Math.random() < grainOdds ? 'grain' : null;
+      var bg, tx, ac;
+      if (brand) {
+        bg = brand.background; tx = brand.text; ac = brand.accent || now.accent;
+        var bl = hexToHsl(bg);
+        g = { key: 'brand', say: 'your colours', dark: bl ? bl.l < 0.5 : false, ink: bl && bl.l < 0.5 ? [0.08, 0.93] : [0.3, 0.13] };
+        r = { key: 'brand', say: 'Your brand' }; v = { key: 'brand', say: '' }; ink = { key: 'brand' };
+        if (brandFonts) pair = brandFonts;
+      } else bg = hslToHex(A.h + j(10), g.s, g.l);
+      if (!brand) {
+        tx = hslToHex(A.h, Math.min(0.6, g.ink[0] * ink.mult), g.ink[1]);
+        ac = hslToHex(A.h + r.d + j(8), v.s, g.dark ? 0.62 : 0.44);
+        // the gate: ink walks to 7:1, the accent to where its words read; a
+        // brand's own colours are never walked (the form already judged them)
+        tx = ensureContrast(tx, bg, 7);
+        ac = fitAccent(ac, bg, tx);
+      }
+      var key = [g.key, ink.key, r.key, v.key, pair ? pair.heading + '/' + pair.body : '-', scale, rhythm, divider || '-', fx || '-', dir ? dir.say : '-'].join('|');
+      var rhythmSay = (REMIX_RHYTHMS.filter(function (x) { return x.key === rhythm; })[0] || REMIX_RHYTHMS[0]).say;
+      var scaleSay = (REMIX_SCALES.filter(function (x) { return x[0] === scale; })[0] || [100, 'regular'])[1];
+      return {
+        key: key,
+        name: brand ? 'Your brand' : r.say + v.say + ' on ' + g.say,
+        brand: !!brand,
+        detail: (remixPairSay(pair) ? remixPairSay(pair) + ', ' : '') + scaleSay + ' type, ' + rhythmSay + (divider ? ', ' + (/^[aeiou]/i.test(divider) ? 'an ' : 'a ') + divider + ' edge' : '') + (fx === 'grain' ? ', grain' : ''),
+        colors: { background: bg, text: tx, accent: ac, accent2: brand && brand.accent2 ? brand.accent2 : ac },
+        fonts: pair,
+        scale: scale,
+        rhythm: rhythm,
+        divider: divider,
+        fx: fx,
+        direction: dir ? dir.say : null,
+        parts: { ground: g.key, relation: r.key, volume: v.key },
+      };
+    };
+    var out = [], tries = 0;
+    while (out.length < 6 && tries < 240) {
+      tries++;
+      var c = build();
+      var dupe = out.some(function (o) { return o.key === c.key; });
+      var sameName = !c.brand && out.some(function (o) { return o.name === c.name; }); // a brand's rolls all say so
+      // unseen first; once the field is spent, looks shown before may return —
+      // but never the same card twice in one spin (a locked spin can be short),
+      // and two cards with one name only when the direction leaves no other
+      if (dupe || (sameName && tries < 120) || (remixShown[c.key] && tries < 160)) continue;
+      out.push(c);
+    }
+    out.forEach(function (c) { remixShown[c.key] = 1; });
     return out;
   }
-
   function brandToVariation(brand) {
     var c = (brand && brand.colors) || {};
     var cur = themePalette();
@@ -13099,29 +17108,74 @@
     var ai = 0;
     var pal = [];
     var roles = paletteRoles();
+    var curBg = cur.filter(function (p) { return p.slug === roles.bgSlug; })[0];
+    var curTx = cur.filter(function (p) { return p.slug === roles.textSlug; })[0];
+    var lumOfVal = function (val) { var h = hexToHsl(val); return h ? relLum(hslToHex(h.h, h.s, h.l)) : null; };
+    var bgL = curBg ? lumOfVal(curBg.value) : null, txL = curTx ? lumOfVal(curTx.value) : null;
     slugs.forEach(function (slug) {
       var v = null;
+      var keep = cur.filter(function (p) { return p.slug === slug; })[0];
       if (slug === roles.bgSlug || /^(base|background)$/.test(slug)) v = c.background;
       else if (slug === roles.textSlug || /^(contrast|foreground|text|main)$/.test(slug)) v = c.text;
-      else if (/accent|primary|secondary/.test(slug) && accents.length) { v = accents[ai % accents.length]; ai++; }
-      if (!v) {
-        var keep = cur.filter(function (p) { return p.slug === slug; })[0];
-        v = keep && keep.value;
+      else if (/accent|primary|secondary/.test(slug) && accents.length) {
+        // the first two accent slots are the brand's accents; every later
+        // slot follows the ROLE its current colour plays — an ink stays an
+        // ink (the new text colour), a tint of the ground stays a tint
+        // (TT5 Morning sets body copy to accent-4; sweeping it with the
+        // accent turned every paragraph blue)
+        if (ai < 2) { v = accents[ai % accents.length]; ai++; }
+        else {
+          var kl = keep ? lumOfVal(keep.value) : null;
+          if (kl != null && txL != null && bgL != null) {
+            var toTx = Math.abs(kl - txL), toBg = Math.abs(kl - bgL);
+            if (toTx <= toBg && toTx < 0.25) v = c.text;
+            else if (toBg < 0.12) {
+              var gh = hexToHsl(c.background), th = hexToHsl(c.text);
+              if (gh && th) v = hslToHex(gh.h, gh.s, gh.l + (th.l > gh.l ? 0.05 : -0.05));
+            }
+          }
+        }
       }
+      if (!v) v = keep && keep.value;
       if (v) pal.push({ slug: slug, color: v, name: slug });
     });
     var out = { title: 'Your brand', settings: { color: { palette: { theme: pal } } }, styles: {} };
+    // outline (ghost) buttons wear the accent for outline and words when it
+    // reads on the page as text; otherwise they keep the words colour
+    out.ghostInk = (c.accent && c.background && remixRatio(c.accent, c.background) >= 4.5) ? c.accent : null;
+    // buttons wear the brand's accent, with whichever of page or words reads
+    // on it — a theme variation may put buttons on contrast/base and never
+    // touch accent-1 (TT5's default), so the brand says so itself
+    var accentSlot = pal.filter(function (p) { return /accent|primary|secondary/.test(p.slug) && p.color === c.accent; })[0];
+    if (accentSlot && c.background && c.text && roles.bgSlug && roles.textSlug) {
+      var ink = buttonInkFor(c.accent, c.background, c.text);
+      out.styles.elements = out.styles.elements || {};
+      out.styles.elements.button = { color: {
+        background: 'var:preset|color|' + accentSlot.slug,
+        text: 'var:preset|color|' + (ink.role === 'background' ? roles.bgSlug : roles.textSlug),
+      } };
+    }
     var f = (brand && brand.fonts) || {};
-    var byFam = {};
+    var byFam = {}, installed = {};
     fontCatalogue().forEach(function (x) { byFam[x.slug] = x; });
-    var used = [];
+    // families the brand had installed through the Font Library ride along
+    // with their faces, so the styles can activate them
+    ((brand && brand.families) || (cfg.brand && cfg.brand.families) || []).forEach(function (x) { if (x && x.slug) { byFam[x.slug] = x; installed[x.slug] = x; } });
+    var used = [], usedCustom = [];
     ['heading', 'body'].forEach(function (k) {
-      if (f[k] && byFam[f[k]]) used.push({ slug: f[k], name: byFam[f[k]].name, fontFamily: byFam[f[k]].fontFamily });
+      if (!f[k] || !byFam[f[k]]) return;
+      if (installed[f[k]]) { if (!usedCustom.some(function (u) { return u.slug === f[k]; })) usedCustom.push(installed[f[k]]); }
+      else if (!used.some(function (u) { return u.slug === f[k]; })) used.push({ slug: f[k], name: byFam[f[k]].name, fontFamily: byFam[f[k]].fontFamily });
     });
-    if (used.length) out.settings.typography = { fontFamilies: { theme: used } };
+    if (used.length || usedCustom.length) {
+      out.settings.typography = { fontFamilies: {} };
+      if (used.length) out.settings.typography.fontFamilies.theme = used;
+      if (usedCustom.length) out.settings.typography.fontFamilies.custom = usedCustom;
+    }
     if (f.body && byFam[f.body]) out.styles.typography = { fontFamily: 'var:preset|font-family|' + f.body };
     if (f.heading && byFam[f.heading]) {
-      out.styles.elements = { heading: { typography: { fontFamily: 'var:preset|font-family|' + f.heading } } };
+      out.styles.elements = out.styles.elements || {};
+      out.styles.elements.heading = { typography: { fontFamily: 'var:preset|font-family|' + f.heading } };
     }
     return out;
   }
@@ -13263,149 +17317,396 @@
         });
     });
   }
+  // ---------- Your brand: one colour in, gogh derives the rest ----------
+  // A brand is at least one colour and a polarity, and at most everything a
+  // guideline says. gogh honours what it is given, derives what is missing
+  // through the gate, and says what it did — a sentence, not a tick
+  // ("One Colour In", 2026-09-14).
+  function colourWord(hex) {
+    var c = hexToHsl(hex);
+    if (!c) return 'clear';
+    if (c.l < 0.28) return 'deep';
+    if (c.s < 0.18) return 'muted';
+    if (c.l > 0.74) return 'pale';
+    if (c.s > 0.7 && c.l > 0.45) return 'loud';
+    if (c.s < 0.4) return 'soft';
+    return 'clear';
+  }
+  // each sentence is a clause about the colour and a clause about the page;
+  // the page clause is only said when gogh chose the page
+  var BRAND_SAY = {
+    loud: ['is loud, so gogh keeps it for the buttons', ' and gives the page a calm ground'],
+    deep: ['is deep, so it carries your buttons', '; the page stays light so the words read'],
+    deepDark: ['is deep, so it carries your buttons', '; the page is deep too, with the words in light'],
+    pale: ['is pale, so the buttons stay light and quiet', ' and the page stays lighter still'],
+    soft: ['is soft, so the buttons wear it a shade deeper', ' and the page takes a whisper of it'],
+    muted: ['is muted, so the buttons carry the rest', ' and gogh gives the page a hint of it'],
+    clear: ['is a clear colour: buttons and links wear it', ', and the page stays quiet around it'],
+  };
+  // given: any of { accent, background, text, accent2 } (hex) and fonts; the
+  // rest is derived. opts.dark asks for a dark page; a given background
+  // decides the polarity itself.
+  function deriveBrand(given, opts) {
+    given = given || {};
+    opts = opts || {};
+    var accent = given.accent || given.accent2 || null;
+    var dark = opts.dark != null ? !!opts.dark : (given.background ? relLum(given.background) < 0.35 : false);
+    if (!accent) {
+      // no accent given at all: the text colour is the brand (a dark colour
+      // carries buttons); failing that a quiet blue
+      accent = given.text && relLum(given.text) < 0.5 ? given.text : '#2f5d8a';
+    }
+    var h = hexToHsl(accent) || { h: 220, s: 0.5, l: 0.4 };
+    var word = colourWord(accent);
+    var read = { background: !!given.background, text: !!given.text, accent: !!given.accent, accent2: !!given.accent2 };
+    // a colour with no saturation (black, grey) hands no hue to the page or
+    // the words — a monochrome brand stays monochrome
+    var hueS = h.s < 0.12 ? 0 : h.s;
+    var background = given.background || (dark
+      ? hslToHex(h.h, Math.min(0.35, hueS * 0.5), 0.11)
+      : hslToHex(h.h, Math.min(0.18, hueS * 0.3), 0.965));
+    var text = given.text || (dark ? hslToHex(h.h, Math.min(0.08, hueS), 0.93) : hslToHex(h.h, Math.min(0.3, hueS), 0.12));
+    if (!given.text) text = ensureContrast(text, background, 7);
+    // the accent is a button: its words must read; when the colour is too
+    // pale to hold them, the button deepens and the colour keeps the badges
+    var button = fitAccent(accent, background, text);
+    var moved = button.toLowerCase() !== accent.toLowerCase();
+    var movedHow = moved ? (relLum(button) > relLum(accent) ? 'lightened' : 'deepened') : null;
+    var buttonInk = buttonInkFor(button, background, text);
+    var accent2 = given.accent2 || hslToHex(h.h + 34, hueS, (hexToHsl(button) || h).l);
+    var parts = word === 'deep' && dark ? BRAND_SAY.deepDark : BRAND_SAY[word];
+    var say = 'Your colour ' + parts[0] + (read.background ? '' : parts[1]) + '.';
+    // the button's words: the page colour or the text colour, whichever reads
+    say += buttonInk.role === 'background'
+      ? (dark ? ' The buttons wear dark words on it.' : ' The buttons wear light words on it.')
+      : '';
+    if (moved) say += ' gogh ' + movedHow + ' it a little so words could read on the buttons.';
+    if (read.accent && (read.background || read.text)) say = say.replace(/^Your colour/, 'Your primary');
+    return {
+      colors: { background: background, text: text, accent: button, accent2: accent2 },
+      fonts: given.fonts || {},
+      word: word, say: say, read: read, moved: moved, movedHow: movedHow, dark: dark, buttonInk: buttonInk.role,
+    };
+  }
+  // a guideline, read: codes with the role named beside them, fonts by name.
+  // Codes without a role are placed by what they look like (lightest → page,
+  // darkest → words, most saturated → buttons); the receipt says which.
+  function readBrandGuide(text) {
+    var t = String(text || '');
+    var out = { colors: {}, fonts: {}, names: {}, codes: [], placed: {} };
+    var re = /#([0-9a-f]{6}|[0-9a-f]{3})\b|rgb\(\s*(\d{1,3})\s*,\s*(\d{1,3})\s*,\s*(\d{1,3})\s*\)/gi, m;
+    var toHex = function (mm) {
+      if (mm[1]) { var x = mm[1].toLowerCase(); return '#' + (x.length === 3 ? x[0] + x[0] + x[1] + x[1] + x[2] + x[2] : x); }
+      return '#' + [mm[2], mm[3], mm[4]].map(function (v) { return ('0' + Math.max(0, Math.min(255, +v)).toString(16)).slice(-2); }).join('');
+    };
+    var roleOf = function (ctx) {
+      ctx = ctx.toLowerCase();
+      if (/\b(background|page|paper|surface|canvas|bg)\b/.test(ctx)) return 'background';
+      if (/\b(text|ink|body|foreground|copy|charcoal|headline colou?r)\b/.test(ctx)) return 'text';
+      if (/\b(secondary|second|tertiary|highlight|badge)\b/.test(ctx)) return 'accent2';
+      if (/\b(primary|brand|main|accent|cta|button|link)\b/.test(ctx)) return 'accent';
+      return null;
+    };
+    var loose = [], lastEnd = 0;
+    while ((m = re.exec(t))) {
+      var hex = toHex(m);
+      var from = lastEnd;
+      lastEnd = m.index + m[0].length;
+      var seen = out.codes.indexOf(hex) !== -1;
+      if (!seen) out.codes.push(hex);
+      // the role is the word beside THIS code: from the previous code (or
+      // the start of the line) up to it — never the line before
+      var ctx = t.slice(Math.max(from, m.index - 60), m.index);
+      var nl = ctx.lastIndexOf('\n');
+      if (nl !== -1) ctx = ctx.slice(nl + 1);
+      var role = roleOf(ctx);
+      // a code named twice takes both roles (a black that is words AND buttons)
+      if (role && !out.colors[role]) { out.colors[role] = hex; out.placed[role] = 'read'; }
+      else if (!seen) loose.push(hex);
+    }
+    // what was not named: place by look
+    var byLum = loose.slice().sort(function (a, b) { return relLum(b) - relLum(a); });
+    var sat = function (hx) { var c = hexToHsl(hx); return c ? c.s : 0; };
+    var bySat = loose.slice().sort(function (a, b) { return sat(b) - sat(a); });
+    var take = function (role, hex) {
+      if (!hex || out.colors[role]) return;
+      if (Object.keys(out.colors).some(function (k) { return out.colors[k] === hex; })) return;
+      out.colors[role] = hex; out.placed[role] = 'placed';
+    };
+    if (loose.length >= 3) {
+      if (relLum(byLum[0]) > 0.5) take('background', byLum[0]);
+      if (relLum(byLum[byLum.length - 1]) < 0.3) take('text', byLum[byLum.length - 1]);
+    }
+    bySat.forEach(function (hx) { take('accent', hx); });
+    bySat.forEach(function (hx) { take('accent2', hx); });
+    // fonts by name: "Headings: Playfair Display", "Body font — Inter"
+    var cat = fontCatalogue();
+    var findFont = function (name) {
+      var n = name.toLowerCase().replace(/[^a-z0-9 ]/g, '').trim();
+      var hit = cat.filter(function (f) { var fn = f.name.toLowerCase(); return fn === n || fn.indexOf(n) !== -1 || n.indexOf(fn) !== -1; })[0];
+      return hit ? hit.slug : null;
+    };
+    var fontRe = function (roleWords) {
+      return new RegExp('\\b(?:' + roleWords + ')s?(?:\\s+(?:font|typeface|face))?\\s*[:\\-\\u2013\\u2014=]\\s*["\\u201c]?([A-Z][A-Za-z0-9+\\-\\u2019 ]{1,40}?)["\\u201d]?(?=[,.;\\n)]|\\s+(?:for|\\(|\\u2014|-)|$)', 'im');
+    };
+    var hm = t.match(fontRe('heading|headings|headline|headlines|display|title|titles'));
+    var bm = t.match(fontRe('body|text|paragraph|paragraphs|copy'));
+    if (hm) { out.names.heading = hm[1].trim(); var hs = findFont(hm[1]); if (hs) out.fonts.heading = hs; }
+    if (bm) { out.names.body = bm[1].trim(); var bs = findFont(bm[1]); if (bs) out.fonts.body = bs; }
+    return out;
+  }
   function openBrandForm(anchorEl) {
-    var local = JSON.parse(JSON.stringify(cfg.brand || { colors: {
-      background: '#f6f2ea', text: '#1c2733', accent: '#c96f4a', accent2: '#7a9e7e',
-    }, fonts: {} }));
+    var had = !!(cfg.brand && cfg.brand.colors && cfg.brand.colors.background);
+    var local = JSON.parse(JSON.stringify(cfg.brand || { colors: {}, fonts: {} }));
+    // an emptied object comes back from PHP as [] — named keys set on an Array
+    // vanish in JSON, so a kept brand would lose its fonts; coerce both
+    ['colors', 'fonts'].forEach(function (k) { if (!local[k] || typeof local[k] !== 'object' || Array.isArray(local[k])) local[k] = {}; });
     local.colors = local.colors || {};
     local.fonts = local.fonts || {};
+    var derived = null; // the last derivation: read/placed roles, the sentence
+    var dark = had ? relLum(local.colors.background) < 0.35 : false;
+    var given = { fonts: local.fonts }; // what the person handed over
     var WELLS = [
-      ['background', 'Background', 'The page behind everything'],
-      ['text', 'Text', 'Your words'],
-      ['accent', 'Accent', 'Buttons and links'],
-      ['accent2', 'Second accent', 'Badges and extra highlights'],
+      ['background', 'Page', 'The page behind everything'],
+      ['text', 'Words', 'Your words'],
+      ['accent', 'Buttons', 'Buttons and links'],
+      ['accent2', 'Badges', 'Badges and extra highlights'],
     ];
     var cat = fontCatalogue();
     panel.innerHTML =
       '<div class="gogh-panel-head"><span class="gogh-panel-title">Your brand</span>' +
-      '<button type="button" class="gogh-sbtn gogh-panel-close" title="Back">\u2715</button></div>' +
-      '<div class="gogh-swlab">Colours</div>' +
-      '<div class="gogh-brandwells">' +
-      WELLS.map(function (w) {
-        var val = local.colors[w[0]] || '#888888';
-        return '<label class="gogh-brandwell" data-k="' + w[0] + '">' +
-          '<input type="color" value="' + escAttr(val) + '" />' +
-          '<span class="gogh-brandwell-name">' + w[1] + '</span>' +
-          '<span class="gogh-brandwell-hint">' + w[2] + '</span>' +
-          '<input type="text" class="gogh-input gogh-brandhex" value="' + escAttr(val) + '" spellcheck="false" />' +
-          '</label>';
-      }).join('') + '</div>' +
-      '<div class="gogh-brandcontrast"></div>' +
-      '<div class="gogh-panel-hint gogh-brandpaste-hint">Already have brand colours? Paste them below \u2014 gogh finds the codes and fills the boxes above.</div>' +
-      '<input type="text" class="gogh-input gogh-brandpaste" placeholder="Anything with codes like #1B2A4A works" />' +
-      '<div class="gogh-swlab">Fonts</div>' +
-      ['heading', 'body'].map(function (k) {
-        return '<div class="gogh-panel-row gogh-brandfontrow">' +
-          '<span class="gogh-brandfont-lab">' + (k === 'heading' ? 'Headings' : 'Body') + '</span>' +
-          '<select class="gogh-input gogh-brandfont" data-k="' + k + '">' +
-          '<option value="">Theme default</option>' +
-          cat.map(function (f2) {
-            return '<option value="' + escAttr(f2.slug) + '"' + (local.fonts[k] === f2.slug ? ' selected' : '') + '>' + escAttr(f2.name) + '</option>';
-          }).join('') + '</select></div>';
-      }).join('') +
-      '<div class="gogh-panel-row gogh-brandacts">' +
-      '<button type="button" class="gogh-btn gogh-btn-small gogh-brandcancel">Cancel</button>' +
-      '<button type="button" class="gogh-btn gogh-btn-small gogh-brandkeep">Save brand</button>' +
+      '<button type="button" class="gogh-sbtn gogh-panel-close" title="Back">✕</button></div>' +
+      '<div class="gogh-panel-hint">Give gogh the one colour that’s yours — or paste your brand guidelines and it reads everything in them. Either way it builds the rest, and Remix keeps it through every roll.</div>' +
+      '<div class="gogh-branddoor gogh-branddoor-one"><span class="gogh-branddoor-lab">Your brand colour</span>' +
+      '<label class="gogh-brandone"><input type="color" class="gogh-brandonepick" value="' + escAttr(local.colors.accent || '#2f5d8a') + '" /><span class="gogh-brandone-say">' + (had ? 'Change it and gogh updates everything else to match' : 'Pick the colour that’s yours. gogh uses it for buttons and links and chooses the rest to match') + '</span></label></div>' +
+      '<div class="gogh-branddoor"><span class="gogh-branddoor-lab">Or paste your brand guidelines</span>' +
+      '<textarea class="gogh-input gogh-brandguide" rows="3" placeholder="Anything with colour codes in it — a style guide, a designer’s email, a page an AI wrote. gogh reads the colours by their roles, and the fonts by name."></textarea></div>' +
+      '<div class="gogh-brandresult" hidden>' +
+        '<div class="gogh-brandreceipt"></div>' +
+        '<div class="gogh-brandsay"></div>' +
+        '<div class="gogh-brandpol"><button type="button" class="gogh-brandpolbtn" data-dark="0">Light page</button><button type="button" class="gogh-brandpolbtn" data-dark="1">Dark page</button></div>' +
+        '<div class="gogh-panel-row gogh-brandacts">' +
+        '<button type="button" class="gogh-btn gogh-btn-small gogh-brandcancel">Cancel</button>' +
+        '<button type="button" class="gogh-btn gogh-btn-small gogh-brandkeep" title="Remix keeps these colours and rolls everything else">Keep this brand</button></div>' +
+        '<details class="gogh-more gogh-brandfine"><summary class="gogh-more-sum">Fine-tune <span class="gogh-more-what">the four colours · fonts</span></summary>' +
+        '<div class="gogh-brandwells">' +
+        WELLS.map(function (w) {
+          return '<label class="gogh-brandwell" data-k="' + w[0] + '">' +
+            '<input type="color" value="#888888" />' +
+            '<span class="gogh-brandwell-name">' + w[1] + '</span>' +
+            '<span class="gogh-brandwell-hint">' + w[2] + '</span>' +
+            '<input type="text" class="gogh-input gogh-brandhex" value="" spellcheck="false" />' +
+            '</label>';
+        }).join('') + '</div>' +
+        '<div class="gogh-brandcontrast"></div>' +
+        ['heading', 'body'].map(function (k) {
+          return '<div class="gogh-panel-row gogh-brandfontrow">' +
+            '<span class="gogh-brandfont-lab">' + (k === 'heading' ? 'Headings' : 'Body') + '</span>' +
+            '<select class="gogh-input gogh-brandfont" data-k="' + k + '">' +
+            '<option value="">Theme default</option>' +
+            cat.map(function (f2) {
+              return '<option value="' + escAttr(f2.slug) + '"' + (local.fonts[k] === f2.slug ? ' selected' : '') + '>' + escAttr(f2.name) + '</option>';
+            }).join('') + '</select></div>';
+        }).join('') +
+        '</details>' +
       '</div>';
     dockSidebar();
     zoomOutCanvas(); // keep the page in view beside the docked brand form
+    var result = panel.querySelector('.gogh-brandresult');
+    var receiptEl = panel.querySelector('.gogh-brandreceipt');
+    var sayEl = panel.querySelector('.gogh-brandsay');
     var contrastEl = panel.querySelector('.gogh-brandcontrast');
+    var pvT = null;
+    // fonts a guideline named that the site lacks: found on Google, tried on
+    // the page while the form is open, installed when the brand is kept
+    var pending = {};
+    var pendingPair = function () {
+      var r = function (k) { return pending[k] ? { name: pending[k].name, w: pending[k].w } : { keep: true }; };
+      return { heading: r('heading'), body: r('body') };
+    };
+    function audition() {
+      clearTimeout(pvT);
+      pvT = setTimeout(function () {
+        auditionVariation(brandToVariation(local));
+        if (pending.heading || pending.body) auditionFontPair(pendingPair()); else clearFontsPreview();
+      }, 120);
+    }
     function refreshContrast() {
       var r = contrastRatio(local.colors.text, local.colors.background);
       if (r == null) { contrastEl.textContent = ''; return; }
       contrastEl.className = 'gogh-brandcontrast ' + (r >= 4.5 ? 'is-good' : r >= 3 ? 'is-mid' : 'is-bad');
-      contrastEl.textContent = r >= 4.5
-        ? '\u2713 Your Text colour is easy to read on your Background'
-        : r >= 3
-          ? 'Your Text and Background are close \u2014 big headlines will read, small words won\u2019t'
-          : 'Your Text colour can\u2019t be read on your Background \u2014 try a darker text or a lighter background';
+      contrastEl.textContent = r >= 4.5 ? '✓ Words read on the page (' + r.toFixed(1) + ':1)'
+        : r >= 3 ? 'Words and page are close (' + r.toFixed(1) + ':1) — big headlines will read, small words won’t'
+        : 'Words can’t be read on the page (' + r.toFixed(1) + ':1)';
     }
-    var pvT = null;
-    function livePreview() {
+    function syncWells() {
+      panel.querySelectorAll('.gogh-brandwell').forEach(function (well) {
+        var k = well.dataset.k, v = local.colors[k] || '#888888';
+        well.querySelector('input[type="color"]').value = v;
+        well.querySelector('.gogh-brandhex').value = v;
+      });
+      panel.querySelectorAll('.gogh-brandfont').forEach(function (sel2) { sel2.value = local.fonts[sel2.dataset.k] || ''; });
       refreshContrast();
-      clearTimeout(pvT);
-      pvT = setTimeout(function () { auditionVariation(brandToVariation(local)); }, 150);
     }
+    function showResult() {
+      result.hidden = false;
+      var reads = derived ? derived.read : {};
+      var placed = (given.placed || {});
+      receiptEl.innerHTML = WELLS.map(function (w) {
+        var how = reads[w[0]] ? (placed[w[0]] === 'placed' ? 'placed' : 'from you') : 'gogh chose';
+        if (w[0] === 'accent' && derived && derived.moved && reads.accent) how = 'adjusted';
+        return '<span class="gogh-brandchip"><i style="background:' + escAttr(local.colors[w[0]] || '#888') + '"></i>' + w[1] + '<em>' + how + '</em></span>';
+      }).join('');
+      var fontLine = '';
+      if (given.names && (given.names.heading || given.names.body)) {
+        fontLine = ['heading', 'body'].map(function (k) {
+          if (!given.names[k]) return '';
+          var f = cat.filter(function (x) { return x.slug === local.fonts[k]; })[0];
+          var role = k === 'heading' ? 'Headings' : 'Body';
+          if (f) return role + ': ' + f.name + (f.name.toLowerCase() !== given.names[k].toLowerCase() ? ' (your guide says ' + given.names[k] + ')' : '');
+          if (pending[k]) return role + ': ' + pending[k].name + ' — from your guide, installed when you keep';
+          if (pending[k] === null) return role + ': your guide says ' + given.names[k] + ' — not on Google Fonts, so the theme’s own stays';
+          return role + ': your guide says ' + given.names[k] + ' — looking it up…';
+        }).filter(Boolean).join(' · ');
+      }
+      sayEl.innerHTML = '<span>' + esc(derived ? derived.say : 'Your brand, as kept.') + '</span>' + (fontLine ? '<span class="gogh-brandsay-fonts">' + esc(fontLine) + '</span>' : '');
+      panel.querySelectorAll('.gogh-brandpolbtn').forEach(function (b) { b.classList.toggle('is-on', (b.dataset.dark === '1') === dark); });
+      syncWells();
+      audition();
+    }
+    function rederive() {
+      derived = deriveBrand(given, { dark: dark });
+      local.colors = derived.colors;
+      if (given.fonts && Object.keys(given.fonts).length) local.fonts = JSON.parse(JSON.stringify(given.fonts));
+      showResult();
+    }
+    // door two: the guideline
+    var guideT = null;
+    panel.querySelector('.gogh-brandguide').addEventListener('input', function () {
+      var txt = this.value;
+      clearTimeout(guideT);
+      guideT = setTimeout(function () {
+        var r = readBrandGuide(txt);
+        if (!r.codes.length && !r.fonts.heading && !r.fonts.body && !r.names.heading && !r.names.body) return;
+        given = { accent: r.colors.accent, accent2: r.colors.accent2, background: r.colors.background, text: r.colors.text, fonts: r.fonts, names: r.names, placed: r.placed };
+        // a named font the site lacks: ask Google's list (through the site)
+        pending = {};
+        var lookups = ['heading', 'body'].filter(function (k) { return r.names[k] && !r.fonts[k]; });
+        if (lookups.length) {
+          lookups.forEach(function (k) { pending[k] = undefined; });
+          fetchGoogleCollection().then(function (families) {
+            lookups.forEach(function (k) {
+              var hit = googleFamilyNamed(families, r.names[k]);
+              pending[k] = hit ? { name: hit.font_family_settings.name, w: k === 'heading' ? googleWeightFor(hit) : 400, entry: hit } : null;
+              if (hit) delete local.fonts[k]; // the pending family stands in for the theme's
+            });
+            showResult();
+          }).catch(function () { lookups.forEach(function (k) { pending[k] = null; }); showResult(); });
+        }
+        if (r.colors.background) dark = relLum(r.colors.background) < 0.35;
+        rederive();
+        // the well IS the main colour: it shows what the guideline said
+        var pk = panel.querySelector('.gogh-brandonepick');
+        if (r.colors.accent) pk.value = r.colors.accent;
+        panel.querySelector('.gogh-brandone-say').textContent = r.colors.accent
+          ? 'Taken from your guidelines. Change it and the rest of your guidelines stay'
+          : 'Your guidelines didn’t name a main colour — pick it here';
+      }, 250);
+    });
+    // door three: one colour
+    panel.querySelector('.gogh-brandonepick').addEventListener('input', function () {
+      given.accent = this.value; // only the main colour moves; a pasted guideline keeps its other roles
+      if (given.placed) given.placed.accent = 'read';
+      rederive();
+    });
+    // the one fork: a light page or a dark one
+    panel.querySelectorAll('.gogh-brandpolbtn').forEach(function (b) {
+      b.addEventListener('click', function () {
+        var want = b.dataset.dark === '1';
+        if (want === dark) return; // already that — a guideline's page is not thrown away for nothing
+        dark = want;
+        // a given page or words that already sit on the wanted side stay; the others go
+        if (given.background && (relLum(given.background) < 0.35) !== want) { delete given.background; if (given.placed) delete given.placed.background; }
+        if (given.text && (relLum(given.text) > 0.5) !== want) { delete given.text; if (given.placed) delete given.placed.text; }
+        rederive();
+      });
+    });
+    // fine-tune: the wells and the fonts, prefilled with what gogh derived
     panel.querySelectorAll('.gogh-brandwell').forEach(function (well) {
       var k = well.dataset.k;
       var pick = well.querySelector('input[type="color"]');
       var hex = well.querySelector('.gogh-brandhex');
-      pick.addEventListener('input', function () {
-        local.colors[k] = pick.value;
-        hex.value = pick.value;
-        livePreview();
-      });
+      var set = function (v) {
+        local.colors[k] = v.toLowerCase();
+        given[k] = local.colors[k]; // a moved well is now the person's word
+        if (derived) derived.read[k] = true;
+        pick.value = local.colors[k]; hex.value = local.colors[k];
+        refreshContrast();
+        if (derived) { var placed2 = given.placed || (given.placed = {}); placed2[k] = 'read'; }
+        showResult();
+      };
+      pick.addEventListener('input', function () { set(pick.value); });
       hex.addEventListener('input', function () {
         var v = hex.value.trim();
-        if (/^#?[0-9a-f]{6}$/i.test(v)) {
-          if (v[0] !== '#') v = '#' + v;
-          local.colors[k] = v.toLowerCase();
-          pick.value = v;
-          livePreview();
-        }
+        if (/^#?[0-9a-f]{6}$/i.test(v)) set(v[0] === '#' ? v : '#' + v);
       });
-    });
-    panel.querySelector('.gogh-brandpaste').addEventListener('input', function () {
-      var found = (this.value.match(/#?[0-9a-f]{6}\b/gi) || []).map(function (h) {
-        return (h[0] === '#' ? h : '#' + h).toLowerCase();
-      });
-      if (!found.length) return;
-      WELLS.forEach(function (w, i2) {
-        if (found[i2]) local.colors[w[0]] = found[i2];
-      });
-      panel.querySelectorAll('.gogh-brandwell').forEach(function (well) {
-        var k = well.dataset.k;
-        well.querySelector('input[type="color"]').value = local.colors[k];
-        well.querySelector('.gogh-brandhex').value = local.colors[k];
-      });
-      livePreview();
     });
     panel.querySelectorAll('.gogh-brandfont').forEach(function (sel2) {
       sel2.addEventListener('change', function () {
         if (sel2.value) local.fonts[sel2.dataset.k] = sel2.value;
         else delete local.fonts[sel2.dataset.k];
-        livePreview();
+        given.fonts = JSON.parse(JSON.stringify(local.fonts));
+        audition();
       });
     });
-    panel.querySelector('.gogh-panel-close').addEventListener('click', function () {
-      clearVariationPreview();
-      openStylePanel(anchorEl);
-    });
-    panel.querySelector('.gogh-brandcancel').addEventListener('click', function () {
-      clearVariationPreview();
-      openStylePanel(anchorEl);
-    });
+    var leave = function () { clearVariationPreview(); clearFontsPreview(); openStylePanel(anchorEl); };
+    panel.querySelector('.gogh-panel-close').addEventListener('click', leave);
+    panel.querySelector('.gogh-brandcancel').addEventListener('click', leave);
     panel.querySelector('.gogh-brandkeep').addEventListener('click', function () {
       var keepBtn = panel.querySelector('.gogh-brandkeep');
       keepBtn.disabled = true;
-      fetch(GSROOT.replace(/wp\/v2\/$/, 'wp/v2/') + 'settings', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'X-WP-Nonce': cfg.nonce },
-        credentials: 'same-origin',
-        body: JSON.stringify({ gogh_brand: local }),
+      var save = { colors: local.colors, fonts: local.fonts };
+      var toInstall = ['heading', 'body'].filter(function (k) { return pending[k] && pending[k].entry; });
+      var busy = toInstall.length ? toast('Installing ' + toInstall.map(function (k) { return pending[k].name; }).filter(function (n, i, a) { return a.indexOf(n) === i; }).join(' and ') + '…', { ttl: 60000 }) : null;
+      var installs = fontsDryRun ? Promise.resolve([]) : Promise.all(toInstall.map(function (k) { return installFamily(pending[k].entry, pending[k].w); }));
+      installs.then(function (fams) {
+        var families = ((cfg.brand && cfg.brand.families) || []).slice();
+        toInstall.forEach(function (k, i) {
+          var fam = fams[i];
+          if (!fam) { save.fonts[k] = 'gogh-' + fontSlug(pending[k].name); return; } // dry: a stand-in slug
+          save.fonts[k] = fam.slug;
+          families = families.filter(function (x) { return x.slug !== fam.slug; }).concat([fam]);
+        });
+        if (families.length) save.families = families;
+        if (busy && busy.remove) busy.remove();
+        clearFontsPreview();
+        return fetch(GSROOT.replace(/wp\/v2\/$/, 'wp/v2/') + 'settings', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'X-WP-Nonce': cfg.nonce },
+          credentials: 'same-origin',
+          body: JSON.stringify({ gogh_brand: save }),
+        });
       }).then(function (r) {
         if (!r.ok) throw new Error('HTTP ' + r.status);
-        cfg.brand = local;
+        cfg.brand = save;
         clearVariationPreview();
-        return applyVariation(brandToVariation(local));
+        return applyVariation(brandToVariation(save));
       }).then(function () {
+        if (toInstall.length) toast(toInstall.map(function (k) { return pending[k].name; }).filter(function (n, i, a) { return a.indexOf(n) === i; }).join(' and ') + ' installed on your site, from your guidelines.', { ttl: 6000 });
         openStylePanel(anchorEl);
       }).catch(function (err) {
+        if (busy && busy.remove) busy.remove();
         keepBtn.disabled = false;
-        toast('gogh could not save your brand \u2014 ' + ((err && err.message) || 'try again.'), { error: true });
+        toast('gogh could not save your brand — ' + ((err && err.message) || 'try again.'), { error: true });
       });
     });
-    refreshContrast();
+    // a brand already kept opens on its receipt, as kept
+    if (had) {
+      given = { accent: local.colors.accent, accent2: local.colors.accent2, background: local.colors.background, text: local.colors.text, fonts: local.fonts };
+      derived = { colors: local.colors, read: { background: true, text: true, accent: true, accent2: true }, say: 'Your brand, as kept. Give gogh a new colour, or paste guidelines, to change it.' };
+      showResult();
+    }
   }
-  // ---------- type scale: one dial, every word ----------
-  // Scaled sizes are written as calc(original * factor) into user Global
-  // Styles, so px, rem and clamp() themes all scale uniformly — and always
-  // from the THEME's originals, so the dial can never compound itself.
-  // the global-styles REST endpoint serves fontSizes either FLAT or keyed
-  // by origin ({default, theme, custom}) depending on WP version and
-  // context — James's dial read .length on the object and declared the
-  // theme fontless. Unwrap: the theme's own sizes first, then custom,
-  // then core defaults.
   function themeFontSizeList(raw) {
     if (Array.isArray(raw)) return raw;
     if (raw && typeof raw === 'object') return raw.theme || raw.custom || raw.default || null;
@@ -13480,53 +17781,23 @@
       panel.innerHTML =
         '<div class="gogh-panel-head"><span class="gogh-panel-title">Site style</span>' +
         '<button type="button" class="gogh-sbtn gogh-panel-close gogh-panel-back" title="Back"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"/></svg></button></div>' +
+        '<div class="gogh-panel-hint">Tap Remix to try a new look. Tap again for another.</div>' +
+        // the two doors people come for share the top row: Remix first and
+        // emphasised, the brand beside it. The dials — the theme's own
+        // looks, its font pairs, the type size — live one door deeper,
+        // folded under More until asked for ("Remix Like the Die", rule 5)
+        '<div class="gogh-toprow"></div>' +
+        // colours here; type lives in the Fonts door (James: "its unclear
+        // what the relationship is between our new fonts and site style
+        // fonts" — one door for type, one for colour)
+        '<details class="gogh-more"><summary class="gogh-more-sum">More <span class="gogh-more-what">the theme\u2019s colour looks</span></summary>' +
         '<div class="gogh-panel-hint">Hover to preview \u2014 click to keep it</div>' +
-        '<div class="gogh-panel-hint" style="margin-top:6px">Type scale</div>' +
-        '<div class="gogh-hpresets gogh-typescale">' +
-        [['Snug', 90], ['Regular', 100], ['Airy', 110], ['Grand', 120]].map(function (ts) {
-          return '<button type="button" class="gogh-hpreset' + ((cfg.typeScale || 100) === ts[1] ? ' is-active' : '') + '" data-scale="' + ts[1] + '">' + ts[0] + '</button>';
-        }).join('') + '</div>' +
-        '<div class="gogh-varlist"></div>';
-      // the hint says "Hover to preview" — the type chips must honour it
-      // too. Local preview: override the font-size preset vars with scaled
-      // px (measured once), zero server round-trips, gone on leave.
-      var tsPreview = null;
-      var tsPreviewOff = function () {
-        if (tsPreview) { tsPreview.remove(); tsPreview = null; }
-      };
-      var tsPreviewOn = function (factor) {
-        tsPreviewOff();
-        if (factor === (cfg.typeScale || 100)) return;
-        var baseline = (cfg.typeScale || 100) / 100;
-        var rules = fontSizes().map(function (f) {
-          // f.px is the CURRENT (already-scaled) size — preview relative
-          // to the theme's own scale, never compounding
-          var px = f.px / baseline * (factor / 100);
-          return '--wp--preset--font-size--' + f.slug + ': ' + (Math.round(px * 100) / 100) + 'px;';
-        });
-        if (!rules.length) return;
-        tsPreview = document.createElement('style');
-        tsPreview.textContent = ':root, body { ' + rules.join(' ') + ' }';
-        document.head.appendChild(tsPreview);
-      };
-      panel.querySelectorAll('.gogh-typescale .gogh-hpreset').forEach(function (tb) {
-        tb.addEventListener('mouseenter', function () { tsPreviewOn(+tb.dataset.scale); });
-        tb.addEventListener('mouseleave', tsPreviewOff);
-        tb.addEventListener('click', function () {
-          tsPreviewOff();
-          applyTypeScale(+tb.dataset.scale, tb).then(function (ok) {
-            if (!ok) return;
-            panel.querySelectorAll('.gogh-typescale .gogh-hpreset').forEach(function (o) {
-              o.classList.toggle('is-active', o === tb);
-            });
-          });
-        });
-      });
+        '<div class="gogh-varlist"></div></details>';
       panel.querySelector('.gogh-panel-close').addEventListener('click', function () {
-        tsPreviewOff();
         backToDesign();
       });
       var box = panel.querySelector('.gogh-varlist');
+      var top = panel.querySelector('.gogh-toprow');
       // Site designs lives in the Design drawer alone — this panel is styles
       // your brand sits ABOVE the theme's styles — the most important option
       (function () {
@@ -13537,7 +17808,7 @@
           b2.type = 'button';
           b2.className = 'gogh-varbtn gogh-brandbtn';
           if ((cfg.activeStyle || '') === 'Your brand') b2.classList.add('is-current');
-          b2.title = 'Your brand \u2014 click to edit it';
+          b2.title = 'Your brand \u2014 Remix keeps these colours and rolls everything else. Click to edit it.';
           var order = ['background', 'text', 'accent', 'accent2'];
           b2.innerHTML = order.map(function (k) {
             var col = cfg.brand.colors[k];
@@ -13563,53 +17834,57 @@
           mk.addEventListener('click', function () { openBrandForm(anchorEl); });
           row.appendChild(mk);
         }
-        box.appendChild(row);
+        top.appendChild(row);
       })();
-      // ---------- Remix: tap → six new looks derived from the brand ----------
+      // ---------- Remix: a die for the site's clothes ----------
       (function () {
         var wrap = document.createElement('div');
         wrap.className = 'gogh-remixrow';
         wrap.innerHTML = '<button type="button" class="gogh-btn gogh-btn-small gogh-remixbtn" ' +
-          'title="Six looks derived from your brand — hover to wear one, tap Remix again for six more">✦ Remix</button>' +
-          '<div class="gogh-remixcards" hidden></div>';
-        box.appendChild(wrap);
-        var cardsBox = wrap.querySelector('.gogh-remixcards');
-        wrap.querySelector('.gogh-remixbtn').addEventListener('click', function () {
-          cardsBox.hidden = false;
-          cardsBox.innerHTML = '';
-          remixCandidates().forEach(function (cand) {
-            var v = brandToVariation({ colors: cand.colors, fonts: cand.fonts || null });
-            v.title = 'Remix · ' + cand.name;
-            var cb = document.createElement('button');
-            cb.type = 'button';
-            cb.className = 'gogh-varbtn gogh-remixcard';
-            cb.innerHTML = ['background', 'text', 'accent'].map(function (k) {
-              return '<span class="gogh-vardot" style="background:' + escAttr(cand.colors[k]) + '"></span>';
-            }).join('') + '<span class="gogh-varname">' + cand.name + '</span>';
-            cb.addEventListener('mouseenter', function () {
-              clearTimeout(previewHoverT);
-              previewHoverT = setTimeout(function () { auditionVariation(v); }, 120);
-            });
-            cb.addEventListener('click', function () { applyVariation(v, cb); });
-            cardsBox.appendChild(cb);
-          });
+          'title="Tap to try a new look. Tap again for another.">✦ Remix</button>' +
+          '<div class="gogh-remixwearing" hidden>' +
+            '<span class="gogh-remixwearing-words"><span class="gogh-remixwearing-lab">On your site now</span>' +
+            '<span class="gogh-remixwearing-name"></span><span class="gogh-remixwearing-detail"></span></span>' +
+            // the count is context, not a ceiling (James: "not suggesting we limit, just give context")
+            '<span class="gogh-remixwearing-foot"><span class="gogh-remixwearing-count"></span>' +
+            '<span class="gogh-remixwearing-ways"><button type="button" class="gogh-remixback" title="The look before this one">Back</button>' +
+            // closure, not a decision: the look is already on; Keep just says so and closes the panel
+            '<button type="button" class="gogh-remixkeep" title="It is already on your site — this closes the panel">Keep this</button></span></span></div>';
+        top.appendChild(wrap);
+        var wearingBox = wrap.querySelector('.gogh-remixwearing');
+        var backBtn = wrap.querySelector('.gogh-remixback');
+        var hint = panel.querySelector('.gogh-panel-hint');
+        remixWatch('panel', function () {
+          if (!document.body.contains(wearingBox)) return; // the panel moved on
+          var w = remixWorn();
+          if (!w) { wearingBox.hidden = true; return; }
+          wearingBox.hidden = false;
+          // after the first roll the hint says the thing nobody said: it is already on
+          if (hint) hint.textContent = w.origin ? 'Tap Remix to try a new look. Tap again for another.' : 'Like it? It\u2019s already on your site. Tap again for another, or go back.';
+          wearingBox.querySelector('.gogh-remixwearing-name').textContent = w.origin ? (w.title || 'the look you started with') : ((w.cand && w.cand.name) || 'a new look');
+          wearingBox.querySelector('.gogh-remixwearing-detail').textContent = w.origin ? '' : ((w.cand && w.cand.detail) || '');
+          wearingBox.querySelector('.gogh-remixwearing-count').textContent = w.origin ? 'Where you started' : 'Look ' + remixAt;
+          backBtn.disabled = remixAt <= 0;
         });
+        backBtn.addEventListener('click', function () { remixBack(); });
+        wrap.querySelector('.gogh-remixkeep').addEventListener('click', function () {
+          var w = remixWorn();
+          backToDesign(); // the same way out as Back: the side rail comes back
+          var said = w && !w.origin && w.cand ? (w.cand.name === 'Your brand' ? 'your brand' + (w.cand.detail ? ', ' + w.cand.detail : '') : w.cand.name) : '';
+          toast(said ? 'Kept. Your site now uses ' + said + '.' : 'Kept.', { ttl: 3500 });
+        });
+        wrap.querySelector('.gogh-remixbtn').addEventListener('click', function () { remixRoll(); });
+        remixSayWearing();
       })();
-      // colours and font pairs are different decisions — group them
+      // colours only: the theme's font pairs live in the Fonts door now
       var groups = { color: [], font: [] };
       vars.forEach(function (v) {
         var pal = ((v.settings || {}).color || {}).palette || {};
         var colors = (pal.theme || pal.default || []).slice(0, 4);
         groups[colors.length ? 'color' : 'font'].push({ v: v, colors: colors });
       });
-      [['color', 'Colours'], ['font', 'Fonts']].forEach(function (g) {
+      [['color', 'Colours']].forEach(function (g) {
         if (!groups[g[0]].length) return;
-        if (groups.color.length && groups.font.length) {
-          var lab = document.createElement('div');
-          lab.className = 'gogh-panel-group';
-          lab.textContent = g[1];
-          box.appendChild(lab);
-        }
         groups[g[0]].forEach(function (item) {
           var v = item.v;
           var b = document.createElement('button');
@@ -13656,6 +17931,7 @@
         });
       });
       box.addEventListener('mouseleave', function () { clearVariationPreview(); });
+      top.addEventListener('mouseleave', function () { clearVariationPreview(); });
       dockSidebar();
       panelSticky = true; // hover-audition panel: outside clicks pass through
       zoomOutCanvas(); // pull the whole page into view to audition the style
@@ -13791,6 +18067,14 @@
     if (bodyFF) body += 'font-family:' + bodyFF + ';';
     body += typo(bBodyTy) + typo(vBodyTy);
     css += 'body{' + body + '}';
+    if (v.ghostInk !== undefined) css += ':root{--gogh-ghost-ink:' + (v.ghostInk || 'initial') + ';}';
+    // a variation that styles its buttons (the brand does) previews them too
+    var vBtn = ((vs.elements || {}).button || {}).color || {};
+    if (vBtn.background || vBtn.text) {
+      css += '.wp-element-button,.wp-block-button__link{' +
+        (vBtn.background ? 'background-color:' + resolve(vBtn.background) + ';' : '') +
+        (vBtn.text ? 'color:' + resolve(vBtn.text) + ';' : '') + '}';
+    }
 
     // headings: own font/colour when set, else the base's, else follow the body
     var headFF = vHeadTy.fontFamily ? resolve(vHeadTy.fontFamily)
@@ -13858,6 +18142,12 @@
         if (fresh && cur) cur.textContent = fresh.textContent;
         else if (fresh && !cur) document.head.appendChild(fresh.cloneNode(true));
       });
+      // the ghost buttons' ink follows the applied look until the next load
+      // (then gogh_ghost_ink_css reads it from the saved palette)
+      if (v.ghostInk !== undefined) {
+        if (v.ghostInk) document.documentElement.style.setProperty('--gogh-ghost-ink', v.ghostInk);
+        else document.documentElement.style.removeProperty('--gogh-ghost-ink');
+      }
       fontSizesCache = null;
       // Re-flow AFTER the swapped-in fonts actually paint. A heading measured
       // mid-FOUT reads the FALLBACK font's height — often far taller than the
@@ -13869,6 +18159,7 @@
       // wrapped height. (ensureVariationFonts above preloads the JS FontFaces;
       // this also covers the CSS @font-face the swap brings in.)
       S.forEach(function (s) { growReflow(s, true); }); // new type re-wraps headings — push/pull what's below to match
+      S.forEach(function (s) { try { diceFitWords(s); } catch (err) {} }); // a wider face steps a take's headline down until its longest word fits
       if (wasClean) savedSnap = serialize(); // re-measured heights are the new clean baseline
       if (sel) placeHandles(sel.sec, sel.i);
       refreshChip();
@@ -13919,6 +18210,15 @@
   side.querySelector('.gogh-pagestylebtn').addEventListener('click', function (ev) {
     openPageStylePanel(ev.currentTarget);
   });
+  side.querySelector('.gogh-phonebtn').addEventListener('click', function () {
+    if (deviceMode === 'phone') seeOnDesktop(); else seeOnPhone();
+  });
+  side.querySelector('.gogh-addpagebtn').addEventListener('click', function (ev) {
+    openAddPagePanel(ev.currentTarget);
+  });
+  side.querySelector('.gogh-fontsbtn').addEventListener('click', function (ev) {
+    openFontsPanel(ev.currentTarget);
+  });
   side.querySelector('.gogh-motionbtn').addEventListener('click', function () {
     openMotionPanel();
   });
@@ -13934,7 +18234,7 @@
   function snapPos(sec, exclude, x, y, w, h, free, textCXOff) {
     if (free) return { x: Math.round(x), y: Math.round(y), gx: null, gy: null };
     var H = designH(sec.els, sec.minH);
-    var candX = [0, W, W / 2], candY = [0, H, H / 2];
+    var candX = [0, W, W / 2, MARGIN, W - MARGIN], candY = [0, H, H / 2];
     sec.els.forEach(function (o) {
       if (o === exclude || dragMate(o)) return;
       candX.push(o.x, o.x + o.w, o.x + o.w / 2);
@@ -13973,7 +18273,7 @@
       var bestV = null, d = SNAP + 1;
       edges.forEach(function (edge) {
         if (edge.off !== 0 && edge.off !== span) return;
-        var gv = Math.round(edge.v / GRID) * GRID;
+        var gv = Math.round(edge.v / gridLine()) * gridLine();
         var dd = Math.abs(gv - edge.v);
         if (dd < d) { d = dd; bestV = gv - edge.off; }
       });
@@ -13982,14 +18282,87 @@
     var ggx = (!sx && gl) ? gridTier(xEdges, w) : null;
     var ggy = (!sy && gl) ? gridTier(yEdges, h) : null;
     return {
-      x: sx ? Math.round(sx.v) : (ggx !== null ? Math.round(ggx) : (gl ? Math.round(x / BASE) * BASE : Math.round(x))),
-      y: sy ? Math.round(sy.v) : (ggy !== null ? Math.round(ggy) : (gl ? Math.round(y / BASE) * BASE : Math.round(y))),
+      x: sx ? Math.round(sx.v) : (ggx !== null ? Math.round(ggx) : (gl ? Math.round(x / gridUnit()) * gridUnit() : Math.round(x))),
+      y: sy ? Math.round(sy.v) : (ggy !== null ? Math.round(ggy) : (gl ? Math.round(y / gridUnit()) * gridUnit() : Math.round(y))),
       gx: sx ? sx.g : null,
       gy: sy ? sy.g : null,
     };
   }
 
   // ---------- smart spacing: neighbours, live distances, equal-space snap ----------
+  // the gap a run already keeps: with a neighbour on ONE side of this axis,
+  // that neighbour's own gap to the next piece along is the run's gap
+  function runGap(sec, e, nb, axis) {
+    var near = axis === 'x' ? [nb.L, nb.R] : [nb.T, nb.B];
+    var side = near[0] && !near[1] ? 0 : (!near[0] && near[1] ? 1 : -1);
+    if (side < 0) return null;
+    var n1 = near[side];
+    var nn = neighbors(sec, n1);
+    var n2 = axis === 'x' ? (side === 0 ? nn.L : nn.R) : (side === 0 ? nn.T : nn.B);
+    if (!n2 || n2 === e) return null;
+    var gap = axis === 'x'
+      ? (side === 0 ? n1.x - (n2.x + n2.w) : n2.x - (n1.x + n1.w))
+      : (side === 0 ? n1.y - (n2.y + n2.h) : n2.y - (n1.y + n1.h));
+    if (!(gap > 0)) return null;
+    return { side: axis === 'x' ? (side === 0 ? 'L' : 'R') : (side === 0 ? 'T' : 'B'), gap: Math.round(gap), n1: n1, n2: n2 };
+  }
+  // the nearest rhythm gap (24, 48, 72) from any neighbour on this axis,
+  // within SNAP of where the pointer is — null when none is that close
+  function rhythmGap(e, nb, axis, raw) {
+    var best = null;
+    var sides = axis === 'x' ? [['L', nb.L], ['R', nb.R]] : [['T', nb.T], ['B', nb.B]];
+    sides.forEach(function (sd) {
+      var n1 = sd[1];
+      if (!n1) return;
+      [RHYTHM, RHYTHM * 2, MAJOR].forEach(function (g) {
+        var v = axis === 'x'
+          ? (sd[0] === 'L' ? n1.x + n1.w + g : n1.x - g - e.w)
+          : (sd[0] === 'T' ? n1.y + n1.h + g : n1.y - g - e.h);
+        if (v < 0 || (axis === 'x' && v + e.w > W)) return;
+        var d = Math.abs(raw - v);
+        if (d <= SNAP && (!best || d < best.d)) best = { v: v, d: d, gap: g, side: sd[0], n1: n1 };
+      });
+    });
+    return best;
+  }
+  // the numbers on a run whose gaps agree: the dragged piece's gap(s) and,
+  // for a repeated gap, the one it copies — all marked equal
+  function drawGapRun(sec, i, eqH, eqV, repH, repV, gx, gy, rhyH, rhyV) {
+    hideDists();
+    var e = sec.els[i];
+    var nb = neighbors(sec, e);
+    var r = sec.sectionEl.getBoundingClientRect();
+    var s = r.width / W;
+    var px = function (v) { return r.left + window.scrollX + v * s; };
+    var py = function (v) { return r.top + window.scrollY + v * s; };
+    var di = 0;
+    var hGap = function (a, b) { // a left of b
+      var g = b.x - (a.x + a.w);
+      if (g <= 4 || di >= dists.length) return;
+      var c = (Math.max(a.y, b.y) + Math.min(a.y + a.h, b.y + b.h)) / 2;
+      if (gy != null && Math.abs(c - gy) <= 12) return;
+      showDist(di++, true, px(a.x + a.w), py(c), g * s, g, true);
+    };
+    var vGap = function (a, b) { // a above b
+      var g = b.y - (a.y + a.h);
+      if (g <= 4 || di >= dists.length) return;
+      var c = (Math.max(a.x, b.x) + Math.min(a.x + a.w, b.x + b.w)) / 2;
+      if (gx != null && Math.abs(c - gx) <= 12) return;
+      showDist(di++, false, px(c), py(a.y + a.h), g * s, g, true);
+    };
+    if (eqH) { if (nb.L) hGap(nb.L, e); if (nb.R) hGap(e, nb.R); }
+    else if (repH) {
+      if (repH.side === 'L') { hGap(repH.n2, repH.n1); hGap(repH.n1, e); }
+      else { hGap(e, repH.n1); hGap(repH.n1, repH.n2); }
+    }
+    else if (rhyH) { if (rhyH.side === 'L') hGap(rhyH.n1, e); else hGap(e, rhyH.n1); }
+    if (eqV) { if (nb.T) vGap(nb.T, e); if (nb.B) vGap(e, nb.B); }
+    else if (repV) {
+      if (repV.side === 'T') { vGap(repV.n2, repV.n1); vGap(repV.n1, e); }
+      else { vGap(e, repV.n1); vGap(repV.n1, repV.n2); }
+    }
+    else if (rhyV) { if (rhyV.side === 'T') vGap(rhyV.n1, e); else vGap(e, rhyV.n1); }
+  }
   function neighbors(sec, e) {
     var L = null, R = null, T = null, B = null;
     sec.els.forEach(function (o) {
@@ -14091,9 +18464,9 @@
     if (best !== null) return { v: best, g: best };
     // no alignment magnet: the painted grid line catches next — an edge
     // near a line the user can SEE lands exactly on it, never beside it
-    var gv = Math.round(v / GRID) * GRID;
+    var gv = Math.round(v / gridLine()) * gridLine();
     if (Math.abs(gv - v) <= SNAP) return { v: gv, g: null };
-    return { v: Math.round(v / BASE) * BASE, g: null };
+    return { v: Math.round(v / gridUnit()) * gridUnit(), g: null };
   }
   selBox.querySelectorAll('.gogh-h').forEach(function (hBtn) {
     hBtn.addEventListener('pointerdown', function (ev) {
@@ -14107,14 +18480,24 @@
       var sec = sel.sec;
       var e = sec.els[sel.i];
       var dir = DIRS.filter(function (d) { return d.d === hBtn.dataset.d; })[0];
-      var candX = [0, W, W / 2], candY = [0];
+      var candX = [0, W, W / 2, MARGIN, W - MARGIN], candY = [0];
+      // size matching (the Canva teardown's one 'beats Canva'): a neighbour's
+      // width and height are magnets too, so 'make the cards even' is a
+      // resize that stops by itself — and the guide says why it stopped
+      var sizeTagX = {}, sizeTagY = {};
       sec.els.forEach(function (o) {
         if (o === e) return;
         candX.push(o.x, o.x + o.w, o.x + o.w / 2);
         candY.push(o.y, o.y + o.h, o.y + o.h / 2);
+        if (dir.dx === 1) { candX.push(e.x + o.w); sizeTagX[e.x + o.w] = 'same width'; }
+        if (dir.dx === -1) { candX.push(e.x + e.w - o.w); sizeTagX[e.x + e.w - o.w] = 'same width'; }
+        if (fixedHeight(e) && fixedHeight(o)) {
+          if (dir.dy === 1) { candY.push(e.y + o.h); sizeTagY[e.y + o.h] = 'same height'; }
+          if (dir.dy === -1) { candY.push(e.y + e.h - o.h); sizeTagY[e.y + e.h - o.h] = 'same height'; }
+        }
       });
       resize = { sec: sec, i: sel.i, dir: dir, px: ev.clientX, py: ev.clientY,
-        x: e.x, y: e.y, w: e.w, h: e.h, candX: candX, candY: candY };
+        x: e.x, y: e.y, w: e.w, h: e.h, candX: candX, candY: candY, sizeTagX: sizeTagX, sizeTagY: sizeTagY };
       sec.sectionEl.classList.add('gogh-grid-live');
       document.documentElement.classList.add('gogh-dragging');
       drag = null;
@@ -14188,6 +18571,7 @@
       // text height belongs to the measurer — writing it here re-arms the
       // reflow push every frame and compounds into runaway pushing
       if (fixedHeight(e)) e.h = Math.round(nh);
+      if (e.type === 'icon') { e.h = e.w; } // an icon is always square
       if (!resizeRaf) {
         resizeRaf = true;
         requestAnimationFrame(function () {
@@ -14198,7 +18582,7 @@
           if (e.fitW) refitText(sec, resize.i); // the words grow WITH the box, live
           measureTextHeights(sec);
           if (isText(e) && reflowPush(sec, e, oldH)) resolveAndApply(sec);
-          showGuides(sec, gx, gy);
+          showGuides(sec, gx, gy, gx != null ? resize.sizeTagX[gx] : null, gy != null ? resize.sizeTagY[gy] : null);
           placeHandles(sec, resize.i);
         });
       }
@@ -14311,6 +18695,8 @@
     requestAnimationFrame(function () {
       scrollRaf = false;
       if (sel && !drag && !resize) placeHandles(sel.sec, sel.i);
+      if (kidSel && !kidDrag && !kidResize) placeKidBox();
+      if (multiSel && !drag) placeMbar();
     });
   }, { passive: true });
 
@@ -14588,7 +18974,7 @@
   }, true);
   document.addEventListener('pointerdown', function (ev) {
     if (!multiSel || ev.shiftKey) return;
-    if (ev.target.closest && ev.target.closest('.gogh-side, .gogh-panel, .gogh-secbar, .gogh-elbar, .gogh-marquee')) return;
+    if (ev.target.closest && ev.target.closest('.gogh-side, .gogh-panel, .gogh-secbar, .gogh-elbar, .gogh-mbar, .gogh-marquee')) return;
     var member = false;
     multiSel.idxs.forEach(function (j) {
       var n = multiSel.sec.nodes[j];
@@ -14607,17 +18993,23 @@
   window.__gogh = {
     explode: { enter: enterExplode, exit: exitExplode, state: function () { return explodeSt; } },
     multi: { set: setMulti, clear: clearMulti, state: function () { return multiSel; } },
+    showGuides: showGuides, hideGuides: hideGuides,
+    fillTake: fillTake, composeSiteDef: composeSiteDef,
     zoom: { open: openZoom, close: closeZoom, el: zoomOv },
     canvasZoom: { out: zoomOutCanvas, back: unzoomCanvas, setDevice: setDevice },
+    device: { phone: seeOnPhone, desktop: seeOnDesktop, mode: function () { return deviceMode; }, hide: setPhoneHidden, hidden: phoneHiddenOf,
+      mediaFlips: function () { return phoneMediaFlips.length; }, mediaAtPhone: mediaAtPhone },
     reorderSection: reorderSection,
     setVideo: setVideo, setSecVideo: setSecVideo, videoEmbedInfo: videoEmbedInfo, openSecBgPanel: openSecBgPanel,
     navModel: { parse: parseNavModel, serialize: serializeNavModel, whereOf: navWhereOf, panelOf: navPanelOf },
     reorderNavRaw: reorderNavRaw,
     stickyRawToggle: stickyRawToggle,
+    chromeIsSticky: chromeIsSticky,
     chromeDialsRead: chromeDialsRead,
     inkWidthOf: inkWidthOf,
     themeFontSizeList: themeFontSizeList,
     paletteRoles: paletteRoles,
+    declaredRoles: function () { return declaredRoles(themePalette()); },
     composeFaq: composeFaq,
     openPanel: openPanel,
     composeTabs: composeTabs,
@@ -14691,6 +19083,15 @@
     renderSection: renderSection,
     pushState: pushState,
     templates: function () { return TEMPLATES; },
+    rhythm: function () { return { minor: RHYTHM, major: MAJOR }; },
+    defaults: function (kind) { return kind ? DEFAULTS[kind]() : Object.keys(DEFAULTS); },
+    fontPairs: function () { return FONT_PAIRS; },
+    remixCandidates: remixCandidates,
+    fontsDry: function (on) { fontsDryRun = !!on; },
+    fontFamiliesAfter: fontFamiliesAfter,
+    pairMood: pairMood,
+    fontsLast: function () { return fontsLastKept; },
+    openFontsPanel: openFontsPanel,
     resolveAll: resolveAll,
     reflowPush: reflowPush,
     growReflow: growReflow,
@@ -14710,6 +19111,7 @@
     toast: toast,
     textIdentityRaw: textIdentityRaw,
     chromeShape: chromeShape,
+    headerWearsLogo: headerWearsLogo,
     diceFlatten: diceFlatten,
     guardLog: function () { return guardLog.slice(); },
     guardReset: function () { guardLog.length = 0; },
@@ -14722,18 +19124,28 @@
     convertBlock: convertBlock,
     convertChrome: convertChrome,
     restore: restoreState,
+    kidState: function () { return { sel: kidSel, ed: kidEd, drag: kidDrag }; },
     setEditing: setEditing,
     deleteSection: deleteSection,
+    openAddPagePanel: openAddPagePanel,
+    createPage: createPage,
+    announceNewPage: announceNewPage,
     moveSection: moveSection,
     duplicateSection: duplicateSection,
     rollSection: rollSection,
     diceFaces: diceFaces,
     composeShop: composeShop,
+    composePosts: composePosts,
+    postsDefaults: postsDefaults,
+    postsPreviewHTML: postsPreviewHTML,
+    healPosts: healPosts,
+    hydratePostsPreview: hydratePostsPreview,
     shopPreviewHTML: shopPreviewHTML,
     diceFamilyOf: diceFamilyOf,
     shopDefaults: shopDefaults,
     shopSampleHTML: shopSampleHTML,
     cardJoinTarget: cardJoinTarget,
+    shapeRoom: shapeRoom,
     hydrateProductsPreview: hydrateProductsPreview,
     reseatRoom: reseatChromeRoom,
     fm: function () { return fm; },
@@ -14755,7 +19167,25 @@
     contrastSentinel: contrastSentinel,
     sectionThemes: sectionThemes,
     rearrangeVariants: rearrangeVariants,
-    openRearrangePanel: openRearrangePanel,
+    mapEmbedUrl: mapEmbedUrl,
+    currentLook: currentLook,
+    remixRhythmPlan: remixRhythmPlan,
+    hueToward: hueToward,
+    openFrontDoor: openFrontDoor,
+    remixRoll: remixRoll,
+    remixBack: remixBack,
+    remixForward: remixForward,
+    remixWorn: remixWorn,
+    brand: function () { return cfg.brand || null; },
+    deriveBrand: deriveBrand,
+    readBrandGuide: readBrandGuide,
+    colourWord: colourWord,
+    remixDry: function (on) { remixDry = !!on; clearTimeout(remixCommitT); return remixDry; },
+    remixAt: function () { return remixAt; },
+    remixPaintRhythm: remixPaintRhythm,
+    remixRestoreRhythm: remixRestoreRhythm,
+    embedInfo: embedInfo,
+    setEmbed: setEmbed,
     scaleFontSizes: scaleFontSizes,
     applySectionTheme: applySectionTheme,
     openSecAdd: openSecAddPanel,
@@ -14793,7 +19223,7 @@
   if (verEl) verEl.textContent = GOGH_BUILD.replace('-chrome', '');
   try { console.info('[gogh] ' + GOGH_BUILD); } catch (e0) {}
   // rails elements draw a fresh preview from the live shop on every boot
-  try { S.forEach(function (sx) { (sx.els || []).forEach(function (ex) { if (ex.rails && ex.shop) hydrateProductsPreview(sx, ex); }); }); } catch (err) {}
+  try { S.forEach(function (sx) { (sx.els || []).forEach(function (ex) { if (ex.rails && ex.shop) hydrateProductsPreview(sx, ex); if (ex.rails && ex.posts) hydratePostsPreview(sx, ex); }); }); } catch (err) {}
   // ?gogh-paste=1 lands with the Paste HTML door already open — the
   // paste-a-page demo boots a blank site straight into it
   function openPasteDoor() {
@@ -14857,9 +19287,38 @@
       return;
     }
     if (typing) return;
+    if ((ev.metaKey || ev.ctrlKey) && ev.key.toLowerCase() === 'a') {
+      // select all, within the section that has the eye
+      var secA = sel ? sel.sec : (multiSel ? multiSel.sec : (selSecIdx !== null ? S[selSecIdx] : null));
+      if (!secA || !secA.els.length) return;
+      ev.preventDefault();
+      setMulti(secA, secA.els.map(function (_, j) { return j; }));
+      return;
+    }
     if ((ev.key === 'Delete' || ev.key === 'Backspace') && (sel || multiSel)) {
       ev.preventDefault();
       deleteSelected();
+      return;
+    }
+    // a selected SECTION with no piece chosen: the same key takes the
+    // section. Typing and open panels already returned above, so a
+    // Backspace meant for a word never lands here; the last section on
+    // the page refuses rather than leaving a blank page behind a key
+    // nobody meant to press; and the toast carries Undo like the group
+    // bar's Delete does (James: "if i select a section, should i be able
+    // to delete using backspace/delete?")
+    if ((ev.key === 'Delete' || ev.key === 'Backspace') && selSecIdx !== null && S[selSecIdx]) {
+      ev.preventDefault();
+      var dsec = S[selSecIdx];
+      if (dsec.chrome) { toast('The header and footer stay \u2014 edit them instead.'); return; }
+      if (S.filter(function (s) { return !s.chrome; }).length < 2) {
+        toast('That is the only section on the page. Add another before deleting it.');
+        return;
+      }
+      var di = selSecIdx;
+      deselectSection();
+      deleteSection(di);
+      toast('Section deleted.', { ttl: 3500, actions: [{ label: 'Undo', onClick: function () { undo(); } }] });
       return;
     }
     if ((!sel && !multiSel) || !/^Arrow/.test(ev.key)) return;
@@ -14875,6 +19334,8 @@
       });
       ev.preventDefault();
       resolveAndApply(msec2);
+      placeMbar();
+      refreshMbar();
       clearTimeout(textTimer);
       textTimer = setTimeout(pushState, 500);
       refreshChip();
@@ -14883,13 +19344,21 @@
     var step = ev.shiftKey ? BASE : 1;
     var sec = sel.sec;
     var e = sec.els[sel.i];
-    if (ev.key === 'ArrowLeft') e.x = Math.max(0, e.x - step);
+    var jumped = null;
+    if (ev.altKey) {
+      // Alt + arrow: to the next magnet in that direction, so the keyboard
+      // reaches every position the mouse can (the mouse's own candidates:
+      // sibling edges and centres, the section's edges, centre and margin)
+      jumped = nextMagnet(sec, e, ev.key);
+      if (jumped) { e.x = jumped.x; e.y = jumped.y; }
+    } else if (ev.key === 'ArrowLeft') e.x = Math.max(0, e.x - step);
     else if (ev.key === 'ArrowRight') e.x = Math.min(W - e.w, e.x + step);
     else if (ev.key === 'ArrowUp') e.y = Math.max(0, e.y - step);
     else if (ev.key === 'ArrowDown') e.y = e.y + step;
     ev.preventDefault();
     resolveAndApply(sec);
     placeHandles(sel.sec, sel.i);
+    if (jumped) { showGuides(sec, jumped.gx, jumped.gy); clearTimeout(nudgeGuideTimer); nudgeGuideTimer = setTimeout(hideGuides, 900); }
     // same spacing feedback as dragging, fading after the last press —
     // badges go blue when a nudge lands on equal gaps
     var nbK = neighbors(sec, e);
@@ -14902,7 +19371,30 @@
     textTimer = setTimeout(pushState, 500);
     refreshChip(); // history push is debounced, the chip shouldn't be
   });
-  var nudgeDistTimer = null;
+  var nudgeDistTimer = null, nudgeGuideTimer = null;
+  function nextMagnet(sec, e, key) {
+    var horiz = key === 'ArrowLeft' || key === 'ArrowRight';
+    var fwd = key === 'ArrowRight' || key === 'ArrowDown';
+    var H = designH(sec.els, sec.minH);
+    var cands = horiz ? [0, W, W / 2, MARGIN, W - MARGIN] : [0, H, H / 2];
+    sec.els.forEach(function (o) {
+      if (o === e) return;
+      if (horiz) cands.push(o.x, o.x + o.w, o.x + o.w / 2);
+      else cands.push(o.y, o.y + o.h, o.y + o.h / 2);
+    });
+    var span = horiz ? e.w : e.h, cur = horiz ? e.x : e.y, max = horiz ? W - e.w : Infinity;
+    var best = null, bestG = null;
+    cands.forEach(function (c) {
+      [0, span / 2, span].forEach(function (off) {
+        var v = Math.round(c - off);
+        if (v < 0 || v > max) return;
+        if (fwd ? v <= cur + 0.5 : v >= cur - 0.5) return;
+        if (best === null || (fwd ? v < best : v > best)) { best = v; bestG = c; }
+      });
+    });
+    if (best === null) return null;
+    return horiz ? { x: best, y: e.y, gx: bestG, gy: null } : { x: e.x, y: best, gx: null, gy: bestG };
+  }
 
   // ---------- toolbar actions ----------
   editBtn.addEventListener('click', function () {
@@ -15120,7 +19612,7 @@
         '<div class="gogh-ar-status"><span class="gogh-ar-statusdot"></span><span class="gogh-ar-statustext"></span></div>' +
         '<div class="gogh-ar-cap">How it looks in search</div>' +
         '<div class="gogh-arsnippet">' +
-        '<div class="gogh-arsnip-url">' + escHtml((cfg.permalink || location.href).replace(/^https?:\/\//, '').replace(/\?.*$/, '')) + '</div>' +
+        '<div class="gogh-arsnip-url">' + esc((cfg.permalink || location.href).replace(/^https?:\/\//, '').replace(/\?.*$/, '')) + '</div>' +
         '<div class="gogh-arsnip-title"></div>' +
         '<div class="gogh-arsnip-desc" contenteditable="true" spellcheck="true"></div>' +
         '</div>' +
@@ -15280,17 +19772,17 @@
           var t = n['@type'];
           if (t === 'Organization') {
             out.push('<div class="gogh-ar-row"><span class="tick">✓</span><div><b>Your brand</b> — ' +
-              escHtml(n.name) + (n.logo ? ', with your logo' : '') + '</div></div>');
+              esc(n.name) + (n.logo ? ', with your logo' : '') + '</div></div>');
           } else if (t === 'WebPage') {
-            out.push('<div class="gogh-ar-row"><span class="tick">✓</span><div><b>This page</b> — “' + escHtml(n.name) + '”' +
+            out.push('<div class="gogh-ar-row"><span class="tick">✓</span><div><b>This page</b> — “' + esc(n.name) + '”' +
               (n.description ? ', with a summary in your own words' : '') +
               (n.dateModified ? ', and its last-updated date so answers stay fresh' : '') + '</div></div>');
           } else if (t === 'Article') {
-            out.push('<div class="gogh-ar-row"><span class="tick">✓</span><div><b>This story</b> — “' + escHtml(n.headline) + '”' +
-              (n.author && n.author.name ? ', by ' + escHtml(n.author.name) : '') +
+            out.push('<div class="gogh-ar-row"><span class="tick">✓</span><div><b>This story</b> — “' + esc(n.headline) + '”' +
+              (n.author && n.author.name ? ', by ' + esc(n.author.name) : '') +
               (n.image ? ', with its picture' : '') + ', dated and stamped</div></div>');
           } else if (t === 'FAQPage') {
-            var qs = (n.mainEntity || []).map(function (q) { return '<li>' + escHtml(q.name) + '</li>'; });
+            var qs = (n.mainEntity || []).map(function (q) { return '<li>' + esc(q.name) + '</li>'; });
             out.push('<div class="gogh-ar-row"><span class="tick">✓</span><div><b>' + qs.length +
               ' question' + (qs.length === 1 ? '' : 's') + ' answered</b>, word for word' +
               '<ul class="gogh-ar-qs">' + qs.join('') + '</ul></div></div>');
@@ -15310,7 +19802,9 @@
   // the side) keeps its own slot and its own six seconds, and a later
   // status never pushes it around. Errors keep a slot of their own.
   var TOAST_TTL = { status: 2000, receipt: 6000, error: 4500 };
+  var quietToasts = false; // a roll's commit says nothing but its receipt line
   function toast(msg, opts) {
+    if (quietToasts && !(opts && opts.error)) return;
     opts = opts || {};
     var kind = opts.kind || (opts.error ? 'error' : (opts.actions && opts.actions.length) ? 'receipt' : 'status');
     [].slice.call(toastBox.querySelectorAll('.gogh-toast[data-kind="' + kind + '"]')).forEach(function (o) { o.remove(); });
@@ -15581,6 +20075,7 @@
       : cfg.restUrl.replace('?', '/autosaves?');
   }
   setInterval(function () {
+    if (siteBuilding) return; // a site being drawn from a definition is scratch, never a backup
     if (!editing || chipBusy || !isDirty()) return;
     // the suite wrecks the page BY DESIGN (delete-everything tests) — backing
     // that up would shadow the real fixture on every next boot
@@ -15641,7 +20136,8 @@
         var m = JSON.parse(ms.textContent);
         data.push({ scope: sEl.getAttribute('data-gogh-scope') || ('gogh-sec-' + (scopeSeq++)),
           els: m.elements || [], minH: m.minH || null, bg: m.bg || null,
-          divider: m.divider || null, bgImage: m.bgImage || null, bgId: m.bgId || null });
+          divider: m.divider || null, bgImage: m.bgImage || null, bgId: m.bgId || null,
+          m: (m.m && typeof m.m === 'object') ? m.m : null }); // the die's memory travels with the backup
       } catch (e2) {}
     });
     return data;
@@ -17327,7 +21823,7 @@
     // the header wears ONE identity: an image logo OR the text name. The
     // doorway label follows whichever is live, so folks aren't hunting the
     // tiny logo + a floating chip to change it
-    var usingLogo = raw0.indexOf('wp:site-logo') !== -1; // from the SAVE, not the auditioning DOM
+    var usingLogo = headerWearsLogo(raw0); // from the SAVE (block + a real picture), not the auditioning DOM
     if (area === 'header') {
       // every option is dressed in the saved identity BEFORE anything
       // previews — auditions and the final save then agree by construction
@@ -17394,7 +21890,7 @@
           (o.id === st.layoutId ? ' is-active' : '') + '" data-k="' + k + '">' +
           '<span class="gogh-hopt-dot"></span><span class="gogh-hopt-name">' + esc(short) + '</span></button>';
       }).join('') + '</div></div>' +
-      '<button type="button" class="gogh-hdoor gogh-hlogo"><span>' + (usingLogo ? 'Logo &amp; size' : 'Logo &amp; name') + '</span><span class="gogh-hdoor-chev">\u203a</span></button>' +
+      '<button type="button" class="gogh-hdoor gogh-hlogo"><span>' + (usingLogo ? 'Logo' : 'Logo &amp; name') + '</span><span class="gogh-hdoor-chev">\u203a</span></button>' +
       (d0 && d0.hasNav ? '<button type="button" class="gogh-hdoor gogh-hmenu"><span>Edit menu items</span><span class="gogh-hdoor-chev">\u203a</span></button>' : '') +
       (d0 && d0.hasNav ? '<button type="button" class="gogh-hdoor gogh-hmobile"><span>Mobile menu</span><span class="gogh-hdoor-chev">\u203a</span></button>' : '') +
       '</div>' +
@@ -17439,7 +21935,7 @@
         (d0.hasNav ? dial('Menu items', 'gogh-dial-link', 8, 64, d0.linkGap) : '') +
         dial('Text size', 'gogh-dial-fsz', 12, 30, d0.fsz) : '') +
       '<div class="gogh-panel-row gogh-chrome-rows gogh-hpills">' +
-      '<button type="button" class="gogh-btn gogh-btn-small gogh-hfreeform">✨ Make it freeform</button>' +
+      (cfg.experiments ? '<button type="button" class="gogh-btn gogh-btn-small gogh-hfreeform">✨ Make it freeform</button>' : '') +
       '</div>' +
       '</div>' + // end .gogh-hmorebox
       '<div class="gogh-panel-row gogh-chrome-foot">' +
@@ -17683,7 +22179,10 @@
       if (mg) mg.classList.toggle('gogh-sticky', st.sticky);
       arm();
     });
-    panel.querySelector('.gogh-hfreeform').addEventListener('click', function () {
+    // freeform chrome is a can of worms and not very gogh (James): the room
+    // is the way to change a header; the door stays in experiments only
+    var hfDoor = panel.querySelector('.gogh-hfreeform');
+    if (hfDoor) hfDoor.addEventListener('click', function () {
       bail();
       editChromeFreeform(partEl, area, active);
     });
@@ -17805,7 +22304,7 @@
         '</div>' +
         '<div class="gogh-panel-hint">Or make it yours</div>' +
         '<div class="gogh-panel-row gogh-chrome-rows">' +
-        '<button type="button" class="gogh-btn gogh-btn-small gogh-chrome-edit">\u2728 ' + (isFreeform || mounted ? 'Edit freeform' : 'Make freeform') + '</button>' +
+        ((cfg.experiments || isFreeform || mounted) ? '<button type="button" class="gogh-btn gogh-btn-small gogh-chrome-edit">\u2728 ' + (isFreeform || mounted ? 'Edit freeform' : 'Make freeform') + '</button>' : '') +
         '</div>' +
         (activeOpt ? '<div class="gogh-panel-row gogh-chrome-rows">' +
           '<button type="button" class="gogh-btn gogh-btn-small gogh-chrome-sticky' + (chromeIsSticky(active) ? ' is-active' : '') + '">\ud83d\udccc ' +
@@ -17849,7 +22348,8 @@
           });
         });
       });
-      panel.querySelector('.gogh-chrome-edit').addEventListener('click', function () {
+      var ceDoor = panel.querySelector('.gogh-chrome-edit');
+      if (ceDoor) ceDoor.addEventListener('click', function () {
         editChromeFreeform(partEl, area, active);
       });
       panel.querySelector('.gogh-chrome-cancel').addEventListener('click', function () {
@@ -18077,7 +22577,11 @@
   }
   function chromeIsSticky(active) {
     var raw = (active && active.content && active.content.raw) || '';
-    return /"position":\s*{[^}]*"type":"sticky"/.test(raw);
+    // TWO ways a header ends up pinned: core's position support, which the
+    // switch writes, and the gogh-sticky marker, which a pattern or a site
+    // definition can carry. Reading only the first made the switch report
+    // OFF on a header that was plainly stuck — a lie until you touched it.
+    return /"position":\s*{[^}]*"type":"sticky"/.test(raw) || /\bgogh-sticky\b/.test(raw);
   }
   function stickyRawToggle(raw, on) {
     var spans = parseTopBlocks(raw);
@@ -18451,6 +22955,16 @@
       });
     });
   }
+  // does the header wear a LOGO identity? Only when its saved markup carries
+  // the logo block AND the site has a logo image behind it. A starter's
+  // classic header ships the block with no picture (the name is the
+  // identity), and reading the block alone made every other layout keep an
+  // empty logo and drop the name (James: "the text logo vanishes")
+  function headerWearsLogo(raw) {
+    if (String(raw || '').indexOf('wp:site-logo') === -1) return false;
+    if (cfg.hasLogo) return true;
+    return !!document.querySelector('.wp-block-site-logo img');
+  }
   function chromeLayoutContent(area, chosen, wantLogo) {
     var content = chosen.content || '';
     if (area === 'header') {
@@ -18462,7 +22976,7 @@
       var usingLogo = wantLogo;
       if (usingLogo == null) {
         var pe = partElForArea('header');
-        usingLogo = !!(pe && pe.querySelector('.wp-block-site-logo'));
+        usingLogo = !!(pe && pe.querySelector('.wp-block-site-logo img'));
       }
       if (usingLogo) {
         var lg = logoizeHeaderRaw(content);
@@ -18790,11 +23304,33 @@
       var spans = parseTopBlocks(rawText);
       var kids = [].slice.call(containerDom.children).filter(function (c) {
         if (c.classList && c.classList.contains('gogh-pendbar')) return false;
+        // gogh's own furniture inside a part (the "Edit site header" pill,
+        // menu adders) is never block output either: counted against the
+        // markup it made every header convert as ONE opaque widget (James:
+        // "i just clicked make freeform for the header and the formatting broke")
+        var cn = String(c.className || '');
+        if (/(^|\s)gogh-/.test(cn) && !/(^|\s)wp-block-/.test(cn)) return false;
         // metadata children are never block output — counting them against
         // the markup spans breaks pairing (a preview box carries a <style>)
         var tg = c.tagName;
         return tg !== 'STYLE' && tg !== 'SCRIPT' && tg !== 'LINK' && tg !== 'TEMPLATE';
       });
+      // counts differ? pair by NAME before giving up: each block takes the
+      // next element wearing its class, and a block that rendered nothing
+      // (a site logo with no picture set) simply drops out
+      if (spans.length && spans.length !== kids.length && !(spans.length === 1 && String(spans[0].name || '').replace(/^core\//, '') === 'html')) {
+        var pool = kids.slice(), paired = [], pairedKids = [], ok = true;
+        spans.forEach(function (sp) {
+          var nm2 = String(sp.name || '').replace(/^core\//, '');
+          var cls = 'wp-block-' + nm2.replace(/\//g, '-');
+          var at = -1;
+          for (var q = 0; q < pool.length; q++) { if (pool[q].classList && pool[q].classList.contains(cls)) { at = q; break; } }
+          if (at === -1) return; // rendered nothing
+          paired.push(sp); pairedKids.push(pool[at]); pool.splice(at, 1);
+        });
+        if (pool.length) ok = false; // an element no block claims: not our pairing to make
+        if (ok && paired.length) { spans = paired; kids = pairedKids; }
+      }
       // a lone html block renders ALL these children (a paste's <style> +
       // content roots) — span↔child pairing is meaningless, free-walk them
       if (spans.length === 1 && kids.length &&
@@ -18951,6 +23487,12 @@
       var chromeScan = scanDomWithRaw(scanEl, raw);
       var out = chromeScan.els;
       if (!out.length) throw new Error('Nothing to edit in this ' + area + '.');
+      // a scanned piece is exactly as wide as it rendered; the canvas grid
+      // can settle its cell a few units narrower, and a name that just fit
+      // wraps onto two lines. Words get a little slack
+      out.forEach(function (e) {
+        if (e.type === 'widget' || e.type === 'heading' || e.type === 'para' || e.type === 'button') e.w = Math.min(W - e.x, e.w + 16);
+      });
       var sec = newSectionShell('gogh-sec-' + (scopeSeq++));
       sec.els = out;
       sec.minH = Math.round(rr.height * sx);
@@ -19449,6 +23991,12 @@
       '<div class="gogh-panel-head"><span class="gogh-panel-title">Mobile menu</span>' +
       '<button type="button" class="gogh-sbtn gogh-panel-close" title="Close">✕</button></div>' +
       '<div class="gogh-panel-hint">How the menu opens on phones — and on desktop with the Hamburger layout. Hover to try, click to keep.</div>' +
+      // the preview door comes FIRST: this panel is taller than most windows
+      // and the door used to sit at its foot, below the fold, so you had to
+      // scroll inside the panel to find it (James: 'when the modal opens you
+      // can't see it - you have to scroll to see it')
+      '<div class="gogh-hdoors gogh-hdoors-top"><button type="button" class="gogh-hdoor gogh-mmpreview"><span>' +
+      (partEl && partEl.querySelector('.is-menu-open') ? 'Close the menu' : 'Open the menu to preview') + '</span><span class="gogh-hdoor-chev">›</span></button></div>' +
       '<div class="gogh-swlab">Opens as</div>' + list('gogh-mmlay', MENU_LAYOUTS, st.layout) +
       '<div class="gogh-swlab">Wears</div>' + list('gogh-mmground', MENU_GROUNDS, st.ground) +
       // what phones want at the foot of the menu: a way to call, to write, to sign in
@@ -19459,9 +24007,7 @@
       '<div class="gogh-panel-hint">These join the menu on phones only. Items in the menu itself can be set to desktop or phones with the \u22ef Manage menu.</div>' +
       '<div class="gogh-swlab">On phones, show</div>' +
       '<div class="gogh-panel-row"><select class="gogh-input gogh-mm-phonemenu"><option value="0">The same menu</option></select></div>' +
-      '<div class="gogh-panel-hint gogh-mm-phonemenu-hint">' + (kept.phoneMenu ? 'A separate phone menu \u2014 edit it under \u22ef Manage menu, Phone menu tab.' : 'Or a menu of its own \u2014 gogh copies this one to start you off.') + '</div>' +
-      '<div class="gogh-hdoors"><button type="button" class="gogh-hdoor gogh-mmpreview"><span>' +
-      (partEl && partEl.querySelector('.is-menu-open') ? 'Close the menu' : 'Open the menu to preview') + '</span><span class="gogh-hdoor-chev">›</span></button></div>';
+      '<div class="gogh-panel-hint gogh-mm-phonemenu-hint">' + (kept.phoneMenu ? 'A separate phone menu \u2014 edit it under \u22ef Manage menu, Phone menu tab.' : 'Or a menu of its own \u2014 gogh copies this one to start you off.') + '</div>';
     var closeX = panel.querySelector('.gogh-panel-close');
     if (closeX) closeX.addEventListener('click', function () { menuOverlayToggle(partEl, false); menuStyleWear(kept); closePanel(); });
     var prev = panel.querySelector('.gogh-mmpreview');
@@ -19745,6 +24291,7 @@
         body: JSON.stringify({ site_logo: id }),
       }).then(function (r) {
         if (!r.ok) throw new Error('saving needs an admin login');
+        cfg.hasLogo = true; // from here the header's logo block has a picture behind it
         return activePartFor('header');
       }).then(function (active) {
         if (!active) return null;
@@ -21110,8 +25657,35 @@
     if (renderCanvasOnce.done || !renderCanvasOnce.hydrated) return;
     renderCanvasOnce.done = true;
     S.forEach(renderSection);
+    // rails elements draw a fresh preview from the live shop the moment the
+    // canvas is real: the boot pass further up ran before the model's
+    // elements (and their shop choices) had arrived, so a saved page opened
+    // in the editor kept whatever cards it was saved with — the picker's
+    // sample soap shop, on Hollowell's shelf (James: 'are these meant to
+    // have images?')
+    try { S.forEach(function (sx) { (sx.els || []).forEach(function (ex) { if (ex.rails && ex.shop) hydrateProductsPreview(sx, ex); if (ex.rails && ex.posts) hydratePostsPreview(sx, ex); }); }); } catch (err) {}
   }
   window.__goghRenderCanvasOnce = renderCanvasOnce;
+  // a page that Add a page just made announces itself once the editor is
+  // up: the menu offer and the way back (own path, so nothing else in the
+  // boot can skip it)
+  if (wantEdit && /[?&]gogh-new=1/.test(location.search)) {
+    (function () {
+      var fromNew = '';
+      try {
+        var un = new URL(location.href);
+        fromNew = un.searchParams.get('gogh-from') || '';
+        un.searchParams.delete('gogh-new');
+        un.searchParams.delete('gogh-from');
+        window.history.replaceState(null, '', un); // "history" here is gogh's undo stack
+      } catch (e4) {}
+      var tries = 0;
+      (function waitEditor() {
+        if (editing) { setTimeout(function () { announceNewPage(String(cfg.postTitle || document.title || 'This').split(/\s+[\u2013\u2014|-]\s+/)[0].trim(), fromNew); }, 700); return; }
+        if (++tries < 120) setTimeout(waitEditor, 150);
+      })();
+    })();
+  }
   hydrateV3Sections().then(function () {
     renderCanvasOnce.hydrated = true;
     if (wantEdit || editing) {
@@ -21119,17 +25693,21 @@
     }
     if (wantEdit) {
       setEditing(true);
+      var willBuild = !!(cfg.siteDef && /[?&]gogh-build=1/.test(location.search));
+      if (willBuild) scheduleSiteBuild();
+      if (!willBuild && /[?&]gogh-front-door=1/.test(location.search)) setTimeout(openFrontDoor, 700);
       var bootContent = S.filter(function (s) { return !s.chrome; });
       // the blank-canvas greeting is for genuinely EMPTY pages — a page
-      // full of native blocks (a starter site's home) is not one
-      if (bootContent.length === 1 && isBlankBoot(bootContent[0]) &&
+      // full of native blocks (a starter site's home) is not one, and
+      // neither is a page a site build is about to fill
+      if (!willBuild && bootContent.length === 1 && isBlankBoot(bootContent[0]) &&
           !topBlockNodes().length) {
         openPicker(S.indexOf(bootContent[0]));
       }
       try {
         var u = new URL(location.href);
         u.searchParams.delete('gogh-edit');
-        history.replaceState(null, '', u);
+        window.history.replaceState(null, '', u); // "history" here is gogh's undo stack — this never ran
       } catch (e3) {}
     }
   });

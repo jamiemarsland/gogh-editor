@@ -1,20 +1,22 @@
 {
   "meta": {
-    "plugin_version": "0.99.443",
+    "plugin_version": "0.99.598",
     "requires_wp": "6.5",
     "requires_php": "7.4",
     "text_domain": "gogh-editor",
     "readme_stable_tag": "0.26.0",
     "readme_tested_up_to": "7.0",
-    "asset_version": "0.99.443-chrome"
+    "asset_version": "0.99.598-chrome"
   },
   "constants": {
     "TOL": 8,
-    "MIN_H": 560,
+    "MIN_H": 576,
     "PAD": 72,
     "SNAP": 6,
     "BASE": 8,
     "W": 1200,
+    "RHYTHM": 24,
+    "MAJOR": 72,
     "autosave_interval_ms": 15000,
     "history_cap": 60,
     "mobile_breakpoint_px": 700,
@@ -33,61 +35,61 @@
       "name": "Start from scratch",
       "starter": false,
       "retired": false,
-      "minH": 480
+      "minH": 504
     },
     {
       "name": "Hero",
       "starter": true,
       "retired": false,
-      "minH": 640
+      "minH": 648
     },
     {
       "name": "Cover",
       "starter": true,
       "retired": false,
-      "minH": 640
+      "minH": 648
     },
     {
       "name": "Big statement",
       "starter": true,
       "retired": false,
-      "minH": 520
+      "minH": 504
     },
     {
       "name": "Story",
       "starter": true,
       "retired": false,
-      "minH": 600
+      "minH": 576
     },
     {
       "name": "Numbers",
       "starter": true,
       "retired": false,
-      "minH": 420
+      "minH": 432
     },
     {
       "name": "Article",
       "starter": true,
       "retired": false,
-      "minH": 620
+      "minH": 648
     },
     {
       "name": "Featured product",
       "starter": true,
       "retired": false,
-      "minH": 560
+      "minH": 576
     },
     {
       "name": "Bestsellers",
       "starter": true,
       "retired": false,
-      "minH": 700
+      "minH": 720
     },
     {
       "name": "Editorial split",
       "starter": true,
       "retired": false,
-      "minH": 660
+      "minH": 648
     },
     {
       "name": "Columns of links",
@@ -99,133 +101,133 @@
       "name": "Featured and links",
       "starter": true,
       "retired": false,
-      "minH": 400
+      "minH": 432
     },
     {
       "name": "Picture doors",
       "starter": true,
       "retired": false,
-      "minH": 380
+      "minH": 360
     },
     {
       "name": "Categories in the menu",
       "starter": true,
       "retired": false,
-      "minH": 400
+      "minH": 432
     },
     {
       "name": "Featured product in the menu",
       "starter": true,
       "retired": false,
-      "minH": 400
+      "minH": 432
     },
     {
       "name": "Shop the look",
       "starter": true,
       "retired": false,
-      "minH": 640
+      "minH": 648
     },
     {
       "name": "New in",
       "starter": true,
       "retired": false,
-      "minH": 640
+      "minH": 648
     },
     {
       "name": "Sale",
       "starter": true,
       "retired": false,
-      "minH": 700
+      "minH": 720
     },
     {
       "name": "Categories",
       "starter": true,
       "retired": false,
-      "minH": 640
+      "minH": 648
     },
     {
       "name": "Feature cards",
       "starter": true,
       "retired": false,
-      "minH": 560
+      "minH": 576
     },
     {
       "name": "Pricing",
       "starter": true,
       "retired": false,
-      "minH": 680
+      "minH": 648
     },
     {
       "name": "Quote",
       "starter": true,
       "retired": false,
-      "minH": 480
+      "minH": 504
     },
     {
       "name": "Testimonials",
       "starter": true,
       "retired": false,
-      "minH": 560
+      "minH": 576
     },
     {
       "name": "Call to action",
       "starter": true,
       "retired": false,
-      "minH": 380
+      "minH": 360
     },
     {
       "name": "Get in touch",
       "starter": true,
       "retired": false,
-      "minH": 700
+      "minH": 720
     },
     {
       "name": "Profile card",
       "starter": true,
       "retired": false,
-      "minH": 620
+      "minH": 648
     },
     {
       "name": "Job card",
       "starter": true,
       "retired": false,
-      "minH": 620
+      "minH": 648
     },
     {
       "name": "Place card",
       "starter": true,
       "retired": false,
-      "minH": 620
+      "minH": 648
     },
     {
       "name": "Photo wall",
       "starter": true,
       "retired": false,
-      "minH": 640
+      "minH": 648
     },
     {
       "name": "Carousel",
       "starter": true,
       "retired": false,
-      "minH": 520
+      "minH": 504
     },
     {
       "name": "FAQ",
       "starter": true,
       "retired": false,
-      "minH": 560
+      "minH": 576
     },
     {
       "name": "Tabs",
       "starter": true,
       "retired": false,
-      "minH": 520
+      "minH": 504
     },
     {
       "name": "Gallery",
       "starter": true,
       "retired": false,
-      "minH": 680
+      "minH": 720
     },
     {
       "name": "Photo cards",
@@ -237,19 +239,19 @@
       "name": "Portfolio",
       "starter": true,
       "retired": false,
-      "minH": 580
+      "minH": 576
     },
     {
       "name": "Menu",
       "starter": true,
       "retired": false,
-      "minH": 600
+      "minH": 576
     },
     {
       "name": "Team",
       "starter": true,
       "retired": false,
-      "minH": 620
+      "minH": 648
     }
   ],
   "shapes": [
@@ -418,6 +420,7 @@
     }
   ],
   "ui_titles": [
+    "' + ALIGN_WORD[how] + '",
     "' + d.label + '",
     "' + d.title.replace(/",
     "' + escAttr(e.alt || 'Video') + '",
@@ -426,6 +429,7 @@
     "' + escAttr(t.name) + '",
     "' + hp[1] + ' — ' + hp[2] + ' units",
     "' + m[2] + '",
+    "' + nm.replace(/-/g, ' ') + '",
     "' + p.slug + '",
     "' + sh.label + '",
     "' + whereTip(it.where !== 'desktop', 'phone') + '",
@@ -433,27 +437,39 @@
     "+ Link",
     "+ Page",
     "A card — drop pieces inside and they stay together, even on mobile",
+    "A line — a thin rule between things",
     "A video — upload one, or paste a YouTube or Vimeo link",
     "AG",
     "Aa",
     "Add",
     "Add a category ↗",
     "Add a page to this menu",
+    "Add a picture or video",
     "Add a product ↗",
     "Add link",
     "Add something to this section",
     "Add to page",
     "Adjust spacing",
+    "Align the pieces inside this card",
+    "Align the pieces to each other",
+    "Align ▾",
     "All options",
+    "An icon — a simple line drawing in your text colour",
+    "Any colour",
     "Apply",
+    "As placed",
     "As typed",
     "Auto",
     "Back",
     "Background & look",
     "Badge",
+    "Body",
     "Bold",
+    "Both",
     "Bring forward",
     "Browse them all →",
+    "Bullet points — a text piece wearing bullets",
+    "Bullets",
     "Button",
     "Cancel",
     "Card",
@@ -466,14 +482,25 @@
     "Custom text colour",
     "Cycle theme font sizes",
     "Dark",
+    "Dark page",
+    "Delete",
     "Delete (Del)",
     "Delete saved section",
+    "Delete the selection",
     "Delivery & returns",
     "Desktop",
     "Desktop menu",
     "Discard changes",
     "Done",
+    "Done — keep this look",
+    "Duplicate",
     "Duplicate (or Alt-drag)",
+    "Duplicate the selection",
+    "Edge to edge of the section",
+    "Embed",
+    "Embed a link — a map, a post, a playlist, anything WordPress can show",
+    "Equal gaps top to bottom",
+    "Even gaps",
     "Everything",
     "Experience",
     "Featured product",
@@ -483,27 +510,43 @@
     "Find us",
     "Forget the key",
     "Form",
+    "Full width",
     "Get in touch",
     "Go",
     "Grid: show and snap",
     "Heading",
+    "Headings",
     "Help — ask gogh anything",
+    "Hidden",
+    "Hide on phones",
     "Home",
     "How Google and AI read this page",
+    "Icon",
     "Image",
     "Imagine",
+    "It is already on your site — this closes the panel",
     "Italic",
     "I’ll find my own way",
     "Journal",
     "Keep editing",
+    "Keep this",
+    "Keep this brand",
     "Keep this layout (updates every page)",
     "Keeps your changes on every page",
     "Left",
     "Light",
+    "Light page",
+    "Line",
+    "Line the pieces up, even the gaps, match sizes that are nearly the same",
     "Link",
     "Link text (⌘K)",
+    "List",
+    "Make a card",
     "Make it freeform",
+    "Make these one card — it holds together on phones",
+    "Make this bigger",
     "Manage categories ↗",
+    "Manage posts ↗",
     "Manage products",
     "Manage products ↗",
     "Manage this menu — reorder, nest, swap menus",
@@ -524,13 +567,13 @@
     "On sale",
     "One product, hero-sized — a card with a real add-to-cart button",
     "Open interactive experience",
+    "Open the map",
     "Open your products in WordPress",
-    "Original",
     "Our story",
     "Outline",
     "Peek at pages",
+    "Phone",
     "Phone menu",
-    "Phone — see and tune the mobile layout",
     "Posts",
     "Products",
     "Publish",
@@ -538,6 +581,7 @@
     "Put it back",
     "Questions",
     "Redo (⇧⌘Z)",
+    "Remix keeps these colours and rolls everything else",
     "Remove",
     "Remove from Your sections",
     "Remove from menu",
@@ -551,23 +595,30 @@
     "Right",
     "Roll another take of this design",
     "Save",
-    "Save brand",
     "Save description",
     "See all →",
+    "See and tune how the page looks on a phone",
+    "See it on a phone",
+    "See the page as a phone",
     "Send backward",
     "Shape",
+    "Show",
     "Show the next layout",
-    "Six looks derived from your brand — hover to wear one, tap Remix again for six more",
+    "Shown",
+    "Site designs — a whole site, ready to tweak (replaces this one)",
     "Solid",
     "Start writing — a reading column, cursor ready",
     "Switch design",
     "Switch it on",
+    "Tap to try a new look. Tap again for another.",
     "Text",
     "Text alignment",
     "Text colour",
     "The gogh build this tab is running",
     "The header rides along as visitors scroll",
+    "The look before this one",
     "Theme default",
+    "Tidy up",
     "Try another",
     "UPPERCASE",
     "Undo",
@@ -576,12 +627,14 @@
     "Updates every page",
     "Upload a self-contained HTML experience — it runs sandboxed",
     "Upload an .html file instead",
+    "Use it",
     "Use this design",
     "Use this layout",
     "Video",
     "Where this item shows",
     "Which take of this design is on the page",
     "Write",
+    "Write a post ↗",
     "Your latest posts, live",
     "Your latest products, live — prices and add to cart included",
     "ag",
@@ -595,12 +648,12 @@
     "↕ Spacing…",
     "▶ Auto-play",
     "⛶ Click to enlarge",
+    "✦ Not this look?",
     "✦ Remix",
     "✨ Make draggable",
     "✨ Make it freeform"
   ],
   "toasts": [
-    "Added to the card — it moves and stacks with it now.",
     "Back to freeform — drag it anywhere.",
     "Backup restored — publish when ready.",
     "Button updated.",
@@ -622,6 +675,7 @@
     "Guard: ",
     "Icon link updated.",
     "Image swapped.",
+    "Installing ",
     "It has to show somewhere — remove it instead if you don’t want it.",
     "Keep your changes with Done, or undo them with Cancel.",
     "Kept — ",
@@ -636,25 +690,30 @@
     "Menu switched — every page shows it.",
     "Mobile menu: ",
     "Name size saved.",
-    "Nothing to rearrange yet — add a couple of pieces first.",
+    "One card now — it holds together on phones. Click it for a background.",
     "Out of the card — it’s its own piece again.",
     "Publish failed: ",
     "Publish your changes first — changing the page style reloads the page.",
     "Removed from the card.",
     "Saved — search results and AI answers now quote your words ✓",
     "Saving your page changes, then updating the ",
+    "Section deleted.",
     "Section moved.",
     "Section removed — publish to make it real.",
     "Site ",
     "Site name restored — click it to rename.",
     "Site name saved.",
     "Style copied — click other text to paint it. Esc finishes.",
+    "That is the only section on the page. Add another before deleting it.",
     "That saved section can’t be read.",
     "That section can’t move past other stored content yet.",
+    "That upload failed — try again, or paste a link.",
     "That’s gogh. Everything else is just more of this.",
     "The backup could not be read.",
     "The description could not be saved — try again.",
+    "The header and footer stay — edit them instead.",
     "The name didn’t save — try again.",
+    "The type before is back.",
     "Theme style applied: ",
     "This ",
     "This header has no menu button to open.",
@@ -669,16 +728,19 @@
     "gogh can’t safely swap this image.",
     "gogh could not change the page style — ",
     "gogh could not create that page.",
+    "gogh could not find a menu to add it to — open the header and add it there.",
     "gogh could not keep the menu style — ",
     "gogh could not make a mega menu — ",
     "gogh could not make a phone menu — ",
     "gogh could not rename the site — that needs an admin login.",
+    "gogh could not save that look — it stays for now.",
     "gogh could not save the menu — ",
     "gogh could not save your brand — ",
     "gogh could not set the logo — ",
     "gogh could not switch back — ",
     "gogh could not switch the design — ",
     "gogh could not switch the menu — ",
+    "gogh could not take that page back — it is under Pages in the dashboard.",
     "gogh couldn’t find that icon in the stored markup.",
     "gogh couldn’t identify that icon.",
     "gogh couldn’t restore it.",
@@ -759,12 +821,22 @@
       },
       {
         "kind": "filter",
+        "hook": "render_block_core/heading",
+        "priority": 10
+      },
+      {
+        "kind": "filter",
         "hook": "body_class",
         "priority": 10
       },
       {
         "kind": "filter",
         "hook": "render_block_core/post-template",
+        "priority": 10
+      },
+      {
+        "kind": "filter",
+        "hook": "query_loop_block_query_vars",
         "priority": 10
       },
       {
@@ -835,6 +907,11 @@
       {
         "kind": "action",
         "hook": "wp_enqueue_scripts",
+        "priority": 10
+      },
+      {
+        "kind": "filter",
+        "hook": "render_block_data",
         "priority": 10
       },
       {
@@ -925,6 +1002,31 @@
       {
         "kind": "action",
         "hook": "trashed_post",
+        "priority": 10
+      },
+      {
+        "kind": "action",
+        "hook": "wp_footer",
+        "priority": 99
+      },
+      {
+        "kind": "action",
+        "hook": "admin_footer",
+        "priority": 99
+      },
+      {
+        "kind": "filter",
+        "hook": "plugin_row_meta",
+        "priority": 10
+      },
+      {
+        "kind": "action",
+        "hook": "wp_enqueue_scripts",
+        "priority": 20
+      },
+      {
+        "kind": "action",
+        "hook": "wp_footer",
         "priority": 10
       },
       {
@@ -1039,6 +1141,11 @@
       },
       {
         "kind": "action",
+        "hook": "wp_footer",
+        "priority": 10
+      },
+      {
+        "kind": "action",
         "hook": "admin_post_gogh_product_layout",
         "priority": 10
       },
@@ -1103,6 +1210,26 @@
         "priority": 10
       },
       {
+        "kind": "filter",
+        "hook": "the_content",
+        "priority": 11
+      },
+      {
+        "kind": "action",
+        "hook": "wp_head",
+        "priority": 10
+      },
+      {
+        "kind": "filter",
+        "hook": "the_content",
+        "priority": 13
+      },
+      {
+        "kind": "action",
+        "hook": "wp_head",
+        "priority": 10
+      },
+      {
         "kind": "action",
         "hook": "wp_enqueue_scripts",
         "priority": 10
@@ -1139,6 +1266,11 @@
       },
       {
         "kind": "action",
+        "hook": "admin_bar_menu",
+        "priority": 10
+      },
+      {
+        "kind": "action",
         "hook": "wp_insert_post",
         "priority": 10
       },
@@ -1152,16 +1284,18 @@
       "gogh_default_editor",
       "gogh_claims_post",
       "gogh_labs_ask",
+      "gogh_helper_url",
+      "gogh_user_test_tasks",
       "gogh_rebake_enabled",
       "gogh_schema",
       "gogh_schema_enabled",
       "gogh_webmcp_enabled",
-      "gogh_convert_enabled",
-      "gogh_helper_url"
+      "gogh_convert_enabled"
     ],
     "rest_routes": [
       "gogh/v1/version",
       "gogh/v1/starter",
+      "gogh/v1/site-def",
       "gogh/v1/type-scale",
       "gogh/v1/blog-style",
       "gogh/v1/motion",
@@ -1183,6 +1317,7 @@
       "edit_theme_options",
       "edit_others_posts",
       "edit_products",
+      "edit_pages",
       "manage_options",
       "upload_files",
       "unfiltered_html",
@@ -1202,6 +1337,7 @@
       "_wpnonce",
       "gogh-thanks",
       "gogh-edit",
+      "gogh-shoplook",
       "kind",
       "layout",
       "term",
@@ -1210,9 +1346,11 @@
       "gogh-variations",
       "page",
       "id",
+      "gogh-layout",
       "gogh-experiments",
       "gogh-mcp",
-      "gogh-walk"
+      "gogh-walk",
+      "gogh-build"
     ],
     "block_name": "gogh/section"
   },
@@ -1223,6 +1361,9 @@
       "button",
       "image",
       "video",
+      "embed",
+      "icon",
+      "rule",
       "badge",
       "box",
       "widget",
@@ -1232,18 +1373,24 @@
       "badge",
       "button",
       "card",
+      "embed",
       "exp",
       "form",
       "heading",
+      "icon",
       "image",
+      "list",
       "para",
       "posts",
       "products",
+      "rule",
       "video",
       "write"
     ],
     "rest_endpoints": [
       "blocks",
+      "categories",
+      "pages",
       "posts",
       "template-parts"
     ],
@@ -1266,5 +1413,5 @@
     "has_deprecation": true,
     "block_title": "gogh Section"
   },
-  "test_count": 236
+  "test_count": 327
 }

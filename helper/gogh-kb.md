@@ -15,7 +15,7 @@ about something where they conflict, rather than picking one silently. Quote UI
 labels and message copy from the appendix, verbatim — those are the current
 strings, and a paraphrased button label is the fastest way to lose a user's trust.
 
-Generated for plugin version 0.99.443 · knowledge base a206956.
+Generated for plugin version 0.99.598 · knowledge base 632c511.
 
 ---
 
@@ -65,7 +65,7 @@ A chip shows current state:
 - **"Publish failed"** + a **Retry** button
 
 ### Getting out
-Click **🎨 Exit gogh editor** in the WordPress admin toolbar, at the top of the screen — not in the side palette. If clean it exits straight away. If dirty you get a dialog:
+Click **👁 View site** in the WordPress admin toolbar, at the top left of the screen — not in the side rail (it read *Exit gogh editor* before v0.99.598). If clean it goes straight to the site as visitors see it. If dirty you get a dialog:
 - Title: **"You have unpublished changes"**
 - Body: "Publish them now, keep editing, or discard them and restore the live page."
 - Buttons: **Publish & close** / **Keep editing** / **Discard changes**
@@ -132,7 +132,7 @@ The pointer model is deliberately Canva-style: **click selects, drag-from-anywhe
 Press on empty canvas and drag (left button, no Shift, 6px threshold). On release, everything intersecting the rectangle is selected. Clicking outside a group without Shift clears it.
 
 ### Resize handles
-Eight handles: nw, n, ne, e, se, s, sw, w. Minimum size **60 wide × 32 tall**. Handles snap to other elements' edges/centres and section edges/centre; otherwise they round to the 8px grid.
+Eight handles: nw, n, ne, e, se, s, sw, w. Minimum size **60 wide × 32 tall**. Handles snap to other elements' edges/centres and section edges/centre; otherwise they round to the 8-unit base (24 with the grid on).
 
 Two important special cases:
 - **Corner-drag on TEXT does not free-scale.** It steps through the theme's font-size presets — one step per ~56px of diagonal drag — with a floating chip showing the current size ("theme default", "Display S", "Display M", "Display L", or the theme's preset name).
@@ -149,14 +149,13 @@ A bar along the bottom edge with a centre pill. Drag to set section height, clam
 ### Hover proximity
 - Within **28px of a section boundary**: three pills appear on that boundary — **`+ Section`** (left), the height pill (centre), **`◠ Transition`** (right).
 - Away from a boundary, hovering a section shows the **Section** toolbar.
-- Within **12px of the right edge of the window**: the side palette opens.
 
 ### Cards (drop-to-join)
-Drop an element **fully inside** a plain box and it becomes a **child ("kid") of that card** — one level only; boxes never join boxes. The card glows as a drop target.
+Drop an element **fully inside** a plain box and it becomes a **child ("kid") of that card** — one level only. The card glows as a drop target. A **plain shape can join too, as decoration** (v0.99.576): a circle behind a number, a stripe along the top. It sits behind the words, never pushes them and is never pushed, and on phones it steps aside like any decorative shape (a plain box kid keeps its proportions as a band). Limits: a box that has kids never joins (cards stay one level deep), nothing can join a kid, and a shape more than about 60% of the box's area is a box on a box, not decoration, so it stays a sibling. To recolour a shape kid, drag it out, use its panel, drop it back. Toast: **"Added to the card — it sits behind the words and moves with them."** (+Undo)
 - Toast on join: **"Added to the card — it moves and stacks with it now."** (+Undo)
 - Drag a kid outside the card bounds to free it: **"Out of the card — it's its own piece again."** (+Undo)
 - `Delete` on a kid: **"Removed from the card."** (+Undo)
-- Second click on a selected kid edits its text; first click on a button kid opens its link panel.
+- **The first press always gets the card.** Click a piece inside a card that is not yet chosen and the card is selected, not the piece; click the piece again to reach it (a third click edits its text; on a button kid the second click opens its link panel). While the card rides in a group selection, its pieces cannot be grabbed at all — a drag from anywhere on it moves the group. A loaded paint roller is the one exception: it paints the piece it touches. (v0.99.575; James kept pulling numbers out of cards he meant to move as a row.)
 
 Cards matter because they're what keeps an image + heading + button together when the layout stacks on mobile.
 
@@ -164,20 +163,15 @@ Cards matter because they're what keeps an image + heading + button together whe
 
 ## PART 5 — THE UI, CONTROL BY CONTROL
 
-### Side palette (titled "gogh")
-Icon buttons across the top. There is no exit control here — leaving edit mode
-is **🎨 Exit gogh editor** in the admin toolbar.
-- **Site style** — theme style-variation drawer (hover to preview, click to keep; grouped Colours / Fonts)
-- **Page style** — page template chooser
-- **Grid: show and snap** — toggles the 8px grid; tooltip becomes "Grid: on"/"Grid: off". **Off by default**, deliberately: "invisible magnets feel broken to beginners" — the grid you snap to is the grid you see.
-- **Whole page — reorder sections** — opens the zoom-out page map
-- **Phone preview** — a desktop/phone device toggle on the design view's zoom cluster. Phone mode pins the artboard to a phone's width so the page's own mobile layout renders live. In it you can tune the phone layout without touching desktop: tap an element for a toolbar with **Hide on phone** / **Show on phone** and ↑/↓ arrows that re-stack the mobile column; tap a section's background to **Hide section on phone** (hidden things stay visible in the preview, dimmed with a badge, so they're one tap from back). Overrides are stored as sparse `m` patches on the element/section and self-clear when they match the automatic layout again. (This replaced the old floating 250px mobile-mirror panel in v0.99.197.)
+### The side rail (left edge: Page · Site · SEO)
+Three tabs sit on the left edge of the window in edit mode. Click one and a drawer docks beside the page (the page shrinks to fit next to it; nothing opens on hover, and there is no palette on the right any more). There is no exit control here — leaving edit mode is **View site (was Exit gogh editor)** in the admin toolbar.
+- **Page** — this page's doors, **Add a page** first (v0.99.585): type a title, press Add, and the page is created and opens in the editor straight away. On arrival a toast says it is a new page, with **Put it in the menu** (one click: the page goes to the end of the site menu, which the header shows on every page) and **Undo** (bins the page and goes back to the page Add was pressed on). Nothing joins the menu unless asked — thank-you pages and drafts are pages too. Then **Page style** and **Rearrange sections**.
+- **Site** — the design of the whole site as cards: **Site style** (colours and looks, hover to try, click to keep, Remix), **Fonts** (pairs, tried on your page), **Motion**, **Edit header**, **Edit footer**, **Page style**, **Rearrange sections** (the zoom-out page map). Some doors dock as a panel in the same place; **Back** returns to the cards.
+- **SEO** — what the page says to search engines.
+The drawer's foot holds **Grid: show and snap** (the painted rhythm grid, 24-unit tiles and a heavier line every 72; off by default), **Undo (⌘Z)** and **Redo (⇧⌘Z)**.
 
-Then **Add element**: `Heading` · `Text` · `Button` · `Image` · `Badge` · `Write` (a reading column, cursor ready) · `Card` (drop elements inside and they stay together, even on mobile) · `Shape` · `Experience` (upload a self-contained HTML experience, runs sandboxed — only if you have the capability) · `Posts` (your latest posts, live).
-
-Footer: `↺ Undo (⌘Z)` · `↻ Redo (⇧⌘Z)`.
-
-Collapsed, it's a slim edge tab labelled **gogh**. Opens on hover or click, auto-closes 500ms after the pointer leaves.
+### Adding something to a section
+Hover a section and its pill appears; its **＋ Add** opens the **Add to this section** menu: `Heading` · `Text` · `Button` · `Image` · `Video` · `Badge` · `Embed` · `Icon` · `List` · `Line` · `Write` (a reading column, cursor ready) · `Card` (drop pieces inside and they stay together, even on phones) · `Experience` (a self-contained HTML experience) · `Form` (name, email, message), plus `Posts` and `Shop` when those add-ons are on. Or press **/** with nothing being edited for the quick-add search of the same list. Either way the piece lands centred in the section, on the rhythm, below anything it would have covered. A **+ Section** pill between sections adds a whole new section from the layouts.
 
 ### Floating element toolbar (above the selected element)
 | Button | What it does |
@@ -194,10 +188,12 @@ Collapsed, it's a slim edge tab labelled **gogh**. Opens on hover or click, auto
 
 If nothing overlaps, you get: "Nothing overlaps this — it's already in front." / "…already at the back."
 
-### Section toolbar (on hover, labelled "Section")
-`↑ Move up` · `↓ Move down` · `Background image` · `Save to reuse` · `⧉ Duplicate section` · `🗑 Delete section`. Up/Down disable at the ends. Never shown for the site header or footer.
+### Section toolbar (one pill, on hover and while a section is selected)
+Move the pointer over a section, or click its empty ground, and one pill docks at its top-left (v0.99.578–589; the first three testers asked "Where is the + button?"): **＋ Add** in words with an ink disc — the door to Heading, Text, Button, Image, Form, Contact and the rest — then **Background** (background & look) in words, then the die and its take label where the design has other takes, then **⋯** which holds `Move up` · `Move down` · `Duplicate` · `Save to reuse` · `Delete` as words. Up/Down disable at the ends. The pill pins to the top of the window while a tall section is on screen. It goes when the pointer leaves; a selected section keeps it. Choosing a piece inside the section folds it, and it stays away while the pointer works mid-section (typing included); reaching for the top band of the section brings it, and so does letting the piece go. Any open panel keeps it away. Never shown for the site header or footer.
 
 ### Panels
+**Line** (the rule piece) has three dials (v0.99.590): **Weight** Hairline · Fine · Bold; **Style** Solid · Dotted · Dashed (dots and dashes are sized by the weight); **Width** As placed · Full width (edge to edge of the section, and As placed puts it back where it was). Its colour rides the bar's swatch like words.
+
 Shape · Add a shape ("A backdrop for the rest — send it backward once it's placed.") · Button (Style: Solid / Outline; swatch rows Background, Text, Hover background) · Image (URL field, alt text, Upload, Remove image, media grid) · Replace image · Text colour · Link / Link text ("Apply", "Remove link (keep the text)") · Section background · Section transition · Save this section · Site style · Page style · Site header / Site footer · Menu / Add to menu · Imported block.
 
 ### Section transition panel
@@ -252,11 +248,12 @@ Saving a section: the ⋯ menu's "Save to reuse" (panel title "Save this section
 
 - **Snap threshold is 6 design px.**
 - Snap candidates: the section's left (0), right (1200) and horizontal centre (600); top, bottom and vertical centre; plus every other element's left, right, centre-x, top, bottom, centre-y. The dragged element's own left, right and centre edges are all tested.
-- **Grid snap is off by default** (opt-in via the Grid button). When on, non-snapped positions round to the **8px** grid and the grid is drawn.
+- **Grid snap is off by default** (opt-in via the Grid button). Mid-gesture the major lines (72) show and an edge near one lands on it; otherwise positions round to the **8-unit** base. With the grid on, the minors (24) show too and the mesh a drop rounds to is **24** — a person who asks for the grid gets the rhythm, not an 8-pixel mesh. Arrow-key nudges stay at 8.
 - **Alignment guides**: one vertical and one horizontal line, drawn across the full section, only while a snap is captured.
 - **Equal-spacing snap**: when an element sits between two neighbours, the exact midpoint captures within 8px of the raw pointer and **overrides** edge snapping and grid parity — so equal gaps are always reachable.
 - **Spacing labels**: up to 4 live distance badges, measuring to the nearest neighbour on each side. With no neighbour on a side, it measures to the **section edge** (page margins are the distances people eyeball most). Gaps under 4 design px, or under 14 rendered px, aren't drawn. Equal gaps get a `=` prefix and turn blue.
 - **Shift** during drag pins the locked axis and suppresses its guide. **⌘/Ctrl** disables all of the above.
+- **The rhythm.** Everything gogh spaces on its own — the section templates, the scratch section, the bands the connector compiles — sits on one vertical rhythm: positions and heights on multiples of **24** (`RHYTHM`), section heights on multiples of **72** (`MAJOR`). It governs what gogh chooses, never what a person places: a hand-dragged 30 stays 30, and the read-back of a layout never rounds it. The group bar's **Even gaps** (top to bottom) and **Tidy up** choose their vertical gaps on it — the top piece stays where the person put it, the gap becomes 24, 48, 72…, and the toast names it; side-to-side gaps and a card's inner spacing are not on the rhythm. A new piece from the shelf is born on it too: every default height and resting y is a multiple of 24, it lands on a 24, and if that would put it on words already there it goes 24 under them instead (a shape, being a backdrop, may sit behind words). The section floor `MIN_H` is 576, eight majors. The idea comes from Josh Puckett's rule of one major and one minor spacing unit: an agent keeps a rule it can count, and a page whose gaps are all 24 or 72 reads as one design.
 
 ---
 
@@ -266,9 +263,9 @@ Single-file ES5 IIFE, no build step. `gogh-editor.js` is ~9,190 lines. It bails 
 
 ### Design constants
 ```js
-var TOL = 8, MIN_H = 560, PAD = 72, SNAP = 6, BASE = 8, W = 1200;
+var TOL = 8, MIN_H = 576, PAD = 72, SNAP = 6, BASE = 8, W = 1200, RHYTHM = 24, MAJOR = 72;
 ```
-`W = 1200` is the **design width** — every model coordinate is in design units against a 1200-unit-wide section. `TOL` is the solver's line-clustering tolerance, `SNAP` the alignment tolerance, `BASE` the opt-in grid, `PAD` the bottom padding added to section height, `MIN_H` the section floor.
+`W = 1200` is the **design width** — every model coordinate is in design units against a 1200-unit-wide section. `TOL` is the solver's line-clustering tolerance, `SNAP` the alignment tolerance, `BASE` the mesh a drop rounds to with the grid off (and the Shift-nudge), `PAD` the bottom padding added to section height, `MIN_H` the section floor. `RHYTHM` (24) and `MAJOR` (72) are the vertical rhythm gogh keeps for its own gaps — see Part 7.
 
 ### `window.GOGH` (localized config)
 `postId`, `restUrl`, `mediaUrl`, `canUpload`, `canExp`, `canConvert`, `pageTemplate`, `pageTemplates[]`, `modified`, `theme`, `themeName`, `gsId`, `palette[{slug}]`, `nonce`.
@@ -293,7 +290,7 @@ hydrateV3Sections().then(function () {
 ```
 - `scope` — `'gogh-sec-<n>'`, the CSS scope class, also emitted as `data-gogh-scope`
 - `els` — elements in **stacking order** (index+1 → `z-index` and the `.gogh-el-N` class)
-- `minH` — design-unit minimum height (default 560; 480 for an empty bootstrap)
+- `minH` — design-unit minimum height (default 576, eight majors; 504 for an empty bootstrap)
 - `bg` — CSS colour string (may be `var(--wp--preset--color--x)` or a `color-mix()`)
 - `bgImage` / `bgId` — background image URL + attachment id
 - `divider` — `{shape}`: `wave|brush|torn|curve|slant|peaks|melt`
@@ -338,7 +335,7 @@ Classification: `isText = heading|para`; `fixedHeight = button|image|badge|widge
 
 Three functions: `cluster`, `nearest`, `solve`.
 
-`designH(els, minH)` = `max(minH || 560, maxBottom + 72)`.
+`designH(els, minH)` = `max(minH || 576, maxBottom + 72 rounded up to the next 72)` — a section that outgrows its floor still lands on a major.
 
 **`solve(els, minH, dw)`**:
 1. Collect **every x edge** of every element (`e.x` and `e.x + e.w`) plus the frame edges 0 and 1200. Same for y edges plus 0 and H.
@@ -733,6 +730,9 @@ Usage: `git tag v0.83.0 && git push origin v0.83.0`.
 
 Steps: install **Twenty Twenty-Five** → install the plugin from the latest release's `gogh-playground.zip` → run a PHP seeder that creates a Gogh front page (id 99, "Gogh Editor"), switches Global Styles to the theme's "evening" variation, creates three ordinary Gutenberg pages (About / Team / Contact — the About copy explicitly invites pressing "Make freeform"), builds a navigation menu with real permalinks, repoints the theme's header template part at it, and sideloads four demo images (wheat-field, starry-night, sunflowers, almond-blossom) → set the front page.
 
+### Launch counter (v0.99.549)
+Every blueprint's boot step writes `gogh_booted_as` with its own name (`default`, `halloran`, `built` for sites the helper publishes, and so on). The first page the site shows after that sends one beacon to the helper, `POST /api/boot` with `{ bp, v }`, and flips `gogh_boot_pinged` first so a lost ping is never retried. The helper ignores localhost and Studio by origin, caps one address at ten an hour, and keeps `boot:total` and `boot:bp:<name>` in KV without expiry. `GET /api/boot` returns `{ total, seed, counted, blueprints }`; the total starts at 776, the launches counted before the beacon (GitHub release downloads, 1–12 August 2026, and the weeks after that the raw zip could not count). The Plugins screen row says "Launched N times on Playground" (cached six hours) and the release workflow stamps the same number into the demo README.
+
 ### `spike/matrix.php`
 A standalone CLI harness answering: *does the attrs-as-truth format survive the real WordPress save pipeline, for every kind of user, in both fallback variants?* It's the experiment that decided the production `gogh_rebake_enabled` default — a comment in `gogh.php` notes "variant B won the matrix".
 
@@ -760,7 +760,7 @@ It also runs an **XSS probe** — injecting `"cssT":"</style><script>alert(1)</s
 
 **"Why can't I pick any colour?"** Also by design. Colours come from your theme palette only, so a style-variation switch re-skins the page correctly.
 
-**"Why is snapping not landing on the grid?"** Grid snap is **off by default** — turn it on with the Grid button in the side palette. Element-to-element and section-edge snapping (6px) is always on unless you hold ⌘/Ctrl.
+**"Why is snapping not landing on the grid?"** Grid snap is **off by default** — turn it on with the Grid button at the foot of the side rail's drawer. Element-to-element and section-edge snapping (6px) is always on unless you hold ⌘/Ctrl.
 
 **"I added a block inside a Gogh section in the block editor and it disappeared."** Known beta limitation. Only the eight Gogh element types are preserved through a Gogh publish; other block types added from the block editor are lost on the next publish. Text, colour and image edits made in Gutenberg *are* adopted.
 
@@ -774,6 +774,62 @@ It also runs an **XSS probe** — injecting `"cssT":"</style><script>alert(1)</s
 
 **"Publish failed."** Check the browser console. Common causes: the REST nonce expired (reload), the safety gates refused an ambiguous mapping, or a template part couldn't be resolved for a header/footer edit. Nothing is silently corrupted — Gogh's failure modes bail rather than guess.
 
+### Fonts: pairs, not pickers (v0.99.543)
+
+A **Fonts** card in the Site drawer owns everything about type: the type size (Snug/Regular/Airy/Grand), the theme's own font pairs (first, in the same list, each with a mood word such as 'nerdy' or 'sturdy' worked out from the faces) and twelve heading-and-body pairings with plain names for their character (the theme's own first, then bookish, editorial, studio, modern, warm, elegant, bold, classic, quiet luxury, loud, technical), each row set in its own faces. Hover paints the page in the pair (the editor loads it from Google to try it; nothing is saved); click keeps it. Keeping installs the families through WordPress's own Font Library — the files are downloaded once into the site's font folder and registered as font family and font face posts — then writes the two families into the site's global styles (`styles.typography.fontFamily` and `styles.elements.heading.typography.fontFamily`) and activates them in `settings.typography.fontFamilies.custom`. The toast reads "Fraunces & Inter. Installed on your site, yours to keep." with Undo, which puts the previous families back (nothing is uninstalled). The published page serves the fonts from the site itself, never from Google, and the type survives gogh being deactivated. Two families a page, never a third. **More fonts** folds under the twelve: type a name, pick Headings, Body or Both, and the hits appear — the theme's own families first, then Google's list (WordPress's own font collection, fetched through the site), each shown as the collection's preview of the name. Hover tries it on the page in that role; click keeps it, installing only the family that changed. **Brand guidelines** that name a font the site lacks ("Headings: Cormorant Garamond") get it the same way: the brand door looks the name up in Google's list, tries it on the page while the form is open, and installs it when the brand is kept; the receipt line says "from your guide, installed when you keep". A kept pair from the Fonts door also becomes the brand's fonts when a brand exists, so Remix keeps them. **Remix draws on the same pairs**: without a brand pinning its fonts, a roll picks a font pair by a coin — the theme's own combinations or one of the twelve — tries it from Google, and installs it quietly when the look is kept (the receipt ends "in Fraunces & Inter"). **The AI door** may say `fonts: 'bookish'` or `fonts: { heading: 'Fraunces', body: 'Inter' }` in a site definition; the fonts are installed as the site is built. `__gogh.fontPairs()`, `__gogh.openFontsPanel()`, `__gogh.fontsDry(on)` for tests.
+
+**Two families a page (v0.99.553).** Every keep — a pair, one role from More fonts, a theme preset — trims the site's active family list (global styles `settings.typography.fontFamilies.custom`) to the families the body and heading refs point at. Dropped families stay in the Font Library, so choosing one again is instant with no download; the Undo on the toast puts the dropped ones back. Remix already wrote only the two in use, so the doors now agree.
+
+### User testing (v0.99.556)
+A site booted from `blueprint-usertest.json` (the tester is sent to the helper's `/test` page, which thanks them for helping make gogh better, explains the persona — Elliot Smith, a photographer, on a site that still says Elliot Grey so renaming it is a real task — and has the Start button) carries the option `gogh_user_test`. On such a site the plugin loads `gogh-usertest.js`: a small card on the right, below the site header so the menu stays visible, with seven tasks (site name · headline · swap a photo · a different look · a way to get in touch · a Prices page in the menu · phone check then publish and view), each with Done, Couldn't do it, an optional note and a hint (opening the hint is recorded), then a four-question wrap-up (happy 1–5, could finish, how it felt, what confused) and an optional name. The card keeps its place in localStorage across reloads and the walk between editor and published site. Events go to the helper's `POST /api/test` under a random session id (`gogh_user_test_session`), batched and retried. Jamie reads them at `/tests` behind a password (the Worker secret `TEST_TOKEN`, which Jamie chose; the refresh token also works): one row per tester, click for the tasks, times, notes and wrap-up. Tasks come from `gogh_user_test_tasks()`; the option may carry its own `tasks` array, and the `gogh_user_test_tasks` filter can change them. Nothing else is collected.
+
+### Gap magnets and the numbers (v0.99.557)
+While dragging, two gap magnets work alongside the edge and centre magnets. **Equalise** (older): between two neighbours, the midpoint that makes both gaps equal captures within 8 units. **Repeat** (new): at the end of a run, the gap the nearest neighbour already keeps to the next piece is offered, so a fourth card lands in step with three; captured within 8 units, never on a purely locked axis, beaten only by equalise. Both work on either axis. **The numbers**: a plain drag stays quiet; the moment a gap magnet holds, every gap in that run shows its number in a blue "= 40" badge (the dragged piece's gap and the one it copies), and they go on drop. Alt during a drag still shows every ruler as before. From the Canva teardown: alignment as placement, not repair — the beginner compares two digits instead of two stretches of whitespace.
+
+### The rest of the Canva teardown (v0.99.558)
+**Size matching on resize:** dragging a side or corner handle also snaps to a neighbour's width (and, for pieces with a real height, its height); the guide's chip says "same width" / "same height" so the person knows why the handle stopped. **Match size** on the group bar (in the Tidy up row): every selected piece takes the size of the first one picked — width always, height only where height is a number (words hug their own); greyed with "Already the same size" or "Needs two or more pieces". **Alt + arrow** moves the selected piece to the next magnet in that direction (sibling edges and centres, the section's edges, centre and margin), with the guide shown for a moment, so the keyboard reaches every position the mouse can; plain arrows still nudge 1, Shift 8. **Drag threshold:** a piece moves only after 4px of travel (10 for a finger), so a twitch on a click never nudges it; the marquee selects anything it touches, not only what it surrounds. **The parity set** from the teardown lives in the suite as six tests (edge at 5 snaps, 10 does not, equalise, repeat, width match says so, a 2px twitch is a click).
+
+### Rhythm gaps (v0.99.559)
+The third gap magnet, below equalise and repeat: with a neighbour on a side and nothing to copy, gaps of 24, 48 and 72 from that neighbour are offered within 6 units (`rhythmGap`), on either axis, so a hand-placed piece lands in gogh's own spacing without anyone knowing the rhythm exists. The drop keeps the gap exactly, and the number shows in the gap while it holds, like the other gap magnets. Nothing catches when the pointer is more than 6 from any of the three.
+
+### The group bar, quieter (v0.99.560)
+Select two or more pieces and the bar reads: Make a card · Duplicate · Delete · Tidy up · Align ▾. **Tidy up** is the one-click fix and now carries everything: it squares each row to its topmost piece, evens the gaps (across, the ends hold; down the page the gap lands on the rhythm), and matches sizes that are nearly the same (within a tenth) to the first piece's — wildly different sizes are a design choice and stay. **Align ▾** opens one row of six icons: the word-processing trio (left, centre, right), a hairline, then top, middle, bottom; hover says the word ("Align top") and a faded icon says what is already right ("Tops already line up", "Left edges already line up", "Already centred on the page") or why not ("Would put words on words"). Even gaps and Match size are gone as separate verbs, and so is the sentence that explained the greys. A card's own bar has the same Align ▾ with the three sideways icons and its Even gaps for the stack inside it.
+
+### Centring a group on the page (v0.99.561)
+Two ways, both from James asking how to centre three cards. **Dragging several pieces together:** the group is one thing to the page — its own centre snaps to the page centre and its outer edges to the margins, within 6 units, with the same pink centre guide a single piece gets; the pieces keep their gaps. **Behind Align, a seventh icon, Centre on the page:** moves the whole selection as one so its centre sits on the page's, greyed "Already centred on the page" when it is. The six other icons still align pieces with each other, not with the page.
+
+### Align offers only what fits the shape (v0.99.562)
+Behind Align, the icons follow the shape of the selection (`selectionShape`): pieces beside each other are a row, so only top, middle, bottom and Centre on the page show (Align left would pile a row of cards on each other); pieces above each other are a stack, so only left, centre, right and the page show; a grid, or a scatter, shows all seven. Hidden, not faded — a verb that could never make sense here is not offered at all.
+
+### Fonts door: faces load on open (v0.99.564)
+Opening the Fonts door loads every listed pair's faces at once — Google's (`ensureGoogleFonts` per pair) and the theme's own from the theme folder (`ensureVariationFonts` per theme pair, via the FontFace API, every weight and style of each family, since the row's heading name is drawn in the bold) — so each row is drawn in its own face from the start. Note: `document.fonts.check()` answers true for a family with no face at all, so the loader looks for a loaded face by name, weight and style instead. Before, a row's faces loaded only when hovered, and the swap from the fallback face as the pointer passed looked like the other rows changing size.
+
+### Help in the admin bar (v0.99.566)
+The helper's welcome panel opens with a 35-second film of gogh being used (v0.99.592): muted and looping, with a sound toggle and Full screen, and it stops the moment a question is asked. The file is served from the gogh-demo repo through jsDelivr, so neither the plugin nor the Worker carries its weight. The in-editor help sheet has a **⤡ widen** button beside its close, which takes it from 380px to 820px for reading a long answer or watching the film; the iframe allows fullscreen.
+
+**Seeing the page on a phone (v0.99.594).** Two words sit at the top right of the admin bar the whole time you are editing, just left of the ? help button: **Desktop | Phone**. Press **Phone** and the page is pinned to a phone's width (390px) on the zoomed-out desk, with the page's real mobile layout live, so you can tune it (Hide on phone, move up/down in the phone stack). It needs no drawer open; **Desktop** puts the page back. The Page drawer has the same door as a card, **See it on a phone**. Opening and closing drawers or panels while on the phone keeps the phone view; only Desktop (or ⌥Z) leaves it. Leaving the editor leaves it too. Seven of the first sixty-four testers reported "there is no phone button" because the switch used to live inside the zoom slider, which only appears while a drawer is open. There is no phone button in the zoom slider any more.
+
+**Hiding things on phones, from the desktop (v0.99.596).** You no longer have to be in the phone view to learn that pieces can be hidden or reordered for small screens. Every piece's bar has a **phone button** (a small phone; lit and slashed once the piece is hidden on phones) — press it to hide the piece on phones, press again to show it. Every piece that has a panel (button, image, video, box, widget, line, icon, embed) ends with an **On phones** row: **Shown | Hidden** and **See it on a phone**, which opens the phone view. A section's ⋯ menu has **Hide on phones** (then **Show on phones**). Hiding says so in a toast with a *See it on a phone* door, and on the desktop canvas a hidden piece wears a small **Hidden on phones** tag. Inside the phone view one sentence sits under the phone the whole time: *"Press anything to hide it on phones or move it up and down."* Reordering for phones (move up / move down) still lives in the phone view only.
+
+**The phone view is the page's own phone CSS (v0.99.597).** The artboard is phone-wide but the browser window is not, so rules written for narrow windows (`@media (max-width: …)`) — the header's hamburger menu, shop grids, blog cards, forms — used to keep answering to the window, and the phone view showed a desktop menu squeezed into a phone. Now, entering the phone view, gogh walks the page's stylesheets and flips each such rule's media condition on the live CSSOM: on for rules a 390px-wide phone would fire, off for desktop-only (`min-width`) ones, leaving rules that are not about size (hover, reduced motion) alone and the editor's own stylesheets untouched. Desktop puts every condition back. Nothing is copied or rewritten, so the phone view is exactly the page's mobile CSS, including the real hamburger, which opens inside the artboard.
+
+A small ? sits in the admin bar just left of Howdy, on every screen where the bar shows, for any logged-in user when a helper URL is set. In the gogh editor it opens the help sheet (the same one the side rail's ? opens); on any other screen, wp-admin included, it opens the helper in a new tab. The node is `gogh-help` under `top-secondary`; the `gogh_helper_url` filter turning the URL off removes it.
+
+### The admin bar's edit label never flashes (v0.99.567)
+One function, `gogh_ab_edit_label( $editing, $is_post )`, renders the bar's gogh node — 'Edit with gogh' / 'Edit post' on a page, 'View site' (before v0.99.598: 'Exit gogh editor') in the editor — and the editor receives both variants (`cfg.abEdit`) so when the mode flips without a reload it writes the same markup the server would. Before, the server rendered a tick and 'Done' while the page loaded and the editor's script then wrote 'Exit gogh editor' over it, so 'Done' flashed for an instant on every open.
+
+### Pictures published light (v0.99.568, the speed pass)
+gogh's pictures used to publish as plain `<img src>` with no attachment id or size, so WordPress could not give them srcset, sizes, lazy loading or a fetch priority — a photographer's home was 3MB with a 7.8s LCP on a phone. Now a content filter (`gogh_light_images`, priority 11, just before core's own) finds the attachment behind each upload URL (`gogh_media_id_for_url`, cached a day), adds the `wp-image-ID` class and the intrinsic width/height, and core adds srcset, sizes, `loading="lazy"` for pictures below the first, `fetchpriority="high"` for the first. A section's background photo gets a `large` (1024px) variant under `@media (max-width: 700px)`, and on a single page the first section's background is preloaded (phone size for phones, full for the rest). Nothing to republish: it reaches every page ever published. The same release gates the look CSS (reading looks only on single posts, blog looks only on lists of posts or pages with a posts rail) and the view script's chunks (the Manual contents on posts, the video-pause control and the carousel/lightbox only where the page carries them). Measured: that home 3009KB → 737KB, LCP 7.8s → 4.2s, score 73 → 85; a text-only page 366KB → 325KB, 90 → 93.
+
+### Pictures from Unsplash, published light (v0.99.569)
+The starters' photos come from Unsplash by URL with a `w=` width. As the content is served, each such picture gets a srcset of the same URL at 480, 768, 1024, 1400 and 1800 (up to its own width) with `sizes="(max-width: 700px) 100vw, min(100vw, Wpx)"`; the first picture on the page gets `fetchpriority="high"`, the rest `loading="lazy"`. A section's Unsplash background gets a `w=900` variant on phones. The page's first picture, tag or background, upload or Unsplash, is preloaded — for a tag with the same srcset, so the browser reuses one download. Measured on a hosted InstaWP site (the photographer design): mobile 75 → 83, LCP 7.0s → 4.5s, 1,584KB → 987KB; desktop 88 → 90.
+
+### Honest sizes, a description, a preconnect (v0.99.570)
+**Honest sizes:** WordPress guesses every picture is as wide as the screen. gogh reads each picture's real share of its section from the stored CSS (the grid's cqw columns and the piece's grid-area, `gogh_piece_share`) and writes `sizes="(max-width: 700px) 100vw, 53vw"`-style values after core's own pass (priority 13); the first picture's preload speaks the same sizes so one download serves both. Desktop on the hosted photographer: 1,401KB → 914KB, the hero 640KB → 457KB. **A description for every page:** `gogh_page_description()` — the excerpt if written, else the first paragraph that reads as a sentence (40+ characters; eyebrow lines like 'People · Places · Quiet moments' are skipped), else the tagline — as `<meta name="description">` on singular pages and the front page, unless an SEO plugin (Yoast, Rank Math, AIOSEO, SEOPress, The SEO Framework, Slim SEO) is active. **Preconnect** to images.unsplash.com when the page's content uses Unsplash pictures. The InstaWP SEO score of 61 was the sandbox's own 'discourage search engines' setting (noindex) plus the missing description; gogh's part is fixed.
+
+### What should go here: typing filters (v0.99.571)
+The + between sections opens "What should go here?" with a box and eight chips. Typing now narrows the chips live to what matches — the panel's own ideas (Testimonials, Pricing, Contact form…) and every section design by name (Carousel, Photo wall, FAQ, Numbers…); a chip adds that section; Enter or Add takes the top match; nonsense leaves "Nothing here matches" and Browse them all, which always stays as the way to the full shelf. Clearing the box brings the usual chips back.
+
 ---
 
 # Generated facts appendix
@@ -782,22 +838,24 @@ Everything in this section is extracted mechanically from the Gogh source on eve
 
 ## Current release
 
-- Plugin version: **0.99.443**
+- Plugin version: **0.99.598**
 - Requires WordPress **6.5+**, PHP **7.4+**
 - Text domain: `gogh-editor`
 - readme.txt Stable tag: `0.26.0` · Tested up to: `7.0`
-- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.443`). Quote the plugin header version.
+- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.598`). Quote the plugin header version.
 
 ## Design constants
 
 | Constant | Value |
 |---|---|
 | `TOL` | 8 |
-| `MIN_H` | 560 |
+| `MIN_H` | 576 |
 | `PAD` | 72 |
 | `SNAP` | 6 |
 | `BASE` | 8 |
 | `W` | 1200 |
+| `RHYTHM` | 24 |
+| `MAJOR` | 72 |
 | `autosave_interval_ms` | 15000 |
 | `history_cap` | 60 |
 | `mobile_breakpoint_px` | 700 |
@@ -825,9 +883,9 @@ Divider shapes (plus "None"): `curve` (Curve), `sweep` (Sweep), `dunes` (Dunes),
 
 ## Elements
 
-Element types that survive a publish: `heading`, `para`, `button`, `image`, `video`, `badge`, `box`, `widget`, `exp`. Anything else added from the block editor is lost on the next Gogh publish.
+Element types that survive a publish: `heading`, `para`, `button`, `image`, `video`, `embed`, `icon`, `rule`, `badge`, `box`, `widget`, `exp`. Anything else added from the block editor is lost on the next Gogh publish.
 
-"Add element" palette items: `badge`, `button`, `card`, `exp`, `form`, `heading`, `image`, `para`, `posts`, `products`, `video`, `write`.
+"Add element" palette items: `badge`, `button`, `card`, `embed`, `exp`, `form`, `heading`, `icon`, `image`, `list`, `para`, `posts`, `products`, `rule`, `video`, `write`.
 
 ## WebMCP tools
 
@@ -867,8 +925,10 @@ Block: `gogh/section` · v3 attributes: `css`, `model`, `scope`, `v`, `cssT`.
 | `template_redirect` | action | 10 |
 | `wp_enqueue_scripts` | action | 10 |
 | `init` | action | 10 |
+| `render_block_core/heading` | filter | 10 |
 | `body_class` | filter | 10 |
 | `render_block_core/post-template` | filter | 10 |
+| `query_loop_block_query_vars` | filter | 10 |
 | `body_class` | filter | 10 |
 | `body_class` | filter | 10 |
 | `init` | action | 10 |
@@ -883,6 +943,7 @@ Block: `gogh/section` · v3 attributes: `css`, `model`, `scope`, `v`, `cssT`.
 | `admin_post_gogh_form_message` | action | 10 |
 | `admin_post_nopriv_gogh_form_message` | action | 10 |
 | `wp_enqueue_scripts` | action | 10 |
+| `render_block_data` | filter | 10 |
 | `body_class` | filter | 10 |
 | `render_block_core/navigation` | filter | 10 |
 | `template_redirect` | action | 302 |
@@ -901,6 +962,11 @@ Block: `gogh/section` · v3 attributes: `css`, `model`, `scope`, `v`, `cssT`.
 | `body_class` | filter | 10 |
 | `wp_insert_post_empty_content` | filter | 10 |
 | `trashed_post` | action | 10 |
+| `wp_footer` | action | 99 |
+| `admin_footer` | action | 99 |
+| `plugin_row_meta` | filter | 10 |
+| `wp_enqueue_scripts` | action | 20 |
+| `wp_footer` | action | 10 |
 | `init` | action | 10 |
 | `rest_api_init` | action | 10 |
 | `init` | action | 10 |
@@ -923,6 +989,7 @@ Block: `gogh/section` · v3 attributes: `css`, `model`, `scope`, `v`, `cssT`.
 | `admin_post_gogh_post_layout` | action | 10 |
 | `admin_post_gogh_post_layout_all` | action | 10 |
 | `get_post_metadata` | filter | 10 |
+| `wp_footer` | action | 10 |
 | `admin_post_gogh_product_layout` | action | 10 |
 | `safe_style_css` | filter | 10 |
 | `wp_kses_allowed_html` | filter | 10 |
@@ -936,6 +1003,10 @@ Block: `gogh/section` · v3 attributes: `css`, `model`, `scope`, `v`, `cssT`.
 | `wp_insert_post_data` | filter | 20 |
 | `save_post` | action | 10 |
 | `wp_head` | action | 10 |
+| `the_content` | filter | 11 |
+| `wp_head` | action | 10 |
+| `the_content` | filter | 13 |
+| `wp_head` | action | 10 |
 | `wp_enqueue_scripts` | action | 10 |
 | `wp_enqueue_scripts` | action | 10 |
 | `rest_api_init` | action | 10 |
@@ -943,16 +1014,17 @@ Block: `gogh/section` · v3 attributes: `css`, `model`, `scope`, `v`, `cssT`.
 | `admin_bar_menu` | action | 10 |
 | `admin_bar_menu` | action | 10 |
 | `admin_bar_menu` | action | 10 |
+| `admin_bar_menu` | action | 10 |
 | `wp_insert_post` | action | 10 |
 | `block_editor_settings_all` | filter | 10 |
 
-Filters exposed for third parties: `gogh_default_editor`, `gogh_claims_post`, `gogh_labs_ask`, `gogh_rebake_enabled`, `gogh_schema`, `gogh_schema_enabled`, `gogh_webmcp_enabled`, `gogh_convert_enabled`, `gogh_helper_url`.
+Filters exposed for third parties: `gogh_default_editor`, `gogh_claims_post`, `gogh_labs_ask`, `gogh_helper_url`, `gogh_user_test_tasks`, `gogh_rebake_enabled`, `gogh_schema`, `gogh_schema_enabled`, `gogh_webmcp_enabled`, `gogh_convert_enabled`.
 
-REST routes registered: `gogh/v1/version`, `gogh/v1/starter`, `gogh/v1/type-scale`, `gogh/v1/blog-style`, `gogh/v1/motion`, `gogh/v1/ask`, `gogh/v1/imagine-exp`, `gogh/v1/ask-key`, `gogh/v1/menu-style`, `gogh/v1/first-minute`, `gogh/v1/ask-log`, `gogh/v1/active-style`, `wp/v2/gogh-product/(?P<id>\d+)`, `wp/v2/gogh-product/(?P<id>\d+)/autosaves`, `gogh/v1/pattern`, `gogh/v1/render`.
+REST routes registered: `gogh/v1/version`, `gogh/v1/starter`, `gogh/v1/site-def`, `gogh/v1/type-scale`, `gogh/v1/blog-style`, `gogh/v1/motion`, `gogh/v1/ask`, `gogh/v1/imagine-exp`, `gogh/v1/ask-key`, `gogh/v1/menu-style`, `gogh/v1/first-minute`, `gogh/v1/ask-log`, `gogh/v1/active-style`, `wp/v2/gogh-product/(?P<id>\d+)`, `wp/v2/gogh-product/(?P<id>\d+)/autosaves`, `gogh/v1/pattern`, `gogh/v1/render`.
 
-Core REST endpoints used by the editor: `wp/v2/blocks`, `wp/v2/posts`, `wp/v2/template-parts`.
+Core REST endpoints used by the editor: `wp/v2/blocks`, `wp/v2/categories`, `wp/v2/pages`, `wp/v2/posts`, `wp/v2/template-parts`.
 
-Capability checks in PHP: `edit_posts`, `edit_post`, `edit_theme_options`, `edit_others_posts`, `edit_products`, `manage_options`, `upload_files`, `unfiltered_html`, `activate_plugins`, `install_plugins`, `manage_woocommerce`, `publish_pages`.
+Capability checks in PHP: `edit_posts`, `edit_post`, `edit_theme_options`, `edit_others_posts`, `edit_products`, `edit_pages`, `manage_options`, `upload_files`, `unfiltered_html`, `activate_plugins`, `install_plugins`, `manage_woocommerce`, `publish_pages`.
 
 Query-string switches: `?gogh-edit`, `?gogh-ps`, `?gogh-test`.
 
@@ -960,6 +1032,7 @@ Query-string switches: `?gogh-edit`, `?gogh-ps`, `?gogh-test`.
 
 These are the real strings in the current build. Use them verbatim; never paraphrase a label.
 
+- "' + ALIGN_WORD[how] + '"
 - "' + d.label + '"
 - "' + d.title.replace(/"
 - "' + escAttr(e.alt || 'Video') + '"
@@ -968,6 +1041,7 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "' + escAttr(t.name) + '"
 - "' + hp[1] + ' — ' + hp[2] + ' units"
 - "' + m[2] + '"
+- "' + nm.replace(/-/g, ' ') + '"
 - "' + p.slug + '"
 - "' + sh.label + '"
 - "' + whereTip(it.where !== 'desktop', 'phone') + '"
@@ -975,27 +1049,39 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "+ Link"
 - "+ Page"
 - "A card — drop pieces inside and they stay together, even on mobile"
+- "A line — a thin rule between things"
 - "A video — upload one, or paste a YouTube or Vimeo link"
 - "AG"
 - "Aa"
 - "Add"
 - "Add a category ↗"
 - "Add a page to this menu"
+- "Add a picture or video"
 - "Add a product ↗"
 - "Add link"
 - "Add something to this section"
 - "Add to page"
 - "Adjust spacing"
+- "Align the pieces inside this card"
+- "Align the pieces to each other"
+- "Align ▾"
 - "All options"
+- "An icon — a simple line drawing in your text colour"
+- "Any colour"
 - "Apply"
+- "As placed"
 - "As typed"
 - "Auto"
 - "Back"
 - "Background & look"
 - "Badge"
+- "Body"
 - "Bold"
+- "Both"
 - "Bring forward"
 - "Browse them all →"
+- "Bullet points — a text piece wearing bullets"
+- "Bullets"
 - "Button"
 - "Cancel"
 - "Card"
@@ -1008,14 +1094,25 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "Custom text colour"
 - "Cycle theme font sizes"
 - "Dark"
+- "Dark page"
+- "Delete"
 - "Delete (Del)"
 - "Delete saved section"
+- "Delete the selection"
 - "Delivery & returns"
 - "Desktop"
 - "Desktop menu"
 - "Discard changes"
 - "Done"
+- "Done — keep this look"
+- "Duplicate"
 - "Duplicate (or Alt-drag)"
+- "Duplicate the selection"
+- "Edge to edge of the section"
+- "Embed"
+- "Embed a link — a map, a post, a playlist, anything WordPress can show"
+- "Equal gaps top to bottom"
+- "Even gaps"
 - "Everything"
 - "Experience"
 - "Featured product"
@@ -1025,27 +1122,43 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "Find us"
 - "Forget the key"
 - "Form"
+- "Full width"
 - "Get in touch"
 - "Go"
 - "Grid: show and snap"
 - "Heading"
+- "Headings"
 - "Help — ask gogh anything"
+- "Hidden"
+- "Hide on phones"
 - "Home"
 - "How Google and AI read this page"
+- "Icon"
 - "Image"
 - "Imagine"
+- "It is already on your site — this closes the panel"
 - "Italic"
 - "I’ll find my own way"
 - "Journal"
 - "Keep editing"
+- "Keep this"
+- "Keep this brand"
 - "Keep this layout (updates every page)"
 - "Keeps your changes on every page"
 - "Left"
 - "Light"
+- "Light page"
+- "Line"
+- "Line the pieces up, even the gaps, match sizes that are nearly the same"
 - "Link"
 - "Link text (⌘K)"
+- "List"
+- "Make a card"
 - "Make it freeform"
+- "Make these one card — it holds together on phones"
+- "Make this bigger"
 - "Manage categories ↗"
+- "Manage posts ↗"
 - "Manage products"
 - "Manage products ↗"
 - "Manage this menu — reorder, nest, swap menus"
@@ -1066,13 +1179,13 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "On sale"
 - "One product, hero-sized — a card with a real add-to-cart button"
 - "Open interactive experience"
+- "Open the map"
 - "Open your products in WordPress"
-- "Original"
 - "Our story"
 - "Outline"
 - "Peek at pages"
+- "Phone"
 - "Phone menu"
-- "Phone — see and tune the mobile layout"
 - "Posts"
 - "Products"
 - "Publish"
@@ -1080,6 +1193,7 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "Put it back"
 - "Questions"
 - "Redo (⇧⌘Z)"
+- "Remix keeps these colours and rolls everything else"
 - "Remove"
 - "Remove from Your sections"
 - "Remove from menu"
@@ -1093,23 +1207,30 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "Right"
 - "Roll another take of this design"
 - "Save"
-- "Save brand"
 - "Save description"
 - "See all →"
+- "See and tune how the page looks on a phone"
+- "See it on a phone"
+- "See the page as a phone"
 - "Send backward"
 - "Shape"
+- "Show"
 - "Show the next layout"
-- "Six looks derived from your brand — hover to wear one, tap Remix again for six more"
+- "Shown"
+- "Site designs — a whole site, ready to tweak (replaces this one)"
 - "Solid"
 - "Start writing — a reading column, cursor ready"
 - "Switch design"
 - "Switch it on"
+- "Tap to try a new look. Tap again for another."
 - "Text"
 - "Text alignment"
 - "Text colour"
 - "The gogh build this tab is running"
 - "The header rides along as visitors scroll"
+- "The look before this one"
 - "Theme default"
+- "Tidy up"
 - "Try another"
 - "UPPERCASE"
 - "Undo"
@@ -1118,12 +1239,14 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "Updates every page"
 - "Upload a self-contained HTML experience — it runs sandboxed"
 - "Upload an .html file instead"
+- "Use it"
 - "Use this design"
 - "Use this layout"
 - "Video"
 - "Where this item shows"
 - "Which take of this design is on the page"
 - "Write"
+- "Write a post ↗"
 - "Your latest posts, live"
 - "Your latest products, live — prices and add to cart included"
 - "ag"
@@ -1137,13 +1260,13 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "↕ Spacing…"
 - "▶ Auto-play"
 - "⛶ Click to enlarge"
+- "✦ Not this look?"
 - "✦ Remix"
 - "✨ Make draggable"
 - "✨ Make it freeform"
 
 ## Exact toast and message copy
 
-- "Added to the card — it moves and stacks with it now."
 - "Back to freeform — drag it anywhere."
 - "Backup restored — publish when ready."
 - "Button updated."
@@ -1165,6 +1288,7 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "Guard: "
 - "Icon link updated."
 - "Image swapped."
+- "Installing "
 - "It has to show somewhere — remove it instead if you don’t want it."
 - "Keep your changes with Done, or undo them with Cancel."
 - "Kept — "
@@ -1179,25 +1303,30 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "Menu switched — every page shows it."
 - "Mobile menu: "
 - "Name size saved."
-- "Nothing to rearrange yet — add a couple of pieces first."
+- "One card now — it holds together on phones. Click it for a background."
 - "Out of the card — it’s its own piece again."
 - "Publish failed: "
 - "Publish your changes first — changing the page style reloads the page."
 - "Removed from the card."
 - "Saved — search results and AI answers now quote your words ✓"
 - "Saving your page changes, then updating the "
+- "Section deleted."
 - "Section moved."
 - "Section removed — publish to make it real."
 - "Site "
 - "Site name restored — click it to rename."
 - "Site name saved."
 - "Style copied — click other text to paint it. Esc finishes."
+- "That is the only section on the page. Add another before deleting it."
 - "That saved section can’t be read."
 - "That section can’t move past other stored content yet."
+- "That upload failed — try again, or paste a link."
 - "That’s gogh. Everything else is just more of this."
 - "The backup could not be read."
 - "The description could not be saved — try again."
+- "The header and footer stay — edit them instead."
 - "The name didn’t save — try again."
+- "The type before is back."
 - "Theme style applied: "
 - "This "
 - "This header has no menu button to open."
@@ -1212,16 +1341,19 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "gogh can’t safely swap this image."
 - "gogh could not change the page style — "
 - "gogh could not create that page."
+- "gogh could not find a menu to add it to — open the header and add it there."
 - "gogh could not keep the menu style — "
 - "gogh could not make a mega menu — "
 - "gogh could not make a phone menu — "
 - "gogh could not rename the site — that needs an admin login."
+- "gogh could not save that look — it stays for now."
 - "gogh could not save the menu — "
 - "gogh could not save your brand — "
 - "gogh could not set the logo — "
 - "gogh could not switch back — "
 - "gogh could not switch the design — "
 - "gogh could not switch the menu — "
+- "gogh could not take that page back — it is under Pages in the dashboard."
 - "gogh couldn’t find that icon in the stored markup."
 - "gogh couldn’t identify that icon."
 - "gogh couldn’t restore it."
@@ -1235,4 +1367,4 @@ These are the real strings in the current build. Use them verbatim; never paraph
 
 ## Test suite
 
-`236` tests, run by appending `?gogh-test` to any Gogh page URL while logged in with edit rights on that page.
+`327` tests, run by appending `?gogh-test` to any Gogh page URL while logged in with edit rights on that page.
