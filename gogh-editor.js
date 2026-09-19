@@ -2486,10 +2486,19 @@
     // page follows the finger at 60fps, then the open/close ease is restored
     if (zoomState) { zoomState.wrap.style.transition = 'none'; layoutZoom(); }
   });
+  // One sentence, always there in the phone view, saying what the view is
+  // for. Tony spent thirteen minutes in it and concluded pieces could not be
+  // moved; nothing had told him they could.
+  var phoneNote = document.createElement('div');
+  phoneNote.className = 'gogh-phonenote';
+  phoneNote.hidden = true;
+  phoneNote.textContent = 'Press anything to hide it on phones or move it up and down.';
+  document.body.appendChild(phoneNote);
   function setDevice(mode) {
     if (mode !== 'phone' && mode !== 'desktop') return;
     if (mode === deviceMode) return;
     deviceMode = mode;
+    phoneNote.hidden = mode !== 'phone';
     clearMobileSel(); // a selection/toolbar never outlives a device switch
     [].forEach.call(document.querySelectorAll('.gogh-dev'), function (b) {
       var on = b.getAttribute('data-dev') === mode;
@@ -2650,18 +2659,40 @@
     hit.node.classList.add('gogh-m-sel');
     updateMtoolbar();
   }
+  // hide (or show again) a piece — or, with i < 0, a whole section — on
+  // phones. The one routine behind the phone-view toolbar, the piece's own
+  // bar and panel on the desktop, and the section's ⋯ menu: the mobile
+  // options used to be reachable only from inside the phone view, so nobody
+  // learned they existed.
+  function setPhoneHidden(sec, i, hidden) {
+    var holder = i < 0 ? sec : sec.els[i];
+    if (!holder) return false;
+    holder.m = holder.m || {};
+    if (hidden) holder.m.hidden = true; else delete holder.m.hidden;
+    if (!Object.keys(holder.m).length) holder.m = null;
+    var nowHidden = !!(holder.m && holder.m.hidden);
+    if (i < 0) sec.sectionEl.classList.toggle('gogh-msec-hidden', nowHidden);
+    else if (sec.nodes[i]) sec.nodes[i].classList.toggle('gogh-m-hidden', nowHidden);
+    resolveAndApply(sec); // re-emit the section CSS with/without the hide rule
+    if (typeof pushState === 'function') pushState();
+    return nowHidden;
+  }
+  function phoneHiddenOf(sec, i) {
+    var holder = i < 0 ? sec : sec.els[i];
+    return !!(holder && holder.m && holder.m.hidden);
+  }
+  // said once, from the desktop, when something is hidden: where to go and look
+  function phoneHiddenToast(what, hidden) {
+    toast(hidden ? what + ' hidden on phones.' : what + ' shown on phones again.', {
+      ttl: 5000,
+      actions: hidden ? [{ label: 'See it on a phone', onClick: function () { seeOnPhone(); } }] : [],
+    });
+  }
   mtoolbar.querySelector('.gogh-mt-hide').addEventListener('click', function (ev) {
     ev.preventDefault(); ev.stopPropagation();
     if (!mSel) return;
-    var holder = mSel.kind === 'sec' ? mSel.sec : mSel.sec.els[mSel.i];
-    holder.m = holder.m || {};
-    if (holder.m.hidden) delete holder.m.hidden; else holder.m.hidden = true;
-    if (!Object.keys(holder.m).length) holder.m = null;
-    var nowHidden = !!(holder.m && holder.m.hidden);
-    if (mSel.kind === 'sec') mSel.sec.sectionEl.classList.toggle('gogh-msec-hidden', nowHidden);
-    else mSel.node.classList.toggle('gogh-m-hidden', nowHidden);
-    resolveAndApply(mSel.sec); // re-emit the section CSS with/without the hide rule
-    if (typeof pushState === 'function') pushState();
+    var i = mSel.kind === 'sec' ? -1 : mSel.i;
+    setPhoneHidden(mSel.sec, i, !phoneHiddenOf(mSel.sec, i));
     updateMtoolbar();
   });
   function moveMobile(dir) {
@@ -2898,6 +2929,8 @@
     '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 3h11a2 2 0 0 1 2 2v2a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/><path d="M18 6h2a1 1 0 0 1 1 1v3a2 2 0 0 1-2 2h-6a1 1 0 0 0-1 1v2"/><rect x="10.5" y="15" width="3" height="7" rx="1"/></svg></button>' +
     '<button type="button" class="gogh-eb gogh-eb-bck" title="Send backward">▼</button>' +
     '<button type="button" class="gogh-eb gogh-eb-fwd" title="Bring forward">▲</button>' +
+    '<button type="button" class="gogh-eb gogh-eb-phone" title="Hide on phones">' +
+    '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round"><rect x="7" y="3" width="10" height="18" rx="2.5"/><path d="M11 18h2"/><path class="gogh-eb-phone-slash" d="M4 20L20 4"/></svg></button>' +
     '<button type="button" class="gogh-eb gogh-eb-dup" title="Duplicate (or Alt-drag)">⧉</button>' +
     '<button type="button" class="gogh-eb gogh-eb-del" title="Delete (Del)">🗑</button>' +
     // a card's own Line up: its pieces, lined up with each other or centred
@@ -2911,6 +2944,18 @@
     '<button type="button" class="gogh-eb gogh-mb gogh-cl-space" title="Equal gaps top to bottom">Even gaps</button>' +
     '</div>';
   var ctxBtn = elbar.querySelector('.gogh-eb-ctx');
+  var phoneBtn = elbar.querySelector('.gogh-eb-phone');
+  phoneBtn.addEventListener('click', function () {
+    if (!sel) return;
+    var hidden = setPhoneHidden(sel.sec, sel.i, !phoneHiddenOf(sel.sec, sel.i));
+    dressPhoneBtn(sel.sec.els[sel.i]);
+    phoneHiddenToast('This piece is', hidden);
+  });
+  function dressPhoneBtn(e) {
+    var hidden = !!(e && e.m && e.m.hidden);
+    phoneBtn.classList.toggle('is-on', hidden);
+    phoneBtn.title = hidden ? 'Hidden on phones \u2014 press to show it again' : 'Hide on phones';
+  }
   var lstBtn = elbar.querySelector('.gogh-eb-lst');
   var LIST_ICON = '<svg width="13" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M9 6h12M9 12h12M9 18h12"/><circle cx="4" cy="6" r="1.4" fill="currentColor" stroke="none"/><circle cx="4" cy="12" r="1.4" fill="currentColor" stroke="none"/><circle cx="4" cy="18" r="1.4" fill="currentColor" stroke="none"/></svg>';
   var LIST_ICON_OL = '<svg width="13" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M10 6h11M10 12h11M10 18h11"/><path d="M3 5.5l1.5-1v4M3 11.5c0-1 2-1.4 2 0 0 .8-2 1.6-2 2.5h2.2M3 16.5h2c1 0 1 2-.4 2 1.4 0 1.4 2 0 2H3" stroke-width="1.8"/></svg>';
@@ -3738,6 +3783,7 @@
       lstBtn.style.display = 'none';
       colBtn.style.display = 'none';
     }
+    dressPhoneBtn(e);
     elbar.hidden = false;
   }
 
@@ -4521,6 +4567,28 @@
     else if (e.type === 'rule') buildRulePanel(sec, i);
     else if (e.type === 'icon') buildIconPanel(sec, i);
     else if (e.type === 'embed') buildEmbedPanel(sec, i);
+    // every panel ends with the same row: what this piece does on phones, in
+    // words, with the door to go and look — discovery from where people
+    // already are, not from inside the phone view
+    var mh = phoneHiddenOf(sec, i);
+    panel.insertAdjacentHTML('beforeend',
+      '<div class="gogh-panel-hint">On phones</div>' +
+      '<div class="gogh-panel-row gogh-chrome-rows gogh-phone-rows">' +
+      '<button type="button" class="gogh-btn gogh-btn-small' + (mh ? '' : ' is-active') + '" data-mh="0">Shown</button>' +
+      '<button type="button" class="gogh-btn gogh-btn-small' + (mh ? ' is-active' : '') + '" data-mh="1">Hidden</button>' +
+      '<button type="button" class="gogh-btn gogh-btn-small gogh-phone-see" title="See the page as a phone">See it on a phone</button>' +
+      '</div>');
+    panel.querySelectorAll('[data-mh]').forEach(function (b) {
+      b.addEventListener('click', function () {
+        var want = b.dataset.mh === '1';
+        if (want === phoneHiddenOf(sec, i)) return;
+        setPhoneHidden(sec, i, want);
+        panel.querySelectorAll('[data-mh]').forEach(function (x) { x.classList.toggle('is-active', x === b); });
+        if (sel && sel.sec === sec && sel.i === i) dressPhoneBtn(sec.els[i]);
+        phoneHiddenToast('This piece is', want);
+      });
+    });
+    panel.querySelector('.gogh-phone-see').addEventListener('click', function () { seeOnPhone(); });
     // in the zoomed Design view, dock the panel into the sidebar with a
     // Back-to-Design header (as the style/page auditions do) — a panel
     // floating over the shrunk canvas reads as "lost", and closing it used
@@ -11612,6 +11680,7 @@
       ['down', 'Move down', !S[idx] || !pageNeighbour(S[idx].wrapEl, 1)],
       ['dup', 'Duplicate', false],
       ['savepat', 'Save to reuse', false],
+      ['mhide', phoneHiddenOf(S[idx], -1) ? 'Show on phones' : 'Hide on phones', false],
       ['del', 'Delete', false],
     ].map(function (it) {
       return '<button type="button" class="gogh-secmore-it' + (it[0] === 'del' ? ' gogh-secmore-del' : '') +
@@ -11637,6 +11706,7 @@
         }
         if (act === 'dup') { duplicateSection(idx); return; }
         if (act === 'savepat') { openSavePatternPanel(idx); return; }
+        if (act === 'mhide') { phoneHiddenToast('This section is', setPhoneHidden(S[idx], -1, !phoneHiddenOf(S[idx], -1))); return; }
         if (act === 'del') deleteSection(idx);
       });
     });
@@ -18819,7 +18889,7 @@
     fillTake: fillTake, composeSiteDef: composeSiteDef,
     zoom: { open: openZoom, close: closeZoom, el: zoomOv },
     canvasZoom: { out: zoomOutCanvas, back: unzoomCanvas, setDevice: setDevice },
-    device: { phone: seeOnPhone, desktop: seeOnDesktop, mode: function () { return deviceMode; } },
+    device: { phone: seeOnPhone, desktop: seeOnDesktop, mode: function () { return deviceMode; }, hide: setPhoneHidden, hidden: phoneHiddenOf },
     reorderSection: reorderSection,
     setVideo: setVideo, setSecVideo: setSecVideo, videoEmbedInfo: videoEmbedInfo, openSecBgPanel: openSecBgPanel,
     navModel: { parse: parseNavModel, serialize: serializeNavModel, whereOf: navWhereOf, panelOf: navPanelOf },

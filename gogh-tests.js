@@ -7351,8 +7351,10 @@
       var items = [].map.call(document.querySelectorAll('.gogh-secmore .gogh-secmore-it'),
         function (b) { return b.textContent + (b.disabled ? '·off' : ''); });
       // Rearrange left the menu in v0.99.499: the die already offers every
-      // arrangement a hand-built section can take
-      expect(items.length === 5, 'expected 5 menu verbs, got ' + items.length);
+      // arrangement a hand-built section can take; Hide on phones joined in
+      // v0.99.596 so the mobile options are reachable from the desktop
+      expect(items.length === 6, 'expected 6 menu verbs, got ' + items.length);
+      expect(items.some(function (t) { return /Hide on phones/.test(t); }), 'no Hide on phones among ' + items.join(', '));
       expect(/Move up·off/.test(items[0]), 'the first section can somehow move up: ' + items[0]);
       expect(document.querySelector('.gogh-secmore-del'), 'Delete lost its red');
       document.querySelector('.gogh-secmore').hidden = true;
@@ -8668,6 +8670,70 @@
       expect(got.fs === want.fs && got.fw === want.fw && got.col === want.col,
         'the ghost wore ' + JSON.stringify(got) + ', the kid wears ' + JSON.stringify(want));
       return 'ghost ' + got.fs + ' / ' + got.fw + ' / ' + got.col + ' = kid';
+    });
+    test('a piece can be hidden on phones from its own bar on the desktop, and the section CSS says so', function () {
+      var i = findIdx('para');
+      var s0 = sec();
+      select(i);
+      var b = q('.gogh-elbar .gogh-eb-phone');
+      expect(b && b.offsetParent !== null, 'no phone button on the piece bar');
+      expect(!b.classList.contains('is-on'), 'the phone button starts lit');
+      try {
+        b.click();
+        expect(G.device.hidden(s0, i), 'the piece is not hidden on phones after the press');
+        expect(s0.nodes[i].classList.contains('gogh-m-hidden'), 'the node does not wear gogh-m-hidden');
+        expect(b.classList.contains('is-on'), 'the phone button did not light');
+        expect(s0.styleEl.textContent.indexOf('html:not(.gogh-phone-preview)') !== -1, 'no phone hide rule in the section CSS');
+        b.click();
+        expect(!G.device.hidden(s0, i), 'a second press did not show the piece again');
+        expect(!s0.nodes[i].classList.contains('gogh-m-hidden'), 'gogh-m-hidden lingered');
+      } finally { G.device.hide(s0, i, false); }
+      return 'hidden then shown from the desktop bar';
+    });
+    test('a piece with a panel has an On phones row: Shown | Hidden and a door to the phone view', function () {
+      var i = findIdx('button');
+      var s0 = sec();
+      G.openPanel(s0, i);
+      var pnl = q('.gogh-panel');
+      var shown = pnl.querySelector('[data-mh="0"]'), hidden = pnl.querySelector('[data-mh="1"]'), see = pnl.querySelector('.gogh-phone-see');
+      expect(shown && hidden && see, 'the On phones row is missing a button');
+      expect(shown.classList.contains('is-active'), 'Shown should be lit to begin with');
+      try {
+        hidden.click();
+        expect(G.device.hidden(s0, i), 'Hidden did not hide the piece on phones');
+        expect(hidden.classList.contains('is-active') && !shown.classList.contains('is-active'), 'the row did not move to Hidden');
+        shown.click();
+        expect(!G.device.hidden(s0, i), 'Shown did not show the piece again');
+        expect(see.textContent === 'See it on a phone', 'the door reads ' + see.textContent);
+      } finally { G.device.hide(s0, i, false); G.closePanel(); }
+      return 'Shown | Hidden | See it on a phone';
+    });
+    test('a section can be hidden on phones from its \u22ef menu', function () {
+      var s0 = sec(), idx = G.sections().indexOf(s0);
+      G.openSecMore(idx, s0.sectionEl);
+      var it = q('.gogh-secmore [data-act="mhide"]');
+      expect(it && it.textContent === 'Hide on phones', 'no Hide on phones in the section menu');
+      try {
+        it.click();
+        expect(G.device.hidden(s0, -1), 'the section is not hidden on phones');
+        expect(s0.sectionEl.classList.contains('gogh-msec-hidden'), 'the section does not wear gogh-msec-hidden');
+        G.openSecMore(idx, s0.sectionEl);
+        expect(q('.gogh-secmore [data-act="mhide"]').textContent === 'Show on phones', 'the menu item did not flip to Show');
+        q('.gogh-secmore [data-act="mhide"]').click();
+        expect(!G.device.hidden(s0, -1), 'Show on phones did not show the section again');
+      } finally { G.device.hide(s0, -1, false); }
+      return 'Hide on phones, then Show on phones';
+    });
+    test('the phone view carries one sentence saying what it is for', function () {
+      var note = q('.gogh-phonenote');
+      expect(note && note.hidden, 'the sentence should be hidden on the desktop');
+      try {
+        G.device.phone();
+        expect(!note.hidden, 'the sentence did not appear in the phone view');
+        expect(/hide it on phones/.test(note.textContent), 'the sentence says: ' + note.textContent);
+      } finally { G.device.desktop(); }
+      expect(note.hidden, 'the sentence lingered after Desktop');
+      return note.textContent;
     });
     test('Phone is a word in the top bar: it shows the phone artboard with no drawer open, and Desktop brings the page back', function () {
       var pill = q('#wp-admin-bar-gogh-device .gogh-devpill, .gogh-devpill-float .gogh-devpill');

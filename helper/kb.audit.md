@@ -1,8 +1,8 @@
-# Knowledge-base audit — plugin v0.99.595
+# Knowledge-base audit — plugin v0.99.596
 
 _13 finding(s) suppressed by `kb.audit-ignore.txt`._
 
-## MISSING (98)
+## MISSING (96)
 
 The source has something the prose never explains. The bot knows the name from the appendix but cannot say what it is for.
 
@@ -102,8 +102,6 @@ The source has something the prose never explains. The bot knows the name from t
 - template `Portfolio` exists in source but is never mentioned in the prose
 - divider `dunes` exists in source but is never mentioned in the prose
 - divider `mist` exists in source but is never mentioned in the prose
-- element type `video` exists in source but is never mentioned in the prose
-- element type `embed` exists in source but is never mentioned in the prose
 
 ## QUOTE (7)
 
@@ -121,4 +119,9 @@ Quoted copy not found verbatim in the source. Paraphrases are fine; changed UI c
 
 Use this as the checklist for updating the prose — and as a sanity check on the release itself.
 
-- version: 0.99.594 → 0.99.595
+- version: 0.99.595 → 0.99.596
+- added UI label: "Hidden"
+- added UI label: "Hide on phones"
+- added UI label: "See it on a phone"
+- added UI label: "See the page as a phone"
+- added UI label: "Shown"

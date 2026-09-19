@@ -205,6 +205,33 @@ html.gogh-phone-preview .gogh-wrap:has(> .gogh-msec-hidden)::after {
 html.gogh-phone-preview .gogh-section.gogh-msec-hidden {
   opacity: 0.32; max-height: 180px; overflow: hidden;
 }
+/* the one sentence under the phone: what this view is for */
+.gogh-phonenote {
+  position: fixed; left: 50%; bottom: 22px; transform: translateX(-50%); z-index: 100000;
+  padding: 9px 16px; border-radius: 999px;
+  background: rgba(23, 24, 27, 0.92); color: #fff;
+  font: 500 13px/1.3 -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, sans-serif;
+  box-shadow: 0 10px 30px -12px rgba(0, 0, 0, 0.5); pointer-events: none; white-space: nowrap;
+}
+.gogh-phonenote[hidden] { display: none; }
+/* on the desktop canvas a piece hidden on phones says so, quietly. The
+   pieces sit on the rhythm grid unpositioned, so the tag needs a box to
+   hang from */
+html.gogh-editing:not(.gogh-phone-preview) .gogh-section > .gogh-m-hidden { position: relative; }
+html.gogh-editing:not(.gogh-phone-preview) .gogh-section > .gogh-m-hidden::after {
+  content: "Hidden on phones"; position: absolute; top: -9px; right: 6px; z-index: 5;
+  background: #fff; color: #4f5aee; border: 1px solid #c9cff5;
+  font: 700 10px/1.4 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  letter-spacing: 0.02em; padding: 1px 6px; border-radius: 5px; pointer-events: none; white-space: nowrap;
+}
+/* the piece bar's phone button: plain when shown, lit and slashed when hidden */
+.gogh-eb-phone svg { display: block; }
+.gogh-eb-phone .gogh-eb-phone-slash { display: none; }
+.gogh-eb-phone.is-on { color: #4f5aee; background: #eceefc; }
+.gogh-eb-phone.is-on .gogh-eb-phone-slash { display: block; }
+.gogh-panel-row.gogh-phone-rows { display: flex; flex-direction: row; flex-wrap: wrap; align-items: center; gap: 6px; }
+.gogh-phone-rows .gogh-btn { flex: 0 0 auto; width: auto; }
+.gogh-phone-rows .gogh-phone-see { margin-left: auto; }
 .gogh-mtoolbar { position: fixed; z-index: 100001; display: flex; gap: 6px; align-items: center; }
 .gogh-mtoolbar[hidden] { display: none; }
 .gogh-mt-arrow { padding: 0; width: 32px; height: 32px; justify-content: center; border-radius: 50%; }

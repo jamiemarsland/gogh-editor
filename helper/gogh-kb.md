@@ -15,7 +15,7 @@ about something where they conflict, rather than picking one silently. Quote UI
 labels and message copy from the appendix, verbatim — those are the current
 strings, and a paraphrased button label is the fastest way to lose a user's trust.
 
-Generated for plugin version 0.99.595 · knowledge base 9114afd.
+Generated for plugin version 0.99.596 · knowledge base 1639e4f.
 
 ---
 
@@ -809,6 +809,8 @@ The helper's welcome panel opens with a 35-second film of gogh being used (v0.99
 
 **Seeing the page on a phone (v0.99.594).** Two words sit at the top right of the admin bar the whole time you are editing, just left of the ? help button: **Desktop | Phone**. Press **Phone** and the page is pinned to a phone's width (390px) on the zoomed-out desk, with the page's real mobile layout live, so you can tune it (Hide on phone, move up/down in the phone stack). It needs no drawer open; **Desktop** puts the page back. The Page drawer has the same door as a card, **See it on a phone**. Opening and closing drawers or panels while on the phone keeps the phone view; only Desktop (or ⌥Z) leaves it. Leaving the editor leaves it too. Seven of the first sixty-four testers reported "there is no phone button" because the switch used to live inside the zoom slider, which only appears while a drawer is open. There is no phone button in the zoom slider any more.
 
+**Hiding things on phones, from the desktop (v0.99.596).** You no longer have to be in the phone view to learn that pieces can be hidden or reordered for small screens. Every piece's bar has a **phone button** (a small phone; lit and slashed once the piece is hidden on phones) — press it to hide the piece on phones, press again to show it. Every piece that has a panel (button, image, video, box, widget, line, icon, embed) ends with an **On phones** row: **Shown | Hidden** and **See it on a phone**, which opens the phone view. A section's ⋯ menu has **Hide on phones** (then **Show on phones**). Hiding says so in a toast with a *See it on a phone* door, and on the desktop canvas a hidden piece wears a small **Hidden on phones** tag. Inside the phone view one sentence sits under the phone the whole time: *"Press anything to hide it on phones or move it up and down."* Reordering for phones (move up / move down) still lives in the phone view only.
+
 A small ? sits in the admin bar just left of Howdy, on every screen where the bar shows, for any logged-in user when a helper URL is set. In the gogh editor it opens the help sheet (the same one the side rail's ? opens); on any other screen, wp-admin included, it opens the helper in a new tab. The node is `gogh-help` under `top-secondary`; the `gogh_helper_url` filter turning the URL off removes it.
 
 ### The admin bar's edit label never flashes (v0.99.567)
@@ -834,11 +836,11 @@ Everything in this section is extracted mechanically from the Gogh source on eve
 
 ## Current release
 
-- Plugin version: **0.99.595**
+- Plugin version: **0.99.596**
 - Requires WordPress **6.5+**, PHP **7.4+**
 - Text domain: `gogh-editor`
 - readme.txt Stable tag: `0.26.0` · Tested up to: `7.0`
-- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.595`). Quote the plugin header version.
+- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.596`). Quote the plugin header version.
 
 ## Design constants
 
@@ -1125,6 +1127,8 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "Heading"
 - "Headings"
 - "Help — ask gogh anything"
+- "Hidden"
+- "Hide on phones"
 - "Home"
 - "How Google and AI read this page"
 - "Icon"
@@ -1204,10 +1208,13 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "Save description"
 - "See all →"
 - "See and tune how the page looks on a phone"
+- "See it on a phone"
+- "See the page as a phone"
 - "Send backward"
 - "Shape"
 - "Show"
 - "Show the next layout"
+- "Shown"
 - "Site designs — a whole site, ready to tweak (replaces this one)"
 - "Solid"
 - "Start writing — a reading column, cursor ready"
@@ -1358,4 +1365,4 @@ These are the real strings in the current build. Use them verbatim; never paraph
 
 ## Test suite
 
-`322` tests, run by appending `?gogh-test` to any Gogh page URL while logged in with edit rights on that page.
+`326` tests, run by appending `?gogh-test` to any Gogh page URL while logged in with edit rights on that page.

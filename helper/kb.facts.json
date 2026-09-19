@@ -1,12 +1,12 @@
 {
   "meta": {
-    "plugin_version": "0.99.595",
+    "plugin_version": "0.99.596",
     "requires_wp": "6.5",
     "requires_php": "7.4",
     "text_domain": "gogh-editor",
     "readme_stable_tag": "0.26.0",
     "readme_tested_up_to": "7.0",
-    "asset_version": "0.99.595-chrome"
+    "asset_version": "0.99.596-chrome"
   },
   "constants": {
     "TOL": 8,
@@ -517,6 +517,8 @@
     "Heading",
     "Headings",
     "Help — ask gogh anything",
+    "Hidden",
+    "Hide on phones",
     "Home",
     "How Google and AI read this page",
     "Icon",
@@ -596,10 +598,13 @@
     "Save description",
     "See all →",
     "See and tune how the page looks on a phone",
+    "See it on a phone",
+    "See the page as a phone",
     "Send backward",
     "Shape",
     "Show",
     "Show the next layout",
+    "Shown",
     "Site designs — a whole site, ready to tweak (replaces this one)",
     "Solid",
     "Start writing — a reading column, cursor ready",
@@ -1408,5 +1413,5 @@
     "has_deprecation": true,
     "block_title": "gogh Section"
   },
-  "test_count": 322
+  "test_count": 326
 }
