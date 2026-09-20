@@ -25,6 +25,7 @@
   // the design view eases back over 0.4s when it closes; the Browser pane
   // the suite runs in freezes CSS transitions at their start, so a test that
   // leaves the zoom has to snap the page home for the coordinate tests after it
+  function MENU_LAYOUTS_CLEAR(b) { ['stack', 'centred', 'drawer', 'sheet'].forEach(function (k) { b.classList.remove('gogh-mm-' + k); }); }
   function settleZoom() { var w = q('.wp-site-blocks'); if (w) { w.style.transition = 'none'; void w.offsetWidth; } }
 
   function run() {
@@ -8862,6 +8863,43 @@
       } finally { G.closePanel(); G.closeSide(true); settleZoom(); }
       expect(!html.classList.contains('gogh-zoomed'), 'the design view lingered after closing the drawer');
       return 'Editing the header · Back → Site cards';
+    });
+    testAsync('the open menu in a zoomed view keeps to the window: Stack fills the window, a Sheet sits at its bottom, and closing clears it', async function () {
+      var hdr = G.partElForArea('header');
+      var box = hdr && hdr.querySelector('.wp-block-navigation__responsive-container');
+      expect(box, 'no menu overlay on the fixture header');
+      var body = document.body, had = body.className;
+      G.openSide('site');
+      try {
+        G.openMenuStylePage(hdr, { room: hdr, area: 'header', back: function () {} });
+        await new Promise(function (r) { setTimeout(r, 60); });
+        expect(box.classList.contains('is-menu-open'), 'the menu did not open on arrival');
+        expect(G.device.menuPinned(), 'the open menu is not following the window');
+        var wrap = q('.wp-site-blocks'), sc = wrap.getBoundingClientRect().width / wrap.offsetWidth;
+        MENU_LAYOUTS_CLEAR(body); body.classList.add('gogh-mm-stack');
+        await new Promise(function (r) { setTimeout(r, 30); });
+        var h = parseFloat(box.style.height);
+        expect(box.style.top !== '' && box.style.bottom === 'auto', 'Stack should pin from the window top, got top ' + box.style.top + ' bottom ' + box.style.bottom);
+        expect(Math.abs(h - window.innerHeight / sc) < 40 || h <= wrap.offsetHeight, 'Stack height should be the window in layout px, got ' + h + ' (window ' + Math.round(window.innerHeight / sc) + ')');
+        MENU_LAYOUTS_CLEAR(body); body.classList.add('gogh-mm-sheet');
+        await new Promise(function (r) { setTimeout(r, 30); });
+        expect(box.style.top === 'auto' && /px$/.test(box.style.bottom), 'a Sheet should pin to the window bottom, got top ' + box.style.top + ' bottom ' + box.style.bottom);
+        expect(parseFloat(box.style.maxHeight) > 0, 'a Sheet should cap its height to the window');
+        q('.gogh-panel .gogh-mmpreview').click();
+        await new Promise(function (r) { setTimeout(r, 30); });
+        expect(!box.classList.contains('is-menu-open'), 'the switch did not close the menu');
+        expect(!G.device.menuPinned() && box.style.top === '' && box.style.bottom === '', 'closing did not clear the pin: top ' + box.style.top + ' bottom ' + box.style.bottom);
+      } finally { body.className = had; G.closePanel(); G.closeSide(true); settleZoom(); }
+      return 'stack: window-tall from the top; sheet: at the window bottom; closed: clean';
+    });
+    test('a page pressed in the phone view opens in the editor, still on the phone', function () {
+      var t = G.device.linkTarget('/about/');
+      expect(t && /gogh-edit=1/.test(t) && /gogh-phone=1/.test(t), 'a site page should carry gogh-edit and gogh-phone: ' + t);
+      expect(G.device.linkTarget('https://example.com/') === null, 'another site should be left alone');
+      expect(G.device.linkTarget('/wp-admin/edit.php') === null, 'wp-admin should be left alone');
+      expect(G.device.linkTarget('/wp-content/uploads/a.jpg') === null, 'a file should be left alone');
+      expect(G.device.linkTarget(location.pathname + '#top') === null, 'an anchor on this page should be left alone');
+      return t;
     });
     test('the phone view carries one sentence saying what it is for', function () {
       var note = q('.gogh-phonenote');

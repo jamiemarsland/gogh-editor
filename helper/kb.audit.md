@@ -1,4 +1,4 @@
-# Knowledge-base audit — plugin v0.99.604
+# Knowledge-base audit — plugin v0.99.605
 
 _13 finding(s) suppressed by `kb.audit-ignore.txt`._
 
@@ -119,5 +119,4 @@ Quoted copy not found verbatim in the source. Paraphrases are fine; changed UI c
 
 Use this as the checklist for updating the prose — and as a sanity check on the release itself.
 
-- version: 0.99.603 → 0.99.604
-- added UI label: "Show the menu open on the page"
+- version: 0.99.604 → 0.99.605

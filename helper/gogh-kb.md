@@ -15,7 +15,7 @@ about something where they conflict, rather than picking one silently. Quote UI
 labels and message copy from the appendix, verbatim — those are the current
 strings, and a paraphrased button label is the fastest way to lose a user's trust.
 
-Generated for plugin version 0.99.604 · knowledge base a00d805.
+Generated for plugin version 0.99.605 · knowledge base 6cb4107.
 
 ---
 
@@ -815,6 +815,10 @@ The helper's welcome panel opens with a 35-second film of gogh being used (v0.99
 
 **The Mobile menu page opens with the menu open (v0.99.604).** Arrive and the real menu is already open on the page beside the panel, so every layout and ground you hover shows at once. Under the intro line a switch with a hamburger icon, **Preview the menu**, is already on; turn it off to see the page behind. Back to header, ✕ and Esc close the menu on the way out. Saving a phone number or email re-renders the header and the menu reopens by itself if the switch is on. (Before: an *Open the menu to preview* row that looked like a door to another page.)
 
+**The open menu keeps to the window in a zoomed view (v0.99.605).** Inside the zoomed page, a menu positioned to the screen answers to the page's box instead, so Stack and Centred filled the whole page, Drawer ran the page's height and Sheet landed at the page's foot, out of sight. While the menu is open under a zoom, gogh pins its box to the part of the page the window shows and re-pins on every layout change, scroll or resize, so Sheet auditions and every layout looks as it does on a phone. Nothing of this runs on the real page.
+
+**The phone view survives navigation (v0.99.605).** Press one of your own pages while on the phone and it opens in the editor, still on the phone: the link carries `gogh-edit=1&gogh-phone=1`, the next page reads them at boot and strips them from the address. Other sites, files, wp-admin and anchors on the same page are left alone. Unpublished changes still ask before leaving.
+
 **Edit header and Edit footer dock on the left (v0.99.600).** Everything about the whole site now lives in the left panel: Site style, Fonts, Motion, Page style, and from this release the header room and the footer room too, with the page zoomed out beside them. The part being edited keeps a ring and a small *Editing the header — changes preview live* label; nothing is dimmed any more. The panel is titled **Editing the header** (or footer) and its ‹ Back, its Cancel and a Done with nothing changed all return to the **Site cards**; Done with changes saves, reloads, and lands you back on the Site cards. The room's own pages — Edit menu items, Logo & name, Mobile menu — dock in the same place and their *Back to header* re-opens the room without leaving the design view. Edit footer scrolls the zoomed page down to the footer. Before this, the room floated centred under the header over a dimmed page, and its Mobile menu page hid the Centred layout behind its own controls. The chip above a docked page's title reads **‹ Back** (it said *Site* or *Page*, which meant nothing to someone who had just pressed Edit header). **Stick to the top** cannot be shown in the design view — a pinned header inside the zoomed page slid the first section under it — so there the header stays in place and a line under the switch says *Sticks to the top as visitors scroll. Press View site to see it.* Saving a phone number, email or phone menu re-renders the header; the room's label rides the fresh markup and *Open the menu to preview* still opens it (v0.99.601). Leaving a room brings the *Edit header* pill on the header back. The *Edit header* pill also shows on hover in the zoomed design view (v0.99.602), since a saving Done lands there. The **footer room** has no *Mobile menu* door and no *Stick to the top* switch — those belong to the header. Sticking cannot be shown in the design view at all: the page sits inside a scaled transform there and neither sticky nor fixed positioning answers to the window through it; the real page does the sticking (checked: the header holds at the admin bar's height as visitors scroll). The row above a room page's title (*‹ Back to header*) has more room beneath it. While a header or footer room is open, the part's own hover pill (*Edit site header*) and veil are hidden, on desktop and in the phone view alike (v0.99.603); they return when you leave.
 
 A small ? sits in the admin bar just left of Howdy, on every screen where the bar shows, for any logged-in user when a helper URL is set. In the gogh editor it opens the help sheet (the same one the side rail's ? opens); on any other screen, wp-admin included, it opens the helper in a new tab. The node is `gogh-help` under `top-secondary`; the `gogh_helper_url` filter turning the URL off removes it.
@@ -842,11 +846,11 @@ Everything in this section is extracted mechanically from the Gogh source on eve
 
 ## Current release
 
-- Plugin version: **0.99.604**
+- Plugin version: **0.99.605**
 - Requires WordPress **6.5+**, PHP **7.4+**
 - Text domain: `gogh-editor`
 - readme.txt Stable tag: `0.26.0` · Tested up to: `7.0`
-- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.604`). Quote the plugin header version.
+- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.605`). Quote the plugin header version.
 
 ## Design constants
 
@@ -1373,4 +1377,4 @@ These are the real strings in the current build. Use them verbatim; never paraph
 
 ## Test suite
 
-`328` tests, run by appending `?gogh-test` to any Gogh page URL while logged in with edit rights on that page.
+`329` tests, run by appending `?gogh-test` to any Gogh page URL while logged in with edit rights on that page.

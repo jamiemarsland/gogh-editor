@@ -2652,6 +2652,36 @@
     if (mark && mark.parentNode) { devHome.className = ''; mark.parentNode.insertBefore(devHome, mark.id === 'wp-admin-bar-gogh-help' ? mark : mark.nextSibling); }
     else if (!devHome.parentNode) { devHome.className = 'gogh-devpill-float'; document.body.appendChild(devHome); }
   }
+  // A page pressed in the phone view opens in the editor, still on the phone
+  // (James: 'when i click on a page to view it opens in desktop view'): the
+  // link carries gogh-edit and gogh-phone, and the next page's boot reads
+  // them. Only the site's own pages; anything else keeps its own behaviour.
+  function phoneLinkTarget(href) {
+    var u;
+    try { u = new URL(href, location.href); } catch (e) { return null; }
+    if (u.origin !== location.origin) return null;
+    if (!/^https?:$/.test(u.protocol)) return null;
+    if (/\/wp-admin\/|\/wp-login\.php|\/wp-json\/|\.(jpe?g|png|gif|webp|svg|pdf|zip|mp4|mp3)$/i.test(u.pathname)) return null;
+    if (u.pathname === location.pathname && u.hash) return null; // an anchor on this page
+    u.searchParams.set('gogh-edit', '1');
+    u.searchParams.set('gogh-phone', '1');
+    u.hash = '';
+    return u.toString();
+  }
+  document.addEventListener('click', function (ev) {
+    if (!editing || deviceMode !== 'phone') return;
+    if (ev.defaultPrevented || ev.button !== 0 || ev.metaKey || ev.ctrlKey || ev.shiftKey || ev.altKey) return;
+    var a = ev.target.closest && ev.target.closest('a[href]');
+    if (!a || !a.closest('.wp-site-blocks')) return;
+    if (a.closest('[contenteditable="true"], .gogh-panel, .gogh-side')) return;
+    var target = phoneLinkTarget(a.getAttribute('href'));
+    if (!target) return;
+    ev.preventDefault();
+    ev.stopPropagation();
+    if (typeof isDirty === 'function' && isDirty() && !window.confirm('You have unpublished changes. Leave this page?')) return;
+    discarding = true;
+    location.href = target;
+  }, true);
   function seeOnPhone() {
     if (deviceMode === 'phone' || cfg.writeUrl) return;
     if (!zoomState) { zoomOutCanvas(); zoomForPhone = true; }
@@ -4500,6 +4530,7 @@
     document.body.style.height = Math.round(originalH * s) + 'px';
     document.body.style.overflowY = 'hidden';
     if (mSel) positionMtoolbar(); // keep the override toolbar pinned to its element
+    if (menuFollow) menuOverlayPlace(); // the open menu keeps to the window
   }
   function unzoomCanvas() {
     if (!zoomState) return;
@@ -19010,7 +19041,8 @@
     zoom: { open: openZoom, close: closeZoom, el: zoomOv },
     canvasZoom: { out: zoomOutCanvas, back: unzoomCanvas, setDevice: setDevice },
     device: { phone: seeOnPhone, desktop: seeOnDesktop, mode: function () { return deviceMode; }, hide: setPhoneHidden, hidden: phoneHiddenOf,
-      mediaFlips: function () { return phoneMediaFlips.length; }, mediaAtPhone: mediaAtPhone },
+      mediaFlips: function () { return phoneMediaFlips.length; }, mediaAtPhone: mediaAtPhone, linkTarget: phoneLinkTarget,
+      menuPinned: function () { return !!menuFollow; } },
     reorderSection: reorderSection,
     setVideo: setVideo, setSecVideo: setSecVideo, videoEmbedInfo: videoEmbedInfo, openSecBgPanel: openSecBgPanel,
     navModel: { parse: parseNavModel, serialize: serializeNavModel, whereOf: navWhereOf, panelOf: navPanelOf },
@@ -24021,11 +24053,64 @@
     MENU_LAYOUTS.forEach(function (o) { b.classList.toggle('gogh-mm-' + o[0], o[0] === st.layout); });
     MENU_GROUNDS.forEach(function (o) { b.classList.toggle('gogh-mmg-' + o[0], o[0] === st.ground); });
   }
+  // ---------- the open menu in a zoomed view follows the window ----------
+  // position: fixed inside the transformed artboard answers to the artboard,
+  // which is the whole page — so Stack and Centred filled the page, a Drawer
+  // ran the page's full height, and a Sheet landed at the page's foot, out
+  // of sight (James: 'Sheet doesn't audition… gets cropped'). While the menu
+  // is open under a zoom, its box is pinned to the part of the artboard the
+  // window shows, and re-pinned whenever the layout, the zoom or the window
+  // changes. On the real page nothing here runs.
+  var menuFollow = null; // { box, mo }
+  var MENU_PIN_PROPS = ['top', 'bottom', 'height', 'max-height'];
+  function menuOverlayUnpin(box) {
+    MENU_PIN_PROPS.forEach(function (k) { box.style.removeProperty(k); });
+  }
+  function menuOverlayPlace() {
+    if (!menuFollow) return;
+    var box = menuFollow.box;
+    if (!zoomState || !box.classList.contains('is-menu-open')) { menuOverlayUnpin(box); return; }
+    var wrap = zoomState.wrap;
+    var r = wrap.getBoundingClientRect();
+    var sc = r.width / (wrap.offsetWidth || 1) || 1;
+    var artH = wrap.offsetHeight;
+    var vpTop = Math.max(0, Math.round(-r.top / sc)); // layout px from the artboard's top to the window's top
+    var vpBottom = Math.min(artH, Math.round((window.innerHeight - r.top) / sc));
+    if (vpBottom <= vpTop) { menuOverlayUnpin(box); return; }
+    var set = function (k, v) { box.style.setProperty(k, v, 'important'); };
+    if (document.body.classList.contains('gogh-mm-sheet')) {
+      // a sheet rises from the window's bottom edge
+      set('top', 'auto'); set('bottom', (artH - vpBottom) + 'px'); set('height', 'auto');
+      set('max-height', Math.round((vpBottom - vpTop) * 0.82) + 'px');
+    } else {
+      set('top', vpTop + 'px'); set('bottom', 'auto'); set('height', (vpBottom - vpTop) + 'px'); set('max-height', 'none');
+    }
+  }
+  function menuOverlayFollow(box) {
+    menuOverlayUnfollow();
+    menuFollow = { box: box, mo: null };
+    menuOverlayPlace();
+    window.addEventListener('resize', menuOverlayPlace, { passive: true });
+    window.addEventListener('scroll', menuOverlayPlace, { passive: true });
+    if (window.MutationObserver) {
+      // the audition changes the layout by swapping body classes
+      menuFollow.mo = new MutationObserver(menuOverlayPlace);
+      menuFollow.mo.observe(document.body, { attributes: true, attributeFilter: ['class'] });
+    }
+  }
+  function menuOverlayUnfollow() {
+    if (!menuFollow) return;
+    window.removeEventListener('resize', menuOverlayPlace);
+    window.removeEventListener('scroll', menuOverlayPlace);
+    if (menuFollow.mo) menuFollow.mo.disconnect();
+    menuOverlayUnpin(menuFollow.box);
+    menuFollow = null;
+  }
   function menuOverlayToggle(partEl, open) {
     var box = partEl && partEl.querySelector('.wp-block-navigation__responsive-container');
     if (!box) return false;
     var isOpen = box.classList.contains('is-menu-open');
-    if (open === isOpen) return true;
+    if (open === isOpen) { if (open) menuOverlayFollow(box); else menuOverlayUnfollow(); return true; }
     var btn = partEl.querySelector(open ? '.wp-block-navigation__responsive-container-open' : '.wp-block-navigation__responsive-container-close');
     if (btn) btn.click();
     // a header re-rendered after a save (phone number, email, a phone menu)
@@ -24040,6 +24125,7 @@
       var ob = partEl.querySelector('.wp-block-navigation__responsive-container-open');
       if (ob) ob.setAttribute('aria-expanded', open ? 'true' : 'false');
     }
+    if (open) menuOverlayFollow(box); else menuOverlayUnfollow();
     return true;
   }
   function openMenuStylePage(anchorEl, roomOpt) {
@@ -25790,8 +25876,12 @@
       }
       try {
         var u = new URL(location.href);
+        var wantPhone = u.searchParams.get('gogh-phone') === '1';
         u.searchParams.delete('gogh-edit');
+        u.searchParams.delete('gogh-phone');
         window.history.replaceState(null, '', u); // "history" here is gogh's undo stack — this never ran
+        // arrived from a page pressed in the phone view: stay on the phone
+        if (wantPhone) setTimeout(function () { if (window.__gogh && window.__gogh.device) window.__gogh.device.phone(); }, 350);
       } catch (e3) {}
     }
   });
