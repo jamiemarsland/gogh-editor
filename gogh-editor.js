@@ -22024,16 +22024,22 @@
         body: JSON.stringify({ content: content }),
       }).then(function (r) { if (!r.ok) throw new Error('HTTP ' + r.status); });
     };
-    // after a write: the header is re-rendered in place and, if the room is
-    // still open, re-opened from the saved markup so its controls tell the truth
+    // after a write: the header is re-rendered in place and the room's
+    // baseline moves to what was saved — in place, never rebuilding the
+    // panel (a rebuild folded the Layout list on every pick and dropped the
+    // colour controls under the hand: 'it glitches and closes')
     var settle = function (content, opt) {
       endChromePreview();
       chromeDialsRevert(partEl); chromeColorRevert(partEl); chromeCaseRevert(partEl);
-      return refreshChromePart(partEl).then(function () {
-        if (!panel.hidden && panel.dataset.goghArea === area) {
-          openHeaderPanel(partEl, area, options, opt, { id: active.id, content: { raw: content } });
-        }
-      });
+      raw0 = content;
+      if (active && active.content) active.content.raw = content;
+      if (opt) activeOpt = opt;
+      st.layoutId = activeOpt && activeOpt.id;
+      st.sticky0 = st.sticky;
+      st.dials = null; st.look = undefined; st.caseTT = null; // saved now — nothing left to preview
+      d0 = chromeDialsRead(content);
+      usingLogo = headerWearsLogo(content);
+      return refreshChromePart(partEl);
     };
     var keepNow = function () {
       clearTimeout(keepTimer); keepTimer = null;
@@ -22112,10 +22118,11 @@
         panel.querySelectorAll('.gogh-hlayout').forEach(function (o2) {
           o2.classList.toggle('is-active', o2 === lb);
         });
-        // the door wears the choice and folds — the header above already
-        // shows it, the list has done its job
+        // the door wears the choice; the list stays open — it used to fold
+        // on a pick, and with the header repainting a moment later that read
+        // as the panel misbehaving (James: 'collapsing the header layout
+        // options on click - pretty confusing')
         if (layNow) layNow.textContent = String(opt.title || '').split(' \u2014 ')[0];
-        foldLayouts(false);
         syncAlpha();
         arm();
       });
@@ -24419,9 +24426,29 @@
             var lf = el.querySelector('a') || el; lf.textContent = v;
           });
           toast('Site name saved.');
-        }).catch(function () { toast('Could not save the name \u2014 try again.', { error: true }); });
+        }).catch(function () {
+          [].slice.call(document.querySelectorAll('.wp-block-site-title')).forEach(function (el) {
+            var lf = el.querySelector('a') || el; lf.textContent = curName;
+          });
+          toast('Could not save the name \u2014 try again.', { error: true });
+        });
       };
       nameIn.addEventListener('change', saveName);
+      // the name on the page changes as you type, and saves a moment after
+      // you stop — it used to wait for the field to be left (James: 'it
+      // takes quite some time atm to change')
+      var paintName = function (v) {
+        [].slice.call(document.querySelectorAll('.wp-block-site-title')).forEach(function (el) {
+          var lf = el.querySelector('a') || el; lf.textContent = v;
+        });
+      };
+      var nameTimer = null;
+      nameIn.addEventListener('input', function () {
+        var v = (nameIn.value || '').replace(/\s+/g, ' ').trim();
+        if (v) paintName(v);
+        clearTimeout(nameTimer);
+        nameTimer = setTimeout(saveName, 700);
+      });
       // keystrokes stay in the field \u2014 the panel's Esc-closer must not fire
       nameIn.addEventListener('keydown', function (ev) {
         if (ev.key === 'Enter') { ev.preventDefault(); nameIn.blur(); }

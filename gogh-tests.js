@@ -8936,6 +8936,52 @@
       expect(ran === 1, 'dismissing the panel should run the way onward exactly once, ran ' + ran);
       return 'Name this page · Name it · onward once';
     });
+    testAsync('the header room keeps on click without rebuilding itself: a picked layout stays listed and lit, and the colour row survives', async function () {
+      // the save is stubbed: a real one would write the site's header
+      var realFetch = window.fetch, posted = [];
+      var reply = function (body, ok) { return Promise.resolve({ ok: ok !== false, status: ok === false ? 404 : 200, url: '', json: function () { return Promise.resolve(body); }, text: function () { return Promise.resolve(JSON.stringify(body)); } }); };
+      window.fetch = function (url, opts) {
+        var u = String(url), m = (opts && opts.method) || 'GET';
+        if (/template-parts\/101/.test(u) && m === 'POST') { posted.push(JSON.parse(opts.body).content); return reply({ id: 101 }); }
+        if (/template-parts/.test(u) && m === 'GET') return reply([]);
+        return realFetch.apply(window, arguments);
+      };
+      var pill = q('.gogh-chromebtn');
+      var partEl = (pill && pill.__goghPart) || G.partElForArea('header');
+      var mk = function (id, slug, title, word) { return { kind: 'part', id: id, slug: slug, theme: 'x', title: title, content: '<!-- wp:group {"layout":{"type":"flex"}} --><div class="wp-block-group"><p>' + word + '</p></div><!-- /wp:group -->' }; };
+      var options = [mk(101, 'header', 'Simple header', 'one'), mk(102, 'header-b', 'Centred header', 'two'), mk(103, 'header-c', 'Bold header', 'three')];
+      var active = { id: 101, content: { raw: options[0].content } };
+      var html = document.documentElement, pnl = q('.gogh-panel');
+      try {
+        G.openSide('site');
+        G.openHeaderPanel(partEl, 'header', options, options[0], active);
+        var layDoor = pnl.querySelector('.gogh-hlaydoor'), layBox = pnl.querySelector('.gogh-hlaybox');
+        expect(layDoor && layBox, 'no Layout door or list');
+        layDoor.click();
+        expect(!layBox.hasAttribute('hidden'), 'the Layout list did not open');
+        var opt = pnl.querySelector('.gogh-hlayout[data-id="102"]') || pnl.querySelectorAll('.gogh-hlayout')[1];
+        expect(opt, 'no second layout to pick');
+        var looks = pnl.querySelector('.gogh-hlooks');
+        opt.click();
+        await new Promise(function (r) { setTimeout(r, 1500); }); // the keep waits 900ms for its neighbours
+        expect(posted.length === 1, 'picking a layout should have written the part once, wrote ' + posted.length);
+        expect(/two/.test(posted[0]), 'the written part should be the picked layout');
+        expect(pnl.querySelector('.gogh-hlaybox') === layBox && !layBox.hasAttribute('hidden'), 'the Layout list was rebuilt or folded by the keep');
+        expect(opt.classList.contains('is-active') && pnl.contains(opt), 'the picked layout is not still lit in the same list');
+        expect(pnl.querySelector('.gogh-hlooks') === looks, 'the colour row was rebuilt by the keep');
+        expect(!pnl.hidden && pnl.dataset.goghArea === 'header', 'the room closed on the keep');
+        var sw = pnl.querySelector('.gogh-hlooks .gogh-sw[data-k]');
+        if (sw) {
+          // the fake header carries nothing a colour can paint, so this may
+          // not write; what matters is that the row survives the attempt
+          sw.click();
+          await new Promise(function (r) { setTimeout(r, 1500); });
+          expect(pnl.querySelector('.gogh-hlooks') === looks && pnl.contains(sw), 'the colour row did not survive its own keep');
+          expect(!pnl.hidden && pnl.dataset.goghArea === 'header', 'the room closed after a colour pick');
+        }
+      } finally { window.fetch = realFetch; G.closePanel(); G.closeSide(true); settleZoom(); }
+      return 'layout kept and still listed; colour kept and still there; ' + posted.length + ' writes';
+    });
     test('the phone view carries one sentence saying what it is for', function () {
       var note = q('.gogh-phonenote');
       expect(note && note.hidden, 'the sentence should be hidden on the desktop');
