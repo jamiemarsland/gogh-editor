@@ -1,12 +1,12 @@
 {
   "meta": {
-    "plugin_version": "0.99.607",
+    "plugin_version": "0.99.608",
     "requires_wp": "6.5",
     "requires_php": "7.4",
     "text_domain": "gogh-editor",
     "readme_stable_tag": "0.26.0",
     "readme_tested_up_to": "7.0",
-    "asset_version": "0.99.607-chrome"
+    "asset_version": "0.99.608-chrome"
   },
   "constants": {
     "TOL": 8,
@@ -656,6 +656,8 @@
     "✨ Make it freeform"
   ],
   "toasts": [
+    "A form is on this page — name, email and a message, straight to you.",
+    "Add a section first, then a way to get in touch.",
     "Back to freeform — drag it anywhere.",
     "Backup restored — publish when ready.",
     "Button updated.",
