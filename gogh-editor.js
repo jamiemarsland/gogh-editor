@@ -19043,6 +19043,7 @@
     device: { phone: seeOnPhone, desktop: seeOnDesktop, mode: function () { return deviceMode; }, hide: setPhoneHidden, hidden: phoneHiddenOf,
       mediaFlips: function () { return phoneMediaFlips.length; }, mediaAtPhone: mediaAtPhone, linkTarget: phoneLinkTarget,
       menuPinned: function () { return !!menuFollow; } },
+    menuLayoutFrom: menuLayoutFrom,
     reorderSection: reorderSection,
     setVideo: setVideo, setSecVideo: setSecVideo, videoEmbedInfo: videoEmbedInfo, openSecBgPanel: openSecBgPanel,
     navModel: { parse: parseNavModel, serialize: serializeNavModel, whereOf: navWhereOf, panelOf: navPanelOf },
@@ -24037,12 +24038,30 @@
   // One site-wide choice, two radio lists (how it opens, what it wears).
   // Hover auditions on the REAL overlay — the page can open it for you —
   // and a click keeps. Body classes are the state; gogh.php wears them.
+  // stored as four layouts (stack, centred, drawer, sheet — the body classes
+  // gogh.php dresses), shown as three ways of opening plus, for the full
+  // screen, which way the lines sit. Stack and Centred were both 'the whole
+  // screen' and differed only in alignment, which made four things look
+  // like peers when they were two kinds of thing (James: 'not sure about
+  // stack… would folks really choose this option?').
   var MENU_LAYOUTS = [
-    ['stack', 'Stack', 'Big type, left-aligned, the whole screen'],
-    ['centred', 'Centred', 'Every line centred, the whole screen'],
+    ['stack', 'Full screen, left', 'Big type, left-aligned, the whole screen'],
+    ['centred', 'Full screen, centred', 'Every line centred, the whole screen'],
     ['drawer', 'Drawer', 'Slides in from the right'],
     ['sheet', 'Sheet', 'Rises from the bottom, page still showing'],
   ];
+  var MENU_OPENS = [
+    ['full', 'Full screen', 'Big type over the whole screen'],
+    ['drawer', 'Drawer', 'Slides in from the right'],
+    ['sheet', 'Sheet', 'Rises from the bottom, page still showing'],
+  ];
+  var MENU_ALIGNS = [
+    ['left', 'Left', 'Lines run down the left, like a list'],
+    ['centred', 'Centred', 'Every line centred'],
+  ];
+  function menuOpensOf(layout) { return layout === 'stack' || layout === 'centred' ? 'full' : layout; }
+  function menuAlignOf(layout) { return layout === 'centred' ? 'centred' : 'left'; }
+  function menuLayoutFrom(opens, align) { return opens === 'full' ? (align === 'centred' ? 'centred' : 'stack') : opens; }
   var MENU_GROUNDS = [
     ['light', 'Light', 'Your base colour'],
     ['dark', 'Dark', 'Your contrast colour'],
@@ -24153,7 +24172,8 @@
       // (James: the door 'reads like it goes somewhere'; 'Preview the menu')
       '<div class="gogh-hstickyrow gogh-mmprevrow"><span class="gogh-mm-burger" aria-hidden="true"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h16"/></svg></span><span class="gogh-mmprev-word">Preview the menu</span>' +
       '<button type="button" class="gogh-hswitch gogh-mmpreview is-on" role="switch" aria-checked="true" title="Show the menu open on the page"><span class="gogh-hswitch-knob"></span></button></div>' +
-      '<div class="gogh-swlab">Opens as</div>' + list('gogh-mmlay', MENU_LAYOUTS, st.layout) +
+      '<div class="gogh-swlab">Opens as</div>' + list('gogh-mmlay', MENU_OPENS, menuOpensOf(st.layout)) +
+      '<div class="gogh-mmalign-wrap"' + (menuOpensOf(st.layout) === 'full' ? '' : ' hidden') + '><div class="gogh-swlab">Lines</div>' + list('gogh-mmalign', MENU_ALIGNS, menuAlignOf(st.layout)) + '</div>' +
       '<div class="gogh-swlab">Wears</div>' + list('gogh-mmground', MENU_GROUNDS, st.ground) +
       // what phones want at the foot of the menu: a way to call, to write, to sign in
       '<div class="gogh-swlab">Also on phones</div>' +
@@ -24279,22 +24299,25 @@
       pmHint.textContent = kept.phoneMenu ? 'A separate phone menu \u2014 edit it under \u22ef Manage menu, Phone menu tab.' : 'Or a menu of its own \u2014 gogh copies this one to start you off.';
       keepExtras(kept.phoneMenu ? 'Phones show that menu.' : 'Phones show the same menu again.');
     });
-    [['.gogh-mmlay', 'layout'], ['.gogh-mmground', 'ground']].forEach(function (pair) {
-      var box = panel.querySelector(pair[0]);
+    // hover auditions on the real overlay, leaving takes it back; a click keeps.
+    // The three lists resolve to one stored layout: Opens as + Lines → layout
+    var alignWrap = panel.querySelector('.gogh-mmalign-wrap');
+    var wireList = function (sel, toState) {
+      var box = panel.querySelector(sel);
       box.querySelectorAll('.gogh-hopt').forEach(function (b) {
-        // hover auditions on the real overlay, leaving takes it back; a click keeps
-        auditionHover(b, function () {
-          var t = {}; t.layout = st.layout; t.ground = st.ground; t[pair[1]] = b.dataset.v;
-          menuStyleWear(t);
-        }, function () { menuStyleWear(st); });
+        auditionHover(b, function () { menuStyleWear(toState(b.dataset.v, {})); }, function () { menuStyleWear(st); });
         b.addEventListener('click', function () {
-          st[pair[1]] = b.dataset.v;
+          toState(b.dataset.v, st);
           menuStyleWear(st);
           box.querySelectorAll('.gogh-hopt').forEach(function (o) { o.classList.toggle('is-active', o === b); });
+          if (alignWrap) alignWrap.hidden = menuOpensOf(st.layout) !== 'full';
           keep();
         });
       });
-    });
+    };
+    wireList('.gogh-mmlay', function (v, into) { into.layout = menuLayoutFrom(v, menuAlignOf(st.layout)); into.ground = into.ground || st.ground; return into; });
+    wireList('.gogh-mmalign', function (v, into) { into.layout = menuLayoutFrom('full', v); into.ground = into.ground || st.ground; return into; });
+    wireList('.gogh-mmground', function (v, into) { into.layout = into.layout || st.layout; into.ground = v; return into; });
     menuStyleWear(st);
   }
   function openLogoPicker(anchorEl, roomOpt) {

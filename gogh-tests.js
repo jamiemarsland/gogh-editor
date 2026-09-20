@@ -6,6 +6,7 @@
   'use strict';
 
   var results = [];
+  window.__goghTestProgress = results; // live: a stuck run shows where it stopped
   var jsErrors = [];
   window.addEventListener('error', function (ev) { jsErrors.push(String(ev.message)); });
 
@@ -8900,6 +8901,30 @@
       expect(G.device.linkTarget('/wp-content/uploads/a.jpg') === null, 'a file should be left alone');
       expect(G.device.linkTarget(location.pathname + '#top') === null, 'an anchor on this page should be left alone');
       return t;
+    });
+    testAsync('the Mobile menu page offers Full screen, Drawer and Sheet, with Left or Centred only for the full screen', async function () {
+      var hdr = G.partElForArea('header');
+      var body = document.body, had = body.className;
+      G.openSide('site');
+      try {
+        G.openMenuStylePage(hdr, { room: hdr, area: 'header', back: function () {} });
+        await new Promise(function (r) { setTimeout(r, 60); });
+        var pnl = q('.gogh-panel');
+        var opens = [].map.call(pnl.querySelectorAll('.gogh-mmlay .gogh-hopt'), function (b) { return b.dataset.v; });
+        expect(opens.join(',') === 'full,drawer,sheet', 'Opens as should be full, drawer, sheet — got ' + opens.join(','));
+        var aligns = [].map.call(pnl.querySelectorAll('.gogh-mmalign .gogh-hopt'), function (b) { return b.dataset.v; });
+        expect(aligns.join(',') === 'left,centred', 'Lines should be left, centred — got ' + aligns.join(','));
+        expect(G.menuLayoutFrom('full', 'left') === 'stack' && G.menuLayoutFrom('full', 'centred') === 'centred' && G.menuLayoutFrom('sheet', 'centred') === 'sheet', 'the two picks do not resolve to the stored layouts');
+        // one hover auditions without keeping anything (a click would save
+        // site-wide); one, because the suite's tab is hidden and every chained
+        // wait there is throttled towards a minute
+        var centred = pnl.querySelector('.gogh-mmalign [data-v="centred"]');
+        centred.dispatchEvent(new MouseEvent('mouseenter', { bubbles: false }));
+        await new Promise(function (r) { setTimeout(r, 200); }); // the audition waits 70ms before it fires
+        expect(body.classList.contains('gogh-mm-centred'), 'hovering Centred did not audition the centred full screen');
+        centred.dispatchEvent(new MouseEvent('mouseleave', { bubbles: false }));
+      } finally { body.className = had; G.closePanel(); G.closeSide(true); settleZoom(); }
+      return 'full · drawer · sheet, then left · centred';
     });
     test('the phone view carries one sentence saying what it is for', function () {
       var note = q('.gogh-phonenote');
