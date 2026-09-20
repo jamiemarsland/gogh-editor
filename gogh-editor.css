@@ -2458,6 +2458,11 @@ html.gogh-zoomed .gogh-hgrip { display: none !important; }
 /* the header's Edit pill stays: the room it opens docks beside the zoomed
    page now, and a saving Done lands here (James: 'the edit header no longer
    shows if i hover over the header') */
+/* …but not while that room is open: the pill would offer the room you are
+   in, and its veil sat over the very header being edited (James: 'should
+   we hide the edit header hover'). Live or spotlit, the veil steps out. */
+html.gogh-editing .wp-block-template-part.gogh-chrome-live > .gogh-chromeveil,
+html.gogh-editing .wp-block-template-part.gogh-chrome-spotlight > .gogh-chromeveil { display: none !important; }
 /* the header/footer editing room dims the page and spotlights the chrome — a
    page section's toolbar/handles/inserter must not float over it (the cropped
    SECTION pill above the header) */
