@@ -2416,7 +2416,7 @@
     // page, put in the menu by itself (Tony gave up on "add a Prices page")
     '<button type="button" class="gogh-sitem gogh-scard gogh-addpagebtn">' +
     '<span class="gogh-scard-ic"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 8v8M8 12h8"/></svg></span>' +
-    '<span class="gogh-scard-tx"><span class="gogh-scard-t">Add a page</span><span class="gogh-scard-s">A new page, in your menu too</span></span>' +
+    '<span class="gogh-scard-tx"><span class="gogh-scard-t">Add a page</span><span class="gogh-scard-s">A new page, ready to fill</span></span>' +
     '<svg class="gogh-scard-chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg></button>' +
     '<button type="button" class="gogh-sitem gogh-scard gogh-phonebtn">' +
     '<span class="gogh-scard-ic"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><rect x="7" y="3" width="10" height="18" rx="2.5"/><path d="M11 18h2"/></svg></span>' +

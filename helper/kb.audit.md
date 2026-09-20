@@ -1,4 +1,4 @@
-# Knowledge-base audit — plugin v0.99.609
+# Knowledge-base audit — plugin v0.99.610
 
 _13 finding(s) suppressed by `kb.audit-ignore.txt`._
 
@@ -119,6 +119,4 @@ Quoted copy not found verbatim in the source. Paraphrases are fine; changed UI c
 
 Use this as the checklist for updating the prose — and as a sanity check on the release itself.
 
-- version: 0.99.608 → 0.99.609
-- removed toast: "A form is on this page — name, email and a message, straight to you."
-- removed toast: "Add a section first, then a way to get in touch."
+- version: 0.99.609 → 0.99.610
