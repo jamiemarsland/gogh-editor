@@ -4182,10 +4182,20 @@
   // room dims the page, spotlights the header, and every exit path (Done,
   // Cancel, Esc, ✕) runs closePanel → exitChromeMode, so nothing lingers.
   var chromeScrim = null;
-  function enterChromeMode(partEl, area) {
+  function chromeLabel(partEl, area) {
+    var label = document.createElement('div');
+    label.className = 'gogh-chrome-label';
+    label.textContent = 'Editing the ' + area + ' — changes preview live';
+    partEl.appendChild(label);
+  }
+  // noScrim: the room is docked on the left with the page zoomed beside it,
+  // so there is nothing to dim — the spotlight ring and the label say which
+  // part is live, and the panel stays fully legible
+  function enterChromeMode(partEl, area, noScrim) {
     exitChromeMode();
     document.documentElement.classList.add('gogh-chrome-mode');
     partEl.classList.add('gogh-chrome-spotlight');
+    if (noScrim) { chromeLabel(partEl, area); return; }
     chromeScrim = document.createElement('div');
     chromeScrim.className = 'gogh-chrome-scrim';
     var place = function () {
@@ -4229,10 +4239,7 @@
       if (done) { done.classList.add('gogh-nudge'); setTimeout(function () { done.classList.remove('gogh-nudge'); }, 700); }
       toast('Keep your changes with Done, or undo them with Cancel.');
     });
-    var label = document.createElement('div');
-    label.className = 'gogh-chrome-label';
-    label.textContent = 'Editing the ' + area + ' — changes preview live';
-    partEl.appendChild(label);
+    chromeLabel(partEl, area);
   }
   function exitChromeMode() {
     var wasInRoom = !!chromeScrim;
@@ -4284,6 +4291,8 @@
     railBox.hidden = !on;
     if (on) mountDevPill();
     devHome.hidden = !on || !!cfg.writeUrl; // the write room has no canvas to preview
+    // a room's Done reloads the page; the drawer it came from comes back
+    if (on) { try { var reopen = sessionStorage.getItem('gogh-reopen-side'); if (reopen) { sessionStorage.removeItem('gogh-reopen-side'); setTimeout(function () { openSide(reopen); }, 300); } } catch (e) {} }
     if (!on) {
       seeOnDesktop(); // leaving the editor leaves the phone view too
       closeSide(true);
@@ -7609,7 +7618,7 @@
   // Edit header / Edit footer: leave the design surface and open that part's
   // editing room (dim the page, spotlight the chrome) — the existing flow
   function editChromeFromDesign(area) {
-    closeSide(true);
+    // the drawer stays: the room docks in its place and Back returns to it
     var pe = partElForArea(area);
     if (!pe) { toast('No ' + area + ' to edit here.', { error: true }); return; }
     wakeChrome(pe, area);
@@ -19070,6 +19079,7 @@
     showHbar: function (i) { placeHbar(S[i]); },
     openHeaderPanel: openHeaderPanel,
     openMenuStylePage: openMenuStylePage,
+    roomBackToCards: roomBackToCards,
     menuStyleWear: menuStyleWear,
     chromeColorApply: chromeColorApply,
     headerLooks: headerLooks,
@@ -21861,8 +21871,8 @@
         '<span class="gogh-logosize-val ' + cls + '-val">' + val + '</span></div>';
     };
     panel.innerHTML =
-      '<div class="gogh-panel-head"><span class="gogh-panel-title">Site ' + area + '</span>' +
-      '<button type="button" class="gogh-sbtn gogh-panel-close" title="Cancel">\u2715</button></div>' +
+      '<div class="gogh-panel-head"><span class="gogh-panel-title">Editing the ' + area + '</span>' +
+      '<button type="button" class="gogh-sbtn gogh-panel-close gogh-panel-back" title="Back to the Site cards"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"/></svg></button></div>' +
 
       // ONE GRAMMAR PER ROLE (James: "it kinda hurts my eyes"): choices
       // are a radio LIST — the ragged pill cloud retired — doors are rows
@@ -21942,10 +21952,12 @@
       '<button type="button" class="gogh-btn gogh-btn-small gogh-hcancel">Cancel</button>' +
       '<button type="button" class="gogh-btn gogh-btn-save gogh-btn-small gogh-happly" title="Keeps your changes on every page">Done</button>' +
       '</div>';
-    dockPanel(partEl);
-    enterChromeMode(partEl, area); // the header room: dim the page, spotlight the header
-    panelOpen = true;
-    panelSticky = true;
+    // the room docks on the LEFT like Site style and Fonts, the page zoomed
+    // out beside it (James: 'use the left panel for everything when folks
+    // click on edit header'); the part keeps its ring and label, nothing
+    // is dimmed, and the rail steps aside. A footer is at the bottom, so the
+    // zoomed page scrolls down to it.
+    dockRoomSide(partEl, area);
     panel.dataset.goghArea = area;
     var applyBtn = panel.querySelector('.gogh-happly');
     var armed = false;
@@ -21970,7 +21982,7 @@
       if (st.look !== undefined) chromeColorPreview(partEl, st.look);
       if (st.caseTT != null) chromeCasePreview(partEl, st.caseTT);
     };
-    var bail = function () { closePanel(); };
+    var bail = function () { roomBackToCards(); }; // revert (panelCleanup) and back to the cards
     panel.querySelector('.gogh-panel-close').addEventListener('click', bail);
     panel.querySelector('.gogh-hcancel').addEventListener('click', bail);
     // Escape leaves the room the safe way — Cancel (closePanel reverts every
@@ -22260,7 +22272,7 @@
     applyBtn.addEventListener('click', function () {
       // Done with nothing changed just leaves the room — no needless save,
       // no reload. A beginner clicks Done to say "I'm finished here."
-      if (!armed) { closePanel(); return; }
+      if (!armed) { roomBackToCards(); return; }
       var base = (st.layoutId !== (activeOpt && activeOpt.id))
         ? chromeLayoutContent(area, chosenOpt(), area === 'header' ? usingLogo : null)
         : raw0;
@@ -22279,6 +22291,7 @@
         }).then(function (r) {
           if (!r.ok) throw new Error('HTTP ' + r.status);
           discarding = true;
+          try { sessionStorage.setItem('gogh-reopen-side', 'site'); } catch (e) {} // land back on the Site cards
           location.reload();
         }).catch(function () {
           applyBtn.disabled = false;
@@ -22385,7 +22398,25 @@
     if (chromeScrim && chromeScrim.__place) chromeScrim.__place();
     if (!roomReseatArmed) return;
     roomReseatArmed = false;
-    if (panelOpen && !panel.hidden && panel.dataset.goghArea) dockPanel(partEl);
+    if (panelOpen && !panel.hidden && panel.dataset.goghArea) { if (panel.classList.contains('gogh-panel-sidebar')) layoutZoom(); else dockPanel(partEl); }
+  }
+  // dock a header/footer room page on the left with the page beside it
+  function dockRoomSide(partEl, area) {
+    dockSidebar();
+    zoomOutCanvas();
+    railBox.classList.add('is-away');
+    enterChromeMode(partEl, area, true);
+    if (area === 'footer') requestAnimationFrame(function () { try { partEl.scrollIntoView({ block: 'end' }); } catch (e) {} });
+  }
+  // every exit from a docked room page returns to the Site cards — the
+  // room is a page OF the Site drawer, not a window over the site
+  function roomBackToCards() {
+    if (panelCleanup) { var pc = panelCleanup; panelCleanup = null; pc(); }
+    exitChromeMode();
+    railBox.classList.remove('is-away');
+    delete panel.dataset.goghArea;
+    setSideMode('site');
+    backToDesign();
   }
   function endChromePreview() {
     if (!chromePreview) return;
@@ -23919,19 +23950,10 @@
   // the Centred layout behind its own controls (James: 'how about we use
   // the side panel - like we do for other stuff'). Beside the page, no
   // layout can ever be under the panel.
-  function stayInRoom(roomOpt, anchorEl, asSide) {
+  function stayInRoom(roomOpt, anchorEl) {
     if (roomOpt && roomOpt.room) {
-      if (asSide) {
-        // no dim and no spotlight: the subject here is the open menu, not
-        // the header, and the scrim made the docked panel look disabled
-        dockSidebar(); zoomOutCanvas();
-        railBox.classList.add('is-away'); // the rail steps aside for a docked page, as it does for a drawer
-        panelCleanup = function () { railBox.classList.remove('is-away'); };
-      } else {
-        dockPanel(roomOpt.room);
-        enterChromeMode(roomOpt.room, roomOpt.area);
-        panelCleanup = exitChromeMode;
-      }
+      dockRoomSide(roomOpt.room, roomOpt.area);
+      panelCleanup = function () { exitChromeMode(); railBox.classList.remove('is-away'); };
       panel.classList.add('gogh-room-swap');
       panel.addEventListener('animationend', function h() {
         panel.classList.remove('gogh-room-swap');
@@ -23951,7 +23973,8 @@
           back.className = 'gogh-room-back';
           back.textContent = '\u2039 Back to ' + (roomOpt.area === 'footer' ? 'footer' : 'header');
           back.addEventListener('click', function () {
-            closePanel();
+            // back to the room's own page, in place — no unzoom on the way
+            if (panelCleanup) { var pc = panelCleanup; panelCleanup = null; pc(); }
             roomOpt.back();
           });
           head.insertBefore(back, head.firstChild);
@@ -23991,7 +24014,7 @@
     return false;
   }
   function openMenuStylePage(anchorEl, roomOpt) {
-    stayInRoom(roomOpt, anchorEl, true);
+    stayInRoom(roomOpt, anchorEl);
     var ms0 = cfg.menuStyle || {};
     var kept = { layout: ms0.layout || 'stack', ground: ms0.ground || 'light', phone: ms0.phone || '', email: ms0.email || '', account: !!ms0.account, phoneMenu: +ms0.phoneMenu || 0 };
     var st = { layout: kept.layout, ground: kept.ground };

@@ -22,6 +22,10 @@
     pev('pointerup', target, x + dx, y + dy, id);
   }
   function q(sel) { return document.querySelector(sel); }
+  // the design view eases back over 0.4s when it closes; the Browser pane
+  // the suite runs in freezes CSS transitions at their start, so a test that
+  // leaves the zoom has to snap the page home for the coordinate tests after it
+  function settleZoom() { var w = q('.wp-site-blocks'); if (w) { w.style.transition = 'none'; void w.offsetWidth; } }
 
   function run() {
     var G = window.__gogh;
@@ -3390,7 +3394,7 @@
         expect(r.top >= 0 && r.bottom <= window.innerHeight + 1,
           'panel not fully on screen: ' + Math.round(r.top) + '..' + Math.round(r.bottom));
       } finally {
-        panel.querySelector('.gogh-panel-close').click();
+        panel.querySelector('.gogh-panel-close').click(); G.closeSide(true); settleZoom(); // the room's exits return to the Site cards and keep the design view — leave it
       }
       expect(document.querySelector('.gogh-panel').hidden, 'panel did not close');
       expect(!document.querySelector('.gogh-chrome-preview'), 'preview left behind after close');
@@ -3426,7 +3430,7 @@
         more.click();
         expect(!box.hasAttribute('hidden'), 'More did not reveal the fold');
       } finally {
-        panel.querySelector('.gogh-panel-close').click();
+        panel.querySelector('.gogh-panel-close').click(); G.closeSide(true); settleZoom(); // leave the design view the room's exit keeps
       }
     });
 
@@ -3451,6 +3455,7 @@
       expect(grp.style.paddingTop === '60px', 'dial did not paint the header');
       document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
       expect(document.querySelector('.gogh-panel').hidden, 'Esc did not close the panel');
+      G.closeSide(true); settleZoom(); // Esc in the room returns to the Site cards; leave them
       expect((grp.style.paddingTop || '') === pad0, 'Esc left stranded dial padding - the gap-under-the-nav bug (' + grp.style.paddingTop + ' vs ' + (pad0 || 'clean') + ')');
       expect(!partEl.querySelector('.gogh-chrome-preview'), 'Esc left a mounted layout preview');
     });
@@ -3488,6 +3493,7 @@
         box.remove();
         hidden.forEach(function (c) { c.style.display = ''; });
         document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+        G.closeSide(true); settleZoom(); // Esc in the room returns to the Site cards; leave them
       }
     });
 
@@ -8778,12 +8784,72 @@
         expect(back, 'no Back to header link');
         back.click();
         expect(backs === 1, 'Back did not return to the header room');
-        expect(!html.classList.contains('gogh-zoomed'), 'Back left the page zoomed');
-      } finally { G.closePanel(); G.device.desktop(); }
+        expect(html.classList.contains('gogh-zoomed'), 'Back unzoomed on the way to the header room (it should re-open in place)');
+      } finally { G.closePanel(); G.device.desktop(); settleZoom(); }
       expect(!html.classList.contains('gogh-zoomed'), 'closing the page left the zoom on');
       var s1 = snap(), leaks = [];
       Object.keys(s0).forEach(function (k) { if (String(s0[k]) !== String(s1[k])) leaks.push(k + ': ' + JSON.stringify(s0[k]).slice(0, 120) + ' -> ' + JSON.stringify(s1[k]).slice(0, 120)); });
       return 'sidebar left, page zoomed, Back unzooms' + (leaks.length ? ' | LEAKS ' + leaks.join(' ; ') : ' | no state leaked');
+    });
+    testAsync('a header room page docks on the left beside the zoomed page, no dim, and Back returns to the Site cards', async function () {
+      // the room itself opens only after every header layout has been
+      // rendered on the server, which the suite cannot wait on — the
+      // docking and the way back are the same code for every room page,
+      // so drive them through the Mobile menu page
+      var html = document.documentElement, pnl = q('.gogh-panel'), side = q('.gogh-side'), rail = q('.gogh-rail');
+      var hdr = G.partElForArea('header');
+      expect(hdr, 'no header on the fixture');
+      G.openSide('site');
+      try {
+        G.openMenuStylePage(hdr, { room: hdr, area: 'header', back: function () {} });
+        await new Promise(function (r) { setTimeout(r, 30); });
+        expect(pnl.classList.contains('gogh-panel-sidebar'), 'the page is not docked as a sidebar');
+        expect(html.classList.contains('gogh-zoomed'), 'the page is not zoomed beside the panel');
+        expect(!q('.gogh-chrome-scrim'), 'the page is dimmed');
+        expect(hdr.classList.contains('gogh-chrome-spotlight'), 'the header has no ring');
+        expect(hdr.querySelector('.gogh-chrome-label'), 'the header has no label');
+        expect(rail.classList.contains('is-away'), 'the rail did not step aside');
+        expect(side.classList.contains('gogh-side-away'), 'the drawer did not step aside for the page');
+        G.roomBackToCards();
+        expect(pnl.hidden, 'Back did not close the page');
+        expect(side.classList.contains('is-open') && !side.classList.contains('gogh-side-away'), 'Back did not return to the drawer');
+        var cards = side.querySelector('.gogh-cards-site');
+        expect(cards && getComputedStyle(cards).display !== 'none', 'the Site cards are not showing');
+        expect(html.classList.contains('gogh-zoomed'), 'Back left the design view');
+        expect(!hdr.classList.contains('gogh-chrome-spotlight') && !hdr.querySelector('.gogh-chrome-label'), 'the ring or label lingered after Back');
+        expect(!rail.classList.contains('is-away'), 'the rail did not come back');
+      } finally { G.closePanel(); G.closeSide(true); settleZoom(); }
+      return 'docked left with ring and label, no dim; Back to the Site cards, design view kept';
+    });
+    test('the header room head says Editing the header and its Back returns to the Site cards', function () {
+      var pill = q('.gogh-chromebtn');
+      var partEl = pill && pill.__goghPart;
+      expect(partEl, 'no header part behind the pill');
+      var options = [
+        { kind: 'part', id: 101, slug: 'header', theme: 'x', title: 'Simple header', content: '' },
+        { kind: 'part', id: 102, slug: 'header-b', theme: 'x', title: 'Centered header', content: '' },
+      ];
+      var active = { id: 101, content: { raw: '<!-- wp:group {"layout":{"type":"flex"}} --><div class="wp-block-group"></div><!-- /wp:group -->' } };
+      var html = document.documentElement, side = q('.gogh-side'), pnl = q('.gogh-panel');
+      try {
+        G.openHeaderPanel(partEl, 'header', options, options[0], active);
+        expect(pnl.classList.contains('gogh-panel-sidebar'), 'the room did not dock as a sidebar');
+        expect(html.classList.contains('gogh-zoomed'), 'the page did not zoom beside the room');
+        expect(!q('.gogh-chrome-scrim'), 'the room dimmed the page');
+        expect(partEl.classList.contains('gogh-chrome-spotlight'), 'the header lost its ring');
+        expect(/Editing the header/.test(pnl.querySelector('.gogh-panel-title').textContent), 'the title reads ' + pnl.querySelector('.gogh-panel-title').textContent);
+        var back = pnl.querySelector('.gogh-panel-head .gogh-panel-back');
+        expect(back, 'no Back in the room head');
+        back.click();
+        expect(pnl.hidden, 'Back did not close the room');
+        expect(side.classList.contains('is-open') && !side.classList.contains('gogh-side-away'), 'Back did not return to the drawer');
+        var cards = side.querySelector('.gogh-cards-site');
+        expect(cards && getComputedStyle(cards).display !== 'none', 'the Site cards are not showing');
+        expect(html.classList.contains('gogh-zoomed'), 'Back dropped the design view');
+        expect(!partEl.classList.contains('gogh-chrome-spotlight'), 'the ring lingered');
+      } finally { G.closePanel(); G.closeSide(true); settleZoom(); }
+      expect(!html.classList.contains('gogh-zoomed'), 'the design view lingered after closing the drawer');
+      return 'Editing the header · Back → Site cards';
     });
     test('the phone view carries one sentence saying what it is for', function () {
       var note = q('.gogh-phonenote');
