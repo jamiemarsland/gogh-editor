@@ -205,10 +205,12 @@ html.gogh-phone-preview .gogh-wrap:has(> .gogh-msec-hidden)::after {
 html.gogh-phone-preview .gogh-section.gogh-msec-hidden {
   opacity: 0.32; max-height: 180px; overflow: hidden;
 }
-/* a sticky header inside the zoomed artboard: position: fixed/sticky answer
-   to the transformed box, so the header pinned itself to the artboard's top
-   and the first section slid under it. In the design view it stays in flow;
-   the room says so beside the switch, and the real page does the sticking. */
+/* a sticky header inside the zoomed artboard: the page sits in a scaled
+   transform there, and neither sticky nor fixed answers to the window
+   through it — sticky scrolls away, fixed pins to the artboard's top and
+   slides the first section under itself. In the design view the header
+   stays in flow; the room says so beside the switch, and the real page
+   does the sticking. */
 html.gogh-zoomed header.wp-block-template-part:has(.gogh-sticky),
 html.gogh-zoomed header.wp-block-template-part:has(.gogh-chrome-preview .gogh-sticky) {
   position: relative !important; top: auto !important; left: auto !important; right: auto !important;
@@ -1689,6 +1691,8 @@ body.gogh-painting, body.gogh-painting .gogh-section * { cursor: url('data:image
 }
 .gogh-room-back:hover, .gogh-room-back:focus-visible { background: #dbe7ff; }
 .gogh-panel-head:has(.gogh-room-back) .gogh-panel-title { margin-left: 8px; }
+/* room pages: air under the Back to header row (James: 'feels a bit squashed') */
+.gogh-panel-head:has(.gogh-room-back) { margin-bottom: 18px; }
 /* Logo & name in the room's grammar */
 .gogh-logoname { margin: 2px 0 12px; }
 .gogh-logoname > span, .gogh-logosize > span, .gogh-namesize > span { font: 600 13px/1.2 -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, sans-serif; color: var(--gogh-ui-fg, #141519); min-width: 44px; }
@@ -2445,13 +2449,15 @@ html.gogh-zoomed .gogh-inserter,
 html.gogh-zoomed .gogh-chip,
 html.gogh-zoomed .gogh-convertbtn,
 html.gogh-zoomed .gogh-chromebtn,
-html.gogh-zoomed .gogh-chromeveil,
 html.gogh-zoomed .gogh-navadd,
 html.gogh-zoomed .gogh-navrm,
 html.gogh-zoomed .gogh-selbox,
 html.gogh-zoomed .gogh-grip,
 html.gogh-zoomed .gogh-handle,
 html.gogh-zoomed .gogh-hgrip { display: none !important; }
+/* the header's Edit pill stays: the room it opens docks beside the zoomed
+   page now, and a saving Done lands here (James: 'the edit header no longer
+   shows if i hover over the header') */
 /* the header/footer editing room dims the page and spotlights the chrome — a
    page section's toolbar/handles/inserter must not float over it (the cropped
    SECTION pill above the header) */

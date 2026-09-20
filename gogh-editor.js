@@ -21905,14 +21905,14 @@
       }).join('') + '</div></div>' +
       '<button type="button" class="gogh-hdoor gogh-hlogo"><span>' + (usingLogo ? 'Logo' : 'Logo &amp; name') + '</span><span class="gogh-hdoor-chev">\u203a</span></button>' +
       (d0 && d0.hasNav ? '<button type="button" class="gogh-hdoor gogh-hmenu"><span>Edit menu items</span><span class="gogh-hdoor-chev">\u203a</span></button>' : '') +
-      (d0 && d0.hasNav ? '<button type="button" class="gogh-hdoor gogh-hmobile"><span>Mobile menu</span><span class="gogh-hdoor-chev">\u203a</span></button>' : '') +
+      (d0 && d0.hasNav && area === 'header' ? '<button type="button" class="gogh-hdoor gogh-hmobile"><span>Mobile menu</span><span class="gogh-hdoor-chev">\u203a</span></button>' : '') +
       '</div>' +
       // the high-traffic settings live in daylight (James: "styles and
       // spacing are pretty important, but really hidden - and making sticky
       // is soo common"): Sticky is a top-level SWITCH, Colour a top-level
       // row — the fold keeps only true fine-tuning
-      '<div class="gogh-hstickyrow"><span>Stick to the top</span>' +
-      '<button type="button" class="gogh-hswitch gogh-hsticky' + (st.sticky ? ' is-on' : '') + '" role="switch" aria-checked="' + (st.sticky ? 'true' : 'false') + '" title="The header rides along as visitors scroll"><span class="gogh-hswitch-knob"></span></button></div>' +
+      (area === 'header' ? '<div class="gogh-hstickyrow"><span>Stick to the top</span>' +
+      '<button type="button" class="gogh-hswitch gogh-hsticky' + (st.sticky ? ' is-on' : '') + '" role="switch" aria-checked="' + (st.sticky ? 'true' : 'false') + '" title="The header rides along as visitors scroll"><span class="gogh-hswitch-knob"></span></button></div>' : '') +
       (looks.length ? '<div class="gogh-swlab">Colour</div><div class="gogh-swrow gogh-hlooks">' +
         looks.map(function (l, k) {
           return '<button type="button" class="gogh-sw' + (l.bg ? '' : ' gogh-sw-none') + '" data-k="' + k + '"' +
@@ -22185,10 +22185,15 @@
     // STICKY: visual toggle, written on Apply. The design view keeps the
     // header in flow (a pinned header inside the zoomed page slid the first
     // section under it), so the switch says where the sticking shows.
+    // sticking cannot be shown in the design view: the page sits inside a
+    // scaled transform there, and neither sticky nor fixed positioning
+    // answers to the window through it (tried: it scrolls away, or pins to
+    // the artboard and slides the first section under itself). The header
+    // stays in place here and the switch says where to look.
     var stickyRow = panel.querySelector('.gogh-hstickyrow');
     if (stickyRow && !panel.querySelector('.gogh-hsticky-note')) stickyRow.insertAdjacentHTML('afterend', '<div class="gogh-panel-hint gogh-hsticky-note">Sticks to the top as visitors scroll. Press View site to see it.</div>');
     var stickyBtn = panel.querySelector('.gogh-hsticky');
-    stickyBtn.addEventListener('click', function () {
+    if (stickyBtn) stickyBtn.addEventListener('click', function () {
       st.sticky = !st.sticky;
       stickyBtn.classList.toggle('is-on', st.sticky);
       stickyBtn.setAttribute('aria-checked', st.sticky ? 'true' : 'false');
