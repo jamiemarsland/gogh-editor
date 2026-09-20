@@ -19108,6 +19108,7 @@
     showHbar: function (i) { placeHbar(S[i]); },
     openHeaderPanel: openHeaderPanel,
     openMenuStylePage: openMenuStylePage,
+    openPageNamePanel: openPageNamePanel,
     roomBackToCards: roomBackToCards,
     menuStyleWear: menuStyleWear,
     chromeColorApply: chromeColorApply,
@@ -19902,19 +19903,26 @@
     });
     return best.slice(0, 60);
   }
-  function openPageNamePanel(mode) {
-    var renaming = 'rename' === mode;
+  // modes: 'rename' (the chip), 'first' (a new page names itself before
+  // anything else — the same flow as the drawer's Add a page, so every road
+  // into a new page reads the same; James: 'name first everywhere'), and
+  // the default, which holds the name for the save that takes the draft live.
+  // `then` runs once the first-mode panel is out of the way, named or not.
+  function openPageNamePanel(mode, then) {
+    var renaming = 'rename' === mode || 'first' === mode;
+    var first = 'first' === mode;
     placePanelNear(chip);
     panel.innerHTML =
       '<div class="gogh-panel-title">Name this page</div>' +
-      '<div class="gogh-panel-hint">Its name in menus \u2014 and its web address.</div>' +
+      '<div class="gogh-panel-hint">' + (first ? 'A new page starts with its name \u2014 in menus, and in its web address. You can change it later.' : 'Its name in menus \u2014 and its web address.') + '</div>' +
       '<div class="gogh-panel-row">' +
-      '<input type="text" class="gogh-input gogh-pagename" placeholder="Home, About, Say hello\u2026" />' +
+      '<input type="text" class="gogh-input gogh-pagename" placeholder="' + (first ? 'Page title, e.g. Prices' : 'Home, About, Say hello\u2026') + '" />' +
       '<button type="button" class="gogh-btn gogh-btn-small gogh-pagego">' +
-      (renaming ? 'Save name' : 'Publish page') + '</button>' +
+      (first ? 'Name it' : renaming ? 'Save name' : 'Publish page') + '</button>' +
       '</div>';
     panel.hidden = false;
     panelOpen = true;
+    if (first && then) { var onward = then; then = null; panelCleanup = function () { var f = onward; onward = null; if (f) f(); }; }
     var input = panel.querySelector('.gogh-pagename');
     input.value = String(cfg.postTitle || '').trim() || firstHeadlineText();
     input.focus();
@@ -19923,7 +19931,9 @@
       var name = input.value.trim();
       if (!name) { input.focus(); return; }
       pageNamed = true;
+      if (first) panelCleanup = null; // the way onward runs below, once
       closePanel();
+      if (first && then === null && typeof onward === 'function') { var f2 = onward; onward = null; f2(); }
       if (renaming) {
         // the name saves NOW, on its own — a draft named early is
         // findable even if they wander off before publishing
@@ -25912,10 +25922,12 @@
       // the blank-canvas greeting is for genuinely EMPTY pages — a page
       // full of native blocks (a starter site's home) is not one, and
       // neither is a page a site build is about to fill
-      if (!willBuild && bootContent.length === 1 && isBlankBoot(bootContent[0]) &&
-          !topBlockNodes().length) {
-        openPicker(S.indexOf(bootContent[0]));
-      }
+      var blankBoot = !willBuild && bootContent.length === 1 && isBlankBoot(bootContent[0]) && !topBlockNodes().length;
+      var greet = function () { if (blankBoot) openPicker(S.indexOf(bootContent[0])); };
+      // a page that has no name yet names itself first — the door from
+      // wp-admin used to land on an untitled canvas and ask at Publish
+      if (!willBuild && pageNeedsName()) setTimeout(function () { openPageNamePanel('first', greet); }, 250);
+      else greet();
       try {
         var u = new URL(location.href);
         var wantPhone = u.searchParams.get('gogh-phone') === '1';

@@ -1922,7 +1922,7 @@
       var veils = document.querySelectorAll('.gogh-chromeveil');
       expect(veils.length >= 1, 'no chrome veil in edit mode');
       var pill = veils[0].querySelector('.gogh-chromeveil-pill');
-      expect(pill && /edit site (header|footer)/i.test(pill.textContent), 'pill does not name the region');
+      expect(pill && /edit (header|footer)/i.test(pill.textContent), 'pill does not name the region'); // 'Edit header' since v0.99.612
       var host = veils[0].parentNode;
       pill.click();
       expect(!veils[0].parentNode, 'veil should lift when clicked');
@@ -8922,6 +8922,19 @@
         centred.dispatchEvent(new MouseEvent('mouseleave', { bubbles: false }));
       } finally { body.className = had; G.closePanel(); G.closeSide(true); settleZoom(); }
       return 'full · drawer · sheet, then left · centred';
+    });
+    test('a new page names itself first: the Name this page panel, and the way onward runs once it is out of the way', function () {
+      var ran = 0;
+      G.openPageNamePanel('first', function () { ran++; });
+      var pnl = q('.gogh-panel');
+      try {
+        expect(!pnl.hidden && /Name this page/.test(pnl.textContent), 'the name panel did not open');
+        expect(/name it/i.test(pnl.querySelector('.gogh-pagego').textContent), 'the button should read Name it, got ' + pnl.querySelector('.gogh-pagego').textContent);
+        expect(/Prices/.test(pnl.querySelector('.gogh-pagename').placeholder), 'the field should suggest a title the way Add a page does');
+        expect(ran === 0, 'the way onward ran before the panel was dismissed');
+      } finally { G.closePanel(); }
+      expect(ran === 1, 'dismissing the panel should run the way onward exactly once, ran ' + ran);
+      return 'Name this page · Name it · onward once';
     });
     test('the phone view carries one sentence saying what it is for', function () {
       var note = q('.gogh-phonenote');
