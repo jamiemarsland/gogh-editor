@@ -4,11 +4,11 @@ Everything in this section is extracted mechanically from the Gogh source on eve
 
 ## Current release
 
-- Plugin version: **0.99.603**
+- Plugin version: **0.99.604**
 - Requires WordPress **6.5+**, PHP **7.4+**
 - Text domain: `gogh-editor`
 - readme.txt Stable tag: `0.26.0` · Tested up to: `7.0`
-- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.603`). Quote the plugin header version.
+- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.604`). Quote the plugin header version.
 
 ## Design constants
 
@@ -382,6 +382,7 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "Send backward"
 - "Shape"
 - "Show"
+- "Show the menu open on the page"
 - "Show the next layout"
 - "Shown"
 - "Site designs — a whole site, ready to tweak (replaces this one)"

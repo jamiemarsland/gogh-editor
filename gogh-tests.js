@@ -8778,13 +8778,25 @@
         expect(pnl.classList.contains('gogh-panel-sidebar'), 'the page is not docked as a sidebar');
         expect(pnl.style.left === '0px', 'the sidebar is not on the left: ' + pnl.style.left);
         expect(html.classList.contains('gogh-zoomed'), 'the page did not zoom out beside the panel');
-        expect(pnl.querySelector('.gogh-mmpreview'), 'no preview door');
+        var sw = pnl.querySelector('.gogh-mmpreview');
+        expect(sw && sw.getAttribute('role') === 'switch', 'no Preview the menu switch');
+        expect(/Preview the menu/.test(pnl.querySelector('.gogh-mmprevrow').textContent), 'the switch does not say Preview the menu');
+        var box = hdr.querySelector('.wp-block-navigation__responsive-container');
+        if (box) {
+          expect(box.classList.contains('is-menu-open'), 'the menu is not open on arrival');
+          expect(sw.classList.contains('is-on'), 'the switch is not on while the menu is open');
+          sw.click();
+          expect(!box.classList.contains('is-menu-open') && !sw.classList.contains('is-on'), 'the switch did not close the menu');
+          sw.click();
+          expect(box.classList.contains('is-menu-open'), 'the switch did not open the menu again');
+        }
         await new Promise(function (r) { setTimeout(r, 30); }); // the room adds its Back link a microtask later
         var back = pnl.querySelector('.gogh-room-back');
         expect(back, 'no Back to header link');
         back.click();
         expect(backs === 1, 'Back did not return to the header room');
         expect(html.classList.contains('gogh-zoomed'), 'Back unzoomed on the way to the header room (it should re-open in place)');
+        if (box) expect(!box.classList.contains('is-menu-open'), 'Back left the menu open');
       } finally { G.closePanel(); G.device.desktop(); settleZoom(); }
       expect(!html.classList.contains('gogh-zoomed'), 'closing the page left the zoom on');
       var s1 = snap(), leaks = [];

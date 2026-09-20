@@ -1674,6 +1674,12 @@ body.gogh-painting, body.gogh-painting .gogh-section * { cursor: url('data:image
 .gogh-hswitch.is-on { background: var(--gogh-ui-accent, #4a63d8); }
 .gogh-hswitch.is-on .gogh-hswitch-knob { transform: translateX(16px); }
 .gogh-hswitch:focus-visible { outline: 2px solid var(--gogh-ui-accent, #4a63d8); outline-offset: 2px; }
+/* the Mobile menu page's preview switch: a hamburger, the words, the switch */
+.gogh-mmprevrow { justify-content: flex-start; margin-bottom: 4px; }
+.gogh-mmprevrow .gogh-mmprev-word { font-weight: 600; white-space: nowrap; }
+.gogh-mmprevrow .gogh-mmpreview { margin-left: auto; }
+.gogh-mm-burger { display: grid; place-items: center; width: 26px; height: 26px; border-radius: 7px; background: var(--gogh-ui-hover, #f1f2f5); color: var(--gogh-ui-fg); flex: none; }
+.gogh-mm-burger svg { display: block; }
 
 /* the way back from a drill-down: a page of the same modal */
 /* generous: a real pill with room to land on (James: "a little ungenerous") */

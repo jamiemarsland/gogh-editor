@@ -24062,8 +24062,11 @@
       // and the door used to sit at its foot, below the fold, so you had to
       // scroll inside the panel to find it (James: 'when the modal opens you
       // can't see it - you have to scroll to see it')
-      '<div class="gogh-hdoors gogh-hdoors-top"><button type="button" class="gogh-hdoor gogh-mmpreview"><span>' +
-      (partEl && partEl.querySelector('.is-menu-open') ? 'Close the menu' : 'Open the menu to preview') + '</span><span class="gogh-hdoor-chev">›</span></button></div>' +
+      // the menu is open when you arrive — every hover shows at once — and
+      // this switch, already on, is the way to see the page behind it
+      // (James: the door 'reads like it goes somewhere'; 'Preview the menu')
+      '<div class="gogh-hstickyrow gogh-mmprevrow"><span class="gogh-mm-burger" aria-hidden="true"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h16"/></svg></span><span class="gogh-mmprev-word">Preview the menu</span>' +
+      '<button type="button" class="gogh-hswitch gogh-mmpreview is-on" role="switch" aria-checked="true" title="Show the menu open on the page"><span class="gogh-hswitch-knob"></span></button></div>' +
       '<div class="gogh-swlab">Opens as</div>' + list('gogh-mmlay', MENU_LAYOUTS, st.layout) +
       '<div class="gogh-swlab">Wears</div>' + list('gogh-mmground', MENU_GROUNDS, st.ground) +
       // what phones want at the foot of the menu: a way to call, to write, to sign in
@@ -24078,11 +24081,20 @@
     var closeX = panel.querySelector('.gogh-panel-close');
     if (closeX) closeX.addEventListener('click', function () { menuOverlayToggle(partEl, false); menuStyleWear(kept); closePanel(); });
     var prev = panel.querySelector('.gogh-mmpreview');
+    var dressPrev = function () {
+      var isOpen = !!(partEl && partEl.querySelector('.is-menu-open'));
+      prev.classList.toggle('is-on', isOpen);
+      prev.setAttribute('aria-checked', isOpen ? 'true' : 'false');
+    };
     prev.addEventListener('click', function () {
       var isOpen = !!(partEl && partEl.querySelector('.is-menu-open'));
       if (!menuOverlayToggle(partEl, !isOpen)) { toast('This header has no menu button to open.', { error: true }); return; }
-      prev.firstChild.textContent = isOpen ? 'Open the menu to preview' : 'Close the menu';
+      dressPrev();
     });
+    // open on arrival, closed on the way out (Back to header, ✕, Esc)
+    if (partEl && !menuOverlayToggle(partEl, true)) dressPrev();
+    var pageCleanup = panelCleanup;
+    panelCleanup = function () { menuOverlayToggle(partEl, false); if (pageCleanup) pageCleanup(); };
     var keep = function (quiet) {
       kept = Object.assign({}, kept, { layout: st.layout, ground: st.ground });
       cfg.menuStyle = kept;
@@ -24102,7 +24114,11 @@
     // the extras and the phone menu save on change and re-render the header,
     // so the overlay preview shows them at once
     var keepExtras = function (msg) {
-      keep(true).then(function () { return refreshChromePart(partEl); }).then(function () { if (msg) toast(msg); });
+      keep(true).then(function () { return refreshChromePart(partEl); }).then(function () {
+        // the fresh header arrives with its menu shut — reopen it if the switch says so
+        if (prev.classList.contains('is-on')) menuOverlayToggle(partEl, true);
+        if (msg) toast(msg);
+      });
     };
     var phoneIn = panel.querySelector('.gogh-mm-phone'), emailIn = panel.querySelector('.gogh-mm-email');
     phoneIn.addEventListener('change', function () { kept.phone = phoneIn.value.trim(); keepExtras(kept.phone ? 'Phones get a Call link at the foot of the menu.' : 'Call link removed.'); });
