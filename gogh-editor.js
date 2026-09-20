@@ -8010,7 +8010,7 @@
       { type: 'para', x: 98, y: 288, w: 440, h: 24, text: 'No forms and no decks \u2014 just a conversation about what you are building.', tf: { col: 'color-mix(in srgb, var(--wp--preset--color--base, #fff) 75%, transparent)' } },
       { type: 'button', x: 884, y: 192, w: 220, h: 48, text: 'Book a call', tf: { bg: 'var(--wp--preset--color--base, #fff)', col: 'var(--wp--preset--color--contrast, #141519)' } },
     ] },
-    { starter: true, intent: 'sell', name: 'Get in touch', minH: 720, els: [
+    { starter: true, intent: 'sell', name: 'Get in touch', label: 'Contact form', minH: 720, els: [
       { type: 'para', x: 400, y: 72, w: 400, h: 24, align: 'center', text: 'Say hello',
         tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
       { type: 'heading', x: 300, y: 120, w: 600, h: 96, text: 'Let\u2019s talk', fs: '__max', align: 'center' },
@@ -10453,7 +10453,7 @@
         '<span class="gogh-card-prev"><style>' + css + '</style>' +
         '<span class="gogh-card-stage gogh-wrap"><span class="gogh-card-sec gogh-section ' + scope + '">' + inner + '</span></span>' +
         '</span>' +
-        '<span class="gogh-card-name">' + tpl.name +
+        '<span class="gogh-card-name">' + (tpl.label || tpl.name) +
         (popular ? '<span class="gogh-pop">🔥 Popular</span>' : '') + '</span>' +
         '</button>';
     };
@@ -12382,7 +12382,7 @@
         miss: 'Say what kind — “add a testimonials section”, “add a pricing section” — or use the + between sections.',
         build: function () {
           if (!seam) return [];
-          return [{ name: seam.tpl.name + ' — below this one', apply: function (s) {
+          return [{ name: (seam.tpl.label || seam.tpl.name) + ' — below this one', apply: function (s) {
             askSeamInsert(seam, S.indexOf(s) + 1, null);
           } }];
         } };
