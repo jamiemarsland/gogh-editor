@@ -8759,6 +8759,32 @@
       st.remove(); probe.remove();
       return 'max-width on, min-width off' + (openBtn ? ', hamburger shown' : '') + ', all restored';
     });
+    testAsync('the Mobile menu page docks on the left with the page zoomed beside it, so no menu layout can hide behind it', async function () {
+      var hdr = q('.wp-site-blocks header');
+      expect(hdr, 'no header on the fixture');
+      var html = document.documentElement, pnl = q('.gogh-panel');
+      var backs = 0;
+      var snap = function () { return { hdr: hdr.className, html: html.className, body: document.body.className, side: q('.gogh-side').className, live: !!hdr.querySelector('.gogh-chrome-live, [contenteditable="true"]'), inner: hdr.innerHTML.length }; };
+      var s0 = snap();
+      try {
+        G.openMenuStylePage(hdr, { room: hdr, area: 'header', back: function () { backs++; } });
+        expect(!pnl.hidden, 'the Mobile menu page did not open');
+        expect(pnl.classList.contains('gogh-panel-sidebar'), 'the page is not docked as a sidebar');
+        expect(pnl.style.left === '0px', 'the sidebar is not on the left: ' + pnl.style.left);
+        expect(html.classList.contains('gogh-zoomed'), 'the page did not zoom out beside the panel');
+        expect(pnl.querySelector('.gogh-mmpreview'), 'no preview door');
+        await new Promise(function (r) { setTimeout(r, 30); }); // the room adds its Back link a microtask later
+        var back = pnl.querySelector('.gogh-room-back');
+        expect(back, 'no Back to header link');
+        back.click();
+        expect(backs === 1, 'Back did not return to the header room');
+        expect(!html.classList.contains('gogh-zoomed'), 'Back left the page zoomed');
+      } finally { G.closePanel(); G.device.desktop(); }
+      expect(!html.classList.contains('gogh-zoomed'), 'closing the page left the zoom on');
+      var s1 = snap(), leaks = [];
+      Object.keys(s0).forEach(function (k) { if (String(s0[k]) !== String(s1[k])) leaks.push(k + ': ' + JSON.stringify(s0[k]).slice(0, 120) + ' -> ' + JSON.stringify(s1[k]).slice(0, 120)); });
+      return 'sidebar left, page zoomed, Back unzooms' + (leaks.length ? ' | LEAKS ' + leaks.join(' ; ') : ' | no state leaked');
+    });
     test('the phone view carries one sentence saying what it is for', function () {
       var note = q('.gogh-phonenote');
       expect(note && note.hidden, 'the sentence should be hidden on the desktop');

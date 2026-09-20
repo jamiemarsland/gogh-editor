@@ -23912,11 +23912,26 @@
   // a drill-down from the header room stays IN the room — same stage-card
   // seat, same spotlight, a soft content swap. The old jump-to-a-corner
   // scene change was the jank (James: "pretty janky").
-  function stayInRoom(roomOpt, anchorEl) {
+  // asSide: dock on the LEFT with the page zoomed out beside it, the way
+  // Site style and Fonts do, instead of centred under the header. The
+  // Mobile menu page needs it: its preview opens the real menu, and the
+  // menu is drawn inside the page's own box, so a panel over the page hid
+  // the Centred layout behind its own controls (James: 'how about we use
+  // the side panel - like we do for other stuff'). Beside the page, no
+  // layout can ever be under the panel.
+  function stayInRoom(roomOpt, anchorEl, asSide) {
     if (roomOpt && roomOpt.room) {
-      dockPanel(roomOpt.room);
-      enterChromeMode(roomOpt.room, roomOpt.area);
-      panelCleanup = exitChromeMode;
+      if (asSide) {
+        // no dim and no spotlight: the subject here is the open menu, not
+        // the header, and the scrim made the docked panel look disabled
+        dockSidebar(); zoomOutCanvas();
+        railBox.classList.add('is-away'); // the rail steps aside for a docked page, as it does for a drawer
+        panelCleanup = function () { railBox.classList.remove('is-away'); };
+      } else {
+        dockPanel(roomOpt.room);
+        enterChromeMode(roomOpt.room, roomOpt.area);
+        panelCleanup = exitChromeMode;
+      }
       panel.classList.add('gogh-room-swap');
       panel.addEventListener('animationend', function h() {
         panel.classList.remove('gogh-room-swap');
@@ -23976,7 +23991,7 @@
     return false;
   }
   function openMenuStylePage(anchorEl, roomOpt) {
-    stayInRoom(roomOpt, anchorEl);
+    stayInRoom(roomOpt, anchorEl, true);
     var ms0 = cfg.menuStyle || {};
     var kept = { layout: ms0.layout || 'stack', ground: ms0.ground || 'light', phone: ms0.phone || '', email: ms0.email || '', account: !!ms0.account, phoneMenu: +ms0.phoneMenu || 0 };
     var st = { layout: kept.layout, ground: kept.ground };
