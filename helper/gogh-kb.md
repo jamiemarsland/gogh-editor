@@ -15,7 +15,7 @@ about something where they conflict, rather than picking one silently. Quote UI
 labels and message copy from the appendix, verbatim — those are the current
 strings, and a paraphrased button label is the fastest way to lose a user's trust.
 
-Generated for plugin version 0.99.615 · knowledge base e72ef57.
+Generated for plugin version 0.99.616 · knowledge base 5c4a428.
 
 ---
 
@@ -809,6 +809,8 @@ The helper's welcome panel opens with a 35-second film of gogh being used (v0.99
 
 **Seeing the page on a phone (v0.99.594).** Two words sit at the top right of the admin bar the whole time you are editing, just left of the ? help button: **Desktop | Phone**. Press **Phone** and the page is pinned to a phone's width (390px) on the zoomed-out desk, with the page's real mobile layout live, so you can tune it (Hide on phone, move up/down in the phone stack). It needs no drawer open; **Desktop** puts the page back. (The Page drawer's *See it on a phone* card was removed in v0.99.611: the top bar's Phone is the one door.) Opening and closing drawers or panels while on the phone keeps the phone view; only Desktop (or ⌥Z) leaves it. Leaving the editor leaves it too. Seven of the first sixty-four testers reported "there is no phone button" because the switch used to live inside the zoom slider, which only appears while a drawer is open. There is no phone button in the zoom slider any more.
 
+**The see-through header sits flush in the design view (v0.99.616).** It sits 32px down on the real page to clear the admin bar; in the zoomed design view and the phone view the page already starts below the bar, so a band of hero used to show above it. Under a zoom it now sits at the page's top.
+
 **Contact form (v0.99.615).** The section layout that carries gogh's form is called *Contact form* in the picker and on the seam (it was *Get in touch*; saved sections, blueprints and site definitions keep the old key and still work).
 
 **The site name changes as you type (v0.99.614).** In *Logo & name*, the Name field paints the header's site title with every keystroke and saves about a second after you stop typing; it used to wait until you left the field. If the save fails the painted name goes back.
@@ -854,11 +856,11 @@ Everything in this section is extracted mechanically from the Gogh source on eve
 
 ## Current release
 
-- Plugin version: **0.99.615**
+- Plugin version: **0.99.616**
 - Requires WordPress **6.5+**, PHP **7.4+**
 - Text domain: `gogh-editor`
 - readme.txt Stable tag: `0.26.0` · Tested up to: `7.0`
-- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.615`). Quote the plugin header version.
+- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.616`). Quote the plugin header version.
 
 ## Design constants
 

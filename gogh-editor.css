@@ -205,6 +205,12 @@ html.gogh-phone-preview .gogh-wrap:has(> .gogh-msec-hidden)::after {
 html.gogh-phone-preview .gogh-section.gogh-msec-hidden {
   opacity: 0.32; max-height: 180px; overflow: hidden;
 }
+/* a see-through header sits 32px down to clear the admin bar on the real
+   page; inside the zoomed artboard the page already starts below the bar,
+   so that offset showed as a band of hero above the header (James:
+   'there's an extra bit showing above the header'). Under a zoom it sits
+   at the artboard's top. */
+html.gogh-zoomed header.wp-block-template-part:has(.gogh-header-overlay) { top: 0 !important; }
 /* a sticky header inside the zoomed artboard: the page sits in a scaled
    transform there, and neither sticky nor fixed answers to the window
    through it — sticky scrolls away, fixed pins to the artboard's top and
