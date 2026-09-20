@@ -15,7 +15,7 @@ about something where they conflict, rather than picking one silently. Quote UI
 labels and message copy from the appendix, verbatim — those are the current
 strings, and a paraphrased button label is the fastest way to lose a user's trust.
 
-Generated for plugin version 0.99.605 · knowledge base 6cb4107.
+Generated for plugin version 0.99.606 · knowledge base ce710c4.
 
 ---
 
@@ -815,6 +815,8 @@ The helper's welcome panel opens with a 35-second film of gogh being used (v0.99
 
 **The Mobile menu page opens with the menu open (v0.99.604).** Arrive and the real menu is already open on the page beside the panel, so every layout and ground you hover shows at once. Under the intro line a switch with a hamburger icon, **Preview the menu**, is already on; turn it off to see the page behind. Back to header, ✕ and Esc close the menu on the way out. Saving a phone number or email re-renders the header and the menu reopens by itself if the switch is on. (Before: an *Open the menu to preview* row that looked like a door to another page.)
 
+**Stack and Centred now differ (v0.99.606).** Stack is big type left-aligned down the screen; Centred centres every line. Stack used to inherit the header menu's own alignment, so on a centred header the two looked the same.
+
 **The open menu keeps to the window in a zoomed view (v0.99.605).** Inside the zoomed page, a menu positioned to the screen answers to the page's box instead, so Stack and Centred filled the whole page, Drawer ran the page's height and Sheet landed at the page's foot, out of sight. While the menu is open under a zoom, gogh pins its box to the part of the page the window shows and re-pins on every layout change, scroll or resize, so Sheet auditions and every layout looks as it does on a phone. Nothing of this runs on the real page.
 
 **The phone view survives navigation (v0.99.605).** Press one of your own pages while on the phone and it opens in the editor, still on the phone: the link carries `gogh-edit=1&gogh-phone=1`, the next page reads them at boot and strips them from the address. Other sites, files, wp-admin and anchors on the same page are left alone. Unpublished changes still ask before leaving.
@@ -846,11 +848,11 @@ Everything in this section is extracted mechanically from the Gogh source on eve
 
 ## Current release
 
-- Plugin version: **0.99.605**
+- Plugin version: **0.99.606**
 - Requires WordPress **6.5+**, PHP **7.4+**
 - Text domain: `gogh-editor`
 - readme.txt Stable tag: `0.26.0` · Tested up to: `7.0`
-- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.605`). Quote the plugin header version.
+- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.606`). Quote the plugin header version.
 
 ## Design constants
 
