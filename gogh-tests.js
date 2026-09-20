@@ -3358,7 +3358,7 @@
       expect(!document.querySelector('.gogh-chrome-preview'), 'preview left behind after collapse');
     });
 
-    test('header panel: layout, look, spacing, sticky in one home, one Apply', function () {
+    test('header panel: layout, look, spacing, sticky in one home, and no Done', function () {
       var pill = q('.gogh-chromebtn');
       expect(pill, 'no chrome pill on the page');
       var partEl = pill.__goghPart;
@@ -3382,15 +3382,12 @@
         expect(panel.querySelector('.gogh-hsticky'), 'sticky toggle missing');
         expect(!!panel.querySelector('.gogh-hfreeform') === !!(window.GOGH && GOGH.experiments), 'the freeform door should show only in experiments');
         expect(panel.querySelector('.gogh-panel-close'), 'sticky panel must show its own door');
-        var apply = panel.querySelector('.gogh-happly');
-        expect(apply, 'the single Done button is missing');
+        expect(!panel.querySelector('.gogh-happly') && !panel.querySelector('.gogh-hcancel'), 'the room keeps on click now — no Done, no Cancel');
         // header-room model: Done is always clickable — with nothing armed it
         // just leaves the room; touching a control makes it save on the way out
-        expect(!apply.disabled, 'Done must always be clickable in the header room');
-        expect(/done/i.test(apply.textContent), 'the save button should read Done');
         // touching anything still keeps exactly one save home
         panel.querySelector('.gogh-hsticky').click();
-        expect(panel.querySelectorAll('.gogh-happly').length === 1, 'must stay one single Done button');
+        expect(panel.querySelector('.gogh-panel-close'), 'the room needs its own way back');
         // docked and fully on screen (the below-the-fold family of bugs)
         var r = panel.getBoundingClientRect();
         expect(r.top >= 0 && r.bottom <= window.innerHeight + 1,
@@ -8963,10 +8960,9 @@
       var html = document.documentElement;
       try {
         G.openSide('page');
-        var door = q('.gogh-side .gogh-phonebtn');
-        expect(door, 'no See it on a phone door in the Page drawer');
-        door.click();
-        expect(html.classList.contains('gogh-phone-preview'), 'the drawer door did not enter the phone view');
+        expect(!q('.gogh-side .gogh-phonebtn'), 'the See it on a phone card should be gone — the top bar has Phone');
+        G.device.phone();
+        expect(html.classList.contains('gogh-phone-preview'), 'Phone did not enter the phone view with the drawer open');
         G.closeSide(true);
         expect(html.classList.contains('gogh-phone-preview'), 'closing the drawer dropped the phone view');
         expect(html.classList.contains('gogh-zoomed'), 'closing the drawer unzoomed under the phone');

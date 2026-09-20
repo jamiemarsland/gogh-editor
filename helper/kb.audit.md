@@ -1,4 +1,4 @@
-# Knowledge-base audit — plugin v0.99.610
+# Knowledge-base audit — plugin v0.99.611
 
 _13 finding(s) suppressed by `kb.audit-ignore.txt`._
 
@@ -119,4 +119,7 @@ Quoted copy not found verbatim in the source. Paraphrases are fine; changed UI c
 
 Use this as the checklist for updating the prose — and as a sanity check on the release itself.
 
-- version: 0.99.609 → 0.99.610
+- version: 0.99.610 → 0.99.611
+- removed UI label: "Keeps your changes on every page"
+- added toast: "Could not put the "
+- added toast: "The "

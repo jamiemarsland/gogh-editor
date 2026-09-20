@@ -2418,10 +2418,6 @@
     '<span class="gogh-scard-ic"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 8v8M8 12h8"/></svg></span>' +
     '<span class="gogh-scard-tx"><span class="gogh-scard-t">Add a page</span><span class="gogh-scard-s">A new page, ready to fill</span></span>' +
     '<svg class="gogh-scard-chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg></button>' +
-    '<button type="button" class="gogh-sitem gogh-scard gogh-phonebtn">' +
-    '<span class="gogh-scard-ic"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><rect x="7" y="3" width="10" height="18" rx="2.5"/><path d="M11 18h2"/></svg></span>' +
-    '<span class="gogh-scard-tx"><span class="gogh-scard-t">See it on a phone</span><span class="gogh-scard-s">How this page looks on a small screen</span></span>' +
-    '<svg class="gogh-scard-chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg></button>' +
     '<button type="button" class="gogh-sitem gogh-scard gogh-pagestylebtn">' +
     '<span class="gogh-scard-ic"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M14 3v6h6"/></svg></span>' +
     '<span class="gogh-scard-tx"><span class="gogh-scard-t">Page style</span><span class="gogh-scard-s">How this page is framed</span></span>' +
@@ -18253,9 +18249,6 @@
   side.querySelector('.gogh-pagestylebtn').addEventListener('click', function (ev) {
     openPageStylePanel(ev.currentTarget);
   });
-  side.querySelector('.gogh-phonebtn').addEventListener('click', function () {
-    if (deviceMode === 'phone') seeOnDesktop(); else seeOnPhone();
-  });
   side.querySelector('.gogh-addpagebtn').addEventListener('click', function (ev) {
     openAddPagePanel(ev.currentTarget);
   });
@@ -21984,10 +21977,7 @@
       (cfg.experiments ? '<button type="button" class="gogh-btn gogh-btn-small gogh-hfreeform">✨ Make it freeform</button>' : '') +
       '</div>' +
       '</div>' + // end .gogh-hmorebox
-      '<div class="gogh-panel-row gogh-chrome-foot">' +
-      '<button type="button" class="gogh-btn gogh-btn-small gogh-hcancel">Cancel</button>' +
-      '<button type="button" class="gogh-btn gogh-btn-save gogh-btn-small gogh-happly" title="Keeps your changes on every page">Done</button>' +
-      '</div>';
+      '';
     // the room docks on the LEFT like Site style and Fonts, the page zoomed
     // out beside it (James: 'use the left panel for everything when folks
     // click on edit header'); the part keeps its ring and label, nothing
@@ -21995,12 +21985,73 @@
     // zoomed page scrolls down to it.
     dockRoomSide(partEl, area);
     panel.dataset.goghArea = area;
-    var applyBtn = panel.querySelector('.gogh-happly');
     var armed = false;
-    var arm = function () { armed = true; };
+    // ---- keep on click ----
+    // The room used to gather every change behind Done and reload the page;
+    // the other docked panels keep each click straight away, and the header
+    // alone had a confirmation step (James). Now a change waits a moment for
+    // its neighbours — a dial still dragging, a colour being compared — then
+    // writes the part and re-renders the header where it stands, and the
+    // room re-opens from what was saved. Undo on the receipt writes the
+    // previous markup back.
+    var keepTimer = null;
+    var keepChain = Promise.resolve();
+    var buildBase = function () {
+      var base = (st.layoutId !== (activeOpt && activeOpt.id))
+        ? chromeLayoutContent(area, chosenOpt(), area === 'header' ? usingLogo : null)
+        : raw0;
+      if (st.dials) base = chromeDialsApply(base, st.dials) || base;
+      if (st.look !== undefined) base = chromeColorApply(base, st.look && (st.look.bg || st.look.custom || st.look.ink || st.look.inkHex) ? st.look : null) || base;
+      if (st.caseTT != null) base = chromeCaseApply(base, st.caseTT) || base;
+      if (st.sticky !== st.sticky0) base = stickyRawToggle(base, st.sticky) || base;
+      return base;
+    };
+    var writePart = function (content) {
+      return fetch(tpUrl(active.id), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-WP-Nonce': cfg.nonce },
+        credentials: 'same-origin',
+        body: JSON.stringify({ content: content }),
+      }).then(function (r) { if (!r.ok) throw new Error('HTTP ' + r.status); });
+    };
+    // after a write: the header is re-rendered in place and, if the room is
+    // still open, re-opened from the saved markup so its controls tell the truth
+    var settle = function (content, opt) {
+      endChromePreview();
+      chromeDialsRevert(partEl); chromeColorRevert(partEl); chromeCaseRevert(partEl);
+      return refreshChromePart(partEl).then(function () {
+        if (!panel.hidden && panel.dataset.goghArea === area) {
+          openHeaderPanel(partEl, area, options, opt, { id: active.id, content: { raw: content } });
+        }
+      });
+    };
+    var keepNow = function () {
+      clearTimeout(keepTimer); keepTimer = null;
+      if (!armed) return keepChain;
+      armed = false;
+      var prev = raw0, prevOpt = activeOpt;
+      var base = buildBase();
+      var opt = (st.layoutId !== (activeOpt && activeOpt.id)) ? chosenOpt() : activeOpt;
+      if (base === prev) return keepChain;
+      keepChain = keepChain.then(function () {
+        return writePart(base).then(function () { return settle(base, opt); }).then(function () {
+          toast('The ' + area + ' is kept \u2014 it is on every page.', { ttl: 6000, actions: [{ label: 'Undo', onClick: function () {
+            writePart(prev).then(function () { return settle(prev, prevOpt); })
+              .catch(function () { toast('Could not put the ' + area + ' back.', { error: true }); });
+          } }] });
+        }).catch(function () {
+          armed = true;
+          toast('Could not update the ' + area + '.', { error: true });
+        });
+      });
+      return keepChain;
+    };
+    var scheduleKeep = function () { clearTimeout(keepTimer); keepTimer = setTimeout(keepNow, 900); };
+    var arm = function () { armed = true; scheduleKeep(); };
     // closePanel runs this on EVERY close path — Esc left the header
     // wearing a stranded preview + dial padding (the "gap under the nav")
     panelCleanup = function () {
+      keepNow(); // a change still waiting is kept on the way out
       // reverts FIRST, preview-end LAST: a dial snapshot taken while a
       // layout preview had the originals hidden re-applies display:none —
       // endChromePreview's explicit unhide must have the final word
@@ -22018,9 +22069,8 @@
       if (st.look !== undefined) chromeColorPreview(partEl, st.look);
       if (st.caseTT != null) chromeCasePreview(partEl, st.caseTT);
     };
-    var bail = function () { roomBackToCards(); }; // revert (panelCleanup) and back to the cards
+    var bail = function () { keepNow(); roomBackToCards(); }; // a change still waiting is kept on the way out
     panel.querySelector('.gogh-panel-close').addEventListener('click', bail);
-    panel.querySelector('.gogh-hcancel').addEventListener('click', bail);
     // Escape leaves the room the safe way — Cancel (closePanel reverts every
     // audition via panelCleanup). Registered here, retired on close.
     var onEsc = function (ev) { if (ev.key === 'Escape') { ev.stopPropagation(); bail(); } };
@@ -22314,37 +22364,6 @@
       syncAlpha();
     }
     // ONE Apply: compose every touched change into a single save
-    applyBtn.addEventListener('click', function () {
-      // Done with nothing changed just leaves the room — no needless save,
-      // no reload. A beginner clicks Done to say "I'm finished here."
-      if (!armed) { roomBackToCards(); return; }
-      var base = (st.layoutId !== (activeOpt && activeOpt.id))
-        ? chromeLayoutContent(area, chosenOpt(), area === 'header' ? usingLogo : null)
-        : raw0;
-      if (st.dials) base = chromeDialsApply(base, st.dials) || base;
-      if (st.look !== undefined) base = chromeColorApply(base, st.look && (st.look.bg || st.look.custom || st.look.ink || st.look.inkHex) ? st.look : null) || base;
-      if (st.caseTT != null) base = chromeCaseApply(base, st.caseTT) || base;
-      if (st.sticky !== st.sticky0) base = stickyRawToggle(base, st.sticky) || base;
-      applyBtn.disabled = true;
-      applyBtn.textContent = 'Applying\u2026';
-      confirmChromeReload(area, function () {
-        fetch(tpUrl(active.id), {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'X-WP-Nonce': cfg.nonce },
-          credentials: 'same-origin',
-          body: JSON.stringify({ content: base }),
-        }).then(function (r) {
-          if (!r.ok) throw new Error('HTTP ' + r.status);
-          discarding = true;
-          try { sessionStorage.setItem('gogh-reopen-side', 'site'); } catch (e) {} // land back on the Site cards
-          location.reload();
-        }).catch(function () {
-          applyBtn.disabled = false;
-          applyBtn.textContent = 'Apply';
-          toast('Could not update the ' + area + '.', { error: true });
-        });
-      });
-    });
   }
   function openChromeLayoutPanel(partEl, area, options, activeOpt, active) {
     var selId = activeOpt ? activeOpt.id : null;
