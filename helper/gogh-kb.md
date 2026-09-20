@@ -15,7 +15,7 @@ about something where they conflict, rather than picking one silently. Quote UI
 labels and message copy from the appendix, verbatim — those are the current
 strings, and a paraphrased button label is the fastest way to lose a user's trust.
 
-Generated for plugin version 0.99.616 · knowledge base 5c4a428.
+Generated for plugin version 0.99.617 · knowledge base bb261b3.
 
 ---
 
@@ -815,7 +815,7 @@ The helper's welcome panel opens with a 35-second film of gogh being used (v0.99
 
 **The site name changes as you type (v0.99.614).** In *Logo & name*, the Name field paints the header's site title with every keystroke and saves about a second after you stop typing; it used to wait until you left the field. If the save fails the painted name goes back.
 
-**Name first, everywhere (v0.99.613).** Every road into a new page now starts with its name. The Page drawer's *Add a page* always did; the WordPress door (*+ New → Page*, or Add Page in the dashboard) used to land on an untitled canvas and ask at Publish. Now a page with no name opens with **Name this page** the moment it lands (*A new page starts with its name — in menus, and in its web address. You can change it later.*), the name saves at once, and only then does the blank-page section picker appear. Dismiss the panel and the picker still comes; Publish still pauses for a name if the page has none. Rename any time from the page chip.
+**Name first, everywhere (v0.99.613).** Every road into a new page now starts with its name. The Page drawer's *Add a page* always did; the WordPress door (*+ New → Page*, or Add Page in the dashboard) used to land on an untitled canvas and ask at Publish. Now a page with no name opens with **Name this page** as a modal in the middle of the page over a dim (v0.99.617; it was a small panel by the page chip, which went unseen) the moment it lands (*A new page starts with its name — in menus, and in its web address. You can change it later.*), the name saves at once, and only then does the blank-page section picker appear. Dismiss the panel and the picker still comes; Publish still pauses for a name if the page has none. Rename any time from the page chip.
 
 **Hiding things on phones, from the desktop (v0.99.596).** You no longer have to be in the phone view to learn that pieces can be hidden or reordered for small screens. Every piece's bar has a **phone button** (a small phone; lit and slashed once the piece is hidden on phones) — press it to hide the piece on phones, press again to show it. Every piece that has a panel (button, image, video, box, widget, line, icon, embed) ends with an **On phones** row: **Shown | Hidden** and **See it on a phone**, which opens the phone view. A section's ⋯ menu has **Hide on phones** (then **Show on phones**). Hiding says so in a toast with a *See it on a phone* door, and on the desktop canvas a hidden piece wears a small **Hidden on phones** tag. Inside the phone view one sentence sits under the phone the whole time: *"Press anything to hide it on phones or move it up and down."* Reordering for phones (move up / move down) still lives in the phone view only.
 
@@ -856,11 +856,11 @@ Everything in this section is extracted mechanically from the Gogh source on eve
 
 ## Current release
 
-- Plugin version: **0.99.616**
+- Plugin version: **0.99.617**
 - Requires WordPress **6.5+**, PHP **7.4+**
 - Text domain: `gogh-editor`
 - readme.txt Stable tag: `0.26.0` · Tested up to: `7.0`
-- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.616`). Quote the plugin header version.
+- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.617`). Quote the plugin header version.
 
 ## Design constants
 

@@ -19911,7 +19911,22 @@
   function openPageNamePanel(mode, then) {
     var renaming = 'rename' === mode || 'first' === mode;
     var first = 'first' === mode;
-    placePanelNear(chip);
+    // the first name is a MODAL in the middle of the page over a dim: the
+    // page is empty because they have just arrived, and a panel tucked by
+    // the chip went unseen (James: 'folks will not see the modal imo')
+    var scrim = null;
+    if (first) {
+      panel.hidden = false;
+      panel.style.left = ''; panel.style.top = ''; panel.style.right = ''; panel.style.bottom = ''; panel.style.maxHeight = '';
+      panel.classList.add('gogh-panel-modal');
+      scrim = document.createElement('div');
+      scrim.className = 'gogh-panel-scrim';
+      document.body.appendChild(scrim);
+      panelAnchor = null;
+      panelSticky = true; // a click on the dim is not a click away
+    } else {
+      placePanelNear(chip);
+    }
     panel.innerHTML =
       '<div class="gogh-panel-title">Name this page</div>' +
       '<div class="gogh-panel-hint">' + (first ? 'A new page starts with its name \u2014 in menus, and in its web address. You can change it later.' : 'Its name in menus \u2014 and its web address.') + '</div>' +
@@ -19922,7 +19937,12 @@
       '</div>';
     panel.hidden = false;
     panelOpen = true;
-    if (first && then) { var onward = then; then = null; panelCleanup = function () { var f = onward; onward = null; if (f) f(); }; }
+    var unmodal = function () {
+      panel.classList.remove('gogh-panel-modal');
+      if (scrim && scrim.parentNode) scrim.parentNode.removeChild(scrim);
+      scrim = null;
+    };
+    if (first) { var onward = then; then = null; panelCleanup = function () { unmodal(); var f = onward; onward = null; if (f) f(); }; }
     var input = panel.querySelector('.gogh-pagename');
     input.value = String(cfg.postTitle || '').trim() || firstHeadlineText();
     input.focus();
@@ -19931,9 +19951,9 @@
       var name = input.value.trim();
       if (!name) { input.focus(); return; }
       pageNamed = true;
-      if (first) panelCleanup = null; // the way onward runs below, once
+      if (first) { panelCleanup = null; unmodal(); } // the way onward runs below, once
       closePanel();
-      if (first && then === null && typeof onward === 'function') { var f2 = onward; onward = null; f2(); }
+      if (first && typeof onward === 'function') { var f2 = onward; onward = null; f2(); }
       if (renaming) {
         // the name saves NOW, on its own — a draft named early is
         // findable even if they wander off before publishing

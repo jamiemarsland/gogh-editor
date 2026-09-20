@@ -8931,8 +8931,12 @@
         expect(!pnl.hidden && /Name this page/.test(pnl.textContent), 'the name panel did not open');
         expect(/name it/i.test(pnl.querySelector('.gogh-pagego').textContent), 'the button should read Name it, got ' + pnl.querySelector('.gogh-pagego').textContent);
         expect(/Prices/.test(pnl.querySelector('.gogh-pagename').placeholder), 'the field should suggest a title the way Add a page does');
+        expect(pnl.classList.contains('gogh-panel-modal') && q('.gogh-panel-scrim'), 'the first name should be a modal over a dim, not a panel by the chip');
+        var pr = pnl.getBoundingClientRect();
+        expect(Math.abs((pr.left + pr.width / 2) - window.innerWidth / 2) < 40, 'the modal is not centred: ' + Math.round(pr.left + pr.width / 2) + ' of ' + window.innerWidth);
         expect(ran === 0, 'the way onward ran before the panel was dismissed');
       } finally { G.closePanel(); }
+      expect(!pnl.classList.contains('gogh-panel-modal') && !q('.gogh-panel-scrim'), 'the modal or its dim lingered after closing');
       expect(ran === 1, 'dismissing the panel should run the way onward exactly once, ran ' + ran);
       return 'Name this page · Name it · onward once';
     });
