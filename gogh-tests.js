@@ -8926,25 +8926,6 @@
       } finally { body.className = had; G.closePanel(); G.closeSide(true); settleZoom(); }
       return 'full · drawer · sheet, then left · centred';
     });
-    testAsync('the Page drawer has a way to get in touch: pressing it puts a form on the page', async function () {
-      var snap = G.serialize();
-      var forms = function () { return G.sections().filter(function (s) { return !s.chrome; }).reduce(function (n, s) { return n + s.els.filter(function (e) { return e.type === 'widget' && /gogh\/form/.test(e.wsrc || ''); }).length; }, 0); }; // gogh's form is a widget carrying wp:gogh/form
-      var before = forms();
-      G.openSide('page');
-      var door = q('.gogh-side .gogh-contactbtn');
-      expect(door, 'no Add a way to get in touch door in the Page drawer');
-      expect(/get in touch/.test(door.textContent), 'the door reads ' + door.textContent.trim().slice(0, 40));
-      try {
-        door.click();
-        // the form lands after one (cached) fetch of the site's pages — two
-        // waits at most, since the suite's hidden tab throttles every timer
-        await new Promise(function (r) { setTimeout(r, 900); });
-        if (forms() === before) await new Promise(function (r) { setTimeout(r, 1500); });
-        expect(forms() === before + 1, 'no form arrived on the page (' + before + ' → ' + forms() + ')');
-        expect(!q('.gogh-side').classList.contains('is-open'), 'the drawer stayed open over the new form');
-      } finally { G.restore(snap); G.closeSide(true); }
-      return 'form ' + before + ' → ' + (before + 1) + ', drawer closed';
-    });
     test('the phone view carries one sentence saying what it is for', function () {
       var note = q('.gogh-phonenote');
       expect(note && note.hidden, 'the sentence should be hidden on the desktop');

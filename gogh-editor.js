@@ -2422,13 +2422,6 @@
     '<span class="gogh-scard-ic"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><rect x="7" y="3" width="10" height="18" rx="2.5"/><path d="M11 18h2"/></svg></span>' +
     '<span class="gogh-scard-tx"><span class="gogh-scard-t">See it on a phone</span><span class="gogh-scard-s">How this page looks on a small screen</span></span>' +
     '<svg class="gogh-scard-chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg></button>' +
-    // the task a third of testers opened the hint for: the form lived two
-    // steps behind a pill that only shows on hover, so the door is here,
-    // where the other doors people find already are
-    '<button type="button" class="gogh-sitem gogh-scard gogh-contactbtn">' +
-    '<span class="gogh-scard-ic"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 7l9 6 9-6"/></svg></span>' +
-    '<span class="gogh-scard-tx"><span class="gogh-scard-t">Add a way to get in touch</span><span class="gogh-scard-s">A form on this page: name, email, message</span></span>' +
-    '<svg class="gogh-scard-chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg></button>' +
     '<button type="button" class="gogh-sitem gogh-scard gogh-pagestylebtn">' +
     '<span class="gogh-scard-ic"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M14 3v6h6"/></svg></span>' +
     '<span class="gogh-scard-tx"><span class="gogh-scard-t">Page style</span><span class="gogh-scard-s">How this page is framed</span></span>' +
@@ -18262,24 +18255,6 @@
   });
   side.querySelector('.gogh-phonebtn').addEventListener('click', function () {
     if (deviceMode === 'phone') seeOnDesktop(); else seeOnPhone();
-  });
-  // a way to get in touch: a form on this page, in the chosen section if one
-  // is chosen, else at the foot where forms live. If the site already has a
-  // contact page the receipt says so, with a door to it — one tester built a
-  // second contact page without noticing the first
-  side.querySelector('.gogh-contactbtn').addEventListener('click', function () {
-    var content = S.filter(function (s) { return !s.chrome; });
-    if (!content.length) { toast('Add a section first, then a way to get in touch.', { error: true }); return; }
-    var target = (selSecIdx !== null && S[selSecIdx] && !S[selSecIdx].chrome) ? S[selSecIdx] : content[content.length - 1];
-    closeSide(true);
-    fetchPageLinks().then(function (pages) {
-      var here = location.href.split(/[?#]/)[0].replace(/\/$/, '');
-      var cp = (pages || []).filter(function (pg) { return /contact|get in touch/i.test(pg.t + ' ' + pg.u) && String(pg.u).replace(/\/$/, '') !== here; })[0];
-      addElementToSection(S.indexOf(target), 'form');
-      var actions = [{ label: 'Undo', onClick: function () { undo(); } }];
-      if (cp) actions.push({ label: 'Open ' + cp.t, onClick: function () { location.href = cp.u + (cp.u.indexOf('?') === -1 ? '?' : '&') + 'gogh-edit=1'; } });
-      toast('A form is on this page \u2014 name, email and a message, straight to you.' + (cp ? ' You also have a page called ' + cp.t + '.' : ''), { ttl: 7000, actions: actions });
-    });
   });
   side.querySelector('.gogh-addpagebtn').addEventListener('click', function (ev) {
     openAddPagePanel(ev.currentTarget);
