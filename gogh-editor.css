@@ -205,6 +205,14 @@ html.gogh-phone-preview .gogh-wrap:has(> .gogh-msec-hidden)::after {
 html.gogh-phone-preview .gogh-section.gogh-msec-hidden {
   opacity: 0.32; max-height: 180px; overflow: hidden;
 }
+/* a sticky header inside the zoomed artboard: position: fixed/sticky answer
+   to the transformed box, so the header pinned itself to the artboard's top
+   and the first section slid under it. In the design view it stays in flow;
+   the room says so beside the switch, and the real page does the sticking. */
+html.gogh-zoomed header.wp-block-template-part:has(.gogh-sticky),
+html.gogh-zoomed header.wp-block-template-part:has(.gogh-chrome-preview .gogh-sticky) {
+  position: relative !important; top: auto !important; left: auto !important; right: auto !important;
+}
 /* the one sentence under the phone: what this view is for */
 .gogh-phonenote {
   position: fixed; left: 50%; bottom: 22px; transform: translateX(-50%); z-index: 100000;
@@ -3822,8 +3830,8 @@ html.gogh-textediting .gogh-convertbtn {
 }
 /* the back link names the drawer it returns to — the live scope, not a
    name the drawer stopped wearing ("i kinda find the design link odd") */
-.gogh-panel-back::after { content: "Page"; font-size: 12px; font-weight: 650; }
-html[data-gogh-scope="site"] .gogh-panel-back::after { content: "Site"; }
+.gogh-panel-back::after { content: "Back"; font-size: 12px; font-weight: 650; }
+html[data-gogh-scope="site"] .gogh-panel-back::after { content: "Back"; } /* "Site"/"Page" meant nothing to someone who had just pressed Edit header (James) */
 
 /* breathing room: the panel gained real navigation but kept its old tight
    rhythm ("does this feel a little tight?") — the head gets clearance,

@@ -4583,7 +4583,10 @@
     clearPageStylePreview(); // a page-style audition never outlives its panel
     if (deviceMode === 'phone') { zoomForPhone = true; requestAnimationFrame(layoutZoom); } // the phone view outlives the panel
     else if (!keepZoomThroughClose) unzoomCanvas(); // a style audition's zoom-out never outlives its panel
+    var roomArea = panel.dataset.goghArea;
     exitChromeMode(); // leave the header room cleanly — dim off, spotlight off
+    if (roomArea && editing) veilChromeArea(roomArea); // the Edit header pill comes back for next time
+    railBox.classList.remove('is-away');
     delete panel.dataset.goghArea;
     panel.hidden = true;
     panel.classList.remove('gogh-panel-wide');
@@ -22179,7 +22182,11 @@
         });
       });
     }
-    // STICKY: visual toggle, written on Apply
+    // STICKY: visual toggle, written on Apply. The design view keeps the
+    // header in flow (a pinned header inside the zoomed page slid the first
+    // section under it), so the switch says where the sticking shows.
+    var stickyRow = panel.querySelector('.gogh-hstickyrow');
+    if (stickyRow && !panel.querySelector('.gogh-hsticky-note')) stickyRow.insertAdjacentHTML('afterend', '<div class="gogh-panel-hint gogh-hsticky-note">Sticks to the top as visitors scroll. Press View site to see it.</div>');
     var stickyBtn = panel.querySelector('.gogh-hsticky');
     stickyBtn.addEventListener('click', function () {
       st.sticky = !st.sticky;
@@ -22405,14 +22412,19 @@
     dockSidebar();
     zoomOutCanvas();
     railBox.classList.add('is-away');
-    enterChromeMode(partEl, area, true);
+    // moving between the room's pages keeps the ring and label as they are —
+    // re-entering from scratch wiped and redrew them, which read as a flicker
+    // (James: 'edit menu items… a bit janky')
+    if (!(partEl.classList.contains('gogh-chrome-spotlight') && document.documentElement.classList.contains('gogh-chrome-mode'))) enterChromeMode(partEl, area, true);
     if (area === 'footer') requestAnimationFrame(function () { try { partEl.scrollIntoView({ block: 'end' }); } catch (e) {} });
   }
   // every exit from a docked room page returns to the Site cards — the
   // room is a page OF the Site drawer, not a window over the site
   function roomBackToCards() {
+    var roomArea = panel.dataset.goghArea;
     if (panelCleanup) { var pc = panelCleanup; panelCleanup = null; pc(); }
     exitChromeMode();
+    if (roomArea && editing) veilChromeArea(roomArea); // the Edit header pill comes back for next time
     railBox.classList.remove('is-away');
     delete panel.dataset.goghArea;
     setSideMode('site');
@@ -24010,8 +24022,20 @@
     var isOpen = box.classList.contains('is-menu-open');
     if (open === isOpen) return true;
     var btn = partEl.querySelector(open ? '.wp-block-navigation__responsive-container-open' : '.wp-block-navigation__responsive-container-close');
-    if (btn) { btn.click(); return true; }
-    return false;
+    if (btn) btn.click();
+    // a header re-rendered after a save (phone number, email, a phone menu)
+    // carries fresh markup that WordPress's own menu script never wired up,
+    // so the click does nothing — open and close it by hand the way the
+    // script would
+    if (box.classList.contains('is-menu-open') !== open) {
+      box.classList.toggle('is-menu-open', open);
+      box.classList.toggle('has-modal-open', open);
+      box.setAttribute('aria-hidden', open ? 'false' : 'true');
+      document.documentElement.classList.toggle('has-modal-open', open);
+      var ob = partEl.querySelector('.wp-block-navigation__responsive-container-open');
+      if (ob) ob.setAttribute('aria-expanded', open ? 'true' : 'false');
+    }
+    return true;
   }
   function openMenuStylePage(anchorEl, roomOpt) {
     stayInRoom(roomOpt, anchorEl);
@@ -24749,6 +24773,7 @@
       return renderChromeOption({ content: raw }).then(function (d) {
         if (!d) return;
         partEl.innerHTML = (d.css ? '<style>' + d.css + '</style>' : '') + (d.html || '');
+        if (partEl.classList.contains('gogh-chrome-spotlight')) chromeLabel(partEl, area); // the room's label rides the fresh markup
         var entry = partEl.__goghChromeEntry;
         if (entry) { entry.raw = raw; entry.savedRaw = raw; bindPending(entry); }
         placeNavAdders(partEl);
