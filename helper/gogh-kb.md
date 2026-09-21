@@ -15,7 +15,7 @@ about something where they conflict, rather than picking one silently. Quote UI
 labels and message copy from the appendix, verbatim — those are the current
 strings, and a paraphrased button label is the fastest way to lose a user's trust.
 
-Generated for plugin version 0.99.626 · knowledge base ac26e50.
+Generated for plugin version 0.99.627 · knowledge base b8858a6.
 
 ---
 
@@ -829,6 +829,8 @@ The helper's welcome panel opens with a 35-second film of gogh being used (v0.99
 
 **The phone view survives navigation (v0.99.605).** Press one of your own pages while on the phone and it opens in the editor, still on the phone: the link carries `gogh-edit=1&gogh-phone=1`, the next page reads them at boot and strips them from the address. Other sites, files, wp-admin and anchors on the same page are left alone. Unpublished changes still ask before leaving.
 
+**The brush carries its word, *Styles* (v0.99.627)**: an icon alone was a guess, and Site style is the door that matters most. The Desktop | Mobile pair stays icon-only.
+
 **The brush is a round paintbrush now (v0.99.626)**, handle and tip; the flat Squarespace-style brush read as a spatula at bar size.
 
 **The brush sits left of the Desktop | Mobile pair (v0.99.625):** making, then looking, then help. It was between the pair and the ? before.
@@ -872,11 +874,11 @@ Everything in this section is extracted mechanically from the Gogh source on eve
 
 ## Current release
 
-- Plugin version: **0.99.626**
+- Plugin version: **0.99.627**
 - Requires WordPress **6.5+**, PHP **7.4+**
 - Text domain: `gogh-editor`
 - readme.txt Stable tag: `0.26.0` · Tested up to: `7.0`
-- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.626`). Quote the plugin header version.
+- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.627`). Quote the plugin header version.
 
 ## Design constants
 
