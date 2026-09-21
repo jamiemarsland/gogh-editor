@@ -6633,7 +6633,7 @@
       expect(Math.round(G.hueToward(200, 28, 0.5)) === 114 && Math.round(G.hueToward(350, 28, 0.5)) === 9, 'hueToward should take the short way round');
     });
 
-    testAsync('the front door: a built site opens dressed, with a corner pill and no panel; Site style keeps its top row and More', function () {
+    testAsync('the front door: a built site opens dressed, with a corner pill and no panel; Site style keeps its top row (brand, then Remix) and More', function () {
       var first = G.sections().filter(function (x) { return !x.chrome; })[0];
       return G.openFrontDoor().then(function (ok) {
         expect(ok, 'the front door did not open');
@@ -6672,7 +6672,10 @@
         var remix = top.querySelector('.gogh-remixbtn'), brand = top.querySelector('.gogh-brandrow');
         expect(remix && brand, 'Remix and the brand should both sit in the top row');
         var rr = remix.getBoundingClientRect(), br = brand.getBoundingClientRect();
-        expect(Math.abs(rr.top - br.top) < 4 && rr.right <= br.left + 2, 'Remix and the brand should share one row, Remix on the left');
+        // brand on the left, Remix on the right (v0.99.628): the colours, then the die
+        expect(Math.abs(rr.top - br.top) < 4 && br.right <= rr.left + 2, 'Remix and the brand should share one row, the brand on the left');
+        expect(Math.abs(rr.height - br.height) < 2, 'the brand and Remix should stand the same height: ' + br.height + ' vs ' + rr.height);
+        expect(top.querySelector('.gogh-toprow-note') && /Remix keeps your brand colours/.test(top.querySelector('.gogh-toprow-note').textContent), 'the line under the pair should say what Remix keeps');
         var more = pnl.querySelector('details.gogh-more');
         expect(more && !more.open && more.contains(pnl.querySelector('.gogh-varlist')) && !pnl.querySelector('.gogh-typescale'), 'the theme’s colour looks should be folded under More; type lives in the Fonts door');
         expect(!pnl.querySelector('.gogh-remixcards, .gogh-remixlocks, .gogh-remixdirs, .gogh-remixkept, .gogh-remixpin'), 'the shop (cards, locks, directions, the shelf) should be gone, not hidden');
