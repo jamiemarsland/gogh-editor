@@ -7431,6 +7431,19 @@
       return 'glaze chart: no family; plain hero: ' + fam2;
     });
 
+    test('Site style: the On-your-site-now card stays out of sight until a Remix has been rolled', function () {
+      var side = q('.gogh-side');
+      G.openSide('site');
+      try {
+        side.querySelector('.gogh-cards-site .gogh-stylebtn').click();
+        var box = q('.gogh-panel .gogh-remixwearing');
+        expect(box, 'the Site style panel has no wearing card');
+        expect(box.hidden, 'the card should start hidden');
+        expect(getComputedStyle(box).display === 'none', 'the hidden card is still drawn: display ' + getComputedStyle(box).display);
+        expect(!/\S/.test(box.querySelector('.gogh-remixwearing-name').textContent), 'the card has a name before any roll');
+      } finally { G.closePanel(); G.closeSide(true); settleZoom(); }
+      return 'hidden, and drawn as hidden';
+    });
     test('the rail: Page · SEO on the left, the Site drawer from the brush in the top bar', function () {
       var pg = q('.gogh-local-tab');
       var ar = q('.gogh-ar-tab');
