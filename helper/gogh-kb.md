@@ -15,7 +15,7 @@ about something where they conflict, rather than picking one silently. Quote UI
 labels and message copy from the appendix, verbatim — those are the current
 strings, and a paraphrased button label is the fastest way to lose a user's trust.
 
-Generated for plugin version 0.99.627 · knowledge base b8858a6.
+Generated for plugin version 0.99.628 · knowledge base 654a838.
 
 ---
 
@@ -50,7 +50,7 @@ The trick: you design **freeform** (drag anything anywhere), and when you hit Pu
 
 ### Four ways into the editor
 1. **Admin bar** — **Edit** (a solid button; before v0.99.618 `🎨 Edit with gogh`) appears on any single front-end page you can edit. Links to the permalink + `?gogh-edit=1`.
-2. **Corner button** on the front end — `✏️ Edit with gogh`. Hides once editing starts.
+2. **Corner button** on the front end — `✏️ Edit` — only on pages with no admin bar (since v0.99.628); hides once editing starts.
 3. **The URL** — add `?gogh-edit=1` to any page. If the page has no Gogh content yet, Gogh bootstraps an empty placeholder section at the end of `.entry-content` / `main` so there's a canvas. That placeholder is never saved unless you use it.
 4. **Block editor** — insert the **gogh Section** block (category: Design, icon: art). It renders a dashed placeholder — "🎨 gogh section" / "Design this section by dragging elements directly on the live page." — with an **Edit with gogh** button linking to `<permalink>?gogh-edit=1`.
 
@@ -829,6 +829,10 @@ The helper's welcome panel opens with a 35-second film of gogh being used (v0.99
 
 **The phone view survives navigation (v0.99.605).** Press one of your own pages while on the phone and it opens in the editor, still on the phone: the link carries `gogh-edit=1&gogh-phone=1`, the next page reads them at boot and strips them from the address. Other sites, files, wp-admin and anchors on the same page are left alone. Unpublished changes still ask before leaving.
 
+**The corner ✏️ Edit pill is gone wherever the admin bar is (v0.99.628):** it duplicated the bar's Edit. It still shows on a page with no admin bar, where it is the only way in.
+
+**Site style's top row: Your brand on the left, Remix on the right (v0.99.628).** The brand is an outlined pill the same height as Remix, with its dots, its name and a pencil, so it reads as a door; a line under the pair says *Remix keeps your brand colours and rolls everything else.* Before, Remix was a loud black pill with the brand as a caption beside it.
+
 **The brush carries its word, *Styles* (v0.99.627)**: an icon alone was a guess, and Site style is the door that matters most. The Desktop | Mobile pair stays icon-only.
 
 **The brush is a round paintbrush now (v0.99.626)**, handle and tip; the flat Squarespace-style brush read as a spatula at bar size.
@@ -874,11 +878,11 @@ Everything in this section is extracted mechanically from the Gogh source on eve
 
 ## Current release
 
-- Plugin version: **0.99.627**
+- Plugin version: **0.99.628**
 - Requires WordPress **6.5+**, PHP **7.4+**
 - Text domain: `gogh-editor`
 - readme.txt Stable tag: `0.26.0` · Tested up to: `7.0`
-- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.627`). Quote the plugin header version.
+- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.628`). Quote the plugin header version.
 
 ## Design constants
 

@@ -4286,9 +4286,20 @@ html.gogh-building .gogh-inserter, html.gogh-building .gogh-side { display: none
    Remix extras (locks, cards, directions, the kept shelf) run full width under them */
 .gogh-toprow { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0 14px; }
 .gogh-toprow .gogh-remixrow { display: contents; }
-.gogh-toprow .gogh-remixbtn { order: 1; flex: 1 1 0; width: auto; min-width: 0; background: var(--gogh-ui-accent, #4a63d8); color: var(--gogh-ui-accent-fg, #fff); border-color: transparent; }
+/* brand on the left, Remix on the right: the colours, then the thing that
+   rolls a look around them. Both wear the same shape and height, so the
+   brand reads as a door and not a caption (James, 2026-09-21) */
+.gogh-toprow .gogh-remixbtn { order: 2; flex: 1 1 0; width: auto; min-width: 0; background: var(--gogh-ui-accent, #4a63d8); color: var(--gogh-ui-accent-fg, #fff); border-color: transparent; }
 .gogh-toprow .gogh-remixbtn:hover { filter: brightness(1.06); }
-.gogh-toprow .gogh-brandrow { order: 2; flex: 1 1 0; min-width: 0; margin: 0; display: flex; }
+.gogh-toprow .gogh-brandrow { order: 1; flex: 1 1 0; min-width: 0; margin: 0; display: flex; }
+.gogh-toprow .gogh-brandbtn { border: 1.5px solid var(--gogh-ui-border, #d9dbe1); border-radius: 999px; justify-content: center; background: var(--gogh-ui-bg, #fff); }
+.gogh-toprow .gogh-brandbtn:hover { background: var(--gogh-ui-hover); border-color: var(--gogh-ui-fg); }
+.gogh-toprow .gogh-brandbtn.is-current { background: var(--gogh-ui-bg, #fff); }
+.gogh-toprow .gogh-brandbtn .gogh-brandpen { flex: none; margin-left: 4px; opacity: .55; }
+/* one mark, not two: the pencil says 'open me'; the tick crowded the name out on a narrow panel */
+.gogh-toprow .gogh-brandbtn.is-current::after { display: none; }
+.gogh-toprow .gogh-brandbtn:hover .gogh-brandpen { opacity: 1; }
+.gogh-toprow-note { order: 3; flex-basis: 100%; font-size: 12px; line-height: 1.4; color: var(--gogh-ui-muted, #6b7280); margin: 2px 2px 0; }
 .gogh-toprow .gogh-brandrow > * { flex: 1; min-width: 0; }
 .gogh-toprow .gogh-brandbtn .gogh-varname { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 /* on the shared row the brand shows two of its dots and its name; the panel is narrow */
@@ -4300,7 +4311,7 @@ html.gogh-building .gogh-inserter, html.gogh-building .gogh-side { display: none
 /* the chip breathes: a rhythm unit of air under the buttons, the words at
    full width, and the count and the way back on a quiet line beneath
    (James: "does this feel a little squashed to you?") */
-.gogh-toprow .gogh-remixwearing { order: 3; flex-basis: 100%; display: flex; flex-direction: column; align-items: stretch; gap: 8px; margin-top: 18px; padding: 12px 14px 10px; border-radius: 10px; background: rgba(74, 99, 216, 0.07); }
+.gogh-toprow .gogh-remixwearing { order: 4; flex-basis: 100%; display: flex; flex-direction: column; align-items: stretch; gap: 8px; margin-top: 18px; padding: 12px 14px 10px; border-radius: 10px; background: rgba(74, 99, 216, 0.07); }
 /* hidden until a roll: the flex rule above out-ranks the hidden attribute,
    and the card showed empty, 'On your site now' over nothing (James) */
 .gogh-toprow .gogh-remixwearing[hidden] { display: none; }

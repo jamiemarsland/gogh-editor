@@ -2282,8 +2282,16 @@
     (cfg.writeUrl ? '✏️ Edit post' : '✏️ Edit') + '</button>';
   document.body.appendChild(editBtnWrap);
   // Woo's cart, checkout and account pages are rails: nothing there is gogh's
-  // to edit, so the pill stays away and never covers a Place order button
-  if (/\bwoocommerce-(cart|checkout|account)\b/.test(document.body.className)) editBtnWrap.hidden = true;
+  // to edit, so the pill stays away and never covers a Place order button.
+  // And with an admin bar on the page the pill is a second Edit under the
+  // bar's own (James, 2026-09-21: 'its duplication'): it shows only where
+  // there is no bar to carry the door (a seamless playground). The bar
+  // prints after this script, so the check waits for the document.
+  var cornerAway = function () {
+    return /\bwoocommerce-(cart|checkout|account)\b/.test(document.body.className) || !!document.getElementById('wpadminbar');
+  };
+  editBtnWrap.hidden = cornerAway();
+  document.addEventListener('DOMContentLoaded', function () { if (!editing) editBtnWrap.hidden = cornerAway(); });
   var editBtn = editBtnWrap.querySelector('.gogh-btn-edit');
 
   // ---------- the post's front end is for READING ----------
@@ -4365,7 +4373,7 @@
       // so do published native/HTML sections — publish is not a one-way door
       initStoredEdits();
     }
-    editBtnWrap.hidden = on;
+    editBtnWrap.hidden = on || cornerAway();
     hideHandles();
     hideGuides();
     closePanel();
@@ -17890,7 +17898,10 @@
           b2.innerHTML = order.map(function (k) {
             var col = cfg.brand.colors[k];
             return col ? '<span class="gogh-vardot" style="background:' + escAttr(col) + '"></span>' : '';
-          }).join('') + '<span class="gogh-varname">Your brand</span>';
+          }).join('') + '<span class="gogh-varname">Your brand</span>' +
+            // a pencil says it opens: on the shared row the brand read as a
+            // caption beside a loud Remix (James: 'your brand gets lost')
+            '<svg class="gogh-brandpen" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>';
           var bv = brandToVariation(cfg.brand);
           b2.addEventListener('mouseenter', function () {
             clearTimeout(previewHoverT);
@@ -17903,6 +17914,11 @@
             openBrandForm(anchorEl);
           });
           row.appendChild(b2);
+          // the one line that says how the two doors relate
+          var note = document.createElement('div');
+          note.className = 'gogh-toprow-note';
+          note.textContent = 'Remix keeps your brand colours and rolls everything else.';
+          top.appendChild(note);
         } else {
           var mk = document.createElement('button');
           mk.type = 'button';

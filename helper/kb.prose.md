@@ -31,7 +31,7 @@ The trick: you design **freeform** (drag anything anywhere), and when you hit Pu
 
 ### Four ways into the editor
 1. **Admin bar** — **Edit** (a solid button; before v0.99.618 `🎨 Edit with gogh`) appears on any single front-end page you can edit. Links to the permalink + `?gogh-edit=1`.
-2. **Corner button** on the front end — `✏️ Edit with gogh`. Hides once editing starts.
+2. **Corner button** on the front end — `✏️ Edit` — only on pages with no admin bar (since v0.99.628); hides once editing starts.
 3. **The URL** — add `?gogh-edit=1` to any page. If the page has no Gogh content yet, Gogh bootstraps an empty placeholder section at the end of `.entry-content` / `main` so there's a canvas. That placeholder is never saved unless you use it.
 4. **Block editor** — insert the **gogh Section** block (category: Design, icon: art). It renders a dashed placeholder — "🎨 gogh section" / "Design this section by dragging elements directly on the live page." — with an **Edit with gogh** button linking to `<permalink>?gogh-edit=1`.
 
@@ -809,6 +809,10 @@ The helper's welcome panel opens with a 35-second film of gogh being used (v0.99
 **The open menu keeps to the window in a zoomed view (v0.99.605).** Inside the zoomed page, a menu positioned to the screen answers to the page's box instead, so Stack and Centred filled the whole page, Drawer ran the page's height and Sheet landed at the page's foot, out of sight. While the menu is open under a zoom, gogh pins its box to the part of the page the window shows and re-pins on every layout change, scroll or resize, so Sheet auditions and every layout looks as it does on a phone. Nothing of this runs on the real page.
 
 **The phone view survives navigation (v0.99.605).** Press one of your own pages while on the phone and it opens in the editor, still on the phone: the link carries `gogh-edit=1&gogh-phone=1`, the next page reads them at boot and strips them from the address. Other sites, files, wp-admin and anchors on the same page are left alone. Unpublished changes still ask before leaving.
+
+**The corner ✏️ Edit pill is gone wherever the admin bar is (v0.99.628):** it duplicated the bar's Edit. It still shows on a page with no admin bar, where it is the only way in.
+
+**Site style's top row: Your brand on the left, Remix on the right (v0.99.628).** The brand is an outlined pill the same height as Remix, with its dots, its name and a pencil, so it reads as a door; a line under the pair says *Remix keeps your brand colours and rolls everything else.* Before, Remix was a loud black pill with the brand as a caption beside it.
 
 **The brush carries its word, *Styles* (v0.99.627)**: an icon alone was a guess, and Site style is the door that matters most. The Desktop | Mobile pair stays icon-only.
 
