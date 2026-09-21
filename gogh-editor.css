@@ -214,16 +214,26 @@ html.gogh-phone-preview .gogh-section.gogh-msec-hidden {
    so that offset showed as a band of hero above the header (James:
    'there's an extra bit showing above the header'). Under a zoom it sits
    at the artboard's top. */
-html.gogh-zoomed header.wp-block-template-part:has(.gogh-header-overlay) { top: 0 !important; }
+html.gogh-zoomed header.wp-block-template-part:not(:has(.gogh-chrome-preview)):has(.gogh-header-overlay),
+html.gogh-zoomed header.wp-block-template-part:has(.gogh-chrome-preview .gogh-header-overlay) { top: 0 !important; }
 /* a sticky header inside the zoomed artboard: the page sits in a scaled
    transform there, and neither sticky nor fixed answers to the window
    through it — sticky scrolls away, fixed pins to the artboard's top and
    slides the first section under itself. In the design view the header
    stays in flow; the room says so beside the switch, and the real page
    does the sticking. */
-html.gogh-zoomed header.wp-block-template-part:has(.gogh-sticky),
+html.gogh-zoomed header.wp-block-template-part:not(:has(.gogh-chrome-preview)):has(.gogh-sticky),
 html.gogh-zoomed header.wp-block-template-part:has(.gogh-chrome-preview .gogh-sticky) {
   position: relative !important; top: auto !important; left: auto !important; right: auto !important;
+}
+/* ...but a see-through header floats even then: floating is the thing being
+   auditioned. Scoped to whichever content is SHOWING — the live part's
+   content stays in the DOM under a preview, and a sticky live header used
+   to hold the Transparent audition in flow over a pale band (James:
+   'transparent header doesn't look like it's auditioning properly'). */
+html.gogh-zoomed header.wp-block-template-part:not(:has(.gogh-chrome-preview)):has(.gogh-header-overlay),
+html.gogh-zoomed header.wp-block-template-part:has(.gogh-chrome-preview .gogh-header-overlay) {
+  position: absolute !important; top: 0 !important; left: 0 !important; right: 0 !important; background: transparent !important;
 }
 /* the first-name step: a modal in the middle of the page over a dim */
 .gogh-panel-scrim { position: fixed; inset: 0; z-index: 100001; background: rgba(18, 19, 24, 0.38); }

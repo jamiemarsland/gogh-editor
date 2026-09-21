@@ -15,7 +15,7 @@ about something where they conflict, rather than picking one silently. Quote UI
 labels and message copy from the appendix, verbatim — those are the current
 strings, and a paraphrased button label is the fastest way to lose a user's trust.
 
-Generated for plugin version 0.99.620 · knowledge base 26c3f14.
+Generated for plugin version 0.99.621 · knowledge base 1cfd2b4.
 
 ---
 
@@ -829,6 +829,8 @@ The helper's welcome panel opens with a 35-second film of gogh being used (v0.99
 
 **The phone view survives navigation (v0.99.605).** Press one of your own pages while on the phone and it opens in the editor, still on the phone: the link carries `gogh-edit=1&gogh-phone=1`, the next page reads them at boot and strips them from the address. Other sites, files, wp-admin and anchors on the same page are left alone. Unpublished changes still ask before leaving.
 
+**A see-through header auditions properly in the design view again (v0.99.621).** The rule that keeps a *sticky* header in flow inside the zoomed page matched the live header's content even while another layout was previewing, so with a sticky header the Transparent option sat in flow over a pale band instead of floating. The rule now looks only at whichever content is showing, and a see-through header floats at the artboard's top in the design view even when it is also sticky.
+
 **The help sheet's bigger/smaller button is a drawn icon (v0.99.620)**, the same round button as ✕ at the sheet's top right; before, a typed ⤡ glyph came out small and squashed.
 
 **The top bar, the simple way (v0.99.618).** The admin bar's gogh door is one word now, **Edit**, drawn as a solid white button at the top left where *Edit with gogh* sat (posts keep *Edit post*). While editing, the same spot reads **View site** with the eye, as before: the way in and the way out are one spot. At the top right, just left of the ? help button, the **Desktop | Phone** pill is a pair of icons, a screen and a phone, named on hover (the tooltips and screen-reader labels read *Desktop view* and *Mobile view*, v0.99.619). Next to it, a **brush** (tooltip *Site Styles*; icons in the bar are drawn with paths only, since WordPress's admin-bar reset zeroes an SVG `<rect>`, v0.99.619) opens the **Site** drawer: Site style, Fonts, Motion, Edit header, Edit footer, everything about the whole site. The left rail keeps **Page** and **SEO**, the two doors about *this* page; it no longer carries a *Site* tab, and the Page and SEO drawers are the same size as before. Pressing the brush while the Site cards are already open closes the drawer. The tester card's *look* hint now says to press the brush at the top right, and its *phone* hint says to press the phone icon there.
@@ -860,11 +862,11 @@ Everything in this section is extracted mechanically from the Gogh source on eve
 
 ## Current release
 
-- Plugin version: **0.99.620**
+- Plugin version: **0.99.621**
 - Requires WordPress **6.5+**, PHP **7.4+**
 - Text domain: `gogh-editor`
 - readme.txt Stable tag: `0.26.0` · Tested up to: `7.0`
-- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.620`). Quote the plugin header version.
+- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.621`). Quote the plugin header version.
 
 ## Design constants
 
