@@ -7759,10 +7759,13 @@
       helpSheet = document.createElement('div');
       helpSheet.className = 'gogh-helpsheet';
       // a narrow column is right for a quick answer and wrong for reading a
-      // long one (or watching the film), so the sheet can be made bigger
+      // long one (or watching the film), so the sheet can be made bigger.
+      // Drawn, not typed: the ⤡ glyph came out small and squashed (James)
+      var HELP_GROW = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 4h6v6M20 4l-7 7M10 20H4v-6M4 20l7-7"/></svg>';
+      var HELP_SHRINK = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 5l-6 6M13 5v6h6M5 19l6-6M11 19v-6H5"/></svg>';
       helpSheet.innerHTML = '<div class="gogh-helpsheet-bar"><span>gogh help</span>' +
         '<span class="gogh-helpsheet-btns">' +
-        '<button type="button" class="gogh-sbtn gogh-helpsheet-wide" title="Make this bigger">\u2921</button>' +
+        '<button type="button" class="gogh-sbtn gogh-helpsheet-wide" title="Make this bigger" aria-label="Make this bigger">' + HELP_GROW + '</button>' +
         '<button type="button" class="gogh-sbtn gogh-helpsheet-x" title="Close">✕</button></span></div>' +
         '<iframe src="' + escAttr(helpSrc()) + '" title="gogh help" allow="fullscreen"></iframe>';
       document.body.appendChild(helpSheet);
@@ -7774,7 +7777,8 @@
         var wide = helpSheet.classList.toggle('is-wide');
         document.body.classList.toggle('gogh-help-wide', wide);
         ev.currentTarget.title = wide ? 'Make this smaller' : 'Make this bigger';
-        ev.currentTarget.textContent = wide ? '\u2922' : '\u2921';
+        ev.currentTarget.setAttribute('aria-label', ev.currentTarget.title);
+        ev.currentTarget.innerHTML = wide ? HELP_SHRINK : HELP_GROW;
       });
     } else if (!helpSheet.classList.contains('is-open')) {
       // reopening in a NEW situation refreshes the bot's context; the same

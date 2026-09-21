@@ -15,7 +15,7 @@ about something where they conflict, rather than picking one silently. Quote UI
 labels and message copy from the appendix, verbatim — those are the current
 strings, and a paraphrased button label is the fastest way to lose a user's trust.
 
-Generated for plugin version 0.99.619 · knowledge base bec4268.
+Generated for plugin version 0.99.620 · knowledge base 26c3f14.
 
 ---
 
@@ -829,6 +829,8 @@ The helper's welcome panel opens with a 35-second film of gogh being used (v0.99
 
 **The phone view survives navigation (v0.99.605).** Press one of your own pages while on the phone and it opens in the editor, still on the phone: the link carries `gogh-edit=1&gogh-phone=1`, the next page reads them at boot and strips them from the address. Other sites, files, wp-admin and anchors on the same page are left alone. Unpublished changes still ask before leaving.
 
+**The help sheet's bigger/smaller button is a drawn icon (v0.99.620)**, the same round button as ✕ at the sheet's top right; before, a typed ⤡ glyph came out small and squashed.
+
 **The top bar, the simple way (v0.99.618).** The admin bar's gogh door is one word now, **Edit**, drawn as a solid white button at the top left where *Edit with gogh* sat (posts keep *Edit post*). While editing, the same spot reads **View site** with the eye, as before: the way in and the way out are one spot. At the top right, just left of the ? help button, the **Desktop | Phone** pill is a pair of icons, a screen and a phone, named on hover (the tooltips and screen-reader labels read *Desktop view* and *Mobile view*, v0.99.619). Next to it, a **brush** (tooltip *Site Styles*; icons in the bar are drawn with paths only, since WordPress's admin-bar reset zeroes an SVG `<rect>`, v0.99.619) opens the **Site** drawer: Site style, Fonts, Motion, Edit header, Edit footer, everything about the whole site. The left rail keeps **Page** and **SEO**, the two doors about *this* page; it no longer carries a *Site* tab, and the Page and SEO drawers are the same size as before. Pressing the brush while the Site cards are already open closes the drawer. The tester card's *look* hint now says to press the brush at the top right, and its *phone* hint says to press the phone icon there.
 
 **Edit header and Edit footer dock on the left (v0.99.600).** Everything about the whole site now lives in the left panel: Site style, Fonts, Motion, Page style, and from this release the header room and the footer room too, with the page zoomed out beside them. The part being edited keeps a ring and a small *Editing the header — changes preview live* label; nothing is dimmed any more. The panel is titled **Editing the header** (or footer). **There is no Done and no Cancel (v0.99.611): the room keeps on click like Site style and Fonts.** A change waits about a second for its neighbours (a dial still dragging, a colour being compared), then writes the header and re-renders it in place — no reload — and the receipt says *The header is kept — it is on every page* with **Undo**, which writes the previous header back. ‹ Back, ✕ and Esc return to the Site cards, keeping any change still waiting. Picking a layout keeps the Layout list open (v0.99.614; it used to fold on a pick), and nothing in the room is rebuilt by a keep — the controls stay exactly where your hand is. The room's own pages — Edit menu items, Logo & name, Mobile menu — dock in the same place and their *Back to header* re-opens the room without leaving the design view. Edit footer scrolls the zoomed page down to the footer. Before this, the room floated centred under the header over a dimmed page, and its Mobile menu page hid the Centred layout behind its own controls. The chip above a docked page's title reads **‹ Back** (it said *Site* or *Page*, which meant nothing to someone who had just pressed Edit header). **Stick to the top** cannot be shown in the design view — a pinned header inside the zoomed page slid the first section under it — so there the header stays in place and a line under the switch says *Sticks to the top as visitors scroll. Press View site to see it.* Saving a phone number, email or phone menu re-renders the header; the room's label rides the fresh markup and *Open the menu to preview* still opens it (v0.99.601). Leaving a room brings the *Edit header* pill on the header back. The *Edit header* pill also shows on hover in the zoomed design view (v0.99.602), since a saving Done lands there. The **footer room** has no *Mobile menu* door and no *Stick to the top* switch — those belong to the header. Sticking cannot be shown in the design view at all: the page sits inside a scaled transform there and neither sticky nor fixed positioning answers to the window through it; the real page does the sticking (checked: the header holds at the admin bar's height as visitors scroll). The row above a room page's title (*‹ Back to header*) has more room beneath it. While a header or footer room is open, the part's own hover pill (*Edit header*; it read *Edit site header* before v0.99.612) and veil are hidden, on desktop and in the phone view alike (v0.99.603); they return when you leave.
@@ -858,11 +860,11 @@ Everything in this section is extracted mechanically from the Gogh source on eve
 
 ## Current release
 
-- Plugin version: **0.99.619**
+- Plugin version: **0.99.620**
 - Requires WordPress **6.5+**, PHP **7.4+**
 - Text domain: `gogh-editor`
 - readme.txt Stable tag: `0.26.0` · Tested up to: `7.0`
-- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.619`). Quote the plugin header version.
+- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.620`). Quote the plugin header version.
 
 ## Design constants
 

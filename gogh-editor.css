@@ -627,6 +627,21 @@ body.gogh-help-open.gogh-help-wide .gogh-toasts { right: min(856px, calc(92vw + 
   background: rgba(0, 0, 0, 0.05);
 }
 .gogh-helpsheet-x:hover { background: rgba(0, 0, 0, 0.1); }
+/* the bigger/smaller toggle: the same round button as ✕, with a drawn icon */
+.gogh-helpsheet-wide {
+  all: unset;
+  cursor: pointer;
+  flex: none;
+  width: 26px;
+  height: 26px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  color: #1c1c22;
+}
+.gogh-helpsheet-wide svg { display: block; }
+.gogh-helpsheet-wide:hover { background: rgba(0, 0, 0, 0.06); }
+.gogh-helpsheet-wide:focus-visible, .gogh-helpsheet-x:focus-visible { outline: 2px solid #4a63d8; outline-offset: 1px; }
 
 /* products preview: the sketch shows what Woo will render — button included */
 .gogh-postsprev-btn {

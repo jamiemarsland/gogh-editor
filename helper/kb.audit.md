@@ -1,12 +1,6 @@
-# Knowledge-base audit — plugin v0.99.619
+# Knowledge-base audit — plugin v0.99.620
 
 _13 finding(s) suppressed by `kb.audit-ignore.txt`._
-
-## STALE (1)
-
-The prose names something that no longer exists.
-
-- UI label "Desktop" was removed in this release, but the prose still describes it
 
 ## MISSING (96)
 
@@ -125,10 +119,4 @@ Quoted copy not found verbatim in the source. Paraphrases are fine; changed UI c
 
 Use this as the checklist for updating the prose — and as a sanity check on the release itself.
 
-- version: 0.99.618 → 0.99.619
-- removed UI label: "Desktop"
-- removed UI label: "Phone — see and tune how the page looks on a phone"
-- removed UI label: "Site style — colours, fonts, header and footer, everywhere at once"
-- added UI label: "Desktop view"
-- added UI label: "Mobile view"
-- added UI label: "Site Styles"
+- version: 0.99.619 → 0.99.620
