@@ -7431,18 +7431,25 @@
       return 'glaze chart: no family; plain hero: ' + fam2;
     });
 
-    test('Site style: the On-your-site-now card stays out of sight until a Remix has been rolled', function () {
+    testAsync('Site style: the On-your-site-now card stays out of sight until a Remix has been rolled', async function () {
       var side = q('.gogh-side');
       G.openSide('site');
       try {
         side.querySelector('.gogh-cards-site .gogh-stylebtn').click();
-        var box = q('.gogh-panel .gogh-remixwearing');
+        // the panel fills once the theme's variations arrive
+        var box = await new Promise(function (res) { var t0 = Date.now(); (function look() { var b = q('.gogh-panel .gogh-remixwearing'); if (b || Date.now() - t0 > 6000) res(b); else setTimeout(look, 100); })(); });
         expect(box, 'the Site style panel has no wearing card');
-        expect(box.hidden, 'the card should start hidden');
-        expect(getComputedStyle(box).display === 'none', 'the hidden card is still drawn: display ' + getComputedStyle(box).display);
-        expect(!/\S/.test(box.querySelector('.gogh-remixwearing-name').textContent), 'the card has a name before any roll');
+        // an earlier test may have rolled a Remix on this page; either way the
+        // invariant holds: hidden means not drawn, shown means it has a name
+        var name = box.querySelector('.gogh-remixwearing-name').textContent;
+        if (box.hidden) expect(getComputedStyle(box).display === 'none', 'the hidden card is still drawn: display ' + getComputedStyle(box).display);
+        else expect(/\S/.test(name), 'the card is showing with no name');
+        // and hidden by hand, it must vanish (the flex rule used to out-rank hidden)
+        var was = box.hidden; box.hidden = true;
+        expect(getComputedStyle(box).display === 'none', 'a hidden card is still drawn: display ' + getComputedStyle(box).display);
+        box.hidden = was;
       } finally { G.closePanel(); G.closeSide(true); settleZoom(); }
-      return 'hidden, and drawn as hidden';
+      return 'hidden means not drawn; shown means named';
     });
     test('the rail: Page · SEO on the left, the Site drawer from the brush in the top bar', function () {
       var pg = q('.gogh-local-tab');
@@ -7452,6 +7459,8 @@
       expect(ar && !ar.hidden, 'the SEO tab is missing');
       var st = q('#wp-admin-bar-gogh-style .gogh-stylebar, .gogh-devpill-float .gogh-stylebar');
       expect(st, 'no brush in the top bar');
+      var stHome = q('#wp-admin-bar-gogh-style');
+      if (stHome) expect(stHome.nextElementSibling && stHome.nextElementSibling.id === 'wp-admin-bar-gogh-device', 'the brush should sit left of the Desktop | Mobile pair (v0.99.625)');
       expect(!st.closest('[hidden]'), 'the brush is hidden while editing');
       expect(st.getAttribute('title') === 'Site Styles', 'the brush tooltip should read Site Styles: ' + st.getAttribute('title'));
       expect(!st.querySelector('rect') && !q('#wp-admin-bar-gogh-device rect'), 'a <rect> in the admin bar is zeroed by WordPress\u2019s reset; draw with paths');

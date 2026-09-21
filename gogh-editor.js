@@ -2671,11 +2671,12 @@
     var mark = document.getElementById('wp-admin-bar-gogh-help') || document.getElementById('wp-admin-bar-gogh-edit');
     if (mark && mark.parentNode) {
       devHome.className = '';
-      // pill, then brush, then ?: the brush floats left after the pill
+      // brush, then pill, then ?: making, then looking, then help (James,
+      // 2026-09-21: 'site styles to the left of desktop and mobile icons')
       mark.parentNode.insertBefore(devHome, mark.id === 'wp-admin-bar-gogh-help' ? mark : mark.nextSibling);
-      devHome.parentNode.insertBefore(styleHome, devHome.nextSibling);
+      devHome.parentNode.insertBefore(styleHome, devHome);
     }
-    else if (!devHome.parentNode) { devHome.className = 'gogh-devpill-float'; document.body.appendChild(devHome); devPill.appendChild(styleHome.querySelector('a')); }
+    else if (!devHome.parentNode) { devHome.className = 'gogh-devpill-float'; document.body.appendChild(devHome); devPill.insertBefore(styleHome.querySelector('a'), devPill.firstChild); }
   }
   // A page pressed in the phone view opens in the editor, still on the phone
   // (James: 'when i click on a page to view it opens in desktop view'): the
