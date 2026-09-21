@@ -2003,22 +2003,55 @@ html.gogh-editing header.wp-block-template-part:has(.gogh-header-overlay):not(.g
 .gogh-convertbtn:disabled { opacity: 0.6; cursor: default; }
 
 /* publish status chip */
-/* the nameplate: identity beside status — the page's name lives on the
-   chip, and an unnamed page wears a soft amber invitation instead */
+/* the nameplate: the page's name at the top of the Page drawer, click to
+   rename; an unnamed page wears a soft amber invitation instead */
 .gogh-chip-name {
   all: unset;
   cursor: pointer;
-  font-weight: 650;
-  max-width: 200px;
+  display: block;
+  font: 650 13px/1.3 -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, sans-serif;
+  color: var(--gogh-ui-fg, #1c1e24);
+  max-width: 100%;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  padding-right: 10px;
-  border-right: 1px solid var(--gogh-ui-border, #e3e3e6);
+  margin: -4px 0 12px;
 }
+.gogh-chip-name::after { content: " \00b7 Rename"; font-weight: 500; color: #8a8f99; }
 .gogh-chip-name:hover, .gogh-chip-name:focus-visible { text-decoration: underline; text-underline-offset: 3px; }
 .gogh-chip-name.is-unnamed { color: #b47816; font-weight: 600; }
-.gogh-chip {
+.gogh-chip-name.is-unnamed::after { content: ""; }
+.gogh-chip-name[hidden] { display: none; }
+/* in the admin bar, right after View site: a dot, a few words, Publish.
+   The bar styles everything inside it by id (#wpadminbar * resets width
+   and height), so every rule here carries the id too */
+#wpadminbar #wp-admin-bar-gogh-publish { display: flex; align-items: center; height: 32px; float: left; }
+#wpadminbar #wp-admin-bar-gogh-publish[hidden] { display: none; }
+#wpadminbar .gogh-chip-bar {
+  display: flex; align-items: center; gap: 8px; height: 32px; padding: 0 6px 0 4px; margin: 0;
+  border-left: 1px solid rgba(255, 255, 255, 0.14);
+  font: 600 12.5px/1 -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, sans-serif; color: #9aa1ab;
+}
+#wpadminbar .gogh-chip-bar.is-dirty, #wpadminbar .gogh-chip-bar.is-saving { color: #f0c26e; }
+#wpadminbar .gogh-chip-bar.is-error { color: #ff8a8a; }
+#wpadminbar .gogh-chip-bar .gogh-chip-dot { width: 7px; height: 7px; margin-left: 8px; border-radius: 50%; background: #57d38c; flex: none; transition: background 0.25s; }
+#wpadminbar .gogh-chip-bar.is-dirty .gogh-chip-dot { background: #eab038; }
+#wpadminbar .gogh-chip-bar.is-saving .gogh-chip-dot { background: #7ea8ff; animation: gogh-pulse 1s infinite; }
+#wpadminbar .gogh-chip-bar.is-error .gogh-chip-dot { background: #ff6b6b; }
+#wpadminbar .gogh-chip-bar .gogh-chip-txt { white-space: nowrap; }
+#wpadminbar .gogh-chip-bar .gogh-chip-btn {
+  all: unset; box-sizing: border-box; cursor: pointer; display: inline-grid; place-items: center;
+  height: 24px; padding: 0 12px; margin-left: 2px; border-radius: 5px;
+  background: #eab038; color: #141519; font: 700 12px/1 -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, sans-serif;
+  transition: background 0.2s, color 0.2s;
+}
+#wpadminbar .gogh-chip-bar .gogh-chip-btn:hover { background: #f2c15c; color: #141519; }
+#wpadminbar .gogh-chip-bar .gogh-chip-btn:disabled { background: rgba(255, 255, 255, 0.10); color: rgba(255, 255, 255, 0.45); cursor: default; }
+#wpadminbar .gogh-chip-bar .gogh-chip-btn:focus-visible { outline: 2px solid #fff; outline-offset: 1px; }
+#wpadminbar .gogh-chip-bar .gogh-chip-btn[hidden] { display: none; }
+@media (max-width: 782px) { #wpadminbar .gogh-chip-bar .gogh-chip-txt { display: none; } }
+/* no admin bar (a seamless playground): the chip floats at the bottom right as it always did */
+.gogh-chip-float {
   position: fixed;
   right: 20px;
   bottom: 20px;
@@ -2495,7 +2528,7 @@ html.gogh-zoomed .gogh-secbar,
 html.gogh-zoomed .gogh-elbar,
 html.gogh-zoomed .gogh-hbar,
 html.gogh-zoomed .gogh-inserter,
-html.gogh-zoomed .gogh-chip,
+html.gogh-zoomed .gogh-chip-float,
 html.gogh-zoomed .gogh-convertbtn,
 html.gogh-zoomed .gogh-chromebtn,
 html.gogh-zoomed .gogh-navadd,
@@ -3819,18 +3852,6 @@ html.gogh-textediting .gogh-convertbtn {
 .gogh-ar-always .gogh-ar-row { padding: 6px 0; font-size: 12.5px; color: #4a4e57; }
 .gogh-ar-always .gogh-ar-row b { color: #1c1e24; }
 .gogh-ar-always .gogh-ar-row .tick { color: #2e9e6b; }
-.gogh-chip-ar {
-  display: none; border: 0; background: transparent; cursor: pointer;
-  color: #b17e1f; font-size: 14px; padding: 0 2px 0 0; line-height: 1;
-}
-.gogh-chip.is-clean .gogh-chip-ar { display: inline-block; }
-.gogh-chip-ar:hover { transform: scale(1.15); }
-/* the ✦ pops into its resting place when the chip settles clean — the
-   arrival IS the answer-ready message, no toast required */
-@media (prefers-reduced-motion: no-preference) {
-  .gogh-chip.is-clean .gogh-chip-ar { animation: gogh-ar-pop 0.5s cubic-bezier(0.2, 1.5, 0.4, 1); }
-  @keyframes gogh-ar-pop { from { scale: 0; rotate: -60deg; } }
-}
 
 /* ---------- Motion style: panel cards + the audition performance ---------- */
 .gogh-motionlist { display: flex; flex-direction: column; gap: 8px; }
@@ -4235,7 +4256,7 @@ body:has(.wp-block-navigation__responsive-container.is-menu-open) .gogh-bar { op
    (James: "lots of pages kinda flash up") */
 .gogh-buildveil { position: fixed; inset: 0; z-index: 100020; display: grid; place-items: center; background: #faf9f6; }
 html.gogh-building { overflow: hidden; }
-html.gogh-building .gogh-chip, html.gogh-building .gogh-toasts,
+html.gogh-building .gogh-chip-float, html.gogh-building .gogh-toasts,
 html.gogh-building .gogh-picker, html.gogh-building .gogh-panel,
 html.gogh-building .gogh-elbar, html.gogh-building .gogh-secbar,
 html.gogh-building .gogh-selbox, html.gogh-building .gogh-grip,

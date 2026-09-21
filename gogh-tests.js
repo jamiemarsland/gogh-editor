@@ -7,6 +7,25 @@
 
   var results = [];
   window.__goghTestProgress = results; // live: a stuck run shows where it stopped
+  // "Never saves" includes the site's header and footer: since the rooms
+  // keep on click (v0.99.611), closing a room writes the template part, and
+  // a suite run rewrote James's live header (Hamburger, sticky off) on
+  // 2026-09-21. Every write to a template part is answered here, never sent;
+  // tests that stub a fake part (id 101) still wrap this. The list of what
+  // was blocked is on window.__goghTestBlockedWrites.
+  var blockedWrites = [];
+  window.__goghTestBlockedWrites = blockedWrites;
+  (function () {
+    var realFetch = window.fetch;
+    window.fetch = function (url, opts) {
+      var m = (opts && opts.method) || 'GET';
+      if (m !== 'GET' && m !== 'HEAD' && /\/wp\/v2\/template-parts\//.test(String(url))) {
+        blockedWrites.push(String(url));
+        return Promise.resolve({ ok: true, status: 200, url: String(url), json: function () { return Promise.resolve({}); }, text: function () { return Promise.resolve('{}'); } });
+      }
+      return realFetch.apply(window, arguments);
+    };
+  })();
   var jsErrors = [];
   window.addEventListener('error', function (ev) { jsErrors.push(String(ev.message)); });
 
@@ -811,6 +830,16 @@
     test('publish chip tracks dirty state', function () {
       var chipEl = q('.gogh-chip');
       expect(chipEl && !chipEl.hidden, 'chip not visible in edit mode');
+      // it lives in the admin bar, right after View site (v0.99.622)
+      var home = q('#wp-admin-bar-gogh-publish');
+      if (q('#wpadminbar')) {
+        expect(home && home.contains(chipEl) && !home.hidden, 'the chip is not in the admin bar');
+        expect(home.previousElementSibling && home.previousElementSibling.id === 'wp-admin-bar-gogh-edit', 'the chip should follow View site, follows: ' + (home.previousElementSibling || {}).id);
+        expect(chipEl.classList.contains('gogh-chip-bar'), 'the chip does not wear its bar class: ' + chipEl.className);
+        expect(!q('.gogh-chip-ar'), 'the \u2726 is still on the chip');
+        var plate = q('.gogh-cards-page .gogh-chip-name');
+        expect(plate, 'the nameplate did not move to the top of the Page drawer');
+      }
       var i = findIdx('badge');
       select(i);
       if (document.activeElement && document.activeElement.blur) document.activeElement.blur();

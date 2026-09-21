@@ -1,4 +1,4 @@
-# Knowledge-base audit — plugin v0.99.621
+# Knowledge-base audit — plugin v0.99.622
 
 _13 finding(s) suppressed by `kb.audit-ignore.txt`._
 
@@ -103,10 +103,11 @@ The source has something the prose never explains. The bot knows the name from t
 - divider `dunes` exists in source but is never mentioned in the prose
 - divider `mist` exists in source but is never mentioned in the prose
 
-## QUOTE (7)
+## QUOTE (8)
 
 Quoted copy not found verbatim in the source. Paraphrases are fine; changed UI copy is not.
 
+- All changes published
 - Launched N times on Playground
 - Fraunces & Inter. Installed on your site, yours to keep.
 - Already the same size
@@ -119,4 +120,5 @@ Quoted copy not found verbatim in the source. Paraphrases are fine; changed UI c
 
 Use this as the checklist for updating the prose — and as a sanity check on the release itself.
 
-- version: 0.99.620 → 0.99.621
+- version: 0.99.621 → 0.99.622
+- removed UI label: "How Google and AI read this page"

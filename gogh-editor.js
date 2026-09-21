@@ -4378,7 +4378,9 @@
     if (on && history.length === 0) pushState();
     if (on && savedSnap === null) savedSnap = serialize();
     if (on) { placeConvertBtns(); placeChromeBtns(); } else { clearConvertBtns(); clearChromeBtns(); }
+    if (on) mountChip();
     chip.hidden = !on;
+    chipHome.hidden = !on;
     if (on) { refreshChip(); checkRecovery(); }
     else exitPanel.hidden = true;
   }
@@ -19595,29 +19597,41 @@
     return savedSnap !== null && serialize() !== savedSnap;
   }
 
+  // The publish status and the Publish button live in the admin bar, right
+  // after View site (v0.99.622; James: 'removing the gogh pill in the bottom
+  // right and moving into the toolbar'). The way out and the way live are
+  // neighbours: change, publish, look. A page with no admin bar (a seamless
+  // playground) keeps the old floating chip at the bottom right.
   var chip = document.createElement('div');
   chip.className = 'gogh-chip';
   chip.hidden = true;
-  // the nameplate: the page's name lives beside its status (James: "an
-  // elegant way to surface the page title to reassure folks") — and an
-  // unnamed page wears a soft invitation instead. Click to name or
-  // rename at ANY moment; the name saves immediately, so even an
-  // abandoned draft is findable by name in the Pages list.
-  chip.innerHTML = '<button type="button" class="gogh-chip-name" hidden></button>' +
-    '<span class="gogh-chip-dot"></span><span class="gogh-chip-txt"></span>' +
-    '<button type="button" class="gogh-btn-save gogh-chip-btn">Publish</button>' +
-    // the answer-ready mark, standing where the eye already rests — the
-    // toast and the drawer badge teach the ✦; here it only needs to be
-    // recognised (tooltip carries the words). Shown on the clean chip via
-    // CSS, hidden while there's publishing to think about.
-    '<button type="button" class="gogh-chip-ar" title="How Google and AI read this page">✦</button>';
-  document.body.appendChild(chip);
-  chip.querySelector('.gogh-chip-ar').addEventListener('click', function () {
-    openAnswerReadyPanel();
-  });
+  chip.innerHTML = '<span class="gogh-chip-dot"></span><span class="gogh-chip-txt"></span>' +
+    '<button type="button" class="gogh-btn-save gogh-chip-btn">Publish</button>';
+  var chipHome = document.createElement('li');
+  chipHome.id = 'wp-admin-bar-gogh-publish';
+  chipHome.hidden = true;
+  chipHome.appendChild(chip);
+  var chipMount = ''; // 'gogh-chip-bar' once it is in the bar, 'gogh-chip-float' otherwise
+  function mountChip() {
+    if (chipMount) return;
+    var edit = document.getElementById('wp-admin-bar-gogh-edit');
+    if (edit && edit.parentNode) { chipMount = 'gogh-chip-bar'; edit.parentNode.insertBefore(chipHome, edit.nextSibling); }
+    else { chipMount = 'gogh-chip-float'; document.body.appendChild(chip); }
+    chip.classList.add(chipMount);
+  }
+  // the nameplate: the page's name, click to rename at ANY moment (the name
+  // saves immediately, so even an abandoned draft is findable by name in
+  // the Pages list). It rode the chip; now that the chip is a bar item it
+  // sits at the top of the Page drawer, the drawer about THIS page. An
+  // unnamed page wears a soft invitation instead.
+  var chipName = document.createElement('button');
+  chipName.type = 'button';
+  chipName.className = 'gogh-chip-name';
+  chipName.hidden = true;
+  var pageCards = side.querySelector('.gogh-cards-page');
+  if (pageCards) pageCards.insertBefore(chipName, pageCards.firstChild); else document.body.appendChild(chipName);
   var chipTxt = chip.querySelector('.gogh-chip-txt');
   var chipBtn = chip.querySelector('.gogh-chip-btn');
-  var chipName = chip.querySelector('.gogh-chip-name');
   chipName.addEventListener('click', function () { openPageNamePanel('rename'); });
   function refreshChipName() {
     if (cfg.postType !== 'page') { chipName.hidden = true; return; }
@@ -19630,16 +19644,26 @@
   var chipBusy = false;
   var chipTimer = null;
   function setChip(state, txt, btnLabel) {
-    chip.className = 'gogh-chip is-' + state;
+    chip.className = 'gogh-chip ' + chipMount + ' is-' + state;
     chipTxt.textContent = txt;
-    if (btnLabel) { chipBtn.textContent = btnLabel; chipBtn.hidden = false; }
+    // in the bar the button never vanishes — it greys out when there is
+    // nothing to publish, so nothing to its right jumps
+    if (btnLabel) { chipBtn.textContent = btnLabel; chipBtn.hidden = false; chipBtn.disabled = false; }
+    else if (chipMount === 'gogh-chip-bar') { chipBtn.textContent = 'Publish'; chipBtn.hidden = false; chipBtn.disabled = true; }
     else chipBtn.hidden = true;
   }
   function refreshChip() {
     if (chipBusy) return;
     clearTimeout(chipTimer);
-    if (isDirty()) setChip('dirty', backedUp ? 'Unpublished changes \u00b7 backed up' : 'Unpublished changes', 'Publish');
-    else setChip('clean', 'All changes published');
+    if (isDirty()) {
+      // 'backed up' stays in the words, not only the tooltip (James: 'do we
+      // not tell folks that things have been backed up anymore?')
+      setChip('dirty', backedUp ? 'Unpublished changes \u00b7 backed up' : 'Unpublished changes', 'Publish');
+      chip.title = backedUp ? 'Your changes are backed up. Publish puts them live.' : 'Publish puts your changes live.';
+    } else {
+      setChip('clean', 'All published');
+      chip.title = 'Everything on this page is live.';
+    }
     refreshChipName();
   }
 

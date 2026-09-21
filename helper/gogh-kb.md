@@ -15,7 +15,7 @@ about something where they conflict, rather than picking one silently. Quote UI
 labels and message copy from the appendix, verbatim — those are the current
 strings, and a paraphrased button label is the fastest way to lose a user's trust.
 
-Generated for plugin version 0.99.621 · knowledge base 1cfd2b4.
+Generated for plugin version 0.99.622 · knowledge base 7db9f2b.
 
 ---
 
@@ -829,6 +829,8 @@ The helper's welcome panel opens with a 35-second film of gogh being used (v0.99
 
 **The phone view survives navigation (v0.99.605).** Press one of your own pages while on the phone and it opens in the editor, still on the phone: the link carries `gogh-edit=1&gogh-phone=1`, the next page reads them at boot and strips them from the address. Other sites, files, wp-admin and anchors on the same page are left alone. Unpublished changes still ask before leaving.
 
+**Publish lives in the admin bar (v0.99.622).** The chip that floated at the bottom right (page name, status dot, Publish, ✦) is gone. Its job sits in the admin bar right after **View site**: a dot and a few words, *All published* (green) or *Unpublished changes* (amber; *· backed up* joins it once the draft is safe on the server), then a **Publish** button that greys out when there is nothing to publish rather than vanishing, so nothing jumps. *Publishing…* and *Published ✓* show there too, and a failed publish reads *Publish failed* with **Retry**. Hover the status for the longer sentence (*Your changes are backed up. Publish puts them live.*). The page's name, which rode the chip, now sits at the top of the **Page** drawer, with *· Rename* after it; click it to rename, and an unnamed page shows the amber *Untitled page — name it* invitation there. The ✦ answer-ready mark is no longer on the chip; the SEO tab on the rail is that door. A page with no admin bar (a seamless playground) keeps the floating chip at the bottom right.
+
 **A see-through header auditions properly in the design view again (v0.99.621).** The rule that keeps a *sticky* header in flow inside the zoomed page matched the live header's content even while another layout was previewing, so with a sticky header the Transparent option sat in flow over a pale band instead of floating. The rule now looks only at whichever content is showing, and a see-through header floats at the artboard's top in the design view even when it is also sticky.
 
 **The help sheet's bigger/smaller button is a drawn icon (v0.99.620)**, the same round button as ✕ at the sheet's top right; before, a typed ⤡ glyph came out small and squashed.
@@ -862,11 +864,11 @@ Everything in this section is extracted mechanically from the Gogh source on eve
 
 ## Current release
 
-- Plugin version: **0.99.621**
+- Plugin version: **0.99.622**
 - Requires WordPress **6.5+**, PHP **7.4+**
 - Text domain: `gogh-editor`
 - readme.txt Stable tag: `0.26.0` · Tested up to: `7.0`
-- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.621`). Quote the plugin header version.
+- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.622`). Quote the plugin header version.
 
 ## Design constants
 
@@ -1157,7 +1159,6 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "Hidden"
 - "Hide on phones"
 - "Home"
-- "How Google and AI read this page"
 - "Icon"
 - "Image"
 - "Imagine"
