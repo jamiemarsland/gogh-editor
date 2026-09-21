@@ -2645,7 +2645,9 @@
   devHome.id = 'wp-admin-bar-gogh-device';
   devHome.hidden = true;
   devHome.appendChild(devPill);
-  // Site style lives in the bar as a brush, between the phone and the ?
+  // Site style lives in the bar as a brush (a round paintbrush, handle and
+  // tip: the flat Squarespace brush read as a spatula at 17px — James, 'is
+  // this meant to be a paint brush?'), left of the Desktop | Mobile pair
   // (James: 'site styles in the admin toolbar - that feels like potentially
   // the right place cuz it affects site wide'). It opens the Site drawer,
   // the same one the rail's Site tab opened; the rail keeps Page and SEO.
@@ -2653,7 +2655,7 @@
   styleHome.id = 'wp-admin-bar-gogh-style';
   styleHome.hidden = true;
   styleHome.innerHTML = '<a class="ab-item gogh-stylebar" href="#" role="button" aria-label="Site Styles" title="Site Styles">' +
-    '<svg class="gogh-ab-ic" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><g transform="rotate(-42 12 12)"><path d="M9.6 3.5h4.8A1.6 1.6 0 0 1 16 5.1v3.8a1.6 1.6 0 0 1-1.6 1.6H9.6A1.6 1.6 0 0 1 8 8.9V5.1A1.6 1.6 0 0 1 9.6 3.5z"/><path d="M10.7 5v4M13.3 5v4"/><path d="M9 10.5h6v2.2H9z"/><path d="M12 12.7V21" stroke-width="2.6"/></g></svg></a>';
+    '<svg class="gogh-ab-ic" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="m9.06 11.9 8.07-8.06a2.85 2.85 0 1 1 4.03 4.03l-8.06 8.08"/><path d="M7.07 14.94c-1.66 0-3 1.35-3 3.02 0 1.33-2.5 1.52-2 2.02 1.08 1.1 2.49 2.02 4 2.02 2.2 0 4-1.8 4-4.04a3.01 3.01 0 0 0-3-3.02z"/></svg></a>';
   styleHome.querySelector('a').addEventListener('click', function (ev) {
     ev.preventDefault();
     if (side.classList.contains('is-open') && side.dataset.mode === 'site' && !side.querySelector('.gogh-panel')) closeSide(); else openSide('site');

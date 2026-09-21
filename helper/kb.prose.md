@@ -810,6 +810,8 @@ The helper's welcome panel opens with a 35-second film of gogh being used (v0.99
 
 **The phone view survives navigation (v0.99.605).** Press one of your own pages while on the phone and it opens in the editor, still on the phone: the link carries `gogh-edit=1&gogh-phone=1`, the next page reads them at boot and strips them from the address. Other sites, files, wp-admin and anchors on the same page are left alone. Unpublished changes still ask before leaving.
 
+**The brush is a round paintbrush now (v0.99.626)**, handle and tip; the flat Squarespace-style brush read as a spatula at bar size.
+
 **The brush sits left of the Desktop | Mobile pair (v0.99.625):** making, then looking, then help. It was between the pair and the ? before.
 
 **Site style's *On your site now* card stays hidden until a Remix has been rolled (v0.99.624).** It used to show as an empty card under Remix and Your brand, a label over nothing, because its layout rule out-ranked the hidden attribute.

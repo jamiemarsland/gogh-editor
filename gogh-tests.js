@@ -7437,8 +7437,11 @@
       try {
         side.querySelector('.gogh-cards-site .gogh-stylebtn').click();
         // the panel fills once the theme's variations arrive
-        var box = await new Promise(function (res) { var t0 = Date.now(); (function look() { var b = q('.gogh-panel .gogh-remixwearing'); if (b || Date.now() - t0 > 6000) res(b); else setTimeout(look, 100); })(); });
-        expect(box, 'the Site style panel has no wearing card');
+        await new Promise(function (res) { var t0 = Date.now(); (function look() { var b = q('.gogh-panel .gogh-remixwearing'); if (b || Date.now() - t0 > 6000) res(b); else setTimeout(look, 100); })(); });
+        // the panel is drawn again once the variations land: take the live card, not the first one seen
+        await new Promise(function (r) { setTimeout(r, 600); });
+        var box = q('.gogh-panel .gogh-remixwearing');
+        expect(box && document.body.contains(box), 'the Site style panel has no wearing card');
         // an earlier test may have rolled a Remix on this page; either way the
         // invariant holds: hidden means not drawn, shown means it has a name
         var name = box.querySelector('.gogh-remixwearing-name').textContent;
