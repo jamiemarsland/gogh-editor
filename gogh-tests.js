@@ -7399,17 +7399,20 @@
       return 'glaze chart: no family; plain hero: ' + fam2;
     });
 
-    test('the rail: Page · Site · SEO, each door honest about its scope', function () {
+    test('the rail: Page · SEO on the left, the Site drawer from the brush in the top bar', function () {
       var pg = q('.gogh-local-tab');
-      var st = q('.gogh-site-tab');
       var ar = q('.gogh-ar-tab');
       expect(pg && !pg.hidden && /Page/.test(pg.textContent), 'the Page tab is missing or misnamed');
-      expect(st && !st.hidden && /Site/.test(st.textContent), 'the Site tab is missing or misnamed');
+      expect(!q('.gogh-site-tab'), 'the rail still carries a Site tab');
       expect(ar && !ar.hidden, 'the SEO tab is missing');
+      var st = q('#wp-admin-bar-gogh-style .gogh-stylebar, .gogh-devpill-float .gogh-stylebar');
+      expect(st, 'no brush in the top bar');
+      expect(!st.closest('[hidden]'), 'the brush is hidden while editing');
+      expect(/site style/i.test(st.getAttribute('title') || ''), 'the brush has no tooltip naming Site style');
       var side = q('.gogh-side');
-      // the Site door opens the drawer wearing SITE clothes only
+      // the brush opens the drawer wearing SITE clothes only
       st.click();
-      expect(side.classList.contains('is-open'), 'the Site tab did not open the drawer');
+      expect(side.classList.contains('is-open'), 'the brush did not open the drawer');
       expect(q('.gogh-side-title').textContent === 'Site', 'the drawer head does not say Site');
       expect(side.querySelector('.gogh-cards-page').hidden, 'page cards leaked into Site mode');
       expect(!side.querySelector('.gogh-cards-site').hidden, 'site cards missing in Site mode');
@@ -8997,10 +9000,15 @@
       expect(note.hidden, 'the sentence lingered after Desktop');
       return note.textContent;
     });
-    test('Phone is a word in the top bar: it shows the phone artboard with no drawer open, and Desktop brings the page back', function () {
+    test('Phone is an icon in the top bar: it shows the phone artboard with no drawer open, and Desktop brings the page back', function () {
       var pill = q('#wp-admin-bar-gogh-device .gogh-devpill, .gogh-devpill-float .gogh-devpill');
       expect(pill, 'no Desktop | Phone pill in the top bar');
       expect(!pill.closest('[hidden]'), 'the pill is hidden while editing');
+      var ph = pill.querySelector('[data-dev="phone"]');
+      expect(ph.querySelector('svg') && !/\S/.test(ph.textContent), 'the Phone button still carries words: ' + ph.textContent);
+      expect(/^Phone/.test(ph.title) && ph.getAttribute('aria-label') === 'Phone', 'the phone icon has no name for the tooltip or a screen reader');
+      var ab = q('#wp-admin-bar-gogh-edit a');
+      if (ab) expect(/View site/.test(ab.textContent), 'while editing the bar should read View site: ' + ab.textContent);
       expect(!q('.gogh-zoomslider .gogh-dev'), 'the zoom slider still carries device buttons');
       var wrap = q('.wp-site-blocks');
       var html = document.documentElement;

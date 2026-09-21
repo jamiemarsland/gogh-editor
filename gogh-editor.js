@@ -2279,7 +2279,7 @@
   // two rooms, one landmark: on a POST this pill opens the write room (same
   // door the admin bar's Edit post opens); everywhere else, the canvas
   editBtnWrap.innerHTML = '<button type="button" class="gogh-btn gogh-btn-edit">' +
-    (cfg.writeUrl ? '✏️ Edit post' : '✏️ Edit with gogh') + '</button>';
+    (cfg.writeUrl ? '✏️ Edit post' : '✏️ Edit') + '</button>';
   document.body.appendChild(editBtnWrap);
   // Woo's cart, checkout and account pages are rails: nothing there is gogh's
   // to edit, so the pill stays away and never covers a Place order button
@@ -2627,13 +2627,34 @@
   devPill.className = 'gogh-devpill';
   devPill.setAttribute('role', 'group');
   devPill.setAttribute('aria-label', 'See the page as');
+  // icons, named on hover (James, 2026-09-21: 'can we show with just icons'):
+  // the words made the bar read as a sentence; a screen and a phone read as
+  // two ways of looking. The title carries the word for the tooltip, the
+  // aria-label for a screen reader.
+  var DEV_SVG = {
+    desktop: '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="12" rx="1.5"/><path d="M8 20h8M12 16v4"/></svg>',
+    phone: '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="7" y="3" width="10" height="18" rx="2.5"/><path d="M11 18h2"/></svg>'
+  };
   devPill.innerHTML =
-    '<button type="button" class="gogh-dev is-on" data-dev="desktop" aria-pressed="true">Desktop</button>' +
-    '<button type="button" class="gogh-dev" data-dev="phone" aria-pressed="false" title="See and tune how the page looks on a phone">Phone</button>';
+    '<button type="button" class="gogh-dev is-on" data-dev="desktop" aria-pressed="true" aria-label="Desktop" title="Desktop">' + DEV_SVG.desktop + '</button>' +
+    '<button type="button" class="gogh-dev" data-dev="phone" aria-pressed="false" aria-label="Phone" title="Phone \u2014 see and tune how the page looks on a phone">' + DEV_SVG.phone + '</button>';
   var devHome = document.createElement('li');
   devHome.id = 'wp-admin-bar-gogh-device';
   devHome.hidden = true;
   devHome.appendChild(devPill);
+  // Site style lives in the bar as a brush, between the phone and the ?
+  // (James: 'site styles in the admin toolbar - that feels like potentially
+  // the right place cuz it affects site wide'). It opens the Site drawer,
+  // the same one the rail's Site tab opened; the rail keeps Page and SEO.
+  var styleHome = document.createElement('li');
+  styleHome.id = 'wp-admin-bar-gogh-style';
+  styleHome.hidden = true;
+  styleHome.innerHTML = '<a class="ab-item gogh-stylebar" href="#" role="button" aria-label="Site style" title="Site style \u2014 colours, fonts, header and footer, everywhere at once">' +
+    '<svg class="gogh-ab-ic" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><g transform="rotate(-42 12 12)"><rect x="8" y="3.5" width="8" height="7" rx="1.6"/><path d="M10.7 5v4M13.3 5v4"/><path d="M9 10.5h6v2.2H9z"/><path d="M12 12.7V21" stroke-width="2.6"/></g></svg></a>';
+  styleHome.querySelector('a').addEventListener('click', function (ev) {
+    ev.preventDefault();
+    if (side.classList.contains('is-open') && side.dataset.mode === 'site' && !side.querySelector('.gogh-panel')) closeSide(); else openSide('site');
+  });
   function mountDevPill() {
     // on the right of the admin bar, just left of the ? (James: 'move it over
     // to the right - just to the left of help'): it is a way of LOOKING, so it
@@ -2645,8 +2666,13 @@
     // there to be found once editing begins.
     if (devHome.parentNode && devHome.parentNode !== document.body) return;
     var mark = document.getElementById('wp-admin-bar-gogh-help') || document.getElementById('wp-admin-bar-gogh-edit');
-    if (mark && mark.parentNode) { devHome.className = ''; mark.parentNode.insertBefore(devHome, mark.id === 'wp-admin-bar-gogh-help' ? mark : mark.nextSibling); }
-    else if (!devHome.parentNode) { devHome.className = 'gogh-devpill-float'; document.body.appendChild(devHome); }
+    if (mark && mark.parentNode) {
+      devHome.className = '';
+      // pill, then brush, then ?: the brush floats left after the pill
+      mark.parentNode.insertBefore(devHome, mark.id === 'wp-admin-bar-gogh-help' ? mark : mark.nextSibling);
+      devHome.parentNode.insertBefore(styleHome, devHome.nextSibling);
+    }
+    else if (!devHome.parentNode) { devHome.className = 'gogh-devpill-float'; document.body.appendChild(devHome); devPill.appendChild(styleHome.querySelector('a')); }
   }
   // A page pressed in the phone view opens in the editor, still on the phone
   // (James: 'when i click on a page to view it opens in desktop view'): the
@@ -2898,10 +2924,10 @@
     setTimeout(check, 4000);
   })();
 
-  // tuck-away drawer: ONE pill, three doors ("i still dont love this" —
-  // three separate lozenges read as clutter however tight they stand).
-  // The rail is a single rounded tab; Page, Site and SEO are segments
-  // inside it, parted by hairlines. One piece of furniture on the wall.
+  // tuck-away drawer: ONE pill, two doors ("i still dont love this" —
+  // separate lozenges read as clutter however tight they stand).
+  // The rail is a single rounded tab; Page and SEO are segments inside it,
+  // parted by a hairline. One piece of furniture on the wall.
   var railBox = document.createElement('div');
   railBox.className = 'gogh-rail';
   railBox.hidden = true;
@@ -2912,13 +2938,8 @@
   sideTab.title = 'Page — the style and order of this page';
   sideTab.innerHTML = '<span>Page</span>'; // no dot: a dot that never resolves is fake status
   railBox.appendChild(sideTab);
-  var siteTab = document.createElement('button');
-  siteTab.type = 'button';
-  siteTab.className = 'gogh-side-tab gogh-site-tab';
-  siteTab.title = 'Site — colours, type, motion and chrome, everywhere at once';
-  siteTab.innerHTML = '<span>Site</span>';
-  railBox.appendChild(siteTab);
-  siteTab.addEventListener('click', function () { openSide('site'); });
+  // no Site tab here any more: the Site drawer opens from the brush in the
+  // top bar (v0.99.618). The rail keeps Page and SEO, the doors about THIS page.
   var arTab = document.createElement('button');
   arTab.type = 'button';
   arTab.className = 'gogh-side-tab gogh-ar-tab';
@@ -4308,7 +4329,9 @@
       // the same markup PHP rendered, so a boot never changes the label
       var want = cfg.abEdit && cfg.abEdit[on ? 'on' : 'off'];
       if (want) { if (abLink.innerHTML !== want) abLink.innerHTML = want; }
-      else abLink.textContent = on ? 'View site' : '\ud83c\udfa8 Edit with gogh';
+      else abLink.textContent = on ? 'View site' : 'Edit';
+      var abLi = abLink.parentNode;
+      if (abLi && abLi.classList) { abLi.classList.toggle('gogh-ab-solid', !on); if (on) abLink.removeAttribute('title'); else abLink.title = 'Edit this page with gogh'; }
       var abUrl = new URL(location.href);
       abUrl.searchParams[on ? 'delete' : 'set']('gogh-edit', '1');
       abLink.href = abUrl.toString();
@@ -4317,6 +4340,7 @@
     railBox.hidden = !on;
     if (on) mountDevPill();
     devHome.hidden = !on || !!cfg.writeUrl; // the write room has no canvas to preview
+    styleHome.hidden = !on;
     // a room's Done reloads the page; the drawer it came from comes back
     if (on) { try { var reopen = sessionStorage.getItem('gogh-reopen-side'); if (reopen) { sessionStorage.removeItem('gogh-reopen-side'); setTimeout(function () { openSide(reopen); }, 300); } } catch (e) {} }
     if (!on) {

@@ -1,12 +1,12 @@
 {
   "meta": {
-    "plugin_version": "0.99.617",
+    "plugin_version": "0.99.618",
     "requires_wp": "6.5",
     "requires_php": "7.4",
     "text_domain": "gogh-editor",
     "readme_stable_tag": "0.26.0",
     "readme_tested_up_to": "7.0",
-    "asset_version": "0.99.617-chrome"
+    "asset_version": "0.99.618-chrome"
   },
   "constants": {
     "TOL": 8,
@@ -572,8 +572,8 @@
     "Our story",
     "Outline",
     "Peek at pages",
-    "Phone",
     "Phone menu",
+    "Phone — see and tune how the page looks on a phone",
     "Posts",
     "Products",
     "Publish",
@@ -597,7 +597,6 @@
     "Save",
     "Save description",
     "See all →",
-    "See and tune how the page looks on a phone",
     "See it on a phone",
     "See the page as a phone",
     "Send backward",
@@ -607,6 +606,7 @@
     "Show the next layout",
     "Shown",
     "Site designs — a whole site, ready to tweak (replaces this one)",
+    "Site style — colours, fonts, header and footer, everywhere at once",
     "Solid",
     "Start writing — a reading column, cursor ready",
     "Switch design",

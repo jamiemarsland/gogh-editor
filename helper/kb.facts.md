@@ -4,11 +4,11 @@ Everything in this section is extracted mechanically from the Gogh source on eve
 
 ## Current release
 
-- Plugin version: **0.99.617**
+- Plugin version: **0.99.618**
 - Requires WordPress **6.5+**, PHP **7.4+**
 - Text domain: `gogh-editor`
 - readme.txt Stable tag: `0.26.0` · Tested up to: `7.0`
-- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.617`). Quote the plugin header version.
+- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.618`). Quote the plugin header version.
 
 ## Design constants
 
@@ -350,8 +350,8 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "Our story"
 - "Outline"
 - "Peek at pages"
-- "Phone"
 - "Phone menu"
+- "Phone — see and tune how the page looks on a phone"
 - "Posts"
 - "Products"
 - "Publish"
@@ -375,7 +375,6 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "Save"
 - "Save description"
 - "See all →"
-- "See and tune how the page looks on a phone"
 - "See it on a phone"
 - "See the page as a phone"
 - "Send backward"
@@ -385,6 +384,7 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "Show the next layout"
 - "Shown"
 - "Site designs — a whole site, ready to tweak (replaces this one)"
+- "Site style — colours, fonts, header and footer, everywhere at once"
 - "Solid"
 - "Start writing — a reading column, cursor ready"
 - "Switch design"

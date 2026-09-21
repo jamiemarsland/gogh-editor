@@ -15,7 +15,7 @@ about something where they conflict, rather than picking one silently. Quote UI
 labels and message copy from the appendix, verbatim — those are the current
 strings, and a paraphrased button label is the fastest way to lose a user's trust.
 
-Generated for plugin version 0.99.617 · knowledge base bb261b3.
+Generated for plugin version 0.99.618 · knowledge base a39c0df.
 
 ---
 
@@ -49,7 +49,7 @@ The trick: you design **freeform** (drag anything anywhere), and when you hit Pu
 ## PART 2 — GETTING IN AND OUT
 
 ### Four ways into the editor
-1. **Admin bar** — `🎨 Edit with gogh` appears on any single front-end page you can edit. Links to the permalink + `?gogh-edit=1`.
+1. **Admin bar** — **Edit** (a solid button; before v0.99.618 `🎨 Edit with gogh`) appears on any single front-end page you can edit. Links to the permalink + `?gogh-edit=1`.
 2. **Corner button** on the front end — `✏️ Edit with gogh`. Hides once editing starts.
 3. **The URL** — add `?gogh-edit=1` to any page. If the page has no Gogh content yet, Gogh bootstraps an empty placeholder section at the end of `.entry-content` / `main` so there's a canvas. That placeholder is never saved unless you use it.
 4. **Block editor** — insert the **gogh Section** block (category: Design, icon: art). It renders a dashed placeholder — "🎨 gogh section" / "Design this section by dragging elements directly on the live page." — with an **Edit with gogh** button linking to `<permalink>?gogh-edit=1`.
@@ -164,7 +164,7 @@ Cards matter because they're what keeps an image + heading + button together whe
 ## PART 5 — THE UI, CONTROL BY CONTROL
 
 ### The side rail (left edge: Page · Site · SEO)
-Three tabs sit on the left edge of the window in edit mode. Click one and a drawer docks beside the page (the page shrinks to fit next to it; nothing opens on hover, and there is no palette on the right any more). There is no exit control here — leaving edit mode is **View site (was Exit gogh editor)** in the admin toolbar.
+Two tabs, Page and SEO, sit on the left edge of the window in edit mode (Site moved to the brush in the top bar in v0.99.618). Click one and a drawer docks beside the page (the page shrinks to fit next to it; nothing opens on hover, and there is no palette on the right any more). There is no exit control here — leaving edit mode is **View site (was Exit gogh editor)** in the admin toolbar.
 - **Page** — this page's doors, **Add a page** first (v0.99.585): type a title, press Add, and the page is created and opens in the editor straight away. On arrival a toast says it is a new page, with **Put it in the menu** (one click: the page goes to the end of the site menu, which the header shows on every page) and **Undo** (bins the page and goes back to the page Add was pressed on). Nothing joins the menu unless asked — thank-you pages and drafts are pages too. Then **Page style** and **Rearrange sections**.
 - **Site** — the design of the whole site as cards: **Site style** (colours and looks, hover to try, click to keep, Remix), **Fonts** (pairs, tried on your page), **Motion**, **Edit header**, **Edit footer**, **Page style**, **Rearrange sections** (the zoom-out page map). Some doors dock as a panel in the same place; **Back** returns to the cards.
 - **SEO** — what the page says to search engines.
@@ -596,7 +596,7 @@ __goghMcp.call('gogh_publish').then(console.log)   // only this one is a promise
 | `wp_enqueue_scripts` | action | Front-end editor assets + inline base CSS |
 | `rest_api_init` | action | Registers `gogh/v1/render` |
 | `enqueue_block_assets` | action | Admin-only inline base CSS |
-| `admin_bar_menu` | action, priority 90 | The `🎨 Edit with gogh` node |
+| `admin_bar_menu` | action, priority 90 | The **Edit** node (was `🎨 Edit with gogh`) |
 | `block_editor_settings_all` | filter | Injects the page's Gogh CSS + editor fixes into the block editor |
 
 ### Filters exposed for third parties
@@ -829,12 +829,14 @@ The helper's welcome panel opens with a 35-second film of gogh being used (v0.99
 
 **The phone view survives navigation (v0.99.605).** Press one of your own pages while on the phone and it opens in the editor, still on the phone: the link carries `gogh-edit=1&gogh-phone=1`, the next page reads them at boot and strips them from the address. Other sites, files, wp-admin and anchors on the same page are left alone. Unpublished changes still ask before leaving.
 
+**The top bar, the simple way (v0.99.618).** The admin bar's gogh door is one word now, **Edit**, drawn as a solid white button at the top left where *Edit with gogh* sat (posts keep *Edit post*). While editing, the same spot reads **View site** with the eye, as before: the way in and the way out are one spot. At the top right, just left of the ? help button, the **Desktop | Phone** pill is a pair of icons, a screen and a phone, named on hover (the words *Desktop* and *Phone* are the tooltips and the screen-reader labels). Next to it, a **brush** opens the **Site** drawer: Site style, Fonts, Motion, Edit header, Edit footer, everything about the whole site. The left rail keeps **Page** and **SEO**, the two doors about *this* page; it no longer carries a *Site* tab, and the Page and SEO drawers are the same size as before. Pressing the brush while the Site cards are already open closes the drawer. The tester card's *look* hint now says to press the brush at the top right, and its *phone* hint says to press the phone icon there.
+
 **Edit header and Edit footer dock on the left (v0.99.600).** Everything about the whole site now lives in the left panel: Site style, Fonts, Motion, Page style, and from this release the header room and the footer room too, with the page zoomed out beside them. The part being edited keeps a ring and a small *Editing the header — changes preview live* label; nothing is dimmed any more. The panel is titled **Editing the header** (or footer). **There is no Done and no Cancel (v0.99.611): the room keeps on click like Site style and Fonts.** A change waits about a second for its neighbours (a dial still dragging, a colour being compared), then writes the header and re-renders it in place — no reload — and the receipt says *The header is kept — it is on every page* with **Undo**, which writes the previous header back. ‹ Back, ✕ and Esc return to the Site cards, keeping any change still waiting. Picking a layout keeps the Layout list open (v0.99.614; it used to fold on a pick), and nothing in the room is rebuilt by a keep — the controls stay exactly where your hand is. The room's own pages — Edit menu items, Logo & name, Mobile menu — dock in the same place and their *Back to header* re-opens the room without leaving the design view. Edit footer scrolls the zoomed page down to the footer. Before this, the room floated centred under the header over a dimmed page, and its Mobile menu page hid the Centred layout behind its own controls. The chip above a docked page's title reads **‹ Back** (it said *Site* or *Page*, which meant nothing to someone who had just pressed Edit header). **Stick to the top** cannot be shown in the design view — a pinned header inside the zoomed page slid the first section under it — so there the header stays in place and a line under the switch says *Sticks to the top as visitors scroll. Press View site to see it.* Saving a phone number, email or phone menu re-renders the header; the room's label rides the fresh markup and *Open the menu to preview* still opens it (v0.99.601). Leaving a room brings the *Edit header* pill on the header back. The *Edit header* pill also shows on hover in the zoomed design view (v0.99.602), since a saving Done lands there. The **footer room** has no *Mobile menu* door and no *Stick to the top* switch — those belong to the header. Sticking cannot be shown in the design view at all: the page sits inside a scaled transform there and neither sticky nor fixed positioning answers to the window through it; the real page does the sticking (checked: the header holds at the admin bar's height as visitors scroll). The row above a room page's title (*‹ Back to header*) has more room beneath it. While a header or footer room is open, the part's own hover pill (*Edit header*; it read *Edit site header* before v0.99.612) and veil are hidden, on desktop and in the phone view alike (v0.99.603); they return when you leave.
 
 A small ? sits in the admin bar just left of Howdy, on every screen where the bar shows, for any logged-in user when a helper URL is set. In the gogh editor it opens the help sheet (the same one the side rail's ? opens); on any other screen, wp-admin included, it opens the helper in a new tab. The node is `gogh-help` under `top-secondary`; the `gogh_helper_url` filter turning the URL off removes it.
 
 ### The admin bar's edit label never flashes (v0.99.567)
-One function, `gogh_ab_edit_label( $editing, $is_post )`, renders the bar's gogh node — 'Edit with gogh' / 'Edit post' on a page, 'View site' (before v0.99.598: 'Exit gogh editor') in the editor — and the editor receives both variants (`cfg.abEdit`) so when the mode flips without a reload it writes the same markup the server would. Before, the server rendered a tick and 'Done' while the page loaded and the editor's script then wrote 'Exit gogh editor' over it, so 'Done' flashed for an instant on every open.
+One function, `gogh_ab_edit_label( $editing, $is_post )`, renders the bar's gogh node — 'Edit' (before v0.99.618: 'Edit with gogh') / 'Edit post' on a page, 'View site' (before v0.99.598: 'Exit gogh editor') in the editor — and the editor receives both variants (`cfg.abEdit`) so when the mode flips without a reload it writes the same markup the server would. Before, the server rendered a tick and 'Done' while the page loaded and the editor's script then wrote 'Exit gogh editor' over it, so 'Done' flashed for an instant on every open.
 
 ### Pictures published light (v0.99.568, the speed pass)
 gogh's pictures used to publish as plain `<img src>` with no attachment id or size, so WordPress could not give them srcset, sizes, lazy loading or a fetch priority — a photographer's home was 3MB with a 7.8s LCP on a phone. Now a content filter (`gogh_light_images`, priority 11, just before core's own) finds the attachment behind each upload URL (`gogh_media_id_for_url`, cached a day), adds the `wp-image-ID` class and the intrinsic width/height, and core adds srcset, sizes, `loading="lazy"` for pictures below the first, `fetchpriority="high"` for the first. A section's background photo gets a `large` (1024px) variant under `@media (max-width: 700px)`, and on a single page the first section's background is preloaded (phone size for phones, full for the rest). Nothing to republish: it reaches every page ever published. The same release gates the look CSS (reading looks only on single posts, blog looks only on lists of posts or pages with a posts rail) and the view script's chunks (the Manual contents on posts, the video-pause control and the carousel/lightbox only where the page carries them). Measured: that home 3009KB → 737KB, LCP 7.8s → 4.2s, score 73 → 85; a text-only page 366KB → 325KB, 90 → 93.
@@ -856,11 +858,11 @@ Everything in this section is extracted mechanically from the Gogh source on eve
 
 ## Current release
 
-- Plugin version: **0.99.617**
+- Plugin version: **0.99.618**
 - Requires WordPress **6.5+**, PHP **7.4+**
 - Text domain: `gogh-editor`
 - readme.txt Stable tag: `0.26.0` · Tested up to: `7.0`
-- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.617`). Quote the plugin header version.
+- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.618`). Quote the plugin header version.
 
 ## Design constants
 
@@ -1202,8 +1204,8 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "Our story"
 - "Outline"
 - "Peek at pages"
-- "Phone"
 - "Phone menu"
+- "Phone — see and tune how the page looks on a phone"
 - "Posts"
 - "Products"
 - "Publish"
@@ -1227,7 +1229,6 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "Save"
 - "Save description"
 - "See all →"
-- "See and tune how the page looks on a phone"
 - "See it on a phone"
 - "See the page as a phone"
 - "Send backward"
@@ -1237,6 +1238,7 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "Show the next layout"
 - "Shown"
 - "Site designs — a whole site, ready to tweak (replaces this one)"
+- "Site style — colours, fonts, header and footer, everywhere at once"
 - "Solid"
 - "Start writing — a reading column, cursor ready"
 - "Switch design"

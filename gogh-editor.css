@@ -158,7 +158,7 @@
 }
 #wpadminbar .gogh-devpill .gogh-dev, .gogh-devpill-float .gogh-dev {
   all: unset; box-sizing: border-box; display: inline-grid; place-items: center;
-  height: 22px; padding: 0 11px; margin: 0; border-radius: 999px; cursor: pointer;
+  height: 22px; padding: 0 10px; margin: 0; border-radius: 999px; cursor: pointer;
   font: 600 12px/1 -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, sans-serif; letter-spacing: 0.01em;
   color: rgba(255, 255, 255, 0.72); text-shadow: none;
   transition: color .12s, background .12s;
@@ -167,6 +167,10 @@
 #wpadminbar .gogh-devpill .gogh-dev:focus-visible, .gogh-devpill-float .gogh-dev:focus-visible { outline: 2px solid #fff; outline-offset: 1px; }
 #wpadminbar .gogh-devpill .gogh-dev.is-on, .gogh-devpill-float .gogh-dev.is-on,
 #wpadminbar .gogh-devpill .gogh-dev.is-on:hover, .gogh-devpill-float .gogh-dev.is-on:hover { background: #fff; color: #1d2327; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25); }
+#wpadminbar .gogh-devpill .gogh-dev svg, .gogh-devpill-float .gogh-dev svg { display: block; }
+/* the brush rides inside the floating pill when there is no admin bar */
+.gogh-devpill-float .gogh-stylebar { display: inline-grid; place-items: center; height: 22px; padding: 0 8px; color: rgba(255, 255, 255, 0.86); text-decoration: none; }
+.gogh-devpill-float .gogh-stylebar:hover { color: #fff; }
 /* no admin bar (a seamless playground): the pill floats at the top, centred */
 .gogh-devpill-float {
   position: fixed; top: 10px; left: 50%; transform: translateX(-50%); z-index: 99999;

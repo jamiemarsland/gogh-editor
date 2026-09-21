@@ -1,6 +1,12 @@
-# Knowledge-base audit — plugin v0.99.617
+# Knowledge-base audit — plugin v0.99.618
 
 _13 finding(s) suppressed by `kb.audit-ignore.txt`._
+
+## STALE (1)
+
+The prose names something that no longer exists.
+
+- UI label "Phone" was removed in this release, but the prose still describes it
 
 ## MISSING (96)
 
@@ -119,4 +125,8 @@ Quoted copy not found verbatim in the source. Paraphrases are fine; changed UI c
 
 Use this as the checklist for updating the prose — and as a sanity check on the release itself.
 
-- version: 0.99.616 → 0.99.617
+- version: 0.99.617 → 0.99.618
+- removed UI label: "Phone"
+- removed UI label: "See and tune how the page looks on a phone"
+- added UI label: "Phone — see and tune how the page looks on a phone"
+- added UI label: "Site style — colours, fonts, header and footer, everywhere at once"
