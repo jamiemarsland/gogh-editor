@@ -2628,16 +2628,19 @@
   devPill.setAttribute('role', 'group');
   devPill.setAttribute('aria-label', 'See the page as');
   // icons, named on hover (James, 2026-09-21: 'can we show with just icons'):
+  // paths only, no <rect>: WordPress's admin-bar reset (#wpadminbar * {
+  // width: auto; height: auto }) zeroes a rect's geometry, and the screen and
+  // the phone came out as a stand and a dash (James: 'these icons are broken').
   // the words made the bar read as a sentence; a screen and a phone read as
   // two ways of looking. The title carries the word for the tooltip, the
   // aria-label for a screen reader.
   var DEV_SVG = {
-    desktop: '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="12" rx="1.5"/><path d="M8 20h8M12 16v4"/></svg>',
-    phone: '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="7" y="3" width="10" height="18" rx="2.5"/><path d="M11 18h2"/></svg>'
+    desktop: '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 4h15A1.5 1.5 0 0 1 21 5.5v9a1.5 1.5 0 0 1-1.5 1.5h-15A1.5 1.5 0 0 1 3 14.5v-9A1.5 1.5 0 0 1 4.5 4z"/><path d="M8 20h8M12 16v4"/></svg>',
+    phone: '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9.5 3h5A2.5 2.5 0 0 1 17 5.5v13a2.5 2.5 0 0 1-2.5 2.5h-5A2.5 2.5 0 0 1 7 18.5v-13A2.5 2.5 0 0 1 9.5 3z"/><path d="M11 18h2"/></svg>'
   };
   devPill.innerHTML =
-    '<button type="button" class="gogh-dev is-on" data-dev="desktop" aria-pressed="true" aria-label="Desktop" title="Desktop">' + DEV_SVG.desktop + '</button>' +
-    '<button type="button" class="gogh-dev" data-dev="phone" aria-pressed="false" aria-label="Phone" title="Phone \u2014 see and tune how the page looks on a phone">' + DEV_SVG.phone + '</button>';
+    '<button type="button" class="gogh-dev is-on" data-dev="desktop" aria-pressed="true" aria-label="Desktop view" title="Desktop view">' + DEV_SVG.desktop + '</button>' +
+    '<button type="button" class="gogh-dev" data-dev="phone" aria-pressed="false" aria-label="Mobile view" title="Mobile view">' + DEV_SVG.phone + '</button>';
   var devHome = document.createElement('li');
   devHome.id = 'wp-admin-bar-gogh-device';
   devHome.hidden = true;
@@ -2649,8 +2652,8 @@
   var styleHome = document.createElement('li');
   styleHome.id = 'wp-admin-bar-gogh-style';
   styleHome.hidden = true;
-  styleHome.innerHTML = '<a class="ab-item gogh-stylebar" href="#" role="button" aria-label="Site style" title="Site style \u2014 colours, fonts, header and footer, everywhere at once">' +
-    '<svg class="gogh-ab-ic" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><g transform="rotate(-42 12 12)"><rect x="8" y="3.5" width="8" height="7" rx="1.6"/><path d="M10.7 5v4M13.3 5v4"/><path d="M9 10.5h6v2.2H9z"/><path d="M12 12.7V21" stroke-width="2.6"/></g></svg></a>';
+  styleHome.innerHTML = '<a class="ab-item gogh-stylebar" href="#" role="button" aria-label="Site Styles" title="Site Styles">' +
+    '<svg class="gogh-ab-ic" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><g transform="rotate(-42 12 12)"><path d="M9.6 3.5h4.8A1.6 1.6 0 0 1 16 5.1v3.8a1.6 1.6 0 0 1-1.6 1.6H9.6A1.6 1.6 0 0 1 8 8.9V5.1A1.6 1.6 0 0 1 9.6 3.5z"/><path d="M10.7 5v4M13.3 5v4"/><path d="M9 10.5h6v2.2H9z"/><path d="M12 12.7V21" stroke-width="2.6"/></g></svg></a>';
   styleHome.querySelector('a').addEventListener('click', function (ev) {
     ev.preventDefault();
     if (side.classList.contains('is-open') && side.dataset.mode === 'site' && !side.querySelector('.gogh-panel')) closeSide(); else openSide('site');

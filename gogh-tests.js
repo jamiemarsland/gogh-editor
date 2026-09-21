@@ -7408,7 +7408,8 @@
       var st = q('#wp-admin-bar-gogh-style .gogh-stylebar, .gogh-devpill-float .gogh-stylebar');
       expect(st, 'no brush in the top bar');
       expect(!st.closest('[hidden]'), 'the brush is hidden while editing');
-      expect(/site style/i.test(st.getAttribute('title') || ''), 'the brush has no tooltip naming Site style');
+      expect(st.getAttribute('title') === 'Site Styles', 'the brush tooltip should read Site Styles: ' + st.getAttribute('title'));
+      expect(!st.querySelector('rect') && !q('#wp-admin-bar-gogh-device rect'), 'a <rect> in the admin bar is zeroed by WordPress\u2019s reset; draw with paths');
       var side = q('.gogh-side');
       // the brush opens the drawer wearing SITE clothes only
       st.click();
@@ -9006,7 +9007,9 @@
       expect(!pill.closest('[hidden]'), 'the pill is hidden while editing');
       var ph = pill.querySelector('[data-dev="phone"]');
       expect(ph.querySelector('svg') && !/\S/.test(ph.textContent), 'the Phone button still carries words: ' + ph.textContent);
-      expect(/^Phone/.test(ph.title) && ph.getAttribute('aria-label') === 'Phone', 'the phone icon has no name for the tooltip or a screen reader');
+      expect(ph.title === 'Mobile view' && ph.getAttribute('aria-label') === 'Mobile view', 'the phone icon should be named Mobile view: ' + ph.title);
+      var dk = pill.querySelector('[data-dev="desktop"]');
+      expect(dk.title === 'Desktop view', 'the screen icon should be named Desktop view: ' + dk.title);
       var ab = q('#wp-admin-bar-gogh-edit a');
       if (ab) expect(/View site/.test(ab.textContent), 'while editing the bar should read View site: ' + ab.textContent);
       expect(!q('.gogh-zoomslider .gogh-dev'), 'the zoom slider still carries device buttons');

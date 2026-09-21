@@ -1,12 +1,12 @@
 {
   "meta": {
-    "plugin_version": "0.99.618",
+    "plugin_version": "0.99.619",
     "requires_wp": "6.5",
     "requires_php": "7.4",
     "text_domain": "gogh-editor",
     "readme_stable_tag": "0.26.0",
     "readme_tested_up_to": "7.0",
-    "asset_version": "0.99.618-chrome"
+    "asset_version": "0.99.619-chrome"
   },
   "constants": {
     "TOL": 8,
@@ -489,8 +489,8 @@
     "Delete saved section",
     "Delete the selection",
     "Delivery & returns",
-    "Desktop",
     "Desktop menu",
+    "Desktop view",
     "Discard changes",
     "Done",
     "Done — keep this look",
@@ -550,6 +550,7 @@
     "Manage products",
     "Manage products ↗",
     "Manage this menu — reorder, nest, swap menus",
+    "Mobile view",
     "Most loved",
     "Move down",
     "Move down in the phone stack",
@@ -573,7 +574,6 @@
     "Outline",
     "Peek at pages",
     "Phone menu",
-    "Phone — see and tune how the page looks on a phone",
     "Posts",
     "Products",
     "Publish",
@@ -605,8 +605,8 @@
     "Show the menu open on the page",
     "Show the next layout",
     "Shown",
+    "Site Styles",
     "Site designs — a whole site, ready to tweak (replaces this one)",
-    "Site style — colours, fonts, header and footer, everywhere at once",
     "Solid",
     "Start writing — a reading column, cursor ready",
     "Switch design",
