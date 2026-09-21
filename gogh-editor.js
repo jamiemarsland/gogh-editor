@@ -17914,11 +17914,6 @@
             openBrandForm(anchorEl);
           });
           row.appendChild(b2);
-          // the one line that says how the two doors relate
-          var note = document.createElement('div');
-          note.className = 'gogh-toprow-note';
-          note.textContent = 'Remix keeps your brand colours and rolls everything else.';
-          top.appendChild(note);
         } else {
           var mk = document.createElement('button');
           mk.type = 'button';
@@ -17942,16 +17937,44 @@
             '<span class="gogh-remixwearing-foot"><span class="gogh-remixwearing-count"></span>' +
             '<span class="gogh-remixwearing-ways"><button type="button" class="gogh-remixback" title="The look before this one">Back</button>' +
             // closure, not a decision: the look is already on; Keep just says so and closes the panel
-            '<button type="button" class="gogh-remixkeep" title="It is already on your site — this closes the panel">Keep this</button></span></span></div>';
+            '<button type="button" class="gogh-remixkeep" title="It is already on your site — this closes the panel">Keep this</button></span>' +
+            // before any roll, with a brand set, the card is the receipt for the
+            // brand (James: 'should it be telling me the fonts etc what my brand
+            // uses, on this screen?'): its doors are the brand form and Fonts
+            '<span class="gogh-remixwearing-brandways" hidden><button type="button" class="gogh-remixbrandedit" title="Colours and fonts, from your guide">Edit brand</button>' +
+            '<button type="button" class="gogh-remixbrandfonts" title="Try other pairs on your page">Fonts</button></span></span></div>';
         top.appendChild(wrap);
         var wearingBox = wrap.querySelector('.gogh-remixwearing');
         var backBtn = wrap.querySelector('.gogh-remixback');
         var hint = panel.querySelector('.gogh-panel-hint');
+        var brandWays = wrap.querySelector('.gogh-remixwearing-brandways');
+        var ways = wrap.querySelector('.gogh-remixwearing-ways');
+        var brandFontName = function (k) {
+          var f = cfg.brand && cfg.brand.fonts && cfg.brand.fonts[k];
+          if (!f) return '';
+          var fam = ((cfg.brand && cfg.brand.families) || []).filter(function (x) { return x && x.slug === f; })[0];
+          var nm = fam && (fam.name || (fam.font_family_settings || {}).name);
+          return nm || String(f).replace(/^gogh-/, '').split('-').map(function (wd) { return wd.charAt(0).toUpperCase() + wd.slice(1); }).join(' ');
+        };
+        var sayBrand = function () {
+          var cols = ['background', 'text', 'accent', 'accent2'].map(function (k) { return cfg.brand.colors[k]; }).filter(Boolean);
+          var h = brandFontName('heading'), bd = brandFontName('body');
+          var fonts = h && bd && h !== bd ? h + ' & ' + bd : (h || bd);
+          wearingBox.querySelector('.gogh-remixwearing-name').textContent = 'Your brand';
+          wearingBox.querySelector('.gogh-remixwearing-detail').innerHTML =
+            cols.map(function (c) { return '<span class="gogh-vardot" style="background:' + escAttr(c) + '"></span>'; }).join('') +
+            '<span class="gogh-remixwearing-cols">' + cols.length + (cols.length === 1 ? ' colour' : ' colours') + '</span>' +
+            (fonts ? '<span class="gogh-remixwearing-sep">\u00b7</span><span class="gogh-remixwearing-fonts">' + esc(fonts) + '</span>' : '<span class="gogh-remixwearing-sep">\u00b7</span><span class="gogh-remixwearing-fonts">the theme\u2019s own type</span>');
+          wearingBox.querySelector('.gogh-remixwearing-count').textContent = 'Remix keeps these colours';
+        };
         remixWatch('panel', function () {
           if (!document.body.contains(wearingBox)) return; // the panel moved on
           var w = remixWorn();
-          if (!w) { wearingBox.hidden = true; return; }
+          var brandSet = !!(cfg.brand && cfg.brand.colors && Object.keys(cfg.brand.colors).length);
+          if (!w && !brandSet) { wearingBox.hidden = true; return; }
           wearingBox.hidden = false;
+          if (!w) { sayBrand(); brandWays.hidden = false; ways.hidden = true; wearingBox.classList.add('is-brand'); return; }
+          brandWays.hidden = true; ways.hidden = false; wearingBox.classList.remove('is-brand');
           // after the first roll the hint says the thing nobody said: it is already on
           if (hint) hint.textContent = w.origin ? 'Tap Remix to try a new look. Tap again for another.' : 'Like it? It\u2019s already on your site. Tap again for another, or go back.';
           wearingBox.querySelector('.gogh-remixwearing-name').textContent = w.origin ? (w.title || 'the look you started with') : ((w.cand && w.cand.name) || 'a new look');
@@ -17960,6 +17983,8 @@
           backBtn.disabled = remixAt <= 0;
         });
         backBtn.addEventListener('click', function () { remixBack(); });
+        wrap.querySelector('.gogh-remixbrandedit').addEventListener('click', function () { clearVariationPreview(); openBrandForm(anchorEl); });
+        wrap.querySelector('.gogh-remixbrandfonts').addEventListener('click', function () { clearVariationPreview(); openFontsPanel(anchorEl); });
         wrap.querySelector('.gogh-remixkeep').addEventListener('click', function () {
           var w = remixWorn();
           backToDesign(); // the same way out as Back: the side rail comes back

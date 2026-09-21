@@ -6675,7 +6675,7 @@
         // brand on the left, Remix on the right (v0.99.628): the colours, then the die
         expect(Math.abs(rr.top - br.top) < 4 && br.right <= rr.left + 2, 'Remix and the brand should share one row, the brand on the left');
         expect(Math.abs(rr.height - br.height) < 2, 'the brand and Remix should stand the same height: ' + br.height + ' vs ' + rr.height);
-        expect(top.querySelector('.gogh-toprow-note') && /Remix keeps your brand colours/.test(top.querySelector('.gogh-toprow-note').textContent), 'the line under the pair should say what Remix keeps');
+        expect(!top.querySelector('.gogh-toprow-note'), 'the note under the pair is gone; the wearing card carries it (v0.99.629)');
         var more = pnl.querySelector('details.gogh-more');
         expect(more && !more.open && more.contains(pnl.querySelector('.gogh-varlist')) && !pnl.querySelector('.gogh-typescale'), 'the theme’s colour looks should be folded under More; type lives in the Fonts door');
         expect(!pnl.querySelector('.gogh-remixcards, .gogh-remixlocks, .gogh-remixdirs, .gogh-remixkept, .gogh-remixpin'), 'the shop (cards, locks, directions, the shelf) should be gone, not hidden');
@@ -7450,6 +7450,16 @@
         var name = box.querySelector('.gogh-remixwearing-name').textContent;
         if (box.hidden) expect(getComputedStyle(box).display === 'none', 'the hidden card is still drawn: display ' + getComputedStyle(box).display);
         else expect(/\S/.test(name), 'the card is showing with no name');
+        // with a brand set and nothing rolled, the card is the brand's receipt (v0.99.629):
+        // its name, its colours as dots, its fonts, and doors to the brand form and Fonts
+        var C = window.GOGH || {};
+        if (C.brand && C.brand.colors && Object.keys(C.brand.colors).length && !G.remixWorn()) {
+          expect(!box.hidden && name === 'Your brand', 'with a brand set the card should show Your brand before any roll: hidden=' + box.hidden + ' name=' + name);
+          expect(box.querySelectorAll('.gogh-remixwearing-detail .gogh-vardot').length >= 1, 'the brand card should show its colours as dots');
+          expect(/\S/.test(box.querySelector('.gogh-remixwearing-fonts').textContent), 'the brand card should name its fonts (or the theme\u2019s own type)');
+          var bw = box.querySelector('.gogh-remixwearing-brandways');
+          expect(bw && !bw.hidden && box.querySelector('.gogh-remixwearing-ways').hidden, 'the brand card should offer Edit brand and Fonts, not Back and Keep this');
+        }
         // and hidden by hand, it must vanish (the flex rule used to out-rank hidden)
         var was = box.hidden; box.hidden = true;
         expect(getComputedStyle(box).display === 'none', 'a hidden card is still drawn: display ' + getComputedStyle(box).display);

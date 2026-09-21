@@ -4299,7 +4299,15 @@ html.gogh-building .gogh-inserter, html.gogh-building .gogh-side { display: none
 /* one mark, not two: the pencil says 'open me'; the tick crowded the name out on a narrow panel */
 .gogh-toprow .gogh-brandbtn.is-current::after { display: none; }
 .gogh-toprow .gogh-brandbtn:hover .gogh-brandpen { opacity: 1; }
-.gogh-toprow-note { order: 3; flex-basis: 100%; font-size: 12px; line-height: 1.4; color: var(--gogh-ui-muted, #6b7280); margin: 2px 2px 0; }
+/* the brand receipt on the wearing card: dots, a count, the font pair */
+.gogh-remixwearing-detail .gogh-vardot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 3px; vertical-align: -1px; box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.08); }
+.gogh-remixwearing-cols { margin-left: 3px; }
+.gogh-remixwearing-sep { margin: 0 6px; opacity: .5; }
+.gogh-remixwearing.is-brand .gogh-remixwearing-detail { font-size: 12px; opacity: .85; margin-top: 3px; }
+.gogh-remixwearing-brandways { display: flex; align-items: center; gap: 14px; }
+.gogh-remixwearing-brandways[hidden], .gogh-remixwearing-ways[hidden] { display: none; }
+.gogh-remixbrandedit, .gogh-remixbrandfonts { all: unset; flex: none; font: 600 12px/1 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; padding: 5px 8px; margin: -5px -8px -5px 0; border-radius: 6px; cursor: pointer; color: var(--gogh-ui-fg); text-decoration: underline; text-underline-offset: 3px; text-decoration-color: rgba(0, 0, 0, 0.25); }
+.gogh-remixbrandedit:hover, .gogh-remixbrandfonts:hover { background: var(--gogh-ui-hover); text-decoration-color: currentColor; }
 .gogh-toprow .gogh-brandrow > * { flex: 1; min-width: 0; }
 .gogh-toprow .gogh-brandbtn .gogh-varname { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 /* on the shared row the brand shows two of its dots and its name; the panel is narrow */
