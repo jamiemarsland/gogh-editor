@@ -19,8 +19,11 @@
     var realFetch = window.fetch;
     window.fetch = function (url, opts) {
       var m = (opts && opts.method) || 'GET';
-      if (m !== 'GET' && m !== 'HEAD' && /\/wp\/v2\/template-parts\//.test(String(url))) {
-        blockedWrites.push(String(url));
+      // ...and the site's global styles: a Site style keep writes them, and
+      // two runs on 2026-09-21 left James's site dark with test fonts when
+      // their restore step never ran (throttled timers in a hidden tab)
+      if (m !== 'GET' && m !== 'HEAD' && /\/wp\/v2\/(template-parts|global-styles)\//.test(String(url))) {
+        blockedWrites.push({ url: String(url), body: opts && opts.body ? String(opts.body) : '' });
         return Promise.resolve({ ok: true, status: 200, url: String(url), json: function () { return Promise.resolve({}); }, text: function () { return Promise.resolve('{}'); } });
       }
       return realFetch.apply(window, arguments);
