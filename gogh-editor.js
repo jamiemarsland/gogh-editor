@@ -17995,12 +17995,15 @@
         var sayBrand = function () {
           var cols = ['background', 'text', 'accent', 'accent2'].map(function (k) { return cfg.brand.colors[k]; }).filter(Boolean);
           var h = brandFontName('heading'), bd = brandFontName('body');
-          var fonts = h && bd && h !== bd ? h + ' & ' + bd : (h || bd);
+          // two labelled rows, so the words read as fonts and not as more
+          // colours (James: 'it would be nice if it made clear what were fonts')
+          var fonts = h && bd ? (h === bd ? h + ' for headings and body' : h + ' for headings, ' + bd + ' for body') : (h ? h + ' for headings' : (bd ? bd + ' for body' : 'the theme\u2019s own type'));
           wearingBox.querySelector('.gogh-remixwearing-name').textContent = 'Your brand';
           wearingBox.querySelector('.gogh-remixwearing-detail').innerHTML =
+            '<span class="gogh-remixwearing-row"><span class="gogh-remixwearing-lab2">Colours</span>' +
             cols.map(function (c) { return '<span class="gogh-vardot" style="background:' + escAttr(c) + '"></span>'; }).join('') +
-            '<span class="gogh-remixwearing-cols">' + cols.length + (cols.length === 1 ? ' colour' : ' colours') + '</span>' +
-            (fonts ? '<span class="gogh-remixwearing-sep">\u00b7</span><span class="gogh-remixwearing-fonts">' + esc(fonts) + '</span>' : '<span class="gogh-remixwearing-sep">\u00b7</span><span class="gogh-remixwearing-fonts">the theme\u2019s own type</span>');
+            '<span class="gogh-remixwearing-cols">' + cols.length + '</span></span>' +
+            '<span class="gogh-remixwearing-row"><span class="gogh-remixwearing-lab2">Fonts</span><span class="gogh-remixwearing-fonts">' + esc(fonts) + '</span></span>';
           wearingBox.querySelector('.gogh-remixwearing-count').textContent = 'Remix keeps these colours';
         };
         remixWatch('panel', function () {
