@@ -810,6 +810,8 @@ The helper's welcome panel opens with a 35-second film of gogh being used (v0.99
 
 **The phone view survives navigation (v0.99.605).** Press one of your own pages while on the phone and it opens in the editor, still on the phone: the link carries `gogh-edit=1&gogh-phone=1`, the next page reads them at boot and strips them from the address. Other sites, files, wp-admin and anchors on the same page are left alone. Unpublished changes still ask before leaving.
 
+**The sketch's Add to cart pill is visible on every theme (v0.99.632).** It was there but invisible: its ground was mixed from `currentColor` while the same rule set its own colour to the theme's base, so pill and words were both the page colour on any pale theme (Hollowell, the ceramics starter). It is drawn in the theme's contrast on base now.
+
 **The products element's sketch follows the markup that publishes (v0.99.631).** Price, rating and Add to cart in the editor's product cards, and the panel's *Show* chips, are read from the element's saved block markup on load, not from the panel's own memory of the choices. The two had drifted on a starter shop: the editor drew no Add to cart while the live page had one.
 
 **The bar's Edit button keeps a little air on its left (v0.99.630):** WooCommerce's *Live* / *Coming soon* badge is WooCommerce's own admin-bar node and sits right before gogh's Edit; the two touched on a shop.

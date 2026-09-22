@@ -659,7 +659,12 @@ body.gogh-help-open.gogh-help-wide .gogh-toasts { right: min(856px, calc(92vw + 
   margin-top: 0.6em;
   padding: 0.55em 1.3em;
   border-radius: 999px;
-  background: color-mix(in srgb, currentColor 88%, transparent);
+  /* ink on paper, in the theme's own words: the pill used to mix its ground
+     from currentColor, and this same rule set its colour to base, so ground
+     and words were BOTH the page colour and the button vanished on any pale
+     theme (James, 2026-09-22: 'add to cart not showing'). Contrast on base
+     reads on every theme that names them; the fallbacks are plain ink/paper */
+  background: var(--wp--preset--color--contrast, #1c1e24);
   color: var(--wp--preset--color--base, #fff);
   font-size: 0.8em;
   font-weight: 600;
