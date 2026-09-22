@@ -1,12 +1,6 @@
-# Knowledge-base audit — plugin v0.99.635
+# Knowledge-base audit — plugin v0.99.636
 
 _13 finding(s) suppressed by `kb.audit-ignore.txt`._
-
-## STALE (1)
-
-The prose names something that no longer exists.
-
-- UI label "Fonts" was removed in this release, but the prose still describes it
 
 ## MISSING (96)
 
@@ -126,10 +120,4 @@ Quoted copy not found verbatim in the source. Paraphrases are fine; changed UI c
 
 Use this as the checklist for updating the prose — and as a sanity check on the release itself.
 
-- version: 0.99.634 → 0.99.635
-- removed UI label: "Colours and fonts, from your guide"
-- removed UI label: "Fonts"
-- removed UI label: "Try other pairs on your page"
-- added UI label: "Change the colours and fonts of your brand"
-- added UI label: "Try other font pairs on your page"
-- added UI label: "Try other fonts"
+- version: 0.99.635 → 0.99.636
