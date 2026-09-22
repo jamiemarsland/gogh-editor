@@ -17977,8 +17977,8 @@
             // before any roll, with a brand set, the card is the receipt for the
             // brand (James: 'should it be telling me the fonts etc what my brand
             // uses, on this screen?'): its doors are the brand form and Fonts
-            '<span class="gogh-remixwearing-brandways" hidden><button type="button" class="gogh-remixbrandedit" title="Colours and fonts, from your guide">Edit brand</button>' +
-            '<button type="button" class="gogh-remixbrandfonts" title="Try other pairs on your page">Fonts</button></span></span></div>';
+            '<span class="gogh-remixwearing-brandways" hidden><button type="button" class="gogh-remixbrandedit" title="Change the colours and fonts of your brand">Edit brand</button>' +
+            '<button type="button" class="gogh-remixbrandfonts" title="Try other font pairs on your page">Try other fonts</button></span></span></div>';
         top.appendChild(wrap);
         var wearingBox = wrap.querySelector('.gogh-remixwearing');
         var backBtn = wrap.querySelector('.gogh-remixback');
@@ -18004,7 +18004,7 @@
             cols.map(function (c) { return '<span class="gogh-vardot" style="background:' + escAttr(c) + '"></span>'; }).join('') +
             '<span class="gogh-remixwearing-cols">' + cols.length + '</span></span>' +
             '<span class="gogh-remixwearing-row"><span class="gogh-remixwearing-lab2">Fonts</span><span class="gogh-remixwearing-fonts">' + esc(fonts) + '</span></span>';
-          wearingBox.querySelector('.gogh-remixwearing-count').textContent = 'Remix keeps these colours';
+          wearingBox.querySelector('.gogh-remixwearing-count').textContent = 'Remix rolls new looks around these colours';
         };
         remixWatch('panel', function () {
           if (!document.body.contains(wearingBox)) return; // the panel moved on

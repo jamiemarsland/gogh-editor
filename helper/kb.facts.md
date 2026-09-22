@@ -4,11 +4,11 @@ Everything in this section is extracted mechanically from the Gogh source on eve
 
 ## Current release
 
-- Plugin version: **0.99.634**
+- Plugin version: **0.99.635**
 - Requires WordPress **6.5+**, PHP **7.4+**
 - Text domain: `gogh-editor`
 - readme.txt Stable tag: `0.26.0` · Tested up to: `7.0`
-- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.634`). Quote the plugin header version.
+- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.635`). Quote the plugin header version.
 
 ## Design constants
 
@@ -252,8 +252,8 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "Button"
 - "Cancel"
 - "Card"
+- "Change the colours and fonts of your brand"
 - "Close"
-- "Colours and fonts, from your guide"
 - "Copy machine version"
 - "Copy style — then click other text to paint it"
 - "Copy summary to share"
@@ -289,7 +289,6 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "Fill the screen"
 - "Fill the width — size the text to its box"
 - "Find us"
-- "Fonts"
 - "Forget the key"
 - "Form"
 - "Full width"
@@ -401,7 +400,8 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "Theme default"
 - "Tidy up"
 - "Try another"
-- "Try other pairs on your page"
+- "Try other font pairs on your page"
+- "Try other fonts"
 - "UPPERCASE"
 - "Undo"
 - "Undo (⌘Z)"

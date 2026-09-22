@@ -810,6 +810,8 @@ The helper's welcome panel opens with a 35-second film of gogh being used (v0.99
 
 **The phone view survives navigation (v0.99.605).** Press one of your own pages while on the phone and it opens in the editor, still on the phone: the link carries `gogh-edit=1&gogh-phone=1`, the next page reads them at boot and strips them from the address. Other sites, files, wp-admin and anchors on the same page are left alone. Unpublished changes still ask before leaving.
 
+**The brand card's foot says what it does (v0.99.635):** *Remix rolls new looks around these colours*, with **Edit brand** and **Try other fonts** as the two doors (the second read *Fonts*, a noun beside a verb).
+
 **The brand card labels its rows (v0.99.634):** *Colours* with the dots, and *Fonts* as *Fraunces for headings, Manrope for body*, so the font names no longer read as more colours.
 
 **The brand reader reads roles written after a code, and fonts named before their role (v0.99.633).** A guide that lists several colours on one line with the role in brackets after each code (*Charcoal #1B1B1F (background), Bone #EDE8DF (text), Ember #E8602C (accent)*) used to give each code the previous code's role, so the page came out Bone, the buttons Steel and the words Charcoal; and *Space Grotesk for headings* read no font at all. The words right after a code now win when they name a role, a colour's own name before it is only a fallback (Charcoal is a word for ink, but that Charcoal was the page), a second *accent* becomes the second accent, and *Name for headings* / *Name for body* are read as well as *Headings: Name*.
