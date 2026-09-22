@@ -810,6 +810,8 @@ The helper's welcome panel opens with a 35-second film of gogh being used (v0.99
 
 **The phone view survives navigation (v0.99.605).** Press one of your own pages while on the phone and it opens in the editor, still on the phone: the link carries `gogh-edit=1&gogh-phone=1`, the next page reads them at boot and strips them from the address. Other sites, files, wp-admin and anchors on the same page are left alone. Unpublished changes still ask before leaving.
 
+**The bar's Edit button keeps a little air on its left (v0.99.630):** WooCommerce's *Live* / *Coming soon* badge is WooCommerce's own admin-bar node and sits right before gogh's Edit; the two touched on a shop.
+
 **Site style says what your brand uses (v0.99.629).** With a brand set and nothing rolled yet, the *On your site now* card shows straight away as the brand's receipt: **Your brand**, its colours as dots with a count, and its font pair by name (or *the theme's own type*), with *Remix keeps these colours* underneath and two doors, **Edit brand** (the brand form) and **Fonts**. After a Remix the card turns into the roll receipt as before, with Back and Keep this. The line that sat under the two buttons (*Remix keeps your brand colours…*, v0.99.628) is gone; the card carries it.
 
 **The corner ✏️ Edit pill is gone wherever the admin bar is (v0.99.628):** it duplicated the bar's Edit. It still shows on a page with no admin bar, where it is the only way in.
