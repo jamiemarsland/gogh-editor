@@ -2069,6 +2069,11 @@
       // a rails element saved before the model carried its flag (v0.99.372-387)
       // reads its few choices back out of Woo's block it composed
       if (e.type === 'widget' && !e.shop && /wp:woocommerce\/product-collection/.test(e.wsrc || '')) healRails(e);
+      // the panel's Show chips follow the markup too, so chip, sketch and
+      // live page agree on what a product card carries
+      if (e.type === 'widget' && e.shop && e.shop.show && /wp:woocommerce\/product-template/.test(e.wsrc || '')) {
+        e.shop.show = { price: /wp:woocommerce\/product-price/.test(e.wsrc), rating: /wp:woocommerce\/product-rating/.test(e.wsrc), button: /wp:woocommerce\/product-button/.test(e.wsrc) };
+      }
       // a posts grid saved before it rode the rails (a fixed three-up loop)
       // reads its few choices back out of the query it composed
       if (e.type === 'widget' && !e.posts && !e.shop && /wp:query\b/.test(e.wsrc || '') && /"postType":"post"/.test(e.wsrc || '')) healPosts(e);
@@ -6871,11 +6876,20 @@
         '<strong>Your shop is nearly ready.</strong><span>' + (shop.cat ? 'Nothing is in this category yet.' : 'Add your first product and it appears here.') + '</span>' +
         '<a href="' + escAttr((cfg.adminUrl || '/wp-admin/') + 'post-new.php?post_type=product') + '" target="_blank" rel="noopener">Add a product \u2197</a></div></div>';
     }
+    // what the sketch shows follows the MARKUP that will publish, not the
+    // panel's memory of it: the two drifted on a starter shop and the editor
+    // drew no Add to cart while the live page had one (James, 2026-09-22)
+    var show = { price: !!shop.show.price, rating: !!shop.show.rating, button: !!shop.show.button };
+    if (e.wsrc && /wp:woocommerce\/product-template/.test(e.wsrc)) {
+      show.price = /wp:woocommerce\/product-price/.test(e.wsrc);
+      show.rating = /wp:woocommerce\/product-rating/.test(e.wsrc);
+      show.button = /wp:woocommerce\/product-button/.test(e.wsrc);
+    }
     return '<div class="' + cls + '">' + prods.map(function (p) {
       var img = p.images && p.images[0] && p.images[0].src;
       var price = storePriceText(p);
       var stars = '';
-      if (shop.show.rating) {
+      if (show.rating) {
         var r = Math.round(parseFloat(p.average_rating || 0));
         stars = '<div class="gogh-shopprev-stars">' + '\u2605\u2605\u2605\u2605\u2605'.slice(0, r) + '<span>' + '\u2605\u2605\u2605\u2605\u2605'.slice(r) + '</span></div>';
       }
@@ -6883,8 +6897,8 @@
         '<div class="gogh-shopprev-pic">' + (img ? '<img src="' + escAttr(img) + '" alt="" />' : '<div class="gogh-postsprev-ph"></div>') +
         (p.on_sale ? '<span class="gogh-shopprev-sale">Sale</span>' : '') + '</div>' +
         '<div class="gogh-shopprev-body"><h3>' + esc(p.name || 'Product') + '</h3>' + stars +
-        (shop.show.price ? '<div class="gogh-shopprev-price">' + esc(price) + '</div>' : '') +
-        (shop.show.button ? '<span class="gogh-postsprev-btn">Add to cart</span>' : '') + '</div>' +
+        (show.price ? '<div class="gogh-shopprev-price">' + esc(price) + '</div>' : '') +
+        (show.button ? '<span class="gogh-postsprev-btn">Add to cart</span>' : '') + '</div>' +
         '</div>';
     }).join('') + '</div>';
   }
