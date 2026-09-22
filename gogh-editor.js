@@ -17514,11 +17514,26 @@
       var seen = out.codes.indexOf(hex) !== -1;
       if (!seen) out.codes.push(hex);
       // the role is the word beside THIS code: from the previous code (or
-      // the start of the line) up to it — never the line before
+      // the start of the line) up to it — never the line before. On a line
+      // that lists several codes ("Charcoal #1B1B1F (background), Bone
+      // #EDE8DF (text), …") the words right after the previous code are
+      // ITS role, not this one's: keep only what follows the last comma.
+      // And a role written after the code, in brackets or after a dash,
+      // counts when nothing before it named one (James, 2026-09-22: the
+      // Northline guide came out with Steel buttons and Bone as the page).
       var ctx = t.slice(Math.max(from, m.index - 60), m.index);
       var nl = ctx.lastIndexOf('\n');
       if (nl !== -1) ctx = ctx.slice(nl + 1);
-      var role = roleOf(ctx);
+      if (from > 0 && m.index - from <= 60 && ctx.indexOf(',') !== -1 && t.slice(from, m.index).indexOf('\n') === -1) ctx = ctx.slice(ctx.lastIndexOf(',') + 1);
+      // the words right after the code win when they name a role ("#1B1B1F
+      // (background)"): a colour's NAME before it can mislead — Charcoal is
+      // a word for ink, but this Charcoal is the page
+      var tail = t.slice(lastEnd, lastEnd + 80);
+      var stop = tail.search(/[\n,;|]|#[0-9a-f]{3}\b|rgb\(/i);
+      if (stop !== -1) tail = tail.slice(0, stop);
+      var role = roleOf(tail) || roleOf(ctx);
+      // a second "accent" is the second accent
+      if (role === 'accent' && out.colors.accent && !out.colors.accent2) role = 'accent2';
       // a code named twice takes both roles (a black that is words AND buttons)
       if (role && !out.colors[role]) { out.colors[role] = hex; out.placed[role] = 'read'; }
       else if (!seen) loose.push(hex);
@@ -17550,6 +17565,13 @@
     };
     var hm = t.match(fontRe('heading|headings|headline|headlines|display|title|titles'));
     var bm = t.match(fontRe('body|text|paragraph|paragraphs|copy'));
+    // the other way round: "Space Grotesk for headings, bold" / "IBM Plex Sans for body"
+    // (the Northline guide read no fonts at all and kept whatever was there)
+    var nameFirst = function (roleWords) {
+      return new RegExp('(?:^|[\\n:;.,]\\s*)([A-Z][A-Za-z0-9+\\-\\u2019 ]{1,40}?)\\s+(?:for|as|on)\\s+(?:the\\s+|all\\s+)?(?:' + roleWords + ')\\b');
+    };
+    if (!hm) hm = t.match(nameFirst('headings?|headlines?|titles?|display'));
+    if (!bm) bm = t.match(nameFirst('body|text|paragraphs?|copy'));
     if (hm) { out.names.heading = hm[1].trim(); var hs = findFont(hm[1]); if (hs) out.fonts.heading = hs; }
     if (bm) { out.names.body = bm[1].trim(); var bs = findFont(bm[1]); if (bs) out.fonts.body = bs; }
     return out;

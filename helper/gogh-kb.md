@@ -15,7 +15,7 @@ about something where they conflict, rather than picking one silently. Quote UI
 labels and message copy from the appendix, verbatim — those are the current
 strings, and a paraphrased button label is the fastest way to lose a user's trust.
 
-Generated for plugin version 0.99.632 · knowledge base 9d1c8e5.
+Generated for plugin version 0.99.633 · knowledge base 01b4ac4.
 
 ---
 
@@ -829,6 +829,8 @@ The helper's welcome panel opens with a 35-second film of gogh being used (v0.99
 
 **The phone view survives navigation (v0.99.605).** Press one of your own pages while on the phone and it opens in the editor, still on the phone: the link carries `gogh-edit=1&gogh-phone=1`, the next page reads them at boot and strips them from the address. Other sites, files, wp-admin and anchors on the same page are left alone. Unpublished changes still ask before leaving.
 
+**The brand reader reads roles written after a code, and fonts named before their role (v0.99.633).** A guide that lists several colours on one line with the role in brackets after each code (*Charcoal #1B1B1F (background), Bone #EDE8DF (text), Ember #E8602C (accent)*) used to give each code the previous code's role, so the page came out Bone, the buttons Steel and the words Charcoal; and *Space Grotesk for headings* read no font at all. The words right after a code now win when they name a role, a colour's own name before it is only a fallback (Charcoal is a word for ink, but that Charcoal was the page), a second *accent* becomes the second accent, and *Name for headings* / *Name for body* are read as well as *Headings: Name*.
+
 **The sketch's Add to cart pill is visible on every theme (v0.99.632).** It was there but invisible: its ground was mixed from `currentColor` while the same rule set its own colour to the theme's base, so pill and words were both the page colour on any pale theme (Hollowell, the ceramics starter). It is drawn in the theme's contrast on base now.
 
 **The products element's sketch follows the markup that publishes (v0.99.631).** Price, rating and Add to cart in the editor's product cards, and the panel's *Show* chips, are read from the element's saved block markup on load, not from the panel's own memory of the choices. The two had drifted on a starter shop: the editor drew no Add to cart while the live page had one.
@@ -886,11 +888,11 @@ Everything in this section is extracted mechanically from the Gogh source on eve
 
 ## Current release
 
-- Plugin version: **0.99.632**
+- Plugin version: **0.99.633**
 - Requires WordPress **6.5+**, PHP **7.4+**
 - Text domain: `gogh-editor`
 - readme.txt Stable tag: `0.26.0` · Tested up to: `7.0`
-- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.632`). Quote the plugin header version.
+- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.633`). Quote the plugin header version.
 
 ## Design constants
 

@@ -6775,6 +6775,17 @@
       expect(g.colors.accent === '#1f3a5f' && g.colors.accent2 === '#c8102e' && g.colors.background === '#faf7f2' && g.colors.text === '#1a1a1a', 'roles should follow the words beside the codes: ' + JSON.stringify(g.colors));
       expect(g.placed.accent === 'read' && g.placed.background === 'read', 'named roles should be marked as read');
       expect(g.names.heading === 'Playfair Display' && g.names.body === 'Manrope', 'font names should be read: ' + JSON.stringify(g.names));
+      // several codes on one line, the role in brackets AFTER each code, and
+      // fonts named before their role (the Northline guide, 2026-09-22: it
+      // came out with the page as Bone, Steel buttons and no fonts)
+      var one = G.readBrandGuide('Colours: Charcoal #1B1B1F (background), Bone #EDE8DF (text), Ember #E8602C (accent), Steel #5B6770 (muted).\nType: Space Grotesk for headings, bold, uppercase allowed. IBM Plex Sans for body.');
+      expect(one.colors.background === '#1b1b1f' && one.colors.text === '#ede8df' && one.colors.accent === '#e8602c', 'a one-line guide should read each role from the brackets after its code: ' + JSON.stringify(one.colors));
+      expect(one.colors.accent2 === '#5b6770', 'the muted colour should land as the second accent: ' + one.colors.accent2);
+      expect(one.names.heading === 'Space Grotesk' && one.names.body === 'IBM Plex Sans', 'fonts named before their role should be read: ' + JSON.stringify(one.names));
+      // a table with the role in brackets before the code and a dash description after it (the Saltmarsh guide)
+      var table = G.readBrandGuide('Sea Ink (primary)     #1F3A4D  \u2014 headings, buttons, footer\nChalk (background)    #F6F1E8  \u2014 page background, cards\nKelp (accent)         #2E7D5B  \u2014 links, highlights\nRust (warm accent)    #C8552D  \u2014 calls to action\nPebble (neutral)      #8C8A84  \u2014 captions\nHeadings: Fraunces (serif), semi-bold.\nBody: Manrope (sans), regular.');
+      expect(table.colors.background === '#f6f1e8' && table.colors.text === '#1f3a4d' && table.colors.accent === '#2e7d5b' && table.colors.accent2 === '#c8552d', 'the table guide should read all four roles: ' + JSON.stringify(table.colors));
+      expect(table.names.heading === 'Fraunces' && table.names.body === 'Manrope', 'the table guide should read its fonts: ' + JSON.stringify(table.names));
       var loose = G.readBrandGuide('our colours are #ffffff, #111111, #e63946 and #457b9d');
       expect(loose.colors.background === '#ffffff' && loose.colors.text === '#111111', 'lightest → page, darkest → words: ' + JSON.stringify(loose.colors));
       expect(loose.colors.accent === '#e63946', 'the most saturated should be the buttons: ' + loose.colors.accent);
