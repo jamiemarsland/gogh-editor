@@ -323,6 +323,7 @@ async function utAppend(env, req) {
     n: all.length,
     version: start && start.data ? start.data.version || '' : '',
     persona: start && start.data ? start.data.persona || '' : '',
+    suite: start && start.data ? start.data.suite || 'gogh' : 'gogh', // gogh, or core (the Site Editor test)
     done: all.filter((e) => e.type === 'task_done').length,
     skipped: all.filter((e) => e.type === 'task_skip').length,
     wrapped: !!wrap,
@@ -353,6 +354,9 @@ async function utRead(env, req, url) {
 // between seeing a section's top and not on a laptop), and none of Export /
 // Dev Tools / Playgrounds to wander into. Boot still shows a progress bar.
 const UT_BLUEPRINT = 'https://playground.wordpress.net/?blueprint-url=https://raw.githubusercontent.com/jamiemarsland/gogh-demo/main/blueprint-usertest.json&storage=temp&mode=seamless';
+// the same test on the core Site Editor: Elliot Grey in core blocks, the same
+// seven tasks, answers tagged suite: core
+const UT_BLUEPRINT_CORE = 'https://playground.wordpress.net/?blueprint-url=https://raw.githubusercontent.com/jamiemarsland/gogh-editor/main/blueprint-usertest-core.json&storage=temp&mode=seamless';
 
 // the page a tester is sent: who they are for the next half hour, and Start
 const UT_INTRO = `<!doctype html>
@@ -411,6 +415,7 @@ const UT_REPORT = `<!doctype html>
 </style></head><body><div class="wrap">
 <h1>gogh user tests</h1>
 <p class="soft">Each row is one tester. Click a row for the tasks and notes. <span id="sum"></span></p>
+<p class="soft" id="suites" hidden>Show: <button data-suite="">All</button> <button data-suite="gogh">gogh</button> <button data-suite="core">core Site Editor</button></p>
 <div id="auth"><input id="tok" type="password" placeholder="password"> <button id="go">Show</button></div>
 <div id="out"></div>
 <script>
@@ -457,15 +462,22 @@ const UT_REPORT = `<!doctype html>
     var holder = document.getElementById('d-' + row.id);
     holder.innerHTML = html;
   }
+  var suite = sessionStorage.getItem('goghTestSuite') || '';
+  var suites = document.getElementById('suites');
+  [].slice.call(suites.querySelectorAll('button')).forEach(function (b) {
+    b.addEventListener('click', function () { suite = b.dataset.suite; sessionStorage.setItem('goghTestSuite', suite); load(); });
+  });
   function load() {
     get('list=1').then(function (d) {
       auth.hidden = true;
-      var rows = d.sessions || [];
+      suites.hidden = false;
+      [].slice.call(suites.querySelectorAll('button')).forEach(function (b) { b.style.fontWeight = b.dataset.suite === suite ? '700' : '400'; });
+      var rows = (d.sessions || []).filter(function (r) { return !suite || (r.suite || 'gogh') === suite; });
       var done = 0, skipped = 0;
       rows.forEach(function (r) { done += r.done || 0; skipped += r.skipped || 0; });
       sum.textContent = rows.length + ' tester(s), ' + done + ' tasks done, ' + skipped + ' not managed.';
-      out.innerHTML = '<table><tr><th>When</th><th>Who</th><th>gogh</th><th>Done</th><th>Couldn’t</th><th>Wrap-up</th></tr>' + rows.map(function (r) {
-        return '<tr class="s" data-id="' + esc(r.id) + '"><td>' + esc(when(r.first)) + '</td><td>' + esc(r.name || r.id) + '</td><td>' + esc(r.version) + '</td><td><span class="bar" style="width:' + (r.done * 14) + 'px"></span> ' + r.done + '</td><td><span class="bar b" style="width:' + (r.skipped * 14) + 'px"></span> ' + r.skipped + '</td><td>' + (r.wrapped ? 'yes' : '') + '</td></tr><tr><td colspan="6" id="d-' + esc(r.id) + '"></td></tr>';
+      out.innerHTML = '<table><tr><th>When</th><th>Who</th><th>Suite</th><th>Version</th><th>Done</th><th>Couldn’t</th><th>Wrap-up</th></tr>' + rows.map(function (r) {
+        return '<tr class="s" data-id="' + esc(r.id) + '"><td>' + esc(when(r.first)) + '</td><td>' + esc(r.name || r.id) + '</td><td>' + esc(r.suite || 'gogh') + '</td><td>' + esc(r.version) + '</td><td><span class="bar" style="width:' + (r.done * 14) + 'px"></span> ' + r.done + '</td><td><span class="bar b" style="width:' + (r.skipped * 14) + 'px"></span> ' + r.skipped + '</td><td>' + (r.wrapped ? 'yes' : '') + '</td></tr><tr><td colspan="7" id="d-' + esc(r.id) + '"></td></tr>';
       }).join('') + '</table>';
       [].slice.call(out.querySelectorAll('tr.s')).forEach(function (tr) {
         tr.addEventListener('click', function () {
@@ -2007,7 +2019,16 @@ export default {
       return utRead(env, req, url);
     }
     if (url.pathname === '/test' || url.pathname === '/test/') {
-      return new Response(UT_INTRO, { headers: { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'public, max-age=300', 'x-content-type-options': 'nosniff', 'referrer-policy': 'no-referrer' } });
+      const core = url.searchParams.get('suite') === 'core';
+      const page = core
+        ? UT_INTRO
+            .replace('Thank you for helping make gogh better', 'Thank you for helping us test WordPress')
+            .replace('<h1>Thank you for helping make gogh better</h1>', '<h1>Thank you for helping us test WordPress</h1>')
+            .replace('with a small card of things to try.', 'with a small card of things to try. This one uses WordPress\u2019s own editor.')
+            .replace('Give it a minute to build.', 'Give it a minute to build. It opens in the WordPress Site Editor.')
+            .split(UT_BLUEPRINT).join(UT_BLUEPRINT_CORE)
+        : UT_INTRO;
+      return new Response(page, { headers: { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'public, max-age=300', 'x-content-type-options': 'nosniff', 'referrer-policy': 'no-referrer' } });
     }
     if (url.pathname === '/tests' || url.pathname === '/tests/') {
       return new Response(UT_REPORT, { headers: { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store', 'x-content-type-options': 'nosniff', 'referrer-policy': 'no-referrer' } });

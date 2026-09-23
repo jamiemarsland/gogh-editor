@@ -810,6 +810,8 @@ The helper's welcome panel opens with a 35-second film of gogh being used (v0.99
 
 **The phone view survives navigation (v0.99.605).** Press one of your own pages while on the phone and it opens in the editor, still on the phone: the link carries `gogh-edit=1&gogh-phone=1`, the next page reads them at boot and strips them from the address. Other sites, files, wp-admin and anchors on the same page are left alone. Unpublished changes still ask before leaving.
 
+**The same user test on the core Site Editor (v0.99.637).** A second tester link, `/test?suite=core` on the helper, boots `blueprint-usertest-core.json`: Twenty Twenty-Five, Contact Form 7, and the Elliot Grey site rebuilt in core blocks (`core-boot.php` in the gogh-demo repo, same pages, words, pictures, menu and palette), with a small plugin, `usertest-card.zip`, that puts the same seven-task card over the Site Editor, the page editor and the site. Every session's start event now carries `suite`, *gogh* or *core*, and the `/tests` report has a Suite column and an All / gogh / core filter, so the two funnels sit side by side.
+
 **The brand card's foot says what it does (v0.99.635):** *Remix rolls new looks around these colours*, with **Edit brand** and **Try other fonts** as the two doors (the second read *Fonts*, a noun beside a verb).
 
 **The brand card labels its rows (v0.99.634):** *Colours* with the dots, and *Fonts* as *Fraunces for headings, Manrope for body*, so the font names no longer read as more colours.

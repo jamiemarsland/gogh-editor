@@ -185,6 +185,7 @@
       ua: String(navigator.userAgent || '').slice(0, 160),
       tasks: tasks.length,
       persona: cfg.persona || '',
+      suite: cfg.suite || 'gogh', // which editor is under test: gogh, or core (the Site Editor card)
     });
   } else {
     flush();
