@@ -14901,6 +14901,9 @@
     var sn = snapPos(sec, e, rx, ry, e.w, e.h, free, drag.textCXOff);
     e.x = Math.max(0, Math.min(W - e.w, sn.x));
     e.y = Math.max(0, sn.y);
+    // in Cells the gap magnets do not steer the piece, so their numbers
+    // ('= 31') must not show either: the cells are the promise
+    var cellsHeld = cellsOn && !free;
     if (lockX || !drag.movedX) { e.x = drag.x; sn.gx = null; }
     if (lockY || !drag.movedY) { e.y = drag.y; sn.gy = null; }
     // a group dragged together is one thing to the page: ITS centre snaps
@@ -14935,7 +14938,7 @@
     drag.eqV = false;
     drag.repH = null;
     drag.repV = null;
-    if (!free) {
+    if (!free && !cellsHeld) {
       var nb = neighbors(sec, e);
       if (!lockX && nb.L && nb.R) {
         var xEq = (nb.L.x + nb.L.w + nb.R.x - e.w) / 2;
@@ -18612,7 +18615,10 @@
       var centred = w > 0 && Math.abs((x + cOff) - W / 2) <= SNAP * 2;
       if (centred) cx = W / 2 - cOff;
       // no column or row words: the lines say enough ('i dont think we need to show row information')
-      return { x: Math.round(cx), y: Math.round(cy), gx: centred ? W / 2 : Math.round(cx), gy: Math.round(cy), tagX: centred ? 'centre' : '', tagY: '' };
+      // no line on the piece's own edge: the lattice already shows the
+      // columns (James: 'i dont think we need to show the left vertical
+      // line'). The gold centre line is the one guide Cells draws.
+      return { x: Math.round(cx), y: Math.round(cy), gx: centred ? W / 2 : null, gy: null, tagX: centred ? 'centre' : '', tagY: '' };
     }
     return {
       x: sx ? Math.round(sx.v) : (ggx !== null ? Math.round(ggx) : (gl ? Math.round(x / gridUnit()) * gridUnit() : Math.round(x))),
