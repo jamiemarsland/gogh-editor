@@ -581,6 +581,61 @@
       expect(below.y > y0, 'below element not pushed (y ' + y0 + '→' + below.y + ')');
     });
 
+    test('deleting words pulls the element below back up (backspace reflow)', function () {
+      var i = findIdx('heading');
+      var e = sec().els[i];
+      var node = sec().nodes[i];
+      var below = sec().els.filter(function (o) {
+        return o !== e && o.y >= e.y + e.h - 8 && o.x < e.x + e.w && o.x + o.w > e.x;
+      })[0];
+      expect(below, 'no in-path element below heading in fixture');
+      var y0 = below.y, was = node.innerHTML;
+      select(i);
+      node.textContent = node.textContent + ' plus quite a lot of extra words to force wrapping onto several new lines';
+      node.dispatchEvent(new InputEvent('input', { bubbles: true }));
+      var y1 = below.y;
+      expect(y1 > y0, 'growth did not push (y ' + y0 + '→' + y1 + ')');
+      node.innerHTML = was;
+      node.dispatchEvent(new InputEvent('input', { bubbles: true }));
+      expect(Math.abs(below.y - y0) <= 2, 'shrinking did not pull the element back: y ' + y0 + ' → ' + y1 + ' → ' + below.y);
+      return 'pushed to ' + y1 + ', back to ' + below.y;
+    });
+    test('typing: Enter in a heading is a line break, Enter while composing is the keyboard\u2019s, a third click right after entry keeps the caret', function () {
+      var i = findIdx('heading');
+      var e = sec().els[i];
+      var was = e.text;
+      select(i);
+      G.enterTextEdit(sec(), i);
+      try {
+        var ed = G.textEditing();
+        expect(ed && ed.target && ed.target.isContentEditable, 'the heading did not enter its edit');
+        var t = ed.target;
+        // an Enter that confirms an IME composition passes through untouched
+        var r0 = document.createRange(); r0.selectNodeContents(t); r0.collapse(false);
+        var so = window.getSelection(); so.removeAllRanges(); so.addRange(r0);
+        var ime = new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true });
+        Object.defineProperty(ime, 'isComposing', { value: true });
+        document.dispatchEvent(ime);
+        expect(!ime.defaultPrevented, 'an Enter mid-composition was intercepted');
+        expect(G.textEditing() === ed, 'an Enter mid-composition ended the edit');
+        // a plain Enter breaks the line and the edit stays open
+        var kd = new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true });
+        document.dispatchEvent(kd);
+        expect(kd.defaultPrevented, 'Enter in a heading was not taken');
+        expect(G.textEditing() === ed, 'Enter in a heading ended the edit (it used to hop to the paragraph)');
+        expect(/<br\s*\/?>/i.test(t.innerHTML) && /<br/i.test(e.text || ''), 'Enter should put a line break in the heading: ' + (e.text || '').slice(0, 60));
+        // a third click straight after entering keeps the caret, no select-all
+        var r = t.getBoundingClientRect();
+        var md = new MouseEvent('mousedown', { bubbles: true, cancelable: true, detail: 3, clientX: r.left + 8, clientY: r.top + 8 });
+        t.dispatchEvent(md);
+        expect(md.defaultPrevented, 'a triple-click right after entry was allowed to select everything');
+      } finally {
+        G.exitTextEdit();
+        e.text = was; G.renderSection(sec());
+      }
+      return 'line break, composition passed, entry click guarded';
+    });
+
     // ---- 7. drag ghost fidelity (v0.11.7 regression) ----
     test('drag ghost matches element styling', function () {
       var i = findIdx('heading');

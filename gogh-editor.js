@@ -4033,7 +4033,15 @@
     // writing wants a CLEAN page: the selection box and handles fade out
     // while the caret is live (the floating toolbar stays)
     document.documentElement.classList.add('gogh-textediting');
-    textEditing = { sec: sec, i: i, node: sec.nodes[i], target: t, widget: !!widgetLeaf };
+    textEditing = { sec: sec, i: i, node: sec.nodes[i], target: t, widget: !!widgetLeaf, at: Date.now() };
+    // the click that opened the edit is often the second of two, and a third
+    // lands while the words are already live: the browser's triple-click
+    // then selects the whole paragraph and the next keystroke replaces it
+    // (Sjoerd: 'All text gets highlighted when I want to edit. This erases
+    // what I typed before'). For the first moment after entry, a repeated
+    // click keeps the caret where it is; a deliberate double-click on a word
+    // later still selects the word.
+    t.addEventListener('mousedown', guardEntryClicks);
     if (widgetLeaf) {
       t.addEventListener('input', syncWidgetEdit);
       var lk = t.closest('a');
@@ -4059,10 +4067,23 @@
       t.removeEventListener('input', syncWidgetEdit);
       if (textEditing.link) textEditing.link.removeEventListener('click', preventNav);
     }
+    t.removeEventListener('mousedown', guardEntryClicks);
     t.contentEditable = 'false';
     if (textEditing.node.classList) textEditing.node.classList.remove('gogh-textedit');
     if (document.activeElement === t) t.blur();
     textEditing = null;
+  }
+  function guardEntryClicks(ev) {
+    if (!textEditing || ev.detail < 2 || Date.now() - (textEditing.at || 0) > 900) return;
+    ev.preventDefault();
+    if (document.caretRangeFromPoint) {
+      var cr = document.caretRangeFromPoint(ev.clientX, ev.clientY);
+      if (cr && textEditing.target.contains(cr.startContainer)) {
+        var so = window.getSelection();
+        so.removeAllRanges();
+        so.addRange(cr);
+      }
+    }
   }
   function bindSelect(sec, i) {
     var node = sec.nodes[i];
@@ -15531,20 +15552,19 @@
   // REAL paragraph gap like WordPress (Shift+Enter keeps the single break)
   document.addEventListener('keydown', function (ev) {
     if (!textEditing || ev.key !== 'Enter') return;
+    // an Enter that confirms an IME composition (Japanese, Chinese, Korean)
+    // is the keyboard's, not ours
+    if (ev.isComposing || ev.keyCode === 229) return;
     var secK = textEditing.sec;
     var eK = secK.els[textEditing.i];
     if (!eK) return;
     if (eK.type === 'heading') {
+      // Enter in a heading is a line break (it used to hop to the paragraph
+      // below, and a tester 'could not insert a CR/LF in the headline').
+      // Esc or a click away finishes.
       ev.preventDefault();
-      for (var jk = textEditing.i + 1; jk < secK.els.length; jk++) {
-        if (secK.els[jk].type === 'para') {
-          exitTextEdit();
-          placeHandles(secK, jk);
-          enterTextEdit(secK, jk);
-          return;
-        }
-      }
-      exitTextEdit();
+      document.execCommand('insertHTML', false, '<br>');
+      textEditing.target.dispatchEvent(new Event('input', { bubbles: true }));
       return;
     }
     if (eK.type === 'para' && !ev.shiftKey) {
@@ -19278,6 +19298,7 @@
     titleRawWithSize: titleRawWithSize,
     publish: publish,
     isDirty: isDirty,
+    enterTextEdit: enterTextEdit, exitTextEdit: exitTextEdit, textEditing: function () { return textEditing; },
     parseTopBlocks: parseTopBlocks,
     convertBlock: convertBlock,
     convertChrome: convertChrome,
@@ -19422,6 +19443,7 @@
       return;
     }
     if (ev.key === 'Escape' && textEditing) {
+      if (ev.isComposing || ev.keyCode === 229) return; // Esc cancels an IME composition, not the edit
       exitTextEdit();
       return;
     }

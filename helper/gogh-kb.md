@@ -15,7 +15,7 @@ about something where they conflict, rather than picking one silently. Quote UI
 labels and message copy from the appendix, verbatim — those are the current
 strings, and a paraphrased button label is the fastest way to lose a user's trust.
 
-Generated for plugin version 0.99.637 · knowledge base d3fd98d.
+Generated for plugin version 0.99.638 · knowledge base 373351d.
 
 ---
 
@@ -829,6 +829,8 @@ The helper's welcome panel opens with a 35-second film of gogh being used (v0.99
 
 **The phone view survives navigation (v0.99.605).** Press one of your own pages while on the phone and it opens in the editor, still on the phone: the link carries `gogh-edit=1&gogh-phone=1`, the next page reads them at boot and strips them from the address. Other sites, files, wp-admin and anchors on the same page are left alone. Unpublished changes still ask before leaving.
 
+**Typing, properly (v0.99.638).** Three fixes to editing words on the canvas. **Enter in a heading is a line break** (it used to finish the heading and hop to the paragraph below; a tester 'could not insert a CR/LF in the headline'); Esc or a click away finishes. In a paragraph Enter still makes a paragraph gap and Shift+Enter a single break. **An Enter or Esc that belongs to an IME composition** (Japanese, Chinese, Korean input) is left to the keyboard. **A third click straight after entering an edit keeps the caret where it is** instead of selecting the whole paragraph, which made the next keystroke replace everything (Sjoerd: 'All text gets highlighted when I want to edit. This erases what I typed before'); a deliberate double-click on a word a moment later still selects the word. Deleting words already pulled the pieces below back up; a test now proves it. **The tester card** on the gogh user test moved to the bottom left and went dark (amber label and Done), the same as the core Site Editor test's card, so it stops covering the section pill's menu and the bar's tools.
+
 **The same user test on the core Site Editor (v0.99.637).** A second tester link, `/test?suite=core` on the helper, boots `blueprint-usertest-core.json`: Twenty Twenty-Five, Contact Form 7, and the Elliot Grey site rebuilt in core blocks (`core-boot.php` in the gogh-demo repo, same pages, words, pictures, menu and palette), with a small plugin, `usertest-card.zip`, that puts the same seven-task card over the Site Editor, the page editor and the site. Every session's start event now carries `suite`, *gogh* or *core*, and the `/tests` report has a Suite column and an All / gogh / core filter, so the two funnels sit side by side.
 
 **The brand card's foot says what it does (v0.99.635):** *Remix rolls new looks around these colours*, with **Edit brand** and **Try other fonts** as the two doors (the second read *Fonts*, a noun beside a verb).
@@ -894,11 +896,11 @@ Everything in this section is extracted mechanically from the Gogh source on eve
 
 ## Current release
 
-- Plugin version: **0.99.637**
+- Plugin version: **0.99.638**
 - Requires WordPress **6.5+**, PHP **7.4+**
 - Text domain: `gogh-editor`
 - readme.txt Stable tag: `0.26.0` · Tested up to: `7.0`
-- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.637`). Quote the plugin header version.
+- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.638`). Quote the plugin header version.
 
 ## Design constants
 
@@ -1429,4 +1431,4 @@ These are the real strings in the current build. Use them verbatim; never paraph
 
 ## Test suite
 
-`330` tests, run by appending `?gogh-test` to any Gogh page URL while logged in with edit rights on that page.
+`332` tests, run by appending `?gogh-test` to any Gogh page URL while logged in with edit rights on that page.

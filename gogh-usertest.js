@@ -44,28 +44,31 @@
 
   // ---- the card
   var css = '' +
-    '.gogh-ut{position:fixed;top:168px;right:16px;width:320px;max-width:calc(100vw - 32px);z-index:2147483000;font:14px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",Inter,sans-serif;color:#16181c;background:rgba(255,255,255,.98);border:1px solid rgba(22,24,28,.12);border-radius:14px;box-shadow:0 12px 40px rgba(22,24,28,.18);box-sizing:border-box}' +
+    // bottom left, and dark: top right it sat on the section pill's menu, the
+    // image panel and the bar's tools (Anders, then James on the core test:
+    // 'covering important stuff'), and white it read as part of a pale site
+    '.gogh-ut{position:fixed;bottom:20px;left:16px;width:300px;max-width:calc(100vw - 32px);z-index:2147483000;font:14px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",Inter,sans-serif;color:#f4f1ec;background:#16181c;border:1px solid rgba(255,255,255,.14);border-radius:14px;box-shadow:0 18px 50px rgba(0,0,0,.45);box-sizing:border-box}' +
     '.gogh-ut *{box-sizing:border-box}' +
-    '.gogh-ut-head{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:10px 12px 8px;border-bottom:1px solid rgba(22,24,28,.08)}' +
-    '.gogh-ut-lab{font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:rgba(22,24,28,.55)}' +
-    '.gogh-ut-hide{all:unset;cursor:pointer;font-size:12px;color:rgba(22,24,28,.55);padding:2px 6px;border-radius:6px}.gogh-ut-hide:hover{background:rgba(22,24,28,.06)}' +
+    '.gogh-ut-head{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:10px 12px 8px;border-bottom:1px solid rgba(255,255,255,.12)}' +
+    '.gogh-ut-lab{font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:#eab038}' +
+    '.gogh-ut-hide{all:unset;cursor:pointer;font-size:12px;color:rgba(244,241,236,.72);padding:2px 6px;border-radius:6px}.gogh-ut-hide:hover{background:rgba(255,255,255,.1)}' +
     '.gogh-ut-body{padding:12px}' +
     '.gogh-ut-title{margin:0 0 6px;font-size:16px;font-weight:600;line-height:1.3}' +
-    '.gogh-ut-p{margin:0 0 10px;color:rgba(22,24,28,.7)}' +
-    '.gogh-ut-hintbtn{all:unset;cursor:pointer;font-size:13px;color:rgba(22,24,28,.6);text-decoration:underline;text-underline-offset:3px;margin:0 0 10px;display:inline-block}' +
-    '.gogh-ut-hint{margin:0 0 10px;padding:8px 10px;border-radius:8px;background:rgba(22,24,28,.05);font-size:13px}' +
-    '.gogh-ut textarea,.gogh-ut input[type=text]{width:100%;font:inherit;padding:8px 10px;border:1px solid rgba(22,24,28,.16);border-radius:8px;resize:vertical;min-height:38px;background:#fff;color:inherit}' +
+    '.gogh-ut-p{margin:0 0 10px;color:rgba(244,241,236,.72)}' +
+    '.gogh-ut-hintbtn{all:unset;cursor:pointer;font-size:13px;color:rgba(244,241,236,.72);text-decoration:underline;text-underline-offset:3px;margin:0 0 10px;display:inline-block}' +
+    '.gogh-ut-hint{margin:0 0 10px;padding:8px 10px;border-radius:8px;background:rgba(255,255,255,.1);font-size:13px}' +
+    '.gogh-ut textarea,.gogh-ut input[type=text]{width:100%;font:inherit;padding:8px 10px;border:1px solid rgba(255,255,255,.2);border-radius:8px;resize:vertical;min-height:38px;background:rgba(255,255,255,.08);color:inherit}.gogh-ut textarea::placeholder,.gogh-ut input::placeholder{color:rgba(244,241,236,.5)}' +
     '.gogh-ut textarea{min-height:56px}' +
     '.gogh-ut-row{display:flex;gap:8px;margin-top:10px}' +
-    '.gogh-ut-btn{all:unset;cursor:pointer;flex:1;text-align:center;padding:9px 12px;border-radius:999px;font-weight:600;border:1px solid rgba(22,24,28,.16)}' +
-    '.gogh-ut-btn.is-primary{background:#16181c;color:#fff;border-color:#16181c}' +
+    '.gogh-ut-btn{all:unset;cursor:pointer;flex:1;text-align:center;padding:9px 12px;border-radius:999px;font-weight:600;border:1px solid rgba(255,255,255,.28)}' +
+    '.gogh-ut-btn.is-primary{background:#eab038;color:#16181c;border-color:#eab038}' +
     '.gogh-ut-btn:hover{filter:brightness(.96)}' +
     '.gogh-ut-q{margin:12px 0 4px;font-weight:600}' +
-    '.gogh-ut-scale{display:flex;gap:6px}.gogh-ut-scale button{all:unset;cursor:pointer;flex:1;text-align:center;padding:8px 0;border-radius:8px;border:1px solid rgba(22,24,28,.16)}.gogh-ut-scale button.is-on{background:#16181c;color:#fff;border-color:#16181c}' +
-    '.gogh-ut-pill{all:unset;position:fixed;top:168px;right:16px;z-index:2147483000;cursor:pointer;font:600 13px -apple-system,BlinkMacSystemFont,"Segoe UI",Inter,sans-serif;color:#fff;background:#16181c;padding:8px 14px;border-radius:999px;box-shadow:0 8px 24px rgba(22,24,28,.25)}' +
-    '.gogh-ut-foot{padding:0 12px 10px;font-size:12px;color:rgba(22,24,28,.5)}' +
+    '.gogh-ut-scale{display:flex;gap:6px}.gogh-ut-scale button{all:unset;cursor:pointer;flex:1;text-align:center;padding:8px 0;border-radius:8px;border:1px solid rgba(255,255,255,.28)}.gogh-ut-scale button.is-on{background:#eab038;color:#16181c;border-color:#eab038}' +
+    '.gogh-ut-pill{all:unset;position:fixed;bottom:20px;left:16px;z-index:2147483000;cursor:pointer;font:600 13px -apple-system,BlinkMacSystemFont,"Segoe UI",Inter,sans-serif;color:#16181c;background:#eab038;padding:8px 14px;border-radius:999px;box-shadow:0 8px 24px rgba(0,0,0,.35)}' +
+    '.gogh-ut-foot{padding:0 12px 10px;font-size:12px;color:rgba(244,241,236,.55)}' +
     '.gogh-ut-pill[hidden],.gogh-ut[hidden]{display:none}' +
-    '@media (max-width:700px){.gogh-ut{top:auto;bottom:12px;right:12px;left:12px;width:auto}.gogh-ut-pill{top:auto;bottom:12px}}';
+    '@media (max-width:700px){.gogh-ut{bottom:12px;right:12px;left:12px;width:auto}.gogh-ut-pill{bottom:12px}}';
   var style = document.createElement('style');
   style.textContent = css;
   document.head.appendChild(style);
