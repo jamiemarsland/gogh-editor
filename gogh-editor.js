@@ -15109,8 +15109,12 @@
     // promises and are left alone) — the grid shows on every drag now, so
     // every drop keeps the promise unless ⌘ asked for full freedom
     if (!freeD && cellsOn) {
-      // whole cells: the promise the lattice made
+      // whole cells: the promise the lattice made. The drop guard below
+      // holds a moved piece to the size it was picked up with; in Cells
+      // that size IS the settled one, so the guard measures against it
+      // (a button kept its free width of 170 where four cells give 163)
       cellQuantise(sec.els[i]);
+      if (guardPick && guardPick.e === sec.els[i]) { guardPick.w = sec.els[i].w; guardPick.h = sec.els[i].h; }
       resolveAndApply(sec);
     } else if (!freeD) {
       var eDrop = sec.els[i];

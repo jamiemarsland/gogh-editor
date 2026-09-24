@@ -672,7 +672,23 @@
         var e2 = sec().els[i];
         expect(Math.abs(e2.x - C.colStart(C.colOf(e2.x))) <= 1, 'after a drag x is off the columns: ' + e2.x);
         expect(Math.abs(e2.y - C.rowStart(C.rowOf(e2.y))) <= 1, 'after a drag y is off the rows: ' + e2.y);
-        return C.words(e2);
+        // a button too: the drop guard used to hand it back its free width
+        var bi = findIdx('button');
+        var be = sec().els[bi];
+        var bkeep = { x: be.x, y: be.y, w: be.w, h: be.h };
+        be.w = 170; G.renderSection(sec());
+        select(bi);
+        var g2 = q('.gogh-grip'), r2 = g2.getBoundingClientRect();
+        pev('pointerdown', g2, r2.x + 12, r2.y + 12, 32);
+        pev('pointermove', g2, r2.x + 40, r2.y + 24, 32);
+        pev('pointermove', g2, r2.x + 66, r2.y + 40, 32);
+        pev('pointerup', g2, r2.x + 66, r2.y + 40, 32);
+        var b2 = sec().els[bi];
+        var want = Math.round(C.spanW(Math.max(1, Math.round((170 + C.CELL.gap) / (C.cellW() + C.CELL.gap)))));
+        expect(Math.abs(b2.w - want) <= 1, 'a dropped button should take whole cells: w ' + b2.w + ', wanted ' + want);
+        var landedW = b2.w;
+        be.x = bkeep.x; be.y = bkeep.y; be.w = bkeep.w; be.h = bkeep.h;
+        return C.words(e2) + '; button 170 \u2192 ' + landedW;
       } finally {
         e.x = keep.x; e.y = keep.y; e.w = keep.w; e.h = keep.h;
         G.renderSection(sec());
