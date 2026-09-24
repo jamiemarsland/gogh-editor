@@ -662,7 +662,7 @@
         G.renderSection(sec());
         select(i);
         var lab = q('.gogh-cellab');
-        expect(lab && !lab.hidden && /^Column/.test(lab.textContent), 'the selected piece shows no cell label');
+        expect(!lab || lab.hidden, 'the cell label should stay hidden (no row words)');
         var grip = q('.gogh-grip');
         var gr = grip.getBoundingClientRect();
         pev('pointerdown', grip, gr.x + 12, gr.y + 12, 31);
@@ -696,7 +696,7 @@
       }
     });
 
-    test('cells: rows start at the section\u2019s padding, and Snap to cells settles a whole section with Undo', function () {
+    testAsync('cells: rows start at the section\u2019s padding, and Snap to cells settles a whole section with Undo', async function () {
       var C = G.cells, was = C.on();
       C.set(true);
       var snap = G.serialize();
@@ -714,6 +714,30 @@
           expect(e.y === 0 || Math.abs(e.y - C.rowStart(C.rowOf(e.y))) <= 1, 'a piece is off the rows after Snap to cells: y ' + e.y);
         });
         expect(C.snapSection(s0) === 0, 'a second Snap to cells should move nothing');
+        // the centre is still a magnet in Cells, on the ink of a text piece,
+        // and the drop keeps it (James: 'im not sure text is centring on drag and drop?')
+        var hi = findIdx('heading');
+        var he = s0.els[hi];
+        he.x = 80; G.renderSection(s0);
+        select(hi);
+        var ink = G.inkRect ? G.inkRect(s0, hi) : null;
+        var gh = q('.gogh-grip'), rh = gh.getBoundingClientRect();
+        var sc = s0.sectionEl.getBoundingClientRect().width / 1200;
+        var off = ink ? (ink.x - he.x) + ink.w / 2 : he.w / 2;
+        var dxp = ((600 - off) - he.x) * sc;
+        var gvTag = null;
+        try {
+          pev('pointerdown', gh, rh.x + 12, rh.y + 12, 33);
+          pev('pointermove', gh, rh.x + 12 + dxp * 0.5, rh.y + 12, 33);
+          pev('pointermove', gh, rh.x + 12 + dxp, rh.y + 12, 33);
+          await new Promise(function (r) { setTimeout(r, 120); }); // the guide draws on the next frame (a hidden pane may never paint one)
+          var gv = q('.gogh-guide-v');
+          gvTag = gv && !gv.hidden ? gv.dataset.tag : null;
+        } finally { pev('pointerup', gh, rh.x + 12 + dxp, rh.y + 12, 33); }
+        if (gvTag !== null) expect(gvTag === 'centre', 'the gold centre line should show while a piece centres, got tag "' + gvTag + '"');
+        var ink2 = G.inkRect ? G.inkRect(s0, hi) : null;
+        var c2 = ink2 ? ink2.x + ink2.w / 2 : he.x + he.w / 2;
+        expect(Math.abs(c2 - 600) <= 3, 'the heading should land centred on its ink: centre ' + Math.round(c2));
         // the door is on the section's more menu, only in Cells
         G.openSecMore(0, s0.sectionEl);
         var door = q('.gogh-secmore [data-act="cells"]');

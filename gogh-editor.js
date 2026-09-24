@@ -3149,7 +3149,9 @@
   cellLab.hidden = true;
   document.body.appendChild(cellLab);
   function placeCellLab(e, left, top, live) {
-    if (!cellsOn) { cellLab.hidden = true; return; }
+    // the words are off (James: no row information); the lines and the
+    // landing box say where a piece is
+    cellLab.hidden = true; if (!cellsOn || true) return;
     cellLab.textContent = cellWords(e);
     cellLab.classList.toggle('is-live', !!live);
     cellLab.style.left = left + 'px';
@@ -14921,6 +14923,7 @@
       if (gBest) { e.x = Math.round(e.x + (gBest.v - gBest.edge)); sn.gx = gBest.v; }
     }
     drag.gxCap = sn.gx !== null;
+    drag.centred = sn.tagX === 'centre' ? (W / 2 - e.x) : null; // the ink offset that centred it, kept through the drop
     drag.gyCap = sn.gy !== null;
     drag.lockedX = lockX;
     drag.lockedY = lockY;
@@ -15062,6 +15065,7 @@
     var movedXD = !!drag.movedX, movedYD = !!drag.movedY;
     var dropCX = drag.cx, dropCY = drag.cy;
     var freeD = !!drag.freeHeld;
+    var centredD = drag.centred;
     sec.sectionEl.classList.remove('gogh-grid-live');
     var ghostTop = null;
     if (ghost) {
@@ -15140,8 +15144,20 @@
       // that size IS the settled one, so the guard measures against it
       // (a button kept its free width of 170 where four cells give 163)
       cellQuantise(sec.els[i]);
+      // a piece that centred on the way keeps its centre: whole cells for
+      // its width, the centre for its place (a column start would undo it)
+      if (centredD != null) sec.els[i].x = Math.max(0, Math.min(W - sec.els[i].w, Math.round(W / 2 - centredD)));
       if (guardPick && guardPick.e === sec.els[i]) { guardPick.w = sec.els[i].w; guardPick.h = sec.els[i].h; }
       resolveAndApply(sec);
+      if (centredD != null) {
+        // the whole-cell width can re-wrap the words, moving their ink:
+        // measure the ink where it now renders and centre THAT
+        var irC = inkRectOf(sec, i);
+        if (irC && irC.w > 0) {
+          var offC = Math.round(W / 2 - (irC.x + irC.w / 2));
+          if (offC) { sec.els[i].x = Math.max(0, Math.min(W - sec.els[i].w, sec.els[i].x + offC)); resolveAndApply(sec); }
+        }
+      }
     } else if (!freeD) {
       var eDrop = sec.els[i];
       var gu = gridUnit();
@@ -18587,7 +18603,16 @@
       var nCols = w > 0 ? colsFor(w) : 1;
       var cx = x <= SNAP ? 0 : (x + w >= W - SNAP && w > 0 ? W - w : colStart(Math.min(colOf(x), CELL.cols - nCols + 1)));
       var cy = y <= SNAP ? 0 : rowStart(rowOf(y));
-      return { x: Math.round(cx), y: Math.round(cy), gx: Math.round(cx), gy: Math.round(cy), tagX: cx === 0 ? 'edge' : 'column ' + colOf(cx), tagY: cy === 0 ? 'top' : 'row ' + rowOf(cy) };
+      // the page's centre is still a magnet, and still wears its gold line
+      // (James: 'we do need to show the yellow center line'); a piece an
+      // even number of cells wide centres on cells, an odd one on the line
+      // a text box centres on its INK, not its box, as Free does: the words
+      // rarely fill the box (James: 'im not sure text is centring on drag')
+      var cOff = (textCXOff != null && textCXOff > 0 && textCXOff < w) ? textCXOff : w / 2;
+      var centred = w > 0 && Math.abs((x + cOff) - W / 2) <= SNAP * 2;
+      if (centred) cx = W / 2 - cOff;
+      // no column or row words: the lines say enough ('i dont think we need to show row information')
+      return { x: Math.round(cx), y: Math.round(cy), gx: centred ? W / 2 : Math.round(cx), gy: Math.round(cy), tagX: centred ? 'centre' : '', tagY: '' };
     }
     return {
       x: sx ? Math.round(sx.v) : (ggx !== null ? Math.round(ggx) : (gl ? Math.round(x / gridUnit()) * gridUnit() : Math.round(x))),
@@ -19434,6 +19459,7 @@
     titleRawWithSize: titleRawWithSize,
     publish: publish,
     isDirty: isDirty,
+    inkRect: inkRectOf,
     cells: { on: function () { return cellsOn; }, set: setCells, quantise: cellQuantise, snapSection: cellSnapSection, words: cellWords, colOf: colOf, rowOf: rowOf, colStart: colStart, rowStart: rowStart, spanW: spanW, spanH: spanH, cellW: cellW, CELL: CELL },
     enterTextEdit: enterTextEdit, exitTextEdit: exitTextEdit, textEditing: function () { return textEditing; },
     parseTopBlocks: parseTopBlocks,
