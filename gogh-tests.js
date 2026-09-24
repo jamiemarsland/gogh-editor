@@ -53,6 +53,9 @@
 
   function run() {
     var G = window.__gogh;
+    // the suite measures gogh's free placement (magnets, rhythm gaps, the painted grid);
+    // Cells is the default for people on explore/cells, and has its own test
+    if (G.cells) G.cells.set(false);
     if (G.remixDry) G.remixDry(true); // a roll in here never saves the site's styles
     var SNAP;
     var sec = function () {
@@ -634,6 +637,47 @@
         e.text = was; G.renderSection(sec());
       }
       return 'line break, composition passed, entry click guarded';
+    });
+
+    test('cells: a dropped piece lands on whole cells with the same gutter, and the label says which', function () {
+      var C = G.cells;
+      var was = C.on();
+      C.set(true);
+      var i = findIdx('badge');
+      var e = sec().els[i];
+      var keep = { x: e.x, y: e.y, w: e.w, h: e.h };
+      try {
+        expect(document.documentElement.classList.contains('gogh-cells'), 'Cells did not put its class on the page');
+        var pill = q('.gogh-cellpill');
+        expect(pill && pill.querySelector('[data-cells="1"]').classList.contains('is-on'), 'the Cells | Free pill is missing or not lit');
+        // quantise: x on a column start, w whole cells, y on a row start
+        e.x = 203; e.y = 131; e.w = 150; e.h = 48;
+        C.quantise(e);
+        var c = C.colOf(e.x), r = C.rowOf(e.y), n = Math.round((e.w + C.CELL.gap) / (C.cellW() + C.CELL.gap));
+        expect(Math.abs(e.x - C.colStart(c)) <= 1, 'x is not on a column start: ' + e.x);
+        expect(Math.abs(e.w - C.spanW(n)) <= 1, 'w is not whole cells: ' + e.w);
+        expect(Math.abs(e.y - C.rowStart(r)) <= 1, 'y is not on a row start: ' + e.y);
+        expect(/^Column \d+ · Row \d+ · \d+ × \d+$/.test(C.words(e)), 'the label reads oddly: ' + C.words(e));
+        // and a real drag settles the same way
+        G.renderSection(sec());
+        select(i);
+        var lab = q('.gogh-cellab');
+        expect(lab && !lab.hidden && /^Column/.test(lab.textContent), 'the selected piece shows no cell label');
+        var grip = q('.gogh-grip');
+        var gr = grip.getBoundingClientRect();
+        pev('pointerdown', grip, gr.x + 12, gr.y + 12, 31);
+        pev('pointermove', grip, gr.x + 40, gr.y + 30, 31);
+        pev('pointermove', grip, gr.x + 77, gr.y + 53, 31);
+        pev('pointerup', grip, gr.x + 77, gr.y + 53, 31);
+        var e2 = sec().els[i];
+        expect(Math.abs(e2.x - C.colStart(C.colOf(e2.x))) <= 1, 'after a drag x is off the columns: ' + e2.x);
+        expect(Math.abs(e2.y - C.rowStart(C.rowOf(e2.y))) <= 1, 'after a drag y is off the rows: ' + e2.y);
+        return C.words(e2);
+      } finally {
+        e.x = keep.x; e.y = keep.y; e.w = keep.w; e.h = keep.h;
+        G.renderSection(sec());
+        C.set(was);
+      }
     });
 
     // ---- 7. drag ghost fidelity (v0.11.7 regression) ----
@@ -9139,7 +9183,7 @@
       return note.textContent;
     });
     test('Phone is an icon in the top bar: it shows the phone artboard with no drawer open, and Desktop brings the page back', function () {
-      var pill = q('#wp-admin-bar-gogh-device .gogh-devpill, .gogh-devpill-float .gogh-devpill');
+      var pill = q('#wp-admin-bar-gogh-device .gogh-devpill:not(.gogh-cellpill), .gogh-devpill-float .gogh-devpill:not(.gogh-cellpill)');
       expect(pill, 'no Desktop | Phone pill in the top bar');
       expect(!pill.closest('[hidden]'), 'the pill is hidden while editing');
       var ph = pill.querySelector('[data-dev="phone"]');

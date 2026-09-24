@@ -29,6 +29,64 @@
   // the page's own content margin (80..1120): where new pieces are born, and
   // a NAMED magnet — Canva's solid margin line, the one guide we lacked
   var MARGIN = 80;
+  // ---------- cells (explore/cells) ----------
+  // The grid drawn the way Squarespace and Rich's Canvas draw theirs: 24
+  // columns across the content width with a gutter between each, rows of one
+  // rhythm with the same gutter, and pieces that sit on whole cells, so two
+  // neighbours always share exactly the same gutter (James, 2026-09-24: 'it
+  // aligns very closely with squarespace and feels solid'). The model stays
+  // freeform x/y/w/h in design units; cells are the lattice a drop lands on.
+  // Cells | Free in the top bar; Free is gogh as it was.
+  var CELL = { cols: 24, gap: 12, pad: MARGIN, row: 24, rgap: 12 };
+  var cellsOn = (function () { try { return localStorage.getItem('gogh-cells') !== '0'; } catch (e) { return true; } })();
+  function cellW() { return (W - 2 * CELL.pad - (CELL.cols - 1) * CELL.gap) / CELL.cols; }
+  function cellPitch() { return cellW() + CELL.gap; }
+  function rowPitch() { return CELL.row + CELL.rgap; }
+  function colStart(c) { return CELL.pad + (c - 1) * cellPitch(); }
+  function colOf(x) { return Math.max(1, Math.min(CELL.cols, Math.round((x - CELL.pad) / cellPitch()) + 1)); }
+  function rowStart(r) { return (r - 1) * rowPitch(); }
+  function rowOf(y) { return Math.max(1, Math.round(y / rowPitch()) + 1); }
+  function spanW(n) { return n * cellW() + (n - 1) * CELL.gap; }
+  function spanH(n) { return n * CELL.row + (n - 1) * CELL.rgap; }
+  function colsFor(w) { return Math.max(1, Math.min(CELL.cols, Math.round((w + CELL.gap) / cellPitch()))); }
+  function rowsFor(h) { return Math.max(1, Math.round((h + CELL.rgap) / rowPitch())); }
+  // the nearest place an edge can rest: a cell start or end, or the section's own edge
+  function nearestCellEdge(v) {
+    var best = v, d = Infinity;
+    [0, W].forEach(function (c) { var dd = Math.abs(c - v); if (dd < d) { d = dd; best = c; } });
+    for (var c = 1; c <= CELL.cols; c++) {
+      var s0 = colStart(c), e0 = s0 + cellW();
+      if (Math.abs(s0 - v) < d) { d = Math.abs(s0 - v); best = s0; }
+      if (Math.abs(e0 - v) < d) { d = Math.abs(e0 - v); best = e0; }
+    }
+    return Math.round(best);
+  }
+  // a piece settles on whole cells: left edge on a column start (or flush to
+  // the section edge when it was there), width in whole cells, top on a row
+  // start; a text piece keeps its measured height
+  function cellQuantise(e) {
+    var flushL = e.x <= SNAP, flushR = e.x + e.w >= W - SNAP;
+    if (flushL && flushR) { e.x = 0; e.w = W; }
+    else {
+      var n = colsFor(e.w);
+      e.w = Math.round(spanW(n));
+      if (flushL) e.x = 0;
+      else if (flushR) e.x = W - e.w;
+      else e.x = Math.round(colStart(Math.min(colOf(e.x), CELL.cols - n + 1)));
+    }
+    e.y = Math.max(0, Math.round(rowStart(rowOf(e.y))));
+    if (!isText(e) && e.type !== 'button') e.h = Math.round(spanH(rowsFor(e.h)));
+  }
+  function cellWords(e) {
+    return 'Column ' + colOf(e.x) + ' \u00b7 Row ' + rowOf(e.y) + ' \u00b7 ' + colsFor(e.w) + ' \u00d7 ' + rowsFor(e.h);
+  }
+  function setCells(on) {
+    cellsOn = !!on;
+    try { localStorage.setItem('gogh-cells', cellsOn ? '1' : '0'); } catch (e) {}
+    document.documentElement.classList.toggle('gogh-cells', cellsOn);
+    var pillEl = (typeof cellPill !== 'undefined' && cellPill) ? cellPill : null;
+    (pillEl ? [].slice.call(pillEl.querySelectorAll('.gogh-dev')) : []).forEach(function (b) { var on2 = (b.dataset.cells === '1') === cellsOn; b.classList.toggle('is-on', on2); b.setAttribute('aria-pressed', on2 ? 'true' : 'false'); });
+  }
   // the PAINTED grid is the rhythm: 24-unit minors with a heavier line every
   // 72. Mid-gesture only the majors show, and an edge that nearly kisses a
   // line the user can see lands exactly ON it ("this needs to be, and feel,
@@ -2658,6 +2716,22 @@
   devHome.id = 'wp-admin-bar-gogh-device';
   devHome.hidden = true;
   devHome.appendChild(devPill);
+  // Cells | Free: the lattice and cell snapping, or gogh as it was
+  var cellPill = document.createElement('div');
+  cellPill.className = 'gogh-devpill gogh-cellpill';
+  cellPill.setAttribute('role', 'group');
+  cellPill.setAttribute('aria-label', 'Place pieces on');
+  cellPill.innerHTML =
+    '<button type="button" class="gogh-dev" data-cells="1" aria-pressed="false" title="Cells \u2014 pieces sit on whole cells, with the same gutter everywhere">Cells</button>' +
+    '<button type="button" class="gogh-dev" data-cells="0" aria-pressed="false" title="Free \u2014 put a piece anywhere">Free</button>';
+  cellPill.addEventListener('click', function (ev) {
+    var b = ev.target.closest('.gogh-dev');
+    if (!b) return;
+    setCells(b.dataset.cells === '1');
+    if (sel) placeHandles(sel.sec, sel.i);
+  });
+  devHome.insertBefore(cellPill, devPill);
+  setCells(cellsOn);
   // Site style lives in the bar as a brush (a round paintbrush, handle and
   // tip: the flat Squarespace brush read as a spatula at 17px — James, 'is
   // this meant to be a paint brush?'), left of the Desktop | Mobile pair
@@ -3049,6 +3123,20 @@
   // inside the card. On a circle, a pill, a blob, it is exactly the part the
   // silhouette clips away — so the badge exists and cannot be seen. Those
   // shapes get the name on the selection box instead, which nothing clips.
+  // the cell label: which cells a piece occupies, above its selection; blue
+  // and following the landing box while it is dragged
+  var cellLab = document.createElement('div');
+  cellLab.className = 'gogh-cellab';
+  cellLab.hidden = true;
+  document.body.appendChild(cellLab);
+  function placeCellLab(e, left, top, live) {
+    if (!cellsOn) { cellLab.hidden = true; return; }
+    cellLab.textContent = cellWords(e);
+    cellLab.classList.toggle('is-live', !!live);
+    cellLab.style.left = left + 'px';
+    cellLab.style.top = top + 'px';
+    cellLab.hidden = false;
+  }
   var selTag = document.createElement('span');
   selTag.className = 'gogh-selbox-tag';
   selTag.hidden = true;
@@ -3847,6 +3935,7 @@
   }
   function hideHandles() {
     grip.hidden = selBox.hidden = true;
+    cellLab.hidden = true;
     goghFadeOut(elbar);
   }
   function hideGuides() { guideV.hidden = guideH.hidden = true; }
@@ -3883,6 +3972,7 @@
     selTag.textContent = clippedCard ? 'Card' : '';
     selTag.hidden = !clippedCard;
     selBox.hidden = false;
+    placeCellLab(e, bx, byy - 24, false);
     grip.style.left = (bx - 26) + 'px';
     grip.style.top = (byy - 26) + 'px';
     grip.hidden = false;
@@ -14879,7 +14969,7 @@
         // the drag can end, or the page be rebuilt, before this frame comes
         if (!drag || drag.sec !== sec || !sec.els[drag.i]) return;
         resolveAndApply(sec);
-        showGuides(sec, sn.gx, sn.gy);
+        showGuides(sec, sn.gx, sn.gy, sn.tagX, sn.tagY);
         // the numbers are power-user furniture: distance rulers and their
         // badges appear while Alt is held, never by default. A plain drag
         // says one thing — the solid ghost and the landing box (James's
@@ -14909,6 +14999,7 @@
         dropBox.style.top = (gr ? gr.top + window.scrollY : r3.top + window.scrollY + e2.y * s3) + 'px';
         dropBox.style.width = (e2.w * s3) + 'px';
         dropBox.style.height = (e2.h * s3) + 'px';
+        if (cellsOn) { var q2 = { x: e2.x, y: e2.y, w: e2.w, h: e2.h, type: e2.type }; placeCellLab(q2, parseFloat(dropBox.style.left), parseFloat(dropBox.style.top) - 24, true); }
         if (drag.multi) {
           // one socket per member, under each member's own ghost
           var mdx2 = e2.x - drag.x, mdy2 = e2.y - drag.y;
@@ -15017,7 +15108,11 @@
     // land ON it (alignment/equal-spacing/shift-locked axes keep their own
     // promises and are left alone) — the grid shows on every drag now, so
     // every drop keeps the promise unless ⌘ asked for full freedom
-    if (!freeD) {
+    if (!freeD && cellsOn) {
+      // whole cells: the promise the lattice made
+      cellQuantise(sec.els[i]);
+      resolveAndApply(sec);
+    } else if (!freeD) {
       var eDrop = sec.els[i];
       var gu = gridUnit();
       if (!gxCapD && !eqHD && !lockedXD && movedXD) eDrop.x = Math.max(0, Math.min(W - eDrop.w, Math.round(eDrop.x / gu) * gu));
@@ -18455,6 +18550,15 @@
     };
     var ggx = (!sx && gl) ? gridTier(xEdges, w) : null;
     var ggy = (!sy && gl) ? gridTier(yEdges, h) : null;
+    if (cellsOn) {
+      // cells are the truth: the left edge rests on a column start (or the
+      // section's edge), the top on a row start. Neighbours sit on cells
+      // too, so their edges agree without a magnet; the guide names the cell
+      var nCols = w > 0 ? colsFor(w) : 1;
+      var cx = x <= SNAP ? 0 : (x + w >= W - SNAP && w > 0 ? W - w : colStart(Math.min(colOf(x), CELL.cols - nCols + 1)));
+      var cy = rowStart(rowOf(y));
+      return { x: Math.round(cx), y: Math.round(cy), gx: Math.round(cx), gy: Math.round(cy), tagX: 'column ' + colOf(cx), tagY: 'row ' + rowOf(cy) };
+    }
     return {
       x: sx ? Math.round(sx.v) : (ggx !== null ? Math.round(ggx) : (gl ? Math.round(x / gridUnit()) * gridUnit() : Math.round(x))),
       y: sy ? Math.round(sy.v) : (ggy !== null ? Math.round(ggy) : (gl ? Math.round(y / gridUnit()) * gridUnit() : Math.round(y))),
@@ -18630,6 +18734,7 @@
   // ---------- resizing: 8-direction handles ----------
   var resize = null, resizeRaf = false;
   function snapAxis(cands, v) {
+    if (cellsOn) { var ce = nearestCellEdge(v); return { v: ce, g: null }; }
     var best = null, d = SNAP + 1;
     cands.forEach(function (c) {
       var dd = Math.abs(c - v);
@@ -18774,6 +18879,7 @@
     resize = null;
     document.documentElement.classList.remove('gogh-dragging');
     hideGuides();
+    if (cellsOn) cellQuantise(e); // handles stop at cell edges; the box is whole cells
     resolveAndApply(sec);
     if (e.fitW) refitText(sec, i); // settle the fit at the final box width
     measureTextHeights(sec);
@@ -19298,6 +19404,7 @@
     titleRawWithSize: titleRawWithSize,
     publish: publish,
     isDirty: isDirty,
+    cells: { on: function () { return cellsOn; }, set: setCells, quantise: cellQuantise, words: cellWords, colOf: colOf, rowOf: rowOf, colStart: colStart, rowStart: rowStart, spanW: spanW, spanH: spanH, cellW: cellW, CELL: CELL },
     enterTextEdit: enterTextEdit, exitTextEdit: exitTextEdit, textEditing: function () { return textEditing; },
     parseTopBlocks: parseTopBlocks,
     convertBlock: convertBlock,
