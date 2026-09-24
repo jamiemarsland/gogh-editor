@@ -67,18 +67,31 @@
   // a piece settles on whole cells: left edge on a column start (or flush to
   // the section edge when it was there), width in whole cells, top on a row
   // start; a text piece keeps its measured height
-  function cellQuantise(e) {
-    var flushL = e.x <= SNAP, flushR = e.x + e.w >= W - SNAP;
-    if (flushL && flushR) { e.x = 0; e.w = W; }
-    else {
-      var n = colsFor(e.w);
-      e.w = Math.round(spanW(n));
-      if (flushL) e.x = 0;
-      else if (flushR) e.x = W - e.w;
-      else e.x = Math.round(colStart(Math.min(colOf(e.x), CELL.cols - n + 1)));
+  // opts: { x: false } / { y: false } leave that axis alone (an alignment
+  // magnet or a resize on the other axis owns it); anchorRight / anchorBottom
+  // keep that edge where it is while the size settles (a west or north
+  // handle). A resize to the right must never move the top (James: 'dragged
+  // the 2nd card bigger and it changed vertical alignment')
+  function cellQuantise(e, opts) {
+    opts = opts || {};
+    if (opts.x !== false) {
+      var flushL = e.x <= SNAP, flushR = e.x + e.w >= W - SNAP;
+      if (flushL && flushR) { e.x = 0; e.w = W; }
+      else {
+        var n = colsFor(e.w), right = e.x + e.w;
+        e.w = Math.round(spanW(n));
+        if (flushL) e.x = 0;
+        else if (flushR) e.x = W - e.w;
+        else if (opts.anchorRight) e.x = Math.max(0, Math.round(right - e.w));
+        else e.x = Math.round(colStart(Math.min(colOf(e.x), CELL.cols - n + 1)));
+      }
     }
-    e.y = e.y <= SNAP ? 0 : Math.max(0, Math.round(rowStart(rowOf(e.y))));
-    if (!isText(e) && e.type !== 'button') e.h = Math.round(spanH(rowsFor(e.h)));
+    if (opts.y !== false) {
+      var bottom = e.y + e.h;
+      if (!isText(e) && e.type !== 'button') e.h = Math.round(spanH(rowsFor(e.h)));
+      if (opts.anchorBottom) e.y = Math.max(0, Math.round(bottom - e.h));
+      else e.y = e.y <= SNAP ? 0 : Math.max(0, Math.round(rowStart(rowOf(e.y))));
+    }
   }
   // every piece in a section onto the lattice, for pages made before Cells
   // (James: nudge one piece and it snaps while its neighbours stay put)
@@ -15146,7 +15159,7 @@
       // holds a moved piece to the size it was picked up with; in Cells
       // that size IS the settled one, so the guard measures against it
       // (a button kept its free width of 170 where four cells give 163)
-      cellQuantise(sec.els[i]);
+      cellQuantise(sec.els[i], { x: !gxCapD || centredD != null, y: !gyCapD });
       // a piece that centred on the way keeps its centre: whole cells for
       // its width, the centre for its place (a column start would undo it)
       if (centredD != null) sec.els[i].x = Math.max(0, Math.min(W - sec.els[i].w, Math.round(W / 2 - centredD)));
@@ -18601,24 +18614,29 @@
     var ggy = (!sy && gl) ? gridTier(yEdges, h) : null;
     if (cellsOn) {
       // cells are the truth: the left edge rests on a column start (or the
-      // section's edge), the top on a row start. Neighbours sit on cells
-      // too, so their edges agree without a magnet; the guide names the cell
+      // section's edge), the top on a row start. But lining up with a
+      // NEIGHBOUR beats the lattice, as in Free: pages made before Cells
+      // have pieces off it, and a card must still be able to sit level with
+      // the card beside it (James: 'now i can't drag it inline with the
+      // first card'). The guide marks the edge it matched.
       var nCols = w > 0 ? colsFor(w) : 1;
       var cx = x <= SNAP ? 0 : (x + w >= W - SNAP && w > 0 ? W - w : colStart(Math.min(colOf(x), CELL.cols - nCols + 1)));
       var cy = y <= SNAP ? 0 : rowStart(rowOf(y));
+      if (sx) cx = sx.v;
+      if (sy) cy = sy.v;
       // the page's centre is still a magnet, and still wears its gold line
       // (James: 'we do need to show the yellow center line'); a piece an
       // even number of cells wide centres on cells, an odd one on the line
       // a text box centres on its INK, not its box, as Free does: the words
       // rarely fill the box (James: 'im not sure text is centring on drag')
       var cOff = (textCXOff != null && textCXOff > 0 && textCXOff < w) ? textCXOff : w / 2;
-      var centred = w > 0 && Math.abs((x + cOff) - W / 2) <= SNAP * 2;
+      var centred = (sx && sx.g === W / 2) || (w > 0 && Math.abs((x + cOff) - W / 2) <= SNAP * 2);
       if (centred) cx = W / 2 - cOff;
       // no column or row words: the lines say enough ('i dont think we need to show row information')
       // no line on the piece's own edge: the lattice already shows the
       // columns (James: 'i dont think we need to show the left vertical
       // line'). The gold centre line is the one guide Cells draws.
-      return { x: Math.round(cx), y: Math.round(cy), gx: centred ? W / 2 : null, gy: null, tagX: centred ? 'centre' : '', tagY: '' };
+      return { x: Math.round(cx), y: Math.round(cy), gx: centred ? W / 2 : (sx ? sx.g : null), gy: sy ? sy.g : null, tagX: centred ? 'centre' : '', tagY: '' };
     }
     return {
       x: sx ? Math.round(sx.v) : (ggx !== null ? Math.round(ggx) : (gl ? Math.round(x / gridUnit()) * gridUnit() : Math.round(x))),
@@ -18937,10 +18955,13 @@
     sec.sectionEl.classList.remove('gogh-grid-live');
     var e = sec.els[i];
     var oldH = e.h;
+    var resizeDir = resize.dir;
     resize = null;
     document.documentElement.classList.remove('gogh-dragging');
     hideGuides();
-    if (cellsOn) cellQuantise(e); // handles stop at cell edges; the box is whole cells
+    if (cellsOn && resizeDir) { // only the pulled edge settles; the anchored one stays put
+      cellQuantise(e, { x: resizeDir.dx !== 0, y: resizeDir.dy !== 0, anchorRight: resizeDir.dx < 0, anchorBottom: resizeDir.dy < 0 });
+    }
     resolveAndApply(sec);
     if (e.fitW) refitText(sec, i); // settle the fit at the final box width
     measureTextHeights(sec);

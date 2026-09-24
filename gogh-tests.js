@@ -670,8 +670,18 @@
         pev('pointermove', grip, gr.x + 77, gr.y + 53, 31);
         pev('pointerup', grip, gr.x + 77, gr.y + 53, 31);
         var e2 = sec().els[i];
-        expect(Math.abs(e2.x - C.colStart(C.colOf(e2.x))) <= 1, 'after a drag x is off the columns: ' + e2.x);
-        expect(Math.abs(e2.y - C.rowStart(C.rowOf(e2.y))) <= 1, 'after a drag y is off the rows: ' + e2.y);
+        // a neighbour's edge beats the lattice (the fixture's pieces sit off it),
+        // so the drop is right when it is on a column start OR level with a neighbour
+        function level(v, axis) {
+          return sec().els.some(function (o) {
+            if (o === e2) return false;
+            var a = axis === 'x' ? [o.x, o.x + o.w, o.x + o.w / 2] : [o.y, o.y + o.h, o.y + o.h / 2];
+            var b = axis === 'x' ? [e2.x, e2.x + e2.w, e2.x + e2.w / 2] : [e2.y, e2.y + e2.h, e2.y + e2.h / 2];
+            return a.some(function (av) { return b.some(function (bv) { return Math.abs(av - bv) <= 1; }); });
+          });
+        }
+        expect(Math.abs(e2.x - C.colStart(C.colOf(e2.x))) <= 1 || level(e2.x, 'x'), 'after a drag x is off the columns and level with nobody: ' + e2.x);
+        expect(Math.abs(e2.y - C.rowStart(C.rowOf(e2.y))) <= 1 || level(e2.y, 'y'), 'after a drag y is off the rows and level with nobody: ' + e2.y);
         // a button too: the drop guard used to hand it back its free width
         var bi = findIdx('button');
         var be = sec().els[bi];
@@ -714,6 +724,24 @@
           expect(e.y === 0 || Math.abs(e.y - C.rowStart(C.rowOf(e.y))) <= 1, 'a piece is off the rows after Snap to cells: y ' + e.y);
         });
         expect(C.snapSection(s0) === 0, 'a second Snap to cells should move nothing');
+        // an east resize settles only the right edge: the top and height stay
+        var ii = findIdx('image'); var ie = s0.els[ii];
+        var iy = ie.y = 101, ih = ie.h; ie.x = 300; G.renderSection(s0);
+        select(ii);
+        dragBy(q('.gogh-h-e'), 40, 0, 34);
+        expect(ie.y === iy && ie.h === ih, 'an east resize moved the top or height: y ' + iy + '\u2192' + ie.y + ', h ' + ih + '\u2192' + ie.h);
+        expect(Math.abs(ie.w - C.spanW(Math.round((ie.w + C.CELL.gap) / (C.cellW() + C.CELL.gap)))) <= 1, 'the pulled edge should land on whole cells: w ' + ie.w);
+        // lining up with an off-lattice neighbour beats the lattice
+        var bi2 = findIdx('badge'); var bd = s0.els[bi2];
+        bd.x = 700; bd.y = iy + 40; G.renderSection(s0);
+        select(bi2);
+        var gB = q('.gogh-grip'), rB = gB.getBoundingClientRect(), scB = s0.sectionEl.getBoundingClientRect().width / 1200;
+        var dyp = (iy - bd.y + 3) * scB;
+        pev('pointerdown', gB, rB.x + 12, rB.y + 12, 35);
+        pev('pointermove', gB, rB.x + 12, rB.y + 12 + dyp * 0.5, 35);
+        pev('pointermove', gB, rB.x + 12, rB.y + 12 + dyp, 35);
+        pev('pointerup', gB, rB.x + 12, rB.y + 12 + dyp, 35);
+        expect(bd.y === iy, 'a piece dragged level with an off-lattice neighbour should take its top: ' + bd.y + ' vs ' + iy);
         // the centre is still a magnet in Cells, on the ink of a text piece,
         // and the drop keeps it (James: 'im not sure text is centring on drag and drop?')
         var hi = findIdx('heading');
