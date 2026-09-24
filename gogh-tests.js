@@ -696,6 +696,39 @@
       }
     });
 
+    test('cells: rows start at the section\u2019s padding, and Snap to cells settles a whole section with Undo', function () {
+      var C = G.cells, was = C.on();
+      C.set(true);
+      var snap = G.serialize();
+      try {
+        expect(C.rowStart(1) === 72, 'row 1 should start at the section padding (72), got ' + C.rowStart(1));
+        expect(C.rowOf(72) === 1 && C.rowOf(108) === 2, 'rowOf should count from the padding: ' + C.rowOf(72) + ', ' + C.rowOf(108));
+        var s0 = sec();
+        // knock every piece off the lattice
+        s0.els.forEach(function (e, k) { e.x = Math.max(0, e.x + 7 + k); e.y = e.y + 5; });
+        G.renderSection(s0);
+        var moved = C.snapSection(s0);
+        expect(moved === s0.els.length, 'every knocked piece should settle, settled ' + moved + ' of ' + s0.els.length);
+        s0.els.forEach(function (e) {
+          expect(e.x === 0 || Math.abs(e.x - C.colStart(C.colOf(e.x))) <= 1, 'a piece is off the columns after Snap to cells: x ' + e.x);
+          expect(e.y === 0 || Math.abs(e.y - C.rowStart(C.rowOf(e.y))) <= 1, 'a piece is off the rows after Snap to cells: y ' + e.y);
+        });
+        expect(C.snapSection(s0) === 0, 'a second Snap to cells should move nothing');
+        // the door is on the section's more menu, only in Cells
+        G.openSecMore(0, s0.sectionEl);
+        var door = q('.gogh-secmore [data-act="cells"]');
+        expect(door && !door.disabled && /Snap to cells/.test(door.textContent), 'the section menu has no Snap to cells');
+        C.set(false);
+        G.openSecMore(0, s0.sectionEl);
+        expect(q('.gogh-secmore [data-act="cells"]').disabled, 'Snap to cells should be greyed in Free');
+        return 'settled ' + moved;
+      } finally {
+        var m = q('.gogh-secmore'); if (m) m.hidden = true;
+        G.restore(snap);
+        C.set(was);
+      }
+    });
+
     // ---- 7. drag ghost fidelity (v0.11.7 regression) ----
     test('drag ghost matches element styling', function () {
       var i = findIdx('heading');
@@ -7519,7 +7552,7 @@
       // Rearrange left the menu in v0.99.499: the die already offers every
       // arrangement a hand-built section can take; Hide on phones joined in
       // v0.99.596 so the mobile options are reachable from the desktop
-      expect(items.length === 6, 'expected 6 menu verbs, got ' + items.length);
+      expect(items.length === 7, 'expected 7 menu verbs, got ' + items.length);
       expect(items.some(function (t) { return /Hide on phones/.test(t); }), 'no Hide on phones among ' + items.join(', '));
       expect(/Move up·off/.test(items[0]), 'the first section can somehow move up: ' + items[0]);
       expect(document.querySelector('.gogh-secmore-del'), 'Delete lost its red');

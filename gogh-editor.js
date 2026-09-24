@@ -44,8 +44,11 @@
   function rowPitch() { return CELL.row + CELL.rgap; }
   function colStart(c) { return CELL.pad + (c - 1) * cellPitch(); }
   function colOf(x) { return Math.max(1, Math.min(CELL.cols, Math.round((x - CELL.pad) / cellPitch()) + 1)); }
-  function rowStart(r) { return (r - 1) * rowPitch(); }
-  function rowOf(y) { return Math.max(1, Math.round(y / rowPitch()) + 1); }
+  // rows start at the section's padding (PAD, 72), where the takes and new
+  // pieces start, not at the section's top edge; a piece flush to the top
+  // (a full-bleed photo at y 0) is the one thing allowed above row 1
+  function rowStart(r) { return PAD + (r - 1) * rowPitch(); }
+  function rowOf(y) { return Math.max(1, Math.round((y - PAD) / rowPitch()) + 1); }
   function spanW(n) { return n * cellW() + (n - 1) * CELL.gap; }
   function spanH(n) { return n * CELL.row + (n - 1) * CELL.rgap; }
   function colsFor(w) { return Math.max(1, Math.min(CELL.cols, Math.round((w + CELL.gap) / cellPitch()))); }
@@ -74,8 +77,24 @@
       else if (flushR) e.x = W - e.w;
       else e.x = Math.round(colStart(Math.min(colOf(e.x), CELL.cols - n + 1)));
     }
-    e.y = Math.max(0, Math.round(rowStart(rowOf(e.y))));
+    e.y = e.y <= SNAP ? 0 : Math.max(0, Math.round(rowStart(rowOf(e.y))));
     if (!isText(e) && e.type !== 'button') e.h = Math.round(spanH(rowsFor(e.h)));
+  }
+  // every piece in a section onto the lattice, for pages made before Cells
+  // (James: nudge one piece and it snaps while its neighbours stay put)
+  function cellSnapSection(sec) {
+    if (!sec || sec.chrome) return 0;
+    var moved = 0;
+    sec.els.forEach(function (e) {
+      var was = e.x + ',' + e.y + ',' + e.w + ',' + e.h;
+      cellQuantise(e);
+      if (was !== e.x + ',' + e.y + ',' + e.w + ',' + e.h) moved++;
+    });
+    resolveAndApply(sec);
+    measureTextHeights(sec);
+    resolveAndApply(sec);
+    if (sel && sel.sec === sec) placeHandles(sec, sel.i);
+    return moved;
   }
   function cellWords(e) {
     return 'Column ' + colOf(e.x) + ' \u00b7 Row ' + rowOf(e.y) + ' \u00b7 ' + colsFor(e.w) + ' \u00d7 ' + rowsFor(e.h);
@@ -11999,6 +12018,7 @@
       ['dup', 'Duplicate', false],
       ['savepat', 'Save to reuse', false],
       ['mhide', phoneHiddenOf(S[idx], -1) ? 'Show on phones' : 'Hide on phones', false],
+      ['cells', 'Snap to cells', !cellsOn],
       ['del', 'Delete', false],
     ].map(function (it) {
       return '<button type="button" class="gogh-secmore-it' + (it[0] === 'del' ? ' gogh-secmore-del' : '') +
@@ -12025,6 +12045,12 @@
         if (act === 'dup') { duplicateSection(idx); return; }
         if (act === 'savepat') { openSavePatternPanel(idx); return; }
         if (act === 'mhide') { phoneHiddenToast('This section is', setPhoneHidden(S[idx], -1, !phoneHiddenOf(S[idx], -1))); return; }
+        if (act === 'cells') {
+          var nMoved = cellSnapSection(S[idx]);
+          if (nMoved) { pushState(); toast(nMoved + (nMoved === 1 ? ' piece' : ' pieces') + ' settled on the cells.', { actions: [{ label: 'Undo', onClick: function () { undo(); } }] }); }
+          else toast('Everything here already sits on the cells.', { ttl: 3000 });
+          return;
+        }
         if (act === 'del') deleteSection(idx);
       });
     });
@@ -18560,8 +18586,8 @@
       // too, so their edges agree without a magnet; the guide names the cell
       var nCols = w > 0 ? colsFor(w) : 1;
       var cx = x <= SNAP ? 0 : (x + w >= W - SNAP && w > 0 ? W - w : colStart(Math.min(colOf(x), CELL.cols - nCols + 1)));
-      var cy = rowStart(rowOf(y));
-      return { x: Math.round(cx), y: Math.round(cy), gx: Math.round(cx), gy: Math.round(cy), tagX: 'column ' + colOf(cx), tagY: 'row ' + rowOf(cy) };
+      var cy = y <= SNAP ? 0 : rowStart(rowOf(y));
+      return { x: Math.round(cx), y: Math.round(cy), gx: Math.round(cx), gy: Math.round(cy), tagX: cx === 0 ? 'edge' : 'column ' + colOf(cx), tagY: cy === 0 ? 'top' : 'row ' + rowOf(cy) };
     }
     return {
       x: sx ? Math.round(sx.v) : (ggx !== null ? Math.round(ggx) : (gl ? Math.round(x / gridUnit()) * gridUnit() : Math.round(x))),
@@ -19408,7 +19434,7 @@
     titleRawWithSize: titleRawWithSize,
     publish: publish,
     isDirty: isDirty,
-    cells: { on: function () { return cellsOn; }, set: setCells, quantise: cellQuantise, words: cellWords, colOf: colOf, rowOf: rowOf, colStart: colStart, rowStart: rowStart, spanW: spanW, spanH: spanH, cellW: cellW, CELL: CELL },
+    cells: { on: function () { return cellsOn; }, set: setCells, quantise: cellQuantise, snapSection: cellSnapSection, words: cellWords, colOf: colOf, rowOf: rowOf, colStart: colStart, rowStart: rowStart, spanW: spanW, spanH: spanH, cellW: cellW, CELL: CELL },
     enterTextEdit: enterTextEdit, exitTextEdit: exitTextEdit, textEditing: function () { return textEditing; },
     parseTopBlocks: parseTopBlocks,
     convertBlock: convertBlock,

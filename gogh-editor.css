@@ -2308,8 +2308,9 @@ html.gogh-cells.gogh-editing .gogh-section::before {
     linear-gradient(90deg, transparent calc(6.6667cqw - 1px), var(--gogh-cell-edge) calc(6.6667cqw - 1px), var(--gogh-cell-edge) 6.6667cqw, transparent 6.6667cqw, transparent calc(50cqw - 1px), var(--gogh-cell-edge) calc(50cqw - 1px), var(--gogh-cell-edge) 50cqw, transparent 50cqw, transparent 93.3333cqw, var(--gogh-cell-edge) 93.3333cqw, var(--gogh-cell-edge) calc(93.3333cqw + 1px), transparent calc(93.3333cqw + 1px)),
     repeating-linear-gradient(180deg, transparent 0, transparent 2cqw, var(--gogh-cell-gutter) 2cqw, var(--gogh-cell-gutter) 3cqw),
     repeating-linear-gradient(90deg, var(--gogh-cell-tint) 0, var(--gogh-cell-tint) 2.65278cqw, transparent 2.65278cqw, transparent 3.65278cqw);
-  background-size: 100% 100%, 86.6667cqw 100%, 86.6667cqw 100%;
-  background-position: 0 0, 6.6667cqw 0, 6.6667cqw 0;
+  /* rows start at the section's padding (72 units = 6cqw) */
+  background-size: 100% 100%, 86.6667cqw calc(100% - 6cqw), 86.6667cqw calc(100% - 6cqw);
+  background-position: 0 0, 6.6667cqw 6cqw, 6.6667cqw 6cqw;
   background-repeat: no-repeat, no-repeat, no-repeat;
   opacity: 0;
 }
