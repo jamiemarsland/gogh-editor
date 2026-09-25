@@ -1425,8 +1425,9 @@
       // the point is "off-grid drop snaps ONTO the grid near the target" — assert
       // grid-alignment within a cell, not an exact pixel (a real drag's sub-px
       // scale rounding can tip an exact === by one grid step)
-      // with the grid on, the mesh is the rhythm: 24, not 8
-      expect(e.x % 24 === 0 && Math.abs(e.x - tx) <= 24 && e.y % 24 === 0, 'drop did not snap to grid: ' + e.x + ',' + e.y + ' (wanted x≈' + tx + ' on the 24 grid, y%24=0)');
+      // with the grid on, the mesh is the drawn lattice: a column edge, a row edge
+      var L = G.lattice;
+      expect(Math.abs(e.x - L.x(e.x)) <= 1 && Math.abs(e.x - tx) <= 48 && Math.abs(e.y - L.y(e.y)) <= 1, 'drop did not land on the lattice: ' + e.x + ',' + e.y + ' (wanted x≈' + tx + ' on a column edge, y on a row edge)');
       if (document.documentElement.classList.contains('gogh-grid-on')) btn.click(); // restore default
       return 'landed on grid at ' + e.x + ',' + e.y;
     });
@@ -1937,6 +1938,10 @@
           return s2.styleEl.textContent;
         };
         var par = cssFor('parallax');
+        // a pictured effect section draws the lattice while a piece moves,
+        // not the old 72-major hairlines: two grids on one page would lie
+        expect(/gogh-grid-live::before[^}]*86\.6667cqw 100%/.test(par), 'an effect section should draw the lattice while a piece moves, not the old hairlines');
+        expect(!/6cqw 6cqw/.test(par.split('gogh-grid-live')[1] || ''), 'the old 72-major hairlines are still in the effect section\u2019s drag grid');
         expect(/gogh-parallax/.test(par) && /animation-timeline: view\(\)/.test(par), 'parallax must be scroll-driven, not attachment-fixed');
         expect(/inset: -20% 0/.test(par), 'parallax layer needs headroom beyond the section');
         expect(!/background-attachment/.test(par), 'the old fixed-attachment trick must be gone');
@@ -7343,15 +7348,19 @@
       // — an edge near one lands ON it (76→72), not beside it on the free
       // 8-grid (which would say 80); far from any line the free 8-grid still
       // rules (22→24)
-      expect(G.snapAxis([], 76).v === 72, 'resize edge at 76 landed at ' + G.snapAxis([], 76).v + ', not 72');
-      expect(G.snapAxis([], 22).v === 24, 'free positioning broke: 22 landed at ' + G.snapAxis([], 22).v);
+      // the drawn lines are the margin column (80) sideways and the rows
+      // (72, 96, 108 ...) downwards; 84→80, and a y of 100 → the row end at 96
+      expect(G.snapAxis([], 84, 'x').v === 80, 'resize edge at 84 landed at ' + G.snapAxis([], 84, 'x').v + ', not on the margin line 80');
+      expect(G.snapAxis([], 100, 'y').v === 96, 'resize edge at y 100 landed at ' + G.snapAxis([], 100, 'y').v + ', not on the row edge 96');
+      expect(G.snapAxis([], 22, 'x').v === 24, 'free positioning broke: 22 landed at ' + G.snapAxis([], 22, 'x').v);
       // alignment magnets still outrank the grid
-      expect(G.snapAxis([43], 44).v === 43, 'a neighbour magnet lost to the grid');
-      // grid on: the minors (24) catch too, and the free mesh is 24, not 8 —
-      // a person who asks for the grid gets the rhythm
+      expect(G.snapAxis([43], 44, 'x').v === 43, 'a neighbour magnet lost to the grid');
+      // grid on: far from every line the mesh IS the lattice — a person who
+      // asks for the grid gets the drawn lines, not a hidden 24
       G.setGridSnap(true);
-      expect(G.snapAxis([], 44).v === 48, 'with the grid on, 44 should land on the 24-line at 48, got ' + G.snapAxis([], 44).v);
-      expect(G.snapAxis([], 33).v === 24, 'with the grid on, the mesh is 24: 33 landed at ' + G.snapAxis([], 33).v);
+      var L = G.lattice;
+      expect(G.snapAxis([], 44, 'x').v === 80, 'with the grid on, 44 should land on the margin line 80, got ' + G.snapAxis([], 44, 'x').v);
+      expect(G.snapAxis([], 130, 'x').v === Math.round(L.colStart(2)), 'with the grid on, 130 should land on column 2 (' + Math.round(L.colStart(2)) + '): got ' + G.snapAxis([], 130, 'x').v);
       G.setGridSnap(false);
       // drag: same tiering through snapPos — pick a grid line far from
       // every magnet the fixture offers so only the grid can catch
@@ -7359,8 +7368,8 @@
       var cands = [0, 1200, 600, 80]; // (80 is the named margin magnet)
       s.els.forEach(function (o) { cands.push(o.x, o.x + o.w, o.x + o.w / 2); });
       var X0 = null;
-      for (var k = 2; k < 16 && X0 === null; k++) {
-        var line = k * 72;
+      for (var k = 2; k < 24 && X0 === null; k++) {
+        var line = Math.round(L.colStart(k));
         var clear = cands.every(function (c) { return Math.abs(c - line) > 8 && Math.abs(c - (line + 4)) > 8; });
         if (clear) X0 = line;
       }
@@ -7369,7 +7378,7 @@
       var r = G.snapPos(s, s.els[0], X0 + 4, 9999, 0, 0, false, null);
       G.setGridSnap(false);
       expect(r.x === X0, 'drag edge at ' + (X0 + 4) + ' landed at ' + r.x + ', not on the painted line ' + X0);
-      return '76→72 on the major, 22→24 free, 44→48 with the grid on, magnets still first, drag x' + (X0 + 4) + '→' + X0;
+      return '84→80 on the margin line, y 100→96 on a row edge, 22→24 free, 44→80 with the grid on, magnets still first, drag x' + (X0 + 4) + '→' + X0;
     });
 
     testAsync('section corners come on hover and go when the pointer leaves; a selection keeps them', function () {

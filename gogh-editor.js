@@ -35,8 +35,38 @@
   // perfect"). With the Grid button on the minors show too, and the mesh a
   // drop rounds to is 24 rather than 8 — a person who asks for the grid gets
   // the rhythm, not an 8-pixel mesh. Nudges by arrow key stay at BASE.
-  function gridLine() { return gridSnapOn ? RHYTHM : MAJOR; }
   function gridUnit() { return gridSnapOn ? RHYTHM : BASE; }
+  // ---------- the lattice: what the grid DRAWS, and the lowest snap tier ----------
+  // The look is Squarespace's: 24 columns with gutters inside the page
+  // margins, rows of 24 with gutters the full height, nothing painted in
+  // the side margins (James: 'i like the way it doesnt automatically
+  // show outside the margins'). It is drawing plus one honest promise: an
+  // edge released near a drawn line lands ON it. Sizes stay free, neighbour
+  // and centre magnets still come first — the freeform model is untouched.
+  var LAT = { cols: 24, gap: 12, pad: MARGIN, row: 24, rgap: 12 };
+  function latCellW() { return (W - 2 * LAT.pad - (LAT.cols - 1) * LAT.gap) / LAT.cols; }
+  function latColStart(c) { return LAT.pad + (c - 1) * (latCellW() + LAT.gap); }
+  function latRowStart(r) { return (r - 1) * (LAT.row + LAT.rgap); }
+  function nearestOf(v, cands) {
+    var best = cands[0], d = Math.abs(v - best);
+    cands.forEach(function (c) { var dd = Math.abs(v - c); if (dd < d) { d = dd; best = c; } });
+    return best;
+  }
+  // the drawn vertical line nearest v: a column's start or end, or the section's edge
+  function latX(v) {
+    var pitch = latCellW() + LAT.gap, cw = latCellW();
+    var c = Math.max(0, Math.min(LAT.cols - 1, Math.floor((v - LAT.pad) / pitch)));
+    var s0 = LAT.pad + c * pitch;
+    return nearestOf(v, [0, W, s0, s0 + cw, Math.min(W - LAT.pad, s0 + pitch)]);
+  }
+  // the drawn horizontal line nearest v: a row's start or end (rows run from
+  // the section's top, pitch 36, so the 72 padding is a row start)
+  function latY(v) {
+    var pitch = LAT.row + LAT.rgap;
+    var k = Math.max(0, Math.floor(v / pitch));
+    var s0 = k * pitch;
+    return nearestOf(v, [s0, s0 + LAT.row, s0 + pitch]);
+  }
 
   // ---------- collect sections (resilient to Gutenberg-side edits) ----------
   // Carriers are paired by ADJACENCY (the style+model immediately before each
@@ -539,13 +569,15 @@
   }
   // the editing grid's major lines (72 units = 6cqw, across only — the beat
   // is about rows), as top coats over an effect/video layer
+  // the grid drawn over a photo, a tinted video or an effect backdrop while a
+  // piece is on the move: the SAME lattice as the stylesheet's (24 columns
+  // with gutters inside the margins, rows of 24 with gutters the full
+  // height, hairlines at the margins and the centre), in the photo palette
+  // — white tint, dark gutters. Two grids on one page would be a lie.
   var GRID_COATS = [
-    'linear-gradient(to bottom, rgba(255,255,255,0.42) 1px, transparent 1px) 0 0 / 6cqw 6cqw',
-    'linear-gradient(to bottom, rgba(15,23,42,0.26) 1px, transparent 1px) 0 1px / 6cqw 6cqw',
-    'linear-gradient(to right, rgba(255,255,255,0.18) 1px, transparent 1px) 0 0 / 2cqw 2cqw',
-    'linear-gradient(to bottom, rgba(255,255,255,0.18) 1px, transparent 1px) 0 0 / 2cqw 2cqw',
-    'linear-gradient(to right, rgba(15,23,42,0.10) 1px, transparent 1px) 1px 1px / 2cqw 2cqw',
-    'linear-gradient(to bottom, rgba(15,23,42,0.10) 1px, transparent 1px) 1px 1px / 2cqw 2cqw'
+    'linear-gradient(90deg, transparent calc(6.6667cqw - 1px), rgba(255,255,255,0.4) calc(6.6667cqw - 1px), rgba(255,255,255,0.4) 6.6667cqw, transparent 6.6667cqw, transparent calc(50cqw - 1px), rgba(255,255,255,0.4) calc(50cqw - 1px), rgba(255,255,255,0.4) 50cqw, transparent 50cqw, transparent 93.3333cqw, rgba(255,255,255,0.4) 93.3333cqw, rgba(255,255,255,0.4) calc(93.3333cqw + 1px), transparent calc(93.3333cqw + 1px)) 0 0 / 100% 100% no-repeat',
+    'repeating-linear-gradient(180deg, transparent 0, transparent 2cqw, rgba(15,23,42,0.18) 2cqw, rgba(15,23,42,0.18) 3cqw) 6.6667cqw 0 / 86.6667cqw 100% no-repeat',
+    'repeating-linear-gradient(90deg, rgba(255,255,255,0.14) 0, rgba(255,255,255,0.14) 2.65278cqw, transparent 2.65278cqw, transparent 3.65278cqw) 6.6667cqw 0 / 86.6667cqw 100% no-repeat'
   ].join(', ');
   // ---------- video: a file, or a YouTube / Vimeo link ----------
   function videoEmbedInfo(url) {
@@ -1019,18 +1051,10 @@
       // parallax needs headroom: the layer is taller than the section so
       // its slower journey never shows an edge
       var inset = fxBg === 'parallax' ? '-20% 0' : '0';
-      // dragging must keep BOTH the picture and the grid: the hairlines
-      // join this very layer as top coats while gogh-grid-live is on
-      // (majors only — calm over photos). Published pages never carry
-      // .gogh-editing, so this costs them nothing.
-      var gridCoats = [
-        'linear-gradient(to bottom, rgba(255,255,255,0.42) 1px, transparent 1px) 0 0 / 6cqw 6cqw',
-        'linear-gradient(to bottom, rgba(15,23,42,0.26) 1px, transparent 1px) 0 1px / 6cqw 6cqw',
-        'linear-gradient(to right, rgba(255,255,255,0.18) 1px, transparent 1px) 0 0 / 2cqw 2cqw',
-        'linear-gradient(to bottom, rgba(255,255,255,0.18) 1px, transparent 1px) 0 0 / 2cqw 2cqw',
-        'linear-gradient(to right, rgba(15,23,42,0.10) 1px, transparent 1px) 1px 1px / 2cqw 2cqw',
-        'linear-gradient(to bottom, rgba(15,23,42,0.10) 1px, transparent 1px) 1px 1px / 2cqw 2cqw'
-      ].join(', ');
+      // dragging must keep BOTH the picture and the grid: the lattice
+      // joins this very layer as top coats while gogh-grid-live is on.
+      // Published pages never carry .gogh-editing, so this costs them nothing.
+      var gridCoats = GRID_COATS;
       // opacity: 1 declared, not assumed — the editing grid shares this
       // pseudo at opacity 0, which blanked every effect section's backdrop
       // in the editor (the grid simply skips effect sections now)
@@ -15023,9 +15047,10 @@
     // every drop keeps the promise unless ⌘ asked for full freedom
     if (!freeD) {
       var eDrop = sec.els[i];
-      var gu = gridUnit();
-      if (!gxCapD && !eqHD && !lockedXD && movedXD) eDrop.x = Math.max(0, Math.min(W - eDrop.w, Math.round(eDrop.x / gu) * gu));
-      if (!gyCapD && !eqVD && !lockedYD && movedYD) eDrop.y = Math.max(0, Math.round(eDrop.y / gu) * gu);
+      var dropX = function (v) { return gridSnapOn ? Math.round(latX(v)) : Math.round(v / BASE) * BASE; };
+      var dropY = function (v) { return gridSnapOn ? Math.round(latY(v)) : Math.round(v / BASE) * BASE; };
+      if (!gxCapD && !eqHD && !lockedXD && movedXD) eDrop.x = Math.max(0, Math.min(W - eDrop.w, dropX(eDrop.x)));
+      if (!gyCapD && !eqVD && !lockedYD && movedYD) eDrop.y = Math.max(0, dropY(eDrop.y));
       resolveAndApply(sec);
     }
     if (multiD) {
@@ -18447,21 +18472,25 @@
     // the painted grid is the middle tier: alignment magnets beat it,
     // but an outer EDGE (never a centre) within reach of a line the user
     // can see lands exactly on it — beside-the-line is the feel-killer
-    var gridTier = function (edges, span) {
+    var gridTier = function (edges, span, axis) {
       var bestV = null, d = SNAP + 1;
       edges.forEach(function (edge) {
         if (edge.off !== 0 && edge.off !== span) return;
-        var gv = Math.round(edge.v / gridLine()) * gridLine();
+        var gv = axis === 'y' ? latY(edge.v) : latX(edge.v);
         var dd = Math.abs(gv - edge.v);
         if (dd < d) { d = dd; bestV = gv - edge.off; }
       });
       return bestV;
     };
-    var ggx = (!sx && gl) ? gridTier(xEdges, w) : null;
-    var ggy = (!sy && gl) ? gridTier(yEdges, h) : null;
+    var ggx = (!sx && gl) ? gridTier(xEdges, w, 'x') : null;
+    var ggy = (!sy && gl) ? gridTier(yEdges, h, 'y') : null;
+    // far from every line: the grid ON means the lattice is the mesh (a
+    // person who asks for the grid gets the drawn lines); off, the quiet 8
+    var meshX = function (v) { return gridSnapOn ? latX(v) : Math.round(v / BASE) * BASE; };
+    var meshY = function (v) { return gridSnapOn ? latY(v) : Math.round(v / BASE) * BASE; };
     return {
-      x: sx ? Math.round(sx.v) : (ggx !== null ? Math.round(ggx) : (gl ? Math.round(x / gridUnit()) * gridUnit() : Math.round(x))),
-      y: sy ? Math.round(sy.v) : (ggy !== null ? Math.round(ggy) : (gl ? Math.round(y / gridUnit()) * gridUnit() : Math.round(y))),
+      x: sx ? Math.round(sx.v) : (ggx !== null ? Math.round(ggx) : (gl ? Math.round(meshX(x)) : Math.round(x))),
+      y: sy ? Math.round(sy.v) : (ggy !== null ? Math.round(ggy) : (gl ? Math.round(meshY(y)) : Math.round(y))),
       gx: sx ? sx.g : null,
       gy: sy ? sy.g : null,
     };
@@ -18633,7 +18662,7 @@
 
   // ---------- resizing: 8-direction handles ----------
   var resize = null, resizeRaf = false;
-  function snapAxis(cands, v) {
+  function snapAxis(cands, v, axis) {
     var best = null, d = SNAP + 1;
     cands.forEach(function (c) {
       var dd = Math.abs(c - v);
@@ -18642,9 +18671,9 @@
     if (best !== null) return { v: best, g: best };
     // no alignment magnet: the painted grid line catches next — an edge
     // near a line the user can SEE lands exactly on it, never beside it
-    var gv = Math.round(v / gridLine()) * gridLine();
-    if (Math.abs(gv - v) <= SNAP) return { v: gv, g: null };
-    return { v: Math.round(v / gridUnit()) * gridUnit(), g: null };
+    var gv = axis === 'y' ? latY(v) : latX(v);
+    if (Math.abs(gv - v) <= SNAP) return { v: Math.round(gv), g: null };
+    return { v: gridSnapOn ? Math.round(gv) : Math.round(v / BASE) * BASE, g: null };
   }
   selBox.querySelectorAll('.gogh-h').forEach(function (hBtn) {
     hBtn.addEventListener('pointerdown', function (ev) {
@@ -18713,23 +18742,23 @@
         if (textScale) {
           nw = resize.w + dx;
         } else {
-          var sr = snapAxis(resize.candX, resize.x + resize.w + dx);
+          var sr = snapAxis(resize.candX, resize.x + resize.w + dx, 'x');
           nw = sr.v - resize.x; gx = sr.g;
         }
       } else if (dir.dx === -1) {
         if (textScale) {
           nx = resize.x + dx; nw = resize.w - dx;
         } else {
-          var sl = snapAxis(resize.candX, resize.x + dx);
+          var sl = snapAxis(resize.candX, resize.x + dx, 'x');
           nx = sl.v; nw = resize.x + resize.w - sl.v; gx = sl.g;
         }
       }
       if (fixedHeight(e)) {
         if (dir.dy === 1) {
-          var sb = snapAxis(resize.candY, resize.y + resize.h + dy);
+          var sb = snapAxis(resize.candY, resize.y + resize.h + dy, 'y');
           nh = sb.v - resize.y; gy = sb.g;
         } else if (dir.dy === -1) {
-          var st = snapAxis(resize.candY, resize.y + dy);
+          var st = snapAxis(resize.candY, resize.y + dy, 'y');
           ny = st.v; nh = resize.y + resize.h - st.v; gy = st.g;
         }
       }
@@ -19210,6 +19239,7 @@
     snapAxis: snapAxis,
     snapPos: snapPos,
     setGridSnap: function (on) { gridSnapOn = !!on; },
+    lattice: { CELL: LAT, cellW: latCellW, colStart: latColStart, rowStart: latRowStart, x: latX, y: latY },
     openSecMore: openSecMore,
     askApplyOps: askApplyOps,
     askProject: askProject,
