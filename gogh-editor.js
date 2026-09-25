@@ -569,13 +569,15 @@
   }
   // the editing grid's major lines (72 units = 6cqw, across only — the beat
   // is about rows), as top coats over an effect/video layer
+  // the grid drawn over a photo, a tinted video or an effect backdrop while a
+  // piece is on the move: the SAME lattice as the stylesheet's (24 columns
+  // with gutters inside the margins, rows of 24 with gutters the full
+  // height, hairlines at the margins and the centre), in the photo palette
+  // — white tint, dark gutters. Two grids on one page would be a lie.
   var GRID_COATS = [
-    'linear-gradient(to bottom, rgba(255,255,255,0.42) 1px, transparent 1px) 0 0 / 6cqw 6cqw',
-    'linear-gradient(to bottom, rgba(15,23,42,0.26) 1px, transparent 1px) 0 1px / 6cqw 6cqw',
-    'linear-gradient(to right, rgba(255,255,255,0.18) 1px, transparent 1px) 0 0 / 2cqw 2cqw',
-    'linear-gradient(to bottom, rgba(255,255,255,0.18) 1px, transparent 1px) 0 0 / 2cqw 2cqw',
-    'linear-gradient(to right, rgba(15,23,42,0.10) 1px, transparent 1px) 1px 1px / 2cqw 2cqw',
-    'linear-gradient(to bottom, rgba(15,23,42,0.10) 1px, transparent 1px) 1px 1px / 2cqw 2cqw'
+    'linear-gradient(90deg, transparent calc(6.6667cqw - 1px), rgba(255,255,255,0.4) calc(6.6667cqw - 1px), rgba(255,255,255,0.4) 6.6667cqw, transparent 6.6667cqw, transparent calc(50cqw - 1px), rgba(255,255,255,0.4) calc(50cqw - 1px), rgba(255,255,255,0.4) 50cqw, transparent 50cqw, transparent 93.3333cqw, rgba(255,255,255,0.4) 93.3333cqw, rgba(255,255,255,0.4) calc(93.3333cqw + 1px), transparent calc(93.3333cqw + 1px)) 0 0 / 100% 100% no-repeat',
+    'repeating-linear-gradient(180deg, transparent 0, transparent 2cqw, rgba(15,23,42,0.18) 2cqw, rgba(15,23,42,0.18) 3cqw) 6.6667cqw 0 / 86.6667cqw 100% no-repeat',
+    'repeating-linear-gradient(90deg, rgba(255,255,255,0.14) 0, rgba(255,255,255,0.14) 2.65278cqw, transparent 2.65278cqw, transparent 3.65278cqw) 6.6667cqw 0 / 86.6667cqw 100% no-repeat'
   ].join(', ');
   // ---------- video: a file, or a YouTube / Vimeo link ----------
   function videoEmbedInfo(url) {
@@ -1049,18 +1051,10 @@
       // parallax needs headroom: the layer is taller than the section so
       // its slower journey never shows an edge
       var inset = fxBg === 'parallax' ? '-20% 0' : '0';
-      // dragging must keep BOTH the picture and the grid: the hairlines
-      // join this very layer as top coats while gogh-grid-live is on
-      // (majors only — calm over photos). Published pages never carry
-      // .gogh-editing, so this costs them nothing.
-      var gridCoats = [
-        'linear-gradient(to bottom, rgba(255,255,255,0.42) 1px, transparent 1px) 0 0 / 6cqw 6cqw',
-        'linear-gradient(to bottom, rgba(15,23,42,0.26) 1px, transparent 1px) 0 1px / 6cqw 6cqw',
-        'linear-gradient(to right, rgba(255,255,255,0.18) 1px, transparent 1px) 0 0 / 2cqw 2cqw',
-        'linear-gradient(to bottom, rgba(255,255,255,0.18) 1px, transparent 1px) 0 0 / 2cqw 2cqw',
-        'linear-gradient(to right, rgba(15,23,42,0.10) 1px, transparent 1px) 1px 1px / 2cqw 2cqw',
-        'linear-gradient(to bottom, rgba(15,23,42,0.10) 1px, transparent 1px) 1px 1px / 2cqw 2cqw'
-      ].join(', ');
+      // dragging must keep BOTH the picture and the grid: the lattice
+      // joins this very layer as top coats while gogh-grid-live is on.
+      // Published pages never carry .gogh-editing, so this costs them nothing.
+      var gridCoats = GRID_COATS;
       // opacity: 1 declared, not assumed — the editing grid shares this
       // pseudo at opacity 0, which blanked every effect section's backdrop
       // in the editor (the grid simply skips effect sections now)

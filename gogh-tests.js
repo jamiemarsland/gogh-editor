@@ -1938,6 +1938,10 @@
           return s2.styleEl.textContent;
         };
         var par = cssFor('parallax');
+        // a pictured effect section draws the lattice while a piece moves,
+        // not the old 72-major hairlines: two grids on one page would lie
+        expect(/gogh-grid-live::before[^}]*86\.6667cqw 100%/.test(par), 'an effect section should draw the lattice while a piece moves, not the old hairlines');
+        expect(!/6cqw 6cqw/.test(par.split('gogh-grid-live')[1] || ''), 'the old 72-major hairlines are still in the effect section\u2019s drag grid');
         expect(/gogh-parallax/.test(par) && /animation-timeline: view\(\)/.test(par), 'parallax must be scroll-driven, not attachment-fixed');
         expect(/inset: -20% 0/.test(par), 'parallax layer needs headroom beyond the section');
         expect(!/background-attachment/.test(par), 'the old fixed-attachment trick must be gone');
