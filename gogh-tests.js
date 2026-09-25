@@ -6723,6 +6723,17 @@
       expect(Math.round(G.hueToward(200, 28, 0.5)) === 114 && Math.round(G.hueToward(350, 28, 0.5)) === 9, 'hueToward should take the short way round');
     });
 
+    testAsync('the Make door serves a chat that builds this site (read only: nothing is applied here)', async function () {
+      var r = await fetch(location.origin + '/?gogh-make=1&goghcb=' + Date.now(), { credentials: 'same-origin', cache: 'no-store' });
+      var html = await r.text();
+      expect(r.ok, 'the Make page did not answer: ' + r.status);
+      expect(/window\.goghMake = \{/.test(html) && /gogh-make\.js/.test(html), 'the page should carry its settings and its script');
+      expect(/"rest":"[^"]*gogh\\\/v1\\\//.test(html) && /"nonce":"[a-z0-9]+"/.test(html), 'the page should know this site\u2019s route and nonce');
+      expect(/id="thread"/.test(html) && /id="q"/.test(html) && /id="restart"/.test(html), 'the page should have a thread, a box to type in and Start again');
+      expect(/workers\.dev|helper/.test(html), 'the page should talk to the helper');
+      return 'the chat page answers with its settings, and nothing was built';
+    });
+
     testAsync('the front door: a built site opens dressed, with a corner pill and no panel; Site style keeps its top row (brand, then Remix) and More', function () {
       var first = G.sections().filter(function (x) { return !x.chrome; })[0];
       return G.openFrontDoor().then(function (ok) {

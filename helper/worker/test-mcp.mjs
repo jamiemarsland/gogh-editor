@@ -306,6 +306,48 @@ check(res.status === 400, 'an empty message is refused before any model is calle
   globalThis.fetch = realFetch;
 }
 
+// a map item: a place name becomes the plugin's embed piece, framed as a Google map
+{
+  const def = { name: 'Crumb', pages: [{ title: 'Visit', front: true, sections: [{ band: { heading: 'Find us', columns: [
+    { items: [{ type: 'text', text: 'Tuesday to Saturday, 8 till 3.' }] },
+    { items: [{ type: 'map', text: 'Frome, Somerset' }] } ] } }] }] };
+  let m = await rpc({ jsonrpc: '2.0', id: 901, method: 'tools/call', params: { name: 'gogh_check', arguments: { definition: def } } });
+  check(m.body.result.structuredContent.ok, 'a band with a map item passes the check: ' + JSON.stringify(m.body.result.structuredContent.problems));
+  m = await rpc({ jsonrpc: '2.0', id: 902, method: 'tools/call', params: { name: 'gogh_publish', arguments: { definition: def } } });
+  const pub = m.body.result.structuredContent;
+  const served = await (await worker.fetch(new Request(pub.definition_url), env)).json();
+  const map = (served.pages[0].sections[0].els || []).find((e) => e.type === 'embed');
+  check(map && /maps\?q=Frome%2C%20Somerset&output=embed/.test(map.url) && map.h >= 288, 'the map becomes an embed piece with a Google Maps link');
+  m = await rpc({ jsonrpc: '2.0', id: 903, method: 'tools/call', params: { name: 'gogh_check', arguments: { definition: { name: 'X', pages: [{ title: 'A', front: true, sections: [{ band: { columns: [{ items: [{ type: 'map' }] }] } }] }] } } } });
+  check(!m.body.result.structuredContent.ok && m.body.result.structuredContent.problems.some((x) => /a map needs text/.test(x)), 'a map without a place is caught');
+}
+
+// inside a new site (the Make blueprint): the model is told the site builds where they are
+{
+  const realFetch = globalThis.fetch;
+  const systems = [];
+  globalThis.fetch = async (u, init) => {
+    const url = typeof u === 'string' ? u : u.url;
+    if (url.startsWith('https://api.anthropic.com')) {
+      systems.push(JSON.parse(init.body).system);
+      return new Response(JSON.stringify({ content: [{ type: 'text', text: 'What is it called?' }] }), { status: 200, headers: { 'content-type': 'application/json' } });
+    }
+    return realFetch(u, init);
+  };
+  const waits = [];
+  for (const where of ['here', undefined]) {
+    const res = await worker.fetch(
+      new Request('https://gogh.test/api/build', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ text: 'a bakery in Frome', where }) }),
+      { ...env, ANTHROPIC_API_KEY: 'sk-test' }, { waitUntil: (p) => waits.push(p) }
+    );
+    await new Response(res.body).text();
+  }
+  await Promise.all(waits);
+  check(/builds whatever you publish right where they are/.test(systems[0]) && /do NOT give a link/.test(systems[0]), 'a chat inside the site is told not to hand over a link');
+  check(!/right where they are/.test(systems[1]), 'the ordinary front door is unchanged');
+  globalThis.fetch = realFetch;
+}
+
 // the progress stream: a turn says what it is doing before it says anything else
 {
   const calls = [];

@@ -1,12 +1,12 @@
 {
   "meta": {
-    "plugin_version": "0.99.644",
+    "plugin_version": "0.99.645",
     "requires_wp": "6.5",
     "requires_php": "7.4",
     "text_domain": "gogh-editor",
     "readme_stable_tag": "0.26.0",
     "readme_tested_up_to": "7.0",
-    "asset_version": "0.99.644-chrome"
+    "asset_version": "0.99.645-chrome"
   },
   "constants": {
     "TOL": 8,
@@ -1012,6 +1012,16 @@
       },
       {
         "kind": "action",
+        "hook": "template_redirect",
+        "priority": 10
+      },
+      {
+        "kind": "action",
+        "hook": "admin_bar_menu",
+        "priority": 10
+      },
+      {
+        "kind": "action",
         "hook": "wp_footer",
         "priority": 99
       },
@@ -1323,8 +1333,8 @@
       "edit_theme_options",
       "edit_others_posts",
       "edit_products",
-      "edit_pages",
       "manage_options",
+      "edit_pages",
       "upload_files",
       "unfiltered_html",
       "activate_plugins",
@@ -1343,6 +1353,7 @@
       "_wpnonce",
       "gogh-thanks",
       "gogh-edit",
+      "gogh-make",
       "gogh-shoplook",
       "kind",
       "layout",

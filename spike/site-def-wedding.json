@@ -27,7 +27,7 @@
    "sections": [
     {
      "name": "Save the date",
-     "minH": 816,
+     "minH": 864,
      "els": [
       {
        "type": "image",
@@ -43,7 +43,7 @@
        "x": 80,
        "y": 600,
        "w": 200,
-       "h": 150,
+       "h": 144,
        "src": "https://images.unsplash.com/photo-1615635978618-92317bf8c818?w=1600&q=80&fm=jpg&fit=max",
        "alt": "Daisies and lavender",
        "m": {
@@ -90,7 +90,7 @@
        "x": 320,
        "y": 624,
        "w": 160,
-       "h": 56,
+       "h": 48,
        "text": "RSVP",
        "href": "/rsvp/",
        "btnBg": "accent-1",
@@ -101,7 +101,7 @@
        "x": 504,
        "y": 624,
        "w": 160,
-       "h": 56,
+       "h": 48,
        "text": "The day",
        "href": "/the-day/",
        "ghost": true
@@ -110,8 +110,8 @@
        "type": "box",
        "x": 1010,
        "y": 576,
-       "w": 150,
-       "h": 150,
+       "w": 144,
+       "h": 144,
        "shape": "circle",
        "boxBg": "#E9C9C0",
        "m": {
@@ -146,7 +146,7 @@
        "x": 80,
        "y": 96,
        "w": 1040,
-       "h": 180,
+       "h": 192,
        "text": "12 · 06 · 27",
        "fs": "__disp-l",
        "align": "center",
@@ -496,7 +496,7 @@
       {
        "type": "para",
        "x": 80,
-       "y": 640,
+       "y": 648,
        "w": 400,
        "h": 24,
        "text": "<a href=\"/the-day/\">What to wear, eat and bring →</a>",
@@ -508,7 +508,7 @@
     },
     {
      "name": "Our story",
-     "minH": 816,
+     "minH": 864,
      "els": [
       {
        "type": "image",
@@ -578,7 +578,7 @@
     },
     {
      "name": "Three pictures",
-     "minH": 528,
+     "minH": 576,
      "els": [
       {
        "type": "image",
@@ -679,7 +679,7 @@
        "x": 80,
        "y": 264,
        "w": 180,
-       "h": 56,
+       "h": 48,
        "text": "RSVP",
        "href": "/rsvp/",
        "btnBg": "base",
@@ -695,7 +695,7 @@
    "sections": [
     {
      "name": "How we got here",
-     "minH": 960,
+     "minH": 1008,
      "els": [
       {
        "type": "para",
@@ -980,14 +980,14 @@
     },
     {
      "name": "Two pictures",
-     "minH": 672,
+     "minH": 720,
      "els": [
       {
        "type": "image",
        "x": 80,
        "y": 72,
        "w": 560,
-       "h": 512,
+       "h": 504,
        "src": "https://images.unsplash.com/photo-1741377772412-b1bbbcb58896?w=1600&q=80&fm=jpg&fit=max",
        "alt": "Rosa and Tom laughing"
       },
@@ -996,14 +996,14 @@
        "x": 680,
        "y": 72,
        "w": 440,
-       "h": 300,
+       "h": 288,
        "src": "https://images.unsplash.com/photo-1698934641105-e3bcd290df26?w=1600&q=80&fm=jpg&fit=max",
        "alt": "Two people dancing in a wide field"
       },
       {
        "type": "para",
        "x": 80,
-       "y": 608,
+       "y": 600,
        "w": 560,
        "h": 24,
        "text": "Tom, trying to be serious",
@@ -1015,7 +1015,7 @@
       {
        "type": "para",
        "x": 680,
-       "y": 396,
+       "y": 384,
        "w": 440,
        "h": 24,
        "text": "The field where the tent will go, last summer",
@@ -1354,7 +1354,7 @@
     },
     {
      "name": "Good to know",
-     "minH": 384,
+     "minH": 432,
      "els": [
       {
        "type": "para",
@@ -1386,7 +1386,7 @@
       {
        "type": "para",
        "x": 80,
-       "y": 208,
+       "y": 216,
        "w": 320,
        "h": 120,
        "text": "Summer best. It is a farm, so leave the stilettos at home and bring a layer for after dark.",
@@ -1410,7 +1410,7 @@
       {
        "type": "para",
        "x": 440,
-       "y": 208,
+       "y": 216,
        "w": 320,
        "h": 120,
        "text": "Three courses at the long table, all from farms nearby. Tell us what you cannot eat when you reply.",
@@ -1434,7 +1434,7 @@
       {
        "type": "para",
        "x": 800,
-       "y": 208,
+       "y": 216,
        "w": 320,
        "h": 120,
        "text": "You coming is the gift. If you would like to, there is a jar on the bar for our honeymoon in Norway.",
@@ -1455,14 +1455,14 @@
        "x": 80,
        "y": 96,
        "w": 560,
-       "h": 60,
+       "h": 48,
        "text": "Children are very welcome.",
        "fs": "large"
       },
       {
        "type": "para",
        "x": 80,
-       "y": 180,
+       "y": 192,
        "w": 560,
        "h": 72,
        "text": "There is a quiet room in the farmhouse with blankets, a film and a grown-up, from seven until carriages.",
@@ -1509,16 +1509,16 @@
       {
        "type": "heading",
        "x": 80,
-       "y": 132,
+       "y": 144,
        "w": 480,
-       "h": 60,
+       "h": 48,
        "text": "Hollins Farm, near Somerton",
        "fs": "large"
       },
       {
        "type": "para",
        "x": 80,
-       "y": 228,
+       "y": 240,
        "w": 480,
        "h": 120,
        "text": "The nearest station is Castle Cary, twenty minutes by taxi. Book one ahead: <a href=\"tel:+441174960000\">0117 496 0000</a>. There is parking in the lower field.",
@@ -1652,14 +1652,14 @@
     },
     {
      "name": "The farm",
-     "minH": 552,
+     "minH": 576,
      "els": [
       {
        "type": "image",
        "x": 80,
        "y": 72,
        "w": 500,
-       "h": 400,
+       "h": 408,
        "src": "https://images.unsplash.com/photo-1571524188026-cc1d649962ea?w=1600&q=80&fm=jpg&fit=max",
        "alt": "The barns at Hollins Farm"
       },
@@ -1668,14 +1668,14 @@
        "x": 620,
        "y": 72,
        "w": 500,
-       "h": 400,
+       "h": 408,
        "src": "https://images.unsplash.com/photo-1719669854455-b325c8669b5a?w=1600&q=80&fm=jpg&fit=max",
        "alt": "The view across the fields"
       },
       {
        "type": "para",
        "x": 80,
-       "y": 496,
+       "y": 504,
        "w": 500,
        "h": 24,
        "text": "The barns, where dinner will be",
@@ -1687,7 +1687,7 @@
       {
        "type": "para",
        "x": 620,
-       "y": 496,
+       "y": 504,
        "w": 500,
        "h": 24,
        "text": "The view from the top field",

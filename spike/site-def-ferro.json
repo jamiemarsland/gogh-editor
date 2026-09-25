@@ -136,7 +136,7 @@
     },
     {
      "name": "Selected work",
-     "minH": 696,
+     "minH": 720,
      "els": [
       {
        "type": "para",
@@ -452,7 +452,7 @@
       {
        "type": "para",
        "x": 80,
-       "y": 632,
+       "y": 624,
        "w": 300,
        "h": 24,
        "text": "<a href=\"/work/\">All the work →</a>",
@@ -465,7 +465,7 @@
     },
     {
      "name": "Three pictures",
-     "minH": 816,
+     "minH": 864,
      "els": [
       {
        "type": "image",
@@ -481,7 +481,7 @@
        "x": 600,
        "y": 72,
        "w": 520,
-       "h": 344,
+       "h": 336,
        "src": "https://images.unsplash.com/photo-1756706718604-ef4af3970e33?w=1600&q=80&fm=jpg&fit=max",
        "alt": "A concrete and timber house among trees"
       },
@@ -509,7 +509,7 @@
       {
        "type": "para",
        "x": 600,
-       "y": 440,
+       "y": 432,
        "w": 140,
        "h": 48,
        "text": "Marsh Lane — 2025",
@@ -534,7 +534,7 @@
     },
     {
      "name": "Approach",
-     "minH": 456,
+     "minH": 504,
      "els": [
       {
        "type": "para",
@@ -655,7 +655,7 @@
     },
     {
      "name": "Contact line",
-     "minH": 312,
+     "minH": 360,
      "els": [
       {
        "type": "heading",
@@ -687,7 +687,7 @@
    "sections": [
     {
      "name": "Work",
-     "minH": 1104,
+     "minH": 1152,
      "els": [
       {
        "type": "para",
@@ -718,7 +718,7 @@
        "x": 800,
        "y": 96,
        "w": 320,
-       "h": 200,
+       "h": 192,
        "src": "https://images.unsplash.com/photo-1766603636562-531bb3e1dda8?w=1600&q=80&fm=jpg&fit=max",
        "alt": "A house with a timber facade and stone base"
       },
@@ -1214,14 +1214,14 @@
     },
     {
      "name": "Two pictures",
-     "minH": 552,
+     "minH": 576,
      "els": [
       {
        "type": "image",
        "x": 80,
        "y": 72,
        "w": 500,
-       "h": 400,
+       "h": 408,
        "src": "https://images.unsplash.com/photo-1758565811352-a439bd6f956e?w=1600&q=80&fm=jpg&fit=max",
        "alt": "A kitchen island under a concrete ceiling"
       },
@@ -1230,14 +1230,14 @@
        "x": 620,
        "y": 72,
        "w": 500,
-       "h": 400,
+       "h": 408,
        "src": "https://images.unsplash.com/photo-1760827606906-b33625901594?w=1600&q=80&fm=jpg&fit=max",
        "alt": "Plant shadows across tiles and stairs"
       },
       {
        "type": "para",
        "x": 80,
-       "y": 496,
+       "y": 504,
        "w": 500,
        "h": 24,
        "text": "Marsh Lane — the kitchen, north light",
@@ -1249,7 +1249,7 @@
       {
        "type": "para",
        "x": 620,
-       "y": 496,
+       "y": 504,
        "w": 500,
        "h": 24,
        "text": "A barn at Priddy — the stair at noon",
@@ -1268,7 +1268,7 @@
    "sections": [
     {
      "name": "Studio",
-     "minH": 816,
+     "minH": 864,
      "els": [
       {
        "type": "para",

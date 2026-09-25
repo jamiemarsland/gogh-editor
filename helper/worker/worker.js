@@ -776,7 +776,7 @@ A take is a design someone already made, so reach for one whenever it suits — 
     columns: [ { span: 1, align, items: [ ... ] } ]   // up to 6 columns, span sets the share of the width
 } }
 \`\`\`
-An item is one of: \`{type:'eyebrow', text}\`, \`{type:'heading', text, size}\`, \`{type:'text', text}\`, \`{type:'button', text, link}\`, \`{type:'badge', text}\`, \`{type:'picture', url, shape}\` where shape is landscape, portrait, square or wide. Up to 8 items a column.
+An item is one of: \`{type:'eyebrow', text}\`, \`{type:'heading', text, size}\`, \`{type:'text', text}\`, \`{type:'button', text, link}\`, \`{type:'badge', text}\`, \`{type:'picture', url, shape}\` where shape is landscape, portrait, square or wide, \`{type:'map', text}\` where text is the place to show: the address they gave you, or just the town if they gave none (never invent a street). Up to 8 items a column.
 
 **The rhythm.** gogh spaces everything it draws on one vertical rhythm: pieces start on multiples of 24, section heights on multiples of 72. A band gets this for free, so never pad with blank items or empty text to make space — choose \`gap\`, \`rowGap\` and \`valign\` instead.
 
@@ -812,7 +812,7 @@ ${JSON.stringify(EXAMPLE, null, 1)}
 }
 
 const isHex = (v) => typeof v === 'string' && /^#[0-9a-fA-F]{6}$/.test(v);
-const BAND_ITEMS = { eyebrow: 1, heading: 1, text: 1, button: 1, badge: 1, picture: 1 };
+const BAND_ITEMS = { eyebrow: 1, heading: 1, text: 1, button: 1, badge: 1, picture: 1, map: 1 };
 function checkBand(band, where, bad) {
   if (!band || typeof band !== 'object' || Array.isArray(band)) { bad(`${where}: band must be an object.`); return; }
   if (band.align != null && !['left', 'center', 'right'].includes(band.align)) bad(`${where}: band.align must be left, center or right.`);
@@ -848,6 +848,8 @@ function checkColumns(cols, where, bad) {
       if (it.type === 'picture') {
         if (it.url != null && !isPic(it.url)) bad(`${at}: url must be a picture web address.`);
         if (it.shape != null && !['landscape', 'portrait', 'square', 'wide'].includes(it.shape)) bad(`${at}: shape must be landscape, portrait, square or wide.`);
+      } else if (it.type === 'map') {
+        if (!it.text || !str(it.text, 200)) bad(`${at}: a map needs text: the place to show, up to 200 characters.`);
       } else if (!str(it.text, 600) || !it.text) {
         bad(`${at}: ${it.type} needs text.`);
       }
@@ -1258,6 +1260,7 @@ const lines = (text, width, per) => Math.max(1, Math.ceil(String(text || '').len
 function itemBox(it, width) {
   const kind = it.type;
   if (kind === 'picture') return { w: width, h: r24(width * (PIC_RATIO[it.shape] || PIC_RATIO.landscape)) };
+  if (kind === 'map') return { w: width, h: r24(Math.max(288, width * 0.75)) };
   if (kind === 'eyebrow') return { w: width, h: 24 };
   if (kind === 'button') return { w: Math.max(150, Math.min(width, String(it.text || 'Go').length * 11 + 56)), h: 48 };
   if (kind === 'badge') return { w: Math.min(width, String(it.text || '').length * 11 + 46), h: 48 };
@@ -1275,6 +1278,11 @@ function itemEl(it, x, y, box, align) {
     if (it.url) e.src = String(it.url);
     if (it.alt) e.alt = String(it.alt).slice(0, 160);
     return e;
+  }
+  if (kind === 'map') {
+    // gogh frames a Google Maps link as a live map (the plugin's embed piece)
+    return { type: 'embed', x, y, w: box.w, h: box.h, radius: 12,
+      url: 'https://www.google.com/maps?q=' + encodeURIComponent(String(it.text || '').slice(0, 200)) + '&output=embed' };
   }
   if (kind === 'button') return { type: 'button', x: align === 'center' ? Math.round(x + (CONTENT && 0)) : x, y, w: box.w, h: box.h, text: String(it.text || 'Go'), href: it.link ? String(it.link) : undefined };
   if (kind === 'badge') return { type: 'badge', x, y, w: box.w, h: box.h, text: String(it.text || '') };
@@ -1604,7 +1612,7 @@ How to behave:
 - If they share a screenshot or a mockup, look at it properly and rebuild what it shows: the order of the parts, the shape of the page, the mood, the colours. Describe a band when the arrangement matters — four columns across, a picture beside the words — and use the nearest ready-made design — you are matching the arrangement, not tracing it — and say in a sentence what you took from it. Use words from the picture only when they are plainly the person's own; otherwise write fresh words for their site. Never copy a logo or a brand mark.
 - Vary the shape. Not every site is a cover, three cards and a call to action: a restaurant wants its menu, a photographer a wall of pictures, a studio a piece of work shown properly, a shop the numbers that prove it. Use the card moods where they suit.
 - Never show JSON, field names, take names or code to the person. They should never see the machinery. Say "your home page" and "the part about what you do", not "the Cover take".
-- Write the site's words yourself, in their voice, using the facts they gave you. Never lorem ipsum, never invented prices, never invented testimonials attributed to named strangers — if you need a quote, keep it plainly generic or leave that part out.
+- Write the site's words yourself, in their voice, using the facts they gave you. Never invent an address, a street, a phone number or opening hours they did not give you. Never lorem ipsum, never invented prices, never invented testimonials attributed to named strangers — if you need a quote, keep it plainly generic or leave that part out.
 - Find real photographs with find_pictures and use them — a site with pictures looks a world better than one without. Search by what should be in the shot, in plain words. One search of six usually covers a site. Put every photographer you use in credits, and build the palette around the hero photo's own colour.
 - Build a small, complete site: usually a home page, an about page, a contact page, and a journal with two or three short posts if it suits them.
 - Call check_site, fix anything it names, then call publish_site. Then give them the link on its own line and say it takes about a minute to build itself and that nothing is installed.
@@ -1659,7 +1667,14 @@ async function buildLimit(env, req) {
   return null;
 }
 
-async function askModel(env, messages) {
+// the chat running INSIDE a new WordPress site (the Make blueprint): the site
+// builds itself where they are the moment it is published, so there is no link
+// to hand over and nothing to wait for in another tab
+const HERE_NOTE = `
+
+Where this conversation happens: inside the person's own new WordPress site, on a page that builds whatever you publish right where they are, in a few seconds. So after publish_site do NOT give a link or mention Playground or thirty days: say in one sentence that you are building it now and they will see it in a moment. When they come back to this chat and ask for a change, edit the site, check it and publish again; it rebuilds in place and replaces the pages you made before.`;
+
+async function askModel(env, messages, here) {
   const res = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
     headers: {
@@ -1670,7 +1685,7 @@ async function askModel(env, messages) {
     body: JSON.stringify({
       model: cfg(env, 'MODEL'),
       max_tokens: 8000,
-      system: buildPrompt(),
+      system: buildPrompt() + (here ? HERE_NOTE : ''),
       tools: BUILD_TOOLS,
       messages,
     }),
@@ -1695,6 +1710,7 @@ async function handleBuildChat(req, env, ctx) {
   let body;
   try { body = await req.json(); } catch (e) { return json({ error: 'invalid JSON' }, 400); }
   const said = typeof body.text === 'string' ? body.text.trim() : '';
+  const here = body.where === 'here';
   if (!said || said.length > 4000) return json({ error: 'Say a little about the site you want (up to 4000 characters).' }, 400);
 
   const limited = await buildLimit(env, req);
@@ -1725,12 +1741,16 @@ async function handleBuildChat(req, env, ctx) {
   const enc = new TextEncoder();
   const send = (obj) => writer.write(enc.encode('data: ' + JSON.stringify(obj) + '\n\n'));
 
+  // a whole site is one long model call, and a stream that says nothing for
+  // about a hundred seconds is closed by the edge ('I could not reach gogh').
+  // A comment line every 15s keeps it open; the pages skip it (not JSON).
+  const beat = setInterval(() => { writer.write(enc.encode(': still here\n\n')).catch(() => {}); }, 15000);
   const run = (async () => {
     let published = null;
     try {
       for (let turn = 0; turn < 6; turn++) {
-        await send({ type: 'step', text: turn === 0 ? (pic ? 'Looking at your screenshot' : 'Thinking') : 'Nearly there' });
-        const r = await askModel(env, messages);
+        await send({ type: 'step', text: turn === 0 ? (pic ? 'Looking at your screenshot' : 'Thinking') : 'Writing your pages' });
+        const r = await askModel(env, messages, here);
         const calls = (r.content || []).filter((c) => c.type === 'tool_use');
         messages = messages.concat([{ role: 'assistant', content: r.content }]);
         if (!calls.length) {
@@ -1762,6 +1782,7 @@ async function handleBuildChat(req, env, ctx) {
     } catch (e) {
       await send({ type: 'error', error: e.message || 'Something went wrong talking to the model.' });
     } finally {
+      clearInterval(beat);
       try { await writer.close(); } catch (e) {}
     }
   })();
