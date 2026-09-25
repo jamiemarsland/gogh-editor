@@ -3246,18 +3246,33 @@ function gogh_site_def_picture( $src, $parent, $title ) {
 			// file by what it turns out to be, and hand it to the media library.
 			$tmp = download_url( esc_url_raw( $src ), 30 );
 			if ( is_wp_error( $tmp ) ) {
-				return 0;
+				// a runtime whose HTTP layer cannot stream to a file (a blueprint
+				// boot) still answers a plain request: take the body and write it
+				gogh_site_def_log( 'download_url: ' . $tmp->get_error_message() . ' — ' . $src );
+				$res = wp_remote_get( esc_url_raw( $src ), array( 'timeout' => 30 ) );
+				$body = is_wp_error( $res ) ? '' : (string) wp_remote_retrieve_body( $res );
+				if ( '' === $body ) {
+					gogh_site_def_log( 'wp_remote_get: ' . ( is_wp_error( $res ) ? $res->get_error_message() : 'empty body, status ' . wp_remote_retrieve_response_code( $res ) ) . ' — ' . $src );
+					return 0;
+				}
+				$tmp = wp_tempnam( 'picture' );
+				if ( ! $tmp || false === file_put_contents( $tmp, $body ) ) {
+					gogh_site_def_log( 'could not write a temp file — ' . $src );
+					return 0;
+				}
 			}
 			$info = @getimagesize( $tmp );
 			$mime = $info && ! empty( $info['mime'] ) ? $info['mime'] : '';
 			$ext  = array( 'image/jpeg' => 'jpg', 'image/png' => 'png', 'image/webp' => 'webp', 'image/gif' => 'gif' );
 			if ( empty( $ext[ $mime ] ) ) {
+				gogh_site_def_log( 'not an image (' . $mime . ') — ' . $src );
 				@unlink( $tmp );
 				return 0;
 			}
 			$name = sanitize_title( $title ? $title : 'picture' );
 			$aid  = media_handle_sideload( array( 'name' => ( $name ? $name : 'picture' ) . '.' . $ext[ $mime ], 'tmp_name' => $tmp ), $parent, $title );
 			if ( is_wp_error( $aid ) ) {
+				gogh_site_def_log( 'media_handle_sideload: ' . $aid->get_error_message() . ' — ' . $src );
 				@unlink( $tmp );
 				return 0;
 			}
@@ -3273,8 +3288,19 @@ function gogh_site_def_picture( $src, $parent, $title ) {
 				return ( $aid && ! is_wp_error( $aid ) ) ? (int) $aid : 0;
 			}
 		}
-	} catch ( \Throwable $e ) {}
+	} catch ( \Throwable $e ) {
+		gogh_site_def_log( 'picture: ' . $e->getMessage() . ' — ' . $src );
+	}
 	return 0;
+}
+// a short diary of what a site-definition boot could not do (pictures that
+// never arrived), so a blueprint that came up bare can be read afterwards:
+// `wp option get gogh_site_def_log`
+function gogh_site_def_log( $line ) {
+	$log   = get_option( 'gogh_site_def_log', array() );
+	$log   = is_array( $log ) ? $log : array();
+	$log[] = gmdate( 'H:i:s' ) . ' ' . $line;
+	update_option( 'gogh_site_def_log', array_slice( $log, -20 ), false );
 }
 function gogh_starter_page_content( $slug, $pg ) {
 	$file = __DIR__ . '/starters/' . $slug . '/' . basename( $pg['file'] );
