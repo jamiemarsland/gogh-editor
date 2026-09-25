@@ -1337,6 +1337,8 @@
       expect(fr && /output=embed/.test(fr.getAttribute('src')), 'the canvas did not frame the map');
       var blocks = G.blocksV3(s0);
       expect(/gogh-embed gogh-embed-map"><a class="gogh-embed-link" href="https:\/\/www\.google\.com\/maps\/place\/Cape\+Town/.test(blocks), 'the map did not publish as a group with a plain link');
+      // the model keeps the link: the page renderer frames the map from it
+      expect(/"type":"embed"[^{}]*"url":"https:\/\/www\.google\.com\/maps\/place\/Cape\+Town/.test(blocks), 'the saved model should keep the map\u2019s link, or the live page cannot frame it');
       G.setEmbed(s0, idx, 'https://www.youtube.com/watch?v=abc123def');
       blocks = G.blocksV3(s0);
       expect(/<!-- wp:embed \{"url":"https:\/\/www\.youtube\.com\/watch\?v=abc123def","type":"rich","providerNameSlug":"youtube"/.test(blocks), 'the link did not publish as a wp:embed');
@@ -5315,6 +5317,21 @@
       expect(own && own.els.length === 2 && own.bg === '#14161A' && own.minH === 400, 'a section of its own pieces should come through, minus anything gogh does not know');
       expect(own.els[0].h === 2 && own.els[0].w === 1040, 'a hairline stays a hairline: ' + own.els[0].h);
       expect(own.els[1].type === 'heading' && own.els[1].text === 'Made elsewhere', 'the words come through');
+      // a loop behind the words, and a map as a piece (the restaurant starter)
+      var vid = G.fillTake({ name: 'Kitchen', minH: 600, background: '#16120F', video: 'https://assets.mixkit.co/videos/2439/2439-720.mp4', tint: 55, els: [
+        { type: 'heading', x: 80, y: 200, w: 700, h: 120, text: 'Cooked over fire' },
+        { type: 'embed', x: 640, y: 360, w: 480, h: 200, url: 'https://www.google.com/maps?q=Ancoats%20Manchester&output=embed' } ] });
+      expect(vid.bgVideo === 'https://assets.mixkit.co/videos/2439/2439-720.mp4' && vid.bgA === 55 && vid.bg === '#16120F', 'a section video should come through with its tint and colour: ' + JSON.stringify({ v: vid.bgVideo, a: vid.bgA, bg: vid.bg }));
+      expect(vid.els.length === 2 && vid.els[1].type === 'embed' && /output=embed/.test(vid.els[1].url || ''), 'a map piece should come through with its link');
+      var nBefore = G.sections().length;
+      G.addSection(vid, nBefore);
+      var vs = G.sections()[nBefore];
+      var keptVideo = vs && vs.bgVideo;
+      var hasNode = !!(vs && vs.sectionEl.querySelector('.gogh-bgvideo video'));
+      if (vs && G.deleteSection) G.deleteSection(nBefore);
+      expect(keptVideo === vid.bgVideo, 'a section drawn from a definition should keep its video, got ' + keptVideo);
+      expect(hasNode, 'the loop should play behind the section in the editor');
+      expect(!G.fillTake({ name: 'X', video: 'javascript:alert(1)', els: [{ type: 'heading', x: 0, y: 0, w: 100, h: 40, text: 'x' }] }).bgVideo, 'only a web or site address becomes a background video');
       // scaffolding goes: a take arrives with the demo studio's badge and second
       // button, and a definition that never mentioned them must not ship them
       var hero = G.fillTake({ take: 'Hero', eyebrow: 'Architecture · Bristol', heading: 'Buildings that keep their quiet', text: 'A small practice in Bristol.', button: 'See the work' });

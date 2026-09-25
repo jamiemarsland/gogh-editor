@@ -1245,6 +1245,9 @@
       alt: e.alt || null, mediaId: e.mediaId || null, fs: e.fs || null,
       // the video element: a file (src) or a player link (vurl), how it plays, its poster
       poster: e.poster || null, posterId: e.posterId || null, vurl: e.vurl || null, vplay: e.vplay || null,
+      // an embed's link: the page renderer frames a map from it, so without it
+      // every published map stayed a bare 'Open the map' link
+      url: e.url || null,
       align: e.align || null, color: e.color || null, tf: e.tf || null,
       btnBg: e.btnBg || null, btnText: e.btnText || null, btnHover: e.btnHover || null,
       wsrc: e.wsrc || null, whtml: e.whtml || null, wcol: e.wcol || null,
@@ -11089,6 +11092,9 @@
     // a template is a whole look: picture, tint, fill and effect ride along
     sec.bgImage = tplBgFor(tpl);
     sec.bgA = tpl.bgA != null ? tpl.bgA : null;
+    // a loop behind the words rides along too (a site definition's 'video');
+    // it used to be dropped here, so no template could carry one
+    sec.bgVideo = tpl.bgVideo || null;
     sec.fill = !!tpl.fill;
     // a section can be a DESTINATION: its anchor becomes the element's id,
     // which is the whole trick behind a one-page site's menu
@@ -11224,9 +11230,11 @@
   // set on one. A definition that arrives with its own pieces is checked
   // against this and nothing else is copied through — the door is open, not
   // unlatched.
-  var GEN_TYPES = { heading: 1, para: 1, button: 1, badge: 1, image: 1, box: 1 };
+  // ('embed' is a map, or anything WordPress can embed, from its 'url')
+  var GEN_TYPES = { heading: 1, para: 1, button: 1, badge: 1, image: 1, box: 1, embed: 1 };
   // ('m' carries the phone overrides — a hand-drawn ledger can hide its year column on phones)
-  var GEN_FIELDS = ['x', 'y', 'w', 'h', 'text', 'src', 'href', 'fs', 'align', 'color', 'radius', 'rot', 'tf', 'mood', 'boxBg', 'shape', 'alt', 'm'];
+  // (a button's colour is btnBg/btnText, palette slugs; 'ghost' draws it as an outline)
+  var GEN_FIELDS = ['x', 'y', 'w', 'h', 'text', 'src', 'href', 'url', 'fs', 'align', 'color', 'radius', 'rot', 'tf', 'mood', 'boxBg', 'shape', 'alt', 'm', 'btnBg', 'btnText', 'ghost'];
   function genEl(e) {
     if (!e || !GEN_TYPES[e.type]) return null;
     var out = { type: e.type };
@@ -11257,6 +11265,12 @@
       if (sc.minH) made.minH = Math.max(160, Math.min(1600, Math.round(+sc.minH)));
       if (sc.background) made.bg = String(sc.background);
       if (sc.image) { made.bgImage = String(sc.image); made.bgA = sc.tint != null ? +sc.tint : 45; }
+      // a loop behind the words (a kitchen, a shoreline): the section's
+      // background colour tints over it at 'tint' per cent, as over a photo
+      if (sc.video && (/^https?:\/\//i.test(String(sc.video)) || /^\/wp-content\//.test(String(sc.video)))) {
+        made.bgVideo = String(sc.video);
+        if (sc.tint != null) made.bgA = Math.max(0, Math.min(100, +sc.tint));
+      }
       return made;
     }
     if (!sc || !sc.take) return null;
