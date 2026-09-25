@@ -15,7 +15,7 @@ about something where they conflict, rather than picking one silently. Quote UI
 labels and message copy from the appendix, verbatim — those are the current
 strings, and a paraphrased button label is the fastest way to lose a user's trust.
 
-Generated for plugin version 0.99.642 · knowledge base b1aec41.
+Generated for plugin version 0.99.643 · knowledge base 367b456.
 
 ---
 
@@ -829,6 +829,8 @@ The helper's welcome panel opens with a 35-second film of gogh being used (v0.99
 
 **The phone view survives navigation (v0.99.605).** Press one of your own pages while on the phone and it opens in the editor, still on the phone: the link carries `gogh-edit=1&gogh-phone=1`, the next page reads them at boot and strips them from the address. Other sites, files, wp-admin and anchors on the same page are left alone. Unpublished changes still ask before leaving.
 
+**Rosa & Tom, a wedding on a farm (v0.99.643).** The third of the showcase blueprints after Ferro & Lane and Cinder: the couple's names at display size over the corner of a golden-hour picture, a blush sticker saying when to reply, the date in big sage numerals, the day as a ruled timetable, the story as five lines, three pictures, travel and places to stay beside a map, and an RSVP form (`blueprint-wedding.json`). Built from a site definition on the Afternoon variation with Unsplash pictures; no plugin change was needed.
+
 **Maps frame on the live page, and a definition can carry a loop and a map (v0.99.642).** A map piece published as a plain *Open the map* link on every site: the saved model never kept the embed's link, so the page renderer had nothing to frame. The model keeps it now, and pages published before this read it back from their own markup, so their maps frame without a republish. A site definition section can carry `video` (a web address of an .mp4) with `tint`, and an `embed` piece with a `url`; buttons in a definition can carry `btnBg`, `btnText` and `ghost`. A section drawn from a template now keeps its background video (it used to be dropped). When a design brings its own palette, the variation's picture filter goes (Midnight's purple-and-green duotone stained every photograph). The first site to use all of it is **Cinder**, a wood-fired restaurant: a kitchen loop behind the name, tonight's menu as a priced ledger, a poster of the fire with a big 450°, the room, hours beside a map, the full menu by course, the chef and the farms, private dining, and a booking form (`blueprint-cinder.json`).
 
 **Pictures from the web become pictures on the site (v0.99.641).** A site definition's post pictures and section pictures that came from Unsplash (or any address without a file extension in its path) were never sideloaded: WordPress's own sideloader refuses a URL with no `.jpg` in it, so every AI-built site and every hand-drawn definition published posts with no featured image. The boot now fetches the file itself, names it by what it turns out to be, and hands it to the media library. The first site to use it is **Ferro & Lane**, a poster of an architecture studio: a headline over the corner of a picture, an orange disc, a turned caption, a ruled ledger of ten buildings, three pictures with a big number, two partners, notes with pictures, and a contact form (`blueprint-ferro-lane.json`).
@@ -904,11 +906,11 @@ Everything in this section is extracted mechanically from the Gogh source on eve
 
 ## Current release
 
-- Plugin version: **0.99.642**
+- Plugin version: **0.99.643**
 - Requires WordPress **6.5+**, PHP **7.4+**
 - Text domain: `gogh-editor`
 - readme.txt Stable tag: `0.26.0` · Tested up to: `7.0`
-- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.642`). Quote the plugin header version.
+- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.643`). Quote the plugin header version.
 
 ## Design constants
 
