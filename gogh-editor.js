@@ -38,15 +38,15 @@
   function gridUnit() { return gridSnapOn ? RHYTHM : BASE; }
   // ---------- the lattice: what the grid DRAWS, and the lowest snap tier ----------
   // The look is Squarespace's: 24 columns with gutters inside the page
-  // margins, rows of 24 with gutters from the section's padding, nothing
-  // painted in the margins (James: 'i like the way it doesnt automatically
+  // margins, rows of 24 with gutters the full height, nothing painted in
+  // the side margins (James: 'i like the way it doesnt automatically
   // show outside the margins'). It is drawing plus one honest promise: an
   // edge released near a drawn line lands ON it. Sizes stay free, neighbour
   // and centre magnets still come first — the freeform model is untouched.
   var LAT = { cols: 24, gap: 12, pad: MARGIN, row: 24, rgap: 12 };
   function latCellW() { return (W - 2 * LAT.pad - (LAT.cols - 1) * LAT.gap) / LAT.cols; }
   function latColStart(c) { return LAT.pad + (c - 1) * (latCellW() + LAT.gap); }
-  function latRowStart(r) { return PAD + (r - 1) * (LAT.row + LAT.rgap); }
+  function latRowStart(r) { return (r - 1) * (LAT.row + LAT.rgap); }
   function nearestOf(v, cands) {
     var best = cands[0], d = Math.abs(v - best);
     cands.forEach(function (c) { var dd = Math.abs(v - c); if (dd < d) { d = dd; best = c; } });
@@ -59,12 +59,13 @@
     var s0 = LAT.pad + c * pitch;
     return nearestOf(v, [0, W, s0, s0 + cw, Math.min(W - LAT.pad, s0 + pitch)]);
   }
-  // the drawn horizontal line nearest v: a row's start or end, or the section's top
+  // the drawn horizontal line nearest v: a row's start or end (rows run from
+  // the section's top, pitch 36, so the 72 padding is a row start)
   function latY(v) {
     var pitch = LAT.row + LAT.rgap;
-    var k = Math.max(0, Math.floor((v - PAD) / pitch));
-    var s0 = PAD + k * pitch;
-    return nearestOf(v, [0, s0, s0 + LAT.row, s0 + pitch]);
+    var k = Math.max(0, Math.floor(v / pitch));
+    var s0 = k * pitch;
+    return nearestOf(v, [s0, s0 + LAT.row, s0 + pitch]);
   }
 
   // ---------- collect sections (resilient to Gutenberg-side edits) ----------

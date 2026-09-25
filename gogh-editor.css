@@ -2264,8 +2264,8 @@ html.gogh-editing header.wp-block-template-part:has(.gogh-header-overlay):not(.g
 .gogh-cmd-item.is-active { background: rgba(126, 168, 255, 0.2); }
 
 /* the grid, drawn the way Squarespace draws it: 24 columns with gutters
-   inside the page margins, rows of 24 with gutters from the section's
-   padding, and nothing painted in the margins — hairlines mark the two
+   inside the page margins, rows of 24 with gutters the full height, and
+   nothing painted in the side margins — hairlines mark the two
    margins and the centre. In cqw so it scales with the section exactly
    like the layout itself; the snap tier under the magnets reads these
    same lines, so an edge released near a line lands on it. Shown while a
@@ -2283,9 +2283,11 @@ html.gogh-editing header.wp-block-template-part:has(.gogh-header-overlay):not(.g
     linear-gradient(90deg, transparent calc(6.6667cqw - 1px), var(--gogh-cell-edge) calc(6.6667cqw - 1px), var(--gogh-cell-edge) 6.6667cqw, transparent 6.6667cqw, transparent calc(50cqw - 1px), var(--gogh-cell-edge) calc(50cqw - 1px), var(--gogh-cell-edge) 50cqw, transparent 50cqw, transparent 93.3333cqw, var(--gogh-cell-edge) 93.3333cqw, var(--gogh-cell-edge) calc(93.3333cqw + 1px), transparent calc(93.3333cqw + 1px)),
     repeating-linear-gradient(180deg, transparent 0, transparent 2cqw, var(--gogh-cell-gutter) 2cqw, var(--gogh-cell-gutter) 3cqw),
     repeating-linear-gradient(90deg, var(--gogh-cell-tint) 0, var(--gogh-cell-tint) 2.65278cqw, transparent 2.65278cqw, transparent 3.65278cqw);
-  /* rows start at the section's padding (72 units = 6cqw) and stop at the bottom padding */
-  background-size: 100% 100%, 86.6667cqw calc(100% - 12cqw), 86.6667cqw calc(100% - 12cqw);
-  background-position: 0 0, 6.6667cqw 6cqw, 6.6667cqw 6cqw;
+  /* only the side margins are bare: the columns run the section's full
+     height (James: 'we want to show the grid in the full height of the
+     columns'); rows of 24 + 12 from the top, so 72 is still a row start */
+  background-size: 100% 100%, 86.6667cqw 100%, 86.6667cqw 100%;
+  background-position: 0 0, 6.6667cqw 0, 6.6667cqw 0;
   background-repeat: no-repeat, no-repeat, no-repeat;
   opacity: 0;
   transition: opacity 0.18s ease;
