@@ -300,6 +300,19 @@
     // preview (html.gogh-phone-preview) keeps it visible-but-dimmed so it can be
     // un-hidden. The sparse patch marks the node and round-trips through the
     // model. (First slice of the mobile-tailoring overrides.) ----
+    test('phones: the button rule in the container query outranks the desktop fill (buttons were full width on phones)', function () {
+      var s = sec();
+      var i = findIdx('button'); if (i < 0) return 'no button in the fixture';
+      G.resolve(s);
+      var css = s.styleEl.textContent.replace(/\s+/g, ' ');
+      var fill = css.indexOf('.wp-block-button:not(.gogh-widget *), ');
+      var cq = css.indexOf('@container (max-width: 700px)');
+      var phone = css.indexOf('.wp-block-button:not(.gogh-widget *), ', cq);
+      expect(fill !== -1 && cq !== -1 && phone !== -1 && phone > fill, 'the phone button rule should carry the same :not() as the desktop fill rule, inside the container query');
+      expect(/\.wp-block-button__link:not\(\.gogh-widget \*\) \{ width: max-content; height: 44px/.test(css.slice(cq)), 'the phone rule should shrink the button to max-content × 44px');
+      return 'phone rule ties the desktop fill on specificity and comes later';
+    });
+
     test('mobile hide: m.hidden emits a gated hide rule, marks the node, and round-trips', function () {
       var s = sec();
       var i = findIdx('image'); if (i < 0) i = 0;
