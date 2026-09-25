@@ -1198,7 +1198,11 @@
       });
     }
     out.push(
-      '  ' + sec + ' .wp-block-button, ' + sec + ' .wp-block-button__link { width: max-content; height: 44px; padding: 0 24px; }',
+      // the same :not() as the desktop fill rule, so the two tie on
+      // specificity and this later, phone one wins — without it the desktop
+      // rule (0,3,0) beat this (0,2,0) and every button stretched full width
+      // and lost its 44px on phones (James: 'button looks a bit weird on mobile')
+      '  ' + sec + ' .wp-block-button:not(.gogh-widget *), ' + sec + ' .wp-block-button__link:not(.gogh-widget *) { width: max-content; height: 44px; padding: 0 24px; }',
       '}'
     );
     var fx = opts.fx || {};
