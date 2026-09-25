@@ -1,0 +1,2445 @@
+{
+ "name": "Northern Blocks",
+ "tagline": "A community conference about the open web · Leeds · 16–17 April 2027",
+ "variation": "Noon",
+ "palette": {
+  "base": "#FFFFFF",
+  "contrast": "#111111",
+  "accents": [
+   "#2340FF",
+   "#FFD23F",
+   "#111111",
+   "#1E1E1E",
+   "#6B6B6B",
+   "#F2F2F7"
+  ]
+ },
+ "chrome": {
+  "header": "gogh-header-classic",
+  "footer": "gogh-footer-simple",
+  "sticky": false
+ },
+ "pages": [
+  {
+   "title": "Home",
+   "slug": "home",
+   "front": true,
+   "sections": [
+    {
+     "name": "Northern Blocks",
+     "minH": 792,
+     "els": [
+      {
+       "type": "image",
+       "x": 640,
+       "y": 72,
+       "w": 480,
+       "h": 528,
+       "src": "https://images.unsplash.com/photo-1587825140708-dfaf72ae4b04?w=1600&q=80&fm=jpg&fit=max",
+       "alt": "A speaker on a wide stage in front of a full hall"
+      },
+      {
+       "type": "para",
+       "x": 80,
+       "y": 96,
+       "w": 640,
+       "h": 24,
+       "text": "16–17 April 2027 · The Old Mill, Leeds",
+       "tf": {
+        "fs": 12,
+        "fw": 700,
+        "ls2": 0.2,
+        "tt": "uppercase",
+        "col": "#2340FF"
+       }
+      },
+      {
+       "type": "heading",
+       "x": 80,
+       "y": 144,
+       "w": 820,
+       "h": 336,
+       "text": "Northern<br>Blocks",
+       "fs": "__disp-l"
+      },
+      {
+       "type": "para",
+       "x": 80,
+       "y": 504,
+       "w": 480,
+       "h": 72,
+       "text": "Two days of talks, workshops and hallway conversations about building the open web with WordPress.",
+       "tf": {
+        "fs": 20
+       }
+      },
+      {
+       "type": "button",
+       "x": 80,
+       "y": 624,
+       "w": 200,
+       "h": 56,
+       "text": "Get a ticket",
+       "href": "/tickets/",
+       "btnBg": "accent-1",
+       "btnText": "base"
+      },
+      {
+       "type": "button",
+       "x": 304,
+       "y": 624,
+       "w": 220,
+       "h": 56,
+       "text": "See the schedule",
+       "href": "/schedule/",
+       "ghost": true
+      },
+      {
+       "type": "box",
+       "x": 560,
+       "y": 528,
+       "w": 168,
+       "h": 168,
+       "shape": "circle",
+       "boxBg": "#FFD23F",
+       "m": {
+        "hidden": true
+       },
+       "kids": [
+        {
+         "type": "para",
+         "x": 22,
+         "y": 52,
+         "w": 124,
+         "h": 64,
+         "text": "Tickets<br>£40",
+         "align": "center",
+         "tf": {
+          "fs": 20,
+          "fw": 800,
+          "col": "#111111"
+         }
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "name": "In numbers",
+     "minH": 384,
+     "background": "#2340FF",
+     "els": [
+      {
+       "type": "heading",
+       "x": 80,
+       "y": 96,
+       "w": 240,
+       "h": 144,
+       "text": "2",
+       "fs": "__disp-m",
+       "tf": {
+        "col": "#FFD23F"
+       }
+      },
+      {
+       "type": "para",
+       "x": 80,
+       "y": 264,
+       "w": 240,
+       "h": 24,
+       "text": "days in Leeds",
+       "tf": {
+        "fs": 17,
+        "col": "#FFFFFF"
+       }
+      },
+      {
+       "type": "heading",
+       "x": 340,
+       "y": 96,
+       "w": 240,
+       "h": 144,
+       "text": "24",
+       "fs": "__disp-m",
+       "tf": {
+        "col": "#FFD23F"
+       }
+      },
+      {
+       "type": "para",
+       "x": 340,
+       "y": 264,
+       "w": 240,
+       "h": 24,
+       "text": "talks and workshops",
+       "tf": {
+        "fs": 17,
+        "col": "#FFFFFF"
+       }
+      },
+      {
+       "type": "heading",
+       "x": 600,
+       "y": 96,
+       "w": 240,
+       "h": 144,
+       "text": "600",
+       "fs": "__disp-m",
+       "tf": {
+        "col": "#FFD23F"
+       }
+      },
+      {
+       "type": "para",
+       "x": 600,
+       "y": 264,
+       "w": 240,
+       "h": 24,
+       "text": "people, give or take",
+       "tf": {
+        "fs": 17,
+        "col": "#FFFFFF"
+       }
+      },
+      {
+       "type": "heading",
+       "x": 860,
+       "y": 96,
+       "w": 240,
+       "h": 144,
+       "text": "£40",
+       "fs": "__disp-m",
+       "tf": {
+        "col": "#FFD23F"
+       }
+      },
+      {
+       "type": "para",
+       "x": 860,
+       "y": 264,
+       "w": 240,
+       "h": 24,
+       "text": "a ticket, lunch included",
+       "tf": {
+        "fs": 17,
+        "col": "#FFFFFF"
+       }
+      }
+     ]
+    },
+    {
+     "name": "Speakers",
+     "minH": 864,
+     "els": [
+      {
+       "type": "para",
+       "x": 80,
+       "y": 96,
+       "w": 640,
+       "h": 24,
+       "text": "Speakers",
+       "tf": {
+        "fs": 12,
+        "fw": 700,
+        "ls2": 0.2,
+        "tt": "uppercase",
+        "col": "color-mix(in srgb, var(--wp--preset--color--contrast, #111) 62%, transparent)"
+       }
+      },
+      {
+       "type": "heading",
+       "x": 80,
+       "y": 132,
+       "w": 760,
+       "h": 60,
+       "text": "Twenty-four people with something to show you.",
+       "fs": "x-large"
+      },
+      {
+       "type": "box",
+       "x": 80,
+       "y": 240,
+       "w": 328,
+       "h": 448,
+       "radius": 16,
+       "boxBg": "color-mix(in srgb, var(--wp--preset--color--contrast, #111) 5%, var(--wp--preset--color--base, #fff))",
+       "kids": [
+        {
+         "type": "image",
+         "x": 0,
+         "y": 0,
+         "w": 328,
+         "h": 288,
+         "src": "https://images.unsplash.com/photo-1580489944761-15a19d654956?w=1600&q=80&fm=jpg&fit=max",
+         "alt": "Hannah Price"
+        },
+        {
+         "type": "para",
+         "x": 24,
+         "y": 312,
+         "w": 280,
+         "h": 28,
+         "text": "Hannah Price",
+         "tf": {
+          "fs": 19,
+          "fw": 700
+         }
+        },
+        {
+         "type": "para",
+         "x": 24,
+         "y": 352,
+         "w": 280,
+         "h": 24,
+         "text": "Front-end developer, Sheffield",
+         "tf": {
+          "fs": 14,
+          "col": "color-mix(in srgb, var(--wp--preset--color--contrast, #111) 62%, transparent)"
+         }
+        },
+        {
+         "type": "para",
+         "x": 24,
+         "y": 388,
+         "w": 280,
+         "h": 48,
+         "text": "“Theme.json is a design system”",
+         "tf": {
+          "fs": 15
+         }
+        }
+       ]
+      },
+      {
+       "type": "box",
+       "x": 436,
+       "y": 240,
+       "w": 328,
+       "h": 448,
+       "radius": 16,
+       "boxBg": "color-mix(in srgb, var(--wp--preset--color--contrast, #111) 5%, var(--wp--preset--color--base, #fff))",
+       "kids": [
+        {
+         "type": "image",
+         "x": 0,
+         "y": 0,
+         "w": 328,
+         "h": 288,
+         "src": "https://images.unsplash.com/photo-1662850886700-4ec19bd30d11?w=1600&q=80&fm=jpg&fit=max",
+         "alt": "Maya Reid"
+        },
+        {
+         "type": "para",
+         "x": 24,
+         "y": 312,
+         "w": 280,
+         "h": 28,
+         "text": "Maya Reid",
+         "tf": {
+          "fs": 19,
+          "fw": 700
+         }
+        },
+        {
+         "type": "para",
+         "x": 24,
+         "y": 352,
+         "w": 280,
+         "h": 24,
+         "text": "Accessibility lead, Leeds",
+         "tf": {
+          "fs": 14,
+          "col": "color-mix(in srgb, var(--wp--preset--color--contrast, #111) 62%, transparent)"
+         }
+        },
+        {
+         "type": "para",
+         "x": 24,
+         "y": 388,
+         "w": 280,
+         "h": 48,
+         "text": "“What a screen reader hears on your homepage”",
+         "tf": {
+          "fs": 15
+         }
+        }
+       ]
+      },
+      {
+       "type": "box",
+       "x": 792,
+       "y": 240,
+       "w": 328,
+       "h": 448,
+       "radius": 16,
+       "boxBg": "color-mix(in srgb, var(--wp--preset--color--contrast, #111) 5%, var(--wp--preset--color--base, #fff))",
+       "kids": [
+        {
+         "type": "image",
+         "x": 0,
+         "y": 0,
+         "w": 328,
+         "h": 288,
+         "src": "https://images.unsplash.com/photo-1628619487942-01c58eed5c33?w=1600&q=80&fm=jpg&fit=max",
+         "alt": "Dev Mistry"
+        },
+        {
+         "type": "para",
+         "x": 24,
+         "y": 312,
+         "w": 280,
+         "h": 28,
+         "text": "Dev Mistry",
+         "tf": {
+          "fs": 19,
+          "fw": 700
+         }
+        },
+        {
+         "type": "para",
+         "x": 24,
+         "y": 352,
+         "w": 280,
+         "h": 24,
+         "text": "Performance engineer, Bradford",
+         "tf": {
+          "fs": 14,
+          "col": "color-mix(in srgb, var(--wp--preset--color--contrast, #111) 62%, transparent)"
+         }
+        },
+        {
+         "type": "para",
+         "x": 24,
+         "y": 388,
+         "w": 280,
+         "h": 48,
+         "text": "“Every millisecond is somebody’s train”",
+         "tf": {
+          "fs": 15
+         }
+        }
+       ]
+      },
+      {
+       "type": "para",
+       "x": 80,
+       "y": 736,
+       "w": 320,
+       "h": 24,
+       "text": "<a href=\"/speakers/\">All the speakers →</a>",
+       "tf": {
+        "fs": 17
+       }
+      }
+     ]
+    },
+    {
+     "name": "Friday",
+     "minH": 648,
+     "els": [
+      {
+       "type": "para",
+       "x": 80,
+       "y": 96,
+       "w": 640,
+       "h": 24,
+       "text": "Friday 16 April",
+       "tf": {
+        "fs": 12,
+        "fw": 700,
+        "ls2": 0.2,
+        "tt": "uppercase",
+        "col": "color-mix(in srgb, var(--wp--preset--color--contrast, #111) 62%, transparent)"
+       }
+      },
+      {
+       "type": "para",
+       "x": 600,
+       "y": 96,
+       "w": 520,
+       "h": 24,
+       "text": "Talks are thirty minutes, with questions. Every one is captioned live.",
+       "tf": {
+        "fs": 14,
+        "col": "color-mix(in srgb, var(--wp--preset--color--contrast, #111) 62%, transparent)"
+       },
+       "align": "right",
+       "m": {
+        "hidden": true
+       }
+      },
+      {
+       "type": "box",
+       "x": 80,
+       "y": 168,
+       "w": 1040,
+       "h": 24,
+       "boxBg": "linear-gradient(color-mix(in srgb, var(--wp--preset--color--contrast, #111) 18%, transparent), color-mix(in srgb, var(--wp--preset--color--contrast, #111) 18%, transparent)) center / 100% 1px no-repeat"
+      },
+      {
+       "type": "para",
+       "x": 80,
+       "y": 192,
+       "w": 120,
+       "h": 24,
+       "text": "9.00",
+       "tf": {
+        "fs": 16,
+        "fw": 700
+       }
+      },
+      {
+       "type": "para",
+       "x": 224,
+       "y": 192,
+       "w": 672,
+       "h": 24,
+       "text": "Doors, coffee and name badges",
+       "tf": {
+        "fs": 16
+       }
+      },
+      {
+       "type": "para",
+       "x": 920,
+       "y": 192,
+       "w": 200,
+       "h": 24,
+       "text": "Foyer",
+       "tf": {
+        "fs": 15,
+        "col": "color-mix(in srgb, var(--wp--preset--color--contrast, #111) 62%, transparent)"
+       },
+       "align": "right",
+       "m": {
+        "hidden": true
+       }
+      },
+      {
+       "type": "box",
+       "x": 80,
+       "y": 240,
+       "w": 1040,
+       "h": 24,
+       "boxBg": "linear-gradient(color-mix(in srgb, var(--wp--preset--color--contrast, #111) 18%, transparent), color-mix(in srgb, var(--wp--preset--color--contrast, #111) 18%, transparent)) center / 100% 1px no-repeat"
+      },
+      {
+       "type": "para",
+       "x": 80,
+       "y": 264,
+       "w": 120,
+       "h": 24,
+       "text": "10.00",
+       "tf": {
+        "fs": 16,
+        "fw": 700
+       }
+      },
+      {
+       "type": "para",
+       "x": 224,
+       "y": 264,
+       "w": 672,
+       "h": 24,
+       "text": "Theme.json is a design system · Hannah Price",
+       "tf": {
+        "fs": 16
+       }
+      },
+      {
+       "type": "para",
+       "x": 920,
+       "y": 264,
+       "w": 200,
+       "h": 24,
+       "text": "Mill Hall",
+       "tf": {
+        "fs": 15,
+        "col": "color-mix(in srgb, var(--wp--preset--color--contrast, #111) 62%, transparent)"
+       },
+       "align": "right",
+       "m": {
+        "hidden": true
+       }
+      },
+      {
+       "type": "box",
+       "x": 80,
+       "y": 312,
+       "w": 1040,
+       "h": 24,
+       "boxBg": "linear-gradient(color-mix(in srgb, var(--wp--preset--color--contrast, #111) 18%, transparent), color-mix(in srgb, var(--wp--preset--color--contrast, #111) 18%, transparent)) center / 100% 1px no-repeat"
+      },
+      {
+       "type": "para",
+       "x": 80,
+       "y": 336,
+       "w": 120,
+       "h": 24,
+       "text": "11.00",
+       "tf": {
+        "fs": 16,
+        "fw": 700
+       }
+      },
+      {
+       "type": "para",
+       "x": 224,
+       "y": 336,
+       "w": 672,
+       "h": 24,
+       "text": "What a screen reader hears on your homepage · Maya Reid",
+       "tf": {
+        "fs": 16
+       }
+      },
+      {
+       "type": "para",
+       "x": 920,
+       "y": 336,
+       "w": 200,
+       "h": 24,
+       "text": "Mill Hall",
+       "tf": {
+        "fs": 15,
+        "col": "color-mix(in srgb, var(--wp--preset--color--contrast, #111) 62%, transparent)"
+       },
+       "align": "right",
+       "m": {
+        "hidden": true
+       }
+      },
+      {
+       "type": "box",
+       "x": 80,
+       "y": 384,
+       "w": 1040,
+       "h": 24,
+       "boxBg": "linear-gradient(color-mix(in srgb, var(--wp--preset--color--contrast, #111) 18%, transparent), color-mix(in srgb, var(--wp--preset--color--contrast, #111) 18%, transparent)) center / 100% 1px no-repeat"
+      },
+      {
+       "type": "para",
+       "x": 80,
+       "y": 408,
+       "w": 120,
+       "h": 24,
+       "text": "12.00",
+       "tf": {
+        "fs": 16,
+        "fw": 700
+       }
+      },
+      {
+       "type": "para",
+       "x": 224,
+       "y": 408,
+       "w": 672,
+       "h": 24,
+       "text": "Workshop: build a block in an hour",
+       "tf": {
+        "fs": 16
+       }
+      },
+      {
+       "type": "para",
+       "x": 920,
+       "y": 408,
+       "w": 200,
+       "h": 24,
+       "text": "The Loft",
+       "tf": {
+        "fs": 15,
+        "col": "color-mix(in srgb, var(--wp--preset--color--contrast, #111) 62%, transparent)"
+       },
+       "align": "right",
+       "m": {
+        "hidden": true
+       }
+      },
+      {
+       "type": "box",
+       "x": 80,
+       "y": 456,
+       "w": 1040,
+       "h": 24,
+       "boxBg": "linear-gradient(color-mix(in srgb, var(--wp--preset--color--contrast, #111) 18%, transparent), color-mix(in srgb, var(--wp--preset--color--contrast, #111) 18%, transparent)) center / 100% 1px no-repeat"
+      },
+      {
+       "type": "para",
+       "x": 80,
+       "y": 480,
+       "w": 120,
+       "h": 24,
+       "text": "13.00",
+       "tf": {
+        "fs": 16,
+        "fw": 700
+       }
+      },
+      {
+       "type": "para",
+       "x": 224,
+       "y": 480,
+       "w": 672,
+       "h": 24,
+       "text": "Lunch, from three Leeds kitchens",
+       "tf": {
+        "fs": 16
+       }
+      },
+      {
+       "type": "para",
+       "x": 920,
+       "y": 480,
+       "w": 200,
+       "h": 24,
+       "text": "The Yard",
+       "tf": {
+        "fs": 15,
+        "col": "color-mix(in srgb, var(--wp--preset--color--contrast, #111) 62%, transparent)"
+       },
+       "align": "right",
+       "m": {
+        "hidden": true
+       }
+      },
+      {
+       "type": "box",
+       "x": 80,
+       "y": 528,
+       "w": 1040,
+       "h": 24,
+       "boxBg": "linear-gradient(color-mix(in srgb, var(--wp--preset--color--contrast, #111) 18%, transparent), color-mix(in srgb, var(--wp--preset--color--contrast, #111) 18%, transparent)) center / 100% 1px no-repeat"
+      },
+      {
+       "type": "para",
+       "x": 80,
+       "y": 568,
+       "w": 320,
+       "h": 24,
+       "text": "<a href=\"/schedule/\">The whole schedule →</a>",
+       "tf": {
+        "fs": 17
+       }
+      }
+     ]
+    },
+    {
+     "name": "The venue",
+     "minH": 744,
+     "els": [
+      {
+       "type": "image",
+       "x": 80,
+       "y": 72,
+       "w": 600,
+       "h": 432,
+       "src": "https://images.unsplash.com/photo-1776090188437-e368bbb75d93?w=1600&q=80&fm=jpg&fit=max",
+       "alt": "Sunlight through tall windows onto brick columns at the Old Mill"
+      },
+      {
+       "type": "image",
+       "x": 520,
+       "y": 336,
+       "w": 320,
+       "h": 336,
+       "src": "https://images.unsplash.com/photo-1758691736995-fd7222612210?w=1600&q=80&fm=jpg&fit=max",
+       "alt": "Two people talking between sessions"
+      },
+      {
+       "type": "para",
+       "x": 900,
+       "y": 96,
+       "w": 220,
+       "h": 24,
+       "text": "The venue",
+       "tf": {
+        "fs": 12,
+        "fw": 700,
+        "ls2": 0.2,
+        "tt": "uppercase",
+        "col": "color-mix(in srgb, var(--wp--preset--color--contrast, #111) 62%, transparent)"
+       }
+      },
+      {
+       "type": "heading",
+       "x": 900,
+       "y": 144,
+       "w": 220,
+       "h": 96,
+       "text": "The Old Mill, Holbeck",
+       "fs": "large"
+      },
+      {
+       "type": "para",
+       "x": 900,
+       "y": 264,
+       "w": 220,
+       "h": 216,
+       "text": "A flax mill from 1840, ten minutes’ walk from Leeds station. Step-free throughout, with a quiet room and childcare on both days.",
+       "tf": {
+        "fs": 16
+       }
+      },
+      {
+       "type": "para",
+       "x": 900,
+       "y": 504,
+       "w": 220,
+       "h": 24,
+       "text": "<a href=\"/venue/\">Getting there →</a>",
+       "tf": {
+        "fs": 16
+       }
+      }
+     ]
+    },
+    {
+     "take": "Latest posts",
+     "heading": "News",
+     "posts": {
+      "look": "cards",
+      "count": 3
+     }
+    },
+    {
+     "name": "Tickets",
+     "minH": 408,
+     "background": "#FFD23F",
+     "els": [
+      {
+       "type": "heading",
+       "x": 80,
+       "y": 96,
+       "w": 760,
+       "h": 72,
+       "text": "£40, and lunch is on us.",
+       "fs": "xx-large",
+       "tf": {
+        "col": "#111111"
+       }
+      },
+      {
+       "type": "para",
+       "x": 80,
+       "y": 192,
+       "w": 640,
+       "h": 48,
+       "text": "Free for students, and for anyone for whom £40 is the reason not to come. Just ask; nobody will ask why.",
+       "tf": {
+        "fs": 18,
+        "col": "#111111"
+       }
+      },
+      {
+       "type": "button",
+       "x": 80,
+       "y": 288,
+       "w": 200,
+       "h": 56,
+       "text": "Get a ticket",
+       "href": "/tickets/",
+       "btnBg": "contrast",
+       "btnText": "base"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "title": "Speakers",
+   "slug": "speakers",
+   "sections": [
+    {
+     "name": "Speakers",
+     "minH": 1344,
+     "els": [
+      {
+       "type": "para",
+       "x": 80,
+       "y": 96,
+       "w": 640,
+       "h": 24,
+       "text": "Speakers",
+       "tf": {
+        "fs": 12,
+        "fw": 700,
+        "ls2": 0.2,
+        "tt": "uppercase",
+        "col": "color-mix(in srgb, var(--wp--preset--color--contrast, #111) 62%, transparent)"
+       }
+      },
+      {
+       "type": "heading",
+       "x": 80,
+       "y": 132,
+       "w": 900,
+       "h": 120,
+       "text": "The first six. Eighteen more in January.",
+       "fs": "__disp-s"
+      },
+      {
+       "type": "box",
+       "x": 80,
+       "y": 312,
+       "w": 328,
+       "h": 448,
+       "radius": 16,
+       "boxBg": "color-mix(in srgb, var(--wp--preset--color--contrast, #111) 5%, var(--wp--preset--color--base, #fff))",
+       "kids": [
+        {
+         "type": "image",
+         "x": 0,
+         "y": 0,
+         "w": 328,
+         "h": 288,
+         "src": "https://images.unsplash.com/photo-1580489944761-15a19d654956?w=1600&q=80&fm=jpg&fit=max",
+         "alt": "Hannah Price"
+        },
+        {
+         "type": "para",
+         "x": 24,
+         "y": 312,
+         "w": 280,
+         "h": 28,
+         "text": "Hannah Price",
+         "tf": {
+          "fs": 19,
+          "fw": 700
+         }
+        },
+        {
+         "type": "para",
+         "x": 24,
+         "y": 352,
+         "w": 280,
+         "h": 24,
+         "text": "Front-end developer, Sheffield",
+         "tf": {
+          "fs": 14,
+          "col": "color-mix(in srgb, var(--wp--preset--color--contrast, #111) 62%, transparent)"
+         }
+        },
+        {
+         "type": "para",
+         "x": 24,
+         "y": 388,
+         "w": 280,
+         "h": 48,
+         "text": "“Theme.json is a design system”",
+         "tf": {
+          "fs": 15
+         }
+        }
+       ]
+      },
+      {
+       "type": "box",
+       "x": 436,
+       "y": 312,
+       "w": 328,
+       "h": 448,
+       "radius": 16,
+       "boxBg": "color-mix(in srgb, var(--wp--preset--color--contrast, #111) 5%, var(--wp--preset--color--base, #fff))",
+       "kids": [
+        {
+         "type": "image",
+         "x": 0,
+         "y": 0,
+         "w": 328,
+         "h": 288,
+         "src": "https://images.unsplash.com/photo-1662850886700-4ec19bd30d11?w=1600&q=80&fm=jpg&fit=max",
+         "alt": "Maya Reid"
+        },
+        {
+         "type": "para",
+         "x": 24,
+         "y": 312,
+         "w": 280,
+         "h": 28,
+         "text": "Maya Reid",
+         "tf": {
+          "fs": 19,
+          "fw": 700
+         }
+        },
+        {
+         "type": "para",
+         "x": 24,
+         "y": 352,
+         "w": 280,
+         "h": 24,
+         "text": "Accessibility lead, Leeds",
+         "tf": {
+          "fs": 14,
+          "col": "color-mix(in srgb, var(--wp--preset--color--contrast, #111) 62%, transparent)"
+         }
+        },
+        {
+         "type": "para",
+         "x": 24,
+         "y": 388,
+         "w": 280,
+         "h": 48,
+         "text": "“What a screen reader hears on your homepage”",
+         "tf": {
+          "fs": 15
+         }
+        }
+       ]
+      },
+      {
+       "type": "box",
+       "x": 792,
+       "y": 312,
+       "w": 328,
+       "h": 448,
+       "radius": 16,
+       "boxBg": "color-mix(in srgb, var(--wp--preset--color--contrast, #111) 5%, var(--wp--preset--color--base, #fff))",
+       "kids": [
+        {
+         "type": "image",
+         "x": 0,
+         "y": 0,
+         "w": 328,
+         "h": 288,
+         "src": "https://images.unsplash.com/photo-1628619487942-01c58eed5c33?w=1600&q=80&fm=jpg&fit=max",
+         "alt": "Dev Mistry"
+        },
+        {
+         "type": "para",
+         "x": 24,
+         "y": 312,
+         "w": 280,
+         "h": 28,
+         "text": "Dev Mistry",
+         "tf": {
+          "fs": 19,
+          "fw": 700
+         }
+        },
+        {
+         "type": "para",
+         "x": 24,
+         "y": 352,
+         "w": 280,
+         "h": 24,
+         "text": "Performance engineer, Bradford",
+         "tf": {
+          "fs": 14,
+          "col": "color-mix(in srgb, var(--wp--preset--color--contrast, #111) 62%, transparent)"
+         }
+        },
+        {
+         "type": "para",
+         "x": 24,
+         "y": 388,
+         "w": 280,
+         "h": 48,
+         "text": "“Every millisecond is somebody’s train”",
+         "tf": {
+          "fs": 15
+         }
+        }
+       ]
+      },
+      {
+       "type": "box",
+       "x": 80,
+       "y": 808,
+       "w": 328,
+       "h": 448,
+       "radius": 16,
+       "boxBg": "color-mix(in srgb, var(--wp--preset--color--contrast, #111) 5%, var(--wp--preset--color--base, #fff))",
+       "kids": [
+        {
+         "type": "image",
+         "x": 0,
+         "y": 0,
+         "w": 328,
+         "h": 288,
+         "src": "https://images.unsplash.com/photo-1582896911227-c966f6e7fb93?w=1600&q=80&fm=jpg&fit=max",
+         "alt": "Clara Moss"
+        },
+        {
+         "type": "para",
+         "x": 24,
+         "y": 312,
+         "w": 280,
+         "h": 28,
+         "text": "Clara Moss",
+         "tf": {
+          "fs": 19,
+          "fw": 700
+         }
+        },
+        {
+         "type": "para",
+         "x": 24,
+         "y": 352,
+         "w": 280,
+         "h": 24,
+         "text": "Content designer, Hull",
+         "tf": {
+          "fs": 14,
+          "col": "color-mix(in srgb, var(--wp--preset--color--contrast, #111) 62%, transparent)"
+         }
+        },
+        {
+         "type": "para",
+         "x": 24,
+         "y": 388,
+         "w": 280,
+         "h": 48,
+         "text": "“Write the button first”",
+         "tf": {
+          "fs": 15
+         }
+        }
+       ]
+      },
+      {
+       "type": "box",
+       "x": 436,
+       "y": 808,
+       "w": 328,
+       "h": 448,
+       "radius": 16,
+       "boxBg": "color-mix(in srgb, var(--wp--preset--color--contrast, #111) 5%, var(--wp--preset--color--base, #fff))",
+       "kids": [
+        {
+         "type": "image",
+         "x": 0,
+         "y": 0,
+         "w": 328,
+         "h": 288,
+         "src": "https://images.unsplash.com/photo-1611695434369-a8f5d76ceb7b?w=1600&q=80&fm=jpg&fit=max",
+         "alt": "Robin Hale"
+        },
+        {
+         "type": "para",
+         "x": 24,
+         "y": 312,
+         "w": 280,
+         "h": 28,
+         "text": "Robin Hale",
+         "tf": {
+          "fs": 19,
+          "fw": 700
+         }
+        },
+        {
+         "type": "para",
+         "x": 24,
+         "y": 352,
+         "w": 280,
+         "h": 24,
+         "text": "Plugin author, Newcastle",
+         "tf": {
+          "fs": 14,
+          "col": "color-mix(in srgb, var(--wp--preset--color--contrast, #111) 62%, transparent)"
+         }
+        },
+        {
+         "type": "para",
+         "x": 24,
+         "y": 388,
+         "w": 280,
+         "h": 48,
+         "text": "“Shipping a plugin nobody asked for”",
+         "tf": {
+          "fs": 15
+         }
+        }
+       ]
+      },
+      {
+       "type": "box",
+       "x": 792,
+       "y": 808,
+       "w": 328,
+       "h": 448,
+       "radius": 16,
+       "boxBg": "color-mix(in srgb, var(--wp--preset--color--contrast, #111) 5%, var(--wp--preset--color--base, #fff))",
+       "kids": [
+        {
+         "type": "image",
+         "x": 0,
+         "y": 0,
+         "w": 328,
+         "h": 288,
+         "src": "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=1600&q=80&fm=jpg&fit=max",
+         "alt": "Tom Walsh"
+        },
+        {
+         "type": "para",
+         "x": 24,
+         "y": 312,
+         "w": 280,
+         "h": 28,
+         "text": "Tom Walsh",
+         "tf": {
+          "fs": 19,
+          "fw": 700
+         }
+        },
+        {
+         "type": "para",
+         "x": 24,
+         "y": 352,
+         "w": 280,
+         "h": 24,
+         "text": "Agency owner, York",
+         "tf": {
+          "fs": 14,
+          "col": "color-mix(in srgb, var(--wp--preset--color--contrast, #111) 62%, transparent)"
+         }
+        },
+        {
+         "type": "para",
+         "x": 24,
+         "y": 388,
+         "w": 280,
+         "h": 48,
+         "text": "“Pricing a website in 2027”",
+         "tf": {
+          "fs": 15
+         }
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "name": "Call for speakers",
+     "minH": 384,
+     "background": "#2340FF",
+     "els": [
+      {
+       "type": "heading",
+       "x": 80,
+       "y": 96,
+       "w": 760,
+       "h": 60,
+       "text": "Want to speak?",
+       "fs": "xx-large",
+       "tf": {
+        "col": "#FFFFFF"
+       }
+      },
+      {
+       "type": "para",
+       "x": 80,
+       "y": 180,
+       "w": 640,
+       "h": 48,
+       "text": "First-time speakers are especially welcome, and we pair every one with a mentor. The call closes on 30 November.",
+       "tf": {
+        "fs": 18,
+        "col": "#FFFFFF"
+       }
+      },
+      {
+       "type": "button",
+       "x": 80,
+       "y": 264,
+       "w": 220,
+       "h": 56,
+       "text": "Send us an idea",
+       "href": "/tickets/",
+       "btnBg": "base",
+       "btnText": "contrast"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "title": "Schedule",
+   "slug": "schedule",
+   "sections": [
+    {
+     "name": "Friday",
+     "minH": 936,
+     "els": [
+      {
+       "type": "para",
+       "x": 80,
+       "y": 96,
+       "w": 640,
+       "h": 24,
+       "text": "The schedule",
+       "tf": {
+        "fs": 12,
+        "fw": 700,
+        "ls2": 0.2,
+        "tt": "uppercase",
+        "col": "color-mix(in srgb, var(--wp--preset--color--contrast, #111) 62%, transparent)"
+       }
+      },
+      {
+       "type": "heading",
+       "x": 80,
+       "y": 132,
+       "w": 900,
+       "h": 96,
+       "text": "Friday 16 April",
+       "fs": "__disp-s"
+      },
+      {
+       "type": "box",
+       "x": 80,
+       "y": 264,
+       "w": 1040,
+       "h": 24,
+       "boxBg": "linear-gradient(color-mix(in srgb, var(--wp--preset--color--contrast, #111) 18%, transparent), color-mix(in srgb, var(--wp--preset--color--contrast, #111) 18%, transparent)) center / 100% 1px no-repeat"
+      },
+      {
+       "type": "para",
+       "x": 80,
+       "y": 288,
+       "w": 120,
+       "h": 24,
+       "text": "9.00",
+       "tf": {
+        "fs": 16,
+        "fw": 700
+       }
+      },
+      {
+       "type": "para",
+       "x": 224,
+       "y": 288,
+       "w": 672,
+       "h": 24,
+       "text": "Doors, coffee and name badges",
+       "tf": {
+        "fs": 16
+       }
+      },
+      {
+       "type": "para",
+       "x": 920,
+       "y": 288,
+       "w": 200,
+       "h": 24,
+       "text": "Foyer",
+       "tf": {
+        "fs": 15,
+        "col": "color-mix(in srgb, var(--wp--preset--color--contrast, #111) 62%, transparent)"
+       },
+       "align": "right",
+       "m": {
+        "hidden": true
+       }
+      },
+      {
+       "type": "box",
+       "x": 80,
+       "y": 336,
+       "w": 1040,
+       "h": 24,
+       "boxBg": "linear-gradient(color-mix(in srgb, var(--wp--preset--color--contrast, #111) 18%, transparent), color-mix(in srgb, var(--wp--preset--color--contrast, #111) 18%, transparent)) center / 100% 1px no-repeat"
+      },
+      {
+       "type": "para",
+       "x": 80,
+       "y": 360,
+       "w": 120,
+       "h": 24,
+       "text": "10.00",
+       "tf": {
+        "fs": 16,
+        "fw": 700
+       }
+      },
+      {
+       "type": "para",
+       "x": 224,
+       "y": 360,
+       "w": 672,
+       "h": 24,
+       "text": "Theme.json is a design system · Hannah Price",
+       "tf": {
+        "fs": 16
+       }
+      },
+      {
+       "type": "para",
+       "x": 920,
+       "y": 360,
+       "w": 200,
+       "h": 24,
+       "text": "Mill Hall",
+       "tf": {
+        "fs": 15,
+        "col": "color-mix(in srgb, var(--wp--preset--color--contrast, #111) 62%, transparent)"
+       },
+       "align": "right",
+       "m": {
+        "hidden": true
+       }
+      },
+      {
+       "type": "box",
+       "x": 80,
+       "y": 408,
+       "w": 1040,
+       "h": 24,
+       "boxBg": "linear-gradient(color-mix(in srgb, var(--wp--preset--color--contrast, #111) 18%, transparent), color-mix(in srgb, var(--wp--preset--color--contrast, #111) 18%, transparent)) center / 100% 1px no-repeat"
+      },
+      {
+       "type": "para",
+       "x": 80,
+       "y": 432,
+       "w": 120,
+       "h": 24,
+       "text": "11.00",
+       "tf": {
+        "fs": 16,
+        "fw": 700
+       }
+      },
+      {
+       "type": "para",
+       "x": 224,
+       "y": 432,
+       "w": 672,
+       "h": 24,
+       "text": "What a screen reader hears on your homepage · Maya Reid",
+       "tf": {
+        "fs": 16
+       }
+      },
+      {
+       "type": "para",
+       "x": 920,
+       "y": 432,
+       "w": 200,
+       "h": 24,
+       "text": "Mill Hall",
+       "tf": {
+        "fs": 15,
+        "col": "color-mix(in srgb, var(--wp--preset--color--contrast, #111) 62%, transparent)"
+       },
+       "align": "right",
+       "m": {
+        "hidden": true
+       }
+      },
+      {
+       "type": "box",
+       "x": 80,
+       "y": 480,
+       "w": 1040,
+       "h": 24,
+       "boxBg": "linear-gradient(color-mix(in srgb, var(--wp--preset--color--contrast, #111) 18%, transparent), color-mix(in srgb, var(--wp--preset--color--contrast, #111) 18%, transparent)) center / 100% 1px no-repeat"
+      },
+      {
+       "type": "para",
+       "x": 80,
+       "y": 504,
+       "w": 120,
+       "h": 24,
+       "text": "12.00",
+       "tf": {
+        "fs": 16,
+        "fw": 700
+       }
+      },
+      {
+       "type": "para",
+       "x": 224,
+       "y": 504,
+       "w": 672,
+       "h": 24,
+       "text": "Workshop: build a block in an hour",
+       "tf": {
+        "fs": 16
+       }
+      },
+      {
+       "type": "para",
+       "x": 920,
+       "y": 504,
+       "w": 200,
+       "h": 24,
+       "text": "The Loft",
+       "tf": {
+        "fs": 15,
+        "col": "color-mix(in srgb, var(--wp--preset--color--contrast, #111) 62%, transparent)"
+       },
+       "align": "right",
+       "m": {
+        "hidden": true
+       }
+      },
+      {
+       "type": "box",
+       "x": 80,
+       "y": 552,
+       "w": 1040,
+       "h": 24,
+       "boxBg": "linear-gradient(color-mix(in srgb, var(--wp--preset--color--contrast, #111) 18%, transparent), color-mix(in srgb, var(--wp--preset--color--contrast, #111) 18%, transparent)) center / 100% 1px no-repeat"
+      },
+      {
+       "type": "para",
+       "x": 80,
+       "y": 576,
+       "w": 120,
+       "h": 24,
+       "text": "13.00",
+       "tf": {
+        "fs": 16,
+        "fw": 700
+       }
+      },
+      {
+       "type": "para",
+       "x": 224,
+       "y": 576,
+       "w": 672,
+       "h": 24,
+       "text": "Lunch, from three Leeds kitchens",
+       "tf": {
+        "fs": 16
+       }
+      },
+      {
+       "type": "para",
+       "x": 920,
+       "y": 576,
+       "w": 200,
+       "h": 24,
+       "text": "The Yard",
+       "tf": {
+        "fs": 15,
+        "col": "color-mix(in srgb, var(--wp--preset--color--contrast, #111) 62%, transparent)"
+       },
+       "align": "right",
+       "m": {
+        "hidden": true
+       }
+      },
+      {
+       "type": "box",
+       "x": 80,
+       "y": 624,
+       "w": 1040,
+       "h": 24,
+       "boxBg": "linear-gradient(color-mix(in srgb, var(--wp--preset--color--contrast, #111) 18%, transparent), color-mix(in srgb, var(--wp--preset--color--contrast, #111) 18%, transparent)) center / 100% 1px no-repeat"
+      },
+      {
+       "type": "para",
+       "x": 80,
+       "y": 648,
+       "w": 120,
+       "h": 24,
+       "text": "14.00",
+       "tf": {
+        "fs": 16,
+        "fw": 700
+       }
+      },
+      {
+       "type": "para",
+       "x": 224,
+       "y": 648,
+       "w": 672,
+       "h": 24,
+       "text": "Every millisecond is somebody’s train · Dev Mistry",
+       "tf": {
+        "fs": 16
+       }
+      },
+      {
+       "type": "para",
+       "x": 920,
+       "y": 648,
+       "w": 200,
+       "h": 24,
+       "text": "Mill Hall",
+       "tf": {
+        "fs": 15,
+        "col": "color-mix(in srgb, var(--wp--preset--color--contrast, #111) 62%, transparent)"
+       },
+       "align": "right",
+       "m": {
+        "hidden": true
+       }
+      },
+      {
+       "type": "box",
+       "x": 80,
+       "y": 696,
+       "w": 1040,
+       "h": 24,
+       "boxBg": "linear-gradient(color-mix(in srgb, var(--wp--preset--color--contrast, #111) 18%, transparent), color-mix(in srgb, var(--wp--preset--color--contrast, #111) 18%, transparent)) center / 100% 1px no-repeat"
+      },
+      {
+       "type": "para",
+       "x": 80,
+       "y": 720,
+       "w": 120,
+       "h": 24,
+       "text": "15.00",
+       "tf": {
+        "fs": 16,
+        "fw": 700
+       }
+      },
+      {
+       "type": "para",
+       "x": 224,
+       "y": 720,
+       "w": 672,
+       "h": 24,
+       "text": "Contributor tables: translate, test, triage",
+       "tf": {
+        "fs": 16
+       }
+      },
+      {
+       "type": "para",
+       "x": 920,
+       "y": 720,
+       "w": 200,
+       "h": 24,
+       "text": "The Loft",
+       "tf": {
+        "fs": 15,
+        "col": "color-mix(in srgb, var(--wp--preset--color--contrast, #111) 62%, transparent)"
+       },
+       "align": "right",
+       "m": {
+        "hidden": true
+       }
+      },
+      {
+       "type": "box",
+       "x": 80,
+       "y": 768,
+       "w": 1040,
+       "h": 24,
+       "boxBg": "linear-gradient(color-mix(in srgb, var(--wp--preset--color--contrast, #111) 18%, transparent), color-mix(in srgb, var(--wp--preset--color--contrast, #111) 18%, transparent)) center / 100% 1px no-repeat"
+      },
+      {
+       "type": "para",
+       "x": 80,
+       "y": 792,
+       "w": 120,
+       "h": 24,
+       "text": "17.00",
+       "tf": {
+        "fs": 16,
+        "fw": 700
+       }
+      },
+      {
+       "type": "para",
+       "x": 224,
+       "y": 792,
+       "w": 672,
+       "h": 24,
+       "text": "Drinks",
+       "tf": {
+        "fs": 16
+       }
+      },
+      {
+       "type": "para",
+       "x": 920,
+       "y": 792,
+       "w": 200,
+       "h": 24,
+       "text": "The Yard",
+       "tf": {
+        "fs": 15,
+        "col": "color-mix(in srgb, var(--wp--preset--color--contrast, #111) 62%, transparent)"
+       },
+       "align": "right",
+       "m": {
+        "hidden": true
+       }
+      },
+      {
+       "type": "box",
+       "x": 80,
+       "y": 840,
+       "w": 1040,
+       "h": 24,
+       "boxBg": "linear-gradient(color-mix(in srgb, var(--wp--preset--color--contrast, #111) 18%, transparent), color-mix(in srgb, var(--wp--preset--color--contrast, #111) 18%, transparent)) center / 100% 1px no-repeat"
+      }
+     ]
+    },
+    {
+     "name": "Saturday",
+     "minH": 744,
+     "els": [
+      {
+       "type": "heading",
+       "x": 80,
+       "y": 60,
+       "w": 900,
+       "h": 96,
+       "text": "Saturday 17 April",
+       "fs": "__disp-s"
+      },
+      {
+       "type": "box",
+       "x": 80,
+       "y": 192,
+       "w": 1040,
+       "h": 24,
+       "boxBg": "linear-gradient(color-mix(in srgb, var(--wp--preset--color--contrast, #111) 18%, transparent), color-mix(in srgb, var(--wp--preset--color--contrast, #111) 18%, transparent)) center / 100% 1px no-repeat"
+      },
+      {
+       "type": "para",
+       "x": 80,
+       "y": 216,
+       "w": 120,
+       "h": 24,
+       "text": "10.00",
+       "tf": {
+        "fs": 16,
+        "fw": 700
+       }
+      },
+      {
+       "type": "para",
+       "x": 224,
+       "y": 216,
+       "w": 672,
+       "h": 24,
+       "text": "Write the button first · Clara Moss",
+       "tf": {
+        "fs": 16
+       }
+      },
+      {
+       "type": "para",
+       "x": 920,
+       "y": 216,
+       "w": 200,
+       "h": 24,
+       "text": "Mill Hall",
+       "tf": {
+        "fs": 15,
+        "col": "color-mix(in srgb, var(--wp--preset--color--contrast, #111) 62%, transparent)"
+       },
+       "align": "right",
+       "m": {
+        "hidden": true
+       }
+      },
+      {
+       "type": "box",
+       "x": 80,
+       "y": 264,
+       "w": 1040,
+       "h": 24,
+       "boxBg": "linear-gradient(color-mix(in srgb, var(--wp--preset--color--contrast, #111) 18%, transparent), color-mix(in srgb, var(--wp--preset--color--contrast, #111) 18%, transparent)) center / 100% 1px no-repeat"
+      },
+      {
+       "type": "para",
+       "x": 80,
+       "y": 288,
+       "w": 120,
+       "h": 24,
+       "text": "11.00",
+       "tf": {
+        "fs": 16,
+        "fw": 700
+       }
+      },
+      {
+       "type": "para",
+       "x": 224,
+       "y": 288,
+       "w": 672,
+       "h": 24,
+       "text": "Shipping a plugin nobody asked for · Robin Hale",
+       "tf": {
+        "fs": 16
+       }
+      },
+      {
+       "type": "para",
+       "x": 920,
+       "y": 288,
+       "w": 200,
+       "h": 24,
+       "text": "Mill Hall",
+       "tf": {
+        "fs": 15,
+        "col": "color-mix(in srgb, var(--wp--preset--color--contrast, #111) 62%, transparent)"
+       },
+       "align": "right",
+       "m": {
+        "hidden": true
+       }
+      },
+      {
+       "type": "box",
+       "x": 80,
+       "y": 336,
+       "w": 1040,
+       "h": 24,
+       "boxBg": "linear-gradient(color-mix(in srgb, var(--wp--preset--color--contrast, #111) 18%, transparent), color-mix(in srgb, var(--wp--preset--color--contrast, #111) 18%, transparent)) center / 100% 1px no-repeat"
+      },
+      {
+       "type": "para",
+       "x": 80,
+       "y": 360,
+       "w": 120,
+       "h": 24,
+       "text": "12.00",
+       "tf": {
+        "fs": 16,
+        "fw": 700
+       }
+      },
+      {
+       "type": "para",
+       "x": 224,
+       "y": 360,
+       "w": 672,
+       "h": 24,
+       "text": "Pricing a website in 2027 · Tom Walsh",
+       "tf": {
+        "fs": 16
+       }
+      },
+      {
+       "type": "para",
+       "x": 920,
+       "y": 360,
+       "w": 200,
+       "h": 24,
+       "text": "Mill Hall",
+       "tf": {
+        "fs": 15,
+        "col": "color-mix(in srgb, var(--wp--preset--color--contrast, #111) 62%, transparent)"
+       },
+       "align": "right",
+       "m": {
+        "hidden": true
+       }
+      },
+      {
+       "type": "box",
+       "x": 80,
+       "y": 408,
+       "w": 1040,
+       "h": 24,
+       "boxBg": "linear-gradient(color-mix(in srgb, var(--wp--preset--color--contrast, #111) 18%, transparent), color-mix(in srgb, var(--wp--preset--color--contrast, #111) 18%, transparent)) center / 100% 1px no-repeat"
+      },
+      {
+       "type": "para",
+       "x": 80,
+       "y": 432,
+       "w": 120,
+       "h": 24,
+       "text": "13.00",
+       "tf": {
+        "fs": 16,
+        "fw": 700
+       }
+      },
+      {
+       "type": "para",
+       "x": 224,
+       "y": 432,
+       "w": 672,
+       "h": 24,
+       "text": "Lunch",
+       "tf": {
+        "fs": 16
+       }
+      },
+      {
+       "type": "para",
+       "x": 920,
+       "y": 432,
+       "w": 200,
+       "h": 24,
+       "text": "The Yard",
+       "tf": {
+        "fs": 15,
+        "col": "color-mix(in srgb, var(--wp--preset--color--contrast, #111) 62%, transparent)"
+       },
+       "align": "right",
+       "m": {
+        "hidden": true
+       }
+      },
+      {
+       "type": "box",
+       "x": 80,
+       "y": 480,
+       "w": 1040,
+       "h": 24,
+       "boxBg": "linear-gradient(color-mix(in srgb, var(--wp--preset--color--contrast, #111) 18%, transparent), color-mix(in srgb, var(--wp--preset--color--contrast, #111) 18%, transparent)) center / 100% 1px no-repeat"
+      },
+      {
+       "type": "para",
+       "x": 80,
+       "y": 504,
+       "w": 120,
+       "h": 24,
+       "text": "14.00",
+       "tf": {
+        "fs": 16,
+        "fw": 700
+       }
+      },
+      {
+       "type": "para",
+       "x": 224,
+       "y": 504,
+       "w": 672,
+       "h": 24,
+       "text": "Lightning talks: eight people, five minutes each",
+       "tf": {
+        "fs": 16
+       }
+      },
+      {
+       "type": "para",
+       "x": 920,
+       "y": 504,
+       "w": 200,
+       "h": 24,
+       "text": "Mill Hall",
+       "tf": {
+        "fs": 15,
+        "col": "color-mix(in srgb, var(--wp--preset--color--contrast, #111) 62%, transparent)"
+       },
+       "align": "right",
+       "m": {
+        "hidden": true
+       }
+      },
+      {
+       "type": "box",
+       "x": 80,
+       "y": 552,
+       "w": 1040,
+       "h": 24,
+       "boxBg": "linear-gradient(color-mix(in srgb, var(--wp--preset--color--contrast, #111) 18%, transparent), color-mix(in srgb, var(--wp--preset--color--contrast, #111) 18%, transparent)) center / 100% 1px no-repeat"
+      },
+      {
+       "type": "para",
+       "x": 80,
+       "y": 576,
+       "w": 120,
+       "h": 24,
+       "text": "16.00",
+       "tf": {
+        "fs": 16,
+        "fw": 700
+       }
+      },
+      {
+       "type": "para",
+       "x": 224,
+       "y": 576,
+       "w": 672,
+       "h": 24,
+       "text": "Thank you, and home",
+       "tf": {
+        "fs": 16
+       }
+      },
+      {
+       "type": "para",
+       "x": 920,
+       "y": 576,
+       "w": 200,
+       "h": 24,
+       "text": "Mill Hall",
+       "tf": {
+        "fs": 15,
+        "col": "color-mix(in srgb, var(--wp--preset--color--contrast, #111) 62%, transparent)"
+       },
+       "align": "right",
+       "m": {
+        "hidden": true
+       }
+      },
+      {
+       "type": "box",
+       "x": 80,
+       "y": 624,
+       "w": 1040,
+       "h": 24,
+       "boxBg": "linear-gradient(color-mix(in srgb, var(--wp--preset--color--contrast, #111) 18%, transparent), color-mix(in srgb, var(--wp--preset--color--contrast, #111) 18%, transparent)) center / 100% 1px no-repeat"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "title": "Venue",
+   "slug": "venue",
+   "sections": [
+    {
+     "name": "The venue",
+     "minH": 696,
+     "els": [
+      {
+       "type": "para",
+       "x": 80,
+       "y": 96,
+       "w": 640,
+       "h": 24,
+       "text": "The venue",
+       "tf": {
+        "fs": 12,
+        "fw": 700,
+        "ls2": 0.2,
+        "tt": "uppercase",
+        "col": "color-mix(in srgb, var(--wp--preset--color--contrast, #111) 62%, transparent)"
+       }
+      },
+      {
+       "type": "heading",
+       "x": 80,
+       "y": 132,
+       "w": 480,
+       "h": 60,
+       "text": "The Old Mill, Holbeck, Leeds",
+       "fs": "large"
+      },
+      {
+       "type": "para",
+       "x": 80,
+       "y": 228,
+       "w": 480,
+       "h": 72,
+       "text": "Ten minutes’ walk from Leeds station, along the canal. The doors open at nine on both days.",
+       "tf": {
+        "fs": 17
+       }
+      },
+      {
+       "type": "embed",
+       "x": 640,
+       "y": 96,
+       "w": 480,
+       "h": 504,
+       "url": "https://www.google.com/maps?q=Holbeck,+Leeds&output=embed",
+       "radius": 16
+      }
+     ]
+    },
+    {
+     "name": "Good to know",
+     "minH": 384,
+     "els": [
+      {
+       "type": "para",
+       "x": 80,
+       "y": 96,
+       "w": 640,
+       "h": 24,
+       "text": "Good to know",
+       "tf": {
+        "fs": 12,
+        "fw": 700,
+        "ls2": 0.2,
+        "tt": "uppercase",
+        "col": "color-mix(in srgb, var(--wp--preset--color--contrast, #111) 62%, transparent)"
+       }
+      },
+      {
+       "type": "para",
+       "x": 80,
+       "y": 168,
+       "w": 320,
+       "h": 24,
+       "text": "Getting around",
+       "tf": {
+        "fs": 17,
+        "fw": 700
+       }
+      },
+      {
+       "type": "para",
+       "x": 80,
+       "y": 208,
+       "w": 320,
+       "h": 120,
+       "text": "Step-free from the street to every room, with lifts to both floors and seats kept free at the front.",
+       "tf": {
+        "fs": 16,
+        "col": "color-mix(in srgb, var(--wp--preset--color--contrast, #111) 62%, transparent)"
+       }
+      },
+      {
+       "type": "para",
+       "x": 440,
+       "y": 168,
+       "w": 320,
+       "h": 24,
+       "text": "Hearing every talk",
+       "tf": {
+        "fs": 17,
+        "fw": 700
+       }
+      },
+      {
+       "type": "para",
+       "x": 440,
+       "y": 208,
+       "w": 320,
+       "h": 120,
+       "text": "Live captions on the big screen for every talk, and a hearing loop in the Mill Hall.",
+       "tf": {
+        "fs": 16,
+        "col": "color-mix(in srgb, var(--wp--preset--color--contrast, #111) 62%, transparent)"
+       }
+      },
+      {
+       "type": "para",
+       "x": 800,
+       "y": 168,
+       "w": 320,
+       "h": 24,
+       "text": "A quiet room",
+       "tf": {
+        "fs": 17,
+        "fw": 700
+       }
+      },
+      {
+       "type": "para",
+       "x": 800,
+       "y": 208,
+       "w": 320,
+       "h": 120,
+       "text": "Upstairs, all day, no talking. Childcare in the Loft for under-tens, free, booked with your ticket.",
+       "tf": {
+        "fs": 16,
+        "col": "color-mix(in srgb, var(--wp--preset--color--contrast, #111) 62%, transparent)"
+       }
+      }
+     ]
+    },
+    {
+     "name": "Two pictures",
+     "minH": 552,
+     "els": [
+      {
+       "type": "image",
+       "x": 80,
+       "y": 72,
+       "w": 500,
+       "h": 400,
+       "src": "https://images.unsplash.com/photo-1766021736631-d2f15082aa59?w=1600&q=80&fm=jpg&fit=max",
+       "alt": "The long hall, lit and empty before the doors open"
+      },
+      {
+       "type": "image",
+       "x": 620,
+       "y": 72,
+       "w": 500,
+       "h": 400,
+       "src": "https://images.unsplash.com/photo-1540575467063-178a50c2df87?w=1600&q=80&fm=jpg&fit=max",
+       "alt": "An audience in the dark, listening"
+      },
+      {
+       "type": "para",
+       "x": 80,
+       "y": 496,
+       "w": 500,
+       "h": 24,
+       "text": "The Mill Hall, the morning before",
+       "tf": {
+        "fs": 14,
+        "col": "color-mix(in srgb, var(--wp--preset--color--contrast, #111) 62%, transparent)"
+       }
+      },
+      {
+       "type": "para",
+       "x": 620,
+       "y": 496,
+       "w": 500,
+       "h": 24,
+       "text": "Six hundred of us, give or take",
+       "tf": {
+        "fs": 14,
+        "col": "color-mix(in srgb, var(--wp--preset--color--contrast, #111) 62%, transparent)"
+       }
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "title": "News",
+   "slug": "news",
+   "blog": true,
+   "sections": []
+  },
+  {
+   "title": "Tickets",
+   "slug": "tickets",
+   "sections": [
+    {
+     "name": "Tickets",
+     "minH": 696,
+     "els": [
+      {
+       "type": "para",
+       "x": 80,
+       "y": 96,
+       "w": 640,
+       "h": 24,
+       "text": "Tickets",
+       "tf": {
+        "fs": 12,
+        "fw": 700,
+        "ls2": 0.2,
+        "tt": "uppercase",
+        "col": "color-mix(in srgb, var(--wp--preset--color--contrast, #111) 62%, transparent)"
+       }
+      },
+      {
+       "type": "heading",
+       "x": 80,
+       "y": 132,
+       "w": 900,
+       "h": 96,
+       "text": "One price, everything in.",
+       "fs": "__disp-s"
+      },
+      {
+       "type": "box",
+       "x": 80,
+       "y": 264,
+       "w": 328,
+       "h": 288,
+       "radius": 16,
+       "boxBg": "color-mix(in srgb, var(--wp--preset--color--contrast, #111) 5%, var(--wp--preset--color--base, #fff))",
+       "kids": [
+        {
+         "type": "para",
+         "x": 28,
+         "y": 32,
+         "w": 272,
+         "h": 24,
+         "text": "Community",
+         "tf": {
+          "fs": 13,
+          "col": "#2340FF",
+          "fw": 700
+         }
+        },
+        {
+         "type": "heading",
+         "x": 28,
+         "y": 72,
+         "w": 272,
+         "h": 72,
+         "text": "£40",
+         "fs": "__disp-s",
+         "tf": {
+          "col": "#111111"
+         }
+        },
+        {
+         "type": "para",
+         "x": 28,
+         "y": 168,
+         "w": 272,
+         "h": 96,
+         "text": "Both days, every talk and workshop, lunch, coffee and the Friday drinks.",
+         "tf": {
+          "fs": 16
+         }
+        }
+       ]
+      },
+      {
+       "type": "box",
+       "x": 436,
+       "y": 264,
+       "w": 328,
+       "h": 288,
+       "radius": 16,
+       "boxBg": "#111111",
+       "kids": [
+        {
+         "type": "para",
+         "x": 28,
+         "y": 32,
+         "w": 272,
+         "h": 24,
+         "text": "Supporter",
+         "tf": {
+          "fs": 13,
+          "col": "#FFD23F",
+          "fw": 700
+         }
+        },
+        {
+         "type": "heading",
+         "x": 28,
+         "y": 72,
+         "w": 272,
+         "h": 72,
+         "text": "£120",
+         "fs": "__disp-s",
+         "tf": {
+          "col": "#FFFFFF"
+         }
+        },
+        {
+         "type": "para",
+         "x": 28,
+         "y": 168,
+         "w": 272,
+         "h": 96,
+         "text": "The same two days, and the difference pays for somebody else’s ticket.",
+         "tf": {
+          "fs": 16,
+          "col": "#FFFFFF"
+         }
+        }
+       ]
+      },
+      {
+       "type": "box",
+       "x": 792,
+       "y": 264,
+       "w": 328,
+       "h": 288,
+       "radius": 16,
+       "boxBg": "color-mix(in srgb, var(--wp--preset--color--contrast, #111) 5%, var(--wp--preset--color--base, #fff))",
+       "kids": [
+        {
+         "type": "para",
+         "x": 28,
+         "y": 32,
+         "w": 272,
+         "h": 24,
+         "text": "Student or skint",
+         "tf": {
+          "fs": 13,
+          "col": "#2340FF",
+          "fw": 700
+         }
+        },
+        {
+         "type": "heading",
+         "x": 28,
+         "y": 72,
+         "w": 272,
+         "h": 72,
+         "text": "Free",
+         "fs": "__disp-s",
+         "tf": {
+          "col": "#111111"
+         }
+        },
+        {
+         "type": "para",
+         "x": 28,
+         "y": 168,
+         "w": 272,
+         "h": 96,
+         "text": "Tell us in the form below. Nobody will ask why.",
+         "tf": {
+          "fs": 16
+         }
+        }
+       ]
+      },
+      {
+       "type": "para",
+       "x": 80,
+       "y": 600,
+       "w": 900,
+       "h": 24,
+       "text": "Tickets go on sale on 1 February. Ask below and we will hold one for you.",
+       "tf": {
+        "fs": 16,
+        "col": "color-mix(in srgb, var(--wp--preset--color--contrast, #111) 62%, transparent)"
+       }
+      }
+     ]
+    },
+    {
+     "take": "Get in touch",
+     "eyebrow": "Ask for a ticket",
+     "heading": "Hold one for me",
+     "text": "Which ticket, your name, and anything we should know about access, diet or childcare. We reply within a day."
+    }
+   ]
+  }
+ ],
+ "posts": [
+  {
+   "title": "The call for speakers is open",
+   "image": "https://images.unsplash.com/photo-1587825140708-dfaf72ae4b04?w=1600&q=80&fm=jpg&fit=max",
+   "text": "We want to hear from people who build things with WordPress every day: developers, designers, writers, the person who looks after the site at the village hall.\n\nTalks are thirty minutes. First-time speakers get a mentor, a practice run and a coffee on us.\n\nThe call closes on 30 November. Send us an idea in a paragraph; that is all we need to start."
+  },
+  {
+   "title": "Why the Old Mill",
+   "image": "https://images.unsplash.com/photo-1776090188437-e368bbb75d93?w=1600&q=80&fm=jpg&fit=max",
+   "text": "We looked at nine venues. The Old Mill was the only one with step-free access to every room, daylight in the main hall, and a yard big enough for six hundred people to eat lunch in.\n\nIt is also ten minutes from the station, along the canal, which is the nicest walk to a conference we know."
+  },
+  {
+   "title": "Every talk will be captioned",
+   "image": "https://images.unsplash.com/photo-1540575467063-178a50c2df87?w=1600&q=80&fm=jpg&fit=max",
+   "text": "This year every talk in the Mill Hall has live captions on the big screen, written by people, not software.\n\nThe captions will also go into the recordings, which go up a week after the event."
+  }
+ ],
+ "credits": [
+  {
+   "name": "Headway",
+   "link": "https://unsplash.com/@headwayio"
+  },
+  {
+   "name": "Alexandre Pellaes",
+   "link": "https://unsplash.com/@apellaes"
+  },
+  {
+   "name": "LISK OBE",
+   "link": "https://unsplash.com/@summerobelisk"
+  },
+  {
+   "name": "blue sky",
+   "link": "https://unsplash.com/@bluext"
+  },
+  {
+   "name": "Vitaly Gariev",
+   "link": "https://unsplash.com/@silverkblack"
+  },
+  {
+   "name": "Jake Nackos",
+   "link": "https://unsplash.com/@jakenackos"
+  },
+  {
+   "name": "Nolan Manning",
+   "link": "https://unsplash.com/@nolanrmanning"
+  },
+  {
+   "name": "Jurica Koletić",
+   "link": "https://unsplash.com/@juricakoletic"
+  },
+  {
+   "name": "nrd",
+   "link": "https://unsplash.com/@nicotitto"
+  },
+  {
+   "name": "Akshar Dave",
+   "link": "https://unsplash.com/@akshar_dave"
+  },
+  {
+   "name": "Laura Chouette",
+   "link": "https://unsplash.com/@laurachouette"
+  }
+ ]
+}
