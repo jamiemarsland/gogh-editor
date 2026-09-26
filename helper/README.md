@@ -29,6 +29,23 @@ The final KB is prose + appendix, with a header telling the model **the appendix
 
 So a stale prose paragraph degrades the bot's *explanations*, never its *facts*.
 
+## The connector: chat to an AI, get a blueprint
+
+The Worker is also a remote MCP server at `/mcp`, so anyone can add it to Claude Desktop (or another assistant that speaks MCP) and say "build me a WordPress site for my florist". Three tools:
+
+| | |
+|---|---|
+| `gogh_rules` | how a site definition works: the takes, their fields, the writing rules, a complete example |
+| `gogh_pictures` | searches Unsplash for real photographs: urls to use as-is, the photographer to credit, each photo's dominant colour |
+| `gogh_check` | validates a draft and returns the problems by page and section, plus a summary |
+| `gogh_publish` | stores the definition and returns a Playground link that builds the site in the browser in about a minute |
+
+The AI writes content and choices, never layout: the editor draws the definition with gogh's tested takes on first load (`?gogh-edit=1&gogh-build=1`). A published site serves `/d/<id>.json` (the definition) and `/b/<id>.json` (the blueprint, which installs gogh from `PLUGIN_ZIP_URL` and boots from the definition). Definitions live in the `SITES` KV namespace for `SITE_TTL_DAYS`; `PUBLISH_DAILY_LIMIT` caps one address's publishes a day. No AI key is spent here — the person's own assistant does the composing.
+
+Anyone can also drop a screenshot or a mockup into `/build` — by the ＋ button, by dragging it onto the page, or by pasting it — and the site is built from what it shows. The picture is shrunk in the browser before it is sent, reaches the model once, and never rides home in the conversation history. In an AI app the connector gets this free: paste the screenshot into the chat and the assistant sees it, then calls the tools as usual.
+
+Test it: `node helper/worker/test-mcp.mjs` (after `python3 helper/refresh.py`). To add it in Claude Desktop: Settings → Connectors → Add custom connector → URL `https://<your-worker>/mcp`.
+
 ## Running it
 
 ```
