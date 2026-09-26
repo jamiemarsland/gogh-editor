@@ -379,7 +379,8 @@ Why templated at all? Because it lets the scope class be reassigned (duplicated 
 | `badge` | `core/paragraph` | className `gogh-el-N gogh-badge`. **A badge is just a paragraph** — the star bullet and pill chrome are `::before` and rules in the scoped sheet. There is no `gogh/badge` block |
 | `box` | `core/group` | `gogh-el-N gogh-box` (+ `gogh-cardbox` with kids). `href` adds an `<a class="gogh-card-link">`. Kids publish **inside** via the `gogh-k-` prefix, so with the plugin off a card degrades to stacked blocks in a group |
 | `widget` | `core/group` wrapping `wsrc` verbatim | For atomic blocks — navigation, site title, query loop. The Posts element produces a real `core/query` + `core/post-template` |
-| `exp` | `core/group` containing only `<a class="gogh-exp-link">` | KSES-safe and the plugin-off fallback; PHP swaps it for the sandboxed iframe at render |
+| `exp` | `core/group` > `core/paragraph.gogh-fallback` > `<a class="gogh-exp-link">` | KSES-safe and the plugin-off fallback; PHP swaps the group's inside for the sandboxed iframe at render. The link sits in a paragraph because a loose `<a>` in a group fails block validation in the block editor |
+| `embed` (map) | `core/group.gogh-embed-map` > `core/paragraph.gogh-fallback` > `<a class="gogh-embed-link">` | Same contract as `exp`: PHP (`gogh_inject_embeds`) swaps the inside for the map's iframe. Pages published through v0.99.646 hold the link loose in the group; the render still reads both |
 
 ### The section wrapper: v2 vs v3
 

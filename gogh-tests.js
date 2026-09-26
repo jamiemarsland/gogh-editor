@@ -45,6 +45,30 @@
     pev('pointerup', target, x + dx, y + dy, id);
   }
   function q(sel) { return document.querySelector(sel); }
+  // a published core/group whose class list carries `cls` must hold only
+  // blocks: its save() regenerates nothing but its inner blocks, so loose
+  // markup (a bare <a>) makes the block invalid in the block editor. With
+  // the core blocks registered (the block editor) it asks wp.blocks.parse;
+  // on the canvas it strips the inner block comments and wants nothing left.
+  // Returns null when it holds, else what went wrong.
+  function groupHoldsOnlyBlocks(markup, cls) {
+    var m = markup.match(new RegExp('<!-- wp:group (\\{[^\\n]*?\\b' + cls + '\\b[^\\n]*?\\}) -->\\n([\\s\\S]*?)\\n<!-- /wp:group -->'));
+    if (!m) return 'no group carrying ' + cls;
+    var whole = m[0];
+    if (window.wp && wp.blocks && wp.blocks.parse && wp.blocks.getBlockType && wp.blocks.getBlockType('core/group')) {
+      var bad = [];
+      (function walk(bs) { bs.forEach(function (b) { if (!b.isValid) bad.push(b.name); walk(b.innerBlocks || []); }); })(wp.blocks.parse(whole));
+      return bad.length ? 'invalid in the block editor: ' + bad.join(', ') : null;
+    }
+    var inner = m[2].replace(/^<div class="wp-block-group [^"]*">/, '').replace(/<\/div>$/, '');
+    var prev;
+    do {
+      prev = inner;
+      inner = inner.replace(/<!-- wp:[a-z0-9\/-]+ (?:\{[^\n]*?\} )?\/-->/g, '')
+        .replace(/<!-- wp:([a-z0-9\/-]+) (?:\{[^\n]*?\} )?-->(?:(?!<!-- \/?wp:)[\s\S])*?<!-- \/wp:\1 -->/g, '');
+    } while (inner !== prev);
+    return /\S/.test(inner) ? 'loose markup in the group: ' + inner.trim().slice(0, 80) : null;
+  }
   // the design view eases back over 0.4s when it closes; the Browser pane
   // the suite runs in freezes CSS transitions at their start, so a test that
   // leaves the zoom has to snap the page home for the coordinate tests after it
@@ -1336,7 +1360,11 @@
       var fr = s0.nodes[idx].querySelector('iframe');
       expect(fr && /output=embed/.test(fr.getAttribute('src')), 'the canvas did not frame the map');
       var blocks = G.blocksV3(s0);
-      expect(/gogh-embed gogh-embed-map"><a class="gogh-embed-link" href="https:\/\/www\.google\.com\/maps\/place\/Cape\+Town/.test(blocks), 'the map did not publish as a group with a plain link');
+      expect(/gogh-embed gogh-embed-map">\n<!-- wp:paragraph \{"className":"gogh-fallback"\} -->\n<p class="gogh-fallback"><a class="gogh-embed-link" href="https:\/\/www\.google\.com\/maps\/place\/Cape\+Town/.test(blocks), 'the map did not publish as a group with a plain link in a paragraph');
+      // a loose <a> in the group made every published map an invalid block
+      // in the block editor ("Expected EndTag, saw StartTag")
+      var mapBad = groupHoldsOnlyBlocks(blocks, 'gogh-embed-map');
+      expect(!mapBad, 'the published map group is not valid block markup: ' + mapBad);
       // the model keeps the link: the page renderer frames the map from it
       expect(/"type":"embed"[^{}]*"url":"https:\/\/www\.google\.com\/maps\/place\/Cape\+Town/.test(blocks), 'the saved model should keep the map\u2019s link, or the live page cannot frame it');
       G.setEmbed(s0, idx, 'https://www.youtube.com/watch?v=abc123def');
@@ -6318,6 +6346,11 @@
       var v3 = G.buildV3();
       expect(v3.indexOf('<iframe') === -1, 'iframe must never be stored');
       expect(v3.indexOf('gogh-exp-link') !== -1, 'no fallback link in stored markup');
+      var expBad = groupHoldsOnlyBlocks(v3, 'gogh-exp');
+      expect(!expBad, 'the published experience group is not valid block markup: ' + expBad);
+      // the check itself catches the old shape, a bare link in the group
+      expect(groupHoldsOnlyBlocks('<!-- wp:group {"className":"gogh-el-1 gogh-exp"} -->\n<div class="wp-block-group gogh-el-1 gogh-exp"><a class="gogh-exp-link" href="about:blank">Open interactive experience</a></div>\n<!-- /wp:group -->', 'gogh-exp'),
+        'a bare link in a group should fail the block check');
       expect(v3.indexOf('"expId":123') !== -1, 'expId missing from model attrs');
       var css = s0.styleEl.textContent;
       var L = s0.els.length;

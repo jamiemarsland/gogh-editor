@@ -1246,6 +1246,12 @@
   function escAttr(s) {
     return esc(s).replace(/"/g, '&quot;');
   }
+  // a fallback link as a real block: a group's save() only regenerates its
+  // inner blocks, so a loose <a> in one fails the block editor's validation.
+  // The render swaps the whole group's inside, paragraph and all
+  function linkPara(a) {
+    return '\n<!-- wp:paragraph {"className":"gogh-fallback"} -->\n<p class="gogh-fallback">' + a + '</p>\n<!-- /wp:paragraph -->\n';
+  }
   // a design's own class names on a piece or a section (core blocks call it
   // 'Additional CSS class'): letters, digits and dashes, never gogh's own
   // prefix, at most four. They ride the model, the canvas and the published
@@ -1390,10 +1396,13 @@
         case 'embed': {
           var ei = e.url ? embedInfo(e.url) : null;
           if (ei && ei.kind === 'map') {
-            // a plain link in the stored markup; gogh_render_section frames it
+            // a plain link in the stored markup; gogh_render_section frames it.
+            // The link rides in a paragraph: core/group's save() only knows
+            // its inner blocks, so a bare <a> fails validation in the editor
             return '<!-- wp:group ' + JSON.stringify({ className: cls + ' gogh-embed gogh-embed-map', layout: { type: 'default' } }) + ' -->\n' +
               '<div class="wp-block-group ' + cls + ' gogh-embed gogh-embed-map">' +
-              '<a class="gogh-embed-link" href="' + escAttr(ei.url) + '" rel="noopener">Open the map</a></div>\n<!-- /wp:group -->';
+              linkPara('<a class="gogh-embed-link" href="' + escAttr(ei.url) + '" rel="noopener">Open the map</a>') +
+              '</div>\n<!-- /wp:group -->';
           }
           if (ei) {
             // the URL on its own line: WordPress swaps it for the provider's player
@@ -1462,7 +1471,7 @@
           // plugin off); gogh_render_section swaps it for the sandboxed iframe
           return '<!-- wp:group ' + JSON.stringify({ className: cls + ' gogh-exp' }) + ' -->\n' +
             '<div class="wp-block-group ' + cls + ' gogh-exp">' +
-            (e.expUrl ? '<a class="gogh-exp-link" href="' + escAttr(e.expUrl) + '">Open interactive experience</a>' : '') +
+            (e.expUrl ? linkPara('<a class="gogh-exp-link" href="' + escAttr(e.expUrl) + '">Open interactive experience</a>') : '') +
             '</div>\n<!-- /wp:group -->';
       }
     }).join('\n\n');

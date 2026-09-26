@@ -172,7 +172,8 @@ function gogh_inject_embeds( $attrs, $content ) {
 		$url = ! empty( $e['url'] ) ? (string) $e['url'] : '';
 		// pages published before the model kept the link (v0.99.651) still
 		// carry it in the markup: read it back so their maps frame too
-		if ( '' === $url && preg_match( '/<div class="[^"]*\bgogh-el-' . ( $i + 1 ) . '\b[^"]*\bgogh-embed-map\b[^"]*">\s*<a class="gogh-embed-link" href="([^"]+)"/', $content, $mm ) ) {
+		// (the link sat loose in the group through v0.99.646, in a paragraph since)
+		if ( '' === $url && preg_match( '/<div class="[^"]*\bgogh-el-' . ( $i + 1 ) . '\b[^"]*\bgogh-embed-map\b[^"]*">\s*(?:<p\b[^>]*>\s*)?<a class="gogh-embed-link" href="([^"]+)"/', $content, $mm ) ) {
 			$url = html_entity_decode( $mm[1], ENT_QUOTES );
 		}
 		if ( '' === $url ) {
