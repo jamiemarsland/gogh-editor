@@ -1344,7 +1344,13 @@
         case 'button': {
           var href = e.href ? escAttr(e.href) : '#';
           var attrs = {};
-          if (e.ghost) attrs.className = 'gogh-ghost';
+          // a block style (is-style-…) belongs to core/button, where the
+          // block editor's Styles panel reads it; every other class stays on
+          // the Buttons wrapper gogh places
+          var bSty = cls.split(' ').filter(function (c) { return /^is-style-/.test(c); }).join(' ');
+          cls = cls.split(' ').filter(function (c) { return !/^is-style-/.test(c); }).join(' ');
+          var btnCls = [bSty, e.ghost ? 'gogh-ghost' : ''].filter(Boolean).join(' ');
+          if (btnCls) attrs.className = btnCls;
           if (e.href) attrs.url = e.href;
           if (e.btnBg) attrs.backgroundColor = e.btnBg;
           if (e.btnText) attrs.textColor = e.btnText;
@@ -1355,7 +1361,7 @@
           var attrJson = JSON.stringify(attrs);
           return '<!-- wp:buttons {"className":"' + cls + '"} -->\n' +
             '<div class="wp-block-buttons ' + cls + '"><!-- wp:button ' + (attrJson !== '{}' ? attrJson + ' ' : '') + '-->\n' +
-            '<div class="wp-block-button' + (e.ghost ? ' gogh-ghost' : '') + '">' +
+            '<div class="wp-block-button' + (btnCls ? ' ' + btnCls : '') + '">' +
             '<a class="' + linkCls + '" href="' + href + '">' + esc(e.text) + '</a></div>\n' +
             '<!-- /wp:button --></div>\n<!-- /wp:buttons -->';
         }
@@ -1818,16 +1824,19 @@
         n = document.createElement('hr');
         n.className = 'wp-block-separator has-alpha-channel-opacity gogh-rule ' + cls + (e.color ? ' has-text-color has-' + e.color + '-color' : '');
         break;
-      case 'button':
+      case 'button': {
+        // the style class on the inner button, as published (buildElBlocks)
+        var nSty = cls.split(' ').filter(function (c) { return /^is-style-/.test(c); }).join(' ');
         n = document.createElement('div');
-        n.className = 'wp-block-buttons ' + cls;
-        n.innerHTML = '<div class="wp-block-button' + (e.ghost ? ' gogh-ghost' : '') + '">' +
+        n.className = 'wp-block-buttons ' + cls.split(' ').filter(function (c) { return !/^is-style-/.test(c); }).join(' ');
+        n.innerHTML = '<div class="wp-block-button' + (nSty ? ' ' + nSty : '') + (e.ghost ? ' gogh-ghost' : '') + '">' +
           '<a class="wp-block-button__link' +
           (e.btnText ? ' has-' + e.btnText + '-color has-text-color' : '') +
           (e.btnBg ? ' has-' + e.btnBg + '-background-color has-background' : '') +
           ' wp-element-button" href="#"></a></div>';
         n.querySelector('a').textContent = e.text;
         break;
+      }
       case 'image':
         if (e.src) {
           n = document.createElement('figure');
@@ -3167,7 +3176,7 @@
   elbar.innerHTML =
     '<button type="button" class="gogh-eb gogh-eb-ctx"></button>' +
     // the design's looks for this kind of piece, named ("Yellow print")
-    '<button type="button" class="gogh-eb gogh-eb-look" title="Choose a look"></button>' +
+    '<button type="button" class="gogh-eb gogh-eb-look" title="Choose a style"></button>' +
     '<button type="button" class="gogh-eb gogh-eb-manage" title="Open your products in WordPress">Manage products</button>' +
     '<button type="button" class="gogh-eb gogh-eb-fs" title="Cycle theme font sizes"></button>' +
     '<button type="button" class="gogh-eb gogh-eb-fit" title="Fill the width — size the text to its box">' +
@@ -3199,13 +3208,18 @@
   lookBtn.addEventListener('click', function () {
     if (sel) openLookPanel(sel.sec, sel.i);
   });
-  function dressLookBtn(e) {
+  function dressLookBtn(e, sec) {
     var looks = e && !e.rails ? designLooks(e.type) : [];
     if (!looks.length) { lookBtn.style.display = 'none'; return; }
     var cur = lookOf(e);
-    lookBtn.innerHTML = '<span class="gogh-eb-lookname">' + esc(cur ? cur.name : 'Look') + '</span>' +
+    // a swatch of the style, drawn live on the section's own ground: the
+    // same sample the panel shows, small
+    if (sec) lookGround(sec, elbar);
+    var sw = cur ? lookSample(e, cur, true) : '';
+    lookBtn.innerHTML = (sw ? '<span class="gogh-eb-lookswatch" aria-hidden="true"><span class="wp-site-blocks gogh-look-site">' + sw + '</span></span>' : '') +
+      '<span class="gogh-eb-lookname">' + esc(cur ? cur.name : 'Style') + '</span>' +
       '<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>';
-    lookBtn.title = cur ? 'Look: ' + cur.name + ' \u2014 choose another' : 'Choose a look';
+    lookBtn.title = cur ? 'Style: ' + cur.name + ' \u2014 choose another' : 'Choose a style';
     lookBtn.style.display = '';
   }
   var phoneBtn = elbar.querySelector('.gogh-eb-phone');
@@ -4048,7 +4062,7 @@
       colBtn.style.display = 'none';
     }
     dressPhoneBtn(e);
-    dressLookBtn(e);
+    dressLookBtn(e, sec);
     elbar.hidden = false;
   }
 
@@ -7656,19 +7670,29 @@
     return e;
   }
   // ---------- the looks panel: a picture of this piece in each look ----------
-  function lookSample(e, lk) {
+  function lookSample(e, lk, mini) {
     var c = 'is-style-' + lk.slug;
     if (e.type === 'button') {
-      return '<div class="wp-block-buttons ' + c + '"><div class="wp-block-button' + (e.ghost ? ' gogh-ghost' : '') + '">' +
-        '<span class="wp-block-button__link wp-element-button">' + esc(String(e.text || 'Button').replace(/<[^>]*>/g, '').slice(0, 18)) + '</span></div></div>';
+      return '<div class="wp-block-buttons"><div class="wp-block-button ' + c + (e.ghost ? ' gogh-ghost' : '') + '">' +
+        '<span class="wp-block-button__link wp-element-button">' + (mini ? '' : esc(String(e.text || 'Button').replace(/<[^>]*>/g, '').slice(0, 18))) + '</span></div></div>';
     }
     if (e.type === 'image') {
       return e.src
         ? '<figure class="wp-block-image size-full gogh-img ' + c + '"><img src="' + escAttr(e.src) + '" alt=""></figure>'
-        : '<span class="gogh-look-noimg">Choose a picture to see it</span>';
+        : (mini ? '' : '<span class="gogh-look-noimg">Choose a picture to see it</span>');
     }
     if (e.type === 'heading') return '<h2 class="wp-block-heading ' + c + '">Aa</h2>';
     return '<p class="' + c + '">Aa Bb</p>';
+  }
+  // the samples sit on the section's own ground, in its own ink
+  function lookGround(sec, host) {
+    try {
+      var cs = getComputedStyle(sec.sectionEl);
+      var bg = cs.backgroundColor;
+      if (!bg || bg === 'transparent' || /rgba\(.*,\s*0\)$/.test(bg)) bg = getComputedStyle(document.body).backgroundColor;
+      host.style.setProperty('--gogh-look-bg', bg || '#fff');
+      host.style.setProperty('--gogh-look-fg', cs.color);
+    } catch (err) {}
   }
   function openLookPanel(sec, i) {
     var e = sec.els[i];
@@ -7676,23 +7700,16 @@
     if (!looks.length) return;
     var cur = lookOf(e);
     var KIND = { heading: 'Heading', para: 'Text', button: 'Button', image: 'Picture' };
-    panel.innerHTML = '<div class="gogh-panel-title">Look \u00b7 ' + (KIND[e.type] || 'Piece') + '</div>' +
+    panel.innerHTML = '<div class="gogh-panel-title">Style \u00b7 ' + (KIND[e.type] || 'Piece') + '</div>' +
       '<div class="gogh-looks">' + looks.map(function (lk, n) {
         var on = cur && cur.slug === lk.slug;
         return '<button type="button" class="gogh-look' + (on ? ' is-on' : '') + '" data-n="' + n + '" aria-pressed="' + (on ? 'true' : 'false') + '">' +
           '<span class="gogh-look-stage gogh-look-' + e.type + '"><span class="wp-site-blocks gogh-look-site">' + lookSample(e, lk) + '</span></span>' +
           '<span class="gogh-look-name"><b>' + esc(lk.name) + '</b>' + (lk.default ? '<i>Default</i>' : '') + '</span></button>';
       }).join('') + '</div>' +
-      '<div class="gogh-panel-hint">Looks come with ' + esc((cfg.design && cfg.design.name) || 'the design') + '. New ' +
+      '<div class="gogh-panel-hint">Styles come with ' + esc((cfg.design && cfg.design.name) || 'the design') + '. New ' +
       ((KIND[e.type] || 'piece').toLowerCase() === 'text' ? 'text' : (KIND[e.type] || 'piece').toLowerCase() + 's') + ' arrive in the default.</div>';
-    // the samples sit on this section's own ground, in its own ink
-    try {
-      var cs = getComputedStyle(sec.sectionEl);
-      var bg = cs.backgroundColor;
-      if (!bg || bg === 'transparent' || /rgba\(.*,\s*0\)$/.test(bg)) bg = getComputedStyle(document.body).backgroundColor;
-      panel.style.setProperty('--gogh-look-bg', bg || '#fff');
-      panel.style.setProperty('--gogh-look-fg', cs.color);
-    } catch (err) {}
+    lookGround(sec, panel);
     placePanelNear(sec.nodes[i] || sec.sectionEl);
     panelOpen = true;
     panelSticky = false;
@@ -14877,7 +14894,10 @@
     inner.style.width = '100%';
     inner.style.height = '100%';
     var el = document.createElement('div');
-    el.className = 'gogh-wrap gogh-section ' + sec.scope + ' gogh-ghostel';
+    // wp-site-blocks too: a design's CSS scoped to the site (Misprint's wide,
+    // heavy headings, its buttons) dropped off the ghost, so the piece
+    // changed under the hand (James: "they lose their style a little")
+    el.className = 'wp-site-blocks gogh-wrap gogh-section ' + sec.scope + ' gogh-ghostel';
     el.style.cssText = 'position:fixed;display:block;background:transparent;container-type:normal;left:' + gL + 'px;top:' + gT + 'px;width:' + gW + 'px;height:' + gH + 'px;';
     el.appendChild(inner);
     document.body.appendChild(el);
@@ -15588,7 +15608,7 @@
         'backdrop-filter:none !important;-webkit-backdrop-filter:none !important;min-height:0 !important;';
       gcard.appendChild(kg);
       var gwrap = document.createElement('div');
-      gwrap.className = 'gogh-section ' + sec.scope + ' gogh-kid-ghost gogh-kid-ghost-in';
+      gwrap.className = 'wp-site-blocks gogh-section ' + sec.scope + ' gogh-kid-ghost gogh-kid-ghost-in';
       gwrap.style.cssText = 'position:fixed !important;display:block !important;background:none !important;container-type:normal;min-height:0 !important;' +
         'padding:0 !important;margin:0 !important;gap:0 !important;left:' + kr0.left + 'px;top:' + kr0.top + 'px;width:' + kr0.width + 'px;height:' + kr0.height + 'px;';
       gwrap.appendChild(gcard);

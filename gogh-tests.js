@@ -6762,15 +6762,25 @@
         expect(G.looks.of(h).slug === 'misregistered', 'the look should be read from the classes');
         G.looks.wear(h, G.looks.list('heading')[1]);
         expect(h.cls === 'is-style-plain riso-big', 'wearing a look swaps it in first place and keeps the other classes: ' + h.cls);
-        G.addSection({ name: 'Looks', minH: 432, els: [{ type: 'heading', x: 80, y: 96, w: 600, h: 96, text: 'Two inks', cls: 'is-style-misregistered' }] }, n0);
+        G.addSection({ name: 'Looks', minH: 432, els: [{ type: 'heading', x: 80, y: 96, w: 600, h: 96, text: 'Two inks', cls: 'is-style-misregistered' },
+          { type: 'button', x: 80, y: 240, w: 200, h: 48, text: 'Go', cls: 'is-style-pink-print riso-extra' }] }, n0);
         added = true;
         var sec = G.sections()[n0];
         G.placeHandles(sec, 0);
         var chip = q('.gogh-eb-look');
-        expect(chip && chip.style.display !== 'none' && /Misregistered/.test(chip.textContent), 'the bar should name the heading’s look');
+        expect(chip && chip.style.display !== 'none' && /Misregistered/.test(chip.textContent), 'the bar should name the heading’s style');
+        expect(chip.querySelector('.gogh-eb-lookswatch h2.is-style-misregistered'), 'the chip should carry a live swatch of the style');
+        var bNode = sec.nodes[1];
+        expect(bNode.querySelector('.wp-block-button.is-style-pink-print') && !bNode.classList.contains('is-style-pink-print') && bNode.classList.contains('riso-extra'),
+          'a button’s style class sits on the inner button (where core puts it), the rest on the wrapper');
+        var bBlocks = G.blocksV3(sec);
+        expect(/<!-- wp:button \{[^}]*"className":"is-style-pink-print"/.test(bBlocks) && /<div class="wp-block-button is-style-pink-print">/.test(bBlocks),
+          'the published core/button should carry the style, so the block editor’s Styles panel shows it');
+        expect(/<div class="wp-block-buttons gogh-el-2 riso-extra">/.test(bBlocks), 'the Buttons wrapper keeps the other classes: ' + (bBlocks.match(/wp-block-buttons[^"]*/) || [''])[0]);
         G.looks.open(sec, 0);
         var tiles = document.querySelectorAll('.gogh-panel .gogh-look');
-        expect(tiles.length === 2, 'the panel should show one tile per look: ' + tiles.length);
+        expect(tiles.length === 2, 'the panel should show one tile per style: ' + tiles.length);
+        expect(/^Style · Heading/.test(q('.gogh-panel .gogh-panel-title').textContent), 'the panel is called Style, like core’s');
         expect(tiles[0].classList.contains('is-on') && /Default/.test(tiles[0].textContent), 'the worn look is marked, the default says so');
         expect(tiles[1].querySelector('h2.is-style-plain'), 'each tile should draw the piece in its look');
         tiles[1].click();

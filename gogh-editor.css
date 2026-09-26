@@ -261,6 +261,10 @@ html.gogh-editing:not(.gogh-phone-preview) .gogh-section > .gogh-m-hidden::after
   background: #fff; color: #4f5aee; border: 1px solid #c9cff5;
   font: 700 10px/1.4 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   letter-spacing: 0.02em; padding: 1px 6px; border-radius: 5px; pointer-events: none; white-space: nowrap;
+  /* a design's text effects (an outline stroke, a misregistered shadow)
+     inherit into the tag and garbled it: the tag is gogh's, not the page's */
+  -webkit-text-stroke: 0; text-shadow: none; text-transform: none; text-decoration: none;
+  mix-blend-mode: normal; animation: none; opacity: 1; filter: none;
 }
 /* the piece bar's phone button: plain when shown, lit and slashed when hidden */
 .gogh-eb-phone svg { display: block; }
@@ -4423,9 +4427,19 @@ html.gogh-building .gogh-inserter, html.gogh-building .gogh-side { display: none
 
 /* ---- a design's named looks: the chip on the piece's bar, the looks panel,
    and the design's own shelf in the section picker ---- */
-.gogh-eb-look { display: inline-flex; align-items: center; gap: 5px; font-size: 13px; font-weight: 600; background: #f1f2f5; max-width: 150px; }
+/* flat like the Aa label beside it: a live swatch, the name, a caret, then a
+   hairline so the style reads as the piece's first fact, not a stray pill */
+.gogh-eb-look { position: relative; display: inline-flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 600; max-width: 170px; padding: 5px 8px 5px 5px; margin-right: 7px; }
+.gogh-eb-look::after { content: ""; position: absolute; right: -5px; top: 7px; bottom: 7px; width: 1px; background: rgba(22, 24, 28, .14); }
 .gogh-eb-look .gogh-eb-lookname { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.gogh-eb-look svg { flex: 0 0 auto; opacity: .6; }
+.gogh-eb-look > svg { flex: 0 0 auto; opacity: .55; }
+.gogh-eb-lookswatch { position: relative; flex: 0 0 auto; width: 22px; height: 22px; border-radius: 6px; overflow: hidden; background: var(--gogh-look-bg, #f3eee4); color: var(--gogh-look-fg, #16181c); box-shadow: inset 0 0 0 1px rgba(22, 24, 28, .12); pointer-events: none; }
+.gogh-eb-lookswatch .gogh-look-site.wp-site-blocks { position: absolute; left: 0; top: 0; width: 44px; height: 44px; transform: scale(.5); transform-origin: 0 0; }
+.gogh-eb-lookswatch h2 { font-size: 21px !important; line-height: 1 !important; margin: 0 !important; white-space: nowrap; }
+.gogh-eb-lookswatch p { font-size: 20px !important; line-height: 1 !important; margin: 0 !important; white-space: nowrap; }
+.gogh-eb-lookswatch .wp-block-button__link { display: block; width: 28px; height: 16px; padding: 0 !important; font-size: 0 !important; box-sizing: border-box; }
+.gogh-eb-lookswatch figure.wp-block-image { position: absolute !important; inset: 0; margin: 0 !important; transform: none !important; }
+.gogh-eb-lookswatch figure.wp-block-image img { display: block; width: 100%; height: 100%; object-fit: cover; }
 .gogh-looks { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin: 10px 0 8px; }
 .gogh-look { all: unset; box-sizing: border-box; cursor: pointer; display: flex; flex-direction: column; border: 1px solid rgba(22, 24, 28, .12); border-radius: 10px; overflow: hidden; background: #fff; color: #16181c; }
 .gogh-look:hover { border-color: #9db8ff; }
@@ -4446,3 +4460,10 @@ html.gogh-building .gogh-inserter, html.gogh-building .gogh-side { display: none
 .gogh-look-name i { font-style: normal; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: #6b7280; }
 .gogh-look.is-on .gogh-look-name i { color: #3858e9; }
 .gogh-card-note { font-style: normal; font-weight: 500; font-size: 11.5px; color: #6b7280; margin-left: auto; text-align: right; }
+
+/* the drag ghosts wear wp-site-blocks so a design's site-scoped CSS still
+   dresses the piece under the hand; the theme's and the phone frame's
+   paint for the real wrapper stays off them */
+.wp-site-blocks.gogh-ghostel, .wp-site-blocks.gogh-kid-ghost { padding: 0 !important; min-height: 0 !important; overflow: visible !important; }
+.wp-site-blocks.gogh-ghostel { border-radius: 8px !important; }
+.wp-site-blocks.gogh-kid-ghost { border-radius: 0 !important; }
