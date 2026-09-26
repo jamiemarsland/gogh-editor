@@ -6794,6 +6794,28 @@
         expect(sec.nodes[0].classList.contains('is-style-plain') && !sec.nodes[0].classList.contains('is-style-misregistered'), 'the canvas should wear the new look');
         expect(/Plain/.test(q('.gogh-eb-look').textContent), 'the chip should follow');
         expect(/gogh-el-1 is-style-plain/.test(G.blocksV3(sec)), 'the published block should carry the look');
+        // last action wins: a colour picked before a style gives way to it
+        sec.els[0].color = 'contrast';
+        tiles[0].click();
+        expect(!sec.els[0].color && sec.els[0].cls === 'is-style-misregistered', 'choosing a style clears the colour picked before it: ' + sec.els[0].color);
+        G.closePanel();
+        G.placeHandles(sec, 0);
+        q('.gogh-eb-col').click();
+        var stSw = q('.gogh-panel .gogh-sw-style');
+        expect(stSw && /Misregistered/.test(stSw.title) && stSw.classList.contains('is-active'), 'the colour panel\u2019s first swatch is the style\u2019s own colour');
+        G.closePanel();
+        // a corner-drag fit: the size label says Fitted, not the old name
+        sec.els[0].fitW = true;
+        G.placeHandles(sec, 0);
+        expect(/^Aa \u00b7 Fitted$/.test(q('.gogh-eb-fs').textContent), 'fitted text should say Fitted: ' + q('.gogh-eb-fs').textContent);
+        sec.els[0].fitW = false;
+        sec.els[0].fs = 'x-large';
+        G.placeHandles(sec, 0);
+        expect(q('.gogh-eb-fs').textContent === 'Aa \u00b7 Extra large', 'a theme size reads as words: ' + q('.gogh-eb-fs').textContent);
+        sec.els[0].fs = null;
+        G.looks.open(sec, 0);
+        tiles = document.querySelectorAll('.gogh-panel .gogh-look');
+        tiles[1].click();
         G.closePanel();
         expect(G.defaults('card').cls === 'is-style-plain', 'a new shape should arrive in the shape default: ' + G.defaults('card').cls);
         // a piece inside a card: its own small bar carries the style chip

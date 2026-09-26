@@ -19,6 +19,14 @@
   };
   var DISPLAY_ORDER = ['__disp-s', '__disp-m', '__disp-l'];
   var DISPLAY_LABEL = { '__disp-s': 'Display S', '__disp-m': 'Display M', '__disp-l': 'Display L' };
+  // a theme's size slugs, as words a person would use ('xx-large' was shown raw)
+  var SIZE_WORDS = { 'xx-small': 'Tiny', 'x-small': 'Extra small', small: 'Small', medium: 'Medium', large: 'Large', 'x-large': 'Extra large', 'xx-large': 'Huge' };
+  function sizeWord(slug) {
+    if (DISPLAY_LABEL[slug]) return DISPLAY_LABEL[slug];
+    if (SIZE_WORDS[slug]) return SIZE_WORDS[slug];
+    var w = String(slug || '').replace(/-/g, ' ');
+    return w.charAt(0).toUpperCase() + w.slice(1);
+  }
   if (!cfg) return;
 
   var TOL = 8, MIN_H = 576, PAD = 72, SNAP = 6, BASE = 8, W = 1200, RHYTHM = 24, MAJOR = 72;
@@ -4028,7 +4036,10 @@
       ctxBtn.style.display = '';
     }
     if (isText(e)) {
-      fsBtn.textContent = 'Aa' + (e.fs ? ' · ' + (DISPLAY_LABEL[e.fs] || e.fs) : '');
+      // a corner-drag fits the words to the box: the named size no longer
+      // applies, so the label says so (James: "should the selector change?")
+      fsBtn.textContent = 'Aa' + (e.fitW ? ' \u00b7 Fitted' : e.fs ? ' \u00b7 ' + sizeWord(e.fs) : '');
+      fsBtn.title = e.fitW ? 'Fitted to the width \u2014 tap for a named size' : 'Cycle theme font sizes';
       fsBtn.style.display = '';
       paintBtn.style.display = '';
       // corner-drag engages the fit now, so the button's only remaining job
@@ -6202,13 +6213,20 @@
   colBtn.addEventListener('click', function () {
     if (!sel) return;
     var sec = sel.sec, i = sel.i, e = sec.els[i];
+    // words wearing a design style: 'default' means the style's own colour,
+    // so the first swatch shows it and says so
+    var stl = (e.type === 'heading' || e.type === 'para') ? lookOf(e) : null;
+    var stlCol = stl ? lookColour(e, stl, sec) : null;
     panel.innerHTML = '<div class="gogh-panel-title">' + (e.type === 'rule' ? 'Line colour' : e.type === 'icon' ? 'Icon colour' : 'Text colour') + '</div>' +
       '<div class="gogh-swrow">' +
-      '<button type="button" class="gogh-sw gogh-sw-none" data-col="" title="Theme default"></button>' +
+      (stlCol
+        ? '<button type="button" class="gogh-sw gogh-sw-none gogh-sw-style' + (!e.color ? ' is-active' : '') + '" data-col="" style="background:' + escAttr(stlCol) + '" title="' + escAttr(stl.name) + '\u2019s colour"></button>'
+        : '<button type="button" class="gogh-sw gogh-sw-none" data-col="" title="Theme default"></button>') +
       pickerPalette().map(function (p) {
         return '<button type="button" class="gogh-sw' + (e.color === p.slug ? ' is-active' : '') + '" data-col="' + p.slug + '"' +
           ' style="background: var(--wp--preset--color--' + p.slug + ')" title="' + p.slug + '"></button>';
-      }).join('') + '</div>';
+      }).join('') + '</div>' +
+      (stlCol ? '<div class="gogh-panel-hint">The first colour is ' + esc(stl.name) + '\u2019s own. Choosing a style again clears your colour.</div>' : '');
     // the MODEL knows when a photo sits behind the words — the DOM walk
     // can't see a background layer painted beside the text's ancestors,
     // so it struck the pale inks that WORK on a dark photo (James: "why
@@ -7721,6 +7739,37 @@
       host.style.setProperty('--gogh-look-fg', getComputedStyle(node || sec.sectionEl).color);
     } catch (err) {}
   }
+  // the colour a style gives words, read from a hidden sample on the
+  // section's own ink (so Plain answers the section's text colour)
+  function lookColour(e, lk, sec) {
+    var host = document.createElement('div');
+    host.className = 'wp-site-blocks gogh-look-site';
+    host.setAttribute('aria-hidden', 'true');
+    host.style.cssText = 'position:absolute;left:-9999px;top:0;width:200px;height:60px;visibility:hidden;';
+    try { host.style.color = getComputedStyle(sec.sectionEl).color; } catch (err) {}
+    host.innerHTML = lookSample(e, lk);
+    document.body.appendChild(host);
+    var t = host.querySelector('h2, p');
+    var c = t ? getComputedStyle(t).color : null;
+    host.remove();
+    return c;
+  }
+  // choosing a style is choosing everything it paints: a colour picked
+  // earlier gives way, so the tile you clicked is what you get (the last
+  // action wins; a colour picked AFTER the style still beats it)
+  function clearStyledColour(e) {
+    var had = false;
+    if (e.type === 'heading' || e.type === 'para') {
+      if (e.color || (e.tf && e.tf.col)) had = true;
+      e.color = null;
+      if (e.tf) delete e.tf.col;
+    } else if (e.type === 'button') {
+      if (e.btnBg || e.btnText) had = true;
+      e.btnBg = null;
+      e.btnText = null;
+    }
+    return had;
+  }
   // the piece a style panel works on: a piece, or a piece inside a card
   function lookTarget(sec, i, j) {
     var h = sec.els[i];
@@ -7756,6 +7805,7 @@
         var lk = looks[+b.dataset.n];
         var e2 = lookTarget(sec, i, j);
         if (!lk || !e2) return;
+        clearStyledColour(e2);
         wearLook(e2, lk);
         renderSection(sec);
         pushState();
