@@ -15,7 +15,7 @@ about something where they conflict, rather than picking one silently. Quote UI
 labels and message copy from the appendix, verbatim — those are the current
 strings, and a paraphrased button label is the fastest way to lose a user's trust.
 
-Generated for plugin version 0.99.646 · knowledge base d204b51.
+Generated for plugin version 0.99.647 · knowledge base 58d5b6f.
 
 ---
 
@@ -829,6 +829,8 @@ The helper's welcome panel opens with a 35-second film of gogh being used (v0.99
 
 **The phone view survives navigation (v0.99.605).** Press one of your own pages while on the phone and it opens in the editor, still on the phone: the link carries `gogh-edit=1&gogh-phone=1`, the next page reads them at boot and strips them from the address. Other sites, files, wp-admin and anchors on the same page are left alone. Unpublished changes still ask before leaving.
 
+**A design's pieces arrive already styled (v0.99.647).** A site definition can name **styles** for each kind of piece (headings, text, buttons, pictures, and shapes and cards) and mark one of each as the default. Add a button to such a site and it arrives in the design's button style, with no class to type and no CSS to open. A chosen piece's bar now starts with its style, for example *Style · Pink print*: tap it for a panel of pictures of that piece in each style, the default marked. Pieces inside a card get a small bar with the same chip. The section picker opens with the design's own sections ("From Misprint": a ticker band, a drying rack, ink circles). Styles for headings, text, buttons and pictures are WordPress block styles (`is-style-…`), so the block editor's Styles panel lists the same names; shape styles stay gogh's own, because a group style would show on every group. Choosing a style clears a colour picked before it (the last choice wins), and while words wear a style the colour panel's first swatch is the style's own colour. Also: the size button says *Fitted* once a corner-drag fits words to their box, theme sizes read as words (*Extra large*, not `x-large`), a dragged piece keeps a design's site-wide CSS under the hand, the *Hidden on phones* tag ignores a design's text effects, and sections carrying a design's class or a one-page anchor no longer show as invalid blocks in the block editor. Misprint now uses all of it.
+
 **A design can bring its own CSS (v0.99.646).** Any piece or section can carry its own class names, the way core blocks have *Additional CSS class*: letters, digits and dashes, up to four, never starting `gogh-` or `wp-`. They ride the canvas, the saved model and the published blocks, so a stylesheet can find a piece after any edit. A site definition can bring that stylesheet as `css`; gogh writes it into WordPress's own Additional CSS between markers (the person can read and change it there, and a rebuild replaces only gogh's part). Google Fonts `@import` lines are lifted out and loaded as proper stylesheet links, because WordPress prints Additional CSS at the end of the global styles, where an import is ignored. The first blueprint to use it is **Misprint**, a risograph studio and zine library (`blueprint-misprint.json`): misregistered blue-and-pink headlines that snap into register on hover, photographs pulled as halftone duotones, three ink circles that overprint where they meet, prints pinned at angles that straighten when you look at them, a spinning sticker, an endless ticker, a giant outlined word and paper grain. Motion stops while editing and for anyone who prefers reduced motion.
 
 **Make: chat, and gogh builds your site right here (v0.99.645).** A blueprint that is not a design: `blueprint-make.json` lands on `/?gogh-make=1`, a page of its own where you say what your site is for and what it is called. gogh's helper asks a question or two, finds pictures and writes the site; the moment it publishes, the page fetches the definition, applies it to this WordPress through `gogh/v1/site-def?replace=1` and runs the build, landing on the new home page in about a minute. The admin bar gains **Chat**, which returns to the same conversation (kept in the browser): ask for a change and it rebuilds in place, moving the pages and posts the last chat made to the bin and never touching anything you made yourself. The helper learned three things for it: a chat running inside the site is told not to hand over a link; the stream sends a heartbeat every fifteen seconds so a long write is not cut off; and the builder can place a **map** of a place you name (never an invented street), drawn with gogh's map piece. The four showcase definitions were also snapped back onto gogh's 24/72 rhythm.
@@ -912,11 +914,11 @@ Everything in this section is extracted mechanically from the Gogh source on eve
 
 ## Current release
 
-- Plugin version: **0.99.646**
+- Plugin version: **0.99.647**
 - Requires WordPress **6.5+**, PHP **7.4+**
 - Text domain: `gogh-editor`
 - readme.txt Stable tag: `0.26.0` · Tested up to: `7.0`
-- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.646`). Quote the plugin header version.
+- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.647`). Quote the plugin header version.
 
 ## Design constants
 
@@ -1036,6 +1038,7 @@ Block: `gogh/section` · v3 attributes: `css`, `model`, `scope`, `v`, `cssT`.
 | `body_class` | filter | 10 |
 | `wp_insert_post_empty_content` | filter | 10 |
 | `trashed_post` | action | 10 |
+| `init` | action | 10 |
 | `wp_enqueue_scripts` | action | 10 |
 | `template_redirect` | action | 10 |
 | `admin_bar_menu` | action | 10 |
@@ -1115,6 +1118,7 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "' + escAttr(e.alt || 'Video') + '"
 - "' + escAttr(l.name) + '"
 - "' + escAttr(o[2]) + '"
+- "' + escAttr(stl.name) + '’s colour"
 - "' + escAttr(t.name) + '"
 - "' + hp[1] + ' — ' + hp[2] + ' units"
 - "' + m[2] + '"
@@ -1164,6 +1168,7 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "Cancel"
 - "Card"
 - "Change the colours and fonts of your brand"
+- "Choose a style"
 - "Close"
 - "Copy machine version"
 - "Copy style — then click other text to paint it"
@@ -1450,4 +1455,4 @@ These are the real strings in the current build. Use them verbatim; never paraph
 
 ## Test suite
 
-`334` tests, run by appending `?gogh-test` to any Gogh page URL while logged in with edit rights on that page.
+`335` tests, run by appending `?gogh-test` to any Gogh page URL while logged in with edit rights on that page.

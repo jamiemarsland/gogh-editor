@@ -1,12 +1,12 @@
 {
   "meta": {
-    "plugin_version": "0.99.646",
+    "plugin_version": "0.99.647",
     "requires_wp": "6.5",
     "requires_php": "7.4",
     "text_domain": "gogh-editor",
     "readme_stable_tag": "0.26.0",
     "readme_tested_up_to": "7.0",
-    "asset_version": "0.99.646-chrome"
+    "asset_version": "0.99.647-chrome"
   },
   "constants": {
     "TOL": 8,
@@ -426,6 +426,7 @@
     "' + escAttr(e.alt || 'Video') + '",
     "' + escAttr(l.name) + '",
     "' + escAttr(o[2]) + '",
+    "' + escAttr(stl.name) + '’s colour",
     "' + escAttr(t.name) + '",
     "' + hp[1] + ' — ' + hp[2] + ' units",
     "' + m[2] + '",
@@ -475,6 +476,7 @@
     "Cancel",
     "Card",
     "Change the colours and fonts of your brand",
+    "Choose a style",
     "Close",
     "Copy machine version",
     "Copy style — then click other text to paint it",
@@ -1012,6 +1014,11 @@
       },
       {
         "kind": "action",
+        "hook": "init",
+        "priority": 10
+      },
+      {
+        "kind": "action",
         "hook": "wp_enqueue_scripts",
         "priority": 10
       },
@@ -1435,5 +1442,5 @@
     "has_deprecation": true,
     "block_title": "gogh Section"
   },
-  "test_count": 334
+  "test_count": 335
 }
