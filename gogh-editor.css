@@ -4429,9 +4429,10 @@ html.gogh-building .gogh-inserter, html.gogh-building .gogh-side { display: none
    and the design's own shelf in the section picker ---- */
 /* flat like the Aa label beside it: a live swatch, the name, a caret, then a
    hairline so the style reads as the piece's first fact, not a stray pill */
-.gogh-eb-look { position: relative; display: inline-flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 600; max-width: 170px; padding: 5px 8px 5px 5px; margin-right: 7px; }
+.gogh-eb-look { position: relative; display: inline-flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 600; max-width: 220px; padding: 5px 8px 5px 5px; margin-right: 7px; }
 .gogh-eb-look::after { content: ""; position: absolute; right: -5px; top: 7px; bottom: 7px; width: 1px; background: rgba(22, 24, 28, .14); }
 .gogh-eb-look .gogh-eb-lookname { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.gogh-eb-look .gogh-eb-lookkind { font-weight: 500; color: rgba(22, 24, 28, .55); }
 .gogh-eb-look > svg { flex: 0 0 auto; opacity: .55; }
 .gogh-eb-lookswatch { position: relative; flex: 0 0 auto; width: 22px; height: 22px; border-radius: 6px; overflow: hidden; background: var(--gogh-look-bg, #f3eee4); color: var(--gogh-look-fg, #16181c); box-shadow: inset 0 0 0 1px rgba(22, 24, 28, .12); pointer-events: none; }
 .gogh-eb-lookswatch .gogh-look-site.wp-site-blocks { position: absolute; left: 0; top: 0; width: 44px; height: 44px; transform: scale(.5); transform-origin: 0 0; }

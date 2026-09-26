@@ -6770,6 +6770,8 @@
         var chip = q('.gogh-eb-look');
         expect(chip && chip.style.display !== 'none' && /Misregistered/.test(chip.textContent), 'the bar should name the heading’s style');
         expect(chip.querySelector('.gogh-eb-lookswatch h2.is-style-misregistered'), 'the chip should carry a live swatch of the style');
+        var chipName = (chip.querySelector('.gogh-eb-lookname') || {}).textContent || '';
+        expect(/^Style \u00b7 Misregistered$/.test(chipName), 'the chip reads Style \u00b7 name, like Aa \u00b7 Display M: ' + chipName);
         var bNode = sec.nodes[1];
         expect(bNode.querySelector('.wp-block-button.is-style-pink-print') && !bNode.classList.contains('is-style-pink-print') && bNode.classList.contains('riso-extra'),
           'a button’s style class sits on the inner button (where core puts it), the rest on the wrapper');

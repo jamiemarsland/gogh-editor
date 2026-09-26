@@ -3217,7 +3217,9 @@
     if (sec) lookGround(sec, elbar);
     var sw = cur ? lookSample(e, cur, true) : '';
     lookBtn.innerHTML = (sw ? '<span class="gogh-eb-lookswatch" aria-hidden="true"><span class="wp-site-blocks gogh-look-site">' + sw + '</span></span>' : '') +
-      '<span class="gogh-eb-lookname">' + esc(cur ? cur.name : 'Style') + '</span>' +
+      // 'Style · Pink print': what the chip is, then which one is on — the
+      // bar's own pattern ('Aa · Display M')
+      '<span class="gogh-eb-lookname">' + (cur ? '<span class="gogh-eb-lookkind">Style \u00b7 </span>' + esc(cur.name) : 'Style') + '</span>' +
       '<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>';
     lookBtn.title = cur ? 'Style: ' + cur.name + ' \u2014 choose another' : 'Choose a style';
     lookBtn.style.display = '';
