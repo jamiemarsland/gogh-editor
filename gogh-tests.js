@@ -6773,7 +6773,7 @@
         var chip = q('.gogh-elbar:not(.gogh-kidstylebar) .gogh-eb-look');
         expect(chip && chip.parentNode.firstElementChild === chip, 'the style chip comes first on the bar, before link');
         expect(chip && chip.style.display !== 'none' && /Misregistered/.test(chip.textContent), 'the bar should name the heading’s style');
-        expect(chip.querySelector('.gogh-eb-lookswatch h2.is-style-misregistered'), 'the chip should carry a live swatch of the style');
+        expect(!chip.querySelector('.gogh-eb-lookswatch'), 'words carry no swatch on the chip (the Aa beside the size read as a second size button)');
         var chipName = (chip.querySelector('.gogh-eb-lookname') || {}).textContent || '';
         expect(/^Style \u00b7 Misregistered$/.test(chipName), 'the chip reads Style \u00b7 name, like Aa \u00b7 Display M: ' + chipName);
         var bNode = sec.nodes[1];

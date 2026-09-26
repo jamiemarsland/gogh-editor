@@ -3219,7 +3219,10 @@
     // a swatch of the style, drawn live on the ground it sits on: the same
     // sample the panel shows, small
     if (sec) lookGround(sec, host, node);
-    var sw = cur ? lookSample(e, cur, true) : '';
+    // words need no swatch: the piece itself shows the style, and an 'Aa'
+    // beside the size's own 'Aa' read as two of the same button (James).
+    // Buttons, pictures and shapes keep theirs
+    var sw = cur && e.type !== 'heading' && e.type !== 'para' ? lookSample(e, cur, true) : '';
     btn.innerHTML = (sw ? '<span class="gogh-eb-lookswatch" aria-hidden="true"><span class="wp-site-blocks gogh-look-site">' + sw + '</span></span>' : '') +
       // 'Style · Pink print': what the chip is, then which one is on — the
       // bar's own pattern ('Aa · Display M')
