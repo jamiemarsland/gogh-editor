@@ -3178,6 +3178,9 @@ function gogh_site_design_types() {
 		'para'    => 'core/paragraph',
 		'button'  => 'core/button',
 		'image'   => 'core/image',
+		// shapes and cards publish as core/group: a style registered there
+		// would sit on every group in the block editor, so theirs stay gogh's
+		'box'     => '',
 	);
 }
 function gogh_site_design_clean( $def ) {
@@ -3250,7 +3253,7 @@ add_action( 'init', function () {
 	$map = gogh_site_design_types();
 	$reg = class_exists( 'WP_Block_Styles_Registry' ) ? WP_Block_Styles_Registry::get_instance() : null;
 	foreach ( (array) $design['looks'] as $type => $list ) {
-		if ( ! isset( $map[ $type ] ) || ! is_array( $list ) ) {
+		if ( empty( $map[ $type ] ) || ! is_array( $list ) ) {
 			continue;
 		}
 		foreach ( $list as $lk ) {

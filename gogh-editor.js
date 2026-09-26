@@ -3174,9 +3174,11 @@
   var elbar = document.createElement('div');
   elbar.className = 'gogh-elbar';
   elbar.innerHTML =
-    '<button type="button" class="gogh-eb gogh-eb-ctx"></button>' +
-    // the design's looks for this kind of piece, named ("Yellow print")
+    // the design's style for this kind of piece comes first ("Style ·
+    // Yellow print"), then the piece's own tools (James: "the style should be
+    // the first thing on the menu, then link")
     '<button type="button" class="gogh-eb gogh-eb-look" title="Choose a style"></button>' +
+    '<button type="button" class="gogh-eb gogh-eb-ctx"></button>' +
     '<button type="button" class="gogh-eb gogh-eb-manage" title="Open your products in WordPress">Manage products</button>' +
     '<button type="button" class="gogh-eb gogh-eb-fs" title="Cycle theme font sizes"></button>' +
     '<button type="button" class="gogh-eb gogh-eb-fit" title="Fill the width — size the text to its box">' +
@@ -3208,21 +3210,24 @@
   lookBtn.addEventListener('click', function () {
     if (sel) openLookPanel(sel.sec, sel.i);
   });
-  function dressLookBtn(e, sec) {
+  function dressLookBtn(e, sec) { lookChip(lookBtn, elbar, e, sec, null); }
+  // the style chip: on the piece's bar, and alone on a card piece's bar
+  function lookChip(btn, host, e, sec, node) {
     var looks = e && !e.rails ? designLooks(e.type) : [];
-    if (!looks.length) { lookBtn.style.display = 'none'; return; }
+    if (!looks.length) { btn.style.display = 'none'; return false; }
     var cur = lookOf(e);
-    // a swatch of the style, drawn live on the section's own ground: the
-    // same sample the panel shows, small
-    if (sec) lookGround(sec, elbar);
+    // a swatch of the style, drawn live on the ground it sits on: the same
+    // sample the panel shows, small
+    if (sec) lookGround(sec, host, node);
     var sw = cur ? lookSample(e, cur, true) : '';
-    lookBtn.innerHTML = (sw ? '<span class="gogh-eb-lookswatch" aria-hidden="true"><span class="wp-site-blocks gogh-look-site">' + sw + '</span></span>' : '') +
+    btn.innerHTML = (sw ? '<span class="gogh-eb-lookswatch" aria-hidden="true"><span class="wp-site-blocks gogh-look-site">' + sw + '</span></span>' : '') +
       // 'Style · Pink print': what the chip is, then which one is on — the
       // bar's own pattern ('Aa · Display M')
       '<span class="gogh-eb-lookname">' + (cur ? '<span class="gogh-eb-lookkind">Style \u00b7 </span>' + esc(cur.name) : 'Style') + '</span>' +
       '<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>';
-    lookBtn.title = cur ? 'Style: ' + cur.name + ' \u2014 choose another' : 'Choose a style';
-    lookBtn.style.display = '';
+    btn.title = cur ? 'Style: ' + cur.name + ' \u2014 choose another' : 'Choose a style';
+    btn.style.display = '';
+    return true;
   }
   var phoneBtn = elbar.querySelector('.gogh-eb-phone');
   phoneBtn.addEventListener('click', function () {
@@ -7537,6 +7542,9 @@
     });
   }
   function addElement(sec, e, atBack) {
+    // every new piece wears its kind's default style, however it was made
+    // (DEFAULTS covers most; a shape from Add a shape arrives here)
+    if (!lookOf(e)) { var dl = defaultLook(e.type); if (dl) wearLook(e, dl); }
     // shapes are backdrops: they join the stack BEHIND everything else
     if (atBack) sec.els.unshift(e); else sec.els.push(e);
     renderSection(sec);
@@ -7683,25 +7691,48 @@
         ? '<figure class="wp-block-image size-full gogh-img ' + c + '"><img src="' + escAttr(e.src) + '" alt=""></figure>'
         : (mini ? '' : '<span class="gogh-look-noimg">Choose a picture to see it</span>');
     }
+    if (e.type === 'box') {
+      // the shape itself, in its own colour and outline
+      var bgv = e.boxBg ? (/^[a-z0-9-]+$/.test(e.boxBg) ? 'var(--wp--preset--color--' + e.boxBg + ')' : e.boxBg)
+        : 'color-mix(in srgb, currentColor 14%, transparent)';
+      var sz = mini ? 30 : 58;
+      var outline = SHAPE_CSS[e.shape] || (' border-radius:' + Math.min(e.radius || 0, 14) + 'px;');
+      return '<div class="wp-block-group gogh-box' + (e.kids && e.kids.length ? ' gogh-cardbox' : '') + ' ' + c + '" style="' +
+        escAttr('position:relative;width:' + sz + 'px;height:' + Math.round(sz * (e.kids && e.kids.length ? 1.25 : 1)) + 'px;background:' + bgv + ';' + outline) + '"></div>';
+    }
     if (e.type === 'heading') return '<h2 class="wp-block-heading ' + c + '">Aa</h2>';
-    return '<p class="' + c + '">Aa Bb</p>';
+    return '<p class="' + c + '">' + (mini ? 'Aa' : 'Aa Bb') + '</p>';
   }
   // the samples sit on the section's own ground, in its own ink
-  function lookGround(sec, host) {
+  function lookGround(sec, host, node) {
     try {
-      var cs = getComputedStyle(sec.sectionEl);
-      var bg = cs.backgroundColor;
-      if (!bg || bg === 'transparent' || /rgba\(.*,\s*0\)$/.test(bg)) bg = getComputedStyle(document.body).backgroundColor;
+      var solid = function (n) {
+        if (!n) return null;
+        var b = getComputedStyle(n).backgroundColor;
+        return (!b || b === 'transparent' || /rgba\(.*,\s*0\)$/.test(b)) ? null : b;
+      };
+      // a piece inside a card sits on the card; anything else on its section
+      var card = node && node.parentElement && node.parentElement.closest('.gogh-cardbox');
+      var bg = solid(card) || solid(sec.sectionEl) || getComputedStyle(document.body).backgroundColor;
       host.style.setProperty('--gogh-look-bg', bg || '#fff');
-      host.style.setProperty('--gogh-look-fg', cs.color);
+      host.style.setProperty('--gogh-look-fg', getComputedStyle(node || sec.sectionEl).color);
     } catch (err) {}
   }
-  function openLookPanel(sec, i) {
-    var e = sec.els[i];
+  // the piece a style panel works on: a piece, or a piece inside a card
+  function lookTarget(sec, i, j) {
+    var h = sec.els[i];
+    return j == null ? h : (h && h.kids && h.kids[j]) || null;
+  }
+  function kidNodeOf(sec, ci, j) {
+    var card = sec.nodes[ci];
+    return card ? card.querySelector('.gogh-k-' + (j + 1)) : null;
+  }
+  function openLookPanel(sec, i, j) {
+    var e = lookTarget(sec, i, j);
     var looks = e ? designLooks(e.type) : [];
     if (!looks.length) return;
     var cur = lookOf(e);
-    var KIND = { heading: 'Heading', para: 'Text', button: 'Button', image: 'Picture' };
+    var KIND = { heading: 'Heading', para: 'Text', button: 'Button', image: 'Picture', box: e.kids && e.kids.length ? 'Card' : 'Shape' };
     panel.innerHTML = '<div class="gogh-panel-title">Style \u00b7 ' + (KIND[e.type] || 'Piece') + '</div>' +
       '<div class="gogh-looks">' + looks.map(function (lk, n) {
         var on = cur && cur.slug === lk.slug;
@@ -7709,22 +7740,24 @@
           '<span class="gogh-look-stage gogh-look-' + e.type + '"><span class="wp-site-blocks gogh-look-site">' + lookSample(e, lk) + '</span></span>' +
           '<span class="gogh-look-name"><b>' + esc(lk.name) + '</b>' + (lk.default ? '<i>Default</i>' : '') + '</span></button>';
       }).join('') + '</div>' +
-      '<div class="gogh-panel-hint">Styles come with ' + esc((cfg.design && cfg.design.name) || 'the design') + '. New ' +
-      ((KIND[e.type] || 'piece').toLowerCase() === 'text' ? 'text' : (KIND[e.type] || 'piece').toLowerCase() + 's') + ' arrive in the default.</div>';
-    lookGround(sec, panel);
-    placePanelNear(sec.nodes[i] || sec.sectionEl);
+      '<div class="gogh-panel-hint">Styles come with ' + esc((cfg.design && cfg.design.name) || 'the design') + '. ' +
+      (e.type === 'para' ? 'New text arrives' : 'New ' + (KIND[e.type] || 'piece').toLowerCase() + 's arrive') + ' in the default.</div>';
+    var kn = j == null ? null : kidNodeOf(sec, i, j);
+    lookGround(sec, panel, kn);
+    placePanelNear(kn || sec.nodes[i] || sec.sectionEl);
     panelOpen = true;
     panelSticky = false;
     panelCleanup = function () { panel.style.removeProperty('--gogh-look-bg'); panel.style.removeProperty('--gogh-look-fg'); };
     panel.querySelectorAll('.gogh-look').forEach(function (b) {
       b.addEventListener('click', function () {
         var lk = looks[+b.dataset.n];
-        var e2 = sec.els[i];
+        var e2 = lookTarget(sec, i, j);
         if (!lk || !e2) return;
         wearLook(e2, lk);
         renderSection(sec);
         pushState();
-        placeHandles(sec, i);
+        if (j == null) placeHandles(sec, i);
+        else reselectKid(sec, i, j);
         panel.querySelectorAll('.gogh-look').forEach(function (o) {
           var on = o === b;
           o.classList.toggle('is-on', on);
@@ -15355,15 +15388,47 @@
     kidBox.appendChild(h);
   });
   document.body.appendChild(kidBox);
+  // a piece inside a card has no bar of its own (its grips are enough), but
+  // its style is still its own: a small bar carries only the style chip
+  // (James: "lets do shapes and pieces in cards")
+  var kidStyleBar = document.createElement('div');
+  kidStyleBar.className = 'gogh-elbar gogh-kidstylebar';
+  kidStyleBar.hidden = true;
+  kidStyleBar.innerHTML = '<button type="button" class="gogh-eb gogh-eb-look" title="Choose a style"></button>';
+  document.body.appendChild(kidStyleBar);
+  var kidLookBtn = kidStyleBar.firstChild;
+  kidLookBtn.addEventListener('click', function () {
+    if (kidSel) openLookPanel(kidSel.sec, kidSel.ci, kidSel.j);
+  });
+  function placeKidStyleBar() {
+    var kid = kidSel ? lookTarget(kidSel.sec, kidSel.ci, kidSel.j) : null;
+    if (!kid || kidBox.hidden || !lookChip(kidLookBtn, kidStyleBar, kid, kidSel.sec, kidSel.node)) { kidStyleBar.hidden = true; return; }
+    var ar = kidSel.node.getBoundingClientRect();
+    kidStyleBar.style.left = (ar.left + window.scrollX + ar.width / 2) + 'px';
+    kidStyleBar.style.top = (ar.top + window.scrollY - 14) + 'px';
+    kidStyleBar.hidden = false;
+  }
+  // after a render the card's pieces are new nodes: choose the same one again
+  function reselectKid(sec, ci, j) {
+    var kn = kidNodeOf(sec, ci, j);
+    if (!kn) return;
+    clearKidSel();
+    sel = null;
+    hideHandles();
+    kidSel = { sec: sec, ci: ci, j: j, node: kn };
+    kn.classList.add('gogh-kid-selected');
+    placeKidBox();
+  }
   var kidResize = null, kidResizeRaf = false;
   function placeKidBox() {
-    if (!kidSel || !kidSel.node || !document.contains(kidSel.node) || kidDrag || kidEd || !editing) { kidBox.hidden = true; return; }
+    if (!kidSel || !kidSel.node || !document.contains(kidSel.node) || kidDrag || kidEd || !editing) { kidBox.hidden = true; kidStyleBar.hidden = true; return; }
     var b = nodeBox(kidSel.node);
     kidBox.style.left = b.x + 'px';
     kidBox.style.top = b.y + 'px';
     kidBox.style.width = b.w + 'px';
     kidBox.style.height = b.h + 'px';
     kidBox.hidden = false;
+    placeKidStyleBar();
   }
   // the words re-wrap at the new width: the kid's height follows its ink, the
   // stack below settles from the card's RESTING height (the routine typing
@@ -15448,6 +15513,7 @@
   });
   function clearKidSel() {
     kidBox.hidden = true;
+    kidStyleBar.hidden = true;
     if (!kidSel) return;
     if (kidSel.node && kidSel.node.classList) kidSel.node.classList.remove('gogh-kid-selected');
     kidSel = null;
@@ -15523,7 +15589,8 @@
     if (!editing || drag || resize) return;
     if (!(ev.target instanceof Element)) return;
     if (kidEd && kidEd.node.contains(ev.target)) return; // caret work
-    if (ev.target.closest('.gogh-kidbox')) return; // a side grip: the kid stays chosen
+    // a side grip, the piece's style chip or its style panel: the kid stays chosen
+    if (ev.target.closest('.gogh-kidbox, .gogh-kidstylebar, .gogh-panel')) return;
     var kn = ev.target.closest('[class*="gogh-k-"]');
     var card = kn && kn.closest('.gogh-cardbox');
     if (!kn || !card) {
@@ -19446,7 +19513,8 @@
     startChromeCycle: startChromeCycle,
     openPicker: openPicker,
     // a design's named looks (the chip, the panel, new pieces in the default)
-    looks: { list: designLooks, of: lookOf, wear: wearLook, def: defaultLook, open: openLookPanel },
+    looks: { list: designLooks, of: lookOf, wear: wearLook, def: defaultLook, open: openLookPanel, reselectKid: reselectKid,
+      kidBar: function () { return kidStyleBar; }, clearKid: function () { clearKidSel(); } },
     placeHandles: placeHandles,
     navLinkMarkup: navLinkMarkup,
     chromeEdits: function () { return chromeLightEdits; },

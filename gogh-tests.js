@@ -6750,7 +6750,8 @@
       var cfgG = window.GOGH, was = cfgG.design;
       cfgG.design = { name: 'Riso Test', looks: {
         button: [{ name: 'Yellow print', slug: 'yellow-print', 'default': true }, { name: 'Pink print', slug: 'pink-print', 'default': false }],
-        heading: [{ name: 'Misregistered', slug: 'misregistered', 'default': true }, { name: 'Plain', slug: 'plain', 'default': false }] },
+        heading: [{ name: 'Misregistered', slug: 'misregistered', 'default': true }, { name: 'Plain', slug: 'plain', 'default': false }],
+        box: [{ name: 'Plain', slug: 'plain', 'default': true }, { name: 'Paper card', slug: 'paper-card', 'default': false }] },
         shelf: [{ name: 'Ticker band', note: 'A running strip of words', minH: 144, cls: 'riso-ticker-band', els: [
           { type: 'para', x: 0, y: 48, w: 1200, h: 48, text: 'Zines ✱ Posters', cls: 'riso-ticker' }] }] };
       var n0 = G.sections().length, added = false;
@@ -6763,11 +6764,14 @@
         G.looks.wear(h, G.looks.list('heading')[1]);
         expect(h.cls === 'is-style-plain riso-big', 'wearing a look swaps it in first place and keeps the other classes: ' + h.cls);
         G.addSection({ name: 'Looks', minH: 432, els: [{ type: 'heading', x: 80, y: 96, w: 600, h: 96, text: 'Two inks', cls: 'is-style-misregistered' },
-          { type: 'button', x: 80, y: 240, w: 200, h: 48, text: 'Go', cls: 'is-style-pink-print riso-extra' }] }, n0);
+          { type: 'button', x: 80, y: 240, w: 200, h: 48, text: 'Go', cls: 'is-style-pink-print riso-extra' },
+          { type: 'box', x: 720, y: 96, w: 320, h: 240, boxBg: '#ffffff', kids: [
+            { type: 'heading', x: 24, y: 24, w: 272, h: 48, text: 'Card title', cls: 'is-style-misregistered' }] }] }, n0);
         added = true;
         var sec = G.sections()[n0];
         G.placeHandles(sec, 0);
-        var chip = q('.gogh-eb-look');
+        var chip = q('.gogh-elbar:not(.gogh-kidstylebar) .gogh-eb-look');
+        expect(chip && chip.parentNode.firstElementChild === chip, 'the style chip comes first on the bar, before link');
         expect(chip && chip.style.display !== 'none' && /Misregistered/.test(chip.textContent), 'the bar should name the heading’s style');
         expect(chip.querySelector('.gogh-eb-lookswatch h2.is-style-misregistered'), 'the chip should carry a live swatch of the style');
         var chipName = (chip.querySelector('.gogh-eb-lookname') || {}).textContent || '';
@@ -6791,6 +6795,29 @@
         expect(/Plain/.test(q('.gogh-eb-look').textContent), 'the chip should follow');
         expect(/gogh-el-1 is-style-plain/.test(G.blocksV3(sec)), 'the published block should carry the look');
         G.closePanel();
+        expect(G.defaults('card').cls === 'is-style-plain', 'a new shape should arrive in the shape default: ' + G.defaults('card').cls);
+        // a piece inside a card: its own small bar carries the style chip
+        G.looks.reselectKid(sec, 2, 0);
+        var kbar = G.looks.kidBar();
+        var kname = (kbar.querySelector('.gogh-eb-lookname') || {}).textContent || '';
+        expect(!kbar.hidden && /^Style \u00b7 Misregistered$/.test(kname), 'a card piece should show its style chip: ' + kname + (kbar.hidden ? ' (hidden)' : ''));
+        kbar.querySelector('.gogh-eb-look').click();
+        var ktiles = document.querySelectorAll('.gogh-panel .gogh-look');
+        expect(ktiles.length === 2 && /^Style \u00b7 Heading/.test(q('.gogh-panel .gogh-panel-title').textContent), 'the chip opens the card piece\u2019s styles');
+        ktiles[1].click();
+        expect(sec.els[2].kids[0].cls === 'is-style-plain', 'choosing a tile styles the piece inside the card: ' + sec.els[2].kids[0].cls);
+        expect(sec.nodes[2].querySelector('.gogh-k-1.is-style-plain.gogh-kid-selected'), 'the card piece wears it and stays chosen');
+        expect(!kbar.hidden && /Plain/.test(kbar.textContent), 'the card piece\u2019s chip follows');
+        G.closePanel();
+        // the card itself: shape styles, kept out of the block editor
+        G.placeHandles(sec, 2);
+        G.looks.open(sec, 2);
+        expect(/^Style \u00b7 Card/.test(q('.gogh-panel .gogh-panel-title').textContent), 'a card\u2019s panel is Style \u00b7 Card');
+        var btiles = document.querySelectorAll('.gogh-panel .gogh-look');
+        expect(btiles.length === 2 && btiles[1].querySelector('.gogh-box.is-style-paper-card'), 'the shape tiles draw the card in each style');
+        btiles[1].click();
+        expect(sec.els[2].cls === 'is-style-paper-card' && sec.nodes[2].classList.contains('is-style-paper-card'), 'the card wears its style');
+        G.closePanel();
         G.openPicker(n0 + 1);
         var lab = q('.gogh-picker .gogh-designlab'), cards = document.querySelectorAll('.gogh-picker .gogh-card[data-dtpl]');
         expect(lab && /From Riso Test/.test(lab.textContent), 'the picker should open with the design’s own shelf');
@@ -6798,6 +6825,7 @@
         expect(cards[0].querySelector('.riso-ticker'), 'the card should draw the section with its classes');
       } finally {
         cfgG.design = was;
+        if (G.looks.clearKid) G.looks.clearKid();
         if (q('.gogh-picker.is-open') && G.closePicker) G.closePicker();
         var pk = q('.gogh-picker'); if (pk) { pk.classList.remove('is-open'); pk.hidden = true; }
         G.closePanel();

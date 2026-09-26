@@ -4471,3 +4471,8 @@ html.gogh-building .gogh-inserter, html.gogh-building .gogh-side { display: none
 .wp-site-blocks.gogh-ghostel, .wp-site-blocks.gogh-kid-ghost { padding: 0 !important; min-height: 0 !important; overflow: visible !important; }
 .wp-site-blocks.gogh-ghostel { border-radius: 8px !important; }
 .wp-site-blocks.gogh-kid-ghost { border-radius: 0 !important; }
+
+/* a card piece's own bar: only the style chip, so no hairline after it */
+.gogh-kidstylebar .gogh-eb-look { margin-right: 0; }
+.gogh-kidstylebar .gogh-eb-look::after { display: none; }
+.gogh-look-stage .gogh-box, .gogh-eb-lookswatch .gogh-box { flex: 0 0 auto; }
