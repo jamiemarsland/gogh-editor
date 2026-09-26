@@ -1,0 +1,867 @@
+{
+ "name": "Misprint",
+ "tagline": "Risograph studio and zine library, Sheffield",
+ "palette": {
+  "base": "#F3EEE4",
+  "contrast": "#1C1B1A",
+  "accents": [
+   "#FF48B0",
+   "#0078BF",
+   "#FFE800",
+   "#1C1B1A",
+   "#6B655C",
+   "#EAE3D6"
+  ]
+ },
+ "chrome": {
+  "header": "gogh-header-classic",
+  "footer": "gogh-footer-simple",
+  "sticky": false
+ },
+ "css": "@import url(\"https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..900&family=IBM+Plex+Mono:wght@500;600&display=swap\");\n/* Misprint: a risograph studio. Everything here is Additional CSS that a\n   gogh definition brought with it; the pieces carry riso-* classes. Motion\n   stops while editing and for anyone who prefers less of it. */\n:root { --riso-paper: #F3EEE4; --riso-ink: #1C1B1A; --riso-pink: #FF48B0; --riso-blue: #0078BF; --riso-yellow: #FFE800; }\nbody { background-color: var(--riso-paper); font-family: \"Archivo\", \"Helvetica Neue\", Arial, sans-serif; }\n.wp-site-blocks h1, .wp-site-blocks h2, .wp-site-blocks h3, .wp-site-blocks .wp-block-site-title { font-family: \"Archivo\", \"Helvetica Neue\", Arial, sans-serif !important; font-stretch: 125%; font-weight: 900 !important; letter-spacing: -0.02em; }\n\n/* paper: a fine grain over everything on the live site */\nhtml:not(.gogh-editing) body::before { content: \"\"; position: fixed; inset: 0; z-index: 9999; pointer-events: none; opacity: .32; mix-blend-mode: multiply;\n  background-image: url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 .55 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E\"); }\n\n/* misregistration: blue ink with the pink pass drifting off, snapping home on hover */\n.riso-misreg { color: var(--riso-blue) !important; text-shadow: .05em .035em 0 var(--riso-pink); transition: text-shadow .45s cubic-bezier(.2, .8, .2, 1); }\nhtml:not(.gogh-editing) .riso-misreg { animation: riso-drift 5s ease-in-out infinite alternate; }\n.riso-misreg:hover { animation-play-state: paused; text-shadow: 0 0 0 var(--riso-pink); }\n@keyframes riso-drift { from { text-shadow: .05em .035em 0 var(--riso-pink); } to { text-shadow: -.025em .06em 0 var(--riso-pink); } }\n\n/* the word behind the hero: outline only */\n.riso-outline { color: transparent !important; -webkit-text-stroke: 2px var(--riso-pink); font-size: clamp(96px, 25cqw, 330px) !important; line-height: .82 !important; letter-spacing: -.045em !important; white-space: nowrap; opacity: .9; }\n\n/* prints: a photograph pulled as a duotone, with a halftone screen */\n.riso-print { position: relative; background: var(--riso-pink); isolation: isolate; overflow: hidden; }\n.riso-print.riso-blue { background: var(--riso-blue); }\n.riso-print.riso-yellow { background: var(--riso-yellow); }\n.riso-print img { filter: grayscale(1) contrast(1.35) brightness(1.08); mix-blend-mode: multiply; }\n.riso-print::after { content: \"\"; position: absolute; inset: 0; pointer-events: none; mix-blend-mode: multiply;\n  background: radial-gradient(circle, rgba(28, 27, 26, .3) 0 .9px, transparent 1.3px) 0 0 / 5px 5px; }\n\n/* prints pinned to the rack: they straighten when you look at them */\n.riso-card { background: #FFFDF8 !important; box-shadow: 0 1px 0 rgba(28, 27, 26, .06), 0 22px 34px -16px rgba(28, 27, 26, .4); transition: transform .5s cubic-bezier(.2, .8, .2, 1), box-shadow .5s; }\nhtml:not(.gogh-editing) .riso-card:hover { transform: rotate(0deg) translateY(-10px) scale(1.03) !important; box-shadow: 0 1px 0 rgba(28, 27, 26, .06), 0 34px 50px -18px rgba(28, 27, 26, .45); z-index: 50 !important; }\n\n/* the sticker spins, slowly */\nhtml:not(.gogh-editing) .riso-sticker { animation: riso-spin 16s linear infinite; }\n@keyframes riso-spin { to { transform: rotate(360deg); } }\n\n/* the ticker: one line, forever */\n.riso-ticker-band { overflow: hidden; }\n.riso-ticker { width: max-content !important; max-width: none !important; white-space: nowrap; color: var(--riso-yellow) !important; font-stretch: 125%; font-weight: 900; text-transform: uppercase; font-size: clamp(26px, 3.4cqw, 48px) !important; line-height: 1 !important; }\nhtml:not(.gogh-editing) .riso-ticker { animation: riso-tick 40s linear infinite; }\n@keyframes riso-tick { to { transform: translateX(-50%); } }\n\n/* inks overprint: where two circles meet you get the colour nobody mixed */\n.riso-ink { mix-blend-mode: multiply; }\n\n/* labels and buttons: the technician's voice */\n.riso-label { font-family: \"IBM Plex Mono\", ui-monospace, monospace !important; text-transform: uppercase; letter-spacing: .14em; font-weight: 600; }\n.riso-btn .wp-block-button__link { background: var(--riso-yellow) !important; color: var(--riso-ink) !important; border: 2px solid var(--riso-ink) !important; border-radius: 0 !important;\n  box-shadow: 5px 5px 0 var(--riso-ink); font-family: \"IBM Plex Mono\", ui-monospace, monospace !important; text-transform: uppercase; letter-spacing: .08em; font-weight: 600 !important; font-size: 14px !important; transition: transform .15s, box-shadow .15s; }\n.riso-btn .wp-block-button__link:hover { transform: translate(3px, 3px); box-shadow: 2px 2px 0 var(--riso-ink); }\n.riso-map { border: 2px solid var(--riso-ink); box-shadow: 8px 8px 0 var(--riso-pink); }\n\n/* prints rise into place as they scroll in (where the browser can) */\n@supports (animation-timeline: view()) {\n  html:not(.gogh-editing) .riso-rise { animation: riso-rise linear both; animation-timeline: view(); animation-range: entry 0% cover 30%; }\n  @keyframes riso-rise { from { opacity: .15; translate: 0 70px; } }\n}\n@media (prefers-reduced-motion: reduce) {\n  .riso-misreg, .riso-sticker, .riso-ticker, .riso-rise { animation: none !important; }\n}\n",
+ "pages": [
+  {
+   "title": "Home",
+   "slug": "home",
+   "front": true,
+   "sections": [
+    {
+     "name": "Hero",
+     "minH": 864,
+     "cls": "riso-hero",
+     "els": [
+      {
+       "type": "heading",
+       "x": 24,
+       "y": 48,
+       "w": 1152,
+       "h": 312,
+       "text": "PRINT",
+       "cls": "riso-outline",
+       "m": {
+        "hidden": true
+       }
+      },
+      {
+       "type": "para",
+       "x": 80,
+       "y": 96,
+       "w": 640,
+       "h": 24,
+       "text": "Risograph studio · zine library · Sheffield",
+       "cls": "riso-label",
+       "tf": {
+        "fs": 13
+       }
+      },
+      {
+       "type": "heading",
+       "x": 80,
+       "y": 216,
+       "w": 720,
+       "h": 336,
+       "text": "Two inks, one pass, no undo.",
+       "fs": "__disp-m",
+       "cls": "riso-misreg"
+      },
+      {
+       "type": "para",
+       "x": 80,
+       "y": 576,
+       "w": 560,
+       "h": 96,
+       "text": "Misprint is a risograph studio and zine library in Kelham Island. Bring a file, a sketch or a pile of photocopies, and leave with a hundred prints that smell of soy ink.",
+       "tf": {
+        "fs": 19
+       }
+      },
+      {
+       "type": "button",
+       "x": 80,
+       "y": 720,
+       "w": 288,
+       "h": 48,
+       "text": "Book a press session",
+       "href": "/workshops/",
+       "cls": "riso-btn"
+      },
+      {
+       "type": "image",
+       "x": 800,
+       "y": 312,
+       "w": 336,
+       "h": 432,
+       "src": "https://images.unsplash.com/photo-1541715301255-12a4839b424a?w=1400&q=80&fm=jpg&fit=max",
+       "alt": "A woman in profile",
+       "cls": "riso-print riso-pink",
+       "rot": 4
+      },
+      {
+       "type": "box",
+       "x": 936,
+       "y": 144,
+       "w": 192,
+       "h": 192,
+       "shape": "circle",
+       "boxBg": "#FFE800",
+       "cls": "riso-sticker",
+       "m": {
+        "hidden": true
+       },
+       "kids": [
+        {
+         "type": "para",
+         "x": 24,
+         "y": 72,
+         "w": 144,
+         "h": 48,
+         "text": "Fresh off<br>the drum",
+         "align": "center",
+         "cls": "riso-label",
+         "tf": {
+          "fs": 14,
+          "fw": 700,
+          "col": "#1C1B1A"
+         }
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "name": "Ticker",
+     "minH": 144,
+     "background": "#0078BF",
+     "cls": "riso-ticker-band",
+     "els": [
+      {
+       "type": "para",
+       "x": 0,
+       "y": 48,
+       "w": 1200,
+       "h": 48,
+       "text": "Zines ✱ Posters ✱ Flyers ✱ Art books ✱ Two colours ✱ Ten colours ✱ Wonky registration ✱ Zines ✱ Posters ✱ Flyers ✱ Art books ✱ Two colours ✱ Ten colours ✱ Wonky registration ✱ ",
+       "cls": "riso-ticker",
+       "tf": {
+        "fs": 40
+       }
+      }
+     ]
+    },
+    {
+     "name": "On the rack",
+     "minH": 792,
+     "els": [
+      {
+       "type": "para",
+       "x": 80,
+       "y": 96,
+       "w": 480,
+       "h": 24,
+       "text": "On the drying rack",
+       "cls": "riso-label",
+       "tf": {
+        "fs": 13
+       }
+      },
+      {
+       "type": "heading",
+       "x": 80,
+       "y": 144,
+       "w": 720,
+       "h": 96,
+       "text": "This month’s prints",
+       "fs": "xx-large",
+       "cls": "riso-misreg"
+      },
+      {
+       "type": "box",
+       "x": 96,
+       "y": 288,
+       "w": 312,
+       "h": 456,
+       "radius": 2,
+       "boxBg": "#FFFDF8",
+       "rot": -3,
+       "cls": "riso-card riso-rise",
+       "kids": [
+        {
+         "type": "image",
+         "x": 24,
+         "y": 24,
+         "w": 264,
+         "h": 312,
+         "src": "https://images.unsplash.com/photo-1679732747686-33e60fb370a6?w=1400&q=80&fm=jpg&fit=max",
+         "alt": "A monstera leaf",
+         "cls": "riso-print riso-blue"
+        },
+        {
+         "type": "para",
+         "x": 24,
+         "y": 360,
+         "w": 264,
+         "h": 24,
+         "text": "Monstera",
+         "tf": {
+          "fs": 18,
+          "fw": 800
+         }
+        },
+        {
+         "type": "para",
+         "x": 24,
+         "y": 400,
+         "w": 264,
+         "h": 24,
+         "text": "A3 · blue on cream · edition of 60",
+         "cls": "riso-label",
+         "tf": {
+          "fs": 12,
+          "col": "color-mix(in srgb, var(--wp--preset--color--contrast, #1C1B1A) 66%, transparent)"
+         }
+        }
+       ]
+      },
+      {
+       "type": "box",
+       "x": 444,
+       "y": 264,
+       "w": 312,
+       "h": 456,
+       "radius": 2,
+       "boxBg": "#FFFDF8",
+       "rot": 2,
+       "cls": "riso-card riso-rise",
+       "kids": [
+        {
+         "type": "image",
+         "x": 24,
+         "y": 24,
+         "w": 264,
+         "h": 312,
+         "src": "https://images.unsplash.com/photo-1616402455870-37120147f727?w=1400&q=80&fm=jpg&fit=max",
+         "alt": "A concrete tower block against the sky",
+         "cls": "riso-print riso-pink"
+        },
+        {
+         "type": "para",
+         "x": 24,
+         "y": 360,
+         "w": 264,
+         "h": 24,
+         "text": "Tower",
+         "tf": {
+          "fs": 18,
+          "fw": 800
+         }
+        },
+        {
+         "type": "para",
+         "x": 24,
+         "y": 400,
+         "w": 264,
+         "h": 24,
+         "text": "A3 · pink and black · edition of 40",
+         "cls": "riso-label",
+         "tf": {
+          "fs": 12,
+          "col": "color-mix(in srgb, var(--wp--preset--color--contrast, #1C1B1A) 66%, transparent)"
+         }
+        }
+       ]
+      },
+      {
+       "type": "box",
+       "x": 792,
+       "y": 288,
+       "w": 312,
+       "h": 456,
+       "radius": 2,
+       "boxBg": "#FFFDF8",
+       "rot": -2,
+       "cls": "riso-card riso-rise",
+       "kids": [
+        {
+         "type": "image",
+         "x": 24,
+         "y": 24,
+         "w": 264,
+         "h": 312,
+         "src": "https://images.unsplash.com/photo-1529778873920-4da4926a72c2?w=1400&q=80&fm=jpg&fit=max",
+         "alt": "A tabby kitten sitting on the floor",
+         "cls": "riso-print riso-yellow"
+        },
+        {
+         "type": "para",
+         "x": 24,
+         "y": 360,
+         "w": 264,
+         "h": 24,
+         "text": "Small cat, big feelings",
+         "tf": {
+          "fs": 18,
+          "fw": 800
+         }
+        },
+        {
+         "type": "para",
+         "x": 24,
+         "y": 400,
+         "w": 264,
+         "h": 24,
+         "text": "A4 · yellow and black · edition of 80",
+         "cls": "riso-label",
+         "tf": {
+          "fs": 12,
+          "col": "color-mix(in srgb, var(--wp--preset--color--contrast, #1C1B1A) 66%, transparent)"
+         }
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "name": "The inks",
+     "minH": 720,
+     "els": [
+      {
+       "type": "para",
+       "x": 80,
+       "y": 96,
+       "w": 480,
+       "h": 24,
+       "text": "The drums",
+       "cls": "riso-label",
+       "tf": {
+        "fs": 13
+       }
+      },
+      {
+       "type": "heading",
+       "x": 80,
+       "y": 144,
+       "w": 480,
+       "h": 192,
+       "text": "Four drums. Every colour is a decision.",
+       "fs": "xx-large",
+       "cls": "riso-misreg"
+      },
+      {
+       "type": "para",
+       "x": 80,
+       "y": 384,
+       "w": 440,
+       "h": 144,
+       "text": "A riso prints one colour at a time, and the inks are translucent. Lay pink over blue and you get a purple nobody mixed. The misregistration is free.",
+       "tf": {
+        "fs": 18
+       }
+      },
+      {
+       "type": "box",
+       "x": 600,
+       "y": 120,
+       "w": 312,
+       "h": 312,
+       "shape": "circle",
+       "boxBg": "#FF48B0",
+       "cls": "riso-ink riso-rise"
+      },
+      {
+       "type": "box",
+       "x": 792,
+       "y": 120,
+       "w": 312,
+       "h": 312,
+       "shape": "circle",
+       "boxBg": "#0078BF",
+       "cls": "riso-ink riso-rise"
+      },
+      {
+       "type": "box",
+       "x": 696,
+       "y": 288,
+       "w": 312,
+       "h": 312,
+       "shape": "circle",
+       "boxBg": "#FFE800",
+       "cls": "riso-ink riso-rise"
+      },
+      {
+       "type": "para",
+       "x": 600,
+       "y": 624,
+       "w": 520,
+       "h": 24,
+       "text": "Fluorescent pink · Medium blue · Yellow · and black",
+       "cls": "riso-label",
+       "tf": {
+        "fs": 13
+       },
+       "align": "left"
+      }
+     ]
+    },
+    {
+     "name": "Visit",
+     "minH": 432,
+     "background": "#FF48B0",
+     "els": [
+      {
+       "type": "heading",
+       "x": 80,
+       "y": 96,
+       "w": 900,
+       "h": 120,
+       "text": "Come and get inky.",
+       "fs": "__disp-s",
+       "tf": {
+        "col": "#1C1B1A"
+       }
+      },
+      {
+       "type": "para",
+       "x": 80,
+       "y": 240,
+       "w": 640,
+       "h": 48,
+       "text": "Open Wednesday to Saturday, 11 till 6. Walk-ins welcome at the zine library; press sessions are booked.",
+       "tf": {
+        "fs": 18,
+        "col": "#1C1B1A"
+       }
+      },
+      {
+       "type": "button",
+       "x": 80,
+       "y": 336,
+       "w": 216,
+       "h": 48,
+       "text": "Plan a visit",
+       "href": "/visit/",
+       "cls": "riso-btn"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "title": "Workshops",
+   "slug": "workshops",
+   "sections": [
+    {
+     "name": "Workshops",
+     "minH": 792,
+     "els": [
+      {
+       "type": "para",
+       "x": 80,
+       "y": 96,
+       "w": 480,
+       "h": 24,
+       "text": "Workshops",
+       "cls": "riso-label",
+       "tf": {
+        "fs": 13
+       }
+      },
+      {
+       "type": "heading",
+       "x": 80,
+       "y": 144,
+       "w": 696,
+       "h": 192,
+       "text": "Get your hands in the ink.",
+       "fs": "__disp-m",
+       "cls": "riso-misreg"
+      },
+      {
+       "type": "image",
+       "x": 824,
+       "y": 72,
+       "w": 296,
+       "h": 240,
+       "src": "https://images.unsplash.com/photo-1586939735437-d61392bd039b?w=1400&q=80&fm=jpg&fit=max",
+       "alt": "Rolling four colours of ink across a screen",
+       "cls": "riso-rise",
+       "rot": 3,
+       "m": {
+        "hidden": true
+       }
+      },
+      {
+       "type": "box",
+       "x": 80,
+       "y": 360,
+       "w": 1040,
+       "h": 24,
+       "boxBg": "linear-gradient(#FF48B0, #FF48B0) center / 100% 2px no-repeat"
+      },
+      {
+       "type": "para",
+       "x": 80,
+       "y": 384,
+       "w": 200,
+       "h": 24,
+       "text": "Wednesday",
+       "tf": {
+        "fs": 14
+       },
+       "cls": "riso-label"
+      },
+      {
+       "type": "para",
+       "x": 304,
+       "y": 384,
+       "w": 592,
+       "h": 24,
+       "text": "Riso in an afternoon: one design, two colours, fifty prints",
+       "tf": {
+        "fs": 18
+       }
+      },
+      {
+       "type": "para",
+       "x": 920,
+       "y": 384,
+       "w": 200,
+       "h": 24,
+       "text": "3 hours",
+       "tf": {
+        "fs": 14,
+        "col": "color-mix(in srgb, var(--wp--preset--color--contrast, #1C1B1A) 66%, transparent)"
+       },
+       "align": "right",
+       "cls": "riso-label",
+       "m": {
+        "hidden": true
+       }
+      },
+      {
+       "type": "box",
+       "x": 80,
+       "y": 432,
+       "w": 1040,
+       "h": 24,
+       "boxBg": "linear-gradient(#FF48B0, #FF48B0) center / 100% 2px no-repeat"
+      },
+      {
+       "type": "para",
+       "x": 80,
+       "y": 456,
+       "w": 200,
+       "h": 24,
+       "text": "Thursday",
+       "tf": {
+        "fs": 14
+       },
+       "cls": "riso-label"
+      },
+      {
+       "type": "para",
+       "x": 304,
+       "y": 456,
+       "w": 592,
+       "h": 24,
+       "text": "Zine night: fold, staple, swap",
+       "tf": {
+        "fs": 18
+       }
+      },
+      {
+       "type": "para",
+       "x": 920,
+       "y": 456,
+       "w": 200,
+       "h": 24,
+       "text": "Evening",
+       "tf": {
+        "fs": 14,
+        "col": "color-mix(in srgb, var(--wp--preset--color--contrast, #1C1B1A) 66%, transparent)"
+       },
+       "align": "right",
+       "cls": "riso-label",
+       "m": {
+        "hidden": true
+       }
+      },
+      {
+       "type": "box",
+       "x": 80,
+       "y": 504,
+       "w": 1040,
+       "h": 24,
+       "boxBg": "linear-gradient(#FF48B0, #FF48B0) center / 100% 2px no-repeat"
+      },
+      {
+       "type": "para",
+       "x": 80,
+       "y": 528,
+       "w": 200,
+       "h": 24,
+       "text": "Friday",
+       "tf": {
+        "fs": 14
+       },
+       "cls": "riso-label"
+      },
+      {
+       "type": "para",
+       "x": 304,
+       "y": 528,
+       "w": 592,
+       "h": 24,
+       "text": "Press session: your file, our drums, a technician",
+       "tf": {
+        "fs": 18
+       }
+      },
+      {
+       "type": "para",
+       "x": 920,
+       "y": 528,
+       "w": 200,
+       "h": 24,
+       "text": "Half day",
+       "tf": {
+        "fs": 14,
+        "col": "color-mix(in srgb, var(--wp--preset--color--contrast, #1C1B1A) 66%, transparent)"
+       },
+       "align": "right",
+       "cls": "riso-label",
+       "m": {
+        "hidden": true
+       }
+      },
+      {
+       "type": "box",
+       "x": 80,
+       "y": 576,
+       "w": 1040,
+       "h": 24,
+       "boxBg": "linear-gradient(#FF48B0, #FF48B0) center / 100% 2px no-repeat"
+      },
+      {
+       "type": "para",
+       "x": 80,
+       "y": 600,
+       "w": 200,
+       "h": 24,
+       "text": "Saturday",
+       "tf": {
+        "fs": 14
+       },
+       "cls": "riso-label"
+      },
+      {
+       "type": "para",
+       "x": 304,
+       "y": 600,
+       "w": 592,
+       "h": 24,
+       "text": "Kids’ print club, ages 8 to 12",
+       "tf": {
+        "fs": 18
+       }
+      },
+      {
+       "type": "para",
+       "x": 920,
+       "y": 600,
+       "w": 200,
+       "h": 24,
+       "text": "2 hours",
+       "tf": {
+        "fs": 14,
+        "col": "color-mix(in srgb, var(--wp--preset--color--contrast, #1C1B1A) 66%, transparent)"
+       },
+       "align": "right",
+       "cls": "riso-label",
+       "m": {
+        "hidden": true
+       }
+      },
+      {
+       "type": "box",
+       "x": 80,
+       "y": 648,
+       "w": 1040,
+       "h": 24,
+       "boxBg": "linear-gradient(#FF48B0, #FF48B0) center / 100% 2px no-repeat"
+      }
+     ]
+    },
+    {
+     "name": "What to bring",
+     "minH": 576,
+     "els": [
+      {
+       "type": "image",
+       "x": 80,
+       "y": 72,
+       "w": 480,
+       "h": 384,
+       "src": "https://images.unsplash.com/photo-1643216674491-33878507b402?w=1400&q=80&fm=jpg&fit=max",
+       "alt": "Pulling a squeegee across a screen",
+       "cls": "riso-print riso-blue"
+      },
+      {
+       "type": "para",
+       "x": 640,
+       "y": 96,
+       "w": 480,
+       "h": 24,
+       "text": "What to bring",
+       "cls": "riso-label",
+       "tf": {
+        "fs": 13
+       }
+      },
+      {
+       "type": "para",
+       "x": 640,
+       "y": 144,
+       "w": 480,
+       "h": 72,
+       "text": "A design, or an idea for one. Black and white works best: we split the colours with you.",
+       "tf": {
+        "fs": 18
+       }
+      },
+      {
+       "type": "para",
+       "x": 640,
+       "y": 240,
+       "w": 480,
+       "h": 48,
+       "text": "Clothes you do not mind. Soy ink washes out, mostly.",
+       "tf": {
+        "fs": 18
+       }
+      },
+      {
+       "type": "para",
+       "x": 640,
+       "y": 312,
+       "w": 480,
+       "h": 48,
+       "text": "Nothing else. Paper, ink, tea and the long table are ours.",
+       "tf": {
+        "fs": 18
+       }
+      },
+      {
+       "type": "button",
+       "x": 640,
+       "y": 408,
+       "w": 264,
+       "h": 48,
+       "text": "Ask about a session",
+       "href": "/visit/",
+       "cls": "riso-btn"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "title": "Visit",
+   "slug": "visit",
+   "sections": [
+    {
+     "name": "Find us",
+     "minH": 648,
+     "els": [
+      {
+       "type": "para",
+       "x": 80,
+       "y": 96,
+       "w": 480,
+       "h": 24,
+       "text": "Visit",
+       "cls": "riso-label",
+       "tf": {
+        "fs": 13
+       }
+      },
+      {
+       "type": "heading",
+       "x": 80,
+       "y": 144,
+       "w": 480,
+       "h": 168,
+       "text": "Up the stairs, follow the smell of ink.",
+       "fs": "xx-large",
+       "cls": "riso-misreg"
+      },
+      {
+       "type": "para",
+       "x": 80,
+       "y": 360,
+       "w": 440,
+       "h": 120,
+       "text": "First floor, Kelham Island, Sheffield. Open Wednesday to Saturday, 11 till 6. The zine library is free and the kettle is on.",
+       "tf": {
+        "fs": 18
+       }
+      },
+      {
+       "type": "embed",
+       "x": 624,
+       "y": 96,
+       "w": 496,
+       "h": 456,
+       "url": "https://www.google.com/maps?q=Kelham+Island,+Sheffield&output=embed",
+       "radius": 0,
+       "cls": "riso-map"
+      }
+     ]
+    },
+    {
+     "take": "Get in touch",
+     "eyebrow": "Say hello",
+     "heading": "Tell us what you want to print",
+     "text": "What it is, how many, and when you need it. We reply within two days, usually with a question about paper."
+    }
+   ]
+  }
+ ],
+ "credits": [
+  {
+   "name": "Valentin Lacoste",
+   "link": "https://unsplash.com/@valentinlacoste"
+  },
+  {
+   "name": "Deniz Demirci",
+   "link": "https://unsplash.com/@ddography"
+  },
+  {
+   "name": "Anthony Roberts",
+   "link": "https://unsplash.com/@arcreates"
+  },
+  {
+   "name": "ron dyar",
+   "link": "https://unsplash.com/@prolabprints"
+  },
+  {
+   "name": "Pavlo Kochan",
+   "link": "https://unsplash.com/@palk"
+  },
+  {
+   "name": "Nikola Đuza",
+   "link": "https://unsplash.com/@nikolalsvk"
+  },
+  {
+   "name": "the blowup",
+   "link": "https://unsplash.com/@theblowup"
+  },
+  {
+   "name": "Edgar",
+   "link": "https://unsplash.com/@e_d_g_a_r"
+  },
+  {
+   "name": "Alexander Krivitskiy",
+   "link": "https://unsplash.com/@krivitskiy"
+  }
+ ]
+}

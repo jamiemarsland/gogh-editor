@@ -1238,6 +1238,15 @@
   function escAttr(s) {
     return esc(s).replace(/"/g, '&quot;');
   }
+  // a design's own class names on a piece or a section (core blocks call it
+  // 'Additional CSS class'): letters, digits and dashes, never gogh's own
+  // prefix, at most four. They ride the model, the canvas and the published
+  // block, so a site's custom CSS can find the piece after any edit.
+  function userCls(v) {
+    return String(v || '').split(/\s+/).filter(function (c) {
+      return /^[a-z][a-z0-9-]{0,40}$/i.test(c) && !/^gogh-/i.test(c) && !/^wp-/i.test(c);
+    }).slice(0, 4).join(' ');
+  }
   function projEl(e) {
     return { type: e.type, x: e.x, y: e.y, w: e.w, h: e.h,
       text: e.text || null, ghost: !!e.ghost, cool: !!e.cool,
@@ -1248,6 +1257,7 @@
       // an embed's link: the page renderer frames a map from it, so without it
       // every published map stayed a bare 'Open the map' link
       url: e.url || null,
+      cls: userCls(e.cls) || null,
       align: e.align || null, color: e.color || null, tf: e.tf || null,
       btnBg: e.btnBg || null, btnText: e.btnText || null, btnHover: e.btnHover || null,
       wsrc: e.wsrc || null, whtml: e.whtml || null, wcol: e.wcol || null,
@@ -1277,7 +1287,7 @@
     // class, so grid placement and z-order are untouched by the resequence
     return readingIndexOrder(els).map(function (i) {
       var e = els[i];
-      var cls = (clsBase || 'gogh-el-') + (i + 1);
+      var cls = (clsBase || 'gogh-el-') + (i + 1) + (userCls(e.cls) ? ' ' + userCls(e.cls) : '');
       switch (e.type) {
         case 'heading': {
           var hAttrs = { level: 2, className: cls };
@@ -1488,7 +1498,7 @@
     return '<!-- wp:gogh/section ' + serializeBlockAttrs(attrs) + ' -->\n' +
       '<div class="wp-block-gogh-section alignfull gogh-wrap">' +
       '<style class="gogh-style">' + css + '</style>' +
-      '<div' + (sec.anchor ? ' id="' + sec.anchor + '"' : '') + ' class="gogh-section ' + sec.scope + '" data-gogh-scope="' + sec.scope + '">\n' +
+      '<div' + (sec.anchor ? ' id="' + sec.anchor + '"' : '') + ' class="gogh-section ' + sec.scope + (userCls(sec.m && sec.m.cls) ? ' ' + userCls(sec.m.cls) : '') + '" data-gogh-scope="' + sec.scope + '">\n' +
       bgVideoMarkup(sec) + buildElBlocks(sec.els) + '\n</div></div>\n' +
       '<!-- /wp:gogh/section -->';
   }
@@ -1725,7 +1735,7 @@
   }
 
   function makeNode(e, i) {
-    var cls = 'gogh-el-' + (i + 1) + (e.m && e.m.hidden ? ' gogh-m-hidden' : '');
+    var cls = 'gogh-el-' + (i + 1) + (userCls(e.cls) ? ' ' + userCls(e.cls) : '') + (e.m && e.m.hidden ? ' gogh-m-hidden' : '');
     var n;
     // data-widgets (FAQ/Tabs/Carousel) edit through a form, not a caret —
     // the hover tip teaches the gesture ("i wonder if we should give users
@@ -2089,7 +2099,16 @@
   }
 
   // (re)build one section's DOM from its model
+  function applySecCls(sec) {
+    if (!sec || !sec.sectionEl) return;
+    var want = userCls(sec.m && sec.m.cls);
+    if (sec.__cls === want) return;
+    (sec.__cls || '').split(' ').filter(Boolean).forEach(function (c) { sec.sectionEl.classList.remove(c); });
+    want.split(' ').filter(Boolean).forEach(function (c) { sec.sectionEl.classList.add(c); });
+    sec.__cls = want;
+  }
   function renderSection(sec) {
+    applySecCls(sec);
     if (textEditing && textEditing.sec === sec) exitTextEdit();
     // FAQ/Tabs markup is always regenerated from the DATA (e.faq / e.tabs) —
     // so when core's save() format moves on, saved wsrc heals here: regenerate
@@ -11095,6 +11114,8 @@
     // a loop behind the words rides along too (a site definition's 'video');
     // it used to be dropped here, so no template could carry one
     sec.bgVideo = tpl.bgVideo || null;
+    // a design's own class for the section rides in m, which every path keeps
+    if (userCls(tpl.cls)) sec.m = Object.assign({}, sec.m || {}, { cls: userCls(tpl.cls) });
     sec.fill = !!tpl.fill;
     // a section can be a DESTINATION: its anchor becomes the element's id,
     // which is the whole trick behind a one-page site's menu
@@ -11234,7 +11255,7 @@
   var GEN_TYPES = { heading: 1, para: 1, button: 1, badge: 1, image: 1, box: 1, embed: 1 };
   // ('m' carries the phone overrides — a hand-drawn ledger can hide its year column on phones)
   // (a button's colour is btnBg/btnText, palette slugs; 'ghost' draws it as an outline)
-  var GEN_FIELDS = ['x', 'y', 'w', 'h', 'text', 'src', 'href', 'url', 'fs', 'align', 'color', 'radius', 'rot', 'tf', 'mood', 'boxBg', 'shape', 'alt', 'm', 'btnBg', 'btnText', 'ghost'];
+  var GEN_FIELDS = ['x', 'y', 'w', 'h', 'text', 'src', 'href', 'url', 'fs', 'align', 'color', 'radius', 'rot', 'tf', 'mood', 'boxBg', 'shape', 'alt', 'm', 'btnBg', 'btnText', 'ghost', 'cls'];
   function genEl(e) {
     if (!e || !GEN_TYPES[e.type]) return null;
     var out = { type: e.type };
@@ -11264,6 +11285,7 @@
       var made = { name: String(sc.name || 'Section'), els: els };
       if (sc.minH) made.minH = Math.max(160, Math.min(1600, Math.round(+sc.minH)));
       if (sc.background) made.bg = String(sc.background);
+      if (userCls(sc.cls)) made.cls = userCls(sc.cls);
       if (sc.image) { made.bgImage = String(sc.image); made.bgA = sc.tint != null ? +sc.tint : 45; }
       // a loop behind the words (a kitchen, a shoreline): the section's
       // background colour tints over it at 'tint' per cent, as over a photo

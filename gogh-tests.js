@@ -6723,6 +6723,28 @@
       expect(Math.round(G.hueToward(200, 28, 0.5)) === 114 && Math.round(G.hueToward(350, 28, 0.5)) === 9, 'hueToward should take the short way round');
     });
 
+    test('a design can name its pieces and sections for its own CSS (class rides canvas, model and published block)', function () {
+      var tpl = G.fillTake({ name: 'Riso', minH: 432, cls: 'riso-band gogh-sneaky', els: [
+        { type: 'heading', x: 80, y: 96, w: 600, h: 96, text: 'Misprint', cls: 'riso-misreg riso-big' },
+        { type: 'para', x: 80, y: 216, w: 600, h: 48, text: 'Two inks, one pass.', cls: 'wp-nope ok-one' } ] });
+      expect(tpl.cls === 'riso-band', 'a section class should come through, without gogh\u2019s own prefix: ' + tpl.cls);
+      var n0 = G.sections().length;
+      G.addSection(tpl, n0);
+      var sec = G.sections()[n0];
+      try {
+        expect(sec.sectionEl.classList.contains('riso-band') && !sec.sectionEl.classList.contains('gogh-sneaky'), 'the section should wear its class on the canvas');
+        expect(sec.nodes[0].classList.contains('riso-misreg') && sec.nodes[0].classList.contains('riso-big'), 'the heading should wear its classes on the canvas');
+        expect(sec.nodes[1].classList.contains('ok-one') && !sec.nodes[1].classList.contains('wp-nope'), 'a wp- class is refused, a plain one kept');
+        var blocks = G.blocksV3(sec);
+        expect(/class="gogh-section [^"]*riso-band/.test(blocks), 'the published section should carry its class');
+        expect(/gogh-el-1 riso-misreg riso-big/.test(blocks), 'the published heading block should carry its classes');
+        expect(/"cls":"riso-misreg riso-big"/.test(blocks), 'the saved model should keep the classes');
+      } finally {
+        if (G.deleteSection) G.deleteSection(n0);
+      }
+      return 'classes on the canvas, in the model and in the published blocks';
+    });
+
     testAsync('the Make door serves a chat that builds this site (read only: nothing is applied here)', async function () {
       var r = await fetch(location.origin + '/?gogh-make=1&goghcb=' + Date.now(), { credentials: 'same-origin', cache: 'no-store' });
       var html = await r.text();

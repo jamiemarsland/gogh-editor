@@ -15,7 +15,7 @@ about something where they conflict, rather than picking one silently. Quote UI
 labels and message copy from the appendix, verbatim — those are the current
 strings, and a paraphrased button label is the fastest way to lose a user's trust.
 
-Generated for plugin version 0.99.645 · knowledge base ba6ec8d.
+Generated for plugin version 0.99.646 · knowledge base d204b51.
 
 ---
 
@@ -829,6 +829,8 @@ The helper's welcome panel opens with a 35-second film of gogh being used (v0.99
 
 **The phone view survives navigation (v0.99.605).** Press one of your own pages while on the phone and it opens in the editor, still on the phone: the link carries `gogh-edit=1&gogh-phone=1`, the next page reads them at boot and strips them from the address. Other sites, files, wp-admin and anchors on the same page are left alone. Unpublished changes still ask before leaving.
 
+**A design can bring its own CSS (v0.99.646).** Any piece or section can carry its own class names, the way core blocks have *Additional CSS class*: letters, digits and dashes, up to four, never starting `gogh-` or `wp-`. They ride the canvas, the saved model and the published blocks, so a stylesheet can find a piece after any edit. A site definition can bring that stylesheet as `css`; gogh writes it into WordPress's own Additional CSS between markers (the person can read and change it there, and a rebuild replaces only gogh's part). Google Fonts `@import` lines are lifted out and loaded as proper stylesheet links, because WordPress prints Additional CSS at the end of the global styles, where an import is ignored. The first blueprint to use it is **Misprint**, a risograph studio and zine library (`blueprint-misprint.json`): misregistered blue-and-pink headlines that snap into register on hover, photographs pulled as halftone duotones, three ink circles that overprint where they meet, prints pinned at angles that straighten when you look at them, a spinning sticker, an endless ticker, a giant outlined word and paper grain. Motion stops while editing and for anyone who prefers reduced motion.
+
 **Make: chat, and gogh builds your site right here (v0.99.645).** A blueprint that is not a design: `blueprint-make.json` lands on `/?gogh-make=1`, a page of its own where you say what your site is for and what it is called. gogh's helper asks a question or two, finds pictures and writes the site; the moment it publishes, the page fetches the definition, applies it to this WordPress through `gogh/v1/site-def?replace=1` and runs the build, landing on the new home page in about a minute. The admin bar gains **Chat**, which returns to the same conversation (kept in the browser): ask for a change and it rebuilds in place, moving the pages and posts the last chat made to the bin and never touching anything you made yourself. The helper learned three things for it: a chat running inside the site is told not to hand over a link; the stream sends a heartbeat every fifteen seconds so a long write is not cut off; and the builder can place a **map** of a place you name (never an invented street), drawn with gogh's map piece. The four showcase definitions were also snapped back onto gogh's 24/72 rhythm.
 
 **Northern Blocks, a community conference (v0.99.644).** The fourth showcase blueprint: the name at display size beside a stage picture with a yellow ticket sticker, a cobalt band of numbers in yellow, speaker cards with a portrait, name, role and talk, the schedule as a ruled timetable over two days, the venue with a map and access notes, three ticket cards, news posts with pictures, and a form to hold a ticket (`blueprint-conference.json`). A fictional event; a site definition only, on the Noon variation.
@@ -910,11 +912,11 @@ Everything in this section is extracted mechanically from the Gogh source on eve
 
 ## Current release
 
-- Plugin version: **0.99.645**
+- Plugin version: **0.99.646**
 - Requires WordPress **6.5+**, PHP **7.4+**
 - Text domain: `gogh-editor`
 - readme.txt Stable tag: `0.26.0` · Tested up to: `7.0`
-- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.645`). Quote the plugin header version.
+- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.646`). Quote the plugin header version.
 
 ## Design constants
 
@@ -1034,6 +1036,7 @@ Block: `gogh/section` · v3 attributes: `css`, `model`, `scope`, `v`, `cssT`.
 | `body_class` | filter | 10 |
 | `wp_insert_post_empty_content` | filter | 10 |
 | `trashed_post` | action | 10 |
+| `wp_enqueue_scripts` | action | 10 |
 | `template_redirect` | action | 10 |
 | `admin_bar_menu` | action | 10 |
 | `wp_footer` | action | 99 |
@@ -1447,4 +1450,4 @@ These are the real strings in the current build. Use them verbatim; never paraph
 
 ## Test suite
 
-`333` tests, run by appending `?gogh-test` to any Gogh page URL while logged in with edit rights on that page.
+`334` tests, run by appending `?gogh-test` to any Gogh page URL while logged in with edit rights on that page.
