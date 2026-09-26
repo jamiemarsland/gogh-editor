@@ -1247,6 +1247,29 @@
       return /^[a-z][a-z0-9-]{0,40}$/i.test(c) && !/^gogh-/i.test(c) && !/^wp-/i.test(c);
     }).slice(0, 4).join(' ');
   }
+  // ---------- a design's named looks (gogh_site_design_clean) ----------
+  // A look is a block style: its class is is-style-<slug> and the design's
+  // own CSS styles it. A piece wears it as its FIRST class, so the four-class
+  // cap never cuts it off, and wearing another look swaps it in place.
+  function designLooks(type) {
+    var d = cfg.design, l = d && d.looks && d.looks[type];
+    return Array.isArray(l) ? l : [];
+  }
+  function lookOf(e) {
+    var have = ' ' + userCls(e && e.cls) + ' ';
+    return designLooks(e && e.type).filter(function (lk) { return have.indexOf(' is-style-' + lk.slug + ' ') !== -1; })[0] || null;
+  }
+  function defaultLook(type) {
+    return designLooks(type).filter(function (lk) { return lk.default; })[0] || null;
+  }
+  function wearLook(e, lk) {
+    var mine = {};
+    designLooks(e.type).forEach(function (o) { mine['is-style-' + o.slug] = 1; });
+    var rest = userCls(e.cls).split(' ').filter(function (c) { return c && !mine[c]; });
+    if (lk) rest.unshift('is-style-' + lk.slug);
+    e.cls = userCls(rest.join(' ')) || null;
+    return e;
+  }
   function projEl(e) {
     return { type: e.type, x: e.x, y: e.y, w: e.w, h: e.h,
       text: e.text || null, ghost: !!e.ghost, cool: !!e.cool,
@@ -3143,6 +3166,8 @@
   elbar.className = 'gogh-elbar';
   elbar.innerHTML =
     '<button type="button" class="gogh-eb gogh-eb-ctx"></button>' +
+    // the design's looks for this kind of piece, named ("Yellow print")
+    '<button type="button" class="gogh-eb gogh-eb-look" title="Choose a look"></button>' +
     '<button type="button" class="gogh-eb gogh-eb-manage" title="Open your products in WordPress">Manage products</button>' +
     '<button type="button" class="gogh-eb gogh-eb-fs" title="Cycle theme font sizes"></button>' +
     '<button type="button" class="gogh-eb gogh-eb-fit" title="Fill the width — size the text to its box">' +
@@ -3170,6 +3195,19 @@
     '<button type="button" class="gogh-eb gogh-mb gogh-cl-space" title="Equal gaps top to bottom">Even gaps</button>' +
     '</div>';
   var ctxBtn = elbar.querySelector('.gogh-eb-ctx');
+  var lookBtn = elbar.querySelector('.gogh-eb-look');
+  lookBtn.addEventListener('click', function () {
+    if (sel) openLookPanel(sel.sec, sel.i);
+  });
+  function dressLookBtn(e) {
+    var looks = e && !e.rails ? designLooks(e.type) : [];
+    if (!looks.length) { lookBtn.style.display = 'none'; return; }
+    var cur = lookOf(e);
+    lookBtn.innerHTML = '<span class="gogh-eb-lookname">' + esc(cur ? cur.name : 'Look') + '</span>' +
+      '<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>';
+    lookBtn.title = cur ? 'Look: ' + cur.name + ' \u2014 choose another' : 'Choose a look';
+    lookBtn.style.display = '';
+  }
   var phoneBtn = elbar.querySelector('.gogh-eb-phone');
   phoneBtn.addEventListener('click', function () {
     if (!sel) return;
@@ -4010,6 +4048,7 @@
       colBtn.style.display = 'none';
     }
     dressPhoneBtn(e);
+    dressLookBtn(e);
     elbar.hidden = false;
   }
 
@@ -6520,6 +6559,18 @@
         whtml: '<div class="gogh-shopprev gogh-postsprev-loading">Loading your products\u2026</div>' };
     },
   };
+  // a design with looks dresses every new piece in its default look, so a
+  // button added today matches the buttons the design drew (James: "they add
+  // a button and it knows the styles")
+  Object.keys(DEFAULTS).forEach(function (k) {
+    var make = DEFAULTS[k];
+    DEFAULTS[k] = function () {
+      var e = make();
+      var d = defaultLook(e.type);
+      if (d && !lookOf(e)) wearLook(e, d);
+      return e;
+    };
+  });
   // ---------- the posts grid on rails ----------
   function postsDefaults() {
     return { look: '', count: 3, order: 'date', cat: null, catId: null,
@@ -7603,6 +7654,65 @@
     if (kindKey === 'posts') hydratePostsPreview(secx, e);
     if (kindKey === 'products') hydrateProductsPreview(secx, e);
     return e;
+  }
+  // ---------- the looks panel: a picture of this piece in each look ----------
+  function lookSample(e, lk) {
+    var c = 'is-style-' + lk.slug;
+    if (e.type === 'button') {
+      return '<div class="wp-block-buttons ' + c + '"><div class="wp-block-button' + (e.ghost ? ' gogh-ghost' : '') + '">' +
+        '<span class="wp-block-button__link wp-element-button">' + esc(String(e.text || 'Button').replace(/<[^>]*>/g, '').slice(0, 18)) + '</span></div></div>';
+    }
+    if (e.type === 'image') {
+      return e.src
+        ? '<figure class="wp-block-image size-full gogh-img ' + c + '"><img src="' + escAttr(e.src) + '" alt=""></figure>'
+        : '<span class="gogh-look-noimg">Choose a picture to see it</span>';
+    }
+    if (e.type === 'heading') return '<h2 class="wp-block-heading ' + c + '">Aa</h2>';
+    return '<p class="' + c + '">Aa Bb</p>';
+  }
+  function openLookPanel(sec, i) {
+    var e = sec.els[i];
+    var looks = e ? designLooks(e.type) : [];
+    if (!looks.length) return;
+    var cur = lookOf(e);
+    var KIND = { heading: 'Heading', para: 'Text', button: 'Button', image: 'Picture' };
+    panel.innerHTML = '<div class="gogh-panel-title">Look \u00b7 ' + (KIND[e.type] || 'Piece') + '</div>' +
+      '<div class="gogh-looks">' + looks.map(function (lk, n) {
+        var on = cur && cur.slug === lk.slug;
+        return '<button type="button" class="gogh-look' + (on ? ' is-on' : '') + '" data-n="' + n + '" aria-pressed="' + (on ? 'true' : 'false') + '">' +
+          '<span class="gogh-look-stage gogh-look-' + e.type + '"><span class="wp-site-blocks gogh-look-site">' + lookSample(e, lk) + '</span></span>' +
+          '<span class="gogh-look-name"><b>' + esc(lk.name) + '</b>' + (lk.default ? '<i>Default</i>' : '') + '</span></button>';
+      }).join('') + '</div>' +
+      '<div class="gogh-panel-hint">Looks come with ' + esc((cfg.design && cfg.design.name) || 'the design') + '. New ' +
+      ((KIND[e.type] || 'piece').toLowerCase() === 'text' ? 'text' : (KIND[e.type] || 'piece').toLowerCase() + 's') + ' arrive in the default.</div>';
+    // the samples sit on this section's own ground, in its own ink
+    try {
+      var cs = getComputedStyle(sec.sectionEl);
+      var bg = cs.backgroundColor;
+      if (!bg || bg === 'transparent' || /rgba\(.*,\s*0\)$/.test(bg)) bg = getComputedStyle(document.body).backgroundColor;
+      panel.style.setProperty('--gogh-look-bg', bg || '#fff');
+      panel.style.setProperty('--gogh-look-fg', cs.color);
+    } catch (err) {}
+    placePanelNear(sec.nodes[i] || sec.sectionEl);
+    panelOpen = true;
+    panelSticky = false;
+    panelCleanup = function () { panel.style.removeProperty('--gogh-look-bg'); panel.style.removeProperty('--gogh-look-fg'); };
+    panel.querySelectorAll('.gogh-look').forEach(function (b) {
+      b.addEventListener('click', function () {
+        var lk = looks[+b.dataset.n];
+        var e2 = sec.els[i];
+        if (!lk || !e2) return;
+        wearLook(e2, lk);
+        renderSection(sec);
+        pushState();
+        placeHandles(sec, i);
+        panel.querySelectorAll('.gogh-look').forEach(function (o) {
+          var on = o === b;
+          o.classList.toggle('is-on', on);
+          o.setAttribute('aria-pressed', on ? 'true' : 'false');
+        });
+      });
+    });
   }
   function openSecAddPanel(idx) {
     var secx = S[idx];
@@ -10599,6 +10709,23 @@
     ]);
     var cardsArr = [];
     var starterSeen = 0;
+    // the design's own sections come first: the ticker, the rack, whatever
+    // made this design itself, drawn through the definition door
+    var designShelf = [];
+    ((cfg.design && Array.isArray(cfg.design.shelf)) ? cfg.design.shelf : []).forEach(function (sc) {
+      var tpl = null;
+      try { tpl = fillTake(sc); } catch (err) {}
+      if (!tpl) return;
+      tpl.label = esc(sc.name || tpl.name) + (sc.note ? '<i class="gogh-card-note">' + esc(sc.note) + '</i>' : '');
+      designShelf.push(tpl);
+    });
+    if (designShelf.length) {
+      cardsArr.push('<div class="gogh-seclab gogh-intentlab gogh-designlab">From ' + esc(cfg.design.name || 'this design') +
+        '<i>Made for this design</i></div>');
+      designShelf.forEach(function (tpl, d) {
+        cardsArr.push(tplCardHTML(tpl, 'd' + d, false, 0).replace('data-tpl="d' + d + '"', 'data-dtpl="' + d + '"'));
+      });
+    }
     INTENTS.forEach(function (g) {
       var labelled = false;
       TEMPLATES.forEach(function (tpl, t) {
@@ -10713,6 +10840,13 @@
         closePicker();
       });
     });
+    picker.querySelectorAll('.gogh-card[data-dtpl]').forEach(function (card) {
+      card.addEventListener('click', function () {
+        var tpl = designShelf[+card.dataset.dtpl];
+        if (tpl) addSection(tpl, pickerIdx, pickerBefore);
+        closePicker();
+      });
+    });
     picker.querySelector('.gogh-quick-scratch').addEventListener('click', function () {
       addSection(TEMPLATES[blankAt], pickerIdx, pickerBefore);
       closePicker();
@@ -10748,7 +10882,7 @@
           // shelves are the map, so nothing hides behind a See all — plus
           // a one-row taste of the theme's patterns (recents/faves carry
           // kind="yours" and stay off the first screen)
-          ok = b.dataset.tpl != null ||
+          ok = b.dataset.tpl != null || b.dataset.dtpl != null ||
             (isPat && !b.dataset.kind && teaser < 4 && !!(++teaser));
         } else {
           var cats = (b.dataset.cats || '').split(' ');
@@ -19289,6 +19423,9 @@
     addHtmlSection: addHtmlSection,
     startChromeCycle: startChromeCycle,
     openPicker: openPicker,
+    // a design's named looks (the chip, the panel, new pieces in the default)
+    looks: { list: designLooks, of: lookOf, wear: wearLook, def: defaultLook, open: openLookPanel },
+    placeHandles: placeHandles,
     navLinkMarkup: navLinkMarkup,
     chromeEdits: function () { return chromeLightEdits; },
     bindChromeTest: function (el, raw) {

@@ -4420,3 +4420,29 @@ html.gogh-building .gogh-inserter, html.gogh-building .gogh-side { display: none
 /* add a page: one field, one verb */
 .gogh-addpage { display: flex; gap: 8px; padding: 4px 0 8px; }
 .gogh-addpage .gogh-addpage-title { flex: 1; min-width: 0; }
+
+/* ---- a design's named looks: the chip on the piece's bar, the looks panel,
+   and the design's own shelf in the section picker ---- */
+.gogh-eb-look { display: inline-flex; align-items: center; gap: 5px; font-size: 13px; font-weight: 600; background: #f1f2f5; max-width: 150px; }
+.gogh-eb-look .gogh-eb-lookname { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.gogh-eb-look svg { flex: 0 0 auto; opacity: .6; }
+.gogh-looks { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin: 10px 0 8px; }
+.gogh-look { all: unset; box-sizing: border-box; cursor: pointer; display: flex; flex-direction: column; border: 1px solid rgba(22, 24, 28, .12); border-radius: 10px; overflow: hidden; background: #fff; color: #16181c; }
+.gogh-look:hover { border-color: #9db8ff; }
+.gogh-look:focus-visible { outline: 2px solid #7ea8ff; outline-offset: 2px; }
+.gogh-look.is-on { border-color: #3858e9; box-shadow: 0 0 0 1px #3858e9; }
+.gogh-look-stage { position: relative; height: 84px; overflow: hidden; background: var(--gogh-look-bg, #fff); color: var(--gogh-look-fg, #16181c); pointer-events: none; }
+.gogh-look-site.wp-site-blocks { position: absolute; inset: 0; padding: 0 !important; margin: 0 !important; min-height: 0 !important; display: grid; place-items: center; }
+.gogh-look-site.wp-site-blocks > * { margin: 0 !important; }
+.gogh-look-stage h2 { font-size: 30px !important; line-height: 1 !important; margin: 0 !important; white-space: nowrap; }
+.gogh-look-stage p { font-size: 22px !important; line-height: 1 !important; margin: 0 !important; white-space: nowrap; }
+.gogh-look-stage .wp-block-buttons { display: flex; justify-content: center; max-width: 92%; }
+.gogh-look-stage .wp-block-button__link { display: block; font-size: 12px; padding: 9px 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; box-sizing: border-box; }
+.gogh-look-stage figure.wp-block-image { position: absolute !important; inset: 0; margin: 0 !important; transform: none !important; }
+.gogh-look-stage figure.wp-block-image img { display: block; width: 100%; height: 100%; object-fit: cover; }
+.gogh-look-noimg { font-size: 12px; color: #6b7280; padding: 0 10px; text-align: center; }
+.gogh-look-name { display: flex; justify-content: space-between; align-items: center; gap: 6px; padding: 8px 10px; font-size: 12.5px; }
+.gogh-look-name b { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.gogh-look-name i { font-style: normal; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: #6b7280; }
+.gogh-look.is-on .gogh-look-name i { color: #3858e9; }
+.gogh-card-note { font-style: normal; font-weight: 500; font-size: 11.5px; color: #6b7280; margin-left: auto; text-align: right; }

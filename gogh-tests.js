@@ -6745,6 +6745,55 @@
       return 'classes on the canvas, in the model and in the published blocks';
     });
 
+    test('a design’s named looks: new pieces arrive in the default, the chip names the look, the panel swaps it, the shelf leads the picker', function () {
+      // a design only this test can see: set in memory, taken away after
+      var cfgG = window.GOGH, was = cfgG.design;
+      cfgG.design = { name: 'Riso Test', looks: {
+        button: [{ name: 'Yellow print', slug: 'yellow-print', 'default': true }, { name: 'Pink print', slug: 'pink-print', 'default': false }],
+        heading: [{ name: 'Misregistered', slug: 'misregistered', 'default': true }, { name: 'Plain', slug: 'plain', 'default': false }] },
+        shelf: [{ name: 'Ticker band', note: 'A running strip of words', minH: 144, cls: 'riso-ticker-band', els: [
+          { type: 'para', x: 0, y: 48, w: 1200, h: 48, text: 'Zines ✱ Posters', cls: 'riso-ticker' }] }] };
+      var n0 = G.sections().length, added = false;
+      try {
+        var b = G.defaults('button');
+        expect(b.cls === 'is-style-yellow-print', 'a new button should arrive in the default look: ' + b.cls);
+        expect(!G.defaults('para').cls, 'a kind with no looks should arrive with no class');
+        var h = { type: 'heading', cls: 'riso-big is-style-misregistered' };
+        expect(G.looks.of(h).slug === 'misregistered', 'the look should be read from the classes');
+        G.looks.wear(h, G.looks.list('heading')[1]);
+        expect(h.cls === 'is-style-plain riso-big', 'wearing a look swaps it in first place and keeps the other classes: ' + h.cls);
+        G.addSection({ name: 'Looks', minH: 432, els: [{ type: 'heading', x: 80, y: 96, w: 600, h: 96, text: 'Two inks', cls: 'is-style-misregistered' }] }, n0);
+        added = true;
+        var sec = G.sections()[n0];
+        G.placeHandles(sec, 0);
+        var chip = q('.gogh-eb-look');
+        expect(chip && chip.style.display !== 'none' && /Misregistered/.test(chip.textContent), 'the bar should name the heading’s look');
+        G.looks.open(sec, 0);
+        var tiles = document.querySelectorAll('.gogh-panel .gogh-look');
+        expect(tiles.length === 2, 'the panel should show one tile per look: ' + tiles.length);
+        expect(tiles[0].classList.contains('is-on') && /Default/.test(tiles[0].textContent), 'the worn look is marked, the default says so');
+        expect(tiles[1].querySelector('h2.is-style-plain'), 'each tile should draw the piece in its look');
+        tiles[1].click();
+        expect(sec.els[0].cls === 'is-style-plain', 'choosing a tile should wear it: ' + sec.els[0].cls);
+        expect(sec.nodes[0].classList.contains('is-style-plain') && !sec.nodes[0].classList.contains('is-style-misregistered'), 'the canvas should wear the new look');
+        expect(/Plain/.test(q('.gogh-eb-look').textContent), 'the chip should follow');
+        expect(/gogh-el-1 is-style-plain/.test(G.blocksV3(sec)), 'the published block should carry the look');
+        G.closePanel();
+        G.openPicker(n0 + 1);
+        var lab = q('.gogh-picker .gogh-designlab'), cards = document.querySelectorAll('.gogh-picker .gogh-card[data-dtpl]');
+        expect(lab && /From Riso Test/.test(lab.textContent), 'the picker should open with the design’s own shelf');
+        expect(cards.length === 1 && /Ticker band/.test(cards[0].textContent) && /running strip/.test(cards[0].textContent), 'the shelf should show the section with its note');
+        expect(cards[0].querySelector('.riso-ticker'), 'the card should draw the section with its classes');
+      } finally {
+        cfgG.design = was;
+        if (q('.gogh-picker.is-open') && G.closePicker) G.closePicker();
+        var pk = q('.gogh-picker'); if (pk) { pk.classList.remove('is-open'); pk.hidden = true; }
+        G.closePanel();
+        if (added && G.deleteSection) G.deleteSection(n0);
+      }
+      return 'default on arrival, chip, panel, swap, published class, the design’s shelf';
+    });
+
     testAsync('the Make door serves a chat that builds this site (read only: nothing is applied here)', async function () {
       var r = await fetch(location.origin + '/?gogh-make=1&goghcb=' + Date.now(), { credentials: 'same-origin', cache: 'no-store' });
       var html = await r.text();

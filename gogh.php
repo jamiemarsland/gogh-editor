@@ -3084,6 +3084,15 @@ function gogh_site_def_boot( $def ) {
 		$prev = preg_replace( '#\n?/\* gogh:site-css start \*/.*?/\* gogh:site-css end \*/\n?#s', '', (string) wp_get_custom_css() );
 		wp_update_custom_css_post( trim( $prev . "\n/* gogh:site-css start */\n" . $css . "\n/* gogh:site-css end */\n" ) );
 	}
+	// the design's named looks and its own sections (see gogh_site_design_clean):
+	// kept for the editor and the block editor; a design without them clears
+	// the last one's, so a rebuild never inherits another design's chips
+	$design = gogh_site_design_clean( $def );
+	if ( $design ) {
+		update_option( 'gogh_site_design', $design, true );
+	} else {
+		delete_option( 'gogh_site_design' );
+	}
 	// posts: plain text becomes paragraphs; block markup passes through
 	foreach ( (array) ( isset( $def['posts'] ) ? $def['posts'] : array() ) as $ps ) {
 		if ( ! is_array( $ps ) || empty( $ps['title'] ) ) {
@@ -3156,6 +3165,108 @@ function gogh_site_def_boot( $def ) {
 	update_option( 'gogh_site_def', array( 'def' => $def, 'pages' => $ids ), false );
 	return array( 'pages' => $ids, 'home' => get_permalink( $front ? $front : $made[0]['id'] ) );
 }
+// ---------- a design's named looks ------------------------------------------
+// A definition can name LOOKS for a kind of piece ("Yellow print" for a
+// button, "Misregistered" for a heading) and mark one as the default. A look
+// is a WordPress block style: its class is is-style-<slug>, the design's own
+// CSS styles that class, gogh dresses every new piece in the default, and the
+// block editor's Styles panel lists the same names. A definition can also
+// bring a SHELF of its own sections, offered first in the section picker.
+function gogh_site_design_types() {
+	return array(
+		'heading' => 'core/heading',
+		'para'    => 'core/paragraph',
+		'button'  => 'core/button',
+		'image'   => 'core/image',
+	);
+}
+function gogh_site_design_clean( $def ) {
+	if ( ! is_array( $def ) ) {
+		return null;
+	}
+	// names core already gives these blocks: a look may not shadow them
+	$reserved = array( 'default', 'fill', 'outline', 'rounded', 'squared', 'regular', 'large', 'plain-core' );
+	$looks    = array();
+	if ( ! empty( $def['looks'] ) && is_array( $def['looks'] ) ) {
+		foreach ( array_keys( gogh_site_design_types() ) as $type ) {
+			if ( empty( $def['looks'][ $type ] ) || ! is_array( $def['looks'][ $type ] ) ) {
+				continue;
+			}
+			$list     = array();
+			$seen     = array();
+			$has_def  = false;
+			foreach ( array_slice( array_values( $def['looks'][ $type ] ), 0, 6 ) as $lk ) {
+				if ( ! is_array( $lk ) || empty( $lk['name'] ) || ! is_string( $lk['name'] ) ) {
+					continue;
+				}
+				$name = sanitize_text_field( mb_substr( $lk['name'], 0, 32 ) );
+				$slug = sanitize_title( $name );
+				if ( '' === $name || ! preg_match( '/^[a-z][a-z0-9-]{0,29}$/', $slug ) || isset( $seen[ $slug ] ) || in_array( $slug, $reserved, true ) ) {
+					continue;
+				}
+				$seen[ $slug ] = true;
+				$is_def        = ! empty( $lk['default'] ) && ! $has_def;
+				$has_def       = $has_def || $is_def;
+				$list[]        = array( 'name' => $name, 'slug' => $slug, 'default' => $is_def );
+			}
+			if ( $list ) {
+				$looks[ $type ] = $list;
+			}
+		}
+	}
+	// the shelf: whole sections in the definition's own format. The editor
+	// draws them through the same door as the pages (genEl whitelists every
+	// field), so here they are only bounded
+	$shelf = array();
+	if ( ! empty( $def['shelf'] ) && is_array( $def['shelf'] ) ) {
+		foreach ( array_slice( array_values( $def['shelf'] ), 0, 8 ) as $sc ) {
+			if ( ! is_array( $sc ) || empty( $sc['els'] ) || ! is_array( $sc['els'] ) ) {
+				continue;
+			}
+			$sc['name'] = sanitize_text_field( mb_substr( isset( $sc['name'] ) ? (string) $sc['name'] : 'Section', 0, 40 ) );
+			$sc['note'] = sanitize_text_field( mb_substr( isset( $sc['note'] ) ? (string) $sc['note'] : '', 0, 80 ) );
+			if ( strlen( wp_json_encode( $sc ) ) > 32768 ) {
+				continue;
+			}
+			$shelf[] = $sc;
+		}
+	}
+	if ( ! $looks && ! $shelf ) {
+		return null;
+	}
+	return array(
+		'name'  => sanitize_text_field( ! empty( $def['name'] ) ? $def['name'] : 'this design' ),
+		'looks' => (object) $looks,
+		'shelf' => $shelf,
+	);
+}
+// the looks as block styles: the block editor's Styles panel offers the same
+// names, and choosing one there writes the same class gogh writes
+add_action( 'init', function () {
+	$design = get_option( 'gogh_site_design' );
+	if ( ! is_array( $design ) || empty( $design['looks'] ) || ! function_exists( 'register_block_style' ) ) {
+		return;
+	}
+	$map = gogh_site_design_types();
+	$reg = class_exists( 'WP_Block_Styles_Registry' ) ? WP_Block_Styles_Registry::get_instance() : null;
+	foreach ( (array) $design['looks'] as $type => $list ) {
+		if ( ! isset( $map[ $type ] ) || ! is_array( $list ) ) {
+			continue;
+		}
+		foreach ( $list as $lk ) {
+			if ( empty( $lk['slug'] ) || ( $reg && $reg->is_registered( $map[ $type ], $lk['slug'] ) ) ) {
+				continue;
+			}
+			register_block_style( $map[ $type ], array( 'name' => $lk['slug'], 'label' => $lk['name'] ) );
+		}
+	}
+}, 20 );
+// for the editor: the looks and the shelf, or null when the site has none
+function gogh_site_design_for_editor() {
+	$design = get_option( 'gogh_site_design' );
+	return is_array( $design ) ? $design : null;
+}
+
 // ---------- launch counter --------------------------------------------------
 // A blueprint writes gogh_booted_as when it boots (each blueprint's runPHP
 // names itself). The first page after that sends one beacon to the helper:
@@ -6522,6 +6633,8 @@ add_action( 'wp_enqueue_scripts', function () {
 		// the first minute: three staged beats on their first section — shown
 		// once per user, ever (design note: The First Minute)
 		'firstMinute' => (bool) ( current_user_can( 'edit_posts' ) && ! get_user_meta( get_current_user_id(), '_gogh_first_minute', true ) ),
+		// the design's named looks and its own sections (gogh_site_design_clean)
+		'design'   => gogh_site_design_for_editor(),
 		'menuStyle' => gogh_menu_style(),
 		'restUrl'  => rest_url( 'wp/v2/' . $rest_base . '/' . $post->ID ),
 		'mediaUrl' => rest_url( 'wp/v2/media' ),
