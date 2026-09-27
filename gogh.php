@@ -3264,6 +3264,140 @@ add_action( 'init', function () {
 		}
 	}
 }, 20 );
+// ---------- route one: the styles WordPress already knows ------------------
+// Block styles a theme or plugin registered for the core heading, paragraph,
+// button and image blocks (register_block_style, theme.json variations and
+// the theme's styles/blocks partials) join the style chip beside a design's
+// own. Core's built-in pairs (button Fill/Outline, image Default/Rounded)
+// stay out: gogh already offers them as Solid/Outline and corners, and two
+// doors for one thing is one too many. A design's styles come first and
+// keep the default; these never set one.
+function gogh_wp_block_styles() {
+	static $out = null;
+	if ( null !== $out ) {
+		return $out;
+	}
+	$out = array( 'looks' => array(), 'css' => '' );
+	if ( ! class_exists( 'WP_Block_Styles_Registry' ) || ! class_exists( 'WP_Theme_JSON_Resolver' ) ) {
+		return $out;
+	}
+	$mine   = array();
+	$design = get_option( 'gogh_site_design' );
+	if ( is_array( $design ) && ! empty( $design['looks'] ) ) {
+		foreach ( (array) $design['looks'] as $t => $l ) {
+			foreach ( (array) $l as $lk ) {
+				if ( ! empty( $lk['slug'] ) ) {
+					$mine[ $t ][ $lk['slug'] ] = true;
+				}
+			}
+		}
+	}
+	$reg    = WP_Block_Styles_Registry::get_instance();
+	$raw    = WP_Theme_JSON_Resolver::get_merged_data()->get_raw_data();
+	$titles = array();
+	foreach ( (array) WP_Theme_JSON_Resolver::get_style_variations( 'block' ) as $v ) {
+		if ( ! empty( $v['slug'] ) && ! empty( $v['title'] ) ) {
+			$titles[ $v['slug'] ] = $v['title'];
+		}
+	}
+	$theme    = wp_get_theme()->get( 'Name' );
+	$css      = '';
+	$human    = function ( $slug ) {
+		return ucfirst( str_replace( array( 'text-', '-' ), array( '', ' ' ), $slug ) );
+	};
+	foreach ( gogh_site_design_types() as $type => $block ) {
+		if ( ! $block ) {
+			continue;
+		}
+		$list = array();
+		$seen = array();
+		$registered = $reg->get_registered_styles_for_block( $block );
+		// the block's own built-in styles (block.json), even when a theme
+		// restyles them: gogh offers those through its own controls
+		$bt = class_exists( 'WP_Block_Type_Registry' ) ? WP_Block_Type_Registry::get_instance()->get_registered( $block ) : null;
+		foreach ( (array) ( $bt && is_array( $bt->styles ) ? $bt->styles : array() ) as $own ) {
+			if ( ! empty( $own['name'] ) ) {
+				$seen[ $own['name'] ] = true;
+			}
+		}
+		// theme.json variations (the theme's partials, and register_block_style
+		// with style_data): gogh builds their CSS on the plain class
+		foreach ( (array) ( $raw['styles']['blocks'][ $block ]['variations'] ?? array() ) as $slug => $data ) {
+			if ( ! is_string( $slug ) || ! preg_match( '/^[a-z][a-z0-9-]{0,40}$/', $slug ) || isset( $seen[ $slug ] ) || isset( $mine[ $type ][ $slug ] ) || ! is_array( $data ) || ! $data ) {
+				continue;
+			}
+			$seen[ $slug ] = true;
+			$label = ! empty( $registered[ $slug ]['label'] ) ? $registered[ $slug ]['label'] : ( $titles[ $slug ] ?? $human( $slug ) );
+			$list[] = array(
+				'name' => sanitize_text_field( $label ), 'slug' => $slug, 'default' => false, 'src' => sanitize_text_field( (string) $theme ),
+				// what it paints, so choosing it can clear an earlier choice of the same thing
+				'size' => ! empty( $data['typography']['fontSize'] ),
+			);
+			$css   .= gogh_wp_variation_css( $block, $slug, $data, $raw );
+		}
+		// styles registered in PHP with their own CSS (or none: a class for the
+		// theme's stylesheet to find)
+		foreach ( $registered as $slug => $st ) {
+			if ( ! is_string( $slug ) || isset( $seen[ $slug ] ) || isset( $mine[ $type ][ $slug ] ) || ! preg_match( '/^[a-z][a-z0-9-]{0,40}$/', $slug ) ) {
+				continue;
+			}
+			$seen[ $slug ] = true;
+			$list[] = array( 'name' => sanitize_text_field( ! empty( $st['label'] ) ? $st['label'] : $human( $slug ) ), 'slug' => $slug, 'default' => false, 'src' => '' );
+			if ( ! empty( $st['inline_style'] ) && is_string( $st['inline_style'] ) ) {
+				$css .= $st['inline_style'] . "\n";
+			}
+			if ( ! empty( $st['style_handle'] ) && is_string( $st['style_handle'] ) ) {
+				$out['handles'][] = $st['style_handle'];
+			}
+		}
+		if ( $list ) {
+			$out['looks'][ $type ] = array_slice( $list, 0, 8 );
+		}
+	}
+	$out['css'] = str_replace( '</', '<\/', $css );
+	return $out;
+}
+// one theme.json variation's CSS, the way core builds it at render time, but
+// on the plain is-style-<slug> class (core uses a one-off class per rendered
+// block, which gogh's own canvas never has). Scoped, so a variation's link
+// or inner-block rules stay inside it.
+function gogh_wp_variation_css( $block, $slug, $data, $raw ) {
+	if ( ! function_exists( 'wp_resolve_block_style_variation_ref_values' ) || ! class_exists( 'WP_Theme_JSON' ) ) {
+		return '';
+	}
+	try {
+		wp_resolve_block_style_variation_ref_values( $data, $raw );
+		$elements = $data['elements'] ?? array();
+		$blocks   = $data['blocks'] ?? array();
+		unset( $data['elements'], $data['blocks'] );
+		_wp_array_set( $blocks, array( $block, 'variations', $slug ), $data );
+		$config = array(
+			'version'  => WP_Theme_JSON::LATEST_SCHEMA,
+			'settings' => array( 'spacing' => array( 'blockGap' => true ) ),
+			'styles'   => array( 'elements' => $elements, 'blocks' => $blocks ),
+		);
+		$filtered = has_filter( 'wp_theme_json_get_style_nodes', 'wp_filter_out_block_nodes' );
+		if ( $filtered ) {
+			remove_filter( 'wp_theme_json_get_style_nodes', 'wp_filter_out_block_nodes' );
+		}
+		$reg = WP_Block_Styles_Registry::get_instance();
+		$tmp = ! $reg->is_registered( $block, $slug );
+		if ( $tmp ) {
+			$reg->register( $block, array( 'name' => $slug ) );
+		}
+		$tj  = new WP_Theme_JSON( $config, 'blocks' );
+		$css = $tj->get_stylesheet( array( 'styles' ), array( 'custom' ), array( 'include_block_style_variations' => true, 'skip_root_layout_styles' => true, 'scope' => '.is-style-' . $slug ) );
+		if ( $tmp ) {
+			$reg->unregister( $block, $slug );
+		}
+		if ( $filtered ) {
+			add_filter( 'wp_theme_json_get_style_nodes', 'wp_filter_out_block_nodes' );
+		}
+		return is_string( $css ) ? $css . "\n" : '';
+	} catch ( \Throwable $e ) {
+		return '';
+	}
+}
 // for the editor: the looks and the shelf, or null when the site has none
 function gogh_site_design_for_editor() {
 	$design = get_option( 'gogh_site_design' );
@@ -6586,6 +6720,17 @@ add_action( 'wp_enqueue_scripts', function () {
 	wp_register_script( 'gogh-compose', plugins_url( 'gogh-compose.js', __FILE__ ), array(), '0.99.647-chrome', true );
 	wp_enqueue_script( 'gogh-editor', plugins_url( 'gogh-editor.js', __FILE__ ), array( 'gogh-compose' ), '0.99.647-chrome', true );
 	wp_enqueue_style( 'gogh-editor', plugins_url( 'gogh-editor.css', __FILE__ ), array(), '0.99.647-chrome' );
+	// the theme's and plugins' block styles, drawn on gogh's own canvas and
+	// in the style panel (WordPress prints them only for blocks it renders)
+	$gogh_wps = gogh_wp_block_styles();
+	foreach ( (array) ( $gogh_wps['handles'] ?? array() ) as $gogh_h ) {
+		wp_enqueue_style( $gogh_h );
+	}
+	if ( '' !== $gogh_wps['css'] ) {
+		wp_register_style( 'gogh-wp-styles', false, wp_style_is( 'global-styles', 'registered' ) ? array( 'global-styles' ) : array(), '0.99.647' ); // phpcs:ignore WordPress.WP.EnqueuedResourceParameters.NotInFooter
+		wp_add_inline_style( 'gogh-wp-styles', $gogh_wps['css'] );
+		wp_enqueue_style( 'gogh-wp-styles' );
+	}
 
 	// WebMCP bridge: the page registers its editing verbs as agent tools.
 	// OPT-IN only — add ?gogh-mcp=1 for a demo session (or enable sitewide
@@ -6638,6 +6783,8 @@ add_action( 'wp_enqueue_scripts', function () {
 		'firstMinute' => (bool) ( current_user_can( 'edit_posts' ) && ! get_user_meta( get_current_user_id(), '_gogh_first_minute', true ) ),
 		// the design's named looks and its own sections (gogh_site_design_clean)
 		'design'   => gogh_site_design_for_editor(),
+		// the styles the theme and plugins registered for the same kinds
+		'wpStyles' => (object) gogh_wp_block_styles()['looks'],
 		'menuStyle' => gogh_menu_style(),
 		'restUrl'  => rest_url( 'wp/v2/' . $rest_base . '/' . $post->ID ),
 		'mediaUrl' => rest_url( 'wp/v2/media' ),

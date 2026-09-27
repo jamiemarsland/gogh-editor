@@ -1259,22 +1259,31 @@
   // A look is a block style: its class is is-style-<slug> and the design's
   // own CSS styles it. A piece wears it as its FIRST class, so the four-class
   // cap never cuts it off, and wearing another look swaps it in place.
+  // a design's own styles first, then the ones the theme and plugins
+  // registered for the same kind (gogh_wp_block_styles). A kind with no
+  // design styles gets a Plain tile first: the way back to no style at all
+  var PLAIN_LOOK = { name: 'Plain', slug: '', 'default': false, none: true };
   function designLooks(type) {
     var d = cfg.design, l = d && d.looks && d.looks[type];
-    return Array.isArray(l) ? l : [];
+    var own = Array.isArray(l) ? l : [];
+    var wps = cfg.wpStyles && Array.isArray(cfg.wpStyles[type]) ? cfg.wpStyles[type] : [];
+    if (!wps.length) return own;
+    return (own.length ? own : [PLAIN_LOOK]).concat(wps);
   }
   function lookOf(e) {
     var have = ' ' + userCls(e && e.cls) + ' ';
-    return designLooks(e && e.type).filter(function (lk) { return have.indexOf(' is-style-' + lk.slug + ' ') !== -1; })[0] || null;
+    var list = designLooks(e && e.type);
+    return list.filter(function (lk) { return lk.slug && have.indexOf(' is-style-' + lk.slug + ' ') !== -1; })[0] ||
+      list.filter(function (lk) { return lk.none; })[0] || null;
   }
   function defaultLook(type) {
     return designLooks(type).filter(function (lk) { return lk.default; })[0] || null;
   }
   function wearLook(e, lk) {
     var mine = {};
-    designLooks(e.type).forEach(function (o) { mine['is-style-' + o.slug] = 1; });
+    designLooks(e.type).forEach(function (o) { if (o.slug) mine['is-style-' + o.slug] = 1; });
     var rest = userCls(e.cls).split(' ').filter(function (c) { return c && !mine[c]; });
-    if (lk) rest.unshift('is-style-' + lk.slug);
+    if (lk && lk.slug) rest.unshift('is-style-' + lk.slug);
     e.cls = userCls(rest.join(' ')) || null;
     return e;
   }
@@ -7702,7 +7711,7 @@
   }
   // ---------- the looks panel: a picture of this piece in each look ----------
   function lookSample(e, lk, mini) {
-    var c = 'is-style-' + lk.slug;
+    var c = lk.slug ? 'is-style-' + lk.slug : '';
     if (e.type === 'button') {
       return '<div class="wp-block-buttons"><div class="wp-block-button ' + c + (e.ghost ? ' gogh-ghost' : '') + '">' +
         '<span class="wp-block-button__link wp-element-button">' + (mini ? '' : esc(String(e.text || 'Button').replace(/<[^>]*>/g, '').slice(0, 18))) + '</span></div></div>';
@@ -7788,12 +7797,22 @@
     panel.innerHTML = '<div class="gogh-panel-title">Style \u00b7 ' + (KIND[e.type] || 'Piece') + '</div>' +
       '<div class="gogh-looks">' + looks.map(function (lk, n) {
         var on = cur && cur.slug === lk.slug;
-        return '<button type="button" class="gogh-look' + (on ? ' is-on' : '') + '" data-n="' + n + '" aria-pressed="' + (on ? 'true' : 'false') + '">' +
+        // where a style came from, once per group: the design's first (its
+        // name when the theme's follow), then the theme's, then the rest
+        var grp = lk.src != null ? (lk.src || 'More styles') : (cfg.design && cfg.design.name ? cfg.design.name : '');
+        var prev = n ? looks[n - 1] : null;
+        var prevGrp = prev ? (prev.src != null ? (prev.src || 'More styles') : (cfg.design && cfg.design.name ? cfg.design.name : '')) : null;
+        var mixed = looks.some(function (o) { return o.src != null; }) && looks.some(function (o) { return o.src == null && !o.none; });
+        var head = (lk.src != null || mixed) && !lk.none && grp && grp !== prevGrp
+          ? '<div class="gogh-looks-src">From ' + esc(grp) + '</div>' : '';
+        return head + '<button type="button" class="gogh-look' + (on ? ' is-on' : '') + '" data-n="' + n + '" aria-pressed="' + (on ? 'true' : 'false') + '">' +
           '<span class="gogh-look-stage gogh-look-' + e.type + '"><span class="wp-site-blocks gogh-look-site">' + lookSample(e, lk) + '</span></span>' +
           '<span class="gogh-look-name"><b>' + esc(lk.name) + '</b>' + (lk.default ? '<i>Default</i>' : '') + '</span></button>';
       }).join('') + '</div>' +
-      '<div class="gogh-panel-hint">Styles come with ' + esc((cfg.design && cfg.design.name) || 'the design') + '. ' +
-      (e.type === 'para' ? 'New text arrives' : 'New ' + (KIND[e.type] || 'piece').toLowerCase() + 's arrive') + ' in the default.</div>';
+      '<div class="gogh-panel-hint">' + (cfg.design && cfg.design.name
+        ? 'Styles come with ' + esc(cfg.design.name) + (looks.some(function (o) { return o.src != null; }) ? ', your theme and your plugins' : '') + '. '
+        : 'Styles come with your theme and your plugins. ') +
+      (defaultLook(e.type) ? (e.type === 'para' ? 'New text arrives' : 'New ' + (KIND[e.type] || 'piece').toLowerCase() + 's arrive') + ' in the default.' : '') + '</div>';
     var kn = j == null ? null : kidNodeOf(sec, i, j);
     lookGround(sec, panel, kn);
     placePanelNear(kn || sec.nodes[i] || sec.sectionEl);
@@ -7806,8 +7825,20 @@
         var e2 = lookTarget(sec, i, j);
         if (!lk || !e2) return;
         clearStyledColour(e2);
+        // a style that sets a size (a theme's Display, Subtitle) clears a size
+        // chosen before it, the same rule as colour
+        var sizeGone = lk.size && isText(e2) && (e2.fs || e2.fitW || (e2.tf && (e2.tf.fs || e2.tf.fs2)));
+        var oldH = e2.h;
+        if (sizeGone) {
+          e2.fs = null; e2.fitW = false; e2.fitFs = null;
+          if (e2.tf) { delete e2.tf.fs; delete e2.tf.fs2; delete e2.tf.lh; }
+        }
         wearLook(e2, lk);
         renderSection(sec);
+        if (sizeGone) {
+          measureTextHeights(sec);
+          if (j == null && reflowPush(sec, e2, oldH)) resolveAndApply(sec);
+        }
         pushState();
         if (j == null) placeHandles(sec, i);
         else reselectKid(sec, i, j);

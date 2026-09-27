@@ -4449,8 +4449,11 @@ html.gogh-building .gogh-inserter, html.gogh-building .gogh-side { display: none
 .gogh-look-stage { position: relative; height: 84px; overflow: hidden; background: var(--gogh-look-bg, #fff); color: var(--gogh-look-fg, #16181c); pointer-events: none; }
 .gogh-look-site.wp-site-blocks { position: absolute; inset: 0; padding: 0 !important; margin: 0 !important; min-height: 0 !important; display: grid; place-items: center; }
 .gogh-look-site.wp-site-blocks > * { margin: 0 !important; }
-.gogh-look-stage h2 { font-size: 30px !important; line-height: 1 !important; margin: 0 !important; white-space: nowrap; }
-.gogh-look-stage p { font-size: 22px !important; line-height: 1 !important; margin: 0 !important; white-space: nowrap; }
+/* words keep the style's own size (a theme's Display and Subtitle differ by
+   little else); :where() keeps these a floor any style can beat */
+.gogh-look-stage :where(h2) { font-size: 30px; line-height: 1.1; white-space: nowrap; }
+.gogh-look-stage :where(p) { font-size: 22px; line-height: 1.1; white-space: nowrap; }
+.gogh-look-stage h2, .gogh-look-stage p { margin: 0 !important; max-width: 94%; overflow: hidden; }
 .gogh-look-stage .wp-block-buttons { display: flex; justify-content: center; max-width: 86%; min-width: 0; }
 .gogh-look-stage .wp-block-button { min-width: 0; max-width: 100%; }
 /* a sample, not the real size: the design's own button type is too big for
@@ -4476,3 +4479,4 @@ html.gogh-building .gogh-inserter, html.gogh-building .gogh-side { display: none
 .gogh-kidstylebar .gogh-eb-look { margin-right: 0; }
 .gogh-kidstylebar .gogh-eb-look::after { display: none; }
 .gogh-look-stage .gogh-box, .gogh-eb-lookswatch .gogh-box { flex: 0 0 auto; }
+.gogh-looks-src { grid-column: 1 / -1; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: rgba(22, 24, 28, .55); margin-top: 4px; }

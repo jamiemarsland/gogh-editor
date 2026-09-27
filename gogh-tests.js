@@ -6747,7 +6747,8 @@
 
     test('a design’s named looks: new pieces arrive in the default, the chip names the look, the panel swaps it, the shelf leads the picker', function () {
       // a design only this test can see: set in memory, taken away after
-      var cfgG = window.GOGH, was = cfgG.design;
+      var cfgG = window.GOGH, was = cfgG.design, wasWp = cfgG.wpStyles;
+      cfgG.wpStyles = {}; // this test is about a design's own styles; the theme's have their own test
       cfgG.design = { name: 'Riso Test', looks: {
         button: [{ name: 'Yellow print', slug: 'yellow-print', 'default': true }, { name: 'Pink print', slug: 'pink-print', 'default': false }],
         heading: [{ name: 'Misregistered', slug: 'misregistered', 'default': true }, { name: 'Plain', slug: 'plain', 'default': false }],
@@ -6847,6 +6848,7 @@
         expect(cards[0].querySelector('.riso-ticker'), 'the card should draw the section with its classes');
       } finally {
         cfgG.design = was;
+        cfgG.wpStyles = wasWp;
         if (G.looks.clearKid) G.looks.clearKid();
         if (q('.gogh-picker.is-open') && G.closePicker) G.closePicker();
         var pk = q('.gogh-picker'); if (pk) { pk.classList.remove('is-open'); pk.hidden = true; }
@@ -6854,6 +6856,46 @@
         if (added && G.deleteSection) G.deleteSection(n0);
       }
       return 'default on arrival, chip, panel, swap, published class, the design’s shelf';
+    });
+
+    test('the theme’s own block styles join the style chip, with Plain as the way back (route one)', function () {
+      var cfgG = window.GOGH, was = cfgG.design, wasWp = cfgG.wpStyles;
+      // what gogh_wp_block_styles hands the editor for a theme like Twenty Twenty-Five, set in memory
+      cfgG.design = null;
+      cfgG.wpStyles = { heading: [{ name: 'Display', slug: 'text-display', 'default': false, src: 'Test Theme', size: true },
+        { name: 'Annotation', slug: 'text-annotation', 'default': false, src: 'Test Theme' }] };
+      var n0 = G.sections().length, added = false;
+      try {
+        var list = G.looks.list('heading');
+        expect(list.length === 3 && list[0].none && list[1].slug === 'text-display', 'Plain comes first, then the theme’s styles: ' + list.map(function (l) { return l.name; }).join(', '));
+        expect(!G.defaults('heading').cls, 'the theme’s styles never become a default: ' + G.defaults('heading').cls);
+        expect(!G.looks.list('button').length, 'a kind with no registered styles has no chip');
+        G.addSection({ name: 'Theme styles', minH: 432, els: [{ type: 'heading', x: 80, y: 96, w: 600, h: 96, text: 'A heading' }] }, n0);
+        added = true;
+        var sec = G.sections()[n0];
+        G.placeHandles(sec, 0);
+        var chipName = (q('.gogh-elbar:not(.gogh-kidstylebar) .gogh-eb-lookname') || {}).textContent || '';
+        expect(chipName === 'Style \u00b7 Plain', 'an unstyled heading reads Style \u00b7 Plain: ' + chipName);
+        G.looks.open(sec, 0);
+        var tiles = document.querySelectorAll('.gogh-panel .gogh-look');
+        var src = q('.gogh-panel .gogh-looks-src');
+        expect(tiles.length === 3 && tiles[0].classList.contains('is-on'), 'three tiles, Plain chosen');
+        expect(src && /From Test Theme/.test(src.textContent), 'the theme’s styles are labelled with the theme');
+        expect(/your theme/.test(q('.gogh-panel .gogh-panel-hint').textContent), 'the hint says where the styles come from');
+        sec.els[0].fs = 'x-large';
+        tiles[1].click();
+        expect(sec.els[0].cls === 'is-style-text-display' && sec.nodes[0].classList.contains('is-style-text-display'), 'choosing Display wears it: ' + sec.els[0].cls);
+        expect(!sec.els[0].fs, 'a style that sets a size clears the size chosen before it: ' + sec.els[0].fs);
+        expect(/wp-block-heading[^"]*is-style-text-display/.test(G.blocksV3(sec)), 'the published heading carries the theme’s class');
+        tiles[0].click();
+        expect(!sec.els[0].cls, 'Plain takes the style off again: ' + sec.els[0].cls);
+      } finally {
+        cfgG.design = was;
+        cfgG.wpStyles = wasWp;
+        G.closePanel();
+        if (added && G.deleteSection) G.deleteSection(n0);
+      }
+      return 'Plain, the theme’s styles labelled, worn and taken off';
     });
 
     testAsync('the Make door serves a chat that builds this site (read only: nothing is applied here)', async function () {
