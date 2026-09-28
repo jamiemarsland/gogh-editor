@@ -6856,6 +6856,51 @@
       return 'default on arrival, chip, panel, swap, published class, the design’s shelf';
     });
 
+    test('the broken first page: four real fixes tick off, then the page is theirs', function () {
+      var F = G.fixPage, sec = null;
+      try {
+        sec = F.start(true);
+        var h = sec.els[0], b = sec.els[2], img = sec.els[3];
+        expect(sec.els.length === 4 && h.type === 'heading' && h.rot === -7 && !h.text && h.ph === F.words, 'the page arrives with a crooked placeholder headline');
+        expect(sec.nodes[0].getAttribute('data-gogh-ph') === F.words, 'the headline shows its placeholder, so typing replaces it');
+        expect(sec.nodes[3].classList.contains('gogh-fix-picture'), 'the empty frame reads as empty');
+        expect(img.type === 'image' && !img.src, 'the picture frame arrives empty: ' + img.src);
+        expect(sec.nodes[0].classList.contains('gogh-fix') && sec.nodes[2].classList.contains('gogh-fix-clash'), 'broken things wear a dot, the button clashes');
+        var card = F.card();
+        expect(card && !card.hidden && /0 of 4/.test(card.textContent) && /Straighten the headline/.test(card.textContent), 'the card lists four fixes');
+        expect(/Nothing here is permanent/.test(card.textContent) && /Hide/.test(card.textContent), 'the card says undo always works, and can be hidden');
+        expect(!/gogh-fix/.test(G.blocksV3(sec)), 'the published blocks never carry the dots or the clash');
+        // one: a drop straightens it
+        F.dropped(sec, 0);
+        G.pushState();
+        expect(h.rot === 0 && /1 of 4/.test(card.textContent), 'dropping the headline straightens it: ' + h.rot);
+        // two: words typed
+        h.text = 'Flowers for the ordinary days.';
+        G.pushState();
+        expect(/2 of 4/.test(card.textContent) && !sec.nodes[0].classList.contains('gogh-fix'), 'typing the headline ticks it off and its dot goes');
+        // three: the button's own panel, any look
+        G.placeHandles(sec, 2);
+        q('.gogh-elbar .gogh-eb-ctx').click();
+        var outline = q('.gogh-panel .gogh-style-outline');
+        expect(outline, 'the button panel opens');
+        outline.click();
+        expect(b.ghost && !b.fix && /3 of 4/.test(card.textContent), 'choosing a look for the button fixes the clash');
+        expect(!sec.nodes[2].classList.contains('gogh-fix-clash'), 'the clashing look is gone');
+        G.closePanel();
+        // four: a picture
+        img.src = 'data:image/gif;base64,R0lGODlhAQABAAAAACw=';
+        G.pushState();
+        expect(card.classList.contains('is-done') && /Fixed, and it’s yours/.test(card.textContent), 'all four fixed: the page is theirs');
+        card.querySelector('.gogh-fixcard-keep').click();
+        expect(card.hidden && !F.run().on && !F.marks().length, 'Keep editing closes the run');
+      } finally {
+        if (F.run().on) F.finish('hidden');
+        G.closePanel();
+        if (sec && G.deleteSection) { var at = G.sections().indexOf(sec); if (at !== -1) G.deleteSection(at); }
+      }
+      return 'crooked, words, clash and picture fixed by real gestures; the card closes';
+    });
+
     testAsync('the Make door serves a chat that builds this site (read only: nothing is applied here)', async function () {
       var r = await fetch(location.origin + '/?gogh-make=1&goghcb=' + Date.now(), { credentials: 'same-origin', cache: 'no-store' });
       var html = await r.text();

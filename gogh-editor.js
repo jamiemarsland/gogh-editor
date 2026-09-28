@@ -1289,6 +1289,7 @@
       // every published map stayed a bare 'Open the map' link
       url: e.url || null,
       cls: userCls(e.cls) || null,
+      fix: e.fix ? String(e.fix).replace(/[^a-z ]/g, '').slice(0, 40) || undefined : undefined,
       align: e.align || null, color: e.color || null, tf: e.tf || null,
       btnBg: e.btnBg || null, btnText: e.btnText || null, btnHover: e.btnHover || null,
       wsrc: e.wsrc || null, whtml: e.whtml || null, wcol: e.wcol || null,
@@ -1772,7 +1773,11 @@
   }
 
   function makeNode(e, i) {
-    var cls = 'gogh-el-' + (i + 1) + (userCls(e.cls) ? ' ' + userCls(e.cls) : '') + (e.m && e.m.hidden ? ' gogh-m-hidden' : '');
+    var cls = 'gogh-el-' + (i + 1) + (userCls(e.cls) ? ' ' + userCls(e.cls) : '') + (e.m && e.m.hidden ? ' gogh-m-hidden' : '') +
+      // the broken first page's marks: a pulsing dot, and the clashing button
+      // (editor only: the published block never sees them)
+      (e.fix ? ' gogh-fix' + ((' ' + e.fix + ' ').indexOf(' clash ') !== -1 ? ' gogh-fix-clash' : '') +
+        ((' ' + e.fix + ' ').indexOf(' picture ') !== -1 && !e.src ? ' gogh-fix-picture' : '') : '');
     var n;
     // data-widgets (FAQ/Tabs/Carousel) edit through a form, not a caret —
     // the hover tip teaches the gesture ("i wonder if we should give users
@@ -2264,6 +2269,7 @@
     placeChromeBtns();
     refreshChip();
     fmCheck(); // the first minute listens to every state change
+    fixCheck(); // and so does the broken first page
   }
   function partElForArea(area) {
     var els = chromePartEls();
@@ -5565,9 +5571,12 @@
       markSwatchLegibility(panel.querySelector('.gogh-swrow[data-key="btnText"]'), bgHex);
     })();
     panel.querySelector('.gogh-style-solid').addEventListener('click', function () {
+      // choosing a look for the clashing button fixes it, whichever look
+      if (fixDrop(e, 'clash')) { e.ghost = false; reapply(); return; }
       if (e.ghost) { e.ghost = false; reapply(); }
     });
     panel.querySelector('.gogh-style-outline').addEventListener('click', function () {
+      if (fixDrop(e, 'clash')) { e.ghost = true; reapply(); return; }
       if (!e.ghost) { e.ghost = true; reapply(); }
     });
     panel.querySelectorAll('.gogh-swrow[data-key]').forEach(function (row) {
@@ -5575,6 +5584,7 @@
       row.querySelectorAll('.gogh-sw').forEach(function (swBtn) {
         swBtn.addEventListener('click', function () {
           e[key] = swBtn.dataset.col || null;
+          fixDrop(e, 'clash');
           if (e.tf) {
             if (key === 'btnBg') delete e.tf.bg;
             if (key === 'btnText') delete e.tf.col;
@@ -7805,6 +7815,7 @@
         var lk = looks[+b.dataset.n];
         var e2 = lookTarget(sec, i, j);
         if (!lk || !e2) return;
+        fixDrop(e2, 'clash');
         clearStyledColour(e2);
         wearLook(e2, lk);
         renderSection(sec);
@@ -8674,7 +8685,7 @@
         if (sizes.length) e.fs = sizes[sizes.length - 1].slug;
         else delete e.fs;
       }
-      if (e.type === 'image' && !e.src) {
+      if (e.type === 'image' && !e.src && !(e.fix && String(e.fix).indexOf('picture') !== -1)) {
         var mine = poolPick(mediaPool.imgs, tpl.name, ++k);
         if (mine) e.src = mine;
       }
@@ -10723,7 +10734,7 @@
   }
   // typing must complete beat one AS IT HAPPENS, not at blur — the model
   // syncs on input, so the check can ride the same event
-  document.addEventListener('input', function () { if (fm.active) fmCheck(); }, true);
+  document.addEventListener('input', function () { if (fm.active) fmCheck(); if (fixRun.on) fixCheck(); }, true);
   // the minute arms only on a truly blank page: the person's first ever
   // section is the stage (since gogh became the front door, that is
   // Add Page on day one)
@@ -10734,6 +10745,170 @@
   if (/[?&]gogh-minute=1/.test(location.search)) {
     fm.armed = true;
     fm.forced = true;
+  }
+
+  // ---------- the broken first page (design note: Broken First Page) ----------
+  // A first-time person's first page arrives a little broken: a crooked
+  // placeholder headline, a clashing button, an empty picture frame. Each
+  // fix is one real gesture (drag, type, restyle, choose a picture) and a
+  // small card ticks them off. No tour, no character: practice on a page
+  // that becomes theirs (the research: Grammarly's demo document,
+  // Superhuman's practice inbox, NN/g's "practice round"). It replaces the
+  // first minute for a brand-new person; ?gogh-fixpage=1 rehearses it on
+  // any page and writes nothing to the person's record.
+  var FIX_WORDS = 'Your big headline goes here';
+  var FIX_TASKS = [
+    { key: 'crooked', label: 'Straighten the headline', how: 'Drag it: gogh sets it straight' },
+    { key: 'words', label: 'Say what you do', how: 'Click the headline and type' },
+    { key: 'clash', label: 'Fix the clashing button', how: 'Select it, then pick a style or colour' },
+    { key: 'picture', label: 'Put a picture in', how: 'Select the frame and choose a picture' },
+  ];
+  var fixRun = { on: false, forced: false, finished: false };
+  var fixCard = null;
+  function fixHas(e, k) { return !!(e && e.fix && (' ' + e.fix + ' ').indexOf(' ' + k + ' ') !== -1); }
+  function fixDrop(e, k) {
+    if (!fixHas(e, k)) return false;
+    e.fix = String(e.fix).split(' ').filter(function (x) { return x && x !== k; }).join(' ') || null;
+    if (!e.fix) delete e.fix;
+    return true;
+  }
+  // every marked piece on the page, with where it lives
+  function fixMarks() {
+    var out = [];
+    S.forEach(function (sec) {
+      (sec.els || []).forEach(function (e, i) { if (e && e.fix) out.push({ sec: sec, i: i, e: e }); });
+    });
+    return out;
+  }
+  function brokenTpl() {
+    return { name: 'Fix this page', minH: 648, els: [
+      // the headline is a placeholder (gogh's ghost text): typing simply replaces it
+      { type: 'heading', x: 216, y: 96, w: 620, h: 168, text: '', ph: FIX_WORDS, fs: '__disp-s', rot: -7, fix: 'crooked words' },
+      { type: 'para', x: 96, y: 336, w: 480, h: 72, text: 'A sentence or two about what you do and who it\u2019s for.' },
+      { type: 'button', x: 96, y: 456, w: 200, h: 48, text: 'Button text', fix: 'clash' },
+      { type: 'image', x: 720, y: 72, w: 400, h: 504, cool: true, fix: 'picture' },
+    ] };
+  }
+  function startFixPage(forced) {
+    // the broken page is this person's first minute; a rehearsal leaves the
+    // real minute's state as it found it
+    var wasArmed = fm.armed;
+    fm.armed = false;
+    fixRun.on = true;
+    fixRun.forced = !!forced;
+    fixRun.finished = false;
+    var at = 0;
+    for (var k = 0; k < S.length; k++) { if (!S[k].chrome) { at = k; break; } at = k + 1; }
+    addSection(brokenTpl(), at);
+    if (forced) fm.armed = wasArmed;
+    renderFixCard();
+    return S[at];
+  }
+  // a piece's marks show as classes on its node; re-rendering is not needed
+  // (and mid-typing it would cost the caret)
+  function fixDress(sec, i) {
+    var n = sec && sec.nodes && sec.nodes[i], e = sec && sec.els[i];
+    if (!n || !e) return;
+    n.classList.toggle('gogh-fix', !!e.fix);
+    n.classList.toggle('gogh-fix-clash', fixHas(e, 'clash'));
+    n.classList.toggle('gogh-fix-picture', fixHas(e, 'picture') && !e.src);
+  }
+  // the gestures that are not a single door: a heading straightened by a
+  // rotate grip, words typed, a picture chosen
+  function fixCheck() {
+    if (!fixRun.on) return;
+    fixMarks().forEach(function (m) {
+      var e = m.e, hit = false;
+      if (fixHas(e, 'crooked') && !e.rot) hit = fixDrop(e, 'crooked') || hit;
+      if (fixHas(e, 'words')) {
+        var t = String(e.text || '').replace(/<[^>]*>/g, '').replace(/&nbsp;/g, ' ').trim();
+        if (t && t !== FIX_WORDS) hit = fixDrop(e, 'words') || hit;
+      }
+      if (fixHas(e, 'picture') && e.src) hit = fixDrop(e, 'picture') || hit;
+      if (hit) fixDress(m.sec, m.i);
+    });
+    renderFixCard();
+  }
+  // a crooked headline straightens the moment it is dropped: gogh's help,
+  // felt in the hand
+  function fixDropped(sec, i) {
+    var e = sec.els[i];
+    if (!fixHas(e, 'crooked')) return false;
+    e.rot = 0;
+    fixDrop(e, 'crooked');
+    resolveAndApply(sec);
+    fixDress(sec, i);
+    toast('Straight, and lined up. gogh snaps things into line as you drag.', { ttl: 4200 });
+    return true;
+  }
+  function fixTaskDone(key) {
+    return !fixMarks().some(function (m) { return fixHas(m.e, key); });
+  }
+  function fixSelect(key) {
+    var m = fixMarks().filter(function (x) { return fixHas(x.e, key); })[0];
+    if (!m || !m.sec.nodes[m.i]) return;
+    m.sec.nodes[m.i].scrollIntoView({ block: 'center', behavior: 'smooth' });
+    placeHandles(m.sec, m.i);
+  }
+  function renderFixCard() {
+    if (!fixRun.on) { if (fixCard) fixCard.hidden = true; return; }
+    if (!fixCard) {
+      fixCard = document.createElement('div');
+      fixCard.className = 'gogh-fixcard';
+      fixCard.setAttribute('role', 'region');
+      fixCard.setAttribute('aria-label', 'Fix this page');
+      document.body.appendChild(fixCard);
+    }
+    var done = FIX_TASKS.filter(function (t) { return fixTaskDone(t.key); }).length;
+    fixCard.hidden = false;
+    if (done === FIX_TASKS.length) {
+      fixCard.classList.add('is-done');
+      fixCard.innerHTML = '<div class="gogh-fixcard-done"><span class="gogh-fixcard-tick" aria-hidden="true"></span><b>Fixed, and it\u2019s yours</b></div>' +
+        '<p>You straightened, wrote, styled and added a picture. That\u2019s most of gogh. Publish when you\u2019re happy, or keep going.</p>' +
+        '<div class="gogh-fixcard-acts"><button type="button" class="gogh-fixcard-pub">Publish</button>' +
+        '<button type="button" class="gogh-fixcard-keep">Keep editing</button></div>';
+      fixCard.querySelector('.gogh-fixcard-pub').addEventListener('click', function () { fixFinish('done'); publish(); });
+      fixCard.querySelector('.gogh-fixcard-keep').addEventListener('click', function () { fixFinish('done'); });
+      return;
+    }
+    fixCard.classList.remove('is-done');
+    var next = FIX_TASKS.filter(function (t) { return !fixTaskDone(t.key); })[0];
+    fixCard.innerHTML = '<div class="gogh-fixcard-head"><b>Fix this page</b><span>' + done + ' of ' + FIX_TASKS.length + '</span></div>' +
+      '<div class="gogh-fixcard-bar"><i style="width:' + (done / FIX_TASKS.length * 100) + '%"></i></div>' +
+      FIX_TASKS.map(function (t) {
+        var ok = fixTaskDone(t.key), cur = next && next.key === t.key;
+        return '<button type="button" class="gogh-fixcard-row' + (ok ? ' is-ok' : '') + (cur ? ' is-next' : '') + '" data-key="' + t.key + '"' + (ok ? ' disabled' : '') + '>' +
+          '<span class="gogh-fixcard-mark" aria-hidden="true"></span><span class="gogh-fixcard-t"><b>' + t.label + '</b>' +
+          (cur ? '<i>' + t.how + '</i>' : '') + '</span></button>';
+      }).join('') +
+      '<div class="gogh-fixcard-foot"><span>Nothing here is permanent. <kbd>\u2318Z</kbd> undoes anything.</span>' +
+      '<button type="button" class="gogh-fixcard-hide">Hide</button></div>';
+    fixCard.querySelectorAll('.gogh-fixcard-row').forEach(function (b) {
+      b.addEventListener('click', function () { fixSelect(b.dataset.key); });
+    });
+    fixCard.querySelector('.gogh-fixcard-hide').addEventListener('click', function () { fixFinish('hidden'); });
+  }
+  // the run ends once: finished or hidden, the marks go (a hidden run
+  // leaves the page as it is, minus the pulsing dots) and a real run is
+  // written to the person's record so it never comes back
+  function fixFinish(outcome) {
+    if (!fixRun.on) return;
+    fixRun.on = false;
+    fixRun.finished = true;
+    var touched = [];
+    fixMarks().forEach(function (m) { delete m.e.fix; if (touched.indexOf(m.sec) === -1) touched.push(m.sec); });
+    touched.forEach(function (sec) { renderSection(sec); });
+    if (fixCard) fixCard.hidden = true;
+    if (touched.length) pushState();
+    if (fixRun.forced || /[?&]gogh-test=1/.test(location.search)) return;
+    try {
+      fetch(cfg.restUrl.split('wp/v2/')[0] + 'gogh/v1/first-minute', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-WP-Nonce': cfg.nonce },
+        credentials: 'same-origin',
+        body: JSON.stringify({ outcome: outcome === 'hidden' ? 'skipped' : 'done', secs: 0 }),
+      }).catch(function () {});
+    } catch (err) {}
   }
 
   var picker = document.createElement('div');
@@ -15414,6 +15589,7 @@
         return;
       }
     }
+    if (!multiD && (movedXD || movedYD)) fixDropped(sec, i);
     if (multiD) { sel = null; } else { placeHandles(sec, i); }
     pushState();
     if (zoomState) layoutZoom(); // a taller/shorter section shifts the birds-eye — re-fit the scroll cap
@@ -19569,6 +19745,9 @@
     looks: { list: designLooks, of: lookOf, wear: wearLook, def: defaultLook, open: openLookPanel, reselectKid: reselectKid,
       kidBar: function () { return kidStyleBar; }, clearKid: function () { clearKidSel(); } },
     placeHandles: placeHandles,
+    // the broken first page
+    fixPage: { start: startFixPage, check: fixCheck, dropped: fixDropped, finish: fixFinish, marks: fixMarks,
+      done: fixTaskDone, card: function () { return fixCard; }, run: function () { return fixRun; }, words: FIX_WORDS },
     navLinkMarkup: navLinkMarkup,
     chromeEdits: function () { return chromeLightEdits; },
     bindChromeTest: function (el, raw) {
@@ -26482,7 +26661,16 @@
       // full of native blocks (a starter site's home) is not one, and
       // neither is a page a site build is about to fill
       var blankBoot = !willBuild && bootContent.length === 1 && isBlankBoot(bootContent[0]) && !topBlockNodes().length;
-      var greet = function () { if (blankBoot) openPicker(S.indexOf(bootContent[0])); };
+      var rehearseFix = /[?&]gogh-fixpage=1/.test(location.search);
+      var greet = function () {
+        // a brand-new person's first blank page arrives broken, to be fixed;
+        // everyone else gets the section picker as before
+        if (rehearseFix) { startFixPage(true); return; }
+        if (blankBoot && fm.armed && !fm.forced) { startFixPage(false); return; }
+        if (blankBoot) openPicker(S.indexOf(bootContent[0]));
+        // a run left half done picks up where it was
+        if (fixMarks().length) { fixRun.on = true; renderFixCard(); }
+      };
       // a page that has no name yet names itself first — the door from
       // wp-admin used to land on an untitled canvas and ask at Publish
       if (!willBuild && pageNeedsName()) setTimeout(function () { openPageNamePanel('first', greet); }, 250);
