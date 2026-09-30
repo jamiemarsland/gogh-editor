@@ -4540,3 +4540,6 @@ html.gogh-editing .gogh-fix-clash .wp-block-button__link {
 .gogh-fixcard-acts .gogh-fixcard-pub { background: #f0b849; color: #1d2327; font-weight: 700; }
 .gogh-fixcard-acts .gogh-fixcard-keep { border: 1.5px solid rgba(22, 24, 28, .2); box-sizing: border-box; }
 .gogh-fixcard-acts button:focus-visible { outline: 2px solid #7ea8ff; outline-offset: 2px; }
+/* practice: the chapter line, and rows that are not a place to jump to */
+.gogh-fixcard-ch { font-size: 12px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: rgba(22, 24, 28, .5); padding: 0 6px 8px; }
+div.gogh-fixcard-row { cursor: default; }

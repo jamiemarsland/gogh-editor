@@ -6901,6 +6901,30 @@
       return 'crooked, words, clash and picture fixed by real gestures; the card closes';
     });
 
+    test('practice: chapters hand over, doors tick their tasks, Hide is remembered', function () {
+      var P = G.fixPage.practice, key = P.key(), was = null;
+      try { was = localStorage.getItem(key); localStorage.removeItem(key); } catch (err) {}
+      try {
+        P.start();
+        var st = P.state(), card = G.fixPage.card();
+        // this page carries no marks, so chapter one reads as done here
+        expect(st && st.ch === 0 && st.stage === 'chapter' && /Basics: done/.test(card.textContent), 'a page with nothing to fix finishes the basics: ' + (st && st.stage));
+        card.querySelector('.gogh-fixcard-next').click();
+        expect(P.state().ch === 1 && /Practice \u00b7 Build/.test(card.textContent) && /0 of 4/.test(card.textContent), 'Next opens chapter two');
+        P.hit('dup');
+        expect(/1 of 4/.test(card.textContent) && P.state().done.dup, 'a door that was used ticks its task');
+        card.querySelector('.gogh-fixcard-hide').click();
+        expect(card.hidden && P.state().hidden && !G.fixPage.run().on, 'Hide ends practice and is remembered');
+        var saved = JSON.parse(localStorage.getItem(key) || '{}');
+        expect(saved.hidden === true && saved.ch === 1, 'progress is kept in this browser');
+      } finally {
+        try { if (was !== null) localStorage.setItem(key, was); else localStorage.removeItem(key); } catch (err) {}
+        if (G.fixPage.run().on) G.fixPage.finish('hidden');
+        var c = G.fixPage.card(); if (c) c.hidden = true;
+      }
+      return 'chapter hand-over, a door ticking a task, Hide remembered';
+    });
+
     testAsync('the Make door serves a chat that builds this site (read only: nothing is applied here)', async function () {
       var r = await fetch(location.origin + '/?gogh-make=1&goghcb=' + Date.now(), { credentials: 'same-origin', cache: 'no-store' });
       var html = await r.text();

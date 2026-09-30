@@ -2823,6 +2823,7 @@
   }, true);
   function seeOnPhone() {
     if (deviceMode === 'phone' || cfg.writeUrl) return;
+    practiceHit('phoneview');
     if (!zoomState) { zoomOutCanvas(); zoomForPhone = true; }
     setDevice('phone');
   }
@@ -6428,12 +6429,14 @@
     if (!sel) return;
     var sec = sel.sec;
     var copy = diceFreshIds([JSON.parse(JSON.stringify(sec.els[sel.i]))])[0]; // a copy is a new piece to the die
+    delete copy.fix; // a copy is fine as it is: the broken first page's marks stay on the original
     copy.x = Math.min(W - copy.w, copy.x + 24);
     copy.y = copy.y + 24;
     sec.els.push(copy);
     renderSection(sec);
     placeHandles(sec, sec.els.length - 1);
     pushState();
+    practiceHit('dup');
   });
   document.addEventListener('pointerdown', function (ev) {
     if (panelOpen && !panelSticky && !panel.contains(ev.target) && !elbar.contains(ev.target)) closePanel();
@@ -10827,6 +10830,7 @@
       if (fixHas(e, 'picture') && e.src) hit = fixDrop(e, 'picture') || hit;
       if (hit) fixDress(m.sec, m.i);
     });
+    if (fixRun.practice) practiceCheck();
     renderFixCard();
   }
   // a crooked headline straightens the moment it is dropped: gogh's help,
@@ -10859,8 +10863,9 @@
       fixCard.setAttribute('aria-label', 'Fix this page');
       document.body.appendChild(fixCard);
     }
-    var done = FIX_TASKS.filter(function (t) { return fixTaskDone(t.key); }).length;
     fixCard.hidden = false;
+    if (fixRun.practice && practice) { renderPracticeCard(); return; }
+    var done = FIX_TASKS.filter(function (t) { return fixTaskDone(t.key); }).length;
     if (done === FIX_TASKS.length) {
       fixCard.classList.add('is-done');
       fixCard.innerHTML = '<div class="gogh-fixcard-done"><span class="gogh-fixcard-tick" aria-hidden="true"></span><b>Fixed, and it\u2019s yours</b></div>' +
@@ -10888,6 +10893,129 @@
     });
     fixCard.querySelector('.gogh-fixcard-hide').addEventListener('click', function () { fixFinish('hidden'); });
   }
+  // ---------- practice: the training site (blueprint-practice.json) ----------
+  // A whole site to practise on, in three short chapters the person chooses
+  // to go through. Chapter one is the broken first page's four fixes (the
+  // marks ride the site definition); the next two are judged from the page's
+  // state or from the door that was used. Progress is this browser's.
+  var PRACTICE = [
+    { title: 'Basics', tasks: FIX_TASKS },
+    { title: 'Build', tasks: [
+      { key: 'section', label: 'Add a section', how: 'Press + between two sections and pick any layout' },
+      { key: 'roll', label: 'Roll the dice on a section', how: 'Select a section, then press the dice' },
+      { key: 'dup', label: 'Duplicate something', how: 'Select a piece, then press Duplicate' },
+      { key: 'phonehide', label: 'Hide something on phones', how: 'Select a piece, then press the phone' },
+    ] },
+    { title: 'Finish', tasks: [
+      { key: 'style', label: 'Try a new site style', how: 'Press Styles in the top bar' },
+      { key: 'phoneview', label: 'See it on a phone', how: 'Press the phone in the top bar' },
+      { key: 'publish', label: 'Publish', how: 'Press Publish in the top bar' },
+    ] },
+  ];
+  var practice = null; // { ch, done, stage: 'tasks' | 'chapter' | 'all', page, base, hidden }
+  function practiceKey() { return 'gogh-practice:' + String(cfg.homeUrl || location.host); }
+  function practiceSave() { try { localStorage.setItem(practiceKey(), JSON.stringify(practice)); } catch (err) {} }
+  function practiceBase() {
+    var faces = {}, hidden = 0;
+    S.forEach(function (s2) {
+      if (s2.chrome) return;
+      faces[s2.scope] = (s2.m && s2.m.face) || 0;
+      (s2.els || []).forEach(function (e) { if (e.m && e.m.hidden) hidden++; });
+    });
+    return { page: cfg.postId, sections: realSections().length, faces: faces, hidden: hidden };
+  }
+  function startPractice() {
+    var saved = null;
+    try { saved = JSON.parse(localStorage.getItem(practiceKey()) || 'null'); } catch (err) {}
+    practice = saved && typeof saved === 'object' ? saved : { ch: 0, done: {}, stage: 'tasks', page: cfg.postId };
+    if (practice.hidden) { practice = null; return; }
+    practice.done = practice.done || {};
+    // counts are judged against where this page stood when the chapter
+    // began here (a new page or a reload starts a fresh count)
+    if (!practice.base || practice.base.page !== cfg.postId) practice.base = practiceBase();
+    fixRun.on = true;
+    fixRun.practice = true;
+    fixRun.forced = true; // practice never touches the first-minute record
+    practiceSave();
+    fixCheck(); // judge the page as it stands, then draw the card
+  }
+  function practiceHit(key) {
+    if (!practice || practice.hidden) return;
+    practice.done[key] = true;
+    practiceSave();
+    fixCheck();
+  }
+  function practiceTaskDone(t) {
+    if (practice.done[t.key]) return true;
+    // chapter one's marks live on the page the site began on
+    if (practice.ch === 0 && cfg.postId === practice.page && fixTaskDone(t.key)) return (practice.done[t.key] = true);
+    return false;
+  }
+  function practiceCheck() {
+    if (!practice || practice.stage !== 'tasks') return;
+    var b = practice.base || {};
+    if (practice.ch === 1) {
+      if (realSections().length > (b.sections || 0)) practice.done.section = true;
+      S.forEach(function (s2) {
+        if (s2.chrome) return;
+        var f = (s2.m && s2.m.face) || 0, was = b.faces && b.faces[s2.scope] != null ? b.faces[s2.scope] : 0;
+        if (f !== was) practice.done.roll = true;
+      });
+      var hidden = 0;
+      S.forEach(function (s2) { (s2.els || []).forEach(function (e) { if (e.m && e.m.hidden) hidden++; }); });
+      if (hidden > (b.hidden || 0)) practice.done.phonehide = true;
+    }
+    var tasks = PRACTICE[practice.ch].tasks;
+    if (tasks.every(practiceTaskDone)) practice.stage = practice.ch === PRACTICE.length - 1 ? 'all' : 'chapter';
+    practiceSave();
+  }
+  function practiceNext() {
+    practice.ch = Math.min(PRACTICE.length - 1, practice.ch + 1);
+    practice.stage = 'tasks';
+    practice.base = practiceBase();
+    practiceSave();
+    fixCheck();
+  }
+  function renderPracticeCard() {
+    var ch = PRACTICE[practice.ch];
+    fixCard.classList.toggle('is-done', practice.stage !== 'tasks');
+    if (practice.stage === 'all') {
+      fixCard.innerHTML = '<div class="gogh-fixcard-done"><span class="gogh-fixcard-tick" aria-hidden="true"></span><b>That\u2019s all of it</b></div>' +
+        '<p>You fixed a page, built on it, gave the site a new style, checked it on a phone and published. That\u2019s gogh.</p>' +
+        '<div class="gogh-fixcard-acts"><button type="button" class="gogh-fixcard-keep">Keep editing</button></div>';
+      fixCard.querySelector('.gogh-fixcard-keep').addEventListener('click', function () { practice.hidden = true; practiceSave(); fixRun.on = false; fixCard.hidden = true; });
+      return;
+    }
+    if (practice.stage === 'chapter') {
+      var nx = PRACTICE[practice.ch + 1];
+      fixCard.innerHTML = '<div class="gogh-fixcard-done"><span class="gogh-fixcard-tick" aria-hidden="true"></span><b>' + ch.title + ': done</b></div>' +
+        '<p>Chapter ' + (practice.ch + 1) + ' of ' + PRACTICE.length + ' finished. Next is ' + nx.title.toLowerCase() + ': ' +
+        nx.tasks.map(function (t) { return t.label.toLowerCase(); }).join(', ') + '.</p>' +
+        '<div class="gogh-fixcard-acts"><button type="button" class="gogh-fixcard-pub gogh-fixcard-next">Next: ' + nx.title + '</button>' +
+        '<button type="button" class="gogh-fixcard-keep">Stop here</button></div>';
+      fixCard.querySelector('.gogh-fixcard-next').addEventListener('click', practiceNext);
+      fixCard.querySelector('.gogh-fixcard-keep').addEventListener('click', function () { fixCard.hidden = true; });
+      return;
+    }
+    var done = ch.tasks.filter(practiceTaskDone).length;
+    var next = ch.tasks.filter(function (t) { return !practiceTaskDone(t); })[0];
+    fixCard.innerHTML = '<div class="gogh-fixcard-head"><b>Practice \u00b7 ' + ch.title + '</b><span>' + done + ' of ' + ch.tasks.length + '</span></div>' +
+      '<div class="gogh-fixcard-ch">Chapter ' + (practice.ch + 1) + ' of ' + PRACTICE.length + '</div>' +
+      '<div class="gogh-fixcard-bar"><i style="width:' + (done / ch.tasks.length * 100) + '%"></i></div>' +
+      ch.tasks.map(function (t) {
+        var ok = practiceTaskDone(t), cur = next && next.key === t.key;
+        var marked = practice.ch === 0 && !ok && cfg.postId === practice.page;
+        return (marked ? '<button type="button"' : '<div') + ' class="gogh-fixcard-row' + (ok ? ' is-ok' : '') + (cur ? ' is-next' : '') + '" data-key="' + t.key + '">' +
+          '<span class="gogh-fixcard-mark" aria-hidden="true"></span><span class="gogh-fixcard-t"><b>' + t.label + '</b>' +
+          (cur ? '<i>' + t.how + '</i>' : '') + '</span>' + (marked ? '</button>' : '</div>');
+      }).join('') +
+      '<div class="gogh-fixcard-foot"><span>Nothing here is permanent. <kbd>\u2318Z</kbd> undoes anything.</span>' +
+      '<button type="button" class="gogh-fixcard-hide">Hide</button></div>';
+    fixCard.querySelectorAll('button.gogh-fixcard-row').forEach(function (b) {
+      b.addEventListener('click', function () { fixSelect(b.dataset.key); });
+    });
+    fixCard.querySelector('.gogh-fixcard-hide').addEventListener('click', function () { fixFinish('hidden'); });
+  }
   // the run ends once: finished or hidden, the marks go (a hidden run
   // leaves the page as it is, minus the pulsing dots) and a real run is
   // written to the person's record so it never comes back
@@ -10900,6 +11028,7 @@
     touched.forEach(function (sec) { renderSection(sec); });
     if (fixCard) fixCard.hidden = true;
     if (touched.length) pushState();
+    if (fixRun.practice && practice) { practice.hidden = true; practiceSave(); fixRun.practice = false; return; }
     if (fixRun.forced || /[?&]gogh-test=1/.test(location.search)) return;
     try {
       fetch(cfg.restUrl.split('wp/v2/')[0] + 'gogh/v1/first-minute', {
@@ -11669,7 +11798,7 @@
   var GEN_TYPES = { heading: 1, para: 1, button: 1, badge: 1, image: 1, box: 1, embed: 1 };
   // ('m' carries the phone overrides — a hand-drawn ledger can hide its year column on phones)
   // (a button's colour is btnBg/btnText, palette slugs; 'ghost' draws it as an outline)
-  var GEN_FIELDS = ['x', 'y', 'w', 'h', 'text', 'src', 'href', 'url', 'fs', 'align', 'color', 'radius', 'rot', 'tf', 'mood', 'boxBg', 'shape', 'alt', 'm', 'btnBg', 'btnText', 'ghost', 'cls'];
+  var GEN_FIELDS = ['x', 'y', 'w', 'h', 'text', 'src', 'href', 'url', 'fs', 'align', 'color', 'radius', 'rot', 'tf', 'mood', 'boxBg', 'shape', 'alt', 'm', 'btnBg', 'btnText', 'ghost', 'cls', 'fix', 'ph'];
   function genEl(e) {
     if (!e || !GEN_TYPES[e.type]) return null;
     var out = { type: e.type };
@@ -11895,6 +12024,8 @@
         var frontDoor = /[?&]gogh-front-door=1/.test(location.search);
         var home = cfg.homeUrl || '/';
         setTimeout(function () {
+          // the practice site opens where the practice is: in the editor
+          if (def && def.practice) { window.location.href = home + (home.indexOf('?') >= 0 ? '&' : '?') + 'gogh-edit=1'; return; }
           window.location.href = frontDoor ? home + (home.indexOf('?') >= 0 ? '&' : '?') + 'gogh-edit=1&gogh-front-door=1' : home;
         }, 400);
         return true;
@@ -17476,6 +17607,7 @@
       .catch(function () { entry.gs = { styles: {}, settings: {} }; return entry; });
   }
   function remixWearEntry(entry) {
+    practiceHit('style');
     if (entry.origin) {
       remixAuditionOff();
       remixRestoreRhythm(entry.snaps);
@@ -18794,6 +18926,7 @@
   }
   function applyVariation(v, btn) {
     if (btn) btn.disabled = true;
+    practiceHit('style');
     // a style change re-measures every text height (new font), which shifts the
     // serialization — if the CONTENT was clean, those re-measured heights are the
     // new clean baseline (the style itself is saved server-side), so re-baseline
@@ -19747,7 +19880,8 @@
     placeHandles: placeHandles,
     // the broken first page
     fixPage: { start: startFixPage, check: fixCheck, dropped: fixDropped, finish: fixFinish, marks: fixMarks,
-      done: fixTaskDone, card: function () { return fixCard; }, run: function () { return fixRun; }, words: FIX_WORDS },
+      done: fixTaskDone, card: function () { return fixCard; }, run: function () { return fixRun; }, words: FIX_WORDS,
+      practice: { start: startPractice, state: function () { return practice; }, hit: practiceHit, next: practiceNext, key: practiceKey } },
     navLinkMarkup: navLinkMarkup,
     chromeEdits: function () { return chromeLightEdits; },
     bindChromeTest: function (el, raw) {
@@ -20768,6 +20902,7 @@
       // place. One surface, three seconds; the \u2726 stays as the standing
       // door and the drawer badge carries the words for newcomers.
       setChip('clean', 'Published \u2713');
+      practiceHit('publish');
       chipTimer = setTimeout(function () {
         setChip('clean', 'Answer-ready');
         chipTimer = setTimeout(refreshChip, 2000);
@@ -26666,6 +26801,9 @@
         // a brand-new person's first blank page arrives broken, to be fixed;
         // everyone else gets the section picker as before
         if (rehearseFix) { startFixPage(true); return; }
+        // the practice site: its chapters follow the person from page to page
+        // (never while a build is drawing: its scratch pages have no marks yet)
+        if (cfg.practice && !willBuild) { startPractice(); return; }
         if (blankBoot && fm.armed && !fm.forced) { startFixPage(false); return; }
         if (blankBoot) openPicker(S.indexOf(bootContent[0]));
         // a run left half done picks up where it was
