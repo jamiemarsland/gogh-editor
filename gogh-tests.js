@@ -6856,6 +6856,75 @@
       return 'default on arrival, chip, panel, swap, published class, the design’s shelf';
     });
 
+    test('the broken first page: four real fixes tick off, then the page is theirs', function () {
+      var F = G.fixPage, sec = null;
+      try {
+        sec = F.start(true);
+        var h = sec.els[0], b = sec.els[2], img = sec.els[3];
+        expect(sec.els.length === 4 && h.type === 'heading' && h.rot === -7 && !h.text && h.ph === F.words, 'the page arrives with a crooked placeholder headline');
+        expect(sec.nodes[0].getAttribute('data-gogh-ph') === F.words, 'the headline shows its placeholder, so typing replaces it');
+        expect(sec.nodes[3].classList.contains('gogh-fix-picture'), 'the empty frame reads as empty');
+        expect(img.type === 'image' && !img.src, 'the picture frame arrives empty: ' + img.src);
+        expect(sec.nodes[0].classList.contains('gogh-fix') && sec.nodes[2].classList.contains('gogh-fix-clash'), 'broken things wear a dot, the button clashes');
+        var card = F.card();
+        expect(card && !card.hidden && /0 of 4/.test(card.textContent) && /Straighten the headline/.test(card.textContent), 'the card lists four fixes');
+        expect(/Nothing here is permanent/.test(card.textContent) && /Hide/.test(card.textContent), 'the card says undo always works, and can be hidden');
+        expect(!/gogh-fix/.test(G.blocksV3(sec)), 'the published blocks never carry the dots or the clash');
+        // one: a drop straightens it
+        F.dropped(sec, 0);
+        G.pushState();
+        expect(h.rot === 0 && /1 of 4/.test(card.textContent), 'dropping the headline straightens it: ' + h.rot);
+        // two: words typed
+        h.text = 'Flowers for the ordinary days.';
+        G.pushState();
+        expect(/2 of 4/.test(card.textContent) && !sec.nodes[0].classList.contains('gogh-fix'), 'typing the headline ticks it off and its dot goes');
+        // three: the button's own panel, any look
+        G.placeHandles(sec, 2);
+        q('.gogh-elbar .gogh-eb-ctx').click();
+        var outline = q('.gogh-panel .gogh-style-outline');
+        expect(outline, 'the button panel opens');
+        outline.click();
+        expect(b.ghost && !b.fix && /3 of 4/.test(card.textContent), 'choosing a look for the button fixes the clash');
+        expect(!sec.nodes[2].classList.contains('gogh-fix-clash'), 'the clashing look is gone');
+        G.closePanel();
+        // four: a picture
+        img.src = 'data:image/gif;base64,R0lGODlhAQABAAAAACw=';
+        G.pushState();
+        expect(card.classList.contains('is-done') && /Fixed, and it’s yours/.test(card.textContent), 'all four fixed: the page is theirs');
+        card.querySelector('.gogh-fixcard-keep').click();
+        expect(card.hidden && !F.run().on && !F.marks().length, 'Keep editing closes the run');
+      } finally {
+        if (F.run().on) F.finish('hidden');
+        G.closePanel();
+        if (sec && G.deleteSection) { var at = G.sections().indexOf(sec); if (at !== -1) G.deleteSection(at); }
+      }
+      return 'crooked, words, clash and picture fixed by real gestures; the card closes';
+    });
+
+    test('practice: chapters hand over, doors tick their tasks, Hide is remembered', function () {
+      var P = G.fixPage.practice, key = P.key(), was = null;
+      try { was = localStorage.getItem(key); localStorage.removeItem(key); } catch (err) {}
+      try {
+        P.start();
+        var st = P.state(), card = G.fixPage.card();
+        // this page carries no marks, so chapter one reads as done here
+        expect(st && st.ch === 0 && st.stage === 'chapter' && /Basics: done/.test(card.textContent), 'a page with nothing to fix finishes the basics: ' + (st && st.stage));
+        card.querySelector('.gogh-fixcard-next').click();
+        expect(P.state().ch === 1 && /Practice \u00b7 Build/.test(card.textContent) && /0 of 4/.test(card.textContent), 'Next opens chapter two');
+        P.hit('dup');
+        expect(/1 of 4/.test(card.textContent) && P.state().done.dup, 'a door that was used ticks its task');
+        card.querySelector('.gogh-fixcard-hide').click();
+        expect(card.hidden && P.state().hidden && !G.fixPage.run().on, 'Hide ends practice and is remembered');
+        var saved = JSON.parse(localStorage.getItem(key) || '{}');
+        expect(saved.hidden === true && saved.ch === 1, 'progress is kept in this browser');
+      } finally {
+        try { if (was !== null) localStorage.setItem(key, was); else localStorage.removeItem(key); } catch (err) {}
+        if (G.fixPage.run().on) G.fixPage.finish('hidden');
+        var c = G.fixPage.card(); if (c) c.hidden = true;
+      }
+      return 'chapter hand-over, a door ticking a task, Hide remembered';
+    });
+
     testAsync('the Make door serves a chat that builds this site (read only: nothing is applied here)', async function () {
       var r = await fetch(location.origin + '/?gogh-make=1&goghcb=' + Date.now(), { credentials: 'same-origin', cache: 'no-store' });
       var html = await r.text();

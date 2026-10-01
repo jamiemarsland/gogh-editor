@@ -30,6 +30,7 @@ foreach ( array(
 	'gogh_rewrite_stamp',
 	'gogh_shop_layout',
 	'gogh_site_design',
+	'gogh_practice',
 	'gogh_type_scale',
 	'gogh_keep_blocks_noted',
 ) as $gogh_opt ) {

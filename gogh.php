@@ -3093,6 +3093,19 @@ function gogh_site_def_boot( $def ) {
 	} else {
 		delete_option( 'gogh_site_design' );
 	}
+	// the practice site (blueprint-practice.json): the editor runs its chapters
+	if ( ! empty( $def['practice'] ) ) {
+		update_option( 'gogh_practice', 1, true );
+	} else {
+		delete_option( 'gogh_practice' );
+	}
+	// pictures to choose from: straight into the media library, so a person
+	// practising (or starting out) never has to find one of their own
+	foreach ( array_slice( (array) ( isset( $def['library'] ) ? $def['library'] : array() ), 0, 12 ) as $gogh_lib ) {
+		if ( is_string( $gogh_lib ) && preg_match( '#^https://#', $gogh_lib ) ) {
+			gogh_site_def_picture( $gogh_lib, 0, sanitize_text_field( ! empty( $def['name'] ) ? $def['name'] : 'Picture' ) );
+		}
+	}
 	// posts: plain text becomes paragraphs; block markup passes through
 	foreach ( (array) ( isset( $def['posts'] ) ? $def['posts'] : array() ) as $ps ) {
 		if ( ! is_array( $ps ) || empty( $ps['title'] ) ) {
@@ -6638,6 +6651,8 @@ add_action( 'wp_enqueue_scripts', function () {
 		'firstMinute' => (bool) ( current_user_can( 'edit_posts' ) && ! get_user_meta( get_current_user_id(), '_gogh_first_minute', true ) ),
 		// the design's named looks and its own sections (gogh_site_design_clean)
 		'design'   => gogh_site_design_for_editor(),
+		// the practice site's chapters (gogh_site_def_boot)
+		'practice' => (bool) get_option( 'gogh_practice' ),
 		'menuStyle' => gogh_menu_style(),
 		'restUrl'  => rest_url( 'wp/v2/' . $rest_base . '/' . $post->ID ),
 		'mediaUrl' => rest_url( 'wp/v2/media' ),

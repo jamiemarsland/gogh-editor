@@ -4476,3 +4476,70 @@ html.gogh-building .gogh-inserter, html.gogh-building .gogh-side { display: none
 .gogh-kidstylebar .gogh-eb-look { margin-right: 0; }
 .gogh-kidstylebar .gogh-eb-look::after { display: none; }
 .gogh-look-stage .gogh-box, .gogh-eb-lookswatch .gogh-box { flex: 0 0 auto; }
+
+/* ---- the broken first page: a pulsing dot on each thing to fix, the
+   clashing button, and the checklist card. Editor only. ---- */
+html.gogh-editing .gogh-section .gogh-fix { position: relative; }
+/* the dot rides ::after: ::before is the ghost placeholder text's */
+html.gogh-editing .gogh-section .gogh-fix::after {
+  content: ""; position: absolute; top: -10px; right: -10px; width: 16px; height: 16px; border-radius: 50%;
+  background: #f6c21c; box-shadow: 0 0 0 3px #fff, 0 0 0 9px rgba(246, 194, 28, .3);
+  animation: gogh-fix-pulse 1.6s ease-in-out infinite; pointer-events: none; z-index: 6;
+  -webkit-text-stroke: 0; text-shadow: none;
+}
+/* words: the dot sits where the words start, not at the far end of a wide box */
+html.gogh-editing .gogh-section .gogh-fix.wp-block-heading::after, html.gogh-editing .gogh-section p.gogh-fix::after { right: auto; left: -14px; top: -6px; }
+@keyframes gogh-fix-pulse { 50% { box-shadow: 0 0 0 3px #fff, 0 0 0 15px rgba(246, 194, 28, 0); } }
+@media (prefers-reduced-motion: reduce) { html.gogh-editing .gogh-section .gogh-fix::after { animation: none; } }
+/* the empty frame reads as empty, not as a dark picture */
+html.gogh-editing .gogh-section .gogh-fix-picture { background: rgba(47, 74, 58, .05) !important; border: 2px dashed rgba(22, 24, 28, .28); border-radius: 10px; box-sizing: border-box; }
+html.gogh-editing .gogh-section .gogh-fix-picture::before {
+  content: "No picture yet"; position: absolute; inset: 0; display: grid; place-items: center; padding-top: 64px;
+  font: 500 15px -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, sans-serif; color: rgba(22, 24, 28, .5);
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='44' height='44' viewBox='0 0 24 24' fill='none' stroke='%2316181c' stroke-opacity='.45' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='3' y='5' width='18' height='14' rx='2'/%3E%3Ccircle cx='8.5' cy='10' r='1.6'/%3E%3Cpath d='M21 16l-5-5-9 8'/%3E%3C/svg%3E") center calc(50% - 16px) / 44px no-repeat;
+  pointer-events: none;
+}
+html.gogh-editing .gogh-fix-clash .wp-block-button__link {
+  background: #b6ff3b !important; color: #7a1fa2 !important; border: 3px dashed #ff3fa4 !important; border-radius: 4px !important;
+  font-family: "Comic Sans MS", "Chalkboard SE", "Comic Neue", cursive !important; font-weight: 800 !important; box-shadow: none !important;
+}
+.gogh-fixcard {
+  position: fixed; right: 20px; bottom: 20px; z-index: 100001; width: 300px; box-sizing: border-box;
+  background: #fff; color: #16181c; border-radius: 16px; padding: 14px 12px 12px;
+  box-shadow: 0 20px 50px -16px rgba(0, 0, 0, .45); font: 14px/1.4 -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, sans-serif;
+}
+.gogh-fixcard[hidden] { display: none; }
+.gogh-fixcard-head { display: flex; justify-content: space-between; align-items: baseline; padding: 0 6px 8px; }
+.gogh-fixcard-head b { font-size: 16px; }
+.gogh-fixcard-head span { font-size: 13px; color: rgba(22, 24, 28, .6); }
+.gogh-fixcard-bar { height: 5px; border-radius: 3px; background: rgba(22, 24, 28, .08); margin: 0 6px 6px; overflow: hidden; }
+.gogh-fixcard-bar i { display: block; height: 5px; background: #2f7d4f; transition: width .3s ease; }
+.gogh-fixcard-row { all: unset; box-sizing: border-box; width: 100%; display: flex; align-items: flex-start; gap: 10px; padding: 8px 10px; border-radius: 8px; cursor: pointer; }
+.gogh-fixcard-row:hover:not([disabled]) { background: rgba(22, 24, 28, .05); }
+.gogh-fixcard-row:focus-visible { outline: 2px solid #7ea8ff; outline-offset: 1px; }
+.gogh-fixcard-row.is-next { background: #fff7dc; }
+.gogh-fixcard-row[disabled] { cursor: default; }
+.gogh-fixcard-mark { flex: 0 0 auto; width: 20px; height: 20px; border-radius: 50%; border: 2px solid rgba(22, 24, 28, .25); box-sizing: border-box; margin-top: 1px; }
+.gogh-fixcard-row.is-next .gogh-fixcard-mark { border-color: #f6c21c; }
+.gogh-fixcard-row.is-ok .gogh-fixcard-mark { border: 0; background: #2f7d4f url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='3.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5 12l5 5 9-10'/%3E%3C/svg%3E") center / 12px no-repeat; }
+.gogh-fixcard-t { display: flex; flex-direction: column; gap: 2px; }
+.gogh-fixcard-t b { font-weight: 500; }
+.gogh-fixcard-row.is-next .gogh-fixcard-t b { font-weight: 700; }
+.gogh-fixcard-row.is-ok .gogh-fixcard-t b { color: rgba(22, 24, 28, .5); text-decoration: line-through; }
+.gogh-fixcard-t i { font-style: normal; font-size: 12.5px; color: rgba(22, 24, 28, .62); }
+.gogh-fixcard-foot { margin: 8px 6px 0; padding-top: 10px; border-top: 1px solid rgba(22, 24, 28, .1); display: flex; justify-content: space-between; align-items: center; gap: 8px; font-size: 12.5px; color: rgba(22, 24, 28, .62); }
+.gogh-fixcard-foot kbd { font: 11px ui-monospace, Menlo, monospace; border: 1px solid rgba(22, 24, 28, .2); border-radius: 4px; padding: 0 4px; }
+.gogh-fixcard-hide { all: unset; cursor: pointer; text-decoration: underline; color: rgba(22, 24, 28, .62); }
+.gogh-fixcard-hide:focus-visible { outline: 2px solid #7ea8ff; outline-offset: 2px; }
+.gogh-fixcard.is-done { padding: 18px 18px 16px; width: 340px; }
+.gogh-fixcard-done { display: flex; align-items: center; gap: 10px; font-size: 17px; }
+.gogh-fixcard-tick { width: 26px; height: 26px; border-radius: 50%; background: #2f7d4f url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='3.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5 12l5 5 9-10'/%3E%3C/svg%3E") center / 14px no-repeat; }
+.gogh-fixcard.is-done p { margin: 10px 0 12px; color: #4a4f58; }
+.gogh-fixcard-acts { display: flex; gap: 10px; }
+.gogh-fixcard-acts button { all: unset; cursor: pointer; height: 42px; padding: 0 18px; border-radius: 999px; font-size: 15px; display: inline-flex; align-items: center; }
+.gogh-fixcard-acts .gogh-fixcard-pub { background: #f0b849; color: #1d2327; font-weight: 700; }
+.gogh-fixcard-acts .gogh-fixcard-keep { border: 1.5px solid rgba(22, 24, 28, .2); box-sizing: border-box; }
+.gogh-fixcard-acts button:focus-visible { outline: 2px solid #7ea8ff; outline-offset: 2px; }
+/* practice: the chapter line, and rows that are not a place to jump to */
+.gogh-fixcard-ch { font-size: 12px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: rgba(22, 24, 28, .5); padding: 0 6px 8px; }
+div.gogh-fixcard-row { cursor: default; }
