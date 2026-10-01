@@ -11720,6 +11720,8 @@
         var frontDoor = /[?&]gogh-front-door=1/.test(location.search);
         var home = cfg.homeUrl || '/';
         setTimeout(function () {
+          // a writer's site opens on its newest post, in the writing room
+          if (pending && pending.open && /^https?:\/\//.test(String(pending.open))) { window.location.href = String(pending.open); return; }
           window.location.href = frontDoor ? home + (home.indexOf('?') >= 0 ? '&' : '?') + 'gogh-edit=1&gogh-front-door=1' : home;
         }, 400);
         return true;
