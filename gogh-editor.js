@@ -11539,13 +11539,16 @@
     var items = Array.isArray(sc.items) ? sc.items : null;
     if (name === 'Latest posts') {
       var pw = DEFAULTS.posts();
-      pw.y = 170;
+      pw.y = 144; // the grid sits close under its heading
       var po = sc.posts || {};
       pw.posts.look = po.look || sc.look || '';
       if (po.count) pw.posts.count = +po.count;
       if (po.show) pw.posts.show = Object.assign(pw.posts.show, po.show);
+      // one category (the server filled in its id), and the picture shape
+      if (po.catId) { pw.posts.catId = +po.catId; pw.posts.cat = po.cat ? String(po.cat) : null; }
+      if (po.aspect === 'square' || po.aspect === 'portrait' || po.aspect === 'landscape') pw.posts.aspect = po.aspect;
       pw.wsrc = composePosts(pw.posts);
-      return { name: 'Latest posts', minH: 660, els: [
+      return { name: sc.name ? String(sc.name) : 'Latest posts', minH: 660, els: [
         { type: 'heading', x: 100, y: 56, w: 1000, h: 60, text: sc.heading || 'From the blog', fs: 'x-large', align: 'center' },
         pw,
       ] };
@@ -13523,7 +13526,7 @@
           // not a shelf template: a real core query loop, composed here —
           // WordPress renders it fresh and it survives gogh's absence
           var pw = DEFAULTS.posts();
-          pw.y = 170;
+          pw.y = 144; // the grid sits close under its heading
           return { synth: 'posts', heading: null, tpl: { name: 'Latest posts', minH: 660, els: [
             { type: 'heading', x: 100, y: 56, w: 1000, h: 60, text: 'From the blog', fs: 'x-large', align: 'center' },
             pw,
@@ -16151,6 +16154,10 @@
         return fetch(GSROOT + 'font-families/' + family.id + '/font-faces?context=edit', { headers: H, credentials: 'same-origin' })
           .then(function (r) { return r.ok ? r.json() : []; })
           .then(function (have) {
+            // only this family's own files: on SQLite sites (Studio, Playground)
+            // a family with no faces yet is answered with ANOTHER family's
+            // faces, and a second font pair then wore the first pair's files
+            have = (Array.isArray(have) ? have : []).filter(function (x) { return x && +x.parent === +family.id; });
             var had = function (f) {
               return (have || []).filter(function (x) {
                 var st = x.font_face_settings || {};
