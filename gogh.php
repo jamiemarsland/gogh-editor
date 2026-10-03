@@ -38,6 +38,19 @@ add_action( 'init', function () {
 } );
 
 /**
+ * explore/html-only: when on, a section's static pieces publish as plain
+ * WordPress-flavoured HTML (no block comments) and only live parts stay
+ * blocks. Off by default; GOGH_HTML_ONLY or the gogh_html_only option turns
+ * it on, so the same pages can be published both ways and compared.
+ */
+function gogh_html_only() {
+	if ( defined( 'GOGH_HTML_ONLY' ) ) {
+		return (bool) GOGH_HTML_ONLY;
+	}
+	return (bool) get_option( 'gogh_html_only', false );
+}
+
+/**
  * SPIKE: emit a v3 section. PHP does scoping + emission ONLY — the layout
  * engine stays in the editor; cssT arrives fully compiled with a GOGHSCOPE
  * placeholder.
@@ -6718,6 +6731,8 @@ add_action( 'wp_enqueue_scripts', function () {
 		'mediaUrl' => rest_url( 'wp/v2/media' ),
 		'canUpload' => current_user_can( 'upload_files' ),
 		'canExp'   => current_user_can( 'upload_files' ) && current_user_can( 'unfiltered_html' ),
+		// explore/html-only: static pieces publish as plain HTML, live parts as blocks
+		'htmlOnly' => gogh_html_only(),
 		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only labs toggle
 		// Make freeform ships on by default; &gogh-experiments=0 is the kill-switch,
 		// bare &gogh-experiments opts into future experimental features.

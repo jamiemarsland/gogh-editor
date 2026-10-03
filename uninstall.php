@@ -21,6 +21,7 @@ foreach ( array(
 	'gogh_ask_log',
 	'gogh_ask_workspace',
 	'gogh_blog_style',
+	'gogh_html_only',
 	'gogh_brand',
 	'gogh_category_layout',
 	'gogh_first_minute_log',

@@ -7,6 +7,9 @@
   'use strict';
 
   var cfg = window.GOGH;
+  // explore/html-only: ?gogh-html=1 tries the HTML-only output in this view
+  // alone (the suite runs both ways); nothing is stored unless a page is published
+  if (cfg && /[?&]gogh-html=1(&|$)/.test(location.search)) cfg.htmlOnly = true;
   // poster type: three stops ABOVE the theme's largest preset. Container
   // units scale with the section (phones included); the px floor keeps the
   // smallest screens readable. Emitted into the section stylesheet, so
@@ -1316,7 +1319,9 @@
   function buildElBlocks(els, clsBase) {
     // blocks are emitted in READING order; each keeps its stacking-indexed
     // class, so grid placement and z-order are untouched by the resequence
-    return readingIndexOrder(els).map(function (i) {
+    var outs = readingIndexOrder(els).map(function (i) { return { e: els[i], s: elBlockOne(i) }; });
+    return cfg.htmlOnly ? htmlChunks(outs) : outs.map(function (o) { return o.s; }).join('\n\n');
+    function elBlockOne(i) {
       var e = els[i];
       var cls = (clsBase || 'gogh-el-') + (i + 1) + (userCls(e.cls) ? ' ' + userCls(e.cls) : '');
       switch (e.type) {
@@ -1465,7 +1470,39 @@
             (e.expUrl ? '<a class="gogh-exp-link" href="' + escAttr(e.expUrl) + '">Open interactive experience</a>' : '') +
             '</div>\n<!-- /wp:group -->';
       }
-    }).join('\n\n');
+    }
+  }
+  // ---------- explore/html-only: static pieces as plain HTML ----------
+  // With the switch on (cfg.htmlOnly), the static pieces of a section publish
+  // as the same WordPress-flavoured HTML (same classes, same theme presets)
+  // without a block apiece: each run of them rides in ONE core/html block,
+  // which the block editor accepts as written. Live parts stay real blocks
+  // between the runs: a widget's source (posts grid, shop, form,
+  // navigation…), a provider embed or player, a card holding one of those.
+  function isLiveEl(e) {
+    if (!e) return false;
+    if (e.type === 'widget') return true;
+    if (e.type === 'embed') { var ei = e.url ? embedInfo(e.url) : null; return !!(ei && ei.kind !== 'map'); }
+    if (e.type === 'video') return !!(e.vurl && videoEmbedInfo(e.vurl) && (e.vplay || 'auto') !== 'auto');
+    if (e.type === 'box') return !!(e.kids && e.kids.some(isLiveEl));
+    return false;
+  }
+  // attributes are a JSON object, so the match never runs past a closing
+  // comment into the markup between two of them (a looser one ate a </div>)
+  function stripBlockComments(str) {
+    return String(str).replace(/<!-- \/?wp:[a-z0-9\/-]+(?: \{[\s\S]*?\})? \/?-->\n?/g, '');
+  }
+  function htmlChunks(outs) {
+    var parts = [], run = [];
+    var flush = function () {
+      if (run.length) parts.push('<!-- wp:html -->\n' + run.join('\n') + '\n<!-- /wp:html -->');
+      run = [];
+    };
+    outs.forEach(function (o) {
+      if (isLiveEl(o.e)) { flush(); parts.push(o.s); } else run.push(stripBlockComments(o.s));
+    });
+    flush();
+    return parts.join('\n\n');
   }
   function sectionModelJSON(sec, version) {
     return {
@@ -19602,6 +19639,8 @@
         drag: !!drag, resize: !!resize, history: history.length, hIdx: hIdx };
     },
     sections: function () { return S; },
+    // explore/html-only: what a publish would write for the gogh sections now
+    pageBlocks: function () { return buildAllBlocks(); },
     showHbar: function (i) { placeHbar(S[i]); },
     openHeaderPanel: openHeaderPanel,
     openMenuStylePage: openMenuStylePage,
