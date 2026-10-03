@@ -1,0 +1,711 @@
+{
+ "name": "Seventy South",
+ "tagline": "Three camps on the Antarctic ice",
+ "variation": "Morning",
+ "palette": {
+  "base": "#F2F4F6",
+  "contrast": "#1B2430",
+  "accents": [
+   "#5694B3",
+   "#2E3A48",
+   "#D5DEE7",
+   "#1B2430",
+   "#8593A3",
+   "#E7ECF1"
+  ]
+ },
+ "chrome": {
+  "header": "gogh-header-overlay",
+  "footer": "gogh-footer-columns",
+  "sticky": true
+ },
+ "pages": [
+  {
+   "title": "Home",
+   "front": true,
+   "sections": [
+    {
+     "name": "Hero",
+     "els": [
+      {
+       "type": "para",
+       "x": 80,
+       "y": 288,
+       "w": 1040,
+       "h": 24,
+       "text": "Three outposts on the ice",
+       "align": "center",
+       "color": "base",
+       "tf": {
+        "fs": 12,
+        "fw": 400,
+        "ls2": 0.34,
+        "tt": "uppercase"
+       }
+      },
+      {
+       "type": "heading",
+       "x": 80,
+       "y": 336,
+       "w": 1040,
+       "h": 72,
+       "text": "Our camps",
+       "fs": "__max",
+       "align": "center",
+       "color": "base"
+      },
+      {
+       "type": "para",
+       "x": 300,
+       "y": 432,
+       "w": 600,
+       "h": 72,
+       "text": "Heated pods and proper beds, a day’s flight from Cape Town, on ground almost nobody has stood on. Comfort is the point. The wilderness is the reason.",
+       "align": "center",
+       "color": "base",
+       "tf": {
+        "fs": 17
+       }
+      },
+      {
+       "type": "button",
+       "x": 520,
+       "y": 552,
+       "w": 160,
+       "h": 48,
+       "text": "Plan a season",
+       "href": "/enquire/"
+      }
+     ],
+     "minH": 720,
+     "image": "https://images.unsplash.com/photo-1486566584569-b9319dc74315?ixid=M3wxNTAyNDN8MHwxfHNlYXJjaHwxfHxhbnRhcmN0aWNhJTIwaWNlJTIwbGFuZHNjYXBlJTIwYWVyaWFsfGVufDF8MHx8fDE3ODkyNzQwOTl8MA&ixlib=rb-4.1.0&w=1600&q=80&fm=jpg&fit=max",
+     "tint": 78,
+     "background": "#1B2430"
+    },
+    {
+     "name": "Polar comfort",
+     "els": [
+      {
+       "type": "para",
+       "x": 80,
+       "y": 72,
+       "w": 1040,
+       "h": 24,
+       "text": "Polar comfort",
+       "tf": {
+        "fs": 12,
+        "fw": 400,
+        "ls2": 0.3,
+        "tt": "uppercase"
+       }
+      },
+      {
+       "type": "heading",
+       "x": 80,
+       "y": 120,
+       "w": 700,
+       "h": 120,
+       "text": "Three camps, one standard, no compromise on the ice.",
+       "fs": "x-large",
+       "align": "left"
+      },
+      {
+       "type": "para",
+       "x": 80,
+       "y": 264,
+       "w": 500,
+       "h": 96,
+       "text": "Each camp sleeps twelve, runs on solar and wind where the season allows, and leaves nothing behind when we go. They differ in the ground they stand on.",
+       "tf": {
+        "fs": 16
+       }
+      },
+      {
+       "type": "para",
+       "x": 620,
+       "y": 264,
+       "w": 500,
+       "h": 96,
+       "text": "Choose by what you want out of the window: rock and blue lakes, a field of ice to the horizon, or a ridge that looks like the moon.",
+       "tf": {
+        "fs": 16
+       }
+      }
+     ],
+     "minH": 432
+    },
+    {
+     "name": "The camps",
+     "els": [
+      {
+       "type": "para",
+       "x": 80,
+       "y": 72,
+       "w": 1040,
+       "h": 24,
+       "text": "The camps",
+       "tf": {
+        "fs": 12,
+        "fw": 400,
+        "ls2": 0.3,
+        "tt": "uppercase"
+       }
+      },
+      {
+       "type": "box",
+       "x": 80,
+       "y": 120,
+       "w": 1040,
+       "h": 24,
+       "boxBg": "linear-gradient(color-mix(in srgb, var(--wp--preset--color--contrast, #000) 18%, transparent), color-mix(in srgb, var(--wp--preset--color--contrast, #000) 18%, transparent)) center / 100% 1px no-repeat"
+      },
+      {
+       "type": "box",
+       "x": 80,
+       "y": 120,
+       "w": 320,
+       "h": 552,
+       "boxBg": "var(--wp--preset--color--accent-6)",
+       "radius": 6,
+       "kids": [
+        {
+         "type": "image",
+         "x": 0,
+         "y": 0,
+         "w": 320,
+         "h": 220,
+         "src": "https://images.unsplash.com/photo-1455496231601-e6195da1f841?ixid=M3wxNTAyNDN8MHwxfHNlYXJjaHwxfHxleHBlZGl0aW9uJTIwdGVudCUyMGNhbXAlMjBzbm93fGVufDF8MHx8fDE3ODkyNzQxMDF8MA&ixlib=rb-4.1.0&w=1600&q=80&fm=jpg&fit=max",
+         "alt": "Nunatak Camp"
+        },
+        {
+         "type": "para",
+         "x": 22,
+         "y": 242,
+         "w": 276,
+         "h": 18,
+         "text": "70° 48′ S · 11° 23′ E",
+         "tf": {
+          "fs": 10.5,
+          "fw": 400,
+          "ls2": 0.14,
+          "tt": "uppercase"
+         }
+        },
+        {
+         "type": "heading",
+         "x": 22,
+         "y": 268,
+         "w": 276,
+         "h": 40,
+         "text": "Nunatak Camp",
+         "align": "left"
+        },
+        {
+         "type": "para",
+         "x": 22,
+         "y": 318,
+         "w": 276,
+         "h": 110,
+         "text": "Our first camp, on rare exposed rock beside freshwater lakes. Warm, quiet, and the easiest walk to the ice.",
+         "tf": {
+          "fs": 14.5
+         }
+        },
+        {
+         "type": "button",
+         "x": 22,
+         "y": 452,
+         "w": 150,
+         "h": 44,
+         "text": "Learn more",
+         "href": "/enquire/"
+        }
+       ]
+      },
+      {
+       "type": "box",
+       "x": 440,
+       "y": 120,
+       "w": 320,
+       "h": 552,
+       "boxBg": "var(--wp--preset--color--accent-6)",
+       "radius": 6,
+       "kids": [
+        {
+         "type": "image",
+         "x": 0,
+         "y": 0,
+         "w": 320,
+         "h": 220,
+         "src": "https://images.unsplash.com/photo-1627499202567-21fae02ac26e?ixid=M3wxNTAyNDN8MHwxfHNlYXJjaHw0fHxleHBlZGl0aW9uJTIwdGVudCUyMGNhbXAlMjBzbm93fGVufDF8MHx8fDE3ODkyNzQxMDF8MA&ixlib=rb-4.1.0&w=1600&q=80&fm=jpg&fit=max",
+         "alt": "Halo Base"
+        },
+        {
+         "type": "para",
+         "x": 22,
+         "y": 242,
+         "w": 276,
+         "h": 18,
+         "text": "71° 32′ S · 8° 50′ E",
+         "tf": {
+          "fs": 10.5,
+          "fw": 400,
+          "ls2": 0.14,
+          "tt": "uppercase"
+         }
+        },
+        {
+         "type": "heading",
+         "x": 22,
+         "y": 268,
+         "w": 276,
+         "h": 40,
+         "text": "Halo Base",
+         "align": "left"
+        },
+        {
+         "type": "para",
+         "x": 22,
+         "y": 318,
+         "w": 276,
+         "h": 110,
+         "text": "Six pods on a white plain, built for people who wanted to see what leaving Earth might feel like.",
+         "tf": {
+          "fs": 14.5
+         }
+        },
+        {
+         "type": "button",
+         "x": 22,
+         "y": 452,
+         "w": 150,
+         "h": 44,
+         "text": "Learn more",
+         "href": "/enquire/"
+        }
+       ]
+      },
+      {
+       "type": "box",
+       "x": 800,
+       "y": 120,
+       "w": 320,
+       "h": 552,
+       "boxBg": "var(--wp--preset--color--accent-6)",
+       "radius": 6,
+       "kids": [
+        {
+         "type": "image",
+         "x": 0,
+         "y": 0,
+         "w": 320,
+         "h": 220,
+         "src": "https://images.unsplash.com/photo-1610786466444-678292a9debd?ixid=M3wxNTAyNDN8MHwxfHNlYXJjaHwzfHxhbnRhcmN0aWNhJTIwaWNlJTIwbGFuZHNjYXBlJTIwYWVyaWFsfGVufDF8MHx8fDE3ODkyNzQwOTl8MA&ixlib=rb-4.1.0&w=1600&q=80&fm=jpg&fit=max",
+         "alt": "Ridge Camp"
+        },
+        {
+         "type": "para",
+         "x": 22,
+         "y": 242,
+         "w": 276,
+         "h": 18,
+         "text": "71° 31′ S · 8° 51′ E",
+         "tf": {
+          "fs": 10.5,
+          "fw": 400,
+          "ls2": 0.14,
+          "tt": "uppercase"
+         }
+        },
+        {
+         "type": "heading",
+         "x": 22,
+         "y": 268,
+         "w": 276,
+         "h": 40,
+         "text": "Ridge Camp",
+         "align": "left"
+        },
+        {
+         "type": "para",
+         "x": 22,
+         "y": 318,
+         "w": 276,
+         "h": 110,
+         "text": "Chalet-style rooms under a granite ridge. True to how we started: a tent, a stove and the view.",
+         "tf": {
+          "fs": 14.5
+         }
+        },
+        {
+         "type": "button",
+         "x": 22,
+         "y": 452,
+         "w": 150,
+         "h": 44,
+         "text": "Learn more",
+         "href": "/enquire/"
+        }
+       ]
+      }
+     ],
+     "minH": 720
+    },
+    {
+     "name": "Itineraries",
+     "els": [
+      {
+       "type": "heading",
+       "x": 80,
+       "y": 96,
+       "w": 600,
+       "h": 48,
+       "text": "Itineraries",
+       "fs": "x-large",
+       "align": "left"
+      },
+      {
+       "type": "para",
+       "x": 700,
+       "y": 96,
+       "w": 420,
+       "h": 24,
+       "text": "Five ways in · per person",
+       "align": "right",
+       "tf": {
+        "fs": 12,
+        "fw": 400,
+        "ls2": 0.18,
+        "tt": "uppercase"
+       }
+      },
+      {
+       "type": "box",
+       "x": 80,
+       "y": 144,
+       "w": 1040,
+       "h": 24,
+       "boxBg": "linear-gradient(color-mix(in srgb, var(--wp--preset--color--contrast, #000) 18%, transparent), color-mix(in srgb, var(--wp--preset--color--contrast, #000) 18%, transparent)) center / 100% 1px no-repeat"
+      },
+      {
+       "type": "heading",
+       "x": 80,
+       "y": 168,
+       "w": 600,
+       "h": 24,
+       "text": "Emperors & Blue Tunnels",
+       "align": "left"
+      },
+      {
+       "type": "para",
+       "x": 720,
+       "y": 192,
+       "w": 160,
+       "h": 24,
+       "text": "8 days",
+       "tf": {
+        "fs": 11.5,
+        "fw": 400,
+        "ls2": 0.1,
+        "tt": "uppercase"
+       }
+      },
+      {
+       "type": "para",
+       "x": 900,
+       "y": 168,
+       "w": 220,
+       "h": 24,
+       "text": "from $74,000",
+       "align": "right",
+       "tf": {
+        "fs": 16,
+        "fw": 600
+       }
+      },
+      {
+       "type": "box",
+       "x": 80,
+       "y": 216,
+       "w": 1040,
+       "h": 24,
+       "boxBg": "linear-gradient(color-mix(in srgb, var(--wp--preset--color--contrast, #000) 18%, transparent), color-mix(in srgb, var(--wp--preset--color--contrast, #000) 18%, transparent)) center / 100% 1px no-repeat"
+      },
+      {
+       "type": "heading",
+       "x": 80,
+       "y": 240,
+       "w": 600,
+       "h": 24,
+       "text": "The Pole & the Penguins",
+       "align": "left"
+      },
+      {
+       "type": "para",
+       "x": 720,
+       "y": 240,
+       "w": 160,
+       "h": 24,
+       "text": "10 days",
+       "tf": {
+        "fs": 11.5,
+        "fw": 400,
+        "ls2": 0.1,
+        "tt": "uppercase"
+       }
+      },
+      {
+       "type": "para",
+       "x": 900,
+       "y": 240,
+       "w": 220,
+       "h": 24,
+       "text": "from $112,000",
+       "align": "right",
+       "tf": {
+        "fs": 16,
+        "fw": 600
+       }
+      },
+      {
+       "type": "box",
+       "x": 80,
+       "y": 288,
+       "w": 1040,
+       "h": 24,
+       "boxBg": "linear-gradient(color-mix(in srgb, var(--wp--preset--color--contrast, #000) 18%, transparent), color-mix(in srgb, var(--wp--preset--color--contrast, #000) 18%, transparent)) center / 100% 1px no-repeat"
+      },
+      {
+       "type": "heading",
+       "x": 80,
+       "y": 312,
+       "w": 600,
+       "h": 24,
+       "text": "Blue Rivers, Long Days",
+       "align": "left"
+      },
+      {
+       "type": "para",
+       "x": 720,
+       "y": 312,
+       "w": 160,
+       "h": 24,
+       "text": "11 days",
+       "tf": {
+        "fs": 11.5,
+        "fw": 400,
+        "ls2": 0.1,
+        "tt": "uppercase"
+       }
+      },
+      {
+       "type": "para",
+       "x": 900,
+       "y": 312,
+       "w": 220,
+       "h": 24,
+       "text": "from $110,000",
+       "align": "right",
+       "tf": {
+        "fs": 16,
+        "fw": 600
+       }
+      },
+      {
+       "type": "box",
+       "x": 80,
+       "y": 360,
+       "w": 1040,
+       "h": 24,
+       "boxBg": "linear-gradient(color-mix(in srgb, var(--wp--preset--color--contrast, #000) 18%, transparent), color-mix(in srgb, var(--wp--preset--color--contrast, #000) 18%, transparent)) center / 100% 1px no-repeat"
+      },
+      {
+       "type": "heading",
+       "x": 80,
+       "y": 360,
+       "w": 600,
+       "h": 24,
+       "text": "The Long Stay",
+       "align": "left"
+      },
+      {
+       "type": "para",
+       "x": 720,
+       "y": 360,
+       "w": 160,
+       "h": 24,
+       "text": "14 days",
+       "tf": {
+        "fs": 11.5,
+        "fw": 400,
+        "ls2": 0.1,
+        "tt": "uppercase"
+       }
+      },
+      {
+       "type": "para",
+       "x": 900,
+       "y": 360,
+       "w": 220,
+       "h": 24,
+       "text": "from $118,000",
+       "align": "right",
+       "tf": {
+        "fs": 16,
+        "fw": 600
+       }
+      },
+      {
+       "type": "box",
+       "x": 80,
+       "y": 408,
+       "w": 1040,
+       "h": 24,
+       "boxBg": "linear-gradient(color-mix(in srgb, var(--wp--preset--color--contrast, #000) 18%, transparent), color-mix(in srgb, var(--wp--preset--color--contrast, #000) 18%, transparent)) center / 100% 1px no-repeat"
+      },
+      {
+       "type": "heading",
+       "x": 80,
+       "y": 432,
+       "w": 600,
+       "h": 24,
+       "text": "Antarctica in a Day",
+       "align": "left"
+      },
+      {
+       "type": "para",
+       "x": 720,
+       "y": 432,
+       "w": 160,
+       "h": 24,
+       "text": "1 day",
+       "tf": {
+        "fs": 11.5,
+        "fw": 400,
+        "ls2": 0.1,
+        "tt": "uppercase"
+       }
+      },
+      {
+       "type": "para",
+       "x": 900,
+       "y": 432,
+       "w": 220,
+       "h": 24,
+       "text": "from $16,000",
+       "align": "right",
+       "tf": {
+        "fs": 16,
+        "fw": 600
+       }
+      },
+      {
+       "type": "box",
+       "x": 80,
+       "y": 480,
+       "w": 1040,
+       "h": 24,
+       "boxBg": "linear-gradient(color-mix(in srgb, var(--wp--preset--color--contrast, #000) 18%, transparent), color-mix(in srgb, var(--wp--preset--color--contrast, #000) 18%, transparent)) center / 100% 1px no-repeat"
+      }
+     ],
+     "minH": 576
+    },
+    {
+     "name": "A big quote",
+     "minH": 504,
+     "image": "https://images.unsplash.com/photo-1494564605686-2e931f77a8e2?ixid=M3wxNTAyNDN8MHwxfHNlYXJjaHwxfHxnbGFjaWVyJTIwYmx1ZSUyMGljZSUyMG1vdW50YWluc3xlbnwxfDB8fHwxNzg5Mjc0MTAwfDA&ixlib=rb-4.1.0&w=1600&q=80&fm=jpg&fit=max",
+     "tint": 62,
+     "background": "#1B2430",
+     "els": [
+      {
+       "type": "heading",
+       "x": 516,
+       "y": 48,
+       "w": 168,
+       "h": 120,
+       "text": "“",
+       "fs": "__disp-l",
+       "align": "center",
+       "color": "base"
+      },
+      {
+       "type": "para",
+       "x": 200,
+       "y": 192,
+       "w": 800,
+       "h": 144,
+       "text": "You go for the ice. You come back talking about the silence.",
+       "fs": "x-large",
+       "align": "center",
+       "color": "base",
+       "tf": {
+        "lh": 1.25
+       }
+      },
+      {
+       "type": "para",
+       "x": 400,
+       "y": 384,
+       "w": 400,
+       "h": 24,
+       "text": "A guest, first season back",
+       "align": "center",
+       "color": "base",
+       "tf": {
+        "fs": 13,
+        "fw": 600,
+        "ls2": 0.22,
+        "tt": "uppercase"
+       }
+      }
+     ]
+    },
+    {
+     "take": "Call to action",
+     "eyebrow": "November to January",
+     "heading": "Start planning your season",
+     "text": "Twelve guests a camp, two flights a week, one conversation to begin.",
+     "button": "Enquire"
+    }
+   ]
+  },
+  {
+   "title": "Enquire",
+   "slug": "enquire",
+   "sections": [
+    {
+     "take": "Contact form",
+     "eyebrow": "Say hello",
+     "heading": "Tell us when, and how many",
+     "text": "We answer within a day, wherever we are."
+    }
+   ]
+  }
+ ],
+ "credits": [
+  {
+   "name": "Matt Palmer",
+   "link": "https://unsplash.com/@mattpalmer"
+  },
+  {
+   "name": "Andy Wang",
+   "link": "https://unsplash.com/@space_launch_system"
+  },
+  {
+   "name": "Nathan Karsgaard",
+   "link": "https://unsplash.com/@folkandwild"
+  },
+  {
+   "name": "David Schultz",
+   "link": "https://unsplash.com/@davidschultz"
+  },
+  {
+   "name": "Jeremy Bishop",
+   "link": "https://unsplash.com/@jeremybishop"
+  },
+  {
+   "name": "Derek Oyen",
+   "link": "https://unsplash.com/@goosegrease"
+  }
+ ]
+}

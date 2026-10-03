@@ -1,0 +1,1758 @@
+{
+ "name": "Rosa & Tom",
+ "tagline": "12 June 2027 · Hollins Farm, Somerset",
+ "variation": "Afternoon",
+ "palette": {
+  "base": "#FFFFFF",
+  "contrast": "#1F2B22",
+  "accents": [
+   "#5B7650",
+   "#1F2B22",
+   "#1F2B22",
+   "#1F2B22",
+   "#9AA596",
+   "#EEF1EA"
+  ]
+ },
+ "chrome": {
+  "header": "gogh-header-classic",
+  "footer": "gogh-footer-simple",
+  "sticky": false
+ },
+ "pages": [
+  {
+   "title": "Home",
+   "slug": "home",
+   "front": true,
+   "sections": [
+    {
+     "name": "Save the date",
+     "minH": 864,
+     "els": [
+      {
+       "type": "image",
+       "x": 700,
+       "y": 72,
+       "w": 420,
+       "h": 576,
+       "src": "https://images.unsplash.com/photo-1776266099566-676119a0f06e?w=1600&q=80&fm=jpg&fit=max",
+       "alt": "Rosa and Tom at golden hour"
+      },
+      {
+       "type": "image",
+       "x": 80,
+       "y": 600,
+       "w": 200,
+       "h": 144,
+       "src": "https://images.unsplash.com/photo-1615635978618-92317bf8c818?w=1600&q=80&fm=jpg&fit=max",
+       "alt": "Daisies and lavender",
+       "m": {
+        "hidden": true
+       }
+      },
+      {
+       "type": "para",
+       "x": 80,
+       "y": 96,
+       "w": 640,
+       "h": 24,
+       "text": "Saturday 12 June 2027 · Hollins Farm, Somerset",
+       "tf": {
+        "fs": 12,
+        "fw": 600,
+        "ls2": 0.22,
+        "tt": "uppercase",
+        "col": "color-mix(in srgb, var(--wp--preset--color--contrast, #1F2B22) 62%, transparent)"
+       }
+      },
+      {
+       "type": "heading",
+       "x": 80,
+       "y": 144,
+       "w": 760,
+       "h": 360,
+       "text": "Rosa <em>&amp;</em><br>Tom",
+       "fs": "__disp-l"
+      },
+      {
+       "type": "para",
+       "x": 80,
+       "y": 504,
+       "w": 520,
+       "h": 72,
+       "text": "We are getting married on a farm in Somerset, and we would love you to be there.",
+       "tf": {
+        "fs": 20
+       }
+      },
+      {
+       "type": "button",
+       "x": 320,
+       "y": 624,
+       "w": 160,
+       "h": 48,
+       "text": "RSVP",
+       "href": "/rsvp/",
+       "btnBg": "accent-1",
+       "btnText": "base"
+      },
+      {
+       "type": "button",
+       "x": 504,
+       "y": 624,
+       "w": 160,
+       "h": 48,
+       "text": "The day",
+       "href": "/the-day/",
+       "ghost": true
+      },
+      {
+       "type": "box",
+       "x": 1010,
+       "y": 576,
+       "w": 144,
+       "h": 144,
+       "shape": "circle",
+       "boxBg": "#E9C9C0",
+       "m": {
+        "hidden": true
+       },
+       "kids": [
+        {
+         "type": "para",
+         "x": 20,
+         "y": 44,
+         "w": 110,
+         "h": 60,
+         "text": "Reply by<br>1 April",
+         "align": "center",
+         "tf": {
+          "fs": 15,
+          "fw": 600,
+          "col": "#1F2B22"
+         }
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "name": "The date",
+     "minH": 432,
+     "background": "#EEF1EA",
+     "els": [
+      {
+       "type": "heading",
+       "x": 80,
+       "y": 96,
+       "w": 1040,
+       "h": 192,
+       "text": "12 · 06 · 27",
+       "fs": "__disp-l",
+       "align": "center",
+       "tf": {
+        "col": "var(--wp--preset--color--accent-1, #5B7650)"
+       }
+      },
+      {
+       "type": "para",
+       "x": 240,
+       "y": 312,
+       "w": 720,
+       "h": 48,
+       "text": "The ceremony is at two o’clock. Carriages at midnight. Everything in between is in a field.",
+       "tf": {
+        "fs": 18
+       },
+       "align": "center"
+      }
+     ]
+    },
+    {
+     "name": "The day",
+     "minH": 720,
+     "els": [
+      {
+       "type": "para",
+       "x": 80,
+       "y": 96,
+       "w": 640,
+       "h": 24,
+       "text": "The day",
+       "tf": {
+        "fs": 12,
+        "fw": 600,
+        "ls2": 0.22,
+        "tt": "uppercase",
+        "col": "color-mix(in srgb, var(--wp--preset--color--contrast, #1F2B22) 62%, transparent)"
+       }
+      },
+      {
+       "type": "para",
+       "x": 640,
+       "y": 96,
+       "w": 480,
+       "h": 24,
+       "text": "All at Hollins Farm. You will not need a car once you are here.",
+       "tf": {
+        "fs": 14,
+        "col": "color-mix(in srgb, var(--wp--preset--color--contrast, #1F2B22) 62%, transparent)"
+       },
+       "align": "right",
+       "m": {
+        "hidden": true
+       }
+      },
+      {
+       "type": "box",
+       "x": 80,
+       "y": 168,
+       "w": 1040,
+       "h": 24,
+       "boxBg": "linear-gradient(color-mix(in srgb, var(--wp--preset--color--contrast, #1F2B22) 18%, transparent), color-mix(in srgb, var(--wp--preset--color--contrast, #1F2B22) 18%, transparent)) center / 100% 1px no-repeat"
+      },
+      {
+       "type": "para",
+       "x": 80,
+       "y": 192,
+       "w": 160,
+       "h": 24,
+       "text": "1.30pm",
+       "tf": {
+        "fs": 16,
+        "fw": 600
+       }
+      },
+      {
+       "type": "para",
+       "x": 264,
+       "y": 192,
+       "w": 552,
+       "h": 24,
+       "text": "Arrive, find a seat, say hello",
+       "tf": {
+        "fs": 16
+       }
+      },
+      {
+       "type": "para",
+       "x": 840,
+       "y": 192,
+       "w": 280,
+       "h": 24,
+       "text": "The meadow",
+       "tf": {
+        "fs": 15,
+        "col": "color-mix(in srgb, var(--wp--preset--color--contrast, #1F2B22) 62%, transparent)"
+       },
+       "align": "right",
+       "m": {
+        "hidden": true
+       }
+      },
+      {
+       "type": "box",
+       "x": 80,
+       "y": 240,
+       "w": 1040,
+       "h": 24,
+       "boxBg": "linear-gradient(color-mix(in srgb, var(--wp--preset--color--contrast, #1F2B22) 18%, transparent), color-mix(in srgb, var(--wp--preset--color--contrast, #1F2B22) 18%, transparent)) center / 100% 1px no-repeat"
+      },
+      {
+       "type": "para",
+       "x": 80,
+       "y": 264,
+       "w": 160,
+       "h": 24,
+       "text": "2pm",
+       "tf": {
+        "fs": 16,
+        "fw": 600
+       }
+      },
+      {
+       "type": "para",
+       "x": 264,
+       "y": 264,
+       "w": 552,
+       "h": 24,
+       "text": "The ceremony",
+       "tf": {
+        "fs": 16
+       }
+      },
+      {
+       "type": "para",
+       "x": 840,
+       "y": 264,
+       "w": 280,
+       "h": 24,
+       "text": "Under the oak",
+       "tf": {
+        "fs": 15,
+        "col": "color-mix(in srgb, var(--wp--preset--color--contrast, #1F2B22) 62%, transparent)"
+       },
+       "align": "right",
+       "m": {
+        "hidden": true
+       }
+      },
+      {
+       "type": "box",
+       "x": 80,
+       "y": 312,
+       "w": 1040,
+       "h": 24,
+       "boxBg": "linear-gradient(color-mix(in srgb, var(--wp--preset--color--contrast, #1F2B22) 18%, transparent), color-mix(in srgb, var(--wp--preset--color--contrast, #1F2B22) 18%, transparent)) center / 100% 1px no-repeat"
+      },
+      {
+       "type": "para",
+       "x": 80,
+       "y": 336,
+       "w": 160,
+       "h": 24,
+       "text": "3pm",
+       "tf": {
+        "fs": 16,
+        "fw": 600
+       }
+      },
+      {
+       "type": "para",
+       "x": 264,
+       "y": 336,
+       "w": 552,
+       "h": 24,
+       "text": "Drinks, lawn games and photographs",
+       "tf": {
+        "fs": 16
+       }
+      },
+      {
+       "type": "para",
+       "x": 840,
+       "y": 336,
+       "w": 280,
+       "h": 24,
+       "text": "The orchard",
+       "tf": {
+        "fs": 15,
+        "col": "color-mix(in srgb, var(--wp--preset--color--contrast, #1F2B22) 62%, transparent)"
+       },
+       "align": "right",
+       "m": {
+        "hidden": true
+       }
+      },
+      {
+       "type": "box",
+       "x": 80,
+       "y": 384,
+       "w": 1040,
+       "h": 24,
+       "boxBg": "linear-gradient(color-mix(in srgb, var(--wp--preset--color--contrast, #1F2B22) 18%, transparent), color-mix(in srgb, var(--wp--preset--color--contrast, #1F2B22) 18%, transparent)) center / 100% 1px no-repeat"
+      },
+      {
+       "type": "para",
+       "x": 80,
+       "y": 408,
+       "w": 160,
+       "h": 24,
+       "text": "5pm",
+       "tf": {
+        "fs": 16,
+        "fw": 600
+       }
+      },
+      {
+       "type": "para",
+       "x": 264,
+       "y": 408,
+       "w": 552,
+       "h": 24,
+       "text": "Dinner at the long table",
+       "tf": {
+        "fs": 16
+       }
+      },
+      {
+       "type": "para",
+       "x": 840,
+       "y": 408,
+       "w": 280,
+       "h": 24,
+       "text": "The big barn",
+       "tf": {
+        "fs": 15,
+        "col": "color-mix(in srgb, var(--wp--preset--color--contrast, #1F2B22) 62%, transparent)"
+       },
+       "align": "right",
+       "m": {
+        "hidden": true
+       }
+      },
+      {
+       "type": "box",
+       "x": 80,
+       "y": 456,
+       "w": 1040,
+       "h": 24,
+       "boxBg": "linear-gradient(color-mix(in srgb, var(--wp--preset--color--contrast, #1F2B22) 18%, transparent), color-mix(in srgb, var(--wp--preset--color--contrast, #1F2B22) 18%, transparent)) center / 100% 1px no-repeat"
+      },
+      {
+       "type": "para",
+       "x": 80,
+       "y": 480,
+       "w": 160,
+       "h": 24,
+       "text": "8pm",
+       "tf": {
+        "fs": 16,
+        "fw": 600
+       }
+      },
+      {
+       "type": "para",
+       "x": 264,
+       "y": 480,
+       "w": 552,
+       "h": 24,
+       "text": "First dance, then everyone",
+       "tf": {
+        "fs": 16
+       }
+      },
+      {
+       "type": "para",
+       "x": 840,
+       "y": 480,
+       "w": 280,
+       "h": 24,
+       "text": "The tent",
+       "tf": {
+        "fs": 15,
+        "col": "color-mix(in srgb, var(--wp--preset--color--contrast, #1F2B22) 62%, transparent)"
+       },
+       "align": "right",
+       "m": {
+        "hidden": true
+       }
+      },
+      {
+       "type": "box",
+       "x": 80,
+       "y": 528,
+       "w": 1040,
+       "h": 24,
+       "boxBg": "linear-gradient(color-mix(in srgb, var(--wp--preset--color--contrast, #1F2B22) 18%, transparent), color-mix(in srgb, var(--wp--preset--color--contrast, #1F2B22) 18%, transparent)) center / 100% 1px no-repeat"
+      },
+      {
+       "type": "para",
+       "x": 80,
+       "y": 552,
+       "w": 160,
+       "h": 24,
+       "text": "Midnight",
+       "tf": {
+        "fs": 16,
+        "fw": 600
+       }
+      },
+      {
+       "type": "para",
+       "x": 264,
+       "y": 552,
+       "w": 552,
+       "h": 24,
+       "text": "Carriages, and the last song",
+       "tf": {
+        "fs": 16
+       }
+      },
+      {
+       "type": "para",
+       "x": 840,
+       "y": 552,
+       "w": 280,
+       "h": 24,
+       "text": "The lane",
+       "tf": {
+        "fs": 15,
+        "col": "color-mix(in srgb, var(--wp--preset--color--contrast, #1F2B22) 62%, transparent)"
+       },
+       "align": "right",
+       "m": {
+        "hidden": true
+       }
+      },
+      {
+       "type": "box",
+       "x": 80,
+       "y": 600,
+       "w": 1040,
+       "h": 24,
+       "boxBg": "linear-gradient(color-mix(in srgb, var(--wp--preset--color--contrast, #1F2B22) 18%, transparent), color-mix(in srgb, var(--wp--preset--color--contrast, #1F2B22) 18%, transparent)) center / 100% 1px no-repeat"
+      },
+      {
+       "type": "para",
+       "x": 80,
+       "y": 648,
+       "w": 400,
+       "h": 24,
+       "text": "<a href=\"/the-day/\">What to wear, eat and bring →</a>",
+       "tf": {
+        "fs": 16
+       }
+      }
+     ]
+    },
+    {
+     "name": "Our story",
+     "minH": 864,
+     "els": [
+      {
+       "type": "image",
+       "x": 80,
+       "y": 72,
+       "w": 460,
+       "h": 576,
+       "src": "https://images.unsplash.com/photo-1782786398583-204128485db0?w=1600&q=80&fm=jpg&fit=max",
+       "alt": "Rosa and Tom in a field of wildflowers"
+      },
+      {
+       "type": "image",
+       "x": 440,
+       "y": 432,
+       "w": 260,
+       "h": 312,
+       "src": "https://images.unsplash.com/photo-1529519195486-16945f0fb37f?w=1600&q=80&fm=jpg&fit=max",
+       "alt": "Two hands, one ring"
+      },
+      {
+       "type": "para",
+       "x": 780,
+       "y": 96,
+       "w": 340,
+       "h": 24,
+       "text": "Our story",
+       "tf": {
+        "fs": 12,
+        "fw": 600,
+        "ls2": 0.22,
+        "tt": "uppercase",
+        "col": "color-mix(in srgb, var(--wp--preset--color--contrast, #1F2B22) 62%, transparent)"
+       }
+      },
+      {
+       "type": "heading",
+       "x": 780,
+       "y": 144,
+       "w": 340,
+       "h": 168,
+       "text": "Nine years and one borrowed bicycle.",
+       "fs": "x-large"
+      },
+      {
+       "type": "para",
+       "x": 780,
+       "y": 336,
+       "w": 340,
+       "h": 192,
+       "text": "We met when Tom fixed the bike Rosa had borrowed from her sister and ridden into a hedge. He charged her nothing, then asked for her number to check the brakes were holding.",
+       "tf": {
+        "fs": 17
+       }
+      },
+      {
+       "type": "para",
+       "x": 780,
+       "y": 552,
+       "w": 340,
+       "h": 24,
+       "text": "<a href=\"/our-story/\">The rest of it →</a>",
+       "tf": {
+        "fs": 16
+       }
+      }
+     ]
+    },
+    {
+     "name": "Three pictures",
+     "minH": 576,
+     "els": [
+      {
+       "type": "image",
+       "x": 80,
+       "y": 72,
+       "w": 440,
+       "h": 360,
+       "src": "https://images.unsplash.com/photo-1758810743752-c496cb015b25?w=1600&q=80&fm=jpg&fit=max",
+       "alt": "The long table laid under the trees"
+      },
+      {
+       "type": "image",
+       "x": 544,
+       "y": 72,
+       "w": 272,
+       "h": 360,
+       "src": "https://images.unsplash.com/photo-1596238276574-b3e8d40fbafb?w=1600&q=80&fm=jpg&fit=max",
+       "alt": "Hydrangeas, echinacea and lupins"
+      },
+      {
+       "type": "image",
+       "x": 840,
+       "y": 72,
+       "w": 280,
+       "h": 360,
+       "src": "https://images.unsplash.com/photo-1482575832494-771f74bf6857?w=1600&q=80&fm=jpg&fit=max",
+       "alt": "Dancing in the tent"
+      },
+      {
+       "type": "para",
+       "x": 80,
+       "y": 456,
+       "w": 440,
+       "h": 24,
+       "text": "The long table, under the trees",
+       "tf": {
+        "fs": 14,
+        "col": "color-mix(in srgb, var(--wp--preset--color--contrast, #1F2B22) 62%, transparent)"
+       }
+      },
+      {
+       "type": "para",
+       "x": 544,
+       "y": 456,
+       "w": 272,
+       "h": 24,
+       "text": "Flowers from the farm’s own beds",
+       "tf": {
+        "fs": 14,
+        "col": "color-mix(in srgb, var(--wp--preset--color--contrast, #1F2B22) 62%, transparent)"
+       }
+      },
+      {
+       "type": "para",
+       "x": 840,
+       "y": 456,
+       "w": 280,
+       "h": 24,
+       "text": "And then the tent",
+       "tf": {
+        "fs": 14,
+        "col": "color-mix(in srgb, var(--wp--preset--color--contrast, #1F2B22) 62%, transparent)"
+       }
+      }
+     ]
+    },
+    {
+     "name": "Will you come",
+     "minH": 432,
+     "background": "#1F2B22",
+     "els": [
+      {
+       "type": "heading",
+       "x": 80,
+       "y": 96,
+       "w": 700,
+       "h": 72,
+       "text": "Will you come?",
+       "fs": "xx-large",
+       "tf": {
+        "col": "#FFFFFF"
+       }
+      },
+      {
+       "type": "para",
+       "x": 80,
+       "y": 192,
+       "w": 700,
+       "h": 24,
+       "text": "Please let us know by 1 April, and tell us anything you cannot eat.",
+       "tf": {
+        "fs": 18,
+        "col": "#E6ECE3"
+       }
+      },
+      {
+       "type": "button",
+       "x": 80,
+       "y": 264,
+       "w": 180,
+       "h": 48,
+       "text": "RSVP",
+       "href": "/rsvp/",
+       "btnBg": "base",
+       "btnText": "contrast"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "title": "Our story",
+   "slug": "our-story",
+   "sections": [
+    {
+     "name": "How we got here",
+     "minH": 1008,
+     "els": [
+      {
+       "type": "para",
+       "x": 80,
+       "y": 96,
+       "w": 640,
+       "h": 24,
+       "text": "Our story",
+       "tf": {
+        "fs": 12,
+        "fw": 600,
+        "ls2": 0.22,
+        "tt": "uppercase",
+        "col": "color-mix(in srgb, var(--wp--preset--color--contrast, #1F2B22) 62%, transparent)"
+       }
+      },
+      {
+       "type": "heading",
+       "x": 80,
+       "y": 144,
+       "w": 900,
+       "h": 264,
+       "text": "How we got here.",
+       "fs": "__disp-m"
+      },
+      {
+       "type": "para",
+       "x": 80,
+       "y": 432,
+       "w": 640,
+       "h": 24,
+       "text": "Nine years in five lines. The long version is best told at the bar.",
+       "tf": {
+        "fs": 18,
+        "col": "color-mix(in srgb, var(--wp--preset--color--contrast, #1F2B22) 62%, transparent)"
+       }
+      },
+      {
+       "type": "box",
+       "x": 80,
+       "y": 504,
+       "w": 1040,
+       "h": 24,
+       "boxBg": "linear-gradient(color-mix(in srgb, var(--wp--preset--color--contrast, #1F2B22) 18%, transparent), color-mix(in srgb, var(--wp--preset--color--contrast, #1F2B22) 18%, transparent)) center / 100% 1px no-repeat"
+      },
+      {
+       "type": "para",
+       "x": 80,
+       "y": 528,
+       "w": 120,
+       "h": 24,
+       "text": "2018",
+       "tf": {
+        "fs": 16,
+        "fw": 600
+       }
+      },
+      {
+       "type": "para",
+       "x": 224,
+       "y": 528,
+       "w": 592,
+       "h": 24,
+       "text": "A borrowed bicycle, a hedge, and a bike shop on Gloucester Road",
+       "tf": {
+        "fs": 16
+       }
+      },
+      {
+       "type": "para",
+       "x": 840,
+       "y": 528,
+       "w": 280,
+       "h": 24,
+       "text": "Bristol",
+       "tf": {
+        "fs": 15,
+        "col": "color-mix(in srgb, var(--wp--preset--color--contrast, #1F2B22) 62%, transparent)"
+       },
+       "align": "right",
+       "m": {
+        "hidden": true
+       }
+      },
+      {
+       "type": "box",
+       "x": 80,
+       "y": 576,
+       "w": 1040,
+       "h": 24,
+       "boxBg": "linear-gradient(color-mix(in srgb, var(--wp--preset--color--contrast, #1F2B22) 18%, transparent), color-mix(in srgb, var(--wp--preset--color--contrast, #1F2B22) 18%, transparent)) center / 100% 1px no-repeat"
+      },
+      {
+       "type": "para",
+       "x": 80,
+       "y": 600,
+       "w": 120,
+       "h": 24,
+       "text": "2020",
+       "tf": {
+        "fs": 16,
+        "fw": 600
+       }
+      },
+      {
+       "type": "para",
+       "x": 224,
+       "y": 600,
+       "w": 592,
+       "h": 24,
+       "text": "A flat with a garden too small for the tomatoes we planted",
+       "tf": {
+        "fs": 16
+       }
+      },
+      {
+       "type": "para",
+       "x": 840,
+       "y": 600,
+       "w": 280,
+       "h": 24,
+       "text": "Frome",
+       "tf": {
+        "fs": 15,
+        "col": "color-mix(in srgb, var(--wp--preset--color--contrast, #1F2B22) 62%, transparent)"
+       },
+       "align": "right",
+       "m": {
+        "hidden": true
+       }
+      },
+      {
+       "type": "box",
+       "x": 80,
+       "y": 648,
+       "w": 1040,
+       "h": 24,
+       "boxBg": "linear-gradient(color-mix(in srgb, var(--wp--preset--color--contrast, #1F2B22) 18%, transparent), color-mix(in srgb, var(--wp--preset--color--contrast, #1F2B22) 18%, transparent)) center / 100% 1px no-repeat"
+      },
+      {
+       "type": "para",
+       "x": 80,
+       "y": 672,
+       "w": 120,
+       "h": 24,
+       "text": "2022",
+       "tf": {
+        "fs": 16,
+        "fw": 600
+       }
+      },
+      {
+       "type": "para",
+       "x": 224,
+       "y": 672,
+       "w": 592,
+       "h": 24,
+       "text": "Juniper the dog, who chose us at a rescue in Taunton",
+       "tf": {
+        "fs": 16
+       }
+      },
+      {
+       "type": "para",
+       "x": 840,
+       "y": 672,
+       "w": 280,
+       "h": 24,
+       "text": "Somerset",
+       "tf": {
+        "fs": 15,
+        "col": "color-mix(in srgb, var(--wp--preset--color--contrast, #1F2B22) 62%, transparent)"
+       },
+       "align": "right",
+       "m": {
+        "hidden": true
+       }
+      },
+      {
+       "type": "box",
+       "x": 80,
+       "y": 720,
+       "w": 1040,
+       "h": 24,
+       "boxBg": "linear-gradient(color-mix(in srgb, var(--wp--preset--color--contrast, #1F2B22) 18%, transparent), color-mix(in srgb, var(--wp--preset--color--contrast, #1F2B22) 18%, transparent)) center / 100% 1px no-repeat"
+      },
+      {
+       "type": "para",
+       "x": 80,
+       "y": 744,
+       "w": 120,
+       "h": 24,
+       "text": "2026",
+       "tf": {
+        "fs": 16,
+        "fw": 600
+       }
+      },
+      {
+       "type": "para",
+       "x": 224,
+       "y": 744,
+       "w": 592,
+       "h": 24,
+       "text": "A question on the top of the Quantocks, in the rain",
+       "tf": {
+        "fs": 16
+       }
+      },
+      {
+       "type": "para",
+       "x": 840,
+       "y": 744,
+       "w": 280,
+       "h": 24,
+       "text": "The Quantocks",
+       "tf": {
+        "fs": 15,
+        "col": "color-mix(in srgb, var(--wp--preset--color--contrast, #1F2B22) 62%, transparent)"
+       },
+       "align": "right",
+       "m": {
+        "hidden": true
+       }
+      },
+      {
+       "type": "box",
+       "x": 80,
+       "y": 792,
+       "w": 1040,
+       "h": 24,
+       "boxBg": "linear-gradient(color-mix(in srgb, var(--wp--preset--color--contrast, #1F2B22) 18%, transparent), color-mix(in srgb, var(--wp--preset--color--contrast, #1F2B22) 18%, transparent)) center / 100% 1px no-repeat"
+      },
+      {
+       "type": "para",
+       "x": 80,
+       "y": 816,
+       "w": 120,
+       "h": 24,
+       "text": "2027",
+       "tf": {
+        "fs": 16,
+        "fw": 600
+       }
+      },
+      {
+       "type": "para",
+       "x": 224,
+       "y": 816,
+       "w": 592,
+       "h": 24,
+       "text": "This",
+       "tf": {
+        "fs": 16
+       }
+      },
+      {
+       "type": "para",
+       "x": 840,
+       "y": 816,
+       "w": 280,
+       "h": 24,
+       "text": "Hollins Farm",
+       "tf": {
+        "fs": 15,
+        "col": "color-mix(in srgb, var(--wp--preset--color--contrast, #1F2B22) 62%, transparent)"
+       },
+       "align": "right",
+       "m": {
+        "hidden": true
+       }
+      },
+      {
+       "type": "box",
+       "x": 80,
+       "y": 864,
+       "w": 1040,
+       "h": 24,
+       "boxBg": "linear-gradient(color-mix(in srgb, var(--wp--preset--color--contrast, #1F2B22) 18%, transparent), color-mix(in srgb, var(--wp--preset--color--contrast, #1F2B22) 18%, transparent)) center / 100% 1px no-repeat"
+      }
+     ]
+    },
+    {
+     "name": "Two pictures",
+     "minH": 720,
+     "els": [
+      {
+       "type": "image",
+       "x": 80,
+       "y": 72,
+       "w": 560,
+       "h": 504,
+       "src": "https://images.unsplash.com/photo-1741377772412-b1bbbcb58896?w=1600&q=80&fm=jpg&fit=max",
+       "alt": "Rosa and Tom laughing"
+      },
+      {
+       "type": "image",
+       "x": 680,
+       "y": 72,
+       "w": 440,
+       "h": 288,
+       "src": "https://images.unsplash.com/photo-1698934641105-e3bcd290df26?w=1600&q=80&fm=jpg&fit=max",
+       "alt": "Two people dancing in a wide field"
+      },
+      {
+       "type": "para",
+       "x": 80,
+       "y": 600,
+       "w": 560,
+       "h": 24,
+       "text": "Tom, trying to be serious",
+       "tf": {
+        "fs": 14,
+        "col": "color-mix(in srgb, var(--wp--preset--color--contrast, #1F2B22) 62%, transparent)"
+       }
+      },
+      {
+       "type": "para",
+       "x": 680,
+       "y": 384,
+       "w": 440,
+       "h": 24,
+       "text": "The field where the tent will go, last summer",
+       "tf": {
+        "fs": 14,
+        "col": "color-mix(in srgb, var(--wp--preset--color--contrast, #1F2B22) 62%, transparent)"
+       }
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "title": "The day",
+   "slug": "the-day",
+   "sections": [
+    {
+     "name": "The day",
+     "minH": 792,
+     "els": [
+      {
+       "type": "para",
+       "x": 80,
+       "y": 96,
+       "w": 640,
+       "h": 24,
+       "text": "The day",
+       "tf": {
+        "fs": 12,
+        "fw": 600,
+        "ls2": 0.22,
+        "tt": "uppercase",
+        "col": "color-mix(in srgb, var(--wp--preset--color--contrast, #1F2B22) 62%, transparent)"
+       }
+      },
+      {
+       "type": "heading",
+       "x": 80,
+       "y": 144,
+       "w": 900,
+       "h": 96,
+       "text": "Saturday 12 June 2027",
+       "fs": "__disp-s"
+      },
+      {
+       "type": "box",
+       "x": 80,
+       "y": 264,
+       "w": 1040,
+       "h": 24,
+       "boxBg": "linear-gradient(color-mix(in srgb, var(--wp--preset--color--contrast, #1F2B22) 18%, transparent), color-mix(in srgb, var(--wp--preset--color--contrast, #1F2B22) 18%, transparent)) center / 100% 1px no-repeat"
+      },
+      {
+       "type": "para",
+       "x": 80,
+       "y": 288,
+       "w": 160,
+       "h": 24,
+       "text": "1.30pm",
+       "tf": {
+        "fs": 16,
+        "fw": 600
+       }
+      },
+      {
+       "type": "para",
+       "x": 264,
+       "y": 288,
+       "w": 552,
+       "h": 24,
+       "text": "Arrive, find a seat, say hello",
+       "tf": {
+        "fs": 16
+       }
+      },
+      {
+       "type": "para",
+       "x": 840,
+       "y": 288,
+       "w": 280,
+       "h": 24,
+       "text": "The meadow",
+       "tf": {
+        "fs": 15,
+        "col": "color-mix(in srgb, var(--wp--preset--color--contrast, #1F2B22) 62%, transparent)"
+       },
+       "align": "right",
+       "m": {
+        "hidden": true
+       }
+      },
+      {
+       "type": "box",
+       "x": 80,
+       "y": 336,
+       "w": 1040,
+       "h": 24,
+       "boxBg": "linear-gradient(color-mix(in srgb, var(--wp--preset--color--contrast, #1F2B22) 18%, transparent), color-mix(in srgb, var(--wp--preset--color--contrast, #1F2B22) 18%, transparent)) center / 100% 1px no-repeat"
+      },
+      {
+       "type": "para",
+       "x": 80,
+       "y": 360,
+       "w": 160,
+       "h": 24,
+       "text": "2pm",
+       "tf": {
+        "fs": 16,
+        "fw": 600
+       }
+      },
+      {
+       "type": "para",
+       "x": 264,
+       "y": 360,
+       "w": 552,
+       "h": 24,
+       "text": "The ceremony",
+       "tf": {
+        "fs": 16
+       }
+      },
+      {
+       "type": "para",
+       "x": 840,
+       "y": 360,
+       "w": 280,
+       "h": 24,
+       "text": "Under the oak",
+       "tf": {
+        "fs": 15,
+        "col": "color-mix(in srgb, var(--wp--preset--color--contrast, #1F2B22) 62%, transparent)"
+       },
+       "align": "right",
+       "m": {
+        "hidden": true
+       }
+      },
+      {
+       "type": "box",
+       "x": 80,
+       "y": 408,
+       "w": 1040,
+       "h": 24,
+       "boxBg": "linear-gradient(color-mix(in srgb, var(--wp--preset--color--contrast, #1F2B22) 18%, transparent), color-mix(in srgb, var(--wp--preset--color--contrast, #1F2B22) 18%, transparent)) center / 100% 1px no-repeat"
+      },
+      {
+       "type": "para",
+       "x": 80,
+       "y": 432,
+       "w": 160,
+       "h": 24,
+       "text": "3pm",
+       "tf": {
+        "fs": 16,
+        "fw": 600
+       }
+      },
+      {
+       "type": "para",
+       "x": 264,
+       "y": 432,
+       "w": 552,
+       "h": 24,
+       "text": "Drinks, lawn games and photographs",
+       "tf": {
+        "fs": 16
+       }
+      },
+      {
+       "type": "para",
+       "x": 840,
+       "y": 432,
+       "w": 280,
+       "h": 24,
+       "text": "The orchard",
+       "tf": {
+        "fs": 15,
+        "col": "color-mix(in srgb, var(--wp--preset--color--contrast, #1F2B22) 62%, transparent)"
+       },
+       "align": "right",
+       "m": {
+        "hidden": true
+       }
+      },
+      {
+       "type": "box",
+       "x": 80,
+       "y": 480,
+       "w": 1040,
+       "h": 24,
+       "boxBg": "linear-gradient(color-mix(in srgb, var(--wp--preset--color--contrast, #1F2B22) 18%, transparent), color-mix(in srgb, var(--wp--preset--color--contrast, #1F2B22) 18%, transparent)) center / 100% 1px no-repeat"
+      },
+      {
+       "type": "para",
+       "x": 80,
+       "y": 504,
+       "w": 160,
+       "h": 24,
+       "text": "5pm",
+       "tf": {
+        "fs": 16,
+        "fw": 600
+       }
+      },
+      {
+       "type": "para",
+       "x": 264,
+       "y": 504,
+       "w": 552,
+       "h": 24,
+       "text": "Dinner at the long table",
+       "tf": {
+        "fs": 16
+       }
+      },
+      {
+       "type": "para",
+       "x": 840,
+       "y": 504,
+       "w": 280,
+       "h": 24,
+       "text": "The big barn",
+       "tf": {
+        "fs": 15,
+        "col": "color-mix(in srgb, var(--wp--preset--color--contrast, #1F2B22) 62%, transparent)"
+       },
+       "align": "right",
+       "m": {
+        "hidden": true
+       }
+      },
+      {
+       "type": "box",
+       "x": 80,
+       "y": 552,
+       "w": 1040,
+       "h": 24,
+       "boxBg": "linear-gradient(color-mix(in srgb, var(--wp--preset--color--contrast, #1F2B22) 18%, transparent), color-mix(in srgb, var(--wp--preset--color--contrast, #1F2B22) 18%, transparent)) center / 100% 1px no-repeat"
+      },
+      {
+       "type": "para",
+       "x": 80,
+       "y": 576,
+       "w": 160,
+       "h": 24,
+       "text": "8pm",
+       "tf": {
+        "fs": 16,
+        "fw": 600
+       }
+      },
+      {
+       "type": "para",
+       "x": 264,
+       "y": 576,
+       "w": 552,
+       "h": 24,
+       "text": "First dance, then everyone",
+       "tf": {
+        "fs": 16
+       }
+      },
+      {
+       "type": "para",
+       "x": 840,
+       "y": 576,
+       "w": 280,
+       "h": 24,
+       "text": "The tent",
+       "tf": {
+        "fs": 15,
+        "col": "color-mix(in srgb, var(--wp--preset--color--contrast, #1F2B22) 62%, transparent)"
+       },
+       "align": "right",
+       "m": {
+        "hidden": true
+       }
+      },
+      {
+       "type": "box",
+       "x": 80,
+       "y": 624,
+       "w": 1040,
+       "h": 24,
+       "boxBg": "linear-gradient(color-mix(in srgb, var(--wp--preset--color--contrast, #1F2B22) 18%, transparent), color-mix(in srgb, var(--wp--preset--color--contrast, #1F2B22) 18%, transparent)) center / 100% 1px no-repeat"
+      },
+      {
+       "type": "para",
+       "x": 80,
+       "y": 648,
+       "w": 160,
+       "h": 24,
+       "text": "Midnight",
+       "tf": {
+        "fs": 16,
+        "fw": 600
+       }
+      },
+      {
+       "type": "para",
+       "x": 264,
+       "y": 648,
+       "w": 552,
+       "h": 24,
+       "text": "Carriages, and the last song",
+       "tf": {
+        "fs": 16
+       }
+      },
+      {
+       "type": "para",
+       "x": 840,
+       "y": 648,
+       "w": 280,
+       "h": 24,
+       "text": "The lane",
+       "tf": {
+        "fs": 15,
+        "col": "color-mix(in srgb, var(--wp--preset--color--contrast, #1F2B22) 62%, transparent)"
+       },
+       "align": "right",
+       "m": {
+        "hidden": true
+       }
+      },
+      {
+       "type": "box",
+       "x": 80,
+       "y": 696,
+       "w": 1040,
+       "h": 24,
+       "boxBg": "linear-gradient(color-mix(in srgb, var(--wp--preset--color--contrast, #1F2B22) 18%, transparent), color-mix(in srgb, var(--wp--preset--color--contrast, #1F2B22) 18%, transparent)) center / 100% 1px no-repeat"
+      }
+     ]
+    },
+    {
+     "name": "Good to know",
+     "minH": 432,
+     "els": [
+      {
+       "type": "para",
+       "x": 80,
+       "y": 96,
+       "w": 640,
+       "h": 24,
+       "text": "Good to know",
+       "tf": {
+        "fs": 12,
+        "fw": 600,
+        "ls2": 0.22,
+        "tt": "uppercase",
+        "col": "color-mix(in srgb, var(--wp--preset--color--contrast, #1F2B22) 62%, transparent)"
+       }
+      },
+      {
+       "type": "para",
+       "x": 80,
+       "y": 168,
+       "w": 320,
+       "h": 24,
+       "text": "What to wear",
+       "tf": {
+        "fs": 17,
+        "fw": 600
+       }
+      },
+      {
+       "type": "para",
+       "x": 80,
+       "y": 216,
+       "w": 320,
+       "h": 120,
+       "text": "Summer best. It is a farm, so leave the stilettos at home and bring a layer for after dark.",
+       "tf": {
+        "fs": 16,
+        "col": "color-mix(in srgb, var(--wp--preset--color--contrast, #1F2B22) 62%, transparent)"
+       }
+      },
+      {
+       "type": "para",
+       "x": 440,
+       "y": 168,
+       "w": 320,
+       "h": 24,
+       "text": "Food and drink",
+       "tf": {
+        "fs": 17,
+        "fw": 600
+       }
+      },
+      {
+       "type": "para",
+       "x": 440,
+       "y": 216,
+       "w": 320,
+       "h": 120,
+       "text": "Three courses at the long table, all from farms nearby. Tell us what you cannot eat when you reply.",
+       "tf": {
+        "fs": 16,
+        "col": "color-mix(in srgb, var(--wp--preset--color--contrast, #1F2B22) 62%, transparent)"
+       }
+      },
+      {
+       "type": "para",
+       "x": 800,
+       "y": 168,
+       "w": 320,
+       "h": 24,
+       "text": "Gifts",
+       "tf": {
+        "fs": 17,
+        "fw": 600
+       }
+      },
+      {
+       "type": "para",
+       "x": 800,
+       "y": 216,
+       "w": 320,
+       "h": 120,
+       "text": "You coming is the gift. If you would like to, there is a jar on the bar for our honeymoon in Norway.",
+       "tf": {
+        "fs": 16,
+        "col": "color-mix(in srgb, var(--wp--preset--color--contrast, #1F2B22) 62%, transparent)"
+       }
+      }
+     ]
+    },
+    {
+     "name": "Children",
+     "minH": 360,
+     "background": "#EEF1EA",
+     "els": [
+      {
+       "type": "heading",
+       "x": 80,
+       "y": 96,
+       "w": 560,
+       "h": 48,
+       "text": "Children are very welcome.",
+       "fs": "large"
+      },
+      {
+       "type": "para",
+       "x": 80,
+       "y": 192,
+       "w": 560,
+       "h": 72,
+       "text": "There is a quiet room in the farmhouse with blankets, a film and a grown-up, from seven until carriages.",
+       "tf": {
+        "fs": 17
+       }
+      },
+      {
+       "type": "image",
+       "x": 760,
+       "y": 72,
+       "w": 360,
+       "h": 216,
+       "src": "https://images.unsplash.com/photo-1615635978618-92317bf8c818?w=1600&q=80&fm=jpg&fit=max",
+       "alt": "Daisies and lavender"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "title": "Travel",
+   "slug": "travel",
+   "sections": [
+    {
+     "name": "Getting there",
+     "minH": 792,
+     "els": [
+      {
+       "type": "para",
+       "x": 80,
+       "y": 96,
+       "w": 640,
+       "h": 24,
+       "text": "Travel and stay",
+       "tf": {
+        "fs": 12,
+        "fw": 600,
+        "ls2": 0.22,
+        "tt": "uppercase",
+        "col": "color-mix(in srgb, var(--wp--preset--color--contrast, #1F2B22) 62%, transparent)"
+       }
+      },
+      {
+       "type": "heading",
+       "x": 80,
+       "y": 144,
+       "w": 480,
+       "h": 48,
+       "text": "Hollins Farm, near Somerton",
+       "fs": "large"
+      },
+      {
+       "type": "para",
+       "x": 80,
+       "y": 240,
+       "w": 480,
+       "h": 120,
+       "text": "The nearest station is Castle Cary, twenty minutes by taxi. Book one ahead: <a href=\"tel:+441174960000\">0117 496 0000</a>. There is parking in the lower field.",
+       "tf": {
+        "fs": 17
+       }
+      },
+      {
+       "type": "para",
+       "x": 80,
+       "y": 384,
+       "w": 480,
+       "h": 24,
+       "text": "Places to stay",
+       "tf": {
+        "fs": 17,
+        "fw": 600
+       }
+      },
+      {
+       "type": "box",
+       "x": 80,
+       "y": 432,
+       "w": 480,
+       "h": 24,
+       "boxBg": "linear-gradient(color-mix(in srgb, var(--wp--preset--color--contrast, #1F2B22) 18%, transparent), color-mix(in srgb, var(--wp--preset--color--contrast, #1F2B22) 18%, transparent)) center / 100% 1px no-repeat"
+      },
+      {
+       "type": "para",
+       "x": 80,
+       "y": 456,
+       "w": 180,
+       "h": 24,
+       "text": "The White Hart",
+       "tf": {
+        "fs": 16,
+        "fw": 600
+       }
+      },
+      {
+       "type": "para",
+       "x": 284,
+       "y": 456,
+       "w": 276,
+       "h": 24,
+       "text": "Rooms above a village pub, eight left · 2 miles",
+       "tf": {
+        "fs": 16
+       }
+      },
+      {
+       "type": "box",
+       "x": 80,
+       "y": 504,
+       "w": 480,
+       "h": 24,
+       "boxBg": "linear-gradient(color-mix(in srgb, var(--wp--preset--color--contrast, #1F2B22) 18%, transparent), color-mix(in srgb, var(--wp--preset--color--contrast, #1F2B22) 18%, transparent)) center / 100% 1px no-repeat"
+      },
+      {
+       "type": "para",
+       "x": 80,
+       "y": 528,
+       "w": 180,
+       "h": 24,
+       "text": "Lanes End B&B",
+       "tf": {
+        "fs": 16,
+        "fw": 600
+       }
+      },
+      {
+       "type": "para",
+       "x": 284,
+       "y": 528,
+       "w": 276,
+       "h": 24,
+       "text": "Four rooms and a very good breakfast · 3 miles",
+       "tf": {
+        "fs": 16
+       }
+      },
+      {
+       "type": "box",
+       "x": 80,
+       "y": 576,
+       "w": 480,
+       "h": 24,
+       "boxBg": "linear-gradient(color-mix(in srgb, var(--wp--preset--color--contrast, #1F2B22) 18%, transparent), color-mix(in srgb, var(--wp--preset--color--contrast, #1F2B22) 18%, transparent)) center / 100% 1px no-repeat"
+      },
+      {
+       "type": "para",
+       "x": 80,
+       "y": 600,
+       "w": 180,
+       "h": 24,
+       "text": "The top field",
+       "tf": {
+        "fs": 16,
+        "fw": 600
+       }
+      },
+      {
+       "type": "para",
+       "x": 284,
+       "y": 600,
+       "w": 276,
+       "h": 24,
+       "text": "Bring a tent and camp at the farm, free · On site",
+       "tf": {
+        "fs": 16
+       }
+      },
+      {
+       "type": "box",
+       "x": 80,
+       "y": 648,
+       "w": 480,
+       "h": 24,
+       "boxBg": "linear-gradient(color-mix(in srgb, var(--wp--preset--color--contrast, #1F2B22) 18%, transparent), color-mix(in srgb, var(--wp--preset--color--contrast, #1F2B22) 18%, transparent)) center / 100% 1px no-repeat"
+      },
+      {
+       "type": "embed",
+       "x": 640,
+       "y": 96,
+       "w": 480,
+       "h": 504,
+       "url": "https://www.google.com/maps?q=Somerton,+Somerset&output=embed",
+       "radius": 16
+      }
+     ]
+    },
+    {
+     "name": "The farm",
+     "minH": 576,
+     "els": [
+      {
+       "type": "image",
+       "x": 80,
+       "y": 72,
+       "w": 500,
+       "h": 408,
+       "src": "https://images.unsplash.com/photo-1571524188026-cc1d649962ea?w=1600&q=80&fm=jpg&fit=max",
+       "alt": "The barns at Hollins Farm"
+      },
+      {
+       "type": "image",
+       "x": 620,
+       "y": 72,
+       "w": 500,
+       "h": 408,
+       "src": "https://images.unsplash.com/photo-1719669854455-b325c8669b5a?w=1600&q=80&fm=jpg&fit=max",
+       "alt": "The view across the fields"
+      },
+      {
+       "type": "para",
+       "x": 80,
+       "y": 504,
+       "w": 500,
+       "h": 24,
+       "text": "The barns, where dinner will be",
+       "tf": {
+        "fs": 14,
+        "col": "color-mix(in srgb, var(--wp--preset--color--contrast, #1F2B22) 62%, transparent)"
+       }
+      },
+      {
+       "type": "para",
+       "x": 620,
+       "y": 504,
+       "w": 500,
+       "h": 24,
+       "text": "The view from the top field",
+       "tf": {
+        "fs": 14,
+        "col": "color-mix(in srgb, var(--wp--preset--color--contrast, #1F2B22) 62%, transparent)"
+       }
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "title": "RSVP",
+   "slug": "rsvp",
+   "sections": [
+    {
+     "take": "Get in touch",
+     "eyebrow": "RSVP",
+     "heading": "Will you come?",
+     "text": "Tell us who is coming, anything you cannot eat, and one song that will get you dancing. Please reply by 1 April 2027."
+    }
+   ]
+  }
+ ],
+ "credits": [
+  {
+   "name": "Alexander Mass",
+   "link": "https://unsplash.com/@alexandermassph"
+  },
+  {
+   "name": "Micah & Sammie Chaffin",
+   "link": "https://unsplash.com/@micahandsammiechaffin"
+  },
+  {
+   "name": "Masood Aslami",
+   "link": "https://unsplash.com/@masoodaslami"
+  },
+  {
+   "name": "Alex Kotomanov",
+   "link": "https://unsplash.com/@kotomanov"
+  },
+  {
+   "name": "Bruno Ngarukiye",
+   "link": "https://unsplash.com/@itsbrunoagain"
+  },
+  {
+   "name": "Mariah Hewines",
+   "link": "https://unsplash.com/@mariahhewines"
+  },
+  {
+   "name": "Laura Cleffmann",
+   "link": "https://unsplash.com/@cloudett"
+  },
+  {
+   "name": "Alekon pictures",
+   "link": "https://unsplash.com/@alekonpictures"
+  },
+  {
+   "name": "Lulu Black",
+   "link": "https://unsplash.com/@lulublack"
+  },
+  {
+   "name": "Mitchell Orr",
+   "link": "https://unsplash.com/@mitchorr"
+  }
+ ]
+}
