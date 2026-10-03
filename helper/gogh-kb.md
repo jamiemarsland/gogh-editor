@@ -15,7 +15,7 @@ about something where they conflict, rather than picking one silently. Quote UI
 labels and message copy from the appendix, verbatim — those are the current
 strings, and a paraphrased button label is the fastest way to lose a user's trust.
 
-Generated for plugin version 0.99.649 · knowledge base aef18a8.
+Generated for plugin version 0.99.650 · knowledge base cb71a16.
 
 ---
 
@@ -829,6 +829,8 @@ The helper's welcome panel opens with a 35-second film of gogh being used (v0.99
 
 **The phone view survives navigation (v0.99.605).** Press one of your own pages while on the phone and it opens in the editor, still on the phone: the link carries `gogh-edit=1&gogh-phone=1`, the next page reads them at boot and strips them from the address. Other sites, files, wp-admin and anchors on the same page are left alone. Unpublished changes still ask before leaving.
 
+**The Long Way, a travel journal blueprint (v0.99.650).** A slow-travel journal by a made-up writer who stopped flying: seven stories by train and ferry, each with a photograph and a "Getting there" list of the route. The home page opens on a photo of the sea through a train window. Below it, the latest stories in the cover look (the newest opens over its picture), a band of numbers (countries, kilometres by rail, ferries, flights: zero), "Right now" beside a map of where the writer is, and a dark band with RSS and "Suggest a place". The Stories page wears the cover look too. Fixed on the way: in the cover look on a posts page, the newest story's date was dark on the dark picture, because the theme links the date.
+
 **Second Helpings, a recipe blog blueprint (v0.99.649).** A home cook's recipe blog: eight recipes, each with a photograph, filed under *Quick suppers*, *Baking* and *Slow weekends*. The home page shows two of those categories as card grids, with each card's time and servings under the title. The Recipes page wears the cards look, and every recipe is written as ingredients and method lists. Site definitions gained post categories (`cats: ['Baking']`, made when missing), and a posts section can ask for one category by name (`posts: { cat: 'Baking' }`) and a picture shape (`aspect`). Also: installing a font pair on a site that already had other fonts installed could give the new fonts the old fonts' files (seen on Studio and Playground). Now each font only uses its own files. On the posts page, the cards, cover and list looks take the page heading out to the grid's edge, and a posts grid sits closer under its heading.
 
 **Small Hours, a writer's blueprint (v0.99.648).** A blueprint for an essayist: *Small Hours*, monthly essays by a made-up writer, in Instrument Serif and Source Serif on warm paper with one deep red. The home page leads with the latest essay, then the archive as a ruled list of titles and dates, a short about and a "Get the next one" band with an RSS link. It opens straight into the writing room on the newest essay, because a writer's first job is writing. Site definitions gained what this needed: a post can carry a **date** (`2026-09-14`), an **excerpt** and a **slug**; `blog_look` sets the posts page's look (here the ledger); and `open: 'writing'` sends the finished build to the writing room on the newest post. In the ledger look, a post with no picture of its own shows no coloured stand-in, and on the posts page the ledger keeps to the reading column so it lines up under the page heading.
@@ -918,11 +920,11 @@ Everything in this section is extracted mechanically from the Gogh source on eve
 
 ## Current release
 
-- Plugin version: **0.99.649**
+- Plugin version: **0.99.650**
 - Requires WordPress **6.5+**, PHP **7.4+**
 - Text domain: `gogh-editor`
 - readme.txt Stable tag: `0.26.0` · Tested up to: `7.0`
-- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.649`). Quote the plugin header version.
+- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.650`). Quote the plugin header version.
 
 ## Design constants
 
