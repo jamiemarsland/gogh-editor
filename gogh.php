@@ -87,7 +87,7 @@ function gogh_html_park_models( $data, $postarr ) {
 		return $data;
 	}
 	update_post_meta( $id, '_gogh_models', wp_slash( $park ) );
-	$blocks               = gogh_html_share_css( $blocks );
+	$blocks               = gogh_html_share_css( gogh_html_promote_h1( $blocks ) );
 	$data['post_content'] = wp_slash( serialize_blocks( $blocks ) );
 	return $data;
 }
@@ -99,6 +99,34 @@ function gogh_html_park_models( $data, $postarr ) {
  * stylesheet, for any section ([data-gogh-scope] keeps the specificity of the
  * scope class it replaces). The rest stays where it was.
  */
+/**
+ * explore/html-only: the page's first heading candidate (a section's first
+ * sized heading, marked gogh-h1 by the editor) becomes its <h1>. Editors read
+ * it back as the h2 the editor wrote (gogh_html_unpark_content).
+ */
+function gogh_html_promote_h1( $blocks ) {
+	foreach ( $blocks as $bi => $b ) {
+		if ( 'gogh/section' !== ( $b['blockName'] ?? '' ) || empty( $b['innerBlocks'] ) ) {
+			continue;
+		}
+		foreach ( $b['innerBlocks'] as $ii => $ib ) {
+			if ( 'core/html' !== ( $ib['blockName'] ?? '' ) || false === strpos( (string) $ib['innerHTML'], 'wp-block-heading gogh-h1 ' ) ) {
+				continue;
+			}
+			$swap = function ( $html ) {
+				return preg_replace( '#<h2 class="wp-block-heading gogh-h1 ([^"]*)">(.*?)</h2>#s', '<h1 class="wp-block-heading gogh-h1 $1">$2</h1>', (string) $html, 1 );
+			};
+			$blocks[ $bi ]['innerBlocks'][ $ii ]['innerHTML'] = $swap( $ib['innerHTML'] );
+			foreach ( $ib['innerContent'] as $ci => $chunk ) {
+				if ( is_string( $chunk ) ) {
+					$blocks[ $bi ]['innerBlocks'][ $ii ]['innerContent'][ $ci ] = $swap( $chunk );
+				}
+			}
+			return $blocks; // one per page
+		}
+	}
+	return $blocks;
+}
 function gogh_html_css_rules( $css ) {
 	$out   = array();
 	$depth = 0;
@@ -144,7 +172,7 @@ function gogh_html_share_css( $blocks ) {
 	$core = '';
 	foreach ( $found as $bi => $f ) {
 		// the HTML, not the stylesheet riding in it (which names the class anyway)
-		if ( false !== strpos( (string) preg_replace( '#<style\b.*?</style>#s', '', serialize_block( $blocks[ $bi ] ) ), 'class="wp-block-button__link' ) ) {
+		if ( preg_match( '#class="[^"]*\bwp-block-button__link\b#', (string) preg_replace( '#<style\b.*?</style>#s', '', serialize_block( $blocks[ $bi ] ) ) ) ) {
 			$core = '.wp-block-button__link{align-content:center;box-sizing:border-box;cursor:pointer;display:inline-block;height:100%;text-align:center;word-break:break-word} :where(.wp-block-button__link){border-radius:9999px;box-shadow:none;padding:calc(.667em + 2px) calc(1.333em + 2px);text-decoration:none} .wp-block-buttons{box-sizing:border-box} .wp-block-buttons>.wp-block-button{display:inline-block;margin:0} ';
 			break;
 		}
@@ -195,7 +223,7 @@ function gogh_html_unpark_attrs( $attrs ) {
 	$s = (string) $attrs['scope'];
 	if ( is_array( $m ) && isset( $m[ $s ]['model'] ) ) {
 		$attrs = array(
-			'v'     => 3,
+			'v'     => 4, // a parked section is an HTML-only one: a <section>
 			'scope' => $s,
 			'model' => $m[ $s ]['model'],
 			'cssT'  => isset( $m[ $s ]['cssT'] ) ? (string) $m[ $s ]['cssT'] : '',
@@ -225,7 +253,8 @@ function gogh_html_unpark_content( $content ) {
 		}
 	}
 	unset( $b );
-	return serialize_blocks( $blocks );
+	// the <h1> the server promoted goes back to the h2 the editor wrote
+	return preg_replace( '#<h1 class="wp-block-heading gogh-h1 ([^"]*)">(.*?)</h1>#s', '<h2 class="wp-block-heading gogh-h1 $1">$2</h2>', serialize_blocks( $blocks ) );
 }
 add_filter( 'render_block_data', function ( $block ) {
 	if ( 'gogh/section' === ( $block['blockName'] ?? '' ) && ! empty( $block['attrs']['ref'] ) ) {

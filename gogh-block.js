@@ -111,15 +111,16 @@
       var editCss = scopedCss(a) + '.' + (a.scope || 'gogh-none') + ' .block-library-html__edit{display:contents}';
       return el('div', { className: 'wp-block-gogh-section alignfull gogh-wrap' },
         el('style', { className: 'gogh-style', dangerouslySetInnerHTML: { __html: editCss } }),
-        el('div', sectionDivProps(a), el(InnerBlocks, { templateLock: false }))
+        el(a.v === 4 ? 'section' : 'div', sectionDivProps(a), el(InnerBlocks, { templateLock: false }))
       );
     },
 
     save: function (props) {
       var a = props.attributes;
+      // explore/html-only: v4 sections are real <section>s
       return el('div', { className: 'wp-block-gogh-section alignfull gogh-wrap' },
         el('style', { className: 'gogh-style', dangerouslySetInnerHTML: { __html: scopedCss(a) } }),
-        el('div', sectionDivProps(a), el(InnerBlocks.Content))
+        el(a.v === 4 ? 'section' : 'div', sectionDivProps(a), el(InnerBlocks.Content))
       );
     },
 

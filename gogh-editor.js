@@ -211,7 +211,7 @@
         var tb = (node.textContent || '').trim();
         if (tb) e.text = tb;
       } else if (e.type === 'button') {
-        var a = node.querySelector('a');
+        var a = node.matches('a') ? node : node.querySelector('a');
         if (a) {
           var ta = (a.textContent || '').trim();
           if (ta) e.text = ta;
@@ -221,7 +221,7 @@
           e.btnBg = bgm ? bgm[1] : null;
           e.btnText = pickColorSlug(a.className);
         }
-        e.ghost = !!node.querySelector('.gogh-ghost, .is-style-outline');
+        e.ghost = !!(node.matches('.gogh-ghost, .is-style-outline') || node.querySelector('.gogh-ghost, .is-style-outline'));
       } else if (e.type === 'image') {
         var img = node.querySelector('img');
         if (img) {
@@ -875,12 +875,12 @@
         if (e.tf.rad != null) tfd.push('border-radius: ' + e.tf.rad + 'px');
         if (tfd.length) {
           out.push(sec + clsSel +
-            (e.type === 'button' ? ' .wp-block-button__link' : '') +
+            (e.type === 'button' ? ' .wp-block-button__link' + (cfg.htmlOnly ? ', ' + sec + clsSel + '.wp-block-button__link' : '') : '') +
             ' { ' + tfd.join('; ') + '; }');
         }
       }
       if (e.type === 'button' && e.btnHover) {
-        out.push(sec + clsSel + ' .wp-block-button__link:hover { background-color: var(--wp--preset--color--' + e.btnHover + ') !important; }');
+        out.push(sec + clsSel + ' .wp-block-button__link:hover' + (cfg.htmlOnly ? ', ' + sec + clsSel + '.wp-block-button__link:hover' : '') + ' { background-color: var(--wp--preset--color--' + e.btnHover + ') !important; }');
       }
       out.push(sec + clsSel + ' { grid-area: ' + a.r1 + ' / ' + a.c1 + ' / ' + a.r2 + ' / ' + a.c2 +
         '; z-index: ' + (i + 1) + '; ' + extra + ' }');
@@ -1145,7 +1145,7 @@
       // rule here blew Woo's Add to cart up into a 500px pill
       sec + ' .wp-block-button:not(.gogh-widget *), ' + sec + ' .wp-block-button__link:not(.gogh-widget *) { width: 100%; height: 100%; }',
       sec + ' .wp-block-button__link { display: flex; align-items: center; justify-content: center; box-sizing: border-box; white-space: nowrap; }',
-      sec + ' .gogh-ghost .wp-block-button__link { background: transparent; color: var(--gogh-ghost-ink, inherit); box-shadow: inset 0 0 0 1.5px currentColor; }',
+      sec + ' .gogh-ghost .wp-block-button__link' + (cfg.htmlOnly ? ', ' + sec + ' .gogh-ghost.wp-block-button__link' : '') + ' { background: transparent; color: var(--gogh-ghost-ink, inherit); box-shadow: inset 0 0 0 1.5px currentColor; }',
       sec + ' .gogh-embed iframe { width: 100%; height: 100%; border-width: 0; display: block; position: absolute; inset: 0; }',
       sec + ' .gogh-embed .wp-block-embed__wrapper { height: 100%; }',
       '',
@@ -1320,6 +1320,13 @@
     // blocks are emitted in READING order; each keeps its stacking-indexed
     // class, so grid placement and z-order are untouched by the resequence
     var outs = readingIndexOrder(els).map(function (i) { return { e: els[i], s: elBlockOne(i) }; });
+    if (cfg.htmlOnly && !clsBase) {
+      // explore/html-only: a section marks its first heading in reading order
+      // as the page's <h1> candidate when gogh sets its size (the theme sizes
+      // h1 bigger than h2); the server promotes the page's first candidate
+      var h = outs.filter(function (o) { return o.e.type === 'heading'; })[0];
+      if (h && h.e.fs) h.s = h.s.replace('<h2 class="wp-block-heading ', '<h2 class="wp-block-heading gogh-h1 ');
+    }
     return cfg.htmlOnly ? htmlChunks(outs) : outs.map(function (o) { return o.s; }).join('\n\n');
     function elBlockOne(i) {
       var e = els[i];
@@ -1491,6 +1498,13 @@
   // comment into the markup between two of them (a looser one ate a </div>)
   function stripBlockComments(str) {
     return String(str).replace(/<!-- \/?wp:[a-z0-9\/-]+(?: \{[\s\S]*?\})? \/?-->\n?/g, '')
+      // a button without a named style is just the link: the two wrappers
+      // existed for the block editor. (A named style keeps them: a design's
+      // CSS reads .wp-block-button.is-style-… .wp-block-button__link.)
+      .replace(/<div class="wp-block-buttons ([^"]*)"><div class="wp-block-button( [^"]*)?"><a class="([^"]*)" href="([^"]*)">([\s\S]*?)<\/a><\/div>\s*<\/div>/g, function (m, wc, bc, lc, href, txt) {
+        if (/is-style-/.test(wc + (bc || ''))) return m;
+        return '<a class="' + [wc.trim(), 'wp-block-button', (bc || '').trim(), lc].filter(Boolean).join(' ') + '" href="' + href + '">' + txt + '</a>';
+      })
       // a Buttons block gets its flex row from the layout class WordPress adds
       // while rendering it; as plain HTML the class has to be written
       .replace(/class="wp-block-buttons /g, 'class="wp-block-buttons is-layout-flex wp-block-buttons-is-layout-flex ');
@@ -1550,7 +1564,7 @@
   }
   function buildSectionAttrsV3(sec) {
     return {
-      v: 3,
+      v: cfg.htmlOnly ? 4 : 3,
       scope: sec.scope,
       model: sectionModelJSON(sec, 3),
       // GOGHSCOPE placeholder: PHP substitutes the sanitized scope class.
@@ -1572,11 +1586,12 @@
     // save() output byte-for-byte, and the server rebake regenerates it when
     // KSES strips it) — deactivation keeps the look, attrs stay the truth
     var css = attrs.cssT.split('GOGHSCOPE').join(sec.scope);
+    var secTag = attrs.v === 4 ? 'section' : 'div';
     return '<!-- wp:gogh/section ' + serializeBlockAttrs(attrs) + ' -->\n' +
       '<div class="wp-block-gogh-section alignfull gogh-wrap">' +
       '<style class="gogh-style">' + css + '</style>' +
-      '<div' + (sec.anchor ? ' id="' + sec.anchor + '"' : '') + ' class="gogh-section ' + sec.scope + (userCls(sec.m && sec.m.cls) ? ' ' + userCls(sec.m.cls) : '') + '" data-gogh-scope="' + sec.scope + '">\n' +
-      bgVideoMarkup(sec) + buildElBlocks(sec.els) + '\n</div></div>\n' +
+      '<' + secTag + (sec.anchor ? ' id="' + sec.anchor + '"' : '') + ' class="gogh-section ' + sec.scope + (userCls(sec.m && sec.m.cls) ? ' ' + userCls(sec.m.cls) : '') + '" data-gogh-scope="' + sec.scope + '">\n' +
+      bgVideoMarkup(sec) + buildElBlocks(sec.els) + '\n</' + secTag + '></div>\n' +
       '<!-- /wp:gogh/section -->';
   }
   // the blank-canvas placeholder is discardable only while it's TRULY blank:
