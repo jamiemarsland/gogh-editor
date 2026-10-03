@@ -1490,7 +1490,10 @@
   // attributes are a JSON object, so the match never runs past a closing
   // comment into the markup between two of them (a looser one ate a </div>)
   function stripBlockComments(str) {
-    return String(str).replace(/<!-- \/?wp:[a-z0-9\/-]+(?: \{[\s\S]*?\})? \/?-->\n?/g, '');
+    return String(str).replace(/<!-- \/?wp:[a-z0-9\/-]+(?: \{[\s\S]*?\})? \/?-->\n?/g, '')
+      // a Buttons block gets its flex row from the layout class WordPress adds
+      // while rendering it; as plain HTML the class has to be written
+      .replace(/class="wp-block-buttons /g, 'class="wp-block-buttons is-layout-flex wp-block-buttons-is-layout-flex ');
   }
   function htmlChunks(outs) {
     var parts = [], run = [];
