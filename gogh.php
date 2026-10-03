@@ -127,6 +127,160 @@ function gogh_html_promote_h1( $blocks ) {
 	}
 	return $blocks;
 }
+/**
+ * explore/html-only: a page as one standalone HTML file — the bridge to gogh
+ * outside WordPress. ?gogh-export=1 on a page (people who can edit it, while
+ * the switch is on) renders it as visitors see it, then makes it stand alone:
+ * scripts out (search data stays), every stylesheet inlined, fonts embedded,
+ * links absolute. &images=1 embeds the site's own pictures too; &download=1
+ * hands it over as a file.
+ */
+add_action( 'template_redirect', function () {
+	if ( empty( $_GET['gogh-export'] ) || ! gogh_html_only() || ! is_singular() ) { // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+		return;
+	}
+	$id = get_queried_object_id();
+	if ( ! current_user_can( 'edit_post', $id ) ) {
+		return;
+	}
+	add_filter( 'show_admin_bar', '__return_false' );
+	$images = ! empty( $_GET['images'] ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+	if ( ! empty( $_GET['download'] ) ) { // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+		$slug = get_post_field( 'post_name', $id );
+		header( 'Content-Disposition: attachment; filename="' . sanitize_file_name( ( $slug ? $slug : 'page' ) . '.html' ) . '"' );
+	}
+	ob_start( function ( $html ) use ( $images ) {
+		return gogh_html_export_page( $html, $images );
+	} );
+}, 0 );
+
+// a URL on this site → its file on disk (only inside the site's own folders)
+function gogh_html_export_path( $url ) {
+	$url = strtok( html_entity_decode( (string) $url ), '?#' );
+	foreach ( array( content_url() => WP_CONTENT_DIR, includes_url() => ABSPATH . WPINC . '/', site_url( '/' ) => ABSPATH ) as $base => $dir ) {
+		$base = untrailingslashit( $base );
+		if ( 0 === strpos( $url, $base . '/' ) ) {
+			$path = realpath( untrailingslashit( $dir ) . '/' . ltrim( substr( $url, strlen( $base ) ), '/' ) );
+			$root = realpath( ABSPATH );
+			if ( $path && $root && 0 === strpos( $path, $root ) && is_file( $path ) ) {
+				return $path;
+			}
+			return '';
+		}
+	}
+	return '';
+}
+function gogh_html_export_data_uri( $url, $remote = false ) {
+	$path = gogh_html_export_path( $url );
+	if ( '' === $path ) {
+		// a picture the page borrows from elsewhere (an Unsplash photo): with
+		// everything inside, it is fetched once and carried too
+		if ( ! $remote || ! preg_match( '#^https?://#i', (string) $url ) ) {
+			return '';
+		}
+		$r    = wp_safe_remote_get( html_entity_decode( (string) $url ), array( 'timeout' => 15, 'limit_response_size' => 6 * MB_IN_BYTES ) );
+		$type = is_wp_error( $r ) ? '' : strtolower( strtok( (string) wp_remote_retrieve_header( $r, 'content-type' ), ';' ) );
+		$body = is_wp_error( $r ) ? '' : wp_remote_retrieve_body( $r );
+		if ( 200 !== (int) wp_remote_retrieve_response_code( $r ) || 0 !== strpos( $type, 'image/' ) || '' === $body ) {
+			return '';
+		}
+		return 'data:' . $type . ';base64,' . base64_encode( $body );
+	}
+	$ext   = strtolower( pathinfo( $path, PATHINFO_EXTENSION ) );
+	$types = array( 'woff2' => 'font/woff2', 'woff' => 'font/woff', 'ttf' => 'font/ttf', 'otf' => 'font/otf', 'jpg' => 'image/jpeg', 'jpeg' => 'image/jpeg', 'png' => 'image/png', 'gif' => 'image/gif', 'webp' => 'image/webp', 'avif' => 'image/avif', 'svg' => 'image/svg+xml' );
+	if ( ! isset( $types[ $ext ] ) ) {
+		return '';
+	}
+	return 'data:' . $types[ $ext ] . ';base64,' . base64_encode( (string) file_get_contents( $path ) ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents
+}
+function gogh_html_export_page( $html, $images ) {
+	$origin = untrailingslashit( home_url() );
+	// scripts out; the page's search data (JSON-LD) describes it and stays
+	$html = preg_replace( '#<script\b(?![^>]*application/ld\+json)[^>]*>.*?</script>#is', '', $html );
+	// the admin's and gogh's own tools never travel
+	$html = preg_replace( '#<link\b[^>]*id=["\'](?:admin-bar|dashicons|gogh-editor|gogh-front)[^"\']*["\'][^>]*>#i', '', $html );
+	// hints for a live server (preloads, the scripts that are gone) mean nothing in a file
+	$html = preg_replace( '#<link\b[^>]*rel=["\'](?:https://api\.w\.org/|EditURI|alternate|preconnect|dns-prefetch|shortlink|wlwmanifest|preload|modulepreload|prefetch)["\'][^>]*>#i', '', $html );
+	// every stylesheet of this site inlined, its relative urls made whole
+	$html = preg_replace_callback( '#<link\b[^>]*rel=["\']stylesheet["\'][^>]*>#i', function ( $m ) {
+		if ( ! preg_match( '#href=["\']([^"\']+)["\']#', $m[0], $h ) ) {
+			return $m[0];
+		}
+		$url  = html_entity_decode( $h[1] );
+		$path = gogh_html_export_path( $url );
+		if ( '' === $path ) {
+			return $m[0]; // another site's stylesheet (a font service) stays linked
+		}
+		$dir = trailingslashit( dirname( strtok( $url, '?#' ) ) );
+		$css = preg_replace_callback( '#url\((["\']?)(?!data:|https?:|/|\#)([^)"\']+)\1\)#i', function ( $u ) use ( $dir ) {
+			return 'url(' . $u[1] . $dir . $u[2] . $u[1] . ')';
+		}, (string) file_get_contents( $path ) ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents
+		return '<style>' . str_replace( '</style', '<\/style', $css ) . '</style>';
+	}, $html );
+	// fonts this page uses travel inside it; faces it never names are dropped
+	$used = array();
+	if ( preg_match_all( '#font-family\s*:\s*([^;}]+)#i', preg_replace( '#@font-face\s*\{[^}]*\}#i', '', $html ), $fm ) ) {
+		foreach ( $fm[1] as $decl ) {
+			foreach ( explode( ',', $decl ) as $name ) {
+				$used[ strtolower( trim( $name, " \t\n\r\"'" ) ) ] = true;
+			}
+		}
+	}
+	$vars = array();
+	if ( preg_match_all( '#--wp--preset--font-family--([a-z0-9-]+)\s*:\s*([^;}]+)#i', $html, $vm ) ) {
+		foreach ( $vm[1] as $k => $slug ) {
+			$vars[ $slug ] = $vm[2][ $k ];
+		}
+	}
+	foreach ( $vars as $slug => $stack ) {
+		if ( false !== strpos( $html, 'var(--wp--preset--font-family--' . $slug . ')' ) ) {
+			foreach ( explode( ',', $stack ) as $name ) {
+				$used[ strtolower( trim( $name, " \t\n\r\"'" ) ) ] = true;
+			}
+		}
+	}
+	$html = preg_replace_callback( '#@font-face\s*\{[^}]*\}#i', function ( $f ) use ( $used ) {
+		if ( preg_match( '#font-family\s*:\s*["\']?([^;"\']+)#i', $f[0], $n ) && empty( $used[ strtolower( trim( $n[1] ) ) ] ) ) {
+			return '';
+		}
+		return preg_replace_callback( '#url\((["\']?)([^)"\']+\.(?:woff2?|ttf|otf))\1\)#i', function ( $u ) {
+			$d = gogh_html_export_data_uri( $u[2] );
+			return $d ? 'url(' . $d . ')' : $u[0];
+		}, $f[0] );
+	}, $html );
+	// &images=1: this site's own pictures inside the file (another site's stay linked)
+	if ( $images ) {
+		$html = preg_replace( '#\s(?:srcset|sizes)=(["\'])[^"\']*\1#i', '', $html );
+		$html = preg_replace_callback( '#<(img|video)\b[^>]*>#i', function ( $tag ) {
+			return preg_replace_callback( '#\b(src|poster)=(["\'])([^"\']+)\2#i', function ( $m ) {
+				$d = gogh_html_export_data_uri( $m[3], true );
+				return $d ? $m[1] . '=' . $m[2] . $d . $m[2] : $m[0];
+			}, $tag[0] );
+		}, $html );
+		// pictures named in stylesheets (a section's background photo)
+		$html = preg_replace_callback( '#url\((["\']?)((?:https?:)?//[^)"\']+|' . preg_quote( content_url(), '#' ) . '[^)"\']+)\1\)#i', function ( $u ) {
+			if ( preg_match( '#\.(woff2?|ttf|otf)(\?|$)#i', $u[2] ) ) {
+				return $u[0];
+			}
+			$d = gogh_html_export_data_uri( $u[2], true );
+			return $d ? 'url(' . $d . ')' : $u[0];
+		}, $html );
+	}
+	// links that start at the site's root work from a file too
+	$html = preg_replace( '#\b(href|src|action|poster)=(["\'])/(?!/)#i', '$1=$2' . $origin . '/', $html );
+	return preg_replace( '#<head>#i', "<head>\n<!-- A standalone copy of " . esc_url( $origin ) . ", saved by gogh. -->", $html, 1 );
+}
+add_action( 'admin_bar_menu', function ( $bar ) {
+	if ( is_admin() || ! gogh_html_only() || ! is_singular() || ! current_user_can( 'edit_post', get_queried_object_id() ) ) {
+		return;
+	}
+	$bar->add_node( array(
+		'id'    => 'gogh-export-html',
+		'title' => 'Download as HTML',
+		'href'  => add_query_arg( array( 'gogh-export' => 1, 'download' => 1 ), get_permalink( get_queried_object_id() ) ),
+	) );
+}, 90 );
+
 function gogh_html_css_rules( $css ) {
 	$out   = array();
 	$depth = 0;
