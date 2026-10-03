@@ -51,6 +51,92 @@ function gogh_html_only() {
 }
 
 /**
+ * explore/html-only: the page keeps what it shows; the model lives beside it.
+ * The editor still sends whole sections. On save, each section's model and
+ * compiled stylesheet move into the post's _gogh_models meta and the block
+ * keeps only { v: 4, scope, ref }; the baked <style> stays in the page, so it
+ * still renders with the plugin off. Drawing a section, the editor's reads
+ * (REST, edit context) and the search-data builders put them back. A first
+ * save of a brand-new post keeps them in place (no ID yet to park them on).
+ */
+function gogh_html_park_models( $data, $postarr ) {
+	if ( ! gogh_html_only() || empty( $postarr['ID'] ) || 'revision' === ( $data['post_type'] ?? '' ) ) {
+		return $data;
+	}
+	if ( empty( $data['post_content'] ) || false === strpos( $data['post_content'], 'wp:gogh/section {' ) ) {
+		return $data;
+	}
+	$id      = (int) $postarr['ID'];
+	$blocks  = parse_blocks( wp_unslash( $data['post_content'] ) );
+	$park    = array();
+	$changed = false;
+	foreach ( $blocks as &$b ) {
+		if ( 'gogh/section' !== ( $b['blockName'] ?? '' ) || empty( $b['attrs']['model'] ) || empty( $b['attrs']['scope'] ) ) {
+			continue;
+		}
+		$scope          = preg_replace( '/[^a-z0-9-]/', '', (string) $b['attrs']['scope'] );
+		$park[ $scope ] = array(
+			'model' => $b['attrs']['model'],
+			'cssT'  => isset( $b['attrs']['cssT'] ) ? (string) $b['attrs']['cssT'] : '',
+		);
+		$b['attrs']     = array( 'v' => 4, 'scope' => $scope, 'ref' => $id );
+		$changed        = true;
+	}
+	unset( $b );
+	if ( ! $changed ) {
+		return $data;
+	}
+	update_post_meta( $id, '_gogh_models', wp_slash( $park ) );
+	$data['post_content'] = wp_slash( serialize_blocks( $blocks ) );
+	return $data;
+}
+add_filter( 'wp_insert_post_data', 'gogh_html_park_models', 30, 2 );
+
+function gogh_html_unpark_attrs( $attrs ) {
+	if ( empty( $attrs['ref'] ) || empty( $attrs['scope'] ) || ! empty( $attrs['model'] ) ) {
+		return $attrs;
+	}
+	$m = get_post_meta( (int) $attrs['ref'], '_gogh_models', true );
+	$s = (string) $attrs['scope'];
+	if ( is_array( $m ) && isset( $m[ $s ]['model'] ) ) {
+		$attrs = array(
+			'v'     => 3,
+			'scope' => $s,
+			'model' => $m[ $s ]['model'],
+			'cssT'  => isset( $m[ $s ]['cssT'] ) ? (string) $m[ $s ]['cssT'] : '',
+		);
+	}
+	return $attrs;
+}
+function gogh_html_unpark_content( $content ) {
+	if ( false === strpos( (string) $content, 'wp:gogh/section {"v":4' ) ) {
+		return $content;
+	}
+	$blocks = parse_blocks( $content );
+	foreach ( $blocks as &$b ) {
+		if ( 'gogh/section' === ( $b['blockName'] ?? '' ) && ! empty( $b['attrs']['ref'] ) ) {
+			$b['attrs'] = gogh_html_unpark_attrs( $b['attrs'] );
+		}
+	}
+	unset( $b );
+	return serialize_blocks( $blocks );
+}
+add_filter( 'render_block_data', function ( $block ) {
+	if ( 'gogh/section' === ( $block['blockName'] ?? '' ) && ! empty( $block['attrs']['ref'] ) ) {
+		$block['attrs'] = gogh_html_unpark_attrs( $block['attrs'] );
+	}
+	return $block;
+} );
+foreach ( array( 'page', 'post', 'wp_template_part', 'wp_template', 'wp_block' ) as $gogh_rest_type ) {
+	add_filter( 'rest_prepare_' . $gogh_rest_type, function ( $response, $post, $request ) {
+		if ( 'edit' === $request['context'] && isset( $response->data['content']['raw'] ) ) {
+			$response->data['content']['raw'] = gogh_html_unpark_content( $response->data['content']['raw'] );
+		}
+		return $response;
+	}, 10, 3 );
+}
+
+/**
  * SPIKE: emit a v3 section. PHP does scoping + emission ONLY — the layout
  * engine stays in the editor; cssT arrives fully compiled with a GOGHSCOPE
  * placeholder.
@@ -1322,18 +1408,28 @@ function gogh_look_fonts() {
 			}
 		}
 	}
-	$body = wp_get_global_styles( array( 'typography', 'fontFamily' ) );
-	if ( is_string( $body ) && preg_match( '/font-family\|([a-z0-9-]+)/', $body, $m ) && isset( $list[ $m[1] ] ) ) {
-		$body = $list[ $m[1] ];
-	}
-	if ( ! is_string( $body ) || '' === $body ) {
+	// a preset arrives as var:preset|font-family|slug in the stored styles but
+	// as var(--wp--preset--font-family--slug) once resolved; reading only the
+	// first form left the body unknown, and the 'second voice' became whichever
+	// custom font happened to install first (a recipe blog's titles in its body face)
+	$slug_of = function ( $v ) {
+		return ( is_string( $v ) && preg_match( '/font-family(?:\||--)([a-z0-9-]+)/', $v, $m ) ) ? $m[1] : '';
+	};
+	$raw  = wp_get_global_styles( array( 'typography', 'fontFamily' ) );
+	$bs   = $slug_of( $raw );
+	$body = ( $bs && isset( $list[ $bs ] ) ) ? $list[ $bs ] : ( is_string( $raw ) ? $raw : '' );
+	if ( '' === $body ) {
 		$body = $list ? reset( $list ) : '';
 	}
-	$display = '';
-	foreach ( $list as $fam ) {
-		if ( $fam !== $body ) {
-			$display = $fam;
-			break;
+	// the second voice is the face the site's headings wear, when they wear one
+	$hs      = $slug_of( wp_get_global_styles( array( 'elements', 'heading', 'typography', 'fontFamily' ) ) );
+	$display = ( $hs && isset( $list[ $hs ] ) && $list[ $hs ] !== $body ) ? $list[ $hs ] : '';
+	if ( '' === $display ) {
+		foreach ( $list as $fam ) {
+			if ( $fam !== $body ) {
+				$display = $fam;
+				break;
+			}
 		}
 	}
 	$out = array( 'display' => $display, 'body' => $body );
@@ -5639,7 +5735,7 @@ function gogh_schema_collect_els( $els, &$faq, &$first_para ) {
 function gogh_schema_build( $post ) {
 	$faq        = array();
 	$first_para = '';
-	foreach ( parse_blocks( $post->post_content ) as $b ) {
+	foreach ( parse_blocks( gogh_html_unpark_content( $post->post_content ) ) as $b ) {
 		if ( 'gogh/section' !== ( $b['blockName'] ?? '' ) ) {
 			continue;
 		}
@@ -6256,7 +6352,7 @@ function gogh_page_description( $post ) {
 				}
 			}
 		};
-		foreach ( parse_blocks( $post->post_content ) as $b ) {
+		foreach ( parse_blocks( gogh_html_unpark_content( $post->post_content ) ) as $b ) {
 			if ( 'gogh/section' === ( $b['blockName'] ?? '' ) && ! empty( $b['attrs']['model']['elements'] ) ) {
 				$walk( $b['attrs']['model']['elements'] );
 			}
