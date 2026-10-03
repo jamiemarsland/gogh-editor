@@ -270,6 +270,150 @@ function gogh_html_export_page( $html, $images ) {
 	$html = preg_replace( '#\b(href|src|action|poster)=(["\'])/(?!/)#i', '$1=$2' . $origin . '/', $html );
 	return preg_replace( '#<head>#i', "<head>\n<!-- A standalone copy of " . esc_url( $origin ) . ", saved by gogh. -->", $html, 1 );
 }
+/**
+ * explore/html-only: the whole site as a folder a static host can serve.
+ * Every page, post, posts page and category archive is fetched as a signed-
+ * out visitor sees it, then: scripts out (search data stays), WordPress's
+ * query links (?name=…, ?page_id=…) become real addresses, every file the
+ * page uses (pictures, fonts, stylesheets and what they point at) is copied
+ * to the same path, borrowed pictures are downloaded into /media/, and the
+ * site's address becomes $target. Each address is written as
+ * <path>/index.html; the feed as /feed.xml. Returns a receipt.
+ */
+function gogh_html_export_site( $dir, $target ) {
+	$dir    = untrailingslashit( $dir );
+	$origin = untrailingslashit( home_url() );
+	$target = untrailingslashit( $target );
+	$urls   = array( home_url( '/' ) );
+	foreach ( get_posts( array( 'post_type' => array( 'page', 'post' ), 'post_status' => 'publish', 'numberposts' => -1, 'fields' => 'ids' ) ) as $pid ) {
+		$urls[] = get_permalink( $pid );
+	}
+	foreach ( get_categories( array( 'hide_empty' => true ) ) as $cat ) {
+		$urls[] = get_category_link( $cat );
+	}
+	$urls   = array_values( array_unique( $urls ) );
+	$copy   = array(); // site path => true
+	$media  = array(); // borrowed url => local path
+	$pages  = 0;
+	$failed = array();
+	$fetch  = function ( $url ) {
+		$r = wp_remote_get( $url, array( 'timeout' => 30, 'redirection' => 3, 'cookies' => array() ) );
+		return ( is_wp_error( $r ) || 200 !== (int) wp_remote_retrieve_response_code( $r ) ) ? null : wp_remote_retrieve_body( $r );
+	};
+	foreach ( $urls as $url ) {
+		$html = $fetch( $url );
+		if ( null === $html ) {
+			$failed[] = $url;
+			continue;
+		}
+		$html = gogh_html_export_rewrite( $html, $origin, $target, $copy, $media, $dir );
+		$path = trim( (string) wp_parse_url( $url, PHP_URL_PATH ), '/' );
+		$file = $dir . '/' . ( '' === $path ? '' : $path . '/' ) . 'index.html';
+		wp_mkdir_p( dirname( $file ) );
+		file_put_contents( $file, $html ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_put_contents_file_put_contents
+		$pages++;
+	}
+	// the feed, for readers: one file at the root
+	$feed = $fetch( home_url( '/feed/' ) );
+	if ( null !== $feed ) {
+		file_put_contents( $dir . '/feed.xml', str_replace( array( $origin . '/feed/', $origin ), array( $target . '/feed.xml', $target ), $feed ) ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_put_contents_file_put_contents
+	}
+	// browsers ask every site for /favicon.ico: the site icon, or WordPress's own
+	$icon = get_site_icon_url( 64 );
+	$icon = $icon ? gogh_html_export_path( $icon ) : '';
+	if ( '' === $icon ) {
+		$icon = ABSPATH . WPINC . '/images/w-logo-blue-white-bg.png';
+	}
+	if ( is_file( $icon ) ) {
+		copy( $icon, $dir . '/favicon.ico' );
+	}
+	// every file the pages use, and the files their stylesheets point at
+	$done  = array();
+	$queue = array_keys( $copy );
+	while ( $queue ) {
+		$p = array_shift( $queue );
+		if ( isset( $done[ $p ] ) ) {
+			continue;
+		}
+		$done[ $p ] = true;
+		$src        = gogh_html_export_path( $origin . $p );
+		if ( '' === $src ) {
+			continue;
+		}
+		wp_mkdir_p( dirname( $dir . $p ) );
+		copy( $src, $dir . $p );
+		if ( preg_match( '#\.css$#i', $p ) ) {
+			preg_match_all( '#url\((["\']?)(?!data:|https?:|/|\#)([^)"\'?\#]+)#i', (string) file_get_contents( $src ), $um ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents
+			foreach ( $um[2] as $rel ) {
+				$queue[] = gogh_html_export_join( dirname( $p ) . '/', $rel );
+			}
+		}
+	}
+	$bytes = 0;
+	$files = 0;
+	foreach ( new RecursiveIteratorIterator( new RecursiveDirectoryIterator( $dir, FilesystemIterator::SKIP_DOTS ) ) as $f ) {
+		if ( false === strpos( $f->getPathname(), '/.spacefast' ) ) {
+			$bytes += $f->getSize();
+			$files++;
+		}
+	}
+	return array( 'pages' => $pages, 'files' => $files, 'bytes' => $bytes, 'borrowed' => count( $media ), 'failed' => $failed );
+}
+function gogh_html_export_join( $base, $rel ) {
+	$parts = array();
+	foreach ( explode( '/', $base . $rel ) as $seg ) {
+		if ( '..' === $seg ) {
+			array_pop( $parts );
+		} elseif ( '.' !== $seg && '' !== $seg ) {
+			$parts[] = $seg;
+		}
+	}
+	return '/' . implode( '/', $parts );
+}
+function gogh_html_export_rewrite( $html, $origin, $target, &$copy, &$media, $dir ) {
+	$html = preg_replace( '#<script\b(?![^>]*application/ld\+json)[^>]*>.*?</script>#is', '', $html );
+	$html = preg_replace( '#<link\b[^>]*rel=["\'](?:https://api\.w\.org/|EditURI|alternate|preconnect|dns-prefetch|shortlink|wlwmanifest|preload|modulepreload|prefetch)["\'][^>]*>#i', '', $html );
+	// WordPress's own addresses (?name=…, ?page_id=…, ?p=…) mean nothing to a
+	// static host: they become the permalink they stand for
+	$o    = preg_quote( $origin, '#' );
+	$html = preg_replace_callback( '#(href=["\'])(' . $o . ')?/\?((?:name|page_id|p|pagename)=[^"\'\#]+)#i', function ( $m ) use ( $origin ) {
+		$id = url_to_postid( $origin . '/?' . html_entity_decode( $m[3] ) );
+		if ( ! $id ) {
+			parse_str( html_entity_decode( $m[3] ), $q );
+			if ( ! empty( $q['name'] ) ) {
+				$hit = get_posts( array( 'name' => sanitize_title( $q['name'] ), 'post_type' => array( 'post', 'page' ), 'numberposts' => 1, 'fields' => 'ids' ) );
+				$id  = $hit ? (int) $hit[0] : 0;
+			}
+		}
+		return $id ? $m[1] . get_permalink( $id ) : $m[0];
+	}, $html );
+	// borrowed pictures come home to /media/
+	$html = preg_replace_callback( '#https://images\.unsplash\.com/[^"\'\s)<>]+#i', function ( $m ) use ( &$media, $dir, $target ) {
+		$url = html_entity_decode( $m[0] );
+		if ( ! isset( $media[ $url ] ) ) {
+			$name = '/media/' . substr( md5( $url ), 0, 12 ) . '.jpg';
+			$r    = wp_safe_remote_get( $url, array( 'timeout' => 20 ) );
+			if ( is_wp_error( $r ) || 200 !== (int) wp_remote_retrieve_response_code( $r ) ) {
+				return $m[0];
+			}
+			wp_mkdir_p( $dir . '/media' );
+			file_put_contents( $dir . $name, wp_remote_retrieve_body( $r ) ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_put_contents_file_put_contents
+			$media[ $url ] = $name;
+		}
+		return $target . $media[ $url ];
+	}, $html );
+	// every file of this site the page names is copied to the same path
+	if ( preg_match_all( '#' . $o . '(/(?:wp-content|wp-includes)/[^"\'\s)<>?\#,]+)#', $html, $fm ) ) {
+		foreach ( $fm[1] as $p ) {
+			$copy[ html_entity_decode( $p ) ] = true;
+		}
+	}
+	// the feed is one file now
+	$html = str_replace( $origin . '/feed/', $target . '/feed.xml', $html );
+	// and the site has its new address (JSON in the search data writes \/)
+	return str_replace( array( $origin, str_replace( '/', '\/', $origin ) ), array( $target, str_replace( '/', '\/', $target ) ), $html );
+}
+
 add_action( 'admin_bar_menu', function ( $bar ) {
 	if ( is_admin() || ! gogh_html_only() || ! is_singular() || ! current_user_can( 'edit_post', get_queried_object_id() ) ) {
 		return;
