@@ -105,8 +105,12 @@
           href ? el('a', { className: 'components-button is-primary', href: href }, 'Edit with gogh') : null
         );
       }
+      // explore/html-only: a Custom HTML run is drawn inside the editor's own
+      // box, so its pieces all landed in the grid's first cell; the box steps
+      // out of the layout and the pieces take their places on gogh's grid
+      var editCss = scopedCss(a) + '.' + (a.scope || 'gogh-none') + ' .block-library-html__edit{display:contents}';
       return el('div', { className: 'wp-block-gogh-section alignfull gogh-wrap' },
-        el('style', { className: 'gogh-style', dangerouslySetInnerHTML: { __html: scopedCss(a) } }),
+        el('style', { className: 'gogh-style', dangerouslySetInnerHTML: { __html: editCss } }),
         el('div', sectionDivProps(a), el(InnerBlocks, { templateLock: false }))
       );
     },
