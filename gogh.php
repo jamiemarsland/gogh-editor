@@ -453,6 +453,11 @@ add_action( 'init', function () {
 	if ( isset( $_GET['gogh-static'] ) && gogh_html_only() ) { // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- presentation only
 		add_filter( 'comments_open', '__return_false' );
 		add_filter( 'pings_open', '__return_false' );
+		// the page's own content between two markers, so a host that edits
+		// the page later (gogh on Spacefast) can swap new content into the shell
+		add_filter( 'the_content', function ( $c ) {
+			return in_the_loop() && is_singular() && get_queried_object_id() === get_the_ID() ? '<!--gogh:content-->' . $c . '<!--/gogh:content-->' : $c;
+		}, PHP_INT_MAX );
 	}
 } );
 function gogh_html_export_join( $base, $rel ) {
