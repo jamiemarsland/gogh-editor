@@ -280,7 +280,7 @@ function gogh_html_export_page( $html, $images ) {
  * site's address becomes $target. Each address is written as
  * <path>/index.html; the feed as /feed.xml. Returns a receipt.
  */
-function gogh_html_export_site( $dir, $target ) {
+function gogh_html_export_site( $dir, $target, $spacefast = false ) {
 	$dir    = untrailingslashit( $dir );
 	$origin = untrailingslashit( home_url() );
 	$target = untrailingslashit( $target );
@@ -291,14 +291,21 @@ function gogh_html_export_site( $dir, $target ) {
 	foreach ( get_categories( array( 'hide_empty' => true ) ) as $cat ) {
 		$urls[] = get_category_link( $cat );
 	}
+	foreach ( get_users( array( 'has_published_posts' => array( 'post' ), 'fields' => 'ID' ) ) as $uid ) {
+		$urls[] = get_author_posts_url( (int) $uid );
+	}
 	$urls   = array_values( array_unique( $urls ) );
 	$copy   = array(); // site path => true
 	$media  = array(); // borrowed url => local path
 	$pages  = 0;
+	$forms  = 0;
 	$failed = array();
+	// fetched as the static copy (gogh-static=1): a file can't take comments,
+	// so the pages are drawn with comments closed
 	$fetch  = function ( $url ) {
-		$r = wp_remote_get( $url, array( 'timeout' => 30, 'redirection' => 3, 'cookies' => array() ) );
-		return ( is_wp_error( $r ) || 200 !== (int) wp_remote_retrieve_response_code( $r ) ) ? null : wp_remote_retrieve_body( $r );
+		$r = wp_remote_get( add_query_arg( 'gogh-static', '1', $url ), array( 'timeout' => 30, 'redirection' => 3, 'cookies' => array() ) );
+		$h = ( is_wp_error( $r ) || 200 !== (int) wp_remote_retrieve_response_code( $r ) ) ? null : wp_remote_retrieve_body( $r );
+		return null === $h ? null : preg_replace( '#([?&])gogh-static=1(&amp;|&|\#038;)?#', '$1', $h );
 	};
 	foreach ( $urls as $url ) {
 		$html = $fetch( $url );
@@ -306,9 +313,23 @@ function gogh_html_export_site( $dir, $target ) {
 			$failed[] = $url;
 			continue;
 		}
-		$html = gogh_html_export_rewrite( $html, $origin, $target, $copy, $media, $dir );
 		$path = trim( (string) wp_parse_url( $url, PHP_URL_PATH ), '/' );
-		$file = $dir . '/' . ( '' === $path ? '' : $path . '/' ) . 'index.html';
+		$rel  = '/' . ( '' === $path ? '' : $path . '/' );
+		// on Spacefast a gogh form posts to the site's own /api/message, and the
+		// page's thank-you state (WordPress draws it at ?gogh-thanks=1) is a page too
+		$has_form = $spacefast && false !== strpos( $html, 'value="gogh_form_message"' );
+		$html     = gogh_html_export_rewrite( $html, $origin, $target, $copy, $media, $dir );
+		if ( $has_form ) {
+			$html   = gogh_html_export_form( $html, $rel );
+			$thanks = $fetch( add_query_arg( 'gogh-thanks', '1', $url ) );
+			if ( null !== $thanks ) {
+				$thanks = gogh_html_export_form( gogh_html_export_rewrite( $thanks, $origin, $target, $copy, $media, $dir ), $rel );
+				wp_mkdir_p( $dir . $rel . 'thanks' );
+				file_put_contents( $dir . $rel . 'thanks/index.html', $thanks ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_put_contents_file_put_contents
+			}
+			$forms++;
+		}
+		$file = $dir . $rel . 'index.html';
 		wp_mkdir_p( dirname( $file ) );
 		file_put_contents( $file, $html ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_put_contents_file_put_contents
 		$pages++;
@@ -316,6 +337,7 @@ function gogh_html_export_site( $dir, $target ) {
 	// the feed, for readers: one file at the root
 	$feed = $fetch( home_url( '/feed/' ) );
 	if ( null !== $feed ) {
+		$feed = preg_replace( '#\s*<(wfw:commentRss|comments|slash:comments)>.*?</\1>#s', '', $feed );
 		file_put_contents( $dir . '/feed.xml', str_replace( array( $origin . '/feed/', $origin ), array( $target . '/feed.xml', $target ), $feed ) ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_put_contents_file_put_contents
 	}
 	// browsers ask every site for /favicon.ico: the site icon, or WordPress's own
@@ -357,8 +379,82 @@ function gogh_html_export_site( $dir, $target ) {
 			$files++;
 		}
 	}
-	return array( 'pages' => $pages, 'files' => $files, 'bytes' => $bytes, 'borrowed' => count( $media ), 'failed' => $failed );
+	if ( $spacefast && $forms ) {
+		gogh_html_export_spacefast_runtime( $dir );
+	}
+	return array( 'pages' => $pages, 'forms' => $forms, 'files' => $files, 'bytes' => $bytes, 'borrowed' => count( $media ), 'failed' => $failed );
 }
+
+// a gogh form on a static Spacefast site: posts to /api/message, no WordPress fields
+function gogh_html_export_form( $html, $rel ) {
+	return preg_replace_callback( '#<form method="post" action="[^"]*admin-post\.php">(.*?)</form>#s', function ( $m ) use ( $rel ) {
+		$inner = preg_replace( '#<input type="hidden"[^>]*name="(?:action|_gogh_form|_wp_http_referer|fm_page)"[^>]*/>#', '', $m[1] );
+		return '<form method="post" action="/api/message"><input type="hidden" name="fm_back" value="' . esc_attr( $rel ) . '" />' . $inner . '</form>';
+	}, $html );
+}
+
+// the Spacefast side of the form: a worker that keeps messages in the site's
+// own database, and a page that lists them (keep /messages/ team-only)
+function gogh_html_export_spacefast_runtime( $dir ) {
+	wp_mkdir_p( $dir . '/functions/api' );
+	wp_mkdir_p( $dir . '/functions/messages' );
+	$files = array(
+		'/sf.jsonc'                     => '{ "$schema": "https://spacefast.com/schemas/sf.json", "runtime": { "kind": "functions", "compatibilityDate": "2026-07-01" } }' . "\n",
+		'/functions/_messages.ts'       => <<<'TS'
+// gogh's contact form on a static site: messages live in the space's own database
+export async function ensure(db: any) {
+  await db.prepare("CREATE TABLE IF NOT EXISTS gogh_messages (id INT AUTO_INCREMENT PRIMARY KEY, name VARCHAR(200), email VARCHAR(200), message TEXT, page VARCHAR(255), at VARCHAR(40))").run();
+}
+export function esc(s: unknown) {
+  return String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c] as string));
+}
+TS
+		,
+		'/functions/api/message.ts'     => <<<'TS'
+import { ensure } from "../_messages";
+export async function POST(req: Request, context: { env: any }) {
+  const form = await req.formData();
+  const back = String(form.get("fm_back") || "/");
+  const safe = /^\/[a-z0-9\/_-]*$/i.test(back) && !back.startsWith("//") ? back : "/";
+  const go = (path: string) => new Response(null, { status: 303, headers: { location: path } });
+  // the same honeypot WordPress checks: a person never fills it
+  if (String(form.get("fm_website") || "")) return go(safe + "thanks/#gogh-form");
+  const name = String(form.get("fm_name") || "").trim().slice(0, 200);
+  const email = String(form.get("fm_email") || "").trim().slice(0, 200);
+  const message = String(form.get("fm_message") || "").trim().slice(0, 5000);
+  if (!name || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email) || !message) return go(safe + "#gogh-form");
+  const db = context.env.DB;
+  await ensure(db);
+  await db.prepare("INSERT INTO gogh_messages (name, email, message, page, at) VALUES (?, ?, ?, ?, ?)").bind(name, email, message, safe, new Date().toISOString()).run();
+  return go(safe + "thanks/#gogh-form");
+}
+TS
+		,
+		'/functions/messages/index.ts' => <<<'TS'
+import { ensure, esc } from "../_messages";
+export async function GET(_req: Request, context: { env: any }) {
+  const db = context.env.DB;
+  await ensure(db);
+  const rows = ((await db.prepare("SELECT name, email, message, page, at FROM gogh_messages ORDER BY id DESC LIMIT 200").all()).results || []) as any[];
+  const list = rows.map((r) => `<article><h2>${esc(r.name)} <a href="mailto:${esc(r.email)}">${esc(r.email)}</a></h2><p>${esc(r.message).replace(/\n/g, "<br>")}</p><small>${esc(r.at)} · from ${esc(r.page)}</small></article>`).join("");
+  const html = `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Messages</title>
+<style>body{margin:0;background:#f6f5f1;color:#1d1d1b;font:16px/1.5 system-ui,sans-serif}main{max-width:720px;margin:0 auto;padding:56px 20px}h1{font-size:32px;margin:0 0 24px}article{background:#fff;border:1px solid #e4e2dc;border-radius:12px;padding:18px 20px;margin:0 0 14px}h2{font-size:16px;margin:0 0 8px}h2 a{font-weight:400;color:#6a6f74;margin-left:6px}p{margin:0 0 10px}small{color:#6a6f74}</style></head>
+<body><main><h1>Messages</h1>${list || "<p>No messages yet.</p>"}</main></body></html>`;
+  return new Response(html, { headers: { "content-type": "text/html; charset=utf-8", "cache-control": "no-store" } });
+}
+TS
+		,
+	);
+	foreach ( $files as $rel => $code ) {
+		file_put_contents( $dir . $rel, $code ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_put_contents_file_put_contents
+	}
+}
+add_action( 'init', function () {
+	if ( isset( $_GET['gogh-static'] ) && gogh_html_only() ) { // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- presentation only
+		add_filter( 'comments_open', '__return_false' );
+		add_filter( 'pings_open', '__return_false' );
+	}
+} );
 function gogh_html_export_join( $base, $rel ) {
 	$parts = array();
 	foreach ( explode( '/', $base . $rel ) as $seg ) {
@@ -376,17 +472,26 @@ function gogh_html_export_rewrite( $html, $origin, $target, &$copy, &$media, $di
 	// WordPress's own addresses (?name=…, ?page_id=…, ?p=…) mean nothing to a
 	// static host: they become the permalink they stand for
 	$o    = preg_quote( $origin, '#' );
-	$html = preg_replace_callback( '#(href=["\'])(' . $o . ')?/\?((?:name|page_id|p|pagename)=[^"\'\#]+)#i', function ( $m ) use ( $origin ) {
-		$id = url_to_postid( $origin . '/?' . html_entity_decode( $m[3] ) );
-		if ( ! $id ) {
-			parse_str( html_entity_decode( $m[3] ), $q );
-			if ( ! empty( $q['name'] ) ) {
-				$hit = get_posts( array( 'name' => sanitize_title( $q['name'] ), 'post_type' => array( 'post', 'page' ), 'numberposts' => 1, 'fields' => 'ids' ) );
-				$id  = $hit ? (int) $hit[0] : 0;
-			}
+	// (read the query itself: url_to_postid takes '/?name=…' for the front page)
+	$html = preg_replace_callback( '#(href=["\'])(' . $o . ')?/\?((?:name|page_id|p|pagename)=[^"\'\#]+)#i', function ( $m ) {
+		parse_str( html_entity_decode( $m[3] ), $q );
+		$id = 0;
+		if ( ! empty( $q['p'] ) || ! empty( $q['page_id'] ) ) {
+			$id = (int) ( ! empty( $q['p'] ) ? $q['p'] : $q['page_id'] );
+		} elseif ( ! empty( $q['name'] ) || ! empty( $q['pagename'] ) ) {
+			$hit = get_posts( array( 'name' => sanitize_title( ! empty( $q['name'] ) ? $q['name'] : $q['pagename'] ), 'post_type' => array( 'post', 'page' ), 'post_status' => 'publish', 'numberposts' => 1, 'fields' => 'ids' ) );
+			$id  = $hit ? (int) $hit[0] : 0;
 		}
-		return $id ? $m[1] . get_permalink( $id ) : $m[0];
+		return ( $id && 'publish' === get_post_status( $id ) ) ? $m[1] . get_permalink( $id ) : $m[0];
 	}, $html );
+	// the front page also answers at its own slug (/home/); the static site has it at /
+	$front = (int) get_option( 'page_on_front' );
+	if ( $front && 'page' === get_option( 'show_on_front' ) ) {
+		$uri = get_page_uri( $front );
+		if ( $uri ) {
+			$html = str_replace( $origin . '/' . $uri . '/', $origin . '/', $html );
+		}
+	}
 	// borrowed pictures come home to /media/
 	$html = preg_replace_callback( '#https://images\.unsplash\.com/[^"\'\s)<>]+#i', function ( $m ) use ( &$media, $dir, $target ) {
 		$url = html_entity_decode( $m[0] );
@@ -408,8 +513,8 @@ function gogh_html_export_rewrite( $html, $origin, $target, &$copy, &$media, $di
 			$copy[ html_entity_decode( $p ) ] = true;
 		}
 	}
-	// the feed is one file now
-	$html = str_replace( $origin . '/feed/', $target . '/feed.xml', $html );
+	// the feed is one file now (written whole, or from the site's root)
+	$html = str_replace( array( $origin . '/feed/', '="/feed/"' ), array( $target . '/feed.xml', '="/feed.xml"' ), $html );
 	// and the site has its new address (JSON in the search data writes \/)
 	return str_replace( array( $origin, str_replace( '/', '\/', $origin ) ), array( $target, str_replace( '/', '\/', $target ) ), $html );
 }
