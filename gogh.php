@@ -525,6 +525,11 @@ function gogh_draw_address( $uri ) {
 	remove_action( 'template_redirect', 'wp_old_slug_redirect' );
 	remove_action( 'template_redirect', 'wp_redirect_admin_locations', 1000 );
 	add_filter( 'wp_redirect', '__return_false', PHP_INT_MAX );
+	// some hosts answer REST without passing through index.php, which is
+	// where WordPress turns its theme on
+	if ( ! defined( 'WP_USE_THEMES' ) ) {
+		define( 'WP_USE_THEMES', true ); // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedConstantFound -- WordPress's own switch
+	}
 	ob_start();
 	include ABSPATH . WPINC . '/template-loader.php';
 	$html = ob_get_clean();
