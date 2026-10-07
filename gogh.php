@@ -527,15 +527,19 @@ function gogh_draw_address( $uri ) {
 	add_filter( 'wp_redirect', '__return_false', PHP_INT_MAX );
 	// some hosts answer REST without passing through index.php, which is
 	// where WordPress turns its theme on
-	if ( ! defined( 'WP_USE_THEMES' ) ) {
-		define( 'WP_USE_THEMES', true ); // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedConstantFound -- WordPress's own switch
-	}
+	add_filter( 'wp_using_themes', '__return_true' );
+	$drawn_with = '';
+	add_filter( 'template_include', function ( $t ) use ( &$drawn_with ) {
+		$drawn_with = basename( (string) $t );
+		return $t;
+	}, PHP_INT_MAX );
 	ob_start();
 	include ABSPATH . WPINC . '/template-loader.php';
 	$html = ob_get_clean();
 	return array(
 		'status' => is_404() ? 404 : 200,
 		'title'  => wp_get_document_title(),
+		'drawn'  => $drawn_with,
 		'html'   => $html,
 	);
 }
