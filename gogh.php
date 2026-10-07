@@ -482,6 +482,46 @@ add_action( 'rest_api_init', function () {
 		},
 	) );
 } );
+// building a site from a definition: an admin, or on a managed host (where the
+// person signed in may change the site's look and pages but not its settings)
+// whoever may do both of those (explore branch: Spacefast's "Spacefast user")
+function gogh_can_build_site() {
+	return current_user_can( 'manage_options' ) || ( current_user_can( 'edit_theme_options' ) && current_user_can( 'edit_pages' ) );
+}
+// the same drawing as a page to open in a browser, its links and addresses
+// pointed at whichever host it was opened on (a managed host's WordPress can
+// live on a host of its own, where the editor's login cookie is)
+add_action( 'rest_api_init', function () {
+	register_rest_route( 'gogh/v1', '/canvas', array(
+		'methods'             => 'GET',
+		'permission_callback' => '__return_true',
+		'args'                => array(
+			'path' => array( 'type' => 'string', 'default' => '/' ),
+		),
+		'callback'            => function ( $req ) {
+			$path = '/' . ltrim( (string) $req->get_param( 'path' ), '/' );
+			if ( preg_match( '#^//|[\s<>"]#', $path ) || 0 === strpos( $path, '/wp-json' ) || 0 === strpos( $path, '/wp-admin' ) ) {
+				return new WP_Error( 'gogh_page_path', 'Not a page address.', array( 'status' => 400 ) );
+			}
+			$r    = gogh_draw_address( $path );
+			$html = $r['html'];
+			$home = untrailingslashit( home_url() );
+			$here = ( is_ssl() ? 'https://' : 'http://' ) . sanitize_text_field( wp_unslash( isset( $_SERVER['HTTP_HOST'] ) ? $_SERVER['HTTP_HOST'] : '' ) );
+			if ( $here && wp_parse_url( $home, PHP_URL_HOST ) !== wp_parse_url( $here, PHP_URL_HOST ) ) {
+				$html = str_replace( array( $home, str_replace( '/', '\\/', $home ) ), array( $here, str_replace( '/', '\\/', $here ) ), $html );
+			}
+			$status = $r['status'];
+			add_filter( 'rest_pre_serve_request', function () use ( $html, $status ) {
+				status_header( $status );
+				header( 'Content-Type: text/html; charset=utf-8' );
+				header( 'Cache-Control: no-store' );
+				echo $html; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- a whole page WordPress just drew
+				return true;
+			} );
+			return null;
+		},
+	) );
+} );
 function gogh_draw_address( $uri ) {
 	global $wp, $wp_query, $wp_the_query;
 	// REST signs a cookie visitor out unless a nonce came along; a page view
@@ -4905,9 +4945,7 @@ add_action( 'rest_api_init', function () {
 	register_rest_route( 'gogh/v1', '/site-def', array(
 		array(
 			'methods'             => 'POST',
-			'permission_callback' => function () {
-				return current_user_can( 'manage_options' );
-			},
+			'permission_callback' => 'gogh_can_build_site',
 			'callback'            => function ( $req ) {
 				$def = $req->get_json_params();
 				// the Make chat rebuilds in place: the pages and posts the
@@ -4927,9 +4965,7 @@ add_action( 'rest_api_init', function () {
 		),
 		array(
 			'methods'             => 'DELETE',
-			'permission_callback' => function () {
-				return current_user_can( 'manage_options' );
-			},
+			'permission_callback' => 'gogh_can_build_site',
 			'callback'            => function () {
 				delete_option( 'gogh_site_def' );
 				return array( 'cleared' => true );
@@ -7478,7 +7514,7 @@ add_action( 'wp_enqueue_scripts', function () {
 		'hasLogo' => (bool) get_theme_mod( 'custom_logo' ), // the header's identity: a logo only when a picture exists
 		'adminUrl' => admin_url(),
 		// a site definition waiting to be drawn (?gogh-build=1): the editor builds every page, then deletes it
-		'siteDef'  => ( isset( $_GET['gogh-build'] ) && current_user_can( 'manage_options' ) ) ? get_option( 'gogh_site_def', null ) : null,
+		'siteDef'  => ( isset( $_GET['gogh-build'] ) && gogh_can_build_site() ) ? get_option( 'gogh_site_def', null ) : null,
 		// block-gated pieces light up the day the block exists (7.1 brings tabs)
 		'hasAccordion' => WP_Block_Type_Registry::get_instance()->is_registered( 'core/accordion' ),
 		'hasTabs'  => WP_Block_Type_Registry::get_instance()->is_registered( 'core/tabs' ),
