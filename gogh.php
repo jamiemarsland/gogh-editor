@@ -460,6 +460,81 @@ add_action( 'init', function () {
 		}, PHP_INT_MAX );
 	}
 } );
+
+// A host that serves files in front of WordPress and never lets it draw a
+// page (Spacefast) asks gogh for a page instead: GET gogh/v1/page-html?path=
+// draws that address the way a visit would, theme and all, and hands back the
+// HTML. Visitors get the public page; a signed-in editor (WordPress's own
+// login cookie) gets it as they would see it, gogh's editor included.
+add_action( 'rest_api_init', function () {
+	register_rest_route( 'gogh/v1', '/page-html', array(
+		'methods'             => 'GET',
+		'permission_callback' => '__return_true',
+		'args'                => array(
+			'path' => array( 'type' => 'string', 'required' => true ),
+		),
+		'callback'            => function ( $req ) {
+			$path = '/' . ltrim( (string) $req->get_param( 'path' ), '/' );
+			if ( preg_match( '#^//|[\s<>"]#', $path ) || 0 === strpos( $path, '/wp-json' ) || 0 === strpos( $path, '/wp-admin' ) ) {
+				return new WP_Error( 'gogh_page_path', 'Not a page address.', array( 'status' => 400 ) );
+			}
+			return gogh_draw_address( $path );
+		},
+	) );
+} );
+function gogh_draw_address( $uri ) {
+	global $wp, $wp_query, $wp_the_query;
+	// REST signs a cookie visitor out unless a nonce came along; a page view
+	// carries no nonce, so the login cookie itself says who is looking
+	if ( ! get_current_user_id() && defined( 'LOGGED_IN_COOKIE' ) && ! empty( $_COOKIE[ LOGGED_IN_COOKIE ] ) ) {
+		$uid = wp_validate_auth_cookie( wp_unslash( $_COOKIE[ LOGGED_IN_COOKIE ] ), 'logged_in' ); // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- validated by WordPress
+		if ( $uid ) {
+			wp_set_current_user( $uid );
+		}
+	}
+	// the visit, as WordPress would parse and query it
+	$parts = wp_parse_url( $uri );
+	$query = array();
+	if ( ! empty( $parts['query'] ) ) {
+		wp_parse_str( $parts['query'], $query );
+	}
+	$_SERVER['REQUEST_URI'] = $uri;
+	$_SERVER['PHP_SELF']    = '/index.php';
+	$_SERVER['PATH_INFO']   = isset( $parts['path'] ) ? $parts['path'] : '/';
+	$_SERVER['QUERY_STRING'] = isset( $parts['query'] ) ? $parts['query'] : '';
+	$_GET                   = $query; // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- the drawn address's own query
+	$_REQUEST               = $query;
+	$wp_query               = new WP_Query(); // phpcs:ignore WordPress.WP.GlobalVariablesOverride.Prohibited -- a fresh main query for the drawn address
+	$wp_the_query           = $wp_query; // phpcs:ignore WordPress.WP.GlobalVariablesOverride.Prohibited
+	$wp->query_vars         = array();
+	$wp->query_string       = '';
+	$wp->request            = '';
+	$wp->matched_rule       = null;
+	$wp->matched_query      = '';
+	$wp->parse_request();
+	// WordPress never treats a REST request's main query as the home page,
+	// so the site's own front page is named outright
+	if ( ! array_filter( $wp->query_vars ) && 'page' === get_option( 'show_on_front' ) && get_option( 'page_on_front' ) ) {
+		$wp->query_vars = array( 'page_id' => (int) get_option( 'page_on_front' ) );
+	}
+	$wp->query_posts();
+	$wp->handle_404();
+	$wp->register_globals();
+	// nothing may send this request elsewhere: it is a drawing, not a visit
+	remove_action( 'template_redirect', 'redirect_canonical' );
+	remove_action( 'template_redirect', 'wp_old_slug_redirect' );
+	remove_action( 'template_redirect', 'wp_redirect_admin_locations', 1000 );
+	add_filter( 'wp_redirect', '__return_false', PHP_INT_MAX );
+	ob_start();
+	include ABSPATH . WPINC . '/template-loader.php';
+	$html = ob_get_clean();
+	return array(
+		'status' => is_404() ? 404 : 200,
+		'title'  => wp_get_document_title(),
+		'html'   => $html,
+	);
+}
+
 function gogh_html_export_join( $base, $rel ) {
 	$parts = array();
 	foreach ( explode( '/', $base . $rel ) as $seg ) {
