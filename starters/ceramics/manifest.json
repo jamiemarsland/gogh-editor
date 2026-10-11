@@ -1,0 +1,387 @@
+{
+  "name": "Ceramics shop",
+  "description": "Hollowell, a small ceramics studio's shop: home, shop, studio, journal and contact, twelve products in four glazes",
+  "type": "Ceramics studio shop",
+  "requires": "woo",
+  "palette": {
+    "base": "#F6F5F1",
+    "contrast": "#22252A",
+    "accents": [
+      "#2D4EA2",
+      "#ECEAE3",
+      "#B9C2B4",
+      "#22252A",
+      "#EDE9E1",
+      "#3B2A22"
+    ]
+  },
+  "variation": "Morning",
+  "styles": {
+    "elements": {
+      "button": {
+        "color": {
+          "text": "var:preset|color|base"
+        },
+        "typography": {
+          "fontFamily": "var:preset|font-family|ysabeau-office",
+          "fontWeight": "600",
+          "letterSpacing": "0.01em"
+        },
+        "border": {
+          "radius": "4px"
+        },
+        ":hover": {
+          "color": {
+            "background": "color-mix(in srgb, var(--wp--preset--color--accent-1) 85%, var(--wp--preset--color--contrast))",
+            "text": "var:preset|color|base"
+          }
+        }
+      },
+      "heading": {
+        "typography": {
+          "fontWeight": "500"
+        }
+      }
+    },
+    "blocks": {
+      "core/post-title": {
+        "typography": {
+          "fontWeight": "500"
+        }
+      },
+      "core/query-title": {
+        "typography": {
+          "fontWeight": "500"
+        }
+      }
+    }
+  },
+  "pages": [
+    {
+      "slug": "home",
+      "title": "Home",
+      "file": "home.html",
+      "front": true,
+      "template": "page-no-title"
+    },
+    {
+      "slug": "shop",
+      "title": "Shop",
+      "woo": "shop"
+    },
+    {
+      "slug": "studio",
+      "title": "Studio",
+      "file": "studio.html",
+      "template": "page-no-title"
+    },
+    {
+      "slug": "journal",
+      "title": "Journal",
+      "file": "journal.html",
+      "blog": true
+    },
+    {
+      "slug": "contact",
+      "title": "Contact",
+      "file": "contact.html",
+      "template": "page-no-title"
+    },
+    {
+      "slug": "bag",
+      "title": "Bag",
+      "woo": "cart"
+    },
+    {
+      "slug": "checkout",
+      "title": "Checkout",
+      "woo": "checkout",
+      "menu": false
+    },
+    {
+      "slug": "account",
+      "title": "Account",
+      "woo": "myaccount",
+      "menu": false
+    }
+  ],
+  "chrome": {
+    "header": "gogh-header-classic",
+    "footer": "gogh-footer-columns"
+  },
+  "shop": {
+    "layout": "editorial",
+    "category": "editorial",
+    "product": "gogh-product-story"
+  },
+  "categories": [
+    {
+      "name": "Mugs & cups",
+      "slug": "mugs-cups",
+      "image": "p-speckled-cups.jpg",
+      "description": "Mugs, cups and beakers, thrown to be held every day."
+    },
+    {
+      "name": "For the table",
+      "slug": "table",
+      "image": "p-supper-plate.jpg",
+      "description": "Plates, bowls and a teapot for tables that get used."
+    },
+    {
+      "name": "Vases & bottles",
+      "slug": "vases-bottles",
+      "image": "p-poppy-bottle.jpg",
+      "description": "Narrow necks and wide shoulders, for one stem or none."
+    }
+  ],
+  "attributes": [
+    {
+      "name": "Glaze",
+      "slug": "glaze",
+      "terms": [
+        "Salt",
+        "Ash",
+        "Cobalt",
+        "Tenmoku"
+      ]
+    }
+  ],
+  "products": [
+    {
+      "name": "Tea Bowl, small batch",
+      "slug": "tea-bowl-small-batch",
+      "price": 30,
+      "category": "mugs-cups",
+      "image": "p-tea-bowl.jpg",
+      "short": "A footed tea bowl in an iron glaze that flashes copper-red where the kiln breathes on it. No two alike.",
+      "description": "<!-- wp:paragraph --><p>Thrown from a red stoneware and glazed in Tenmoku, then placed nearest the burners so the flame reaches it. Where the iron catches the reduction it turns a deep copper red; where it does not, it stays near black. We fire twelve at a time and keep the ones we like.</p><!-- /wp:paragraph --><!-- wp:paragraph --><p>Holds about 180ml. Dishwasher safe, though it prefers a rinse.</p><!-- /wp:paragraph -->",
+      "attributes": {
+        "glaze": [
+          "tenmoku"
+        ]
+      },
+      "weight": "0.22"
+    },
+    {
+      "name": "Espresso Cups, pair",
+      "slug": "espresso-cups-pair",
+      "price": 30,
+      "category": "mugs-cups",
+      "image": "p-espresso-cups.jpg",
+      "short": "Two stacking espresso cups in Tenmoku with a Salt-glazed lip. 90ml each, saucers included.",
+      "description": "<!-- wp:paragraph --><p>Small, heavy in the hand and made to stack. The inside is glazed in Salt so you can see the crema; the outside is Tenmoku, iron-dark and glossy. Each pair comes with two matching saucers.</p><!-- /wp:paragraph -->",
+      "attributes": {
+        "glaze": [
+          "tenmoku"
+        ]
+      },
+      "weight": "0.4"
+    },
+    {
+      "name": "Latte Cup, cobalt",
+      "slug": "latte-cup-cobalt",
+      "price": 26,
+      "category": "mugs-cups",
+      "image": "p-latte-cup.jpg",
+      "short": "A wide, low cup for milky coffee, glazed inside and out in Cobalt. 280ml, with a matching saucer.",
+      "description": "<!-- wp:paragraph --><p>Wide enough for a proper pour, low enough to hold in both hands. Cobalt pools darker in the well of the saucer and the foot of the cup, which is exactly where we want it.</p><!-- /wp:paragraph -->",
+      "attributes": {
+        "glaze": [
+          "cobalt"
+        ]
+      },
+      "weight": "0.35"
+    },
+    {
+      "name": "Leaf Cup",
+      "slug": "leaf-cup",
+      "price": 24,
+      "category": "mugs-cups",
+      "image": "p-leaf-cup.jpg",
+      "short": "A handle-less cup carved with leaf lines before firing, glazed in Ash. 220ml.",
+      "description": "<!-- wp:paragraph --><p>Carved while the clay is leather-hard, one cup at a time, then dipped in Ash. The glaze runs thin over the ridges and pools in the carving, so the pattern reads in two greens. Good for tea, better for whisky.</p><!-- /wp:paragraph -->",
+      "attributes": {
+        "glaze": [
+          "ash"
+        ]
+      },
+      "weight": "0.24"
+    },
+    {
+      "name": "Stacking Cups, set of four",
+      "slug": "stacking-cups-set-of-four",
+      "price": 58,
+      "category": "mugs-cups",
+      "image": "p-stacking-cups.jpg",
+      "short": "Four straight-sided cups that stack into a tower. Ash glaze over speckled stoneware. 250ml each.",
+      "description": "<!-- wp:paragraph --><p>Designed for small kitchens: four cups that live in the space of one. The straight sides are thrown to a template so they stack true, and the unglazed foot ring is sanded smooth so it will not scratch a shelf.</p><!-- /wp:paragraph --><!-- wp:paragraph --><p>Also available in Salt and Cobalt by request.</p><!-- /wp:paragraph -->",
+      "attributes": {
+        "glaze": [
+          "ash"
+        ]
+      },
+      "weight": "1.0"
+    },
+    {
+      "name": "Teapot, two cup",
+      "slug": "teapot-two-cup",
+      "price": 78,
+      "category": "table",
+      "image": "p-teapot.jpg",
+      "short": "A round-bellied teapot in Tenmoku with a pulled handle and a spout that does not drip. About 550ml.",
+      "description": "<!-- wp:paragraph --><p>The hardest thing we make. The body is thrown, the spout is thrown separately and cut to fit, the handle is pulled, the lid is turned to sit without a rattle. The Tenmoku glaze is fired to cone 8 so it comes out glossy and near black, with a rust edge along the spout where it runs thin.</p><!-- /wp:paragraph --><!-- wp:paragraph --><p>Pours two large cups. Comes with a linen bag.</p><!-- /wp:paragraph -->",
+      "attributes": {
+        "glaze": [
+          "tenmoku"
+        ]
+      },
+      "weight": "0.9"
+    },
+    {
+      "name": "Crackle Bud Vase",
+      "slug": "crackle-bud-vase",
+      "price": 44,
+      "category": "vases-bottles",
+      "image": "p-crackle-vase.jpg",
+      "short": "A single-stem vase in a crackled Ash glaze, about 16cm tall.",
+      "description": "<!-- wp:paragraph --><p>A deliberate crackle: the glaze is mixed to shrink a little more than the clay beneath it, so it crazes as the kiln cools and the lines fill in over years of use. Holds one stem, or a few sprigs of something dried.</p><!-- /wp:paragraph -->",
+      "attributes": {
+        "glaze": [
+          "ash"
+        ]
+      },
+      "weight": "0.3"
+    },
+    {
+      "name": "Brushed Mug, 300ml",
+      "slug": "brushed-mug-300ml",
+      "price": 32,
+      "category": "mugs-cups",
+      "image": "p-brushed-mug.jpg",
+      "short": "A Salt-glazed mug with Cobalt brushed on by hand before firing. 300ml, saucer included.",
+      "description": "<!-- wp:paragraph --><p>Each one is brushed differently, which is the point. Three or four loose strokes of cobalt oxide over a Salt glaze; the strokes blur and bleed in the kiln and come out looking like weather.</p><!-- /wp:paragraph -->",
+      "attributes": {
+        "glaze": [
+          "cobalt",
+          "salt"
+        ]
+      },
+      "weight": "0.45"
+    },
+    {
+      "name": "Supper Plate, 27cm",
+      "slug": "supper-plate-27cm",
+      "price": 36,
+      "category": "table",
+      "image": "p-supper-plate.jpg",
+      "short": "A generous dinner plate in Cobalt with a soft, hand-finished rim. 27cm.",
+      "description": "<!-- wp:paragraph --><p>Thrown flat and wide, which is harder than it looks, then trimmed to a shallow foot so it sits flat on any table. The Cobalt glaze goes deeper at the rim where it collects. Heavier than a shop-bought plate and meant to be.</p><!-- /wp:paragraph --><!-- wp:paragraph --><p>Sold singly. Sets of four ship in one box.</p><!-- /wp:paragraph -->",
+      "attributes": {
+        "glaze": [
+          "cobalt"
+        ]
+      },
+      "sale": 30,
+      "weight": "0.7"
+    },
+    {
+      "name": "Poppy Bottle, tall",
+      "slug": "poppy-bottle-tall",
+      "price": 62,
+      "category": "vases-bottles",
+      "image": "p-poppy-bottle.jpg",
+      "short": "A narrow-necked bottle thrown for one stem, or three dried poppy heads, or nothing at all. 24cm.",
+      "description": "<!-- wp:paragraph --><p>Speckled stoneware under an Ash glaze that pools green-grey at the shoulder. The neck is thrown narrow on purpose: it holds a single stem upright and hides the water line.</p><!-- /wp:paragraph --><!-- wp:paragraph --><p>H 24cm, diameter 8cm, about 620g. Each bottle is thrown by hand, so expect a few millimetres either way.</p><!-- /wp:paragraph -->",
+      "attributes": {
+        "glaze": [
+          "ash"
+        ]
+      },
+      "weight": "0.62"
+    },
+    {
+      "name": "Everyday Mug, 340ml",
+      "slug": "everyday-mug-340ml",
+      "price": 28,
+      "category": "mugs-cups",
+      "image": "p-everyday-mug.jpg",
+      "short": "Our bestseller. 340ml, a handle you can get three fingers through, and heavy enough in the hand to feel made for you.",
+      "description": "<!-- wp:paragraph --><p>The mug we make more of than anything else. Thrown in batches of twenty, with a handle pulled from a single strip of clay and attached while the body is still soft, so it never comes off. Dishwasher safe, happy in the microwave.</p><!-- /wp:paragraph --><!-- wp:paragraph --><p>Pick a glaze: Salt, Ash, Cobalt or Tenmoku. All four are fired in the same kiln, so the sets match.</p><!-- /wp:paragraph -->",
+      "attributes": {
+        "glaze": [
+          "salt",
+          "ash",
+          "cobalt",
+          "tenmoku"
+        ]
+      },
+      "weight": "0.42",
+      "variations": [
+        {
+          "attributes": {
+            "glaze": "salt"
+          },
+          "price": 28
+        },
+        {
+          "attributes": {
+            "glaze": "ash"
+          },
+          "price": 28
+        },
+        {
+          "attributes": {
+            "glaze": "cobalt"
+          },
+          "price": 28
+        },
+        {
+          "attributes": {
+            "glaze": "tenmoku"
+          },
+          "price": 28
+        }
+      ]
+    },
+    {
+      "name": "Speckled Cup, set of two",
+      "slug": "speckled-cup-set-of-two",
+      "price": 34,
+      "category": "mugs-cups",
+      "image": "p-speckled-cups.jpg",
+      "short": "Two handle-less cups in a speckled stoneware under Ash, with a bare clay foot. 200ml each.",
+      "description": "<!-- wp:paragraph --><p>The speckles are iron in the clay itself, bursting through the glaze in the kiln. Ash over the top, dipped to leave the lower third bare so the cup is warm to hold and never slips. Two to a box.</p><!-- /wp:paragraph -->",
+      "attributes": {
+        "glaze": [
+          "ash"
+        ]
+      },
+      "weight": "0.5"
+    }
+  ],
+  "posts": [
+    {
+      "slug": "what-cone-8-means",
+      "title": "What cone 8 means, and why we fire there",
+      "file": "post-1.html",
+      "category": "Kiln notes",
+      "image": "kiln-hands-bw.jpg",
+      "style": "manual"
+    },
+    {
+      "slug": "why-we-photograph-every-batch",
+      "title": "Why we photograph every batch",
+      "file": "post-2.html",
+      "category": "Kiln notes",
+      "image": "p-stacking-cups.jpg"
+    },
+    {
+      "slug": "seconds-saturday-explained",
+      "title": "Seconds Saturday, explained",
+      "file": "post-3.html",
+      "category": "Kiln notes",
+      "image": "p-supper-plate.jpg"
+    }
+  ],
+  "media": []
+}

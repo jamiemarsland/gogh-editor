@@ -1,0 +1,103 @@
+{
+  "name": "Fenwick & Lowe",
+  "tagline": "Architects · Bristol",
+  "variation": "Twilight",
+  "palette": {
+    "base": "#EFECE6",
+    "contrast": "#191817",
+    "accents": ["#B4572F", "#191817", "#DCD5C7", "#6E675C"]
+  },
+  "chrome": {
+    "header": "gogh-header-onepage",
+    "footer": "gogh-footer-simple",
+    "sticky": true
+  },
+  "nav": [
+    { "label": "Practice", "url": "#practice" },
+    { "label": "Work", "url": "#work" },
+    { "label": "What we do", "url": "#services" },
+    { "label": "Studio", "url": "#studio" },
+    { "label": "Contact", "url": "#contact" }
+  ],
+  "pages": [
+    {
+      "title": "Home",
+      "front": true,
+      "sections": [
+        {
+          "take": "Cover",
+          "anchor": "top",
+          "eyebrow": "Fenwick & Lowe · Architects · Bristol",
+          "heading": "Buildings that keep their nerve",
+          "text": "Houses, schools and the careful repair of old buildings, across the west of England since 1984.",
+          "button": "See the work",
+          "link": "#work",
+          "image": "/wp-content/plugins/gogh/starters/photographer/bw-the-villa.jpg"
+        },
+        {
+          "take": "Big statement",
+          "anchor": "practice",
+          "eyebrow": "The practice",
+          "heading": "We would rather mend than replace",
+          "button": "What we do",
+          "link": "#services"
+        },
+        {
+          "take": "Numbers",
+          "items": [
+            { "value": "1984", "label": "Opened above a chemist on Park Street" },
+            { "value": "31", "label": "Buildings finished, none of them the same" },
+            { "value": "68%", "label": "Of our work is to buildings that already stand" }
+          ]
+        },
+        {
+          "take": "Gallery",
+          "anchor": "work",
+          "eyebrow": "Selected work",
+          "heading": "Thirty-one buildings, and counting",
+          "button": "Start a project",
+          "link": "#contact",
+          "items": [
+            { "image": "/wp-content/plugins/gogh/starters/photographer/bw-curves.jpg" },
+            { "image": "/wp-content/plugins/gogh/starters/photographer/bw-white-house.jpg" },
+            { "image": "/wp-content/plugins/gogh/starters/photographer/bw-cinque-terre.jpg" }
+          ]
+        },
+        {
+          "take": "Feature cards",
+          "anchor": "services",
+          "heading": "What we do",
+          "mood": "lift",
+          "items": [
+            { "title": "Houses", "text": "New houses, and the kind of extension that makes the rest of the house make sense at last." },
+            { "title": "Public buildings", "text": "Schools, libraries and village halls. Small budgets, long lives, and a great deal of listening." },
+            { "title": "Retrofit", "text": "Insulation, air-tightness and new uses for old walls, without stripping the character out of them." }
+          ]
+        },
+        {
+          "take": "Quote",
+          "text": "They spent a whole morning in the building before they drew a single line. Nobody had done that before.",
+          "name": "Sarah Mullan · Head teacher, Ashcott Primary"
+        },
+        {
+          "take": "Team",
+          "anchor": "studio",
+          "eyebrow": "The studio",
+          "heading": "Twelve people, one plan chest",
+          "items": [
+            { "name": "Ruth Fenwick", "role": "Founding partner", "image": "/wp-content/plugins/gogh/starters/photographer/bw-laughing.jpg" },
+            { "name": "Adeyemi Lowe", "role": "Partner", "image": "/wp-content/plugins/gogh/starters/photographer/bw-portrait-studio.jpg" },
+            { "name": "Cara Nevin", "role": "Associate, retrofit", "image": "/wp-content/plugins/gogh/starters/photographer/bw-portrait-dusk.jpg" }
+          ]
+        },
+        {
+          "take": "Get in touch",
+          "anchor": "contact",
+          "eyebrow": "Say hello",
+          "heading": "Tell us about the building",
+          "text": "A sketch on the back of an envelope is a fine place to start. We answer everything within a day or two."
+        }
+      ]
+    }
+  ]
+}

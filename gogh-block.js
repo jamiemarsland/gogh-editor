@@ -19,6 +19,22 @@
   function scopedCss(a) {
     return String(a.cssT || '').replace(/GOGHSCOPE/g, a.scope || '');
   }
+  // gogh publishes the section div with the design's own class (model m.cls,
+  // the editor's userCls rule) and a one-page anchor as its id; save() must
+  // write the same, or the block editor calls those sections invalid
+  function sectionCls(a) {
+    var m = a.model && a.model.m;
+    return String((m && m.cls) || '').split(/\s+/).filter(function (c) {
+      return /^[a-z][a-z0-9-]{0,40}$/i.test(c) && !/^gogh-/i.test(c) && !/^wp-/i.test(c);
+    }).slice(0, 4).join(' ');
+  }
+  function sectionDivProps(a) {
+    var cls = sectionCls(a);
+    var anchor = a.model && typeof a.model.anchor === 'string' ? a.model.anchor : '';
+    var p = { className: 'gogh-section ' + (a.scope || '') + (cls ? ' ' + cls : ''), 'data-gogh-scope': a.scope || '' };
+    if (anchor) p.id = anchor;
+    return p;
+  }
 
   var v2attributes = {
     css: { type: 'string', source: 'text', selector: 'style.gogh-style', default: '' },
@@ -91,10 +107,7 @@
       }
       return el('div', { className: 'wp-block-gogh-section alignfull gogh-wrap' },
         el('style', { className: 'gogh-style', dangerouslySetInnerHTML: { __html: scopedCss(a) } }),
-        el('div', {
-          className: 'gogh-section ' + (a.scope || ''),
-          'data-gogh-scope': a.scope || '',
-        }, el(InnerBlocks, { templateLock: false }))
+        el('div', sectionDivProps(a), el(InnerBlocks, { templateLock: false }))
       );
     },
 
@@ -102,14 +115,28 @@
       var a = props.attributes;
       return el('div', { className: 'wp-block-gogh-section alignfull gogh-wrap' },
         el('style', { className: 'gogh-style', dangerouslySetInnerHTML: { __html: scopedCss(a) } }),
-        el('div', {
-          className: 'gogh-section ' + (a.scope || ''),
-          'data-gogh-scope': a.scope || '',
-        }, el(InnerBlocks.Content))
+        el('div', sectionDivProps(a), el(InnerBlocks.Content))
       );
     },
 
     deprecated: [
+      {
+        // before the section div carried its class and anchor: markup the
+        // block editor itself saved keeps validating, then takes the new save
+        attributes: {
+          v: { type: 'number', default: 3 },
+          scope: { type: 'string', default: '' },
+          model: { type: 'object' },
+          cssT: { type: 'string', default: '' },
+        },
+        save: function (props) {
+          var a = props.attributes;
+          return el('div', { className: 'wp-block-gogh-section alignfull gogh-wrap' },
+            el('style', { className: 'gogh-style', dangerouslySetInnerHTML: { __html: scopedCss(a) } }),
+            el('div', { className: 'gogh-section ' + (a.scope || ''), 'data-gogh-scope': a.scope || '' }, el(InnerBlocks.Content))
+          );
+        },
+      },
       {
         attributes: v2attributes,
         save: v2save,
