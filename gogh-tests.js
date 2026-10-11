@@ -1579,6 +1579,64 @@
       return 'dark ground flips ' + darker + '→' + lighter + '; pale ground untouched';
     });
 
+    test('the sentinel lifts small softened words to 4.5:1 and leaves big ones at 3:1', function () {
+      // a 55% eyebrow on cream paper reads (about 3.9:1, over the 3.2 floor)
+      // but small words owe WCAG 4.5:1 on the published page: the ink keeps
+      // its colour and gets just enough strength. Big words only owe 3:1.
+      var probe = function (slug) {
+        var d = document.createElement('div');
+        d.style.color = 'var(--wp--preset--color--' + slug + ')';
+        d.style.display = 'none';
+        document.body.appendChild(d);
+        var m = (getComputedStyle(d).color.match(/[\d.]+/g) || []).slice(0, 3).map(Number);
+        d.remove();
+        return (m[0] + m[1] + m[2]) / 3;
+      };
+      var darker = probe('base') < probe('contrast') ? 'base' : 'contrast';
+      var soft = 'color-mix(in srgb, var(--wp--preset--color--' + darker + ') 55%, transparent)';
+      G.addSection({ title: 'Lift', minH: 240, bg: '#f3eee4', els: [
+        { type: 'para', x: 90, y: 40, w: 500, h: 24, text: 'Architects · Bristol' },
+        { type: 'para', x: 90, y: 100, w: 700, h: 60, text: 'Big words' },
+      ] });
+      var c = contentSecs();
+      var s = c[c.length - 1];
+      s.els[0].color = darker;
+      s.els[0].tf = { fs: 13, ls2: 0.2, col: soft };
+      s.els[1].color = darker;
+      s.els[1].tf = { fs: 40, col: soft };
+      G.renderSection(s);
+      G.contrastSentinel(s);
+      var pct = function (col) { var m = /(\d+)%, transparent\)$/.exec(col || ''); return m ? +m[1] : null; };
+      var small = s.els[0], big = s.els[1];
+      expect(small.color === darker, 'a lift keeps the colour (got ' + small.color + ')');
+      expect(pct(small.tf.col) > 55 && pct(small.tf.col) <= 100, 'small soft words should be lifted past 55% (got ' + small.tf.col + ')');
+      expect(small.tf.ls2 === 0.2, 'the rest of the typography survives a lift');
+      expect(big.tf.col === soft, 'big words at 3:1 are left as they were (got ' + big.tf.col + ')');
+      var lifted = pct(small.tf.col);
+      G.deleteSection(G.sections().indexOf(s));
+      // a solid ink that reads but misses WCAG (white on a mid orange, about
+      // 3.7:1): small words flip to the theme ink that reaches 4.5, big ones stay
+      var lighter = darker === 'base' ? 'contrast' : 'base';
+      G.addSection({ title: 'Sticker', minH: 240, bg: '#e4572e', els: [
+        { type: 'para', x: 90, y: 40, w: 300, h: 24, text: 'Est. 2014' },
+        { type: 'para', x: 90, y: 100, w: 700, h: 60, text: 'Big white words' },
+      ] });
+      var c2 = contentSecs();
+      var s2 = c2[c2.length - 1];
+      s2.els[0].color = lighter; s2.els[0].tf = { fs: 15 };
+      s2.els[1].color = lighter; s2.els[1].tf = { fs: 40 };
+      G.renderSection(s2);
+      var lightIsWhite = probe(lighter) > 240;
+      G.contrastSentinel(s2);
+      var flipped = s2.els[0].color, bigStays = s2.els[1].color;
+      G.deleteSection(G.sections().indexOf(s2));
+      if (lightIsWhite) {
+        expect(flipped === darker, 'small white words on orange should flip to ' + darker + ' (got ' + flipped + ')');
+        expect(bigStays === lighter, 'big white words on orange meet 3:1 and should stay (got ' + bigStays + ')');
+      }
+      return 'small 55% → ' + lifted + '%; big untouched; ' + (lightIsWhite ? 'small white on orange → ' + flipped + ', big stays' : 'sticker case skipped (light ink is not white in this style)');
+    });
+
     test('sentinel reads gradient grounds, not the theme-base fallback', function () {
       // meshes are background-IMAGE: colour computes transparent, and the
       // old fallback judged words against theme base — on a dark styling

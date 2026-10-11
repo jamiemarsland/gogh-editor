@@ -7335,6 +7335,26 @@
   // WCAG large-text wants 3.0 and body wants 4.5; 3.2 splits the
   // difference — 2.6 let olive-on-near-black (2.76) pass as "readable"
   var CONTRAST_FLOOR = 3.2;
+  // the floor is about legible; the published page also owes WCAG its
+  // numbers: 4.5:1 for words under 24px (under 18.7px when bold), 3:1 above.
+  // A softened ink (a colour mixed toward transparent: the takes' eyebrows
+  // and captions) keeps its colour and gets just enough strength to reach it.
+  function sentinelNeed(host) {
+    var cs = getComputedStyle(host);
+    var px = parseFloat(cs.fontSize) || 16;
+    var bold = (parseInt(cs.fontWeight, 10) || 400) >= 700;
+    return (px >= 24 || (bold && px >= 18.66)) ? 3 : 4.5;
+  }
+  function sentinelLift(col, txt, groundL, need) {
+    var m = /^(color-mix\(in srgb, [\s\S]+?) (\d+(?:\.\d+)?)%, transparent\)$/.exec(String(col || '').trim());
+    if (!m || !txt || !(txt.a > 0)) return null;
+    var pct = +m[2];
+    for (var p = Math.ceil(pct) + 1; p <= 100; p++) {
+      var t = { rgb: txt.rgb, a: Math.min(1, txt.a * p / pct) };
+      if (sentinelContrast(sentinelOver(t, groundL), groundL) >= need) return m[1] + ' ' + p + '%, transparent)';
+    }
+    return null;
+  }
   // the best readable ink from the palette for a given ground — roles
   // first, whole palette when the family can't reach the floor
   function sentinelBestInk(bgL) {
@@ -7416,7 +7436,7 @@
         return p.slug === roles.bgSlug || p.slug === roles.textSlug ||
           /^(base|contrast)(-|$)/.test(p.slug);
       });
-      var flips = [];
+      var flips = [], lifts = [];
       sec.els.forEach(function (e, i) {
         if (onlyIdx != null && i !== onlyIdx) return;
         if (!isText(e)) return;
@@ -7428,7 +7448,17 @@
         var bgL = groundFor(e);
         // a 60%-ink eyebrow really paints as its composite over the ground
         var curC = sentinelContrast(sentinelOver(txt, bgL), bgL);
-        if (curC >= CONTRAST_FLOOR) return;
+        if (curC >= CONTRAST_FLOOR) {
+          var need = sentinelNeed(host);
+          if (curC >= need) return;
+          var lifted = e.tf && e.tf.col ? sentinelLift(e.tf.col, txt, bgL, need) : null;
+          if (lifted) { lifts.push({ i: i, col: lifted }); return; }
+          // a solid ink that reads but misses WCAG for its size (white on a
+          // mid orange): the theme ink that reaches the number, if one does
+          var wc = sentinelBestInk(bgL);
+          if (wc.best && wc.bestC >= need && e.color !== wc.best) flips.push({ i: i, to: wc.best });
+          return;
+        }
         var best = null, bestC = 0;
         var consider = function (list) {
           list.forEach(function (p) {
@@ -7450,7 +7480,7 @@
           flips.push({ i: i, to: best });
         }
       });
-      if (!flips.length) return;
+      if (!flips.length && !lifts.length) return;
       pushState();
       flips.forEach(function (f) {
         var fe = sec.els[f.i];
@@ -7459,10 +7489,15 @@
         // win over the flip (James's eyebrow stayed dark on the night sky)
         if (fe.tf && fe.tf.col) delete fe.tf.col;
       });
+      lifts.forEach(function (l) { sec.els[l.i].tf.col = l.col; });
       renderSection(sec);
-      toast(flips.length === 1 ? 'Made the words readable on that background.'
-        : 'Made ' + flips.length + ' text pieces readable on that background.',
-        { actions: [{ label: 'Undo', onClick: function () { undo(); } }] });
+      // a lift keeps the look (the same colour, a touch stronger): only a
+      // flip changes what people see enough to say so
+      if (flips.length) {
+        toast(flips.length === 1 ? 'Made the words readable on that background.'
+          : 'Made ' + flips.length + ' text pieces readable on that background.',
+          { actions: [{ label: 'Undo', onClick: function () { undo(); } }] });
+      }
     };
     if (sec.bgImage) imgRegionLum(sec.bgImage, secHpx / secWpx, judge); else judge(null);
     // ---- cards: kids live on their card's OWN ground ----
@@ -7534,7 +7569,12 @@
           if (!txt) return;
           var ground = groundFor(k);
           if (ground == null) return;
-          judged.push({ j: j, k: k, ground: ground, fails: sentinelContrast(sentinelOver(txt, ground), ground) < CONTRAST_FLOOR });
+          var kc = sentinelContrast(sentinelOver(txt, ground), ground);
+          var nd = sentinelNeed(host);
+          var kl = kc >= CONTRAST_FLOOR && kc < nd && k.tf && k.tf.col ? sentinelLift(k.tf.col, txt, ground, nd) : null;
+          judged.push({ j: j, k: k, ground: ground, kc: kc, need: nd, lift: kl,
+            // below the floor, or short of WCAG with no softened ink to lift
+            fails: kc < CONTRAST_FLOOR || (kc < nd && !kl) });
         });
         // one verdict per solid card: a bold heading can clear the floor where
         // the thin words beside it fail, and a card half dark, half light reads
@@ -7542,21 +7582,30 @@
         // each piece on its own patch of the picture.
         var solid = !!bvRgb && !box.boxImg;
         var anyFail = judged.some(function (d) { return d.fails; });
+        var kidLifts = [];
         judged.forEach(function (d) {
-          if (!d.fails && !(solid && anyFail)) return;
+          if (!d.fails && !(solid && anyFail)) {
+            if (d.lift) kidLifts.push({ j: d.j, col: d.lift });
+            return;
+          }
           var pick = sentinelBestInk(d.ground);
+          // words that read but miss WCAG flip only to an ink that reaches it
+          if (d.kc >= CONTRAST_FLOOR && !(pick.bestC >= d.need)) return;
           if (pick.best && d.k.color !== pick.best) kidFlips.push({ j: d.j, to: pick.best });
         });
-        if (!kidFlips.length) return;
+        if (!kidFlips.length && !kidLifts.length) return;
         pushState();
         kidFlips.forEach(function (f) {
           var k = box.kids[f.j];
           k.color = f.to;
           if (k.tf && k.tf.col) delete k.tf.col;
         });
+        kidLifts.forEach(function (l) { box.kids[l.j].tf.col = l.col; });
         renderSection(sec);
-        toast('Made the card\u2019s words readable on its background.',
-          { actions: [{ label: 'Undo', onClick: function () { undo(); } }] });
+        if (kidFlips.length) {
+          toast('Made the card\u2019s words readable on its background.',
+            { actions: [{ label: 'Undo', onClick: function () { undo(); } }] });
+        }
       };
       if (box.boxImg) imgRegionLum(box.boxImg, box.h / Math.max(1, box.w), judgeKids);
       else judgeKids(null);
