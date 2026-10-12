@@ -7016,6 +7016,15 @@
         q('.gogh-looksave').dispatchEvent(new Event('submit', { cancelable: true }));
         expect(/WordPress already uses/.test(q('.gogh-looksave-err').textContent), 'a name core already gives a block should be refused');
         expect(posted === 0, 'a refused name should never be sent: ' + posted);
+        // Manage styles, at the foot of the panel, opens the style set; Back returns here
+        var mg = q('.gogh-panel .gogh-look-manage');
+        expect(mg && /Manage styles/.test(mg.textContent) && mg === q('.gogh-panel').lastElementChild, 'the Style panel ends with Manage styles');
+        mg.click();
+        expect(/^Saved styles/.test(q('.gogh-panel .gogh-panel-title').textContent) && q('.gogh-specimen'), 'Manage styles opens Saved styles, with its specimen');
+        q('.gogh-panel .gogh-panel-back').click();
+        expect(!q('.gogh-specimen') && /^Style \u00b7 Heading/.test(q('.gogh-panel .gogh-panel-title').textContent) && q('.gogh-panel .gogh-look-asmade'),
+          'Back returns to this heading\u2019s Style panel: ' + q('.gogh-panel .gogh-panel-title').textContent);
+        tiles = document.querySelectorAll('.gogh-panel .gogh-look');
         // choosing a style instead: the hand-set paint gives way, size stays
         tiles[1].click();
         var e0 = sec.els[0];
@@ -7178,27 +7187,10 @@
         expect(more && !more.open && more.contains(pnl.querySelector('.gogh-varlist')) && !pnl.querySelector('.gogh-typescale'), 'the theme’s colour looks should be folded under More; type lives in the Fonts door');
         expect(!pnl.querySelector('.gogh-remixcards, .gogh-remixlocks, .gogh-remixdirs, .gogh-remixkept, .gogh-remixpin'), 'the shop (cards, locks, directions, the shelf) should be gone, not hidden');
         expect(!G.remixKeep && !G.remixLocks, 'the shop\u2019s functions should be gone from the editor');
-        // saved styles: a door inside Site style, never a second 'Styles' card
-        expect(!q('.gogh-side .gogh-stylesetbtn'), 'saved styles have no card of their own in the drawer');
-        if (!window.GOGH.canStyles) { G.closePanel(); return; }
-        var door = pnl.querySelector('.gogh-savedstyles');
-        expect(door && /Saved styles/.test(door.textContent) && /headings, buttons/.test(door.textContent) && top.compareDocumentPosition(door) & 4,
-          'Site style should offer Saved styles under the brand and Remix: ' + (door && door.textContent));
-        door.click();
-        expect(/^Saved styles/.test(q('.gogh-panel .gogh-panel-title').textContent) && q('.gogh-specimen'), 'the door opens Saved styles, with its specimen');
-        q('.gogh-panel .gogh-panel-back').click();
-        expect(!q('.gogh-specimen'), 'Back takes the specimen away');
-        return new Promise(function (resolve) {
-          var t0 = Date.now();
-          var poll = function () {
-            var p3 = q('.gogh-panel');
-            if ((p3 && !p3.hidden && p3.querySelector('.gogh-remixbtn')) || Date.now() - t0 > 8000) resolve(p3); else setTimeout(poll, 100);
-          };
-          poll();
-        }).then(function (p3) {
-          expect(p3 && p3.querySelector('.gogh-savedstyles'), 'Back from Saved styles returns to Site style');
-          G.closePanel();
-        });
+        // saved styles are managed from a piece's Style panel: Site style
+        // stays colours and brand (James: 'pretty confusing')
+        expect(!q('.gogh-side .gogh-stylesetbtn') && !pnl.querySelector('.gogh-savedstyles'), 'Site style and the drawer carry no saved-styles door');
+        G.closePanel();
       });
     });
 

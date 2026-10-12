@@ -4503,7 +4503,7 @@ html.gogh-building .gogh-inserter, html.gogh-building .gogh-side { display: none
 .gogh-btn.gogh-btn-stop { background: #cc1818; color: #fff; border-color: transparent; }
 .gogh-btn:focus-visible { outline: 2px solid #7ea8ff; outline-offset: 2px; }
 
-/* ---------- Saved styles (Site style → Saved styles) ---------- */
+/* ---------- Saved styles (a piece's Style panel → Manage styles) ---------- */
 .gogh-stylesets { display: flex; flex-direction: column; gap: 16px; margin: 6px 0 18px; }
 .gogh-styleset-kind { margin: 0 0 6px; font-size: 11px; font-weight: 600; letter-spacing: .1em; text-transform: uppercase; color: var(--gogh-ui-muted, #757575); }
 .gogh-styleset-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
@@ -4545,5 +4545,8 @@ html.gogh-building .gogh-inserter, html.gogh-building .gogh-side { display: none
 .gogh-specimen-cap { font: 500 12px/1.4 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; opacity: .66; }
 .gogh-specimen-empty { max-width: 32em; font-size: 16px; line-height: 1.55; opacity: .75; }
 @media (max-width: 760px) { .gogh-specimen { display: none; } }
-/* the Saved styles door inside Site style, under the brand and Remix */
-.gogh-panel .gogh-scard.gogh-savedstyles { width: 100%; margin: 14px 0 2px; }
+/* Manage styles: the foot of a piece's Style panel opens Saved styles */
+.gogh-look-manage { all: unset; box-sizing: border-box; cursor: pointer; display: flex; align-items: center; justify-content: space-between; width: 100%; margin-top: 12px; padding: 11px 2px 2px; border-top: 1px solid var(--gogh-ui-line, rgba(22, 24, 28, .1)); font-size: 13px; font-weight: 600; color: var(--gogh-ui-fg); }
+.gogh-look-manage svg { opacity: .5; }
+.gogh-look-manage:hover svg { opacity: 1; }
+.gogh-look-manage:focus-visible { outline: 2px solid #7ea8ff; outline-offset: 2px; border-radius: 4px; }
