@@ -2124,6 +2124,30 @@
     }
     return (!b || b === 'rgba(0, 0, 0, 0)' || b === 'transparent') ? '#fff' : b;
   }
+  // a text piece's height at the width the DESIGN gives it. The grid draws
+  // each piece between shared lines, and edges within TOL of each other share
+  // one line, so a piece can draw a few units wider or narrower than its
+  // model whenever a neighbour moves. Words right on a wrap point then flip
+  // a line, and the model followed: dragging one heading changed the height
+  // of the paragraph beside it (the starter sweep's 'Numbers' paragraph,
+  // 290 wide, two lines at 290 and one at 292). Within that wobble the
+  // height is read at the model's own width; a bigger difference is a real
+  // layout (a phone's single column) and is read as drawn.
+  function textHeightAt(sec, i, s) {
+    var node = sec.nodes && sec.nodes[i], e = sec.els[i];
+    if (!node || !e) return 0;
+    var rw = node.offsetWidth / s;
+    if (!(e.w > 0) || Math.abs(rw - e.w) <= 0.5 || Math.abs(rw - e.w) > 2 * TOL) return node.offsetHeight / s;
+    var was = node.style.width, wasMax = node.style.maxWidth, wasMin = node.style.minWidth;
+    node.style.width = (e.w * s) + 'px';
+    node.style.maxWidth = 'none';
+    node.style.minWidth = '0';
+    var h = node.offsetHeight / s;
+    node.style.width = was;
+    node.style.maxWidth = wasMax;
+    node.style.minWidth = wasMin;
+    return h;
+  }
   function measureTextHeights(sec) {
     if (!sec.nodes || sec.nodes.some(function (n) { return !n; })) return;
     var s = measureScaleOf(sec);
@@ -2133,7 +2157,7 @@
     if (!(s > 0.2)) return;
     sec.els.forEach(function (e, i) {
       if (isText(e)) {
-        var h = sec.nodes[i].offsetHeight / s;
+        var h = textHeightAt(sec, i, s);
         if (h > 0) e.h = Math.round(h);
       } else if (e.type === 'image' && !e.kids) {
         // a tall photo inflates its max-content rows past the design
@@ -2293,7 +2317,7 @@
       sec.els.slice().sort(function (a, b) { return a.y - b.y; }).forEach(function (e) {
         if (!isText(e)) return;
         var i = sec.els.indexOf(e);
-        var h = sec.nodes[i] ? sec.nodes[i].offsetHeight / sMeasure : 0;
+        var h = sec.nodes[i] ? textHeightAt(sec, i, sMeasure) : 0;
         if (h <= 0) return;
         var rh = Math.round(h);
         // GROW always — a taller wrap must never sit on what's below. SHRINK
@@ -2331,7 +2355,7 @@
           if (!s.nodes) return false;
           var sc = measureScaleOf(s);
           return sc > 0.2 && s.els.some(function (e, i) {
-            return isText(e) && s.nodes[i] && Math.abs(Math.round(s.nodes[i].offsetHeight / sc) - e.h) > 2;
+            return isText(e) && s.nodes[i] && Math.abs(Math.round(textHeightAt(s, i, sc)) - e.h) > 2;
           });
         });
         if (!changed) return;
@@ -15505,15 +15529,19 @@
     drag.eqV = false;
     drag.repH = null;
     drag.repV = null;
+    // an axis the pointer never moved stays put here too: the gap magnets
+    // below used to pull y on a purely sideways drag (8 units, the suite's
+    // birds-eye drag), undoing the hold just above
+    var holdX = lockX || !drag.movedX, holdY = lockY || !drag.movedY;
     if (!free) {
       var nb = neighbors(sec, e);
-      if (!lockX && nb.L && nb.R) {
+      if (!holdX && nb.L && nb.R) {
         var xEq = (nb.L.x + nb.L.w + nb.R.x - e.w) / 2;
         if (xEq >= nb.L.x + nb.L.w && Math.abs(rx - xEq) < 8) {
           e.x = xEq; sn.gx = null; drag.eqH = true; // exact midpoint: gaps truly equal
         }
       }
-      if (!lockY && nb.T && nb.B) {
+      if (!holdY && nb.T && nb.B) {
         var yEq = (nb.T.y + nb.T.h + nb.B.y - e.h) / 2;
         if (yEq >= nb.T.y + nb.T.h && Math.abs(ry - yEq) < 8) {
           e.y = yEq; sn.gy = null; drag.eqV = true;
@@ -15523,14 +15551,14 @@
       // to its own neighbour, and that gap is offered here, so a fourth
       // card lands in step with three without anyone counting (the Canva
       // teardown: alignment as placement, not repair)
-      if (!lockX && !drag.eqH) {
+      if (!holdX && !drag.eqH) {
         var rgx = runGap(sec, e, nb, 'x');
         if (rgx) {
           var xRep = rgx.side === 'L' ? nb.L.x + nb.L.w + rgx.gap : nb.R.x - rgx.gap - e.w;
           if (xRep >= 0 && xRep + e.w <= W && Math.abs(rx - xRep) < 8) { e.x = xRep; sn.gx = null; drag.repH = rgx; }
         }
       }
-      if (!lockY && !drag.eqV) {
+      if (!holdY && !drag.eqV) {
         var rgy = runGap(sec, e, nb, 'y');
         if (rgy) {
           var yRep = rgy.side === 'T' ? nb.T.y + nb.T.h + rgy.gap : nb.B.y - rgy.gap - e.h;
@@ -15542,11 +15570,11 @@
       // spacing without anyone knowing the rhythm exists
       drag.rhyH = null;
       drag.rhyV = null;
-      if (!lockX && !drag.eqH && !drag.repH) {
+      if (!holdX && !drag.eqH && !drag.repH) {
         var rhx = rhythmGap(e, nb, 'x', rx);
         if (rhx) { e.x = rhx.v; sn.gx = null; drag.rhyH = rhx; }
       }
-      if (!lockY && !drag.eqV && !drag.repV) {
+      if (!holdY && !drag.eqV && !drag.repV) {
         var rhy = rhythmGap(e, nb, 'y', ry);
         if (rhy) { e.y = rhy.v; sn.gy = null; drag.rhyV = rhy; }
       }
@@ -18079,16 +18107,20 @@
     var onTx = remixRatio(ac, tx), onBg = remixRatio(ac, bg);
     return onTx >= onBg ? { role: 'text', hex: tx, ratio: onTx } : { role: 'background', hex: bg, ratio: onBg };
   }
-  function fitAccent(ac, bg, tx) {
+  // edge: how far the button must stand off the page. A person's own colour
+  // (the brand form) is kept at 1.5; a colour Remix picks for them must
+  // stand at 2, or a yellow on a pale wash vanishes into it
+  function fitAccent(ac, bg, tx, edge) {
     var h = hexToHsl(ac);
     if (!h) return ac;
+    var minEdge = edge || 1.5;
     // the brand colour stays exact whenever SOME ink reads on it: words at
     // 4.5:1 with the button still standing off the page, or the page
     // colour itself at 4.5:1 (which also makes the button stand off the page)
     // (4.0 rather than 4.5: button words are bold and large; and a button
     // is a shape — the theme's own stand 1.9:1 off the page)
     var ink = buttonInkFor(ac, bg, tx);
-    if (ink.ratio >= 4 && (ink.role === 'background' || remixRatio(ac, bg) >= 1.5)) return ac;
+    if (ink.ratio >= 4 && (ink.role === 'background' || remixRatio(ac, bg) >= minEdge)) return ac;
     // tiers: the words first, then the edge — each relaxed a step at a time
     var tiers = [[4.5, 3], [4.5, 2.5], [3.5, 2.5], [3, 2.2], [3, 0]];
     for (var t = 0; t < tiers.length; t++) {
@@ -18097,7 +18129,7 @@
         var hex = hslToHex(h.h, h.s, l);
         var d = Math.abs(l - h.l);
         var best2 = Math.max(remixRatio(hex, tx), remixRatio(hex, bg));
-        if (best2 >= tiers[t][0] && remixRatio(hex, bg) >= tiers[t][1] && d < bestD) { best = hex; bestD = d; }
+        if (best2 >= tiers[t][0] && remixRatio(hex, bg) >= Math.max(tiers[t][1], edge || 0) && d < bestD) { best = hex; bestD = d; }
       }
       if (best) return best;
     }
@@ -18157,7 +18189,10 @@
         // the gate: ink walks to 7:1, the accent to where its words read; a
         // brand's own colours are never walked (the form already judged them)
         tx = ensureContrast(tx, bg, 7);
-        ac = fitAccent(ac, bg, tx);
+        ac = fitAccent(ac, bg, tx, 2.2);
+        // a hue that cannot both hold its words and stand off this ground
+        // is not a look: draw again
+        if (remixRatio(ac, bg) < 2) return null;
       }
       var key = [g.key, ink.key, r.key, v.key, pair ? pair.heading + '/' + pair.body : '-', scale, rhythm, divider || '-', fx || '-', dir ? dir.say : '-'].join('|');
       var rhythmSay = (REMIX_RHYTHMS.filter(function (x) { return x.key === rhythm; })[0] || REMIX_RHYTHMS[0]).say;
@@ -18181,6 +18216,7 @@
     while (out.length < 6 && tries < 240) {
       tries++;
       var c = build();
+      if (!c) continue;
       var dupe = out.some(function (o) { return o.key === c.key; });
       var sameName = !c.brand && out.some(function (o) { return o.name === c.name; }); // a brand's rolls all say so
       // unseen first; once the field is spent, looks shown before may return —
@@ -19641,6 +19677,10 @@
         if (o === e) return;
         candX.push(o.x, o.x + o.w, o.x + o.w / 2);
         candY.push(o.y, o.y + o.h, o.y + o.h / 2);
+        // sizes match between pieces of one kind (card and card, picture and
+        // picture): a heading's box is not a size anyone sees, and a heading
+        // 207 wide at the top of the page beat the badge 200 wide beside it
+        if (o.type !== e.type) return;
         if (dir.dx === 1) { candX.push(e.x + o.w); sizeTagX[e.x + o.w] = 'same width'; }
         if (dir.dx === -1) { candX.push(e.x + e.w - o.w); sizeTagX[e.x + e.w - o.w] = 'same width'; }
         if (fixedHeight(e) && fixedHeight(o)) {

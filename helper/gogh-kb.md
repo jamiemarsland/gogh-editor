@@ -15,7 +15,7 @@ about something where they conflict, rather than picking one silently. Quote UI
 labels and message copy from the appendix, verbatim — those are the current
 strings, and a paraphrased button label is the fastest way to lose a user's trust.
 
-Generated for plugin version 0.99.657 · knowledge base 10bd752.
+Generated for plugin version 0.99.658 · knowledge base 63cd3da.
 
 ---
 
@@ -830,6 +830,8 @@ The helper's welcome panel opens with a 35-second film of gogh being used (v0.99
 
 **The phone view survives navigation (v0.99.605).** Press one of your own pages while on the phone and it opens in the editor, still on the phone: the link carries `gogh-edit=1&gogh-phone=1`, the next page reads them at boot and strips them from the address. Other sites, files, wp-admin and anchors on the same page are left alone. Unpublished changes still ask before leaving.
 
+**Four small fixes to dragging, resizing and Remix (v0.99.658).** Dragging a piece no longer changes the height of the text beside it: the grid draws pieces whose edges sit within a few units of each other on one shared line, so a paragraph could draw a couple of units narrower when its neighbour moved and, if its words sat right on a wrap point, jump from one line to two. Text height is now measured at the width the design gives it. A sideways drag no longer nudges a piece up or down (the equal-gap and rhythm magnets used to pull the axis you were not moving). When resizing, "same width" now matches pieces of the same kind (card to card, picture to picture), not the box of a heading somewhere else on the page. And Remix no longer offers an accent that barely shows on its background: on a pale wash, a yellow or orange that dark words could read on but that faded into the page is now darkened until it stands out, or rolled again.
+
 **Manage styles from the Style button (v0.99.657).** Saved styles are no longer in Site style: Site style is about the whole site's colours and brand, and a Saved styles door beside Remix read as a third kind of "look". Styles are now managed where they are chosen: press a heading's, text's, button's, picture's or shape's Style button, and at the foot of its panel press **Manage styles**. That opens the Saved styles page (every style by kind, the default star, rename, remove, the specimen, Save to the blueprint and Copy as definition), and Back returns to the piece's Style panel. Manage styles is there for people who can edit the site's CSS.
 
 **Saved styles live inside Site style (v0.99.656, replaced by v0.99.657).** The style set has no card of its own in the Site drawer any more: two cards called Site style and Styles side by side read as the same thing. Open Site style and, under Your brand and Remix, press **Saved styles** ("Looks you can reuse on headings, buttons and more"). The page is called Saved styles, Back returns to Site style, and the save form on a piece's Style button says where to find a style later: Site style → Saved styles.
@@ -935,11 +937,11 @@ Everything in this section is extracted mechanically from the Gogh source on eve
 
 ## Current release
 
-- Plugin version: **0.99.657**
+- Plugin version: **0.99.658**
 - Requires WordPress **6.5+**, PHP **7.4+**
 - Text domain: `gogh-editor`
 - readme.txt Stable tag: `0.26.0` · Tested up to: `7.0`
-- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.657`). Quote the plugin header version.
+- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.658`). Quote the plugin header version.
 
 ## Design constants
 
