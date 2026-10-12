@@ -15,7 +15,7 @@ about something where they conflict, rather than picking one silently. Quote UI
 labels and message copy from the appendix, verbatim — those are the current
 strings, and a paraphrased button label is the fastest way to lose a user's trust.
 
-Generated for plugin version 0.99.655 · knowledge base 2764209.
+Generated for plugin version 0.99.656 · knowledge base 8e83f80.
 
 ---
 
@@ -830,7 +830,9 @@ The helper's welcome panel opens with a 35-second film of gogh being used (v0.99
 
 **The phone view survives navigation (v0.99.605).** Press one of your own pages while on the phone and it opens in the editor, still on the phone: the link carries `gogh-edit=1&gogh-phone=1`, the next page reads them at boot and strips them from the address. Other sites, files, wp-admin and anchors on the same page are left alone. Unpublished changes still ask before leaving.
 
-**Save a look as a style, and the design's style set (v0.99.655).** Style a heading, some text, a button, a picture or a shape by hand (a colour, a weight, capitals, a hover colour), and its Style chip reads "Style · Custom". The chip's panel shows Plain, the design's own styles, and "This heading, as you made it", with a form below: give the style a name, see what it keeps (the colour, the type, the hover, and the look it was built on, with that look's hover and animation; size is never kept, so the style works on a small title as well as a big one), and tick "Make it the default for new headings" if you want. Save style and the piece wears it straight away. Every heading on the site can now choose it, the WordPress block editor lists it in its Styles panel, and new pieces of that kind arrive in it when it is the default. Choosing any style also clears colour and type set by hand on that piece (size stays): the last thing you chose wins. In Site, a new Styles card opens "Styles in this design": every style by kind (Headings, Text, Buttons, Pictures, Shapes), a star for the default, a ⋯ menu to rename (pieces keep wearing it) or remove (pieces go back to Plain), Plain always there, and beside it a specimen that draws every style on your page's own words. "Save to the blueprint" downloads the set as a piece of site definition (`<design>-styles.json`), and "Copy as definition" copies the same thing: each style with its name, its default and its CSS, ready to sit beside `pages` in a blueprint's definition. Saving and the Styles card are for people who can edit the site's CSS (administrators on a normal site). Saved styles are printed on every page after Additional CSS.
+**Saved styles live inside Site style (v0.99.656).** The style set has no card of its own in the Site drawer any more: two cards called Site style and Styles side by side read as the same thing. Open Site style and, under Your brand and Remix, press **Saved styles** ("Looks you can reuse on headings, buttons and more"). The page is called Saved styles, Back returns to Site style, and the save form on a piece's Style button says where to find a style later: Site style → Saved styles.
+
+**Save a look as a style, and the design's style set (v0.99.655).** Style a heading, some text, a button, a picture or a shape by hand (a colour, a weight, capitals, a hover colour), and its Style chip reads "Style · Custom". The chip's panel shows Plain, the design's own styles, and "This heading, as you made it", with a form below: give the style a name, see what it keeps (the colour, the type, the hover, and the look it was built on, with that look's hover and animation; size is never kept, so the style works on a small title as well as a big one), and tick "Make it the default for new headings" if you want. Save style and the piece wears it straight away. Every heading on the site can now choose it, the WordPress block editor lists it in its Styles panel, and new pieces of that kind arrive in it when it is the default. Choosing any style also clears colour and type set by hand on that piece (size stays): the last thing you chose wins. In Site, a new Styles card opened "Styles in this design" (since v0.99.656 it is Site style → Saved styles): every style by kind (Headings, Text, Buttons, Pictures, Shapes), a star for the default, a ⋯ menu to rename (pieces keep wearing it) or remove (pieces go back to Plain), Plain always there, and beside it a specimen that draws every style on your page's own words. "Save to the blueprint" downloads the set as a piece of site definition (`<design>-styles.json`), and "Copy as definition" copies the same thing: each style with its name, its default and its CSS, ready to sit beside `pages` in a blueprint's definition. Saving and the Styles card are for people who can edit the site's CSS (administrators on a normal site). Saved styles are printed on every page after Additional CSS.
 
 **Fonts arrive sooner, and no warning in the block editor (v0.99.654).** Every page now tells the browser, at the very top, to start downloading the typeface its body text wears and the one its headings wear (at most two files, at the exact addresses the page's own font rules use). Before, the browser only found the font files after reading the stylesheet, which on a hosted site held up text in its real face for about two seconds. A site can turn this off with the `gogh_preload_fonts` filter. Separately, gogh's section block now uses WordPress's current block format (API version 3), so the WordPress 6.9 block editor no longer warns that it is deprecated, and the editor can draw the page in its iframe. Sections saved before still open as valid.
 
@@ -931,11 +933,11 @@ Everything in this section is extracted mechanically from the Gogh source on eve
 
 ## Current release
 
-- Plugin version: **0.99.655**
+- Plugin version: **0.99.656**
 - Requires WordPress **6.5+**, PHP **7.4+**
 - Text domain: `gogh-editor`
 - readme.txt Stable tag: `0.26.0` · Tested up to: `7.0`
-- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.655`). Quote the plugin header version.
+- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.656`). Quote the plugin header version.
 
 ## Design constants
 

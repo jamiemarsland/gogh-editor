@@ -2707,11 +2707,6 @@
     '<span class="gogh-scard-ic"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h4l5-13 5 13h4M8 15h8"/></svg></span>' +
     '<span class="gogh-scard-tx"><span class="gogh-scard-t">Fonts</span><span class="gogh-scard-s">Pairs, tried on your page</span></span>' +
     '<svg class="gogh-scard-chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg></button>' +
-    // the design's style set: for whoever may write the site's CSS
-    (cfg.canStyles ? '<button type="button" class="gogh-sitem gogh-scard gogh-stylesetbtn">' +
-    '<span class="gogh-scard-ic"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><rect x="3" y="4" width="8" height="7" rx="1.5"/><rect x="13" y="4" width="8" height="7" rx="1.5"/><rect x="3" y="13" width="8" height="7" rx="1.5"/><path d="M17 13.5l1.1 2.2 2.4.4-1.7 1.7.4 2.4-2.2-1.1-2.2 1.1.4-2.4-1.7-1.7 2.4-.4Z"/></svg></span>' +
-    '<span class="gogh-scard-tx"><span class="gogh-scard-t">Styles</span><span class="gogh-scard-s">What each kind of piece can wear</span></span>' +
-    '<svg class="gogh-scard-chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg></button>' : '') +
     '<button type="button" class="gogh-sitem gogh-scard gogh-motionbtn">' +
     '<span class="gogh-scard-ic"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12c3-6 6-6 9 0s6 6 9 0"/></svg></span>' +
     '<span class="gogh-scard-tx"><span class="gogh-scard-t">Motion</span><span class="gogh-scard-s">How the site moves as visitors scroll</span></span>' +
@@ -8126,7 +8121,7 @@
     var chips = (cur ? [{ label: 'Built on ' + cur.name }] : []).concat(bits);
     return '<form class="gogh-looksave" novalidate>' +
       '<div class="gogh-looksave-t">Save this look as a style</div>' +
-      (full ? '<div class="gogh-panel-hint">This design has six ' + esc(kindLow) + ' styles already. Remove one in Site → Styles to make room.</div>' :
+      (full ? '<div class="gogh-panel-hint">This design has six ' + esc(kindLow) + ' styles already. Remove one in Site style → Saved styles to make room.</div>' :
       '<label class="gogh-looksave-lab">Name<input type="text" class="gogh-looksave-name" maxlength="32" autocomplete="off" spellcheck="false" placeholder="Say what it is, like Big and blue"></label>' +
       '<div class="gogh-looksave-lab" id="gogh-looksave-keeps">What the style keeps</div>' +
       '<ul class="gogh-looksave-keeps" aria-labelledby="gogh-looksave-keeps">' + chips.map(function (c) {
@@ -8137,7 +8132,7 @@
       '<div class="gogh-looksave-err" role="alert" hidden></div>' +
       '<div class="gogh-looksave-row"><button type="submit" class="gogh-btn gogh-btn-small gogh-btn-go gogh-looksave-go">Save style</button>' +
       '<button type="button" class="gogh-btn gogh-btn-small gogh-looksave-x">Cancel</button></div>' +
-      '<div class="gogh-panel-hint">Saved styles travel with this design: they go into its blueprint, and every ' + esc(kindLow) + ' on the site can wear them.</div>') +
+      '<div class="gogh-panel-hint">Every ' + esc(kindLow) + ' on the site can wear it, and it goes into this design\u2019s blueprint. Find it later in Site style \u2192 Saved styles.</div>') +
       '</form>';
   }
   function wireLookSave(form, sec, i, j, kindLow, newOnes) {
@@ -17132,7 +17127,7 @@
     panelOpen = true;
   }
 
-  // ---------- Styles in this design: the design's style set ----------
+  // ---------- Saved styles: the design's style set (Site style → Saved styles) ----------
   // Every style a heading, text, a button, a picture or a shape can wear on
   // this site, by kind: the star is what a new piece arrives in, ⋯ renames
   // or removes, Plain is always there. Beside the list, a specimen sheet
@@ -17232,22 +17227,26 @@
     });
     return { looks: out };
   }
-  function openStylesPage() {
+  function openStylesPage(anchorEl) {
     var d = cfg.design, dname = (d && d.name) || 'this design';
     // the page takes the surface: no piece stays chosen under it
     sel = null;
     hideHandles();
     clearKidSel();
     panel.innerHTML =
-      '<div class="gogh-panel-head"><span class="gogh-panel-title">Styles in this design</span>' +
+      '<div class="gogh-panel-head"><span class="gogh-panel-title">Saved styles</span>' +
       '<button type="button" class="gogh-sbtn gogh-panel-close gogh-panel-back" title="Back"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"/></svg></button></div>' +
-      '<div class="gogh-panel-hint">What a heading, a paragraph, a button, a picture or a shape can wear on ' + esc(dname) + '. The star is what a new piece arrives in.</div>' +
+      '<div class="gogh-panel-hint">Looks saved for headings, text, buttons, pictures and shapes on ' + esc(dname) + '. Pick one from a piece\u2019s Style button. The star is the one new pieces start in.</div>' +
       '<div class="gogh-stylesets"></div>' +
       '<div class="gogh-styleset-foot">' +
       '<button type="button" class="gogh-btn gogh-btn-small gogh-btn-go gogh-styleset-dl" title="Downloads the styles as a piece of site definition, to add to the blueprint">Save to the blueprint</button>' +
       '<button type="button" class="gogh-btn gogh-btn-small gogh-styleset-copy" title="Copies the styles as site definition JSON">Copy as definition</button></div>';
     dockSidebar();
-    panel.querySelector('.gogh-panel-close').addEventListener('click', backToDesign);
+    // Back walks up to Site style, where the door is
+    panel.querySelector('.gogh-panel-close').addEventListener('click', function () {
+      hideSpecimen();
+      if (cfg.gsId && cfg.theme) openStylePanel(anchorEl); else backToDesign();
+    });
     panelCleanup = hideSpecimen;
     var box = panel.querySelector('.gogh-stylesets');
     var busy = false;
@@ -17282,7 +17281,7 @@
             '<li class="gogh-styleset-row is-plain"><span class="gogh-styleset-sw gogh-look-stage gogh-look-' + t + '" aria-hidden="true"><span class="wp-site-blocks gogh-look-site">' + lookSample({ type: t, text: 'Aa' }, PLAIN_LOOK, t !== 'heading' && t !== 'para') + '</span></span>' +
             '<span class="gogh-styleset-name">Plain</span><span class="gogh-styleset-always">always there</span></li>') +
           '</ul></section>';
-      }).join('') + (any ? '' : '<div class="gogh-panel-hint gogh-styleset-none">No saved styles yet. Style a piece by hand, then open its Style chip and choose Save this look as a style.</div>');
+      }).join('') + (any ? '' : '<div class="gogh-panel-hint gogh-styleset-none">No saved styles yet. Style a heading or a button the way you like it, then press its Style button and choose Save this look as a style.</div>');
       showSpecimen();
       box.querySelectorAll('.gogh-styleset').forEach(function (secEl) {
         var t = secEl.dataset.type;
@@ -18889,6 +18888,12 @@
         // looks, its font pairs, the type size — live one door deeper,
         // folded under More until asked for ("Remix Like the Die", rule 5)
         '<div class="gogh-toprow"></div>' +
+        // saved styles live INSIDE Site style: a second 'Styles' card in
+        // the drawer read as the same thing twice (James)
+        (cfg.canStyles ? '<button type="button" class="gogh-sitem gogh-scard gogh-savedstyles">' +
+          '<span class="gogh-scard-ic"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><rect x="3" y="4" width="8" height="7" rx="1.5"/><rect x="13" y="4" width="8" height="7" rx="1.5"/><rect x="3" y="13" width="8" height="7" rx="1.5"/><path d="M17 13.5l1.1 2.2 2.4.4-1.7 1.7.4 2.4-2.2-1.1-2.2 1.1.4-2.4-1.7-1.7 2.4-.4Z"/></svg></span>' +
+          '<span class="gogh-scard-tx"><span class="gogh-scard-t">Saved styles</span><span class="gogh-scard-s">Looks you can reuse on headings, buttons and more</span></span>' +
+          '<svg class="gogh-scard-chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg></button>' : '') +
         // colours here; type lives in the Fonts door (James: "its unclear
         // what the relationship is between our new fonts and site style
         // fonts" — one door for type, one for colour)
@@ -18898,6 +18903,8 @@
       panel.querySelector('.gogh-panel-close').addEventListener('click', function () {
         backToDesign();
       });
+      var savedDoor = panel.querySelector('.gogh-savedstyles');
+      if (savedDoor) savedDoor.addEventListener('click', function () { clearVariationPreview(); openStylesPage(anchorEl); });
       var box = panel.querySelector('.gogh-varlist');
       var top = panel.querySelector('.gogh-toprow');
       // Site designs lives in the Design drawer alone — this panel is styles
@@ -19357,8 +19364,6 @@
   side.querySelector('.gogh-motionbtn').addEventListener('click', function () {
     openMotionPanel();
   });
-  var stylesCard = side.querySelector('.gogh-stylesetbtn');
-  if (stylesCard) stylesCard.addEventListener('click', function () { openStylesPage(); });
 
   // a piece travelling WITH the grabbed one (multi-drag) sits at its old
   // spot in the model until release — it must not act as a magnet or a

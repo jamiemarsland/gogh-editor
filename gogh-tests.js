@@ -7055,6 +7055,7 @@
       document.head.appendChild(st);
       try {
         G.looks.openSet();
+        expect(/^Saved styles/.test(q('.gogh-panel .gogh-panel-title').textContent), 'the page is called Saved styles');
         var sets = document.querySelectorAll('.gogh-panel .gogh-styleset');
         expect(sets.length === 5 && /Headings/.test(sets[0].textContent) && /Shapes/.test(sets[4].textContent), 'one group per kind, headings to shapes: ' + sets.length);
         var hRows = sets[0].querySelectorAll('.gogh-styleset-row');
@@ -7177,7 +7178,27 @@
         expect(more && !more.open && more.contains(pnl.querySelector('.gogh-varlist')) && !pnl.querySelector('.gogh-typescale'), 'the theme’s colour looks should be folded under More; type lives in the Fonts door');
         expect(!pnl.querySelector('.gogh-remixcards, .gogh-remixlocks, .gogh-remixdirs, .gogh-remixkept, .gogh-remixpin'), 'the shop (cards, locks, directions, the shelf) should be gone, not hidden');
         expect(!G.remixKeep && !G.remixLocks, 'the shop\u2019s functions should be gone from the editor');
-        G.closePanel();
+        // saved styles: a door inside Site style, never a second 'Styles' card
+        expect(!q('.gogh-side .gogh-stylesetbtn'), 'saved styles have no card of their own in the drawer');
+        if (!window.GOGH.canStyles) { G.closePanel(); return; }
+        var door = pnl.querySelector('.gogh-savedstyles');
+        expect(door && /Saved styles/.test(door.textContent) && /headings, buttons/.test(door.textContent) && top.compareDocumentPosition(door) & 4,
+          'Site style should offer Saved styles under the brand and Remix: ' + (door && door.textContent));
+        door.click();
+        expect(/^Saved styles/.test(q('.gogh-panel .gogh-panel-title').textContent) && q('.gogh-specimen'), 'the door opens Saved styles, with its specimen');
+        q('.gogh-panel .gogh-panel-back').click();
+        expect(!q('.gogh-specimen'), 'Back takes the specimen away');
+        return new Promise(function (resolve) {
+          var t0 = Date.now();
+          var poll = function () {
+            var p3 = q('.gogh-panel');
+            if ((p3 && !p3.hidden && p3.querySelector('.gogh-remixbtn')) || Date.now() - t0 > 8000) resolve(p3); else setTimeout(poll, 100);
+          };
+          poll();
+        }).then(function (p3) {
+          expect(p3 && p3.querySelector('.gogh-savedstyles'), 'Back from Saved styles returns to Site style');
+          G.closePanel();
+        });
       });
     });
 
