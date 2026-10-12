@@ -15,7 +15,7 @@ about something where they conflict, rather than picking one silently. Quote UI
 labels and message copy from the appendix, verbatim — those are the current
 strings, and a paraphrased button label is the fastest way to lose a user's trust.
 
-Generated for plugin version 0.99.652 · knowledge base 39ec4fb.
+Generated for plugin version 0.99.652 · knowledge base c597a8f.
 
 ---
 
@@ -828,6 +828,8 @@ The helper's welcome panel opens with a 35-second film of gogh being used (v0.99
 **The open menu keeps to the window in a zoomed view (v0.99.605).** Inside the zoomed page, a menu positioned to the screen answers to the page's box instead, so Stack and Centred filled the whole page, Drawer ran the page's height and Sheet landed at the page's foot, out of sight. While the menu is open under a zoom, gogh pins its box to the part of the page the window shows and re-pins on every layout change, scroll or resize, so Sheet auditions and every layout looks as it does on a phone. Nothing of this runs on the real page.
 
 **The phone view survives navigation (v0.99.605).** Press one of your own pages while on the phone and it opens in the editor, still on the phone: the link carries `gogh-edit=1&gogh-phone=1`, the next page reads them at boot and strips them from the address. Other sites, files, wp-admin and anchors on the same page are left alone. Unpublished changes still ask before leaving.
+
+**Readable small print (v0.99.652).** An accessibility pass over five blueprint sites with axe (WCAG 2.2 AA, every page, desktop and phone) found one kind of problem: small text gogh had softened too far. Three changes. The contrast check that runs when you add, roll or restyle a section now holds small words (under 24px, or under 18.7px when bold) to 4.5:1 and big words to 3:1: a softened colour such as a section's eyebrow keeps its colour and is made just strong enough, quietly, and a solid colour that reads but falls short (white on a mid orange) changes to the theme colour that passes, with the usual message and Undo. Small print in the looks (blog dates, captions, the contents title, tab labels, the form's note, the photo credits line) is a little stronger, and carousel dots are easier to see. The contact form's fields have proper labels for screen readers, fill in your name and email from the browser, and announce the thank-you. Pages you published before keep their colours until you next touch that section.
 
 **Blog looks wear the site's heading face (v0.99.651).** The blog and reading looks give post titles a "second voice": the site's heading font. gogh read the body font only in one of the two forms WordPress stores it in, so on many sites it never recognised the body font and took whichever custom font was installed first, which could be the body font itself. A recipe blog's titles came out in its text face. Now the second voice is the font the site's headings wear.
 
