@@ -1,12 +1,12 @@
 {
   "meta": {
-    "plugin_version": "0.99.654",
+    "plugin_version": "0.99.655",
     "requires_wp": "6.5",
     "requires_php": "7.4",
     "text_domain": "gogh-editor",
     "readme_stable_tag": "0.26.0",
     "readme_tested_up_to": "7.0",
-    "asset_version": "0.99.654-chrome"
+    "asset_version": "0.99.655-chrome"
   },
   "constants": {
     "TOL": 8,
@@ -478,6 +478,8 @@
     "Change the colours and fonts of your brand",
     "Choose a style",
     "Close",
+    "Copies the styles as site definition JSON",
+    "Copy as definition",
     "Copy machine version",
     "Copy style — then click other text to paint it",
     "Copy summary to share",
@@ -497,6 +499,7 @@
     "Discard changes",
     "Done",
     "Done — keep this look",
+    "Downloads the styles as a piece of site definition, to add to the blueprint",
     "Duplicate",
     "Duplicate (or Alt-drag)",
     "Duplicate the selection",
@@ -533,6 +536,7 @@
     "I’ll find my own way",
     "Journal",
     "Keep editing",
+    "Keep it",
     "Keep this",
     "Keep this brand",
     "Keep this layout (updates every page)",
@@ -595,10 +599,14 @@
     "Remove this photo",
     "Remove this slide",
     "Remove video",
+    "Rename",
+    "Rename or remove",
     "Right",
     "Roll another take of this design",
     "Save",
     "Save description",
+    "Save style",
+    "Save to the blueprint",
     "See all →",
     "See it on a phone",
     "See the page as a phone",
@@ -663,8 +671,10 @@
     "Back to freeform — drag it anywhere.",
     "Backup restored — publish when ready.",
     "Button updated.",
+    "Copied. Paste it into the site definition, beside pages.",
     "Could not add that section.",
     "Could not apply that style.",
+    "Could not change the styles: ",
     "Could not delete that section.",
     "Could not open the ",
     "Could not open the layout panel.",
@@ -702,7 +712,9 @@
     "Publish failed: ",
     "Publish your changes first — changing the page style reloads the page.",
     "Removed from the card.",
+    "Saved ",
     "Saved — search results and AI answers now quote your words ✓",
+    "Saved “",
     "Saving your page changes, then updating the ",
     "Section deleted.",
     "Section moved.",
@@ -1010,6 +1022,16 @@
       {
         "kind": "action",
         "hook": "trashed_post",
+        "priority": 10
+      },
+      {
+        "kind": "action",
+        "hook": "wp_head",
+        "priority": 10
+      },
+      {
+        "kind": "action",
+        "hook": "enqueue_block_assets",
         "priority": 10
       },
       {
@@ -1333,6 +1355,7 @@
       "gogh/v1/type-scale",
       "gogh/v1/blog-style",
       "gogh/v1/motion",
+      "gogh/v1/design-looks",
       "gogh/v1/ask",
       "gogh/v1/imagine-exp",
       "gogh/v1/ask-key",
@@ -1353,6 +1376,7 @@
       "edit_products",
       "manage_options",
       "edit_pages",
+      "edit_css",
       "upload_files",
       "unfiltered_html",
       "activate_plugins",
@@ -1448,5 +1472,5 @@
     "has_deprecation": true,
     "block_title": "gogh Section"
   },
-  "test_count": 337
+  "test_count": 339
 }

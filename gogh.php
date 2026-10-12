@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Gogh Editor
  * Description: A freeform canvas for WordPress — drag anything anywhere on your live page; Gogh publishes it back as clean, responsive core blocks that keep working even if the plugin is deactivated.
- * Version: 0.99.654
+ * Version: 0.99.655
  * Author: Jamie Marsland
  * Author URI: https://pootlepress.com
  * License: GPLv2 or later
@@ -14,7 +14,7 @@
 
 defined( 'ABSPATH' ) || exit;
 
-define( 'GOGH_VERSION', '0.99.654' );
+define( 'GOGH_VERSION', '0.99.655' );
 
 /**
  * gogh/section — a first-class block. STATIC save (no render_callback), so
@@ -25,7 +25,7 @@ add_action( 'init', function () {
 		'gogh-block',
 		plugins_url( 'gogh-block.js', __FILE__ ),
 		array( 'wp-blocks', 'wp-element', 'wp-block-editor' ),
-		'0.99.654-chrome',
+		'0.99.655-chrome',
 		true
 	);
 	register_block_type( 'gogh/section', array(
@@ -569,9 +569,9 @@ add_action( 'wp_enqueue_scripts', function () {
 	if ( ! $post || ! current_user_can( 'edit_post', $post->ID ) ) {
 		return;
 	}
-	wp_register_script( 'gogh-compose', plugins_url( 'gogh-compose.js', __FILE__ ), array(), '0.99.654-chrome', true );
-	wp_enqueue_script( 'gogh-write', plugins_url( 'gogh-write.js', __FILE__ ), array( 'gogh-compose' ), '0.99.654-chrome', true );
-	wp_enqueue_style( 'gogh-write', plugins_url( 'gogh-write.css', __FILE__ ), array(), '0.99.654-chrome' );
+	wp_register_script( 'gogh-compose', plugins_url( 'gogh-compose.js', __FILE__ ), array(), '0.99.655-chrome', true );
+	wp_enqueue_script( 'gogh-write', plugins_url( 'gogh-write.js', __FILE__ ), array( 'gogh-compose' ), '0.99.655-chrome', true );
+	wp_enqueue_style( 'gogh-write', plugins_url( 'gogh-write.css', __FILE__ ), array(), '0.99.655-chrome' );
 	wp_localize_script( 'gogh-write', 'GOGHWRITE', array(
 		'postId'  => $post->ID,
 		'restUrl' => esc_url_raw( rest_url() ),
@@ -3289,6 +3289,9 @@ function gogh_site_design_clean( $def ) {
 	// names core already gives these blocks: a look may not shadow them
 	$reserved = array( 'default', 'fill', 'outline', 'rounded', 'squared', 'regular', 'large', 'plain-core' );
 	$looks    = array();
+	// one class, one style: is-style-<slug> is site-wide CSS, so a slug
+	// serves one kind only
+	$taken    = array();
 	if ( ! empty( $def['looks'] ) && is_array( $def['looks'] ) ) {
 		foreach ( array_keys( gogh_site_design_types() ) as $type ) {
 			if ( empty( $def['looks'][ $type ] ) || ! is_array( $def['looks'][ $type ] ) ) {
@@ -3302,14 +3305,25 @@ function gogh_site_design_clean( $def ) {
 					continue;
 				}
 				$name = sanitize_text_field( mb_substr( $lk['name'], 0, 32 ) );
-				$slug = sanitize_title( $name );
-				if ( '' === $name || ! preg_match( '/^[a-z][a-z0-9-]{0,29}$/', $slug ) || isset( $seen[ $slug ] ) || in_array( $slug, $reserved, true ) ) {
+				// a renamed style keeps the class it was saved under, so the
+				// pieces wearing it keep wearing it
+				$slug = ( ! empty( $lk['slug'] ) && is_string( $lk['slug'] ) ) ? $lk['slug'] : sanitize_title( $name );
+				if ( '' === $name || ! preg_match( '/^[a-z][a-z0-9-]{0,29}$/', $slug ) || isset( $seen[ $slug ] ) || isset( $taken[ $slug ] ) || in_array( $slug, $reserved, true ) ) {
 					continue;
 				}
-				$seen[ $slug ] = true;
-				$is_def        = ! empty( $lk['default'] ) && ! $has_def;
-				$has_def       = $has_def || $is_def;
-				$list[]        = array( 'name' => $name, 'slug' => $slug, 'default' => $is_def );
+				$seen[ $slug ]  = true;
+				$taken[ $slug ] = true;
+				$is_def         = ! empty( $lk['default'] ) && ! $has_def;
+				$has_def        = $has_def || $is_def;
+				$one            = array( 'name' => $name, 'slug' => $slug, 'default' => $is_def );
+				// a style saved in the editor (or brought by a definition)
+				// carries its own CSS; a design's other looks are styled by
+				// the definition's stylesheet in Additional CSS
+				$css = isset( $lk['css'] ) ? gogh_look_css_clean( $lk['css'] ) : '';
+				if ( '' !== $css ) {
+					$one['css'] = $css;
+				}
+				$list[] = $one;
 			}
 			if ( $list ) {
 				$looks[ $type ] = $list;
@@ -3342,6 +3356,54 @@ function gogh_site_design_clean( $def ) {
 		'shelf' => $shelf,
 	);
 }
+// a saved style's CSS: plain rules for its own class, never markup, imports
+// or script-ish values. Its size is bounded so a design stays a design
+function gogh_look_css_clean( $css ) {
+	if ( ! is_string( $css ) ) {
+		return '';
+	}
+	$css = wp_strip_all_tags( substr( $css, 0, 8000 ) );
+	// no '<' at all: nothing can close the style element it prints in
+	$css = str_replace( '<', '', $css );
+	$css = preg_replace( '#@import[^;]*;?|expression\s*\(|javascript\s*:|behavior\s*:|-moz-binding#i', '', $css );
+	return trim( $css );
+}
+// every saved style's CSS, in the order the styles are listed
+function gogh_design_looks_css() {
+	$design = get_option( 'gogh_site_design' );
+	if ( ! is_array( $design ) || empty( $design['looks'] ) ) {
+		return '';
+	}
+	$out = array();
+	foreach ( (array) $design['looks'] as $list ) {
+		foreach ( (array) $list as $lk ) {
+			if ( ! empty( $lk['css'] ) && is_string( $lk['css'] ) ) {
+				$out[] = '/* ' . str_replace( '*/', '', $lk['name'] ) . ' */' . "\n" . $lk['css'];
+			}
+		}
+	}
+	return implode( "\n", $out );
+}
+// printed after Additional CSS (101), so a saved style sits where a design's
+// own stylesheet does: last, and winning ties with the theme's styles
+add_action( 'wp_head', function () {
+	$css = gogh_design_looks_css();
+	if ( '' !== $css ) {
+		echo '<style id="gogh-design-looks-css">' . "\n" . $css . "\n" . '</style>' . "\n"; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- cleaned by gogh_look_css_clean
+	}
+}, 102 );
+// the block editor's canvas wears them too
+add_action( 'enqueue_block_assets', function () {
+	if ( ! is_admin() ) {
+		return;
+	}
+	$css = gogh_design_looks_css();
+	if ( '' !== $css ) {
+		wp_register_style( 'gogh-design-looks', false, array(), GOGH_VERSION );
+		wp_add_inline_style( 'gogh-design-looks', $css );
+		wp_enqueue_style( 'gogh-design-looks' );
+	}
+} );
 // the looks as block styles: the block editor's Styles panel offers the same
 // names, and choosing one there writes the same class gogh writes
 add_action( 'init', function () {
@@ -4006,7 +4068,7 @@ add_action( 'rest_api_init', function () {
 			return current_user_can( 'edit_posts' );
 		},
 		'callback'            => function () {
-			return array( 'build' => '0.99.654-chrome' );
+			return array( 'build' => '0.99.655-chrome' );
 		},
 	) );
 	register_rest_route( 'gogh/v1', '/starter', array(
@@ -4267,6 +4329,38 @@ add_action( 'rest_api_init', function () {
 			}
 			update_option( 'gogh_motion', $key );
 			return array( 'key' => $key );
+		},
+	) );
+
+	// the design's style set, written from the editor: Save this look as a
+	// style, and the Styles page (rename, remove, the default star). The
+	// whole list comes each time and goes through the same cleaner as a
+	// definition's, so the editor can never write what a blueprint could not
+	register_rest_route( 'gogh/v1', '/design-looks', array(
+		'methods'             => 'POST',
+		'permission_callback' => function () {
+			// a style is CSS the whole site wears: the same people who may
+			// write Additional CSS
+			return current_user_can( 'edit_theme_options' ) && current_user_can( 'edit_css' );
+		},
+		'callback'            => function ( $req ) {
+			$looks = $req->get_param( 'looks' );
+			$cur   = get_option( 'gogh_site_design' );
+			$cur   = is_array( $cur ) ? $cur : array();
+			$clean = gogh_site_design_clean( array(
+				'name'  => ! empty( $cur['name'] ) ? $cur['name'] : get_bloginfo( 'name' ),
+				'looks' => is_array( $looks ) ? $looks : array(),
+				'shelf' => isset( $cur['shelf'] ) ? $cur['shelf'] : array(),
+			) );
+			if ( $clean ) {
+				update_option( 'gogh_site_design', $clean, true );
+			} else {
+				delete_option( 'gogh_site_design' );
+			}
+			return array(
+				'design' => gogh_site_design_for_editor(),
+				'css'    => gogh_design_looks_css(),
+			);
 		},
 	) );
 
@@ -4873,8 +4967,8 @@ add_action( 'admin_enqueue_scripts', function ( $hook ) {
 			$globals[] = $tax->attribute_label;
 		}
 	}
-	wp_enqueue_script( 'gogh-admin', plugins_url( 'gogh-admin.js', __FILE__ ), array(), '0.99.654-chrome', true );
-	wp_enqueue_style( 'gogh-admin', plugins_url( 'gogh-admin.css', __FILE__ ), array(), '0.99.654-chrome' );
+	wp_enqueue_script( 'gogh-admin', plugins_url( 'gogh-admin.js', __FILE__ ), array(), '0.99.655-chrome', true );
+	wp_enqueue_style( 'gogh-admin', plugins_url( 'gogh-admin.css', __FILE__ ), array(), '0.99.655-chrome' );
 	wp_localize_script( 'gogh-admin', 'GOGH_ADMIN', array(
 		'restUrl'   => esc_url_raw( rest_url( 'wc/v3/' ) ),
 		'nonce'     => wp_create_nonce( 'wp_rest' ),
@@ -6402,7 +6496,7 @@ add_action( 'wp_head', function () {
 // wearing Magazine must read as Magazine logged-out, and the site's gait
 // is site-wide; both packs are a few KB of pure CSS.
 add_action( 'wp_enqueue_scripts', function () {
-	wp_register_style( 'gogh-looks', false, array(), '0.99.654-chrome' );
+	wp_register_style( 'gogh-looks', false, array(), '0.99.655-chrome' );
 	wp_enqueue_style( 'gogh-looks' );
 	// the reading looks dress single posts; the blog looks dress lists of
 	// posts (the posts page, archives, a page carrying a posts rail); motion
@@ -6448,10 +6542,10 @@ add_action( 'wp_enqueue_scripts', function () {
 
 	// for every visitor: neutralise theme spacing around gogh sections, even
 	// on pages whose stored stylesheets predate this rule
-	wp_register_style( 'gogh-base', false, array(), '0.99.654-chrome' );
+	wp_register_style( 'gogh-base', false, array(), '0.99.655-chrome' );
 	// (the splash presentation itself lives in gogh_splash_css(), shared with
 	// the block editor — a wall in Gutenberg must look like a wall)
-	wp_register_script( 'gogh-view', false, array(), '0.99.654-chrome', true );
+	wp_register_script( 'gogh-view', false, array(), '0.99.655-chrome', true );
 	wp_enqueue_script( 'gogh-view' );
 	wp_add_inline_script( 'gogh-view',
 		// mega menu panels: hover opens with intent on fine pointers; the chevron
@@ -6767,9 +6861,9 @@ add_action( 'wp_enqueue_scripts', function () {
 
 	// compose must be REGISTERED here too — a dependency on an
 	// unregistered handle silently drops the whole editor script
-	wp_register_script( 'gogh-compose', plugins_url( 'gogh-compose.js', __FILE__ ), array(), '0.99.654-chrome', true );
-	wp_enqueue_script( 'gogh-editor', plugins_url( 'gogh-editor.js', __FILE__ ), array( 'gogh-compose' ), '0.99.654-chrome', true );
-	wp_enqueue_style( 'gogh-editor', plugins_url( 'gogh-editor.css', __FILE__ ), array(), '0.99.654-chrome' );
+	wp_register_script( 'gogh-compose', plugins_url( 'gogh-compose.js', __FILE__ ), array(), '0.99.655-chrome', true );
+	wp_enqueue_script( 'gogh-editor', plugins_url( 'gogh-editor.js', __FILE__ ), array( 'gogh-compose' ), '0.99.655-chrome', true );
+	wp_enqueue_style( 'gogh-editor', plugins_url( 'gogh-editor.css', __FILE__ ), array(), '0.99.655-chrome' );
 
 	// WebMCP bridge: the page registers its editing verbs as agent tools.
 	// OPT-IN only — add ?gogh-mcp=1 for a demo session (or enable sitewide
@@ -6781,19 +6875,19 @@ add_action( 'wp_enqueue_scripts', function () {
 	// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only labs toggle
 	$gogh_exp = isset( $_GET['gogh-test'] ) || ( isset( $_GET['gogh-experiments'] ) && '0' !== $_GET['gogh-experiments'] );
 	if ( isset( $_GET['gogh-mcp'] ) || $gogh_exp || apply_filters( 'gogh_webmcp_enabled', false ) ) {
-		wp_enqueue_script( 'gogh-webmcp', plugins_url( 'gogh-webmcp.js', __FILE__ ), array( 'gogh-editor' ), '0.99.654-chrome', true );
+		wp_enqueue_script( 'gogh-webmcp', plugins_url( 'gogh-webmcp.js', __FILE__ ), array( 'gogh-editor' ), '0.99.655-chrome', true );
 	}
 
 	// regression suite: /page/?gogh-test (editors only, never saves)
 	// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only toggle enqueuing a test script for capability-checked editors.
 	if ( isset( $_GET['gogh-test'] ) ) {
-		wp_enqueue_script( 'gogh-tests', plugins_url( 'gogh-tests.js', __FILE__ ), array( 'gogh-editor' ), '0.99.654-chrome', true );
+		wp_enqueue_script( 'gogh-tests', plugins_url( 'gogh-tests.js', __FILE__ ), array( 'gogh-editor' ), '0.99.655-chrome', true );
 	}
 	// the user-test walk: /?gogh-edit=1&gogh-walk=1 on a DISPOSABLE Yellow
 	// House (it publishes) — editors only, never shipped in the zip
 	// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only toggle for capability-checked editors.
 	if ( isset( $_GET['gogh-walk'] ) ) {
-		wp_enqueue_script( 'gogh-walk', plugins_url( 'gogh-walk.js', __FILE__ ), array( 'gogh-editor' ), '0.99.654-chrome', true );
+		wp_enqueue_script( 'gogh-walk', plugins_url( 'gogh-walk.js', __FILE__ ), array( 'gogh-editor' ), '0.99.655-chrome', true );
 	}
 
 	// products live outside wp/v2, so gogh carries its own save route for
@@ -6813,7 +6907,7 @@ add_action( 'wp_enqueue_scripts', function () {
 		'postTitle'  => get_the_title( $post ),
 		'permalink'  => esc_url_raw( get_permalink( $post->ID ) ),
 		'excerpt'    => (string) $post->post_excerpt,
-		'build'    => '0.99.654-chrome',
+		'build'    => '0.99.655-chrome',
 		// two rooms, one landmark (same contract as the admin bar): on a POST
 		// the corner pill opens the WRITING surface, not the freeform canvas
 		'writeUrl' => is_singular( 'post' ) ? add_query_arg( 'gogh-write', '1', get_permalink( $post ) ) : null,
@@ -6844,6 +6938,8 @@ add_action( 'wp_enqueue_scripts', function () {
 		'labsAsk'  => gogh_labs_ask(),
 		'expAI'    => (bool) gogh_ask_key(),
 		'canKey'   => current_user_can( 'manage_options' ),
+		// may save a look as a style and keep the design's style set
+		'canStyles' => current_user_can( 'edit_theme_options' ) && current_user_can( 'edit_css' ),
 		'typeScale' => (int) get_option( 'gogh_type_scale', 100 ),
 		'hasWoo'   => class_exists( 'WooCommerce' ),
 		'hasLogo' => (bool) get_theme_mod( 'custom_logo' ), // the header's identity: a logo only when a picture exists

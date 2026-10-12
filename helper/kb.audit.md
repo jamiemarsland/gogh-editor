@@ -1,8 +1,8 @@
-# Knowledge-base audit — plugin v0.99.654
+# Knowledge-base audit — plugin v0.99.655
 
 _13 finding(s) suppressed by `kb.audit-ignore.txt`._
 
-## MISSING (98)
+## MISSING (99)
 
 The source has something the prose never explains. The bot knows the name from the appendix but cannot say what it is for.
 
@@ -48,6 +48,7 @@ The source has something the prose never explains. The bot knows the name from t
 - WP hook `body_class` exists in source but is never mentioned in the prose
 - WP hook `wp_insert_post_empty_content` exists in source but is never mentioned in the prose
 - WP hook `trashed_post` exists in source but is never mentioned in the prose
+- WP hook `wp_head` exists in source but is never mentioned in the prose
 - WP hook `template_redirect` exists in source but is never mentioned in the prose
 - WP hook `wp_footer` exists in source but is never mentioned in the prose
 - WP hook `admin_footer` exists in source but is never mentioned in the prose
@@ -105,7 +106,7 @@ The source has something the prose never explains. The bot knows the name from t
 - divider `dunes` exists in source but is never mentioned in the prose
 - divider `mist` exists in source but is never mentioned in the prose
 
-## QUOTE (13)
+## QUOTE (15)
 
 Quoted copy not found verbatim in the source. Paraphrases are fine; changed UI copy is not.
 
@@ -115,6 +116,8 @@ Quoted copy not found verbatim in the source. Paraphrases are fine; changed UI c
 - Already the same size
 - Needs two or more pieces
 - there is no phone button
+- This heading, as you made it
+- Make it the default for new headings
 - This block contains unexpected or invalid content
 - Getting there
 - beside a map of where the writer is, and a dark band with RSS and
@@ -122,3 +125,23 @@ Quoted copy not found verbatim in the source. Paraphrases are fine; changed UI c
 - From Misprint
 - (max-width: 700px) 100vw, min(100vw, Wpx)
 - (max-width: 700px) 100vw, 53vw
+
+## What changed since the last knowledge-base build
+
+Use this as the checklist for updating the prose — and as a sanity check on the release itself.
+
+- version: 0.99.654 → 0.99.655
+- added REST route: "gogh/v1/design-looks"
+- added capability: "edit_css"
+- added UI label: "Copies the styles as site definition JSON"
+- added UI label: "Copy as definition"
+- added UI label: "Downloads the styles as a piece of site definition, to add to the blueprint"
+- added UI label: "Keep it"
+- added UI label: "Rename"
+- added UI label: "Rename or remove"
+- added UI label: "Save style"
+- added UI label: "Save to the blueprint"
+- added toast: "Copied. Paste it into the site definition, beside pages."
+- added toast: "Could not change the styles: "
+- added toast: "Saved "
+- added toast: "Saved “"

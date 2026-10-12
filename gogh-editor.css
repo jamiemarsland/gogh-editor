@@ -4476,3 +4476,72 @@ html.gogh-building .gogh-inserter, html.gogh-building .gogh-side { display: none
 .gogh-kidstylebar .gogh-eb-look { margin-right: 0; }
 .gogh-kidstylebar .gogh-eb-look::after { display: none; }
 .gogh-look-stage .gogh-box, .gogh-eb-lookswatch .gogh-box { flex: 0 0 auto; }
+
+/* ---------- Save this look as a style ---------- */
+.gogh-look[disabled] { cursor: default; }
+.gogh-look-asmade { border-style: dashed; border-color: #3858e9; background: #f5f7ff; }
+.gogh-look-asmade .gogh-look-name b { white-space: normal; color: #1e3fd8; }
+.gogh-looksave { display: flex; flex-direction: column; gap: 10px; margin-top: 12px; padding-top: 14px; border-top: 1px solid var(--gogh-ui-line, rgba(22, 24, 28, .1)); }
+.gogh-looksave .gogh-panel-hint { margin: 0; font-size: 12px; }
+.gogh-looksave-t { font-size: 14px; font-weight: 600; }
+.gogh-looksave-lab { display: flex; flex-direction: column; gap: 6px; font-size: 12.5px; color: var(--gogh-ui-muted, #5f5f5f); }
+.gogh-looksave-lab input { box-sizing: border-box; height: 38px; border: 1.5px solid var(--gogh-ui-border); border-radius: 8px; padding: 0 11px; font: 14px/1 inherit; color: var(--gogh-ui-fg); background: var(--gogh-ui-bg); }
+.gogh-looksave-lab input:focus { outline: none; border-color: #3858e9; box-shadow: 0 0 0 3px rgba(56, 88, 233, .18); }
+.gogh-looksave-lab input[aria-invalid="true"] { border-color: #cc1818; }
+.gogh-looksave-keeps { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 6px; }
+.gogh-looksave-keeps li { display: inline-flex; align-items: center; gap: 6px; background: var(--gogh-ui-hover, #f2f2f2); border-radius: 999px; padding: 4px 10px; font-size: 12px; }
+.gogh-looksave-keeps li.gogh-looksave-not { background: none; border: 1px solid var(--gogh-ui-border); color: var(--gogh-ui-muted, #757575); }
+.gogh-looksave-sw { width: 10px; height: 10px; border-radius: 50%; box-shadow: inset 0 0 0 1px rgba(0, 0, 0, .15); }
+.gogh-looksave-def { display: flex; align-items: center; gap: 9px; font-size: 13.5px; cursor: pointer; }
+.gogh-looksave-def input { width: 17px; height: 17px; margin: 0; accent-color: #3858e9; }
+.gogh-looksave-err { font-size: 12.5px; color: #cc1818; }
+.gogh-looksave-err[hidden] { display: none; }
+.gogh-looksave-row { display: flex; gap: 8px; align-items: center; }
+.gogh-btn.gogh-btn-go { background: #3858e9; color: #fff; border-color: transparent; }
+.gogh-btn.gogh-btn-go:hover { background: #2145e6; }
+.gogh-btn.gogh-btn-go:disabled { opacity: .6; cursor: default; }
+.gogh-btn.gogh-btn-stop { background: #cc1818; color: #fff; border-color: transparent; }
+.gogh-btn:focus-visible { outline: 2px solid #7ea8ff; outline-offset: 2px; }
+
+/* ---------- Styles in this design ---------- */
+.gogh-stylesets { display: flex; flex-direction: column; gap: 16px; margin: 6px 0 18px; }
+.gogh-styleset-kind { margin: 0 0 6px; font-size: 11px; font-weight: 600; letter-spacing: .1em; text-transform: uppercase; color: var(--gogh-ui-muted, #757575); }
+.gogh-styleset-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+.gogh-styleset-row { position: relative; display: flex; flex-wrap: wrap; align-items: center; gap: 10px; padding: 6px 6px 6px 6px; border-radius: 10px; }
+.gogh-styleset-row:hover { background: var(--gogh-ui-hover, #f5f5f5); }
+.gogh-styleset-sw.gogh-look-stage { flex: 0 0 auto; width: 52px; height: 36px; border-radius: 7px; box-shadow: inset 0 0 0 1px rgba(22, 24, 28, .1); }
+.gogh-styleset-sw.gogh-look-stage h2 { font-size: 20px !important; }
+.gogh-styleset-sw.gogh-look-stage p { font-size: 16px !important; }
+.gogh-styleset-sw .wp-block-button__link { width: 30px; height: 14px; padding: 0 !important; font-size: 0 !important; }
+.gogh-styleset-sw .gogh-box { width: 22px !important; height: 22px !important; }
+.gogh-styleset-name { flex: 1 1 auto; min-width: 0; font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.gogh-styleset-always { font-size: 12px; color: var(--gogh-ui-muted, #757575); }
+.gogh-styleset-row.is-plain .gogh-styleset-name { color: var(--gogh-ui-muted, #5f5f5f); }
+.gogh-styleset-star, .gogh-styleset-more { all: unset; box-sizing: border-box; cursor: pointer; width: 30px; height: 30px; display: grid; place-items: center; border-radius: 8px; font-size: 16px; color: var(--gogh-ui-muted, #757575); }
+.gogh-styleset-star.is-on { color: #c08a00; }
+.gogh-styleset-star:hover, .gogh-styleset-more:hover { background: var(--gogh-ui-bg); color: var(--gogh-ui-fg); }
+.gogh-styleset-star:focus-visible, .gogh-styleset-more:focus-visible { outline: 2px solid #7ea8ff; outline-offset: 1px; }
+.gogh-styleset-menu { flex: 1 0 100%; display: flex; flex-wrap: wrap; gap: 8px; padding: 6px 0 4px 62px; }
+.gogh-styleset-menu > button { all: unset; cursor: pointer; font-size: 13px; padding: 5px 10px; border-radius: 999px; border: 1px solid var(--gogh-ui-border); }
+.gogh-styleset-menu > button.gogh-styleset-remove { color: #cc1818; }
+.gogh-styleset-menu form { display: flex; flex-direction: column; gap: 8px; width: 100%; }
+.gogh-styleset-confirm { flex: 1 0 100%; font-size: 13px; line-height: 1.45; }
+.gogh-styleset-foot { position: sticky; bottom: -28px; display: flex; flex-wrap: wrap; gap: 8px; padding: 14px 0 6px; background: var(--gogh-ui-bg); border-top: 1px solid var(--gogh-ui-line, rgba(22, 24, 28, .1)); }
+
+/* the specimen: every style on the page's own words, beside the list */
+.gogh-specimen { position: fixed; right: 0; bottom: 0; z-index: 99990; overflow: auto; box-shadow: inset 1px 0 0 rgba(0, 0, 0, .06); }
+.gogh-specimen[hidden] { display: none; }
+.gogh-specimen-sheet.wp-site-blocks { min-height: 100% !important; box-sizing: border-box; padding: 40px clamp(24px, 5vw, 72px) 64px !important; display: flex; flex-direction: column; gap: 36px; }
+.gogh-specimen-head { display: flex; justify-content: space-between; gap: 16px; font: 600 11px/1.4 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; letter-spacing: .1em; text-transform: uppercase; opacity: .62; margin: 0 !important; }
+.gogh-specimen-row { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 240px), 1fr)); gap: 28px; align-items: end; margin: 0 !important; }
+.gogh-specimen-row-heading, .gogh-specimen-row-para { grid-template-columns: repeat(auto-fill, minmax(min(100%, 340px), 1fr)); }
+.gogh-specimen-item { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.gogh-specimen-stage > * { margin: 0 !important; }
+.gogh-specimen-heading h2 { font-size: clamp(28px, 3.4vw, 46px) !important; line-height: 1.05 !important; }
+.gogh-specimen-image figure { position: relative; margin: 0; aspect-ratio: 4 / 3; overflow: hidden; border-radius: 4px; background: color-mix(in srgb, currentColor 10%, transparent); display: grid; place-items: center; }
+.gogh-specimen-image img { display: block; width: 100%; height: 100%; object-fit: cover; }
+.gogh-specimen-nopic { font-size: 13px; opacity: .6; }
+.gogh-specimen-box .gogh-box { position: relative; width: 100%; aspect-ratio: 4 / 3; border-radius: 6px; background: color-mix(in srgb, currentColor 14%, transparent); }
+.gogh-specimen-cap { font: 500 12px/1.4 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; opacity: .66; }
+.gogh-specimen-empty { max-width: 32em; font-size: 16px; line-height: 1.55; opacity: .75; }
+@media (max-width: 760px) { .gogh-specimen { display: none; } }

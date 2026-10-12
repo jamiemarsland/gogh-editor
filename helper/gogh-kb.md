@@ -15,7 +15,7 @@ about something where they conflict, rather than picking one silently. Quote UI
 labels and message copy from the appendix, verbatim — those are the current
 strings, and a paraphrased button label is the fastest way to lose a user's trust.
 
-Generated for plugin version 0.99.654 · knowledge base 574e408.
+Generated for plugin version 0.99.655 · knowledge base 2764209.
 
 ---
 
@@ -830,6 +830,8 @@ The helper's welcome panel opens with a 35-second film of gogh being used (v0.99
 
 **The phone view survives navigation (v0.99.605).** Press one of your own pages while on the phone and it opens in the editor, still on the phone: the link carries `gogh-edit=1&gogh-phone=1`, the next page reads them at boot and strips them from the address. Other sites, files, wp-admin and anchors on the same page are left alone. Unpublished changes still ask before leaving.
 
+**Save a look as a style, and the design's style set (v0.99.655).** Style a heading, some text, a button, a picture or a shape by hand (a colour, a weight, capitals, a hover colour), and its Style chip reads "Style · Custom". The chip's panel shows Plain, the design's own styles, and "This heading, as you made it", with a form below: give the style a name, see what it keeps (the colour, the type, the hover, and the look it was built on, with that look's hover and animation; size is never kept, so the style works on a small title as well as a big one), and tick "Make it the default for new headings" if you want. Save style and the piece wears it straight away. Every heading on the site can now choose it, the WordPress block editor lists it in its Styles panel, and new pieces of that kind arrive in it when it is the default. Choosing any style also clears colour and type set by hand on that piece (size stays): the last thing you chose wins. In Site, a new Styles card opens "Styles in this design": every style by kind (Headings, Text, Buttons, Pictures, Shapes), a star for the default, a ⋯ menu to rename (pieces keep wearing it) or remove (pieces go back to Plain), Plain always there, and beside it a specimen that draws every style on your page's own words. "Save to the blueprint" downloads the set as a piece of site definition (`<design>-styles.json`), and "Copy as definition" copies the same thing: each style with its name, its default and its CSS, ready to sit beside `pages` in a blueprint's definition. Saving and the Styles card are for people who can edit the site's CSS (administrators on a normal site). Saved styles are printed on every page after Additional CSS.
+
 **Fonts arrive sooner, and no warning in the block editor (v0.99.654).** Every page now tells the browser, at the very top, to start downloading the typeface its body text wears and the one its headings wear (at most two files, at the exact addresses the page's own font rules use). Before, the browser only found the font files after reading the stylesheet, which on a hosted site held up text in its real face for about two seconds. A site can turn this off with the `gogh_preload_fonts` filter. Separately, gogh's section block now uses WordPress's current block format (API version 3), so the WordPress 6.9 block editor no longer warns that it is deprecated, and the editor can draw the page in its iframe. Sections saved before still open as valid.
 
 **Switching header layout keeps your menu (v0.99.653).** Picking a different header or footer layout in the header room used to save the new layout without saying which menu it shows, so WordPress showed the newest menu on the site instead. A site with more than one menu (a separate footer menu, or menus left behind by a starter) could find a different menu in its header after a layout change. Now the menu the part showed comes along with every layout pick, and the layout previews show your real menu too. Also: maps and experiences now publish as valid blocks, so the WordPress block editor no longer flags those sections as broken ("This block contains unexpected or invalid content"). Pages published before still show their maps.
@@ -929,11 +931,11 @@ Everything in this section is extracted mechanically from the Gogh source on eve
 
 ## Current release
 
-- Plugin version: **0.99.654**
+- Plugin version: **0.99.655**
 - Requires WordPress **6.5+**, PHP **7.4+**
 - Text domain: `gogh-editor`
 - readme.txt Stable tag: `0.26.0` · Tested up to: `7.0`
-- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.654`). Quote the plugin header version.
+- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.655`). Quote the plugin header version.
 
 ## Design constants
 
@@ -1053,6 +1055,8 @@ Block: `gogh/section` · v3 attributes: `css`, `model`, `scope`, `v`, `cssT`.
 | `body_class` | filter | 10 |
 | `wp_insert_post_empty_content` | filter | 10 |
 | `trashed_post` | action | 10 |
+| `wp_head` | action | 10 |
+| `enqueue_block_assets` | action | 10 |
 | `init` | action | 10 |
 | `wp_enqueue_scripts` | action | 10 |
 | `template_redirect` | action | 10 |
@@ -1116,11 +1120,11 @@ Block: `gogh/section` · v3 attributes: `css`, `model`, `scope`, `v`, `cssT`.
 
 Filters exposed for third parties: `gogh_default_editor`, `gogh_claims_post`, `gogh_labs_ask`, `gogh_helper_url`, `gogh_user_test_tasks`, `gogh_rebake_enabled`, `gogh_schema`, `gogh_schema_enabled`, `gogh_preload_fonts`, `gogh_webmcp_enabled`, `gogh_convert_enabled`.
 
-REST routes registered: `gogh/v1/version`, `gogh/v1/starter`, `gogh/v1/site-def`, `gogh/v1/type-scale`, `gogh/v1/blog-style`, `gogh/v1/motion`, `gogh/v1/ask`, `gogh/v1/imagine-exp`, `gogh/v1/ask-key`, `gogh/v1/menu-style`, `gogh/v1/first-minute`, `gogh/v1/ask-log`, `gogh/v1/active-style`, `wp/v2/gogh-product/(?P<id>\d+)`, `wp/v2/gogh-product/(?P<id>\d+)/autosaves`, `gogh/v1/pattern`, `gogh/v1/render`.
+REST routes registered: `gogh/v1/version`, `gogh/v1/starter`, `gogh/v1/site-def`, `gogh/v1/type-scale`, `gogh/v1/blog-style`, `gogh/v1/motion`, `gogh/v1/design-looks`, `gogh/v1/ask`, `gogh/v1/imagine-exp`, `gogh/v1/ask-key`, `gogh/v1/menu-style`, `gogh/v1/first-minute`, `gogh/v1/ask-log`, `gogh/v1/active-style`, `wp/v2/gogh-product/(?P<id>\d+)`, `wp/v2/gogh-product/(?P<id>\d+)/autosaves`, `gogh/v1/pattern`, `gogh/v1/render`.
 
 Core REST endpoints used by the editor: `wp/v2/blocks`, `wp/v2/categories`, `wp/v2/pages`, `wp/v2/posts`, `wp/v2/template-parts`.
 
-Capability checks in PHP: `edit_posts`, `edit_post`, `edit_theme_options`, `edit_others_posts`, `edit_products`, `manage_options`, `edit_pages`, `upload_files`, `unfiltered_html`, `activate_plugins`, `install_plugins`, `manage_woocommerce`, `publish_pages`.
+Capability checks in PHP: `edit_posts`, `edit_post`, `edit_theme_options`, `edit_others_posts`, `edit_products`, `manage_options`, `edit_pages`, `edit_css`, `upload_files`, `unfiltered_html`, `activate_plugins`, `install_plugins`, `manage_woocommerce`, `publish_pages`.
 
 Query-string switches: `?gogh-edit`, `?gogh-ps`, `?gogh-test`.
 
@@ -1186,6 +1190,8 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "Change the colours and fonts of your brand"
 - "Choose a style"
 - "Close"
+- "Copies the styles as site definition JSON"
+- "Copy as definition"
 - "Copy machine version"
 - "Copy style — then click other text to paint it"
 - "Copy summary to share"
@@ -1205,6 +1211,7 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "Discard changes"
 - "Done"
 - "Done — keep this look"
+- "Downloads the styles as a piece of site definition, to add to the blueprint"
 - "Duplicate"
 - "Duplicate (or Alt-drag)"
 - "Duplicate the selection"
@@ -1241,6 +1248,7 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "I’ll find my own way"
 - "Journal"
 - "Keep editing"
+- "Keep it"
 - "Keep this"
 - "Keep this brand"
 - "Keep this layout (updates every page)"
@@ -1303,10 +1311,14 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "Remove this photo"
 - "Remove this slide"
 - "Remove video"
+- "Rename"
+- "Rename or remove"
 - "Right"
 - "Roll another take of this design"
 - "Save"
 - "Save description"
+- "Save style"
+- "Save to the blueprint"
 - "See all →"
 - "See it on a phone"
 - "See the page as a phone"
@@ -1372,8 +1384,10 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "Back to freeform — drag it anywhere."
 - "Backup restored — publish when ready."
 - "Button updated."
+- "Copied. Paste it into the site definition, beside pages."
 - "Could not add that section."
 - "Could not apply that style."
+- "Could not change the styles: "
 - "Could not delete that section."
 - "Could not open the "
 - "Could not open the layout panel."
@@ -1411,7 +1425,9 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "Publish failed: "
 - "Publish your changes first — changing the page style reloads the page."
 - "Removed from the card."
+- "Saved "
 - "Saved — search results and AI answers now quote your words ✓"
+- "Saved “"
 - "Saving your page changes, then updating the "
 - "Section deleted."
 - "Section moved."
@@ -1471,4 +1487,4 @@ These are the real strings in the current build. Use them verbatim; never paraph
 
 ## Test suite
 
-`337` tests, run by appending `?gogh-test` to any Gogh page URL while logged in with edit rights on that page.
+`339` tests, run by appending `?gogh-test` to any Gogh page URL while logged in with edit rights on that page.

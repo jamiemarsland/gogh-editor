@@ -1284,6 +1284,203 @@
     e.cls = userCls(rest.join(' ')) || null;
     return e;
   }
+  // ---------- styles the designer saves (Save this look as a style) ----------
+  // A piece styled by hand on the canvas (a colour, a weight, capitals, a
+  // hover fill) can become one of the design's looks: the CSS is written
+  // from the piece's own model, plus the rules of the look it already wore,
+  // under a new is-style-<slug>. Size never goes in, so the style works on a
+  // small title as well as a big one.
+  var LOOK_KINDS = { heading: 'Heading', para: 'Text', button: 'Button', image: 'Picture', box: 'Shape' };
+  var LOOK_PLURAL = { heading: 'Headings', para: 'Text', button: 'Buttons', image: 'Pictures', box: 'Shapes' };
+  var LOOK_RESERVED = { 'default': 1, fill: 1, outline: 1, rounded: 1, squared: 1, regular: 1, large: 1, 'plain-core': 1 };
+  var WEIGHT_WORDS = { 100: 'Thin', 200: 'Extra light', 300: 'Light', 400: 'Regular', 500: 'Medium', 600: 'Semibold', 700: 'Bold', 800: 'Extra bold', 900: 'Black' };
+  function lookSlug(name) {
+    return String(name || '').toLowerCase().normalize('NFKD').replace(/[̀-ͯ]/g, '')
+      .replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 30).replace(/-+$/, '');
+  }
+  function paintOf(v) {
+    if (!v) return null;
+    return /^[a-z0-9-]+$/.test(v) ? 'var(--wp--preset--color--' + v + ')' : v;
+  }
+  function paintName(v) {
+    if (!/^[a-z0-9-]+$/.test(v || '')) return v;
+    var p = (cfg.palette || []).filter(function (x) { return x.slug === v; })[0];
+    return (p && p.name) || v.replace(/-/g, ' ').replace(/^./, function (c) { return c.toUpperCase(); });
+  }
+  // what a piece wears beyond its look: [{ label, sw }] for the chips, and
+  // the declarations, by where they land
+  function styleBits(e) {
+    var bits = [], d = { self: [], hover: [] };
+    if (!e || e.rails || !LOOK_KINDS[e.type]) return { bits: bits, decl: d };
+    var tf = e.tf || {};
+    var text = function (into) {
+      if (tf.ff) { into.push('font-family: ' + tf.ff); bits.push({ label: String(tf.ff).split(',')[0].replace(/["']/g, '').trim() }); }
+      if (tf.fw) { into.push('font-weight: ' + tf.fw); bits.push({ label: WEIGHT_WORDS[Math.round(+tf.fw / 100) * 100] || 'Weight ' + tf.fw }); }
+      if (tf.fst) { into.push('font-style: ' + tf.fst); bits.push({ label: tf.fst === 'italic' ? 'Italic' : tf.fst }); }
+      if (tf.lh) { into.push('line-height: ' + tf.lh); bits.push({ label: 'Line height ' + tf.lh }); }
+      if (tf.ls2 != null) { into.push('letter-spacing: ' + tf.ls2 + 'em'); bits.push({ label: +tf.ls2 < 0 ? 'Set tight' : 'Letter-spaced' }); }
+      else if (tf.ls) { into.push('letter-spacing: ' + tf.ls + 'px'); bits.push({ label: +tf.ls < 0 ? 'Set tight' : 'Letter-spaced' }); }
+      if (tf.tt) { into.push('text-transform: ' + tf.tt); bits.push({ label: tf.tt === 'uppercase' ? 'Capitals' : tf.tt }); }
+      if (tf.col) { into.push('color: ' + tf.col); bits.push({ label: 'Ink', sw: tf.col }); }
+      if (tf.bg) { into.push('background: ' + tf.bg); bits.push({ label: 'Highlight', sw: tf.bg }); }
+      if (tf.rad != null) { into.push('border-radius: ' + tf.rad + 'px'); bits.push({ label: 'Corners ' + tf.rad + 'px' }); }
+    };
+    if (e.type === 'heading' || e.type === 'para') {
+      if (e.color) { d.self.push('color: ' + paintOf(e.color)); bits.push({ label: paintName(e.color), sw: paintOf(e.color) }); }
+      text(d.self);
+    } else if (e.type === 'button') {
+      if (e.btnBg) { d.self.push('background-color: ' + paintOf(e.btnBg)); bits.push({ label: paintName(e.btnBg) + ' fill', sw: paintOf(e.btnBg) }); }
+      if (e.btnText) { d.self.push('color: ' + paintOf(e.btnText)); bits.push({ label: paintName(e.btnText) + ' words', sw: paintOf(e.btnText) }); }
+      text(d.self);
+      if (e.btnHover) { d.hover.push('background-color: ' + paintOf(e.btnHover)); bits.push({ label: paintName(e.btnHover) + ' on hover', sw: paintOf(e.btnHover) }); }
+    } else if (e.type === 'box') {
+      // a fill is the shape's own while it wears one of the design's looks
+      // (choosing a look keeps it); on a shape wearing none, it is its style
+      if (e.boxBg && !e.boxImg && !lookOf(e)) { d.self.push('background: ' + paintOf(e.boxBg)); bits.push({ label: paintName(e.boxBg) + ' fill', sw: paintOf(e.boxBg) }); }
+    } else if (e.type === 'image') {
+      if (e.mood === 'zoom' && !lookOf(e)) { d.self.push('transition: transform 0.4s ease'); d.hover.push('transform: scale(1.06)'); bits.push({ label: 'Zooms on hover' }); }
+    }
+    return { bits: bits, decl: d };
+  }
+  function isCustomLook(e) {
+    return !!(cfg.canStyles && styleBits(e).bits.length);
+  }
+  // choosing a style is choosing what it paints (see clearStyledColour): the
+  // words' hand-set type gives way too. Size stays: it is the piece's own
+  var TF_PAINT = ['ff', 'fw', 'fst', 'lh', 'ls', 'ls2', 'tt', 'bg', 'rad'];
+  function clearHandPaint(e) {
+    var had = clearStyledColour(e);
+    if (e.tf) {
+      TF_PAINT.forEach(function (k) { if (k in e.tf) { delete e.tf[k]; had = true; } });
+      if (!Object.keys(e.tf).length) e.tf = null;
+    }
+    if (e.type === 'button' && e.btnHover) { e.btnHover = null; had = true; }
+    return had;
+  }
+  // a saved style took all of it with it
+  function clearStyleBits(e) {
+    clearHandPaint(e);
+    if (e.type === 'box' && !e.boxImg) e.boxBg = null;
+    if (e.type === 'image' && e.mood === 'zoom') e.mood = null;
+  }
+  // the rules a look already has on this page, renamed for another class:
+  // its hover, its ::after, its transitions, the keyframes they run (size
+  // left out). How a design's own looks ride into a new style, and into a
+  // definition, wherever their CSS came from
+  function splitSelectors(sel) {
+    var out = [], depth = 0, cur = '';
+    for (var k = 0; k < sel.length; k++) {
+      var ch = sel.charAt(k);
+      if (ch === '(') depth++;
+      if (ch === ')') depth--;
+      if (ch === ',' && !depth) { out.push(cur.trim()); cur = ''; } else cur += ch;
+    }
+    if (cur.trim()) out.push(cur.trim());
+    return out;
+  }
+  function lookRules(fromSlug, toSlug) {
+    var re = new RegExp('\\.is-style-' + fromSlug.replace(/[-]/g, '\\-') + '(?![\\w-])', 'g');
+    var out = [], frames = {}, keyframes = [];
+    var walk = function (rules, wrap) {
+      [].forEach.call(rules || [], function (r) {
+        if (r.type === 7 && r.name) { keyframes.push(r); return; } // @keyframes
+        if (r.selectorText != null && r.style) {
+          var parts = splitSelectors(r.selectorText).filter(function (p) { re.lastIndex = 0; return re.test(p); });
+          if (!parts.length) return;
+          var body = r.style.cssText.split(';').filter(function (x) { return x.trim() && !/^\s*font-size\s*:/i.test(x); }).join(';');
+          if (!body.trim()) return;
+          if (r.style.animationName && r.style.animationName !== 'none') r.style.animationName.split(',').forEach(function (n) { frames[n.trim()] = 1; });
+          out.push(wrap(parts.map(function (p) { re.lastIndex = 0; return p.replace(re, '.is-style-' + toSlug); }).join(', ') + ' { ' + body.trim() + (/;\s*$/.test(body) ? '' : ';') + ' }'));
+          return;
+        }
+        // @media, @supports, @container, @layer: the rule's own prelude
+        if (r.cssRules && r.cssText && r.cssText.charAt(0) === '@') {
+          var pre = r.cssText.slice(0, r.cssText.indexOf('{')).trim();
+          walk(r.cssRules, function (t) { return wrap(pre + ' { ' + t + ' }'); });
+        }
+      });
+    };
+    [].forEach.call(document.styleSheets, function (sh) {
+      var own = sh.ownerNode;
+      if (own && own.closest && own.closest('.gogh-panel, .gogh-specimen')) return;
+      var rules = null;
+      try { rules = sh.cssRules; } catch (err) { return; } // another origin's sheet
+      walk(rules, function (t) { return t; });
+    });
+    var seen = {};
+    keyframes.forEach(function (k) {
+      if (frames[k.name] && !seen[k.name]) { seen[k.name] = 1; out.push(k.cssText); }
+    });
+    // the same rule can arrive twice (a saved style printed by the server
+    // and again by the editor after a save)
+    return out.filter(function (t, n) { return out.indexOf(t) === n; });
+  }
+  var LOOK_SEL = {
+    heading: function (S) { return '.wp-block-heading' + S; },
+    para: function (S) { return ':is(p, ul, ol)' + S; },
+    button: function (S) { return '.wp-block-button' + S + ' .wp-block-button__link'; },
+    image: function (S) { return '.wp-block-image' + S + ' img'; },
+    box: function (S) { return '.gogh-box' + S; },
+  };
+  // the CSS a style saved from this piece carries
+  function lookCssFor(e, slug) {
+    var S = '.is-style-' + slug, out = [];
+    var cur = lookOf(e);
+    if (cur && cur.slug !== slug) out = out.concat(lookRules(cur.slug, slug));
+    var d = styleBits(e).decl, sel = LOOK_SEL[e.type](S);
+    if (d.self.length) out.push(sel + ' { ' + d.self.join('; ') + '; }');
+    if (d.hover.length) {
+      out.push((e.type === 'image' ? '.wp-block-image' + S + ':hover img' : sel + ':hover') + ' { ' + d.hover.join('; ') + '; }');
+    }
+    return out.join('\n');
+  }
+  // the saved styles' CSS, worn by the canvas as soon as it is saved (the
+  // server prints the same block on every page, after Additional CSS)
+  function applyDesignCss(css) {
+    var st = document.getElementById('gogh-design-looks-css');
+    if (!st) {
+      st = document.createElement('style');
+      st.id = 'gogh-design-looks-css';
+      document.head.appendChild(st);
+    }
+    st.textContent = css || '';
+  }
+  // a name is taken when its class is, or when a style of the same kind
+  // already reads the same
+  function designSlugTaken(slug, type, name) {
+    var d = cfg.design, taken = false, low = String(name || '').toLowerCase();
+    Object.keys((d && d.looks) || {}).forEach(function (t) {
+      (d.looks[t] || []).forEach(function (lk) {
+        if (lk.slug === slug || (t === type && low && String(lk.name).toLowerCase() === low)) taken = true;
+      });
+    });
+    return taken;
+  }
+  // the whole list goes up each time (gogh/v1/design-looks); the answer is
+  // the design as the server cleaned it, and the CSS every page now prints
+  function saveDesignLooks(looks) {
+    return fetch(cfg.restUrl.split('wp/v2/')[0] + 'gogh/v1/design-looks', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-WP-Nonce': cfg.nonce },
+      credentials: 'same-origin',
+      body: JSON.stringify({ looks: looks }),
+    }).then(function (r) {
+      if (!r.ok) throw new Error(r.status === 403 ? 'you need to be able to edit the site’s CSS' : 'HTTP ' + r.status);
+      return r.json();
+    }).then(function (j) {
+      cfg.design = j.design || null;
+      applyDesignCss(j.css);
+      return cfg.design;
+    });
+  }
+  function designLooksCopy() {
+    var d = cfg.design, out = {};
+    Object.keys(LOOK_KINDS).forEach(function (t) {
+      var l = d && d.looks && d.looks[t];
+      if (Array.isArray(l) && l.length) out[t] = l.map(function (lk) { return Object.assign({}, lk); });
+    });
+    return out;
+  }
   function projEl(e) {
     return { type: e.type, x: e.x, y: e.y, w: e.w, h: e.h,
       text: e.text || null, ghost: !!e.ghost, cool: !!e.cool,
@@ -2510,6 +2707,11 @@
     '<span class="gogh-scard-ic"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h4l5-13 5 13h4M8 15h8"/></svg></span>' +
     '<span class="gogh-scard-tx"><span class="gogh-scard-t">Fonts</span><span class="gogh-scard-s">Pairs, tried on your page</span></span>' +
     '<svg class="gogh-scard-chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg></button>' +
+    // the design's style set: for whoever may write the site's CSS
+    (cfg.canStyles ? '<button type="button" class="gogh-sitem gogh-scard gogh-stylesetbtn">' +
+    '<span class="gogh-scard-ic"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><rect x="3" y="4" width="8" height="7" rx="1.5"/><rect x="13" y="4" width="8" height="7" rx="1.5"/><rect x="3" y="13" width="8" height="7" rx="1.5"/><path d="M17 13.5l1.1 2.2 2.4.4-1.7 1.7.4 2.4-2.2-1.1-2.2 1.1.4-2.4-1.7-1.7 2.4-.4Z"/></svg></span>' +
+    '<span class="gogh-scard-tx"><span class="gogh-scard-t">Styles</span><span class="gogh-scard-s">What each kind of piece can wear</span></span>' +
+    '<svg class="gogh-scard-chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg></button>' : '') +
     '<button type="button" class="gogh-sitem gogh-scard gogh-motionbtn">' +
     '<span class="gogh-scard-ic"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12c3-6 6-6 9 0s6 6 9 0"/></svg></span>' +
     '<span class="gogh-scard-tx"><span class="gogh-scard-t">Motion</span><span class="gogh-scard-s">How the site moves as visitors scroll</span></span>' +
@@ -3231,7 +3433,10 @@
   // the style chip: on the piece's bar, and alone on a card piece's bar
   function lookChip(btn, host, e, sec, node) {
     var looks = e && !e.rails ? designLooks(e.type) : [];
-    if (!looks.length) { btn.style.display = 'none'; return false; }
+    // a piece styled by hand shows the chip too, for whoever may save that
+    // as a style: 'Style · Custom'
+    var custom = isCustomLook(e);
+    if (!looks.length && !custom) { btn.style.display = 'none'; return false; }
     var cur = lookOf(e);
     // a swatch of the style, drawn live on the ground it sits on: the same
     // sample the panel shows, small
@@ -3243,9 +3448,9 @@
     btn.innerHTML = (sw ? '<span class="gogh-eb-lookswatch" aria-hidden="true"><span class="wp-site-blocks gogh-look-site">' + sw + '</span></span>' : '') +
       // 'Style · Pink print': what the chip is, then which one is on — the
       // bar's own pattern ('Aa · Display M')
-      '<span class="gogh-eb-lookname">' + (cur ? '<span class="gogh-eb-lookkind">Style \u00b7 </span>' + esc(cur.name) : 'Style') + '</span>' +
+      '<span class="gogh-eb-lookname"><span class="gogh-eb-lookkind">Style \u00b7 </span>' + (custom ? 'Custom' : cur ? esc(cur.name) : 'Plain') + '</span>' +
       '<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>';
-    btn.title = cur ? 'Style: ' + cur.name + ' \u2014 choose another' : 'Choose a style';
+    btn.title = custom ? 'Styled by hand \u2014 choose a style, or save this one' : cur ? 'Style: ' + cur.name + ' \u2014 choose another' : 'Choose a style';
     btn.style.display = '';
     return true;
   }
@@ -7760,7 +7965,7 @@
   }
   // ---------- the looks panel: a picture of this piece in each look ----------
   function lookSample(e, lk, mini) {
-    var c = 'is-style-' + lk.slug;
+    var c = lk.slug ? 'is-style-' + lk.slug : '';
     if (e.type === 'button') {
       return '<div class="wp-block-buttons"><div class="wp-block-button ' + c + (e.ghost ? ' gogh-ghost' : '') + '">' +
         '<span class="wp-block-button__link wp-element-button">' + (mini ? '' : esc(String(e.text || 'Button').replace(/<[^>]*>/g, '').slice(0, 18))) + '</span></div></div>';
@@ -7837,38 +8042,73 @@
     var card = sec.nodes[ci];
     return card ? card.querySelector('.gogh-k-' + (j + 1)) : null;
   }
+  // Plain: no style at all, always there (a design that names its own
+  // Plain keeps that one instead)
+  var PLAIN_LOOK = { name: 'Plain', slug: '', plain: true };
+  function panelLooks(type) {
+    var looks = designLooks(type);
+    return looks.some(function (lk) { return lk.slug === 'plain'; }) ? looks : [PLAIN_LOOK].concat(looks);
+  }
+  // the piece as you made it, drawn small: its look's class and its own
+  // hand-set declarations inline
+  function asMadeSample(e) {
+    var cur = lookOf(e), lk = cur || PLAIN_LOOK;
+    var d = styleBits(e).decl.self.join('; ');
+    var html = lookSample(e, lk);
+    if (!d) return html;
+    if (e.type === 'box') return html.replace(/style="([^"]*)"/, function (m, was) { return 'style="' + was + escAttr(';' + d) + '"'; });
+    var tag = { heading: /<h2 /, para: /<p /, button: /<span (?=class="wp-block-button__link)/, image: /<img / }[e.type];
+    return tag ? html.replace(tag, function (m) { return m + 'style="' + escAttr(d) + '" '; }) : html;
+  }
   function openLookPanel(sec, i, j) {
     var e = lookTarget(sec, i, j);
-    var looks = e ? designLooks(e.type) : [];
+    if (!e || e.rails) return;
+    var custom = isCustomLook(e);
+    var looks = designLooks(e.type).length || custom ? panelLooks(e.type) : [];
     if (!looks.length) return;
     var cur = lookOf(e);
     var KIND = { heading: 'Heading', para: 'Text', button: 'Button', image: 'Picture', box: e.kids && e.kids.length ? 'Card' : 'Shape' };
-    panel.innerHTML = '<div class="gogh-panel-title">Style \u00b7 ' + (KIND[e.type] || 'Piece') + '</div>' +
+    var kind = KIND[e.type] || 'Piece', kindLow = kind.toLowerCase();
+    var newOnes = e.type === 'para' ? 'new text' : 'new ' + kindLow + 's';
+    var full = designLooks(e.type).length >= 6;
+    panel.innerHTML = '<div class="gogh-panel-title">Style · ' + kind + '</div>' +
       '<div class="gogh-looks">' + looks.map(function (lk, n) {
-        var on = cur && cur.slug === lk.slug;
+        var on = !custom && (lk.plain ? !cur : cur && cur.slug === lk.slug);
         return '<button type="button" class="gogh-look' + (on ? ' is-on' : '') + '" data-n="' + n + '" aria-pressed="' + (on ? 'true' : 'false') + '">' +
           '<span class="gogh-look-stage gogh-look-' + e.type + '"><span class="wp-site-blocks gogh-look-site">' + lookSample(e, lk) + '</span></span>' +
           '<span class="gogh-look-name"><b>' + esc(lk.name) + '</b>' + (lk.default ? '<i>Default</i>' : '') + '</span></button>';
-      }).join('') + '</div>' +
-      '<div class="gogh-panel-hint">Styles come with ' + esc((cfg.design && cfg.design.name) || 'the design') + '. ' +
-      (e.type === 'para' ? 'New text arrives' : 'New ' + (KIND[e.type] || 'piece').toLowerCase() + 's arrive') + ' in the default.</div>';
+      }).join('') +
+      // the piece as it is now, beside the styles it could wear
+      (custom ? '<button type="button" class="gogh-look gogh-look-asmade is-on" aria-pressed="true" disabled>' +
+        '<span class="gogh-look-stage gogh-look-' + e.type + '"><span class="wp-site-blocks gogh-look-site">' + asMadeSample(e) + '</span></span>' +
+        '<span class="gogh-look-name"><b>This ' + kindLow + ', as you made it</b></span></button>' : '') +
+      '</div>' +
+      (custom ? lookSaveForm(e, kindLow, newOnes, full) :
+        '<div class="gogh-panel-hint">' + (designLooks(e.type).length ? 'Styles come with ' + esc((cfg.design && cfg.design.name) || 'the design') + '. ' + (e.type === 'para' ? 'New text arrives' : 'New ' + kindLow + 's arrive') + ' in the default.' : 'Plain is the theme’s own ' + kindLow + '.') + '</div>');
     var kn = j == null ? null : kidNodeOf(sec, i, j);
     lookGround(sec, panel, kn);
     placePanelNear(kn || sec.nodes[i] || sec.sectionEl);
     panelOpen = true;
     panelSticky = false;
     panelCleanup = function () { panel.style.removeProperty('--gogh-look-bg'); panel.style.removeProperty('--gogh-look-fg'); };
-    panel.querySelectorAll('.gogh-look').forEach(function (b) {
+    var redress = function () {
+      if (j == null) placeHandles(sec, i);
+      else reselectKid(sec, i, j);
+    };
+    panel.querySelectorAll('.gogh-look:not(.gogh-look-asmade)').forEach(function (b) {
       b.addEventListener('click', function () {
         var lk = looks[+b.dataset.n];
         var e2 = lookTarget(sec, i, j);
         if (!lk || !e2) return;
-        clearStyledColour(e2);
-        wearLook(e2, lk);
+        clearHandPaint(e2);
+        wearLook(e2, lk.plain ? null : lk);
+        // an authored shape style brings its own fill
+        if (e2.type === 'box' && lk.css && /background/.test(lk.css)) e2.boxBg = null;
         renderSection(sec);
         pushState();
-        if (j == null) placeHandles(sec, i);
-        else reselectKid(sec, i, j);
+        redress();
+        var asm = panel.querySelector('.gogh-look-asmade');
+        if (asm) { asm.remove(); var sv = panel.querySelector('.gogh-looksave'); if (sv) sv.remove(); }
         panel.querySelectorAll('.gogh-look').forEach(function (o) {
           var on = o === b;
           o.classList.toggle('is-on', on);
@@ -7876,6 +8116,79 @@
         });
       });
     });
+    var form = panel.querySelector('.gogh-looksave');
+    if (form) wireLookSave(form, sec, i, j, kindLow, newOnes);
+  }
+  // ---------- Save this look as a style ----------
+  function lookSaveForm(e, kindLow, newOnes, full) {
+    if (!cfg.canStyles) return '';
+    var bits = styleBits(e).bits, cur = lookOf(e);
+    var chips = (cur ? [{ label: 'Built on ' + cur.name }] : []).concat(bits);
+    return '<form class="gogh-looksave" novalidate>' +
+      '<div class="gogh-looksave-t">Save this look as a style</div>' +
+      (full ? '<div class="gogh-panel-hint">This design has six ' + esc(kindLow) + ' styles already. Remove one in Site → Styles to make room.</div>' :
+      '<label class="gogh-looksave-lab">Name<input type="text" class="gogh-looksave-name" maxlength="32" autocomplete="off" spellcheck="false" placeholder="Say what it is, like Big and blue"></label>' +
+      '<div class="gogh-looksave-lab" id="gogh-looksave-keeps">What the style keeps</div>' +
+      '<ul class="gogh-looksave-keeps" aria-labelledby="gogh-looksave-keeps">' + chips.map(function (c) {
+        return '<li>' + (c.sw ? '<span class="gogh-looksave-sw" style="background:' + escAttr(c.sw) + '"></span>' : '') + esc(c.label) + '</li>';
+      }).join('') + '<li class="gogh-looksave-not"><s>Size</s></li></ul>' +
+      '<div class="gogh-panel-hint">Size stays with each ' + esc(kindLow) + ', so the style works small as well as big.</div>' +
+      '<label class="gogh-looksave-def"><input type="checkbox" class="gogh-looksave-isdef"' + (designLooks(e.type).length ? '' : ' checked') + '> Make it the default for ' + esc(newOnes) + '</label>' +
+      '<div class="gogh-looksave-err" role="alert" hidden></div>' +
+      '<div class="gogh-looksave-row"><button type="submit" class="gogh-btn gogh-btn-small gogh-btn-go gogh-looksave-go">Save style</button>' +
+      '<button type="button" class="gogh-btn gogh-btn-small gogh-looksave-x">Cancel</button></div>' +
+      '<div class="gogh-panel-hint">Saved styles travel with this design: they go into its blueprint, and every ' + esc(kindLow) + ' on the site can wear them.</div>') +
+      '</form>';
+  }
+  function wireLookSave(form, sec, i, j, kindLow, newOnes) {
+    var nameIn = form.querySelector('.gogh-looksave-name');
+    var x = form.querySelector('.gogh-looksave-x');
+    if (x) x.addEventListener('click', function () { closePanel(); });
+    if (!nameIn) return;
+    var err = form.querySelector('.gogh-looksave-err');
+    var say = function (msg) { err.textContent = msg; err.hidden = !msg; if (msg) nameIn.setAttribute('aria-invalid', 'true'); else nameIn.removeAttribute('aria-invalid'); };
+    nameIn.addEventListener('input', function () { say(''); });
+    form.addEventListener('submit', function (ev) {
+      ev.preventDefault();
+      var e = lookTarget(sec, i, j);
+      if (!e) return;
+      var name = nameIn.value.replace(/\s+/g, ' ').trim();
+      var slug = lookSlug(name);
+      if (!name) { say('Give the style a name.'); nameIn.focus(); return; }
+      if (!/^[a-z]/.test(slug)) { say('Start the name with a letter.'); nameIn.focus(); return; }
+      if (LOOK_RESERVED[slug] || slug === 'plain') { say('“' + name + '” is a name WordPress already uses. Try another.'); nameIn.focus(); return; }
+      if (designSlugTaken(slug, e.type, name)) { say('This design already has a style called “' + name + '”.'); nameIn.focus(); return; }
+      var isDef = form.querySelector('.gogh-looksave-isdef').checked;
+      var look = { name: name, slug: slug, 'default': isDef, css: lookCssFor(e, slug) };
+      var all = designLooksCopy();
+      var list = all[e.type] || [];
+      if (isDef) list.forEach(function (lk) { lk['default'] = false; });
+      list.push(look);
+      all[e.type] = list;
+      var go = form.querySelector('.gogh-looksave-go');
+      go.disabled = true;
+      saveDesignLooks(all).then(function () {
+        var made = designLooks(e.type).filter(function (lk) { return lk.slug === slug; })[0];
+        if (!made) throw new Error('the style was not kept');
+        var e2 = lookTarget(sec, i, j);
+        if (e2) {
+          // the piece wears what it just became, and its hand-set paint is
+          // the style's now
+          clearStyleBits(e2);
+          wearLook(e2, made);
+          renderSection(sec);
+          pushState();
+        }
+        closePanel();
+        if (j == null) placeHandles(sec, i);
+        else reselectKid(sec, i, j);
+        toast('Saved “' + made.name + '”. Every ' + kindLow + ' on the site can wear it' + (made.default ? ', and ' + newOnes + ' arrive in it.' : '.'), { ttl: 4500 });
+      }).catch(function (er) {
+        go.disabled = false;
+        say('Could not save the style: ' + ((er && er.message) || 'try again') + '.');
+      });
+    });
+    setTimeout(function () { try { nameIn.focus({ preventScroll: true }); } catch (er) {} }, 30);
   }
   function openSecAddPanel(idx) {
     var secx = S[idx];
@@ -16819,6 +17132,246 @@
     panelOpen = true;
   }
 
+  // ---------- Styles in this design: the design's style set ----------
+  // Every style a heading, text, a button, a picture or a shape can wear on
+  // this site, by kind: the star is what a new piece arrives in, ⋯ renames
+  // or removes, Plain is always there. Beside the list, a specimen sheet
+  // draws every style on the page's own words. The set leaves as a piece of
+  // site definition, ready for a blueprint.
+  function pageWords(type) {
+    var found = null;
+    S.some(function (sec) {
+      if (sec.chrome) return false;
+      return (sec.els || []).some(function (e) {
+        var hit = e.type === type ? e : (e.kids || []).filter(function (k) { return k.type === type; })[0];
+        if (!hit) return false;
+        if (type === 'image') { if (hit.src) { found = hit.src; return true; } return false; }
+        var t = String(hit.text || '').replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
+        if (t) { found = t; return true; }
+        return false;
+      });
+    });
+    return found;
+  }
+  function specimenHtml() {
+    var d = cfg.design, name = (d && d.name) || 'this design';
+    var words = {
+      heading: (pageWords('heading') || 'A heading, as it will read').slice(0, 48),
+      para: (pageWords('para') || 'A paragraph in this style, the way your visitors will read it.').slice(0, 120),
+      button: (pageWords('button') || 'Get in touch').slice(0, 24),
+    };
+    var pic = pageWords('image');
+    var item = function (type, lk) {
+      var c = lk.slug ? ' is-style-' + lk.slug : '', inner;
+      if (type === 'heading') inner = '<h2 class="wp-block-heading' + c + '">' + esc(words.heading) + '</h2>';
+      else if (type === 'para') inner = '<p class="' + c.trim() + '">' + esc(words.para) + '</p>';
+      else if (type === 'button') inner = '<div class="wp-block-buttons"><div class="wp-block-button' + c + '"><span class="wp-block-button__link wp-element-button">' + esc(words.button) + '</span></div></div>';
+      else if (type === 'image') inner = '<figure class="wp-block-image size-full gogh-img' + c + '">' + (pic ? '<img src="' + escAttr(pic) + '" alt="">' : '<span class="gogh-specimen-nopic">A picture</span>') + '</figure>';
+      else inner = '<div class="wp-block-group gogh-box' + c + '"></div>';
+      return '<div class="gogh-specimen-item gogh-specimen-' + type + '"><div class="gogh-specimen-stage">' + inner + '</div>' +
+        '<div class="gogh-specimen-cap">' + esc(LOOK_KINDS[type]) + ' · ' + esc(lk.name) + (lk.default ? ' ★' : '') + '</div></div>';
+    };
+    var rows = Object.keys(LOOK_KINDS).map(function (t) {
+      var looks = designLooks(t);
+      if (!looks.length) return '';
+      return '<div class="gogh-specimen-row gogh-specimen-row-' + t + '">' + panelLooks(t).map(function (lk) { return item(t, lk); }).join('') + '</div>';
+    }).join('');
+    return '<div class="gogh-specimen-head"><span>Specimen · every style in ' + esc(name) + '</span><span>Updates as you change a style</span></div>' +
+      (rows || '<div class="gogh-specimen-empty">No styles yet. Style a heading by hand, open its Style chip and save it: it shows up here, on your own words.</div>');
+  }
+  var specimenEl = null;
+  function showSpecimen() {
+    if (!specimenEl) {
+      specimenEl = document.createElement('div');
+      specimenEl.className = 'gogh-specimen';
+      specimenEl.setAttribute('role', 'region');
+      specimenEl.setAttribute('aria-label', 'Specimen of every style');
+      document.body.appendChild(specimenEl);
+    }
+    var inner = document.createElement('div');
+    inner.className = 'wp-site-blocks gogh-specimen-sheet';
+    inner.innerHTML = specimenHtml();
+    specimenEl.innerHTML = '';
+    specimenEl.appendChild(inner);
+    try {
+      var r = panel.getBoundingClientRect();
+      var adminBar = document.getElementById('wpadminbar');
+      specimenEl.style.left = Math.round(r.right) + 'px';
+      specimenEl.style.top = (adminBar ? adminBar.offsetHeight : 0) + 'px';
+      var bodyBg = getComputedStyle(document.body).backgroundColor;
+      specimenEl.style.background = bodyBg && bodyBg !== 'rgba(0, 0, 0, 0)' ? bodyBg : '#fff';
+    } catch (err) {}
+    specimenEl.hidden = false;
+    // the sheet belongs to the Styles page: any other panel taking the
+    // surface takes it away (not every opener runs the last one's cleanup)
+    if (!specimenEl.__watch) {
+      var mo = new MutationObserver(function () {
+        if (!panel.querySelector('.gogh-stylesets') || panel.hidden) { mo.disconnect(); hideSpecimen(); }
+      });
+      mo.observe(panel, { childList: true, attributes: true, attributeFilter: ['hidden'] });
+      specimenEl.__watch = mo;
+    }
+  }
+  function hideSpecimen() {
+    if (specimenEl) { specimenEl.remove(); specimenEl = null; }
+  }
+  // the set as a piece of site definition: { looks: { heading: [...] } },
+  // each style with its CSS. A design's own looks are styled by its
+  // stylesheet, so theirs is read off the page
+  function designAsDefinition() {
+    var all = designLooksCopy(), out = {};
+    Object.keys(all).forEach(function (t) {
+      out[t] = all[t].map(function (lk) {
+        var one = { name: lk.name };
+        if (lk.slug !== lookSlug(lk.name)) one.slug = lk.slug;
+        if (lk.default) one['default'] = true;
+        var css = lk.css || lookRules(lk.slug, lk.slug).join('\n');
+        if (css) one.css = css;
+        return one;
+      });
+    });
+    return { looks: out };
+  }
+  function openStylesPage() {
+    var d = cfg.design, dname = (d && d.name) || 'this design';
+    // the page takes the surface: no piece stays chosen under it
+    sel = null;
+    hideHandles();
+    clearKidSel();
+    panel.innerHTML =
+      '<div class="gogh-panel-head"><span class="gogh-panel-title">Styles in this design</span>' +
+      '<button type="button" class="gogh-sbtn gogh-panel-close gogh-panel-back" title="Back"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"/></svg></button></div>' +
+      '<div class="gogh-panel-hint">What a heading, a paragraph, a button, a picture or a shape can wear on ' + esc(dname) + '. The star is what a new piece arrives in.</div>' +
+      '<div class="gogh-stylesets"></div>' +
+      '<div class="gogh-styleset-foot">' +
+      '<button type="button" class="gogh-btn gogh-btn-small gogh-btn-go gogh-styleset-dl" title="Downloads the styles as a piece of site definition, to add to the blueprint">Save to the blueprint</button>' +
+      '<button type="button" class="gogh-btn gogh-btn-small gogh-styleset-copy" title="Copies the styles as site definition JSON">Copy as definition</button></div>';
+    dockSidebar();
+    panel.querySelector('.gogh-panel-close').addEventListener('click', backToDesign);
+    panelCleanup = hideSpecimen;
+    var box = panel.querySelector('.gogh-stylesets');
+    var busy = false;
+    var commit = function (all, said) {
+      if (busy) return;
+      busy = true;
+      saveDesignLooks(all).then(function () {
+        busy = false;
+        draw();
+        if (said) toast(said);
+      }).catch(function (er) {
+        busy = false;
+        toast('Could not change the styles: ' + ((er && er.message) || 'try again') + '.', { error: true });
+        draw();
+      });
+    };
+    var draw = function () {
+      var any = false;
+      box.innerHTML = Object.keys(LOOK_KINDS).map(function (t) {
+        var looks = designLooks(t);
+        if (looks.length) any = true;
+        var kindNew = t === 'para' ? 'new text' : 'new ' + LOOK_KINDS[t].toLowerCase() + 's';
+        return '<section class="gogh-styleset" data-type="' + t + '"><h3 class="gogh-styleset-kind">' + LOOK_PLURAL[t] + '</h3>' +
+          '<ul class="gogh-styleset-list">' + looks.map(function (lk, n) {
+            return '<li class="gogh-styleset-row" data-n="' + n + '">' +
+              '<span class="gogh-styleset-sw gogh-look-stage gogh-look-' + t + '" aria-hidden="true"><span class="wp-site-blocks gogh-look-site">' + lookSample({ type: t, text: t === 'button' ? 'Aa' : '' }, lk, t !== 'heading' && t !== 'para') + '</span></span>' +
+              '<span class="gogh-styleset-name">' + esc(lk.name) + '</span>' +
+              '<button type="button" class="gogh-styleset-star' + (lk.default ? ' is-on' : '') + '" aria-pressed="' + (lk.default ? 'true' : 'false') + '" title="' + (lk.default ? escAttr(lk.name + ' is what ' + kindNew + ' arrive in') : escAttr('Make ' + lk.name + ' the default for ' + kindNew)) + '" aria-label="' + escAttr((lk.default ? 'Default for ' : 'Make it the default for ') + kindNew + ': ' + lk.name) + '">' + (lk.default ? '★' : '☆') + '</button>' +
+              '<button type="button" class="gogh-styleset-more" aria-haspopup="true" aria-expanded="false" aria-label="' + escAttr('More for ' + lk.name) + '" title="Rename or remove">⋯</button></li>';
+          }).join('') +
+          (looks.some(function (lk) { return lk.slug === 'plain'; }) ? '' :
+            '<li class="gogh-styleset-row is-plain"><span class="gogh-styleset-sw gogh-look-stage gogh-look-' + t + '" aria-hidden="true"><span class="wp-site-blocks gogh-look-site">' + lookSample({ type: t, text: 'Aa' }, PLAIN_LOOK, t !== 'heading' && t !== 'para') + '</span></span>' +
+            '<span class="gogh-styleset-name">Plain</span><span class="gogh-styleset-always">always there</span></li>') +
+          '</ul></section>';
+      }).join('') + (any ? '' : '<div class="gogh-panel-hint gogh-styleset-none">No saved styles yet. Style a piece by hand, then open its Style chip and choose Save this look as a style.</div>');
+      showSpecimen();
+      box.querySelectorAll('.gogh-styleset').forEach(function (secEl) {
+        var t = secEl.dataset.type;
+        secEl.querySelectorAll('.gogh-styleset-row[data-n]').forEach(function (row) {
+          var n = +row.dataset.n;
+          row.querySelector('.gogh-styleset-star').addEventListener('click', function () {
+            var all = designLooksCopy(), list = all[t] || [];
+            var was = !!list[n]['default'];
+            list.forEach(function (lk, m) { lk['default'] = !was && m === n; });
+            commit(all, was ? 'No default: new pieces arrive Plain.' : 'New pieces arrive in ' + list[n].name + '.');
+          });
+          var more = row.querySelector('.gogh-styleset-more');
+          more.addEventListener('click', function () {
+            var open = row.querySelector('.gogh-styleset-menu');
+            box.querySelectorAll('.gogh-styleset-menu').forEach(function (m) { m.remove(); });
+            box.querySelectorAll('.gogh-styleset-more').forEach(function (m) { m.setAttribute('aria-expanded', 'false'); });
+            if (open) return;
+            var lk = designLooks(t)[n];
+            var menu = document.createElement('div');
+            menu.className = 'gogh-styleset-menu';
+            menu.innerHTML = '<button type="button" class="gogh-styleset-rename">Rename</button><button type="button" class="gogh-styleset-remove">Remove</button>';
+            row.appendChild(menu);
+            more.setAttribute('aria-expanded', 'true');
+            menu.querySelector('.gogh-styleset-rename').addEventListener('click', function () {
+              menu.innerHTML = '<form class="gogh-styleset-renameform"><label class="gogh-looksave-lab">New name<input type="text" maxlength="32" value="' + escAttr(lk.name) + '"></label>' +
+                '<div class="gogh-looksave-err" role="alert" hidden></div>' +
+                '<div class="gogh-looksave-row"><button type="submit" class="gogh-btn gogh-btn-small gogh-btn-go">Rename</button><button type="button" class="gogh-btn gogh-btn-small gogh-styleset-cancel">Cancel</button></div></form>';
+              var f = menu.querySelector('form'), inp = f.querySelector('input'), er = f.querySelector('.gogh-looksave-err');
+              inp.focus();
+              inp.select();
+              f.querySelector('.gogh-styleset-cancel').addEventListener('click', draw);
+              f.addEventListener('submit', function (ev) {
+                ev.preventDefault();
+                var nm = inp.value.replace(/\s+/g, ' ').trim();
+                if (!nm) { er.textContent = 'Give the style a name.'; er.hidden = false; return; }
+                var dup = designLooks(t).some(function (o, m) { return m !== n && o.name.toLowerCase() === nm.toLowerCase(); });
+                if (dup) { er.textContent = 'This design already has a style called “' + nm + '”.'; er.hidden = false; return; }
+                var all = designLooksCopy();
+                // the class stays the one it was saved under: pieces wearing
+                // it keep wearing it
+                all[t][n].name = nm;
+                commit(all, 'Renamed to ' + nm + '.');
+              });
+            });
+            menu.querySelector('.gogh-styleset-remove').addEventListener('click', function () {
+              menu.innerHTML = '<div class="gogh-styleset-confirm">Remove ' + esc(lk.name) + '? Pieces wearing it go back to Plain.</div>' +
+                '<div class="gogh-looksave-row"><button type="button" class="gogh-btn gogh-btn-small gogh-btn-stop gogh-styleset-yes">Remove</button><button type="button" class="gogh-btn gogh-btn-small gogh-styleset-cancel">Keep it</button></div>';
+              menu.querySelector('.gogh-styleset-cancel').addEventListener('click', draw);
+              menu.querySelector('.gogh-styleset-yes').addEventListener('click', function () {
+                var all = designLooksCopy();
+                all[t].splice(n, 1);
+                if (!all[t].length) delete all[t];
+                commit(all, 'Removed ' + lk.name + '.');
+              });
+            });
+          });
+        });
+      });
+    };
+    draw();
+    var defText = function () { return JSON.stringify(designAsDefinition(), null, 2); };
+    panel.querySelector('.gogh-styleset-copy').addEventListener('click', function () {
+      var txt = defText();
+      var done = function () { toast('Copied. Paste it into the site definition, beside pages.'); };
+      if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(txt).then(done, function () { copyFallback(txt); done(); });
+      else { copyFallback(txt); done(); }
+    });
+    panel.querySelector('.gogh-styleset-dl').addEventListener('click', function () {
+      var file = (lookSlug(dname) || 'design') + '-styles.json';
+      var a = document.createElement('a');
+      a.href = URL.createObjectURL(new Blob([defText() + '\n'], { type: 'application/json' }));
+      a.download = file;
+      document.body.appendChild(a);
+      a.click();
+      setTimeout(function () { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
+      toast('Saved ' + file + '. Its looks go into the blueprint’s site definition.');
+    });
+  }
+  function copyFallback(txt) {
+    var ta = document.createElement('textarea');
+    ta.value = txt;
+    ta.setAttribute('readonly', '');
+    ta.style.cssText = 'position:fixed;left:-9999px;top:0;';
+    document.body.appendChild(ta);
+    ta.select();
+    try { document.execCommand('copy'); } catch (err) {}
+    ta.remove();
+  }
+
   // ---------- add a page: one door does the whole job ----------
   // The page is created, put at the end of the site menu, and the toast
   // says so, with Open it and Undo. Undo trashes the page and takes the
@@ -18804,6 +19357,8 @@
   side.querySelector('.gogh-motionbtn').addEventListener('click', function () {
     openMotionPanel();
   });
+  var stylesCard = side.querySelector('.gogh-stylesetbtn');
+  if (stylesCard) stylesCard.addEventListener('click', function () { openStylesPage(); });
 
   // a piece travelling WITH the grabbed one (multi-drag) sits at its old
   // spot in the model until release — it must not act as a magnet or a
@@ -19634,7 +20189,8 @@
     openPicker: openPicker,
     // a design's named looks (the chip, the panel, new pieces in the default)
     looks: { list: designLooks, of: lookOf, wear: wearLook, def: defaultLook, open: openLookPanel, reselectKid: reselectKid,
-      kidBar: function () { return kidStyleBar; }, clearKid: function () { clearKidSel(); } },
+      kidBar: function () { return kidStyleBar; }, clearKid: function () { clearKidSel(); },
+      bits: styleBits, cssFor: lookCssFor, rules: lookRules, save: saveDesignLooks, openSet: openStylesPage, asDef: designAsDefinition },
     placeHandles: placeHandles,
     navLinkMarkup: navLinkMarkup,
     chromeEdits: function () { return chromeLightEdits; },

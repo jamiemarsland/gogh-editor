@@ -6852,8 +6852,11 @@
     });
 
     test('a design’s named looks: new pieces arrive in the default, the chip names the look, the panel swaps it, the shelf leads the picker', function () {
-      // a design only this test can see: set in memory, taken away after
-      var cfgG = window.GOGH, was = cfgG.design;
+      // a design only this test can see: set in memory, taken away after.
+      // Seen by someone who may not save styles, so a hand-filled card is
+      // only ever what the design offers (saving is the next test's)
+      var cfgG = window.GOGH, was = cfgG.design, wasCan = cfgG.canStyles;
+      cfgG.canStyles = false;
       cfgG.design = { name: 'Riso Test', looks: {
         button: [{ name: 'Yellow print', slug: 'yellow-print', 'default': true }, { name: 'Pink print', slug: 'pink-print', 'default': false }],
         heading: [{ name: 'Misregistered', slug: 'misregistered', 'default': true }, { name: 'Plain', slug: 'plain', 'default': false }],
@@ -6953,6 +6956,7 @@
         expect(cards[0].querySelector('.riso-ticker'), 'the card should draw the section with its classes');
       } finally {
         cfgG.design = was;
+        cfgG.canStyles = wasCan;
         if (G.looks.clearKid) G.looks.clearKid();
         if (q('.gogh-picker.is-open') && G.closePicker) G.closePicker();
         var pk = q('.gogh-picker'); if (pk) { pk.classList.remove('is-open'); pk.hidden = true; }
@@ -6960,6 +6964,159 @@
         if (added && G.deleteSection) G.deleteSection(n0);
       }
       return 'default on arrival, chip, panel, swap, published class, the design’s shelf';
+    });
+
+    test('save a look as a style: a hand-styled piece reads Custom, the panel offers the save, and the style keeps all but size (its look’s hover and keyframes too)', function () {
+      var cfgG = window.GOGH, was = cfgG.design, wasCan = cfgG.canStyles;
+      cfgG.canStyles = true;
+      cfgG.design = { name: 'Riso Test', looks: { heading: [{ name: 'Drift', slug: 'tst-drift', 'default': true }] }, shelf: [] };
+      // the design's own stylesheet for its look, the way Additional CSS carries it
+      var st = document.createElement('style');
+      st.textContent = '.is-style-tst-drift { text-shadow: .05em .035em 0 hotpink; font-size: 99px; animation: tst-drift 3s infinite; }' +
+        ' html:not(.gogh-editing) .is-style-tst-drift:hover { text-shadow: 0 0 0 hotpink; }' +
+        ' @media (prefers-reduced-motion: reduce) { .is-style-tst-drift, .tst-other { animation: none; } }' +
+        ' @keyframes tst-drift { to { text-shadow: .02em .01em 0 hotpink; } }';
+      document.head.appendChild(st);
+      // nothing here may reach the server: a save that slipped through
+      // would leave this design on the site
+      var realFetch = window.fetch, posted = 0;
+      window.fetch = function (u, o) {
+        if (/gogh\/v1\/design-looks/.test(String(u))) { posted++; return Promise.reject(new Error('blocked by the test')); }
+        return realFetch.apply(this, arguments);
+      };
+      var n0 = G.sections().length, added = false;
+      try {
+        G.addSection({ name: 'Save a look', minH: 432, els: [
+          { type: 'heading', x: 80, y: 96, w: 640, h: 96, text: 'Two inks', cls: 'is-style-tst-drift', fs: 'x-large', color: 'contrast', tf: { fw: 800, tt: 'uppercase', fs2: 4 } },
+          { type: 'para', x: 80, y: 240, w: 400, h: 48, text: 'Plain words' }] }, n0);
+        added = true;
+        var sec = G.sections()[n0];
+        G.placeHandles(sec, 0);
+        var chip = q('.gogh-elbar:not(.gogh-kidstylebar) .gogh-eb-look');
+        expect(chip && chip.style.display !== 'none' && /^Style · Custom$/.test(chip.querySelector('.gogh-eb-lookname').textContent), 'a hand-styled heading should read Style · Custom: ' + (chip && chip.textContent));
+        var css = G.looks.cssFor(sec.els[0], 'tst-saved');
+        expect(/\.wp-block-heading\.is-style-tst-saved \{[^}]*color: var\(--wp--preset--color--contrast\)[^}]*font-weight: 800[^}]*text-transform: uppercase/.test(css), 'the hand-set colour, weight and capitals should be kept: ' + css);
+        expect(/\.is-style-tst-saved \{[^}]*text-shadow/.test(css) && /html:not\(\.gogh-editing\) \.is-style-tst-saved:hover/.test(css), 'the look it wore should come along, hover and all: ' + css);
+        expect(/@media \(prefers-reduced-motion: reduce\) \{ \.is-style-tst-saved \{ animation[^}]*\} \}/.test(css) && !/tst-other/.test(css), 'a grouped rule keeps its @media and only its own selector: ' + css);
+        expect(/@keyframes tst-drift/.test(css), 'the keyframes its animation runs should come along');
+        expect(!/font-size/.test(css) && !/is-style-tst-drift/.test(css), 'size never goes into a style, and the old class is renamed throughout: ' + css);
+        G.looks.open(sec, 0);
+        var tiles = document.querySelectorAll('.gogh-panel .gogh-look');
+        expect(tiles.length === 3 && /Plain/.test(tiles[0].textContent) && tiles[2].classList.contains('gogh-look-asmade') && tiles[2].classList.contains('is-on'),
+          'the panel shows Plain, the design’s style and this heading as made (chosen): ' + [].map.call(tiles, function (t) { return t.textContent; }).join(' / '));
+        var keeps = [].map.call(document.querySelectorAll('.gogh-looksave-keeps li'), function (l) { return l.textContent; });
+        expect(q('.gogh-panel .gogh-looksave-name') && keeps[0] === 'Built on Drift' && keeps.indexOf('Capitals') !== -1 && /Size/.test(keeps[keeps.length - 1]) && q('.gogh-looksave-not s'),
+          'the save form names what the style keeps and strikes out size: ' + keeps.join(', '));
+        expect(!q('.gogh-looksave-isdef').checked, 'with a default already, the new style is not made the default unasked');
+        // a taken or reserved name is refused before anything is sent
+        q('.gogh-looksave-name').value = 'Drift';
+        q('.gogh-looksave').dispatchEvent(new Event('submit', { cancelable: true }));
+        expect(/already has a style called/.test(q('.gogh-looksave-err').textContent) && !q('.gogh-looksave-err').hidden, 'a taken name should be refused: ' + q('.gogh-looksave-err').textContent);
+        q('.gogh-looksave-name').value = 'Outline';
+        q('.gogh-looksave').dispatchEvent(new Event('submit', { cancelable: true }));
+        expect(/WordPress already uses/.test(q('.gogh-looksave-err').textContent), 'a name core already gives a block should be refused');
+        expect(posted === 0, 'a refused name should never be sent: ' + posted);
+        // choosing a style instead: the hand-set paint gives way, size stays
+        tiles[1].click();
+        var e0 = sec.els[0];
+        expect(e0.cls === 'is-style-tst-drift' && !e0.color && e0.tf && e0.tf.fs2 === 4 && !e0.tf.fw && !e0.tf.tt && e0.fs === 'x-large',
+          'choosing a style clears the hand-set colour and type but keeps the size: ' + JSON.stringify({ cls: e0.cls, color: e0.color, tf: e0.tf, fs: e0.fs }));
+        expect(!q('.gogh-panel .gogh-looksave') && !q('.gogh-panel .gogh-look-asmade'), 'with nothing hand-set left, there is nothing to save');
+        G.closePanel();
+        G.placeHandles(sec, 0);
+        expect(/^Style · Drift$/.test(q('.gogh-elbar:not(.gogh-kidstylebar) .gogh-eb-lookname').textContent), 'the chip names the style again');
+        // a plain paragraph on a design with no text styles: no chip at all
+        G.placeHandles(sec, 1);
+        expect(q('.gogh-elbar:not(.gogh-kidstylebar) .gogh-eb-look').style.display === 'none', 'a plain piece with no styles to choose shows no chip');
+        // someone who may not write CSS sees the chip only when there are styles
+        cfgG.canStyles = false;
+        sec.els[1].color = 'contrast';
+        G.placeHandles(sec, 1);
+        expect(q('.gogh-elbar:not(.gogh-kidstylebar) .gogh-eb-look').style.display === 'none', 'without the CSS capability a hand-styled piece offers no save');
+      } finally {
+        window.fetch = realFetch;
+        cfgG.design = was;
+        cfgG.canStyles = wasCan;
+        st.remove();
+        G.closePanel();
+        if (added && G.deleteSection) G.deleteSection(n0);
+      }
+      return 'Custom chip, as-made tile, kept/struck chips, renamed rules with hover/@media/@keyframes, refused names, last action wins';
+    });
+
+    test('the design’s style set: by kind with the default starred, Plain always there, a specimen of every style, and the set as a definition', function () {
+      var cfgG = window.GOGH, was = cfgG.design, wasCan = cfgG.canStyles;
+      cfgG.canStyles = true;
+      cfgG.design = { name: 'Riso Test', looks: {
+        heading: [{ name: 'Misregistered', slug: 'tst-misreg', 'default': true }, { name: 'Hot pink', slug: 'tst-hot', 'default': false, css: '.wp-block-heading.is-style-tst-hot { color: hotpink; }' }],
+        button: [{ name: 'Yellow print', slug: 'tst-yellow', 'default': true }] }, shelf: [] };
+      var st = document.createElement('style');
+      st.textContent = '.is-style-tst-misreg { text-shadow: .05em .035em 0 hotpink; }';
+      document.head.appendChild(st);
+      try {
+        G.looks.openSet();
+        var sets = document.querySelectorAll('.gogh-panel .gogh-styleset');
+        expect(sets.length === 5 && /Headings/.test(sets[0].textContent) && /Shapes/.test(sets[4].textContent), 'one group per kind, headings to shapes: ' + sets.length);
+        var hRows = sets[0].querySelectorAll('.gogh-styleset-row');
+        expect(hRows.length === 3 && /Misregistered/.test(hRows[0].textContent) && hRows[0].querySelector('.gogh-styleset-star.is-on[aria-pressed="true"]'), 'the default carries the star');
+        expect(!hRows[1].querySelector('.gogh-styleset-star.is-on') && hRows[1].querySelector('.gogh-styleset-more[aria-label="More for Hot pink"]'), 'every other style can be starred, and has its ⋯');
+        expect(hRows[2].classList.contains('is-plain') && /always there/.test(hRows[2].textContent) && !hRows[2].querySelector('button'), 'Plain is always there and cannot be removed');
+        hRows[1].querySelector('.gogh-styleset-more').click();
+        var menu = hRows[1].querySelector('.gogh-styleset-menu');
+        expect(menu && menu.querySelector('.gogh-styleset-rename') && menu.querySelector('.gogh-styleset-remove'), 'the ⋯ menu renames or removes');
+        menu.querySelector('.gogh-styleset-remove').click();
+        expect(/Pieces wearing it go back to Plain/.test(hRows[1].textContent), 'removing asks first and says what happens');
+        var spec = q('.gogh-specimen');
+        expect(spec && spec.querySelector('.gogh-specimen-heading h2.is-style-tst-misreg') && spec.querySelector('.gogh-specimen-heading h2.is-style-tst-hot'), 'the specimen draws every heading style');
+        expect(spec.querySelector('.gogh-specimen-button .wp-block-button.is-style-tst-yellow') && /Heading · Misregistered ★/.test(spec.textContent), 'the specimen draws the buttons and stars the defaults');
+        var def = G.looks.asDef();
+        expect(def.looks.heading.length === 2 && def.looks.heading[0]['default'] === true && /\.is-style-tst-misreg \{ text-shadow/.test(def.looks.heading[0].css || ''),
+          'a design look without its own CSS takes it from the page: ' + JSON.stringify(def.looks.heading[0]));
+        expect(def.looks.heading[1].css === '.wp-block-heading.is-style-tst-hot { color: hotpink; }' && def.looks.heading[1].slug === 'tst-hot',
+          'a saved style carries its own CSS, and its slug only when the name no longer says it: ' + JSON.stringify(def.looks.heading[1]));
+        expect(q('.gogh-panel .gogh-styleset-dl') && q('.gogh-panel .gogh-styleset-copy'), 'the set leaves for the blueprint, or as a definition');
+        G.closePanel();
+        expect(!q('.gogh-specimen'), 'the specimen leaves with the page');
+      } finally {
+        cfgG.design = was;
+        cfgG.canStyles = wasCan;
+        st.remove();
+        G.closePanel();
+      }
+      return 'kinds, star, ⋯ menu, Plain, specimen, definition';
+    });
+
+    testAsync('a saved style reaches the server: cleaned, printed on the page after Additional CSS, renamed without losing its class (restored after)', async function () {
+      var cfgG = window.GOGH, was = cfgG.design;
+      if (!cfgG.canStyles) return 'skipped: this user may not write CSS';
+      var root = cfgG.restUrl.split('wp/v2/')[0];
+      var put = function (looks) {
+        return fetch(root + 'gogh/v1/design-looks', { method: 'POST', credentials: 'same-origin',
+          headers: { 'Content-Type': 'application/json', 'X-WP-Nonce': cfgG.nonce }, body: JSON.stringify({ looks: looks }) }).then(function (r) { return r.json(); });
+      };
+      var before = {};
+      Object.keys((was && was.looks) || {}).forEach(function (t) { before[t] = was.looks[t]; });
+      try {
+        var mine = JSON.parse(JSON.stringify(before));
+        mine.heading = (mine.heading || []).concat([{ name: 'Suite stamp', 'default': false, css: '.wp-block-heading.is-style-suite-stamp { color: #123456; }</style><script>x</script>' }]);
+        var r = await put(mine);
+        var made = ((r.design && r.design.looks && r.design.looks.heading) || []).filter(function (lk) { return lk.slug === 'suite-stamp'; })[0];
+        expect(made && made.css === '.wp-block-heading.is-style-suite-stamp { color: #123456; }', 'the server keeps the style, with markup stripped from its CSS: ' + JSON.stringify(made));
+        var html = await (await fetch(location.origin + '/?goghcb=' + Date.now(), { credentials: 'same-origin', cache: 'no-store' })).text();
+        var at = html.indexOf('id="gogh-design-looks-css"'), custom = html.indexOf('id="wp-custom-css"');
+        expect(at !== -1 && /is-style-suite-stamp \{ color: #123456; \}/.test(html.slice(at, at + 4000)), 'every page prints the saved styles');
+        expect(custom === -1 || custom < at, 'the saved styles print after Additional CSS');
+        mine.heading[mine.heading.length - 1] = Object.assign({}, made, { name: 'Suite seal' });
+        r = await put(mine);
+        var renamed = r.design.looks.heading.filter(function (lk) { return lk.name === 'Suite seal'; })[0];
+        expect(renamed && renamed.slug === 'suite-stamp', 'a renamed style keeps its class: ' + JSON.stringify(renamed));
+        r = await put({ heading: [{ name: 'Outline' }], button: [{ name: 'Same' }], image: [{ name: 'Same' }] });
+        expect(!(r.design && r.design.looks && r.design.looks.heading) && r.design.looks.button && !r.design.looks.image, 'reserved names are refused, and a class serves one kind only: ' + JSON.stringify(r.design && r.design.looks));
+      } finally {
+        await put(before);
+        cfgG.design = was;
+      }
+      return 'cleaned, printed after Additional CSS, slug kept on rename, reserved and doubled names refused, restored';
     });
 
     testAsync('the Make door serves a chat that builds this site (read only: nothing is applied here)', async function () {
