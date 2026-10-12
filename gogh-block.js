@@ -65,6 +65,10 @@
   }
 
   blocks.registerBlockType('gogh/section', {
+    // API 3 (WordPress 6.9 warns about 1): the editor's wrapper comes from
+    // useBlockProps below. save() keeps writing its own classes, so the
+    // saved markup is exactly what it was and older sections still validate.
+    apiVersion: 3,
     title: 'gogh Section',
     description: 'A freeform gogh layout. Edit visually on the front end with gogh, or edit the blocks inside right here.',
     icon: 'art',
@@ -85,27 +89,32 @@
 
     edit: function (props) {
       var a = props.attributes;
-      // freshly inserted section (no model yet): point the user at the live
-      // page, where gogh actually does its editing
-      if (!a.model) {
-        var link = '';
-        try { link = window.wp.data.select('core/editor').getPermalink() || ''; } catch (e) {}
-        var href = link ? link + (link.indexOf('?') === -1 ? '?' : '&') + 'gogh-edit=1' : '';
-        return el('div', {
+      // one useBlockProps call on every render (a hook), shaped for whichever
+      // face the block shows
+      var blockProps = blockEditor.useBlockProps(a.model
+        ? { className: 'wp-block-gogh-section alignfull gogh-wrap' }
+        : {
           className: 'wp-block-gogh-section gogh-wrap',
           style: {
             padding: '56px 24px', textAlign: 'center',
             border: '1.5px dashed #7ea8ff', borderRadius: '14px',
             background: 'rgba(126, 168, 255, 0.06)',
           },
-        },
+        });
+      // freshly inserted section (no model yet): point the user at the live
+      // page, where gogh actually does its editing
+      if (!a.model) {
+        var link = '';
+        try { link = window.wp.data.select('core/editor').getPermalink() || ''; } catch (e) {}
+        var href = link ? link + (link.indexOf('?') === -1 ? '?' : '&') + 'gogh-edit=1' : '';
+        return el('div', blockProps,
           el('p', { style: { fontWeight: 700, fontSize: '15px', margin: '0 0 6px' } }, '🎨 gogh section'),
           el('p', { style: { margin: '0 0 16px', opacity: 0.75 } },
             'Design this section by dragging elements directly on the live page.'),
           href ? el('a', { className: 'components-button is-primary', href: href }, 'Edit with gogh') : null
         );
       }
-      return el('div', { className: 'wp-block-gogh-section alignfull gogh-wrap' },
+      return el('div', blockProps,
         el('style', { className: 'gogh-style', dangerouslySetInnerHTML: { __html: scopedCss(a) } }),
         el('div', sectionDivProps(a), el(InnerBlocks, { templateLock: false }))
       );

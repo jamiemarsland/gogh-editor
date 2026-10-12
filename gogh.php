@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Gogh Editor
  * Description: A freeform canvas for WordPress — drag anything anywhere on your live page; Gogh publishes it back as clean, responsive core blocks that keep working even if the plugin is deactivated.
- * Version: 0.99.653
+ * Version: 0.99.654
  * Author: Jamie Marsland
  * Author URI: https://pootlepress.com
  * License: GPLv2 or later
@@ -14,7 +14,7 @@
 
 defined( 'ABSPATH' ) || exit;
 
-define( 'GOGH_VERSION', '0.99.653' );
+define( 'GOGH_VERSION', '0.99.654' );
 
 /**
  * gogh/section — a first-class block. STATIC save (no render_callback), so
@@ -25,10 +25,11 @@ add_action( 'init', function () {
 		'gogh-block',
 		plugins_url( 'gogh-block.js', __FILE__ ),
 		array( 'wp-blocks', 'wp-element', 'wp-block-editor' ),
-		'0.99.653-chrome',
+		'0.99.654-chrome',
 		true
 	);
 	register_block_type( 'gogh/section', array(
+		'api_version'     => 3,
 		'editor_script'   => 'gogh-block',
 		// SPIKE (attrs-as-truth): v3 sections store { model, cssT } as block
 		// attributes and derive presentation here. Legacy (v2) sections carry
@@ -568,9 +569,9 @@ add_action( 'wp_enqueue_scripts', function () {
 	if ( ! $post || ! current_user_can( 'edit_post', $post->ID ) ) {
 		return;
 	}
-	wp_register_script( 'gogh-compose', plugins_url( 'gogh-compose.js', __FILE__ ), array(), '0.99.653-chrome', true );
-	wp_enqueue_script( 'gogh-write', plugins_url( 'gogh-write.js', __FILE__ ), array( 'gogh-compose' ), '0.99.653-chrome', true );
-	wp_enqueue_style( 'gogh-write', plugins_url( 'gogh-write.css', __FILE__ ), array(), '0.99.653-chrome' );
+	wp_register_script( 'gogh-compose', plugins_url( 'gogh-compose.js', __FILE__ ), array(), '0.99.654-chrome', true );
+	wp_enqueue_script( 'gogh-write', plugins_url( 'gogh-write.js', __FILE__ ), array( 'gogh-compose' ), '0.99.654-chrome', true );
+	wp_enqueue_style( 'gogh-write', plugins_url( 'gogh-write.css', __FILE__ ), array(), '0.99.654-chrome' );
 	wp_localize_script( 'gogh-write', 'GOGHWRITE', array(
 		'postId'  => $post->ID,
 		'restUrl' => esc_url_raw( rest_url() ),
@@ -4005,7 +4006,7 @@ add_action( 'rest_api_init', function () {
 			return current_user_can( 'edit_posts' );
 		},
 		'callback'            => function () {
-			return array( 'build' => '0.99.653-chrome' );
+			return array( 'build' => '0.99.654-chrome' );
 		},
 	) );
 	register_rest_route( 'gogh/v1', '/starter', array(
@@ -4872,8 +4873,8 @@ add_action( 'admin_enqueue_scripts', function ( $hook ) {
 			$globals[] = $tax->attribute_label;
 		}
 	}
-	wp_enqueue_script( 'gogh-admin', plugins_url( 'gogh-admin.js', __FILE__ ), array(), '0.99.653-chrome', true );
-	wp_enqueue_style( 'gogh-admin', plugins_url( 'gogh-admin.css', __FILE__ ), array(), '0.99.653-chrome' );
+	wp_enqueue_script( 'gogh-admin', plugins_url( 'gogh-admin.js', __FILE__ ), array(), '0.99.654-chrome', true );
+	wp_enqueue_style( 'gogh-admin', plugins_url( 'gogh-admin.css', __FILE__ ), array(), '0.99.654-chrome' );
 	wp_localize_script( 'gogh-admin', 'GOGH_ADMIN', array(
 		'restUrl'   => esc_url_raw( rest_url( 'wc/v3/' ) ),
 		'nonce'     => wp_create_nonce( 'wp_rest' ),
@@ -6312,11 +6313,96 @@ add_action( 'wp_head', function () {
 	}
 }, 1 );
 
+// the two typefaces a page actually wears (the body and the headings) start
+// downloading with the page, not after the stylesheet that names them is read:
+// on a hosted site that waits about 1.8s before any text can draw in its face
+function gogh_font_preloads() {
+	$faces = array();
+	$fams  = wp_get_global_settings( array( 'typography', 'fontFamilies' ) );
+	if ( is_array( $fams ) ) {
+		foreach ( array( 'theme', 'custom' ) as $origin ) { // custom last: a font the site installed wins its slug
+			if ( empty( $fams[ $origin ] ) || ! is_array( $fams[ $origin ] ) ) {
+				continue;
+			}
+			foreach ( $fams[ $origin ] as $f ) {
+				if ( ! empty( $f['slug'] ) && ! empty( $f['fontFace'] ) && is_array( $f['fontFace'] ) ) {
+					$faces[ $f['slug'] ] = $f['fontFace'];
+				}
+			}
+		}
+	}
+	if ( ! $faces ) {
+		return array();
+	}
+	$slug_of = function ( $v ) {
+		return ( is_string( $v ) && preg_match( '/font-family(?:\||--)([a-z0-9-]+)/', $v, $m ) ) ? $m[1] : '';
+	};
+	$weight_of = function ( $v, $fallback ) {
+		return ( is_numeric( $v ) ) ? (int) $v : $fallback;
+	};
+	$wanted = array(
+		$slug_of( wp_get_global_styles( array( 'typography', 'fontFamily' ) ) )
+			=> $weight_of( wp_get_global_styles( array( 'typography', 'fontWeight' ) ), 400 ),
+	);
+	$hs = $slug_of( wp_get_global_styles( array( 'elements', 'heading', 'typography', 'fontFamily' ) ) );
+	if ( $hs && ! isset( $wanted[ $hs ] ) ) {
+		$wanted[ $hs ] = $weight_of( wp_get_global_styles( array( 'elements', 'heading', 'typography', 'fontWeight' ) ), 400 );
+	}
+	$urls = array();
+	foreach ( $wanted as $slug => $weight ) {
+		if ( ! $slug || empty( $faces[ $slug ] ) ) {
+			continue;
+		}
+		// the upright face whose weight (or variable range) covers the weight in use
+		$pick = null;
+		foreach ( $faces[ $slug ] as $face ) {
+			if ( ! empty( $face['fontStyle'] ) && 'normal' !== $face['fontStyle'] ) {
+				continue;
+			}
+			$range = preg_split( '/\s+/', trim( (string) ( isset( $face['fontWeight'] ) ? $face['fontWeight'] : '400' ) ) );
+			$lo    = (int) $range[0];
+			$hi    = isset( $range[1] ) ? (int) $range[1] : $lo;
+			if ( null === $pick ) {
+				$pick = $face; // the first upright face, if none covers the weight
+			}
+			if ( $weight >= $lo && $weight <= $hi ) {
+				$pick = $face;
+				break;
+			}
+		}
+		if ( ! $pick || empty( $pick['src'] ) ) {
+			continue;
+		}
+		foreach ( (array) $pick['src'] as $src ) {
+			$src = (string) $src;
+			if ( ! preg_match( '/\.woff2(\?|$)/i', $src ) ) {
+				continue;
+			}
+			if ( 0 === strpos( $src, 'file:./' ) ) {
+				$src = get_theme_file_uri( substr( $src, 7 ) );
+			}
+			if ( preg_match( '#^(https?:)?//#i', $src ) ) {
+				$urls[] = $src;
+			}
+			break;
+		}
+	}
+	return array_slice( array_values( array_unique( $urls ) ), 0, 2 );
+}
+add_action( 'wp_head', function () {
+	if ( is_admin() || is_feed() || ! apply_filters( 'gogh_preload_fonts', true ) ) {
+		return;
+	}
+	foreach ( gogh_font_preloads() as $url ) {
+		echo '<link rel="preload" href="' . esc_url( $url ) . '" as="font" type="font/woff2" crossorigin>' . "\n";
+	}
+}, 2 );
+
 // ✦ looks and motion serve EVERY visitor on every page — no gate. A post
 // wearing Magazine must read as Magazine logged-out, and the site's gait
 // is site-wide; both packs are a few KB of pure CSS.
 add_action( 'wp_enqueue_scripts', function () {
-	wp_register_style( 'gogh-looks', false, array(), '0.99.653-chrome' );
+	wp_register_style( 'gogh-looks', false, array(), '0.99.654-chrome' );
 	wp_enqueue_style( 'gogh-looks' );
 	// the reading looks dress single posts; the blog looks dress lists of
 	// posts (the posts page, archives, a page carrying a posts rail); motion
@@ -6362,10 +6448,10 @@ add_action( 'wp_enqueue_scripts', function () {
 
 	// for every visitor: neutralise theme spacing around gogh sections, even
 	// on pages whose stored stylesheets predate this rule
-	wp_register_style( 'gogh-base', false, array(), '0.99.653-chrome' );
+	wp_register_style( 'gogh-base', false, array(), '0.99.654-chrome' );
 	// (the splash presentation itself lives in gogh_splash_css(), shared with
 	// the block editor — a wall in Gutenberg must look like a wall)
-	wp_register_script( 'gogh-view', false, array(), '0.99.653-chrome', true );
+	wp_register_script( 'gogh-view', false, array(), '0.99.654-chrome', true );
 	wp_enqueue_script( 'gogh-view' );
 	wp_add_inline_script( 'gogh-view',
 		// mega menu panels: hover opens with intent on fine pointers; the chevron
@@ -6681,9 +6767,9 @@ add_action( 'wp_enqueue_scripts', function () {
 
 	// compose must be REGISTERED here too — a dependency on an
 	// unregistered handle silently drops the whole editor script
-	wp_register_script( 'gogh-compose', plugins_url( 'gogh-compose.js', __FILE__ ), array(), '0.99.653-chrome', true );
-	wp_enqueue_script( 'gogh-editor', plugins_url( 'gogh-editor.js', __FILE__ ), array( 'gogh-compose' ), '0.99.653-chrome', true );
-	wp_enqueue_style( 'gogh-editor', plugins_url( 'gogh-editor.css', __FILE__ ), array(), '0.99.653-chrome' );
+	wp_register_script( 'gogh-compose', plugins_url( 'gogh-compose.js', __FILE__ ), array(), '0.99.654-chrome', true );
+	wp_enqueue_script( 'gogh-editor', plugins_url( 'gogh-editor.js', __FILE__ ), array( 'gogh-compose' ), '0.99.654-chrome', true );
+	wp_enqueue_style( 'gogh-editor', plugins_url( 'gogh-editor.css', __FILE__ ), array(), '0.99.654-chrome' );
 
 	// WebMCP bridge: the page registers its editing verbs as agent tools.
 	// OPT-IN only — add ?gogh-mcp=1 for a demo session (or enable sitewide
@@ -6695,19 +6781,19 @@ add_action( 'wp_enqueue_scripts', function () {
 	// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only labs toggle
 	$gogh_exp = isset( $_GET['gogh-test'] ) || ( isset( $_GET['gogh-experiments'] ) && '0' !== $_GET['gogh-experiments'] );
 	if ( isset( $_GET['gogh-mcp'] ) || $gogh_exp || apply_filters( 'gogh_webmcp_enabled', false ) ) {
-		wp_enqueue_script( 'gogh-webmcp', plugins_url( 'gogh-webmcp.js', __FILE__ ), array( 'gogh-editor' ), '0.99.653-chrome', true );
+		wp_enqueue_script( 'gogh-webmcp', plugins_url( 'gogh-webmcp.js', __FILE__ ), array( 'gogh-editor' ), '0.99.654-chrome', true );
 	}
 
 	// regression suite: /page/?gogh-test (editors only, never saves)
 	// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only toggle enqueuing a test script for capability-checked editors.
 	if ( isset( $_GET['gogh-test'] ) ) {
-		wp_enqueue_script( 'gogh-tests', plugins_url( 'gogh-tests.js', __FILE__ ), array( 'gogh-editor' ), '0.99.653-chrome', true );
+		wp_enqueue_script( 'gogh-tests', plugins_url( 'gogh-tests.js', __FILE__ ), array( 'gogh-editor' ), '0.99.654-chrome', true );
 	}
 	// the user-test walk: /?gogh-edit=1&gogh-walk=1 on a DISPOSABLE Yellow
 	// House (it publishes) — editors only, never shipped in the zip
 	// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only toggle for capability-checked editors.
 	if ( isset( $_GET['gogh-walk'] ) ) {
-		wp_enqueue_script( 'gogh-walk', plugins_url( 'gogh-walk.js', __FILE__ ), array( 'gogh-editor' ), '0.99.653-chrome', true );
+		wp_enqueue_script( 'gogh-walk', plugins_url( 'gogh-walk.js', __FILE__ ), array( 'gogh-editor' ), '0.99.654-chrome', true );
 	}
 
 	// products live outside wp/v2, so gogh carries its own save route for
@@ -6727,7 +6813,7 @@ add_action( 'wp_enqueue_scripts', function () {
 		'postTitle'  => get_the_title( $post ),
 		'permalink'  => esc_url_raw( get_permalink( $post->ID ) ),
 		'excerpt'    => (string) $post->post_excerpt,
-		'build'    => '0.99.653-chrome',
+		'build'    => '0.99.654-chrome',
 		// two rooms, one landmark (same contract as the admin bar): on a POST
 		// the corner pill opens the WRITING surface, not the freeform canvas
 		'writeUrl' => is_singular( 'post' ) ? add_query_arg( 'gogh-write', '1', get_permalink( $post ) ) : null,

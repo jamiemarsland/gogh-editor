@@ -1,8 +1,8 @@
-# Knowledge-base audit — plugin v0.99.653
+# Knowledge-base audit — plugin v0.99.654
 
 _13 finding(s) suppressed by `kb.audit-ignore.txt`._
 
-## MISSING (97)
+## MISSING (98)
 
 The source has something the prose never explains. The bot knows the name from the appendix but cannot say what it is for.
 
@@ -83,6 +83,7 @@ The source has something the prose never explains. The bot knows the name from t
 - WP hook `wp_head` exists in source but is never mentioned in the prose
 - WP hook `the_content` exists in source but is never mentioned in the prose
 - WP hook `wp_head` exists in source but is never mentioned in the prose
+- WP hook `wp_head` exists in source but is never mentioned in the prose
 - WP hook `wp_insert_post` exists in source but is never mentioned in the prose
 - template `Story` exists in source but is never mentioned in the prose
 - template `Featured product` exists in source but is never mentioned in the prose
@@ -126,4 +127,5 @@ Quoted copy not found verbatim in the source. Paraphrases are fine; changed UI c
 
 Use this as the checklist for updating the prose — and as a sanity check on the release itself.
 
-- version: 0.99.652 → 0.99.653
+- version: 0.99.653 → 0.99.654
+- added exposed filter: "gogh_preload_fonts"

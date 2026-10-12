@@ -15,7 +15,7 @@ about something where they conflict, rather than picking one silently. Quote UI
 labels and message copy from the appendix, verbatim — those are the current
 strings, and a paraphrased button label is the fastest way to lose a user's trust.
 
-Generated for plugin version 0.99.653 · knowledge base 8c85247.
+Generated for plugin version 0.99.654 · knowledge base 574e408.
 
 ---
 
@@ -830,6 +830,8 @@ The helper's welcome panel opens with a 35-second film of gogh being used (v0.99
 
 **The phone view survives navigation (v0.99.605).** Press one of your own pages while on the phone and it opens in the editor, still on the phone: the link carries `gogh-edit=1&gogh-phone=1`, the next page reads them at boot and strips them from the address. Other sites, files, wp-admin and anchors on the same page are left alone. Unpublished changes still ask before leaving.
 
+**Fonts arrive sooner, and no warning in the block editor (v0.99.654).** Every page now tells the browser, at the very top, to start downloading the typeface its body text wears and the one its headings wear (at most two files, at the exact addresses the page's own font rules use). Before, the browser only found the font files after reading the stylesheet, which on a hosted site held up text in its real face for about two seconds. A site can turn this off with the `gogh_preload_fonts` filter. Separately, gogh's section block now uses WordPress's current block format (API version 3), so the WordPress 6.9 block editor no longer warns that it is deprecated, and the editor can draw the page in its iframe. Sections saved before still open as valid.
+
 **Switching header layout keeps your menu (v0.99.653).** Picking a different header or footer layout in the header room used to save the new layout without saying which menu it shows, so WordPress showed the newest menu on the site instead. A site with more than one menu (a separate footer menu, or menus left behind by a starter) could find a different menu in its header after a layout change. Now the menu the part showed comes along with every layout pick, and the layout previews show your real menu too. Also: maps and experiences now publish as valid blocks, so the WordPress block editor no longer flags those sections as broken ("This block contains unexpected or invalid content"). Pages published before still show their maps.
 
 **Readable small print (v0.99.652).** An accessibility pass over five blueprint sites with axe (WCAG 2.2 AA, every page, desktop and phone) found one kind of problem: small text gogh had softened too far. Three changes. The contrast check that runs when you add, roll or restyle a section now holds small words (under 24px, or under 18.7px when bold) to 4.5:1 and big words to 3:1: a softened colour such as a section's eyebrow keeps its colour and is made just strong enough, quietly, and a solid colour that reads but falls short (white on a mid orange) changes to the theme colour that passes, with the usual message and Undo. Small print in the looks (blog dates, captions, the contents title, tab labels, the form's note, the photo credits line) is a little stronger, and carousel dots are easier to see. The contact form's fields have proper labels for screen readers, fill in your name and email from the browser, and announce the thank-you. Pages you published before keep their colours until you next touch that section.
@@ -927,11 +929,11 @@ Everything in this section is extracted mechanically from the Gogh source on eve
 
 ## Current release
 
-- Plugin version: **0.99.653**
+- Plugin version: **0.99.654**
 - Requires WordPress **6.5+**, PHP **7.4+**
 - Text domain: `gogh-editor`
 - readme.txt Stable tag: `0.26.0` · Tested up to: `7.0`
-- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.653`). Quote the plugin header version.
+- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.654`). Quote the plugin header version.
 
 ## Design constants
 
@@ -1100,6 +1102,7 @@ Block: `gogh/section` · v3 attributes: `css`, `model`, `scope`, `v`, `cssT`.
 | `wp_head` | action | 10 |
 | `the_content` | filter | 13 |
 | `wp_head` | action | 10 |
+| `wp_head` | action | 2 |
 | `wp_enqueue_scripts` | action | 10 |
 | `wp_enqueue_scripts` | action | 10 |
 | `rest_api_init` | action | 10 |
@@ -1111,7 +1114,7 @@ Block: `gogh/section` · v3 attributes: `css`, `model`, `scope`, `v`, `cssT`.
 | `wp_insert_post` | action | 10 |
 | `block_editor_settings_all` | filter | 10 |
 
-Filters exposed for third parties: `gogh_default_editor`, `gogh_claims_post`, `gogh_labs_ask`, `gogh_helper_url`, `gogh_user_test_tasks`, `gogh_rebake_enabled`, `gogh_schema`, `gogh_schema_enabled`, `gogh_webmcp_enabled`, `gogh_convert_enabled`.
+Filters exposed for third parties: `gogh_default_editor`, `gogh_claims_post`, `gogh_labs_ask`, `gogh_helper_url`, `gogh_user_test_tasks`, `gogh_rebake_enabled`, `gogh_schema`, `gogh_schema_enabled`, `gogh_preload_fonts`, `gogh_webmcp_enabled`, `gogh_convert_enabled`.
 
 REST routes registered: `gogh/v1/version`, `gogh/v1/starter`, `gogh/v1/site-def`, `gogh/v1/type-scale`, `gogh/v1/blog-style`, `gogh/v1/motion`, `gogh/v1/ask`, `gogh/v1/imagine-exp`, `gogh/v1/ask-key`, `gogh/v1/menu-style`, `gogh/v1/first-minute`, `gogh/v1/ask-log`, `gogh/v1/active-style`, `wp/v2/gogh-product/(?P<id>\d+)`, `wp/v2/gogh-product/(?P<id>\d+)/autosaves`, `gogh/v1/pattern`, `gogh/v1/render`.
 
@@ -1468,4 +1471,4 @@ These are the real strings in the current build. Use them verbatim; never paraph
 
 ## Test suite
 
-`336` tests, run by appending `?gogh-test` to any Gogh page URL while logged in with edit rights on that page.
+`337` tests, run by appending `?gogh-test` to any Gogh page URL while logged in with edit rights on that page.

@@ -1607,6 +1607,21 @@
       return 'dark ground flips ' + darker + '→' + lighter + '; pale ground untouched';
     });
 
+    test('the page preloads the typefaces it wears, at the addresses its @font-face rules load', function () {
+      // a preload whose URL differs from the stylesheet's is a second download,
+      // not a head start
+      var links = [].slice.call(document.querySelectorAll('link[rel="preload"][as="font"]'));
+      if (!links.length) return 'no font preload (the theme names no font files) \u2014 nothing to judge';
+      expect(links.length <= 2, 'at most two typefaces are preloaded (got ' + links.length + ')');
+      var css = [].slice.call(document.querySelectorAll('style')).map(function (st) { return st.textContent; }).join('\n');
+      links.forEach(function (l) {
+        var href = l.getAttribute('href');
+        expect(l.hasAttribute('crossorigin'), 'a font preload without crossorigin is fetched twice: ' + href);
+        expect(css.indexOf(href) !== -1, 'no @font-face on the page loads ' + href);
+      });
+      return links.length + ' preloaded: ' + links.map(function (l) { return l.getAttribute('href').split('/').pop(); }).join(', ');
+    });
+
     test('the sentinel lifts small softened words to 4.5:1 and leaves big ones at 3:1', function () {
       // a 55% eyebrow on cream paper reads (about 3.9:1, over the 3.2 floor)
       // but small words owe WCAG 4.5:1 on the published page: the ink keeps
