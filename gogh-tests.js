@@ -9401,6 +9401,66 @@
       } finally { window.fetch = realFetch; G.closePanel(); G.closeSide(true); settleZoom(); }
       return 'layout kept and still listed; colour kept and still there; ' + posted.length + ' writes';
     });
+    testAsync('a header or footer layout pick keeps the menu the part shows (its navigation ref)', async function () {
+      // layout options carry no ref, and a navigation block with none shows
+      // the site's newest menu: a layout pick on The Long Way (2026-10-05)
+      // saved the header with no ref, so a second menu could take over
+      var C = G.carryNavRefs;
+      var saved = '<!-- wp:group --><div><!-- wp:navigation {"ref":251,"overlayMenu":"mobile","icon":"menu"} /--></div><!-- /wp:group -->';
+      expect(C('<!-- wp:navigation {"overlayMenu":"mobile"} /-->', saved) === '<!-- wp:navigation {"ref":251,"overlayMenu":"mobile"} /-->', 'attrs: ' + C('<!-- wp:navigation {"overlayMenu":"mobile"} /-->', saved));
+      expect(C('<!-- wp:navigation /-->', saved) === '<!-- wp:navigation {"ref":251} /-->', 'bare: ' + C('<!-- wp:navigation /-->', saved));
+      expect(C('<!-- wp:navigation {"ref":9} /-->', saved) === '<!-- wp:navigation {"ref":251} /-->', 'a pattern ref should give way to the saved one');
+      expect(C('<!-- wp:navigation-link {"label":"A"} /-->', saved) === '<!-- wp:navigation-link {"label":"A"} /-->', 'a navigation-link was touched');
+      expect(C('<!-- wp:navigation /-->', '<!-- wp:navigation /-->') === '<!-- wp:navigation /-->', 'no saved ref should leave the layout as it is');
+      expect(/"ref":251/.test(G.chromeLayoutContent('footer', { content: '<!-- wp:navigation /-->' }, null, saved)), 'the one-click swap path lost the ref');
+      // the room itself, header and footer, writes stubbed
+      var realFetch = window.fetch, posted = [];
+      var reply = function (body) { return Promise.resolve({ ok: true, status: 200, url: '', json: function () { return Promise.resolve(body); }, text: function () { return Promise.resolve(JSON.stringify(body)); } }); };
+      window.fetch = function (url, opts) {
+        var u = String(url), m = (opts && opts.method) || 'GET';
+        if (/template-parts\/101/.test(u) && m === 'POST') { posted.push(JSON.parse(opts.body).content); return reply({ id: 101 }); }
+        if (/template-parts/.test(u) && m === 'GET') return reply([]);
+        return realFetch.apply(window, arguments);
+      };
+      var mk = function (id, slug, title, word, nav) { return { kind: 'part', id: id, slug: slug, theme: 'x', title: title, content: '<!-- wp:group {"layout":{"type":"flex"}} --><div class="wp-block-group"><!-- wp:paragraph --><p>' + word + '</p><!-- /wp:paragraph -->' + nav + '</div><!-- /wp:group -->' }; };
+      var areas = ['header', 'footer'], done = [];
+      try {
+        for (var k = 0; k < areas.length; k++) {
+          var area = areas[k];
+          var partEl = G.partElForArea(area);
+          if (!partEl) continue;
+          posted.length = 0;
+          var options = [
+            mk(101, area, 'Classic ' + area, 'one', '<!-- wp:navigation {"ref":251,"overlayMenu":"mobile","icon":"menu"} /-->'),
+            mk(102, area + '-b', 'Centred ' + area, 'two', '<!-- wp:navigation {"overlayMenu":"mobile","icon":"menu"} /-->'),
+          ];
+          var active = { id: 101, content: { raw: options[0].content } };
+          G.openSide('site');
+          G.openHeaderPanel(partEl, area, options, options[0], active);
+          var pnl = q('.gogh-panel');
+          var layDoor = pnl.querySelector('.gogh-hlaydoor');
+          if (layDoor) layDoor.click();
+          var opt = pnl.querySelector('.gogh-hlayout[data-k="1"]');
+          expect(opt, 'no Centred ' + area + ' to pick');
+          opt.click();
+          await new Promise(function (r) { setTimeout(r, 1500); }); // the keep waits 900ms
+          expect(posted.length === 1, area + ': picking a layout should write once, wrote ' + posted.length);
+          expect(/two/.test(posted[0]), area + ': the written part is not the picked layout');
+          expect(/wp:navigation \{"ref":251,/.test(posted[0]), area + ': the picked layout lost the menu ref: ' + posted[0]);
+          // ...and back again: the saved raw now carries the ref through
+          var back = pnl.querySelector('.gogh-hlayout[data-k="0"]');
+          if (back) {
+            back.click();
+            await new Promise(function (r) { setTimeout(r, 1500); });
+            expect(posted.length === 2 && /one/.test(posted[1]) && /"ref":251/.test(posted[1]), area + ': switching back lost the ref: ' + posted[posted.length - 1]);
+          }
+          G.closePanel(); G.closeSide(true); settleZoom();
+          done.push(area);
+        }
+      } finally { window.fetch = realFetch; G.closePanel(); G.closeSide(true); settleZoom(); }
+      expect(done.indexOf('header') !== -1, 'the fixture has no header to test');
+      return 'ref 251 kept through a layout pick and back: ' + done.join(', ');
+    });
     test('the phone view carries one sentence saying what it is for', function () {
       var note = q('.gogh-phonenote');
       expect(note && note.hidden, 'the sentence should be hidden on the desktop');

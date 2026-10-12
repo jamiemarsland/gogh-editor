@@ -19706,6 +19706,8 @@
     toast: toast,
     textIdentityRaw: textIdentityRaw,
     chromeShape: chromeShape,
+    chromeLayoutContent: chromeLayoutContent,
+    carryNavRefs: carryNavRefs,
     headerWearsLogo: headerWearsLogo,
     diceFlatten: diceFlatten,
     guardLog: function () { return guardLog.slice(); },
@@ -22479,7 +22481,9 @@
         // __prev is the PRE-SCREENING's cached render of the UNDRESSED
         // pattern — carrying it over served auditions with the pattern's
         // own identity while the dressed content sat unused
-        return Object.assign({}, o, { content: chromeLayoutContent('header', o, usingLogo), __prev: null });
+        // ...and in the saved menu, so an audition shows the menu the
+        // site actually has rather than whichever is newest
+        return Object.assign({}, o, { content: chromeLayoutContent('header', o, usingLogo, raw0), __prev: null });
       });
       if (activeOpt) activeOpt = options.filter(function (o) { return o.id === activeOpt.id; })[0] || activeOpt;
       // warm every dressed render NOW, in the background — a first hover
@@ -22607,7 +22611,7 @@
     var keepChain = Promise.resolve();
     var buildBase = function () {
       var base = (st.layoutId !== (activeOpt && activeOpt.id))
-        ? chromeLayoutContent(area, chosenOpt(), area === 'header' ? usingLogo : null)
+        ? chromeLayoutContent(area, chosenOpt(), area === 'header' ? usingLogo : null, raw0)
         : raw0;
       if (st.dials) base = chromeDialsApply(base, st.dials) || base;
       if (st.look !== undefined) base = chromeColorApply(base, st.look && (st.look.bg || st.look.custom || st.look.ink || st.look.inkHex) ? st.look : null) || base;
@@ -23681,8 +23685,34 @@
     if (cfg.hasLogo) return true;
     return !!document.querySelector('.wp-block-site-logo img');
   }
-  function chromeLayoutContent(area, chosen, wantLogo) {
-    var content = chosen.content || '';
+  // the menu a part SHOWS rides along a layout change. Layout options carry
+  // no ref (see chromeShape), and a navigation block with none falls back to
+  // the newest menu on the site — a site with a footer menu, or menus left
+  // by a starter, had its header swap menus on a layout pick (2026-10-05).
+  // The saved part's refs go onto the chosen layout's navigation blocks in
+  // order; extras take the last one. No saved ref: nothing changes.
+  var NAV_OPEN_RE = /<!--\s*wp:navigation(?=[\s\/])([^]*?)(\/?)-->/g;
+  function carryNavRefs(content, savedRaw) {
+    var refs = [];
+    String(savedRaw || '').replace(NAV_OPEN_RE, function (m0, attrs) {
+      var r = /"ref":(\d+)/.exec(attrs);
+      if (r) refs.push(r[1]);
+      return m0;
+    });
+    if (!refs.length) return content;
+    var i = 0;
+    return String(content || '').replace(NAV_OPEN_RE, function (m0, attrs, selfClose) {
+      var ref = refs[Math.min(i++, refs.length - 1)];
+      var a = attrs.trim();
+      if (/"ref":\d+/.test(a)) a = a.replace(/("ref":)\d+/, '$1' + ref);
+      else if (/^\{\s*\}$/.test(a)) a = '{"ref":' + ref + '}';
+      else if (a.charAt(0) === '{') a = a.replace(/^\{\s*/, '{"ref":' + ref + ',');
+      else a = '{"ref":' + ref + '}';
+      return '<!-- wp:navigation ' + a + ' ' + selfClose + '-->';
+    });
+  }
+  function chromeLayoutContent(area, chosen, wantLogo, savedRaw) {
+    var content = carryNavRefs(chosen.content || '', savedRaw);
     if (area === 'header') {
       // the site's ONE identity choice survives a layout change — logo or
       // text, whichever the SAVED header wears ("if i set it as text, it
@@ -23717,7 +23747,7 @@
     return content;
   }
   function swapChromeLayoutNow(area, active, chosen) {
-    var content = chromeLayoutContent(area, chosen);
+    var content = chromeLayoutContent(area, chosen, null, active && active.content && (active.content.raw || active.content));
     fetch(tpUrl(active.id), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'X-WP-Nonce': cfg.nonce },

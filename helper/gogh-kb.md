@@ -15,7 +15,7 @@ about something where they conflict, rather than picking one silently. Quote UI
 labels and message copy from the appendix, verbatim — those are the current
 strings, and a paraphrased button label is the fastest way to lose a user's trust.
 
-Generated for plugin version 0.99.652 · knowledge base c597a8f.
+Generated for plugin version 0.99.653 · knowledge base 8c85247.
 
 ---
 
@@ -398,7 +398,8 @@ Why templated at all? Because it lets the scope class be reassigned (duplicated 
 | `badge` | `core/paragraph` | className `gogh-el-N gogh-badge`. **A badge is just a paragraph** — the star bullet and pill chrome are `::before` and rules in the scoped sheet. There is no `gogh/badge` block |
 | `box` | `core/group` | `gogh-el-N gogh-box` (+ `gogh-cardbox` with kids). `href` adds an `<a class="gogh-card-link">`. Kids publish **inside** via the `gogh-k-` prefix, so with the plugin off a card degrades to stacked blocks in a group |
 | `widget` | `core/group` wrapping `wsrc` verbatim | For atomic blocks — navigation, site title, query loop. The Posts element produces a real `core/query` + `core/post-template` |
-| `exp` | `core/group` containing only `<a class="gogh-exp-link">` | KSES-safe and the plugin-off fallback; PHP swaps it for the sandboxed iframe at render |
+| `exp` | `core/group` > `core/paragraph.gogh-fallback` > `<a class="gogh-exp-link">` | KSES-safe and the plugin-off fallback; PHP swaps the group's inside for the sandboxed iframe at render. The link sits in a paragraph because a loose `<a>` in a group fails block validation in the block editor |
+| `embed` (map) | `core/group.gogh-embed-map` > `core/paragraph.gogh-fallback` > `<a class="gogh-embed-link">` | Same contract as `exp`: PHP (`gogh_inject_embeds`) swaps the inside for the map's iframe. Pages published through v0.99.646 hold the link loose in the group; the render still reads both |
 
 ### The section wrapper: v2 vs v3
 
@@ -829,6 +830,8 @@ The helper's welcome panel opens with a 35-second film of gogh being used (v0.99
 
 **The phone view survives navigation (v0.99.605).** Press one of your own pages while on the phone and it opens in the editor, still on the phone: the link carries `gogh-edit=1&gogh-phone=1`, the next page reads them at boot and strips them from the address. Other sites, files, wp-admin and anchors on the same page are left alone. Unpublished changes still ask before leaving.
 
+**Switching header layout keeps your menu (v0.99.653).** Picking a different header or footer layout in the header room used to save the new layout without saying which menu it shows, so WordPress showed the newest menu on the site instead. A site with more than one menu (a separate footer menu, or menus left behind by a starter) could find a different menu in its header after a layout change. Now the menu the part showed comes along with every layout pick, and the layout previews show your real menu too. Also: maps and experiences now publish as valid blocks, so the WordPress block editor no longer flags those sections as broken ("This block contains unexpected or invalid content"). Pages published before still show their maps.
+
 **Readable small print (v0.99.652).** An accessibility pass over five blueprint sites with axe (WCAG 2.2 AA, every page, desktop and phone) found one kind of problem: small text gogh had softened too far. Three changes. The contrast check that runs when you add, roll or restyle a section now holds small words (under 24px, or under 18.7px when bold) to 4.5:1 and big words to 3:1: a softened colour such as a section's eyebrow keeps its colour and is made just strong enough, quietly, and a solid colour that reads but falls short (white on a mid orange) changes to the theme colour that passes, with the usual message and Undo. Small print in the looks (blog dates, captions, the contents title, tab labels, the form's note, the photo credits line) is a little stronger, and carousel dots are easier to see. The contact form's fields have proper labels for screen readers, fill in your name and email from the browser, and announce the thank-you. Pages you published before keep their colours until you next touch that section.
 
 **Blog looks wear the site's heading face (v0.99.651).** The blog and reading looks give post titles a "second voice": the site's heading font. gogh read the body font only in one of the two forms WordPress stores it in, so on many sites it never recognised the body font and took whichever custom font was installed first, which could be the body font itself. A recipe blog's titles came out in its text face. Now the second voice is the font the site's headings wear.
@@ -924,11 +927,11 @@ Everything in this section is extracted mechanically from the Gogh source on eve
 
 ## Current release
 
-- Plugin version: **0.99.652**
+- Plugin version: **0.99.653**
 - Requires WordPress **6.5+**, PHP **7.4+**
 - Text domain: `gogh-editor`
 - readme.txt Stable tag: `0.26.0` · Tested up to: `7.0`
-- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.652`). Quote the plugin header version.
+- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.653`). Quote the plugin header version.
 
 ## Design constants
 
