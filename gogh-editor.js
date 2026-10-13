@@ -27808,6 +27808,13 @@
         }
         var hold = document.getElementById('gogh-drawer-hold');
         if (hold) hold.remove();
+        var zhold = document.getElementById('gogh-zoom-hold');
+        if (zhold) {
+          zhold.remove();
+          // the page was held zoomed for the drawer; if the drawer didn't
+          // open after all (a page naming itself first), it comes back 1:1
+          if (!(window.__gogh && window.__gogh.canvasZoom && window.__gogh.canvasZoom.on())) document.documentElement.classList.remove('gogh-zoomed');
+        }
       } catch (e3) {}
     }
   });
