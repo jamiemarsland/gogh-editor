@@ -3031,8 +3031,12 @@
   styleHome.hidden = true;
   // with its word: an icon alone was a guess (James: 'we are gonna need the
   // word Styles next to the icon - its really important, but hard to find')
-  styleHome.innerHTML = '<a class="ab-item gogh-stylebar" href="#" role="button" aria-label="Site Styles" title="Site Styles">' +
-    '<svg class="gogh-ab-ic" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="m9.06 11.9 8.07-8.06a2.85 2.85 0 1 1 4.03 4.03l-8.06 8.08"/><path d="M7.07 14.94c-1.66 0-3 1.35-3 3.02 0 1.33-2.5 1.52-2 2.02 1.08 1.1 2.49 2.02 4 2.02 2.2 0 4-1.8 4-4.04a3.01 3.01 0 0 0-3-3.02z"/></svg><span class="gogh-stylebar-word">Styles</span></a>';
+  // a decorator's brush, wide bristles under a band and a handle: the
+  // artist's brush read as a pen (James). 'Site styles' in words: the
+  // piece toolbar's 'Style · …' chip is one piece's look, this is the
+  // whole site's fonts and colours
+  styleHome.innerHTML = '<a class="ab-item gogh-stylebar" href="#" role="button" aria-label="Site styles" title="Site styles: the fonts and colours of the whole site">' +
+    '<svg class="gogh-ab-ic" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="m14.622 17.897-10.68-2.913"/><path d="M18.376 2.622a1 1 0 1 1 3.002 3.002L17.36 9.643a.5.5 0 0 0 0 .707l.944.944a2.41 2.41 0 0 1 0 3.408l-.944.944a.5.5 0 0 1-.707 0L8.354 7.348a.5.5 0 0 1 0-.707l.944-.944a2.41 2.41 0 0 1 3.408 0l.944.944a.5.5 0 0 0 .707 0z"/><path d="M9 8c-1.804 2.71-3.97 3.46-6.583 3.948a.507.507 0 0 0-.302.819l7.32 8.883a1 1 0 0 0 1.185.204C12.735 20.405 16 16.792 16 15"/></svg><span class="gogh-stylebar-word">Site styles</span></a>';
   styleHome.querySelector('a').addEventListener('click', function (ev) {
     ev.preventDefault();
     if (side.classList.contains('is-open') && side.dataset.mode === 'site' && !side.querySelector('.gogh-panel')) closeSide(); else openSide('site');

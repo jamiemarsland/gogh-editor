@@ -8740,8 +8740,9 @@
       var stHome = q('#wp-admin-bar-gogh-style');
       if (stHome) expect(stHome.nextElementSibling && stHome.nextElementSibling.id === 'wp-admin-bar-gogh-device', 'the brush should sit left of the Desktop | Mobile pair (v0.99.625)');
       expect(!st.closest('[hidden]'), 'the brush is hidden while editing');
-      expect(st.getAttribute('title') === 'Site Styles', 'the brush tooltip should read Site Styles: ' + st.getAttribute('title'));
-      expect(/^Styles$/.test(st.textContent.trim()), 'the brush should carry the word Styles (v0.99.627): ' + st.textContent.trim());
+      expect(/^Site styles/.test(st.getAttribute('title')), 'the brush tooltip should say Site styles: ' + st.getAttribute('title'));
+      // v0.99.692: 'Site styles', apart from the piece toolbar's 'Style · …'
+      expect(/^Site styles$/.test(st.textContent.trim()), 'the brush should carry the words Site styles: ' + st.textContent.trim());
       expect(!st.querySelector('rect') && !q('#wp-admin-bar-gogh-device rect'), 'a <rect> in the admin bar is zeroed by WordPress\u2019s reset; draw with paths');
       var side = q('.gogh-side');
       // the brush opens the drawer wearing SITE clothes only
