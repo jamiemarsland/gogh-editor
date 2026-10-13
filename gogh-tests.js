@@ -1131,6 +1131,49 @@
       expect(!sec().els[i].color, 'default swatch did not clear colour');
     });
 
+    // v0.99.681: any colour for words, first in the row (James: "should
+    // folks be able to choose custom colors here")
+    test('text colour: Custom colour comes first, auditions on the words, keeps as the piece\u2019s own colour, and a swatch takes it back', function () {
+      var i = findIdx('heading');
+      select(i);
+      var e = sec().els[i], keepCol = e.color || null;
+      q('.gogh-eb-col').click();
+      var pnl = q('.gogh-panel');
+      var any = pnl.querySelector('.gogh-colany');
+      expect(any && /Custom colour/.test(any.textContent), 'a Custom colour button should be in the panel');
+      expect(any && pnl.querySelector('.gogh-swrow') && (any.compareDocumentPosition(pnl.querySelector('.gogh-swrow')) & Node.DOCUMENT_POSITION_FOLLOWING), 'Custom colour should come before the swatches');
+      expect(/stays put/.test(pnl.textContent), 'the hint should say a custom colour stays put');
+      any.click();
+      var hexIn = pnl.querySelector('.gogh-colorpop .gogh-cp-hex');
+      expect(hexIn && !pnl.querySelector('.gogh-colorpop').hidden, 'the colour surface should open in the panel');
+      hexIn.value = '#b0306a';
+      hexIn.dispatchEvent(new Event('input', { bubbles: true }));
+      var node = function () { return sec().nodes[i]; };
+      expect(getComputedStyle(node()).color === 'rgb(176, 48, 106)', 'the words should audition the colour: ' + getComputedStyle(node()).color);
+      expect(/contrast|picture/.test(pnl.querySelector('.gogh-cp-ink').textContent), 'the surface should say how well it reads: ' + pnl.querySelector('.gogh-cp-ink').textContent);
+      pnl.querySelector('.gogh-cp-cancel').click();
+      expect(getComputedStyle(node()).color !== 'rgb(176, 48, 106)' && !(e.tf && e.tf.col), 'Cancel should put the words back');
+      any.click();
+      hexIn = pnl.querySelector('.gogh-colorpop .gogh-cp-hex');
+      hexIn.value = '#b0306a';
+      hexIn.dispatchEvent(new Event('input', { bubbles: true }));
+      pnl.querySelector('.gogh-cp-keep').click();
+      expect(e.tf && e.tf.col === '#b0306a' && !e.color, 'Use it should keep the colour as the piece\u2019s own: ' + JSON.stringify(e.tf) + ' ' + e.color);
+      expect(getComputedStyle(node()).color === 'rgb(176, 48, 106)', 'the words should wear it after a re-render: ' + getComputedStyle(node()).color);
+      select(i);
+      expect(/176, 48, 106/.test(getComputedStyle(q('.gogh-elbar .gogh-eb-colchip')).backgroundColor), 'the toolbar chip should show it');
+      q('.gogh-eb-col').click();
+      pnl = q('.gogh-panel');
+      expect(pnl.querySelector('.gogh-colany.is-active') && !pnl.querySelector('.gogh-swrow .gogh-sw.is-active'), 'the panel should mark Custom colour, not a swatch');
+      var sw = pnl.querySelectorAll('.gogh-swrow .gogh-sw')[1];
+      sw.click();
+      expect(!(e.tf && e.tf.col) && e.color === sw.dataset.col, 'a palette swatch should take over from the custom colour');
+      e.color = keepCol;
+      G.renderSection(sec());
+      closePanelForTest();
+      return 'custom ' + '#b0306a' + ', then ' + sw.dataset.col;
+    });
+
     function closePanelForTest() {
       var p = document.querySelector('.gogh-panel');
       if (p) p.hidden = true;

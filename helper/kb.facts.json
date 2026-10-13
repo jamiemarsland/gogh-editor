@@ -1,12 +1,12 @@
 {
   "meta": {
-    "plugin_version": "0.99.680",
+    "plugin_version": "0.99.681",
     "requires_wp": "6.5",
     "requires_php": "7.4",
     "text_domain": "gogh-editor",
     "readme_stable_tag": "0.26.0",
     "readme_tested_up_to": "7.0",
-    "asset_version": "0.99.680-chrome"
+    "asset_version": "0.99.681-chrome"
   },
   "constants": {
     "TOL": 8,
@@ -585,6 +585,7 @@
     "Peek at pages",
     "Phone menu",
     "Pick a custom colour for this section",
+    "Pick any colour for this ' + noun.toLowerCase() + '",
     "Posts",
     "Products",
     "Publish",
@@ -1493,5 +1494,5 @@
     "has_deprecation": true,
     "block_title": "gogh Section"
   },
-  "test_count": 345
+  "test_count": 346
 }

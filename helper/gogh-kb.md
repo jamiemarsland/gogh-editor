@@ -15,7 +15,7 @@ about something where they conflict, rather than picking one silently. Quote UI
 labels and message copy from the appendix, verbatim — those are the current
 strings, and a paraphrased button label is the fastest way to lose a user's trust.
 
-Generated for plugin version 0.99.680 · knowledge base d6b37e0.
+Generated for plugin version 0.99.681 · knowledge base b2bdaff.
 
 ---
 
@@ -830,6 +830,8 @@ The helper's welcome panel opens with a 35-second film of gogh being used (v0.99
 
 **The phone view survives navigation (v0.99.605).** Press one of your own pages while on the phone and it opens in the editor, still on the phone: the link carries `gogh-edit=1&gogh-phone=1`, the next page reads them at boot and strips them from the address. Other sites, files, wp-admin and anchors on the same page are left alone. Unpublished changes still ask before leaving.
 
+**Custom colour for words, lines and icons (v0.99.681).** The colour button on a heading's, paragraph's, line's or icon's toolbar opens a panel that starts with **Custom colour**, like the section and card colour rows. It opens a colour surface in the panel: drag the hue, pick a shade or type a colour code, and the words try it on as you go, shown on their real background with how easy they are to read ("Easy to read here · contrast 6.0", or "Hard to read on this background"). **Use it** keeps it; **Cancel** puts the words back. The palette swatches sit below. The difference: a palette colour changes when you change the site's colours in Site style, a custom colour stays put. Choosing a swatch replaces a custom colour, and choosing a style again clears it.
+
 **No gaps after a size round trip (v0.99.680).** Making text bigger pushes what sits below it down by exactly how much taller the text got, and making it smaller pulls it back up by the same amount. Before this, growing pushed things down twice as far as it should, so choosing Huge and then Small left a big empty gap under the text. The same fix covers Fit to width and painting a style onto text.
 
 **Text size: A−, A+ and plain names (v0.99.679).** On a heading's or a paragraph's toolbar, the size now sits between **A−** (smaller) and **A+** (bigger), which stop at the ends instead of wrapping round. The names are plain: text with no size set says **Normal**, and the three biggest sizes are **Headline**, **Poster** and **Billboard** (they used to be Display S, M and L). Press the size name to see every size in a list, each drawn at its size, smallest to biggest *for that piece*: in many themes a heading's Normal is already as big as Extra large, so sizes are ordered by what they really draw at, and two that look the same count as one step (A+ always makes the words visibly bigger). Text fitted to its box says **Fitted**; choosing a size lets it wrap again. The page switcher at the top of the Page drawer no longer has *Add a page* at the bottom; it is the last card in the Page drawer.
@@ -969,11 +971,11 @@ Everything in this section is extracted mechanically from the Gogh source on eve
 
 ## Current release
 
-- Plugin version: **0.99.680**
+- Plugin version: **0.99.681**
 - Requires WordPress **6.5+**, PHP **7.4+**
 - Text domain: `gogh-editor`
 - readme.txt Stable tag: `0.26.0` · Tested up to: `7.0`
-- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.680`). Quote the plugin header version.
+- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.681`). Quote the plugin header version.
 
 ## Design constants
 
@@ -1336,6 +1338,7 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "Peek at pages"
 - "Phone menu"
 - "Pick a custom colour for this section"
+- "Pick any colour for this ' + noun.toLowerCase() + '"
 - "Posts"
 - "Products"
 - "Publish"
@@ -1539,4 +1542,4 @@ These are the real strings in the current build. Use them verbatim; never paraph
 
 ## Test suite
 
-`345` tests, run by appending `?gogh-test` to any Gogh page URL while logged in with edit rights on that page.
+`346` tests, run by appending `?gogh-test` to any Gogh page URL while logged in with edit rights on that page.

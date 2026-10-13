@@ -6668,23 +6668,40 @@
     // so the first swatch shows it and says so
     var stl = (e.type === 'heading' || e.type === 'para') ? lookOf(e) : null;
     var stlCol = stl ? lookColour(e, stl, sec) : null;
-    panel.innerHTML = '<div class="gogh-panel-title">' + (e.type === 'rule' ? 'Line colour' : e.type === 'icon' ? 'Icon colour' : 'Text colour') + '</div>' +
-      '<div class="gogh-swrow">' +
-      (stlCol
-        ? '<button type="button" class="gogh-sw gogh-sw-none gogh-sw-style' + (!e.color ? ' is-active' : '') + '" data-col="" style="background:' + escAttr(stlCol) + '" title="' + escAttr(stl.name) + '\u2019s colour"></button>'
-        : '<button type="button" class="gogh-sw gogh-sw-none" data-col="" title="Theme default"></button>') +
-      pickerPalette().map(function (p) {
-        return '<button type="button" class="gogh-sw' + (e.color === p.slug ? ' is-active' : '') + '" data-col="' + p.slug + '"' +
-          ' style="background: var(--wp--preset--color--' + p.slug + ')" title="' + p.slug + '"></button>';
-      }).join('') + '</div>' +
-      (stlCol ? '<div class="gogh-panel-hint">The first colour is ' + esc(stl.name) + '\u2019s own. Choosing a style again clears your colour.</div>' : '');
+    // ANY colour comes first and says so in words, like the section and
+    // card rows (James: "should folks be able to choose custom colors
+    // here"). It is the piece's own colour (tf.col), so it stays put when
+    // the site's palette changes; a palette swatch follows the palette
+    var custom = e.tf && /^#[0-9a-fA-F]{6}$/.test(e.tf.col || '') ? e.tf.col : null;
     // the MODEL knows when a photo sits behind the words — the DOM walk
     // can't see a background layer painted beside the text's ancestors,
     // so it struck the pale inks that WORK on a dark photo (James: "why
     // do we have crosses through these color options?"). On a picture,
     // contrast is unknowable here: no strikes, the sentinel owns it.
-    markSwatchLegibility(panel.querySelector('.gogh-swrow'), sec.bgImage ? null : effectiveBgHex(sec.nodes[i]));
-    panel.querySelectorAll('.gogh-sw').forEach(function (swBtn) {
+    var ground = sec.bgImage ? null : effectiveBgHex(sec.nodes[i]);
+    var customLow = !!(custom && ground && contrastRatio(custom, ground) < 3);
+    var noun = e.type === 'rule' ? 'Line' : e.type === 'icon' ? 'Icon' : 'Text';
+    panel.innerHTML = '<div class="gogh-panel-title">' + noun + ' colour</div>' +
+      '<button type="button" class="gogh-themechip gogh-themechip-any gogh-colany' + (custom ? ' is-active' : '') + '" title="Pick any colour for this ' + noun.toLowerCase() + '">' +
+      (custom
+        ? '<span class="gogh-themechip-swatch gogh-themechip-wheel" style="background:' + escAttr(custom) + '"></span>'
+        : '<span class="gogh-themechip-swatch gogh-themechip-wheel" aria-hidden="true"></span>') +
+      '<span class="gogh-themechip-anylab">Custom colour' + (customLow ? '<span class="gogh-colany-low"> \u00b7 hard to read here</span>' : '') + '</span>' +
+      '</button>' +
+      '<div class="gogh-colorpop" hidden></div>' +
+      '<div class="gogh-swrow">' +
+      (stlCol
+        ? '<button type="button" class="gogh-sw gogh-sw-none gogh-sw-style' + (!e.color && !custom ? ' is-active' : '') + '" data-col="" style="background:' + escAttr(stlCol) + '" title="' + escAttr(stl.name) + '\u2019s colour"></button>'
+        : '<button type="button" class="gogh-sw gogh-sw-none' + (!e.color && !custom ? ' is-active' : '') + '" data-col="" title="Theme default"></button>') +
+      pickerPalette().map(function (p) {
+        return '<button type="button" class="gogh-sw' + (e.color === p.slug && !custom ? ' is-active' : '') + '" data-col="' + p.slug + '"' +
+          ' style="background: var(--wp--preset--color--' + p.slug + ')" title="' + p.slug + '"></button>';
+      }).join('') + '</div>' +
+      '<div class="gogh-panel-hint">' +
+      (stlCol ? 'The first swatch is ' + esc(stl.name) + '\u2019s own colour. ' : '') +
+      'Palette colours change when you change the site\u2019s colours; a custom colour stays put.</div>';
+    markSwatchLegibility(panel.querySelector('.gogh-swrow'), ground);
+    panel.querySelectorAll('.gogh-swrow .gogh-sw').forEach(function (swBtn) {
       swBtn.addEventListener('click', function () {
         e.color = swBtn.dataset.col || null;
         if (e.tf) delete e.tf.col;
@@ -6693,6 +6710,33 @@
         closePanel();
         pushState();
       });
+    });
+    var anyBtn = panel.querySelector('.gogh-colany'), popBox = panel.querySelector('.gogh-colorpop');
+    // every move is an audition on the real words; Cancel puts them back
+    var target = function () { return sec.nodes[i]; };
+    var audition = function (hex) { var t = target(); if (t) t.style.setProperty('color', hex, 'important'); };
+    var unaudition = function () { var t = target(); if (t) t.style.removeProperty('color'); };
+    anyBtn.addEventListener('click', function () {
+      if (!popBox.hidden) { popBox.hidden = true; popBox.innerHTML = ''; unaudition(); reclampPanel(); return; }
+      var now = custom || cssColorToHex(getComputedStyle(target()).color) || null;
+      openColorPop(popBox, {
+        words: true,
+        ground: ground,
+        value: now,
+        onAudition: audition,
+        onCancel: function () { unaudition(); reclampPanel(); },
+        onKeep: function (hex) {
+          unaudition();
+          e.tf = e.tf || {};
+          e.tf.col = hex;
+          e.color = null;
+          renderSection(sec);
+          placeHandles(sec, i);
+          closePanel();
+          pushState();
+        },
+      });
+      reclampPanel();
     });
     placePanelNear(sec.nodes[i]);
     panelOpen = true;
@@ -14425,7 +14469,8 @@
       name: slug.charAt(0).toUpperCase() + slug.slice(1).replace(/-/g, ' '),
       ratio: ratio };
   }
-  // opts: { value, onAudition(hex), onKeep(hex), onCancel() }
+  // opts: { value, onAudition(hex), onKeep(hex), onCancel() } — with
+  // words: true (and ground: the hex behind them) it previews a TEXT colour
   function openColorPop(box, opts) {
     var start = /^#[0-9a-fA-F]{6}$/.test(opts.value || '') ? opts.value : '#3f6ea8';
     var hsl = hexToHsl(start) || { h: 210, s: 0.45, l: 0.45 };
@@ -14452,6 +14497,18 @@
     // the reading is the point of showing it: below the sentinel's floor
     // the line says so, rather than letting the words go out quietly poor
     var showInk = function () {
+      if (opts.words) {
+        // text mode: the colour is the WORDS, shown on the ground they sit on
+        var r = opts.ground ? contrastRatio(st.hex, opts.ground) : null;
+        var lowW = r != null && r < 3;
+        prev.style.background = opts.ground || 'var(--gogh-ui-well)';
+        aa.style.color = st.hex;
+        inkEl.classList.toggle('is-low', lowW);
+        inkEl.innerHTML = '<span class="gogh-cp-inkdot" style="background:' + escAttr(st.hex) + '"></span>' +
+          (r == null ? 'Over a picture \u2014 check the words still read'
+            : (lowW ? 'Hard to read on this background' : 'Easy to read here') + ' \u00b7 contrast ' + r.toFixed(1));
+        return;
+      }
       var ink = inkPairFor(st.hex);
       var low = ink.ratio != null && ink.ratio < CONTRAST_FLOOR;
       prev.style.background = st.hex;
