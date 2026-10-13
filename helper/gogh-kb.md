@@ -15,7 +15,7 @@ about something where they conflict, rather than picking one silently. Quote UI
 labels and message copy from the appendix, verbatim — those are the current
 strings, and a paraphrased button label is the fastest way to lose a user's trust.
 
-Generated for plugin version 0.99.658 · knowledge base 63cd3da.
+Generated for plugin version 0.99.659 · knowledge base 58bd741.
 
 ---
 
@@ -830,6 +830,8 @@ The helper's welcome panel opens with a 35-second film of gogh being used (v0.99
 
 **The phone view survives navigation (v0.99.605).** Press one of your own pages while on the phone and it opens in the editor, still on the phone: the link carries `gogh-edit=1&gogh-phone=1`, the next page reads them at boot and strips them from the address. Other sites, files, wp-admin and anchors on the same page are left alone. Unpublished changes still ask before leaving.
 
+**Hide on phones moves to the phone view; picture styles back (v0.99.659).** The piece toolbar on the desktop no longer carries the Hide on phones button: switch the top bar to Phone and press a piece to hide it there (or use the On phones row in a piece's panel; sections keep Hide on phones in their ⋯ menu). A piece that is hidden on phones still shows its small "Hidden on phones" tag on the desktop. Designs that give a button and a picture the same style name (Misprint's Pink, Blue and Yellow print) offer all their picture styles again: v0.99.655 to v0.99.658 kept only the button ones, so a Misprint photo's Style button showed just Plain and Plain photo (a site built in that time gets them back when its design is applied again). Choosing a picture for a card or a piece now always lands on the piece whose panel you opened, even when an earlier panel's picture list arrives late. The default star's message now says it plainly: "New buttons you add will now start in Blue print."
+
 **Four small fixes to dragging, resizing and Remix (v0.99.658).** Dragging a piece no longer changes the height of the text beside it: the grid draws pieces whose edges sit within a few units of each other on one shared line, so a paragraph could draw a couple of units narrower when its neighbour moved and, if its words sat right on a wrap point, jump from one line to two. Text height is now measured at the width the design gives it. A sideways drag no longer nudges a piece up or down (the equal-gap and rhythm magnets used to pull the axis you were not moving). When resizing, "same width" now matches pieces of the same kind (card to card, picture to picture), not the box of a heading somewhere else on the page. And Remix no longer offers an accent that barely shows on its background: on a pale wash, a yellow or orange that dark words could read on but that faded into the page is now darkened until it stands out, or rolled again.
 
 **Manage styles from the Style button (v0.99.657).** Saved styles are no longer in Site style: Site style is about the whole site's colours and brand, and a Saved styles door beside Remix read as a third kind of "look". Styles are now managed where they are chosen: press a heading's, text's, button's, picture's or shape's Style button, and at the foot of its panel press **Manage styles**. That opens the Saved styles page (every style by kind, the default star, rename, remove, the specimen, Save to the blueprint and Copy as definition), and Back returns to the piece's Style panel. Manage styles is there for people who can edit the site's CSS.
@@ -937,11 +939,11 @@ Everything in this section is extracted mechanically from the Gogh source on eve
 
 ## Current release
 
-- Plugin version: **0.99.658**
+- Plugin version: **0.99.659**
 - Requires WordPress **6.5+**, PHP **7.4+**
 - Text domain: `gogh-editor`
 - readme.txt Stable tag: `0.26.0` · Tested up to: `7.0`
-- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.658`). Quote the plugin header version.
+- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.659`). Quote the plugin header version.
 
 ## Design constants
 
@@ -1407,6 +1409,7 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "Could not save the page, so the "
 - "Could not switch the "
 - "Could not update the "
+- "Downloaded "
 - "Editing the site "
 - "Guard: "
 - "Icon link updated."
@@ -1431,7 +1434,6 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "Publish failed: "
 - "Publish your changes first — changing the page style reloads the page."
 - "Removed from the card."
-- "Saved "
 - "Saved — search results and AI answers now quote your words ✓"
 - "Saved “"
 - "Saving your page changes, then updating the "

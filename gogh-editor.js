@@ -3482,6 +3482,10 @@
   });
   function dressPhoneBtn(e) {
     var hidden = !!(e && e.m && e.m.hidden);
+    // a phone decision belongs to the phone view: on the desktop bar it was
+    // clutter (James). There, the phone view's own toolbar and the panel's
+    // On phones row hide a piece; a hidden one still wears its tag here
+    phoneBtn.style.display = deviceMode === 'phone' ? '' : 'none';
     phoneBtn.classList.toggle('is-on', hidden);
     phoneBtn.title = hidden ? 'Hidden on phones \u2014 press to show it again' : 'Hide on phones';
   }
@@ -5432,12 +5436,15 @@
         });
       });
       panel.querySelector('.gogh-panel-close').addEventListener('click', function () { closePanel(); });
+      // the media box THIS panel drew (see the card picker): a slow answer
+      // fills only the panel that asked
+      var myMediaBox = panel.querySelector('.gogh-media');
       fetch(restQ(cfg.mediaUrl, 'per_page=32&media_type=image&orderby=date&order=desc'), {
         headers: { 'X-WP-Nonce': cfg.nonce },
         credentials: 'same-origin',
       }).then(function (res) { return res.ok ? res.json() : []; }).catch(function () { return []; }).then(function (list) {
-        var box = panel.querySelector('.gogh-media');
-        if (!box || panel.hidden) return;
+        var box = myMediaBox;
+        if (!box || panel.hidden || !panel.contains(box)) return;
         box.innerHTML = '';
         if (!list.length) { box.innerHTML = '<span class="gogh-media-loading">No images in the media library yet.</span>'; return; }
         list.forEach(function (item) {
@@ -5534,12 +5541,15 @@
         });
       });
       panel.querySelector('.gogh-panel-close').addEventListener('click', function () { closePanel(); });
+      // the media box THIS panel drew (see the card picker): a slow answer
+      // fills only the panel that asked
+      var myMediaBox = panel.querySelector('.gogh-media');
       fetch(restQ(cfg.mediaUrl, 'per_page=32&media_type=image&orderby=date&order=desc'), {
         headers: { 'X-WP-Nonce': cfg.nonce },
         credentials: 'same-origin',
       }).then(function (res) { return res.ok ? res.json() : []; }).catch(function () { return []; }).then(function (list) {
-        var box = panel.querySelector('.gogh-media');
-        if (!box || panel.hidden) return;
+        var box = myMediaBox;
+        if (!box || panel.hidden || !panel.contains(box)) return;
         box.innerHTML = '';
         if (!list.length) { box.innerHTML = '<span class="gogh-media-loading">No images in the media library yet.</span>'; return; }
         list.forEach(function (item) {
@@ -5944,12 +5954,17 @@
       e.boxImgId = null;
       reapply();
     });
+    // the media box THIS panel drew: a slow library answer must fill only
+    // the panel that asked. Read from the shared panel at answer time, a
+    // card opened in between got the first card's thumbs, and a pick put
+    // the picture on the first card (the suite's 'card panel' flake)
+    var myMbox = panel.querySelector('.gogh-boximg-media');
     fetch(restQ(cfg.mediaUrl, 'per_page=32&media_type=image&orderby=date&order=desc'), {
       headers: { 'X-WP-Nonce': cfg.nonce }, credentials: 'same-origin',
     }).then(function (r2) { return r2.ok ? r2.json() : []; }).catch(function () { return []; })
       .then(function (items) {
-        var mbox = panel.querySelector('.gogh-boximg-media');
-        if (!mbox || panel.hidden) return;
+        var mbox = myMbox;
+        if (!mbox || panel.hidden || !panel.contains(mbox)) return;
         mbox.innerHTML = '';
         var boxCur = { img: e.boxImg || null };
         items.forEach(function (item) {
@@ -6368,13 +6383,16 @@
         });
       });
     }
+    // the media box THIS panel drew (see the card picker): a slow answer
+    // fills only the panel that asked
+    var myMediaBox = panel.querySelector('.gogh-media');
     fetch(restQ(cfg.mediaUrl, 'per_page=32&media_type=image&orderby=date&order=desc'), {
       headers: { 'X-WP-Nonce': cfg.nonce },
       credentials: 'same-origin',
     }).then(function (res) { return res.ok ? res.json() : []; }).catch(function () { return []; })
       .then(function (items) {
-        var box = panel.querySelector('.gogh-media');
-        if (!box || panel.hidden) return;
+        var box = myMediaBox;
+        if (!box || panel.hidden || !panel.contains(box)) return;
         box.innerHTML = '';
         if (!items.length) {
           box.innerHTML = '<span class="gogh-media-loading">No images in the media library yet.</span>';
@@ -8213,7 +8231,7 @@
         closePanel();
         if (j == null) placeHandles(sec, i);
         else reselectKid(sec, i, j);
-        toast('Saved “' + made.name + '”. Every ' + kindLow + ' on the site can wear it' + (made.default ? ', and ' + newOnes + ' arrive in it.' : '.'), { ttl: 4500 });
+        toast('Saved “' + made.name + '”. You can pick it for any ' + kindLow + ' on the site' + (made.default ? ', and ' + newOnes + ' you add will start in it.' : '.'), { ttl: 4500 });
       }).catch(function (er) {
         go.disabled = false;
         say('Could not save the style: ' + ((er && er.message) || 'try again') + '.');
@@ -14828,13 +14846,16 @@
       });
       inp.value = ''; // the same file twice in a row still fires
     });
+    // the media box THIS panel drew (see the card picker): a slow answer
+    // fills only the panel that asked
+    var myMediaBox = panel.querySelector('.gogh-media');
     fetch(restQ(cfg.mediaUrl, 'per_page=32&media_type=image&orderby=date&order=desc'), {
       headers: { 'X-WP-Nonce': cfg.nonce },
       credentials: 'same-origin',
     }).then(function (res) { return res.ok ? res.json() : []; }).catch(function () { return []; })
       .then(function (items) {
-        var box = panel.querySelector('.gogh-media');
-        if (!box || panel.hidden) return;
+        var box = myMediaBox;
+        if (!box || panel.hidden || !panel.contains(box)) return;
         box.innerHTML = addTile;
         // a section BACKGROUND wants big, wide-ish images — logos, cutouts
         // and portraits are noise on this shelf (Upload and the URL row
@@ -17277,7 +17298,7 @@
     panel.innerHTML =
       '<div class="gogh-panel-head"><span class="gogh-panel-title">Saved styles</span>' +
       '<button type="button" class="gogh-sbtn gogh-panel-close gogh-panel-back" title="Back"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"/></svg></button></div>' +
-      '<div class="gogh-panel-hint">Looks saved for headings, text, buttons, pictures and shapes on ' + esc(dname) + '. Pick one from a piece\u2019s Style button. The star is the one new pieces start in.</div>' +
+      '<div class="gogh-panel-hint">Looks saved for headings, text, buttons, pictures and shapes on ' + esc(dname) + '. Pick one from a piece\u2019s Style button. The star marks the style a new piece of that kind starts in.</div>' +
       '<div class="gogh-stylesets"></div>' +
       '<div class="gogh-styleset-foot">' +
       '<button type="button" class="gogh-btn gogh-btn-small gogh-btn-go gogh-styleset-dl" title="Downloads the styles as a piece of site definition, to add to the blueprint">Save to the blueprint</button>' +
@@ -17333,7 +17354,8 @@
             var all = designLooksCopy(), list = all[t] || [];
             var was = !!list[n]['default'];
             list.forEach(function (lk, m) { lk['default'] = !was && m === n; });
-            commit(all, was ? 'No default: new pieces arrive Plain.' : 'New pieces arrive in ' + list[n].name + '.');
+            var kindNew = { heading: 'New headings', para: 'New text', button: 'New buttons', image: 'New pictures', box: 'New shapes' }[t] || 'New pieces';
+            commit(all, was ? kindNew + ' you add will start Plain.' : kindNew + ' you add will now start in ' + list[n].name + '.');
           });
           var more = row.querySelector('.gogh-styleset-more');
           more.addEventListener('click', function () {
@@ -17399,7 +17421,7 @@
       document.body.appendChild(a);
       a.click();
       setTimeout(function () { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
-      toast('Saved ' + file + '. Its looks go into the blueprint’s site definition.');
+      toast('Downloaded ' + file + '. Add its styles to the blueprint’s site definition.');
     });
   }
   function copyFallback(txt) {
@@ -22533,12 +22555,15 @@
       if (ev.key === 'Enter' && inp.value.trim()) useSrc(inp.value.trim());
       if (ev.key === 'Escape') closePanel();
     });
+    // the media box THIS panel drew (see the card picker): a slow answer
+    // fills only the panel that asked
+    var myMediaBox = panel.querySelector('.gogh-media');
     fetch(restQ(cfg.mediaUrl, 'per_page=32&media_type=image&orderby=date&order=desc'), {
       headers: { 'X-WP-Nonce': cfg.nonce },
       credentials: 'same-origin',
     }).then(function (res) { return res.ok ? res.json() : []; }).catch(function () { return []; }).then(function (items) {
-      var box = panel.querySelector('.gogh-media');
-      if (!box || panel.hidden) return;
+      var box = myMediaBox;
+      if (!box || panel.hidden || !panel.contains(box)) return;
       box.innerHTML = '';
       items.forEach(function (item) {
         var thumb = (item.media_details && item.media_details.sizes &&
@@ -25808,12 +25833,15 @@
         toast('gogh could not set the logo \u2014 ' + ((err && err.message) || 'try again.'), { error: true });
       });
     }
+    // the media box THIS panel drew (see the card picker): a slow answer
+    // fills only the panel that asked
+    var myMediaBox = panel.querySelector('.gogh-media');
     fetch(restQ(cfg.mediaUrl, 'per_page=32&media_type=image&orderby=date&order=desc'), {
       headers: { 'X-WP-Nonce': cfg.nonce },
       credentials: 'same-origin',
     }).then(function (res) { return res.ok ? res.json() : []; }).catch(function () { return []; }).then(function (items) {
-      var box = panel.querySelector('.gogh-media');
-      if (!box || panel.hidden) return;
+      var box = myMediaBox;
+      if (!box || panel.hidden || !panel.contains(box)) return;
       box.innerHTML = '';
       // likely logos first: small, transparent-capable, or named like one —
       // the portraits and hero shots follow, never lead

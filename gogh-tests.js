@@ -7120,8 +7120,13 @@
         r = await put(mine);
         var renamed = r.design.looks.heading.filter(function (lk) { return lk.name === 'Suite seal'; })[0];
         expect(renamed && renamed.slug === 'suite-stamp', 'a renamed style keeps its class: ' + JSON.stringify(renamed));
-        r = await put({ heading: [{ name: 'Outline' }], button: [{ name: 'Same' }], image: [{ name: 'Same' }] });
-        expect(!(r.design && r.design.looks && r.design.looks.heading) && r.design.looks.button && !r.design.looks.image, 'reserved names are refused, and a class serves one kind only: ' + JSON.stringify(r.design && r.design.looks));
+        r = await put({ heading: [{ name: 'Outline' }], button: [{ name: 'Pink print' }, { name: 'Pink print' }], image: [{ name: 'Pink print', 'default': true }, { name: 'Blue print' }] });
+        expect(!(r.design && r.design.looks && r.design.looks.heading), 'a name core already uses is refused: ' + JSON.stringify(r.design && r.design.looks));
+        expect(r.design.looks.button.length === 1, 'a name is unique within its kind: ' + JSON.stringify(r.design.looks.button));
+        // Misprint names a button and a picture Pink print on purpose; v0.99.655
+        // refused the picture's and its panel lost three of its four styles
+        expect(r.design.looks.image && r.design.looks.image.length === 2 && r.design.looks.image[0].slug === 'pink-print',
+          'a picture may share a style name with a button: ' + JSON.stringify(r.design.looks.image));
       } finally {
         await put(before);
         cfgG.design = was;
@@ -9276,24 +9281,20 @@
         'the ghost wore ' + JSON.stringify(got) + ', the kid wears ' + JSON.stringify(want));
       return 'ghost ' + got.fs + ' / ' + got.fw + ' / ' + got.col + ' = kid';
     });
-    test('a piece can be hidden on phones from its own bar on the desktop, and the section CSS says so', function () {
+    test('the desktop piece bar carries no Hide on phones (the phone view and the On phones row do), and a hidden piece still says so', function () {
       var i = findIdx('para');
       var s0 = sec();
       select(i);
       var b = q('.gogh-elbar .gogh-eb-phone');
-      expect(b && b.offsetParent !== null, 'no phone button on the piece bar');
-      expect(!b.classList.contains('is-on'), 'the phone button starts lit');
+      expect(!b || b.offsetParent === null, 'Hide on phones should not be on the desktop bar (clutter, James)');
       try {
-        b.click();
-        expect(G.device.hidden(s0, i), 'the piece is not hidden on phones after the press');
-        expect(s0.nodes[i].classList.contains('gogh-m-hidden'), 'the node does not wear gogh-m-hidden');
-        expect(b.classList.contains('is-on'), 'the phone button did not light');
+        G.device.hide(s0, i, true);
+        select(i);
+        expect(s0.nodes[i].classList.contains('gogh-m-hidden'), 'a hidden piece should wear its tag on the desktop');
         expect(s0.styleEl.textContent.indexOf('html:not(.gogh-phone-preview)') !== -1, 'no phone hide rule in the section CSS');
-        b.click();
-        expect(!G.device.hidden(s0, i), 'a second press did not show the piece again');
-        expect(!s0.nodes[i].classList.contains('gogh-m-hidden'), 'gogh-m-hidden lingered');
+        expect(!b || b.offsetParent === null, 'the bar should stay clear for a hidden piece too');
       } finally { G.device.hide(s0, i, false); }
-      return 'hidden then shown from the desktop bar';
+      return 'no button on the desktop bar; hiding still works and still shows';
     });
     test('a piece with a panel has an On phones row: Shown | Hidden and a door to the phone view', function () {
       var i = findIdx('button');
