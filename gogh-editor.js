@@ -3456,9 +3456,14 @@
     '<button type="button" class="gogh-eb gogh-eb-manage" title="Open your products in WordPress">Manage products</button>' +
     // text size, the way Canva and Docs do it: a step smaller, the size by
     // name (a click opens every size), a step bigger
-    '<button type="button" class="gogh-eb gogh-eb-fsdown" title="Smaller text" aria-label="Smaller text"><span class="gogh-eb-fsa">A</span>\u2212</button>' +
+    // one small pill, [ − 85 + ]: a number needs no explaining (James:
+    // "not sure words like poster really help beginners"), and the three
+    // read as one control in half the width
+    '<span class="gogh-eb-fspill" role="group" aria-label="Text size">' +
+    '<button type="button" class="gogh-eb gogh-eb-fsdown" title="Smaller text" aria-label="Smaller text">\u2212</button>' +
     '<button type="button" class="gogh-eb gogh-eb-fs" title="Text size: choose from every size" aria-haspopup="dialog"></button>' +
-    '<button type="button" class="gogh-eb gogh-eb-fsup" title="Bigger text" aria-label="Bigger text"><span class="gogh-eb-fsa gogh-eb-fsa-big">A</span>+</button>' +
+    '<button type="button" class="gogh-eb gogh-eb-fsup" title="Bigger text" aria-label="Bigger text">+</button>' +
+    '</span>' +
     '<button type="button" class="gogh-eb gogh-eb-fit" title="Fill the width — size the text to its box">' +
     '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h18M3 12l4-4M3 12l4 4M21 12l-4-4M21 12l-4 4"/></svg></button>' +
     '<button type="button" class="gogh-eb gogh-eb-al" title="Text alignment"></button>' +
@@ -3540,6 +3545,7 @@
   });
   var fsBtn = elbar.querySelector('.gogh-eb-fs');
   var fsDown = elbar.querySelector('.gogh-eb-fsdown'), fsUp = elbar.querySelector('.gogh-eb-fsup');
+  var fsPill = elbar.querySelector('.gogh-eb-fspill');
   var alBtn = elbar.querySelector('.gogh-eb-al');
   var colBtn = elbar.querySelector('.gogh-eb-col');
   var lnkBtn = elbar.querySelector('.gogh-eb-lnk');
@@ -3631,8 +3637,21 @@
   // the sizes in the order they actually draw for THIS piece: a heading's
   // Normal is its own big size, so smaller-and-bigger must follow pixels,
   // not the list (A+ on a heading at Normal made it SMALLER)
+  // measured once per piece, width and size: the bar re-dresses on every
+  // drag frame, and ten probe reads a frame is a stutter
+  var sizeOrderCache = new WeakMap();
   function sizeOrder(sec, e) {
-    var lad = sizeLadder(), px = ladderPx(sec, e, sec.nodes && sec.nodes[sec.els.indexOf(e)]);
+    var node = sec.nodes && sec.nodes[sec.els.indexOf(e)];
+    // the drawn size is in the key so a new type scale (Site style) re-measures
+    var key = [sec.sectionEl ? sec.sectionEl.clientWidth : 0, e.fs || '', e.fitW ? 1 : 0, e.type, node ? node.className : '', node ? drawnPx(sec, sec.els.indexOf(e)) : 0].join('|');
+    var hit = sizeOrderCache.get(e);
+    if (hit && hit.key === key) return hit.o;
+    var o = sizeOrderMeasure(sec, e, node);
+    sizeOrderCache.set(e, { key: key, o: o });
+    return o;
+  }
+  function sizeOrderMeasure(sec, e, node) {
+    var lad = sizeLadder(), px = ladderPx(sec, e, node);
     var idx = lad.map(function (_, k) { return k; });
     idx.sort(function (a, b) { return (px[a] - px[b]) || (a - b); });
     // sizes that draw the same are one step, not two (a theme's h2 is often
@@ -3645,7 +3664,8 @@
       var rank = function (j) { return lad[j] === cur ? 2 : lad[j] === null ? 1 : 0; };
       if (rank(k) > rank(last)) keep[keep.length - 1] = k;
     });
-    return { slugs: keep.map(function (k) { return lad[k]; }), px: keep.map(function (k) { return px[k]; }) };
+    // normal: what the words draw at with no size set — the list tags it
+    return { slugs: keep.map(function (k) { return lad[k]; }), px: keep.map(function (k) { return px[k]; }), normal: px[0] };
   }
   // a step smaller or bigger, stopping at the ends (it used to wrap round
   // from Billboard to the smallest). Fitted text steps from the named size
@@ -3683,6 +3703,11 @@
     probe.remove();
     return out;
   }
+  // what the words draw at right now (a fitted piece has no named size)
+  function drawnPx(sec, i) {
+    var n = sec.nodes[i], t = n && (n.matches('h1,h2,h3,h4,h5,h6,p,ul,ol') ? n : n.querySelector('h1,h2,h3,h4,h5,h6,p,ul,ol')) || n;
+    return t ? Math.round(parseFloat(getComputedStyle(t).fontSize) || 16) : 16;
+  }
   // every size at once, each drawn at its relative size, the one in use marked
   function openSizePanel(sec, i) {
     var e = sec.els[i];
@@ -3696,7 +3721,8 @@
         var on = !e.fitW && (e.fs || null) === slug;
         return '<button type="button" role="option" class="gogh-sizeopt' + (on ? ' is-on' : '') + '" aria-selected="' + (on ? 'true' : 'false') + '" data-k="' + k + '">' +
           '<span class="gogh-sizeopt-aa" style="font-size:' + sample(px[k]) + 'px">Aa</span>' +
-          '<span class="gogh-sizeopt-name">' + esc(slug ? sizeWord(slug) : 'Normal') + '</span>' +
+          '<span class="gogh-sizeopt-name">' + Math.round(px[k]) +
+          (Math.abs(px[k] - o.normal) < 0.5 ? ' <span class="gogh-sizeopt-def">default</span>' : '') + '</span>' +
           (on ? '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l5 5 9-10"/></svg>' : '') +
           '</button>';
       }).join('') + '</div>' +
@@ -4402,12 +4428,11 @@
     if (isText(e)) {
       // a corner-drag fits the words to the box: the named size no longer
       // applies, so the label says so (James: "should the selector change?")
-      fsBtn.textContent = e.fitW ? 'Fitted' : (e.fs ? sizeWord(e.fs) : 'Normal');
-      fsBtn.title = e.fitW ? 'Fitted to the width \u2014 choose a named size' : 'Text size: choose from every size';
-      fsBtn.style.display = '';
-      var lad = sizeOrder(sec, e).slugs;
+      var so = sizeOrder(sec, e), lad = so.slugs;
       var at = e.fitW ? -1 : lad.indexOf(e.fs || null);
-      fsDown.style.display = fsUp.style.display = '';
+      fsBtn.textContent = String(at >= 0 ? Math.round(so.px[at]) : drawnPx(sec, i));
+      fsBtn.title = e.fitW ? 'Fitted to its box \u2014 choose a size to let it wrap again' : 'Text size: choose from every size';
+      fsPill.style.display = '';
       fsDown.disabled = !e.fitW && at <= 0;
       fsUp.disabled = !e.fitW && at >= lad.length - 1;
       paintBtn.style.display = '';
@@ -4419,8 +4444,7 @@
       fitB.classList.toggle('is-on', !!e.fitW);
       fitB.title = 'Fitted to the width — tap to let the text wrap again';
     } else {
-      fsBtn.style.display = 'none';
-      fsDown.style.display = fsUp.style.display = 'none';
+      fsPill.style.display = 'none';
       paintBtn.style.display = 'none';
       elbar.querySelector('.gogh-eb-fit').style.display = 'none';
     }

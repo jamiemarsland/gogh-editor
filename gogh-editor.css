@@ -1944,11 +1944,11 @@ html.gogh-editing header.wp-block-template-part:has(.gogh-header-overlay):not(.g
 }
 
 /* font-size stepper */
-.gogh-eb-fs { font-size: 12px; font-weight: 650; white-space: nowrap; min-width: 44px; }
-.gogh-eb-fsdown, .gogh-eb-fsup { font-size: 12px; font-weight: 700; white-space: nowrap; padding-left: 6px; padding-right: 6px; }
-.gogh-eb-fsdown:disabled, .gogh-eb-fsup:disabled { opacity: .35; cursor: default; }
-.gogh-eb-fsa { font-size: 11px; }
-.gogh-eb-fsa-big { font-size: 15px; }
+.gogh-eb-fspill { display: inline-flex; align-items: center; border: 1px solid rgba(22, 24, 28, 0.16); border-radius: 9px; height: 26px; margin: 0 2px; }
+.gogh-eb-fspill .gogh-eb { border-radius: 7px; padding: 4px 7px; }
+.gogh-eb-fs { font-size: 13px; font-weight: 650; font-variant-numeric: tabular-nums; white-space: nowrap; min-width: 22px; text-align: center; padding-left: 3px !important; padding-right: 3px !important; }
+.gogh-eb-fsdown, .gogh-eb-fsup { font-size: 15px; font-weight: 600; }
+.gogh-eb-fsdown:disabled, .gogh-eb-fsup:disabled { opacity: .3; cursor: default; background: none; }
 /* Text size: every size, drawn at its relative size */
 .gogh-sizelist { display: flex; flex-direction: column; gap: 2px; margin-top: 6px; }
 .gogh-sizeopt { all: unset; box-sizing: border-box; cursor: pointer; display: flex; align-items: center; gap: 12px; padding: 6px 10px; border-radius: 8px; min-height: 40px; }
@@ -1956,6 +1956,7 @@ html.gogh-editing header.wp-block-template-part:has(.gogh-header-overlay):not(.g
 .gogh-sizeopt:focus-visible { outline: 2px solid #7ea8ff; outline-offset: -2px; }
 .gogh-sizeopt.is-on { background: #eef1ff; color: #1e3fd8; }
 .gogh-sizeopt-aa { flex: 0 0 56px; font-weight: 700; line-height: 1; text-align: center; }
+.gogh-sizeopt-def { font-size: 11px; font-weight: 500; color: var(--gogh-ui-muted, #6b6f78); margin-left: 4px; }
 .gogh-sizeopt-name { flex: 1 1 auto; font-size: 14px; font-weight: 600; }
 .gogh-sizechip {
   position: absolute;

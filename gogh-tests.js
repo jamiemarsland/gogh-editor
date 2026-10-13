@@ -1021,38 +1021,45 @@
       }
       return 'plain status, quiet bar, site name goes home';
     });
-    test('text size: A− and A+ step and stop at the ends, sizes have plain names, and the name opens every size drawn at its size', function () {
+    test('text size: [ − 85 + ] in one pill, steps stop at the ends, and the number opens every size drawn at its size', function () {
       var i = findIdx('heading'), s0 = sec(), e = s0.els[i], was = { fs: e.fs || null, fit: !!e.fitW };
+      var num = function () { return q('.gogh-elbar .gogh-eb-fs').textContent; };
       try {
         G.setFontSize(s0, i, null);
         select(i);
-        var down = q('.gogh-elbar .gogh-eb-fsdown'), up = q('.gogh-elbar .gogh-eb-fsup'), name = q('.gogh-elbar .gogh-eb-fs');
-        expect(down && up && name && name.textContent === 'Normal', 'A−, the size name and A+ should sit on the bar: ' + (name && name.textContent));
+        var pill = q('.gogh-elbar .gogh-eb-fspill');
+        var down = q('.gogh-elbar .gogh-eb-fsdown'), up = q('.gogh-elbar .gogh-eb-fsup');
+        expect(pill && pill.contains(down) && pill.contains(up) && pill.contains(q('.gogh-elbar .gogh-eb-fs')), '−, the number and + should sit in one pill');
         var tn = function () { var n0 = s0.nodes[i]; return n0.matches('h1,h2,h3,h4,h5,h6') ? n0 : n0.querySelector('h1,h2,h3,h4,h5,h6'); };
         var px0 = parseFloat(getComputedStyle(tn()).fontSize);
+        expect(/^\d+$/.test(num()) && Math.abs(+num() - px0) <= 1, 'the pill should show the size as a number, the one the words draw at: ' + num() + ' vs ' + px0);
+        expect(pill.getBoundingClientRect().width < 110, 'the pill should be compact: ' + Math.round(pill.getBoundingClientRect().width) + 'px');
         up.click();
-        expect(e.fs && parseFloat(getComputedStyle(tn()).fontSize) > px0, 'A+ should make the heading bigger, not smaller: ' + e.fs);
+        expect(e.fs && parseFloat(getComputedStyle(tn()).fontSize) > px0 && +num() > px0, '+ should make the heading bigger, and the number follow: ' + e.fs + ' ' + num());
         G.setFontSize(s0, i, '__disp-l');
         select(i);
-        expect(q('.gogh-elbar .gogh-eb-fs').textContent === 'Billboard' && q('.gogh-elbar .gogh-eb-fsup').disabled, 'the biggest is Billboard, and bigger stops there (no wrapping back to small)');
+        expect(q('.gogh-elbar .gogh-eb-fsup').disabled, 'at the biggest, + stops (no wrapping back to small)');
+        var big = +num();
         q('.gogh-elbar .gogh-eb-fsup').click();
-        expect(e.fs === '__disp-l', 'A+ at the biggest does nothing: ' + e.fs);
+        expect(e.fs === '__disp-l', '+ at the biggest does nothing: ' + e.fs);
         q('.gogh-elbar .gogh-eb-fsdown').click();
-        expect(e.fs === '__disp-m' && q('.gogh-elbar .gogh-eb-fs').textContent === 'Poster', 'A− steps down to Poster');
+        expect(e.fs === '__disp-m' && +num() < big, '− steps down one: ' + e.fs + ' ' + num());
         q('.gogh-elbar .gogh-eb-fs').click();
         var opts = document.querySelectorAll('.gogh-panel .gogh-sizeopt');
-        var names = [].map.call(opts, function (o) { return o.querySelector('.gogh-sizeopt-name').textContent; });
-        expect((names.indexOf('Normal') !== -1 || names.indexOf(G.sizeWord ? G.sizeWord(e.fs) : 'Extra large') !== -1) && names.slice(-3).join(',') === 'Headline,Poster,Billboard', 'every size (a size that draws like Normal stands in for it), the big three last: ' + names.join(','));
+        var nums = [].map.call(opts, function (o) { return parseInt(o.querySelector('.gogh-sizeopt-name').textContent, 10); });
+        expect(nums.every(function (v, k) { return !k || v > nums[k - 1]; }), 'the list is numbers, smallest to biggest: ' + nums.join(','));
+        expect(!/Poster|Billboard|Headline|Normal/.test(q('.gogh-panel').textContent), 'no size names in the list');
+        expect(document.querySelectorAll('.gogh-panel .gogh-sizeopt-def').length === 1, 'the size the words start at says default');
         var sizes = [].map.call(opts, function (o) { return parseFloat(o.querySelector('.gogh-sizeopt-aa').style.fontSize); });
-        expect(sizes.every(function (v, k) { return !k || v >= sizes[k - 1]; }) && sizes[sizes.length - 1] > sizes[0], 'smallest to biggest, each drawn at its relative size: ' + sizes.join(','));
-        expect(document.querySelector('.gogh-panel .gogh-sizeopt.is-on .gogh-sizeopt-name').textContent === 'Poster', 'the size in use is marked');
+        expect(sizes[sizes.length - 1] > sizes[0], 'each size is drawn at its relative size: ' + sizes.join(','));
+        expect(parseInt(document.querySelector('.gogh-panel .gogh-sizeopt.is-on .gogh-sizeopt-name').textContent, 10) === +num(), 'the size in use is marked');
         opts[opts.length - 3].click();
-        expect(e.fs === '__disp-s', 'choosing Headline in the list sets it: ' + e.fs);
+        expect(e.fs === '__disp-s', 'choosing a size in the list sets it: ' + e.fs);
       } finally {
         G.closePanel();
         G.setFontSize(s0, i, was.fs);
       }
-      return 'A−/A+ clamp, Normal…Billboard, list drawn to size';
+      return 'pill ' + num() + ', clamps, numbers drawn to size';
     });
     test('publish chip tracks dirty state', function () {
       var chipEl = q('.gogh-chip');
@@ -7113,11 +7120,11 @@
         // a corner-drag fit: the size label says Fitted, not the old name
         sec.els[0].fitW = true;
         G.placeHandles(sec, 0);
-        expect(/^Fitted$/.test(q('.gogh-eb-fs').textContent), 'fitted text should say Fitted: ' + q('.gogh-eb-fs').textContent);
+        expect(/^\d+$/.test(q('.gogh-eb-fs').textContent) && /[Ff]itted/.test(q('.gogh-eb-fs').title), 'fitted text shows its number and says fitted: ' + q('.gogh-eb-fs').textContent + ' / ' + q('.gogh-eb-fs').title);
         sec.els[0].fitW = false;
         sec.els[0].fs = 'x-large';
         G.placeHandles(sec, 0);
-        expect(q('.gogh-eb-fs').textContent === 'Extra large', 'a theme size reads as words: ' + q('.gogh-eb-fs').textContent);
+        expect(/^\d+$/.test(q('.gogh-eb-fs').textContent), 'a theme size reads as a number: ' + q('.gogh-eb-fs').textContent);
         sec.els[0].fs = null;
         G.looks.open(sec, 0);
         tiles = document.querySelectorAll('.gogh-panel .gogh-look');
