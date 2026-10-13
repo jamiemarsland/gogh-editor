@@ -252,20 +252,9 @@ html.gogh-zoomed header.wp-block-template-part:has(.gogh-chrome-preview .gogh-he
   box-shadow: 0 10px 30px -12px rgba(0, 0, 0, 0.5); pointer-events: none; white-space: nowrap;
 }
 .gogh-phonenote[hidden] { display: none; }
-/* on the desktop canvas a piece hidden on phones says so, quietly. The
-   pieces sit on the rhythm grid unpositioned, so the tag needs a box to
-   hang from */
-html.gogh-editing:not(.gogh-phone-preview) .gogh-section > .gogh-m-hidden { position: relative; }
-html.gogh-editing:not(.gogh-phone-preview) .gogh-section > .gogh-m-hidden::after {
-  content: "Hidden on phones"; position: absolute; top: -9px; right: 6px; z-index: 5;
-  background: #fff; color: #4f5aee; border: 1px solid #c9cff5;
-  font: 700 10px/1.4 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  letter-spacing: 0.02em; padding: 1px 6px; border-radius: 5px; pointer-events: none; white-space: nowrap;
-  /* a design's text effects (an outline stroke, a misregistered shadow)
-     inherit into the tag and garbled it: the tag is gogh's, not the page's */
-  -webkit-text-stroke: 0; text-shadow: none; text-transform: none; text-decoration: none;
-  mix-blend-mode: normal; animation: none; opacity: 1; filter: none;
-}
+/* no "Hidden on phones" tag on the desktop canvas: hiding is a phone-view
+   matter (the button lives there since v0.99.660), and a column of tags
+   over a desktop page read as clutter (James: "we dont want this") */
 /* the piece bar's phone button: plain when shown, lit and slashed when hidden */
 .gogh-eb-phone svg { display: block; }
 .gogh-eb-phone .gogh-eb-phone-slash { display: none; }
@@ -4656,3 +4645,11 @@ html.gogh-editing #wpadminbar #wp-admin-bar-my-account > .ab-item { font-size: 0
 html.gogh-editing #wpadminbar #wp-admin-bar-my-account > .ab-item .display-name { display: none; }
 html.gogh-editing #wpadminbar #wp-admin-bar-my-account > .ab-item img { margin: 0; position: static; float: none; vertical-align: middle; }
 html.gogh-editing #wpadminbar #wp-admin-bar-site-name > .ab-sub-wrapper { display: none !important; }
+/* the background shelf: two rows, then the whole library on request */
+.gogh-media-foot { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 8px; }
+.gogh-media-foot:empty { display: none; }
+.gogh-media-foot .gogh-linkbtn { font-weight: 600; color: var(--gogh-ui-accent, #3858e9); opacity: 1; }
+.gogh-media-foot .gogh-linkbtn:only-child { margin-right: auto; }
+.gogh-media-find { display: block; margin-top: 10px; }
+.gogh-media-find[hidden] { display: none; }
+.gogh-media-find .gogh-input { width: 100%; box-sizing: border-box; }

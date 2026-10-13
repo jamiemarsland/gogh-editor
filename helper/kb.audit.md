@@ -1,4 +1,4 @@
-# Knowledge-base audit — plugin v0.99.683
+# Knowledge-base audit — plugin v0.99.684
 
 _13 finding(s) suppressed by `kb.audit-ignore.txt`._
 
@@ -135,3 +135,13 @@ Quoted copy not found verbatim in the source. Paraphrases are fine; changed UI c
 - From Misprint
 - (max-width: 700px) 100vw, min(100vw, Wpx)
 - (max-width: 700px) 100vw, 53vw
+
+## What changed since the last knowledge-base build
+
+Use this as the checklist for updating the prose — and as a sanity check on the release itself.
+
+- version: 0.99.683 → 0.99.684
+- added UI label: "See all pictures"
+- added UI label: "Show fewer"
+- added UI label: "Show more"
+- added toast: "That’s as big as this text goes — a bigger size would run off the page."

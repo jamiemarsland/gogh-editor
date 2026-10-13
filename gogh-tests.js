@@ -1086,6 +1086,88 @@
       }
       return 'own size steps';
     });
+    // v0.99.684: a word cannot wrap, so a big size ran it out past its box
+    test('a big size widens the box for its longest word, and a size too big for the page comes down to one that fits', function () {
+      var i = findIdx('heading'), s0 = sec(), e = s0.els[i];
+      var keep = { text: e.text, x: e.x, w: e.w, fs: e.fs || null, align: e.align || null };
+      var t = function () { return s0.nodes[i]; };
+      var spills = function () { return t().scrollWidth - t().clientWidth > 1; };
+      try {
+        e.text = 'Wowsers'; e.x = 120; e.w = 260; e.align = null;
+        G.setFontSize(s0, i, null);
+        G.setFontSize(s0, i, '__disp-s');
+        expect(!spills() && e.w > 260, 'the box should widen to hold the word: w=' + e.w + ' scroll ' + t().scrollWidth + '/' + t().clientWidth);
+        expect(e.x >= 0 && e.x + e.w <= 1200, 'the box stays on the page: ' + e.x + '+' + e.w);
+        e.text = 'Supercalifragilisticexpialidocious'; e.w = 260; e.x = 120;
+        G.setFontSize(s0, i, null);
+        G.setFontSize(s0, i, '__disp-l');
+        expect(e.fs !== '__disp-l' && !spills(), 'too big for the page: the size should come down to one that fits: ' + e.fs + ' scroll ' + t().scrollWidth + '/' + t().clientWidth);
+        var tst = [].filter.call(document.querySelectorAll('.gogh-toast'), function (x) { return /as big as this text goes/.test(x.textContent); });
+        expect(tst.length, 'it should say why');
+        tst.forEach(function (x) { x.remove(); });
+      } finally {
+        e.text = keep.text; e.x = keep.x; e.w = keep.w; e.align = keep.align;
+        G.setFontSize(s0, i, keep.fs);
+      }
+      return 'widened, then capped at ' + 'a size that fits';
+    });
+    // v0.99.684: a press on the page puts the Page drawer away and zooms in
+    // async: the zoom eases back over a few frames, and the quick tests
+    // run with no frames at all — they would measure a page caught mid-zoom
+    testAsync('a press on the page closes the Page drawer, zooms back in and still chooses what it pressed', function () {
+      var wait = function (ms) { return new Promise(function (r) { setTimeout(r, ms); }); };
+      var tidy = function () { G.closePanel(); if (G.closeSide) G.closeSide(true); };
+      tidy();
+      return wait(600).then(function () {
+        G.openSide('page');
+        return wait(600);
+      }).then(function () {
+        var side = q('.gogh-side');
+        expect(side.classList.contains('is-open') && document.documentElement.classList.contains('gogh-zoomed'), 'the drawer should open zoomed out: open=' + side.classList.contains('is-open') + ' zoomed=' + document.documentElement.classList.contains('gogh-zoomed') + ' panel=' + (q('.gogh-panel') && !q('.gogh-panel').hidden) + ' phone=' + document.documentElement.classList.contains('gogh-phone-preview') + ' away=' + side.classList.contains('gogh-side-away'));
+        // earlier tests' late timers can open a Site panel meanwhile: clear it
+        if (!q('.gogh-panel').hidden) { G.closePanel(); G.openSide('page'); }
+        var i = findIdx('para'), n = sec().nodes[i], r = n.getBoundingClientRect();
+        pev('pointerdown', n, r.left + 4, r.top + 4);
+        pev('pointerup', n, r.left + 4, r.top + 4);
+        expect(!side.classList.contains('is-open') && !document.documentElement.classList.contains('gogh-zoomed'), 'the drawer should close and the page zoom back in: open=' + side.classList.contains('is-open') + ' zoomed=' + document.documentElement.classList.contains('gogh-zoomed') + ' panel hidden=' + q('.gogh-panel').hidden + ' title=' + (q('.gogh-panel .gogh-panel-title') ? q('.gogh-panel .gogh-panel-title').textContent : '-') + ' cls=' + q('.gogh-panel').className + ' in page=' + !!(document.querySelector('.wp-site-blocks') && document.querySelector('.wp-site-blocks').contains(n)) + ' editing=' + document.documentElement.classList.contains('gogh-editing'));
+        expect(sec().nodes[i].classList.contains('gogh-selected'), 'the press should still choose the paragraph');
+        return wait(600).then(function () {
+          var wrapTf = getComputedStyle(sec().sectionEl.closest('.wp-site-blocks') || document.body).transform;
+          // (unless an earlier test's late timer has opened a zooming panel since)
+          expect(!wrapTf || wrapTf === 'none' || document.documentElement.classList.contains('gogh-zoomed'), 'the page should settle at full size, not stuck small: ' + wrapTf);
+          tidy();
+          return wait(600).then(function () { return 'closed, zoomed in, chosen'; });
+        });
+      }).catch(function (err) { tidy(); return wait(600).then(function () { throw err; }); });
+    });
+    testAsync('the section background shelf: two rows, See all pictures, a search, Show fewer; Bottom edge; no phone tags on desktop', function () {
+      G.closePanel();
+      G.openSecBgPanel(G.sections().indexOf(sec()));
+      var pnl = q('.gogh-panel');
+      expect(pnl.querySelector('.gogh-media-foot'), 'the section background panel should be open');
+      expect(!/How it ends/.test(pnl.textContent) && (!pnl.querySelector('.gogh-bgrow[data-row="ends"]') || /Bottom edge/.test(pnl.querySelector('.gogh-bgrow[data-row="ends"]').textContent)), 'the transition row should be called Bottom edge');
+      return new Promise(function (res) { setTimeout(res, 1500); }).then(function () {
+        var tiles = pnl.querySelectorAll('.gogh-media .gogh-thumb');
+        expect(tiles.length <= 8, 'the shelf is two rows (Upload and seven): ' + tiles.length);
+        var all = pnl.querySelector('.gogh-media-all');
+        if (!all) return 'library too small for See all (' + tiles.length + ' tiles, foot "' + pnl.querySelector('.gogh-media-foot').textContent + '")';
+        all.click();
+        return new Promise(function (res) { setTimeout(res, 1500); }).then(function () {
+          expect(!pnl.querySelector('.gogh-media-find').hidden, 'See all shows a search');
+          expect(pnl.querySelectorAll('.gogh-media .gogh-thumb').length > tiles.length, 'See all shows more pictures');
+          pnl.querySelector('.gogh-media-fewer').click();
+          expect(pnl.querySelectorAll('.gogh-media .gogh-thumb').length <= 8 && pnl.querySelector('.gogh-media-find').hidden, 'Show fewer goes back to two rows');
+          var e = sec().els[0], keepM = e.m;
+          e.m = Object.assign({}, e.m || {}, { hidden: true });
+          G.renderSection(sec());
+          var tag = getComputedStyle(sec().nodes[0], '::after').content;
+          e.m = keepM; G.renderSection(sec());
+          G.closePanel();
+          expect(!/Hidden on phones/.test(tag), 'no Hidden on phones tag on the desktop canvas: ' + tag);
+          return 'shelf, see all, fewer';
+        });
+      });
+    });
     test('publish chip tracks dirty state', function () {
       var chipEl = q('.gogh-chip');
       expect(chipEl && !chipEl.hidden, 'chip not visible in edit mode');

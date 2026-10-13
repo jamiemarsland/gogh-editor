@@ -3398,6 +3398,58 @@
     document.documentElement.classList.add('gogh-designmode'); // back to arranging sections
     if (zoomState) layoutZoom();
   }
+  // a press on the PAGE while the Page or Site drawer is open puts the
+  // drawer away and zooms the page back in, and the same press goes on to
+  // choose what it landed on (James: "if a user clicks into the page here
+  // ... make that the focus, and zoom in and hide the sidebar"). The page
+  // grows back AROUND the press: the scroll moves to the full-size spot at
+  // once, the frame starts from a transform that draws exactly what was on
+  // screen, and eases to full size, so the words under the pointer stay put.
+  // A section's own panel (background, colour, styles) is left alone:
+  // there a press on the page is often to see the change.
+  var easeRest = null;
+  function closeSideAt(cy) {
+    var z = zoomState;
+    var m = z && deviceMode !== 'phone' && /translateX\(([-\d.]+)px\) scale\(([\d.]+)\)/.exec(z.wrap.style.transform);
+    if (!m) { closeSide(true); return; }
+    var wrap = z.wrap, tx = +m[1], sc = +m[2], y0 = window.scrollY;
+    var top = wrap.getBoundingClientRect().top + y0;
+    var ly = (cy + y0 - top) / sc;
+    var ease = wrap.style.transition;
+    closeSide(true);
+    easeRest = { tf: z.tf || '', org: z.org || '', tr: z.tr || '' };
+    wrap.style.transition = 'none';
+    wrap.style.transformOrigin = 'top left';
+    window.scrollTo(window.scrollX, Math.max(0, top + ly - cy));
+    var dy = (cy + window.scrollY - top) - ly * sc; // what the scroll could not absorb near the top
+    wrap.style.transform = 'translate(' + tx + 'px, ' + dy + 'px) scale(' + sc + ')';
+    void wrap.offsetWidth;
+    wrap.style.transition = ease || 'transform 0.4s cubic-bezier(0.4, 0, 0.2, 1)';
+    requestAnimationFrame(function () {
+      if (zoomState) { easeRest = null; return; } // something zoomed out again meanwhile: it owns the frame
+      wrap.style.transform = z.tf || '';
+      // the chosen piece's frame and toolbar ride along as the page grows
+      var t0 = performance.now();
+      (function follow() {
+        if (sel) placeHandles(sel.sec, sel.i);
+        if (performance.now() - t0 < 430 && !zoomState) requestAnimationFrame(follow);
+      })();
+      setTimeout(function () {
+        easeRest = null;
+        if (zoomState) return;
+        wrap.style.transformOrigin = z.org || '';
+        wrap.style.transition = z.tr || '';
+        if (sel) placeHandles(sel.sec, sel.i);
+      }, 440);
+    });
+  }
+  document.addEventListener('pointerdown', function (ev) {
+    if (ev.button !== 0 || !side.classList.contains('is-open') || panelOpen) return;
+    var t = ev.target, page = document.querySelector('.wp-site-blocks');
+    if (!t || !t.closest || !page || !page.contains(t)) return;
+    if (t.closest('.gogh-side, .gogh-panel, .gogh-elbar, .gogh-rail, #wpadminbar, .gogh-zoomslider')) return;
+    closeSideAt(ev.clientY);
+  }, true);
   // deliberate open — a docked, zooming surface, not a hover peek
   sideTab.addEventListener('click', function () { openSide('page'); });
   side.querySelector('.gogh-side-x').addEventListener('click', function () { closeSide(true); });
@@ -3642,8 +3694,46 @@
     e.fitFs = null;
     if (e.tf) { delete e.tf.fs; delete e.tf.fs2; delete e.tf.lh; }
     rerenderText(sec, e);
+    fitWordsInBox(sec, i);
     placeHandles(sec, i);
     pushState();
+  }
+  // how much wider (design units) the box must be for its longest word: a
+  // word cannot wrap, so at a big size it ran out past the box (James: "text
+  // going outside the text box")
+  function wordOverflow(sec, i) {
+    var t = editableTarget(sec, i), sc = measureScaleOf(sec);
+    if (!t || !(sc > 0.2)) return 0;
+    var over = t.scrollWidth - t.clientWidth;
+    return over > 1 ? Math.ceil(over / sc) + 6 : 0;
+  }
+  // after a size change, a word too wide for its box widens the box (from
+  // the side its alignment grows from), never nearer the page edge than the
+  // piece already sat or the page margin. If even the full width cannot
+  // hold it, the size comes down to the biggest that fits, and says so
+  function fitWordsInBox(sec, i) {
+    var e = sec.els[i], over = wordOverflow(sec, i);
+    if (!over) return;
+    var edge = Math.max(0, Math.min(PAD, e.x, W - (e.x + e.w)));
+    var room = W - 2 * edge, need = e.w + over;
+    var place = function (w) {
+      var d = w - e.w;
+      if (e.align === 'center') e.x -= d / 2; else if (e.align === 'right') e.x -= d;
+      e.w = Math.round(w);
+      e.x = Math.round(Math.max(edge, Math.min(W - edge - e.w, e.x)));
+      rerenderText(sec, e);
+    };
+    if (need <= room) { place(need); return; }
+    // too big for the page: the biggest size whose longest word fits
+    var o = sizeOrder(sec, e), k = o.slugs.indexOf(e.fs || null), now = k >= 0 ? o.px[k] : drawnPx(sec, i);
+    var target = now * room / need, pick = -1;
+    o.px.forEach(function (v, j) { if (v <= target && v < now) pick = j; });
+    if (pick < 0) { place(room); return; }
+    e.fs = o.slugs[pick];
+    rerenderText(sec, e);
+    over = wordOverflow(sec, i);
+    if (over) place(Math.min(room, e.w + over));
+    toast('That\u2019s as big as this text goes \u2014 a bigger size would run off the page.', { ttl: 3200 });
   }
   // every size a piece can take, smallest first: Normal (null), the
   // theme's sizes, then Headline, Poster, Billboard
@@ -5113,8 +5203,10 @@
     var wrap = document.querySelector('.wp-site-blocks');
     if (!wrap) return;
     window.scrollTo(0, 0); // start from the top of the page
-    zoomState = { wrap: wrap, tf: wrap.style.transform, org: wrap.style.transformOrigin,
-      tr: wrap.style.transition, bg: wrap.style.background, sh: wrap.style.boxShadow,
+    // mid ease-back (closeSideAt) the frame wears a stand-in transform; the
+    // page's own resting values are the ones to come back to
+    zoomState = { wrap: wrap, tf: easeRest ? easeRest.tf : wrap.style.transform, org: easeRest ? easeRest.org : wrap.style.transformOrigin,
+      tr: easeRest ? easeRest.tr : wrap.style.transition, bg: wrap.style.background, sh: wrap.style.boxShadow,
       ww: wrap.style.width, bh: document.body.style.height, bo: document.body.style.overflowY,
       pl: panel.style.left, pt: panel.style.top, pr: panel.style.right, pb: panel.style.bottom };
     wrap.style.transition = 'transform 0.4s cubic-bezier(0.4, 0, 0.2, 1)';
@@ -14836,7 +14928,9 @@
       // Height and Effect, three rows from the control it belongs to.
       '<div class="gogh-panel-hint">Picture or video</div>' +
       (secx.bgImage ? '<div class="gogh-panel-hint gogh-focal-hint">\u270B Drag the section itself to reframe the photo' + (secx.bgPos ? ' \u00b7 <button type="button" class="gogh-focal-reset">re-centre</button>' : '') + '</div>' : '') +
+      '<label class="gogh-media-find" hidden><span class="gogh-sr">Find a picture</span><input type="search" class="gogh-input" placeholder="Find a picture" autocomplete="off"></label>' +
       '<div class="gogh-media">' + addTile + '<span class="gogh-media-loading">Loading media\u2026</span></div>' +
+      '<div class="gogh-media-foot"></div>' +
       '<div class="gogh-vidgrid gogh-bgvid-media" hidden></div>' +
       '<div class="gogh-panel-row gogh-panel-actions">' +
       '<button type="button" class="gogh-btn gogh-btn-small gogh-clear"' + (secx.bgImage ? '' : ' hidden') + '>Remove image</button>' +
@@ -14858,7 +14952,7 @@
           return '<button type="button" class="gogh-hpreset' + (((secx.fx && secx.fx.bg) || '') === fx[0] ? ' is-active' : '') + '"' +
             ' data-fx="' + fx[0] + '"' + (fx[2] === 'img' ? ' data-needs-img="1"' : '') + '>' + fx[1] + '</button>';
         }).join('') + '</div>') +
-      (transitionRowHTML(secx) ? bgRow('ends', 'How it ends', endVal(), transitionRowHTML(secx)) : '') +
+      (transitionRowHTML(secx) ? bgRow('ends', 'Bottom edge', endVal(), transitionRowHTML(secx)) : '') +
       // the two paste fields were the rest of "Colour & more"; they keep a
       // row of their own rather than a toggle over a pile of unlike things
       bgRow('links', 'Paste a link', '',
@@ -15214,29 +15308,89 @@
     // the media box THIS panel drew (see the card picker): a slow answer
     // fills only the panel that asked
     var myMediaBox = panel.querySelector('.gogh-media');
+    var foot = panel.querySelector('.gogh-media-foot'), findLab = panel.querySelector('.gogh-media-find');
+    // TWO rows on the shelf — Upload, the picture in use, the newest — and
+    // the whole library one press away (James: "what happens when we get
+    // loads of pictures here"). It used to show up to 24 of the newest 32
+    // and hide portraits and logos without saying: older pictures were
+    // unreachable and the shelf pushed Tint and Height off the drawer
+    var SHELF = 7;
+    var shelfItems = [], libMore = false;
+    var bySrc = function (list) {
+      var seen = {};
+      return list.filter(function (it) { if (!it || seen[it.source_url]) return false; seen[it.source_url] = 1; return true; });
+    };
+    var inUse = function () {
+      var src = S[idx].bgImage;
+      if (!src) return null;
+      return shelfItems.filter(function (it) { return it.source_url === src; })[0] || { id: S[idx].bgImageId || null, source_url: src };
+    };
+    var showShelf = function () {
+      var box = myMediaBox;
+      if (!box || !panel.contains(box)) return;
+      findLab.hidden = true;
+      box.innerHTML = addTile;
+      bySrc([inUse()].concat(bgUploaded, shelfItems)).slice(0, SHELF).forEach(function (it) { box.appendChild(bgThumb(it)); });
+      foot.innerHTML = libMore ? '<button type="button" class="gogh-linkbtn gogh-media-all">See all pictures</button>' : '';
+      var all = foot.querySelector('.gogh-media-all');
+      if (all) all.addEventListener('click', function () { browse(''); findLab.querySelector('input').focus(); });
+      reclampPanel();
+    };
+    // the whole library, newest first, every shape, with a search and a
+    // Show more; Show fewer goes back to the shelf
+    var browseSeq = 0;
+    var browse = function (term, page, append) {
+      var box = myMediaBox, seq = ++browseSeq;
+      page = page || 1;
+      findLab.hidden = false;
+      if (!append) { box.innerHTML = addTile + '<span class="gogh-media-loading">Loading pictures\u2026</span>'; foot.innerHTML = ''; }
+      fetch(restQ(cfg.mediaUrl, 'per_page=40&page=' + page + '&media_type=image&orderby=date&order=desc' + (term ? '&search=' + encodeURIComponent(term) : '')), {
+        headers: { 'X-WP-Nonce': cfg.nonce },
+        credentials: 'same-origin',
+      }).then(function (res) {
+        var pages = +(res.headers.get('X-WP-TotalPages') || 1);
+        return (res.ok ? res.json() : Promise.resolve([])).then(function (list) { return { list: list, pages: pages }; });
+      }).catch(function () { return { list: [], pages: 1 }; }).then(function (r) {
+        if (seq !== browseSeq || !panel.contains(box)) return;
+        var busy = box.querySelector('.gogh-media-loading');
+        if (busy) busy.remove();
+        r.list.forEach(function (it) { box.appendChild(bgThumb(it)); });
+        if (!append && !r.list.length) box.insertAdjacentHTML('beforeend', '<span class="gogh-media-loading">' + (term ? 'No pictures match \u201c' + esc(term) + '\u201d.' : 'No pictures in the media library yet.') + '</span>');
+        foot.innerHTML = (page < r.pages ? '<button type="button" class="gogh-btn gogh-btn-small gogh-media-moreall">Show more</button>' : '') +
+          '<button type="button" class="gogh-linkbtn gogh-media-fewer">Show fewer</button>';
+        var more = foot.querySelector('.gogh-media-moreall');
+        if (more) more.addEventListener('click', function () { more.disabled = true; browse(term, page + 1, true); });
+        foot.querySelector('.gogh-media-fewer').addEventListener('click', function () { findLab.querySelector('input').value = ''; showShelf(); });
+        reclampPanel();
+      });
+    };
+    var findT = 0;
+    findLab.querySelector('input').addEventListener('input', function () {
+      var v = this.value.trim();
+      clearTimeout(findT);
+      findT = setTimeout(function () { browse(v); }, 250);
+    });
     fetch(restQ(cfg.mediaUrl, 'per_page=32&media_type=image&orderby=date&order=desc'), {
       headers: { 'X-WP-Nonce': cfg.nonce },
       credentials: 'same-origin',
-    }).then(function (res) { return res.ok ? res.json() : []; }).catch(function () { return []; })
-      .then(function (items) {
+    }).then(function (res) {
+      var total = +(res.headers.get('X-WP-Total') || 0);
+      return (res.ok ? res.json() : Promise.resolve([])).then(function (list) { return { list: list, total: total }; });
+    }).catch(function () { return { list: [], total: 0 }; })
+      .then(function (r) {
         var box = myMediaBox;
         if (!box || panel.hidden || !panel.contains(box)) return;
-        box.innerHTML = addTile;
-        // a section BACKGROUND wants big, wide-ish images — logos, cutouts
-        // and portraits are noise on this shelf (Upload and the URL row
-        // still take anything); an over-strict filter falls back to recency
-        var bgish = items.filter(function (it) {
+        // a section BACKGROUND wants big, wide-ish images first — logos,
+        // cutouts and portraits are poor backdrops — but they are only put
+        // further back, never hidden: See all pictures shows every one
+        var items = r.list;
+        var wide = items.filter(function (it) {
           var d = it.media_details || {};
           return d.width >= 700 && d.width >= (d.height || 0) * 0.75;
-        }).slice(0, 24);
-        items = bgish.length ? bgish : items.slice(0, 24);
-        // a picture uploaded while the library was answering leads the shelf
-        // whatever the filter thinks of its shape
-        var have = {};
-        items.forEach(function (it) { have[it.id] = 1; });
-        items = bgUploaded.filter(function (it) { return !have[it.id]; }).concat(items);
-        items.forEach(function (item) { box.appendChild(bgThumb(item)); });
-        reclampPanel();
+        });
+        shelfItems = wide.concat(items.filter(function (it) { return wide.indexOf(it) === -1; }));
+        libMore = Math.max(r.total, items.length) > SHELF;
+        showShelf();
       });
   }
 
