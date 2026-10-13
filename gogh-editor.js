@@ -6061,8 +6061,9 @@
         // want to be able to choose other things e.g effect")
         reapply();
         contrastSentinel(sec, i); // the card's new ground judges its words
-        mbox.querySelectorAll('.gogh-thumb').forEach(function (t2) { t2.classList.toggle('is-active', t2 === tb); });
+        mbox.querySelectorAll('.gogh-thumb').forEach(function (t2) { t2.classList.toggle('is-active', t2 === tb); t2.setAttribute('aria-pressed', t2 === tb ? 'true' : 'false'); });
       });
+      tb.setAttribute('aria-pressed', e.boxImg && item.source_url === e.boxImg ? 'true' : 'false');
       if (e.boxImg && item.source_url === e.boxImg) tb.classList.add('is-active');
       return tb;
     };
@@ -14520,7 +14521,9 @@
     if (cl) cl.hidden = !S[idx].bgImage;
     panel.querySelectorAll('.gogh-media .gogh-thumb').forEach(function (o) {
       if (!o.classList.contains('gogh-thumb-add')) {
-        o.classList.toggle('is-active', !!S[idx].bgImage && o.dataset.src === S[idx].bgImage);
+        var on = !!S[idx].bgImage && o.dataset.src === S[idx].bgImage;
+        o.classList.toggle('is-active', on);
+        o.setAttribute('aria-pressed', on ? 'true' : 'false');
       }
     });
     pushState();
@@ -14971,6 +14974,7 @@
       var b = document.createElement('button');
       b.type = 'button';
       b.className = 'gogh-thumb' + (S[idx].bgImage === item.source_url ? ' is-active' : '');
+      b.setAttribute('aria-pressed', S[idx].bgImage === item.source_url ? 'true' : 'false');
       b.title = 'Use this picture \u2014 click it again to take it off';
       b.style.backgroundImage = 'url("' + (thumb ? thumb.source_url : item.source_url) + '")';
       auditionHover(b, function () {
@@ -21168,13 +21172,14 @@
     if (chipBusy) return;
     clearTimeout(chipTimer);
     if (isDirty()) {
-      // 'backed up' stays in the words, not only the tooltip (James: 'do we
-      // not tell folks that things have been backed up anymore?')
-      setChip('dirty', backedUp ? 'Unpublished changes \u00b7 backed up' : 'Unpublished changes', 'Publish');
-      chip.title = backedUp ? 'Your changes are backed up. Publish puts them live.' : 'Publish puts your changes live.';
+      // in a beginner's words: is my work safe, and can people see it?
+      // 'Saved' carries the backup (James: 'do we not tell folks that things
+      // have been backed up anymore?'); 'not live yet' says what Publish does
+      setChip('dirty', backedUp ? 'Saved \u00b7 not live yet' : 'Not live yet', 'Publish');
+      chip.title = backedUp ? 'Your changes are saved. Publish puts them live for visitors.' : 'Your changes aren\u2019t live yet. Publish puts them live for visitors.';
     } else {
-      setChip('clean', 'All published');
-      chip.title = 'Everything on this page is live.';
+      setChip('clean', 'Live');
+      chip.title = 'Everything on this page is live: visitors see what you see.';
     }
     refreshChipName();
   }
@@ -21723,6 +21728,22 @@
   document.body.appendChild(leavePanel);
   leavePanel.addEventListener('pointerdown', function (ev) { if (ev.target === leavePanel) leavePanel.hidden = true; });
   leavePanel.addEventListener('keydown', function (ev) { if (ev.key === 'Escape') leavePanel.hidden = true; });
+  // the site's name in the admin bar goes to the HOME PAGE, still editing.
+  // WordPress sends it to the Dashboard, a trap for anyone who clicks their
+  // site's name expecting their site (James's admin bar review)
+  (function () {
+    var siteName = document.querySelector('#wp-admin-bar-site-name > a');
+    if (!siteName) return;
+    siteName.addEventListener('click', function (ev) {
+      if (!editing || ev.metaKey || ev.ctrlKey || ev.shiftKey || ev.button !== 0) return;
+      ev.preventDefault();
+      if (+cfg.postId === +cfg.frontId || samePage(cfg.homeUrl || '/')) return; // already home
+      goToPage(editUrlFor(cfg.homeUrl || '/', deviceMode === 'phone'), 'the home page');
+    }, true);
+    var setTitle = function () { siteName.title = editing ? 'Your home page (you\u2019ll keep editing)' : ''; };
+    setTitle();
+    siteName.addEventListener('mouseenter', setTitle);
+  })();
   var goTo = function (url) { location.href = url; }; // the suite swaps this to watch a trip without taking it
   function goNow(url, name) {
     discarding = true; // the beforeunload guard has had its question

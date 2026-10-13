@@ -988,6 +988,29 @@
       }
       return 'chip wears ' + getComputedStyle(q('.gogh-elbar .gogh-eb-col .gogh-eb-colchip')).backgroundColor;
     });
+    test('the admin bar speaks plainly while editing: Saved · not live yet / Live, no W logo or search, the site name goes home', function () {
+      var chipEl = q('.gogh-chip .gogh-chip-txt');
+      if (!chipEl) return 'no status chip: nothing to judge';
+      expect(/^(Live|Not live yet|Saved \u00b7 not live yet)$/.test(chipEl.textContent), 'the status speaks plainly: ' + chipEl.textContent);
+      var logo = document.getElementById('wp-admin-bar-wp-logo'), search = document.getElementById('wp-admin-bar-search');
+      expect((!logo || getComputedStyle(logo).display === 'none') && (!search || getComputedStyle(search).display === 'none'), 'WordPress’s logo and search step aside while editing');
+      var acct = document.querySelector('#wp-admin-bar-my-account > .ab-item');
+      expect(!acct || parseFloat(getComputedStyle(acct).fontSize) === 0, 'no Howdy while editing (the avatar stays)');
+      var site = document.querySelector('#wp-admin-bar-site-name > a');
+      if (site) {
+        var trips = [], unwatch = G.nav.watch(function (u) { trips.push(u); });
+        var C = window.GOGH, wasFront = C.frontId;
+        try {
+          C.frontId = -1; // this page is not home, for the test
+          site.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, button: 0 }));
+          var lp = q('.gogh-leave');
+          var asked = lp && !lp.hidden;
+          if (asked) lp.hidden = true;
+          expect(asked || (trips.length === 1 && /gogh-edit=1/.test(trips[0])), 'the site name opens the home page, still editing: ' + trips.join(' '));
+        } finally { unwatch(); C.frontId = wasFront; }
+      }
+      return 'plain status, quiet bar, site name goes home';
+    });
     test('publish chip tracks dirty state', function () {
       var chipEl = q('.gogh-chip');
       expect(chipEl && !chipEl.hidden, 'chip not visible in edit mode');
