@@ -1251,7 +1251,7 @@
         expect(home && home.contains(chipEl) && !home.hidden, 'the chip is not in the admin bar');
         expect(home.previousElementSibling && home.previousElementSibling.id === 'wp-admin-bar-my-account', 'Publish should be the very corner, after the account; after: ' + (home.previousElementSibling || {}).id);
         var pbr = chipEl.querySelector('.gogh-chip-btn').getBoundingClientRect();
-        expect(pbr.height >= 26 && pbr.width >= 80, 'Publish should be the biggest thing on the bar: ' + Math.round(pbr.width) + 'x' + Math.round(pbr.height));
+        expect(pbr.height >= 23 && pbr.height <= 26 && pbr.width >= 80, 'Publish should be wide and sit in the bar with room above and below: ' + Math.round(pbr.width) + 'x' + Math.round(pbr.height));
         expect(home.getBoundingClientRect().left > window.innerWidth / 2, 'the chip should be on the right of the bar');
         var pb = chipEl.querySelector('.gogh-chip-btn');
         expect(/rgb\(56, 88, 233\)|var\(/.test(getComputedStyle(pb).backgroundColor) || getComputedStyle(pb).backgroundColor !== 'rgb(234, 176, 56)', 'Publish should wear the admin blue, not yellow: ' + getComputedStyle(pb).backgroundColor);
