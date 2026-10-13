@@ -22205,10 +22205,22 @@
     setTitle();
     siteName.addEventListener('mouseenter', setTitle);
   })();
+  // Log out lives in the site name's menu while editing (the avatar steps
+  // aside so Publish owns the corner): with unpublished changes it asks
+  // first, like every other way out
+  (function () {
+    var out = document.querySelector('#wp-admin-bar-gogh-logout > a');
+    if (!out) return;
+    out.addEventListener('click', function (ev) {
+      if (!editing || ev.metaKey || ev.ctrlKey || ev.shiftKey || ev.button !== 0) return;
+      ev.preventDefault();
+      goToPage(out.href, 'log out', { title: 'Log out?', bare: true });
+    }, true);
+  })();
   var goTo = function (url) { location.href = url; }; // the suite swaps this to watch a trip without taking it
-  function goNow(url, name) {
+  function goNow(url, name, bare) {
     discarding = true; // the beforeunload guard has had its question
-    goTo(drawerCarried(url, name));
+    goTo(bare ? url : drawerCarried(url, name));
   }
   // the drawer you had open opens again on the next page, on the same tab:
   // moving between pages is moving around, not starting over (James: 'im
@@ -22236,15 +22248,17 @@
       return u.toString();
     } catch (e) { return url; }
   }
-  function goToPage(url, name) {
+  // how: { title, bare } — Log out asks its own question and carries no drawer
+  function goToPage(url, name, how) {
     if (!url) return;
+    how = how || {};
     refreshChip(); // text re-measures can dirty the model without a pushState
-    if (!isDirty()) { goNow(url, name); return; }
+    if (!isDirty()) { goNow(url, name, how.bare); return; }
     var here = String(cfg.postTitle || '').trim() || 'this page';
     var there = String(name || '').trim() || 'that page';
     leavePanel.innerHTML =
       '<div class="gogh-exit-card" role="dialog" aria-modal="true" aria-labelledby="gogh-leave-t">' +
-      '<div class="gogh-exit-title" id="gogh-leave-t">Go to ' + esc(there) + '?</div>' +
+      '<div class="gogh-exit-title" id="gogh-leave-t">' + esc(how.title || ('Go to ' + there + '?')) + '</div>' +
       '<p class="gogh-exit-sub">You changed ' + esc(here) + ' and haven\u2019t published it yet. Publish now and visitors see your changes, or keep them for later: they\u2019ll be here when you come back to ' + esc(here) + '.</p>' +
       '<div class="gogh-leave-col">' +
       '<button type="button" class="gogh-btn gogh-btn-go gogh-leave-pub">Publish ' + esc(here) + ', then go</button>' +
@@ -22256,7 +22270,7 @@
     stay.addEventListener('click', function () { leavePanel.hidden = true; });
     leavePanel.querySelector('.gogh-leave-pub').addEventListener('click', function () {
       leavePanel.hidden = true;
-      publish().then(function (ok) { if (ok) goNow(url, name); });
+      publish().then(function (ok) { if (ok) goNow(url, name, how.bare); });
     });
     var keep = leavePanel.querySelector('.gogh-leave-keep');
     keep.addEventListener('click', function () {
@@ -22270,7 +22284,7 @@
           return;
         }
         try { localStorage.setItem(keptKey(), new Date().toISOString()); } catch (e) {}
-        goNow(url, name);
+        goNow(url, name, how.bare);
       });
     });
     setTimeout(function () { try { stay.focus(); } catch (e) {} }, 30);

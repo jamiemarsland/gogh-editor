@@ -2082,7 +2082,9 @@ html.gogh-editing header.wp-block-template-part:has(.gogh-header-overlay):not(.g
 html.gogh-editing #wpadminbar #wp-admin-bar-gogh-style > .ab-item { padding: 0 14px; }
 html.gogh-editing #wpadminbar #wp-admin-bar-gogh-device { padding: 0 10px; }
 html.gogh-editing #wpadminbar #wp-admin-bar-gogh-help > .ab-item { padding: 0 12px; }
-html.gogh-editing #wpadminbar #wp-admin-bar-my-account > .ab-item { padding: 0 10px; }
+/* while editing the avatar steps aside: Publish owns the corner, and your
+   profile and Log out sit at the foot of the site name's menu */
+html.gogh-editing #wpadminbar #wp-admin-bar-my-account { display: none !important; }
 #wpadminbar .gogh-chip-bar .gogh-chip-btn:hover { background: color-mix(in srgb, var(--gogh-publish, #3858e9) 86%, #000); color: #fff; }
 #wpadminbar .gogh-chip-bar .gogh-chip-btn:disabled { background: rgba(255, 255, 255, 0.08); color: rgba(255, 255, 255, 0.55); cursor: default; }
 #wpadminbar .gogh-chip-bar .gogh-chip-txt[hidden] { display: none; }
@@ -4649,14 +4651,15 @@ html.gogh-history-preview .gogh-wrap .gogh-section { outline: 2px dashed rgba(56
 
 
 /* the admin bar while editing, for beginners: WordPress's logo and search
-   step aside, the account keeps its avatar (and Log out) without 'Howdy',
-   and the site's name stops opening the Dashboard menu */
+   step aside, the avatar steps aside too (v0.99.689), and the site's name
+   opens a small menu that holds only your account: Your profile, Log out */
 html.gogh-editing #wpadminbar #wp-admin-bar-wp-logo,
 html.gogh-editing #wpadminbar #wp-admin-bar-search { display: none !important; }
 html.gogh-editing #wpadminbar #wp-admin-bar-my-account > .ab-item { font-size: 0; display: flex; align-items: center; height: 32px; }
 html.gogh-editing #wpadminbar #wp-admin-bar-my-account > .ab-item .display-name { display: none; }
 html.gogh-editing #wpadminbar #wp-admin-bar-my-account > .ab-item img { margin: 0; position: static; float: none; vertical-align: middle; }
-html.gogh-editing #wpadminbar #wp-admin-bar-site-name > .ab-sub-wrapper { display: none !important; }
+html.gogh-editing #wpadminbar #wp-admin-bar-site-name #wp-admin-bar-site-name-default { display: none !important; }
+html.gogh-editing #wpadminbar #wp-admin-bar-site-name #wp-admin-bar-gogh-account { background: #2c3338; padding: 6px 0; }
 /* the background shelf: two rows, then the whole library on request */
 .gogh-media-foot { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 8px; }
 .gogh-media-foot:empty { display: none; }

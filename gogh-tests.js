@@ -1005,8 +1005,23 @@
       } finally { C.postStatus = wasSt; G.refreshChip && G.refreshChip(); }
       var logo = document.getElementById('wp-admin-bar-wp-logo'), search = document.getElementById('wp-admin-bar-search');
       expect((!logo || getComputedStyle(logo).display === 'none') && (!search || getComputedStyle(search).display === 'none'), 'WordPress’s logo and search step aside while editing');
-      var acct = document.querySelector('#wp-admin-bar-my-account > .ab-item');
-      expect(!acct || parseFloat(getComputedStyle(acct).fontSize) === 0, 'no Howdy while editing (the avatar stays)');
+      // v0.99.689: the avatar steps aside while editing; the account lives
+      // at the foot of the site name's menu, and Log out asks first
+      var acctLi = document.getElementById('wp-admin-bar-my-account');
+      expect(!acctLi || getComputedStyle(acctLi).display === 'none', 'no avatar while editing: Publish owns the corner');
+      var out = document.querySelector('#wp-admin-bar-gogh-logout > a'), prof = document.querySelector('#wp-admin-bar-gogh-profile > a');
+      if (document.getElementById('wp-admin-bar-site-name')) {
+        expect(out && /Log out/.test(out.textContent) && prof && /Your profile/.test(prof.textContent) && document.getElementById('wp-admin-bar-site-name').contains(out), 'Your profile and Log out should be in the site name\u2019s menu');
+        var trips0 = [], unwatch0 = G.nav.watch(function (u) { trips0.push(u); });
+        var keepX = sec().els[0].x;
+        try {
+          sec().els[0].x += 8; G.renderSection(sec()); G.pushState();
+          out.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, button: 0 }));
+          var lp0 = q('.gogh-leave');
+          expect(lp0 && !lp0.hidden && /Log out\?/.test(lp0.textContent) && !trips0.length, 'Log out with unpublished changes should ask first: ' + (lp0 && lp0.textContent.slice(0, 60)));
+          if (lp0) lp0.hidden = true;
+        } finally { unwatch0(); sec().els[0].x = keepX; G.renderSection(sec()); G.pushState(); }
+      }
       var site = document.querySelector('#wp-admin-bar-site-name > a');
       if (site) {
         var trips = [], unwatch = G.nav.watch(function (u) { trips.push(u); });
@@ -2230,7 +2245,10 @@
       var ab = document.querySelector('#wp-admin-bar-gogh-help > a');
       expect(!!ab, 'the admin bar should carry a ? node');
       var acct = document.getElementById('wp-admin-bar-my-account');
-      expect(acct && ab.getBoundingClientRect().right <= acct.getBoundingClientRect().left + 1, 'the ? should sit to the left of Howdy');
+      // while editing the avatar steps aside (v0.99.689): then the ? sits left of Publish
+      var pubLi = document.getElementById('wp-admin-bar-gogh-publish');
+      var after = acct && getComputedStyle(acct).display !== 'none' ? acct : pubLi;
+      expect(after && ab.getBoundingClientRect().right <= after.getBoundingClientRect().left + 1, 'the ? should sit to the left of the account, or of Publish while editing');
       ab.click();
       expect(sheet.classList.contains('is-open'), 'the admin bar ? did not open the sheet');
       sheet.querySelector('.gogh-helpsheet-x').click();
