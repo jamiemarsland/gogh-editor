@@ -2549,6 +2549,26 @@
       return sizes.map(function (f) { return f.slug; }).join(' → ');
     });
 
+    // v0.99.680: growing text pushed what sat below TWICE (the render's own
+    // re-flow, then the size change) but shrinking pulled back once, so
+    // Huge then Small left a gap the height of the growth
+    test('a size round trip leaves the page as it was: grow pushes by the growth once, shrink pulls it back', function () {
+      var i = findIdx('heading'), e = sec().els[i];
+      var keepFs = e.fs || null, keepH = e.h;
+      var start = sec().els.map(function (o) { return o.y; });
+      var below = sec().els.findIndex(function (o, j) { return j !== i && o.y >= e.y + e.h - 8 && o.x < e.x + e.w && o.x + o.w > e.x; });
+      if (below < 0) return 'nothing below the heading to judge';
+      var y0 = sec().els[below].y, h0 = e.h;
+      G.setFontSize(sec(), i, '__disp-l');
+      var grew = e.h - h0;
+      expect(grew > 0 && Math.abs((sec().els[below].y - y0) - grew) <= 2, 'below should move by the growth (' + grew + '), moved ' + (sec().els[below].y - y0));
+      G.setFontSize(sec(), i, 'small');
+      G.setFontSize(sec(), i, keepFs);
+      var moved = sec().els.filter(function (o, j) { return Math.abs(o.y - start[j]) > 2; }).length;
+      expect(moved === 0 && Math.abs(e.h - keepH) <= 2, 'Billboard, Small, then back should leave every piece where it was; ' + moved + ' moved: ' + sec().els.map(function (o) { return o.y; }).join(',') + ' vs ' + start.join(','));
+      return 'moved by ' + grew + ' then back';
+    });
+
     // ---- 23. drop lands where the ghost was released (v0.16.1) ----
     test('drag drop lands at the ghost position', function () {
       var i = findIdx('badge');

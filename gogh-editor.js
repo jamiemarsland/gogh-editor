@@ -2266,6 +2266,20 @@
   // when a text element's height changes through reflow (narrowing or typing),
   // shift everything that sat below its old bottom edge by the same delta —
   // deliberate overlaps (drags) are untouched, reflow never swallows neighbours
+  // re-draw a section after one text piece changed its size or style, and
+  // move what sits below by the change in its height EXACTLY once. The
+  // render's own growReflow already pushes a taller wrap down, so pushing
+  // again doubled every grow while a shrink pulled back only once: Huge then
+  // Small left a gap as tall as the growth (James: "really big gaps between
+  // elements"). So the render's push is set aside and one push does it
+  function rerenderText(sec, e) {
+    var oldH = e.h, ys = sec.els.map(function (o) { return [o, o.y]; });
+    renderSection(sec);
+    ys.forEach(function (p) { p[0].y = p[1]; });
+    measureTextHeights(sec);
+    reflowPush(sec, e, oldH);
+    resolveAndApply(sec);
+  }
   function reflowPush(sec, e, oldH) {
     var delta = e.h - oldH;
     if (!delta) return false;
@@ -3605,10 +3619,7 @@
     e.fitW = false;
     e.fitFs = null;
     if (e.tf) { delete e.tf.fs; delete e.tf.fs2; delete e.tf.lh; }
-    var oldH = e.h;
-    renderSection(sec);
-    measureTextHeights(sec);
-    if (reflowPush(sec, e, oldH)) resolveAndApply(sec);
+    rerenderText(sec, e);
     placeHandles(sec, i);
     pushState();
   }
@@ -3753,10 +3764,7 @@
     if (!isText(e)) return;
     if (e.fitW) { e.fitW = null; e.fitFs = null; }
     else { e.fitW = true; e.fitFs = computeFitFs(sec, i); }
-    var oldH = e.h;
-    renderSection(sec);
-    measureTextHeights(sec);
-    if (reflowPush(sec, e, oldH)) resolveAndApply(sec);
+    rerenderText(sec, e);
     placeHandles(sec, i);
     pushState();
   }
@@ -3777,10 +3785,7 @@
     e.fitW = false; // a named size exits fill-the-width (its cqw is !important)
     e.fitFs = null;
     if (e.tf) { delete e.tf.fs; delete e.tf.fs2; delete e.tf.lh; }
-    var oldH = e.h;
-    renderSection(sec);
-    measureTextHeights(sec);
-    if (reflowPush(sec, e, oldH)) resolveAndApply(sec);
+    rerenderText(sec, e);
     if (sel) placeHandles(sec, i);
   }
 
@@ -6785,10 +6790,7 @@
     e.align = stylePaint.align;
     e.color = stylePaint.color;
     e.tf = stylePaint.tf ? JSON.parse(JSON.stringify(stylePaint.tf)) : null;
-    var oldH = e.h;
-    renderSection(sec);
-    measureTextHeights(sec);
-    if (reflowPush(sec, e, oldH)) resolveAndApply(sec);
+    rerenderText(sec, e);
     placeHandles(sec, i);
     // COMMIT convention: the pre-push above only dedups a stale stack —
     // the paint itself must be pushed or undo skips past it entirely
@@ -13228,10 +13230,7 @@
     e.fitFs = null;
     if (e.tf) { delete e.tf.fs; delete e.tf.fs2; delete e.tf.lh; }
     if (bold) { e.tf = e.tf || {}; e.tf.fw = 800; }
-    var oldH = e.h;
-    renderSection(s);
-    measureTextHeights(s);
-    if (reflowPush(s, e, oldH)) resolveAndApply(s);
+    rerenderText(s, e);
   }
   function askPaint(sec, slug) {
     var t = askThemeBy(slug);
