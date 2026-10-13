@@ -7084,7 +7084,16 @@
           'a design look without its own CSS takes it from the page: ' + JSON.stringify(def.looks.heading[0]));
         expect(def.looks.heading[1].css === '.wp-block-heading.is-style-tst-hot { color: hotpink; }' && def.looks.heading[1].slug === 'tst-hot',
           'a saved style carries its own CSS, and its slug only when the name no longer says it: ' + JSON.stringify(def.looks.heading[1]));
-        expect(q('.gogh-panel .gogh-styleset-dl') && q('.gogh-panel .gogh-styleset-copy'), 'the set leaves for the blueprint, or as a definition');
+        expect(q('.gogh-panel .gogh-styleset-dl') && q('.gogh-panel .gogh-styleset-copy'), 'in labs the set leaves for the blueprint, or as a definition');
+        // outside labs the page is the list alone: blueprints are a builder's word
+        var wasLabs = cfgG.experiments;
+        cfgG.experiments = false;
+        try {
+          G.closePanel();
+          G.looks.openSet();
+          expect(!q('.gogh-panel .gogh-styleset-foot') && !/blueprint|definition/i.test(q('.gogh-panel').textContent),
+            'without labs, Saved styles should not mention blueprints or definitions');
+        } finally { cfgG.experiments = wasLabs; }
         G.closePanel();
         expect(!q('.gogh-specimen'), 'the specimen leaves with the page');
       } finally {

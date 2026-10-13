@@ -8186,7 +8186,7 @@
       '<div class="gogh-looksave-err" role="alert" hidden></div>' +
       '<div class="gogh-looksave-row"><button type="submit" class="gogh-btn gogh-btn-small gogh-btn-go gogh-looksave-go">Save style</button>' +
       '<button type="button" class="gogh-btn gogh-btn-small gogh-looksave-x">Cancel</button></div>' +
-      '<div class="gogh-panel-hint">Every ' + esc(kindLow) + ' on the site can wear it, and it goes into this design\u2019s blueprint. Rename or remove it later under Manage styles, below.</div>') +
+      '<div class="gogh-panel-hint">Every ' + esc(kindLow) + ' on the site can wear it' + (cfg.experiments ? ', and it goes into this design\u2019s blueprint' : '') + '. Rename or remove it later under Manage styles, below.</div>') +
       '</form>';
   }
   function wireLookSave(form, sec, i, j, kindLow, newOnes) {
@@ -17300,9 +17300,11 @@
       '<button type="button" class="gogh-sbtn gogh-panel-close gogh-panel-back" title="Back"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"/></svg></button></div>' +
       '<div class="gogh-panel-hint">Looks saved for headings, text, buttons, pictures and shapes on ' + esc(dname) + '. Pick one from a piece\u2019s Style button. The star marks the style a new piece of that kind starts in.</div>' +
       '<div class="gogh-stylesets"></div>' +
-      '<div class="gogh-styleset-foot">' +
+      // the way out to a blueprint is a builder's tool, not a site owner's
+      // (James: 'feels like a dev feature'): labs only (?gogh-experiments=1)
+      (cfg.experiments ? '<div class="gogh-styleset-foot">' +
       '<button type="button" class="gogh-btn gogh-btn-small gogh-btn-go gogh-styleset-dl" title="Downloads the styles as a piece of site definition, to add to the blueprint">Save to the blueprint</button>' +
-      '<button type="button" class="gogh-btn gogh-btn-small gogh-styleset-copy" title="Copies the styles as site definition JSON">Copy as definition</button></div>';
+      '<button type="button" class="gogh-btn gogh-btn-small gogh-styleset-copy" title="Copies the styles as site definition JSON">Copy as definition</button></div>' : '');
     dockSidebar();
     // Back returns to the Style panel it was opened from
     panel.querySelector('.gogh-panel-close').addEventListener('click', function () {
@@ -17407,13 +17409,14 @@
     };
     draw();
     var defText = function () { return JSON.stringify(designAsDefinition(), null, 2); };
-    panel.querySelector('.gogh-styleset-copy').addEventListener('click', function () {
+    var copyBtn = panel.querySelector('.gogh-styleset-copy'), dlBtn = panel.querySelector('.gogh-styleset-dl');
+    if (copyBtn) copyBtn.addEventListener('click', function () {
       var txt = defText();
       var done = function () { toast('Copied. Paste it into the site definition, beside pages.'); };
       if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(txt).then(done, function () { copyFallback(txt); done(); });
       else { copyFallback(txt); done(); }
     });
-    panel.querySelector('.gogh-styleset-dl').addEventListener('click', function () {
+    if (dlBtn) dlBtn.addEventListener('click', function () {
       var file = (lookSlug(dname) || 'design') + '-styles.json';
       var a = document.createElement('a');
       a.href = URL.createObjectURL(new Blob([defText() + '\n'], { type: 'application/json' }));
