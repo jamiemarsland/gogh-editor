@@ -21673,26 +21673,40 @@
   leavePanel.addEventListener('pointerdown', function (ev) { if (ev.target === leavePanel) leavePanel.hidden = true; });
   leavePanel.addEventListener('keydown', function (ev) { if (ev.key === 'Escape') leavePanel.hidden = true; });
   var goTo = function (url) { location.href = url; }; // the suite swaps this to watch a trip without taking it
-  function goNow(url) {
+  function goNow(url, name) {
     discarding = true; // the beforeunload guard has had its question
-    goTo(drawerCarried(url));
+    goTo(drawerCarried(url, name));
   }
   // the drawer you had open opens again on the next page, on the same tab:
   // moving between pages is moving around, not starting over (James: 'im
   // not sure the sidebar should close when i select another page')
-  function drawerCarried(url) {
+  function drawerCarried(url, name) {
     try {
       if (!side.classList.contains('is-open') || side.classList.contains('gogh-side-away')) return url;
       var mode = side.dataset.mode === 'site' ? 'site' : 'page';
       var u = new URL(url, location.href);
       u.searchParams.set('gogh-drawer', mode);
+      // a copy of the drawer, as it is now but naming the next page: that
+      // page paints it before gogh starts, so the drawer never empties
+      // (James: 'is there anyway we can stop the sidebar flashing')
+      try {
+        var copy = side.cloneNode(true);
+        copy.id = 'gogh-side-replica';
+        copy.classList.add('gogh-side-instant');
+        copy.setAttribute('aria-hidden', 'true');
+        copy.setAttribute('inert', '');
+        var nm = copy.querySelector('.gogh-pageswitch-name');
+        if (nm && name) nm.textContent = String(name).replace(/\s+/g, ' ').trim();
+        [].forEach.call(copy.querySelectorAll('.gogh-pageswitch .gogh-pagemenu-house, .gogh-chip-name.is-unnamed'), function (x) { x.remove(); });
+        sessionStorage.setItem('gogh-side-replica', copy.outerHTML);
+      } catch (e2) {}
       return u.toString();
     } catch (e) { return url; }
   }
   function goToPage(url, name) {
     if (!url) return;
     refreshChip(); // text re-measures can dirty the model without a pushState
-    if (!isDirty()) { goNow(url); return; }
+    if (!isDirty()) { goNow(url, name); return; }
     var here = String(cfg.postTitle || '').trim() || 'this page';
     var there = String(name || '').trim() || 'that page';
     leavePanel.innerHTML =
@@ -21709,7 +21723,7 @@
     stay.addEventListener('click', function () { leavePanel.hidden = true; });
     leavePanel.querySelector('.gogh-leave-pub').addEventListener('click', function () {
       leavePanel.hidden = true;
-      publish().then(function (ok) { if (ok) goNow(url); });
+      publish().then(function (ok) { if (ok) goNow(url, name); });
     });
     var keep = leavePanel.querySelector('.gogh-leave-keep');
     keep.addEventListener('click', function () {
@@ -21723,7 +21737,7 @@
           return;
         }
         try { localStorage.setItem(keptKey(), new Date().toISOString()); } catch (e) {}
-        goNow(url);
+        goNow(url, name);
       });
     });
     setTimeout(function () { try { stay.focus(); } catch (e) {} }, 30);
@@ -27809,6 +27823,8 @@
         }
         var hold = document.getElementById('gogh-drawer-hold');
         if (hold) hold.remove();
+        var replica = document.getElementById('gogh-side-replica');
+        if (replica) replica.remove();
         var zhold = document.getElementById('gogh-zoom-hold');
         if (zhold) {
           zhold.remove();
