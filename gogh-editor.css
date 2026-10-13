@@ -4605,3 +4605,12 @@ html.gogh-history-preview .gogh-wrap .gogh-section { outline: 2px dashed rgba(56
 .gogh-navhint b { font-weight: 600; }
 .gogh-navhint span { opacity: .95; }
 .gogh-chromeveil.is-on-link { cursor: pointer; }
+
+/* Make this the home page, in the page switcher */
+.gogh-pagemenu-home-set { all: unset; box-sizing: border-box; cursor: pointer; display: flex; align-items: center; gap: 8px; margin-top: 6px; padding: 10px; border-top: 1px solid #eef0f3; color: #1e7f4f; font-weight: 600; }
+.gogh-pagemenu-home-set span { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.gogh-pagemenu-home-set small { font-size: 11.5px; font-weight: 500; color: #6b7280; }
+.gogh-pagemenu-home-set:hover, .gogh-pagemenu-home-set:focus-visible { background: #e6f4ec; border-radius: 8px; }
+.gogh-pagemenu-home-set:disabled { cursor: default; color: #8a8f99; background: none; }
+.gogh-pagemenu-home-set + .gogh-pagemenu-add { margin-top: 0; border-top: 0; }
+.gogh-pageswitch .gogh-pagemenu-home { margin-left: 2px; }

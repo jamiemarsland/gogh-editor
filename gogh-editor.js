@@ -20262,7 +20262,7 @@
     }, 900);
   }
   window.__gogh = {
-    nav: { go: goToPage, urlFor: editUrlFor, openPages: openPageMenu, closePages: closePageMenu, backup: backupNow, setPages: function (l) { pageList = l; },
+    nav: { setHome: setHomePage, go: goToPage, urlFor: editUrlFor, openPages: openPageMenu, closePages: closePageMenu, backup: backupNow, setPages: function (l) { pageList = l; },
       watch: function (fn) { var was = goTo; goTo = fn; return function () { goTo = was; discarding = false; }; } },
     history: { open: openHistoryPanel, leave: historyLeave, viewing: function () { return historyView; }, when: historyWhen },
     explode: { enter: enterExplode, exit: exitExplode, state: function () { return explodeSt; } },
@@ -20864,6 +20864,7 @@
   function refreshChipName() {
     var t = String(cfg.postTitle || '').trim();
     pageSwitch.innerHTML = '<span class="gogh-pageswitch-lab">Editing</span><span class="gogh-pageswitch-name">' + esc(t || (cfg.postType === 'page' ? 'Untitled page' : 'this post')) + '</span>' +
+      (cfg.postType === 'page' && +cfg.postId === +cfg.frontId ? '<span class="gogh-pagemenu-home">Home page</span>' : '') +
       '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>';
     pageSwitch.title = 'Switch to another page';
     if (cfg.postType !== 'page') { chipName.hidden = true; return; }
@@ -20878,6 +20879,42 @@
     pageMenu.hidden = true;
     pageSwitch.setAttribute('aria-expanded', 'false');
     document.removeEventListener('pointerdown', pageMenuAway, true);
+  }
+  // the home page setting, with Undo putting back exactly what was there
+  function postHome(body) {
+    return fetch(cfg.restUrl.split('wp/v2/')[0] + 'gogh/v1/home', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-WP-Nonce': cfg.nonce },
+      credentials: 'same-origin',
+      body: JSON.stringify(body),
+    }).then(function (r) {
+      return r.json().catch(function () { return {}; }).then(function (j) {
+        if (!r.ok) throw new Error((j && j.message) || 'HTTP ' + r.status);
+        return j;
+      });
+    });
+  }
+  function setHomePage(id) {
+    var name = String(cfg.postTitle || '').trim() || 'This page';
+    return postHome({ id: id }).then(function (j) {
+      cfg.frontId = j.frontId;
+      refreshChipName();
+      var was = j.was || { id: 0, postsPage: 0 };
+      toast(name + ' is now your home page: visitors arriving at your site see it first.', {
+        ttl: 7000,
+        actions: [{ label: 'Undo', onClick: function () {
+          postHome({ id: was.id || 0, posts_page: was.postsPage || 0 }).then(function (j2) {
+            cfg.frontId = j2.frontId;
+            refreshChipName();
+            toast(was.id ? 'The home page is back as it was.' : 'Your home page shows your latest posts again.');
+          }).catch(function (er) { toast('Could not put the home page back: ' + er.message, { error: true }); });
+        } }],
+      });
+      return true;
+    }).catch(function (er) {
+      toast('Could not make ' + name + ' the home page. ' + er.message, { error: true });
+      return false;
+    });
   }
   function pageMenuAway(ev) {
     if (pageMenu && !pageMenu.contains(ev.target) && !pageSwitch.contains(ev.target)) closePageMenu();
@@ -20952,7 +20989,17 @@
       if (inMenu.length) html += '<div class="gogh-pagemenu-lab">In your menu</div>' + inMenu.map(function (x) { return row(x.pg); }).join('');
       if (rest.length) html += '<div class="gogh-pagemenu-lab">' + (inMenu.length ? 'Not in your menu' : 'Your pages') + '</div>' + rest.map(row).join('');
       if (!list.length) html += '<div class="gogh-pagemenu-wait">No other pages yet.</div>';
-      html += '</div><button type="button" class="gogh-pagemenu-add"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 8v8M8 12h8"/></svg>Add a page</button>';
+      html += '</div>';
+      // Make this the home page: the page being edited, when it isn't home
+      // already. A site setting, so only for whoever may change settings
+      if (cfg.canHome && cfg.postType === 'page' && +cfg.postId !== +cfg.frontId) {
+        var hereName = String(cfg.postTitle || '').trim() || 'this page';
+        var isDraft = cfg.postStatus && cfg.postStatus !== 'publish';
+        html += '<button type="button" class="gogh-pagemenu-home-set"' + (isDraft ? ' disabled title="Publish this page first: visitors can only arrive at a published page"' : '') + '>' +
+          '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" aria-hidden="true"><path d="M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/></svg>' +
+          '<span>Make ' + esc(hereName) + ' the home page' + (isDraft ? '<small>Publish it first</small>' : '') + '</span></button>';
+      }
+      html += '<button type="button" class="gogh-pagemenu-add"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 8v8M8 12h8"/></svg>Add a page</button>';
       pageMenu.innerHTML = html;
       pageMenu.querySelectorAll('.gogh-pagemenu-it').forEach(function (b) {
         b.addEventListener('click', function () {
@@ -20961,6 +21008,11 @@
           if (!pg || +pg.id === +cfg.postId) return;
           goToPage(editUrlFor(pg.link, deviceMode === 'phone'), pg.name);
         });
+      });
+      var homeSet = pageMenu.querySelector('.gogh-pagemenu-home-set');
+      if (homeSet) homeSet.addEventListener('click', function () {
+        closePageMenu();
+        setHomePage(+cfg.postId);
       });
       var add = pageMenu.querySelector('.gogh-pagemenu-add');
       add.addEventListener('click', function () {

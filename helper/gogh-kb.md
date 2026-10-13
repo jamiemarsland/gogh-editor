@@ -15,7 +15,7 @@ about something where they conflict, rather than picking one silently. Quote UI
 labels and message copy from the appendix, verbatim — those are the current
 strings, and a paraphrased button label is the fastest way to lose a user's trust.
 
-Generated for plugin version 0.99.665 · knowledge base b60301e.
+Generated for plugin version 0.99.666 · knowledge base a42ed24.
 
 ---
 
@@ -830,6 +830,8 @@ The helper's welcome panel opens with a 35-second film of gogh being used (v0.99
 
 **The phone view survives navigation (v0.99.605).** Press one of your own pages while on the phone and it opens in the editor, still on the phone: the link carries `gogh-edit=1&gogh-phone=1`, the next page reads them at boot and strips them from the address. Other sites, files, wp-admin and anchors on the same page are left alone. Unpublished changes still ask before leaving.
 
+**Make this the home page (v0.99.666).** The page switcher at the top of the Page drawer now offers **Make (page) the home page** for the page you're editing, so you no longer need Settings › Reading. It sets the page visitors see first, the Home page mark moves to it, and a message says so with **Undo**, which puts back exactly what was there before (another page, or your latest posts). A draft has to be published first. The offer is for people who can change the site's settings (administrators). If the theme draws its own home page and wouldn't show the page's content there, gogh says so instead of changing anything.
+
 **Misprint's styles come in even sets (v0.99.665).** Misprint gains a heading style, **Yellow pass** (the words in ink with the yellow drum a hair out of register), and a button style, **Paper print** (a paper-coloured print with the ink edge, for a quieter second button). Its Style panels now show four heading styles, six button styles, four picture styles and four shapes. A design's own plain style, such as Misprint's **Plain photo**, now stands in for gogh's built-in Plain, so the pictures panel no longer shows two plains.
 
 **Getting around while editing (v0.99.663).** Editing now stays on as you move around your own site. Press a page in your header or footer menu while editing and it opens in the editor (clicking anywhere else on the header still opens header editing); hovering a menu link says "Go to Workshops · you'll keep editing" (every time, since v0.99.664). The Page drawer now starts with a page switcher, **Editing Workshops ▾**: it lists every page, the ones in your menu first, Home marked, drafts labelled, with a find box on bigger sites and Add a page at the end; Rename sits beside it. Leaving a page with unpublished changes, by either route, asks: **Publish (page), then go**, **Go, and keep my changes for later** (gogh backs them up first; when you come back to that page it offers "You left changes on this page unpublished. Bring them back?"), or **Stay**.
@@ -949,11 +951,11 @@ Everything in this section is extracted mechanically from the Gogh source on eve
 
 ## Current release
 
-- Plugin version: **0.99.665**
+- Plugin version: **0.99.666**
 - Requires WordPress **6.5+**, PHP **7.4+**
 - Text domain: `gogh-editor`
 - readme.txt Stable tag: `0.26.0` · Tested up to: `7.0`
-- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.665`). Quote the plugin header version.
+- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.666`). Quote the plugin header version.
 
 ## Design constants
 
@@ -1138,7 +1140,7 @@ Block: `gogh/section` · v3 attributes: `css`, `model`, `scope`, `v`, `cssT`.
 
 Filters exposed for third parties: `gogh_default_editor`, `gogh_claims_post`, `gogh_labs_ask`, `gogh_helper_url`, `gogh_user_test_tasks`, `gogh_rebake_enabled`, `gogh_schema`, `gogh_schema_enabled`, `gogh_preload_fonts`, `gogh_webmcp_enabled`, `gogh_convert_enabled`.
 
-REST routes registered: `gogh/v1/version`, `gogh/v1/starter`, `gogh/v1/site-def`, `gogh/v1/type-scale`, `gogh/v1/blog-style`, `gogh/v1/motion`, `gogh/v1/design-looks`, `gogh/v1/ask`, `gogh/v1/imagine-exp`, `gogh/v1/ask-key`, `gogh/v1/menu-style`, `gogh/v1/first-minute`, `gogh/v1/ask-log`, `gogh/v1/active-style`, `wp/v2/gogh-product/(?P<id>\d+)`, `wp/v2/gogh-product/(?P<id>\d+)/autosaves`, `gogh/v1/pattern`, `gogh/v1/render`.
+REST routes registered: `gogh/v1/version`, `gogh/v1/starter`, `gogh/v1/site-def`, `gogh/v1/type-scale`, `gogh/v1/blog-style`, `gogh/v1/motion`, `gogh/v1/home`, `gogh/v1/design-looks`, `gogh/v1/ask`, `gogh/v1/imagine-exp`, `gogh/v1/ask-key`, `gogh/v1/menu-style`, `gogh/v1/first-minute`, `gogh/v1/ask-log`, `gogh/v1/active-style`, `wp/v2/gogh-product/(?P<id>\d+)`, `wp/v2/gogh-product/(?P<id>\d+)/autosaves`, `gogh/v1/pattern`, `gogh/v1/render`.
 
 Core REST endpoints used by the editor: `wp/v2/blocks`, `wp/v2/categories`, `wp/v2/pages`, `wp/v2/posts`, `wp/v2/template-parts`.
 
@@ -1319,6 +1321,7 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "Products"
 - "Publish"
 - "Publish & close"
+- "Publish this page first: visitors can only arrive at a published page"
 - "Put it back"
 - "Questions"
 - "Redo (⇧⌘Z)"
@@ -1412,10 +1415,12 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "Could not apply that style."
 - "Could not change the styles: "
 - "Could not delete that section."
+- "Could not make "
 - "Could not open the "
 - "Could not open the layout panel."
 - "Could not preview that layout — "
 - "Could not put the "
+- "Could not put the home page back: "
 - "Could not rescale the type — "
 - "Could not restore it."
 - "Could not save that section."

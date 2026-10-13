@@ -7364,6 +7364,84 @@
       return 'menu first, current and Home marked, draft labelled, Sample Page opened in the editor';
     });
 
+    testAsync('Make this the home page: from the page switcher, with Undo, never for a draft, only for whoever may change settings', async function () {
+      var C = window.GOGH, was = { front: C.frontId, can: C.canHome, st: C.postStatus };
+      var o = location.origin, posts = [];
+      var realFetch = window.fetch;
+      window.fetch = function (u, opt) {
+        if (/gogh\/v1\/home/.test(String(u))) {
+          var body = JSON.parse((opt && opt.body) || '{}');
+          posts.push(body);
+          var reply = body.id ? { frontId: body.id, was: { id: 99993, postsPage: 0 } } : { frontId: 0, was: { id: C.postId, postsPage: 0 } };
+          return Promise.resolve(new Response(JSON.stringify(reply), { status: 200, headers: { 'Content-Type': 'application/json' } }));
+        }
+        return realFetch.apply(this, arguments);
+      };
+      G.nav.setPages([
+        { id: C.postId, name: C.postTitle || 'This page', link: o + location.pathname, status: 'publish' },
+        { id: 99993, name: 'Front', link: o + '/front-test/', status: 'publish' },
+      ]);
+      var open = async function () { G.nav.closePages(); G.nav.openPages(); await new Promise(function (r) { setTimeout(r, 40); }); return q('.gogh-pagemenu'); };
+      try {
+        C.frontId = 99993; C.canHome = true; C.postStatus = 'publish';
+        var menu = await open();
+        var btn = menu.querySelector('.gogh-pagemenu-home-set');
+        expect(btn && !btn.disabled && /^Make .+ the home page$/.test(btn.textContent.trim()), 'the switcher offers to make this page home: ' + (btn && btn.textContent));
+        btn.click();
+        await new Promise(function (r) { setTimeout(r, 60); });
+        expect(posts.length === 1 && posts[0].id === +C.postId, 'it sets this page as home: ' + JSON.stringify(posts));
+        expect(+C.frontId === +C.postId && /Home page/.test(q('.gogh-pageswitch').textContent), 'the Home mark moves to this page');
+        var undo = [].filter.call(document.querySelectorAll('.gogh-toast button'), function (b) { return /Undo/.test(b.textContent); })[0];
+        expect(undo && /is now your home page/.test(undo.closest('.gogh-toast').textContent), 'a toast says so, with Undo');
+        undo.click();
+        await new Promise(function (r) { setTimeout(r, 60); });
+        expect(posts.length === 2 && posts[1].id === 99993 && posts[1].posts_page === 0, 'Undo puts back the home page that was there: ' + JSON.stringify(posts[1]));
+        menu = await open();
+        expect(!menu.querySelector('.gogh-pagemenu-home-set') === false, 'after Undo, this page can be made home again');
+        // a draft can't be home; nor can someone who can't change settings
+        C.frontId = 99993; C.postStatus = 'draft';
+        menu = await open();
+        btn = menu.querySelector('.gogh-pagemenu-home-set');
+        expect(btn && btn.disabled && /Publish it first/.test(btn.textContent), 'a draft is told to publish first');
+        C.postStatus = 'publish'; C.canHome = false;
+        menu = await open();
+        expect(!menu.querySelector('.gogh-pagemenu-home-set'), 'without the settings capability there is no offer');
+        C.canHome = true; C.frontId = C.postId;
+        menu = await open();
+        expect(!menu.querySelector('.gogh-pagemenu-home-set'), 'the home page itself is not offered again');
+      } finally {
+        window.fetch = realFetch;
+        G.nav.closePages();
+        G.nav.setPages(null);
+        C.frontId = was.front; C.canHome = was.can; C.postStatus = was.st;
+        [].slice.call(document.querySelectorAll('.gogh-toast')).forEach(function (t) { t.remove(); });
+      }
+      return 'offered, set, mark moved, Undo restored; draft and no-capability cases held';
+    });
+
+    testAsync('the home page route sets the home page, refuses a post, and puts everything back (restored after)', async function () {
+      var C = window.GOGH;
+      if (!C.canHome) return 'skipped: this user may not change settings';
+      var root = C.restUrl.split('wp/v2/')[0];
+      var post = function (body) {
+        return fetch(root + 'gogh/v1/home', { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json', 'X-WP-Nonce': C.nonce }, body: JSON.stringify(body) })
+          .then(function (r) { return r.json().then(function (j) { return { ok: r.ok, status: r.status, j: j }; }); });
+      };
+      var first = null;
+      try {
+        first = await post({ id: +C.postId });
+        expect(first.ok && first.j.frontId === +C.postId, 'a published page becomes home: ' + JSON.stringify(first));
+        var wrong = await post({ id: 1 });
+        expect(!wrong.ok && wrong.status === 400, 'a post (not a page) is refused: ' + wrong.status);
+      } finally {
+        if (first && first.ok) {
+          var back = await post({ id: first.j.was.id || 0, posts_page: first.j.was.postsPage || 0 });
+          expect(back.ok && back.j.frontId === (first.j.was.id || 0), 'the site’s home page is put back: ' + JSON.stringify(back.j));
+        }
+      }
+      return 'set, refused a post, restored';
+    });
+
     testAsync('the Make door serves a chat that builds this site (read only: nothing is applied here)', async function () {
       var r = await fetch(location.origin + '/?gogh-make=1&goghcb=' + Date.now(), { credentials: 'same-origin', cache: 'no-store' });
       var html = await r.text();
