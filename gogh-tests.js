@@ -991,16 +991,17 @@
     test('the admin bar speaks plainly while editing: Saved · not live yet / Live, no W logo or search, the site name goes home', function () {
       var chipEl = q('.gogh-chip .gogh-chip-txt');
       if (!chipEl) return 'no status chip: nothing to judge';
-      expect(/^(Live|Changes not live yet|Changes saved \u00b7 not live yet|Draft \u00b7 not live yet|Draft saved \u00b7 not live yet)$/.test(chipEl.textContent), 'the status speaks plainly: ' + chipEl.textContent);
+      // v0.99.688: three words or none — Not live yet, or quiet beside a greyed Published ✓
+      expect(/^(|Not live yet)$/.test(chipEl.textContent), 'the status speaks plainly: ' + chipEl.textContent);
       // a published page's CHANGES aren't live, not the page; a draft isn't live at all
       var C = window.GOGH, wasSt = C.postStatus;
       try {
         C.postStatus = 'draft'; G.pushState(); G.refreshChip && G.refreshChip();
         var t1 = q('.gogh-chip .gogh-chip-txt').textContent, b1 = q('.gogh-chip .gogh-chip-btn');
-        expect(/^Draft/.test(t1) && b1 && !b1.disabled, 'a draft says so, and Publish is lit even with nothing new: ' + t1);
+        expect(t1 === 'Not live yet' && b1 && !b1.disabled && /draft/.test(q('.gogh-chip').title), 'a draft is not live yet, says so in its tooltip, and Publish is lit even with nothing new: ' + t1);
         C.postStatus = 'publish'; G.refreshChip && G.refreshChip();
-        var t2 = q('.gogh-chip .gogh-chip-txt').textContent;
-        expect(/^(Live|Changes)/.test(t2), 'a published page talks about its changes, or says Live: ' + t2);
+        var t2 = q('.gogh-chip .gogh-chip-txt').textContent, b2 = q('.gogh-chip .gogh-chip-btn');
+        expect(t2 === 'Not live yet' || (t2 === '' && b2.disabled && /Published/.test(b2.textContent)), 'a published page: Not live yet, or quiet with a greyed Published \u2713: ' + t2 + ' / ' + b2.textContent);
       } finally { C.postStatus = wasSt; G.refreshChip && G.refreshChip(); }
       var logo = document.getElementById('wp-admin-bar-wp-logo'), search = document.getElementById('wp-admin-bar-search');
       expect((!logo || getComputedStyle(logo).display === 'none') && (!search || getComputedStyle(search).display === 'none'), 'WordPress’s logo and search step aside while editing');
@@ -1213,7 +1214,9 @@
       var home = q('#wp-admin-bar-gogh-publish');
       if (q('#wpadminbar')) {
         expect(home && home.contains(chipEl) && !home.hidden, 'the chip is not in the admin bar');
-        expect(home.nextElementSibling && home.nextElementSibling.id === 'wp-admin-bar-my-account', 'the chip should sit last before the account, before: ' + (home.nextElementSibling || {}).id);
+        expect(home.previousElementSibling && home.previousElementSibling.id === 'wp-admin-bar-my-account', 'Publish should be the very corner, after the account; after: ' + (home.previousElementSibling || {}).id);
+        var pbr = chipEl.querySelector('.gogh-chip-btn').getBoundingClientRect();
+        expect(pbr.height >= 26 && pbr.width >= 80, 'Publish should be the biggest thing on the bar: ' + Math.round(pbr.width) + 'x' + Math.round(pbr.height));
         expect(home.getBoundingClientRect().left > window.innerWidth / 2, 'the chip should be on the right of the bar');
         var pb = chipEl.querySelector('.gogh-chip-btn');
         expect(/rgb\(56, 88, 233\)|var\(/.test(getComputedStyle(pb).backgroundColor) || getComputedStyle(pb).backgroundColor !== 'rgb(234, 176, 56)', 'Publish should wear the admin blue, not yellow: ' + getComputedStyle(pb).backgroundColor);
@@ -1230,6 +1233,8 @@
       expect(chipEl.className.indexOf('is-dirty') !== -1, 'chip not in dirty state: ' + chipEl.className);
       var btn = q('.gogh-chip-btn');
       expect(btn && !btn.hidden && btn.textContent === 'Publish', 'Publish button not offered');
+      var nudged = null; try { nudged = sessionStorage.getItem('gogh-publish-nudged'); } catch (err) {}
+      expect(nudged === '1', 'the first change of a session should have nudged Publish once');
       return chipEl.textContent.trim();
     });
 

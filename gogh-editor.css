@@ -2049,7 +2049,7 @@ html.gogh-editing header.wp-block-template-part:has(.gogh-header-overlay):not(.g
 #wpadminbar #wp-admin-bar-gogh-publish[hidden] { display: none; }
 #wpadminbar .gogh-chip-bar {
   display: flex; align-items: center; gap: 8px; height: 32px; padding: 0 6px 0 4px; margin: 0;
-  border-left: 1px solid rgba(255, 255, 255, 0.14); padding-left: 10px; margin-right: 6px;
+  border-left: 1px solid rgba(255, 255, 255, 0.14); padding-left: 14px; margin-left: 6px; margin-right: 8px; gap: 12px;
   font: 600 12.5px/1 -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, sans-serif; color: #9aa1ab;
 }
 /* waiting to go live is normal, not a warning: the words stay plain and
@@ -2064,12 +2064,30 @@ html.gogh-editing header.wp-block-template-part:has(.gogh-header-overlay):not(.g
 #wpadminbar .gogh-chip-bar .gogh-chip-txt { white-space: nowrap; }
 #wpadminbar .gogh-chip-bar .gogh-chip-btn {
   all: unset; box-sizing: border-box; cursor: pointer; display: inline-grid; place-items: center;
-  height: 24px; padding: 0 12px; margin-left: 2px; border-radius: 5px;
-  background: var(--gogh-publish, #3858e9); color: #fff; font: 700 12px/1 -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, sans-serif;
+  /* the biggest thing on the bar: nearly its full height, wide, and in
+     the very corner */
+  height: 27px; padding: 0 20px; margin-left: 0; border-radius: 6px;
+  background: var(--gogh-publish, #3858e9); color: #fff; font: 700 13.5px/1 -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, sans-serif;
+  letter-spacing: 0.01em;
   transition: background 0.2s, color 0.2s;
 }
+#wpadminbar .gogh-chip-bar .gogh-chip-btn.is-nudge { animation: gogh-publish-nudge 1.2s ease-in-out 2; }
+@keyframes gogh-publish-nudge {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(56, 88, 233, 0); }
+  50% { box-shadow: 0 0 0 6px color-mix(in srgb, var(--gogh-publish, #3858e9) 45%, transparent); }
+}
+@media (prefers-reduced-motion: reduce) { #wpadminbar .gogh-chip-bar .gogh-chip-btn.is-nudge { animation: none; } }
+/* room to breathe between the bar's right-hand doors (James: "this all
+   looks kinda squashed") */
+html.gogh-editing #wpadminbar #wp-admin-bar-gogh-style > .ab-item { padding: 0 14px; }
+html.gogh-editing #wpadminbar #wp-admin-bar-gogh-device { padding: 0 10px; }
+html.gogh-editing #wpadminbar #wp-admin-bar-gogh-help > .ab-item { padding: 0 12px; }
+html.gogh-editing #wpadminbar #wp-admin-bar-my-account > .ab-item { padding: 0 10px; }
 #wpadminbar .gogh-chip-bar .gogh-chip-btn:hover { background: color-mix(in srgb, var(--gogh-publish, #3858e9) 86%, #000); color: #fff; }
-#wpadminbar .gogh-chip-bar .gogh-chip-btn:disabled { background: rgba(255, 255, 255, 0.10); color: rgba(255, 255, 255, 0.45); cursor: default; }
+#wpadminbar .gogh-chip-bar .gogh-chip-btn:disabled { background: rgba(255, 255, 255, 0.08); color: rgba(255, 255, 255, 0.55); cursor: default; }
+#wpadminbar .gogh-chip-bar .gogh-chip-txt[hidden] { display: none; }
+/* nothing waiting: no dot, no words — the greyed Published ✓ says it */
+#wpadminbar .gogh-chip-bar.is-clean .gogh-chip-dot { display: none; }
 #wpadminbar .gogh-chip-bar .gogh-chip-btn:focus-visible { outline: 2px solid #fff; outline-offset: 1px; }
 #wpadminbar .gogh-chip-bar .gogh-chip-btn[hidden] { display: none; }
 @media (max-width: 782px) { #wpadminbar .gogh-chip-bar .gogh-chip-txt { display: none; } }

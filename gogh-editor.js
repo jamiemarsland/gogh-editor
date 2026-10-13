@@ -21342,7 +21342,10 @@
     // says where you are: the site, View site
     var acct = document.getElementById('wp-admin-bar-my-account');
     var edit = document.getElementById('wp-admin-bar-gogh-edit');
-    if (acct && acct.parentNode) { chipMount = 'gogh-chip-bar'; acct.parentNode.insertBefore(chipHome, acct); }
+    // the very corner is Publish's: after the account, the last thing in the
+    // bar (James: "folks will struggle to see publish - its the most important
+    // button on the page")
+    if (acct && acct.parentNode) { chipMount = 'gogh-chip-bar'; acct.parentNode.insertBefore(chipHome, acct.nextSibling); }
     else if (edit && edit.parentNode) { chipMount = 'gogh-chip-bar'; edit.parentNode.insertBefore(chipHome, edit.nextSibling); }
     else { chipMount = 'gogh-chip-float'; document.body.appendChild(chip); }
     chip.classList.add(chipMount);
@@ -21594,12 +21597,24 @@
   var chipTimer = null;
   function setChip(state, txt, btnLabel) {
     chip.className = 'gogh-chip ' + chipMount + ' is-' + state;
-    chipTxt.textContent = txt;
-    // in the bar the button never vanishes — it greys out when there is
-    // nothing to publish, so nothing to its right jumps
+    chipTxt.textContent = txt || '';
+    chipTxt.hidden = !txt;
+    // in the bar the button never vanishes: with nothing to publish it says
+    // so itself, greyed — Published ✓ — and the words beside it go quiet
     if (btnLabel) { chipBtn.textContent = btnLabel; chipBtn.hidden = false; chipBtn.disabled = false; }
-    else if (chipMount === 'gogh-chip-bar') { chipBtn.textContent = 'Publish'; chipBtn.hidden = false; chipBtn.disabled = true; }
+    else if (chipMount === 'gogh-chip-bar') { chipBtn.textContent = state === 'clean' ? 'Published \u2713' : 'Publish'; chipBtn.hidden = false; chipBtn.disabled = true; }
     else chipBtn.hidden = true;
+  }
+  // the first time there is something to publish in a session, Publish
+  // glows softly twice so a beginner sees where it lives; never again
+  var publishNudged = false;
+  try { publishNudged = sessionStorage.getItem('gogh-publish-nudged') === '1'; } catch (err) {}
+  function nudgePublish() {
+    if (publishNudged || chipMount !== 'gogh-chip-bar') return;
+    publishNudged = true;
+    try { sessionStorage.setItem('gogh-publish-nudged', '1'); } catch (err) {}
+    chipBtn.classList.add('is-nudge');
+    setTimeout(function () { chipBtn.classList.remove('is-nudge'); }, 2600);
   }
   function isDraftPage() {
     return !!cfg.postStatus && cfg.postStatus !== 'publish' && cfg.postStatus !== 'private';
@@ -21613,19 +21628,22 @@
       // have been backed up anymore?'). On a published page it is the
       // CHANGES that aren't live, not the page (James: 'the page is live,
       // the updated page is not live'); a draft isn't live at all
+      // three words beside the button, the rest in the tooltip (James:
+      // "folks will struggle to see publish"): fewer words, louder button
       if (isDraftPage()) {
-        setChip('dirty', backedUp ? 'Draft saved \u00b7 not live yet' : 'Draft \u00b7 not live yet', 'Publish');
-        chip.title = 'This page is a draft: visitors can\u2019t see it yet. Publish puts it live.';
+        setChip('dirty', 'Not live yet', 'Publish');
+        chip.title = (backedUp ? 'Your work is saved. ' : '') + 'This page is a draft: visitors can\u2019t see it yet. Publish puts it live.';
       } else {
-        setChip('dirty', backedUp ? 'Changes saved \u00b7 not live yet' : 'Changes not live yet', 'Publish');
-        chip.title = backedUp ? 'Your changes are saved. Visitors still see the page as it was until you publish.' : 'Visitors still see the page as it was until you publish your changes.';
+        setChip('dirty', 'Not live yet', 'Publish');
+        chip.title = (backedUp ? 'Your changes are saved. ' : '') + 'Visitors still see the page as it was until you publish.';
       }
+      nudgePublish();
     } else if (isDraftPage()) {
       // a draft with nothing new still waits to go live: Publish stays lit
-      setChip('dirty', 'Draft \u00b7 not live yet', 'Publish');
+      setChip('dirty', 'Not live yet', 'Publish');
       chip.title = 'This page is a draft: visitors can\u2019t see it yet. Publish puts it live.';
     } else {
-      setChip('clean', 'Live');
+      setChip('clean', '');
       chip.title = 'Everything on this page is live: visitors see what you see.';
     }
     refreshChipName();
@@ -22094,7 +22112,7 @@
       // take a beat here, but it is gogh's word for the search and AI layer
       // and meant nothing to a beginner who only wanted to know it worked
       // (James); it lives in the SEO panel, which explains it
-      setChip('clean', 'Published \u2713');
+      setChip('clean', '');
       chipTimer = setTimeout(refreshChip, 2600);
       return true;
     }).catch(function (err) {
