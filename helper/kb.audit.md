@@ -1,6 +1,13 @@
-# Knowledge-base audit — plugin v0.99.678
+# Knowledge-base audit — plugin v0.99.679
 
 _13 finding(s) suppressed by `kb.audit-ignore.txt`._
+
+## STALE (2)
+
+The prose names something that no longer exists.
+
+- UI label "Add a page" was removed in this release, but the prose still describes it
+- UI label "Cycle theme font sizes" was removed in this release, but the prose still describes it
 
 ## MISSING (100)
 
@@ -134,3 +141,14 @@ Quoted copy not found verbatim in the source. Paraphrases are fine; changed UI c
 - From Misprint
 - (max-width: 700px) 100vw, min(100vw, Wpx)
 - (max-width: 700px) 100vw, 53vw
+
+## What changed since the last knowledge-base build
+
+Use this as the checklist for updating the prose — and as a sanity check on the release itself.
+
+- version: 0.99.678 → 0.99.679
+- removed UI label: "Add a page"
+- removed UI label: "Cycle theme font sizes"
+- added UI label: "Bigger text"
+- added UI label: "Smaller text"
+- added UI label: "Text size: choose from every size"

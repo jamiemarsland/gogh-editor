@@ -18,7 +18,9 @@
     '__disp-l': 'max(13cqw, 42px)',
   };
   var DISPLAY_ORDER = ['__disp-s', '__disp-m', '__disp-l'];
-  var DISPLAY_LABEL = { '__disp-s': 'Display S', '__disp-m': 'Display M', '__disp-l': 'Display L' };
+  // the big sizes in words that say what they're for ('Display S' was
+  // design jargon, James)
+  var DISPLAY_LABEL = { '__disp-s': 'Headline', '__disp-m': 'Poster', '__disp-l': 'Billboard' };
   // a theme's size slugs, as words a person would use ('xx-large' was shown raw)
   var SIZE_WORDS = { 'xx-small': 'Tiny', 'x-small': 'Extra small', small: 'Small', medium: 'Medium', large: 'Large', 'x-large': 'Extra large', 'xx-large': 'Huge' };
   function sizeWord(slug) {
@@ -3438,7 +3440,11 @@
     '<button type="button" class="gogh-eb gogh-eb-look" title="Choose a style"></button>' +
     '<button type="button" class="gogh-eb gogh-eb-ctx"></button>' +
     '<button type="button" class="gogh-eb gogh-eb-manage" title="Open your products in WordPress">Manage products</button>' +
-    '<button type="button" class="gogh-eb gogh-eb-fs" title="Cycle theme font sizes"></button>' +
+    // text size, the way Canva and Docs do it: a step smaller, the size by
+    // name (a click opens every size), a step bigger
+    '<button type="button" class="gogh-eb gogh-eb-fsdown" title="Smaller text" aria-label="Smaller text"><span class="gogh-eb-fsa">A</span>\u2212</button>' +
+    '<button type="button" class="gogh-eb gogh-eb-fs" title="Text size: choose from every size" aria-haspopup="dialog"></button>' +
+    '<button type="button" class="gogh-eb gogh-eb-fsup" title="Bigger text" aria-label="Bigger text"><span class="gogh-eb-fsa gogh-eb-fsa-big">A</span>+</button>' +
     '<button type="button" class="gogh-eb gogh-eb-fit" title="Fill the width — size the text to its box">' +
     '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h18M3 12l4-4M3 12l4 4M21 12l-4-4M21 12l-4 4"/></svg></button>' +
     '<button type="button" class="gogh-eb gogh-eb-al" title="Text alignment"></button>' +
@@ -3519,6 +3525,7 @@
     if (e2 && e2.shop) window.open(e2.shop.kind === 'categories' ? (cfg.adminUrl || '/wp-admin/') + 'edit-tags.php?taxonomy=product_cat&post_type=product' : manageProductsUrl(e2), '_blank', 'noopener');
   });
   var fsBtn = elbar.querySelector('.gogh-eb-fs');
+  var fsDown = elbar.querySelector('.gogh-eb-fsdown'), fsUp = elbar.querySelector('.gogh-eb-fsup');
   var alBtn = elbar.querySelector('.gogh-eb-al');
   var colBtn = elbar.querySelector('.gogh-eb-col');
   var lnkBtn = elbar.querySelector('.gogh-eb-lnk');
@@ -3605,14 +3612,94 @@
     placeHandles(sec, i);
     pushState();
   }
+  // every size a piece can take, smallest first: Normal (null), the
+  // theme's sizes, then Headline, Poster, Billboard
+  function sizeLadder() {
+    return [null].concat(fontSizes().map(function (f) { return f.slug; }), DISPLAY_ORDER);
+  }
+  // the sizes in the order they actually draw for THIS piece: a heading's
+  // Normal is its own big size, so smaller-and-bigger must follow pixels,
+  // not the list (A+ on a heading at Normal made it SMALLER)
+  function sizeOrder(sec, e) {
+    var lad = sizeLadder(), px = ladderPx(sec, e, sec.nodes && sec.nodes[sec.els.indexOf(e)]);
+    var idx = lad.map(function (_, k) { return k; });
+    idx.sort(function (a, b) { return (px[a] - px[b]) || (a - b); });
+    // sizes that draw the same are one step, not two (a theme's h2 is often
+    // exactly Extra large, so A+ from Normal looked like it did nothing).
+    // Of a tie, keep the size in use, else Normal, else the first
+    var cur = e.fitW ? undefined : (e.fs || null), keep = [];
+    idx.forEach(function (k) {
+      var last = keep[keep.length - 1];
+      if (last === undefined || Math.abs(px[k] - px[last]) >= 0.5) { keep.push(k); return; }
+      var rank = function (j) { return lad[j] === cur ? 2 : lad[j] === null ? 1 : 0; };
+      if (rank(k) > rank(last)) keep[keep.length - 1] = k;
+    });
+    return { slugs: keep.map(function (k) { return lad[k]; }), px: keep.map(function (k) { return px[k]; }) };
+  }
+  // a step smaller or bigger, stopping at the ends (it used to wrap round
+  // from Billboard to the smallest). Fitted text steps from the named size
+  // nearest to what it shows
   function stepFontSize(sec, i, dir) {
-    var sizes = fontSizes();
-    if (!sizes.length) return;
     var e = sec.els[i];
-    var order = [null].concat(sizes.map(function (f) { return f.slug; }), DISPLAY_ORDER);
-    var idx = order.indexOf(e.fs || null);
-    var next = (idx + dir + order.length) % order.length;
-    setFontSize(sec, i, order[next]);
+    var o = sizeOrder(sec, e), lad = o.slugs, px = o.px;
+    var idx = lad.indexOf(e.fs || null);
+    if (e.fitW) {
+      var now = parseFloat(getComputedStyle(editableTarget(sec, i) || sec.nodes[i]).fontSize) || 16, best = 0;
+      px.forEach(function (v, k) { if (Math.abs(v - now) < Math.abs(px[best] - now)) best = k; });
+      idx = best;
+      if ((dir > 0 && px[idx] <= now) || (dir < 0 && px[idx] >= now)) idx += dir;
+    } else idx += dir;
+    if (idx < 0 || idx >= lad.length) return;
+    setFontSize(sec, i, lad[idx]);
+  }
+  // each size in rendered px, measured inside the section (Headline,
+  // Poster and Billboard are sized by the section's width)
+  function ladderPx(sec, e, node) {
+    // measure a twin of the real words (same tag, same classes, same spot) so
+    // an h1 or a styled paragraph sorts by what it really draws at
+    var real = node && (node.matches('h1,h2,h3,h4,h5,h6,p') ? node : node.querySelector('h1,h2,h3,h4,h5,h6,p'));
+    var host = (real && real.parentNode) || sec.sectionEl || document.body;
+    var probe = document.createElement(real ? real.tagName : (e.type === 'heading' ? 'h2' : 'p'));
+    probe.className = real ? String(real.className).replace(/\bhas-[\w-]+-font-size\b/g, '') : (e.type === 'heading' ? 'wp-block-heading' : '');
+    probe.textContent = 'Aa';
+    probe.setAttribute('aria-hidden', 'true');
+    probe.style.cssText = 'position:absolute;left:-9999px;top:0;visibility:hidden;margin:0;';
+    host.appendChild(probe);
+    var out = sizeLadder().map(function (slug) {
+      probe.style.fontSize = !slug ? '' : (DISPLAY_FS[slug] || 'var(--wp--preset--font-size--' + slug + ')');
+      return parseFloat(getComputedStyle(probe).fontSize) || 16;
+    });
+    probe.remove();
+    return out;
+  }
+  // every size at once, each drawn at its relative size, the one in use marked
+  function openSizePanel(sec, i) {
+    var e = sec.els[i];
+    if (!isText(e)) return;
+    var o = sizeOrder(sec, e), lad = o.slugs, px = o.px;
+    var lo = Math.min.apply(null, px), hi = Math.max.apply(null, px);
+    // on a log scale, so Small, Medium and Large still read apart next to Billboard
+    var sample = function (v) { return hi > lo ? Math.round(13 + Math.log(v / lo) / Math.log(hi / lo) * 27) : 18; };
+    panel.innerHTML = '<div class="gogh-panel-title">Text size</div>' +
+      '<div class="gogh-sizelist" role="listbox" aria-label="Text size">' + lad.map(function (slug, k) {
+        var on = !e.fitW && (e.fs || null) === slug;
+        return '<button type="button" role="option" class="gogh-sizeopt' + (on ? ' is-on' : '') + '" aria-selected="' + (on ? 'true' : 'false') + '" data-k="' + k + '">' +
+          '<span class="gogh-sizeopt-aa" style="font-size:' + sample(px[k]) + 'px">Aa</span>' +
+          '<span class="gogh-sizeopt-name">' + esc(slug ? sizeWord(slug) : 'Normal') + '</span>' +
+          (on ? '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l5 5 9-10"/></svg>' : '') +
+          '</button>';
+      }).join('') + '</div>' +
+      (e.fitW ? '<div class="gogh-panel-hint">This text is fitted to its box. Choosing a size lets it wrap again.</div>' : '');
+    panel.querySelectorAll('.gogh-sizeopt').forEach(function (b) {
+      b.addEventListener('click', function () {
+        closePanel();
+        setFontSize(sec, i, lad[+b.dataset.k]);
+      });
+    });
+    placePanelNear(sec.nodes[i]);
+    panelOpen = true;
+    var cur = panel.querySelector('.gogh-sizeopt.is-on') || panel.querySelector('.gogh-sizeopt');
+    if (cur) cur.focus();
   }
 
   // ---------- fill the width: text sized to its box ----------
@@ -4310,9 +4397,14 @@
     if (isText(e)) {
       // a corner-drag fits the words to the box: the named size no longer
       // applies, so the label says so (James: "should the selector change?")
-      fsBtn.textContent = 'Aa' + (e.fitW ? ' \u00b7 Fitted' : e.fs ? ' \u00b7 ' + sizeWord(e.fs) : '');
-      fsBtn.title = e.fitW ? 'Fitted to the width \u2014 tap for a named size' : 'Cycle theme font sizes';
+      fsBtn.textContent = e.fitW ? 'Fitted' : (e.fs ? sizeWord(e.fs) : 'Normal');
+      fsBtn.title = e.fitW ? 'Fitted to the width \u2014 choose a named size' : 'Text size: choose from every size';
       fsBtn.style.display = '';
+      var lad = sizeOrder(sec, e).slugs;
+      var at = e.fitW ? -1 : lad.indexOf(e.fs || null);
+      fsDown.style.display = fsUp.style.display = '';
+      fsDown.disabled = !e.fitW && at <= 0;
+      fsUp.disabled = !e.fitW && at >= lad.length - 1;
       paintBtn.style.display = '';
       // corner-drag engages the fit now, so the button's only remaining job
       // is the way BACK — it shows only while a fit is on ("not sure what
@@ -4323,6 +4415,7 @@
       fitB.title = 'Fitted to the width — tap to let the text wrap again';
     } else {
       fsBtn.style.display = 'none';
+      fsDown.style.display = fsUp.style.display = 'none';
       paintBtn.style.display = 'none';
       elbar.querySelector('.gogh-eb-fit').style.display = 'none';
     }
@@ -6528,6 +6621,12 @@
     if (sel) openPanel(sel.sec, sel.i);
   });
   fsBtn.addEventListener('click', function () {
+    if (sel) openSizePanel(sel.sec, sel.i);
+  });
+  fsDown.addEventListener('click', function () {
+    if (sel) stepFontSize(sel.sec, sel.i, -1);
+  });
+  fsUp.addEventListener('click', function () {
     if (sel) stepFontSize(sel.sec, sel.i, 1);
   });
   elbar.querySelector('.gogh-eb-fit').addEventListener('click', function () {
@@ -20517,7 +20616,7 @@
     closeSide: closeSide,
     fontSizes: fontSizes,
     setFontSize: setFontSize,
-    stepFontSize: stepFontSize,
+    stepFontSize: stepFontSize, sizeOrder: sizeOrder, sizeWord: sizeWord,
     setSecBg: setSecBg,
     buildBlocks: buildAllBlocks,
     buildV3: function () { return realSections().map(buildSectionBlocksV3).join('\n\n'); },
@@ -21127,7 +21226,7 @@
       html += rest.map(row).join('');
       if (!list.length) html += '<div class="gogh-pagemenu-wait">No other pages yet.</div>';
       html += '</div>';
-      html += '<button type="button" class="gogh-pagemenu-add"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 8v8M8 12h8"/></svg>Add a page</button>';
+      // no Add a page here: the Page drawer has it as a card, once is enough
       pageMenu.innerHTML = html;
       pageMenu.querySelectorAll('.gogh-pagemenu-it').forEach(function (b) {
         b.addEventListener('click', function () {
@@ -21136,12 +21235,6 @@
           if (!pg || +pg.id === +cfg.postId) return;
           goToPage(editUrlFor(pg.link, deviceMode === 'phone'), pg.name);
         });
-      });
-      var add = pageMenu.querySelector('.gogh-pagemenu-add');
-      add.addEventListener('click', function () {
-        closePageMenu();
-        var door = side.querySelector('.gogh-addpagebtn');
-        if (door) door.click();
       });
       var find = pageMenu.querySelector('.gogh-pagemenu-find input');
       if (find) {

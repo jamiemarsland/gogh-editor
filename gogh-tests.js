@@ -1021,6 +1021,39 @@
       }
       return 'plain status, quiet bar, site name goes home';
     });
+    test('text size: A− and A+ step and stop at the ends, sizes have plain names, and the name opens every size drawn at its size', function () {
+      var i = findIdx('heading'), s0 = sec(), e = s0.els[i], was = { fs: e.fs || null, fit: !!e.fitW };
+      try {
+        G.setFontSize(s0, i, null);
+        select(i);
+        var down = q('.gogh-elbar .gogh-eb-fsdown'), up = q('.gogh-elbar .gogh-eb-fsup'), name = q('.gogh-elbar .gogh-eb-fs');
+        expect(down && up && name && name.textContent === 'Normal', 'A−, the size name and A+ should sit on the bar: ' + (name && name.textContent));
+        var tn = function () { var n0 = s0.nodes[i]; return n0.matches('h1,h2,h3,h4,h5,h6') ? n0 : n0.querySelector('h1,h2,h3,h4,h5,h6'); };
+        var px0 = parseFloat(getComputedStyle(tn()).fontSize);
+        up.click();
+        expect(e.fs && parseFloat(getComputedStyle(tn()).fontSize) > px0, 'A+ should make the heading bigger, not smaller: ' + e.fs);
+        G.setFontSize(s0, i, '__disp-l');
+        select(i);
+        expect(q('.gogh-elbar .gogh-eb-fs').textContent === 'Billboard' && q('.gogh-elbar .gogh-eb-fsup').disabled, 'the biggest is Billboard, and bigger stops there (no wrapping back to small)');
+        q('.gogh-elbar .gogh-eb-fsup').click();
+        expect(e.fs === '__disp-l', 'A+ at the biggest does nothing: ' + e.fs);
+        q('.gogh-elbar .gogh-eb-fsdown').click();
+        expect(e.fs === '__disp-m' && q('.gogh-elbar .gogh-eb-fs').textContent === 'Poster', 'A− steps down to Poster');
+        q('.gogh-elbar .gogh-eb-fs').click();
+        var opts = document.querySelectorAll('.gogh-panel .gogh-sizeopt');
+        var names = [].map.call(opts, function (o) { return o.querySelector('.gogh-sizeopt-name').textContent; });
+        expect((names.indexOf('Normal') !== -1 || names.indexOf(G.sizeWord ? G.sizeWord(e.fs) : 'Extra large') !== -1) && names.slice(-3).join(',') === 'Headline,Poster,Billboard', 'every size (a size that draws like Normal stands in for it), the big three last: ' + names.join(','));
+        var sizes = [].map.call(opts, function (o) { return parseFloat(o.querySelector('.gogh-sizeopt-aa').style.fontSize); });
+        expect(sizes.every(function (v, k) { return !k || v >= sizes[k - 1]; }) && sizes[sizes.length - 1] > sizes[0], 'smallest to biggest, each drawn at its relative size: ' + sizes.join(','));
+        expect(document.querySelector('.gogh-panel .gogh-sizeopt.is-on .gogh-sizeopt-name').textContent === 'Poster', 'the size in use is marked');
+        opts[opts.length - 3].click();
+        expect(e.fs === '__disp-s', 'choosing Headline in the list sets it: ' + e.fs);
+      } finally {
+        G.closePanel();
+        G.setFontSize(s0, i, was.fs);
+      }
+      return 'A−/A+ clamp, Normal…Billboard, list drawn to size';
+    });
     test('publish chip tracks dirty state', function () {
       var chipEl = q('.gogh-chip');
       expect(chipEl && !chipEl.hidden, 'chip not visible in edit mode');
@@ -2508,9 +2541,11 @@
       }
       G.setFontSize(sec(), i, null);
       expect(!node().className.match(/has-.*-font-size/), 'default did not clear class');
-      // stepping from default goes to the smallest preset
+      // stepping up from Normal makes the words bigger, never smaller (the
+      // sizes follow what they draw at for this piece)
+      var pxNormal = parseFloat(getComputedStyle(node()).fontSize);
       G.stepFontSize(sec(), i, 1);
-      expect(sec().els[i].fs === sizes[0].slug, 'step order wrong: ' + sec().els[i].fs);
+      expect(parseFloat(getComputedStyle(node()).fontSize) > pxNormal, 'a step up from Normal should be bigger: ' + sec().els[i].fs);
       return sizes.map(function (f) { return f.slug; }).join(' → ');
     });
 
@@ -6983,7 +7018,7 @@
         expect(chip && chip.style.display !== 'none' && /Misregistered/.test(chip.textContent), 'the bar should name the heading’s style');
         expect(!chip.querySelector('.gogh-eb-lookswatch'), 'words carry no swatch on the chip (the Aa beside the size read as a second size button)');
         var chipName = (chip.querySelector('.gogh-eb-lookname') || {}).textContent || '';
-        expect(/^Style \u00b7 Misregistered$/.test(chipName), 'the chip reads Style \u00b7 name, like Aa \u00b7 Display M: ' + chipName);
+        expect(/^Style \u00b7 Misregistered$/.test(chipName), 'the chip reads Style \u00b7 name: ' + chipName);
         var bNode = sec.nodes[1];
         expect(bNode.querySelector('.wp-block-button.is-style-pink-print') && !bNode.classList.contains('is-style-pink-print') && bNode.classList.contains('riso-extra'),
           'a button’s style class sits on the inner button (where core puts it), the rest on the wrapper');
@@ -7015,11 +7050,11 @@
         // a corner-drag fit: the size label says Fitted, not the old name
         sec.els[0].fitW = true;
         G.placeHandles(sec, 0);
-        expect(/^Aa \u00b7 Fitted$/.test(q('.gogh-eb-fs').textContent), 'fitted text should say Fitted: ' + q('.gogh-eb-fs').textContent);
+        expect(/^Fitted$/.test(q('.gogh-eb-fs').textContent), 'fitted text should say Fitted: ' + q('.gogh-eb-fs').textContent);
         sec.els[0].fitW = false;
         sec.els[0].fs = 'x-large';
         G.placeHandles(sec, 0);
-        expect(q('.gogh-eb-fs').textContent === 'Aa \u00b7 Extra large', 'a theme size reads as words: ' + q('.gogh-eb-fs').textContent);
+        expect(q('.gogh-eb-fs').textContent === 'Extra large', 'a theme size reads as words: ' + q('.gogh-eb-fs').textContent);
         sec.els[0].fs = null;
         G.looks.open(sec, 0);
         tiles = document.querySelectorAll('.gogh-panel .gogh-look');
@@ -7403,7 +7438,7 @@
         expect(/Home page/.test(menu.querySelector('[data-id="99993"]').textContent), 'the home page says so');
         expect(/\u00b7 draft/.test(menu.querySelector('[data-id="99992"]').textContent), 'a draft says so, quietly');
         expect(menu.querySelector('[data-id="99993"] .gogh-pagemenu-house') && !menu.querySelector('.gogh-pagemenu-home-set'), 'Home wears a house; page actions are not in the list');
-        expect(menu.querySelector('.gogh-pagemenu-add'), 'Add a page sits at the end');
+        expect(!menu.querySelector('.gogh-pagemenu-add') && !/Add a page/.test(menu.textContent), 'Add a page lives in the Page drawer, not in this list');
         G.openSide('page');
         menu.querySelector('[data-id="99991"]').click();
         expect(menu.hidden, 'choosing a page closes the list');

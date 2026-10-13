@@ -1,12 +1,12 @@
 {
   "meta": {
-    "plugin_version": "0.99.678",
+    "plugin_version": "0.99.679",
     "requires_wp": "6.5",
     "requires_php": "7.4",
     "text_domain": "gogh-editor",
     "readme_stable_tag": "0.26.0",
     "readme_tested_up_to": "7.0",
-    "asset_version": "0.99.678-chrome"
+    "asset_version": "0.99.679-chrome"
   },
   "constants": {
     "TOL": 8,
@@ -444,7 +444,6 @@
     "Aa",
     "Add",
     "Add a category ↗",
-    "Add a page",
     "Add a page to this menu",
     "Add a picture or video",
     "Add a product ↗",
@@ -466,6 +465,7 @@
     "Back to the Site cards",
     "Background & look",
     "Badge",
+    "Bigger text",
     "Body",
     "Bold",
     "Both",
@@ -487,7 +487,6 @@
     "Create",
     "Custom colour",
     "Custom text colour",
-    "Cycle theme font sizes",
     "Dark",
     "Dark page",
     "Delete",
@@ -625,6 +624,7 @@
     "Shown",
     "Site Styles",
     "Site designs — a whole site, ready to tweak (replaces this one)",
+    "Smaller text",
     "Solid",
     "Start writing — a reading column, cursor ready",
     "Switch design",
@@ -633,6 +633,7 @@
     "Text",
     "Text alignment",
     "Text colour",
+    "Text size: choose from every size",
     "The gogh build this tab is running",
     "The header rides along as visitors scroll",
     "The look before this one",
@@ -1492,5 +1493,5 @@
     "has_deprecation": true,
     "block_title": "gogh Section"
   },
-  "test_count": 343
+  "test_count": 344
 }

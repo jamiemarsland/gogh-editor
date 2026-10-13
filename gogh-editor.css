@@ -1940,7 +1940,19 @@ html.gogh-editing header.wp-block-template-part:has(.gogh-header-overlay):not(.g
 }
 
 /* font-size stepper */
-.gogh-eb-fs { font-size: 11px; font-weight: 700; white-space: nowrap; }
+.gogh-eb-fs { font-size: 12px; font-weight: 650; white-space: nowrap; min-width: 44px; }
+.gogh-eb-fsdown, .gogh-eb-fsup { font-size: 12px; font-weight: 700; white-space: nowrap; padding-left: 6px; padding-right: 6px; }
+.gogh-eb-fsdown:disabled, .gogh-eb-fsup:disabled { opacity: .35; cursor: default; }
+.gogh-eb-fsa { font-size: 11px; }
+.gogh-eb-fsa-big { font-size: 15px; }
+/* Text size: every size, drawn at its relative size */
+.gogh-sizelist { display: flex; flex-direction: column; gap: 2px; margin-top: 6px; }
+.gogh-sizeopt { all: unset; box-sizing: border-box; cursor: pointer; display: flex; align-items: center; gap: 12px; padding: 6px 10px; border-radius: 8px; min-height: 40px; }
+.gogh-sizeopt:hover, .gogh-sizeopt:focus-visible { background: #f2f4f8; }
+.gogh-sizeopt:focus-visible { outline: 2px solid #7ea8ff; outline-offset: -2px; }
+.gogh-sizeopt.is-on { background: #eef1ff; color: #1e3fd8; }
+.gogh-sizeopt-aa { flex: 0 0 56px; font-weight: 700; line-height: 1; text-align: center; }
+.gogh-sizeopt-name { flex: 1 1 auto; font-size: 14px; font-weight: 600; }
 .gogh-sizechip {
   position: absolute;
   z-index: 100003;
@@ -4594,8 +4606,6 @@ html.gogh-history-preview .gogh-wrap .gogh-section { outline: 2px dashed rgba(56
 .gogh-pagemenu-find { display: block; margin-bottom: 6px; }
 .gogh-pagemenu-find input { box-sizing: border-box; width: 100%; height: 34px; border: 1px solid #e2e4e8; border-radius: 8px; padding: 0 10px; font: 14px/1 inherit; color: inherit; }
 .gogh-pagemenu-find input:focus { outline: none; border-color: #3858e9; box-shadow: 0 0 0 3px rgba(56, 88, 233, .18); }
-.gogh-pagemenu-add { all: unset; box-sizing: border-box; cursor: pointer; display: flex; align-items: center; gap: 8px; margin-top: 6px; padding: 10px; border-top: 1px solid #eef0f3; color: #3858e9; font-weight: 600; }
-.gogh-pagemenu-add:hover, .gogh-pagemenu-add:focus-visible { background: #f5f7ff; border-radius: 8px; }
 .gogh-sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 .gogh-leave-col { display: flex; flex-direction: column; gap: 8px; }
 .gogh-leave-col .gogh-btn { width: 100%; box-shadow: none; }
