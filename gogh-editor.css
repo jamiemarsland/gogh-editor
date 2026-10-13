@@ -4606,11 +4606,22 @@ html.gogh-history-preview .gogh-wrap .gogh-section { outline: 2px dashed rgba(56
 .gogh-navhint span { opacity: .95; }
 .gogh-chromeveil.is-on-link { cursor: pointer; }
 
-/* Make this the home page, in the page switcher */
-.gogh-pagemenu-home-set { all: unset; box-sizing: border-box; cursor: pointer; display: flex; align-items: center; gap: 8px; margin-top: 6px; padding: 10px; border-top: 1px solid #eef0f3; color: #1e7f4f; font-weight: 600; }
-.gogh-pagemenu-home-set span { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
-.gogh-pagemenu-home-set small { font-size: 11.5px; font-weight: 500; color: #6b7280; }
-.gogh-pagemenu-home-set:hover, .gogh-pagemenu-home-set:focus-visible { background: #e6f4ec; border-radius: 8px; }
-.gogh-pagemenu-home-set:disabled { cursor: default; color: #8a8f99; background: none; }
-.gogh-pagemenu-home-set + .gogh-pagemenu-add { margin-top: 0; border-top: 0; }
-.gogh-pageswitch .gogh-pagemenu-home { margin-left: 2px; }
+/* the page switcher, simpler (v0.99.667): one list, a house for Home,
+   quiet drafts; this page's own actions behind ⋯ */
+.gogh-pagemore { all: unset; box-sizing: border-box; cursor: pointer; flex: 0 0 auto; width: 38px; height: 38px; display: grid; place-items: center; border: 1px solid var(--gogh-ui-border, #e2e4e8); border-radius: 10px; color: var(--gogh-ui-fg, #1c1e24); }
+.gogh-pagemore:hover, .gogh-pagemore[aria-expanded="true"] { border-color: #9db8ff; background: #f5f7ff; }
+.gogh-pagemore:focus-visible { outline: 2px solid #7ea8ff; outline-offset: 2px; }
+.gogh-pagemore[hidden] { display: none; }
+.gogh-pagemore-menu { position: fixed; z-index: 100002; min-width: 220px; box-sizing: border-box; display: flex; flex-direction: column; gap: 2px; background: #fff; color: #1c1e24; border: 1px solid #e2e4e8; border-radius: 12px; box-shadow: 0 18px 44px rgba(20, 20, 30, .22); padding: 6px; font: 14px/1.3 -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, sans-serif; }
+.gogh-pagemore-menu[hidden] { display: none; }
+.gogh-pagemore-it { all: unset; box-sizing: border-box; cursor: pointer; display: flex; flex-direction: column; gap: 2px; padding: 9px 10px; border-radius: 8px; }
+.gogh-pagemore-it:hover, .gogh-pagemore-it:focus-visible { background: #f2f4f8; }
+.gogh-pagemore-it:focus-visible { outline: 2px solid #7ea8ff; outline-offset: -2px; }
+.gogh-pagemore-it:disabled { cursor: default; color: #8a8f99; background: none; }
+.gogh-pagemore-it small { font-size: 11.5px; color: #6b7280; }
+.gogh-pagemenu-ic { flex: 0 0 16px; display: grid; place-items: center; color: #1e7f4f; }
+.gogh-pagemenu-house { display: inline-flex; align-items: center; color: #1e7f4f; }
+.gogh-pageswitch .gogh-pagemenu-house { flex: 0 0 auto; }
+.gogh-pagemenu-st { color: #8a8f99; font-weight: 400; }
+.gogh-pagemenu-it.is-current .gogh-pagemenu-st { color: #6b7cd6; }
+.gogh-pagemenu-sep { height: 1px; background: #eef0f3; margin: 6px 6px; flex: 0 0 auto; }

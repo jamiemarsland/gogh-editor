@@ -7342,15 +7342,17 @@
         var menu = q('.gogh-pagemenu');
         expect(menu && !menu.hidden, 'the switcher opens its list');
         var labs = [].map.call(menu.querySelectorAll('.gogh-pagemenu-lab'), function (l) { return l.textContent; });
-        var names = [].map.call(menu.querySelectorAll('.gogh-pagemenu-it'), function (b) { return b.querySelector('.gogh-pagemenu-name').textContent; });
+        var names = [].map.call(menu.querySelectorAll('.gogh-pagemenu-it'), function (b) { return b.querySelector('.gogh-pagemenu-name').textContent.replace(/ \u00b7 .*$/, ''); });
         var headLinks = [].map.call(document.querySelectorAll('header.wp-block-template-part a[href]'), function (a) { return a.pathname.replace(/\/+$/, ''); });
+        expect(!labs.length, 'one plain list, no headings: ' + labs.join(','));
         if (headLinks.indexOf('/sample-page') !== -1) {
-          expect(labs[0] === 'In your menu' && names.indexOf('Sample Page') < names.indexOf('Zine library'), 'pages in the menu come first: ' + labs.join(',') + ' / ' + names.join(','));
+          expect(names.indexOf('Sample Page') < names.indexOf('Zine library') && menu.querySelector('.gogh-pagemenu-sep'), 'pages in the menu come first, then a line: ' + names.join(','));
         }
         var cur = menu.querySelector('.gogh-pagemenu-it.is-current');
         expect(cur && +cur.dataset.id === +C.postId, 'this page is marked as the one being edited');
         expect(/Home page/.test(menu.querySelector('[data-id="99993"]').textContent), 'the home page says so');
-        expect(/Draft/.test(menu.querySelector('[data-id="99992"]').textContent), 'a draft says so');
+        expect(/\u00b7 draft/.test(menu.querySelector('[data-id="99992"]').textContent), 'a draft says so, quietly');
+        expect(menu.querySelector('[data-id="99993"] .gogh-pagemenu-house') && !menu.querySelector('.gogh-pagemenu-home-set'), 'Home wears a house; page actions are not in the list');
         expect(menu.querySelector('.gogh-pagemenu-add'), 'Add a page sits at the end');
         menu.querySelector('[data-id="99991"]').click();
         expect(menu.hidden, 'choosing a page closes the list');
@@ -7364,7 +7366,7 @@
       return 'menu first, current and Home marked, draft labelled, Sample Page opened in the editor';
     });
 
-    testAsync('Make this the home page: from the page switcher, with Undo, never for a draft, only for whoever may change settings', async function () {
+    testAsync('Make this the home page: from the page’s ⋯ menu, with Undo, never for a draft, only for whoever may change settings', async function () {
       var C = window.GOGH, was = { front: C.frontId, can: C.canHome, st: C.postStatus };
       var o = location.origin, posts = [];
       var realFetch = window.fetch;
@@ -7381,12 +7383,12 @@
         { id: C.postId, name: C.postTitle || 'This page', link: o + location.pathname, status: 'publish' },
         { id: 99993, name: 'Front', link: o + '/front-test/', status: 'publish' },
       ]);
-      var open = async function () { G.nav.closePages(); G.nav.openPages(); await new Promise(function (r) { setTimeout(r, 40); }); return q('.gogh-pagemenu'); };
+      var open = async function () { G.nav.closeMore(); G.nav.more(); await new Promise(function (r) { setTimeout(r, 20); }); return q('.gogh-pagemore-menu'); };
       try {
         C.frontId = 99993; C.canHome = true; C.postStatus = 'publish';
         var menu = await open();
         var btn = menu.querySelector('.gogh-pagemenu-home-set');
-        expect(btn && !btn.disabled && /^Make .+ the home page$/.test(btn.textContent.trim()), 'the switcher offers to make this page home: ' + (btn && btn.textContent));
+        expect(btn && !btn.disabled && /^Make this the home page$/.test(btn.textContent.trim()), 'the ⋯ menu offers to make this page home: ' + (btn && btn.textContent));
         btn.click();
         await new Promise(function (r) { setTimeout(r, 60); });
         expect(posts.length === 1 && posts[0].id === +C.postId, 'it sets this page as home: ' + JSON.stringify(posts));
@@ -7411,6 +7413,7 @@
         expect(!menu.querySelector('.gogh-pagemenu-home-set'), 'the home page itself is not offered again');
       } finally {
         window.fetch = realFetch;
+        G.nav.closeMore();
         G.nav.closePages();
         G.nav.setPages(null);
         C.frontId = was.front; C.canHome = was.can; C.postStatus = was.st;
@@ -8968,7 +8971,15 @@
       try {
         var plate = q('.gogh-chip-name');
         expect(plate, 'the chip has no nameplate');
-        expect(!plate.hidden && plate.textContent.length > 0, 'the fixture page is not wearing its name');
+        // a named page wears its name in the switcher and renames from ⋯
+        var sw = q('.gogh-pagerow .gogh-pageswitch');
+        expect(sw && sw.querySelector('.gogh-pageswitch-name').textContent.length > 0, 'the fixture page is not wearing its name');
+        if (C.postType === 'page') {
+          G.nav.more();
+          var ren = q('.gogh-pagemore-menu .gogh-pagemore-rename');
+          expect(ren && /^Rename$/.test(ren.textContent), 'the ⋯ menu offers Rename for a named page');
+          G.nav.closeMore();
+        }
         // an unnamed page wears the invitation, and clicking it opens the
         // namer in rename clothes — the name can be given at ANY moment
         C.postTitle = '';
