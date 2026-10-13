@@ -8129,9 +8129,15 @@
   // Plain: no style at all, always there (a design that names its own
   // Plain keeps that one instead)
   var PLAIN_LOOK = { name: 'Plain', slug: '', plain: true };
+  // a design's own plain one ('Plain', 'Plain photo', 'Plain card') stands
+  // in for gogh's: Misprint's pictures showed Plain and Plain photo side by
+  // side, five tiles where four were meant
+  function designHasPlain(looks) {
+    return looks.some(function (lk) { return lk.slug === 'plain' || /^plain-/.test(lk.slug); });
+  }
   function panelLooks(type) {
     var looks = designLooks(type);
-    return looks.some(function (lk) { return lk.slug === 'plain'; }) ? looks : [PLAIN_LOOK].concat(looks);
+    return designHasPlain(looks) ? looks : [PLAIN_LOOK].concat(looks);
   }
   // the piece as you made it, drawn small: its look's class and its own
   // hand-set declarations inline
@@ -17390,7 +17396,7 @@
               '<button type="button" class="gogh-styleset-star' + (lk.default ? ' is-on' : '') + '" aria-pressed="' + (lk.default ? 'true' : 'false') + '" title="' + (lk.default ? escAttr(lk.name + ' is what ' + kindNew + ' arrive in') : escAttr('Make ' + lk.name + ' the default for ' + kindNew)) + '" aria-label="' + escAttr((lk.default ? 'Default for ' : 'Make it the default for ') + kindNew + ': ' + lk.name) + '">' + (lk.default ? '★' : '☆') + '</button>' +
               '<button type="button" class="gogh-styleset-more" aria-haspopup="true" aria-expanded="false" aria-label="' + escAttr('More for ' + lk.name) + '" title="Rename or remove">⋯</button></li>';
           }).join('') +
-          (looks.some(function (lk) { return lk.slug === 'plain'; }) ? '' :
+          (designHasPlain(looks) ? '' :
             '<li class="gogh-styleset-row is-plain"><span class="gogh-styleset-sw gogh-look-stage gogh-look-' + t + '" aria-hidden="true"><span class="wp-site-blocks gogh-look-site">' + lookSample({ type: t, text: 'Aa' }, PLAIN_LOOK, t !== 'heading' && t !== 'para') + '</span></span>' +
             '<span class="gogh-styleset-name">Plain</span><span class="gogh-styleset-always">always there</span></li>') +
           '</ul></section>';

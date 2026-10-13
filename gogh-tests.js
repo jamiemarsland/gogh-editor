@@ -7015,6 +7015,33 @@
       return 'default on arrival, chip, panel, swap, published class, the design’s shelf';
     });
 
+    test('a design’s own plain style (Plain photo) stands in for gogh’s Plain, so the tiles add up', function () {
+      var cfgG = window.GOGH, was = cfgG.design;
+      cfgG.design = { name: 'Riso Test', looks: {
+        image: [{ name: 'Pink print', slug: 'pink-print', 'default': true }, { name: 'Plain photo', slug: 'plain-photo', 'default': false }],
+        button: [{ name: 'Yellow print', slug: 'yellow-print', 'default': true }] }, shelf: [] };
+      var n0 = G.sections().length, added = false;
+      try {
+        G.addSection({ name: 'Plain tiles', minH: 432, els: [
+          { type: 'image', x: 80, y: 80, w: 320, h: 240, src: (window.GOGH.pluginUrl || '') + 'demo-assets/arles-1.jpg', cls: 'is-style-pink-print' },
+          { type: 'button', x: 480, y: 80, w: 200, h: 48, text: 'Go', cls: 'is-style-yellow-print' }] }, n0);
+        added = true;
+        var sec = G.sections()[n0];
+        G.looks.open(sec, 0);
+        var names = [].map.call(document.querySelectorAll('.gogh-panel .gogh-look b'), function (b) { return b.textContent; });
+        expect(names.join(',') === 'Pink print,Plain photo', 'Plain photo is the pictures’ plain, no second Plain: ' + names.join(','));
+        G.closePanel();
+        G.looks.open(sec, 1);
+        names = [].map.call(document.querySelectorAll('.gogh-panel .gogh-look b'), function (b) { return b.textContent; });
+        expect(names.join(',') === 'Plain,Yellow print', 'a kind with no plain of its own gets gogh’s Plain first: ' + names.join(','));
+      } finally {
+        cfgG.design = was;
+        G.closePanel();
+        if (added && G.deleteSection) G.deleteSection(n0);
+      }
+      return 'Plain photo stands in; buttons get Plain';
+    });
+
     test('save a look as a style: a hand-styled piece reads Custom, the panel offers the save, and the style keeps all but size (its look’s hover and keyframes too)', function () {
       var cfgG = window.GOGH, was = cfgG.design, wasCan = cfgG.canStyles;
       cfgG.canStyles = true;
