@@ -2081,7 +2081,9 @@ html.gogh-editing header.wp-block-template-part:has(.gogh-header-overlay):not(.g
    looks kinda squashed") */
 html.gogh-editing #wpadminbar #wp-admin-bar-gogh-style > .ab-item { padding: 0 14px; }
 html.gogh-editing #wpadminbar #wp-admin-bar-gogh-device { padding: 0 10px; }
-html.gogh-editing #wpadminbar #wp-admin-bar-gogh-help > .ab-item { padding: 0 12px; }
+/* a really clean bar while editing (James): help lives at the foot of the
+   Page and Site drawer; outside the editor the bar keeps its ? */
+html.gogh-editing #wpadminbar #wp-admin-bar-gogh-help { display: none !important; }
 /* while editing the avatar steps aside: Publish owns the corner, and your
    profile and Log out sit at the foot of the site name's menu */
 html.gogh-editing #wpadminbar #wp-admin-bar-my-account { display: none !important; }

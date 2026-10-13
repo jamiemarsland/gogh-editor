@@ -15,7 +15,7 @@ about something where they conflict, rather than picking one silently. Quote UI
 labels and message copy from the appendix, verbatim — those are the current
 strings, and a paraphrased button label is the fastest way to lose a user's trust.
 
-Generated for plugin version 0.99.689 · knowledge base 51b852a.
+Generated for plugin version 0.99.690 · knowledge base b6d534e.
 
 ---
 
@@ -830,6 +830,8 @@ The helper's welcome panel opens with a 35-second film of gogh being used (v0.99
 
 **The phone view survives navigation (v0.99.605).** Press one of your own pages while on the phone and it opens in the editor, still on the phone: the link carries `gogh-edit=1&gogh-phone=1`, the next page reads them at boot and strips them from the address. Other sites, files, wp-admin and anchors on the same page are left alone. Unpublished changes still ask before leaving.
 
+**A cleaner bar; no grid while resizing words (v0.99.690).** While editing, the top bar's right side holds only **Styles**, the computer/phone switch, and the status with **Publish**. The **?** has left the bar while you edit; help is the **?** at the foot of the Page and Site drawers, and the bar's ? is back whenever you are only viewing the site or in the dashboard. Dragging a text box's side to make it narrower or wider no longer paints the grid over the section: for words it only changes where they wrap. Dragging pieces, and resizing pictures and shapes, still show the grid to line things up.
+
 **Log out from the site name (v0.99.689).** While editing, your account picture steps aside so Publish has the corner to itself. Your account moved to the site's name at the top left: hover it for **Your profile** and **Log out**. Clicking the name itself still takes you to the home page, still editing. Logging out with changes not yet live asks first, the same way leaving a page does: publish and log out, keep the changes for later, or stay. When you are only viewing the site, the account picture is there as usual.
 
 **Publish takes the corner (v0.99.688).** **Publish** is now the biggest thing on the top bar and the very last thing on the right, after your account picture. With changes waiting, an amber dot and **Not live yet** sit beside it (hover for more: whether your work is saved, and that visitors still see the page as it was). With nothing to publish, the words go quiet and the button itself reads **Published ✓**, greyed. The first time you change something in a session, Publish glows softly twice so you can see where it is; it doesn't do it again. The items on the right of the bar have more room between them.
@@ -987,11 +989,11 @@ Everything in this section is extracted mechanically from the Gogh source on eve
 
 ## Current release
 
-- Plugin version: **0.99.689**
+- Plugin version: **0.99.690**
 - Requires WordPress **6.5+**, PHP **7.4+**
 - Text domain: `gogh-editor`
 - readme.txt Stable tag: `0.26.0` · Tested up to: `7.0`
-- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.689`). Quote the plugin header version.
+- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.690`). Quote the plugin header version.
 
 ## Design constants
 
@@ -1564,4 +1566,4 @@ These are the real strings in the current build. Use them verbatim; never paraph
 
 ## Test suite
 
-`349` tests, run by appending `?gogh-test` to any Gogh page URL while logged in with edit rights on that page.
+`350` tests, run by appending `?gogh-test` to any Gogh page URL while logged in with edit rights on that page.

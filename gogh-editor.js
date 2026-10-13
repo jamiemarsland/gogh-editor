@@ -20274,7 +20274,10 @@
       });
       resize = { sec: sec, i: sel.i, dir: dir, px: ev.clientX, py: ev.clientY,
         x: e.x, y: e.y, w: e.w, h: e.h, candX: candX, candY: candY, sizeTagX: sizeTagX, sizeTagY: sizeTagY };
-      sec.sectionEl.classList.add('gogh-grid-live');
+      // resizing words only moves where they wrap: the painted grid over the
+      // whole section is noise then (James: "when i drag the text box smaller
+      // or bigger, the grid should not show"). Pictures and shapes keep it
+      if (!isText(e)) sec.sectionEl.classList.add('gogh-grid-live');
       document.documentElement.classList.add('gogh-dragging');
       drag = null;
     });

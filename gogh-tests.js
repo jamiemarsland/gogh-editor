@@ -1139,6 +1139,26 @@
       }
       return 'widened, then capped at ' + 'a size that fits';
     });
+    // v0.99.690: resizing words shows no grid; resizing a picture still does
+    test('resizing a text box shows no grid; resizing a picture does', function () {
+      var grab = function (i) {
+        select(i);
+        var h = document.querySelector('.gogh-selbox .gogh-h[data-d="e"], .gogh-selbox [data-dir="e"]') || document.querySelectorAll('.gogh-selbox .gogh-h')[3];
+        if (!h) return null;
+        var r = h.getBoundingClientRect();
+        pev('pointerdown', h, r.x + r.width / 2, r.y + r.height / 2, 61);
+        var live = sec().sectionEl.classList.contains('gogh-grid-live');
+        pev('pointerup', h, r.x + r.width / 2, r.y + r.height / 2, 61);
+        return live;
+      };
+      var t = grab(findIdx('heading'));
+      if (t === null) return 'no side grip to judge';
+      expect(t === false, 'resizing a heading should not paint the grid');
+      var im = grab(findIdx('image'));
+      expect(im === true, 'resizing a picture should still paint the grid');
+      sec().sectionEl.classList.remove('gogh-grid-live');
+      return 'text: no grid; picture: grid';
+    });
     // v0.99.687: a fit taken under another style or font ran past its box
     test('fitted words that spill past their box are fitted again; the size list drops from the size pill', function () {
       var i = findIdx('heading'), s0 = sec(), e = s0.els[i];
@@ -2241,18 +2261,11 @@
       expect(pe === 'auto', 'help iframe is inert (pointer-events: ' + pe + ') — the ask box cannot be focused');
       sheet.querySelector('.gogh-helpsheet-x').click();
       expect(!sheet.classList.contains('is-open'), 'close did not close');
-      // the same sheet from the admin bar's ?, just left of Howdy
-      var ab = document.querySelector('#wp-admin-bar-gogh-help > a');
-      expect(!!ab, 'the admin bar should carry a ? node');
-      var acct = document.getElementById('wp-admin-bar-my-account');
-      // while editing the avatar steps aside (v0.99.689): then the ? sits left of Publish
-      var pubLi = document.getElementById('wp-admin-bar-gogh-publish');
-      var after = acct && getComputedStyle(acct).display !== 'none' ? acct : pubLi;
-      expect(after && ab.getBoundingClientRect().right <= after.getBoundingClientRect().left + 1, 'the ? should sit to the left of the account, or of Publish while editing');
-      ab.click();
-      expect(sheet.classList.contains('is-open'), 'the admin bar ? did not open the sheet');
-      sheet.querySelector('.gogh-helpsheet-x').click();
-      return 'sheet opens from the rail and from the admin bar, knows the build, closes';
+      // v0.99.690: while editing the bar stays clean — the ? lives at the
+      // foot of the drawer only; outside the editor the bar keeps its ?
+      var abLi = document.getElementById('wp-admin-bar-gogh-help');
+      expect(!abLi || getComputedStyle(abLi).display === 'none', 'the admin bar should carry no ? while editing');
+      return 'sheet opens from the drawer, knows the build, closes; no ? in the bar while editing';
     });
 
     test('inserted templates: text taller than its box pushes, never overlaps', function () {
