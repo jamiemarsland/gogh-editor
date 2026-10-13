@@ -15,7 +15,7 @@ about something where they conflict, rather than picking one silently. Quote UI
 labels and message copy from the appendix, verbatim — those are the current
 strings, and a paraphrased button label is the fastest way to lose a user's trust.
 
-Generated for plugin version 0.99.682 · knowledge base bd70ff0.
+Generated for plugin version 0.99.683 · knowledge base 06a3ed9.
 
 ---
 
@@ -830,6 +830,8 @@ The helper's welcome panel opens with a 35-second film of gogh being used (v0.99
 
 **The phone view survives navigation (v0.99.605).** Press one of your own pages while on the phone and it opens in the editor, still on the phone: the link carries `gogh-edit=1&gogh-phone=1`, the next page reads them at boot and strips them from the address. Other sites, files, wp-admin and anchors on the same page are left alone. Unpublished changes still ask before leaving.
 
+**Text sizes read like clothes (v0.99.683).** The size pill on a heading's or paragraph's toolbar now shows a clothing size, **− XL +**: S, M, L, XL, XXL, then 3XL, 4XL and 5XL for the giant sizes. Press it for the list, which spells them out (Small S, Medium M, Large L, Extra large XL, Huge XXL, 3XL, 4XL, 5XL), each drawn at its size, with the size the words start at tagged **default**. A theme with its own size names shows those. (This replaces v0.99.682's numbers: a number looked like something you could type, and you can't.) Also fixed: text given an exact size of its own, by a paste or a hand-drawn site definition such as Misprint's, had both − and + greyed out and a one-line list; now the steps and the list work, and choosing a size replaces the exact one.
+
 **Text size is a number (v0.99.682).** On a heading's or paragraph's toolbar the size is one small pill, **− 32 +**: the number is the size the words draw at on this screen, and − and + step one size smaller or bigger through the theme's sizes, stopping at the ends. Press the number to see every size as a list of numbers, each drawn at its size, smallest to biggest; the one the words start at with no size chosen is tagged **default**. The big sizes scale with the page width, so the same heading can read 130 on a computer and less in the phone view. Text fitted to its box shows its number too (the tooltip says it is fitted). The sizes no longer have names on screen (Normal, Headline, Poster, Billboard were dropped in favour of numbers).
 
 **Custom colour for words, lines and icons (v0.99.681).** The colour button on a heading's, paragraph's, line's or icon's toolbar opens a panel that starts with **Custom colour**, like the section and card colour rows. It opens a colour surface in the panel: drag the hue, pick a shade or type a colour code, and the words try it on as you go, shown on their real background with how easy they are to read ("Easy to read here · contrast 6.0", or "Hard to read on this background"). **Use it** keeps it; **Cancel** puts the words back. The palette swatches sit below. The difference: a palette colour changes when you change the site's colours in Site style, a custom colour stays put. Choosing a swatch replaces a custom colour, and choosing a style again clears it.
@@ -973,11 +975,11 @@ Everything in this section is extracted mechanically from the Gogh source on eve
 
 ## Current release
 
-- Plugin version: **0.99.682**
+- Plugin version: **0.99.683**
 - Requires WordPress **6.5+**, PHP **7.4+**
 - Text domain: `gogh-editor`
 - readme.txt Stable tag: `0.26.0` · Tested up to: `7.0`
-- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.682`). Quote the plugin header version.
+- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.683`). Quote the plugin header version.
 
 ## Design constants
 
@@ -1544,4 +1546,4 @@ These are the real strings in the current build. Use them verbatim; never paraph
 
 ## Test suite
 
-`346` tests, run by appending `?gogh-test` to any Gogh page URL while logged in with edit rights on that page.
+`347` tests, run by appending `?gogh-test` to any Gogh page URL while logged in with edit rights on that page.

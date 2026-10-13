@@ -1021,7 +1021,7 @@
       }
       return 'plain status, quiet bar, site name goes home';
     });
-    test('text size: [ − 85 + ] in one pill, steps stop at the ends, and the number opens every size drawn at its size', function () {
+    test('text size: [ − XL + ] in one pill, clothing sizes, steps stop at the ends, and the size opens every size drawn at its size', function () {
       var i = findIdx('heading'), s0 = sec(), e = s0.els[i], was = { fs: e.fs || null, fit: !!e.fitW };
       var num = function () { return q('.gogh-elbar .gogh-eb-fs').textContent; };
       try {
@@ -1029,37 +1029,62 @@
         select(i);
         var pill = q('.gogh-elbar .gogh-eb-fspill');
         var down = q('.gogh-elbar .gogh-eb-fsdown'), up = q('.gogh-elbar .gogh-eb-fsup');
-        expect(pill && pill.contains(down) && pill.contains(up) && pill.contains(q('.gogh-elbar .gogh-eb-fs')), '−, the number and + should sit in one pill');
+        expect(pill && pill.contains(down) && pill.contains(up) && pill.contains(q('.gogh-elbar .gogh-eb-fs')), '−, the size and + should sit in one pill');
         var tn = function () { var n0 = s0.nodes[i]; return n0.matches('h1,h2,h3,h4,h5,h6') ? n0 : n0.querySelector('h1,h2,h3,h4,h5,h6'); };
         var px0 = parseFloat(getComputedStyle(tn()).fontSize);
-        expect(/^\d+$/.test(num()) && Math.abs(+num() - px0) <= 1, 'the pill should show the size as a number, the one the words draw at: ' + num() + ' vs ' + px0);
+        expect(/^(X{0,2}S|M|L|X{1,2}L|\dXL|Default)$/.test(num()), 'the pill should show a clothing size: ' + num());
+        var startCode = num();
         expect(pill.getBoundingClientRect().width < 110, 'the pill should be compact: ' + Math.round(pill.getBoundingClientRect().width) + 'px');
         up.click();
-        expect(e.fs && parseFloat(getComputedStyle(tn()).fontSize) > px0 && +num() > px0, '+ should make the heading bigger, and the number follow: ' + e.fs + ' ' + num());
+        expect(e.fs && parseFloat(getComputedStyle(tn()).fontSize) > px0 && num() !== startCode, '+ should make the heading bigger, and the size follow: ' + e.fs + ' ' + num());
         G.setFontSize(s0, i, '__disp-l');
         select(i);
-        expect(q('.gogh-elbar .gogh-eb-fsup').disabled, 'at the biggest, + stops (no wrapping back to small)');
-        var big = +num();
+        expect(q('.gogh-elbar .gogh-eb-fsup').disabled && /^\dXL$/.test(num()), 'the biggest is a big clothing size and + stops there: ' + num());
+        var big = num();
         q('.gogh-elbar .gogh-eb-fsup').click();
         expect(e.fs === '__disp-l', '+ at the biggest does nothing: ' + e.fs);
         q('.gogh-elbar .gogh-eb-fsdown').click();
-        expect(e.fs === '__disp-m' && +num() < big, '− steps down one: ' + e.fs + ' ' + num());
+        expect(e.fs === '__disp-m' && num() !== big && /XL$/.test(num()), '− steps down one: ' + e.fs + ' ' + num());
         q('.gogh-elbar .gogh-eb-fs').click();
         var opts = document.querySelectorAll('.gogh-panel .gogh-sizeopt');
-        var nums = [].map.call(opts, function (o) { return parseInt(o.querySelector('.gogh-sizeopt-name').textContent, 10); });
-        expect(nums.every(function (v, k) { return !k || v > nums[k - 1]; }), 'the list is numbers, smallest to biggest: ' + nums.join(','));
-        expect(!/Poster|Billboard|Headline|Normal/.test(q('.gogh-panel').textContent), 'no size names in the list');
+        var names = [].map.call(opts, function (o) { return o.querySelector('.gogh-sizeopt-name').textContent; });
+        expect(/Small/.test(names[0]) && /Huge|XXL/.test(names.join(',')) && /5XL/.test(names[names.length - 1]), 'the list reads Small … Huge … 5XL: ' + names.join(','));
+        expect(!/Poster|Billboard|Headline|Normal/.test(q('.gogh-panel').textContent), 'no made-up size names in the list');
         expect(document.querySelectorAll('.gogh-panel .gogh-sizeopt-def').length === 1, 'the size the words start at says default');
         var sizes = [].map.call(opts, function (o) { return parseFloat(o.querySelector('.gogh-sizeopt-aa').style.fontSize); });
         expect(sizes[sizes.length - 1] > sizes[0], 'each size is drawn at its relative size: ' + sizes.join(','));
-        expect(parseInt(document.querySelector('.gogh-panel .gogh-sizeopt.is-on .gogh-sizeopt-name').textContent, 10) === +num(), 'the size in use is marked');
+        expect(document.querySelector('.gogh-panel .gogh-sizeopt.is-on .gogh-sizeopt-name').textContent.indexOf(num()) !== -1, 'the size in use is marked');
         opts[opts.length - 3].click();
         expect(e.fs === '__disp-s', 'choosing a size in the list sets it: ' + e.fs);
       } finally {
         G.closePanel();
         G.setFontSize(s0, i, was.fs);
       }
-      return 'pill ' + num() + ', clamps, numbers drawn to size';
+      return 'pill ' + num() + ', clamps, clothing sizes drawn to size';
+    });
+    // v0.99.683: an exact size of its own (a paste, a hand-drawn site
+    // definition) pinned the size probe, greyed both steps out on Misprint
+    test('text with an exact size of its own can still step and choose a size', function () {
+      var i = findIdx('para'), s0 = sec(), e = s0.els[i], keepTf = e.tf ? JSON.parse(JSON.stringify(e.tf)) : null, keepFs = e.fs || null;
+      try {
+        e.fs = null; e.tf = Object.assign({}, e.tf || {}, { fs: 19 });
+        G.renderSection(s0);
+        select(i);
+        var down = q('.gogh-elbar .gogh-eb-fsdown'), up = q('.gogh-elbar .gogh-eb-fsup');
+        expect(!down.disabled && !up.disabled, 'both steps should work on text with its own size');
+        expect(/own/.test(q('.gogh-elbar .gogh-eb-fs').title), 'the tooltip should say it has a size of its own');
+        q('.gogh-elbar .gogh-eb-fs').click();
+        expect(document.querySelectorAll('.gogh-panel .gogh-sizeopt').length >= 5, 'the list should offer every size: ' + document.querySelectorAll('.gogh-panel .gogh-sizeopt').length);
+        G.closePanel();
+        var px0 = parseFloat(getComputedStyle(s0.nodes[i]).fontSize);
+        up.click();
+        expect(!(e.tf && e.tf.fs) && parseFloat(getComputedStyle(s0.nodes[i]).fontSize) > px0, '+ should replace the own size with a bigger one: ' + e.fs);
+      } finally {
+        G.closePanel();
+        e.tf = keepTf; e.fs = keepFs;
+        G.renderSection(s0);
+      }
+      return 'own size steps';
     });
     test('publish chip tracks dirty state', function () {
       var chipEl = q('.gogh-chip');
@@ -7120,11 +7145,11 @@
         // a corner-drag fit: the size label says Fitted, not the old name
         sec.els[0].fitW = true;
         G.placeHandles(sec, 0);
-        expect(/^\d+$/.test(q('.gogh-eb-fs').textContent) && /[Ff]itted/.test(q('.gogh-eb-fs').title), 'fitted text shows its number and says fitted: ' + q('.gogh-eb-fs').textContent + ' / ' + q('.gogh-eb-fs').title);
+        expect(q('.gogh-eb-fs').textContent && /[Ff]itted/.test(q('.gogh-eb-fs').title), 'fitted text shows its nearest size and says fitted: ' + q('.gogh-eb-fs').textContent + ' / ' + q('.gogh-eb-fs').title);
         sec.els[0].fitW = false;
         sec.els[0].fs = 'x-large';
         G.placeHandles(sec, 0);
-        expect(/^\d+$/.test(q('.gogh-eb-fs').textContent), 'a theme size reads as a number: ' + q('.gogh-eb-fs').textContent);
+        expect(q('.gogh-eb-fs').textContent === 'XL', 'a theme size reads as a clothing size: ' + q('.gogh-eb-fs').textContent);
         sec.els[0].fs = null;
         G.looks.open(sec, 0);
         tiles = document.querySelectorAll('.gogh-panel .gogh-look');

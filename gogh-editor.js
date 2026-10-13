@@ -20,11 +20,27 @@
   var DISPLAY_ORDER = ['__disp-s', '__disp-m', '__disp-l'];
   // the big sizes in words that say what they're for ('Display S' was
   // design jargon, James)
-  var DISPLAY_LABEL = { '__disp-s': 'Headline', '__disp-m': 'Poster', '__disp-l': 'Billboard' };
+  // sizes read like clothes (James chose it): everyone knows XL is bigger
+  // than L, and the codes never run out — the three giant sizes carry on
+  // from the theme's biggest (3XL, 4XL, 5XL) instead of needing names
+  // ("Poster" and "Billboard" had to be learned)
+  var SIZE_CODES = { 'xx-small': 'XXS', 'x-small': 'XS', small: 'S', medium: 'M', large: 'L', 'x-large': 'XL', 'xx-large': 'XXL', 'xxx-large': '3XL' };
+  var CODE_ORDER = ['XXS', 'XS', 'S', 'M', 'L', 'XL', 'XXL', '3XL', '4XL', '5XL', '6XL', '7XL'];
   // a theme's size slugs, as words a person would use ('xx-large' was shown raw)
   var SIZE_WORDS = { 'xx-small': 'Tiny', 'x-small': 'Extra small', small: 'Small', medium: 'Medium', large: 'Large', 'x-large': 'Extra large', 'xx-large': 'Huge' };
+  function displayCode(slug) {
+    var k = ['__disp-s', '__disp-m', '__disp-l'].indexOf(slug), top = CODE_ORDER.indexOf('XXL');
+    (typeof fontSizes === 'function' ? fontSizes() : []).forEach(function (f) { var c = CODE_ORDER.indexOf(SIZE_CODES[f.slug]); if (c > top) top = c; });
+    return CODE_ORDER[Math.min(CODE_ORDER.length - 1, top + 1 + k)];
+  }
+  // the short label the bar's pill wears; a theme's own size names (Ollie's
+  // 'Base', say) fall back to the word
+  function sizeCode(slug) {
+    if (/^__disp-/.test(slug || '')) return displayCode(slug);
+    return SIZE_CODES[slug] || sizeWord(slug);
+  }
   function sizeWord(slug) {
-    if (DISPLAY_LABEL[slug]) return DISPLAY_LABEL[slug];
+    if (/^__disp-/.test(slug || '')) return displayCode(slug);
     if (SIZE_WORDS[slug]) return SIZE_WORDS[slug];
     var w = String(slug || '').replace(/-/g, ' ');
     return w.charAt(0).toUpperCase() + w.slice(1);
@@ -3643,7 +3659,7 @@
   function sizeOrder(sec, e) {
     var node = sec.nodes && sec.nodes[sec.els.indexOf(e)];
     // the drawn size is in the key so a new type scale (Site style) re-measures
-    var key = [sec.sectionEl ? sec.sectionEl.clientWidth : 0, e.fs || '', e.fitW ? 1 : 0, e.type, node ? node.className : '', node ? drawnPx(sec, sec.els.indexOf(e)) : 0].join('|');
+    var key = [sec.sectionEl ? sec.sectionEl.clientWidth : 0, e.fs || '', ownSize(e) ? 1 : 0, e.type, node ? node.className : '', node ? drawnPx(sec, sec.els.indexOf(e)) : 0].join('|');
     var hit = sizeOrderCache.get(e);
     if (hit && hit.key === key) return hit.o;
     var o = sizeOrderMeasure(sec, e, node);
@@ -3657,15 +3673,23 @@
     // sizes that draw the same are one step, not two (a theme's h2 is often
     // exactly Extra large, so A+ from Normal looked like it did nothing).
     // Of a tie, keep the size in use, else Normal, else the first
-    var cur = e.fitW ? undefined : (e.fs || null), keep = [];
+    var cur = ownSize(e) ? undefined : (e.fs || null), keep = [];
     idx.forEach(function (k) {
       var last = keep[keep.length - 1];
       if (last === undefined || Math.abs(px[k] - px[last]) >= 0.5) { keep.push(k); return; }
       var rank = function (j) { return lad[j] === cur ? 2 : lad[j] === null ? 1 : 0; };
       if (rank(k) > rank(last)) keep[keep.length - 1] = k;
     });
-    // normal: what the words draw at with no size set — the list tags it
-    return { slugs: keep.map(function (k) { return lad[k]; }), px: keep.map(function (k) { return px[k]; }), normal: px[0] };
+    // normal: what the words draw at with no size set — the list tags it.
+    // No size set reads as the size it draws like (a theme's h2 IS Extra
+    // large); only between two sizes is it plain 'Default'
+    var twin = null;
+    lad.forEach(function (slug, k) { if (slug && twin === null && Math.abs(px[k] - px[0]) < 0.5) twin = slug; });
+    var labels = keep.map(function (k) {
+      var slug = lad[k] || twin;
+      return slug ? { s: sizeCode(slug), l: sizeWord(slug) } : { s: 'Default', l: 'Default' };
+    });
+    return { slugs: keep.map(function (k) { return lad[k]; }), px: keep.map(function (k) { return px[k]; }), normal: px[0], labels: labels };
   }
   // a step smaller or bigger, stopping at the ends (it used to wrap round
   // from Billboard to the smallest). Fitted text steps from the named size
@@ -3674,7 +3698,7 @@
     var e = sec.els[i];
     var o = sizeOrder(sec, e), lad = o.slugs, px = o.px;
     var idx = lad.indexOf(e.fs || null);
-    if (e.fitW) {
+    if (ownSize(e)) {
       var now = parseFloat(getComputedStyle(editableTarget(sec, i) || sec.nodes[i]).fontSize) || 16, best = 0;
       px.forEach(function (v, k) { if (Math.abs(v - now) < Math.abs(px[best] - now)) best = k; });
       idx = best;
@@ -3691,7 +3715,11 @@
     var real = node && (node.matches('h1,h2,h3,h4,h5,h6,p') ? node : node.querySelector('h1,h2,h3,h4,h5,h6,p'));
     var host = (real && real.parentNode) || sec.sectionEl || document.body;
     var probe = document.createElement(real ? real.tagName : (e.type === 'heading' ? 'h2' : 'p'));
-    probe.className = real ? String(real.className).replace(/\bhas-[\w-]+-font-size\b/g, '') : (e.type === 'heading' ? 'wp-block-heading' : '');
+    // the piece's OWN class (gogh-el-N) carries any exact size it was given,
+    // !important — on the probe it pinned every size to that one and the
+    // bar greyed out both steps (James: "why can't i change the size of
+    // some text"). The look's classes stay: they set what Normal draws at
+    probe.className = real ? String(real.className).replace(/\bhas-[\w-]+-font-size\b/g, '').replace(/\bgogh-el-\d+\b/g, '') : (e.type === 'heading' ? 'wp-block-heading' : '');
     probe.textContent = 'Aa';
     probe.setAttribute('aria-hidden', 'true');
     probe.style.cssText = 'position:absolute;left:-9999px;top:0;visibility:hidden;margin:0;';
@@ -3703,6 +3731,11 @@
     probe.remove();
     return out;
   }
+  // text with a size of its OWN — fitted to its box, or an exact size a
+  // paste or a hand-drawn site definition gave it (tf.fs, painted
+  // !important). It sits on no rung of the ladder: − and + step from the
+  // nearest size, and choosing one replaces it (setFontSize clears tf.fs)
+  function ownSize(e) { return !!(e.fitW || (e.tf && (e.tf.fs || e.tf.fs2))); }
   // what the words draw at right now (a fitted piece has no named size)
   function drawnPx(sec, i) {
     var n = sec.nodes[i], t = n && (n.matches('h1,h2,h3,h4,h5,h6,p,ul,ol') ? n : n.querySelector('h1,h2,h3,h4,h5,h6,p,ul,ol')) || n;
@@ -3718,15 +3751,17 @@
     var sample = function (v) { return hi > lo ? Math.round(13 + Math.log(v / lo) / Math.log(hi / lo) * 27) : 18; };
     panel.innerHTML = '<div class="gogh-panel-title">Text size</div>' +
       '<div class="gogh-sizelist" role="listbox" aria-label="Text size">' + lad.map(function (slug, k) {
-        var on = !e.fitW && (e.fs || null) === slug;
+        var on = !ownSize(e) && (e.fs || null) === slug;
         return '<button type="button" role="option" class="gogh-sizeopt' + (on ? ' is-on' : '') + '" aria-selected="' + (on ? 'true' : 'false') + '" data-k="' + k + '">' +
           '<span class="gogh-sizeopt-aa" style="font-size:' + sample(px[k]) + 'px">Aa</span>' +
-          '<span class="gogh-sizeopt-name">' + Math.round(px[k]) +
-          (Math.abs(px[k] - o.normal) < 0.5 ? ' <span class="gogh-sizeopt-def">default</span>' : '') + '</span>' +
+          '<span class="gogh-sizeopt-name">' + esc(o.labels[k].l) +
+          (o.labels[k].s !== o.labels[k].l ? ' <span class="gogh-sizeopt-code">' + esc(o.labels[k].s) + '</span>' : '') +
+          (Math.abs(px[k] - o.normal) < 0.5 && o.labels[k].l !== 'Default' ? ' <span class="gogh-sizeopt-def">\u00b7 default</span>' : '') + '</span>' +
           (on ? '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l5 5 9-10"/></svg>' : '') +
           '</button>';
       }).join('') + '</div>' +
-      (e.fitW ? '<div class="gogh-panel-hint">This text is fitted to its box. Choosing a size lets it wrap again.</div>' : '');
+      (e.fitW ? '<div class="gogh-panel-hint">This text is fitted to its box. Choosing a size lets it wrap again.</div>'
+        : ownSize(e) ? '<div class="gogh-panel-hint">This text has a size of its own. Choosing one here replaces it.</div>' : '');
     panel.querySelectorAll('.gogh-sizeopt').forEach(function (b) {
       b.addEventListener('click', function () {
         closePanel();
@@ -4429,12 +4464,14 @@
       // a corner-drag fits the words to the box: the named size no longer
       // applies, so the label says so (James: "should the selector change?")
       var so = sizeOrder(sec, e), lad = so.slugs;
-      var at = e.fitW ? -1 : lad.indexOf(e.fs || null);
-      fsBtn.textContent = String(at >= 0 ? Math.round(so.px[at]) : drawnPx(sec, i));
-      fsBtn.title = e.fitW ? 'Fitted to its box \u2014 choose a size to let it wrap again' : 'Text size: choose from every size';
+      var own = ownSize(e), at = own ? -1 : lad.indexOf(e.fs || null), nowPx = drawnPx(sec, i);
+      var near = at;
+      if (near < 0) { near = 0; so.px.forEach(function (v, k) { if (Math.abs(v - nowPx) < Math.abs(so.px[near] - nowPx)) near = k; }); }
+      fsBtn.textContent = so.labels[near].s;
+      fsBtn.title = e.fitW ? 'Fitted to its box \u2014 choose a size to let it wrap again' : own ? 'A size of its own \u2014 choose a size to replace it' : 'Text size: choose from every size';
       fsPill.style.display = '';
-      fsDown.disabled = !e.fitW && at <= 0;
-      fsUp.disabled = !e.fitW && at >= lad.length - 1;
+      fsDown.disabled = own ? nowPx <= so.px[0] + 0.5 : at <= 0;
+      fsUp.disabled = own ? nowPx >= so.px[so.px.length - 1] - 0.5 : at >= lad.length - 1;
       paintBtn.style.display = '';
       // corner-drag engages the fit now, so the button's only remaining job
       // is the way BACK — it shows only while a fit is on ("not sure what
