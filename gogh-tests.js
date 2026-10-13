@@ -924,8 +924,6 @@
 
     test('a menu link while editing opens its page in the editor, says so on hover, and the rest of the header still opens the header', function () {
       var trips = [], unwatch = G.nav.watch(function (u) { trips.push(u); });
-      var usedWas = null;
-      try { usedWas = localStorage.getItem('gogh-navhint-used'); localStorage.removeItem('gogh-navhint-used'); } catch (e) {}
       try {
         var u1 = G.nav.urlFor('/sample-page/');
         expect(u1 && /gogh-edit=1/.test(u1) && /\/sample-page\//.test(u1) && !/gogh-phone/.test(u1), 'an own page opens in the editor: ' + u1);
@@ -961,17 +959,16 @@
         var first = trip();
         expect(first === 'asked' || (first === 'went' && /gogh-edit=1/.test(trips[0]) && trips[0].indexOf(link.pathname) !== -1), 'clicking it goes to that page, still editing: ' + first + ' ' + trips.join(' '));
         expect(head.querySelector('.gogh-chromeveil'), 'a menu link does not open the header room');
-        // the second trip is the last with a hint; after that it stays quiet
-        trip();
+        // the hint keeps showing, trip after trip (going quiet read as broken)
+        trip(); trip();
         veil.dispatchEvent(new MouseEvent('mousemove', { bubbles: true, clientX: x, clientY: y }));
-        expect(q('.gogh-navhint').hidden, 'after two trips the hint stays quiet');
+        expect(!q('.gogh-navhint').hidden, 'the hint should still show after a few trips');
       } finally {
         unwatch();
-        try { if (usedWas == null) localStorage.removeItem('gogh-navhint-used'); else localStorage.setItem('gogh-navhint-used', usedWas); } catch (e) {}
         var h2 = q('.gogh-navhint'); if (h2) h2.hidden = true;
         var lp2 = q('.gogh-leave'); if (lp2) lp2.hidden = true;
       }
-      return 'menu link → its page in the editor (or the question first); hint twice; header room untouched';
+      return 'menu link → its page in the editor (or the question first); hint every time; header room untouched';
     });
 
     test('publish chip tracks dirty state', function () {

@@ -15,7 +15,7 @@ about something where they conflict, rather than picking one silently. Quote UI
 labels and message copy from the appendix, verbatim — those are the current
 strings, and a paraphrased button label is the fastest way to lose a user's trust.
 
-Generated for plugin version 0.99.663 · knowledge base 55e1af7.
+Generated for plugin version 0.99.664 · knowledge base 3a15d48.
 
 ---
 
@@ -830,7 +830,7 @@ The helper's welcome panel opens with a 35-second film of gogh being used (v0.99
 
 **The phone view survives navigation (v0.99.605).** Press one of your own pages while on the phone and it opens in the editor, still on the phone: the link carries `gogh-edit=1&gogh-phone=1`, the next page reads them at boot and strips them from the address. Other sites, files, wp-admin and anchors on the same page are left alone. Unpublished changes still ask before leaving.
 
-**Getting around while editing (v0.99.663).** Editing now stays on as you move around your own site. Press a page in your header or footer menu while editing and it opens in the editor (clicking anywhere else on the header still opens header editing); the first couple of times, hovering a menu link says "Go to Workshops · you'll keep editing". The Page drawer now starts with a page switcher, **Editing Workshops ▾**: it lists every page, the ones in your menu first, Home marked, drafts labelled, with a find box on bigger sites and Add a page at the end; Rename sits beside it. Leaving a page with unpublished changes, by either route, asks: **Publish (page), then go**, **Go, and keep my changes for later** (gogh backs them up first; when you come back to that page it offers "You left changes on this page unpublished. Bring them back?"), or **Stay**.
+**Getting around while editing (v0.99.663).** Editing now stays on as you move around your own site. Press a page in your header or footer menu while editing and it opens in the editor (clicking anywhere else on the header still opens header editing); hovering a menu link says "Go to Workshops · you'll keep editing" (every time, since v0.99.664). The Page drawer now starts with a page switcher, **Editing Workshops ▾**: it lists every page, the ones in your menu first, Home marked, drafts labelled, with a find box on bigger sites and Add a page at the end; Rename sits beside it. Leaving a page with unpublished changes, by either route, asks: **Publish (page), then go**, **Go, and keep my changes for later** (gogh backs them up first; when you come back to that page it offers "You left changes on this page unpublished. Bring them back?"), or **Stay**.
 
 **History shows the whole page (v0.99.662).** Opening History now zooms the page out beside the panel, the way Site style does, so a version you choose is seen whole instead of with its left side under the panel. It stays zoomed while you switch versions and returns to full size when you restore, go back or close History.
 
@@ -947,11 +947,11 @@ Everything in this section is extracted mechanically from the Gogh source on eve
 
 ## Current release
 
-- Plugin version: **0.99.663**
+- Plugin version: **0.99.664**
 - Requires WordPress **6.5+**, PHP **7.4+**
 - Text domain: `gogh-editor`
 - readme.txt Stable tag: `0.26.0` · Tested up to: `7.0`
-- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.663`). Quote the plugin header version.
+- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.664`). Quote the plugin header version.
 
 ## Design constants
 

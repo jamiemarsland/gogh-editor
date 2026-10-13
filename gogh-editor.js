@@ -4573,12 +4573,11 @@
   // Accidental nav-drags die here, and editability announces itself.
   var chromeVeils = [];
   // the hint on a menu link while editing: where it goes, and that editing
-  // comes along. Two trips and people know; after that it stays quiet
+  // comes along. Every time: going quiet after two trips read as broken
+  // (James: 'it worked beautiful for a few clicks, but then stopped')
   var navHint = null;
-  function navHintUses() { try { return +(localStorage.getItem('gogh-navhint-used') || 0); } catch (e) { return 0; } }
-  function navHintUsed() { try { localStorage.setItem('gogh-navhint-used', String(navHintUses() + 1)); } catch (e) {} }
   function showNavHint(hit) {
-    if (!hit || navHintUses() >= 2) { if (navHint) navHint.hidden = true; return; }
+    if (!hit) { if (navHint) navHint.hidden = true; return; }
     if (!navHint) {
       navHint = document.createElement('div');
       navHint.className = 'gogh-navhint';
@@ -4626,7 +4625,6 @@
       var hit = ev.target === b ? null : linkAt(ev.clientX, ev.clientY);
       if (hit) {
         showNavHint(null);
-        navHintUsed();
         goToPage(hit.url, hit.name);
         return;
       }
