@@ -1,12 +1,12 @@
 {
   "meta": {
-    "plugin_version": "0.99.660",
+    "plugin_version": "0.99.661",
     "requires_wp": "6.5",
     "requires_php": "7.4",
     "text_domain": "gogh-editor",
     "readme_stable_tag": "0.26.0",
     "readme_tested_up_to": "7.0",
-    "asset_version": "0.99.660-chrome"
+    "asset_version": "0.99.661-chrome"
   },
   "constants": {
     "TOL": 8,
@@ -462,6 +462,7 @@
     "As typed",
     "Auto",
     "Back",
+    "Back to my page",
     "Back to the Site cards",
     "Background & look",
     "Badge",
@@ -527,6 +528,7 @@
     "Help — ask gogh anything",
     "Hidden",
     "Hide on phones",
+    "History — earlier published versions of this page",
     "Home",
     "Icon",
     "Image",
@@ -601,6 +603,7 @@
     "Remove video",
     "Rename",
     "Rename or remove",
+    "Restore this version",
     "Right",
     "Roll another take of this design",
     "Save",
@@ -713,6 +716,7 @@
     "Publish failed: ",
     "Publish your changes first — changing the page style reloads the page.",
     "Removed from the card.",
+    "Restored the version from ",
     "Saved — search results and AI answers now quote your words ✓",
     "Saved “",
     "Saving your page changes, then updating the ",

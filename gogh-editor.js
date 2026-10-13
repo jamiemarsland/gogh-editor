@@ -2773,6 +2773,10 @@
     '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 14l-4-4 4-4"/><path d="M5 10h11a4 4 0 0 1 0 8h-1"/></svg></button>' +
     '<button type="button" class="gogh-sbtn gogh-redo" title="Redo (⇧⌘Z)">' +
     '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 14l4-4-4-4"/><path d="M19 10H8a4 4 0 0 0 0 8h1"/></svg></button>' +
+    // History: earlier published versions, beside undo and redo (this
+    // session's steps) — the same idea, further back
+    '<button type="button" class="gogh-sbtn gogh-historybtn" title="History \u2014 earlier published versions of this page">' +
+    '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v4h4"/><path d="M12 7.5V12l3 2"/></svg></button>' +
     // Site designs replaces the whole site — not a peer of Site style. It
     // waits here as a small door until it has a better home (James: "it
     // feels confusing here")
@@ -8430,6 +8434,7 @@
     gb.removeAttribute('title');
   });
   side.querySelector('.gogh-undo').addEventListener('click', undo);
+  side.querySelector('.gogh-historybtn').addEventListener('click', function () { openHistoryPanel(); });
   side.querySelector('.gogh-redo').addEventListener('click', redo);
   // the help bot lives in a small sheet — created on first ask, and it
   // learns the exact build from the script's own cache-buster
@@ -20208,6 +20213,7 @@
     }, 900);
   }
   window.__gogh = {
+    history: { open: openHistoryPanel, leave: historyLeave, viewing: function () { return historyView; }, when: historyWhen },
     explode: { enter: enterExplode, exit: exitExplode, state: function () { return explodeSt; } },
     multi: { set: setMulti, clear: clearMulti, state: function () { return multiSel; } },
     showGuides: showGuides, hideGuides: hideGuides,
@@ -21358,6 +21364,7 @@
   }
   setInterval(function () {
     if (siteBuilding) return; // a site being drawn from a definition is scratch, never a backup
+    if (historyView) return; // an earlier version on show is not work to back up
     if (!editing || chipBusy || !isDirty()) return;
     // the suite wrecks the page BY DESIGN (delete-everything tests) — backing
     // that up would shadow the real fixture on every next boot
@@ -21408,8 +21415,27 @@
     }).catch(function () {});
   }
   function extractModels(html) {
-    var doc = new DOMParser().parseFromString(html, 'text/html');
     var data = [];
+    // saved content (a revision, an autosave) carries each section's model
+    // in its block comment, the v3 format; the gogh-model script below is
+    // only in the RENDERED page and in content saved before v3. Reading only
+    // the script, History found no versions and the backup offer never fired
+    var reV3 = /<!-- wp:gogh\/section (\{[\s\S]*?\}) -->/g, mv;
+    while ((mv = reV3.exec(html))) {
+      try {
+        var at = JSON.parse(mv[1]);
+        var md = at && at.model;
+        if (!md || !Array.isArray(md.elements)) continue;
+        data.push({ scope: at.scope || ('gogh-sec-' + (scopeSeq++)),
+          els: md.elements, minH: md.minH || null, bg: md.bg || null, divider: md.divider || null,
+          fx: md.fx || null, bgImage: md.bgImage || null, bgId: md.bgId || null,
+          bgVideo: md.bgVideo || null, bgVideoId: md.bgVideoId || null, bgA: md.bgA != null ? md.bgA : null,
+          theme: md.theme || null, fill: md.fill || null, bgPos: md.bgPos || null, anchor: md.anchor || null,
+          m: (md.m && typeof md.m === 'object') ? md.m : null });
+      } catch (e1) {}
+    }
+    if (data.length) return data;
+    var doc = new DOMParser().parseFromString(html, 'text/html');
     [].slice.call(doc.querySelectorAll('.gogh-wrap')).filter(function (w) { return !w.closest('.gogh-mega'); }).forEach(function (w) {
       var ms = w.querySelector('script.gogh-model');
       var sEl = w.querySelector('.gogh-section');
@@ -21438,6 +21464,137 @@
     pushState();
     toast('Backup restored \u2014 publish when ready.');
   }
+  // ---------- History: the page as it was each time it was published ----------
+  // WordPress keeps a revision every time the page is published; this lists
+  // them in words ("Yesterday, 2:14pm"). Choosing one shows it on the canvas,
+  // read only; Restore makes it this session's unpublished changes (so Undo
+  // walks back), and leaving any other way puts the page back as it was.
+  // Only gogh's sections travel: blocks gogh did not make stay as they are.
+  var historyView = null;      // { now: snapshot } while an earlier version is shown
+  var historyRestoring = false; // restoreState closes the panel: not a leave
+  var historyCache = null;     // the list, kept while the panel is open
+  function revisionsUrl() {
+    return cfg.restUrl.indexOf('?') === -1 ? cfg.restUrl + '/revisions' : cfg.restUrl.replace('?', '/revisions?');
+  }
+  function historyWhen(iso) {
+    var d = new Date(iso);
+    if (isNaN(d)) return iso;
+    var now = new Date(), day = function (x) { return new Date(x.getFullYear(), x.getMonth(), x.getDate()).getTime(); };
+    var diff = Math.round((day(now) - day(d)) / 86400000);
+    var h = d.getHours(), m = d.getMinutes();
+    var time = ((h % 12) || 12) + ':' + (m < 10 ? '0' : '') + m + (h < 12 ? 'am' : 'pm');
+    var DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    var MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    var dayWord = diff === 0 ? 'Today' : diff === 1 ? 'Yesterday' :
+      DAYS[d.getDay()] + ' ' + d.getDate() + ' ' + MON[d.getMonth()] + (d.getFullYear() !== now.getFullYear() ? ' ' + d.getFullYear() : '');
+    return dayWord + ', ' + time;
+  }
+  // the page's header and footer canvases are not in a page revision: they
+  // stay as they are around whichever version is shown
+  function historyWithChrome(pageData) {
+    var cur = JSON.parse(serialize());
+    var head = cur.filter(function (d) { return d.chrome && d.chrome.area !== 'footer'; });
+    var foot = cur.filter(function (d) { return d.chrome && d.chrome.area === 'footer'; });
+    return head.concat(pageData, foot);
+  }
+  function historyFetch() {
+    return fetch(revisionsUrl() + (revisionsUrl().indexOf('?') === -1 ? '?' : '&') + 'context=edit&per_page=50', {
+      headers: { 'X-WP-Nonce': cfg.nonce },
+      credentials: 'same-origin',
+    }).then(function (r) { return r.ok ? r.json() : []; }).catch(function () { return []; }).then(function (list) {
+      var out = [], last = null;
+      (Array.isArray(list) ? list : []).forEach(function (rv) {
+        if (/autosave/.test(rv.slug || '')) return; // the backup, not a published version
+        var data = extractModels((rv.content && (rv.content.raw || rv.content.rendered)) || '');
+        if (!data.length) return; // made before gogh: nothing to show
+        var canon = JSON.stringify(data.map(canonSec));
+        if (canon === last) return; // a title or slug change: the page itself was the same
+        last = canon;
+        out.push({ id: rv.id, when: rv.date || rv.date_gmt, data: data });
+      });
+      return out;
+    });
+  }
+  function historyLeave() {
+    if (!historyView) return;
+    var now = historyView.now;
+    historyView = null;
+    document.documentElement.classList.remove('gogh-history-preview');
+    historyRestoring = true;
+    try { restoreState(now); } finally { historyRestoring = false; }
+  }
+  function historyShow(item) {
+    if (!historyView) historyView = { now: serialize() };
+    historyView.id = item.id;
+    document.documentElement.classList.add('gogh-history-preview');
+    historyRestoring = true;
+    try { restoreState(JSON.stringify(historyWithChrome(item.data))); } finally { historyRestoring = false; }
+    openHistoryPanel(true);
+  }
+  function historyRestore(item) {
+    if (!historyView) return;
+    historyView = null; // what is on the canvas now stays
+    document.documentElement.classList.remove('gogh-history-preview');
+    pushState(); // one step: Undo puts the page back as it was
+    closePanel();
+    toast('Restored the version from ' + historyWhen(item.when) + '. Publish to put it live, or Undo.', {
+      actions: [{ label: 'Undo', onClick: function () { undo(); } }],
+    });
+  }
+  function openHistoryPanel(keep) {
+    var draw = function (list) {
+      historyCache = list;
+      var viewing = historyView && historyView.id;
+      panel.innerHTML =
+        '<div class="gogh-panel-head"><span class="gogh-panel-title">History</span>' +
+        '<button type="button" class="gogh-sbtn gogh-panel-close gogh-panel-back" title="Back"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"/></svg></button></div>' +
+        '<div class="gogh-panel-hint">Every time you publish, gogh keeps the page as it was. Choose a version to see it here; nothing changes until you restore it.</div>' +
+        (list.length ? '<ul class="gogh-history-list">' + list.map(function (it, n) {
+          var on = viewing === it.id || (!viewing && n === 0);
+          return '<li><button type="button" class="gogh-history-row' + (on ? ' is-on' : '') + '" data-n="' + n + '" aria-pressed="' + (on ? 'true' : 'false') + '">' +
+            '<span class="gogh-history-when">' + esc(historyWhen(it.when)) + '</span>' +
+            (n === 0 ? '<span class="gogh-history-tag">Live now</span>' : '') + '</button></li>';
+        }).join('') + '</ul>' :
+          '<div class="gogh-history-empty">No earlier versions yet. Publish this page and its versions start to collect here.</div>') +
+        (viewing ? '<div class="gogh-history-act"><div class="gogh-history-note">You’re looking at an earlier version. Your page is safe until you restore.</div>' +
+          '<div class="gogh-looksave-row"><button type="button" class="gogh-btn gogh-btn-small gogh-btn-go gogh-history-restore">Restore this version</button>' +
+          '<button type="button" class="gogh-btn gogh-btn-small gogh-history-now">Back to my page</button></div></div>' : '');
+      dockSidebar();
+      panelCleanup = function () { if (!historyRestoring) historyLeave(); };
+      panel.querySelector('.gogh-panel-close').addEventListener('click', function () {
+        historyLeave();
+        backToDesign();
+      });
+      panel.querySelectorAll('.gogh-history-row').forEach(function (b) {
+        b.addEventListener('click', function () {
+          var it = list[+b.dataset.n];
+          if (!it) return;
+          // the newest is the page as published: showing it is going back
+          if (+b.dataset.n === 0 && !historyView) return;
+          if (+b.dataset.n === 0) { historyLeave(); openHistoryPanel(true); return; }
+          historyShow(it);
+        });
+      });
+      var rs = panel.querySelector('.gogh-history-restore');
+      if (rs) rs.addEventListener('click', function () {
+        var it = list.filter(function (x) { return x.id === historyView.id; })[0];
+        if (it) historyRestore(it);
+      });
+      var bk = panel.querySelector('.gogh-history-now');
+      if (bk) bk.addEventListener('click', function () { historyLeave(); openHistoryPanel(true); });
+    };
+    if (keep && historyCache) { draw(historyCache); return Promise.resolve(historyCache); }
+    sel = null;
+    hideHandles();
+    panel.innerHTML = '<div class="gogh-panel-head"><span class="gogh-panel-title">History</span></div><div class="gogh-panel-hint">Finding earlier versions…</div>';
+    dockSidebar();
+    return historyFetch().then(function (list) {
+      if (!panelOpen || !panel.querySelector('.gogh-panel-title') || panel.querySelector('.gogh-panel-title').textContent !== 'History') return list;
+      draw(list);
+      return list;
+    });
+  }
+
   // ---------- convert Gutenberg blocks to freeform gogh sections ----------
   var convertStash = {}; // sig -> {node, marker}: originals of converted blocks
 

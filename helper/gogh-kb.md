@@ -15,7 +15,7 @@ about something where they conflict, rather than picking one silently. Quote UI
 labels and message copy from the appendix, verbatim — those are the current
 strings, and a paraphrased button label is the fastest way to lose a user's trust.
 
-Generated for plugin version 0.99.660 · knowledge base 82184b1.
+Generated for plugin version 0.99.661 · knowledge base fcc845e.
 
 ---
 
@@ -830,6 +830,8 @@ The helper's welcome panel opens with a 35-second film of gogh being used (v0.99
 
 **The phone view survives navigation (v0.99.605).** Press one of your own pages while on the phone and it opens in the editor, still on the phone: the link carries `gogh-edit=1&gogh-phone=1`, the next page reads them at boot and strips them from the address. Other sites, files, wp-admin and anchors on the same page are left alone. Unpublished changes still ask before leaving.
 
+**History: earlier versions of a page (v0.99.661).** In the drawer's foot, after Undo and Redo, a clock icon opens **History**: every version of this page you have published, newest first, in words ("Today, 2:14pm", "Mon 6 Oct, 4:20pm"), the newest marked Live now. Choose one and the page shows it as it was, read only (the sections wear a dashed outline and can't be edited while you look). **Restore this version** keeps it as your unpublished changes, so Publish puts it live and one Undo puts your page back; **Back to my page**, Back, or closing the panel leaves your page exactly as it was. Versions where only the title changed are listed once, and versions from before the page was made with gogh are left out. History brings back gogh's sections; the header, footer and any blocks gogh did not make stay as they are. WordPress keeps a version each time a page is updated (your host may limit how many). Also fixed: the offer to restore unpublished work backed up from an earlier session ("gogh backed up unpublished work") could not read pages saved in gogh's current format, so it never appeared; it does now.
+
 **Blueprint export only in labs (v0.99.660).** The Saved styles page no longer shows "Save to the blueprint" and "Copy as definition", and the save form no longer mentions blueprints: those are for people building gogh blueprints, so they appear only with labs on (add `?gogh-experiments=1` to the editor's address).
 
 **Hide on phones moves to the phone view; picture styles back (v0.99.659).** The piece toolbar on the desktop no longer carries the Hide on phones button: switch the top bar to Phone and press a piece to hide it there (or use the On phones row in a piece's panel; sections keep Hide on phones in their ⋯ menu). A piece that is hidden on phones still shows its small "Hidden on phones" tag on the desktop. Designs that give a button and a picture the same style name (Misprint's Pink, Blue and Yellow print) offer all their picture styles again: v0.99.655 to v0.99.658 kept only the button ones, so a Misprint photo's Style button showed just Plain and Plain photo (a site built in that time gets them back when its design is applied again). Choosing a picture for a card or a piece now always lands on the piece whose panel you opened, even when an earlier panel's picture list arrives late. The default star's message now says it plainly: "New buttons you add will now start in Blue print."
@@ -941,11 +943,11 @@ Everything in this section is extracted mechanically from the Gogh source on eve
 
 ## Current release
 
-- Plugin version: **0.99.660**
+- Plugin version: **0.99.661**
 - Requires WordPress **6.5+**, PHP **7.4+**
 - Text domain: `gogh-editor`
 - readme.txt Stable tag: `0.26.0` · Tested up to: `7.0`
-- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.660`). Quote the plugin header version.
+- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.661`). Quote the plugin header version.
 
 ## Design constants
 
@@ -1184,6 +1186,7 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "As typed"
 - "Auto"
 - "Back"
+- "Back to my page"
 - "Back to the Site cards"
 - "Background & look"
 - "Badge"
@@ -1249,6 +1252,7 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "Help — ask gogh anything"
 - "Hidden"
 - "Hide on phones"
+- "History — earlier published versions of this page"
 - "Home"
 - "Icon"
 - "Image"
@@ -1323,6 +1327,7 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "Remove video"
 - "Rename"
 - "Rename or remove"
+- "Restore this version"
 - "Right"
 - "Roll another take of this design"
 - "Save"
@@ -1436,6 +1441,7 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "Publish failed: "
 - "Publish your changes first — changing the page style reloads the page."
 - "Removed from the card."
+- "Restored the version from "
 - "Saved — search results and AI answers now quote your words ✓"
 - "Saved “"
 - "Saving your page changes, then updating the "

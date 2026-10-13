@@ -4,11 +4,11 @@ Everything in this section is extracted mechanically from the Gogh source on eve
 
 ## Current release
 
-- Plugin version: **0.99.660**
+- Plugin version: **0.99.661**
 - Requires WordPress **6.5+**, PHP **7.4+**
 - Text domain: `gogh-editor`
 - readme.txt Stable tag: `0.26.0` · Tested up to: `7.0`
-- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.660`). Quote the plugin header version.
+- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.661`). Quote the plugin header version.
 
 ## Design constants
 
@@ -247,6 +247,7 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "As typed"
 - "Auto"
 - "Back"
+- "Back to my page"
 - "Back to the Site cards"
 - "Background & look"
 - "Badge"
@@ -312,6 +313,7 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "Help — ask gogh anything"
 - "Hidden"
 - "Hide on phones"
+- "History — earlier published versions of this page"
 - "Home"
 - "Icon"
 - "Image"
@@ -386,6 +388,7 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "Remove video"
 - "Rename"
 - "Rename or remove"
+- "Restore this version"
 - "Right"
 - "Roll another take of this design"
 - "Save"
@@ -499,6 +502,7 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "Publish failed: "
 - "Publish your changes first — changing the page style reloads the page."
 - "Removed from the card."
+- "Restored the version from "
 - "Saved — search results and AI answers now quote your words ✓"
 - "Saved “"
 - "Saving your page changes, then updating the "

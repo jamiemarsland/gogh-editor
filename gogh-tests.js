@@ -7143,6 +7143,71 @@
       return 'cleaned, printed after Additional CSS, slug kept on rename, reserved and doubled names refused, restored';
     });
 
+    testAsync('History lists published versions in words, shows one read only, restores it as one undoable step, and otherwise puts the page back', async function () {
+      var page = G.sections().filter(function (s) { return !s.chrome; });
+      var host = page.filter(function (s) { return s.els.some(function (e) { return e.type === 'heading'; }); })[0];
+      if (!host) return 'no heading on the fixture to change: nothing to judge';
+      var hi = host.els.findIndex(function (e) { return e.type === 'heading'; });
+      var t0 = host.els[hi].text;
+      var mk = function (older) {
+        return page.map(function (s) {
+          var els = JSON.parse(JSON.stringify(s.els));
+          if (older && s === host) els[hi].text = 'An older heading';
+          // the way WordPress stores a v3 section: the model in the block comment
+          var attrs = JSON.stringify({ v: 3, scope: s.scope, model: { version: 3, designW: 1200, minH: s.minH || null, bg: s.bg || null, elements: els } })
+            .replace(/--/g, '\\u002d\\u002d').replace(/</g, '\\u003c').replace(/>/g, '\\u003e').replace(/&/g, '\\u0026');
+          return '<!-- wp:gogh/section ' + attrs + ' -->\n<div class="wp-block-gogh-section alignfull gogh-wrap"><div class="gogh-section ' + s.scope + '" data-gogh-scope="' + s.scope + '"></div></div>\n<!-- /wp:gogh/section -->';
+        }).join('\n');
+      };
+      var ago = function (days) { var d = new Date(); d.setDate(d.getDate() - days); return d.toISOString().slice(0, 19); };
+      var revs = [
+        { id: 30, date: ago(0), slug: '1-revision-v1', content: { raw: mk(false) } },
+        { id: 29, date: ago(1), slug: '1-revision-v1', content: { raw: mk(false) } }, // the same page (a title change)
+        { id: 28, date: ago(1), slug: '1-autosave-v1', content: { raw: mk(true) } },  // the backup, not a version
+        { id: 27, date: ago(3), slug: '1-revision-v1', content: { raw: mk(true) } },
+        { id: 26, date: ago(9), slug: '1-revision-v1', content: { raw: '<!-- wp:paragraph --><p>Before gogh</p><!-- /wp:paragraph -->' } },
+      ];
+      var realFetch = window.fetch;
+      window.fetch = function (u) {
+        if (/\/revisions/.test(String(u))) return Promise.resolve(new Response(JSON.stringify(revs), { status: 200, headers: { 'Content-Type': 'application/json' } }));
+        return realFetch.apply(this, arguments);
+      };
+      var headingNow = function () {
+        var s = G.sections().filter(function (x) { return x.scope === host.scope; })[0];
+        return s && s.els[hi] && s.els[hi].text;
+      };
+      try {
+        expect(q('.gogh-side-foot .gogh-historybtn'), 'History should sit in the drawer foot beside undo and redo');
+        expect(q('.gogh-side-foot .gogh-redo').nextElementSibling === q('.gogh-side-foot .gogh-historybtn'), 'History should come straight after redo');
+        await G.history.open();
+        var rows = document.querySelectorAll('.gogh-panel .gogh-history-row');
+        expect(rows.length === 2, 'one row per different published page, no backup, nothing from before gogh: ' + rows.length);
+        expect(/^Today, \d{1,2}:\d\d(am|pm)/.test(rows[0].textContent) && /Live now/.test(rows[0].textContent), 'the newest is today and live: ' + rows[0].textContent);
+        expect(!/Today|Yesterday/.test(rows[1].textContent) && /, \d{1,2}:\d\d(am|pm)$/.test(rows[1].textContent), 'an older one names its day: ' + rows[1].textContent);
+        rows[1].click();
+        expect(G.history.viewing() && document.documentElement.classList.contains('gogh-history-preview'), 'choosing a version should show it, read only');
+        expect(headingNow() === 'An older heading', 'the canvas should show the older words: ' + headingNow());
+        expect(q('.gogh-panel .gogh-history-restore') && q('.gogh-panel .gogh-history-now'), 'an older version offers Restore and Back to my page');
+        q('.gogh-panel .gogh-history-now').click();
+        expect(!G.history.viewing() && headingNow() === t0 && !document.documentElement.classList.contains('gogh-history-preview'), 'Back to my page puts the page back: ' + headingNow());
+        document.querySelectorAll('.gogh-panel .gogh-history-row')[1].click();
+        G.closePanel();
+        expect(!G.history.viewing() && headingNow() === t0, 'closing the panel any other way puts the page back too: ' + headingNow());
+        await G.history.open();
+        document.querySelectorAll('.gogh-panel .gogh-history-row')[1].click();
+        q('.gogh-panel .gogh-history-restore').click();
+        expect(!G.history.viewing() && headingNow() === 'An older heading' && !document.documentElement.classList.contains('gogh-history-preview'), 'Restore keeps the older version on the page, editable');
+        q('.gogh-undo').click();
+        expect(headingNow() === t0, 'one Undo after Restore puts the page back: ' + headingNow());
+      } finally {
+        window.fetch = realFetch;
+        G.history.leave();
+        G.closePanel();
+        if (headingNow() !== t0) { var s2 = G.sections().filter(function (x) { return x.scope === host.scope; })[0]; if (s2) { s2.els[hi].text = t0; G.renderSection(s2); } }
+      }
+      return 'two versions in words, preview read only, back on leave, restore + undo';
+    });
+
     testAsync('the Make door serves a chat that builds this site (read only: nothing is applied here)', async function () {
       var r = await fetch(location.origin + '/?gogh-make=1&goghcb=' + Date.now(), { credentials: 'same-origin', cache: 'no-store' });
       var html = await r.text();
