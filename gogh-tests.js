@@ -1123,6 +1123,31 @@
       }
       return 'widened, then capped at ' + 'a size that fits';
     });
+    // v0.99.687: a fit taken under another style or font ran past its box
+    test('fitted words that spill past their box are fitted again; the size list drops from the size pill', function () {
+      var i = findIdx('heading'), s0 = sec(), e = s0.els[i];
+      var keep = { fitW: e.fitW, fitFs: e.fitFs, fs: e.fs || null, text: e.text };
+      try {
+        e.text = 'Get your hands in the ink.';
+        G.setFontSize(s0, i, null);
+        e.fitW = true; e.fitFs = 30; // a stale fit, far too big for the box
+        G.renderSection(s0);
+        var n = s0.nodes[i];
+        expect(e.fitFs < 30 && n.scrollWidth <= n.clientWidth + 2, 'the fit should be taken again so the words stay in: fitFs ' + e.fitFs + ', ' + n.scrollWidth + '/' + n.clientWidth);
+        e.fitW = false; e.fitFs = null; G.renderSection(s0);
+        select(i);
+        q('.gogh-elbar .gogh-eb-fs').click();
+        var pr = q('.gogh-panel').getBoundingClientRect(), br = q('.gogh-elbar .gogh-eb-fspill').getBoundingClientRect();
+        expect(Math.abs(pr.left - br.left) < 40 || pr.left > br.right, 'the size list should open by the size pill: panel ' + Math.round(pr.left) + ' pill ' + Math.round(br.left));
+      } finally {
+        G.closePanel();
+        e.text = keep.text;
+        G.setFontSize(s0, i, keep.fs);
+        e.fitW = keep.fitW; e.fitFs = keep.fitFs;
+        G.renderSection(s0);
+      }
+      return 'refitted to ' + 'the box; list by the pill';
+    });
     // v0.99.684: a press on the page puts the Page drawer away and zooms in
     // async: the zoom eases back over a few frames, and the quick tests
     // run with no frames at all — they would measure a page caught mid-zoom

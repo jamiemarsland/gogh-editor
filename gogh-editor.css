@@ -818,7 +818,8 @@ body.gogh-help-open.gogh-help-wide .gogh-toasts { right: min(856px, calc(92vw + 
    (circle, pill, arch, blob, triangle, diamond) cuts that corner off, so
    those cards are named on the selection box instead */
 .gogh-selbox-tag {
-  position: absolute; left: -1px; bottom: 100%; margin-bottom: 5px;
+  /* inside the frame's top-left corner: above it, the toolbar covered it */
+  position: absolute; left: 8px; top: 8px;
   padding: 3px 9px; border-radius: 999px; background: #4a63d8; color: #fff;
   font: 700 11px/1.4 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   letter-spacing: 0.01em; white-space: nowrap; pointer-events: none;

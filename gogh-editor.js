@@ -2477,6 +2477,7 @@
     sec.sectionEl.classList.toggle('gogh-msec-hidden', !!(sec.m && sec.m.hidden));
     resolveAndApply(sec);
     growReflow(sec);
+    refitSpills(sec);
     markGround(sec);
   }
   // the painted grid dresses for its ground: lighter tiles on paper, darker
@@ -3886,7 +3887,10 @@
         setFontSize(sec, i, lad[+b.dataset.k]);
       });
     });
-    placePanelNear(sec.nodes[i]);
+    // the list drops from the size pill it was opened from, like a menu:
+    // anchored to the words it landed wherever their shape put it (James:
+    // "it seems kinda random where the modal appears")
+    placePanelNear(fsPill && fsPill.offsetParent ? fsPill : sec.nodes[i]);
     panelOpen = true;
     var cur = panel.querySelector('.gogh-sizeopt.is-on') || panel.querySelector('.gogh-sizeopt');
     if (cur) cur.focus();
@@ -3901,25 +3905,26 @@
     var e = sec.els[i], n = sec.nodes[i];
     if (!n) return null;
     var t = editableTarget(sec, i) || n;
-    var cs = getComputedStyle(t);
-    var probe = document.createElement('span');
-    probe.textContent = (t.textContent || '').trim() || 'Aa';
-    // TRACKING counts: a letter-spaced eyebrow (THE STUDIO at 0.22em) is
-    // far wider than its untracked twin, and a probe that ignored it fitted
-    // the words too big and spilled them past the box (James: "still seeing
-    // this weird issue"). Carry the spacing over as an em ratio so it
-    // scales with the 100px probe.
-    var lsPx = parseFloat(cs.letterSpacing);
-    var fsPx = parseFloat(cs.fontSize) || 16;
-    var lsEm = isFinite(lsPx) && lsPx ? (lsPx / fsPx) : 0;
-    probe.style.cssText = 'position:absolute;left:-99999px;top:0;visibility:hidden;white-space:nowrap;' +
-      'font-family:' + cs.fontFamily + ';font-weight:' + cs.fontWeight + ';font-style:' + cs.fontStyle +
-      ';text-transform:' + cs.textTransform + ';letter-spacing:' + lsEm + 'em;font-size:100px';
-    document.body.appendChild(probe);
-    var w100 = probe.getBoundingClientRect().width;
-    probe.remove();
+    // measure a TWIN of the real words, on one line at 100px, beside them:
+    // same classes, same design style, so every face, width axis, stretch,
+    // tracking and feature setting counts. A bare probe copied a handful
+    // of font properties and missed the rest, so a design's wide display
+    // style fitted too big and ran past its box (James: "we still got this
+    // issue"). Layout px throughout: the zoomed canvas must not shrink it
+    var twin = t.cloneNode(true);
+    twin.removeAttribute('contenteditable');
+    twin.removeAttribute('id');
+    twin.setAttribute('aria-hidden', 'true');
+    twin.style.cssText += ';position:absolute !important;left:-99999px !important;top:0 !important;visibility:hidden !important;' +
+      'white-space:nowrap !important;width:max-content !important;max-width:none !important;min-width:0 !important;' +
+      'font-size:100px !important;transform:none !important;rotate:none !important;grid-area:auto !important;padding:0 !important;border:0 !important;margin:0 !important;';
+    (t.parentNode || sec.sectionEl).appendChild(twin);
+    var w100 = twin.offsetWidth;
+    twin.remove();
     if (!w100) return null;
-    var boxW = n.offsetWidth;             // layout px of the element's box
+    var tcs = getComputedStyle(t);
+    var boxW = t.clientWidth - (parseFloat(tcs.paddingLeft) || 0) - (parseFloat(tcs.paddingRight) || 0); // the words' own width
+    if (!(boxW > 0)) boxW = n.offsetWidth;
     var secW = sec.sectionEl.offsetWidth; // layout px of the container
     if (!boxW || !secW) return null;
     var px = 100 * boxW / w100 * 0.985;   // a hair inside the box
@@ -3931,6 +3936,25 @@
     // one line by itself the moment the box can afford it again.
     e.fitFloor = raw < 1;
     return Math.max(1, raw);
+  }
+  // fitted words that no longer fit their box (a style or font changed
+  // since the fit was taken) are fitted again; the fit is a promise to fill
+  // the width, never to spill past it
+  function refitSpills(sec) {
+    if (!sec.nodes || !(measureScaleOf(sec) > 0.2)) return;
+    var again = false;
+    sec.els.forEach(function (e, i) {
+      if (!e.fitW || e.fitFloor || !sec.nodes[i]) return;
+      var t = editableTarget(sec, i);
+      if (!t || t.scrollWidth <= t.clientWidth + 2) return;
+      var fs = computeFitFs(sec, i);
+      if (fs && Math.abs(fs - (e.fitFs || 0)) > 0.05) { e.fitFs = fs; again = true; }
+    });
+    if (again) resolveAndApply(sec);
+  }
+  // a web font landing late re-wraps the words: check every fit again
+  if (document.fonts && document.fonts.addEventListener) {
+    document.fonts.addEventListener('loadingdone', function () { S.forEach(function (sx) { refitSpills(sx); }); });
   }
   function refitText(sec, i) {
     var e = sec.els[i];

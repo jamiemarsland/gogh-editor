@@ -15,7 +15,7 @@ about something where they conflict, rather than picking one silently. Quote UI
 labels and message copy from the appendix, verbatim — those are the current
 strings, and a paraphrased button label is the fastest way to lose a user's trust.
 
-Generated for plugin version 0.99.686 · knowledge base 862451f.
+Generated for plugin version 0.99.687 · knowledge base 4a7f1a3.
 
 ---
 
@@ -830,6 +830,8 @@ The helper's welcome panel opens with a 35-second film of gogh being used (v0.99
 
 **The phone view survives navigation (v0.99.605).** Press one of your own pages while on the phone and it opens in the editor, still on the phone: the link carries `gogh-edit=1&gogh-phone=1`, the next page reads them at boot and strips them from the address. Other sites, files, wp-admin and anchors on the same page are left alone. Unpublished changes still ask before leaving.
 
+**Fitted words stay in their box; the size list opens from the size pill; Misprint's card styles (v0.99.687).** Text fitted to its box (the ↔ button) is measured from a copy of the real words, so a design's wide display style counts, and if the words ever spill past the box (a style or font changed since the fit), gogh fits them again by itself, including once web fonts finish loading. Pressing the size on the toolbar opens the size list just under the size pill, like a menu. The **Card** tag of a chosen card sits just inside its frame's top-left corner. The Misprint design's card styles are now still and flat, since cards hold words: **Plain**, **Paper** (cream, a soft shadow, sitting straight), **Ink frame**, **Pink ink**, **Yellow ink** (both through a halftone screen) and **Ink line** (just the ink edge). The overlapping circles and the spinning hero sticker keep their print effects as the page's own classes, outside the style list.
+
 **A chosen card's tag sits on the selection box (v0.99.686).** When you choose a card, the small blue **Card** tag now sits on the selection frame above it rather than painted inside the card. Inside the card it shared a drawing layer with styles that paint their own texture (Misprint's **Pink ink** and **Overprint** halftone dots), and the two merged into a big purple circle over the card whenever it was chosen.
 
 **Publish on the right, in WordPress blue; sizes that won't fit are greyed (v0.99.685).** The status and the **Publish** button now sit at the right of the top bar, last before your account, where editors keep their Publish; the left of the bar says where you are (the site, View site). Publish is WordPress blue, or the colour of your admin colour scheme if you picked one in your profile (Ocean, Coffee and so on), like WordPress's own buttons. While changes wait to go live the words stay plain with an amber dot: waiting is normal, not a warning. On a heading's or paragraph's toolbar, **+** greys out when the next size would push the longest word off the page ("Bigger won't fit"), and the size list greys those sizes out with a note saying why.
@@ -981,11 +983,11 @@ Everything in this section is extracted mechanically from the Gogh source on eve
 
 ## Current release
 
-- Plugin version: **0.99.686**
+- Plugin version: **0.99.687**
 - Requires WordPress **6.5+**, PHP **7.4+**
 - Text domain: `gogh-editor`
 - readme.txt Stable tag: `0.26.0` · Tested up to: `7.0`
-- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.686`). Quote the plugin header version.
+- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.687`). Quote the plugin header version.
 
 ## Design constants
 
@@ -1557,4 +1559,4 @@ These are the real strings in the current build. Use them verbatim; never paraph
 
 ## Test suite
 
-`348` tests, run by appending `?gogh-test` to any Gogh page URL while logged in with edit rights on that page.
+`349` tests, run by appending `?gogh-test` to any Gogh page URL while logged in with edit rights on that page.
