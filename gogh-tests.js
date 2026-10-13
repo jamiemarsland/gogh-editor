@@ -991,7 +991,17 @@
     test('the admin bar speaks plainly while editing: Saved · not live yet / Live, no W logo or search, the site name goes home', function () {
       var chipEl = q('.gogh-chip .gogh-chip-txt');
       if (!chipEl) return 'no status chip: nothing to judge';
-      expect(/^(Live|Not live yet|Saved \u00b7 not live yet)$/.test(chipEl.textContent), 'the status speaks plainly: ' + chipEl.textContent);
+      expect(/^(Live|Changes not live yet|Changes saved \u00b7 not live yet|Draft \u00b7 not live yet|Draft saved \u00b7 not live yet)$/.test(chipEl.textContent), 'the status speaks plainly: ' + chipEl.textContent);
+      // a published page's CHANGES aren't live, not the page; a draft isn't live at all
+      var C = window.GOGH, wasSt = C.postStatus;
+      try {
+        C.postStatus = 'draft'; G.pushState(); G.refreshChip && G.refreshChip();
+        var t1 = q('.gogh-chip .gogh-chip-txt').textContent, b1 = q('.gogh-chip .gogh-chip-btn');
+        expect(/^Draft/.test(t1) && b1 && !b1.disabled, 'a draft says so, and Publish is lit even with nothing new: ' + t1);
+        C.postStatus = 'publish'; G.refreshChip && G.refreshChip();
+        var t2 = q('.gogh-chip .gogh-chip-txt').textContent;
+        expect(/^(Live|Changes)/.test(t2), 'a published page talks about its changes, or says Live: ' + t2);
+      } finally { C.postStatus = wasSt; G.refreshChip && G.refreshChip(); }
       var logo = document.getElementById('wp-admin-bar-wp-logo'), search = document.getElementById('wp-admin-bar-search');
       expect((!logo || getComputedStyle(logo).display === 'none') && (!search || getComputedStyle(search).display === 'none'), 'WordPress’s logo and search step aside while editing');
       var acct = document.querySelector('#wp-admin-bar-my-account > .ab-item');

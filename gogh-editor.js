@@ -20335,6 +20335,7 @@
     }, 900);
   }
   window.__gogh = {
+    refreshChip: function () { refreshChip(); },
     nav: { carry: drawerCarried, more: openPageMore, closeMore: closePageMore, setHome: setHomePage, go: goToPage, urlFor: editUrlFor, openPages: openPageMenu, closePages: closePageMenu, backup: backupNow, setPages: function (l) { pageList = l; },
       watch: function (fn) { var was = goTo; goTo = fn; return function () { goTo = was; discarding = false; }; } },
     history: { open: openHistoryPanel, leave: historyLeave, viewing: function () { return historyView; }, when: historyWhen },
@@ -21168,15 +21169,29 @@
     else if (chipMount === 'gogh-chip-bar') { chipBtn.textContent = 'Publish'; chipBtn.hidden = false; chipBtn.disabled = true; }
     else chipBtn.hidden = true;
   }
+  function isDraftPage() {
+    return !!cfg.postStatus && cfg.postStatus !== 'publish' && cfg.postStatus !== 'private';
+  }
   function refreshChip() {
     if (chipBusy) return;
     clearTimeout(chipTimer);
     if (isDirty()) {
       // in a beginner's words: is my work safe, and can people see it?
-      // 'Saved' carries the backup (James: 'do we not tell folks that things
-      // have been backed up anymore?'); 'not live yet' says what Publish does
-      setChip('dirty', backedUp ? 'Saved \u00b7 not live yet' : 'Not live yet', 'Publish');
-      chip.title = backedUp ? 'Your changes are saved. Publish puts them live for visitors.' : 'Your changes aren\u2019t live yet. Publish puts them live for visitors.';
+      // 'saved' carries the backup (James: 'do we not tell folks that things
+      // have been backed up anymore?'). On a published page it is the
+      // CHANGES that aren't live, not the page (James: 'the page is live,
+      // the updated page is not live'); a draft isn't live at all
+      if (isDraftPage()) {
+        setChip('dirty', backedUp ? 'Draft saved \u00b7 not live yet' : 'Draft \u00b7 not live yet', 'Publish');
+        chip.title = 'This page is a draft: visitors can\u2019t see it yet. Publish puts it live.';
+      } else {
+        setChip('dirty', backedUp ? 'Changes saved \u00b7 not live yet' : 'Changes not live yet', 'Publish');
+        chip.title = backedUp ? 'Your changes are saved. Visitors still see the page as it was until you publish.' : 'Visitors still see the page as it was until you publish your changes.';
+      }
+    } else if (isDraftPage()) {
+      // a draft with nothing new still waits to go live: Publish stays lit
+      setChip('dirty', 'Draft \u00b7 not live yet', 'Publish');
+      chip.title = 'This page is a draft: visitors can\u2019t see it yet. Publish puts it live.';
     } else {
       setChip('clean', 'Live');
       chip.title = 'Everything on this page is live: visitors see what you see.';
