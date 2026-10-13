@@ -15,7 +15,7 @@ about something where they conflict, rather than picking one silently. Quote UI
 labels and message copy from the appendix, verbatim — those are the current
 strings, and a paraphrased button label is the fastest way to lose a user's trust.
 
-Generated for plugin version 0.99.677 · knowledge base 807d8e9.
+Generated for plugin version 0.99.678 · knowledge base d9f789e.
 
 ---
 
@@ -830,6 +830,8 @@ The helper's welcome panel opens with a 35-second film of gogh being used (v0.99
 
 **The phone view survives navigation (v0.99.605).** Press one of your own pages while on the phone and it opens in the editor, still on the phone: the link carries `gogh-edit=1&gogh-phone=1`, the next page reads them at boot and strips them from the address. Other sites, files, wp-admin and anchors on the same page are left alone. Unpublished changes still ask before leaving.
 
+**Published ✓, then Live (v0.99.678).** After you publish, the status says **Published ✓** for a couple of seconds and then settles on **Live**. It used to flash "Answer-ready" in between, gogh's name for how search engines and AI read the page; that now lives only in the **SEO** panel, which explains it.
+
 **A plainer admin bar, and the picture in use (v0.99.676).** While editing, the status beside Publish now says what isn't live yet (since v0.99.677): on a published page **Changes not live yet**, or **Changes saved · not live yet** once gogh has backed them up, and **Live** when everything is published; on a draft **Draft · not live yet** (or **Draft saved · not live yet**), with Publish lit even when nothing has changed, because a draft still needs publishing. WordPress's own logo and search are hidden while you edit, the account menu shows just your picture (Log out is still in it), and your site's name in the bar takes you to your home page, still editing, instead of opening the Dashboard. On picture shelves (a section's background, a card's picture), the picture in use now wears a clear ring and an **✓ In use** badge, and hovering another picture shows a lighter outline.
 
 **Uploaded pictures show on the shelf (v0.99.675).** Uploading a picture in a section's background panel, or in a card's picture panel, now puts it first on that panel's shelf of pictures, marked as chosen, as well as using it. Before, the picture was used but didn't appear on the shelf until the panel was opened again (and on the section shelf, a tall photo could stay hidden by its 'wide pictures' filter).
@@ -963,11 +965,11 @@ Everything in this section is extracted mechanically from the Gogh source on eve
 
 ## Current release
 
-- Plugin version: **0.99.677**
+- Plugin version: **0.99.678**
 - Requires WordPress **6.5+**, PHP **7.4+**
 - Text domain: `gogh-editor`
 - readme.txt Stable tag: `0.26.0` · Tested up to: `7.0`
-- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.677`). Quote the plugin header version.
+- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.678`). Quote the plugin header version.
 
 ## Design constants
 
