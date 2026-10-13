@@ -4,11 +4,11 @@ Everything in this section is extracted mechanically from the Gogh source on eve
 
 ## Current release
 
-- Plugin version: **0.99.684**
+- Plugin version: **0.99.685**
 - Requires WordPress **6.5+**, PHP **7.4+**
 - Text domain: `gogh-editor`
 - readme.txt Stable tag: `0.26.0` · Tested up to: `7.0`
-- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.684`). Quote the plugin header version.
+- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.685`). Quote the plugin header version.
 
 ## Design constants
 
@@ -429,6 +429,7 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "The look before this one"
 - "Theme default"
 - "Tidy up"
+- "Too big — the longest word would run off the page"
 - "Try another"
 - "Try other font pairs on your page"
 - "Try other fonts"

@@ -15,7 +15,7 @@ about something where they conflict, rather than picking one silently. Quote UI
 labels and message copy from the appendix, verbatim — those are the current
 strings, and a paraphrased button label is the fastest way to lose a user's trust.
 
-Generated for plugin version 0.99.684 · knowledge base 9d56ad7.
+Generated for plugin version 0.99.685 · knowledge base bfc0a5e.
 
 ---
 
@@ -830,6 +830,8 @@ The helper's welcome panel opens with a 35-second film of gogh being used (v0.99
 
 **The phone view survives navigation (v0.99.605).** Press one of your own pages while on the phone and it opens in the editor, still on the phone: the link carries `gogh-edit=1&gogh-phone=1`, the next page reads them at boot and strips them from the address. Other sites, files, wp-admin and anchors on the same page are left alone. Unpublished changes still ask before leaving.
 
+**Publish on the right, in WordPress blue; sizes that won't fit are greyed (v0.99.685).** The status and the **Publish** button now sit at the right of the top bar, last before your account, where editors keep their Publish; the left of the bar says where you are (the site, View site). Publish is WordPress blue, or the colour of your admin colour scheme if you picked one in your profile (Ocean, Coffee and so on), like WordPress's own buttons. While changes wait to go live the words stay plain with an amber dot: waiting is normal, not a warning. On a heading's or paragraph's toolbar, **+** greys out when the next size would push the longest word off the page ("Bigger won't fit"), and the size list greys those sizes out with a note saying why.
+
 **A press on the page puts the drawer away; the picture shelf grows up; big words stay in their box (v0.99.684).** With the Page or Site drawer open, pressing anywhere on the page closes the drawer, zooms the page back to full size around the spot you pressed, and chooses what you pressed, all in one go (a section's own panel, like its background, still stays open). The section background's **Picture or video** shelf now shows two rows: the Upload tile, the picture in use, and the newest pictures. **See all pictures** under it shows the whole library, every shape, with a **Find a picture** search and **Show more**; **Show fewer** goes back. The row that shapes the edge into the next section is now called **Bottom edge** (it was "How it ends"). On the desktop canvas, pieces hidden on phones no longer wear a "Hidden on phones" tag; the phone view shows what is hidden there. And a size too big for a word's box no longer lets the word run out past it: the box widens to hold its longest word, and if even the full page width can't, the size comes down to the biggest that fits, with a note saying so.
 
 **Text sizes read like clothes (v0.99.683).** The size pill on a heading's or paragraph's toolbar now shows a clothing size, **− XL +**: S, M, L, XL, XXL, then 3XL, 4XL and 5XL for the giant sizes. Press it for the list, which spells them out (Small S, Medium M, Large L, Extra large XL, Huge XXL, 3XL, 4XL, 5XL), each drawn at its size, with the size the words start at tagged **default**. A theme with its own size names shows those. (This replaces v0.99.682's numbers: a number looked like something you could type, and you can't.) Also fixed: text given an exact size of its own, by a paste or a hand-drawn site definition such as Misprint's, had both − and + greyed out and a one-line list; now the steps and the list work, and choosing a size replaces the exact one.
@@ -977,11 +979,11 @@ Everything in this section is extracted mechanically from the Gogh source on eve
 
 ## Current release
 
-- Plugin version: **0.99.684**
+- Plugin version: **0.99.685**
 - Requires WordPress **6.5+**, PHP **7.4+**
 - Text domain: `gogh-editor`
 - readme.txt Stable tag: `0.26.0` · Tested up to: `7.0`
-- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.684`). Quote the plugin header version.
+- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.685`). Quote the plugin header version.
 
 ## Design constants
 
@@ -1402,6 +1404,7 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "The look before this one"
 - "Theme default"
 - "Tidy up"
+- "Too big — the longest word would run off the page"
 - "Try another"
 - "Try other font pairs on your page"
 - "Try other fonts"

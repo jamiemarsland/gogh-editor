@@ -1105,7 +1105,19 @@
         var tst = [].filter.call(document.querySelectorAll('.gogh-toast'), function (x) { return /as big as this text goes/.test(x.textContent); });
         expect(tst.length, 'it should say why');
         tst.forEach(function (x) { x.remove(); });
+        // and the bar knows before you press: + greys out, the list greys the rest
+        select(i);
+        var up = q('.gogh-elbar .gogh-eb-fsup');
+        expect(up.disabled && /won\u2019t fit/.test(up.title), '+ should grey out when the next size would not fit: ' + up.disabled + ' ' + up.title);
+        q('.gogh-elbar .gogh-eb-fs').click();
+        var big = document.querySelectorAll('.gogh-panel .gogh-sizeopt.is-toobig');
+        expect(big.length >= 1 && big[0].disabled && /too big/i.test(q('.gogh-panel').textContent), 'the list should grey the sizes that would not fit: ' + big.length);
+        G.closePanel();
+        // a short word at the same size still has room to grow
+        e.text = 'Hi'; G.renderSection(s0); select(i);
+        expect(!q('.gogh-elbar .gogh-eb-fsup').disabled, 'a short word should still be able to grow');
       } finally {
+        G.closePanel();
         e.text = keep.text; e.x = keep.x; e.w = keep.w; e.align = keep.align;
         G.setFontSize(s0, i, keep.fs);
       }
@@ -1171,11 +1183,15 @@
     test('publish chip tracks dirty state', function () {
       var chipEl = q('.gogh-chip');
       expect(chipEl && !chipEl.hidden, 'chip not visible in edit mode');
-      // it lives in the admin bar, right after View site (v0.99.622)
+      // it lives in the admin bar on the RIGHT, last before the account
+      // (v0.99.685; it followed View site from v0.99.622)
       var home = q('#wp-admin-bar-gogh-publish');
       if (q('#wpadminbar')) {
         expect(home && home.contains(chipEl) && !home.hidden, 'the chip is not in the admin bar');
-        expect(home.previousElementSibling && home.previousElementSibling.id === 'wp-admin-bar-gogh-edit', 'the chip should follow View site, follows: ' + (home.previousElementSibling || {}).id);
+        expect(home.nextElementSibling && home.nextElementSibling.id === 'wp-admin-bar-my-account', 'the chip should sit last before the account, before: ' + (home.nextElementSibling || {}).id);
+        expect(home.getBoundingClientRect().left > window.innerWidth / 2, 'the chip should be on the right of the bar');
+        var pb = chipEl.querySelector('.gogh-chip-btn');
+        expect(/rgb\(56, 88, 233\)|var\(/.test(getComputedStyle(pb).backgroundColor) || getComputedStyle(pb).backgroundColor !== 'rgb(234, 176, 56)', 'Publish should wear the admin blue, not yellow: ' + getComputedStyle(pb).backgroundColor);
         expect(chipEl.classList.contains('gogh-chip-bar'), 'the chip does not wear its bar class: ' + chipEl.className);
         expect(!q('.gogh-chip-ar'), 'the \u2726 is still on the chip');
         var plate = q('.gogh-cards-page .gogh-chip-name');

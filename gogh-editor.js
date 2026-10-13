@@ -46,6 +46,8 @@
     return w.charAt(0).toUpperCase() + w.slice(1);
   }
   if (!cfg) return;
+  // Publish wears the user's admin colour scheme, as core's buttons do
+  if (cfg.adminColor) document.documentElement.style.setProperty('--gogh-publish', cfg.adminColor);
 
   var TOL = 8, MIN_H = 576, PAD = 72, SNAP = 6, BASE = 8, W = 1200, RHYTHM = 24, MAJOR = 72;
   // RHYTHM and MAJOR are the vertical rhythm gogh keeps for its OWN gaps: the
@@ -3707,6 +3709,32 @@
     var over = t.scrollWidth - t.clientWidth;
     return over > 1 ? Math.ceil(over / sc) + 6 : 0;
   }
+  // the biggest size (px) this text's longest word can wear and still fit
+  // across the page: a twin of the words at min-content gives the longest
+  // word's width now, and a word's width grows with its size. Measured once
+  // per text, size and width — the bar asks on every placement
+  var wordFitCache = new WeakMap();
+  function wordFitPx(sec, i) {
+    var e = sec.els[i], t = editableTarget(sec, i), sc = measureScaleOf(sec);
+    if (!t || !(sc > 0.2)) return Infinity;
+    var now = drawnPx(sec, i);
+    var key = [e.text || '', now, sec.sectionEl.clientWidth, e.x, e.w, t.className].join('|');
+    var hit = wordFitCache.get(e);
+    if (hit && hit.key === key) return hit.px;
+    var twin = t.cloneNode(true);
+    twin.removeAttribute('contenteditable');
+    twin.removeAttribute('id');
+    twin.setAttribute('aria-hidden', 'true');
+    twin.style.cssText += ';position:absolute !important;left:-99999px !important;top:0 !important;width:min-content !important;max-width:none !important;visibility:hidden !important;grid-area:auto !important;transform:none !important;';
+    (t.parentNode || sec.sectionEl).appendChild(twin);
+    var wordW = twin.offsetWidth;
+    twin.remove();
+    var edge = Math.max(0, Math.min(PAD, e.x, W - (e.x + e.w)));
+    var room = (W - 2 * edge) * sc;
+    var px = wordW > 0 ? now * room / wordW : Infinity;
+    wordFitCache.set(e, { key: key, px: px });
+    return px;
+  }
   // after a size change, a word too wide for its box widens the box (from
   // the side its alignment grows from), never nearer the page edge than the
   // piece already sat or the page margin. If even the full width cannot
@@ -3835,14 +3863,15 @@
   function openSizePanel(sec, i) {
     var e = sec.els[i];
     if (!isText(e)) return;
-    var o = sizeOrder(sec, e), lad = o.slugs, px = o.px;
+    var o = sizeOrder(sec, e), lad = o.slugs, px = o.px, fitPx = wordFitPx(sec, i);
     var lo = Math.min.apply(null, px), hi = Math.max.apply(null, px);
     // on a log scale, so Small, Medium and Large still read apart next to Billboard
     var sample = function (v) { return hi > lo ? Math.round(13 + Math.log(v / lo) / Math.log(hi / lo) * 27) : 18; };
     panel.innerHTML = '<div class="gogh-panel-title">Text size</div>' +
       '<div class="gogh-sizelist" role="listbox" aria-label="Text size">' + lad.map(function (slug, k) {
-        var on = !ownSize(e) && (e.fs || null) === slug;
-        return '<button type="button" role="option" class="gogh-sizeopt' + (on ? ' is-on' : '') + '" aria-selected="' + (on ? 'true' : 'false') + '" data-k="' + k + '">' +
+        var on = !ownSize(e) && (e.fs || null) === slug, big = !on && px[k] > fitPx;
+        return '<button type="button" role="option" class="gogh-sizeopt' + (on ? ' is-on' : '') + (big ? ' is-toobig' : '') + '" aria-selected="' + (on ? 'true' : 'false') + '" data-k="' + k + '"' +
+          (big ? ' disabled title="Too big \u2014 the longest word would run off the page"' : '') + '>' +
           '<span class="gogh-sizeopt-aa" style="font-size:' + sample(px[k]) + 'px">Aa</span>' +
           '<span class="gogh-sizeopt-name">' + esc(o.labels[k].l) +
           (o.labels[k].s !== o.labels[k].l ? ' <span class="gogh-sizeopt-code">' + esc(o.labels[k].s) + '</span>' : '') +
@@ -3850,6 +3879,7 @@
           (on ? '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l5 5 9-10"/></svg>' : '') +
           '</button>';
       }).join('') + '</div>' +
+      (px.some(function (v, k) { return v > fitPx && !(!ownSize(e) && (e.fs || null) === lad[k]); }) ? '<div class="gogh-panel-hint">Greyed sizes are too big: the longest word would run off the page.</div>' : '') +
       (e.fitW ? '<div class="gogh-panel-hint">This text is fitted to its box. Choosing a size lets it wrap again.</div>'
         : ownSize(e) ? '<div class="gogh-panel-hint">This text has a size of its own. Choosing one here replaces it.</div>' : '');
     panel.querySelectorAll('.gogh-sizeopt').forEach(function (b) {
@@ -4562,6 +4592,11 @@
       fsPill.style.display = '';
       fsDown.disabled = own ? nowPx <= so.px[0] + 0.5 : at <= 0;
       fsUp.disabled = own ? nowPx >= so.px[so.px.length - 1] - 0.5 : at >= lad.length - 1;
+      // the next size up would push the longest word off the page: no further
+      var fitPx = wordFitPx(sec, i), nextK = own ? so.px.findIndex(function (v) { return v > nowPx + 0.5; }) : at + 1;
+      var tooBig = !fsUp.disabled && nextK >= 0 && nextK < so.px.length && so.px[nextK] > fitPx;
+      if (tooBig) fsUp.disabled = true;
+      fsUp.title = tooBig ? 'Bigger won\u2019t fit \u2014 the longest word would run off the page' : 'Bigger text';
       paintBtn.style.display = '';
       // corner-drag engages the fit now, so the button's only remaining job
       // is the way BACK — it shows only while a fit is on ("not sure what
@@ -21274,8 +21309,14 @@
   var chipMount = ''; // 'gogh-chip-bar' once it is in the bar, 'gogh-chip-float' otherwise
   function mountChip() {
     if (chipMount) return;
+    // the status and Publish sit on the RIGHT, last before the account,
+    // where every editor keeps its Publish (James: "put all the action stuff
+    // over on the right ... so its easier for folks to discover"). The left
+    // says where you are: the site, View site
+    var acct = document.getElementById('wp-admin-bar-my-account');
     var edit = document.getElementById('wp-admin-bar-gogh-edit');
-    if (edit && edit.parentNode) { chipMount = 'gogh-chip-bar'; edit.parentNode.insertBefore(chipHome, edit.nextSibling); }
+    if (acct && acct.parentNode) { chipMount = 'gogh-chip-bar'; acct.parentNode.insertBefore(chipHome, acct); }
+    else if (edit && edit.parentNode) { chipMount = 'gogh-chip-bar'; edit.parentNode.insertBefore(chipHome, edit.nextSibling); }
     else { chipMount = 'gogh-chip-float'; document.body.appendChild(chip); }
     chip.classList.add(chipMount);
   }
