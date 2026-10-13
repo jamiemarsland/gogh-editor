@@ -6032,6 +6032,40 @@
       e.boxImgId = null;
       reapply();
     });
+    // one tile on the card's picture shelf: hover auditions the picture on
+    // the card, a click keeps it (the panel stays open for mood and shape)
+    var boxCur = { img: e.boxImg || null };
+    var cardUploaded = [];
+    var cardThumb = function (item, mbox) {
+      var url = ((item.media_details || {}).sizes || {}).thumbnail;
+      url = (url && url.source_url) || item.source_url;
+      if (!url) return null;
+      var tb = document.createElement('button');
+      tb.type = 'button';
+      tb.className = 'gogh-thumb';
+      tb.style.backgroundImage = 'url("' + url + '")';
+      tb.title = (item.title && item.title.rendered) || '';
+      auditionHover(tb, function () {
+        e.boxImg = item.source_url;
+        renderSection(sec);
+      }, function () {
+        e.boxImg = boxCur.img;
+        renderSection(sec);
+      });
+      tb.addEventListener('click', function () {
+        e.boxImg = boxCur.img; // undo lands on the true before
+        e.boxImg = boxCur.img = item.source_url;
+        e.boxImgId = item.id;
+        // the picture is one choice among several — the panel stays
+        // open so mood, link and shape can follow (James: "i kinda
+        // want to be able to choose other things e.g effect")
+        reapply();
+        contrastSentinel(sec, i); // the card's new ground judges its words
+        mbox.querySelectorAll('.gogh-thumb').forEach(function (t2) { t2.classList.toggle('is-active', t2 === tb); });
+      });
+      if (e.boxImg && item.source_url === e.boxImg) tb.classList.add('is-active');
+      return tb;
+    };
     // the media box THIS panel drew: a slow library answer must fill only
     // the panel that asked. Read from the shared panel at answer time, a
     // card opened in between got the first card's thumbs, and a pick put
@@ -6044,39 +6078,11 @@
         var mbox = myMbox;
         if (!mbox || panel.hidden || !panel.contains(mbox)) return;
         mbox.innerHTML = '';
-        var boxCur = { img: e.boxImg || null };
-        items.forEach(function (item) {
-          var url = ((item.media_details || {}).sizes || {}).thumbnail;
-          url = (url && url.source_url) || item.source_url;
-          if (!url) return;
-          var tb = document.createElement('button');
-          tb.type = 'button';
-          tb.className = 'gogh-thumb';
-          tb.style.backgroundImage = 'url("' + url + '")';
-          tb.title = (item.title && item.title.rendered) || '';
-          // hover auditions the picture on the card itself; leaving takes
-          // it back, clicking keeps it (auditioning is very gogh)
-          auditionHover(tb, function () {
-            e.boxImg = item.source_url;
-            renderSection(sec);
-          }, function () {
-            e.boxImg = boxCur.img;
-            renderSection(sec);
-          });
-          tb.addEventListener('click', function () {
-            e.boxImg = boxCur.img; // undo lands on the true before
-            e.boxImg = boxCur.img = item.source_url;
-            e.boxImgId = item.id;
-            // the picture is one choice among several — the panel stays
-            // open so mood, link and shape can follow (James: "i kinda
-            // want to be able to choose other things e.g effect")
-            reapply();
-            contrastSentinel(sec, i); // the card's new ground judges its words
-            mbox.querySelectorAll('.gogh-thumb').forEach(function (t2) { t2.classList.toggle('is-active', t2 === tb); });
-          });
-          if (e.boxImg && item.source_url === e.boxImg) tb.classList.add('is-active');
-          mbox.appendChild(tb);
-        });
+        // a picture uploaded while the library was answering leads the shelf
+        var have = {};
+        items.forEach(function (it) { have[it.id] = 1; });
+        items = cardUploaded.filter(function (it) { return !have[it.id]; }).concat(items);
+        items.forEach(function (item) { var tb = cardThumb(item, mbox); if (tb) mbox.appendChild(tb); });
         reclampPanel();
       });
     var bfile = panel.querySelector('.gogh-upload input[type="file"]');
@@ -6095,9 +6101,20 @@
         if (!res.ok) throw new Error('HTTP ' + res.status);
         return res.json();
       }).then(function (item) {
-        e.boxImg = item.source_url;
+        e.boxImg = boxCur.img = item.source_url;
         e.boxImgId = item.id;
         blabel.firstChild.textContent = 'Upload';
+        // the new picture joins the shelf, first and chosen
+        cardUploaded.unshift(item);
+        var mb = panel.querySelector('.gogh-boximg-media');
+        if (mb && panel.contains(blabel)) {
+          var tb = cardThumb(item, mb);
+          if (tb) {
+            mb.querySelectorAll('.gogh-thumb').forEach(function (t2) { t2.classList.remove('is-active'); });
+            tb.classList.add('is-active');
+            mb.insertBefore(tb, mb.firstChild);
+          }
+        }
         reapply(); // stays open — the upload is a choice, not the last word
         contrastSentinel(sec, i);
       }).catch(function (err) {
@@ -14923,8 +14940,19 @@
         return res.json();
       }).then(function (item) {
         tile.classList.remove('is-busy');
-        if (isVideo) setSecVideo(idx, item.source_url, item.id);
-        else setSecBg(idx, item.source_url, item.id);
+        if (isVideo) { setSecVideo(idx, item.source_url, item.id); return; }
+        // the new picture joins the shelf, first and chosen: it used to be
+        // set as the background with no tile to show for it (James: 'when i
+        // add a photo, it doesnt show in the modal')
+        bgUploaded.unshift(item);
+        bgCur.img = item.source_url;
+        var shelf = panel.querySelector('.gogh-media');
+        if (shelf && panel.contains(tile)) {
+          var tb = bgThumb(item);
+          var addT = shelf.querySelector('.gogh-thumb-add');
+          if (addT && addT.nextSibling) shelf.insertBefore(tb, addT.nextSibling); else shelf.appendChild(tb);
+        }
+        setSecBg(idx, item.source_url, item.id);
       }).catch(function (err) {
         tile.classList.remove('is-busy');
         tile.classList.add('is-failed');
@@ -14933,6 +14961,36 @@
       });
       inp.value = ''; // the same file twice in a row still fires
     });
+    // one tile on the shelf: hover auditions the whole backdrop, a click
+    // keeps it, a second click on the chosen one takes it off
+    var bgCur = { img: S[idx].bgImage || null };
+    var bgUploaded = [];
+    var bgThumb = function (item) {
+      var thumb = (item.media_details && item.media_details.sizes &&
+        (item.media_details.sizes.thumbnail || item.media_details.sizes.medium));
+      var b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'gogh-thumb' + (S[idx].bgImage === item.source_url ? ' is-active' : '');
+      b.title = 'Use this picture \u2014 click it again to take it off';
+      b.style.backgroundImage = 'url("' + (thumb ? thumb.source_url : item.source_url) + '")';
+      auditionHover(b, function () {
+        S[idx].bgImage = item.source_url;
+        resolveAndApply(S[idx]);
+      }, function () {
+        S[idx].bgImage = bgCur.img;
+        resolveAndApply(S[idx]);
+      });
+      b.dataset.src = item.source_url;
+      b.addEventListener('click', function () {
+        S[idx].bgImage = bgCur.img; // undo lands on the true before
+        // clicking the one you already chose takes it off again — the
+        // gesture people reach for before they look for a button
+        var off = bgCur.img === item.source_url;
+        bgCur.img = off ? null : item.source_url;
+        setSecBg(idx, off ? null : item.source_url, off ? null : item.id);
+      });
+      return b;
+    };
     // the media box THIS panel drew (see the card picker): a slow answer
     // fills only the panel that asked
     var myMediaBox = panel.querySelector('.gogh-media');
@@ -14952,34 +15010,12 @@
           return d.width >= 700 && d.width >= (d.height || 0) * 0.75;
         }).slice(0, 24);
         items = bgish.length ? bgish : items.slice(0, 24);
-        var bgCur = { img: S[idx].bgImage || null };
-        items.forEach(function (item) {
-          var thumb = (item.media_details && item.media_details.sizes &&
-            (item.media_details.sizes.thumbnail || item.media_details.sizes.medium));
-          var b = document.createElement('button');
-          b.type = 'button';
-          b.className = 'gogh-thumb' + (S[idx].bgImage === item.source_url ? ' is-active' : '');
-          b.title = 'Use this picture \u2014 click it again to take it off';
-          b.style.backgroundImage = 'url("' + (thumb ? thumb.source_url : item.source_url) + '")';
-          // hover auditions the whole backdrop; leaving takes it back
-          auditionHover(b, function () {
-            S[idx].bgImage = item.source_url;
-            resolveAndApply(S[idx]);
-          }, function () {
-            S[idx].bgImage = bgCur.img;
-            resolveAndApply(S[idx]);
-          });
-          b.dataset.src = item.source_url;
-          b.addEventListener('click', function () {
-            S[idx].bgImage = bgCur.img; // undo lands on the true before
-            // clicking the one you already chose takes it off again — the
-            // gesture people reach for before they look for a button
-            var off = bgCur.img === item.source_url;
-            bgCur.img = off ? null : item.source_url;
-            setSecBg(idx, off ? null : item.source_url, off ? null : item.id);
-          });
-          box.appendChild(b);
-        });
+        // a picture uploaded while the library was answering leads the shelf
+        // whatever the filter thinks of its shape
+        var have = {};
+        items.forEach(function (it) { have[it.id] = 1; });
+        items = bgUploaded.filter(function (it) { return !have[it.id]; }).concat(items);
+        items.forEach(function (item) { box.appendChild(bgThumb(item)); });
         reclampPanel();
       });
   }

@@ -811,6 +811,8 @@ The helper's welcome panel opens with a 35-second film of gogh being used (v0.99
 
 **The phone view survives navigation (v0.99.605).** Press one of your own pages while on the phone and it opens in the editor, still on the phone: the link carries `gogh-edit=1&gogh-phone=1`, the next page reads them at boot and strips them from the address. Other sites, files, wp-admin and anchors on the same page are left alone. Unpublished changes still ask before leaving.
 
+**Uploaded pictures show on the shelf (v0.99.675).** Uploading a picture in a section's background panel, or in a card's picture panel, now puts it first on that panel's shelf of pictures, marked as chosen, as well as using it. Before, the picture was used but didn't appear on the shelf until the panel was opened again (and on the section shelf, a tall photo could stay hidden by its 'wide pictures' filter).
+
 **The colour button shows the real colour (v0.99.674).** On a heading's, a paragraph's, a line's or an icon's toolbar, the colour button now shows the colour the words actually are, including the theme's default (black text shows black), instead of a colour wheel when no colour has been picked. The section background's colour chip is now called **Custom colour**.
 
 **Add a page is the last card (v0.99.671–673).** In the Page drawer, **Add a page** is a card like the others but comes last, after Page style and Rearrange sections, so the first cards are about the page you're on. It's always in sight, and also at the bottom of the page switcher's list.

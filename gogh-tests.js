@@ -7466,6 +7466,84 @@
       return 'set, refused a post, restored';
     });
 
+    testAsync('an uploaded picture shows on a card’s picture shelf, first and chosen', async function () {
+      var C = window.GOGH, s0 = sec();
+      var bi = s0.els.findIndex(function (e) { return e.type === 'box'; });
+      var added = false;
+      if (bi === -1) { s0.els.push({ type: 'box', x: 60, y: 40, w: 400, h: 260, radius: 12 }); G.renderSection(s0); bi = s0.els.length - 1; added = true; }
+      var was = { img: s0.els[bi].boxImg || null, id: s0.els[bi].boxImgId || null };
+      var src = (C.pluginUrl || (location.origin + '/wp-content/plugins/gogh/')) + 'demo-assets/arles-2.jpg?upload';
+      var realFetch = window.fetch, posted = 0;
+      window.fetch = function (u, opt) {
+        if (opt && opt.method === 'POST' && String(u) === C.mediaUrl) {
+          posted++;
+          var item = { id: 99902, source_url: src, media_details: { width: 600, height: 1200, sizes: {} }, title: { rendered: 'Upload' } };
+          return Promise.resolve(new Response(JSON.stringify(item), { status: 201, headers: { 'Content-Type': 'application/json' } }));
+        }
+        return realFetch.apply(this, arguments);
+      };
+      try {
+        G.openPanel(s0, bi);
+        await new Promise(function (r) { setTimeout(r, 900); });
+        var inp = q('.gogh-panel .gogh-upload input[type="file"]');
+        if (!inp) return 'this card panel has no upload: nothing to judge';
+        var dt = new DataTransfer();
+        dt.items.add(new File([new Uint8Array([137, 80, 78, 71])], 'card.png', { type: 'image/png' }));
+        inp.files = dt.files;
+        inp.dispatchEvent(new Event('change', { bubbles: true }));
+        await new Promise(function (r) { setTimeout(r, 300); });
+        expect(posted === 1, 'the picture was not uploaded');
+        var first = q('.gogh-panel .gogh-boximg-media .gogh-thumb');
+        expect(first && /arles-2\.jpg\?upload/.test(first.style.backgroundImage) && first.classList.contains('is-active'), 'the upload should lead the card’s shelf, chosen: ' + (first && first.style.backgroundImage));
+        expect(s0.els[bi].boxImg === src, 'the card should wear the upload');
+      } finally {
+        window.fetch = realFetch;
+        G.closePanel();
+        if (added) { s0.els.splice(bi, 1); } else { s0.els[bi].boxImg = was.img; s0.els[bi].boxImgId = was.id; }
+        G.renderSection(s0);
+      }
+      return 'uploaded picture first on the card shelf, chosen, worn';
+    });
+
+    testAsync('an uploaded picture shows on the section background shelf, first and chosen, whatever its shape', async function () {
+      var C = window.GOGH, i = G.sections().findIndex(function (x) { return !x.chrome; }), sx = G.sections()[i];
+      var was = { img: sx.bgImage || null, id: sx.bgId || null };
+      var src = (C.pluginUrl || (location.origin + '/wp-content/plugins/gogh/')) + 'demo-assets/arles-1.jpg';
+      var realFetch = window.fetch, posted = 0;
+      window.fetch = function (u, opt) {
+        if (opt && opt.method === 'POST' && String(u) === C.mediaUrl) {
+          posted++;
+          // a portrait: the shelf's 'wide pictures only' filter would hide it
+          var item = { id: 99901, source_url: src, media_details: { width: 600, height: 1200, sizes: {} }, title: { rendered: 'Upload' } };
+          return Promise.resolve(new Response(JSON.stringify(item), { status: 201, headers: { 'Content-Type': 'application/json' } }));
+        }
+        return realFetch.apply(this, arguments);
+      };
+      try {
+        G.openSecBgPanel(i);
+        await new Promise(function (r) { setTimeout(r, 900); }); // let the library answer first
+        var inp = q('.gogh-panel .gogh-media .gogh-upload input[type="file"]');
+        expect(inp, 'the shelf has no upload tile');
+        var dt = new DataTransfer();
+        dt.items.add(new File([new Uint8Array([137, 80, 78, 71])], 'portrait.png', { type: 'image/png' }));
+        inp.files = dt.files;
+        inp.dispatchEvent(new Event('change', { bubbles: true }));
+        await new Promise(function (r) { setTimeout(r, 300); });
+        expect(posted === 1, 'the picture was not uploaded');
+        var thumbs = [].filter.call(document.querySelectorAll('.gogh-panel .gogh-media .gogh-thumb'), function (t) { return !t.classList.contains('gogh-thumb-add'); });
+        expect(thumbs.length && thumbs[0].dataset.src === src, 'the upload should lead the shelf: ' + (thumbs[0] && thumbs[0].dataset.src));
+        expect(thumbs[0].classList.contains('is-active'), 'the upload should be marked as chosen');
+        expect(G.sections()[i].bgImage === src, 'the section should wear the upload');
+      } finally {
+        window.fetch = realFetch;
+        G.closePanel();
+        sx = G.sections()[i];
+        sx.bgImage = was.img; sx.bgId = was.id;
+        G.renderSection(sx);
+      }
+      return 'uploaded portrait first on the shelf, chosen, worn';
+    });
+
     testAsync('the Make door serves a chat that builds this site (read only: nothing is applied here)', async function () {
       var r = await fetch(location.origin + '/?gogh-make=1&goghcb=' + Date.now(), { credentials: 'same-origin', cache: 'no-store' });
       var html = await r.text();
