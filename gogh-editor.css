@@ -4626,7 +4626,3 @@ html.gogh-history-preview .gogh-wrap .gogh-section { outline: 2px dashed rgba(56
 /* the drawer carried across a page change opens as it was: no slide */
 .gogh-side.gogh-side-instant { transition: none !important; }
 
-/* Add a page: a link under the page switcher, not a card */
-.gogh-addpagelink { all: unset; box-sizing: border-box; cursor: pointer; align-self: flex-start; display: inline-flex; align-items: center; gap: 7px; margin: -6px 0 6px; padding: 6px 4px; border-radius: 8px; font: 600 13.5px/1.2 -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, sans-serif; color: #3858e9; }
-.gogh-addpagelink:hover { text-decoration: underline; text-underline-offset: 3px; }
-.gogh-addpagelink:focus-visible { outline: 2px solid #7ea8ff; outline-offset: 2px; }

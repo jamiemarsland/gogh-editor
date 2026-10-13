@@ -8342,11 +8342,11 @@
       expect(!side.querySelector('.gogh-cards-page').hidden, 'page cards missing in Page mode');
       expect(side.querySelector('.gogh-cards-site').hidden, 'site cards leaked into Page mode');
       expect(side.querySelector('.gogh-cards-page .gogh-pagestylebtn'), 'Page style lost its card');
-      // Add a page: always in sight, as a link right under the page switcher
-      var addLink = side.querySelector('.gogh-cards-page .gogh-addpagebtn');
-      expect(addLink && /Add a page/.test(addLink.textContent) && !addLink.classList.contains('gogh-scard') && addLink.offsetParent !== null, 'Add a page should be a link in sight in the Page drawer');
-      var rowEl = side.querySelector('.gogh-cards-page .gogh-pagerow');
-      expect(!rowEl || rowEl.nextElementSibling === addLink, 'Add a page should sit right under the page switcher');
+      // Add a page: a card like the others, always in sight, and last
+      var cardsP = side.querySelectorAll('.gogh-cards-page .gogh-scard');
+      var addCard = side.querySelector('.gogh-cards-page .gogh-addpagebtn');
+      expect(addCard && addCard.classList.contains('gogh-scard') && /Add a page/.test(addCard.textContent) && addCard.offsetParent !== null, 'Add a page should be a card in sight in the Page drawer');
+      expect(cardsP[cardsP.length - 1] === addCard, 'Add a page should be the last card (the ones above are about this page)');
       expect(side.querySelector('.gogh-cards-page .gogh-rearrange'), 'Rearrange lost its card');
       G.closeSide(true);
       ar.click();

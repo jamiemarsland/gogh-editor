@@ -2745,13 +2745,7 @@
     '<svg class="gogh-scard-chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg></button>' +
     '</div>' +
     '<div class="gogh-side-cards gogh-cards-page">' +
-    // the door three testers went looking for (Tony gave up on "add a
-    // Prices page"): always in sight, but a link under the page switcher,
-    // not a card. The cards below are about THIS page; this one makes
-    // another (James: 'should add a new page be less prominent here?')
-    '<button type="button" class="gogh-addpagebtn gogh-addpagelink">' +
-    '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 8v8M8 12h8"/></svg>' +
-    'Add a page</button>' +
+
     '<button type="button" class="gogh-sitem gogh-scard gogh-pagestylebtn">' +
     '<span class="gogh-scard-ic"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M14 3v6h6"/></svg></span>' +
     '<span class="gogh-scard-tx"><span class="gogh-scard-t">Page style</span><span class="gogh-scard-s">How this page is framed</span></span>' +
@@ -2761,6 +2755,14 @@
     '<span class="gogh-scard-tx"><span class="gogh-scard-t">Rearrange sections</span><span class="gogh-scard-s">Drag the whole page into order</span></span>' +
     '<svg class="gogh-scard-chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg></button>' +
     '<span class="gogh-pagecards-addon" style="display: contents"></span>' +
+    // the door three testers went looking for (Tony gave up on "add a
+    // Prices page"): a card like the others, always in sight, but LAST —
+    // the cards above are about this page; this one makes another
+    // (James: 'in the same style as them')
+    '<button type="button" class="gogh-sitem gogh-scard gogh-addpagebtn">' +
+    '<span class="gogh-scard-ic"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 8v8M8 12h8"/></svg></span>' +
+    '<span class="gogh-scard-tx"><span class="gogh-scard-t">Add a page</span><span class="gogh-scard-s">A new page, ready to fill</span></span>' +
+    '<svg class="gogh-scard-chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg></button>' +
     '</div>' +
     // (the Answer-ready badge lived here once — but the drawer is DESIGN,
     // and answer-readiness is a property of publishing ("its about content
