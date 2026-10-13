@@ -15,7 +15,7 @@ about something where they conflict, rather than picking one silently. Quote UI
 labels and message copy from the appendix, verbatim — those are the current
 strings, and a paraphrased button label is the fastest way to lose a user's trust.
 
-Generated for plugin version 0.99.668 · knowledge base 0ebd00f.
+Generated for plugin version 0.99.669 · knowledge base b57dd62.
 
 ---
 
@@ -830,7 +830,7 @@ The helper's welcome panel opens with a 35-second film of gogh being used (v0.99
 
 **The phone view survives navigation (v0.99.605).** Press one of your own pages while on the phone and it opens in the editor, still on the phone: the link carries `gogh-edit=1&gogh-phone=1`, the next page reads them at boot and strips them from the address. Other sites, files, wp-admin and anchors on the same page are left alone. Unpublished changes still ask before leaving.
 
-**The drawer stays open, Any colour first, Misprint's cards (v0.99.668).** Moving to another page with the drawer open (from the page switcher or a menu link) opens the next page with the same drawer and tab open, so switching pages feels like moving around rather than starting over. In a section's background panel, **Any colour** now comes first in the colour row, with a colour wheel and its name, instead of a + at the end. Misprint's card styles are now six that look different: Plain, **Paper card** (now visibly pinned up, leaning a little one way or the other), **Ink frame** (an ink edge and offset shadow, like the buttons), **Pink ink** (a pink card through the halftone), **Overprint** (for coloured shapes, as before) and **Sticker** (for the yellow circle).
+**The drawer stays open, Any colour first, Misprint's cards (v0.99.668).** Moving to another page with the drawer open (from the page switcher or a menu link) opens the next page with the same drawer and tab open, so switching pages feels like moving around rather than starting over. Since v0.99.669 it doesn't even blink: the next page holds the drawer's place from its very first paint and gogh opens it without the slide. In a section's background panel, **Any colour** now comes first in the colour row, with a colour wheel and its name, instead of a + at the end. Misprint's card styles are now six that look different: Plain, **Paper card** (now visibly pinned up, leaning a little one way or the other), **Ink frame** (an ink edge and offset shadow, like the buttons), **Pink ink** (a pink card through the halftone), **Overprint** (for coloured shapes, as before) and **Sticker** (for the yellow circle).
 
 **A simpler page switcher (v0.99.667).** The page switcher's list is now just your pages: the ones in your menu first, a thin line, then the rest, with a small house beside the home page and drafts marked quietly ("Privacy Policy · draft"), and Add a page at the end. What you can do to the page you're on moved out of the list into a **⋯** button beside the switcher: **Rename** and **Make this the home page**. A page with no name yet still shows the amber **Name it** beside the switcher.
 
@@ -955,11 +955,11 @@ Everything in this section is extracted mechanically from the Gogh source on eve
 
 ## Current release
 
-- Plugin version: **0.99.668**
+- Plugin version: **0.99.669**
 - Requires WordPress **6.5+**, PHP **7.4+**
 - Text domain: `gogh-editor`
 - readme.txt Stable tag: `0.26.0` · Tested up to: `7.0`
-- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.668`). Quote the plugin header version.
+- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.669`). Quote the plugin header version.
 
 ## Design constants
 
@@ -1079,6 +1079,7 @@ Block: `gogh/section` · v3 attributes: `css`, `model`, `scope`, `v`, `cssT`.
 | `body_class` | filter | 10 |
 | `wp_insert_post_empty_content` | filter | 10 |
 | `trashed_post` | action | 10 |
+| `wp_head` | action | 10 |
 | `wp_head` | action | 10 |
 | `enqueue_block_assets` | action | 10 |
 | `init` | action | 10 |

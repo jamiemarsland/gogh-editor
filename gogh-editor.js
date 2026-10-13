@@ -3319,6 +3319,21 @@
       document.documentElement.classList.add('gogh-designmode'); // sections drag to reorder
     }
   }
+  // the drawer as if it had never closed: no slide, no zoom glide
+  function openSideInstant(mode) {
+    side.classList.add('gogh-side-instant');
+    openSide(mode);
+    if (zoomState && zoomState.wrap) {
+      var tr = zoomState.wrap.style.transition;
+      zoomState.wrap.style.transition = 'none';
+      void zoomState.wrap.offsetWidth; // take the zoomed frame now, unanimated
+      requestAnimationFrame(function () { requestAnimationFrame(function () {
+        if (zoomState && zoomState.wrap) zoomState.wrap.style.transition = tr;
+      }); });
+    }
+    void side.offsetWidth;
+    requestAnimationFrame(function () { requestAnimationFrame(function () { side.classList.remove('gogh-side-instant'); }); });
+  }
   function closeSide(now) {
     clearTimeout(sideTimer);
     var doIt = function () {
@@ -20441,6 +20456,7 @@
     fmLand: fmSectionLanded,
     fmReset: fmTeardown,
     openSide: openSide,
+    openSideInstant: openSideInstant,
     closeSide: closeSide,
     fontSizes: fontSizes,
     setFontSize: setFontSize,
@@ -27786,8 +27802,12 @@
         // it opens again, on the tab it was on — unless this page is busy
         // naming itself first
         if ((wantDrawer === 'page' || wantDrawer === 'site') && !willBuild && !pageNeedsName()) {
-          setTimeout(function () { if (window.__gogh && window.__gogh.openSide) window.__gogh.openSide(wantDrawer); }, wantPhone ? 500 : 350);
+          // at once and without the slide: the server held its place at
+          // first paint, so it reads as never having closed
+          if (window.__gogh && window.__gogh.openSideInstant) window.__gogh.openSideInstant(wantDrawer);
         }
+        var hold = document.getElementById('gogh-drawer-hold');
+        if (hold) hold.remove();
       } catch (e3) {}
     }
   });

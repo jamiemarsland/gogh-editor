@@ -4622,3 +4622,6 @@ html.gogh-history-preview .gogh-wrap .gogh-section { outline: 2px dashed rgba(56
 .gogh-pagemenu-st { color: #8a8f99; font-weight: 400; }
 .gogh-pagemenu-it.is-current .gogh-pagemenu-st { color: #6b7cd6; }
 .gogh-pagemenu-sep { height: 1px; background: #eef0f3; margin: 6px 6px; flex: 0 0 auto; }
+
+/* the drawer carried across a page change opens as it was: no slide */
+.gogh-side.gogh-side-instant { transition: none !important; }
