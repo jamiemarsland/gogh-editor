@@ -15,7 +15,7 @@ about something where they conflict, rather than picking one silently. Quote UI
 labels and message copy from the appendix, verbatim — those are the current
 strings, and a paraphrased button label is the fastest way to lose a user's trust.
 
-Generated for plugin version 0.99.661 · knowledge base fcc845e.
+Generated for plugin version 0.99.662 · knowledge base 662af1f.
 
 ---
 
@@ -830,6 +830,8 @@ The helper's welcome panel opens with a 35-second film of gogh being used (v0.99
 
 **The phone view survives navigation (v0.99.605).** Press one of your own pages while on the phone and it opens in the editor, still on the phone: the link carries `gogh-edit=1&gogh-phone=1`, the next page reads them at boot and strips them from the address. Other sites, files, wp-admin and anchors on the same page are left alone. Unpublished changes still ask before leaving.
 
+**History shows the whole page (v0.99.662).** Opening History now zooms the page out beside the panel, the way Site style does, so a version you choose is seen whole instead of with its left side under the panel. It stays zoomed while you switch versions and returns to full size when you restore, go back or close History.
+
 **History: earlier versions of a page (v0.99.661).** In the drawer's foot, after Undo and Redo, a clock icon opens **History**: every version of this page you have published, newest first, in words ("Today, 2:14pm", "Mon 6 Oct, 4:20pm"), the newest marked Live now. Choose one and the page shows it as it was, read only (the sections wear a dashed outline and can't be edited while you look). **Restore this version** keeps it as your unpublished changes, so Publish puts it live and one Undo puts your page back; **Back to my page**, Back, or closing the panel leaves your page exactly as it was. Versions where only the title changed are listed once, and versions from before the page was made with gogh are left out. History brings back gogh's sections; the header, footer and any blocks gogh did not make stay as they are. WordPress keeps a version each time a page is updated (your host may limit how many). Also fixed: the offer to restore unpublished work backed up from an earlier session ("gogh backed up unpublished work") could not read pages saved in gogh's current format, so it never appeared; it does now.
 
 **Blueprint export only in labs (v0.99.660).** The Saved styles page no longer shows "Save to the blueprint" and "Copy as definition", and the save form no longer mentions blueprints: those are for people building gogh blueprints, so they appear only with labs on (add `?gogh-experiments=1` to the editor's address).
@@ -943,11 +945,11 @@ Everything in this section is extracted mechanically from the Gogh source on eve
 
 ## Current release
 
-- Plugin version: **0.99.661**
+- Plugin version: **0.99.662**
 - Requires WordPress **6.5+**, PHP **7.4+**
 - Text domain: `gogh-editor`
 - readme.txt Stable tag: `0.26.0` · Tested up to: `7.0`
-- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.661`). Quote the plugin header version.
+- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.662`). Quote the plugin header version.
 
 ## Design constants
 

@@ -7184,8 +7184,10 @@
         expect(rows.length === 2, 'one row per different published page, no backup, nothing from before gogh: ' + rows.length);
         expect(/^Today, \d{1,2}:\d\d(am|pm)/.test(rows[0].textContent) && /Live now/.test(rows[0].textContent), 'the newest is today and live: ' + rows[0].textContent);
         expect(!/Today|Yesterday/.test(rows[1].textContent) && /, \d{1,2}:\d\d(am|pm)$/.test(rows[1].textContent), 'an older one names its day: ' + rows[1].textContent);
+        expect(G.canvasZoom.on(), 'History should pull the whole page into view beside the panel');
         rows[1].click();
         expect(G.history.viewing() && document.documentElement.classList.contains('gogh-history-preview'), 'choosing a version should show it, read only');
+        expect(G.canvasZoom.on(), 'the page should stay zoomed out while versions change');
         expect(headingNow() === 'An older heading', 'the canvas should show the older words: ' + headingNow());
         expect(q('.gogh-panel .gogh-history-restore') && q('.gogh-panel .gogh-history-now'), 'an older version offers Restore and Back to my page');
         q('.gogh-panel .gogh-history-now').click();
@@ -7193,6 +7195,7 @@
         document.querySelectorAll('.gogh-panel .gogh-history-row')[1].click();
         G.closePanel();
         expect(!G.history.viewing() && headingNow() === t0, 'closing the panel any other way puts the page back too: ' + headingNow());
+        expect(!G.canvasZoom.on(), 'closing History brings the page back to full size');
         await G.history.open();
         document.querySelectorAll('.gogh-panel .gogh-history-row')[1].click();
         q('.gogh-panel .gogh-history-restore').click();

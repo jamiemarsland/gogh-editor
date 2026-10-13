@@ -20219,7 +20219,7 @@
     showGuides: showGuides, hideGuides: hideGuides,
     fillTake: fillTake, composeSiteDef: composeSiteDef,
     zoom: { open: openZoom, close: closeZoom, el: zoomOv },
-    canvasZoom: { out: zoomOutCanvas, back: unzoomCanvas, setDevice: setDevice },
+    canvasZoom: { out: zoomOutCanvas, back: unzoomCanvas, setDevice: setDevice, on: function () { return !!zoomState; } },
     device: { phone: seeOnPhone, desktop: seeOnDesktop, mode: function () { return deviceMode; }, hide: setPhoneHidden, hidden: phoneHiddenOf,
       mediaFlips: function () { return phoneMediaFlips.length; }, mediaAtPhone: mediaAtPhone, linkTarget: phoneLinkTarget,
       menuPinned: function () { return !!menuFollow; } },
@@ -21521,14 +21521,17 @@
     historyView = null;
     document.documentElement.classList.remove('gogh-history-preview');
     historyRestoring = true;
-    try { restoreState(now); } finally { historyRestoring = false; }
+    keepZoomThroughClose = true; // restoreState closes the panel; the page stays zoomed beside it
+    try { restoreState(now); } finally { historyRestoring = false; keepZoomThroughClose = false; }
+    if (zoomState) requestAnimationFrame(layoutZoom);
   }
   function historyShow(item) {
     if (!historyView) historyView = { now: serialize() };
     historyView.id = item.id;
     document.documentElement.classList.add('gogh-history-preview');
     historyRestoring = true;
-    try { restoreState(JSON.stringify(historyWithChrome(item.data))); } finally { historyRestoring = false; }
+    keepZoomThroughClose = true;
+    try { restoreState(JSON.stringify(historyWithChrome(item.data))); } finally { historyRestoring = false; keepZoomThroughClose = false; }
     openHistoryPanel(true);
   }
   function historyRestore(item) {
@@ -21560,6 +21563,10 @@
           '<div class="gogh-looksave-row"><button type="button" class="gogh-btn gogh-btn-small gogh-btn-go gogh-history-restore">Restore this version</button>' +
           '<button type="button" class="gogh-btn gogh-btn-small gogh-history-now">Back to my page</button></div></div>' : '');
       dockSidebar();
+      // the whole page beside the panel, as Site style does: the docked
+      // panel covered its left third (James: 'so folks can see the whole page')
+      zoomOutCanvas();
+      if (zoomState) requestAnimationFrame(layoutZoom);
       panelCleanup = function () { if (!historyRestoring) historyLeave(); };
       panel.querySelector('.gogh-panel-close').addEventListener('click', function () {
         historyLeave();
