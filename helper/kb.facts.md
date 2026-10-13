@@ -22,6 +22,7 @@ Everything in this section is extracted mechanically from the Gogh source on eve
 | `W` | 1200 |
 | `RHYTHM` | 24 |
 | `MAJOR` | 72 |
+| `autosave_interval_ms` | 15000 |
 | `history_cap` | 60 |
 | `mobile_breakpoint_px` | 700 |
 | `min_resize_w` | 60 |

@@ -15,7 +15,7 @@ about something where they conflict, rather than picking one silently. Quote UI
 labels and message copy from the appendix, verbatim — those are the current
 strings, and a paraphrased button label is the fastest way to lose a user's trust.
 
-Generated for plugin version 0.99.663 · knowledge base ba834e6.
+Generated for plugin version 0.99.663 · knowledge base 55e1af7.
 
 ---
 
@@ -965,6 +965,7 @@ Everything in this section is extracted mechanically from the Gogh source on eve
 | `W` | 1200 |
 | `RHYTHM` | 24 |
 | `MAJOR` | 72 |
+| `autosave_interval_ms` | 15000 |
 | `history_cap` | 60 |
 | `mobile_breakpoint_px` | 700 |
 | `min_resize_w` | 60 |

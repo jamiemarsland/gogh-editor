@@ -1,11 +1,5 @@
 # Knowledge-base audit — plugin v0.99.663
 
-## Extractor broken
-
-These anchors stopped matching, so the fact is missing from the appendix entirely. A refactor almost certainly moved the code; fix the anchor in `extract.py`.
-
-- `autosave_interval_ms`
-
 _13 finding(s) suppressed by `kb.audit-ignore.txt`._
 
 ## MISSING (99)
@@ -137,13 +131,3 @@ Quoted copy not found verbatim in the source. Paraphrases are fine; changed UI c
 - From Misprint
 - (max-width: 700px) 100vw, min(100vw, Wpx)
 - (max-width: 700px) 100vw, 53vw
-
-## What changed since the last knowledge-base build
-
-Use this as the checklist for updating the prose — and as a sanity check on the release itself.
-
-- version: 0.99.662 → 0.99.663
-- added UI label: "Add a page"
-- added UI label: "Go, and keep my changes for later"
-- added toast: "You left changes on this page unpublished. Bring them back?"
-- added toast: "Your changes could not be kept for later. Publish them, or stay on "

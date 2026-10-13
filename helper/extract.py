@@ -148,7 +148,7 @@ def constants(js):
     # Anchors are chosen to be distinctive enough that a match is the real thing;
     # a miss shows up as null in the report rather than a wrong number.
     anchors = [
-        ('autosave_interval_ms',   r'setInterval\(function[\s\S]{0,4000}?\n  \},\s*(\d{4,})\s*\)'),
+        ('autosave_interval_ms',   r'setInterval\((?:backupNow|function[\s\S]{0,4000}?\n  \}),\s*(\d{4,})\s*\)'),
         ('history_cap',            r'history\.length\s*>\s*(\d+)'),
         ('mobile_breakpoint_px',   r'@container \(max-width:\s*(\d+)px\)'),
         ('min_resize_w',           r'if \(nw < (\d+)\)'),
