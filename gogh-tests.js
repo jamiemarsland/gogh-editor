@@ -971,6 +971,23 @@
       return 'menu link → its page in the editor (or the question first); hint every time; header room untouched';
     });
 
+    test('the colour button shows the colour the words are, the theme default included', function () {
+      var i = findIdx('para'), s0 = sec(), e = s0.els[i], was = e.color || null;
+      try {
+        e.color = null;
+        G.renderSection(s0);
+        select(i);
+        var chip = q('.gogh-elbar .gogh-eb-col .gogh-eb-colchip');
+        var n = s0.nodes[i], t = n.matches('p,ul,ol') ? n : n.querySelector('p,ul,ol');
+        var want = getComputedStyle(t).color, got = getComputedStyle(chip).backgroundColor;
+        expect(!chip.classList.contains('is-default') && !/gradient/.test(getComputedStyle(chip).backgroundImage), 'no colour wheel for the default colour');
+        expect(got === want, 'the chip should wear the words’ own colour: chip ' + got + ', words ' + want);
+      } finally {
+        e.color = was;
+        G.renderSection(s0);
+      }
+      return 'chip wears ' + getComputedStyle(q('.gogh-elbar .gogh-eb-col .gogh-eb-colchip')).backgroundColor;
+    });
     test('publish chip tracks dirty state', function () {
       var chipEl = q('.gogh-chip');
       expect(chipEl && !chipEl.hidden, 'chip not visible in edit mode');
@@ -8436,8 +8453,8 @@
         'the panel still reaches for the OS colour window');
 
       var chip = q('.gogh-panel .gogh-themechip-any');
-      expect(chip && chip === chip.parentNode.firstElementChild, '"Any colour" should lead the colour row');
-      expect(/Any colour/.test(chip.textContent) && chip.querySelector('.gogh-themechip-plus'), 'the unused chip says Any colour beside a colour wheel: ' + (chip && chip.textContent));
+      expect(chip && chip === chip.parentNode.firstElementChild, '"Custom colour" should lead the colour row');
+      expect(/Custom colour/.test(chip.textContent) && chip.querySelector('.gogh-themechip-plus'), 'the unused chip says Custom colour beside a colour wheel: ' + (chip && chip.textContent));
 
       var textIdx = sx.els.findIndex(function (e) { return e.type === 'heading' || e.type === 'para'; });
       expect(textIdx >= 0, 'fixture section has no words to re-ink');

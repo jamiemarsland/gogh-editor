@@ -4,11 +4,11 @@ Everything in this section is extracted mechanically from the Gogh source on eve
 
 ## Current release
 
-- Plugin version: **0.99.673**
+- Plugin version: **0.99.674**
 - Requires WordPress **6.5+**, PHP **7.4+**
 - Text domain: `gogh-editor`
 - readme.txt Stable tag: `0.26.0` · Tested up to: `7.0`
-- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.673`). Quote the plugin header version.
+- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.674`). Quote the plugin header version.
 
 ## Design constants
 
@@ -243,7 +243,6 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "Align ▾"
 - "All options"
 - "An icon — a simple line drawing in your text colour"
-- "Any colour"
 - "Apply"
 - "As placed"
 - "As typed"
@@ -372,7 +371,7 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "Outline"
 - "Peek at pages"
 - "Phone menu"
-- "Pick any colour for this section"
+- "Pick a custom colour for this section"
 - "Posts"
 - "Products"
 - "Publish"
@@ -574,5 +573,5 @@ These are the real strings in the current build. Use them verbatim; never paraph
 
 ## Test suite
 
-`341` tests, run by appending `?gogh-test` to any Gogh page URL while logged in with edit rights on that page.
+`342` tests, run by appending `?gogh-test` to any Gogh page URL while logged in with edit rights on that page.
 

@@ -15,7 +15,7 @@ about something where they conflict, rather than picking one silently. Quote UI
 labels and message copy from the appendix, verbatim — those are the current
 strings, and a paraphrased button label is the fastest way to lose a user's trust.
 
-Generated for plugin version 0.99.673 · knowledge base 510c1e4.
+Generated for plugin version 0.99.674 · knowledge base e5a39af.
 
 ---
 
@@ -830,9 +830,11 @@ The helper's welcome panel opens with a 35-second film of gogh being used (v0.99
 
 **The phone view survives navigation (v0.99.605).** Press one of your own pages while on the phone and it opens in the editor, still on the phone: the link carries `gogh-edit=1&gogh-phone=1`, the next page reads them at boot and strips them from the address. Other sites, files, wp-admin and anchors on the same page are left alone. Unpublished changes still ask before leaving.
 
+**The colour button shows the real colour (v0.99.674).** On a heading's, a paragraph's, a line's or an icon's toolbar, the colour button now shows the colour the words actually are, including the theme's default (black text shows black), instead of a colour wheel when no colour has been picked. The section background's colour chip is now called **Custom colour**.
+
 **Add a page is the last card (v0.99.671–673).** In the Page drawer, **Add a page** is a card like the others but comes last, after Page style and Rearrange sections, so the first cards are about the page you're on. It's always in sight, and also at the bottom of the page switcher's list.
 
-**The drawer stays open, Any colour first, Misprint's cards (v0.99.668).** Moving to another page with the drawer open (from the page switcher or a menu link) opens the next page with the same drawer and tab open, so switching pages feels like moving around rather than starting over. Since v0.99.669–672 nothing blinks or jumps: the next page shows the drawer exactly as you left it (with the new page's name) and the page already zoomed out beside it from its very first paint, and gogh takes over without a slide or a snap. In a section's background panel, **Any colour** now comes first in the colour row, with a colour wheel and its name, instead of a + at the end. Misprint's card styles are now six that look different: Plain, **Paper card** (now visibly pinned up, leaning a little one way or the other), **Ink frame** (an ink edge and offset shadow, like the buttons), **Pink ink** (a pink card through the halftone), **Overprint** (for coloured shapes, as before) and **Sticker** (for the yellow circle).
+**The drawer stays open, Any colour first, Misprint's cards (v0.99.668).** Moving to another page with the drawer open (from the page switcher or a menu link) opens the next page with the same drawer and tab open, so switching pages feels like moving around rather than starting over. Since v0.99.669–672 nothing blinks or jumps: the next page shows the drawer exactly as you left it (with the new page's name) and the page already zoomed out beside it from its very first paint, and gogh takes over without a slide or a snap. In a section's background panel, **Custom colour** (called Any colour until v0.99.674) now comes first in the colour row, with a colour wheel and its name, instead of a + at the end. Misprint's card styles are now six that look different: Plain, **Paper card** (now visibly pinned up, leaning a little one way or the other), **Ink frame** (an ink edge and offset shadow, like the buttons), **Pink ink** (a pink card through the halftone), **Overprint** (for coloured shapes, as before) and **Sticker** (for the yellow circle).
 
 **A simpler page switcher (v0.99.667).** The page switcher's list is now just your pages: the ones in your menu first, a thin line, then the rest, with a small house beside the home page and drafts marked quietly ("Privacy Policy · draft"), and Add a page at the end. What you can do to the page you're on moved out of the list into a **⋯** button beside the switcher: **Rename** and **Make this the home page**. A page with no name yet still shows the amber **Name it** beside the switcher.
 
@@ -957,11 +959,11 @@ Everything in this section is extracted mechanically from the Gogh source on eve
 
 ## Current release
 
-- Plugin version: **0.99.673**
+- Plugin version: **0.99.674**
 - Requires WordPress **6.5+**, PHP **7.4+**
 - Text domain: `gogh-editor`
 - readme.txt Stable tag: `0.26.0` · Tested up to: `7.0`
-- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.673`). Quote the plugin header version.
+- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.674`). Quote the plugin header version.
 
 ## Design constants
 
@@ -1196,7 +1198,6 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "Align ▾"
 - "All options"
 - "An icon — a simple line drawing in your text colour"
-- "Any colour"
 - "Apply"
 - "As placed"
 - "As typed"
@@ -1325,7 +1326,7 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "Outline"
 - "Peek at pages"
 - "Phone menu"
-- "Pick any colour for this section"
+- "Pick a custom colour for this section"
 - "Posts"
 - "Products"
 - "Publish"
@@ -1527,4 +1528,4 @@ These are the real strings in the current build. Use them verbatim; never paraph
 
 ## Test suite
 
-`341` tests, run by appending `?gogh-test` to any Gogh page URL while logged in with edit rights on that page.
+`342` tests, run by appending `?gogh-test` to any Gogh page URL while logged in with edit rights on that page.

@@ -3524,6 +3524,21 @@
   var lnkBtn = elbar.querySelector('.gogh-eb-lnk');
   var paintBtn = elbar.querySelector('.gogh-eb-paint');
   var colChip = colBtn.querySelector('.gogh-eb-colchip');
+  // the chip wears the colour the words ARE, theme default included: a
+  // colour wheel for 'not set' read as 'no colour' (James: 'if the default
+  // text is black, it should be black'). Read off the page, so a style's
+  // ink, a section's ink and the theme's all show truthfully
+  function dressColChip(e, node) {
+    colChip.classList.remove('is-default');
+    if (e.color) { colChip.style.background = 'var(--wp--preset--color--' + e.color + ')'; return; }
+    var c = '';
+    try {
+      var t = node && (node.matches('h1,h2,h3,h4,h5,h6,p,ul,ol') ? node : node.querySelector('h1,h2,h3,h4,h5,h6,p,ul,ol,svg,hr')) || node;
+      var cs = t ? getComputedStyle(t) : null;
+      c = cs ? (e.type === 'rule' && cs.backgroundColor && !/rgba\(0, 0, 0, 0\)|transparent/.test(cs.backgroundColor) ? cs.backgroundColor : cs.color) : '';
+    } catch (err) {}
+    colChip.style.background = c || 'currentColor';
+  }
   var CTX_ICONS = {
     embed: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M16 18l6-6-6-6M8 6l-6 6 6 6"/></svg>',
     icon: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round"><path d="M12 3l2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 16.4 6.8 19.1l1-5.8-4.3-4.1 5.9-.9z"/></svg>',
@@ -4317,8 +4332,7 @@
       alBtn.style.display = '';
       lnkBtn.innerHTML = CTX_ICONS.link;
       lnkBtn.style.display = '';
-      colChip.style.background = e.color ? 'var(--wp--preset--color--' + e.color + ')' : 'transparent';
-      colChip.classList.toggle('is-default', !e.color);
+      dressColChip(e, node);
       colBtn.style.display = '';
       // bullets are a paragraph's choice, not a heading's
       lstBtn.style.display = e.type === 'para' ? '' : 'none';
@@ -4330,8 +4344,7 @@
       alBtn.style.display = 'none';
       lnkBtn.style.display = 'none';
       lstBtn.style.display = 'none';
-      colChip.style.background = e.color ? 'var(--wp--preset--color--' + e.color + ')' : 'transparent';
-      colChip.classList.toggle('is-default', !e.color);
+      dressColChip(e, node);
       colBtn.style.display = '';
     } else {
       alBtn.style.display = 'none';
@@ -5920,7 +5933,7 @@
       }).join('') +
       // any colour at all, beside the palette (James: "i dont see an option
       // to choose a custom color for cards")
-      '<label class="gogh-sw gogh-sw-pick' + (/^#/.test(e.boxBg || '') ? ' is-active' : '') + '" title="Any colour"><input type="color" class="gogh-boxcustom" value="' + escAttr(/^#[0-9a-fA-F]{6}$/.test(e.boxBg || '') ? e.boxBg : '#1c1c22') + '"></label>' +
+      '<label class="gogh-sw gogh-sw-pick' + (/^#/.test(e.boxBg || '') ? ' is-active' : '') + '" title="Custom colour"><input type="color" class="gogh-boxcustom" value="' + escAttr(/^#[0-9a-fA-F]{6}$/.test(e.boxBg || '') ? e.boxBg : '#1c1c22') + '"></label>' +
       '</div>' +
       '<div class="gogh-swlab">Image</div>' +
       '<div class="gogh-panel-row">' +
@@ -14566,11 +14579,11 @@
       // look for, and a dashed + at the end of the row read as 'add a
       // theme' (James: 'a better way to sign post folks to any color').
       // It mints a THEME: a background and an ink chosen to read on it
-      '<button type="button" class="gogh-themechip gogh-themechip-any' + (secx.theme === 'any' ? ' is-active' : '') + '" title="Pick any colour for this section">' +
+      '<button type="button" class="gogh-themechip gogh-themechip-any' + (secx.theme === 'any' ? ' is-active' : '') + '" title="Pick a custom colour for this section">' +
       (secx.theme === 'any' && secx.bg
         ? '<span class="gogh-themechip-swatch" style="background:' + escAttr(secx.bg) + ';color:var(--wp--preset--color--' + bestInkFor(secx.bg) + ')">Aa</span>'
         : '<span class="gogh-themechip-swatch gogh-themechip-plus gogh-themechip-wheel" aria-hidden="true"></span>') +
-      '<span class="gogh-themechip-anylab">Any colour</span>' +
+      '<span class="gogh-themechip-anylab">Custom colour</span>' +
       '</button>' +
       sectionThemes().map(function (t) {
         return '<button type="button" class="gogh-themechip' + (secx.theme === t.slug ? ' is-active' : '') + '" data-theme="' + t.slug + '" title="' + escAttr(t.name) + '">' +
@@ -14791,7 +14804,7 @@
     // instead of being reported afterwards by the sentinel.
     var anyChip = panel.querySelector('.gogh-themechip-any');
     var popBox = panel.querySelector('.gogh-colorpop');
-    var anyTheme = function (hex) { return { slug: 'any', name: 'Any colour', bg: hex, ink: bestInkFor(hex) }; };
+    var anyTheme = function (hex) { return { slug: 'any', name: 'Custom colour', bg: hex, ink: bestInkFor(hex) }; };
     if (anyChip && popBox) anyChip.addEventListener('click', function () {
       if (!popBox.hidden) { popBox.hidden = true; popBox.innerHTML = ''; return; }
       var snap = snapSectionLook(secx);

@@ -1,12 +1,12 @@
 {
   "meta": {
-    "plugin_version": "0.99.673",
+    "plugin_version": "0.99.674",
     "requires_wp": "6.5",
     "requires_php": "7.4",
     "text_domain": "gogh-editor",
     "readme_stable_tag": "0.26.0",
     "readme_tested_up_to": "7.0",
-    "asset_version": "0.99.673-chrome"
+    "asset_version": "0.99.674-chrome"
   },
   "constants": {
     "TOL": 8,
@@ -457,7 +457,6 @@
     "Align ▾",
     "All options",
     "An icon — a simple line drawing in your text colour",
-    "Any colour",
     "Apply",
     "As placed",
     "As typed",
@@ -586,7 +585,7 @@
     "Outline",
     "Peek at pages",
     "Phone menu",
-    "Pick any colour for this section",
+    "Pick a custom colour for this section",
     "Posts",
     "Products",
     "Publish",
@@ -1493,5 +1492,5 @@
     "has_deprecation": true,
     "block_title": "gogh Section"
   },
-  "test_count": 341
+  "test_count": 342
 }
