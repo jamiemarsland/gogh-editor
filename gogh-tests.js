@@ -922,6 +922,58 @@
       e.align = a0;
     });
 
+    test('a menu link while editing opens its page in the editor, says so on hover, and the rest of the header still opens the header', function () {
+      var trips = [], unwatch = G.nav.watch(function (u) { trips.push(u); });
+      var usedWas = null;
+      try { usedWas = localStorage.getItem('gogh-navhint-used'); localStorage.removeItem('gogh-navhint-used'); } catch (e) {}
+      try {
+        var u1 = G.nav.urlFor('/sample-page/');
+        expect(u1 && /gogh-edit=1/.test(u1) && /\/sample-page\//.test(u1) && !/gogh-phone/.test(u1), 'an own page opens in the editor: ' + u1);
+        expect(!G.nav.urlFor('https://wordpress.org/'), 'another site is left alone');
+        expect(!G.nav.urlFor('/wp-admin/edit.php'), 'wp-admin is left alone');
+        expect(/gogh-phone=1/.test(G.nav.urlFor('/sample-page/', true)), 'on the phone the phone comes along');
+        var head = document.querySelector('header.wp-block-template-part');
+        var veil = head && head.querySelector('.gogh-chromeveil');
+        if (!veil) return 'no veiled header on this theme: nothing to judge';
+        var link = [].filter.call(head.querySelectorAll('a[href]'), function (a) {
+          if (a.closest('.gogh-chromeveil')) return false;
+          var r = a.getBoundingClientRect();
+          return r.width > 0 && r.height > 0 && G.nav.urlFor(a.getAttribute('href')) && a.pathname.replace(/\/+$/, '') !== location.pathname.replace(/\/+$/, '');
+        })[0];
+        if (!link) return 'no link to another page in the header: nothing to judge';
+        link.scrollIntoView({ block: 'center' });
+        var r = link.getBoundingClientRect(), x = r.left + r.width / 2, y = r.top + r.height / 2;
+        veil.dispatchEvent(new MouseEvent('mousemove', { bubbles: true, clientX: x, clientY: y }));
+        var hint = q('.gogh-navhint');
+        expect(hint && !hint.hidden && /Go to/.test(hint.textContent) && /keep editing/.test(hint.textContent), 'hovering a menu link says where it goes: ' + (hint && hint.textContent));
+        // a trip, or (with unpublished changes on the page) the question
+        // that comes before one, naming the page it leads to
+        var trip = function () {
+          veil.dispatchEvent(new MouseEvent('click', { bubbles: true, clientX: x, clientY: y }));
+          var lp = q('.gogh-leave');
+          if (lp && !lp.hidden) {
+            var asked = lp.querySelector('.gogh-exit-title').textContent;
+            lp.hidden = true;
+            return /^Go to /.test(asked) ? 'asked' : 'asked wrong: ' + asked;
+          }
+          return trips.length ? 'went' : 'nothing';
+        };
+        var first = trip();
+        expect(first === 'asked' || (first === 'went' && /gogh-edit=1/.test(trips[0]) && trips[0].indexOf(link.pathname) !== -1), 'clicking it goes to that page, still editing: ' + first + ' ' + trips.join(' '));
+        expect(head.querySelector('.gogh-chromeveil'), 'a menu link does not open the header room');
+        // the second trip is the last with a hint; after that it stays quiet
+        trip();
+        veil.dispatchEvent(new MouseEvent('mousemove', { bubbles: true, clientX: x, clientY: y }));
+        expect(q('.gogh-navhint').hidden, 'after two trips the hint stays quiet');
+      } finally {
+        unwatch();
+        try { if (usedWas == null) localStorage.removeItem('gogh-navhint-used'); else localStorage.setItem('gogh-navhint-used', usedWas); } catch (e) {}
+        var h2 = q('.gogh-navhint'); if (h2) h2.hidden = true;
+        var lp2 = q('.gogh-leave'); if (lp2) lp2.hidden = true;
+      }
+      return 'menu link → its page in the editor (or the question first); hint twice; header room untouched';
+    });
+
     test('publish chip tracks dirty state', function () {
       var chipEl = q('.gogh-chip');
       expect(chipEl && !chipEl.hidden, 'chip not visible in edit mode');
@@ -7211,6 +7263,83 @@
       return 'two versions in words, preview read only, back on leave, restore + undo';
     });
 
+    testAsync('leaving a page with unpublished changes asks: publish then go, keep for later, or stay', async function () {
+      var trips = [], unwatch = G.nav.watch(function (u) { trips.push(u); });
+      var i = findIdx('badge'), s0 = sec(), x0 = s0.els[i].x;
+      var lp = null;
+      try {
+        s0.els[i].x = x0 + 8;
+        G.renderSection(s0);
+        G.pushState();
+        expect(G.isDirty(), 'the page should have unpublished changes for this test');
+        G.nav.go(G.nav.urlFor('/sample-page/'), 'Sample Page');
+        lp = q('.gogh-leave');
+        expect(lp && !lp.hidden && trips.length === 0, 'with unpublished changes gogh asks before going');
+        expect(/^Go to Sample Page\?$/.test(lp.querySelector('.gogh-exit-title').textContent), 'it names where you are going: ' + lp.querySelector('.gogh-exit-title').textContent);
+        expect(/, then go$/.test(lp.querySelector('.gogh-leave-pub').textContent) && /keep my changes for later/.test(lp.querySelector('.gogh-leave-keep').textContent) && /^Stay on /.test(lp.querySelector('.gogh-leave-stay').textContent),
+          'three plain choices: publish then go, keep for later, stay');
+        lp.querySelector('.gogh-leave-stay').click();
+        expect(lp.hidden && trips.length === 0 && G.isDirty(), 'Stay keeps you here with your changes');
+        // the suite never backs up (the fixture is wrecked on purpose), so
+        // keeping fails here, and failing must not leave the page
+        G.nav.go(G.nav.urlFor('/sample-page/'), 'Sample Page');
+        lp.querySelector('.gogh-leave-keep').click();
+        await new Promise(function (r) { setTimeout(r, 80); });
+        expect(trips.length === 0 && !lp.hidden, 'if the changes could not be kept, gogh stays: ' + trips.join(' '));
+        expect(!lp.querySelector('.gogh-leave-keep').disabled, 'and the choice can be made again');
+      } finally {
+        if (lp) lp.hidden = true;
+        unwatch();
+        s0.els[i].x = x0;
+        G.renderSection(s0);
+        G.pushState();
+        [].slice.call(document.querySelectorAll('.gogh-toast')).forEach(function (t) { t.remove(); });
+      }
+      return 'asked, stayed, and a failed keep never left the page';
+    });
+
+    testAsync('the page switcher lists every page, the menu’s first, Home marked, and opens one in the editor', async function () {
+      var C = window.GOGH, wasFront = C.frontId, trips = [], unwatch = G.nav.watch(function (u) { trips.push(u); });
+      var o = location.origin;
+      var here = location.pathname;
+      G.nav.setPages([
+        { id: C.postId, name: C.postTitle || 'This page', link: o + here, status: 'publish' },
+        { id: 99991, name: 'Sample Page', link: o + '/sample-page/', status: 'publish' },
+        { id: 99992, name: 'Zine library', link: o + '/?page_id=99992', status: 'draft' },
+        { id: 99993, name: 'Front', link: o + '/front-test/', status: 'publish' },
+      ]);
+      C.frontId = 99993;
+      try {
+        var sw = q('.gogh-pagerow .gogh-pageswitch');
+        expect(sw && /^Editing/.test(sw.textContent), 'the Page drawer should open with “Editing <page> ▾”: ' + (sw && sw.textContent));
+        expect(q('.gogh-pagerow .gogh-chip-name'), 'Rename stays beside it');
+        G.nav.openPages();
+        await new Promise(function (r) { setTimeout(r, 50); });
+        var menu = q('.gogh-pagemenu');
+        expect(menu && !menu.hidden, 'the switcher opens its list');
+        var labs = [].map.call(menu.querySelectorAll('.gogh-pagemenu-lab'), function (l) { return l.textContent; });
+        var names = [].map.call(menu.querySelectorAll('.gogh-pagemenu-it'), function (b) { return b.querySelector('.gogh-pagemenu-name').textContent; });
+        var headLinks = [].map.call(document.querySelectorAll('header.wp-block-template-part a[href]'), function (a) { return a.pathname.replace(/\/+$/, ''); });
+        if (headLinks.indexOf('/sample-page') !== -1) {
+          expect(labs[0] === 'In your menu' && names.indexOf('Sample Page') < names.indexOf('Zine library'), 'pages in the menu come first: ' + labs.join(',') + ' / ' + names.join(','));
+        }
+        var cur = menu.querySelector('.gogh-pagemenu-it.is-current');
+        expect(cur && +cur.dataset.id === +C.postId, 'this page is marked as the one being edited');
+        expect(/Home page/.test(menu.querySelector('[data-id="99993"]').textContent), 'the home page says so');
+        expect(/Draft/.test(menu.querySelector('[data-id="99992"]').textContent), 'a draft says so');
+        expect(menu.querySelector('.gogh-pagemenu-add'), 'Add a page sits at the end');
+        menu.querySelector('[data-id="99991"]').click();
+        expect(menu.hidden, 'choosing a page closes the list');
+        expect(trips.length === 1 && /\/sample-page\//.test(trips[0]) && /gogh-edit=1/.test(trips[0]), 'choosing a page opens it in the editor: ' + trips.join(' '));
+      } finally {
+        unwatch();
+        G.nav.closePages();
+        G.nav.setPages(null);
+        C.frontId = wasFront;
+      }
+      return 'menu first, current and Home marked, draft labelled, Sample Page opened in the editor';
+    });
+
     testAsync('the Make door serves a chat that builds this site (read only: nothing is applied here)', async function () {
       var r = await fetch(location.origin + '/?gogh-make=1&goghcb=' + Date.now(), { credentials: 'same-origin', cache: 'no-store' });
       var html = await r.text();
@@ -8747,7 +8876,7 @@
         var refresh = window.__gogh; // refreshChip runs on pushState
         G.pushState();
         plate = q('.gogh-chip-name');
-        expect(/name it/.test(plate.textContent), 'the unnamed page is not invited to a name');
+        expect(/name it/i.test(plate.textContent), 'the unnamed page is not invited to a name');
         expect(plate.classList.contains('is-unnamed'), 'the invitation does not wear its amber');
         plate.click();
         var goBtn = q('.gogh-panel .gogh-pagego');

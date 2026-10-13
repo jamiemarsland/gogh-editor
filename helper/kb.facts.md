@@ -4,11 +4,11 @@ Everything in this section is extracted mechanically from the Gogh source on eve
 
 ## Current release
 
-- Plugin version: **0.99.662**
+- Plugin version: **0.99.663**
 - Requires WordPress **6.5+**, PHP **7.4+**
 - Text domain: `gogh-editor`
 - readme.txt Stable tag: `0.26.0` · Tested up to: `7.0`
-- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.662`). Quote the plugin header version.
+- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.663`). Quote the plugin header version.
 
 ## Design constants
 
@@ -22,7 +22,6 @@ Everything in this section is extracted mechanically from the Gogh source on eve
 | `W` | 1200 |
 | `RHYTHM` | 24 |
 | `MAJOR` | 72 |
-| `autosave_interval_ms` | 15000 |
 | `history_cap` | 60 |
 | `mobile_breakpoint_px` | 700 |
 | `min_resize_w` | 60 |
@@ -229,6 +228,7 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "Aa"
 - "Add"
 - "Add a category ↗"
+- "Add a page"
 - "Add a page to this menu"
 - "Add a picture or video"
 - "Add a product ↗"
@@ -307,6 +307,7 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "Full width"
 - "Get in touch"
 - "Go"
+- "Go, and keep my changes for later"
 - "Grid: show and snap"
 - "Heading"
 - "Headings"
@@ -533,6 +534,8 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "Upload failed — .html uploads need admin rights."
 - "Uploading experience…"
 - "Wrapped — the words flow around it now. Click the image to adjust."
+- "You left changes on this page unpublished. Bring them back?"
+- "Your changes could not be kept for later. Publish them, or stay on "
 - "Your site is now called “"
 - "gogh backed up unpublished work from an earlier session."
 - "gogh can’t safely swap this image."
@@ -564,5 +567,5 @@ These are the real strings in the current build. Use them verbatim; never paraph
 
 ## Test suite
 
-`339` tests, run by appending `?gogh-test` to any Gogh page URL while logged in with edit rights on that page.
+`340` tests, run by appending `?gogh-test` to any Gogh page URL while logged in with edit rights on that page.
 

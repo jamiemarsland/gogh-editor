@@ -3045,9 +3045,7 @@
     if (!target) return;
     ev.preventDefault();
     ev.stopPropagation();
-    if (typeof isDirty === 'function' && isDirty() && !window.confirm('You have unpublished changes. Leave this page?')) return;
-    discarding = true;
-    location.href = target;
+    goToPage(target, a.textContent);
   }, true);
   function seeOnPhone() {
     if (deviceMode === 'phone' || cfg.writeUrl) return;
@@ -4574,6 +4572,27 @@
   // page — hover says what they are, one click wakes them for editing.
   // Accidental nav-drags die here, and editability announces itself.
   var chromeVeils = [];
+  // the hint on a menu link while editing: where it goes, and that editing
+  // comes along. Two trips and people know; after that it stays quiet
+  var navHint = null;
+  function navHintUses() { try { return +(localStorage.getItem('gogh-navhint-used') || 0); } catch (e) { return 0; } }
+  function navHintUsed() { try { localStorage.setItem('gogh-navhint-used', String(navHintUses() + 1)); } catch (e) {} }
+  function showNavHint(hit) {
+    if (!hit || navHintUses() >= 2) { if (navHint) navHint.hidden = true; return; }
+    if (!navHint) {
+      navHint = document.createElement('div');
+      navHint.className = 'gogh-navhint';
+      navHint.setAttribute('role', 'tooltip');
+      document.body.appendChild(navHint);
+    }
+    navHint.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14"/><path d="M13 6l6 6-6 6"/></svg>' +
+      '<span><b>Go to ' + esc(hit.name || 'this page') + '</b> \u00b7 you\u2019ll keep editing</span>';
+    navHint.hidden = false;
+    var r = hit.a.getBoundingClientRect();
+    var w = navHint.offsetWidth;
+    navHint.style.left = Math.max(8, Math.min(window.innerWidth - w - 8, r.left + r.width / 2 - w / 2)) + 'px';
+    navHint.style.top = (r.bottom + 10) + 'px';
+  }
   function veilChromeArea(area) {
     var pe = partElForArea(area);
     if (!pe || pe.querySelector('.gogh-chromeveil')) return;
@@ -4584,7 +4603,33 @@
     b.className = 'gogh-chromeveil-pill';
     b.innerHTML = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>Edit ' + area;
     v.appendChild(b);
-    v.addEventListener('click', function () {
+    // a menu link under the veil is a way to another page, not a way into
+    // the header room: it opens that page, still editing (and says so)
+    var linkAt = function (x, y) {
+      var was = v.style.pointerEvents;
+      v.style.pointerEvents = 'none';
+      var hit = document.elementFromPoint(x, y);
+      v.style.pointerEvents = was;
+      var a = hit && hit.closest ? hit.closest('a[href]') : null;
+      if (!a || !pe.contains(a) || a.closest('.gogh-chromeveil')) return null;
+      var url = editUrlFor(a.getAttribute('href'), deviceMode === 'phone');
+      if (!url || samePage(a.href)) return null;
+      return { a: a, url: url, name: a.textContent.replace(/\s+/g, ' ').trim() };
+    };
+    v.addEventListener('mousemove', function (ev) {
+      var hit = linkAt(ev.clientX, ev.clientY);
+      v.classList.toggle('is-on-link', !!hit);
+      showNavHint(hit);
+    });
+    v.addEventListener('mouseleave', function () { v.classList.remove('is-on-link'); showNavHint(null); });
+    v.addEventListener('click', function (ev) {
+      var hit = ev.target === b ? null : linkAt(ev.clientX, ev.clientY);
+      if (hit) {
+        showNavHint(null);
+        navHintUsed();
+        goToPage(hit.url, hit.name);
+        return;
+      }
       v.remove();
       wakeChrome(pe, area);
       // straight to the panel — the "Change header layout" pill was a
@@ -20213,6 +20258,8 @@
     }, 900);
   }
   window.__gogh = {
+    nav: { go: goToPage, urlFor: editUrlFor, openPages: openPageMenu, closePages: closePageMenu, backup: backupNow, setPages: function (l) { pageList = l; },
+      watch: function (fn) { var was = goTo; goTo = fn; return function () { goTo = was; discarding = false; }; } },
     history: { open: openHistoryPanel, leave: historyLeave, viewing: function () { return historyView; }, when: historyWhen },
     explode: { enter: enterExplode, exit: exitExplode, state: function () { return explodeSt; } },
     multi: { set: setMulti, clear: clearMulti, state: function () { return multiSel; } },
@@ -20792,18 +20839,145 @@
   chipName.type = 'button';
   chipName.className = 'gogh-chip-name';
   chipName.hidden = true;
+  // the page switcher: 'Editing Workshops ▾' opens every page of the site,
+  // the menu's first, Home marked; choosing one opens it in the editor.
+  // The name beside it stays the way to rename this page
+  var pageSwitch = document.createElement('button');
+  pageSwitch.type = 'button';
+  pageSwitch.className = 'gogh-pageswitch';
+  pageSwitch.setAttribute('aria-haspopup', 'listbox');
+  pageSwitch.setAttribute('aria-expanded', 'false');
+  var pageRow = document.createElement('div');
+  pageRow.className = 'gogh-pagerow';
+  pageRow.appendChild(pageSwitch);
+  pageRow.appendChild(chipName);
   var pageCards = side.querySelector('.gogh-cards-page');
-  if (pageCards) pageCards.insertBefore(chipName, pageCards.firstChild); else document.body.appendChild(chipName);
+  if (pageCards) pageCards.insertBefore(pageRow, pageCards.firstChild); else document.body.appendChild(pageRow);
+  pageSwitch.addEventListener('click', function () { if (pageMenu && !pageMenu.hidden) closePageMenu(); else openPageMenu(); });
   var chipTxt = chip.querySelector('.gogh-chip-txt');
   var chipBtn = chip.querySelector('.gogh-chip-btn');
   chipName.addEventListener('click', function () { openPageNamePanel('rename'); });
   function refreshChipName() {
-    if (cfg.postType !== 'page') { chipName.hidden = true; return; }
     var t = String(cfg.postTitle || '').trim();
-    chipName.textContent = t || 'Untitled page — name it';
+    pageSwitch.innerHTML = '<span class="gogh-pageswitch-lab">Editing</span><span class="gogh-pageswitch-name">' + esc(t || (cfg.postType === 'page' ? 'Untitled page' : 'this post')) + '</span>' +
+      '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>';
+    pageSwitch.title = 'Switch to another page';
+    if (cfg.postType !== 'page') { chipName.hidden = true; return; }
+    chipName.textContent = t ? 'Rename' : 'Name it';
     chipName.classList.toggle('is-unnamed', !t);
     chipName.title = t ? 'Rename this page' : 'Give this page its name';
     chipName.hidden = false;
+  }
+  var pageMenu = null, pageList = null;
+  function closePageMenu() {
+    if (!pageMenu) return;
+    pageMenu.hidden = true;
+    pageSwitch.setAttribute('aria-expanded', 'false');
+    document.removeEventListener('pointerdown', pageMenuAway, true);
+  }
+  function pageMenuAway(ev) {
+    if (pageMenu && !pageMenu.contains(ev.target) && !pageSwitch.contains(ev.target)) closePageMenu();
+  }
+  function fetchPageList() {
+    if (pageList) return Promise.resolve(pageList);
+    if (!cfg.canPages) return Promise.resolve([]);
+    return fetch(restQ(GSROOT + 'pages', 'context=edit&per_page=100&status=publish,draft,private,future&orderby=menu_order&order=asc&_fields=id,title,link,status'), {
+      headers: { 'X-WP-Nonce': cfg.nonce }, credentials: 'same-origin',
+    }).then(function (r) { return r.ok ? r.json() : []; }).catch(function () { return []; }).then(function (list) {
+      pageList = (Array.isArray(list) ? list : []).map(function (pg) {
+        var title = (pg.title && (pg.title.raw != null ? pg.title.raw : pg.title.rendered)) || '';
+        return { id: pg.id, name: String(title).replace(/<[^>]*>/g, '').trim() || 'Untitled page', link: pg.link, status: pg.status };
+      });
+      return pageList;
+    });
+  }
+  // the pages the header's menu shows, in its order (read from the page)
+  function menuOrder() {
+    var head = partElForArea('header');
+    var out = [];
+    if (!head) return out;
+    head.querySelectorAll('a[href]').forEach(function (a) {
+      try {
+        var u = new URL(a.href, location.href);
+        if (u.origin === location.origin) out.push(u.pathname.replace(/\/+$/, '') + u.search);
+      } catch (e) {}
+    });
+    return out;
+  }
+  function openPageMenu() {
+    if (!pageMenu) {
+      pageMenu = document.createElement('div');
+      pageMenu.className = 'gogh-pagemenu';
+      pageMenu.hidden = true;
+      document.body.appendChild(pageMenu);
+      pageMenu.addEventListener('keydown', function (ev) { if (ev.key === 'Escape') { closePageMenu(); pageSwitch.focus(); } });
+    }
+    var r = pageSwitch.getBoundingClientRect();
+    pageMenu.style.left = Math.round(r.left) + 'px';
+    pageMenu.style.top = Math.round(r.bottom + 6) + 'px';
+    pageMenu.style.width = Math.round(Math.max(280, (side.getBoundingClientRect().width || 340) - 2 * (r.left - side.getBoundingClientRect().left))) + 'px';
+    pageMenu.innerHTML = '<div class="gogh-pagemenu-wait">Finding your pages\u2026</div>';
+    pageMenu.hidden = false;
+    pageSwitch.setAttribute('aria-expanded', 'true');
+    document.addEventListener('pointerdown', pageMenuAway, true);
+    fetchPageList().then(function (list) {
+      if (pageMenu.hidden) return;
+      var order = menuOrder();
+      var key = function (pg) {
+        try { var u = new URL(pg.link, location.href); return u.pathname.replace(/\/+$/, '') + u.search; } catch (e) { return ''; }
+      };
+      var inMenu = [], rest = [];
+      list.forEach(function (pg) {
+        var k = key(pg), at = order.indexOf(k);
+        if (+pg.id === +cfg.frontId && at === -1) at = order.indexOf('');
+        if (at !== -1) inMenu.push({ pg: pg, at: at }); else rest.push(pg);
+      });
+      inMenu.sort(function (a, b) { return a.at - b.at; });
+      var row = function (pg) {
+        var cur = +pg.id === +cfg.postId, home = +pg.id === +cfg.frontId;
+        return '<button type="button" role="option" class="gogh-pagemenu-it' + (cur ? ' is-current' : '') + '" aria-selected="' + (cur ? 'true' : 'false') + '" data-id="' + pg.id + '">' +
+          '<span class="gogh-pagemenu-name">' + esc(pg.name) + '</span>' +
+          (home ? '<span class="gogh-pagemenu-home">Home page</span>' : '') +
+          (pg.status === 'draft' ? '<span class="gogh-pagemenu-st">Draft</span>' : pg.status === 'private' ? '<span class="gogh-pagemenu-st">Private</span>' : pg.status === 'future' ? '<span class="gogh-pagemenu-st">Scheduled</span>' : '') +
+          (cur ? '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l5 5 9-10"/></svg>' : '') +
+          '</button>';
+      };
+      var html = '';
+      if (list.length > 8) html += '<label class="gogh-pagemenu-find"><span class="gogh-sr">Find a page</span><input type="text" placeholder="Find a page" autocomplete="off"></label>';
+      html += '<div class="gogh-pagemenu-list" role="listbox" aria-label="Pages">';
+      if (inMenu.length) html += '<div class="gogh-pagemenu-lab">In your menu</div>' + inMenu.map(function (x) { return row(x.pg); }).join('');
+      if (rest.length) html += '<div class="gogh-pagemenu-lab">' + (inMenu.length ? 'Not in your menu' : 'Your pages') + '</div>' + rest.map(row).join('');
+      if (!list.length) html += '<div class="gogh-pagemenu-wait">No other pages yet.</div>';
+      html += '</div><button type="button" class="gogh-pagemenu-add"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 8v8M8 12h8"/></svg>Add a page</button>';
+      pageMenu.innerHTML = html;
+      pageMenu.querySelectorAll('.gogh-pagemenu-it').forEach(function (b) {
+        b.addEventListener('click', function () {
+          var pg = list.filter(function (x) { return +x.id === +b.dataset.id; })[0];
+          closePageMenu();
+          if (!pg || +pg.id === +cfg.postId) return;
+          goToPage(editUrlFor(pg.link, deviceMode === 'phone'), pg.name);
+        });
+      });
+      var add = pageMenu.querySelector('.gogh-pagemenu-add');
+      add.addEventListener('click', function () {
+        closePageMenu();
+        var door = side.querySelector('.gogh-addpagebtn');
+        if (door) door.click();
+      });
+      var find = pageMenu.querySelector('.gogh-pagemenu-find input');
+      if (find) {
+        find.addEventListener('input', function () {
+          var q2 = find.value.trim().toLowerCase();
+          pageMenu.querySelectorAll('.gogh-pagemenu-it').forEach(function (b) {
+            b.hidden = !!q2 && b.querySelector('.gogh-pagemenu-name').textContent.toLowerCase().indexOf(q2) === -1;
+          });
+        });
+        find.focus();
+      } else {
+        var first = pageMenu.querySelector('.gogh-pagemenu-it.is-current') || pageMenu.querySelector('.gogh-pagemenu-it');
+        if (first) first.focus();
+      }
+    });
   }
   var chipBusy = false;
   var chipTimer = null;
@@ -21343,6 +21517,83 @@
     dismissBackup(new Date().toISOString().slice(0, 19));
     location.reload();
   });
+
+  // ---------- going to another page while editing ----------
+  // Editing stays on as you move around your own site: a menu link, the
+  // page switcher or (on the phone) any link of yours opens the next page in
+  // the editor. Unpublished changes get a real question, not the browser's
+  // 'Leave site?': publish them, keep them for later (backed up now and
+  // offered back when you return), or stay.
+  function keptKey(id) { return 'gogh-kept-' + (id || cfg.postId); }
+  function editUrlFor(href, phone) {
+    var u;
+    try { u = new URL(href, location.href); } catch (e) { return null; }
+    if (u.origin !== location.origin) return null;
+    if (!/^https?:$/.test(u.protocol)) return null;
+    if (/\/wp-admin\/|\/wp-login\.php|\/wp-json\/|\.(jpe?g|png|gif|webp|svg|pdf|zip|mp4|mp3)$/i.test(u.pathname)) return null;
+    if (u.pathname === location.pathname && u.hash) return null; // an anchor on this page
+    u.searchParams.set('gogh-edit', '1');
+    if (phone) u.searchParams.set('gogh-phone', '1'); else u.searchParams.delete('gogh-phone');
+    u.hash = '';
+    return u.toString();
+  }
+  function samePage(href) {
+    try {
+      var u = new URL(href, location.href);
+      return u.origin === location.origin && u.pathname.replace(/\/+$/, '') === location.pathname.replace(/\/+$/, '') && u.search.replace(/[?&]gogh-[a-z-]+=[^&]*/g, '').replace(/^\?$/, '') === location.search.replace(/[?&]gogh-[a-z-]+=[^&]*/g, '').replace(/^\?$/, '');
+    } catch (e) { return false; }
+  }
+  var leavePanel = document.createElement('div');
+  leavePanel.className = 'gogh-exit gogh-leave';
+  leavePanel.hidden = true;
+  document.body.appendChild(leavePanel);
+  leavePanel.addEventListener('pointerdown', function (ev) { if (ev.target === leavePanel) leavePanel.hidden = true; });
+  leavePanel.addEventListener('keydown', function (ev) { if (ev.key === 'Escape') leavePanel.hidden = true; });
+  var goTo = function (url) { location.href = url; }; // the suite swaps this to watch a trip without taking it
+  function goNow(url) {
+    discarding = true; // the beforeunload guard has had its question
+    goTo(url);
+  }
+  function goToPage(url, name) {
+    if (!url) return;
+    refreshChip(); // text re-measures can dirty the model without a pushState
+    if (!isDirty()) { goNow(url); return; }
+    var here = String(cfg.postTitle || '').trim() || 'this page';
+    var there = String(name || '').trim() || 'that page';
+    leavePanel.innerHTML =
+      '<div class="gogh-exit-card" role="dialog" aria-modal="true" aria-labelledby="gogh-leave-t">' +
+      '<div class="gogh-exit-title" id="gogh-leave-t">Go to ' + esc(there) + '?</div>' +
+      '<p class="gogh-exit-sub">You changed ' + esc(here) + ' and haven\u2019t published it yet. Publish now and visitors see your changes, or keep them for later: they\u2019ll be here when you come back to ' + esc(here) + '.</p>' +
+      '<div class="gogh-leave-col">' +
+      '<button type="button" class="gogh-btn gogh-btn-go gogh-leave-pub">Publish ' + esc(here) + ', then go</button>' +
+      '<button type="button" class="gogh-btn gogh-leave-keep">Go, and keep my changes for later</button>' +
+      '<button type="button" class="gogh-btn gogh-btn-small gogh-leave-stay">Stay on ' + esc(here) + '</button>' +
+      '</div></div>';
+    leavePanel.hidden = false;
+    var stay = leavePanel.querySelector('.gogh-leave-stay');
+    stay.addEventListener('click', function () { leavePanel.hidden = true; });
+    leavePanel.querySelector('.gogh-leave-pub').addEventListener('click', function () {
+      leavePanel.hidden = true;
+      publish().then(function (ok) { if (ok) goNow(url); });
+    });
+    var keep = leavePanel.querySelector('.gogh-leave-keep');
+    keep.addEventListener('click', function () {
+      keep.disabled = true;
+      keep.textContent = 'Keeping your changes\u2026';
+      backupNow().then(function (ok) {
+        if (!ok) {
+          keep.disabled = false;
+          keep.textContent = 'Go, and keep my changes for later';
+          toast('Your changes could not be kept for later. Publish them, or stay on ' + here + '.', { error: true });
+          return;
+        }
+        try { localStorage.setItem(keptKey(), new Date().toISOString()); } catch (e) {}
+        goNow(url);
+      });
+    });
+    setTimeout(function () { try { stay.focus(); } catch (e) {} }, 30);
+  }
+
   // one exit, not two: the drawer's ✕ is gone — the admin bar's Exit link
   // owns leaving, and the dirty-check panel intercepts it when work is
   // unpublished (a clean exit navigates as the link always did)
@@ -21362,18 +21613,20 @@
       ? cfg.restUrl + '/autosaves'
       : cfg.restUrl.replace('?', '/autosaves?');
   }
-  setInterval(function () {
-    if (siteBuilding) return; // a site being drawn from a definition is scratch, never a backup
-    if (historyView) return; // an earlier version on show is not work to back up
-    if (!editing || chipBusy || !isDirty()) return;
+  // the backup, now or on the timer. Resolves true when the changes on the
+  // page are backed up (already, or by this call); 'keep my changes for
+  // later' waits on it before leaving the page
+  function backupNow() {
+    if (siteBuilding || historyView) return Promise.resolve(false);
+    if (!editing || chipBusy || !isDirty()) return Promise.resolve(!isDirty());
     // the suite wrecks the page BY DESIGN (delete-everything tests) — backing
     // that up would shadow the real fixture on every next boot
-    if (/gogh-test/.test(location.search)) return;
+    if (/gogh-test/.test(location.search)) return Promise.resolve(false);
     // pending native sections live outside serialize() — fingerprint them
     // too, or pending-only changes would skip the backup
     var snap = serialize() + '\u0000' + pendingBlocks.map(function (pe) { return pe.raw; }).join('\u0000');
-    if (snap === lastAutoSnap) return;
-    (rawCache !== null ? Promise.resolve(rawCache) : fetchRaw()).then(function (raw) {
+    if (snap === lastAutoSnap) return Promise.resolve(true);
+    return (rawCache !== null ? Promise.resolve(rawCache) : fetchRaw()).then(function (raw) {
       return fetch(autosaveUrl(), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'X-WP-Nonce': cfg.nonce },
@@ -21387,8 +21640,10 @@
       lastAutoSnap = snap;
       backedUp = true;
       refreshChip();
-    }).catch(function () { /* backup is best-effort */ });
-  }, 15000);
+      return true;
+    }).catch(function () { return false; /* backup is best-effort */ });
+  }
+  setInterval(backupNow, 15000);
 
   var recoveryChecked = false;
   function checkRecovery() {
@@ -21405,6 +21660,19 @@
       if (dismissed && a.modified_gmt <= dismissed) return; // user already said no
       var models = extractModels((a.content && (a.content.raw || a.content.rendered)) || '');
       if (!models.length || !backupDiffers(models)) return; // matches the live page
+      // they chose 'keep my changes for later' when they left: welcome back
+      var kept = null;
+      try { kept = localStorage.getItem(keptKey()); localStorage.removeItem(keptKey()); } catch (e) {}
+      if (kept) {
+        toast('You left changes on this page unpublished. Bring them back?', {
+          sticky: true,
+          actions: [
+            { label: 'Bring them back', onClick: function () { restoreAutosave(a); } },
+            { label: 'Use the live page', onClick: function () { dismissBackup(a.modified_gmt); } },
+          ],
+        });
+        return;
+      }
       toast('gogh backed up unpublished work from an earlier session.', {
         sticky: true,
         actions: [

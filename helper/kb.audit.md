@@ -1,4 +1,10 @@
-# Knowledge-base audit — plugin v0.99.662
+# Knowledge-base audit — plugin v0.99.663
+
+## Extractor broken
+
+These anchors stopped matching, so the fact is missing from the appendix entirely. A refactor almost certainly moved the code; fix the anchor in `extract.py`.
+
+- `autosave_interval_ms`
 
 _13 finding(s) suppressed by `kb.audit-ignore.txt`._
 
@@ -106,7 +112,7 @@ The source has something the prose never explains. The bot knows the name from t
 - divider `dunes` exists in source but is never mentioned in the prose
 - divider `mist` exists in source but is never mentioned in the prose
 
-## QUOTE (20)
+## QUOTE (21)
 
 Quoted copy not found verbatim in the source. Paraphrases are fine; changed UI copy is not.
 
@@ -116,6 +122,7 @@ Quoted copy not found verbatim in the source. Paraphrases are fine; changed UI c
 - Already the same size
 - Needs two or more pieces
 - there is no phone button
+- Go to Workshops · you'll keep editing
 - Today, 2:14pm
 - Mon 6 Oct, 4:20pm
 - New buttons you add will now start in Blue print.
@@ -130,3 +137,13 @@ Quoted copy not found verbatim in the source. Paraphrases are fine; changed UI c
 - From Misprint
 - (max-width: 700px) 100vw, min(100vw, Wpx)
 - (max-width: 700px) 100vw, 53vw
+
+## What changed since the last knowledge-base build
+
+Use this as the checklist for updating the prose — and as a sanity check on the release itself.
+
+- version: 0.99.662 → 0.99.663
+- added UI label: "Add a page"
+- added UI label: "Go, and keep my changes for later"
+- added toast: "You left changes on this page unpublished. Bring them back?"
+- added toast: "Your changes could not be kept for later. Publish them, or stay on "

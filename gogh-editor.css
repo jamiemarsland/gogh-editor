@@ -2026,7 +2026,7 @@ html.gogh-editing header.wp-block-template-part:has(.gogh-header-overlay):not(.g
   text-overflow: ellipsis;
   margin: -4px 0 12px;
 }
-.gogh-chip-name::after { content: " \00b7 Rename"; font-weight: 500; color: #8a8f99; }
+.gogh-chip-name::after { content: none; }
 .gogh-chip-name:hover, .gogh-chip-name:focus-visible { text-decoration: underline; text-underline-offset: 3px; }
 .gogh-chip-name.is-unnamed { color: #b47816; font-weight: 600; }
 .gogh-chip-name.is-unnamed::after { content: ""; }
@@ -4564,3 +4564,44 @@ html.gogh-building .gogh-inserter, html.gogh-building .gogh-side { display: none
 /* an earlier version on show is for looking at: the canvas does not take edits */
 html.gogh-history-preview .gogh-wrap { pointer-events: none; }
 html.gogh-history-preview .gogh-wrap .gogh-section { outline: 2px dashed rgba(56, 88, 233, .35); outline-offset: -2px; }
+
+
+/* ---------- getting around: the page switcher, the leave question, the menu-link hint ---------- */
+.gogh-pagerow { display: flex; align-items: center; gap: 10px; margin: -4px 0 12px; min-width: 0; }
+.gogh-pagerow .gogh-chip-name { flex: 0 0 auto; margin: 0; font-weight: 500; color: #6b7280; }
+.gogh-pagerow .gogh-chip-name.is-unnamed { color: #b47816; font-weight: 600; }
+.gogh-pageswitch { all: unset; box-sizing: border-box; cursor: pointer; flex: 1 1 auto; min-width: 0; display: flex; align-items: center; gap: 7px; padding: 8px 11px; border: 1px solid var(--gogh-ui-border, #e2e4e8); border-radius: 10px; font: 650 14px/1.25 -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, sans-serif; color: var(--gogh-ui-fg, #1c1e24); }
+.gogh-pageswitch:hover { border-color: #9db8ff; }
+.gogh-pageswitch[aria-expanded="true"] { border-color: #3858e9; background: #f5f7ff; }
+.gogh-pageswitch:focus-visible { outline: 2px solid #7ea8ff; outline-offset: 2px; }
+.gogh-pageswitch-lab { font-size: 11.5px; font-weight: 600; color: #6b7280; flex: 0 0 auto; }
+.gogh-pageswitch-name { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.gogh-pageswitch svg { flex: 0 0 auto; opacity: .6; }
+.gogh-pagemenu { position: fixed; z-index: 100002; box-sizing: border-box; max-height: min(70vh, 520px); display: flex; flex-direction: column; background: #fff; color: #1c1e24; border: 1px solid #e2e4e8; border-radius: 12px; box-shadow: 0 18px 44px rgba(20, 20, 30, .22); padding: 8px; font: 14px/1.3 -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, sans-serif; }
+.gogh-pagemenu[hidden] { display: none; }
+.gogh-pagemenu-list { overflow-y: auto; display: flex; flex-direction: column; gap: 1px; min-height: 0; }
+.gogh-pagemenu-lab { font-size: 11px; font-weight: 600; letter-spacing: .1em; text-transform: uppercase; color: #6b7280; padding: 8px 10px 4px; }
+.gogh-pagemenu-it { all: unset; box-sizing: border-box; cursor: pointer; display: flex; align-items: center; gap: 8px; padding: 9px 10px; border-radius: 8px; }
+.gogh-pagemenu-it[hidden] { display: none; }
+.gogh-pagemenu-it:hover, .gogh-pagemenu-it:focus-visible { background: #f2f4f8; }
+.gogh-pagemenu-it:focus-visible { outline: 2px solid #7ea8ff; outline-offset: -2px; }
+.gogh-pagemenu-it.is-current { background: #eef1ff; color: #1e3fd8; font-weight: 600; }
+.gogh-pagemenu-name { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.gogh-pagemenu-home { flex: 0 0 auto; font-size: 11px; font-weight: 600; color: #1e7f4f; background: #e6f4ec; border-radius: 999px; padding: 2px 8px; }
+.gogh-pagemenu-st { flex: 0 0 auto; font-size: 11.5px; color: #6b7280; }
+.gogh-pagemenu-wait { padding: 10px; color: #6b7280; }
+.gogh-pagemenu-find { display: block; margin-bottom: 6px; }
+.gogh-pagemenu-find input { box-sizing: border-box; width: 100%; height: 34px; border: 1px solid #e2e4e8; border-radius: 8px; padding: 0 10px; font: 14px/1 inherit; color: inherit; }
+.gogh-pagemenu-find input:focus { outline: none; border-color: #3858e9; box-shadow: 0 0 0 3px rgba(56, 88, 233, .18); }
+.gogh-pagemenu-add { all: unset; box-sizing: border-box; cursor: pointer; display: flex; align-items: center; gap: 8px; margin-top: 6px; padding: 10px; border-top: 1px solid #eef0f3; color: #3858e9; font-weight: 600; }
+.gogh-pagemenu-add:hover, .gogh-pagemenu-add:focus-visible { background: #f5f7ff; border-radius: 8px; }
+.gogh-sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.gogh-leave-col { display: flex; flex-direction: column; gap: 8px; }
+.gogh-leave-col .gogh-btn { width: 100%; box-shadow: none; }
+.gogh-leave-col .gogh-leave-stay { border-color: transparent; background: transparent; font-weight: 500; }
+.gogh-leave-col .gogh-btn:disabled { opacity: .7; cursor: default; }
+.gogh-navhint { position: fixed; z-index: 100003; display: flex; align-items: center; gap: 8px; background: #1d2327; color: #fff; border-radius: 9px; padding: 8px 12px; font: 13px/1.3 -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, sans-serif; box-shadow: 0 10px 28px rgba(20, 20, 30, .28); pointer-events: none; white-space: nowrap; }
+.gogh-navhint[hidden] { display: none; }
+.gogh-navhint b { font-weight: 600; }
+.gogh-navhint span { opacity: .95; }
+.gogh-chromeveil.is-on-link { cursor: pointer; }

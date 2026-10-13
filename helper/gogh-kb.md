@@ -15,7 +15,7 @@ about something where they conflict, rather than picking one silently. Quote UI
 labels and message copy from the appendix, verbatim — those are the current
 strings, and a paraphrased button label is the fastest way to lose a user's trust.
 
-Generated for plugin version 0.99.662 · knowledge base 662af1f.
+Generated for plugin version 0.99.663 · knowledge base ba834e6.
 
 ---
 
@@ -830,6 +830,8 @@ The helper's welcome panel opens with a 35-second film of gogh being used (v0.99
 
 **The phone view survives navigation (v0.99.605).** Press one of your own pages while on the phone and it opens in the editor, still on the phone: the link carries `gogh-edit=1&gogh-phone=1`, the next page reads them at boot and strips them from the address. Other sites, files, wp-admin and anchors on the same page are left alone. Unpublished changes still ask before leaving.
 
+**Getting around while editing (v0.99.663).** Editing now stays on as you move around your own site. Press a page in your header or footer menu while editing and it opens in the editor (clicking anywhere else on the header still opens header editing); the first couple of times, hovering a menu link says "Go to Workshops · you'll keep editing". The Page drawer now starts with a page switcher, **Editing Workshops ▾**: it lists every page, the ones in your menu first, Home marked, drafts labelled, with a find box on bigger sites and Add a page at the end; Rename sits beside it. Leaving a page with unpublished changes, by either route, asks: **Publish (page), then go**, **Go, and keep my changes for later** (gogh backs them up first; when you come back to that page it offers "You left changes on this page unpublished. Bring them back?"), or **Stay**.
+
 **History shows the whole page (v0.99.662).** Opening History now zooms the page out beside the panel, the way Site style does, so a version you choose is seen whole instead of with its left side under the panel. It stays zoomed while you switch versions and returns to full size when you restore, go back or close History.
 
 **History: earlier versions of a page (v0.99.661).** In the drawer's foot, after Undo and Redo, a clock icon opens **History**: every version of this page you have published, newest first, in words ("Today, 2:14pm", "Mon 6 Oct, 4:20pm"), the newest marked Live now. Choose one and the page shows it as it was, read only (the sections wear a dashed outline and can't be edited while you look). **Restore this version** keeps it as your unpublished changes, so Publish puts it live and one Undo puts your page back; **Back to my page**, Back, or closing the panel leaves your page exactly as it was. Versions where only the title changed are listed once, and versions from before the page was made with gogh are left out. History brings back gogh's sections; the header, footer and any blocks gogh did not make stay as they are. WordPress keeps a version each time a page is updated (your host may limit how many). Also fixed: the offer to restore unpublished work backed up from an earlier session ("gogh backed up unpublished work") could not read pages saved in gogh's current format, so it never appeared; it does now.
@@ -945,11 +947,11 @@ Everything in this section is extracted mechanically from the Gogh source on eve
 
 ## Current release
 
-- Plugin version: **0.99.662**
+- Plugin version: **0.99.663**
 - Requires WordPress **6.5+**, PHP **7.4+**
 - Text domain: `gogh-editor`
 - readme.txt Stable tag: `0.26.0` · Tested up to: `7.0`
-- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.662`). Quote the plugin header version.
+- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.663`). Quote the plugin header version.
 
 ## Design constants
 
@@ -963,7 +965,6 @@ Everything in this section is extracted mechanically from the Gogh source on eve
 | `W` | 1200 |
 | `RHYTHM` | 24 |
 | `MAJOR` | 72 |
-| `autosave_interval_ms` | 15000 |
 | `history_cap` | 60 |
 | `mobile_breakpoint_px` | 700 |
 | `min_resize_w` | 60 |
@@ -1170,6 +1171,7 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "Aa"
 - "Add"
 - "Add a category ↗"
+- "Add a page"
 - "Add a page to this menu"
 - "Add a picture or video"
 - "Add a product ↗"
@@ -1248,6 +1250,7 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "Full width"
 - "Get in touch"
 - "Go"
+- "Go, and keep my changes for later"
 - "Grid: show and snap"
 - "Heading"
 - "Headings"
@@ -1474,6 +1477,8 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "Upload failed — .html uploads need admin rights."
 - "Uploading experience…"
 - "Wrapped — the words flow around it now. Click the image to adjust."
+- "You left changes on this page unpublished. Bring them back?"
+- "Your changes could not be kept for later. Publish them, or stay on "
 - "Your site is now called “"
 - "gogh backed up unpublished work from an earlier session."
 - "gogh can’t safely swap this image."
@@ -1505,4 +1510,4 @@ These are the real strings in the current build. Use them verbatim; never paraph
 
 ## Test suite
 
-`339` tests, run by appending `?gogh-test` to any Gogh page URL while logged in with edit rights on that page.
+`340` tests, run by appending `?gogh-test` to any Gogh page URL while logged in with edit rights on that page.
