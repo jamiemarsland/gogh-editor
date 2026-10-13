@@ -2,12 +2,6 @@
 
 _13 finding(s) suppressed by `kb.audit-ignore.txt`._
 
-## STALE (1)
-
-The prose names something that no longer exists.
-
-- toast "Saved " was removed in this release, but the prose still describes it
-
 ## MISSING (99)
 
 The source has something the prose never explains. The bot knows the name from the appendix but cannot say what it is for.
@@ -134,11 +128,3 @@ Quoted copy not found verbatim in the source. Paraphrases are fine; changed UI c
 - From Misprint
 - (max-width: 700px) 100vw, min(100vw, Wpx)
 - (max-width: 700px) 100vw, 53vw
-
-## What changed since the last knowledge-base build
-
-Use this as the checklist for updating the prose — and as a sanity check on the release itself.
-
-- version: 0.99.658 → 0.99.659
-- removed toast: "Saved "
-- added toast: "Downloaded "
