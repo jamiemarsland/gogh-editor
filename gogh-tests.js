@@ -7354,9 +7354,13 @@
         expect(/\u00b7 draft/.test(menu.querySelector('[data-id="99992"]').textContent), 'a draft says so, quietly');
         expect(menu.querySelector('[data-id="99993"] .gogh-pagemenu-house') && !menu.querySelector('.gogh-pagemenu-home-set'), 'Home wears a house; page actions are not in the list');
         expect(menu.querySelector('.gogh-pagemenu-add'), 'Add a page sits at the end');
+        G.openSide('page');
         menu.querySelector('[data-id="99991"]').click();
         expect(menu.hidden, 'choosing a page closes the list');
         expect(trips.length === 1 && /\/sample-page\//.test(trips[0]) && /gogh-edit=1/.test(trips[0]), 'choosing a page opens it in the editor: ' + trips.join(' '));
+        expect(/gogh-drawer=page/.test(trips[0]), 'the Page drawer opens again on the next page: ' + trips[0]);
+        G.closeSide && G.closeSide(true);
+        expect(!/gogh-drawer/.test(G.nav.carry(o + '/sample-page/?gogh-edit=1')), 'with the drawer closed, nothing is carried');
       } finally {
         unwatch();
         G.nav.closePages();
@@ -8429,8 +8433,8 @@
         'the panel still reaches for the OS colour window');
 
       var chip = q('.gogh-panel .gogh-themechip-any');
-      expect(chip, 'no "any colour" chip at the end of the colour row');
-      expect(chip.querySelector('.gogh-themechip-plus'), 'the unused chip should read as a +');
+      expect(chip && chip === chip.parentNode.firstElementChild, '"Any colour" should lead the colour row');
+      expect(/Any colour/.test(chip.textContent) && chip.querySelector('.gogh-themechip-plus'), 'the unused chip says Any colour beside a colour wheel: ' + (chip && chip.textContent));
 
       var textIdx = sx.els.findIndex(function (e) { return e.type === 'heading' || e.type === 'para'; });
       expect(textIdx >= 0, 'fixture section has no words to re-ink');

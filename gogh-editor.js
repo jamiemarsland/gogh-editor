@@ -14544,19 +14544,21 @@
       // worse one buried under a toggle.
       '<div class="gogh-panel-hint">Colour \u2014 the section and its words together</div>' +
       '<div class="gogh-themerow">' +
+      // ANY colour comes FIRST and says so in words: it is the one people
+      // look for, and a dashed + at the end of the row read as 'add a
+      // theme' (James: 'a better way to sign post folks to any color').
+      // It mints a THEME: a background and an ink chosen to read on it
+      '<button type="button" class="gogh-themechip gogh-themechip-any' + (secx.theme === 'any' ? ' is-active' : '') + '" title="Pick any colour for this section">' +
+      (secx.theme === 'any' && secx.bg
+        ? '<span class="gogh-themechip-swatch" style="background:' + escAttr(secx.bg) + ';color:var(--wp--preset--color--' + bestInkFor(secx.bg) + ')">Aa</span>'
+        : '<span class="gogh-themechip-swatch gogh-themechip-plus gogh-themechip-wheel" aria-hidden="true"></span>') +
+      '<span class="gogh-themechip-anylab">Any colour</span>' +
+      '</button>' +
       sectionThemes().map(function (t) {
         return '<button type="button" class="gogh-themechip' + (secx.theme === t.slug ? ' is-active' : '') + '" data-theme="' + t.slug + '" title="' + escAttr(t.name) + '">' +
           '<span class="gogh-themechip-swatch" style="background:' + escAttr(t.bg) + ';color:var(--wp--preset--color--' + t.ink + ')">Aa</span>' +
           '</button>';
       }).join('') +
-      // the last chip is ANY colour, and it mints a THEME: a background and
-      // an ink chosen to read on it. The old custom field set the ground and
-      // left the words behind, so the sentinel told you off afterwards.
-      '<button type="button" class="gogh-themechip gogh-themechip-any' + (secx.theme === 'any' ? ' is-active' : '') + '" title="Any colour">' +
-      (secx.theme === 'any' && secx.bg
-        ? '<span class="gogh-themechip-swatch" style="background:' + escAttr(secx.bg) + ';color:var(--wp--preset--color--' + bestInkFor(secx.bg) + ')">Aa</span>'
-        : '<span class="gogh-themechip-swatch gogh-themechip-plus">+</span>') +
-      '</button>' +
       '</div>' +
       // the colour surface opens HERE, in the panel's own box, so it can
       // never sit on top of the section it is recolouring
@@ -20262,7 +20264,7 @@
     }, 900);
   }
   window.__gogh = {
-    nav: { more: openPageMore, closeMore: closePageMore, setHome: setHomePage, go: goToPage, urlFor: editUrlFor, openPages: openPageMenu, closePages: closePageMenu, backup: backupNow, setPages: function (l) { pageList = l; },
+    nav: { carry: drawerCarried, more: openPageMore, closeMore: closePageMore, setHome: setHomePage, go: goToPage, urlFor: editUrlFor, openPages: openPageMenu, closePages: closePageMenu, backup: backupNow, setPages: function (l) { pageList = l; },
       watch: function (fn) { var was = goTo; goTo = fn; return function () { goTo = was; discarding = false; }; } },
     history: { open: openHistoryPanel, leave: historyLeave, viewing: function () { return historyView; }, when: historyWhen },
     explode: { enter: enterExplode, exit: exitExplode, state: function () { return explodeSt; } },
@@ -21656,7 +21658,19 @@
   var goTo = function (url) { location.href = url; }; // the suite swaps this to watch a trip without taking it
   function goNow(url) {
     discarding = true; // the beforeunload guard has had its question
-    goTo(url);
+    goTo(drawerCarried(url));
+  }
+  // the drawer you had open opens again on the next page, on the same tab:
+  // moving between pages is moving around, not starting over (James: 'im
+  // not sure the sidebar should close when i select another page')
+  function drawerCarried(url) {
+    try {
+      if (!side.classList.contains('is-open') || side.classList.contains('gogh-side-away')) return url;
+      var mode = side.dataset.mode === 'site' ? 'site' : 'page';
+      var u = new URL(url, location.href);
+      u.searchParams.set('gogh-drawer', mode);
+      return u.toString();
+    } catch (e) { return url; }
   }
   function goToPage(url, name) {
     if (!url) return;
@@ -27761,11 +27775,19 @@
       try {
         var u = new URL(location.href);
         var wantPhone = u.searchParams.get('gogh-phone') === '1';
+        var wantDrawer = u.searchParams.get('gogh-drawer');
         u.searchParams.delete('gogh-edit');
         u.searchParams.delete('gogh-phone');
+        u.searchParams.delete('gogh-drawer');
         window.history.replaceState(null, '', u); // "history" here is gogh's undo stack — this never ran
         // arrived from a page pressed in the phone view: stay on the phone
         if (wantPhone) setTimeout(function () { if (window.__gogh && window.__gogh.device) window.__gogh.device.phone(); }, 350);
+        // arrived with the drawer open (the page switcher, a menu link):
+        // it opens again, on the tab it was on — unless this page is busy
+        // naming itself first
+        if ((wantDrawer === 'page' || wantDrawer === 'site') && !willBuild && !pageNeedsName()) {
+          setTimeout(function () { if (window.__gogh && window.__gogh.openSide) window.__gogh.openSide(wantDrawer); }, wantPhone ? 500 : 350);
+        }
       } catch (e3) {}
     }
   });
