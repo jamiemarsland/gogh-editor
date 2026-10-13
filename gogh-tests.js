@@ -8938,10 +8938,13 @@
       pev('pointerdown', sx.nodes[blob]);
       expect(!tag.hidden && tag.textContent === 'Card', 'a blob card should be named on the selection box');
       pev('pointerdown', sx.nodes[plain]);
-      expect(tag.hidden, 'a rectangle already has its corner badge — no second label');
+      // v0.99.686: every card is named on the box; the card's own ::after
+      // belongs to the design (a halftone style merged with the old badge)
+      expect(!tag.hidden && tag.textContent === 'Card', 'a rectangle card is named on the selection box too');
+      expect(getComputedStyle(sx.nodes[plain], '::after').content === 'none', 'gogh paints nothing on the card\u2019s own ::after: ' + getComputedStyle(sx.nodes[plain], '::after').content);
       pev('pointerdown', document.body, 4, 4);
       sx.els.length = keep; G.renderSection(sx); G.resolveAll();
-      return 'blob named on the box, rectangle left to its badge';
+      return 'every card named on the box, nothing on its ::after';
     });
 
     test('transitions live on the section: chips in the design panel, seam keeps one job', function () {

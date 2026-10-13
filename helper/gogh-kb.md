@@ -15,7 +15,7 @@ about something where they conflict, rather than picking one silently. Quote UI
 labels and message copy from the appendix, verbatim — those are the current
 strings, and a paraphrased button label is the fastest way to lose a user's trust.
 
-Generated for plugin version 0.99.685 · knowledge base bfc0a5e.
+Generated for plugin version 0.99.686 · knowledge base 862451f.
 
 ---
 
@@ -830,6 +830,8 @@ The helper's welcome panel opens with a 35-second film of gogh being used (v0.99
 
 **The phone view survives navigation (v0.99.605).** Press one of your own pages while on the phone and it opens in the editor, still on the phone: the link carries `gogh-edit=1&gogh-phone=1`, the next page reads them at boot and strips them from the address. Other sites, files, wp-admin and anchors on the same page are left alone. Unpublished changes still ask before leaving.
 
+**A chosen card's tag sits on the selection box (v0.99.686).** When you choose a card, the small blue **Card** tag now sits on the selection frame above it rather than painted inside the card. Inside the card it shared a drawing layer with styles that paint their own texture (Misprint's **Pink ink** and **Overprint** halftone dots), and the two merged into a big purple circle over the card whenever it was chosen.
+
 **Publish on the right, in WordPress blue; sizes that won't fit are greyed (v0.99.685).** The status and the **Publish** button now sit at the right of the top bar, last before your account, where editors keep their Publish; the left of the bar says where you are (the site, View site). Publish is WordPress blue, or the colour of your admin colour scheme if you picked one in your profile (Ocean, Coffee and so on), like WordPress's own buttons. While changes wait to go live the words stay plain with an amber dot: waiting is normal, not a warning. On a heading's or paragraph's toolbar, **+** greys out when the next size would push the longest word off the page ("Bigger won't fit"), and the size list greys those sizes out with a note saying why.
 
 **A press on the page puts the drawer away; the picture shelf grows up; big words stay in their box (v0.99.684).** With the Page or Site drawer open, pressing anywhere on the page closes the drawer, zooms the page back to full size around the spot you pressed, and chooses what you pressed, all in one go (a section's own panel, like its background, still stays open). The section background's **Picture or video** shelf now shows two rows: the Upload tile, the picture in use, and the newest pictures. **See all pictures** under it shows the whole library, every shape, with a **Find a picture** search and **Show more**; **Show fewer** goes back. The row that shapes the edge into the next section is now called **Bottom edge** (it was "How it ends"). On the desktop canvas, pieces hidden on phones no longer wear a "Hidden on phones" tag; the phone view shows what is hidden there. And a size too big for a word's box no longer lets the word run out past it: the box widens to hold its longest word, and if even the full page width can't, the size comes down to the biggest that fits, with a note saying so.
@@ -979,11 +981,11 @@ Everything in this section is extracted mechanically from the Gogh source on eve
 
 ## Current release
 
-- Plugin version: **0.99.685**
+- Plugin version: **0.99.686**
 - Requires WordPress **6.5+**, PHP **7.4+**
 - Text domain: `gogh-editor`
 - readme.txt Stable tag: `0.26.0` · Tested up to: `7.0`
-- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.685`). Quote the plugin header version.
+- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.686`). Quote the plugin header version.
 
 ## Design constants
 

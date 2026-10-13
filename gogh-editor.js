@@ -3470,11 +3470,9 @@
   ];
   var selBox = document.createElement('div');
   selBox.className = 'gogh-selbox';
-  // A card announces itself with a badge in its own top-left corner
-  // (.gogh-cardbox.gogh-selected::after). On a rectangle that corner is
-  // inside the card. On a circle, a pill, a blob, it is exactly the part the
-  // silhouette clips away — so the badge exists and cannot be seen. Those
-  // shapes get the name on the selection box instead, which nothing clips.
+  // A card announces itself with a tag on the selection box: nothing clips
+  // it (a circle card cut its own corner badge away) and nothing a design
+  // paints on the card itself can collide with it.
   var selTag = document.createElement('span');
   selTag.className = 'gogh-selbox-tag';
   selTag.hidden = true;
@@ -4544,9 +4542,14 @@
     selBox.style.height = bh + 'px';
     selBox.style.transform = e.rot ? 'rotate(' + e.rot + 'deg)' : '';
     selBox.classList.toggle('gogh-selbox-text', isText(e));
-    var clippedCard = e.type === 'box' && e.kids && e.kids.length && e.shape && SHAPE_CSS[e.shape];
-    selTag.textContent = clippedCard ? 'Card' : '';
-    selTag.hidden = !clippedCard;
+    // every card wears its name on the selection box now, never on itself:
+    // a design's card style that paints its own ::after (Misprint's halftone
+    // dots) merged with the badge there — blue, round and multiplied, one
+    // huge purple circle over the card whenever it was chosen (James: "these
+    // card styles ... are kinda weird")
+    var isCardSel = !!(e.type === 'box' && e.kids && e.kids.length);
+    selTag.textContent = isCardSel ? 'Card' : '';
+    selTag.hidden = !isCardSel;
     selBox.hidden = false;
     grip.style.left = (bx - 26) + 'px';
     grip.style.top = (byy - 26) + 'px';
