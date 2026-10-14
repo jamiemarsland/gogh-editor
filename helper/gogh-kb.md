@@ -15,7 +15,7 @@ about something where they conflict, rather than picking one silently. Quote UI
 labels and message copy from the appendix, verbatim — those are the current
 strings, and a paraphrased button label is the fastest way to lose a user's trust.
 
-Generated for plugin version 0.99.702 · knowledge base fdcc6eb.
+Generated for plugin version 0.99.703 · knowledge base 54fb51a.
 
 ---
 
@@ -830,6 +830,8 @@ The helper's welcome panel opens with a 35-second film of gogh being used (v0.99
 
 **The phone view survives navigation (v0.99.605).** Press one of your own pages while on the phone and it opens in the editor, still on the phone: the link carries `gogh-edit=1&gogh-phone=1`, the next page reads them at boot and strips them from the address. Other sites, files, wp-admin and anchors on the same page are left alone. Unpublished changes still ask before leaving.
 
+**The Violet Hour, a store on Purple (v0.99.703).** A new demo blueprint builds a candle and scent shop on Automattic's Purple theme with WooCommerce: a hero of lit tapers, the season's candles as a live product grid, category tiles, a dark studio band, a gift box, a map, plus Our story and Visit pages. Shop, Basket, Checkout and Your account are WooCommerce's own pages. Site definitions can now set up a store: WooCommerce's pages and currency, categories, products (with sizes), a product grid that shows one category, the shop and category looks, a theme's colour or type set by name (Purple's "Libre Baskerville + Figtree"), a page template, and a footer of their own. A home page built with gogh now shows on themes whose front-page template ignores the page (Purple's storefront). Product names in a grid are set at label size, so a theme with very large headings no longer prints four names in a row as headlines.
+
 **Layout menus step the page back (v0.99.702).** Opening one of the layout menus in the top bar (**Post layout**, Blog, Product, Shop or Category layout) now zooms the page out to half size on a grey desk, so the whole design shows while you hover the looks; each look still tries itself on as you hover, and leaving the menu brings the page back to full size. Nothing is kept until you click.
 
 **Help docks on the right (v0.99.701).** Pressing **?** (at the foot of the Page or Site drawer) opens gogh help as a panel down the right-hand side, the full height under the top bar. It stays open while you select, drag and edit, until you press ✕, and it comes back if you move to another page in the same tab. The page is fitted beside it with the same zoom the drawer uses, and the zoom slider and messages step inside its edge. The ⤢ button makes the panel wider for long answers or the film.
@@ -1013,11 +1015,11 @@ Everything in this section is extracted mechanically from the Gogh source on eve
 
 ## Current release
 
-- Plugin version: **0.99.702**
+- Plugin version: **0.99.703**
 - Requires WordPress **6.5+**, PHP **7.4+**
 - Text domain: `gogh-editor`
 - readme.txt Stable tag: `0.26.0` · Tested up to: `7.0`
-- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.702`). Quote the plugin header version.
+- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.703`). Quote the plugin header version.
 
 ## Design constants
 
@@ -1137,6 +1139,7 @@ Block: `gogh/section` · v3 attributes: `css`, `model`, `scope`, `v`, `cssT`.
 | `body_class` | filter | 10 |
 | `wp_insert_post_empty_content` | filter | 10 |
 | `trashed_post` | action | 10 |
+| `frontpage_template_hierarchy` | filter | 10 |
 | `wp_head` | action | 10 |
 | `wp_head` | action | 10 |
 | `wp_head` | action | 10 |

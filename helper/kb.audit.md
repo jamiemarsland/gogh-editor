@@ -1,8 +1,8 @@
-# Knowledge-base audit — plugin v0.99.702
+# Knowledge-base audit — plugin v0.99.703
 
 _13 finding(s) suppressed by `kb.audit-ignore.txt`._
 
-## MISSING (101)
+## MISSING (102)
 
 The source has something the prose never explains. The bot knows the name from the appendix but cannot say what it is for.
 
@@ -48,6 +48,7 @@ The source has something the prose never explains. The bot knows the name from t
 - WP hook `body_class` exists in source but is never mentioned in the prose
 - WP hook `wp_insert_post_empty_content` exists in source but is never mentioned in the prose
 - WP hook `trashed_post` exists in source but is never mentioned in the prose
+- WP hook `frontpage_template_hierarchy` exists in source but is never mentioned in the prose
 - WP hook `wp_head` exists in source but is never mentioned in the prose
 - WP hook `wp_head` exists in source but is never mentioned in the prose
 - WP hook `wp_head` exists in source but is never mentioned in the prose
@@ -108,7 +109,7 @@ The source has something the prose never explains. The bot knows the name from t
 - divider `dunes` exists in source but is never mentioned in the prose
 - divider `mist` exists in source but is never mentioned in the prose
 
-## QUOTE (24)
+## QUOTE (25)
 
 Quoted copy not found verbatim in the source. Paraphrases are fine; changed UI copy is not.
 
@@ -119,6 +120,7 @@ Quoted copy not found verbatim in the source. Paraphrases are fine; changed UI c
 - Already the same size
 - Needs two or more pieces
 - there is no phone button
+- Libre Baskerville + Figtree
 - Easy to read here · contrast 6.0
 - Privacy Policy · draft
 - Go to Workshops · you'll keep editing
@@ -136,3 +138,10 @@ Quoted copy not found verbatim in the source. Paraphrases are fine; changed UI c
 - From Misprint
 - (max-width: 700px) 100vw, min(100vw, Wpx)
 - (max-width: 700px) 100vw, 53vw
+
+## What changed since the last knowledge-base build
+
+Use this as the checklist for updating the prose — and as a sanity check on the release itself.
+
+- version: 0.99.702 → 0.99.703
+- added WP hook: "frontpage_template_hierarchy"

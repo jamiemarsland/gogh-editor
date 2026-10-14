@@ -12512,6 +12512,18 @@
   // (a button's colour is btnBg/btnText, palette slugs; 'ghost' draws it as an outline)
   var GEN_FIELDS = ['x', 'y', 'w', 'h', 'text', 'src', 'href', 'url', 'fs', 'align', 'color', 'radius', 'rot', 'tf', 'mood', 'boxBg', 'shape', 'alt', 'm', 'btnBg', 'btnText', 'ghost', 'cls'];
   function genEl(e) {
+    // a store's pieces: a live product grid or category tiles, Woo's own
+    // blocks composed from a few choices (the definition names a category
+    // by slug; the server fills in its id)
+    if (e && e.type === 'shop' && cfg.hasWoo) {
+      var sp = DEFAULTS.products(), so = e.shop || {};
+      ['count', 'order', 'layout', 'aspect', 'spacing', 'kind', 'catId', 'cat'].forEach(function (k) { if (so[k] != null) sp.shop[k] = so[k]; });
+      if (so.show) sp.shop.show = Object.assign(sp.shop.show, so.show);
+      sp.x = Math.max(0, Math.round(+e.x || 0)); sp.y = Math.max(0, Math.round(+e.y || 0));
+      sp.w = Math.max(200, Math.min(W - sp.x, Math.round(+e.w || sp.w))); sp.h = Math.max(160, Math.round(+e.h || sp.h));
+      sp.wsrc = composeShop(sp.shop);
+      return sp;
+    }
     if (!e || !GEN_TYPES[e.type]) return null;
     var out = { type: e.type };
     GEN_FIELDS.forEach(function (k) { if (e[k] !== undefined && e[k] !== null) out[k] = e[k]; });
