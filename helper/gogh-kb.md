@@ -15,7 +15,7 @@ about something where they conflict, rather than picking one silently. Quote UI
 labels and message copy from the appendix, verbatim — those are the current
 strings, and a paraphrased button label is the fastest way to lose a user's trust.
 
-Generated for plugin version 0.99.699 · knowledge base c75deb4.
+Generated for plugin version 0.99.700 · knowledge base 778892b.
 
 ---
 
@@ -830,6 +830,8 @@ The helper's welcome panel opens with a 35-second film of gogh being used (v0.99
 
 **The phone view survives navigation (v0.99.605).** Press one of your own pages while on the phone and it opens in the editor, still on the phone: the link carries `gogh-edit=1&gogh-phone=1`, the next page reads them at boot and strips them from the address. Other sites, files, wp-admin and anchors on the same page are left alone. Unpublished changes still ask before leaving.
 
+**The top bar in the writing room (v0.99.700).** Writing a post now keeps the same dark bar as editing a page: the site's name at the top left (hover it for Dashboard, Your profile, Log out), **View post**, and at the top right the status (**Draft · not live yet**, or **Live**) with the blue **Publish** (or **Update** on a published post). The floating chip at the bottom right keeps the word count, the saved note and Categories & tags; Publish, Save draft and View post moved up to the bar (your words save as you type). While you type the bar fades to a whisper; moving the mouse or pausing brings it back. Leaving by the site's name or View post saves first.
+
 **A button's colour has its own door; Dashboard under the site name (v0.99.699).** A chosen button's toolbar now has a round colour chip showing the button's colour. It opens **Button colour**: Solid or Outline, then **Fill**, **Words** and **On hover**, each a row of swatches with **Custom colour** first (any colour at all) and the theme default second. The link icon now opens only **Button link**: where the button goes. A button inside a card keeps one panel with both. Hover the site's name at the top left for **Dashboard**, **Your profile** and **Log out**; going to the dashboard or logging out with changes not yet live asks first.
 
 **The grid wears the section's own colours (v0.99.698).** The grid that shows while you move things (or with the # grid button) is now drawn tone on tone in the section's own ink, the colour its words wear: a faint wash for the columns, slightly stronger gaps between rows, and clear lines at the margins and the centre. On an orange section it's a deeper orange grid, on cream a faint warm grey, on a dark section a soft light one. It used to lay fixed white bars over every light-looking section, which striped coloured backgrounds. Sections with a picture or video behind them keep the old light treatment.
@@ -1007,11 +1009,11 @@ Everything in this section is extracted mechanically from the Gogh source on eve
 
 ## Current release
 
-- Plugin version: **0.99.699**
+- Plugin version: **0.99.700**
 - Requires WordPress **6.5+**, PHP **7.4+**
 - Text domain: `gogh-editor`
 - readme.txt Stable tag: `0.26.0` · Tested up to: `7.0`
-- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.699`). Quote the plugin header version.
+- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.700`). Quote the plugin header version.
 
 ## Design constants
 
