@@ -2354,9 +2354,12 @@ html.gogh-editing #wpadminbar #wp-admin-bar-my-account { display: none !importan
   inset: 0;
   z-index: 0;
   pointer-events: none;
-  --gogh-cell-tint: rgba(56, 88, 233, 0.075);
-  --gogh-cell-gutter: rgba(255, 255, 255, 0.55);
-  --gogh-cell-edge: rgba(56, 88, 233, 0.45);
+  /* tone on tone, in the section's own ink (markGround sets it from its
+     words): column tint, row gaps a touch stronger, margin and centre
+     lines clear. One rule for every ground, light, dark or coloured */
+  --gogh-cell-tint: color-mix(in srgb, var(--gogh-grid-ink, currentColor) 4%, transparent);
+  --gogh-cell-gutter: color-mix(in srgb, var(--gogh-grid-ink, currentColor) 6%, transparent);
+  --gogh-cell-edge: color-mix(in srgb, var(--gogh-grid-ink, currentColor) 30%, transparent);
   background-image:
     linear-gradient(90deg, transparent calc(6.6667cqw - 1px), var(--gogh-cell-edge) calc(6.6667cqw - 1px), var(--gogh-cell-edge) 6.6667cqw, transparent 6.6667cqw, transparent calc(50cqw - 1px), var(--gogh-cell-edge) calc(50cqw - 1px), var(--gogh-cell-edge) 50cqw, transparent 50cqw, transparent 93.3333cqw, var(--gogh-cell-edge) 93.3333cqw, var(--gogh-cell-edge) calc(93.3333cqw + 1px), transparent calc(93.3333cqw + 1px)),
     repeating-linear-gradient(180deg, transparent 0, transparent 2cqw, var(--gogh-cell-gutter) 2cqw, var(--gogh-cell-gutter) 3cqw),
@@ -2374,17 +2377,12 @@ html.gogh-editing #wpadminbar #wp-admin-bar-my-account { display: none !importan
 /* mid-drag the active section shows the lattice (James: "i was talking
    about when folks drag and drop as well") */
 .gogh-editing .gogh-section.gogh-grid-live::before { opacity: 1; }
-/* a dark or pictured section: the tint lifts and the gutters deepen */
-.gogh-editing .gogh-section.gogh-ground-dark::before,
-.gogh-editing .gogh-section.gogh-ground-pictured::before {
-  --gogh-cell-tint: rgba(255, 255, 255, 0.09);
-  --gogh-cell-gutter: rgba(0, 0, 0, 0.35);
-  --gogh-cell-edge: rgba(255, 255, 255, 0.4);
-}
-/* a pictured section keeps the gutters quiet so the photo still reads */
+/* a pictured section has no single colour to borrow: light tint, quiet
+   dark gutters, light lines, so the photo still reads */
 .gogh-editing .gogh-section.gogh-ground-pictured::before {
   --gogh-cell-tint: rgba(255, 255, 255, 0.14);
   --gogh-cell-gutter: rgba(15, 23, 42, 0.18);
+  --gogh-cell-edge: rgba(255, 255, 255, 0.4);
 }
 
 

@@ -1159,6 +1159,17 @@
       sec().sectionEl.classList.remove('gogh-grid-live');
       return 'text: no grid; picture: grid';
     });
+    // v0.99.698: the editing grid is drawn in the section's own ink
+    test('the editing grid wears the section\u2019s own ink, never fixed white bars', function () {
+      var sx = sec(), i = findIdx('para');
+      G.renderSection(sx);
+      var ink = sx.sectionEl.style.getPropertyValue('--gogh-grid-ink').trim();
+      var words = getComputedStyle(sx.nodes[i].matches('p') ? sx.nodes[i] : sx.nodes[i].querySelector('p') || sx.nodes[i]).color;
+      expect(ink && ink === words, 'the grid ink should be the colour of the section\u2019s words: ' + ink + ' vs ' + words);
+      var bg = getComputedStyle(sx.sectionEl, '::before').backgroundImage;
+      expect(!/255, 255, 255, 0\.55/.test(bg), 'no fixed white gutters in the grid: ' + bg.slice(0, 120));
+      return 'grid ink ' + ink;
+    });
     // v0.99.687: a fit taken under another style or font ran past its box
     test('fitted words that spill past their box are fitted again; the size list drops from the size pill', function () {
       var i = findIdx('heading'), s0 = sec(), e = s0.els[i];

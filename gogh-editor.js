@@ -2505,6 +2505,27 @@
     }
     sec.sectionEl.classList.toggle('gogh-ground-dark', dark);
     sec.sectionEl.classList.toggle('gogh-ground-pictured', pictured);
+    // the editing grid is drawn in the section's OWN ink, tone on tone: the
+    // colour its words wear was chosen to read on its ground, so a faint
+    // wash of it reads on any ground (James: "when we got a colored
+    // background and move elements, the grid looks kinda weird" — fixed
+    // white bars striped an orange section). The section element itself
+    // carries the site's body colour, not a themed section's ink, so read
+    // the words: a paragraph first (a heading may wear an accent)
+    var ink = '';
+    try {
+      var pickInk = function (type) {
+        for (var k = 0; k < sec.els.length; k++) {
+          if (sec.els[k].type !== type || !sec.nodes || !sec.nodes[k]) continue;
+          var t = sec.nodes[k].matches('h1,h2,h3,h4,h5,h6,p,ul,ol') ? sec.nodes[k] : sec.nodes[k].querySelector('h1,h2,h3,h4,h5,h6,p,ul,ol');
+          if (t && (t.textContent || '').trim()) return getComputedStyle(t).color;
+        }
+        return '';
+      };
+      ink = pickInk('para') || pickInk('heading');
+    } catch (err) {}
+    if (!ink) ink = dark ? '#ffffff' : '#16181c';
+    sec.sectionEl.style.setProperty('--gogh-grid-ink', ink);
   }
 
   function newSectionShell(scope) {
