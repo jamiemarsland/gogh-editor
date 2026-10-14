@@ -15,7 +15,7 @@ about something where they conflict, rather than picking one silently. Quote UI
 labels and message copy from the appendix, verbatim — those are the current
 strings, and a paraphrased button label is the fastest way to lose a user's trust.
 
-Generated for plugin version 0.99.696 · knowledge base ccf5200.
+Generated for plugin version 0.99.697 · knowledge base 51f208a.
 
 ---
 
@@ -830,6 +830,8 @@ The helper's welcome panel opens with a 35-second film of gogh being used (v0.99
 
 **The phone view survives navigation (v0.99.605).** Press one of your own pages while on the phone and it opens in the editor, still on the phone: the link carries `gogh-edit=1&gogh-phone=1`, the next page reads them at boot and strips them from the address. Other sites, files, wp-admin and anchors on the same page are left alone. Unpublished changes still ask before leaving.
 
+**Site styles, rethought (v0.99.697).** **Site styles** (the paint brush at the top right, or the Site drawer's first card) now opens on **Your site now**: a small piece of your own page (its heading, a line of text and a button) in its real colours and fonts. It changes the moment the page does, so hovering a colour set, trying a new look or keeping a font pair shows there too. Under it are three rows, each showing its current value: **Colours** (the three colours doing the work, **Use my brand colour** — pick one colour and gogh builds the rest, or **Your brand** once set — and the theme's ready-made colour sets as tiles: hover to see one on your page, click to keep it), **Fonts** (the pairs, as before) and **Text size** (Snug, Regular, Airy, Grand, each drawn at its size; hover to see it, click to keep it). Underneath, **✦ Try a new look** (it used to be called Remix) changes the colours and fonts across the site in one press; a **Trying** card names the look with **↶ Back** and **Keep this**, and the button becomes **Try another**. The Site drawer's separate Fonts card is gone: Fonts is a row in Site styles, and its Back returns there.
+
 **Drawers start under the bar, wherever it is (v0.99.696).** The Page and Site drawers, and the panels that dock to the left, now start exactly where the top bar ends. In Playground, where the bar is moved down a few pixels, they overlapped its bottom edge.
 
 **Changes not live yet; a full bar in Playground (v0.99.695).** Beside Publish, a published page with new changes says **Changes not live yet** (the page itself is live; it's your latest changes that aren't), and a draft says **Draft · not live yet**. In WordPress Playground's seamless mode the site sits a few pixels above the top of the window, which cut off the top of the admin bar and made its buttons look cropped; gogh now notices that and moves the bar down by exactly that much. Anywhere else nothing changes.
@@ -1001,11 +1003,11 @@ Everything in this section is extracted mechanically from the Gogh source on eve
 
 ## Current release
 
-- Plugin version: **0.99.696**
+- Plugin version: **0.99.697**
 - Requires WordPress **6.5+**, PHP **7.4+**
 - Text domain: `gogh-editor`
 - readme.txt Stable tag: `0.26.0` · Tested up to: `7.0`
-- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.696`). Quote the plugin header version.
+- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.697`). Quote the plugin header version.
 
 ## Design constants
 
@@ -1246,6 +1248,7 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "As typed"
 - "Auto"
 - "Back"
+- "Back to Site styles"
 - "Back to my page"
 - "Back to the Site cards"
 - "Background & look"
@@ -1261,7 +1264,8 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "Button"
 - "Cancel"
 - "Card"
-- "Change the colours and fonts of your brand"
+- "Change your colours"
+- "Changes the colours and fonts across your site. Back puts it back."
 - "Choose a style"
 - "Close"
 - "Copies the styles as site definition JSON"
@@ -1289,7 +1293,6 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "Duplicate (or Alt-drag)"
 - "Duplicate the selection"
 - "Edge to edge of the section"
-- "Edit brand"
 - "Embed"
 - "Embed a link — a map, a post, a playlist, anything WordPress can show"
 - "Equal gaps top to bottom"
@@ -1418,7 +1421,6 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "Start writing — a reading column, cursor ready"
 - "Switch design"
 - "Switch it on"
-- "Tap to try a new look. Tap again for another."
 - "Text"
 - "Text alignment"
 - "Text colour"
@@ -1430,8 +1432,6 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "Tidy up"
 - "Too big — the longest word would run off the page"
 - "Try another"
-- "Try other font pairs on your page"
-- "Try other fonts"
 - "UPPERCASE"
 - "Undo"
 - "Undo (⌘Z)"
@@ -1458,10 +1458,11 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "×"
 - "← All layouts"
 - "↕ Spacing…"
+- "↶ Back"
 - "▶ Auto-play"
 - "⛶ Click to enlarge"
 - "✦ Not this look?"
-- "✦ Remix"
+- "✦ Try a new look"
 - "✨ Make draggable"
 - "✨ Make it freeform"
 

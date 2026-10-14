@@ -5522,8 +5522,9 @@
       G.fontsDry(true);
       var fontsThrown = null;
       var onFontsErr = function (ev) { fontsThrown = ev.message; ev.preventDefault(); };
-      var card = q('.gogh-side .gogh-fontsbtn');
-      expect(card, 'no Fonts card in the Site drawer');
+      // v0.99.697: Fonts is a row inside Site styles, not a card of its own
+      expect(!q('.gogh-side .gogh-fontsbtn'), 'Fonts should be a row in Site styles, not a separate drawer card');
+      var card = { click: function () { G.openFontsPanel(); } };
       var pairs = G.fontPairs();
       expect(pairs.length === 12 && pairs[0].theme, 'twelve pairs with the theme’s own first, got ' + pairs.length);
       expect(pairs.slice(1).every(function (p) { return p.heading && p.body && p.say; }), 'every pair names a heading face, a body face and its character');
@@ -5537,7 +5538,7 @@
       }).then(function (pnl) {
         var rows = [].slice.call(pnl.querySelectorAll('.gogh-fontpair:not(.gogh-fontpair-theme)'));
         expect(rows.length === 12, 'the panel should list twelve pairs, got ' + rows.length);
-        expect(pnl.querySelector('.gogh-typescale') && pnl.querySelectorAll('.gogh-typescale .gogh-hpreset').length === 4, 'the type size lives in the Fonts door');
+        expect(!pnl.querySelector('.gogh-typescale'), 'the type size has its own door now (Site styles \u203a Text size)');
         expect(pnl.querySelectorAll('.gogh-fontpair-theme').length >= 1, 'the theme’s own pairs sit in the same list, first');
         expect(rows[0].dataset.i === '0' && /\S/.test((rows[0].querySelector('.gogh-fontpair-say') || {}).textContent || ''), 'the first row is the theme’s own pair, with a word of its own');
         var googlePairs = G.fontPairs().filter(function (p2) { return !p2.theme; }).length;
@@ -7911,17 +7912,37 @@
           poll();
         });
       }).then(function (pnl) {
+        // v0.99.697: your site first, then three doors named for what they change
+        var mini = pnl.querySelector('.gogh-sitenow .gogh-sitenow-mini');
+        expect(mini && /\S/.test(mini.querySelector('.gogh-sitenow-h').textContent), 'Site styles should open on Your site now, with the page\u2019s own heading');
+        var rows = [].map.call(pnl.querySelectorAll('.gogh-siterow .gogh-siterow-t'), function (t) { return t.textContent; });
+        expect(rows.join(',') === 'Colours,Fonts,Text size', 'three rows: Colours, Fonts, Text size: ' + rows.join(','));
+        expect(pnl.querySelectorAll('.gogh-siterow-colours .gogh-vardot').length >= 2 && /\S/.test(pnl.querySelector('.gogh-siterow-fonts .gogh-siterow-sub').textContent), 'each row shows its current value');
         var top = pnl.querySelector('.gogh-toprow');
-        expect(top, 'the panel has no top row');
-        var remix = top.querySelector('.gogh-remixbtn'), brand = top.querySelector('.gogh-brandrow');
-        expect(remix && brand, 'Remix and the brand should both sit in the top row');
-        var rr = remix.getBoundingClientRect(), br = brand.getBoundingClientRect();
-        // brand on the left, Remix on the right (v0.99.628): the colours, then the die
-        expect(Math.abs(rr.top - br.top) < 4 && br.right <= rr.left + 2, 'Remix and the brand should share one row, the brand on the left');
-        expect(Math.abs(rr.height - br.height) < 2, 'the brand and Remix should stand the same height: ' + br.height + ' vs ' + rr.height);
-        expect(!top.querySelector('.gogh-toprow-note'), 'the note under the pair is gone; the wearing card carries it (v0.99.629)');
-        var more = pnl.querySelector('details.gogh-more');
-        expect(more && !more.open && more.contains(pnl.querySelector('.gogh-varlist')) && !pnl.querySelector('.gogh-typescale'), 'the theme’s colour looks should be folded under More; type lives in the Fonts door');
+        var remix = top && top.querySelector('.gogh-remixbtn');
+        expect(remix && /Try a new look/.test(remix.textContent) && !/Remix/.test(pnl.textContent.replace(/\s+/g, ' ').replace(/gogh-remix/g, '')), 'Remix should be called Try a new look: ' + (remix && remix.textContent));
+        expect(!top.querySelector('.gogh-brandrow') && !pnl.querySelector('details.gogh-more'), 'no brand link and no folded More on the drawer: they live in Colours');
+        expect(remix.getBoundingClientRect().top > pnl.querySelector('.gogh-siterows').getBoundingClientRect().bottom - 2, 'Try a new look should sit under the rows');
+        // Colours: the three colours, your brand, the theme's sets
+        pnl.querySelector('.gogh-siterow-colours').click();
+        return new Promise(function (r) { var t0 = Date.now(); (function poll() { var c = q('.gogh-panel .gogh-colroles'); if (c || Date.now() - t0 > 6000) r(c); else setTimeout(poll, 100); })(); }).then(function (roles) {
+          var pc = q('.gogh-panel');
+          expect(roles && roles.querySelectorAll('.gogh-colrole').length >= 2, 'Colours should show the colours doing the work');
+          expect(pc.querySelector('.gogh-brandrow .gogh-brandsetup, .gogh-brandrow .gogh-brandbtn'), 'Colours should hold the brand door');
+          expect(!pc.querySelector('details.gogh-more'), 'the theme\u2019s colour sets are out in the open, not under More');
+          pc.querySelector('.gogh-panel-back').click();
+          return new Promise(function (r) { setTimeout(r, 700); });
+        }).then(function () {
+          var p2 = q('.gogh-panel');
+          expect(p2.querySelector('.gogh-sitenow'), 'Back from Colours should return to Site styles');
+          p2.querySelector('.gogh-siterow-size').click();
+          var dial = q('.gogh-panel .gogh-sizedial');
+          var its = dial ? [].slice.call(dial.querySelectorAll('.gogh-sizedial-it')) : [];
+          expect(its.length === 4 && its.every(function (it, k) { return !k || parseFloat(it.querySelector('b').style.fontSize) > parseFloat(its[k - 1].querySelector('b').style.fontSize); }), 'Text size: four sizes, each drawn bigger than the last');
+          expect(dial.querySelectorAll('.is-active').length === 1, 'the size in use is marked');
+          return q('.gogh-panel');
+        });
+      }).then(function (pnl) {
         expect(!pnl.querySelector('.gogh-remixcards, .gogh-remixlocks, .gogh-remixdirs, .gogh-remixkept, .gogh-remixpin'), 'the shop (cards, locks, directions, the shelf) should be gone, not hidden');
         expect(!G.remixKeep && !G.remixLocks, 'the shop\u2019s functions should be gone from the editor');
         // saved styles are managed from a piece's Style panel: Site style
@@ -8712,16 +8733,9 @@
         var name = box.querySelector('.gogh-remixwearing-name').textContent;
         if (box.hidden) expect(getComputedStyle(box).display === 'none', 'the hidden card is still drawn: display ' + getComputedStyle(box).display);
         else expect(/\S/.test(name), 'the card is showing with no name');
-        // with a brand set and nothing rolled, the card is the brand's receipt (v0.99.629):
-        // its name, its colours as dots, its fonts, and doors to the brand form and Fonts
-        var C = window.GOGH || {};
-        if (C.brand && C.brand.colors && Object.keys(C.brand.colors).length && !G.remixWorn()) {
-          expect(!box.hidden && name === 'Your brand', 'with a brand set the card should show Your brand before any roll: hidden=' + box.hidden + ' name=' + name);
-          expect(box.querySelectorAll('.gogh-remixwearing-detail .gogh-vardot').length >= 1, 'the brand card should show its colours as dots');
-          expect(/\S/.test(box.querySelector('.gogh-remixwearing-fonts').textContent), 'the brand card should name its fonts (or the theme\u2019s own type)');
-          var bw = box.querySelector('.gogh-remixwearing-brandways');
-          expect(bw && !bw.hidden && box.querySelector('.gogh-remixwearing-ways').hidden, 'the brand card should offer Edit brand and Fonts, not Back and Keep this');
-        }
+        // v0.99.697: no brand receipt here: Your site now shows the look, and
+        // with nothing rolled the Trying card stays out of sight
+        if (!G.remixWorn() || G.remixWorn().origin) expect(box.hidden, 'with nothing rolled the Trying card should be hidden');
         // and hidden by hand, it must vanish (the flex rule used to out-rank hidden)
         var was = box.hidden; box.hidden = true;
         expect(getComputedStyle(box).display === 'none', 'a hidden card is still drawn: display ' + getComputedStyle(box).display);

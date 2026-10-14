@@ -1,6 +1,13 @@
-# Knowledge-base audit — plugin v0.99.696
+# Knowledge-base audit — plugin v0.99.697
 
 _13 finding(s) suppressed by `kb.audit-ignore.txt`._
+
+## STALE (2)
+
+The prose names something that no longer exists.
+
+- UI label "Edit brand" was removed in this release, but the prose still describes it
+- UI label "Try other fonts" was removed in this release, but the prose still describes it
 
 ## MISSING (101)
 
@@ -136,3 +143,20 @@ Quoted copy not found verbatim in the source. Paraphrases are fine; changed UI c
 - From Misprint
 - (max-width: 700px) 100vw, min(100vw, Wpx)
 - (max-width: 700px) 100vw, 53vw
+
+## What changed since the last knowledge-base build
+
+Use this as the checklist for updating the prose — and as a sanity check on the release itself.
+
+- version: 0.99.696 → 0.99.697
+- removed UI label: "Change the colours and fonts of your brand"
+- removed UI label: "Edit brand"
+- removed UI label: "Tap to try a new look. Tap again for another."
+- removed UI label: "Try other font pairs on your page"
+- removed UI label: "Try other fonts"
+- removed UI label: "✦ Remix"
+- added UI label: "Back to Site styles"
+- added UI label: "Change your colours"
+- added UI label: "Changes the colours and fonts across your site. Back puts it back."
+- added UI label: "↶ Back"
+- added UI label: "✦ Try a new look"

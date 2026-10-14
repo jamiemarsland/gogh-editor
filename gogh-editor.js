@@ -2768,11 +2768,7 @@
     '<div class="gogh-side-cards gogh-cards-site" hidden>' +
     '<button type="button" class="gogh-sitem gogh-scard gogh-stylebtn">' +
     '<span class="gogh-scard-ic is-accent"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M12 3a9 9 0 1 0 0 18h1.5a2.5 2.5 0 0 0 1.8-4.2 2.5 2.5 0 0 1 1.8-4.3H20a9 9 0 0 0-8-9.5Z"/><circle cx="7.5" cy="11" r="1.2" fill="currentColor" stroke="none"/><circle cx="10.5" cy="7.5" r="1.2" fill="currentColor" stroke="none"/><circle cx="15" cy="7.5" r="1.2" fill="currentColor" stroke="none"/></svg></span>' +
-    '<span class="gogh-scard-tx"><span class="gogh-scard-t">Site style</span><span class="gogh-scard-s">Colours, looks, brand</span></span>' +
-    '<svg class="gogh-scard-chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg></button>' +
-    '<button type="button" class="gogh-sitem gogh-scard gogh-fontsbtn">' +
-    '<span class="gogh-scard-ic"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h4l5-13 5 13h4M8 15h8"/></svg></span>' +
-    '<span class="gogh-scard-tx"><span class="gogh-scard-t">Fonts</span><span class="gogh-scard-s">Pairs, tried on your page</span></span>' +
+    '<span class="gogh-scard-tx"><span class="gogh-scard-t">Site styles</span><span class="gogh-scard-s">Colours, fonts and text size</span></span>' +
     '<svg class="gogh-scard-chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg></button>' +
     '<button type="button" class="gogh-sitem gogh-scard gogh-motionbtn">' +
     '<span class="gogh-scard-ic"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12c3-6 6-6 9 0s6 6 9 0"/></svg></span>' +
@@ -13695,7 +13691,7 @@
     // type and motion are SITE decisions — refuse instantly and point at
     // the right door, never roulette the model on them
     if (has(/\bfonts?\b|typeface|\bserif\b|sans.?serif|typography/)) {
-      return { label: 'the type', miss: 'Type is a site-wide voice — change it in Site style, in the Design drawer. One type voice per site is what keeps everything looking designed.',
+      return { label: 'the type', miss: 'Type is a site-wide voice: change it in Site styles \u203a Fonts, at the top right. One type voice per site is what keeps everything looking designed.',
         build: function () { return []; } };
     }
     if (has(/animat|\bmotion\b|move (when|on|as|while)|scroll effect|when (i|you|they) scroll/)) {
@@ -13727,7 +13723,7 @@
     // wish, not a request to go photo-shopping. Lighter first — "less
     // dark" must not fall into the dark read.
     if (has(/lighter|brighter|brighten|softer|less dark|\bwhite\b|\blight\b|\bpale\b/)) {
-      return { label: 'a lighter touch', miss: 'Your site\u2019s palette has no lighter colour to offer \u2014 gogh only paints with colours the site owns. Remix (in Site style) can bring new ones.',
+      return { label: 'a lighter touch', miss: 'Your site\u2019s palette has no lighter colour to offer \u2014 gogh only paints with colours the site owns. Try a new look (in Site styles) can bring new ones.',
         build: function () {
           return askThemesFeeling('light').slice(0, 3).map(function (t) {
             return { name: t.name, apply: function (s) { paintSectionTheme(s, t); } };
@@ -13735,7 +13731,7 @@
         } };
     }
     if (has(/darker|moodier|more dramatic|\bdark\b|\bblack\b|\bnight\b/)) {
-      return { label: 'a darker mood', miss: 'Your site\u2019s palette has no darker colour to offer \u2014 gogh only paints with colours the site owns. Remix (in Site style) can bring new ones.',
+      return { label: 'a darker mood', miss: 'Your site\u2019s palette has no darker colour to offer \u2014 gogh only paints with colours the site owns. Try a new look (in Site styles) can bring new ones.',
         build: function () {
           return askThemesFeeling('dark').slice(0, 3).map(function (t) {
             return { name: t.name, apply: function (s) { paintSectionTheme(s, t); } };
@@ -13763,7 +13759,7 @@
       }
       var wantHue = ASK_HUES[colorWord[1]];
       return { label: 'a ' + colorWord[1] + ' background',
-        miss: 'Your site style has no ' + colorWord[1] + ' — gogh only paints with the palette the site owns. Remix (in Site style) can find you a new one.',
+        miss: 'Your site\u2019s colours have no ' + colorWord[1] + ' \u2014 gogh only paints with the palette the site owns. Try a new look (in Site styles) can find you a new one.',
         build: function () {
           return askThemesNear(wantHue).slice(0, 3).map(function (th) {
             return { name: th.name, apply: function (s) { paintSectionTheme(s, th); } };
@@ -17538,7 +17534,6 @@
         '<button type="button" class="gogh-sbtn gogh-panel-close gogh-panel-back" title="Back"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"/></svg></button></div>' +
         '<div class="gogh-panel-hint">Hover to try a pair on your page. Click to keep it.</div>' +
         '<div class="gogh-fontswearing"><span class="gogh-remixwearing-lab">On your site now</span><span class="gogh-fontswearing-name"></span><span class="gogh-fontswearing-sub"></span></div>' +
-        typeScaleHtml() +
         // one list: the theme's own pairs first, then the twelve — nobody
         // needs to know which is which (James: 'do they care?')
         '<div class="gogh-fontlist">' + (function () {
@@ -17575,7 +17570,8 @@
         '<input type="search" class="gogh-fonts-q" placeholder="Try a font by name" autocomplete="off" spellcheck="false">' +
         '<div class="gogh-fonts-roles"><button type="button" class="gogh-fonts-role is-on" data-role="heading">Headings</button><button type="button" class="gogh-fonts-role" data-role="body">Body</button><button type="button" class="gogh-fonts-role" data-role="both">Both</button></div>' +
         '<div class="gogh-fonts-hits"></div><div class="gogh-panel-hint gogh-fonts-status" hidden></div></div></details>';
-      panel.querySelector('.gogh-panel-back').addEventListener('click', function () { clearFontsPreview(); backToDesign(); });
+      // Fonts is a door inside Site styles: Back goes back there
+      panel.querySelector('.gogh-panel-back').addEventListener('click', function () { clearFontsPreview(); openStylePanel(anchorEl); });
       // every pair's faces load now, not on hover: a row that swapped from
       // its fallback face as the pointer passed read as other rows growing
       // (James: 'feels like other fonts are increasing size')
@@ -19517,205 +19513,267 @@
       return false;
     });
   }
+  // ---------- Site styles: what you have, then what you can change ----------
+  // James: 'i think its confusing for beginners'. The drawer opened on a
+  // Remix button, a brand link and a folded More, with nothing showing the
+  // site's look. Now: a small piece of the page in its real colours and
+  // fonts, three doors named for what they change (Colours, Fonts, Text
+  // size), and Remix, renamed for what it does, underneath
+  var SIZE_NAMES = { 90: 'Snug', 100: 'Regular', 110: 'Airy', 120: 'Grand' };
+  function siteSample() {
+    // the words and faces the page really wears: its first heading,
+    // paragraph and button outside the header and footer
+    var root = document.querySelector('.wp-site-blocks') || document.body;
+    var pick = function (sel) {
+      var all = root.querySelectorAll(sel);
+      for (var k = 0; k < all.length; k++) {
+        var n = all[k];
+        if (n.closest('header.wp-block-template-part, footer.wp-block-template-part, .gogh-panel, .gogh-side')) continue;
+        if (!(n.textContent || '').trim()) continue;
+        return n;
+      }
+      return null;
+    };
+    return { h: pick('h1, h2, h3'), p: pick('p'), b: pick('.wp-block-button__link') };
+  }
+  function firstFamily(ff) { return String(ff || '').split(',')[0].replace(/["']/g, '').trim(); }
+  function siteAccentSlug(roles) {
+    var pal = themePalette();
+    var skip = { base: 1, contrast: 1, background: 1, foreground: 1, main: 1, text: 1 };
+    var hit = pal.filter(function (x) { return x.slug !== roles.bgSlug && x.slug !== roles.textSlug && !skip[x.slug]; })[0];
+    return hit ? hit.slug : null;
+  }
+  // the card and the rows read the LIVE page, so a hovered colour set, a
+  // rolled look or a kept pair shows here the moment it shows on the page
+  function paintSiteNow(pnl) {
+    var card = pnl.querySelector('.gogh-sitenow-mini');
+    if (!card) return;
+    var smp = siteSample(), roles = paletteRoles() || {};
+    var v = function (slug) { return slug ? 'var(--wp--preset--color--' + slug + ')' : ''; };
+    var trim = function (t, n) { t = String(t || '').replace(/\s+/g, ' ').trim(); return t.length > n ? t.slice(0, n - 1).replace(/\s+\S*$/, '') + '…' : t; };
+    card.style.background = v(roles.bgSlug) || '#fff';
+    card.style.color = v(roles.textSlug) || '#111';
+    var hEl = card.querySelector('.gogh-sitenow-h'), pEl = card.querySelector('.gogh-sitenow-p'), bEl = card.querySelector('.gogh-sitenow-b');
+    hEl.textContent = smp.h ? trim(smp.h.textContent, 46) : (cfg.siteName || 'Your site');
+    pEl.textContent = smp.p ? trim(smp.p.textContent, 96) : '';
+    pEl.hidden = !smp.p;
+    var hc = smp.h ? getComputedStyle(smp.h) : null, pc = smp.p ? getComputedStyle(smp.p) : null;
+    if (hc) { hEl.style.fontFamily = hc.fontFamily; hEl.style.fontWeight = hc.fontWeight; hEl.style.letterSpacing = hc.letterSpacing === 'normal' ? '' : hc.letterSpacing; hEl.style.textTransform = hc.textTransform; }
+    if (pc) pEl.style.fontFamily = pc.fontFamily;
+    if (smp.b) {
+      var bc = getComputedStyle(smp.b);
+      bEl.hidden = false;
+      bEl.textContent = trim(smp.b.textContent, 22);
+      bEl.style.background = bc.backgroundColor;
+      bEl.style.color = bc.color;
+      bEl.style.borderRadius = Math.min(parseFloat(bc.borderTopLeftRadius) || 0, 18) + 'px';
+      bEl.style.fontFamily = bc.fontFamily;
+      bEl.style.border = parseFloat(bc.borderTopWidth) ? '1px solid ' + bc.borderTopColor : '0';
+    } else bEl.hidden = true;
+    // the rows' values
+    var colSw = pnl.querySelector('.gogh-siterow-colours .gogh-siterow-val');
+    if (colSw) colSw.innerHTML = [roles.bgSlug, roles.textSlug, siteAccentSlug(roles)].filter(Boolean).map(function (sl) { return '<i class="gogh-vardot" style="background:' + v(sl) + '"></i>'; }).join('');
+    var colSub = pnl.querySelector('.gogh-siterow-colours .gogh-siterow-sub');
+    if (colSub) {
+      var worn = remixWorn();
+      colSub.textContent = worn && !worn.origin && worn.cand ? worn.cand.name : ((cfg.activeStyle || '') === 'Your brand' || (cfg.brand && cfg.brand.colors && cfg.brand.colors.background && !cfg.activeStyle) ? 'Your brand' : (cfg.activeStyle || 'Your theme’s colours'));
+    }
+    var fSub = pnl.querySelector('.gogh-siterow-fonts .gogh-siterow-sub');
+    var fVal = pnl.querySelector('.gogh-siterow-fonts .gogh-siterow-val');
+    if (fSub) {
+      var hn = hc ? firstFamily(hc.fontFamily) : '', bn = pc ? firstFamily(pc.fontFamily) : '';
+      fSub.textContent = hn && bn ? (hn === bn ? hn : hn + ' & ' + bn) : (hn || bn || 'Your theme’s fonts');
+      fVal.innerHTML = '<span style="font-family:' + escAttr(hc ? hc.fontFamily : 'inherit') + ';font-weight:' + (hc ? hc.fontWeight : 700) + '">Aa</span>' +
+        (pc && pc.fontFamily !== (hc && hc.fontFamily) ? '<span style="font-family:' + escAttr(pc.fontFamily) + '">Aa</span>' : '');
+    }
+    var sSub = pnl.querySelector('.gogh-siterow-size .gogh-siterow-sub');
+    if (sSub) sSub.textContent = SIZE_NAMES[+cfg.typeScale || 100] || ((+cfg.typeScale || 100) + '%');
+    pnl.querySelectorAll('.gogh-siterow-size .gogh-siterow-val i').forEach(function (it) { it.classList.toggle('is-on', +it.dataset.scale === (+cfg.typeScale || 100)); });
+  }
+  // repaint whenever the page's styles change under the panel: a hover
+  // audition, a roll, a kept colour set or font pair, a new type size
+  var siteNowObs = null;
+  function watchSiteNow(pnl) {
+    if (siteNowObs) { siteNowObs.disconnect(); siteNowObs = null; }
+    var t = 0;
+    siteNowObs = new MutationObserver(function () {
+      if (!document.body.contains(pnl) || !pnl.querySelector('.gogh-sitenow-mini')) { siteNowObs.disconnect(); siteNowObs = null; return; }
+      clearTimeout(t);
+      t = setTimeout(function () { paintSiteNow(pnl); }, 60);
+    });
+    siteNowObs.observe(document.head, { childList: true, subtree: true, characterData: true });
+    if (document.fonts && document.fonts.ready) document.fonts.ready.then(function () { if (document.body.contains(pnl)) paintSiteNow(pnl); });
+  }
   function openStylePanel(anchorEl) {
     if (!cfg.gsId || !cfg.theme) return;
     ensureThemeBase(); // warm the theme base so the first hover previews the full merge
-    fetchVariations().then(function (vars) {
-      if (!vars.length) return;
+    fetchVariations().then(function () {
+      var chev = '<svg class="gogh-siterow-chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>';
       panel.innerHTML =
-        '<div class="gogh-panel-head"><span class="gogh-panel-title">Site style</span>' +
+        '<div class="gogh-panel-head"><span class="gogh-panel-title">Site styles</span>' +
         '<button type="button" class="gogh-sbtn gogh-panel-close gogh-panel-back" title="Back"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"/></svg></button></div>' +
-        '<div class="gogh-panel-hint">Tap Remix to try a new look. Tap again for another.</div>' +
-        // the two doors people come for share the top row: Remix first and
-        // emphasised, the brand beside it. The dials — the theme's own
-        // looks, its font pairs, the type size — live one door deeper,
-        // folded under More until asked for ("Remix Like the Die", rule 5)
-        '<div class="gogh-toprow"></div>' +
-        // colours here; type lives in the Fonts door (James: "its unclear
-        // what the relationship is between our new fonts and site style
-        // fonts" — one door for type, one for colour)
-        '<details class="gogh-more"><summary class="gogh-more-sum">More <span class="gogh-more-what">the theme\u2019s colour looks</span></summary>' +
-        '<div class="gogh-panel-hint">Hover to preview \u2014 click to keep it</div>' +
-        '<div class="gogh-varlist"></div></details>';
-      panel.querySelector('.gogh-panel-close').addEventListener('click', function () {
-        backToDesign();
-      });
-      var box = panel.querySelector('.gogh-varlist');
+        '<div class="gogh-panel-hint">The colours and fonts of every page.</div>' +
+        '<div class="gogh-sitenow"><span class="gogh-sitenow-lab">Your site now</span>' +
+        '<div class="gogh-sitenow-mini"><span class="gogh-sitenow-h"></span><span class="gogh-sitenow-p"></span><span class="gogh-sitenow-btns"><span class="gogh-sitenow-b"></span></span></div></div>' +
+        '<div class="gogh-siterows">' +
+        '<button type="button" class="gogh-siterow gogh-siterow-colours"><span class="gogh-siterow-tx"><span class="gogh-siterow-t">Colours</span><span class="gogh-siterow-sub"></span></span><span class="gogh-siterow-val"></span>' + chev + '</button>' +
+        '<button type="button" class="gogh-siterow gogh-siterow-fonts"><span class="gogh-siterow-tx"><span class="gogh-siterow-t">Fonts</span><span class="gogh-siterow-sub"></span></span><span class="gogh-siterow-val gogh-siterow-aa"></span>' + chev + '</button>' +
+        '<button type="button" class="gogh-siterow gogh-siterow-size"><span class="gogh-siterow-tx"><span class="gogh-siterow-t">Text size</span><span class="gogh-siterow-sub"></span></span><span class="gogh-siterow-val gogh-siterow-sizes">' +
+        [90, 100, 110, 120].map(function (sc, k) { return '<i data-scale="' + sc + '" style="font-size:' + (11 + k * 3) + 'px">A</i>'; }).join('') + '</span>' + chev + '</button>' +
+        '</div>' +
+        // Remix, named for what it does, under the doors
+        '<div class="gogh-toprow"></div>';
+      panel.querySelector('.gogh-panel-close').addEventListener('click', function () { backToDesign(); });
+      panel.querySelector('.gogh-siterow-colours').addEventListener('click', function () { openColoursPanel(anchorEl); });
+      panel.querySelector('.gogh-siterow-fonts').addEventListener('click', function () { openFontsPanel(anchorEl); });
+      panel.querySelector('.gogh-siterow-size').addEventListener('click', function () { openTextSizePanel(anchorEl); });
       var top = panel.querySelector('.gogh-toprow');
-      // Site designs lives in the Design drawer alone — this panel is styles
-      // your brand sits ABOVE the theme's styles — the most important option
-      (function () {
-        var row = document.createElement('div');
-        row.className = 'gogh-brandrow';
-        if (cfg.brand && cfg.brand.colors) {
-          var b2 = document.createElement('button');
-          b2.type = 'button';
-          b2.className = 'gogh-varbtn gogh-brandbtn';
-          if ((cfg.activeStyle || '') === 'Your brand') b2.classList.add('is-current');
-          b2.title = 'Your brand \u2014 Remix keeps these colours and rolls everything else. Click to edit it.';
-          var order = ['background', 'text', 'accent', 'accent2'];
-          b2.innerHTML = order.map(function (k) {
-            var col = cfg.brand.colors[k];
-            return col ? '<span class="gogh-vardot" style="background:' + escAttr(col) + '"></span>' : '';
-          }).join('') + '<span class="gogh-varname">Your brand</span>' +
-            // a pencil says it opens: on the shared row the brand read as a
-            // caption beside a loud Remix (James: 'your brand gets lost')
-            '<svg class="gogh-brandpen" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>';
-          var bv = brandToVariation(cfg.brand);
-          b2.addEventListener('mouseenter', function () {
-            clearTimeout(previewHoverT);
-            previewHoverT = setTimeout(function () { auditionVariation(bv); }, 120);
-          });
-          // the whole row is the door to your brand — applying happens from
-          // the editor's Keep, with live preview along the way
-          b2.addEventListener('click', function () {
-            clearVariationPreview();
-            openBrandForm(anchorEl);
-          });
-          row.appendChild(b2);
-        } else {
-          var mk = document.createElement('button');
-          mk.type = 'button';
-          mk.className = 'gogh-btn gogh-btn-small gogh-brandsetup';
-          mk.textContent = '+ Set up your brand';
-          mk.addEventListener('click', function () { openBrandForm(anchorEl); });
-          row.appendChild(mk);
-        }
-        top.appendChild(row);
-      })();
-      // ---------- Remix: a die for the site's clothes ----------
+      // ---------- Try a new look: a die for the site's clothes ----------
       (function () {
         var wrap = document.createElement('div');
         wrap.className = 'gogh-remixrow';
         wrap.innerHTML = '<button type="button" class="gogh-btn gogh-btn-small gogh-remixbtn" ' +
-          'title="Tap to try a new look. Tap again for another.">✦ Remix</button>' +
+          'title="Changes the colours and fonts across your site. Back puts it back.">✦ Try a new look</button>' +
+          '<span class="gogh-remixline">Changes colours and fonts across your site. Back puts it back.</span>' +
           '<div class="gogh-remixwearing" hidden>' +
-            '<span class="gogh-remixwearing-words"><span class="gogh-remixwearing-lab">On your site now</span>' +
+            '<span class="gogh-remixwearing-words"><span class="gogh-remixwearing-lab">Trying</span>' +
             '<span class="gogh-remixwearing-name"></span><span class="gogh-remixwearing-detail"></span></span>' +
-            // the count is context, not a ceiling (James: "not suggesting we limit, just give context")
             '<span class="gogh-remixwearing-foot"><span class="gogh-remixwearing-count"></span>' +
-            '<span class="gogh-remixwearing-ways"><button type="button" class="gogh-remixback" title="The look before this one">Back</button>' +
+            '<span class="gogh-remixwearing-ways"><button type="button" class="gogh-remixback" title="The look before this one">↶ Back</button>' +
             // closure, not a decision: the look is already on; Keep just says so and closes the panel
-            '<button type="button" class="gogh-remixkeep" title="It is already on your site — this closes the panel">Keep this</button></span>' +
-            // before any roll, with a brand set, the card is the receipt for the
-            // brand (James: 'should it be telling me the fonts etc what my brand
-            // uses, on this screen?'): its doors are the brand form and Fonts
-            '<span class="gogh-remixwearing-brandways" hidden><button type="button" class="gogh-remixbrandedit" title="Change the colours and fonts of your brand">Edit brand</button>' +
-            '<button type="button" class="gogh-remixbrandfonts" title="Try other font pairs on your page">Try other fonts</button></span></span></div>';
+            '<button type="button" class="gogh-remixkeep" title="It is already on your site — this closes the panel">Keep this</button></span></span></div>';
         top.appendChild(wrap);
         var wearingBox = wrap.querySelector('.gogh-remixwearing');
         var backBtn = wrap.querySelector('.gogh-remixback');
-        var hint = panel.querySelector('.gogh-panel-hint');
-        var brandWays = wrap.querySelector('.gogh-remixwearing-brandways');
-        var ways = wrap.querySelector('.gogh-remixwearing-ways');
-        var brandFontName = function (k) {
-          var f = cfg.brand && cfg.brand.fonts && cfg.brand.fonts[k];
-          if (!f) return '';
-          var fam = ((cfg.brand && cfg.brand.families) || []).filter(function (x) { return x && x.slug === f; })[0];
-          var nm = fam && (fam.name || (fam.font_family_settings || {}).name);
-          return nm || String(f).replace(/^gogh-/, '').split('-').map(function (wd) { return wd.charAt(0).toUpperCase() + wd.slice(1); }).join(' ');
-        };
-        var sayBrand = function () {
-          var cols = ['background', 'text', 'accent', 'accent2'].map(function (k) { return cfg.brand.colors[k]; }).filter(Boolean);
-          var h = brandFontName('heading'), bd = brandFontName('body');
-          // two labelled rows, so the words read as fonts and not as more
-          // colours (James: 'it would be nice if it made clear what were fonts')
-          var fonts = h && bd ? (h === bd ? h + ' for headings and body' : h + ' for headings, ' + bd + ' for body') : (h ? h + ' for headings' : (bd ? bd + ' for body' : 'the theme\u2019s own type'));
-          wearingBox.querySelector('.gogh-remixwearing-name').textContent = 'Your brand';
-          wearingBox.querySelector('.gogh-remixwearing-detail').innerHTML =
-            '<span class="gogh-remixwearing-row"><span class="gogh-remixwearing-lab2">Colours</span>' +
-            cols.map(function (c) { return '<span class="gogh-vardot" style="background:' + escAttr(c) + '"></span>'; }).join('') +
-            '<span class="gogh-remixwearing-cols">' + cols.length + '</span></span>' +
-            '<span class="gogh-remixwearing-row"><span class="gogh-remixwearing-lab2">Fonts</span><span class="gogh-remixwearing-fonts">' + esc(fonts) + '</span></span>';
-          wearingBox.querySelector('.gogh-remixwearing-count').textContent = 'Remix rolls new looks around these colours';
-        };
+        var rollBtn = wrap.querySelector('.gogh-remixbtn');
+        var line = wrap.querySelector('.gogh-remixline');
         remixWatch('panel', function () {
           if (!document.body.contains(wearingBox)) return; // the panel moved on
           var w = remixWorn();
-          var brandSet = !!(cfg.brand && cfg.brand.colors && Object.keys(cfg.brand.colors).length);
-          if (!w && !brandSet) { wearingBox.hidden = true; return; }
-          wearingBox.hidden = false;
-          if (!w) { sayBrand(); brandWays.hidden = false; ways.hidden = true; wearingBox.classList.add('is-brand'); return; }
-          brandWays.hidden = true; ways.hidden = false; wearingBox.classList.remove('is-brand');
-          // after the first roll the hint says the thing nobody said: it is already on
-          if (hint) hint.textContent = w.origin ? 'Tap Remix to try a new look. Tap again for another.' : 'Like it? It\u2019s already on your site. Tap again for another, or go back.';
-          wearingBox.querySelector('.gogh-remixwearing-name').textContent = w.origin ? (w.title || 'the look you started with') : ((w.cand && w.cand.name) || 'a new look');
-          wearingBox.querySelector('.gogh-remixwearing-detail').textContent = w.origin ? '' : ((w.cand && w.cand.detail) || '');
-          wearingBox.querySelector('.gogh-remixwearing-count').textContent = w.origin ? 'Where you started' : 'Look ' + remixAt;
+          paintSiteNow(panel);
+          if (!w || w.origin) {
+            wearingBox.hidden = true; line.hidden = false;
+            rollBtn.textContent = '✦ Try a new look';
+            return;
+          }
+          wearingBox.hidden = false; line.hidden = true;
+          rollBtn.textContent = '✦ Try another';
+          wearingBox.querySelector('.gogh-remixwearing-name').textContent = (w.cand && w.cand.name) || 'a new look';
+          wearingBox.querySelector('.gogh-remixwearing-detail').textContent = (w.cand && w.cand.detail) || '';
+          wearingBox.querySelector('.gogh-remixwearing-count').textContent = 'Look ' + remixAt;
           backBtn.disabled = remixAt <= 0;
         });
         backBtn.addEventListener('click', function () { remixBack(); });
-        wrap.querySelector('.gogh-remixbrandedit').addEventListener('click', function () { clearVariationPreview(); openBrandForm(anchorEl); });
-        wrap.querySelector('.gogh-remixbrandfonts').addEventListener('click', function () { clearVariationPreview(); openFontsPanel(anchorEl); });
         wrap.querySelector('.gogh-remixkeep').addEventListener('click', function () {
           var w = remixWorn();
           backToDesign(); // the same way out as Back: the side rail comes back
           var said = w && !w.origin && w.cand ? (w.cand.name === 'Your brand' ? 'your brand' + (w.cand.detail ? ', ' + w.cand.detail : '') : w.cand.name) : '';
           toast(said ? 'Kept. Your site now uses ' + said + '.' : 'Kept.', { ttl: 3500 });
         });
-        wrap.querySelector('.gogh-remixbtn').addEventListener('click', function () { remixRoll(); });
+        rollBtn.addEventListener('click', function () { remixRoll(); });
         remixSayWearing();
       })();
-      // colours only: the theme's font pairs live in the Fonts door now
-      var groups = { color: [], font: [] };
+      paintSiteNow(panel);
+      watchSiteNow(panel);
+      dockSidebar();
+      panelSticky = true; // hover-audition panel: outside clicks pass through
+      zoomOutCanvas(); // pull the whole page into view
+    }).catch(function () {});
+  }
+  // ---------- Colours: the three that do the work, your brand, the theme's sets ----------
+  function openColoursPanel(anchorEl) {
+    if (!cfg.gsId || !cfg.theme) return;
+    ensureThemeBase();
+    fetchVariations().then(function (vars) {
+      var roles = paletteRoles() || {};
+      var acc = siteAccentSlug(roles);
+      var hexOf = function (slug) { return slug ? (cssColorToHex('var(--wp--preset--color--' + slug + ')') || '').toUpperCase() : ''; };
+      var role = function (slug, name) {
+        return slug ? '<button type="button" class="gogh-colrole" data-slug="' + escAttr(slug) + '" title="Change your colours">' +
+          '<i class="gogh-colrole-chip" style="background:var(--wp--preset--color--' + escAttr(slug) + ')"></i>' +
+          '<span class="gogh-colrole-name">' + name + '</span><span class="gogh-colrole-hex">' + esc(hexOf(slug)) + '</span></button>' : '';
+      };
+      var brandSet = !!(cfg.brand && cfg.brand.colors && cfg.brand.colors.background);
+      panel.innerHTML =
+        '<div class="gogh-panel-head"><span class="gogh-panel-title">Colours</span>' +
+        '<button type="button" class="gogh-sbtn gogh-panel-close gogh-panel-back" title="Back to Site styles"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"/></svg></button></div>' +
+        '<div class="gogh-colroles">' + role(roles.bgSlug, 'Background') + role(roles.textSlug, 'Text') + role(acc, 'Accent') + '</div>' +
+        '<div class="gogh-brandrow"></div>' +
+        '<div class="gogh-panel-hint gogh-colsets-lab">Ready-made colours from your theme</div>' +
+        '<div class="gogh-varlist gogh-colsets"></div>' +
+        '<div class="gogh-panel-hint">Hover a colour set to see it on your page. Click to keep it.</div>';
+      panel.querySelector('.gogh-panel-back').addEventListener('click', function () { clearVariationPreview(); openStylePanel(anchorEl); });
+      panel.querySelectorAll('.gogh-colrole').forEach(function (b) { b.addEventListener('click', function () { clearVariationPreview(); openBrandForm(anchorEl); }); });
+      // your brand: one colour in, gogh builds the rest around it
+      var row = panel.querySelector('.gogh-brandrow');
+      if (brandSet) {
+        var b2 = document.createElement('button');
+        b2.type = 'button';
+        b2.className = 'gogh-varbtn gogh-brandbtn';
+        if ((cfg.activeStyle || '') === 'Your brand') b2.classList.add('is-current');
+        b2.title = 'Your brand — a new look keeps these colours. Click to change it.';
+        b2.innerHTML = ['background', 'text', 'accent', 'accent2'].map(function (k) {
+          var col = cfg.brand.colors[k];
+          return col ? '<span class="gogh-vardot" style="background:' + escAttr(col) + '"></span>' : '';
+        }).join('') + '<span class="gogh-varname">Your brand</span>' +
+          '<svg class="gogh-brandpen" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>';
+        var bv = brandToVariation(cfg.brand);
+        b2.addEventListener('mouseenter', function () { clearTimeout(previewHoverT); previewHoverT = setTimeout(function () { auditionVariation(bv); }, 120); });
+        b2.addEventListener('click', function () { clearVariationPreview(); openBrandForm(anchorEl); });
+        row.appendChild(b2);
+      } else {
+        var mk = document.createElement('button');
+        mk.type = 'button';
+        mk.className = 'gogh-brandsetup';
+        mk.innerHTML = '<i class="gogh-brandsetup-wheel" aria-hidden="true"></i><span class="gogh-brandsetup-tx"><b>Use my brand colour</b>' +
+          '<small>Pick one colour. gogh builds the rest around it and keeps your words readable.</small></span>';
+        mk.addEventListener('click', function () { openBrandForm(anchorEl); });
+        row.appendChild(mk);
+      }
+      // the theme's ready-made colour sets, out from under More
+      var box = panel.querySelector('.gogh-colsets');
       vars.forEach(function (v) {
         var pal = ((v.settings || {}).color || {}).palette || {};
         var colors = (pal.theme || pal.default || []).slice(0, 4);
-        groups[colors.length ? 'color' : 'font'].push({ v: v, colors: colors });
+        if (!colors.length) return;
+        var b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'gogh-varbtn gogh-colset';
+        b.innerHTML = '<span class="gogh-colset-strip">' + colors.map(function (c) { return '<i style="background:' + escAttr(c.color) + '"></i>'; }).join('') + '</span>' +
+          '<span class="gogh-varname"></span>';
+        b.querySelector('.gogh-varname').textContent = v.title || 'Colours';
+        if ((v.title || '') && (v.title || '') === (cfg.activeStyle || '')) b.classList.add('is-current');
+        b.addEventListener('click', function () { clearVariationPreview(); applyVariation(v, b); });
+        b.addEventListener('mouseenter', function () { clearTimeout(previewHoverT); previewHoverT = setTimeout(function () { auditionVariation(v); }, 120); });
+        box.appendChild(b);
       });
-      [['color', 'Colours']].forEach(function (g) {
-        if (!groups[g[0]].length) return;
-        groups[g[0]].forEach(function (item) {
-          var v = item.v;
-          var b = document.createElement('button');
-          b.type = 'button';
-          b.className = 'gogh-varbtn';
-          if (item.colors.length) {
-            b.innerHTML = item.colors.map(function (c) {
-              return '<span class="gogh-vardot" style="background:' + c.color + '"></span>';
-            }).join('') + '<span class="gogh-varname"></span>';
-            b.querySelector('.gogh-varname').textContent = v.title || 'Style';
-          } else {
-            // the name is the specimen: each half of the pair in its own face
-            ensureVariationFonts(v);
-            var fams = (((v.settings || {}).typography || {}).fontFamilies || {}).theme || [];
-            var name = document.createElement('span');
-            name.className = 'gogh-varname gogh-varname-fonts';
-            (v.title || 'Style').split(' & ').forEach(function (pt, k) {
-              var piece = document.createElement('span');
-              piece.textContent = (k ? ' & ' : '') + pt;
-              var match = null;
-              fams.forEach(function (f) {
-                if (match) return;
-                var label = (f.name || f.slug || f.fontFamily || '').toLowerCase();
-                if (label.indexOf(pt.trim().toLowerCase()) !== -1) match = f;
-              });
-              if (!match) match = fams[k] || fams[0];
-              if (match && match.fontFamily) piece.style.fontFamily = match.fontFamily;
-              name.appendChild(piece);
-            });
-            b.appendChild(name);
-          }
-          if ((v.title || '') && (v.title || '') === (cfg.activeStyle || '')) b.classList.add('is-current');
-          b.addEventListener('click', function () {
-            clearVariationPreview();
-            applyVariation(v, b);
-          });
-          // hover auditions the style — small debounce so sweeping the
-          // cursor down the list doesn't strobe the page
-          b.addEventListener('mouseenter', function () {
-            clearTimeout(previewHoverT);
-            previewHoverT = setTimeout(function () { auditionVariation(v); }, 120);
-          });
-          box.appendChild(b);
-        });
-      });
+      if (!box.children.length) { box.remove(); panel.querySelector('.gogh-colsets-lab').remove(); }
       box.addEventListener('mouseleave', function () { clearVariationPreview(); });
-      top.addEventListener('mouseleave', function () { clearVariationPreview(); });
+      row.addEventListener('mouseleave', function () { clearVariationPreview(); });
       dockSidebar();
-      panelSticky = true; // hover-audition panel: outside clicks pass through
-      zoomOutCanvas(); // pull the whole page into view to audition the style
+      panelSticky = true;
+      zoomOutCanvas();
     }).catch(function () {});
+  }
+  // ---------- Text size: four sizes, each drawn at its size ----------
+  function openTextSizePanel(anchorEl) {
+    var smp = siteSample();
+    var hf = smp.h ? getComputedStyle(smp.h).fontFamily : 'inherit', hw = smp.h ? getComputedStyle(smp.h).fontWeight : 700;
+    panel.innerHTML =
+      '<div class="gogh-panel-head"><span class="gogh-panel-title">Text size</span>' +
+      '<button type="button" class="gogh-sbtn gogh-panel-close gogh-panel-back" title="Back to Site styles"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"/></svg></button></div>' +
+      '<div class="gogh-panel-hint">How big the words are on every page. Headings and paragraphs grow or shrink together.</div>' +
+      '<div class="gogh-typescale gogh-sizedial">' +
+      [90, 100, 110, 120].map(function (sc, k) {
+        return '<button type="button" class="gogh-hpreset gogh-sizedial-it' + ((+cfg.typeScale || 100) === sc ? ' is-active' : '') + '" data-scale="' + sc + '">' +
+          '<b style="font-family:' + escAttr(hf) + ';font-weight:' + hw + ';font-size:' + (20 + k * 7) + 'px">Aa</b><span>' + SIZE_NAMES[sc] + '</span></button>';
+      }).join('') + '</div>' +
+      '<div class="gogh-panel-hint">Hover a size to see it on your page. Click to keep it.</div>';
+    var tsOff = wireTypeScale(panel);
+    panel.querySelector('.gogh-panel-back').addEventListener('click', function () { if (tsOff) tsOff(); openStylePanel(anchorEl); });
+    dockSidebar();
+    panelSticky = true;
+    zoomOutCanvas();
   }
   // hover = instant local preview: the theme references its colours and
   // fonts through preset CSS variables, so overriding those vars in one
@@ -19992,9 +20050,6 @@
   });
   side.querySelector('.gogh-addpagebtn').addEventListener('click', function (ev) {
     openAddPagePanel(ev.currentTarget);
-  });
-  side.querySelector('.gogh-fontsbtn').addEventListener('click', function (ev) {
-    openFontsPanel(ev.currentTarget);
   });
   side.querySelector('.gogh-motionbtn').addEventListener('click', function () {
     openMotionPanel();

@@ -4708,3 +4708,61 @@ html.gogh-editing #wpadminbar #wp-admin-bar-site-name #wp-admin-bar-gogh-account
 .gogh-media-find { display: block; margin-top: 10px; }
 .gogh-media-find[hidden] { display: none; }
 .gogh-media-find .gogh-input { width: 100%; box-sizing: border-box; }
+
+/* ---------- Site styles (v0.99.697): what you have, then what you can change ---------- */
+.gogh-sitenow { background: rgba(22, 24, 28, 0.04); border-radius: 12px; padding: 12px 12px 13px; display: flex; flex-direction: column; gap: 10px; margin: 4px 0 14px; }
+.gogh-sitenow-lab { font: 700 10.5px/1 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; letter-spacing: .08em; text-transform: uppercase; color: var(--gogh-ui-muted); }
+.gogh-sitenow-mini { display: flex; flex-direction: column; gap: 7px; padding: 16px 16px 15px; border-radius: 9px; box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.08); overflow: hidden; transition: background .25s, color .25s; }
+.gogh-sitenow-h { font-size: 22px; line-height: 1.05; text-wrap: balance; overflow-wrap: anywhere; }
+.gogh-sitenow-p { font-size: 11.5px; line-height: 1.45; opacity: .85; overflow-wrap: anywhere; }
+.gogh-sitenow-p[hidden], .gogh-sitenow-b[hidden] { display: none; }
+.gogh-sitenow-btns { display: flex; margin-top: 3px; }
+.gogh-sitenow-b { font-size: 10.5px; line-height: 1; padding: 7px 11px; white-space: nowrap; }
+.gogh-siterows { display: flex; flex-direction: column; margin-bottom: 16px; }
+.gogh-siterow { all: unset; box-sizing: border-box; cursor: pointer; display: grid; grid-template-columns: minmax(0, 1fr) auto 16px; align-items: center; gap: 12px; padding: 12px 4px; border-top: 1px solid var(--gogh-ui-border); }
+.gogh-siterow:last-child { border-bottom: 1px solid var(--gogh-ui-border); }
+.gogh-siterow:hover { background: var(--gogh-ui-hover); }
+.gogh-siterow:focus-visible { outline: 2px solid #7ea8ff; outline-offset: -2px; border-radius: 6px; }
+.gogh-siterow-tx { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.gogh-siterow-t { font: 650 14.5px/1.2 -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, sans-serif; color: var(--gogh-ui-fg); }
+.gogh-siterow-sub { font: 500 12px/1.3 -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, sans-serif; color: var(--gogh-ui-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.gogh-siterow-val { display: flex; align-items: center; gap: 4px; }
+.gogh-siterow-val .gogh-vardot { display: inline-block; width: 16px; height: 16px; border-radius: 50%; box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.14); }
+.gogh-siterow-aa span { font-size: 17px; line-height: 1; color: var(--gogh-ui-fg); }
+.gogh-siterow-sizes { align-items: baseline; gap: 5px; }
+.gogh-siterow-sizes i { font-style: normal; font-weight: 700; line-height: 1; color: var(--gogh-ui-fg); opacity: .3; }
+.gogh-siterow-sizes i.is-on { opacity: 1; color: #3858e9; }
+.gogh-siterow-chev { color: var(--gogh-ui-muted); }
+/* Try a new look: a quieter, outlined door under the rows */
+.gogh-toprow .gogh-remixbtn { order: 1; flex: 1 1 100%; background: transparent; color: var(--gogh-ui-fg); border: 1.5px solid var(--gogh-ui-fg); padding-top: 11px; padding-bottom: 11px; font-size: 13.5px; font-weight: 700; }
+.gogh-toprow .gogh-remixbtn:hover { background: var(--gogh-ui-hover); filter: none; }
+.gogh-remixline { order: 2; flex-basis: 100%; text-align: center; font: 500 12px/1.4 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; color: var(--gogh-ui-muted); }
+.gogh-remixline[hidden] { display: none; }
+.gogh-toprow .gogh-remixwearing { order: 3; margin-top: 4px; }
+/* Colours */
+.gogh-colroles { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin-bottom: 4px; }
+.gogh-colrole { all: unset; box-sizing: border-box; cursor: pointer; display: flex; flex-direction: column; gap: 5px; padding: 8px; border-radius: 10px; box-shadow: inset 0 0 0 1px var(--gogh-ui-border); }
+.gogh-colrole:hover { box-shadow: inset 0 0 0 1.5px var(--gogh-ui-fg); }
+.gogh-colrole:focus-visible { outline: 2px solid #7ea8ff; outline-offset: 2px; }
+.gogh-colrole-chip { height: 30px; border-radius: 6px; box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.12); }
+.gogh-colrole-name { font: 650 12px/1.2 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; color: var(--gogh-ui-fg); }
+.gogh-colrole-hex { font: 500 11px/1 ui-monospace, SFMono-Regular, Menlo, monospace; color: var(--gogh-ui-muted); font-variant-numeric: tabular-nums; }
+.gogh-panel .gogh-brandsetup { all: unset; box-sizing: border-box; cursor: pointer; width: 100%; display: flex; align-items: center; gap: 12px; padding: 12px; border-radius: 12px; border: 1.5px dashed rgba(22, 24, 28, 0.25); }
+.gogh-panel .gogh-brandsetup:hover { border-color: var(--gogh-ui-fg); background: var(--gogh-ui-hover); }
+.gogh-brandsetup-wheel { flex: none; width: 32px; height: 32px; border-radius: 50%; background: radial-gradient(circle, #fff 0 30%, transparent 31%), conic-gradient(#ff4d4d, #ffb000, #f5e400, #3fd16b, #19b8e6, #4a63d8, #b04ae6, #ff4d9e, #ff4d4d); }
+.gogh-brandsetup-tx { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.gogh-brandsetup-tx b { font: 650 14px/1.25 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; color: var(--gogh-ui-fg); }
+.gogh-brandsetup-tx small { font: 500 12px/1.4 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; color: var(--gogh-ui-muted); }
+.gogh-colsets { display: grid !important; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px !important; }
+.gogh-colset { display: flex !important; flex-direction: column; align-items: stretch !important; gap: 0 !important; padding: 0 !important; border-radius: 10px; overflow: hidden; box-shadow: inset 0 0 0 1px var(--gogh-ui-border); }
+.gogh-colset.is-current { box-shadow: inset 0 0 0 2px #3858e9; }
+.gogh-colset.is-current::after { display: none !important; }
+.gogh-colset-strip { display: flex; height: 38px; }
+.gogh-colset-strip i { flex: 1; }
+.gogh-colset .gogh-varname { padding: 7px 9px; font-size: 12.5px; text-align: left; margin: 0 !important; }
+/* Text size: each size drawn at its size */
+.gogh-sizedial { display: grid !important; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; margin: 6px 0 4px; }
+.gogh-sizedial .gogh-sizedial-it { height: 96px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 7px; border-radius: 10px; padding: 0; }
+.gogh-sizedial .gogh-sizedial-it b { line-height: 1; color: var(--gogh-ui-fg); }
+.gogh-sizedial .gogh-sizedial-it span { font: 600 12px/1 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+.gogh-sizedial .gogh-sizedial-it.is-active { box-shadow: inset 0 0 0 2px #3858e9; background: rgba(56, 88, 233, 0.07); }

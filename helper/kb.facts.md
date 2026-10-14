@@ -4,11 +4,11 @@ Everything in this section is extracted mechanically from the Gogh source on eve
 
 ## Current release
 
-- Plugin version: **0.99.696**
+- Plugin version: **0.99.697**
 - Requires WordPress **6.5+**, PHP **7.4+**
 - Text domain: `gogh-editor`
 - readme.txt Stable tag: `0.26.0` · Tested up to: `7.0`
-- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.696`). Quote the plugin header version.
+- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.697`). Quote the plugin header version.
 
 ## Design constants
 
@@ -249,6 +249,7 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "As typed"
 - "Auto"
 - "Back"
+- "Back to Site styles"
 - "Back to my page"
 - "Back to the Site cards"
 - "Background & look"
@@ -264,7 +265,8 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "Button"
 - "Cancel"
 - "Card"
-- "Change the colours and fonts of your brand"
+- "Change your colours"
+- "Changes the colours and fonts across your site. Back puts it back."
 - "Choose a style"
 - "Close"
 - "Copies the styles as site definition JSON"
@@ -292,7 +294,6 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "Duplicate (or Alt-drag)"
 - "Duplicate the selection"
 - "Edge to edge of the section"
-- "Edit brand"
 - "Embed"
 - "Embed a link — a map, a post, a playlist, anything WordPress can show"
 - "Equal gaps top to bottom"
@@ -421,7 +422,6 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "Start writing — a reading column, cursor ready"
 - "Switch design"
 - "Switch it on"
-- "Tap to try a new look. Tap again for another."
 - "Text"
 - "Text alignment"
 - "Text colour"
@@ -433,8 +433,6 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "Tidy up"
 - "Too big — the longest word would run off the page"
 - "Try another"
-- "Try other font pairs on your page"
-- "Try other fonts"
 - "UPPERCASE"
 - "Undo"
 - "Undo (⌘Z)"
@@ -461,10 +459,11 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "×"
 - "← All layouts"
 - "↕ Spacing…"
+- "↶ Back"
 - "▶ Auto-play"
 - "⛶ Click to enlarge"
 - "✦ Not this look?"
-- "✦ Remix"
+- "✦ Try a new look"
 - "✨ Make draggable"
 - "✨ Make it freeform"
 
