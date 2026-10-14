@@ -4540,7 +4540,15 @@
       expect(document.body.classList.contains('gogh-read-essay'), 'a reading look was not worn: ' + document.body.className);
       A.restore();
       expect(document.body.className === before, 'leaving the menu did not put the page back: ' + document.body.className);
-      return 'cards → ledger → essay → home';
+      // v0.99.702: an open layout menu steps the page back, leaving brings it home
+      if (A.peekOn && !document.documentElement.classList.contains('gogh-zoomed')) {
+        var wrapP = document.querySelector('.wp-site-blocks'), tf0 = wrapP.style.transform;
+        A.peekOn();
+        expect(/scale\(0\.5\)/.test(wrapP.style.transform) && document.documentElement.classList.contains('gogh-layout-peek'), 'an open layout menu should zoom the page out: ' + wrapP.style.transform);
+        A.restore();
+        expect(wrapP.style.transform === tf0, 'leaving the menu should bring the page back to size: ' + wrapP.style.transform);
+      }
+      return 'cards → ledger → essay → home, zoomed out while the menu is open';
     });
 
     testAsync('variations: every combination, existing kept, typed prices carried', function () {
