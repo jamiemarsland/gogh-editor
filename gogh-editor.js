@@ -7621,6 +7621,26 @@
   }
   // what a posts rail shows before (or without) a fetch: the posts it last
   // drew, redrawn in its current clothes, or the loading card
+  // a small journal for previews: the site's own pictures when it has some
+  var SAMPLE_POST_WORDS = [
+    ['A slow week at the studio', 'What we made, what we broke, and the one idea that stuck.'],
+    ['Notes from the road', 'Three towns, two trains and a notebook that filled up faster than planned.'],
+    ['How we choose what to make', 'Fewer things, made better: the questions we ask before we start.'],
+    ['The winter list', 'Small things worth your time this season, from people we admire.'],
+    ['Behind the new collection', 'Six months, four false starts and the morning it finally came together.'],
+    ['What we learned this year', 'Twelve months in twelve short lessons, most of them learned the hard way.'],
+    ['A visit to the workshop', 'An afternoon with the people who make the things we sell.'],
+    ['On doing less, better', 'Why we said no to most of the good ideas, and kept the great ones.'],
+  ];
+  function samplePosts(seed) {
+    var day = 24 * 3600 * 1000, now = Date.now();
+    return SAMPLE_POST_WORDS.map(function (w, k) {
+      var img = (typeof mediaPool !== 'undefined' && mediaPool.imgs && mediaPool.imgs.length) ? poolPick(mediaPool.imgs, (seed || 'posts') + k, k) : null;
+      return { id: 9001 + k, date: new Date(now - (k * 9 + 2) * day).toISOString(),
+        title: { rendered: w[0] }, excerpt: { rendered: w[1] },
+        _embedded: img ? { 'wp:featuredmedia': [{ source_url: img }] } : {} };
+    });
+  }
   function postsSampleHTML(e) {
     return e.__postsData ? postsPreviewHTML(e, e.__postsData) : '<div class="gogh-postsprev gogh-postsprev-loading">Loading your latest posts\u2026</div>';
   }
@@ -9377,6 +9397,30 @@
       { type: 'button', x: 72, y: 480, w: 200, h: 48, text: 'See everything', href: '/shop/', ghost: true },
       { type: 'widget', rails: true, x: 600, y: 72, w: 540, h: 528, shop: { count: 2, order: 'date', layout: 'grid', aspect: 'portrait', spacing: 'm' } },
     ] },
+    // ---- Share: your posts on a page (James: 'do you think we need a blog
+    // section?'). Each is the live posts grid, so it shows the site's real
+    // posts and keeps itself up to date; __posts__ is the blog page's address,
+    // and the button goes when the site has none ----
+    { starter: true, intent: 'share', name: 'Latest posts', minH: 648, keywords: 'blog news posts journal articles writing', els: [
+      { type: 'para', x: 72, y: 72, w: 340, h: 24, text: 'From the journal', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
+      { type: 'heading', x: 72, y: 120, w: 600, h: 72, text: 'Latest posts', fs: 'x-large' },
+      { type: 'para', x: 72, y: 216, w: 520, h: 48, text: 'New writing as it goes up, newest first. It fills itself.' },
+      { type: 'button', x: 900, y: 216, w: 200, h: 48, text: 'All posts', href: '__posts__', ghost: true },
+      { type: 'widget', rails: true, x: 47, y: 288, w: 1106, h: 312, posts: { count: 3, look: 'cards', aspect: 'landscape', show: { date: true, excerpt: false } } },
+    ] },
+    { starter: true, intent: 'share', name: 'Featured post', minH: 792, keywords: 'blog news posts journal newest latest cover', els: [
+      { type: 'para', x: 72, y: 72, w: 340, h: 24, text: 'Just published', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
+      { type: 'heading', x: 72, y: 120, w: 600, h: 72, text: 'From the journal', fs: 'x-large' },
+      { type: 'button', x: 900, y: 144, w: 200, h: 48, text: 'All posts', href: '__posts__', ghost: true },
+      { type: 'widget', rails: true, x: 47, y: 216, w: 1106, h: 528, posts: { count: 4, look: 'cover', aspect: 'landscape', show: { date: true, excerpt: true } } },
+    ] },
+    { starter: true, intent: 'share', name: 'Titles and dates', minH: 648, keywords: 'blog news posts journal archive list index writing', els: [
+      { type: 'para', x: 72, y: 96, w: 340, h: 24, text: 'The archive', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
+      { type: 'heading', x: 72, y: 144, w: 400, h: 96, text: 'Everything, newest first', fs: 'x-large' },
+      { type: 'para', x: 72, y: 264, w: 380, h: 72, text: 'Every post by its title and the day it went up. A quiet index for people who read.' },
+      { type: 'button', x: 72, y: 384, w: 200, h: 48, text: 'All posts', href: '__posts__', ghost: true },
+      { type: 'widget', rails: true, x: 540, y: 96, w: 590, h: 480, posts: { count: 6, look: 'list', aspect: 'landscape', show: { date: true, excerpt: false } } },
+    ] },
     // ---- Menu panels (the mega menu): a page that drops from a menu item.
     // Only on a panel's own canvas; links are plain words with links in them ----
     { starter: true, gated: 'isPanel', intent: 'panel', name: 'Columns of links', minH: 360, els: [
@@ -9841,7 +9885,9 @@
     return tpl.bgImage;
   }
   function tplEls(tpl) {
-    var els = JSON.parse(JSON.stringify(tpl.els));
+    // __posts__ is the blog page; with no blog page the button goes
+    var els = JSON.parse(JSON.stringify(tpl.els)).filter(function (e) { return e.href !== '__posts__' || !!cfg.postsUrl; });
+    els.forEach(function (e) { if (e.href === '__posts__') e.href = cfg.postsUrl; });
     var sizes = fontSizes();
     var k = 0;
     els.forEach(function (e) {
@@ -9872,7 +9918,9 @@
       if (e.rails && e.posts) {
         e.posts = Object.assign(postsDefaults(), e.posts, { show: Object.assign({ date: true, excerpt: false, category: false }, e.posts.show || {}) });
         if (!e.wsrc) e.wsrc = composePosts(e.posts);
-        if (!e.whtml) e.whtml = postsSampleHTML(e);
+        // sample posts for the picker's card and the dice drawer; a section
+        // made from it fetches the site's real posts straight away
+        if (!e.whtml) e.whtml = postsPreviewHTML(e, samplePosts(tpl.name).slice(0, Math.max(1, Math.min(8, +e.posts.count || 3))));
       }
       composeWidgetData(e);
     });
@@ -10049,6 +10097,72 @@
         { type: 'para', x: 72, y: 336, w: 420, h: 96, text: 'Two pieces we are proud of this month, and the story of how they came to be. Everything is made here, in small batches.', color: 'base' },
         { type: 'button', x: 72, y: 480, w: 200, h: 48, text: 'See everything', href: '/shop/', tf: { bg: 'var(--wp--preset--color--base, #fff)', col: 'var(--wp--preset--color--contrast, #141519)' } },
         { type: 'widget', rails: true, x: 600, y: 72, w: 540, h: 528, shop: { count: 2, order: 'date', layout: 'grid', aspect: 'portrait', spacing: 'm' } },
+      ] },
+    ],
+    'Latest posts': [
+      { name: 'Latest posts', take: 'Headline centred', minH: 720, els: [
+        { type: 'para', x: 400, y: 72, w: 400, h: 24, align: 'center', text: 'From the journal', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
+        { type: 'heading', x: 200, y: 120, w: 800, h: 72, align: 'center', text: 'Latest posts', fs: 'x-large' },
+        { type: 'para', x: 300, y: 216, w: 600, h: 48, align: 'center', text: 'New writing as it goes up, newest first. It fills itself.' },
+        { type: 'widget', rails: true, x: 47, y: 288, w: 1106, h: 312, posts: { count: 3, look: 'cards', aspect: 'landscape', show: { date: true, excerpt: false } } },
+        { type: 'button', x: 500, y: 624, w: 200, h: 48, text: 'All posts', href: '__posts__', ghost: true },
+      ] },
+      { name: 'Latest posts', take: 'Four across', minH: 648, els: [
+        { type: 'para', x: 72, y: 72, w: 340, h: 24, text: 'From the journal', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
+        { type: 'heading', x: 72, y: 120, w: 600, h: 72, text: 'Latest posts', fs: 'x-large' },
+        { type: 'para', x: 72, y: 216, w: 520, h: 48, text: 'New writing as it goes up, newest first. It fills itself.' },
+        { type: 'button', x: 900, y: 216, w: 200, h: 48, text: 'All posts', href: '__posts__', ghost: true },
+        { type: 'widget', rails: true, x: 47, y: 288, w: 1106, h: 312, posts: { count: 4, look: '', aspect: 'square', show: { date: true, excerpt: false } } },
+      ] },
+      { name: 'Latest posts', take: 'Beside the words', minH: 648, els: [
+        { type: 'para', x: 72, y: 96, w: 340, h: 24, text: 'From the journal', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
+        { type: 'heading', x: 72, y: 144, w: 400, h: 96, text: 'Latest posts', fs: 'x-large' },
+        { type: 'para', x: 72, y: 264, w: 380, h: 72, text: 'New writing as it goes up, newest first. It fills itself.' },
+        { type: 'button', x: 72, y: 384, w: 200, h: 48, text: 'All posts', href: '__posts__', ghost: true },
+        { type: 'widget', rails: true, x: 540, y: 96, w: 590, h: 480, posts: { count: 2, look: 'cards', aspect: 'portrait', show: { date: true, excerpt: false } } },
+      ] },
+    ],
+    'Featured post': [
+      { name: 'Featured post', take: 'Headline centred', minH: 864, els: [
+        { type: 'para', x: 400, y: 72, w: 400, h: 24, align: 'center', text: 'Just published', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
+        { type: 'heading', x: 200, y: 120, w: 800, h: 72, align: 'center', text: 'From the journal', fs: 'x-large' },
+        { type: 'widget', rails: true, x: 47, y: 216, w: 1106, h: 528, posts: { count: 4, look: 'cover', aspect: 'landscape', show: { date: true, excerpt: true } } },
+        { type: 'button', x: 500, y: 768, w: 200, h: 48, text: 'All posts', href: '__posts__', ghost: true },
+      ] },
+      { name: 'Featured post', take: 'The newest alone', minH: 720, els: [
+        { type: 'para', x: 72, y: 72, w: 340, h: 24, text: 'Just published', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
+        { type: 'heading', x: 72, y: 120, w: 600, h: 72, text: 'From the journal', fs: 'x-large' },
+        { type: 'button', x: 900, y: 144, w: 200, h: 48, text: 'All posts', href: '__posts__', ghost: true },
+        { type: 'widget', rails: true, x: 47, y: 216, w: 1106, h: 456, posts: { count: 1, look: 'cover', aspect: 'landscape', show: { date: true, excerpt: true } } },
+      ] },
+      { name: 'Featured post', take: 'Beside the words', minH: 648, els: [
+        { type: 'para', x: 72, y: 96, w: 340, h: 24, text: 'Just published', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
+        { type: 'heading', x: 72, y: 144, w: 400, h: 96, text: 'From the journal', fs: 'x-large' },
+        { type: 'button', x: 72, y: 288, w: 200, h: 48, text: 'All posts', href: '__posts__', ghost: true },
+        { type: 'widget', rails: true, x: 540, y: 96, w: 590, h: 480, posts: { count: 1, look: 'cards', aspect: 'landscape', show: { date: true, excerpt: true } } },
+      ] },
+    ],
+    'Titles and dates': [
+      { name: 'Titles and dates', take: 'The ledger', minH: 720, els: [
+        { type: 'para', x: 72, y: 72, w: 340, h: 24, text: 'The archive', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
+        { type: 'heading', x: 72, y: 120, w: 600, h: 72, text: 'Everything, newest first', fs: 'x-large' },
+        { type: 'para', x: 72, y: 216, w: 600, h: 48, text: 'Every post by its title and the day it went up. A quiet index for people who read.' },
+        { type: 'button', x: 900, y: 216, w: 200, h: 48, text: 'All posts', href: '__posts__', ghost: true },
+        { type: 'widget', rails: true, x: 72, y: 288, w: 1056, h: 384, posts: { count: 8, look: 'ledger', aspect: 'landscape', show: { date: true, excerpt: false } } },
+      ] },
+      { name: 'Titles and dates', take: 'Centred list', minH: 720, els: [
+        { type: 'para', x: 400, y: 72, w: 400, h: 24, align: 'center', text: 'The archive', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
+        { type: 'heading', x: 200, y: 120, w: 800, h: 72, align: 'center', text: 'Everything, newest first', fs: 'x-large' },
+        { type: 'para', x: 300, y: 216, w: 600, h: 48, align: 'center', text: 'Every post by its title and the day it went up. A quiet index for people who read.' },
+        { type: 'widget', rails: true, x: 200, y: 288, w: 800, h: 336, posts: { count: 5, look: 'list', aspect: 'landscape', show: { date: true, excerpt: false } } },
+        { type: 'button', x: 500, y: 648, w: 200, h: 48, text: 'All posts', href: '__posts__', ghost: true },
+      ] },
+      { name: 'Titles and dates', take: 'With a line each', minH: 720, els: [
+        { type: 'para', x: 72, y: 96, w: 340, h: 24, text: 'The archive', tf: { fs: 13, fw: 600, ls2: 0.22, tt: 'uppercase', col: 'color-mix(in srgb, var(--wp--preset--color--contrast, currentColor) 62%, transparent)' } },
+        { type: 'heading', x: 72, y: 144, w: 400, h: 96, text: 'Everything, newest first', fs: 'x-large' },
+        { type: 'para', x: 72, y: 264, w: 380, h: 72, text: 'Every post by its title and the day it went up. A quiet index for people who read.' },
+        { type: 'button', x: 72, y: 384, w: 200, h: 48, text: 'All posts', href: '__posts__', ghost: true },
+        { type: 'widget', rails: true, x: 540, y: 96, w: 590, h: 552, posts: { count: 4, look: 'list', aspect: 'landscape', show: { date: true, excerpt: true } } },
       ] },
     ],
     'New in': [
@@ -11959,6 +12073,7 @@
     'Quote': 'text', 'Call to action': 'hero', 'Get in touch': 'contact',
     'FAQ': 'text cards', 'Tabs': 'text cards', 'Gallery': 'photos', 'Photo cards': 'photos cards', 'Portfolio': 'photos',
     'Menu': 'text', 'Team': 'contact photos',
+    'Latest posts': 'cards', 'Featured post': 'cards featured', 'Titles and dates': 'text',
   };
   function openPicker(idx, before) {
     pickerIdx = idx;
@@ -11970,7 +12085,7 @@
       var css = els.length ? buildCSS(els, scope, tpl.minH || null, { bg: tpl.bg || null, bgImage: tplBgFor(tpl), bgA: tpl.bgA != null ? tpl.bgA : null }) : '';
       var inner = els.map(function (e, i) { return makeNode(e, i).outerHTML; }).join('');
       return '<button type="button" class="gogh-card" data-tpl="' + t + '" data-si="' + (si || 0) + '"' +
-        ' data-cats="' + (STARTER_CATS[tpl.name] || '') + '">' +
+        ' data-cats="' + (STARTER_CATS[tpl.name] || '') + '"' + (tpl.keywords ? ' data-kw="' + escAttr(tpl.keywords) + '"' : '') + '>' +
         '<span class="gogh-card-prev"><style>' + css + '</style>' +
         '<span class="gogh-card-stage gogh-wrap"><span class="gogh-card-sec gogh-section ' + scope + '">' + inner + '</span></span>' +
         '</span>' +
@@ -11986,6 +12101,7 @@
       { key: 'introduce', label: 'Introduce', sub: 'Say who you are' },
       { key: 'sell', label: 'Sell', sub: 'Turn interest into action' },
       { key: 'showcase', label: 'Showcase', sub: 'Let the work speak' },
+      { key: 'share', label: 'Share', sub: 'Your posts and news' },
     ]);
     var cardsArr = [];
     var starterSeen = 0;
@@ -12170,7 +12286,7 @@
           ok = (!activeCat ||
             (activeCat === 'yours' ? b.dataset.kind === 'yours' :
               activeCat === 'theme' ? isPat : cats.indexOf(activeCat) !== -1)) &&
-            (!query || name.indexOf(query) !== -1);
+            (!query || name.indexOf(query) !== -1 || (b.dataset.kw || '').indexOf(query) !== -1);
         }
         b.style.display = ok ? '' : 'none';
         if (ok) {

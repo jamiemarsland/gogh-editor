@@ -15,7 +15,7 @@ about something where they conflict, rather than picking one silently. Quote UI
 labels and message copy from the appendix, verbatim — those are the current
 strings, and a paraphrased button label is the fastest way to lose a user's trust.
 
-Generated for plugin version 0.99.711 · knowledge base 4d91574.
+Generated for plugin version 0.99.712 · knowledge base d2fa05d.
 
 ---
 
@@ -830,6 +830,8 @@ The helper's welcome panel opens with a 35-second film of gogh being used (v0.99
 
 **The phone view survives navigation (v0.99.605).** Press one of your own pages while on the phone and it opens in the editor, still on the phone: the link carries `gogh-edit=1&gogh-phone=1`, the next page reads them at boot and strips them from the address. Other sites, files, wp-admin and anchors on the same page are left alone. Unpublished changes still ask before leaving.
 
+**A Share shelf for your posts (v0.99.712).** Add a section now has a fourth group, **Share — Your posts and news**, with three layouts that show your real posts and keep themselves up to date: **Latest posts** (a heading and three post cards), **Featured post** (the newest post large, the next ones under it) and **Titles and dates** (a quiet list of post titles with their dates). Each has an **All posts** button that goes to your blog page (it is left out if the site has no blog page), and each has three more takes behind the dice. Searching the picker for "blog", "news" or "posts" finds them. With no posts yet, they show a card that offers to write the first one.
+
 **Long panels open in the sidebar (v0.99.711).** The settings for a product grid, category tiles, a posts grid and an FAQ or tabs piece now open down the left side, full height, with a title and ✕, and the page steps over and shrinks to sit beside them, scrolled so the piece you are changing and its section are in view. Every choice still shows on the page straight away. Press ✕, Escape, or anywhere else on the page to close: the page comes back to full size and the press picks what you pressed. Small panels (a button's link, a colour, a picture) still open next to their piece.
 
 **Product and post grids: a quieter way to your products (v0.99.710).** Selecting a product grid, category tiles or a posts grid no longer puts **Manage products** (or posts) on the bar above it; the bar is about the design on the page. To add or change the products themselves, open the grid's panel (Edit design): the last line is a link, **Add or change products in WordPress ↗** (categories and posts have their own). When a shop has nothing to show, its empty card still links straight to adding a product. Also: putting on a font pair from Site styles' looks no longer leaves broken font sizes behind that made WordPress print warnings, and gogh can draw any page through its REST API, so it can run on hosts that only pass WordPress its admin and API (such as a Spacefast space).
@@ -1031,11 +1033,11 @@ Everything in this section is extracted mechanically from the Gogh source on eve
 
 ## Current release
 
-- Plugin version: **0.99.711**
+- Plugin version: **0.99.712**
 - Requires WordPress **6.5+**, PHP **7.4+**
 - Text domain: `gogh-editor`
 - readme.txt Stable tag: `0.26.0` · Tested up to: `7.0`
-- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.711`). Quote the plugin header version.
+- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.712`). Quote the plugin header version.
 
 ## Design constants
 
@@ -1064,7 +1066,7 @@ Everything in this section is extracted mechanically from the Gogh source on eve
 
 ## Section templates
 
-Shown in the picker: **Hero**, **Cover**, **Big statement**, **Story**, **Numbers**, **Article**, **Featured product**, **Bestsellers**, **Editorial split**, **Columns of links**, **Featured and links**, **Picture doors**, **Categories in the menu**, **Featured product in the menu**, **Shop the look**, **New in**, **Sale**, **Categories**, **Feature cards**, **Pricing**, **Quote**, **Testimonials**, **Call to action**, **Get in touch**, **Profile card**, **Job card**, **Place card**, **Photo wall**, **Carousel**, **FAQ**, **Tabs**, **Gallery**, **Photo cards**, **Portfolio**, **Menu**, **Team**.
+Shown in the picker: **Hero**, **Cover**, **Big statement**, **Story**, **Numbers**, **Article**, **Featured product**, **Bestsellers**, **Editorial split**, **Latest posts**, **Featured post**, **Titles and dates**, **Columns of links**, **Featured and links**, **Picture doors**, **Categories in the menu**, **Featured product in the menu**, **Shop the look**, **New in**, **Sale**, **Categories**, **Feature cards**, **Pricing**, **Quote**, **Testimonials**, **Call to action**, **Get in touch**, **Profile card**, **Job card**, **Place card**, **Photo wall**, **Carousel**, **FAQ**, **Tabs**, **Gallery**, **Photo cards**, **Portfolio**, **Menu**, **Team**.
 
 Non-starter (surfaced elsewhere): **Start from scratch**.
 
@@ -1612,4 +1614,4 @@ These are the real strings in the current build. Use them verbatim; never paraph
 
 ## Test suite
 
-`353` tests, run by appending `?gogh-test` to any Gogh page URL while logged in with edit rights on that page.
+`354` tests, run by appending `?gogh-test` to any Gogh page URL while logged in with edit rights on that page.

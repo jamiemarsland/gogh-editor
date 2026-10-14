@@ -3759,6 +3759,40 @@
       return 'rail: ' + names.join(' · ');
     });
 
+    test('picker: a Share shelf of three live posts layouts, found by "blog", with All posts going to the blog page', function () {
+      G.openPicker(G.sections().length);
+      try {
+        var labs = [].map.call(document.querySelectorAll('.gogh-picker .gogh-intentlab'), function (n) { return n.textContent; });
+        expect(labs.some(function (t) { return /^Share/.test(t); }), 'there should be a Share shelf: ' + labs.join(' | '));
+        var names = [].map.call(document.querySelectorAll('.gogh-picker .gogh-card .gogh-card-name'), function (n) { return n.textContent; });
+        ['Latest posts', 'Featured post', 'Titles and dates'].forEach(function (nm) {
+          expect(names.indexOf(nm) !== -1, nm + ' should be on the shelf');
+        });
+        var rail = [].map.call(document.querySelectorAll('.gogh-pickrail button'), function (b) { return b.textContent; });
+        expect(rail.indexOf('Share') !== -1, 'the map should name the Share shelf: ' + rail.join(', '));
+        var sIn = q('.gogh-picker-search .gogh-patsearch');
+        sIn.value = 'blog';
+        sIn.dispatchEvent(new Event('input', { bubbles: true }));
+        var shown = [].filter.call(document.querySelectorAll('.gogh-picker .gogh-card'), function (b) { return !b.hidden && b.offsetParent !== null; })
+          .map(function (b) { return (b.querySelector('.gogh-card-name') || {}).textContent; });
+        expect(shown.indexOf('Latest posts') !== -1 && shown.indexOf('Titles and dates') !== -1, '"blog" should find the Share layouts: ' + shown.join(', '));
+        sIn.value = ''; sIn.dispatchEvent(new Event('input', { bubbles: true }));
+      } finally { q('.gogh-picker-close').click(); }
+      var tpl = G.templates().filter(function (t) { return t.name === 'Latest posts'; })[0];
+      var was = GOGH.postsUrl;
+      try {
+        GOGH.postsUrl = 'https://x.test/journal/';
+        var els = G.tplEls(tpl);
+        var grid = els.filter(function (e) { return e.rails && e.posts; })[0];
+        expect(grid && grid.posts.look === 'cards' && /wp:query/.test(grid.wsrc || ''), 'the layout should carry a live posts grid in the Cards look');
+        var btn = els.filter(function (e) { return e.type === 'button'; })[0];
+        expect(btn && btn.href === 'https://x.test/journal/', 'All posts should go to the blog page: ' + (btn && btn.href));
+        GOGH.postsUrl = '';
+        expect(!G.tplEls(tpl).some(function (e) { return e.type === 'button'; }), 'with no blog page there should be no All posts button');
+      } finally { GOGH.postsUrl = was; }
+      return 'Share: Latest posts, Featured post, Titles and dates';
+    });
+
     test('Cmd+V pastes HTML straight in as a section', function () {
       var dt = new DataTransfer();
       dt.setData('text/plain', '<section style="padding:40px"><h2>Pasted by keyboard</h2></section>');

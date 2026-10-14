@@ -4,11 +4,11 @@ Everything in this section is extracted mechanically from the Gogh source on eve
 
 ## Current release
 
-- Plugin version: **0.99.711**
+- Plugin version: **0.99.712**
 - Requires WordPress **6.5+**, PHP **7.4+**
 - Text domain: `gogh-editor`
 - readme.txt Stable tag: `0.26.0` · Tested up to: `7.0`
-- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.711`). Quote the plugin header version.
+- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.712`). Quote the plugin header version.
 
 ## Design constants
 
@@ -37,7 +37,7 @@ Everything in this section is extracted mechanically from the Gogh source on eve
 
 ## Section templates
 
-Shown in the picker: **Hero**, **Cover**, **Big statement**, **Story**, **Numbers**, **Article**, **Featured product**, **Bestsellers**, **Editorial split**, **Columns of links**, **Featured and links**, **Picture doors**, **Categories in the menu**, **Featured product in the menu**, **Shop the look**, **New in**, **Sale**, **Categories**, **Feature cards**, **Pricing**, **Quote**, **Testimonials**, **Call to action**, **Get in touch**, **Profile card**, **Job card**, **Place card**, **Photo wall**, **Carousel**, **FAQ**, **Tabs**, **Gallery**, **Photo cards**, **Portfolio**, **Menu**, **Team**.
+Shown in the picker: **Hero**, **Cover**, **Big statement**, **Story**, **Numbers**, **Article**, **Featured product**, **Bestsellers**, **Editorial split**, **Latest posts**, **Featured post**, **Titles and dates**, **Columns of links**, **Featured and links**, **Picture doors**, **Categories in the menu**, **Featured product in the menu**, **Shop the look**, **New in**, **Sale**, **Categories**, **Feature cards**, **Pricing**, **Quote**, **Testimonials**, **Call to action**, **Get in touch**, **Profile card**, **Job card**, **Place card**, **Photo wall**, **Carousel**, **FAQ**, **Tabs**, **Gallery**, **Photo cards**, **Portfolio**, **Menu**, **Team**.
 
 Non-starter (surfaced elsewhere): **Start from scratch**.
 
@@ -585,5 +585,5 @@ These are the real strings in the current build. Use them verbatim; never paraph
 
 ## Test suite
 
-`353` tests, run by appending `?gogh-test` to any Gogh page URL while logged in with edit rights on that page.
+`354` tests, run by appending `?gogh-test` to any Gogh page URL while logged in with edit rights on that page.
 
