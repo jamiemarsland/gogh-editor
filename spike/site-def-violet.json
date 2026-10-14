@@ -16,7 +16,7 @@
     {
      "name": "Hero",
      "minH": 792,
-     "background": "#f2edff",
+     "background": "var(--wp--preset--color--theme-5)",
      "els": [
       {
        "type": "para",
@@ -29,9 +29,9 @@
         "fs": 12,
         "fw": 600,
         "ls2": 0.2,
-        "tt": "uppercase",
-        "col": "var(--wp--preset--color--theme-7, #720eec)"
-       }
+        "tt": "uppercase"
+       },
+       "color": "theme-7"
       },
       {
        "type": "heading",
@@ -50,8 +50,7 @@
        "h": 96,
        "text": "Candles, room scents and eaux de parfum, poured by hand in batches of forty in a small studio off Broughton Street. Made for the hour after the day’s work.",
        "tf": {
-        "fs": 18,
-        "col": "var(--wp--preset--color--theme-4, #322f37)"
+        "fs": 18
        }
       },
       {
@@ -61,9 +60,7 @@
        "w": 216,
        "h": 48,
        "text": "Shop the collection",
-       "href": "/shop/",
-       "btnBg": "theme-3",
-       "btnText": "theme-1"
+       "href": "/shop/"
       },
       {
        "type": "button",
@@ -93,8 +90,7 @@
        "h": 24,
        "text": "Evening Tapers in Violet, Blush and Bone, £18",
        "tf": {
-        "fs": 13,
-        "col": "color-mix(in srgb, var(--wp--preset--color--theme-4, #322f37) 72%, transparent)"
+        "fs": 13
        },
        "align": "right"
       }
@@ -115,9 +111,9 @@
         "fs": 12,
         "fw": 600,
         "ls2": 0.2,
-        "tt": "uppercase",
-        "col": "var(--wp--preset--color--theme-7, #720eec)"
-       }
+        "tt": "uppercase"
+       },
+       "color": "theme-7"
       },
       {
        "type": "heading",
@@ -168,7 +164,7 @@
     {
      "name": "Find your hour",
      "minH": 504,
-     "background": "#faf8ff",
+     "background": "color-mix(in srgb, var(--wp--preset--color--theme-5) 45%, var(--wp--preset--color--theme-1))",
      "els": [
       {
        "type": "para",
@@ -181,9 +177,9 @@
         "fs": 12,
         "fw": 600,
         "ls2": 0.2,
-        "tt": "uppercase",
-        "col": "var(--wp--preset--color--theme-7, #720eec)"
-       }
+        "tt": "uppercase"
+       },
+       "color": "theme-7"
       },
       {
        "type": "heading",
@@ -211,7 +207,7 @@
     {
      "name": "The studio",
      "minH": 720,
-     "background": "#1f0342",
+     "background": "var(--wp--preset--color--theme-3)",
      "els": [
       {
        "type": "image",
@@ -234,8 +230,7 @@
         "fs": 12,
         "fw": 600,
         "ls2": 0.2,
-        "tt": "uppercase",
-        "col": "#c9b3ff"
+        "tt": "uppercase"
        }
       },
       {
@@ -245,8 +240,7 @@
        "w": 480,
        "h": 96,
        "text": "Poured by hand,<br>forty at a time.",
-       "fs": "xx-large",
-       "color": "theme-1"
+       "fs": "xx-large"
       },
       {
        "type": "para",
@@ -256,8 +250,7 @@
        "h": 120,
        "text": "We melt coconut and rapeseed wax, pour it by hand into glass we choose a box at a time, and let every candle cure for two weeks before it leaves. Nothing is rushed, including the scent.",
        "tf": {
-        "fs": 17,
-        "col": "rgba(242, 237, 255, 0.8)"
+        "fs": 17
        }
       },
       {
@@ -266,7 +259,7 @@
        "y": 432,
        "w": 480,
        "h": 24,
-       "boxBg": "linear-gradient(rgba(242, 237, 255, 0.24), rgba(242, 237, 255, 0.24)) center / 100% 1px no-repeat"
+       "boxBg": "linear-gradient(color-mix(in srgb, currentColor 24%, transparent), color-mix(in srgb, currentColor 24%, transparent)) center / 100% 1px no-repeat"
       },
       {
        "type": "heading",
@@ -275,8 +268,7 @@
        "w": 140,
        "h": 48,
        "text": "50 hrs",
-       "fs": "x-large",
-       "color": "theme-1"
+       "fs": "x-large"
       },
       {
        "type": "para",
@@ -286,8 +278,7 @@
        "h": 24,
        "text": "burn time",
        "tf": {
-        "fs": 13,
-        "col": "rgba(242, 237, 255, 0.8)"
+        "fs": 13
        }
       },
       {
@@ -297,8 +288,7 @@
        "w": 140,
        "h": 48,
        "text": "14 days",
-       "fs": "x-large",
-       "color": "theme-1"
+       "fs": "x-large"
       },
       {
        "type": "para",
@@ -308,8 +298,7 @@
        "h": 24,
        "text": "curing",
        "tf": {
-        "fs": 13,
-        "col": "rgba(242, 237, 255, 0.8)"
+        "fs": 13
        }
       },
       {
@@ -319,8 +308,7 @@
        "w": 160,
        "h": 48,
        "text": "40",
-       "fs": "x-large",
-       "color": "theme-1"
+       "fs": "x-large"
       },
       {
        "type": "para",
@@ -330,8 +318,7 @@
        "h": 24,
        "text": "candles a batch",
        "tf": {
-        "fs": 13,
-        "col": "rgba(242, 237, 255, 0.8)"
+        "fs": 13
        }
       }
      ]
@@ -340,7 +327,7 @@
      "name": "Why",
      "minH": 504,
      "image": "https://images.unsplash.com/photo-1612885488634-0a698136fed9?w=2000&q=80&fm=jpg&fit=max",
-     "background": "#f2edff",
+     "background": "var(--wp--preset--color--theme-5)",
      "tint": 30,
      "els": [
       {
@@ -361,8 +348,7 @@
        "h": 24,
        "text": "Isla Moray, who pours them",
        "tf": {
-        "fs": 14,
-        "col": "var(--wp--preset--color--theme-4, #322f37)"
+        "fs": 14
        },
        "align": "center"
       }
@@ -383,9 +369,9 @@
         "fs": 12,
         "fw": 600,
         "ls2": 0.2,
-        "tt": "uppercase",
-        "col": "var(--wp--preset--color--theme-7, #720eec)"
-       }
+        "tt": "uppercase"
+       },
+       "color": "theme-7"
       },
       {
        "type": "heading",
@@ -404,8 +390,7 @@
        "h": 96,
        "text": "Reed diffusers that last three months, and a mist for the moment you walk in. The same oils as the candles, no flame needed.",
        "tf": {
-        "fs": 16,
-        "col": "var(--wp--preset--color--theme-4, #322f37)"
+        "fs": 16
        }
       },
       {
@@ -442,7 +427,7 @@
     {
      "name": "The Evening Box",
      "minH": 648,
-     "background": "#f2edff",
+     "background": "var(--wp--preset--color--theme-5)",
      "els": [
       {
        "type": "image",
@@ -465,9 +450,9 @@
         "fs": 12,
         "fw": 600,
         "ls2": 0.2,
-        "tt": "uppercase",
-        "col": "var(--wp--preset--color--theme-7, #720eec)"
-       }
+        "tt": "uppercase"
+       },
+       "color": "theme-7"
       },
       {
        "type": "heading",
@@ -486,8 +471,7 @@
        "h": 120,
        "text": "A candle, a diffuser and a small bottle of Violet Hour, wrapped in lilac tissue and sealed with wax. Tell us who it’s for and we’ll write the card by hand.",
        "tf": {
-        "fs": 17,
-        "col": "var(--wp--preset--color--theme-4, #322f37)"
+        "fs": 17
        }
       },
       {
@@ -499,7 +483,6 @@
        "text": "£85 · free UK delivery",
        "tf": {
         "fs": 15,
-        "col": "#111111",
         "fw": 600
        }
       },
@@ -510,9 +493,7 @@
        "w": 184,
        "h": 48,
        "text": "Send one",
-       "href": "/product/the-evening-box/",
-       "btnBg": "theme-3",
-       "btnText": "theme-1"
+       "href": "/product/the-evening-box/"
       }
      ]
     },
@@ -531,9 +512,9 @@
         "fs": 12,
         "fw": 600,
         "ls2": 0.2,
-        "tt": "uppercase",
-        "col": "var(--wp--preset--color--theme-7, #720eec)"
-       }
+        "tt": "uppercase"
+       },
+       "color": "theme-7"
       },
       {
        "type": "heading",
@@ -552,8 +533,7 @@
        "h": 48,
        "text": "The studio is also the shop. Thursday to Saturday, 11 till 6, and by appointment for weddings and hotels.",
        "tf": {
-        "fs": 17,
-        "col": "var(--wp--preset--color--theme-4, #322f37)"
+        "fs": 17
        }
       },
       {
@@ -591,7 +571,7 @@
     {
      "name": "Our story",
      "minH": 720,
-     "background": "#f2edff",
+     "background": "var(--wp--preset--color--theme-5)",
      "els": [
       {
        "type": "para",
@@ -604,9 +584,9 @@
         "fs": 12,
         "fw": 600,
         "ls2": 0.2,
-        "tt": "uppercase",
-        "col": "var(--wp--preset--color--theme-7, #720eec)"
-       }
+        "tt": "uppercase"
+       },
+       "color": "theme-7"
       },
       {
        "type": "heading",
@@ -625,8 +605,7 @@
        "h": 120,
        "text": "Isla started pouring candles at her kitchen table in Leith in 2019, for friends, then friends of friends. Five years on there are four of us, a studio on Broughton Street, and still no machines.",
        "tf": {
-        "fs": 18,
-        "col": "var(--wp--preset--color--theme-4, #322f37)"
+        "fs": 18
        }
       },
       {
@@ -656,9 +635,9 @@
         "fs": 12,
         "fw": 600,
         "ls2": 0.2,
-        "tt": "uppercase",
-        "col": "var(--wp--preset--color--theme-7, #720eec)"
-       }
+        "tt": "uppercase"
+       },
+       "color": "theme-7"
       },
       {
        "type": "heading",
@@ -711,8 +690,7 @@
        "h": 144,
        "text": "Wax is melted slowly with the oils at 70°, then poured by hand in two goes so the top sets flat.",
        "tf": {
-        "fs": 16,
-        "col": "var(--wp--preset--color--theme-4, #322f37)"
+        "fs": 16
        }
       },
       {
@@ -733,8 +711,7 @@
        "h": 144,
        "text": "Two weeks on a cool shelf. The scent needs time to bind to the wax; a rushed candle smells of nothing when lit.",
        "tf": {
-        "fs": 16,
-        "col": "var(--wp--preset--color--theme-4, #322f37)"
+        "fs": 16
        }
       },
       {
@@ -755,8 +732,7 @@
        "h": 144,
        "text": "Every wick is trimmed, every jar wiped and labelled by the person who poured it. Their initials are on the base.",
        "tf": {
-        "fs": 16,
-        "col": "var(--wp--preset--color--theme-4, #322f37)"
+        "fs": 16
        }
       }
      ]
@@ -764,7 +740,7 @@
     {
      "name": "The match",
      "minH": 648,
-     "background": "#1f0342",
+     "background": "var(--wp--preset--color--theme-3)",
      "els": [
       {
        "type": "para",
@@ -777,8 +753,7 @@
         "fs": 12,
         "fw": 600,
         "ls2": 0.2,
-        "tt": "uppercase",
-        "col": "#c9b3ff"
+        "tt": "uppercase"
        }
       },
       {
@@ -788,8 +763,7 @@
        "w": 520,
        "h": 96,
        "text": "No paraffin. No plastic.<br>No hurry.",
-       "fs": "xx-large",
-       "color": "theme-1"
+       "fs": "xx-large"
       },
       {
        "type": "para",
@@ -799,8 +773,7 @@
        "h": 120,
        "text": "Our wax is plant-based, our wicks are wood or cotton, our jars are made to be kept, and our boxes are card you can recycle. Bring an empty jar back to the studio and we’ll refill it for £18.",
        "tf": {
-        "fs": 17,
-        "col": "rgba(242, 237, 255, 0.8)"
+        "fs": 17
        }
       },
       {
@@ -837,8 +810,7 @@
        "h": 24,
        "text": "Ten scents, each named for a time and a place we love.",
        "tf": {
-        "fs": 18,
-        "col": "var(--wp--preset--color--theme-4, #322f37)"
+        "fs": 18
        },
        "align": "center"
       },
@@ -849,9 +821,7 @@
        "w": 216,
        "h": 48,
        "text": "Shop the collection",
-       "href": "/shop/",
-       "btnBg": "theme-3",
-       "btnText": "theme-1"
+       "href": "/shop/"
       }
      ]
     }
@@ -865,7 +835,7 @@
     {
      "name": "Visit",
      "minH": 648,
-     "background": "#f2edff",
+     "background": "var(--wp--preset--color--theme-5)",
      "els": [
       {
        "type": "para",
@@ -878,9 +848,9 @@
         "fs": 12,
         "fw": 600,
         "ls2": 0.2,
-        "tt": "uppercase",
-        "col": "var(--wp--preset--color--theme-7, #720eec)"
-       }
+        "tt": "uppercase"
+       },
+       "color": "theme-7"
       },
       {
        "type": "heading",
@@ -899,8 +869,7 @@
        "h": 48,
        "text": "14 Broughton Street, Edinburgh EH1 3RH. Five minutes from Princes Street; the door with the lilac in the window.",
        "tf": {
-        "fs": 17,
-        "col": "var(--wp--preset--color--theme-4, #322f37)"
+        "fs": 17
        }
       },
       {
@@ -920,7 +889,6 @@
        "text": "Thursday – Saturday",
        "tf": {
         "fs": 15,
-        "col": "#111111",
         "fw": 600
        }
       },
@@ -932,8 +900,7 @@
        "h": 24,
        "text": "11am – 6pm",
        "tf": {
-        "fs": 15,
-        "col": "var(--wp--preset--color--theme-4, #322f37)"
+        "fs": 15
        },
        "align": "right"
       },
@@ -946,7 +913,6 @@
        "text": "Sunday",
        "tf": {
         "fs": 15,
-        "col": "#111111",
         "fw": 600
        }
       },
@@ -958,8 +924,7 @@
        "h": 24,
        "text": "12 – 4pm",
        "tf": {
-        "fs": 15,
-        "col": "var(--wp--preset--color--theme-4, #322f37)"
+        "fs": 15
        },
        "align": "right"
       },
@@ -972,7 +937,6 @@
        "text": "Monday – Wednesday",
        "tf": {
         "fs": 15,
-        "col": "#111111",
         "fw": 600
        }
       },
@@ -984,8 +948,7 @@
        "h": 24,
        "text": "by appointment",
        "tf": {
-        "fs": 15,
-        "col": "var(--wp--preset--color--theme-4, #322f37)"
+        "fs": 15
        },
        "align": "right"
       },
@@ -1015,9 +978,9 @@
         "fs": 12,
         "fw": 600,
         "ls2": 0.2,
-        "tt": "uppercase",
-        "col": "var(--wp--preset--color--theme-7, #720eec)"
-       }
+        "tt": "uppercase"
+       },
+       "color": "theme-7"
       },
       {
        "type": "heading",
@@ -1036,8 +999,7 @@
        "h": 48,
        "text": "We pour custom scents for weddings and small hotels, and we’re happy to send forty of anything. Tell us what you have in mind.",
        "tf": {
-        "fs": 17,
-        "col": "var(--wp--preset--color--theme-4, #322f37)"
+        "fs": 17
        }
       },
       {
@@ -1047,9 +1009,7 @@
        "w": 232,
        "h": 48,
        "text": "hello@violethour.co",
-       "href": "mailto:hello@violethour.co",
-       "btnBg": "theme-3",
-       "btnText": "theme-1"
+       "href": "mailto:hello@violethour.co"
       },
       {
        "type": "image",

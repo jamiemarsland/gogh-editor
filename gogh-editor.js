@@ -922,6 +922,28 @@
         out.push(sec + clsSel + ' .wp-block-embed__wrapper iframe { position: absolute; inset: 0; }');
       }
   }
+  // an outline button's ink: the accent on the page's own ground (judged
+  // against it), the ink that reads on a section's own colour (a remix's dark
+  // opening put a navy accent, then the page's dark words, on navy)
+  function ghostInkCss(opts) {
+    // by ROLE, not by today's values: a remix paints the section first and
+    // swaps the palette a moment later, so a judgement of the colours as they
+    // stand can come out backwards (light and dark trade places)
+    var roles = paletteRoles();
+    var slot = function (sl) { return 'var(--wp--preset--color--' + sl + ')'; };
+    var words = roles.textSlug ? slot(roles.textSlug) : 'inherit';
+    if (opts && opts.bgImage && !opts.bg) return 'inherit';
+    if (!opts || !opts.bg || /gradient\(/.test(String(opts.bg))) return 'var(--gogh-ghost-ink, ' + words + ')';
+    var bgs = String(opts.bg).trim();
+    var m = /^var\(--wp--preset--color--([a-z0-9-]+)\)$/.exec(bgs);
+    // a tint (Mist, an accent's soft) is mostly one slot: read that one
+    var mix = /^color-mix\(in srgb,\s*var\(--wp--preset--color--([a-z0-9-]+)\)\s*(\d+(?:\.\d+)?)%,\s*var\(--wp--preset--color--([a-z0-9-]+)\)\s*\)$/.exec(bgs);
+    var main = m ? m[1] : mix ? (+mix[2] >= 50 ? mix[1] : mix[3]) : null;
+    if (main && main === roles.bgSlug) return m ? 'var(--gogh-ghost-ink, ' + words + ')' : words;
+    if (main && main === roles.textSlug && roles.bgSlug) return slot(roles.bgSlug);
+    var ink = bestInkFor(opts.bg);
+    return ink ? slot(ink) : words;
+  }
   function buildCSS(els, scope, minH, opts) {
     opts = opts || {};
     var g = solve(els, minH, null, opts && opts.solveSkip);
@@ -1170,7 +1192,10 @@
       // rule here blew Woo's Add to cart up into a 500px pill
       sec + ' .wp-block-button:not(.gogh-widget *), ' + sec + ' .wp-block-button__link:not(.gogh-widget *) { width: 100%; height: 100%; }',
       sec + ' .wp-block-button__link { display: flex; align-items: center; justify-content: center; box-sizing: border-box; white-space: nowrap; }',
-      sec + ' .gogh-ghost .wp-block-button__link { background: transparent; color: var(--gogh-ghost-ink, inherit); box-shadow: inset 0 0 0 1.5px currentColor; }',
+      // an outline wears the accent only on the page's own ground: it was
+      // judged against that ground, and on a section with a colour of its
+      // own (a remix's dark opening) a navy accent sat unseen on navy
+      sec + ' .gogh-ghost .wp-block-button__link { background: transparent; color: ' + ghostInkCss(opts) + '; box-shadow: inset 0 0 0 1.5px currentColor; }',
       sec + ' .gogh-embed iframe { width: 100%; height: 100%; border-width: 0; display: block; position: absolute; inset: 0; }',
       sec + ' .gogh-embed .wp-block-embed__wrapper { height: 100%; }',
       '',
@@ -6183,7 +6208,7 @@
       var list = shop.pick || [];
       box.innerHTML = list.length
         ? list.map(function (p, k) {
-          return '<span class="gogh-shop-pickchip">' + esc(p.name) + '<button type="button" class="gogh-shop-unpick" data-k="' + k + '" aria-label="Remove ' + escAttr(p.name) + '">&times;</button></span>';
+          return '<span class="gogh-shop-pickchip">' + esc(plainTitle(p.name)) + '<button type="button" class="gogh-shop-unpick" data-k="' + k + '" aria-label="Remove ' + escAttr(plainTitle(p.name)) + '">&times;</button></span>';
         }).join('') + '<div class="gogh-panel-hint">These, in this order. Count, order and category stand aside while you hand-pick.</div>'
         : '<div class="gogh-panel-hint">Type a name to add the exact products \u2014 the ones in the photo, say.</div>';
       panel.querySelectorAll('.gogh-shop-auto').forEach(function (n) { n.hidden = list.length > 0; });
@@ -6210,7 +6235,7 @@
               var pr = p.prices || {};
               var minor = Math.pow(10, +pr.currency_minor_unit || 2);
               var money = pr.price ? (pr.currency_symbol || '') + (Math.round(+pr.price) / minor).toFixed(+pr.currency_minor_unit || 2).replace(/\.00$/, '') : '';
-              return '<button type="button" class="gogh-shop-foundrow' + (on ? ' is-on' : '') + '" data-id="' + p.id + '" data-name="' + escAttr(p.name) + '"><span>' + esc(p.name) + (money ? ' <small>' + esc(money) + '</small>' : '') + '</span><em>' + (on ? 'added' : '+ add') + '</em></button>';
+              return '<button type="button" class="gogh-shop-foundrow' + (on ? ' is-on' : '') + '" data-id="' + p.id + '" data-name="' + escAttr(plainTitle(p.name)) + '"><span>' + esc(plainTitle(p.name)) + (money ? ' <small>' + esc(money) + '</small>' : '') + '</span><em>' + (on ? 'added' : '+ add') + '</em></button>';
             }).join('') : '<div class="gogh-panel-hint">Nothing by that name.</div>';
             found.querySelectorAll('.gogh-shop-foundrow').forEach(function (b) {
               b.addEventListener('click', function () {
@@ -7710,7 +7735,7 @@
       var list = p.pick || [];
       box.innerHTML = list.length
         ? list.map(function (x, k) {
-          return '<span class="gogh-shop-pickchip">' + esc(x.name) + '<button type="button" class="gogh-shop-unpick" data-k="' + k + '" aria-label="Remove ' + escAttr(x.name) + '">&times;</button></span>';
+          return '<span class="gogh-shop-pickchip">' + esc(plainTitle(x.name)) + '<button type="button" class="gogh-shop-unpick" data-k="' + k + '" aria-label="Remove ' + escAttr(plainTitle(x.name)) + '">&times;</button></span>';
         }).join('') + '<div class="gogh-panel-hint">These, in this order. Count, order and category stand aside while you hand-pick.</div>'
         : '<div class="gogh-panel-hint">Type a title to add the exact posts — the three you are proudest of, say.</div>';
       panel.querySelectorAll('.gogh-shop-auto').forEach(function (nd) { nd.hidden = list.length > 0; });
@@ -7812,7 +7837,7 @@
         var img = p.images && p.images[0] && p.images[0].src;
         return '<button type="button" class="gogh-featrow" data-k="' + k + '">' +
           (img ? '<img src="' + escAttr(img) + '" alt="" />' : '<span class="gogh-postsprev-ph"></span>') +
-          '<span class="gogh-featname">' + esc(p.name || 'Product') + '</span>' +
+          '<span class="gogh-featname">' + esc(plainTitle(p.name || 'Product')) + '</span>' +
           '<span class="gogh-featprice">' + esc(storePriceText(p)) + '</span>' +
           '</button>';
       }).join('');
@@ -7910,7 +7935,7 @@
       return '<div class="' + ccls + '">' + prods.slice(0, cn2).map(function (c) {
         var img = c.image && c.image.src;
         return '<div class="gogh-shopprev-tile">' + (img ? '<img src="' + escAttr(img) + '" alt="" />' : '<div class="gogh-shopprev-tileph"></div>') +
-          '<span>' + esc(c.name || 'Category') + '</span></div>';
+          '<span>' + esc(plainTitle(c.name || 'Category')) + '</span></div>';
       }).join('') + '</div>';
     }
     var n = Math.max(1, Math.min(12, +shop.count || 3));
@@ -7949,7 +7974,7 @@
       return '<div class="gogh-shopprev-card">' +
         '<div class="gogh-shopprev-pic">' + (img ? '<img src="' + escAttr(img) + '" alt="" />' : '<div class="gogh-postsprev-ph"></div>') +
         (p.on_sale ? '<span class="gogh-shopprev-sale">Sale</span>' : '') + '</div>' +
-        '<div class="gogh-shopprev-body"><h3>' + esc(p.name || 'Product') + '</h3>' + stars +
+        '<div class="gogh-shopprev-body"><h3>' + esc(plainTitle(p.name || 'Product')) + '</h3>' + stars +
         (show.price ? '<div class="gogh-shopprev-price">' + esc(price) + '</div>' : '') +
         (show.button ? '<span class="gogh-postsprev-btn">Add to cart</span>' : '') + '</div>' +
         '</div>';
@@ -7998,7 +8023,7 @@
         '<button type="button" class="gogh-featrow" data-all="1"><span class="gogh-featname">All products</span></button>' +
         cats.map(function (c, k) {
           return '<button type="button" class="gogh-featrow" data-k="' + k + '">' +
-            '<span class="gogh-featname">' + esc(c.name) + '</span>' +
+            '<span class="gogh-featname">' + esc(plainTitle(c.name)) + '</span>' +
             '<span class="gogh-featprice">' + c.count + '</span></button>';
         }).join('') + '</div>';
       placePanelNear(S[idx] ? S[idx].wrapEl : side);
@@ -15082,7 +15107,10 @@
   function snapSectionLook(secx) {
     return { theme: secx.theme, bg: secx.bg, bgA: secx.bgA,
       bgImage: secx.bgImage, bgId: secx.bgId,
-      colors: secx.els.map(function (e) { return e.color || null; }) };
+      colors: secx.els.map(function (e) { return e.color || null; }),
+      // where things sat: a bigger type in a hover pushes words down, and
+      // putting only the colours back left the pushes behind, a look at a time
+      geo: secx.els.map(function (e) { return [e.y, e.h]; }), minH: secx.minH };
   }
   function restoreSectionLook(secx, snap) {
     secx.theme = snap.theme;
@@ -15090,7 +15118,11 @@
     secx.bgA = snap.bgA;
     secx.bgImage = snap.bgImage;
     secx.bgId = snap.bgId;
-    secx.els.forEach(function (e, k) { e.color = snap.colors[k]; });
+    secx.els.forEach(function (e, k) {
+      e.color = snap.colors[k];
+      if (snap.geo && snap.geo[k] && snap.geo.length === secx.els.length) { e.y = snap.geo[k][0]; e.h = snap.geo[k][1]; }
+    });
+    if (snap.geo && snap.geo.length === secx.els.length && snap.minH !== undefined) secx.minH = snap.minH;
     syncBootInvite(secx);
     renderSection(secx);
     resolveAll();
@@ -18703,6 +18735,15 @@
     resolveAll();
     return snaps;
   }
+  function remixRestoreGeo(snaps) {
+    var content = S.filter(function (x) { return !x.chrome; });
+    snaps.forEach(function (snap, k) {
+      var secx = content[k];
+      if (!secx || !snap.geo || snap.geo.length !== secx.els.length) return;
+      secx.els.forEach(function (e, j) { e.y = snap.geo[j][0]; e.h = snap.geo[j][1]; });
+      if (snap.minH !== undefined) secx.minH = snap.minH;
+    });
+  }
   function remixRestoreRhythm(snaps) {
     var content = S.filter(function (x) { return !x.chrome; });
     snaps.forEach(function (snap, k) {
@@ -18855,6 +18896,12 @@
       }).catch(function () { c.fonts = null; c.families = null; });
     })();
     var run = ready.then(function () {
+      // the preview pushed words about while its fonts arrived in stages, and
+      // a quiet re-measure can shrink a heading without pulling up what it
+      // pushed — so every look left a gap behind ('try another' a few times
+      // and the hero spread apart). Back to the places before the preview;
+      // the apply below re-flows once, against the look's real type
+      if (remixAudition && remixAudition.snaps) remixRestoreGeo(remixAudition.snaps);
       if (!entry.origin) {
         v = brandToVariation({ colors: entry.cand.colors, fonts: entry.cand.fonts || null, families: entry.cand.families || null });
         v.title = 'Remix \u00b7 ' + entry.cand.name;
@@ -19055,11 +19102,33 @@
     var curTx = cur.filter(function (p) { return p.slug === roles.textSlug; })[0];
     var lumOfVal = function (val) { var h = hexToHsl(val); return h ? relLum(hslToHex(h.h, h.s, h.l)) : null; };
     var bgL = curBg ? lumOfVal(curBg.value) : null, txL = curTx ? lumOfVal(curTx.value) : null;
+    // a theme that numbers its colours (Purple's theme-1 to theme-7) has no
+    // slot called accent: each colour is read for the part it plays instead.
+    // Near the words it becomes the words, near the ground a tint of the
+    // ground, and a true colour takes the accent. Before this a remix left
+    // Purple's violet and its button purple as they were, on a navy ground
+    var named = slugs.some(function (sl) { return /accent|primary|secondary/.test(sl); });
+    var roleOf = function (val) {
+      var h = hexToHsl(val);
+      if (!h || txL == null || bgL == null) return null;
+      var l = relLum(hslToHex(h.h, h.s, h.l));
+      if (h.s >= 0.35 && l >= 0.03 && l <= 0.6) return 'accent';
+      return Math.abs(l - txL) <= Math.abs(l - bgL) ? 'text' : 'ground';
+    };
     slugs.forEach(function (slug) {
       var v = null;
       var keep = cur.filter(function (p) { return p.slug === slug; })[0];
       if (slug === roles.bgSlug || /^(base|background)$/.test(slug)) v = c.background;
       else if (slug === roles.textSlug || /^(contrast|foreground|text|main)$/.test(slug)) v = c.text;
+      else if (!named && keep && c.background && c.text) {
+        var part = roleOf(keep.value);
+        if (part === 'accent' && accents.length) { v = accents[ai % accents.length]; ai++; }
+        else if (part === 'text') v = c.text;
+        else if (part === 'ground') {
+          var gh0 = hexToHsl(c.background), th0 = hexToHsl(c.text);
+          if (gh0 && th0) v = hslToHex(gh0.h, gh0.s, gh0.l + (th0.l > gh0.l ? 0.05 : -0.05));
+        }
+      }
       else if (/accent|primary|secondary/.test(slug) && accents.length) {
         // the first two accent slots are the brand's accents; every later
         // slot follows the ROLE its current colour plays — an ink stays an
@@ -19089,7 +19158,7 @@
     // buttons wear the brand's accent, with whichever of page or words reads
     // on it — a theme variation may put buttons on contrast/base and never
     // touch accent-1 (TT5's default), so the brand says so itself
-    var accentSlot = pal.filter(function (p) { return /accent|primary|secondary/.test(p.slug) && p.color === c.accent; })[0];
+    var accentSlot = pal.filter(function (p) { return (!named || /accent|primary|secondary/.test(p.slug)) && p.slug !== roles.bgSlug && p.slug !== roles.textSlug && p.color === c.accent; })[0];
     if (accentSlot && c.background && c.text && roles.bgSlug && roles.textSlug) {
       var ink = buttonInkFor(c.accent, c.background, c.text);
       out.styles.elements = out.styles.elements || {};
@@ -20012,7 +20081,9 @@
   // never flashes a generic serif/sans while the real webfont is still loading
   function auditionVariation(v) {
     var seq = ++previewSeq;
-    ensureVariationFonts(v).then(function () {
+    // the theme's base too: without it the words fall back to a colour the
+    // theme may not have (Purple has no 'contrast' — black on a navy remix)
+    Promise.all([ensureVariationFonts(v), ensureThemeBase()]).then(function () {
       if (seq === previewSeq) previewVariation(v);
     });
   }
@@ -20120,7 +20191,7 @@
     css = faceCss + css;
 
     var bodyText = vColor.text ? resolve(vColor.text)
-      : (bColor.text ? resolve(bColor.text) : 'var(--wp--preset--color--contrast)');
+      : (bColor.text ? resolve(bColor.text) : 'var(--wp--preset--color--' + (paletteRoles().textSlug || 'contrast') + ')');
     // variationBodyFont may return either preset form (var:preset|...) or CSS-var
     // form, so resolve it; fall back to the theme base's body font
     var vBodyFF = variationBodyFont(v);

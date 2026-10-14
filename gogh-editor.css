@@ -4247,6 +4247,10 @@ body:has(.wp-block-navigation__responsive-container.is-menu-open) .gogh-bar { op
 
 /* category tiles in the editor preview: doors with the category's own picture */
 .gogh-shopprev-cats { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+/* the column count the composer chose wins over the tiles' default (the editor drew four as 3 + 1) */
+.gogh-shopprev-cats.gogh-shopprev-c2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.gogh-shopprev-cats.gogh-shopprev-c4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+@container gogh (max-width: 700px) { .gogh-shopprev-cats.gogh-shopprev-c4 { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 .gogh-shopprev-tile { position: relative; aspect-ratio: 4 / 3; border-radius: 12px; overflow: hidden; background: color-mix(in srgb, currentColor 8%, transparent); }
 .gogh-shopprev-tile img, .gogh-shopprev-tileph { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
 .gogh-shopprev-tileph { background: linear-gradient(135deg, color-mix(in srgb, currentColor 10%, transparent), color-mix(in srgb, currentColor 22%, transparent)); }

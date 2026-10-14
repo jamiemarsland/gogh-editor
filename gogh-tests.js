@@ -1221,7 +1221,7 @@
         expect(inp && /Search your site/.test(inp.placeholder), 'the link box should invite a search: ' + (inp && inp.placeholder));
         inp.value = 'story';
         inp.dispatchEvent(new Event('input'));
-        return wait(450);
+        return wait(700);
       }).then(function () {
         var rows = [].slice.call(document.querySelectorAll('.gogh-panel .gogh-linkhit'));
         expect(rows.length === 3, 'three hits expected, got ' + rows.length);
@@ -1239,7 +1239,7 @@
         inp = q('.gogh-panel input[type="url"]');
         inp.value = 'zzqx';
         inp.dispatchEvent(new Event('input'));
-        return wait(450);
+        return wait(700);
       }).then(function () {
         expect(/Nothing on your site matches/.test(q('.gogh-panel .gogh-linkfind').textContent), 'no hits should say so');
         inp.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
@@ -8086,8 +8086,20 @@
       expect(navy.ghostInk === '#1e3a5f', 'navy reads on white, so ghosts wear it: ' + navy.ghostInk);
       var lilac = G.brandToVariation({ colors: { background: '#fbf7fc', text: '#3b2c48', accent: '#c9a7e0', accent2: '#f4a7b9' } });
       expect(lilac.ghostInk === null, 'lilac cannot read on a pale page, so ghosts keep the words colour: ' + lilac.ghostInk);
-      var s0 = sec();
-      expect(/--gogh-ghost-ink, inherit/.test(s0.styleEl.textContent), 'the section\u2019s ghost rule should defer to the site variable');
+      var s0 = sec(), wasBg = s0.bg;
+      try {
+        s0.bg = null; G.renderSection(s0);
+        expect(/gogh-ghost \.wp-block-button__link \{[^}]*color: var\(--gogh-ghost-ink, /.test(s0.styleEl.textContent), 'on the page ground the ghost rule should defer to the site variable');
+        // a section of its own colour: the ink that reads there, by role (a
+        // remix's dark opening hid a navy accent, then the page's words, on navy)
+        var roles = G.paletteRoles();
+        if (roles.textSlug && roles.bgSlug) {
+          s0.bg = 'var(--wp--preset--color--' + roles.textSlug + ')'; G.renderSection(s0);
+          expect(new RegExp('gogh-ghost \\.wp-block-button__link \\{[^}]*color: var\\(--wp--preset--color--' + roles.bgSlug + '\\)').test(s0.styleEl.textContent), 'on a section in the words colour the ghost should wear the ground colour');
+          s0.bg = 'color-mix(in srgb, var(--wp--preset--color--' + roles.textSlug + ') 6%, var(--wp--preset--color--' + roles.bgSlug + '))'; G.renderSection(s0);
+          expect(new RegExp('gogh-ghost \\.wp-block-button__link \\{[^}]*color: var\\(--wp--preset--color--' + roles.textSlug + '\\)').test(s0.styleEl.textContent), 'on a mist of the ground the ghost should wear the words colour');
+        }
+      } finally { s0.bg = wasBg; G.renderSection(s0); }
     });
 
     test('a brand palette keeps the theme\u2019s roles: inks stay inks, tints stay tints, two accents are accents', function () {
