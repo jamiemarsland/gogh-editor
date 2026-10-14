@@ -811,6 +811,8 @@ The helper's welcome panel opens with a 35-second film of gogh being used (v0.99
 
 **The phone view survives navigation (v0.99.605).** Press one of your own pages while on the phone and it opens in the editor, still on the phone: the link carries `gogh-edit=1&gogh-phone=1`, the next page reads them at boot and strips them from the address. Other sites, files, wp-admin and anchors on the same page are left alone. Unpublished changes still ask before leaving.
 
+**Publish stands in from the edge (v0.99.693).** The Publish button now sits a little in from the right edge of the top bar, so it reads as the end of the row rather than falling off the screen.
+
 **Site styles, with a paint brush (v0.99.692).** The top bar's **Styles** is now called **Site styles**, with a decorator's paint brush for its icon (the old one looked like a pen). It changes the fonts and colours of the whole site; the **Style · …** chip on a chosen piece's own toolbar changes just that piece's look.
 
 **Publish sits in the bar (v0.99.691).** The Publish button is a little shorter, with room above and below it in the top bar, the same height as the computer/phone switch, and a little more space from the right edge.
