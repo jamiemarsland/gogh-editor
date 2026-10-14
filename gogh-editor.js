@@ -5348,7 +5348,10 @@
     // the wrong slug froze it on the committed colour, so a light style
     // auditioned over a dark page (or vice-versa) washed out. The neutral desk
     // behind is CSS.
-    wrap.style.background = 'var(--wp--preset--color--base, ' + getComputedStyle(document.body).backgroundColor + ')';
+    // the GROUND's slot by role — Purple has no 'base', so the fallback (the
+    // colour at zoom time) froze: a dark remix left a light band behind the
+    // header, and the header's light words vanished on it
+    wrap.style.background = 'var(--wp--preset--color--' + (paletteRoles().bgSlug || 'base') + ', ' + getComputedStyle(document.body).backgroundColor + ')';
     wrap.style.boxShadow = '0 30px 90px -24px rgba(0, 0, 0, 0.4)';
     document.documentElement.classList.add('gogh-zoomed');
     // the floating furniture belongs to the 1:1 canvas — fold it away the

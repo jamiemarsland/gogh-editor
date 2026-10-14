@@ -1214,6 +1214,11 @@
         return realFetch.apply(this, arguments);
       };
       var wait = function (ms) { return new Promise(function (r) { setTimeout(r, ms); }); };
+      // the search answers when it answers: poll for it instead of guessing
+      var until = function (fn, ms) {
+        var t0 = Date.now();
+        return new Promise(function (r) { (function tick() { if (fn() || Date.now() - t0 > ms) r(); else setTimeout(tick, 60); })(); });
+      };
       var inp;
       G.openPanel(s0, i);
       inp = q('.gogh-panel input[type="url"]');
@@ -1221,7 +1226,7 @@
         expect(inp && /Search your site/.test(inp.placeholder), 'the link box should invite a search: ' + (inp && inp.placeholder));
         inp.value = 'story';
         inp.dispatchEvent(new Event('input'));
-        return wait(700);
+        return until(function () { return document.querySelectorAll('.gogh-panel .gogh-linkhit').length === 3; }, 3000);
       }).then(function () {
         var rows = [].slice.call(document.querySelectorAll('.gogh-panel .gogh-linkhit'));
         expect(rows.length === 3, 'three hits expected, got ' + rows.length);
@@ -1239,7 +1244,7 @@
         inp = q('.gogh-panel input[type="url"]');
         inp.value = 'zzqx';
         inp.dispatchEvent(new Event('input'));
-        return wait(700);
+        return until(function () { var f = q('.gogh-panel .gogh-linkfind'); return f && /Nothing on your site/.test(f.textContent); }, 3000);
       }).then(function () {
         expect(/Nothing on your site matches/.test(q('.gogh-panel .gogh-linkfind').textContent), 'no hits should say so');
         inp.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));

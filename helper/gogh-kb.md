@@ -15,7 +15,7 @@ about something where they conflict, rather than picking one silently. Quote UI
 labels and message copy from the appendix, verbatim — those are the current
 strings, and a paraphrased button label is the fastest way to lose a user's trust.
 
-Generated for plugin version 0.99.707 · knowledge base c3d6001.
+Generated for plugin version 0.99.708 · knowledge base 9b2ea36.
 
 ---
 
@@ -830,6 +830,8 @@ The helper's welcome panel opens with a 35-second film of gogh being used (v0.99
 
 **The phone view survives navigation (v0.99.605).** Press one of your own pages while on the phone and it opens in the editor, still on the phone: the link carries `gogh-edit=1&gogh-phone=1`, the next page reads them at boot and strips them from the address. Other sites, files, wp-admin and anchors on the same page are left alone. Unpublished changes still ask before leaving.
 
+**Header stays readable while you try looks (v0.99.708).** With the Site styles panel open the page sits zoomed out on a grey desk. The page behind the header now follows the look you're trying: on themes like Purple it used to keep the old background, so a dark look left the header's light words on a pale band.
+
 **Try another works on more themes (v0.99.707).** Site styles' **Try another** now reads a theme's colours for the part each one plays, so themes that number their colours (Purple's theme-1 to theme-7) get the accent on their buttons and readable words, instead of a dark button on a dark ground. Outline buttons take an ink that reads on the section they sit in — the accent on the page's own background, the light or dark words on a coloured band. Trying several looks in a row no longer spreads the page apart: each look settles from the layout you had, so gaps don't grow. In the editor, shop grids and category tiles show "&" properly and four category tiles sit four across, as they do on the live page.
 
 **No Live chip (v0.99.706).** On a WooCommerce site, the green **Live** chip WooCommerce put beside the site name in the top bar is gone. If the shop is set to Coming soon, the **Coming soon** chip still shows, because that one warns that visitors can't see the shop yet.
@@ -1023,11 +1025,11 @@ Everything in this section is extracted mechanically from the Gogh source on eve
 
 ## Current release
 
-- Plugin version: **0.99.707**
+- Plugin version: **0.99.708**
 - Requires WordPress **6.5+**, PHP **7.4+**
 - Text domain: `gogh-editor`
 - readme.txt Stable tag: `0.26.0` · Tested up to: `7.0`
-- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.707`). Quote the plugin header version.
+- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.708`). Quote the plugin header version.
 
 ## Design constants
 
