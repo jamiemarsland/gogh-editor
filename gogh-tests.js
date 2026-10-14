@@ -3793,6 +3793,53 @@
       return 'Share: Latest posts, Featured post, Titles and dates';
     });
 
+    test('a live grid loading its posts is not a change to publish; changing its choices is', function () {
+      var s0 = sec();
+      var e = G.addElementToSection(G.sections().indexOf(s0), 'posts');
+      try {
+        G.pushState();
+        var before = G.dirtySnap();
+        // what the grid fetched to draw itself arrives later
+        e.__postsData = [{ id: 1, title: { rendered: 'A' } }];
+        e.whtml = '<div class="gogh-postsprev">changed preview</div>';
+        expect(G.dirtySnap() === before, 'loading posts into the preview should not read as a change');
+        e.posts.count = 6;
+        expect(G.dirtySnap() !== before, 'a new choice on the grid should read as a change');
+      } finally {
+        var k = s0.els.indexOf(e);
+        if (k !== -1) { s0.els.splice(k, 1); G.renderSection(s0); G.pushState(); }
+      }
+      return 'previews are not edits; choices are';
+    });
+
+    test('Add a page with unpublished changes asks gogh\u2019s question first, and Stay makes no page', function () {
+      var s0 = sec(), i = findIdx('para'), e = s0.els[i], wasX = e.x;
+      var realFetch = window.fetch, made = 0;
+      window.fetch = function (u, o) {
+        if (/\/wp\/v2\/pages(\?|$)/.test(String(u)) && o && o.method === 'POST') { made++; return Promise.resolve(new Response('{}', { status: 500 })); }
+        return realFetch.apply(this, arguments);
+      };
+      try {
+        e.x = Math.min(1100 - e.w, e.x + 24); G.renderSection(s0); G.pushState();
+        expect(G.isDirty(), 'the page should have a change to publish');
+        G.openAddPagePanel(document.body);
+        var pnl = q('.gogh-panel');
+        pnl.querySelector('.gogh-addpage-title').value = 'Prices';
+        pnl.querySelector('.gogh-addpage-go').click();
+        var leave = q('.gogh-leave');
+        expect(leave && !leave.hidden && /Add \u201cPrices\u201d and open it\?/.test(leave.textContent), 'gogh should ask before leaving: ' + (leave ? leave.textContent.slice(0, 80) : 'no question'));
+        expect(made === 0, 'no page should be made before the question is answered');
+        leave.querySelector('.gogh-leave-stay').click();
+        expect(leave.hidden && made === 0, 'Stay should make no page');
+        expect(pnl.querySelector('.gogh-addpage-go').textContent === 'Add', 'the Add button should be ready again');
+      } finally {
+        window.fetch = realFetch;
+        e.x = wasX; G.renderSection(s0); G.pushState();
+        G.closePanel();
+      }
+      return 'asked first; Stay made nothing';
+    });
+
     test('Cmd+V pastes HTML straight in as a section', function () {
       var dt = new DataTransfer();
       dt.setData('text/plain', '<section style="padding:40px"><h2>Pasted by keyboard</h2></section>');

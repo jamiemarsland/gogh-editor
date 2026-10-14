@@ -2428,7 +2428,7 @@
         if (!changed) return;
         var wasClean = !isDirty();
         S.forEach(function (s) { growReflow(s, true); });
-        if (wasClean) savedSnap = serialize(); // a late font nudge is not an unsaved edit
+        if (wasClean) savedSnap = dirtySnap(); // a late font nudge is not an unsaved edit
         if (sel) placeHandles(sel.sec, sel.i);
         refreshChip();
       }, ms);
@@ -5249,7 +5249,7 @@
       if (on) { measureTextHeights(sec); resolveAndApply(sec); }
     });
     if (on && history.length === 0) pushState();
-    if (on && savedSnap === null) savedSnap = serialize();
+    if (on && savedSnap === null) savedSnap = dirtySnap();
     if (on) { placeConvertBtns(); placeChromeBtns(); } else { clearConvertBtns(); clearChromeBtns(); }
     if (on) mountChip();
     chip.hidden = !on;
@@ -17701,7 +17701,7 @@
       })
       .then(function () { dropped = fontsDropped.slice(); clearFontsPreview(); return reskinType(); })
       .then(function () {
-        if (wasClean) savedSnap = serialize();
+        if (wasClean) savedSnap = dirtySnap();
         fontsLastKept = pair;
         if (busy && busy.remove) busy.remove();
         // a brand pins its fonts for Remix: the kept pair becomes the brand's,
@@ -18547,16 +18547,21 @@
     var run = function () {
       var t = inp.value.trim();
       if (!t || busy) return;
-      busy = true;
-      go.textContent = 'Adding\u2026';
-      createPage(t).then(function (res) {
-        busy = false;
-        if (!res) { go.textContent = 'Add'; return; }
-        go.textContent = 'Opening\u2026'; // the page is about to open in the editor
-      }).catch(function () {
-        busy = false;
-        go.textContent = 'Add';
-        toast('gogh could not create that page.', { error: true });
+      // unpublished changes here are settled FIRST (publish, keep, or stay):
+      // asking after the page exists would strand an empty page on 'Stay'
+      askBeforeLeaving(t, { title: 'Add \u201c' + t + '\u201d and open it?' }, function () {
+        if (busy) return;
+        busy = true;
+        go.textContent = 'Adding\u2026';
+        createPage(t, function (u) { goNow(u, t, true); }).then(function (res) {
+          busy = false;
+          if (!res) { go.textContent = 'Add'; return; }
+          go.textContent = 'Opening\u2026'; // the page is about to open in the editor
+        }).catch(function () {
+          busy = false;
+          go.textContent = 'Add';
+          toast('gogh could not create that page.', { error: true });
+        });
       });
     };
     go.addEventListener('click', run);
@@ -19952,7 +19957,7 @@
       });
       fontSizesCache = null;
       S.forEach(function (s2) { growReflow(s2, true); }); // new type scale re-wraps headings — push/pull to match
-      if (wasClean) savedSnap = serialize(); // re-measured heights are the new clean baseline
+      if (wasClean) savedSnap = dirtySnap(); // re-measured heights are the new clean baseline
       refreshChip();
       settleReflowPasses(); // catch a late webfont re-render
       cfg.typeScale = factor;
@@ -20458,7 +20463,7 @@
       // this also covers the CSS @font-face the swap brings in.)
       S.forEach(function (s) { growReflow(s, true); }); // new type re-wraps headings — push/pull what's below to match
       S.forEach(function (s) { try { diceFitWords(s); } catch (err) {} }); // a wider face steps a take's headline down until its longest word fits
-      if (wasClean) savedSnap = serialize(); // re-measured heights are the new clean baseline
+      if (wasClean) savedSnap = dirtySnap(); // re-measured heights are the new clean baseline
       if (sel) placeHandles(sel.sec, sel.i);
       refreshChip();
       settleReflowPasses(); // the webfont can re-render the heading a few frames later — catch that height too
@@ -21415,6 +21420,7 @@
     measure: measureTextHeights,
     resolve: resolveAndApply,
     serialize: serialize,
+    dirtySnap: dirtySnap,
     syncModelFromMarkup: syncModelFromMarkup,
     cleanInline: cleanInline,
     showTip: showTipNow,
@@ -21843,7 +21849,19 @@
     if (pendingBlocks.length) return true;
     if (chromeLightEdits.some(function (e) { return e.savedRaw != null && e.raw !== e.savedRaw; })) return true;
     if (storedEdits.some(function (e) { return e.raw !== e.savedRaw || e.deleted; })) return true;
-    return savedSnap !== null && serialize() !== savedSnap;
+    return savedSnap !== null && dirtySnap() !== savedSnap;
+  }
+  // the page as the 'changed?' question sees it: without what a live grid
+  // fetched to draw itself (its posts or products, and the preview drawn
+  // from them). Those land a moment after the editor opens, and every page
+  // with a posts grid read as changed with nothing touched, so adding a page
+  // met the browser's 'Leave site?' (James, on Second Helpings)
+  function dirtySnap() {
+    return JSON.stringify(JSON.parse(serialize()), function (k, v) {
+      if (k.charAt(0) === '_' && k.charAt(1) === '_') return undefined;
+      if (k === 'whtml' && this && this.rails) return undefined;
+      return v;
+    });
   }
 
   // The publish status and the Publish button live in the admin bar, right
@@ -22634,7 +22652,7 @@
     }).then(function () {
       // conversions are now committed: sections are ordinary gogh spans
       S.forEach(function (s) { s.srcSig = null; });
-      savedSnap = serialize();
+      savedSnap = dirtySnap();
       backedUp = false;
       chipBusy = false;
       // Published \u2713, then the chip settles on Live. 'Answer-ready' used to
@@ -22788,8 +22806,16 @@
   function goToPage(url, name, how) {
     if (!url) return;
     how = how || {};
+    askBeforeLeaving(name, how, function () { goNow(url, name, how.bare); });
+  }
+  // the one question before this page is left with changes not yet live:
+  // publish, keep them for later, or stay. onGo runs once that is settled
+  // (straight away when nothing is unpublished) — the browser's own 'Leave
+  // site?' never gets asked (James met it adding a page)
+  function askBeforeLeaving(name, how, onGo) {
+    how = how || {};
     refreshChip(); // text re-measures can dirty the model without a pushState
-    if (!isDirty()) { goNow(url, name, how.bare); return; }
+    if (!isDirty()) { onGo(); return; }
     var here = String(cfg.postTitle || '').trim() || 'this page';
     var there = String(name || '').trim() || 'that page';
     leavePanel.innerHTML =
@@ -22806,7 +22832,7 @@
     stay.addEventListener('click', function () { leavePanel.hidden = true; });
     leavePanel.querySelector('.gogh-leave-pub').addEventListener('click', function () {
       leavePanel.hidden = true;
-      publish().then(function (ok) { if (ok) goNow(url, name, how.bare); });
+      publish().then(function (ok) { if (ok) onGo(); });
     });
     var keep = leavePanel.querySelector('.gogh-leave-keep');
     keep.addEventListener('click', function () {
@@ -22820,7 +22846,7 @@
           return;
         }
         try { localStorage.setItem(keptKey(), new Date().toISOString()); } catch (e) {}
-        goNow(url, name, how.bare);
+        onGo();
       });
     });
     setTimeout(function () { try { stay.focus(); } catch (e) {} }, 30);
