@@ -15,7 +15,7 @@ about something where they conflict, rather than picking one silently. Quote UI
 labels and message copy from the appendix, verbatim — those are the current
 strings, and a paraphrased button label is the fastest way to lose a user's trust.
 
-Generated for plugin version 0.99.694 · knowledge base 67840ef.
+Generated for plugin version 0.99.695 · knowledge base 314ebfd.
 
 ---
 
@@ -830,6 +830,8 @@ The helper's welcome panel opens with a 35-second film of gogh being used (v0.99
 
 **The phone view survives navigation (v0.99.605).** Press one of your own pages while on the phone and it opens in the editor, still on the phone: the link carries `gogh-edit=1&gogh-phone=1`, the next page reads them at boot and strips them from the address. Other sites, files, wp-admin and anchors on the same page are left alone. Unpublished changes still ask before leaving.
 
+**Changes not live yet; a full bar in Playground (v0.99.695).** Beside Publish, a published page with new changes says **Changes not live yet** (the page itself is live; it's your latest changes that aren't), and a draft says **Draft · not live yet**. In WordPress Playground's seamless mode the site sits a few pixels above the top of the window, which cut off the top of the admin bar and made its buttons look cropped; gogh now notices that and moves the bar down by exactly that much. Anywhere else nothing changes.
+
 **The top bar in a narrow window (v0.99.694).** When the browser window is narrow (under about 780 pixels, for example a Playground beside other windows, or a tablet), WordPress makes its top bar taller; gogh's items now fill it and sit centred instead of jammed at the top. **View site** stays on the bar at every width (WordPress hid it on narrow screens, leaving no way out of the editor); in a phone-narrow window it is just its eye icon, with the name in its tooltip, and **Site styles** is just its paint brush, so the phone and computer switch and **Publish** still fit.
 
 **Publish stands in from the edge (v0.99.693).** The Publish button now sits a little in from the right edge of the top bar, so it reads as the end of the row rather than falling off the screen.
@@ -997,11 +999,11 @@ Everything in this section is extracted mechanically from the Gogh source on eve
 
 ## Current release
 
-- Plugin version: **0.99.694**
+- Plugin version: **0.99.695**
 - Requires WordPress **6.5+**, PHP **7.4+**
 - Text domain: `gogh-editor`
 - readme.txt Stable tag: `0.26.0` · Tested up to: `7.0`
-- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.694`). Quote the plugin header version.
+- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.695`). Quote the plugin header version.
 
 ## Design constants
 
@@ -1121,6 +1123,7 @@ Block: `gogh/section` · v3 attributes: `css`, `model`, `scope`, `v`, `cssT`.
 | `body_class` | filter | 10 |
 | `wp_insert_post_empty_content` | filter | 10 |
 | `trashed_post` | action | 10 |
+| `wp_head` | action | 10 |
 | `wp_head` | action | 10 |
 | `wp_head` | action | 10 |
 | `enqueue_block_assets` | action | 10 |

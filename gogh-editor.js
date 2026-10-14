@@ -21637,17 +21637,19 @@
       // the updated page is not live'); a draft isn't live at all
       // three words beside the button, the rest in the tooltip (James:
       // "folks will struggle to see publish"): fewer words, louder button
+      // a published page IS live — it's the changes that aren't (James,
+      // twice: 'the page is live - just not the updates i just made')
       if (isDraftPage()) {
-        setChip('dirty', 'Not live yet', 'Publish');
+        setChip('dirty', 'Draft \u00b7 not live yet', 'Publish');
         chip.title = (backedUp ? 'Your work is saved. ' : '') + 'This page is a draft: visitors can\u2019t see it yet. Publish puts it live.';
       } else {
-        setChip('dirty', 'Not live yet', 'Publish');
+        setChip('dirty', 'Changes not live yet', 'Publish');
         chip.title = (backedUp ? 'Your changes are saved. ' : '') + 'Visitors still see the page as it was until you publish.';
       }
       nudgePublish();
     } else if (isDraftPage()) {
       // a draft with nothing new still waits to go live: Publish stays lit
-      setChip('dirty', 'Not live yet', 'Publish');
+      setChip('dirty', 'Draft \u00b7 not live yet', 'Publish');
       chip.title = 'This page is a draft: visitors can\u2019t see it yet. Publish puts it live.';
     } else {
       setChip('clean', '');

@@ -992,16 +992,16 @@
       var chipEl = q('.gogh-chip .gogh-chip-txt');
       if (!chipEl) return 'no status chip: nothing to judge';
       // v0.99.688: three words or none — Not live yet, or quiet beside a greyed Published ✓
-      expect(/^(|Not live yet)$/.test(chipEl.textContent), 'the status speaks plainly: ' + chipEl.textContent);
+      expect(/^(|Changes not live yet|Draft \u00b7 not live yet)$/.test(chipEl.textContent), 'the status speaks plainly: ' + chipEl.textContent);
       // a published page's CHANGES aren't live, not the page; a draft isn't live at all
       var C = window.GOGH, wasSt = C.postStatus;
       try {
         C.postStatus = 'draft'; G.pushState(); G.refreshChip && G.refreshChip();
         var t1 = q('.gogh-chip .gogh-chip-txt').textContent, b1 = q('.gogh-chip .gogh-chip-btn');
-        expect(t1 === 'Not live yet' && b1 && !b1.disabled && /draft/.test(q('.gogh-chip').title), 'a draft is not live yet, says so in its tooltip, and Publish is lit even with nothing new: ' + t1);
+        expect(t1 === 'Draft \u00b7 not live yet' && b1 && !b1.disabled, 'a draft says so, and Publish is lit even with nothing new: ' + t1);
         C.postStatus = 'publish'; G.refreshChip && G.refreshChip();
         var t2 = q('.gogh-chip .gogh-chip-txt').textContent, b2 = q('.gogh-chip .gogh-chip-btn');
-        expect(t2 === 'Not live yet' || (t2 === '' && b2.disabled && /Published/.test(b2.textContent)), 'a published page: Not live yet, or quiet with a greyed Published \u2713: ' + t2 + ' / ' + b2.textContent);
+        expect(t2 === 'Changes not live yet' || (t2 === '' && b2.disabled && /Published/.test(b2.textContent)), 'a published page talks about its CHANGES, never says the page is not live: ' + t2 + ' / ' + b2.textContent);
       } finally { C.postStatus = wasSt; G.refreshChip && G.refreshChip(); }
       var logo = document.getElementById('wp-admin-bar-wp-logo'), search = document.getElementById('wp-admin-bar-search');
       expect((!logo || getComputedStyle(logo).display === 'none') && (!search || getComputedStyle(search).display === 'none'), 'WordPress’s logo and search step aside while editing');
