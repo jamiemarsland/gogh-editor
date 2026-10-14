@@ -4914,6 +4914,80 @@
       }
       return 'docked, fitted, closed, short panels still float';
     });
+    // v0.99.714 — ONE RULE for every sidebar (James: 'as a rule we should be
+    // able to click into a page when showing the sidebar to focus back to
+    // the page'): a press on the page closes it and the page comes back to
+    // full size; a press on what the sidebar is about keeps it
+    testAsync('a press on the page closes every docked sidebar; a press on its subject keeps it', async function () {
+      var pnl = q('.gogh-panel');
+      var wait = function (pred, ms) {
+        return new Promise(function (res) {
+          var t0 = Date.now();
+          (function tick() { if (pred() || Date.now() - t0 > (ms || 4000)) res(pred()); else setTimeout(tick, 40); })();
+        });
+      };
+      var press = function (node) {
+        var r = node.getBoundingClientRect();
+        node.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, cancelable: true, button: 0, clientX: r.left + 4, clientY: Math.max(4, r.top + 4) }));
+      };
+      var docked = function () { return !pnl.hidden && pnl.classList.contains('gogh-panel-sidebar'); };
+      var cs = contentSecs(), far = cs[cs.length - 1];
+      var target = far.wrapEl || far.nodes[0];
+      var done = [];
+      var surfaces = [
+        ['Site styles', function () { q('.gogh-stylebtn').click(); }],
+        ['Fonts', function () { G.openFontsPanel(); }],
+        ['Page style', function () { G.openPageStylePanel(); }],
+        ['Motion', function () { G.openMotionPanel(); }],
+        ['Add a page', function () { G.openAddPagePanel(q('.gogh-addpagebtn')); }],
+        ['History', function () { return G.history.open(); }]
+      ];
+      try {
+        for (var k = 0; k < surfaces.length; k++) {
+          G.closePanel();
+          await surfaces[k][1]();
+          expect(await wait(docked), surfaces[k][0] + ' did not dock on the left');
+          press(target);
+          expect(pnl.hidden, 'a press on the page should close ' + surfaces[k][0]);
+          expect(!G.canvasZoom.on() && !q('.gogh-side').classList.contains('is-open'), 'the page should come back to full size after ' + surfaces[k][0]);
+          done.push(surfaces[k][0]);
+        }
+        // the header room: the header is what it is about
+        var partEl = G.partElForArea('header');
+        if (partEl) {
+          var mk = function (id, slug, word) { return { kind: 'part', id: id, slug: slug, theme: 'x', title: word, content: '<!-- wp:group --><div class="wp-block-group"><p>' + word + '</p></div><!-- /wp:group -->' }; };
+          var opts = [mk(101, 'header', 'one'), mk(102, 'header-b', 'two')];
+          G.openSide('site');
+          G.openHeaderPanel(partEl, 'header', opts, opts[0], { id: 101, content: { raw: opts[0].content } });
+          expect(docked() && pnl.dataset.goghArea === 'header', 'the header room should dock');
+          press(partEl.firstElementChild || partEl);
+          expect(!pnl.hidden && pnl.dataset.goghArea === 'header', 'a press on the header keeps its room');
+          press(target);
+          expect(pnl.hidden && !document.documentElement.classList.contains('gogh-chrome-mode'), 'a press on the page should leave the header room');
+          expect(!G.canvasZoom.on() && !q('.gogh-side').classList.contains('is-open'), 'the page should come back to full size after the header room');
+          done.push('header room');
+        }
+        // a long panel: the grid it dresses stays under it
+        var s0 = sec(), e = G.addElementToSection(G.sections().indexOf(s0), 'posts');
+        try {
+          G.openPanel(s0, s0.els.indexOf(e));
+          expect(docked() && pnl.classList.contains('gogh-panel-long'), 'the posts panel should dock');
+          press(s0.nodes[s0.els.indexOf(e)]);
+          expect(!pnl.hidden, 'a press on the posts grid keeps its panel');
+          press(target);
+          expect(pnl.hidden && !G.canvasZoom.on(), 'a press elsewhere on the page closes it');
+          done.push('posts panel');
+        } finally {
+          G.closePanel();
+          var j = s0.els.indexOf(e);
+          if (j !== -1) { s0.els.splice(j, 1); G.renderSection(s0); }
+        }
+      } finally {
+        G.closePanel();
+        if (G.closeSide) G.closeSide(true);
+      }
+      return done.join(', ');
+    });
     test('the posts rail: Edit design on the bar, a small panel, looks audition and keep', function () {
       var s0 = sec();
       var e = G.addElementToSection(G.sections().indexOf(s0), 'posts');

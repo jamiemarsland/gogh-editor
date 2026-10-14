@@ -3501,15 +3501,25 @@
       }, 440);
     });
   }
+  // ONE RULE for every sidebar (James: 'as a rule we should be able to click
+  // into a page when showing the sidebar to focus back to the page'): a
+  // press on the page closes whatever is docked on the left (a panel, the
+  // header or footer room, the drawer behind them), the page eases back to
+  // full size and the press still chooses what it pressed. What the sidebar
+  // is ABOUT stays under it: the grid being dressed, the header being edited
   document.addEventListener('pointerdown', function (ev) {
-    if (ev.button !== 0 || !panelOpen || !panel.classList.contains('gogh-panel-long')) return;
+    if (ev.button !== 0 || !panelOpen || panel.hidden || !panel.classList.contains('gogh-panel-sidebar')) return;
     var t = ev.target, page = document.querySelector('.wp-site-blocks');
     if (!t || !t.closest || !page || !page.contains(t)) return;
-    if (t.closest('.gogh-side, .gogh-panel, .gogh-elbar, .gogh-rail, #wpadminbar, .gogh-zoomslider')) return;
-    // the piece the panel is about stays under it: try things on it freely
+    if (t.closest('.gogh-side, .gogh-panel, .gogh-elbar, .gogh-rail, #wpadminbar, .gogh-zoomslider, .gogh-helpsheet')) return;
     if (longPanelFor && longPanelFor.sec.nodes[longPanelFor.i] && longPanelFor.sec.nodes[longPanelFor.i].contains(t)) return;
-    closeSideAt(ev.clientY, closePanel);
+    if (panel.dataset.goghArea && t.closest('.gogh-chrome-spotlight')) return;
+    closeSideAt(ev.clientY, leaveSidebarForPage);
   });
+  function leaveSidebarForPage() { // what Esc does, plus the drawer behind
+    if (panelOpen) closePanel(); // leaves the header room cleanly too
+    if (side.classList.contains('is-open')) closeSide(true);
+  }
   document.addEventListener('pointerdown', function (ev) {
     if (ev.button !== 0 || !side.classList.contains('is-open') || panelOpen) return;
     var t = ev.target, page = document.querySelector('.wp-site-blocks');
@@ -5660,6 +5670,7 @@
         '<button type="button" class="gogh-sbtn gogh-panel-back" title="Back"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"/></svg></button></div>');
       panel.querySelector('.gogh-panel-back').addEventListener('click', backToDesign);
       dockSidebar();
+      longPanelFor = { sec: sec, i: i }; // a press on this piece keeps its panel
       layoutZoom(); // re-centre the page around the docked panel's width
     } else if (isLongPanel(e) && deviceMode !== 'phone') {
       dockLongPanel(sec, i);
