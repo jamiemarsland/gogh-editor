@@ -15,7 +15,7 @@ about something where they conflict, rather than picking one silently. Quote UI
 labels and message copy from the appendix, verbatim — those are the current
 strings, and a paraphrased button label is the fastest way to lose a user's trust.
 
-Generated for plugin version 0.99.709 · knowledge base 80b6558.
+Generated for plugin version 0.99.710 · knowledge base 9188aca.
 
 ---
 
@@ -830,6 +830,8 @@ The helper's welcome panel opens with a 35-second film of gogh being used (v0.99
 
 **The phone view survives navigation (v0.99.605).** Press one of your own pages while on the phone and it opens in the editor, still on the phone: the link carries `gogh-edit=1&gogh-phone=1`, the next page reads them at boot and strips them from the address. Other sites, files, wp-admin and anchors on the same page are left alone. Unpublished changes still ask before leaving.
 
+**Product and post grids: a quieter way to your products (v0.99.710).** Selecting a product grid, category tiles or a posts grid no longer puts **Manage products** (or posts) on the bar above it; the bar is about the design on the page. To add or change the products themselves, open the grid's panel (Edit design): the last line is a link, **Add or change products in WordPress ↗** (categories and posts have their own). When a shop has nothing to show, its empty card still links straight to adding a product. Also: putting on a font pair from Site styles' looks no longer leaves broken font sizes behind that made WordPress print warnings, and gogh can draw any page through its REST API, so it can run on hosts that only pass WordPress its admin and API (such as a Spacefast space).
+
 **AI assistants can work with your site (v0.99.709).** On WordPress 6.9 or later, gogh tells WordPress six things an AI assistant connected to your site may do, through WordPress's Abilities API: **describe the site** (every page and what is on it, which is the home page, which pages have changes not live yet), **read the design** (each colour and what it is for, the fonts, the text size, the looks the theme offers, the site's brief), **save the brief** (who the site is for and how it should sound), **change the colours, fonts or text size** (one of the theme's looks, colour sets or font pairs, by name; text size snug, regular, airy or grand), **stock the shop** (categories, sizes and products with prices and pictures, if WooCommerce is on) and **publish a page** (its changes not yet live, or a draft). An assistant can do only what your own login allows. It cannot add or move things on a page; that still happens in the editor. Also: new pages get the theme's own "no title" template, so on themes such as Purple a page saved later no longer fails with "Invalid page template".
 
 **Header stays readable while you try looks (v0.99.708).** With the Site styles panel open the page sits zoomed out on a grey desk. The page behind the header now follows the look you're trying: on themes like Purple it used to keep the old background, so a dark look left the header's light words on a pale band.
@@ -1027,11 +1029,11 @@ Everything in this section is extracted mechanically from the Gogh source on eve
 
 ## Current release
 
-- Plugin version: **0.99.709**
+- Plugin version: **0.99.710**
 - Requires WordPress **6.5+**, PHP **7.4+**
 - Text domain: `gogh-editor`
 - readme.txt Stable tag: `0.26.0` · Tested up to: `7.0`
-- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.709`). Quote the plugin header version.
+- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.710`). Quote the plugin header version.
 
 ## Design constants
 
@@ -1261,6 +1263,8 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "Add a picture or video"
 - "Add a product ↗"
 - "Add link"
+- "Add or change categories in WordPress ↗"
+- "Add or change products in WordPress ↗"
 - "Add something to this section"
 - "Add to page"
 - "Adjust spacing"
@@ -1370,8 +1374,6 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "Make it freeform"
 - "Make these one card — it holds together on phones"
 - "Make this wider"
-- "Manage categories ↗"
-- "Manage posts ↗"
 - "Manage products"
 - "Manage products ↗"
 - "Manage this menu — reorder, nest, swap menus"
@@ -1474,6 +1476,7 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "Which take of this design is on the page"
 - "Write"
 - "Write a post ↗"
+- "Write or change posts in WordPress ↗"
 - "Your latest posts, live"
 - "Your latest products, live — prices and add to cart included"
 - "ag"

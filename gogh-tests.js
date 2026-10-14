@@ -4739,7 +4739,7 @@
       return 'rails laid: native Woo markup, two layouts, then stop';
     });
 
-    test('rails never enter a card, and the bar offers two verbs', function () {
+    test('rails never enter a card, and the bar offers Edit design (the products link is in the panel)', function () {
       if (!GOGH.hasWoo) return 'no WooCommerce here';
       var s0 = sec();
       s0.els.push({ type: 'box', x: 40, y: 40, w: 900, h: 500, radius: 12 });
@@ -4750,11 +4750,13 @@
       expect(G.cardJoinTarget(s0, i) === -1, 'a rails element was offered a card to join');
       select(i);
       var manage = q('.gogh-eb-manage');
-      expect(manage && manage.style.display !== 'none', 'Manage products verb missing from the bar');
+      expect(!manage || manage.style.display === 'none', 'the bar should carry no Manage products (James: not so prominent, or at all)');
       expect(q('.gogh-eb-ctx').title === 'Edit design', 'the context verb should read Edit design, got ' + q('.gogh-eb-ctx').title);
       G.openPanel(s0, i);
       var pnl = q('.gogh-panel');
-      expect(pnl.querySelector('.gogh-shop-manage') && pnl.querySelector('.gogh-shop-layout'), 'shop panel missing verbs or layout');
+      var mlink = pnl.querySelector('.gogh-shop-manage');
+      expect(mlink && pnl.querySelector('.gogh-shop-layout'), 'shop panel missing its products link or layout');
+      expect(!mlink.classList.contains('gogh-btn') && !mlink.nextElementSibling, 'the products link should be a quiet link at the foot of the panel');
       var list = pnl.querySelector('.gogh-shop-layout .gogh-hopt[data-v="list"]');
       list.click();
       expect(!pnl.hidden, 'the panel closed on a layout pick');
@@ -4805,14 +4807,14 @@
       return 'old grids heal; the empty state and the looks draw';
     });
 
-    test('the posts rail: two verbs, a small panel, looks audition and keep', function () {
+    test('the posts rail: Edit design on the bar, a small panel, looks audition and keep', function () {
       var s0 = sec();
       var e = G.addElementToSection(G.sections().indexOf(s0), 'posts');
       var i = s0.els.indexOf(e);
       expect(G.cardJoinTarget(s0, i) === -1, 'a posts rail was offered a card to join');
       select(i);
       var manage = q('.gogh-eb-manage');
-      expect(manage && manage.style.display !== 'none' && /Manage posts/.test(manage.textContent), 'Manage posts verb missing from the bar');
+      expect(!manage || manage.style.display === 'none', 'the bar should carry no Manage posts');
       expect(q('.gogh-eb-ctx').title === 'Edit design', 'the context verb should read Edit design, got ' + q('.gogh-eb-ctx').title);
       G.openPanel(s0, i);
       var pnl = q('.gogh-panel');

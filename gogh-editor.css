@@ -4231,6 +4231,9 @@ html[data-gogh-scope="site"] .gogh-panel-back::after { content: "Back"; } /* "Si
 /* two verbs at the point of touch */
 .gogh-eb-manage { font-weight: 700; padding: 0 10px; white-space: nowrap; }
 .gogh-shop-verbs { display: flex; align-items: center; gap: 10px; margin: 4px 0 12px; }
+/* the way to the products or posts themselves: quiet, at the foot of the panel */
+.gogh-panel a.gogh-shop-manage { display: inline-block; margin-top: 12px; font-size: 12.5px; color: var(--gogh-ui-fg); opacity: 0.7; text-decoration: underline; text-underline-offset: 3px; }
+.gogh-panel a.gogh-shop-manage:hover { opacity: 1; }
 .gogh-shop-verb-on { font-size: 12.5px; font-weight: 700; color: #4a63d8; padding: 6px 12px; border-radius: 999px; background: rgba(74, 99, 216, 0.1); }
 .gogh-shop-cat { width: 100%; }
 

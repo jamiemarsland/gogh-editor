@@ -4660,7 +4660,10 @@
     else refreshCardLineup(sec, i);
     var railsEl = !!(e.rails && (e.shop || e.posts));
     var manageBtn = elbar.querySelector('.gogh-eb-manage');
-    manageBtn.style.display = railsEl ? '' : 'none';
+    // the bar is about the design on the page (James: 'i don't think we need
+    // manage products so prominent here (or at all)'): the way to the
+    // products themselves is a quiet link at the foot of the grid's panel
+    manageBtn.style.display = 'none';
     manageBtn.textContent = e.posts ? 'Manage posts' : 'Manage products';
     manageBtn.title = e.posts ? 'Open your posts in WordPress' : 'Open your products in WordPress';
     if (railsEl) {
@@ -6134,14 +6137,12 @@
     if (isCats) {
       panel.innerHTML =
         '<div class="gogh-panel-title">Categories</div>' +
-        '<div class="gogh-shop-verbs">' +
-        '<a class="gogh-btn gogh-btn-small gogh-shop-manage" href="' + escAttr((cfg.adminUrl || '/wp-admin/') + 'edit-tags.php?taxonomy=product_cat&post_type=product') + '" target="_blank" rel="noopener">Manage categories \u2197</a>' +
-        '<span class="gogh-shop-verb-on">Edit design</span></div>' +
         '<div class="gogh-swlab">Tiles</div>' +
         chips('gogh-shop-count', [[2, '2'], [3, '3'], [4, '4'], [6, '6']], function (v) { return +v === +shop.count; }) +
         '<div class="gogh-swlab">Spacing</div>' +
         chips('gogh-shop-spacing', [['s', 'S'], ['m', 'M'], ['l', 'L']], function (v) { return v === (shop.spacing || 'm'); }) +
-        '<div class="gogh-panel-hint">Every category with products becomes a door, its own picture behind it. Set category pictures in WooCommerce.</div>';
+        '<div class="gogh-panel-hint">Every category with products becomes a door, its own picture behind it. Set category pictures in WooCommerce.</div>' +
+        '<a class="gogh-shop-manage" href="' + escAttr((cfg.adminUrl || '/wp-admin/') + 'edit-tags.php?taxonomy=product_cat&post_type=product') + '" target="_blank" rel="noopener">Add or change categories in WordPress \u2197</a>';
       var applyCats = function () {
         e.wsrc = composeShop(shop);
         renderSection(sec);
@@ -6159,9 +6160,6 @@
       '<div class="gogh-panel-title">Shop</div>' +
       // TWO VERBS at the point of touch: people know which of these they
       // want; they do not know which tab it lives under
-      '<div class="gogh-shop-verbs">' +
-      '<a class="gogh-btn gogh-btn-small gogh-shop-manage" href="' + escAttr(manageProductsUrl(e)) + '" target="_blank" rel="noopener">Manage products \u2197</a>' +
-      '<span class="gogh-shop-verb-on">Edit design</span></div>' +
       '<div class="gogh-shop-auto">' +
       '<div class="gogh-swlab">Products</div>' +
       chips('gogh-shop-count', [[3, '3'], [4, '4'], [6, '6'], [8, '8']], function (v) { return +v === +shop.count; }) +
@@ -6183,7 +6181,8 @@
       chips('gogh-shop-aspect', [['square', 'Square'], ['portrait', 'Portrait'], ['landscape', 'Landscape']], function (v) { return v === (shop.aspect || 'square'); }) +
       '<div class="gogh-swlab">Spacing</div>' +
       chips('gogh-shop-spacing', [['s', 'S'], ['m', 'M'], ['l', 'L']], function (v) { return v === (shop.spacing || 'm'); }) +
-      '<div class="gogh-panel-hint">The look comes from your theme: type, buttons and colours match the page it sits on.</div>';
+      '<div class="gogh-panel-hint">The look comes from your theme: type, buttons and colours match the page it sits on.</div>' +
+      '<a class="gogh-shop-manage" href="' + escAttr(manageProductsUrl(e)) + '" target="_blank" rel="noopener">Add or change products in WordPress \u2197</a>';
     var apply = function () {
       e.wsrc = composeShop(shop);
       renderSection(sec);
@@ -7658,9 +7657,6 @@
     };
     panel.innerHTML =
       '<div class="gogh-panel-title">Posts</div>' +
-      '<div class="gogh-shop-verbs">' +
-      '<a class="gogh-btn gogh-btn-small gogh-shop-manage" href="' + escAttr(managePostsUrl(e)) + '" target="_blank" rel="noopener">Manage posts ↗</a>' +
-      '<span class="gogh-shop-verb-on">Edit design</span></div>' +
       '<div class="gogh-shop-auto">' +
       '<div class="gogh-swlab">Posts</div>' +
       chips('gogh-posts-count', [[3, '3'], [4, '4'], [6, '6'], [8, '8']], function (v) { return +v === +p.count; }) +
@@ -7681,7 +7677,8 @@
       chips('gogh-posts-aspect', [['landscape', 'Landscape'], ['square', 'Square'], ['portrait', 'Portrait']], function (v) { return v === (p.aspect || 'landscape'); }) +
       '<div class="gogh-swlab">Spacing</div>' +
       chips('gogh-posts-spacing', [['s', 'S'], ['m', 'M'], ['l', 'L']], function (v) { return v === (p.spacing || 'm'); }) +
-      '<div class="gogh-panel-hint">The looks are the four your blog page can wear, so the home page and the journal read as one.</div>';
+      '<div class="gogh-panel-hint">The looks are the four your blog page can wear, so the home page and the journal read as one.</div>' +
+      '<a class="gogh-shop-manage" href="' + escAttr(managePostsUrl(e)) + '" target="_blank" rel="noopener">Write or change posts in WordPress \u2197</a>';
     var apply = function () {
       e.wsrc = composePosts(p);
       renderSection(sec);

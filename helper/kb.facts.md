@@ -4,11 +4,11 @@ Everything in this section is extracted mechanically from the Gogh source on eve
 
 ## Current release
 
-- Plugin version: **0.99.709**
+- Plugin version: **0.99.710**
 - Requires WordPress **6.5+**, PHP **7.4+**
 - Text domain: `gogh-editor`
 - readme.txt Stable tag: `0.26.0` · Tested up to: `7.0`
-- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.709`). Quote the plugin header version.
+- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.710`). Quote the plugin header version.
 
 ## Design constants
 
@@ -238,6 +238,8 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "Add a picture or video"
 - "Add a product ↗"
 - "Add link"
+- "Add or change categories in WordPress ↗"
+- "Add or change products in WordPress ↗"
 - "Add something to this section"
 - "Add to page"
 - "Adjust spacing"
@@ -347,8 +349,6 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "Make it freeform"
 - "Make these one card — it holds together on phones"
 - "Make this wider"
-- "Manage categories ↗"
-- "Manage posts ↗"
 - "Manage products"
 - "Manage products ↗"
 - "Manage this menu — reorder, nest, swap menus"
@@ -451,6 +451,7 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "Which take of this design is on the page"
 - "Write"
 - "Write a post ↗"
+- "Write or change posts in WordPress ↗"
 - "Your latest posts, live"
 - "Your latest products, live — prices and add to cart included"
 - "ag"

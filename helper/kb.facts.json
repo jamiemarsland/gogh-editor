@@ -1,12 +1,12 @@
 {
   "meta": {
-    "plugin_version": "0.99.709",
+    "plugin_version": "0.99.710",
     "requires_wp": "6.5",
     "requires_php": "7.4",
     "text_domain": "gogh-editor",
     "readme_stable_tag": "0.26.0",
     "readme_tested_up_to": "7.0",
-    "asset_version": "0.99.709-chrome"
+    "asset_version": "0.99.710-chrome"
   },
   "constants": {
     "TOL": 8,
@@ -448,6 +448,8 @@
     "Add a picture or video",
     "Add a product ↗",
     "Add link",
+    "Add or change categories in WordPress ↗",
+    "Add or change products in WordPress ↗",
     "Add something to this section",
     "Add to page",
     "Adjust spacing",
@@ -557,8 +559,6 @@
     "Make it freeform",
     "Make these one card — it holds together on phones",
     "Make this wider",
-    "Manage categories ↗",
-    "Manage posts ↗",
     "Manage products",
     "Manage products ↗",
     "Manage this menu — reorder, nest, swap menus",
@@ -661,6 +661,7 @@
     "Which take of this design is on the page",
     "Write",
     "Write a post ↗",
+    "Write or change posts in WordPress ↗",
     "Your latest posts, live",
     "Your latest products, live — prices and add to cart included",
     "ag",
