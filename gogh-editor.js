@@ -5366,7 +5366,7 @@
     var sliderReserve = 64; // the zoom slider's footprint on the right edge
     // the clear span between the sidebar (left) and the slider (right); centring
     // the page in THIS gives equal gaps on both sides
-    var span = window.innerWidth - barRight - sliderReserve;
+    var span = window.innerWidth - barRight - sliderReserve - helpDockW();
     var pageW = wrap.offsetWidth || window.innerWidth;
     // auto-fit within the span; the slider can override it (0.15–1). The full
     // desktop page caps at 0.62 so it never overlaps the chrome, but a phone
@@ -5392,8 +5392,11 @@
     if (mSel) positionMtoolbar(); // keep the override toolbar pinned to its element
     if (menuFollow) menuOverlayPlace(); // the open menu keeps to the window
   }
-  function unzoomCanvas() {
+  function unzoomCanvas(force) {
     if (!zoomState) return;
+    // the docked help keeps the page fitted beside it: only closing help
+    // (force) lets the page go back to full size
+    if (!force && helpDockW()) { layoutZoom(); return; }
     var z = zoomState; zoomState = null;
     z.wrap.style.transform = z.tf || '';
     z.wrap.style.background = z.bg || '';
@@ -9045,45 +9048,82 @@
   var abHelp = document.querySelector('#wp-admin-bar-gogh-help > a');
   if (abHelp && cfg.helpUrl) abHelp.addEventListener('click', function (ev) { ev.preventDefault(); toggleHelpSheet(); });
   if (helpBtn) helpBtn.addEventListener('click', function () { toggleHelpSheet(); });
-  function toggleHelpSheet() {
+  // help docks on the RIGHT and stays while you work (James: 'it should
+  // open in a right hand sidebar that stays persistent until they close
+  // it ... so they could work on the site and get help as they go'). The
+  // page is fitted beside it with the same zoom the drawer uses: narrowing
+  // the page instead would re-wrap its words and move its pieces
+  function helpDockW() {
+    return helpSheet && helpSheet.classList.contains('is-open') ? (helpSheet.offsetWidth || 380) : 0;
+  }
+  function helpSaid() {
+    var w = helpDockW();
+    document.body.classList.toggle('gogh-help-open', !!w);
+    document.documentElement.style.setProperty('--gogh-help-w', w + 'px');
+    try { if (w) sessionStorage.setItem('gogh-help-docked', helpSheet.classList.contains('is-wide') ? 'wide' : '1'); else sessionStorage.removeItem('gogh-help-docked'); } catch (err) {}
+  }
+  function closeHelp() {
+    if (!helpSheet || !helpSheet.classList.contains('is-open')) return;
+    helpSheet.classList.remove('is-open');
+    helpSaid();
+    if (!side.classList.contains('is-open') && !panelOpen && deviceMode !== 'phone') unzoomCanvas(true);
+    else if (zoomState) layoutZoom();
+  }
+  function toggleHelpSheet(wantWide) {
+    if (helpSheet && helpSheet.classList.contains('is-open')) { closeHelp(); return; }
     if (!helpSheet) {
       helpSheet = document.createElement('div');
       helpSheet.className = 'gogh-helpsheet';
       // a narrow column is right for a quick answer and wrong for reading a
-      // long one (or watching the film), so the sheet can be made bigger.
+      // long one (or watching the film), so the dock can be made wider.
       // Drawn, not typed: the ⤡ glyph came out small and squashed (James)
       var HELP_GROW = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 4h6v6M20 4l-7 7M10 20H4v-6M4 20l7-7"/></svg>';
       var HELP_SHRINK = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 5l-6 6M13 5v6h6M5 19l6-6M11 19v-6H5"/></svg>';
       helpSheet.innerHTML = '<div class="gogh-helpsheet-bar"><span>gogh help</span>' +
         '<span class="gogh-helpsheet-btns">' +
-        '<button type="button" class="gogh-sbtn gogh-helpsheet-wide" title="Make this bigger" aria-label="Make this bigger">' + HELP_GROW + '</button>' +
-        '<button type="button" class="gogh-sbtn gogh-helpsheet-x" title="Close">✕</button></span></div>' +
+        '<button type="button" class="gogh-sbtn gogh-helpsheet-wide" title="Make this wider" aria-label="Make this wider">' + HELP_GROW + '</button>' +
+        '<button type="button" class="gogh-sbtn gogh-helpsheet-x" title="Close help">✕</button></span></div>' +
         '<iframe src="' + escAttr(helpSrc()) + '" title="gogh help" allow="fullscreen"></iframe>';
       document.body.appendChild(helpSheet);
-      helpSheet.querySelector('.gogh-helpsheet-x').addEventListener('click', function () {
-        helpSheet.classList.remove('is-open');
-        document.body.classList.remove('gogh-help-open');
-      });
-      helpSheet.querySelector('.gogh-helpsheet-wide').addEventListener('click', function (ev) {
-        var wide = helpSheet.classList.toggle('is-wide');
+      helpSheet.querySelector('.gogh-helpsheet-x').addEventListener('click', closeHelp);
+      var wideBtn = helpSheet.querySelector('.gogh-helpsheet-wide');
+      var setWide = function (wide) {
+        helpSheet.classList.toggle('is-wide', wide);
         document.body.classList.toggle('gogh-help-wide', wide);
-        ev.currentTarget.title = wide ? 'Make this smaller' : 'Make this bigger';
-        ev.currentTarget.setAttribute('aria-label', ev.currentTarget.title);
-        ev.currentTarget.innerHTML = wide ? HELP_SHRINK : HELP_GROW;
+        wideBtn.title = wide ? 'Make this narrower' : 'Make this wider';
+        wideBtn.setAttribute('aria-label', wideBtn.title);
+        wideBtn.innerHTML = wide ? HELP_SHRINK : HELP_GROW;
+      };
+      helpSheet.__setWide = setWide;
+      wideBtn.addEventListener('click', function () {
+        setWide(!helpSheet.classList.contains('is-wide'));
+        helpSaid();
+        if (zoomState) layoutZoom();
       });
-    } else if (!helpSheet.classList.contains('is-open')) {
+    } else {
       // reopening in a NEW situation refreshes the bot's context; the same
       // situation keeps the conversation exactly where it was
       var fresh = helpSrc();
       var fr = helpSheet.querySelector('iframe');
       if (fr.getAttribute('src') !== fresh) fr.setAttribute('src', fresh);
     }
-    helpSheet.classList.toggle('is-open');
-    // toasts share the bot's corner — while the sheet is open they step
-    // aside so nothing ever sits on the ask box
-    document.body.classList.toggle('gogh-help-open', helpSheet.classList.contains('is-open'));
-    closeSide(true);
+    if (wantWide) helpSheet.__setWide(true);
+    helpSheet.style.top = barBottom() + 'px';
+    helpSheet.classList.add('is-open');
+    helpSaid();
+    // the page steps aside, fitted between whatever is on the left and help
+    if (deviceMode === 'phone') layoutZoom();
+    else zoomOutCanvas();
   }
+  // help that was open stays open on the next page (this tab only)
+  (function () {
+    var was = null;
+    try { was = sessionStorage.getItem('gogh-help-docked'); } catch (err) {}
+    if (!was || !cfg.helpUrl) return;
+    setTimeout(function () {
+      if (editing && (!helpSheet || !helpSheet.classList.contains('is-open'))) toggleHelpSheet(was === 'wide');
+    }, 900);
+  })();
 
   // ---------- section templates & picker ----------
   var TEMPLATES = [

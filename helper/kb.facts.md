@@ -4,11 +4,11 @@ Everything in this section is extracted mechanically from the Gogh source on eve
 
 ## Current release
 
-- Plugin version: **0.99.700**
+- Plugin version: **0.99.701**
 - Requires WordPress **6.5+**, PHP **7.4+**
 - Text domain: `gogh-editor`
 - readme.txt Stable tag: `0.26.0` · Tested up to: `7.0`
-- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.700`). Quote the plugin header version.
+- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.701`). Quote the plugin header version.
 
 ## Design constants
 
@@ -269,6 +269,7 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "Changes the colours and fonts across your site. Back puts it back."
 - "Choose a style"
 - "Close"
+- "Close help"
 - "Copies the styles as site definition JSON"
 - "Copy as definition"
 - "Copy machine version"
@@ -343,7 +344,7 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "Make a card"
 - "Make it freeform"
 - "Make these one card — it holds together on phones"
-- "Make this bigger"
+- "Make this wider"
 - "Manage categories ↗"
 - "Manage posts ↗"
 - "Manage products"

@@ -576,30 +576,28 @@ html.gogh-zoomed header.wp-block-template-part:has(.gogh-chrome-preview .gogh-he
 .gogh-chromebtn .gogh-pill-space:hover { background: rgba(255, 255, 255, 0.3); }
 .gogh-dialrow input[type="range"] { flex: 1; accent-color: #4f5aee; }
 
-/* the help sheet: the bot, in a calm corner */
+/* the help dock: the bot down the right-hand side, the full height under
+   the bar, open until it is closed; the page is fitted beside it */
 .gogh-helpsheet {
   position: fixed;
-  right: 18px;
-  /* clear of the publish chip (fixed bottom-right, z 100001): it was
-     sitting ON the bot's ask box, eating every click and keystroke */
-  bottom: 76px;
+  right: 0;
+  top: 32px; /* JS sets it to where the bar ends */
+  bottom: 0;
   z-index: 100003;
-  width: 380px;
-  height: min(620px, 80vh);
+  width: min(380px, 100vw);
   display: none;
   flex-direction: column;
   background: #fff;
-  border-radius: 16px;
-  box-shadow: 0 12px 48px rgba(0, 0, 0, 0.24);
+  border-left: 1px solid rgba(22, 24, 28, 0.1);
+  box-shadow: -18px 0 50px -28px rgba(0, 0, 0, 0.35);
   overflow: hidden;
 }
 .gogh-helpsheet.is-open { display: flex; }
-/* bigger, for reading a long answer or watching the film */
-.gogh-helpsheet.is-wide {
-  width: min(820px, 92vw);
-  height: min(900px, 88vh);
-  bottom: 76px;
-}
+/* wider, for reading a long answer or watching the film: still docked */
+.gogh-helpsheet.is-wide { width: min(720px, 60vw); }
+@media (max-width: 900px) { .gogh-helpsheet.is-wide { width: 100vw; } }
+/* the zoom slider steps inside the dock's edge */
+body.gogh-help-open .gogh-zoomslider { right: calc(var(--gogh-help-w, 380px) + 14px); }
 .gogh-helpsheet-btns { display: flex; align-items: center; gap: 2px; }
 .gogh-helpsheet-bar {
   display: flex;
@@ -614,8 +612,7 @@ html.gogh-zoomed header.wp-block-template-part:has(.gogh-chrome-preview .gogh-he
 }
 .gogh-helpsheet iframe { flex: 1; width: 100%; border: 0; }
 /* while the bot is open, toasts step left of its sheet */
-body.gogh-help-open .gogh-toasts { right: 416px; }
-body.gogh-help-open.gogh-help-wide .gogh-toasts { right: min(856px, calc(92vw + 36px)); }
+body.gogh-help-open .gogh-toasts { right: calc(var(--gogh-help-w, 380px) + 20px); }
 .gogh-helpsheet-x {
   all: unset;
   cursor: pointer;

@@ -2280,6 +2280,7 @@
       if (!btn) return 'no helpUrl configured — button rightly absent';
       btn.click();
       var sheet = q('.gogh-helpsheet');
+      try {
       expect(sheet && sheet.classList.contains('is-open'), 'help sheet did not open');
       var src = sheet.querySelector('iframe').getAttribute('src');
       expect(src.indexOf('v=') !== -1 && src.indexOf('0.99') !== -1, 'build number not passed to the bot (' + src + ')');
@@ -2287,8 +2288,26 @@
       // inert help bot cannot be typed into (James, three reports running)
       var pe = getComputedStyle(sheet.querySelector('iframe')).pointerEvents;
       expect(pe === 'auto', 'help iframe is inert (pointer-events: ' + pe + ') — the ask box cannot be focused');
+      // v0.99.701: docked on the right, full height under the bar, the page fitted beside it
+      var hr = sheet.getBoundingClientRect(), ab = document.getElementById('wpadminbar');
+      expect(Math.abs(hr.right - window.innerWidth) < 2 && Math.abs(hr.bottom - window.innerHeight) < 2, 'help should dock to the right edge, full height: ' + Math.round(hr.right) + '/' + Math.round(hr.bottom));
+      if (ab) expect(Math.abs(hr.top - ab.getBoundingClientRect().bottom) < 2, 'help should start where the bar ends');
+      expect(document.documentElement.classList.contains('gogh-zoomed'), 'the page should be fitted beside the help');
+      // where the page is going (the zoom eases there; no frames pass in a quick test)
+      var wrapEl = document.querySelector('.wp-site-blocks'), tfm = /translateX\(([-\d.]+)px\) scale\(([\d.]+)\)/.exec(wrapEl.style.transform) || [];
+      var goesTo = tfm.length ? +tfm[1] + wrapEl.offsetWidth * +tfm[2] : 99999;
+      expect(goesTo <= hr.left + 1, 'the page should sit clear of the help: ' + Math.round(goesTo) + ' vs ' + Math.round(hr.left));
+      var stay = null; try { stay = sessionStorage.getItem('gogh-help-docked'); } catch (err) {}
+      expect(stay, 'open help should be remembered for the next page');
       sheet.querySelector('.gogh-helpsheet-x').click();
       expect(!sheet.classList.contains('is-open'), 'close did not close');
+      expect(!document.documentElement.classList.contains('gogh-zoomed'), 'closing help should give the page its full size back');
+      try { stay = sessionStorage.getItem('gogh-help-docked'); } catch (err) { stay = null; }
+      expect(!stay, 'closed help should not come back on the next page');
+      } finally {
+        if (sheet && sheet.classList.contains('is-open')) sheet.querySelector('.gogh-helpsheet-x').click();
+        try { sessionStorage.removeItem('gogh-help-docked'); } catch (err) {}
+      }
       // v0.99.690: while editing the bar stays clean — the ? lives at the
       // foot of the drawer only; outside the editor the bar keeps its ?
       var abLi = document.getElementById('wp-admin-bar-gogh-help');

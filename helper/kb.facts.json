@@ -1,12 +1,12 @@
 {
   "meta": {
-    "plugin_version": "0.99.700",
+    "plugin_version": "0.99.701",
     "requires_wp": "6.5",
     "requires_php": "7.4",
     "text_domain": "gogh-editor",
     "readme_stable_tag": "0.26.0",
     "readme_tested_up_to": "7.0",
-    "asset_version": "0.99.700-chrome"
+    "asset_version": "0.99.701-chrome"
   },
   "constants": {
     "TOL": 8,
@@ -481,6 +481,7 @@
     "Changes the colours and fonts across your site. Back puts it back.",
     "Choose a style",
     "Close",
+    "Close help",
     "Copies the styles as site definition JSON",
     "Copy as definition",
     "Copy machine version",
@@ -555,7 +556,7 @@
     "Make a card",
     "Make it freeform",
     "Make these one card — it holds together on phones",
-    "Make this bigger",
+    "Make this wider",
     "Manage categories ↗",
     "Manage posts ↗",
     "Manage products",
