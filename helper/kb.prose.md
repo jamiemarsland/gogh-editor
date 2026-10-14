@@ -811,6 +811,8 @@ The helper's welcome panel opens with a 35-second film of gogh being used (v0.99
 
 **The phone view survives navigation (v0.99.605).** Press one of your own pages while on the phone and it opens in the editor, still on the phone: the link carries `gogh-edit=1&gogh-phone=1`, the next page reads them at boot and strips them from the address. Other sites, files, wp-admin and anchors on the same page are left alone. Unpublished changes still ask before leaving.
 
+**No Live chip (v0.99.706).** On a WooCommerce site, the green **Live** chip WooCommerce put beside the site name in the top bar is gone. If the shop is set to Coming soon, the **Coming soon** chip still shows, because that one warns that visitors can't see the shop yet.
+
 **Find a page to link to (v0.99.705).** Every link box (a button's link, a link in text, a card's link) now reads **Search your site, or paste a link**. Empty, it lists your pages. Type a few words and it searches the whole site — pages, posts, products and shop categories — with each result's kind beside it; click one, or use the arrow keys and Enter, and the link is set straight away. A pasted address is used as it is (example.com becomes https://example.com); words that find nothing are never saved as a link. A button's panel no longer has the On phones row: it is about where the button goes and how it looks. Other pieces keep On phones.
 
 **Shop look previews keep their styling (v0.99.704).** Hovering a look in the Shop, Category or Product layout menu now shows it fully styled: a look with parts this page has never used (Catalogue's price, size and stock filters) no longer shows huge tick marks and bare boxes in the preview. The styling goes away when you leave the menu.
