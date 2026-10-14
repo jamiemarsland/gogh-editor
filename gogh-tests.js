@@ -4807,6 +4807,32 @@
       return 'old grids heal; the empty state and the looks draw';
     });
 
+    test('a long panel (the posts grid) docks on the left, the page steps over beside it, and the close puts it back', function () {
+      var s0 = sec();
+      var e = G.addElementToSection(G.sections().indexOf(s0), 'posts');
+      var i = s0.els.indexOf(e);
+      try {
+        G.openPanel(s0, i);
+        var pnl = q('.gogh-panel');
+        var r = pnl.getBoundingClientRect();
+        expect(pnl.classList.contains('gogh-panel-long') && pnl.classList.contains('gogh-panel-sidebar'), 'the posts panel should dock as a long panel');
+        // its resting place, not the rect: the slide-in is still moving under a sync test
+        expect(pnl.style.left === '0px' && pnl.style.bottom === '0px' && r.height > window.innerHeight * 0.6, 'docked down the left, full height: ' + pnl.style.left + ',' + Math.round(r.height));
+        expect(pnl.querySelector('.gogh-panel-head .gogh-panel-x') && pnl.querySelectorAll('.gogh-panel-title').length === 1, 'one title and a close button');
+        var wrap = document.querySelector('.wp-site-blocks');
+        var m = /translateX\(([-\d.]+)px\) scale\(([\d.]+)\)/.exec(wrap.style.transform);
+        expect(m && +m[2] < 1 && +m[1] >= pnl.offsetWidth, 'the page should be fitted beside the panel: ' + wrap.style.transform);
+        pnl.querySelector('.gogh-panel-x').click();
+        expect(pnl.hidden && !/scale/.test(wrap.style.transform), 'the close should put the page back: ' + wrap.style.transform);
+        G.openPanel(s0, G.sections()[0].els.findIndex(function (x) { return x.type === 'button'; }) === -1 ? i : findIdx('button'));
+        expect(!q('.gogh-panel').classList.contains('gogh-panel-long'), 'a short panel (a button) should still float by its piece');
+      } finally {
+        G.closePanel();
+        var k = s0.els.indexOf(e);
+        if (k !== -1) { s0.els.splice(k, 1); G.renderSection(s0); }
+      }
+      return 'docked, fitted, closed, short panels still float';
+    });
     test('the posts rail: Edit design on the bar, a small panel, looks audition and keep', function () {
       var s0 = sec();
       var e = G.addElementToSection(G.sections().indexOf(s0), 'posts');

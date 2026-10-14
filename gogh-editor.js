@@ -3464,15 +3464,17 @@
   // A section's own panel (background, colour, styles) is left alone:
   // there a press on the page is often to see the change.
   var easeRest = null;
-  function closeSideAt(cy) {
+  // closer: what steps aside (the drawer by default; a docked panel too)
+  function closeSideAt(cy, closer) {
+    closer = closer || function () { closeSide(true); };
     var z = zoomState;
     var m = z && deviceMode !== 'phone' && /translateX\(([-\d.]+)px\) scale\(([\d.]+)\)/.exec(z.wrap.style.transform);
-    if (!m) { closeSide(true); return; }
+    if (!m) { closer(); return; }
     var wrap = z.wrap, tx = +m[1], sc = +m[2], y0 = window.scrollY;
     var top = wrap.getBoundingClientRect().top + y0;
     var ly = (cy + y0 - top) / sc;
     var ease = wrap.style.transition;
-    closeSide(true);
+    closer();
     easeRest = { tf: z.tf || '', org: z.org || '', tr: z.tr || '' };
     wrap.style.transition = 'none';
     wrap.style.transformOrigin = 'top left';
@@ -3499,6 +3501,15 @@
       }, 440);
     });
   }
+  document.addEventListener('pointerdown', function (ev) {
+    if (ev.button !== 0 || !panelOpen || !panel.classList.contains('gogh-panel-long')) return;
+    var t = ev.target, page = document.querySelector('.wp-site-blocks');
+    if (!t || !t.closest || !page || !page.contains(t)) return;
+    if (t.closest('.gogh-side, .gogh-panel, .gogh-elbar, .gogh-rail, #wpadminbar, .gogh-zoomslider')) return;
+    // the piece the panel is about stays under it: try things on it freely
+    if (longPanelFor && longPanelFor.sec.nodes[longPanelFor.i] && longPanelFor.sec.nodes[longPanelFor.i].contains(t)) return;
+    closeSideAt(ev.clientY, closePanel);
+  });
   document.addEventListener('pointerdown', function (ev) {
     if (ev.button !== 0 || !side.classList.contains('is-open') || panelOpen) return;
     var t = ev.target, page = document.querySelector('.wp-site-blocks');
@@ -5516,7 +5527,8 @@
     panel.hidden = true;
     panel.classList.remove('gogh-panel-wide');
     // leave sidebar mode cleanly — the next panel places itself
-    panel.classList.remove('gogh-panel-sidebar');
+    panel.classList.remove('gogh-panel-sidebar', 'gogh-panel-long');
+    longPanelFor = null;
     panel.style.top = ''; panel.style.right = ''; panel.style.bottom = ''; panel.style.left = '';
     panel.style.width = ''; // a hand-resized width belongs to that panel only
     panelOpen = false;
@@ -5649,12 +5661,48 @@
       panel.querySelector('.gogh-panel-back').addEventListener('click', backToDesign);
       dockSidebar();
       layoutZoom(); // re-centre the page around the docked panel's width
+    } else if (isLongPanel(e) && deviceMode !== 'phone') {
+      dockLongPanel(sec, i);
     } else {
       placePanelNear(sec.nodes[i]);
     }
     panelOpen = true;
     // the Q&A editors are typing surfaces — outside clicks pass through
     if (e.type === 'widget' && ((e.faq && e.faq.length) || (e.tabs && e.tabs.length) || (e.slides && e.slides.length) || (e.wall && e.wall.length))) panelSticky = true;
+  }
+  // a panel of many rows (a product grid, category tiles, posts, an FAQ)
+  // docks down the left side and the page steps over beside it (James: 'do
+  // you think the woo design / products should open in the sidebar?'):
+  // floating, it covered the grid it was changing and ran off the screen
+  var longPanelFor = null;
+  function isLongPanel(e) {
+    return !!(e && e.type === 'widget' && (e.shop || e.posts || (e.faq && e.faq.length) || (e.tabs && e.tabs.length) || (e.slides && e.slides.length) || (e.wall && e.wall.length)));
+  }
+  function dockLongPanel(sec, i) {
+    var own = panel.querySelector('.gogh-panel-title');
+    var title = own ? own.textContent : 'Edit design';
+    if (own) own.remove();
+    panel.insertAdjacentHTML('afterbegin',
+      '<div class="gogh-panel-head"><span class="gogh-panel-title">' + esc(title) + '</span>' +
+      '<button type="button" class="gogh-sbtn gogh-panel-close gogh-panel-x" title="Close" aria-label="Close">\u2715</button></div>');
+    panel.querySelector('.gogh-panel-x').addEventListener('click', closePanel);
+    dockSidebar();
+    panel.classList.add('gogh-panel-long');
+    longPanelFor = { sec: sec, i: i };
+    zoomOutCanvas(); // fitted beside the panel (and beside help, if it is open)
+    // zooming starts from the top of the page: bring the piece back in view
+    setTimeout(function () {
+      if (!longPanelFor || longPanelFor.sec !== sec || longPanelFor.i !== i) return;
+      var node = sec.nodes[i];
+      if (!node) return;
+      // the piece with its section's heading above it when the whole section
+      // fits beside the panel, else the piece itself
+      var want = barBottom() + 32;
+      var sr = sec.sectionEl ? sec.sectionEl.getBoundingClientRect() : null;
+      var r = (sr && sr.height <= window.innerHeight - want - 24) ? sr : node.getBoundingClientRect();
+      if (r.top < want || r.bottom > window.innerHeight - 24) window.scrollBy(0, r.top - want);
+      if (sel && sel.sec === sec && sel.i === i) placeHandles(sec, i);
+    }, 440);
   }
   var savedTextRange = null;
   function applyTextLink(url, newTab) {
