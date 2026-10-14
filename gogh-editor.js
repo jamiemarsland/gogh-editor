@@ -46,6 +46,14 @@
     return w.charAt(0).toUpperCase() + w.slice(1);
   }
   if (!cfg) return;
+  // where the admin bar ENDS, not how tall it is: in Playground's seamless
+  // mode the bar is moved down a few pixels (gogh-frame-nudge), and the
+  // drawers docked at its height overlapped it (James)
+  function barBottom() {
+    var ab = document.getElementById('wpadminbar');
+    if (!ab || getComputedStyle(ab).display === 'none') return 0;
+    return Math.max(0, Math.round(ab.getBoundingClientRect().bottom));
+  }
   // Publish wears the user's admin colour scheme, as core's buttons do
   if (cfg.adminColor) document.documentElement.style.setProperty('--gogh-publish', cfg.adminColor);
 
@@ -3349,8 +3357,7 @@
     if (mode !== 'site' && mode !== 'page') mode = cfg.writeUrl ? 'site' : 'page';
     setSideMode(mode);
     clearTimeout(sideTimer);
-    var ab = document.getElementById('wpadminbar');
-    side.style.top = (ab ? ab.offsetHeight : 0) + 'px';
+    side.style.top = barBottom() + 'px';
     side.classList.add('is-open');
     side.classList.remove('gogh-side-away');
     // the rail steps aside as one — one pill, whoever opened the drawer
@@ -5237,8 +5244,7 @@
   // SIDEBAR: dock the style surface flush to the right edge, full height — a
   // solid anchored panel, not a floating card. CSS does the look; this pins it.
   function dockSidebar() {
-    var adminBar = document.getElementById('wpadminbar');
-    var topGap = adminBar ? adminBar.offsetHeight : 0;
+    var topGap = barBottom();
     panel.hidden = false;
     panel.classList.add('gogh-panel-sidebar');
     panel.style.top = topGap + 'px';
@@ -17814,9 +17820,8 @@
     specimenEl.appendChild(inner);
     try {
       var r = panel.getBoundingClientRect();
-      var adminBar = document.getElementById('wpadminbar');
       specimenEl.style.left = Math.round(r.right) + 'px';
-      specimenEl.style.top = (adminBar ? adminBar.offsetHeight : 0) + 'px';
+      specimenEl.style.top = barBottom() + 'px';
       var bodyBg = getComputedStyle(document.body).backgroundColor;
       specimenEl.style.background = bodyBg && bodyBg !== 'rgba(0, 0, 0, 0)' ? bodyBg : '#fff';
     } catch (err) {}
