@@ -1200,6 +1200,37 @@
     // v0.99.684: a press on the page puts the Page drawer away and zooms in
     // async: the zoom eases back over a few frames, and the quick tests
     // run with no frames at all — they would measure a page caught mid-zoom
+    // what an agent may ask of the site (WordPress Abilities API, 6.9+)
+    testAsync('abilities: gogh lists six, describes this page from its saved sections, reads the design, refuses an unknown look', function () {
+      var cfgA = window.GOGH;
+      var root = cfgA.restUrl.split('wp/v2/')[0] + 'wp-abilities/v1/';
+      var get = function (path, opts) {
+        return fetch(root + path, Object.assign({ headers: { 'X-WP-Nonce': cfgA.nonce, 'Content-Type': 'application/json' }, credentials: 'same-origin' }, opts || {}))
+          .then(function (r) { return r.json().then(function (j) { return { status: r.status, body: j }; }); });
+      };
+      return get('abilities?category=gogh').then(function (res) {
+        if (res.status === 404) return 'no Abilities API on this WordPress (6.9+ needed)';
+        var names = (res.body || []).map(function (a) { return a.name; }).sort();
+        expect(names.join(',') === 'gogh/apply-style,gogh/describe-site,gogh/design-map,gogh/publish,gogh/set-brief,gogh/set-up-shop', 'the six abilities should be listed: ' + names.join(','));
+        return get('abilities/gogh/describe-site/run?input%5Bpage_id%5D=' + (+cfgA.postId)).then(function (d) {
+          expect(d.status === 200, 'describe-site should run: ' + d.status + ' ' + JSON.stringify(d.body).slice(0, 160));
+          var page = d.body.pages && d.body.pages[0];
+          expect(page && +page.id === +cfgA.postId && page.made_with_gogh, 'this page should be described as made with gogh');
+          var saved = (page.sections || []).reduce(function (all, sc) { return all.concat(sc.pieces || []); }, []);
+          expect(saved.some(function (pc) { return pc.type === 'heading' && pc.text; }), 'a saved heading should come back as words');
+          expect(!saved.some(function (pc) { return /<[a-z]/i.test(pc.text || ''); }), 'words should come back without tags');
+          return get('abilities/gogh/design-map/run');
+        }).then(function (m) {
+          expect(m.status === 200 && Array.isArray(m.body.colours) && m.body.colours.length, 'design-map should list the colours');
+          expect(m.body.colours.some(function (c) { return c.used_for.indexOf('words') !== -1 || c.used_for.indexOf('page background') !== -1; }), 'a colour should say what it is for');
+          expect(m.body.looks && Array.isArray(m.body.looks.colours) && Array.isArray(m.body.looks.fonts), 'the theme\u2019s looks should be sorted into whole, colours and fonts');
+          return get('abilities/gogh/apply-style/run', { method: 'POST', body: JSON.stringify({ input: { look: 'No such look at all' } }) });
+        }).then(function (bad) {
+          expect(bad.status === 400 && /no look by that name/.test(bad.body.message || ''), 'an unknown look should be refused, naming what there is: ' + JSON.stringify(bad.body).slice(0, 160));
+          return 'six abilities, this page described, design read, a bad look refused';
+        });
+      });
+    });
     testAsync('the link finder: words search the site, a pick links the button, a pasted link is kept, nothing found says so', function () {
       var realFetch = window.fetch;
       var i = findIdx('button'), s0 = sec(), was = s0.els[i].href;

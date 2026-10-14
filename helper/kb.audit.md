@@ -1,4 +1,4 @@
-# Knowledge-base audit — plugin v0.99.708
+# Knowledge-base audit — plugin v0.99.709
 
 _13 finding(s) suppressed by `kb.audit-ignore.txt`._
 
@@ -109,7 +109,7 @@ The source has something the prose never explains. The bot knows the name from t
 - divider `dunes` exists in source but is never mentioned in the prose
 - divider `mist` exists in source but is never mentioned in the prose
 
-## QUOTE (25)
+## QUOTE (26)
 
 Quoted copy not found verbatim in the source. Paraphrases are fine; changed UI copy is not.
 
@@ -120,6 +120,7 @@ Quoted copy not found verbatim in the source. Paraphrases are fine; changed UI c
 - Already the same size
 - Needs two or more pieces
 - there is no phone button
+- template, so on themes such as Purple a page saved later no longer fails with
 - Libre Baskerville + Figtree
 - Easy to read here · contrast 6.0
 - Privacy Policy · draft
@@ -138,3 +139,9 @@ Quoted copy not found verbatim in the source. Paraphrases are fine; changed UI c
 - From Misprint
 - (max-width: 700px) 100vw, min(100vw, Wpx)
 - (max-width: 700px) 100vw, 53vw
+
+## What changed since the last knowledge-base build
+
+Use this as the checklist for updating the prose — and as a sanity check on the release itself.
+
+- version: 0.99.708 → 0.99.709
