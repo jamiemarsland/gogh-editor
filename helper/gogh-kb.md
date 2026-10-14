@@ -15,7 +15,7 @@ about something where they conflict, rather than picking one silently. Quote UI
 labels and message copy from the appendix, verbatim — those are the current
 strings, and a paraphrased button label is the fastest way to lose a user's trust.
 
-Generated for plugin version 0.99.704 · knowledge base 89ebd43.
+Generated for plugin version 0.99.705 · knowledge base 274b065.
 
 ---
 
@@ -830,6 +830,8 @@ The helper's welcome panel opens with a 35-second film of gogh being used (v0.99
 
 **The phone view survives navigation (v0.99.605).** Press one of your own pages while on the phone and it opens in the editor, still on the phone: the link carries `gogh-edit=1&gogh-phone=1`, the next page reads them at boot and strips them from the address. Other sites, files, wp-admin and anchors on the same page are left alone. Unpublished changes still ask before leaving.
 
+**Find a page to link to (v0.99.705).** Every link box (a button's link, a link in text, a card's link) now reads **Search your site, or paste a link**. Empty, it lists your pages. Type a few words and it searches the whole site — pages, posts, products and shop categories — with each result's kind beside it; click one, or use the arrow keys and Enter, and the link is set straight away. A pasted address is used as it is (example.com becomes https://example.com); words that find nothing are never saved as a link. A button's panel no longer has the On phones row: it is about where the button goes and how it looks. Other pieces keep On phones.
+
 **Shop look previews keep their styling (v0.99.704).** Hovering a look in the Shop, Category or Product layout menu now shows it fully styled: a look with parts this page has never used (Catalogue's price, size and stock filters) no longer shows huge tick marks and bare boxes in the preview. The styling goes away when you leave the menu.
 
 **The Violet Hour, a store on Purple (v0.99.703).** A new demo blueprint builds a candle and scent shop on Automattic's Purple theme with WooCommerce: a hero of lit tapers, the season's candles as a live product grid, category tiles, a dark studio band, a gift box, a map, plus Our story and Visit pages. Shop, Basket, Checkout and Your account are WooCommerce's own pages. Site definitions can now set up a store: WooCommerce's pages and currency, categories, products (with sizes), a product grid that shows one category, the shop and category looks, a theme's colour or type set by name (Purple's "Libre Baskerville + Figtree"), a page template, and a footer of their own. A home page built with gogh now shows on themes whose front-page template ignores the page (Purple's storefront). Product names in a grid are set at label size, so a theme with very large headings no longer prints four names in a row as headlines.
@@ -1017,11 +1019,11 @@ Everything in this section is extracted mechanically from the Gogh source on eve
 
 ## Current release
 
-- Plugin version: **0.99.704**
+- Plugin version: **0.99.705**
 - Requires WordPress **6.5+**, PHP **7.4+**
 - Text domain: `gogh-editor`
 - readme.txt Stable tag: `0.26.0` · Tested up to: `7.0`
-- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.704`). Quote the plugin header version.
+- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.705`). Quote the plugin header version.
 
 ## Design constants
 
@@ -1596,4 +1598,4 @@ These are the real strings in the current build. Use them verbatim; never paraph
 
 ## Test suite
 
-`351` tests, run by appending `?gogh-test` to any Gogh page URL while logged in with edit rights on that page.
+`352` tests, run by appending `?gogh-test` to any Gogh page URL while logged in with edit rights on that page.

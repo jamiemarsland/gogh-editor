@@ -5584,8 +5584,10 @@
     // every panel ends with the same row: what this piece does on phones, in
     // words, with the door to go and look — discovery from where people
     // already are, not from inside the phone view
+    // ...except a button's: its panel is about where it goes and how it
+    // looks (James: 'with buttons - i dont want the show it on phones stuff')
     var mh = phoneHiddenOf(sec, i);
-    panel.insertAdjacentHTML('beforeend',
+    if (e.type !== 'button') panel.insertAdjacentHTML('beforeend',
       '<div class="gogh-panel-hint">On phones</div>' +
       '<div class="gogh-panel-row gogh-chrome-rows gogh-phone-rows">' +
       '<button type="button" class="gogh-btn gogh-btn-small' + (mh ? '' : ' is-active') + '" data-mh="0">Shown</button>' +
@@ -5602,7 +5604,8 @@
         phoneHiddenToast('This piece is', want);
       });
     });
-    panel.querySelector('.gogh-phone-see').addEventListener('click', function () { seeOnPhone(); });
+    var phSee = panel.querySelector('.gogh-phone-see');
+    if (phSee) phSee.addEventListener('click', function () { seeOnPhone(); });
     // in the zoomed Design view, dock the panel into the sidebar with a
     // Back-to-Design header (as the style/page auditions do) — a panel
     // floating over the shrunk canvas reads as "lost", and closing it used
@@ -5658,27 +5661,100 @@
       return pageLinkCache;
     }).catch(function () { return []; });
   }
+  // the link finder (James: 'we need an easy way for folks to search the site
+  // for pages etc to link to'): one box for every link panel. Words search
+  // the site (pages, posts, products, categories); a link pasted in is used
+  // as it is. Empty, it lists your pages. A pick fires 'gogh-picked' on the
+  // input with the address in its value.
+  var LINK_KINDS = { page: 'Page', post: 'Post', product: 'Product', category: 'Category', product_cat: 'Shop category', post_tag: 'Tag', product_tag: 'Product tag' };
+  function plainTitle(t) {
+    var d = document.createElement('textarea');
+    d.innerHTML = String(t || '').replace(/<[^>]*>/g, '');
+    return d.value.trim();
+  }
+  function looksLikeLink(v) {
+    return /^(https?:\/\/|mailto:|tel:|\/|#)/i.test(v) || /^[^\s\/]+\.[a-z]{2,}(\/\S*)?$/i.test(v);
+  }
+  function searchSite(q) {
+    var base = GSROOT + 'search?per_page=8&_fields=title,url,type,subtype&search=' + encodeURIComponent(q);
+    var get = function (u) {
+      return fetch(u, { headers: { 'X-WP-Nonce': cfg.nonce }, credentials: 'same-origin' })
+        .then(function (r) { return r.ok ? r.json() : []; }).catch(function () { return []; });
+    };
+    return Promise.all([get(base + '&type=post'), get(base + '&type=term')]).then(function (rs) {
+      return [].concat(rs[0] || [], rs[1] || []).filter(function (h) { return h && h.url; }).map(function (h) {
+        // a post's kind is its subtype; a term's (a category) comes as its type
+        return { t: plainTitle(h.title) || '(untitled)', u: h.url, k: LINK_KINDS[h.subtype] || LINK_KINDS[h.type] || '' };
+      });
+    });
+  }
   function wirePageSuggest(inp) {
     var box = document.createElement('div');
-    box.className = 'gogh-pagelinks';
-    inp.parentNode.parentNode.appendChild(box);
-    var paint = function () {
-      var q2 = inp.value.trim().toLowerCase();
-      if (/^https?:\/\/.+/.test(q2) && q2 !== 'https://') { box.innerHTML = ''; return; }
-      fetchPageLinks().then(function (ps) {
-        var hits = ps.filter(function (p) { return !q2 || q2 === 'https://' || p.t.toLowerCase().indexOf(q2) !== -1; }).slice(0, 6);
-        box.innerHTML = hits.map(function (p, k) {
-          return '<button type="button" class="gogh-pagelink" data-k="' + k + '">' + p.t.replace(/</g, '&lt;') + '</button>';
-        }).join('');
-        [].forEach.call(box.querySelectorAll('.gogh-pagelink'), function (b2) {
-          b2.addEventListener('click', function () {
-            inp.value = hits[+b2.dataset.k].u;
-            inp.dispatchEvent(new Event('gogh-picked'));
-          });
-        });
+    box.className = 'gogh-linkfind';
+    var row = inp.closest('.gogh-panel-row') || inp.parentNode;
+    row.parentNode.insertBefore(box, row.nextSibling);
+    inp.setAttribute('placeholder', 'Search your site, or paste a link');
+    inp.setAttribute('autocomplete', 'off');
+    var hits = [], hot = -1, seq2 = 0, timer = null;
+    var draw = function (label, list, empty) {
+      hits = list;
+      hot = list.length && !looksLikeLink(inp.value.trim()) && inp.value.trim() ? 0 : -1;
+      var cur = inp.value.trim();
+      box.innerHTML = (label ? '<div class="gogh-linkfind-lab">' + label + '</div>' : '') +
+        (list.length ? list.map(function (h, k) {
+          return '<button type="button" class="gogh-linkhit' + (k === hot ? ' is-hot' : '') + (h.u === cur ? ' is-current' : '') + '" data-k="' + k + '">' +
+            '<span>' + escAttr(h.t) + '</span><small>' + escAttr(h.k || '') + '</small></button>';
+        }).join('') : (empty ? '<div class="gogh-linkfind-none">' + empty + '</div>' : ''));
+      [].forEach.call(box.querySelectorAll('.gogh-linkhit'), function (b2) {
+        b2.addEventListener('mousedown', function (ev) { ev.preventDefault(); }); // keep the caret in the box
+        b2.addEventListener('click', function () { pick(+b2.dataset.k); });
       });
     };
+    var pick = function (k) {
+      if (!hits[k]) return;
+      inp.value = hits[k].u;
+      inp.dispatchEvent(new Event('gogh-picked'));
+    };
+    var paint = function () {
+      var q2 = inp.value.trim();
+      var my = ++seq2;
+      clearTimeout(timer);
+      if (!q2 || looksLikeLink(q2)) {
+        fetchPageLinks().then(function (ps) {
+          if (my !== seq2) return;
+          // a link from somewhere else needs no list under it
+          if (q2 && /^https?:\/\//i.test(q2) && q2.indexOf(location.host) === -1) { draw('', []); return; }
+          draw('Your pages', ps.map(function (pg) { return { t: plainTitle(pg.t), u: pg.u, k: '' }; }));
+        });
+        return;
+      }
+      timer = setTimeout(function () {
+        searchSite(q2).then(function (list) {
+          if (my !== seq2) return;
+          draw('', list, 'Nothing on your site matches “' + escAttr(q2) + '”. To link somewhere else, paste the whole address.');
+        });
+      }, 160);
+    };
     inp.addEventListener('input', paint);
+    // capture: the panel's own Enter (apply what is typed) waits for us
+    inp.addEventListener('keydown', function (ev) {
+      if (ev.key === 'ArrowDown' || ev.key === 'ArrowUp') {
+        if (!hits.length) return;
+        ev.preventDefault();
+        hot = ev.key === 'ArrowDown' ? Math.min(hits.length - 1, hot + 1) : Math.max(0, hot - 1);
+        [].forEach.call(box.querySelectorAll('.gogh-linkhit'), function (b2) { b2.classList.toggle('is-hot', +b2.dataset.k === hot); });
+        return;
+      }
+      if (ev.key !== 'Enter') return;
+      var v = inp.value.trim();
+      if (hot !== -1 && hits[hot]) {
+        ev.preventDefault(); ev.stopImmediatePropagation();
+        pick(hot);
+        return;
+      }
+      if (v && !looksLikeLink(v)) { ev.preventDefault(); ev.stopImmediatePropagation(); return; } // words, nothing found: not an address
+      if (/^[^\s\/]+\.[a-z]{2,}(\/\S*)?$/i.test(v) && !/^(https?:|mailto:|tel:)/i.test(v)) inp.value = 'https://' + v;
+    }, true);
     paint();
   }
   function openTextLinkPanel() {
@@ -5704,6 +5780,8 @@
       if (url) applyTextLink(url);
     };
     panel.querySelector('.gogh-apply').addEventListener('click', apply);
+    input.addEventListener('gogh-picked', apply);
+    wirePageSuggest(input);
     var un = panel.querySelector('.gogh-unlink');
     if (un) un.addEventListener('click', function () {
       closePanel();
@@ -6318,6 +6396,8 @@
         if (ev.key === 'Enter') apply();
         if (ev.key === 'Escape') closePanel();
       });
+      input.addEventListener('gogh-picked', apply); // a page picked is the link, in one tap
+      wirePageSuggest(input);
       input.focus();
     }
   }
@@ -6429,6 +6509,12 @@
       pushState();
       toast(u ? 'The whole card links to ' + u : 'Card link removed.'); // the panel stays — shape and mood may follow
     });
+    var chIn = panel.querySelector('.gogh-cardhref');
+    if (chIn && chBtn) {
+      chIn.addEventListener('gogh-picked', function () { chBtn.click(); });
+      chIn.addEventListener('keydown', function (ev) { if (ev.key === 'Enter') chBtn.click(); });
+      wirePageSuggest(chIn);
+    }
     var bclear = panel.querySelector('.gogh-boximg-clear');
     if (bclear) bclear.addEventListener('click', function () {
       e.boxImg = null;
@@ -23748,7 +23834,7 @@
       closePanel();
       toast('Link updated.');
     };
-    inp.addEventListener('gogh-picked', function () {});
+    inp.addEventListener('gogh-picked', apply); // a page picked is the link
     wirePageSuggest(inp);
     panel.querySelector('.gogh-apply').addEventListener('click', apply);
     inp.addEventListener('keydown', function (e2) { if (e2.key === 'Enter') apply(); });

@@ -3748,13 +3748,7 @@ html.gogh-textediting .gogh-convertbtn {
   .gogh-secbar-label { display: none; }
 }
 
-/* link panels: your pages one tap away, the window choice a quiet line */
-.gogh-pagelinks { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 8px; max-width: 320px; }
-.gogh-pagelink {
-  all: unset; cursor: pointer; font-size: 12px; padding: 5px 10px;
-  border-radius: 999px; border: 1px solid var(--gogh-ui-border); color: var(--gogh-ui-fg);
-}
-.gogh-pagelink:hover { background: rgba(0, 0, 0, 0.05); }
+/* link panels: the window choice a quiet line */
 .gogh-newtab { display: flex; align-items: center; gap: 7px; font-size: 12.5px; margin-top: 8px; color: var(--gogh-ui-fg); cursor: pointer; }
 
 /* ---------- the header room: a clear place you enter and leave ----------
@@ -4761,3 +4755,18 @@ html.gogh-editing #wpadminbar #wp-admin-bar-site-name #wp-admin-bar-gogh-account
 .gogh-sizedial .gogh-sizedial-it b { line-height: 1; color: var(--gogh-ui-fg); }
 .gogh-sizedial .gogh-sizedial-it span { font: 600 12px/1 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
 .gogh-sizedial .gogh-sizedial-it.is-active { box-shadow: inset 0 0 0 2px #3858e9; background: rgba(56, 88, 233, 0.07); }
+
+/* the link finder: search your site or paste a link, in every link panel */
+.gogh-linkfind { display: flex; flex-direction: column; gap: 1px; margin-top: 8px; max-height: 236px; overflow-y: auto; max-width: 340px; }
+.gogh-linkfind:empty { display: none; }
+.gogh-linkfind-lab { font-size: 11px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; opacity: 0.55; padding: 4px 10px 3px; color: var(--gogh-ui-fg); }
+.gogh-linkhit {
+  all: unset; box-sizing: border-box; cursor: pointer; display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  padding: 7px 10px; border-radius: 8px; font-size: 13px; line-height: 1.3; color: var(--gogh-ui-fg);
+}
+.gogh-linkhit span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.gogh-linkhit small { flex: none; font-size: 11px; opacity: 0.55; }
+.gogh-linkhit:hover, .gogh-linkhit.is-hot { background: color-mix(in srgb, var(--gogh-ui-fg) 8%, transparent); }
+.gogh-linkhit:focus-visible { outline: 2px solid #3858e9; outline-offset: -2px; }
+.gogh-linkhit.is-current span::after { content: ' \2713'; opacity: 0.6; }
+.gogh-linkfind-none { font-size: 12.5px; line-height: 1.45; opacity: 0.7; padding: 6px 10px; color: var(--gogh-ui-fg); }

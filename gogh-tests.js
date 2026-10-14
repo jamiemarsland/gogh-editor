@@ -1200,6 +1200,60 @@
     // v0.99.684: a press on the page puts the Page drawer away and zooms in
     // async: the zoom eases back over a few frames, and the quick tests
     // run with no frames at all — they would measure a page caught mid-zoom
+    testAsync('the link finder: words search the site, a pick links the button, a pasted link is kept, nothing found says so', function () {
+      var realFetch = window.fetch;
+      var i = findIdx('button'), s0 = sec(), was = s0.els[i].href;
+      window.fetch = function (u, o) {
+        u = String(u);
+        if (u.indexOf('/search?') !== -1) {
+          var q2 = decodeURIComponent((u.match(/[?&]search=([^&]*)/) || [])[1] || '');
+          var post = u.indexOf('type=post') !== -1;
+          var hits = /story/i.test(q2) ? (post ? [{ title: 'Our story', url: 'https://x.test/our-story/', subtype: 'page' }, { title: 'Story &amp; Craft', url: 'https://x.test/story-craft/', subtype: 'post' }] : [{ title: 'Story candles', url: 'https://x.test/c/story/', type: 'product_cat' }]) : [];
+          return Promise.resolve(new Response(JSON.stringify(hits), { status: 200, headers: { 'Content-Type': 'application/json' } }));
+        }
+        return realFetch.apply(this, arguments);
+      };
+      var wait = function (ms) { return new Promise(function (r) { setTimeout(r, ms); }); };
+      var inp;
+      G.openPanel(s0, i);
+      inp = q('.gogh-panel input[type="url"]');
+      return Promise.resolve().then(function () {
+        expect(inp && /Search your site/.test(inp.placeholder), 'the link box should invite a search: ' + (inp && inp.placeholder));
+        inp.value = 'story';
+        inp.dispatchEvent(new Event('input'));
+        return wait(450);
+      }).then(function () {
+        var rows = [].slice.call(document.querySelectorAll('.gogh-panel .gogh-linkhit'));
+        expect(rows.length === 3, 'three hits expected, got ' + rows.length);
+        expect(/Our story/.test(rows[0].textContent) && /Page/.test(rows[0].textContent), 'the first hit should read Our story · Page');
+        expect(/Story & Craft/.test(rows[1].textContent) && /Post/.test(rows[1].textContent), 'titles should be decoded and kinds named: ' + rows[1].textContent);
+        expect(/Shop category/.test(rows[2].textContent), 'a shop category should say so');
+        expect(rows[0].classList.contains('is-hot'), 'the top hit should be ready for Enter');
+        inp.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true }));
+        expect(rows[1].classList.contains('is-hot'), 'ArrowDown should move to the next hit');
+        inp.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+        expect(s0.els[i].href === 'https://x.test/story-craft/', 'Enter should link the chosen hit: ' + s0.els[i].href);
+        return wait(400);
+      }).then(function () {
+        G.openPanel(s0, i);
+        inp = q('.gogh-panel input[type="url"]');
+        inp.value = 'zzqx';
+        inp.dispatchEvent(new Event('input'));
+        return wait(450);
+      }).then(function () {
+        expect(/Nothing on your site matches/.test(q('.gogh-panel .gogh-linkfind').textContent), 'no hits should say so');
+        inp.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+        expect(s0.els[i].href === 'https://x.test/story-craft/', 'words that found nothing must not become the link: ' + s0.els[i].href);
+        inp.value = 'example.com/shop';
+        inp.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+        expect(s0.els[i].href === 'https://example.com/shop', 'a pasted address should be kept, made whole: ' + s0.els[i].href);
+        return 'search, pick, paste';
+      }).finally(function () {
+        window.fetch = realFetch;
+        s0.els[i].href = was;
+        G.closePanel();
+      });
+    });
     testAsync('a press on the page closes the Page drawer, zooms back in and still chooses what it pressed', function () {
       var wait = function (ms) { return new Promise(function (r) { setTimeout(r, ms); }); };
       var tidy = function () { G.closePanel(); if (G.closeSide) G.closeSide(true); };
@@ -10112,8 +10166,17 @@
       } finally { G.device.hide(s0, i, false); }
       return 'no button on the desktop bar; hiding still works and still shows';
     });
-    test('a piece with a panel has an On phones row: Shown | Hidden and a door to the phone view', function () {
+    test('a button panel carries no On phones row (James: where it goes and how it looks, nothing else)', function () {
       var i = findIdx('button');
+      G.openPanel(sec(), i);
+      try {
+        var pnl = q('.gogh-panel');
+        expect(!pnl.querySelector('[data-mh]') && !pnl.querySelector('.gogh-phone-see') && !/On phones/.test(pnl.textContent), 'the button panel still shows the On phones row');
+      } finally { G.closePanel(); }
+      return 'no phone row on buttons';
+    });
+    test('a piece with a panel has an On phones row: Shown | Hidden and a door to the phone view', function () {
+      var i = findIdx('image');
       var s0 = sec();
       G.openPanel(s0, i);
       var pnl = q('.gogh-panel');
