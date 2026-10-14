@@ -15,7 +15,7 @@ about something where they conflict, rather than picking one silently. Quote UI
 labels and message copy from the appendix, verbatim — those are the current
 strings, and a paraphrased button label is the fastest way to lose a user's trust.
 
-Generated for plugin version 0.99.698 · knowledge base 57a773a.
+Generated for plugin version 0.99.699 · knowledge base c75deb4.
 
 ---
 
@@ -830,6 +830,8 @@ The helper's welcome panel opens with a 35-second film of gogh being used (v0.99
 
 **The phone view survives navigation (v0.99.605).** Press one of your own pages while on the phone and it opens in the editor, still on the phone: the link carries `gogh-edit=1&gogh-phone=1`, the next page reads them at boot and strips them from the address. Other sites, files, wp-admin and anchors on the same page are left alone. Unpublished changes still ask before leaving.
 
+**A button's colour has its own door; Dashboard under the site name (v0.99.699).** A chosen button's toolbar now has a round colour chip showing the button's colour. It opens **Button colour**: Solid or Outline, then **Fill**, **Words** and **On hover**, each a row of swatches with **Custom colour** first (any colour at all) and the theme default second. The link icon now opens only **Button link**: where the button goes. A button inside a card keeps one panel with both. Hover the site's name at the top left for **Dashboard**, **Your profile** and **Log out**; going to the dashboard or logging out with changes not yet live asks first.
+
 **The grid wears the section's own colours (v0.99.698).** The grid that shows while you move things (or with the # grid button) is now drawn tone on tone in the section's own ink, the colour its words wear: a faint wash for the columns, slightly stronger gaps between rows, and clear lines at the margins and the centre. On an orange section it's a deeper orange grid, on cream a faint warm grey, on a dark section a soft light one. It used to lay fixed white bars over every light-looking section, which striped coloured backgrounds. Sections with a picture or video behind them keep the old light treatment.
 
 **Site styles, rethought (v0.99.697).** **Site styles** (the paint brush at the top right, or the Site drawer's first card) now opens on **Your site now**: a small piece of your own page (its heading, a line of text and a button) in its real colours and fonts. It changes the moment the page does, so hovering a colour set, trying a new look or keeping a font pair shows there too. Under it are three rows, each showing its current value: **Colours** (the three colours doing the work, **Use my brand colour** — pick one colour and gogh builds the rest, or **Your brand** once set — and the theme's ready-made colour sets as tiles: hover to see one on your page, click to keep it), **Fonts** (the pairs, as before) and **Text size** (Snug, Regular, Airy, Grand, each drawn at its size; hover to see it, click to keep it). Underneath, **✦ Try a new look** (it used to be called Remix) changes the colours and fonts across the site in one press; a **Trying** card names the look with **↶ Back** and **Keep this**, and the button becomes **Try another**. The Site drawer's separate Fonts card is gone: Fonts is a row in Site styles, and its Back returns there.
@@ -1005,11 +1007,11 @@ Everything in this section is extracted mechanically from the Gogh source on eve
 
 ## Current release
 
-- Plugin version: **0.99.698**
+- Plugin version: **0.99.699**
 - Requires WordPress **6.5+**, PHP **7.4+**
 - Text domain: `gogh-editor`
 - readme.txt Stable tag: `0.26.0` · Tested up to: `7.0`
-- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.698`). Quote the plugin header version.
+- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.699`). Quote the plugin header version.
 
 ## Design constants
 
@@ -1201,7 +1203,7 @@ REST routes registered: `gogh/v1/version`, `gogh/v1/starter`, `gogh/v1/site-def`
 
 Core REST endpoints used by the editor: `wp/v2/blocks`, `wp/v2/categories`, `wp/v2/pages`, `wp/v2/posts`, `wp/v2/template-parts`.
 
-Capability checks in PHP: `edit_posts`, `edit_post`, `edit_theme_options`, `edit_others_posts`, `edit_products`, `manage_options`, `edit_pages`, `edit_css`, `upload_files`, `unfiltered_html`, `activate_plugins`, `install_plugins`, `manage_woocommerce`, `publish_pages`.
+Capability checks in PHP: `edit_posts`, `edit_post`, `edit_theme_options`, `edit_others_posts`, `edit_products`, `manage_options`, `edit_pages`, `edit_css`, `upload_files`, `unfiltered_html`, `activate_plugins`, `install_plugins`, `manage_woocommerce`, `publish_pages`, `read`.
 
 Query-string switches: `?gogh-edit`, `?gogh-ps`, `?gogh-test`.
 

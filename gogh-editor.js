@@ -905,7 +905,7 @@
         }
       }
       if (e.type === 'button' && e.btnHover) {
-        out.push(sec + clsSel + ' .wp-block-button__link:hover { background-color: var(--wp--preset--color--' + e.btnHover + ') !important; }');
+        out.push(sec + clsSel + ' .wp-block-button__link:hover { background-color: ' + paintOf(e.btnHover) + ' !important; }');
       }
       out.push(sec + clsSel + ' { grid-area: ' + a.r1 + ' / ' + a.c1 + ' / ' + a.r2 + ' / ' + a.c2 +
         '; z-index: ' + (i + 1) + '; ' + extra + ' }');
@@ -3654,6 +3654,15 @@
   // ink, a section's ink and the theme's all show truthfully
   function dressColChip(e, node) {
     colChip.classList.remove('is-default');
+    if (e.type === 'button') {
+      // the button's own fill, or its edge when it is an outline
+      var bl = node && node.querySelector('.wp-block-button__link');
+      var bcs = bl ? getComputedStyle(bl) : null;
+      var fill = bcs && !/rgba\(0, 0, 0, 0\)|transparent/.test(bcs.backgroundColor) ? bcs.backgroundColor : (bcs ? bcs.borderTopColor || bcs.color : '');
+      colChip.style.background = fill || 'currentColor';
+      return;
+    }
+    colBtn.title = 'Text colour';
     if (e.color) { colChip.style.background = 'var(--wp--preset--color--' + e.color + ')'; return; }
     var c = '';
     try {
@@ -4678,6 +4687,14 @@
       lstBtn.innerHTML = e.list === 'ol' ? LIST_ICON_OL : LIST_ICON;
       lstBtn.classList.toggle('is-on', !!e.list);
       lstBtn.title = e.list === 'ol' ? 'Numbered \u2014 tap for plain text' : e.list ? 'Bullets \u2014 tap for numbers' : 'Bullets';
+    } else if (e.type === 'button') {
+      // a button's colour has its own door, apart from its link (James)
+      alBtn.style.display = 'none';
+      lnkBtn.style.display = 'none';
+      lstBtn.style.display = 'none';
+      dressColChip(e, node);
+      colBtn.style.display = '';
+      colBtn.title = 'Button colour';
     } else if (e.type === 'rule' || e.type === 'icon') {
       // a line or an icon has a colour like words do, nothing else from this row
       alBtn.style.display = 'none';
@@ -6184,79 +6201,122 @@
       });
     }
   }
+  // a button's two jobs, two doors (James: 'for buttons do you think we
+  // should have a separate icon for color? ... they do 2 separate things'):
+  // the link icon opens where it goes, the colour chip opens how it looks.
+  // A button inside a card keeps one panel with both (its small bar has
+  // one door)
+  var btnPanelMode = 'link';
   function buildLinkPanel(sec, i) {
+    var mode = btnPanelMode;
     buildLinkPanelFor(sec, sec.els[i], function () {
       renderSection(sec);
       placeHandles(sec, i);
       pushState();
+      btnPanelMode = mode;
       buildLinkPanel(sec, i); // rebuild so active states stay honest
-    });
+      btnPanelMode = 'link';
+    }, mode);
   }
   // the same panel serves top-level buttons AND buttons inside cards —
   // the caller owns re-rendering and reselection
-  function buildLinkPanelFor(sec, e, reapply) {
+  function buildLinkPanelFor(sec, e, reapply, mode) {
+    mode = mode || 'all';
+    var showLink = mode !== 'colour', showColour = mode !== 'link';
+    // a custom colour is the piece's own: fill and words ride tf (painted
+    // on the link), the hover colour is stored as its hex
+    var customOf = function (key) {
+      if (key === 'btnBg') return e.tf && /^#[0-9a-fA-F]{6}$/.test(e.tf.bg || '') ? e.tf.bg : null;
+      if (key === 'btnText') return e.tf && /^#[0-9a-fA-F]{6}$/.test(e.tf.col || '') ? e.tf.col : null;
+      return /^#[0-9a-fA-F]{6}$/.test(e.btnHover || '') ? e.btnHover : null;
+    };
     function swRow(label, key) {
+      var custom = customOf(key);
       return '<div class="gogh-swlab">' + label + '</div><div class="gogh-swrow" data-key="' + key + '">' +
-        '<button type="button" class="gogh-sw gogh-sw-none' + (!e[key] ? ' is-active' : '') + '" data-col="" title="Theme default"></button>' +
+        // any colour comes first, as on every colour row (James)
+        '<label class="gogh-sw gogh-sw-pick' + (custom ? ' is-active is-custom' : '') + '" title="Custom colour"' + (custom ? ' style="background:' + escAttr(custom) + '"' : '') + '>' +
+        '<input type="color" class="gogh-btncustom" data-key="' + key + '" value="' + escAttr(custom || '#3858e9') + '"></label>' +
+        '<button type="button" class="gogh-sw gogh-sw-none' + (!e[key] && !custom ? ' is-active' : '') + '" data-col="" title="Theme default"></button>' +
         pickerPalette().map(function (p) {
-          return '<button type="button" class="gogh-sw' + (e[key] === p.slug ? ' is-active' : '') + '" data-col="' + p.slug + '"' +
+          return '<button type="button" class="gogh-sw' + (e[key] === p.slug && !custom ? ' is-active' : '') + '" data-col="' + p.slug + '"' +
             ' style="background: var(--wp--preset--color--' + p.slug + ')" title="' + p.slug + '"></button>';
         }).join('') + '</div>';
     }
     panel.innerHTML =
-      '<div class="gogh-panel-title">Button</div>' +
-      '<div class="gogh-panel-row">' +
-      '<input type="url" class="gogh-input" placeholder="https://\u2026" />' +
-      '<button type="button" class="gogh-btn gogh-btn-small gogh-apply">Apply</button>' +
-      '</div>' +
-      '<div class="gogh-swlab">Style</div>' +
-      '<div class="gogh-panel-row gogh-btnstyle">' +
-      '<button type="button" class="gogh-btn gogh-btn-small gogh-style-solid' + (!e.ghost ? ' is-active' : '') + '">Solid</button>' +
-      '<button type="button" class="gogh-btn gogh-btn-small gogh-style-outline' + (e.ghost ? ' is-active' : '') + '">Outline</button>' +
-      '</div>' +
-      swRow('Background', 'btnBg') +
-      swRow('Text', 'btnText') +
-      swRow('Hover background', 'btnHover');
-    (function () {
-      var idx = sec.els.indexOf(e);
-      var host = idx !== -1 ? sec.nodes[idx] : null;
-      var link = host && host.querySelector('.wp-block-button__link');
-      if (!link) return; // kid buttons: marking arrives with kid panels later
-      var bgHex = cssColorToHex(getComputedStyle(link).backgroundColor);
-      markSwatchLegibility(panel.querySelector('.gogh-swrow[data-key="btnText"]'), bgHex);
-    })();
-    panel.querySelector('.gogh-style-solid').addEventListener('click', function () {
-      if (e.ghost) { e.ghost = false; reapply(); }
-    });
-    panel.querySelector('.gogh-style-outline').addEventListener('click', function () {
-      if (!e.ghost) { e.ghost = true; reapply(); }
-    });
-    panel.querySelectorAll('.gogh-swrow[data-key]').forEach(function (row) {
-      var key = row.dataset.key;
-      row.querySelectorAll('.gogh-sw').forEach(function (swBtn) {
-        swBtn.addEventListener('click', function () {
-          e[key] = swBtn.dataset.col || null;
-          if (e.tf) {
-            if (key === 'btnBg') delete e.tf.bg;
-            if (key === 'btnText') delete e.tf.col;
+      '<div class="gogh-panel-title">' + (mode === 'colour' ? 'Button colour' : mode === 'link' ? 'Button link' : 'Button') + '</div>' +
+      (showLink
+        ? (mode === 'link' ? '<div class="gogh-panel-hint">Where the button goes when someone presses it.</div>' : '') +
+          '<div class="gogh-panel-row">' +
+          '<input type="url" class="gogh-input" placeholder="https://…" />' +
+          '<button type="button" class="gogh-btn gogh-btn-small gogh-apply">Apply</button>' +
+          '</div>'
+        : '') +
+      (showColour
+        ? '<div class="gogh-swlab">Style</div>' +
+          '<div class="gogh-panel-row gogh-btnstyle">' +
+          '<button type="button" class="gogh-btn gogh-btn-small gogh-style-solid' + (!e.ghost ? ' is-active' : '') + '">Solid</button>' +
+          '<button type="button" class="gogh-btn gogh-btn-small gogh-style-outline' + (e.ghost ? ' is-active' : '') + '">Outline</button>' +
+          '</div>' +
+          swRow('Fill', 'btnBg') +
+          swRow('Words', 'btnText') +
+          swRow('On hover', 'btnHover')
+        : '');
+    if (showColour) {
+      (function () {
+        var idx = sec.els.indexOf(e);
+        var host = idx !== -1 ? sec.nodes[idx] : null;
+        var link = host && host.querySelector('.wp-block-button__link');
+        if (!link) return; // kid buttons: marking arrives with kid panels later
+        var bgHex = cssColorToHex(getComputedStyle(link).backgroundColor);
+        markSwatchLegibility(panel.querySelector('.gogh-swrow[data-key="btnText"]'), bgHex);
+      })();
+      panel.querySelector('.gogh-style-solid').addEventListener('click', function () {
+        if (e.ghost) { e.ghost = false; reapply(); }
+      });
+      panel.querySelector('.gogh-style-outline').addEventListener('click', function () {
+        if (!e.ghost) { e.ghost = true; reapply(); }
+      });
+      panel.querySelectorAll('.gogh-swrow[data-key]').forEach(function (row) {
+        var key = row.dataset.key;
+        row.querySelectorAll('button.gogh-sw').forEach(function (swBtn) {
+          swBtn.addEventListener('click', function () {
+            e[key] = swBtn.dataset.col || null;
+            if (e.tf) {
+              if (key === 'btnBg') delete e.tf.bg;
+              if (key === 'btnText') delete e.tf.col;
+            }
+            reapply();
+          });
+        });
+      });
+      panel.querySelectorAll('.gogh-btncustom').forEach(function (inp) {
+        inp.addEventListener('change', function () {
+          var key = inp.dataset.key, hex = inp.value;
+          if (key === 'btnHover') e.btnHover = hex;
+          else {
+            e[key] = null;
+            e.tf = e.tf || {};
+            if (key === 'btnBg') e.tf.bg = hex; else e.tf.col = hex;
           }
           reapply();
         });
       });
-    });
-    var input = panel.querySelector('input');
-    input.value = e.href || '';
-    var apply = function () {
-      e.href = input.value.trim() || null;
-      closePanel();
-      pushState();
-    };
-    panel.querySelector('.gogh-apply').addEventListener('click', apply);
-    input.addEventListener('keydown', function (ev) {
-      if (ev.key === 'Enter') apply();
-      if (ev.key === 'Escape') closePanel();
-    });
-    input.focus();
+    }
+    if (showLink) {
+      var input = panel.querySelector('input[type="url"]');
+      input.value = e.href || '';
+      var apply = function () {
+        e.href = input.value.trim() || null;
+        closePanel();
+        pushState();
+      };
+      panel.querySelector('.gogh-apply').addEventListener('click', apply);
+      input.addEventListener('keydown', function (ev) {
+        if (ev.key === 'Enter') apply();
+        if (ev.key === 'Escape') closePanel();
+      });
+      input.focus();
+    }
   }
   function buildBoxPanel(sec, i) {
     var e = sec.els[i];
@@ -6906,6 +6966,12 @@
   colBtn.addEventListener('click', function () {
     if (!sel) return;
     var sec = sel.sec, i = sel.i, e = sec.els[i];
+    if (e.type === 'button') {
+      btnPanelMode = 'colour';
+      openPanel(sec, i);
+      btnPanelMode = 'link';
+      return;
+    }
     // words wearing a design style: 'default' means the style's own colour,
     // so the first swatch shows it and says so
     var stl = (e.type === 'heading' || e.type === 'para') ? lookOf(e) : null;
@@ -22291,13 +22357,20 @@
       if (+cfg.postId === +cfg.frontId || samePage(cfg.homeUrl || '/')) return; // already home
       goToPage(editUrlFor(cfg.homeUrl || '/', deviceMode === 'phone'), 'the home page');
     }, true);
-    var setTitle = function () { siteName.title = editing ? 'Your home page (you\u2019ll keep editing)' : ''; };
-    setTitle();
-    siteName.addEventListener('mouseenter', setTitle);
+    // no tooltip: it sat over the name's own menu (James's screenshot)
+    siteName.removeAttribute('title');
   })();
   // Log out lives in the site name's menu while editing (the avatar steps
   // aside so Publish owns the corner): with unpublished changes it asks
   // first, like every other way out
+  (function () {
+    var dash = document.querySelector('#wp-admin-bar-gogh-dashboard > a');
+    if (dash) dash.addEventListener('click', function (ev) {
+      if (!editing || ev.metaKey || ev.ctrlKey || ev.shiftKey || ev.button !== 0) return;
+      ev.preventDefault();
+      goToPage(dash.href, 'the dashboard', { title: 'Go to the dashboard?', bare: true });
+    }, true);
+  })();
   (function () {
     var out = document.querySelector('#wp-admin-bar-gogh-logout > a');
     if (!out) return;

@@ -1012,6 +1012,8 @@
       var out = document.querySelector('#wp-admin-bar-gogh-logout > a'), prof = document.querySelector('#wp-admin-bar-gogh-profile > a');
       if (document.getElementById('wp-admin-bar-site-name')) {
         expect(out && /Log out/.test(out.textContent) && prof && /Your profile/.test(prof.textContent) && document.getElementById('wp-admin-bar-site-name').contains(out), 'Your profile and Log out should be in the site name\u2019s menu');
+        var dashA = document.querySelector('#wp-admin-bar-gogh-dashboard > a');
+        expect(dashA && /Dashboard/.test(dashA.textContent) && /wp-admin\/?$/.test(dashA.getAttribute('href')), 'the site name\u2019s menu should offer the Dashboard');
         var trips0 = [], unwatch0 = G.nav.watch(function (u) { trips0.push(u); });
         var keepX = sec().els[0].x;
         try {
@@ -1387,20 +1389,29 @@
     test('button panel sets bg, text, hover and outline', function () {
       var i = findIdx('button');
       select(i);
+      // v0.99.699: two doors — the link icon is only the link, the colour chip only the colours
       q('.gogh-eb-ctx').click();
+      expect(q('.gogh-panel input[type="url"]') && !q('.gogh-panel .gogh-swrow[data-key]') && /Button link/.test(q('.gogh-panel').textContent), 'the link icon should open the link alone');
+      closePanelForTest();
+      select(i);
+      var chip = q('.gogh-elbar .gogh-eb-col');
+      expect(chip && chip.style.display !== 'none', 'a button should have its own colour chip');
+      chip.click();
+      expect(/Button colour/.test(q('.gogh-panel').textContent) && !q('.gogh-panel input[type="url"]'), 'the colour chip should open the colours alone');
       var rows = document.querySelectorAll('.gogh-panel .gogh-swrow[data-key]');
       expect(rows.length === 3, 'expected 3 swatch rows, got ' + rows.length);
+      expect([].every.call(rows, function (r) { return r.firstElementChild.classList.contains('gogh-sw-pick'); }), 'Custom colour should come first on every row');
       var e = sec().els[i];
       var bgRow = document.querySelector('.gogh-panel .gogh-swrow[data-key="btnBg"]');
-      var slug = bgRow.querySelectorAll('.gogh-sw')[1].dataset.col;
-      bgRow.querySelectorAll('.gogh-sw')[1].click();
+      var slug = bgRow.querySelectorAll('button.gogh-sw')[1].dataset.col;
+      bgRow.querySelectorAll('button.gogh-sw')[1].click();
       expect(e.btnBg === slug, 'btnBg not set: ' + e.btnBg);
       var a = sec().nodes[i].querySelector('a');
       expect(a.className.indexOf('has-' + slug + '-background-color') !== -1 && a.className.indexOf('has-background') !== -1,
         'bg classes missing: ' + a.className);
       var hovRow = document.querySelector('.gogh-panel .gogh-swrow[data-key="btnHover"]');
-      var hslug = hovRow.querySelectorAll('.gogh-sw')[2].dataset.col;
-      hovRow.querySelectorAll('.gogh-sw')[2].click();
+      var hslug = hovRow.querySelectorAll('button.gogh-sw')[2].dataset.col;
+      hovRow.querySelectorAll('button.gogh-sw')[2].click();
       expect(sec().styleEl.textContent.indexOf(':hover { background-color: var(--wp--preset--color--' + hslug + ')') !== -1,
         'hover CSS missing');
       document.querySelector('.gogh-panel .gogh-style-outline').click();
@@ -1408,6 +1419,12 @@
       var blocks = G.buildBlocks();
       expect(blocks.indexOf('"backgroundColor":"' + slug + '"') !== -1, 'backgroundColor attr missing in markup');
       expect(blocks.indexOf('gogh-ghost') !== -1, 'ghost class missing in markup');
+      // a custom fill: the piece's own colour, painted on the link
+      var cust = document.querySelector('.gogh-panel .gogh-swrow[data-key="btnBg"] .gogh-btncustom');
+      cust.value = '#b0306a'; cust.dispatchEvent(new Event('change', { bubbles: true }));
+      expect(e.tf && e.tf.bg === '#b0306a' && !e.btnBg, 'a custom fill should be kept as the button\u2019s own: ' + JSON.stringify(e.tf));
+      e.ghost = false; G.renderSection(sec());
+      expect(getComputedStyle(sec().nodes[i].querySelector('a')).backgroundColor === 'rgb(176, 48, 106)', 'the custom fill should paint the button');
       closePanelForTest();
     });
 
