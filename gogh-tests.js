@@ -1014,6 +1014,8 @@
         expect(out && /Log out/.test(out.textContent) && prof && /Your profile/.test(prof.textContent) && document.getElementById('wp-admin-bar-site-name').contains(out), 'Your profile and Log out should be in the site name\u2019s menu');
         var dashA = document.querySelector('#wp-admin-bar-gogh-dashboard > a');
         expect(dashA && /Dashboard/.test(dashA.textContent) && /wp-admin\/?$/.test(dashA.getAttribute('href')), 'the site name\u2019s menu should offer the Dashboard');
+        // v0.99.716: one Dashboard and no New page in the site menu
+        expect(!document.getElementById('wp-admin-bar-dashboard') && !document.getElementById('wp-admin-bar-gogh-new-page-menu'), 'the site menu should carry one Dashboard and no New page');
         var trips0 = [], unwatch0 = G.nav.watch(function (u) { trips0.push(u); });
         var keepX = sec().els[0].x;
         try {
@@ -4995,6 +4997,35 @@
         if (G.closeSide) G.closeSide(true);
       }
       return done.join(', ');
+    });
+    // v0.99.716: Recently viewed — the grid's query carries goghRecent for
+    // gogh.php to draw per shopper; until then it is Newest first
+    test('the shop grid offers Recently viewed, newest until a shopper has looked around', function () {
+      var shop = G.shopDefaults(); shop.order = 'recent'; shop.count = 4;
+      var src = G.composeShop(shop);
+      var attrs = JSON.parse(/wp:woocommerce\/product-collection (\{[\s\S]*?\}) -->/.exec(src)[1]);
+      expect(attrs.query.goghRecent === true && attrs.query.orderBy === 'date' && attrs.query.order === 'desc', 'a recent grid should be marked and fall back to newest: ' + JSON.stringify(attrs.query).slice(0, 120));
+      expect(/gogh-shop-recent/.test(attrs.className), 'the grid should wear its class');
+      var back = { type: 'widget', wsrc: src }; G.healRails(back);
+      expect(back.shop.order === 'recent', 'reading the grid back should find Recently viewed: ' + back.shop.order);
+      shop.pick = [{ id: 7, name: 'x' }];
+      expect(!/goghRecent/.test(G.composeShop(shop)), 'hand-picked products win over Recently viewed');
+      shop.pick = []; shop.order = 'date';
+      expect(!/goghRecent|gogh-shop-recent/.test(G.composeShop(shop)), 'newest first carries no mark');
+      var s0 = sec(), e = G.addElementToSection(G.sections().indexOf(s0), 'products');
+      try {
+        if (!e || !e.shop) return 'composed and read back (no products piece here to open)';
+        G.openPanel(s0, s0.els.indexOf(e));
+        var pnl = q('.gogh-panel'), hint = pnl.querySelector('.gogh-shop-recent-hint');
+        expect(hint && hint.hidden, 'the hint waits for Recently viewed');
+        pnl.querySelector('.gogh-shop-order .gogh-hopt[data-v="recent"]').click();
+        expect(!hint.hidden && e.shop.order === 'recent' && /"goghRecent":true/.test(e.wsrc), 'choosing it should say what shoppers see and mark the grid');
+      } finally {
+        G.closePanel();
+        var k = s0.els.indexOf(e);
+        if (k !== -1) { s0.els.splice(k, 1); G.renderSection(s0); }
+      }
+      return 'marked, newest until then, read back, hint shown';
     });
     test('the posts rail: Edit design on the bar, a small panel, looks audition and keep', function () {
       var s0 = sec();

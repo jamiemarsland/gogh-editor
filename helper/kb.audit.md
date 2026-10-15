@@ -1,8 +1,8 @@
-# Knowledge-base audit — plugin v0.99.715
+# Knowledge-base audit — plugin v0.99.716
 
 _13 finding(s) suppressed by `kb.audit-ignore.txt`._
 
-## MISSING (102)
+## MISSING (105)
 
 The source has something the prose never explains. The bot knows the name from the appendix but cannot say what it is for.
 
@@ -44,6 +44,9 @@ The source has something the prose never explains. The bot knows the name from t
 - WP hook `pre_render_block` exists in source but is never mentioned in the prose
 - WP hook `render_block_woocommerce/product-collection` exists in source but is never mentioned in the prose
 - WP hook `render_block_woocommerce/product-collection` exists in source but is never mentioned in the prose
+- WP hook `save_post` exists in source but is never mentioned in the prose
+- WP hook `wp_footer` exists in source but is never mentioned in the prose
+- WP hook `query_loop_block_query_vars` exists in source but is never mentioned in the prose
 - WP hook `body_class` exists in source but is never mentioned in the prose
 - WP hook `body_class` exists in source but is never mentioned in the prose
 - WP hook `wp_insert_post_empty_content` exists in source but is never mentioned in the prose
@@ -140,3 +143,10 @@ Quoted copy not found verbatim in the source. Paraphrases are fine; changed UI c
 - From Misprint
 - (max-width: 700px) 100vw, min(100vw, Wpx)
 - (max-width: 700px) 100vw, 53vw
+
+## What changed since the last knowledge-base build
+
+Use this as the checklist for updating the prose — and as a sanity check on the release itself.
+
+- version: 0.99.715 → 0.99.716
+- removed capability: "publish_pages"

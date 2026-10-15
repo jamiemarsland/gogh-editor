@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Gogh Editor
  * Description: A freeform canvas for WordPress — drag anything anywhere on your live page; Gogh publishes it back as clean, responsive core blocks that keep working even if the plugin is deactivated.
- * Version: 0.99.715
+ * Version: 0.99.716
  * Author: Jamie Marsland
  * Author URI: https://pootlepress.com
  * License: GPLv2 or later
@@ -14,7 +14,7 @@
 
 defined( 'ABSPATH' ) || exit;
 
-define( 'GOGH_VERSION', '0.99.715' );
+define( 'GOGH_VERSION', '0.99.716' );
 
 // what an agent may ask of the site, through WordPress's Abilities API (6.9+)
 require_once __DIR__ . '/gogh-abilities.php';
@@ -30,7 +30,7 @@ add_action( 'init', function () {
 		'gogh-block',
 		plugins_url( 'gogh-block.js', __FILE__ ),
 		array( 'wp-blocks', 'wp-element', 'wp-block-editor' ),
-		'0.99.715-chrome',
+		'0.99.716-chrome',
 		true
 	);
 	register_block_type( 'gogh/section', array(
@@ -574,9 +574,9 @@ add_action( 'wp_enqueue_scripts', function () {
 	if ( ! $post || ! current_user_can( 'edit_post', $post->ID ) ) {
 		return;
 	}
-	wp_register_script( 'gogh-compose', plugins_url( 'gogh-compose.js', __FILE__ ), array(), '0.99.715-chrome', true );
-	wp_enqueue_script( 'gogh-write', plugins_url( 'gogh-write.js', __FILE__ ), array( 'gogh-compose' ), '0.99.715-chrome', true );
-	wp_enqueue_style( 'gogh-write', plugins_url( 'gogh-write.css', __FILE__ ), array(), '0.99.715-chrome' );
+	wp_register_script( 'gogh-compose', plugins_url( 'gogh-compose.js', __FILE__ ), array(), '0.99.716-chrome', true );
+	wp_enqueue_script( 'gogh-write', plugins_url( 'gogh-write.js', __FILE__ ), array( 'gogh-compose' ), '0.99.716-chrome', true );
+	wp_enqueue_style( 'gogh-write', plugins_url( 'gogh-write.css', __FILE__ ), array(), '0.99.716-chrome' );
 	wp_localize_script( 'gogh-write', 'GOGHWRITE', array(
 		'postId'  => $post->ID,
 		'restUrl' => esc_url_raw( rest_url() ),
@@ -594,7 +594,7 @@ add_action( 'wp_enqueue_scripts', function () {
 		// fresh scope on every insert
 		'breakTpl' => (string) file_get_contents( __DIR__ . '/gogh-break.html' ),
 	) );
-	// the admin bar stays in the writing room (v0.99.715): the same place to
+	// the admin bar stays in the writing room (v0.99.716): the same place to
 	// publish and the same way out as every other room (James)
 } );
 
@@ -2485,6 +2485,100 @@ add_filter( 'render_block_woocommerce/product-collection', function ( $html, $bl
 	}
 	return $html;
 }, 10, 2 );
+// ---------- Recently viewed: a shop grid of what THIS shopper looked at ----------
+// (James: 'how about we add a recently viewed option … with a fall back').
+// Woo only remembers views when its old widget is placed, and its grid has
+// no such collection, so gogh keeps the list itself: a small script on a
+// product page notes the product in a first-party cookie (in the browser,
+// so a cached product page still counts). A grid set to Recently viewed
+// draws those products, newest look first, topped up with the newest
+// products; with no history it is simply Newest first. A page drawn for one
+// shopper's history is never handed to a page cache for the next shopper.
+function gogh_recent_ids() {
+	if ( empty( $_COOKIE['gogh_recent'] ) ) {
+		return array();
+	}
+	$ids = array_map( 'absint', explode( '.', sanitize_text_field( wp_unslash( $_COOKIE['gogh_recent'] ) ) ) );
+	return array_slice( array_values( array_unique( array_filter( $ids ) ) ), 0, 12 );
+}
+// a published page carrying a Recently viewed grid switches the tracker on;
+// until then gogh sets no cookie at all
+add_action( 'save_post', function ( $post_id, $post ) {
+	if ( $post && 'publish' === $post->post_status && false !== strpos( (string) $post->post_content, 'gogh-shop-recent' ) && ! get_option( 'gogh_recent_on' ) ) {
+		update_option( 'gogh_recent_on', 1 );
+	}
+}, 10, 2 );
+add_action( 'wp_footer', function () {
+	if ( ! get_option( 'gogh_recent_on' ) || ! function_exists( 'is_product' ) || ! is_product() ) {
+		return;
+	}
+	$id = (int) get_queried_object_id();
+	if ( ! $id ) {
+		return;
+	}
+	// newest first, twelve at most, thirty days
+	echo '<script>(function(){try{var id="' . (int) $id . '",m=document.cookie.match(/(?:^|; )gogh_recent=([^;]*)/),a=m?decodeURIComponent(m[1]).split(".").filter(function(x){return x&&x!==id;}):[];a.unshift(id);document.cookie="gogh_recent="+a.slice(0,12).join(".")+"; path=/; max-age=2592000; SameSite=Lax";}catch(e){}})();</script>' . "\n";
+} );
+function gogh_recent_list( $want, $cat_ids, $skip ) {
+	$base = array(
+		'post_type'           => 'product',
+		'post_status'         => 'publish',
+		'fields'              => 'ids',
+		'no_found_rows'       => true,
+		'ignore_sticky_posts' => true,
+		'tax_query'           => array( // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_tax_query -- a handful of products
+			array( 'taxonomy' => 'product_visibility', 'field' => 'name', 'terms' => array( 'exclude-from-catalog' ), 'operator' => 'NOT IN' ),
+		),
+	);
+	if ( $cat_ids ) {
+		$base['tax_query'][] = array( 'taxonomy' => 'product_cat', 'field' => 'term_id', 'terms' => array_map( 'absint', (array) $cat_ids ) );
+	}
+	$recent = array_values( array_diff( gogh_recent_ids(), $skip ) );
+	if ( ! $recent ) {
+		return array();
+	}
+	$seen = get_posts( array_merge( $base, array( 'post__in' => $recent, 'orderby' => 'post__in', 'posts_per_page' => $want ) ) );
+	if ( ! $seen ) {
+		return array();
+	}
+	if ( count( $seen ) < $want ) {
+		$fill = get_posts( array_merge( $base, array( 'post__not_in' => array_merge( $seen, $skip ), 'orderby' => 'date', 'order' => 'DESC', 'posts_per_page' => $want - count( $seen ) ) ) );
+		$seen = array_merge( $seen, $fill );
+	}
+	return array_map( 'intval', $seen );
+}
+// after Woo's own query building (10): the grid's query carries goghRecent.
+// The query, not the block: a grid inside a gogh section is a nested block,
+// and WordPress hands a nested block's settings to its product list before
+// any render_block_data filter could change them
+add_filter( 'query_loop_block_query_vars', function ( $query, $block ) {
+	$ctx = isset( $block->context['query'] ) && is_array( $block->context['query'] ) ? $block->context['query'] : array();
+	if ( empty( $ctx['goghRecent'] ) || is_admin() || ( defined( 'REST_REQUEST' ) && REST_REQUEST ) || ! gogh_recent_ids() ) {
+		return $query;
+	}
+	$want = max( 1, min( 12, (int) ( $ctx['perPage'] ?? 3 ) ) );
+	$cats = ! empty( $ctx['taxQuery']['product_cat'] ) ? (array) $ctx['taxQuery']['product_cat'] : array();
+	$skip = ( function_exists( 'is_product' ) && is_product() ) ? array( (int) get_queried_object_id() ) : array();
+	$ids  = gogh_recent_list( $want, $cats, $skip );
+	if ( ! $ids ) {
+		return $query;
+	}
+	$query['post__in']       = $ids;
+	$query['orderby']        = 'post__in';
+	$query['posts_per_page'] = count( $ids );
+	unset( $query['order'], $query['meta_key'], $query['offset'] );
+	// this page is now one shopper's: no page cache may keep it
+	if ( ! defined( 'DONOTCACHEPAGE' ) ) {
+		define( 'DONOTCACHEPAGE', true );
+	}
+	if ( function_exists( 'batcache_cancel' ) ) {
+		batcache_cancel();
+	}
+	if ( ! headers_sent() ) {
+		nocache_headers();
+	}
+	return $query;
+}, 20, 2 );
 add_action( 'wp_enqueue_scripts', function () {
 	wp_register_style( 'gogh-menu', false, array(), null );
 	wp_enqueue_style( 'gogh-menu' );
@@ -4291,7 +4385,7 @@ add_action( 'rest_api_init', function () {
 			return current_user_can( 'edit_posts' );
 		},
 		'callback'            => function () {
-			return array( 'build' => '0.99.715-chrome' );
+			return array( 'build' => '0.99.716-chrome' );
 		},
 	) );
 	register_rest_route( 'gogh/v1', '/starter', array(
@@ -5238,8 +5332,8 @@ add_action( 'admin_enqueue_scripts', function ( $hook ) {
 			$globals[] = $tax->attribute_label;
 		}
 	}
-	wp_enqueue_script( 'gogh-admin', plugins_url( 'gogh-admin.js', __FILE__ ), array(), '0.99.715-chrome', true );
-	wp_enqueue_style( 'gogh-admin', plugins_url( 'gogh-admin.css', __FILE__ ), array(), '0.99.715-chrome' );
+	wp_enqueue_script( 'gogh-admin', plugins_url( 'gogh-admin.js', __FILE__ ), array(), '0.99.716-chrome', true );
+	wp_enqueue_style( 'gogh-admin', plugins_url( 'gogh-admin.css', __FILE__ ), array(), '0.99.716-chrome' );
 	wp_localize_script( 'gogh-admin', 'GOGH_ADMIN', array(
 		'restUrl'   => esc_url_raw( rest_url( 'wc/v3/' ) ),
 		'nonce'     => wp_create_nonce( 'wp_rest' ),
@@ -6822,7 +6916,7 @@ add_action( 'wp_head', function () {
 // wearing Magazine must read as Magazine logged-out, and the site's gait
 // is site-wide; both packs are a few KB of pure CSS.
 add_action( 'wp_enqueue_scripts', function () {
-	wp_register_style( 'gogh-looks', false, array(), '0.99.715-chrome' );
+	wp_register_style( 'gogh-looks', false, array(), '0.99.716-chrome' );
 	wp_enqueue_style( 'gogh-looks' );
 	// the reading looks dress single posts; the blog looks dress lists of
 	// posts (the posts page, archives, a page carrying a posts rail); motion
@@ -6868,10 +6962,10 @@ add_action( 'wp_enqueue_scripts', function () {
 
 	// for every visitor: neutralise theme spacing around gogh sections, even
 	// on pages whose stored stylesheets predate this rule
-	wp_register_style( 'gogh-base', false, array(), '0.99.715-chrome' );
+	wp_register_style( 'gogh-base', false, array(), '0.99.716-chrome' );
 	// (the splash presentation itself lives in gogh_splash_css(), shared with
 	// the block editor — a wall in Gutenberg must look like a wall)
-	wp_register_script( 'gogh-view', false, array(), '0.99.715-chrome', true );
+	wp_register_script( 'gogh-view', false, array(), '0.99.716-chrome', true );
 	wp_enqueue_script( 'gogh-view' );
 	wp_add_inline_script( 'gogh-view',
 		// mega menu panels: hover opens with intent on fine pointers; the chevron
@@ -7187,9 +7281,9 @@ add_action( 'wp_enqueue_scripts', function () {
 
 	// compose must be REGISTERED here too — a dependency on an
 	// unregistered handle silently drops the whole editor script
-	wp_register_script( 'gogh-compose', plugins_url( 'gogh-compose.js', __FILE__ ), array(), '0.99.715-chrome', true );
-	wp_enqueue_script( 'gogh-editor', plugins_url( 'gogh-editor.js', __FILE__ ), array( 'gogh-compose' ), '0.99.715-chrome', true );
-	wp_enqueue_style( 'gogh-editor', plugins_url( 'gogh-editor.css', __FILE__ ), array(), '0.99.715-chrome' );
+	wp_register_script( 'gogh-compose', plugins_url( 'gogh-compose.js', __FILE__ ), array(), '0.99.716-chrome', true );
+	wp_enqueue_script( 'gogh-editor', plugins_url( 'gogh-editor.js', __FILE__ ), array( 'gogh-compose' ), '0.99.716-chrome', true );
+	wp_enqueue_style( 'gogh-editor', plugins_url( 'gogh-editor.css', __FILE__ ), array(), '0.99.716-chrome' );
 
 	// WebMCP bridge: the page registers its editing verbs as agent tools.
 	// OPT-IN only — add ?gogh-mcp=1 for a demo session (or enable sitewide
@@ -7201,19 +7295,19 @@ add_action( 'wp_enqueue_scripts', function () {
 	// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only labs toggle
 	$gogh_exp = isset( $_GET['gogh-test'] ) || ( isset( $_GET['gogh-experiments'] ) && '0' !== $_GET['gogh-experiments'] );
 	if ( isset( $_GET['gogh-mcp'] ) || $gogh_exp || apply_filters( 'gogh_webmcp_enabled', false ) ) {
-		wp_enqueue_script( 'gogh-webmcp', plugins_url( 'gogh-webmcp.js', __FILE__ ), array( 'gogh-editor' ), '0.99.715-chrome', true );
+		wp_enqueue_script( 'gogh-webmcp', plugins_url( 'gogh-webmcp.js', __FILE__ ), array( 'gogh-editor' ), '0.99.716-chrome', true );
 	}
 
 	// regression suite: /page/?gogh-test (editors only, never saves)
 	// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only toggle enqueuing a test script for capability-checked editors.
 	if ( isset( $_GET['gogh-test'] ) ) {
-		wp_enqueue_script( 'gogh-tests', plugins_url( 'gogh-tests.js', __FILE__ ), array( 'gogh-editor' ), '0.99.715-chrome', true );
+		wp_enqueue_script( 'gogh-tests', plugins_url( 'gogh-tests.js', __FILE__ ), array( 'gogh-editor' ), '0.99.716-chrome', true );
 	}
 	// the user-test walk: /?gogh-edit=1&gogh-walk=1 on a DISPOSABLE Yellow
 	// House (it publishes) — editors only, never shipped in the zip
 	// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only toggle for capability-checked editors.
 	if ( isset( $_GET['gogh-walk'] ) ) {
-		wp_enqueue_script( 'gogh-walk', plugins_url( 'gogh-walk.js', __FILE__ ), array( 'gogh-editor' ), '0.99.715-chrome', true );
+		wp_enqueue_script( 'gogh-walk', plugins_url( 'gogh-walk.js', __FILE__ ), array( 'gogh-editor' ), '0.99.716-chrome', true );
 	}
 
 	// products live outside wp/v2, so gogh carries its own save route for
@@ -7240,7 +7334,7 @@ add_action( 'wp_enqueue_scripts', function () {
 		'canHome'    => current_user_can( 'manage_options' ),
 		'permalink'  => esc_url_raw( get_permalink( $post->ID ) ),
 		'excerpt'    => (string) $post->post_excerpt,
-		'build'    => '0.99.715-chrome',
+		'build'    => '0.99.716-chrome',
 		// two rooms, one landmark (same contract as the admin bar): on a POST
 		// the corner pill opens the WRITING surface, not the freeform canvas
 		'writeUrl' => is_singular( 'post' ) ? add_query_arg( 'gogh-write', '1', get_permalink( $post ) ) : null,
@@ -7673,22 +7767,11 @@ add_action( 'admin_bar_menu', function ( $bar ) {
 			) );
 		}
 	}
-	// one thing beginners DO need from the old menu: a new page — and it
-	// goes straight into gogh
 	// which room is this? posts and the blog index are the WRITING room;
 	// everything else is the design studio — the bar only offers the verbs
 	// that belong to the room ("this is really the site designer")
 	$has_blog     = 'posts' === get_option( 'show_on_front' ) || (int) get_option( 'page_for_posts' ) > 0;
-	$plus         = '<svg class="gogh-ab-ic" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>';
 	$pen2         = '<svg class="gogh-ab-ic" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>';
-	$new_page = array(
-		'id'    => 'gogh-new-page',
-		'title' => $plus . 'New page',
-		// the front door: blank draft, canvas, first minute — the nameplate
-		// and the publish gate own naming now (the old name-first modal and
-		// its instantly-published empty page retired with them)
-		'href'  => admin_url( 'post-new.php?post_type=page' ),
-	);
 	$new_post = array(
 		'id'    => 'gogh-write',
 		'title' => $pen2 . 'New post',
@@ -7702,13 +7785,9 @@ add_action( 'admin_bar_menu', function ( $bar ) {
 	if ( is_home() && $has_blog && current_user_can( 'edit_posts' ) ) {
 		$bar->add_node( $new_post );
 	}
-	// New page rides only in the site menu now ("maybe lets remove this") —
-	// the bar on a page keeps a single door: Edit
-	// the safety net: both creations live quietly under the site name, so
-	// nothing is ever unreachable from the wrong room
-	if ( current_user_can( 'publish_pages' ) ) {
-		$bar->add_node( array_merge( $new_page, array( 'id' => 'gogh-new-page-menu', 'parent' => 'site-name' ) ) );
-	}
+	// New page left the site menu too (James: 'lets remove + page'): pages
+	// are made from the page switcher's Add a page, inside the editor. New
+	// post stays under the site name as the writing room's safety net
 	if ( $has_blog && current_user_can( 'edit_posts' ) ) {
 		$bar->add_node( array_merge( $new_post, array( 'id' => 'gogh-write-menu', 'parent' => 'site-name' ) ) );
 	}
@@ -7746,6 +7825,9 @@ add_action( 'admin_bar_menu', function ( $bar ) {
 	if ( is_admin() || ! is_user_logged_in() || ! $bar->get_node( 'site-name' ) ) {
 		return;
 	}
+	// one Dashboard, ours: it asks before leaving unpublished changes
+	// (James: 'we got 2 dashboard links')
+	$bar->remove_node( 'dashboard' );
 	$bar->add_group( array(
 		'id'     => 'gogh-account',
 		'parent' => 'site-name',

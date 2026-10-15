@@ -4,11 +4,11 @@ Everything in this section is extracted mechanically from the Gogh source on eve
 
 ## Current release
 
-- Plugin version: **0.99.715**
+- Plugin version: **0.99.716**
 - Requires WordPress **6.5+**, PHP **7.4+**
 - Text domain: `gogh-editor`
 - readme.txt Stable tag: `0.26.0` · Tested up to: `7.0`
-- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.715`). Quote the plugin header version.
+- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.716`). Quote the plugin header version.
 
 ## Design constants
 
@@ -121,6 +121,9 @@ Block: `gogh/section` · v3 attributes: `css`, `model`, `scope`, `v`, `cssT`.
 | `pre_render_block` | filter | 1 |
 | `render_block_woocommerce/product-collection` | filter | 10 |
 | `render_block_woocommerce/product-collection` | filter | 10 |
+| `save_post` | action | 1 |
+| `wp_footer` | action | 10 |
+| `query_loop_block_query_vars` | filter | 10 |
 | `wp_enqueue_scripts` | action | 10 |
 | `init` | action | 10 |
 | `body_class` | filter | 10 |
@@ -202,7 +205,7 @@ REST routes registered: `gogh/v1/version`, `gogh/v1/starter`, `gogh/v1/site-def`
 
 Core REST endpoints used by the editor: `wp/v2/blocks`, `wp/v2/categories`, `wp/v2/pages`, `wp/v2/posts`, `wp/v2/template-parts`.
 
-Capability checks in PHP: `edit_posts`, `edit_post`, `edit_theme_options`, `edit_others_posts`, `edit_products`, `manage_options`, `edit_pages`, `edit_css`, `upload_files`, `unfiltered_html`, `activate_plugins`, `install_plugins`, `manage_woocommerce`, `publish_pages`, `read`.
+Capability checks in PHP: `edit_posts`, `edit_post`, `edit_theme_options`, `edit_others_posts`, `edit_products`, `manage_options`, `edit_pages`, `edit_css`, `upload_files`, `unfiltered_html`, `activate_plugins`, `install_plugins`, `manage_woocommerce`, `read`.
 
 Query-string switches: `?gogh-edit`, `?gogh-ps`, `?gogh-test`.
 
@@ -585,5 +588,5 @@ These are the real strings in the current build. Use them verbatim; never paraph
 
 ## Test suite
 
-`356` tests, run by appending `?gogh-test` to any Gogh page URL while logged in with edit rights on that page.
+`357` tests, run by appending `?gogh-test` to any Gogh page URL while logged in with edit rights on that page.
 

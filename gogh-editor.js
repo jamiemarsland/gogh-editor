@@ -6267,7 +6267,9 @@
       '<div class="gogh-swlab">Products</div>' +
       chips('gogh-shop-count', [[3, '3'], [4, '4'], [6, '6'], [8, '8']], function (v) { return +v === +shop.count; }) +
       '<div class="gogh-swlab">Order</div>' +
-      radios('gogh-shop-order', [['date', 'Newest first'], ['popularity', 'Bestselling'], ['sale', 'On sale'], ['rand', 'A different set each visit']], shop.order) +
+      radios('gogh-shop-order', [['date', 'Newest first'], ['popularity', 'Bestselling'], ['sale', 'On sale'], ['recent', 'Recently viewed'], ['rand', 'A different set each visit']], shop.order) +
+      // Recently viewed is one shopper's: say what everyone else sees
+      '<div class="gogh-panel-hint gogh-shop-recent-hint"' + (shop.order === 'recent' ? '' : ' hidden') + '>Each shopper sees the products they last looked at. Until they have looked around, the newest show here, as they do now.</div>' +
       '<div class="gogh-swlab">Category</div>' +
       '<div class="gogh-panel-row"><select class="gogh-input gogh-shop-cat"><option value="">All products</option></select></div>' +
       '</div>' +
@@ -6295,6 +6297,8 @@
       // marks update IN PLACE — the panel stays open (the panels-stay-open law)
       panel.querySelectorAll('.gogh-shop-count .gogh-hpreset').forEach(function (b) { b.classList.toggle('is-active', +b.dataset.v === +shop.count); });
       panel.querySelectorAll('.gogh-shop-order .gogh-hopt').forEach(function (b) { b.classList.toggle('is-active', b.dataset.v === shop.order); });
+      var rh = panel.querySelector('.gogh-shop-recent-hint');
+      if (rh) rh.hidden = shop.order !== 'recent';
       panel.querySelectorAll('.gogh-shop-layout .gogh-hopt').forEach(function (b) { b.classList.toggle('is-active', b.dataset.v === shop.layout); });
       panel.querySelectorAll('.gogh-shop-show .gogh-hpreset').forEach(function (b) { b.classList.toggle('is-active', !!shop.show[b.dataset.v]); });
       panel.querySelectorAll('.gogh-shop-aspect .gogh-hpreset').forEach(function (b) { b.classList.toggle('is-active', b.dataset.v === shop.aspect); });
@@ -7989,6 +7993,7 @@
       var q = attrs.query || {};
       if (q.perPage) shop.count = +q.perPage;
       if (q.woocommerceOnSale) shop.order = 'sale';
+      else if (q.goghRecent || /gogh-shop-recent/.test(String(attrs.className || ''))) shop.order = 'recent';
       else if (q.orderBy === 'popularity' || q.orderBy === 'rand' || q.orderBy === 'title') shop.order = q.orderBy;
       if (q.taxQuery && q.taxQuery.product_cat && q.taxQuery.product_cat.length) shop.catId = +q.taxQuery.product_cat[0];
       if (attrs.displayLayout && attrs.displayLayout.type === 'list') shop.layout = 'list';
@@ -8025,11 +8030,13 @@
       search: '', exclude: [], inherit: false, taxQuery: shop.catId ? { product_cat: [shop.catId] } : {}, isProductCollectionBlock: true,
       woocommerceOnSale: shop.order === 'sale', woocommerceStockStatus: ['instock', 'outofstock', 'onbackorder'],
       woocommerceAttributes: [], woocommerceHandPickedProducts: picked };
+    if (shop.order === 'recent' && !picked.length) query.goghRecent = true; // gogh.php draws it per shopper
     var grid = shop.layout !== 'list';
     var cols = grid ? (count >= 4 ? (count % 4 === 0 ? 4 : 3) : Math.max(1, count)) : 1;
     var attrs = { query: query, tagName: 'div', dimensions: { widthType: 'fill', fixedWidth: '' },
       displayLayout: grid ? { type: 'flex', columns: cols } : { type: 'list' },
-      className: 'gogh-shop gogh-shop-' + (grid ? 'grid' : 'list') + ' gogh-shop-gap-' + (shop.spacing || 'm') };
+      className: 'gogh-shop gogh-shop-' + (grid ? 'grid' : 'list') + ' gogh-shop-gap-' + (shop.spacing || 'm') +
+        (shop.order === 'recent' && !picked.length ? ' gogh-shop-recent' : '') }; // drawn per shopper by gogh.php; newest until then
     var ratio = shop.aspect === 'portrait' ? '3/4' : shop.aspect === 'landscape' ? '4/3' : '1';
     var inner = '<!-- wp:woocommerce/product-image {"showSaleBadge":true,"isDescendentOfQueryLoop":true,"aspectRatio":"' + ratio + '"} -->' +
       '<!-- wp:woocommerce/product-sale-badge {"isDescendentOfQueryLoop":true,"align":"right"} /-->' +
@@ -21524,7 +21531,7 @@
     hydratePostsPreview: hydratePostsPreview,
     shopPreviewHTML: shopPreviewHTML,
     diceFamilyOf: diceFamilyOf,
-    shopDefaults: shopDefaults,
+    shopDefaults: shopDefaults, healRails: healRails,
     shopSampleHTML: shopSampleHTML,
     cardJoinTarget: cardJoinTarget,
     shapeRoom: shapeRoom,

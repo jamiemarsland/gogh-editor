@@ -1,12 +1,12 @@
 {
   "meta": {
-    "plugin_version": "0.99.715",
+    "plugin_version": "0.99.716",
     "requires_wp": "6.5",
     "requires_php": "7.4",
     "text_domain": "gogh-editor",
     "readme_stable_tag": "0.26.0",
     "readme_tested_up_to": "7.0",
-    "asset_version": "0.99.715-chrome"
+    "asset_version": "0.99.716-chrome"
   },
   "constants": {
     "TOL": 8,
@@ -1029,6 +1029,21 @@
       },
       {
         "kind": "action",
+        "hook": "save_post",
+        "priority": 1
+      },
+      {
+        "kind": "action",
+        "hook": "wp_footer",
+        "priority": 10
+      },
+      {
+        "kind": "filter",
+        "hook": "query_loop_block_query_vars",
+        "priority": 10
+      },
+      {
+        "kind": "action",
         "hook": "wp_enqueue_scripts",
         "priority": 10
       },
@@ -1446,7 +1461,6 @@
       "activate_plugins",
       "install_plugins",
       "manage_woocommerce",
-      "publish_pages",
       "read"
     ],
     "query_switches": [
@@ -1539,5 +1553,5 @@
     "has_deprecation": true,
     "block_title": "gogh Section"
   },
-  "test_count": 356
+  "test_count": 357
 }

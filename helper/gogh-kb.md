@@ -15,7 +15,7 @@ about something where they conflict, rather than picking one silently. Quote UI
 labels and message copy from the appendix, verbatim — those are the current
 strings, and a paraphrased button label is the fastest way to lose a user's trust.
 
-Generated for plugin version 0.99.715 · knowledge base 91abb0e.
+Generated for plugin version 0.99.716 · knowledge base eea3919.
 
 ---
 
@@ -830,6 +830,8 @@ The helper's welcome panel opens with a 35-second film of gogh being used (v0.99
 
 **The phone view survives navigation (v0.99.605).** Press one of your own pages while on the phone and it opens in the editor, still on the phone: the link carries `gogh-edit=1&gogh-phone=1`, the next page reads them at boot and strips them from the address. Other sites, files, wp-admin and anchors on the same page are left alone. Unpublished changes still ask before leaving.
 
+**Recently viewed, and a tidier site menu (v0.99.716).** A product grid's **Order** now offers **Recently viewed**: each shopper sees the products they last looked at, most recent first, topped up with your newest products. Until a shopper has looked around, the grid shows your newest products, so it never sits empty. If the grid is narrowed to a category, only products from that category show. gogh remembers the last twelve products a shopper viewed in a small cookie for 30 days, and only once a published page uses Recently viewed. A page drawn for one shopper is never kept by a page cache. The menu under your site name in the top bar now has one **Dashboard** link and no **New page**: make pages with **Add a page** in the page switcher.
+
 **The piece you are editing stands out (v0.99.715).** When a shop grid, product categories, a posts grid, an FAQ, tabs or a slideshow opens its panel on the left, the rest of the page fades back under a soft wash of its own background colour. The piece the panel changes stays clear, with a ring and the panel's name on it, so it is plain what you are changing. The wash is only a look: click anywhere on the page to close the panel and pick what you clicked.
 
 **Click the page to leave any sidebar (v0.99.714).** Whatever is open down the left (Site styles, Colours, Fonts, Text size, Page style, Motion, History, Add a page, the header or footer room, or a long panel such as a shop or posts grid), a click on the page closes it, the page eases back to full size, and what you clicked is chosen, ready to edit. It works the same as pressing Esc. A click on the thing the sidebar is about keeps it open: the header while you are editing the header, the grid while its panel is open.
@@ -1039,11 +1041,11 @@ Everything in this section is extracted mechanically from the Gogh source on eve
 
 ## Current release
 
-- Plugin version: **0.99.715**
+- Plugin version: **0.99.716**
 - Requires WordPress **6.5+**, PHP **7.4+**
 - Text domain: `gogh-editor`
 - readme.txt Stable tag: `0.26.0` · Tested up to: `7.0`
-- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.715`). Quote the plugin header version.
+- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.716`). Quote the plugin header version.
 
 ## Design constants
 
@@ -1156,6 +1158,9 @@ Block: `gogh/section` · v3 attributes: `css`, `model`, `scope`, `v`, `cssT`.
 | `pre_render_block` | filter | 1 |
 | `render_block_woocommerce/product-collection` | filter | 10 |
 | `render_block_woocommerce/product-collection` | filter | 10 |
+| `save_post` | action | 1 |
+| `wp_footer` | action | 10 |
+| `query_loop_block_query_vars` | filter | 10 |
 | `wp_enqueue_scripts` | action | 10 |
 | `init` | action | 10 |
 | `body_class` | filter | 10 |
@@ -1237,7 +1242,7 @@ REST routes registered: `gogh/v1/version`, `gogh/v1/starter`, `gogh/v1/site-def`
 
 Core REST endpoints used by the editor: `wp/v2/blocks`, `wp/v2/categories`, `wp/v2/pages`, `wp/v2/posts`, `wp/v2/template-parts`.
 
-Capability checks in PHP: `edit_posts`, `edit_post`, `edit_theme_options`, `edit_others_posts`, `edit_products`, `manage_options`, `edit_pages`, `edit_css`, `upload_files`, `unfiltered_html`, `activate_plugins`, `install_plugins`, `manage_woocommerce`, `publish_pages`, `read`.
+Capability checks in PHP: `edit_posts`, `edit_post`, `edit_theme_options`, `edit_others_posts`, `edit_products`, `manage_options`, `edit_pages`, `edit_css`, `upload_files`, `unfiltered_html`, `activate_plugins`, `install_plugins`, `manage_woocommerce`, `read`.
 
 Query-string switches: `?gogh-edit`, `?gogh-ps`, `?gogh-test`.
 
@@ -1620,4 +1625,4 @@ These are the real strings in the current build. Use them verbatim; never paraph
 
 ## Test suite
 
-`356` tests, run by appending `?gogh-test` to any Gogh page URL while logged in with edit rights on that page.
+`357` tests, run by appending `?gogh-test` to any Gogh page URL while logged in with edit rights on that page.
