@@ -15,7 +15,7 @@ about something where they conflict, rather than picking one silently. Quote UI
 labels and message copy from the appendix, verbatim — those are the current
 strings, and a paraphrased button label is the fastest way to lose a user's trust.
 
-Generated for plugin version 0.99.725 · knowledge base 664cdeb.
+Generated for plugin version 0.99.726 · knowledge base 6a2ab72.
 
 ---
 
@@ -830,6 +830,8 @@ The helper's welcome panel opens with a 35-second film of gogh being used (v0.99
 
 **The phone view survives navigation (v0.99.605).** Press one of your own pages while on the phone and it opens in the editor, still on the phone: the link carries `gogh-edit=1&gogh-phone=1`, the next page reads them at boot and strips them from the address. Other sites, files, wp-admin and anchors on the same page are left alone. Unpublished changes still ask before leaving.
 
+**Index, a third new look for the shop page (v0.99.726).** The top bar's **Shop layout** menu now also offers **Index**: the shop page set out like a magazine's contents page, every product's name in large type, numbered, with its price at the end of the line. On a computer, hovering a name brings it forward in italics, fades the others, and floats that product's picture beside the pointer; click to open it. On a phone each line starts with a small picture. Category buttons, sorting and page numbers work as usual.
+
 **Showroom fixes (v0.99.725).** On the Showroom shop page the big picture no longer goes blank now and then (a picture the browser already had could be shown and then hidden again), every picture fills the frame, and each product's price sits beside its name instead of above it. Hovering **Showroom** or **Aisles** in the top bar's **Shop layout** menu now previews the real thing (the big picture, the sideways rows) instead of a long column of large pictures.
 
 **Aisles, another look for the shop page (v0.99.724).** The top bar's **Shop layout** menu now also offers **Aisles**: the shop page is laid out category by category, like walking the aisles of a real shop. Each category gets its own band with its name, a line about it (its description), a link to all of it, and a row of its newest products you swipe or drag sideways. On a computer, two arrows beside each band scroll its row, and they only appear when there is more to see. Buttons under the page title jump straight to each aisle. On a category page, Aisles walks through that category's sub-categories; a category without sub-categories shows the Editorial look instead.
@@ -1059,11 +1061,11 @@ Everything in this section is extracted mechanically from the Gogh source on eve
 
 ## Current release
 
-- Plugin version: **0.99.725**
+- Plugin version: **0.99.726**
 - Requires WordPress **6.5+**, PHP **7.4+**
 - Text domain: `gogh-editor`
 - readme.txt Stable tag: `0.26.0` · Tested up to: `7.0`
-- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.725`). Quote the plugin header version.
+- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.726`). Quote the plugin header version.
 
 ## Design constants
 

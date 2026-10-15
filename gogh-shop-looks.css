@@ -351,3 +351,12 @@
   .gogh-shoplook-aisles .wc-block-components-product-image img { transition: none; }
 }
 .gogh-shop-head .gogh-aisle-jump { margin-inline: 0 !important; max-width: none !important; }
+
+/* ---------- the Index shop page ---------- */
+.gogh-shoplook-index { margin-top: 0.5rem; }
+.gogh-shoplook-index .wp-block-query-pagination { margin-top: 2rem !important; }
+/* the price's own block is the row's third cell (the grid's version names the inner one) */
+.gogh-shoplook-index .wc-block-product-template > li > .wp-block-woocommerce-product-price { grid-column: 3; margin: 0 !important; white-space: nowrap; }
+@media (hover: none), (pointer: coarse) {
+  .gogh-shop-index .wp-block-post-title { font-size: clamp(1.25rem, 0.9rem + 2.6vw, 1.8rem) !important; line-height: 1.12 !important; }
+}
