@@ -3512,7 +3512,7 @@
     var t = ev.target, page = document.querySelector('.wp-site-blocks');
     if (!t || !t.closest || !page || !page.contains(t)) return;
     if (t.closest('.gogh-side, .gogh-panel, .gogh-elbar, .gogh-rail, #wpadminbar, .gogh-zoomslider, .gogh-helpsheet')) return;
-    if (longPanelFor && longPanelFor.sec.nodes[longPanelFor.i] && longPanelFor.sec.nodes[longPanelFor.i].contains(t)) return;
+    if (longPanelFor && longPanelNode() && longPanelNode().contains(t)) return;
     if (panel.dataset.goghArea && t.closest('.gogh-chrome-spotlight')) return;
     if (panel.dataset.goghLayoutsFor && t.closest('.' + panel.dataset.goghLayoutsFor)) return; // the section being laid out
     closeSideAt(ev.clientY, leaveSidebarForPage);
@@ -5692,6 +5692,12 @@
   // you think the woo design / products should open in the sidebar?'):
   // floating, it covered the grid it was changing and ran off the screen
   var longPanelFor = null;
+  // what a docked long panel is about: one piece, or (i = -1) a whole section
+  function longPanelNode() {
+    if (!longPanelFor) return null;
+    var lp = longPanelFor;
+    return lp.i < 0 ? (lp.sec.sectionEl || lp.sec.wrapEl) : lp.sec.nodes[lp.i];
+  }
   function isLongPanel(e) {
     return !!(e && e.type === 'widget' && (e.shop || e.posts || (e.faq && e.faq.length) || (e.tabs && e.tabs.length) || (e.slides && e.slides.length) || (e.wall && e.wall.length)));
   }
@@ -5706,12 +5712,12 @@
     dockSidebar();
     panel.classList.add('gogh-panel-long');
     longPanelFor = { sec: sec, i: i };
-    showFocusVeil(title);
+    showFocusVeil(i < 0 ? secDisplayName(sec) : title);
     zoomOutCanvas(); // fitted beside the panel (and beside help, if it is open)
     // zooming starts from the top of the page: bring the piece back in view
     setTimeout(function () {
       if (!longPanelFor || longPanelFor.sec !== sec || longPanelFor.i !== i) return;
-      var node = sec.nodes[i];
+      var node = i < 0 ? sec.sectionEl : sec.nodes[i];
       if (!node) return;
       // the piece with its section's heading above it when the whole section
       // fits beside the panel, else the piece itself
@@ -5745,7 +5751,7 @@
   function placeFocusVeil() {
     var f = focusVeil;
     if (!f) return;
-    var node = longPanelFor && panelOpen && !panel.hidden && longPanelFor.sec.nodes[longPanelFor.i];
+    var node = panelOpen && !panel.hidden && longPanelNode();
     if (!node || !node.isConnected) { hideFocusVeil(); return; }
     var r = node.getBoundingClientRect(), pad = 6;
     var x = Math.round(r.left - pad), y = Math.round(r.top - pad), w = Math.round(r.width + pad * 2), h = Math.round(r.height + pad * 2);
@@ -13985,7 +13991,53 @@
     face = ((face % faces.length) + faces.length) % faces.length;
     return (faces[face] && faces[face].take) || (face === 0 ? 'The original' : '');
   }
-  function hideSecBar() { goghFadeOut(secBar); secBarIdx = null; closeSecMore(); clearTimeout(hoverSecT); }
+  // a section's name as a person would say it: its headline, else its
+  // design's name, else its place on the page
+  function secDisplayName(sec) {
+    if (!sec) return 'Section';
+    if (sec.chrome) return sec.chrome === 'footer' ? 'Footer' : 'Header';
+    var h = diceFlatten(sec.els || []).filter(function (e) { return e.type === 'heading' && e.text; })[0];
+    var txt = h ? String(h.text).replace(/<[^>]*>/g, ' ').replace(/&nbsp;|\s+/g, ' ').replace(/&amp;/g, '&').trim() : '';
+    if (txt) return txt.length > 36 ? txt.slice(0, 34).replace(/\s+\S*$/, '') + '\u2026' : txt;
+    var fam = diceFamilyOf(sec);
+    if (fam) return fam;
+    var n = S.filter(function (x) { return !x.chrome; }).indexOf(sec);
+    return 'Section ' + (n + 1);
+  }
+  // the section under the hand, made plain (James, after Albers: 'gives
+  // users visual feedback when hovering that the section is the core mental
+  // model'): a thin ring and its name on the top-right corner, riding with
+  // the section bar. No wash and no mode bar: in gogh you edit by clicking
+  // the thing itself
+  var secTag = document.createElement('div');
+  secTag.className = 'gogh-sectag';
+  secTag.setAttribute('aria-hidden', 'true');
+  secTag.hidden = true;
+  document.body.appendChild(secTag);
+  var hoverSecEl = null;
+  function showSecHover(idx) {
+    var sec = S[idx];
+    var el = sec && sec.sectionEl;
+    if (hoverSecEl && hoverSecEl !== el) hoverSecEl.classList.remove('gogh-hoversec');
+    hoverSecEl = el || null;
+    if (!el) { secTag.hidden = true; return; }
+    el.classList.add('gogh-hoversec');
+    var name = secDisplayName(sec);
+    if (secTag.textContent !== name) secTag.textContent = name;
+    secTag.hidden = false;
+    var r = el.getBoundingClientRect();
+    var top = Math.max(r.top - 11, barBottom() + 6);
+    var off = top > r.bottom - 30;
+    secTag.classList.toggle('is-off', off);
+    secTag.style.top = Math.round(top + window.scrollY) + 'px';
+    secTag.style.left = Math.round(r.right + window.scrollX - secTag.offsetWidth - 16) + 'px';
+  }
+  function hideSecHover() {
+    if (hoverSecEl) hoverSecEl.classList.remove('gogh-hoversec');
+    hoverSecEl = null;
+    secTag.hidden = true;
+  }
+  function hideSecBar() { goghFadeOut(secBar); secBarIdx = null; closeSecMore(); clearTimeout(hoverSecT); hideSecHover(); }
   // The corners come when the pointer enters a section and go when it
   // leaves (a short grace so the trip from the section to its own corner
   // does not lose them), and a SELECTED section keeps them whatever the
@@ -14080,6 +14132,7 @@
     secBar.style.left = (r.left + window.scrollX + 16) + 'px';
     secBar.style.top = Math.round(t2) + 'px';
     secBar.hidden = false;
+    showSecHover(idx);
     // don't sit on the Edit header/footer pill — duck below it; and a
     // transparent/sticky header FLOATS over the first section — the bar
     // must not dress itself as header furniture ("the section pill
@@ -16124,7 +16177,12 @@
         '<button type="button" class="gogh-btn gogh-btn-small gogh-vid-apply">Apply</button>' +
         '</div>');
       '</div>';
-    dockPanel();
+    // it docks in the sidebar beside the fitted page (James: 'should section
+    // backgrounds appear in the sidebar'): the whole section stays in view
+    // while its colours are tried, the rest of the page washed back. On a
+    // phone-sized preview it stays the floating inspector
+    if (deviceMode !== 'phone') { hideSecBar(); dockLongPanel(secx, -1); }
+    else dockPanel();
     bindTransitionRow(secx);
     // one question at a time: opening a row folds the others; the summary
     // values follow every click so the folded state stays truthful
@@ -22161,6 +22219,7 @@
     buildV3: function () { return realSections().map(buildSectionBlocksV3).join('\n\n'); },
     mergeContent: mergeContent,
     closePanel: closePanel,
+    showSecBar: function (i) { showSecBar(i); }, hideSecBar: function () { hideSecBar(); }, secDisplayName: secDisplayName,
     addElementAt: addElementAtViewport,
     addElementToSection: addElementToSection,
     composeFeaturedProduct: composeFeaturedProduct,

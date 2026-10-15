@@ -4578,6 +4578,32 @@
       return 'a video rides the die like a picture';
     });
 
+    test('a hovered section shows a ring and its name; its background docks in the sidebar', function () {
+      G.addSection({ title: 'HOVERDOCK', minH: 300, els: [ { type: 'heading', x: 72, y: 48, w: 600, h: 60, text: 'Ring and name' } ] }, G.sections().length);
+      var c = contentSecs();
+      var s = c[c.length - 1];
+      var idx = G.sections().indexOf(s);
+      s.wrapEl.scrollIntoView({ block: 'center' });
+      expect(G.secDisplayName(s) === 'Ring and name', 'the name should be the headline, got ' + G.secDisplayName(s));
+      G.showSecBar(idx);
+      var tag = q('.gogh-sectag');
+      expect(s.sectionEl.classList.contains('gogh-hoversec'), 'the hovered section should wear the ring');
+      expect(tag && !tag.hidden && tag.textContent === 'Ring and name', 'the tag should name the section');
+      G.hideSecBar();
+      expect(!s.sectionEl.classList.contains('gogh-hoversec') && tag.hidden, 'the ring and tag should go with the bar');
+      G.openSecBgPanel(idx);
+      var panel = q('.gogh-panel');
+      expect(!panel.hidden && panel.classList.contains('gogh-panel-sidebar'), 'Section background should dock in the sidebar');
+      expect(panel.querySelector('.gogh-panel-x'), 'a docked panel should have its close button');
+      var veil = q('.gogh-focusveil-tag');
+      expect(veil && veil.textContent === 'Ring and name', 'the focus ring should name the section');
+      expect(panel.querySelectorAll('.gogh-themechip').length > 3, 'the colour styles should be there');
+      G.closePanel();
+      expect(panel.hidden && !q('.gogh-focusveil'), 'closing should take the panel and the wash away');
+      G.deleteSection(idx);
+      return 'ring, name, docked background';
+    });
+
     test('the Layouts panel shows every take and picks one in place', function () {
       var tpls = G.templates(), fam = null, faces = null;
       for (var k = 0; k < tpls.length && !fam; k++) {

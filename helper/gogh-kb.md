@@ -15,7 +15,7 @@ about something where they conflict, rather than picking one silently. Quote UI
 labels and message copy from the appendix, verbatim — those are the current
 strings, and a paraphrased button label is the fastest way to lose a user's trust.
 
-Generated for plugin version 0.99.732 · knowledge base 7da00d0.
+Generated for plugin version 0.99.733 · knowledge base 276d6ae.
 
 ---
 
@@ -830,6 +830,8 @@ The helper's welcome panel opens with a 35-second film of gogh being used (v0.99
 
 **The phone view survives navigation (v0.99.605).** Press one of your own pages while on the phone and it opens in the editor, still on the phone: the link carries `gogh-edit=1&gogh-phone=1`, the next page reads them at boot and strips them from the address. Other sites, files, wp-admin and anchors on the same page are left alone. Unpublished changes still ask before leaving.
 
+**Sections you can see, and backgrounds in the sidebar (v0.99.733).** When you move over a section while editing, a thin blue line now traces its edges and its name sits on its top-right corner: the section's headline, or its design's name when it has none. It comes and goes with the section bar, so it steps back while you work on a piece. **Background** in the section bar now opens Section background in the sidebar on the left, with the page zoomed out beside it, so the whole section stays in view while you try colours and pictures; the rest of the page is washed back and the section is ringed and named. Clicking inside that section keeps the panel open; clicking anywhere else, or ✕, closes it. In the phone preview it still floats.
+
 **Sizes on shop cards (v0.99.732).** In a grid of products, a product that comes in sizes (one choice, up to six options) now shows its sizes as small buttons on its card, above the Add to cart button. Pick one and the card's price changes to that size's price; press Add to cart and it goes straight into the cart without leaving the page, and the cart in your header counts it. Before a size is picked the button says "Choose a size" and points to the sizes when pressed. The picked size uses your site's button colour and the sizes line up with the button. Products with more than one thing to choose, or more than six sizes, keep WooCommerce's "Select options" link to the product page. It works in the Lookbook too. To show no buttons at all, turn off Add to cart in the shop panel.
 
 **A tidier add to cart (v0.99.731).** On a product page, gogh now dresses WooCommerce's add to cart form to match your site. A product's options, such as sizes, show as buttons you tap instead of a "Choose an option" dropdown (a list longer than twelve stays a dropdown, styled to match). The quantity has − and + buttons and stands as tall as the Add to cart button beside it. Until a size is picked, the button says what it needs, such as "Choose a size", instead of fading out; pressing it then points to the sizes instead of showing an alert. The price at the top changes to the chosen size's price instead of a second price appearing below. The chosen button uses your site's button colour, and the corners follow your button's corners. WooCommerce still does all the work underneath, so stock, prices and the cart behave exactly as before.
@@ -1073,11 +1075,11 @@ Everything in this section is extracted mechanically from the Gogh source on eve
 
 ## Current release
 
-- Plugin version: **0.99.732**
+- Plugin version: **0.99.733**
 - Requires WordPress **6.5+**, PHP **7.4+**
 - Text domain: `gogh-editor`
 - readme.txt Stable tag: `0.26.0` · Tested up to: `7.0`
-- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.732`). Quote the plugin header version.
+- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.733`). Quote the plugin header version.
 
 ## Design constants
 
@@ -1662,4 +1664,4 @@ These are the real strings in the current build. Use them verbatim; never paraph
 
 ## Test suite
 
-`363` tests, run by appending `?gogh-test` to any Gogh page URL while logged in with edit rights on that page.
+`364` tests, run by appending `?gogh-test` to any Gogh page URL while logged in with edit rights on that page.
