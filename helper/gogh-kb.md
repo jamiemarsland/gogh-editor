@@ -15,7 +15,7 @@ about something where they conflict, rather than picking one silently. Quote UI
 labels and message copy from the appendix, verbatim — those are the current
 strings, and a paraphrased button label is the fastest way to lose a user's trust.
 
-Generated for plugin version 0.99.722 · knowledge base 2db0d01.
+Generated for plugin version 0.99.723 · knowledge base 2296c8f.
 
 ---
 
@@ -830,6 +830,8 @@ The helper's welcome panel opens with a 35-second film of gogh being used (v0.99
 
 **The phone view survives navigation (v0.99.605).** Press one of your own pages while on the phone and it opens in the editor, still on the phone: the link carries `gogh-edit=1&gogh-phone=1`, the next page reads them at boot and strips them from the address. Other sites, files, wp-admin and anchors on the same page are left alone. Unpublished changes still ask before leaving.
 
+**Showroom, a new look for the shop page (v0.99.723).** On the shop page, the top bar's **Shop layout** menu now offers **Showroom**: one big product picture holds still on the left while a calm list of your products scrolls beside it, each with its name, a line about it and its price. The product you hover over, or the one you scroll to the middle of the screen, takes the big picture with a soft crossfade, and a small label on the picture shows its name and price. Click a product, or the picture, to open it. Category buttons, sorting and page numbers work as usual. On phones it becomes one column with each picture above its name. The Violet Hour blueprint's shop page now uses it.
+
 **Shop panels stay in the sidebar (v0.99.722).** Choosing **Shop the photo**, adding a hand-picked product, or opening the photo library in a shop grid's panel used to pull the panel off the left-hand sidebar and float it over the page. It now stays docked on the left, with the page beside it.
 
 **Shop the photo (v0.99.721).** A product grid has a new layout, **Shop the photo**: one picture, such as a candle-lit table or a styled shelf, with a small dot on each product in it. Visitors hover over, tap or tab to a dot and that product's card opens beside it with its picture, name, price and Add to cart. On a phone the card slides across the foot of the photo. To set one up, choose **Layout › Shop the photo** in the grid's panel, then **Choose a photo** from your media library, and type the names of the products that appear in it under **Products in the photo**. Each product gets a dot with its name on it: drag each dot onto its product in the picture. In the editor the photo is shown still; the cards open on your published page. The Violet Hour blueprint has one on its home page, "An evening, set".
@@ -1053,11 +1055,11 @@ Everything in this section is extracted mechanically from the Gogh source on eve
 
 ## Current release
 
-- Plugin version: **0.99.722**
+- Plugin version: **0.99.723**
 - Requires WordPress **6.5+**, PHP **7.4+**
 - Text domain: `gogh-editor`
 - readme.txt Stable tag: `0.26.0` · Tested up to: `7.0`
-- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.722`). Quote the plugin header version.
+- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.723`). Quote the plugin header version.
 
 ## Design constants
 

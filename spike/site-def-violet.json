@@ -1326,7 +1326,7 @@
   }
  ],
  "shop": {
-  "layout": "editorial",
+  "layout": "showroom",
   "category": "editorial",
   "product": "gogh-product-story"
  },

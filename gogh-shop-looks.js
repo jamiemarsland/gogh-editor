@@ -373,10 +373,66 @@
     root.classList.add('gogh-photo-ready');
   }
 
+  // ---------- the Showroom shop page ----------
+  // one big picture holds still beside a calm list; the product under the
+  // pointer, or the one scrolled to the middle of the screen, takes it.
+  // The list is Woo's own; the picture only reads it
+  function showroom(root) {
+    var stage = root.querySelector('.gogh-showroom-stage');
+    var ul = root.querySelector('.gogh-shoplook-showroom .wc-block-product-template');
+    if (!stage || !ul || root.classList.contains('gogh-showroom-ready')) return;
+    var items = [].filter.call(ul.children, function (li) { return li.tagName === 'LI' && li.querySelector('img'); });
+    if (!items.length) return;
+    stage.innerHTML = '<img class="gogh-showroom-img" alt="" /><img class="gogh-showroom-img" alt="" /><a class="gogh-showroom-cap" href="#"><span class="gogh-showroom-name"></span><span class="gogh-showroom-price"></span></a>';
+    var imgs = stage.querySelectorAll('.gogh-showroom-img'), front = 0, active = null;
+    var cap = stage.querySelector('.gogh-showroom-cap');
+    function pick(li) {
+      if (li === active) return;
+      if (active) active.classList.remove('is-active');
+      active = li;
+      li.classList.add('is-active');
+      var src = li.querySelector('img'), link = li.querySelector('.wp-block-post-title a');
+      var next = imgs[1 - front];
+      next.onload = function () {
+        next.classList.add('is-on');
+        imgs[front].classList.remove('is-on');
+        front = 1 - front;
+      };
+      if (src.srcset) { next.srcset = src.srcset; next.sizes = '50vw'; } else next.removeAttribute('srcset');
+      next.src = src.currentSrc || src.src;
+      if (next.complete && next.naturalWidth) next.onload();
+      var price = li.querySelector('.wc-block-components-product-price');
+      cap.querySelector('.gogh-showroom-name').textContent = link ? link.textContent.trim() : '';
+      cap.querySelector('.gogh-showroom-price').textContent = price ? price.textContent.replace(/\s+/g, ' ').trim() : '';
+      cap.href = link ? link.href : '#';
+      stage.style.cursor = link ? 'pointer' : '';
+    }
+    var hover = window.matchMedia && window.matchMedia('(hover: hover) and (pointer: fine)').matches;
+    items.forEach(function (li) {
+      if (hover) li.addEventListener('pointerenter', function () { pick(li); });
+      li.addEventListener('focusin', function () { pick(li); });
+    });
+    // scrolling past: whichever product crosses the middle of the screen
+    if (window.IntersectionObserver) {
+      var io = new IntersectionObserver(function (es) {
+        es.forEach(function (en) { if (en.isIntersecting) pick(en.target); });
+      }, { rootMargin: '-45% 0px -45% 0px' });
+      items.forEach(function (li) { io.observe(li); });
+    }
+    stage.addEventListener('click', function (ev) {
+      if (ev.target.closest('.gogh-showroom-cap') || !active) return;
+      var link = active.querySelector('.wp-block-post-title a');
+      if (link) link.click();
+    });
+    pick(items[0]);
+    root.classList.add('gogh-showroom-ready');
+  }
+
   function run() {
     [].forEach.call(document.querySelectorAll('.gogh-shop-book'), lookbook);
     [].forEach.call(document.querySelectorAll('.gogh-shop-index'), index);
     [].forEach.call(document.querySelectorAll('.gogh-shop-photo'), photo);
+    [].forEach.call(document.querySelectorAll('.gogh-showroom'), showroom);
   }
   // now, not on DOMContentLoaded: this prints after the grids, and module
   // scripts (the Interactivity API) run before DOMContentLoaded fires
