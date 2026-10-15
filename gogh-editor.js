@@ -8613,12 +8613,20 @@
   }
   // the best readable ink from the palette for a given ground — roles
   // first, whole palette when the family can't reach the floor
+  // a palette colour as the page draws it NOW. themePalette() reads the
+  // stylesheet the page loaded with; a Site style or Remix being tried (or
+  // just applied) lives in a later one, and judging by the old values
+  // picked inks that vanished (Twilight: a heading flipped to near-black
+  // on near-black, 1.16:1)
+  function paletteRgb(p) {
+    return cssToRgb('var(--wp--preset--color--' + p.slug + ')') || cssToRgb(p.value);
+  }
   function sentinelBestInk(bgL) {
     var roles = paletteRoles();
     var best = null, bestC = 0;
     var consider = function (list) {
       list.forEach(function (p) {
-        var rgb = cssToRgb(p.value);
+        var rgb = paletteRgb(p);
         if (!rgb) return;
         var c = sentinelContrast(sentinelLum(rgb), bgL);
         if (c > bestC) { bestC = c; best = p.slug; }
@@ -8718,7 +8726,7 @@
         var best = null, bestC = 0;
         var consider = function (list) {
           list.forEach(function (p) {
-            var rgb = cssToRgb(p.value);
+            var rgb = paletteRgb(p);
             if (!rgb) return;
             var c = sentinelContrast(sentinelLum(rgb), bgL);
             if (c > bestC) { bestC = c; best = p.slug; }
@@ -15345,7 +15353,7 @@
       // tried (or just applied) lives in a later stylesheet, and the loaded
       // one still names the old colours (Midnight's accent sections were
       // inked against the old palette, 1.09:1)
-      var prgb = cssToRgb('var(--wp--preset--color--' + p.slug + ')') || cssToRgb(p.value);
+      var prgb = paletteRgb(p);
       if (!prgb) return;
       var c = sentinelContrast(sentinelLum(prgb), bgL);
       if (c > bestC) { bestC = c; best = p.slug; }
@@ -15493,31 +15501,69 @@
     var roles = rolesIn || paletteRoles();
     var bgS = roles.bgSlug, txS = roles.textSlug;
     if (!bgS || !txS) return [];
-    var out = [
-      { slug: 'paper', name: 'Paper', bg: v(bgS), ink: txS },
-      { slug: 'mist', name: 'Mist', bg: 'color-mix(in srgb, ' + v(txS) + ' 6%, ' + v(bgS) + ')', ink: txS },
-      { slug: 'ink', name: 'Ink', bg: v(txS), ink: bgS },
-    ];
     // accents: the theme's own extra colours, in its declared order —
-    // skipping the roles and structural entries (borders and the like)
-    // the theme's own extra colours: never the ground or the ink, and never
-    // the conventionally structural names either — on TT5 Morning the ink
-    // is accent-4, which left "contrast" looking like an accent
-    var accents = pal.filter(function (p) {
+    // never the ground or the ink, and never the conventionally structural
+    // names either (on TT5 Morning the ink is accent-4, which left
+    // "contrast" looking like an accent)
+    var extras = pal.filter(function (p) {
       return p.slug !== bgS && p.slug !== txS && !/^border|^shadow|gray$/.test(p.slug) &&
         !/^(base|contrast|background|foreground|main|text)$/.test(p.slug);
-    }).slice(0, 2);
+    });
+    // a real colour leads: a numbered palette (Purple) lists a near-black
+    // first, which made Bright 1 black and the accent headings black too.
+    // Saturated, not near-black or near-white, in the theme's own order;
+    // the old order when a palette has no such colour
+    var chroma = extras.filter(function (p) {
+      var c = paletteRgb(p);
+      if (!c) return false;
+      var mx = Math.max(c[0], c[1], c[2]) / 255, mn = Math.min(c[0], c[1], c[2]) / 255, l = (mx + mn) / 2;
+      var sat = mx === mn ? 0 : (mx - mn) / (1 - Math.abs(2 * l - 1));
+      return sat >= 0.2 && l > 0.12 && l < 0.9;
+    });
+    var accents = (chroma.length ? chroma.concat(extras.filter(function (p) { return chroma.indexOf(p) === -1; })) : extras).slice(0, 2);
+    // SECTION THEMES, named by how light they are (James: 'build the section
+    // themes', from the Section Editing Modes paper): Lightest, Light, Dark,
+    // Darkest, each a 1 and, where the accent reads on it, a 2 with accent
+    // headings; Bright from the accents. All drawn from the site palette by
+    // role, so changing the palette recolours every section. A theme is
+    // offered only where its words read (4.5:1) and its headings (3:1),
+    // measured from the colours the page draws now. The slugs keep their
+    // old names (paper, mist, ink): sections and Remix's rhythm use them
+    var rd = function (fg, bg2) {
+      var a1 = cssToRgb(fg), b1 = cssToRgb(bg2);
+      return (a1 && b1) ? sentinelContrast(sentinelLum(a1), sentinelLum(b1)) : 21;
+    };
+    var bgRgb = cssToRgb(v(bgS)), txRgb = cssToRgb(v(txS));
+    var lightSite = !bgRgb || !txRgb || sentinelLum(bgRgb) >= sentinelLum(txRgb);
+    var acc = accents[0] ? accents[0].slug : null;
+    var NAMES = ['Lightest', 'Light', 'Dark', 'Darkest'];
+    var grounds = [
+      { slug: 'paper', bg: v(bgS), ink: txS, rank: lightSite ? 0 : 3 },
+      { slug: 'mist', bg: 'color-mix(in srgb, ' + v(txS) + ' 6%, ' + v(bgS) + ')', ink: txS, rank: lightSite ? 1 : 2 },
+      { slug: 'deep', bg: 'color-mix(in srgb, ' + v(txS) + ' 84%, ' + v(bgS) + ')', ink: bgS, rank: lightSite ? 2 : 1 },
+      { slug: 'ink', bg: v(txS), ink: bgS, rank: lightSite ? 3 : 0 },
+    ].sort(function (x, y) { return x.rank - y.rank; });
+    var groundThemes = function (dark) {
+      var list = [];
+      grounds.forEach(function (g) {
+        if ((g.rank >= 2) !== dark || rd(v(g.ink), g.bg) < 4.5) return;
+        var nm = NAMES[g.rank], grp = dark ? 'dark' : 'light';
+        list.push({ slug: g.slug, name: nm + ' 1', group: grp, bg: g.bg, ink: g.ink });
+        if (acc && rd(v(acc), g.bg) >= 3) list.push({ slug: g.slug + '-2', name: nm + ' 2', group: grp, bg: g.bg, ink: g.ink, head: acc });
+      });
+      return list;
+    };
+    var out = groundThemes(false);
     accents.forEach(function (p, k) {
       // a solid accent ground carries body text, which needs 4.5:1; when no
       // ink reaches it (a mid-tone accent, kept exact for its buttons) only
       // the soft version is offered
       var aInk = bestInkFor(v(p.slug));
-      var aRgb = cssToRgb(v(p.slug)), iRgb = cssToRgb(v(aInk));
-      var aReads = !aRgb || !iRgb || sentinelContrast(sentinelLum(aRgb), sentinelLum(iRgb)) >= 4.5;
-      if (aReads) out.push({ slug: p.slug, name: 'Accent ' + (k + 1), bg: v(p.slug), ink: aInk });
-      out.push({ slug: p.slug + '-soft', name: 'Accent ' + (k + 1) + ' soft',
+      if (rd(v(aInk), v(p.slug)) >= 4.5) out.push({ slug: p.slug, name: 'Bright ' + (k * 2 + 1), group: 'bright', bg: v(p.slug), ink: aInk });
+      out.push({ slug: p.slug + '-soft', name: 'Bright ' + (k * 2 + 2), group: 'bright',
         bg: 'color-mix(in srgb, ' + v(p.slug) + ' 14%, ' + v(bgS) + ')', ink: txS });
     });
+    out = out.concat(groundThemes(true));
     // ---- BACKDROPS: designed compositions from the same palette ----
     // lovely backgrounds with zero uploads: gradient arrangements of
     // colours the site already owns. They re-dress with the variation
@@ -15527,9 +15573,9 @@
     var a2 = accents[1] ? v(accents[1].slug) : a1;
     var soft = function (c2, pc) { return 'color-mix(in srgb, ' + c2 + ' ' + pc + '%, ' + canvas + ')'; };
     var flat = 'linear-gradient(' + canvas + ', ' + canvas + ')';
-    out.push({ slug: 'sweep', name: 'Sweep', ink: txS,
+    out.push({ slug: 'sweep', name: 'Sweep', group: 'backdrop', ink: txS,
       bg: 'radial-gradient(140% 95% at 50% -35%, ' + soft(a1, 88) + ' 0%, ' + soft(a1, 88) + ' 52%, transparent 66%), ' + flat });
-    out.push({ slug: 'mesh', name: 'Mesh', ink: txS,
+    out.push({ slug: 'mesh', name: 'Mesh', group: 'backdrop', ink: txS,
       bg: 'radial-gradient(55% 65% at 18% 22%, ' + soft(a1, 34) + ' 0%, transparent 62%), ' +
         'radial-gradient(60% 55% at 82% 28%, ' + soft(a2, 30) + ' 0%, transparent 65%), ' +
         'radial-gradient(75% 70% at 50% 95%, ' + soft(a1, 22) + ' 0%, transparent 62%), ' + flat });
@@ -15547,7 +15593,7 @@
     // the theme restyles the section's INK too — that's what makes it a
     // theme and not a background (undo covers a change of heart)
     secx.els.forEach(function (e) {
-      if (isText(e) || e.type === 'badge') e.color = theme.ink;
+      if (isText(e) || e.type === 'badge') e.color = (theme.head && e.type === 'heading') ? theme.head : theme.ink;
     });
     syncBootInvite(secx);
     renderSection(secx);
@@ -15687,11 +15733,18 @@
         : '<span class="gogh-themechip-swatch gogh-themechip-plus gogh-themechip-wheel" aria-hidden="true"></span>') +
       '<span class="gogh-themechip-anylab">Custom colour</span>' +
       '</button>' +
-      sectionThemes().map(function (t) {
-        return '<button type="button" class="gogh-themechip' + (secx.theme === t.slug ? ' is-active' : '') + '" data-theme="' + t.slug + '" title="' + escAttr(t.name) + '">' +
-          '<span class="gogh-themechip-swatch" style="background:' + escAttr(t.bg) + ';color:var(--wp--preset--color--' + t.ink + ')">Aa</span>' +
-          '</button>';
-      }).join('') +
+      // named groups, lightest to darkest (Light, Bright, Dark, Backdrops); a
+      // 2 shows its accent heading in the chip, so the pair reads apart
+      (function () {
+        var GROUPS = { light: 'Light', bright: 'Bright', dark: 'Dark', backdrop: 'Backdrops' }, last = null;
+        return sectionThemes().map(function (t) {
+          var head = t.group && t.group !== last ? '<span class="gogh-themegroup">' + esc(GROUPS[t.group] || '') + '</span>' : '';
+          last = t.group || last;
+          return head + '<button type="button" class="gogh-themechip' + (secx.theme === t.slug ? ' is-active' : '') + '" data-theme="' + t.slug + '" title="' + escAttr(t.name) + '" aria-label="' + escAttr(t.name) + '">' +
+            '<span class="gogh-themechip-swatch" style="background:' + escAttr(t.bg) + ';color:var(--wp--preset--color--' + (t.head || t.ink) + ')">Aa</span>' +
+            '</button>';
+        }).join('');
+      })() +
       '</div>' +
       // the colour surface opens HERE, in the panel's own box, so it can
       // never sit on top of the section it is recolouring

@@ -2253,6 +2253,27 @@
       return 'card kids flip on their own ground, tf cleared';
     });
 
+    // v0.99.728: section themes named by lightness, grouped, drawn from the
+    // palette by role, offered only where they read; a 2 heads in the accent
+    test('section themes: Lightest to Darkest in groups, each offered only where it reads, a 2 with accent headings', function () {
+      var themes = G.sectionThemes();
+      var groups = themes.map(function (t) { return t.group; });
+      var order = ['light', 'bright', 'dark', 'backdrop'], last = -1, inOrder = true;
+      groups.forEach(function (g) { var k = order.indexOf(g); if (k < last) inOrder = false; last = Math.max(last, k); });
+      expect(groups.every(function (g) { return order.indexOf(g) !== -1; }) && inOrder, 'every theme should sit in Light, Bright, Dark or Backdrops, in that order: ' + groups.join(','));
+      var named = themes.filter(function (t) { return t.group !== 'backdrop'; }).map(function (t) { return t.name; });
+      expect(named.every(function (n) { return /^(Lightest|Light|Dark|Darkest|Bright) \d$/.test(n); }), 'themes should be named by lightness: ' + named.join(', '));
+      expect(themes.some(function (t) { return t.slug === 'paper'; }) && themes.some(function (t) { return t.slug === 'ink'; }), 'the page ground and its inverse keep their slugs (sections and Remix use them)');
+      var two = themes.filter(function (t) { return t.head; })[0];
+      if (!two) return themes.length + ' themes; this palette’s accent reads on no ground, so no 2s';
+      G.addSection({ name: 'Two', minH: 240, els: [ { type: 'heading', x: 72, y: 48, w: 500, h: 60, text: 'Heading' }, { type: 'para', x: 72, y: 132, w: 500, h: 48, text: 'Words' } ] }, G.sections().length);
+      var sx = G.sections()[G.sections().length - 1];
+      try {
+        G.applySectionTheme(G.sections().indexOf(sx), two);
+        expect(sx.theme === two.slug && sx.els[0].color === two.head && sx.els[1].color === two.ink, two.name + ' should put the accent on headings only: ' + sx.els[0].color + ' / ' + sx.els[1].color);
+      } finally { G.deleteSection(G.sections().indexOf(sx)); }
+      return themes.length + ' themes: ' + named.join(', ');
+    });
     test('section themes: pick a look, the words come with it', function () {
       var themes = G.sectionThemes();
       expect(themes.length >= 3, 'expected at least Paper/Mist/Ink, got ' + themes.length);
@@ -5410,7 +5431,13 @@
       return tried + ' starters and takes, ' + blocks + ' blocks valid' + (un.length ? '; not checkable here (no editor script): ' + un.join(', ') : '');
     });
     testAsync('every palette reads: Site styles and Remix rolls, in every section theme', function () {
-      var rgb = function (str) { var m = /rgba?\(([\d.]+)[, ]+([\d.]+)[, ]+([\d.]+)(?:[, /]+([\d.]+))?/.exec(str || ''); return m ? { c: [+m[1], +m[2], +m[3]], a: m[4] == null ? 1 : +m[4] } : null; };
+      // rgb() and the newer color(srgb 0–1 floats) a colour-mix ground resolves to
+      var rgb = function (str) {
+        var m = /rgba?\(([\d.]+)[, ]+([\d.]+)[, ]+([\d.]+)(?:[, /]+([\d.]+))?/.exec(str || '');
+        if (m) return { c: [+m[1], +m[2], +m[3]], a: m[4] == null ? 1 : +m[4] };
+        m = /color\(srgb ([\d.e-]+) ([\d.e-]+) ([\d.e-]+)(?: \/ ([\d.]+))?\)/.exec(str || '');
+        return m ? { c: [m[1] * 255, m[2] * 255, m[3] * 255], a: m[4] == null ? 1 : +m[4] } : null;
+      };
       var lum = function (c) { var a = c.map(function (v) { v /= 255; return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); }); return 0.2126 * a[0] + 0.7152 * a[1] + 0.0722 * a[2]; };
       var ratio = function (a, b) { var x = lum(a), y = lum(b); return (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05); };
       var ground = function (el) { for (var n = el; n; n = n.parentElement) { var c = rgb(getComputedStyle(n).backgroundColor); if (c && c.a > 0.5) return c.c; } return [255, 255, 255]; };
