@@ -15,7 +15,7 @@ about something where they conflict, rather than picking one silently. Quote UI
 labels and message copy from the appendix, verbatim — those are the current
 strings, and a paraphrased button label is the fastest way to lose a user's trust.
 
-Generated for plugin version 0.99.734 · knowledge base 3e8d5b4.
+Generated for plugin version 0.99.735 · knowledge base ce0bc41.
 
 ---
 
@@ -830,6 +830,8 @@ The helper's welcome panel opens with a 35-second film of gogh being used (v0.99
 
 **The phone view survives navigation (v0.99.605).** Press one of your own pages while on the phone and it opens in the editor, still on the phone: the link carries `gogh-edit=1&gogh-phone=1`, the next page reads them at boot and strips them from the address. Other sites, files, wp-admin and anchors on the same page are left alone. Unpublished changes still ask before leaving.
 
+**No bins in Layouts (v0.99.735).** The Layouts panel no longer puts a bin on every piece. To take something out while the panel is open, click it in the section and press Delete (or use the bin in its own toolbar): it leaves that layout and every other layout of the design too, so switching layouts never brings it back. **Restore removed** brings it back.
+
 **No name pill on hover (v0.99.734).** The section hover keeps its thin outline but no longer shows the section's name in a pill, and the ring round a section in Section background is labelled "Section background".
 
 **Sections you can see, and backgrounds in the sidebar (v0.99.733).** When you move over a section while editing, a thin blue line now traces its edges, so you can see where it starts and ends. It comes and goes with the section bar, so it steps back while you work on a piece. **Background** in the section bar now opens Section background in the sidebar on the left, with the page zoomed out beside it, so the whole section stays in view while you try colours and pictures; the rest of the page is washed back and the section is ringed. Clicking inside that section keeps the panel open; clicking anywhere else, or ✕, closes it. In the phone preview it still floats.
@@ -1077,11 +1079,11 @@ Everything in this section is extracted mechanically from the Gogh source on eve
 
 ## Current release
 
-- Plugin version: **0.99.734**
+- Plugin version: **0.99.735**
 - Requires WordPress **6.5+**, PHP **7.4+**
 - Text domain: `gogh-editor`
 - readme.txt Stable tag: `0.26.0` · Tested up to: `7.0`
-- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.734`). Quote the plugin header version.
+- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.735`). Quote the plugin header version.
 
 ## Design constants
 
@@ -1554,6 +1556,7 @@ These are the real strings in the current build. Use them verbatim; never paraph
 
 ## Exact toast and message copy
 
+- "A section keeps at least one piece."
 - "Back to freeform — drag it anywhere."
 - "Backup restored — publish when ready."
 - "Button updated."

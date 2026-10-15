@@ -8911,6 +8911,17 @@
     contrastSentinel(sec, iNew);
   }
   function deleteSelected() {
+    if (layoutsDelete) {
+      var lsec = multiSel ? multiSel.sec : (sel && sel.sec);
+      var lidx = multiSel ? multiSel.idxs.slice() : (sel ? [sel.i] : []);
+      if (lsec && lidx.length && panel.dataset.goghLayoutsFor === lsec.scope) {
+        if (multiSel) clearMulti();
+        sel = null;
+        hideHandles();
+        layoutsDelete(lsec, lidx);
+        return;
+      }
+    }
     if (multiSel) {
       var msec = multiSel.sec;
       var idxs = multiSel.idxs.slice().sort(function (a, b) { return b - a; });
@@ -12137,6 +12148,7 @@
   // Choosing a take goes there from where the session began, as one undo
   // step; Reset goes back to that beginning.
   var laySeq = 0;
+  var layoutsDelete = null; // set while the Layouts panel is open: deleting a piece of its section takes it out of every take
   function layoutSnap(sec) {
     return JSON.parse(JSON.stringify({ els: sec.els, m: sec.m || null, minH: sec.minH || null, bg: sec.bg || null,
       divider: sec.divider || null, fx: sec.fx || null, bgImage: sec.bgImage || null, bgId: sec.bgId || null,
@@ -12273,7 +12285,7 @@
       '<div class="gogh-panel-hint">Each layout is drawn with this section’s own words and pictures. Pick one to try it on the page; Reset puts back how it was when you opened this.</div>' +
       '<div class="gogh-lay-grid"></div>' +
       '<button type="button" class="gogh-btn gogh-btn-small gogh-lay-restore" hidden></button>' +
-      '<div class="gogh-lay-tip"><strong>Too much?</strong> Use the bin on anything in the section to take it out of every layout here. Restore brings it back.</div>';
+      '<div class="gogh-lay-tip"><strong>Too much?</strong> Click anything in the section and press Delete to take it out of every layout here. Restore brings it back.</div>';
     var grid = panel.querySelector('.gogh-lay-grid');
     var restoreB = panel.querySelector('.gogh-lay-restore');
     var drawTiles = function () {
@@ -12362,57 +12374,23 @@
       mark();
     });
     panel.querySelector('.gogh-lay-done').addEventListener('click', function () { closePanel(); });
-    // the bins ride over the page's pieces (a layer of their own, so the
-    // section and its copies never carry them); one frame at a time while
-    // the panel is open, so zoom, scroll and every redraw are followed
-    var layer = document.createElement('div');
-    layer.className = 'gogh-lay-bins';
-    document.body.appendChild(layer);
-    var raf = 0;
-    var BIN = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16"/><path d="M10 11v6M14 11v6"/><path d="M6 7l1 12a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-12"/><path d="M9 7V4h6v3"/></svg>';
-    var placeBins = function () {
-      raf = 0;
-      if (!panelOpen || panel.hidden || panel.dataset.goghLayoutsFor !== sec.scope || S.indexOf(sec) === -1) { layer.remove(); return; }
-      var els = sec.els, many = els.length > 1;
-      while (layer.children.length < els.length) {
-        var b = document.createElement('button');
-        b.type = 'button';
-        b.className = 'gogh-lay-bin';
-        b.innerHTML = BIN;
-        layer.appendChild(b);
-      }
-      while (layer.children.length > els.length) layer.lastChild.remove();
-      els.forEach(function (e, i) {
-        var b = layer.children[i], node = sec.nodes && sec.nodes[i];
-        var r = node && node.getBoundingClientRect();
-        var show = many && r && r.width >= 12 && r.height >= 6 && r.bottom > 0 && r.top < innerHeight;
-        b.dataset.i = i;
-        var label = 'Remove ' + (e.text ? '“' + String(e.text).replace(/<[^>]*>/g, '').trim().slice(0, 30) + '”' : 'this ' + (e.type === 'image' ? 'picture' : e.type === 'box' ? 'card' : e.type)) + ' from every layout';
-        if (b.getAttribute('aria-label') !== label) { b.setAttribute('aria-label', label); b.title = label; }
-        b.hidden = !show;
-        if (!show) return;
-        // on the piece's top-right corner, half outside it, so it never
-        // sits on the words (a section taller than the screen keeps it in view)
-        b.style.left = Math.round(r.right - 13) + 'px';
-        b.style.top = Math.round(Math.max(r.top - 13, 4)) + 'px';
-      });
-      raf = requestAnimationFrame(placeBins);
-    };
-    var press = function (ev) { ev.stopPropagation(); };
-    layer.addEventListener('pointerdown', press);
-    layer.addEventListener('mousedown', press);
-    layer.addEventListener('click', function (ev) {
-      ev.stopPropagation();
-      var b = ev.target.closest('.gogh-lay-bin');
-      if (!b) return;
-      if (!layoutBin(sec, +b.dataset.i)) return;
+    // taking something out is the ordinary gesture: choose it on the page
+    // and delete it (the element bar's bin, or the Delete key). While this
+    // panel is open, that takes it out of every take, and Restore brings it
+    // back (James: 'i really dont like the delete icons everywhere'; the
+    // bins on every piece are gone)
+    layoutsDelete = function (sec2, idxs) {
+      if (sec2 !== sec) return false;
+      var any = false;
+      idxs.slice().sort(function (a, b) { return b - a; }).forEach(function (k) { if (layoutBin(sec, k)) any = true; });
+      if (!any) { toast('A section keeps at least one piece.'); return true; }
       curGone = clone(sec.m && sec.m.gone);
       settle();
       drawTiles();
       mark();
-    });
-    placeBins();
-    panelCleanup = function () { if (raf) cancelAnimationFrame(raf); layer.remove(); };
+      return true;
+    };
+    panelCleanup = function () { layoutsDelete = null; };
     mark();
     return true;
   }
@@ -22285,6 +22263,16 @@
     if (ev.key === 'Escape' && panelOpen) {
       closePanel();
       return;
+    }
+    // the Layouts panel stays open while its section's pieces are chosen and
+    // taken out: Delete reaches them (unless words are being typed)
+    if (editing && layoutsDelete && (ev.key === 'Delete' || ev.key === 'Backspace') && (sel || multiSel)) {
+      var ae = document.activeElement;
+      if (!(ae && (ae.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(ae.tagName)))) {
+        ev.preventDefault();
+        deleteSelected();
+        return;
+      }
     }
     if (!editing || panelOpen || !picker.hidden) return;
     var a = document.activeElement;

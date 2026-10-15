@@ -1,4 +1,4 @@
-# Knowledge-base audit — plugin v0.99.734
+# Knowledge-base audit — plugin v0.99.735
 
 _13 finding(s) suppressed by `kb.audit-ignore.txt`._
 
@@ -150,3 +150,10 @@ Quoted copy not found verbatim in the source. Paraphrases are fine; changed UI c
 - From Misprint
 - (max-width: 700px) 100vw, min(100vw, Wpx)
 - (max-width: 700px) 100vw, 53vw
+
+## What changed since the last knowledge-base build
+
+Use this as the checklist for updating the prose — and as a sanity check on the release itself.
+
+- version: 0.99.734 → 0.99.735
+- added toast: "A section keeps at least one piece."

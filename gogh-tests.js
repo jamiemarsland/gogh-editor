@@ -4648,7 +4648,7 @@
       return faces.length + ' takes of ' + fam.name + ', pick, reset, one undo';
     });
 
-    test('the Layouts bin takes a piece out of every take; Restore brings it back', function () {
+    test('in Layouts, Delete takes a piece out of every take; Restore brings it back', function () {
       var tpls = G.templates(), fam = null, faces = null;
       for (var k = 0; k < tpls.length && !fam; k++) {
         var t0 = tpls[k];
@@ -4673,9 +4673,13 @@
       expect(G.openLayoutsPanel(idx), 'the panel did not open');
       var panel = q('.gogh-panel');
       var i = s.els.findIndex(function (x) { return x.text === 'Bin me'; }); // the previews hand back copies
-      var bin = [].filter.call(document.querySelectorAll('.gogh-lay-bin'), function (x) { return +x.dataset.i === i; })[0];
-      expect(bin && /Bin me/.test(bin.getAttribute('aria-label')), 'the second button should have a bin');
-      bin.click();
+      expect(!document.querySelector('.gogh-lay-bin'), 'no bins on the pieces');
+      pev('pointerdown', s.nodes[i]);
+      pev('pointerup', s.nodes[i]);
+      expect(!panel.hidden, 'choosing a piece of the section should keep the panel open');
+      if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
+      document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Delete', bubbles: true, cancelable: true }));
+      expect(!panel.hidden, 'Delete should keep the panel open');
       expect(!s.els.some(function (x) { return x.text === 'Bin me'; }), 'the bin should take the button off the page');
       var restoreB = panel.querySelector('.gogh-lay-restore');
       expect(!restoreB.hidden && /\(1\)/.test(restoreB.textContent), 'Restore removed (1) should appear');
