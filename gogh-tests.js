@@ -5354,6 +5354,113 @@
       expect(before >= 1, 'no edit-header pill was mounted');
     });
 
+    // ---- SAFETY: what can break quietly (v0.99.727, from the Section Editing
+    // Modes paper: the plugin there tests both). WordPress's own validation
+    // over every section gogh can add, and real contrast over every palette.
+    test('every starter saves as valid blocks: WordPress’s own validation, block by block', function () {
+      var wpb = window.wp && wp.blocks;
+      if (!wpb || !window.wp.blockLibrary) return 'the block library is not loaded on this page';
+      if (!wpb.getBlockType('core/paragraph')) wp.blockLibrary.registerCoreBlocks();
+      expect(wpb.getBlockType('gogh/section'), 'gogh/section is not registered on the test page');
+      // the check is live: markup the editor would flag is caught (parse
+      // quietly repairs some slips, so the control is one it cannot: a
+      // level-2 heading saved as an h3). The verdict judged is parse's own,
+      // after its repairs: what someone opening the page would see
+      var control = wpb.parse('<!-- wp:heading {"level":2} -->\n<h3 class="wp-block-heading">Wrong level</h3>\n<!-- /wp:heading -->')[0];
+      expect(control && control.isValid === false, 'validation is not running: a heading saved at the wrong level passed');
+      var bad = [], tried = 0, blocks = 0, unchecked = {};
+      var walk = function (list, where) {
+        list.forEach(function (b) {
+          blocks++;
+          if (b.name === 'core/missing') unchecked[(b.attributes && b.attributes.originalName) || '?'] = 1;
+          else if (b.isValid === false) {
+            var why = (b.validationIssues || []).map(function (v) { return String((v.args && v.args.slice(1, 3).join(' → ')) || v.log || '').replace(/\s+/g, ' ').slice(0, 140); }).join(' / ');
+            bad.push(where + ' → ' + b.name + (why ? ': ' + why : ''));
+          }
+          walk(b.innerBlocks || [], where);
+        });
+      };
+      G.templates().forEach(function (t) {
+        if (t.retired || !t.els || !t.els.length || /^__/.test(t.name)) return;
+        var n0 = G.sections().length;
+        G.addSection(t, n0);
+        var sx = G.sections()[n0];
+        try {
+          walk(wpb.parse(G.blocksV3(sx)), t.name + (t.take ? ' (' + t.take + ')' : ''));
+          tried++;
+        } finally { G.deleteSection(G.sections().indexOf(sx)); }
+      });
+      // every take behind Try another and the dice, too
+      var V = G.variants ? G.variants() : {};
+      Object.keys(V).forEach(function (name) {
+        (V[name] || []).forEach(function (t) {
+          if (!t || !t.els || !t.els.length) return;
+          var n0 = G.sections().length;
+          G.addSection(t, n0);
+          var sx = G.sections()[n0];
+          try { walk(wpb.parse(G.blocksV3(sx)), name + ' (' + (t.take || 'take') + ')'); tried++; }
+          finally { G.deleteSection(G.sections().indexOf(sx)); }
+        });
+      });
+      // and the page as it stands: every section on the fixture, as published
+      walk(wpb.parse(G.buildV3()), 'the test page');
+      expect(tried > 20, 'expected the whole shelf of starters, tried ' + tried);
+      expect(!bad.length, bad.length + ' invalid block(s): ' + bad.slice(0, 5).join(' || ') + (bad.length > 5 ? ' (+' + (bad.length - 5) + ')' : ''));
+      var un = Object.keys(unchecked);
+      return tried + ' starters and takes, ' + blocks + ' blocks valid' + (un.length ? '; not checkable here (no editor script): ' + un.join(', ') : '');
+    });
+    testAsync('every palette reads: Site styles and Remix rolls, in every section theme', function () {
+      var rgb = function (str) { var m = /rgba?\(([\d.]+)[, ]+([\d.]+)[, ]+([\d.]+)(?:[, /]+([\d.]+))?/.exec(str || ''); return m ? { c: [+m[1], +m[2], +m[3]], a: m[4] == null ? 1 : +m[4] } : null; };
+      var lum = function (c) { var a = c.map(function (v) { v /= 255; return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); }); return 0.2126 * a[0] + 0.7152 * a[1] + 0.0722 * a[2]; };
+      var ratio = function (a, b) { var x = lum(a), y = lum(b); return (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05); };
+      var ground = function (el) { for (var n = el; n; n = n.parentElement) { var c = rgb(getComputedStyle(n).backgroundColor); if (c && c.a > 0.5) return c.c; } return [255, 255, 255]; };
+      var BAR = { text: 4.5, heading: 3, button: 4, ghost: 4 }; // buttons: gogh's rule for bold button words
+      G.addSection({ name: 'Contrast probe', minH: 360, els: [
+        { type: 'heading', x: 72, y: 48, w: 600, h: 72, text: 'A heading to read' },
+        { type: 'para', x: 72, y: 144, w: 600, h: 48, text: 'A paragraph of body text to read.' },
+        { type: 'button', x: 72, y: 216, w: 200, h: 48, text: 'Buy now' },
+        { type: 'button', x: 312, y: 216, w: 200, h: 48, text: 'Read more', ghost: true },
+      ] }, G.sections().length);
+      var sx = G.sections()[G.sections().length - 1];
+      var fails = [], cases = 0;
+      var measure = function (label) {
+        G.sectionThemes().forEach(function (t) {
+          if (/gradient/.test(t.bg)) return; // a backdrop's ground varies across it
+          G.applySectionTheme(G.sections().indexOf(sx), t);
+          var n = sx.nodes;
+          var h = n[0].querySelector('h1,h2,h3,h4') || n[0], para = n[1].querySelector('p') || n[1];
+          var btn = n[2].querySelector('.wp-block-button__link'), gh = n[3].querySelector('.wp-block-button__link');
+          var got = { heading: ratio(rgb(getComputedStyle(h).color).c, ground(h)), text: ratio(rgb(getComputedStyle(para).color).c, ground(para)) };
+          if (btn) got.button = ratio(rgb(getComputedStyle(btn).color).c, ground(btn));
+          if (gh) got.ghost = ratio(rgb(getComputedStyle(gh).color).c, ground(gh.parentElement));
+          cases++;
+          Object.keys(got).forEach(function (k) { if (got[k] < BAR[k]) fails.push(label + ' / ' + t.name + ' ' + k + ' ' + got[k].toFixed(2)); });
+        });
+      };
+      var C = window.GOGH;
+      return fetch(C.restUrl.split('wp/v2/')[0] + 'wp/v2/global-styles/themes/' + encodeURIComponent(C.theme) + '/variations', { credentials: 'same-origin', headers: { 'X-WP-Nonce': C.nonce } })
+        .then(function (r) { return r.ok ? r.json() : []; }).catch(function () { return []; })
+        .then(function (vars) {
+          measure('the site as it is');
+          var styles = (vars || []).filter(function (v) { return v.settings && v.settings.color && v.settings.color.palette; });
+          styles.forEach(function (v) { G.previewVariation(v); measure('Site style ' + v.title); });
+          G.clearVariationPreview();
+          // Remix is a die: a seeded one, so the same looks are judged every run
+          var realRandom = Math.random, seed = 20261015;
+          Math.random = function () { seed = (seed * 1664525 + 1013904223) % 4294967296; return seed / 4294967296; };
+          G.remixDry(true);
+          try {
+            for (var k = 0; k < 10; k++) { var c = G.remixRoll({ dry: true }); measure('Remix ' + (c && c.name)); }
+          } finally {
+            Math.random = realRandom;
+            while (G.remixBack()) {}
+            G.deleteSection(G.sections().indexOf(sx));
+          }
+          expect(cases > 30, 'too few cases measured: ' + cases);
+          expect(!fails.length, fails.length + ' unreadable case(s): ' + fails.slice(0, 6).join('; ') + (fails.length > 6 ? ' (+' + (fails.length - 6) + ')' : ''));
+          return cases + ' cases (' + styles.length + ' Site styles, 10 Remix rolls, every section theme) all read';
+        });
+    });
     testAsync('Make it freeform on the site header yields its pieces, not one opaque widget', function () {
       // the scan pairs blocks with rendered elements; gogh's own pill inside
       // the part, and a logo block that renders nothing, used to break the

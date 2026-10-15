@@ -15341,7 +15341,11 @@
     var best = roles.textSlug || 'contrast', bestC = 0;
     themePalette().forEach(function (p) {
       if (p.slug !== roles.bgSlug && p.slug !== roles.textSlug) return;
-      var prgb = cssToRgb(p.value);
+      // the colour as the page draws it NOW: a Site style or Remix being
+      // tried (or just applied) lives in a later stylesheet, and the loaded
+      // one still names the old colours (Midnight's accent sections were
+      // inked against the old palette, 1.09:1)
+      var prgb = cssToRgb('var(--wp--preset--color--' + p.slug + ')') || cssToRgb(p.value);
       if (!prgb) return;
       var c = sentinelContrast(sentinelLum(prgb), bgL);
       if (c > bestC) { bestC = c; best = p.slug; }
@@ -15504,7 +15508,13 @@
         !/^(base|contrast|background|foreground|main|text)$/.test(p.slug);
     }).slice(0, 2);
     accents.forEach(function (p, k) {
-      out.push({ slug: p.slug, name: 'Accent ' + (k + 1), bg: v(p.slug), ink: bestInkFor(v(p.slug)) });
+      // a solid accent ground carries body text, which needs 4.5:1; when no
+      // ink reaches it (a mid-tone accent, kept exact for its buttons) only
+      // the soft version is offered
+      var aInk = bestInkFor(v(p.slug));
+      var aRgb = cssToRgb(v(p.slug)), iRgb = cssToRgb(v(aInk));
+      var aReads = !aRgb || !iRgb || sentinelContrast(sentinelLum(aRgb), sentinelLum(iRgb)) >= 4.5;
+      if (aReads) out.push({ slug: p.slug, name: 'Accent ' + (k + 1), bg: v(p.slug), ink: aInk });
       out.push({ slug: p.slug + '-soft', name: 'Accent ' + (k + 1) + ' soft',
         bg: 'color-mix(in srgb, ' + v(p.slug) + ' 14%, ' + v(bgS) + ')', ink: txS });
     });
@@ -21681,6 +21691,7 @@
     renderSection: renderSection,
     pushState: pushState,
     templates: function () { return TEMPLATES; },
+    variants: function () { return VARIANTS; }, // every take of every starter (the safety test walks them)
     rhythm: function () { return { minor: RHYTHM, major: MAJOR }; },
     defaults: function (kind) { return kind ? DEFAULTS[kind]() : Object.keys(DEFAULTS); },
     fontPairs: function () { return FONT_PAIRS; },
