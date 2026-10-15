@@ -4798,3 +4798,5 @@ html.gogh-editing #wpadminbar #wp-admin-bar-site-name #wp-admin-bar-gogh-account
 @media (prefers-reduced-motion: reduce) { .gogh-focusveil-wash, .gogh-focusveil-ring { animation: none; } }
 
 .gogh-panel-hint[hidden] { display: none; }
+.gogh-shopprev.gogh-shopprev-look { display: block; }
+.gogh-shopprev-look .gogh-book-nav button { pointer-events: none; }

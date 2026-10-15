@@ -6279,7 +6279,7 @@
       '<div class="gogh-panel-row"><input type="text" class="gogh-input gogh-shop-find" placeholder="Find a product by name\u2026" /></div>' +
       '<div class="gogh-shop-found"></div>' +
       '<div class="gogh-swlab">Layout</div>' +
-      radios('gogh-shop-layout', [['grid', 'Grid'], ['list', 'List']], shop.layout) +
+      radios('gogh-shop-layout', [['grid', 'Grid'], ['list', 'List'], ['book', 'Lookbook \u2014 turn the pages'], ['index', 'Index \u2014 names, pictures on hover']], shop.layout) +
       '<div class="gogh-swlab">Show</div>' +
       chips('gogh-shop-show', [['price', 'Price'], ['rating', 'Rating'], ['button', 'Add to cart']], function (k) { return !!shop.show[k]; }) +
       '<div class="gogh-swlab">Picture</div>' +
@@ -7998,6 +7998,8 @@
       if (q.taxQuery && q.taxQuery.product_cat && q.taxQuery.product_cat.length) shop.catId = +q.taxQuery.product_cat[0];
       if (attrs.displayLayout && attrs.displayLayout.type === 'list') shop.layout = 'list';
       var cls = String(attrs.className || '');
+      var lk = /\bgogh-shop-(book|index)\b/.exec(cls);
+      if (lk) shop.layout = lk[1];
       var g = /gogh-shop-gap-([sml])/.exec(cls);
       if (g) shop.spacing = g[1];
       var ar = /"aspectRatio":"([^"]+)"/.exec(e.wsrc || '');
@@ -8031,19 +8033,24 @@
       woocommerceOnSale: shop.order === 'sale', woocommerceStockStatus: ['instock', 'outofstock', 'onbackorder'],
       woocommerceAttributes: [], woocommerceHandPickedProducts: picked };
     if (shop.order === 'recent' && !picked.length) query.goghRecent = true; // gogh.php draws it per shopper
-    var grid = shop.layout !== 'list';
+    // the Lookbook and the Index are lists to Woo; gogh-shop-looks.js and
+    // .css make a book of one and a contents page of the other
+    var look = shop.layout === 'book' || shop.layout === 'index' ? shop.layout : '';
+    var grid = shop.layout !== 'list' && !look;
     var cols = grid ? (count >= 4 ? (count % 4 === 0 ? 4 : 3) : Math.max(1, count)) : 1;
     var attrs = { query: query, tagName: 'div', dimensions: { widthType: 'fill', fixedWidth: '' },
       displayLayout: grid ? { type: 'flex', columns: cols } : { type: 'list' },
-      className: 'gogh-shop gogh-shop-' + (grid ? 'grid' : 'list') + ' gogh-shop-gap-' + (shop.spacing || 'm') +
+      className: 'gogh-shop gogh-shop-' + (look || (grid ? 'grid' : 'list')) + ' gogh-shop-gap-' + (shop.spacing || 'm') +
         (shop.order === 'recent' && !picked.length ? ' gogh-shop-recent' : '') }; // drawn per shopper by gogh.php; newest until then
-    var ratio = shop.aspect === 'portrait' ? '3/4' : shop.aspect === 'landscape' ? '4/3' : '1';
+    var ratio = look === 'book' ? '3/4' : shop.aspect === 'portrait' ? '3/4' : shop.aspect === 'landscape' ? '4/3' : '1';
     var inner = '<!-- wp:woocommerce/product-image {"showSaleBadge":true,"isDescendentOfQueryLoop":true,"aspectRatio":"' + ratio + '"} -->' +
       '<!-- wp:woocommerce/product-sale-badge {"isDescendentOfQueryLoop":true,"align":"right"} /-->' +
       '<!-- /wp:woocommerce/product-image -->\n' +
       '<!-- wp:post-title {"level":3,"isLink":true,"__woocommerceNamespace":"woocommerce/product-collection/product-title","style":{"spacing":{"margin":{"top":"12px","bottom":"6px"}}}} /-->\n' +
       (shop.show.rating ? '<!-- wp:woocommerce/product-rating {"isDescendentOfQueryLoop":true} /-->\n' : '') +
       (shop.show.price ? '<!-- wp:woocommerce/product-price {"isDescendentOfQueryLoop":true} /-->\n' : '') +
+      // a book's right-hand page has room for a few words about the product
+      (look === 'book' ? '<!-- wp:woocommerce/product-summary {"isDescendentOfQueryLoop":true,"showDescriptionIfEmpty":true,"summaryLength":36} /-->\n' : '') +
       (shop.show.button ? '<!-- wp:woocommerce/product-button {"isDescendentOfQueryLoop":true} /-->\n' : '');
     return '<!-- wp:woocommerce/product-collection ' + JSON.stringify(attrs) + ' -->\n' +
       '<div class="wp-block-woocommerce-product-collection ' + attrs.className + '">\n' +
@@ -8069,6 +8076,7 @@
       }).join('') + '</div>';
     }
     var n = Math.max(1, Math.min(12, +shop.count || 3));
+    if ((shop.layout === 'book' || shop.layout === 'index') && prods.length) return shopLookPreviewHTML(e, shop, prods);
     var cols = shop.layout === 'list' ? 1 : (n >= 4 ? (n % 4 === 0 ? 4 : 3) : n);
     var cls = 'gogh-shopprev gogh-shopprev-' + (shop.layout === 'list' ? 'list' : 'grid') + ' gogh-shopprev-c' + cols + ' gogh-shopprev-' + (shop.aspect || 'square') + ' gogh-shopprev-gap-' + (shop.spacing || 'm');
     if (!prods.length) {
@@ -8109,6 +8117,35 @@
         (show.button ? '<span class="gogh-postsprev-btn">Add to cart</span>' : '') + '</div>' +
         '</div>';
     }).join('') + '</div>';
+  }
+  // the Lookbook and the Index in the editor: the same markup and styles the
+  // page gets (gogh-shop-looks.css), drawn still — the book open at its
+  // first spread, the index with every name
+  function shopLookPreviewHTML(e, shop, prods) {
+    var show = shop.show || {};
+    var words = function (p) {
+      var t = String(p.short_description || p.description || '').replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
+      var w = t.split(' ');
+      return w.length > 36 ? w.slice(0, 36).join(' ') + '\u2026' : t;
+    };
+    var btn = show.button ? '<div class="wp-block-button"><span class="wp-block-button__link wp-element-button">Add to cart</span></div>' : '';
+    if (shop.layout === 'book') {
+      var p = prods[0], img = p.images && p.images[0] && p.images[0].src;
+      return '<div class="gogh-shopprev gogh-shopprev-look gogh-shop-book gogh-book-ready"><ul class="wc-block-product-template gogh-book" style="--gogh-book-left:0;--gogh-book-right:' + Math.min(4, prods.length - 1) + '">' +
+        '<li class="gogh-book-spread is-current">' +
+        '<div class="gogh-book-pic">' + (img ? '<img src="' + escAttr(img) + '" alt="" />' : '') + '</div>' +
+        '<h3 class="wp-block-post-title">' + esc(plainTitle(p.name || 'Product')) + '</h3>' +
+        (show.price ? '<div class="wc-block-components-product-price">' + esc(storePriceText(p)) + '</div>' : '') +
+        (words(p) ? '<div class="wp-block-woocommerce-product-summary"><p>' + esc(words(p)) + '</p></div>' : '') + btn +
+        '</li></ul><div class="gogh-book-nav"><button type="button" disabled tabindex="-1">\u2190</button><span class="gogh-book-count">1 / ' + prods.length + '</span><button type="button" tabindex="-1">\u2192</button></div></div>';
+    }
+    return '<div class="gogh-shopprev gogh-shopprev-look gogh-shop-index gogh-index-ready"><ul class="wc-block-product-template gogh-index">' + prods.map(function (p, k) {
+      var img = p.images && p.images[0] && p.images[0].src;
+      return '<li class="gogh-index-row" style="--gogh-index-n:\'' + (k < 9 ? '0' : '') + (k + 1) + '\'">' +
+        '<div class="gogh-index-pic">' + (img ? '<img src="' + escAttr(img) + '" alt="" />' : '') + '</div>' +
+        '<h3 class="wp-block-post-title">' + esc(plainTitle(p.name || 'Product')) + '</h3>' +
+        (show.price ? '<div class="wc-block-components-product-price">' + esc(storePriceText(p)) + '</div>' : '') + btn + '</li>';
+    }).join('') + '</ul></div>';
   }
   // sample products for the picker's cards (a real shop answers the moment
   // the section lands): one small world, so the cards read as a real shop

@@ -1,0 +1,148 @@
+/* gogh shop looks: the Lookbook and the Index. Woo's Product Collection,
+   dressed. Inks and faces are the theme's; the paper is its ground. */
+
+/* ---------- the Lookbook ---------- */
+.gogh-shop-book { --gogh-paper: var(--wp--preset--color--base, #fff); }
+.gogh-shop-book .wc-block-product-template {
+  position: relative; list-style: none; margin: 0 auto !important; padding: 0 !important;
+  width: 100%; max-width: 1180px; aspect-ratio: 3 / 2;
+  perspective: 2400px; display: block !important;
+  --gogh-book-left: 0; --gogh-book-right: 4;
+}
+/* the pages under the open spread: a few edges either side */
+.gogh-shop-book .gogh-book::before {
+  content: ""; position: absolute; inset: 0; pointer-events: none; border-radius: 3px;
+  box-shadow:
+    calc(var(--gogh-book-right) * 1.5px) calc(var(--gogh-book-right) * 1px) 0 -1px color-mix(in srgb, var(--gogh-paper) 88%, #000),
+    calc(var(--gogh-book-left) * -1.5px) calc(var(--gogh-book-left) * 1px) 0 -1px color-mix(in srgb, var(--gogh-paper) 88%, #000),
+    0 30px 60px -30px rgba(0, 0, 0, 0.45), 0 2px 6px rgba(0, 0, 0, 0.08);
+}
+.gogh-shop-book .gogh-book-spread,
+.gogh-shop-book .gogh-book-copy {
+  position: absolute; inset: 0; margin: 0 !important; width: auto !important; max-width: none !important;
+  display: grid; grid-template-columns: 1fr 1fr; grid-auto-rows: min-content; align-content: center;
+  background: var(--gogh-paper); visibility: hidden; padding: 0 !important; border-radius: 3px; overflow: hidden;
+}
+.gogh-shop-book .gogh-book-spread.is-current { visibility: visible; }
+.gogh-shop-book .gogh-book-spread > * { grid-column: 2; margin-left: clamp(24px, 9%, 84px) !important; margin-right: clamp(24px, 9%, 84px) !important; max-width: 30em; }
+.gogh-shop-book .gogh-book-spread > .gogh-book-pic {
+  /* no grid area: an absolutely placed grid child measures from its area,
+     and this one belongs to the whole left page */
+  grid-column: auto; grid-row: auto; margin: 0 !important; max-width: none;
+  position: absolute !important; left: 0 !important; top: 0 !important; bottom: 0 !important; width: 50% !important; height: auto !important;
+}
+.gogh-shop-book .gogh-book-pic > *, .gogh-shop-book .gogh-book-pic a, .gogh-shop-book .gogh-book-pic img {
+  display: block; width: 100% !important; height: 100% !important; aspect-ratio: auto !important; object-fit: cover; margin: 0 !important;
+}
+/* the spine: a fold of shadow down the middle */
+.gogh-shop-book .gogh-book-spread::after,
+.gogh-shop-book .gogh-book-copy::after {
+  content: ""; position: absolute; top: 0; bottom: 0; left: calc(50% - 40px); width: 80px; pointer-events: none;
+  background: linear-gradient(90deg, rgba(0,0,0,0) 0%, rgba(0,0,0,0.10) 45%, rgba(0,0,0,0.22) 50%, rgba(0,0,0,0.06) 56%, rgba(0,0,0,0) 100%);
+}
+.gogh-shop-book .wp-block-post-title {
+  font-size: clamp(1.6rem, 1rem + 2.2vw, 3rem) !important; line-height: 1.08 !important;
+  margin-top: 0 !important; margin-bottom: 0.4em !important; text-wrap: balance;
+}
+.gogh-shop-book .wp-block-post-title a { text-decoration: none; color: inherit; }
+.gogh-shop-book .wc-block-components-product-price { font-size: 1.1rem; margin-bottom: 1.1em !important; }
+.gogh-shop-book .wp-block-woocommerce-product-summary, .gogh-shop-book .wc-block-components-product-summary {
+  font-size: 0.98rem; line-height: 1.6; opacity: 0.82; margin-bottom: 1.4em !important;
+}
+.gogh-shop-book .wc-block-components-product-sale-badge { position: absolute; top: 16px; right: 16px; }
+/* a page in the hand */
+.gogh-shop-book .gogh-book-leaf {
+  position: absolute; top: 0; bottom: 0; left: 50%; width: 50%;
+  transform-origin: 0 50%; transform-style: preserve-3d; pointer-events: none; will-change: transform;
+}
+.gogh-shop-book .gogh-book-face {
+  position: absolute; inset: 0; overflow: hidden; backface-visibility: hidden; -webkit-backface-visibility: hidden;
+}
+.gogh-shop-book .gogh-book-face > .gogh-book-copy { position: absolute; inset: 0 auto 0 0 !important; width: 200% !important; visibility: visible; border-radius: 0; }
+.gogh-shop-book .gogh-book-face-r > .gogh-book-copy { left: -100% !important; }
+.gogh-shop-book .gogh-book-back { transform: rotateY(180deg); }
+.gogh-shop-book .gogh-book-hold { position: absolute; top: 0; bottom: 0; width: 50%; left: 0; z-index: 3; pointer-events: none; }
+.gogh-shop-book .gogh-book-hold.gogh-book-face-r { left: 50%; }
+.gogh-shop-book .gogh-book-shade {
+  position: absolute; inset: 0; pointer-events: none; opacity: 0;
+  background: linear-gradient(90deg, rgba(0,0,0,0.5), rgba(0,0,0,0.12) 40%, rgba(0,0,0,0) 70%);
+}
+.gogh-shop-book .gogh-book-back .gogh-book-shade { background: linear-gradient(270deg, rgba(0,0,0,0.5), rgba(0,0,0,0.12) 40%, rgba(0,0,0,0) 70%); }
+.gogh-shop-book .gogh-book { cursor: grab; touch-action: pan-y; outline-offset: 6px; -webkit-user-select: none; user-select: none; }
+.gogh-shop-book .gogh-book img { -webkit-user-drag: none; }
+.gogh-shop-book .gogh-book.is-turning { cursor: grabbing; }
+.gogh-shop-book .gogh-book.is-fading .gogh-book-spread.is-current { opacity: 0; }
+.gogh-shop-book .gogh-book-spread { transition: opacity 0.18s ease; }
+/* one page on a narrow screen: the picture above, the words below */
+.gogh-shop-book .gogh-book.is-single { aspect-ratio: auto; min-height: 0; }
+.gogh-shop-book .gogh-book.is-single .gogh-book-spread { position: relative; display: none; grid-template-columns: 1fr; padding-bottom: 28px !important; }
+.gogh-shop-book .gogh-book.is-single .gogh-book-spread.is-current { display: grid; }
+.gogh-shop-book .gogh-book.is-single .gogh-book-spread > * { grid-column: 1; margin-left: 22px !important; margin-right: 22px !important; }
+.gogh-shop-book .gogh-book.is-single .gogh-book-spread > .gogh-book-pic { position: relative !important; width: auto !important; grid-column: 1; margin: 0 0 22px !important; aspect-ratio: 4 / 5; }
+.gogh-shop-book .gogh-book.is-single .gogh-book-spread::after { display: none; }
+.gogh-shop-book .gogh-book-nav {
+  display: flex; align-items: center; justify-content: center; gap: 22px; margin-top: 28px;
+  font-variant-numeric: tabular-nums; letter-spacing: 0.08em; font-size: 0.85rem;
+}
+.gogh-shop-book .gogh-book-nav button {
+  width: 44px; height: 44px; border-radius: 50%; border: 1px solid currentColor; background: transparent; color: inherit;
+  font-size: 1.05rem; cursor: pointer; display: inline-grid; place-items: center; transition: background 0.15s, color 0.15s, opacity 0.15s;
+}
+.gogh-shop-book .gogh-book-nav button:hover:not(:disabled) { background: color-mix(in srgb, currentColor 12%, transparent); }
+.gogh-shop-book .gogh-book-nav button:disabled { opacity: 0.25; cursor: default; }
+/* before the script (or without it): the spreads simply stack */
+.gogh-shop-book:not(.gogh-book-ready) .wc-block-product-template { aspect-ratio: auto; perspective: none; }
+.gogh-shop-book:not(.gogh-book-ready) .gogh-book-spread, .gogh-shop-book:not(.gogh-book-ready) .wc-block-product-template > li { position: relative; visibility: visible; margin-bottom: 32px !important; }
+
+/* ---------- the Index ---------- */
+.gogh-shop-index .wc-block-product-template {
+  list-style: none; margin: 0 !important; padding: 0 !important; display: block !important; counter-reset: gogh-index;
+}
+.gogh-shop-index .wc-block-product-template > li {
+  display: grid !important; grid-template-columns: 3.2em 1fr auto auto; align-items: baseline; column-gap: 1.2em;
+  margin: 0 !important; padding: 0.35em 0 0.3em !important; width: auto !important; max-width: none !important;
+  border-top: 1px solid color-mix(in srgb, currentColor 22%, transparent); transition: opacity 0.25s ease;
+  position: relative;
+}
+.gogh-shop-index .wc-block-product-template > li:last-child { border-bottom: 1px solid color-mix(in srgb, currentColor 22%, transparent); }
+.gogh-shop-index .wc-block-product-template > li::before {
+  content: var(--gogh-index-n, ""); font-size: 0.8rem; letter-spacing: 0.1em; font-variant-numeric: tabular-nums; opacity: 0.55; align-self: center;
+}
+.gogh-shop-index .wc-block-product-template > li > .gogh-index-pic,
+.gogh-shop-index .wc-block-product-template > li > .wc-block-components-product-image { display: none; }
+.gogh-shop-index .wp-block-post-title {
+  font-size: clamp(2rem, 1rem + 4.6vw, 5.4rem) !important; line-height: 1.02 !important; letter-spacing: -0.02em;
+  margin: 0 !important; grid-column: 2; text-wrap: balance;
+}
+.gogh-shop-index .wp-block-post-title a { color: inherit; text-decoration: none; }
+.gogh-shop-index .wp-block-post-title a::after { content: ""; position: absolute; inset: 0; } /* the whole row opens the product */
+.gogh-shop-index .wc-block-components-product-price { grid-column: 3; font-size: 1rem; font-variant-numeric: tabular-nums; margin: 0 !important; white-space: nowrap; }
+.gogh-shop-index .wc-block-components-product-rating { display: none; }
+.gogh-shop-index .wp-block-button, .gogh-shop-index .wc-block-components-product-button { grid-column: 4; margin: 0 !important; position: relative; z-index: 1; align-self: center; }
+.gogh-shop-index .wc-block-components-product-sale-badge { display: none; }
+@media (hover: hover) and (pointer: fine) {
+  .gogh-shop-index .wc-block-product-template:hover > li:not(:hover) { opacity: 0.28; }
+  .gogh-shop-index .wc-block-product-template > li:hover .wp-block-post-title { font-style: italic; }
+}
+/* touch: no pointer to follow, so a small picture leads each row */
+@media (hover: none), (pointer: coarse) {
+  .gogh-shop-index .wc-block-product-template > li { grid-template-columns: 64px 1fr auto; row-gap: 4px; padding: 12px 0 !important; align-items: center; }
+  .gogh-shop-index .wc-block-product-template > li::before { display: none; }
+  .gogh-shop-index .wc-block-product-template > li > .gogh-index-pic,
+  .gogh-shop-index .wc-block-product-template > li > .wc-block-components-product-image { display: block; grid-column: 1; grid-row: 1 / span 2; margin: 0 !important; width: 64px; }
+  .gogh-shop-index .wc-block-product-template > li > .gogh-index-pic img { aspect-ratio: 1; object-fit: cover; width: 64px !important; height: 64px !important; }
+  .gogh-shop-index .wp-block-post-title { font-size: clamp(1.4rem, 1rem + 3vw, 2.2rem) !important; }
+  .gogh-shop-index .wc-block-components-product-price { grid-column: 2; grid-row: 2; }
+  .gogh-shop-index .wp-block-button, .gogh-shop-index .wc-block-components-product-button { grid-column: 3; grid-row: 1 / span 2; }
+}
+.gogh-index-float {
+  position: fixed; left: 0; top: 0; z-index: 9999; width: clamp(200px, 22vw, 320px); pointer-events: none;
+  opacity: 0; transition: opacity 0.22s ease; border-radius: 4px; overflow: hidden;
+  box-shadow: 0 30px 60px -20px rgba(0, 0, 0, 0.45);
+}
+.gogh-index-float.is-on { opacity: 1; }
+.gogh-index-float img { display: block; width: 100%; height: auto; aspect-ratio: 4 / 5; object-fit: cover; }
+@media (prefers-reduced-motion: reduce) {
+  .gogh-shop-book .gogh-book-spread, .gogh-index-float, .gogh-shop-index .wc-block-product-template > li { transition: none; }
+}
+.gogh-shop-book .wp-block-woocommerce-product-summary p, .gogh-shop-book .wc-block-components-product-summary p { margin-top: 0 !important; }

@@ -5027,6 +5027,41 @@
       }
       return 'marked, newest until then, read back, hint shown';
     });
+    // v0.99.717: the Lookbook and the Index — lists to Woo, a book and a
+    // contents page through gogh-shop-looks; the editor sketches both
+    test('the shop grid offers a Lookbook and an Index, written and read back, sketched in the editor', function () {
+      var shop = G.shopDefaults(); shop.count = 4; shop.layout = 'book';
+      var src = G.composeShop(shop);
+      var attrs = JSON.parse(/wp:woocommerce\/product-collection (\{[\s\S]*?\}) -->/.exec(src)[1]);
+      expect(/\bgogh-shop-book\b/.test(attrs.className) && attrs.displayLayout.type === 'list', 'a Lookbook is a list wearing gogh-shop-book: ' + attrs.className);
+      expect(/wp:woocommerce\/product-summary/.test(src) && /"aspectRatio":"3\/4"/.test(src), 'a Lookbook page carries a few words and a portrait picture');
+      var back = { type: 'widget', wsrc: src }; G.healRails(back);
+      expect(back.shop.layout === 'book', 'reading back should find the Lookbook: ' + back.shop.layout);
+      shop.layout = 'index'; src = G.composeShop(shop);
+      expect(/gogh-shop-index/.test(src) && !/product-summary/.test(src), 'an Index wears gogh-shop-index and no summary');
+      back = { type: 'widget', wsrc: src }; G.healRails(back);
+      expect(back.shop.layout === 'index', 'reading back should find the Index');
+      var s0 = sec(), e = G.addElementToSection(G.sections().indexOf(s0), 'products');
+      try {
+        if (!e || !e.shop) return 'written and read back (no products piece here to open)';
+        G.openPanel(s0, s0.els.indexOf(e));
+        var pnl = q('.gogh-panel');
+        expect(pnl.querySelector('.gogh-shop-layout .gogh-hopt[data-v="book"]') && pnl.querySelector('.gogh-shop-layout .gogh-hopt[data-v="index"]'), 'Layout should offer Lookbook and Index');
+        pnl.querySelector('.gogh-shop-layout .gogh-hopt[data-v="book"]').click();
+        expect(e.shop.layout === 'book' && /gogh-shop-book/.test(e.wsrc), 'choosing Lookbook should write it');
+        var prods = [{ name: 'Linen', prices: { currency_symbol: '£', price: '2800', currency_minor_unit: 2 }, short_description: '<p>Clean sheets.</p>', images: [{ src: 'data:image/gif;base64,R0lGODlhAQABAAAAACw=' }] },
+          { name: 'Amber', prices: { currency_symbol: '£', price: '3000', currency_minor_unit: 2 }, images: [] }];
+        var box = document.createElement('div'); box.innerHTML = G.shopPreviewHTML(e, prods);
+        expect(box.querySelector('.gogh-shop-book .gogh-book-spread.is-current .gogh-book-pic img') && /1 \/ 2/.test(box.querySelector('.gogh-book-count').textContent) && /Clean sheets/.test(box.textContent), 'the sketch is the book open at its first spread');
+        e.shop.layout = 'index'; box.innerHTML = G.shopPreviewHTML(e, prods);
+        expect(box.querySelectorAll('.gogh-shop-index li.gogh-index-row').length === 2 && /Amber/.test(box.textContent), 'the Index sketch lists every name');
+      } finally {
+        G.closePanel();
+        var k = s0.els.indexOf(e);
+        if (k !== -1) { s0.els.splice(k, 1); G.renderSection(s0); }
+      }
+      return 'Lookbook and Index written, read back and sketched';
+    });
     test('the posts rail: Edit design on the bar, a small panel, looks audition and keep', function () {
       var s0 = sec();
       var e = G.addElementToSection(G.sections().indexOf(s0), 'posts');
