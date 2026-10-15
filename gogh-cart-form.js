@@ -199,10 +199,130 @@
     if (clear && syncs.length === sels.length) clear.classList.add('gogh-cf-hidden');
   }
 
+  // ---------- a sized product's card: its sizes, and Add to cart in place ----------
+  function card(opts) {
+    if (opts.dataset.goghOn) return;
+    opts.dataset.goghOn = '1';
+    var vars = [];
+    try { vars = JSON.parse(opts.dataset.vars || '[]'); } catch (e) { return; }
+    var wrap = opts.nextElementSibling;
+    var btn = wrap && wrap.querySelector('.wc-block-components-product-button__button, a, button');
+    if (!btn) return;
+    var span = btn.querySelector('span') || btn;
+    var linkText = span.textContent;
+    // the chips line up as the button does (centred on a card, left in a
+    // Lookbook page or a list)
+    var ai = getComputedStyle(wrap).alignItems;
+    opts.style.justifyContent = /center/.test(ai) ? 'center' : /end/.test(ai) ? 'flex-end' : 'flex-start';
+    // the picked chip wears the theme's own button colour
+    var bs = getComputedStyle(btn);
+    if (bs.backgroundColor && !/^(transparent|rgba\(0, 0, 0, 0\))$/.test(bs.backgroundColor)) {
+      opts.style.setProperty('--gogh-card-on', bs.backgroundColor);
+      opts.style.setProperty('--gogh-card-ink', bs.color);
+    }
+    var label = opts.dataset.label || '';
+    var waiting = label ? (T.chooseOne || 'Choose a %s').replace('%s', label) : (T.chooseMany || 'Choose your options');
+    var addText = T.addToCart || 'Add to cart';
+    var chosen = null, busy = false;
+    var match = function (value) {
+      return vars.filter(function (v) { return v.value === value || v.value === ''; })[0] || null;
+    };
+    [].forEach.call(opts.children, function (c) {
+      var v = match(c.dataset.value);
+      if (!v || !v.stock) { c.classList.add('is-off'); c.setAttribute('aria-disabled', 'true'); }
+    });
+    // the card's own price line shows the chosen size's price, through a
+    // stand-in (a price block may be one WooCommerce redraws itself)
+    var li = opts.closest('li, .wc-block-product, .product') || opts.parentNode;
+    var price = li.querySelector('.wc-block-components-product-price');
+    var priceAlt = null;
+    var showPrice = function () {
+      if (!price) return;
+      if (!chosen) {
+        price.style.display = '';
+        if (priceAlt) { priceAlt.remove(); priceAlt = null; }
+        return;
+      }
+      if (!priceAlt) {
+        priceAlt = price.cloneNode(false);
+        [].slice.call(priceAlt.attributes).forEach(function (a) { if (/^data-wp-/.test(a.name)) priceAlt.removeAttribute(a.name); });
+        priceAlt.setAttribute('aria-live', 'polite');
+        price.parentNode.insertBefore(priceAlt, price.nextSibling);
+      }
+      priceAlt.textContent = chosen.price;
+      price.style.display = 'none';
+    };
+    var paint = function () {
+      [].forEach.call(opts.children, function (c) {
+        var on = !!chosen && c.dataset.value === chosen.value;
+        c.classList.toggle('is-on', on);
+        c.setAttribute('aria-checked', on ? 'true' : 'false');
+      });
+      showPrice();
+      if (busy) return;
+      span.textContent = chosen ? addText : waiting;
+      opts.parentNode.classList.toggle('gogh-card-needs', !chosen);
+    };
+    opts.addEventListener('click', function (ev) {
+      var c = ev.target.closest('.gogh-card-chip');
+      if (!c || c.classList.contains('is-off') || busy) return;
+      ev.preventDefault();
+      ev.stopPropagation();
+      var v = match(c.dataset.value);
+      chosen = chosen && chosen.value === c.dataset.value ? null : (v && Object.assign({}, v, { value: c.dataset.value }));
+      paint();
+    });
+    // the press is caught on its way DOWN, before Woo's own handler on the
+    // link (it would open the product)
+    wrap.addEventListener('click', function (ev) {
+      if (!btn.contains(ev.target)) return;
+      ev.preventDefault();
+      ev.stopPropagation();
+      if (busy) return;
+      if (!chosen) {
+        opts.classList.remove('gogh-cf-nudge');
+        void opts.offsetWidth;
+        opts.classList.add('gogh-cf-nudge');
+        var first = opts.querySelector('.gogh-card-chip:not(.is-off)');
+        if (first) first.focus();
+        return;
+      }
+      if (!T.ajax) { window.location.href = btn.href || window.location.href; return; }
+      busy = true;
+      btn.setAttribute('aria-busy', 'true');
+      span.textContent = T.adding || 'Adding…';
+      var body = new URLSearchParams();
+      body.set('product_id', String(chosen.id));
+      body.set('quantity', '1');
+      fetch(T.ajax.replace('%%endpoint%%', 'add_to_cart'), { method: 'POST', credentials: 'same-origin',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: body.toString() })
+        .then(function (r) { return r.json(); })
+        .then(function (res) {
+          if (!res || res.error) throw new Error('not added');
+          span.textContent = (T.added || 'Added') + ' \u2713';
+          // the theme's cart (classic fragments, or the cart block) catches up
+          if (window.jQuery) window.jQuery(document.body).trigger('added_to_cart', [res.fragments || {}, res.cart_hash || '', window.jQuery(btn)]);
+          document.body.dispatchEvent(new CustomEvent('wc-blocks_added_to_cart', { bubbles: true, cancelable: true }));
+          setTimeout(function () { busy = false; btn.removeAttribute('aria-busy'); paint(); }, 1800);
+        })
+        .catch(function () {
+          busy = false;
+          btn.removeAttribute('aria-busy');
+          span.textContent = T.failed || linkText;
+          setTimeout(function () { window.location.href = btn.href || window.location.href; }, 900);
+        });
+    }, true);
+    paint();
+  }
+
   function run(scope) {
     [].forEach.call((scope || document).querySelectorAll('form.cart'), function (f) {
       if (f.closest('.gogh-editing, [contenteditable]')) return;
       dress(f);
+    });
+    [].forEach.call((scope || document).querySelectorAll('.gogh-card-opts'), function (o) {
+      if (o.closest('.gogh-editing, [contenteditable], .gogh-book-copy, .gogh-lay-stage')) return; // a Lookbook page-turn copy, a Layouts tile
+      card(o);
     });
   }
   // Woo wires the variation form on ready; the chips follow it

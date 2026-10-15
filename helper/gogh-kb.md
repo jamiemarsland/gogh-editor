@@ -15,7 +15,7 @@ about something where they conflict, rather than picking one silently. Quote UI
 labels and message copy from the appendix, verbatim — those are the current
 strings, and a paraphrased button label is the fastest way to lose a user's trust.
 
-Generated for plugin version 0.99.731 · knowledge base 3eae9c4.
+Generated for plugin version 0.99.732 · knowledge base 7da00d0.
 
 ---
 
@@ -830,6 +830,8 @@ The helper's welcome panel opens with a 35-second film of gogh being used (v0.99
 
 **The phone view survives navigation (v0.99.605).** Press one of your own pages while on the phone and it opens in the editor, still on the phone: the link carries `gogh-edit=1&gogh-phone=1`, the next page reads them at boot and strips them from the address. Other sites, files, wp-admin and anchors on the same page are left alone. Unpublished changes still ask before leaving.
 
+**Sizes on shop cards (v0.99.732).** In a grid of products, a product that comes in sizes (one choice, up to six options) now shows its sizes as small buttons on its card, above the Add to cart button. Pick one and the card's price changes to that size's price; press Add to cart and it goes straight into the cart without leaving the page, and the cart in your header counts it. Before a size is picked the button says "Choose a size" and points to the sizes when pressed. The picked size uses your site's button colour and the sizes line up with the button. Products with more than one thing to choose, or more than six sizes, keep WooCommerce's "Select options" link to the product page. It works in the Lookbook too. To show no buttons at all, turn off Add to cart in the shop panel.
+
 **A tidier add to cart (v0.99.731).** On a product page, gogh now dresses WooCommerce's add to cart form to match your site. A product's options, such as sizes, show as buttons you tap instead of a "Choose an option" dropdown (a list longer than twelve stays a dropdown, styled to match). The quantity has − and + buttons and stands as tall as the Add to cart button beside it. Until a size is picked, the button says what it needs, such as "Choose a size", instead of fading out; pressing it then points to the sizes instead of showing an alert. The price at the top changes to the chosen size's price instead of a second price appearing below. The chosen button uses your site's button colour, and the corners follow your button's corners. WooCommerce still does all the work underneath, so stock, prices and the cart behave exactly as before.
 
 **The bin in Layouts (v0.99.730).** While the Layouts panel is open, every piece of the section has a small bin on its corner. Click it to take that piece (a button, a picture, a line of words, a badge) out of **every** layout of the design, not just the one you're on: the tiles redraw without it, and rolling the die later leaves it out too. **Restore removed** in the panel brings everything back, with its words and picture, into whichever layout you're on. Reset puts the section back as it was when you opened the panel, bin and all, and the whole visit is still one undo step.
@@ -1071,11 +1073,11 @@ Everything in this section is extracted mechanically from the Gogh source on eve
 
 ## Current release
 
-- Plugin version: **0.99.731**
+- Plugin version: **0.99.732**
 - Requires WordPress **6.5+**, PHP **7.4+**
 - Text domain: `gogh-editor`
 - readme.txt Stable tag: `0.26.0` · Tested up to: `7.0`
-- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.731`). Quote the plugin header version.
+- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.732`). Quote the plugin header version.
 
 ## Design constants
 
@@ -1195,6 +1197,7 @@ Block: `gogh/section` · v3 attributes: `css`, `model`, `scope`, `v`, `cssT`.
 | `wp_enqueue_scripts` | action | 10 |
 | `render_block_woocommerce/add-to-cart-form` | filter | 10 |
 | `woocommerce_before_add_to_cart_form` | action | 10 |
+| `render_block_woocommerce/product-button` | filter | 10 |
 | `init` | action | 10 |
 | `body_class` | filter | 10 |
 | `wp_enqueue_scripts` | action | 10 |
@@ -1269,7 +1272,7 @@ Block: `gogh/section` · v3 attributes: `css`, `model`, `scope`, `v`, `cssT`.
 | `wp_insert_post` | action | 10 |
 | `block_editor_settings_all` | filter | 10 |
 
-Filters exposed for third parties: `gogh_default_editor`, `gogh_claims_post`, `gogh_labs_ask`, `gogh_helper_url`, `gogh_user_test_tasks`, `gogh_rebake_enabled`, `gogh_schema`, `gogh_schema_enabled`, `gogh_preload_fonts`, `gogh_webmcp_enabled`, `gogh_convert_enabled`.
+Filters exposed for third parties: `gogh_default_editor`, `gogh_claims_post`, `gogh_labs_ask`, `gogh_card_chips`, `gogh_helper_url`, `gogh_user_test_tasks`, `gogh_rebake_enabled`, `gogh_schema`, `gogh_schema_enabled`, `gogh_preload_fonts`, `gogh_webmcp_enabled`, `gogh_convert_enabled`.
 
 REST routes registered: `gogh/v1/version`, `gogh/v1/starter`, `gogh/v1/site-def`, `gogh/v1/type-scale`, `gogh/v1/blog-style`, `gogh/v1/motion`, `gogh/v1/home`, `gogh/v1/design-looks`, `gogh/v1/ask`, `gogh/v1/imagine-exp`, `gogh/v1/ask-key`, `gogh/v1/menu-style`, `gogh/v1/first-minute`, `gogh/v1/ask-log`, `gogh/v1/active-style`, `wp/v2/gogh-product/(?P<id>\d+)`, `wp/v2/gogh-product/(?P<id>\d+)/autosaves`, `gogh/v1/pattern`, `gogh/v1/render`.
 
