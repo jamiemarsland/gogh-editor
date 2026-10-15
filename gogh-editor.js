@@ -5712,7 +5712,7 @@
     dockSidebar();
     panel.classList.add('gogh-panel-long');
     longPanelFor = { sec: sec, i: i };
-    showFocusVeil(i < 0 ? secDisplayName(sec) : title);
+    showFocusVeil(title);
     zoomOutCanvas(); // fitted beside the panel (and beside help, if it is open)
     // zooming starts from the top of the page: bring the piece back in view
     setTimeout(function () {
@@ -13991,51 +13991,23 @@
     face = ((face % faces.length) + faces.length) % faces.length;
     return (faces[face] && faces[face].take) || (face === 0 ? 'The original' : '');
   }
-  // a section's name as a person would say it: its headline, else its
-  // design's name, else its place on the page
-  function secDisplayName(sec) {
-    if (!sec) return 'Section';
-    if (sec.chrome) return sec.chrome === 'footer' ? 'Footer' : 'Header';
-    var h = diceFlatten(sec.els || []).filter(function (e) { return e.type === 'heading' && e.text; })[0];
-    var txt = h ? String(h.text).replace(/<[^>]*>/g, ' ').replace(/&nbsp;|\s+/g, ' ').replace(/&amp;/g, '&').trim() : '';
-    if (txt) return txt.length > 36 ? txt.slice(0, 34).replace(/\s+\S*$/, '') + '\u2026' : txt;
-    var fam = diceFamilyOf(sec);
-    if (fam) return fam;
-    var n = S.filter(function (x) { return !x.chrome; }).indexOf(sec);
-    return 'Section ' + (n + 1);
-  }
   // the section under the hand, made plain (James, after Albers: 'gives
   // users visual feedback when hovering that the section is the core mental
-  // model'): a thin ring and its name on the top-right corner, riding with
-  // the section bar. No wash and no mode bar: in gogh you edit by clicking
-  // the thing itself
-  var secTag = document.createElement('div');
-  secTag.className = 'gogh-sectag';
-  secTag.setAttribute('aria-hidden', 'true');
-  secTag.hidden = true;
-  document.body.appendChild(secTag);
+  // model'): a thin ring, riding with the section bar. No wash, no mode bar
+  // and no name pill ('they don't help'): in gogh you edit by clicking the
+  // thing itself
   var hoverSecEl = null;
   function showSecHover(idx) {
     var sec = S[idx];
     var el = sec && sec.sectionEl;
     if (hoverSecEl && hoverSecEl !== el) hoverSecEl.classList.remove('gogh-hoversec');
     hoverSecEl = el || null;
-    if (!el) { secTag.hidden = true; return; }
+    if (!el) return;
     el.classList.add('gogh-hoversec');
-    var name = secDisplayName(sec);
-    if (secTag.textContent !== name) secTag.textContent = name;
-    secTag.hidden = false;
-    var r = el.getBoundingClientRect();
-    var top = Math.max(r.top - 11, barBottom() + 6);
-    var off = top > r.bottom - 30;
-    secTag.classList.toggle('is-off', off);
-    secTag.style.top = Math.round(top + window.scrollY) + 'px';
-    secTag.style.left = Math.round(r.right + window.scrollX - secTag.offsetWidth - 16) + 'px';
   }
   function hideSecHover() {
     if (hoverSecEl) hoverSecEl.classList.remove('gogh-hoversec');
     hoverSecEl = null;
-    secTag.hidden = true;
   }
   function hideSecBar() { goghFadeOut(secBar); secBarIdx = null; closeSecMore(); clearTimeout(hoverSecT); hideSecHover(); }
   // The corners come when the pointer enters a section and go when it
@@ -22219,7 +22191,7 @@
     buildV3: function () { return realSections().map(buildSectionBlocksV3).join('\n\n'); },
     mergeContent: mergeContent,
     closePanel: closePanel,
-    showSecBar: function (i) { showSecBar(i); }, hideSecBar: function () { hideSecBar(); }, secDisplayName: secDisplayName,
+    showSecBar: function (i) { showSecBar(i); }, hideSecBar: function () { hideSecBar(); },
     addElementAt: addElementAtViewport,
     addElementToSection: addElementToSection,
     composeFeaturedProduct: composeFeaturedProduct,
