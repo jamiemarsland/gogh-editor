@@ -4799,4 +4799,4 @@ html.gogh-editing #wpadminbar #wp-admin-bar-site-name #wp-admin-bar-gogh-account
 
 .gogh-panel-hint[hidden] { display: none; }
 .gogh-shopprev.gogh-shopprev-look { display: block; }
-.gogh-shopprev-look .gogh-book-nav button { pointer-events: none; }
+.gogh-shopprev-look .gogh-book-arrow, .gogh-shopprev-look .gogh-book-corner { pointer-events: none; }

@@ -3,10 +3,17 @@
 
 /* ---------- the Lookbook ---------- */
 .gogh-shop-book { --gogh-paper: var(--wp--preset--color--base, #fff); }
+/* the book's own box: as wide as the column allows less room for the arrows,
+   never taller than the window less room for the count */
+.gogh-shop-book .gogh-book-stage {
+  position: relative; margin: 0 auto;
+  width: min(calc(100% - 136px), calc((100vh - 150px) * 1.5), 1180px);
+  width: min(calc(100% - 136px), calc((100svh - 150px) * 1.5), 1180px);
+}
 .gogh-shop-book .wc-block-product-template {
-  position: relative; list-style: none; margin: 0 auto !important; padding: 0 !important;
-  width: 100%; max-width: 1180px; aspect-ratio: 3 / 2;
-  perspective: 2400px; display: block !important;
+  position: relative; list-style: none; margin: 0 !important; padding: 0 !important;
+  width: 100% !important; max-width: none !important; aspect-ratio: 3 / 2;
+  perspective: 3600px; display: block !important;
   --gogh-book-left: 0; --gogh-book-right: 4;
 }
 /* the pages under the open spread: a few edges either side */
@@ -17,15 +24,14 @@
     calc(var(--gogh-book-left) * -1.5px) calc(var(--gogh-book-left) * 1px) 0 -1px color-mix(in srgb, var(--gogh-paper) 88%, #000),
     0 30px 60px -30px rgba(0, 0, 0, 0.45), 0 2px 6px rgba(0, 0, 0, 0.08);
 }
-.gogh-shop-book .gogh-book-spread,
-.gogh-shop-book .gogh-book-copy {
-  position: absolute; inset: 0; margin: 0 !important; width: auto !important; max-width: none !important;
+.gogh-shop-book .gogh-book > li {
+  position: absolute !important; inset: 0 !important; margin: 0 !important; width: auto !important; max-width: none !important;
   display: grid; grid-template-columns: 1fr 1fr; grid-auto-rows: min-content; align-content: center;
   background: var(--gogh-paper); visibility: hidden; padding: 0 !important; border-radius: 3px; overflow: hidden;
 }
-.gogh-shop-book .gogh-book-spread.is-current { visibility: visible; }
-.gogh-shop-book .gogh-book-spread > * { grid-column: 2; margin-left: clamp(24px, 9%, 84px) !important; margin-right: clamp(24px, 9%, 84px) !important; max-width: 30em; }
-.gogh-shop-book .gogh-book-spread > .gogh-book-pic {
+.gogh-shop-book .gogh-book > li.is-current { visibility: visible; }
+.gogh-shop-book .gogh-book > li > * { grid-column: 2; margin-left: clamp(24px, 9%, 84px) !important; margin-right: clamp(24px, 9%, 84px) !important; max-width: 30em; }
+.gogh-shop-book .gogh-book > li > .gogh-book-pic {
   /* no grid area: an absolutely placed grid child measures from its area,
      and this one belongs to the whole left page */
   grid-column: auto; grid-row: auto; margin: 0 !important; max-width: none;
@@ -35,8 +41,7 @@
   display: block; width: 100% !important; height: 100% !important; aspect-ratio: auto !important; object-fit: cover; margin: 0 !important;
 }
 /* the spine: a fold of shadow down the middle */
-.gogh-shop-book .gogh-book-spread::after,
-.gogh-shop-book .gogh-book-copy::after {
+.gogh-shop-book .gogh-book > li::after {
   content: ""; position: absolute; top: 0; bottom: 0; left: calc(50% - 40px); width: 80px; pointer-events: none;
   background: linear-gradient(90deg, rgba(0,0,0,0) 0%, rgba(0,0,0,0.10) 45%, rgba(0,0,0,0.22) 50%, rgba(0,0,0,0.06) 56%, rgba(0,0,0,0) 100%);
 }
@@ -50,49 +55,73 @@
   font-size: 0.98rem; line-height: 1.6; opacity: 0.82; margin-bottom: 1.4em !important;
 }
 .gogh-shop-book .wc-block-components-product-sale-badge { position: absolute; top: 16px; right: 16px; }
-/* a page in the hand */
-.gogh-shop-book .gogh-book-leaf {
-  position: absolute; top: 0; bottom: 0; left: 50%; width: 50%;
-  transform-origin: 0 50%; transform-style: preserve-3d; pointer-events: none; will-change: transform;
+/* a turning page: a whole spread in the very place of the real one, showing
+   only its half, turning about the spine */
+.gogh-shop-book .gogh-book > li.gogh-book-copy {
+  visibility: visible; transform-origin: 50% 50%; backface-visibility: hidden; -webkit-backface-visibility: hidden;
+  pointer-events: none; will-change: transform; border-radius: 0; z-index: 3;
 }
-.gogh-shop-book .gogh-book-face {
-  position: absolute; inset: 0; overflow: hidden; backface-visibility: hidden; -webkit-backface-visibility: hidden;
-}
-.gogh-shop-book .gogh-book-face > .gogh-book-copy { position: absolute; inset: 0 auto 0 0 !important; width: 200% !important; visibility: visible; border-radius: 0; }
-.gogh-shop-book .gogh-book-face-r > .gogh-book-copy { left: -100% !important; }
-.gogh-shop-book .gogh-book-back { transform: rotateY(180deg); }
-.gogh-shop-book .gogh-book-hold { position: absolute; top: 0; bottom: 0; width: 50%; left: 0; z-index: 3; pointer-events: none; }
-.gogh-shop-book .gogh-book-hold.gogh-book-face-r { left: 50%; }
+.gogh-shop-book .gogh-book > li.gogh-book-half-r { clip-path: inset(0 0 0 50%); }
+.gogh-shop-book .gogh-book > li.gogh-book-half-l { clip-path: inset(0 50% 0 0); }
+.gogh-shop-book .gogh-book > li.gogh-book-hold { z-index: 2; transform: none; }
 .gogh-shop-book .gogh-book-shade {
-  position: absolute; inset: 0; pointer-events: none; opacity: 0;
-  background: linear-gradient(90deg, rgba(0,0,0,0.5), rgba(0,0,0,0.12) 40%, rgba(0,0,0,0) 70%);
+  position: absolute; top: 0; bottom: 0; width: 50%; pointer-events: none; opacity: 0; z-index: 2;
 }
-.gogh-shop-book .gogh-book-back .gogh-book-shade { background: linear-gradient(270deg, rgba(0,0,0,0.5), rgba(0,0,0,0.12) 40%, rgba(0,0,0,0) 70%); }
+.gogh-shop-book .gogh-book-half-r .gogh-book-shade { left: 50%; background: linear-gradient(90deg, rgba(0,0,0,0.5), rgba(0,0,0,0.12) 40%, rgba(0,0,0,0) 70%); }
+.gogh-shop-book .gogh-book-half-l .gogh-book-shade { left: 0; background: linear-gradient(270deg, rgba(0,0,0,0.5), rgba(0,0,0,0.12) 40%, rgba(0,0,0,0) 70%); }
 .gogh-shop-book .gogh-book { cursor: grab; touch-action: pan-y; outline-offset: 6px; -webkit-user-select: none; user-select: none; }
 .gogh-shop-book .gogh-book img { -webkit-user-drag: none; }
 .gogh-shop-book .gogh-book.is-turning { cursor: grabbing; }
-.gogh-shop-book .gogh-book.is-fading .gogh-book-spread.is-current { opacity: 0; }
-.gogh-shop-book .gogh-book-spread { transition: opacity 0.18s ease; }
-/* one page on a narrow screen: the picture above, the words below */
-.gogh-shop-book .gogh-book.is-single { aspect-ratio: auto; min-height: 0; }
-.gogh-shop-book .gogh-book.is-single .gogh-book-spread { position: relative; display: none; grid-template-columns: 1fr; padding-bottom: 28px !important; }
-.gogh-shop-book .gogh-book.is-single .gogh-book-spread.is-current { display: grid; }
-.gogh-shop-book .gogh-book.is-single .gogh-book-spread > * { grid-column: 1; margin-left: 22px !important; margin-right: 22px !important; }
-.gogh-shop-book .gogh-book.is-single .gogh-book-spread > .gogh-book-pic { position: relative !important; width: auto !important; grid-column: 1; margin: 0 0 22px !important; aspect-ratio: 4 / 5; }
-.gogh-shop-book .gogh-book.is-single .gogh-book-spread::after { display: none; }
+.gogh-shop-book .gogh-book.is-fading > li.is-current { opacity: 0; }
+.gogh-shop-book .gogh-book > li { transition: opacity 0.18s ease; }
+/* the arrows: beside the book, at its middle */
+.gogh-shop-book .gogh-book-arrow {
+  position: absolute; top: var(--gogh-book-arrow-y, 50%); transform: translateY(-50%); z-index: 5;
+  width: 52px; height: 52px; border-radius: 50%; padding: 0; cursor: pointer; display: grid; place-items: center;
+  border: 1px solid color-mix(in srgb, currentColor 30%, transparent); background: var(--gogh-paper); color: inherit;
+  box-shadow: 0 6px 18px -8px rgba(0, 0, 0, 0.35); transition: transform 0.15s ease, opacity 0.2s ease, box-shadow 0.15s ease;
+}
+.gogh-shop-book .gogh-book-prev { left: -68px; }
+.gogh-shop-book .gogh-book-next { right: -68px; }
+.gogh-shop-book .gogh-book-arrow:hover:not(:disabled) { transform: translateY(-50%) scale(1.08); box-shadow: 0 10px 24px -8px rgba(0, 0, 0, 0.4); }
+.gogh-shop-book .gogh-book-arrow:disabled { opacity: 0; pointer-events: none; }
+.gogh-shop-book .gogh-book-arrow:focus-visible { outline: 2px solid currentColor; outline-offset: 3px; }
+/* the folded corner: a page asking to be turned */
+.gogh-shop-book .gogh-book-corner {
+  position: absolute; bottom: 0; width: 44px; height: 44px; padding: 0; border: 0; z-index: 4; cursor: pointer;
+  transition: width 0.22s ease, height 0.22s ease, filter 0.22s ease; filter: drop-shadow(-2px -2px 3px rgba(0, 0, 0, 0.18));
+}
+.gogh-shop-book .gogh-book-corner[hidden] { display: none; }
+.gogh-shop-book .gogh-book-corner-r {
+  right: 0; border-radius: 0 0 3px 0;
+  background: linear-gradient(315deg, transparent 50%, color-mix(in srgb, var(--gogh-paper) 86%, #000) 50%, var(--gogh-paper) 72%);
+}
+.gogh-shop-book .gogh-book-corner-l {
+  left: 0; border-radius: 0 0 0 3px;
+  background: linear-gradient(45deg, transparent 50%, color-mix(in srgb, var(--gogh-paper) 86%, #000) 50%, var(--gogh-paper) 72%);
+}
+.gogh-shop-book .gogh-book-corner:hover { width: 72px; height: 72px; filter: drop-shadow(-4px -4px 6px rgba(0, 0, 0, 0.25)); }
+.gogh-shop-book .gogh-book.is-turning ~ .gogh-book-corner { opacity: 0; }
 .gogh-shop-book .gogh-book-nav {
-  display: flex; align-items: center; justify-content: center; gap: 22px; margin-top: 28px;
-  font-variant-numeric: tabular-nums; letter-spacing: 0.08em; font-size: 0.85rem;
+  display: flex; align-items: center; justify-content: center; margin-top: 18px;
+  font-variant-numeric: tabular-nums; letter-spacing: 0.12em; font-size: 0.8rem; opacity: 0.7;
 }
-.gogh-shop-book .gogh-book-nav button {
-  width: 44px; height: 44px; border-radius: 50%; border: 1px solid currentColor; background: transparent; color: inherit;
-  font-size: 1.05rem; cursor: pointer; display: inline-grid; place-items: center; transition: background 0.15s, color 0.15s, opacity 0.15s;
-}
-.gogh-shop-book .gogh-book-nav button:hover:not(:disabled) { background: color-mix(in srgb, currentColor 12%, transparent); }
-.gogh-shop-book .gogh-book-nav button:disabled { opacity: 0.25; cursor: default; }
+/* one page on a narrow screen: the picture above, the words below, the
+   arrows on the picture's middle */
+.gogh-shop-book .gogh-book-stage.is-single { width: 100%; }
+.gogh-shop-book .gogh-book.is-single { aspect-ratio: auto; min-height: 0; }
+.gogh-shop-book .gogh-book.is-single > li { position: relative !important; display: none; grid-template-columns: 1fr; padding-bottom: 28px !important; }
+.gogh-shop-book .gogh-book.is-single > li.is-current { display: grid; }
+.gogh-shop-book .gogh-book.is-single > li > * { grid-column: 1; margin-left: 22px !important; margin-right: 22px !important; }
+.gogh-shop-book .gogh-book.is-single > li > .gogh-book-pic { position: relative !important; width: auto !important; grid-column: 1; margin: 0 0 22px !important; aspect-ratio: 4 / 5; }
+.gogh-shop-book .gogh-book.is-single > li::after { display: none; }
+.gogh-shop-book .gogh-book-stage.is-single .gogh-book-arrow { width: 44px; height: 44px; }
+.gogh-shop-book .gogh-book-stage.is-single .gogh-book-prev { left: 10px; }
+.gogh-shop-book .gogh-book-stage.is-single .gogh-book-next { right: 10px; }
+.gogh-shop-book .gogh-book-stage.is-single .gogh-book-corner { display: none; }
 /* before the script (or without it): the spreads simply stack */
 .gogh-shop-book:not(.gogh-book-ready) .wc-block-product-template { aspect-ratio: auto; perspective: none; }
-.gogh-shop-book:not(.gogh-book-ready) .gogh-book-spread, .gogh-shop-book:not(.gogh-book-ready) .wc-block-product-template > li { position: relative; visibility: visible; margin-bottom: 32px !important; }
+.gogh-shop-book:not(.gogh-book-ready) .wc-block-product-template > li { position: relative !important; visibility: visible; margin-bottom: 32px !important; }
 
 /* ---------- the Index ---------- */
 .gogh-shop-index .wc-block-product-template {
@@ -143,6 +172,6 @@
 .gogh-index-float.is-on { opacity: 1; }
 .gogh-index-float img { display: block; width: 100%; height: auto; aspect-ratio: 4 / 5; object-fit: cover; }
 @media (prefers-reduced-motion: reduce) {
-  .gogh-shop-book .gogh-book-spread, .gogh-index-float, .gogh-shop-index .wc-block-product-template > li { transition: none; }
+  .gogh-shop-book .gogh-book > li, .gogh-index-float, .gogh-shop-index .wc-block-product-template > li { transition: none; }
 }
 .gogh-shop-book .wp-block-woocommerce-product-summary p, .gogh-shop-book .wc-block-components-product-summary p { margin-top: 0 !important; }

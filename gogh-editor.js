@@ -8131,13 +8131,16 @@
     var btn = show.button ? '<div class="wp-block-button"><span class="wp-block-button__link wp-element-button">Add to cart</span></div>' : '';
     if (shop.layout === 'book') {
       var p = prods[0], img = p.images && p.images[0] && p.images[0].src;
-      return '<div class="gogh-shopprev gogh-shopprev-look gogh-shop-book gogh-book-ready"><ul class="wc-block-product-template gogh-book" style="--gogh-book-left:0;--gogh-book-right:' + Math.min(4, prods.length - 1) + '">' +
+      var arrow = function (cls, d) { return '<span class="gogh-book-arrow ' + cls + '"' + (cls === 'gogh-book-prev' ? ' style="opacity:0"' : '') + '><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="' + d + '"/></svg></span>'; };
+      return '<div class="gogh-shopprev gogh-shopprev-look gogh-shop-book gogh-book-ready"><div class="gogh-book-stage"><ul class="wc-block-product-template gogh-book" style="--gogh-book-left:0;--gogh-book-right:' + Math.min(4, prods.length - 1) + '">' +
         '<li class="gogh-book-spread is-current">' +
         '<div class="gogh-book-pic">' + (img ? '<img src="' + escAttr(img) + '" alt="" />' : '') + '</div>' +
         '<h3 class="wp-block-post-title">' + esc(plainTitle(p.name || 'Product')) + '</h3>' +
         (show.price ? '<div class="wc-block-components-product-price">' + esc(storePriceText(p)) + '</div>' : '') +
         (words(p) ? '<div class="wp-block-woocommerce-product-summary"><p>' + esc(words(p)) + '</p></div>' : '') + btn +
-        '</li></ul><div class="gogh-book-nav"><button type="button" disabled tabindex="-1">\u2190</button><span class="gogh-book-count">1 / ' + prods.length + '</span><button type="button" tabindex="-1">\u2192</button></div></div>';
+        '</li></ul>' + arrow('gogh-book-prev', 'M15 5l-7 7 7 7') + arrow('gogh-book-next', 'M9 5l7 7-7 7') +
+        (prods.length > 1 ? '<span class="gogh-book-corner gogh-book-corner-r"></span>' : '') +
+        '</div><div class="gogh-book-nav"><span class="gogh-book-count">1 / ' + prods.length + '</span></div></div>';
     }
     return '<div class="gogh-shopprev gogh-shopprev-look gogh-shop-index gogh-index-ready"><ul class="wc-block-product-template gogh-index">' + prods.map(function (p, k) {
       var img = p.images && p.images[0] && p.images[0].src;

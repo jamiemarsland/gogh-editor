@@ -5052,7 +5052,7 @@
         var prods = [{ name: 'Linen', prices: { currency_symbol: '£', price: '2800', currency_minor_unit: 2 }, short_description: '<p>Clean sheets.</p>', images: [{ src: 'data:image/gif;base64,R0lGODlhAQABAAAAACw=' }] },
           { name: 'Amber', prices: { currency_symbol: '£', price: '3000', currency_minor_unit: 2 }, images: [] }];
         var box = document.createElement('div'); box.innerHTML = G.shopPreviewHTML(e, prods);
-        expect(box.querySelector('.gogh-shop-book .gogh-book-spread.is-current .gogh-book-pic img') && /1 \/ 2/.test(box.querySelector('.gogh-book-count').textContent) && /Clean sheets/.test(box.textContent), 'the sketch is the book open at its first spread');
+        expect(box.querySelector('.gogh-shop-book .gogh-book-spread.is-current .gogh-book-pic img') && /1 \/ 2/.test(box.querySelector('.gogh-book-count').textContent) && box.querySelector('.gogh-book-stage .gogh-book-next') && /Clean sheets/.test(box.textContent), 'the sketch is the book open at its first spread');
         e.shop.layout = 'index'; box.innerHTML = G.shopPreviewHTML(e, prods);
         expect(box.querySelectorAll('.gogh-shop-index li.gogh-index-row').length === 2 && /Amber/.test(box.textContent), 'the Index sketch lists every name');
       } finally {

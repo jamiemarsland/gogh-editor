@@ -15,7 +15,7 @@ about something where they conflict, rather than picking one silently. Quote UI
 labels and message copy from the appendix, verbatim — those are the current
 strings, and a paraphrased button label is the fastest way to lose a user's trust.
 
-Generated for plugin version 0.99.717 · knowledge base 560d8fb.
+Generated for plugin version 0.99.718 · knowledge base dc6fd84.
 
 ---
 
@@ -830,6 +830,8 @@ The helper's welcome panel opens with a 35-second film of gogh being used (v0.99
 
 **The phone view survives navigation (v0.99.605).** Press one of your own pages while on the phone and it opens in the editor, still on the phone: the link carries `gogh-edit=1&gogh-phone=1`, the next page reads them at boot and strips them from the address. Other sites, files, wp-admin and anchors on the same page are left alone. Unpublished changes still ask before leaving.
 
+**An easier Lookbook (v0.99.718).** The Lookbook now always fits on screen: it is never taller than the window, so the whole spread is in view at once. The arrows sit beside the book, halfway down, instead of underneath it, and the page number sits quietly below. Each page has a small folded corner that lifts when you hover over it: click it or drag it to turn the page. Turning pages also look smoother, because a turning page stays exactly the size of the page it came from.
+
 **Two new looks for a product grid: Lookbook and Index (v0.99.717).** In a product grid's panel, **Layout** now offers **Lookbook** and **Index** next to Grid and List. **Lookbook** turns the products into a book. Each product is a spread: its photo fills the left page, and its name, price, a few words about it and (if shown) Add to cart sit on the right. Shoppers turn the pages with the arrows, the arrow keys, or by dragging a page across, and the page turns over in 3D. On a phone it shows one page at a time with a swipe, and anyone who has asked their device for less motion gets a gentle fade instead. **Index** sets the product names very large, one per line like a magazine's contents page, numbered, with prices on the right. On a computer, hovering a name dims the others and floats that product's photo beside the pointer. On a phone each row leads with a small photo. Both keep your theme's fonts and colours, and prices, sale badges and Add to cart work as normal.
 
 **Recently viewed, and a tidier site menu (v0.99.716).** A product grid's **Order** now offers **Recently viewed**: each shopper sees the products they last looked at, most recent first, topped up with your newest products. Until a shopper has looked around, the grid shows your newest products, so it never sits empty. If the grid is narrowed to a category, only products from that category show. gogh remembers the last twelve products a shopper viewed in a small cookie for 30 days, and only once a published page uses Recently viewed. A page drawn for one shopper is never kept by a page cache. The menu under your site name in the top bar now has one **Dashboard** link and no **New page**: make pages with **Add a page** in the page switcher.
@@ -1043,11 +1045,11 @@ Everything in this section is extracted mechanically from the Gogh source on eve
 
 ## Current release
 
-- Plugin version: **0.99.717**
+- Plugin version: **0.99.718**
 - Requires WordPress **6.5+**, PHP **7.4+**
 - Text domain: `gogh-editor`
 - readme.txt Stable tag: `0.26.0` · Tested up to: `7.0`
-- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.717`). Quote the plugin header version.
+- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.718`). Quote the plugin header version.
 
 ## Design constants
 

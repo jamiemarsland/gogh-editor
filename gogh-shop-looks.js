@@ -32,21 +32,36 @@
       li.setAttribute('aria-roledescription', 'page');
       li.setAttribute('aria-label', (n + 1) + ' of ' + pages.length);
     });
-    var at = 0, busy = false;
+    // the stage is the book's own box: never taller than the window, so the
+    // whole spread and its arrows are in view at once (James: 'its quite hard
+    // to use - cuz the arrows are at the bottom'). Arrows sit beside the book
+    // at its middle; a folded corner on each page invites a turn
+    var stage = document.createElement('div');
+    stage.className = 'gogh-book-stage';
+    ul.parentNode.insertBefore(stage, ul);
+    stage.appendChild(ul);
+    stage.insertAdjacentHTML('beforeend',
+      '<button type="button" class="gogh-book-arrow gogh-book-prev" aria-label="Previous page"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg></button>' +
+      '<button type="button" class="gogh-book-arrow gogh-book-next" aria-label="Next page"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5l7 7-7 7"/></svg></button>' +
+      '<button type="button" class="gogh-book-corner gogh-book-corner-r" tabindex="-1" aria-hidden="true"></button>' +
+      '<button type="button" class="gogh-book-corner gogh-book-corner-l" tabindex="-1" aria-hidden="true"></button>');
     var nav = document.createElement('div');
     nav.className = 'gogh-book-nav';
-    nav.innerHTML = '<button type="button" class="gogh-book-prev" aria-label="Previous page">←</button>' +
-      '<span class="gogh-book-count" aria-live="polite"></span>' +
-      '<button type="button" class="gogh-book-next" aria-label="Next page">→</button>';
-    ul.parentNode.insertBefore(nav, ul.nextSibling);
-    var prevB = nav.querySelector('.gogh-book-prev'), nextB = nav.querySelector('.gogh-book-next'), count = nav.querySelector('.gogh-book-count');
+    nav.innerHTML = '<span class="gogh-book-count" aria-live="polite"></span>';
+    stage.parentNode.insertBefore(nav, stage.nextSibling);
+    var prevB = stage.querySelector('.gogh-book-prev'), nextB = stage.querySelector('.gogh-book-next'), count = nav.querySelector('.gogh-book-count');
+    var cornerR = stage.querySelector('.gogh-book-corner-r'), cornerL = stage.querySelector('.gogh-book-corner-l');
     ul.setAttribute('tabindex', '0');
     ul.setAttribute('aria-roledescription', 'lookbook');
+    var at = 0, busy = false, single = false;
 
-    var single = false;
     function measure() {
-      single = ul.clientWidth < 640;
+      single = (stage.parentNode.clientWidth || 0) < 700;
+      stage.classList.toggle('is-single', single);
       ul.classList.toggle('is-single', single);
+      // on one page the arrows ride the middle of the picture
+      var pic = pages[at] && pages[at].querySelector('.gogh-book-pic');
+      stage.style.setProperty('--gogh-book-arrow-y', single && pic ? Math.round(pic.offsetHeight / 2) + 'px' : '50%');
     }
     function show(n) {
       pages.forEach(function (li, k) {
@@ -59,67 +74,66 @@
       count.textContent = (n + 1) + ' / ' + pages.length;
       prevB.disabled = n === 0;
       nextB.disabled = n === pages.length - 1;
+      cornerL.hidden = n === 0;
+      cornerR.hidden = n === pages.length - 1;
       // the edge of the book thins on the right as the pages are read
       ul.style.setProperty('--gogh-book-left', Math.min(4, n));
       ul.style.setProperty('--gogh-book-right', Math.min(4, pages.length - 1 - n));
+      if (single) measure();
     }
-    // a copy of one half of a spread: what a turning page shows
-    function half(li, side) {
-      var face = document.createElement('div');
-      face.className = 'gogh-book-face gogh-book-face-' + side;
+    // a copy of a whole spread, in the very place of the real one (a direct
+    // child of the list, so every theme rule that dresses a page dresses it
+    // the same — a copy one level down came out a size smaller), showing
+    // only the half it stands for
+    function copyOf(li, side, cls) {
       var copy = li.cloneNode(true);
-      copy.classList.add('is-current', 'gogh-book-copy');
+      copy.classList.add('is-current', 'gogh-book-copy', 'gogh-book-half-' + side);
+      if (cls) copy.classList.add(cls);
       copy.removeAttribute('inert');
+      copy.removeAttribute('aria-label');
+      copy.removeAttribute('aria-roledescription');
       [copy].concat([].slice.call(copy.querySelectorAll('*'))).forEach(function (el) {
         el.removeAttribute('id');
         [].slice.call(el.attributes).forEach(function (a) { if (/^data-wp-/.test(a.name)) el.removeAttribute(a.name); });
       });
       copy.setAttribute('aria-hidden', 'true');
-      face.appendChild(copy);
       var shade = document.createElement('i');
       shade.className = 'gogh-book-shade';
-      face.appendChild(shade);
-      return face;
+      copy.appendChild(shade);
+      return copy;
     }
-    // a page in the hand: dir 1 turns forward, -1 back. Returns a setter for
-    // how far it has turned (0..1) and an end that lands or returns it
+    // a page in the hand: dir 1 turns forward, -1 back. The page turns about
+    // the spine; its front is the right half of one spread, its back the
+    // left half of the other. Each half turns on its own, as a sibling of
+    // the real spreads (a wrapper would put them a level down again)
     function lift(dir) {
       var from = pages[at], to = pages[at + dir];
-      var leaf = document.createElement('div');
-      leaf.className = 'gogh-book-leaf';
       var front, back, hold;
-      if (dir > 0) {
-        front = half(from, 'r'); back = half(to, 'l');
-        hold = half(from, 'l'); hold.classList.add('gogh-book-hold');
-      } else {
-        front = half(to, 'r'); back = half(from, 'l');
-        hold = half(from, 'r'); hold.classList.add('gogh-book-hold');
-      }
-      back.classList.add('gogh-book-back');
-      leaf.appendChild(front); leaf.appendChild(back);
-      ul.appendChild(hold); ul.appendChild(leaf);
+      if (dir > 0) { front = copyOf(from, 'r'); back = copyOf(to, 'l', 'gogh-book-back'); hold = copyOf(from, 'l', 'gogh-book-hold'); }
+      else { front = copyOf(to, 'r'); back = copyOf(from, 'l', 'gogh-book-back'); hold = copyOf(from, 'r', 'gogh-book-hold'); }
+      ul.appendChild(hold); ul.appendChild(front); ul.appendChild(back);
       to.classList.add('is-current'); // the next spread waits underneath
       ul.classList.add('is-turning');
       var t = 0;
       function set(p) {
         t = Math.max(0, Math.min(1, p));
         var ang = dir > 0 ? -180 * t : -180 * (1 - t);
-        leaf.style.transform = 'rotateY(' + ang + 'deg)';
-        var s = Math.sin(Math.PI * t);
-        front.lastChild.style.opacity = (0.45 * (dir > 0 ? t : 1 - t) * s + 0.15 * s).toFixed(3);
-        back.lastChild.style.opacity = (0.45 * (dir > 0 ? 1 - t : t) * s + 0.15 * s).toFixed(3);
-        leaf.style.zIndex = 4;
+        front.style.transform = 'rotateY(' + ang.toFixed(2) + 'deg)';
+        back.style.transform = 'rotateY(' + (ang + 180).toFixed(2) + 'deg)';
+        var s = Math.sin(Math.PI * t), u = dir > 0 ? t : 1 - t;
+        front.lastChild.style.opacity = (0.4 * u * s + 0.12 * s).toFixed(3);
+        back.lastChild.style.opacity = (0.4 * (1 - u) * s + 0.12 * s).toFixed(3);
       }
       function end(land, done) {
-        var start = t, goal = land ? 1 : 0, t0 = performance.now(), dur = 520 * Math.abs(goal - start) + 80;
+        var start = t, goal = land ? 1 : 0, t0 = performance.now(), dur = 560 * Math.abs(goal - start) + 80;
         (function step(now) {
           var k = Math.min(1, (now - t0) / dur);
-          var e = 1 - Math.pow(1 - k, 3);
+          var e = k < 0.5 ? 4 * k * k * k : 1 - Math.pow(-2 * k + 2, 3) / 2;
           set(start + (goal - start) * e);
           if (k < 1) { requestAnimationFrame(step); return; }
-          leaf.remove(); hold.remove();
-          ul.classList.remove('is-turning');
           if (land) show(at + dir); else to.classList.remove('is-current');
+          front.remove(); back.remove(); hold.remove();
+          ul.classList.remove('is-turning');
           if (done) done();
         })(t0);
       }
@@ -142,15 +156,22 @@
       if (ev.key === 'ArrowRight') { ev.preventDefault(); turn(1); }
       if (ev.key === 'ArrowLeft') { ev.preventDefault(); turn(-1); }
     });
-    // take a page by its edge: the right page turns forward, the left back
+    // take a page by its edge (or its folded corner): the right page turns
+    // forward, the left back
     var drag = null;
-    ul.addEventListener('pointerdown', function (ev) {
+    function grab(ev, dir) {
+      var r = ul.getBoundingClientRect();
+      drag = { x: ev.clientX, y: ev.clientY, w: single ? r.width : r.width / 2, dir: dir, page: null, id: ev.pointerId, corner: !!ev.target.closest('.gogh-book-corner') };
+    }
+    stage.addEventListener('pointerdown', function (ev) {
+      if (busy || ev.button !== 0) return;
+      if (ev.target.closest('.gogh-book-corner')) { grab(ev, ev.target.closest('.gogh-book-corner-r') ? 1 : -1); return; }
       // anywhere on a page, the picture's link included; only real controls are left alone
-      if (busy || ev.button !== 0 || ev.target.closest('button, input, select, textarea, label, .wp-block-button')) return;
-      var r = ul.getBoundingClientRect(), right = ev.clientX > r.left + r.width / 2;
-      drag = { x: ev.clientX, y: ev.clientY, w: single ? r.width : r.width / 2, dir: right ? 1 : -1, page: null, id: ev.pointerId };
+      if (!ul.contains(ev.target) || ev.target.closest('button, input, select, textarea, label, .wp-block-button')) return;
+      var r = ul.getBoundingClientRect();
+      grab(ev, ev.clientX > r.left + r.width / 2 ? 1 : -1);
     });
-    ul.addEventListener('pointermove', function (ev) {
+    stage.addEventListener('pointermove', function (ev) {
       if (!drag || ev.pointerId !== drag.id) return;
       var dx = ev.clientX - drag.x;
       if (!drag.page) {
@@ -160,7 +181,7 @@
         busy = true;
         drag.moved = true;
         drag.page = lift(drag.dir);
-        try { ul.setPointerCapture(ev.pointerId); } catch (e) {}
+        try { stage.setPointerCapture(ev.pointerId); } catch (e) {}
       }
       drag.page.set((drag.dir > 0 ? -dx : dx) / (drag.w * 1.6));
     });
@@ -174,21 +195,24 @@
       } else if (d.flick && Math.abs(dx) > 40) {
         d.moved = true;
         turn(dx < 0 ? 1 : -1);
+      } else if (d.corner && ev.type === 'pointerup') {
+        d.moved = true; // a click on a corner turns its page
+        turn(d.dir);
       }
       // a page let go of is not a click on the picture's link
       if (d.moved) {
         var stop = function (e) { e.preventDefault(); e.stopPropagation(); };
-        ul.addEventListener('click', stop, { capture: true, once: true });
-        setTimeout(function () { ul.removeEventListener('click', stop, true); }, 400);
+        stage.addEventListener('click', stop, { capture: true, once: true });
+        setTimeout(function () { stage.removeEventListener('click', stop, true); }, 400);
       }
     }
     // a link or picture would otherwise start the browser's own drag and cancel ours
-    ul.addEventListener('dragstart', function (ev) { ev.preventDefault(); });
-    ul.addEventListener('pointerup', letGo);
-    ul.addEventListener('pointercancel', letGo);
+    stage.addEventListener('dragstart', function (ev) { ev.preventDefault(); });
+    stage.addEventListener('pointerup', letGo);
+    stage.addEventListener('pointercancel', letGo);
     measure();
     show(0);
-    if (window.ResizeObserver) new ResizeObserver(measure).observe(ul);
+    if (window.ResizeObserver) new ResizeObserver(measure).observe(stage.parentNode);
     root.classList.add('gogh-book-ready');
   }
 
