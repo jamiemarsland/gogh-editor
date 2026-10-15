@@ -241,7 +241,7 @@
   border-radius: 4px; overflow: hidden; background: color-mix(in srgb, currentColor 6%, transparent);
 }
 .gogh-showroom-img {
-  position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; opacity: 0; transform: scale(1.035);
+  position: absolute; inset: 0; width: 100% !important; height: 100% !important; max-width: none !important; object-fit: cover !important; opacity: 0; transform: scale(1.035);
   transition: opacity 0.55s ease, transform 1.4s cubic-bezier(0.2, 0.7, 0.2, 1);
 }
 .gogh-showroom-img.is-on { opacity: 1; transform: none; }
@@ -269,7 +269,8 @@
 }
 .gogh-shoplook-showroom .wp-block-post-title a { color: inherit; text-decoration: none; }
 .gogh-shoplook-showroom .wp-block-post-title a::after { content: ""; position: absolute; inset: 0; } /* the whole row opens the product */
-.gogh-shoplook-showroom .wc-block-components-product-price { grid-column: 2; grid-row: 2; font-size: 1rem; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.gogh-shoplook-showroom .wc-block-product-template > li > .wp-block-woocommerce-product-price { grid-column: 2; grid-row: 2; align-self: baseline; }
+.gogh-shoplook-showroom .wc-block-components-product-price { font-size: 1rem; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .gogh-shoplook-showroom .wp-block-woocommerce-product-summary, .gogh-shoplook-showroom .wc-block-components-product-summary {
   grid-column: 1; grid-row: 3; font-size: 0.95rem; line-height: 1.55; opacity: 0.72; margin-top: 0.5rem !important;
   display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;

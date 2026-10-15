@@ -384,7 +384,7 @@
     var items = [].filter.call(ul.children, function (li) { return li.tagName === 'LI' && li.querySelector('img'); });
     if (!items.length) return;
     stage.innerHTML = '<img class="gogh-showroom-img" alt="" /><img class="gogh-showroom-img" alt="" /><a class="gogh-showroom-cap" href="#"><span class="gogh-showroom-name"></span><span class="gogh-showroom-price"></span></a>';
-    var imgs = stage.querySelectorAll('.gogh-showroom-img'), front = 0, active = null;
+    var imgs = stage.querySelectorAll('.gogh-showroom-img'), front = 0, active = null, pending = null;
     var cap = stage.querySelector('.gogh-showroom-cap');
     function pick(li) {
       if (li === active) return;
@@ -392,8 +392,15 @@
       active = li;
       li.classList.add('is-active');
       var src = li.querySelector('img'), link = li.querySelector('.wp-block-post-title a');
-      var next = imgs[1 - front];
+      var next = imgs[1 - front], mine = {};
+      pending = mine;
+      // once only, and only for the newest pick: a picture already in the
+      // cache answers at once AND fires load, and a second swap hid the
+      // picture it had just shown (an empty stage, now and then)
       next.onload = function () {
+        if (pending !== mine) return;
+        pending = null;
+        next.onload = null;
         next.classList.add('is-on');
         imgs[front].classList.remove('is-on');
         front = 1 - front;
@@ -460,13 +467,17 @@
     root.classList.add('gogh-aisle-ready');
   }
 
-  function run() {
-    [].forEach.call(document.querySelectorAll('.gogh-shop-book'), lookbook);
-    [].forEach.call(document.querySelectorAll('.gogh-shop-index'), index);
-    [].forEach.call(document.querySelectorAll('.gogh-shop-photo'), photo);
-    [].forEach.call(document.querySelectorAll('.gogh-showroom'), showroom);
-    [].forEach.call(document.querySelectorAll('.gogh-aisle'), aisle);
+  function run(scope) {
+    scope = scope || document;
+    [].forEach.call(scope.querySelectorAll('.gogh-shop-book'), lookbook);
+    [].forEach.call(scope.querySelectorAll('.gogh-shop-index'), index);
+    [].forEach.call(scope.querySelectorAll('.gogh-shop-photo'), photo);
+    [].forEach.call(scope.querySelectorAll('.gogh-showroom'), showroom);
+    [].forEach.call(scope.querySelectorAll('.gogh-aisle'), aisle);
   }
+  // the admin bar's layout menus try a look on by swapping in a fetched
+  // page's main, whose scripts never run: they wake these looks with this
+  window.goghShopLooks = run;
   // now, not on DOMContentLoaded: this prints after the grids, and module
   // scripts (the Interactivity API) run before DOMContentLoaded fires
   run();
