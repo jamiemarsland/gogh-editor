@@ -5055,6 +5055,12 @@
         expect(box.querySelector('.gogh-shop-book .gogh-book-spread.is-current .gogh-book-pic img') && /1 \/ 2/.test(box.querySelector('.gogh-book-count').textContent) && box.querySelector('.gogh-book-stage .gogh-book-next') && /Clean sheets/.test(box.textContent), 'the sketch is the book open at its first spread');
         e.shop.layout = 'index'; box.innerHTML = G.shopPreviewHTML(e, prods);
         expect(box.querySelectorAll('.gogh-shop-index li.gogh-index-row').length === 2 && /Amber/.test(box.textContent), 'the Index sketch lists every name');
+        expect(box.querySelector('.gogh-look-note') && /published/.test(box.querySelector('.gogh-look-note').textContent), 'the Index sketch should say it comes alive once published');
+        e.shop.layout = 'list'; e.shop.show.button = false; G.renderSection(s0);
+        pnl.querySelector('.gogh-shop-layout .gogh-hopt[data-v="book"]').click();
+        expect(e.shop.show.button && /wp:woocommerce\/product-button/.test(e.wsrc) && pnl.querySelector('.gogh-shop-show .gogh-hpreset[data-v="button"]').classList.contains('is-active'), 'choosing Lookbook should turn Add to cart on');
+        box.innerHTML = G.shopPreviewHTML(e, prods);
+        expect(/pages turn/i.test((box.querySelector('.gogh-look-note') || {}).textContent || ''), 'the Lookbook sketch should say its pages turn once published');
       } finally {
         G.closePanel();
         var k = s0.els.indexOf(e);

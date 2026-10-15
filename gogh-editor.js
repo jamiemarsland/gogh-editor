@@ -6308,7 +6308,13 @@
     };
     panel.querySelectorAll('.gogh-shop-count .gogh-hpreset').forEach(function (b) { b.addEventListener('click', function () { shop.count = +b.dataset.v; apply(); }); });
     panel.querySelectorAll('.gogh-shop-order .gogh-hopt').forEach(function (b) { b.addEventListener('click', function () { shop.order = b.dataset.v; apply(); }); });
-    panel.querySelectorAll('.gogh-shop-layout .gogh-hopt').forEach(function (b) { b.addEventListener('click', function () { shop.layout = b.dataset.v; apply(); }); });
+    panel.querySelectorAll('.gogh-shop-layout .gogh-hopt').forEach(function (b) { b.addEventListener('click', function () {
+      // a book's right-hand page is where the buying happens (James: 'by
+      // default it should probs have add to cart turned on') — on when you
+      // pick it, yours to turn off
+      if (b.dataset.v === 'book' && shop.layout !== 'book') shop.show.button = true;
+      shop.layout = b.dataset.v; apply();
+    }); });
     panel.querySelectorAll('.gogh-shop-show .gogh-hpreset').forEach(function (b) { b.addEventListener('click', function () { shop.show[b.dataset.v] = !shop.show[b.dataset.v]; apply(); }); });
     panel.querySelectorAll('.gogh-shop-aspect .gogh-hpreset').forEach(function (b) { b.addEventListener('click', function () { shop.aspect = b.dataset.v; apply(); }); });
     panel.querySelectorAll('.gogh-shop-spacing .gogh-hpreset').forEach(function (b) { b.addEventListener('click', function () { shop.spacing = b.dataset.v; apply(); }); });
@@ -8140,7 +8146,10 @@
         (words(p) ? '<div class="wp-block-woocommerce-product-summary"><p>' + esc(words(p)) + '</p></div>' : '') + btn +
         '</li></ul>' + arrow('gogh-book-prev', 'M15 5l-7 7 7 7') + arrow('gogh-book-next', 'M9 5l7 7-7 7') +
         (prods.length > 1 ? '<span class="gogh-book-corner gogh-book-corner-r"></span>' : '') +
-        '</div><div class="gogh-book-nav"><span class="gogh-book-count">1 / ' + prods.length + '</span></div></div>';
+        '</div><div class="gogh-book-nav"><span class="gogh-book-count">1 / ' + prods.length + '</span></div>' +
+        // the editor shows the book still: say what visitors get (James: 'show
+        // a lil message in edit mode to tell folks it will be interactive')
+        '<div class="gogh-look-note"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 3l14 9-14 9V3z"/></svg>The pages turn on your published page</div>' + '</div>';
     }
     return '<div class="gogh-shopprev gogh-shopprev-look gogh-shop-index gogh-index-ready"><ul class="wc-block-product-template gogh-index">' + prods.map(function (p, k) {
       var img = p.images && p.images[0] && p.images[0].src;
@@ -8148,7 +8157,7 @@
         '<div class="gogh-index-pic">' + (img ? '<img src="' + escAttr(img) + '" alt="" />' : '') + '</div>' +
         '<h3 class="wp-block-post-title">' + esc(plainTitle(p.name || 'Product')) + '</h3>' +
         (show.price ? '<div class="wc-block-components-product-price">' + esc(storePriceText(p)) + '</div>' : '') + btn + '</li>';
-    }).join('') + '</ul></div>';
+    }).join('') + '</ul>' + '<div class="gogh-look-note"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 3l14 9-14 9V3z"/></svg>Pictures follow the pointer on your published page</div>' + '</div>';
   }
   // sample products for the picker's cards (a real shop answers the moment
   // the section lands): one small world, so the cards read as a real shop
