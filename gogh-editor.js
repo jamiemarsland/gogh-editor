@@ -5621,7 +5621,10 @@
     panelAnchor = null;
     panelSticky = false;
   }
-  function reclampPanel() { if (!panel.hidden && panelAnchor) placePanelNear(panelAnchor); }
+  // a docked sidebar is already where it belongs: re-placing it by its piece
+  // floated it into the page (James: 'we seem to have a modal after clicking
+  // shop the look? this should be sidebar')
+  function reclampPanel() { if (!panel.hidden && panelAnchor && !panel.classList.contains('gogh-panel-sidebar')) placePanelNear(panelAnchor); }
   function openPanel(sec, i) {
     var e = sec.els[i];
     panel.classList.remove('gogh-panel-wide');

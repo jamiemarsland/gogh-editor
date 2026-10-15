@@ -5102,6 +5102,8 @@
         expect(!pnl.querySelector('.gogh-shop-photobox').hidden && pnl.querySelector('.gogh-shop-gridonly').hidden && pnl.querySelector('.gogh-shop-picklab').textContent === 'Products in the photo', 'Shop the photo shows its photo row and products, not the grid settings');
         expect(el.shop.layout === 'photo' && el.shop.show.button && /gogh-shop-photo/.test(el.wsrc), 'choosing it writes a photo piece with Add to cart on');
         expect(/Choose a photo/.test(pnl.querySelector('.gogh-shop-scenebtn').textContent), 'it should offer to choose a photo');
+        // v0.99.722: the panel stays docked through the switch (it floated into the page)
+        expect(pnl.classList.contains('gogh-panel-sidebar') && pnl.style.left === '0px', 'the shop panel should stay docked on the left: left=' + pnl.style.left);
       } finally {
         G.closePanel();
         var k = s0.els.indexOf(el);
