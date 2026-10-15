@@ -4848,3 +4848,16 @@ button.gogh-sb-take { border: 0; background: none; font: inherit; color: inherit
 .gogh-panel .gogh-lay-done:hover { background: #2c49c9; }
 .gogh-panel .gogh-panel-head .gogh-lay-reset { margin-left: auto; }
 .gogh-panel .gogh-panel-head .gogh-lay-reset + .gogh-lay-done { margin-left: 8px; }
+/* the Layouts panel's bin: over each piece of the section, a piece put in
+   it leaves every take; Restore removed brings them back */
+.gogh-lay-bins { position: fixed; inset: 0; pointer-events: none; z-index: 99990; }
+.gogh-lay-bin { position: fixed; pointer-events: auto; width: 26px; height: 26px; padding: 0; border: 0; border-radius: 50%;
+  background: #fff; color: #a3341f; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.28); cursor: pointer; display: grid; place-items: center; }
+.gogh-lay-bin svg { width: 14px; height: 14px; }
+.gogh-lay-bin[hidden] { display: none; }
+.gogh-lay-bin:hover { background: #a3341f; color: #fff; }
+.gogh-lay-bin:focus-visible { outline: 2px solid #3858e9; outline-offset: 2px; }
+.gogh-panel .gogh-lay-restore { align-self: flex-start; margin-top: 16px; }
+.gogh-panel .gogh-lay-restore[hidden] { display: none; }
+.gogh-panel .gogh-lay-tip { margin-top: 16px; border-radius: 10px; background: #f6f7f7; padding: 12px 14px; font-size: 12.5px; color: #3c434a; line-height: 1.5; }
+.gogh-panel .gogh-lay-tip strong { color: #1e1e1e; }

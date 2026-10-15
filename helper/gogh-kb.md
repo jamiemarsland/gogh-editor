@@ -15,7 +15,7 @@ about something where they conflict, rather than picking one silently. Quote UI
 labels and message copy from the appendix, verbatim — those are the current
 strings, and a paraphrased button label is the fastest way to lose a user's trust.
 
-Generated for plugin version 0.99.729 · knowledge base 17fe45a.
+Generated for plugin version 0.99.730 · knowledge base 0b0ad05.
 
 ---
 
@@ -830,6 +830,8 @@ The helper's welcome panel opens with a 35-second film of gogh being used (v0.99
 
 **The phone view survives navigation (v0.99.605).** Press one of your own pages while on the phone and it opens in the editor, still on the phone: the link carries `gogh-edit=1&gogh-phone=1`, the next page reads them at boot and strips them from the address. Other sites, files, wp-admin and anchors on the same page are left alone. Unpublished changes still ask before leaving.
 
+**The bin in Layouts (v0.99.730).** While the Layouts panel is open, every piece of the section has a small bin on its corner. Click it to take that piece (a button, a picture, a line of words, a badge) out of **every** layout of the design, not just the one you're on: the tiles redraw without it, and rolling the die later leaves it out too. **Restore removed** in the panel brings everything back, with its words and picture, into whichever layout you're on. Reset puts the section back as it was when you opened the panel, bin and all, and the whole visit is still one undo step.
+
 **Layouts, side by side (v0.99.729).** When you select a section that came from a starter, the section bar shows which take of its design you're on as a small count beside the die, such as "2/4". Click that count to open the **Layouts** panel: every take of the design is drawn small with this section's own words and pictures, so you can compare them all at once instead of rolling the die one by one. Click a tile to try it on the page; the page zooms out so you can see it. **Reset** puts the section back as it was when you opened the panel, and **Done** keeps your pick. The whole visit is one undo step.
 
 **Section styles, lightest to darkest (v0.99.728).** In a section's background panel, the colour styles are now grouped and named by how light they are: **Light** (Lightest 1 and 2, Light 1 and 2), **Bright** (from your accent colours), **Dark** (Dark 1 and 2, Darkest 1 and 2) and **Backdrops**. Hover a chip to see its name. A "2" puts your accent colour on the section's headings while the rest of the words stay plain. Every style is drawn from your site colours, so changing them in Site styles recolours every section, and a style only appears when its words read clearly on it, so some palettes show fewer. gogh also now picks real colours, not near-blacks, as your accents, and its automatic readability fix no longer turns words dark on a dark section while you try a new Site style.
@@ -1067,11 +1069,11 @@ Everything in this section is extracted mechanically from the Gogh source on eve
 
 ## Current release
 
-- Plugin version: **0.99.729**
+- Plugin version: **0.99.730**
 - Requires WordPress **6.5+**, PHP **7.4+**
 - Text domain: `gogh-editor`
 - readme.txt Stable tag: `0.26.0` · Tested up to: `7.0`
-- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.729`). Quote the plugin header version.
+- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.730`). Quote the plugin header version.
 
 ## Design constants
 
@@ -1652,4 +1654,4 @@ These are the real strings in the current build. Use them verbatim; never paraph
 
 ## Test suite
 
-`362` tests, run by appending `?gogh-test` to any Gogh page URL while logged in with edit rights on that page.
+`363` tests, run by appending `?gogh-test` to any Gogh page URL while logged in with edit rights on that page.

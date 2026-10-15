@@ -4596,7 +4596,9 @@
       h.text = 'Layouts keep my words';
       G.renderSection(s);
       G.pushState();
-      var start = JSON.stringify(s.els);
+      // the id and slot (sk) of each piece are the die's bookkeeping, set on opening
+      var bare = function (els) { return JSON.stringify(els, function (k, v) { return k === 'sk' || k === 'id' ? undefined : v; }); };
+      var start = bare(s.els);
       expect(G.openLayoutsPanel(idx), 'the panel did not open');
       var panel = q('.gogh-panel');
       var tiles = panel.querySelectorAll('.gogh-lay-take');
@@ -4604,22 +4606,71 @@
       expect(panel.querySelectorAll('.gogh-lay-stage .gogh-wrap').length === faces.length, 'every tile should hold a drawn copy');
       expect(/Layouts keep my words/.test(tiles[1].textContent), 'the tiles should draw this section\u2019s own words');
       expect(tiles[0].getAttribute('aria-pressed') === 'true' && panel.querySelector('.gogh-lay-reset').disabled, 'it should open on the current take with Reset off');
-      expect(JSON.stringify(s.els) === start, 'drawing the tiles should leave the section as it was');
+      expect(bare(s.els) === start, 'drawing the tiles should leave the section as it was');
       tiles[2].click();
       expect(s.m && s.m.face === 2, 'picking the third tile should land on take 3, got ' + (s.m && s.m.face));
       expect(s.els.some(function (x) { return x.type === 'heading' && x.text === 'Layouts keep my words'; }), 'the words should survive the pick');
       expect(tiles[2].getAttribute('aria-pressed') === 'true' && !panel.querySelector('.gogh-lay-reset').disabled, 'the picked tile should be marked and Reset on');
       panel.querySelector('.gogh-lay-reset').click();
-      expect(JSON.stringify(s.els) === start, 'Reset should put the section back exactly');
-      tiles[1].click();
+      expect(bare(s.els) === start, 'Reset should put the section back exactly');
+      panel.querySelectorAll('.gogh-lay-take')[1].click();
       panel.querySelector('.gogh-lay-done').click();
       expect(panel.hidden && !panel.dataset.goghLayoutsFor, 'Done should close the panel');
       expect(s.m.face === 1, 'Done should keep the pick');
       q('.gogh-undo').click();
       var s2 = G.sections()[idx];
-      expect(JSON.stringify(s2.els) === start, 'one undo should go back to how it was before the panel');
+      expect(bare(s2.els) === start, 'one undo should go back to how it was before the panel');
       G.deleteSection(idx);
       return faces.length + ' takes of ' + fam.name + ', pick, reset, one undo';
+    });
+
+    test('the Layouts bin takes a piece out of every take; Restore brings it back', function () {
+      var tpls = G.templates(), fam = null, faces = null;
+      for (var k = 0; k < tpls.length && !fam; k++) {
+        var t0 = tpls[k];
+        if (!t0.starter || t0.retired || t0.gated) continue;
+        if (t0.els.filter(function (x) { return x.type === 'button'; }).length < 2) continue;
+        var f = G.diceFaces(t0.name);
+        if (f && f.length >= 3) { fam = t0; faces = f; }
+      }
+      expect(fam, 'no starter with two buttons and three takes');
+      G.addSection(fam);
+      var c = contentSecs();
+      var s = c[c.length - 1];
+      var idx = G.sections().indexOf(s);
+      var diceAll = function (els) { var out = []; els.forEach(function (e) { out.push(e); if (e.kids) out = out.concat(e.kids); }); return out; };
+      var btns = function () { return diceAll(s.els).filter(function (x) { return x.type === 'button'; }); };
+      var b2 = s.els.filter(function (x) { return x.type === 'button'; })[1];
+      b2.text = 'Bin me';
+      G.renderSection(s);
+      G.pushState();
+      var bare = function (els) { return JSON.stringify(els, function (k, v) { return k === 'sk' || k === 'id' ? undefined : v; }); };
+      var start = bare(s.els);
+      expect(G.openLayoutsPanel(idx), 'the panel did not open');
+      var panel = q('.gogh-panel');
+      var i = s.els.findIndex(function (x) { return x.text === 'Bin me'; }); // the previews hand back copies
+      var bin = [].filter.call(document.querySelectorAll('.gogh-lay-bin'), function (x) { return +x.dataset.i === i; })[0];
+      expect(bin && /Bin me/.test(bin.getAttribute('aria-label')), 'the second button should have a bin');
+      bin.click();
+      expect(!s.els.some(function (x) { return x.text === 'Bin me'; }), 'the bin should take the button off the page');
+      var restoreB = panel.querySelector('.gogh-lay-restore');
+      expect(!restoreB.hidden && /\(1\)/.test(restoreB.textContent), 'Restore removed (1) should appear');
+      var tiles = panel.querySelectorAll('.gogh-lay-take');
+      expect(![].some.call(tiles, function (t) { return /Bin me/.test(t.textContent); }), 'no layout should draw the binned button');
+      for (var f2 = 1; f2 < faces.length; f2++) {
+        tiles[f2].click();
+        expect(!diceAll(s.els).some(function (x) { return x.text === 'Bin me'; }), 'take ' + (f2 + 1) + ' brought the button back');
+      }
+      tiles[2].click();
+      restoreB.click();
+      expect(restoreB.hidden && diceAll(s.els).some(function (x) { return x.text === 'Bin me'; }), 'Restore should bring the button back, words and all');
+      expect([].some.call(panel.querySelectorAll('.gogh-lay-take'), function (t) { return /Bin me/.test(t.textContent); }), 'the tiles should draw the button again');
+      tiles = panel.querySelectorAll('.gogh-lay-take');
+      tiles[0].click();
+      expect(bare(s.els) === start, 'back on the first take with nothing binned, the section should be as it began');
+      panel.querySelector('.gogh-lay-done').click();
+      G.deleteSection(idx);
+      return fam.name + ': binned through ' + faces.length + ' takes, restored';
     });
 
     testAsync('video corners: chips audition on hover and keep on click', function () {

@@ -11644,6 +11644,49 @@
     });
     if (pushed || changed) resolveAndApply(sec);
   }
+  // a drawing's SLOTS: 'role:index' over the flattened pieces of a kind,
+  // '_:index' for the roleless decoration (shapes, boxes, cards) by order
+  function diceSlotsOf(els) {
+    var by = diceByRole(els), map = {};
+    Object.keys(by).forEach(function (r) { by[r].forEach(function (e, i) { map[r + ':' + i] = e; }); });
+    els.filter(function (e) { return !diceRole(e); }).forEach(function (e, i) { map['_:' + i] = e; });
+    return map;
+  }
+  function diceTakeEls(faces, face, orig) {
+    return (face === 0 && orig) ? diceRecompose(JSON.parse(JSON.stringify(orig.els))) : tplEls(faces[face]);
+  }
+  // BINDING. A piece that never learned its slot (a page saved before the
+  // die kept slots; a section on its first roll) pairs by kind and order
+  // with what this take draws -- the rule the die always used -- and keeps
+  // that slot from here on. Only a section with no slots at all binds this
+  // way: once bound, a piece without a slot is one the user added
+  function diceBind(sec, pristine, words, cur) {
+    if (diceFlatten(sec.els).some(function (e) { return e.sk; })) return;
+    var live = diceSlotsOf(sec.els);
+    Object.keys(live).forEach(function (k) {
+      var e = live[k];
+      if (!pristine[k] || (k.indexOf('_:') !== 0 && !words[k])) return; // beyond what the take draws: the user's own
+      e.sk = k;
+      // saved mid-family without marks (a starter shipped on take 3): what
+      // sits in the take's slots is the take's drawing, not an original
+      if (cur !== 0 && e.tk == null) e.tk = cur;
+    });
+  }
+  // the same binding before any roll, as the die would make it (the bin
+  // needs to know which slot a piece is before it can keep that slot empty)
+  function diceBindNow(sec) {
+    var fam = diceFamilyOf(sec), faces = fam ? diceFaces(fam) : null;
+    if (!faces) return;
+    diceEnsureIds(sec.els);
+    var m = sec.m || {};
+    var adopted = m.tpl === fam;
+    var orig = adopted && m.orig && m.orig.els ? m.orig : null;
+    var cur = adopted ? (((m.face || 0) % faces.length) + faces.length) % faces.length : 0;
+    if (!adopted) orig = { els: JSON.parse(JSON.stringify(sec.els)) };
+    var pristine = diceSlotsOf(diceTakeEls(faces, cur, orig));
+    var words = (cur === 0 && orig) ? diceSlotsOf(tplEls(faces[0])) : pristine;
+    diceBind(sec, pristine, words, cur);
+  }
   function diceOrigSnap(sec, ownOnly) {
     var own = function (list) {
       return list.filter(function (e) { return !ownOnly || e.tk == null; }).map(function (e) {
@@ -11652,7 +11695,17 @@
         return e;
       });
     };
-    return { els: own(JSON.parse(JSON.stringify(sec.els))), minH: sec.minH || null, bg: sec.bg || null,
+    var els = own(JSON.parse(JSON.stringify(sec.els)));
+    // a piece put in the bin at home is still the original's: the snapshot
+    // keeps it (every take leaves it out), so Restore can bring it back
+    var gone = sec.m && sec.m.gone;
+    if (gone) Object.keys(gone).sort(function (a, b) { return gone[a].at - gone[b].at; }).forEach(function (k) {
+      var g = gone[k];
+      if (!g || !g.el || g.face !== 0 || g.el.tk != null) return;
+      if (diceFlatten(els).some(function (e) { return e.id === g.el.id; })) return;
+      els.splice(Math.min(g.at, els.length), 0, JSON.parse(JSON.stringify(g.el)));
+    });
+    return { els: els, minH: sec.minH || null, bg: sec.bg || null,
       bgImage: sec.bgImage || null, bgId: sec.bgId || null, bgPos: sec.bgPos || null,
       bgA: sec.bgA != null ? sec.bgA : null, fill: !!sec.fill, fx: sec.fx || null };
   }
@@ -11686,23 +11739,14 @@
       sec.m = m = Object.assign({}, m, { orig: orig });
     }
     var home = next === 0 && !!orig;
-    var takeEls = function (face) {
-      return (face === 0 && orig) ? diceRecompose(JSON.parse(JSON.stringify(orig.els))) : tplEls(faces[face]);
-    };
+    var takeEls = function (face) { return diceTakeEls(faces, face, orig); };
     var key = function (r, i) { return r + ':' + i; };
     var roleOf = function (k) { return k.slice(0, k.indexOf(':')); };
     var indexOf = function (k) { return +k.slice(k.indexOf(':') + 1); };
     var isNone = function (k) { return k.indexOf('_:') === 0; };
     var noRole = function (e) { return !diceRole(e); };
     var isCard = function (e) { return e.type === 'box' && !!e.kids; };
-    // a drawing's SLOTS: 'role:index' over the flattened pieces of a kind,
-    // '_:index' for the roleless decoration (shapes, boxes, cards) by order
-    var slotsOf = function (els) {
-      var by = diceByRole(els), map = {};
-      Object.keys(by).forEach(function (r) { by[r].forEach(function (e, i) { map[key(r, i)] = e; }); });
-      els.filter(noRole).forEach(function (e, i) { map[key('_', i)] = e; });
-      return map;
-    };
+    var slotsOf = diceSlotsOf;
     // what the CURRENT take would say untouched (tplEls is deterministic:
     // pool picks are seeded by family name) -- anything that differs is
     // the user's, and the user's work survives the roll
@@ -11713,22 +11757,7 @@
     // difference is what must travel into the next take
     var words = (cur === 0 && orig) ? slotsOf(tplEls(faces[0])) : pristine;
     var flatAll = diceFlatten(sec.els);
-    // BINDING. A piece that never learned its slot (a page saved before the
-    // die kept slots; a section on its first roll) pairs by kind and order
-    // with what this take draws -- the rule the die always used -- and keeps
-    // that slot from here on. Only a section with no slots at all binds this
-    // way: once bound, a piece without a slot is one the user added
-    if (!flatAll.some(function (e) { return e.sk; })) {
-      var liveSlots = slotsOf(sec.els);
-      Object.keys(liveSlots).forEach(function (k) {
-        var e = liveSlots[k];
-        if (!pristine[k] || (!isNone(k) && !words[k])) return; // beyond what the take draws: the user's own
-        e.sk = k;
-        // saved mid-family without marks (a starter shipped on take 3): what
-        // sits in the take's slots is the take's drawing, not an original
-        if (cur !== 0 && e.tk == null) e.tk = cur;
-      });
-    }
+    diceBind(sec, pristine, words, cur);
     // a card of the user's own rides whole, kids inside; a take's card is
     // decoration (its kids are pieces in their own right)
     var userCards = sec.els.filter(function (e) { return isCard(e) && !e.sk; });
@@ -11843,12 +11872,13 @@
     // words, and only rides when no slot is left (otherwise it came home
     // beside slot one while the take redrew slot two)
     var adopted = [];
+    var gone = (m.gone && typeof m.gone === 'object') ? m.gone : {};
     extra = extra.filter(function (x) {
       var r = diceRole(x);
       if (!r || r === 'widget') return true; // decoration and widgets ride as themselves
       var keys = [];
-      if (x.sk && roleOf(x.sk) === r && by2[x.sk] && !claimed[x.sk]) keys.push(x.sk);
-      Object.keys(by2).forEach(function (k) { if (roleOf(k) === r && !claimed[k] && keys.indexOf(k) === -1) keys.push(k); });
+      if (x.sk && roleOf(x.sk) === r && by2[x.sk] && !claimed[x.sk] && !gone[x.sk]) keys.push(x.sk);
+      Object.keys(by2).forEach(function (k) { if (roleOf(k) === r && !claimed[k] && !gone[k] && keys.indexOf(k) === -1) keys.push(k); });
       if (!keys.length) return true;
       var k2 = keys[0], slot = by2[k2];
       claimed[k2] = true;
@@ -12051,6 +12081,12 @@
       keepBg = { img: sec.bgImage, id: sec.bgId || null, pos: sec.bgPos || null };
     }
     var t2 = home ? Object.assign({}, faces[0], orig, { take: faces[0].take }) : faces[next];
+    // a piece put in the bin (the Layouts panel) stays out of every take
+    if (Object.keys(gone).length) {
+      var binned = function (e) { return adopted.indexOf(e) === -1 && ((e.sk && gone[e.sk]) || gone['id:' + e.id]); };
+      els2 = els2.filter(function (e) { return !binned(e); });
+      els2.forEach(function (e) { if (e.kids) e.kids = e.kids.filter(function (k) { return !binned(k); }); });
+    }
     sec.els = els2.concat(extra);
     sec.minH = t2.minH || null;
     sec.bg = t2.bg || null;
@@ -12133,6 +12169,81 @@
     resolveAll();
     return out;
   }
+  // ---------- the bin ----------
+  // A piece put in the bin leaves EVERY take, not just this one (mockup 3:
+  // 'use the bin on a product in the page. Every layout here follows, and
+  // Restore brings it back'). The model remembers it by slot ('role:i', or
+  // 'id:…' for a piece of the user's own) in m.gone, with the piece itself,
+  // the take it left and where it sat, so it can come back
+  function layoutGoneKey(e) { return e.sk || ('id:' + e.id); }
+  function layoutBin(sec, i) {
+    if (!sec.els[i] || sec.els.length < 2) return false;
+    diceBindNow(sec);
+    var e = sec.els[i];
+    var fam = diceFamilyOf(sec), faces = diceFaces(fam);
+    var gone = Object.assign({}, (sec.m && sec.m.gone) || {});
+    var kept = JSON.parse(JSON.stringify(e));
+    diceFlatten([kept]).forEach(function (x) { if (diceRecomposable(x)) delete x.whtml; }); // composed again on the way back
+    gone[layoutGoneKey(e)] = { el: kept, face: layoutFaceOf(sec, fam, faces.length), at: i };
+    sec.m = Object.assign({}, sec.m || {}, { gone: gone });
+    sec.els.splice(i, 1);
+    renderSection(sec);
+    return true;
+  }
+  // take the binned pieces out of the section as it stands
+  function layoutDropGone(sec) {
+    var gone = sec.m && sec.m.gone;
+    if (!gone) return;
+    var keep = function (e) { return !(e.sk && gone[e.sk]) && !gone['id:' + e.id]; };
+    sec.els = sec.els.filter(keep);
+    sec.els.forEach(function (e) { if (e.kids) e.kids = e.kids.filter(keep); });
+  }
+  // put pieces back into the take the section is on: exactly as they were
+  // when it is the take they left (or a piece of the user's own, which
+  // rides every take), else as this take draws that slot, wearing the
+  // piece's own words and picture. A take that has no such slot leaves it
+  // out; it comes back on the takes that do
+  function layoutPutBack(sec, back) {
+    var keys = Object.keys(back || {});
+    if (!keys.length) return;
+    var fam = diceFamilyOf(sec), faces = fam ? diceFaces(fam) : null;
+    if (!faces) return;
+    var m = sec.m || {}, k = layoutFaceOf(sec, fam, faces.length);
+    var orig = m.tpl === fam && m.orig && m.orig.els ? m.orig : null;
+    var slots = null;
+    var taken = {};
+    diceFlatten(sec.els).forEach(function (e) { if (e.id) taken[e.id] = true; });
+    keys.sort(function (a, b) { return back[a].at - back[b].at; }).forEach(function (key) {
+      var g = back[key];
+      if (!g || !g.el) return;
+      var p;
+      if (key.indexOf('id:') === 0 || g.face === k) p = diceRecompose([JSON.parse(JSON.stringify(g.el))])[0];
+      else {
+        if (!slots) {
+          slots = diceSlotsOf(diceTakeEls(faces, k, orig));
+          Object.keys(slots).forEach(function (sk) { slots[sk].sk = sk; });
+        }
+        if (!slots[key]) return;
+        p = JSON.parse(JSON.stringify(slots[key]));
+        diceFlatten([p]).forEach(function (x) { if (k === 0 && orig) delete x.tk; else x.tk = k; x.id = diceId(); });
+        // an original stays an original: it rides every take as it did
+        // before the bin (as the take's own it would step aside on a take
+        // that has no slot for it)
+        if (g.el.tk == null) delete p.tk;
+        p.id = g.el.id || p.id;
+        var r = key.slice(0, key.indexOf(':'));
+        if (r === 'image') {
+          if (g.el.src && g.el.type === 'image') { p.src = g.el.src; if (g.el.srcId) p.srcId = g.el.srcId; if (g.el.alt) p.alt = g.el.alt; }
+        } else if (r !== 'widget' && r !== '_') {
+          if (g.el.text != null) p.text = g.el.text;
+          if (g.el.href) p.href = g.el.href;
+        }
+      }
+      diceFlatten([p]).forEach(function (x) { if (x.id && taken[x.id]) x.id = diceId(); taken[x.id] = true; });
+      sec.els.splice(Math.min(g.at, sec.els.length), 0, p);
+    });
+    renderSection(sec);
+  }
   function openLayoutsPanel(idx) {
     var sec = S[idx];
     var fam = sec && diceFamilyOf(sec);
@@ -12141,59 +12252,162 @@
     if (panelOpen) closePanel();
     hideSecBar();
     var n = faces.length;
+    diceBindNow(sec); // the bin and the beginning must name pieces alike
     var start = layoutSnap(sec), startFace = layoutFaceOf(sec, fam, n);
-    var previews = layoutPreviews(sec, fam, faces);
+    var clone = function (o) { return JSON.parse(JSON.stringify(o || {})); };
+    var startGone = clone(sec.m && sec.m.gone), curGone = clone(startGone);
     // named as the section bar names them
     var nameOf = function (k) { return faces[k].take || (k === 0 ? 'The original' : 'Take ' + (k + 1)); };
     var TW = 156;
+    var face = startFace;
     panel.innerHTML =
       '<div class="gogh-panel-head"><span class="gogh-panel-title">Layouts</span>' +
       '<button type="button" class="gogh-btn gogh-btn-small gogh-lay-reset" disabled>Reset</button>' +
       '<button type="button" class="gogh-btn gogh-btn-small gogh-lay-done">Done</button></div>' +
       '<div class="gogh-panel-hint">Each layout is drawn with this section’s own words and pictures. Pick one to try it on the page; Reset puts back how it was when you opened this.</div>' +
-      '<div class="gogh-lay-grid">' + previews.map(function (pv, k) {
+      '<div class="gogh-lay-grid"></div>' +
+      '<button type="button" class="gogh-btn gogh-btn-small gogh-lay-restore" hidden></button>' +
+      '<div class="gogh-lay-tip"><strong>Too much?</strong> Use the bin on anything in the section to take it out of every layout here. Restore brings it back.</div>';
+    var grid = panel.querySelector('.gogh-lay-grid');
+    var restoreB = panel.querySelector('.gogh-lay-restore');
+    var drawTiles = function () {
+      grid.innerHTML = layoutPreviews(sec, fam, faces).map(function (pv, k) {
         if (!pv) return '';
         var sc = TW / pv.w;
-        return '<button type="button" class="gogh-lay-take' + (k === startFace ? ' is-active' : '') + '" data-face="' + k + '" aria-pressed="' + (k === startFace) + '">' +
+        return '<button type="button" class="gogh-lay-take' + (k === face ? ' is-active' : '') + '" data-face="' + k + '" aria-pressed="' + (k === face) + '">' +
           '<span class="gogh-lay-tile" aria-hidden="true"><span class="gogh-lay-stage" inert style="width:' + pv.w + 'px;transform:scale(' + sc.toFixed(4) + ')">' + pv.html + '</span></span>' +
           '<span class="gogh-lay-name">' + esc(nameOf(k)) + '</span></button>';
-      }).join('') + '</div>';
+      }).join('');
+    };
+    drawTiles();
     panel.hidden = false;
     panelOpen = true;
     panelAnchor = sec.wrapEl;
     panel.dataset.goghLayoutsFor = sec.scope;
     dockSidebar();
     zoomOutCanvas();
-    var face = startFace;
     var resetB = panel.querySelector('.gogh-lay-reset');
+    var nGone = function () { return Object.keys(curGone).length; };
     var mark = function () {
-      panel.querySelectorAll('.gogh-lay-take').forEach(function (b) {
+      grid.querySelectorAll('.gogh-lay-take').forEach(function (b) {
         var on = +b.dataset.face === face;
         b.classList.toggle('is-active', on);
         b.setAttribute('aria-pressed', on ? 'true' : 'false');
       });
-      resetB.disabled = face === startFace;
+      resetB.disabled = face === startFace && JSON.stringify(curGone) === JSON.stringify(startGone);
+      restoreB.hidden = !nGone();
+      restoreB.textContent = 'Restore removed (' + nGone() + ')';
     };
-    var goTo = function (k) {
-      if (k === face) return;
-      layoutRestore(sec, start);
-      var cur = startFace, guard = 0;
-      while (cur !== k && guard++ < n) {
-        var last = (cur + 1) % n === k;
-        var r = rollSection(S.indexOf(sec), last ? null : { quiet: true });
-        if (!r) break;
-        cur = r.face;
-      }
-      if (k === startFace) { resolveAll(); pushState(); }
-      face = cur;
+    // the visit is ONE undo step: each change replaces the step the visit
+    // pushed before it (picking three takes used to leave three steps)
+    var visitTop = null;
+    var settle = function () {
+      resolveAndApply(sec);
+      sec.els.forEach(function (ex) { if (ex.rails && ex.shop) hydrateProductsPreview(sec, ex); if (ex.rails && ex.posts) hydratePostsPreview(sec, ex); });
+      if (visitTop !== null && history[hIdx] === visitTop && hIdx === history.length - 1 && hIdx > 0) { history.pop(); hIdx--; }
+      var before = history[hIdx];
+      pushState();
+      visitTop = history[hIdx] !== before ? history[hIdx] : null;
+      contrastSentinel(sec);
       mark();
       if (secBarIdx === S.indexOf(sec)) showSecBar(secBarIdx);
     };
-    panel.querySelectorAll('.gogh-lay-take').forEach(function (b) {
-      b.addEventListener('click', function () { goTo(+b.dataset.face); });
+    var setGone = function () {
+      var m = Object.assign({}, sec.m || {});
+      if (nGone()) m.gone = clone(curGone); else delete m.gone;
+      sec.m = Object.keys(m).length ? m : null;
+    };
+    // from the beginning: the section as it was opened, today's bin applied
+    // (and anything restored since put back), then rolled to take k
+    var goTo = function (k, force) {
+      if (k === face && !force) return;
+      layoutRestore(sec, start);
+      setGone();
+      layoutDropGone(sec);
+      var back = {};
+      Object.keys(startGone).forEach(function (key) { if (!curGone[key]) back[key] = startGone[key]; });
+      layoutPutBack(sec, back);
+      var cur = startFace, guard = 0;
+      while (cur !== k && guard++ < n) {
+        var r = rollSection(S.indexOf(sec), { quiet: true });
+        if (!r) break;
+        cur = r.face;
+      }
+      face = cur;
+      settle();
+    };
+    grid.addEventListener('click', function (ev) {
+      var b = ev.target.closest('.gogh-lay-take');
+      if (b) goTo(+b.dataset.face);
     });
-    resetB.addEventListener('click', function () { goTo(startFace); });
+    resetB.addEventListener('click', function () {
+      var binChanged = JSON.stringify(curGone) !== JSON.stringify(startGone);
+      curGone = clone(startGone);
+      goTo(startFace, true);
+      if (binChanged) { drawTiles(); mark(); }
+    });
+    restoreB.addEventListener('click', function () {
+      var back = curGone;
+      curGone = {};
+      setGone();
+      layoutPutBack(sec, back);
+      settle();
+      drawTiles();
+      mark();
+    });
     panel.querySelector('.gogh-lay-done').addEventListener('click', function () { closePanel(); });
+    // the bins ride over the page's pieces (a layer of their own, so the
+    // section and its copies never carry them); one frame at a time while
+    // the panel is open, so zoom, scroll and every redraw are followed
+    var layer = document.createElement('div');
+    layer.className = 'gogh-lay-bins';
+    document.body.appendChild(layer);
+    var raf = 0;
+    var BIN = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16"/><path d="M10 11v6M14 11v6"/><path d="M6 7l1 12a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-12"/><path d="M9 7V4h6v3"/></svg>';
+    var placeBins = function () {
+      raf = 0;
+      if (!panelOpen || panel.hidden || panel.dataset.goghLayoutsFor !== sec.scope || S.indexOf(sec) === -1) { layer.remove(); return; }
+      var els = sec.els, many = els.length > 1;
+      while (layer.children.length < els.length) {
+        var b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'gogh-lay-bin';
+        b.innerHTML = BIN;
+        layer.appendChild(b);
+      }
+      while (layer.children.length > els.length) layer.lastChild.remove();
+      els.forEach(function (e, i) {
+        var b = layer.children[i], node = sec.nodes && sec.nodes[i];
+        var r = node && node.getBoundingClientRect();
+        var show = many && r && r.width >= 12 && r.height >= 6 && r.bottom > 0 && r.top < innerHeight;
+        b.dataset.i = i;
+        var label = 'Remove ' + (e.text ? '“' + String(e.text).replace(/<[^>]*>/g, '').trim().slice(0, 30) + '”' : 'this ' + (e.type === 'image' ? 'picture' : e.type === 'box' ? 'card' : e.type)) + ' from every layout';
+        if (b.getAttribute('aria-label') !== label) { b.setAttribute('aria-label', label); b.title = label; }
+        b.hidden = !show;
+        if (!show) return;
+        // on the piece's top-right corner, half outside it, so it never
+        // sits on the words (a section taller than the screen keeps it in view)
+        b.style.left = Math.round(r.right - 13) + 'px';
+        b.style.top = Math.round(Math.max(r.top - 13, 4)) + 'px';
+      });
+      raf = requestAnimationFrame(placeBins);
+    };
+    var press = function (ev) { ev.stopPropagation(); };
+    layer.addEventListener('pointerdown', press);
+    layer.addEventListener('mousedown', press);
+    layer.addEventListener('click', function (ev) {
+      ev.stopPropagation();
+      var b = ev.target.closest('.gogh-lay-bin');
+      if (!b) return;
+      if (!layoutBin(sec, +b.dataset.i)) return;
+      curGone = clone(sec.m && sec.m.gone);
+      settle();
+      drawTiles();
+      mark();
+    });
+    placeBins();
+    panelCleanup = function () { if (raf) cancelAnimationFrame(raf); layer.remove(); };
+    mark();
     return true;
   }
 
