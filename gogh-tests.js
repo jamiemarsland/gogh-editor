@@ -4903,16 +4903,24 @@
         var wrap = document.querySelector('.wp-site-blocks');
         var m = /translateX\(([-\d.]+)px\) scale\(([\d.]+)\)/.exec(wrap.style.transform);
         expect(m && +m[2] < 1 && +m[1] >= pnl.offsetWidth, 'the page should be fitted beside the panel: ' + wrap.style.transform);
+        // v0.99.715: the page washed back, the grid left clear with a ring and its name
+        var veil = G.focusVeil();
+        expect(veil && veil.querySelector('.gogh-focusveil-tag').textContent === pnl.querySelector('.gogh-panel-title').textContent, 'the grid should wear a ring with the panel name');
+        var gr = s0.nodes[i].getBoundingClientRect(), ring = veil.querySelector('.gogh-focusveil-ring');
+        expect(Math.abs(parseFloat(ring.style.left) - (gr.left - 6)) < 2 && Math.abs(parseFloat(ring.style.width) - (gr.width + 12)) < 2, 'the ring should sit around the grid: ' + ring.style.left + ' vs ' + gr.left);
+        expect(/^path\(evenodd/.test(veil.querySelector('.gogh-focusveil-wash').style.clipPath) && getComputedStyle(veil).pointerEvents === 'none', 'the wash should leave a hole for the grid and let clicks through');
         pnl.querySelector('.gogh-panel-x').click();
         expect(pnl.hidden && !/scale/.test(wrap.style.transform), 'the close should put the page back: ' + wrap.style.transform);
+        expect(!G.focusVeil() && !q('.gogh-focusveil'), 'the wash should go with the panel');
         G.openPanel(s0, G.sections()[0].els.findIndex(function (x) { return x.type === 'button'; }) === -1 ? i : findIdx('button'));
         expect(!q('.gogh-panel').classList.contains('gogh-panel-long'), 'a short panel (a button) should still float by its piece');
+        expect(!q('.gogh-focusveil'), 'a short panel should not wash the page');
       } finally {
         G.closePanel();
         var k = s0.els.indexOf(e);
         if (k !== -1) { s0.els.splice(k, 1); G.renderSection(s0); }
       }
-      return 'docked, fitted, closed, short panels still float';
+      return 'docked, fitted, washed with a ring, closed, short panels still float';
     });
     // v0.99.714 — ONE RULE for every sidebar (James: 'as a rule we should be
     // able to click into a page when showing the sidebar to focus back to

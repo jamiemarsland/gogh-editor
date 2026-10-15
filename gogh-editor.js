@@ -5539,6 +5539,7 @@
     // leave sidebar mode cleanly — the next panel places itself
     panel.classList.remove('gogh-panel-sidebar', 'gogh-panel-long');
     longPanelFor = null;
+    hideFocusVeil();
     panel.style.top = ''; panel.style.right = ''; panel.style.bottom = ''; panel.style.left = '';
     panel.style.width = ''; // a hand-resized width belongs to that panel only
     panelOpen = false;
@@ -5700,6 +5701,7 @@
     dockSidebar();
     panel.classList.add('gogh-panel-long');
     longPanelFor = { sec: sec, i: i };
+    showFocusVeil(title);
     zoomOutCanvas(); // fitted beside the panel (and beside help, if it is open)
     // zooming starts from the top of the page: bring the piece back in view
     setTimeout(function () {
@@ -5714,6 +5716,48 @@
       if (r.top < want || r.bottom > window.innerHeight - 24) window.scrollBy(0, r.top - want);
       if (sel && sel.sec === sec && sel.i === i) placeHandles(sec, i);
     }, 440);
+  }
+  // what the long panel is changing, made plain (James: 'dim the other parts
+  // so its clear what folks are editing'): a soft wash of the page's own
+  // ground over everything but the piece, with a ring and its name. It only
+  // shows: clicks go straight through, and a click on the washed page
+  // leaves the panel like anywhere else. It follows the piece every frame,
+  // through the zoom, scrolling, and a grid that changes height as you try
+  var focusVeil = null;
+  function showFocusVeil(name) {
+    hideFocusVeil();
+    var v = document.createElement('div');
+    v.className = 'gogh-focusveil';
+    v.setAttribute('aria-hidden', 'true');
+    var bg = paletteRoles().bgSlug || 'base';
+    v.innerHTML = '<div class="gogh-focusveil-wash"></div><div class="gogh-focusveil-ring"><span class="gogh-focusveil-tag"></span></div>';
+    v.querySelector('.gogh-focusveil-wash').style.background = 'color-mix(in srgb, var(--wp--preset--color--' + bg + ', #fff) 55%, transparent)';
+    v.querySelector('.gogh-focusveil-tag').textContent = name || 'Editing';
+    document.body.appendChild(v);
+    focusVeil = { el: v, wash: v.firstChild, ring: v.lastChild, raf: 0, last: '' };
+    placeFocusVeil();
+  }
+  function placeFocusVeil() {
+    var f = focusVeil;
+    if (!f) return;
+    var node = longPanelFor && panelOpen && !panel.hidden && longPanelFor.sec.nodes[longPanelFor.i];
+    if (!node || !node.isConnected) { hideFocusVeil(); return; }
+    var r = node.getBoundingClientRect(), pad = 6;
+    var x = Math.round(r.left - pad), y = Math.round(r.top - pad), w = Math.round(r.width + pad * 2), h = Math.round(r.height + pad * 2);
+    var W = window.innerWidth, H = window.innerHeight, key = [x, y, w, h, W, H].join();
+    if (key !== f.last) {
+      f.last = key;
+      f.wash.style.clipPath = "path(evenodd, 'M0 0H" + W + 'V' + H + "H0Z M" + x + ' ' + y + 'h' + w + 'v' + h + 'h' + (-w) + "Z')";
+      f.ring.style.left = x + 'px'; f.ring.style.top = y + 'px';
+      f.ring.style.width = w + 'px'; f.ring.style.height = h + 'px';
+    }
+    f.raf = requestAnimationFrame(placeFocusVeil);
+  }
+  function hideFocusVeil() {
+    if (!focusVeil) return;
+    cancelAnimationFrame(focusVeil.raf);
+    focusVeil.el.remove();
+    focusVeil = null;
   }
   var savedTextRange = null;
   function applyTextLink(url, newTab) {
@@ -21400,6 +21444,7 @@
     sections: function () { return S; },
     showHbar: function (i) { placeHbar(S[i]); },
     openHeaderPanel: openHeaderPanel,
+    focusVeil: function () { return focusVeil && focusVeil.el; }, placeFocusVeil: placeFocusVeil,
     openMenuStylePage: openMenuStylePage,
     openPageNamePanel: openPageNamePanel,
     roomBackToCards: roomBackToCards,

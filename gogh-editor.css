@@ -4777,3 +4777,22 @@ html.gogh-editing #wpadminbar #wp-admin-bar-site-name #wp-admin-bar-gogh-account
 .gogh-linkhit:focus-visible { outline: 2px solid #3858e9; outline-offset: -2px; }
 .gogh-linkhit.is-current span::after { content: ' \2713'; opacity: 0.6; }
 .gogh-linkfind-none { font-size: 12.5px; line-height: 1.45; opacity: 0.7; padding: 6px 10px; color: var(--gogh-ui-fg); }
+
+/* v0.99.715 — a long panel's focus: the page washed in its own ground, the
+   piece it changes left clear with a ring and its name. Shows only: every
+   click goes through to the page */
+.gogh-focusveil { position: fixed; inset: 0; z-index: 99990; pointer-events: none; }
+.gogh-focusveil-wash { position: absolute; inset: 0; animation: gogh-focusveil-in 0.25s ease both; }
+.gogh-focusveil-ring {
+  position: absolute; border-radius: 6px;
+  box-shadow: 0 0 0 2px var(--gogh-ui-accent, #4f5aee);
+  animation: gogh-focusveil-in 0.25s ease both;
+}
+.gogh-focusveil-tag {
+  position: absolute; left: 10px; top: -11px;
+  background: var(--gogh-ui-accent, #4f5aee); color: #fff;
+  font: 600 11px/1 -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  letter-spacing: 0.02em; padding: 5px 8px; border-radius: 999px; white-space: nowrap;
+}
+@keyframes gogh-focusveil-in { from { opacity: 0; } to { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .gogh-focusveil-wash, .gogh-focusveil-ring { animation: none; } }

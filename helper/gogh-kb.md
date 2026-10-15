@@ -15,7 +15,7 @@ about something where they conflict, rather than picking one silently. Quote UI
 labels and message copy from the appendix, verbatim — those are the current
 strings, and a paraphrased button label is the fastest way to lose a user's trust.
 
-Generated for plugin version 0.99.714 · knowledge base e8bc6e4.
+Generated for plugin version 0.99.715 · knowledge base 91abb0e.
 
 ---
 
@@ -830,6 +830,8 @@ The helper's welcome panel opens with a 35-second film of gogh being used (v0.99
 
 **The phone view survives navigation (v0.99.605).** Press one of your own pages while on the phone and it opens in the editor, still on the phone: the link carries `gogh-edit=1&gogh-phone=1`, the next page reads them at boot and strips them from the address. Other sites, files, wp-admin and anchors on the same page are left alone. Unpublished changes still ask before leaving.
 
+**The piece you are editing stands out (v0.99.715).** When a shop grid, product categories, a posts grid, an FAQ, tabs or a slideshow opens its panel on the left, the rest of the page fades back under a soft wash of its own background colour. The piece the panel changes stays clear, with a ring and the panel's name on it, so it is plain what you are changing. The wash is only a look: click anywhere on the page to close the panel and pick what you clicked.
+
 **Click the page to leave any sidebar (v0.99.714).** Whatever is open down the left (Site styles, Colours, Fonts, Text size, Page style, Motion, History, Add a page, the header or footer room, or a long panel such as a shop or posts grid), a click on the page closes it, the page eases back to full size, and what you clicked is chosen, ready to edit. It works the same as pressing Esc. A click on the thing the sidebar is about keeps it open: the header while you are editing the header, the grid while its panel is open.
 
 **Adding a page no longer meets "Leave site?" (v0.99.713).** On a page with a posts or products grid, gogh used to think the page had changed the moment the grid loaded its posts, so **Add a page** set off the browser's "Leave site? Changes you made may not be saved". A grid loading is no longer counted as a change. And when you really have changed the page, Add a page now asks gogh's own question first: **Publish, then go**, **Go, and keep my changes for later**, or **Stay**. The new page is only made once you choose to go.
@@ -1037,11 +1039,11 @@ Everything in this section is extracted mechanically from the Gogh source on eve
 
 ## Current release
 
-- Plugin version: **0.99.714**
+- Plugin version: **0.99.715**
 - Requires WordPress **6.5+**, PHP **7.4+**
 - Text domain: `gogh-editor`
 - readme.txt Stable tag: `0.26.0` · Tested up to: `7.0`
-- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.714`). Quote the plugin header version.
+- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.715`). Quote the plugin header version.
 
 ## Design constants
 
