@@ -15,7 +15,7 @@ about something where they conflict, rather than picking one silently. Quote UI
 labels and message copy from the appendix, verbatim — those are the current
 strings, and a paraphrased button label is the fastest way to lose a user's trust.
 
-Generated for plugin version 0.99.719 · knowledge base 076fb0a.
+Generated for plugin version 0.99.720 · knowledge base c1902f2.
 
 ---
 
@@ -830,6 +830,8 @@ The helper's welcome panel opens with a 35-second film of gogh being used (v0.99
 
 **The phone view survives navigation (v0.99.605).** Press one of your own pages while on the phone and it opens in the editor, still on the phone: the link carries `gogh-edit=1&gogh-phone=1`, the next page reads them at boot and strips them from the address. Other sites, files, wp-admin and anchors on the same page are left alone. Unpublished changes still ask before leaving.
 
+**The Violet Hour opens with a Lookbook (v0.99.720).** The Violet Hour blueprint's home page now shows its new-season candles, "The spring pour", as a Lookbook with Add to cart, so you can see the page-turning book straight away. On a Lookbook page, Add to cart now lines up with the words above it instead of sitting in the middle. And if your site uses scroll motion (Calm, Rise or Drama), a Lookbook or an Index finishes fading in once about a third of it is on screen, so you are never turning faded pages.
+
 **The Lookbook says what it does, and sells (v0.99.719).** In the editor, the Lookbook and the Index are shown still, so a small note under each now says what visitors get: "The pages turn on your published page" and "Pictures follow the pointer on your published page". Choosing **Lookbook** also switches **Add to cart** on, since the right-hand page is where people buy. You can turn it off again under **Show**.
 
 **An easier Lookbook (v0.99.718).** The Lookbook now always fits on screen: it is never taller than the window, so the whole spread is in view at once. The arrows sit beside the book, halfway down, instead of underneath it, and the page number sits quietly below. Each page has a small folded corner that lifts when you hover over it: click it or drag it to turn the page. Turning pages also look smoother, because a turning page stays exactly the size of the page it came from.
@@ -1047,11 +1049,11 @@ Everything in this section is extracted mechanically from the Gogh source on eve
 
 ## Current release
 
-- Plugin version: **0.99.719**
+- Plugin version: **0.99.720**
 - Requires WordPress **6.5+**, PHP **7.4+**
 - Text domain: `gogh-editor`
 - readme.txt Stable tag: `0.26.0` · Tested up to: `7.0`
-- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.719`). Quote the plugin header version.
+- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.720`). Quote the plugin header version.
 
 ## Design constants
 

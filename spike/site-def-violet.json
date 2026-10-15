@@ -98,7 +98,7 @@
     },
     {
      "name": "The spring pour",
-     "minH": 720,
+     "minH": 936,
      "els": [
       {
        "type": "para",
@@ -145,7 +145,7 @@
        "x": 80,
        "y": 216,
        "w": 1040,
-       "h": 432,
+       "h": 648,
        "shop": {
         "cat": "candles",
         "count": 4,
@@ -155,8 +155,9 @@
         "show": {
          "price": true,
          "rating": false,
-         "button": false
-        }
+         "button": true
+        },
+        "layout": "book"
        }
       }
      ]

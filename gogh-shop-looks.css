@@ -175,3 +175,8 @@
   .gogh-shop-book .gogh-book > li, .gogh-index-float, .gogh-shop-index .wc-block-product-template > li { transition: none; }
 }
 .gogh-shop-book .wp-block-woocommerce-product-summary p, .gogh-shop-book .wc-block-components-product-summary p { margin-top: 0 !important; }
+/* the buy button lines up with the words above it, not Woo's centre */
+.gogh-shop-book .gogh-book > li > .wp-block-button,
+.gogh-shop-book .gogh-book > li > .wc-block-components-product-button { justify-content: flex-start !important; align-items: flex-start !important; text-align: left !important; justify-self: start; width: auto !important; }
+.gogh-shop-book .gogh-book.is-single > li > .wp-block-button,
+.gogh-shop-book .gogh-book.is-single > li > .wc-block-components-product-button { margin-top: 4px !important; }
