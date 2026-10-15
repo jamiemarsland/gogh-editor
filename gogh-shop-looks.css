@@ -295,3 +295,58 @@
   .gogh-shoplook-showroom .wp-block-post-title { transition: none; }
 }
 .gogh-shoplook-showroom .wc-block-product-template > li > .wc-block-components-product-image { margin-bottom: 1.1rem !important; }
+
+/* ---------- Aisles on the shop page ---------- */
+.gogh-aisle-jump { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 1.2rem; }
+.gogh-aisle-jump a {
+  display: inline-block; padding: 7px 14px; border-radius: 999px; text-decoration: none; font-size: 0.9em; font-weight: 600;
+  border: 1.5px solid color-mix(in srgb, currentColor 30%, transparent); color: inherit;
+}
+.gogh-aisle-jump a:hover { border-color: currentColor; }
+.gogh-aisle { margin-top: clamp(2.5rem, 6vw, 4.5rem) !important; scroll-margin-top: calc(var(--wp-admin--admin-bar--height, 0px) + 24px); }
+.gogh-aisle + .gogh-aisle { padding-top: clamp(2.5rem, 6vw, 4.5rem); border-top: 1px solid color-mix(in srgb, currentColor 14%, transparent); }
+.gogh-aisle-head {
+  display: grid !important; grid-template-columns: minmax(0, 1fr) auto; column-gap: 2rem; align-items: end; margin-bottom: 1.4rem;
+}
+.gogh-aisle-head > * { margin: 0 !important; grid-column: 1; }
+.gogh-aisle-title { font-size: clamp(1.8rem, 1rem + 2.4vw, 3rem) !important; line-height: 1.05 !important; letter-spacing: -0.01em; }
+.gogh-aisle-desc { max-width: 40em; opacity: 0.72; margin-top: 0.5rem !important; }
+.gogh-aisle-all { margin-top: 0.7rem !important; font-weight: 600; }
+.gogh-aisle-all a { color: inherit; text-decoration: none; border-bottom: 1.5px solid currentColor; padding-bottom: 1px; }
+.gogh-aisle-arrows { grid-column: 2; grid-row: 1 / span 3; align-self: end; display: flex; gap: 8px; }
+.gogh-aisle-arrows[hidden] { display: none; }
+.gogh-aisle-arrows button {
+  width: 44px; height: 44px; border-radius: 50%; padding: 0; cursor: pointer; display: grid; place-items: center; color: inherit;
+  border: 1px solid color-mix(in srgb, currentColor 30%, transparent); background: transparent; transition: background 0.15s, opacity 0.15s;
+}
+.gogh-aisle-arrows button:hover:not(:disabled) { background: color-mix(in srgb, currentColor 10%, transparent); }
+.gogh-aisle-arrows button:disabled { opacity: 0.25; cursor: default; }
+/* the row: one line of products, swiped sideways, each landing on its edge */
+.gogh-shoplook-aisles .wc-block-product-template {
+  display: flex !important; flex-wrap: nowrap !important; gap: 24px !important; overflow-x: auto; overscroll-behavior-x: contain;
+  scroll-snap-type: x mandatory; scrollbar-width: none; list-style: none; margin: 0 !important; padding: 0 0 4px !important;
+  /* its own box for anything placed inside it: a sale badge measured from
+     the page and widened it sideways on phones */
+  position: relative;
+}
+.gogh-shoplook-aisles .wc-block-product-template > li { position: relative; }
+.gogh-shoplook-aisles .wc-block-product-template::-webkit-scrollbar { display: none; }
+.gogh-shoplook-aisles .wc-block-product-template > li {
+  flex: 0 0 clamp(200px, 22vw, 290px) !important; width: auto !important; max-width: none !important; margin: 0 !important;
+  scroll-snap-align: start; text-align: left; padding: 0 !important;
+}
+.gogh-shoplook-aisles .wc-block-components-product-image { margin: 0 0 12px !important; border-radius: 4px; overflow: hidden; }
+.gogh-shoplook-aisles .wc-block-components-product-image img { transition: transform 0.5s cubic-bezier(0.2, 0.7, 0.2, 1); }
+.gogh-shoplook-aisles li:hover .wc-block-components-product-image img { transform: scale(1.04); }
+.gogh-shoplook-aisles .wp-block-post-title { font-size: clamp(1rem, 0.92rem + 0.35vw, 1.2rem) !important; line-height: 1.3 !important; margin: 0 0 4px !important; }
+.gogh-shoplook-aisles .wp-block-post-title a { color: inherit; text-decoration: none; }
+.gogh-shoplook-aisles .wc-block-components-product-price { margin: 0 !important; font-variant-numeric: tabular-nums; }
+@media (max-width: 700px) {
+  .gogh-aisle-head { grid-template-columns: minmax(0, 1fr); }
+  .gogh-aisle-arrows { display: none; } /* a finger swipes */
+  .gogh-shoplook-aisles .wc-block-product-template > li { flex-basis: 70% !important; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .gogh-shoplook-aisles .wc-block-components-product-image img { transition: none; }
+}
+.gogh-shop-head .gogh-aisle-jump { margin-inline: 0 !important; max-width: none !important; }

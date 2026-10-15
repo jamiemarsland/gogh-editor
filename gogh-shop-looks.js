@@ -428,11 +428,44 @@
     root.classList.add('gogh-showroom-ready');
   }
 
+  // ---------- Aisles on the shop page ----------
+  // each category's row scrolls sideways under a finger or a trackpad; a
+  // mouse gets two arrows in the aisle's head, each greyed at its end
+  function aisle(root) {
+    var row = root.querySelector('.gogh-shoplook-aisles .wc-block-product-template');
+    var head = root.querySelector('.gogh-aisle-head');
+    if (!row || !head || root.classList.contains('gogh-aisle-ready')) return;
+    var nav = document.createElement('div');
+    nav.className = 'gogh-aisle-arrows';
+    nav.innerHTML = '<button type="button" class="gogh-aisle-prev" aria-label="Scroll back"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg></button>' +
+      '<button type="button" class="gogh-aisle-next" aria-label="Scroll on"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5l7 7-7 7"/></svg></button>';
+    head.appendChild(nav);
+    var prev = nav.firstChild, next = nav.lastChild;
+    function ends() {
+      var max = row.scrollWidth - row.clientWidth;
+      prev.disabled = row.scrollLeft <= 2;
+      next.disabled = row.scrollLeft >= max - 2;
+      nav.hidden = max <= 2; // everything already in view: no arrows
+    }
+    function go(dir) {
+      var li = row.querySelector('li');
+      var step = li ? li.getBoundingClientRect().width + 24 : row.clientWidth * 0.8;
+      row.scrollBy({ left: dir * Math.max(step, Math.floor(row.clientWidth / step) * step), behavior: calm ? 'auto' : 'smooth' });
+    }
+    prev.addEventListener('click', function () { go(-1); });
+    next.addEventListener('click', function () { go(1); });
+    row.addEventListener('scroll', ends, { passive: true });
+    window.addEventListener('resize', ends);
+    ends();
+    root.classList.add('gogh-aisle-ready');
+  }
+
   function run() {
     [].forEach.call(document.querySelectorAll('.gogh-shop-book'), lookbook);
     [].forEach.call(document.querySelectorAll('.gogh-shop-index'), index);
     [].forEach.call(document.querySelectorAll('.gogh-shop-photo'), photo);
     [].forEach.call(document.querySelectorAll('.gogh-showroom'), showroom);
+    [].forEach.call(document.querySelectorAll('.gogh-aisle'), aisle);
   }
   // now, not on DOMContentLoaded: this prints after the grids, and module
   // scripts (the Interactivity API) run before DOMContentLoaded fires

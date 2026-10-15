@@ -15,7 +15,7 @@ about something where they conflict, rather than picking one silently. Quote UI
 labels and message copy from the appendix, verbatim — those are the current
 strings, and a paraphrased button label is the fastest way to lose a user's trust.
 
-Generated for plugin version 0.99.723 · knowledge base 2296c8f.
+Generated for plugin version 0.99.724 · knowledge base 6d90a08.
 
 ---
 
@@ -830,6 +830,8 @@ The helper's welcome panel opens with a 35-second film of gogh being used (v0.99
 
 **The phone view survives navigation (v0.99.605).** Press one of your own pages while on the phone and it opens in the editor, still on the phone: the link carries `gogh-edit=1&gogh-phone=1`, the next page reads them at boot and strips them from the address. Other sites, files, wp-admin and anchors on the same page are left alone. Unpublished changes still ask before leaving.
 
+**Aisles, another look for the shop page (v0.99.724).** The top bar's **Shop layout** menu now also offers **Aisles**: the shop page is laid out category by category, like walking the aisles of a real shop. Each category gets its own band with its name, a line about it (its description), a link to all of it, and a row of its newest products you swipe or drag sideways. On a computer, two arrows beside each band scroll its row, and they only appear when there is more to see. Buttons under the page title jump straight to each aisle. On a category page, Aisles walks through that category's sub-categories; a category without sub-categories shows the Editorial look instead.
+
 **Showroom, a new look for the shop page (v0.99.723).** On the shop page, the top bar's **Shop layout** menu now offers **Showroom**: one big product picture holds still on the left while a calm list of your products scrolls beside it, each with its name, a line about it and its price. The product you hover over, or the one you scroll to the middle of the screen, takes the big picture with a soft crossfade, and a small label on the picture shows its name and price. Click a product, or the picture, to open it. Category buttons, sorting and page numbers work as usual. On phones it becomes one column with each picture above its name. The Violet Hour blueprint's shop page now uses it.
 
 **Shop panels stay in the sidebar (v0.99.722).** Choosing **Shop the photo**, adding a hand-picked product, or opening the photo library in a shop grid's panel used to pull the panel off the left-hand sidebar and float it over the page. It now stays docked on the left, with the page beside it.
@@ -1055,11 +1057,11 @@ Everything in this section is extracted mechanically from the Gogh source on eve
 
 ## Current release
 
-- Plugin version: **0.99.723**
+- Plugin version: **0.99.724**
 - Requires WordPress **6.5+**, PHP **7.4+**
 - Text domain: `gogh-editor`
 - readme.txt Stable tag: `0.26.0` · Tested up to: `7.0`
-- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.723`). Quote the plugin header version.
+- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.724`). Quote the plugin header version.
 
 ## Design constants
 
