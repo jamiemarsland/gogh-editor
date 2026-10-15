@@ -4839,7 +4839,9 @@
       var pnl = q('.gogh-panel');
       var mlink = pnl.querySelector('.gogh-shop-manage');
       expect(mlink && pnl.querySelector('.gogh-shop-layout'), 'shop panel missing its products link or layout');
-      expect(!mlink.classList.contains('gogh-btn') && !mlink.nextElementSibling, 'the products link should be a quiet link at the foot of the panel');
+      // the foot of the shop's own settings: only the On phones row every panel ends with may follow it
+      var after = mlink.nextElementSibling;
+      expect(!mlink.classList.contains('gogh-btn') && (!after || (after.classList.contains('gogh-panel-hint') && /On phones/.test(after.textContent))), 'the products link should be a quiet link at the foot of the panel, followed by ' + (after ? after.className + ' ' + after.textContent.slice(0, 30) : 'nothing'));
       var list = pnl.querySelector('.gogh-shop-layout .gogh-hopt[data-v="list"]');
       list.click();
       expect(!pnl.hidden, 'the panel closed on a layout pick');
@@ -5363,7 +5365,10 @@
       return fetch(base + 'template-parts?per_page=20', { credentials: 'same-origin', headers: { 'X-WP-Nonce': GOGH.nonce } })
         .then(function (r) { return r.json(); })
         .then(function (parts) {
-          var hp = (parts || []).filter(function (p) { return p.area === 'header' || /header/.test(p.slug || ''); })[0];
+          // the part this page shows: 'header' itself first (WooCommerce adds header parts of
+          // its own, and a theme can carry a vertical-header that is not the one on the page)
+          var hp = (parts || []).filter(function (p) { return p.slug === 'header'; })[0] ||
+            (parts || []).filter(function (p) { return p.area === 'header' || /header/.test(p.slug || ''); })[0];
           if (!hp) return 'no header part found through the API';
           var raw = (hp.content && (hp.content.raw || hp.content.rendered)) || '';
           if (!raw) return 'header part carries no raw markup';
