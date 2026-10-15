@@ -356,6 +356,81 @@
      ]
     },
     {
+     "name": "An evening, set",
+     "minH": 720,
+     "els": [
+      {
+       "type": "para",
+       "x": 80,
+       "y": 168,
+       "w": 300,
+       "h": 24,
+       "text": "Shop the photo",
+       "tf": {
+        "fs": 12,
+        "fw": 600,
+        "ls2": 0.2,
+        "tt": "uppercase"
+       },
+       "color": "theme-7"
+      },
+      {
+       "type": "heading",
+       "x": 80,
+       "y": 216,
+       "w": 320,
+       "h": 96,
+       "text": "An evening,<br>set.",
+       "fs": "xx-large"
+      },
+      {
+       "type": "para",
+       "x": 80,
+       "y": 336,
+       "w": 300,
+       "h": 120,
+       "text": "Lavender from the studio, a Linen &amp; Iris to light first, and a Lilac &amp; Smoke votive for later. Tap a dot to see each one.",
+       "tf": {
+        "fs": 16
+       }
+      },
+      {
+       "type": "shop",
+       "x": 440,
+       "y": 96,
+       "w": 680,
+       "h": 528,
+       "shop": {
+        "layout": "photo",
+        "scene": "https://images.unsplash.com/photo-1758356345661-49276f7b3100?w=1600&q=80&fm=jpg&fit=max",
+        "sceneAlt": "Dried lavender in a glass jar, white candles in glass and pink peonies on an old wooden table",
+        "spots": [
+         {
+          "product": "dried-lavender-bundle",
+          "x": 24,
+          "y": 40
+         },
+         {
+          "product": "linen-and-iris",
+          "x": 45,
+          "y": 63
+         },
+         {
+          "product": "lilac-and-smoke",
+          "x": 25,
+          "y": 74
+         }
+        ],
+        "show": {
+         "price": true,
+         "rating": false,
+         "button": true
+        }
+       }
+      }
+     ]
+    },
+    {
      "name": "For the room",
      "minH": 648,
      "els": [
@@ -1333,6 +1408,10 @@
   {
    "name": "Iain Robertson",
    "link": "https://unsplash.com/@yoiain"
+  },
+  {
+   "name": "Caryn Mac",
+   "link": "https://unsplash.com/@caryn_mac"
   }
  ]
 }

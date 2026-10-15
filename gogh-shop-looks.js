@@ -1,6 +1,7 @@
 /**
- * gogh shop looks: the Lookbook (a book of products whose pages turn) and the
- * Index (names set large, the picture following the pointer). Both dress
+ * gogh shop looks: the Lookbook (a book of products whose pages turn), the
+ * Index (names set large, the picture following the pointer) and Shop the
+ * photo (dots on a picture that open each product's card). All three dress
  * Woo's own Product Collection, so prices, sale badges and Add to cart stay
  * Woo's. The real products are never moved: a turning page is drawn from
  * copies, and the copies go the moment the page lands.
@@ -280,9 +281,102 @@
     root.classList.add('gogh-index-ready');
   }
 
+  // ---------- Shop the photo ----------
+  // a picture with a dot on each product in it; a dot opens that product's
+  // own Woo card (Add to cart and all), beside the dot or, on a phone,
+  // across the foot of the picture. The cards are the grid's real items,
+  // only placed: nothing is copied or moved out of its list
+  function photo(root) {
+    var fig = root.querySelector('.gogh-photo-scene');
+    var coll = root.querySelector('.gogh-shop-spots');
+    var ul = coll && coll.querySelector('.wc-block-product-template');
+    if (!fig || !ul || root.classList.contains('gogh-photo-ready')) return;
+    var spots = [];
+    try { spots = JSON.parse(root.getAttribute('data-gogh-spots') || '[]'); } catch (e) { return; }
+    var items = {};
+    [].forEach.call(ul.children, function (li) {
+      var m = /\bpost-(\d+)\b/.exec(li.className);
+      if (m) items[m[1]] = li;
+    });
+    var layer = document.createElement('div');
+    layer.className = 'gogh-photo-dots';
+    fig.appendChild(layer);
+    var open = null, closeT = null, hover = window.matchMedia && window.matchMedia('(hover: hover) and (pointer: fine)').matches;
+    function narrow() { return root.clientWidth < 600; }
+    function place(dot, li) {
+      var box = root.getBoundingClientRect(), d = dot.getBoundingClientRect();
+      li.classList.toggle('is-sheet', narrow());
+      if (narrow()) { li.style.left = ''; li.style.top = ''; return; }
+      var w = li.offsetWidth, h = li.offsetHeight, cx = d.left + d.width / 2 - box.left, cy = d.top + d.height / 2 - box.top;
+      var left = cx + 26 + w <= box.width - 12 ? cx + 26 : cx - 26 - w; // beside the dot, on whichever side has room
+      var top = Math.max(12, Math.min(box.height - h - 12, cy - h / 2));
+      li.style.left = Math.max(12, left) + 'px';
+      li.style.top = top + 'px';
+    }
+    function show(dot) {
+      clearTimeout(closeT);
+      if (open && open.dot === dot) return;
+      hide(true);
+      var li = items[dot.dataset.id];
+      if (!li) return;
+      li.classList.add('is-open');
+      li.removeAttribute('inert');
+      dot.classList.add('is-on');
+      dot.setAttribute('aria-expanded', 'true');
+      place(dot, li);
+      open = { dot: dot, li: li };
+    }
+    function hide(now) {
+      if (!open) return;
+      var o = open;
+      var go = function () {
+        o.li.classList.remove('is-open');
+        o.li.setAttribute('inert', '');
+        o.dot.classList.remove('is-on');
+        o.dot.setAttribute('aria-expanded', 'false');
+        if (open === o) open = null;
+      };
+      clearTimeout(closeT);
+      if (now) go(); else closeT = setTimeout(go, 260);
+    }
+    spots.forEach(function (sp, n) {
+      var li = items[String(sp.id)];
+      if (!li) return; // a product gone from the shop takes its dot with it
+      var title = li.querySelector('.wp-block-post-title');
+      var dot = document.createElement('button');
+      dot.type = 'button';
+      dot.className = 'gogh-photo-dot';
+      dot.dataset.id = sp.id;
+      dot.style.left = Math.max(0, Math.min(100, +sp.x)) + '%';
+      dot.style.top = Math.max(0, Math.min(100, +sp.y)) + '%';
+      dot.style.setProperty('--gogh-dot-delay', (n * 0.35) + 's');
+      dot.setAttribute('aria-label', (title ? title.textContent.trim() : 'Product') + ' — show');
+      dot.setAttribute('aria-expanded', 'false');
+      dot.innerHTML = '<span></span>';
+      layer.appendChild(dot);
+      li.classList.add('gogh-photo-card');
+      li.setAttribute('inert', '');
+      if (hover) {
+        dot.addEventListener('pointerenter', function () { show(dot); });
+        dot.addEventListener('pointerleave', function () { hide(); });
+        li.addEventListener('pointerenter', function () { if (open && open.li === li) clearTimeout(closeT); });
+        li.addEventListener('pointerleave', function () { hide(); });
+      }
+      dot.addEventListener('click', function () { if (open && open.dot === dot && !hover) hide(true); else show(dot); });
+      dot.addEventListener('focus', function () { show(dot); });
+    });
+    root.addEventListener('keydown', function (ev) { if (ev.key === 'Escape' && open) { var d = open.dot; hide(true); d.focus(); } });
+    document.addEventListener('pointerdown', function (ev) {
+      if (open && !open.li.contains(ev.target) && !ev.target.closest('.gogh-photo-dot')) hide(true);
+    });
+    window.addEventListener('resize', function () { if (open) place(open.dot, open.li); });
+    root.classList.add('gogh-photo-ready');
+  }
+
   function run() {
     [].forEach.call(document.querySelectorAll('.gogh-shop-book'), lookbook);
     [].forEach.call(document.querySelectorAll('.gogh-shop-index'), index);
+    [].forEach.call(document.querySelectorAll('.gogh-shop-photo'), photo);
   }
   // now, not on DOMContentLoaded: this prints after the grids, and module
   // scripts (the Interactivity API) run before DOMContentLoaded fires

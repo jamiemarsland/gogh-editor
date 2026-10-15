@@ -5068,6 +5068,47 @@
       }
       return 'Lookbook and Index written, read back and sketched';
     });
+    // v0.99.721: Shop the photo — a picture, a dot per product, the grid of
+    // exactly those products for the dots to open
+    test('Shop the photo writes the picture, its dots and their products, reads them back and sketches them', function () {
+      var shop = G.shopDefaults(); shop.layout = 'photo';
+      expect(!/product-collection/.test(G.composeShop(shop)), 'no products: no grid (an empty hand-pick would be every product)');
+      shop.scene = 'https://example.com/table.jpg'; shop.sceneAlt = 'A table, set';
+      shop.pick = [{ id: 11, name: 'Lavender' }, { id: 12, name: 'Linen & Iris' }];
+      shop.spots = [{ id: 12, x: 45, y: 63 }];
+      var src = G.composeShop(shop);
+      var box = document.createElement('div'); box.innerHTML = src.replace(/<!--[\s\S]*?-->/g, '');
+      var root = box.querySelector('.gogh-shop-photo'), spots = JSON.parse(root.getAttribute('data-gogh-spots'));
+      expect(spots.length === 2 && spots[1].id === 12 && spots[1].x === 45 && spots[0].x > 0 && spots[0].name === 'Lavender', 'every product gets a dot, placed ones keep their place: ' + JSON.stringify(spots));
+      expect(root.querySelector('.gogh-photo-scene img').getAttribute('src') === 'https://example.com/table.jpg', 'the picture should be written');
+      var attrs = JSON.parse(/wp:woocommerce\/product-collection (\{[\s\S]*?\}) -->/.exec(src)[1]);
+      expect(/gogh-shop-spots/.test(attrs.className) && attrs.query.orderBy === 'post__in' && attrs.query.woocommerceHandPickedProducts.join() === '11,12', 'the grid holds exactly the products in the photo: ' + JSON.stringify(attrs.query.woocommerceHandPickedProducts));
+      var back = { type: 'widget', wsrc: src }; G.healRails(back);
+      expect(back.shop.layout === 'photo' && back.shop.scene === 'https://example.com/table.jpg' && back.shop.sceneAlt === 'A table, set' && back.shop.pick.length === 2 && back.shop.spots[1].x === 45, 'reading back should find the photo, its products and their dots: ' + JSON.stringify(back.shop).slice(0, 160));
+      var e = { type: 'widget', rails: true, shop: back.shop, wsrc: src };
+      box.innerHTML = G.shopPreviewHTML(e, [{ id: 11, name: 'Lavender' }, { id: 12, name: 'Linen & Iris' }]);
+      var tags = [].map.call(box.querySelectorAll('.gogh-photo-sketch .gogh-spot-drag .gogh-spot-tag'), function (x) { return x.textContent; });
+      expect(tags.join('|') === 'Lavender|Linen & Iris' && box.querySelector('.gogh-look-note'), 'the sketch shows each dot with its name: ' + tags.join('|'));
+      e.shop.scene = ''; box.innerHTML = G.shopPreviewHTML(e, []);
+      expect(box.querySelector('.gogh-photo-ask'), 'with no picture the sketch asks for one');
+      var s0 = sec(), el = G.addElementToSection(G.sections().indexOf(s0), 'products');
+      try {
+        if (!el || !el.shop) return 'written, read back and sketched (no products piece here to open)';
+        el.shop.show.button = false;
+        G.openPanel(s0, s0.els.indexOf(el));
+        var pnl = q('.gogh-panel');
+        expect(pnl.querySelector('.gogh-shop-photobox').hidden, 'the photo row waits for Shop the photo');
+        pnl.querySelector('.gogh-shop-layout .gogh-hopt[data-v="photo"]').click();
+        expect(!pnl.querySelector('.gogh-shop-photobox').hidden && pnl.querySelector('.gogh-shop-gridonly').hidden && pnl.querySelector('.gogh-shop-picklab').textContent === 'Products in the photo', 'Shop the photo shows its photo row and products, not the grid settings');
+        expect(el.shop.layout === 'photo' && el.shop.show.button && /gogh-shop-photo/.test(el.wsrc), 'choosing it writes a photo piece with Add to cart on');
+        expect(/Choose a photo/.test(pnl.querySelector('.gogh-shop-scenebtn').textContent), 'it should offer to choose a photo');
+      } finally {
+        G.closePanel();
+        var k = s0.els.indexOf(el);
+        if (k !== -1) { s0.els.splice(k, 1); G.renderSection(s0); }
+      }
+      return 'picture, dots and products written, read back, sketched; panel switches';
+    });
     test('the posts rail: Edit design on the bar, a small panel, looks audition and keep', function () {
       var s0 = sec();
       var e = G.addElementToSection(G.sections().indexOf(s0), 'posts');

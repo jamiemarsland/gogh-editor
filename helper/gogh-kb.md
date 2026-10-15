@@ -15,7 +15,7 @@ about something where they conflict, rather than picking one silently. Quote UI
 labels and message copy from the appendix, verbatim — those are the current
 strings, and a paraphrased button label is the fastest way to lose a user's trust.
 
-Generated for plugin version 0.99.720 · knowledge base c1902f2.
+Generated for plugin version 0.99.721 · knowledge base e61f9e9.
 
 ---
 
@@ -830,6 +830,8 @@ The helper's welcome panel opens with a 35-second film of gogh being used (v0.99
 
 **The phone view survives navigation (v0.99.605).** Press one of your own pages while on the phone and it opens in the editor, still on the phone: the link carries `gogh-edit=1&gogh-phone=1`, the next page reads them at boot and strips them from the address. Other sites, files, wp-admin and anchors on the same page are left alone. Unpublished changes still ask before leaving.
 
+**Shop the photo (v0.99.721).** A product grid has a new layout, **Shop the photo**: one picture, such as a candle-lit table or a styled shelf, with a small dot on each product in it. Visitors hover over, tap or tab to a dot and that product's card opens beside it with its picture, name, price and Add to cart. On a phone the card slides across the foot of the photo. To set one up, choose **Layout › Shop the photo** in the grid's panel, then **Choose a photo** from your media library, and type the names of the products that appear in it under **Products in the photo**. Each product gets a dot with its name on it: drag each dot onto its product in the picture. In the editor the photo is shown still; the cards open on your published page. The Violet Hour blueprint has one on its home page, "An evening, set".
+
 **The Violet Hour opens with a Lookbook (v0.99.720).** The Violet Hour blueprint's home page now shows its new-season candles, "The spring pour", as a Lookbook with Add to cart, so you can see the page-turning book straight away. On a Lookbook page, Add to cart now lines up with the words above it instead of sitting in the middle. And if your site uses scroll motion (Calm, Rise or Drama), a Lookbook or an Index finishes fading in once about a third of it is on screen, so you are never turning faded pages.
 
 **The Lookbook says what it does, and sells (v0.99.719).** In the editor, the Lookbook and the Index are shown still, so a small note under each now says what visitors get: "The pages turn on your published page" and "Pictures follow the pointer on your published page". Choosing **Lookbook** also switches **Add to cart** on, since the right-hand page is where people buy. You can turn it off again under **Show**.
@@ -1049,11 +1051,11 @@ Everything in this section is extracted mechanically from the Gogh source on eve
 
 ## Current release
 
-- Plugin version: **0.99.720**
+- Plugin version: **0.99.721**
 - Requires WordPress **6.5+**, PHP **7.4+**
 - Text domain: `gogh-editor`
 - readme.txt Stable tag: `0.26.0` · Tested up to: `7.0`
-- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.720`). Quote the plugin header version.
+- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.721`). Quote the plugin header version.
 
 ## Design constants
 
@@ -1633,4 +1635,4 @@ These are the real strings in the current build. Use them verbatim; never paraph
 
 ## Test suite
 
-`358` tests, run by appending `?gogh-test` to any Gogh page URL while logged in with edit rights on that page.
+`359` tests, run by appending `?gogh-test` to any Gogh page URL while logged in with edit rights on that page.
