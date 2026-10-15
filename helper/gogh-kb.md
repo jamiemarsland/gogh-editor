@@ -15,7 +15,7 @@ about something where they conflict, rather than picking one silently. Quote UI
 labels and message copy from the appendix, verbatim — those are the current
 strings, and a paraphrased button label is the fastest way to lose a user's trust.
 
-Generated for plugin version 0.99.728 · knowledge base a0ec7f1.
+Generated for plugin version 0.99.729 · knowledge base 17fe45a.
 
 ---
 
@@ -830,6 +830,8 @@ The helper's welcome panel opens with a 35-second film of gogh being used (v0.99
 
 **The phone view survives navigation (v0.99.605).** Press one of your own pages while on the phone and it opens in the editor, still on the phone: the link carries `gogh-edit=1&gogh-phone=1`, the next page reads them at boot and strips them from the address. Other sites, files, wp-admin and anchors on the same page are left alone. Unpublished changes still ask before leaving.
 
+**Layouts, side by side (v0.99.729).** When you select a section that came from a starter, the section bar shows which take of its design you're on as a small count beside the die, such as "2/4". Click that count to open the **Layouts** panel: every take of the design is drawn small with this section's own words and pictures, so you can compare them all at once instead of rolling the die one by one. Click a tile to try it on the page; the page zooms out so you can see it. **Reset** puts the section back as it was when you opened the panel, and **Done** keeps your pick. The whole visit is one undo step.
+
 **Section styles, lightest to darkest (v0.99.728).** In a section's background panel, the colour styles are now grouped and named by how light they are: **Light** (Lightest 1 and 2, Light 1 and 2), **Bright** (from your accent colours), **Dark** (Dark 1 and 2, Darkest 1 and 2) and **Backdrops**. Hover a chip to see its name. A "2" puts your accent colour on the section's headings while the rest of the words stay plain. Every style is drawn from your site colours, so changing them in Site styles recolours every section, and a style only appears when its words read clearly on it, so some palettes show fewer. gogh also now picks real colours, not near-blacks, as your accents, and its automatic readability fix no longer turns words dark on a dark section while you try a new Site style.
 
 **Accent sections stay readable (v0.99.727).** When you try or apply a different Site style or a Remix look, sections in an accent colour now pick their text colour from the colours you are actually seeing, not the ones the page started with. Before, a darker Site style such as Midnight could leave an accent section's words almost invisible until the page was reloaded. And when an accent colour is a middle shade that no text colour reads well on, the section style menu offers only its soft version, so body text always reads. Behind the scenes, every gogh release is now checked so that every section and starter saves as valid WordPress blocks, and that every Site style and Remix look reads in every section style.
@@ -1065,11 +1067,11 @@ Everything in this section is extracted mechanically from the Gogh source on eve
 
 ## Current release
 
-- Plugin version: **0.99.728**
+- Plugin version: **0.99.729**
 - Requires WordPress **6.5+**, PHP **7.4+**
 - Text domain: `gogh-editor`
 - readme.txt Stable tag: `0.26.0` · Tested up to: `7.0`
-- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.728`). Quote the plugin header version.
+- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.729`). Quote the plugin header version.
 
 ## Design constants
 
@@ -1463,6 +1465,7 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "Remove video"
 - "Rename"
 - "Rename or remove"
+- "Reset"
 - "Restore this version"
 - "Right"
 - "Roll another take of this design"
@@ -1472,6 +1475,7 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "Save to the blueprint"
 - "See all pictures"
 - "See all →"
+- "See every layout of this design side by side"
 - "See it on a phone"
 - "See the page as a phone"
 - "Send backward"
@@ -1512,7 +1516,6 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "Use this layout"
 - "Video"
 - "Where this item shows"
-- "Which take of this design is on the page"
 - "Write"
 - "Write a post ↗"
 - "Write or change posts in WordPress ↗"
@@ -1649,4 +1652,4 @@ These are the real strings in the current build. Use them verbatim; never paraph
 
 ## Test suite
 
-`361` tests, run by appending `?gogh-test` to any Gogh page URL while logged in with edit rights on that page.
+`362` tests, run by appending `?gogh-test` to any Gogh page URL while logged in with edit rights on that page.

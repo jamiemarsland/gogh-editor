@@ -3514,6 +3514,7 @@
     if (t.closest('.gogh-side, .gogh-panel, .gogh-elbar, .gogh-rail, #wpadminbar, .gogh-zoomslider, .gogh-helpsheet')) return;
     if (longPanelFor && longPanelFor.sec.nodes[longPanelFor.i] && longPanelFor.sec.nodes[longPanelFor.i].contains(t)) return;
     if (panel.dataset.goghArea && t.closest('.gogh-chrome-spotlight')) return;
+    if (panel.dataset.goghLayoutsFor && t.closest('.' + panel.dataset.goghLayoutsFor)) return; // the section being laid out
     closeSideAt(ev.clientY, leaveSidebarForPage);
   });
   function leaveSidebarForPage() { // what Esc does, plus the drawer behind
@@ -5534,6 +5535,7 @@
     if (roomArea && editing) veilChromeArea(roomArea); // the Edit header pill comes back for next time
     railBox.classList.remove('is-away');
     delete panel.dataset.goghArea;
+    delete panel.dataset.goghLayoutsFor;
     panel.hidden = true;
     panel.classList.remove('gogh-panel-wide');
     // leave sidebar mode cleanly — the next panel places itself
@@ -11654,7 +11656,8 @@
       bgImage: sec.bgImage || null, bgId: sec.bgId || null, bgPos: sec.bgPos || null,
       bgA: sec.bgA != null ? sec.bgA : null, fill: !!sec.fill, fx: sec.fx || null };
   }
-  function rollSection(idx) {
+  function rollSection(idx, opts) {
+    var quiet = !!(opts && opts.quiet); // the Layouts panel's previews: no undo step, no toast, no fetches
     var sec = S[idx];
     var fam = diceFamilyOf(sec);
     var faces = fam ? diceFaces(fam) : null;
@@ -12074,10 +12077,124 @@
     renderSection(sec);
     diceFitWords(sec); // the take's display sizes were set for its own words: the user's must fit
     guardCheck(sec, 'roll to take ' + (next + 1));
-    sec.els.forEach(function (ex) { if (ex.rails && ex.shop) hydrateProductsPreview(sec, ex); if (ex.rails && ex.posts) hydratePostsPreview(sec, ex); });
-    pushState();
-    contrastSentinel(sec);
+    if (!quiet) {
+      sec.els.forEach(function (ex) { if (ex.rails && ex.shop) hydrateProductsPreview(sec, ex); if (ex.rails && ex.posts) hydratePostsPreview(sec, ex); });
+      pushState();
+      contrastSentinel(sec);
+    }
     return { face: next, of: faces.length, take: t2.take || null };
+  }
+
+  // ---------- the Layouts panel ----------
+  // Every take of a section side by side, each drawn with the section's OWN
+  // words and pictures (James: 'build the layouts panel', from the Section
+  // Editing Modes paper: people choose by comparing, not by remembering the
+  // last roll). The previews come from the die itself: the real section is
+  // walked through its takes quietly, a copy of each is kept, and the
+  // section is put back exactly as it was, all before the browser paints.
+  // Choosing a take goes there from where the session began, as one undo
+  // step; Reset goes back to that beginning.
+  var laySeq = 0;
+  function layoutSnap(sec) {
+    return JSON.parse(JSON.stringify({ els: sec.els, m: sec.m || null, minH: sec.minH || null, bg: sec.bg || null,
+      divider: sec.divider || null, fx: sec.fx || null, bgImage: sec.bgImage || null, bgId: sec.bgId || null,
+      bgVideo: sec.bgVideo || null, bgVideoId: sec.bgVideoId || null, bgA: sec.bgA != null ? sec.bgA : null,
+      theme: sec.theme || null, fill: !!sec.fill, bgPos: sec.bgPos || null }));
+  }
+  function layoutRestore(sec, snap) {
+    var c = JSON.parse(JSON.stringify(snap));
+    Object.keys(c).forEach(function (k) { sec[k] = c[k]; });
+    renderSection(sec);
+  }
+  function layoutFaceOf(sec, fam, n) {
+    var m = sec.m || {};
+    return m.tpl === fam ? (((m.face || 0) % n) + n) % n : 0;
+  }
+  // a still copy of the section as drawn now, scoped apart so its stylesheet
+  // dresses only itself
+  function layoutCopy(sec) {
+    var w = sec.wrapEl.cloneNode(true);
+    [].forEach.call(w.querySelectorAll('video, script, .gogh-pendbar, .gogh-bootinvite'), function (n) { n.remove(); });
+    [].forEach.call(w.querySelectorAll('[contenteditable]'), function (n) { n.removeAttribute('contenteditable'); });
+    [].forEach.call(w.querySelectorAll('[id]'), function (n) { n.removeAttribute('id'); });
+    var scope = 'gogh-lay-' + (++laySeq);
+    return { html: w.outerHTML.replace(new RegExp(sec.scope + '(?![\\w-])', 'g'), scope), w: sec.wrapEl.offsetWidth || W };
+  }
+  function layoutPreviews(sec, fam, faces) {
+    var n = faces.length, snap = layoutSnap(sec), out = new Array(n);
+    var cur = layoutFaceOf(sec, fam, n);
+    out[cur] = layoutCopy(sec);
+    for (var k = 1; k < n; k++) {
+      var r = rollSection(S.indexOf(sec), { quiet: true });
+      if (!r) break;
+      if (!out[r.face]) out[r.face] = layoutCopy(sec);
+    }
+    layoutRestore(sec, snap);
+    resolveAll();
+    return out;
+  }
+  function openLayoutsPanel(idx) {
+    var sec = S[idx];
+    var fam = sec && diceFamilyOf(sec);
+    var faces = fam ? diceFaces(fam) : null;
+    if (!faces) return false;
+    if (panelOpen) closePanel();
+    hideSecBar();
+    var n = faces.length;
+    var start = layoutSnap(sec), startFace = layoutFaceOf(sec, fam, n);
+    var previews = layoutPreviews(sec, fam, faces);
+    // named as the section bar names them
+    var nameOf = function (k) { return faces[k].take || (k === 0 ? 'The original' : 'Take ' + (k + 1)); };
+    var TW = 156;
+    panel.innerHTML =
+      '<div class="gogh-panel-head"><span class="gogh-panel-title">Layouts</span>' +
+      '<button type="button" class="gogh-btn gogh-btn-small gogh-lay-reset" disabled>Reset</button>' +
+      '<button type="button" class="gogh-btn gogh-btn-small gogh-lay-done">Done</button></div>' +
+      '<div class="gogh-panel-hint">Each layout is drawn with this section’s own words and pictures. Pick one to try it on the page; Reset puts back how it was when you opened this.</div>' +
+      '<div class="gogh-lay-grid">' + previews.map(function (pv, k) {
+        if (!pv) return '';
+        var sc = TW / pv.w;
+        return '<button type="button" class="gogh-lay-take' + (k === startFace ? ' is-active' : '') + '" data-face="' + k + '" aria-pressed="' + (k === startFace) + '">' +
+          '<span class="gogh-lay-tile" aria-hidden="true"><span class="gogh-lay-stage" inert style="width:' + pv.w + 'px;transform:scale(' + sc.toFixed(4) + ')">' + pv.html + '</span></span>' +
+          '<span class="gogh-lay-name">' + esc(nameOf(k)) + '</span></button>';
+      }).join('') + '</div>';
+    panel.hidden = false;
+    panelOpen = true;
+    panelAnchor = sec.wrapEl;
+    panel.dataset.goghLayoutsFor = sec.scope;
+    dockSidebar();
+    zoomOutCanvas();
+    var face = startFace;
+    var resetB = panel.querySelector('.gogh-lay-reset');
+    var mark = function () {
+      panel.querySelectorAll('.gogh-lay-take').forEach(function (b) {
+        var on = +b.dataset.face === face;
+        b.classList.toggle('is-active', on);
+        b.setAttribute('aria-pressed', on ? 'true' : 'false');
+      });
+      resetB.disabled = face === startFace;
+    };
+    var goTo = function (k) {
+      if (k === face) return;
+      layoutRestore(sec, start);
+      var cur = startFace, guard = 0;
+      while (cur !== k && guard++ < n) {
+        var last = (cur + 1) % n === k;
+        var r = rollSection(S.indexOf(sec), last ? null : { quiet: true });
+        if (!r) break;
+        cur = r.face;
+      }
+      if (k === startFace) { resolveAll(); pushState(); }
+      face = cur;
+      mark();
+      if (secBarIdx === S.indexOf(sec)) showSecBar(secBarIdx);
+    };
+    panel.querySelectorAll('.gogh-lay-take').forEach(function (b) {
+      b.addEventListener('click', function () { goTo(+b.dataset.face); });
+    });
+    resetB.addEventListener('click', function () { goTo(startFace); });
+    panel.querySelector('.gogh-lay-done').addEventListener('click', function () { closePanel(); });
+    return true;
   }
 
   // ---------- the first minute ----------
@@ -13631,7 +13748,7 @@
     '<button type="button" class="gogh-sb gogh-sb-word" data-sec="bgimg" title="Background &amp; look">' + CTX_ICONS.image + '<span>Background</span></button>' +
     '<i class="gogh-sb-div gogh-sb-div-dice" aria-hidden="true" hidden></i>' +
     '<button type="button" class="gogh-sb gogh-sb-dice" data-sec="dice" title="Roll another take of this design" hidden><svg width="15" height="15" viewBox="0 0 16 16" fill="none" aria-hidden="true"><rect x="1.5" y="1.5" width="13" height="13" rx="3.2" stroke="currentColor" stroke-width="1.6"/><circle cx="5.4" cy="5.4" r="1.25" fill="currentColor"/><circle cx="10.6" cy="5.4" r="1.25" fill="currentColor"/><circle cx="8" cy="8" r="1.25" fill="currentColor"/><circle cx="5.4" cy="10.6" r="1.25" fill="currentColor"/><circle cx="10.6" cy="10.6" r="1.25" fill="currentColor"/></svg></button>' +
-    '<span class="gogh-sb-take" title="Which take of this design is on the page" hidden></span>' +
+    '<button type="button" class="gogh-sb-take" data-sec="layouts" title="See every layout of this design side by side" hidden></button>' +
     '<i class="gogh-sb-div" aria-hidden="true"></i>' +
     '<button type="button" class="gogh-sb gogh-sb-more" data-sec="more" title="Move, duplicate, save, delete…">⋯</button>';
   secBar.hidden = true;
@@ -13736,7 +13853,7 @@
       takeL.textContent = lab;
       takeL.hidden = !lab;
       var nm = secTakeName(S[idx], fam);
-      takeL.title = nm ? 'Take ' + lab + ' of this design: ' + nm : 'Which take of this design is on the page';
+      takeL.title = (nm ? 'Take ' + lab + ' of this design: ' + nm + '. ' : '') + 'See every layout side by side';
     }
     var r = S[idx].wrapEl.getBoundingClientRect();
     // the bar DOCKS: it sits at the section's top edge, and for a section
@@ -13772,9 +13889,10 @@
     }
   }
   secBar.addEventListener('click', function (ev) {
-    var b = ev.target.closest('.gogh-sb');
+    var b = ev.target.closest('.gogh-sb, .gogh-sb-take');
     if (!b || secBarIdx === null) return;
     if (b.dataset.sec === 'add') { openSecAddPanel(secBarIdx); return; }
+    if (b.dataset.sec === 'layouts') { openLayoutsPanel(secBarIdx); return; }
     if (b.dataset.sec === 'dice') {
       var rolled = rollSection(secBarIdx);
       if (rolled) {
@@ -21745,6 +21863,7 @@
     pushState: pushState,
     templates: function () { return TEMPLATES; },
     variants: function () { return VARIANTS; }, // every take of every starter (the safety test walks them)
+    openLayoutsPanel: openLayoutsPanel,
     rhythm: function () { return { minor: RHYTHM, major: MAJOR }; },
     defaults: function (kind) { return kind ? DEFAULTS[kind]() : Object.keys(DEFAULTS); },
     fontPairs: function () { return FONT_PAIRS; },

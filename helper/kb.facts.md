@@ -4,11 +4,11 @@ Everything in this section is extracted mechanically from the Gogh source on eve
 
 ## Current release
 
-- Plugin version: **0.99.728**
+- Plugin version: **0.99.729**
 - Requires WordPress **6.5+**, PHP **7.4+**
 - Text domain: `gogh-editor`
 - readme.txt Stable tag: `0.26.0` · Tested up to: `7.0`
-- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.728`). Quote the plugin header version.
+- Note: the readme Stable tag (`0.26.0`) does not match the plugin header version (`0.99.729`). Quote the plugin header version.
 
 ## Design constants
 
@@ -402,6 +402,7 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "Remove video"
 - "Rename"
 - "Rename or remove"
+- "Reset"
 - "Restore this version"
 - "Right"
 - "Roll another take of this design"
@@ -411,6 +412,7 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "Save to the blueprint"
 - "See all pictures"
 - "See all →"
+- "See every layout of this design side by side"
 - "See it on a phone"
 - "See the page as a phone"
 - "Send backward"
@@ -451,7 +453,6 @@ These are the real strings in the current build. Use them verbatim; never paraph
 - "Use this layout"
 - "Video"
 - "Where this item shows"
-- "Which take of this design is on the page"
 - "Write"
 - "Write a post ↗"
 - "Write or change posts in WordPress ↗"
@@ -588,5 +589,5 @@ These are the real strings in the current build. Use them verbatim; never paraph
 
 ## Test suite
 
-`361` tests, run by appending `?gogh-test` to any Gogh page URL while logged in with edit rights on that page.
+`362` tests, run by appending `?gogh-test` to any Gogh page URL while logged in with edit rights on that page.
 

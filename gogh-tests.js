@@ -4578,6 +4578,50 @@
       return 'a video rides the die like a picture';
     });
 
+    test('the Layouts panel shows every take and picks one in place', function () {
+      var tpls = G.templates(), fam = null, faces = null;
+      for (var k = 0; k < tpls.length && !fam; k++) {
+        var t0 = tpls[k];
+        if (!t0.starter || t0.retired || t0.gated) continue;
+        if (!t0.els.some(function (x) { return x.type === 'heading'; })) continue;
+        var f = G.diceFaces(t0.name);
+        if (f && f.length >= 3) { fam = t0; faces = f; }
+      }
+      expect(fam, 'no starter with three takes');
+      G.addSection(fam);
+      var c = contentSecs();
+      var s = c[c.length - 1];
+      var idx = G.sections().indexOf(s);
+      var h = s.els.filter(function (x) { return x.type === 'heading'; })[0];
+      h.text = 'Layouts keep my words';
+      G.renderSection(s);
+      G.pushState();
+      var start = JSON.stringify(s.els);
+      expect(G.openLayoutsPanel(idx), 'the panel did not open');
+      var panel = q('.gogh-panel');
+      var tiles = panel.querySelectorAll('.gogh-lay-take');
+      expect(!panel.hidden && tiles.length === faces.length, 'want ' + faces.length + ' tiles, got ' + tiles.length);
+      expect(panel.querySelectorAll('.gogh-lay-stage .gogh-wrap').length === faces.length, 'every tile should hold a drawn copy');
+      expect(/Layouts keep my words/.test(tiles[1].textContent), 'the tiles should draw this section\u2019s own words');
+      expect(tiles[0].getAttribute('aria-pressed') === 'true' && panel.querySelector('.gogh-lay-reset').disabled, 'it should open on the current take with Reset off');
+      expect(JSON.stringify(s.els) === start, 'drawing the tiles should leave the section as it was');
+      tiles[2].click();
+      expect(s.m && s.m.face === 2, 'picking the third tile should land on take 3, got ' + (s.m && s.m.face));
+      expect(s.els.some(function (x) { return x.type === 'heading' && x.text === 'Layouts keep my words'; }), 'the words should survive the pick');
+      expect(tiles[2].getAttribute('aria-pressed') === 'true' && !panel.querySelector('.gogh-lay-reset').disabled, 'the picked tile should be marked and Reset on');
+      panel.querySelector('.gogh-lay-reset').click();
+      expect(JSON.stringify(s.els) === start, 'Reset should put the section back exactly');
+      tiles[1].click();
+      panel.querySelector('.gogh-lay-done').click();
+      expect(panel.hidden && !panel.dataset.goghLayoutsFor, 'Done should close the panel');
+      expect(s.m.face === 1, 'Done should keep the pick');
+      q('.gogh-undo').click();
+      var s2 = G.sections()[idx];
+      expect(JSON.stringify(s2.els) === start, 'one undo should go back to how it was before the panel');
+      G.deleteSection(idx);
+      return faces.length + ' takes of ' + fam.name + ', pick, reset, one undo';
+    });
+
     testAsync('video corners: chips audition on hover and keep on click', function () {
       return new Promise(function (r) { setTimeout(r, 700); }).then(function () { return cornersTest(); });
     });
